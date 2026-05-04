@@ -1,0 +1,51 @@
+# RAG artifacts
+rag/vector-store/
+rag/chroma_db/
+rag/index/
+rag/cache/
+
+# Obsidian
+.obsidian/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Temporary files
+*.tmp
+*.bak
+.DS_Store
+Thumbs.db
+
+# State & Logs (auto-generated)
+state/*.json
+logs/
+config/webui_state/
+shared/rag/
+
+# Credentials (DO NOT COMMIT)
+config.yaml
+credentials.json
+.secrets/
+*.key
+*.pem
+
+# Debug artifacts
+scripts/debug/
+
+# AlphaFoundry new
+.env
+.env.local
+.env.*.local
+*.db
+*.sqlite
+*.sqlite3
+storage/migrations/versions/*.pyc
+data/
+!data/.gitkeep
+backup/

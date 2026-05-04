@@ -1,0 +1,65 @@
+name: asset_analysis
+title: 资产分析报告
+description: 资产分析卡模板 - 覆盖财务、资金、量价、估值、股东、产业、事件、宏观八大维度
+
+sections:
+  - key: executive_summary
+    title: 执行摘要
+    target_words: 300
+    required_facets: [summary]
+    evidence_policy: allow_synthesis
+
+  - key: financial_analysis
+    title: 财务分析
+    target_words: 500
+    required_facets: [financial]
+    evidence_policy: strict
+
+  - key: fund_flow_analysis
+    title: 资金流向分析
+    target_words: 300
+    required_facets: [fund_flow]
+    evidence_policy: strict
+
+  - key: price_volume_analysis
+    title: 量价分析
+    target_words: 400
+    required_facets: [price_volume]
+    evidence_policy: strict
+
+  - key: valuation_analysis
+    title: 估值分析
+    target_words: 300
+    required_facets: [valuation]
+    evidence_policy: strict
+
+  - key: shareholder_analysis
+    title: 股东分析
+    target_words: 250
+    required_facets: [shareholder]
+    evidence_policy: strict
+
+  - key: industry_analysis
+    title: 产业分析
+    target_words: 400
+    required_facets: [industry]
+    evidence_policy: allow_synthesis
+
+  - key: event_impact
+    title: 事件影响分析
+    target_words: 300
+    required_facets: [event_impact]
+    evidence_policy: strict
+
+  - key: macro_exposure
+    title: 宏观敞口分析
+    target_words: 250
+    required_facets: [macro_exposure]
+    evidence_policy: allow_synthesis
+
+  - key: conclusion
+    title: 结论与建议
+    target_words: 200
+    required_facets: []
+    scenario_required: false
+    evidence_policy: allow_synthesis

@@ -1,0 +1,41 @@
+name: thesis_research
+title: 专题研究备忘录
+description: 专题研究备忘录模板 - 产业链、政策变化、地缘冲突、供需错配、AI compute 等主题
+
+sections:
+  - key: research_overview
+    title: 研究概述
+    target_words: 250
+    required_facets: [summary]
+    evidence_policy: allow_synthesis
+
+  - key: background_context
+    title: 背景与现状
+    target_words: 400
+    required_facets: [background]
+    evidence_policy: strict
+
+  - key: key_assertions
+    title: 核心断言
+    target_words: 400
+    required_facets: [assertions]
+    evidence_policy: strict
+
+  - key: evidence_presentation
+    title: 证据呈现
+    target_words: 500
+    required_facets: [evidence]
+    evidence_policy: strict
+
+  - key: risk_factors
+    title: 风险因素
+    target_words: 300
+    required_facets: [risks]
+    evidence_policy: allow_synthesis
+
+  - key: investment_implications
+    title: 投资启示
+    target_words: 350
+    required_facets: [implications]
+    scenario_required: false
+    evidence_policy: allow_synthesis
