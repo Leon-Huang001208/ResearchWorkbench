@@ -5,7 +5,7 @@ from typing import Optional
 from core.contracts import AssetAnalysisSnapshot
 from core.interfaces import AssetSnapshotRepository, EntityRepository
 from core.observability import get_logger
-from data_layer.adapters import IFindAdapter, LocalDataAdapter
+from data_layer.adapters import IFinDAdapter, LocalDataAdapter
 
 logger = get_logger(__name__)
 
@@ -17,7 +17,7 @@ class AssetAnalysisService:
         self,
         asset_snapshot_repo: AssetSnapshotRepository,
         entity_repo: Optional[EntityRepository] = None,
-        ifind_adapter: Optional[IFindAdapter] = None,
+        ifind_adapter: Optional[IFinDAdapter] = None,
         local_adapter: Optional[LocalDataAdapter] = None,
     ):
         self.asset_snapshot_repo = asset_snapshot_repo

@@ -3,7 +3,12 @@
 初始化数据库
 创建所有表
 """
+import sys
 from pathlib import Path
+
+# 把项目根目录加入 path
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
 
 from data_layer.repositories.base import Base, engine
 from data_layer.repositories.models import (

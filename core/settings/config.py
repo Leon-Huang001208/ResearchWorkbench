@@ -10,8 +10,8 @@ class Settings(BaseSettings):
     # 项目根目录
     PROJECT_ROOT: Path = Path(__file__).parent.parent.parent
 
-    # 数据库 (默认使用 PostgreSQL；也支持 SQLite，比如 "sqlite:///./data/alphafoundry.db")
-    DATABASE_URL: str = "postgresql://user:password@localhost:5432/alphafoundry"
+    # 数据库 (默认使用 SQLite，零配置；生产环境建议使用 PostgreSQL)
+    DATABASE_URL: str = "sqlite:///./data/alphafoundry.db"
 
     # 模型网关
     MODEL_PROVIDER: Literal["volcano", "openai_compatible"] = "volcano"
