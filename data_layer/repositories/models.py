@@ -1,10 +1,24 @@
-from datetime import datetime
 
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, Numeric, Text
-from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP
+from datetime import datetime, timezone
+
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, Numeric, Text, DateTime
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
 from data_layer.repositories.base import Base
+
+
+def utc_now():
+    return datetime.now(timezone.utc)
+
+
+# 兼容 SQLite 和 PostgreSQL：优先使用 JSONB，回退到 JSON
+try:
+    from sqlalchemy.dialects.postgresql import JSONB
+    JSONType = JSONB
+except ImportError:
+    from sqlalchemy import JSON
+    JSONType = JSON
 
 
 class Entity(Base):
@@ -16,13 +30,13 @@ class Entity(Base):
     canonical_id = Column(Text, unique=True, nullable=False)
     entity_type = Column(Text, nullable=False)
     canonical_name = Column(Text, nullable=False)
-    aliases = Column(JSONB, nullable=False, server_default="[]")
-    vendor_ids = Column(JSONB, nullable=False, server_default="{}")
-    properties = Column(JSONB, nullable=False, server_default="{}")
+    aliases = Column(JSONType, nullable=False, default=list)
+    vendor_ids = Column(JSONType, nullable=False, default=dict)
+    properties = Column(JSONType, nullable=False, default=dict)
     team_id = Column(Text, nullable=True)
     project_id = Column(Text, nullable=True)
-    created_at = Column(TIMESTAMP(timezone=True), nullable=False, default=datetime.utcnow)
-    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
 
     # 关系
     assertions = relationship("Assertion", foreign_keys="Assertion.subject_entity_id")
@@ -36,17 +50,17 @@ class SourceDocument(Base):
     doc_id = Column(Text, primary_key=True)
     source_type = Column(Text, nullable=False)
     title = Column(Text, nullable=True)
-    published_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    published_at = Column(DateTime(timezone=True), nullable=True)
     source_name = Column(Text, nullable=False)
     content_hash = Column(Text, nullable=False)
     rights_ref = Column(Text, nullable=True)
     parser_version = Column(Text, nullable=False)
     object_uri = Column(Text, nullable=False)
-    metadata = Column(JSONB, nullable=False, server_default="{}")
+    metadata = Column(JSONType, nullable=False, default=dict)
     embedding = Column(Text, nullable=True)
     team_id = Column(Text, nullable=True)
     project_id = Column(Text, nullable=True)
-    created_at = Column(TIMESTAMP(timezone=True), nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
 
     # 关系
     assertions = relationship("Assertion", backref="source_document")
@@ -62,17 +76,17 @@ class Assertion(Base):
     subject_entity_id = Column(Text, ForeignKey("entity.entity_id"), nullable=True)
     predicate = Column(Text, nullable=False)
     object_entity_id = Column(Text, nullable=True)
-    object_value = Column(JSONB, nullable=True)
-    observed_at = Column(TIMESTAMP(timezone=True), nullable=True)
-    valid_from = Column(TIMESTAMP(timezone=True), nullable=True)
-    valid_to = Column(TIMESTAMP(timezone=True), nullable=True)
+    object_value = Column(JSONType, nullable=True)
+    observed_at = Column(DateTime(timezone=True), nullable=True)
+    valid_from = Column(DateTime(timezone=True), nullable=True)
+    valid_to = Column(DateTime(timezone=True), nullable=True)
     confidence = Column(Numeric, nullable=False)
     source_doc_id = Column(Text, ForeignKey("source_document.doc_id"), nullable=True)
-    source_span = Column(JSONB, nullable=False, server_default="{}")
+    source_span = Column(JSONType, nullable=False, default=dict)
     extractor_version = Column(Text, nullable=False)
-    reviewer_status = Column(Text, nullable=False, server_default="draft")
+    reviewer_status = Column(Text, nullable=False, default="draft")
     reviewer = Column(Text, nullable=True)
-    reviewed_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    reviewed_at = Column(DateTime(timezone=True), nullable=True)
     trace_ref = Column(Text, nullable=True)
     team_id = Column(Text, nullable=True)
     project_id = Column(Text, nullable=True)
@@ -86,15 +100,15 @@ class CanonicalEvent(Base):
     event_id = Column(Text, primary_key=True)
     event_type = Column(Text, nullable=False)
     summary = Column(Text, nullable=False)
-    event_time = Column(TIMESTAMP(timezone=True), nullable=True)
+    event_time = Column(DateTime(timezone=True), nullable=True)
     impact_direction = Column(Text, nullable=False)
     confidence = Column(Numeric, nullable=False)
-    needs_review = Column(Boolean, nullable=False, server_default="true")
+    needs_review = Column(Boolean, nullable=False, default=True)
     source_doc_id = Column(Text, ForeignKey("source_document.doc_id"), nullable=True)
-    payload = Column(JSONB, nullable=False, server_default="{}")
+    payload = Column(JSONType, nullable=False, default=dict)
     team_id = Column(Text, nullable=True)
     project_id = Column(Text, nullable=True)
-    created_at = Column(TIMESTAMP(timezone=True), nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
 
 
 class ReasoningTrace(Base):
@@ -105,11 +119,11 @@ class ReasoningTrace(Base):
     trace_id = Column(Text, primary_key=True)
     request_type = Column(Text, nullable=False)
     question = Column(Text, nullable=False)
-    subject_ids = Column(JSONB, nullable=False, server_default="[]")
-    retrieved_doc_ids = Column(JSONB, nullable=False, server_default="[]")
-    retrieved_assertion_ids = Column(JSONB, nullable=False, server_default="[]")
-    graph_paths = Column(JSONB, nullable=False, server_default="[]")
-    intermediate_hypotheses = Column(JSONB, nullable=False, server_default="[]")
+    subject_ids = Column(JSONType, nullable=False, default=list)
+    retrieved_doc_ids = Column(JSONType, nullable=False, default=list)
+    retrieved_assertion_ids = Column(JSONType, nullable=False, default=list)
+    graph_paths = Column(JSONType, nullable=False, default=list)
+    intermediate_hypotheses = Column(JSONType, nullable=False, default=list)
     final_answer = Column(Text, nullable=True)
     provider = Column(Text, nullable=False)
     model_name = Column(Text, nullable=False)
@@ -118,7 +132,7 @@ class ReasoningTrace(Base):
     total_tokens = Column(Integer, nullable=False)
     team_id = Column(Text, nullable=True)
     project_id = Column(Text, nullable=True)
-    created_at = Column(TIMESTAMP(timezone=True), nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
 
 
 class AssetSnapshot(Base):
@@ -128,16 +142,16 @@ class AssetSnapshot(Base):
 
     snapshot_id = Column(Text, primary_key=True)
     canonical_id = Column(Text, ForeignKey("entity.canonical_id"), nullable=False, index=True)
-    as_of = Column(TIMESTAMP(timezone=True), nullable=False, index=True)
-    financial = Column(JSONB, nullable=False, server_default="{}")
-    fund_flow = Column(JSONB, nullable=False, server_default="{}")
-    price_volume = Column(JSONB, nullable=False, server_default="{}")
-    valuation = Column(JSONB, nullable=False, server_default="{}")
-    shareholder = Column(JSONB, nullable=False, server_default="{}")
-    industry = Column(JSONB, nullable=False, server_default="{}")
-    event_impact = Column(JSONB, nullable=False, server_default="[]")
-    macro_exposure = Column(JSONB, nullable=False, server_default="{}")
-    evidence_refs = Column(JSONB, nullable=False, server_default="[]")
+    as_of = Column(DateTime(timezone=True), nullable=False, index=True)
+    financial = Column(JSONType, nullable=False, default=dict)
+    fund_flow = Column(JSONType, nullable=False, default=dict)
+    price_volume = Column(JSONType, nullable=False, default=dict)
+    valuation = Column(JSONType, nullable=False, default=dict)
+    shareholder = Column(JSONType, nullable=False, default=dict)
+    industry = Column(JSONType, nullable=False, default=dict)
+    event_impact = Column(JSONType, nullable=False, default=list)
+    macro_exposure = Column(JSONType, nullable=False, default=dict)
+    evidence_refs = Column(JSONType, nullable=False, default=list)
     team_id = Column(Text, nullable=True)
     project_id = Column(Text, nullable=True)
-    created_at = Column(TIMESTAMP(timezone=True), nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)

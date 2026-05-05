@@ -29,8 +29,8 @@ class AssetAnalysisService:
         self,
         canonical_id: str,
         as_of: Optional[datetime] = None,
-        use_mock: bool = True,
-        source: str = "mock",
+        use_mock: bool = False,
+        source: str = "local",
     ) -> AssetAnalysisSnapshot:
         """
         生成资产分析快照

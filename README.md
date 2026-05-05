@@ -31,13 +31,28 @@ cd ~/Desktop/Projects/AlphaFoundry
 pip install -e ".[dev]"
 ```
 
-### 配置
+### 配置数据库
 
+AlphaFoundry 默认使用 PostgreSQL，也支持 SQLite。
+
+#### 方式一：SQLite（零配置，快速开始）
+修改 `.env` 文件：
+```env
+DATABASE_URL=sqlite:///./data/alphafoundry.db
+```
+
+#### 方式二：PostgreSQL（推荐）
+1. 确保本地运行 PostgreSQL 15+
+2. 创建数据库 `alphafoundry`
+3. 修改 `.env` 文件中的 `DATABASE_URL`
+4. 初始化数据库表：
 ```bash
-# 复制环境变量模板
-cp .env.example .env
+python scripts/init_db.py
+```
 
-# 编辑 .env 文件（可选，模拟模式无需配置）
+### 复制环境变量模板
+```bash
+cp .env.example .env
 ```
 
 ### 运行测试
