@@ -1,14 +1,14 @@
 """
 回测基类
 
-定义回测的基础接口。
+定义回测的基础接口和BacktestResult契约。
 """
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 import pandas as pd
-import numpy as np
+import pydantic
+from pydantic import BaseModel, Field, ConfigDict
 
 from core.contracts import AlphaSignal
 from core.observability import get_logger
@@ -16,9 +16,10 @@ from core.observability import get_logger
 logger = get_logger(__name__)
 
 
-@dataclass
-class BacktestResult:
-    """回测结果"""
+class BacktestResult(BaseModel):
+    """回测结果 — Pydantic契约"""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     total_return: float = 0.0
     annual_return: float = 0.0
@@ -26,11 +27,13 @@ class BacktestResult:
     sharpe_ratio: float = 0.0
     max_drawdown: float = 0.0
     win_rate: float = 0.0
-    num_trades: int = 0
-    returns: pd.Series = field(default_factory=pd.Series)
-    positions: pd.Series = field(default_factory=pd.Series)
-    equity_curve: pd.Series = field(default_factory=pd.Series)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    total_trades: int = 0
+    signal_id: str = ""
+    engine: Literal["simple", "vectorbt", "backtrader"] = "simple"
+    returns: Optional[Any] = Field(default=None, exclude=True)
+    positions: Optional[Any] = Field(default=None, exclude=True)
+    equity_curve: Optional[Any] = Field(default=None, exclude=True)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""
@@ -41,7 +44,9 @@ class BacktestResult:
             "sharpe_ratio": self.sharpe_ratio,
             "max_drawdown": self.max_drawdown,
             "win_rate": self.win_rate,
-            "num_trades": self.num_trades,
+            "total_trades": self.total_trades,
+            "signal_id": self.signal_id,
+            "engine": self.engine,
             **self.metadata,
         }
 
@@ -49,7 +54,8 @@ class BacktestResult:
         return (
             f"BacktestResult(total_return={self.total_return:.2%}, "
             f"sharpe={self.sharpe_ratio:.2f}, "
-            f"max_dd={self.max_drawdown:.2%})"
+            f"max_dd={self.max_drawdown:.2%}, "
+            f"engine={self.engine})"
         )
 
 

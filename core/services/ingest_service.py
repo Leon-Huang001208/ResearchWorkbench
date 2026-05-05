@@ -29,10 +29,16 @@ class IngestService:
         document_repo: Optional[DocumentRepository] = None,
         model_gateway: Optional[ModelGateway] = None,
         vector_store: Optional[VectorStore] = None,
+        assertion_repo: Optional["AssertionRepository"] = None,
+        event_repo: Optional["EventRepository"] = None,
     ):
+        from core.interfaces import AssertionRepository, EventRepository
+
         self._document_repo = document_repo
         self._model_gateway = model_gateway
         self._vector_store = vector_store or InMemoryVectorStore(model_gateway)
+        self._assertion_repo = assertion_repo
+        self._event_repo = event_repo
         self._assertion_extractor = AssertionExtractor(model_gateway)
         self._assertion_validator = AssertionValidator()
         self._assertion_quality_gate = QualityGate(self._assertion_validator)
@@ -94,6 +100,22 @@ class IngestService:
 
         # 质量门
         approved_events, pending_events = self._event_quality_gate.process_batch(events)
+
+        # 保存断言到仓储
+        if self._assertion_repo:
+            for a in approved_assertions + pending_assertions:
+                try:
+                    self._assertion_repo.save(a)
+                except Exception as e:
+                    logger.warning(f"Failed to save assertion {a.assertion_id}: {e}")
+
+        # 保存事件到仓储
+        if self._event_repo:
+            for ev in approved_events + pending_events:
+                try:
+                    self._event_repo.save(ev)
+                except Exception as e:
+                    logger.warning(f"Failed to save event {ev.event_id}: {e}")
 
         # 索引文档
         self._vector_store.add_document(
@@ -176,6 +198,22 @@ class IngestService:
             logger.debug(f"Extracted {len(events)} events")
 
             approved_events, pending_events = self._event_quality_gate.process_batch(events)
+
+            # 保存断言到仓储
+            if self._assertion_repo:
+                for a in approved_assertions + pending_assertions:
+                    try:
+                        self._assertion_repo.save(a)
+                    except Exception as e:
+                        logger.warning(f"Failed to save assertion {a.assertion_id}: {e}")
+
+            # 保存事件到仓储
+            if self._event_repo:
+                for ev in approved_events + pending_events:
+                    try:
+                        self._event_repo.save(ev)
+                    except Exception as e:
+                        logger.warning(f"Failed to save event {ev.event_id}: {e}")
 
             # 索引文档
             logger.debug("Indexing document in vector store...")

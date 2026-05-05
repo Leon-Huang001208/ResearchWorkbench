@@ -26,6 +26,9 @@ class EventRepositoryImpl(BaseRepository, EventRepository):
             assertions=model.payload.get("assertions", []),
             evidence_spans=model.payload.get("evidence_spans", []),
             source_doc_id=model.source_doc_id or "",
+            reviewer_status=model.reviewer_status or "draft",
+            reviewer=model.reviewer,
+            reviewed_at=model.reviewed_at,
         )
 
     def _to_model(self, domain: CanonicalEvent) -> CanonicalEventModel:
@@ -44,6 +47,9 @@ class EventRepositoryImpl(BaseRepository, EventRepository):
                 "assertions": domain.assertions,
                 "evidence_spans": domain.evidence_spans,
             },
+            reviewer_status=domain.reviewer_status,
+            reviewer=domain.reviewer,
+            reviewed_at=domain.reviewed_at,
         )
 
     def save(self, entity: CanonicalEvent) -> CanonicalEvent:
@@ -62,6 +68,9 @@ class EventRepositoryImpl(BaseRepository, EventRepository):
                 "assertions": entity.assertions,
                 "evidence_spans": entity.evidence_spans,
             }
+            model.reviewer_status = entity.reviewer_status
+            model.reviewer = entity.reviewer
+            model.reviewed_at = entity.reviewed_at
         else:
             model = self._to_model(entity)
             self.db.add(model)
@@ -114,3 +123,18 @@ class EventRepositoryImpl(BaseRepository, EventRepository):
             return [self._to_domain(m) for m in models]
         except Exception:
             return []
+
+    def get_pending_review(self) -> List[CanonicalEvent]:
+        """获取待审核的事件"""
+        models = self.db.query(CanonicalEventModel).filter_by(reviewer_status="pending").all()
+        return [self._to_domain(m) for m in models]
+
+    def list_by_status(self, status: str, limit: int = 100) -> List[CanonicalEvent]:
+        """根据审核状态列出事件"""
+        models = (
+            self.db.query(CanonicalEventModel)
+            .filter_by(reviewer_status=status)
+            .limit(limit)
+            .all()
+        )
+        return [self._to_domain(m) for m in models]

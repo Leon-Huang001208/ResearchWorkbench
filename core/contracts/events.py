@@ -18,3 +18,6 @@ class CanonicalEvent(BaseModel):
     assertions: list[dict] = Field(default_factory=list)
     evidence_spans: list[dict] = Field(default_factory=list)
     source_doc_id: str
+    reviewer_status: Literal["draft", "pending", "approved", "rejected"] = "draft"
+    reviewer: str | None = None
+    reviewed_at: datetime | None = None

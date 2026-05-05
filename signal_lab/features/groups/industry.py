@@ -52,6 +52,47 @@ class IndustryStrengthFeature(Feature):
         return stock_cum - industry_cum
 
 
+class IndustryConcentrationFeature(Feature):
+    """行业集中度特征 — 市值占比"""
+
+    def __init__(self, window: int = 60):
+        super().__init__(
+            name=f"industry_concentration_{window}d",
+            description=f"{window}日行业集中度"
+        )
+        self.window = window
+
+    def compute(self, data: pd.DataFrame, **kwargs: Any) -> pd.Series:
+        conc_col = kwargs.get("concentration_col", "industry_concentration")
+        if conc_col in data.columns:
+            return data[conc_col].rolling(self.window).mean()
+        # 退而求其次用行业收益率标准差作为集中度代理
+        industry_return_col = kwargs.get("industry_return_col", "industry_return")
+        if industry_return_col in data.columns:
+            return data[industry_return_col].rolling(self.window).std()
+        return pd.Series([pd.NA] * len(data), index=data.index)
+
+
+class CrossSectionalRankFeature(Feature):
+    """截面排名特征"""
+
+    def __init__(self, metric: str = "return", window: int = 20):
+        super().__init__(
+            name=f"cs_rank_{metric}_{window}d",
+            description=f"{metric}的{window}日截面排名"
+        )
+        self.metric = metric
+        self.window = window
+
+    def compute(self, data: pd.DataFrame, **kwargs: Any) -> pd.Series:
+        col = kwargs.get(f"{self.metric}_col", self.metric)
+        if col in data.columns:
+            return data[col].rolling(self.window).apply(
+                lambda x: pd.Series(x).rank(pct=True).iloc[-1], raw=True
+            )
+        return pd.Series([pd.NA] * len(data), index=data.index)
+
+
 class IndustryFeatures(FeatureGroup):
     """行业特征组"""
 
@@ -61,6 +102,9 @@ class IndustryFeatures(FeatureGroup):
             IndustryMomentumFeature(60),
             IndustryStrengthFeature(20),
             IndustryStrengthFeature(60),
+            IndustryConcentrationFeature(60),
+            CrossSectionalRankFeature("return", 20),
+            CrossSectionalRankFeature("volume", 20),
         ]
 
         super().__init__("industry", features)

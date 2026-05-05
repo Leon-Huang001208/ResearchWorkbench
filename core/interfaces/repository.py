@@ -96,6 +96,16 @@ class EventRepository(Repository[CanonicalEvent]):
         """获取时间范围内的事件"""
         pass
 
+    @abstractmethod
+    def get_pending_review(self) -> List[CanonicalEvent]:
+        """获取待审核的事件"""
+        pass
+
+    @abstractmethod
+    def list_by_status(self, status: str, limit: int = 100) -> List[CanonicalEvent]:
+        """根据审核状态列出事件"""
+        pass
+
 
 class TraceRepository(Repository[ReasoningTrace]):
     """推理追踪仓储"""

@@ -79,6 +79,45 @@ class GrowthFeature(Feature):
         return data[col].pct_change(self.periods)
 
 
+class DebtRatioFeature(Feature):
+    """资产负债率特征"""
+
+    def __init__(self):
+        super().__init__(
+            name="debt_ratio",
+            description="资产负债率"
+        )
+
+    def compute(self, data: pd.DataFrame, **kwargs: Any) -> pd.Series:
+        debt_col = kwargs.get("debt_col", "total_debt")
+        assets_col = kwargs.get("assets_col", "total_assets")
+        if debt_col in data.columns and assets_col in data.columns:
+            assets = data[assets_col].replace(0, np.nan)
+            return data[debt_col] / assets
+        return pd.Series([pd.NA] * len(data), index=data.index)
+
+
+class CurrentRatioFeature(Feature):
+    """流动比率特征"""
+
+    def __init__(self):
+        super().__init__(
+            name="current_ratio",
+            description="流动比率"
+        )
+
+    def compute(self, data: pd.DataFrame, **kwargs: Any) -> pd.Series:
+        cr_col = kwargs.get("current_ratio_col", "current_ratio")
+        if cr_col in data.columns:
+            return data[cr_col]
+        current_assets_col = kwargs.get("current_assets_col", "current_assets")
+        current_liab_col = kwargs.get("current_liab_col", "current_liabilities")
+        if current_assets_col in data.columns and current_liab_col in data.columns:
+            liab = data[current_liab_col].replace(0, np.nan)
+            return data[current_assets_col] / liab
+        return pd.Series([pd.NA] * len(data), index=data.index)
+
+
 class FinancialFeatures(FeatureGroup):
     """财务特征组"""
 
@@ -90,6 +129,8 @@ class FinancialFeatures(FeatureGroup):
             GrowthFeature("revenue", 1),
             GrowthFeature("net_profit", 4),
             GrowthFeature("net_profit", 1),
+            DebtRatioFeature(),
+            CurrentRatioFeature(),
         ]
 
         super().__init__("financial", features)
