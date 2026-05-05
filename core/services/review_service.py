@@ -56,7 +56,11 @@ class ReviewService:
             logger.warning("Assertion repository not configured")
             return []
 
-        return self._assertion_repo.get_pending_review()[:limit]
+        try:
+            return self._assertion_repo.get_pending_review()[:limit]
+        except Exception as e:
+            logger.error(f"Failed to list pending assertions: {e}")
+            return []
 
     def approve_assertion(self, assertion_id: str, reviewer: str = "cli") -> bool:
         """
@@ -130,7 +134,11 @@ class ReviewService:
             logger.warning("Event repository not configured")
             return []
 
-        return self._event_repo.get_pending_review()[:limit]
+        try:
+            return self._event_repo.get_pending_review()[:limit]
+        except Exception as e:
+            logger.error(f"Failed to list pending events: {e}")
+            return []
 
     def approve_event(self, event_id: str, reviewer: str = "cli") -> bool:
         """
@@ -209,11 +217,17 @@ class ReviewService:
         }
 
         if self._assertion_repo:
-            pending = self._assertion_repo.get_pending_review()
-            stats["pending_assertions"] = len(pending)
+            try:
+                pending = self._assertion_repo.get_pending_review()
+                stats["pending_assertions"] = len(pending)
+            except Exception as e:
+                logger.error(f"Failed to get pending assertions stats: {e}")
 
         if self._event_repo:
-            pending_events = self._event_repo.get_pending_review()
-            stats["pending_events"] = len(pending_events)
+            try:
+                pending_events = self._event_repo.get_pending_review()
+                stats["pending_events"] = len(pending_events)
+            except Exception as e:
+                logger.error(f"Failed to get pending events stats: {e}")
 
         return stats

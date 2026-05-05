@@ -15,7 +15,15 @@ router = APIRouter(prefix="/api/review", tags=["review"])
 
 
 def get_review_service() -> ReviewService:
-    """获取审核服务实例"""
+    """获取审核服务实例，确保数据库 schema 就绪"""
+    try:
+        from data_layer.repositories.base import ensure_schema
+
+        ensure_schema()
+    except Exception as e:
+        from core.observability import get_logger
+
+        get_logger(__name__).warning(f"ensure_schema failed: {e}")
     return ReviewService()
 
 

@@ -16,6 +16,51 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 # 基类
 Base = declarative_base()
 
+
+def ensure_schema() -> None:
+    """确保数据库 schema 与 ORM 模型一致。
+
+    对于 SQLite，先 create_all 创建缺失的表，
+    再对已有表检查并添加缺失的列（ALTER TABLE ADD COLUMN）。
+    """
+    # 导入所有模型以注册到 Base.metadata
+    import data_layer.repositories.models  # noqa: F401
+
+    Base.metadata.create_all(bind=engine)
+
+    # 对 SQLite，检查已有表是否缺少列并自动补列
+    if settings.DATABASE_URL.startswith("sqlite"):
+        import sqlite3
+
+        db_path = settings.DATABASE_URL.replace("sqlite:///", "")
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            for table in Base.metadata.sorted_tables:
+                cursor.execute(f"PRAGMA table_info({table.name})")
+                existing_cols = {row[1] for row in cursor.fetchall()}
+                for col in table.columns:
+                    if col.name not in existing_cols:
+                        col_type = col.type.compile(dialect=engine.dialect)
+                        nullable = "" if col.primary_key or not col.nullable else " DEFAULT NULL"
+                        default_clause = ""
+                        if col.server_default is not None:
+                            default_clause = f" DEFAULT {col.server_default.arg}"
+                        elif col.default is not None:
+                            default_clause = f" DEFAULT '{col.default.arg}'"
+                        elif not col.primary_key and col.nullable:
+                            default_clause = " DEFAULT NULL"
+                        sql = f"ALTER TABLE {table.name} ADD COLUMN {col.name} {col_type}{default_clause}"
+                        logger.info(f"Adding missing column: {sql}")
+                        try:
+                            cursor.execute(sql)
+                        except Exception as e:
+                            logger.warning(f"Failed to add column {table.name}.{col.name}: {e}")
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            logger.warning(f"Schema migration check failed: {e}")
+
 T = TypeVar("T")
 
 
