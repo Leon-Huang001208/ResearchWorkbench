@@ -19,17 +19,19 @@ class AssetAnalysisService:
         entity_repo: Optional[EntityRepository] = None,
         ifind_adapter: Optional[IFinDAdapter] = None,
         local_adapter: Optional[LocalDataAdapter] = None,
+        use_mock: bool = False,
     ):
         self.asset_snapshot_repo = asset_snapshot_repo
         self.entity_repo = entity_repo
         self.ifind_adapter = ifind_adapter
         self.local_adapter = local_adapter or LocalDataAdapter()
+        self._use_mock = use_mock
 
     def generate_snapshot(
         self,
         canonical_id: str,
         as_of: Optional[datetime] = None,
-        use_mock: bool = False,
+        use_mock: Optional[bool] = None,
         source: str = "local",
     ) -> AssetAnalysisSnapshot:
         """
@@ -38,11 +40,14 @@ class AssetAnalysisService:
         Args:
             canonical_id: 资产代码
             as_of: 快照时间
-            use_mock: 是否使用模拟数据（兼容旧接口）
+            use_mock: 是否使用模拟数据（兼容旧接口）；None 时使用构造函数设置
             source: 数据源: "mock", "local", "ifind"
         """
         if as_of is None:
             as_of = datetime.utcnow()
+
+        # 合并实例级和调用级 use_mock
+        effective_use_mock = use_mock if use_mock is not None else self._use_mock
 
         logger.info(
             "generating asset snapshot",
@@ -52,7 +57,7 @@ class AssetAnalysisService:
         )
 
         # 兼容旧接口：如果 use_mock=False，尝试本地数据
-        if use_mock or source == "mock":
+        if effective_use_mock or source == "mock":
             snapshot = self._generate_mock_snapshot(canonical_id, as_of)
         elif source == "local":
             snapshot = self._fetch_from_local(canonical_id, as_of)

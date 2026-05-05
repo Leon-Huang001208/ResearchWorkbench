@@ -13,6 +13,11 @@ from knowledge_layer.assertions import AssertionExtractor, AssertionValidator, Q
 from knowledge_layer.events import EventExtractor, EventQualityGate
 from knowledge_layer.retrieval import InMemoryVectorStore, VectorStore
 
+try:
+    import pdfplumber
+except ImportError:
+    pdfplumber = None  # type: ignore[assignment]
+
 logger = get_logger(__name__)
 
 
@@ -210,13 +215,11 @@ class IngestService:
         """读取文件内容"""
         if file_path.suffix.lower() == ".pdf":
             # 简单 PDF 读取（使用 pdfplumber）
-            try:
-                import pdfplumber
-
+            if pdfplumber is not None:
                 with pdfplumber.open(file_path) as pdf:
                     text = "\n".join([page.extract_text() or "" for page in pdf.pages])
                     return text
-            except ImportError:
+            else:
                 logger.warning("pdfplumber not available, reading as text")
         elif file_path.suffix.lower() in [".txt", ".md"]:
             return file_path.read_text(encoding="utf-8")

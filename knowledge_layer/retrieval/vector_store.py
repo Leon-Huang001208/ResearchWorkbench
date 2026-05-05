@@ -125,20 +125,41 @@ class InMemoryVectorStore(VectorStore):
         return self._dummy_embedding(text)
 
     def _dummy_embedding(self, text: str) -> List[float]:
-        """生成伪嵌入（用于无模型时）"""
-        # 使用简单的字符统计生成固定维度的向量
+        """生成基于字符 n-gram 的伪嵌入（用于无模型时）
+
+        Uses character bigrams so that texts sharing characters/words
+        produce similar vectors, enabling basic semantic similarity.
+        """
         import hashlib
-        import struct
 
-        h = hashlib.md5(text.encode("utf-8")).digest()
-        nums = struct.unpack("16B", h)
+        # Use 256 bigram buckets for a compact, meaningful embedding
+        dim = 256
+        embedding = [0.0] * dim
 
-        # 归一化到 1536 维
-        embedding = [0.0] * 1536
-        for i, num in enumerate(nums):
-            for j in range(i * 96, (i + 1) * 96):
-                if j < 1536:
-                    embedding[j] = num / 255.0
+        # Normalize text
+        normalized = text.lower().strip()
+
+        # Count character bigrams
+        for i in range(len(normalized) - 1):
+            bigram = normalized[i : i + 1]
+            bucket = int(hashlib.md5(bigram.encode("utf-8")).hexdigest(), 16) % dim
+            embedding[bucket] += 1.0
+
+        # Also count individual characters for unigram signal
+        for ch in normalized:
+            bucket = ord(ch) % dim
+            embedding[bucket] += 0.5
+
+        # Also count word-level features
+        words = normalized.split()
+        for word in words:
+            bucket = int(hashlib.md5(word.encode("utf-8")).hexdigest(), 16) % dim
+            embedding[bucket] += 2.0  # words get higher weight
+
+        # Normalize to unit vector for cosine similarity
+        norm = sum(x * x for x in embedding) ** 0.5
+        if norm > 0:
+            embedding = [x / norm for x in embedding]
 
         return embedding
 

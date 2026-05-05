@@ -41,9 +41,9 @@ class TraceWriter:
             retrieved_assertion_ids=state.retrieved_assertion_ids,
             graph_paths=[],
             intermediate_hypotheses=[
-                h.dict()
-                if hasattr(h, "dict")
-                else (h.model_dump() if hasattr(h, "model_dump") else {})
+                h.model_dump()
+                if hasattr(h, "model_dump")
+                else (h.dict() if hasattr(h, "dict") else {})
                 for h in state.hypotheses
             ],
             final_answer=state.final_answer,

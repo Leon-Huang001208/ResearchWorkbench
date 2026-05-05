@@ -54,6 +54,8 @@ def analyze_command(
                 as_of_dt = datetime.fromisoformat(as_of)
             except ValueError:
                 click.echo(f"Invalid date format: {as_of}", err=True)
+                ctx = click.get_current_context()
+                ctx.exit(1)
                 return
 
         # 生成快照
@@ -71,6 +73,8 @@ def analyze_command(
         except Exception as e:
             click.echo(f"Failed to generate snapshot: {e}", err=True)
             logger.error("failed to generate snapshot", error=str(e))
+            ctx = click.get_current_context()
+            ctx.exit(1)
             return
 
         # 输出到文件（如果指定）

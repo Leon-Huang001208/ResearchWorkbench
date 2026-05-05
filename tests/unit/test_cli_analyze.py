@@ -54,6 +54,9 @@ class TestAnalyzeCommand:
             mock_snapshot.canonical_id = "600000.SH"
             mock_snapshot.valuation = {}
             mock_snapshot.price_volume = {}
+            mock_snapshot.evidence_refs = []
+            mock_snapshot.event_impact = []
+            mock_snapshot.as_of = "2026-05-05"
 
             mock_service_instance = Mock()
             mock_service_instance.generate_snapshot.return_value = mock_snapshot

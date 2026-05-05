@@ -16,9 +16,16 @@ class AssetSnapshotRepositoryImpl(BaseRepository, AssetSnapshotRepository):
 
     def _to_domain(self, model: AssetSnapshotModel) -> AssetAnalysisSnapshot:
         """转换为领域模型"""
+        from datetime import timezone
+
+        as_of = model.as_of
+        # 确保 as_of 带有 UTC 时区信息（SQLite 可能丢失时区）
+        if as_of is not None and as_of.tzinfo is None:
+            as_of = as_of.replace(tzinfo=timezone.utc)
+
         return AssetAnalysisSnapshot(
             canonical_id=model.canonical_id,
-            as_of=model.as_of,
+            as_of=as_of,
             financial=model.financial,
             fund_flow=model.fund_flow,
             price_volume=model.price_volume,

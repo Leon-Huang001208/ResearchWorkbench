@@ -3,6 +3,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+try:
+    import docx as _docx_mod  # noqa: F401 – re-exported on demand
+except ImportError:
+    _docx_mod = None  # type: ignore[assignment]
+
 from core.contracts import SectionOutput
 from core.observability import get_logger
 
@@ -90,7 +95,9 @@ class WordProjection:
                 warning_para = doc.add_paragraph()
                 warning_run = warning_para.add_run("⚠️ 警告:")
                 warning_run.bold = True
-                warning_run.font.color.rgb = docx.shared.RGBColor(255, 0, 0)
+                from docx.shared import RGBColor
+
+                warning_run.font.color.rgb = RGBColor(255, 0, 0)
                 for warning in section.warnings:
                     doc.add_paragraph(warning, style="List Bullet")
 
