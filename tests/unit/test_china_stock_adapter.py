@@ -106,13 +106,17 @@ class TestChinaStockAdapter:
 class TestDataSourceRouter:
     """测试 DataSourceRouter"""
 
-    @patch.object(ChinaStockAdapter, "fetch_stock_quotes")
+    @patch("data_layer.adapters.china_stock_adapter.ChinaStockAdapter.fetch_stock_quotes")
+    @patch("data_layer.adapters.akshare_adapter.AkShareAdapter.fetch_stock_quotes")
     @patch("data_layer.adapters.ifind_adapter.IFinDAdapter.fetch_stock_quotes")
-    def test_router_fallback(self, mock_ifind_fetch, mock_cs_fetch):
-        """测试降级策略：iFinD 失败后使用 China Stock"""
+    def test_router_fallback(self, mock_ifind_fetch, mock_akshare_fetch, mock_cs_fetch):
+        """测试降级策略：iFinD 失败后使用 AkShare, then China Stock"""
         from data_layer.adapters.ifind.exceptions import IFinDDatasourceError
+        from data_layer.adapters.akshare.exceptions import AkShareAdapterError
 
         mock_ifind_fetch.side_effect = IFinDDatasourceError("iFinD not available")
+        # Make AkShare fail too, so it falls back to ChinaStock
+        mock_akshare_fetch.side_effect = AkShareAdapterError("AkShare not available")
         mock_cs_fetch.return_value = [
             AssetAnalysisSnapshot(
                 canonical_id="china_stock:000001:20240101:abc123",
@@ -124,4 +128,5 @@ class TestDataSourceRouter:
         snapshots = asyncio.run(router.fetch_stock_quotes(["000001"], "2024-01-01", "2024-01-31"))
         assert len(snapshots) == 1
         assert mock_ifind_fetch.called
+        assert mock_akshare_fetch.called
         assert mock_cs_fetch.called

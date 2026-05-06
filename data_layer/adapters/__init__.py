@@ -4,11 +4,13 @@ from data_layer.adapters.china_stock_adapter import ChinaStockAdapter
 from data_layer.adapters.ifind_adapter import IFinDAdapter
 from data_layer.adapters.local_data_adapter import LocalDataAdapter
 from data_layer.adapters.pdf_adapter import PDFAdapter
+from data_layer.adapters.akshare_adapter import AkShareAdapter
 
 __all__ = [
     "BaseDataAdapter",
     "PDFAdapter",
     "IFinDAdapter",
     "ChinaStockAdapter",
+    "AkShareAdapter",
     "LocalDataAdapter",
 ]

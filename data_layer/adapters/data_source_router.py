@@ -1,13 +1,14 @@
-"""数据源路由器 - 实现 iFinD 优先、China Stock 降级的策略"""
+"""数据源路由器 - 实现 iFinD 优先、AkShare 其次、China Stock 降级的策略"""
 from datetime import datetime
 from typing import Any
 
 from core.contracts import DocumentEnvelope
 from core.contracts.assets import AssetAnalysisSnapshot
 from core.observability import get_logger
-from data_layer.adapters import ChinaStockAdapter, IFinDAdapter
+from data_layer.adapters import ChinaStockAdapter, IFinDAdapter, AkShareAdapter
 from data_layer.adapters.china_stock.exceptions import ChinaStockPluginError
 from data_layer.adapters.ifind.exceptions import IFinDDatasourceError
+from data_layer.adapters.akshare.exceptions import AkShareAdapterError
 
 logger = get_logger(__name__)
 
@@ -15,11 +16,12 @@ logger = get_logger(__name__)
 class DataSourceRouter:
     """
     数据源路由器
-    策略：iFinD 优先 → China Stock 降级
+    策略：iFinD 优先 → AkShare → China Stock 降级
     """
 
     def __init__(self):
         self.ifind_adapter = IFinDAdapter()
+        self.akshare_adapter = AkShareAdapter()
         self.china_stock_adapter = ChinaStockAdapter()
 
     async def fetch_stock_quotes(
@@ -30,12 +32,16 @@ class DataSourceRouter:
             logger.info("Trying iFinD adapter for stock quotes")
             return await self.ifind_adapter.fetch_stock_quotes(codes, start_date, end_date)
         except IFinDDatasourceError as e:
-            logger.warning(f"iFinD adapter failed: {e}, falling back to China Stock adapter")
+            logger.warning(f"iFinD adapter failed: {e}, falling back to AkShare adapter")
             try:
-                return await self.china_stock_adapter.fetch_stock_quotes(codes, start_date, end_date)
-            except ChinaStockPluginError as e2:
-                logger.error(f"China Stock adapter also failed: {e2}")
-                raise
+                return await self.akshare_adapter.fetch_stock_quotes(codes, start_date, end_date)
+            except AkShareAdapterError as e2:
+                logger.warning(f"AkShare adapter failed: {e2}, falling back to China Stock adapter")
+                try:
+                    return await self.china_stock_adapter.fetch_stock_quotes(codes, start_date, end_date)
+                except ChinaStockPluginError as e3:
+                    logger.error(f"China Stock adapter also failed: {e3}")
+                    raise
 
     async def fetch_financial_report(
         self, code: str, report_type: str = "annual"
@@ -45,12 +51,16 @@ class DataSourceRouter:
             logger.info("Trying iFinD adapter for financial report")
             return await self.ifind_adapter.fetch_financial_report(code, report_type)
         except IFinDDatasourceError as e:
-            logger.warning(f"iFinD adapter failed: {e}, falling back to China Stock adapter")
+            logger.warning(f"iFinD adapter failed: {e}, falling back to AkShare adapter")
             try:
-                return await self.china_stock_adapter.fetch_financial_report(code, report_type)
-            except ChinaStockPluginError as e2:
-                logger.error(f"China Stock adapter also failed: {e2}")
-                raise
+                return await self.akshare_adapter.fetch_financial_report(code, report_type)
+            except AkShareAdapterError as e2:
+                logger.warning(f"AkShare adapter failed: {e2}, falling back to China Stock adapter")
+                try:
+                    return await self.china_stock_adapter.fetch_financial_report(code, report_type)
+                except ChinaStockPluginError as e3:
+                    logger.error(f"China Stock adapter also failed: {e3}")
+                    raise
 
     async def fetch_fund_flow(
         self, codes: list[str], start_date: str, end_date: str
@@ -60,12 +70,16 @@ class DataSourceRouter:
             logger.info("Trying iFinD adapter for fund flow")
             return await self.ifind_adapter.fetch_fund_flow(codes, start_date, end_date)
         except IFinDDatasourceError as e:
-            logger.warning(f"iFinD adapter failed: {e}, falling back to China Stock adapter")
+            logger.warning(f"iFinD adapter failed: {e}, falling back to AkShare adapter")
             try:
-                return await self.china_stock_adapter.fetch_fund_flow(codes, start_date, end_date)
-            except ChinaStockPluginError as e2:
-                logger.error(f"China Stock adapter also failed: {e2}")
-                raise
+                return await self.akshare_adapter.fetch_fund_flow(codes, start_date, end_date)
+            except AkShareAdapterError as e2:
+                logger.warning(f"AkShare adapter failed: {e2}, falling back to China Stock adapter")
+                try:
+                    return await self.china_stock_adapter.fetch_fund_flow(codes, start_date, end_date)
+                except ChinaStockPluginError as e3:
+                    logger.error(f"China Stock adapter also failed: {e3}")
+                    raise
 
     async def fetch_industry_classification(
         self, codes: list[str]
@@ -86,12 +100,16 @@ class DataSourceRouter:
             logger.info("Trying iFinD adapter for macro indicators")
             return await self.ifind_adapter.fetch_macro_indicators(indicators, start_date, end_date)
         except IFinDDatasourceError as e:
-            logger.warning(f"iFinD adapter failed: {e}, falling back to China Stock adapter")
+            logger.warning(f"iFinD adapter failed: {e}, falling back to AkShare adapter")
             try:
-                return await self.china_stock_adapter.fetch_macro_indicators(indicators, start_date, end_date)
-            except ChinaStockPluginError as e2:
-                logger.error(f"China Stock adapter also failed: {e2}")
-                raise
+                return await self.akshare_adapter.fetch_macro_indicators(indicators, start_date, end_date)
+            except AkShareAdapterError as e2:
+                logger.warning(f"AkShare adapter failed: {e2}, falling back to China Stock adapter")
+                try:
+                    return await self.china_stock_adapter.fetch_macro_indicators(indicators, start_date, end_date)
+                except ChinaStockPluginError as e3:
+                    logger.error(f"China Stock adapter also failed: {e3}")
+                    raise
 
     async def fetch_technical_indicators(
         self, codes: list[str], start_date: str, end_date: str
@@ -101,23 +119,30 @@ class DataSourceRouter:
             logger.info("Trying iFinD adapter for technical indicators")
             return await self.ifind_adapter.fetch_technical_indicators(codes, start_date, end_date)
         except IFinDDatasourceError as e:
-            logger.warning(f"iFinD adapter failed: {e}, falling back to China Stock adapter")
+            logger.warning(f"iFinD adapter failed: {e}, falling back to AkShare adapter")
             try:
                 snapshots = []
                 for code in codes:
-                    snapshots.extend(await self.china_stock_adapter.fetch_technical_indicators(code))
+                    snapshots.extend(await self.akshare_adapter.fetch_technical_indicators(code))
                 return snapshots
-            except ChinaStockPluginError as e2:
-                logger.error(f"China Stock adapter also failed: {e2}, returning insufficient evidence")
-                as_of = datetime.now()
-                return [
-                    AssetAnalysisSnapshot(
-                        canonical_id=f"insufficient:{code}:{as_of.strftime('%Y%m%d')}:technical",
-                        as_of=as_of,
-                        evidence_refs=["insufficient_evidence"],
-                    )
-                    for code in codes
-                ]
+            except AkShareAdapterError as e2:
+                logger.warning(f"AkShare adapter failed: {e2}, falling back to China Stock adapter")
+                try:
+                    snapshots = []
+                    for code in codes:
+                        snapshots.extend(await self.china_stock_adapter.fetch_technical_indicators(code))
+                    return snapshots
+                except ChinaStockPluginError as e3:
+                    logger.error(f"China Stock adapter also failed: {e3}, returning insufficient evidence")
+                    as_of = datetime.now()
+                    return [
+                        AssetAnalysisSnapshot(
+                            canonical_id=f"insufficient:{code}:{as_of.strftime('%Y%m%d')}:technical",
+                            as_of=as_of,
+                            evidence_refs=["insufficient_evidence"],
+                        )
+                        for code in codes
+                    ]
 
     async def fetch_sentiment(
         self, codes: list[str] | None = None, start_date: str | None = None, end_date: str | None = None
@@ -130,21 +155,25 @@ class DataSourceRouter:
             else:
                 raise IFinDDatasourceError("iFinD requires codes, start_date, end_date")
         except IFinDDatasourceError as e:
-            logger.warning(f"iFinD adapter failed: {e}, falling back to China Stock adapter")
+            logger.warning(f"iFinD adapter failed: {e}, falling back to AkShare adapter")
             try:
-                return await self.china_stock_adapter.fetch_sentiment(codes)
-            except ChinaStockPluginError as e2:
-                logger.error(f"China Stock adapter also failed: {e2}, returning insufficient evidence")
-                as_of = datetime.now()
-                target_codes = codes or ["market"]
-                return [
-                    AssetAnalysisSnapshot(
-                        canonical_id=f"insufficient:{code}:{as_of.strftime('%Y%m%d')}:sentiment",
-                        as_of=as_of,
-                        evidence_refs=["insufficient_evidence"],
-                    )
-                    for code in target_codes
-                ]
+                return await self.akshare_adapter.fetch_sentiment(codes)
+            except AkShareAdapterError as e2:
+                logger.warning(f"AkShare adapter failed: {e2}, falling back to China Stock adapter")
+                try:
+                    return await self.china_stock_adapter.fetch_sentiment(codes)
+                except ChinaStockPluginError as e3:
+                    logger.error(f"China Stock adapter also failed: {e3}, returning insufficient evidence")
+                    as_of = datetime.now()
+                    target_codes = codes or ["market"]
+                    return [
+                        AssetAnalysisSnapshot(
+                            canonical_id=f"insufficient:{code}:{as_of.strftime('%Y%m%d')}:sentiment",
+                            as_of=as_of,
+                            evidence_refs=["insufficient_evidence"],
+                        )
+                        for code in target_codes
+                    ]
 
     def fetch(self, **kwargs: Any) -> list[DocumentEnvelope]:
         """获取数据，带降级策略"""
@@ -152,9 +181,13 @@ class DataSourceRouter:
             logger.info("Trying iFinD adapter for fetch")
             return self.ifind_adapter.fetch(**kwargs)
         except Exception as e:
-            logger.warning(f"iFinD adapter failed: {e}, falling back to China Stock adapter")
+            logger.warning(f"iFinD adapter failed: {e}, falling back to AkShare adapter")
             try:
-                return self.china_stock_adapter.fetch(**kwargs)
+                return self.akshare_adapter.fetch(**kwargs)
             except Exception as e2:
-                logger.error(f"China Stock adapter also failed: {e2}")
-                raise
+                logger.warning(f"AkShare adapter failed: {e2}, falling back to China Stock adapter")
+                try:
+                    return self.china_stock_adapter.fetch(**kwargs)
+                except Exception as e3:
+                    logger.error(f"China Stock adapter also failed: {e3}")
+                    raise
