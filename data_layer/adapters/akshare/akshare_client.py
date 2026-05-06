@@ -271,3 +271,59 @@ class AkShareClient:
             logger.error(f"Failed to get zt pool: {e}")
             raise AkShareDataError("Failed to get zt pool data") from e
 
+    def get_stock_gdfx_top_10_em(self, symbol: str, date: str = "") -> pd.DataFrame:
+        """获取十大股东数据（使用正确接口）"""
+        logger.debug(f"Fetching top 10 shareholders for {symbol}, date {date}")
+        try:
+            # 确保 symbol 带有 sh/sz 前缀
+            if not symbol.startswith("sh") and not symbol.startswith("sz"):
+                if symbol.startswith("6"):
+                    symbol = f"sh{symbol}"
+                else:
+                    symbol = f"sz{symbol}"
+            if date:
+                df = self._with_retry(ak.stock_gdfx_top_10_em, symbol=symbol, date=date)
+            else:
+                df = self._with_retry(ak.stock_gdfx_top_10_em, symbol=symbol)
+            return df
+        except Exception as e:
+            logger.error(f"Failed to get top 10 shareholders: {e}")
+            raise AkShareDataError("Failed to get top 10 shareholders data") from e
+
+    def get_stock_lhb_stock_statistic_em(self, symbol: str = "近一月") -> pd.DataFrame:
+        """获取龙虎榜统计数据（使用正确接口）"""
+        logger.debug(f"Fetching lhb statistic for {symbol}")
+        try:
+            df = self._with_retry(ak.stock_lhb_stock_statistic_em, symbol=symbol)
+            return df
+        except Exception as e:
+            logger.error(f"Failed to get lhb statistic: {e}")
+            raise AkShareDataError("Failed to get lhb statistic data") from e
+
+    def get_stock_board_industry_name(self, source: str = "sina") -> pd.DataFrame:
+        """获取行业板块列表（支持多源）"""
+        logger.debug(f"Fetching industry board list from {source}")
+        try:
+            if source == "sina":
+                # 使用新浪源
+                df = self._with_retry(ak.stock_sector_spot, indicator="新浪行业")
+                return df
+            elif source == "ths":
+                # 使用同花顺源
+                df = self._with_retry(ak.stock_board_industry_name_ths)
+                return df
+            else:
+                # 默认使用东方财富源
+                df = self._with_retry(ak.stock_board_industry_name_em)
+                return df
+        except Exception as e:
+            logger.error(f"Failed to get industry board list from {source}: {e}")
+            # 降级尝试其他源
+            try:
+                logger.warning("Falling back to ths source")
+                df = self._with_retry(ak.stock_board_industry_name_ths)
+                return df
+            except Exception as e2:
+                logger.error(f"Fallback also failed: {e2}")
+                raise AkShareDataError("Failed to get industry board list") from e
+
