@@ -4,6 +4,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+import pandas as pd
 
 from core.contracts import DocumentEnvelope
 from core.contracts.assets import AssetAnalysisSnapshot
@@ -15,6 +16,7 @@ from data_layer.adapters.akshare import (
     AkShareClientError,
     AkShareDataError,
 )
+from data_layer.indicators import TechnicalIndicatorEngine
 
 logger = get_logger(__name__)
 
@@ -29,6 +31,7 @@ class AkShareAdapter(BaseDataAdapter):
         super().__init__(source_type="akshare")
         self._client = AkShareClient()
         self._mapper = AkShareMapper()
+        self._indicator_engine = TechnicalIndicatorEngine()
 
     async def fetch_stock_quotes(
         self, codes: list[str], start_date: str, end_date: str
@@ -47,8 +50,29 @@ class AkShareAdapter(BaseDataAdapter):
                     start_date=ak_start,
                     end_date=ak_end
                 )
+                # 准备数据用于技术指标计算
+                if not df.empty:
+                    df_indicators = df.rename(columns={
+                        "开盘": "open",
+                        "最高": "high",
+                        "最低": "low",
+                        "收盘": "close",
+                        "成交量": "volume"
+                    }).copy()
+                    df_indicators["date"] = pd.to_datetime(df_indicators["日期"], format="%Y%m%d")
+                    df_indicators = df_indicators.set_index("date").sort_index()
+                    # 计算技术指标
+                    technical_indicators = self._indicator_engine.calculate(df_indicators, code)
+                else:
+                    technical_indicators = None
+                # 映射行情数据
                 raw_data = df.to_dict("records")
-                snapshots.extend(self._mapper.map_market_data(code, raw_data, as_of))
+                market_snapshots = self._mapper.map_market_data(code, raw_data, as_of)
+                # 添加技术指标到快照
+                if technical_indicators and len(market_snapshots) > 0:
+                    # 假设最后一个快照是最新的，添加技术指标
+                    market_snapshots[-1].technical = technical_indicators
+                snapshots.extend(market_snapshots)
             except (AkShareClientError, AkShareDataError) as e:
                 logger.error(f"Failed to fetch quotes for code {code}: {e}")
                 raise

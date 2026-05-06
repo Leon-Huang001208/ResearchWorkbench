@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Any
 from pydantic import BaseModel, Field
+from data_layer.indicators import TechnicalIndicators
 
 
 class AssetAnalysisSnapshot(BaseModel):
@@ -17,5 +18,5 @@ class AssetAnalysisSnapshot(BaseModel):
     event_impact: list[str] = Field(default_factory=list)
     macro_exposure: dict[str, Any] = Field(default_factory=dict)
     evidence_refs: list[str] = Field(default_factory=list)
-    technical: dict[str, Any] | None = Field(default_factory=dict)
+    technical: TechnicalIndicators | dict[str, Any] | None = Field(default_factory=dict)
     sentiment: dict[str, Any] | None = Field(default_factory=dict)
