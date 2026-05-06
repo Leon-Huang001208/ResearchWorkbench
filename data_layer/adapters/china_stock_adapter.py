@@ -196,6 +196,30 @@ class ChinaStockAdapter(BaseDataAdapter):
         as_of = datetime.now()
         return self._mapper.map_macro(raw_data, as_of)
 
+    async def fetch_sentiment(
+        self, codes: list[str] | None = None
+    ) -> list[AssetAnalysisSnapshot]:
+        """获取情绪数据"""
+        logger.info(f"Fetching sentiment (china_stock): codes={codes}")
+        raw_result = self._call_plugin_tool(
+            "tool_fetch_market_sentiment",
+            {
+                "codes": codes or [],
+            },
+        )
+        if not raw_result.get("success"):
+            raise ChinaStockPluginError(f"Plugin returned error: {raw_result.get('message')}")
+        
+        raw_data = raw_result.get("data", {})
+        as_of = datetime.now()
+        if codes:
+            snapshots = []
+            for code in codes:
+                snapshots.extend(self._mapper.map_sentiment(code, raw_data, as_of))
+            return snapshots
+        else:
+            return self._mapper.map_sentiment(None, raw_data, as_of)
+
     def fetch(self, **kwargs: Any) -> list[DocumentEnvelope]:
         """
         获取 China Stock 数据

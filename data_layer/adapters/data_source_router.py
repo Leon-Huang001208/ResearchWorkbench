@@ -1,4 +1,5 @@
 """数据源路由器 - 实现 iFinD 优先、China Stock 降级的策略"""
+from datetime import datetime
 from typing import Any
 
 from core.contracts import DocumentEnvelope
@@ -91,6 +92,59 @@ class DataSourceRouter:
             except ChinaStockPluginError as e2:
                 logger.error(f"China Stock adapter also failed: {e2}")
                 raise
+
+    async def fetch_technical_indicators(
+        self, codes: list[str], start_date: str, end_date: str
+    ) -> list[AssetAnalysisSnapshot]:
+        """获取技术指标数据，带降级策略"""
+        try:
+            logger.info("Trying iFinD adapter for technical indicators")
+            return await self.ifind_adapter.fetch_technical_indicators(codes, start_date, end_date)
+        except IFinDDatasourceError as e:
+            logger.warning(f"iFinD adapter failed: {e}, falling back to China Stock adapter")
+            try:
+                snapshots = []
+                for code in codes:
+                    snapshots.extend(await self.china_stock_adapter.fetch_technical_indicators(code))
+                return snapshots
+            except ChinaStockPluginError as e2:
+                logger.error(f"China Stock adapter also failed: {e2}, returning insufficient evidence")
+                as_of = datetime.now()
+                return [
+                    AssetAnalysisSnapshot(
+                        canonical_id=f"insufficient:{code}:{as_of.strftime('%Y%m%d')}:technical",
+                        as_of=as_of,
+                        evidence_refs=["insufficient_evidence"],
+                    )
+                    for code in codes
+                ]
+
+    async def fetch_sentiment(
+        self, codes: list[str] | None = None, start_date: str | None = None, end_date: str | None = None
+    ) -> list[AssetAnalysisSnapshot]:
+        """获取情绪数据，带降级策略"""
+        try:
+            logger.info("Trying iFinD adapter for sentiment data")
+            if codes and start_date and end_date:
+                return await self.ifind_adapter.fetch_sentiment(codes, start_date, end_date)
+            else:
+                raise IFinDDatasourceError("iFinD requires codes, start_date, end_date")
+        except IFinDDatasourceError as e:
+            logger.warning(f"iFinD adapter failed: {e}, falling back to China Stock adapter")
+            try:
+                return await self.china_stock_adapter.fetch_sentiment(codes)
+            except ChinaStockPluginError as e2:
+                logger.error(f"China Stock adapter also failed: {e2}, returning insufficient evidence")
+                as_of = datetime.now()
+                target_codes = codes or ["market"]
+                return [
+                    AssetAnalysisSnapshot(
+                        canonical_id=f"insufficient:{code}:{as_of.strftime('%Y%m%d')}:sentiment",
+                        as_of=as_of,
+                        evidence_refs=["insufficient_evidence"],
+                    )
+                    for code in target_codes
+                ]
 
     def fetch(self, **kwargs: Any) -> list[DocumentEnvelope]:
         """获取数据，带降级策略"""

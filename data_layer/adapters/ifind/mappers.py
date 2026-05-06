@@ -127,6 +127,51 @@ class IFinDMapper:
             snapshots.append(snapshot)
         return snapshots
 
+    def map_technical(
+        self, code: str, raw_data: list[dict], as_of: datetime
+    ) -> list[AssetAnalysisSnapshot]:
+        """映射技术指标数据"""
+        snapshots = []
+        for item in raw_data:
+            technical = {
+                "ma5": item.get("ths_ma5_stock"),
+                "ma10": item.get("ths_ma10_stock"),
+                "ma20": item.get("ths_ma20_stock"),
+                "ma60": item.get("ths_ma60_stock"),
+                "macd": item.get("ths_macd_stock"),
+                "rsi": item.get("ths_rsi_stock"),
+                "kdj": item.get("ths_kdj_stock"),
+                "boll": item.get("ths_boll_stock"),
+            }
+            snapshot = AssetAnalysisSnapshot(
+                canonical_id=self._generate_canonical_id(code, as_of, "technical"),
+                as_of=as_of,
+                technical=technical,
+                evidence_refs=[self._hash_data(item)],
+            )
+            snapshots.append(snapshot)
+        return snapshots
+
+    def map_sentiment(
+        self, code: str, raw_data: list[dict], as_of: datetime
+    ) -> list[AssetAnalysisSnapshot]:
+        """映射情绪数据"""
+        snapshots = []
+        for item in raw_data:
+            sentiment = {
+                "market_sentiment": item.get("ths_market_sentiment_stock"),
+                "sector_sentiment": item.get("ths_sector_sentiment_stock"),
+                "fund_sentiment": item.get("ths_fund_sentiment_stock"),
+            }
+            snapshot = AssetAnalysisSnapshot(
+                canonical_id=self._generate_canonical_id(code, as_of, "sentiment"),
+                as_of=as_of,
+                sentiment=sentiment,
+                evidence_refs=[self._hash_data(item)],
+            )
+            snapshots.append(snapshot)
+        return snapshots
+
     def map_research_report(
         self, code: str, raw_data: list[dict], as_of: datetime
     ) -> list[AssetAnalysisSnapshot]:

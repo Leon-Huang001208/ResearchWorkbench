@@ -12,6 +12,10 @@
 - FastAPI 后端 API
 - 审核工作流 API
 - 支持 SQLite 零配置启动（无需 PostgreSQL）
+- 扩展 AssetAnalysisSnapshot 新增 `technical`（技术指标）和 `sentiment`（情绪）维度
+- 实现完整的双源降级路由策略（iFinD → ChinaStock → insufficient_evidence
+- 更新 IFinDAdapter 适配器支持技术指标和情绪数据获取
+- 更新 ChinaStockAdapter 适配器支持情绪数据获取
 
 ### Changed
 - 默认启用持久化模式

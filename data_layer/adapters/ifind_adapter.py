@@ -137,6 +137,59 @@ class IFinDAdapter(BaseDataAdapter):
         as_of = datetime.now()
         return self._mapper.map_macro(indicators, raw_data, as_of)
 
+    async def fetch_technical_indicators(
+        self, codes: list[str], start_date: str, end_date: str
+    ) -> list[AssetAnalysisSnapshot]:
+        """获取技术指标数据"""
+        logger.info(f"Fetching technical indicators: codes={codes}, start={start_date}, end={end_date}")
+        client = await self._get_client()
+        indicators = [
+            "ths_ma5_stock",
+            "ths_ma10_stock",
+            "ths_ma20_stock",
+            "ths_ma60_stock",
+            "ths_macd_stock",
+            "ths_rsi_stock",
+            "ths_kdj_stock",
+            "ths_boll_stock",
+        ]
+        raw_data = await client.history(
+            codes=codes,
+            indicators=indicators,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        snapshots = []
+        as_of = datetime.now()
+        for code in codes:
+            code_data = [item for item in raw_data if item.get("code") == code]
+            snapshots.extend(self._mapper.map_technical(code, code_data, as_of))
+        return snapshots
+
+    async def fetch_sentiment(
+        self, codes: list[str], start_date: str, end_date: str
+    ) -> list[AssetAnalysisSnapshot]:
+        """获取情绪数据"""
+        logger.info(f"Fetching sentiment data: codes={codes}, start={start_date}, end={end_date}")
+        client = await self._get_client()
+        indicators = [
+            "ths_market_sentiment_stock",
+            "ths_sector_sentiment_stock",
+            "ths_fund_sentiment_stock",
+        ]
+        raw_data = await client.history(
+            codes=codes,
+            indicators=indicators,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        snapshots = []
+        as_of = datetime.now()
+        for code in codes:
+            code_data = [item for item in raw_data if item.get("code") == code]
+            snapshots.extend(self._mapper.map_sentiment(code, code_data, as_of))
+        return snapshots
+
     def fetch(self, **kwargs: Any) -> list[DocumentEnvelope]:
         """
         获取 iFinD 数据
