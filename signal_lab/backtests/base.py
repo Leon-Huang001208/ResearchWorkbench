@@ -7,7 +7,6 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Literal, Optional
 
 import pandas as pd
-import pydantic
 from pydantic import BaseModel, Field, ConfigDict
 
 from core.contracts import AlphaSignal
@@ -29,7 +28,7 @@ class BacktestResult(BaseModel):
     win_rate: float = 0.0
     total_trades: int = 0
     signal_id: str = ""
-    engine: Literal["simple", "vectorbt", "backtrader"] = "simple"
+    engine: Literal["simple", "vectorbt", "backtrader", "event_study"] = "simple"
     returns: Optional[Any] = Field(default=None, exclude=True)
     positions: Optional[Any] = Field(default=None, exclude=True)
     equity_curve: Optional[Any] = Field(default=None, exclude=True)

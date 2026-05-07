@@ -129,9 +129,98 @@ class EventExtractor:
         source_doc_id: str,
     ) -> List[CanonicalEvent]:
         """使用 LLM 提取事件"""
-        # TODO: 实现真正的 LLM 提取
-        logger.debug("LLM event extraction not implemented yet")
-        return []
+        try:
+            from knowledge_layer.events.prompts import EventPrompts
+
+            system_prompt = EventPrompts.EXTRACT_SYSTEM_ZH
+            user_prompt = EventPrompts.EXTRACT_USER_ZH.format(text=text)
+
+            response = self._model_gateway.chat(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0.1,
+                max_tokens=1500,
+                model=getattr(self, '_model', None),
+            )
+
+            extracted_data = self._parse_llm_response(response.content)
+            events = []
+            for data in extracted_data:
+                event = self._build_event(data, source_doc_id)
+                if event:
+                    events.append(event)
+
+            logger.debug(f"LLM extracted {len(events)} events")
+            return events
+
+        except Exception as e:
+            logger.error(f"LLM event extraction failed: {e}", exc_info=True)
+            return []
+
+    def _parse_llm_response(self, content: str) -> List[Dict]:
+        """解析 LLM 响应"""
+        import json
+
+        json_start = content.find("[")
+        json_end = content.rfind("]") + 1
+
+        if json_start == -1 or json_end == 0:
+            json_start = content.find("{")
+            json_end = content.rfind("}") + 1
+            if json_start == -1 or json_end == 0:
+                return []
+            json_str = content[json_start:json_end]
+            return [json.loads(json_str)]
+
+        json_str = content[json_start:json_end]
+        return json.loads(json_str)
+
+    def _build_event(self, data: Dict, source_doc_id: str) -> Optional[CanonicalEvent]:
+        """从 LLM 提取数据构建 CanonicalEvent"""
+        try:
+            event_type_str = data.get("event_type", "other")
+            event_type = self._map_event_type(event_type_str)
+
+            entities_raw = data.get("entities", [])
+            entity_dicts = []
+            if isinstance(entities_raw, list):
+                for e in entities_raw:
+                    if isinstance(e, str):
+                        entity_dicts.append({"text": e, "type": "unknown", "confidence": 0.8})
+                    elif isinstance(e, dict):
+                        entity_dicts.append(e)
+
+            event_time = self._extract_event_time(data.get("evidence", ""))
+
+            return CanonicalEvent(
+                event_id=str(uuid.uuid4()),
+                event_type=event_type,
+                summary=data.get("summary", "")[:200],
+                event_time=event_time,
+                impact_direction=data.get("impact_direction", "unknown"),
+                confidence=float(data.get("confidence", 0.7)),
+                needs_review=data.get("confidence", 0.7) < 0.8,
+                entities=entity_dicts,
+                assertions=[],
+                evidence_spans=[{"text": data.get("evidence", "")[:300]}],
+                source_doc_id=source_doc_id,
+            )
+        except Exception as e:
+            logger.error(f"Failed to build event: {e}", exc_info=True)
+            return None
+
+    def _map_event_type(self, type_str: str) -> str:
+        """将 LLM 输出的事件类型映射到枚举值"""
+        mapping = {
+            "earnings": EventType.EARNINGS.value,
+            "merger_acquisition": EventType.MERGER_ACQUISITION.value,
+            "dividend": EventType.DIVIDEND.value,
+            "regulation": EventType.REGULATION.value,
+            "product_launch": EventType.PRODUCT_LAUNCH.value,
+        }
+        return mapping.get(type_str, EventType.OTHER.value)
 
     def _extract_by_rules(
         self,

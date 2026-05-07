@@ -175,6 +175,139 @@ signal = service.create_signal(
 candidate = service.generate_trade_candidate(signal)
 ```
 
+### 4. 事件型 Alpha 信号
+```python
+from core.contracts import EventAlphaSignal
+
+signal = EventAlphaSignal(
+    signal_id="event_sig_001",
+    subject_id="300000.SZ",
+    horizon="20d",
+    thesis="AI推理需求扩散至国产服务器链",
+    score=0.82,
+    confidence=0.74,
+    event_id="event_gpt6_launch",
+    event_type="global_ai_model_launch",
+    impact_path=[
+        "OpenAI新模型",
+        "推理需求上升",
+        "ASIC和液冷需求提升",
+        "A股服务器链映射",
+    ],
+    industry_impacts=["ASIC", "液冷", "IDC", "铜连接"],
+    diffusion_stage="early_awareness",
+    market_regime="AI成长",
+)
+```
+
+### 5. 认知 Agent 黑板
+```python
+from cognitive_agents import AgentView, CognitiveBlackboard
+
+blackboard = CognitiveBlackboard()
+
+blackboard.add_view(AgentView(
+    view_id="view_fundamental_001",
+    agent_name="fundamental_agent",
+    agent_role="fundamental",
+    target_id="300308.SZ",
+    event_id="event_ai_inference",
+    view="bullish",
+    thesis="800G需求超预期，盈利弹性提升",
+    reasoning=["订单能见度提高", "产能利用率改善"],
+    evidence_refs=["assertion_001"],
+    confidence=0.72,
+))
+
+blackboard.add_view(AgentView(
+    view_id="view_flow_001",
+    agent_name="flow_agent",
+    agent_role="sentiment",
+    target_id="300308.SZ",
+    event_id="event_ai_inference",
+    view="bearish",
+    thesis="机构仓位过高，短期交易拥挤",
+    evidence_refs=["assertion_002"],
+    confidence=0.64,
+))
+
+conflicts = blackboard.find_conflicts()
+print(conflicts[0].summary)
+```
+
+### 6. Timing Engine 择时决策
+```python
+from timing_engine import MetaTimingEngine, TimingModelScore
+
+engine = MetaTimingEngine()
+
+decision = engine.evaluate(
+    [
+        TimingModelScore(
+            model_name="regime",
+            score=0.82,
+            confidence=0.80,
+            rationale="AI成长风格重新占优",
+        ),
+        TimingModelScore(
+            model_name="flow",
+            score=0.76,
+            confidence=0.70,
+            rationale="资金开始流入AI产业链",
+        ),
+        TimingModelScore(
+            model_name="theme_diffusion",
+            score=0.81,
+            confidence=0.75,
+            rationale="主题从光模块扩散到铜连接和液冷",
+        ),
+        TimingModelScore(
+            model_name="crowding",
+            score=0.24,
+            confidence=0.70,
+            rationale="交易拥挤度仍低",
+        ),
+    ],
+    signal_id="event_sig_001",
+    market_regime="ai_growth",
+)
+
+print(decision.action)
+print(decision.readiness_score)
+print(decision.blockers)
+```
+
+### 7. Memory & Learning 事件记忆
+```python
+from memory_learning import FailureMemory, LearningJournal, MarketEpisode
+
+journal = LearningJournal()
+
+journal.record_episode(MarketEpisode(
+    episode_id="episode_gpt6_001",
+    event_id="event_gpt6_launch",
+    event_type="ai_model_launch",
+    market_regime="ai_growth",
+    initial_reaction="光模块和铜连接上涨",
+    outcome_horizon="30d",
+    outcome_return=0.18,
+    outcome_excess_return=0.11,
+    timing_action="enter",
+    lesson="AI推理叙事在AI成长regime下扩散速度快",
+))
+
+journal.record_failure(FailureMemory(
+    failure_id="failure_crowding_001",
+    source_id="event_sig_001",
+    failure_type="timing_error",
+    root_cause="高拥挤阶段追高",
+    corrective_action="提高crowding blocker权重",
+))
+
+summary = journal.summarize_event_type("ai_model_launch")
+print(summary["average_excess_return"])
+```
+
 ---
 
 ## 信号实验室
@@ -240,6 +373,25 @@ result = backtester.run(prices, [signal])
 print(f"总收益率: {result.total_return:.2%}")
 print(f"夏普比率: {result.sharpe_ratio:.2f}")
 print(f"最大回撤: {result.max_drawdown:.2%}")
+```
+
+### 5. 事件研究回测
+```python
+import pandas as pd
+from signal_lab.backtests import EventStudyBacktester
+
+events = pd.DataFrame({
+    "event_date": ["2024-01-02", "2024-02-05"],
+    "event_type": ["ai_model_launch", "export_control"],
+})
+
+backtester = EventStudyBacktester(horizon=20)
+result = backtester.run(prices, events=events, benchmark=benchmark_prices)
+
+print(f"事件数: {result.metadata['event_count']}")
+print(f"平均超额收益: {result.metadata['average_excess_return']:.2%}")
+print(f"胜率: {result.win_rate:.2%}")
+print(f"D+20 衰减收益: {result.metadata['decay_by_day'][20]:.2%}")
 ```
 
 ---

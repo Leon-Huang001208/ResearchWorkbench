@@ -5,7 +5,7 @@ from typing import Any
 from core.contracts import DocumentEnvelope
 from core.contracts.assets import AssetAnalysisSnapshot
 from core.observability import get_logger
-from data_layer.adapters import ChinaStockAdapter, IFinDAdapter, AkShareAdapter
+from data_layer.adapters import ChinaStockAdapter, IFinDAdapter, AkShareAdapter, CLSAdapter, CNStockAdapter, ZQAdapter
 from data_layer.adapters.china_stock.exceptions import ChinaStockPluginError
 from data_layer.adapters.ifind.exceptions import IFinDDatasourceError
 from data_layer.adapters.akshare.exceptions import AkShareAdapterError
@@ -23,6 +23,9 @@ class DataSourceRouter:
         self.ifind_adapter = IFinDAdapter()
         self.akshare_adapter = AkShareAdapter()
         self.china_stock_adapter = ChinaStockAdapter()
+        self.cls_adapter = CLSAdapter()
+        self.cnstock_adapter = CNStockAdapter()
+        self.zq_adapter = ZQAdapter()
 
     async def fetch_stock_quotes(
         self, codes: list[str], start_date: str, end_date: str
@@ -191,3 +194,18 @@ class DataSourceRouter:
                 except Exception as e3:
                     logger.error(f"China Stock adapter also failed: {e3}")
                     raise
+
+    async def fetch_news_cls(self, **kwargs) -> list[DocumentEnvelope]:
+        """Fetch CLS (财联社) news"""
+        logger.info("Fetching CLS news via DataSourceRouter")
+        return self.cls_adapter.fetch(**kwargs)
+
+    async def fetch_news_cnstock(self, **kwargs) -> list[DocumentEnvelope]:
+        """Fetch CNStock (中国证券网) news"""
+        logger.info("Fetching CNStock news via DataSourceRouter")
+        return self.cnstock_adapter.fetch(**kwargs)
+
+    async def fetch_reports_zq(self, **kwargs) -> list[DocumentEnvelope]:
+        """Fetch ZQ (知丘) content (reports/news/meetings)"""
+        logger.info("Fetching ZQ content via DataSourceRouter")
+        return self.zq_adapter.fetch(**kwargs)

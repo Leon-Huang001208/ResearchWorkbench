@@ -1,5 +1,6 @@
 
 from datetime import datetime, timezone
+from typing import Literal
 
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, Numeric, Text, JSON, DateTime
 from sqlalchemy.orm import relationship
@@ -147,4 +148,111 @@ class AssetSnapshot(Base):
     evidence_refs = Column(JSON, nullable=False, default=list)
     team_id = Column(Text, nullable=True)
     project_id = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class AlphaSignalDB(Base):
+    """Alpha 信号数据库模型"""
+
+    __tablename__ = "alpha_signal"
+
+    signal_id = Column(Text, primary_key=True)
+    discriminator = Column(Text, nullable=False, default="alpha_signal")  # to distinguish between AlphaSignal and EventAlphaSignal
+    subject_id = Column(Text, nullable=False, index=True)
+    horizon = Column(Text, nullable=False)
+    thesis = Column(Text, nullable=False)
+    score = Column(Numeric, nullable=False)
+    confidence = Column(Numeric, nullable=False)
+    scenario_refs = Column(JSON, nullable=False, default=list)
+    evidence_refs = Column(JSON, nullable=False, default=list)
+    status = Column(Text, nullable=False, default="research_only")
+    # EventAlphaSignal specific fields
+    event_id = Column(Text, nullable=True, index=True)
+    event_type = Column(Text, nullable=True)
+    event_time = Column(DateTime(timezone=True), nullable=True)
+    impact_path = Column(JSON, nullable=False, default=list)
+    industry_impacts = Column(JSON, nullable=False, default=list)
+    bullish_companies = Column(JSON, nullable=False, default=list)
+    bearish_companies = Column(JSON, nullable=False, default=list)
+    diffusion_stage = Column(Text, nullable=True)
+    market_regime = Column(Text, nullable=True)
+    validation_status = Column(Text, nullable=True)
+    validation_metrics = Column(JSON, nullable=False, default=dict)
+    team_id = Column(Text, nullable=True)
+    project_id = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class TradeCandidateDB(Base):
+    """交易候选数据库模型"""
+
+    __tablename__ = "trade_candidate"
+
+    candidate_id = Column(Text, primary_key=True)
+    signal_id = Column(Text, ForeignKey("alpha_signal.signal_id"), nullable=False, index=True)
+    action = Column(Text, nullable=False)
+    sizing_hint = Column(Numeric, nullable=False)
+    risk_notes = Column(JSON, nullable=False, default=list)
+    team_id = Column(Text, nullable=True)
+    project_id = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class AgentViewDB(Base):
+    """Agent 观点数据库模型"""
+
+    __tablename__ = "agent_view"
+
+    view_id = Column(Text, primary_key=True)
+    agent_name = Column(Text, nullable=False)
+    agent_role = Column(Text, nullable=False, index=True)
+    target_id = Column(Text, nullable=False, index=True)
+    view = Column(Text, nullable=False)
+    thesis = Column(Text, nullable=False)
+    confidence = Column(Numeric, nullable=False)
+    event_id = Column(Text, nullable=True, index=True)
+    reasoning = Column(JSON, nullable=False, default=list)
+    evidence_refs = Column(JSON, nullable=False, default=list)
+    tool_refs = Column(JSON, nullable=False, default=list)
+    memory_refs = Column(JSON, nullable=False, default=list)
+    workflow_id = Column(Text, nullable=True)
+    evaluation = Column(JSON, nullable=False, default=dict)
+    view_metadata = Column(JSON, nullable=False, default=dict, name="metadata")  # use "metadata" in DB but "view_metadata" in model
+    team_id = Column(Text, nullable=True)
+    project_id = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class BlackboardConflictDB(Base):
+    """黑板冲突数据库模型"""
+
+    __tablename__ = "blackboard_conflict"
+
+    conflict_id = Column(Text, primary_key=True)
+    target_id = Column(Text, nullable=False, index=True)
+    event_id = Column(Text, nullable=True, index=True)
+    view_ids = Column(JSON, nullable=False, default=list)
+    summary = Column(Text, nullable=False)
+    severity = Column(Text, nullable=False)
+    confidence = Column(Numeric, nullable=False)
+    team_id = Column(Text, nullable=True)
+    project_id = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class TimingDecisionDB(Base):
+    """Timing Engine 择时决策数据库模型"""
+
+    __tablename__ = "timing_decision"
+
+    decision_id = Column(Text, primary_key=True)
+    signal_id = Column(Text, nullable=True, index=True)
+    action = Column(Text, nullable=False)
+    readiness_score = Column(Numeric, nullable=False)
+    market_regime = Column(Text, nullable=False, default="unknown")
+    model_scores = Column(JSON, nullable=False, default=list)
+    active_weights = Column(JSON, nullable=False, default=dict)
+    blockers = Column(JSON, nullable=False, default=list)
+    rationale = Column(JSON, nullable=False, default=list)
     created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)

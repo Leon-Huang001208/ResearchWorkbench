@@ -1,20 +1,50 @@
 
 # AlphaFoundry
 
-本地优先、可企业化的买方投研情报系统。
+本地优先、可企业化的 AI Alpha Research Engine。
 
 ## 概述
 
-AlphaFoundry 是一个面向基金研究员工作流的 AI 产业情报与 Alpha 发现系统。系统采用模块化单体架构，使用 PostgreSQL + pgvector 作为核心事实存储，Markdown/Wiki 仅作为人类可读的投影层。
+AlphaFoundry 是一个面向基金研究员和量化研究员的 **AI-native Investment Operating System**。它不把“量化”理解为预测 K 线或明天收盘价，而是把 AI 的信息理解能力转化为可交易、可回测、可审计、可学习的事件型 Alpha Signal。
+
+系统定位为 **AI Alpha Research Engine**：AI 负责发现事件、理解产业链、识别预期差和传播路径；Timing Engine 负责判断市场现在是否会认可这个逻辑；Signal Lab 负责验证事件是否产生可重复收益、构建评分、控制风险并输出研究级交易候选。系统采用模块化单体架构，使用 PostgreSQL + pgvector 作为核心事实存储，Markdown/Wiki 仅作为人类可读的投影层。
+
+长期形态是 **World Model + Agent Swarm**，但 Agent 不作为架构主体。Agent 是认知插件层：它们按统一 ontology 写入共享黑板，形成多视角认知竞争，再由量化验证层判断哪些观点有历史收益证据。
+
+更长期的目标不是“最终架构”，而是 **Evolutionary Architecture**：系统通过市场反馈积累记忆、修正失败原因、调整 Agent/Timing/Signal 权重，提高发现稳定 alpha 的速度。
 
 ## 核心特性
 
 - **资产分析卡**：对股票、ETF、指数、商品、外汇、债券、基金等资产形成标准化快照，覆盖财务、资金、量价、估值、股东、产业、事件、宏观八大维度
 - **专题研究备忘录**：围绕产业链、政策变化、地缘冲突、供需错配、AI compute 等主题形成结构化研究
 - **多情景市场分析报告**：对不确定性问题输出 3-4 个情景，每个情景包含概率、关键假设、触发条件、失效信号
-- **候选信号与回测说明**：将研究观察转为 thesis，再转为 scored signal
+- **事件数据库**：沉淀事件发生时间、事件类型、产业影响、公司映射、传播阶段与后续收益
+- **认知 Agent 黑板**：Fundamental、Macro、Policy、Industry Chain、Bull、Bear、Skeptic 等 Agent 通过统一 schema 写入结构化观点，避免自由聊天式失控
+- **Timing Engine**：融合 regime、flow、theme diffusion、sentiment、crowding、liquidity、expectation gap 等模型，判断“现在能不能交易”
+- **Memory & Learning Layer**：沉淀 Event → Return、策略有效性、Agent 长期观点和失败原因，避免系统每次从零推理
+- **事件型 Alpha 信号**：将“全球事件 → 产业链传播 → A股映射”转为可验证信号，而不是直接预测 K 线
+- **候选信号与回测说明**：将研究观察转为 thesis，再转为 scored signal，并通过 event study / excess return / win rate / decay 验证
 
 ---
+
+## 核心闭环
+
+```text
+全球事件流
+→ AI 理解
+→ 产业链传播
+→ A股映射
+→ Agent Swarm / Cognitive Blackboard
+→ Event Alpha Signal
+→ Timing Engine / Market Clock
+→ Statistical Validation
+→ Memory & Learning
+→ Portfolio / Risk / Sizing
+→ Execution-ready Candidate
+→ Feedback Learning
+```
+
+AlphaFoundry 当前不直接自动下单；交易执行与实盘风控作为后续可插拔模块接入。
 
 ## 快速开始
 
@@ -88,6 +118,9 @@ AlphaFoundry/
 ├── data_layer/             # 数据层（适配器、解析器、仓储）
 ├── knowledge_layer/        # 知识层（实体、断言、事件、检索）
 ├── reasoning/              # 推理层（状态机、情景、证据）
+├── cognitive_agents/       # 认知 Agent 插件层（统一观点契约、黑板、冲突检测）
+├── timing_engine/          # 择时层（市场状态、资金流、拥挤度、认知传播时钟）
+├── memory_learning/        # 记忆与学习层（事件记忆、策略记忆、失败记忆）
 ├── reporting/              # 报告层（模板、合成、输出）
 ├── signal_lab/             # 信号实验室（特征、标签、回测）
 ├── storage/                # 存储层（迁移、Schema）

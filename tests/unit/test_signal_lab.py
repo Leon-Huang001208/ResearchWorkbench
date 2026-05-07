@@ -7,7 +7,7 @@ import pytest
 import pandas as pd
 import numpy as np
 
-from core.contracts import AlphaSignal
+from core.contracts import AlphaSignal, EventAlphaSignal
 from signal_lab.features import Feature, FeatureBuilder, FeatureGroup
 from signal_lab.features.groups import (
     PriceVolumeFeatures,
@@ -19,7 +19,12 @@ from signal_lab.features.groups import (
 )
 from signal_lab.labels import RelativeReturnLabeler, compute_relative_return_label
 from signal_lab.scoring import CompositeScorer, ConfidenceScorer, SignalRanker, StrengthScorer
-from signal_lab.backtests import SimpleBacktester, VectorBTBacktester, BacktraderEngine
+from signal_lab.backtests import (
+    BacktraderEngine,
+    EventStudyBacktester,
+    SimpleBacktester,
+    VectorBTBacktester,
+)
 from signal_lab.backtests.base import BacktestResult
 
 
@@ -450,6 +455,42 @@ class TestScoring:
 
 
 # ===========================================================================
+# 事件型 Alpha 契约测试
+# ===========================================================================
+
+class TestEventAlphaSignal:
+    """事件型Alpha信号契约测试"""
+
+    def test_event_alpha_signal_captures_industry_diffusion_context(self):
+        """事件型信号应保留产业链、传播阶段和验证状态"""
+        signal = EventAlphaSignal(
+            signal_id="event_sig_001",
+            subject_id="300000.SZ",
+            horizon="20d",
+            thesis="AI推理需求扩散至国产服务器链",
+            score=0.82,
+            confidence=0.74,
+            event_id="event_gpt6_launch",
+            event_type="global_ai_model_launch",
+            impact_path=[
+                "OpenAI新模型",
+                "推理需求上升",
+                "ASIC和液冷需求提升",
+                "A股服务器链映射",
+            ],
+            industry_impacts=["ASIC", "液冷", "IDC", "铜连接"],
+            diffusion_stage="early_awareness",
+            market_regime="AI成长",
+            validation_status="pending_backtest",
+        )
+
+        assert signal.event_id == "event_gpt6_launch"
+        assert signal.industry_impacts == ["ASIC", "液冷", "IDC", "铜连接"]
+        assert signal.diffusion_stage == "early_awareness"
+        assert signal.validation_status == "pending_backtest"
+
+
+# ===========================================================================
 # 回测结果契约测试
 # ===========================================================================
 
@@ -493,7 +534,7 @@ class TestBacktestResult:
 
     def test_backtest_result_engine_enum(self):
         """测试engine字段只能是有效值"""
-        for engine in ("simple", "vectorbt", "backtrader"):
+        for engine in ("simple", "vectorbt", "backtrader", "event_study"):
             result = BacktestResult(engine=engine)
             assert result.engine == engine
 
@@ -642,6 +683,63 @@ class TestBacktraderEngine:
 
         assert isinstance(result, BacktestResult)
         assert result.engine == "backtrader"
+
+
+class TestEventStudyBacktester:
+    """事件研究回测器测试"""
+
+    @pytest.fixture
+    def event_prices(self):
+        dates = pd.date_range(start="2024-01-01", periods=8, freq="B")
+        asset = pd.DataFrame(
+            {"close": [100.0, 101.0, 104.0, 106.0, 108.0, 109.0, 111.0, 112.0]},
+            index=dates,
+        )
+        benchmark = pd.DataFrame(
+            {"close": [100.0, 100.5, 101.0, 101.5, 102.0, 102.5, 103.0, 103.5]},
+            index=dates,
+        )
+        return asset, benchmark
+
+    def test_event_study_computes_excess_return_metrics(self, event_prices):
+        """事件研究应计算事件窗超额收益、胜率和衰减数据"""
+        prices, benchmark = event_prices
+        events = pd.DataFrame(
+            {
+                "event_date": [prices.index[1], prices.index[3]],
+                "event_type": ["ai_model_launch", "ai_model_launch"],
+            }
+        )
+
+        backtester = EventStudyBacktester(horizon=2)
+        result = backtester.run(prices, events=events, benchmark=benchmark)
+
+        assert result.engine == "event_study"
+        assert result.total_trades == 2
+        assert result.win_rate == 1.0
+        assert result.metadata["event_count"] == 2
+        assert result.metadata["average_excess_return"] > 0
+        assert result.metadata["decay_by_day"][2] > 0
+
+    def test_event_study_aligns_non_trading_event_to_next_session(self, event_prices):
+        """非交易日事件应对齐到下一个交易日"""
+        prices, _ = event_prices
+        sunday_event = pd.Timestamp("2024-01-07")
+        events = pd.DataFrame({"event_date": [sunday_event]})
+
+        backtester = EventStudyBacktester(horizon=1)
+        result = backtester.run(prices, events=events)
+
+        assert result.total_trades == 1
+        assert result.metadata["aligned_event_dates"] == ["2024-01-08T00:00:00"]
+
+    def test_event_study_requires_event_date_column(self, event_prices):
+        """事件数据必须显式包含event_date列"""
+        prices, _ = event_prices
+        backtester = EventStudyBacktester(horizon=1)
+
+        with pytest.raises(ValueError, match="event_date"):
+            backtester.run(prices, events=pd.DataFrame({"event_type": ["policy"]}))
 
 
 class TestCrossEngineConsistency:

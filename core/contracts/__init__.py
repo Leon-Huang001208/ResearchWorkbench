@@ -5,7 +5,7 @@ from .events import CanonicalEvent
 from .ids import CanonicalId
 from .reporting import SectionOutput, SectionSpec
 from .scenarios import ScenarioHypothesis, ScenarioSet
-from .signals import AlphaSignal, TradeCandidate
+from .signals import AlphaSignal, EventAlphaSignal, TradeCandidate
 from .traces import ReasoningTrace
 
 __all__ = [
@@ -20,5 +20,6 @@ __all__ = [
     "SectionSpec",
     "SectionOutput",
     "AlphaSignal",
+    "EventAlphaSignal",
     "TradeCandidate",
 ]

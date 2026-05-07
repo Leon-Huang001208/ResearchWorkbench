@@ -18,9 +18,12 @@ _VECTORBT_AVAILABLE = False
 try:
     import vectorbt as vbt
     _VECTORBT_AVAILABLE = True
-except ImportError:
+except Exception as exc:
     vbt = None  # type: ignore
-    logger.warning("vectorbt not installed; VectorBTBacktester will fall back to SimpleBacktester")
+    logger.warning(
+        "vectorbt unavailable; VectorBTBacktester will fall back to SimpleBacktester",
+        error=str(exc),
+    )
 
 
 class VectorBTBacktester(Backtester):

@@ -3,233 +3,409 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AlphaFoundry - 买方投研情报系统</title>
+    <title>AlphaFoundry — 买方投研情报系统</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
     <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@vscode/codicons@0.0.36/dist/codicon.min.css">
 </head>
 <body>
-    <!-- Top Header -->
-    <header class="top-header">
-        <div class="header-brand">
-            <span class="logo">🐉</span>
-            <h1>AlphaFoundry</h1>
-            <span class="tagline">买方投研情报系统</span>
+    <div class="app-container">
+        <!-- VS Code Activity Bar (icon strip) -->
+        <aside class="activity-bar">
+            <div class="activity-bar-top">
+                <button class="activity-btn active" data-section="dashboard" title="仪表盘"><i class="codicon codicon-home"></i></button>
+                <button class="activity-btn" data-section="asset-analysis" title="资产分析"><i class="codicon codicon-graph"></i></button>
+                <button class="activity-btn" data-section="scenario" title="情景分析"><i class="codicon codicon-git-branch"></i></button>
+                <button class="activity-btn" data-section="event-signal" title="事件信号"><i class="codicon codicon-zap"></i></button>
+                <button class="activity-btn" data-section="industry-chain" title="产业链"><i class="codicon codicon-symbol-class"></i></button>
+                <button class="activity-btn" data-section="review" title="审核队列"><i class="codicon codicon-checklist"></i></button>
+                <button class="activity-btn" data-section="signals" title="信号管理"><i class="codicon codicon-pulse"></i></button>
+                <button class="activity-btn" data-section="ingest" title="文档摄入"><i class="codicon codicon-cloud-download"></i></button>
+                <button class="activity-btn" data-section="memory" title="记忆与学习"><i class="codicon codicon-lightbulb"></i></button>
+            </div>
+            <div class="activity-bar-bottom">
+                <button class="activity-btn" id="btn-settings" title="设置"><i class="codicon codicon-settings-gear"></i></button>
+            </div>
+        </aside>
+
+        <!-- Settings Popover (VS Code style) -->
+        <div class="settings-popover hidden" id="settings-popover">
+            <div class="settings-popover-header" data-i18n="settings.title">设置</div>
+            <div class="settings-popover-body">
+                <div class="settings-row">
+                    <span class="settings-label" data-i18n="settings.theme">外观</span>
+                    <div class="switcher-btn-group" id="theme-switcher">
+                        <button class="switcher-btn active" data-theme-val="light" data-i18n="theme.light" onclick="switchTheme('light')">亮色</button>
+                        <button class="switcher-btn" data-theme-val="dark" data-i18n="theme.dark" onclick="switchTheme('dark')">暗色</button>
+                    </div>
+                </div>
+                <div class="settings-row">
+                    <span class="settings-label" data-i18n="settings.language">语言</span>
+                    <div class="switcher-btn-group" id="lang-switcher">
+                        <button class="switcher-btn active" data-lang="zh" onclick="switchLang('zh')">中文</button>
+                        <button class="switcher-btn" data-lang="en" onclick="switchLang('en')">EN</button>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="header-actions">
-            <a href="/docs" target="_blank" class="header-link">API 文档</a>
-            <button id="theme-toggle" class="btn-icon" title="切换主题">🌙</button>
+
+        <!-- Right Content Area -->
+        <main class="main-content">
+            <!-- Global Search -->
+            <div class="search-bar">
+                <input type="text" id="global-search" data-i18n-placeholder="search.placeholder" placeholder="搜索实体、事件、信号...">
+            </div>
+
+            <!-- Dashboard Section -->
+            <section id="section-dashboard" class="content-section active">
+                <h2 class="section-title" data-i18n="dashboard.title">仪表盘</h2>
+                <div class="dashboard-stats">
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-total">0</div>
+                        <div class="stat-label" data-i18n="dashboard.total_signals">总信号数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-research">0</div>
+                        <div class="stat-label" data-i18n="dashboard.research">研究中</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-candidate">0</div>
+                        <div class="stat-label" data-i18n="dashboard.candidate">候选信号</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-paper">0</div>
+                        <div class="stat-label" data-i18n="dashboard.paper_trade">模拟交易</div>
+                    </div>
+                    <div class="stat-card pending">
+                        <div class="stat-value" id="stat-review">0</div>
+                        <div class="stat-label" data-i18n="dashboard.pending_review">待审核断言</div>
+                    </div>
+                </div>
+
+                <div class="section-grid">
+                    <div class="card">
+                        <h3 data-i18n="dashboard.recent_events">最近事件</h3>
+                        <ul id="recent-events" class="item-list">
+                            <li class="empty-state" data-i18n="dashboard.no_data">暂无数据</li>
+                        </ul>
+                    </div>
+                    <div class="card">
+                        <h3 data-i18n="dashboard.recent_reports">最近报告</h3>
+                        <ul id="recent-reports" class="item-list">
+                            <li class="empty-state" data-i18n="dashboard.no_data">暂无数据</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Asset Analysis Section -->
+            <section id="section-asset-analysis" class="content-section">
+                <h2 class="section-title" data-i18n="asset.title">资产分析</h2>
+                <div class="input-row">
+                    <input type="text" id="asset-code" value="600000.SH" data-i18n-placeholder="asset.code_placeholder" placeholder="输入资产代码，如 600000.SH">
+                    <select id="asset-source">
+                        <option value="mock" data-i18n="asset.source_mock">Mock 数据</option>
+                        <option value="local" data-i18n="asset.source_local">本地数据</option>
+                        <option value="ifind" data-i18n="asset.source_ifind">iFinD</option>
+                    </select>
+                    <button id="btn-analyze" class="btn-primary" data-i18n="asset.btn_analyze">分析</button>
+                </div>
+                <div id="asset-loading" class="loading hidden">
+                    <div class="spinner"></div>
+                    <span data-i18n="asset.loading">正在分析资产...</span>
+                </div>
+                <div id="asset-result" class="result-area hidden">
+                    <div class="card-grid">
+                        <div class="card">
+                            <h3 data-i18n="asset.valuation">估值</h3>
+                            <div id="valuation-cards" class="info-grid"></div>
+                        </div>
+                        <div class="card">
+                            <h3 data-i18n="asset.fund_flow">💸 资金流向</h3>
+                            <div id="fund-flow-info" class="info-grid"></div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3 data-i18n="asset.price_volume">量价走势</h3>
+                        <canvas id="chart-price-volume"></canvas>
+                    </div>
+                    <div class="card-grid">
+                        <div class="card">
+                            <h3 data-i18n="asset.financial">📋 财务数据</h3>
+                            <div id="financial-table" class="data-table-wrap"></div>
+                        </div>
+                        <div class="card">
+                            <h3 data-i18n="asset.shareholder">👥 股东</h3>
+                            <div id="shareholder-info" class="info-grid"></div>
+                        </div>
+                        <div class="card">
+                            <h3 data-i18n="asset.industry">🏭 产业</h3>
+                            <div id="industry-info" class="info-grid"></div>
+                        </div>
+                        <div class="card">
+                            <h3 data-i18n="asset.event_impact">事件影响</h3>
+                            <ul id="event-impact-list" class="event-list"></ul>
+                        </div>
+                        <div class="card">
+                            <h3 data-i18n="asset.macro">🌍 宏观</h3>
+                            <div id="macro-info" class="info-grid"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Scenario Analysis Section -->
+            <section id="section-scenario" class="content-section">
+                <h2 class="section-title" data-i18n="scenario.title">情景分析</h2>
+                <div class="input-row">
+                    <input type="text" id="scenario-topic" data-i18n-placeholder="scenario.topic_placeholder" placeholder="输入研究主题，如 人工智能产业发展" style="flex:2">
+                    <input type="text" id="scenario-subjects" data-i18n-placeholder="scenario.subjects_placeholder" placeholder="关联标的（可选，逗号分隔）">
+                    <button id="btn-generate-scenarios" class="btn-primary" data-i18n="scenario.btn_generate">生成情景</button>
+                </div>
+                <div id="scenario-loading" class="loading hidden">
+                    <div class="spinner"></div>
+                    <span data-i18n="scenario.loading">正在生成情景分析...</span>
+                </div>
+                <div id="scenario-result" class="result-area hidden">
+                    <div class="card">
+                        <h3 data-i18n="scenario.prob_chart">情景概率分布</h3>
+                        <canvas id="chart-scenario-prob" style="max-height:300px"></canvas>
+                        <div id="normalization-check" class="check-indicator"></div>
+                    </div>
+                    <div id="scenario-cards" class="card-stack"></div>
+                    <div class="card">
+                        <h3 data-i18n="scenario.residual">❓ 残余不确定性</h3>
+                        <ul id="residual-list" class="event-list"></ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Event Signal Section -->
+            <section id="section-event-signal" class="content-section">
+                <h2 class="section-title" data-i18n="event.title">事件信号</h2>
+                <div class="card">
+                    <h3 data-i18n="event.trigger">触发事件信号</h3>
+                    <div class="form-grid">
+                        <div class="form-field">
+                            <label data-i18n="event.event_title">事件标题</label>
+                            <input type="text" id="event-title" data-i18n-placeholder="event.event_title_placeholder" placeholder="事件标题">
+                        </div>
+                        <div class="form-field">
+                            <label data-i18n="event.event_type">事件类型</label>
+                            <select id="event-type">
+                                <option value="earnings" data-i18n="event.type_earnings">财报</option>
+                                <option value="policy" data-i18n="event.type_policy">政策</option>
+                                <option value="product" data-i18n="event.type_product">产品</option>
+                                <option value="other" data-i18n="event.type_other">其他</option>
+                            </select>
+                        </div>
+                        <div class="form-field">
+                            <label data-i18n="event.event_date">时间</label>
+                            <input type="date" id="event-date">
+                        </div>
+                        <div class="form-field form-action">
+                            <button id="btn-generate-event-signal" class="btn-primary" data-i18n="event.btn_generate">生成信号</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="event-signal-list" class="card">
+                    <h3 data-i18n="event.signal_list">事件信号列表</h3>
+                    <div id="signal-cards" class="signal-card-list"></div>
+                </div>
+                <div id="timing-decision-container" class="card hidden">
+                    <h3 data-i18n="event.timing_decision">⏰ 择时决策</h3>
+                    <div id="timing-decision-card" class="timing-decision"></div>
+                </div>
+            </section>
+
+            <!-- Industry Chain Section -->
+            <section id="section-industry-chain" class="content-section">
+                <h2 class="section-title" data-i18n="industry.title">产业链图谱</h2>
+                <div class="input-row">
+                    <select id="industry-select">
+                        <option value="semiconductor" data-i18n="industry.semiconductor">半导体</option>
+                        <option value="new-energy" data-i18n="industry.new_energy">新能源</option>
+                        <option value="automotive" data-i18n="industry.automotive">汽车</option>
+                        <option value="consumption" data-i18n="industry.consumption">消费</option>
+                    </select>
+                    <button id="btn-load-industry" class="btn-primary" data-i18n="industry.btn_load">加载图谱</button>
+                </div>
+                <div id="industry-graph" class="card graph-container"></div>
+                <div class="card">
+                    <h3 data-i18n="industry.propagation">事件传播路径</h3>
+                    <input type="text" id="event-id" data-i18n-placeholder="industry.event_id_placeholder" placeholder="输入事件 ID">
+                    <button id="btn-load-propagation" class="btn-primary" data-i18n="industry.btn_propagation">查看传播路径</button>
+                    <div id="propagation-graph" class="graph-container"></div>
+                </div>
+            </section>
+
+            <!-- Review Section -->
+            <section id="section-review" class="content-section">
+                <h2 class="section-title" data-i18n="review.title">审核队列</h2>
+                <div id="review-stats" class="card-row"></div>
+                <div class="card">
+                    <div class="card-header">
+                        <h3 data-i18n="review.pending">待审核断言</h3>
+                        <button id="btn-refresh-review" class="btn-secondary" data-i18n="review.btn_refresh">刷新</button>
+                    </div>
+                    <div id="review-table" class="data-table-wrap"></div>
+                </div>
+            </section>
+
+            <!-- Signals Section -->
+            <section id="section-signals" class="content-section">
+                <h2 class="section-title" data-i18n="signals.title">信号管理</h2>
+                <div class="card">
+                    <div class="card-header">
+                        <h3 data-i18n="signals.create">创建新信号</h3>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-field">
+                            <label data-i18n="signals.subject_id">主体 ID</label>
+                            <input type="text" id="sig-subject-id" value="600000.SH" data-i18n-placeholder="signals.subject_id_placeholder" placeholder="如 600000.SH">
+                        </div>
+                        <div class="form-field">
+                            <label data-i18n="signals.thesis">论点</label>
+                            <input type="text" id="sig-thesis" data-i18n-placeholder="signals.thesis_placeholder" placeholder="如 短期看涨">
+                        </div>
+                        <div class="form-field">
+                            <label data-i18n="signals.score">分数 (0~1)</label>
+                            <input type="number" id="sig-score" value="0.5" min="0" max="1" step="0.1">
+                        </div>
+                        <div class="form-field">
+                            <label data-i18n="signals.confidence">置信度 (0~1)</label>
+                            <input type="number" id="sig-confidence" value="0.5" min="0" max="1" step="0.1">
+                        </div>
+                        <div class="form-field">
+                            <label data-i18n="signals.horizon">预测期</label>
+                            <select id="sig-horizon">
+                                <option value="1d" data-i18n="signals.horizon_1d">1天</option>
+                                <option value="5d" data-i18n="signals.horizon_5d">5天</option>
+                                <option value="20d" selected data-i18n="signals.horizon_20d">20天</option>
+                                <option value="60d" data-i18n="signals.horizon_60d">60天</option>
+                            </select>
+                        </div>
+                        <div class="form-field form-action">
+                            <button id="btn-create-signal" class="btn-primary" data-i18n="signals.btn_create">创建信号</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <h3 data-i18n="signals.list">信号列表</h3>
+                        <button id="btn-refresh-signals" class="btn-secondary" data-i18n="signals.btn_refresh">刷新</button>
+                    </div>
+                    <div id="signals-table" class="data-table-wrap"></div>
+                </div>
+            </section>
+
+            <!-- Ingest Section -->
+            <section id="section-ingest" class="content-section">
+                <h2 class="section-title" data-i18n="ingest.title">文档摄入</h2>
+                <div class="card">
+                    <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+                        <div class="form-field" style="grid-column: 1 / -1;">
+                            <label data-i18n="ingest.text_label">文本内容</label>
+                            <textarea id="ingest-text" rows="8" data-i18n-placeholder="ingest.text_placeholder" placeholder="粘贴研报摘要、新闻内容等..."></textarea>
+                        </div>
+                        <div class="form-field">
+                            <label data-i18n="ingest.source_type">来源类型</label>
+                            <select id="ingest-source-type">
+                                <option value="report" data-i18n="ingest.source_report">研报</option>
+                                <option value="news" data-i18n="ingest.source_news">新闻</option>
+                                <option value="filing" data-i18n="ingest.source_filing">公告</option>
+                                <option value="other" data-i18n="ingest.source_other">其他</option>
+                            </select>
+                        </div>
+                        <div class="form-field">
+                            <label data-i18n="ingest.source_name">来源名称</label>
+                            <input type="text" id="ingest-source-name" data-i18n-placeholder="ingest.source_name_placeholder" placeholder="如 中金研报">
+                        </div>
+                        <div class="form-field" style="grid-column: 1 / -1;">
+                            <label data-i18n="ingest.doc_title">标题（可选）</label>
+                            <input type="text" id="ingest-title" data-i18n-placeholder="ingest.doc_title_placeholder" placeholder="文档标题">
+                        </div>
+                        <div class="form-field" style="grid-column: 1 / -1; text-align: right;">
+                            <button id="btn-ingest" class="btn-primary" data-i18n="ingest.btn_ingest">摄入</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="ingest-loading" class="loading hidden">
+                    <div class="spinner"></div>
+                    <span data-i18n="ingest.loading">正在摄入文档...</span>
+                </div>
+                <div id="ingest-result" class="result-area hidden"></div>
+            </section>
+
+            <!-- Memory & Learning Section -->
+            <section id="section-memory" class="content-section">
+                <h2 class="section-title" data-i18n="memory.title">记忆与学习</h2>
+                
+                <!-- Event Type Summary Cards -->
+                <div class="card">
+                    <h3 data-i18n="memory.event_type_summary">事件类型汇总</h3>
+                    <div class="input-row">
+                        <input type="text" id="event-type-summary" data-i18n-placeholder="memory.event_type_placeholder" placeholder="输入事件类型，比如 earnings">
+                        <button id="btn-event-summary" class="btn-primary" data-i18n="memory.btn_query">查询</button>
+                    </div>
+                    <div id="event-summary-cards" class="card-row"></div>
+                </div>
+
+                <!-- Strategy Performance Memory -->
+                <div class="card">
+                    <h3 data-i18n="memory.strategy_performance">策略表现记忆</h3>
+                    <div class="input-row">
+                        <input type="text" id="strategy-id" data-i18n-placeholder="memory.strategy_id_placeholder" placeholder="策略 ID">
+                        <button id="btn-load-strategy" class="btn-primary" data-i18n="memory.btn_load_strategy">加载策略表现</button>
+                    </div>
+                    <div id="strategy-memory-list" class="strategy-memory-list"></div>
+                </div>
+
+                <!-- Failure Memory -->
+                <div class="card">
+                    <h3 data-i18n="memory.failure_memory">失败记忆</h3>
+                    <div class="filter-row" style="margin-bottom: 1rem;">
+                        <select id="failure-type-filter">
+                            <option value="" data-i18n="memory.failure_all">全部</option>
+                            <option value="wrong_thesis" data-i18n="memory.failure_wrong_thesis">论点错误</option>
+                            <option value="timing_error" data-i18n="memory.failure_timing_error">择时错误</option>
+                            <option value="crowding_error" data-i18n="memory.failure_crowding_error">拥挤错误</option>
+                            <option value="regime_misread" data-i18n="memory.failure_regime_misread">环境误判</option>
+                            <option value="data_quality" data-i18n="memory.failure_data_quality">数据质量</option>
+                            <option value="execution_error" data-i18n="memory.failure_execution_error">执行错误</option>
+                            <option value="risk_error" data-i18n="memory.failure_risk_error">风控错误</option>
+                            <option value="unknown" data-i18n="memory.failure_unknown">未知</option>
+                        </select>
+                        <input type="text" id="failure-source-filter" data-i18n-placeholder="memory.failure_source_filter" placeholder="来源 ID 筛选">
+                        <button id="btn-load-failures" class="btn-secondary" data-i18n="review.btn_refresh">刷新</button>
+                    </div>
+                    <div id="failure-memory-list" class="failure-memory-list"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- VS Code Status Bar -->
+    <footer class="status-bar">
+        <div class="status-bar-left">
+            <span class="status-item" id="status-branch"><i class="codicon codicon-source-control"></i> main</span>
+            <span class="status-item" id="status-errors"><i class="codicon codicon-error"></i> 0</span>
+            <span class="status-item" id="status-warnings"><i class="codicon codicon-warning"></i> 0</span>
         </div>
-    </header>
+        <div class="status-bar-right">
+            <span class="status-item" id="status-db"><i class="codicon codicon-database"></i> SQLite</span>
+            <span class="status-item" id="status-llm"><i class="codicon codicon-hubot"></i> Volcengine</span>
+            <span class="status-item" id="status-docs"><i class="codicon codicon-file-text"></i> <span id="status-doc-count">0</span> docs</span>
+            <span class="status-item" id="status-lang"><i class="codicon codicon-globe"></i> <span id="status-lang-label">中文</span></span>
+        </div>
+    </footer>
 
-    <!-- Tab Navigation -->
-    <nav class="tab-nav">
-        <button class="tab-btn active" data-tab="assets">📊 资产分析</button>
-        <button class="tab-btn" data-tab="scenarios">🎲 情景分析</button>
-        <button class="tab-btn" data-tab="signals">⚡ 信号实验室</button>
-        <button class="tab-btn" data-tab="review">📝 审核</button>
-        <button class="tab-btn" data-tab="ingest">📥 文档摄入</button>
-    </nav>
-
-    <!-- Main Content Area -->
-    <main class="main-content">
-
-        <!-- ===== Tab 1: 资产分析 ===== -->
-        <section id="tab-assets" class="tab-panel active">
-            <div class="section-header">
-                <h2>📊 资产分析</h2>
-                <p class="section-desc">标准化资产快照，覆盖 8 大维度</p>
-            </div>
-            <div class="input-row">
-                <input type="text" id="asset-code" value="600000.SH" placeholder="输入资产代码，如 600000.SH">
-                <select id="asset-source">
-                    <option value="mock">Mock 数据</option>
-                    <option value="local">本地数据</option>
-                    <option value="ifind">iFinD</option>
-                </select>
-                <button id="btn-analyze" class="btn-primary">分析</button>
-            </div>
-            <div id="asset-result" class="result-area hidden">
-                <!-- 估值卡片 -->
-                <div class="card-row" id="valuation-cards"></div>
-                <!-- 量价图 -->
-                <div class="chart-container">
-                    <h3>📈 量价走势</h3>
-                    <canvas id="chart-price-volume"></canvas>
-                </div>
-                <!-- 财务数据表 -->
-                <div class="data-block">
-                    <h3>💰 财务数据</h3>
-                    <div id="financial-table" class="data-table-wrap"></div>
-                </div>
-                <!-- 资金流向 -->
-                <div class="data-block">
-                    <h3>💹 资金流向</h3>
-                    <div id="fund-flow-info" class="info-grid"></div>
-                </div>
-                <!-- 事件影响 -->
-                <div class="data-block">
-                    <h3>⚡ 事件影响</h3>
-                    <ul id="event-impact-list" class="event-list"></ul>
-                </div>
-            </div>
-            <div id="asset-loading" class="loading hidden">
-                <div class="spinner"></div>
-                <span>正在分析资产...</span>
-            </div>
-        </section>
-
-        <!-- ===== Tab 2: 情景分析 ===== -->
-        <section id="tab-scenarios" class="tab-panel">
-            <div class="section-header">
-                <h2>🎲 情景分析</h2>
-                <p class="section-desc">不确定性问题的多情景分析</p>
-            </div>
-            <div class="input-row">
-                <input type="text" id="scenario-topic" placeholder="输入研究主题，如 人工智能产业发展" style="flex:2">
-                <button id="btn-generate-scenarios" class="btn-primary">生成情景</button>
-            </div>
-            <div id="scenario-result" class="result-area hidden">
-                <!-- 概率饼图 -->
-                <div class="chart-container" style="max-width:400px;">
-                    <h3>📊 情景概率分布</h3>
-                    <canvas id="chart-scenario-prob"></canvas>
-                </div>
-                <!-- 情景卡片 -->
-                <div id="scenario-cards" class="card-stack"></div>
-                <!-- 残余不确定性 -->
-                <div class="data-block">
-                    <h3>❓ 残余不确定性</h3>
-                    <ul id="residual-list" class="event-list"></ul>
-                </div>
-            </div>
-            <div id="scenario-loading" class="loading hidden">
-                <div class="spinner"></div>
-                <span>正在生成情景分析...</span>
-            </div>
-        </section>
-
-        <!-- ===== Tab 3: 信号实验室 ===== -->
-        <section id="tab-signals" class="tab-panel">
-            <div class="section-header">
-                <h2>⚡ 信号实验室</h2>
-                <p class="section-desc">特征工程、信号评分、回测验证</p>
-            </div>
-            <!-- 创建信号表单 -->
-            <div class="form-card">
-                <h3>创建新信号</h3>
-                <div class="form-grid">
-                    <div class="form-field">
-                        <label>主体 ID</label>
-                        <input type="text" id="sig-subject-id" value="600000.SH" placeholder="如 600000.SH">
-                    </div>
-                    <div class="form-field">
-                        <label>论点</label>
-                        <input type="text" id="sig-thesis" placeholder="如 短期看涨">
-                    </div>
-                    <div class="form-field">
-                        <label>分数 (0~1)</label>
-                        <input type="number" id="sig-score" value="0.5" min="0" max="1" step="0.1">
-                    </div>
-                    <div class="form-field">
-                        <label>置信度 (0~1)</label>
-                        <input type="number" id="sig-confidence" value="0.5" min="0" max="1" step="0.1">
-                    </div>
-                    <div class="form-field">
-                        <label>预测期</label>
-                        <select id="sig-horizon">
-                            <option value="1d">1天</option>
-                            <option value="5d">5天</option>
-                            <option value="20d" selected>20天</option>
-                            <option value="60d">60天</option>
-                        </select>
-                    </div>
-                    <div class="form-field form-action">
-                        <button id="btn-create-signal" class="btn-primary">创建信号</button>
-                    </div>
-                </div>
-            </div>
-            <!-- 信号列表 -->
-            <div class="data-block">
-                <div class="data-block-header">
-                    <h3>📋 信号列表</h3>
-                    <button id="btn-refresh-signals" class="btn-secondary">刷新</button>
-                </div>
-                <div id="signals-table" class="data-table-wrap"></div>
-            </div>
-            <div id="signal-loading" class="loading hidden">
-                <div class="spinner"></div>
-                <span>操作中...</span>
-            </div>
-        </section>
-
-        <!-- ===== Tab 4: 审核 ===== -->
-        <section id="tab-review" class="tab-panel">
-            <div class="section-header">
-                <h2>📝 审核</h2>
-                <p class="section-desc">待审核断言与事件管理</p>
-            </div>
-            <!-- 统计卡片 -->
-            <div id="review-stats" class="card-row"></div>
-            <!-- 待审核列表 -->
-            <div class="data-block">
-                <div class="data-block-header">
-                    <h3>📋 待审核列表</h3>
-                    <button id="btn-refresh-review" class="btn-secondary">刷新</button>
-                </div>
-                <div id="review-table" class="data-table-wrap"></div>
-            </div>
-            <div id="review-loading" class="loading hidden">
-                <div class="spinner"></div>
-                <span>加载中...</span>
-            </div>
-        </section>
-
-        <!-- ===== Tab 5: 文档摄入 ===== -->
-        <section id="tab-ingest" class="tab-panel">
-            <div class="section-header">
-                <h2>📥 文档摄入</h2>
-                <p class="section-desc">将文本内容摄入系统，自动提取断言与事件</p>
-            </div>
-            <div class="form-card">
-                <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
-                    <div class="form-field" style="grid-column: 1 / -1;">
-                        <label>文本内容</label>
-                        <textarea id="ingest-text" rows="8" placeholder="粘贴研报摘要、新闻内容等..."></textarea>
-                    </div>
-                    <div class="form-field">
-                        <label>来源类型</label>
-                        <select id="ingest-source-type">
-                            <option value="report">研报</option>
-                            <option value="news">新闻</option>
-                            <option value="filing">公告</option>
-                            <option value="other">其他</option>
-                        </select>
-                    </div>
-                    <div class="form-field">
-                        <label>来源名称</label>
-                        <input type="text" id="ingest-source-name" placeholder="如 中金研报">
-                    </div>
-                    <div class="form-field" style="grid-column: 1 / -1;">
-                        <label>标题（可选）</label>
-                        <input type="text" id="ingest-title" placeholder="文档标题">
-                    </div>
-                    <div class="form-field" style="grid-column: 1 / -1; text-align: right;">
-                        <button id="btn-ingest" class="btn-primary">摄入</button>
-                    </div>
-                </div>
-            </div>
-            <div id="ingest-result" class="result-area hidden"></div>
-            <div id="ingest-loading" class="loading hidden">
-                <div class="spinner"></div>
-                <span>正在摄入文档...</span>
-            </div>
-        </section>
-
-    </main>
-
-    <!-- Toast Notification -->
+    <!-- Toast -->
     <div id="toast" class="toast hidden"></div>
 
+    <!-- Scripts: i18n must load before app.js -->
+    <script src="/static/i18n.js"></script>
     <script src="/static/app.js"></script>
 </body>
 </html>

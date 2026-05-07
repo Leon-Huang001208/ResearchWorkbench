@@ -1,4 +1,5 @@
 """摄入路由"""
+import asyncio
 import shutil
 import tempfile
 from pathlib import Path
@@ -6,7 +7,11 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 
 from app.api.models import ErrorResponse, IngestResponse, IngestTextRequest
+from core.observability import get_logger
 from core.services.ingest_service import IngestService
+from data_layer.adapters.data_source_router import DataSourceRouter
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/ingest", tags=["ingest"])
 
@@ -72,3 +77,71 @@ async def ingest_file(
     finally:
         # 清理临时文件
         tmp_path.unlink(missing_ok=True)
+
+
+@router.post("/cls", response_model=IngestResponse)
+async def ingest_cls(
+    days: int = 2,
+    start_date: str | None = None,
+    end_date: str | None = None,
+):
+    """摄入财联社电报"""
+    try:
+        router_ = DataSourceRouter()
+        envelopes = await router_.fetch_news_cls(
+            days=days, start_date=start_date, end_date=end_date
+        )
+        return IngestResponse(
+            success=True,
+            message=f"Fetched {len(envelopes)} CLS telegrams",
+            doc_ids=[e.id for e in envelopes],
+        )
+    except Exception as e:
+        logger.error("cls ingest failed", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/cnstock", response_model=IngestResponse)
+async def ingest_cnstock(
+    start_date: str = "",
+    end_date: str = "",
+    channel: str = "证券",
+):
+    """摄入中国证券网新闻"""
+    try:
+        router_ = DataSourceRouter()
+        envelopes = await router_.fetch_news_cnstock(
+            start_date=start_date, end_date=end_date, channel=channel
+        )
+        return IngestResponse(
+            success=True,
+            message=f"Fetched {len(envelopes)} cnstock news",
+            doc_ids=[e.id for e in envelopes],
+        )
+    except Exception as e:
+        logger.error("cnstock ingest failed", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/zq", response_model=IngestResponse)
+async def ingest_zq(
+    search: str = "",
+    doc_types: str = "REPORT",
+    start_date: str | None = None,
+    end_date: str | None = None,
+):
+    """摄入知丘内容（研报/公众号/会议纪要）"""
+    try:
+        router_ = DataSourceRouter()
+        envelopes = await router_.fetch_reports_zq(
+            search=search, doc_types=doc_types,
+            start_date=start_date, end_date=end_date
+        )
+        return IngestResponse(
+            success=True,
+            message=f"Fetched {len(envelopes)} zq documents",
+            doc_ids=[e.id for e in envelopes],
+        )
+    except Exception as e:
+        logger.error("zq ingest failed", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))

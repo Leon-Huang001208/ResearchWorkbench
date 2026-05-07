@@ -117,7 +117,7 @@ class InMemoryVectorStore(VectorStore):
         """获取文本的嵌入向量"""
         if self._model_gateway:
             try:
-                return self._model_gateway.get_embeddings([text])[0]
+                return self._model_gateway.embed(text).embedding
             except Exception as e:
                 logger.error(f"Failed to get embedding: {e}", exc_info=True)
 

@@ -3,20 +3,23 @@
 **项目名称**: AlphaFoundry  
 **日期**: 2026-05-03  
 **依据**: `/Users/leon/Downloads/deep-research-report.md`  
-**定位**: 本地优先、可企业化的买方投研情报系统  
+**定位**: 本地优先、可企业化的 AI-native Investment Operating System  
 **原则**: 模块化单体、统一数据契约、可审计事实层、可替换基础设施
 
 ---
 
 ## 1. 重构结论
 
-AlphaFoundry 是面向基金研究员工作流的 AI 产业情报与 Alpha 发现系统。它不再沿用“由 LLM 维护 Markdown 的知识库”作为产品定义，而是以结构化事实层、情景推理层、模板写作层和信号验证层为核心。
+AlphaFoundry 是面向基金研究员和量化研究员工作流的 AI-native Investment Operating System。它不再沿用“由 LLM 维护 Markdown 的知识库”作为产品定义，也不把量化理解为预测 K 线，而是以结构化事实层、事件数据库、时间化产业链图谱、情景推理层、模板写作层、择时层、记忆学习层和量化验证层为核心。
 
 核心判断如下：
 
 - Markdown/Wiki 降级为人类可读的投影层，不再承担唯一真相层。
 - PostgreSQL + pgvector 升级为 canonical fact/event/assertion store。
 - 原始资料、结构化断言、事件、情景、报告段落、推理 trace、候选信号都成为一等对象。
+- AI 负责理解世界，Timing 负责交易节奏，Quant 负责验证世界；任何事件型信号都必须经过市场状态判断和 event study、超额收益、胜率、衰减、风险约束。
+- 系统最终形态是 World Model + Agent Swarm，但 Agent 只是认知插件层，必须通过统一 schema 写入共享黑板。
+- 不追求静态最终架构，而追求 Evolutionary Architecture：用市场反馈更新记忆、修正失败原因、提高 alpha 验证速度。
 - 系统首要输出是资产分析卡、专题研究备忘录、多情景市场分析报告、候选信号与回测说明。
 - MVP 采用本地优先的模块化单体，不急于拆微服务。
 - 数据源、模型后端、向量库、图数据库、回测引擎均通过接口隔离，后续可替换。
@@ -65,6 +68,10 @@ flowchart LR
         K["Knowledge Layer"]
         E["Event Extraction Layer"]
         R["Reasoning Engine"]
+        G["Cognitive Agents"]
+        B["Cognitive Blackboard"]
+        T["Timing Engine"]
+        M["Memory & Learning"]
         C["Report Composer"]
         A["Signal & Backtest"]
     end
@@ -98,8 +105,17 @@ flowchart LR
     PG --> K
     K --> GRAPH
     K --> R
+    R --> G
+    G --> B
+    B --> T
+    T --> A
+    A --> M
+    M --> G
+    M --> T
+    B --> C
     MG --> E
     MG --> R
+    MG --> G
     R --> C
     R --> A
     C --> U3
@@ -127,6 +143,9 @@ flowchart LR
 | Knowledge Layer | canonical ID、实体、断言、向量检索、来源追踪 | 自由写报告 | Postgres + pgvector |
 | Event Extraction | 文本/表格/图表到事件和断言 | 直接写最终事实 | Pydantic schema、ModelGateway、Quality Gate |
 | Reasoning Engine | 证据收集、情景生成、反证审查、trace 落库 | 抓取供应商数据 | LangGraph 或等价状态机 |
+| Cognitive Agents | 多视角专家观点、对抗质疑、认知冲突检测 | 自由聊天、绕过黑板直接生成事实 | AgentView、CognitiveBlackboard |
+| Timing Engine | 判断市场现在是否会认可逻辑，输出交易节奏 | 解释产业逻辑、做长期统计验证 | TimingModelScore、MetaTimingEngine |
+| Memory & Learning | 记录事件结果、策略表现、Agent 观点演化、失败原因 | 替代回测、直接下交易建议 | MarketEpisode、LearningJournal |
 | Report Composer | 模板段落生成、引用绑定、Word/Markdown 投影 | 自由发挥整篇报告 | SectionSpec、SectionOutput |
 | Signal & Backtest | feature、label、score、backtest、归因 | 自动下单 | vectorbt、Backtrader |
 | Web Workbench | 审核、查询、报告生成、任务状态 | 直接操作数据库细节 | FastAPI + Web 或 Streamlit MVP |
@@ -306,6 +325,31 @@ class AlphaSignal(BaseModel):
     scenario_refs: list[str]
     evidence_refs: list[str]
     status: Literal["research_only", "candidate", "paper_trade"] = "research_only"
+
+class EventAlphaSignal(AlphaSignal):
+    event_id: str
+    event_type: str
+    impact_path: list[str]
+    industry_impacts: list[str]
+    bullish_companies: list[str] = []
+    bearish_companies: list[str] = []
+    diffusion_stage: Literal[
+        "discovery",
+        "early_awareness",
+        "theme_trading",
+        "institutional_coverage",
+        "consensus",
+        "decay",
+        "unknown",
+    ] = "unknown"
+    market_regime: str | None = None
+    validation_status: Literal[
+        "pending_backtest",
+        "validated",
+        "rejected",
+        "paper_trade",
+    ] = "pending_backtest"
+    validation_metrics: dict[str, float] = {}
 
 class TradeCandidate(BaseModel):
     candidate_id: str
@@ -542,6 +586,7 @@ MVP 不接 OMS，不做自动下单。`TradeCandidate` 仅作为未来接口保�
 
 - 建立 FeatureBuilder。
 - 建立 Labeler。
+- 建立 Event Backtest Engine，支持事件窗收益、超额收益、胜率和 decay。
 - 集成 vectorbt 和 Backtrader。
 - 建立 shadowing workflow。
 - 建立团队权限、监控、灰度发布。
@@ -551,6 +596,48 @@ MVP 不接 OMS，不做自动下单。`TradeCandidate` 仅作为未来接口保�
 - 候选信号。
 - 回测说明。
 - 研究工作台 v1。
+
+### 八月：认知 Agent 黑板
+
+- 建立 `cognitive_agents/`。
+- 建立 `AgentView`、`BlackboardConflict` 和统一 Agent ontology。
+- 建立 `CognitiveBlackboard`，支持观点写入、查询、冲突检测。
+- 接入 Fundamental、Macro、Industry Chain、Policy、Sentiment、Bull、Bear、Skeptic 等 Agent 的结构化输出。
+- 将黑板观点交给 Alpha Validation Agent 做事件研究和统计验证。
+
+交付物：
+
+- Agent 认知插件层。
+- 共享黑板 / 结构化 memory。
+- 多空冲突检测与可审计认知轨迹。
+
+### 九月：Timing Engine / 市场认知时钟
+
+- 建立 `timing_engine/`。
+- 建立 `TimingModelScore`、`TimingDecision` 和 MarketRegime ontology。
+- 建立 `MetaTimingEngine`，融合 regime、flow、theme diffusion、sentiment、crowding、liquidity、expectation gap、alpha decay。
+- 将 Agent 黑板观点和市场行为数据转为择时输入。
+- 输出 `enter`、`wait`、`reduce`、`exit`、`block` 等交易节奏决策。
+
+交付物：
+
+- Market Understanding Layer。
+- 事件型信号的市场认可度判断。
+- 可审计的 blockers 与 readiness_score。
+
+### 十月：Memory & Learning / 可进化架构
+
+- 建立 `memory_learning/`。
+- 建立 `MarketEpisode`、`StrategyMemory`、`AgentMemory`、`FailureMemory`。
+- 建立 `LearningJournal`，沉淀 Event → Return、失败原因和策略有效性。
+- 将市场反馈回写到 Agent 权重、Timing blocker 和 Signal Validation 选择。
+- 明确暂不铺开 `portfolio_os/`、`market_simulator/`、`causal_engine/`、`evaluation_os/` 等空模块。
+
+交付物：
+
+- 事件记忆、策略记忆、失败记忆。
+- Event → Return 学习闭环。
+- Evolutionary Architecture 路线图。
 
 ---
 
@@ -585,6 +672,18 @@ AlphaFoundry/
 │   ├── scenarios/
 │   ├── skeptic/
 │   └── traces/
+├── cognitive_agents/
+│   ├── contracts.py
+│   ├── blackboard.py
+│   └── __init__.py
+├── timing_engine/
+│   ├── contracts.py
+│   ├── meta.py
+│   └── __init__.py
+├── memory_learning/
+│   ├── contracts.py
+│   ├── journal.py
+│   └── __init__.py
 ├── reporting/
 │   ├── composer/
 │   ├── templates/

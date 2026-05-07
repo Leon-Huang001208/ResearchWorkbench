@@ -10,7 +10,7 @@ function log(msg) {
 }
 
 btnTestSimple.addEventListener("click", async () => {
-    log("🚀 运行基础测试...");
+    log("运行基础测试...");
     log("请在终端运行: python examples/test_simple.py");
     log("");
     log("或者点击下面的链接打开文档:");
@@ -19,7 +19,7 @@ btnTestSimple.addEventListener("click", async () => {
 });
 
 btnTestSignal.addEventListener("click", async () => {
-    log("🚀 运行信号测试...");
+    log("运行信号测试...");
     log("请在终端运行: python examples/test_signal_lab_simple.py");
     log("");
     log("或者运行完整演示: python examples/signal_lab_demo.py");
@@ -27,15 +27,15 @@ btnTestSignal.addEventListener("click", async () => {
 
 // 页面加载完成
 window.addEventListener("DOMContentLoaded", () => {
-    log("🐉 AlphaFoundry Web Workbench");
+    log("AlphaFoundry Web Workbench");
     log("=============================");
     log("");
-    log("📖 快速开始:");
+    log("快速开始:");
     log("1. 确保已安装依赖: pip install -e \".[dev]\"");
     log("2. 初始化数据库: python scripts/init_db.py");
     log("3. 运行示例: python examples/test_simple.py");
     log("");
-    log("💻 CLI 命令:");
+    log("CLI 命令:");
     log("- 资产分析: af analyze --asset 600000.SH");
     log("- 情景分析: af scenario --topic \"人工智能产业发展\"");
     log("- 信号管理: af signal --help");

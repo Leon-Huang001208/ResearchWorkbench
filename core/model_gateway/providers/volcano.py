@@ -112,7 +112,7 @@ class VolcanoProvider(BaseProvider):
             return output_schema.model_construct()
 
     def embed(self, text: str, model: str | None = None, **kwargs: Any) -> EmbeddingResponse:
-        """文本嵌入"""
+        """文本嵌入 — 支持多模态嵌入端点（doubao-embedding-vision）"""
         model = model or settings.DEFAULT_EMBEDDING_MODEL
         start_time = time.time()
         tokens_used = 0
@@ -120,13 +120,23 @@ class VolcanoProvider(BaseProvider):
 
         try:
             if self._client:
-                response = self._client.embeddings.create(
-                    model=model,
-                    input=text,
-                    **kwargs,
-                )
-                embedding = response.data[0].embedding
-                tokens_used = response.usage.total_tokens if response.usage else 0
+                # 先尝试标准 /v1/embeddings 端点
+                try:
+                    response = self._client.embeddings.create(
+                        model=model,
+                        input=text,
+                        **kwargs,
+                    )
+                    embedding = response.data[0].embedding
+                    tokens_used = response.usage.total_tokens if response.usage else 0
+                except Exception as standard_err:
+                    # 标准端点失败，尝试多模态端点 /v3/embeddings/multimodal
+                    err_str = str(standard_err)
+                    if "does not support this api" in err_str or "InvalidEndpointOrModel" in err_str:
+                        logger.debug("standard embed failed, trying multimodal endpoint", model=model)
+                        embedding, tokens_used = self._embed_multimodal(text, model, **kwargs)
+                    else:
+                        raise
         except Exception as e:
             logger.error("volcano embed error", error=str(e))
 
@@ -139,3 +149,36 @@ class VolcanoProvider(BaseProvider):
             tokens_used=tokens_used,
             latency_ms=latency_ms,
         )
+
+    def _embed_multimodal(self, text: str, model: str, **kwargs: Any) -> tuple[list[float], int]:
+        """调用多模态嵌入端点 /v3/embeddings/multimodal"""
+        import httpx
+        import json
+
+        url = f"{settings.VOLCANO_BASE_URL}/embeddings/multimodal"
+        payload = {
+            "model": model,
+            "input": [{"type": "text", "text": text}],
+        }
+        headers = {
+            "Authorization": f"Bearer {settings.VOLCANO_API_KEY}",
+            "Content-Type": "application/json",
+        }
+
+        resp = httpx.post(url, json=payload, headers=headers, timeout=30.0)
+        resp.raise_for_status()
+        data = resp.json()
+
+        # 火山多模态嵌入响应: data 可能是 dict{"embedding": [...]} 或 list[{"embedding": [...]}]
+        data_field = data.get("data", {})
+        if isinstance(data_field, dict):
+            embedding = data_field.get("embedding", [])
+        elif isinstance(data_field, list) and len(data_field) > 0:
+            embedding = data_field[0].get("embedding", [])
+        else:
+            embedding = []
+
+        tokens_used = data.get("usage", {}).get("total_tokens", 0)
+
+        logger.debug("multimodal embed success", dim=len(embedding), tokens=tokens_used)
+        return embedding, tokens_used

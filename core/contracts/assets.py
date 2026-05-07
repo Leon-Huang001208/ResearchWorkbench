@@ -1,7 +1,12 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, TYPE_CHECKING
+
 from pydantic import BaseModel, Field
-from data_layer.indicators import TechnicalIndicators
+
+if TYPE_CHECKING:
+    from data_layer.indicators.models import TechnicalIndicators
+else:
+    TechnicalIndicators = Any
 
 
 class AssetAnalysisSnapshot(BaseModel):

@@ -75,6 +75,7 @@ class AssertionExtractor:
                     {"role": "user", "content": user_prompt},
                 ],
                 temperature=0.1,
+                model=getattr(self, '_model', None),
             )
 
             # 解析响应
@@ -167,7 +168,7 @@ class AssertionExtractor:
                 subject_entity_id=subject_entity_id,
                 predicate=data.get("predicate", ""),
                 object_entity_id=None,
-                object_value=data.get("object"),
+                object_value={"text": data.get("object"), "value": data.get("value")},
                 observed_at=observed_at,
                 confidence=float(data.get("confidence", 0.7)),
                 source_doc_id=source_doc_id,

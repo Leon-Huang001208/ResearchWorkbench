@@ -389,3 +389,46 @@ class TestIngestAPI:
             assert data["assertions_extracted"] == 3
         finally:
             app.dependency_overrides.pop(get_ingest_service, None)
+
+
+# ─── 流水线 ────────────────────────────────────────────
+
+from unittest.mock import patch
+from core.services.pipeline_service import ResearchPipeline
+
+class TestPipelineAPI:
+    def test_run_asset_analysis(self):
+        from datetime import datetime, timezone
+        mock_snapshot = AssetAnalysisSnapshot(
+            snapshot_id="snap-001",
+            canonical_id="asset-001",
+            as_of=datetime.now(timezone.utc),
+        )
+        
+        with patch.object(ResearchPipeline, 'run_asset_analysis', return_value=mock_snapshot):
+            resp = client.post(
+                "/api/pipeline/asset-analysis",
+                json={"asset_id": "asset-001"},
+            )
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["canonical_id"] == "asset-001"
+
+
+# ─── 图谱 ───────────────────────────────────────────────
+
+class TestGraphAPI:
+    def test_get_industry_chain(self):
+        resp = client.get("/api/graph/industry-chain/semiconductor")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["industry"] == "semiconductor"
+        assert "nodes" in data
+        assert "edges" in data
+
+    def test_get_propagation_path(self):
+        resp = client.get("/api/graph/propagation/evt-001")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["event_id"] == "evt-001"
+

@@ -3,7 +3,7 @@ Backtrader回测引擎
 
 使用Backtrader实现事件驱动的策略回测。
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 
 import numpy as np
 import pandas as pd

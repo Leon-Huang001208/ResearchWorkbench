@@ -74,7 +74,7 @@ def backtest_command(
         click.echo(f"Sharpe Ratio:      {result.sharpe_ratio:>10.2f}")
         click.echo(f"Max Drawdown:      {result.max_drawdown:>10.2%}")
         click.echo(f"Win Rate:          {result.win_rate:>10.2%}")
-        click.echo(f"Number of Trades:  {result.num_trades:>10}")
+        click.echo(f"Number of Trades:  {result.total_trades:>10}")
         click.echo("=" * 60)
 
         # 保存结果

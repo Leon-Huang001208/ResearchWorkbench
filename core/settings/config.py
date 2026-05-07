@@ -21,8 +21,14 @@ class Settings(BaseSettings):
     OPENAI_BASE_URL: str = "https://api.openai.com/v1"
 
     # 默认模型
-    DEFAULT_CHAT_MODEL: str = "gpt-4"
-    DEFAULT_EMBEDDING_MODEL: str = "text-embedding-ada-002"
+    DEFAULT_CHAT_MODEL: str = "doubao-seed-2-0-pro-260215"
+    DEFAULT_EMBEDDING_MODEL: str = "doubao-embedding-vision-251215"
+
+    # 模型路由（不同任务用不同模型）
+    EXTRACTION_MODEL: str = "doubao-seed-2-0-pro-260215"
+    CLASSIFICATION_MODEL: str = "doubao-seed-2-0-lite-260428"
+    CODE_MODEL: str = "doubao-seed-2-0-code-preview-260215"
+    REASONING_MODEL: str = "deepseek-v3-2-251201"
 
     # 日志
     LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
