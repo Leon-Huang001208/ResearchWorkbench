@@ -2,6 +2,7 @@
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
 
 from app.api.models import (
     ErrorResponse,
@@ -11,13 +12,32 @@ from app.api.models import (
     SignalValidateResponse,
 )
 from core.services.signal_service import SignalService
+from data_layer.repositories.base import get_db
+from data_layer.repositories.signal_repository import SignalRepositoryImpl
 
 router = APIRouter(prefix="/api/signals", tags=["signals"])
 
+# 模块级单例：SignalService 只创建一次，repository 的 db session 每次请求更新
+_signal_service: SignalService | None = None
 
-def get_signal_service() -> SignalService:
-    """获取信号服务实例"""
-    return SignalService()
+
+def get_signal_service(db: Session = Depends(get_db)) -> SignalService:
+    """获取信号服务实例（单例 + 请求级 DB session）"""
+    global _signal_service
+    if _signal_service is None:
+        repo = SignalRepositoryImpl(db)
+        _signal_service = SignalService(repository=repo)
+    else:
+        # 每次请求更新 repository 的 db session
+        if _signal_service.repository:
+            _signal_service.repository.db = db
+    return _signal_service
+
+
+def _reset_signal_service():
+    """重置模块级单例（仅用于测试）"""
+    global _signal_service
+    _signal_service = None
 
 
 @router.post(
