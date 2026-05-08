@@ -91,28 +91,31 @@ function navigateTo(section) {
     if (section === 'memory') loadMemoryPage();
 }
 
-document.querySelectorAll('.activity-btn[data-section]').forEach(btn => {
-    btn.addEventListener('click', () => navigateTo(btn.dataset.section));
-});
+// Wait for DOM ready before binding all interactive events
+document.addEventListener('DOMContentLoaded', () => {
+    // Navigation buttons
+    document.querySelectorAll('.activity-btn[data-section]').forEach(btn => {
+        btn.addEventListener('click', () => navigateTo(btn.dataset.section));
+    });
 
-// Settings popover toggle
-document.getElementById('btn-settings')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const popover = document.getElementById('settings-popover');
-    if (popover) {
-        popover.classList.toggle('hidden');
-        I18N.applyAll();
-    }
-});
+    // Settings popover toggle
+    document.getElementById('btn-settings')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const popover = document.getElementById('settings-popover');
+        if (popover) {
+            popover.classList.toggle('hidden');
+            I18N.applyAll();
+        }
+    });
 
-// Close settings popover on outside click
-document.addEventListener('click', (e) => {
-    const popover = document.getElementById('settings-popover');
-    const btn = document.getElementById('btn-settings');
-    if (popover && !popover.contains(e.target) && !btn?.contains(e.target)) {
-        popover.classList.add('hidden');
-    }
-});
+    // Close settings popover on outside click
+    document.addEventListener('click', (e) => {
+        const popover = document.getElementById('settings-popover');
+        const btn = document.getElementById('btn-settings');
+        if (popover && !popover.contains(e.target) && !btn?.contains(e.target)) {
+            popover.classList.add('hidden');
+        }
+    });
 
 // ─── Global Search ────────────────────────────────────────────
 let searchDebounceTimer = null;
