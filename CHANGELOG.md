@@ -8,6 +8,7 @@
 ## [Unreleased]
 
 ### Added
+- **#24** Add `bootstrap_db` one-step database bootstrap script (schema initialization, connectivity check, idempotent seed defaults for alerts)
 - 交互式 Web 前端界面
 - FastAPI 后端 API
 - 审核工作流 API

@@ -71,14 +71,21 @@ AlphaFoundry 默认使用 PostgreSQL，也支持 SQLite。
 DATABASE_URL=sqlite:///./data/alphafoundry.db
 ```
 
+Then bootstrap the database:
+```bash
+python scripts/bootstrap_db.py
+```
+
 #### 方式二：PostgreSQL（推荐）
 1. 确保本地运行 PostgreSQL 15+
 2. 创建数据库 `alphafoundry`
 3. 修改 `.env` 文件中的 `DATABASE_URL`
-4. 初始化数据库表：
+4. Bootstrap the database (one-step initialization, connectivity check, seed defaults):
 ```bash
-python scripts/init_db.py
+python scripts/bootstrap_db.py
 ```
+
+The script is idempotent and can be run multiple times safely.
 
 ### 复制环境变量模板
 ```bash
