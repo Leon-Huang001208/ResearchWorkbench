@@ -2,6 +2,7 @@ from contextlib import contextmanager
 from typing import Any, List, Optional, TypeVar
 
 from sqlalchemy import create_engine
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 from core.observability import get_logger
@@ -15,6 +16,38 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # 基类
 Base = declarative_base()
+
+def check_database_connection() -> None:
+    """Check database connectivity on startup.
+    
+    Raises:
+        RuntimeError: If connection fails with actionable error message.
+    """
+    try:
+        # Test connection
+        with engine.connect():
+            logger.info(f"Successfully connected to database: {engine.dialect.name}")
+    except OperationalError as e:
+        if settings.DATABASE_URL.startswith("postgresql"):
+            error_msg = (
+                "Failed to connect to PostgreSQL database.\n"
+                "Please check: \n"
+                "1. Is PostgreSQL server running on localhost:5432?\n"
+                "2. Is the database 'alphafoundry' created? (CREATE DATABASE alphafoundry;)\n"
+                "3. Are the username/password correct in DATABASE_URL?\n"
+                "4. If you want to use SQLite for demo, set DATABASE_URL=sqlite:///./data/alphafoundry.db in your .env\n"
+                f"Original error: {str(e)}"
+            )
+        else:
+            error_msg = (
+                f"Failed to connect to database {engine.dialect.name}.\n"
+                f"Check your DATABASE_URL configuration. Original error: {str(e)}"
+            )
+        logger.critical(error_msg)
+        raise RuntimeError(error_msg) from e
+
+# Run connection check on startup
+check_database_connection()
 
 
 def ensure_schema() -> None:

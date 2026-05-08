@@ -5,7 +5,7 @@ from core.contracts import CanonicalEvent
 from core.services.event_ingestion_service import EventIngestionService, EventQueryResponse, IngestionResult
 from data_layer.repositories.event_repository import EventRepositoryImpl
 from core.observability import get_logger
-from data_layer.db import get_db_session
+from data_layer.repositories.base import get_db_session
 
 logger = get_logger(__name__)
 

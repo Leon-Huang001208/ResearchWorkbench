@@ -38,6 +38,7 @@
   - 所有单元测试通过
 
 ### Changed
+- **#23** Migrate default persistence from SQLite to PostgreSQL: PostgreSQL is now the recommended durable default, SQLite remains as zero-config demo option
 - 默认启用持久化模式
 - 澄清数据存储策略
 - 整合文档到 README 和 REFERENCE.md

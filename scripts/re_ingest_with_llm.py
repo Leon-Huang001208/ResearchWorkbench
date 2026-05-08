@@ -7,10 +7,11 @@
 """
 
 import json
-import sqlite3
+import os
 import sys
 import time
 from pathlib import Path
+from sqlalchemy import text
 
 PROJECT_ROOT = Path(__file__).parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -21,12 +22,10 @@ from core.model_gateway.gateway import ModelGatewayImpl
 from core.observability import get_logger
 from core.services.ingest_service import IngestService
 from data_layer.repositories.assertion_repository import AssertionRepositoryImpl
-from data_layer.repositories.base import SessionLocal
+from data_layer.repositories.base import SessionLocal, engine
 from data_layer.repositories.event_repository import EventRepositoryImpl
 
 logger = get_logger(__name__)
-
-DB_PATH = PROJECT_ROOT / "data" / "alphafoundry.db"
 
 DATA_FILES = []
 for f in sorted(os.listdir(PROJECT_ROOT / "data" / "real")):
@@ -61,17 +60,15 @@ def main():
         return
 
     # 2. 清空旧数据
-    conn = sqlite3.connect(str(DB_PATH))
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM assertion")
-    del_a = cursor.rowcount
-    cursor.execute("DELETE FROM canonical_event")
-    del_e = cursor.rowcount
-    cursor.execute("DELETE FROM source_document")
-    del_d = cursor.rowcount
-    conn.commit()
-    conn.close()
-    print(f"\n已清空旧数据：{del_d} 文档 + {del_a} 断言 + {del_e} 事件")
+    with engine.connect() as conn:
+        result = conn.execute(text("DELETE FROM assertion"))
+        del_a = result.rowcount
+        result = conn.execute(text("DELETE FROM canonical_event"))
+        del_e = result.rowcount
+        result = conn.execute(text("DELETE FROM source_document"))
+        del_d = result.rowcount
+        conn.commit()
+        print(f"\n已清空旧数据：{del_d} 文档 + {del_a} 断言 + {del_e} 事件")
 
     # 3. 创建 LLM IngestService
     db_session = SessionLocal()
@@ -105,12 +102,10 @@ def main():
         # 获取已存在的 doc_id 集合（用于去重）
         existing_doc_ids = set()
         try:
-            conn2 = sqlite3.connect(str(DB_PATH))
-            cursor2 = conn2.cursor()
-            cursor2.execute("SELECT doc_id FROM source_document")
-            existing_doc_ids = {row[0] for row in cursor2.fetchall()}
-            conn2.close()
-            print(f"已有文档: {len(existing_doc_ids)} 条（增量去重）")
+            with engine.connect() as conn:
+                result = conn.execute(text("SELECT doc_id FROM source_document"))
+                existing_doc_ids = {row[0] for row in result.all()}
+                print(f"已有文档: {len(existing_doc_ids)} 条（增量去重）")
         except Exception:
             print("去重检查失败，将全量导入")
 
@@ -166,19 +161,19 @@ def main():
 
         # 5. 统计
         elapsed = time.time() - start_time
+        total = success + fail + skipped
         print(f"\n=== 重新导入+LLM提取完成 ===")
-        print(f"  文档: {success} 成功 / {fail} 失败 / {skipped} 跳过(去重) / {len(rows)} 总计")
+        print(f"  文档: {success} 成功 / {fail} 失败 / {skipped} 跳过(去重) / {total} 总计")
         print(f"  断言: {total_assertions} 条 (LLM提取)")
         print(f"  事件: {total_events} 条 (LLM提取)")
         print(f"  耗时: {elapsed:.0f}s ({elapsed/60:.1f}min)")
 
         # 验证 DB
-        conn = sqlite3.connect(str(DB_PATH))
-        c = conn.cursor()
-        for table in ["source_document", "assertion", "canonical_event"]:
-            c.execute(f"SELECT COUNT(*) FROM {table}")
-            print(f"  DB {table}: {c.fetchone()[0]}")
-        conn.close()
+        with engine.connect() as conn:
+            for table in ["source_document", "assertion", "canonical_event"]:
+                result = conn.execute(text(f"SELECT COUNT(*) FROM {table}"))
+                count = result.scalar_one()
+                print(f"  DB {table}: {count}")
 
     except Exception as e:
         db_session.rollback()

@@ -15,8 +15,8 @@ class Settings(BaseSettings):
     # prod: no silent fallback, fail immediately if persistence not configured
     APP_ENV: Literal["dev", "prod"] = "dev"
 
-    # 数据库 (默认使用 SQLite，零配置；生产环境建议使用 PostgreSQL)
-    DATABASE_URL: str = "sqlite:///./data/alphafoundry.db"
+    # 数据库 (默认推荐 PostgreSQL 用于持久化运行；SQLite 保留用于零配置演示)
+    DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/alphafoundry"
 
     # 模型网关
     MODEL_PROVIDER: Literal["volcano", "openai_compatible"] = "volcano"

@@ -8,10 +8,10 @@
 
 import argparse
 import json
-import sqlite3
 import sys
 import time
 from pathlib import Path
+from sqlalchemy import text
 
 PROJECT_ROOT = Path(__file__).parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -22,12 +22,10 @@ from core.model_gateway.gateway import ModelGatewayImpl
 from core.observability import get_logger
 from core.services.ingest_service import IngestService
 from data_layer.repositories.assertion_repository import AssertionRepositoryImpl
-from data_layer.repositories.base import SessionLocal
+from data_layer.repositories.base import SessionLocal, engine
 from data_layer.repositories.event_repository import EventRepositoryImpl
 
 logger = get_logger(__name__)
-
-DB_PATH = PROJECT_ROOT / "data" / "alphafoundry.db"
 
 
 def main():
@@ -38,43 +36,38 @@ def main():
     args = parser.parse_args()
 
     # 1. 用原始 SQL 读取所有文档（绕过 ORM metadata 冲突）
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
+    with engine.connect() as conn:
+        total_result = conn.execute(text("SELECT COUNT(*) FROM source_document"))
+        total = total_result.scalar_one()
 
-    cursor.execute("SELECT COUNT(*) FROM source_document")
-    total = cursor.fetchone()[0]
+        if args.limit > 0:
+            result = conn.execute(
+                text("SELECT doc_id, source_type, title, published_at, source_name, doc_metadata FROM source_document LIMIT :limit"),
+                {"limit": args.limit},
+            )
+            print(f"限制处理前 {args.limit} 条（总计 {total} 条）")
+        else:
+            result = conn.execute(
+                text("SELECT doc_id, source_type, title, published_at, source_name, doc_metadata FROM source_document")
+            )
+            print(f"总计 {total} 篇文档待重新提取")
 
-    if args.limit > 0:
-        cursor.execute(
-            "SELECT doc_id, source_type, title, published_at, source_name, doc_metadata FROM source_document LIMIT ?",
-            (args.limit,),
-        )
-        print(f"限制处理前 {args.limit} 条（总计 {total} 条）")
-    else:
-        cursor.execute(
-            "SELECT doc_id, source_type, title, published_at, source_name, doc_metadata FROM source_document"
-        )
-        print(f"总计 {total} 篇文档待重新提取")
-
-    rows = cursor.fetchall()
-    conn.close()
+        rows = result.all()
+        conn.commit()
 
     if args.dry_run:
         print("[dry-run] 退出")
         return
 
     # 2. 删除旧的 rule-based 数据
-    conn = sqlite3.connect(str(DB_PATH))
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM assertion WHERE extractor_version = 'rule_v1'")
-    del_assertions = cursor.rowcount
-    # canonical_event 表没有 extractor_version 列，删除所有旧事件
-    cursor.execute("DELETE FROM canonical_event")
-    del_events = cursor.rowcount
-    conn.commit()
-    conn.close()
-    print(f"已删除旧数据：{del_assertions} 条断言 + {del_events} 条事件")
+    with engine.connect() as conn:
+        result = conn.execute(text("DELETE FROM assertion WHERE extractor_version = 'rule_v1'"))
+        del_assertions = result.rowcount
+        # canonical_event 表没有 extractor_version 列，删除所有旧事件
+        result = conn.execute(text("DELETE FROM canonical_event"))
+        del_events = result.rowcount
+        conn.commit()
+        print(f"已删除旧数据：{del_assertions} 条断言 + {del_events} 条事件")
 
     # 3. 创建 LLM 注入的 IngestService
     db_session = SessionLocal()
@@ -100,14 +93,21 @@ def main():
 
         for i, row in enumerate(rows):
             try:
-                meta = json.loads(row["doc_metadata"]) if row["doc_metadata"] else {}
+                doc_id = row[0]
+                source_type = row[1]
+                title = row[2]
+                published_at = row[3]
+                source_name = row[4]
+                doc_metadata = row[5]
+
+                meta = json.loads(doc_metadata) if doc_metadata else {}
 
                 envelope = DocumentEnvelope(
-                    doc_id=row["doc_id"],
-                    source_type=row["source_type"],
-                    title=row["title"] or "",
-                    published_at=row["published_at"],
-                    source_name=row["source_name"],
+                    doc_id=doc_id,
+                    source_type=source_type,
+                    title=title or "",
+                    published_at=published_at,
+                    source_name=source_name,
                     language=meta.get("language", "zh"),
                     metadata=meta,
                     raw_text=meta.get("raw_text", ""),
