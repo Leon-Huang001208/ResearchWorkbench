@@ -116,27 +116,32 @@ document.addEventListener('DOMContentLoaded', () => {
             popover.classList.add('hidden');
         }
     });
+
+    // Memory page buttons
+    document.getElementById('btn-load-episodes')?.addEventListener('click', loadEpisodes);
+    document.getElementById('btn-load-strategies')?.addEventListener('click', loadStrategies);
+    document.getElementById('btn-load-failures')?.addEventListener('click', loadFailures);
+    document.getElementById('btn-load-event-summary')?.addEventListener('click', loadEventSummary);
+    // Global search input
+    document.getElementById('global-search')?.addEventListener('input', (e) => {
+        clearTimeout(searchDebounceTimer);
+        const q = e.target.value.trim();
+        if (q.length < 2) {
+            document.getElementById('search-results-dropdown')?.classList.add('hidden');
+            return;
+        }
+        searchDebounceTimer = setTimeout(() => globalSearch(q), 300);
+    });
+    document.getElementById('global-search')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            document.getElementById('search-results-dropdown')?.classList.add('hidden');
+            e.target.blur();
+        }
+    });
 });
 
 // ─── Global Search ────────────────────────────────────────────
 let searchDebounceTimer = null;
-
-document.getElementById('global-search').addEventListener('input', (e) => {
-    clearTimeout(searchDebounceTimer);
-    const q = e.target.value.trim();
-    if (q.length < 2) {
-        document.getElementById('search-results-dropdown').classList.add('hidden');
-        return;
-    }
-    searchDebounceTimer = setTimeout(() => globalSearch(q), 300);
-});
-
-document.getElementById('global-search').addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-        document.getElementById('search-results-dropdown').classList.add('hidden');
-        e.target.blur();
-    }
-});
 
 // Close search dropdown on outside click
 document.addEventListener('click', (e) => {
@@ -494,7 +499,6 @@ async function loadDashboard() {
 // Asset Analysis
 // ═══════════════════════════════════════════════════════════════
 
-document.getElementById('btn-analyze').addEventListener('click', analyzeAsset);
 
 async function analyzeAsset() {
     const code = document.getElementById('asset-code').value.trim();
@@ -634,7 +638,6 @@ function renderPriceVolumeChart(pv) {
 // ═══════════════════════════════════════════════════════════════
 
 document.getElementById('btn-generate-scenarios').addEventListener('click', generateScenarios);
-
 async function generateScenarios() {
     const topic = document.getElementById('scenario-topic').value.trim();
     const subjectsStr = document.getElementById('scenario-subjects').value.trim();
@@ -712,7 +715,6 @@ function renderScenarioResult(data) {
 // ═══════════════════════════════════════════════════════════════
 
 document.getElementById('btn-generate-event-signal').addEventListener('click', generateEventSignal);
-
 async function generateEventSignal() {
     const event = {
         event_id: crypto.randomUUID(),
@@ -804,8 +806,6 @@ function renderTimingDecision(decision) {
 // ═══════════════════════════════════════════════════════════════
 
 document.getElementById('btn-load-industry').addEventListener('click', loadIndustryChain);
-document.getElementById('btn-load-propagation').addEventListener('click', loadPropagationPath);
-
 async function loadIndustryChain() {
     const industry = document.getElementById('industry-select').value;
     try {
@@ -920,7 +920,6 @@ function renderPropagationGraph(data) {
 // ═══════════════════════════════════════════════════════════════
 
 document.getElementById('btn-refresh-review').addEventListener('click', () => {
-    loadReviewStats();
     loadReviewPending();
 });
 
@@ -1001,8 +1000,6 @@ async function rejectItem(id) {
 // ═══════════════════════════════════════════════════════════════
 
 document.getElementById('btn-create-signal').addEventListener('click', createSignal);
-document.getElementById('btn-refresh-signals').addEventListener('click', loadSignals);
-
 async function createSignal() {
     const body = {
         subject_id: document.getElementById('sig-subject-id').value.trim(),
@@ -1084,7 +1081,6 @@ async function promoteSignal(id) {
 // ═══════════════════════════════════════════════════════════════
 
 document.getElementById('btn-ingest').addEventListener('click', ingestText);
-
 async function ingestText() {
     const text = document.getElementById('ingest-text').value.trim();
     if (!text) return toast('请输入文本内容', 'error');
@@ -1130,11 +1126,6 @@ function renderIngestResult(data) {
 // ═══════════════════════════════════════════════════════════════
 // Memory & Learning
 // ═══════════════════════════════════════════════════════════════
-
-document.getElementById('btn-load-episodes').addEventListener('click', loadEpisodes);
-document.getElementById('btn-load-strategies').addEventListener('click', loadStrategies);
-document.getElementById('btn-load-failures').addEventListener('click', loadFailures);
-document.getElementById('btn-load-event-summary').addEventListener('click', loadEventSummary);
 
 function loadMemoryPage() {
     loadEpisodes();
