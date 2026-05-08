@@ -44,6 +44,7 @@ class BackfillReporter:
             "source_docs_skipped": 0,
             "source_docs_failed": 0,
             "assertions_regenerated": 0,
+            "assertions_skipped": 0,
             "events_regenerated": 0,
             "extraction_failed": 0,
             "unrecoverable_artifacts": 0
@@ -220,19 +221,30 @@ def upsert_source_document(
         return True, source_doc
 
 
+def generate_assertion_id(doc_id: str, assertion_index: int, content_hash: str) -> str:
+    """Generate deterministic assertion id for deduplication based on source doc and content"""
+    combined = f"{doc_id}:{assertion_index}:{content_hash[:16]}"
+    return f"assert_{hashlib.sha256(combined.encode('utf-8')).hexdigest()[:16]}"
+
+
 def run_extraction(
+    db,
     source_doc: SourceDocument, 
     artifact: Dict[str, Any], 
     assertion_extractor: AssertionExtractor,
-    event_ingestor: StructuredEventIngestor
-) -> Tuple[int, int, bool]:
+    event_ingestor: StructuredEventIngestor,
+    force_reextract: bool = False
+) -> Tuple[int, int, int, bool]:
     """
     Re-run extraction pipeline from restored source content.
-    Returns (num_assertions, num_events, extraction_failed)
+    Returns (num_assertions_regenerated, num_assertions_persisted, num_events, extraction_failed)
     """
     failed = False
-    assertions_created = 0
+    assertions_extracted = 0
+    assertions_persisted = 0
     events_created = 0
+    content_hash = source_doc.content_hash
+    extractor_version = f"backfill-{assertion_extractor.__class__.__name__}-v1"
     
     try:
         raw_text = artifact.get("raw_text")
@@ -241,18 +253,72 @@ def run_extraction(
                 # If it's a PDF we would need a parser, but for backfill
                 # we just skip and note that extraction isn't possible
                 logger.debug(f"Binary artifact {source_doc.doc_id} requires external parsing, skipping extraction")
-                return 0, 0, False
+                return 0, 0, 0, False
             
             logger.debug(f"No raw text available for extraction for doc {source_doc.doc_id}")
-            return 0, 0, False
+            return 0, 0, 0, False
         
         # Extract assertions
-        assertions = assertion_extractor.extract_assertions(raw_text, {
+        raw_assertions = assertion_extractor.extract_assertions(raw_text, {
             "doc_id": source_doc.doc_id,
             "source_type": source_doc.source_type
         })
         
-        assertions_created = len(assertions)
+        assertions_extracted = len(raw_assertions)
+        
+        # Persist each assertion to database with idempotency
+        for idx, raw_assertion in enumerate(raw_assertions):
+            # Generate stable assertion id for deduplication
+            assertion_id = generate_assertion_id(source_doc.doc_id, idx, content_hash)
+            
+            # Check if assertion already exists
+            existing = db.query(Assertion).filter_by(assertion_id=assertion_id).first()
+            
+            if existing and not force_reextract:
+                logger.debug(f"Assertion {assertion_id} already exists, skipping")
+                continue
+            
+            # Map extracted fields to Assertion model
+            # Extract core triple if available
+            subject = raw_assertion.get("subject")
+            predicate = raw_assertion.get("predicate", raw_assertion.get("impact_direction", "mentions"))
+            obj = raw_assertion.get("object")
+            
+            # Build assertion object
+            assertion = Assertion(
+                assertion_id=assertion_id,
+                subject_entity_id=subject if subject else None,
+                predicate=predicate,
+                object_entity_id=obj if obj else None,
+                object_value=raw_assertion if not obj else None,
+                confidence=raw_assertion.get("confidence", 0.5),
+                source_doc_id=source_doc.doc_id,
+                source_span={
+                    "start": raw_assertion.get("evidence_start", 0),
+                    "end": raw_assertion.get("evidence_end", 0),
+                    "text": raw_assertion.get("text", "")
+                },
+                extractor_version=extractor_version,
+                trace_ref=raw_assertion.get("trace_ref"),
+                team_id=source_doc.team_id,
+                project_id=source_doc.project_id
+            )
+            
+            if existing:
+                # Update existing assertion if forced
+                existing.subject_entity_id = assertion.subject_entity_id
+                existing.predicate = assertion.predicate
+                existing.object_entity_id = assertion.object_entity_id
+                existing.object_value = assertion.object_value
+                existing.confidence = assertion.confidence
+                existing.source_span = assertion.source_span
+                existing.extractor_version = assertion.extractor_version
+                existing.trace_ref = assertion.trace_ref
+            else:
+                # Add new assertion
+                db.add(assertion)
+            
+            assertions_persisted += 1
         
         # If we have a raw_event structure, ingest as canonical event
         if "event_type" in artifact:
@@ -262,20 +328,16 @@ def run_extraction(
             if result.status == "success":
                 events_created = 1
         
-        # TODO: In a complete implementation, we would save the assertions to DB here
-        # For now, this follows the existing pattern where assertions are attached
-        # to events and extracted by the ingestor/extractor
-        
         logger.debug(
             f"Extraction complete for doc {source_doc.doc_id}: "
-            f"{assertions_created} assertions, {events_created} events"
+            f"{assertions_extracted} extracted, {assertions_persisted} persisted"
         )
         
     except Exception as e:
         logger.error(f"Extraction failed for doc {source_doc.doc_id}: {str(e)}", exc_info=True)
         failed = True
     
-    return assertions_created, events_created, failed
+    return assertions_extracted, assertions_persisted, events_created, failed
 
 
 def main():
@@ -341,10 +403,14 @@ def main():
                     reporter.add_success(source_doc.doc_id, artifact_path, restored=False)
                 
                 if not args.scan_only and source_doc and (changed or args.force_reextract):
-                    assertions, events, failed = run_extraction(
-                        source_doc, artifact, assertion_extractor, event_ingestor
+                    assertions_extracted, assertions_persisted, events, failed = run_extraction(
+                        db, source_doc, artifact, assertion_extractor, event_ingestor,
+                        force_reextract=args.force_reextract
                     )
-                    reporter.add_extraction_result(assertions, events, failed)
+                    # Report all regenerated assertions, but track actual persistence
+                    # For future: we could add a separate counter for skipped assertions
+                    reporter.stats["assertions_skipped"] = reporter.stats.get("assertions_skipped", 0) + (assertions_extracted - assertions_persisted)
+                    reporter.add_extraction_result(assertions_persisted, events, failed)
                 
             except Exception as e:
                 logger.error(f"Failed to process {artifact_path}: {str(e)}", exc_info=True)

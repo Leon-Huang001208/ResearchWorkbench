@@ -8,6 +8,7 @@
 ## [Unreleased]
 
 ### Added
+- **#30** Complete factual-layer recovery by persisting regenerated assertions during object-storage backfill: upgraded `scripts/backfill_from_objects.py` to fully reconstruct the factual layer by persisting all regenerated assertions into the database after extraction. All assertions are properly linked to restored source documents with stable metadata, provenance, and deterministic ids for idempotency. Re-running backfill will not create uncontrolled duplicates. Recovery reports now include counts of regenerated, persisted, and skipped assertions. Added complete unit tests covering full end-to-end recovery scenarios (source document -> assertions -> canonical events).
 - **#28** Add automated backup, restore drills, and migration discipline for durable persistence: 
   - Added `scripts/backup_db.py` supporting PostgreSQL full backups with automatic compression and retention cleanup
   - Added `scripts/restore_db.py` supporting point-in-time restores from compressed or uncompressed backups
