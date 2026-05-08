@@ -97,7 +97,7 @@ T = TypeVar("T")
 
 
 @contextmanager
-def get_db() -> Any:
+async def get_db() -> Any:
     """获取数据库会话的上下文管理器"""
     db = SessionLocal()
     try:
