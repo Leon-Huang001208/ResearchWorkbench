@@ -8,6 +8,7 @@
 ## [Unreleased]
 
 ### Added
+- **#25** Implement backfill workflow from object storage: `scripts/backfill_from_objects.py` can restore source_document records and regenerate factual layers (assertions/canonical events) from surviving raw artifacts. This is the preferred recovery path if object storage survives but database is lost. Idempotent, supports incremental backfill, generates summary recovery reports. Full test coverage for idempotent behavior.
 - **#24** Add `bootstrap_db` one-step database bootstrap script (schema initialization, connectivity check, idempotent seed defaults for alerts)
 - 交互式 Web 前端界面
 - FastAPI 后端 API
