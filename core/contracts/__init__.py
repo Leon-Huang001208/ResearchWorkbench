@@ -3,6 +3,14 @@ from .assets import AssetAnalysisSnapshot
 from .documents import DocumentEnvelope
 from .events import CanonicalEvent
 from .ids import CanonicalId
+from .ingestion import (
+    EnqueueRequest,
+    EnqueueResponse,
+    IngestionQueueItem,
+    IngestionQueueStats,
+    ProcessResponse,
+    RetryResponse,
+)
 from .outcomes import SignalOutcome
 from .reporting import SectionOutput, SectionSpec
 from .scenarios import ScenarioHypothesis, ScenarioSet
@@ -24,4 +32,10 @@ __all__ = [
     "EventAlphaSignal",
     "TradeCandidate",
     "SignalOutcome",
+    "IngestionQueueItem",
+    "IngestionQueueStats",
+    "EnqueueRequest",
+    "EnqueueResponse",
+    "ProcessResponse",
+    "RetryResponse",
 ]

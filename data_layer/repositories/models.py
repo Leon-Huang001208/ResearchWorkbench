@@ -283,3 +283,24 @@ class TimingDecisionDB(Base):
     blockers = Column(JSON, nullable=False, default=list)
     rationale = Column(JSON, nullable=False, default=list)
     created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class IngestionQueueItemDB(Base):
+    """统一摄取队列数据库模型"""
+
+    __tablename__ = "ingestion_queue_item"
+
+    item_id = Column(Text, primary_key=True)
+    source_type = Column(Text, nullable=False, index=True)
+    source_id = Column(Text, nullable=True)
+    raw_content = Column(Text, nullable=False)
+    title = Column(Text, nullable=True)
+    url = Column(Text, nullable=True)
+    priority = Column(Integer, nullable=False, default=0)
+    status = Column(Text, nullable=False, default="pending", index=True)
+    retry_count = Column(Integer, nullable=False, default=0)
+    max_retries = Column(Integer, nullable=False, default=3)
+    failure_reason = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    processed_at = Column(DateTime(timezone=True), nullable=True)
+    dedup_hash = Column(Text, nullable=True, unique=True, index=True)
