@@ -71,6 +71,15 @@ from .decision_console import (
     DecisionWorkspace,
     PostMortemRecord,
 )
+from .industry_chain import (
+    IndustryNode,
+    IndustryEdge,
+    IndustryGraph,
+    MappingStrength,
+    PropagationStep,
+    PropagationPath,
+    ThesisCard,
+)
 
 __all__ = [
     "CanonicalId",
@@ -147,4 +156,12 @@ __all__ = [
     "DecisionAudit",
     "DecisionWorkspace",
     "PostMortemRecord",
+    # Industry Chain and Thesis Generation
+    "IndustryNode",
+    "IndustryEdge",
+    "IndustryGraph",
+    "MappingStrength",
+    "PropagationStep",
+    "PropagationPath",
+    "ThesisCard",
 ]
