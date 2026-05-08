@@ -17,6 +17,7 @@ from .reporting import SectionOutput, SectionSpec
 from .scenarios import ScenarioHypothesis, ScenarioSet
 from .signals import AlphaSignal, EventAlphaSignal, TradeCandidate
 from .traces import ReasoningTrace
+from .portfolio import PortfolioCandidate, PortfolioConstraints, PortfolioProposal
 
 __all__ = [
     "CanonicalId",
@@ -42,4 +43,7 @@ __all__ = [
     "EnqueueResponse",
     "ProcessResponse",
     "RetryResponse",
+    "PortfolioCandidate",
+    "PortfolioConstraints",
+    "PortfolioProposal",
 ]

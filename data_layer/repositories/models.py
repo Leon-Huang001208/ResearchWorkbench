@@ -344,6 +344,23 @@ class ReplayResultDB(Base):
     created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
 
 
+class PortfolioProposalDB(Base):
+    """组合提案数据库模型"""
+
+    __tablename__ = "portfolio_proposal"
+
+    proposal_id = Column(Text, primary_key=True)
+    name = Column(Text, nullable=False)
+    candidates = Column(JSON, nullable=False, default=list)
+    allocations = Column(JSON, nullable=False, default=dict)
+    constraints_applied = Column(JSON, nullable=False, default=list)
+    excluded_signals = Column(JSON, nullable=False, default=list)
+    rationale = Column(JSON, nullable=False, default=dict)
+    team_id = Column(Text, nullable=True)
+    project_id = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
 class AuditLogDB(Base):
     """审计日志数据库模型"""
 
