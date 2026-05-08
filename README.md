@@ -98,6 +98,36 @@ cp .env.example .env
 # 基础功能测试
 python examples/test_simple.py
 
+# Run smoke test for recovery pipeline
+python -m pytest tests/scripts/test_minimal_reingest.py -v
+```
+
+## Disaster Recovery
+
+If you lose your local database **and** object storage, you can recover the system to a working minimal state using the fallback re-ingestion path:
+
+### Minimal Recovery Steps
+
+1.  Clone the repository to the new environment
+2.  Copy your `.env` configuration (or reconfigure from `.env.example`)
+3.  Bootstrap the database and ingest the minimal sample:
+    ```bash
+    python scripts/minimal_reingest_bootstrap.py --sample-size 20
+    ```
+4.  After recovery completes successfully, you can run replay and validation:
+    ```bash
+    # Run smoke validation
+    python scripts/minimal_reingest_bootstrap.py --skip-bootstrap --dry-run
+    ```
+
+The minimal bootstrap includes:
+- Full database schema initialization
+- Default configuration seeding
+- Ingestion of bounded historical sample (3+ events)
+- Full rebuild of all derived state: signals → timing decisions → outcomes → replay
+- End-to-end smoke validation to confirm the system is working
+
+This recovery path requires **no existing local artifacts** - everything is rebuilt from upstream/benchmark assets.
 # 信号实验室测试
 python examples/test_signal_lab_simple.py
 ```

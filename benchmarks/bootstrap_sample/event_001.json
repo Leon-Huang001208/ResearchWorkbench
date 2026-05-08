@@ -1,0 +1,13 @@
+{
+  "event_id": "bootstrap_event_001",
+  "event_type": "earnings_report",
+  "title": "Apple Q4 2024 earnings beat expectations",
+  "summary": "Apple reported quarterly earnings that exceeded analyst expectations, with revenue up 8% year over year.",
+  "event_time": "2024-10-25T08:30:00Z",
+  "impact_direction": "positive",
+  "confidence": 0.85,
+  "impacted_symbols": ["AAPL"],
+  "source_type": "news",
+  "published_at": "2024-10-25T08:30:00Z",
+  "source_name": "cnstock_bootstrap"
+}

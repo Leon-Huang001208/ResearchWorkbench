@@ -1,0 +1,13 @@
+{
+  "event_id": "bootstrap_event_003",
+  "event_type": "regulatory_change",
+  "title": "New China green energy subsidies announced for 2025",
+  "summary": "Chinese government announced new subsidies for electric vehicle and solar panel manufacturers, expected to boost sector profitability.",
+  "event_time": "2024-09-15T09:00:00Z",
+  "impact_direction": "positive",
+  "confidence": 0.8,
+  "impacted_symbols": ["TSLA", "NIO", "BYD"],
+  "source_type": "policy",
+  "published_at": "2024-09-15T09:00:00Z",
+  "source_name": "cnstock_bootstrap"
+}

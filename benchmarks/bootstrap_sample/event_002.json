@@ -1,0 +1,13 @@
+{
+  "event_id": "bootstrap_event_002",
+  "event_type": "product_launch",
+  "title": "Tesla launches new Cybertruck 2 with improved range",
+  "summary": "Tesla announced the launch of Cybertruck 2 with 500 miles of range and lower starting price, beating market expectations.",
+  "event_time": "2024-11-01T12:00:00Z",
+  "impact_direction": "positive",
+  "confidence": 0.9,
+  "impacted_symbols": ["TSLA"],
+  "source_type": "news",
+  "published_at": "2024-11-01T12:00:00Z",
+  "source_name": "cnstock_bootstrap"
+}
