@@ -50,11 +50,36 @@ async def evaluate(request: EvaluateRequest):
 async def evaluate_signal(signal_id: str):
     """Evaluate timing for an existing signal"""
     try:
-        # TODO: Retrieve signal from repository and build TimingContext
-        context = TimingContext(signal_id=signal_id)
+        from core.services.signal_service import SignalService
+        from data_layer.repositories.signal_repository import SignalRepositoryImpl
+        from data_layer.repositories.base import get_db
+
+        # 获取信号
+        db_gen = get_db()
+        db = next(db_gen)
+        try:
+            repo = SignalRepositoryImpl(db)
+            service = SignalService(repository=repo)
+            signal = service.get_signal(signal_id)
+        finally:
+            try:
+                next(db_gen)
+            except StopIteration:
+                pass
+
+        if signal is None:
+            raise HTTPException(status_code=404, detail=f"Signal {signal_id} not found")
+
+        # 构建 TimingContext
+        context = TimingContext(
+            signal_id=signal_id,
+            event_signal=signal.model_dump() if hasattr(signal, 'model_dump') else {},
+        )
         model_scores = timing_registry.score_all(context)
         decision = timing_engine.evaluate(model_scores, signal_id=signal_id)
         return decision
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Signal timing evaluation failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))

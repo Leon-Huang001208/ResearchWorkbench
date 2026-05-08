@@ -415,7 +415,7 @@ async function generateEventSignal() {
         // 获取并展示 Timing 决策
         if (signalId) {
             try {
-                const timingDecision = await apiCall('GET', `/api/timing/evaluate-signal/${signalId}`);
+                const timingDecision = await apiCall('POST', `/api/timing/evaluate-signal/${signalId}`);
                 renderTimingDecision(timingDecision);
                 document.getElementById('timing-decision-container').classList.remove('hidden');
             } catch (e) {
