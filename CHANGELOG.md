@@ -25,6 +25,10 @@
 - **#18** 产业链映射和 thesis 生成引擎（最小高价值产业链图谱，传播路径生成结构化投资 thesis，带强度评分）
 - **#19** 证据驱动的 Bull/Bear/Skeptic 结构化审查框架（每张 thesis 必须包含多维度对抗性审查，证据可追踪，硬规则强制要求反对意见才能进入候选/验证阶段）
 - **#20** 集成择时引擎和事件研究验证，实现统一就绪度评分（分离投资逻辑质量、历史胜率、市场时机匹配度三个维度，低就绪度自动拦截候选生成）
+- **#21** Week 7: 将工作台重新设计为研究优先的操作系统式控制台
+  - 新首页布局包含五个板块：Today、Research Queue、Candidate Board、Learning、全局搜索
+  - 新增 Dashboard API 和数据聚合服务整合 #18/#19/#20 数据
+  - 实现完整跨对象全局搜索支持 symbol/event_type/thesis/source_doc/failure_memory/market_episode
 
 ### Changed
 - 默认启用持久化模式

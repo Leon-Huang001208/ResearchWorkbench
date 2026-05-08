@@ -156,59 +156,143 @@ function renderSearchResults(results, query) {
     const dropdown = document.getElementById('search-results-dropdown');
     if (!dropdown) return;
 
-    const total = (results.signals?.length || 0) + (results.events?.length || 0) +
-                  (results.outcomes?.length || 0) + (results.reviews?.length || 0);
+    // Calculate total across all result groups
+    let total = 0;
+    const groups = [
+        { key: 'symbols', title: '标的' },
+        { key: 'event_types', title: '事件类型' },
+        { key: 'theses', title: '论题' },
+        { key: 'source_docs', title: '源文档' },
+        { key: 'failure_memories', title: '失败记忆' },
+        { key: 'market_episodes', title: '市场片段' },
+        { key: 'signals', title: '信号' },
+        { key: 'events', title: '事件' },
+        { key: 'outcomes', title: '结果' },
+        { key: 'reviews', title: '审核' },
+    ];
+    groups.forEach(g => total += (results[g.key]?.length || 0));
 
     if (total === 0) {
-        dropdown.innerHTML = `<div class="search-empty">未找到 "${esc(query)}" 相关结果</div>`;
+        dropdown.innerHTML = `<div class="search-result-group"><div class="search-empty">未找到 "${esc(query)}" 相关结果</div></div>`;
         dropdown.classList.remove('hidden');
         return;
     }
 
     let html = '';
 
+    // Symbols
+    if (results.symbols?.length) {
+        html += `<div class="search-result-group"><div class="group-title">标的 (${results.symbols.length})</div>`;
+        html += results.symbols.map(s => `
+            <div class="search-result-item">
+                <div class="result-title">${esc(s.symbol)} — ${esc(s.name || s.display_name)}</div>
+                <div class="result-subtitle">${esc(s.industry)} • ${esc(s.asset_type)}</div>
+            </div>
+        `).join('');
+        html += '</div>';
+    }
+
+    // Event Types
+    if (results.event_types?.length) {
+        html += `<div class="search-result-group"><div class="group-title">事件类型 (${results.event_types.length})</div>`;
+        html += results.event_types.map(et => `
+            <div class="search-result-item">
+                <div class="result-title">${esc(et.event_type)}</div>
+            </div>
+        `).join('');
+        html += '</div>';
+    }
+
+    // Theses
+    if (results.theses?.length) {
+        html += `<div class="search-result-group"><div class="group-title">论题 (${results.theses.length})</div>`;
+        html += results.theses.map(t => `
+            <div class="search-result-item" onclick="navigateToSignalDetail('${esc(t.signal_id)}')">
+                <div class="result-title">${esc(t.thesis)}</div>
+                <div class="result-subtitle">${esc(t.subject_id)} • score: ${t.score.toFixed(2)}</div>
+            </div>
+        `).join('');
+        html += '</div>';
+    }
+
+    // Source Docs
+    if (results.source_docs?.length) {
+        html += `<div class="search-result-group"><div class="group-title">源文档 (${results.source_docs.length})</div>`;
+        html += results.source_docs.map(doc => `
+            <div class="search-result-item">
+                <div class="result-title">${esc(doc.title)}</div>
+                <div class="result-subtitle">${esc(doc.source_type)} • ${doc.ingested_at ? new Date(doc.ingested_at).toLocaleDateString() : ''}</div>
+            </div>
+        `).join('');
+        html += '</div>';
+    }
+
+    // Failure Memory
+    if (results.failure_memories?.length) {
+        html += `<div class="search-result-group"><div class="group-title">失败记忆 (${results.failure_memories.length})</div>`;
+        html += results.failure_memories.map(f => `
+            <div class="search-result-item" onclick="navigateToSignalDetail('${esc(f.signal_id)}')">
+                <div class="result-title">${esc(f.failure_reason || f.subject_id)}</div>
+                <div class="result-subtitle">${esc(f.lesson)}</div>
+            </div>
+        `).join('');
+        html += '</div>';
+    }
+
+    // Market Episodes
+    if (results.market_episodes?.length) {
+        html += `<div class="search-result-group"><div class="group-title">市场片段 (${results.market_episodes.length})</div>`;
+        html += results.market_episodes.map(me => `
+            <div class="search-result-item">
+                <div class="result-title">${esc(me.title)}</div>
+                <div class="result-subtitle">${esc(me.tags)} • ${me.start_date ? new Date(me.start_date).toLocaleDateString() : ''}</div>
+            </div>
+        `).join('');
+        html += '</div>';
+    }
+
+    // Signals
     if (results.signals?.length) {
-        html += `<div class="search-group"><div class="search-group-title">信号 (${results.signals.length})</div>`;
+        html += `<div class="search-result-group"><div class="group-title">信号 (${results.signals.length})</div>`;
         html += results.signals.map(s => `
-            <div class="search-item" onclick="navigateToSignalDetail('${esc(s.signal_id)}')">
-                <span class="search-item-type signal">信号</span>
-                <span class="search-item-text">${esc(s.thesis)}</span>
-                <span class="status-badge status-${s.status}">${esc(s.status)}</span>
+            <div class="search-result-item" onclick="navigateToSignalDetail('${esc(s.signal_id)}')">
+                <div class="result-title">${esc(s.thesis)}</div>
+                <div class="result-subtitle">${esc(s.subject_id)} • ${esc(s.event_type)} • ${I18N.t('dashboard.score')}: ${s.score.toFixed(2)}</div>
             </div>
         `).join('');
         html += '</div>';
     }
 
+    // Events
     if (results.events?.length) {
-        html += `<div class="search-group"><div class="search-group-title">事件 (${results.events.length})</div>`;
+        html += `<div class="search-result-group"><div class="group-title">事件 (${results.events.length})</div>`;
         html += results.events.map(e => `
-            <div class="search-item">
-                <span class="search-item-type event">事件</span>
-                <span class="search-item-text">${esc(e.summary)}</span>
-                <span class="badge">${esc(e.event_type)}</span>
+            <div class="search-result-item">
+                <div class="result-title">${esc(e.summary)}</div>
+                <div class="result-subtitle">${esc(e.event_type)} • confidence: ${e.confidence.toFixed(2)}</div>
             </div>
         `).join('');
         html += '</div>';
     }
 
+    // Outcomes
     if (results.outcomes?.length) {
-        html += `<div class="search-group"><div class="search-group-title">结果 (${results.outcomes.length})</div>`;
+        html += `<div class="search-result-group"><div class="group-title">结果 (${results.outcomes.length})</div>`;
         html += results.outcomes.map(o => `
-            <div class="search-item">
-                <span class="search-item-type outcome">结果</span>
-                <span class="search-item-text">${esc(o.lesson || o.subject_id)}</span>
-                <span class="badge ${o.outcome_excess_return > 0 ? 'positive' : 'negative'}">${o.outcome_excess_return > 0 ? '+' : ''}${o.outcome_excess_return.toFixed(2)}%</span>
+            <div class="search-result-item" onclick="navigateToSignalDetail('${esc(o.signal_id)}')">
+                <div class="result-title">${esc(o.lesson || o.subject_id)}</div>
+                <div class="result-subtitle">${o.outcome_excess_return > 0 ? '+' : ''}${o.outcome_excess_return.toFixed(2)}% 超额收益</div>
             </div>
         `).join('');
         html += '</div>';
     }
 
+    // Reviews
     if (results.reviews?.length) {
-        html += `<div class="search-group"><div class="search-group-title">审计 (${results.reviews.length})</div>`;
+        html += `<div class="search-result-group"><div class="group-title">审核 (${results.reviews.length})</div>`;
         html += results.reviews.map(r => `
-            <div class="search-item">
-                <span class="search-item-type audit">审计</span>
-                <span class="search-item-text">${esc(r.action)} — ${esc(r.entity_type)}/${esc(r.entity_id.substring(0,8))}</span>
+            <div class="search-result-item">
+                <div class="result-title">${esc(r.action)} — ${esc(r.entity_type)}/${esc(r.entity_id.substring(0,8))}</div>
             </div>
         `).join('');
         html += '</div>';
@@ -253,21 +337,152 @@ applyChartDefaults();
 
 async function loadDashboard() {
     try {
-        const data = await apiCall('GET', '/api/workbench/dashboard');
-        document.getElementById('stat-total').textContent = data.signal_stats?.total ?? 0;
-        document.getElementById('stat-research').textContent = data.signal_stats?.research_only ?? 0;
-        document.getElementById('stat-candidate').textContent = data.signal_stats?.candidate ?? 0;
-        document.getElementById('stat-paper').textContent = data.signal_stats?.paper_trade ?? 0;
-        document.getElementById('stat-review').textContent = data.review_queue?.length ?? 0;
-
-        const recentEventsEl = document.getElementById('recent-events');
-        if (data.recent_events?.length) {
-            recentEventsEl.innerHTML = data.recent_events.map(e => `<li>${esc(e.title || e.event_id)}</li>`).join('');
+        const data = await apiCall('GET', '/api/dashboard');
+        
+        // Render Today Section
+        // New Events
+        const newEventsEl = document.getElementById('today-new-events');
+        if (data.today.new_events.length) {
+            newEventsEl.innerHTML = data.today.new_events.map(e => `
+                <li>
+                    <div class="item-title">${esc(e.summary)}</div>
+                    <div class="item-meta">${esc(e.event_type)} • ${new Date(e.created_at).toLocaleString()}</div>
+                </li>
+            `).join('');
         } else {
-            recentEventsEl.innerHTML = '<li class="empty-state">暂无数据</li>';
+            newEventsEl.innerHTML = '<li class="empty-state" data-i18n="dashboard.no_data">暂无新事件</li>';
         }
+
+        // High Priority Theses
+        const highPriorityEl = document.getElementById('today-high-priority');
+        if (data.today.high_priority_theses.length) {
+            highPriorityEl.innerHTML = data.today.high_priority_theses.map(t => `
+                <li>
+                    <div class="item-title">${esc(t.thesis)}</div>
+                    <div class="item-meta">${esc(t.subject_id)} • ${esc(t.event_type)} • ${I18N.t('dashboard.score')}: ${t.score.toFixed(2)}</div>
+                </li>
+            `).join('');
+        } else {
+            highPriorityEl.innerHTML = '<li class="empty-state" data-i18n="dashboard.no_data">暂无高优先级论题</li>';
+        }
+
+        // Abnormal Flows
+        const abnormalFlowsEl = document.getElementById('today-abnormal-flows');
+        if (data.today.abnormal_flows.length) {
+            abnormalFlowsEl.innerHTML = data.today.abnormal_flows.map(f => `
+                <li class="abnormal-flow-item">
+                    <span class="diffusion ${f.diffusion_strength > 0.7 ? 'diffusion-high' : f.diffusion_strength > 0.4 ? 'diffusion-medium' : 'diffusion-low'}"></span>
+                    <div class="item-title">${esc(f.symbol)} • ${esc(f.industry)}</div>
+                    <div class="item-meta">${I18N.t('dashboard.diffusion')}: ${f.diffusion_strength.toFixed(2)} • ${I18N.t('dashboard.change')}: ${f.change_pct.toFixed(2)}%</div>
+                </li>
+            `).join('');
+        } else {
+            abnormalFlowsEl.innerHTML = '<li class="empty-state" data-i18n="dashboard.no_data">暂无异常</li>';
+        }
+
+        // Render Research Queue Section
+        // Pending Assertions
+        const pendingAssertionsEl = document.getElementById('queue-pending-assertions');
+        if (data.research_queue.pending_assertions.length) {
+            pendingAssertionsEl.innerHTML = data.research_queue.pending_assertions.map(a => `
+                <li>
+                    <div class="item-title">${esc(a.subject)}: ${esc(a.claim)}</div>
+                    <div class="item-meta">${esc(a.status)} • ${new Date(a.created_at).toLocaleString()}</div>
+                </li>
+            `).join('');
+        } else {
+            pendingAssertionsEl.innerHTML = '<li class="empty-state" data-i18n="dashboard.no_data">无待处理断言</li>';
+        }
+
+        // Missing Evidence
+        const missingEvidenceEl = document.getElementById('queue-missing-evidence');
+        if (data.research_queue.missing_evidence.length) {
+            missingEvidenceEl.innerHTML = data.research_queue.missing_evidence.map(m => `
+                <li>
+                    <div class="item-title">${esc(m.subject)}</div>
+                    <div class="item-meta">${I18N.t('dashboard.required_evidence')}: ${esc(m.required_evidence_type)}</div>
+                </li>
+            `).join('');
+        } else {
+            missingEvidenceEl.innerHTML = '<li class="empty-state" data-i18n="dashboard.no_data">无缺失证据</li>';
+        }
+
+        // Mapping Reviews
+        const mappingReviewsEl = document.getElementById('queue-mapping-reviews');
+        if (data.research_queue.mapping_reviews.length) {
+            mappingReviewsEl.innerHTML = data.research_queue.mapping_reviews.map(r => `
+                <li>
+                    <div class="item-title">${esc(r.subject)}</div>
+                    <div class="item-meta">${esc(r.status)} • ${esc(r.reviewer || 'unassigned')}</div>
+                </li>
+            `).join('');
+        } else {
+            mappingReviewsEl.innerHTML = '<li class="empty-state" data-i18n="dashboard.no_data">无待审查</li>';
+        }
+
+        // Render Candidate Board Section
+        const candidatesEl = document.getElementById('candidate-top-candidates');
+        if (data.candidate_board.top_candidates.length) {
+            candidatesEl.innerHTML = data.candidate_board.top_candidates.map(c => `
+                <div class="candidate-item">
+                    <div class="candidate-header">
+                        <span class="candidate-title">${esc(c.subject)}</span>
+                        <span class="readiness-score">${I18N.t('dashboard.readiness')}: ${c.readiness_score.toFixed(2)}</span>
+                    </div>
+                    <div class="candidate-thesis">${esc(c.thesis)}</div>
+                    ${c.timing_blocker ? `<div class="candidate-blocker">⚠️ ${I18N.t('dashboard.timing_blocker')}: ${esc(c.timing_blocker)}</div>` : ''}
+                    ${c.trigger_condition ? `<div class="item-meta">${I18N.t('dashboard.trigger')}: ${esc(c.trigger_condition)}</div>` : ''}
+                </div>
+            `).join('');
+        } else {
+            candidatesEl.innerHTML = '<div class="empty-state" data-i18n="dashboard.no_data">暂无候选机会</div>';
+        }
+
+        // Render Learning Section
+        // Recent Failures
+        const recentFailuresEl = document.getElementById('learning-recent-failures');
+        if (data.learning.recent_failures.length) {
+            recentFailuresEl.innerHTML = data.learning.recent_failures.map(f => `
+                <li>
+                    <div class="item-title">${esc(f.subject_id)}: ${esc(f.failure_reason)}</div>
+                    <div class="item-meta">${I18N.t('dashboard.lesson')}: ${esc(f.lesson)} • ${f.outcome_return ? f.outcome_return.toFixed(2)% : ''}</div>
+                </li>
+            `).join('');
+        } else {
+            recentFailuresEl.innerHTML = '<li class="empty-state" data-i18n="dashboard.no_data">无失败记录</li>';
+        }
+
+        // Best Event Types
+        const bestEventTypesEl = document.getElementById('learning-best-event-types');
+        if (data.learning.best_event_types.length) {
+            bestEventTypesEl.innerHTML = data.learning.best_event_types.map(et => `
+                <div class="event-type-item">
+                    <div class="event-type-name">${esc(et.event_type)}</div>
+                    <div class="event-type-stats">${I18N.t('dashboard.avg_excess')}: ${et.avg_excess_return.toFixed(2)}%</div>
+                    <div class="event-type-stats">${I18N.t('dashboard.win_rate')}: ${(et.win_rate * 100).toFixed(0)}%</div>
+                </div>
+            `).join('');
+        } else {
+            bestEventTypesEl.innerHTML = '<div class="empty-state" data-i18n="dashboard.no_data">暂无数据</div>';
+        }
+
+        // Weekly Lessons
+        const weeklyLessonsEl = document.getElementById('learning-weekly-lessons');
+        if (data.learning.weekly_lessons.length) {
+            weeklyLessonsEl.innerHTML = data.learning.weekly_lessons.map(l => `
+                <li>
+                    <div class="item-title">${esc(l.week)}: ${esc(l.key_takeaway)}</div>
+                </li>
+            `).join('');
+        } else {
+            weeklyLessonsEl.innerHTML = '<li class="empty-state" data-i18n="dashboard.no_data">无总结</li>';
+        }
+
+        // Refresh i18n
+        I18N.refreshI18n();
     } catch (e) {
         console.error('Failed to load dashboard:', e);
+        toast(I18N.t('toast.load_dashboard_failed'), 'error');
     }
 }
 

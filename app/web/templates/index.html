@@ -70,44 +70,108 @@
                 <div id="search-results-dropdown" class="search-dropdown hidden"></div>
             </div>
 
-            <!-- Dashboard Section -->
+            <!-- Dashboard Section (Redesigned) -->
             <section id="section-dashboard" class="content-section active">
-                <h2 class="section-title" data-i18n="dashboard.title">仪表盘</h2>
-                <div class="dashboard-stats">
-                    <div class="stat-card">
-                        <div class="stat-value" id="stat-total">0</div>
-                        <div class="stat-label" data-i18n="dashboard.total_signals">总信号数</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="stat-research">0</div>
-                        <div class="stat-label" data-i18n="dashboard.research">研究中</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="stat-candidate">0</div>
-                        <div class="stat-label" data-i18n="dashboard.candidate">候选信号</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="stat-paper">0</div>
-                        <div class="stat-label" data-i18n="dashboard.paper_trade">模拟交易</div>
-                    </div>
-                    <div class="stat-card pending">
-                        <div class="stat-value" id="stat-review">0</div>
-                        <div class="stat-label" data-i18n="dashboard.pending_review">待审核断言</div>
-                    </div>
-                </div>
+                <h2 class="section-title" data-i18n="dashboard.title">研究控制台</h2>
+                
+                <div class="dashboard-grid">
+                    <!-- Today Section -->
+                    <div class="dashboard-card today-card">
+                        <div class="card-header">
+                            <h3><i class="codicon codicon-calendar"></i> Today</h3>
+                            <span class="badge-new">今日</span>
+                        </div>
+                        
+                        <div class="dashboard-section">
+                            <h4>新事件</h4>
+                            <ul id="today-new-events" class="item-list">
+                                <li class="empty-state" data-i18n="dashboard.no_data">暂无新事件</li>
+                            </ul>
+                        </div>
 
-                <div class="section-grid">
-                    <div class="card">
-                        <h3 data-i18n="dashboard.recent_events">最近事件</h3>
-                        <ul id="recent-events" class="item-list">
-                            <li class="empty-state" data-i18n="dashboard.no_data">暂无数据</li>
-                        </ul>
+                        <div class="dashboard-section">
+                            <h4>高优先级论题</h4>
+                            <ul id="today-high-priority" class="item-list">
+                                <li class="empty-state" data-i18n="dashboard.no_data">暂无高优先级论题</li>
+                            </ul>
+                        </div>
+
+                        <div class="dashboard-section">
+                            <h4>异常流向 / 主题扩散</h4>
+                            <ul id="today-abnormal-flows" class="item-list">
+                                <li class="empty-state" data-i18n="dashboard.no_data">暂无异常</li>
+                            </ul>
+                        </div>
                     </div>
-                    <div class="card">
-                        <h3 data-i18n="dashboard.recent_reports">最近报告</h3>
-                        <ul id="recent-reports" class="item-list">
-                            <li class="empty-state" data-i18n="dashboard.no_data">暂无数据</li>
-                        </ul>
+
+                    <!-- Research Queue Section -->
+                    <div class="dashboard-card queue-card">
+                        <div class="card-header">
+                            <h3><i class="codicon codicon-checklist"></i> Research Queue</h3>
+                        </div>
+
+                        <div class="dashboard-section">
+                            <h4>待处理断言</h4>
+                            <ul id="queue-pending-assertions" class="item-list">
+                                <li class="empty-state" data-i18n="dashboard.no_data">无待处理断言</li>
+                            </ul>
+                        </div>
+
+                        <div class="dashboard-section">
+                            <h4>缺失证据</h4>
+                            <ul id="queue-missing-evidence" class="item-list">
+                                <li class="empty-state" data-i18n="dashboard.no_data">无缺失证据</li>
+                            </ul>
+                        </div>
+
+                        <div class="dashboard-section">
+                            <h4>待映射审查</h4>
+                            <ul id="queue-mapping-reviews" class="item-list">
+                                <li class="empty-state" data-i18n="dashboard.no_data">无待审查</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Candidate Board Section -->
+                    <div class="dashboard-card candidate-card">
+                        <div class="card-header">
+                            <h3><i class="codicon codicon-rocket"></i> Candidate Board</h3>
+                        </div>
+
+                        <div class="dashboard-section">
+                            <h4>就绪度 Top 候选机会</h4>
+                            <div id="candidate-top-candidates" class="candidate-list">
+                                <div class="empty-state" data-i18n="dashboard.no_data">暂无候选机会</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Learning Section -->
+                    <div class="dashboard-card learning-card">
+                        <div class="card-header">
+                            <h3><i class="codicon codicon-lightbulb"></i> Learning</h3>
+                        </div>
+
+                        <div class="dashboard-section">
+                            <h4>最近失败</h4>
+                            <ul id="learning-recent-failures" class="item-list">
+                                <li class="empty-state" data-i18n="dashboard.no_data">无失败记录</li>
+                            </ul>
+                        </div>
+
+                        <div class="dashboard-section">
+                            <h4>最佳表现事件类型</h4>
+                            <div id="learning-best-event-types" class="event-type-list">
+                                <div class="empty-state" data-i18n="dashboard.no_data">暂无数据</div>
+                            </div>
+                        </div>
+
+                        <div class="dashboard-section">
+                            <h4>每周经验</h4>
+                            <ul id="learning-weekly-lessons" class="item-list">
+                                <li class="empty-state" data-i18n="dashboard.no_data">无总结</li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
             </section>

@@ -1375,3 +1375,236 @@ tr:hover td {
     .filter-row { flex-wrap: wrap; }
     .status-bar { display: none; }
 }
+
+/* ─── Redesigned Research Console Dashboard Styles ─────────── */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.dashboard-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    box-shadow: var(--shadow-sm);
+}
+
+.dashboard-card .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+.dashboard-card .card-header h3 {
+    margin: 0;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-primary);
+}
+
+.dashboard-card .card-header .badge-new {
+    background: var(--accent-light);
+    color: var(--accent);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.dashboard-section {
+    margin-bottom: 16px;
+}
+
+.dashboard-section:last-child {
+    margin-bottom: 0;
+}
+
+.dashboard-section h4 {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.dashboard-section .item-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 160px;
+    overflow-y: auto;
+}
+
+.dashboard-section .item-list li {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.dashboard-section .item-list li:last-child {
+    border-bottom: none;
+}
+
+.dashboard-section .item-list .item-title {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.dashboard-section .item-list .item-meta {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+/* Candidate Board */
+.candidate-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.candidate-item {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px;
+}
+
+.candidate-item .candidate-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.candidate-item .candidate-title {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.candidate-item .readiness-score {
+    background: var(--success-light);
+    color: var(--success);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.candidate-item .candidate-thesis {
+    margin-top: 4px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.candidate-item .candidate-blocker {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--warning);
+}
+
+/* Learning Section Event Type List */
+.event-type-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 8px;
+}
+
+.event-type-item {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px;
+    text-align: center;
+}
+
+.event-type-item .event-type-name {
+    font-weight: 500;
+    color: var(--text-primary);
+    font-size: 13px;
+}
+
+.event-type-item .event-type-stats {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
+/* Global Search Dropdown */
+.search-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: 400px;
+    overflow-y: auto;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 0 0 var(--radius) var(--radius);
+    box-shadow: var(--shadow-md);
+    z-index: 100;
+}
+
+.search-dropdown.hidden {
+    display: none;
+}
+
+.search-result-group {
+    padding: 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+.search-result-group:last-child {
+    border-bottom: none;
+}
+
+.search-result-group .group-title {
+    font-size: 12px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+
+.search-result-item {
+    padding: 6px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.search-result-item:hover {
+    background: var(--accent-light);
+}
+
+.search-result-item .result-title {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.search-result-item .result-subtitle {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+/* Abnormal flow items */
+.abnormal-flow-item .diffusion {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+}
+
+.diffusion-high {
+    background: var(--danger);
+}
+
+.diffusion-medium {
+    background: var(--warning);
+}
+
+.diffusion-low {
+    background: var(--success);
+}
