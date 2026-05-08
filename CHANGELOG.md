@@ -8,6 +8,7 @@
 ## [Unreleased]
 
 ### Added
+- **#26** Implement recovery workflow that rebuilds derived system state from restored factual records: added `scripts/rebuild_derived_state.py` that regenerates derived state in 4 deterministic phases: 1) rebuild event-driven signals, 2) recompute timing decisions, 3) reconstruct outcomes with available market data, 4) regenerate replay/portfolio/simulation artifacts. Supports partial/phase-level recovery, is idempotent, produces an audit summary showing what was regenerated and what requires manual intervention. Full unit test coverage for core reporting functionality.
 - **#25** Implement backfill workflow from object storage: `scripts/backfill_from_objects.py` can restore source_document records and regenerate factual layers (assertions/canonical events) from surviving raw artifacts. This is the preferred recovery path if object storage survives but database is lost. Idempotent, supports incremental backfill, generates summary recovery reports. Full test coverage for idempotent behavior.
 - **#24** Add `bootstrap_db` one-step database bootstrap script (schema initialization, connectivity check, idempotent seed defaults for alerts)
 - 交互式 Web 前端界面
