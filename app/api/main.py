@@ -18,23 +18,30 @@ from core.observability import get_logger, configure_logging
 logger = get_logger(__name__)
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """生命周期管理"""
+def startup():
+    """Startup hook: configure logging and check database connection"""
     configure_logging()
     logger.info("AlphaFoundry API starting up...")
-    # Explicit database connection check on API startup
-    from data_layer.repositories.base import check_database_connection
+    # Explicit database connection check on API startup + schema ensure
+    from data_layer.repositories.base import check_database_connection, ensure_schema
     check_database_connection()
-    yield
+    ensure_schema()
+    ensure_schema()
+
+
+def shutdown():
+    """Shutdown hook"""
     logger.info("AlphaFoundry API shutting down...")
 
 
 app = FastAPI(
     title="AlphaFoundry API",
     description="本地优先、可企业化的买方投研情报系统",
-    lifespan=lifespan,
 )
+
+# Register startup/shutdown events
+app.add_event_handler('startup', startup)
+app.add_event_handler('shutdown', shutdown)
 
 # ─── CORS（开发模式允许所有来源）─────────────────────────
 app.add_middleware(
