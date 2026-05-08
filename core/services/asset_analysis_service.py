@@ -208,6 +208,7 @@ class AssetAnalysisService:
 
     def _fetch_from_akshare(self, canonical_id: str, as_of: datetime) -> AssetAnalysisSnapshot:
         """从 AKShare 获取开源真实数据"""
+        import akshare as ak
         import asyncio
         # 获取近一年行情
         end_date = as_of.strftime('%Y-%m-%d')
@@ -216,22 +217,35 @@ class AssetAnalysisService:
         quotes = asyncio.run(self.akshare_adapter.fetch_stock_quotes(canonical_id, start_date, end_date))
         financial = asyncio.run(self.akshare_adapter.fetch_financial_report(canonical_id))
         
-        # 构建估值数据
-        last_quote = quotes[-1] if quotes else None
-        pe = None
+        # 获取实时估值数据
+        pe_ttm = None
         pb = None
-        if last_quote and financial and financial.get('eps'):
-            pe = last_quote['close'] / financial['eps']
+        try:
+            ak_code = canonical_id.split(".")[0]
+            if ak_code:
+                # 从东方财富接口获取实时估值
+                realtime_df = ak.stock_zh_a_spot_em()
+                row = realtime_df[realtime_df['代码'] == ak_code]
+                if not row.empty:
+                    pe_ttm = float(row.iloc[0]['PE-TTM'])
+                    pb = float(row.iloc[0]['PB'])
+        except Exception as e:
+            # fallback: 手动计算 PE
+            if quotes and financial and financial.get('eps'):
+                last_quote = quotes[-1]
+                pe_ttm = last_quote['close'] / financial['eps']
+            logger.warning(f"AKShare failed to fetch realtime valuation: {e}, fallback manual")
         
+        last_quote = quotes[-1] if quotes else None
         snapshot = AssetAnalysisSnapshot(
             canonical_id=canonical_id,
             as_of=as_of,
             financial={
-                'revenue': {'ttm': financial.get('revenue', 0) if financial else None},
-                'net_profit': {'ttm': financial.get('net_profit', 0) if financial else None},
-                'eps': {'ttm': financial.get('eps', 0) if financial else None},
-                'roe': {'ttm': financial.get('roe', 0) if financial else None},
-                'debt_ratio': financial.get('debt_ratio', 0) if financial else None,
+                'revenue': {'ttm': financial.get('revenue', None) if financial else None},
+                'net_profit': {'ttm': financial.get('net_profit', None) if financial else None},
+                'eps': {'ttm': financial.get('eps', None) if financial else None},
+                'roe': {'ttm': financial.get('roe', None) if financial else None},
+                'debt_ratio': financial.get('debt_ratio', None) if financial else None,
             },
             fund_flow={},
             price_volume={
@@ -240,7 +254,7 @@ class AssetAnalysisService:
                 'low_52w': min(q['low'] for q in quotes) if quotes else None,
             },
             valuation={
-                'pe_ttm': pe,
+                'pe_ttm': pe_ttm,
                 'pb': pb,
             },
             shareholder={},

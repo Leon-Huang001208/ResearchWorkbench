@@ -72,23 +72,79 @@ class AKShareAdapter(BaseDataAdapter):
             return None
         try:
             ak_code = self._format_ak_code(code)
-            # 获取主要财务指标
-            df = ak.stock_financial_report_cn(stock=ak_code)
-
-            if df is None or df.empty:
-                return None
-            # 取最新一期
-            latest = df.iloc[-1]
+            # 获取新浪财经财务摘要
+            df = ak.stock_financial_report_sina(stock=ak_code, symbol="资产负债表")
+            # 最新的资产负债表获取资产负债率
+            debt_ratio = None
+            if not df.empty:
+                # 新浪接口返回格式: 每一行为一个项目，每一列是一期报告
+                if "资产总计" in df.iloc[:, 0].values and "负债合计" in df.iloc[:, 0].values:
+                    total_assets_row = df[df.iloc[:, 0] == "资产总计"]
+                    total_debt_row = df[df.iloc[:, 0] == "负债合计"]
+                    if not total_assets_row.empty and not total_debt_row.empty:
+                        # 取最新一期（最后一列）
+                        total_assets = float(str(total_assets_row.iloc[0, -1]).replace(",", ""))
+                        total_debt = float(str(total_debt_row.iloc[0, -1]).replace(",", ""))
+                        if total_assets > 0:
+                            debt_ratio = 100 * total_debt / total_assets
+            
+            # 利润表获取核心指标
+            profit_df = ak.stock_financial_report_sina(stock=ak_code, symbol="利润表")
             result = {
                 "code": code,
-                "eps": float(latest.get("基本每股收益", 0)),
-                "roe": float(latest.get("净资产收益率加权(%)", 0)),
-                "net_profit": float(latest.get("净利润", 0)) * 1e8,
-                "revenue": float(latest.get("营业收入", 0)) * 1e8,
+                "eps": None,
+                "roe": None,
+                "net_profit": None,
+                "revenue": None,
                 "gross_margin": None,
-                "debt_ratio": float(latest.get("资产负债率", 0)),
+                "debt_ratio": debt_ratio,
                 "current_ratio": None,
             }
+            
+            if not profit_df.empty:
+                # 尝试提取核心指标
+                for name_col in ["基本每股收益", "每股收益"]:
+                    eps_row = profit_df[profit_df.iloc[:, 0] == name_col]
+                    if not eps_row.empty:
+                        eps_str = str(eps_row.iloc[0, -1]).replace(",", "")
+                        if eps_str.strip() != '':
+                            try: 
+                                result["eps"] = float(eps_str) 
+                                break
+                            except: pass
+                
+                for name_col in ["净利润", "归属于母公司所有者的净利润"]:
+                    np_row = profit_df[profit_df.iloc[:, 0] == name_col]
+                    if not np_row.empty:
+                        np_str = str(np_row.iloc[0, -1]).replace(",", "")
+                        if np_str.strip() != '':
+                            try: 
+                                result["net_profit"] = float(np_str) * 1e4  # 单位: 万元 → 元
+                                break
+                            except: pass
+                
+                for name_col in ["营业收入", "营业总收入"]:
+                    rev_row = profit_df[profit_df.iloc[:, 0] == name_col]
+                    if not rev_row.empty:
+                        rev_str = str(rev_row.iloc[0, -1]).replace(",", "")
+                        if rev_str.strip() != '':
+                            try: 
+                                result["revenue"] = float(rev_str) * 1e4  # 单位: 万元 → 元
+                                break
+                            except: pass
+            
+            # 财务指标摘要获取 ROE
+            try:
+                indicator_df = ak.stock_financial_abstract_ths(symbol=ak_code)
+                if not indicator_df.empty:
+                    latest_ind = indicator_df.iloc[-1]
+                    roe = latest_ind.get("净资产收益率")
+                    if roe is not None and str(roe).strip() != '':
+                        try: result["roe"] = float(roe) 
+                        except: pass
+            except Exception:
+                pass
+                
             logger.info(f"AKShare fetched financial report for {code}")
             return result
         except Exception as e:
