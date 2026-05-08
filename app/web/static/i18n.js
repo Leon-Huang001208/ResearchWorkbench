@@ -324,7 +324,7 @@ const I18N = (() => {
         'event.event_date': 'Date',
         'event.btn_generate': 'Generate Signal',
         'event.signal_list': 'Event Signal List',
-        'event.timing_decision': '⏰ Timing Decision',
+        'event.timing_decision': 'Timing Decision',
 
         // Industry Chain
         'industry.title': 'Industry Chain Graph',

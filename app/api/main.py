@@ -43,7 +43,7 @@ app.add_middleware(
 )
 
 # ─── 注册路由 ───────────────────────────────────────────
-from app.api.routes import assets, scenarios, review, signals, ingest, pipeline, workbench, graph, timing, memory  # noqa: E402
+from app.api.routes import assets, scenarios, review, signals, ingest, pipeline, workbench, graph, timing, memory, outcomes, ingestion_queue, audit, search, replay, portfolio, paper_trading, governance, monitoring, decision_console, event_ingestion  # noqa: E402
 
 app.include_router(assets.router)
 app.include_router(scenarios.router)
@@ -55,6 +55,17 @@ app.include_router(workbench.router)
 app.include_router(graph.router)
 app.include_router(timing.router)
 app.include_router(memory.router)
+app.include_router(outcomes.router)
+app.include_router(ingestion_queue.router)
+app.include_router(audit.router)
+app.include_router(search.router)
+app.include_router(replay.router)
+app.include_router(portfolio.router)
+app.include_router(paper_trading.router)
+app.include_router(governance.router)
+app.include_router(monitoring.router)
+app.include_router(decision_console.router)
+app.include_router(event_ingestion.router)
 
 # ─── 静态文件 ────────────────────────────────────────────
 _web_dir = Path(__file__).resolve().parent.parent / "web"
@@ -75,8 +86,30 @@ async def index():
 
 @app.get("/health")
 async def health_check():
-    """健康检查"""
-    return {"status": "ok"}
+    """健康检查 - includes persistence status"""
+    from sqlalchemy import text
+    from core.settings.config import settings
+    from data_layer.repositories.base import SessionLocal
+    
+    persistence_status = "unknown"
+    db_connected = False
+    try:
+        with SessionLocal() as session:
+            session.execute(text("SELECT 1"))
+            session.commit()
+            db_connected = True
+            persistence_status = "ready"
+    except Exception as e:
+        persistence_status = f"unavailable: {str(e)}"
+    
+    return {
+        "status": "ok",
+        "app_env": settings.APP_ENV,
+        "persistence": {
+            "database_connected": db_connected,
+            "status": persistence_status
+        }
+    }
 
 
 if __name__ == "__main__":

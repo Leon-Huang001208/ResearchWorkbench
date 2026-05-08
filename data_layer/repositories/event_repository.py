@@ -14,17 +14,27 @@ class EventRepositoryImpl(BaseRepository, EventRepository):
 
     def _to_domain(self, model: CanonicalEventModel) -> CanonicalEvent:
         """转换为领域模型"""
+        payload = model.payload or {}
         return CanonicalEvent(
             event_id=model.event_id,
             event_type=model.event_type,
-            summary=model.summary,
             event_time=model.event_time,
-            impact_direction=model.impact_direction,
+            source_type=payload.get("source_type", "unknown"),
+            source_name=payload.get("source_name", "unknown"),
+            title=payload.get("title", model.summary or ""),
+            raw_text=payload.get("raw_text"),
+            extracted_assertions=payload.get("extracted_assertions", []),
+            impacted_industries=payload.get("impacted_industries", []),
+            impacted_symbols=payload.get("impacted_symbols", []),
             confidence=float(model.confidence),
+            novelty_score=payload.get("novelty_score", 0.0),
+            # Legacy fields
+            summary=model.summary,
+            impact_direction=model.impact_direction or "unknown",
             needs_review=model.needs_review,
-            entities=model.payload.get("entities", []),
-            assertions=model.payload.get("assertions", []),
-            evidence_spans=model.payload.get("evidence_spans", []),
+            entities=payload.get("entities", []),
+            assertions=payload.get("assertions", []),
+            evidence_spans=payload.get("evidence_spans", []),
             source_doc_id=model.source_doc_id or "",
             reviewer_status=model.reviewer_status or "draft",
             reviewer=model.reviewer,
@@ -36,13 +46,22 @@ class EventRepositoryImpl(BaseRepository, EventRepository):
         return CanonicalEventModel(
             event_id=domain.event_id,
             event_type=domain.event_type,
-            summary=domain.summary,
+            summary=domain.title if domain.summary is None else domain.summary,
             event_time=domain.event_time,
             impact_direction=domain.impact_direction,
             confidence=domain.confidence,
             needs_review=domain.needs_review,
             source_doc_id=domain.source_doc_id,
             payload={
+                "source_type": domain.source_type,
+                "source_name": domain.source_name,
+                "title": domain.title,
+                "raw_text": domain.raw_text,
+                "extracted_assertions": domain.extracted_assertions,
+                "impacted_industries": domain.impacted_industries,
+                "impacted_symbols": domain.impacted_symbols,
+                "novelty_score": domain.novelty_score,
+                # Legacy fields
                 "entities": domain.entities,
                 "assertions": domain.assertions,
                 "evidence_spans": domain.evidence_spans,
@@ -57,13 +76,21 @@ class EventRepositoryImpl(BaseRepository, EventRepository):
         model = self.db.query(CanonicalEventModel).filter_by(event_id=entity.event_id).first()
         if model:
             model.event_type = entity.event_type
-            model.summary = entity.summary
+            model.summary = entity.title if entity.summary is None else entity.summary
             model.event_time = entity.event_time
             model.impact_direction = entity.impact_direction
             model.confidence = entity.confidence
             model.needs_review = entity.needs_review
             model.source_doc_id = entity.source_doc_id
             model.payload = {
+                "source_type": entity.source_type,
+                "source_name": entity.source_name,
+                "title": entity.title,
+                "raw_text": entity.raw_text,
+                "extracted_assertions": entity.extracted_assertions,
+                "impacted_industries": entity.impacted_industries,
+                "impacted_symbols": entity.impacted_symbols,
+                "novelty_score": entity.novelty_score,
                 "entities": entity.entities,
                 "assertions": entity.assertions,
                 "evidence_spans": entity.evidence_spans,
@@ -98,7 +125,8 @@ class EventRepositoryImpl(BaseRepository, EventRepository):
         models = self.db.query(CanonicalEventModel).all()
         results = []
         for m in models:
-            entities = m.payload.get("entities", [])
+            payload = m.payload or {}
+            entities = payload.get("entities", [])
             for e in entities:
                 if e.get("entity_id") == entity_id:
                     results.append(self._to_domain(m))
@@ -138,3 +166,24 @@ class EventRepositoryImpl(BaseRepository, EventRepository):
             .all()
         )
         return [self._to_domain(m) for m in models]
+
+    def list_by_event_type(self, event_type: str, limit: int = 100) -> List[CanonicalEvent]:
+        """根据事件类型列出事件"""
+        models = (
+            self.db.query(CanonicalEventModel)
+            .filter_by(event_type=event_type)
+            .limit(limit)
+            .all()
+        )
+        return [self._to_domain(m) for m in models]
+
+    def list_by_impacted_symbol(self, symbol: str, limit: int = 100) -> List[CanonicalEvent]:
+        """根据影响股票列出事件"""
+        models = self.db.query(CanonicalEventModel).all()
+        results = []
+        for m in models:
+            payload = m.payload or {}
+            impacted_symbols = payload.get("impacted_symbols", [])
+            if symbol in impacted_symbols:
+                results.append(self._to_domain(m))
+        return results

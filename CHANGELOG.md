@@ -16,6 +16,12 @@
 - 实现完整的双源降级路由策略（iFinD → ChinaStock → insufficient_evidence
 - 更新 IFinDAdapter 适配器支持技术指标和情绪数据获取
 - 更新 ChinaStockAdapter 适配器支持情绪数据获取
+- **#12** 模拟交易与组合仿真工作流（Paper Trading + Simulation + 基准比较）
+- **#13** Model/Prompt/Strategy 治理与实验追踪（版本管理、实验对比、回滚、审计）
+- **#14** 生产级监控、漂移检测和告警系统（健康指标采集、分布漂移检测、可配置阈值告警、事件记录）
+- **#15** 分析师人在回路决策控制台（每日候选审核、决策动作记录、理由捕获、复盘视图、审计追踪）
+- **#16** 生产级持久化替换内存 fallback（dev/prod 模式，生产环境禁用静默 fallback，所有实体默认持久化到 PostgreSQL）
+- **#17** 标准化 A 股 alpha 事件结构化摄入 pipeline（支持政策/公司公告/海外科技映射三类事件，每个类别 20 个示例）
 
 ### Changed
 - 默认启用持久化模式
