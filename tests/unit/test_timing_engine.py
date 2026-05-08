@@ -1,90 +1,162 @@
-"""
-Timing Engine 测试
-
-Timing 负责判断市场现在会不会认可某个逻辑，不负责解释世界，也不负责历史统计验证。
-"""
+"""Unit tests for the new unified timing engine and event study implementation"""
 import pytest
-from pydantic import ValidationError
+from core.contracts.timing_engine import (
+    TimingFactors,
+    EventStudyMetrics,
+    ReadinessScore,
+)
+from core.services.timing_engine_service import TimingEngineService
 
-from timing_engine import MetaTimingEngine, TimingModelScore
+
+class TestTimingFactors:
+    """Tests for TimingFactors model"""
+
+    def test_overall_timing_fit_average(self):
+        """Test that overall timing fit is the average of four factors"""
+        factors = TimingFactors(
+            regime=0.8,
+            flow=0.8,
+            theme_diffusion=0.8,
+            crowding=0.8
+        )
+        assert factors.overall_timing_fit() == pytest.approx(0.8)
+
+    def test_overall_timing_fit_mixed(self):
+        """Test average calculation with mixed values"""
+        factors = TimingFactors(
+            regime=1.0,
+            flow=0.0,
+            theme_diffusion=0.5,
+            crowding=0.5
+        )
+        assert factors.overall_timing_fit() == pytest.approx(0.5)
 
 
-def test_timing_score_rejects_unknown_model_name():
-    """择时模型必须来自统一 ontology"""
-    with pytest.raises(ValidationError):
-        TimingModelScore(
-            model_name="llm_chat",
-            score=0.8,
-            confidence=0.7,
-            rationale="自由聊天不是择时模型",
+class TestEventStudyMetrics:
+    """Tests for EventStudyMetrics model"""
+
+    def test_historical_edge_zero_with_no_events(self):
+        """Edge score should be zero when there are no historical events"""
+        metrics = EventStudyMetrics(
+            event_count=0,
+            average_excess_return=0.1,
+            win_rate=0.5,
+            max_drawdown_after_entry=-0.05
+        )
+        assert metrics.historical_edge_score() == 0.0
+
+    def test_historical_edge_high_with_good_performance(self):
+        """High edge score when win rate and excess return are good"""
+        metrics = EventStudyMetrics(
+            event_count=10,
+            average_excess_return=0.1,
+            win_rate=0.8,
+            max_drawdown_after_entry=-0.05
+        )
+        # 0.5 * 0.8 + 0.5 * (0.1 / 0.1) = 0.4 + 0.5 = 0.9
+        assert metrics.historical_edge_score() == pytest.approx(0.9)
+
+    def test_historical_edge_mixed(self):
+        """Test mixed case: good win rate but low excess return"""
+        metrics = EventStudyMetrics(
+            event_count=20,
+            average_excess_return=0.05,
+            win_rate=0.7,
+            max_drawdown_after_entry=-0.1
+        )
+        # 0.5*0.7 + 0.5*(0.05/0.1) = 0.35 + 0.25 = 0.6
+        assert metrics.historical_edge_score() == pytest.approx(0.6)
+
+
+class TestReadinessScore:
+    """Tests for ReadinessScore calculation"""
+
+    def test_calculate_correct_formula(self):
+        """Test that the formula is applied correctly: 0.35 thesis + 0.35 historical + 0.30 timing"""
+        readiness = ReadinessScore.calculate(
+            thesis_quality=1.0,
+            historical_edge=1.0,
+            timing_fit=1.0
+        )
+        assert readiness.overall_score == pytest.approx(1.0)
+        assert readiness.recommendation == "PROCEED"
+
+    def test_calculate_block_low_score(self):
+        """Score below 0.5 should recommend BLOCK"""
+        readiness = ReadinessScore.calculate(
+            thesis_quality=0.4,
+            historical_edge=0.4,
+            timing_fit=0.4
+        )
+        # 0.35*0.4 + 0.35*0.4 + 0.3*0.4 = 0.4
+        assert readiness.overall_score == pytest.approx(0.4)
+        assert readiness.recommendation == "BLOCK"
+
+    def test_calculate_caution_middle_score(self):
+        """Score 0.5 to 0.7 should give CAUTION"""
+        readiness = ReadinessScore.calculate(
+            thesis_quality=0.6,
+            historical_edge=0.6,
+            timing_fit=0.6
+        )
+        assert readiness.overall_score == pytest.approx(0.6)
+        assert readiness.recommendation == "CAUTION"
+
+
+class TestTimingEngineService:
+    """Integration tests for TimingEngineService"""
+
+    def test_full_workflow_proceed(self):
+        """Full happy path: all good → PROCEED, no blocking"""
+        service = TimingEngineService()
+        timing = service.calculate_timing_fit(
+            regime=0.8,
+            flow=0.8,
+            theme_diffusion=0.8,
+            crowding=0.8
+        )
+        historical = service.calculate_historical_edge(
+            event_count=15,
+            average_excess_return=0.08,
+            win_rate=0.7,
+            max_drawdown_after_entry=-0.07
+        )
+        readiness = service.calculate_readiness(
+            thesis_quality=0.8,
+            historical_metrics=historical,
+            timing_factors=timing
         )
 
+        assert readiness.overall_score > 0.7
+        assert readiness.recommendation == "PROCEED"
+        assert not service.should_block_candidate(readiness)
 
-def test_meta_timing_engine_allows_entry_when_market_clock_is_supportive():
-    """多模型状态支持且拥挤度低时，应允许进入"""
-    engine = MetaTimingEngine()
-    decision = engine.evaluate(
-        [
-            TimingModelScore(model_name="regime", score=0.82, confidence=0.8, rationale="AI成长风格"),
-            TimingModelScore(model_name="flow", score=0.76, confidence=0.7, rationale="资金流入AI链"),
-            TimingModelScore(
-                model_name="theme_diffusion",
-                score=0.81,
-                confidence=0.75,
-                rationale="主题从光模块扩散到铜连接",
-            ),
-            TimingModelScore(model_name="crowding", score=0.24, confidence=0.7, rationale="拥挤度不高"),
-            TimingModelScore(
-                model_name="expectation_gap",
-                score=0.78,
-                confidence=0.72,
-                rationale="推理需求预期差仍在",
-            ),
-        ],
-        signal_id="event_sig_001",
-    )
+    def test_full_workflow_block(self):
+        """Low readiness → BLOCK and reason should be given"""
+        service = TimingEngineService()
+        timing = service.calculate_timing_fit(
+            regime=0.2,
+            flow=0.2,
+            theme_diffusion=0.3,
+            crowding=0.2
+        )
+        historical = service.calculate_historical_edge(
+            event_count=3,
+            average_excess_return=0.01,
+            win_rate=0.3,
+            max_drawdown_after_entry=-0.2
+        )
+        readiness = service.calculate_readiness(
+            thesis_quality=0.4,
+            historical_metrics=historical,
+            timing_factors=timing
+        )
 
-    assert decision.action == "enter"
-    assert decision.readiness_score > 0.65
-    assert decision.signal_id == "event_sig_001"
-    assert "crowding" not in decision.blockers
-
-
-def test_meta_timing_engine_blocks_when_crowding_and_risk_off_dominate():
-    """高拥挤和风险 off 应阻止交易，即使叙事仍然好听"""
-    engine = MetaTimingEngine()
-    decision = engine.evaluate(
-        [
-            TimingModelScore(model_name="regime", score=0.22, confidence=0.85, rationale="风险off"),
-            TimingModelScore(model_name="flow", score=0.31, confidence=0.74, rationale="资金流出成长"),
-            TimingModelScore(
-                model_name="theme_diffusion",
-                score=0.66,
-                confidence=0.72,
-                rationale="市场仍讨论AI",
-            ),
-            TimingModelScore(model_name="crowding", score=0.91, confidence=0.82, rationale="龙头交易拥挤"),
-            TimingModelScore(model_name="sentiment", score=0.28, confidence=0.8, rationale="炸板率升高"),
-        ]
-    )
-
-    assert decision.action == "block"
-    assert "crowding" in decision.blockers
-    assert "regime" in decision.blockers
-
-
-def test_meta_timing_engine_uses_hot_money_weights_for_speculation_regime():
-    """游资题材阶段应更相信情绪和主题扩散"""
-    engine = MetaTimingEngine()
-    weights = engine.weights_for_regime("hot_money_theme")
-
-    assert weights["sentiment"] > weights["liquidity"]
-    assert weights["theme_diffusion"] > weights["expectation_gap"]
-
-
-def test_meta_timing_engine_requires_at_least_one_score():
-    """没有任何择时输入时应显式报错"""
-    engine = MetaTimingEngine()
-
-    with pytest.raises(ValueError, match="at least one"):
-        engine.evaluate([])
+        assert readiness.overall_score < 0.5
+        assert readiness.recommendation == "BLOCK"
+        assert service.should_block_candidate(readiness)
+        reason = service.get_candidate_blocking_reason(readiness)
+        assert reason is not None
+        assert "Thesis quality" in reason
+        assert "Historical edge" in reason
+        assert "market timing" in reason

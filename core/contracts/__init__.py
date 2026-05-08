@@ -87,6 +87,11 @@ from .review_framework import (
     CognitiveBlackboard,
     ConflictDetectionSummary,
 )
+from .timing_engine import (
+    TimingFactors,
+    EventStudyMetrics,
+    ReadinessScore,
+)
 
 __all__ = [
     "CanonicalId",
@@ -177,4 +182,8 @@ __all__ = [
     "ReviewCard",
     "CognitiveBlackboard",
     "ConflictDetectionSummary",
+    # Timing Engine and Event Study
+    "TimingFactors",
+    "EventStudyMetrics",
+    "ReadinessScore",
 ]
