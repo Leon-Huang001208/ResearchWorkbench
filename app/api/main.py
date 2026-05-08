@@ -23,6 +23,9 @@ async def lifespan(app: FastAPI):
     """生命周期管理"""
     configure_logging()
     logger.info("AlphaFoundry API starting up...")
+    # Explicit database connection check on API startup
+    from data_layer.repositories.base import check_database_connection
+    check_database_connection()
     yield
     logger.info("AlphaFoundry API shutting down...")
 

@@ -8,6 +8,14 @@
 ## [Unreleased]
 
 ### Added
+- **#28** Add automated backup, restore drills, and migration discipline for durable persistence: 
+  - Added `scripts/backup_db.py` supporting PostgreSQL full backups with automatic compression and retention cleanup
+  - Added `scripts/restore_db.py` supporting point-in-time restores from compressed or uncompressed backups
+  - Added `docs/backup_restore.md` with backup/restore procedures, quarterly restore drill checklist, Alembic migration discipline, and explicit data storage responsibility matrix
+  - Initialized Alembic migration framework with proper environment configuration loading from project settings
+  - Generated initial migration capturing all existing database tables
+  - Retains full SQLite backup/restore support for development/demo deployments
+  - Enables operational confidence: team can perform regular restore drills, safely apply schema changes, and recover from persistence failures without ad hoc rescue work
 - **#27** Implement minimum viable re-ingestion recovery path when object storage is unavailable: added `scripts/minimal_reingest_bootstrap.py` that fully bootstraps the system from scratch using benchmark samples and upstream connectors. This fallback recovery path can reconstruct enough factual/operational state to continue development when both database and local object storage are lost. Includes a bounded bootstrap sample (3 events) to exercise the Golden Path, smoke tests to validate the pipeline after recovery, and fully reproducible recovery steps. All tests pass.
 - **#26** Implement recovery workflow that rebuilds derived system state from restored factual records: added `scripts/rebuild_derived_state.py` that regenerates derived state in 4 deterministic phases: 1) rebuild event-driven signals, 2) recompute timing decisions, 3) reconstruct outcomes with available market data, 4) regenerate replay/portfolio/simulation artifacts. Supports partial/phase-level recovery, is idempotent, produces an audit summary showing what was regenerated and what requires manual intervention. Full unit test coverage for core reporting functionality.
 - **#25** Implement backfill workflow from object storage: `scripts/backfill_from_objects.py` can restore source_document records and regenerate factual layers (assertions/canonical events) from surviving raw artifacts. This is the preferred recovery path if object storage survives but database is lost. Idempotent, supports incremental backfill, generates summary recovery reports. Full test coverage for idempotent behavior.
@@ -42,6 +50,7 @@
   - 所有单元测试通过
 
 ### Changed
+- **#29** Remove import-time database connection side effects and make startup checks explicit: database connectivity checks are now performed explicitly at API startup and in all bootstrap/recovery scripts instead of unconditionally during module import. This allows tests, scripts, and offline tools to import repository modules without requiring an active live database connection while still preserving the same actionable error checking at startup entry points.
 - **#23** Migrate default persistence from SQLite to PostgreSQL: PostgreSQL is now the recommended durable default, SQLite remains as zero-config demo option
 - 默认启用持久化模式
 - 澄清数据存储策略

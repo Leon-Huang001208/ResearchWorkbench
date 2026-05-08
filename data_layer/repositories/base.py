@@ -46,8 +46,7 @@ def check_database_connection() -> None:
         logger.critical(error_msg)
         raise RuntimeError(error_msg) from e
 
-# Run connection check on startup
-check_database_connection()
+
 
 
 def ensure_schema() -> None:
