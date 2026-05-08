@@ -91,9 +91,6 @@ function navigateTo(section) {
     if (section === 'memory') loadMemoryPage();
 }
 
-// ─── Bind all interactive events after DOM ready
-// All DOM access must happen here
-$(function() {
 // Wait for DOM ready before binding all interactive events
 document.addEventListener('DOMContentLoaded', () => {
     // Navigation buttons
@@ -1459,5 +1456,4 @@ window.addEventListener('DOMContentLoaded', () => {
         } catch (e) { /* ignore */ }
     };
     updateStatusBar();
-});
 });
