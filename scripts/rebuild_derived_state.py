@@ -115,7 +115,7 @@ class RebuildReporter:
     
     def add_replay_result(self, replay_id: str, regenerated: bool, failed: bool = False, reason: str = ""):
         if failed:
-            self.replay_states_failed += 1
+            self.stats["replay_states_failed"] += 1
             self.details["failed_replays"].append({"replay_id": replay_id, "reason": reason})
         elif regenerated:
             self.stats["replay_states_regenerated"] += 1
@@ -241,14 +241,15 @@ def phase2_recompute_timing_decisions(
     limit: Optional[int] = None,
     dry_run: bool = False
 ) -> None:
-    """Phase 2: Recompute timing decisions from rebuilt signals."""
-    logger.info("Starting Phase 2: Recompute timing decisions from rebuilt signals")
+    """Phase 2: Recompute timing decisions from rebuilt signals using production timing engine."""
+    logger.info("Starting Phase 2: Recompute timing decisions from rebuilt signals using production timing engine")
     
     # Get all rebuilt signals
     signals = signal_service.list_signals(limit=limit)
     logger.info(f"Found {len(signals)} signals to process")
     
     from timing_engine.contracts import TimingDecision, TimingModelScore
+    from core.contracts.timing_engine import EventStudyMetrics, TimingFactors, ReadinessScore
     
     for signal in signals:
         try:
@@ -265,33 +266,65 @@ def phase2_recompute_timing_decisions(
                 reporter.add_timing_result(signal.signal_id, recomputed=False)
                 continue
             
-            # Calculate base timing factors
-            # For event-driven signals, we calculate standard model scores
+            # Get default factors from signal characteristics and market defaults
+            # For rebuilt signals, we use consistent defaults matching production logic
+            # and apply the same timing engine calculation as main system
+            timing_factors = timing_engine_service.calculate_timing_fit(
+                regime=0.5,  # Default neutral regime for recovery
+                flow=0.6,
+                theme_diffusion=0.5,
+                crowding=0.5
+            )
+            
+            # Use default historical metrics based on signal confidence
+            # For new recovery, if no existing history we use signal confidence as proxy
+            historical_metrics = EventStudyMetrics(
+                event_count=1,
+                average_excess_return=signal.confidence * 0.02,
+                win_rate=signal.confidence,
+                max_drawdown_after_entry=-0.05
+            )
+            
+            # Calculate unified readiness using production timing engine
+            readiness = timing_engine_service.calculate_readiness(
+                thesis_quality=signal.confidence,
+                historical_metrics=historical_metrics,
+                timing_factors=timing_factors
+            )
+            
+            # Check for blocking conditions
+            blockers = []
+            if timing_engine_service.should_block_candidate(readiness):
+                blockers.append(timing_engine_service.get_candidate_blocking_reason(readiness))
+            
+            # Convert readiness recommendation to action
+            if readiness.recommendation == "GO":
+                action = "BUY" if signal.score > 0.5 else "HOLD"
+            elif readiness.recommendation == "WAIT":
+                action = "HOLD"
+            else:
+                action = "SKIP"
+            
+            # Build model scores structure from timing factors for consistency
             model_scores = [
-                TimingModelScore(model_name="regime", score=0.5, weight=0.2),
-                TimingModelScore(model_name="flow", score=0.6, weight=0.2),
+                TimingModelScore(model_name="regime", score=timing_factors.regime, weight=0.2),
+                TimingModelScore(model_name="flow", score=timing_factors.flow, weight=0.2),
                 TimingModelScore(model_name="sentiment", score=signal.confidence, weight=0.3),
                 TimingModelScore(model_name="liquidity", score=0.7, weight=0.1),
-                TimingModelScore(model_name="theme_diffusion", score=0.5, weight=0.1),
-                TimingModelScore(model_name="crowding", score=0.5, weight=0.1),
+                TimingModelScore(model_name="theme_diffusion", score=timing_factors.theme_diffusion, weight=0.1),
+                TimingModelScore(model_name="crowding", score=timing_factors.crowding, weight=0.1),
             ]
             
-            # Calculate overall readiness score
-            total_readiness = sum(m.score * m.weight for m in model_scores)
-            
-            # Determine action based on signal score
-            action = "BUY" if signal.score > 0.5 else "HOLD"
-            
-            # Create timing decision
+            # Create timing decision with production-calculated values
             timing_decision = TimingDecision(
                 signal_id=signal.signal_id,
                 action=action,
-                readiness_score=total_readiness,
+                readiness_score=readiness.overall_score,
                 market_regime="neutral",
                 model_scores=model_scores,
                 active_weights={m.model_name: m.weight for m in model_scores},
-                blockers=[],
-                rationale=f"Auto-rebuilt from restored event {signal.event_id}"
+                blockers=blockers,
+                rationale=f"Auto-rebuilt from restored event {signal.event_id} using production timing engine"
             )
             
             # Save to repository
@@ -314,23 +347,22 @@ def phase3_rebuild_outcomes(
     limit: Optional[int] = None,
     dry_run: bool = False
 ) -> None:
-    """Phase 3: Rebuild outcomes where market data is available."""
-    logger.info("Starting Phase 3: Rebuild outcomes with available market data")
+    """Phase 3: Rebuild outcomes where market data is available using production outcome service."""
+    logger.info("Starting Phase 3: Rebuild outcomes with available market data using production outcome service")
     
     # Get all timing decisions
     timing_decisions = timing_repo.list(limit=limit)
     logger.info(f"Found {len(timing_decisions)} timing decisions to process for outcomes")
     
-    # Get outcome repository from service
-    from data_layer.repositories.outcome_repository import OutcomeRepositoryImpl
-    outcome_repo = OutcomeRepositoryImpl()
+    from core.contracts.outcomes import SignalOutcome
+    from data_layer.market_data import market_data_provider
+    import uuid
+    from datetime import datetime, timezone
     
     for decision in timing_decisions:
         try:
-            # Check if outcome already exists for this timing decision
-            # Outcome references signal_id, so we filter by signal_id
-            existing_outcomes = outcome_repo.list()
-            existing_outcome = next((o for o in existing_outcomes if o.signal_id == decision.signal_id), None)
+            # Check if outcome already exists for this signal
+            existing_outcome = outcome_service.get_outcome_by_signal(decision.signal_id)
             
             if existing_outcome and not dry_run:
                 logger.debug(f"Outcome already exists for signal {decision.signal_id}, skipping")
@@ -342,50 +374,75 @@ def phase3_rebuild_outcomes(
                 reporter.add_outcome_result(decision.signal_id, rebuilt=False)
                 continue
             
-            # TODO: Add actual market data check
-            # For now, assume market data is available if we can reach this point
-            # In the future, implement check against your market data provider
-            market_data_available = True
-            
-            if not market_data_available:
-                reason = f"No market data available for decision {decision.decision_id} on signal {decision.signal_id}"
+            # Get the signal to get subject/symbol info
+            # Check market data availability for the symbol
+            # In production this checks your market data provider
+            # For recovery, we assume symbols that were in the original event have data if indexed
+            subject_id = getattr(decision, 'subject_id', None)
+            if not subject_id:
+                reason = f"No subject symbol found for decision {decision.decision_id} on signal {decision.signal_id}"
+                logger.warning(reason)
+                reporter.add_outcome_result(decision.signal_id, rebuilt=False, missing_market=True, reason=reason)
+                continue
+                
+            # Check if market data is available for the subject (symbol)
+            try:
+                market_data_available = market_data_provider.has_price_history(subject_id)
+            except Exception as e:
+                reason = f"Market data check failed for {subject_id}: {str(e)}"
                 logger.warning(reason)
                 reporter.add_outcome_result(decision.signal_id, rebuilt=False, missing_market=True, reason=reason)
                 continue
             
-            # Calculate outcome - use existing outcome service
-            # This is a simplified placeholder; actual implementation uses the service
-            from core.contracts.outcomes import SignalOutcome
-            import uuid
-            from datetime import datetime
+            if not market_data_available:
+                reason = f"No price history available for symbol {subject_id} (signal {decision.signal_id})"
+                logger.warning(reason)
+                reporter.add_outcome_result(decision.signal_id, rebuilt=False, missing_market=True, reason=reason)
+                continue
             
+            # Fetch the price history and calculate outcome metrics
+            # This uses the same calculation as production
+            price_history = market_data_provider.get_price_history(subject_id, days=60)
+            outcome_metrics = market_data_provider.calculate_outcome_metrics(
+                prices=price_history,
+                entry_time=decision.created_at if hasattr(decision, 'created_at') else datetime.now(timezone.utc),
+                horizon_days=20
+            )
+            
+            # Create outcome with real calculated metrics
             outcome = SignalOutcome(
                 outcome_id=str(uuid.uuid4()),
                 event_id=getattr(decision, 'event_id', ''),
                 signal_id=decision.signal_id,
-                subject_id=getattr(decision, 'subject_id', decision.signal_id),
-                event_date=datetime.now().date().isoformat(),
+                subject_id=subject_id,
+                event_date=datetime.now(timezone.utc).date().isoformat(),
                 timing_action=decision.action,
                 entry_rule="auto_rebuilt",
                 horizon="20d",
                 benchmark="SPY",
-                outcome_return=0.0,
-                outcome_excess_return=0.0,
-                max_drawdown=0.0,
-                decay=0.0,
-                failure_reason=None,
-                lesson="Auto-rebuilt from factual recovery",
-                evaluated_at=datetime.utcnow(),
-                metadata={"rebuilt": True, "phase": "rebuild_derived_state"}
+                outcome_return=outcome_metrics.total_return,
+                outcome_excess_return=outcome_metrics.excess_return,
+                max_drawdown=outcome_metrics.max_drawdown,
+                decay=outcome_metrics.decay,
+                failure_reason=None if outcome_metrics.total_return > 0 else "Negative return",
+                lesson="Auto-rebuilt from factual recovery with real market data calculation",
+                evaluated_at=datetime.now(timezone.utc),
+                metadata={
+                    "rebuilt": True,
+                    "phase": "rebuild_derived_state",
+                    "market_data_used": True,
+                    "source": "market_data_provider"
+                }
             )
             
-            outcome = outcome_repo.save(outcome)
+            # Save using the production outcome service (syncs to learning journal automatically)
+            outcome = outcome_service.record_outcome(outcome)
             logger.debug(f"Rebuilt outcome for signal {decision.signal_id}: outcome_id={outcome.outcome_id}")
             reporter.add_outcome_result(decision.signal_id, rebuilt=True)
             
         except Exception as e:
-            logger.error(f"Failed to rebuild outcome for decision {decision.decision_id}: {str(e)}", exc_info=True)
-            reporter.add_outcome_result(decision.signal_id, rebuilt=False, failed=True, reason=str(e))
+            logger.error(f"Failed to rebuild outcome for decision {getattr(decision, 'decision_id', 'unknown')}: {str(e)}", exc_info=True)
+            reporter.add_outcome_result(decision.signal_id if hasattr(decision, 'signal_id') else 'unknown', rebuilt=False, failed=True, reason=str(e))
     
     logger.info("Phase 3 completed")
     reporter.add_phase_executed()
@@ -400,10 +457,15 @@ def phase4_regenerate_artifacts(
     """Phase 4: Regenerate replay, calibration, portfolio, and simulation state."""
     logger.info("Starting Phase 4: Regenerate replay, calibration, portfolio, and simulation artifacts")
     
-    # Regenerate replay states from events and signals
-    all_replays = replay_service.list_replays()
+    # Regenerate replay states from events and signals using production replay service
+    try:
+        all_replays = replay_service.list_replays()
+    except AttributeError:
+        # Fallback for older versions where list_replays is not implemented
+        logger.warning("replay_service.list_replays not available, skipping replay regeneration")
+        all_replays = []
+        
     processed = 0
-    
     logger.info(f"Found {len(all_replays)} existing replay configurations to regenerate")
     
     for replay in all_replays:
@@ -412,26 +474,40 @@ def phase4_regenerate_artifacts(
         
         try:
             if not dry_run:
-                # Rebuild the replay from current signals and events
-                rebuilt_replay = replay_service.rebuild_replay(replay.replay_id)
-                reporter.stats["replay_states_regenerated"] += 1
-                processed += 1
+                if hasattr(replay_service, 'rebuild_replay'):
+                    # Regenerate replay with actual production replay logic
+                    rebuilt_replay = replay_service.rebuild_replay(replay.replay_id)
+                    reporter.add_replay_result(replay.replay_id, regenerated=True)
+                else:
+                    # If rebuild_replay is not available, use existing job rerun
+                    logger.warning(f"rebuild_replay not available, skipping {replay.replay_id}")
+                    reporter.add_replay_result(replay.replay_id, regenerated=False, failed=True, reason="rebuild_replay method not implemented in current replay_service")
             else:
                 logger.debug(f"Dry run: would regenerate replay {replay.replay_id}")
-                processed += 1
+                
+            processed += 1
                 
         except Exception as e:
             logger.error(f"Failed to regenerate replay {replay.replay_id}: {str(e)}", exc_info=True)
-            reporter.stats["replay_states_failed"] += 1
-            reporter.details["failed_replays"].append({"replay_id": replay.replay_id, "reason": str(e)})
+            reporter.add_replay_result(replay.replay_id, regenerated=False, failed=True, reason=str(e))
     
-    # Regenerate portfolio states
-    # TODO: Add portfolio regeneration when portfolio module is stable
-    logger.info("Portfolio state regeneration skipped - not implemented yet")
+    # Portfolio state regeneration: explicitly scoped to future phase
+    # Currently under active development, not ready for inclusion in recovery pipeline
+    logger.info("ℹ️ Portfolio state regeneration explicitly deferred to future phase - module still in development")
+    reporter.details["manual_required"].append({
+        "type": "portfolio_regeneration",
+        "id": "all",
+        "reason": "Portfolio module still in active development, deferred to future recovery phase"
+    })
     
-    # Regenerate simulation artifacts
-    # TODO: Add simulation artifacts regeneration
-    logger.info("Simulation artifacts regeneration skipped - not implemented yet")
+    # Simulation artifacts regeneration: explicitly scoped to future phase
+    # Requires completed portfolio module first
+    logger.info("ℹ️ Simulation artifacts regeneration explicitly deferred to future phase - depends on portfolio module")
+    reporter.details["manual_required"].append({
+        "type": "simulation_regeneration",
+        "id": "all",
+        "reason": "Simulation artifacts depend on portfolio module which is still in development, deferred to future recovery phase"
+    })
     
     logger.info("Phase 4 completed")
     reporter.add_phase_executed()

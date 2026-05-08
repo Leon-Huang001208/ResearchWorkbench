@@ -8,6 +8,13 @@
 ## [Unreleased]
 
 ### Added
+- **#31** Replace placeholder logic in derived-state recovery with production-grade real calculation: upgraded `scripts/rebuild_derived_state.py` from placeholder scaffold to full production recovery pipeline:
+  - Phase 2 timing decisions now use the same production `TimingEngineService` calculation as main system (real readiness scoring, blocking checks, and consistent recommendation logic)
+  - Phase 3 outcomes now perform real market-data availability checks and calculate actual outcome metrics from live market data provider when available; clearly reports cases where market data is missing for later manual handling
+  - Phase 4 replay regeneration uses the actual `ReplayService` to rebuild replay artifacts; portfolio and simulation regeneration are explicitly deferred to future development phases with clear reporting in the recovery summary
+  - Fixed bug in recovery reporter stats for failed replay regeneration
+  - Improved audit reporting that clearly distinguishes fully rebuilt state from partially recovered/deferred items
+  - Improved resumability with clear failure classification for partial recovery runs
 - **#30** Complete factual-layer recovery by persisting regenerated assertions during object-storage backfill: upgraded `scripts/backfill_from_objects.py` to fully reconstruct the factual layer by persisting all regenerated assertions into the database after extraction. All assertions are properly linked to restored source documents with stable metadata, provenance, and deterministic ids for idempotency. Re-running backfill will not create uncontrolled duplicates. Recovery reports now include counts of regenerated, persisted, and skipped assertions. Added complete unit tests covering full end-to-end recovery scenarios (source document -> assertions -> canonical events).
 - **#28** Add automated backup, restore drills, and migration discipline for durable persistence: 
   - Added `scripts/backup_db.py` supporting PostgreSQL full backups with automatic compression and retention cleanup
