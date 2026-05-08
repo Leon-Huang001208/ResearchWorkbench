@@ -117,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-// ─── Global Search ────────────────────────────────────────────
+    // ─── Global Search ────────────────────────────────────────────
 let searchDebounceTimer = null;
 
 document.getElementById('global-search').addEventListener('input', (e) => {
@@ -1455,4 +1455,5 @@ window.addEventListener('DOMContentLoaded', () => {
         } catch (e) { /* ignore */ }
     };
     updateStatusBar();
+});
 });
