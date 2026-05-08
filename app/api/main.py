@@ -1,7 +1,6 @@
 """AlphaFoundry API"""
 import sys
 from pathlib import Path
-from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,6 +17,13 @@ from core.observability import get_logger, configure_logging
 logger = get_logger(__name__)
 
 
+app = FastAPI(
+    title="AlphaFoundry API",
+    description="本地优先、可企业化的买方投研情报系统",
+)
+
+
+@app.on_event('startup')
 def startup():
     """Startup hook: configure logging and check database connection"""
     configure_logging()
@@ -26,22 +32,13 @@ def startup():
     from data_layer.repositories.base import check_database_connection, ensure_schema
     check_database_connection()
     ensure_schema()
-    ensure_schema()
 
 
+@app.on_event('shutdown')
 def shutdown():
     """Shutdown hook"""
     logger.info("AlphaFoundry API shutting down...")
 
-
-app = FastAPI(
-    title="AlphaFoundry API",
-    description="本地优先、可企业化的买方投研情报系统",
-)
-
-# Register startup/shutdown events
-app.add_event_handler('startup', startup)
-app.add_event_handler('shutdown', shutdown)
 
 # ─── CORS（开发模式允许所有来源）─────────────────────────
 app.add_middleware(
