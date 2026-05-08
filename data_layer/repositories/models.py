@@ -544,4 +544,71 @@ class IncidentRecordDB(Base):
     incident_metadata = Column(JSON, nullable=False, default=dict, name="metadata")
 
 
+class DecisionWorkspaceDB(Base):
+    """决策工作区数据库模型"""
+
+    __tablename__ = "decision_workspace"
+
+    workspace_id = Column(Text, primary_key=True)
+    workspace_date = Column(DateTime(timezone=True), nullable=False, index=True)
+    status = Column(Text, nullable=False, default="open", index=True)
+    candidate_ids = Column(JSON, nullable=False, default=list)
+    team_id = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    created_by = Column(Text, nullable=False)
+    closed_at = Column(DateTime(timezone=True), nullable=True)
+    notes = Column(Text, nullable=True)
+
+
+class AnalystDecisionDB(Base):
+    """分析师决策数据库模型"""
+
+    __tablename__ = "analyst_decision"
+
+    decision_id = Column(Text, primary_key=True)
+    workspace_id = Column(Text, nullable=False, index=True)
+    candidate_id = Column(Text, nullable=False, index=True)
+    candidate_type = Column(Text, nullable=False)
+    previous_status = Column(Text, nullable=False)
+    final_action_type = Column(Text, nullable=False)
+    action_by = Column(Text, nullable=False)
+    action_at = Column(DateTime(timezone=True), nullable=False)
+    rationale = Column(Text, nullable=False)
+    changes = Column(JSON, nullable=True)
+    revision_history = Column(JSON, nullable=False, default=list)
+    is_closed = Column(Boolean, nullable=False, default=False)
+
+
+class DecisionAuditDB(Base):
+    """决策审计数据库模型"""
+
+    __tablename__ = "decision_audit"
+
+    audit_id = Column(Text, primary_key=True)
+    decision_id = Column(Text, nullable=False, index=True)
+    action = Column(Text, nullable=False)
+    actor = Column(Text, nullable=False)
+    timestamp = Column(DateTime(timezone=True), nullable=False, default=utc_now, index=True)
+    before_state = Column(JSON, nullable=False)
+    after_state = Column(JSON, nullable=False)
+    ip_address = Column(Text, nullable=True)
+    user_agent = Column(Text, nullable=True)
+
+
+class PostMortemRecordDB(Base):
+    """决策复盘数据库模型"""
+
+    __tablename__ = "post_mortem_record"
+
+    post_mortem_id = Column(Text, primary_key=True)
+    decision_id = Column(Text, nullable=False, index=True)
+    original_decision = Column(Text, nullable=False)
+    realized_outcome = Column(Text, nullable=False)
+    outcome_metrics = Column(JSON, nullable=False, default=dict)
+    learning_points = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    linked_signal_accuracy = Column(Numeric, nullable=True)
+
+
 

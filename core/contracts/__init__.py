@@ -64,6 +64,13 @@ from .monitoring import (
     SubsystemHealthSummary,
     SystemHealthDashboard,
 )
+from .decision_console import (
+    AnalystDecision,
+    DecisionAction,
+    DecisionAudit,
+    DecisionWorkspace,
+    PostMortemRecord,
+)
 
 __all__ = [
     "CanonicalId",
@@ -134,4 +141,10 @@ __all__ = [
     "Subsystem",
     "SubsystemHealthSummary",
     "SystemHealthDashboard",
+    # Decision Console
+    "AnalystDecision",
+    "DecisionAction",
+    "DecisionAudit",
+    "DecisionWorkspace",
+    "PostMortemRecord",
 ]
