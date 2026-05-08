@@ -241,6 +241,33 @@ class BlackboardConflictDB(Base):
     created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
 
 
+class SignalOutcomeDB(Base):
+    """事件信号结果评估数据库模型"""
+
+    __tablename__ = "signal_outcome"
+
+    outcome_id = Column(Text, primary_key=True)
+    event_id = Column(Text, nullable=False, index=True)
+    signal_id = Column(Text, nullable=False, index=True)
+    subject_id = Column(Text, nullable=False, index=True)
+    event_date = Column(DateTime(timezone=True), nullable=False)
+    timing_action = Column(Text, nullable=False, default="wait")
+    entry_rule = Column(Text, nullable=True)
+    horizon = Column(Text, nullable=False, default="20d")
+    benchmark = Column(Text, nullable=True)
+    outcome_return = Column(Numeric, nullable=False, default=0.0)
+    outcome_excess_return = Column(Numeric, nullable=False, default=0.0)
+    max_drawdown = Column(Numeric, nullable=False, default=0.0)
+    decay = Column(Numeric, nullable=False, default=0.0)
+    failure_reason = Column(Text, nullable=True)
+    lesson = Column(Text, nullable=True)
+    evaluated_at = Column(DateTime(timezone=True), nullable=True)
+    outcome_metadata = Column(JSON, nullable=False, default=dict, name="metadata")
+    team_id = Column(Text, nullable=True)
+    project_id = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
 class TimingDecisionDB(Base):
     """Timing Engine 择时决策数据库模型"""
 

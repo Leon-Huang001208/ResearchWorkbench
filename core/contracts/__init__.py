@@ -3,6 +3,7 @@ from .assets import AssetAnalysisSnapshot
 from .documents import DocumentEnvelope
 from .events import CanonicalEvent
 from .ids import CanonicalId
+from .outcomes import SignalOutcome
 from .reporting import SectionOutput, SectionSpec
 from .scenarios import ScenarioHypothesis, ScenarioSet
 from .signals import AlphaSignal, EventAlphaSignal, TradeCandidate
@@ -22,4 +23,5 @@ __all__ = [
     "AlphaSignal",
     "EventAlphaSignal",
     "TradeCandidate",
+    "SignalOutcome",
 ]

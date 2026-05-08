@@ -4,6 +4,7 @@ from .base import BaseRepository
 from .document_repository import DocumentRepositoryImpl
 from .entity_repository import EntityRepositoryImpl
 from .event_repository import EventRepositoryImpl
+from .outcome_repository import OutcomeRepositoryImpl
 from .trace_repository import TraceRepositoryImpl
 
 __all__ = [
@@ -14,4 +15,5 @@ __all__ = [
     "EventRepositoryImpl",
     "TraceRepositoryImpl",
     "AssetSnapshotRepositoryImpl",
+    "OutcomeRepositoryImpl",
 ]

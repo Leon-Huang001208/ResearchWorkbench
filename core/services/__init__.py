@@ -2,6 +2,7 @@
 from .asset_analysis_service import AssetAnalysisService
 from .event_extractor import EventExtractor, ExtractedSignalParams
 from .ingest_service import IngestService
+from .outcome_service import OutcomeService
 from .review_service import ReviewService
 from .scenario_service import ScenarioService
 from .signal_service import SignalService
@@ -12,6 +13,7 @@ __all__ = [
     "EventExtractor",
     "ExtractedSignalParams",
     "IngestService",
+    "OutcomeService",
     "ReviewService",
     "ScenarioService",
     "SignalService",
