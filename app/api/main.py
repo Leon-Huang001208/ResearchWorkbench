@@ -43,7 +43,7 @@ app.add_middleware(
 )
 
 # ─── 注册路由 ───────────────────────────────────────────
-from app.api.routes import assets, scenarios, review, signals, ingest, pipeline, workbench, graph, timing, memory, outcomes, ingestion_queue, audit, search, replay, portfolio, paper_trading, governance  # noqa: E402
+from app.api.routes import assets, scenarios, review, signals, ingest, pipeline, workbench, graph, timing, memory, outcomes, ingestion_queue, audit, search, replay, portfolio, paper_trading, governance, monitoring  # noqa: E402
 
 app.include_router(assets.router)
 app.include_router(scenarios.router)
@@ -63,6 +63,7 @@ app.include_router(replay.router)
 app.include_router(portfolio.router)
 app.include_router(paper_trading.router)
 app.include_router(governance.router)
+app.include_router(monitoring.router)
 
 # ─── 静态文件 ────────────────────────────────────────────
 _web_dir = Path(__file__).resolve().parent.parent / "web"
