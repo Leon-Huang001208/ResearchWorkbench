@@ -11,8 +11,7 @@
 function applyTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('af-theme', theme);
-    // Update active button
-    document.querySelectorAll('#theme-switcher .switcher-btn').forEach(b => {
+    document.querySelectorAll('#settings-panel-theme .settings-opt').forEach(b => {
         b.classList.toggle('active', b.dataset.themeVal === theme);
     });
     try { applyChartDefaults(); } catch(e) {}
@@ -25,11 +24,29 @@ function switchTheme(theme) {
 
 function switchLang(lang) {
     I18N.setLang(lang);
-    document.querySelectorAll('#lang-switcher .switcher-btn').forEach(b => {
+    document.querySelectorAll('#settings-panel-language .settings-opt').forEach(b => {
         b.classList.toggle('active', b.dataset.lang === lang);
     });
     const sl = document.getElementById('status-lang-label');
     if (sl) sl.textContent = lang === 'zh' ? '中文' : 'EN';
+}
+
+// Color scheme
+(function initColorScheme() {
+    const saved = localStorage.getItem('af-color-scheme') || 'vscode';
+    document.documentElement.setAttribute('data-color-scheme', saved);
+})();
+
+function applyColorScheme(scheme) {
+    document.documentElement.setAttribute('data-color-scheme', scheme);
+    localStorage.setItem('af-color-scheme', scheme);
+    document.querySelectorAll('#settings-panel-color .settings-opt').forEach(b => {
+        b.classList.toggle('active', b.dataset.colorScheme === scheme);
+    });
+}
+
+function switchColorScheme(scheme) {
+    applyColorScheme(scheme);
 }
 
 // ─── API Helper ───────────────────────────────────────────────
@@ -82,7 +99,10 @@ document.querySelectorAll('.activity-btn[data-section]').forEach(btn => {
 document.getElementById('btn-settings')?.addEventListener('click', (e) => {
     e.stopPropagation();
     const popover = document.getElementById('settings-popover');
-    if (popover) popover.classList.toggle('hidden');
+    if (popover) {
+        popover.classList.toggle('hidden');
+        I18N.applyAll();
+    }
 });
 
 // Close settings popover on outside click
@@ -549,11 +569,15 @@ function renderIndustryGraph(data) {
 
     function drag(simulation) {
         function dragstarted(event) {
+            event.sourceEvent.preventDefault();
+            event.sourceEvent.stopPropagation();
             if (!event.active) simulation.alphaTarget(0.3).restart();
             event.subject.fx = event.subject.x;
             event.subject.fy = event.subject.y;
         }
         function dragged(event) {
+            event.sourceEvent.preventDefault();
+            event.sourceEvent.stopPropagation();
             event.subject.fx = event.x;
             event.subject.fy = event.y;
         }
@@ -958,13 +982,15 @@ window.addEventListener('DOMContentLoaded', () => {
     initTheme();
     // Restore correct active states for switchers
     const savedTheme = localStorage.getItem('af-theme') || 'light';
-    document.querySelectorAll('#theme-switcher .switcher-btn').forEach(b => {
+    document.querySelectorAll('#settings-panel-theme .settings-opt').forEach(b => {
         b.classList.toggle('active', b.dataset.themeVal === savedTheme);
     });
     const savedLang = I18N.getLang();
-    document.querySelectorAll('#lang-switcher .switcher-btn').forEach(b => {
+    document.querySelectorAll('#settings-panel-language .settings-opt').forEach(b => {
         b.classList.toggle('active', b.dataset.lang === savedLang);
     });
+    const savedColorScheme = localStorage.getItem('af-color-scheme') || 'vscode';
+    applyColorScheme(savedColorScheme);
     I18N.applyAll();
     navigateTo('dashboard');
     loadEventSignals();

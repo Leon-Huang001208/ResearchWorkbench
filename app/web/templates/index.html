@@ -31,20 +31,32 @@
 
         <!-- Settings Popover (VS Code style) -->
         <div class="settings-popover hidden" id="settings-popover">
-            <div class="settings-popover-header" data-i18n="settings.title">设置</div>
-            <div class="settings-popover-body">
-                <div class="settings-row">
-                    <span class="settings-label" data-i18n="settings.theme">外观</span>
-                    <div class="switcher-btn-group" id="theme-switcher">
-                        <button class="switcher-btn active" data-theme-val="light" data-i18n="theme.light" onclick="switchTheme('light')">亮色</button>
-                        <button class="switcher-btn" data-theme-val="dark" data-i18n="theme.dark" onclick="switchTheme('dark')">暗色</button>
+            <div class="settings-nav">
+                <div class="settings-nav-item" data-settings-panel="theme">
+                    <span class="settings-nav-label" data-i18n="settings.theme">外观</span>
+                    <span class="settings-nav-arrow">›</span>
+                    <div class="settings-submenu" id="settings-panel-theme">
+                        <button class="settings-opt active" data-theme-val="light" data-i18n="theme.light" onclick="switchTheme('light')">亮色</button>
+                        <button class="settings-opt" data-theme-val="dark" data-i18n="theme.dark" onclick="switchTheme('dark')">暗色</button>
                     </div>
                 </div>
-                <div class="settings-row">
-                    <span class="settings-label" data-i18n="settings.language">语言</span>
-                    <div class="switcher-btn-group" id="lang-switcher">
-                        <button class="switcher-btn active" data-lang="zh" onclick="switchLang('zh')">中文</button>
-                        <button class="switcher-btn" data-lang="en" onclick="switchLang('en')">EN</button>
+                <div class="settings-nav-item" data-settings-panel="language">
+                    <span class="settings-nav-label" data-i18n="settings.language">语言</span>
+                    <span class="settings-nav-arrow">›</span>
+                    <div class="settings-submenu" id="settings-panel-language">
+                        <button class="settings-opt active" data-lang="zh" onclick="switchLang('zh')">中文</button>
+                        <button class="settings-opt" data-lang="en" onclick="switchLang('en')">EN</button>
+                    </div>
+                </div>
+                <div class="settings-nav-item" data-settings-panel="color">
+                    <span class="settings-nav-label" data-i18n="settings.color_scheme">颜色</span>
+                    <span class="settings-nav-arrow">›</span>
+                    <div class="settings-submenu opens-up" id="settings-panel-color">
+                        <button class="settings-opt active" data-color-scheme="vscode" onclick="switchColorScheme('vscode')"><span class="color-dot" style="background:#007acc"></span></button>
+                        <button class="settings-opt" data-color-scheme="github" onclick="switchColorScheme('github')"><span class="color-dot" style="background:#1a7f37"></span></button>
+                        <button class="settings-opt" data-color-scheme="openclaw" onclick="switchColorScheme('openclaw')"><span class="color-dot" style="background:#cf222e"></span></button>
+                        <button class="settings-opt" data-color-scheme="claude" onclick="switchColorScheme('claude')"><span class="color-dot" style="background:#d97706"></span></button>
+                        <button class="settings-opt" data-color-scheme="obsidian" onclick="switchColorScheme('obsidian')"><span class="color-dot" style="background:#7c3aed"></span></button>
                     </div>
                 </div>
             </div>
@@ -122,7 +134,7 @@
                             <div id="valuation-cards" class="info-grid"></div>
                         </div>
                         <div class="card">
-                            <h3 data-i18n="asset.fund_flow">💸 资金流向</h3>
+                            <h3 data-i18n="asset.fund_flow">资金流向</h3>
                             <div id="fund-flow-info" class="info-grid"></div>
                         </div>
                     </div>
@@ -132,15 +144,15 @@
                     </div>
                     <div class="card-grid">
                         <div class="card">
-                            <h3 data-i18n="asset.financial">📋 财务数据</h3>
+                            <h3 data-i18n="asset.financial">财务数据</h3>
                             <div id="financial-table" class="data-table-wrap"></div>
                         </div>
                         <div class="card">
-                            <h3 data-i18n="asset.shareholder">👥 股东</h3>
+                            <h3 data-i18n="asset.shareholder">股东</h3>
                             <div id="shareholder-info" class="info-grid"></div>
                         </div>
                         <div class="card">
-                            <h3 data-i18n="asset.industry">🏭 产业</h3>
+                            <h3 data-i18n="asset.industry">产业</h3>
                             <div id="industry-info" class="info-grid"></div>
                         </div>
                         <div class="card">
@@ -148,7 +160,7 @@
                             <ul id="event-impact-list" class="event-list"></ul>
                         </div>
                         <div class="card">
-                            <h3 data-i18n="asset.macro">🌍 宏观</h3>
+                            <h3 data-i18n="asset.macro">宏观</h3>
                             <div id="macro-info" class="info-grid"></div>
                         </div>
                     </div>
@@ -175,7 +187,7 @@
                     </div>
                     <div id="scenario-cards" class="card-stack"></div>
                     <div class="card">
-                        <h3 data-i18n="scenario.residual">❓ 残余不确定性</h3>
+                        <h3 data-i18n="scenario.residual">残余不确定性</h3>
                         <ul id="residual-list" class="event-list"></ul>
                     </div>
                 </div>

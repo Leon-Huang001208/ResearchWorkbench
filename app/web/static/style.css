@@ -58,6 +58,64 @@
     --sidebar-hover: #2a2d2e;
 }
 
+/* ─── Color Schemes ─────────────────────────────────────────── */
+[data-color-scheme="vscode"] {
+    --accent: #007acc;
+    --accent-hover: #0098ff;
+    --accent-light: #1e3a5f;
+    --status-bar-bg: #007acc;
+}
+[data-color-scheme="github"] {
+    --accent: #1a7f37;
+    --accent-hover: #2ea043;
+    --accent-light: #dafbe1;
+    --status-bar-bg: #1a7f37;
+}
+[data-color-scheme="openclaw"] {
+    --accent: #cf222e;
+    --accent-hover: #a40e26;
+    --accent-light: #ffebe9;
+    --status-bar-bg: #cf222e;
+}
+[data-color-scheme="claude"] {
+    --accent: #d97706;
+    --accent-hover: #b45309;
+    --accent-light: #fff8e1;
+    --status-bar-bg: #d97706;
+}
+[data-color-scheme="obsidian"] {
+    --accent: #7c3aed;
+    --accent-hover: #6d28d9;
+    --accent-light: #ede9fe;
+    --status-bar-bg: #7c3aed;
+}
+/* Dark theme overrides for color schemes */
+[data-theme="dark"][data-color-scheme="vscode"] {
+    --accent: #007acc;
+    --accent-hover: #0098ff;
+    --accent-light: #1e3a5f;
+}
+[data-theme="dark"][data-color-scheme="github"] {
+    --accent: #3fb950;
+    --accent-hover: #2ea043;
+    --accent-light: #1a2e1a;
+}
+[data-theme="dark"][data-color-scheme="openclaw"] {
+    --accent: #f85149;
+    --accent-hover: #ff6b6b;
+    --accent-light: #2e1a1a;
+}
+[data-theme="dark"][data-color-scheme="claude"] {
+    --accent: #f59e0b;
+    --accent-hover: #fbbf24;
+    --accent-light: #2e2a1a;
+}
+[data-theme="dark"][data-color-scheme="obsidian"] {
+    --accent: #a78bfa;
+    --accent-hover: #c4b5fd;
+    --accent-light: #2e1a2e;
+}
+
 /* ─── Reset & Base ─────────────────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -66,7 +124,8 @@ body {
     background: var(--bg-body);
     color: var(--text-primary);
     line-height: 1.6;
-    min-height: 100vh;
+    height: 100vh;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
     transition: background .25s, color .25s;
@@ -81,7 +140,9 @@ a:hover { text-decoration: underline; }
 .app-container {
     display: flex;
     flex: 1;
+    height: 100%;
     min-height: 0;
+    margin-left: 48px;
 }
 
 .main-content {
@@ -384,6 +445,7 @@ label {
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     background: var(--bg-input);
+    overflow: hidden;
 }
 
 /* ─── Info Grid ────────────────────────────────────────────── */
@@ -781,6 +843,12 @@ td .actions { display: flex; gap: 0.4rem; }
     padding: 0;
     flex-shrink: 0;
     border-right: 1px solid var(--border);
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: calc(100vh - 22px);
+    overflow: hidden;
+    z-index: 100;
 }
 
 [data-theme="light"] .activity-bar {
@@ -844,74 +912,128 @@ td .actions { display: flex; gap: 0.4rem; }
 .settings-popover {
     position: fixed;
     bottom: 32px;
-    left: 56px;
-    width: 240px;
+    left: 52px;
+    width: auto;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    box-shadow: 0 4px 20px rgba(0,0,0,.15);
+    z-index: 1000;
+    overflow: visible;
+}
+
+/* Settings nav - single column list */
+.settings-nav {
+    display: flex;
+    flex-direction: column;
+    padding: 4px 0;
+}
+
+.settings-nav-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 14px;
+    cursor: pointer;
+    color: var(--text-primary);
+    font-size: 12px;
+    white-space: nowrap;
+    transition: background .12s;
+}
+
+.settings-nav-item:hover {
+    background: var(--accent-light);
+    color: var(--accent);
+}
+
+.settings-nav-arrow {
+    margin-left: 16px;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+/* Submenu: hidden by default, appear on hover */
+.settings-submenu {
+    display: none;
+    position: absolute;
+    left: 100%;
+    top: -4px;
+    padding: 4px 0;
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: 6px;
     box-shadow: 0 8px 30px rgba(0,0,0,.18);
-    z-index: 1000;
-    overflow: hidden;
+    z-index: 1001;
+    min-width: 60px;
 }
 
-.settings-popover-header {
-    padding: 8px 14px;
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: .5px;
-    color: var(--text-secondary);
-    border-bottom: 1px solid var(--border);
+/* Color submenu opens upward to avoid being cut off */
+.settings-submenu.opens-up {
+    top: auto;
+    bottom: -4px;
 }
 
-.settings-popover-body {
-    padding: 12px 14px;
+/* Invisible bridge overlay to close the gap between menu and submenu */
+.settings-nav-item > .settings-submenu::before {
+    content: '';
+    position: absolute;
+    right: 100%;
+    top: 0;
+    bottom: 0;
+    width: 8px;
+}
+
+.settings-nav-item:hover > .settings-submenu {
+    display: block;
+}
+
+/* Option buttons inside submenu */
+.settings-opt {
     display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.settings-row {
-    display: flex;
-    justify-content: space-between;
     align-items: center;
     gap: 8px;
-}
-
-.settings-label {
-    font-size: 13px;
-    color: var(--text-primary);
-    white-space: nowrap;
-}
-
-/* Switcher buttons inside settings popover */
-.settings-popover .switcher-btn-group {
-    display: flex;
-    border-radius: 4px;
-    overflow: hidden;
-    border: 1px solid var(--border);
-}
-
-.settings-popover .switcher-btn {
-    background: transparent;
+    width: 100%;
+    background: none;
     border: none;
-    color: var(--text-secondary);
-    font-size: 12px;
-    padding: 4px 10px;
-    cursor: pointer;
-    transition: all .15s;
-    white-space: nowrap;
-}
-
-.settings-popover .switcher-btn:hover {
     color: var(--text-primary);
-    background: var(--bg-input);
+    font-size: 12px;
+    padding: 6px 14px;
+    cursor: pointer;
+    white-space: nowrap;
+    text-align: left;
+    transition: background .12s;
 }
 
-.settings-popover .switcher-btn.active {
-    background: var(--accent);
-    color: #fff;
+/* Color-only options (just dots, no text) */
+#settings-panel-color .settings-opt {
+    justify-content: center;
+    padding: 5px 10px;
+}
+
+.settings-opt:hover {
+    background: var(--accent-light);
+    color: var(--accent);
+}
+
+.settings-opt.active {
+    color: var(--accent);
     font-weight: 600;
+}
+
+/* Color dot for color-scheme options */
+.color-dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    border: 1.5px solid rgba(255,255,255,.15);
+}
+
+.settings-opt.active .color-dot {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-light);
 }
 
 /* ─── VS Code Status Bar ───────────────────────────────────── */
@@ -925,13 +1047,14 @@ td .actions { display: flex; gap: 0.4rem; }
     padding: 0 8px;
     font-size: 12px;
     flex-shrink: 0;
+    margin-left: 0;
 }
 
 [data-theme="light"] .status-bar {
-    --status-bar-bg: #007acc;
+    color: #fff;
 }
 [data-theme="dark"] .status-bar {
-    --status-bar-bg: #007acc;
+    color: #fff;
 }
 
 .status-bar-left, .status-bar-right {
