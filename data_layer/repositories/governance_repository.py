@@ -59,18 +59,39 @@ class GovernanceRepositoryImpl(BaseRepository):
             return None
         return self._dict_to_version(self._db_version_to_dict(db_obj))
 
+    def get_latest_version_number(
+        self,
+        component_type: StrategyComponentType,
+        component_name: str,
+    ) -> int:
+        """获取指定组件的最大版本号"""
+        from sqlalchemy import func
+
+        result = (
+            self.db.query(func.max(StrategyVersionDB.version_number))
+            .filter(
+                StrategyVersionDB.component_type == component_type.value,
+                StrategyVersionDB.component_name == component_name,
+            )
+            .scalar()
+        )
+        return result or 0
+
     def list_strategy_versions(
         self,
-        component_type: Optional[StrategyComponentType] = None,
+        component_type: Optional[str] = None,
         component_name: Optional[str] = None,
+        is_active: Optional[bool] = None,
         limit: int = 100,
     ) -> List[StrategyVersion]:
         """列出策略版本"""
         query = self.db.query(StrategyVersionDB)
         if component_type:
-            query = query.filter(StrategyVersionDB.component_type == component_type.value)
+            query = query.filter(StrategyVersionDB.component_type == component_type)
         if component_name:
             query = query.filter(StrategyVersionDB.component_name == component_name)
+        if is_active is not None:
+            query = query.filter(StrategyVersionDB.is_active == is_active)
         db_objs = query.order_by(StrategyVersionDB.created_at.desc()).limit(limit).all()
         return [self._dict_to_version(self._db_version_to_dict(o)) for o in db_objs]
 
@@ -166,6 +187,21 @@ class GovernanceRepositoryImpl(BaseRepository):
         db_objs = query.order_by(ExperimentRecordDB.started_at.desc()).limit(limit).all()
         return [self._dict_to_experiment(self._db_experiment_to_dict(o)) for o in db_objs]
 
+    def count_experiments(self) -> int:
+        """统计实验总数"""
+        from sqlalchemy import func
+        return self.db.query(func.count(ExperimentRecordDB.experiment_id)).scalar() or 0
+
+    def recent_experiment_ids(self, limit: int = 10) -> List[str]:
+        """获取最近实验ID列表"""
+        results = (
+            self.db.query(ExperimentRecordDB.experiment_id)
+            .order_by(ExperimentRecordDB.started_at.desc())
+            .limit(limit)
+            .all()
+        )
+        return [r[0] for r in results]
+
     def update_experiment_status(
         self,
         experiment_id: str,
@@ -219,13 +255,13 @@ class GovernanceRepositoryImpl(BaseRepository):
             "component_type": db_obj.component_type,
             "component_name": db_obj.component_name,
             "version_number": db_obj.version_number,
-            "description": db_obj.description,
+            "description": db_obj.description or "",
             "config": db_obj.config or {},
             "content_hash": db_obj.content_hash or "",
             "parent_version_id": db_obj.parent_version_id,
             "is_active": db_obj.is_active,
             "created_at": db_obj.created_at,
-            "created_by": db_obj.created_by,
+            "created_by": db_obj.created_by or "system",
             "tags": db_obj.tags or [],
         }
 
@@ -271,7 +307,7 @@ class GovernanceRepositoryImpl(BaseRepository):
         return {
             "experiment_id": db_obj.experiment_id,
             "name": db_obj.name,
-            "description": db_obj.description,
+            "description": db_obj.description or "",
             "strategy_version_ids": db_obj.strategy_version_ids or [],
             "experiment_type": db_obj.experiment_type,
             "entity_id": db_obj.entity_id,

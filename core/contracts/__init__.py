@@ -46,6 +46,24 @@ from .governance import (
     StrategyVersionCreateRequest,
     StrategyVersionSummary,
 )
+from .monitoring import (
+    AlertPayload,
+    AlertSeverity,
+    AlertStatus,
+    AlertThreshold,
+    AlertThresholdCreateRequest,
+    AlertThresholdUpdateRequest,
+    DriftCheckRequest,
+    DriftDimension,
+    DriftReport,
+    HealthMetrics,
+    HealthMetricsSubmitRequest,
+    IncidentRecord,
+    IncidentResolveRequest,
+    Subsystem,
+    SubsystemHealthSummary,
+    SystemHealthDashboard,
+)
 
 __all__ = [
     "CanonicalId",
@@ -99,4 +117,21 @@ __all__ = [
     "StrategyVersion",
     "StrategyVersionCreateRequest",
     "StrategyVersionSummary",
+    # Monitoring
+    "AlertPayload",
+    "AlertSeverity",
+    "AlertStatus",
+    "AlertThreshold",
+    "AlertThresholdCreateRequest",
+    "AlertThresholdUpdateRequest",
+    "DriftCheckRequest",
+    "DriftDimension",
+    "DriftReport",
+    "HealthMetrics",
+    "HealthMetricsSubmitRequest",
+    "IncidentRecord",
+    "IncidentResolveRequest",
+    "Subsystem",
+    "SubsystemHealthSummary",
+    "SystemHealthDashboard",
 ]

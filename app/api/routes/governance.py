@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from core.contracts.governance import (
     ExperimentComparison,
+    ExperimentCompareRequest,
     ExperimentCreateRequest,
     ExperimentMetricDiff,
     ExperimentRecord,
@@ -276,7 +277,7 @@ async def register_strategy_version(
             created_by=body.created_by,
             tags=body.tags,
         )
-        version = service.register_version(request)
+        version = service.register_strategy_version(request)
         return _version_to_response(version)
     except Exception as e:
         logger.error(f"Register strategy version failed: {e}")
@@ -295,8 +296,8 @@ async def list_strategy_versions(
 ):
     """列出策略版本"""
     try:
-        versions = service.list_versions(
-            component_type=component_type,
+        versions = service.list_strategy_versions(
+            component_type=component_type.value if component_type else None,
             component_name=component_name,
             limit=limit,
         )
@@ -316,7 +317,7 @@ async def get_strategy_version(
 ):
     """获取策略版本详情"""
     try:
-        version = service.get_version(version_id)
+        version = service.get_strategy_version(version_id)
         if version is None:
             raise HTTPException(status_code=404, detail=f"Strategy version {version_id} not found")
         return _version_to_response(version)
@@ -344,7 +345,7 @@ async def rollback_version(
             component_name=body.component_name,
             target_version_id=body.target_version_id,
         )
-        result = service.rollback_version(request)
+        result = service.rollback_strategy(request)
         if not result.success:
             raise HTTPException(status_code=400, detail=result.message)
         return RollbackResponse(
@@ -383,7 +384,7 @@ async def record_experiment(
             tags=body.tags,
             metadata=body.metadata,
         )
-        experiment = service.record_experiment(request)
+        experiment = service.create_experiment(request)
         return _experiment_to_response(experiment)
     except Exception as e:
         logger.error(f"Record experiment failed: {e}")
@@ -469,8 +470,6 @@ async def compare_experiments(
 ):
     """对比两个实验"""
     try:
-        from core.contracts.governance import ExperimentCompareRequest
-
         request = ExperimentCompareRequest(
             experiment_a_id=body.experiment_a_id,
             experiment_b_id=body.experiment_b_id,
@@ -493,7 +492,7 @@ async def generate_governance_report(
 ):
     """生成治理报告"""
     try:
-        report = service.generate_report()
+        report = service.generate_governance_report()
         return _report_to_response(report)
     except Exception as e:
         logger.error(f"Generate governance report failed: {e}")

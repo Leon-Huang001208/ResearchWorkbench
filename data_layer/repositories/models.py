@@ -451,4 +451,97 @@ class ExperimentRecordDB(Base):
     experiment_metadata = Column(JSON, nullable=False, default=dict, name="metadata")
 
 
+class HealthMetricsDB(Base):
+    """健康指标数据库模型"""
+
+    __tablename__ = "health_metrics"
+
+    metric_id = Column(Text, primary_key=True)
+    subsystem = Column(Text, nullable=False, index=True)
+    timestamp = Column(DateTime(timezone=True), nullable=False, default=utc_now, index=True)
+    throughput = Column(Numeric, nullable=False, default=0.0)
+    error_rate = Column(Numeric, nullable=False, default=0.0)
+    avg_latency_ms = Column(Numeric, nullable=False, default=0.0)
+    p99_latency_ms = Column(Numeric, nullable=False, default=0.0)
+    queue_depth = Column(Integer, nullable=False, default=0)
+    items_processed = Column(Integer, nullable=False, default=0)
+    items_failed = Column(Integer, nullable=False, default=0)
+    extra = Column(JSON, nullable=False, default=dict)
+
+
+class DriftReportDB(Base):
+    """漂移报告数据库模型"""
+
+    __tablename__ = "drift_report"
+
+    report_id = Column(Text, primary_key=True)
+    dimension = Column(Text, nullable=False, index=True)
+    timestamp = Column(DateTime(timezone=True), nullable=False, default=utc_now, index=True)
+    baseline_window_start = Column(DateTime(timezone=True), nullable=False)
+    baseline_window_end = Column(DateTime(timezone=True), nullable=False)
+    current_window_start = Column(DateTime(timezone=True), nullable=False)
+    current_window_end = Column(DateTime(timezone=True), nullable=False)
+    drift_score = Column(Numeric, nullable=False, default=0.0)
+    is_drift = Column(Boolean, nullable=False, default=False)
+    threshold = Column(Numeric, nullable=False, default=0.0)
+    baseline_distribution = Column(JSON, nullable=False, default=dict)
+    current_distribution = Column(JSON, nullable=False, default=dict)
+    details = Column(JSON, nullable=False, default=dict)
+
+
+class AlertThresholdDB(Base):
+    """告警阈值数据库模型"""
+
+    __tablename__ = "alert_threshold"
+
+    threshold_id = Column(Text, primary_key=True)
+    name = Column(Text, nullable=False)
+    subsystem = Column(Text, nullable=True)
+    dimension = Column(Text, nullable=True)
+    metric_field = Column(Text, nullable=True)
+    operator = Column(Text, nullable=False, default="gte")
+    value = Column(Numeric, nullable=False, default=0.0)
+    severity = Column(Text, nullable=False, default="warning")
+    cooldown_minutes = Column(Integer, nullable=False, default=30)
+    enabled = Column(Boolean, nullable=False, default=True)
+
+
+class AlertPayloadDB(Base):
+    """告警记录数据库模型"""
+
+    __tablename__ = "alert_payload"
+
+    alert_id = Column(Text, primary_key=True)
+    threshold_id = Column(Text, nullable=False, index=True)
+    severity = Column(Text, nullable=False, default="warning")
+    status = Column(Text, nullable=False, default="open", index=True)
+    subsystem = Column(Text, nullable=True)
+    dimension = Column(Text, nullable=True)
+    title = Column(Text, nullable=False)
+    description = Column(Text, nullable=True)
+    observed_value = Column(Numeric, nullable=False, default=0.0)
+    threshold_value = Column(Numeric, nullable=False, default=0.0)
+    triggered_at = Column(DateTime(timezone=True), nullable=False, default=utc_now, index=True)
+    acknowledged_at = Column(DateTime(timezone=True), nullable=True)
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+    alert_metadata = Column(JSON, nullable=False, default=dict, name="metadata")
+
+
+class IncidentRecordDB(Base):
+    """事件记录数据库模型"""
+
+    __tablename__ = "incident_record"
+
+    incident_id = Column(Text, primary_key=True)
+    alert_id = Column(Text, nullable=False, index=True)
+    subsystem = Column(Text, nullable=False, index=True)
+    severity = Column(Text, nullable=False, default="warning")
+    title = Column(Text, nullable=False)
+    description = Column(Text, nullable=True)
+    detected_at = Column(DateTime(timezone=True), nullable=False, default=utc_now, index=True)
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+    resolution_notes = Column(Text, nullable=True)
+    incident_metadata = Column(JSON, nullable=False, default=dict, name="metadata")
+
+
 
