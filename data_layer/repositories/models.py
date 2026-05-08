@@ -636,3 +636,61 @@ class OutcomeRecordDB(Base):
     project_id = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
 
+
+class AssetSnapshotModel(Base):
+    """Asset analysis snapshot persistent model"""
+
+    __tablename__ = "asset_analysis_snapshot"
+
+    snapshot_id = Column(Text, primary_key=True)
+    canonical_id = Column(Text, nullable=False, index=True)
+    as_of = Column(DateTime(timezone=True), nullable=False)
+    
+    # JSON fields
+    financial = Column(JSON, nullable=True)
+    fund_flow = Column(JSON, nullable=True)
+    price_volume = Column(JSON, nullable=True)
+    valuation = Column(JSON, nullable=True)
+    shareholder = Column(JSON, nullable=True)
+    industry = Column(JSON, nullable=True)
+    event_impact = Column(JSON, nullable=True)
+    macro_exposure = Column(JSON, nullable=True)
+    evidence_refs = Column(JSON, nullable=True)
+    
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    @classmethod
+    def from_contract(cls, contract):
+        from core.utils.id_gen import generate_id
+        return cls(
+            snapshot_id=generate_id(),
+            canonical_id=contract.canonical_id,
+            as_of=contract.as_of,
+            financial=contract.financial,
+            fund_flow=contract.fund_flow,
+            price_volume=contract.price_volume,
+            valuation=contract.valuation,
+            shareholder=contract.shareholder,
+            industry=contract.industry,
+            event_impact=contract.event_impact,
+            macro_exposure=contract.macro_exposure,
+            evidence_refs=contract.evidence_refs,
+        )
+
+    def to_contract(self):
+        from core.contracts import AssetAnalysisSnapshot
+        return AssetAnalysisSnapshot(
+            canonical_id=self.canonical_id,
+            as_of=self.as_of,
+            financial=self.financial,
+            fund_flow=self.fund_flow,
+            price_volume=self.price_volume,
+            valuation=self.valuation,
+            shareholder=self.shareholder,
+            industry=self.industry,
+            event_impact=self.event_impact,
+            macro_exposure=self.macro_exposure,
+            evidence_refs=self.evidence_refs,
+        )
+

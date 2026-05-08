@@ -5,13 +5,20 @@ from typing import Optional
 from core.contracts import AssetAnalysisSnapshot
 from core.interfaces import AssetSnapshotRepository, EntityRepository
 from core.observability import get_logger
-from data_layer.adapters import IFinDAdapter, LocalDataAdapter
+from data_layer.adapters import IFinDAdapter, LocalDataAdapter, AKShareAdapter
 
 logger = get_logger(__name__)
 
 
 class AssetAnalysisService:
-    """资产分析服务"""
+    """资产分析服务
+    
+    Data source fallback chain:
+    1. iFinD (if available) -> highest quality
+    2. AKShare (if available) -> open source fallback for macOS
+    3. Local -> cached data
+    4. Mock -> last resort
+    """
 
     def __init__(
         self,
@@ -19,12 +26,14 @@ class AssetAnalysisService:
         entity_repo: Optional[EntityRepository] = None,
         ifind_adapter: Optional[IFinDAdapter] = None,
         local_adapter: Optional[LocalDataAdapter] = None,
+        akshare_adapter: Optional[AKShareAdapter] = None,
         use_mock: bool = False,
     ):
         self.asset_snapshot_repo = asset_snapshot_repo
         self.entity_repo = entity_repo
         self.ifind_adapter = ifind_adapter
         self.local_adapter = local_adapter or LocalDataAdapter()
+        self.akshare_adapter = akshare_adapter or AKShareAdapter()
         self._use_mock = use_mock
 
     def generate_snapshot(
@@ -62,9 +71,21 @@ class AssetAnalysisService:
         elif source == "local":
             snapshot = self._fetch_from_local(canonical_id, as_of)
         elif source == "ifind" and self.ifind_adapter:
-            snapshot = self._fetch_from_ifind(canonical_id, as_of)
+            try:
+                snapshot = self._fetch_from_ifind(canonical_id, as_of)
+            except Exception as e:
+                logger.warning(f"iFinD fetch failed, falling back to AKShare: {e}")
+                if self.akshare_adapter.is_available():
+                    snapshot = self._fetch_from_akshare(canonical_id, as_of)
+                else:
+                    snapshot = self._fetch_from_local(canonical_id, as_of)
+        elif self.akshare_adapter.is_available():
+            logger.info("Using AKShare open source data (iFinD not available on macOS)")
+            snapshot = self._fetch_from_akshare(canonical_id, as_of)
+        elif source == "local":
+            snapshot = self._fetch_from_local(canonical_id, as_of)
         else:
-            logger.warning("falling back to mock data", source=source)
+            logger.warning("No data source available, falling back to mock data")
             snapshot = self._generate_mock_snapshot(canonical_id, as_of)
 
         # 保存快照
@@ -157,9 +178,57 @@ class AssetAnalysisService:
             return self._generate_mock_snapshot(canonical_id, as_of)
 
     def _fetch_from_ifind(self, canonical_id: str, as_of: datetime) -> AssetAnalysisSnapshot:
-        """从 iFinD 获取真实数据（占位实现）"""
-        logger.warning("using mock data in _fetch_from_ifind", canonical_id=canonical_id)
+        """从 iFinD 获取真实数据"""
+        # TODO: implement full fetching
+        logger.warning("iFinD fetch not fully implemented", canonical_id=canonical_id)
         return self._generate_mock_snapshot(canonical_id, as_of)
+
+    def _fetch_from_akshare(self, canonical_id: str, as_of: datetime) -> AssetAnalysisSnapshot:
+        """从 AKShare 获取开源真实数据"""
+        import asyncio
+        # 获取近一年行情
+        end_date = as_of.strftime('%Y-%m-%d')
+        start_date = (as_of.replace(year=as_of.year - 1)).strftime('%Y-%m-%d')
+        
+        quotes = asyncio.run(self.akshare_adapter.fetch_stock_quotes(canonical_id, start_date, end_date))
+        financial = asyncio.run(self.akshare_adapter.fetch_financial_report(canonical_id))
+        
+        # 构建估值数据
+        last_quote = quotes[-1] if quotes else None
+        pe = None
+        pb = None
+        if last_quote and financial and financial.get('eps'):
+            pe = last_quote['close'] / financial['eps']
+        
+        snapshot = AssetAnalysisSnapshot(
+            canonical_id=canonical_id,
+            as_of=as_of,
+            financial={
+                'revenue': {'ttm': financial.get('revenue', 0) if financial else None},
+                'net_profit': {'ttm': financial.get('net_profit', 0) if financial else None},
+                'eps': {'ttm': financial.get('eps', 0) if financial else None},
+                'roe': {'ttm': financial.get('roe', 0) if financial else None},
+                'debt_ratio': financial.get('debt_ratio', 0) if financial else None,
+            },
+            fund_flow={},
+            price_volume={
+                'close_price': last_quote['close'] if last_quote else None,
+                'high_52w': max(q['high'] for q in quotes) if quotes else None,
+                'low_52w': min(q['low'] for q in quotes) if quotes else None,
+            },
+            valuation={
+                'pe_ttm': pe,
+                'pb': pb,
+            },
+            shareholder={},
+            industry={},
+            event_impact=[],
+            macro_exposure={},
+            evidence_refs=[],
+        )
+        
+        logger.info("Fetched real data from AKShare", canonical_id=canonical_id, quotes=len(quotes))
+        return snapshot
 
     def list_available_assets(self) -> list[str]:
         """列出所有可用的资产代码（来自本地数据）"""

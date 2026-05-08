@@ -28,13 +28,23 @@ def _snapshot_to_response(snapshot: AssetAnalysisSnapshot) -> AnalyzeResponse:
 
 
 def get_asset_service(db: Session = Depends(get_db)) -> AssetAnalysisService:
-    """获取资产分析服务实例（生产级真实数据源）"""
+    """获取资产分析服务实例，自动降级：iFinD → AKShare → Local → Mock"""
     from data_layer.repositories.postgres_asset_snapshot_repo import PostgresAssetSnapshotRepository
-    from data_layer.adapters.IFinDAdapter import IFinDAdapter
+    from data_layer.adapters.ifind_adapter import IFinDAdapter
+    from data_layer.adapters.local_data_adapter import LocalDataAdapter
+    from data_layer.adapters.akshare_adapter import AKShareAdapter
 
     repo = PostgresAssetSnapshotRepository(db_session=db)
     ifind_adapter = IFinDAdapter()
-    return AssetAnalysisService(asset_snapshot_repo=repo, ifind_adapter=ifind_adapter, use_mock=False)
+    local_adapter = LocalDataAdapter()
+    akshare_adapter = AKShareAdapter()
+    return AssetAnalysisService(
+        asset_snapshot_repo=repo,
+        ifind_adapter=ifind_adapter,
+        local_adapter=local_adapter,
+        akshare_adapter=akshare_adapter,
+        use_mock=False
+    )
 
 
 @router.post(

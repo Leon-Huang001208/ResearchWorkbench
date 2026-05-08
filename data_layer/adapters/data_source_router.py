@@ -1,14 +1,16 @@
-"""数据源路由器 - 实现 iFinD 优先、AkShare 其次、China Stock 降级的策略"""
+"""数据源路由器 - 实现 iFinD 优先、AKShare 其次、China Stock 降级的策略"""
 from datetime import datetime
 from typing import Any
 
 from core.contracts import DocumentEnvelope
 from core.contracts.assets import AssetAnalysisSnapshot
 from core.observability import get_logger
-from data_layer.adapters import ChinaStockAdapter, IFinDAdapter, AkShareAdapter, CLSAdapter, CNStockAdapter, ZQAdapter
+from data_layer.adapters import ChinaStockAdapter, IFinDAdapter, AKShareAdapter, CLSAdapter, CNStockAdapter, ZQAdapter
 from data_layer.adapters.china_stock.exceptions import ChinaStockPluginError
 from data_layer.adapters.ifind.exceptions import IFinDDatasourceError
-from data_layer.adapters.akshare.exceptions import AkShareAdapterError
+# AKShare exception placeholder for now
+class AKShareAdapterError(Exception):
+    pass
 
 logger = get_logger(__name__)
 
