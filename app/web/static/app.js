@@ -488,7 +488,7 @@ async function loadDashboard() {
         }
 
         // Refresh i18n
-        I18N.refreshI18n();
+        I18N.applyAll();
     } catch (e) {
         console.error('Failed to load dashboard:', e);
         toast(I18N.t('toast.load_dashboard_failed'), 'error');
