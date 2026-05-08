@@ -373,3 +373,39 @@ class AuditLogDB(Base):
     actor = Column(Text, nullable=False, default="system")
     details = Column(JSON, nullable=False, default=dict)
     created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class PaperPortfolioDB(Base):
+    """模拟组合数据库模型"""
+
+    __tablename__ = "paper_portfolio"
+
+    portfolio_id = Column(Text, primary_key=True)
+    proposal_id = Column(Text, nullable=False, index=True)
+    name = Column(Text, nullable=False)
+    status = Column(Text, nullable=False, default="active")
+    assumptions = Column(JSON, nullable=False, default=dict)
+    current_snapshot = Column(JSON, nullable=True)
+    snapshots = Column(JSON, nullable=False, default=list)
+    rebalance_events = Column(JSON, nullable=False, default=list)
+    portfolio_metadata = Column(JSON, nullable=False, default=dict, name="metadata")
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class SimulationResultDB(Base):
+    """模拟结果数据库模型"""
+
+    __tablename__ = "simulation_result"
+
+    result_id = Column(Text, primary_key=True)
+    portfolio_id = Column(Text, nullable=False, index=True)
+    name = Column(Text, nullable=False)
+    mode = Column(Text, nullable=False, default="replay")
+    assumptions = Column(JSON, nullable=False, default=dict)
+    performance = Column(JSON, nullable=False, default=dict)
+    benchmark_comparisons = Column(JSON, nullable=False, default=list)
+    nav_series = Column(JSON, nullable=False, default=list)
+    rebalance_count = Column(Integer, nullable=False, default=0)
+    total_turnover = Column(Numeric, nullable=False, default=0.0)
+    result_metadata = Column(JSON, nullable=False, default=dict, name="metadata")
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)

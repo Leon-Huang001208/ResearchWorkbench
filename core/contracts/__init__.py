@@ -18,6 +18,19 @@ from .scenarios import ScenarioHypothesis, ScenarioSet
 from .signals import AlphaSignal, EventAlphaSignal, TradeCandidate
 from .traces import ReasoningTrace
 from .portfolio import PortfolioCandidate, PortfolioConstraints, PortfolioProposal
+from .paper_trading import (
+    BenchmarkComparison,
+    PaperPortfolio,
+    PerformanceMetrics,
+    PortfolioSnapshot,
+    PositionSnapshot,
+    RebalanceEvent,
+    RebalanceTrigger,
+    SimulationAssumptions,
+    SimulationMode,
+    SimulationResult,
+    TransactionCost,
+)
 
 __all__ = [
     "CanonicalId",
@@ -46,4 +59,15 @@ __all__ = [
     "PortfolioCandidate",
     "PortfolioConstraints",
     "PortfolioProposal",
+    "BenchmarkComparison",
+    "PaperPortfolio",
+    "PerformanceMetrics",
+    "PortfolioSnapshot",
+    "PositionSnapshot",
+    "RebalanceEvent",
+    "RebalanceTrigger",
+    "SimulationAssumptions",
+    "SimulationMode",
+    "SimulationResult",
+    "TransactionCost",
 ]
