@@ -10,6 +10,11 @@ class Settings(BaseSettings):
     # 项目根目录
     PROJECT_ROOT: Path = Path(__file__).parent.parent.parent
 
+    # Runtime environment: dev/prod
+    # dev: allows in-memory fallbacks for demo purposes
+    # prod: no silent fallback, fail immediately if persistence not configured
+    APP_ENV: Literal["dev", "prod"] = "dev"
+
     # 数据库 (默认使用 SQLite，零配置；生产环境建议使用 PostgreSQL)
     DATABASE_URL: str = "sqlite:///./data/alphafoundry.db"
 

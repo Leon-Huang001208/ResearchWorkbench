@@ -20,7 +20,12 @@ class TestHealthCheck:
     def test_health(self):
         resp = client.get("/health")
         assert resp.status_code == 200
-        assert resp.json() == {"status": "ok"}
+        data = resp.json()
+        assert data["status"] == "ok"
+        assert "app_env" in data
+        assert "persistence" in data
+        assert "database_connected" in data["persistence"]
+        assert "status" in data["persistence"]
 
     def test_index(self):
         resp = client.get("/")

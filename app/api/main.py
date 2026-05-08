@@ -85,8 +85,30 @@ async def index():
 
 @app.get("/health")
 async def health_check():
-    """健康检查"""
-    return {"status": "ok"}
+    """健康检查 - includes persistence status"""
+    from sqlalchemy import text
+    from core.settings.config import settings
+    from data_layer.repositories.base import SessionLocal
+    
+    persistence_status = "unknown"
+    db_connected = False
+    try:
+        with SessionLocal() as session:
+            session.execute(text("SELECT 1"))
+            session.commit()
+            db_connected = True
+            persistence_status = "ready"
+    except Exception as e:
+        persistence_status = f"unavailable: {str(e)}"
+    
+    return {
+        "status": "ok",
+        "app_env": settings.APP_ENV,
+        "persistence": {
+            "database_connected": db_connected,
+            "status": persistence_status
+        }
+    }
 
 
 if __name__ == "__main__":

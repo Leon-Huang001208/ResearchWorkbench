@@ -11,6 +11,7 @@ from core.contracts import AlphaSignal, EventAlphaSignal, TradeCandidate
 from core.interfaces import SignalValidator
 from core.observability import get_logger
 from core.services.signal_validator_impl import SignalValidatorImpl
+from core.settings.config import settings
 from data_layer.repositories.signal_repository import SignalRepositoryImpl
 
 logger = get_logger(__name__)
@@ -34,6 +35,12 @@ class SignalService:
         self.validator = validator or SignalValidatorImpl()
         self.repository = repository
         self.signals: Dict[str, AlphaSignal] = {}  # fallback if no repo
+
+        if settings.APP_ENV == "prod" and self.repository is None:
+            raise RuntimeError(
+                "SignalService: No repository provided in production mode (APP_ENV=prod). "
+                "In-memory fallback is not allowed in production for durable persistence."
+            )
 
     def create_signal(
         self,

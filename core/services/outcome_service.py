@@ -8,6 +8,7 @@ from typing import List, Optional
 
 from core.contracts.outcomes import SignalOutcome
 from core.observability import get_logger
+from core.settings.config import settings
 from data_layer.repositories.outcome_repository import OutcomeRepositoryImpl
 from memory_learning.contracts import MarketEpisode
 from memory_learning.journal import LearningJournal
@@ -26,6 +27,12 @@ class OutcomeService:
         self.repository = repository
         self.journal = journal or LearningJournal()
         self._outcomes: dict[str, SignalOutcome] = {}  # fallback if no repo
+
+        if settings.APP_ENV == "prod" and self.repository is None:
+            raise RuntimeError(
+                "OutcomeService: No repository provided in production mode (APP_ENV=prod). "
+                "In-memory fallback is not allowed in production for durable persistence."
+            )
 
     def record_outcome(self, outcome: SignalOutcome) -> SignalOutcome:
         """记录信号结果评估。
