@@ -80,6 +80,13 @@ from .industry_chain import (
     PropagationPath,
     ThesisCard,
 )
+from .review_framework import (
+    ReviewPosition,
+    EvidenceReference,
+    ReviewCard,
+    CognitiveBlackboard,
+    ConflictDetectionSummary,
+)
 
 __all__ = [
     "CanonicalId",
@@ -164,4 +171,10 @@ __all__ = [
     "PropagationStep",
     "PropagationPath",
     "ThesisCard",
+    # Review Framework
+    "ReviewPosition",
+    "EvidenceReference",
+    "ReviewCard",
+    "CognitiveBlackboard",
+    "ConflictDetectionSummary",
 ]
