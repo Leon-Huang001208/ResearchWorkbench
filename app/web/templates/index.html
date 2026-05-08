@@ -182,8 +182,10 @@
                 <div class="input-row">
                     <input type="text" id="asset-code" value="600000.SH" data-i18n-placeholder="asset.code_placeholder" placeholder="输入资产代码，如 600000.SH">
                     <select id="asset-source">
+                        <option value="auto" data-i18n="asset.source_auto">自动（推荐）</option>
+                        <option value="akshare" data-i18n="asset.source_akshare">AKShare 开源数据</option>
                         <option value="mock" data-i18n="asset.source_mock">Mock 数据</option>
-                        <option value="local" data-i18n="asset.source_local">本地数据</option>
+                        <option value="local" data-i18n="asset.source_local">本地缓存</option>
                         <option value="ifind" data-i18n="asset.source_ifind">iFinD</option>
                     </select>
                     <button id="btn-analyze" class="btn-primary" data-i18n="asset.btn_analyze">分析</button>

@@ -65,9 +65,12 @@ class AssetAnalysisService:
             source=source,
         )
 
-        # 兼容旧接口：如果 use_mock=False，尝试本地数据
+        # 自动降级：iFinD → AKShare → Local → Mock
         if effective_use_mock or source == "mock":
             snapshot = self._generate_mock_snapshot(canonical_id, as_of)
+        elif source == "akshare" and self.akshare_adapter.is_available():
+            logger.info("Using AKShare open source data")
+            snapshot = self._fetch_from_akshare(canonical_id, as_of)
         elif source == "local":
             snapshot = self._fetch_from_local(canonical_id, as_of)
         elif source == "ifind" and self.ifind_adapter:
@@ -79,6 +82,26 @@ class AssetAnalysisService:
                     snapshot = self._fetch_from_akshare(canonical_id, as_of)
                 else:
                     snapshot = self._fetch_from_local(canonical_id, as_of)
+        elif source == "auto":
+            # 自动降级链
+            success = False
+            if self.ifind_adapter and self.ifind_adapter.is_available():
+                try:
+                    snapshot = self._fetch_from_ifind(canonical_id, as_of)
+                    success = True
+                except Exception as e:
+                    logger.warning(f"iFinD failed: {e}")
+            if not success and self.akshare_adapter.is_available():
+                logger.info("Auto fallback: using AKShare open source data (iFinD unavailable)")
+                snapshot = self._fetch_from_akshare(canonical_id, as_of)
+                success = True
+            if not success:
+                logger.info("Auto fallback: using local cached data")
+                snapshot = self._fetch_from_local(canonical_id, as_of)
+                success = True
+            if not success:
+                logger.warning("All data sources failed, falling back to mock")
+                snapshot = self._generate_mock_snapshot(canonical_id, as_of)
         elif self.akshare_adapter.is_available():
             logger.info("Using AKShare open source data (iFinD not available on macOS)")
             snapshot = self._fetch_from_akshare(canonical_id, as_of)

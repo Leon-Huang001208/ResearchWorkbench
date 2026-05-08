@@ -41,8 +41,10 @@ const I18N = (() => {
         // Asset Analysis
         'asset.title': '资产分析',
         'asset.code_placeholder': '输入资产代码，如 600000.SH',
+        'asset.source_auto': '自动（推荐）',
+        'asset.source_akshare': 'AKShare 开源',
         'asset.source_mock': 'Mock 数据',
-        'asset.source_local': '本地数据',
+        'asset.source_local': '本地缓存',
         'asset.source_ifind': 'iFinD',
         'asset.btn_analyze': '分析',
         'asset.loading': '正在分析资产...',
@@ -263,8 +265,10 @@ const I18N = (() => {
         // Asset Analysis
         'asset.title': 'Asset Analysis',
         'asset.code_placeholder': 'Enter asset code, e.g. 600000.SH',
+        'asset.source_auto': 'Auto (Recommended)',
+        'asset.source_akshare': 'AKShare Open Source',
         'asset.source_mock': 'Mock Data',
-        'asset.source_local': 'Local Data',
+        'asset.source_local': 'Local Cache',
         'asset.source_ifind': 'iFinD',
         'asset.btn_analyze': 'Analyze',
         'asset.loading': 'Analyzing asset...',
