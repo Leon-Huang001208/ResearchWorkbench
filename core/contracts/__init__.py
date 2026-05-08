@@ -12,6 +12,7 @@ from .ingestion import (
     RetryResponse,
 )
 from .outcomes import SignalOutcome
+from .replay import ReplayJob, ReplayResult, ReplayAggregate
 from .reporting import SectionOutput, SectionSpec
 from .scenarios import ScenarioHypothesis, ScenarioSet
 from .signals import AlphaSignal, EventAlphaSignal, TradeCandidate
@@ -32,6 +33,9 @@ __all__ = [
     "EventAlphaSignal",
     "TradeCandidate",
     "SignalOutcome",
+    "ReplayJob",
+    "ReplayResult",
+    "ReplayAggregate",
     "IngestionQueueItem",
     "IngestionQueueStats",
     "EnqueueRequest",

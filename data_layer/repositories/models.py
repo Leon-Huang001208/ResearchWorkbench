@@ -304,3 +304,55 @@ class IngestionQueueItemDB(Base):
     created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
     processed_at = Column(DateTime(timezone=True), nullable=True)
     dedup_hash = Column(Text, nullable=True, unique=True, index=True)
+
+
+class ReplayJobDB(Base):
+    """回放任务数据库模型"""
+
+    __tablename__ = "replay_job"
+
+    job_id = Column(Text, primary_key=True)
+    name = Column(Text, nullable=False)
+    description = Column(Text, nullable=True)
+    event_filter = Column(JSON, nullable=True)
+    max_events = Column(Integer, nullable=False, default=100)
+    status = Column(Text, nullable=False, default="pending", index=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class ReplayResultDB(Base):
+    """回放结果数据库模型"""
+
+    __tablename__ = "replay_result"
+
+    id = Column(Text, primary_key=True)
+    job_id = Column(Text, nullable=False, index=True)
+    event_id = Column(Text, nullable=False)
+    signal_id = Column(Text, nullable=True)
+    outcome_id = Column(Text, nullable=True)
+    event_type = Column(Text, nullable=False)
+    source_type = Column(Text, nullable=False)
+    signal_score = Column(Numeric, nullable=True)
+    signal_confidence = Column(Numeric, nullable=True)
+    timing_action = Column(Text, nullable=True)
+    outcome_return = Column(Numeric, nullable=True)
+    outcome_excess_return = Column(Numeric, nullable=True)
+    max_drawdown = Column(Numeric, nullable=True)
+    decay = Column(Numeric, nullable=True)
+    error = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class AuditLogDB(Base):
+    """审计日志数据库模型"""
+
+    __tablename__ = "audit_log"
+
+    log_id = Column(Text, primary_key=True)
+    entity_type = Column(Text, nullable=False, index=True)
+    entity_id = Column(Text, nullable=False, index=True)
+    action = Column(Text, nullable=False)
+    actor = Column(Text, nullable=False, default="system")
+    details = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
