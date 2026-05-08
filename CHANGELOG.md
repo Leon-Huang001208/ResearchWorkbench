@@ -16,6 +16,18 @@
 - 实现完整的双源降级路由策略（iFinD → ChinaStock → insufficient_evidence
 - 更新 IFinDAdapter 适配器支持技术指标和情绪数据获取
 - 更新 ChinaStockAdapter 适配器支持情绪数据获取
+- **#1** 对齐前端 Timing API 调用方式（GET→POST），补全后端信号获取逻辑
+- **#2** SignalService 改为有状态持久化（模块级单例+请求级DB），跨请求信号可查询
+- **#3** Golden Path 完整实现：事件驱动型 Alpha 信号生成全链路
+- **#4** Dashboard 对接真实信号、审核、记忆数据
+- **#5** 信号 Outcome 评估协议定义与持久化
+- **#6** 统一事件摄入队列（real-time event sources）
+- **#7** 事件抽取与主体映射基准数据集
+- **#8** 历史事件回放与信号校准引擎
+- **#9** Workbench 信号详情、审计追踪、全局搜索
+- **#10** 情景分析与产业链图谱对接真实事件-记忆数据
+- **#11** 组合构建与风险预算层（Portfolio Service + API）
+- **#12** 模拟交易与组合仿真工作流（Paper Trading + Simulation + 基准比较）
 
 ### Changed
 - 默认启用持久化模式
@@ -31,6 +43,8 @@
 - 数据摄入服务错误修复
 - 导入错误和字段名冲突修复
 - 数据库初始化流程修复
+- **#1** 前端 `generateEventSignal()` 使用 GET 调用后端 POST 端点的契约不一致
+- **#2** SignalService 每次请求新建实例导致信号无法跨请求查询
 
 ## [v0.3.0] - 2025-05-01
 
