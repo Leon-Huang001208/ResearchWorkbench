@@ -28,6 +28,7 @@
 - **#10** 情景分析与产业链图谱对接真实事件-记忆数据
 - **#11** 组合构建与风险预算层（Portfolio Service + API）
 - **#12** 模拟交易与组合仿真工作流（Paper Trading + Simulation + 基准比较）
+- **#13** Model/Prompt/Strategy 治理与实验追踪（版本管理、实验对比、回滚、审计）
 
 ### Changed
 - 默认启用持久化模式
