@@ -91,6 +91,9 @@ function navigateTo(section) {
     if (section === 'memory') loadMemoryPage();
 }
 
+// ─── Bind all interactive events after DOM ready
+// All DOM access must happen here
+$(function() {
 // Wait for DOM ready before binding all interactive events
 document.addEventListener('DOMContentLoaded', () => {
     // Navigation buttons
@@ -116,8 +119,9 @@ document.addEventListener('DOMContentLoaded', () => {
             popover.classList.add('hidden');
         }
     });
+});
 
-    // ─── Global Search ────────────────────────────────────────────
+// ─── Global Search ────────────────────────────────────────────
 let searchDebounceTimer = null;
 
 document.getElementById('global-search').addEventListener('input', (e) => {
@@ -448,7 +452,7 @@ async function loadDashboard() {
             recentFailuresEl.innerHTML = data.learning.recent_failures.map(f => `
                 <li>
                     <div class="item-title">${esc(f.subject_id)}: ${esc(f.failure_reason)}</div>
-                    <div class="item-meta">${I18N.t('dashboard.lesson')}: ${esc(f.lesson)} • ${f.outcome_return ? f.outcome_return.toFixed(2)% : ''}</div>
+                    <div class="item-meta">${I18N.t('dashboard.lesson')}: ${esc(f.lesson)} • ${f.outcome_return ? f.outcome_return.toFixed(2) + '%' : ''}</div>
                 </li>
             `).join('');
         } else {
