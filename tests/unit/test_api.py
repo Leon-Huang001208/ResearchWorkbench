@@ -1,6 +1,6 @@
 """API 端点测试"""
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, AsyncMock, patch
 from fastapi.testclient import TestClient
 
 from app.api.main import app
@@ -20,7 +20,12 @@ class TestHealthCheck:
     def test_health(self):
         resp = client.get("/health")
         assert resp.status_code == 200
-        assert resp.json() == {"status": "ok"}
+        data = resp.json()
+        assert data["status"] == "ok"
+        assert "app_env" in data
+        assert "persistence" in data
+        assert "database_connected" in data["persistence"]
+        assert "status" in data["persistence"]
 
     def test_index(self):
         resp = client.get("/")
@@ -404,8 +409,14 @@ class TestPipelineAPI:
             canonical_id="asset-001",
             as_of=datetime.now(timezone.utc),
         )
-        
-        with patch.object(ResearchPipeline, 'run_asset_analysis', return_value=mock_snapshot):
+
+        # Create a mock pipeline that returns the expected snapshot
+        mock_pipeline = MagicMock()
+        mock_pipeline.run_asset_analysis = AsyncMock(return_value=mock_snapshot)
+
+        from app.api.routes.pipeline import get_pipeline
+        app.dependency_overrides[get_pipeline] = lambda: mock_pipeline
+        try:
             resp = client.post(
                 "/api/pipeline/asset-analysis",
                 json={"asset_id": "asset-001"},
@@ -413,6 +424,8 @@ class TestPipelineAPI:
             assert resp.status_code == 200
             data = resp.json()
             assert data["canonical_id"] == "asset-001"
+        finally:
+            app.dependency_overrides.pop(get_pipeline, None)
 
 
 # ─── 图谱 ───────────────────────────────────────────────

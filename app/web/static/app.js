@@ -115,17 +115,114 @@ document.addEventListener('click', (e) => {
 });
 
 // ─── Global Search ────────────────────────────────────────────
-document.getElementById('global-search').addEventListener('input', async (e) => {
+let searchDebounceTimer = null;
+
+document.getElementById('global-search').addEventListener('input', (e) => {
+    clearTimeout(searchDebounceTimer);
     const q = e.target.value.trim();
-    if (q.length < 2) return;
+    if (q.length < 2) {
+        document.getElementById('search-results-dropdown').classList.add('hidden');
+        return;
+    }
+    searchDebounceTimer = setTimeout(() => globalSearch(q), 300);
+});
+
+document.getElementById('global-search').addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        document.getElementById('search-results-dropdown').classList.add('hidden');
+        e.target.blur();
+    }
+});
+
+// Close search dropdown on outside click
+document.addEventListener('click', (e) => {
+    const dropdown = document.getElementById('search-results-dropdown');
+    const searchInput = document.getElementById('global-search');
+    if (dropdown && !dropdown.contains(e.target) && e.target !== searchInput) {
+        dropdown.classList.add('hidden');
+    }
+});
+
+async function globalSearch(query) {
     try {
-        const results = await apiCall('GET', `/api/workbench/search?q=${encodeURIComponent(q)}`);
-        // TODO: display search results
-        console.log('Search results:', results);
+        const results = await apiCall('GET', `/api/search?q=${encodeURIComponent(query)}`);
+        renderSearchResults(results, query);
     } catch (e) {
         console.error('Search failed:', e);
     }
-});
+}
+
+function renderSearchResults(results, query) {
+    const dropdown = document.getElementById('search-results-dropdown');
+    if (!dropdown) return;
+
+    const total = (results.signals?.length || 0) + (results.events?.length || 0) +
+                  (results.outcomes?.length || 0) + (results.reviews?.length || 0);
+
+    if (total === 0) {
+        dropdown.innerHTML = `<div class="search-empty">未找到 "${esc(query)}" 相关结果</div>`;
+        dropdown.classList.remove('hidden');
+        return;
+    }
+
+    let html = '';
+
+    if (results.signals?.length) {
+        html += `<div class="search-group"><div class="search-group-title">信号 (${results.signals.length})</div>`;
+        html += results.signals.map(s => `
+            <div class="search-item" onclick="navigateToSignalDetail('${esc(s.signal_id)}')">
+                <span class="search-item-type signal">信号</span>
+                <span class="search-item-text">${esc(s.thesis)}</span>
+                <span class="status-badge status-${s.status}">${esc(s.status)}</span>
+            </div>
+        `).join('');
+        html += '</div>';
+    }
+
+    if (results.events?.length) {
+        html += `<div class="search-group"><div class="search-group-title">事件 (${results.events.length})</div>`;
+        html += results.events.map(e => `
+            <div class="search-item">
+                <span class="search-item-type event">事件</span>
+                <span class="search-item-text">${esc(e.summary)}</span>
+                <span class="badge">${esc(e.event_type)}</span>
+            </div>
+        `).join('');
+        html += '</div>';
+    }
+
+    if (results.outcomes?.length) {
+        html += `<div class="search-group"><div class="search-group-title">结果 (${results.outcomes.length})</div>`;
+        html += results.outcomes.map(o => `
+            <div class="search-item">
+                <span class="search-item-type outcome">结果</span>
+                <span class="search-item-text">${esc(o.lesson || o.subject_id)}</span>
+                <span class="badge ${o.outcome_excess_return > 0 ? 'positive' : 'negative'}">${o.outcome_excess_return > 0 ? '+' : ''}${o.outcome_excess_return.toFixed(2)}%</span>
+            </div>
+        `).join('');
+        html += '</div>';
+    }
+
+    if (results.reviews?.length) {
+        html += `<div class="search-group"><div class="search-group-title">审计 (${results.reviews.length})</div>`;
+        html += results.reviews.map(r => `
+            <div class="search-item">
+                <span class="search-item-type audit">审计</span>
+                <span class="search-item-text">${esc(r.action)} — ${esc(r.entity_type)}/${esc(r.entity_id.substring(0,8))}</span>
+            </div>
+        `).join('');
+        html += '</div>';
+    }
+
+    dropdown.innerHTML = html;
+    dropdown.classList.remove('hidden');
+}
+
+function navigateToSignalDetail(signalId) {
+    document.getElementById('search-results-dropdown').classList.add('hidden');
+    document.getElementById('global-search').value = '';
+    showSignalDetail(signalId);
+}
 
 // ─── Chart.js Default Theming ─────────────────────────────────
 function getChartColors() {
@@ -415,7 +512,7 @@ async function generateEventSignal() {
         // 获取并展示 Timing 决策
         if (signalId) {
             try {
-                const timingDecision = await apiCall('GET', `/api/timing/evaluate-signal/${signalId}`);
+                const timingDecision = await apiCall('POST', `/api/timing/evaluate-signal/${signalId}`);
                 renderTimingDecision(timingDecision);
                 document.getElementById('timing-decision-container').classList.remove('hidden');
             } catch (e) {
@@ -726,7 +823,7 @@ function renderSignalsTable(signals) {
         <thead><tr><th>ID</th><th>主体</th><th>论点</th><th>预测期</th><th>分数</th><th>置信度</th><th>择时决策</th><th>状态</th><th>操作</th></tr></thead>
         <tbody>${signals.map(s => `
             <tr>
-                <td title="${esc(s.signal_id)}">${esc(s.signal_id.substring(0, 8))}</td>
+                <td title="${esc(s.signal_id)}"><a href="javascript:void(0)" onclick="showSignalDetail('${esc(s.signal_id)}')">${esc(s.signal_id.substring(0, 8))}</a></td>
                 <td>${esc(s.subject_id)}</td>
                 <td>${esc(s.thesis)}</td>
                 <td>${esc(s.horizon)}</td>
@@ -735,6 +832,7 @@ function renderSignalsTable(signals) {
                 <td>${s.latest_timing_action ? `<span class="timing-badge timing-${s.latest_timing_action}">${esc(s.latest_timing_action)}</span>` : '—'}</td>
                 <td><span class="status-badge status-${s.status || 'pending_backtest'}">${esc(s.status || 'pending_backtest')}</span></td>
                 <td class="actions">
+                    <button class="btn-sm btn-detail" onclick="showSignalDetail('${esc(s.signal_id)}')">详情</button>
                     <button class="btn-sm btn-validate" onclick="validateSignal('${esc(s.signal_id)}')">验证</button>
                     <button class="btn-sm btn-promote" onclick="promoteSignal('${esc(s.signal_id)}')">升级</button>
                 </td>
@@ -945,6 +1043,141 @@ async function loadEventSummary() {
         `;
     } catch (e) {
         toast(e.message, 'error');
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Signal Detail View
+// ═══════════════════════════════════════════════════════════════
+
+async function showSignalDetail(signalId) {
+    // Hide all sections, show detail
+    document.querySelectorAll('.content-section').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.activity-btn[data-section]').forEach(b => b.classList.remove('active'));
+
+    let detailSection = document.getElementById('section-signal-detail');
+    if (!detailSection) {
+        detailSection = document.createElement('section');
+        detailSection.id = 'section-signal-detail';
+        detailSection.className = 'content-section active';
+        document.querySelector('.main-content').appendChild(detailSection);
+    }
+    detailSection.classList.add('active');
+    detailSection.innerHTML = '<div class="loading">加载中...</div>';
+
+    try {
+        const data = await apiCall('GET', `/api/signals/${encodeURIComponent(signalId)}/detail`);
+        renderSignalDetail(data, detailSection);
+    } catch (e) {
+        detailSection.innerHTML = `<div class="error-state">加载失败: ${esc(e.message)}</div>`;
+    }
+}
+
+function renderSignalDetail(data, container) {
+    const s = data.signal || {};
+    const timing = data.timing;
+    const outcome = data.outcome;
+    const event = data.event;
+    const auditTrail = data.audit_trail || [];
+
+    let html = `
+        <div class="detail-header">
+            <button class="btn-back" onclick="navigateTo('signals')">← 返回信号列表</button>
+            <h2 class="section-title">信号详情</h2>
+        </div>
+
+        <div class="detail-grid">
+            <!-- 信号基本信息 -->
+            <div class="card detail-card">
+                <h3>基本信息</h3>
+                <div class="detail-field"><span class="detail-label">ID</span><span class="detail-value">${esc(s.signal_id)}</span></div>
+                <div class="detail-field"><span class="detail-label">主体</span><span class="detail-value">${esc(s.subject_id)}</span></div>
+                <div class="detail-field"><span class="detail-label">论点</span><span class="detail-value">${esc(s.thesis)}</span></div>
+                <div class="detail-field"><span class="detail-label">预测期</span><span class="detail-value">${esc(s.horizon)}</span></div>
+                <div class="detail-field"><span class="detail-label">分数</span><span class="detail-value">${s.score?.toFixed(3) ?? '—'}</span></div>
+                <div class="detail-field"><span class="detail-label">置信度</span><span class="detail-value">${s.confidence?.toFixed(3) ?? '—'}</span></div>
+                <div class="detail-field"><span class="detail-label">状态</span><span class="detail-value"><span class="status-badge status-${s.status}">${esc(s.status)}</span></span></div>
+                ${s.event_type ? `<div class="detail-field"><span class="detail-label">事件类型</span><span class="detail-value">${esc(s.event_type)}</span></div>` : ''}
+                ${s.diffusion_stage ? `<div class="detail-field"><span class="detail-label">传播阶段</span><span class="detail-value">${esc(s.diffusion_stage)}</span></div>` : ''}
+                ${s.market_regime ? `<div class="detail-field"><span class="detail-label">市场状态</span><span class="detail-value">${esc(s.market_regime)}</span></div>` : ''}
+            </div>
+
+            <!-- 择时建议 -->
+            <div class="card detail-card">
+                <h3>择时建议</h3>
+                ${timing ? `
+                    <div class="detail-field"><span class="detail-label">决策</span><span class="detail-value"><span class="timing-badge timing-${timing.action}">${esc(timing.action)}</span></span></div>
+                    <div class="detail-field"><span class="detail-label">就绪度</span><span class="detail-value">${(timing.readiness_score * 100).toFixed(1)}%</span></div>
+                    <div class="detail-field"><span class="detail-label">市场状态</span><span class="detail-value">${esc(timing.market_regime)}</span></div>
+                    ${timing.blockers?.length ? `<div class="detail-field"><span class="detail-label">阻止因素</span><span class="detail-value"><ul>${timing.blockers.map(b => `<li>${esc(b)}</li>`).join('')}</ul></span></div>` : ''}
+                    ${timing.rationale?.length ? `<div class="detail-field"><span class="detail-label">逻辑</span><span class="detail-value"><ul>${timing.rationale.map(r => `<li>${esc(r)}</li>`).join('')}</ul></span></div>` : ''}
+                ` : '<p class="empty-state">暂无择时建议</p>'}
+            </div>
+
+            <!-- 关联事件 -->
+            <div class="card detail-card">
+                <h3>关联事件</h3>
+                ${event ? `
+                    <div class="detail-field"><span class="detail-label">事件ID</span><span class="detail-value">${esc(event.event_id)}</span></div>
+                    <div class="detail-field"><span class="detail-label">类型</span><span class="detail-value">${esc(event.event_type)}</span></div>
+                    <div class="detail-field"><span class="detail-label">摘要</span><span class="detail-value">${esc(event.summary)}</span></div>
+                    <div class="detail-field"><span class="detail-label">方向</span><span class="detail-value">${esc(event.impact_direction)}</span></div>
+                    <div class="detail-field"><span class="detail-label">置信度</span><span class="detail-value">${event.confidence?.toFixed(2) ?? '—'}</span></div>
+                ` : '<p class="empty-state">无关联事件</p>'}
+            </div>
+
+            <!-- 关联 Outcome -->
+            <div class="card detail-card">
+                <h3>结果评估</h3>
+                ${outcome ? `
+                    <div class="detail-field"><span class="detail-label">收益</span><span class="detail-value ${outcome.outcome_return > 0 ? 'positive' : 'negative'}">${outcome.outcome_return > 0 ? '+' : ''}${outcome.outcome_return?.toFixed(2)}%</span></div>
+                    <div class="detail-field"><span class="detail-label">超额收益</span><span class="detail-value ${outcome.outcome_excess_return > 0 ? 'positive' : 'negative'}">${outcome.outcome_excess_return > 0 ? '+' : ''}${outcome.outcome_excess_return?.toFixed(2)}%</span></div>
+                    <div class="detail-field"><span class="detail-label">最大回撤</span><span class="detail-value">${outcome.max_drawdown?.toFixed(2) ?? '—'}%</span></div>
+                    ${outcome.lesson ? `<div class="detail-field"><span class="detail-label">经验教训</span><span class="detail-value">${esc(outcome.lesson)}</span></div>` : ''}
+                ` : '<p class="empty-state">暂无结果评估</p>'}
+            </div>
+        </div>
+
+        <!-- 审计轨迹 -->
+        <div class="card detail-card" style="margin-top: 16px;">
+            <h3>审计轨迹</h3>
+            <div id="audit-trail-container">
+                ${auditTrail.length ? renderAuditTrailTimeline(auditTrail) : '<p class="empty-state">暂无审计记录</p>'}
+            </div>
+        </div>
+    `;
+
+    container.innerHTML = html;
+}
+
+function renderAuditTrailTimeline(trail) {
+    if (!trail.length) return '<p class="empty-state">暂无审计记录</p>';
+    return `<div class="audit-timeline">${trail.map(entry => `
+        <div class="audit-entry">
+            <div class="audit-entry-dot"></div>
+            <div class="audit-entry-content">
+                <div class="audit-entry-header">
+                    <span class="audit-action badge">${esc(entry.action)}</span>
+                    <span class="audit-actor">${esc(entry.actor)}</span>
+                    <span class="audit-time">${esc(entry.timestamp || '')}</span>
+                </div>
+                ${entry.details && Object.keys(entry.details).length ?
+                    `<div class="audit-details">${Object.entries(entry.details).map(([k,v]) => `<span class="audit-detail-item"><strong>${esc(k)}:</strong> ${esc(String(v))}</span>`).join(', ')}</div>` : ''}
+            </div>
+        </div>
+    `).join('')}</div>`;
+}
+
+async function loadAuditTrail(entityType, entityId) {
+    const container = document.getElementById('audit-trail-container');
+    if (!container) return;
+    container.innerHTML = '<div class="loading">加载中...</div>';
+    try {
+        const data = await apiCall('GET', `/api/audit/trail/${entityType}/${encodeURIComponent(entityId)}`);
+        const trail = data.trail || [];
+        container.innerHTML = trail.length ? renderAuditTrailTimeline(trail) : '<p class="empty-state">暂无审计记录</p>';
+    } catch (e) {
+        container.innerHTML = `<div class="error-state">加载失败: ${esc(e.message)}</div>`;
     }
 }
 

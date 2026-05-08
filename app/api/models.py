@@ -44,6 +44,15 @@ class ScenarioRequest(BaseModel):
     """情景生成请求"""
     topic: str = Field(..., description="研究主题")
     subject_ids: Optional[List[str]] = Field(None, description="主题 ID 列表")
+    use_evidence: bool = Field(True, description="是否使用真实证据")
+    min_evidence_count: int = Field(1, description="最低证据数量阈值")
+    regime_filter: Optional[str] = Field(None, description="市场环境过滤")
+
+
+class ScenarioEvidence(BaseModel):
+    """场景证据"""
+    events: List[Dict[str, Any]] = Field(default_factory=list, description="相关历史事件")
+    outcomes: List[Dict[str, Any]] = Field(default_factory=list, description="相关 Outcome 记录")
 
 
 class ScenarioHypothesisResponse(BaseModel):
@@ -58,6 +67,8 @@ class ScenarioHypothesisResponse(BaseModel):
     impact_map: Dict[str, Any] = Field(default_factory=dict)
     evidence_assertion_ids: List[str] = Field(default_factory=list)
     confidence: float
+    evidence: ScenarioEvidence = Field(default_factory=ScenarioEvidence, description="真实事件/Outcome 证据")
+    evidence_strength: str = Field(default="none", description="证据强度: high/medium/low/none")
 
 
 class ScenarioResponse(BaseModel):
@@ -67,6 +78,8 @@ class ScenarioResponse(BaseModel):
     hypotheses: List[ScenarioHypothesisResponse] = Field(default_factory=list)
     normalization_check: bool = False
     residual_uncertainty: List[str] = Field(default_factory=list)
+    propagation_patterns: List[Dict[str, Any]] = Field(default_factory=list, description="传播模式")
+    regime_summaries: List[Dict[str, Any]] = Field(default_factory=list, description="市场环境摘要")
 
 
 # ─── 审核 ───────────────────────────────────────────────
