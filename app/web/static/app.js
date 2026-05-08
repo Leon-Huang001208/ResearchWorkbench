@@ -933,7 +933,8 @@ async function loadReviewStats() {
             <div class="stat-card"><div class="stat-value" style="border-top-color:var(--danger)">${stats.rejected_assertions ?? 0}</div><div class="stat-label">已拒绝</div></div>
         `;
         // Also update dashboard stat
-        document.getElementById('stat-review').textContent = stats.pending_assertions ?? 0;
+        const statReview = document.getElementById('stat-review');
+        if (statReview) statReview.textContent = stats.pending_assertions ?? 0;
     } catch (e) {
         console.error('Failed to load review stats:', e);
     }
@@ -1134,7 +1135,8 @@ function loadMemoryPage() {
 }
 
 async function loadEpisodes() {
-    const eventType = document.getElementById('episode-event-type-filter').value.trim();
+    const filterEl = document.getElementById('episode-event-type-filter');
+    const eventType = filterEl ? filterEl.value.trim() : '';
     const params = new URLSearchParams();
     if (eventType) params.append('event_type', eventType);
     
@@ -1165,8 +1167,10 @@ async function loadEpisodes() {
 }
 
 async function loadStrategies() {
-    const signalFamily = document.getElementById('strategy-signal-filter').value.trim();
-    const marketRegime = document.getElementById('strategy-regime-filter').value.trim();
+    const sfEl = document.getElementById('strategy-signal-filter');
+    const signalFamily = sfEl ? sfEl.value.trim() : '';
+    const mrEl = document.getElementById('strategy-regime-filter');
+    const marketRegime = mrEl ? mrEl.value.trim() : '';
     const params = new URLSearchParams();
     if (signalFamily) params.append('signal_family', signalFamily);
     if (marketRegime) params.append('market_regime', marketRegime);
@@ -1422,7 +1426,6 @@ function esc(s) {
 // ─── Initial Load ─────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
     applyChartDefaults();
-    initTheme();
     // Restore correct active states for switchers
     const savedTheme = localStorage.getItem('af-theme') || 'light';
     document.querySelectorAll('#settings-panel-theme .settings-opt').forEach(b => {
