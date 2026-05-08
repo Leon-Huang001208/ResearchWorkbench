@@ -1,9 +1,11 @@
 """资产分析路由"""
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
 
 from app.api.models import AnalyzeRequest, AnalyzeResponse, ErrorResponse
 from core.contracts import AssetAnalysisSnapshot
 from core.services.asset_analysis_service import AssetAnalysisService
+from data_layer.repositories.base import get_db
 
 router = APIRouter(prefix="/api/assets", tags=["assets"])
 
