@@ -409,3 +409,46 @@ class SimulationResultDB(Base):
     total_turnover = Column(Numeric, nullable=False, default=0.0)
     result_metadata = Column(JSON, nullable=False, default=dict, name="metadata")
     created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class StrategyVersionDB(Base):
+    """策略版本数据库模型"""
+
+    __tablename__ = "strategy_version"
+    __table_args__ = {"extend_existing": True}
+
+    version_id = Column(Text, primary_key=True)
+    component_type = Column(Text, nullable=False, index=True)
+    component_name = Column(Text, nullable=False, index=True)
+    version_number = Column(Integer, nullable=False, default=1)
+    description = Column(Text, nullable=True)
+    config = Column(JSON, nullable=False, default=dict)
+    content_hash = Column(Text, nullable=False, default="")
+    parent_version_id = Column(Text, nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    created_by = Column(Text, nullable=False, default="system")
+    tags = Column(JSON, nullable=False, default=list)
+
+
+class ExperimentRecordDB(Base):
+    """实验记录数据库模型"""
+
+    __tablename__ = "experiment_record"
+    __table_args__ = {"extend_existing": True}
+
+    experiment_id = Column(Text, primary_key=True)
+    name = Column(Text, nullable=False)
+    description = Column(Text, nullable=True)
+    strategy_version_ids = Column(JSON, nullable=False, default=list)
+    experiment_type = Column(Text, nullable=False, default="signal")
+    entity_id = Column(Text, nullable=True, index=True)
+    metrics = Column(JSON, nullable=False, default=dict)
+    status = Column(Text, nullable=False, default="running", index=True)
+    started_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    tags = Column(JSON, nullable=False, default=list)
+    experiment_metadata = Column(JSON, nullable=False, default=dict, name="metadata")
+
+
+

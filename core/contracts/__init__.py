@@ -31,6 +31,21 @@ from .paper_trading import (
     SimulationResult,
     TransactionCost,
 )
+from .governance import (
+    ExperimentCompareRequest,
+    ExperimentComparison,
+    ExperimentCreateRequest,
+    ExperimentMetricDiff,
+    ExperimentRecord,
+    GovernanceMetadata,
+    GovernanceReport,
+    RollbackRequest,
+    RollbackResult,
+    StrategyComponentType,
+    StrategyVersion,
+    StrategyVersionCreateRequest,
+    StrategyVersionSummary,
+)
 
 __all__ = [
     "CanonicalId",
@@ -70,4 +85,18 @@ __all__ = [
     "SimulationMode",
     "SimulationResult",
     "TransactionCost",
+    # Governance
+    "ExperimentCompareRequest",
+    "ExperimentComparison",
+    "ExperimentCreateRequest",
+    "ExperimentMetricDiff",
+    "ExperimentRecord",
+    "GovernanceMetadata",
+    "GovernanceReport",
+    "RollbackRequest",
+    "RollbackResult",
+    "StrategyComponentType",
+    "StrategyVersion",
+    "StrategyVersionCreateRequest",
+    "StrategyVersionSummary",
 ]
