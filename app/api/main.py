@@ -43,7 +43,7 @@ app.add_middleware(
 )
 
 # ─── 注册路由 ───────────────────────────────────────────
-from app.api.routes import assets, scenarios, review, thesis_review, signals, ingest, pipeline, workbench, graph, timing, timing_engine, memory, outcomes, ingestion_queue, audit, search, replay, portfolio, paper_trading, governance, monitoring, decision_console, event_ingestion, thesis_generator, dashboard  # noqa: E402
+from app.api.routes import assets, scenarios, review, thesis_review, signals, ingest, pipeline, workbench, graph, timing, timing_engine, memory, outcomes, outcome_journal, ingestion_queue, audit, search, replay, portfolio, paper_trading, governance, monitoring, decision_console, event_ingestion, thesis_generator, dashboard  # noqa: E402
 
 app.include_router(assets.router)
 app.include_router(scenarios.router)
@@ -56,6 +56,7 @@ app.include_router(graph.router)
 app.include_router(timing.router)
 app.include_router(memory.router)
 app.include_router(outcomes.router)
+app.include_router(outcome_journal.router, prefix="/api/outcome-journal")
 app.include_router(ingestion_queue.router)
 app.include_router(audit.router)
 app.include_router(search.router)

@@ -609,3 +609,30 @@ class PostMortemRecordDB(Base):
     updated_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
     linked_signal_accuracy = Column(Numeric, nullable=True)
 
+
+class OutcomeRecordDB(Base):
+    """Trade outcome record for outcome journal"""
+
+    __tablename__ = "outcome_record"
+
+    outcome_id = Column(Text, primary_key=True)
+    signal_id = Column(Text, nullable=False, index=True)
+    candidate_id = Column(Text, nullable=True, index=True)
+    entry_time = Column(DateTime(timezone=True), nullable=False)
+    exit_time = Column(DateTime(timezone=True), nullable=False)
+    entry_price = Column(Numeric, nullable=False)
+    exit_price = Column(Numeric, nullable=False)
+    return_5d = Column(Numeric, nullable=True)
+    return_20d = Column(Numeric, nullable=True)
+    return_60d = Column(Numeric, nullable=True)
+    benchmark_excess_return = Column(Numeric, nullable=False, default=0.0)
+    thesis_success = Column(Boolean, nullable=False)
+    failure_classification = Column(Text, nullable=True)
+    failure_notes = Column(Text, nullable=True)
+    thesis_text = Column(Text, nullable=False)
+    propagation_path = Column(JSON, nullable=False, default=list)
+    market_regime = Column(Text, nullable=True)
+    team_id = Column(Text, nullable=True)
+    project_id = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+

@@ -29,6 +29,13 @@
   - 新首页布局包含五个板块：Today、Research Queue、Candidate Board、Learning、全局搜索
   - 新增 Dashboard API 和数据聚合服务整合 #18/#19/#20 数据
   - 实现完整跨对象全局搜索支持 symbol/event_type/thesis/source_doc/failure_memory/market_episode
+- **#22** Week 8: 构建结果反馈循环和失败记忆引擎
+  - 新增 Outcome Journal 持久化存储交易结果
+  - 标准化失败分类：wrong_thesis / timing_error / crowding_error / regime_misread / mapping_error / evidence_weakness / execution_error / risk_error
+  - 失败记忆引擎：基于 thesis 文本相似度自动检索相似历史成功/失败案例
+  - 每周回顾报告生成器，自动统计成功率和失败分布
+  - 新增完整 API 路由：记录 outcome / 检索相似案例 / 生成周报告
+  - 所有单元测试通过
 
 ### Changed
 - 默认启用持久化模式

@@ -12,6 +12,12 @@ from .ingestion import (
     RetryResponse,
 )
 from .outcomes import SignalOutcome
+from .outcome_journal import (
+    FailureClassification,
+    TradeOutcome,
+    SimilarCase,
+    WeeklyReviewReport,
+)
 from .replay import ReplayJob, ReplayResult, ReplayAggregate
 from .reporting import SectionOutput, SectionSpec
 from .scenarios import ScenarioHypothesis, ScenarioSet
@@ -108,6 +114,10 @@ __all__ = [
     "EventAlphaSignal",
     "TradeCandidate",
     "SignalOutcome",
+    "FailureClassification",
+    "TradeOutcome",
+    "SimilarCase",
+    "WeeklyReviewReport",
     "ReplayJob",
     "ReplayResult",
     "ReplayAggregate",
