@@ -106,3 +106,43 @@ def extract_assertions(
     raw_text = payload.get("raw_text", "")
     context = payload.get("context")
     return service.extract_assertions(raw_text, context)
+
+
+@router.post("/{event_id}/approve", response_model=dict)
+def approve_event(
+    event_id: str,
+    approved: bool = Query(True, description="是否批准该事件"),
+):
+    """审批事件，批准后自动生成候选信号"""
+    from data_layer.repositories.event_repository import EventRepositoryImpl
+    from core.services.event_auto_signal_generator import EventAutoSignalGenerator
+    
+    repo = EventRepositoryImpl()
+    event = repo.get(event_id)
+    if not event:
+        event.status = "approved" if approved else "rejected"
+        repo.save(event)
+        
+        if approved:
+            # 审批通过后自动生成信号
+            generator = EventAutoSignalGenerator()
+            generator.on_event_approved(event_id)
+        
+        return {
+            "event_id": event_id,
+            "status": event.status,
+            "auto_signal_generated": approved
+        }
+    raise HTTPException(status_code=404, detail="Event not found")
+
+
+@router.post("/auto-generate-signals", response_model=dict)
+def trigger_auto_generate_signals():
+    """手动触发所有已批准事件的信号生成"""
+    from core.services.event_auto_signal_generator import EventAutoSignalGenerator
+    generator = EventAutoSignalGenerator()
+    count = generator.process_approved_events()
+    return {
+        "generated_signals_count": count,
+        "status": "success"
+    }
