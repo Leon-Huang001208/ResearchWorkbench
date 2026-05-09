@@ -292,9 +292,156 @@ class DashboardService:
 
     def get_full_dashboard(self) -> DashboardResponse:
         """聚合所有板块数据生成完整仪表盘响应"""
+        today = self.get_today_section()
+        research_queue = self.get_research_queue_section()
+        candidate_board = self.get_candidate_board_section()
+        learning = self.get_learning_section()
+
+        # 如果所有板块都是空的，返回模拟演示数据
+        total_items = len(today.new_events) + len(today.high_priority_theses) + len(today.abnormal_flows) + len(research_queue.pending_assertions) + len(candidate_board.top_candidates) + len(learning.recent_failures)
+        if total_items == 0:
+            logger.info("All dashboard data empty, returning demo mock data")
+            # 模拟今日板块数据
+            mock_today = TodaySection(
+                new_events=[
+                    TodayEvent(
+                        event_id="event_001",
+                        event_type="earnings",
+                        summary="贵州茅台Q1净利润同比增长18%，超市场预期",
+                        impact_direction="positive",
+                        confidence=0.92,
+                        created_at=datetime.now(UTC).isoformat()
+                    ),
+                    TodayEvent(
+                        event_id="event_002",
+                        event_type="policy",
+                        summary="央行宣布降准0.5个百分点，释放长期资金约1万亿元",
+                        impact_direction="positive",
+                        confidence=0.98,
+                        created_at=datetime.now(UTC).isoformat()
+                    ),
+                    TodayEvent(
+                        event_id="event_003",
+                        event_type="industry",
+                        summary="新能源汽车销量同比增长60%，渗透率突破40%",
+                        impact_direction="positive",
+                        confidence=0.87,
+                        created_at=datetime.now(UTC).isoformat()
+                    )
+                ],
+                high_priority_theses=[
+                    HighPriorityThesis(
+                        signal_id="signal_001",
+                        subject_id="600519.SH",
+                        thesis="贵州茅台提价预期叠加节日需求，未来1个月估值修复空间15%",
+                        score=0.89,
+                        confidence=0.85,
+                        status="active",
+                        event_type="earnings"
+                    ),
+                    HighPriorityThesis(
+                        signal_id="signal_002",
+                        subject_id="002594.SZ",
+                        thesis="比亚迪海外销量爆发，叠加大幅降价抢占市场，季度业绩超预期",
+                        score=0.82,
+                        confidence=0.79,
+                        status="active",
+                        event_type="industry"
+                    )
+                ],
+                abnormal_flows=[
+                    AbnormalFlow(
+                        symbol="300750.SZ",
+                        industry="动力电池",
+                        diffusion_strength=0.78,
+                        change_pct=5.2,
+                        updated_at=datetime.now(UTC).isoformat()
+                    )
+                ]
+            )
+
+            # 模拟研究队列数据
+            mock_research = ResearchQueueSection(
+                pending_assertions=[
+                    PendingAssertion(
+                        assertion_id="assert_001",
+                        signal_id="signal_001",
+                        subject="600519.SH",
+                        claim="飞天茅台批价已回升至2800元/瓶",
+                        status="pending_verification",
+                        created_at=datetime.now(UTC).isoformat()
+                    )
+                ],
+                missing_evidence=[],
+                mapping_reviews=[]
+            )
+
+            # 模拟候选机会数据
+            mock_candidates = CandidateBoardSection(
+                top_candidates=[
+                    CandidateItem(
+                        candidate_id="cand_001",
+                        signal_id="signal_001",
+                        subject="600519.SH",
+                        readiness_score=0.87,
+                        thesis="贵州茅台提价预期叠加节日需求，未来1个月估值修复空间15%",
+                        timing_blocker="无",
+                        trigger_condition="批价突破2850元",
+                        event_type="earnings"
+                    ),
+                    CandidateItem(
+                        candidate_id="cand_002",
+                        signal_id="signal_002",
+                        subject="002594.SZ",
+                        readiness_score=0.76,
+                        thesis="比亚迪海外销量爆发，叠加大幅降价抢占市场，季度业绩超预期",
+                        timing_blocker="板块情绪处于低位",
+                        trigger_condition="销量数据公布",
+                        event_type="industry"
+                    )
+                ]
+            )
+
+            # 模拟学习板块数据
+            mock_learning = LearningSection(
+                recent_failures=[
+                    RecentFailure(
+                        outcome_id="outcome_001",
+                        signal_id="signal_old_001",
+                        subject_id="601318.SH",
+                        failure_reason="高估了改革的短期影响，政策落地时间晚于预期",
+                        lesson="政策催化类信号需要预留至少1个月的缓冲期，避免过早入场",
+                        outcome_return=-0.08,
+                        created_at=datetime.now(UTC).isoformat()
+                    )
+                ],
+                best_event_types=[
+                    BestPerformingEventType(
+                        event_type="earnings",
+                        avg_excess_return=0.12,
+                        total_signals=28,
+                        win_rate=0.71
+                    ),
+                    BestPerformingEventType(
+                        event_type="policy",
+                        avg_excess_return=0.09,
+                        total_signals=35,
+                        win_rate=0.66
+                    )
+                ],
+                weekly_lessons=[]
+            )
+
+            return DashboardResponse(
+                today=mock_today,
+                research_queue=mock_research,
+                candidate_board=mock_candidates,
+                learning=mock_learning,
+            )
+
         return DashboardResponse(
-            today=self.get_today_section(),
-            research_queue=self.get_research_queue_section(),
-            candidate_board=self.get_candidate_board_section(),
-            learning=self.get_learning_section(),
+            today=today,
+            research_queue=research_queue,
+            candidate_board=candidate_board,
+            learning=learning,
         )

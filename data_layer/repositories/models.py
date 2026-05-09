@@ -250,6 +250,7 @@ class SignalOutcomeDB(Base):
     signal_id = Column(Text, nullable=False, index=True)
     subject_id = Column(Text, nullable=False, index=True)
     event_date = Column(DateTime(timezone=True), nullable=False)
+    event_type = Column(Text, nullable=True, default="unknown", index=True)
     timing_action = Column(Text, nullable=False, default="wait")
     entry_rule = Column(Text, nullable=True)
     horizon = Column(Text, nullable=False, default="20d")
