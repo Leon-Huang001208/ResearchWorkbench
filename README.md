@@ -217,6 +217,116 @@ ruff check .
 
 ---
 
+## 完整流程使用指南
+
+### 1. 初始化数据库
+
+```bash
+python scripts/bootstrap_db.py
+```
+
+这将：
+- 验证数据库连接
+- 创建所有必需的表
+- 验证schema完整性
+- 植入默认配置
+
+### 2. 导入真实数据（必需！）
+
+项目已包含真实数据存档，无需模拟数据：
+
+```bash
+python scripts/import_real_data.py
+```
+
+导入内容包括：
+- **财联社电报**：292条 + 608条30天存档（共900条）
+- **中国证券网新闻**：24条
+- **知丘研报**：A股、AI、市场、策略、成长、价值、指数等专题（共约747条）
+- **知丘公众号**：53条
+- **知丘会议纪要**：92条
+- **示例真实事件**：5条精选事件（贵州茅台财报、降准政策、新能源销量、光伏价格、科创政策）
+
+导入后查看数据：
+```bash
+python view_db.py all
+```
+
+### 3. 启动Web服务
+
+```bash
+uvicorn app.api.main:app --reload
+```
+
+或后台运行：
+```bash
+nohup python -m uvicorn app.api.main:app --host 127.0.0.1 --port 8000 > logs/web_server.log 2>&1 &
+```
+
+### 4. 验证服务
+
+检查健康状态：
+```bash
+curl http://127.0.0.1:8000/health
+```
+
+查看仪表盘数据：
+```bash
+curl http://127.0.0.1:8000/api/dashboard
+```
+
+访问Web界面：
+- 主页：http://127.0.0.1:8000/
+- API文档：http://127.0.0.1:8000/docs
+
+### 5. 启动自动数据抓取（可选）
+
+如需持续获取最新数据：
+
+```bash
+python auto_ingest_service.py
+```
+
+定时任务配置：
+- 财联社电报：每15分钟抓取一次
+- 中国证券网新闻：每30分钟抓取一次
+- 知丘研报：每1小时抓取一次
+- 股票分析数据：每天15:30收盘后抓取
+- 健康检查：每10分钟一次
+
+后台运行：
+```bash
+python auto_ingest_service.py --daemon
+```
+
+### 6. 日常管理
+
+查看数据库内容：
+```bash
+# 查看统计信息
+python view_db.py stats
+
+# 查看最新事件
+python view_db.py events
+
+# 查看最新文档
+python view_db.py docs
+
+# 自定义SQL查询
+python view_db.py query "SELECT * FROM canonical_event LIMIT 5"
+```
+
+查看服务日志：
+```bash
+# Web服务日志
+tail -f logs/web_server.log
+
+# 应用日志
+tail -f logs/alphafoundry_$(date +%Y%m%d).log
+```
+
+---
+
 ## 设计原则
 
 1. **本地优先**：数据本地处理，保证数据安全

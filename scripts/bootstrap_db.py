@@ -152,8 +152,15 @@ def main():
         logger.info("✅ Schema verification passed")
         
         # Step 4: Seed minimal defaults (idempotent)
-        with get_db() as db:
+        db_gen = get_db()
+        db = next(db_gen)
+        try:
             seed_defaults(db)
+        finally:
+            try:
+                next(db_gen)
+            except StopIteration:
+                pass
         
         logger.info("✅ All defaults seeded")
         logger.info("🚀 Database bootstrap completed successfully!")

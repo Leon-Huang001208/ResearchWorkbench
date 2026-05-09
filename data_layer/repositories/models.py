@@ -250,7 +250,6 @@ class SignalOutcomeDB(Base):
     signal_id = Column(Text, nullable=False, index=True)
     subject_id = Column(Text, nullable=False, index=True)
     event_date = Column(DateTime(timezone=True), nullable=False)
-    event_type = Column(Text, nullable=True, default="unknown", index=True)
     timing_action = Column(Text, nullable=False, default="wait")
     entry_rule = Column(Text, nullable=True)
     horizon = Column(Text, nullable=False, default="20d")
@@ -694,4 +693,26 @@ class AssetSnapshotModel(Base):
             macro_exposure=self.macro_exposure,
             evidence_refs=self.evidence_refs,
         )
+
+
+class StockPriceData(Base):
+    """股票历史价格数据（本地真实数据存储）"""
+
+    __tablename__ = "stock_price_data"
+
+    price_id = Column(Text, primary_key=True)
+    code = Column(Text, nullable=False, index=True)  # 如 600519.SH
+    date = Column(Text, nullable=False, index=True)   # 如 2024-05-01
+    open = Column(Numeric, nullable=False)
+    high = Column(Numeric, nullable=False)
+    low = Column(Numeric, nullable=False)
+    close = Column(Numeric, nullable=False)
+    volume = Column(Numeric, nullable=True)
+    turnover = Column(Numeric, nullable=True)
+    data_source = Column(Text, nullable=False, default="manual")  # manual, csv
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    __table_args__ = (
+        {'extend_existing': True}
+    )
 
