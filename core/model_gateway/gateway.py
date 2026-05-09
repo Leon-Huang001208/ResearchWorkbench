@@ -1,3 +1,10 @@
+"""
+Implementation of ModelGatewayInterface that delegates to a BaseProvider.
+
+This module provides ModelGatewayImpl, which uses settings to initialize a
+BaseProvider (VolcanoProvider or OpenAICompatibleProvider) and delegates chat,
+structured_output, and embed calls to it.
+"""
 from typing import Any
 
 from pydantic import BaseModel
@@ -14,14 +21,22 @@ logger = get_logger(__name__)
 
 
 class ModelGatewayImpl(ModelGatewayInterface):
-    """模型网关实现"""
+    """模型网关实现.
+
+    Implementation of ModelGatewayInterface that delegates to a BaseProvider (configured
+    via settings.MODEL_PROVIDER).
+    """
 
     def __init__(self):
         self._provider: BaseProvider | None = None
         self._init_provider()
 
     def _init_provider(self) -> None:
-        """初始化提供商"""
+        """初始化提供商.
+
+        Initializes the model provider based on settings.MODEL_PROVIDER. If the provider
+        is unknown, defaults to VolcanoProvider and logs a warning.
+        """
         if settings.MODEL_PROVIDER == "volcano":
             self._provider = VolcanoProvider()
         elif settings.MODEL_PROVIDER == "openai_compatible":
@@ -33,7 +48,13 @@ class ModelGatewayImpl(ModelGatewayInterface):
             self._provider = VolcanoProvider()
 
     def set_provider(self, provider: BaseProvider) -> None:
-        """设置提供商"""
+        """设置提供商.
+
+        Sets the model provider to use (overrides the configured one).
+
+        Args:
+            provider: BaseProvider instance to use.
+        """
         self._provider = provider
 
     def chat(
@@ -44,7 +65,23 @@ class ModelGatewayImpl(ModelGatewayInterface):
         max_tokens: int | None = None,
         **kwargs: Any,
     ) -> ModelResponse:
-        """聊天补全"""
+        """聊天补全.
+
+        Delegates chat completion to the underlying model provider and logs the request.
+
+        Args:
+            messages: List of message dictionaries (each with "role" and "content").
+            model: Name of the model to use (if None, uses default).
+            temperature: Sampling temperature (0.0 to 2.0).
+            max_tokens: Maximum tokens to generate (if None, uses provider default).
+            **kwargs: Additional provider-specific keyword arguments.
+
+        Returns:
+            ModelResponse: Response from the model provider.
+
+        Raises:
+            RuntimeError: If no model provider is initialized.
+        """
         if self._provider is None:
             raise RuntimeError("No model provider initialized")
 
@@ -71,7 +108,24 @@ class ModelGatewayImpl(ModelGatewayInterface):
         temperature: float = 0.1,
         **kwargs: Any,
     ) -> BaseModel:
-        """结构化输出"""
+        """结构化输出.
+
+        Delegates structured output request to the underlying model provider and logs
+        the request.
+
+        Args:
+            messages: List of message dictionaries (each with "role" and "content").
+            output_schema: Pydantic BaseModel class to use for parsing the output.
+            model: Name of the model to use (if None, uses default).
+            temperature: Sampling temperature (0.0 to 2.0).
+            **kwargs: Additional provider-specific keyword arguments.
+
+        Returns:
+            BaseModel: Parsed structured output as an instance of output_schema.
+
+        Raises:
+            RuntimeError: If no model provider is initialized.
+        """
         if self._provider is None:
             raise RuntimeError("No model provider initialized")
 
@@ -91,7 +145,21 @@ class ModelGatewayImpl(ModelGatewayInterface):
         )
 
     def embed(self, text: str, model: str | None = None, **kwargs: Any) -> EmbeddingResponse:
-        """文本嵌入"""
+        """文本嵌入.
+
+        Delegates embedding request to the underlying model provider and logs the request.
+
+        Args:
+            text: Text to embed.
+            model: Name of the embedding model to use (if None, uses default).
+            **kwargs: Additional provider-specific keyword arguments.
+
+        Returns:
+            EmbeddingResponse: Response from the embedding provider.
+
+        Raises:
+            RuntimeError: If no model provider is initialized.
+        """
         if self._provider is None:
             raise RuntimeError("No model provider initialized")
 
