@@ -1,7 +1,8 @@
 """Memory & Learning API 路由"""
-from typing import Optional
+from typing import Optional, Dict, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 
 from app.api.models import ErrorResponse
 from memory_learning.contracts import (
@@ -11,6 +12,7 @@ from memory_learning.contracts import (
     FailureMemory,
 )
 from memory_learning.journal import LearningJournal
+from memory_learning.pattern_learner import PatternLearner
 
 router = APIRouter(prefix="/api/memory", tags=["memory"])
 
@@ -21,6 +23,13 @@ def get_learning_journal() -> LearningJournal:
     if not hasattr(get_learning_journal, "_instance"):
         get_learning_journal._instance = LearningJournal()
     return get_learning_journal._instance
+
+
+def get_pattern_learner() -> PatternLearner:
+    """获取 PatternLearner 实例（内存版）"""
+    if not hasattr(get_pattern_learner, "_instance"):
+        get_pattern_learner._instance = PatternLearner()
+    return get_pattern_learner._instance
 
 
 # ─── MarketEpisode 路由 ─────────────────────────────────────────────────
@@ -192,3 +201,73 @@ async def summarize_event_type(
 ):
     """按事件类型汇总统计"""
     return journal.summarize_event_type(event_type)
+
+
+# ─── Pattern Learning 路由 ─────────────────────────────────────────────────
+
+
+@router.get(
+    "/patterns/refresh",
+    response_model=dict[str, Any],
+)
+async def refresh_patterns(
+    journal: LearningJournal = Depends(get_learning_journal),
+    pattern_learner: PatternLearner = Depends(get_pattern_learner),
+):
+    """Refresh pattern learner with all episodes."""
+    all_episodes = journal.list_episodes()
+    pattern_learner.learn_from_episodes(all_episodes)
+    return {
+        "success": True,
+        "episodes_learned": len(all_episodes),
+    }
+
+
+@router.get(
+    "/patterns/event-type/{event_type}",
+    response_model=Optional[dict[str, float]],
+)
+async def get_event_type_pattern(
+    event_type: str,
+    pattern_learner: PatternLearner = Depends(get_pattern_learner),
+):
+    """Get performance statistics for an event type."""
+    return pattern_learner.get_event_type_performance(event_type)
+
+
+@router.get(
+    "/patterns/regime/{market_regime}",
+    response_model=Optional[dict[str, Any]],
+)
+async def get_market_regime_pattern(
+    market_regime: str,
+    pattern_learner: PatternLearner = Depends(get_pattern_learner),
+):
+    """Get performance statistics for a market regime."""
+    return pattern_learner.get_market_regime_performance(market_regime)
+
+
+@router.get(
+    "/patterns/similar/{event_type}",
+    response_model=list[MarketEpisode],
+)
+async def get_similar_episodes(
+    event_type: str,
+    top_k: int = 5,
+    pattern_learner: PatternLearner = Depends(get_pattern_learner),
+):
+    """Get similar episodes (sorted by performance)."""
+    return pattern_learner.find_similar_episodes(event_type, top_k=top_k)
+
+
+@router.get(
+    "/patterns/recommend",
+    response_model=dict[str, Any],
+)
+async def get_recommendation(
+    event_type: str = Query(..., description="Event type"),
+    market_regime: str = Query("unknown", description="Market regime"),
+    pattern_learner: PatternLearner = Depends(get_pattern_learner),
+):
+    """Get recommendation for a new event based on past patterns."""
+    return pattern_learner.get_recommendation(event_type, market_regime)

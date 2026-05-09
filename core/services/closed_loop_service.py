@@ -14,6 +14,9 @@ from core.contracts import EventAlphaSignal
 from data_layer.repositories.models import CanonicalEvent, AlphaSignalDB
 from data_layer.repositories.base import SessionLocal
 from data_layer.adapters.akshare_adapter import AKShareAdapter
+from memory_learning.contracts import MarketEpisode
+from memory_learning.journal import LearningJournal
+from memory_learning.pattern_learner import PatternLearner
 
 logger = get_logger(__name__)
 
@@ -32,6 +35,8 @@ class ClosedLoopService:
             logger.warning(f"Multi-source adapter not available, falling back: {e}")
             self.price_adapter = HybridPriceAdapter()
         self.benchmark_code = "000300.SH"  # 沪深300作为基准
+        self.learning_journal = LearningJournal()
+        self.pattern_learner = PatternLearner()
 
     def generate_signals_from_events(self, event_ids: Optional[List[str]] = None) -> List[EventAlphaSignal]:
         """
@@ -436,8 +441,18 @@ class ClosedLoopService:
         logger.info("Step 2: Backtesting signals...")
         results = self.backtest_signals()
 
-        # Step 3: 生成摘要
-        summary = self._generate_summary(signals, results)
+        # Step 3: 记录market episodes（学习）
+        logger.info("Step 3: Recording market episodes...")
+        episodes_recorded = self._record_market_episodes(results)
+
+        # Step 4: 更新pattern learner
+        if episodes_recorded > 0:
+            logger.info("Step 4: Learning patterns from episodes...")
+            all_episodes = self.learning_journal.list_episodes()
+            self.pattern_learner.learn_from_episodes(all_episodes)
+
+        # Step 5: 生成摘要
+        summary = self._generate_summary(signals, results, episodes_recorded)
 
         logger.info("=" * 60)
         logger.info("Closed-loop pipeline completed")
@@ -445,7 +460,53 @@ class ClosedLoopService:
 
         return summary
 
-    def _generate_summary(self, signals: List, results: List[Dict]) -> Dict[str, Any]:
+    def _record_market_episodes(self, results: List[Dict[str, Any]]) -> int:
+        """Record market episodes from backtest results."""
+        recorded_count = 0
+
+        for result in results:
+            try:
+                # Get signal details
+                db = SessionLocal()
+                try:
+                    signal = db.query(AlphaSignalDB).filter(AlphaSignalDB.signal_id == result["signal_id"]).first()
+                    if not signal:
+                        continue
+
+                    # Create market episode
+                    episode = MarketEpisode(
+                        episode_id=str(uuid.uuid4()),
+                        event_id=signal.event_id,
+                        event_type=signal.event_type,
+                        market_regime="unknown",  # We'll enhance this later
+                        initial_reaction="unknown",
+                        outcome_horizon="20d",
+                        outcome_return=result["return"],
+                        outcome_excess_return=result["excess_return"],
+                        timing_action="enter",
+                        signal_id=result["signal_id"],
+                        failed_reason=None if result["direction_correct"] else "direction_wrong",
+                        lesson=result.get("lesson", ""),
+                        evidence_refs=[signal.event_id] if signal.event_id else [],
+                        metadata={
+                            "signal_score": float(signal.score) if signal.score else 0.5,
+                            "signal_confidence": float(signal.confidence) if signal.confidence else 0.5,
+                        },
+                    )
+
+                    # Record the episode
+                    self.learning_journal.record_episode(episode)
+                    recorded_count += 1
+                finally:
+                    db.close()
+
+            except Exception as e:
+                logger.error(f"Failed to record episode for signal {result.get('signal_id')}: {e}")
+
+        logger.info(f"Recorded {recorded_count} market episodes")
+        return recorded_count
+
+    def _generate_summary(self, signals: List, results: List[Dict], episodes_recorded: int = 0) -> Dict[str, Any]:
         """生成闭环摘要"""
         total_signals = len(signals)
         total_backtested = len(results)
@@ -461,6 +522,23 @@ class ClosedLoopService:
             win_rate = 0.0
             correct_direction_rate = 0.0
 
+        # Get learning insights
+        learning_insights = []
+        if episodes_recorded > 0:
+            all_episodes = self.learning_journal.list_episodes()
+            if all_episodes:
+                # Get insights by event type
+                event_types = set(e.event_type for e in all_episodes)
+                for event_type in event_types:
+                    perf = self.pattern_learner.get_event_type_performance(event_type)
+                    if perf:
+                        learning_insights.append({
+                            "event_type": event_type,
+                            "win_rate": perf["win_rate"],
+                            "avg_excess_return": perf["average_excess_return"],
+                            "sample_size": perf["sample_size"],
+                        })
+
         summary = {
             "signals_generated": total_signals,
             "signals_backtested": total_backtested,
@@ -469,6 +547,8 @@ class ClosedLoopService:
             "win_rate": win_rate,
             "correct_direction_rate": correct_direction_rate,
             "results": results,
+            "episodes_recorded": episodes_recorded,
+            "learning_insights": learning_insights[:5],  # Top 5 insights
         }
 
         return summary
