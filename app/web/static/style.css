@@ -1608,3 +1608,141 @@ tr:hover td {
 .diffusion-low {
     background: var(--success);
 }
+
+/* ============================================================
+   Signal Lab Styles
+   ============================================================ */
+
+/* Tabs */
+.tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+}
+
+.tab-btn {
+    padding: 8px 16px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    font-size: 14px;
+}
+
+.tab-btn:hover {
+    color: var(--text-primary);
+    background: var(--bg-input);
+}
+
+.tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+}
+
+.tab-panel {
+    display: block;
+}
+
+.tab-panel.hidden {
+    display: none;
+}
+
+/* Feature Groups Grid */
+.feature-groups-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.feature-group-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+}
+
+.feature-group-card .fg-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.feature-group-card .fg-desc {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.feature-group-card .fg-count {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.feature-group-card .fg-features {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.feature-tag {
+    display: inline-block;
+    background: var(--accent-light);
+    color: var(--accent);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+}
+
+/* Label Types List */
+.label-types-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.label-type-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+}
+
+.label-type-card .lt-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.label-type-card .lt-desc {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+/* Scorers Grid */
+.scorers-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.scorer-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+}
+
+.scorer-card .sc-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.scorer-card .sc-desc {
+    font-size: 13px;
+    color: var(--text-secondary);
+}

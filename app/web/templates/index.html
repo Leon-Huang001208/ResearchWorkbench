@@ -23,6 +23,7 @@
                 <button class="activity-btn" data-section="signals" title="信号管理"><i class="codicon codicon-pulse"></i></button>
                 <button class="activity-btn" data-section="outcomes" title="回测结果"><i class="codicon codicon-checklist"></i></button>
                 <button class="activity-btn" data-section="closed-loop" title="闭循环运行"><i class="codicon codicon-sync"></i></button>
+                <button class="activity-btn" data-section="signal-lab" title="Signal Lab"><i class="codicon codicon-beaker"></i></button>
                 <button class="activity-btn" data-section="ingest" title="文档摄入"><i class="codicon codicon-cloud-download"></i></button>
                 <button class="activity-btn" data-section="memory" title="记忆与学习"><i class="codicon codicon-lightbulb"></i></button>
             </div>
@@ -450,6 +451,121 @@
                     <span data-i18n="ingest.loading">正在摄入文档...</span>
                 </div>
                 <div id="ingest-result" class="result-area hidden"></div>
+            </section>
+
+            <!-- Signal Lab Section -->
+            <section id="section-signal-lab" class="content-section">
+                <h2 class="section-title">Signal Lab — 信号研究实验室</h2>
+
+                <!-- Summary Cards -->
+                <div class="card-row" id="signal-lab-summary">
+                    <div class="summary-card">
+                        <div class="summary-label">信号总数</div>
+                        <div class="summary-value" id="sl-signals-count">-</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-label">回测次数</div>
+                        <div class="summary-value" id="sl-backtests-count">-</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-label">特征数量</div>
+                        <div class="summary-value" id="sl-features-count">-</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-label">特征组数量</div>
+                        <div class="summary-value" id="sl-groups-count">-</div>
+                    </div>
+                </div>
+
+                <!-- Tabs -->
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="features">特征工程</button>
+                    <button class="tab-btn" data-tab="labels">标签生成</button>
+                    <button class="tab-btn" data-tab="scorers">信号评分</button>
+                    <button class="tab-btn" data-tab="backtests">回测分析</button>
+                </div>
+
+                <!-- Features Panel -->
+                <div id="tab-features" class="tab-panel active">
+                    <div class="card">
+                        <h3>特征组</h3>
+                        <div id="feature-groups-list" class="feature-groups-grid"></div>
+                    </div>
+                    <div class="card">
+                        <h3>计算特征</h3>
+                        <div class="input-row">
+                            <input type="text" id="sl-subject-id" value="600519.SH" placeholder="标的代码，如 600519.SH">
+                            <select id="sl-feature-group">
+                                <option value="">全部特征组</option>
+                            </select>
+                            <button id="btn-compute-features" class="btn-primary">计算特征</button>
+                        </div>
+                        <div id="sl-features-loading" class="loading hidden">
+                            <div class="spinner"></div>
+                            <span>正在计算特征...</span>
+                        </div>
+                        <div id="sl-features-result" class="result-area hidden">
+                            <h4>特征结果</h4>
+                            <div id="sl-features-table"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Labels Panel -->
+                <div id="tab-labels" class="tab-panel hidden">
+                    <div class="card">
+                        <h3>标签类型</h3>
+                        <div id="label-types-list" class="label-types-list"></div>
+                    </div>
+                    <div class="card">
+                        <h3>计算标签</h3>
+                        <div class="input-row">
+                            <input type="text" id="sl-label-subject" value="600519.SH" placeholder="标的代码">
+                            <select id="sl-label-type">
+                                <option value="relative_return">相对收益</option>
+                                <option value="event_driven">事件驱动</option>
+                            </select>
+                            <input type="number" id="sl-label-horizon" value="20" min="1" max="120" placeholder="预测周期">
+                            <button id="btn-compute-labels" class="btn-primary">计算标签</button>
+                        </div>
+                        <div id="sl-labels-loading" class="loading hidden">
+                            <div class="spinner"></div>
+                            <span>正在计算标签...</span>
+                        </div>
+                        <div id="sl-labels-result" class="result-area hidden">
+                            <h4>标签结果</h4>
+                            <div id="sl-labels-table"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Scorers Panel -->
+                <div id="tab-scorers" class="tab-panel hidden">
+                    <div class="card">
+                        <h3>评分器类型</h3>
+                        <div id="scorers-list" class="scorers-grid"></div>
+                    </div>
+                </div>
+
+                <!-- Backtests Panel -->
+                <div id="tab-backtests" class="tab-panel hidden">
+                    <div class="card">
+                        <h3>运行回测</h3>
+                        <div class="input-row">
+                            <input type="text" id="sl-backtest-signals" placeholder="信号ID，逗号分隔（留空则回测所有未回测信号）">
+                            <input type="number" id="sl-initial-capital" value="1000000" min="10000" placeholder="初始资金">
+                            <button id="btn-run-backtests" class="btn-primary">运行回测</button>
+                        </div>
+                        <div id="sl-backtests-loading" class="loading hidden">
+                            <div class="spinner"></div>
+                            <span>正在运行回测...</span>
+                        </div>
+                        <div id="sl-backtests-result" class="result-area hidden">
+                            <h4>回测结果</h4>
+                            <div id="sl-backtests-table"></div>
+                        </div>
+                    </div>
+                </div>
             </section>
 
             <!-- Memory & Learning Section -->
