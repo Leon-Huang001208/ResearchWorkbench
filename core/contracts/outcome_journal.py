@@ -1,6 +1,9 @@
-"""Outcome journal contracts for trade outcome tracking and failure memory.
+"""
+Core contracts for the outcome journal (trade outcome tracking and failure memory).
 
-Implements the structured outcome recording and failure classification required for the failure-memory engine.
+This module defines Pydantic models for structured outcome recording, failure
+classification, similar case retrieval, and weekly review reports, supporting
+the failure-memory engine in AlphaFoundry.
 """
 from datetime import datetime
 from enum import Enum

@@ -1,7 +1,10 @@
-"""Paper Trading 和 Portfolio Simulation 契约。
+"""
+Core contracts for paper trading and portfolio simulation.
 
-定义模拟交易的完整数据模型：PaperPortfolio、RebalanceEvent、SimulationResult、
-PerformanceMetrics 等，用于跟踪模拟组合在时间序列上的表现。
+This module defines Pydantic models for simulating trading and portfolio
+performance, including PaperPortfolio, RebalanceEvent, SimulationResult,
+PerformanceMetrics, and more, for tracking simulated portfolio performance
+over time in AlphaFoundry.
 """
 from datetime import datetime
 from enum import Enum
