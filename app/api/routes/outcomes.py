@@ -11,9 +11,13 @@ router = APIRouter(prefix="/api/outcomes", tags=["outcomes"])
 
 
 def get_outcome_service() -> OutcomeService:
-    """获取 OutcomeService 实例（内存版）"""
+    """获取 OutcomeService 实例（持久化版）"""
     if not hasattr(get_outcome_service, "_instance"):
-        get_outcome_service._instance = OutcomeService()
+        from data_layer.repositories.outcome_repository import OutcomeRepositoryImpl
+        from data_layer.repositories.base import SessionLocal
+        # 初始化持久化仓储
+        repo = OutcomeRepositoryImpl(SessionLocal())
+        get_outcome_service._instance = OutcomeService(repository=repo)
     return get_outcome_service._instance
 
 
@@ -88,3 +92,30 @@ async def update_lesson(
     if outcome is None:
         raise HTTPException(status_code=404, detail=f"Outcome {outcome_id} not found")
     return outcome
+
+
+@router.get(
+    "/{signal_id}/with-signal-detail",
+    response_model=dict,
+    responses={404: {"model": ErrorResponse}},
+)
+async def get_outcome_with_signal_detail(
+    signal_id: str,
+    service: OutcomeService = Depends(get_outcome_service),
+):
+    """查询信号评估结果及关联的信号详情"""
+    outcome = service.get_outcome_by_signal(signal_id)
+    if outcome is None:
+        raise HTTPException(status_code=404, detail=f"Outcome for signal {signal_id} not found")
+    
+    # 获取关联的信号详情
+    from data_layer.repositories.signal_repository import SignalRepositoryImpl
+    from data_layer.repositories.base import SessionLocal
+    signal_repo = SignalRepositoryImpl(SessionLocal())
+    signal_detail = signal_repo.get_by_signal_id(signal_id)
+    
+    return {
+        "outcome": outcome,
+        "signal_detail": signal_detail,
+        "signal_id": signal_id
+    }
