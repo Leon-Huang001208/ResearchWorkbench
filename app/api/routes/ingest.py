@@ -84,17 +84,26 @@ async def ingest_cls(
     days: int = 2,
     start_date: str | None = None,
     end_date: str | None = None,
+    service: IngestService = Depends(get_ingest_service),
 ):
-    """摄入财联社电报"""
+    """摄入财联社电报（走完整envelope ingestion流程）"""
     try:
         router_ = DataSourceRouter()
         envelopes = await router_.fetch_news_cls(
             days=days, start_date=start_date, end_date=end_date
         )
+        
+        # 将所有envelope推送到完整摄入流程
+        doc_ids = []
+        for envelope in envelopes:
+            result = service.ingest_envelope(envelope)
+            if result.get("doc_id"):
+                doc_ids.append(result["doc_id"])
+        
         return IngestResponse(
             success=True,
-            message=f"Fetched {len(envelopes)} CLS telegrams",
-            doc_ids=[e.id for e in envelopes],
+            message=f"Successfully ingested {len(doc_ids)} of {len(envelopes)} CLS telegrams through envelope ingestion pipeline",
+            doc_ids=doc_ids,
         )
     except Exception as e:
         logger.error("cls ingest failed", error=str(e))
@@ -106,17 +115,26 @@ async def ingest_cnstock(
     start_date: str = "",
     end_date: str = "",
     channel: str = "证券",
+    service: IngestService = Depends(get_ingest_service),
 ):
-    """摄入中国证券网新闻"""
+    """摄入中国证券网新闻（走完整envelope ingestion流程）"""
     try:
         router_ = DataSourceRouter()
         envelopes = await router_.fetch_news_cnstock(
             start_date=start_date, end_date=end_date, channel=channel
         )
+        
+        # 将所有envelope推送到完整摄入流程
+        doc_ids = []
+        for envelope in envelopes:
+            result = service.ingest_envelope(envelope)
+            if result.get("doc_id"):
+                doc_ids.append(result["doc_id"])
+        
         return IngestResponse(
             success=True,
-            message=f"Fetched {len(envelopes)} cnstock news",
-            doc_ids=[e.id for e in envelopes],
+            message=f"Successfully ingested {len(doc_ids)} of {len(envelopes)} cnstock news through envelope ingestion pipeline",
+            doc_ids=doc_ids,
         )
     except Exception as e:
         logger.error("cnstock ingest failed", error=str(e))
@@ -129,18 +147,27 @@ async def ingest_zq(
     doc_types: str = "REPORT",
     start_date: str | None = None,
     end_date: str | None = None,
+    service: IngestService = Depends(get_ingest_service),
 ):
-    """摄入知丘内容（研报/公众号/会议纪要）"""
+    """摄入知丘内容（研报/公众号/会议纪要，走完整envelope ingestion流程）"""
     try:
         router_ = DataSourceRouter()
         envelopes = await router_.fetch_reports_zq(
             search=search, doc_types=doc_types,
             start_date=start_date, end_date=end_date
         )
+        
+        # 将所有envelope推送到完整摄入流程
+        doc_ids = []
+        for envelope in envelopes:
+            result = service.ingest_envelope(envelope)
+            if result.get("doc_id"):
+                doc_ids.append(result["doc_id"])
+        
         return IngestResponse(
             success=True,
-            message=f"Fetched {len(envelopes)} zq documents",
-            doc_ids=[e.id for e in envelopes],
+            message=f"Successfully ingested {len(doc_ids)} of {len(envelopes)} zq documents through envelope ingestion pipeline",
+            doc_ids=doc_ids,
         )
     except Exception as e:
         logger.error("zq ingest failed", error=str(e))
