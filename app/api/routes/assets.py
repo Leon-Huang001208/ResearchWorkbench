@@ -1,13 +1,28 @@
 """资产分析路由"""
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.api.models import AnalyzeRequest, AnalyzeResponse, ErrorResponse
-from core.contracts import AssetAnalysisSnapshot
+from core.contracts import AssetAnalysisSnapshot, AssetAnalysisCard
 from core.services.asset_analysis_service import AssetAnalysisService
 from data_layer.repositories.base import get_db
 
 router = APIRouter(prefix="/api/assets", tags=["assets"])
+
+
+class AnalysisCardRequest(BaseModel):
+    """资产分析卡请求"""
+    canonical_id: str = Field(..., description="资产唯一标识")
+    as_of: datetime | None = Field(None, description="指定分析时间")
+    use_mock: bool = Field(True, description="是否使用模拟数据")
+    source: str | None = Field(None, description="数据源")
+
+
+class AnalysisCardResponse(AssetAnalysisCard):
+    """资产分析卡响应"""
+    pass
 
 
 def _snapshot_to_response(snapshot: AssetAnalysisSnapshot) -> AnalyzeResponse:
@@ -83,3 +98,25 @@ async def get_asset_snapshot(
     if snapshot is None:
         raise HTTPException(status_code=404, detail=f"Snapshot not found for {canonical_id}")
     return _snapshot_to_response(snapshot)
+
+
+@router.post(
+    "/analysis-card",
+    response_model=AnalysisCardResponse,
+    responses={500: {"model": ErrorResponse}},
+)
+async def get_analysis_card(
+    request: AnalysisCardRequest,
+    service: AssetAnalysisService = Depends(get_asset_service),
+):
+    """生成资产分析卡（包含K线、资金流向、股东、财务、行业、事件、宏观等完整信息）"""
+    try:
+        card = await service.generate_analysis_card(
+            canonical_id=request.canonical_id,
+            as_of=request.as_of,
+            use_mock=request.use_mock,
+            source=request.source,
+        )
+        return card
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

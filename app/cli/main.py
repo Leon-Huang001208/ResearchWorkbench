@@ -13,6 +13,7 @@ from app.cli.commands.review import review
 from app.cli.commands.scenario import scenario
 from app.cli.commands.signal import signal
 from app.cli.commands.timing import timing
+from app.cli.commands.akshare import akshare
 from core.observability import configure_logging
 from core.settings import settings
 
@@ -38,6 +39,7 @@ cli.add_command(signal)
 cli.add_command(backtest)
 cli.add_command(timing)
 cli.add_command(memory)
+cli.add_command(akshare)
 
 
 if __name__ == "__main__":

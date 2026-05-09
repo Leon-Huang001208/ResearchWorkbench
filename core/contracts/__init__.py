@@ -1,5 +1,17 @@
 from .assertions import Assertion
-from .assets import AssetAnalysisSnapshot
+from .assets import (
+    AssetAnalysisSnapshot,
+    AssetAnalysisCard,
+    AssetBasicInfo,
+    Shareholder,
+    FinancialSummary,
+    CapitalFlow,
+    CapitalFlowItem,
+    IndustryData,
+    PriceBar,
+    EventImpact,
+    MacroSensitivity,
+)
 from .documents import DocumentEnvelope
 from .events import CanonicalEvent
 from .ids import CanonicalId
@@ -103,6 +115,16 @@ __all__ = [
     "CanonicalId",
     "DocumentEnvelope",
     "AssetAnalysisSnapshot",
+    "AssetAnalysisCard",
+    "AssetBasicInfo",
+    "Shareholder",
+    "FinancialSummary",
+    "CapitalFlow",
+    "CapitalFlowItem",
+    "IndustryData",
+    "PriceBar",
+    "EventImpact",
+    "MacroSensitivity",
     "CanonicalEvent",
     "Assertion",
     "ScenarioHypothesis",

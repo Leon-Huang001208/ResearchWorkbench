@@ -183,11 +183,11 @@
             <section id="section-asset-analysis" class="content-section">
                 <h2 class="section-title" data-i18n="asset.title">资产分析</h2>
                 <div class="input-row">
-                    <input type="text" id="asset-code" value="600000.SH" data-i18n-placeholder="asset.code_placeholder" placeholder="输入资产代码，如 600000.SH">
-                    <select id="asset-source" hidden>
+                    <input type="text" id="asset-code" value="600519.SH" data-i18n-placeholder="asset.code_placeholder" placeholder="输入资产代码，如 600519.SH">
+                    <select id="asset-source">
+                        <option value="mock" selected data-i18n="asset.source_mock">Mock 数据</option>
                         <option value="auto" data-i18n="asset.source_auto">自动（推荐）</option>
                         <option value="akshare" data-i18n="asset.source_akshare">AKShare 开源数据</option>
-                        <option value="mock" data-i18n="asset.source_mock">Mock 数据</option>
                         <option value="local" data-i18n="asset.source_local">本地缓存</option>
                         <option value="ifind" data-i18n="asset.source_ifind">iFinD</option>
                     </select>
@@ -198,40 +198,149 @@
                     <span data-i18n="asset.loading">正在分析资产...</span>
                 </div>
                 <div id="asset-result" class="result-area hidden">
-                    <div class="card-grid">
-                        <div class="card">
-                            <h3 data-i18n="asset.valuation">估值</h3>
-                            <div id="valuation-cards" class="info-grid"></div>
+                    <!-- 基本信息卡片 -->
+                    <div class="card asset-basic-card">
+                        <div class="asset-header">
+                            <div class="asset-name-section">
+                                <h3 id="asset-name" class="asset-name">--</h3>
+                                <span id="asset-code-display" class="asset-code">--</span>
+                            </div>
+                            <div class="asset-price-section">
+                                <span id="asset-price" class="asset-price">--</span>
+                                <span id="asset-change" class="asset-change">--</span>
+                                <span id="asset-change-pct" class="asset-change-pct">--</span>
+                            </div>
                         </div>
-                        <div class="card">
-                            <h3 data-i18n="asset.fund_flow">资金流向</h3>
-                            <div id="fund-flow-info" class="info-grid"></div>
+                        <div class="asset-metrics-grid">
+                            <div class="metric-item">
+                                <span class="metric-label">成交量</span>
+                                <span id="asset-volume" class="metric-value">--</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">成交额</span>
+                                <span id="asset-amount" class="metric-value">--</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">换手率</span>
+                                <span id="asset-turnover" class="metric-value">--</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">市值</span>
+                                <span id="asset-market-cap" class="metric-value">--</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">52周最高</span>
+                                <span id="asset-high-52w" class="metric-value">--</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">52周最低</span>
+                                <span id="asset-low-52w" class="metric-value">--</span>
+                            </div>
                         </div>
                     </div>
+
+                    <!-- K线图 -->
                     <div class="card">
-                        <h3 data-i18n="asset.price_volume">量价走势</h3>
+                        <h3>K线走势</h3>
                         <canvas id="chart-price-volume"></canvas>
                     </div>
-                    <div class="card-grid">
-                        <div class="card">
-                            <h3 data-i18n="asset.financial">财务数据</h3>
-                            <div id="financial-table" class="data-table-wrap"></div>
+
+                    <!-- 资金流向卡片 -->
+                    <div class="card capital-flow-card">
+                        <h3>资金流向</h3>
+                        <div class="capital-flow-layout">
+                            <div class="capital-flow-pie">
+                                <canvas id="chart-capital-flow"></canvas>
+                            </div>
+                            <div class="capital-flow-details" id="capital-flow-details">
+                                <!-- 资金流向详情 -->
+                            </div>
                         </div>
-                        <div class="card">
-                            <h3 data-i18n="asset.shareholder">股东</h3>
-                            <div id="shareholder-info" class="info-grid"></div>
+                    </div>
+
+                    <!-- 5面板核心数据卡片 -->
+                    <div class="asset-five-panels">
+                        <!-- 财务面板 -->
+                        <div class="card panel-card">
+                            <div class="panel-header">
+                                <h4>财务</h4>
+                            </div>
+                            <div id="financial-panel" class="panel-content">
+                                <div class="panel-grid">
+                                    <div class="panel-item">
+                                        <span class="panel-label">PE-TTM</span>
+                                        <span id="fin-pe" class="panel-value">--</span>
+                                    </div>
+                                    <div class="panel-item">
+                                        <span class="panel-label">PB-MRQ</span>
+                                        <span id="fin-pb" class="panel-value">--</span>
+                                    </div>
+                                    <div class="panel-item">
+                                        <span class="panel-label">ROE</span>
+                                        <span id="fin-roe" class="panel-value">--</span>
+                                    </div>
+                                    <div class="panel-item">
+                                        <span class="panel-label">营收</span>
+                                        <span id="fin-revenue" class="panel-value">--</span>
+                                    </div>
+                                    <div class="panel-item">
+                                        <span class="panel-label">净利润</span>
+                                        <span id="fin-net-profit" class="panel-value">--</span>
+                                    </div>
+                                    <div class="panel-item">
+                                        <span class="panel-label">毛利率</span>
+                                        <span id="fin-gross-margin" class="panel-value">--</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="card">
-                            <h3 data-i18n="asset.industry">产业</h3>
-                            <div id="industry-info" class="info-grid"></div>
+
+                        <!-- 股东面板 -->
+                        <div class="card panel-card">
+                            <div class="panel-header">
+                                <h4>前十大股东</h4>
+                            </div>
+                            <div id="shareholder-panel" class="panel-content">
+                                <div class="shareholder-list" id="shareholder-list">
+                                    <!-- 股东列表 -->
+                                </div>
+                            </div>
                         </div>
-                        <div class="card">
-                            <h3 data-i18n="asset.event_impact">事件影响</h3>
-                            <ul id="event-impact-list" class="event-list"></ul>
+
+                        <!-- 行业面板 -->
+                        <div class="card panel-card">
+                            <div class="panel-header">
+                                <h4>行业</h4>
+                            </div>
+                            <div id="industry-panel" class="panel-content">
+                                <div class="industry-info" id="industry-info-detail">
+                                    <!-- 行业信息 -->
+                                </div>
+                            </div>
                         </div>
-                        <div class="card">
-                            <h3 data-i18n="asset.macro">宏观</h3>
-                            <div id="macro-info" class="info-grid"></div>
+
+                        <!-- 事件面板 -->
+                        <div class="card panel-card">
+                            <div class="panel-header">
+                                <h4>相关事件</h4>
+                            </div>
+                            <div id="events-panel" class="panel-content">
+                                <div class="event-list-panel" id="event-list-panel">
+                                    <!-- 事件列表 -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 宏观面板 -->
+                        <div class="card panel-card">
+                            <div class="panel-header">
+                                <h4>宏观</h4>
+                            </div>
+                            <div id="macro-panel" class="panel-content">
+                                <div class="macro-sensitivity" id="macro-sensitivity-detail">
+                                    <!-- 宏观敏感性分析 -->
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

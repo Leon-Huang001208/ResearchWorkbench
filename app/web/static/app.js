@@ -543,8 +543,10 @@ async function loadDashboard() {
 // Asset Analysis
 // ═══════════════════════════════════════════════════════════════
 
+// 新的资产分析方法
 async function analyzeAsset() {
     const code = document.getElementById('asset-code').value.trim();
+    const source = document.getElementById('asset-source').value;
     if (!code) return toast(I18N.t('toast.enter_asset_code'), 'error');
 
     const loading = document.getElementById('asset-loading');
@@ -553,19 +555,399 @@ async function analyzeAsset() {
     loading.classList.remove('hidden');
 
     try {
-        const data = await apiCall('POST', '/api/assets/analyze', {
+        const data = await apiCall('POST', '/api/assets/analysis-card', {
             canonical_id: code,
+            source: source,
+            use_mock: source === 'mock',
         });
-        renderAssetResult(data);
+        renderAssetAnalysisCard(data);
         result.classList.remove('hidden');
         toast(I18N.t('toast.analyze_complete'), 'success');
     } catch (e) {
-        toast(e.message, 'error');
+        // 降级到老方法
+        console.log('Falling back to legacy asset analysis:', e);
+        try {
+            const legacyData = await apiCall('POST', '/api/assets/analyze', {
+                canonical_id: code,
+            });
+            renderAssetResult(legacyData);
+            result.classList.remove('hidden');
+            toast(I18N.t('toast.analyze_complete'), 'success');
+        } catch (e2) {
+            toast(e2.message, 'error');
+        }
     } finally {
         loading.classList.add('hidden');
     }
 }
 
+// 渲染新的资产分析卡片
+function renderAssetAnalysisCard(data) {
+    // 基本信息
+    const basic = data.basic_info || {};
+    document.getElementById('asset-name').textContent = basic.name || data.canonical_id || '--';
+    document.getElementById('asset-code-display').textContent = basic.symbol || data.canonical_id || '--';
+
+    // 价格信息
+    const priceClass = (data.price_change_pct || 0) >= 0 ? 'price-up' : 'price-down';
+    const changePrefix = (data.price_change_pct || 0) >= 0 ? '+' : '';
+    document.getElementById('asset-price').textContent = data.current_price ? data.current_price.toFixed(2) : '--';
+    document.getElementById('asset-price').className = `asset-price ${priceClass}`;
+    document.getElementById('asset-change').textContent = data.price_change !== undefined ? `${changePrefix}${data.price_change.toFixed(2)}` : '--';
+    document.getElementById('asset-change').className = `asset-change ${priceClass}`;
+    document.getElementById('asset-change-pct').textContent = data.price_change_pct !== undefined ? `(${changePrefix}${data.price_change_pct.toFixed(2)}%)` : '--';
+    document.getElementById('asset-change-pct').className = `asset-change-pct ${priceClass}`;
+
+    // 市场数据
+    document.getElementById('asset-volume').textContent = fmtVolume(data.volume);
+    document.getElementById('asset-amount').textContent = fmtAmount(data.amount);
+    document.getElementById('asset-turnover').textContent = data.turnover !== undefined ? `${data.turnover.toFixed(2)}%` : '--';
+    document.getElementById('asset-market-cap').textContent = fmtMarketCap(basic.market_cap);
+    document.getElementById('asset-high-52w').textContent = data.high_52w !== undefined ? data.high_52w.toFixed(2) : '--';
+    document.getElementById('asset-low-52w').textContent = data.low_52w !== undefined ? data.low_52w.toFixed(2) : '--';
+
+    // 财务数据
+    const fin = data.financial || {};
+    document.getElementById('fin-pe').textContent = fin.pe_ttm !== undefined ? fin.pe_ttm.toFixed(2) : '--';
+    document.getElementById('fin-pb').textContent = fin.pb_mrq !== undefined ? fin.pb_mrq.toFixed(2) : '--';
+    document.getElementById('fin-roe').textContent = fin.roe !== undefined ? `${fin.roe.toFixed(2)}%` : '--';
+    document.getElementById('fin-revenue').textContent = fmtRevenue(fin.revenue);
+    document.getElementById('fin-net-profit').textContent = fmtNetProfit(fin.net_profit);
+    document.getElementById('fin-gross-margin').textContent = fin.gross_margin !== undefined ? `${fin.gross_margin.toFixed(2)}%` : '--';
+
+    // K线图
+    renderPriceVolumeChartAdvanced(data.price_bars || []);
+
+    // 资金流向
+    renderCapitalFlowChart(data.capital_flow);
+
+    // 股东列表
+    renderShareholderList(data.top_10_shareholders || []);
+
+    // 行业信息
+    renderIndustryInfo(data.industry);
+
+    // 事件列表
+    renderEventListPanel(data.recent_events || []);
+
+    // 宏观敏感性
+    renderMacroSensitivity(data.macro_sensitivity);
+}
+
+// 渲染K线图
+function renderPriceVolumeChartAdvanced(priceBars) {
+    const colors = getChartColors();
+    if (chartPriceVolume) chartPriceVolume.destroy();
+
+    const labels = priceBars.map(b => {
+        if (typeof b.date === 'string') return b.date.substring(5);
+        if (b.date instanceof Date) return `${b.date.getMonth() + 1}-${b.date.getDate()}`;
+        return '';
+    });
+    const closePrices = priceBars.map(b => b.close);
+    const volumes = priceBars.map(b => b.volume || 0);
+
+    const ctx = document.getElementById('chart-price-volume').getContext('2d');
+    chartPriceVolume = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: '收盘价',
+                    data: closePrices,
+                    borderColor: colors.blue,
+                    backgroundColor: colors.blue + '20',
+                    fill: true,
+                    tension: 0.2,
+                    pointRadius: 0,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        color: colors.grid,
+                    }
+                },
+                y: {
+                    grid: {
+                        color: colors.grid,
+                    }
+                }
+            }
+        }
+    });
+}
+
+// 渲染资金流向
+let chartCapitalFlow = null;
+function renderCapitalFlowChart(capitalFlow) {
+    if (!capitalFlow) {
+        document.getElementById('capital-flow-details').innerHTML = '<p class="empty-state">暂无资金流向数据</p>';
+        return;
+    }
+
+    // 渲染饼图
+    const colors = getChartColors();
+    if (chartCapitalFlow) chartCapitalFlow.destroy();
+
+    const labels = ['主力净流入', '超大单', '大单', '中单', '小单'];
+    const values = [
+        capitalFlow.main_net || 0,
+        capitalFlow.super_net || 0,
+        capitalFlow.large_net || 0,
+        capitalFlow.medium_net || 0,
+        capitalFlow.small_net || 0,
+    ];
+
+    // 过滤掉0值
+    const validData = labels.map((l, i) => ({ label: l, value: values[i] })).filter(d => d.value !== 0);
+    const validLabels = validData.map(d => d.label);
+    const validValues = validData.map(d => Math.abs(d.value));
+    const bgColors = validData.map(d => d.value >= 0 ? colors.green : colors.red);
+
+    const ctx = document.getElementById('chart-capital-flow').getContext('2d');
+    chartCapitalFlow = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: validLabels,
+            datasets: [
+                {
+                    data: validValues,
+                    backgroundColor: bgColors.length ? bgColors : [colors.blue, colors.orange, colors.green, colors.red, colors.purple],
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                }
+            }
+        }
+    });
+
+    // 渲染详情
+    const detailsHtml = `
+        <div class="flow-detail-item">
+            <span class="flow-label">主力流入</span>
+            <span class="flow-value inflow">${fmtAmount(capitalFlow.main_inflow)}</span>
+        </div>
+        <div class="flow-detail-item">
+            <span class="flow-label">主力流出</span>
+            <span class="flow-value outflow">${fmtAmount(capitalFlow.main_outflow)}</span>
+        </div>
+        <div class="flow-detail-item">
+            <span class="flow-label">主力净流入</span>
+            <span class="flow-value ${(capitalFlow.main_net || 0) >= 0 ? 'inflow' : 'outflow'}">
+                ${(capitalFlow.main_net || 0) >= 0 ? '+' : ''}${fmtAmount(capitalFlow.main_net)}
+            </span>
+        </div>
+        ${capitalFlow.northbound_flow !== undefined ? `
+            <div class="flow-detail-item">
+                <span class="flow-label">北向资金</span>
+                <span class="flow-value ${capitalFlow.northbound_flow >= 0 ? 'inflow' : 'outflow'}">
+                    ${capitalFlow.northbound_flow >= 0 ? '+' : ''}${fmtAmount(capitalFlow.northbound_flow)}
+                </span>
+            </div>
+        ` : ''}
+    `;
+    document.getElementById('capital-flow-details').innerHTML = detailsHtml;
+}
+
+// 渲染股东列表
+function renderShareholderList(shareholders) {
+    const container = document.getElementById('shareholder-list');
+    if (!shareholders || !shareholders.length) {
+        container.innerHTML = '<p class="empty-state">暂无股东数据</p>';
+        return;
+    }
+
+    container.innerHTML = shareholders.map(sh => `
+        <div class="shareholder-item">
+            <div class="shareholder-name">${esc(sh.name)}</div>
+            <div class="shareholder-meta">
+                <span class="shareholder-ratio">${sh.share_ratio.toFixed(2)}%</span>
+                ${sh.change_ratio !== undefined ? `
+                    <span class="shareholder-change ${sh.change_ratio >= 0 ? 'change-up' : 'change-down'}">
+                        ${sh.change_ratio >= 0 ? '+' : ''}${sh.change_ratio.toFixed(2)}%
+                    </span>
+                ` : ''}
+                ${sh.is_state_owned ? '<span class="soe-badge">国资</span>' : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+// 渲染行业信息
+function renderIndustryInfo(industry) {
+    const container = document.getElementById('industry-info-detail');
+    if (!industry) {
+        container.innerHTML = '<p class="empty-state">暂无行业数据</p>';
+        return;
+    }
+
+    container.innerHTML = `
+        <div class="industry-class">
+            <div class="industry-label">申万一级</div>
+            <div class="industry-value">${esc(industry.sw_level_1 || '--')}</div>
+        </div>
+        <div class="industry-class">
+            <div class="industry-label">申万二级</div>
+            <div class="industry-value">${esc(industry.sw_level_2 || '--')}</div>
+        </div>
+        <div class="industry-metrics">
+            <div class="metric-row">
+                <span class="metric-label">行业PE</span>
+                <span class="metric-value">${industry.industry_pe !== undefined ? industry.industry_pe.toFixed(2) : '--'}</span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">行业PB</span>
+                <span class="metric-value">${industry.industry_pb !== undefined ? industry.industry_pb.toFixed(2) : '--'}</span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">板块排名</span>
+                <span class="metric-value">${industry.sector_rank !== undefined ? `${industry.sector_rank}/${industry.total_stocks || '--'}` : '--'}</span>
+            </div>
+        </div>
+        ${industry.related_concepts && industry.related_concepts.length ? `
+            <div class="concepts-section">
+                <div class="concepts-label">相关概念</div>
+                <div class="concepts-tags">
+                    ${industry.related_concepts.map(c => `<span class="concept-tag">${esc(c)}</span>`).join('')}
+                </div>
+            </div>
+        ` : ''}
+    `;
+}
+
+// 渲染事件列表
+function renderEventListPanel(events) {
+    const container = document.getElementById('event-list-panel');
+    if (!events || !events.length) {
+        container.innerHTML = '<p class="empty-state">暂无事件数据</p>';
+        return;
+    }
+
+    container.innerHTML = events.map(evt => {
+        const dirClass = evt.impact_direction === 'positive' ? 'event-positive' :
+                        evt.impact_direction === 'negative' ? 'event-negative' : 'event-neutral';
+        const dateStr = evt.publish_date ?
+            (typeof evt.publish_date === 'string' ? evt.publish_date.substring(0, 10) :
+             evt.publish_date instanceof Date ? evt.publish_date.toLocaleDateString() : '') : '';
+        return `
+            <div class="event-item-panel ${dirClass}">
+                <div class="event-item-header">
+                    <div class="event-title">${esc(evt.title)}</div>
+                    ${dateStr ? `<div class="event-date">${dateStr}</div>` : ''}
+                </div>
+                ${evt.content ? `<div class="event-content">${esc(evt.content)}</div>` : ''}
+                <div class="event-item-meta">
+                    ${evt.source ? `<span class="event-source">${esc(evt.source)}</span>` : ''}
+                    ${evt.impact_score !== undefined ? `
+                        <span class="event-impact-score">影响度: ${(evt.impact_score * 100).toFixed(0)}%</span>
+                    ` : ''}
+                    ${evt.price_reaction !== undefined ? `
+                        <span class="event-price-reaction">
+                            股价反应: ${evt.price_reaction >= 0 ? '+' : ''}${evt.price_reaction.toFixed(2)}%
+                        </span>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// 渲染宏观敏感性
+function renderMacroSensitivity(macro) {
+    const container = document.getElementById('macro-sensitivity-detail');
+    if (!macro) {
+        container.innerHTML = '<p class="empty-state">暂无宏观数据</p>';
+        return;
+    }
+
+    const sensitivityItems = [
+        { label: '利率敏感度', value: macro.interest_rate_sensitivity },
+        { label: '通胀敏感度', value: macro.inflation_sensitivity },
+        { label: '汇率敏感度', value: macro.exchange_rate_sensitivity },
+        { label: '商品敏感度', value: macro.commodity_sensitivity },
+        { label: '流动性敏感度', value: macro.liquidity_sensitivity },
+    ].filter(i => i.value !== undefined);
+
+    container.innerHTML = `
+        <div class="sensitivity-list">
+            ${sensitivityItems.map(item => `
+                <div class="sensitivity-item">
+                    <div class="sensitivity-label">${item.label}</div>
+                    <div class="sensitivity-bar">
+                        <div class="sensitivity-fill ${item.value >= 0 ? 'sensitivity-pos' : 'sensitivity-neg'}"
+                             style="width: ${Math.min(Math.abs(item.value) * 100, 100)}%"></div>
+                    </div>
+                    <div class="sensitivity-value">${item.value.toFixed(2)}</div>
+                </div>
+            `).join('')}
+        </div>
+        ${macro.key_macro_factors && macro.key_macro_factors.length ? `
+            <div class="key-factors-section">
+                <div class="factors-label">关键宏观因子</div>
+                <div class="factors-tags">
+                    ${macro.key_macro_factors.map(f => `<span class="factor-tag">${esc(f)}</span>`).join('')}
+                </div>
+            </div>
+        ` : ''}
+    `;
+}
+
+// 格式化辅助函数
+function fmtVolume(vol) {
+    if (vol === undefined || vol === null) return '--';
+    if (vol >= 100000000) return `${(vol / 100000000).toFixed(2)}亿股`;
+    if (vol >= 10000) return `${(vol / 10000).toFixed(2)}万股`;
+    return `${vol.toFixed(0)}股`;
+}
+
+function fmtAmount(amt) {
+    if (amt === undefined || amt === null) return '--';
+    if (amt >= 100000000) return `${(amt / 100000000).toFixed(2)}亿`;
+    if (amt >= 10000) return `${(amt / 10000).toFixed(2)}万`;
+    return `${amt.toFixed(0)}`;
+}
+
+function fmtMarketCap(cap) {
+    if (cap === undefined || cap === null) return '--';
+    if (cap >= 1000000000000) return `${(cap / 1000000000000).toFixed(2)}万亿`;
+    if (cap >= 100000000) return `${(cap / 100000000).toFixed(2)}亿`;
+    return `${cap.toFixed(0)}`;
+}
+
+function fmtRevenue(rev) {
+    if (rev === undefined || rev === null) return '--';
+    if (rev >= 100000000) return `${(rev / 100000000).toFixed(2)}亿`;
+    if (rev >= 10000) return `${(rev / 10000).toFixed(2)}万`;
+    return `${rev.toFixed(0)}`;
+}
+
+function fmtNetProfit(profit) {
+    if (profit === undefined || profit === null) return '--';
+    if (profit >= 100000000) return `${(profit / 100000000).toFixed(2)}亿`;
+    if (profit >= 10000) return `${(profit / 10000).toFixed(2)}万`;
+    return `${profit.toFixed(0)}`;
+}
+
+// 保留旧的渲染函数用于兼容
 function renderAssetResult(data) {
     // ─── Valuation
     const valCards = document.getElementById('valuation-cards');
