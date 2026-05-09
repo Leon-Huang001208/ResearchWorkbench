@@ -1,6 +1,6 @@
 from typing import List, Dict, Any, Generator
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from core.contracts import CanonicalEvent

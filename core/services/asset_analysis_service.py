@@ -22,7 +22,7 @@ class AssetAnalysisService:
 
     def __init__(
         self,
-        asset_snapshot_repo: AssetSnapshotRepository,
+        asset_snapshot_repo: Optional[AssetSnapshotRepository] = None,
         entity_repo: Optional[EntityRepository] = None,
         ifind_adapter: Optional[IFinDAdapter] = None,
         local_adapter: Optional[LocalDataAdapter] = None,
