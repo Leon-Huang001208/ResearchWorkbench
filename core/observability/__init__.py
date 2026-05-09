@@ -1,3 +1,9 @@
+"""
+Observability utilities (logging, metrics, tracing).
+
+This package provides logging (get_logger, setup_logging), metrics collection
+(MetricsCollector), and tracing (Tracer) utilities for AlphaFoundry.
+"""
 from .logger import configure_logging, get_logger, setup_logging
 from .metrics import MetricsCollector
 from .tracer import Tracer

@@ -1,3 +1,10 @@
+"""
+Logging utilities with structlog fallback to standard library.
+
+Provides configure_logging (for CLI use), setup_logging (for full app use), and
+get_logger, plus _SimpleLoggerWrapper to emulate structlog's interface when
+structlog isn't installed.
+"""
 import logging
 import sys
 from datetime import datetime
@@ -5,7 +12,7 @@ from pathlib import Path
 
 from core.settings import settings
 
-# 尝试导入 structlog，如果不可用则回退到标准库
+# Try to import structlog, fall back to standard library if not available
 try:
     import structlog
 
@@ -15,7 +22,16 @@ except ImportError:
 
 
 def configure_logging(level: str = "INFO", log_file: str | None = None) -> None:
-    """配置日志（简化版本，供 CLI 使用）"""
+    """配置日志（简化版本，供 CLI 使用）.
+
+    Configures simple standard library logging (without structlog) for CLI use. Sets
+    up a stream handler (stdout) and a file handler (either the given log_file or a
+    daily log in LOG_DIR).
+
+    Args:
+        level: Log level (e.g., "DEBUG", "INFO", "WARNING", "ERROR").
+        log_file: Optional path to a log file to write to.
+    """
     log_dir = Path(settings.LOG_DIR)
     log_dir.mkdir(parents=True, exist_ok=True)
 
@@ -45,7 +61,12 @@ def configure_logging(level: str = "INFO", log_file: str | None = None) -> None:
 
 
 def setup_logging() -> None:
-    """配置日志"""
+    """配置日志.
+
+    Full logging setup: uses _setup_structlog if structlog is available, otherwise
+    _setup_simple_logging. Sets up both stdout and daily file handlers, using
+    settings.LOG_LEVEL and settings.LOG_DIR.
+    """
     log_dir = Path(settings.LOG_DIR)
     log_dir.mkdir(parents=True, exist_ok=True)
 
@@ -56,18 +77,27 @@ def setup_logging() -> None:
 
 
 def _setup_structlog(log_dir: Path):
-    """配置结构化日志"""
-    # 配置时间戳格式
+    """配置结构化日志.
+
+    Configures structlog with shared processors (log level, logger name, timestamp),
+    then configures both stdout and daily file handlers. Uses ConsoleRenderer for
+    TTY (interactive) stdout, JSONRenderer otherwise, and ProcessorFormatter for
+    standard library logging integration.
+
+    Args:
+        log_dir: Directory to write the daily log file to.
+    """
+    # Configure timestamp format
     timestamper = structlog.processors.TimeStamper(fmt="iso")
 
-    # 共享的处理器
+    # Shared processors for both structlog and standard library logs
     shared_processors = [
         structlog.stdlib.add_log_level,
         structlog.stdlib.add_logger_name,
         timestamper,
     ]
 
-    # 配置 structlog
+    # Configure structlog
     structlog.configure(
         processors=shared_processors
         + [
@@ -83,7 +113,7 @@ def _setup_structlog(log_dir: Path):
         cache_logger_on_first_use=True,
     )
 
-    # 配置标准库 logging
+    # Configure standard library logging handlers
     handler = logging.StreamHandler(sys.stdout)
     file_handler = logging.FileHandler(
         log_dir / f"alphafoundry_{datetime.now().strftime('%Y%m%d')}.log",
@@ -107,7 +137,15 @@ def _setup_structlog(log_dir: Path):
 
 
 def _setup_simple_logging(log_dir: Path):
-    """配置简单日志（structlog 不可用时）"""
+    """配置简单日志（structlog 不可用时）.
+
+    Configures simple standard library logging when structlog is not available. Sets
+    up a stream handler (stdout) and a daily file handler in log_dir, using
+    settings.LOG_LEVEL.
+
+    Args:
+        log_dir: Directory to write the daily log file to.
+    """
     formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
     handler = logging.StreamHandler(sys.stdout)
@@ -126,7 +164,18 @@ def _setup_simple_logging(log_dir: Path):
 
 
 def get_logger(name: str):
-    """获取 logger"""
+    """获取 logger.
+
+    Returns a logger instance: structlog.get_logger(name) if structlog is available,
+    otherwise a _SimpleLoggerWrapper that emulates structlog's bind and key-value
+    message format.
+
+    Args:
+        name: Name of the logger (typically __name__).
+
+    Returns:
+        Logger: Structlog logger or _SimpleLoggerWrapper instance.
+    """
     if HAS_STRUCTLOG:
         return structlog.get_logger(name)
     else:
@@ -134,18 +183,45 @@ def get_logger(name: str):
 
 
 class _SimpleLoggerWrapper:
-    """简单 logger 包装器，提供类似 structlog 的接口"""
+    """简单 logger 包装器，提供类似 structlog 的接口.
+
+    Wrapper around a standard library logging.Logger that provides a similar interface
+    to structlog: bind() to add context variables, and debug/info/warning/error/
+    exception methods that accept **kwargs and format them into the message.
+    """
 
     def __init__(self, logger):
         self._logger = logger
         self._context = {}
 
     def bind(self, **kwargs):
+        """绑定上下文变量到 logger.
+
+        Creates a new _SimpleLoggerWrapper with the given kwargs added to the context.
+
+        Args:
+            **kwargs: Key-value pairs to add to the logger context.
+
+        Returns:
+            _SimpleLoggerWrapper: New wrapper instance with updated context.
+        """
         new_logger = _SimpleLoggerWrapper(self._logger)
         new_logger._context = {**self._context, **kwargs}
         return new_logger
 
     def _format_msg(self, msg, **kwargs):
+        """格式化消息，附加上下文变量.
+
+        Formats the message by appending key-value pairs from self._context and kwargs
+        as space-separated "key=value" strings.
+
+        Args:
+            msg: Base log message.
+            **kwargs: Additional key-value pairs to include.
+
+        Returns:
+            str: Formatted message string.
+        """
         if kwargs or self._context:
             all_ctx = {**self._context, **kwargs}
             ctx_str = " ".join([f"{k}={v}" for k, v in all_ctx.items()])
