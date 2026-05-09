@@ -95,3 +95,17 @@ async def run_scenario_analysis(request: ScenarioAnalysisRequest, pipeline: Rese
     except Exception as e:
         logger.error(f"Scenario analysis failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/closed-loop", response_model=dict)
+async def run_closed_loop():
+    """运行完整闭循环：事件 → 信号 → 回测 → 记录结果"""
+    from core.services.closed_loop_service import ClosedLoopService
+
+    try:
+        service = ClosedLoopService()
+        summary = service.run_full_loop()
+        return summary
+    except Exception as e:
+        logger.error(f"Closed loop failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

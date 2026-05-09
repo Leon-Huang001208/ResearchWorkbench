@@ -90,6 +90,7 @@ function navigateTo(section) {
     if (section === 'signals') loadSignals();
     if (section === 'review') { loadReviewStats(); loadReviewPending(); }
     if (section === 'memory') loadMemoryPage();
+    if (section === 'outcomes') loadOutcomes();
 }
 
 // Wait for DOM ready before binding all interactive events
@@ -146,6 +147,15 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Load event summary button
     document.getElementById('btn-event-summary')?.addEventListener('click', loadEventSummary);
+
+    // Outcomes page: refresh button
+    document.getElementById('btn-refresh-outcomes')?.addEventListener('click', loadOutcomes);
+
+    // Outcomes page: event type filter change
+    document.getElementById('outcome-event-type-filter')?.addEventListener('change', loadOutcomes);
+
+    // Closed loop page: run button
+    document.getElementById('btn-run-closed-loop')?.addEventListener('click', runClosedLoop);
 
     // Global search input
     document.getElementById('global-search')?.addEventListener('input', (e) => {
@@ -1465,3 +1475,168 @@ window.addEventListener('DOMContentLoaded', () => {
     };
     updateStatusBar();
 });
+
+// ═══════════════════════════════════════════════════════════════
+// Outcomes Management
+// ═══════════════════════════════════════════════════════════════
+
+async function loadOutcomes() {
+    const eventTypeFilter = document.getElementById('outcome-event-type-filter');
+    const eventType = eventTypeFilter ? eventTypeFilter.value.trim() : '';
+    const params = new URLSearchParams();
+    if (eventType) params.append('event_type', eventType);
+
+    try {
+        const outcomes = await apiCall('GET', `/api/outcomes/aggregate/list?${params.toString()}`);
+        renderOutcomesTable(outcomes);
+    } catch (e) {
+        toast(e.message, 'error');
+    }
+}
+
+function renderOutcomesTable(outcomes) {
+    const wrap = document.getElementById('outcomes-table');
+    if (!outcomes.length) {
+        wrap.innerHTML = '<p class="empty-state">暂无回测结果</p>';
+        return;
+    }
+    wrap.innerHTML = `<table>
+        <thead><tr><th>ID</th><th>主体</th><th>事件类型</th><th>收益</th><th>超额收益</th><th>最大回撤</th><th>教训</th><th>操作</th></tr></thead>
+        <tbody>${outcomes.map(o => {
+            const returnClass = o.outcome_return > 0 ? 'positive' : 'negative';
+            const excessReturnClass = o.outcome_excess_return > 0 ? 'positive' : 'negative';
+            const eventType = o.metadata?.event_type || '—';
+            return `
+            <tr>
+                <td title="${esc(o.outcome_id)}">${esc(o.outcome_id.substring(0, 8))}</td>
+                <td>${esc(o.subject_id)}</td>
+                <td>${esc(eventType)}</td>
+                <td class="${returnClass}">${o.outcome_return > 0 ? '+' : ''}${o.outcome_return?.toFixed(2) ?? '—'}%</td>
+                <td class="${excessReturnClass}">${o.outcome_excess_return > 0 ? '+' : ''}${o.outcome_excess_return?.toFixed(2) ?? '—'}%</td>
+                <td>${o.max_drawdown?.toFixed(2) ?? '—'}%</td>
+                <td class="lesson-cell">${o.lesson ? esc(o.lesson) : '<span class="empty-state">—</span>'}</td>
+                <td class="actions">
+                    <button class="btn-sm btn-detail" onclick="showOutcomeDetail('${esc(o.outcome_id)}', '${esc(o.signal_id)}')">详情</button>
+                    <button class="btn-sm btn-edit" onclick="editLesson('${esc(o.outcome_id)}', '${esc(o.lesson || '')}')">编辑</button>
+                </td>
+            </tr>`;
+        }).join('')}</tbody>
+    </table>`;
+}
+
+async function editLesson(outcomeId, currentLesson) {
+    const newLesson = prompt('请输入教训总结:', currentLesson);
+    if (newLesson === null) return;
+
+    try {
+        await apiCall('PATCH', `/api/outcomes/${encodeURIComponent(outcomeId)}/lesson?lesson=${encodeURIComponent(newLesson)}`);
+        toast('教训已更新', 'success');
+        loadOutcomes();
+    } catch (e) {
+        toast(e.message, 'error');
+    }
+}
+
+async function showOutcomeDetail(outcomeId, signalId) {
+    if (signalId) {
+        showSignalDetail(signalId);
+        return;
+    }
+
+    try {
+        const data = await apiCall('GET', `/api/outcomes/${encodeURIComponent(outcomeId)}`);
+        toast(`Outcome 详情加载成功`, 'success');
+        console.log('Outcome detail:', data);
+    } catch (e) {
+        toast(e.message, 'error');
+    }
+}
+
+// 闭循环运行
+async function runClosedLoop() {
+    const statusEl = document.getElementById('closed-loop-status');
+    const resultsEl = document.getElementById('closed-loop-results');
+    const btnEl = document.getElementById('btn-run-closed-loop');
+
+    // 禁用按钮并显示加载状态
+    btnEl.disabled = true;
+    btnEl.textContent = '运行中...';
+    statusEl.textContent = '正在运行闭循环，请稍候...';
+    resultsEl.style.display = 'none';
+
+    try {
+        const summary = await apiCall('POST', '/api/pipeline/closed-loop');
+        renderClosedLoopResults(summary);
+        statusEl.textContent = '闭循环运行完成！';
+        toast('闭循环运行完成', 'success');
+    } catch (e) {
+        statusEl.textContent = '运行失败: ' + e.message;
+        toast(e.message, 'error');
+    } finally {
+        btnEl.disabled = false;
+        btnEl.textContent = '运行闭循环';
+    }
+}
+
+function renderClosedLoopResults(summary) {
+    const resultsEl = document.getElementById('closed-loop-results');
+    resultsEl.style.display = 'block';
+
+    resultsEl.innerHTML = `
+        <div class="card-row" style="margin-top:16px;">
+            <div class="stat-card pending">
+                <div class="stat-value">${summary.signals_generated}</div>
+                <div class="stat-label">生成信号</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" style="border-top-color:#38a169;">${summary.signals_backtested}</div>
+                <div class="stat-label">回测信号</div>
+            </div>
+        </div>
+        <div class="card-row" style="margin-top:16px;">
+            <div class="stat-card">
+                <div class="stat-value" style="border-top-color:#3182ce;">${(summary.avg_return * 100).toFixed(2)}%</div>
+                <div class="stat-label">平均收益</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" style="border-top-color:#805ad5;">${(summary.avg_excess_return * 100).toFixed(2)}%</div>
+                <div class="stat-label">平均超额收益</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" style="border-top-color:#d69e2e;">${(summary.win_rate * 100).toFixed(1)}%</div>
+                <div class="stat-label">胜率</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" style="border-top-color:#e53e3e;">${(summary.correct_direction_rate * 100).toFixed(1)}%</div>
+                <div class="stat-label">方向正确率</div>
+            </div>
+        </div>
+        <div class="card" style="margin-top:16px;">
+            <div class="card-header">
+                <h3>回测结果详情</h3>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>信号ID</th>
+                        <th>标的</th>
+                        <th>收益</th>
+                        <th>超额收益</th>
+                        <th>方向正确</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${(summary.results || []).map(r => `
+                        <tr>
+                            <td title="${r.signal_id}">${r.signal_id.substring(0, 8)}...</td>
+                            <td>${r.subject_id}</td>
+                            <td class="${r.return > 0 ? 'positive' : 'negative'}">${r.return > 0 ? '+' : ''}${(r.return * 100).toFixed(2)}%</td>
+                            <td class="${r.excess_return > 0 ? 'positive' : 'negative'}">${r.excess_return > 0 ? '+' : ''}${(r.excess_return * 100).toFixed(2)}%</td>
+                            <td>${r.direction_correct ? '✓' : '✗'}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+}

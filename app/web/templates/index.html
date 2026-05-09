@@ -21,6 +21,8 @@
                 <button class="activity-btn" data-section="industry-chain" title="产业链"><i class="codicon codicon-symbol-class"></i></button>
                 <button class="activity-btn" data-section="review" title="审核队列"><i class="codicon codicon-checklist"></i></button>
                 <button class="activity-btn" data-section="signals" title="信号管理"><i class="codicon codicon-pulse"></i></button>
+                <button class="activity-btn" data-section="outcomes" title="回测结果"><i class="codicon codicon-checklist"></i></button>
+                <button class="activity-btn" data-section="closed-loop" title="闭循环运行"><i class="codicon codicon-sync"></i></button>
                 <button class="activity-btn" data-section="ingest" title="文档摄入"><i class="codicon codicon-cloud-download"></i></button>
                 <button class="activity-btn" data-section="memory" title="记忆与学习"><i class="codicon codicon-lightbulb"></i></button>
             </div>
@@ -376,6 +378,39 @@
                         <button id="btn-refresh-signals" class="btn-secondary" data-i18n="signals.btn_refresh">刷新</button>
                     </div>
                     <div id="signals-table" class="data-table-wrap"></div>
+                </div>
+            </section>
+
+            <!-- Outcomes Section -->
+            <section id="section-outcomes" class="content-section">
+                <h2 class="section-title">回测结果</h2>
+                <div class="card">
+                    <div class="card-header">
+                        <h3>回测结果列表</h3>
+                        <div class="filter-row">
+                            <select id="outcome-event-type-filter">
+                                <option value="">全部事件类型</option>
+                                <option value="earnings">财报</option>
+                                <option value="policy">政策</option>
+                                <option value="industry">行业</option>
+                            </select>
+                            <button id="btn-refresh-outcomes" class="btn-secondary">刷新</button>
+                        </div>
+                    </div>
+                    <div id="outcomes-table" class="data-table-wrap"></div>
+                </div>
+            </section>
+
+            <!-- Closed Loop Section -->
+            <section id="section-closed-loop" class="content-section">
+                <h2 class="section-title">闭循环运行</h2>
+                <div class="card">
+                    <div class="card-header">
+                        <h3>运行完整闭循环</h3>
+                        <button id="btn-run-closed-loop" class="btn-primary">运行闭循环</button>
+                    </div>
+                    <div id="closed-loop-status" class="empty-state">点击上方按钮运行闭循环</div>
+                    <div id="closed-loop-results" class="data-table-wrap" style="display:none;"></div>
                 </div>
             </section>
 

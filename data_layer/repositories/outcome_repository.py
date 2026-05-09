@@ -17,6 +17,7 @@ class OutcomeRepositoryImpl(BaseRepository):
 
     def save(self, outcome: SignalOutcome) -> SignalOutcome:
         """保存结果评估"""
+        event_type = outcome.metadata.get("event_type") if outcome.metadata else None
         existing = (
             self.db.query(SignalOutcomeDB)
             .filter_by(outcome_id=outcome.outcome_id)
@@ -27,6 +28,7 @@ class OutcomeRepositoryImpl(BaseRepository):
             existing.signal_id = outcome.signal_id
             existing.subject_id = outcome.subject_id
             existing.event_date = outcome.event_date
+            existing.event_type = event_type
             existing.timing_action = outcome.timing_action
             existing.entry_rule = outcome.entry_rule
             existing.horizon = outcome.horizon
@@ -47,6 +49,7 @@ class OutcomeRepositoryImpl(BaseRepository):
                 signal_id=outcome.signal_id,
                 subject_id=outcome.subject_id,
                 event_date=outcome.event_date,
+                event_type=event_type,
                 timing_action=outcome.timing_action,
                 entry_rule=outcome.entry_rule,
                 horizon=outcome.horizon,
@@ -96,15 +99,13 @@ class OutcomeRepositoryImpl(BaseRepository):
         """列出结果评估。
 
         Args:
-            event_type: 按事件类型过滤（匹配 subject_id 前缀或 metadata 中的 event_type）
+            event_type: 按事件类型过滤（使用 event_type 列）
             strategy_family: 按策略家族过滤（匹配 metadata 中的 strategy_family）
             limit: 返回数量限制
         """
         query = self.db.query(SignalOutcomeDB)
         if event_type is not None:
-            query = query.filter(
-                SignalOutcomeDB.outcome_metadata.contains({"event_type": event_type})
-            )
+            query = query.filter(SignalOutcomeDB.event_type == event_type)
         if strategy_family is not None:
             query = query.filter(
                 SignalOutcomeDB.outcome_metadata.contains(
@@ -132,6 +133,9 @@ class OutcomeRepositoryImpl(BaseRepository):
 
     def _to_domain(self, db_outcome: SignalOutcomeDB) -> SignalOutcome:
         """转换为领域模型"""
+        metadata = db_outcome.outcome_metadata if db_outcome.outcome_metadata else {}
+        if db_outcome.event_type:
+            metadata["event_type"] = db_outcome.event_type
         return SignalOutcome(
             outcome_id=db_outcome.outcome_id,
             event_id=db_outcome.event_id,
@@ -144,10 +148,10 @@ class OutcomeRepositoryImpl(BaseRepository):
             benchmark=db_outcome.benchmark,
             outcome_return=float(db_outcome.outcome_return),
             outcome_excess_return=float(db_outcome.outcome_excess_return),
-            max_drawdown=float(db_outcome.max_drawdown),
-            decay=float(db_outcome.decay),
+            max_drawdown=float(db_outcome.max_drawdown) if db_outcome.max_drawdown is not None else None,
+            decay=float(db_outcome.decay) if db_outcome.decay is not None else None,
             failure_reason=db_outcome.failure_reason,
             lesson=db_outcome.lesson,
             evaluated_at=db_outcome.evaluated_at,
-            metadata=db_outcome.outcome_metadata if db_outcome.outcome_metadata else {},
+            metadata=metadata,
         )
