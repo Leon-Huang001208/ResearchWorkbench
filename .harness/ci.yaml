@@ -1,0 +1,110 @@
+pipeline:
+  name: AlphaFoundry全自动CI流水线
+  identifier: AlphaFoundry_CI
+  projectIdentifier: default
+  orgIdentifier: default
+  tags: {}
+  stages:
+    - stage:
+        name: 代码检查与测试
+        identifier: Code_Check_Test
+        type: CI
+        spec:
+          cloneCodebase: true
+          infrastructure:
+            type: KubernetesDirect
+            spec:
+              connectorRef: account.K8sCluster
+              namespace: harness-delegate-ng
+              automountServiceAccountToken: true
+              nodeSelector: {}
+              os: Linux
+          execution:
+            steps:
+              - step:
+                  type: Run
+                  name: 安装依赖
+                  identifier: Install_Dependencies
+                  spec:
+                    shell: Bash
+                    command: |
+                      pip install -r requirements.txt
+                      pip install ruff pytest coverage
+              - step:
+                  type: Run
+                  name: 代码质量扫描
+                  identifier: Lint_Code
+                  spec:
+                    shell: Bash
+                    command: |
+                      ruff check . --fix
+                      ruff format .
+              - step:
+                  type: Run
+                  name: 单元测试
+                  identifier: Run_Tests
+                  spec:
+                    shell: Bash
+                    command: |
+                      coverage run -m pytest tests/
+                      coverage report --fail-under=80
+              - step:
+                  type: Run
+                  name: 冒烟测试
+                  identifier: Smoke_Test
+                  spec:
+                    shell: Bash
+                    command: |
+                      python -m uvicorn app.api.main:app --host 0.0.0.0 --port 8000 &
+                      sleep 5
+                      curl -f http://127.0.0.1:8000/health
+                      curl -X POST http://127.0.0.1:8000/api/assets/analyze -H "Content-Type: application/json" -d '{"canonical_id": "600000"}' | grep -q "canonical_id"
+    - stage:
+        name: 自动部署
+        identifier: Auto_Deploy
+        type: CD
+        spec:
+          infrastructure:
+            type: KubernetesDirect
+            spec:
+              connectorRef: account.K8sCluster
+              namespace: alpha-foundry
+          execution:
+            steps:
+              - step:
+                  type: K8sRollingDeploy
+                  name: 滚动部署
+                  identifier: K8s_Rolling_Deploy
+                  spec:
+                    skipDryRun: false
+                    pruningEnabled: true
+    - stage:
+        name: 自动处理Issues
+        identifier: Auto_Close_Issues
+        type: Custom
+        spec:
+          execution:
+            steps:
+              - step:
+                  type: Run
+                  name: 关闭已修复Issues
+                  identifier: Close_Fixed_Issues
+                  spec:
+                    shell: Bash
+                    command: |
+                      # 解析提交信息中的Fixes #xxx标记，自动关闭对应Issues
+                      git log --pretty=format:"%s" origin/master..HEAD | grep -oE "Fixes #[0-9]+" | sed 's/Fixes #//g' | xargs -I {} gh issue close {}
+                      # 给关闭的Issue添加已完成标签
+                      git log --pretty=format:"%s" origin/master..HEAD | grep -oE "Fixes #[0-9]+" | sed 's/Fixes #//g' | xargs -I {} gh issue edit {} --add-label "✅ 已完成"
+triggers:
+  - trigger:
+      name: 代码提交自动触发
+      identifier: Git_Push_Trigger
+      enabled: true
+      source:
+        type: Github
+        spec:
+          repoName: Leon-Huang001208/AlphaFoundry
+          events:
+            - Push
+          autoAbortPreviousExecutions: true
