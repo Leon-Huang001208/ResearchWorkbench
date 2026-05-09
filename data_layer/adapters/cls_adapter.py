@@ -76,14 +76,33 @@ class CLSAdapter(BaseDataAdapter):
             # Parse from dict
             t_id = source.get("id", "")
             content = source.get("content", "")
-            date_str = source.get("date")
+            date_str = source.get("date") or source.get("publish_time", "") or source.get("created_at", "")
             published_at = None
             if date_str:
-                try:
-                    # Try parsing as datetime
-                    published_at = datetime.fromisoformat(date_str)
-                except ValueError:
-                    pass
+                date_str = date_str.strip()
+                # 尝试多种格式解析，确保精确到秒
+                parse_formats = [
+                    "%Y-%m-%dT%H:%M:%S",
+                    "%Y-%m-%d %H:%M:%S",
+                    "%Y-%m-%dT%H:%M:%S.%f",
+                    "%Y-%m-%d %H:%M",
+                    "%Y-%m-%d",
+                ]
+                for fmt in parse_formats:
+                    try:
+                        published_at = datetime.strptime(date_str, fmt)
+                        # 只有日期的话补00:00:00
+                        if fmt == "%Y-%m-%d":
+                            published_at = published_at.replace(hour=0, minute=0, second=0, microsecond=0)
+                        break
+                    except ValueError:
+                        continue
+                # 还解析失败的话尝试fromisoformat
+                if not published_at:
+                    try:
+                        published_at = datetime.fromisoformat(date_str)
+                    except ValueError:
+                        pass
 
             return DocumentEnvelope(
                 doc_id=self._generate_idempotency_key(f"cls-{t_id}"),

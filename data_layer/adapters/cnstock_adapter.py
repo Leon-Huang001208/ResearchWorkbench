@@ -89,12 +89,33 @@ class CNStockAdapter(BaseDataAdapter):
             published_at_str = source.get("publish_time", "") or source.get("date", "") or source.get("publish_date", "")
             published_at = None
             if published_at_str:
-                for fmt in ["%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"]:
+                # 优先尝试带时分秒的格式，所有时间都精确到秒，没有时分秒的默认补00:00:00
+                published_at_str = published_at_str.strip()
+                # 支持的时间格式，按优先级排序
+                parse_formats = [
+                    "%Y-%m-%dT%H:%M:%S",
+                    "%Y-%m-%d %H:%M:%S",
+                    "%Y-%m-%dT%H:%M",
+                    "%Y-%m-%d %H:%M",
+                    "%Y-%m-%d %H:%M:%S.%f",
+                    "%Y%m%d%H%M%S",
+                    "%Y-%m-%d",
+                ]
+                for fmt in parse_formats:
                     try:
-                        published_at = datetime.strptime(published_at_str[:19] if 'T' in published_at_str else published_at_str[:10] if len(published_at_str) == 10 else published_at_str, fmt)
+                        published_at = datetime.strptime(published_at_str, fmt)
+                        # 如果格式是只有日期的，补00:00:00
+                        if fmt == "%Y-%m-%d":
+                            published_at = published_at.replace(hour=0, minute=0, second=0, microsecond=0)
                         break
                     except ValueError:
                         continue
+                # 所有格式都解析失败的话，尝试取前10位解析日期，补00:00:00
+                if not published_at and len(published_at_str) >= 10:
+                    try:
+                        published_at = datetime.strptime(published_at_str[:10], "%Y-%m-%d").replace(hour=0, minute=0, second=0, microsecond=0)
+                    except ValueError:
+                        pass
 
             return DocumentEnvelope(
                 doc_id=self._generate_idempotency_key(f"cnstock-{article_id}"),
