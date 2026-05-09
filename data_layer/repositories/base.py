@@ -1,3 +1,4 @@
+
 from contextlib import contextmanager
 from typing import Any, List, Optional, TypeVar
 
@@ -10,11 +11,11 @@ from core.settings import settings
 
 logger = get_logger(__name__)
 
-# 创建引擎和会话工厂
+# Create engine and session factory
 engine = create_engine(settings.DATABASE_URL, echo=False)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# 基类
+# Base class for ORM models
 Base = declarative_base()
 
 def check_database_connection() -> None:
@@ -46,21 +47,17 @@ def check_database_connection() -> None:
         logger.critical(error_msg)
         raise RuntimeError(error_msg) from e
 
-
-
-
 def ensure_schema() -> None:
-    """确保数据库 schema 与 ORM 模型一致。
+    """Ensure database schema matches ORM models.
 
-    对于 SQLite，先 create_all 创建缺失的表，
-    再对已有表检查并添加缺失的列（ALTER TABLE ADD COLUMN）。
+    For SQLite, first create all tables, then check and add missing columns (ALTER TABLE ADD COLUMN).
     """
-    # 导入所有模型以注册到 Base.metadata
+    # Import all models to register to Base.metadata
     import data_layer.repositories.models  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
 
-    # 对 SQLite，检查已有表是否缺少列并自动补列
+    # For SQLite, check existing tables and add missing columns
     if settings.DATABASE_URL.startswith("sqlite"):
         import sqlite3
 
@@ -95,10 +92,8 @@ def ensure_schema() -> None:
 
 T = TypeVar("T")
 
-
-@contextmanager
 def get_db() -> Any:
-    """获取数据库会话的上下文管理器"""
+    """Get database session for FastAPI dependency injection."""
     db = SessionLocal()
     try:
         yield db
@@ -110,16 +105,15 @@ def get_db() -> Any:
     finally:
         db.close()
 
-
 class BaseRepository:
-    """仓储基类"""
+    """Base repository class."""
 
     def __init__(self, db: Session | None = None):
         self._db = db
 
     @property
     def db(self) -> Session:
-        """获取数据库会话"""
+        """Get database session."""
         if self._db is None:
             raise RuntimeError("No database session available")
         return self._db

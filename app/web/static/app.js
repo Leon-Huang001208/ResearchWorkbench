@@ -1,3 +1,4 @@
+
 /* ============================================================
    AlphaFoundry — Frontend Application Logic
    ============================================================ */
@@ -117,11 +118,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Memory page buttons
-    document.getElementById('btn-load-episodes')?.addEventListener('click', loadEpisodes);
-    document.getElementById('btn-load-strategies')?.addEventListener('click', loadStrategies);
+    // Asset analysis button
+    document.getElementById('btn-analyze')?.addEventListener('click', analyzeAsset);
+    
+    // Scenario analysis button
+    document.getElementById('btn-generate-scenarios')?.addEventListener('click', generateScenarios);
+    
+    // Event signal button
+    document.getElementById('btn-generate-event-signal')?.addEventListener('click', generateEventSignal);
+    
+    // Industry chain button
+    document.getElementById('btn-load-industry')?.addEventListener('click', loadIndustryChain);
+    
+    // Review refresh button
+    document.getElementById('btn-refresh-review')?.addEventListener('click', () => {
+        loadReviewPending();
+    });
+    
+    // Create signal button
+    document.getElementById('btn-create-signal')?.addEventListener('click', createSignal);
+    
+    // Ingest text button
+    document.getElementById('btn-ingest')?.addEventListener('click', ingestText);
+    
+    // Load failures button
     document.getElementById('btn-load-failures')?.addEventListener('click', loadFailures);
-    document.getElementById('btn-load-event-summary')?.addEventListener('click', loadEventSummary);
+    
+    // Load event summary button
+    document.getElementById('btn-event-summary')?.addEventListener('click', loadEventSummary);
+
     // Global search input
     document.getElementById('global-search')?.addEventListener('input', (e) => {
         clearTimeout(searchDebounceTimer);
@@ -499,7 +524,6 @@ async function loadDashboard() {
 // Asset Analysis
 // ═══════════════════════════════════════════════════════════════
 
-
 async function analyzeAsset() {
     const code = document.getElementById('asset-code').value.trim();
     const source = document.getElementById('asset-source').value;
@@ -637,7 +661,6 @@ function renderPriceVolumeChart(pv) {
 // Scenario Analysis
 // ═══════════════════════════════════════════════════════════════
 
-document.getElementById('btn-generate-scenarios').addEventListener('click', generateScenarios);
 async function generateScenarios() {
     const topic = document.getElementById('scenario-topic').value.trim();
     const subjectsStr = document.getElementById('scenario-subjects').value.trim();
@@ -714,7 +737,6 @@ function renderScenarioResult(data) {
 // Event Signal
 // ═══════════════════════════════════════════════════════════════
 
-document.getElementById('btn-generate-event-signal').addEventListener('click', generateEventSignal);
 async function generateEventSignal() {
     const event = {
         event_id: crypto.randomUUID(),
@@ -730,12 +752,12 @@ async function generateEventSignal() {
         toast('事件信号生成成功', 'success');
         loadEventSignals();
         
-        // 获取并展示 Timing 决策
+        // Get and show Timing decision
         if (signalId) {
             try {
                 const timingDecision = await apiCall('POST', `/api/timing/evaluate-signal/${signalId}`);
                 renderTimingDecision(timingDecision);
-                document.getElementById('timing-decision-container').classList.remove('hidden');
+                document.getElementById('timing-decision-container')?.classList.remove('hidden');
             } catch (e) {
                 console.warn('Failed to get timing decision:', e);
             }
@@ -805,7 +827,6 @@ function renderTimingDecision(decision) {
 // Industry Chain
 // ═══════════════════════════════════════════════════════════════
 
-document.getElementById('btn-load-industry').addEventListener('click', loadIndustryChain);
 async function loadIndustryChain() {
     const industry = document.getElementById('industry-select').value;
     try {
@@ -919,10 +940,6 @@ function renderPropagationGraph(data) {
 // Review Queue
 // ═══════════════════════════════════════════════════════════════
 
-document.getElementById('btn-refresh-review').addEventListener('click', () => {
-    loadReviewPending();
-});
-
 async function loadReviewStats() {
     try {
         const stats = await apiCall('GET', '/api/review/stats');
@@ -1000,7 +1017,6 @@ async function rejectItem(id) {
 // Signals Management
 // ═══════════════════════════════════════════════════════════════
 
-document.getElementById('btn-create-signal').addEventListener('click', createSignal);
 async function createSignal() {
     const body = {
         subject_id: document.getElementById('sig-subject-id').value.trim(),
@@ -1081,7 +1097,6 @@ async function promoteSignal(id) {
 // Ingest
 // ═══════════════════════════════════════════════════════════════
 
-document.getElementById('btn-ingest').addEventListener('click', ingestText);
 async function ingestText() {
     const text = document.getElementById('ingest-text').value.trim();
     if (!text) return toast('请输入文本内容', 'error');
@@ -1109,6 +1124,7 @@ async function ingestText() {
 }
 
 function renderIngestResult(data) {
+
     const wrap = document.getElementById('ingest-result');
     wrap.innerHTML = `
         <div class="ingest-summary">
