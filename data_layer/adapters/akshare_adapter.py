@@ -170,8 +170,15 @@ class AKShareAdapter(BaseDataAdapter):
 
     def _format_code(self, code: str) -> str:
         """格式化代码为 AKShare 格式"""
-        # 输入: 600000.SH -> 输出: 600000
-        return code.split(".")[0]
+        # 输入: 600000.SH -> 输出: sh600000
+        # 输入: 000001.SZ -> 输出: sz000001
+        # 输入: 600000 -> 输出: sh600000
+        code_clean = code.split(".")[0]
+        if code_clean.startswith(('6', '9')):
+            return f"sh{code_clean}"
+        elif code_clean.startswith(('0', '3')):
+            return f"sz{code_clean}"
+        return code_clean
 
     def _format_ak_code(self, code: str) -> str:
         """格式化代码"""

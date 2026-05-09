@@ -58,7 +58,7 @@ async def analyze_asset(
 ):
     """生成资产分析快照"""
     try:
-        snapshot = service.generate_snapshot(
+        snapshot = await service.generate_snapshot(
             canonical_id=request.canonical_id,
             as_of=request.as_of,
             use_mock=request.use_mock,

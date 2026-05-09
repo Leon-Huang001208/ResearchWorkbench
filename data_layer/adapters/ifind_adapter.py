@@ -24,6 +24,23 @@ class IFinDAdapter(BaseDataAdapter):
         self._router = BackendRouter(settings)
         self._mapper = IFinDMapper()
         self._client = None
+        self._is_available = self._check_availability()
+
+    def _check_availability(self) -> bool:
+        """检查iFinD是否可用"""
+        try:
+            import iFinDPy
+            # 检查账号配置是否存在
+            if not settings.IFIND_USERNAME or not settings.IFIND_PASSWORD:
+                logger.warning("iFinD username/password not configured")
+                return False
+            return True
+        except ImportError:
+            logger.warning("iFinD Python SDK not installed")
+            return False
+
+    def is_available(self) -> bool:
+        return self._is_available
 
     async def _get_client(self):
         """获取后端客户端"""

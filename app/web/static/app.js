@@ -526,7 +526,6 @@ async function loadDashboard() {
 
 async function analyzeAsset() {
     const code = document.getElementById('asset-code').value.trim();
-    const source = document.getElementById('asset-source').value;
     if (!code) return toast(I18N.t('toast.enter_asset_code'), 'error');
 
     const loading = document.getElementById('asset-loading');
@@ -537,7 +536,6 @@ async function analyzeAsset() {
     try {
         const data = await apiCall('POST', '/api/assets/analyze', {
             canonical_id: code,
-            source: source,
         });
         renderAssetResult(data);
         result.classList.remove('hidden');

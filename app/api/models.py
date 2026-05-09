@@ -19,7 +19,7 @@ class AnalyzeRequest(BaseModel):
     """资产分析请求"""
     canonical_id: str = Field(..., description="资产代码，如 600000.SH")
     as_of: Optional[datetime] = Field(None, description="快照时间，默认当前时间")
-    source: str = Field("mock", description="数据源: mock / local / ifind")
+    source: str = Field("auto", description="数据源: auto（自动降级）/ mock / local / ifind / akshare")
     use_mock: Optional[bool] = Field(None, description="是否使用模拟数据")
 
 

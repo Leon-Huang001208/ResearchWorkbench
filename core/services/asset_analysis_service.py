@@ -36,7 +36,7 @@ class AssetAnalysisService:
         self.akshare_adapter = akshare_adapter or AKShareAdapter()
         self._use_mock = use_mock
 
-    def generate_snapshot(
+    async def generate_snapshot(
         self,
         canonical_id: str,
         as_of: Optional[datetime] = None,
@@ -70,7 +70,7 @@ class AssetAnalysisService:
             snapshot = self._generate_mock_snapshot(canonical_id, as_of)
         elif source == "akshare" and self.akshare_adapter.is_available():
             logger.info("Using AKShare open source data")
-            snapshot = self._fetch_from_akshare(canonical_id, as_of)
+            snapshot = await self._fetch_from_akshare(canonical_id, as_of)
         elif source == "local":
             snapshot = self._fetch_from_local(canonical_id, as_of)
         elif source == "ifind" and self.ifind_adapter:
@@ -79,7 +79,7 @@ class AssetAnalysisService:
             except Exception as e:
                 logger.warning(f"iFinD fetch failed, falling back to AKShare: {e}")
                 if self.akshare_adapter.is_available():
-                    snapshot = self._fetch_from_akshare(canonical_id, as_of)
+                    snapshot = await self._fetch_from_akshare(canonical_id, as_of)
                 else:
                     snapshot = self._fetch_from_local(canonical_id, as_of)
         elif source == "auto":
@@ -92,13 +92,27 @@ class AssetAnalysisService:
                 except Exception as e:
                     logger.warning(f"iFinD failed: {e}")
             if not success and self.akshare_adapter.is_available():
-                logger.info("Auto fallback: using AKShare open source data (iFinD unavailable)")
-                snapshot = self._fetch_from_akshare(canonical_id, as_of)
-                success = True
+                try:
+                    logger.info("Auto fallback: using AKShare open source data (iFinD unavailable)")
+                    snapshot = await self._fetch_from_akshare(canonical_id, as_of)
+                    # 检查AKShare返回的数据是否有效，如果核心字段都是空的，说明拉取失败
+                    if snapshot.price_volume.get('close_price') is None and snapshot.financial.get('eps', {}).get('ttm') is None:
+                        logger.warning(f"AKShare returned empty data for {canonical_id}")
+                        success = False
+                    else:
+                        success = True
+                except Exception as e:
+                    logger.warning(f"AKShare failed: {e}")
+                    success = False
             if not success:
                 logger.info("Auto fallback: using local cached data")
                 snapshot = self._fetch_from_local(canonical_id, as_of)
-                success = True
+                # 检查本地数据是否有效
+                if snapshot.price_volume.get('close_price') is None and snapshot.financial.get('eps', {}).get('ttm') is None:
+                    logger.warning(f"Local cache empty for {canonical_id}")
+                    success = False
+                else:
+                    success = True
             if not success:
                 logger.warning("All data sources failed, falling back to mock")
                 snapshot = self._generate_mock_snapshot(canonical_id, as_of)
@@ -206,7 +220,7 @@ class AssetAnalysisService:
         logger.warning("iFinD fetch not fully implemented", canonical_id=canonical_id)
         return self._generate_mock_snapshot(canonical_id, as_of)
 
-    def _fetch_from_akshare(self, canonical_id: str, as_of: datetime) -> AssetAnalysisSnapshot:
+    async def _fetch_from_akshare(self, canonical_id: str, as_of: datetime) -> AssetAnalysisSnapshot:
         """从 AKShare 获取开源真实数据"""
         import akshare as ak
         import asyncio
@@ -214,8 +228,8 @@ class AssetAnalysisService:
         end_date = as_of.strftime('%Y-%m-%d')
         start_date = (as_of.replace(year=as_of.year - 1)).strftime('%Y-%m-%d')
         
-        quotes = asyncio.run(self.akshare_adapter.fetch_stock_quotes(canonical_id, start_date, end_date))
-        financial = asyncio.run(self.akshare_adapter.fetch_financial_report(canonical_id))
+        quotes = await self.akshare_adapter.fetch_stock_quotes(canonical_id, start_date, end_date)
+        financial = await self.akshare_adapter.fetch_financial_report(canonical_id)
         
         # 获取实时估值数据
         pe_ttm = None
