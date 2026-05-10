@@ -1,12 +1,13 @@
 """Unit tests for the Bull/Bear/Skeptic review framework"""
 from datetime import datetime
+
 from core.contracts import (
-    ThesisCard,
-    PropagationPath,
+    CognitiveBlackboard,
     EvidenceReference,
+    PropagationPath,
     ReviewCard,
     ReviewPosition,
-    CognitiveBlackboard,
+    ThesisCard,
 )
 from core.services.thesis_review_service import ThesisReviewService
 
@@ -53,21 +54,41 @@ def test_cognitive_blackboard_creation():
     """Test cognitive blackboard creation aggregates evidence correctly"""
     service = ThesisReviewService()
     thesis = create_test_thesis()
-    
+
     bull_evidence = [
-        EvidenceReference(evidence_id="bull-1", evidence_type="event", description="Bull evidence 1", confidence_in_evidence=0.8),
-        EvidenceReference(evidence_id="common-1", evidence_type="data", description="Common evidence", confidence_in_evidence=0.7),
+        EvidenceReference(
+            evidence_id="bull-1",
+            evidence_type="event",
+            description="Bull evidence 1",
+            confidence_in_evidence=0.8,
+        ),
+        EvidenceReference(
+            evidence_id="common-1",
+            evidence_type="data",
+            description="Common evidence",
+            confidence_in_evidence=0.7,
+        ),
     ]
     bear_evidence = [
-        EvidenceReference(evidence_id="bear-1", evidence_type="event", description="Bear evidence 1", confidence_in_evidence=0.75),
-        EvidenceReference(evidence_id="common-1", evidence_type="data", description="Common evidence", confidence_in_evidence=0.7),
+        EvidenceReference(
+            evidence_id="bear-1",
+            evidence_type="event",
+            description="Bear evidence 1",
+            confidence_in_evidence=0.75,
+        ),
+        EvidenceReference(
+            evidence_id="common-1",
+            evidence_type="data",
+            description="Common evidence",
+            confidence_in_evidence=0.7,
+        ),
     ]
-    
+
     bull = service.generate_bull_review(thesis, bull_evidence)
     bear = service.generate_bear_review(thesis, bear_evidence)
-    
+
     blackboard = service.create_cognitive_blackboard(thesis, bull, bear)
-    
+
     # Common evidence should be in aggregated twice (once from each)
     assert len(blackboard.aggregated_evidence) == 4
     # One unique conflict between bull and bear
@@ -79,13 +100,13 @@ def test_hard_rule_no_evidence_cannot_promote():
     """Test hard rule: No evidence → cannot promote"""
     service = ThesisReviewService()
     thesis = create_test_thesis()
-    
+
     blackboard = CognitiveBlackboard(
         blackboard_id="test-bb-1",
         thesis_id=thesis.thesis_id,
         aggregated_evidence=[],
     )
-    
+
     summary = service.detect_conflicts(blackboard)
     assert summary.can_promote_to_candidate is False
     assert "No evidence provided" in summary.reasoning
@@ -95,14 +116,19 @@ def test_hard_rule_missing_bear_cannot_promote():
     """Test hard rule: Missing bear/skeptic review → cannot promote"""
     service = ThesisReviewService()
     thesis = create_test_thesis()
-    
+
     evidence = [
-        EvidenceReference(evidence_id="test-1", evidence_type="event", description="Test", confidence_in_evidence=0.8),
+        EvidenceReference(
+            evidence_id="test-1",
+            evidence_type="event",
+            description="Test",
+            confidence_in_evidence=0.8,
+        ),
     ]
-    
+
     bull = service.generate_bull_review(thesis, evidence)
     blackboard = service.create_cognitive_blackboard(thesis, bull_review=bull)
-    
+
     summary = service.detect_conflicts(blackboard)
     assert summary.can_promote_to_candidate is False
     assert summary.has_sufficient_opposing_view is False
@@ -113,19 +139,34 @@ def test_full_valid_review_can_promote():
     """Test a full valid review passes all hard rules"""
     service = ThesisReviewService()
     thesis = create_test_thesis()
-    
+
     evidence = [
-        EvidenceReference(evidence_id="bull-1", evidence_type="event", description="Bull: Q3 earnings beat", confidence_in_evidence=0.9),
-        EvidenceReference(evidence_id="bear-1", evidence_type="event", description="Bear: Competition increasing", confidence_in_evidence=0.8),
-        EvidenceReference(evidence_id="macro-1", evidence_type="data", description="Skeptic: Interest rates rising", confidence_in_evidence=0.75),
+        EvidenceReference(
+            evidence_id="bull-1",
+            evidence_type="event",
+            description="Bull: Q3 earnings beat",
+            confidence_in_evidence=0.9,
+        ),
+        EvidenceReference(
+            evidence_id="bear-1",
+            evidence_type="event",
+            description="Bear: Competition increasing",
+            confidence_in_evidence=0.8,
+        ),
+        EvidenceReference(
+            evidence_id="macro-1",
+            evidence_type="data",
+            description="Skeptic: Interest rates rising",
+            confidence_in_evidence=0.75,
+        ),
     ]
-    
+
     result = service.generate_full_review(thesis, evidence)
     assert "bull_review" in result
     assert "bear_review" in result
     assert "skeptic_review" in result
     assert "conflict_summary" in result
-    
+
     conflict_summary = result["conflict_summary"]
     assert conflict_summary.can_promote_to_candidate is True
     assert conflict_summary.has_sufficient_opposing_view is True
@@ -135,12 +176,22 @@ def test_conflict_detection_finds_conflict():
     """Test conflict detection identifies conflict between bull and bear"""
     service = ThesisReviewService()
     thesis = create_test_thesis()
-    
+
     evidence = [
-        EvidenceReference(evidence_id="bull-1", evidence_type="event", description="Bull evidence", confidence_in_evidence=0.8),
-        EvidenceReference(evidence_id="bear-1", evidence_type="event", description="Bear evidence", confidence_in_evidence=0.8),
+        EvidenceReference(
+            evidence_id="bull-1",
+            evidence_type="event",
+            description="Bull evidence",
+            confidence_in_evidence=0.8,
+        ),
+        EvidenceReference(
+            evidence_id="bear-1",
+            evidence_type="event",
+            description="Bear evidence",
+            confidence_in_evidence=0.8,
+        ),
     ]
-    
+
     result = service.generate_full_review(thesis, evidence)
     assert result["conflict_summary"].total_conflicts == 1
 

@@ -13,9 +13,11 @@ router = APIRouter(prefix="/api/audit", tags=["audit"])
 def get_audit_service():
     """获取 AuditService 实例"""
     from core.services.audit_service import AuditService
+
     try:
         from data_layer.repositories.audit_repository import AuditRepositoryImpl
         from data_layer.repositories.base import SessionLocal
+
         db = SessionLocal()
         repo = AuditRepositoryImpl(db)
         return AuditService(repository=repo)
@@ -59,13 +61,16 @@ async def get_audit_trail(
 async def record_audit_log(
     entity_type: str = Query(..., description="Entity type: signal, event, outcome, review"),
     entity_id: str = Query(..., description="Entity ID"),
-    action: str = Query(..., description="Action: created, status_changed, approved, rejected, etc."),
+    action: str = Query(
+        ..., description="Action: created, status_changed, approved, rejected, etc."
+    ),
     actor: str = Query("system", description="Actor who performed the action"),
     details: Optional[str] = Query(None, description="JSON string of extra details"),
     service=Depends(get_audit_service),
 ):
     """手动记录审计日志"""
     import json
+
     valid_types = {"signal", "event", "outcome", "review"}
     if entity_type not in valid_types:
         raise HTTPException(

@@ -2,11 +2,10 @@
 import uuid
 from datetime import datetime, timedelta, timezone
 
-
-from core.contracts.outcome_journal import TradeOutcome, FailureClassification
+from core.contracts.outcome_journal import FailureClassification, TradeOutcome
 from core.services.outcome_journal_service import OutcomeJournalService
-from data_layer.repositories.outcome_journal_repository import OutcomeJournalRepository
 from data_layer.repositories.base import get_db
+from data_layer.repositories.outcome_journal_repository import OutcomeJournalRepository
 
 
 def test_create_and_retrieve_outcome():

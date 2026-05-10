@@ -101,19 +101,21 @@ class SignalRanker:
 
         data = []
         for signal, score, rank in ranked:
-            data.append({
-                "signal_id": signal.signal_id,
-                "subject_id": signal.subject_id,
-                "horizon": signal.horizon,
-                "thesis": signal.thesis,
-                "score": signal.score,
-                "confidence": signal.confidence,
-                "status": signal.status,
-                "num_evidences": len(signal.evidence_refs),
-                "num_scenarios": len(signal.scenario_refs),
-                "composite_score": score,
-                "rank": rank,
-            })
+            data.append(
+                {
+                    "signal_id": signal.signal_id,
+                    "subject_id": signal.subject_id,
+                    "horizon": signal.horizon,
+                    "thesis": signal.thesis,
+                    "score": signal.score,
+                    "confidence": signal.confidence,
+                    "status": signal.status,
+                    "num_evidences": len(signal.evidence_refs),
+                    "num_scenarios": len(signal.scenario_refs),
+                    "composite_score": score,
+                    "rank": rank,
+                }
+            )
 
         return pd.DataFrame(data)
 

@@ -105,10 +105,7 @@ def test_scenario_generation():
     from reasoning.scenarios.builder import HypothesisBuilder
     from reasoning.scenarios.calibrator import ProbabilityCalibrator
     from reasoning.skeptic.reviewer import Skeptic
-    from reasoning.state import (
-        RequestType,
-        create_initial_state,
-    )
+    from reasoning.state import RequestType, create_initial_state
 
     router = TaskRouter()
     collector = EvidenceCollector()

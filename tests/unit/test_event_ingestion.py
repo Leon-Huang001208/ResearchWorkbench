@@ -2,8 +2,8 @@ from datetime import datetime
 from unittest.mock import Mock
 
 from core.contracts import CanonicalEvent
-from ingestion.structured_event_ingestion import StructuredEventIngestor, AssertionExtractor
 from data_layer.repositories.event_repository import EventRepositoryImpl
+from ingestion.structured_event_ingestion import AssertionExtractor, StructuredEventIngestor
 
 
 class TestCanonicalEventSchema:
@@ -19,7 +19,7 @@ class TestCanonicalEventSchema:
             source_name="test_source",
             title="Test Event Title",
             confidence=0.9,
-            novelty_score=0.7
+            novelty_score=0.7,
         )
 
         assert event.event_id == "test_event_001"
@@ -47,7 +47,7 @@ class TestCanonicalEventSchema:
             confidence=0.8,
             source_type="legacy_source",
             source_name="legacy",
-            title="Legacy title"
+            title="Legacy title",
         )
         assert event.summary == "Legacy summary"
         assert event.impact_direction == "positive"
@@ -72,7 +72,7 @@ class TestStructuredEventIngestor:
             "impacted_industries": ["tech", "ai"],
             "impacted_symbols": ["000001", "600000"],
             "confidence": 0.95,
-            "novelty_score": 0.8
+            "novelty_score": 0.8,
         }
 
         canonical = self.ingestor.normalize_event(raw_event)
@@ -96,7 +96,7 @@ class TestStructuredEventIngestor:
             "source_type": "government",
             "source_name": "test",
             "title": "test",
-            "confidence": 0.8
+            "confidence": 0.8,
         }
 
         mock_event = Mock()
@@ -119,7 +119,7 @@ class TestStructuredEventIngestor:
             "impacted_industries": ["semiconductor"],
             "impacted_symbols": ["000977"],
             "confidence": 0.9,
-            "novelty_score": 0.85
+            "novelty_score": 0.85,
         }
 
         self.mock_repo.get.return_value = None
@@ -165,7 +165,12 @@ class TestAssertionExtractor:
         assert positive_assertions[0]["impact_direction"] == "positive"
         assert negative_assertions[0]["impact_direction"] == "negative"
         # mixed may be mixed or unknown depending on detection, but should not crash
-        assert mixed_assertions[0]["impact_direction"] in ["mixed", "positive", "negative", "unknown"]
+        assert mixed_assertions[0]["impact_direction"] in [
+            "mixed",
+            "positive",
+            "negative",
+            "unknown",
+        ]
 
 
 class TestBulkIngestion:
@@ -178,9 +183,30 @@ class TestBulkIngestion:
     def test_bulk_ingest_returns_correct_counts(self):
         """Test bulk ingestion returns correct success/duplicate counts"""
         events = [
-            {"event_id": "event1", "event_type": "test", "source_type": "test", "source_name": "test", "title": "test1", "confidence": 0.8},
-            {"event_id": "event2", "event_type": "test", "source_type": "test", "source_name": "test", "title": "test2", "confidence": 0.8},
-            {"event_id": "event1", "event_type": "test", "source_type": "test", "source_name": "test", "title": "test1", "confidence": 0.8},
+            {
+                "event_id": "event1",
+                "event_type": "test",
+                "source_type": "test",
+                "source_name": "test",
+                "title": "test1",
+                "confidence": 0.8,
+            },
+            {
+                "event_id": "event2",
+                "event_type": "test",
+                "source_type": "test",
+                "source_name": "test",
+                "title": "test2",
+                "confidence": 0.8,
+            },
+            {
+                "event_id": "event1",
+                "event_type": "test",
+                "source_type": "test",
+                "source_name": "test",
+                "title": "test1",
+                "confidence": 0.8,
+            },
         ]
 
         # Make event1 exist already, event2 doesn't

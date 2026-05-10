@@ -92,9 +92,7 @@ class IFinDHTTPClient:
 
     async def _ensure_token(self) -> None:
         """确保 token 有效"""
-        if not self.token or (
-            self.token_expires_at and datetime.now() >= self.token_expires_at
-        ):
+        if not self.token or (self.token_expires_at and datetime.now() >= self.token_expires_at):
             await self.login()
 
     async def _request(self, method: str, endpoint: str, **kwargs) -> dict[str, Any]:
@@ -240,8 +238,7 @@ class IFinDHTTPClient:
     ) -> list[dict]:
         """宏观经济数据库查询"""
         logger.debug(
-            f"Fetching edb_query: indicators={indicators}, "
-            f"start={start_date}, end={end_date}"
+            f"Fetching edb_query: indicators={indicators}, " f"start={start_date}, end={end_date}"
         )
         data = await self._request(
             "POST",

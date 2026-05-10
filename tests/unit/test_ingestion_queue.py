@@ -1,16 +1,13 @@
 """统一摄取队列单元测试"""
-import pytest
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from core.contracts import CanonicalEvent
-from core.contracts.ingestion import (
-    EnqueueRequest,
-    IngestionQueueItem,
-)
+from core.contracts.ingestion import EnqueueRequest, IngestionQueueItem
 from core.services.ingestion_queue_service import IngestionQueueService
 from data_layer.repositories.base import Base
 from data_layer.repositories.ingestion_repository import IngestionQueueRepository
@@ -192,7 +189,9 @@ class TestIngestionQueueRepository:
 
     def test_find_by_dedup_hash(self, repo):
         """根据去重哈希查找"""
-        item = repo.enqueue(_make_item(source_type="cls", source_id="find-test", raw_content="查找测试"))
+        item = repo.enqueue(
+            _make_item(source_type="cls", source_id="find-test", raw_content="查找测试")
+        )
         found = repo.find_by_dedup_hash(item.dedup_hash)
         assert found is not None
         assert found.item_id == item.item_id
@@ -281,6 +280,7 @@ class TestIngestionQueueService:
         """处理单个项（有 pipeline）"""
         mock_pipeline = MagicMock()
         from core.contracts import EventAlphaSignal
+
         mock_signal = EventAlphaSignal(
             signal_id="sig-001",
             subject_id="600000.SH",

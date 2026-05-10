@@ -93,9 +93,7 @@ def list_signals(status: Optional[str], subject: Optional[str], limit: int):
         click.echo("-" * 80)
 
         for i, signal in enumerate(signals, 1):
-            click.echo(
-                f"{i}. [{signal.status}] {signal.signal_id} - {signal.subject_id}"
-            )
+            click.echo(f"{i}. [{signal.status}] {signal.signal_id} - {signal.subject_id}")
             click.echo(f"   Thesis: {signal.thesis}")
             click.echo(f"   Score: {signal.score:.2f}, Confidence: {signal.confidence:.2f}")
             if signal.scenario_refs:
@@ -126,10 +124,10 @@ def validate_signal(signal_id: str):
 
         result = service.validate_signal(signal)
 
-        click.echo(f"\n✓ Validation results:")
+        click.echo("\n✓ Validation results:")
         click.echo(f"  Composite Score: {result['composite_score']:.3f}")
 
-        if result['features']:
+        if result["features"]:
             click.echo(f"  Features: {len(result['features'])}")
 
         click.echo(f"  Validated at: {result['validated_at']}")
@@ -152,10 +150,10 @@ def promote_signal(signal_id: str, status: str):
         updated = service.promote_signal(signal_id, status)
 
         if not updated:
-            click.echo(f"\n✗ Failed to promote signal", err=True)
+            click.echo("\n✗ Failed to promote signal", err=True)
             raise click.Abort()
 
-        click.echo(f"\n✓ Signal promoted successfully!")
+        click.echo("\n✓ Signal promoted successfully!")
         click.echo(f"  New status: {updated.status}")
 
     except Exception as e:

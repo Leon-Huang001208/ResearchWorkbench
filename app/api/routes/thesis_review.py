@@ -4,10 +4,10 @@ from typing import Any, Dict
 from fastapi import APIRouter, Depends, HTTPException
 
 from core.contracts import (
-    ThesisCard,
-    EvidenceReference,
     CognitiveBlackboard,
     ConflictDetectionSummary,
+    EvidenceReference,
+    ThesisCard,
 )
 from core.services.thesis_review_service import ThesisReviewService
 
@@ -34,9 +34,9 @@ async def generate_full_review(
         raise HTTPException(status_code=400, detail="ThesisCard is required")
     if not available_evidence:
         raise HTTPException(status_code=400, detail="At least one piece of evidence is required")
-    
+
     result = service.generate_full_review(thesis, available_evidence)
-    
+
     # Convert Pydantic models to dict for JSON response
     return {
         "thesis_id": result["thesis_id"],

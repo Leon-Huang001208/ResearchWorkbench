@@ -10,13 +10,14 @@ import pandas as pd
 
 from core.contracts import AlphaSignal
 from core.observability import get_logger
-from signal_lab.backtests.base import BacktestResult, Backtester
+from signal_lab.backtests.base import Backtester, BacktestResult
 
 logger = get_logger(__name__)
 
 _VECTORBT_AVAILABLE = False
 try:
     import vectorbt as vbt
+
     _VECTORBT_AVAILABLE = True
 except Exception as exc:
     vbt = None  # type: ignore
@@ -65,6 +66,7 @@ class VectorBTBacktester(Backtester):
 
         # Fallback引擎
         from signal_lab.backtests.simple import SimpleBacktester
+
         self._fallback = SimpleBacktester(
             initial_capital=initial_capital,
             transaction_cost=fees,
@@ -172,7 +174,7 @@ class VectorBTBacktester(Backtester):
                 # 正信号 — 做多入场
                 # 在信号起始日入场，持仓horizon天后出场
                 horizon_days = self._horizon_to_days(signal.horizon)
-                entries.iloc[:max(1, len(entries) - horizon_days)] = True
+                entries.iloc[: max(1, len(entries) - horizon_days)] = True
                 exits.iloc[horizon_days:] = True
             elif strength < -0.5:
                 # 负信号 — 暂不处理做空（vectorbt默认只支持多头）
@@ -215,9 +217,7 @@ class VectorBTBacktester(Backtester):
             std = daily_returns.std()
             if std != 0 and not np.isnan(std):
                 sharpe_ratio = float(
-                    (daily_returns.mean() - self.risk_free_rate / 252)
-                    / std
-                    * np.sqrt(252)
+                    (daily_returns.mean() - self.risk_free_rate / 252) / std * np.sqrt(252)
                 )
             else:
                 sharpe_ratio = 0.0
@@ -225,7 +225,9 @@ class VectorBTBacktester(Backtester):
             sharpe_ratio = 0.0
 
         # 波动率
-        volatility = float(daily_returns.std() * np.sqrt(252)) if len(daily_returns.dropna()) > 1 else 0.0
+        volatility = (
+            float(daily_returns.std() * np.sqrt(252)) if len(daily_returns.dropna()) > 1 else 0.0
+        )
         if np.isnan(volatility):
             volatility = 0.0
 
@@ -238,7 +240,9 @@ class VectorBTBacktester(Backtester):
         trade_count = len(trades.records_readable)
         if trade_count > 0:
             trade_pnls = trades.pnl.values
-            win_rate = float((trade_pnls > 0).sum() / len(trade_pnls)) if len(trade_pnls) > 0 else 0.0
+            win_rate = (
+                float((trade_pnls > 0).sum() / len(trade_pnls)) if len(trade_pnls) > 0 else 0.0
+            )
         else:
             win_rate = 0.0
 

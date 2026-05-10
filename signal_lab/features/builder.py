@@ -54,9 +54,7 @@ class FeatureBuilder:
 
         for group_name in groups_to_compute:
             if group_name in self.groups:
-                group_result = self.groups[group_name].compute_all(
-                    data, feature_names, **kwargs
-                )
+                group_result = self.groups[group_name].compute_all(data, feature_names, **kwargs)
                 for col in group_result.columns:
                     result[f"{group_name}.{col}"] = group_result[col]
 

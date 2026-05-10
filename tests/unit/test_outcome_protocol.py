@@ -177,9 +177,7 @@ class TestOutcomeServiceLessonUpdate:
         outcome = _make_outcome()
         service.record_outcome(outcome)
 
-        updated = service.update_lesson(
-            outcome.outcome_id, "AI叙事在risk_off regime下不可靠"
-        )
+        updated = service.update_lesson(outcome.outcome_id, "AI叙事在risk_off regime下不可靠")
         assert updated is not None
         assert updated.lesson == "AI叙事在risk_off regime下不可靠"
 

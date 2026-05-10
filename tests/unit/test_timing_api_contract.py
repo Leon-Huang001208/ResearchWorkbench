@@ -3,6 +3,7 @@
 Issue #1: 修复前端 GET 与后端 POST 的 HTTP 方法不匹配问题。
 """
 from unittest.mock import MagicMock
+
 from fastapi.testclient import TestClient
 
 from app.api.main import app

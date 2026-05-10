@@ -7,6 +7,7 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from fastapi.testclient import TestClient
+
 from app.api.main import app
 
 client = TestClient(app)
@@ -21,7 +22,7 @@ try:
     if response.status_code == 200:
         data = response.json()
         print(f"   Success: {data.get('success')}")
-        if data.get('success') and data.get('summary'):
+        if data.get("success") and data.get("summary"):
             print(f"   Summary: {data['summary']}")
 except Exception as e:
     print(f"   Error: {e}")
@@ -34,9 +35,9 @@ try:
     if response.status_code == 200:
         data = response.json()
         print(f"   Success: {data.get('success')}")
-        if data.get('success') and data.get('groups'):
+        if data.get("success") and data.get("groups"):
             print(f"   Feature groups: {list(data['groups'].keys())}")
-            for key, group in data['groups'].items():
+            for key, group in data["groups"].items():
                 print(f"     - {group['name']}: {len(group['features'])} features")
 except Exception as e:
     print(f"   Error: {e}")
@@ -49,7 +50,7 @@ try:
     if response.status_code == 200:
         data = response.json()
         print(f"   Success: {data.get('success')}")
-        if data.get('success') and data.get('label_types'):
+        if data.get("success") and data.get("label_types"):
             print(f"   Label types: {list(data['label_types'].keys())}")
 except Exception as e:
     print(f"   Error: {e}")
@@ -62,7 +63,7 @@ try:
     if response.status_code == 200:
         data = response.json()
         print(f"   Success: {data.get('success')}")
-        if data.get('success') and data.get('scorer_types'):
+        if data.get("success") and data.get("scorer_types"):
             print(f"   Scorers: {list(data['scorer_types'].keys())}")
 except Exception as e:
     print(f"   Error: {e}")

@@ -1,7 +1,7 @@
 import hashlib
-from datetime import datetime
-from typing import List, Dict, Optional, Any
 from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 from core.contracts import CanonicalEvent
 from core.observability import get_logger
@@ -13,6 +13,7 @@ logger = get_logger(__name__)
 @dataclass
 class IngestionResult:
     """Result of structured event ingestion"""
+
     event: CanonicalEvent
     is_duplicate: bool
     status: str
@@ -28,7 +29,9 @@ class StructuredEventIngestor:
         self.repo = event_repository
         logger.info("StructuredEventIngestor initialized")
 
-    def _generate_event_id(self, source_type: str, source_name: str, event_time: datetime, title: str) -> str:
+    def _generate_event_id(
+        self, source_type: str, source_name: str, event_time: datetime, title: str
+    ) -> str:
         """Generate deterministic event id for deduplication"""
         content = f"{source_type}:{source_name}:{event_time.isoformat()}:{title}"
         hash_val = hashlib.sha256(content.encode()).hexdigest()[:16]
@@ -46,7 +49,9 @@ class StructuredEventIngestor:
             try:
                 event_time = datetime.fromisoformat(event_time_str)
             except ValueError:
-                logger.warning("Failed to parse event_time, keeping as None", event_time=event_time_str)
+                logger.warning(
+                    "Failed to parse event_time, keeping as None", event_time=event_time_str
+                )
 
         source_type = raw_event.get("source_type", "unknown")
         source_name = raw_event.get("source_name", "unknown")
@@ -62,7 +67,9 @@ class StructuredEventIngestor:
             if "evidence_end" not in assertion:
                 assertion["evidence_end"] = len(raw_text) if raw_text else 0
             if "assertion_id" not in assertion:
-                assertion["assertion_id"] = f"{self._generate_event_id(source_type, source_name, event_time or datetime.now(), title)}_assertion_{idx}"
+                assertion[
+                    "assertion_id"
+                ] = f"{self._generate_event_id(source_type, source_name, event_time or datetime.now(), title)}_assertion_{idx}"
 
         impacted_industries = raw_event.get("impacted_industries", [])
         impacted_symbols = raw_event.get("impacted_symbols", [])
@@ -72,7 +79,9 @@ class StructuredEventIngestor:
         # Generate event id if not exists
         event_id = raw_event.get("event_id")
         if not event_id:
-            event_id = self._generate_event_id(source_type, source_name, event_time or datetime.now(), title)
+            event_id = self._generate_event_id(
+                source_type, source_name, event_time or datetime.now(), title
+            )
 
         # Create canonical event
         canonical_event = CanonicalEvent(
@@ -87,14 +96,14 @@ class StructuredEventIngestor:
             impacted_industries=impacted_industries,
             impacted_symbols=impacted_symbols,
             confidence=confidence,
-            novelty_score=novelty_score
+            novelty_score=novelty_score,
         )
 
         logger.debug(
             "Event normalized",
             event_id=canonical_event.event_id,
             event_type=canonical_event.event_type,
-            num_assertions=len(canonical_event.extracted_assertions)
+            num_assertions=len(canonical_event.extracted_assertions),
         )
 
         return canonical_event
@@ -115,18 +124,20 @@ class StructuredEventIngestor:
                     event=existing,
                     is_duplicate=True,
                     status="skipped",
-                    message="Duplicate event already exists"
+                    message="Duplicate event already exists",
                 )
 
             # Save to repository
             saved = self.repo.save(canonical)
-            logger.info("New event ingested successfully", event_id=saved.event_id, is_duplicate=False)
+            logger.info(
+                "New event ingested successfully", event_id=saved.event_id, is_duplicate=False
+            )
 
             return IngestionResult(
                 event=saved,
                 is_duplicate=False,
                 status="success",
-                message="Event ingested successfully"
+                message="Event ingested successfully",
             )
 
         except Exception as e:
@@ -135,7 +146,7 @@ class StructuredEventIngestor:
                 event=None,
                 is_duplicate=False,
                 status="error",
-                message=f"Failed to ingest: {str(e)}"
+                message=f"Failed to ingest: {str(e)}",
             )
 
     def bulk_ingest(self, raw_events: List[Dict[str, Any]]) -> List[IngestionResult]:
@@ -156,7 +167,7 @@ class StructuredEventIngestor:
             total=len(raw_events),
             success=total_success,
             duplicates=total_duplicates,
-            errors=total_errors
+            errors=total_errors,
         )
 
         return results
@@ -170,7 +181,9 @@ class AssertionExtractor:
     def __init__(self):
         self.logger = get_logger(__name__)
 
-    def extract_assertions(self, raw_text: str, context: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    def extract_assertions(
+        self, raw_text: str, context: Optional[Dict[str, Any]] = None
+    ) -> List[Dict[str, Any]]:
         """
         Extract actionable assertions from raw text, link to evidence spans
         This is a placeholder implementation - you can extend this with LLM extraction later
@@ -187,7 +200,10 @@ class AssertionExtractor:
                 continue
 
             # Look for statements that make claims about impact
-            has_impact = any(kw in line.lower() for kw in ["will", "expected", "impact", "increase", "decrease", "benefit", "hurt"])
+            has_impact = any(
+                kw in line.lower()
+                for kw in ["will", "expected", "impact", "increase", "decrease", "benefit", "hurt"]
+            )
             if has_impact or len(line) > 20:
                 start = raw_text.find(line)
                 end = start + len(line)
@@ -197,7 +213,7 @@ class AssertionExtractor:
                     "impact_direction": self._detect_impact_direction(line),
                     "evidence_start": start,
                     "evidence_end": end,
-                    "metadata": context
+                    "metadata": context,
                 }
                 assertions.append(assertion)
 
@@ -207,8 +223,29 @@ class AssertionExtractor:
     def _detect_impact_direction(self, text: str) -> str:
         """Detect impact direction from assertion text"""
         text_lower = text.lower()
-        positive = ["increase", "rise", "growth", "benefit", "positive", "good", "up", "gain", "improve"]
-        negative = ["decrease", "fall", "drop", "hurt", "negative", "bad", "down", "loss", "decline", "worsen"]
+        positive = [
+            "increase",
+            "rise",
+            "growth",
+            "benefit",
+            "positive",
+            "good",
+            "up",
+            "gain",
+            "improve",
+        ]
+        negative = [
+            "decrease",
+            "fall",
+            "drop",
+            "hurt",
+            "negative",
+            "bad",
+            "down",
+            "loss",
+            "decline",
+            "worsen",
+        ]
 
         pos_count = sum(1 for w in positive if w in text_lower)
         neg_count = sum(1 for w in negative if w in text_lower)

@@ -2,8 +2,8 @@
 from fastapi import APIRouter, HTTPException
 
 from app.api.models import ErrorResponse
-from core.observability import get_logger
 from core.contracts.dashboard import DashboardResponse
+from core.observability import get_logger
 from core.services.dashboard_service import DashboardService
 from data_layer.repositories.base import SessionLocal
 

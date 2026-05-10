@@ -9,28 +9,23 @@ Issue #47 单元测试 - 回测视角与消息面特征
 5. 回测与报告视角分离
 """
 from datetime import datetime, timedelta
-from typing import List
 
 import pytest
 
 from core.contracts.backtest import (
     DataTier,
-    TimeAvailability,
-    HistoricalReplayQuery,
-    HistoricalEvent,
     HistoricalEventStream,
-    NewsFeatureType,
+    HistoricalReplayQuery,
     NewsFeatureQuery,
-    NewsFeatureValue,
     NewsFeatureSet,
-    EventTechAlignmentRequest,
-    EventTechAlignment,
-    ViewContext,
+    NewsFeatureType,
     RetrievalConfig,
+    TimeAvailability,
+    ViewContext,
 )
+from core.services.data_tier_service import DataTierService
 from core.services.historical_replay_service import HistoricalReplayService
 from core.services.news_feature_service import NewsFeatureService
-from core.services.data_tier_service import DataTierService
 
 
 class TestTimeAvailability:
@@ -171,18 +166,24 @@ class TestHistoricalReplayService:
         now = datetime.utcnow()
 
         # 过去的数据 - 应该安全
-        assert service.check_time_travel_safety(
-            data_id="test_1",
-            data_time=now - timedelta(days=1),
-            analysis_time=now,
-        ) is True
+        assert (
+            service.check_time_travel_safety(
+                data_id="test_1",
+                data_time=now - timedelta(days=1),
+                analysis_time=now,
+            )
+            is True
+        )
 
         # 未来的数据 - 应该不安全
-        assert service.check_time_travel_safety(
-            data_id="test_2",
-            data_time=now + timedelta(days=1),
-            analysis_time=now,
-        ) is False
+        assert (
+            service.check_time_travel_safety(
+                data_id="test_2",
+                data_time=now + timedelta(days=1),
+                analysis_time=now,
+            )
+            is False
+        )
 
 
 class TestNewsFeatureService:
@@ -206,8 +207,7 @@ class TestNewsFeatureService:
         assert isinstance(feature_set, NewsFeatureSet)
         # 检查是否有 MENTION_COUNT 类型的特征
         has_mention = any(
-            f.feature_type == NewsFeatureType.MENTION_COUNT
-            for f in feature_set.features
+            f.feature_type == NewsFeatureType.MENTION_COUNT for f in feature_set.features
         )
         # 因为我们只有模拟数据，结果可能为空，这里主要检查没有报错
 

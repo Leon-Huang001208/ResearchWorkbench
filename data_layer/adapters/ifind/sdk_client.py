@@ -12,16 +12,17 @@ try:
     # 假设 iFinD SDK 的导入语句是这样的
     # 实际使用时可能需要调整
     from iFinD import (
+        THS_Basic,
+        THS_DataPool,
+        THS_DateSerial,
+        THS_EdbQuery,
+        THS_Financial,
+        THS_History,
         THS_iFinDLogin,
         THS_iFinDLogout,
-        THS_History,
         THS_Realtime,
-        THS_Basic,
-        THS_Financial,
-        THS_DateSerial,
-        THS_DataPool,
-        THS_EdbQuery,
     )
+
     IFIND_SDK_AVAILABLE = True
 except ImportError:
     IFIND_SDK_AVAILABLE = False
@@ -33,9 +34,7 @@ class IFinDSDKClient:
 
     def __init__(self, settings: Settings):
         if not IFIND_SDK_AVAILABLE:
-            raise IFinDSDKNotAvailableError(
-                "iFinD Python SDK is not available on this platform"
-            )
+            raise IFinDSDKNotAvailableError("iFinD Python SDK is not available on this platform")
         self.settings = settings
         self.username = settings.IFIND_USERNAME
         self.password = settings.IFIND_PASSWORD
@@ -46,6 +45,7 @@ class IFinDSDKClient:
         logger.info("Attempting to login to iFinD SDK")
         # 这里使用 asyncio.to_thread 因为 SDK 是同步的
         import asyncio
+
         try:
             # 假设 THS_iFinDLogin 返回 0 表示成功
             result = await asyncio.to_thread(
@@ -69,6 +69,7 @@ class IFinDSDKClient:
         logger.info("Logging out from iFinD SDK")
         if self._logged_in:
             import asyncio
+
             try:
                 await asyncio.to_thread(THS_iFinDLogout)
                 self._logged_in = False
@@ -96,6 +97,7 @@ class IFinDSDKClient:
     ) -> list[dict]:
         """历史行情查询"""
         import asyncio
+
         logger.debug(
             f"Fetching history via SDK: codes={codes}, indicators={indicators}, "
             f"start={start_date}, end={end_date}, freq={frequency}"
@@ -119,6 +121,7 @@ class IFinDSDKClient:
     async def realtime(self, codes: list[str], indicators: list[str]) -> list[dict]:
         """实时行情查询"""
         import asyncio
+
         logger.debug(f"Fetching realtime via SDK: codes={codes}, indicators={indicators}")
         try:
             result = await asyncio.to_thread(THS_Realtime, codes, indicators)
@@ -130,6 +133,7 @@ class IFinDSDKClient:
     async def basic(self, codes: list[str], indicators: list[str]) -> list[dict]:
         """基础数据查询"""
         import asyncio
+
         logger.debug(f"Fetching basic via SDK: codes={codes}, indicators={indicators}")
         try:
             result = await asyncio.to_thread(THS_Basic, codes, indicators)
@@ -146,6 +150,7 @@ class IFinDSDKClient:
     ) -> list[dict]:
         """财务数据查询"""
         import asyncio
+
         logger.debug(f"Fetching financial via SDK: codes={codes}, indicators={indicators}")
         try:
             result = await asyncio.to_thread(
@@ -168,6 +173,7 @@ class IFinDSDKClient:
     ) -> list[dict]:
         """日期序列数据查询"""
         import asyncio
+
         logger.debug(
             f"Fetching date_serial via SDK: codes={codes}, indicators={indicators}, "
             f"start={start_date}, end={end_date}"
@@ -192,6 +198,7 @@ class IFinDSDKClient:
     ) -> list[dict]:
         """专题报表数据池查询"""
         import asyncio
+
         logger.debug(f"Fetching data_pool via SDK: report_name={report_name}")
         try:
             result = await asyncio.to_thread(
@@ -212,6 +219,7 @@ class IFinDSDKClient:
     ) -> list[dict]:
         """宏观经济数据库查询"""
         import asyncio
+
         logger.debug(
             f"Fetching edb_query via SDK: indicators={indicators}, "
             f"start={start_date}, end={end_date}"

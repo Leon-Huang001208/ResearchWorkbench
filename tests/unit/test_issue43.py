@@ -8,21 +8,16 @@ from pathlib import Path
 import pytest
 
 # 导入要测试的模块
-from core.contracts import (
-    DocumentV1,
-    SourceType,
-    DocType,
-)
+from core.contracts import DocType, DocumentV1, SourceType
 from core.contracts.raw_storage import (
     RawDataType,
     RawStorageConfig,
-    get_raw_storage_path,
     generate_raw_file_name,
+    get_raw_storage_path,
 )
 from core.services.deduplication_service import DeduplicationService
 from core.services.raw_storage_service import RawStorageService
 from core.utils.id_gen import generate_id
-
 
 # =============================================================================
 # Raw Storage Tests

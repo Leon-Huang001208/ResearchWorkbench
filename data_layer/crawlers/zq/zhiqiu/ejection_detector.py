@@ -2,8 +2,8 @@
 账号顶出检测器 - 检测账号是否被顶出
 """
 import logging
-from typing import List, Optional, Callable
 from dataclasses import dataclass, field
+from typing import Callable, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -11,16 +11,19 @@ logger = logging.getLogger(__name__)
 @dataclass
 class DetectionConfig:
     """检测配置"""
+
     check_responses: bool = True
-    error_keywords: List[str] = field(default_factory=lambda: [
-        "登录已失效",
-        "请重新登录",
-        "token过期",
-        "未授权",
-        "401 Unauthorized",
-        "login expired",
-        "please login again"
-    ])
+    error_keywords: List[str] = field(
+        default_factory=lambda: [
+            "登录已失效",
+            "请重新登录",
+            "token过期",
+            "未授权",
+            "401 Unauthorized",
+            "login expired",
+            "please login again",
+        ]
+    )
     max_consecutive_errors: int = 3
     check_status_code: bool = True
     unauthorized_codes: List[int] = field(default_factory=lambda: [401, 403])
@@ -46,7 +49,7 @@ class AccountEjectionDetector:
         self,
         response_text: str = "",
         status_code: Optional[int] = None,
-        exception: Optional[Exception] = None
+        exception: Optional[Exception] = None,
     ) -> bool:
         """
         检查响应是否表明账号被顶出
@@ -107,12 +110,17 @@ class AccountEjectionDetector:
     def _check_threshold(self) -> bool:
         """检查是否达到阈值"""
         if self.consecutive_errors >= self.config.max_consecutive_errors:
-            logger.error(f"连续错误达到阈值 ({self.consecutive_errors}/{self.config.max_consecutive_errors}), "
-                        f"判定账号已被顶出")
+            logger.error(
+                f"连续错误达到阈值 ({self.consecutive_errors}/{self.config.max_consecutive_errors}), "
+                f"判定账号已被顶出"
+            )
             return True
         logger.warning(f"连续错误计数: {self.consecutive_errors}/{self.config.max_consecutive_errors}")
         return False
 
     def should_try_recovery(self) -> bool:
         """是否应该尝试恢复"""
-        return self.consecutive_errors > 0 and self.consecutive_errors < self.config.max_consecutive_errors
+        return (
+            self.consecutive_errors > 0
+            and self.consecutive_errors < self.config.max_consecutive_errors
+        )

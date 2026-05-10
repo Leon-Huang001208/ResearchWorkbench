@@ -1,18 +1,20 @@
 """认知 Agent 实现测试。"""
-import pytest
 from unittest.mock import AsyncMock
+
+import pytest
 from pydantic import BaseModel
 
-from core.interfaces import ModelGateway
-from cognitive_agents.agents.base import BaseCognitiveAgent, AgentContext
+from cognitive_agents.agents.base import AgentContext, BaseCognitiveAgent
 from cognitive_agents.agents.factory import AgentFactory
 from cognitive_agents.agents.orchestrator import AgentOrchestrator
 from cognitive_agents.blackboard import CognitiveBlackboard
-from cognitive_agents.contracts import AgentView, AgentRole
+from cognitive_agents.contracts import AgentRole, AgentView
+from core.interfaces import ModelGateway
 
 
 class MockModelGateway(ModelGateway):
     """模拟 ModelGateway 用于测试。"""
+
     def chat(
         self,
         messages: list[dict[str, str]],
@@ -79,10 +81,22 @@ def context() -> AgentContext:
 def test_agent_factory_creation(agent_factory: AgentFactory):
     """测试 AgentFactory 能正确创建各种 Agent。"""
     roles = [
-        "news", "social_media", "financial_report", "industry_data",
-        "fundamental", "technical", "macro", "industry_chain", "policy", "sentiment",
-        "bull", "bear", "skeptic",
-        "alpha_validation", "regime", "portfolio",
+        "news",
+        "social_media",
+        "financial_report",
+        "industry_data",
+        "fundamental",
+        "technical",
+        "macro",
+        "industry_chain",
+        "policy",
+        "sentiment",
+        "bull",
+        "bear",
+        "skeptic",
+        "alpha_validation",
+        "regime",
+        "portfolio",
     ]
     for role in roles:
         agent = agent_factory.create(role)
@@ -91,7 +105,9 @@ def test_agent_factory_creation(agent_factory: AgentFactory):
 
 
 @pytest.mark.asyncio
-async def test_agent_run(agent_factory: AgentFactory, blackboard: CognitiveBlackboard, context: AgentContext):
+async def test_agent_run(
+    agent_factory: AgentFactory, blackboard: CognitiveBlackboard, context: AgentContext
+):
     """测试单个 Agent 的 run 方法。"""
     agent = agent_factory.create("news")
     # 因为 BaseCognitiveAgent.analyze 是 abstractmethod，我们需要手动 mock analyze
@@ -112,7 +128,9 @@ async def test_agent_run(agent_factory: AgentFactory, blackboard: CognitiveBlack
 
 
 @pytest.mark.asyncio
-async def test_orchestrator_run_swarm(agent_factory: AgentFactory, blackboard: CognitiveBlackboard, context: AgentContext):
+async def test_orchestrator_run_swarm(
+    agent_factory: AgentFactory, blackboard: CognitiveBlackboard, context: AgentContext
+):
     """测试 AgentOrchestrator 的 run_swarm 方法。"""
     orchestrator = AgentOrchestrator(agent_factory)
     # 先 mock all agents' analyze methods

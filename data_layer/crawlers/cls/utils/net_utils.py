@@ -2,17 +2,16 @@
 import random
 import time
 from typing import Optional
+
 import requests
 
-def random_delay(
-    base_delay: float = 1.5,
-    jitter: float = 0.8,
-    min_delay: float = 0.1
-) -> None:
+
+def random_delay(base_delay: float = 1.5, jitter: float = 0.8, min_delay: float = 0.1) -> None:
     """通用随机延迟函数"""
     delay = base_delay + random.uniform(-jitter * 0.5, jitter)
     delay = max(min_delay, delay)
     time.sleep(delay)
+
 
 def retry_request(
     session: requests.Session,
@@ -21,7 +20,7 @@ def retry_request(
     max_retries: int = 3,
     retry_delay_min: float = 2.0,
     retry_delay_max: float = 5.0,
-    **kwargs
+    **kwargs,
 ) -> Optional[requests.Response]:
     """带重试机制的通用请求函数"""
     for attempt in range(max_retries):

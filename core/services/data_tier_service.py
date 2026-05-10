@@ -131,9 +131,7 @@ class DataTierService:
 
         # 只保留最近 30 天的访问记录
         cutoff = datetime.utcnow() - timedelta(days=30)
-        self._access_stats[data_id] = [
-            t for t in self._access_stats[data_id] if t >= cutoff
-        ]
+        self._access_stats[data_id] = [t for t in self._access_stats[data_id] if t >= cutoff]
 
     def get_access_frequency(
         self,

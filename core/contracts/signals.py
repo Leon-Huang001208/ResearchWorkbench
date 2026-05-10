@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
+
 from timing_engine import TimingDecision
 
 
@@ -31,13 +32,22 @@ class AlphaSignal(BaseModel):
 
     signal_id: str = Field(description="Unique identifier for the signal")
     subject_id: str = Field(description="Canonical ID of the subject asset/entity")
-    horizon: Literal["1d", "5d", "20d", "60d"] = Field(description="Time horizon (1d, 5d, 20d, 60d)")
+    horizon: Literal["1d", "5d", "20d", "60d"] = Field(
+        description="Time horizon (1d, 5d, 20d, 60d)"
+    )
     thesis: str = Field(description="Investment thesis for the signal")
     score: float = Field(description="Score of the signal")
     confidence: float = Field(description="Confidence of the signal (0.0 to 1.0)")
-    scenario_refs: list[str] = Field(default_factory=list, description="List of scenario references")
-    evidence_refs: list[str] = Field(default_factory=list, description="List of evidence references")
-    status: Literal["research_only", "candidate", "paper_trade"] = Field(default="research_only", description="Status of the signal (research_only, candidate, paper_trade)")
+    scenario_refs: list[str] = Field(
+        default_factory=list, description="List of scenario references"
+    )
+    evidence_refs: list[str] = Field(
+        default_factory=list, description="List of evidence references"
+    )
+    status: Literal["research_only", "candidate", "paper_trade"] = Field(
+        default="research_only",
+        description="Status of the signal (research_only, candidate, paper_trade)",
+    )
 
 
 class EventAlphaSignal(AlphaSignal):
@@ -64,11 +74,21 @@ class EventAlphaSignal(AlphaSignal):
 
     event_id: str = Field(description="Unique identifier for the event")
     event_type: str = Field(description="Type of the event")
-    event_time: datetime | None = Field(default=None, description="Time of the event (if available)")
-    impact_path: list[str] = Field(default_factory=list, description="List of steps in the impact propagation path")
-    industry_impacts: list[str] = Field(default_factory=list, description="List of impacted industries")
-    bullish_companies: list[str] = Field(default_factory=list, description="List of bullish companies from the event")
-    bearish_companies: list[str] = Field(default_factory=list, description="List of bearish companies from the event")
+    event_time: datetime | None = Field(
+        default=None, description="Time of the event (if available)"
+    )
+    impact_path: list[str] = Field(
+        default_factory=list, description="List of steps in the impact propagation path"
+    )
+    industry_impacts: list[str] = Field(
+        default_factory=list, description="List of impacted industries"
+    )
+    bullish_companies: list[str] = Field(
+        default_factory=list, description="List of bullish companies from the event"
+    )
+    bearish_companies: list[str] = Field(
+        default_factory=list, description="List of bearish companies from the event"
+    )
     diffusion_stage: Literal[
         "discovery",
         "early_awareness",
@@ -77,16 +97,28 @@ class EventAlphaSignal(AlphaSignal):
         "consensus",
         "decay",
         "unknown",
-    ] = Field(default="unknown", description="Diffusion stage of the event (discovery, early_awareness, theme_trading, institutional_coverage, consensus, decay, unknown)")
-    market_regime: str | None = Field(default=None, description="Market regime at the time of the event (if available)")
+    ] = Field(
+        default="unknown",
+        description="Diffusion stage of the event (discovery, early_awareness, theme_trading, institutional_coverage, consensus, decay, unknown)",
+    )
+    market_regime: str | None = Field(
+        default=None, description="Market regime at the time of the event (if available)"
+    )
     validation_status: Literal[
         "pending_backtest",
         "validated",
         "rejected",
         "paper_trade",
-    ] = Field(default="pending_backtest", description="Validation status (pending_backtest, validated, rejected, paper_trade)")
-    validation_metrics: dict[str, float] = Field(default_factory=dict, description="Dictionary with validation metrics")
-    timing_decision: Optional[TimingDecision] = Field(default=None, description="Optional timing decision from the timing engine")
+    ] = Field(
+        default="pending_backtest",
+        description="Validation status (pending_backtest, validated, rejected, paper_trade)",
+    )
+    validation_metrics: dict[str, float] = Field(
+        default_factory=dict, description="Dictionary with validation metrics"
+    )
+    timing_decision: Optional[TimingDecision] = Field(
+        default=None, description="Optional timing decision from the timing engine"
+    )
 
 
 class TradeCandidate(BaseModel):
@@ -105,6 +137,8 @@ class TradeCandidate(BaseModel):
 
     candidate_id: str = Field(description="Unique identifier for the trade candidate")
     signal_id: str = Field(description="Unique identifier of the associated signal")
-    action: Literal["long", "short", "neutral"] = Field(description="Action to take (long, short, neutral)")
+    action: Literal["long", "short", "neutral"] = Field(
+        description="Action to take (long, short, neutral)"
+    )
     sizing_hint: float = Field(description="Sizing hint (e.g., target weight)")
     risk_notes: list[str] = Field(default_factory=list, description="List of risk-related notes")

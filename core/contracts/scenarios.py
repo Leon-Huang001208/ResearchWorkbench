@@ -32,11 +32,21 @@ class ScenarioHypothesis(BaseModel):
     title: str = Field(description="Title of the scenario")
     horizon: Literal["short", "mid", "long"] = Field(description="Time horizon (short, mid, long)")
     probability: float = Field(description="Probability of the scenario (0.0 to 1.0)")
-    assumptions: list[str] = Field(default_factory=list, description="List of assumptions for the scenario")
-    key_triggers: list[str] = Field(default_factory=list, description="List of key triggers for the scenario")
-    invalidation_signals: list[str] = Field(default_factory=list, description="List of signals that would invalidate the scenario")
-    impact_map: dict = Field(default_factory=dict, description="Dictionary mapping assets/entities to impacts")
-    evidence_assertion_ids: list[str] = Field(default_factory=list, description="List of evidence assertion IDs supporting the scenario")
+    assumptions: list[str] = Field(
+        default_factory=list, description="List of assumptions for the scenario"
+    )
+    key_triggers: list[str] = Field(
+        default_factory=list, description="List of key triggers for the scenario"
+    )
+    invalidation_signals: list[str] = Field(
+        default_factory=list, description="List of signals that would invalidate the scenario"
+    )
+    impact_map: dict = Field(
+        default_factory=dict, description="Dictionary mapping assets/entities to impacts"
+    )
+    evidence_assertion_ids: list[str] = Field(
+        default_factory=list, description="List of evidence assertion IDs supporting the scenario"
+    )
     confidence: float = Field(description="Confidence in the scenario (0.0 to 1.0)")
 
 
@@ -56,6 +66,12 @@ class ScenarioSet(BaseModel):
 
     set_id: str = Field(description="Unique identifier for the scenario set")
     question: str = Field(description="Question that the scenario set addresses")
-    hypotheses: list[ScenarioHypothesis] = Field(default_factory=list, description="List of scenario hypotheses in the set")
-    normalization_check: bool = Field(default=False, description="Whether probabilities are normalized")
-    residual_uncertainty: list[str] = Field(default_factory=list, description="List of residual uncertainty points")
+    hypotheses: list[ScenarioHypothesis] = Field(
+        default_factory=list, description="List of scenario hypotheses in the set"
+    )
+    normalization_check: bool = Field(
+        default=False, description="Whether probabilities are normalized"
+    )
+    residual_uncertainty: list[str] = Field(
+        default_factory=list, description="List of residual uncertainty points"
+    )

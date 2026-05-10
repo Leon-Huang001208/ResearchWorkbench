@@ -1,7 +1,6 @@
 """Tests for AssetSnapshotRepositoryImpl."""
 from datetime import UTC, datetime
 
-
 from core.contracts import AssetAnalysisSnapshot
 from data_layer.repositories.asset_snapshot_repository import AssetSnapshotRepositoryImpl
 from data_layer.repositories.models import AssetSnapshot

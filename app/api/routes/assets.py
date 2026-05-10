@@ -1,11 +1,12 @@
 """资产分析路由"""
 from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.api.models import AnalyzeRequest, AnalyzeResponse, ErrorResponse
-from core.contracts import AssetAnalysisSnapshot, AssetAnalysisCard
+from core.contracts import AssetAnalysisCard, AssetAnalysisSnapshot
 from core.services.asset_analysis_service import AssetAnalysisService
 from data_layer.repositories.base import get_db
 
@@ -14,6 +15,7 @@ router = APIRouter(prefix="/api/assets", tags=["assets"])
 
 class AnalysisCardRequest(BaseModel):
     """资产分析卡请求"""
+
     canonical_id: str = Field(..., description="资产唯一标识")
     as_of: datetime | None = Field(None, description="指定分析时间")
     use_mock: bool = Field(True, description="是否使用模拟数据")
@@ -22,6 +24,7 @@ class AnalysisCardRequest(BaseModel):
 
 class AnalysisCardResponse(AssetAnalysisCard):
     """资产分析卡响应"""
+
     pass
 
 
@@ -44,10 +47,10 @@ def _snapshot_to_response(snapshot: AssetAnalysisSnapshot) -> AnalyzeResponse:
 
 def get_asset_service(db: Session = Depends(get_db)) -> AssetAnalysisService:
     """获取资产分析服务实例，自动降级：iFinD → AKShare → Local → Mock"""
-    from data_layer.repositories.postgres_asset_snapshot_repo import PostgresAssetSnapshotRepository
+    from data_layer.adapters.akshare_adapter import AKShareAdapter
     from data_layer.adapters.ifind_adapter import IFinDAdapter
     from data_layer.adapters.local_data_adapter import LocalDataAdapter
-    from data_layer.adapters.akshare_adapter import AKShareAdapter
+    from data_layer.repositories.postgres_asset_snapshot_repo import PostgresAssetSnapshotRepository
 
     repo = PostgresAssetSnapshotRepository(db_session=db)
     ifind_adapter = IFinDAdapter()
@@ -58,7 +61,7 @@ def get_asset_service(db: Session = Depends(get_db)) -> AssetAnalysisService:
         ifind_adapter=ifind_adapter,
         local_adapter=local_adapter,
         akshare_adapter=akshare_adapter,
-        use_mock=False
+        use_mock=False,
     )
 
 

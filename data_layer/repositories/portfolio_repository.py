@@ -1,7 +1,6 @@
 """组合提案仓储实现"""
 from typing import List, Optional
 
-
 from core.contracts.portfolio import PortfolioCandidate, PortfolioProposal
 from core.observability import get_logger
 from data_layer.repositories.base import BaseRepository
@@ -16,9 +15,7 @@ class PortfolioRepositoryImpl(BaseRepository):
     def save_proposal(self, proposal: PortfolioProposal) -> PortfolioProposal:
         """保存组合提案"""
         existing = (
-            self.db.query(PortfolioProposalDB)
-            .filter_by(proposal_id=proposal.proposal_id)
-            .first()
+            self.db.query(PortfolioProposalDB).filter_by(proposal_id=proposal.proposal_id).first()
         )
         if existing:
             existing.name = proposal.name
@@ -66,9 +63,7 @@ class PortfolioRepositoryImpl(BaseRepository):
 
     def _to_domain(self, db_proposal: PortfolioProposalDB) -> PortfolioProposal:
         """转换为领域模型"""
-        candidates = [
-            PortfolioCandidate(**c) for c in db_proposal.candidates
-        ]
+        candidates = [PortfolioCandidate(**c) for c in db_proposal.candidates]
         return PortfolioProposal(
             proposal_id=db_proposal.proposal_id,
             name=db_proposal.name,

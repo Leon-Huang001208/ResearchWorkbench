@@ -2,7 +2,6 @@
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-
 from core.contracts.paper_trading import (
     BenchmarkComparison,
     PaperPortfolio,
@@ -15,10 +14,7 @@ from core.contracts.paper_trading import (
 )
 from core.observability import get_logger
 from data_layer.repositories.base import BaseRepository
-from data_layer.repositories.models import (
-    PaperPortfolioDB,
-    SimulationResultDB,
-)
+from data_layer.repositories.models import PaperPortfolioDB, SimulationResultDB
 
 logger = get_logger(__name__)
 
@@ -31,9 +27,7 @@ class PaperTradingRepositoryImpl(BaseRepository):
     def save_paper_portfolio(self, portfolio: PaperPortfolio) -> PaperPortfolio:
         """保存模拟组合"""
         existing = (
-            self.db.query(PaperPortfolioDB)
-            .filter_by(portfolio_id=portfolio.portfolio_id)
-            .first()
+            self.db.query(PaperPortfolioDB).filter_by(portfolio_id=portfolio.portfolio_id).first()
         )
 
         data = self._portfolio_to_dict(portfolio)
@@ -91,11 +85,7 @@ class PaperTradingRepositoryImpl(BaseRepository):
 
     def save_simulation_result(self, result: SimulationResult) -> SimulationResult:
         """保存模拟结果"""
-        existing = (
-            self.db.query(SimulationResultDB)
-            .filter_by(result_id=result.result_id)
-            .first()
-        )
+        existing = self.db.query(SimulationResultDB).filter_by(result_id=result.result_id).first()
 
         data = self._result_to_dict(result)
 
@@ -190,7 +180,11 @@ class PaperTradingRepositoryImpl(BaseRepository):
 
     def _dict_to_portfolio(self, data: Dict[str, Any]) -> PaperPortfolio:
         """字典 → PaperPortfolio"""
-        assumptions = SimulationAssumptions(**data["assumptions"]) if data.get("assumptions") else SimulationAssumptions()
+        assumptions = (
+            SimulationAssumptions(**data["assumptions"])
+            if data.get("assumptions")
+            else SimulationAssumptions()
+        )
 
         current_snapshot = None
         if data.get("current_snapshot"):
@@ -221,7 +215,9 @@ class PaperTradingRepositoryImpl(BaseRepository):
             "mode": result.mode.value,
             "assumptions": result.assumptions.model_dump(mode="json"),
             "performance": result.performance.model_dump(mode="json"),
-            "benchmark_comparisons": [b.model_dump(mode="json") for b in result.benchmark_comparisons],
+            "benchmark_comparisons": [
+                b.model_dump(mode="json") for b in result.benchmark_comparisons
+            ],
             "nav_series": result.nav_series,
             "rebalance_count": result.rebalance_count,
             "total_turnover": result.total_turnover,
@@ -247,16 +243,24 @@ class PaperTradingRepositoryImpl(BaseRepository):
 
     def _dict_to_result(self, data: Dict[str, Any]) -> SimulationResult:
         """字典 → SimulationResult"""
-        performance = PerformanceMetrics(**data["performance"]) if data.get("performance") else PerformanceMetrics(
-            start_date=data.get("created_at", datetime.now(timezone.utc)),
-            end_date=data.get("created_at", datetime.now(timezone.utc)),
+        performance = (
+            PerformanceMetrics(**data["performance"])
+            if data.get("performance")
+            else PerformanceMetrics(
+                start_date=data.get("created_at", datetime.now(timezone.utc)),
+                end_date=data.get("created_at", datetime.now(timezone.utc)),
+            )
         )
 
         benchmark_comparisons = [
             BenchmarkComparison(**b) for b in data.get("benchmark_comparisons", [])
         ]
 
-        assumptions = SimulationAssumptions(**data["assumptions"]) if data.get("assumptions") else SimulationAssumptions()
+        assumptions = (
+            SimulationAssumptions(**data["assumptions"])
+            if data.get("assumptions")
+            else SimulationAssumptions()
+        )
 
         return SimulationResult(
             result_id=data["result_id"],
@@ -272,5 +276,3 @@ class PaperTradingRepositoryImpl(BaseRepository):
             total_turnover=data.get("total_turnover", 0.0),
             metadata=data.get("metadata", {}),
         )
-
-

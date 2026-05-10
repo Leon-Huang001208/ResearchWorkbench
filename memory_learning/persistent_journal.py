@@ -13,7 +13,7 @@ logger = get_logger(__name__)
 
 class PersistentLearningJournal:
     """Persistent version of LearningJournal that stores all entities in PostgreSQL.
-    
+
     Provides the same interface as the in-memory LearningJournal for compatibility,
     but delegates all operations to the persistent memory repository.
     """

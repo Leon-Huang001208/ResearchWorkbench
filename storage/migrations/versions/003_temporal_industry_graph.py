@@ -6,8 +6,9 @@ Create Date: 2026-05-07
 
 """
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP
+
+from alembic import op
 
 revision = "003"
 down_revision = "002"
@@ -53,18 +54,10 @@ def upgrade() -> None:
     )
 
     # 索引
-    op.create_index(
-        "idx_temporal_relation_from_entity", "temporal_relation", ["from_entity_id"]
-    )
-    op.create_index(
-        "idx_temporal_relation_to_entity", "temporal_relation", ["to_entity_id"]
-    )
-    op.create_index(
-        "idx_temporal_relation_type", "temporal_relation", ["relationship_type"]
-    )
-    op.create_index(
-        "idx_temporal_relation_industry", "temporal_relation", ["industry"]
-    )
+    op.create_index("idx_temporal_relation_from_entity", "temporal_relation", ["from_entity_id"])
+    op.create_index("idx_temporal_relation_to_entity", "temporal_relation", ["to_entity_id"])
+    op.create_index("idx_temporal_relation_type", "temporal_relation", ["relationship_type"])
+    op.create_index("idx_temporal_relation_industry", "temporal_relation", ["industry"])
     op.create_index(
         "idx_temporal_relation_valid_period", "temporal_relation", ["valid_from", "valid_to"]
     )

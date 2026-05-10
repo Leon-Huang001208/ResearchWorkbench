@@ -6,13 +6,14 @@
 专门处理 ZQMEETING 类型文档。
 """
 
-import os
 import json
-from typing import Dict, Any, List, Optional, Tuple
+import os
+from typing import Any, Dict, List, Optional, Tuple
+
 import pandas as pd
 
-from .base import BaseProcessor, _clean_html
 from ..utils import parse_timestamp
+from .base import BaseProcessor, _clean_html
 
 
 class MeetingProcessor(BaseProcessor):
@@ -37,7 +38,7 @@ class MeetingProcessor(BaseProcessor):
         output_file: str,
         state_manager: Optional[Any] = None,
         skip_existing: bool = True,
-        **kwargs
+        **kwargs,
     ) -> Tuple[pd.DataFrame, List[Dict], int]:
         """
         处理纪要数据
@@ -100,7 +101,9 @@ class MeetingProcessor(BaseProcessor):
         if not obj_id:
             return None
 
-        internal_url = f"https://www.kanzhiqiu.com/newweb/zqsite/#/intelligentMeetingDetail?id={obj_id}"
+        internal_url = (
+            f"https://www.kanzhiqiu.com/newweb/zqsite/#/intelligentMeetingDetail?id={obj_id}"
+        )
 
         date_str = parse_timestamp(report)
 
@@ -124,7 +127,7 @@ class MeetingProcessor(BaseProcessor):
             "stockName": meeting.get("stockName", ""),
             "stockCode": meeting.get("stockCode", ""),
             "url": internal_url,
-            "date": date_str
+            "date": date_str,
         }
 
         return result

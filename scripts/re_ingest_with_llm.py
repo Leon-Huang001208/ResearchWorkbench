@@ -11,6 +11,7 @@ import os
 import sys
 import time
 from pathlib import Path
+
 from sqlalchemy import text
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -29,8 +30,8 @@ logger = get_logger(__name__)
 
 DATA_FILES = []
 for f in sorted(os.listdir(PROJECT_ROOT / "data" / "real")):
-    if f.endswith('.json'):
-        name = f.replace('.json', '').replace('_', ' ')
+    if f.endswith(".json"):
+        name = f.replace(".json", "").replace("_", " ")
         DATA_FILES.append((name, PROJECT_ROOT / "data" / "real" / f))
 
 
@@ -162,7 +163,7 @@ def main():
         # 5. 统计
         elapsed = time.time() - start_time
         total = success + fail + skipped
-        print(f"\n=== 重新导入+LLM提取完成 ===")
+        print("\n=== 重新导入+LLM提取完成 ===")
         print(f"  文档: {success} 成功 / {fail} 失败 / {skipped} 跳过(去重) / {total} 总计")
         print(f"  断言: {total_assertions} 条 (LLM提取)")
         print(f"  事件: {total_events} 条 (LLM提取)")

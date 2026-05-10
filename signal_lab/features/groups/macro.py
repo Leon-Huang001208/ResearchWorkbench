@@ -17,10 +17,7 @@ class MacroExposureFeature(Feature):
     """宏观风险暴露特征"""
 
     def __init__(self, factor: str = "market"):
-        super().__init__(
-            name=f"{factor}_exposure",
-            description=f"{factor}因子暴露"
-        )
+        super().__init__(name=f"{factor}_exposure", description=f"{factor}因子暴露")
         self.factor = factor
 
     def compute(self, data: pd.DataFrame, **kwargs: Any) -> pd.Series:
@@ -35,10 +32,7 @@ class MacroMomentumFeature(Feature):
     """宏观动量特征"""
 
     def __init__(self, factor: str = "market", window: int = 60):
-        super().__init__(
-            name=f"{factor}_momentum_{window}d",
-            description=f"{factor}的{window}日动量"
-        )
+        super().__init__(name=f"{factor}_momentum_{window}d", description=f"{factor}的{window}日动量")
         self.factor = factor
         self.window = window
 
@@ -53,10 +47,7 @@ class CreditSpreadFeature(Feature):
     """信用利差特征"""
 
     def __init__(self, window: int = 20):
-        super().__init__(
-            name=f"credit_spread_{window}d",
-            description=f"{window}日信用利差"
-        )
+        super().__init__(name=f"credit_spread_{window}d", description=f"{window}日信用利差")
         self.window = window
 
     def compute(self, data: pd.DataFrame, **kwargs: Any) -> pd.Series:

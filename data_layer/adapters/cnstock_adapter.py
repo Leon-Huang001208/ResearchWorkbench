@@ -7,7 +7,7 @@ from typing import Any
 from core.contracts import DocumentEnvelope
 from core.observability import get_logger
 from data_layer.adapters.base import BaseDataAdapter
-from data_layer.crawlers.cnstock.cnstock import CnstockCrawler, CnstockConfig
+from data_layer.crawlers.cnstock.cnstock import CnstockConfig, CnstockCrawler
 
 logger = get_logger(__name__)
 
@@ -24,7 +24,7 @@ class CNStockAdapter(BaseDataAdapter):
         end_date: str,
         channel: str = "证券",
         output_dir: str = "./data/crawlers/cnstock",
-        **kwargs
+        **kwargs,
     ) -> list[DocumentEnvelope]:
         """爬取中国证券网新闻,返回 DocumentEnvelope 列表"""
         logger.info(
@@ -56,16 +56,16 @@ class CNStockAdapter(BaseDataAdapter):
         envelopes = []
         for news_item in news_list:
             # NewsItem is a dataclass, convert to dict
-            if hasattr(news_item, '__dataclass_fields__'):
+            if hasattr(news_item, "__dataclass_fields__"):
                 news_dict = {
-                    'title': news_item.title,
-                    'url': news_item.url,
-                    'publish_time': news_item.publish_time,
-                    'source': news_item.source,
-                    'summary': news_item.summary,
-                    'article_id': news_item.article_id,
-                    'content_text': news_item.content_text,
-                    'categories': news_item.categories,
+                    "title": news_item.title,
+                    "url": news_item.url,
+                    "publish_time": news_item.publish_time,
+                    "source": news_item.source,
+                    "summary": news_item.summary,
+                    "article_id": news_item.article_id,
+                    "content_text": news_item.content_text,
+                    "categories": news_item.categories,
                 }
             elif isinstance(news_item, dict):
                 news_dict = news_item
@@ -84,9 +84,17 @@ class CNStockAdapter(BaseDataAdapter):
             # Parse from dict
             article_id = source.get("article_id", "") or source.get("url", "").split("/")[-1]
             title = source.get("title", "")
-            content = source.get("content_text", "") or source.get("content", "") or source.get("summary", "")
+            content = (
+                source.get("content_text", "")
+                or source.get("content", "")
+                or source.get("summary", "")
+            )
             # Try multiple date field names
-            published_at_str = source.get("publish_time", "") or source.get("date", "") or source.get("publish_date", "")
+            published_at_str = (
+                source.get("publish_time", "")
+                or source.get("date", "")
+                or source.get("publish_date", "")
+            )
             published_at = None
             if published_at_str:
                 # 优先尝试带时分秒的格式，所有时间都精确到秒，没有时分秒的默认补00:00:00
@@ -106,14 +114,18 @@ class CNStockAdapter(BaseDataAdapter):
                         published_at = datetime.strptime(published_at_str, fmt)
                         # 如果格式是只有日期的，补00:00:00
                         if fmt == "%Y-%m-%d":
-                            published_at = published_at.replace(hour=0, minute=0, second=0, microsecond=0)
+                            published_at = published_at.replace(
+                                hour=0, minute=0, second=0, microsecond=0
+                            )
                         break
                     except ValueError:
                         continue
                 # 所有格式都解析失败的话，尝试取前10位解析日期，补00:00:00
                 if not published_at and len(published_at_str) >= 10:
                     try:
-                        published_at = datetime.strptime(published_at_str[:10], "%Y-%m-%d").replace(hour=0, minute=0, second=0, microsecond=0)
+                        published_at = datetime.strptime(published_at_str[:10], "%Y-%m-%d").replace(
+                            hour=0, minute=0, second=0, microsecond=0
+                        )
                     except ValueError:
                         pass
 

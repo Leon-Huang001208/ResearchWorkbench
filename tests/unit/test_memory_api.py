@@ -3,12 +3,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.api.main import app
-from memory_learning.contracts import (
-    MarketEpisode,
-    StrategyMemory,
-    AgentMemory,
-    FailureMemory,
-)
+from memory_learning.contracts import AgentMemory, FailureMemory, MarketEpisode, StrategyMemory
 
 
 @pytest.fixture
@@ -22,6 +17,7 @@ def clean_journal():
     """Reset the journal singleton before each test"""
     # Clear the singleton instance
     from app.api.routes.memory import get_learning_journal
+
     if hasattr(get_learning_journal, "_instance"):
         delattr(get_learning_journal, "_instance")
     return get_learning_journal()
@@ -63,7 +59,7 @@ def test_list_episodes(client, clean_journal):
         outcome_excess_return=-0.01,
     )
     client.post("/api/memory/episodes", json=episode.model_dump())
-    
+
     # Then list episodes
     response = client.get("/api/memory/episodes?event_type=policy")
     assert response.status_code == 200
@@ -85,7 +81,7 @@ def test_get_episode(client, clean_journal):
         outcome_excess_return=0.08,
     )
     client.post("/api/memory/episodes", json=episode.model_dump())
-    
+
     response = client.get("/api/memory/episodes/test-episode-003")
     assert response.status_code == 200
     data = response.json()
@@ -124,7 +120,7 @@ def test_list_strategies(client, clean_journal):
         sharpe_ratio=1.0,
     )
     client.post("/api/memory/strategies", json=strategy.model_dump())
-    
+
     response = client.get("/api/memory/strategies?signal_family=value")
     assert response.status_code == 200
     data = response.json()
@@ -164,7 +160,7 @@ def test_list_agent_memories(client, clean_journal):
         contradiction_count=1,
     )
     client.post("/api/memory/agent-memories", json=memory.model_dump())
-    
+
     response = client.get("/api/memory/agent-memories?agent_name=momentum_agent")
     assert response.status_code == 200
     data = response.json()
@@ -200,7 +196,7 @@ def test_list_failures(client, clean_journal):
         corrective_action="Avoid crowded trades",
     )
     client.post("/api/memory/failures", json=failure.model_dump())
-    
+
     response = client.get("/api/memory/failures?failure_type=crowding_error")
     assert response.status_code == 200
     data = response.json()
@@ -233,7 +229,7 @@ def test_summarize_event_type(client, clean_journal):
     )
     client.post("/api/memory/episodes", json=episode1.model_dump())
     client.post("/api/memory/episodes", json=episode2.model_dump())
-    
+
     response = client.get("/api/memory/summarize/earnings")
     assert response.status_code == 200
     data = response.json()

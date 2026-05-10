@@ -13,11 +13,11 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from core.contracts.backtest import (
-    NewsFeatureType,
-    NewsFeatureQuery,
-    NewsFeatureValue,
-    NewsFeatureSet,
     HistoricalEvent,
+    NewsFeatureQuery,
+    NewsFeatureSet,
+    NewsFeatureType,
+    NewsFeatureValue,
 )
 from core.observability import get_logger
 
@@ -137,7 +137,9 @@ class NewsFeatureService:
                     value=float(mention_count),
                     entity_id=entity_id,
                     industry_id=industry_id,
-                    source_breakdown=self._count_by_source(filtered_events) if include_source_breakdown else None,
+                    source_breakdown=self._count_by_source(filtered_events)
+                    if include_source_breakdown
+                    else None,
                 )
             )
 
@@ -214,7 +216,9 @@ class NewsFeatureService:
         filtered: List[HistoricalEvent] = []
 
         for event in self._events:
-            event_time = event.time_availability.event_time or event.time_availability.available_time
+            event_time = (
+                event.time_availability.event_time or event.time_availability.available_time
+            )
             if event_time < start or event_time > end:
                 continue
 

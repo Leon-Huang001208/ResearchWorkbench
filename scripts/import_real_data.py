@@ -4,11 +4,11 @@
 - 从 data/real/ 目录加载 JSON 文件
 - 保存到数据库
 """
-import json
 import hashlib
+import json
 import sys
-from pathlib import Path
 from datetime import datetime, timezone
+from pathlib import Path
 
 # Add project root to Python path
 project_root = Path(__file__).parent.parent
@@ -16,7 +16,7 @@ sys.path.insert(0, str(project_root))
 
 from core.observability import get_logger
 from data_layer.repositories.base import SessionLocal
-from data_layer.repositories.models import SourceDocument, CanonicalEvent, Assertion
+from data_layer.repositories.models import Assertion, CanonicalEvent, SourceDocument
 
 logger = get_logger(__name__)
 
@@ -247,7 +247,7 @@ def main():
         event_count = db.query(CanonicalEvent).count()
         assertion_count = db.query(Assertion).count()
 
-        logger.info(f"IMPORT SUMMARY")
+        logger.info("IMPORT SUMMARY")
         logger.info("=" * 80)
         logger.info(f"Documents: {doc_count}")
         logger.info(f"Events: {event_count}")

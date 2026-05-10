@@ -10,13 +10,14 @@ import pandas as pd
 
 from core.contracts import AlphaSignal
 from core.observability import get_logger
-from signal_lab.backtests.base import BacktestResult, Backtester
+from signal_lab.backtests.base import Backtester, BacktestResult
 
 logger = get_logger(__name__)
 
 _BACKTRADER_AVAILABLE = False
 try:
     import backtrader as bt
+
     _BACKTRADER_AVAILABLE = True
 except ImportError:
     bt = None  # type: ignore
@@ -133,6 +134,7 @@ class BacktraderEngine(Backtester):
 
         # Fallback引擎
         from signal_lab.backtests.simple import SimpleBacktester
+
         self._fallback = SimpleBacktester(
             initial_capital=initial_capital,
             transaction_cost=commission,
@@ -204,7 +206,9 @@ class BacktraderEngine(Backtester):
                 )
 
             # 添加分析器
-            cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="sharpe", riskfreerate=self.risk_free_rate / 252)
+            cerebro.addanalyzer(
+                bt.analyzers.SharpeRatio, _name="sharpe", riskfreerate=self.risk_free_rate / 252
+            )
             cerebro.addanalyzer(bt.analyzers.DrawDown, _name="drawdown")
             cerebro.addanalyzer(bt.analyzers.Returns, _name="returns")
             cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
@@ -307,7 +311,9 @@ class BacktraderEngine(Backtester):
         # 最大回撤
         try:
             dd_analysis = strat.analyzers.drawdown.get_analysis()
-            max_drawdown = -float(dd_analysis.max.drawdown) / 100.0 if dd_analysis.max.drawdown else 0.0
+            max_drawdown = (
+                -float(dd_analysis.max.drawdown) / 100.0 if dd_analysis.max.drawdown else 0.0
+            )
         except Exception:
             max_drawdown = 0.0
 
@@ -315,8 +321,14 @@ class BacktraderEngine(Backtester):
         try:
             returns_analysis = strat.analyzers.returns.get_analysis()
             # 用日收益计算年化波动率
-            daily_returns = pd.Series(list(returns_analysis.values())) if returns_analysis else pd.Series(dtype=float)
-            volatility = float(daily_returns.std() * np.sqrt(252)) if len(daily_returns) > 1 else 0.0
+            daily_returns = (
+                pd.Series(list(returns_analysis.values()))
+                if returns_analysis
+                else pd.Series(dtype=float)
+            )
+            volatility = (
+                float(daily_returns.std() * np.sqrt(252)) if len(daily_returns) > 1 else 0.0
+            )
         except Exception:
             volatility = 0.0
 

@@ -1,12 +1,13 @@
 """Agent 观点仓储测试"""
 import uuid
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from cognitive_agents.contracts import AgentView, BlackboardConflict
-from data_layer.repositories.base import Base
 from data_layer.repositories.agent_view_repository import AgentViewRepositoryImpl
+from data_layer.repositories.base import Base
 
 
 @pytest.fixture(scope="function")

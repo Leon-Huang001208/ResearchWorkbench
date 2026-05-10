@@ -1,8 +1,15 @@
 from .fundamental_agent import FundamentalAgent
-from .technical_agent import TechnicalAgent
-from .macro_agent import MacroAgent
 from .industry_chain_agent import IndustryChainAgent
+from .macro_agent import MacroAgent
 from .policy_agent import PolicyAgent
 from .sentiment_agent import SentimentAgent
+from .technical_agent import TechnicalAgent
 
-__all__ = ["FundamentalAgent", "TechnicalAgent", "MacroAgent", "IndustryChainAgent", "PolicyAgent", "SentimentAgent"]
+__all__ = [
+    "FundamentalAgent",
+    "TechnicalAgent",
+    "MacroAgent",
+    "IndustryChainAgent",
+    "PolicyAgent",
+    "SentimentAgent",
+]

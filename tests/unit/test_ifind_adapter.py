@@ -6,10 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from core.settings.config import Settings
-from data_layer.adapters.ifind import (
-    BackendRouter,
-    IFinDMapper,
-)
+from data_layer.adapters.ifind import BackendRouter, IFinDMapper
 from data_layer.adapters.ifind_adapter import IFinDAdapter
 
 logger = logging.getLogger(__name__)

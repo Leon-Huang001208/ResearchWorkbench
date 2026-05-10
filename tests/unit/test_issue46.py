@@ -13,13 +13,7 @@ from tempfile import TemporaryDirectory
 
 import pytest
 
-from core.contracts import (
-    FactCard,
-    ReportTask,
-    SectionOutput,
-    SectionSpec,
-    ValidationResults,
-)
+from core.contracts import FactCard, ReportTask, SectionOutput, SectionSpec, ValidationResults
 from reporting.composer.fact_card_builder import FactCardBuilder
 from reporting.composer.report_pipeline import ReportPipeline
 from reporting.composer.validator import ReportValidator
@@ -237,7 +231,6 @@ class TestReportPipeline:
     def test_create_run_log(self):
         """测试创建运行日志."""
         pipeline = ReportPipeline()
-
 
         task = pipeline.create_report_task("weekly_report", {})
         sections = [

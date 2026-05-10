@@ -7,10 +7,10 @@ AkShare 完整集成示例
 2. 获取新闻并转为文档封包
 3. 获取财务数据并更新资产信息
 """
-import sys
-from pathlib import Path
-from datetime import date, datetime, timedelta
 import logging
+import sys
+from datetime import date, datetime, timedelta
+from pathlib import Path
 
 # 添加项目根目录到路径
 root_dir = Path(__file__).parent.parent
@@ -97,6 +97,7 @@ def example_2_news_data_processing():
     # 展示如何转换为 DocumentEnvelope
     logger.info("\nConverting to DocumentEnvelope format (demo):")
     from uuid import uuid4
+
     envelopes = []
     for i, news in enumerate(sample_news):
         # 简化演示，创建基本数据结构

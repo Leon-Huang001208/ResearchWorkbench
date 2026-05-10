@@ -1,6 +1,7 @@
 """产业链图谱 API"""
-from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from core.observability import get_logger
 from core.services.graph_data_service import GraphDataService

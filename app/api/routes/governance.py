@@ -6,8 +6,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.contracts.governance import (
-    ExperimentComparison,
     ExperimentCompareRequest,
+    ExperimentComparison,
     ExperimentCreateRequest,
     ExperimentRecord,
     GovernanceReport,
@@ -31,8 +31,10 @@ _governance_service: GovernanceService | None = None
 
 # ── 请求/响应模型 ──────────────────────────────────────
 
+
 class StrategyVersionCreateBody(BaseModel):
     """创建策略版本请求体"""
+
     component_type: StrategyComponentType
     component_name: str
     description: str = ""
@@ -44,6 +46,7 @@ class StrategyVersionCreateBody(BaseModel):
 
 class StrategyVersionResponse(BaseModel):
     """策略版本响应"""
+
     version_id: str
     component_type: str
     component_name: str
@@ -60,6 +63,7 @@ class StrategyVersionResponse(BaseModel):
 
 class RollbackBody(BaseModel):
     """回滚请求体"""
+
     component_type: StrategyComponentType
     component_name: str
     target_version_id: str
@@ -67,6 +71,7 @@ class RollbackBody(BaseModel):
 
 class RollbackResponse(BaseModel):
     """回滚响应"""
+
     component_type: str
     component_name: str
     previous_active_version_id: Optional[str] = None
@@ -77,6 +82,7 @@ class RollbackResponse(BaseModel):
 
 class ExperimentCreateBody(BaseModel):
     """创建实验请求体"""
+
     name: str
     description: str = ""
     strategy_version_ids: List[str] = Field(default_factory=list)
@@ -88,11 +94,13 @@ class ExperimentCreateBody(BaseModel):
 
 class ExperimentCompleteBody(BaseModel):
     """完成实验请求体"""
+
     metrics: Optional[Dict[str, float]] = None
 
 
 class ExperimentResponse(BaseModel):
     """实验记录响应"""
+
     experiment_id: str
     name: str
     description: str
@@ -109,12 +117,14 @@ class ExperimentResponse(BaseModel):
 
 class ExperimentCompareBody(BaseModel):
     """实验对比请求体"""
+
     experiment_a_id: str
     experiment_b_id: str
 
 
 class ExperimentMetricDiffResponse(BaseModel):
     """实验指标差异响应"""
+
     metric_name: str
     experiment_a_value: Optional[float] = None
     experiment_b_value: Optional[float] = None
@@ -124,6 +134,7 @@ class ExperimentMetricDiffResponse(BaseModel):
 
 class ExperimentComparisonResponse(BaseModel):
     """实验对比响应"""
+
     experiment_a_id: str
     experiment_b_id: str
     experiment_a_name: str
@@ -135,6 +146,7 @@ class ExperimentComparisonResponse(BaseModel):
 
 class StrategyVersionSummaryResponse(BaseModel):
     """策略版本摘要响应"""
+
     component_type: str
     component_name: str
     active_version_id: Optional[str] = None
@@ -144,6 +156,7 @@ class StrategyVersionSummaryResponse(BaseModel):
 
 class GovernanceReportResponse(BaseModel):
     """治理报告响应"""
+
     generated_at: str
     strategy_summaries: List[StrategyVersionSummaryResponse]
     total_experiments: int = 0
@@ -153,6 +166,7 @@ class GovernanceReportResponse(BaseModel):
 
 
 # ── 依赖注入 ───────────────────────────────────────────
+
 
 def get_governance_service(db: Session = Depends(get_db)) -> GovernanceService:
     """获取治理服务实例（单例 + 请求级 DB session）"""
@@ -173,6 +187,7 @@ def _reset_governance_service():
 
 
 # ── 辅助转换 ───────────────────────────────────────────
+
 
 def _version_to_response(v: StrategyVersion) -> StrategyVersionResponse:
     """StrategyVersion → 响应"""
@@ -255,6 +270,7 @@ def _report_to_response(r: GovernanceReport) -> GovernanceReportResponse:
 
 # ── 策略版本路由 ───────────────────────────────────────
 
+
 @router.post(
     "/versions",
     response_model=StrategyVersionResponse,
@@ -327,6 +343,7 @@ async def get_strategy_version(
 
 # ── 回滚路由 ───────────────────────────────────────────
 
+
 @router.post(
     "/rollback",
     response_model=RollbackResponse,
@@ -361,6 +378,7 @@ async def rollback_version(
 
 
 # ── 实验路由 ───────────────────────────────────────────
+
 
 @router.post(
     "/experiments",
@@ -479,6 +497,7 @@ async def compare_experiments(
 
 
 # ── 治理报告路由 ───────────────────────────────────────
+
 
 @router.get(
     "/report",

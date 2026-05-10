@@ -1,16 +1,17 @@
 """Alpha 验证 Agent。"""
 import uuid
 
-from core.observability import get_logger
-from core.interfaces import ModelGateway
-from cognitive_agents.agents.base import BaseCognitiveAgent, AgentContext
+from cognitive_agents.agents.base import AgentContext, BaseCognitiveAgent
 from cognitive_agents.contracts import AgentView
+from core.interfaces import ModelGateway
+from core.observability import get_logger
 
 logger = get_logger(__name__)
 
 
 class AlphaValidationAgent(BaseCognitiveAgent):
     """负责验证 Alpha 信号的 Agent。"""
+
     def __init__(self, model_gateway: ModelGateway):
         super().__init__(model_gateway, "alpha_validation_agent", "alpha_validation")
 

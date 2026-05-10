@@ -1,6 +1,7 @@
 """Web 工作台 API"""
-from fastapi import APIRouter, Depends, HTTPException
 from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException
 
 from core.observability import get_logger
 
@@ -12,8 +13,10 @@ def get_signal_service():
     """获取 SignalService 实例"""
     from core.services.signal_service import SignalService
     from data_layer.repositories.signal_repository import SignalRepositoryImpl
+
     try:
         from data_layer.repositories.base import SessionLocal
+
         db = SessionLocal()
         repo = SignalRepositoryImpl(db)
         return SignalService(repository=repo)
@@ -25,8 +28,10 @@ def get_signal_service():
 def get_review_service():
     """获取 ReviewService 实例"""
     from core.services.review_service import ReviewService
+
     try:
         from data_layer.repositories.base import ensure_schema
+
         ensure_schema()
     except Exception as e:
         logger.warning(f"ensure_schema failed: {e}")
@@ -36,6 +41,7 @@ def get_review_service():
 def get_learning_journal():
     """获取 LearningJournal 实例（内存版）"""
     from memory_learning.journal import LearningJournal
+
     if not hasattr(get_learning_journal, "_instance"):
         get_learning_journal._instance = LearningJournal()
     return get_learning_journal._instance

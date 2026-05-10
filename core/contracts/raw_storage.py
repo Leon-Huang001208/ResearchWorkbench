@@ -12,6 +12,7 @@ from typing import Any, Dict, Optional
 
 class RawDataType(str, Enum):
     """原始数据类型"""
+
     JSON = "json"
     HTML = "html"
     PDF = "pdf"
@@ -23,6 +24,7 @@ class RawDataType(str, Enum):
 @dataclass
 class RawFileInfo:
     """原始文件信息"""
+
     file_path: str
     file_name: str
     data_type: RawDataType
@@ -37,6 +39,7 @@ class RawFileInfo:
 @dataclass
 class RawStorageConfig:
     """原始存储配置"""
+
     base_dir: str = "./data/raw"
     max_file_size_mb: int = 100
     compress: bool = True
@@ -65,7 +68,13 @@ def get_raw_storage_path(
     if hasattr(source_type, "value"):
         source_type = source_type.value
 
-    path = Path(base_dir) / source_type / date.strftime("%Y") / date.strftime("%m") / date.strftime("%d")
+    path = (
+        Path(base_dir)
+        / source_type
+        / date.strftime("%Y")
+        / date.strftime("%m")
+        / date.strftime("%d")
+    )
     path.mkdir(parents=True, exist_ok=True)
     return path
 
@@ -77,6 +86,7 @@ def generate_raw_file_name(
 ) -> str:
     """生成原始文件名"""
     import uuid
+
     ts = timestamp or datetime.now()
     unique_id = str(uuid.uuid4())[:8]
     ext_map = {

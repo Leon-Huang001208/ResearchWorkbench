@@ -1,9 +1,10 @@
 """Tests for Timing repository"""
 import pytest
 from sqlalchemy import text
-from timing_engine.contracts import TimingDecision, TimingModelScore
-from data_layer.repositories.timing_repository import TimingRepositoryImpl
+
 from core.observability import get_logger
+from data_layer.repositories.timing_repository import TimingRepositoryImpl
+from timing_engine.contracts import TimingDecision, TimingModelScore
 
 logger = get_logger(__name__)
 
@@ -19,7 +20,9 @@ class TestTimingRepositorySQLite:
         engine = create_engine("sqlite:///:memory:")
         # Create tables manually for SQLite test
         with engine.connect() as conn:
-            conn.execute(text("""
+            conn.execute(
+                text(
+                    """
                 CREATE TABLE timing_decision (
                     decision_id TEXT PRIMARY KEY,
                     signal_id TEXT,
@@ -32,7 +35,9 @@ class TestTimingRepositorySQLite:
                     rationale JSON NOT NULL DEFAULT ('[]'),
                     created_at TIMESTAMP
                 )
-            """))
+            """
+                )
+            )
             conn.commit()
 
         Session = sessionmaker(bind=engine)

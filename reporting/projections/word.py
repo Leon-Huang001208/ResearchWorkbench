@@ -379,6 +379,7 @@ class WordProjection:
             chart_images: Dict of chart ID to image bytes.
         """
         from io import BytesIO
+
         from docx.shared import Inches
 
         for chart_id, image_bytes in chart_images.items():

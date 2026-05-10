@@ -70,10 +70,7 @@ class EventQualityGate:
                 )
 
         # 7. 判断是否需要审核
-        needs_review = (
-            len(issues) > 0
-            or effective_confidence < self._auto_approve_threshold
-        )
+        needs_review = len(issues) > 0 or effective_confidence < self._auto_approve_threshold
 
         return not needs_review, issues
 

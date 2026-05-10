@@ -5,24 +5,23 @@
 验证择时结果被持久化
 使用 SQLite 内存数据库 + mock LLM
 """
-import pytest
 import uuid
 from datetime import datetime, timezone
 from unittest.mock import Mock
 
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from core.contracts import CanonicalEvent, EventAlphaSignal
+from core.interfaces import ModelGateway, ModelResponse
+from core.services.event_extractor import EventExtractor
+from core.services.pipeline_service import ResearchPipeline
+from core.services.signal_service import SignalService
 from data_layer.repositories.base import Base
 from data_layer.repositories.signal_repository import SignalRepositoryImpl
 from data_layer.repositories.timing_repository import TimingRepositoryImpl
-from core.contracts import CanonicalEvent, EventAlphaSignal
-from core.services.pipeline_service import ResearchPipeline
-from core.services.signal_service import SignalService
-from core.services.event_extractor import EventExtractor
-from core.interfaces import ModelGateway, ModelResponse
 from memory_learning.journal import LearningJournal
-
 
 # ── Fixtures ────────────────────────────────────────────
 
@@ -230,7 +229,9 @@ class TestGoldenPath:
             assert len(saved) >= 1
             saved_decision = saved[0]
             assert saved_decision.action == signal.timing_decision.action
-            assert abs(saved_decision.readiness_score - signal.timing_decision.readiness_score) < 0.01
+            assert (
+                abs(saved_decision.readiness_score - signal.timing_decision.readiness_score) < 0.01
+            )
 
 
 class TestEventExtractor:

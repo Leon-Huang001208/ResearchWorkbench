@@ -5,15 +5,9 @@ from typing import Literal
 
 from core.settings.config import Settings
 from data_layer.adapters.ifind.client import IFinDClient
-from data_layer.adapters.ifind.exceptions import (
-    IFinDDatasourceError,
-    IFinDSDKNotAvailableError,
-)
+from data_layer.adapters.ifind.exceptions import IFinDDatasourceError, IFinDSDKNotAvailableError
 from data_layer.adapters.ifind.http_client import IFinDHTTPClient
-from data_layer.adapters.ifind.sdk_client import (
-    IFIND_SDK_AVAILABLE,
-    IFinDSDKClient,
-)
+from data_layer.adapters.ifind.sdk_client import IFIND_SDK_AVAILABLE, IFinDSDKClient
 
 logger = logging.getLogger(__name__)
 

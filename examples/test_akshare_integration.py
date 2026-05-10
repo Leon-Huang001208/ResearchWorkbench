@@ -11,13 +11,12 @@ from pathlib import Path
 root_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(root_dir))
 
-from datetime import datetime
 import logging
+from datetime import datetime
 
 # 配置简单日志
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger("akshare_integration_test")
 
@@ -25,7 +24,6 @@ logger = logging.getLogger("akshare_integration_test")
 def test_adapter_import():
     """测试导入适配器"""
     logger.info("Testing adapter import...")
-
 
     logger.info("✓ All modules imported successfully")
     return True
@@ -35,7 +33,7 @@ def test_config_creation():
     """测试配置创建"""
     logger.info("Testing config creation...")
 
-    from data_layer.crawlers.akshare import AkShareConfig, DEFAULT_CONFIG
+    from data_layer.crawlers.akshare import DEFAULT_CONFIG, AkShareConfig
 
     # 默认配置
     assert DEFAULT_CONFIG is not None
@@ -59,11 +57,7 @@ def test_data_classes():
     """测试数据类"""
     logger.info("Testing data classes...")
 
-    from data_layer.crawlers.akshare import (
-        MarketData,
-        NewsData,
-        StockInfo,
-    )
+    from data_layer.crawlers.akshare import MarketData, NewsData, StockInfo
 
     # 测试市场数据
     md = MarketData(
@@ -123,7 +117,7 @@ def test_market_fetcher_basic():
     """测试行情获取器基础功能"""
     logger.info("Testing market fetcher...")
 
-    from data_layer.crawlers.akshare import AkShareMarketFetcher, AkShareConfig
+    from data_layer.crawlers.akshare import AkShareConfig, AkShareMarketFetcher
 
     config = AkShareConfig(enable_cache=False, verbose=True)
     fetcher = AkShareMarketFetcher(config)

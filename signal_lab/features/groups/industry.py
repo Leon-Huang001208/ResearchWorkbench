@@ -17,10 +17,7 @@ class IndustryMomentumFeature(Feature):
     """行业动量特征"""
 
     def __init__(self, periods: int = 20):
-        super().__init__(
-            name=f"industry_momentum_{periods}d",
-            description=f"{periods}日行业动量"
-        )
+        super().__init__(name=f"industry_momentum_{periods}d", description=f"{periods}日行业动量")
         self.periods = periods
 
     def compute(self, data: pd.DataFrame, **kwargs: Any) -> pd.Series:
@@ -35,10 +32,7 @@ class IndustryStrengthFeature(Feature):
     """行业相对强弱特征"""
 
     def __init__(self, periods: int = 20):
-        super().__init__(
-            name=f"industry_strength_{periods}d",
-            description=f"{periods}日行业相对强弱"
-        )
+        super().__init__(name=f"industry_strength_{periods}d", description=f"{periods}日行业相对强弱")
         self.periods = periods
 
     def compute(self, data: pd.DataFrame, **kwargs: Any) -> pd.Series:
@@ -56,10 +50,7 @@ class IndustryConcentrationFeature(Feature):
     """行业集中度特征 — 市值占比"""
 
     def __init__(self, window: int = 60):
-        super().__init__(
-            name=f"industry_concentration_{window}d",
-            description=f"{window}日行业集中度"
-        )
+        super().__init__(name=f"industry_concentration_{window}d", description=f"{window}日行业集中度")
         self.window = window
 
     def compute(self, data: pd.DataFrame, **kwargs: Any) -> pd.Series:
@@ -77,18 +68,17 @@ class CrossSectionalRankFeature(Feature):
     """截面排名特征"""
 
     def __init__(self, metric: str = "return", window: int = 20):
-        super().__init__(
-            name=f"cs_rank_{metric}_{window}d",
-            description=f"{metric}的{window}日截面排名"
-        )
+        super().__init__(name=f"cs_rank_{metric}_{window}d", description=f"{metric}的{window}日截面排名")
         self.metric = metric
         self.window = window
 
     def compute(self, data: pd.DataFrame, **kwargs: Any) -> pd.Series:
         col = kwargs.get(f"{self.metric}_col", self.metric)
         if col in data.columns:
-            return data[col].rolling(self.window).apply(
-                lambda x: pd.Series(x).rank(pct=True).iloc[-1], raw=True
+            return (
+                data[col]
+                .rolling(self.window)
+                .apply(lambda x: pd.Series(x).rank(pct=True).iloc[-1], raw=True)
             )
         return pd.Series([pd.NA] * len(data), index=data.index)
 

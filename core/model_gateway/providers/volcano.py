@@ -132,8 +132,13 @@ class VolcanoProvider(BaseProvider):
                 except Exception as standard_err:
                     # 标准端点失败，尝试多模态端点 /v3/embeddings/multimodal
                     err_str = str(standard_err)
-                    if "does not support this api" in err_str or "InvalidEndpointOrModel" in err_str:
-                        logger.debug("standard embed failed, trying multimodal endpoint", model=model)
+                    if (
+                        "does not support this api" in err_str
+                        or "InvalidEndpointOrModel" in err_str
+                    ):
+                        logger.debug(
+                            "standard embed failed, trying multimodal endpoint", model=model
+                        )
                         embedding, tokens_used = self._embed_multimodal(text, model, **kwargs)
                     else:
                         raise

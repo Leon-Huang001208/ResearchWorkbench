@@ -2,7 +2,6 @@
 import uuid
 from typing import Any, Dict, List, Optional
 
-
 from core.observability import get_logger
 from data_layer.repositories.base import BaseRepository
 from data_layer.repositories.models import AuditLogDB
@@ -97,9 +96,7 @@ class AuditRepositoryImpl(BaseRepository):
         Returns:
             审计日志列表
         """
-        q = self.db.query(AuditLogDB).filter(
-            AuditLogDB.details.cast(str).contains(query)
-        )
+        q = self.db.query(AuditLogDB).filter(AuditLogDB.details.cast(str).contains(query))
         if entity_types:
             q = q.filter(AuditLogDB.entity_type.in_(entity_types))
         db_logs = q.order_by(AuditLogDB.created_at.desc()).limit(limit).all()

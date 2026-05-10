@@ -3,7 +3,6 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-
 AgentRole = Literal[
     "news",
     "social_media",

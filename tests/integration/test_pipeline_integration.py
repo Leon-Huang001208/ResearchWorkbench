@@ -1,13 +1,14 @@
 """
 全链路流水线集成测试 - 测试ResearchPipeline端到端流程
 """
-import pytest
-from unittest.mock import Mock, AsyncMock
 from datetime import datetime
+from unittest.mock import AsyncMock, Mock
 
+import pytest
+
+from cognitive_agents.blackboard import CognitiveBlackboard
 from core.contracts import AssetAnalysisSnapshot, CanonicalEvent, ScenarioSet
 from core.services.pipeline_service import ResearchPipeline
-from cognitive_agents.blackboard import CognitiveBlackboard
 
 
 @pytest.fixture

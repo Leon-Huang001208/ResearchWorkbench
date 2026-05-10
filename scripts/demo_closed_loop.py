@@ -15,7 +15,7 @@ from sqlalchemy import text
 from core.observability import get_logger
 from core.services.closed_loop_service import ClosedLoopService
 from data_layer.repositories.base import SessionLocal
-from data_layer.repositories.models import CanonicalEvent, AlphaSignalDB
+from data_layer.repositories.models import AlphaSignalDB, CanonicalEvent
 
 logger = get_logger(__name__)
 
@@ -42,9 +42,9 @@ def check_current_state():
         # 显示一些事件样本
         if event_count > 0:
             print("\n  最近事件:")
-            events = db.query(CanonicalEvent).order_by(
-                CanonicalEvent.created_at.desc()
-            ).limit(3).all()
+            events = (
+                db.query(CanonicalEvent).order_by(CanonicalEvent.created_at.desc()).limit(3).all()
+            )
             for event in events:
                 print(f"    - [{event.event_type}] {event.summary[:60]}...")
 
@@ -77,12 +77,14 @@ def print_summary(summary: dict):
     print(f"  胜率: {summary['win_rate']:.1%}")
     print(f"  方向正确率: {summary['correct_direction_rate']:.1%}")
 
-    if summary['results']:
+    if summary["results"]:
         print("\n  逐个信号结果:")
-        for r in summary['results']:
-            direction = "✓" if r['direction_correct'] else "✗"
-            print(f"    {direction} {r['signal_id']} ({r['subject_id']}): "
-                  f"return={r['return']:.2%}, excess={r['excess_return']:.2%}")
+        for r in summary["results"]:
+            direction = "✓" if r["direction_correct"] else "✗"
+            print(
+                f"    {direction} {r['signal_id']} ({r['subject_id']}): "
+                f"return={r['return']:.2%}, excess={r['excess_return']:.2%}"
+            )
 
 
 def query_new_data():
@@ -92,9 +94,13 @@ def query_new_data():
     db = SessionLocal()
     try:
         # 查询新生成的信号
-        signals = db.query(AlphaSignalDB).filter(
-            AlphaSignalDB.event_id.isnot(None)
-        ).order_by(AlphaSignalDB.created_at.desc()).limit(3).all()
+        signals = (
+            db.query(AlphaSignalDB)
+            .filter(AlphaSignalDB.event_id.isnot(None))
+            .order_by(AlphaSignalDB.created_at.desc())
+            .limit(3)
+            .all()
+        )
 
         if signals:
             print("\n  新生成的信号:")
@@ -103,11 +109,17 @@ def query_new_data():
                 print(f"    Event ID: {signal.event_id}")
                 print(f"    Subject: {signal.subject_id}")
                 print(f"    Thesis: {signal.thesis}")
-                print(f"    Score: {float(signal.score):.2f}, Confidence: {float(signal.confidence):.2f}")
+                print(
+                    f"    Score: {float(signal.score):.2f}, Confidence: {float(signal.confidence):.2f}"
+                )
 
         # 直接用 SQL 查询回测结果（避免模型问题）
         print("\n  回测结果 (直接 SQL 查询):")
-        result = db.execute(text("SELECT outcome_id, signal_id, subject_id, outcome_return, outcome_excess_return, lesson FROM signal_outcome ORDER BY created_at DESC LIMIT 3"))
+        result = db.execute(
+            text(
+                "SELECT outcome_id, signal_id, subject_id, outcome_return, outcome_excess_return, lesson FROM signal_outcome ORDER BY created_at DESC LIMIT 3"
+            )
+        )
         for row in result:
             print(f"\n    Outcome ID: {row[0]}")
             print(f"    Signal ID: {row[1]}")

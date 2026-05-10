@@ -2,7 +2,6 @@
 from datetime import datetime, timezone
 from typing import List, Optional
 
-
 from core.contracts.replay import ReplayJob, ReplayResult
 from core.observability import get_logger
 from data_layer.repositories.base import BaseRepository
@@ -104,11 +103,7 @@ class ReplayRepositoryImpl(BaseRepository):
 
     def get_results(self, job_id: str) -> List[ReplayResult]:
         """获取回放任务的所有结果"""
-        db_results = (
-            self.db.query(ReplayResultDB)
-            .filter(ReplayResultDB.job_id == job_id)
-            .all()
-        )
+        db_results = self.db.query(ReplayResultDB).filter(ReplayResultDB.job_id == job_id).all()
         return [self._result_to_domain(r) for r in db_results]
 
     # ── 转换方法 ──────────────────────────────────────────
@@ -133,12 +128,22 @@ class ReplayRepositoryImpl(BaseRepository):
             outcome_id=db_result.outcome_id,
             event_type=db_result.event_type,
             source_type=db_result.source_type,
-            signal_score=float(db_result.signal_score) if db_result.signal_score is not None else None,
-            signal_confidence=float(db_result.signal_confidence) if db_result.signal_confidence is not None else None,
+            signal_score=float(db_result.signal_score)
+            if db_result.signal_score is not None
+            else None,
+            signal_confidence=float(db_result.signal_confidence)
+            if db_result.signal_confidence is not None
+            else None,
             timing_action=db_result.timing_action,
-            outcome_return=float(db_result.outcome_return) if db_result.outcome_return is not None else None,
-            outcome_excess_return=float(db_result.outcome_excess_return) if db_result.outcome_excess_return is not None else None,
-            max_drawdown=float(db_result.max_drawdown) if db_result.max_drawdown is not None else None,
+            outcome_return=float(db_result.outcome_return)
+            if db_result.outcome_return is not None
+            else None,
+            outcome_excess_return=float(db_result.outcome_excess_return)
+            if db_result.outcome_excess_return is not None
+            else None,
+            max_drawdown=float(db_result.max_drawdown)
+            if db_result.max_drawdown is not None
+            else None,
             decay=float(db_result.decay) if db_result.decay is not None else None,
             error=db_result.error,
         )

@@ -65,7 +65,6 @@ class AssertionPrompts:
 }}
 """
 
-
     # 合并提取 prompt（断言+事件一次 LLM 调用）
     COMBINED_EXTRACT_SYSTEM_ZH = """你是一个专业的金融文本分析助手。你的任务是从给定的金融文本中同时提取结构化的事实断言和事件。
 

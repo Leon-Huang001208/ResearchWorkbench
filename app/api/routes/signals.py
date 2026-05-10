@@ -169,6 +169,7 @@ async def get_signal_detail(
         raise HTTPException(status_code=404, detail=f"Signal {signal_id} not found")
 
     from core.observability import get_logger
+
     logger = get_logger(__name__)
 
     result: dict = {
@@ -201,11 +202,14 @@ async def get_signal_detail(
         try:
             from data_layer.repositories.base import SessionLocal
             from data_layer.repositories.models import CanonicalEvent
+
             db = SessionLocal()
             try:
-                event = db.query(CanonicalEvent).filter(
-                    CanonicalEvent.event_id == signal.event_id
-                ).first()
+                event = (
+                    db.query(CanonicalEvent)
+                    .filter(CanonicalEvent.event_id == signal.event_id)
+                    .first()
+                )
                 if event:
                     result["event"] = {
                         "event_id": event.event_id,
@@ -222,8 +226,9 @@ async def get_signal_detail(
 
     # 择时建议
     try:
-        from data_layer.repositories.timing_repository import TimingRepositoryImpl
         from data_layer.repositories.base import SessionLocal
+        from data_layer.repositories.timing_repository import TimingRepositoryImpl
+
         db = SessionLocal()
         try:
             timing_repo = TimingRepositoryImpl(db)
@@ -244,8 +249,9 @@ async def get_signal_detail(
 
     # 关联 Outcome
     try:
-        from data_layer.repositories.outcome_repository import OutcomeRepositoryImpl
         from data_layer.repositories.base import SessionLocal
+        from data_layer.repositories.outcome_repository import OutcomeRepositoryImpl
+
         db = SessionLocal()
         try:
             outcome_repo = OutcomeRepositoryImpl(db)
@@ -257,7 +263,9 @@ async def get_signal_detail(
                     "outcome_excess_return": outcome.outcome_excess_return,
                     "max_drawdown": outcome.max_drawdown,
                     "lesson": outcome.lesson,
-                    "evaluated_at": outcome.evaluated_at.isoformat() if outcome.evaluated_at else None,
+                    "evaluated_at": outcome.evaluated_at.isoformat()
+                    if outcome.evaluated_at
+                    else None,
                 }
         finally:
             db.close()
@@ -269,6 +277,7 @@ async def get_signal_detail(
         from core.services.audit_service import AuditService
         from data_layer.repositories.audit_repository import AuditRepositoryImpl
         from data_layer.repositories.base import SessionLocal
+
         db = SessionLocal()
         try:
             audit_repo = AuditRepositoryImpl(db)

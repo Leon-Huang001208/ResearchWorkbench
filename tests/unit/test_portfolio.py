@@ -11,14 +11,11 @@
 from unittest.mock import MagicMock
 
 from core.contracts import EventAlphaSignal
-from core.contracts.portfolio import (
-    PortfolioCandidate,
-    PortfolioConstraints,
-)
+from core.contracts.portfolio import PortfolioCandidate, PortfolioConstraints
 from core.services.portfolio_service import PortfolioService
 
-
 # ─── 辅助函数 ────────────────────────────────────────────
+
 
 def _make_signal(
     signal_id: str = "sig-001",
@@ -43,6 +40,7 @@ def _make_signal(
 
 
 # ─── 排名逻辑测试 ───────────────────────────────────────
+
 
 class TestRanking:
     """排名逻辑测试"""
@@ -111,6 +109,7 @@ class TestRanking:
 
 
 # ─── 约束检查测试 ───────────────────────────────────────
+
 
 class TestConstraints:
     """约束检查测试"""
@@ -221,6 +220,7 @@ class TestConstraints:
 
 # ─── 冲突解决测试 ───────────────────────────────────────
 
+
 class TestConflictResolution:
     """冲突解决测试"""
 
@@ -284,6 +284,7 @@ class TestConflictResolution:
 
 
 # ─── 仓位定权测试 ───────────────────────────────────────
+
 
 class TestPositionSizing:
     """仓位定权测试"""
@@ -358,6 +359,7 @@ class TestPositionSizing:
 
 
 # ─── 组合构建完整流程测试 ───────────────────────────────
+
 
 class TestBuildProposal:
     """组合构建完整流程测试"""
@@ -449,6 +451,7 @@ class TestBuildProposal:
 
 # ─── 排除理由记录测试 ───────────────────────────────────
 
+
 class TestExclusionRationale:
     """排除理由记录测试"""
 
@@ -509,15 +512,24 @@ class TestExclusionRationale:
 
         signals = [
             _make_signal(
-                "s1", "A", score=0.9, confidence=0.9,
+                "s1",
+                "A",
+                score=0.9,
+                confidence=0.9,
                 industry_impacts=["banking"],
             ),
             _make_signal(
-                "s2", "B", score=0.8, confidence=0.8,
+                "s2",
+                "B",
+                score=0.8,
+                confidence=0.8,
                 industry_impacts=["banking"],
             ),
             _make_signal(
-                "s3", "C", score=0.7, confidence=0.7,
+                "s3",
+                "C",
+                score=0.7,
+                confidence=0.7,
                 industry_impacts=["banking"],
             ),
         ]
@@ -531,6 +543,7 @@ class TestExclusionRationale:
 
 
 # ─── 历史质量查询测试 ───────────────────────────────────
+
 
 class TestHistoricalQuality:
     """历史质量查询测试"""

@@ -2,7 +2,6 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-
 from core.contracts.monitoring import (
     AlertPayload,
     AlertSeverity,
@@ -38,7 +37,9 @@ class MonitoringRepositoryImpl(BaseRepository):
         db_obj = HealthMetricsDB(**data)
         self.db.add(db_obj)
         self.db.flush()
-        logger.info("health metrics saved", metric_id=metrics.metric_id, subsystem=metrics.subsystem.value)
+        logger.info(
+            "health metrics saved", metric_id=metrics.metric_id, subsystem=metrics.subsystem.value
+        )
         return self._dict_to_metrics(self._db_metrics_to_dict(db_obj))
 
     def get_latest_metrics(self, subsystem: Subsystem) -> Optional[HealthMetrics]:
@@ -79,7 +80,9 @@ class MonitoringRepositoryImpl(BaseRepository):
         db_obj = DriftReportDB(**data)
         self.db.add(db_obj)
         self.db.flush()
-        logger.info("drift report saved", report_id=report.report_id, dimension=report.dimension.value)
+        logger.info(
+            "drift report saved", report_id=report.report_id, dimension=report.dimension.value
+        )
         return self._dict_to_drift(self._db_drift_to_dict(db_obj))
 
     def list_drift_reports(
@@ -102,9 +105,7 @@ class MonitoringRepositoryImpl(BaseRepository):
     def save_alert_threshold(self, threshold: AlertThreshold) -> AlertThreshold:
         """保存告警阈值"""
         existing = (
-            self.db.query(AlertThresholdDB)
-            .filter_by(threshold_id=threshold.threshold_id)
-            .first()
+            self.db.query(AlertThresholdDB).filter_by(threshold_id=threshold.threshold_id).first()
         )
         data = self._threshold_to_dict(threshold)
         if existing:
@@ -160,11 +161,7 @@ class MonitoringRepositoryImpl(BaseRepository):
 
     def save_alert(self, alert: AlertPayload) -> AlertPayload:
         """保存告警"""
-        existing = (
-            self.db.query(AlertPayloadDB)
-            .filter_by(alert_id=alert.alert_id)
-            .first()
-        )
+        existing = self.db.query(AlertPayloadDB).filter_by(alert_id=alert.alert_id).first()
         data = self._alert_to_dict(alert)
         if existing:
             for key, value in data.items():
@@ -179,11 +176,7 @@ class MonitoringRepositoryImpl(BaseRepository):
 
     def get_alert(self, alert_id: str) -> Optional[AlertPayload]:
         """获取告警"""
-        db_obj = (
-            self.db.query(AlertPayloadDB)
-            .filter(AlertPayloadDB.alert_id == alert_id)
-            .first()
-        )
+        db_obj = self.db.query(AlertPayloadDB).filter(AlertPayloadDB.alert_id == alert_id).first()
         if not db_obj:
             return None
         return self._dict_to_alert(self._db_alert_to_dict(db_obj))
@@ -212,6 +205,7 @@ class MonitoringRepositoryImpl(BaseRepository):
     def count_open_alerts(self, subsystem: Optional[Subsystem] = None) -> int:
         """统计未关闭告警数量"""
         from sqlalchemy import func
+
         query = self.db.query(func.count(AlertPayloadDB.alert_id)).filter(
             AlertPayloadDB.status != AlertStatus.RESOLVED.value
         )
@@ -222,6 +216,7 @@ class MonitoringRepositoryImpl(BaseRepository):
     def count_open_critical(self) -> int:
         """统计未关闭的 critical 告警"""
         from sqlalchemy import func
+
         return (
             self.db.query(func.count(AlertPayloadDB.alert_id))
             .filter(
@@ -249,9 +244,7 @@ class MonitoringRepositoryImpl(BaseRepository):
     def save_incident(self, incident: IncidentRecord) -> IncidentRecord:
         """保存事件"""
         existing = (
-            self.db.query(IncidentRecordDB)
-            .filter_by(incident_id=incident.incident_id)
-            .first()
+            self.db.query(IncidentRecordDB).filter_by(incident_id=incident.incident_id).first()
         )
         data = self._incident_to_dict(incident)
         if existing:

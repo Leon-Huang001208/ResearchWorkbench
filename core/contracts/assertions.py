@@ -41,20 +41,45 @@ class Assertion(BaseModel):
     """
 
     assertion_id: str = Field(description="Unique identifier for the assertion")
-    subject_entity_id: str | None = Field(default=None, description="Canonical ID of the subject entity (if applicable)")
+    subject_entity_id: str | None = Field(
+        default=None, description="Canonical ID of the subject entity (if applicable)"
+    )
     predicate: str = Field(description="Predicate describing the relationship or property")
-    object_entity_id: str | None = Field(default=None, description="Canonical ID of the object entity (if applicable)")
+    object_entity_id: str | None = Field(
+        default=None, description="Canonical ID of the object entity (if applicable)"
+    )
     object_value: dict | None = Field(default=None, description="Object value (if not an entity)")
-    observed_at: datetime | None = Field(default=None, description="Timestamp when the assertion was observed in the source")
-    valid_from: datetime | None = Field(default=None, description="Start of the assertion's validity period")
-    valid_to: datetime | None = Field(default=None, description="End of the assertion's validity period")
-    confidence: float = Field(description="Confidence score (0.0 to 1.0) of the assertion's accuracy")
+    observed_at: datetime | None = Field(
+        default=None, description="Timestamp when the assertion was observed in the source"
+    )
+    valid_from: datetime | None = Field(
+        default=None, description="Start of the assertion's validity period"
+    )
+    valid_to: datetime | None = Field(
+        default=None, description="End of the assertion's validity period"
+    )
+    confidence: float = Field(
+        description="Confidence score (0.0 to 1.0) of the assertion's accuracy"
+    )
     source_doc_id: str = Field(description="ID of the source document")
-    source_span: dict = Field(default_factory=dict, description="Location in the source document (page, line numbers, etc.)")
-    extractor_version: str = Field(description="Version of the extractor that generated this assertion")
-    reviewer_status: Literal["draft", "pending", "approved", "rejected"] = Field(default="draft", description="Review status")
-    reviewer: str | None = Field(default=None, description="Identifier of the reviewer (if applicable)")
-    reviewed_at: datetime | None = Field(default=None, description="Timestamp when the assertion was reviewed (if applicable)")
-    trace_ref: str | None = Field(default=None, description="Optional trace reference for auditing/debugging")
+    source_span: dict = Field(
+        default_factory=dict,
+        description="Location in the source document (page, line numbers, etc.)",
+    )
+    extractor_version: str = Field(
+        description="Version of the extractor that generated this assertion"
+    )
+    reviewer_status: Literal["draft", "pending", "approved", "rejected"] = Field(
+        default="draft", description="Review status"
+    )
+    reviewer: str | None = Field(
+        default=None, description="Identifier of the reviewer (if applicable)"
+    )
+    reviewed_at: datetime | None = Field(
+        default=None, description="Timestamp when the assertion was reviewed (if applicable)"
+    )
+    trace_ref: str | None = Field(
+        default=None, description="Optional trace reference for auditing/debugging"
+    )
     team_id: str | None = Field(default=None, description="Optional team ID")
     project_id: str | None = Field(default=None, description="Optional project ID")

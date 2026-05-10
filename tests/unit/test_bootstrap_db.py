@@ -9,9 +9,9 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 
-from scripts.bootstrap_db import DEFAULT_ALERT_THRESHOLDS, verify_schema
-from data_layer.repositories.base import get_db, check_database_connection, ensure_schema
+from data_layer.repositories.base import check_database_connection, ensure_schema, get_db
 from data_layer.repositories.models import AlertThresholdDB
+from scripts.bootstrap_db import DEFAULT_ALERT_THRESHOLDS, verify_schema
 
 
 def test_bootstrap_idempotent():
@@ -20,29 +20,34 @@ def test_bootstrap_idempotent():
     check_database_connection()
     ensure_schema()
     verify_schema()
-    
+
     # Count initial alert thresholds
     with get_db() as db:
         initial_count = db.query(AlertThresholdDB).count()
-    
+
     # Run seeding again
     with get_db() as db:
         from scripts.bootstrap_db import seed_defaults
+
         seed_defaults(db)
-    
+
     # Count after - should be same (all existing updated, no new inserted unless defaults changed)
     with get_db() as db:
         final_count = db.query(AlertThresholdDB).count()
-    
+
     # All default thresholds should exist
     assert final_count >= len(DEFAULT_ALERT_THRESHOLDS)
     # Verify we didn't duplicate
-    assert final_count == initial_count or final_count == initial_count + len(DEFAULT_ALERT_THRESHOLDS)
-    
+    assert final_count == initial_count or final_count == initial_count + len(
+        DEFAULT_ALERT_THRESHOLDS
+    )
+
     # Check all default thresholds are present and enabled
     with get_db() as db:
         for threshold in DEFAULT_ALERT_THRESHOLDS:
-            existing = db.query(AlertThresholdDB).filter_by(threshold_id=threshold["threshold_id"]).first()
+            existing = (
+                db.query(AlertThresholdDB).filter_by(threshold_id=threshold["threshold_id"]).first()
+            )
             assert existing is not None
             assert existing.enabled == threshold["enabled"]
             assert float(existing.value) == threshold["value"]

@@ -1,6 +1,6 @@
 """MetaTimingEngine 失败教训应用测试"""
-from timing_engine.meta import MetaTimingEngine
 from memory_learning.contracts import FailureMemory
+from timing_engine.meta import MetaTimingEngine
 
 
 def test_apply_failure_lessons_increases_crowding_weight_for_crowding_error():
@@ -13,7 +13,7 @@ def test_apply_failure_lessons_increases_crowding_weight_for_crowding_error():
         root_cause="Too crowded",
         corrective_action="Avoid crowded trades",
     )
-    
+
     adjusted_weights = engine.apply_failure_lessons([failure])
     # Original crowding weight is 0.08, should be increased by 50% to 0.12 (then normalized)
     # Total original base weights sum to 1.0, after increase: 0.08 * 1.5 = 0.12, so total sum is 1.04
@@ -31,7 +31,7 @@ def test_apply_failure_lessons_reduces_regime_weight_for_timing_error():
         root_cause="Bad timing",
         corrective_action="Adjust timing model",
     )
-    
+
     adjusted_weights = engine.apply_failure_lessons([failure])
     # Original regime weight is 0.2, should be reduced by 20% to 0.16 (then normalized)
     # Total original base weights sum to 1.0, after reduction: 0.2 * 0.8 = 0.16, so total sum is 0.96

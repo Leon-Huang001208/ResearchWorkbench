@@ -37,19 +37,41 @@ class ReasoningTrace(BaseModel):
     """
 
     trace_id: str = Field(description="Unique identifier for the trace")
-    request_type: str = Field(description="Type of request (e.g., signal_generation, thesis_review)")
+    request_type: str = Field(
+        description="Type of request (e.g., signal_generation, thesis_review)"
+    )
     question: str = Field(description="Question that triggered the reasoning")
-    subject_ids: list[str] = Field(default_factory=list, description="List of subject asset/entity IDs involved")
-    retrieved_doc_ids: list[str] = Field(default_factory=list, description="List of retrieved document IDs")
-    retrieved_assertion_ids: list[str] = Field(default_factory=list, description="List of retrieved assertion IDs")
-    graph_paths: list[dict] = Field(default_factory=list, description="List of graph paths traversed (each as a dict)")
-    intermediate_hypotheses: list[dict] = Field(default_factory=list, description="List of intermediate hypotheses generated (each as a dict)")
-    final_answer: str | None = Field(default=None, description="Final answer or output from the reasoning (if available)")
+    subject_ids: list[str] = Field(
+        default_factory=list, description="List of subject asset/entity IDs involved"
+    )
+    retrieved_doc_ids: list[str] = Field(
+        default_factory=list, description="List of retrieved document IDs"
+    )
+    retrieved_assertion_ids: list[str] = Field(
+        default_factory=list, description="List of retrieved assertion IDs"
+    )
+    graph_paths: list[dict] = Field(
+        default_factory=list, description="List of graph paths traversed (each as a dict)"
+    )
+    intermediate_hypotheses: list[dict] = Field(
+        default_factory=list,
+        description="List of intermediate hypotheses generated (each as a dict)",
+    )
+    final_answer: str | None = Field(
+        default=None, description="Final answer or output from the reasoning (if available)"
+    )
     provider: str = Field(description="LLM provider used (e.g., openai, volcano)")
     model_name: str = Field(description="Name of the model used (e.g., gpt-4o, doubao-pro)")
     prompt_version: str = Field(description="Version of the prompt used")
     total_latency_ms: int = Field(description="Total latency in milliseconds")
     total_tokens: int = Field(description="Total tokens used")
-    team_id: str | None = Field(default=None, description="Optional team ID for multi-tenant environments")
-    project_id: str | None = Field(default=None, description="Optional project ID for multi-project environments")
-    created_at: datetime = Field(default_factory=datetime.utcnow, description="Timestamp when the trace was created (defaults to UTC now)")
+    team_id: str | None = Field(
+        default=None, description="Optional team ID for multi-tenant environments"
+    )
+    project_id: str | None = Field(
+        default=None, description="Optional project ID for multi-project environments"
+    )
+    created_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        description="Timestamp when the trace was created (defaults to UTC now)",
+    )

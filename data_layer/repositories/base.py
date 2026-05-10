@@ -1,4 +1,3 @@
-
 from typing import Any, TypeVar
 
 from sqlalchemy import create_engine
@@ -17,9 +16,10 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 # Base class for ORM models
 Base = declarative_base()
 
+
 def check_database_connection() -> None:
     """Check database connectivity on startup.
-    
+
     Raises:
         RuntimeError: If connection fails with actionable error message.
     """
@@ -45,6 +45,7 @@ def check_database_connection() -> None:
             )
         logger.critical(error_msg)
         raise RuntimeError(error_msg) from e
+
 
 def ensure_schema() -> None:
     """Ensure database schema matches ORM models.
@@ -89,7 +90,9 @@ def ensure_schema() -> None:
         except Exception as e:
             logger.warning(f"Schema migration check failed: {e}")
 
+
 T = TypeVar("T")
+
 
 def get_db() -> Any:
     """Get database session for FastAPI dependency injection."""
@@ -103,6 +106,7 @@ def get_db() -> Any:
         raise
     finally:
         db.close()
+
 
 class BaseRepository:
     """Base repository class."""

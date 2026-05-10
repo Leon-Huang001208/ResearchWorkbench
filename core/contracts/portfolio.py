@@ -38,13 +38,25 @@ class PortfolioCandidate(BaseModel):
     event_type: str = Field(description="Type of event that generated this candidate")
     signal_score: float = Field(description="Score of the signal")
     signal_confidence: float = Field(description="Confidence of the signal (0.0 to 1.0)")
-    readiness: Optional[str] = Field(default=None, description="Readiness status from timing (if applicable)")
-    timing_action: Optional[str] = Field(default=None, description="Timing action recommended (if applicable)")
+    readiness: Optional[str] = Field(
+        default=None, description="Readiness status from timing (if applicable)"
+    )
+    timing_action: Optional[str] = Field(
+        default=None, description="Timing action recommended (if applicable)"
+    )
     suggested_weight: float = Field(default=0.0, description="Suggested initial weight")
-    historical_hit_rate: Optional[float] = Field(default=None, description="Historical hit rate from outcomes (if available)")
-    historical_avg_excess_return: Optional[float] = Field(default=None, description="Historical average excess return (if available)")
-    sector: Optional[str] = Field(default=None, description="Sector label for concentration constraints (if available)")
-    theme: Optional[str] = Field(default=None, description="Theme label for concentration constraints (if available)")
+    historical_hit_rate: Optional[float] = Field(
+        default=None, description="Historical hit rate from outcomes (if available)"
+    )
+    historical_avg_excess_return: Optional[float] = Field(
+        default=None, description="Historical average excess return (if available)"
+    )
+    sector: Optional[str] = Field(
+        default=None, description="Sector label for concentration constraints (if available)"
+    )
+    theme: Optional[str] = Field(
+        default=None, description="Theme label for concentration constraints (if available)"
+    )
 
 
 class PortfolioConstraints(BaseModel):
@@ -66,15 +78,23 @@ class PortfolioConstraints(BaseModel):
         regime_exposure_limit: Optional market regime exposure limits (dict).
     """
 
-    max_position_size: float = Field(default=0.15, description="Maximum weight for a single position")
-    max_sector_concentration: float = Field(default=0.40, description="Maximum sector concentration")
+    max_position_size: float = Field(
+        default=0.15, description="Maximum weight for a single position"
+    )
+    max_sector_concentration: float = Field(
+        default=0.40, description="Maximum sector concentration"
+    )
     max_theme_concentration: float = Field(default=0.30, description="Maximum theme concentration")
     min_candidates: int = Field(default=3, description="Minimum number of candidates")
     max_candidates: int = Field(default=20, description="Maximum number of candidates")
-    correlation_threshold: float = Field(default=0.7, description="Correlation threshold for deduplication")
+    correlation_threshold: float = Field(
+        default=0.7, description="Correlation threshold for deduplication"
+    )
     min_signal_score: float = Field(default=0.3, description="Minimum signal score")
     min_confidence: float = Field(default=0.3, description="Minimum confidence")
-    regime_exposure_limit: Optional[Dict[str, float]] = Field(default=None, description="Optional market regime exposure limits (dict)")
+    regime_exposure_limit: Optional[Dict[str, float]] = Field(
+        default=None, description="Optional market regime exposure limits (dict)"
+    )
 
 
 class PortfolioProposal(BaseModel):
@@ -98,8 +118,12 @@ class PortfolioProposal(BaseModel):
     proposal_id: str = Field(description="Unique identifier for the proposal")
     name: str = Field(description="Name of the portfolio proposal")
     created_at: datetime = Field(description="Timestamp when the proposal was created")
-    candidates: List[PortfolioCandidate] = Field(description="List of portfolio candidates included")
+    candidates: List[PortfolioCandidate] = Field(
+        description="List of portfolio candidates included"
+    )
     allocations: Dict[str, float] = Field(description="Dictionary mapping subject IDs to weights")
     constraints_applied: List[str] = Field(description="List of constraints that were applied")
-    excluded_signals: List[Dict[str, Any]] = Field(description="List of excluded signals and reasons")
+    excluded_signals: List[Dict[str, Any]] = Field(
+        description="List of excluded signals and reasons"
+    )
     rationale: Dict[str, Any] = Field(description="Dictionary with decision rationale")

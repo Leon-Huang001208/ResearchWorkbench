@@ -1,12 +1,10 @@
 from collections import deque
 from datetime import datetime
-from typing import Optional, List
+from typing import List, Optional
+
 from core.observability import get_logger
-from .contracts import (
-    TemporalRelation,
-    IndustryChain,
-    RelationshipType,
-)
+
+from .contracts import IndustryChain, RelationshipType, TemporalRelation
 
 logger = get_logger(__name__)
 

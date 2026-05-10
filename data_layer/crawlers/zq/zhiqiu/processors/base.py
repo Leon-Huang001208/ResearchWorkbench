@@ -7,7 +7,8 @@
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+
 import pandas as pd
 
 
@@ -29,10 +30,7 @@ class BaseProcessor(ABC):
 
     @abstractmethod
     def process(
-        self,
-        data: Dict[str, Any],
-        output_file: str,
-        **kwargs
+        self, data: Dict[str, Any], output_file: str, **kwargs
     ) -> Tuple[pd.DataFrame, List[Dict], int]:
         """
         处理数据并保存结果
@@ -73,19 +71,20 @@ def _clean_html(text: str) -> str:
         清理后的纯文本
     """
     import re
+
     if not text:
         return ""
-    return re.sub(r'<[^>]+>', '', text)
+    return re.sub(r"<[^>]+>", "", text)
 
 
 # 文档类型名称映射（通用）
 DOC_TYPE_NAMES = {
-    'NEWS': '公众号',
-    'REPORT': '研报',
-    'ZQMEETING': '纪要',
-    'INVESTOR': '问答',
-    'CJAUTONEWS': '新闻',
-    'CJCAST': '快讯',
-    'IMPNEWS': '重要舆情',
-    'EVENTNODENEWS': '产业事件'
+    "NEWS": "公众号",
+    "REPORT": "研报",
+    "ZQMEETING": "纪要",
+    "INVESTOR": "问答",
+    "CJAUTONEWS": "新闻",
+    "CJCAST": "快讯",
+    "IMPNEWS": "重要舆情",
+    "EVENTNODENEWS": "产业事件",
 }

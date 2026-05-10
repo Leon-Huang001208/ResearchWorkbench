@@ -1,6 +1,6 @@
 """Memory CLI 测试"""
-from click.testing import CliRunner
 import pytest
+from click.testing import CliRunner
 
 from app.cli.main import cli
 
@@ -15,6 +15,7 @@ def runner():
 def clean_journal():
     """Reset the journal singleton before each test"""
     from app.cli.commands.memory import get_journal
+
     if hasattr(get_journal, "_instance"):
         delattr(get_journal, "_instance")
     return get_journal()
@@ -27,14 +28,22 @@ def test_record_episode_cli(runner, clean_journal):
         [
             "memory",
             "record-episode",
-            "--episode-id", "test-cli-episode-001",
-            "--event-id", "test-cli-event-001",
-            "--event-type", "earnings",
-            "--market-regime", "bullish",
-            "--initial-reaction", "up",
-            "--outcome-horizon", "20d",
-            "--outcome-return", "0.05",
-            "--outcome-excess-return", "0.03",
+            "--episode-id",
+            "test-cli-episode-001",
+            "--event-id",
+            "test-cli-event-001",
+            "--event-type",
+            "earnings",
+            "--market-regime",
+            "bullish",
+            "--initial-reaction",
+            "up",
+            "--outcome-horizon",
+            "20d",
+            "--outcome-return",
+            "0.05",
+            "--outcome-excess-return",
+            "0.03",
         ],
     )
     assert result.exit_code == 0
@@ -49,17 +58,25 @@ def test_list_episodes_cli(runner, clean_journal):
         [
             "memory",
             "record-episode",
-            "--episode-id", "test-cli-episode-002",
-            "--event-id", "test-cli-event-002",
-            "--event-type", "policy",
-            "--market-regime", "risk_off",
-            "--initial-reaction", "down",
-            "--outcome-horizon", "5d",
-            "--outcome-return", "-0.02",
-            "--outcome-excess-return", "-0.01",
+            "--episode-id",
+            "test-cli-episode-002",
+            "--event-id",
+            "test-cli-event-002",
+            "--event-type",
+            "policy",
+            "--market-regime",
+            "risk_off",
+            "--initial-reaction",
+            "down",
+            "--outcome-horizon",
+            "5d",
+            "--outcome-return",
+            "-0.02",
+            "--outcome-excess-return",
+            "-0.01",
         ],
     )
-    
+
     result = runner.invoke(cli, ["memory", "list-episodes", "--event-type", "policy"])
     assert result.exit_code == 0
     assert "test-cli-episode-002" in result.output
@@ -73,14 +90,22 @@ def test_summarize_cli(runner, clean_journal):
         [
             "memory",
             "record-episode",
-            "--episode-id", "test-cli-episode-003",
-            "--event-id", "test-cli-event-003",
-            "--event-type", "earnings",
-            "--market-regime", "bullish",
-            "--initial-reaction", "up",
-            "--outcome-horizon", "20d",
-            "--outcome-return", "0.05",
-            "--outcome-excess-return", "0.03",
+            "--episode-id",
+            "test-cli-episode-003",
+            "--event-id",
+            "test-cli-event-003",
+            "--event-type",
+            "earnings",
+            "--market-regime",
+            "bullish",
+            "--initial-reaction",
+            "up",
+            "--outcome-horizon",
+            "20d",
+            "--outcome-return",
+            "0.05",
+            "--outcome-excess-return",
+            "0.03",
         ],
     )
     runner.invoke(
@@ -88,17 +113,25 @@ def test_summarize_cli(runner, clean_journal):
         [
             "memory",
             "record-episode",
-            "--episode-id", "test-cli-episode-004",
-            "--event-id", "test-cli-event-004",
-            "--event-type", "earnings",
-            "--market-regime", "bullish",
-            "--initial-reaction", "down",
-            "--outcome-horizon", "20d",
-            "--outcome-return", "-0.02",
-            "--outcome-excess-return", "-0.01",
+            "--episode-id",
+            "test-cli-episode-004",
+            "--event-id",
+            "test-cli-event-004",
+            "--event-type",
+            "earnings",
+            "--market-regime",
+            "bullish",
+            "--initial-reaction",
+            "down",
+            "--outcome-horizon",
+            "20d",
+            "--outcome-return",
+            "-0.02",
+            "--outcome-excess-return",
+            "-0.01",
         ],
     )
-    
+
     result = runner.invoke(cli, ["memory", "summarize", "earnings"])
     assert result.exit_code == 0
     assert "Sample Size: 2" in result.output
@@ -112,11 +145,16 @@ def test_record_failure_cli(runner, clean_journal):
         [
             "memory",
             "record-failure",
-            "--failure-id", "test-cli-failure-001",
-            "--source-id", "test-cli-signal-001",
-            "--failure-type", "timing_error",
-            "--root-cause", "Entered too early",
-            "--corrective-action", "Wait for confirmation",
+            "--failure-id",
+            "test-cli-failure-001",
+            "--source-id",
+            "test-cli-signal-001",
+            "--failure-type",
+            "timing_error",
+            "--root-cause",
+            "Entered too early",
+            "--corrective-action",
+            "Wait for confirmation",
         ],
     )
     assert result.exit_code == 0
@@ -131,14 +169,19 @@ def test_list_failures_cli(runner, clean_journal):
         [
             "memory",
             "record-failure",
-            "--failure-id", "test-cli-failure-002",
-            "--source-id", "test-cli-signal-002",
-            "--failure-type", "crowding_error",
-            "--root-cause", "Too crowded",
-            "--corrective-action", "Avoid crowded trades",
+            "--failure-id",
+            "test-cli-failure-002",
+            "--source-id",
+            "test-cli-signal-002",
+            "--failure-type",
+            "crowding_error",
+            "--root-cause",
+            "Too crowded",
+            "--corrective-action",
+            "Avoid crowded trades",
         ],
     )
-    
+
     result = runner.invoke(cli, ["memory", "list-failures", "--failure-type", "crowding_error"])
     assert result.exit_code == 0
     assert "test-cli-failure-002" in result.output

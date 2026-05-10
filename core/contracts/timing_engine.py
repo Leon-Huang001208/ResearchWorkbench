@@ -4,31 +4,27 @@ Core contracts for the timing engine (factors, event study metrics, readiness sc
 This module defines Pydantic models for the timing engine, including timing factors,
 event study metrics, and readiness score in AlphaFoundry.
 """
-from pydantic import BaseModel, Field
 from typing import List
+
+from pydantic import BaseModel, Field
 
 
 class TimingFactors(BaseModel):
     """Timing engine v1 factors calculating current market timing fit."""
+
     regime: float = Field(
-        ge=0.0,
-        le=1.0,
-        description="Market regime matching score (0=poor match, 1=ideal match)"
+        ge=0.0, le=1.0, description="Market regime matching score (0=poor match, 1=ideal match)"
     )
     flow: float = Field(
-        ge=0.0,
-        le=1.0,
-        description="Money flow state matching score (0=poor flow, 1=ideal flow)"
+        ge=0.0, le=1.0, description="Money flow state matching score (0=poor flow, 1=ideal flow)"
     )
     theme_diffusion: float = Field(
         ge=0.0,
         le=1.0,
-        description="Theme diffusion stage score (0=early/too late, 1=optimal stage)"
+        description="Theme diffusion stage score (0=early/too late, 1=optimal stage)",
     )
     crowding: float = Field(
-        ge=0.0,
-        le=1.0,
-        description="Crowding score (0=extremely crowded, 1=no crowding)"
+        ge=0.0, le=1.0, description="Crowding score (0=extremely crowded, 1=no crowding)"
     )
 
     def overall_timing_fit(self) -> float:
@@ -38,21 +34,16 @@ class TimingFactors(BaseModel):
 
 class EventStudyMetrics(BaseModel):
     """Historical event study validation metrics for similar events."""
-    event_count: int = Field(
-        ge=0,
-        description="Number of similar historical events in the dataset"
-    )
+
+    event_count: int = Field(ge=0, description="Number of similar historical events in the dataset")
     average_excess_return: float = Field(
         description="Average cumulative excess return over benchmark after event"
     )
     win_rate: float = Field(
-        ge=0.0,
-        le=1.0,
-        description="Percentage of events with positive excess return"
+        ge=0.0, le=1.0, description="Percentage of events with positive excess return"
     )
     decay_by_day: List[float] = Field(
-        default_factory=list,
-        description="Average excess return by day after entry (decay curve)"
+        default_factory=list, description="Average excess return by day after entry (decay curve)"
     )
     max_drawdown_after_entry: float = Field(
         description="Maximum drawdown experienced after entry for historical events"
@@ -65,7 +56,7 @@ class EventStudyMetrics(BaseModel):
         """
         if self.event_count == 0:
             return 0.0
-        
+
         # Combine win rate with normalized excess return
         # Assume 10% annualized excess is max for normalization
         normalized_return = min(max(self.average_excess_return / 0.1, 0.0), 1.0)
@@ -74,25 +65,16 @@ class EventStudyMetrics(BaseModel):
 
 class ReadinessScore(BaseModel):
     """Unified readiness score combining all three dimensions."""
+
     thesis_quality: float = Field(
-        ge=0.0,
-        le=1.0,
-        description="Quality score of the investment thesis itself (0-1)"
+        ge=0.0, le=1.0, description="Quality score of the investment thesis itself (0-1)"
     )
     historical_edge: float = Field(
-        ge=0.0,
-        le=1.0,
-        description="Normalized edge from similar historical events (0-1)"
+        ge=0.0, le=1.0, description="Normalized edge from similar historical events (0-1)"
     )
-    timing_fit: float = Field(
-        ge=0.0,
-        le=1.0,
-        description="Current market timing fit score (0-1)"
-    )
+    timing_fit: float = Field(ge=0.0, le=1.0, description="Current market timing fit score (0-1)")
     overall_score: float = Field(
-        ge=0.0,
-        le=1.0,
-        description="Final aggregated readiness score per the formula"
+        ge=0.0, le=1.0, description="Final aggregated readiness score per the formula"
     )
     recommendation: str = Field(
         description="Human-readable recommendation: PROCEED, CAUTION, or BLOCK"
@@ -100,10 +82,7 @@ class ReadinessScore(BaseModel):
 
     @classmethod
     def calculate(
-        cls,
-        thesis_quality: float,
-        historical_edge: float,
-        timing_fit: float
+        cls, thesis_quality: float, historical_edge: float, timing_fit: float
     ) -> "ReadinessScore":
         """Calculate overall score using the standard formula:
         readiness_score = 0.35 * thesis_quality + 0.35 * historical_edge + 0.30 * timing_fit
@@ -112,11 +91,7 @@ class ReadinessScore(BaseModel):
         assert 0.0 <= historical_edge <= 1.0
         assert 0.0 <= timing_fit <= 1.0
 
-        overall_score = (
-            0.35 * thesis_quality +
-            0.35 * historical_edge +
-            0.30 * timing_fit
-        )
+        overall_score = 0.35 * thesis_quality + 0.35 * historical_edge + 0.30 * timing_fit
 
         if overall_score >= 0.7:
             recommendation = "PROCEED"
@@ -130,5 +105,5 @@ class ReadinessScore(BaseModel):
             historical_edge=historical_edge,
             timing_fit=timing_fit,
             overall_score=overall_score,
-            recommendation=recommendation
+            recommendation=recommendation,
         )

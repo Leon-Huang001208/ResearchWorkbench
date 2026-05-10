@@ -5,8 +5,8 @@
 """
 from typing import Any
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 from core.observability import get_logger
 from signal_lab.features.base import Feature, FeatureGroup
@@ -18,10 +18,7 @@ class ROEFeature(Feature):
     """净资产收益率特征"""
 
     def __init__(self):
-        super().__init__(
-            name="roe",
-            description="净资产收益率"
-        )
+        super().__init__(name="roe", description="净资产收益率")
 
     def compute(self, data: pd.DataFrame, **kwargs: Any) -> pd.Series:
         roe_col = kwargs.get("roe_col", "roe")
@@ -41,10 +38,7 @@ class ROAFeature(Feature):
     """总资产收益率特征"""
 
     def __init__(self):
-        super().__init__(
-            name="roa",
-            description="总资产收益率"
-        )
+        super().__init__(name="roa", description="总资产收益率")
 
     def compute(self, data: pd.DataFrame, **kwargs: Any) -> pd.Series:
         roa_col = kwargs.get("roa_col", "roa")
@@ -64,10 +58,7 @@ class GrowthFeature(Feature):
     """营收/利润增长率特征"""
 
     def __init__(self, metric: str = "revenue", periods: int = 4):
-        super().__init__(
-            name=f"{metric}_growth_{periods}q",
-            description=f"{metric}{periods}季度增长率"
-        )
+        super().__init__(name=f"{metric}_growth_{periods}q", description=f"{metric}{periods}季度增长率")
         self.metric = metric
         self.periods = periods
 
@@ -83,10 +74,7 @@ class DebtRatioFeature(Feature):
     """资产负债率特征"""
 
     def __init__(self):
-        super().__init__(
-            name="debt_ratio",
-            description="资产负债率"
-        )
+        super().__init__(name="debt_ratio", description="资产负债率")
 
     def compute(self, data: pd.DataFrame, **kwargs: Any) -> pd.Series:
         debt_col = kwargs.get("debt_col", "total_debt")
@@ -101,10 +89,7 @@ class CurrentRatioFeature(Feature):
     """流动比率特征"""
 
     def __init__(self):
-        super().__init__(
-            name="current_ratio",
-            description="流动比率"
-        )
+        super().__init__(name="current_ratio", description="流动比率")
 
     def compute(self, data: pd.DataFrame, **kwargs: Any) -> pd.Series:
         cr_col = kwargs.get("current_ratio_col", "current_ratio")

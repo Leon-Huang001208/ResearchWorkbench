@@ -1,15 +1,13 @@
 import json
 from datetime import datetime
 from typing import List, Optional
+
 from sqlalchemy import select, text
+
 from core.observability import get_logger
 from data_layer.repositories.base import BaseRepository
-from .contracts import (
-    TemporalRelation,
-    IndustryChain,
-    RelationshipType,
-    SupplyChainPosition,
-)
+
+from .contracts import IndustryChain, RelationshipType, SupplyChainPosition, TemporalRelation
 
 logger = get_logger(__name__)
 
@@ -19,7 +17,8 @@ class GraphRepository(BaseRepository):
 
     def add_temporal_relation(self, relation: TemporalRelation) -> TemporalRelation:
         """Add temporal relation to database"""
-        query = text("""
+        query = text(
+            """
             INSERT INTO temporal_relation (
                 relation_id, from_entity_id, to_entity_id, relationship_type,
                 strength, valid_from, valid_to, chain_position, industry,
@@ -29,7 +28,8 @@ class GraphRepository(BaseRepository):
                 :strength, :valid_from, :valid_to, :chain_position, :industry,
                 :metadata, :evidence_refs, :created_at
             )
-        """)
+        """
+        )
 
         params = {
             "relation_id": relation.relation_id,
@@ -101,13 +101,15 @@ class GraphRepository(BaseRepository):
 
     def add_industry_chain(self, chain: IndustryChain) -> IndustryChain:
         """Add industry chain to database"""
-        query = text("""
+        query = text(
+            """
             INSERT INTO industry_chain (
                 chain_id, name, industry, nodes, relations, as_of, created_at
             ) VALUES (
                 :chain_id, :name, :industry, :nodes, :relations, :as_of, NOW()
             )
-        """)
+        """
+        )
 
         params = {
             "chain_id": chain.chain_id,
@@ -168,14 +170,16 @@ class GraphRepository(BaseRepository):
             relations = data["relations"] or "[]"
             if isinstance(relations, str):
                 relations = json.loads(relations)
-            results.append(IndustryChain(
-                chain_id=data["chain_id"],
-                name=data["name"],
-                industry=data["industry"],
-                nodes=nodes,
-                relations=relations,
-                as_of=data["as_of"],
-            ))
+            results.append(
+                IndustryChain(
+                    chain_id=data["chain_id"],
+                    name=data["name"],
+                    industry=data["industry"],
+                    nodes=nodes,
+                    relations=relations,
+                    as_of=data["as_of"],
+                )
+            )
         return results
 
     def _row_to_relation(self, row: dict) -> TemporalRelation:
@@ -189,10 +193,10 @@ class GraphRepository(BaseRepository):
             if isinstance(dt_val, str):
                 try:
                     # Try parsing with timezone first
-                    return datetime.fromisoformat(dt_val.replace(' ', 'T'))
+                    return datetime.fromisoformat(dt_val.replace(" ", "T"))
                 except ValueError:
                     # Fall back to naive datetime
-                    return datetime.strptime(dt_val, '%Y-%m-%d %H:%M:%S.%f%z')
+                    return datetime.strptime(dt_val, "%Y-%m-%d %H:%M:%S.%f%z")
             return dt_val
 
         valid_from = parse_dt(row.get("valid_from"))

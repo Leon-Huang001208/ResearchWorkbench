@@ -1,16 +1,17 @@
 """政策分析 Agent。"""
 import uuid
 
-from core.observability import get_logger
-from core.interfaces import ModelGateway
-from cognitive_agents.agents.base import BaseCognitiveAgent, AgentContext
+from cognitive_agents.agents.base import AgentContext, BaseCognitiveAgent
 from cognitive_agents.contracts import AgentView
+from core.interfaces import ModelGateway
+from core.observability import get_logger
 
 logger = get_logger(__name__)
 
 
 class PolicyAgent(BaseCognitiveAgent):
     """负责从政策角度分析的 Agent。"""
+
     def __init__(self, model_gateway: ModelGateway):
         super().__init__(model_gateway, "policy_agent", "policy")
 

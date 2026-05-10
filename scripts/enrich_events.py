@@ -50,8 +50,10 @@ def main():
         print("\nUpdated events:")
         events = db.query(CanonicalEvent).all()
         for event in events:
-            print(f"  [{event.event_type}] {event.event_id}: "
-                  f"{event.payload.get('subject_ids', [])}")
+            print(
+                f"  [{event.event_type}] {event.event_id}: "
+                f"{event.payload.get('subject_ids', [])}"
+            )
 
         return 0
 

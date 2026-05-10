@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """插入真实新闻数据到数据库，供仪表盘显示"""
 import uuid
-from datetime import datetime, UTC
+from datetime import UTC, datetime
+
 from data_layer.repositories.base import SessionLocal
 from data_layer.repositories.models import CanonicalEvent
 
@@ -23,9 +24,9 @@ real_events = [
             "source_type": "cls",
             "source_name": "财联社",
             "subject_ids": ["600519.SH"],
-            "tags": ["白酒", "消费", "业绩"]
+            "tags": ["白酒", "消费", "业绩"],
         },
-        "created_at": datetime.now(UTC)
+        "created_at": datetime.now(UTC),
     },
     {
         "event_id": f"event_{uuid.uuid4().hex[:8]}",
@@ -41,9 +42,9 @@ real_events = [
             "source_type": "cnstock",
             "source_name": "中国证券网",
             "subject_ids": ["HS300", "000001.SH"],
-            "tags": ["货币政策", "降准", "宏观"]
+            "tags": ["货币政策", "降准", "宏观"],
         },
-        "created_at": datetime.now(UTC)
+        "created_at": datetime.now(UTC),
     },
     {
         "event_id": f"event_{uuid.uuid4().hex[:8]}",
@@ -59,9 +60,9 @@ real_events = [
             "source_type": "zq",
             "source_name": "知丘研报",
             "subject_ids": ["002594.SZ", "TSLA", "NIO", "XPEV"],
-            "tags": ["新能源汽车", "行业数据", "消费"]
+            "tags": ["新能源汽车", "行业数据", "消费"],
         },
-        "created_at": datetime.now(UTC)
+        "created_at": datetime.now(UTC),
     },
     {
         "event_id": f"event_{uuid.uuid4().hex[:8]}",
@@ -77,9 +78,9 @@ real_events = [
             "source_type": "cls",
             "source_name": "财联社",
             "subject_ids": ["601012.SH", "002459.SZ", "600438.SH"],
-            "tags": ["光伏", "新能源", "产业链价格"]
+            "tags": ["光伏", "新能源", "产业链价格"],
         },
-        "created_at": datetime.now(UTC)
+        "created_at": datetime.now(UTC),
     },
     {
         "event_id": f"event_{uuid.uuid4().hex[:8]}",
@@ -95,10 +96,10 @@ real_events = [
             "source_type": "cnstock",
             "source_name": "中国证券网",
             "subject_ids": ["科创50", "000977.SH"],
-            "tags": ["政策", "科技创新", "央企"]
+            "tags": ["政策", "科技创新", "央企"],
         },
-        "created_at": datetime.now(UTC)
-    }
+        "created_at": datetime.now(UTC),
+    },
 ]
 
 for event_data in real_events:

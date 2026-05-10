@@ -7,15 +7,15 @@ Issue #47: 历史回放服务 - 提供过去某个时间点可见的信息
 3. 时间可用性验证 - 确保不使用未来信息
 """
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 
 from core.contracts.backtest import (
-    HistoricalReplayQuery,
     HistoricalEvent,
     HistoricalEventStream,
+    HistoricalReplayQuery,
+    RetrievalConfig,
     TimeAvailability,
     ViewContext,
-    RetrievalConfig,
 )
 from core.observability import get_logger
 
@@ -145,7 +145,9 @@ class HistoricalReplayService:
                 continue
 
             # 检查事件是否在时间窗口内（event_time 或 available_time）
-            event_time = event.time_availability.event_time or event.time_availability.available_time
+            event_time = (
+                event.time_availability.event_time or event.time_availability.available_time
+            )
             if not (start_time <= event_time <= end_time):
                 continue
 
@@ -172,9 +174,7 @@ class HistoricalReplayService:
             filtered_events.append(event)
 
         # 按时间排序（从旧到新）
-        filtered_events.sort(
-            key=lambda e: e.time_availability.available_time or datetime.min
-        )
+        filtered_events.sort(key=lambda e: e.time_availability.available_time or datetime.min)
 
         # 限制数量
         if len(filtered_events) > query.max_items:

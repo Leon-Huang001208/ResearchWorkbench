@@ -30,7 +30,9 @@ class ModelResponse(BaseModel):
     provider: str = Field(description="Provider of the model (e.g., openai, volcano)")
     tokens_used: int = Field(description="Total tokens used in the request/response")
     latency_ms: int = Field(description="Latency of the request in milliseconds")
-    raw_response: Any = Field(default=None, description="Raw response from the provider (if available)")
+    raw_response: Any = Field(
+        default=None, description="Raw response from the provider (if available)"
+    )
 
 
 class EmbeddingResponse(BaseModel):

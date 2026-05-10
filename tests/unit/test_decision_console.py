@@ -7,7 +7,7 @@
 - 复盘记录创建和查询
 - 决策-结果关联
 """
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 from core.contracts.decision_console import (
@@ -19,8 +19,8 @@ from core.contracts.decision_console import (
 from core.services.decision_console_service import DecisionConsoleService
 from data_layer.repositories.decision_console_repository import DecisionConsoleRepository
 
-
 # ─── 测试设置 ────────────────────────────────────────────
+
 
 def mock_db_session():
     """创建模拟DB session"""
@@ -35,6 +35,7 @@ def get_test_service():
 
 
 # ─── Workspace 测试 ─────────────────────────────────────
+
 
 class TestWorkspaceManagement:
     """测试工作区管理"""
@@ -52,8 +53,7 @@ class TestWorkspaceManagement:
         service.repo.save_workspace = capture_save
 
         workspace = service.create_workspace(
-            created_by="test-analyst",
-            candidate_ids=["candidate-001", "candidate-002"]
+            created_by="test-analyst", candidate_ids=["candidate-001", "candidate-002"]
         )
 
         assert workspace.workspace_id is not None
@@ -78,9 +78,11 @@ class TestWorkspaceManagement:
 
         # 捕获保存
         saved = []
+
         def capture_save(workspace):
             saved.append(workspace)
             return workspace
+
         service.repo.save_workspace = capture_save
 
         closed = service.close_workspace("ws-001", notes="Daily review done")
@@ -103,9 +105,11 @@ class TestWorkspaceManagement:
 
         # 捕获保存
         saved = []
+
         def capture_save(workspace):
             saved.append(workspace)
             return workspace
+
         service.repo.save_workspace = capture_save
 
         updated = service.add_candidates_to_workspace("ws-001", ["candidate-002", "candidate-003"])
@@ -117,6 +121,7 @@ class TestWorkspaceManagement:
 
 # ─── Decision Action 测试 ───────────────────────────────
 
+
 class TestDecisionActions:
     """测试决策动作记录"""
 
@@ -127,15 +132,19 @@ class TestDecisionActions:
         service.repo.get_decision_by_candidate = MagicMock(return_value=None)
 
         saved_decision = []
+
         def capture_save_decision(decision):
             saved_decision.append(decision)
             return decision
+
         service.repo.save_decision = capture_save_decision
 
         saved_audit = []
+
         def capture_save_audit(audit):
             saved_audit.append(audit)
             return audit
+
         service.repo.save_audit = capture_save_audit
 
         action = DecisionAction(
@@ -182,15 +191,19 @@ class TestDecisionActions:
         service.repo.get_decision_by_candidate = MagicMock(return_value=existing)
 
         saved_decision = []
+
         def capture_save_decision(decision):
             saved_decision.append(decision)
             return decision
+
         service.repo.save_decision = capture_save_decision
 
         saved_audit = []
+
         def capture_save_audit(audit):
             saved_audit.append(audit)
             return audit
+
         service.repo.save_audit = capture_save_audit
 
         new_action = DecisionAction(
@@ -217,6 +230,7 @@ class TestDecisionActions:
 
 # ─── Post-Mortem 测试 ───────────────────────────────────
 
+
 class TestPostMortem:
     """测试复盘功能"""
 
@@ -225,9 +239,11 @@ class TestPostMortem:
         service = get_test_service()
 
         saved = []
+
         def capture_save(post_mortem):
             saved.append(post_mortem)
             return post_mortem
+
         service.repo.save_post_mortem = capture_save
 
         post_mortem = service.create_post_mortem(
@@ -261,9 +277,11 @@ class TestPostMortem:
         service.repo.get_post_mortem = MagicMock(return_value=existing)
 
         saved = []
+
         def capture_save(post_mortem):
             saved.append(post_mortem)
             return post_mortem
+
         service.repo.save_post_mortem = capture_save
 
         updated = service.update_post_mortem(
@@ -280,6 +298,7 @@ class TestPostMortem:
 
 
 # ─── Audit 测试 ─────────────────────────────────────────
+
 
 class TestAuditTrail:
     """测试审计追踪"""

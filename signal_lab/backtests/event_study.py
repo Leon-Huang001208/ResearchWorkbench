@@ -12,7 +12,7 @@ import pandas as pd
 
 from core.contracts import AlphaSignal
 from core.observability import get_logger
-from signal_lab.backtests.base import BacktestResult, Backtester
+from signal_lab.backtests.base import Backtester, BacktestResult
 
 logger = get_logger(__name__)
 
@@ -152,7 +152,9 @@ class EventStudyBacktester(Backtester):
         """计算每个事件窗口收益。"""
         rows: list[dict[str, Any]] = []
         for _, event in events.iterrows():
-            aligned_date = self._align_to_next_session(pd.Timestamp(event["event_date"]), prices.index)
+            aligned_date = self._align_to_next_session(
+                pd.Timestamp(event["event_date"]), prices.index
+            )
             if aligned_date is None:
                 continue
 

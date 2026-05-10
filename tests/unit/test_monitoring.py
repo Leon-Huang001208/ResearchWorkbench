@@ -13,7 +13,6 @@
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
 
-
 from core.contracts.monitoring import (
     AlertPayload,
     AlertSeverity,
@@ -33,8 +32,8 @@ from core.contracts.monitoring import (
 )
 from core.services.monitoring_service import MonitoringService
 
-
 # ─── 辅助函数 ────────────────────────────────────────────
+
 
 def _make_mock_repo():
     """创建 mock 仓储"""
@@ -110,6 +109,7 @@ def _make_threshold(
 
 # ─── 健康指标测试 ────────────────────────────────────────
 
+
 class TestHealthMetrics:
     """健康指标测试"""
 
@@ -169,6 +169,7 @@ class TestHealthMetrics:
 
 # ─── 漂移检测测试 ────────────────────────────────────────
 
+
 class TestDriftDetection:
     """漂移检测测试"""
 
@@ -193,13 +194,25 @@ class TestDriftDetection:
         repo = _make_mock_repo()
         # 基准窗口: 全部 ingestion
         baseline_metrics = [
-            _make_health_metrics(subsystem=Subsystem.INGESTION, timestamp=datetime.now(timezone.utc) - timedelta(hours=100)),
-            _make_health_metrics(subsystem=Subsystem.INGESTION, timestamp=datetime.now(timezone.utc) - timedelta(hours=99)),
+            _make_health_metrics(
+                subsystem=Subsystem.INGESTION,
+                timestamp=datetime.now(timezone.utc) - timedelta(hours=100),
+            ),
+            _make_health_metrics(
+                subsystem=Subsystem.INGESTION,
+                timestamp=datetime.now(timezone.utc) - timedelta(hours=99),
+            ),
         ]
         # 当前窗口: 全部 extraction
         current_metrics = [
-            _make_health_metrics(subsystem=Subsystem.EXTRACTION, timestamp=datetime.now(timezone.utc) - timedelta(hours=12)),
-            _make_health_metrics(subsystem=Subsystem.EXTRACTION, timestamp=datetime.now(timezone.utc) - timedelta(hours=11)),
+            _make_health_metrics(
+                subsystem=Subsystem.EXTRACTION,
+                timestamp=datetime.now(timezone.utc) - timedelta(hours=12),
+            ),
+            _make_health_metrics(
+                subsystem=Subsystem.EXTRACTION,
+                timestamp=datetime.now(timezone.utc) - timedelta(hours=11),
+            ),
         ]
 
         call_count = [0]
@@ -274,6 +287,7 @@ class TestDriftDetection:
 
 # ─── 告警阈值测试 ────────────────────────────────────────
 
+
 class TestAlertThresholds:
     """告警阈值测试"""
 
@@ -322,7 +336,9 @@ class TestAlertThresholds:
         """更新不存在的阈值"""
         repo = _make_mock_repo()
         service = MonitoringService(monitoring_repository=repo)
-        result = service.update_alert_threshold("nonexistent", AlertThresholdUpdateRequest(value=0.5))
+        result = service.update_alert_threshold(
+            "nonexistent", AlertThresholdUpdateRequest(value=0.5)
+        )
         assert result is None
 
     def test_delete_alert_threshold(self):
@@ -333,6 +349,7 @@ class TestAlertThresholds:
 
 
 # ─── 告警触发测试 ────────────────────────────────────────
+
 
 class TestAlertTriggering:
     """告警触发测试"""
@@ -433,10 +450,16 @@ class TestAlertTriggering:
         repo = _make_mock_repo()
         # 构造分布差异大的数据
         baseline = [
-            _make_health_metrics(subsystem=Subsystem.INGESTION, timestamp=datetime.now(timezone.utc) - timedelta(hours=100)),
+            _make_health_metrics(
+                subsystem=Subsystem.INGESTION,
+                timestamp=datetime.now(timezone.utc) - timedelta(hours=100),
+            ),
         ]
         current = [
-            _make_health_metrics(subsystem=Subsystem.EXTRACTION, timestamp=datetime.now(timezone.utc) - timedelta(hours=12)),
+            _make_health_metrics(
+                subsystem=Subsystem.EXTRACTION,
+                timestamp=datetime.now(timezone.utc) - timedelta(hours=12),
+            ),
         ]
 
         call_count = [0]
@@ -477,6 +500,7 @@ class TestAlertTriggering:
 
 
 # ─── 告警管理测试 ────────────────────────────────────────
+
 
 class TestAlertManagement:
     """告警管理测试"""
@@ -536,6 +560,7 @@ class TestAlertManagement:
 
 # ─── 事件记录测试 ────────────────────────────────────────
 
+
 class TestIncidentRecords:
     """事件记录测试"""
 
@@ -576,6 +601,7 @@ class TestIncidentRecords:
 
 # ─── 系统健康仪表盘测试 ────────────────────────────────
 
+
 class TestSystemHealthDashboard:
     """系统健康仪表盘测试"""
 
@@ -605,27 +631,39 @@ class TestSystemHealthDashboard:
 
     def test_subsystem_status_healthy(self):
         """健康状态判定"""
-        assert MonitoringService._determine_subsystem_status(
-            _make_health_metrics(error_rate=0.01, avg_latency_ms=100.0)
-        ) == "healthy"
+        assert (
+            MonitoringService._determine_subsystem_status(
+                _make_health_metrics(error_rate=0.01, avg_latency_ms=100.0)
+            )
+            == "healthy"
+        )
 
     def test_subsystem_status_degraded(self):
         """降级状态判定"""
-        assert MonitoringService._determine_subsystem_status(
-            _make_health_metrics(error_rate=0.08, avg_latency_ms=100.0)
-        ) == "degraded"
+        assert (
+            MonitoringService._determine_subsystem_status(
+                _make_health_metrics(error_rate=0.08, avg_latency_ms=100.0)
+            )
+            == "degraded"
+        )
 
     def test_subsystem_status_unhealthy(self):
         """不健康状态判定"""
-        assert MonitoringService._determine_subsystem_status(
-            _make_health_metrics(error_rate=0.25, avg_latency_ms=100.0)
-        ) == "unhealthy"
+        assert (
+            MonitoringService._determine_subsystem_status(
+                _make_health_metrics(error_rate=0.25, avg_latency_ms=100.0)
+            )
+            == "unhealthy"
+        )
 
     def test_subsystem_status_unhealthy_latency(self):
         """延迟导致不健康"""
-        assert MonitoringService._determine_subsystem_status(
-            _make_health_metrics(error_rate=0.01, avg_latency_ms=3000.0)
-        ) == "unhealthy"
+        assert (
+            MonitoringService._determine_subsystem_status(
+                _make_health_metrics(error_rate=0.01, avg_latency_ms=3000.0)
+            )
+            == "unhealthy"
+        )
 
     def test_subsystem_status_unknown(self):
         """无指标时状态未知"""
@@ -641,6 +679,7 @@ class TestSystemHealthDashboard:
 
 
 # ─── 归一化和分布计算测试 ───────────────────────────────
+
 
 class TestDistributionUtils:
     """分布工具函数测试"""

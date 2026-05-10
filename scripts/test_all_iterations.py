@@ -7,6 +7,7 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from fastapi.testclient import TestClient
+
 from app.api.main import app
 
 client = TestClient(app)
@@ -51,7 +52,7 @@ try:
     print(f"   ✓ Feature groups status: {response.status_code}")
     if response.status_code == 200:
         data = response.json()
-        if data.get('success') and data.get('groups'):
+        if data.get("success") and data.get("groups"):
             print(f"   ✓ Found {len(data['groups'])} feature groups: {list(data['groups'].keys())}")
 except Exception as e:
     print(f"   ✗ Failed: {e}")

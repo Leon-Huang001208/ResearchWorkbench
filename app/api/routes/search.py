@@ -18,7 +18,10 @@ router = APIRouter(prefix="/api/search", tags=["search"])
 )
 async def global_search(
     q: str = Query(..., min_length=1, description="搜索关键词"),
-    types: Optional[str] = Query(None, description="类型过滤，逗号分隔: symbol,event_type,thesis,source_doc,failure_memory,market_episode,signal,event,outcome,review"),
+    types: Optional[str] = Query(
+        None,
+        description="类型过滤，逗号分隔: symbol,event_type,thesis,source_doc,failure_memory,market_episode,signal,event,outcome,review",
+    ),
 ):
     """全局搜索
 
@@ -39,7 +42,18 @@ async def global_search(
     type_filter = None
     if types:
         type_filter = [t.strip() for t in types.split(",") if t.strip()]
-        valid_types = {"symbol", "event_type", "thesis", "source_doc", "failure_memory", "market_episode", "signal", "event", "outcome", "review"}
+        valid_types = {
+            "symbol",
+            "event_type",
+            "thesis",
+            "source_doc",
+            "failure_memory",
+            "market_episode",
+            "signal",
+            "event",
+            "outcome",
+            "review",
+        }
         invalid = set(type_filter) - valid_types
         if invalid:
             raise HTTPException(

@@ -4,18 +4,10 @@ import json
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-
-from core.contracts.governance import (
-    ExperimentRecord,
-    StrategyComponentType,
-    StrategyVersion,
-)
+from core.contracts.governance import ExperimentRecord, StrategyComponentType, StrategyVersion
 from core.observability import get_logger
 from data_layer.repositories.base import BaseRepository
-from data_layer.repositories.models import (
-    ExperimentRecordDB,
-    StrategyVersionDB,
-)
+from data_layer.repositories.models import ExperimentRecordDB, StrategyVersionDB
 
 logger = get_logger(__name__)
 
@@ -27,11 +19,7 @@ class GovernanceRepositoryImpl(BaseRepository):
 
     def save_strategy_version(self, version: StrategyVersion) -> StrategyVersion:
         """保存策略版本"""
-        existing = (
-            self.db.query(StrategyVersionDB)
-            .filter_by(version_id=version.version_id)
-            .first()
-        )
+        existing = self.db.query(StrategyVersionDB).filter_by(version_id=version.version_id).first()
 
         data = self._version_to_dict(version)
 
@@ -189,6 +177,7 @@ class GovernanceRepositoryImpl(BaseRepository):
     def count_experiments(self) -> int:
         """统计实验总数"""
         from sqlalchemy import func
+
         return self.db.query(func.count(ExperimentRecordDB.experiment_id)).scalar() or 0
 
     def recent_experiment_ids(self, limit: int = 10) -> List[str]:

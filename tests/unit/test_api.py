@@ -1,19 +1,21 @@
 """API 端点测试"""
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import AsyncMock, MagicMock
+
 from fastapi.testclient import TestClient
 
 from app.api.main import app
 from app.api.routes.assets import get_asset_service
-from app.api.routes.scenarios import get_scenario_service
-from app.api.routes.review import get_review_service
-from app.api.routes.signals import get_signal_service
 from app.api.routes.ingest import get_ingest_service
-from core.contracts import AssetAnalysisSnapshot, AlphaSignal, ScenarioSet, ScenarioHypothesis
+from app.api.routes.review import get_review_service
+from app.api.routes.scenarios import get_scenario_service
+from app.api.routes.signals import get_signal_service
+from core.contracts import AlphaSignal, AssetAnalysisSnapshot, ScenarioHypothesis, ScenarioSet
 
 client = TestClient(app)
 
 
 # ─── 健康检查 ───────────────────────────────────────────
+
 
 class TestHealthCheck:
     def test_health(self):
@@ -33,6 +35,7 @@ class TestHealthCheck:
 
 
 # ─── 资产分析 ───────────────────────────────────────────
+
 
 class TestAssetsAPI:
     def test_analyze_asset(self):
@@ -115,6 +118,7 @@ class TestAssetsAPI:
 
 # ─── 情景分析 ───────────────────────────────────────────
 
+
 class TestScenariosAPI:
     def test_generate_scenarios(self):
         mock_service = MagicMock()
@@ -156,6 +160,7 @@ class TestScenariosAPI:
 
 
 # ─── 审核 ───────────────────────────────────────────────
+
 
 class TestReviewAPI:
     def test_list_pending_empty(self):
@@ -230,6 +235,7 @@ class TestReviewAPI:
 
 
 # ─── 信号 ───────────────────────────────────────────────
+
 
 class TestSignalsAPI:
     def test_create_signal(self):
@@ -362,6 +368,7 @@ class TestSignalsAPI:
 
 # ─── 摄入 ───────────────────────────────────────────────
 
+
 class TestIngestAPI:
     def test_ingest_text(self):
         mock_service = MagicMock()
@@ -401,6 +408,7 @@ class TestIngestAPI:
 class TestPipelineAPI:
     def test_run_asset_analysis(self):
         from datetime import datetime, timezone
+
         mock_snapshot = AssetAnalysisSnapshot(
             snapshot_id="snap-001",
             canonical_id="asset-001",
@@ -412,6 +420,7 @@ class TestPipelineAPI:
         mock_pipeline.run_asset_analysis = AsyncMock(return_value=mock_snapshot)
 
         from app.api.routes.pipeline import get_pipeline
+
         app.dependency_overrides[get_pipeline] = lambda: mock_pipeline
         try:
             resp = client.post(
@@ -427,6 +436,7 @@ class TestPipelineAPI:
 
 # ─── 图谱 ───────────────────────────────────────────────
 
+
 class TestGraphAPI:
     def test_get_industry_chain(self):
         resp = client.get("/api/graph/industry-chain/semiconductor")
@@ -441,4 +451,3 @@ class TestGraphAPI:
         assert resp.status_code == 200
         data = resp.json()
         assert data["event_id"] == "evt-001"
-

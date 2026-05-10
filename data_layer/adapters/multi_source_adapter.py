@@ -3,9 +3,10 @@
 支持: AKShare -> Tushare -> BaoStock -> 本地缓存
 """
 import asyncio
-import io
 import contextlib
+import io
 from typing import List
+
 from core.observability import get_logger
 
 logger = get_logger(__name__)
@@ -31,11 +32,8 @@ class MultiSourcePriceAdapter:
         # 1. AKShare
         try:
             from data_layer.adapters.akshare_adapter import AKShareAdapter
-            self.sources.append({
-                "name": "akshare",
-                "adapter": AKShareAdapter(),
-                "available": True
-            })
+
+            self.sources.append({"name": "akshare", "adapter": AKShareAdapter(), "available": True})
             logger.info("AKShare source initialized")
         except Exception as e:
             logger.warning(f"AKShare not available: {e}")
@@ -44,41 +42,31 @@ class MultiSourcePriceAdapter:
         try:
             tushare_adapter = TushareSource()
             if tushare_adapter.available:
-                self.sources.append({
-                    "name": "tushare",
-                    "adapter": tushare_adapter,
-                    "available": True
-                })
+                self.sources.append(
+                    {"name": "tushare", "adapter": tushare_adapter, "available": True}
+                )
                 logger.info("Tushare source initialized")
         except Exception:
             pass
 
         # 3. BaoStock
         try:
-            self.sources.append({
-                "name": "baostock",
-                "adapter": BaoStockSource(),
-                "available": True
-            })
+            self.sources.append(
+                {"name": "baostock", "adapter": BaoStockSource(), "available": True}
+            )
             logger.info("BaoStock source initialized")
         except Exception:
             pass
 
         # 4. 本地缓存
         from data_layer.adapters.hybrid_price_adapter import HybridPriceAdapter
-        self.sources.append({
-            "name": "local_cache",
-            "adapter": HybridPriceAdapter(),
-            "available": True
-        })
+
+        self.sources.append(
+            {"name": "local_cache", "adapter": HybridPriceAdapter(), "available": True}
+        )
         logger.info("Local cache source initialized")
 
-    async def fetch_stock_quotes(
-        self,
-        code: str,
-        start_date: str,
-        end_date: str
-    ) -> List[dict]:
+    async def fetch_stock_quotes(self, code: str, start_date: str, end_date: str) -> List[dict]:
         """按优先级尝试多个数据源获取价格"""
         logger.info(f"Fetching {code} from {start_date} to {end_date}")
 
@@ -112,6 +100,7 @@ class MultiSourcePriceAdapter:
     def _save_to_cache(self, data: List[dict], source: str):
         """保存到本地缓存"""
         from data_layer.adapters.hybrid_price_adapter import HybridPriceAdapter
+
         adapter = HybridPriceAdapter()
         adapter._save_to_cache(data, source)
 
@@ -123,6 +112,7 @@ class TushareSource:
         self.available = False
         try:
             import tushare as ts
+
             # 安静地测试是否有token设置
             try:
                 with contextlib.redirect_stderr(io.StringIO()):
@@ -136,12 +126,7 @@ class TushareSource:
         except ImportError:
             pass
 
-    async def fetch_stock_quotes(
-        self,
-        code: str,
-        start_date: str,
-        end_date: str
-    ) -> List[dict]:
+    async def fetch_stock_quotes(self, code: str, start_date: str, end_date: str) -> List[dict]:
         """从Tushare获取数据"""
         if not self.available:
             return []
@@ -161,10 +146,7 @@ class TushareSource:
                 with contextlib.redirect_stderr(io.StringIO()):
                     with contextlib.redirect_stdout(io.StringIO()):
                         return self.ts.pro_bar(
-                            ts_code=ts_code,
-                            adj='qfq',
-                            start_date=start,
-                            end_date=end
+                            ts_code=ts_code, adj="qfq", start_date=start, end_date=end
                         )
 
             df = await loop.run_in_executor(None, _fetch)
@@ -175,16 +157,18 @@ class TushareSource:
             # 转换格式
             result = []
             for _, row in df.iterrows():
-                result.append({
-                    "code": code,
-                    "date": row["trade_date"],
-                    "open": float(row["open"]),
-                    "high": float(row["high"]),
-                    "low": float(row["low"]),
-                    "close": float(row["close"]),
-                    "volume": float(row["vol"]) * 100,  # 手 -> 股
-                    "turnover": float(row["amount"]) / 100000000,  # 元 -> 亿元
-                })
+                result.append(
+                    {
+                        "code": code,
+                        "date": row["trade_date"],
+                        "open": float(row["open"]),
+                        "high": float(row["high"]),
+                        "low": float(row["low"]),
+                        "close": float(row["close"]),
+                        "volume": float(row["vol"]) * 100,  # 手 -> 股
+                        "turnover": float(row["amount"]) / 100000000,  # 元 -> 亿元
+                    }
+                )
             return result
 
         except Exception:
@@ -203,15 +187,13 @@ class BaoStockSource:
     def __init__(self):
         try:
             import baostock as bs
+
             self.bs = bs
             self.available = True
         except ImportError:
             self.available = False
 
-    async def fetch_stock_quotes(
-        self,
-        code: str, start_date: str, end_date: str
-    ) -> List[dict]:
+    async def fetch_stock_quotes(self, code: str, start_date: str, end_date: str) -> List[dict]:
         """从BaoStock获取数据"""
         if not self.available:
             return []
@@ -225,7 +207,7 @@ class BaoStockSource:
 
             def _fetch():
                 lg = self.bs.login()
-                if lg.error_code != '0':
+                if lg.error_code != "0":
                     raise Exception(f"BaoStock login failed: {lg.error_msg}")
 
                 rs = self.bs.query_history_k_data_plus(
@@ -234,22 +216,24 @@ class BaoStockSource:
                     start_date=start_date,
                     end_date=end_date,
                     frequency="d",
-                    adjustflag="3"  # 前复权
+                    adjustflag="3",  # 前复权
                 )
 
                 result = []
-                while (rs.error_code == '0') & rs.next():
+                while (rs.error_code == "0") & rs.next():
                     row = rs.get_row_data()
-                    result.append({
-                        "code": code,
-                        "date": row[0],
-                        "open": float(row[1]),
-                        "high": float(row[2]),
-                        "low": float(row[3]),
-                        "close": float(row[4]),
-                        "volume": float(row[5]),
-                        "turnover": float(row[6]) / 100000000,
-                    })
+                    result.append(
+                        {
+                            "code": code,
+                            "date": row[0],
+                            "open": float(row[1]),
+                            "high": float(row[2]),
+                            "low": float(row[3]),
+                            "close": float(row[4]),
+                            "volume": float(row[5]),
+                            "turnover": float(row[6]) / 100000000,
+                        }
+                    )
 
                 self.bs.logout()
                 return result

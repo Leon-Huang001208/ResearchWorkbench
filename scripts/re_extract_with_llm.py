@@ -11,6 +11,7 @@ import json
 import sys
 import time
 from pathlib import Path
+
 from sqlalchemy import text
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -42,13 +43,17 @@ def main():
 
         if args.limit > 0:
             result = conn.execute(
-                text("SELECT doc_id, source_type, title, published_at, source_name, doc_metadata FROM source_document LIMIT :limit"),
+                text(
+                    "SELECT doc_id, source_type, title, published_at, source_name, doc_metadata FROM source_document LIMIT :limit"
+                ),
                 {"limit": args.limit},
             )
             print(f"限制处理前 {args.limit} 条（总计 {total} 条）")
         else:
             result = conn.execute(
-                text("SELECT doc_id, source_type, title, published_at, source_name, doc_metadata FROM source_document")
+                text(
+                    "SELECT doc_id, source_type, title, published_at, source_name, doc_metadata FROM source_document"
+                )
             )
             print(f"总计 {total} 篇文档待重新提取")
 
@@ -145,7 +150,7 @@ def main():
 
         # 5. 统计
         elapsed = time.time() - start_time
-        print(f"\n=== 重新提取完成 ===")
+        print("\n=== 重新提取完成 ===")
         print(f"  文档: {success} 成功 / {fail} 失败 / {len(rows)} 总计")
         print(f"  断言: {total_assertions} 条 (LLM提取)")
         print(f"  事件: {total_events} 条 (LLM提取)")

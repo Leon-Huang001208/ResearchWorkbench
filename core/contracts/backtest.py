@@ -9,12 +9,12 @@ Issue #47: 回测视角 - 核心契约
 """
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, Field, ConfigDict
-
+from pydantic import BaseModel, ConfigDict, Field
 
 # ==================== 时间层相关 ====================
+
 
 class DataTier(str, Enum):
     """数据分层 - 热/温/冷/归档"""
@@ -30,23 +30,12 @@ class TimeAvailability(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    published_at: Optional[datetime] = Field(
-        default=None,
-        description="文档发布时间"
-    )
-    crawl_time: datetime = Field(
-        description="系统抓取/录入时间"
-    )
-    available_time: datetime = Field(
-        description="信息实际可用时间 = max(published_at, crawl_time)"
-    )
-    event_time: Optional[datetime] = Field(
-        default=None,
-        description="事件实际发生时间（如适用）"
-    )
+    published_at: Optional[datetime] = Field(default=None, description="文档发布时间")
+    crawl_time: datetime = Field(description="系统抓取/录入时间")
+    available_time: datetime = Field(description="信息实际可用时间 = max(published_at, crawl_time)")
+    event_time: Optional[datetime] = Field(default=None, description="事件实际发生时间（如适用）")
     publish_time_precision: Optional[Literal["exact", "day", "week", "month"]] = Field(
-        default=None,
-        description="发布时间精度"
+        default=None, description="发布时间精度"
     )
 
     @classmethod
@@ -91,44 +80,20 @@ class TimeAvailability(BaseModel):
 
 # ==================== 历史回放相关 ====================
 
+
 class HistoricalReplayQuery(BaseModel):
     """历史回放查询 - 在某个时间点回放当时可见的信息"""
 
     model_config = ConfigDict(extra="forbid")
 
-    query_time: datetime = Field(
-        description="查询时间点 - 只能看到这个时间之前可用的信息"
-    )
-    entity_ids: Optional[List[str]] = Field(
-        default=None,
-        description="实体ID列表，如股票代码"
-    )
-    industry_ids: Optional[List[str]] = Field(
-        default=None,
-        description="行业ID列表"
-    )
-    source_types: Optional[List[str]] = Field(
-        default=None,
-        description="来源类型过滤"
-    )
-    event_types: Optional[List[str]] = Field(
-        default=None,
-        description="事件类型过滤"
-    )
-    lookback_days: int = Field(
-        default=30,
-        ge=1,
-        description="回顾天数 - 从query_time往前看多少天"
-    )
-    max_items: int = Field(
-        default=100,
-        ge=1,
-        description="返回最大项目数"
-    )
-    include_content: bool = Field(
-        default=False,
-        description="是否包含完整内容（否则只返回元数据）"
-    )
+    query_time: datetime = Field(description="查询时间点 - 只能看到这个时间之前可用的信息")
+    entity_ids: Optional[List[str]] = Field(default=None, description="实体ID列表，如股票代码")
+    industry_ids: Optional[List[str]] = Field(default=None, description="行业ID列表")
+    source_types: Optional[List[str]] = Field(default=None, description="来源类型过滤")
+    event_types: Optional[List[str]] = Field(default=None, description="事件类型过滤")
+    lookback_days: int = Field(default=30, ge=1, description="回顾天数 - 从query_time往前看多少天")
+    max_items: int = Field(default=100, ge=1, description="返回最大项目数")
+    include_content: bool = Field(default=False, description="是否包含完整内容（否则只返回元数据）")
 
 
 class HistoricalEventStream(BaseModel):
@@ -161,6 +126,7 @@ class HistoricalEvent(BaseModel):
 
 
 # ==================== 消息面特征 ====================
+
 
 class NewsFeatureType(str, Enum):
     """消息面特征类型"""
@@ -244,6 +210,7 @@ class NewsFeatureSet(BaseModel):
 
 # ==================== 事件流与技术面联动 ====================
 
+
 class EventTechAlignmentRequest(BaseModel):
     """事件-技术面对齐请求"""
 
@@ -274,6 +241,7 @@ class EventTechAlignment(BaseModel):
 
 
 # ==================== 回测与报告视角分离 ====================
+
 
 class ViewContext(str, Enum):
     """视图上下文 - 区分报告视角和回测视角"""

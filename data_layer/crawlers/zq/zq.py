@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -12,11 +11,11 @@ zq.py - 知丘爬取统一入口
 使用方法：
     python zq.py --config config.yaml --search 建材 --doc-types REPORT,NEWS
 """
-import sys
 import argparse
 import importlib
-from typing import Any, Dict, List, Optional
+import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Any, Dict, List, Optional
 
 # 模块元数据：单一事实来源
 _MODULE_METADATA = {
@@ -115,10 +114,22 @@ def _filter_kwargs_for_module(kwargs: Dict[str, Any], module_type: str) -> Dict[
     filtered = {}
 
     common_params = [
-        "config", "config_path", "starttime", "endtime", "search",
-        "output_dir", "verbose", "state_path", "skip_existing",
-        "use_homepage_search", "date_limit", "page", "page_size",
-        "fetch_all_pages", "max_pages", "rotate_account_per_request"
+        "config",
+        "config_path",
+        "starttime",
+        "endtime",
+        "search",
+        "output_dir",
+        "verbose",
+        "state_path",
+        "skip_existing",
+        "use_homepage_search",
+        "date_limit",
+        "page",
+        "page_size",
+        "fetch_all_pages",
+        "max_pages",
+        "rotate_account_per_request",
     ]
 
     for param in common_params:
@@ -127,9 +138,16 @@ def _filter_kwargs_for_module(kwargs: Dict[str, Any], module_type: str) -> Dict[
 
     if module_type == "REPORT":
         report_params = [
-            "brokers", "doccolumns", "hyperSearchField", "prompt",
-            "enable_core", "enable_viewpoint", "enable_companies",
-            "enable_pdf", "ai_interval", "pdf_dir"
+            "brokers",
+            "doccolumns",
+            "hyperSearchField",
+            "prompt",
+            "enable_core",
+            "enable_viewpoint",
+            "enable_companies",
+            "enable_pdf",
+            "ai_interval",
+            "pdf_dir",
         ]
         for param in report_params:
             if param in kwargs and kwargs[param] is not None:
@@ -151,7 +169,7 @@ def _run_single_module(doc_type: str, kwargs: Dict[str, Any]) -> Optional[Dict[s
             module_name, _ = handler
 
             # 导入模块并直接调用其 CLI 逻辑
-            module = importlib.import_module(f'data_layer.crawlers.zq.{module_name}')
+            module = importlib.import_module(f"data_layer.crawlers.zq.{module_name}")
 
             # 创建配置对象
             config_class = None
@@ -178,20 +196,20 @@ def _run_single_module(doc_type: str, kwargs: Dict[str, Any]) -> Optional[Dict[s
                 "success": False,
                 "message": f"不支持的文档类型: {doc_type}",
                 "errors": [f"不支持的文档类型: {doc_type}"],
-                "terms": []
+                "terms": [],
             }
     except Exception as e:
         return {
             "success": False,
             "message": f"{doc_type} 模块执行失败: {str(e)}",
             "errors": [f"{doc_type} 模块执行失败: {str(e)}"],
-            "terms": []
+            "terms": [],
         }
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description='知丘研报爬取统一入口（调用独立模块）',
+        description="知丘研报爬取统一入口（调用独立模块）",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例：
@@ -203,43 +221,51 @@ def parse_args():
 
   # 使用首页搜索和日期限制
   python zq.py --config config.yaml --search 宏观经济 --use-homepage-search --date-limit DATE_LIMIT_WEEK
-"""
+""",
     )
 
-    parser.add_argument('--starttime', type=str, help='开始日期 (YYYY-MM-DD)，默认昨天')
-    parser.add_argument('--endtime', type=str, help='结束日期 (YYYY-MM-DD)，默认昨天')
+    parser.add_argument("--starttime", type=str, help="开始日期 (YYYY-MM-DD)，默认昨天")
+    parser.add_argument("--endtime", type=str, help="结束日期 (YYYY-MM-DD)，默认昨天")
 
-    parser.add_argument('--search', type=str, default='', help='搜索关键词，多个用逗号分隔')
-    parser.add_argument('--brokers', type=str, default='', help='券商ID列表，逗号分隔（仅REPORT）')
-    parser.add_argument('--doccolumns', type=str, default='', help='报告类型（仅REPORT）')
-    parser.add_argument('--hyperSearchField', type=str, default='title', choices=['title', 'all'], help='搜索范围（仅REPORT）')
-    parser.add_argument('--prompt', type=str, default='', help='AI提问模板（仅REPORT）')
+    parser.add_argument("--search", type=str, default="", help="搜索关键词，多个用逗号分隔")
+    parser.add_argument("--brokers", type=str, default="", help="券商ID列表，逗号分隔（仅REPORT）")
+    parser.add_argument("--doccolumns", type=str, default="", help="报告类型（仅REPORT）")
+    parser.add_argument(
+        "--hyperSearchField",
+        type=str,
+        default="title",
+        choices=["title", "all"],
+        help="搜索范围（仅REPORT）",
+    )
+    parser.add_argument("--prompt", type=str, default="", help="AI提问模板（仅REPORT）")
 
-    parser.add_argument('--enable-core', action='store_true', default=False, help='启用原有核心摘要提取')
-    parser.add_argument('--enable-viewpoint', action='store_true', default=False, help='启用核心观点提取')
-    parser.add_argument('--enable-companies', action='store_true', default=False, help='启用关注公司提取')
-    parser.add_argument('--enable-pdf', action='store_true', default=False, help='启用 PDF 下载')
+    parser.add_argument("--enable-core", action="store_true", default=False, help="启用原有核心摘要提取")
+    parser.add_argument("--enable-viewpoint", action="store_true", default=False, help="启用核心观点提取")
+    parser.add_argument("--enable-companies", action="store_true", default=False, help="启用关注公司提取")
+    parser.add_argument("--enable-pdf", action="store_true", default=False, help="启用 PDF 下载")
 
-    parser.add_argument('--ai-interval', type=int, default=10, help='AI 请求间隔秒数（仅REPORT）')
-    parser.add_argument('--pdf-dir', type=str, default='pdfs', help='PDF 保存子目录名（仅REPORT）')
-    parser.add_argument('--output-dir', type=str, default='./output', help='输出根目录')
-    parser.add_argument('--state-path', type=str, default=None, help='状态文件路径，用于持久化去重')
-    parser.add_argument('--allowed-accounts', type=str, default=None, help='公众号白名单配置文件路径（仅NEWS）')
-    parser.add_argument('--skip-existing', action='store_true', default=True, help='跳过已存在的内容')
+    parser.add_argument("--ai-interval", type=int, default=10, help="AI 请求间隔秒数（仅REPORT）")
+    parser.add_argument("--pdf-dir", type=str, default="pdfs", help="PDF 保存子目录名（仅REPORT）")
+    parser.add_argument("--output-dir", type=str, default="./output", help="输出根目录")
+    parser.add_argument("--state-path", type=str, default=None, help="状态文件路径，用于持久化去重")
+    parser.add_argument("--allowed-accounts", type=str, default=None, help="公众号白名单配置文件路径（仅NEWS）")
+    parser.add_argument("--skip-existing", action="store_true", default=True, help="跳过已存在的内容")
 
-    parser.add_argument('--use-homepage-search', action='store_true', default=False, help='使用首页搜索')
-    parser.add_argument('--date-limit', type=str, default='', help='日期限制，如 DATE_LIMIT_WEEK')
-    parser.add_argument('--doc-types', type=str, default='REPORT', help='文档类型，逗号分隔：REPORT,NEWS,ZQMEETING')
-    parser.add_argument('--page', type=int, default=1, help='页码')
-    parser.add_argument('--page-size', type=int, default=50, help='每页数量')
-    parser.add_argument('--fetch-all-pages', action='store_true', default=False, help='获取全部页')
-    parser.add_argument('--max-pages', type=int, default=20, help='最大页数限制')
+    parser.add_argument("--use-homepage-search", action="store_true", default=False, help="使用首页搜索")
+    parser.add_argument("--date-limit", type=str, default="", help="日期限制，如 DATE_LIMIT_WEEK")
+    parser.add_argument(
+        "--doc-types", type=str, default="REPORT", help="文档类型，逗号分隔：REPORT,NEWS,ZQMEETING"
+    )
+    parser.add_argument("--page", type=int, default=1, help="页码")
+    parser.add_argument("--page-size", type=int, default=50, help="每页数量")
+    parser.add_argument("--fetch-all-pages", action="store_true", default=False, help="获取全部页")
+    parser.add_argument("--max-pages", type=int, default=20, help="最大页数限制")
 
-    parser.add_argument('--rotate-account', action='store_true', default=True, help='每次请求按策略切换账号')
-    parser.add_argument('--no-rotate-account', action='store_true', help='不自动切换账号')
+    parser.add_argument("--rotate-account", action="store_true", default=True, help="每次请求按策略切换账号")
+    parser.add_argument("--no-rotate-account", action="store_true", help="不自动切换账号")
 
-    parser.add_argument('--config', type=str, required=True, help='配置文件路径（包含凭证）')
-    parser.add_argument('--verbose', action='store_true', default=True, help='显示详细输出')
+    parser.add_argument("--config", type=str, required=True, help="配置文件路径（包含凭证）")
+    parser.add_argument("--verbose", action="store_true", default=True, help="显示详细输出")
 
     return parser.parse_args()
 
@@ -278,15 +304,14 @@ def main_cli():
         results = []
         with ThreadPoolExecutor(max_workers=len(doc_types)) as executor:
             future_to_type = {
-                executor.submit(_run_single_module, dt, kwargs.copy()): dt
-                for dt in doc_types
+                executor.submit(_run_single_module, dt, kwargs.copy()): dt for dt in doc_types
             }
             for future in as_completed(future_to_type):
                 results.append(future.result())
 
     result = _merge_results(results)
 
-    if result.get('success'):
+    if result.get("success"):
         print(f"\n[OK] {result.get('message', '')}")
         return 0
     else:
@@ -294,6 +319,5 @@ def main_cli():
         return 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main_cli())
-

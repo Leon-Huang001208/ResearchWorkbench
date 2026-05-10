@@ -73,7 +73,9 @@ def akshare_stocks_command(limit: int, output: str | None):
             display_count = min(len(stocks), 20)
             click.echo(f"\nShowing first {display_count} stocks:\n")
             for stock in stocks[:display_count]:
-                click.echo(f"  {stock.symbol:<12} {stock.name:<15} {stock.market:<3} {stock.industry or 'N/A'}")
+                click.echo(
+                    f"  {stock.symbol:<12} {stock.name:<15} {stock.market:<3} {stock.industry or 'N/A'}"
+                )
 
             if len(stocks) > display_count:
                 click.echo(f"\n  ... and {len(stocks) - display_count} more")
@@ -81,7 +83,7 @@ def akshare_stocks_command(limit: int, output: str | None):
             # 保存到文件
             if output:
                 import json
-                import json
+
                 with open(output, "w", encoding="utf-8") as f:
                     data = [
                         {
@@ -106,7 +108,9 @@ def akshare_stocks_command(limit: int, output: str | None):
 @akshare_group.command(name="news")
 @click.option("--limit", "-n", type=int, default=20, help="返回新闻数量限制")
 @click.option("--keyword", "-k", multiple=True, help="关键词过滤 (可多次使用)")
-@click.option("--source", "-s", type=click.Choice(["sina", "eastmoney", "all"]), default="all", help="新闻来源")
+@click.option(
+    "--source", "-s", type=click.Choice(["sina", "eastmoney", "all"]), default="all", help="新闻来源"
+)
 @click.option("--output", "-o", help="输出文件路径 (JSON)")
 def akshare_news_command(limit: int, keyword: tuple[str], source: str, output: str | None):
     """获取财经新闻
@@ -147,7 +151,9 @@ def akshare_news_command(limit: int, keyword: tuple[str], source: str, output: s
             display_count = min(len(news_list), 10)
             click.echo(f"\nShowing first {display_count} news:\n")
             for i, news in enumerate(news_list[:display_count], 1):
-                time_str = news.publish_time.strftime("%Y-%m-%d %H:%M") if news.publish_time else "N/A"
+                time_str = (
+                    news.publish_time.strftime("%Y-%m-%d %H:%M") if news.publish_time else "N/A"
+                )
                 click.echo(f"{i}. [{news.source.upper()}] {time_str}")
                 click.echo(f"   {news.title}")
                 if news.summary:
@@ -160,6 +166,7 @@ def akshare_news_command(limit: int, keyword: tuple[str], source: str, output: s
             # 保存到文件
             if output:
                 import json
+
                 with open(output, "w", encoding="utf-8") as f:
                     data = [
                         {
@@ -183,7 +190,13 @@ def akshare_news_command(limit: int, keyword: tuple[str], source: str, output: s
 
 
 @akshare_group.command(name="macro")
-@click.option("--indicator", "-i", type=click.Choice(["gdp", "cpi", "pmi", "rate", "money", "all"]), default="all", help="宏观指标")
+@click.option(
+    "--indicator",
+    "-i",
+    type=click.Choice(["gdp", "cpi", "pmi", "rate", "money", "all"]),
+    default="all",
+    help="宏观指标",
+)
 @click.option("--output", "-o", help="输出文件路径 (JSON)")
 def akshare_macro_command(indicator: str, output: str | None):
     """获取宏观经济数据
@@ -228,6 +241,7 @@ def akshare_macro_command(indicator: str, output: str | None):
         if all_data:
             # 分组显示
             from collections import defaultdict
+
             data_by_indicator = defaultdict(list)
             for d in all_data:
                 data_by_indicator[d.indicator].append(d)
@@ -243,6 +257,7 @@ def akshare_macro_command(indicator: str, output: str | None):
             # 保存到文件
             if output:
                 import json
+
                 with open(output, "w", encoding="utf-8") as f:
                     data = [
                         {
@@ -269,7 +284,9 @@ def akshare_macro_command(indicator: str, output: str | None):
 @click.option("--symbol", "-s", required=True, help="股票代码 (如 600000.SH)")
 @click.option("--start-date", help="开始日期 (YYYY-MM-DD, 默认一年前)")
 @click.option("--end-date", help="结束日期 (YYYY-MM-DD, 默认今天)")
-@click.option("--period", type=click.Choice(["daily", "weekly", "monthly"]), default="daily", help="周期")
+@click.option(
+    "--period", type=click.Choice(["daily", "weekly", "monthly"]), default="daily", help="周期"
+)
 @click.option("--adjust", type=click.Choice(["qfq", "hfq", "none"]), default="qfq", help="复权方式")
 @click.option("--output", "-o", help="输出文件路径 (JSON/CSV)")
 def akshare_quotes_command(
@@ -302,6 +319,7 @@ def akshare_quotes_command(
 
         # 解析日期
         from datetime import date, datetime, timedelta
+
         end = date.today()
         if end_date:
             end = datetime.strptime(end_date, "%Y-%m-%d").date()
@@ -324,7 +342,9 @@ def akshare_quotes_command(
             # 显示前 20 个
             display_count = min(len(quotes), 20)
             click.echo(f"\nShowing first {display_count} quotes:\n")
-            click.echo(f"{'Date':<12} {'Open':>8} {'High':>8} {'Low':>8} {'Close':>8} {'Volume':>12}")
+            click.echo(
+                f"{'Date':<12} {'Open':>8} {'High':>8} {'Low':>8} {'Close':>8} {'Volume':>12}"
+            )
             click.echo("-" * 70)
             for q in quotes[:display_count]:
                 date_str = q.timestamp.strftime("%Y-%m-%d")
@@ -333,7 +353,9 @@ def akshare_quotes_command(
                 low_str = f"{q.low:.2f}" if q.low else "N/A"
                 close_str = f"{q.close:.2f}" if q.close else "N/A"
                 vol_str = f"{q.volume:,}" if q.volume else "N/A"
-                click.echo(f"{date_str:<12} {open_str:>8} {high_str:>8} {low_str:>8} {close_str:>8} {vol_str:>12}")
+                click.echo(
+                    f"{date_str:<12} {open_str:>8} {high_str:>8} {low_str:>8} {close_str:>8} {vol_str:>12}"
+                )
 
             if len(quotes) > display_count:
                 click.echo(f"\n  ... and {len(quotes) - display_count} more")
@@ -342,22 +364,28 @@ def akshare_quotes_command(
             if output:
                 if output.endswith(".csv"):
                     import csv
+
                     with open(output, "w", encoding="utf-8", newline="") as f:
                         writer = csv.writer(f)
-                        writer.writerow(["date", "open", "high", "low", "close", "volume", "amount", "turnover"])
+                        writer.writerow(
+                            ["date", "open", "high", "low", "close", "volume", "amount", "turnover"]
+                        )
                         for q in quotes:
-                            writer.writerow([
-                                q.timestamp.strftime("%Y-%m-%d"),
-                                q.open,
-                                q.high,
-                                q.low,
-                                q.close,
-                                q.volume,
-                                q.amount,
-                                q.turnover,
-                            ])
+                            writer.writerow(
+                                [
+                                    q.timestamp.strftime("%Y-%m-%d"),
+                                    q.open,
+                                    q.high,
+                                    q.low,
+                                    q.close,
+                                    q.volume,
+                                    q.amount,
+                                    q.turnover,
+                                ]
+                            )
                 else:
                     import json
+
                     data = [
                         {
                             "date": q.timestamp.isoformat(),

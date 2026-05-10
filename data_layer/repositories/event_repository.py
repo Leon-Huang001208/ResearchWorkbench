@@ -160,20 +160,14 @@ class EventRepositoryImpl(BaseRepository, EventRepository):
     def list_by_status(self, status: str, limit: int = 100) -> List[CanonicalEvent]:
         """根据审核状态列出事件"""
         models = (
-            self.db.query(CanonicalEventModel)
-            .filter_by(reviewer_status=status)
-            .limit(limit)
-            .all()
+            self.db.query(CanonicalEventModel).filter_by(reviewer_status=status).limit(limit).all()
         )
         return [self._to_domain(m) for m in models]
 
     def list_by_event_type(self, event_type: str, limit: int = 100) -> List[CanonicalEvent]:
         """根据事件类型列出事件"""
         models = (
-            self.db.query(CanonicalEventModel)
-            .filter_by(event_type=event_type)
-            .limit(limit)
-            .all()
+            self.db.query(CanonicalEventModel).filter_by(event_type=event_type).limit(limit).all()
         )
         return [self._to_domain(m) for m in models]
 

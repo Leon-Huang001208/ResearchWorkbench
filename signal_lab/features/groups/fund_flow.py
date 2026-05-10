@@ -17,10 +17,7 @@ class NetInflowFeature(Feature):
     """净流入特征"""
 
     def __init__(self, periods: int = 1):
-        super().__init__(
-            name=f"net_inflow_{periods}d",
-            description=f"{periods}日资金净流入"
-        )
+        super().__init__(name=f"net_inflow_{periods}d", description=f"{periods}日资金净流入")
         self.periods = periods
 
     def compute(self, data: pd.DataFrame, **kwargs: Any) -> pd.Series:
@@ -35,10 +32,7 @@ class InflowRatioFeature(Feature):
     """净流入比率特征"""
 
     def __init__(self):
-        super().__init__(
-            name="inflow_ratio",
-            description="净流入占成交额比率"
-        )
+        super().__init__(name="inflow_ratio", description="净流入占成交额比率")
 
     def compute(self, data: pd.DataFrame, **kwargs: Any) -> pd.Series:
         inflow_col = kwargs.get("inflow_col", "net_inflow")
@@ -54,10 +48,7 @@ class LargeOrderRatioFeature(Feature):
     """大单占比特征"""
 
     def __init__(self, window: int = 20):
-        super().__init__(
-            name=f"large_order_ratio_{window}d",
-            description=f"{window}日大单成交占比"
-        )
+        super().__init__(name=f"large_order_ratio_{window}d", description=f"{window}日大单成交占比")
         self.window = window
 
     def compute(self, data: pd.DataFrame, **kwargs: Any) -> pd.Series:
@@ -74,10 +65,7 @@ class MainForceNetInflowFeature(Feature):
     """主力净流入特征"""
 
     def __init__(self, window: int = 5):
-        super().__init__(
-            name=f"main_force_net_inflow_{window}d",
-            description=f"{window}日主力净流入"
-        )
+        super().__init__(name=f"main_force_net_inflow_{window}d", description=f"{window}日主力净流入")
         self.window = window
 
     def compute(self, data: pd.DataFrame, **kwargs: Any) -> pd.Series:

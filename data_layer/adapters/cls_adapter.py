@@ -7,7 +7,7 @@ from typing import Any
 from core.contracts import DocumentEnvelope
 from core.observability import get_logger
 from data_layer.adapters.base import BaseDataAdapter
-from data_layer.crawlers.cls.cls import CLSTelegramCrawler, CLSConfig
+from data_layer.crawlers.cls.cls import CLSConfig, CLSTelegramCrawler
 
 logger = get_logger(__name__)
 
@@ -24,7 +24,7 @@ class CLSAdapter(BaseDataAdapter):
         end_date: str | None = None,
         days: int = 2,
         output_dir: str = "./data/crawlers/cls",
-        **kwargs
+        **kwargs,
     ) -> list[DocumentEnvelope]:
         """爬取财联社电报,返回 DocumentEnvelope 列表"""
         logger.info(
@@ -76,7 +76,9 @@ class CLSAdapter(BaseDataAdapter):
             # Parse from dict
             t_id = source.get("id", "")
             content = source.get("content", "")
-            date_str = source.get("date") or source.get("publish_time", "") or source.get("created_at", "")
+            date_str = (
+                source.get("date") or source.get("publish_time", "") or source.get("created_at", "")
+            )
             published_at = None
             if date_str:
                 date_str = date_str.strip()
@@ -93,7 +95,9 @@ class CLSAdapter(BaseDataAdapter):
                         published_at = datetime.strptime(date_str, fmt)
                         # 只有日期的话补00:00:00
                         if fmt == "%Y-%m-%d":
-                            published_at = published_at.replace(hour=0, minute=0, second=0, microsecond=0)
+                            published_at = published_at.replace(
+                                hour=0, minute=0, second=0, microsecond=0
+                            )
                         break
                     except ValueError:
                         continue

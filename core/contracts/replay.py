@@ -30,11 +30,17 @@ class ReplayJob(BaseModel):
     job_id: str = Field(description="Unique identifier for the replay job")
     name: str = Field(description="Name of the replay job")
     description: Optional[str] = Field(default=None, description="Optional description of the job")
-    event_filter: Optional[dict] = Field(default=None, description="Optional filter conditions (event_type, source_type, date_range)")
+    event_filter: Optional[dict] = Field(
+        default=None, description="Optional filter conditions (event_type, source_type, date_range)"
+    )
     max_events: int = Field(default=100, description="Maximum number of events to replay")
-    status: str = Field(default="pending", description="Status of the job (pending, running, completed, failed)")
+    status: str = Field(
+        default="pending", description="Status of the job (pending, running, completed, failed)"
+    )
     created_at: datetime = Field(description="Timestamp when the job was created")
-    completed_at: Optional[datetime] = Field(default=None, description="Timestamp when the job was completed (if applicable)")
+    completed_at: Optional[datetime] = Field(
+        default=None, description="Timestamp when the job was completed (if applicable)"
+    )
 
 
 class ReplayResult(BaseModel):
@@ -63,18 +69,34 @@ class ReplayResult(BaseModel):
 
     job_id: str = Field(description="Unique identifier of the replay job")
     event_id: str = Field(description="Unique identifier of the event")
-    signal_id: Optional[str] = Field(default=None, description="Optional unique identifier of the generated signal")
-    outcome_id: Optional[str] = Field(default=None, description="Optional unique identifier of the outcome")
+    signal_id: Optional[str] = Field(
+        default=None, description="Optional unique identifier of the generated signal"
+    )
+    outcome_id: Optional[str] = Field(
+        default=None, description="Optional unique identifier of the outcome"
+    )
     event_type: str = Field(description="Type of the event")
     source_type: str = Field(description="Type of the source")
-    signal_score: Optional[float] = Field(default=None, description="Optional score of the generated signal")
-    signal_confidence: Optional[float] = Field(default=None, description="Optional confidence of the generated signal")
+    signal_score: Optional[float] = Field(
+        default=None, description="Optional score of the generated signal"
+    )
+    signal_confidence: Optional[float] = Field(
+        default=None, description="Optional confidence of the generated signal"
+    )
     timing_action: Optional[str] = Field(default=None, description="Optional timing action taken")
-    outcome_return: Optional[float] = Field(default=None, description="Optional return of the outcome")
-    outcome_excess_return: Optional[float] = Field(default=None, description="Optional excess return of the outcome")
-    max_drawdown: Optional[float] = Field(default=None, description="Optional maximum drawdown of the outcome")
+    outcome_return: Optional[float] = Field(
+        default=None, description="Optional return of the outcome"
+    )
+    outcome_excess_return: Optional[float] = Field(
+        default=None, description="Optional excess return of the outcome"
+    )
+    max_drawdown: Optional[float] = Field(
+        default=None, description="Optional maximum drawdown of the outcome"
+    )
     decay: Optional[float] = Field(default=None, description="Optional decay score of the outcome")
-    error: Optional[str] = Field(default=None, description="Optional error message (if replay failed for this event)")
+    error: Optional[str] = Field(
+        default=None, description="Optional error message (if replay failed for this event)"
+    )
 
 
 class ReplayAggregate(BaseModel):
@@ -107,9 +129,15 @@ class ReplayAggregate(BaseModel):
     avg_excess_return: float = Field(description="Average excess return across events")
     avg_max_drawdown: float = Field(description="Average maximum drawdown across events")
     avg_decay: float = Field(description="Average decay score across events")
-    by_event_type: dict[str, dict] = Field(default_factory=dict, description="Breakdown by event type")
-    by_source_type: dict[str, dict] = Field(default_factory=dict, description="Breakdown by source type")
-    by_timing_action: dict[str, dict] = Field(default_factory=dict, description="Breakdown by timing action")
+    by_event_type: dict[str, dict] = Field(
+        default_factory=dict, description="Breakdown by event type"
+    )
+    by_source_type: dict[str, dict] = Field(
+        default_factory=dict, description="Breakdown by source type"
+    )
+    by_timing_action: dict[str, dict] = Field(
+        default_factory=dict, description="Breakdown by timing action"
+    )
     calibration: dict = Field(default_factory=dict, description="Calibration data")
 
 

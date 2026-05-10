@@ -1,7 +1,6 @@
 """Tests for SectionGenerator."""
 from unittest.mock import Mock
 
-
 from core.contracts import SectionOutput, SectionSpec
 from reporting.composer.section_generator import SectionGenerator
 

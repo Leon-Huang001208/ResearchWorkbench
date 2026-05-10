@@ -4,13 +4,13 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException
 
 from core.contracts.outcome_journal import (
-    TradeOutcome,
-    SimilarCase,
-    WeeklyReviewReport,
     FailureClassification,
+    SimilarCase,
+    TradeOutcome,
+    WeeklyReviewReport,
 )
-from core.services.outcome_journal_service import OutcomeJournalService
 from core.services.failure_memory_service import FailureMemoryService
+from core.services.outcome_journal_service import OutcomeJournalService
 
 router = APIRouter()
 outcome_journal_service = OutcomeJournalService()
@@ -109,7 +109,11 @@ def get_weekly_review(
     return outcome_journal_service.generate_weekly_review(weeks_ago=weeks_ago)
 
 
-@router.get("/failure-distribution", response_model=dict[FailureClassification, int], tags=["failure-memory"])
+@router.get(
+    "/failure-distribution",
+    response_model=dict[FailureClassification, int],
+    tags=["failure-memory"],
+)
 def get_failure_distribution():
     """Get the count of failures by classification."""
     return outcome_journal_service.count_failure_distribution()

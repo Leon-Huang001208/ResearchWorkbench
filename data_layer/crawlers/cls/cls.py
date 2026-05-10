@@ -3,16 +3,17 @@ cls - 财联社电报爬取技能 (CLI 版本)
 
 仅支持 CLI 调用: python cls.py --args
 """
-from typing import Any, Dict, List, Optional
+import json
+import logging
+import random
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-import json
-import random
-import logging
+from typing import Any, Dict, List, Optional
 
 try:
     import requests
+
     HAS_DEPENDENCIES = True
 except ImportError:
     HAS_DEPENDENCIES = False
@@ -25,6 +26,7 @@ OUTPUT_FORMAT_JSON = "json"
 @dataclass
 class TelegramItem:
     """电报条目"""
+
     id: str = ""
     content: str = ""
     date: str = ""
@@ -37,6 +39,7 @@ class TelegramItem:
 @dataclass
 class CLSConfig:
     """财联社爬虫配置"""
+
     verbose: bool = True
     output_dir: str = "./output"
     start_date: Optional[str] = None
@@ -143,7 +146,7 @@ class CLSTelegramCrawler:
             logger_name="cls",
             verbose=self.config.verbose,
             log_to_file=self.config.log_to_file,
-            log_filename=self.config.log_filename
+            log_filename=self.config.log_filename,
         )
 
     def _warmup_cookies(self):
@@ -169,24 +172,20 @@ class CLSTelegramCrawler:
             "Sec-Fetch-Dest": "empty",
             "Sec-Fetch-Mode": "cors",
             "Sec-Fetch-Site": "same-origin",
-            "Connection": "keep-alive"
+            "Connection": "keep-alive",
         }
         return headers
 
     def _random_delay(self, is_page_delay: bool = False):
         """随机延迟（反爬措施，使用通用工具函数）"""
         if is_page_delay:
-            random_delay(
-                base_delay=self.config.page_delay,
-                jitter=self.config.page_delay_jitter
-            )
+            random_delay(base_delay=self.config.page_delay, jitter=self.config.page_delay_jitter)
         else:
-            random_delay(
-                base_delay=self.config.delay,
-                jitter=self.config.delay_jitter
-            )
+            random_delay(base_delay=self.config.delay, jitter=self.config.delay_jitter)
 
-    def _retry_request(self, url: str, method: str = "get", **kwargs) -> Optional[requests.Response]:
+    def _retry_request(
+        self, url: str, method: str = "get", **kwargs
+    ) -> Optional[requests.Response]:
         """带重试的请求（使用通用工具函数）"""
         return retry_request(
             session=self._session,
@@ -195,7 +194,7 @@ class CLSTelegramCrawler:
             max_retries=self.config.max_retries,
             retry_delay_min=self.config.retry_delay_min,
             retry_delay_max=self.config.retry_delay_max,
-            **kwargs
+            **kwargs,
         )
 
     def get_telegram_data(self, date: datetime, page: int = 1) -> Optional[Dict[str, Any]]:
@@ -213,7 +212,7 @@ class CLSTelegramCrawler:
                 "app": "CailianpressWeb",
                 "os": "web",
                 "sv": "8.4.6",
-                "sign": "9f8797a1f4de66c2370f7a03990d2737"
+                "sign": "9f8797a1f4de66c2370f7a03990d2737",
             }
 
             data = {
@@ -221,16 +220,11 @@ class CLSTelegramCrawler:
                 "keyword": "%20",  # URL编码空格，绕过keyword非空检查
                 "page": page,
                 "rn": 100,
-                "date": date_str
+                "date": date_str,
             }
 
             response = self._retry_request(
-                self.api_url,
-                method="post",
-                params=params,
-                json=data,
-                headers=headers,
-                timeout=30
+                self.api_url, method="post", params=params, json=data, headers=headers, timeout=30
             )
 
             if not response:
@@ -256,10 +250,7 @@ class CLSTelegramCrawler:
                     self._add_telegram(telegram)
                     new_count += 1
 
-            return {
-                "total_num": total_num,
-                "new_count": new_count
-            }
+            return {"total_num": total_num, "new_count": new_count}
 
         except Exception as e:
             self.logger.exception(f"[fetch] Error: {e}")
@@ -314,10 +305,7 @@ class CLSTelegramCrawler:
                     return
             else:
                 self.new_telegrams.append(telegram)
-                self.state_manager.mark_processed(
-                    telegram.id,
-                    content_preview=telegram.content
-                )
+                self.state_manager.mark_processed(telegram.id, content_preview=telegram.content)
 
         # 清除缓存
         self._filtered_telegrams = None
@@ -367,7 +355,7 @@ class CLSTelegramCrawler:
         start_date, end_date = parse_and_validate_date_range(
             start_date_str=self.config.start_date,
             end_date_str=self.config.end_date,
-            default_days=self.config.days
+            default_days=self.config.days,
         )
         # 更新配置中的日期字符串
         self.config.start_date = start_date.strftime("%Y-%m-%d")
@@ -387,7 +375,7 @@ class CLSTelegramCrawler:
             "total_telegrams": len(filtered),
             "total_crawled": len(self.all_telegrams),
             "date_range": f"{self.config.start_date} 至 {self.config.end_date}",
-            "daily_counts": daily_counts
+            "daily_counts": daily_counts,
         }
 
     def crawl_telegrams(self):
@@ -457,7 +445,9 @@ class CLSTelegramCrawler:
                 break
 
             if page > (total_num // 30 + 10) and consecutive_empty_pages > 2:
-                completion_rate = (telegrams_for_this_date / total_num * 100) if total_num > 0 else 0
+                completion_rate = (
+                    (telegrams_for_this_date / total_num * 100) if total_num > 0 else 0
+                )
                 self.logger.info(f"[complete] 超过预计页数，完成率: {completion_rate:.2f}%")
                 break
 
@@ -468,7 +458,9 @@ class CLSTelegramCrawler:
         api_total = self.api_day_total.get(date_str, 0)
         completion_rate = (len(day_telegrams) / api_total * 100) if api_total > 0 else 0
 
-        self.logger.info(f"[summary] {date_str} 完成: {len(day_telegrams)}/{api_total} 条 ({completion_rate:.2f}%)")
+        self.logger.info(
+            f"[summary] {date_str} 完成: {len(day_telegrams)}/{api_total} 条 ({completion_rate:.2f}%)"
+        )
 
     def save_to_json(self) -> str:
         """保存到 JSON"""
@@ -486,29 +478,22 @@ class CLSTelegramCrawler:
                 "end_date": self.config.end_date,
                 "total_telegrams": len(filtered_telegrams),
                 "total_crawled": len(self.all_telegrams),
-                "output_format": "json"
+                "output_format": "json",
             },
             "telegrams": [
-                {
-                    "id": t.id,
-                    "content": t.content,
-                    "date": t.date
-                } for t in filtered_telegrams
+                {"id": t.id, "content": t.content, "date": t.date} for t in filtered_telegrams
             ],
-            "daily_stats": []
+            "daily_stats": [],
         }
 
         # 添加每日统计
         for date_str in sorted(filtered_daily.keys()):
             day_telegrams = filtered_daily[date_str]
             if day_telegrams:
-                json_data["daily_stats"].append({
-                    "日期": date_str,
-                    "电报数量": len(day_telegrams)
-                })
+                json_data["daily_stats"].append({"日期": date_str, "电报数量": len(day_telegrams)})
 
         # 保存 JSON
-        with open(json_path, 'w', encoding='utf-8') as f:
+        with open(json_path, "w", encoding="utf-8") as f:
             json.dump(json_data, f, ensure_ascii=False, indent=2)
 
         self.logger.info(f"[save] JSON 已保存: {json_path}")
@@ -534,25 +519,26 @@ class CLSTelegramCrawler:
             "daily_counts": summary["daily_counts"],
             "output_file": json_path,
             "output_files": output_files,
-            "errors": []
+            "errors": [],
         }
 
 
-from .utils.log_utils import setup_logging
-from .utils.net_utils import random_delay, retry_request
 from .utils.date_utils import parse_and_validate_date_range
 from .utils.deduplication import DeduplicationStore
+from .utils.log_utils import setup_logging
+from .utils.net_utils import random_delay, retry_request
 
 # ============================================================
 # 仅支持 CLI 调用
 # ============================================================
+
 
 def parse_args():
     """解析命令行参数"""
     import argparse
 
     parser = argparse.ArgumentParser(
-        description='财联社电报爬虫 - 爬取财联社电报新闻',
+        description="财联社电报爬虫 - 爬取财联社电报新闻",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 使用示例:
@@ -564,37 +550,36 @@ def parse_args():
 
   # 启用持久化去重
   python cls.py --state_path ./state/cls_telegrams.json
-        """
+        """,
     )
 
     # 日期参数
-    parser.add_argument('--start_date', type=str, help='开始日期 (YYYY-MM-DD)')
-    parser.add_argument('--end_date', type=str, help='结束日期 (YYYY-MM-DD)')
-    parser.add_argument('--days', type=int, default=2, help='默认爬取天数（未指定日期时）')
+    parser.add_argument("--start_date", type=str, help="开始日期 (YYYY-MM-DD)")
+    parser.add_argument("--end_date", type=str, help="结束日期 (YYYY-MM-DD)")
+    parser.add_argument("--days", type=int, default=2, help="默认爬取天数（未指定日期时）")
 
     # 过滤参数
-    parser.add_argument('--start_hour', type=int, help='起始小时 (0-23)')
-    parser.add_argument('--end_hour', type=int, help='结束小时 (0-23)')
+    parser.add_argument("--start_hour", type=int, help="起始小时 (0-23)")
+    parser.add_argument("--end_hour", type=int, help="结束小时 (0-23)")
 
     # 输出参数
-    parser.add_argument('--output_dir', type=str, default='./output', help='输出目录')
+    parser.add_argument("--output_dir", type=str, default="./output", help="输出目录")
 
     # 反爬参数
-    parser.add_argument('--delay', type=float, default=1.5, help='基础请求延迟（秒）')
-    parser.add_argument('--delay_jitter', type=float, default=0.8, help='延迟抖动范围（秒）')
-    parser.add_argument('--max_retries', type=int, default=3, help='最大重试次数')
-    parser.add_argument('--max_pages', type=int, default=150, help='最大爬取页数')
-    parser.add_argument('--max_empty_pages', type=int, default=7, help='连续空页阈值')
+    parser.add_argument("--delay", type=float, default=1.5, help="基础请求延迟（秒）")
+    parser.add_argument("--delay_jitter", type=float, default=0.8, help="延迟抖动范围（秒）")
+    parser.add_argument("--max_retries", type=int, default=3, help="最大重试次数")
+    parser.add_argument("--max_pages", type=int, default=150, help="最大爬取页数")
+    parser.add_argument("--max_empty_pages", type=int, default=7, help="连续空页阈值")
 
     # 持久化去重
-    parser.add_argument('--state_path', type=str, help='状态文件路径（用于持久化去重）')
-    parser.add_argument('--skip_existing', action='store_true', default=True,
-                        help='跳过已存在的电报（默认启用）')
+    parser.add_argument("--state_path", type=str, help="状态文件路径（用于持久化去重）")
+    parser.add_argument("--skip_existing", action="store_true", default=True, help="跳过已存在的电报（默认启用）")
 
     # 日志参数
-    parser.add_argument('--verbose', action='store_true', default=True, help='显示详细日志')
-    parser.add_argument('--log_to_file', action='store_true', default=True, help='记录日志到文件')
-    parser.add_argument('--log_filename', type=str, help='自定义日志文件名')
+    parser.add_argument("--verbose", action="store_true", default=True, help="显示详细日志")
+    parser.add_argument("--log_to_file", action="store_true", default=True, help="记录日志到文件")
+    parser.add_argument("--log_filename", type=str, help="自定义日志文件名")
 
     return parser.parse_args()
 
@@ -658,17 +643,17 @@ def main():
         print("爬取完成!")
         print(f"  总电报数: {result.get('total_telegrams', 0)}")
         print(f"  实际爬取: {result.get('total_crawled', 0)}")
-        if 'new_telegrams' in result:
+        if "new_telegrams" in result:
             print(f"  新电报: {result['new_telegrams']}")
-        if 'skipped_existing' in result:
+        if "skipped_existing" in result:
             print(f"  跳过已有: {result['skipped_existing']}")
         print(f"  日期范围: {result.get('date_range', '')}")
-        if result.get('output_files'):
-            for fmt, path in result['output_files'].items():
+        if result.get("output_files"):
+            for fmt, path in result["output_files"].items():
                 print(f"  {fmt.upper()}文件: {path}")
     else:
         print("爬取失败!")
-        if result.get('errors'):
+        if result.get("errors"):
             print(f"  错误: {result['errors']}")
     print("=" * 60 + "\n")
 

@@ -37,19 +37,33 @@ class IngestionQueueItem(BaseModel):
     """
 
     item_id: str = Field(description="Unique identifier for the queue item")
-    source_type: str = Field(description="Type of source (e.g., cls, cnstock, zq, report, manual, future)")
-    source_id: Optional[str] = Field(default=None, description="Optional source ID (used for deduplication)")
+    source_type: str = Field(
+        description="Type of source (e.g., cls, cnstock, zq, report, manual, future)"
+    )
+    source_id: Optional[str] = Field(
+        default=None, description="Optional source ID (used for deduplication)"
+    )
     raw_content: str = Field(description="Raw content of the item")
     title: Optional[str] = Field(default=None, description="Optional title of the item")
     url: Optional[str] = Field(default=None, description="Optional URL of the item")
-    priority: int = Field(default=0, description="Priority of the item (0=normal, 1=high, 2=urgent)")
-    status: str = Field(default="pending", description="Status of the item (pending, processing, completed, failed)")
+    priority: int = Field(
+        default=0, description="Priority of the item (0=normal, 1=high, 2=urgent)"
+    )
+    status: str = Field(
+        default="pending", description="Status of the item (pending, processing, completed, failed)"
+    )
     retry_count: int = Field(default=0, description="Number of retries attempted so far")
     max_retries: int = Field(default=3, description="Maximum number of retries allowed")
-    failure_reason: Optional[str] = Field(default=None, description="Optional reason for failure (if applicable)")
+    failure_reason: Optional[str] = Field(
+        default=None, description="Optional reason for failure (if applicable)"
+    )
     created_at: datetime = Field(description="Timestamp when the item was created")
-    processed_at: Optional[datetime] = Field(default=None, description="Timestamp when the item was processed (if applicable)")
-    dedup_hash: Optional[str] = Field(default=None, description="Optional hash used for deduplication")
+    processed_at: Optional[datetime] = Field(
+        default=None, description="Timestamp when the item was processed (if applicable)"
+    )
+    dedup_hash: Optional[str] = Field(
+        default=None, description="Optional hash used for deduplication"
+    )
 
 
 class IngestionQueueStats(BaseModel):
@@ -72,7 +86,9 @@ class IngestionQueueStats(BaseModel):
     processing: int = Field(description="Number of items in processing status")
     completed: int = Field(description="Number of items in completed status")
     failed: int = Field(description="Number of items in failed status")
-    avg_latency_ms: float = Field(description="Average latency from creation to processing (in milliseconds)")
+    avg_latency_ms: float = Field(
+        description="Average latency from creation to processing (in milliseconds)"
+    )
 
 
 class EnqueueRequest(BaseModel):
@@ -90,8 +106,12 @@ class EnqueueRequest(BaseModel):
         priority: Priority of the item (0=normal, 1=high, 2=urgent) (default 0).
     """
 
-    source_type: str = Field(..., description="Type of source (e.g., cls, cnstock, zq, report, manual, future)")
-    source_id: Optional[str] = Field(None, description="Optional source ID (used for deduplication)")
+    source_type: str = Field(
+        ..., description="Type of source (e.g., cls, cnstock, zq, report, manual, future)"
+    )
+    source_id: Optional[str] = Field(
+        None, description="Optional source ID (used for deduplication)"
+    )
     raw_content: str = Field(..., description="Raw content of the item")
     title: Optional[str] = Field(None, description="Optional title of the item")
     url: Optional[str] = Field(None, description="Optional URL of the item")
@@ -128,7 +148,9 @@ class ProcessResponse(BaseModel):
     """
 
     processed_count: int = Field(description="Number of items processed in this operation")
-    results: list[dict] = Field(default_factory=list, description="List of result dictionaries for processed items")
+    results: list[dict] = Field(
+        default_factory=list, description="List of result dictionaries for processed items"
+    )
 
 
 class RetryResponse(BaseModel):

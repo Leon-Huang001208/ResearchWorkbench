@@ -30,10 +30,7 @@ async def test_akshare_direct():
 
         # 尝试获取贵州茅台数据
         df = ak.stock_zh_a_hist(
-            symbol="sh600519",
-            period="daily",
-            start_date="20240501",
-            end_date="20240601"
+            symbol="sh600519", period="daily", start_date="20240501", end_date="20240601"
         )
 
         elapsed = time.time() - start
@@ -50,6 +47,7 @@ async def test_akshare_direct():
     except Exception as e:
         print(f"❌ AKShare 直接调用失败: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -69,11 +67,7 @@ async def test_adapter():
         print("-" * 40)
 
         start = time.time()
-        quotes = await adapter.fetch_stock_quotes(
-            "600519.SH",
-            "2024-05-01",
-            "2024-06-01"
-        )
+        quotes = await adapter.fetch_stock_quotes("600519.SH", "2024-05-01", "2024-06-01")
         elapsed = time.time() - start
 
         if quotes:
@@ -89,6 +83,7 @@ async def test_adapter():
     except Exception as e:
         print(f"❌ 适配器测试失败: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -118,7 +113,7 @@ async def test_multiple_stocks():
                 print(f"  ✅ 成功: {len(quotes)} 条")
                 results[code] = len(quotes)
             else:
-                print(f"  ❌ 失败")
+                print("  ❌ 失败")
                 results[code] = 0
         except Exception as e:
             print(f"  ❌ 异常: {e}")

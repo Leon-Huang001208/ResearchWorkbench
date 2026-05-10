@@ -31,9 +31,7 @@ class InMemoryAssetSnapshotRepository(AssetSnapshotRepository):
         return False
 
     def get_latest_by_canonical_id(self, canonical_id: str) -> Optional[AssetAnalysisSnapshot]:
-        snapshots = [
-            s for s in self._store.values() if s.canonical_id == canonical_id
-        ]
+        snapshots = [s for s in self._store.values() if s.canonical_id == canonical_id]
         if not snapshots:
             return None
         return max(snapshots, key=lambda s: s.as_of)

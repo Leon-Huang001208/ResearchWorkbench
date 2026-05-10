@@ -1,9 +1,9 @@
 """回放服务单元测试 — 历史事件批量回放 & 信号校准"""
-import pytest
 import uuid
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -12,7 +12,6 @@ from core.contracts.signals import EventAlphaSignal
 from core.services.replay_service import ReplayService
 from data_layer.repositories.base import Base
 from data_layer.repositories.replay_repository import ReplayRepositoryImpl
-
 
 # ── Fixtures ──────────────────────────────────────────────
 
@@ -420,6 +419,7 @@ class TestReplayAPI:
     def test_create_replay_job(self):
         """测试 API：创建回放任务"""
         from fastapi.testclient import TestClient
+
         from app.api.main import app
         from app.api.routes.replay import get_replay_service
 
@@ -450,6 +450,7 @@ class TestReplayAPI:
     def test_run_replay_job(self):
         """测试 API：执行回放"""
         from fastapi.testclient import TestClient
+
         from app.api.main import app
         from app.api.routes.replay import get_replay_service
 
@@ -480,6 +481,7 @@ class TestReplayAPI:
     def test_get_job_status(self):
         """测试 API：查询状态"""
         from fastapi.testclient import TestClient
+
         from app.api.main import app
         from app.api.routes.replay import get_replay_service
 
@@ -507,6 +509,7 @@ class TestReplayAPI:
     def test_get_job_status_not_found(self):
         """测试 API：查询不存在的任务状态"""
         from fastapi.testclient import TestClient
+
         from app.api.main import app
         from app.api.routes.replay import get_replay_service
 
@@ -524,6 +527,7 @@ class TestReplayAPI:
     def test_get_aggregate(self):
         """测试 API：获取聚合分析"""
         from fastapi.testclient import TestClient
+
         from app.api.main import app
         from app.api.routes.replay import get_replay_service
 
@@ -554,6 +558,7 @@ class TestReplayAPI:
     def test_get_calibration(self):
         """测试 API：获取校准报告"""
         from fastapi.testclient import TestClient
+
         from app.api.main import app
         from app.api.routes.replay import get_replay_service
 

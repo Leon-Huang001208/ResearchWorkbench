@@ -73,7 +73,9 @@ class AgentViewRepositoryImpl(BaseRepository):
 
     def save_conflict(self, conflict: BlackboardConflict) -> BlackboardConflict:
         """保存冲突"""
-        existing = self.db.query(BlackboardConflictDB).filter_by(conflict_id=conflict.conflict_id).first()
+        existing = (
+            self.db.query(BlackboardConflictDB).filter_by(conflict_id=conflict.conflict_id).first()
+        )
         if existing:
             existing.target_id = conflict.target_id
             existing.event_id = conflict.event_id

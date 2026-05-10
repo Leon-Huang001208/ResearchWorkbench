@@ -19,17 +19,32 @@ from sqlalchemy import and_, desc, or_, select
 from sqlalchemy.orm import Session
 
 from core.contracts import (
-    DocumentV1, DocumentChunkV1, DocumentTagV1, DocumentSummaryV1,
-    EntityMentionV1, DocumentEventV1, CrawlRunV1, SourceCursorV1, ReportRunV1,
-    SourceType, DocType
+    CrawlRunV1,
+    DocType,
+    DocumentChunkV1,
+    DocumentEventV1,
+    DocumentSummaryV1,
+    DocumentTagV1,
+    DocumentV1,
+    EntityMentionV1,
+    ReportRunV1,
+    SourceCursorV1,
+    SourceType,
 )
 from core.observability import get_logger
 from core.utils.id_gen import generate_id
 
 from .base import BaseRepository
 from .models import (
-    DocumentV1DB, DocumentChunkV1DB, DocumentTagV1DB, DocumentSummaryV1DB,
-    EntityMentionV1DB, DocumentEventV1DB, CrawlRunV1DB, SourceCursorV1DB, ReportRunV1DB
+    CrawlRunV1DB,
+    DocumentChunkV1DB,
+    DocumentEventV1DB,
+    DocumentSummaryV1DB,
+    DocumentTagV1DB,
+    DocumentV1DB,
+    EntityMentionV1DB,
+    ReportRunV1DB,
+    SourceCursorV1DB,
 )
 
 logger = get_logger(__name__)
@@ -38,6 +53,7 @@ logger = get_logger(__name__)
 # =============================================================================
 # Document Repository
 # =============================================================================
+
 
 class DocumentV1Repository(BaseRepository):
     """文档 Repository - 统一文档 v1"""
@@ -134,18 +150,24 @@ class DocumentV1Repository(BaseRepository):
         limit: int = 50,
     ) -> List[DocumentV1]:
         """按关键词搜索文档"""
-        stmt = select(DocumentV1DB).where(
-            or_(
-                DocumentV1DB.title.ilike(f"%{keyword}%"),
-                DocumentV1DB.content.ilike(f"%{keyword}%"),
+        stmt = (
+            select(DocumentV1DB)
+            .where(
+                or_(
+                    DocumentV1DB.title.ilike(f"%{keyword}%"),
+                    DocumentV1DB.content.ilike(f"%{keyword}%"),
+                )
             )
-        ).order_by(desc(DocumentV1DB.created_at)).limit(limit)
+            .order_by(desc(DocumentV1DB.created_at))
+            .limit(limit)
+        )
         results = self.db.execute(stmt).scalars().all()
         return [r.to_contract() for r in results]
 
     def count(self) -> int:
         """统计文档总数"""
         from sqlalchemy import func
+
         stmt = select(func.count(DocumentV1DB.doc_id))
         return self.db.execute(stmt).scalar_one()
 
@@ -167,12 +189,8 @@ class DocumentV1Repository(BaseRepository):
         if not source_doc_ids:
             return {}
 
-
         # 查询 source_metadata->source_doc_id
-        stmt = select(
-            DocumentV1DB.doc_id,
-            DocumentV1DB.source_metadata
-        ).where(
+        stmt = select(DocumentV1DB.doc_id, DocumentV1DB.source_metadata).where(
             and_(
                 DocumentV1DB.source_type == source_type.value,
             )
@@ -182,15 +200,15 @@ class DocumentV1Repository(BaseRepository):
         existing: Dict[str, str] = {}
         for doc_id, source_meta in results:
             source_meta_dict = source_meta or {}
-            source_doc_id = source_meta_dict.get("source_doc_id") or source_meta_dict.get("original_id")
+            source_doc_id = source_meta_dict.get("source_doc_id") or source_meta_dict.get(
+                "original_id"
+            )
             if source_doc_id and source_doc_id in source_doc_ids:
                 existing[source_doc_id] = doc_id
 
         return existing
 
-    def get_existing_content_hashes(
-        self, content_hashes: List[str]
-    ) -> Dict[str, str]:
+    def get_existing_content_hashes(self, content_hashes: List[str]) -> Dict[str, str]:
         """
         批量检查已存在的 content_hash
 
@@ -200,10 +218,7 @@ class DocumentV1Repository(BaseRepository):
         if not content_hashes:
             return {}
 
-        stmt = select(
-            DocumentV1DB.doc_id,
-            DocumentV1DB.content_hash
-        ).where(
+        stmt = select(DocumentV1DB.doc_id, DocumentV1DB.content_hash).where(
             DocumentV1DB.content_hash.in_(content_hashes)
         )
         results = self.db.execute(stmt).all()
@@ -244,6 +259,7 @@ class DocumentV1Repository(BaseRepository):
 # Document Chunk Repository
 # =============================================================================
 
+
 class DocumentChunkV1Repository(BaseRepository):
     """文档分块 Repository"""
 
@@ -276,9 +292,11 @@ class DocumentChunkV1Repository(BaseRepository):
 
     def get_by_doc_id(self, doc_id: str) -> List[DocumentChunkV1]:
         """获取文档的所有分块"""
-        stmt = select(DocumentChunkV1DB).where(
-            DocumentChunkV1DB.doc_id == doc_id
-        ).order_by(DocumentChunkV1DB.chunk_index)
+        stmt = (
+            select(DocumentChunkV1DB)
+            .where(DocumentChunkV1DB.doc_id == doc_id)
+            .order_by(DocumentChunkV1DB.chunk_index)
+        )
         results = self.db.execute(stmt).scalars().all()
         return [r.to_contract() for r in results]
 
@@ -296,6 +314,7 @@ class DocumentChunkV1Repository(BaseRepository):
 # =============================================================================
 # Document Tag Repository
 # =============================================================================
+
 
 class DocumentTagV1Repository(BaseRepository):
     """文档标签 Repository"""
@@ -328,9 +347,7 @@ class DocumentTagV1Repository(BaseRepository):
 
     def get_by_tag(self, tag: str, limit: int = 100) -> List[DocumentTagV1]:
         """按标签搜索"""
-        stmt = select(DocumentTagV1DB).where(
-            DocumentTagV1DB.tag == tag
-        ).limit(limit)
+        stmt = select(DocumentTagV1DB).where(DocumentTagV1DB.tag == tag).limit(limit)
         results = self.db.execute(stmt).scalars().all()
         return [r.to_contract() for r in results]
 
@@ -338,6 +355,7 @@ class DocumentTagV1Repository(BaseRepository):
 # =============================================================================
 # Document Summary Repository
 # =============================================================================
+
 
 class DocumentSummaryV1Repository(BaseRepository):
     """文档摘要 Repository"""
@@ -359,14 +377,12 @@ class DocumentSummaryV1Repository(BaseRepository):
         results = self.db.execute(stmt).scalars().all()
         return [r.to_contract() for r in results]
 
-    def get_by_doc_and_type(
-        self, doc_id: str, summary_type: str
-    ) -> Optional[DocumentSummaryV1]:
+    def get_by_doc_and_type(self, doc_id: str, summary_type: str) -> Optional[DocumentSummaryV1]:
         """获取文档的指定类型摘要"""
         stmt = select(DocumentSummaryV1DB).where(
             and_(
                 DocumentSummaryV1DB.doc_id == doc_id,
-                DocumentSummaryV1DB.summary_type == summary_type
+                DocumentSummaryV1DB.summary_type == summary_type,
             )
         )
         result = self.db.execute(stmt).scalar_one_or_none()
@@ -378,6 +394,7 @@ class DocumentSummaryV1Repository(BaseRepository):
 # =============================================================================
 # Entity Mention Repository
 # =============================================================================
+
 
 class EntityMentionV1Repository(BaseRepository):
     """实体提及 Repository"""
@@ -408,13 +425,13 @@ class EntityMentionV1Repository(BaseRepository):
         results = self.db.execute(stmt).scalars().all()
         return [r.to_contract() for r in results]
 
-    def get_by_entity_type(
-        self, entity_type: str, limit: int = 100
-    ) -> List[EntityMentionV1]:
+    def get_by_entity_type(self, entity_type: str, limit: int = 100) -> List[EntityMentionV1]:
         """按实体类型搜索"""
-        stmt = select(EntityMentionV1DB).where(
-            EntityMentionV1DB.entity_type == entity_type
-        ).limit(limit)
+        stmt = (
+            select(EntityMentionV1DB)
+            .where(EntityMentionV1DB.entity_type == entity_type)
+            .limit(limit)
+        )
         results = self.db.execute(stmt).scalars().all()
         return [r.to_contract() for r in results]
 
@@ -422,6 +439,7 @@ class EntityMentionV1Repository(BaseRepository):
 # =============================================================================
 # Document Event Repository
 # =============================================================================
+
 
 class DocumentEventV1Repository(BaseRepository):
     """文档事件 Repository"""
@@ -452,13 +470,14 @@ class DocumentEventV1Repository(BaseRepository):
         results = self.db.execute(stmt).scalars().all()
         return [r.to_contract() for r in results]
 
-    def get_by_event_type(
-        self, event_type: str, limit: int = 100
-    ) -> List[DocumentEventV1]:
+    def get_by_event_type(self, event_type: str, limit: int = 100) -> List[DocumentEventV1]:
         """按事件类型搜索"""
-        stmt = select(DocumentEventV1DB).where(
-            DocumentEventV1DB.event_type == event_type
-        ).order_by(desc(DocumentEventV1DB.event_time)).limit(limit)
+        stmt = (
+            select(DocumentEventV1DB)
+            .where(DocumentEventV1DB.event_type == event_type)
+            .order_by(desc(DocumentEventV1DB.event_time))
+            .limit(limit)
+        )
         results = self.db.execute(stmt).scalars().all()
         return [r.to_contract() for r in results]
 
@@ -466,6 +485,7 @@ class DocumentEventV1Repository(BaseRepository):
 # =============================================================================
 # Crawl Run Repository
 # =============================================================================
+
 
 class CrawlRunV1Repository(BaseRepository):
     """抓取运行记录 Repository"""
@@ -507,21 +527,25 @@ class CrawlRunV1Repository(BaseRepository):
         self.db.refresh(db_run)
         return db_run.to_contract()
 
-    def list_by_source_type(
-        self, source_type: SourceType, limit: int = 50
-    ) -> List[CrawlRunV1]:
+    def list_by_source_type(self, source_type: SourceType, limit: int = 50) -> List[CrawlRunV1]:
         """按来源类型列出抓取记录"""
-        stmt = select(CrawlRunV1DB).where(
-            CrawlRunV1DB.source_type == source_type.value
-        ).order_by(desc(CrawlRunV1DB.created_at)).limit(limit)
+        stmt = (
+            select(CrawlRunV1DB)
+            .where(CrawlRunV1DB.source_type == source_type.value)
+            .order_by(desc(CrawlRunV1DB.created_at))
+            .limit(limit)
+        )
         results = self.db.execute(stmt).scalars().all()
         return [r.to_contract() for r in results]
 
     def get_latest(self, source_type: SourceType) -> Optional[CrawlRunV1]:
         """获取指定来源的最新抓取记录"""
-        stmt = select(CrawlRunV1DB).where(
-            CrawlRunV1DB.source_type == source_type.value
-        ).order_by(desc(CrawlRunV1DB.created_at)).limit(1)
+        stmt = (
+            select(CrawlRunV1DB)
+            .where(CrawlRunV1DB.source_type == source_type.value)
+            .order_by(desc(CrawlRunV1DB.created_at))
+            .limit(1)
+        )
         result = self.db.execute(stmt).scalar_one_or_none()
         if result:
             return result.to_contract()
@@ -531,6 +555,7 @@ class CrawlRunV1Repository(BaseRepository):
 # =============================================================================
 # Source Cursor Repository
 # =============================================================================
+
 
 class SourceCursorV1Repository(BaseRepository):
     """来源游标 Repository - 用于增量抓取"""
@@ -555,9 +580,7 @@ class SourceCursorV1Repository(BaseRepository):
 
     def get_by_source_type(self, source_type: SourceType) -> Optional[SourceCursorV1]:
         """按来源类型获取游标"""
-        stmt = select(SourceCursorV1DB).where(
-            SourceCursorV1DB.source_type == source_type.value
-        )
+        stmt = select(SourceCursorV1DB).where(SourceCursorV1DB.source_type == source_type.value)
         result = self.db.execute(stmt).scalar_one_or_none()
         if result:
             return result.to_contract()
@@ -622,6 +645,7 @@ class SourceCursorV1Repository(BaseRepository):
 # Report Run Repository
 # =============================================================================
 
+
 class ReportRunV1Repository(BaseRepository):
     """报告运行记录 Repository"""
 
@@ -662,13 +686,14 @@ class ReportRunV1Repository(BaseRepository):
         self.db.refresh(db_run)
         return db_run.to_contract()
 
-    def list_by_report_type(
-        self, report_type: str, limit: int = 50
-    ) -> List[ReportRunV1]:
+    def list_by_report_type(self, report_type: str, limit: int = 50) -> List[ReportRunV1]:
         """按报告类型列出运行记录"""
-        stmt = select(ReportRunV1DB).where(
-            ReportRunV1DB.report_type == report_type
-        ).order_by(desc(ReportRunV1DB.created_at)).limit(limit)
+        stmt = (
+            select(ReportRunV1DB)
+            .where(ReportRunV1DB.report_type == report_type)
+            .order_by(desc(ReportRunV1DB.created_at))
+            .limit(limit)
+        )
         results = self.db.execute(stmt).scalars().all()
         return [r.to_contract() for r in results]
 
@@ -676,6 +701,7 @@ class ReportRunV1Repository(BaseRepository):
 # =============================================================================
 # Helper: Get All Repositories
 # =============================================================================
+
 
 def get_v1_document_repositories(db: Session) -> Dict[str, Any]:
     """获取所有 v1 文档相关的 Repository"""
@@ -690,4 +716,3 @@ def get_v1_document_repositories(db: Session) -> Dict[str, Any]:
         "source_cursor": SourceCursorV1Repository(db),
         "report_run": ReportRunV1Repository(db),
     }
-

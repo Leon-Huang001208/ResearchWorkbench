@@ -78,7 +78,7 @@ def demo_scenario_generation():
     service = ScenarioService()
     scenario_set = service.generate_scenario_set(topic=topic)
 
-    print(f"\n✓ 情景生成成功！")
+    print("\n✓ 情景生成成功！")
     print(f"  共生成 {len(scenario_set.hypotheses)} 个情景假设")
 
     for i, hypothesis in enumerate(scenario_set.hypotheses, 1):
@@ -113,7 +113,7 @@ def demo_document_ingestion():
         text=sample_text, source_type="report", source_name="演示研报", title="示例分析报告"
     )
 
-    print(f"\n✓ 文档摄入成功！")
+    print("\n✓ 文档摄入成功！")
     print(f"  文档 ID: {result['doc_id']}")
     print(f"  标题: {result['title']}")
     print(f"  提取断言: {result['assertions_extracted']} 个")
@@ -203,8 +203,8 @@ def demo_report_generation():
     service = ScenarioService()
     report_content = service.generate_thesis_report(topic=topic)
 
-    print(f"\n✓ 报告生成成功！")
-    print(f"\n报告预览:\n")
+    print("\n✓ 报告生成成功！")
+    print("\n报告预览:\n")
     print(report_content[:500] + "..." if len(report_content) > 500 else report_content)
 
     # 也可以保存到文件

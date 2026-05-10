@@ -21,7 +21,7 @@ def test_apply_agent_memory_reduces_confidence_when_contradictions_gt_supports()
         reasoning=["Test reasoning"],
     )
     blackboard.add_view(view)
-    
+
     # Create agent memory with more contradictions than supports
     memory = AgentMemory(
         memory_id="test-memory-001",
@@ -32,10 +32,10 @@ def test_apply_agent_memory_reduces_confidence_when_contradictions_gt_supports()
         support_count=2,
         contradiction_count=5,
     )
-    
+
     # Apply memory
     blackboard.apply_agent_memory([memory])
-    
+
     # Check that the view's confidence was reduced
     updated_view = blackboard.list_views()[0]
     assert updated_view.confidence < 0.8
@@ -57,9 +57,9 @@ def test_apply_agent_memory_does_nothing_when_no_memories():
         reasoning=["Test reasoning"],
     )
     blackboard.add_view(view)
-    
+
     blackboard.apply_agent_memory([])
-    
+
     # Check that confidence is unchanged
     updated_view = blackboard.list_views()[0]
     assert updated_view.confidence == 0.8

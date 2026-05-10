@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -9,13 +8,13 @@ news.py - 知丘公众号爬取模块
 使用方法：
     python news.py --config config.yaml --search 宏观经济
 """
-from typing import Any, Dict, Optional
-from dataclasses import dataclass
+import argparse
 import os
 import sys
-import argparse
+from dataclasses import dataclass
+from typing import Any, Dict, Optional
 
-from .zhiqiu.base_fetcher import BaseFetcher, BaseConfig, BaseStateManager
+from .zhiqiu.base_fetcher import BaseConfig, BaseFetcher, BaseStateManager
 from .zhiqiu.processors.news_processor import NewsProcessor
 
 
@@ -26,6 +25,7 @@ class NewsConfig(BaseConfig):
 
     专注于 NEWS 类型的配置，移除了 AI 和 PDF 相关的配置。
     """
+
     # 公众号特有配置
     allowed_accounts_path: Optional[str] = None
 
@@ -44,7 +44,7 @@ class NewsStateManager(BaseStateManager):
     """
 
     def __init__(self, state_path: str, verbose: bool = False):
-        super().__init__(state_path, 'processed_news', verbose)
+        super().__init__(state_path, "processed_news", verbose)
 
     def add_processed_report(self, obj_id: str, title: str, open_name: str = ""):
         super().add_processed_report(obj_id, title, openName=open_name)
@@ -76,26 +76,26 @@ class NewsFetcher(BaseFetcher):
                     print(f"[warn] 初始化状态管理器失败: {e}，持久化去重将不可用")
 
     def _save_processed_item(self, obj_id: str, title: str, item: Dict[str, Any]):
-        open_name = item.get('openName', '')
+        open_name = item.get("openName", "")
         self._state_manager.add_processed_report(obj_id, title, open_name)
 
     def _fetch_single_term(self, search_term: str):
         if self._logger:
             self._logger.info(f"正在爬取公众号: {search_term if search_term else '全部'}")
 
-        json_data = self._search_homepage(search_term, 'title')
+        json_data = self._search_homepage(search_term, "title")
 
         if not json_data:
             return {
-                'term': search_term if search_term else '全部',
-                'status': 'failed',
-                'error': '获取数据失败',
-                'count': 0,
-                'skipped_existing': 0,
-                'new': 0
+                "term": search_term if search_term else "全部",
+                "status": "failed",
+                "error": "获取数据失败",
+                "count": 0,
+                "skipped_existing": 0,
+                "new": 0,
             }, []
 
-        output_json = os.path.join(self.config.output_dir, f'news_{self.config.starttime}.json')
+        output_json = os.path.join(self.config.output_dir, f"news_{self.config.starttime}.json")
         os.makedirs(self.config.output_dir, exist_ok=True)
 
         processor = NewsProcessor(self._client, self.config.allowed_accounts_path)
@@ -103,30 +103,30 @@ class NewsFetcher(BaseFetcher):
             json_data,
             output_json,
             state_manager=self._state_manager,
-            skip_existing=self.config.skip_existing
+            skip_existing=self.config.skip_existing,
         )
 
         return {
-            'term': search_term if search_term else '全部',
-            'status': 'success',
-            'count': len(df),
-            'output_file': output_json,
-            'skipped_existing': skipped_count,
-            'new': len(new_news)
+            "term": search_term if search_term else "全部",
+            "status": "success",
+            "count": len(df),
+            "output_file": output_json,
+            "skipped_existing": skipped_count,
+            "new": len(new_news),
         }, new_news
 
     def fetch(self, **kwargs) -> Dict[str, Any]:
         result = super().fetch(**kwargs)
-        if 'total' in result:
-            result['total_news'] = result.pop('total')
-        if 'new' in result:
-            result['new_news'] = result.pop('new')
+        if "total" in result:
+            result["total_news"] = result.pop("total")
+        if "new" in result:
+            result["new_news"] = result.pop("new")
         return result
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description='知丘公众号爬取工具',
+        description="知丘公众号爬取工具",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例：
@@ -151,30 +151,38 @@ def parse_args():
   3. 用户配置目录 ~/.config/zq/allowed_accounts.json
   4. Skill 内置配置 {skill_dir}/config/allowed_accounts.json
   5. 默认内置列表
-"""
+""",
     )
 
-    parser.add_argument('--starttime', type=str, help='开始日期 (YYYY-MM-DD)，默认昨天')
-    parser.add_argument('--endtime', type=str, help='结束日期 (YYYY-MM-DD)，默认昨天')
+    parser.add_argument("--starttime", type=str, help="开始日期 (YYYY-MM-DD)，默认昨天")
+    parser.add_argument("--endtime", type=str, help="结束日期 (YYYY-MM-DD)，默认昨天")
 
-    parser.add_argument('--search', type=str, default='', help='搜索关键词，多个用逗号分隔')
+    parser.add_argument("--search", type=str, default="", help="搜索关键词，多个用逗号分隔")
 
-    parser.add_argument('--output-dir', type=str, default='./output', help='输出目录 (默认: ./output)')
-    parser.add_argument('--state-path', type=str, default=None, help='状态文件路径，用于持久化去重 (默认: None)')
-    parser.add_argument('--allowed-accounts', type=str, default=None, help='公众号白名单配置文件路径 (默认: 自动查找)')
-    parser.add_argument('--skip-existing', action='store_true', default=True, help='跳过已存在的文章 (默认: True)')
+    parser.add_argument("--output-dir", type=str, default="./output", help="输出目录 (默认: ./output)")
+    parser.add_argument("--state-path", type=str, default=None, help="状态文件路径，用于持久化去重 (默认: None)")
+    parser.add_argument(
+        "--allowed-accounts", type=str, default=None, help="公众号白名单配置文件路径 (默认: 自动查找)"
+    )
+    parser.add_argument(
+        "--skip-existing", action="store_true", default=True, help="跳过已存在的文章 (默认: True)"
+    )
 
-    parser.add_argument('--date-limit', type=str, default='', help='日期限制，如 DATE_LIMIT_WEEK (默认: 空)')
-    parser.add_argument('--page', type=int, default=1, help='页码 (默认: 1)')
-    parser.add_argument('--page-size', type=int, default=50, help='每页数量 (默认: 50)')
-    parser.add_argument('--fetch-all-pages', action='store_true', default=True, help='获取全部页 (默认: True)')
-    parser.add_argument('--max-pages', type=int, default=20, help='最大页数限制 (默认: 20)')
+    parser.add_argument("--date-limit", type=str, default="", help="日期限制，如 DATE_LIMIT_WEEK (默认: 空)")
+    parser.add_argument("--page", type=int, default=1, help="页码 (默认: 1)")
+    parser.add_argument("--page-size", type=int, default=50, help="每页数量 (默认: 50)")
+    parser.add_argument(
+        "--fetch-all-pages", action="store_true", default=True, help="获取全部页 (默认: True)"
+    )
+    parser.add_argument("--max-pages", type=int, default=20, help="最大页数限制 (默认: 20)")
 
-    parser.add_argument('--rotate-account', action='store_true', default=True, help='每次请求按策略切换账号 (默认: True)')
-    parser.add_argument('--no-rotate-account', action='store_true', help='不自动切换账号')
+    parser.add_argument(
+        "--rotate-account", action="store_true", default=True, help="每次请求按策略切换账号 (默认: True)"
+    )
+    parser.add_argument("--no-rotate-account", action="store_true", help="不自动切换账号")
 
-    parser.add_argument('--config', type=str, required=True, help='配置文件路径 (包含凭证)')
-    parser.add_argument('--verbose', action='store_true', default=True, help='显示详细输出 (默认: True)')
+    parser.add_argument("--config", type=str, required=True, help="配置文件路径 (包含凭证)")
+    parser.add_argument("--verbose", action="store_true", default=True, help="显示详细输出 (默认: True)")
 
     return parser.parse_args()
 
@@ -185,16 +193,16 @@ def args_to_kwargs(args) -> Dict[str, Any]:
         if value is not None:
             kwargs[key] = value
     # 处理 allowed-accounts 到 allowed_accounts_path 的映射
-    if 'allowed_accounts' in kwargs:
-        kwargs['allowed_accounts_path'] = kwargs.pop('allowed_accounts')
+    if "allowed_accounts" in kwargs:
+        kwargs["allowed_accounts_path"] = kwargs.pop("allowed_accounts")
     # 处理 rotate_account 特殊逻辑
     if args.no_rotate_account:
-        kwargs['rotate_account_per_request'] = False
+        kwargs["rotate_account_per_request"] = False
     elif args.rotate_account:
-        kwargs['rotate_account_per_request'] = True
+        kwargs["rotate_account_per_request"] = True
     # 移除 rotate_account 和 no_rotate_account
-    kwargs.pop('rotate_account', None)
-    kwargs.pop('no_rotate_account', None)
+    kwargs.pop("rotate_account", None)
+    kwargs.pop("no_rotate_account", None)
     return kwargs
 
 
@@ -211,7 +219,7 @@ def main_cli():
     fetcher = NewsFetcher(config)
     result = fetcher.fetch()
 
-    if result.get('success'):
+    if result.get("success"):
         print(f"\n[OK] {result.get('message', '')}")
         return 0
     else:
@@ -219,6 +227,5 @@ def main_cli():
         return 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main_cli())
-

@@ -29,8 +29,10 @@ _paper_trading_service: PaperTradingService | None = None
 
 # ── 请求模型 ───────────────────────────────────────────
 
+
 class CreatePaperPortfolioRequest(BaseModel):
     """创建模拟组合请求"""
+
     proposal_id: str = Field(..., description="关联的组合提案ID")
     name: Optional[str] = Field(None, description="组合名称")
     initial_capital: float = Field(1_000_000.0, ge=1000, description="初始资金")
@@ -42,6 +44,7 @@ class CreatePaperPortfolioRequest(BaseModel):
 
 class RebalanceRequest(BaseModel):
     """调仓请求"""
+
     target_allocations: Dict[str, float] = Field(..., description="目标权重 {subject_id: weight}")
     prices: Dict[str, float] = Field(..., description="当前价格 {subject_id: price}")
     trigger: RebalanceTrigger = Field(RebalanceTrigger.SCHEDULED, description="触发类型")
@@ -49,6 +52,7 @@ class RebalanceRequest(BaseModel):
 
 class RunSimulationRequest(BaseModel):
     """运行模拟请求"""
+
     proposal_id: str = Field(..., description="组合提案ID")
     name: Optional[str] = Field(None, description="模拟名称")
     price_history: Dict[str, List[float]] = Field(..., description="价格历史 {subject_id: [prices]}")
@@ -62,13 +66,16 @@ class RunSimulationRequest(BaseModel):
 
 class UpdateDailyRequest(BaseModel):
     """每日更新请求"""
+
     prices: Dict[str, float] = Field(..., description="最新价格 {subject_id: price}")
 
 
 # ── 响应模型 ───────────────────────────────────────────
 
+
 class PositionSnapshotResponse(BaseModel):
     """持仓快照响应"""
+
     subject_id: str
     weight: float
     shares: float
@@ -82,6 +89,7 @@ class PositionSnapshotResponse(BaseModel):
 
 class PortfolioSnapshotResponse(BaseModel):
     """组合快照响应"""
+
     timestamp: str
     nav: float
     total_value: float
@@ -93,6 +101,7 @@ class PortfolioSnapshotResponse(BaseModel):
 
 class PaperPortfolioResponse(BaseModel):
     """模拟组合响应"""
+
     portfolio_id: str
     proposal_id: str
     name: str
@@ -105,6 +114,7 @@ class PaperPortfolioResponse(BaseModel):
 
 class PerformanceMetricsResponse(BaseModel):
     """绩效指标响应"""
+
     start_date: str
     end_date: str
     total_return: float
@@ -125,6 +135,7 @@ class PerformanceMetricsResponse(BaseModel):
 
 class BenchmarkComparisonResponse(BaseModel):
     """基准比较响应"""
+
     benchmark_name: str
     benchmark_return: float
     portfolio_return: float
@@ -137,6 +148,7 @@ class BenchmarkComparisonResponse(BaseModel):
 
 class SimulationResultResponse(BaseModel):
     """模拟结果响应"""
+
     result_id: str
     portfolio_id: str
     name: str
@@ -151,6 +163,7 @@ class SimulationResultResponse(BaseModel):
 
 class RebalanceEventResponse(BaseModel):
     """调仓事件响应"""
+
     rebalance_id: str
     timestamp: str
     trigger: str
@@ -162,6 +175,7 @@ class RebalanceEventResponse(BaseModel):
 
 
 # ── 依赖注入 ───────────────────────────────────────────
+
 
 def get_paper_trading_service(db: Session = Depends(get_db)) -> PaperTradingService:
     """获取模拟交易服务实例（单例 + 请求级 DB session）"""
@@ -192,6 +206,7 @@ def _reset_paper_trading_service():
 
 
 # ── 辅助转换 ───────────────────────────────────────────
+
 
 def _portfolio_to_response(portfolio: PaperPortfolio) -> PaperPortfolioResponse:
     """PaperPortfolio → 响应"""
@@ -280,6 +295,7 @@ def _result_to_response(result: SimulationResult) -> SimulationResultResponse:
 
 # ── 路由 ───────────────────────────────────────────────
 
+
 @router.post(
     "/portfolios",
     response_model=PaperPortfolioResponse,
@@ -292,7 +308,11 @@ async def create_paper_portfolio(
     """从组合提案创建模拟组合"""
     try:
         # 获取提案
-        proposal = service._portfolio_repo.get_proposal(request.proposal_id) if service._portfolio_repo else None
+        proposal = (
+            service._portfolio_repo.get_proposal(request.proposal_id)
+            if service._portfolio_repo
+            else None
+        )
         if proposal is None:
             raise HTTPException(
                 status_code=404,
@@ -377,7 +397,9 @@ async def rebalance_portfolio(
         # 归一化目标权重
         total_weight = sum(request.target_allocations.values())
         if total_weight <= 0:
-            raise HTTPException(status_code=400, detail="Target allocations must sum to a positive value")
+            raise HTTPException(
+                status_code=400, detail="Target allocations must sum to a positive value"
+            )
         normalized = {k: v / total_weight for k, v in request.target_allocations.items()}
 
         portfolio, event = service.rebalance(
@@ -480,7 +502,11 @@ async def run_simulation(
     """运行回放驱动模拟"""
     try:
         # 获取提案
-        proposal = service._portfolio_repo.get_proposal(request.proposal_id) if service._portfolio_repo else None
+        proposal = (
+            service._portfolio_repo.get_proposal(request.proposal_id)
+            if service._portfolio_repo
+            else None
+        )
         if proposal is None:
             raise HTTPException(
                 status_code=404,
@@ -489,6 +515,7 @@ async def run_simulation(
 
         # 解析日期
         from datetime import datetime as dt
+
         dates = [dt.fromisoformat(d) for d in request.dates]
 
         assumptions = SimulationAssumptions(

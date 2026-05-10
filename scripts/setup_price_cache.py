@@ -10,9 +10,9 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from data_layer.repositories.base import ensure_schema
-from data_layer.adapters.hybrid_price_adapter import HybridPriceAdapter
 from core.observability import get_logger
+from data_layer.adapters.hybrid_price_adapter import HybridPriceAdapter
+from data_layer.repositories.base import ensure_schema
 
 logger = get_logger(__name__)
 
@@ -33,12 +33,12 @@ def main():
     adapter = HybridPriceAdapter()
 
     stocks = [
-        ("600519.SH", 1680.0),   # 贵州茅台
-        ("000001.SZ", 11.25),    # 平安银行
-        ("002594.SZ", 235.50),   # 比亚迪
-        ("601012.SH", 28.60),    # 隆基绿能
-        ("000300.SH", 3450.0),   # 沪深300
-        ("000977.SH", 35.0),     # 浪潮信息
+        ("600519.SH", 1680.0),  # 贵州茅台
+        ("000001.SZ", 11.25),  # 平安银行
+        ("002594.SZ", 235.50),  # 比亚迪
+        ("601012.SH", 28.60),  # 隆基绿能
+        ("000300.SH", 3450.0),  # 沪深300
+        ("000977.SH", 35.0),  # 浪潮信息
     ]
 
     for code, base_price in stocks:

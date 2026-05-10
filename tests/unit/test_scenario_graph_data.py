@@ -1,18 +1,18 @@
 """测试 ScenarioDataService 和 GraphDataService，以及场景/图谱 API 集成。"""
-from unittest.mock import MagicMock
 from datetime import datetime, timezone
+from unittest.mock import MagicMock
 
 from fastapi.testclient import TestClient
 
 from app.api.main import app
-from core.services.scenario_data_service import ScenarioDataService, _compute_evidence_strength
-from core.services.graph_data_service import GraphDataService
-from core.contracts import ScenarioSet, ScenarioHypothesis, CanonicalEvent
+from core.contracts import CanonicalEvent, ScenarioHypothesis, ScenarioSet
 from core.contracts.outcomes import SignalOutcome
+from core.services.graph_data_service import GraphDataService
+from core.services.scenario_data_service import ScenarioDataService, _compute_evidence_strength
 from memory_learning.contracts import MarketEpisode, StrategyMemory
 
-
 # ─── Helpers ────────────────────────────────────────────
+
 
 def _make_event(event_id="evt-1", event_type="earnings", summary="test", confidence=0.8):
     """创建测试用 CanonicalEvent"""
@@ -60,6 +60,7 @@ def _make_episode(episode_id="ep-1", event_type="earnings", excess_return=0.03):
 
 
 # ─── ScenarioDataService 单元测试 ───────────────────────
+
 
 class TestScenarioDataService:
     """ScenarioDataService 测试"""
@@ -144,6 +145,7 @@ class TestScenarioDataService:
     def test_get_propagation_patterns_with_journal(self):
         """有 Journal 数据时返回传播模式"""
         from memory_learning.journal import LearningJournal
+
         journal = LearningJournal()
         journal.record_episode(_make_episode())
         journal.record_episode(_make_episode("ep-2", excess_return=-0.01))
@@ -164,6 +166,7 @@ class TestScenarioDataService:
     def test_get_propagation_patterns_no_matching_type(self):
         """无匹配 event_type 时返回空列表"""
         from memory_learning.journal import LearningJournal
+
         journal = LearningJournal()
         journal.record_episode(_make_episode())
         svc = ScenarioDataService(journal=journal)
@@ -174,16 +177,19 @@ class TestScenarioDataService:
     def test_get_regime_summaries(self):
         """获取市场环境摘要"""
         from memory_learning.journal import LearningJournal
+
         journal = LearningJournal()
-        journal.record_strategy(StrategyMemory(
-            strategy_id="strat-1",
-            signal_family="earnings",
-            market_regime="bull",
-            sample_size=10,
-            win_rate=0.6,
-            average_excess_return=0.02,
-            sharpe_ratio=1.5,
-        ))
+        journal.record_strategy(
+            StrategyMemory(
+                strategy_id="strat-1",
+                signal_family="earnings",
+                market_regime="bull",
+                sample_size=10,
+                win_rate=0.6,
+                average_excess_return=0.02,
+                sharpe_ratio=1.5,
+            )
+        )
         svc = ScenarioDataService(journal=journal)
 
         result = svc.get_regime_summaries(regime="bull")
@@ -200,12 +206,17 @@ class TestScenarioDataService:
     def test_enrich_scenario(self):
         """enrich_scenario 整合测试"""
         mock_event_repo = MagicMock()
-        mock_event_repo.list.return_value = [_make_event(), _make_event("evt-2"), _make_event("evt-3")]
+        mock_event_repo.list.return_value = [
+            _make_event(),
+            _make_event("evt-2"),
+            _make_event("evt-3"),
+        ]
 
         mock_outcome_repo = MagicMock()
         mock_outcome_repo.list.return_value = [_make_outcome(), _make_outcome("out-2")]
 
         from memory_learning.journal import LearningJournal
+
         journal = LearningJournal()
         journal.record_episode(_make_episode())
 
@@ -236,6 +247,7 @@ class TestScenarioDataService:
 
 # ─── GraphDataService 单元测试 ──────────────────────────
 
+
 class TestGraphDataService:
     """GraphDataService 测试"""
 
@@ -253,6 +265,7 @@ class TestGraphDataService:
     def test_get_real_entities_from_entity_repo(self):
         """从实体仓储获取真实实体"""
         from core.contracts.ids import CanonicalId
+
         mock_entity_repo = MagicMock()
         mock_entity_repo.list.return_value = [
             CanonicalId(
@@ -290,6 +303,7 @@ class TestGraphDataService:
     def test_get_propagation_paths_with_journal(self):
         """从 Journal 获取传播路径"""
         from memory_learning.journal import LearningJournal
+
         journal = LearningJournal()
         journal.record_episode(_make_episode())
         svc = GraphDataService(journal=journal)
@@ -352,6 +366,7 @@ class TestGraphDataService:
         mock_outcome_repo.list.return_value = [_make_outcome()]
 
         from memory_learning.journal import LearningJournal
+
         journal = LearningJournal()
         journal.record_episode(_make_episode())
 
@@ -378,12 +393,13 @@ class TestGraphDataService:
 
 # ─── 场景 API 集成测试 ─────────────────────────────────
 
+
 class TestScenariosAPIWithEvidence:
     """场景 API 集成测试"""
 
     def test_scenario_output_contains_evidence_fields(self):
         """场景输出包含 evidence 字段"""
-        from app.api.routes.scenarios import get_scenario_service, get_scenario_data_service
+        from app.api.routes.scenarios import get_scenario_data_service, get_scenario_service
 
         mock_service = MagicMock()
         mock_scenario_set = ScenarioSet(
@@ -442,7 +458,7 @@ class TestScenariosAPIWithEvidence:
 
     def test_use_evidence_false_skips_data(self):
         """use_evidence=false 时不查询真实数据"""
-        from app.api.routes.scenarios import get_scenario_service, get_scenario_data_service
+        from app.api.routes.scenarios import get_scenario_data_service, get_scenario_service
 
         mock_service = MagicMock()
         mock_scenario_set = ScenarioSet(
@@ -485,7 +501,7 @@ class TestScenariosAPIWithEvidence:
 
     def test_scenario_with_real_evidence(self):
         """场景输出包含真实证据"""
-        from app.api.routes.scenarios import get_scenario_service, get_scenario_data_service
+        from app.api.routes.scenarios import get_scenario_data_service, get_scenario_service
 
         mock_service = MagicMock()
         mock_scenario_set = ScenarioSet(
@@ -539,6 +555,7 @@ class TestScenariosAPIWithEvidence:
 
 # ─── 图谱 API 集成测试 ─────────────────────────────────
 
+
 class TestGraphAPIWithEvidence:
     """图谱 API 集成测试"""
 
@@ -550,7 +567,12 @@ class TestGraphAPIWithEvidence:
         mock_data_service.enrich_graph.return_value = {
             "graph_type": "industry_chain",
             "nodes": [
-                {"entity_id": "ent-1", "name": "TestEntity", "type": "company", "real_entity": True},
+                {
+                    "entity_id": "ent-1",
+                    "name": "TestEntity",
+                    "type": "company",
+                    "real_entity": True,
+                },
             ],
             "edges": [],
             "propagation_paths": [],
@@ -637,7 +659,9 @@ class TestGraphAPIWithEvidence:
         mock_data_service = MagicMock()
         mock_data_service.enrich_graph.return_value = {
             "graph_type": "industry_chain",
-            "nodes": [{"hint": "No real entity data available; showing placeholder", "real_entity": False}],
+            "nodes": [
+                {"hint": "No real entity data available; showing placeholder", "real_entity": False}
+            ],
             "edges": [],
             "propagation_paths": [],
             "outcome_paths": [],

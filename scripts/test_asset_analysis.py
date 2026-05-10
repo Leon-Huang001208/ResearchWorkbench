@@ -41,7 +41,7 @@ def test_asset_snapshot():
             canonical_id=canonical_id, as_of=datetime.utcnow(), use_mock=True
         )
 
-        print(f"✓ Snapshot generated:")
+        print("✓ Snapshot generated:")
         print(f"  - Canonical ID: {snapshot.canonical_id}")
         print(f"  - As of: {snapshot.as_of}")
         print(f"  - PE TTM: {snapshot.valuation.get('pe_ttm')}")
@@ -52,7 +52,7 @@ def test_asset_snapshot():
         print("\nTesting get latest snapshot...")
         latest = service.get_latest_snapshot(canonical_id)
         if latest:
-            print(f"✓ Retrieved latest snapshot")
+            print("✓ Retrieved latest snapshot")
             print(f"  - PE TTM: {latest.valuation.get('pe_ttm')}")
         else:
             print("✗ Failed to retrieve latest snapshot")
@@ -90,7 +90,7 @@ def test_report_generation(snapshot):
         ),
         SectionOutput(
             key="events",
-            content=f"\n## 事件影响\n\n" + "\n".join([f"- {e}" for e in snapshot.event_impact]),
+            content="\n## 事件影响\n\n" + "\n".join([f"- {e}" for e in snapshot.event_impact]),
             evidence_refs=snapshot.evidence_refs,
             warnings=[],
         ),

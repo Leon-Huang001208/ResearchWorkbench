@@ -1,8 +1,7 @@
-
 """市场结构模型。"""
 from core.observability import get_logger
-
 from timing_engine.contracts import TimingModelScore
+
 from .base import BaseTimingModel, TimingContext
 
 logger = get_logger(__name__)
@@ -57,4 +56,3 @@ class MarketStructureModel(BaseTimingModel):
             rationale=rationale,
             evidence_refs=evidence_refs,
         )
-

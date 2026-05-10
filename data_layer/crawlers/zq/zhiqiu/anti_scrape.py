@@ -9,16 +9,17 @@
 - 指数退避重试
 - 请求指纹伪装
 """
+import logging
 import random
 import time
-import logging
-from typing import Dict, List, Optional
 from dataclasses import dataclass
+from typing import Dict, List, Optional
 
 
 @dataclass
 class AntiScrapeConfig:
     """反爬配置"""
+
     # User-Agent 轮换
     enable_ua_rotation: bool = True
     # Referer 轮换
@@ -80,7 +81,7 @@ class RequestTiming:
     def time_since_last_request(self) -> float:
         """获取距离上次请求的时间"""
         if self.last_request_time == 0:
-            return float('inf')
+            return float("inf")
         return time.time() - self.last_request_time
 
 
@@ -193,7 +194,9 @@ class HeaderRandomizer:
 
         # 随机添加 Sec-CH-UA 相关头（现代浏览器）
         if random.random() > 0.5:
-            headers["Sec-CH-UA"] = '"Chromium";v="129", "Not=A?Brand";v="24", "Google Chrome";v="129"'
+            headers[
+                "Sec-CH-UA"
+            ] = '"Chromium";v="129", "Not=A?Brand";v="24", "Google Chrome";v="129"'
             headers["Sec-CH-UA-Mobile"] = "?0"
             headers["Sec-CH-UA-Platform"] = '"Windows"'
 
@@ -246,10 +249,7 @@ class SmartDelayer:
 
         # 指数退避（根据失败次数）
         if self.failure_count > 0:
-            backoff = min(
-                self.config.backoff_base ** self.failure_count,
-                self.config.backoff_max
-            )
+            backoff = min(self.config.backoff_base**self.failure_count, self.config.backoff_max)
             base = max(base, backoff)
             self._logger.info(f"检测到 {self.failure_count} 次失败，使用退避延迟: {base:.1f}s")
 
@@ -296,10 +296,12 @@ class AntiScrapeManager:
         self.delayer = SmartDelayer(self.config)
         self._logger = logging.getLogger(__name__)
 
-    def get_headers(self,
-                    base_headers: Optional[Dict] = None,
-                    obj_id: Optional[str] = None,
-                    is_pdf: bool = False) -> Dict[str, str]:
+    def get_headers(
+        self,
+        base_headers: Optional[Dict] = None,
+        obj_id: Optional[str] = None,
+        is_pdf: bool = False,
+    ) -> Dict[str, str]:
         """
         获取完整的请求头
 

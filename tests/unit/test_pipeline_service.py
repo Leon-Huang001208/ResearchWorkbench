@@ -1,11 +1,12 @@
 """
 Unit tests for core.services.pipeline_service
 """
-import pytest
 from unittest.mock import Mock
 
-from core.services.pipeline_service import ResearchPipeline
+import pytest
+
 from core.contracts import CanonicalEvent
+from core.services.pipeline_service import ResearchPipeline
 from memory_learning.journal import LearningJournal
 
 
@@ -85,7 +86,7 @@ async def test_run_event_signal_records_to_journal():
     )
 
     await pipeline.run_event_signal(event)
-    
+
     # Check that an episode was recorded
     episodes = journal.list_episodes(event_type="earnings")
     assert len(episodes) == 1
@@ -98,6 +99,7 @@ async def test_record_outcome_updates_episode():
     pipeline = ResearchPipeline(learning_journal=journal)
     # First record an episode
     from memory_learning.contracts import MarketEpisode
+
     episode = MarketEpisode(
         episode_id="test-episode-outcome",
         event_id="test-event-outcome",
@@ -109,7 +111,7 @@ async def test_record_outcome_updates_episode():
         outcome_excess_return=0.0,
     )
     journal.record_episode(episode)
-    
+
     # Now record the outcome
     updated_episode = await pipeline.record_outcome(
         episode_id="test-episode-outcome",
@@ -117,7 +119,7 @@ async def test_record_outcome_updates_episode():
         outcome_excess_return=0.03,
         lesson="Great call",
     )
-    
+
     assert updated_episode is not None
     assert updated_episode.outcome_return == 0.05
     assert updated_episode.outcome_excess_return == 0.03

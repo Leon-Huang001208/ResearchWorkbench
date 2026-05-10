@@ -28,7 +28,7 @@ class IFinDClient(Protocol):
     ) -> list[dict]:
         """
         历史行情查询
-        
+
         Args:
             codes: 证券代码列表，如 ["600519.SH"]
             indicators: 指标列表，如 ["ths_open_stock", "ths_close_stock"]

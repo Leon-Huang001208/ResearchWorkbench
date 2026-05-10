@@ -139,7 +139,10 @@ class MetaTimingEngine:
         for score in scores:
             if score.model_name in self.RISK_MODELS and score.score >= self.blocker_threshold:
                 blockers.append(score.model_name)
-            if score.model_name not in self.RISK_MODELS and score.score <= self.weak_support_threshold:
+            if (
+                score.model_name not in self.RISK_MODELS
+                and score.score <= self.weak_support_threshold
+            ):
                 blockers.append(score.model_name)
         return sorted(set(blockers))
 
@@ -172,7 +175,7 @@ class MetaTimingEngine:
         """根据失败记忆调整模型权重。"""
         # Start with base weights
         adjusted_weights = self.BASE_WEIGHTS.copy()
-        
+
         for failure in failures:
             if failure.failure_type == "crowding_error":
                 # Increase crowding weight by 50%
@@ -194,7 +197,7 @@ class MetaTimingEngine:
                     original_weight=original,
                     new_weight=adjusted_weights["regime"],
                 )
-        
+
         # Normalize the adjusted weights
         return self._normalize_weights(adjusted_weights)
 

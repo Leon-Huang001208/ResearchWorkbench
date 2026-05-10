@@ -6,7 +6,8 @@ propagation paths, and thesis cards, standardizing the representation of
 industry chain relationships and impact propagation in AlphaFoundry.
 """
 from enum import Enum
-from typing import Optional, List, Dict
+from typing import Dict, List, Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -22,6 +23,7 @@ class MappingStrength(float, Enum):
         SECONDARY_LINKAGE: Secondary linkage (0.5).
         THEMATIC_ASSOCIATION: Thematic association (0.3).
     """
+
     DIRECT_IMPACT = 0.9  # 直接收入/订单影响
     STRONG_LINKAGE = 0.7  # 强供应链关联
     SECONDARY_LINKAGE = 0.5  # 二级关联
@@ -42,10 +44,13 @@ class IndustryNode(BaseModel):
         is_company: Whether the node represents a company (True) or not (False).
         metadata: Additional metadata as a dictionary.
     """
+
     node_id: str = Field(description="Unique identifier for the node")
     name: str = Field(description="Name of the node")
     industry: str = Field(description="Industry that the node belongs to")
-    symbol: Optional[str] = Field(default=None, description="Ticker symbol (if the node is a company)")
+    symbol: Optional[str] = Field(
+        default=None, description="Ticker symbol (if the node is a company)"
+    )
     is_company: bool = Field(default=False, description="Whether the node represents a company")
     metadata: Dict = Field(default_factory=dict, description="Additional metadata")
 
@@ -63,10 +68,15 @@ class IndustryEdge(BaseModel):
         strength: Strength of the relationship (default: MappingStrength.STRONG_LINKAGE).
         metadata: Additional metadata as a dictionary.
     """
+
     from_node: str = Field(description="Unique identifier of the source node")
     to_node: str = Field(description="Unique identifier of the target node")
-    relationship_type: str = Field(description="Type of relationship (e.g., supplies, uses, competes)")
-    strength: float = Field(default=MappingStrength.STRONG_LINKAGE, description="Strength of the relationship")
+    relationship_type: str = Field(
+        description="Type of relationship (e.g., supplies, uses, competes)"
+    )
+    strength: float = Field(
+        default=MappingStrength.STRONG_LINKAGE, description="Strength of the relationship"
+    )
     metadata: Dict = Field(default_factory=dict, description="Additional metadata")
 
 
@@ -83,12 +93,13 @@ class IndustryGraph(BaseModel):
         nodes: List of industry nodes in the graph.
         edges: List of industry edges in the graph.
     """
+
     graph_id: str = Field(description="Unique identifier for the graph")
     name: str = Field(description="Name of the graph")
     description: str = Field(description="Description of the graph")
     nodes: List[IndustryNode] = Field(default_factory=list, description="List of industry nodes")
     edges: List[IndustryEdge] = Field(default_factory=list, description="List of industry edges")
-    
+
     def get_node(self, node_id: str) -> Optional[IndustryNode]:
         """根据ID获取节点.
 
@@ -104,7 +115,7 @@ class IndustryGraph(BaseModel):
             if node.node_id == node_id:
                 return node
         return None
-    
+
     def get_outgoing_edges(self, node_id: str) -> List[IndustryEdge]:
         """获取从指定节点出发的所有边.
 
@@ -132,11 +143,14 @@ class PropagationStep(BaseModel):
         mapping_strength: Strength of the mapping/linkage for this step.
         symbol: Ticker symbol of the node (if applicable).
     """
+
     node_id: str = Field(description="Unique identifier of the node in this step")
     node_name: str = Field(description="Name of the node in this step")
     impact: str = Field(description="Description of the impact on this node")
     mapping_strength: float = Field(description="Strength of the mapping/linkage for this step")
-    symbol: Optional[str] = Field(default=None, description="Ticker symbol of the node (if applicable)")
+    symbol: Optional[str] = Field(
+        default=None, description="Ticker symbol of the node (if applicable)"
+    )
 
 
 class PropagationPath(BaseModel):
@@ -150,9 +164,14 @@ class PropagationPath(BaseModel):
         steps: List of propagation steps in the path.
         overall_strength: Overall strength of the propagation path (default 0.0).
     """
-    steps: List[PropagationStep] = Field(default_factory=list, description="List of propagation steps")
-    overall_strength: float = Field(default=0.0, description="Overall strength of the propagation path")
-    
+
+    steps: List[PropagationStep] = Field(
+        default_factory=list, description="List of propagation steps"
+    )
+    overall_strength: float = Field(
+        default=0.0, description="Overall strength of the propagation path"
+    )
+
     def calculate_overall_strength(self) -> float:
         """计算整体传播强度（取几何平均）.
 
@@ -192,15 +211,22 @@ class ThesisCard(BaseModel):
         impact_direction: Direction of impact ("positive", "negative", "mixed").
         created_at: Timestamp when the thesis was created (as a string).
     """
+
     thesis_id: str = Field(description="Unique identifier for the thesis")
     event_summary: str = Field(description="Summary of the event that triggered the thesis")
     propagation_path: PropagationPath = Field(description="Propagation path for the thesis")
     target_symbol: str = Field(description="Ticker symbol of the target asset")
     target_name: str = Field(description="Name of the target asset")
     mapping_reason: str = Field(description="Reason for mapping the event to the target")
-    supporting_evidence: List[str] = Field(default_factory=list, description="List of supporting evidence references")
-    contradicting_evidence: List[str] = Field(default_factory=list, description="List of contradicting evidence references")
-    invalidation_conditions: List[str] = Field(default_factory=list, description="List of invalidation conditions")
+    supporting_evidence: List[str] = Field(
+        default_factory=list, description="List of supporting evidence references"
+    )
+    contradicting_evidence: List[str] = Field(
+        default_factory=list, description="List of contradicting evidence references"
+    )
+    invalidation_conditions: List[str] = Field(
+        default_factory=list, description="List of invalidation conditions"
+    )
     overall_confidence: float = Field(description="Overall confidence score (0.0 to 1.0)")
     impact_direction: str = Field(description="Direction of impact (positive, negative, mixed)")
     created_at: str = Field(description="Timestamp when the thesis was created")

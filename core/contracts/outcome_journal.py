@@ -7,7 +7,7 @@ the failure-memory engine in AlphaFoundry.
 """
 from datetime import datetime
 from enum import Enum
-from typing import Optional, List
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -40,12 +40,18 @@ class TradeOutcome(BaseModel):
     return_60d: Optional[float] = Field(default=None, description="60-day return after entry")
     benchmark_excess_return: float = Field(default=0.0, description="Excess return over benchmark")
     thesis_success: bool = Field(description="Whether the original thesis was correct")
-    failure_classification: Optional[FailureClassification] = Field(default=None, description="Classification if thesis failed")
+    failure_classification: Optional[FailureClassification] = Field(
+        default=None, description="Classification if thesis failed"
+    )
     failure_notes: Optional[str] = Field(default=None, description="Additional notes on failure")
     thesis_text: str = Field(description="Original thesis text for similarity comparison")
-    propagation_path: Optional[List[str]] = Field(default_factory=list, description="Propagation path of the thesis")
+    propagation_path: Optional[List[str]] = Field(
+        default_factory=list, description="Propagation path of the thesis"
+    )
     market_regime: Optional[str] = Field(default=None, description="Market regime at time of trade")
-    created_at: datetime = Field(default_factory=datetime.utcnow, description="Record creation time")
+    created_at: datetime = Field(
+        default_factory=datetime.utcnow, description="Record creation time"
+    )
 
 
 class SimilarCase(BaseModel):
@@ -67,7 +73,15 @@ class WeeklyReviewReport(BaseModel):
     successful_outcomes: int = Field(description="Number of successful outcomes")
     failed_outcomes: int = Field(description="Number of failed outcomes")
     success_rate: float = Field(description="Percentage of successful outcomes")
-    failure_distribution: dict[FailureClassification, int] = Field(description="Count of failures by classification")
-    top_lessons: List[str] = Field(default_factory=list, description="Key lessons learned this week")
-    most_common_failure: Optional[FailureClassification] = Field(default=None, description="Most frequent failure type this week")
-    generated_at: datetime = Field(default_factory=datetime.utcnow, description="Report generation time")
+    failure_distribution: dict[FailureClassification, int] = Field(
+        description="Count of failures by classification"
+    )
+    top_lessons: List[str] = Field(
+        default_factory=list, description="Key lessons learned this week"
+    )
+    most_common_failure: Optional[FailureClassification] = Field(
+        default=None, description="Most frequent failure type this week"
+    )
+    generated_at: datetime = Field(
+        default_factory=datetime.utcnow, description="Report generation time"
+    )

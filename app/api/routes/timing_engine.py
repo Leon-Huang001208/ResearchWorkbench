@@ -1,13 +1,9 @@
 """Timing Engine and Event Study validation API routes"""
 from fastapi import APIRouter, Depends
 
-from core.contracts.timing_engine import (
-    TimingFactors,
-    EventStudyMetrics,
-    ReadinessScore,
-)
-from core.services.timing_engine_service import TimingEngineService
+from core.contracts.timing_engine import EventStudyMetrics, ReadinessScore, TimingFactors
 from core.observability import get_logger
+from core.services.timing_engine_service import TimingEngineService
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/timing-engine", tags=["timing-engine"])
@@ -17,6 +13,7 @@ def get_timing_engine_service() -> TimingEngineService:
     """Get TimingEngineService instance with schema check"""
     try:
         from data_layer.repositories.base import ensure_schema
+
         ensure_schema()
     except Exception as e:
         logger.warning(f"ensure_schema failed: {e}")
@@ -33,10 +30,7 @@ async def calculate_timing_fit(
 ):
     """Calculate timing factors and get overall timing fit"""
     return service.calculate_timing_fit(
-        regime=regime,
-        flow=flow,
-        theme_diffusion=theme_diffusion,
-        crowding=crowding
+        regime=regime, flow=flow, theme_diffusion=theme_diffusion, crowding=crowding
     )
 
 
@@ -55,7 +49,7 @@ async def calculate_historical_edge(
         average_excess_return=average_excess_return,
         win_rate=win_rate,
         decay_by_day=decay_by_day or [],
-        max_drawdown_after_entry=max_drawdown_after_entry
+        max_drawdown_after_entry=max_drawdown_after_entry,
     )
 
 
@@ -79,18 +73,15 @@ async def calculate_readiness_score(
         average_excess_return=average_excess_return,
         win_rate=win_rate,
         decay_by_day=decay_by_day or [],
-        max_drawdown_after_entry=max_drawdown_after_entry
+        max_drawdown_after_entry=max_drawdown_after_entry,
     )
     timing_factors = service.calculate_timing_fit(
-        regime=regime,
-        flow=flow,
-        theme_diffusion=theme_diffusion,
-        crowding=crowding
+        regime=regime, flow=flow, theme_diffusion=theme_diffusion, crowding=crowding
     )
     return service.calculate_readiness(
         thesis_quality=thesis_quality,
         historical_metrics=historical_metrics,
-        timing_factors=timing_factors
+        timing_factors=timing_factors,
     )
 
 
@@ -114,25 +105,22 @@ async def check_candidate_blocking(
         average_excess_return=average_excess_return,
         win_rate=win_rate,
         decay_by_day=decay_by_day or [],
-        max_drawdown_after_entry=max_drawdown_after_entry
+        max_drawdown_after_entry=max_drawdown_after_entry,
     )
     timing_factors = service.calculate_timing_fit(
-        regime=regime,
-        flow=flow,
-        theme_diffusion=theme_diffusion,
-        crowding=crowding
+        regime=regime, flow=flow, theme_diffusion=theme_diffusion, crowding=crowding
     )
     readiness = service.calculate_readiness(
         thesis_quality=thesis_quality,
         historical_metrics=historical_metrics,
-        timing_factors=timing_factors
+        timing_factors=timing_factors,
     )
     should_block = service.should_block_candidate(readiness)
     reason = service.get_candidate_blocking_reason(readiness) if should_block else None
-    
+
     return {
         "should_block": should_block,
         "readiness_score": readiness.overall_score,
         "recommendation": readiness.recommendation,
-        "block_reason": reason
+        "block_reason": reason,
     }

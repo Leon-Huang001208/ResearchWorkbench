@@ -162,9 +162,7 @@ class ChinaStockMapper:
         )
         return [snapshot]
 
-    def map_macro(
-        self, raw_data: dict[str, Any], as_of: datetime
-    ) -> list[AssetAnalysisSnapshot]:
+    def map_macro(self, raw_data: dict[str, Any], as_of: datetime) -> list[AssetAnalysisSnapshot]:
         """映射宏观数据 (tool_fetch_macro_data)"""
         macro_exposure = {
             "cpi_yoy": raw_data.get("cpi_yoy"),

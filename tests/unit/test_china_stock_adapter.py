@@ -3,6 +3,7 @@ from datetime import datetime
 from unittest.mock import patch
 
 import pytest
+
 from core.contracts.assets import AssetAnalysisSnapshot
 from data_layer.adapters.china_stock import ChinaStockMapper, ChinaStockPluginError
 from data_layer.adapters.china_stock_adapter import ChinaStockAdapter
@@ -89,6 +90,7 @@ class TestChinaStockAdapter:
         }
         adapter = ChinaStockAdapter()
         import asyncio
+
         snapshots = asyncio.run(adapter.fetch_stock_quotes(["000001"], "2024-01-01", "2024-01-31"))
         assert len(snapshots) == 1
         assert snapshots[0].price_volume["close"] == 10.5
@@ -99,6 +101,7 @@ class TestChinaStockAdapter:
         mock_call_plugin.return_value = {"success": False, "message": "Plugin error"}
         adapter = ChinaStockAdapter()
         import asyncio
+
         with pytest.raises(ChinaStockPluginError):
             asyncio.run(adapter.fetch_stock_quotes(["000001"], "2024-01-01", "2024-01-31"))
 
@@ -111,8 +114,8 @@ class TestDataSourceRouter:
     @patch("data_layer.adapters.ifind_adapter.IFinDAdapter.fetch_stock_quotes")
     def test_router_fallback(self, mock_ifind_fetch, mock_akshare_fetch, mock_cs_fetch):
         """测试降级策略：iFinD 失败后使用 AkShare, then China Stock"""
-        from data_layer.adapters.ifind.exceptions import IFinDDatasourceError
         from data_layer.adapters.akshare.exceptions import AkShareAdapterError
+        from data_layer.adapters.ifind.exceptions import IFinDDatasourceError
 
         mock_ifind_fetch.side_effect = IFinDDatasourceError("iFinD not available")
         # Make AkShare fail too, so it falls back to ChinaStock
@@ -125,6 +128,7 @@ class TestDataSourceRouter:
         ]
         router = DataSourceRouter()
         import asyncio
+
         snapshots = asyncio.run(router.fetch_stock_quotes(["000001"], "2024-01-01", "2024-01-31"))
         assert len(snapshots) == 1
         assert mock_ifind_fetch.called

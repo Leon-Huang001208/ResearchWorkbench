@@ -11,8 +11,8 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
-
 # ─── 子系统枚举 ────────────────────────────────────────
+
 
 class Subsystem(str, Enum):
     """被监控的子系统.
@@ -28,6 +28,7 @@ class Subsystem(str, Enum):
         REPLAY: Replay subsystem.
         PORTFOLIO_SIMULATION: Portfolio simulation subsystem.
     """
+
     INGESTION = "ingestion"
     EXTRACTION = "extraction"
     MAPPING = "mapping"
@@ -47,6 +48,7 @@ class AlertSeverity(str, Enum):
         WARNING: Warning alert (medium severity).
         CRITICAL: Critical alert (highest severity).
     """
+
     INFO = "info"
     WARNING = "warning"
     CRITICAL = "critical"
@@ -62,12 +64,14 @@ class AlertStatus(str, Enum):
         ACKNOWLEDGED: Alert has been acknowledged but not resolved.
         RESOLVED: Alert has been resolved.
     """
+
     OPEN = "open"
     ACKNOWLEDGED = "acknowledged"
     RESOLVED = "resolved"
 
 
 # ─── 健康指标 ──────────────────────────────────────────
+
 
 class HealthMetrics(BaseModel):
     """子系统健康指标快照.
@@ -88,20 +92,26 @@ class HealthMetrics(BaseModel):
         items_failed: Number of items failed (default 0).
         extra: Subsystem-specific extra metrics as a dictionary.
     """
+
     metric_id: str = Field(description="Unique identifier for the metrics snapshot")
     subsystem: Subsystem = Field(description="Subsystem that these metrics belong to")
     timestamp: datetime = Field(description="Timestamp when these metrics were collected")
     throughput: float = Field(default=0.0, description="Throughput in items per second")
     error_rate: float = Field(default=0.0, description="Error rate (0.0 to 1.0)")
     avg_latency_ms: float = Field(default=0.0, description="Average latency in milliseconds")
-    p99_latency_ms: float = Field(default=0.0, description="99th percentile latency in milliseconds")
+    p99_latency_ms: float = Field(
+        default=0.0, description="99th percentile latency in milliseconds"
+    )
     queue_depth: int = Field(default=0, description="Queue backlog depth")
     items_processed: int = Field(default=0, description="Number of items processed")
     items_failed: int = Field(default=0, description="Number of items failed")
-    extra: Dict[str, Any] = Field(default_factory=dict, description="Subsystem-specific extra metrics")
+    extra: Dict[str, Any] = Field(
+        default_factory=dict, description="Subsystem-specific extra metrics"
+    )
 
 
 # ─── 漂移报告 ──────────────────────────────────────────
+
 
 class DriftDimension(str, Enum):
     """漂移检测维度.
@@ -116,6 +126,7 @@ class DriftDimension(str, Enum):
         READINESS_DISTRIBUTION: Timing readiness distribution.
         OUTCOME_DISTRIBUTION: Outcome distribution.
     """
+
     SOURCE_MIX = "source_mix"  # 数据源占比分布
     EVENT_TYPE_MIX = "event_type_mix"  # 事件类型分布
     MAPPING_HIT_RATE = "mapping_hit_rate"  # 映射命中率
@@ -145,6 +156,7 @@ class DriftReport(BaseModel):
         current_distribution: Distribution of the dimension in the current window.
         details: Additional details as a dictionary.
     """
+
     report_id: str = Field(description="Unique identifier for the drift report")
     dimension: DriftDimension = Field(description="Drift dimension that was checked")
     timestamp: datetime = Field(description="Timestamp when the report was generated")
@@ -152,15 +164,22 @@ class DriftReport(BaseModel):
     baseline_window_end: datetime = Field(description="End of the baseline window")
     current_window_start: datetime = Field(description="Start of the current window")
     current_window_end: datetime = Field(description="End of the current window")
-    drift_score: float = Field(description="Drift score (0.0 to 1.0, higher means more severe drift)")
+    drift_score: float = Field(
+        description="Drift score (0.0 to 1.0, higher means more severe drift)"
+    )
     is_drift: bool = Field(description="Whether drift was detected (score exceeded threshold)")
     threshold: float = Field(description="Threshold used for drift detection")
-    baseline_distribution: Dict[str, float] = Field(default_factory=dict, description="Distribution in the baseline window")
-    current_distribution: Dict[str, float] = Field(default_factory=dict, description="Distribution in the current window")
+    baseline_distribution: Dict[str, float] = Field(
+        default_factory=dict, description="Distribution in the baseline window"
+    )
+    current_distribution: Dict[str, float] = Field(
+        default_factory=dict, description="Distribution in the current window"
+    )
     details: Dict[str, Any] = Field(default_factory=dict, description="Additional details")
 
 
 # ─── 告警 ─────────────────────────────────────────────
+
 
 class AlertThreshold(BaseModel):
     """告警阈值配置.
@@ -179,15 +198,26 @@ class AlertThreshold(BaseModel):
         cooldown_minutes: Cooldown time in minutes to avoid alert storms (default 30).
         enabled: Whether this threshold is enabled (default True).
     """
+
     threshold_id: str = Field(description="Unique identifier for the threshold")
     name: str = Field(description="Name of the threshold")
-    subsystem: Optional[Subsystem] = Field(default=None, description="Optional subsystem that this threshold applies to")
-    dimension: Optional[DriftDimension] = Field(default=None, description="Optional drift dimension that this threshold applies to")
-    metric_field: Optional[str] = Field(default=None, description="Optional HealthMetrics field name (e.g., error_rate)")
+    subsystem: Optional[Subsystem] = Field(
+        default=None, description="Optional subsystem that this threshold applies to"
+    )
+    dimension: Optional[DriftDimension] = Field(
+        default=None, description="Optional drift dimension that this threshold applies to"
+    )
+    metric_field: Optional[str] = Field(
+        default=None, description="Optional HealthMetrics field name (e.g., error_rate)"
+    )
     operator: str = Field(default="gte", description="Comparison operator (gte, lte, eq, gt, lt)")
     value: float = Field(default=0.0, description="Threshold value")
-    severity: AlertSeverity = Field(default=AlertSeverity.WARNING, description="Severity level for alerts from this threshold")
-    cooldown_minutes: int = Field(default=30, description="Cooldown time in minutes to avoid alert storms")
+    severity: AlertSeverity = Field(
+        default=AlertSeverity.WARNING, description="Severity level for alerts from this threshold"
+    )
+    cooldown_minutes: int = Field(
+        default=30, description="Cooldown time in minutes to avoid alert storms"
+    )
     enabled: bool = Field(default=True, description="Whether this threshold is enabled")
 
 
@@ -212,23 +242,37 @@ class AlertPayload(BaseModel):
         resolved_at: Timestamp when the alert was resolved (if applicable).
         metadata: Additional metadata as a dictionary.
     """
+
     alert_id: str = Field(description="Unique identifier for the alert")
-    threshold_id: str = Field(description="Unique identifier of the threshold that triggered this alert")
+    threshold_id: str = Field(
+        description="Unique identifier of the threshold that triggered this alert"
+    )
     severity: AlertSeverity = Field(description="Severity level of the alert")
     status: AlertStatus = Field(default=AlertStatus.OPEN, description="Status of the alert")
-    subsystem: Optional[Subsystem] = Field(default=None, description="Optional subsystem associated with this alert")
-    dimension: Optional[DriftDimension] = Field(default=None, description="Optional drift dimension associated with this alert")
+    subsystem: Optional[Subsystem] = Field(
+        default=None, description="Optional subsystem associated with this alert"
+    )
+    dimension: Optional[DriftDimension] = Field(
+        default=None, description="Optional drift dimension associated with this alert"
+    )
     title: str = Field(description="Title of the alert")
     description: str = Field(default="", description="Description of the alert")
-    observed_value: float = Field(default=0.0, description="Observed value that triggered the alert")
+    observed_value: float = Field(
+        default=0.0, description="Observed value that triggered the alert"
+    )
     threshold_value: float = Field(default=0.0, description="Threshold value that was crossed")
     triggered_at: datetime = Field(description="Timestamp when the alert was triggered")
-    acknowledged_at: Optional[datetime] = Field(default=None, description="Timestamp when the alert was acknowledged (if applicable)")
-    resolved_at: Optional[datetime] = Field(default=None, description="Timestamp when the alert was resolved (if applicable)")
+    acknowledged_at: Optional[datetime] = Field(
+        default=None, description="Timestamp when the alert was acknowledged (if applicable)"
+    )
+    resolved_at: Optional[datetime] = Field(
+        default=None, description="Timestamp when the alert was resolved (if applicable)"
+    )
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
 
 # ─── 事件记录 ──────────────────────────────────────────
+
 
 class IncidentRecord(BaseModel):
     """事件记录.
@@ -247,6 +291,7 @@ class IncidentRecord(BaseModel):
         resolution_notes: Notes about how the incident was resolved (default "").
         metadata: Additional metadata as a dictionary.
     """
+
     incident_id: str = Field(description="Unique identifier for the incident")
     alert_id: str = Field(description="Unique identifier of the associated alert")
     subsystem: Subsystem = Field(description="Subsystem associated with the incident")
@@ -254,12 +299,17 @@ class IncidentRecord(BaseModel):
     title: str = Field(description="Title of the incident")
     description: str = Field(default="", description="Description of the incident")
     detected_at: datetime = Field(description="Timestamp when the incident was detected")
-    resolved_at: Optional[datetime] = Field(default=None, description="Timestamp when the incident was resolved (if applicable)")
-    resolution_notes: str = Field(default="", description="Notes about how the incident was resolved")
+    resolved_at: Optional[datetime] = Field(
+        default=None, description="Timestamp when the incident was resolved (if applicable)"
+    )
+    resolution_notes: str = Field(
+        default="", description="Notes about how the incident was resolved"
+    )
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
 
 # ─── 仪表盘摘要 ───────────────────────────────────────
+
 
 class SubsystemHealthSummary(BaseModel):
     """子系统健康摘要.
@@ -273,9 +323,14 @@ class SubsystemHealthSummary(BaseModel):
         status: Health status ("healthy", "degraded", "unhealthy", "unknown") (default "unknown").
         open_alerts: Number of open alerts for the subsystem (default 0).
     """
+
     subsystem: Subsystem = Field(description="Subsystem that this summary is for")
-    latest_metrics: Optional[HealthMetrics] = Field(default=None, description="Latest health metrics for the subsystem (if available)")
-    status: str = Field(default="unknown", description="Health status (healthy, degraded, unhealthy, unknown)")
+    latest_metrics: Optional[HealthMetrics] = Field(
+        default=None, description="Latest health metrics for the subsystem (if available)"
+    )
+    status: str = Field(
+        default="unknown", description="Health status (healthy, degraded, unhealthy, unknown)"
+    )
     open_alerts: int = Field(default=0, description="Number of open alerts for the subsystem")
 
 
@@ -293,14 +348,22 @@ class SystemHealthDashboard(BaseModel):
         total_open_critical: Total number of open critical alerts (default 0).
         recent_incidents: List of recent incident records.
     """
+
     generated_at: datetime = Field(description="Timestamp when the dashboard was generated")
-    subsystems: List[SubsystemHealthSummary] = Field(default_factory=list, description="List of subsystem health summaries")
-    total_open_alerts: int = Field(default=0, description="Total number of open alerts across all subsystems")
+    subsystems: List[SubsystemHealthSummary] = Field(
+        default_factory=list, description="List of subsystem health summaries"
+    )
+    total_open_alerts: int = Field(
+        default=0, description="Total number of open alerts across all subsystems"
+    )
     total_open_critical: int = Field(default=0, description="Total number of open critical alerts")
-    recent_incidents: List[IncidentRecord] = Field(default_factory=list, description="List of recent incident records")
+    recent_incidents: List[IncidentRecord] = Field(
+        default_factory=list, description="List of recent incident records"
+    )
 
 
 # ─── 请求模型 ──────────────────────────────────────────
+
 
 class AlertThresholdCreateRequest(BaseModel):
     """创建告警阈值请求.
@@ -319,14 +382,25 @@ class AlertThresholdCreateRequest(BaseModel):
         cooldown_minutes: Cooldown time in minutes to avoid alert storms (default 30).
         enabled: Whether this threshold is enabled (default True).
     """
+
     name: str = Field(description="Name of the threshold")
-    subsystem: Optional[Subsystem] = Field(default=None, description="Optional subsystem that this threshold applies to")
-    dimension: Optional[DriftDimension] = Field(default=None, description="Optional drift dimension that this threshold applies to")
-    metric_field: Optional[str] = Field(default=None, description="Optional HealthMetrics field name (e.g., error_rate)")
+    subsystem: Optional[Subsystem] = Field(
+        default=None, description="Optional subsystem that this threshold applies to"
+    )
+    dimension: Optional[DriftDimension] = Field(
+        default=None, description="Optional drift dimension that this threshold applies to"
+    )
+    metric_field: Optional[str] = Field(
+        default=None, description="Optional HealthMetrics field name (e.g., error_rate)"
+    )
     operator: str = Field(default="gte", description="Comparison operator (gte, lte, eq, gt, lt)")
     value: float = Field(default=0.0, description="Threshold value")
-    severity: AlertSeverity = Field(default=AlertSeverity.WARNING, description="Severity level for alerts from this threshold")
-    cooldown_minutes: int = Field(default=30, description="Cooldown time in minutes to avoid alert storms")
+    severity: AlertSeverity = Field(
+        default=AlertSeverity.WARNING, description="Severity level for alerts from this threshold"
+    )
+    cooldown_minutes: int = Field(
+        default=30, description="Cooldown time in minutes to avoid alert storms"
+    )
     enabled: bool = Field(default=True, description="Whether this threshold is enabled")
 
 
@@ -344,11 +418,16 @@ class AlertThresholdUpdateRequest(BaseModel):
         cooldown_minutes: Optional new cooldown time in minutes.
         enabled: Optional new enabled status.
     """
+
     name: Optional[str] = Field(default=None, description="Optional new name for the threshold")
     value: Optional[float] = Field(default=None, description="Optional new threshold value")
     operator: Optional[str] = Field(default=None, description="Optional new comparison operator")
-    severity: Optional[AlertSeverity] = Field(default=None, description="Optional new severity level")
-    cooldown_minutes: Optional[int] = Field(default=None, description="Optional new cooldown time in minutes")
+    severity: Optional[AlertSeverity] = Field(
+        default=None, description="Optional new severity level"
+    )
+    cooldown_minutes: Optional[int] = Field(
+        default=None, description="Optional new cooldown time in minutes"
+    )
     enabled: Optional[bool] = Field(default=None, description="Optional new enabled status")
 
 
@@ -370,15 +449,20 @@ class HealthMetricsSubmitRequest(BaseModel):
         items_failed: Number of items failed (default 0).
         extra: Subsystem-specific extra metrics as a dictionary.
     """
+
     subsystem: Subsystem = Field(description="Subsystem that these metrics belong to")
     throughput: float = Field(default=0.0, description="Throughput in items per second")
     error_rate: float = Field(default=0.0, description="Error rate (0.0 to 1.0)")
     avg_latency_ms: float = Field(default=0.0, description="Average latency in milliseconds")
-    p99_latency_ms: float = Field(default=0.0, description="99th percentile latency in milliseconds")
+    p99_latency_ms: float = Field(
+        default=0.0, description="99th percentile latency in milliseconds"
+    )
     queue_depth: int = Field(default=0, description="Queue backlog depth")
     items_processed: int = Field(default=0, description="Number of items processed")
     items_failed: int = Field(default=0, description="Number of items failed")
-    extra: Dict[str, Any] = Field(default_factory=dict, description="Subsystem-specific extra metrics")
+    extra: Dict[str, Any] = Field(
+        default_factory=dict, description="Subsystem-specific extra metrics"
+    )
 
 
 class DriftCheckRequest(BaseModel):
@@ -393,10 +477,17 @@ class DriftCheckRequest(BaseModel):
         current_window_hours: Length of the current window in hours (default 24, 1 day).
         threshold: Optional threshold to use (uses default if not provided).
     """
+
     dimension: DriftDimension = Field(description="Drift dimension to check")
-    baseline_window_hours: int = Field(default=168, description="Length of the baseline window in hours (default 7 days)")
-    current_window_hours: int = Field(default=24, description="Length of the current window in hours (default 1 day)")
-    threshold: Optional[float] = Field(default=None, description="Optional threshold to use (uses default if not provided)")
+    baseline_window_hours: int = Field(
+        default=168, description="Length of the baseline window in hours (default 7 days)"
+    )
+    current_window_hours: int = Field(
+        default=24, description="Length of the current window in hours (default 1 day)"
+    )
+    threshold: Optional[float] = Field(
+        default=None, description="Optional threshold to use (uses default if not provided)"
+    )
 
 
 class IncidentResolveRequest(BaseModel):
@@ -407,4 +498,7 @@ class IncidentResolveRequest(BaseModel):
     Attributes:
         resolution_notes: Notes about how the incident was resolved (default "").
     """
-    resolution_notes: str = Field(default="", description="Notes about how the incident was resolved")
+
+    resolution_notes: str = Field(
+        default="", description="Notes about how the incident was resolved"
+    )

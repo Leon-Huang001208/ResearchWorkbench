@@ -2,8 +2,8 @@
 
 Identifies patterns from historical market episodes to improve future decisions.
 """
-from typing import Dict, List, Optional
 from collections import defaultdict
+from typing import Dict, List, Optional
 
 from core.observability import get_logger
 from memory_learning.contracts import MarketEpisode
@@ -31,9 +31,7 @@ class PatternLearner:
             regimes_count=len(self._episodes_by_regime),
         )
 
-    def get_event_type_performance(
-        self, event_type: str
-    ) -> Optional[Dict[str, float]]:
+    def get_event_type_performance(self, event_type: str) -> Optional[Dict[str, float]]:
         """Get performance statistics for an event type."""
         episodes = self._episodes_by_type.get(event_type, [])
         if not episodes:
@@ -57,9 +55,7 @@ class PatternLearner:
             "sharpe_ratio": sharpe,
         }
 
-    def get_market_regime_performance(
-        self, market_regime: str
-    ) -> Optional[Dict[str, float]]:
+    def get_market_regime_performance(self, market_regime: str) -> Optional[Dict[str, float]]:
         """Get performance statistics for a market regime."""
         episodes = self._episodes_by_regime.get(market_regime, [])
         if not episodes:
@@ -85,9 +81,7 @@ class PatternLearner:
             "event_type_count": len(event_type_stats),
         }
 
-    def find_similar_episodes(
-        self, event_type: str, top_k: int = 5
-    ) -> List[MarketEpisode]:
+    def find_similar_episodes(self, event_type: str, top_k: int = 5) -> List[MarketEpisode]:
         """Find the most similar episodes (sorted by performance)."""
         episodes = self._episodes_by_type.get(event_type, [])
         if not episodes:
@@ -101,9 +95,7 @@ class PatternLearner:
 
         return sorted_episodes[:top_k]
 
-    def get_recommendation(
-        self, event_type: str, market_regime: str
-    ) -> Dict[str, any]:
+    def get_recommendation(self, event_type: str, market_regime: str) -> Dict[str, any]:
         """Get a recommendation for a new event based on past patterns."""
         event_performance = self.get_event_type_performance(event_type)
         regime_performance = self.get_market_regime_performance(market_regime)
@@ -118,7 +110,9 @@ class PatternLearner:
         if event_performance and event_performance["win_rate"] > 0.5:
             recommendation["should_trade"] = True
             recommendation["confidence"] = event_performance["win_rate"]
-            recommendation["reason"] = f"Event type {event_type} has {event_performance['win_rate']:.1%} win rate with {event_performance['average_excess_return']:.1%} avg excess return"
+            recommendation[
+                "reason"
+            ] = f"Event type {event_type} has {event_performance['win_rate']:.1%} win rate with {event_performance['average_excess_return']:.1%} avg excess return"
 
         if regime_performance and event_type in regime_performance.get("best_event_types", []):
             recommendation["confidence"] = min(0.95, recommendation["confidence"] + 0.2)
@@ -132,4 +126,4 @@ class PatternLearner:
             return 0.0
         mean = sum(returns) / len(returns)
         variance = sum((r - mean) ** 2 for r in returns) / len(returns)
-        return variance ** 0.5
+        return variance**0.5

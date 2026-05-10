@@ -44,10 +44,7 @@ class ConfidenceScorer(SignalScorer):
     """置信度评分器"""
 
     def __init__(self):
-        super().__init__(
-            name="confidence",
-            description="基于置信度的评分"
-        )
+        super().__init__(name="confidence", description="基于置信度的评分")
 
     def score(self, signal: AlphaSignal, **kwargs: Any) -> float:
         """基于信号置信度评分"""
@@ -58,10 +55,7 @@ class StrengthScorer(SignalScorer):
     """信号强度评分器"""
 
     def __init__(self):
-        super().__init__(
-            name="strength",
-            description="基于信号强度的评分"
-        )
+        super().__init__(name="strength", description="基于信号强度的评分")
 
     def score(self, signal: AlphaSignal, **kwargs: Any) -> float:
         """基于信号强度评分"""
@@ -72,10 +66,7 @@ class EvidenceScorer(SignalScorer):
     """证据评分器"""
 
     def __init__(self):
-        super().__init__(
-            name="evidence",
-            description="基于证据支持的评分"
-        )
+        super().__init__(name="evidence", description="基于证据支持的评分")
 
     def score(self, signal: AlphaSignal, **kwargs: Any) -> float:
         """基于证据数量评分"""
@@ -88,10 +79,7 @@ class ScenarioScorer(SignalScorer):
     """情景支持评分器"""
 
     def __init__(self):
-        super().__init__(
-            name="scenario",
-            description="基于情景支持的评分"
-        )
+        super().__init__(name="scenario", description="基于情景支持的评分")
 
     def score(self, signal: AlphaSignal, **kwargs: Any) -> float:
         """基于情景支持评分"""
@@ -107,10 +95,7 @@ class CompositeScorer(SignalScorer):
         scorers: Optional[List[SignalScorer]] = None,
         weights: Optional[List[float]] = None,
     ):
-        super().__init__(
-            name="composite",
-            description="组合评分器"
-        )
+        super().__init__(name="composite", description="组合评分器")
         self.scorers = scorers or []
         self.weights = weights or [1.0] * len(self.scorers)
         if len(self.weights) != len(self.scorers):

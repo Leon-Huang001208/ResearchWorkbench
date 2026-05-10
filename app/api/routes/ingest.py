@@ -18,24 +18,24 @@ router = APIRouter(prefix="/api/ingest", tags=["ingest"])
 def get_ingest_service() -> IngestService:
     """获取摄入服务实例（使用持久化仓库和共享向量库）"""
     if not hasattr(get_ingest_service, "_instance"):
-        from data_layer.repositories.document_repository import DocumentRepositoryImpl
         from data_layer.repositories.assertion_repository import AssertionRepositoryImpl
+        from data_layer.repositories.base import SessionLocal
+        from data_layer.repositories.document_repository import DocumentRepositoryImpl
         from data_layer.repositories.event_repository import EventRepositoryImpl
         from knowledge_layer.retrieval import SharedPGVectorStore
-        from data_layer.repositories.base import SessionLocal
-        
+
         # 注入持久化仓库
         doc_repo = DocumentRepositoryImpl(SessionLocal())
         assertion_repo = AssertionRepositoryImpl(SessionLocal())
         event_repo = EventRepositoryImpl(SessionLocal())
         # 注入共享向量库
         vector_store = SharedPGVectorStore()
-        
+
         get_ingest_service._instance = IngestService(
             document_repo=doc_repo,
             assertion_repo=assertion_repo,
             event_repo=event_repo,
-            vector_store=vector_store
+            vector_store=vector_store,
         )
     return get_ingest_service._instance
 
@@ -111,14 +111,14 @@ async def ingest_cls(
         envelopes = await router_.fetch_news_cls(
             days=days, start_date=start_date, end_date=end_date
         )
-        
+
         # 将所有envelope推送到完整摄入流程
         doc_ids = []
         for envelope in envelopes:
             result = service.ingest_envelope(envelope)
             if result.get("doc_id"):
                 doc_ids.append(result["doc_id"])
-        
+
         return IngestResponse(
             success=True,
             message=f"Successfully ingested {len(doc_ids)} of {len(envelopes)} CLS telegrams through envelope ingestion pipeline",
@@ -142,14 +142,14 @@ async def ingest_cnstock(
         envelopes = await router_.fetch_news_cnstock(
             start_date=start_date, end_date=end_date, channel=channel
         )
-        
+
         # 将所有envelope推送到完整摄入流程
         doc_ids = []
         for envelope in envelopes:
             result = service.ingest_envelope(envelope)
             if result.get("doc_id"):
                 doc_ids.append(result["doc_id"])
-        
+
         return IngestResponse(
             success=True,
             message=f"Successfully ingested {len(doc_ids)} of {len(envelopes)} cnstock news through envelope ingestion pipeline",
@@ -172,17 +172,16 @@ async def ingest_zq(
     try:
         router_ = DataSourceRouter()
         envelopes = await router_.fetch_reports_zq(
-            search=search, doc_types=doc_types,
-            start_date=start_date, end_date=end_date
+            search=search, doc_types=doc_types, start_date=start_date, end_date=end_date
         )
-        
+
         # 将所有envelope推送到完整摄入流程
         doc_ids = []
         for envelope in envelopes:
             result = service.ingest_envelope(envelope)
             if result.get("doc_id"):
                 doc_ids.append(result["doc_id"])
-        
+
         return IngestResponse(
             success=True,
             message=f"Successfully ingested {len(doc_ids)} of {len(envelopes)} zq documents through envelope ingestion pipeline",

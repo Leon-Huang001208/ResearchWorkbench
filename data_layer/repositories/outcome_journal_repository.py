@@ -1,10 +1,10 @@
 """Outcome journal repository implementation for persistent storage of trade outcomes."""
-from typing import List, Optional
 from datetime import datetime
+from typing import List, Optional
 
 from sqlalchemy import desc
 
-from core.contracts.outcome_journal import TradeOutcome, FailureClassification
+from core.contracts.outcome_journal import FailureClassification, TradeOutcome
 from core.observability import get_logger
 from data_layer.repositories.base import BaseRepository
 from data_layer.repositories.models import OutcomeRecordDB
@@ -59,11 +59,7 @@ class OutcomeJournalRepository(BaseRepository):
 
     def save(self, outcome: TradeOutcome) -> TradeOutcome:
         """Save or update an outcome record."""
-        existing = (
-            self.db.query(OutcomeRecordDB)
-            .filter_by(outcome_id=outcome.outcome_id)
-            .first()
-        )
+        existing = self.db.query(OutcomeRecordDB).filter_by(outcome_id=outcome.outcome_id).first()
 
         if existing:
             existing.signal_id = outcome.signal_id
@@ -128,8 +124,7 @@ class OutcomeJournalRepository(BaseRepository):
 
         results = (
             self.db.query(
-                OutcomeRecordDB.failure_classification,
-                func.count(OutcomeRecordDB.outcome_id)
+                OutcomeRecordDB.failure_classification, func.count(OutcomeRecordDB.outcome_id)
             )
             .filter(OutcomeRecordDB.thesis_success == False)
             .filter(OutcomeRecordDB.failure_classification.isnot(None))

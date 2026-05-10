@@ -1,14 +1,15 @@
 """
 认知Agent集成测试 - 测试认知Agent完整集成流程
 """
-import pytest
-from unittest.mock import Mock, AsyncMock
 import uuid
+from unittest.mock import AsyncMock, Mock
 
-from core.interfaces import ModelGateway
-from cognitive_agents.agents import AgentFactory, AgentOrchestrator, AgentContext
+import pytest
+
+from cognitive_agents.agents import AgentContext, AgentFactory, AgentOrchestrator
 from cognitive_agents.blackboard import CognitiveBlackboard
-from cognitive_agents.contracts import BlackboardConflict, AgentView
+from cognitive_agents.contracts import AgentView, BlackboardConflict
+from core.interfaces import ModelGateway
 
 
 @pytest.fixture
@@ -85,12 +86,15 @@ class TestAgentOrchestratorIntegration:
         assert sum(len(stage) for stage in orchestrator.execution_order) == 16
 
     @pytest.mark.asyncio
-    async def test_orchestrator_runs_all_stages(self, agent_factory, blackboard, test_context, mock_model_gateway):
+    async def test_orchestrator_runs_all_stages(
+        self, agent_factory, blackboard, test_context, mock_model_gateway
+    ):
         """测试编排器运行完整流程，结果写入黑板"""
         orchestrator = AgentOrchestrator(agent_factory)
 
         # Mock agent_factory.create to return agents with mocked analyze methods
         original_create = agent_factory.create
+
         def mock_create(role):
             agent = original_create(role)
             view = AgentView(
@@ -106,6 +110,7 @@ class TestAgentOrchestratorIntegration:
             )
             agent.analyze = AsyncMock(return_value=view)
             return agent
+
         agent_factory.create = mock_create
 
         # Execute full swarm
@@ -115,8 +120,7 @@ class TestAgentOrchestratorIntegration:
         assert len(views) == 16
         # Verify all views are written to blackboard
         blackboard_views = blackboard.list_views(
-            target_id=test_context.target_id,
-            event_id=test_context.event_id
+            target_id=test_context.target_id, event_id=test_context.event_id
         )
         assert len(blackboard_views) == 16
 
@@ -156,8 +160,7 @@ class TestCognitiveBlackboardIntegration:
 
         # Verify reads
         stored_views = blackboard.list_views(
-            target_id=test_context.target_id,
-            event_id=test_context.event_id
+            target_id=test_context.target_id, event_id=test_context.event_id
         )
         assert len(stored_views) == 2
         assert any(v.view == "bullish" for v in stored_views)

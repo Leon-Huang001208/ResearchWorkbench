@@ -13,8 +13,9 @@ router = APIRouter(prefix="/api/outcomes", tags=["outcomes"])
 def get_outcome_service() -> OutcomeService:
     """获取 OutcomeService 实例（持久化版）"""
     if not hasattr(get_outcome_service, "_instance"):
-        from data_layer.repositories.outcome_repository import OutcomeRepositoryImpl
         from data_layer.repositories.base import SessionLocal
+        from data_layer.repositories.outcome_repository import OutcomeRepositoryImpl
+
         # 初始化持久化仓储
         repo = OutcomeRepositoryImpl(SessionLocal())
         get_outcome_service._instance = OutcomeService(repository=repo)
@@ -38,6 +39,7 @@ async def record_outcome(
         return service.record_outcome(outcome)
     except Exception as e:
         from core.observability import get_logger
+
         logger = get_logger(__name__)
         logger.error("Failed to record outcome", error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
@@ -107,15 +109,12 @@ async def get_outcome_with_signal_detail(
     outcome = service.get_outcome_by_signal(signal_id)
     if outcome is None:
         raise HTTPException(status_code=404, detail=f"Outcome for signal {signal_id} not found")
-    
+
     # 获取关联的信号详情
-    from data_layer.repositories.signal_repository import SignalRepositoryImpl
     from data_layer.repositories.base import SessionLocal
+    from data_layer.repositories.signal_repository import SignalRepositoryImpl
+
     signal_repo = SignalRepositoryImpl(SessionLocal())
     signal_detail = signal_repo.get_by_signal_id(signal_id)
-    
-    return {
-        "outcome": outcome,
-        "signal_detail": signal_detail,
-        "signal_id": signal_id
-    }
+
+    return {"outcome": outcome, "signal_detail": signal_detail, "signal_id": signal_id}

@@ -7,6 +7,7 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from fastapi.testclient import TestClient
+
 from app.api.main import app
 
 client = TestClient(app)
@@ -25,5 +26,6 @@ try:
 
 except Exception as e:
     import traceback
+
     print(f"Exception: {e}")
     traceback.print_exc()

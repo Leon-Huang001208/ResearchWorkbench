@@ -1,112 +1,69 @@
 from .assertions import Assertion
 from .assets import (
-    AssetAnalysisSnapshot,
     AssetAnalysisCard,
+    AssetAnalysisSnapshot,
     AssetBasicInfo,
-    Shareholder,
-    FinancialSummary,
     CapitalFlow,
     CapitalFlowItem,
-    IndustryData,
-    PriceBar,
     EventImpact,
+    FinancialSummary,
+    IndustryData,
     MacroSensitivity,
+    PriceBar,
+    Shareholder,
 )
-from .documents import DocumentEnvelope
-from .documents_v1 import (
-    # Enums
-    DocType,
-    SourceType,
-    SourceReliabilityLevel,
-    SubjectivityLevel,
-    DocumentProcessingStatus,
-    DocumentReviewStatus,
-    # Core Models
-    DocumentClassification,
-    DocumentQuality,
-    DocumentTimeliness,
-    DocumentEvidenceProfile,
-    DocumentProcessingMeta,
-    DocumentReview,
-    DocumentV1,
-    # Source-Specific Schemas
-    TelegramSchema,
-    NewsSchema,
-    ReportSchema,
-    WechatSchema,
-    TranscriptSchema,
-    # Supporting Models
-    DocumentChunkV1,
-    DocumentTagV1,
-    DocumentSummaryV1,
-    EntityMentionV1,
-    DocumentEventV1,
-    CrawlRunV1,
-    SourceCursorV1,
-    ReportRunV1,
-)
-from .events import CanonicalEvent
-from .ids import CanonicalId
-from .ingestion import (
-    EnqueueRequest,
-    EnqueueResponse,
-    IngestionQueueItem,
-    IngestionQueueStats,
-    ProcessResponse,
-    RetryResponse,
-)
-from .outcomes import SignalOutcome
-from .outcome_journal import (
-    FailureClassification,
-    TradeOutcome,
-    SimilarCase,
-    WeeklyReviewReport,
-)
-from .replay import ReplayJob, ReplayResult, ReplayAggregate
 from .backtest import (
     DataTier,
-    TimeAvailability,
-    HistoricalReplayQuery,
+    EventTechAlignment,
+    EventTechAlignmentRequest,
     HistoricalEvent,
     HistoricalEventStream,
-    NewsFeatureType,
+    HistoricalReplayQuery,
     NewsFeatureQuery,
-    NewsFeatureValue,
     NewsFeatureSet,
-    EventTechAlignmentRequest,
-    EventTechAlignment,
-    ViewContext,
+    NewsFeatureType,
+    NewsFeatureValue,
     RetrievalConfig,
+    TimeAvailability,
+    ViewContext,
 )
-from .reporting import (
-    SectionOutput,
-    SectionSpec,
-    FactCard,
-    ValidationResult,
-    ValidationResults,
-    TemplateConfig,
-    ReportTask,
-    ReportRunLog,
-    ChartSpec,
-    TableSpec,
+from .decision_console import (
+    AnalystDecision,
+    DecisionAction,
+    DecisionAudit,
+    DecisionWorkspace,
+    PostMortemRecord,
 )
-from .scenarios import ScenarioHypothesis, ScenarioSet
-from .signals import AlphaSignal, EventAlphaSignal, TradeCandidate
-from .traces import ReasoningTrace
-from .portfolio import PortfolioCandidate, PortfolioConstraints, PortfolioProposal
-from .paper_trading import (
-    BenchmarkComparison,
-    PaperPortfolio,
-    PerformanceMetrics,
-    PortfolioSnapshot,
-    PositionSnapshot,
-    RebalanceEvent,
-    RebalanceTrigger,
-    SimulationAssumptions,
-    SimulationMode,
-    SimulationResult,
-    TransactionCost,
+from .documents import DocumentEnvelope
+from .documents_v1 import (  # Enums; Core Models; Source-Specific Schemas; Supporting Models
+    CrawlRunV1,
+    DocType,
+    DocumentChunkV1,
+    DocumentClassification,
+    DocumentEventV1,
+    DocumentEvidenceProfile,
+    DocumentProcessingMeta,
+    DocumentProcessingStatus,
+    DocumentQuality,
+    DocumentReview,
+    DocumentReviewStatus,
+    DocumentSummaryV1,
+    DocumentTagV1,
+    DocumentTimeliness,
+    DocumentV1,
+    EntityMentionV1,
+    NewsSchema,
+    ReportRunV1,
+    ReportSchema,
+    SourceCursorV1,
+    SourceReliabilityLevel,
+    SourceType,
+    SubjectivityLevel,
+    TelegramSchema,
+    TranscriptSchema,
+    WechatSchema,
 )
+from .events import CanonicalEvent
 from .governance import (
     ExperimentCompareRequest,
     ExperimentComparison,
@@ -121,6 +78,24 @@ from .governance import (
     StrategyVersion,
     StrategyVersionCreateRequest,
     StrategyVersionSummary,
+)
+from .ids import CanonicalId
+from .industry_chain import (
+    IndustryEdge,
+    IndustryGraph,
+    IndustryNode,
+    MappingStrength,
+    PropagationPath,
+    PropagationStep,
+    ThesisCard,
+)
+from .ingestion import (
+    EnqueueRequest,
+    EnqueueResponse,
+    IngestionQueueItem,
+    IngestionQueueStats,
+    ProcessResponse,
+    RetryResponse,
 )
 from .monitoring import (
     AlertPayload,
@@ -140,53 +115,65 @@ from .monitoring import (
     SubsystemHealthSummary,
     SystemHealthDashboard,
 )
-from .decision_console import (
-    AnalystDecision,
-    DecisionAction,
-    DecisionAudit,
-    DecisionWorkspace,
-    PostMortemRecord,
+from .outcome_journal import FailureClassification, SimilarCase, TradeOutcome, WeeklyReviewReport
+from .outcomes import SignalOutcome
+from .paper_trading import (
+    BenchmarkComparison,
+    PaperPortfolio,
+    PerformanceMetrics,
+    PortfolioSnapshot,
+    PositionSnapshot,
+    RebalanceEvent,
+    RebalanceTrigger,
+    SimulationAssumptions,
+    SimulationMode,
+    SimulationResult,
+    TransactionCost,
 )
-from .industry_chain import (
-    IndustryNode,
-    IndustryEdge,
-    IndustryGraph,
-    MappingStrength,
-    PropagationStep,
-    PropagationPath,
-    ThesisCard,
-)
-from .review_framework import (
-    ReviewPosition,
-    EvidenceReference,
-    ReviewCard,
-    CognitiveBlackboard,
-    ConflictDetectionSummary,
-)
-from .timing_engine import (
-    TimingFactors,
-    EventStudyMetrics,
-    ReadinessScore,
+from .portfolio import PortfolioCandidate, PortfolioConstraints, PortfolioProposal
+from .replay import ReplayAggregate, ReplayJob, ReplayResult
+from .reporting import (
+    ChartSpec,
+    FactCard,
+    ReportRunLog,
+    ReportTask,
+    SectionOutput,
+    SectionSpec,
+    TableSpec,
+    TemplateConfig,
+    ValidationResult,
+    ValidationResults,
 )
 from .retrieval import (
-    RetrievalProfileType,
-    EvidenceType,
-    RecencyDecayConfig,
-    SourceWeightConfig,
     DocTypeLookbackConfig,
-    RetrievalProfile,
-    RetrievalFilters,
-    RetrievalQuery,
     EvidenceChunk,
     EvidenceDocument,
     EvidencePackage,
-    create_daily_report_profile,
-    create_weekly_report_profile,
-    create_monthly_report_profile,
-    create_deep_dive_profile,
+    EvidenceType,
+    RecencyDecayConfig,
+    RetrievalFilters,
+    RetrievalProfile,
+    RetrievalProfileType,
+    RetrievalQuery,
+    SourceWeightConfig,
     create_backtest_replay_profile,
+    create_daily_report_profile,
+    create_deep_dive_profile,
+    create_monthly_report_profile,
+    create_weekly_report_profile,
     get_profile,
 )
+from .review_framework import (
+    CognitiveBlackboard,
+    ConflictDetectionSummary,
+    EvidenceReference,
+    ReviewCard,
+    ReviewPosition,
+)
+from .scenarios import ScenarioHypothesis, ScenarioSet
+from .signals import AlphaSignal, EventAlphaSignal, TradeCandidate
+from .timing_engine import EventStudyMetrics, ReadinessScore, TimingFactors
+from .traces import ReasoningTrace
 
 __all__ = [
     "CanonicalId",

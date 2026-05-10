@@ -1,4 +1,3 @@
-
 """
 Timing CLI 命令
 """
@@ -38,13 +37,15 @@ def evaluate(scores: str, signal_id: Optional[str], regime: str):
         scores_data = json.loads(scores)
         model_scores = [
             # We'll just validate the data structure, proper parsing would use Pydantic
-            type("TimingModelScore", (object,), s) for s in scores_data
+            type("TimingModelScore", (object,), s)
+            for s in scores_data
         ]
         # Wait, better to use Pydantic to parse
         from timing_engine import TimingModelScore
+
         parsed_scores = [TimingModelScore(**s) for s in scores_data]
         decision = engine.evaluate(parsed_scores, signal_id=signal_id, market_regime=regime)
-        click.echo(f"\n✓ Timing decision:")
+        click.echo("\n✓ Timing decision:")
         click.echo(f"  Action: {decision.action}")
         click.echo(f"  Readiness score: {decision.readiness_score:.3f}")
         click.echo(f"  Regime: {decision.market_regime}")
@@ -75,4 +76,3 @@ def regime_weights(regime: str):
 
 
 timing = timing_group
-

@@ -1,18 +1,13 @@
 """Memory repository implementation for Memory & Learning module."""
 import json
-from typing import List, Optional, Dict, Union
+from typing import Dict, List, Optional, Union
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from core.observability import get_logger
 from data_layer.repositories.base import BaseRepository
-from memory_learning.contracts import (
-    MarketEpisode,
-    StrategyMemory,
-    AgentMemory,
-    FailureMemory,
-)
+from memory_learning.contracts import AgentMemory, FailureMemory, MarketEpisode, StrategyMemory
 
 logger = get_logger(__name__)
 
@@ -25,7 +20,8 @@ class MemoryRepositoryImpl(BaseRepository):
 
     def save_episode(self, episode: MarketEpisode) -> MarketEpisode:
         """Save a market episode to the database."""
-        query = text("""
+        query = text(
+            """
             INSERT INTO market_episode (
                 episode_id, event_id, event_type, market_regime, initial_reaction,
                 outcome_horizon, outcome_return, outcome_excess_return, timing_action,
@@ -51,7 +47,8 @@ class MemoryRepositoryImpl(BaseRepository):
                 evidence_refs = EXCLUDED.evidence_refs,
                 metadata = EXCLUDED.metadata
             RETURNING episode_id;
-        """)
+        """
+        )
         params = {
             "episode_id": episode.episode_id,
             "event_id": episode.event_id,
@@ -76,14 +73,16 @@ class MemoryRepositoryImpl(BaseRepository):
 
     def get_episode(self, episode_id: str) -> Optional[MarketEpisode]:
         """Get a market episode by ID."""
-        query = text("""
+        query = text(
+            """
             SELECT
                 episode_id, event_id, event_type, market_regime, initial_reaction,
                 outcome_horizon, outcome_return, outcome_excess_return, timing_action,
                 signal_id, timing_decision_id, failed_reason, lesson, evidence_refs, metadata
             FROM market_episode
             WHERE episode_id = :episode_id;
-        """)
+        """
+        )
         result = self.db.execute(query, {"episode_id": episode_id})
         row = result.fetchone()
         if not row:
@@ -125,7 +124,8 @@ class MemoryRepositoryImpl(BaseRepository):
 
         where_clause = "WHERE " + " AND ".join(conditions) if conditions else ""
 
-        query = text(f"""
+        query = text(
+            f"""
             SELECT
                 episode_id, event_id, event_type, market_regime, initial_reaction,
                 outcome_horizon, outcome_return, outcome_excess_return, timing_action,
@@ -134,34 +134,38 @@ class MemoryRepositoryImpl(BaseRepository):
             {where_clause}
             ORDER BY created_at DESC
             LIMIT :limit;
-        """)
+        """
+        )
         params["limit"] = limit
 
         results = self.db.execute(query, params)
         episodes = []
         for row in results:
-            episodes.append(MarketEpisode(
-                episode_id=row[0],
-                event_id=row[1],
-                event_type=row[2],
-                market_regime=row[3],
-                initial_reaction=row[4],
-                outcome_horizon=row[5],
-                outcome_return=float(row[6]),
-                outcome_excess_return=float(row[7]),
-                timing_action=row[8],
-                signal_id=row[9],
-                timing_decision_id=row[10],
-                failed_reason=row[11],
-                lesson=row[12],
-                evidence_refs=json.loads(row[13]) if isinstance(row[13], str) else row[13],
-                metadata=json.loads(row[14]) if isinstance(row[14], str) else row[14],
-            ))
+            episodes.append(
+                MarketEpisode(
+                    episode_id=row[0],
+                    event_id=row[1],
+                    event_type=row[2],
+                    market_regime=row[3],
+                    initial_reaction=row[4],
+                    outcome_horizon=row[5],
+                    outcome_return=float(row[6]),
+                    outcome_excess_return=float(row[7]),
+                    timing_action=row[8],
+                    signal_id=row[9],
+                    timing_decision_id=row[10],
+                    failed_reason=row[11],
+                    lesson=row[12],
+                    evidence_refs=json.loads(row[13]) if isinstance(row[13], str) else row[13],
+                    metadata=json.loads(row[14]) if isinstance(row[14], str) else row[14],
+                )
+            )
         return episodes
 
     def save_strategy(self, strategy: StrategyMemory) -> StrategyMemory:
         """Save a strategy memory to the database."""
-        query = text("""
+        query = text(
+            """
             INSERT INTO strategy_memory (
                 strategy_id, signal_family, market_regime, sample_size,
                 win_rate, average_excess_return, sharpe_ratio, notes
@@ -178,7 +182,8 @@ class MemoryRepositoryImpl(BaseRepository):
                 sharpe_ratio = EXCLUDED.sharpe_ratio,
                 notes = EXCLUDED.notes
             RETURNING strategy_id;
-        """)
+        """
+        )
         params = {
             "strategy_id": strategy.strategy_id,
             "signal_family": strategy.signal_family,
@@ -211,33 +216,38 @@ class MemoryRepositoryImpl(BaseRepository):
 
         where_clause = "WHERE " + " AND ".join(conditions) if conditions else ""
 
-        query = text(f"""
+        query = text(
+            f"""
             SELECT
                 strategy_id, signal_family, market_regime, sample_size,
                 win_rate, average_excess_return, sharpe_ratio, notes
             FROM strategy_memory
             {where_clause}
             ORDER BY created_at DESC;
-        """)
+        """
+        )
 
         results = self.db.execute(query, params)
         strategies = []
         for row in results:
-            strategies.append(StrategyMemory(
-                strategy_id=row[0],
-                signal_family=row[1],
-                market_regime=row[2],
-                sample_size=row[3],
-                win_rate=float(row[4]),
-                average_excess_return=float(row[5]),
-                sharpe_ratio=float(row[6]),
-                notes=json.loads(row[7]) if isinstance(row[7], str) else row[7],
-            ))
+            strategies.append(
+                StrategyMemory(
+                    strategy_id=row[0],
+                    signal_family=row[1],
+                    market_regime=row[2],
+                    sample_size=row[3],
+                    win_rate=float(row[4]),
+                    average_excess_return=float(row[5]),
+                    sharpe_ratio=float(row[6]),
+                    notes=json.loads(row[7]) if isinstance(row[7], str) else row[7],
+                )
+            )
         return strategies
 
     def save_agent_memory(self, memory: AgentMemory) -> AgentMemory:
         """Save an agent memory to the database."""
-        query = text("""
+        query = text(
+            """
             INSERT INTO agent_memory (
                 memory_id, agent_name, agent_role, belief, confidence,
                 support_count, contradiction_count, last_updated_reason
@@ -254,7 +264,8 @@ class MemoryRepositoryImpl(BaseRepository):
                 contradiction_count = EXCLUDED.contradiction_count,
                 last_updated_reason = EXCLUDED.last_updated_reason
             RETURNING memory_id;
-        """)
+        """
+        )
         params = {
             "memory_id": memory.memory_id,
             "agent_name": memory.agent_name,
@@ -287,33 +298,38 @@ class MemoryRepositoryImpl(BaseRepository):
 
         where_clause = "WHERE " + " AND ".join(conditions) if conditions else ""
 
-        query = text(f"""
+        query = text(
+            f"""
             SELECT
                 memory_id, agent_name, agent_role, belief, confidence,
                 support_count, contradiction_count, last_updated_reason
             FROM agent_memory
             {where_clause}
             ORDER BY created_at DESC;
-        """)
+        """
+        )
 
         results = self.db.execute(query, params)
         memories = []
         for row in results:
-            memories.append(AgentMemory(
-                memory_id=row[0],
-                agent_name=row[1],
-                agent_role=row[2],
-                belief=row[3],
-                confidence=float(row[4]),
-                support_count=row[5],
-                contradiction_count=row[6],
-                last_updated_reason=row[7],
-            ))
+            memories.append(
+                AgentMemory(
+                    memory_id=row[0],
+                    agent_name=row[1],
+                    agent_role=row[2],
+                    belief=row[3],
+                    confidence=float(row[4]),
+                    support_count=row[5],
+                    contradiction_count=row[6],
+                    last_updated_reason=row[7],
+                )
+            )
         return memories
 
     def save_failure(self, failure: FailureMemory) -> FailureMemory:
         """Save a failure memory to the database."""
-        query = text("""
+        query = text(
+            """
             INSERT INTO failure_memory (
                 failure_id, source_id, failure_type, root_cause,
                 corrective_action, evidence_refs
@@ -328,7 +344,8 @@ class MemoryRepositoryImpl(BaseRepository):
                 corrective_action = EXCLUDED.corrective_action,
                 evidence_refs = EXCLUDED.evidence_refs
             RETURNING failure_id;
-        """)
+        """
+        )
         params = {
             "failure_id": failure.failure_id,
             "source_id": failure.source_id,
@@ -359,26 +376,30 @@ class MemoryRepositoryImpl(BaseRepository):
 
         where_clause = "WHERE " + " AND ".join(conditions) if conditions else ""
 
-        query = text(f"""
+        query = text(
+            f"""
             SELECT
                 failure_id, source_id, failure_type, root_cause,
                 corrective_action, evidence_refs
             FROM failure_memory
             {where_clause}
             ORDER BY created_at DESC;
-        """)
+        """
+        )
 
         results = self.db.execute(query, params)
         failures = []
         for row in results:
-            failures.append(FailureMemory(
-                failure_id=row[0],
-                source_id=row[1],
-                failure_type=row[2],
-                root_cause=row[3],
-                corrective_action=row[4],
-                evidence_refs=json.loads(row[5]) if isinstance(row[5], str) else row[5],
-            ))
+            failures.append(
+                FailureMemory(
+                    failure_id=row[0],
+                    source_id=row[1],
+                    failure_type=row[2],
+                    root_cause=row[3],
+                    corrective_action=row[4],
+                    evidence_refs=json.loads(row[5]) if isinstance(row[5], str) else row[5],
+                )
+            )
         return failures
 
     def summarize_event_type(self, event_type: str) -> Dict[str, Union[float, int]]:
@@ -391,7 +412,8 @@ class MemoryRepositoryImpl(BaseRepository):
                 - average_excess_return: float
                 - positive_rate: float (proportion of positive outcome returns)
         """
-        query = text("""
+        query = text(
+            """
             SELECT
                 COUNT(*) AS total_episodes,
                 AVG(outcome_return) AS average_return,
@@ -399,7 +421,8 @@ class MemoryRepositoryImpl(BaseRepository):
                 CAST(SUM(CASE WHEN outcome_return > 0 THEN 1 ELSE 0 END) AS FLOAT) / CAST(COUNT(*) AS FLOAT) AS positive_rate
             FROM market_episode
             WHERE event_type = :event_type;
-        """)
+        """
+        )
         result = self.db.execute(query, {"event_type": event_type})
         row = result.fetchone()
 

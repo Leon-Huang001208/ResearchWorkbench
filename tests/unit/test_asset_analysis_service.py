@@ -2,7 +2,6 @@
 from datetime import UTC, datetime
 from unittest.mock import Mock
 
-
 from core.contracts import AssetAnalysisSnapshot
 from core.services.asset_analysis_service import AssetAnalysisService
 

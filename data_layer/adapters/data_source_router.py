@@ -5,12 +5,21 @@ from typing import Any
 from core.contracts import DocumentEnvelope
 from core.contracts.assets import AssetAnalysisSnapshot
 from core.observability import get_logger
-from data_layer.adapters import ChinaStockAdapter, IFinDAdapter, CLSAdapter, CNStockAdapter, ZQAdapter
+from data_layer.adapters import (
+    ChinaStockAdapter,
+    CLSAdapter,
+    CNStockAdapter,
+    IFinDAdapter,
+    ZQAdapter,
+)
 from data_layer.adapters.china_stock.exceptions import ChinaStockPluginError
 from data_layer.adapters.ifind.exceptions import IFinDDatasourceError
+
+
 # AKShare exception placeholder for now
 class AKShareAdapterError(Exception):
     pass
+
 
 logger = get_logger(__name__)
 
@@ -43,7 +52,9 @@ class DataSourceRouter:
             except AkShareAdapterError as e2:
                 logger.warning(f"AkShare adapter failed: {e2}, falling back to China Stock adapter")
                 try:
-                    return await self.china_stock_adapter.fetch_stock_quotes(codes, start_date, end_date)
+                    return await self.china_stock_adapter.fetch_stock_quotes(
+                        codes, start_date, end_date
+                    )
                 except ChinaStockPluginError as e3:
                     logger.error(f"China Stock adapter also failed: {e3}")
                     raise
@@ -81,20 +92,22 @@ class DataSourceRouter:
             except AkShareAdapterError as e2:
                 logger.warning(f"AkShare adapter failed: {e2}, falling back to China Stock adapter")
                 try:
-                    return await self.china_stock_adapter.fetch_fund_flow(codes, start_date, end_date)
+                    return await self.china_stock_adapter.fetch_fund_flow(
+                        codes, start_date, end_date
+                    )
                 except ChinaStockPluginError as e3:
                     logger.error(f"China Stock adapter also failed: {e3}")
                     raise
 
-    async def fetch_industry_classification(
-        self, codes: list[str]
-    ) -> list[AssetAnalysisSnapshot]:
+    async def fetch_industry_classification(self, codes: list[str]) -> list[AssetAnalysisSnapshot]:
         """获取行业分类数据，仅 iFinD 支持"""
         try:
             logger.info("Trying iFinD adapter for industry classification")
             return await self.ifind_adapter.fetch_industry_classification(codes)
         except IFinDDatasourceError as e:
-            logger.error(f"iFinD adapter failed: {e}, China Stock adapter doesn't support industry classification yet")
+            logger.error(
+                f"iFinD adapter failed: {e}, China Stock adapter doesn't support industry classification yet"
+            )
             raise
 
     async def fetch_macro_indicators(
@@ -107,11 +120,15 @@ class DataSourceRouter:
         except IFinDDatasourceError as e:
             logger.warning(f"iFinD adapter failed: {e}, falling back to AkShare adapter")
             try:
-                return await self.akshare_adapter.fetch_macro_indicators(indicators, start_date, end_date)
+                return await self.akshare_adapter.fetch_macro_indicators(
+                    indicators, start_date, end_date
+                )
             except AkShareAdapterError as e2:
                 logger.warning(f"AkShare adapter failed: {e2}, falling back to China Stock adapter")
                 try:
-                    return await self.china_stock_adapter.fetch_macro_indicators(indicators, start_date, end_date)
+                    return await self.china_stock_adapter.fetch_macro_indicators(
+                        indicators, start_date, end_date
+                    )
                 except ChinaStockPluginError as e3:
                     logger.error(f"China Stock adapter also failed: {e3}")
                     raise
@@ -135,10 +152,14 @@ class DataSourceRouter:
                 try:
                     snapshots = []
                     for code in codes:
-                        snapshots.extend(await self.china_stock_adapter.fetch_technical_indicators(code))
+                        snapshots.extend(
+                            await self.china_stock_adapter.fetch_technical_indicators(code)
+                        )
                     return snapshots
                 except ChinaStockPluginError as e3:
-                    logger.error(f"China Stock adapter also failed: {e3}, returning insufficient evidence")
+                    logger.error(
+                        f"China Stock adapter also failed: {e3}, returning insufficient evidence"
+                    )
                     as_of = datetime.now()
                     return [
                         AssetAnalysisSnapshot(
@@ -150,7 +171,10 @@ class DataSourceRouter:
                     ]
 
     async def fetch_sentiment(
-        self, codes: list[str] | None = None, start_date: str | None = None, end_date: str | None = None
+        self,
+        codes: list[str] | None = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
     ) -> list[AssetAnalysisSnapshot]:
         """获取情绪数据，带降级策略"""
         try:
@@ -168,7 +192,9 @@ class DataSourceRouter:
                 try:
                     return await self.china_stock_adapter.fetch_sentiment(codes)
                 except ChinaStockPluginError as e3:
-                    logger.error(f"China Stock adapter also failed: {e3}, returning insufficient evidence")
+                    logger.error(
+                        f"China Stock adapter also failed: {e3}, returning insufficient evidence"
+                    )
                     as_of = datetime.now()
                     target_codes = codes or ["market"]
                     return [

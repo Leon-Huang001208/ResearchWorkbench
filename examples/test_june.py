@@ -40,7 +40,7 @@ def test_entity_resolution():
     # 测试解析
     resolved = resolver.resolve("贵州茅台")
     if resolved:
-        print(f"\n解析结果:")
+        print("\n解析结果:")
         print(f"  ID: {resolved.canonical_id}")
         print(f"  名称: {resolved.canonical_name}")
         print(f"  类型: {resolved.entity_type.value}")
@@ -218,7 +218,7 @@ def test_ingest_service():
     分析师普遍看好公司未来表现。
     """
 
-    print(f"\n摄入文本...")
+    print("\n摄入文本...")
     result = service.ingest_text(
         test_text,
         source_type="report",
@@ -226,7 +226,7 @@ def test_ingest_service():
         title="贵州茅台2026一季报分析",
     )
 
-    print(f"\n摄入结果:")
+    print("\n摄入结果:")
     print(f"  文档ID: {result['doc_id']}")
     print(f"  标题: {result['title']}")
     print(f"  断言提取: {result['assertions_extracted']}")

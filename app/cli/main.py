@@ -3,17 +3,18 @@ from pathlib import Path
 
 import click
 
+from app.cli.commands.akshare import akshare
+
 # 导入子命令
 from app.cli.commands.analyze import analyze
 from app.cli.commands.backtest import backtest
-from app.cli.commands.ingest import ingest, crawl
+from app.cli.commands.ingest import crawl, ingest
 from app.cli.commands.memory import memory
 from app.cli.commands.report import report
 from app.cli.commands.review import review
 from app.cli.commands.scenario import scenario
 from app.cli.commands.signal import signal
 from app.cli.commands.timing import timing
-from app.cli.commands.akshare import akshare
 from core.observability import configure_logging
 
 

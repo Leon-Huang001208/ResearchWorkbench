@@ -5,8 +5,8 @@
 """
 from typing import Any, Optional
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 from core.observability import get_logger
 from signal_lab.features.base import Feature, FeatureGroup
@@ -18,10 +18,7 @@ class PriceChangeFeature(Feature):
     """价格变化特征"""
 
     def __init__(self, periods: int = 1):
-        super().__init__(
-            name=f"price_change_{periods}d",
-            description=f"{periods}日价格变化率"
-        )
+        super().__init__(name=f"price_change_{periods}d", description=f"{periods}日价格变化率")
         self.periods = periods
 
     def compute(self, data: pd.DataFrame, **kwargs: Any) -> pd.Series:
@@ -37,10 +34,7 @@ class MovingAverageFeature(Feature):
     """移动平均特征"""
 
     def __init__(self, window: int):
-        super().__init__(
-            name=f"ma_{window}d",
-            description=f"{window}日移动平均"
-        )
+        super().__init__(name=f"ma_{window}d", description=f"{window}日移动平均")
         self.window = window
 
     def compute(self, data: pd.DataFrame, **kwargs: Any) -> pd.Series:
@@ -55,10 +49,7 @@ class VolatilityFeature(Feature):
     """波动率特征"""
 
     def __init__(self, window: int = 20):
-        super().__init__(
-            name=f"volatility_{window}d",
-            description=f"{window}日波动率"
-        )
+        super().__init__(name=f"volatility_{window}d", description=f"{window}日波动率")
         self.window = window
 
     def compute(self, data: pd.DataFrame, **kwargs: Any) -> pd.Series:
@@ -74,10 +65,7 @@ class VolumeChangeFeature(Feature):
     """成交量变化特征"""
 
     def __init__(self, periods: int = 1):
-        super().__init__(
-            name=f"volume_change_{periods}d",
-            description=f"{periods}日成交量变化率"
-        )
+        super().__init__(name=f"volume_change_{periods}d", description=f"{periods}日成交量变化率")
         self.periods = periods
 
     def compute(self, data: pd.DataFrame, **kwargs: Any) -> pd.Series:
@@ -92,10 +80,7 @@ class VWAPFeature(Feature):
     """成交量加权平均价特征"""
 
     def __init__(self, window: int = 20):
-        super().__init__(
-            name=f"vwap_{window}d",
-            description=f"{window}日成交量加权平均价"
-        )
+        super().__init__(name=f"vwap_{window}d", description=f"{window}日成交量加权平均价")
         self.window = window
 
     def compute(self, data: pd.DataFrame, **kwargs: Any) -> pd.Series:
@@ -115,10 +100,7 @@ class RSI(Feature):
     """相对强弱指标"""
 
     def __init__(self, window: int = 14):
-        super().__init__(
-            name=f"rsi_{window}d",
-            description=f"{window}日RSI指标"
-        )
+        super().__init__(name=f"rsi_{window}d", description=f"{window}日RSI指标")
         self.window = window
 
     def compute(self, data: pd.DataFrame, **kwargs: Any) -> pd.Series:
@@ -138,10 +120,7 @@ class TurnoverRateFeature(Feature):
     """换手率特征"""
 
     def __init__(self, window: int = 20):
-        super().__init__(
-            name=f"turnover_rate_{window}d",
-            description=f"{window}日平均换手率"
-        )
+        super().__init__(name=f"turnover_rate_{window}d", description=f"{window}日平均换手率")
         self.window = window
 
     def compute(self, data: pd.DataFrame, **kwargs: Any) -> pd.Series:
@@ -162,10 +141,7 @@ class AmountFeature(Feature):
     """成交额特征"""
 
     def __init__(self, window: int = 20):
-        super().__init__(
-            name=f"amount_{window}d",
-            description=f"{window}日成交额均值"
-        )
+        super().__init__(name=f"amount_{window}d", description=f"{window}日成交额均值")
         self.window = window
 
     def compute(self, data: pd.DataFrame, **kwargs: Any) -> pd.Series:
@@ -185,10 +161,7 @@ class AbnormalReturnFeature(Feature):
     """事件窗异常收益特征"""
 
     def __init__(self, window: int = 20, benchmark_col: str = "benchmark_return"):
-        super().__init__(
-            name=f"abnormal_return_{window}d",
-            description=f"{window}日事件窗异常收益"
-        )
+        super().__init__(name=f"abnormal_return_{window}d", description=f"{window}日事件窗异常收益")
         self.window = window
         self.benchmark_col = benchmark_col
 
@@ -222,20 +195,22 @@ class PriceVolumeFeatures(FeatureGroup):
             features.append(VolatilityFeature(window))
             features.append(VWAPFeature(window))
 
-        features.extend([
-            PriceChangeFeature(1),
-            PriceChangeFeature(5),
-            PriceChangeFeature(20),
-            VolumeChangeFeature(1),
-            VolumeChangeFeature(5),
-            RSI(14),
-            RSI(28),
-            TurnoverRateFeature(20),
-            TurnoverRateFeature(60),
-            AmountFeature(20),
-            AmountFeature(60),
-            AbnormalReturnFeature(20),
-            AbnormalReturnFeature(60),
-        ])
+        features.extend(
+            [
+                PriceChangeFeature(1),
+                PriceChangeFeature(5),
+                PriceChangeFeature(20),
+                VolumeChangeFeature(1),
+                VolumeChangeFeature(5),
+                RSI(14),
+                RSI(28),
+                TurnoverRateFeature(20),
+                TurnoverRateFeature(60),
+                AmountFeature(20),
+                AmountFeature(60),
+                AbnormalReturnFeature(20),
+                AbnormalReturnFeature(60),
+            ]
+        )
 
         super().__init__("price_volume", features)

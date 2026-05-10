@@ -1,4 +1,4 @@
-from .base import BaseCognitiveAgent, AgentContext
+from .base import AgentContext, BaseCognitiveAgent
 from .factory import AgentFactory
 from .orchestrator import AgentOrchestrator
 

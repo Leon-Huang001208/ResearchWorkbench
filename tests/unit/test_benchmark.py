@@ -15,13 +15,8 @@ from pathlib import Path
 
 import pytest
 
-from benchmarks.SCHEMA import (
-    BenchmarkCase,
-    BenchmarkResult,
-    compute_prf,
-    compute_thesis_similarity,
-)
 from benchmarks.evaluate import evaluate_dataset, load_dataset
+from benchmarks.SCHEMA import BenchmarkCase, BenchmarkResult, compute_prf, compute_thesis_similarity
 
 DATASETS_DIR = Path(__file__).parent.parent.parent / "benchmarks" / "datasets"
 
@@ -149,16 +144,12 @@ class TestGoldDatasetParsing:
     def test_event_extraction_min_count(self) -> None:
         """Event extraction dataset should have at least 20 cases."""
         cases = load_dataset("event_extraction_v1")
-        assert len(cases) >= 20, (
-            f"event_extraction_v1 has only {len(cases)} cases, expected >= 20"
-        )
+        assert len(cases) >= 20, f"event_extraction_v1 has only {len(cases)} cases, expected >= 20"
 
     def test_subject_mapping_min_count(self) -> None:
         """Subject mapping dataset should have at least 15 cases."""
         cases = load_dataset("subject_mapping_v1")
-        assert len(cases) >= 15, (
-            f"subject_mapping_v1 has only {len(cases)} cases, expected >= 15"
-        )
+        assert len(cases) >= 15, f"subject_mapping_v1 has only {len(cases)} cases, expected >= 15"
 
     @pytest.mark.parametrize(
         "dataset_file",
@@ -185,9 +176,9 @@ class TestGoldDatasetParsing:
         valid_types = {"news", "report", "announcement"}
         cases = load_dataset(dataset_file.replace(".jsonl", ""))
         for case in cases:
-            assert case.source_type in valid_types, (
-                f"Invalid source_type '{case.source_type}' in {case.case_id}"
-            )
+            assert (
+                case.source_type in valid_types
+            ), f"Invalid source_type '{case.source_type}' in {case.case_id}"
 
     @pytest.mark.parametrize(
         "dataset_file",
@@ -209,25 +200,23 @@ class TestGoldDatasetParsing:
         }
         cases = load_dataset(dataset_file.replace(".jsonl", ""))
         for case in cases:
-            assert case.gold.event_type in valid_types, (
-                f"Invalid event_type '{case.gold.event_type}' in {case.case_id}"
-            )
+            assert (
+                case.gold.event_type in valid_types
+            ), f"Invalid event_type '{case.gold.event_type}' in {case.case_id}"
 
     def test_event_extraction_covers_multiple_event_types(self) -> None:
         """Event extraction should cover at least 5 distinct event types."""
         cases = load_dataset("event_extraction_v1")
         event_types = {c.gold.event_type for c in cases}
-        assert len(event_types) >= 5, (
-            f"Only {len(event_types)} event types covered: {event_types}"
-        )
+        assert len(event_types) >= 5, f"Only {len(event_types)} event types covered: {event_types}"
 
     def test_event_extraction_covers_multiple_source_types(self) -> None:
         """Event extraction should cover at least 2 distinct source types."""
         cases = load_dataset("event_extraction_v1")
         source_types = {c.source_type for c in cases}
-        assert len(source_types) >= 2, (
-            f"Only {len(source_types)} source types covered: {source_types}"
-        )
+        assert (
+            len(source_types) >= 2
+        ), f"Only {len(source_types)} source types covered: {source_types}"
 
 
 # ── Evaluation script tests ──────────────────────────────────────────────

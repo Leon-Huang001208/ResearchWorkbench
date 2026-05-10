@@ -13,8 +13,9 @@ sys.path.insert(0, str(project_root))
 import numpy as np
 import pandas as pd
 
-from core.services import SignalService
 from core.observability import get_logger
+from core.services import SignalService
+from signal_lab.backtests import SimpleBacktester
 from signal_lab.features import FeatureBuilder
 from signal_lab.features.groups import (
     FinancialFeatures,
@@ -24,7 +25,6 @@ from signal_lab.features.groups import (
 )
 from signal_lab.labels import RelativeReturnLabeler
 from signal_lab.scoring import SignalRanker
-from signal_lab.backtests import SimpleBacktester
 
 logger = get_logger(__name__)
 
@@ -81,7 +81,7 @@ def demo_feature_engineering(prices: pd.DataFrame):
     features = builder.compute_features(prices)
 
     print(f"\n特征数据形状: {features.shape}")
-    print(f"\n最新特征值:")
+    print("\n最新特征值:")
     latest = features.iloc[-1].dropna()
     for name, value in latest.head(10).items():
         print(f"  {name}: {value:.4f}")
@@ -98,7 +98,7 @@ def demo_label_generation(prices: pd.DataFrame):
     labeler = RelativeReturnLabeler(horizon=20, forward=True)
     labels = labeler.compute(prices)
 
-    print(f"\n标签统计:")
+    print("\n标签统计:")
     print(f"  样本数: {len(labels.dropna())}")
     print(f"  均值: {labels.mean():.4%}")
     print(f"  标准差: {labels.std():.4%}")
@@ -166,7 +166,7 @@ def demo_signal_ranking(service: SignalService):
 
     ranked = ranker.rank(signals)
 
-    print(f"\n信号排名:")
+    print("\n信号排名:")
     for signal, score, rank in ranked:
         print(f"  {rank}. {signal.subject_id} - 综合评分: {score:.3f}")
 
@@ -187,7 +187,7 @@ def demo_backtesting(prices: pd.DataFrame, service: SignalService):
     signals = list(service.signals.values())
     result = backtester.run(prices, signals)
 
-    print(f"\n回测结果:")
+    print("\n回测结果:")
     print(f"  总收益率:    {result.total_return:>10.2%}")
     print(f"  年化收益率:  {result.annual_return:>10.2%}")
     print(f"  波动率:      {result.volatility:>10.2%}")
@@ -226,7 +226,7 @@ def main():
     try:
         # 1. 生成示例数据
         prices = generate_sample_prices()
-        print(f"\n示例数据:")
+        print("\n示例数据:")
         print(f"  期间: {prices.index[0]} 至 {prices.index[-1]}")
         print(f"  交易日: {len(prices)}")
         print(f"  起始价格: {prices['close'].iloc[0]:.2f}")

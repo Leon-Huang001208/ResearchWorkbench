@@ -1,15 +1,17 @@
 """Test the temporal industry graph implementation"""
-import pytest
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from uuid import uuid4
+
+import pytest
 from sqlalchemy import text
+
 from core.contracts.events import CanonicalEvent
 from knowledge_layer.graph_projection.contracts import (
+    IndustryChain,
+    PropagationPath,
     RelationshipType,
     SupplyChainPosition,
     TemporalRelation,
-    IndustryChain,
-    PropagationPath,
 )
 from knowledge_layer.graph_projection.graph_store import IndustryGraphStore
 from knowledge_layer.graph_projection.propagation import PropagationAnalyzer
@@ -104,11 +106,19 @@ class TestIndustryGraphStore:
         store = IndustryGraphStore()
         # e1 supplies e2, e2 supplies e3
         rel1 = TemporalRelation(
-            relation_id="rel1", from_entity_id="e1", to_entity_id="e2",
-            relationship_type=RelationshipType.SUPPLIES, strength=0.8)
+            relation_id="rel1",
+            from_entity_id="e1",
+            to_entity_id="e2",
+            relationship_type=RelationshipType.SUPPLIES,
+            strength=0.8,
+        )
         rel2 = TemporalRelation(
-            relation_id="rel2", from_entity_id="e2", to_entity_id="e3",
-            relationship_type=RelationshipType.SUPPLIES, strength=0.8)
+            relation_id="rel2",
+            from_entity_id="e2",
+            to_entity_id="e3",
+            relationship_type=RelationshipType.SUPPLIES,
+            strength=0.8,
+        )
         store.add_relation(rel1)
         store.add_relation(rel2)
 
@@ -124,11 +134,19 @@ class TestIndustryGraphStore:
         store = IndustryGraphStore()
         # Create chain e1 -> e2 -> e3
         rel1 = TemporalRelation(
-            relation_id="rel1", from_entity_id="e1", to_entity_id="e2",
-            relationship_type=RelationshipType.SUPPLIES, strength=0.8)
+            relation_id="rel1",
+            from_entity_id="e1",
+            to_entity_id="e2",
+            relationship_type=RelationshipType.SUPPLIES,
+            strength=0.8,
+        )
         rel2 = TemporalRelation(
-            relation_id="rel2", from_entity_id="e2", to_entity_id="e3",
-            relationship_type=RelationshipType.SUPPLIES, strength=0.8)
+            relation_id="rel2",
+            from_entity_id="e2",
+            to_entity_id="e3",
+            relationship_type=RelationshipType.SUPPLIES,
+            strength=0.8,
+        )
         store.add_relation(rel1)
         store.add_relation(rel2)
 
@@ -184,7 +202,9 @@ class TestGraphRepositorySQLite:
         engine = create_engine("sqlite:///:memory:")
         # Create tables manually for SQLite test
         with engine.connect() as conn:
-            conn.execute(text("""
+            conn.execute(
+                text(
+                    """
                 CREATE TABLE temporal_relation (
                     relation_id TEXT PRIMARY KEY,
                     from_entity_id TEXT NOT NULL,
@@ -199,8 +219,12 @@ class TestGraphRepositorySQLite:
                     evidence_refs JSON DEFAULT ('[]'),
                     created_at TIMESTAMP
                 )
-            """))
-            conn.execute(text("""
+            """
+                )
+            )
+            conn.execute(
+                text(
+                    """
                 CREATE TABLE industry_chain (
                     chain_id TEXT PRIMARY KEY,
                     name TEXT NOT NULL,
@@ -211,7 +235,9 @@ class TestGraphRepositorySQLite:
                     created_at TIMESTAMP,
                     updated_at TIMESTAMP
                 )
-            """))
+            """
+                )
+            )
             conn.commit()
 
         Session = sessionmaker(bind=engine)
@@ -240,14 +266,18 @@ class TestGraphRepositorySQLite:
     def test_find_relations_by_industry(self, repo):
         relation1 = TemporalRelation(
             relation_id=f"rel1_{uuid4().hex[:8]}",
-            from_entity_id="e1", to_entity_id="e2",
-            relationship_type=RelationshipType.SUPPLIES, strength=0.5,
+            from_entity_id="e1",
+            to_entity_id="e2",
+            relationship_type=RelationshipType.SUPPLIES,
+            strength=0.5,
             industry="energy",
         )
         relation2 = TemporalRelation(
             relation_id=f"rel2_{uuid4().hex[:8]}",
-            from_entity_id="e3", to_entity_id="e4",
-            relationship_type=RelationshipType.SUPPLIES, strength=0.5,
+            from_entity_id="e3",
+            to_entity_id="e4",
+            relationship_type=RelationshipType.SUPPLIES,
+            strength=0.5,
             industry="semiconductor",
         )
         repo.add_temporal_relation(relation1)

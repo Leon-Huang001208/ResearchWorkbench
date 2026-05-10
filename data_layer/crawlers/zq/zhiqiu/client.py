@@ -1,15 +1,13 @@
-import os
-import re
 import json
 import logging
-import requests
+import os
+import re
 from typing import Optional
+
+import requests
+
+from .anti_scrape import AntiScrapeConfig, AntiScrapeManager, get_manager
 from .utils import rsa_encrypt
-from .anti_scrape import (
-    get_manager,
-    AntiScrapeConfig,
-    AntiScrapeManager
-)
 
 
 class ZhiQiuClient:
@@ -47,7 +45,9 @@ class ZhiQiuClient:
     PROMPT_FOCUS_COMPANIES = "提取该研报中重点关注、推荐或分析的上市公司名称，列出股票代码和公司名称"
     PROMPT_SUMMARY = "提取该研报对{{search}}未来发展的核心预期与策略建议"
 
-    def __init__(self, username: str, password: str, anti_scrape_config: Optional[AntiScrapeConfig] = None):
+    def __init__(
+        self, username: str, password: str, anti_scrape_config: Optional[AntiScrapeConfig] = None
+    ):
         self.username = username
         self.password = password
         self.session = requests.Session()
@@ -60,26 +60,20 @@ class ZhiQiuClient:
         """RSA加密登录"""
         # 访问首页获取cookie
         self.anti_scrape.before_request(is_ai_request=False)
-        headers = self.anti_scrape.get_headers({
-            "user-agent": self.USER_AGENT
-        })
-        self.session.get(
-            f"{self.BASE_URL}/newreport/index.htm",
-            headers=headers
-        )
+        headers = self.anti_scrape.get_headers({"user-agent": self.USER_AGENT})
+        self.session.get(f"{self.BASE_URL}/newreport/index.htm", headers=headers)
         self.anti_scrape.after_success()
 
         # 获取RSA公钥
         self.anti_scrape.before_request(is_ai_request=False)
-        headers = self.anti_scrape.get_headers({
-            "user-agent": self.USER_AGENT,
-            "referer": f"{self.BASE_URL}/newreport/index.htm",
-            "x-requested-with": "XMLHttpRequest"
-        })
-        pre_resp = self.session.post(
-            f"{self.BASE_URL}/user/loginPre.json",
-            headers=headers
+        headers = self.anti_scrape.get_headers(
+            {
+                "user-agent": self.USER_AGENT,
+                "referer": f"{self.BASE_URL}/newreport/index.htm",
+                "x-requested-with": "XMLHttpRequest",
+            }
         )
+        pre_resp = self.session.post(f"{self.BASE_URL}/user/loginPre.json", headers=headers)
         if pre_resp.status_code != 200:
             self.logger.error(f"loginPre.json 请求失败，状态码: {pre_resp.status_code}")
             return False
@@ -101,21 +95,23 @@ class ZhiQiuClient:
             "password_f": "",
             "j_captcha_response": "",
             "remember_name": "1",
-            "btn_submit": "买方用户email方式登录成功"
+            "btn_submit": "买方用户email方式登录成功",
         }
 
         self.anti_scrape.before_request(is_ai_request=False)
-        headers = self.anti_scrape.get_headers({
-            "user-agent": self.USER_AGENT,
-            "origin": self.BASE_URL,
-            "referer": f"{self.BASE_URL}/newreport/index.htm",
-            "content-type": "application/x-www-form-urlencoded"
-        })
+        headers = self.anti_scrape.get_headers(
+            {
+                "user-agent": self.USER_AGENT,
+                "origin": self.BASE_URL,
+                "referer": f"{self.BASE_URL}/newreport/index.htm",
+                "content-type": "application/x-www-form-urlencoded",
+            }
+        )
         resp = self.session.post(
             f"{self.BASE_URL}/user/login.htm",
             data=login_data,
             headers=headers,
-            allow_redirects=True
+            allow_redirects=True,
         )
 
         if "REPORT_SESSION_COOKIE" in self.session.cookies:
@@ -135,20 +131,24 @@ class ZhiQiuClient:
         # AI 请求前的延迟
         self.anti_scrape.before_request(is_ai_request=True)
 
-        headers = self.anti_scrape.get_headers({
-            "accept": "text/event-stream",
-            "content-type": "application/json; charset=UTF-8",
-            "origin": self.BASE_URL,
-            "referer": f"{self.BASE_URL}/newweb/zqpdf/pdf.html?fileid={obj_id}&docType=REPORT",
-            "user-agent": self.USER_AGENT
-        }, obj_id=obj_id, is_pdf=False)
+        headers = self.anti_scrape.get_headers(
+            {
+                "accept": "text/event-stream",
+                "content-type": "application/json; charset=UTF-8",
+                "origin": self.BASE_URL,
+                "referer": f"{self.BASE_URL}/newweb/zqpdf/pdf.html?fileid={obj_id}&docType=REPORT",
+                "user-agent": self.USER_AGENT,
+            },
+            obj_id=obj_id,
+            is_pdf=False,
+        )
 
         response = self.session.post(
             f"{self.BASE_URL}/semantics/docqa.json",
             headers=headers,
             json={"query": query, "docId": obj_id, "docType": "REPORT", "history": []},
             stream=True,
-            timeout=30
+            timeout=30,
         )
 
         self.logger.info(f"提问 {obj_id}: {query[:30]}...")
@@ -187,7 +187,7 @@ class ZhiQiuClient:
         search: str = "",
         doccolumns: str = "3",
         brokers: str = "",
-        hyperSearchField: str = "title"
+        hyperSearchField: str = "title",
     ) -> dict | None:
         """看研报搜索：fulltext_report_news_search.json"""
         if not self._logged_in:
@@ -204,23 +204,25 @@ class ZhiQiuClient:
             "hyperSearchField": hyperSearchField,
             "sortByTime": "true",
             "newsDealSpecialDocColumn": "true",
-            "timeOut": "200"
+            "timeOut": "200",
         }
 
         self.anti_scrape.before_request(is_ai_request=False)
 
-        headers = self.anti_scrape.get_headers({
-            "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
-            "origin": self.BASE_URL,
-            "referer": f"{self.BASE_URL}/newreport/newReportSearch.htm",
-            "user-agent": self.USER_AGENT,
-            "x-requested-with": "XMLHttpRequest"
-        })
+        headers = self.anti_scrape.get_headers(
+            {
+                "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
+                "origin": self.BASE_URL,
+                "referer": f"{self.BASE_URL}/newreport/newReportSearch.htm",
+                "user-agent": self.USER_AGENT,
+                "x-requested-with": "XMLHttpRequest",
+            }
+        )
 
         response = self.session.post(
             f"{self.BASE_URL}/newsadapter/fulltextsearch/fulltext_report_news_search.json",
             headers=headers,
-            data=payload
+            data=payload,
         )
 
         if response.status_code != 200:
@@ -230,7 +232,7 @@ class ZhiQiuClient:
 
         try:
             json_data = response.json()
-            count = len(json_data.get('reports', {}).get('reportAttachMap', {}))
+            count = len(json_data.get("reports", {}).get("reportAttachMap", {}))
             self.logger.info(f"研报数量: {count}")
             self.anti_scrape.after_success()
             return json_data
@@ -283,18 +285,17 @@ class ZhiQiuClient:
                     # PDF 下载前的延迟
                     self.anti_scrape.before_request(is_ai_request=False)
 
-                    headers = self.anti_scrape.get_headers({
-                        "user-agent": self.USER_AGENT,
-                        "referer": pdf_page_url,
-                        "accept": "application/pdf,*/*"
-                    }, obj_id=obj_id, is_pdf=True)
-
-                    resp = self.session.get(
-                        download_url,
-                        headers=headers,
-                        stream=True,
-                        timeout=60
+                    headers = self.anti_scrape.get_headers(
+                        {
+                            "user-agent": self.USER_AGENT,
+                            "referer": pdf_page_url,
+                            "accept": "application/pdf,*/*",
+                        },
+                        obj_id=obj_id,
+                        is_pdf=True,
                     )
+
+                    resp = self.session.get(download_url, headers=headers, stream=True, timeout=60)
 
                     if resp.status_code == 200:
                         # 检查是否为 PDF（前几个字节应该是 %PDF）
@@ -326,7 +327,7 @@ class ZhiQiuClient:
     def _sanitize_filename(self, filename: str) -> str:
         """清理文件名中的非法字符"""
         invalid_chars = r'[<>:"/\\|?*]'
-        filename = re.sub(invalid_chars, '_', filename)
+        filename = re.sub(invalid_chars, "_", filename)
         # 限制文件名长度
         if len(filename) > 200:
             name, ext = os.path.splitext(filename)
@@ -338,15 +339,12 @@ class ZhiQiuClient:
         try:
             # 通过访问搜索页面验证登录状态
             self.anti_scrape.before_request(is_ai_request=False)
-            headers = self.anti_scrape.get_headers({
-                "user-agent": self.USER_AGENT,
-                "referer": f"{self.BASE_URL}/newreport/index.htm"
-            })
+            headers = self.anti_scrape.get_headers(
+                {"user-agent": self.USER_AGENT, "referer": f"{self.BASE_URL}/newreport/index.htm"}
+            )
 
             response = self.session.get(
-                f"{self.BASE_URL}/newreport/newReportSearch.htm",
-                headers=headers,
-                timeout=30
+                f"{self.BASE_URL}/newreport/newReportSearch.htm", headers=headers, timeout=30
             )
 
             self.anti_scrape.after_success()
@@ -358,11 +356,7 @@ class ZhiQiuClient:
             if is_logged_in and response.status_code == 200:
                 return {"success": True, "status_code": 200}
             else:
-                return {
-                    "success": False,
-                    "status_code": response.status_code,
-                    "text": text
-                }
+                return {"success": False, "status_code": response.status_code, "text": text}
         except Exception as e:
             self.anti_scrape.after_failure()
             return {"success": False, "error": str(e)}
@@ -377,7 +371,7 @@ class ZhiQiuClient:
         page: int = 1,
         page_size: int = 50,
         hyper_search_fields: str = "title",
-        sort_by_time: bool = True
+        sort_by_time: bool = True,
     ) -> dict | None:
         """
         首页搜索：fulltext_search.json
@@ -412,7 +406,7 @@ class ZhiQiuClient:
             "timeOut": "200",
             "sortByTime": "true" if sort_by_time else "false",
             "clickFrom": "0",
-            "errorCollect": "true"
+            "errorCollect": "true",
         }
 
         # 日期参数处理
@@ -439,12 +433,14 @@ class ZhiQiuClient:
             else:
                 form_data["type"] = str(doc_types)
 
-        headers = self.anti_scrape.get_headers({
-            "user-agent": self.USER_AGENT,
-            "origin": self.BASE_URL,
-            "referer": f"{self.BASE_URL}/newreport/newReportSearch.htm",
-            "x-requested-with": "XMLHttpRequest"
-        })
+        headers = self.anti_scrape.get_headers(
+            {
+                "user-agent": self.USER_AGENT,
+                "origin": self.BASE_URL,
+                "referer": f"{self.BASE_URL}/newreport/newReportSearch.htm",
+                "x-requested-with": "XMLHttpRequest",
+            }
+        )
 
         # 使用 requests 的 files 参数发送 multipart/form-data
         # 注意：这里用 files 但实际上是发送表单字段
@@ -453,7 +449,7 @@ class ZhiQiuClient:
         response = self.session.post(
             f"{self.BASE_URL}/newsadapter/fulltextsearch/fulltext_search.json",
             headers=headers,
-            files=files
+            files=files,
         )
 
         if response.status_code != 200:
@@ -467,7 +463,7 @@ class ZhiQiuClient:
             json_data = self._convert_new_format(json_data)
 
             # 统计报告数量
-            report_attach_map = json_data.get('reports', {}).get('reportAttachMap', {})
+            report_attach_map = json_data.get("reports", {}).get("reportAttachMap", {})
             count = len(report_attach_map)
             self.logger.info(f"新接口研报数量: {count}")
             self.anti_scrape.after_success()
@@ -496,12 +492,16 @@ class ZhiQiuClient:
             return {
                 "reports": {
                     "reportAttachMap": new_data.get("reportAttachMap", {}),
-                    "reports": new_data.get("reports", [])
+                    "reports": new_data.get("reports", []),
                 }
             }
 
         # 兜底返回
-        return new_data if "reports" in new_data else {"reports": {"reportAttachMap": {}, "reports": []}}
+        return (
+            new_data
+            if "reports" in new_data
+            else {"reports": {"reportAttachMap": {}, "reports": []}}
+        )
 
     def search_homepage_all_pages(
         self,
@@ -513,7 +513,7 @@ class ZhiQiuClient:
         page_size: int = 50,
         hyper_search_fields: str = "title",
         sort_by_time: bool = True,
-        max_pages: int = 20
+        max_pages: int = 20,
     ) -> dict:
         """
         获取全部页的内容，直到遇到重复或没有更多数据
@@ -549,7 +549,7 @@ class ZhiQiuClient:
                 page=page,
                 page_size=page_size,
                 hyper_search_fields=hyper_search_fields,
-                sort_by_time=sort_by_time
+                sort_by_time=sort_by_time,
             )
 
             if not result:
@@ -557,7 +557,7 @@ class ZhiQiuClient:
                 break
 
             # 获取当前页的报告列表
-            reports = result.get('reports', {}).get('reports', [])
+            reports = result.get("reports", {}).get("reports", [])
 
             if not reports:
                 consecutive_empty += 1
@@ -573,7 +573,7 @@ class ZhiQiuClient:
 
             for report in reports:
                 # 获取报告ID
-                report_id = report.get('id') or report.get('objId') or report.get('OBJID')
+                report_id = report.get("id") or report.get("objId") or report.get("OBJID")
 
                 if not report_id:
                     continue
@@ -599,12 +599,7 @@ class ZhiQiuClient:
         self.logger.info(f"总共获取了 {len(all_reports)} 条数据，共 {page - 1} 页")
 
         # 构建返回数据
-        return {
-            "reports": {
-                "reportAttachMap": {},
-                "reports": all_reports
-            }
-        }
+        return {"reports": {"reportAttachMap": {}, "reports": all_reports}}
 
     def get_meeting_detail(self, obj_id: str) -> dict | None:
         """
@@ -621,25 +616,22 @@ class ZhiQiuClient:
 
         self.anti_scrape.before_request(is_ai_request=False)
 
-        form_data = {
-            "id": str(obj_id),
-            "exData": "true"
-        }
+        form_data = {"id": str(obj_id), "exData": "true"}
 
-        headers = self.anti_scrape.get_headers({
-            "user-agent": self.USER_AGENT,
-            "origin": self.BASE_URL,
-            "referer": f"{self.BASE_URL}/newweb/zqsite/#/intelligentMeetingDetail?id={obj_id}",
-            "x-requested-with": "XMLHttpRequest"
-        })
+        headers = self.anti_scrape.get_headers(
+            {
+                "user-agent": self.USER_AGENT,
+                "origin": self.BASE_URL,
+                "referer": f"{self.BASE_URL}/newweb/zqsite/#/intelligentMeetingDetail?id={obj_id}",
+                "x-requested-with": "XMLHttpRequest",
+            }
+        )
 
         files = {k: (None, v) for k, v in form_data.items()}
 
         try:
             response = self.session.post(
-                f"{self.BASE_URL}/meeting/getMeetingDetail.json",
-                headers=headers,
-                files=files
+                f"{self.BASE_URL}/meeting/getMeetingDetail.json", headers=headers, files=files
             )
 
             if response.status_code != 200:

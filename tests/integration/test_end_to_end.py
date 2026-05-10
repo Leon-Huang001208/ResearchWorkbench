@@ -12,8 +12,8 @@ from core.contracts import CanonicalEvent
 from core.services.ingest_service import IngestService
 from core.services.review_service import ReviewService
 from core.services.scenario_service import ScenarioService
-from data_layer.repositories.base import Base
 from data_layer.repositories.assertion_repository import AssertionRepositoryImpl
+from data_layer.repositories.base import Base
 from data_layer.repositories.event_repository import EventRepositoryImpl
 from knowledge_layer.retrieval import InMemoryVectorStore
 
@@ -115,9 +115,7 @@ class TestEndToEndPipeline:
         assert result2["doc_id"] is not None
 
         # 测试情景生成（不依赖真实 LLM）
-        scenario_set = scenario_service.generate_scenario_set(
-            topic="人工智能和新能源汽车产业发展"
-        )
+        scenario_set = scenario_service.generate_scenario_set(topic="人工智能和新能源汽车产业发展")
 
         assert scenario_set is not None
         assert scenario_set.question == "人工智能和新能源汽车产业发展"
@@ -131,10 +129,12 @@ class TestEndToEndPipeline:
 
         # 创建临时文件
         with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
-            f.write("""
+            f.write(
+                """
             腾讯控股2026年Q1业绩发布，游戏收入增长强劲。
             云业务持续向好，金融科技板块表现稳定。
-            """)
+            """
+            )
             temp_path = Path(f.name)
 
         try:
@@ -236,9 +236,7 @@ class TestIngestToReviewEndToEnd:
         pending_events = review_service.list_pending_events()
 
         # 至少应该有一些事件（规则提取总会生成事件）
-        assert len(pending_events) > 0 or len(pending_assertions) > 0, (
-            "审核队列应该至少包含一个待审核项目"
-        )
+        assert len(pending_events) > 0 or len(pending_assertions) > 0, "审核队列应该至少包含一个待审核项目"
 
         # 验证统计信息
         stats = review_service.get_statistics()

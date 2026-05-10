@@ -5,20 +5,22 @@
 - 导入真实历史价格数据
 """
 import sys
-from pathlib import Path
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from data_layer.repositories.base import ensure_schema, SessionLocal
-from data_layer.repositories.models import StockPriceData
 from core.observability import get_logger
+from data_layer.repositories.base import SessionLocal, ensure_schema
+from data_layer.repositories.models import StockPriceData
 
 logger = get_logger(__name__)
 
 
-def generate_realistic_price_data(code: str, base_date: datetime, base_price: float, days: int = 90):
+def generate_realistic_price_data(
+    code: str, base_date: datetime, base_price: float, days: int = 90
+):
     """
     生成真实的历史价格数据（基于实际市场波动模式）
     使用真实的价格波动特征：趋势+波动+成交量相关性
@@ -31,10 +33,10 @@ def generate_realistic_price_data(code: str, base_date: datetime, base_price: fl
 
     # 预定义一些真实的市场模式
     trends = [
-        {"name": "bull", "bias": 0.0015, "vol": 0.025},   # 慢牛
-        {"name": "bear", "bias": -0.0012, "vol": 0.022}, # 慢熊
-        {"name": "sideways", "bias": 0.0, "vol": 0.018}, # 震荡
-        {"name": "volatile", "bias": 0.0005, "vol": 0.035}, # 高波动
+        {"name": "bull", "bias": 0.0015, "vol": 0.025},  # 慢牛
+        {"name": "bear", "bias": -0.0012, "vol": 0.022},  # 慢熊
+        {"name": "sideways", "bias": 0.0, "vol": 0.018},  # 震荡
+        {"name": "volatile", "bias": 0.0005, "vol": 0.035},  # 高波动
     ]
 
     # 选择一个趋势模式
@@ -63,16 +65,18 @@ def generate_realistic_price_data(code: str, base_date: datetime, base_price: fl
         vol_multiplier = 1 + abs(change) * 10
         volume = base_volume * vol_multiplier * random.uniform(0.6, 1.5)
 
-        prices.append({
-            "code": code,
-            "date": current_date.strftime("%Y-%m-%d"),
-            "open": round(open_price, 2),
-            "high": round(high_price, 2),
-            "low": round(low_price, 2),
-            "close": round(close_price, 2),
-            "volume": round(volume),
-            "turnover": round(volume * close_price / 100_000_000, 2),  # 亿元
-        })
+        prices.append(
+            {
+                "code": code,
+                "date": current_date.strftime("%Y-%m-%d"),
+                "open": round(open_price, 2),
+                "high": round(high_price, 2),
+                "low": round(low_price, 2),
+                "close": round(close_price, 2),
+                "volume": round(volume),
+                "turnover": round(volume * close_price / 100_000_000, 2),  # 亿元
+            }
+        )
 
         current_date += timedelta(days=1)
 
@@ -109,9 +113,7 @@ def main():
             print(f"[2/4] 导入 {stock['name']}({stock['code']}) 数据...")
 
             # 检查是否已有数据
-            existing = db.query(StockPriceData).filter(
-                StockPriceData.code == stock["code"]
-            ).count()
+            existing = db.query(StockPriceData).filter(StockPriceData.code == stock["code"]).count()
 
             if existing > 0:
                 print(f"  - 已有 {existing} 条数据，跳过")
@@ -119,10 +121,7 @@ def main():
 
             # 生成并插入真实历史数据
             prices = generate_realistic_price_data(
-                stock["code"],
-                base_date,
-                stock["base_price"],
-                days=120
+                stock["code"], base_date, stock["base_price"], days=120
             )
 
             for p in prices:
@@ -137,7 +136,7 @@ def main():
                     close=p["close"],
                     volume=p["volume"],
                     turnover=p["turnover"],
-                    data_source="historical"
+                    data_source="historical",
                 )
                 db.add(db_price)
 
@@ -150,9 +149,7 @@ def main():
         # 3. 验证数据
         print("[4/4] 验证数据库...")
         for stock in stocks:
-            count = db.query(StockPriceData).filter(
-                StockPriceData.code == stock["code"]
-            ).count()
+            count = db.query(StockPriceData).filter(StockPriceData.code == stock["code"]).count()
             print(f"  - {stock['name']}: {count} 条")
 
         print("\n" + "=" * 80)
@@ -165,6 +162,7 @@ def main():
         db.rollback()
         print(f"\n✗ 错误: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 

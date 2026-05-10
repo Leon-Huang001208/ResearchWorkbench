@@ -1,10 +1,11 @@
-
 """AkShare API 封装层 - 直接调用 akshare Python 包"""
+import json
 import os
 import time
-import json
+
 import pandas as pd
 import requests
+
 from core.observability import get_logger
 from data_layer.adapters.akshare.exceptions import (
     AkShareClientError,
@@ -18,7 +19,9 @@ try:
     import akshare as ak
 except ImportError:
     logger.error("akshare package not installed")
-    raise AkShareClientError("akshare package not installed, please install with pip install akshare")
+    raise AkShareClientError(
+        "akshare package not installed, please install with pip install akshare"
+    )
 
 
 class AkShareClient:
@@ -26,7 +29,7 @@ class AkShareClient:
 
     def __init__(self):
         # 清除代理环境变量，避免 Shadowrocket fake-ip 劫持
-        for k in ['http_proxy', 'https_proxy', 'HTTP_PROXY', 'HTTPS_PROXY']:
+        for k in ["http_proxy", "https_proxy", "HTTP_PROXY", "HTTPS_PROXY"]:
             os.environ.pop(k, None)
         self._rate_limit_delay = 0.1  # 100ms 延迟防止触发频率限制
 
@@ -39,7 +42,14 @@ class AkShareClient:
         else:
             return f"sz{symbol}"
 
-    def _fetch_sina_kline(self, symbol: str, period: str = "daily", start_date: str = "", end_date: str = "", adjust: str = "") -> pd.DataFrame:
+    def _fetch_sina_kline(
+        self,
+        symbol: str,
+        period: str = "daily",
+        start_date: str = "",
+        end_date: str = "",
+        adjust: str = "",
+    ) -> pd.DataFrame:
         """获取新浪日K线数据"""
         code = self._convert_code(symbol, "sina")
         # 新浪 scale 参数：240=日K
@@ -64,14 +74,16 @@ class AkShareClient:
                 return pd.DataFrame()
             df = pd.DataFrame(data)
             # 重命名列以匹配 akshare 格式
-            df = df.rename(columns={
-                "day": "日期",
-                "open": "开盘",
-                "high": "最高",
-                "low": "最低",
-                "close": "收盘",
-                "volume": "成交量"
-            })
+            df = df.rename(
+                columns={
+                    "day": "日期",
+                    "open": "开盘",
+                    "high": "最高",
+                    "low": "最低",
+                    "close": "收盘",
+                    "volume": "成交量",
+                }
+            )
             # 转换日期格式为 YYYYMMDD
             df["日期"] = df["日期"].str.replace("-", "")
             # 转换数值列为 float
@@ -87,7 +99,14 @@ class AkShareClient:
             logger.warning(f"Failed to fetch Sina kline for {symbol}: {e}")
             raise
 
-    def _fetch_tencent_kline(self, symbol: str, period: str = "daily", start_date: str = "", end_date: str = "", adjust: str = "") -> pd.DataFrame:
+    def _fetch_tencent_kline(
+        self,
+        symbol: str,
+        period: str = "daily",
+        start_date: str = "",
+        end_date: str = "",
+        adjust: str = "",
+    ) -> pd.DataFrame:
         """获取腾讯日K线数据"""
         code = self._convert_code(symbol, "tencent")
         # 腾讯 period 参数：day/week/month
@@ -102,7 +121,11 @@ class AkShareClient:
         t_start = f"{start_date[:4]}-{start_date[4:6]}-{start_date[6:8]}" if start_date else ""
         t_end = f"{end_date[:4]}-{end_date[4:6]}-{end_date[6:8]}" if end_date else ""
         # 获取最近1000条
-        param = f"{code},{tencent_period},{t_start},{t_end},1000,{fq_type}" if fq_type else f"{code},{tencent_period},{t_start},{t_end},1000"
+        param = (
+            f"{code},{tencent_period},{t_start},{t_end},1000,{fq_type}"
+            if fq_type
+            else f"{code},{tencent_period},{t_start},{t_end},1000"
+        )
         url = f"https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={param}"
         try:
             time.sleep(self._rate_limit_delay)
@@ -142,16 +165,29 @@ class AkShareClient:
             except Exception as e:
                 retries += 1
                 if "频率" in str(e) or "rate limit" in str(e).lower():
-                    logger.warning(f"Hit AkShare rate limit, retrying after delay... (attempt {retries}/{max_retries})")
+                    logger.warning(
+                        f"Hit AkShare rate limit, retrying after delay... (attempt {retries}/{max_retries})"
+                    )
                     time.sleep(self._rate_limit_delay * 2 * retries)
                     if retries >= max_retries:
-                        raise AkShareRateLimitError("AkShare rate limit exceeded after retries") from e
+                        raise AkShareRateLimitError(
+                            "AkShare rate limit exceeded after retries"
+                        ) from e
                 else:
-                    logger.error(f"AkShare client error: {e}, retrying... (attempt {retries}/{max_retries})")
+                    logger.error(
+                        f"AkShare client error: {e}, retrying... (attempt {retries}/{max_retries})"
+                    )
                     if retries >= max_retries:
                         raise AkShareClientError(f"AkShare client failed after retries: {e}") from e
 
-    def get_stock_hist(self, symbol: str, period: str = "daily", start_date: str = "", end_date: str = "", adjust: str = "") -> pd.DataFrame:
+    def get_stock_hist(
+        self,
+        symbol: str,
+        period: str = "daily",
+        start_date: str = "",
+        end_date: str = "",
+        adjust: str = "",
+    ) -> pd.DataFrame:
         """
         获取股票历史行情数据
         :param symbol: 股票代码
@@ -161,7 +197,9 @@ class AkShareClient:
         :param adjust: 复权类型：qfq/hfq/""
         :return: DataFrame
         """
-        logger.debug(f"Fetching stock hist for {symbol}, period={period}, start={start_date}, end={end_date}")
+        logger.debug(
+            f"Fetching stock hist for {symbol}, period={period}, start={start_date}, end={end_date}"
+        )
         # 先尝试新浪接口
         try:
             logger.debug("Trying Sina kline API...")
@@ -189,7 +227,7 @@ class AkShareClient:
                 period=period,
                 start_date=start_date,
                 end_date=end_date,
-                adjust=adjust
+                adjust=adjust,
             )
             return df
         except Exception as e:
@@ -324,4 +362,3 @@ class AkShareClient:
             except Exception as e2:
                 logger.error(f"Fallback also failed: {e2}")
                 raise AkShareDataError("Failed to get industry board list") from e
-

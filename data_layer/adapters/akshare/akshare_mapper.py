@@ -1,4 +1,3 @@
-
 """AkShare 数据映射器 - AkShare 原始数据 → AssetAnalysisSnapshot"""
 import hashlib
 import json
@@ -163,9 +162,7 @@ class AkShareMapper:
         )
         return [snapshot]
 
-    def map_macro(
-        self, raw_data: dict[str, Any], as_of: datetime
-    ) -> list[AssetAnalysisSnapshot]:
+    def map_macro(self, raw_data: dict[str, Any], as_of: datetime) -> list[AssetAnalysisSnapshot]:
         """映射宏观数据"""
         macro_exposure = {
             "cpi_yoy": raw_data.get("cpi_yoy"),
@@ -193,4 +190,3 @@ class AkShareMapper:
         """生成数据指纹"""
         data_str = json.dumps(data, sort_keys=True, default=str)
         return hashlib.sha256(data_str.encode()).hexdigest()
-

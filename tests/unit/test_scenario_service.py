@@ -3,7 +3,6 @@
 """
 from unittest.mock import Mock, patch
 
-
 from core.services.scenario_service import ScenarioService
 
 

@@ -1,17 +1,18 @@
 """
 产业链图谱集成测试 - 测试GraphStore + PropagationAnalyzer联合工作
 """
-import pytest
-from datetime import datetime
 import uuid
+from datetime import datetime
+
+import pytest
 
 from core.contracts import CanonicalEvent
 from knowledge_layer.graph_projection import IndustryGraphStore, PropagationAnalyzer
 from knowledge_layer.graph_projection.contracts import (
-    TemporalRelation,
     IndustryChain,
     RelationshipType,
     SupplyChainPosition,
+    TemporalRelation,
 )
 
 
@@ -92,9 +93,7 @@ def create_test_event(impact_direction="positive"):
         impact_direction=impact_direction,
         confidence=0.8,
         needs_review=False,
-        entities=[
-            {"text": "Lithium", "entity_id": "entity:lithium", "type": "commodity"}
-        ],
+        entities=[{"text": "Lithium", "entity_id": "entity:lithium", "type": "commodity"}],
         evidence_spans=[{"text": "Lithium price decreases 15%"}],
         source_doc_id="doc-test-001",
         reviewer_status="approved",
@@ -235,9 +234,7 @@ class TestGraphStorePropagationIntegration:
         entity_ids = [node["entity_id"] for node in path.path]
         assert "entity:lithium" in entity_ids[0]
 
-    def test_time_filter_affects_propagation(
-        self, graph_store, analyzer, sample_automotive_chain
-    ):
+    def test_time_filter_affects_propagation(self, graph_store, analyzer, sample_automotive_chain):
         """测试时间过滤影响传播分析结果"""
         # Expire the battery to nev relation in 2022
         rels = graph_store.find_relations(from_entity="entity:battery")

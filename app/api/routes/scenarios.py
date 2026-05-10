@@ -1,13 +1,14 @@
 """情景分析路由"""
-from fastapi import APIRouter, Depends, HTTPException
 from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException
 
 from app.api.models import (
     ErrorResponse,
     ScenarioEvidence,
+    ScenarioHypothesisResponse,
     ScenarioRequest,
     ScenarioResponse,
-    ScenarioHypothesisResponse,
 )
 from core.contracts import ScenarioSet
 from core.observability import get_logger
@@ -110,7 +111,9 @@ async def generate_scenarios(
                         # 共享同一份 enriched_data，实际场景中每个假设可能有不同证据
                         pass
             except Exception as exc:
-                logger.warning("failed to enrich scenario with real data, using fallback", error=str(exc))
+                logger.warning(
+                    "failed to enrich scenario with real data, using fallback", error=str(exc)
+                )
 
         return _scenario_set_to_response(scenario_set, enriched_data)
     except Exception as e:

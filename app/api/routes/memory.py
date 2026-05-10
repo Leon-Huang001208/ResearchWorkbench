@@ -1,15 +1,10 @@
 """Memory & Learning API 路由"""
-from typing import Optional, Any
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.api.models import ErrorResponse
-from memory_learning.contracts import (
-    MarketEpisode,
-    StrategyMemory,
-    AgentMemory,
-    FailureMemory,
-)
+from memory_learning.contracts import AgentMemory, FailureMemory, MarketEpisode, StrategyMemory
 from memory_learning.journal import LearningJournal
 from memory_learning.pattern_learner import PatternLearner
 
@@ -48,6 +43,7 @@ async def record_episode(
         return journal.record_episode(episode)
     except Exception as e:
         from core.observability import get_logger
+
         logger = get_logger(__name__)
         logger.error("Failed to record episode", error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
@@ -99,6 +95,7 @@ async def record_strategy(
         return journal.record_strategy(strategy)
     except Exception as e:
         from core.observability import get_logger
+
         logger = get_logger(__name__)
         logger.error("Failed to record strategy memory", error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
@@ -134,6 +131,7 @@ async def record_agent_memory(
         return journal.record_agent_memory(memory)
     except Exception as e:
         from core.observability import get_logger
+
         logger = get_logger(__name__)
         logger.error("Failed to record agent memory", error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
@@ -169,6 +167,7 @@ async def record_failure(
         return journal.record_failure(failure)
     except Exception as e:
         from core.observability import get_logger
+
         logger = get_logger(__name__)
         logger.error("Failed to record failure memory", error=str(e))
         raise HTTPException(status_code=500, detail=str(e))

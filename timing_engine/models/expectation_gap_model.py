@@ -1,8 +1,7 @@
-
 """预期差模型。"""
 from core.observability import get_logger
-
 from timing_engine.contracts import TimingModelScore
+
 from .base import BaseTimingModel, TimingContext
 
 logger = get_logger(__name__)
@@ -23,7 +22,9 @@ class ExpectationGapModel(BaseTimingModel):
             confidence = 0.7
             evidence_refs.append("agent_views")
             # Example: count number of agents with contrarian views
-            contrarian_count = sum(1 for view in context.agent_views if view.get("contrarian", False))
+            contrarian_count = sum(
+                1 for view in context.agent_views if view.get("contrarian", False)
+            )
             if contrarian_count > len(context.agent_views) / 2:
                 score = 0.8
                 rationale = "High expectation gap: many contrarian views"
@@ -59,4 +60,3 @@ class ExpectationGapModel(BaseTimingModel):
             rationale=rationale,
             evidence_refs=evidence_refs,
         )
-

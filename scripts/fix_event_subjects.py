@@ -42,8 +42,10 @@ def main():
         print("\nFinal events:")
         events = db.query(CanonicalEvent).all()
         for event in events:
-            print(f"  [{event.event_type}] {event.summary[:30]}... "
-                  f"→ {event.payload.get('subject_ids', [])}")
+            print(
+                f"  [{event.event_type}] {event.summary[:30]}... "
+                f"→ {event.payload.get('subject_ids', [])}"
+            )
 
         return 0
 

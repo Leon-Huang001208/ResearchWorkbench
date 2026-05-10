@@ -3,9 +3,9 @@ Tests for Issue #42: AlphaFoundry v1 Document Schema.
 
 测试统一文档 schema 的核心功能。
 """
+import sys
 from datetime import datetime
 from pathlib import Path
-import sys
 
 import pytest
 
@@ -14,17 +14,29 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from core.contracts import (
-    DocumentV1, DocumentChunkV1, DocumentTagV1, DocumentSummaryV1,
-    EntityMentionV1, DocumentEventV1, CrawlRunV1, SourceCursorV1, ReportRunV1,
-    SourceType, DocType, SourceReliabilityLevel, SubjectivityLevel,
-    DocumentClassification, DocumentQuality, DocumentTimeliness
+    CrawlRunV1,
+    DocType,
+    DocumentChunkV1,
+    DocumentClassification,
+    DocumentEventV1,
+    DocumentQuality,
+    DocumentSummaryV1,
+    DocumentTagV1,
+    DocumentTimeliness,
+    DocumentV1,
+    EntityMentionV1,
+    ReportRunV1,
+    SourceCursorV1,
+    SourceReliabilityLevel,
+    SourceType,
+    SubjectivityLevel,
 )
 from core.utils.id_gen import generate_id
-
 
 # =============================================================================
 # Test DocumentV1 Pydantic Model
 # =============================================================================
+
 
 def test_document_v1_creation():
     """测试创建 DocumentV1 模型"""
@@ -110,6 +122,7 @@ def test_document_v1_model_dump():
 # =============================================================================
 # Test Supporting Models
 # =============================================================================
+
 
 def test_document_chunk_v1():
     """测试文档分块模型"""
@@ -262,6 +275,7 @@ def test_report_run_v1():
 # Integration Tests: Repository
 # =============================================================================
 
+
 @pytest.mark.integration
 def test_document_v1_repository_basic():
     """
@@ -271,9 +285,8 @@ def test_document_v1_repository_basic():
     """
     # 这里只验证我们可以导入 Repository
     try:
-        from data_layer.repositories.documents_v1 import (
-            DocumentV1Repository,
-        )
+        from data_layer.repositories.documents_v1 import DocumentV1Repository
+
         # 验证导入成功
         assert True
     except ImportError:
@@ -283,6 +296,7 @@ def test_document_v1_repository_basic():
 # =============================================================================
 # Test Enum Values
 # =============================================================================
+
 
 def test_doc_type_enum():
     """测试 DocType 枚举"""
@@ -323,6 +337,7 @@ def test_subjectivity_level():
 # Test Examples
 # =============================================================================
 
+
 def test_document_v1_example():
     """测试文档示例"""
     # 使用 model_config 中的示例数据结构
@@ -359,4 +374,3 @@ if __name__ == "__main__":
     print("✓ test_doc_type_enum passed")
 
     print("\n✅ All basic tests passed!")
-

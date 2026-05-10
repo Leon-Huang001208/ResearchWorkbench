@@ -30,6 +30,7 @@ class HybridPriceAdapter:
         if self._akshare_adapter is None:
             try:
                 from data_layer.adapters.akshare_adapter import AKShareAdapter
+
                 self._akshare_adapter = AKShareAdapter()
                 self._akshare_available = True
             except Exception as e:
@@ -37,12 +38,7 @@ class HybridPriceAdapter:
                 self._akshare_available = False
         return self._akshare_adapter
 
-    async def fetch_stock_quotes(
-        self,
-        code: str,
-        start_date: str,
-        end_date: str
-    ) -> List[dict]:
+    async def fetch_stock_quotes(self, code: str, start_date: str, end_date: str) -> List[dict]:
         """
         获取股票历史行情
 
@@ -85,11 +81,16 @@ class HybridPriceAdapter:
         """从本地数据库获取缓存数据"""
         db = SessionLocal()
         try:
-            records = db.query(StockPriceData).filter(
-                StockPriceData.code == code,
-                StockPriceData.date >= start_date,
-                StockPriceData.date <= end_date
-            ).order_by(StockPriceData.date).all()
+            records = (
+                db.query(StockPriceData)
+                .filter(
+                    StockPriceData.code == code,
+                    StockPriceData.date >= start_date,
+                    StockPriceData.date <= end_date,
+                )
+                .order_by(StockPriceData.date)
+                .all()
+            )
 
             return [
                 {
@@ -119,9 +120,9 @@ class HybridPriceAdapter:
                 price_id = f"{item['code']}_{item['date']}"
 
                 # 检查是否已存在
-                existing = db.query(StockPriceData).filter(
-                    StockPriceData.price_id == price_id
-                ).first()
+                existing = (
+                    db.query(StockPriceData).filter(StockPriceData.price_id == price_id).first()
+                )
 
                 if not existing:
                     db_price = StockPriceData(
@@ -134,7 +135,7 @@ class HybridPriceAdapter:
                         close=item["close"],
                         volume=item.get("volume"),
                         turnover=item.get("turnover"),
-                        data_source=source
+                        data_source=source,
                     )
                     db.add(db_price)
                     inserted += 1
@@ -160,9 +161,7 @@ class HybridPriceAdapter:
         db = SessionLocal()
         try:
             # 检查是否已有数据
-            existing = db.query(StockPriceData).filter(
-                StockPriceData.code == code
-            ).count()
+            existing = db.query(StockPriceData).filter(StockPriceData.code == code).count()
 
             if existing > 0:
                 logger.info(f"Cache already has {existing} records for {code}")
@@ -177,7 +176,7 @@ class HybridPriceAdapter:
 
             # 市场波动参数（基于真实A股统计）
             daily_vol = 0.022  # 年化波动率约35%
-            drift = 0.0005    # 日均收益
+            drift = 0.0005  # 日均收益
 
             for _ in range(150):
                 # 跳过周末
@@ -202,16 +201,18 @@ class HybridPriceAdapter:
                 vol_mult = 1 + abs(daily_return) * 12
                 volume = base_vol * vol_mult * random.uniform(0.5, 1.5)
 
-                prices.append({
-                    "code": code,
-                    "date": current_date.strftime("%Y-%m-%d"),
-                    "open": round(open_p, 2),
-                    "high": round(high_p, 2),
-                    "low": round(low_p, 2),
-                    "close": round(close_p, 2),
-                    "volume": round(volume),
-                    "turnover": round(volume * close_p / 100_000_000, 2),
-                })
+                prices.append(
+                    {
+                        "code": code,
+                        "date": current_date.strftime("%Y-%m-%d"),
+                        "open": round(open_p, 2),
+                        "high": round(high_p, 2),
+                        "low": round(low_p, 2),
+                        "close": round(close_p, 2),
+                        "volume": round(volume),
+                        "turnover": round(volume * close_p / 100_000_000, 2),
+                    }
+                )
 
                 current_date += timedelta(days=1)
 

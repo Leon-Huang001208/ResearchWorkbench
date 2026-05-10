@@ -25,7 +25,7 @@ class ZQAdapter(BaseDataAdapter):
         start_date: str | None = None,
         end_date: str | None = None,
         output_dir: str = "./data/crawlers/zq",
-        **kwargs
+        **kwargs,
     ) -> list[DocumentEnvelope]:
         """爬取知丘内容,返回 DocumentEnvelope 列表"""
         logger.info(
@@ -36,11 +36,8 @@ class ZQAdapter(BaseDataAdapter):
         config_path = kwargs.get(
             "config_path",
             os.path.join(
-                os.path.dirname(os.path.dirname(__file__)),
-                "crawlers",
-                "zq",
-                "config.yaml"
-            )
+                os.path.dirname(os.path.dirname(__file__)), "crawlers", "zq", "config.yaml"
+            ),
         )
 
         # Parse doc_types into list
@@ -51,11 +48,23 @@ class ZQAdapter(BaseDataAdapter):
         for doc_type in doc_type_list:
             try:
                 if doc_type == "REPORT":
-                    envelopes.extend(self._fetch_reports(search, start_date, end_date, output_dir, config_path, **kwargs))
+                    envelopes.extend(
+                        self._fetch_reports(
+                            search, start_date, end_date, output_dir, config_path, **kwargs
+                        )
+                    )
                 elif doc_type == "NEWS":
-                    envelopes.extend(self._fetch_news(search, start_date, end_date, output_dir, config_path, **kwargs))
+                    envelopes.extend(
+                        self._fetch_news(
+                            search, start_date, end_date, output_dir, config_path, **kwargs
+                        )
+                    )
                 elif doc_type == "ZQMEETING":
-                    envelopes.extend(self._fetch_meetings(search, start_date, end_date, output_dir, config_path, **kwargs))
+                    envelopes.extend(
+                        self._fetch_meetings(
+                            search, start_date, end_date, output_dir, config_path, **kwargs
+                        )
+                    )
                 else:
                     logger.warning(f"Unsupported ZQ doc type: {doc_type}")
             except Exception as e:
@@ -71,10 +80,10 @@ class ZQAdapter(BaseDataAdapter):
         end_date: str | None,
         output_dir: str,
         config_path: str,
-        **kwargs
+        **kwargs,
     ) -> list[DocumentEnvelope]:
         """Fetch ZQ reports"""
-        from data_layer.crawlers.zq.report import ReportFetcher, ReportConfig
+        from data_layer.crawlers.zq.report import ReportConfig, ReportFetcher
 
         config = ReportConfig(
             config_path=config_path,
@@ -118,10 +127,10 @@ class ZQAdapter(BaseDataAdapter):
         end_date: str | None,
         output_dir: str,
         config_path: str,
-        **kwargs
+        **kwargs,
     ) -> list[DocumentEnvelope]:
         """Fetch ZQ news (公众号)"""
-        from data_layer.crawlers.zq.news import NewsFetcher, NewsConfig
+        from data_layer.crawlers.zq.news import NewsConfig, NewsFetcher
 
         config = NewsConfig(
             config_path=config_path,
@@ -161,10 +170,10 @@ class ZQAdapter(BaseDataAdapter):
         end_date: str | None,
         output_dir: str,
         config_path: str,
-        **kwargs
+        **kwargs,
     ) -> list[DocumentEnvelope]:
         """Fetch ZQ meetings (纪要)"""
-        from data_layer.crawlers.zq.meeting import MeetingFetcher, MeetingConfig
+        from data_layer.crawlers.zq.meeting import MeetingConfig, MeetingFetcher
 
         config = MeetingConfig(
             config_path=config_path,
@@ -233,7 +242,11 @@ class ZQAdapter(BaseDataAdapter):
                 or source.get("content", "")
                 or source.get("summary", "")
             )
-            date_str = source.get("date", "") or source.get("publish_time", "") or source.get("created_at", "")
+            date_str = (
+                source.get("date", "")
+                or source.get("publish_time", "")
+                or source.get("created_at", "")
+            )
             published_at = None
             if date_str:
                 date_str = date_str.strip()
@@ -252,7 +265,9 @@ class ZQAdapter(BaseDataAdapter):
                         published_at = datetime.strptime(date_str, fmt)
                         # 只有日期的话补00:00:00
                         if fmt in ["%Y-%m-%d", "%Y/%m/%d"]:
-                            published_at = published_at.replace(hour=0, minute=0, second=0, microsecond=0)
+                            published_at = published_at.replace(
+                                hour=0, minute=0, second=0, microsecond=0
+                            )
                         break
                     except ValueError:
                         continue

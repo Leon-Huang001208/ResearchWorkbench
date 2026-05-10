@@ -200,5 +200,6 @@ class IFinDMapper:
     def _hash_data(self, data: dict | list) -> str:
         """生成数据指纹"""
         import json
+
         data_str = json.dumps(data, sort_keys=True)
         return hashlib.sha256(data_str.encode()).hexdigest()

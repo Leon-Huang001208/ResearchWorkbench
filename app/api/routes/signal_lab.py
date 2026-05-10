@@ -17,8 +17,10 @@ router = APIRouter(prefix="/api/signal-lab", tags=["signal-lab"])
 
 # ============ 数据模型 ============
 
+
 class FeatureComputeRequest(BaseModel):
     """特征计算请求"""
+
     subject_id: str
     start_date: Optional[str] = None
     end_date: Optional[str] = None
@@ -28,6 +30,7 @@ class FeatureComputeRequest(BaseModel):
 
 class LabelComputeRequest(BaseModel):
     """标签计算请求"""
+
     subject_id: str
     label_type: str = "relative_return"
     horizon: int = 20
@@ -37,6 +40,7 @@ class LabelComputeRequest(BaseModel):
 
 class BacktestRequest(BaseModel):
     """回测请求"""
+
     signal_ids: Optional[List[str]] = None
     start_date: Optional[str] = None
     end_date: Optional[str] = None
@@ -45,11 +49,13 @@ class BacktestRequest(BaseModel):
 
 class ScoreSignalRequest(BaseModel):
     """信号评分请求"""
+
     signal_id: str
     scorer_types: Optional[List[str]] = None
 
 
 # ============ 路由 ============
+
 
 @router.get("/features/groups")
 async def list_feature_groups() -> Dict[str, Any]:
@@ -61,12 +67,12 @@ async def list_feature_groups() -> Dict[str, Any]:
     """
     try:
         from signal_lab.features.groups import (
-            PriceVolumeFeatures,
-            ValuationFeatures,
             FinancialFeatures,
             FundFlowFeatures,
             IndustryFeatures,
             MacroFeatures,
+            PriceVolumeFeatures,
+            ValuationFeatures,
         )
 
         groups = {
@@ -123,12 +129,12 @@ async def compute_features(request: FeatureComputeRequest) -> Dict[str, Any]:
     try:
         from signal_lab.features.builder import FeatureBuilder
         from signal_lab.features.groups import (
-            PriceVolumeFeatures,
-            ValuationFeatures,
             FinancialFeatures,
             FundFlowFeatures,
             IndustryFeatures,
             MacroFeatures,
+            PriceVolumeFeatures,
+            ValuationFeatures,
         )
 
         # 构建特征
@@ -153,21 +159,25 @@ async def compute_features(request: FeatureComputeRequest) -> Dict[str, Any]:
         # 获取价格数据
         try:
             from data_layer.adapters.multi_source_adapter import MultiSourcePriceAdapter
+
             price_adapter = MultiSourcePriceAdapter()
         except Exception:
             from data_layer.adapters.hybrid_price_adapter import HybridPriceAdapter
+
             price_adapter = HybridPriceAdapter()
 
         # 设置日期范围
         end_date = request.end_date or datetime.now().strftime("%Y-%m-%d")
         if not request.start_date:
             from datetime import timedelta
+
             start_date = (datetime.now() - timedelta(days=120)).strftime("%Y-%m-%d")
         else:
             start_date = request.start_date
 
         # 获取价格数据
         import asyncio
+
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
@@ -182,6 +192,7 @@ async def compute_features(request: FeatureComputeRequest) -> Dict[str, Any]:
 
         # 转换为 DataFrame
         import pandas as pd
+
         df = pd.DataFrame(quotes)
         df["date"] = pd.to_datetime(df["date"])
         df = df.sort_values("date").set_index("date")
@@ -251,21 +262,25 @@ async def compute_labels(request: LabelComputeRequest) -> Dict[str, Any]:
         # 获取价格数据
         try:
             from data_layer.adapters.multi_source_adapter import MultiSourcePriceAdapter
+
             price_adapter = MultiSourcePriceAdapter()
         except Exception:
             from data_layer.adapters.hybrid_price_adapter import HybridPriceAdapter
+
             price_adapter = HybridPriceAdapter()
 
         # 设置日期范围
         end_date = request.end_date or datetime.now().strftime("%Y-%m-%d")
         if not request.start_date:
             from datetime import timedelta
+
             start_date = (datetime.now() - timedelta(days=180)).strftime("%Y-%m-%d")
         else:
             start_date = request.start_date
 
         # 获取价格数据
         import asyncio
+
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
@@ -280,12 +295,14 @@ async def compute_labels(request: LabelComputeRequest) -> Dict[str, Any]:
 
         # 转换为 DataFrame
         import pandas as pd
+
         df = pd.DataFrame(quotes)
         df["date"] = pd.to_datetime(df["date"])
         df = df.sort_values("date").set_index("date")
 
         # 计算标签
         from signal_lab.labels import RelativeReturnLabeler
+
         labeler = RelativeReturnLabeler(horizon=request.horizon, forward=True)
         labels = labeler.compute(df)
 
@@ -353,13 +370,14 @@ async def get_backtest_result(signal_id: str) -> Dict[str, Any]:
     """
     try:
         from sqlalchemy import text
+
         from data_layer.repositories.base import SessionLocal
 
         db = SessionLocal()
         try:
             result = db.execute(
                 text("SELECT * FROM signal_outcome WHERE signal_id = :signal_id"),
-                {"signal_id": signal_id}
+                {"signal_id": signal_id},
             ).fetchone()
 
             if not result:
@@ -367,6 +385,7 @@ async def get_backtest_result(signal_id: str) -> Dict[str, Any]:
 
             # 转换为字典
             import json
+
             outcome_dict = dict(result._mapping)
             if outcome_dict.get("metadata"):
                 outcome_dict["metadata"] = json.loads(outcome_dict["metadata"])
@@ -427,6 +446,7 @@ async def get_signal_lab_summary() -> Dict[str, Any]:
     try:
         # 获取统计信息
         from sqlalchemy import text
+
         from data_layer.repositories.base import SessionLocal
         from data_layer.repositories.models import AlphaSignalDB
 
@@ -441,21 +461,21 @@ async def get_signal_lab_summary() -> Dict[str, Any]:
 
             # 特征统计
             from signal_lab.features.groups import (
-                PriceVolumeFeatures,
-                ValuationFeatures,
                 FinancialFeatures,
                 FundFlowFeatures,
                 IndustryFeatures,
                 MacroFeatures,
+                PriceVolumeFeatures,
+                ValuationFeatures,
             )
 
             total_features = (
-                len(PriceVolumeFeatures().get_feature_names()) +
-                len(ValuationFeatures().get_feature_names()) +
-                len(FinancialFeatures().get_feature_names()) +
-                len(FundFlowFeatures().get_feature_names()) +
-                len(IndustryFeatures().get_feature_names()) +
-                len(MacroFeatures().get_feature_names())
+                len(PriceVolumeFeatures().get_feature_names())
+                + len(ValuationFeatures().get_feature_names())
+                + len(FinancialFeatures().get_feature_names())
+                + len(FundFlowFeatures().get_feature_names())
+                + len(IndustryFeatures().get_feature_names())
+                + len(MacroFeatures().get_feature_names())
             )
 
             return {

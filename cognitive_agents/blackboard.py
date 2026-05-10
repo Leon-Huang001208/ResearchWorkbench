@@ -59,9 +59,7 @@ class CognitiveBlackboard:
         conflicts: list[BlackboardConflict] = []
         for key, views in self._group_by_target_event(self._views.values()).items():
             eligible = [
-                view
-                for view in views
-                if view.confidence >= self.conflict_confidence_threshold
+                view for view in views if view.confidence >= self.conflict_confidence_threshold
             ]
             bullish = [view for view in eligible if view.view == "bullish"]
             bearish = [view for view in eligible if view.view == "bearish"]
@@ -114,19 +112,19 @@ class CognitiveBlackboard:
         if not self._views:
             logger.debug("No views on blackboard, skipping agent memory application")
             return
-        
+
         # Build a memory index by agent name + role
         memory_index: dict[tuple[str, str], AgentMemory] = {}
         for memory in agent_memories:
             key = (memory.agent_name, memory.agent_role)
             memory_index[key] = memory
-        
+
         # Iterate over views and adjust confidence
         for view_id, view in self._views.items():
             key = (view.agent_name, view.agent_role)
             if key not in memory_index:
                 continue
-            
+
             memory = memory_index[key]
             # If contradiction count > support count, reduce confidence
             if memory.contradiction_count > memory.support_count:
@@ -143,7 +141,10 @@ class CognitiveBlackboard:
                     view=view.view,
                     thesis=view.thesis,
                     confidence=new_confidence,
-                    reasoning=view.reasoning + [f"Adjusted confidence from {original_confidence:.2f} to {new_confidence:.2f} based on agent memory (contradictions > supports)"],
+                    reasoning=view.reasoning
+                    + [
+                        f"Adjusted confidence from {original_confidence:.2f} to {new_confidence:.2f} based on agent memory (contradictions > supports)"
+                    ],
                     evidence_refs=view.evidence_refs,
                     metadata=view.metadata,
                 )

@@ -1,11 +1,11 @@
 """
 数据摄入 CLI 命令
 """
+import asyncio
 from pathlib import Path
 from typing import Optional
 
 import click
-import asyncio
 
 from core.contracts import SourceType
 from core.observability import get_logger
@@ -89,10 +89,7 @@ def ingest_cls_command(days: int, start_date: str, end_date: str, output_dir: st
     async def _fetch():
         router = DataSourceRouter()
         envelopes = await router.fetch_news_cls(
-            days=days,
-            start_date=start_date,
-            end_date=end_date,
-            output_dir=output_dir
+            days=days, start_date=start_date, end_date=end_date, output_dir=output_dir
         )
         return envelopes
 
@@ -130,10 +127,7 @@ def ingest_cnstock_command(start_date: str, end_date: str, channel: str, output_
     async def _fetch():
         router = DataSourceRouter()
         envelopes = await router.fetch_news_cnstock(
-            start_date=start_date,
-            end_date=end_date,
-            channel=channel,
-            output_dir=output_dir
+            start_date=start_date, end_date=end_date, channel=channel, output_dir=output_dir
         )
         return envelopes
 
@@ -158,13 +152,17 @@ def ingest_cnstock_command(start_date: str, end_date: str, channel: str, output_
 
 @ingest_group.command(name="zq")
 @click.option("--search", type=str, required=True, help="搜索关键词")
-@click.option("--doc-types", type=str, default="REPORT", help="文档类型 (REPORT, NEWS, ZQMEETING, 默认: REPORT)")
+@click.option(
+    "--doc-types", type=str, default="REPORT", help="文档类型 (REPORT, NEWS, ZQMEETING, 默认: REPORT)"
+)
 @click.option("--start-date", type=str, help="开始日期 (YYYY-MM-DD)")
 @click.option("--end-date", type=str, help="结束日期 (YYYY-MM-DD)")
 @click.option("--output-dir", type=str, default="./data/crawlers/zq", help="输出目录")
 def ingest_zq_command(search: str, doc_types: str, start_date: str, end_date: str, output_dir: str):
     """摄入知丘内容 (研报/公众号/纪要)"""
-    click.echo(f"Ingesting ZQ content: search={search}, doc_types={doc_types}, start={start_date}, end={end_date}")
+    click.echo(
+        f"Ingesting ZQ content: search={search}, doc_types={doc_types}, start={start_date}, end={end_date}"
+    )
 
     async def _fetch():
         router = DataSourceRouter()
@@ -173,7 +171,7 @@ def ingest_zq_command(search: str, doc_types: str, start_date: str, end_date: st
             doc_types=doc_types,
             start_date=start_date,
             end_date=end_date,
-            output_dir=output_dir
+            output_dir=output_dir,
         )
         return envelopes
 
@@ -213,12 +211,16 @@ def crawl_group():
 
 
 @crawl_group.command(name="run")
-@click.option("--source", "-s", type=str, required=True, help="来源类型 (cls, cnstock, zq_reports, etc.)")
+@click.option(
+    "--source", "-s", type=str, required=True, help="来源类型 (cls, cnstock, zq_reports, etc.)"
+)
 @click.option("--days", type=int, default=1, help="抓取最近几天的数据 (默认 1 天)")
 @click.option("--max-docs", type=int, help="最大文档数")
 @click.option("--no-dedup", is_flag=True, help="禁用地重")
 @click.option("--no-backfill", is_flag=True, help="禁用补漏")
-def crawl_run_command(source: str, days: int, max_docs: Optional[int], no_dedup: bool, no_backfill: bool):
+def crawl_run_command(
+    source: str, days: int, max_docs: Optional[int], no_dedup: bool, no_backfill: bool
+):
     """
     运行单次采集任务
 
@@ -337,7 +339,7 @@ def crawl_status_command(source: Optional[str]):
 
                 if status.get("latest_run"):
                     run = status["latest_run"]
-                    click.echo(f"Latest run:")
+                    click.echo("Latest run:")
                     click.echo(f"  Status: {run.get('status')}")
                     click.echo(f"  Started: {run.get('started_at')}")
                     click.echo(f"  Completed: {run.get('completed_at')}")
@@ -346,7 +348,7 @@ def crawl_status_command(source: Optional[str]):
 
                 if status.get("cursor"):
                     cursor = status["cursor"]
-                    click.echo(f"\nCursor:")
+                    click.echo("\nCursor:")
                     click.echo(f"  Last crawl: {cursor.get('last_successful_crawl_time')}")
                     click.echo(f"  Last doc ID: {cursor.get('last_source_doc_id')}")
                     click.echo(f"  Consecutive failures: {cursor.get('consecutive_failures')}")
@@ -400,6 +402,7 @@ def crawl_scheduler_start_command():
 
         # 保持运行
         import time
+
         try:
             while True:
                 time.sleep(1)

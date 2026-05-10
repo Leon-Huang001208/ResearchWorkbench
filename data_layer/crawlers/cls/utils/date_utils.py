@@ -2,10 +2,9 @@
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
 
+
 def parse_and_validate_date_range(
-    start_date_str: Optional[str] = None,
-    end_date_str: Optional[str] = None,
-    default_days: int = 2
+    start_date_str: Optional[str] = None, end_date_str: Optional[str] = None, default_days: int = 2
 ) -> Tuple[datetime, datetime]:
     """统一解析和验证日期范围"""
     # 设置默认结束日期

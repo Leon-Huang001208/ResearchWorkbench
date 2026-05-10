@@ -41,7 +41,7 @@ This is a test.
 Another line with trailing spaces
 """
     normalized = normalizer.normalize(test_text)
-    print(f"\nText normalization test:")
+    print("\nText normalization test:")
     print(f"Input: {repr(test_text)}")
     print(f"Output: {repr(normalized)}")
     print("✓ TextNormalizer works")
@@ -61,7 +61,7 @@ def test_date_normalizer():
         "20240115",
     ]
 
-    print(f"\nDate normalization test:")
+    print("\nDate normalization test:")
     for test_date in test_cases:
         result = normalizer.normalize_to_str(test_date)
         print(f"  {test_date:20s} -> {result}")

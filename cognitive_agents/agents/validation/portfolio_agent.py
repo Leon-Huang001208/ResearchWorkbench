@@ -1,16 +1,17 @@
 """组合管理验证 Agent。"""
 import uuid
 
-from core.observability import get_logger
-from core.interfaces import ModelGateway
-from cognitive_agents.agents.base import BaseCognitiveAgent, AgentContext
+from cognitive_agents.agents.base import AgentContext, BaseCognitiveAgent
 from cognitive_agents.contracts import AgentView
+from core.interfaces import ModelGateway
+from core.observability import get_logger
 
 logger = get_logger(__name__)
 
 
 class PortfolioAgent(BaseCognitiveAgent):
     """负责从组合管理角度验证的 Agent。"""
+
     def __init__(self, model_gateway: ModelGateway):
         super().__init__(model_gateway, "portfolio_agent", "portfolio")
 

@@ -4,12 +4,12 @@ from unittest.mock import MagicMock
 from fastapi.testclient import TestClient
 
 from app.api.main import app
-from app.api.routes.workbench import get_signal_service, get_review_service, get_learning_journal
+from app.api.routes.workbench import get_learning_journal, get_review_service, get_signal_service
 from core.contracts import AlphaSignal, Assertion
 from memory_learning.contracts import MarketEpisode
 
-
 # ─── helpers ────────────────────────────────────────────
+
 
 def _make_signal(signal_id="s1", status="research_only", subject_id="600000.SH"):
     return AlphaSignal(
@@ -48,6 +48,7 @@ def _make_assertion(assertion_id="a1", predicate="is_growing"):
 
 
 # ─── test: signal stats ─────────────────────────────────
+
 
 class TestDashboardSignalStats:
     def test_signal_stats_reflect_real_data(self):
@@ -111,6 +112,7 @@ class TestDashboardSignalStats:
 
 # ─── test: review queue ────────────────────────────────
 
+
 class TestDashboardReviewQueue:
     def test_review_queue_reflects_pending(self):
         mock_signal_svc = MagicMock()
@@ -144,6 +146,7 @@ class TestDashboardReviewQueue:
 
 
 # ─── test: recent events ───────────────────────────────
+
 
 class TestDashboardRecentEvents:
     def test_recent_events_from_journal(self):
@@ -204,6 +207,7 @@ class TestDashboardRecentEvents:
 
 # ─── test: graceful fallback ────────────────────────────
 
+
 class TestDashboardGracefulFallback:
     def test_signal_service_failure_returns_zeros(self):
         mock_signal_svc = MagicMock()
@@ -233,6 +237,7 @@ class TestDashboardGracefulFallback:
 
 
 # ─── test: full integration with real LearningJournal ──
+
 
 class TestDashboardWithRealJournal:
     def test_dashboard_with_real_journal_instance(self):

@@ -4,18 +4,17 @@ AkShare 使用示例
 
 展示如何在 AlphaFoundry 中使用 AkShare 适配器
 """
-import sys
-from pathlib import Path
-from datetime import date, datetime
 import logging
+import sys
+from datetime import date, datetime
+from pathlib import Path
 
 # 添加项目根目录到路径
 root_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(root_dir))
 
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger("akshare_examples")
 
@@ -26,10 +25,7 @@ def example_1_basic_setup():
     logger.info("Example 1: Basic Setup")
     logger.info("=" * 60)
 
-    from data_layer.crawlers.akshare import (
-        AkShareConfig,
-        AkShareAdapter,
-    )
+    from data_layer.crawlers.akshare import AkShareAdapter, AkShareConfig
 
     # 创建配置
     config = AkShareConfig(
@@ -44,10 +40,10 @@ def example_1_basic_setup():
     logger.info(f"✓ Config: cache={config.enable_cache}, verbose={config.verbose}")
 
     # 访问各个 fetcher
-    logger.info(f"✓ Market fetcher available")
-    logger.info(f"✓ Financial fetcher available")
-    logger.info(f"✓ News fetcher available")
-    logger.info(f"✓ Macro fetcher available")
+    logger.info("✓ Market fetcher available")
+    logger.info("✓ Financial fetcher available")
+    logger.info("✓ News fetcher available")
+    logger.info("✓ Macro fetcher available")
 
     return adapter
 
@@ -59,10 +55,10 @@ def example_2_data_classes():
     logger.info("=" * 60)
 
     from data_layer.crawlers.akshare import (
-        MarketData,
-        NewsData,
         FinancialData,
         MacroData,
+        MarketData,
+        NewsData,
         StockInfo,
     )
 
@@ -125,8 +121,8 @@ def example_3_market_functions():
     logger.info("Example 3: Market Functions")
     logger.info("=" * 60)
 
-    from data_layer.crawlers.akshare.market import AkShareMarketFetcher
     from data_layer.crawlers.akshare import AkShareConfig
+    from data_layer.crawlers.akshare.market import AkShareMarketFetcher
 
     config = AkShareConfig(verbose=True)
     fetcher = AkShareMarketFetcher(config)
@@ -151,12 +147,14 @@ def example_4_with_existing_adapter():
 
     try:
         from data_layer.adapters.akshare_adapter import AKShareAdapter
+
         logger.info("✓ Existing AKShareAdapter available")
     except ImportError:
         logger.warning("Existing AKShareAdapter not found (this is normal)")
 
     try:
         from data_layer.adapters.data_source_router import DataSourceRouter
+
         logger.info("✓ DataSourceRouter available")
     except ImportError:
         logger.warning("DataSourceRouter not found")

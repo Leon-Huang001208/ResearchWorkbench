@@ -12,7 +12,7 @@ script_path = Path(__file__).resolve()
 project_root = script_path.parent.parent.parent  # app/api/main.py → project root
 sys.path.insert(0, str(project_root))
 
-from core.observability import get_logger, configure_logging
+from core.observability import configure_logging, get_logger
 
 logger = get_logger(__name__)
 
@@ -23,18 +23,19 @@ app = FastAPI(
 )
 
 
-@app.on_event('startup')
+@app.on_event("startup")
 def startup():
     """Startup hook: configure logging and check database connection"""
     configure_logging()
     logger.info("AlphaFoundry API starting up...")
     # Explicit database connection check on API startup + schema ensure
     from data_layer.repositories.base import check_database_connection, ensure_schema
+
     check_database_connection()
     ensure_schema()
 
 
-@app.on_event('shutdown')
+@app.on_event("shutdown")
 def shutdown():
     """Shutdown hook"""
     logger.info("AlphaFoundry API shutting down...")
@@ -50,7 +51,36 @@ app.add_middleware(
 )
 
 # ─── 注册路由 ───────────────────────────────────────────
-from app.api.routes import assets, scenarios, review, thesis_review, signals, ingest, pipeline, workbench, graph, timing, timing_engine, memory, outcomes, outcome_journal, ingestion_queue, audit, search, replay, portfolio, paper_trading, governance, monitoring, decision_console, event_ingestion, thesis_generator, dashboard, report, signal_lab  # noqa: E402
+from app.api.routes import (  # noqa: E402
+    assets,
+    audit,
+    dashboard,
+    decision_console,
+    event_ingestion,
+    governance,
+    graph,
+    ingest,
+    ingestion_queue,
+    memory,
+    monitoring,
+    outcome_journal,
+    outcomes,
+    paper_trading,
+    pipeline,
+    portfolio,
+    replay,
+    report,
+    review,
+    scenarios,
+    search,
+    signal_lab,
+    signals,
+    thesis_generator,
+    thesis_review,
+    timing,
+    timing_engine,
+    workbench,
+)
 
 app.include_router(assets.router)
 app.include_router(scenarios.router)
@@ -91,6 +121,7 @@ app.mount("/static", StaticFiles(directory=str(_static_dir)), name="static")
 
 # ─── 首页 & 健康检查 ───────────────────────────────────
 
+
 @app.get("/", response_class=HTMLResponse)
 async def index():
     """首页 - 交互式 Web 前端"""
@@ -102,9 +133,10 @@ async def index():
 async def health_check():
     """健康检查 - includes persistence status"""
     from sqlalchemy import text
+
     from core.settings.config import settings
     from data_layer.repositories.base import SessionLocal
-    
+
     persistence_status = "unknown"
     db_connected = False
     try:
@@ -115,14 +147,11 @@ async def health_check():
             persistence_status = "ready"
     except Exception as e:
         persistence_status = f"unavailable: {str(e)}"
-    
+
     return {
         "status": "ok",
         "app_env": settings.APP_ENV,
-        "persistence": {
-            "database_connected": db_connected,
-            "status": persistence_status
-        }
+        "persistence": {"database_connected": db_connected, "status": persistence_status},
     }
 
 

@@ -24,10 +24,12 @@ class PostgresAssetSnapshotRepository(BaseRepository):
 
     def get_latest_by_canonical_id(self, canonical_id: str) -> Optional[AssetAnalysisSnapshot]:
         """查询最新快照"""
-        model = self.db.query(AssetSnapshotModel)\
-            .filter(AssetSnapshotModel.canonical_id == canonical_id)\
-            .order_by(AssetSnapshotModel.created_at.desc())\
+        model = (
+            self.db.query(AssetSnapshotModel)
+            .filter(AssetSnapshotModel.canonical_id == canonical_id)
+            .order_by(AssetSnapshotModel.created_at.desc())
             .first()
+        )
         if not model:
             return None
         return model.to_contract()

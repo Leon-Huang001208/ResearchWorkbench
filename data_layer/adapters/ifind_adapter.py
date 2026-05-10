@@ -29,6 +29,7 @@ class IFinDAdapter(BaseDataAdapter):
         """检查iFinD是否可用"""
         try:
             import iFinDPy
+
             # 检查账号配置是否存在
             if not settings.IFIND_USERNAME or not settings.IFIND_PASSWORD:
                 logger.warning("iFinD username/password not configured")
@@ -117,9 +118,7 @@ class IFinDAdapter(BaseDataAdapter):
             snapshots.extend(self._mapper.map_fund_flow(code, code_data, as_of))
         return snapshots
 
-    async def fetch_industry_classification(
-        self, codes: list[str]
-    ) -> list[AssetAnalysisSnapshot]:
+    async def fetch_industry_classification(self, codes: list[str]) -> list[AssetAnalysisSnapshot]:
         """获取行业分类数据"""
         logger.info(f"Fetching industry classification: codes={codes}")
         client = await self._get_client()
@@ -157,7 +156,9 @@ class IFinDAdapter(BaseDataAdapter):
         self, codes: list[str], start_date: str, end_date: str
     ) -> list[AssetAnalysisSnapshot]:
         """获取技术指标数据"""
-        logger.info(f"Fetching technical indicators: codes={codes}, start={start_date}, end={end_date}")
+        logger.info(
+            f"Fetching technical indicators: codes={codes}, start={start_date}, end={end_date}"
+        )
         client = await self._get_client()
         indicators = [
             "ths_ma5_stock",
@@ -218,6 +219,7 @@ class IFinDAdapter(BaseDataAdapter):
         """
         # 注意：此方法为同步方法，实际使用时建议使用异步方法
         import asyncio
+
         data_type = kwargs.get("data_type", "stock")
         codes = kwargs.get("codes", [])
         start_date = kwargs.get("start_date")

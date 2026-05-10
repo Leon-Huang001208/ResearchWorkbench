@@ -1,5 +1,6 @@
 """信号详情、审计轨迹、全局搜索 API 测试"""
 from unittest.mock import MagicMock, patch
+
 from fastapi.testclient import TestClient
 
 from app.api.main import app
@@ -9,6 +10,7 @@ client = TestClient(app)
 
 
 # ─── 信号详情 API ──────────────────────────────────────────
+
 
 class TestSignalDetailAPI:
     def test_get_signal_detail_success(self):
@@ -26,6 +28,7 @@ class TestSignalDetailAPI:
         mock_service.get_signal.return_value = mock_signal
 
         from app.api.routes.signals import get_signal_service
+
         app.dependency_overrides[get_signal_service] = lambda: mock_service
         try:
             # Patch all the DB accesses inside the detail endpoint
@@ -34,7 +37,9 @@ class TestSignalDetailAPI:
                 mock_session_cls.return_value = mock_db
                 # All .query().filter().first() / .query().filter().order_by().first() return None
                 mock_db.query.return_value.filter.return_value.first.return_value = None
-                mock_db.query.return_value.filter.return_value.order_by.return_value.first.return_value = None
+                mock_db.query.return_value.filter.return_value.order_by.return_value.first.return_value = (
+                    None
+                )
 
                 resp = client.get("/api/signals/sig-detail-001/detail")
                 assert resp.status_code == 200
@@ -53,6 +58,7 @@ class TestSignalDetailAPI:
         mock_service.get_signal.return_value = None
 
         from app.api.routes.signals import get_signal_service
+
         app.dependency_overrides[get_signal_service] = lambda: mock_service
         try:
             resp = client.get("/api/signals/nonexistent/detail")
@@ -62,6 +68,7 @@ class TestSignalDetailAPI:
 
 
 # ─── 审计轨迹 API ──────────────────────────────────────────
+
 
 class TestAuditTrailAPI:
     def test_get_audit_trail(self):
@@ -80,6 +87,7 @@ class TestAuditTrailAPI:
         ]
 
         from app.api.routes.audit import get_audit_service
+
         app.dependency_overrides[get_audit_service] = lambda: mock_service
         try:
             resp = client.get("/api/audit/trail/signal/sig-001")
@@ -103,6 +111,7 @@ class TestAuditTrailAPI:
         mock_service.get_trail.return_value = []
 
         from app.api.routes.audit import get_audit_service
+
         app.dependency_overrides[get_audit_service] = lambda: mock_service
         try:
             resp = client.get("/api/audit/trail/signal/sig-noaudit")
@@ -126,6 +135,7 @@ class TestAuditTrailAPI:
         }
 
         from app.api.routes.audit import get_audit_service
+
         app.dependency_overrides[get_audit_service] = lambda: mock_service
         try:
             resp = client.post(
@@ -160,20 +170,20 @@ class TestAuditTrailAPI:
 
 # ─── 全局搜索 API ──────────────────────────────────────────
 
+
 class TestGlobalSearchAPI:
     def test_search_returns_all_groups(self):
         """全局搜索应返回所有分组（信号/事件/Outcome/审核）"""
-        with patch("app.api.routes.search._search_signals") as mock_sig, \
-             patch("app.api.routes.search._search_events") as mock_evt, \
-             patch("app.api.routes.search._search_outcomes") as mock_out, \
-             patch("app.api.routes.search._search_reviews") as mock_rev:
+        with patch("app.api.routes.search._search_signals") as mock_sig, patch(
+            "app.api.routes.search._search_events"
+        ) as mock_evt, patch("app.api.routes.search._search_outcomes") as mock_out, patch(
+            "app.api.routes.search._search_reviews"
+        ) as mock_rev:
             mock_sig.return_value = [
                 {"signal_id": "s1", "thesis": "test thesis", "score": 0.8, "status": "candidate"}
             ]
             mock_evt.return_value = []
-            mock_out.return_value = [
-                {"outcome_id": "o1", "lesson": "test lesson"}
-            ]
+            mock_out.return_value = [{"outcome_id": "o1", "lesson": "test lesson"}]
             mock_rev.return_value = []
 
             resp = client.get("/api/search?q=test")
@@ -188,8 +198,9 @@ class TestGlobalSearchAPI:
 
     def test_search_with_type_filter(self):
         """带类型过滤的搜索应只返回指定类型"""
-        with patch("app.api.routes.search._search_signals") as mock_sig, \
-             patch("app.api.routes.search._search_events") as mock_evt:
+        with patch("app.api.routes.search._search_signals") as mock_sig, patch(
+            "app.api.routes.search._search_events"
+        ) as mock_evt:
             mock_sig.return_value = [
                 {"signal_id": "s1", "thesis": "test", "score": 0.8, "status": "candidate"}
             ]
@@ -215,10 +226,11 @@ class TestGlobalSearchAPI:
 
     def test_search_empty_results(self):
         """搜索无匹配时返回空分组"""
-        with patch("app.api.routes.search._search_signals") as mock_sig, \
-             patch("app.api.routes.search._search_events") as mock_evt, \
-             patch("app.api.routes.search._search_outcomes") as mock_out, \
-             patch("app.api.routes.search._search_reviews") as mock_rev:
+        with patch("app.api.routes.search._search_signals") as mock_sig, patch(
+            "app.api.routes.search._search_events"
+        ) as mock_evt, patch("app.api.routes.search._search_outcomes") as mock_out, patch(
+            "app.api.routes.search._search_reviews"
+        ) as mock_rev:
             mock_sig.return_value = []
             mock_evt.return_value = []
             mock_out.return_value = []
@@ -235,14 +247,22 @@ class TestGlobalSearchAPI:
 
 # ─── AuditService 单元测试 ────────────────────────────────
 
+
 class TestAuditService:
     def test_record_and_get_trail_in_memory(self):
         """AuditService 内存版应能记录和查询审计日志"""
         from core.services.audit_service import AuditService
+
         service = AuditService()  # no repository → in-memory
 
         service.record("signal", "sig-001", "created", actor="test")
-        service.record("signal", "sig-001", "status_changed", actor="test", details={"old": "research_only", "new": "candidate"})
+        service.record(
+            "signal",
+            "sig-001",
+            "status_changed",
+            actor="test",
+            details={"old": "research_only", "new": "candidate"},
+        )
 
         trail = service.get_trail("signal", "sig-001")
         assert len(trail) == 2
@@ -254,6 +274,7 @@ class TestAuditService:
     def test_search_in_memory(self):
         """AuditService 内存版搜索功能"""
         from core.services.audit_service import AuditService
+
         service = AuditService()
 
         service.record("signal", "sig-001", "created", details={"thesis": "黄金看涨"})
@@ -265,6 +286,7 @@ class TestAuditService:
     def test_get_trail_nonexistent(self):
         """查询不存在的实体审计轨迹应返回空列表"""
         from core.services.audit_service import AuditService
+
         service = AuditService()
 
         trail = service.get_trail("signal", "nonexistent")

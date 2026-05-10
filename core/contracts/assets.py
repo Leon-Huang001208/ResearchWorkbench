@@ -6,8 +6,9 @@ across the AlphaFoundry system, ensuring consistent data exchange between
 services, data layers, and APIs.
 """
 
-from datetime import date as date_type, datetime
-from typing import Any, Optional, TYPE_CHECKING
+from datetime import date as date_type
+from datetime import datetime
+from typing import TYPE_CHECKING, Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -19,6 +20,7 @@ else:
 
 class Shareholder(BaseModel):
     """股东信息"""
+
     name: str = Field(description="股东名称")
     share_ratio: float = Field(description="持股比例")
     change_ratio: Optional[float] = Field(None, description="持股变动比例")
@@ -28,6 +30,7 @@ class Shareholder(BaseModel):
 
 class FinancialSummary(BaseModel):
     """财务摘要"""
+
     revenue: Optional[float] = Field(None, description="营收")
     net_profit: Optional[float] = Field(None, description="净利润")
     roe: Optional[float] = Field(None, description="净资产收益率")
@@ -43,6 +46,7 @@ class FinancialSummary(BaseModel):
 
 class CapitalFlowItem(BaseModel):
     """资金流向单项数据"""
+
     inflow: float = Field(description="流入金额")
     outflow: float = Field(description="流出金额")
     net_flow: float = Field(description="净流金额")
@@ -51,6 +55,7 @@ class CapitalFlowItem(BaseModel):
 
 class CapitalFlow(BaseModel):
     """资金流向数据"""
+
     main_inflow: float = Field(0.0, description="主力流入")
     main_outflow: float = Field(0.0, description="主力流出")
     main_net: float = Field(0.0, description="主力净流")
@@ -72,6 +77,7 @@ class CapitalFlow(BaseModel):
 
 class IndustryData(BaseModel):
     """行业数据"""
+
     sw_level_1: Optional[str] = Field(None, description="申万一级行业")
     sw_level_2: Optional[str] = Field(None, description="申万二级行业")
     sw_level_3: Optional[str] = Field(None, description="申万三级行业")
@@ -86,6 +92,7 @@ class IndustryData(BaseModel):
 
 class PriceBar(BaseModel):
     """K线数据"""
+
     date: date_type = Field(description="日期")
     open: float = Field(description="开盘价")
     high: float = Field(description="最高价")
@@ -102,6 +109,7 @@ class PriceBar(BaseModel):
 
 class EventImpact(BaseModel):
     """事件影响"""
+
     event_id: str = Field(description="事件ID")
     title: str = Field(description="事件标题")
     content: Optional[str] = Field(None, description="事件内容")
@@ -116,6 +124,7 @@ class EventImpact(BaseModel):
 
 class MacroSensitivity(BaseModel):
     """宏观敏感性分析"""
+
     interest_rate_sensitivity: Optional[float] = Field(None, description="利率敏感度")
     inflation_sensitivity: Optional[float] = Field(None, description="通胀敏感度")
     exchange_rate_sensitivity: Optional[float] = Field(None, description="汇率敏感度")
@@ -126,6 +135,7 @@ class MacroSensitivity(BaseModel):
 
 class AssetBasicInfo(BaseModel):
     """资产基本信息"""
+
     symbol: str = Field(description="代码")
     name: str = Field(description="名称")
     short_name: Optional[str] = Field(None, description="简称")
@@ -144,6 +154,7 @@ class AssetAnalysisCard(BaseModel):
 
     包含了用户需要的所有模块：基本信息、财务、股东、行业、事件、宏观等.
     """
+
     canonical_id: str = Field(description="Unique canonical identifier for the asset")
     as_of: datetime = Field(description="Timestamp when this snapshot was generated")
 
@@ -170,7 +181,9 @@ class AssetAnalysisCard(BaseModel):
 
     # 股东信息
     top_10_shareholders: list[Shareholder] = Field(default_factory=list, description="前十大股东")
-    top_10_float_shareholders: list[Shareholder] = Field(default_factory=list, description="前十大流通股东")
+    top_10_float_shareholders: list[Shareholder] = Field(
+        default_factory=list, description="前十大流通股东"
+    )
 
     # 行业信息
     industry: Optional[IndustryData] = Field(None, description="行业数据")
@@ -190,7 +203,9 @@ class AssetAnalysisCard(BaseModel):
     event_impact: list[str] = Field(default_factory=list, description="事件影响ID列表（兼容旧格式）")
     macro_exposure: dict[str, Any] = Field(default_factory=dict, description="宏观暴露（兼容旧格式）")
     evidence_refs: list[str] = Field(default_factory=list, description="证据引用")
-    technical: TechnicalIndicators | dict[str, Any] | None = Field(default_factory=dict, description="技术指标")
+    technical: TechnicalIndicators | dict[str, Any] | None = Field(
+        default_factory=dict, description="技术指标"
+    )
     sentiment: dict[str, Any] | None = Field(default_factory=dict, description="情绪指标")
 
 
@@ -219,14 +234,40 @@ class AssetAnalysisSnapshot(BaseModel):
 
     canonical_id: str = Field(description="Unique canonical identifier for the asset")
     as_of: datetime = Field(description="Timestamp when this snapshot was generated")
-    financial: dict[str, Any] = Field(default_factory=dict, description="Financial metrics (revenue, profit, margins, etc.)")
-    fund_flow: dict[str, Any] = Field(default_factory=dict, description="Fund flow data (institutional, retail, etc.)")
-    price_volume: dict[str, Any] = Field(default_factory=dict, description="Price and volume data (OHLCV, VWAP, etc.)")
-    valuation: dict[str, Any] = Field(default_factory=dict, description="Valuation metrics (P/E, P/B, EV/EBITDA, etc.)")
-    shareholder: dict[str, Any] = Field(default_factory=dict, description="Shareholder information (major holders, ownership changes, etc.)")
-    industry: dict[str, Any] = Field(default_factory=dict, description="Industry-level context and metrics")
-    event_impact: list[str] = Field(default_factory=list, description="List of event identifiers impacting this asset")
-    macro_exposure: dict[str, Any] = Field(default_factory=dict, description="Macroeconomic exposure metrics (interest rate sensitivity, etc.)")
-    evidence_refs: list[str] = Field(default_factory=list, description="Reference identifiers for supporting evidence (news, reports, etc.)")
-    technical: TechnicalIndicators | dict[str, Any] | None = Field(default_factory=dict, description="Technical indicators data")
-    sentiment: dict[str, Any] | None = Field(default_factory=dict, description="Sentiment metrics (news sentiment, social sentiment, etc.)")
+    financial: dict[str, Any] = Field(
+        default_factory=dict, description="Financial metrics (revenue, profit, margins, etc.)"
+    )
+    fund_flow: dict[str, Any] = Field(
+        default_factory=dict, description="Fund flow data (institutional, retail, etc.)"
+    )
+    price_volume: dict[str, Any] = Field(
+        default_factory=dict, description="Price and volume data (OHLCV, VWAP, etc.)"
+    )
+    valuation: dict[str, Any] = Field(
+        default_factory=dict, description="Valuation metrics (P/E, P/B, EV/EBITDA, etc.)"
+    )
+    shareholder: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Shareholder information (major holders, ownership changes, etc.)",
+    )
+    industry: dict[str, Any] = Field(
+        default_factory=dict, description="Industry-level context and metrics"
+    )
+    event_impact: list[str] = Field(
+        default_factory=list, description="List of event identifiers impacting this asset"
+    )
+    macro_exposure: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Macroeconomic exposure metrics (interest rate sensitivity, etc.)",
+    )
+    evidence_refs: list[str] = Field(
+        default_factory=list,
+        description="Reference identifiers for supporting evidence (news, reports, etc.)",
+    )
+    technical: TechnicalIndicators | dict[str, Any] | None = Field(
+        default_factory=dict, description="Technical indicators data"
+    )
+    sentiment: dict[str, Any] | None = Field(
+        default_factory=dict,
+        description="Sentiment metrics (news sentiment, social sentiment, etc.)",
+    )

@@ -1,18 +1,19 @@
 """
 AkShare 适配器单元测试
 """
-import pytest
 from datetime import date, datetime
 from unittest.mock import Mock
 
+import pytest
+
 from data_layer.crawlers.akshare import (
-    AkShareConfig,
     DEFAULT_CONFIG,
     AkShareAdapter,
-    MarketData,
-    NewsData,
+    AkShareConfig,
     FinancialData,
     MacroData,
+    MarketData,
+    NewsData,
     StockInfo,
 )
 
@@ -169,9 +170,7 @@ class TestWithMockAkShare:
         # Mock 股票列表返回
         mock_df = Mock()
         mock_df.empty = False
-        mock_df.iterrows.return_value = iter([
-            (0, {"代码": "600000", "名称": "浦发银行", "行业": "银行"})
-        ])
+        mock_df.iterrows.return_value = iter([(0, {"代码": "600000", "名称": "浦发银行", "行业": "银行"})])
         mock_ak.stock_zh_a_spot_em.return_value = mock_df
 
         result = adapter_with_mock.health_check()
@@ -185,15 +184,7 @@ class TestUtils:
 
     def test_can_import_all(self):
         """测试可以导入所有模块"""
-        from data_layer.crawlers.akshare import (
-            config,
-            base,
-            market,
-            financial,
-            news,
-            macro,
-            utils,
-        )
+        from data_layer.crawlers.akshare import base, config, financial, macro, market, news, utils
 
         # 验证模块都可访问
         assert config is not None

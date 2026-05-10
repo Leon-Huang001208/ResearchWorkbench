@@ -2,10 +2,10 @@
 import uuid
 from typing import List, Optional
 
-from timing_engine.contracts import TimingDecision, TimingModelScore
 from core.observability import get_logger
 from data_layer.repositories.base import BaseRepository
 from data_layer.repositories.models import TimingDecisionDB
+from timing_engine.contracts import TimingDecision, TimingModelScore
 
 logger = get_logger(__name__)
 
@@ -53,9 +53,11 @@ class TimingRepositoryImpl(BaseRepository):
 
     def get(self, decision_id: str) -> Optional[TimingDecision]:
         """根据 ID 获取择时决策"""
-        db_decision = self.db.query(TimingDecisionDB).filter(
-            TimingDecisionDB.decision_id == decision_id
-        ).first()
+        db_decision = (
+            self.db.query(TimingDecisionDB)
+            .filter(TimingDecisionDB.decision_id == decision_id)
+            .first()
+        )
         if not db_decision:
             return None
         return self._to_domain(db_decision)
@@ -79,9 +81,12 @@ class TimingRepositoryImpl(BaseRepository):
 
     def get_latest_for_signal(self, signal_id: str) -> Optional[TimingDecision]:
         """获取某个信号最新的择时决策"""
-        db_decision = self.db.query(TimingDecisionDB).filter(
-            TimingDecisionDB.signal_id == signal_id
-        ).order_by(TimingDecisionDB.created_at.desc()).first()
+        db_decision = (
+            self.db.query(TimingDecisionDB)
+            .filter(TimingDecisionDB.signal_id == signal_id)
+            .order_by(TimingDecisionDB.created_at.desc())
+            .first()
+        )
 
         if not db_decision:
             return None

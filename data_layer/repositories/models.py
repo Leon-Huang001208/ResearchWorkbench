@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, Numeric, Text, JSON, DateTime
+from sqlalchemy import JSON, Boolean, Column, DateTime, ForeignKey, Integer, Numeric, Text
 from sqlalchemy.orm import relationship
 
 from data_layer.repositories.base import Base
@@ -155,7 +155,9 @@ class AlphaSignalDB(Base):
     __tablename__ = "alpha_signal"
 
     signal_id = Column(Text, primary_key=True)
-    discriminator = Column(Text, nullable=False, default="alpha_signal")  # to distinguish between AlphaSignal and EventAlphaSignal
+    discriminator = Column(
+        Text, nullable=False, default="alpha_signal"
+    )  # to distinguish between AlphaSignal and EventAlphaSignal
     subject_id = Column(Text, nullable=False, index=True)
     horizon = Column(Text, nullable=False)
     thesis = Column(Text, nullable=False)
@@ -216,7 +218,9 @@ class AgentViewDB(Base):
     memory_refs = Column(JSON, nullable=False, default=list)
     workflow_id = Column(Text, nullable=True)
     evaluation = Column(JSON, nullable=False, default=dict)
-    view_metadata = Column(JSON, nullable=False, default=dict, name="metadata")  # use "metadata" in DB but "view_metadata" in model
+    view_metadata = Column(
+        JSON, nullable=False, default=dict, name="metadata"
+    )  # use "metadata" in DB but "view_metadata" in model
     team_id = Column(Text, nullable=True)
     project_id = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
@@ -645,7 +649,7 @@ class AssetSnapshotModel(Base):
     snapshot_id = Column(Text, primary_key=True)
     canonical_id = Column(Text, nullable=False, index=True)
     as_of = Column(DateTime(timezone=True), nullable=False)
-    
+
     # JSON fields
     financial = Column(JSON, nullable=True)
     fund_flow = Column(JSON, nullable=True)
@@ -656,13 +660,14 @@ class AssetSnapshotModel(Base):
     event_impact = Column(JSON, nullable=True)
     macro_exposure = Column(JSON, nullable=True)
     evidence_refs = Column(JSON, nullable=True)
-    
+
     created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
     updated_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
 
     @classmethod
     def from_contract(cls, contract):
         from core.utils.id_gen import generate_id
+
         return cls(
             snapshot_id=generate_id(),
             canonical_id=contract.canonical_id,
@@ -680,6 +685,7 @@ class AssetSnapshotModel(Base):
 
     def to_contract(self):
         from core.contracts import AssetAnalysisSnapshot
+
         return AssetAnalysisSnapshot(
             canonical_id=self.canonical_id,
             as_of=self.as_of,
@@ -702,7 +708,7 @@ class StockPriceData(Base):
 
     price_id = Column(Text, primary_key=True)
     code = Column(Text, nullable=False, index=True)  # 如 600519.SH
-    date = Column(Text, nullable=False, index=True)   # 如 2024-05-01
+    date = Column(Text, nullable=False, index=True)  # 如 2024-05-01
     open = Column(Numeric, nullable=False)
     high = Column(Numeric, nullable=False)
     low = Column(Numeric, nullable=False)
@@ -712,14 +718,13 @@ class StockPriceData(Base):
     data_source = Column(Text, nullable=False, default="manual")  # manual, csv
     created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
 
-    __table_args__ = (
-        {'extend_existing': True}
-    )
+    __table_args__ = {"extend_existing": True}
 
 
 # =============================================================================
 # Issue #42: AlphaFoundry v1 统一文档表
 # =============================================================================
+
 
 class DocumentV1DB(Base):
     """
@@ -727,6 +732,7 @@ class DocumentV1DB(Base):
 
     Issue #42: 统一 document schema、JSON 字段规范与 PostgreSQL 建表设计
     """
+
     __tablename__ = "document_v1"
 
     doc_id = Column(Text, primary_key=True)
@@ -773,9 +779,7 @@ class DocumentV1DB(Base):
     created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
     updated_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
 
-    __table_args__ = (
-        {'extend_existing': True}
-    )
+    __table_args__ = {"extend_existing": True}
 
     @classmethod
     def from_contract(cls, contract):
@@ -791,7 +795,9 @@ class DocumentV1DB(Base):
             source_metadata=contract.source_metadata,
             classification=contract.classification.model_dump() if contract.classification else {},
             quality=contract.quality.model_dump() if contract.quality else {},
-            evidence_profile=contract.evidence_profile.model_dump() if contract.evidence_profile else {},
+            evidence_profile=contract.evidence_profile.model_dump()
+            if contract.evidence_profile
+            else {},
             timeliness=contract.timeliness.model_dump() if contract.timeliness else {},
             processing=contract.processing.model_dump() if contract.processing else {},
             review=contract.review.model_dump() if contract.review else {},
@@ -807,11 +813,17 @@ class DocumentV1DB(Base):
     def to_contract(self):
         """转换为 Pydantic 契约"""
         from core.contracts import (
-            DocumentV1, DocumentClassification, DocumentQuality,
-            DocumentEvidenceProfile, DocumentTimeliness,
-            DocumentProcessingMeta, DocumentReview,
-            DocType, SourceType
+            DocType,
+            DocumentClassification,
+            DocumentEvidenceProfile,
+            DocumentProcessingMeta,
+            DocumentQuality,
+            DocumentReview,
+            DocumentTimeliness,
+            DocumentV1,
+            SourceType,
         )
+
         return DocumentV1(
             doc_id=self.doc_id,
             doc_type=DocType(self.doc_type),
@@ -821,11 +833,19 @@ class DocumentV1DB(Base):
             content=self.content,
             doc_metadata=self.doc_metadata,
             source_metadata=self.source_metadata,
-            classification=DocumentClassification(**self.classification) if self.classification else DocumentClassification(),
+            classification=DocumentClassification(**self.classification)
+            if self.classification
+            else DocumentClassification(),
             quality=DocumentQuality(**self.quality) if self.quality else DocumentQuality(),
-            evidence_profile=DocumentEvidenceProfile(**self.evidence_profile) if self.evidence_profile else DocumentEvidenceProfile(),
-            timeliness=DocumentTimeliness(**self.timeliness) if self.timeliness else DocumentTimeliness(),
-            processing=DocumentProcessingMeta(**self.processing) if self.processing else DocumentProcessingMeta(),
+            evidence_profile=DocumentEvidenceProfile(**self.evidence_profile)
+            if self.evidence_profile
+            else DocumentEvidenceProfile(),
+            timeliness=DocumentTimeliness(**self.timeliness)
+            if self.timeliness
+            else DocumentTimeliness(),
+            processing=DocumentProcessingMeta(**self.processing)
+            if self.processing
+            else DocumentProcessingMeta(),
             review=DocumentReview(**self.review) if self.review else DocumentReview(),
             extra=self.extra,
             source_name=self.source_name,
@@ -843,6 +863,7 @@ class DocumentChunkV1DB(Base):
 
     Issue #42: document_chunks 表
     """
+
     __tablename__ = "document_chunk_v1"
 
     chunk_id = Column(Text, primary_key=True)
@@ -865,9 +886,7 @@ class DocumentChunkV1DB(Base):
     chunk_metadata = Column(JSON, nullable=False, default=dict, name="metadata")
     created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
 
-    __table_args__ = (
-        {'extend_existing': True}
-    )
+    __table_args__ = {"extend_existing": True}
 
     @classmethod
     def from_contract(cls, contract):
@@ -891,6 +910,7 @@ class DocumentChunkV1DB(Base):
 
     def to_contract(self):
         from core.contracts import DocumentChunkV1
+
         return DocumentChunkV1(
             chunk_id=self.chunk_id,
             doc_id=self.doc_id,
@@ -916,6 +936,7 @@ class DocumentTagV1DB(Base):
 
     Issue #42: document_tags 表
     """
+
     __tablename__ = "document_tag_v1"
 
     tag_id = Column(Text, primary_key=True)
@@ -926,9 +947,7 @@ class DocumentTagV1DB(Base):
     source = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
 
-    __table_args__ = (
-        {'extend_existing': True}
-    )
+    __table_args__ = {"extend_existing": True}
 
     @classmethod
     def from_contract(cls, contract):
@@ -944,6 +963,7 @@ class DocumentTagV1DB(Base):
 
     def to_contract(self):
         from core.contracts import DocumentTagV1
+
         return DocumentTagV1(
             tag_id=self.tag_id,
             doc_id=self.doc_id,
@@ -961,6 +981,7 @@ class DocumentSummaryV1DB(Base):
 
     Issue #42: document_summaries 表
     """
+
     __tablename__ = "document_summary_v1"
 
     summary_id = Column(Text, primary_key=True)
@@ -972,9 +993,7 @@ class DocumentSummaryV1DB(Base):
     quality_score = Column(Numeric, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
 
-    __table_args__ = (
-        {'extend_existing': True}
-    )
+    __table_args__ = {"extend_existing": True}
 
     @classmethod
     def from_contract(cls, contract):
@@ -991,6 +1010,7 @@ class DocumentSummaryV1DB(Base):
 
     def to_contract(self):
         from core.contracts import DocumentSummaryV1
+
         return DocumentSummaryV1(
             summary_id=self.summary_id,
             doc_id=self.doc_id,
@@ -1009,6 +1029,7 @@ class EntityMentionV1DB(Base):
 
     Issue #42: document_entity_mentions 表
     """
+
     __tablename__ = "document_entity_mention_v1"
 
     mention_id = Column(Text, primary_key=True)
@@ -1024,9 +1045,7 @@ class EntityMentionV1DB(Base):
     is_primary = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
 
-    __table_args__ = (
-        {'extend_existing': True}
-    )
+    __table_args__ = {"extend_existing": True}
 
     @classmethod
     def from_contract(cls, contract):
@@ -1047,6 +1066,7 @@ class EntityMentionV1DB(Base):
 
     def to_contract(self):
         from core.contracts import EntityMentionV1
+
         return EntityMentionV1(
             mention_id=self.mention_id,
             doc_id=self.doc_id,
@@ -1069,11 +1089,14 @@ class DocumentEventV1DB(Base):
 
     Issue #42: events 表
     """
+
     __tablename__ = "document_event_v1"
 
     event_id = Column(Text, primary_key=True)
     doc_id = Column(Text, ForeignKey("document_v1.doc_id"), nullable=False, index=True)
-    canonical_event_id = Column(Text, ForeignKey("canonical_event.event_id"), nullable=True, index=True)
+    canonical_event_id = Column(
+        Text, ForeignKey("canonical_event.event_id"), nullable=True, index=True
+    )
     event_type = Column(Text, nullable=False, index=True)
     event_time = Column(DateTime(timezone=True), nullable=True)
     subject_entity = Column(Text, nullable=True)
@@ -1085,9 +1108,7 @@ class DocumentEventV1DB(Base):
     extra = Column(JSON, nullable=False, default=dict)
     created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
 
-    __table_args__ = (
-        {'extend_existing': True}
-    )
+    __table_args__ = {"extend_existing": True}
 
     @classmethod
     def from_contract(cls, contract):
@@ -1109,6 +1130,7 @@ class DocumentEventV1DB(Base):
 
     def to_contract(self):
         from core.contracts import DocumentEventV1
+
         return DocumentEventV1(
             event_id=self.event_id,
             doc_id=self.doc_id,
@@ -1132,6 +1154,7 @@ class CrawlRunV1DB(Base):
 
     Issue #42: crawl_runs 表
     """
+
     __tablename__ = "crawl_run_v1"
 
     run_id = Column(Text, primary_key=True)
@@ -1146,9 +1169,7 @@ class CrawlRunV1DB(Base):
     config = Column(JSON, nullable=False, default=dict)
     created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
 
-    __table_args__ = (
-        {'extend_existing': True}
-    )
+    __table_args__ = {"extend_existing": True}
 
     @classmethod
     def from_contract(cls, contract):
@@ -1168,6 +1189,7 @@ class CrawlRunV1DB(Base):
 
     def to_contract(self):
         from core.contracts import CrawlRunV1, SourceType
+
         return CrawlRunV1(
             run_id=self.run_id,
             source_type=SourceType(self.source_type),
@@ -1189,6 +1211,7 @@ class SourceCursorV1DB(Base):
 
     Issue #42: source_cursors 表
     """
+
     __tablename__ = "source_cursor_v1"
 
     cursor_id = Column(Text, primary_key=True)
@@ -1203,9 +1226,7 @@ class SourceCursorV1DB(Base):
     created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
     updated_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
 
-    __table_args__ = (
-        {'extend_existing': True}
-    )
+    __table_args__ = {"extend_existing": True}
 
     @classmethod
     def from_contract(cls, contract):
@@ -1225,6 +1246,7 @@ class SourceCursorV1DB(Base):
 
     def to_contract(self):
         from core.contracts import SourceCursorV1, SourceType
+
         return SourceCursorV1(
             cursor_id=self.cursor_id,
             source_type=SourceType(self.source_type),
@@ -1246,6 +1268,7 @@ class ReportRunV1DB(Base):
 
     Issue #42: report_runs 表
     """
+
     __tablename__ = "report_run_v1"
 
     run_id = Column(Text, primary_key=True)
@@ -1261,9 +1284,7 @@ class ReportRunV1DB(Base):
     completed_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
 
-    __table_args__ = (
-        {'extend_existing': True}
-    )
+    __table_args__ = {"extend_existing": True}
 
     @classmethod
     def from_contract(cls, contract):
@@ -1284,6 +1305,7 @@ class ReportRunV1DB(Base):
 
     def to_contract(self):
         from core.contracts import ReportRunV1
+
         return ReportRunV1(
             run_id=self.run_id,
             report_type=self.report_type,
@@ -1298,4 +1320,3 @@ class ReportRunV1DB(Base):
             completed_at=self.completed_at,
             created_at=self.created_at,
         )
-

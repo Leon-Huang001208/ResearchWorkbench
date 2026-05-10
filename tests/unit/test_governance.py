@@ -9,9 +9,10 @@
 - 治理元数据构建
 - 实体治理关联
 """
-import pytest
 from datetime import datetime, timezone
 from unittest.mock import MagicMock
+
+import pytest
 
 from core.contracts.governance import (
     ExperimentCompareRequest,
@@ -28,8 +29,8 @@ from core.contracts.governance import (
 )
 from core.services.governance_service import GovernanceService
 
-
 # ─── 辅助函数 ────────────────────────────────────────────
+
 
 def _make_mock_repo():
     """创建 mock 仓储"""
@@ -95,6 +96,7 @@ def _make_experiment(
 
 
 # ─── 策略版本注册测试 ───────────────────────────────────
+
 
 class TestStrategyVersionRegistration:
     """策略版本注册测试"""
@@ -187,6 +189,7 @@ class TestStrategyVersionRegistration:
 
 # ─── 策略版本查询测试 ───────────────────────────────────
 
+
 class TestStrategyVersionQuery:
     """策略版本查询测试"""
 
@@ -218,9 +221,7 @@ class TestStrategyVersionQuery:
         repo.list_strategy_versions.return_value = versions
 
         service = GovernanceService(governance_repository=repo)
-        result = service.list_strategy_versions(
-            component_type="prompt", is_active=True
-        )
+        result = service.list_strategy_versions(component_type="prompt", is_active=True)
 
         repo.list_strategy_versions.assert_called_once_with(
             component_type="prompt",
@@ -245,6 +246,7 @@ class TestStrategyVersionQuery:
 
 
 # ─── 实验记录测试 ───────────────────────────────────────
+
 
 class TestExperimentRecord:
     """实验记录测试"""
@@ -324,6 +326,7 @@ class TestExperimentRecord:
 
 
 # ─── 实验对比测试 ───────────────────────────────────────
+
 
 class TestExperimentComparison:
     """实验对比测试"""
@@ -485,6 +488,7 @@ class TestExperimentComparison:
 
 # ─── 回滚测试 ───────────────────────────────────────────
 
+
 class TestRollback:
     """策略回滚测试"""
 
@@ -510,11 +514,13 @@ class TestRollback:
         repo.get_active_version.return_value = current_version
 
         service = GovernanceService(governance_repository=repo)
-        result = service.rollback_strategy(RollbackRequest(
-            component_type=StrategyComponentType.PROMPT,
-            component_name="earnings_extractor",
-            target_version_id="sv-target",
-        ))
+        result = service.rollback_strategy(
+            RollbackRequest(
+                component_type=StrategyComponentType.PROMPT,
+                component_name="earnings_extractor",
+                target_version_id="sv-target",
+            )
+        )
 
         assert result.success is True
         assert result.previous_active_version_id == "sv-current"
@@ -528,11 +534,13 @@ class TestRollback:
         repo.get_strategy_version.return_value = None
 
         service = GovernanceService(governance_repository=repo)
-        result = service.rollback_strategy(RollbackRequest(
-            component_type=StrategyComponentType.PROMPT,
-            component_name="earnings_extractor",
-            target_version_id="nonexistent",
-        ))
+        result = service.rollback_strategy(
+            RollbackRequest(
+                component_type=StrategyComponentType.PROMPT,
+                component_name="earnings_extractor",
+                target_version_id="nonexistent",
+            )
+        )
 
         assert result.success is False
         assert "not found" in result.message
@@ -545,11 +553,13 @@ class TestRollback:
         repo.get_active_version.return_value = None
 
         service = GovernanceService(governance_repository=repo)
-        result = service.rollback_strategy(RollbackRequest(
-            component_type=StrategyComponentType.PROMPT,
-            component_name="earnings_extractor",
-            target_version_id="sv-target",
-        ))
+        result = service.rollback_strategy(
+            RollbackRequest(
+                component_type=StrategyComponentType.PROMPT,
+                component_name="earnings_extractor",
+                target_version_id="sv-target",
+            )
+        )
 
         assert result.success is True
         assert result.previous_active_version_id is None
@@ -557,17 +567,20 @@ class TestRollback:
     def test_rollback_without_repository(self):
         """无仓储时回滚失败"""
         service = GovernanceService(governance_repository=None)
-        result = service.rollback_strategy(RollbackRequest(
-            component_type=StrategyComponentType.PROMPT,
-            component_name="earnings_extractor",
-            target_version_id="sv-target",
-        ))
+        result = service.rollback_strategy(
+            RollbackRequest(
+                component_type=StrategyComponentType.PROMPT,
+                component_name="earnings_extractor",
+                target_version_id="sv-target",
+            )
+        )
 
         assert result.success is False
         assert "No repository" in result.message
 
 
 # ─── 治理报告测试 ───────────────────────────────────────
+
 
 class TestGovernanceReport:
     """治理报告测试"""
@@ -635,6 +648,7 @@ class TestGovernanceReport:
 
 # ─── 治理元数据测试 ─────────────────────────────────────
 
+
 class TestGovernanceMetadata:
     """治理元数据测试"""
 
@@ -648,7 +662,10 @@ class TestGovernanceMetadata:
 
         assert metadata.experiment_id == "exp-001"
         assert metadata.strategy_version_id == "sv-v1"
-        assert metadata.component_versions == {"earnings_extractor": "sv-v1", "alpha_scorer": "sv-v2"}
+        assert metadata.component_versions == {
+            "earnings_extractor": "sv-v1",
+            "alpha_scorer": "sv-v2",
+        }
 
     def test_build_metadata_from_experiment(self):
         """从实验记录构建治理元数据"""
@@ -676,6 +693,7 @@ class TestGovernanceMetadata:
 
 
 # ─── 实体治理关联测试 ───────────────────────────────────
+
 
 class TestEntityGovernance:
     """实体治理关联测试"""
@@ -757,6 +775,7 @@ class TestEntityGovernance:
 
 # ─── Pydantic 契约验证测试 ───────────────────────────────
 
+
 class TestGovernanceContracts:
     """Governance 契约模型验证测试"""
 
@@ -834,15 +853,14 @@ class TestGovernanceContracts:
 
 # ─── Contracts 导出测试 ─────────────────────────────────
 
+
 class TestContractsExport:
     """测试 contracts __init__.py 导出"""
 
     def test_governance_imports_from_contracts(self):
         """从 core.contracts 导入 governance 类"""
-        from core.contracts import (
-            ExperimentRecord,
-            StrategyComponentType,
-        )
+        from core.contracts import ExperimentRecord, StrategyComponentType
+
         # 所有类可正常导入
         assert StrategyComponentType.PROMPT is not None
         assert ExperimentRecord is not None

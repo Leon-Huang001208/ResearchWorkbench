@@ -3,13 +3,13 @@
 
 提供信号回测功能。
 """
-from .base import BacktestResult, Backtester
+from .backtrader_engine import BacktraderEngine
+from .base import Backtester, BacktestResult
 from .event_study import EventStudyBacktester
 from .simple import SimpleBacktester
 
 # 条件导入 — 不可用时仍可import模块，但类在运行时fallback
 from .vectorbt_engine import VectorBTBacktester
-from .backtrader_engine import BacktraderEngine
 
 __all__ = [
     "Backtester",

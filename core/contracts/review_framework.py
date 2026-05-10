@@ -5,7 +5,8 @@ This module defines Pydantic models for the review framework, including review p
 evidence references, review cards, cognitive blackboard, and conflict detection summaries in AlphaFoundry.
 """
 from enum import Enum
-from typing import Optional, List, Dict
+from typing import Dict, List, Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -14,6 +15,7 @@ class ReviewPosition(str, Enum):
 
     Enumeration of possible review positions for a thesis.
     """
+
     BULL = "bull"
     BEAR = "bear"
     SKEPTIC = "skeptic"
@@ -32,9 +34,12 @@ class EvidenceReference(BaseModel):
         description: Description of the evidence.
         confidence_in_evidence: Confidence in the evidence (0.0 to 1.0).
     """
+
     evidence_id: str = Field(description="Unique identifier for the evidence")
     evidence_type: str = Field(description="Type of evidence (event, document, signal, data_point)")
-    url: Optional[str] = Field(default=None, description="Optional clickable/traceable link to the evidence (if available)")
+    url: Optional[str] = Field(
+        default=None, description="Optional clickable/traceable link to the evidence (if available)"
+    )
     description: str = Field(description="Description of the evidence")
     confidence_in_evidence: float = Field(description="Confidence in the evidence (0.0 to 1.0)")
 
@@ -57,14 +62,23 @@ class ReviewCard(BaseModel):
         invalidation_triggers: List of triggers that would invalidate this view.
         created_at: Timestamp when the review was created (as a string).
     """
+
     review_id: str = Field(description="Unique identifier for the review")
     thesis_id: str = Field(description="Unique identifier for the thesis")
     position: ReviewPosition = Field(description="Review position (Bull/Bear/Skeptic)")
     summary: str = Field(description="Summary of the review")
-    evidence_refs: List[EvidenceReference] = Field(default_factory=list, description="List of evidence references supporting the review")
-    confidence_score: float = Field(description="Confidence in the review's conclusion (0.0 to 1.0)")
-    reasoning_chain: List[str] = Field(default_factory=list, description="Step-by-step reasoning for the review")
-    invalidation_triggers: List[str] = Field(default_factory=list, description="List of triggers that would invalidate this view")
+    evidence_refs: List[EvidenceReference] = Field(
+        default_factory=list, description="List of evidence references supporting the review"
+    )
+    confidence_score: float = Field(
+        description="Confidence in the review's conclusion (0.0 to 1.0)"
+    )
+    reasoning_chain: List[str] = Field(
+        default_factory=list, description="Step-by-step reasoning for the review"
+    )
+    invalidation_triggers: List[str] = Field(
+        default_factory=list, description="List of triggers that would invalidate this view"
+    )
     created_at: str = Field(description="Timestamp when the review was created (as a string)")
 
 
@@ -86,13 +100,24 @@ class CognitiveBlackboard(BaseModel):
         missing_evidence_count: Number of missing evidence items (default 0).
         metadata: Additional metadata as a dictionary.
     """
+
     blackboard_id: str = Field(description="Unique identifier for the blackboard")
     thesis_id: str = Field(description="Unique identifier for the thesis")
-    bull_review: Optional[ReviewCard] = Field(default=None, description="Optional bull review card (if available)")
-    bear_review: Optional[ReviewCard] = Field(default=None, description="Optional bear review card (if available)")
-    skeptic_review: Optional[ReviewCard] = Field(default=None, description="Optional skeptic review card (if available)")
-    aggregated_evidence: List[EvidenceReference] = Field(default_factory=list, description="List of all evidence references aggregated")
-    conflicting_evidence_count: int = Field(default=0, description="Number of conflicting evidence items")
+    bull_review: Optional[ReviewCard] = Field(
+        default=None, description="Optional bull review card (if available)"
+    )
+    bear_review: Optional[ReviewCard] = Field(
+        default=None, description="Optional bear review card (if available)"
+    )
+    skeptic_review: Optional[ReviewCard] = Field(
+        default=None, description="Optional skeptic review card (if available)"
+    )
+    aggregated_evidence: List[EvidenceReference] = Field(
+        default_factory=list, description="List of all evidence references aggregated"
+    )
+    conflicting_evidence_count: int = Field(
+        default=0, description="Number of conflicting evidence items"
+    )
     missing_evidence_count: int = Field(default=0, description="Number of missing evidence items")
     metadata: Dict = Field(default_factory=dict, description="Additional metadata as a dictionary")
 
@@ -115,11 +140,19 @@ class ConflictDetectionSummary(BaseModel):
         can_promote_to_candidate: Whether the thesis can be promoted to candidate (follows hard rules: has evidence + bear/skeptic review).
         reasoning: Reasoning for the conclusions.
     """
+
     conflict_id: str = Field(description="Unique identifier for the conflict summary")
     thesis_id: str = Field(description="Unique identifier for the thesis")
     total_conflicts: int = Field(description="Total number of detected conflicts")
-    conflicting_claims: List[Dict[str, str]] = Field(default_factory=list, description="List of conflicting claims (each with bull_claim, bear_claim, evidence_point)")
+    conflicting_claims: List[Dict[str, str]] = Field(
+        default_factory=list,
+        description="List of conflicting claims (each with bull_claim, bear_claim, evidence_point)",
+    )
     unresolved_conflicts: int = Field(description="Number of unresolved conflicts")
-    has_sufficient_opposing_view: bool = Field(description="Whether there is a sufficient opposing view (bear/skeptic review)")
-    can_promote_to_candidate: bool = Field(description="Whether the thesis can be promoted to candidate (follows hard rules: has evidence + bear/skeptic review)")
+    has_sufficient_opposing_view: bool = Field(
+        description="Whether there is a sufficient opposing view (bear/skeptic review)"
+    )
+    can_promote_to_candidate: bool = Field(
+        description="Whether the thesis can be promoted to candidate (follows hard rules: has evidence + bear/skeptic review)"
+    )
     reasoning: str = Field(description="Reasoning for the conclusions")

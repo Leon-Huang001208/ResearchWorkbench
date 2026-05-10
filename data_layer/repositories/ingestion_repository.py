@@ -168,11 +168,7 @@ class IngestionQueueRepository(BaseRepository):
 
     def find_by_dedup_hash(self, dedup_hash: str) -> Optional[IngestionQueueItem]:
         """根据去重哈希查找"""
-        db_item = (
-            self.db.query(IngestionQueueItemDB)
-            .filter_by(dedup_hash=dedup_hash)
-            .first()
-        )
+        db_item = self.db.query(IngestionQueueItemDB).filter_by(dedup_hash=dedup_hash).first()
         if not db_item:
             return None
         return self._to_domain(db_item)

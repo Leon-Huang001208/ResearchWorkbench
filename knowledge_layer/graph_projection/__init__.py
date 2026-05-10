@@ -1,10 +1,10 @@
 """Time-aware Temporal Industry Graph"""
 from .contracts import (
+    IndustryChain,
+    PropagationPath,
     RelationshipType,
     SupplyChainPosition,
     TemporalRelation,
-    IndustryChain,
-    PropagationPath,
 )
 from .graph_store import IndustryGraphStore
 from .propagation import PropagationAnalyzer
@@ -20,4 +20,3 @@ __all__ = [
     "PropagationAnalyzer",
     "GraphRepository",
 ]
-

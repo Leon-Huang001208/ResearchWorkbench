@@ -32,8 +32,8 @@ def backtest_command(
         af backtest --file prices.csv --initial-capital 1000000
         af backtest --symbol 600519.SH --position-size 0.2
     """
-    import pandas as pd
     import numpy as np
+    import pandas as pd
 
     click.echo("Running backtest...")
 
@@ -84,6 +84,7 @@ def backtest_command(
 
             if output_path.suffix == ".json":
                 import json
+
                 with open(output_path, "w", encoding="utf-8") as f:
                     json.dump(result_dict, f, ensure_ascii=False, indent=2)
             else:
@@ -94,7 +95,7 @@ def backtest_command(
                     f"Annual Return: {result.annual_return:.2%}\n"
                     f"Sharpe Ratio: {result.sharpe_ratio:.2f}\n"
                     f"Max Drawdown: {result.max_drawdown:.2%}\n",
-                    encoding="utf-8"
+                    encoding="utf-8",
                 )
 
             click.echo(f"\n✓ Results saved to: {output_path.absolute()}")

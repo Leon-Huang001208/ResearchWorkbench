@@ -3,9 +3,9 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from core.services.signal_service import SignalService
 from data_layer.repositories.base import Base
 from data_layer.repositories.signal_repository import SignalRepositoryImpl
-from core.services.signal_service import SignalService
 
 
 @pytest.fixture(scope="function")
@@ -14,6 +14,7 @@ def db_session():
     engine = create_engine("sqlite:///:memory:")
     # 确保所有 ORM 模型已注册
     import data_layer.repositories.models  # noqa: F401
+
     Base.metadata.create_all(bind=engine)
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     session = SessionLocal()

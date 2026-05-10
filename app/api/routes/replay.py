@@ -37,6 +37,7 @@ async def create_replay_job(
         )
     except Exception as e:
         from core.observability import get_logger
+
         logger = get_logger(__name__)
         logger.error("Failed to create replay job", error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
@@ -62,6 +63,7 @@ async def run_replay_job(
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         from core.observability import get_logger
+
         logger = get_logger(__name__)
         logger.error("Failed to run replay job", job_id=job_id, error=str(e))
         raise HTTPException(status_code=500, detail=str(e))

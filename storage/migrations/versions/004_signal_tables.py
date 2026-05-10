@@ -6,8 +6,9 @@ Create Date: 2026-05-07
 
 """
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP
+
+from alembic import op
 
 revision = "004"
 down_revision = "002"
@@ -69,7 +70,9 @@ def upgrade() -> None:
         ),
     )
     op.create_index("idx_trade_candidate_signal_id", "trade_candidate", ["signal_id"])
-    op.create_index("idx_trade_candidate_team_project", "trade_candidate", ["team_id", "project_id"])
+    op.create_index(
+        "idx_trade_candidate_team_project", "trade_candidate", ["team_id", "project_id"]
+    )
 
     # Agent view table
     op.create_table(
@@ -118,7 +121,9 @@ def upgrade() -> None:
     )
     op.create_index("idx_blackboard_conflict_target_id", "blackboard_conflict", ["target_id"])
     op.create_index("idx_blackboard_conflict_event_id", "blackboard_conflict", ["event_id"])
-    op.create_index("idx_blackboard_conflict_team_project", "blackboard_conflict", ["team_id", "project_id"])
+    op.create_index(
+        "idx_blackboard_conflict_team_project", "blackboard_conflict", ["team_id", "project_id"]
+    )
 
 
 def downgrade() -> None:

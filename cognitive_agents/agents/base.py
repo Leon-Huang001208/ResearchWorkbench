@@ -3,26 +3,28 @@ from abc import ABC, abstractmethod
 
 from pydantic import BaseModel, Field
 
-from core.observability import get_logger
-from core.interfaces import ModelGateway
-from cognitive_agents.contracts import AgentView, AgentRole
 from cognitive_agents.blackboard import CognitiveBlackboard
+from cognitive_agents.contracts import AgentRole, AgentView
+from core.interfaces import ModelGateway
+from core.observability import get_logger
 
 logger = get_logger(__name__)
 
 
 class AgentContext(BaseModel):
     """Agent 执行上下文。"""
-    target_id: str           # 标的ID
+
+    target_id: str  # 标的ID
     event_id: str | None = None  # 关联事件ID
-    question: str            # 分析问题
+    question: str  # 分析问题
     evidence: list[dict] = Field(default_factory=list)  # 证据（断言、事件等）
-    market_data: dict = Field(default_factory=dict)      # 市场数据快照
+    market_data: dict = Field(default_factory=dict)  # 市场数据快照
     prior_views: list[AgentView] = Field(default_factory=list)  # 黑板已有观点
 
 
 class BaseCognitiveAgent(ABC):
     """认知 Agent 抽象基类。"""
+
     def __init__(self, model_gateway: ModelGateway, agent_name: str, agent_role: AgentRole):
         self.model_gateway = model_gateway
         self.agent_name = agent_name

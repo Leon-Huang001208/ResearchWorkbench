@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -6,23 +5,22 @@
 
 提供统一的基类，消除 report.py、news.py、meeting.py 之间的重复代码。
 """
-from typing import Any, Dict, Optional, List, Tuple
+import json
+import logging
+import os
+import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-import os
-import sys
-import logging
-import json
+from typing import Any, Dict, List, Optional, Tuple
 
-from .client import ZhiQiuClient
 from .account_manager import AccountManager
-from .progress_tracker import ProgressStateManager
+from .client import ZhiQiuClient
 from .ejection_detector import AccountEjectionDetector, DetectionConfig
-
+from .progress_tracker import ProgressStateManager
 
 # 昨天日期作为默认值
-YESTERDAY = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+YESTERDAY = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
 
 
 class BaseStateManager:
@@ -47,7 +45,7 @@ class BaseStateManager:
     def _load_state(self) -> Dict[str, Any]:
         if self.state_path.exists():
             try:
-                with open(self.state_path, 'r', encoding='utf-8') as f:
+                with open(self.state_path, "r", encoding="utf-8") as f:
                     return json.load(f)
             except Exception as e:
                 if self.verbose:
@@ -56,26 +54,22 @@ class BaseStateManager:
 
     def _get_default_state(self) -> Dict[str, Any]:
         return {
-            'version': '1.0',
-            'last_updated': datetime.now().isoformat(),
-            self.processed_key: {}
+            "version": "1.0",
+            "last_updated": datetime.now().isoformat(),
+            self.processed_key: {},
         }
 
     def save(self):
-        self.state['last_updated'] = datetime.now().isoformat()
+        self.state["last_updated"] = datetime.now().isoformat()
         self.state_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.state_path, 'w', encoding='utf-8') as f:
+        with open(self.state_path, "w", encoding="utf-8") as f:
             json.dump(self.state, f, ensure_ascii=False, indent=2)
 
     def is_report_processed(self, obj_id: str) -> bool:
         return obj_id in self.state[self.processed_key]
 
     def add_processed_report(self, obj_id: str, title: str, **extra):
-        record = {
-            'first_seen': datetime.now().isoformat(),
-            'title': title,
-            **extra
-        }
+        record = {"first_seen": datetime.now().isoformat(), "title": title, **extra}
         self.state[self.processed_key][obj_id] = record
 
     def get_processed_count(self) -> int:
@@ -87,6 +81,7 @@ class BaseConfig:
     """
     配置基类 - 包含通用配置项
     """
+
     # 基础配置
     config_path: str = ""
     starttime: str = ""
@@ -139,9 +134,7 @@ class BaseFetcher:
         if self.config.state_path and self.config.processed_key:
             try:
                 self._state_manager = BaseStateManager(
-                    self.config.state_path,
-                    self.config.processed_key,
-                    self.config.verbose
+                    self.config.state_path, self.config.processed_key, self.config.verbose
                 )
                 if self.config.verbose:
                     print(f"[init] 状态管理器已初始化，已记录 {self._state_manager.get_processed_count()} 条记录")
@@ -174,8 +167,7 @@ class BaseFetcher:
         try:
             if self.config.config_path:
                 self._account_manager = AccountManager(
-                    self.config.config_path,
-                    module_identifier=self.config.module_name
+                    self.config.config_path, module_identifier=self.config.module_name
                 )
                 if self._logger:
                     self._logger.info("账号管理器已初始化")
@@ -184,15 +176,15 @@ class BaseFetcher:
                 self._logger.warning(f"初始化账号管理器失败: {e}")
 
         try:
-            progress_cfg = cfg.get('progress_tracking', {})
-            if progress_cfg.get('enabled', True):
-                state_file = progress_cfg.get('state_file', './progress_state.json')
+            progress_cfg = cfg.get("progress_tracking", {})
+            if progress_cfg.get("enabled", True):
+                state_file = progress_cfg.get("state_file", "./progress_state.json")
                 if self.config.config_path and not os.path.isabs(state_file):
                     state_file = os.path.join(os.path.dirname(self.config.config_path), state_file)
                 self._progress_manager = ProgressStateManager(
                     state_file=state_file,
-                    auto_save=progress_cfg.get('enabled', True),
-                    save_interval=progress_cfg.get('save_interval', 10)
+                    auto_save=progress_cfg.get("enabled", True),
+                    save_interval=progress_cfg.get("save_interval", 10),
                 )
                 if self._logger:
                     self._logger.info("进度追踪器已初始化")
@@ -201,14 +193,14 @@ class BaseFetcher:
                 self._logger.warning(f"初始化进度追踪器失败: {e}")
 
         try:
-            eject_cfg = cfg.get('ejection_detection', {})
+            eject_cfg = cfg.get("ejection_detection", {})
             detection_config = DetectionConfig()
-            if 'check_responses' in eject_cfg:
-                detection_config.check_responses = eject_cfg['check_responses']
-            if 'error_keywords' in eject_cfg:
-                detection_config.error_keywords = eject_cfg['error_keywords']
-            if 'max_consecutive_errors' in eject_cfg:
-                detection_config.max_consecutive_errors = eject_cfg['max_consecutive_errors']
+            if "check_responses" in eject_cfg:
+                detection_config.check_responses = eject_cfg["check_responses"]
+            if "error_keywords" in eject_cfg:
+                detection_config.error_keywords = eject_cfg["error_keywords"]
+            if "max_consecutive_errors" in eject_cfg:
+                detection_config.max_consecutive_errors = eject_cfg["max_consecutive_errors"]
             self._ejection_detector = AccountEjectionDetector(detection_config)
             if self._logger:
                 self._logger.info("顶出检测器已初始化")
@@ -219,7 +211,8 @@ class BaseFetcher:
     def _load_config_file(self):
         try:
             import yaml
-            with open(self.config.config_path, 'r', encoding='utf-8') as f:
+
+            with open(self.config.config_path, "r", encoding="utf-8") as f:
                 self.config._raw_config = yaml.safe_load(f) or {}
 
             # config.yaml 只负责提供：
@@ -242,17 +235,17 @@ class BaseFetcher:
         if self._logger is not None and self._logger.handlers:
             return
 
-        log_dir = Path(self.config.output_dir) / 'logs'
+        log_dir = Path(self.config.output_dir) / "logs"
         log_dir.mkdir(parents=True, exist_ok=True)
-        log_file = log_dir / f'{self.config.module_name}_{self.config.starttime}.log'
+        log_file = log_dir / f"{self.config.module_name}_{self.config.starttime}.log"
 
         self._logger = logging.getLogger(self.config.module_name)
         self._logger.setLevel(logging.INFO)
 
         if not self._logger.handlers:
-            file_handler = logging.FileHandler(log_file, encoding='utf-8')
+            file_handler = logging.FileHandler(log_file, encoding="utf-8")
             console_handler = logging.StreamHandler(sys.stdout)
-            formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
+            formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(name)s - %(message)s")
             file_handler.setFormatter(formatter)
             console_handler.setFormatter(formatter)
             self._logger.addHandler(file_handler)
@@ -260,8 +253,8 @@ class BaseFetcher:
             self._logger.propagate = False
 
     def _login(self, credentials: dict, account_name: str = None) -> bool:
-        username = credentials.get('username')
-        password = credentials.get('password')
+        username = credentials.get("username")
+        password = credentials.get("password")
 
         if account_name and self._logger:
             self._logger.info(f"使用账号: {account_name} ({username})")
@@ -278,7 +271,7 @@ class BaseFetcher:
         if not self._client:
             return False
         result = self._client.check_login_status()
-        return result.get('success', False)
+        return result.get("success", False)
 
     def _handle_account_ejection(self, current_account: str) -> Optional[str]:
         if not self._account_manager:
@@ -292,7 +285,7 @@ class BaseFetcher:
         self._account_manager.record_failure(current_account, lock_seconds=300)
         self._account_manager.release_account(current_account)
 
-        accounts = self.config._raw_config.get('accounts', {})
+        accounts = self.config._raw_config.get("accounts", {})
         max_attempts = len(accounts) if accounts else 3
 
         for attempt in range(max_attempts):
@@ -344,13 +337,13 @@ class BaseFetcher:
         if self._state_manager:
             self._logger.info(f"  - 持久化去重: 启用 (已记录 {self._state_manager.get_processed_count()} 条)")
         else:
-            self._logger.info(f"  - 持久化去重: 关闭")
+            self._logger.info("  - 持久化去重: 关闭")
         if self._account_manager:
-            self._logger.info(f"  - 账号管理: 启用")
+            self._logger.info("  - 账号管理: 启用")
         if self._progress_manager:
-            self._logger.info(f"  - 进度追踪: 启用")
+            self._logger.info("  - 进度追踪: 启用")
         if self._ejection_detector:
-            self._logger.info(f"  - 顶出检测: 启用")
+            self._logger.info("  - 顶出检测: 启用")
         self._logger.info("=" * 50)
 
     def fetch(self, **kwargs) -> Dict[str, Any]:
@@ -361,17 +354,17 @@ class BaseFetcher:
             if hasattr(self.config, key):
                 setattr(self.config, key, value)
 
-        if 'state_path' in kwargs and self.config.processed_key:
+        if "state_path" in kwargs and self.config.processed_key:
             self._state_manager = None
             if self.config.state_path:
                 try:
                     self._state_manager = BaseStateManager(
-                        self.config.state_path,
-                        self.config.processed_key,
-                        self.config.verbose
+                        self.config.state_path, self.config.processed_key, self.config.verbose
                     )
                     if self.config.verbose:
-                        print(f"[init] 状态管理器已初始化，已记录 {self._state_manager.get_processed_count()} 条记录")
+                        print(
+                            f"[init] 状态管理器已初始化，已记录 {self._state_manager.get_processed_count()} 条记录"
+                        )
                 except Exception as e:
                     if self.config.verbose:
                         print(f"[warn] 初始化状态管理器失败: {e}，持久化去重将不可用")
@@ -383,24 +376,20 @@ class BaseFetcher:
             self._logger.info(f"开始爬取{self.config.module_label}: {self.config.search or '全部'}")
 
         if not self._account_manager:
-            return {
-                'success': False,
-                'message': '账号管理器未初始化',
-                'errors': ['需要配置文件以使用账号管理']
-            }
+            return {"success": False, "message": "账号管理器未初始化", "errors": ["需要配置文件以使用账号管理"]}
 
         return self._fetch_with_account_lease()
 
     def _fetch_with_account_lease(self) -> Dict[str, Any]:
         results = {
-            'success': True,
-            'message': '',
-            'terms': [],
-            'output_dir': self.config.output_dir,
-            'errors': [],
-            'skipped_existing': 0,
-            'total': 0,
-            'new': 0
+            "success": True,
+            "message": "",
+            "terms": [],
+            "output_dir": self.config.output_dir,
+            "errors": [],
+            "skipped_existing": 0,
+            "total": 0,
+            "new": 0,
         }
 
         all_new_items = []
@@ -409,11 +398,7 @@ class BaseFetcher:
         try:
             leased_account = self._account_manager.acquire_account()
             if not leased_account:
-                return {
-                    'success': False,
-                    'message': '获取账号失败',
-                    'errors': ['没有可用的账号']
-                }
+                return {"success": False, "message": "获取账号失败", "errors": ["没有可用的账号"]}
 
             login_success = False
             for attempt in range(3):
@@ -431,24 +416,20 @@ class BaseFetcher:
                     break
 
             if not login_success:
-                return {
-                    'success': False,
-                    'message': '登录失败',
-                    'errors': ['无法登录知丘平台，请检查凭证']
-                }
+                return {"success": False, "message": "登录失败", "errors": ["无法登录知丘平台，请检查凭证"]}
 
             self._log_feature_status()
 
             search_val = self.config.search or ""
             if isinstance(search_val, str):
-                search_terms = [s.strip() for s in search_val.split(',') if s.strip()]
+                search_terms = [s.strip() for s in search_val.split(",") if s.strip()]
             else:
                 search_terms = []
             if not search_terms:
-                search_terms = ['']
+                search_terms = [""]
 
             for i, term in enumerate(search_terms, 1):
-                term_name = term if term else '全部'
+                term_name = term if term else "全部"
                 if self._logger:
                     self._logger.info(f"进度: {i}/{len(search_terms)} - {term_name}")
 
@@ -460,62 +441,66 @@ class BaseFetcher:
                             if new_account and new_account != leased_account:
                                 self._account_manager.release_account(leased_account)
                                 leased_account = new_account
-                                credentials = self._account_manager.get_account_credentials(leased_account)
+                                credentials = self._account_manager.get_account_credentials(
+                                    leased_account
+                                )
                                 if not self._login(credentials, leased_account):
                                     if self._logger:
-                                        self._logger.warning(f"账号切换后登录失败")
+                                        self._logger.warning("账号切换后登录失败")
                                     continue
 
                         term_result, new_items = self._fetch_single_term(term)
-                        results['terms'].append(term_result)
-                        results['total'] += term_result.get('count', 0)
-                        results['skipped_existing'] += term_result.get('skipped_existing', 0)
-                        results['new'] += term_result.get('new', 0)
+                        results["terms"].append(term_result)
+                        results["total"] += term_result.get("count", 0)
+                        results["skipped_existing"] += term_result.get("skipped_existing", 0)
+                        results["new"] += term_result.get("new", 0)
                         all_new_items.extend(new_items)
                         break
                     except Exception as e:
-                        if self._ejection_detector and self._ejection_detector.check_response(exception=e):
+                        if self._ejection_detector and self._ejection_detector.check_response(
+                            exception=e
+                        ):
                             if self._logger:
                                 self._logger.warning(f"检测到账号被顶出 (处理 '{term_name}' 时)")
                             new_account = self._handle_account_ejection(leased_account)
                             if new_account:
                                 leased_account = new_account
                                 if self._logger:
-                                    self._logger.info(f"账号切换成功，重试处理 '{term_name}' (尝试 {attempt + 1}/{max_retries})")
+                                    self._logger.info(
+                                        f"账号切换成功，重试处理 '{term_name}' (尝试 {attempt + 1}/{max_retries})"
+                                    )
                                 continue
                             if self._logger:
                                 self._logger.error(f"无法切换账号，终止处理 '{term_name}'")
-                            results['terms'].append({
-                                'term': term_name,
-                                'status': 'error',
-                                'error': '无法切换账号'
-                            })
-                            results['errors'].append(f'{term_name}: 无法切换账号')
+                            results["terms"].append(
+                                {"term": term_name, "status": "error", "error": "无法切换账号"}
+                            )
+                            results["errors"].append(f"{term_name}: 无法切换账号")
                             break
                         else:
                             if self._logger:
                                 self._logger.error(f"处理 '{term_name}' 时出错: {e}")
-                            results['terms'].append({
-                                'term': term_name,
-                                'status': 'error',
-                                'error': str(e)
-                            })
-                            results['errors'].append(f'{term_name}: {str(e)}')
+                            results["terms"].append(
+                                {"term": term_name, "status": "error", "error": str(e)}
+                            )
+                            results["errors"].append(f"{term_name}: {str(e)}")
                             break
 
             if self._state_manager and all_new_items:
                 if self.config.verbose:
                     print(f"[state] 正在记录 {len(all_new_items)} 条记录到状态文件...")
                 for item in all_new_items:
-                    obj_id = item.get('OBJID') or item.get('id')
-                    title = item.get('title', '')
+                    obj_id = item.get("OBJID") or item.get("id")
+                    title = item.get("title", "")
                     self._save_processed_item(obj_id, title, item)
                 self._state_manager.save()
                 if self.config.verbose:
                     print(f"[state] 状态文件已更新，共记录 {self._state_manager.get_processed_count()} 条记录")
 
-            success_count = sum(1 for t in results['terms'] if t.get('status') == 'success')
-            results['message'] = f'完成: 成功 {success_count}/{len(search_terms)}，共 {results["total"]} 条{self.config.module_label} (新: {results["new"]}，跳过: {results["skipped_existing"]})'
+            success_count = sum(1 for t in results["terms"] if t.get("status") == "success")
+            results[
+                "message"
+            ] = f'完成: 成功 {success_count}/{len(search_terms)}，共 {results["total"]} 条{self.config.module_label} (新: {results["new"]}，跳过: {results["skipped_existing"]})'
 
             if self.config.verbose:
                 print(f"[done] {results['message']}")
@@ -539,7 +524,7 @@ class BaseFetcher:
         """
         self._state_manager.add_processed_report(obj_id, title)
 
-    def _search_homepage(self, search_term: str, hyper_search_fields: str = 'title'):
+    def _search_homepage(self, search_term: str, hyper_search_fields: str = "title"):
         """
         通用的首页搜索方法
 
@@ -551,7 +536,7 @@ class BaseFetcher:
             搜索结果 JSON 数据
         """
         if self.config.fetch_all_pages:
-            if self.config.date_limit == 'CUSTOM':
+            if self.config.date_limit == "CUSTOM":
                 return self._client.search_homepage_all_pages(
                     search=search_term,
                     date_limit=self.config.date_limit,
@@ -561,7 +546,7 @@ class BaseFetcher:
                     page_size=self.config.page_size,
                     hyper_search_fields=hyper_search_fields,
                     sort_by_time=True,
-                    max_pages=self.config.max_pages
+                    max_pages=self.config.max_pages,
                 )
             else:
                 return self._client.search_homepage_all_pages(
@@ -571,10 +556,10 @@ class BaseFetcher:
                     page_size=self.config.page_size,
                     hyper_search_fields=hyper_search_fields,
                     sort_by_time=True,
-                    max_pages=self.config.max_pages
+                    max_pages=self.config.max_pages,
                 )
         else:
-            if self.config.date_limit == 'CUSTOM':
+            if self.config.date_limit == "CUSTOM":
                 return self._client.search_homepage(
                     search=search_term,
                     date_limit=self.config.date_limit,
@@ -584,7 +569,7 @@ class BaseFetcher:
                     page=self.config.page,
                     page_size=self.config.page_size,
                     hyper_search_fields=hyper_search_fields,
-                    sort_by_time=True
+                    sort_by_time=True,
                 )
             else:
                 return self._client.search_homepage(
@@ -594,10 +579,12 @@ class BaseFetcher:
                     page=self.config.page,
                     page_size=self.config.page_size,
                     hyper_search_fields=hyper_search_fields,
-                    sort_by_time=True
+                    sort_by_time=True,
                 )
 
-    def _process_search_result(self, json_data, processor_class, output_prefix: str, **processor_kwargs):
+    def _process_search_result(
+        self, json_data, processor_class, output_prefix: str, **processor_kwargs
+    ):
         """
         通用的搜索结果处理方法
 
@@ -612,15 +599,17 @@ class BaseFetcher:
         """
         if not json_data:
             return {
-                'term': self.config.search or '全部',
-                'status': 'failed',
-                'error': '获取数据失败',
-                'count': 0,
-                'skipped_existing': 0,
-                'new': 0
+                "term": self.config.search or "全部",
+                "status": "failed",
+                "error": "获取数据失败",
+                "count": 0,
+                "skipped_existing": 0,
+                "new": 0,
             }, []
 
-        output_json = os.path.join(self.config.output_dir, f'{output_prefix}_{self.config.starttime}.json')
+        output_json = os.path.join(
+            self.config.output_dir, f"{output_prefix}_{self.config.starttime}.json"
+        )
         os.makedirs(self.config.output_dir, exist_ok=True)
 
         processor = processor_class(self._client)
@@ -629,16 +618,16 @@ class BaseFetcher:
             output_json,
             state_manager=self._state_manager,
             skip_existing=self.config.skip_existing,
-            **processor_kwargs
+            **processor_kwargs,
         )
 
         return {
-            'term': self.config.search or '全部',
-            'status': 'success',
-            'count': len(df),
-            'output_file': output_json,
-            'skipped_existing': skipped_count,
-            'new': len(new_items)
+            "term": self.config.search or "全部",
+            "status": "success",
+            "count": len(df),
+            "output_file": output_json,
+            "skipped_existing": skipped_count,
+            "new": len(new_items),
         }, new_items
 
     def _fetch_single_term(self, search_term: str) -> Tuple[Dict[str, Any], List[Dict]]:
@@ -652,4 +641,3 @@ class BaseFetcher:
             (term_result_dict, new_items_list)
         """
         raise NotImplementedError("_fetch_single_term must be implemented by subclass")
-

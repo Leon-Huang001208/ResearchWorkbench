@@ -31,8 +31,7 @@ class EventDrivenLabeler(Labeler):
             return_threshold: 收益阈值（用于分类）
         """
         super().__init__(
-            name=f"event_{event_type}_{horizon}d",
-            description=f"{event_type}事件{horizon}日收益标签"
+            name=f"event_{event_type}_{horizon}d", description=f"{event_type}事件{horizon}日收益标签"
         )
         self.horizon = horizon
         self.event_type = event_type

@@ -32,7 +32,6 @@ class IngestService:
         assertion_repo: Optional["AssertionRepository"] = None,
         event_repo: Optional["EventRepository"] = None,
     ):
-
         self._document_repo = document_repo
         # 自动注入 model_gateway（如果未提供且非测试环境）
         if model_gateway is None:

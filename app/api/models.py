@@ -4,19 +4,22 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
-
 # ─── 通用 ───────────────────────────────────────────────
+
 
 class ErrorResponse(BaseModel):
     """统一错误响应"""
+
     error: str
     detail: Optional[str] = None
 
 
 # ─── 资产分析 ───────────────────────────────────────────
 
+
 class AnalyzeRequest(BaseModel):
     """资产分析请求"""
+
     canonical_id: str = Field(..., description="资产代码，如 600000.SH")
     as_of: Optional[datetime] = Field(None, description="快照时间，默认当前时间")
     source: str = Field("auto", description="数据源: auto（自动降级）/ mock / local / ifind / akshare")
@@ -25,6 +28,7 @@ class AnalyzeRequest(BaseModel):
 
 class AnalyzeResponse(BaseModel):
     """资产分析响应"""
+
     canonical_id: str
     as_of: datetime
     financial: Dict[str, Any] = Field(default_factory=dict)
@@ -40,8 +44,10 @@ class AnalyzeResponse(BaseModel):
 
 # ─── 情景分析 ───────────────────────────────────────────
 
+
 class ScenarioRequest(BaseModel):
     """情景生成请求"""
+
     topic: str = Field(..., description="研究主题")
     subject_ids: Optional[List[str]] = Field(None, description="主题 ID 列表")
     use_evidence: bool = Field(True, description="是否使用真实证据")
@@ -51,12 +57,14 @@ class ScenarioRequest(BaseModel):
 
 class ScenarioEvidence(BaseModel):
     """场景证据"""
+
     events: List[Dict[str, Any]] = Field(default_factory=list, description="相关历史事件")
     outcomes: List[Dict[str, Any]] = Field(default_factory=list, description="相关 Outcome 记录")
 
 
 class ScenarioHypothesisResponse(BaseModel):
     """情景假设响应"""
+
     scenario_id: str
     title: str
     horizon: str
@@ -67,12 +75,15 @@ class ScenarioHypothesisResponse(BaseModel):
     impact_map: Dict[str, Any] = Field(default_factory=dict)
     evidence_assertion_ids: List[str] = Field(default_factory=list)
     confidence: float
-    evidence: ScenarioEvidence = Field(default_factory=ScenarioEvidence, description="真实事件/Outcome 证据")
+    evidence: ScenarioEvidence = Field(
+        default_factory=ScenarioEvidence, description="真实事件/Outcome 证据"
+    )
     evidence_strength: str = Field(default="none", description="证据强度: high/medium/low/none")
 
 
 class ScenarioResponse(BaseModel):
     """情景集合响应"""
+
     set_id: str
     question: str
     hypotheses: List[ScenarioHypothesisResponse] = Field(default_factory=list)
@@ -84,8 +95,10 @@ class ScenarioResponse(BaseModel):
 
 # ─── 审核 ───────────────────────────────────────────────
 
+
 class ReviewItemResponse(BaseModel):
     """审核项响应"""
+
     assertion_id: str
     subject_entity_id: Optional[str] = None
     predicate: str
@@ -97,6 +110,7 @@ class ReviewItemResponse(BaseModel):
 
 class ReviewStatsResponse(BaseModel):
     """审核统计响应"""
+
     pending_assertions: int = 0
     approved_assertions: int = 0
     rejected_assertions: int = 0
@@ -105,6 +119,7 @@ class ReviewStatsResponse(BaseModel):
 
 class ReviewActionResponse(BaseModel):
     """审核操作响应"""
+
     item_id: str
     action: str
     success: bool
@@ -113,8 +128,10 @@ class ReviewActionResponse(BaseModel):
 
 # ─── 信号 ───────────────────────────────────────────────
 
+
 class SignalCreateRequest(BaseModel):
     """信号创建请求"""
+
     subject_id: str = Field(..., description="主体ID")
     thesis: str = Field(..., description="研究论点")
     horizon: str = Field("20d", description="预测期: 1d / 5d / 20d / 60d")
@@ -127,6 +144,7 @@ class SignalCreateRequest(BaseModel):
 
 class SignalResponse(BaseModel):
     """信号响应"""
+
     signal_id: str
     subject_id: str
     horizon: str
@@ -140,6 +158,7 @@ class SignalResponse(BaseModel):
 
 class SignalValidateResponse(BaseModel):
     """信号验证响应"""
+
     signal_id: str
     composite_score: float
     features: Dict[str, Any] = Field(default_factory=dict)
@@ -149,6 +168,7 @@ class SignalValidateResponse(BaseModel):
 
 class SignalPromoteResponse(BaseModel):
     """信号升级响应"""
+
     signal_id: str
     old_status: Optional[str] = None
     new_status: str
@@ -158,8 +178,10 @@ class SignalPromoteResponse(BaseModel):
 
 # ─── 摄入 ───────────────────────────────────────────────
 
+
 class IngestTextRequest(BaseModel):
     """文本摄入请求"""
+
     text: str = Field(..., description="文本内容")
     source_type: str = Field("report", description="来源类型")
     source_name: str = Field("unknown", description="来源名称")
@@ -168,6 +190,7 @@ class IngestTextRequest(BaseModel):
 
 class IngestResponse(BaseModel):
     """摄入响应"""
+
     doc_id: str
     title: str
     assertions_extracted: int = 0

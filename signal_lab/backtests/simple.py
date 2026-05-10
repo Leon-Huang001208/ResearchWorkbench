@@ -5,12 +5,12 @@
 """
 from typing import Any, List, Optional
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 from core.contracts import AlphaSignal
 from core.observability import get_logger
-from signal_lab.backtests.base import BacktestResult, Backtester
+from signal_lab.backtests.base import Backtester, BacktestResult
 
 logger = get_logger(__name__)
 
@@ -34,10 +34,7 @@ class SimpleBacktester(Backtester):
             risk_free_rate: 无风险利率
             transaction_cost: 交易成本（双边）
         """
-        super().__init__(
-            name="simple_backtester",
-            description="简单趋势跟踪回测器"
-        )
+        super().__init__(name="simple_backtester", description="简单趋势跟踪回测器")
         self.initial_capital = initial_capital
         self.position_size = position_size
         self.risk_free_rate = risk_free_rate
@@ -79,7 +76,9 @@ class SimpleBacktester(Backtester):
             positions = self._signal_to_positions(price_series, signals)
 
         # 计算策略收益
-        strategy_returns = positions.shift(1) * returns - abs(positions.diff()) * self.transaction_cost
+        strategy_returns = (
+            positions.shift(1) * returns - abs(positions.diff()) * self.transaction_cost
+        )
 
         # 计算净值曲线
         equity_curve = self.initial_capital * (1 + strategy_returns).cumprod()

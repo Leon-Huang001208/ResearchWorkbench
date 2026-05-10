@@ -130,7 +130,7 @@ def _build_sections(snapshot):
         ),
         SectionOutput(
             key="events",
-            content=f"\n## 事件影响\n\n" + "\n".join([f"- {e}" for e in snapshot.event_impact]),
+            content="\n## 事件影响\n\n" + "\n".join([f"- {e}" for e in snapshot.event_impact]),
             evidence_refs=snapshot.evidence_refs,
             warnings=[],
         ),

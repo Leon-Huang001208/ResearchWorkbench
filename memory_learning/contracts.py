@@ -3,7 +3,6 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-
 OutcomeHorizon = Literal["1d", "5d", "20d", "30d", "60d"]
 TimingAction = Literal["enter", "wait", "reduce", "exit", "block"]
 FailureType = Literal[

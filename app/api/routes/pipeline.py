@@ -1,16 +1,17 @@
 """研究流水线 API"""
+from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from typing import List
 from sqlalchemy.orm import Session
 
 from core.contracts import AssetAnalysisSnapshot, CanonicalEvent, ScenarioSet
 from core.observability import get_logger
 from core.services.pipeline_service import ResearchPipeline
+from core.services.signal_service import SignalService
 from data_layer.repositories.base import get_db
 from data_layer.repositories.signal_repository import SignalRepositoryImpl
 from data_layer.repositories.timing_repository import TimingRepositoryImpl as TimingRepository
-from core.services.signal_service import SignalService
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/pipeline", tags=["pipeline"])
@@ -60,7 +61,9 @@ def _reset_pipeline():
 
 
 @router.post("/asset-analysis", response_model=AssetAnalysisSnapshot)
-async def run_asset_analysis(request: AssetAnalysisRequest, pipeline: ResearchPipeline = Depends(get_pipeline)):
+async def run_asset_analysis(
+    request: AssetAnalysisRequest, pipeline: ResearchPipeline = Depends(get_pipeline)
+):
     """触发资产分析流水线"""
     try:
         result = await pipeline.run_asset_analysis(request.asset_id)
@@ -71,7 +74,9 @@ async def run_asset_analysis(request: AssetAnalysisRequest, pipeline: ResearchPi
 
 
 @router.post("/event-signal", response_model=dict)
-async def run_event_signal(request: EventSignalRequest, pipeline: ResearchPipeline = Depends(get_pipeline)):
+async def run_event_signal(
+    request: EventSignalRequest, pipeline: ResearchPipeline = Depends(get_pipeline)
+):
     """触发事件信号流水线 — Golden Path"""
     try:
         signal = await pipeline.run_event_signal(request.event)
@@ -87,7 +92,9 @@ async def run_event_signal(request: EventSignalRequest, pipeline: ResearchPipeli
 
 
 @router.post("/scenario", response_model=ScenarioSet)
-async def run_scenario_analysis(request: ScenarioAnalysisRequest, pipeline: ResearchPipeline = Depends(get_pipeline)):
+async def run_scenario_analysis(
+    request: ScenarioAnalysisRequest, pipeline: ResearchPipeline = Depends(get_pipeline)
+):
     """触发情景分析流水线"""
     try:
         result = await pipeline.run_scenario_analysis(request.question, request.subject_ids)

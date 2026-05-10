@@ -32,13 +32,13 @@ def example_1_basic_analysis():
 
         print(f"资产代码: {snapshot.canonical_id}")
         print(f"快照时间: {snapshot.as_of}")
-        print(f"\n估值:")
+        print("\n估值:")
         print(f"  PE TTM: {snapshot.valuation.get('pe_ttm')}")
         print(f"  PB: {snapshot.valuation.get('pb')}")
-        print(f"\n价格:")
+        print("\n价格:")
         print(f"  收盘价: {snapshot.price_volume.get('close_price')}")
         print(f"  MA20: {snapshot.price_volume.get('ma20')}")
-        print(f"\n财务:")
+        print("\n财务:")
         print(f"  净利润 YoY: {snapshot.financial.get('net_profit', {}).get('yoy')}")
 
     return snapshot

@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     IFIND_PASSWORD: str = ""
     IFIND_BACKEND: Literal["auto", "python_sdk", "http_api"] = "auto"
     IFIND_HTTP_BASE_URL: str = "https://quantapi.10jqka.com.cn"
-    
+
     # China Stock 数据源
     CHINA_STOCK_ENABLED: bool = True
 

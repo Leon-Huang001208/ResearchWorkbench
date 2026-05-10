@@ -1,9 +1,11 @@
-from typing import List
 import uuid
-from core.observability import get_logger
+from typing import List
+
 from core.contracts.events import CanonicalEvent
-from .graph_store import IndustryGraphStore
+from core.observability import get_logger
+
 from .contracts import PropagationPath, SupplyChainPosition
+from .graph_store import IndustryGraphStore
 
 logger = get_logger(__name__)
 
@@ -49,12 +51,14 @@ class PropagationAnalyzer:
                     position = SupplyChainPosition.MIDSTREAM
                     expected_lag_days = 5
 
-                propagation_path.append({
-                    "entity_id": entity_id,
-                    "position": position,
-                    "expected_lag_days": expected_lag_days,
-                    "impact_direction": event.impact_direction,
-                })
+                propagation_path.append(
+                    {
+                        "entity_id": entity_id,
+                        "position": position,
+                        "expected_lag_days": expected_lag_days,
+                        "impact_direction": event.impact_direction,
+                    }
+                )
         else:
             # If no chain specified, start from affected entities and expand downstream
             processed = set()
@@ -79,12 +83,14 @@ class PropagationAnalyzer:
                         position = SupplyChainPosition.DOWNSTREAM
                         lag = 5 + day_offset * 3
 
-                    propagation_path.append({
-                        "entity_id": entity_id,
-                        "position": position,
-                        "expected_lag_days": lag,
-                        "impact_direction": event.impact_direction,
-                    })
+                    propagation_path.append(
+                        {
+                            "entity_id": entity_id,
+                            "position": position,
+                            "expected_lag_days": lag,
+                            "impact_direction": event.impact_direction,
+                        }
+                    )
 
                 # Get next level (downstream)
                 next_level = []

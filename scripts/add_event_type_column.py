@@ -10,6 +10,7 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from sqlalchemy import text
+
 from core.observability import get_logger
 from data_layer.repositories.base import SessionLocal
 
@@ -21,25 +22,37 @@ def add_event_type_column():
     db = SessionLocal()
     try:
         # Check if column already exists
-        result = db.execute(text("""
+        result = db.execute(
+            text(
+                """
             SELECT column_name
             FROM information_schema.columns
             WHERE table_name = 'signal_outcome' AND column_name = 'event_type'
-        """))
+        """
+            )
+        )
         if result.fetchone():
             logger.info("event_type column already exists, skipping")
             return True
 
         # Add column
         logger.info("Adding event_type column to signal_outcome...")
-        db.execute(text("""
+        db.execute(
+            text(
+                """
             ALTER TABLE signal_outcome
             ADD COLUMN IF NOT EXISTS event_type TEXT DEFAULT 'unknown'
-        """))
-        db.execute(text("""
+        """
+            )
+        )
+        db.execute(
+            text(
+                """
             CREATE INDEX IF NOT EXISTS idx_signal_outcome_event_type
             ON signal_outcome(event_type)
-        """))
+        """
+            )
+        )
         db.commit()
         logger.info("✅ event_type column added successfully")
         return True

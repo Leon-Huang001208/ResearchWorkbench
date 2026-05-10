@@ -1,7 +1,6 @@
 """信号结果评估仓储实现"""
 from typing import List, Optional
 
-
 from core.contracts.outcomes import SignalOutcome
 from core.observability import get_logger
 from data_layer.repositories.base import BaseRepository
@@ -16,11 +15,7 @@ class OutcomeRepositoryImpl(BaseRepository):
     def save(self, outcome: SignalOutcome) -> SignalOutcome:
         """保存结果评估"""
         event_type = outcome.metadata.get("event_type") if outcome.metadata else None
-        existing = (
-            self.db.query(SignalOutcomeDB)
-            .filter_by(outcome_id=outcome.outcome_id)
-            .first()
-        )
+        existing = self.db.query(SignalOutcomeDB).filter_by(outcome_id=outcome.outcome_id).first()
         if existing:
             existing.event_id = outcome.event_id
             existing.signal_id = outcome.signal_id
@@ -69,9 +64,7 @@ class OutcomeRepositoryImpl(BaseRepository):
     def get(self, outcome_id: str) -> Optional[SignalOutcome]:
         """按 ID 获取结果评估"""
         db_outcome = (
-            self.db.query(SignalOutcomeDB)
-            .filter(SignalOutcomeDB.outcome_id == outcome_id)
-            .first()
+            self.db.query(SignalOutcomeDB).filter(SignalOutcomeDB.outcome_id == outcome_id).first()
         )
         if not db_outcome:
             return None
@@ -80,9 +73,7 @@ class OutcomeRepositoryImpl(BaseRepository):
     def get_by_signal_id(self, signal_id: str) -> Optional[SignalOutcome]:
         """按 signal_id 获取结果评估"""
         db_outcome = (
-            self.db.query(SignalOutcomeDB)
-            .filter(SignalOutcomeDB.signal_id == signal_id)
-            .first()
+            self.db.query(SignalOutcomeDB).filter(SignalOutcomeDB.signal_id == signal_id).first()
         )
         if not db_outcome:
             return None
@@ -106,21 +97,15 @@ class OutcomeRepositoryImpl(BaseRepository):
             query = query.filter(SignalOutcomeDB.event_type == event_type)
         if strategy_family is not None:
             query = query.filter(
-                SignalOutcomeDB.outcome_metadata.contains(
-                    {"strategy_family": strategy_family}
-                )
+                SignalOutcomeDB.outcome_metadata.contains({"strategy_family": strategy_family})
             )
-        db_outcomes = (
-            query.order_by(SignalOutcomeDB.created_at.desc()).limit(limit).all()
-        )
+        db_outcomes = query.order_by(SignalOutcomeDB.created_at.desc()).limit(limit).all()
         return [self._to_domain(o) for o in db_outcomes]
 
     def update_lesson(self, outcome_id: str, lesson: str) -> Optional[SignalOutcome]:
         """更新教训字段"""
         db_outcome = (
-            self.db.query(SignalOutcomeDB)
-            .filter(SignalOutcomeDB.outcome_id == outcome_id)
-            .first()
+            self.db.query(SignalOutcomeDB).filter(SignalOutcomeDB.outcome_id == outcome_id).first()
         )
         if not db_outcome:
             return None
@@ -146,7 +131,9 @@ class OutcomeRepositoryImpl(BaseRepository):
             benchmark=db_outcome.benchmark,
             outcome_return=float(db_outcome.outcome_return),
             outcome_excess_return=float(db_outcome.outcome_excess_return),
-            max_drawdown=float(db_outcome.max_drawdown) if db_outcome.max_drawdown is not None else None,
+            max_drawdown=float(db_outcome.max_drawdown)
+            if db_outcome.max_drawdown is not None
+            else None,
             decay=float(db_outcome.decay) if db_outcome.decay is not None else None,
             failure_reason=db_outcome.failure_reason,
             lesson=db_outcome.lesson,

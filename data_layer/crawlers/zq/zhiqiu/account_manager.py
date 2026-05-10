@@ -1,4 +1,3 @@
-
 """
 并发安全的账号管理器 - 支持多进程/多模块同时调用
 
@@ -8,24 +7,27 @@
 3. 账号租借模式（acquire/release）
 4. 支持按模块分配不同账号
 """
-import yaml
-import random
-import logging
-import time
 import json
-from pathlib import Path
-from dataclasses import dataclass, field, asdict
-from typing import Dict, List, Optional
+import logging
+import random
+import time
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Dict, List, Optional
+
+import yaml
 
 # 平台兼容的文件锁
 try:
     import fcntl
+
     HAS_FCNTL = True
 except ImportError:
     HAS_FCNTL = False
     try:
         import msvcrt
+
         HAS_MSVCRT = True
     except ImportError:
         HAS_MSVCRT = False
@@ -37,6 +39,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class AccountStats:
     """账号统计信息"""
+
     name: str
     use_count: int = 0
     success_count: int = 0
@@ -52,6 +55,7 @@ class AccountStats:
 @dataclass
 class RotationConfig:
     """轮询配置"""
+
     enabled: bool = True
     max_retries: int = 3
     retry_delay: int = 5
@@ -62,6 +66,7 @@ class RotationConfig:
 @dataclass
 class AccountManagerState:
     """账号管理器持久化状态"""
+
     version: str = "1.0"
     current_index: int = 0
     accounts: Dict[str, AccountStats] = field(default_factory=dict)
@@ -83,7 +88,7 @@ class FileLock:
 
         while True:
             try:
-                self._lock_file = open(self.lock_path, 'w')
+                self._lock_file = open(self.lock_path, "w")
 
                 if HAS_FCNTL:
                     # Unix/Linux: 使用 fcntl
@@ -159,6 +164,7 @@ class AccountManager:
     def _load_config(self) -> dict:
         """加载配置文件,优先从环境变量 ZQ_ACCOUNTS 读取账号"""
         import os
+
         # 尝试从环境变量加载账号
         zq_accounts_env = os.environ.get("ZQ_ACCOUNTS")
         accounts = {}
@@ -168,21 +174,24 @@ class AccountManager:
                 if ":" in account_pair:
                     username, password = account_pair.split(":", 1)
                     # 使用用户名作为账号 key
-                    accounts[username.strip()] = {"username": username.strip(), "password": password.strip()}
-        
+                    accounts[username.strip()] = {
+                        "username": username.strip(),
+                        "password": password.strip(),
+                    }
+
         # 尝试从配置文件加载其他配置（账号轮换、进度追踪等）
         try:
-            with open(self.config_path, 'r', encoding='utf-8') as f:
+            with open(self.config_path, "r", encoding="utf-8") as f:
                 config = yaml.safe_load(f) or {}
         except Exception:
             config = {}
-        
+
         # 如果环境变量有账号,优先使用环境变量的;否则用配置文件的
         if accounts:
             config["accounts"] = accounts
         elif "accounts" not in config:
             config["accounts"] = {}
-        
+
         return config
 
     def _parse_rotation_config(self) -> RotationConfig:
@@ -193,7 +202,7 @@ class AccountManager:
             max_retries=cfg.get("max_retries", 3),
             retry_delay=cfg.get("retry_delay", 5),
             rotation_strategy=cfg.get("rotation_strategy", "round_robin"),
-            lease_timeout=cfg.get("lease_timeout", 300)
+            lease_timeout=cfg.get("lease_timeout", 300),
         )
 
     def _init_state(self):
@@ -219,13 +228,13 @@ class AccountManager:
 
     def _load_state(self) -> AccountManagerState:
         """从文件加载状态"""
-        with open(self.state_path, 'r', encoding='utf-8') as f:
+        with open(self.state_path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
         state = AccountManagerState(
             version=data.get("version", "1.0"),
             current_index=data.get("current_index", 0),
-            last_updated=data.get("last_updated")
+            last_updated=data.get("last_updated"),
         )
 
         for name, account_data in data.get("accounts", {}).items():
@@ -241,10 +250,10 @@ class AccountManager:
             "version": state.version,
             "current_index": state.current_index,
             "last_updated": state.last_updated,
-            "accounts": {name: asdict(acc) for name, acc in state.accounts.items()}
+            "accounts": {name: asdict(acc) for name, acc in state.accounts.items()},
         }
 
-        with open(self.state_path, 'w', encoding='utf-8') as f:
+        with open(self.state_path, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
 
     def _clean_expired_leases(self, state: AccountManagerState) -> AccountManagerState:
@@ -316,8 +325,9 @@ class AccountManager:
                     return self._lease_account(state, preferred_account)
 
             # 按策略选择账号
-            available = [name for name, acc in state.accounts.items()
-                         if self._is_account_available(acc)]
+            available = [
+                name for name, acc in state.accounts.items() if self._is_account_available(acc)
+            ]
 
             if not available:
                 logger.warning("没有可用账号")
@@ -450,4 +460,3 @@ class AccountLease:
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.account_name:
             self.manager.release_account(self.account_name)
-

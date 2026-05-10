@@ -133,9 +133,9 @@ class LearningJournal:
             }
 
         wins = sum(1 for episode in episodes if episode.outcome_excess_return > 0)
-        average_excess_return = sum(
-            episode.outcome_excess_return for episode in episodes
-        ) / len(episodes)
+        average_excess_return = sum(episode.outcome_excess_return for episode in episodes) / len(
+            episodes
+        )
         return {
             "sample_size": len(episodes),
             "win_rate": wins / len(episodes),

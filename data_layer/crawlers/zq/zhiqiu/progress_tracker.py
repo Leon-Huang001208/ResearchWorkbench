@@ -3,10 +3,10 @@
 """
 import json
 import logging
-from pathlib import Path
-from dataclasses import dataclass, field, asdict
-from typing import Dict, List, Optional, Any
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ReportProgress:
     """单个研报的处理进度"""
+
     report_id: str
     title: str
     status: str  # pending|processing|completed|failed
@@ -24,6 +25,7 @@ class ReportProgress:
 @dataclass
 class CrawlProgress:
     """整体爬取进度"""
+
     session_id: str
     start_time: str
     last_update: str
@@ -72,7 +74,7 @@ class ProgressStateManager:
         end_date: str,
         search_keywords: str = "",
         brokers: str = "",
-        enabled_features: Optional[Dict[str, bool]] = None
+        enabled_features: Optional[Dict[str, bool]] = None,
     ) -> CrawlProgress:
         """创建新的进度记录"""
         now = datetime.now().isoformat()
@@ -84,7 +86,7 @@ class ProgressStateManager:
             end_date=end_date,
             search_keywords=search_keywords,
             brokers=brokers,
-            enabled_features=enabled_features or {}
+            enabled_features=enabled_features or {},
         )
         if self.auto_save:
             self.save()
@@ -108,8 +110,10 @@ class ProgressStateManager:
             data["reports"] = reports
             self.current_progress = CrawlProgress(**data)
 
-            logger.info(f"已加载进度: 会话 {self.current_progress.session_id}, "
-                       f"已处理 {self.current_progress.processed_reports}/{self.current_progress.total_reports}")
+            logger.info(
+                f"已加载进度: 会话 {self.current_progress.session_id}, "
+                f"已处理 {self.current_progress.processed_reports}/{self.current_progress.total_reports}"
+            )
             return self.current_progress
 
         except Exception as e:
@@ -157,11 +161,9 @@ class ProgressStateManager:
 
         self.current_progress.reports = []
         for report_id, title in zip(report_ids, titles):
-            self.current_progress.reports.append(ReportProgress(
-                report_id=report_id,
-                title=title,
-                status="pending"
-            ))
+            self.current_progress.reports.append(
+                ReportProgress(report_id=report_id, title=title, status="pending")
+            )
 
         self.current_progress.total_reports = len(report_ids)
         self.current_progress.current_report_index = 0
@@ -175,7 +177,9 @@ class ProgressStateManager:
             return None
 
         # 从当前位置开始查找
-        for i in range(self.current_progress.current_report_index, len(self.current_progress.reports)):
+        for i in range(
+            self.current_progress.current_report_index, len(self.current_progress.reports)
+        ):
             report = self.current_progress.reports[i]
             if report.status == "pending":
                 self.current_progress.current_report_index = i
@@ -255,6 +259,8 @@ class ProgressStateManager:
             "total": self.current_progress.total_reports,
             "processed": self.current_progress.processed_reports,
             "failed": self.current_progress.failed_reports,
-            "pending": self.current_progress.total_reports - self.current_progress.processed_reports - self.current_progress.failed_reports,
-            "last_account": self.current_progress.last_used_account
+            "pending": self.current_progress.total_reports
+            - self.current_progress.processed_reports
+            - self.current_progress.failed_reports,
+            "last_account": self.current_progress.last_used_account,
         }

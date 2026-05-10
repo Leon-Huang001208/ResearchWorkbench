@@ -78,9 +78,7 @@ class FeatureGroup(ABC):
         """
         result = pd.DataFrame(index=data.index)
 
-        features_to_compute = (
-            feature_names if feature_names else list(self.features.keys())
-        )
+        features_to_compute = feature_names if feature_names else list(self.features.keys())
 
         for name in features_to_compute:
             if name in self.features:

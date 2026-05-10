@@ -34,9 +34,13 @@ class DocumentEnvelope(BaseModel):
         "policy", "news", "report", "pdf", "ppt", "filing", "vendor_snapshot", "internal_note"
     ] = Field(description="Type of source")
     title: str = Field(description="Title of the document")
-    published_at: datetime | None = Field(default=None, description="Publication date/time of the document (if available)")
+    published_at: datetime | None = Field(
+        default=None, description="Publication date/time of the document (if available)"
+    )
     source_name: str = Field(description="Name of the source")
     language: str = Field(default="zh", description="Language of the document")
     metadata: dict = Field(default_factory=dict, description="Additional metadata")
     raw_text: str = Field(description="Raw, unprocessed text of the document")
-    canonical_text: str = Field(description="Canonicalized (cleaned/normalized) text of the document")
+    canonical_text: str = Field(
+        description="Canonicalized (cleaned/normalized) text of the document"
+    )

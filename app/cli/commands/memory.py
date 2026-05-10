@@ -6,11 +6,8 @@ from typing import Optional
 import click
 
 from core.observability import get_logger
+from memory_learning.contracts import FailureMemory, MarketEpisode
 from memory_learning.journal import LearningJournal
-from memory_learning.contracts import (
-    MarketEpisode,
-    FailureMemory,
-)
 
 logger = get_logger(__name__)
 
@@ -46,10 +43,26 @@ def memory_group():
 @click.option("--event-type", required=True, help="Event type (e.g., earnings, policy)")
 @click.option("--market-regime", required=True, help="Market regime (e.g., bullish, risk_off)")
 @click.option("--initial-reaction", required=True, help="Initial market reaction (e.g., up, down)")
-@click.option("--outcome-horizon", type=click.Choice(["1d", "5d", "20d", "30d", "60d"]), required=True, help="Outcome horizon")
-@click.option("--outcome-return", type=float, required=True, help="Outcome return (e.g., 0.05 for 5%)")
-@click.option("--outcome-excess-return", type=float, required=True, help="Outcome excess return (e.g., 0.03 for 3%)")
-@click.option("--timing-action", type=click.Choice(["enter", "wait", "reduce", "exit", "block"]), help="Timing action taken")
+@click.option(
+    "--outcome-horizon",
+    type=click.Choice(["1d", "5d", "20d", "30d", "60d"]),
+    required=True,
+    help="Outcome horizon",
+)
+@click.option(
+    "--outcome-return", type=float, required=True, help="Outcome return (e.g., 0.05 for 5%)"
+)
+@click.option(
+    "--outcome-excess-return",
+    type=float,
+    required=True,
+    help="Outcome excess return (e.g., 0.03 for 3%)",
+)
+@click.option(
+    "--timing-action",
+    type=click.Choice(["enter", "wait", "reduce", "exit", "block"]),
+    help="Timing action taken",
+)
 @click.option("--signal-id", help="Signal ID")
 @click.option("--timing-decision-id", help="Timing decision ID")
 @click.option("--failed-reason", help="Failed reason")
@@ -114,10 +127,14 @@ def list_episodes(event_type: Optional[str], market_regime: Optional[str]):
         click.echo("-" * 80)
 
         for i, episode in enumerate(episodes, 1):
-            click.echo(f"{i}. [{episode.event_type}] {episode.episode_id} - {episode.market_regime}")
+            click.echo(
+                f"{i}. [{episode.event_type}] {episode.episode_id} - {episode.market_regime}"
+            )
             click.echo(f"   Event ID: {episode.event_id}")
             click.echo(f"   Initial Reaction: {episode.initial_reaction}")
-            click.echo(f"   Outcome Return: {episode.outcome_return:.2%}, Excess: {episode.outcome_excess_return:.2%}")
+            click.echo(
+                f"   Outcome Return: {episode.outcome_return:.2%}, Excess: {episode.outcome_excess_return:.2%}"
+            )
             if episode.timing_action:
                 click.echo(f"   Timing Action: {episode.timing_action}")
             if episode.lesson:
@@ -156,7 +173,23 @@ def summarize_event_type(event_type: str):
 @memory_group.command(name="record-failure")
 @click.option("--failure-id", required=True, help="Failure ID")
 @click.option("--source-id", required=True, help="Source ID (episode, signal, etc.)")
-@click.option("--failure-type", type=click.Choice(["wrong_thesis", "timing_error", "crowding_error", "regime_misread", "data_quality", "execution_error", "risk_error", "unknown"]), required=True, help="Failure type")
+@click.option(
+    "--failure-type",
+    type=click.Choice(
+        [
+            "wrong_thesis",
+            "timing_error",
+            "crowding_error",
+            "regime_misread",
+            "data_quality",
+            "execution_error",
+            "risk_error",
+            "unknown",
+        ]
+    ),
+    required=True,
+    help="Failure type",
+)
 @click.option("--root-cause", required=True, help="Root cause of failure")
 @click.option("--corrective-action", required=True, help="Corrective action to take")
 @click.option("--evidence-ref", multiple=True, help="Evidence references (can specify multiple)")

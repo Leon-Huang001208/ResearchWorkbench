@@ -37,8 +37,10 @@ _monitoring_service: MonitoringService | None = None
 
 # ── 请求/响应模型 ──────────────────────────────────────
 
+
 class HealthMetricsSubmitBody(BaseModel):
     """提交健康指标请求体"""
+
     subsystem: Subsystem
     throughput: float = 0.0
     error_rate: float = 0.0
@@ -52,6 +54,7 @@ class HealthMetricsSubmitBody(BaseModel):
 
 class HealthMetricsResponse(BaseModel):
     """健康指标响应"""
+
     metric_id: str
     subsystem: str
     timestamp: str
@@ -67,6 +70,7 @@ class HealthMetricsResponse(BaseModel):
 
 class DriftCheckBody(BaseModel):
     """漂移检测请求体"""
+
     dimension: DriftDimension
     baseline_window_hours: int = 168
     current_window_hours: int = 24
@@ -75,6 +79,7 @@ class DriftCheckBody(BaseModel):
 
 class DriftReportResponse(BaseModel):
     """漂移报告响应"""
+
     report_id: str
     dimension: str
     timestamp: str
@@ -92,6 +97,7 @@ class DriftReportResponse(BaseModel):
 
 class AlertThresholdCreateBody(BaseModel):
     """创建告警阈值请求体"""
+
     name: str
     subsystem: Optional[Subsystem] = None
     dimension: Optional[DriftDimension] = None
@@ -105,6 +111,7 @@ class AlertThresholdCreateBody(BaseModel):
 
 class AlertThresholdUpdateBody(BaseModel):
     """更新告警阈值请求体"""
+
     name: Optional[str] = None
     value: Optional[float] = None
     operator: Optional[str] = None
@@ -115,6 +122,7 @@ class AlertThresholdUpdateBody(BaseModel):
 
 class AlertThresholdResponse(BaseModel):
     """告警阈值响应"""
+
     threshold_id: str
     name: str
     subsystem: Optional[str] = None
@@ -129,6 +137,7 @@ class AlertThresholdResponse(BaseModel):
 
 class AlertResponse(BaseModel):
     """告警响应"""
+
     alert_id: str
     threshold_id: str
     severity: str
@@ -147,6 +156,7 @@ class AlertResponse(BaseModel):
 
 class IncidentResponse(BaseModel):
     """事件响应"""
+
     incident_id: str
     alert_id: str
     subsystem: str
@@ -161,11 +171,13 @@ class IncidentResponse(BaseModel):
 
 class IncidentResolveBody(BaseModel):
     """事件解决请求体"""
+
     resolution_notes: str = ""
 
 
 class SubsystemHealthSummaryResponse(BaseModel):
     """子系统健康摘要响应"""
+
     subsystem: str
     status: str
     open_alerts: int = 0
@@ -174,6 +186,7 @@ class SubsystemHealthSummaryResponse(BaseModel):
 
 class SystemHealthDashboardResponse(BaseModel):
     """系统健康仪表盘响应"""
+
     generated_at: str
     subsystems: List[SubsystemHealthSummaryResponse]
     total_open_alerts: int = 0
@@ -182,6 +195,7 @@ class SystemHealthDashboardResponse(BaseModel):
 
 
 # ── 依赖注入 ───────────────────────────────────────────
+
 
 def get_monitoring_service(db: Session = Depends(get_db)) -> MonitoringService:
     """获取监控服务实例（单例 + 请求级 DB session）"""
@@ -202,6 +216,7 @@ def _reset_monitoring_service():
 
 
 # ── 辅助转换 ───────────────────────────────────────────
+
 
 def _metrics_to_response(m: HealthMetrics) -> HealthMetricsResponse:
     return HealthMetricsResponse(
@@ -224,7 +239,9 @@ def _drift_to_response(r: DriftReport) -> DriftReportResponse:
         report_id=r.report_id,
         dimension=r.dimension.value,
         timestamp=r.timestamp.isoformat() if r.timestamp else "",
-        baseline_window_start=r.baseline_window_start.isoformat() if r.baseline_window_start else "",
+        baseline_window_start=r.baseline_window_start.isoformat()
+        if r.baseline_window_start
+        else "",
         baseline_window_end=r.baseline_window_end.isoformat() if r.baseline_window_end else "",
         current_window_start=r.current_window_start.isoformat() if r.current_window_start else "",
         current_window_end=r.current_window_end.isoformat() if r.current_window_end else "",
@@ -290,12 +307,14 @@ def _dashboard_to_response(d: SystemHealthDashboard) -> SystemHealthDashboardRes
     subsystems = []
     for s in d.subsystems:
         latest = _metrics_to_response(s.latest_metrics) if s.latest_metrics else None
-        subsystems.append(SubsystemHealthSummaryResponse(
-            subsystem=s.subsystem.value,
-            status=s.status,
-            open_alerts=s.open_alerts,
-            latest_metrics=latest,
-        ))
+        subsystems.append(
+            SubsystemHealthSummaryResponse(
+                subsystem=s.subsystem.value,
+                status=s.status,
+                open_alerts=s.open_alerts,
+                latest_metrics=latest,
+            )
+        )
     return SystemHealthDashboardResponse(
         generated_at=d.generated_at.isoformat(),
         subsystems=subsystems,
@@ -306,6 +325,7 @@ def _dashboard_to_response(d: SystemHealthDashboard) -> SystemHealthDashboardRes
 
 
 # ── 健康指标路由 ────────────────────────────────────────
+
 
 @router.post(
     "/health",
@@ -376,7 +396,10 @@ async def list_health_metrics(
         if until:
             until_dt = __import__("datetime").datetime.fromisoformat(until)
         metrics = service.list_health_metrics(
-            subsystem=subsystem, since=since_dt, until=until_dt, limit=limit,
+            subsystem=subsystem,
+            since=since_dt,
+            until=until_dt,
+            limit=limit,
         )
         return [_metrics_to_response(m) for m in metrics]
     except Exception as e:
@@ -385,6 +408,7 @@ async def list_health_metrics(
 
 
 # ── 漂移检测路由 ────────────────────────────────────────
+
 
 @router.post(
     "/drift/check",
@@ -432,6 +456,7 @@ async def list_drift_reports(
 
 
 # ── 告警阈值路由 ────────────────────────────────────────
+
 
 @router.post(
     "/thresholds",
@@ -552,6 +577,7 @@ async def delete_alert_threshold(
 
 # ── 告警路由 ───────────────────────────────────────────
 
+
 @router.get(
     "/alerts",
     response_model=List[AlertResponse],
@@ -570,7 +596,11 @@ async def list_alerts(
         if since:
             since_dt = __import__("datetime").datetime.fromisoformat(since)
         alerts = service.list_alerts(
-            status=status, severity=severity, subsystem=subsystem, since=since_dt, limit=limit,
+            status=status,
+            severity=severity,
+            subsystem=subsystem,
+            since=since_dt,
+            limit=limit,
         )
         return [_alert_to_response(a) for a in alerts]
     except Exception as e:
@@ -622,6 +652,7 @@ async def resolve_alert(
 
 # ── 事件路由 ───────────────────────────────────────────
 
+
 @router.get(
     "/incidents",
     response_model=List[IncidentResponse],
@@ -636,7 +667,10 @@ async def list_incidents(
     """查询事件"""
     try:
         incidents = service.list_incidents(
-            subsystem=subsystem, severity=severity, resolved=resolved, limit=limit,
+            subsystem=subsystem,
+            severity=severity,
+            resolved=resolved,
+            limit=limit,
         )
         return [_incident_to_response(i) for i in incidents]
     except Exception as e:
@@ -668,6 +702,7 @@ async def resolve_incident(
 
 
 # ── 仪表盘路由 ────────────────────────────────────────
+
 
 @router.get(
     "/dashboard",

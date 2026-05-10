@@ -27,14 +27,14 @@ class ChinaStockAdapter(BaseDataAdapter):
     def _call_plugin_tool(self, tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
         """
         调用 openclaw-data-china-stock 插件工具
-        
+
         Args:
             tool_name: 插件工具名称
             args: 工具参数
-            
+
         Returns:
             插件返回的字典数据
-            
+
         Raises:
             ChinaStockPluginError: 插件调用失败
         """
@@ -60,7 +60,9 @@ class ChinaStockAdapter(BaseDataAdapter):
         self, codes: list[str], start_date: str, end_date: str
     ) -> list[AssetAnalysisSnapshot]:
         """获取股票行情数据"""
-        logger.info(f"Fetching stock quotes (china_stock): codes={codes}, start={start_date}, end={end_date}")
+        logger.info(
+            f"Fetching stock quotes (china_stock): codes={codes}, start={start_date}, end={end_date}"
+        )
         # 调用插件工具
         raw_result = self._call_plugin_tool(
             "tool_fetch_market_data",
@@ -72,7 +74,7 @@ class ChinaStockAdapter(BaseDataAdapter):
         )
         if not raw_result.get("success"):
             raise ChinaStockPluginError(f"Plugin returned error: {raw_result.get('message')}")
-        
+
         raw_data = raw_result.get("data", {}).get("items", [])
         snapshots = []
         as_of = datetime.now()
@@ -83,7 +85,7 @@ class ChinaStockAdapter(BaseDataAdapter):
             if code not in code_groups:
                 code_groups[code] = []
             code_groups[code].append(item)
-        
+
         for code, group in code_groups.items():
             snapshots.extend(self._mapper.map_market_data(code, group, as_of))
         return snapshots
@@ -92,7 +94,9 @@ class ChinaStockAdapter(BaseDataAdapter):
         self, code: str, report_type: str = "annual"
     ) -> list[AssetAnalysisSnapshot]:
         """获取财务报告数据"""
-        logger.info(f"Fetching financial report (china_stock): code={code}, report_type={report_type}")
+        logger.info(
+            f"Fetching financial report (china_stock): code={code}, report_type={report_type}"
+        )
         raw_result = self._call_plugin_tool(
             "tool_fetch_stock_financials",
             {
@@ -102,7 +106,7 @@ class ChinaStockAdapter(BaseDataAdapter):
         )
         if not raw_result.get("success"):
             raise ChinaStockPluginError(f"Plugin returned error: {raw_result.get('message')}")
-        
+
         raw_data = raw_result.get("data", {}).get("items", [])
         as_of = datetime.now()
         return self._mapper.map_financials(code, raw_data, as_of)
@@ -111,7 +115,9 @@ class ChinaStockAdapter(BaseDataAdapter):
         self, codes: list[str], start_date: str, end_date: str
     ) -> list[AssetAnalysisSnapshot]:
         """获取资金流向数据"""
-        logger.info(f"Fetching fund flow (china_stock): codes={codes}, start={start_date}, end={end_date}")
+        logger.info(
+            f"Fetching fund flow (china_stock): codes={codes}, start={start_date}, end={end_date}"
+        )
         raw_result = self._call_plugin_tool(
             "tool_fetch_a_share_fund_flow",
             {
@@ -122,7 +128,7 @@ class ChinaStockAdapter(BaseDataAdapter):
         )
         if not raw_result.get("success"):
             raise ChinaStockPluginError(f"Plugin returned error: {raw_result.get('message')}")
-        
+
         raw_data = raw_result.get("data", {}).get("items", [])
         snapshots = []
         as_of = datetime.now()
@@ -132,14 +138,12 @@ class ChinaStockAdapter(BaseDataAdapter):
             if code not in code_groups:
                 code_groups[code] = []
             code_groups[code].append(item)
-        
+
         for code, group in code_groups.items():
             snapshots.extend(self._mapper.map_fund_flow(code, group, as_of))
         return snapshots
 
-    async def fetch_valuation(
-        self, code: str
-    ) -> list[AssetAnalysisSnapshot]:
+    async def fetch_valuation(self, code: str) -> list[AssetAnalysisSnapshot]:
         """获取估值数据"""
         logger.info(f"Fetching valuation (china_stock): code={code}")
         raw_result = self._call_plugin_tool(
@@ -150,7 +154,7 @@ class ChinaStockAdapter(BaseDataAdapter):
         )
         if not raw_result.get("success"):
             raise ChinaStockPluginError(f"Plugin returned error: {raw_result.get('message')}")
-        
+
         raw_data = raw_result.get("data", {})
         as_of = datetime.now()
         return self._mapper.map_valuation(code, raw_data, as_of)
@@ -169,7 +173,7 @@ class ChinaStockAdapter(BaseDataAdapter):
         )
         if not raw_result.get("success"):
             raise ChinaStockPluginError(f"Plugin returned error: {raw_result.get('message')}")
-        
+
         raw_data = raw_result.get("data", {})
         as_of = datetime.now()
         return self._mapper.map_technical_indicators(code, raw_data, as_of)
@@ -191,14 +195,12 @@ class ChinaStockAdapter(BaseDataAdapter):
         )
         if not raw_result.get("success"):
             raise ChinaStockPluginError(f"Plugin returned error: {raw_result.get('message')}")
-        
+
         raw_data = raw_result.get("data", {})
         as_of = datetime.now()
         return self._mapper.map_macro(raw_data, as_of)
 
-    async def fetch_sentiment(
-        self, codes: list[str] | None = None
-    ) -> list[AssetAnalysisSnapshot]:
+    async def fetch_sentiment(self, codes: list[str] | None = None) -> list[AssetAnalysisSnapshot]:
         """获取情绪数据"""
         logger.info(f"Fetching sentiment (china_stock): codes={codes}")
         raw_result = self._call_plugin_tool(
@@ -209,7 +211,7 @@ class ChinaStockAdapter(BaseDataAdapter):
         )
         if not raw_result.get("success"):
             raise ChinaStockPluginError(f"Plugin returned error: {raw_result.get('message')}")
-        
+
         raw_data = raw_result.get("data", {})
         as_of = datetime.now()
         if codes:
@@ -232,6 +234,7 @@ class ChinaStockAdapter(BaseDataAdapter):
         """
         # 注意：此方法为同步方法，实际使用时建议使用异步方法
         import asyncio
+
         data_type = kwargs.get("data_type", "stock")
         codes = kwargs.get("codes", [])
         start_date = kwargs.get("start_date")

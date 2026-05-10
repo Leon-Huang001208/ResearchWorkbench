@@ -1,17 +1,17 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Optional
+
 from pydantic import BaseModel, Field
-from datetime import UTC
 
 
 class RelationshipType(str, Enum):
-    SUPPLIES = "supplies"        # A供应B
-    DEPENDS_ON = "depends_on"    # A依赖B
+    SUPPLIES = "supplies"  # A供应B
+    DEPENDS_ON = "depends_on"  # A依赖B
     SUBSTITUTES = "substitutes"  # A替代B
     COMPLEMENTS = "complements"  # A互补B
     COMPETES_WITH = "competes_with"  # A竞争B
-    DERIVES_FROM = "derives_from"    # A衍生自B
+    DERIVES_FROM = "derives_from"  # A衍生自B
 
 
 class SupplyChainPosition(str, Enum):
@@ -27,7 +27,7 @@ class TemporalRelation(BaseModel):
     relationship_type: RelationshipType
     strength: float = Field(ge=0.0, le=1.0)  # 关系强度
     valid_from: Optional[datetime] = None
-    valid_to: Optional[datetime] = None          # None 表示仍有效
+    valid_to: Optional[datetime] = None  # None 表示仍有效
     chain_position: Optional[SupplyChainPosition] = None
     industry: Optional[str] = None
     metadata: dict = Field(default_factory=dict)
@@ -48,6 +48,8 @@ class PropagationPath(BaseModel):
     path_id: str
     trigger_event_type: str
     affected_chain_id: str
-    path: list[dict]  # [{"entity_id": "...", "position": "upstream", "expected_lag_days": 5, "impact_direction": "positive"}]
+    path: list[
+        dict
+    ]  # [{"entity_id": "...", "position": "upstream", "expected_lag_days": 5, "impact_direction": "positive"}]
     confidence: float
     historical_evidence: list[str] = Field(default_factory=list)

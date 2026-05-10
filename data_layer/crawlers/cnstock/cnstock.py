@@ -3,19 +3,20 @@ cnstock - 中国证券网爬取技能
 
 Use when you need to crawl and analyze financial news from China Securities Journal website
 """
-from typing import Any, Dict, List, Optional
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from pathlib import Path
-from html import unescape
 import json
 import os
 import random
-import time
 import re
+import time
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from html import unescape
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 try:
     import requests
+
     HAS_DEPENDENCIES = True
 except ImportError:
     HAS_DEPENDENCIES = False
@@ -24,6 +25,7 @@ except ImportError:
 @dataclass
 class NewsItem:
     """新闻条目"""
+
     title: str = ""
     url: str = ""
     publish_time: str = ""
@@ -46,6 +48,7 @@ class CnstockConfig:
         - 10011: 金融新闻
         - 10232: 证券新闻（默认）
     """
+
     verbose: bool = True
     output_path: str = "./output"
     start_date: Optional[str] = None
@@ -65,6 +68,7 @@ class CnstockConfig:
 
 
 from core.observability import get_logger
+
 
 class CnstockLogger:
     """cnstock 日志记录器"""
@@ -113,7 +117,7 @@ class CnstockStateManager:
         """加载状态文件"""
         if self.state_path.exists():
             try:
-                with open(self.state_path, 'r', encoding='utf-8') as f:
+                with open(self.state_path, "r", encoding="utf-8") as f:
                     return json.load(f)
             except Exception as e:
                 if self.verbose:
@@ -125,14 +129,14 @@ class CnstockStateManager:
         return {
             "version": "1.0",
             "last_updated": datetime.now().isoformat(),
-            "processed_articles": {}  # {article_id: {"first_seen": "iso_date", "title": "...", "url": "..."}}
+            "processed_articles": {},  # {article_id: {"first_seen": "iso_date", "title": "...", "url": "..."}}
         }
 
     def save(self):
         """保存状态到文件"""
         self.state["last_updated"] = datetime.now().isoformat()
         self.state_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.state_path, 'w', encoding='utf-8') as f:
+        with open(self.state_path, "w", encoding="utf-8") as f:
             json.dump(self.state, f, ensure_ascii=False, indent=2)
 
     def is_article_processed(self, article_id: str) -> bool:
@@ -144,7 +148,7 @@ class CnstockStateManager:
         self.state["processed_articles"][article_id] = {
             "first_seen": datetime.now().isoformat(),
             "title": title,
-            "url": url
+            "url": url,
         }
 
     def get_processed_articles(self) -> Dict[str, Dict[str, str]]:
@@ -165,8 +169,12 @@ class CnstockCrawler:
     API_SEARCH = "https://api.cnstock.com/search/news"
     BASE_URL = "https://www.cnstock.com"
     DATE_FORMATS = [
-        "%Y-%m-%d", "%Y-%m-%d %H:%M:%S", "%Y/%m/%d", "%Y年%m月%d日",
-        "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M:%SZ"
+        "%Y-%m-%d",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y/%m/%d",
+        "%Y年%m月%d日",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%dT%H:%M:%SZ",
     ]
     LOG_LEVELS = ["DEBUG", "INFO", "WARNING", "ERROR"]
 
@@ -237,7 +245,9 @@ class CnstockCrawler:
         self._state_manager = None
         if self.config.state_path:
             try:
-                self._state_manager = CnstockStateManager(self.config.state_path, self.config.verbose)
+                self._state_manager = CnstockStateManager(
+                    self.config.state_path, self.config.verbose
+                )
                 if self.config.verbose:
                     self.log.info(f"状态管理器已初始化，已记录 {self._state_manager.get_processed_count()} 篇文章")
             except Exception as e:
@@ -336,27 +346,31 @@ class CnstockCrawler:
         }
 
         if is_browser:
-            base_headers.update({
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-                "sec-fetch-dest": "document",
-                "sec-fetch-mode": "navigate",
-                "sec-fetch-site": "none",
-                "sec-fetch-user": "?1",
-                "upgrade-insecure-requests": "1",
-                "priority": "u=0, i",
-            })
+            base_headers.update(
+                {
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+                    "sec-fetch-dest": "document",
+                    "sec-fetch-mode": "navigate",
+                    "sec-fetch-site": "none",
+                    "sec-fetch-user": "?1",
+                    "upgrade-insecure-requests": "1",
+                    "priority": "u=0, i",
+                }
+            )
         else:
-            base_headers.update({
-                "Accept": "application/json",
-                "Content-Type": "application/json",
-                "Origin": "https://www.cnstock.com",
-                "Referer": "https://www.cnstock.com/",
-                "cnstock-client-type": "01",
-                "sec-fetch-dest": "empty",
-                "sec-fetch-mode": "cors",
-                "sec-fetch-site": "same-site",
-                "priority": "u=1, i",
-            })
+            base_headers.update(
+                {
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                    "Origin": "https://www.cnstock.com",
+                    "Referer": "https://www.cnstock.com/",
+                    "cnstock-client-type": "01",
+                    "sec-fetch-dest": "empty",
+                    "sec-fetch-mode": "cors",
+                    "sec-fetch-site": "same-site",
+                    "priority": "u=1, i",
+                }
+            )
 
         return base_headers
 
@@ -475,7 +489,9 @@ class CnstockCrawler:
                     for news in page_news:
                         # 检查是否已处理过（持久化去重）
                         if self._state_manager and self.config.skip_existing:
-                            if news.article_id and self._state_manager.is_article_processed(news.article_id):
+                            if news.article_id and self._state_manager.is_article_processed(
+                                news.article_id
+                            ):
                                 skipped_existing += 1
                                 continue
 
@@ -511,7 +527,9 @@ class CnstockCrawler:
             return False
         return True
 
-    def _crawl_page(self, page: int, node_id: Optional[str] = None, category: str = "") -> List[NewsItem]:
+    def _crawl_page(
+        self, page: int, node_id: Optional[str] = None, category: str = ""
+    ) -> List[NewsItem]:
         """爬取单页新闻（使用 API）"""
         news_list: List[NewsItem] = []
 
@@ -522,9 +540,9 @@ class CnstockCrawler:
             # 确保有 cookie，先访问主页
             if page == 1:
                 try:
-                    self._session.get(self.BASE_URL, headers={
-                        "User-Agent": headers["User-Agent"]
-                    }, timeout=10)
+                    self._session.get(
+                        self.BASE_URL, headers={"User-Agent": headers["User-Agent"]}, timeout=10
+                    )
                 except:
                     pass
 
@@ -532,12 +550,7 @@ class CnstockCrawler:
             if self.config.keywords:
                 # 有关键词，使用搜索 API（只取第一个关键词）
                 keyword = self.config.keywords[0]
-                payload = {
-                    "type": "0",
-                    "word": keyword,
-                    "activeKey": "0",
-                    "pageNum": page
-                }
+                payload = {"type": "0", "word": keyword, "activeKey": "0", "pageNum": page}
                 api_url = self.API_SEARCH
                 if self.config.verbose and page == 1:
                     self.log.info(f"使用搜索 API，关键词: {keyword}")
@@ -549,16 +562,11 @@ class CnstockCrawler:
                     "pageSize": self.config.page_size,
                     "isChannel": True,
                     "filterIdArray": [],
-                    "startTime": 0
+                    "startTime": 0,
                 }
                 api_url = self.API_NEWS_LIST
 
-            response = self._session.post(
-                api_url,
-                json=payload,
-                headers=headers,
-                timeout=10
-            )
+            response = self._session.post(api_url, json=payload, headers=headers, timeout=10)
 
             if response.status_code == 200:
                 if self.config.keywords:
@@ -579,6 +587,7 @@ class CnstockCrawler:
 
     def _parse_api_response(self, data: Dict[str, Any], category: str = "") -> List[NewsItem]:
         """解析 API 响应"""
+
         def extract_items():
             page_info = data.get("data", {}).get("pageInfo", {})
             items = page_info.get("list", [])
@@ -593,6 +602,7 @@ class CnstockCrawler:
 
     def _parse_search_api_response(self, data: Dict[str, Any]) -> List[NewsItem]:
         """解析搜索 API 响应"""
+
         def extract_items():
             items = data.get("data", {}).get("list", [])
             for item in items:
@@ -600,7 +610,9 @@ class CnstockCrawler:
 
         return self._parse_response_common(data, extract_items, "搜索 API 响应")
 
-    def _parse_response_common(self, data: Dict[str, Any], extractor, log_label: str) -> List[NewsItem]:
+    def _parse_response_common(
+        self, data: Dict[str, Any], extractor, log_label: str
+    ) -> List[NewsItem]:
         """通用的响应解析逻辑"""
         news_list: List[NewsItem] = []
 
@@ -629,7 +641,7 @@ class CnstockCrawler:
             if not title:
                 return None
 
-            title = re.sub(r'<[^>]+>', '', title)
+            title = re.sub(r"<[^>]+>", "", title)
 
             article_id = str(item.get("contId", "") or item.get("id", ""))
             url = item.get("url", "") or item.get("link", "")
@@ -648,7 +660,7 @@ class CnstockCrawler:
                 source=item.get("source", "中国证券网"),
                 summary=item.get("summary", ""),
                 article_id=article_id,
-                categories=[]
+                categories=[],
             )
         except Exception as e:
             if self.config.verbose:
@@ -663,24 +675,20 @@ class CnstockCrawler:
         time_str = time_str.strip()
 
         # 已经是标准格式
-        if re.match(r'\d{4}-\d{2}-\d{2}', time_str):
+        if re.match(r"\d{4}-\d{2}-\d{2}", time_str):
             return time_str
 
         # 处理 "04-10" 格式（月-日）
-        if re.match(r'\d{2}-\d{2}', time_str):
+        if re.match(r"\d{2}-\d{2}", time_str):
             return f"{datetime.now().year}-{time_str} 00:00:00"
 
         # 处理相对时间格式
         delta = None
-        patterns = [
-            ("小时前", "hours"),
-            ("分钟前", "minutes"),
-            ("天前", "days")
-        ]
+        patterns = [("小时前", "hours"), ("分钟前", "minutes"), ("天前", "days")]
 
         for pattern, unit in patterns:
             if pattern in time_str:
-                match = re.search(r'(\d+)', time_str)
+                match = re.search(r"(\d+)", time_str)
                 if match:
                     value = int(match.group(1))
                     delta = timedelta(**{unit: value})
@@ -699,7 +707,9 @@ class CnstockCrawler:
             if not title:
                 return None
 
-            article_id = str(item.get("contId", "") or item.get("id", "") or item.get("articleId", ""))
+            article_id = str(
+                item.get("contId", "") or item.get("id", "") or item.get("articleId", "")
+            )
             url = item.get("link", "") or item.get("url", "")
 
             share_info = item.get("shareInfo", {})
@@ -716,7 +726,7 @@ class CnstockCrawler:
                 source=item.get("source", "中国证券网"),
                 summary=share_info.get("summary", "") if share_info else "",
                 article_id=article_id,
-                categories=[category] if category else []
+                categories=[category] if category else [],
             )
         except Exception as e:
             if self.config.verbose:
@@ -761,14 +771,16 @@ class CnstockCrawler:
                 url=f"{self.BASE_URL}/commonDetail/{i+1}",
                 publish_time=news_date.strftime("%Y-%m-%d %H:%M:%S"),
                 source="中国证券网",
-                article_id=str(i+1),
-                categories=[]
+                article_id=str(i + 1),
+                categories=[],
             )
             news_list.append(news)
 
         return news_list
 
-    def _fetch_article_content(self, article_id: str, url: str = "", max_retries: int = 4) -> Dict[str, str]:
+    def _fetch_article_content(
+        self, article_id: str, url: str = "", max_retries: int = 4
+    ) -> Dict[str, str]:
         """获取文章详情（改进版防 WAF）"""
         if not article_id and not url:
             return {"source": "", "content_text": ""}
@@ -785,43 +797,57 @@ class CnstockCrawler:
 
                 # 模拟真实用户浏览路径
                 try:
-                    self._session.get(self.BASE_URL, headers=self._get_headers(is_browser=True), timeout=15)
+                    self._session.get(
+                        self.BASE_URL, headers=self._get_headers(is_browser=True), timeout=15
+                    )
                     time.sleep(random.uniform(1, 2.5))
 
                     if random.random() < 0.5:
                         self._session.get(
                             f"{self.BASE_URL}/news_list",
                             headers=self._get_headers(is_browser=True),
-                            timeout=10
+                            timeout=10,
                         )
                         time.sleep(random.uniform(0.8, 2))
                 except:
                     pass
 
-                response = self._session.get(url, headers=self._get_headers(is_browser=True), timeout=20)
+                response = self._session.get(
+                    url, headers=self._get_headers(is_browser=True), timeout=20
+                )
                 response.encoding = "utf-8"
 
                 # 检测 WAF
-                if "renderData" in response.text or "aliyun_waf_aa" in response.text or "waf" in response.text.lower():
+                if (
+                    "renderData" in response.text
+                    or "aliyun_waf_aa" in response.text
+                    or "waf" in response.text.lower()
+                ):
                     self._consecutive_failures += 1
                     if self._consecutive_failures >= 3:
                         cooldown_time = 120 + (self._consecutive_failures - 3) * 60
                         self._trigger_waf_cooldown(min(cooldown_time, 300))
-                    wait_time = (3 ** attempt) + random.uniform(5, 10)
+                    wait_time = (3**attempt) + random.uniform(5, 10)
                     if self.config.verbose:
-                        self.log.warning(f"检测到 WAF (连续失败: {self._consecutive_failures})，等待 {wait_time:.1f} 秒...")
+                        self.log.warning(
+                            f"检测到 WAF (连续失败: {self._consecutive_failures})，等待 {wait_time:.1f} 秒..."
+                        )
                     if attempt < max_retries:
                         time.sleep(wait_time)
                         continue
                     return {"source": "", "content_text": ""}
 
-                next_data_match = re.search(r'<script[^>]*id="__NEXT_DATA__"[^>]*>(.*?)</script>', response.text, re.DOTALL)
+                next_data_match = re.search(
+                    r'<script[^>]*id="__NEXT_DATA__"[^>]*>(.*?)</script>', response.text, re.DOTALL
+                )
 
                 if not next_data_match:
                     if attempt < max_retries:
-                        wait_time = (2 ** attempt) + random.uniform(2, 5)
+                        wait_time = (2**attempt) + random.uniform(2, 5)
                         if self.config.verbose:
-                            self.log.info(f"未找到数据，等待 {wait_time:.1f} 秒后重试 ({attempt+1}/{max_retries})")
+                            self.log.info(
+                                f"未找到数据，等待 {wait_time:.1f} 秒后重试 ({attempt+1}/{max_retries})"
+                            )
                         time.sleep(wait_time)
                         continue
                     return {"source": "", "content_text": ""}
@@ -844,9 +870,11 @@ class CnstockCrawler:
                 self._consecutive_failures += 1
                 self._failure_count += 1
                 if attempt < max_retries:
-                    wait_time = (3 ** attempt) + random.uniform(3, 7)
+                    wait_time = (3**attempt) + random.uniform(3, 7)
                     if self.config.verbose:
-                        self.log.info(f"请求异常: {e}，等待 {wait_time:.1f} 秒后重试 ({attempt+1}/{max_retries})")
+                        self.log.info(
+                            f"请求异常: {e}，等待 {wait_time:.1f} 秒后重试 ({attempt+1}/{max_retries})"
+                        )
                     time.sleep(wait_time)
                 else:
                     if self.config.verbose:
@@ -859,15 +887,15 @@ class CnstockCrawler:
         if not html:
             return ""
 
-        text = re.sub(r'<script[^>]*>.*?</script>', '', html, flags=re.DOTALL)
-        text = re.sub(r'<style[^>]*>.*?</style>', '', text, flags=re.DOTALL)
-        text = re.sub(r'</p>|</div>|</tr>|<br\s*/?>', '\n', text)
-        text = re.sub(r'<[^>]+>', '', text)
+        text = re.sub(r"<script[^>]*>.*?</script>", "", html, flags=re.DOTALL)
+        text = re.sub(r"<style[^>]*>.*?</style>", "", text, flags=re.DOTALL)
+        text = re.sub(r"</p>|</div>|</tr>|<br\s*/?>", "\n", text)
+        text = re.sub(r"<[^>]+>", "", text)
 
         text = unescape(text)
 
-        lines = [line.strip() for line in text.split('\n')]
-        text = '\n'.join([line for line in lines if line])
+        lines = [line.strip() for line in text.split("\n")]
+        text = "\n".join([line for line in lines if line])
 
         return text
 
@@ -888,10 +916,10 @@ class CnstockCrawler:
                     "url": n.url,
                     "date": n.publish_time[:10] if n.publish_time else "",
                     "categories": n.categories,
-                    "content": n.content_text
+                    "content": n.content_text,
                 }
                 for n in news_list
-            ]
+            ],
         }
 
         with open(filepath, "w", encoding="utf-8") as f:
@@ -909,10 +937,21 @@ class CnstockCrawler:
 
         # 批量更新配置参数
         config_params = [
-            "start_date", "end_date", "keywords", "max_pages", "delay",
-            "output_path", "verbose", "channel", "all_channels",
-            "page_size", "fetch_content", "log_file", "log_level",
-            "state_path", "skip_existing"
+            "start_date",
+            "end_date",
+            "keywords",
+            "max_pages",
+            "delay",
+            "output_path",
+            "verbose",
+            "channel",
+            "all_channels",
+            "page_size",
+            "fetch_content",
+            "log_file",
+            "log_level",
+            "state_path",
+            "skip_existing",
         ]
         date_changed = False
         for param in config_params:
@@ -972,9 +1011,7 @@ class CnstockCrawler:
                 for news in news_list:
                     if news.article_id:
                         self._state_manager.add_processed_article(
-                            news.article_id,
-                            news.title,
-                            news.url
+                            news.article_id, news.title, news.url
                         )
                 self._state_manager.save()
                 if self.config.verbose:
@@ -985,11 +1022,8 @@ class CnstockCrawler:
             "news_count": len(news_list),
             "news_list": news_list,
             "output_file": output_file,
-            "stats": {
-                "success_count": self._success_count,
-                "failure_count": self._failure_count
-            },
-            "errors": []
+            "stats": {"success_count": self._success_count, "failure_count": self._failure_count},
+            "errors": [],
         }
 
     def _calculate_fetch_delay(self, index: int) -> float:
@@ -1030,108 +1064,41 @@ def parse_args():
   python cnstock.py --start-date 2024-01-01 --keywords 人工智能,芯片
   python cnstock.py --start-date 2024-01-01 --channel 证券,产经 --fetch-content
   python cnstock.py --start-date 2024-01-01 --all-channels --max-pages 3
-        """
+        """,
     )
 
     # 必需参数
-    parser.add_argument(
-        "--start-date",
-        required=True,
-        help="开始日期 (格式: YYYY-MM-DD)"
-    )
-    parser.add_argument(
-        "--end-date",
-        help="结束日期 (格式: YYYY-MM-DD，默认同开始日期)"
-    )
+    parser.add_argument("--start-date", required=True, help="开始日期 (格式: YYYY-MM-DD)")
+    parser.add_argument("--end-date", help="结束日期 (格式: YYYY-MM-DD，默认同开始日期)")
 
     # 可选参数
-    parser.add_argument(
-        "--keywords",
-        help="关键词列表，多个用逗号分隔 (如: 人工智能,芯片)"
-    )
-    parser.add_argument(
-        "--output-path",
-        default="./output",
-        help="输出目录路径 (默认: ./output)"
-    )
-    parser.add_argument(
-        "--max-pages",
-        type=int,
-        default=5,
-        help="最大爬取页数 (默认: 5)"
-    )
-    parser.add_argument(
-        "--delay",
-        type=float,
-        default=1.0,
-        help="请求间隔秒数 (默认: 1.0)"
-    )
-    parser.add_argument(
-        "--node-id",
-        default="10232",
-        help="新闻频道节点ID (默认: 10232=证券)"
-    )
-    parser.add_argument(
-        "--channel",
-        help="新闻频道名称，多个用逗号分隔 (快讯/时政/公司/产经/金融/证券)"
-    )
-    parser.add_argument(
-        "--all-channels",
-        action="store_true",
-        help="爬取所有频道"
-    )
-    parser.add_argument(
-        "--page-size",
-        type=int,
-        default=32,
-        help="每页新闻数量 (默认: 32)"
-    )
-    parser.add_argument(
-        "--fetch-content",
-        action="store_true",
-        help="是否获取文章正文内容"
-    )
-    parser.add_argument(
-        "--verbose",
-        action="store_true",
-        default=True,
-        help="显示详细日志 (默认: 开启)"
-    )
-    parser.add_argument(
-        "--quiet",
-        action="store_true",
-        help="关闭详细日志输出"
-    )
+    parser.add_argument("--keywords", help="关键词列表，多个用逗号分隔 (如: 人工智能,芯片)")
+    parser.add_argument("--output-path", default="./output", help="输出目录路径 (默认: ./output)")
+    parser.add_argument("--max-pages", type=int, default=5, help="最大爬取页数 (默认: 5)")
+    parser.add_argument("--delay", type=float, default=1.0, help="请求间隔秒数 (默认: 1.0)")
+    parser.add_argument("--node-id", default="10232", help="新闻频道节点ID (默认: 10232=证券)")
+    parser.add_argument("--channel", help="新闻频道名称，多个用逗号分隔 (快讯/时政/公司/产经/金融/证券)")
+    parser.add_argument("--all-channels", action="store_true", help="爬取所有频道")
+    parser.add_argument("--page-size", type=int, default=32, help="每页新闻数量 (默认: 32)")
+    parser.add_argument("--fetch-content", action="store_true", help="是否获取文章正文内容")
+    parser.add_argument("--verbose", action="store_true", default=True, help="显示详细日志 (默认: 开启)")
+    parser.add_argument("--quiet", action="store_true", help="关闭详细日志输出")
 
     # 日志相关
-    parser.add_argument(
-        "--log-file",
-        help="日志文件路径"
-    )
+    parser.add_argument("--log-file", help="日志文件路径")
     parser.add_argument(
         "--log-level",
         choices=["DEBUG", "INFO", "WARNING", "ERROR"],
         default="INFO",
-        help="日志级别 (默认: INFO)"
+        help="日志级别 (默认: INFO)",
     )
 
     # 状态管理
-    parser.add_argument(
-        "--state-path",
-        help="状态文件路径，用于持久化去重"
-    )
-    parser.add_argument(
-        "--no-skip-existing",
-        action="store_true",
-        help="不跳过已存在的新闻 (默认会跳过)"
-    )
+    parser.add_argument("--state-path", help="状态文件路径，用于持久化去重")
+    parser.add_argument("--no-skip-existing", action="store_true", help="不跳过已存在的新闻 (默认会跳过)")
 
     # 输出格式
-    parser.add_argument(
-        "--print-json",
-        action="store_true",
-        help="将结果以 JSON 格式打印到 stdout"
-    )
+    parser.add_argument("--print-json", action="store_true", help="将结果以 JSON 格式打印到 stdout")
 
     return parser.parse_args()
 
@@ -1192,6 +1159,7 @@ def cli():
     # 打印 JSON 输出
     if args.print_json:
         import json
+
         # 将 NewsItem 对象转换为可序列化的字典
         serializable_news = []
         for news in result.get("news_list", []):
@@ -1203,7 +1171,7 @@ def cli():
                 "summary": news.summary,
                 "article_id": news.article_id,
                 "content_text": news.content_text,
-                "categories": news.categories
+                "categories": news.categories,
             }
             serializable_news.append(news_dict)
 
@@ -1213,7 +1181,7 @@ def cli():
             "news_list": serializable_news,
             "output_file": result.get("output_file", ""),
             "stats": result.get("stats", {}),
-            "errors": result.get("errors", [])
+            "errors": result.get("errors", []),
         }
         print(json.dumps(output_result, ensure_ascii=False, indent=2))
 

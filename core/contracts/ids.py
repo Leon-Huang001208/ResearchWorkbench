@@ -29,12 +29,18 @@ class CanonicalId(BaseModel):
     """
 
     canonical_id: str = Field(description="Unique canonical identifier for the asset")
-    asset_type: Literal["equity", "etf", "future", "spot_commodity", "fx", "index", "bond", "fund"] = Field(
-        description="Type of asset"
-    )
+    asset_type: Literal[
+        "equity", "etf", "future", "spot_commodity", "fx", "index", "bond", "fund"
+    ] = Field(description="Type of asset")
     market: str = Field(description="Market where the asset is traded (e.g., CN, US)")
     venue: str = Field(description="Trading venue (e.g., SHSE, NYSE)")
     symbol: str = Field(description="Ticker symbol of the asset")
-    vendor_ids: dict[str, str] = Field(default_factory=dict, description="Dictionary mapping vendor names to their specific IDs")
-    name_zh: str | None = Field(default=None, description="Chinese name of the asset (if available)")
-    name_en: str | None = Field(default=None, description="English name of the asset (if available)")
+    vendor_ids: dict[str, str] = Field(
+        default_factory=dict, description="Dictionary mapping vendor names to their specific IDs"
+    )
+    name_zh: str | None = Field(
+        default=None, description="Chinese name of the asset (if available)"
+    )
+    name_en: str | None = Field(
+        default=None, description="English name of the asset (if available)"
+    )

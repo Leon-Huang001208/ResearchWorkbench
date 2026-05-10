@@ -41,7 +41,9 @@ class SignalRepositoryImpl(BaseRepository):
         else:
             db_signal = AlphaSignalDB(
                 signal_id=signal.signal_id,
-                discriminator="event_alpha_signal" if isinstance(signal, EventAlphaSignal) else "alpha_signal",
+                discriminator="event_alpha_signal"
+                if isinstance(signal, EventAlphaSignal)
+                else "alpha_signal",
                 subject_id=signal.subject_id,
                 horizon=signal.horizon,
                 thesis=signal.thesis,
@@ -71,7 +73,9 @@ class SignalRepositoryImpl(BaseRepository):
 
     def get(self, signal_id: str) -> Optional[AlphaSignal]:
         """获取信号"""
-        db_signal = self.db.query(AlphaSignalDB).filter(AlphaSignalDB.signal_id == signal_id).first()
+        db_signal = (
+            self.db.query(AlphaSignalDB).filter(AlphaSignalDB.signal_id == signal_id).first()
+        )
         if not db_signal:
             return None
         return self._to_domain(db_signal)
@@ -93,7 +97,9 @@ class SignalRepositoryImpl(BaseRepository):
 
     def update_status(self, signal_id: str, new_status: str) -> Optional[AlphaSignal]:
         """更新信号状态"""
-        db_signal = self.db.query(AlphaSignalDB).filter(AlphaSignalDB.signal_id == signal_id).first()
+        db_signal = (
+            self.db.query(AlphaSignalDB).filter(AlphaSignalDB.signal_id == signal_id).first()
+        )
         if not db_signal:
             return None
         db_signal.status = new_status
@@ -103,7 +109,9 @@ class SignalRepositoryImpl(BaseRepository):
 
     def save_trade_candidate(self, candidate: TradeCandidate) -> TradeCandidate:
         """保存交易候选"""
-        existing = self.db.query(TradeCandidateDB).filter_by(candidate_id=candidate.candidate_id).first()
+        existing = (
+            self.db.query(TradeCandidateDB).filter_by(candidate_id=candidate.candidate_id).first()
+        )
         if existing:
             existing.signal_id = candidate.signal_id
             existing.action = candidate.action

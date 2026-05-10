@@ -1,6 +1,6 @@
 """决策控制台仓储实现"""
-from typing import List, Optional
 from datetime import datetime
+from typing import List, Optional
 
 from sqlalchemy import desc
 
@@ -14,9 +14,9 @@ from core.contracts.decision_console import (
 from core.observability import get_logger
 from data_layer.repositories.base import BaseRepository
 from data_layer.repositories.models import (
-    DecisionWorkspaceDB,
     AnalystDecisionDB,
     DecisionAuditDB,
+    DecisionWorkspaceDB,
     PostMortemRecordDB,
 )
 
@@ -94,15 +94,14 @@ class DecisionConsoleRepository(BaseRepository):
             .all()
         )
         return [self._workspace_to_domain(w) for w in db_workspaces]
+
     # endregion
 
     # region AnalystDecision
     def save_decision(self, decision: AnalystDecision) -> AnalystDecision:
         """保存分析师决策"""
         existing = (
-            self.db.query(AnalystDecisionDB)
-            .filter_by(decision_id=decision.decision_id)
-            .first()
+            self.db.query(AnalystDecisionDB).filter_by(decision_id=decision.decision_id).first()
         )
         if existing:
             existing.workspace_id = decision.workspace_id
@@ -170,6 +169,7 @@ class DecisionConsoleRepository(BaseRepository):
         if not db_decision:
             return None
         return self._decision_to_domain(db_decision)
+
     # endregion
 
     # region Audit
@@ -213,6 +213,7 @@ class DecisionConsoleRepository(BaseRepository):
             )
             for db in db_audits
         ]
+
     # endregion
 
     # region PostMortem
@@ -260,9 +261,7 @@ class DecisionConsoleRepository(BaseRepository):
     def get_post_mortem_for_decision(self, decision_id: str) -> Optional[PostMortemRecord]:
         """获取决策的复盘记录"""
         db_post_mortem = (
-            self.db.query(PostMortemRecordDB)
-            .filter_by(decision_id=decision_id)
-            .first()
+            self.db.query(PostMortemRecordDB).filter_by(decision_id=decision_id).first()
         )
         if not db_post_mortem:
             return None
@@ -277,6 +276,7 @@ class DecisionConsoleRepository(BaseRepository):
             .all()
         )
         return [self._post_mortem_to_domain(p) for p in db_post_mortems]
+
     # endregion
 
     # region Conversion Helpers
@@ -296,9 +296,9 @@ class DecisionConsoleRepository(BaseRepository):
 
     def _decision_to_domain(self, db: AnalystDecisionDB) -> AnalystDecision:
         """转换为领域模型"""
-        revision_history = [
-            DecisionAction(**a) for a in db.revision_history
-        ] if db.revision_history else []
+        revision_history = (
+            [DecisionAction(**a) for a in db.revision_history] if db.revision_history else []
+        )
         final_action = DecisionAction(
             action_type=db.final_action_type,
             action_by=db.action_by,
@@ -328,5 +328,7 @@ class DecisionConsoleRepository(BaseRepository):
             learning_points=db.learning_points,
             created_at=db.created_at,
             updated_at=db.updated_at,
-            linked_signal_accuracy=float(db.linked_signal_accuracy) if db.linked_signal_accuracy else None,
+            linked_signal_accuracy=float(db.linked_signal_accuracy)
+            if db.linked_signal_accuracy
+            else None,
         )

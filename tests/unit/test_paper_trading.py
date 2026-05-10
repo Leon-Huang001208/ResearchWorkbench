@@ -9,12 +9,8 @@
 - 基准比较（等权基准、Top-K 信号基准）
 - 回放驱动模拟完整流程
 """
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 
-from core.contracts.portfolio import (
-    PortfolioCandidate,
-    PortfolioProposal,
-)
 from core.contracts.paper_trading import (
     PaperPortfolio,
     PortfolioSnapshot,
@@ -24,10 +20,11 @@ from core.contracts.paper_trading import (
     SimulationMode,
     TransactionCost,
 )
+from core.contracts.portfolio import PortfolioCandidate, PortfolioProposal
 from core.services.paper_trading_service import PaperTradingService
 
-
 # ─── 辅助函数 ────────────────────────────────────────────
+
 
 def _make_proposal(
     allocations: dict[str, float] | None = None,
@@ -99,6 +96,7 @@ def _make_portfolio_with_snapshots(
 
 # ─── 创建模拟组合测试 ───────────────────────────────────
 
+
 class TestCreatePaperPortfolio:
     """创建模拟组合测试"""
 
@@ -154,6 +152,7 @@ class TestCreatePaperPortfolio:
 
 
 # ─── 调仓逻辑测试 ───────────────────────────────────────
+
 
 class TestRebalance:
     """调仓逻辑测试"""
@@ -224,7 +223,9 @@ class TestRebalance:
         prices = {"A": 1.0}
 
         portfolio, event = service.rebalance(
-            portfolio, {"A": 0.7, "B": 0.3}, prices,
+            portfolio,
+            {"A": 0.7, "B": 0.3},
+            prices,
             trigger=RebalanceTrigger.SIGNAL_DRIVEN,
         )
 
@@ -235,6 +236,7 @@ class TestRebalance:
 
 
 # ─── 成本建模测试 ───────────────────────────────────────
+
 
 class TestCostModeling:
     """成本建模测试"""
@@ -349,6 +351,7 @@ class TestCostModeling:
 
 # ─── 每日增量更新测试 ───────────────────────────────────
 
+
 class TestDailyUpdate:
     """每日增量更新测试"""
 
@@ -397,6 +400,7 @@ class TestDailyUpdate:
 
 # ─── 绩效指标计算测试 ───────────────────────────────────
 
+
 class TestPerformanceMetrics:
     """绩效指标计算测试"""
 
@@ -443,6 +447,7 @@ class TestPerformanceMetrics:
         service = PaperTradingService()
         # Returns with some variance (mostly positive) → positive Sharpe
         import random
+
         random.seed(42)
         navs = [1.0]
         for _ in range(30):
@@ -465,7 +470,7 @@ class TestPerformanceMetrics:
         metrics = service.compute_performance(portfolio)
 
         # Count positive daily returns
-        positive_days = sum(1 for i in range(1, len(navs)) if navs[i] > navs[i-1])
+        positive_days = sum(1 for i in range(1, len(navs)) if navs[i] > navs[i - 1])
         expected_hit_rate = positive_days / (len(navs) - 1)
         assert abs(metrics.hit_rate - expected_hit_rate) < 1e-4
 
@@ -525,6 +530,7 @@ class TestPerformanceMetrics:
 
 # ─── 基准比较测试 ───────────────────────────────────────
 
+
 class TestBenchmarkComparison:
     """基准比较测试"""
 
@@ -536,9 +542,7 @@ class TestBenchmarkComparison:
             "B": [1.0, 0.98, 1.02, 1.05],
         }
 
-        total_return, nav_series = service.generate_equal_weight_baseline(
-            ["A", "B"], price_history
-        )
+        total_return, nav_series = service.generate_equal_weight_baseline(["A", "B"], price_history)
 
         assert len(nav_series) == 4
         assert nav_series[0] == 1.0
@@ -612,6 +616,7 @@ class TestBenchmarkComparison:
 
 # ─── 回放驱动模拟测试 ───────────────────────────────────
 
+
 class TestReplaySimulation:
     """回放驱动模拟测试"""
 
@@ -626,10 +631,7 @@ class TestReplaySimulation:
             "B": [1.0, 0.99, 0.98, 0.97, 0.96, 0.95, 0.94, 0.93, 0.92, 0.91, 0.90],
         }
 
-        dates = [
-            datetime(2024, 1, i, tzinfo=timezone.utc)
-            for i in range(1, 12)
-        ]
+        dates = [datetime(2024, 1, i, tzinfo=timezone.utc) for i in range(1, 12)]
 
         result = service.run_replay_simulation(
             proposal=proposal,
@@ -656,8 +658,7 @@ class TestReplaySimulation:
         }
 
         dates = [
-            datetime(2024, 1, 1, tzinfo=timezone.utc) + timedelta(days=i)
-            for i in range(n_days)
+            datetime(2024, 1, 1, tzinfo=timezone.utc) + timedelta(days=i) for i in range(n_days)
         ]
 
         assumptions = SimulationAssumptions(
@@ -687,8 +688,7 @@ class TestReplaySimulation:
         }
 
         dates = [
-            datetime(2024, 1, 1, tzinfo=timezone.utc) + timedelta(days=i)
-            for i in range(n_days)
+            datetime(2024, 1, 1, tzinfo=timezone.utc) + timedelta(days=i) for i in range(n_days)
         ]
 
         result = service.run_replay_simulation(
@@ -708,10 +708,7 @@ class TestReplaySimulation:
         proposal = _make_proposal({"A": 1.0})
 
         price_history = {"A": [1.0, 1.01, 1.02, 1.03, 1.04]}
-        dates = [
-            datetime(2024, 1, 1, tzinfo=timezone.utc) + timedelta(days=i)
-            for i in range(5)
-        ]
+        dates = [datetime(2024, 1, 1, tzinfo=timezone.utc) + timedelta(days=i) for i in range(5)]
 
         result = service.run_replay_simulation(
             proposal=proposal,
@@ -725,6 +722,7 @@ class TestReplaySimulation:
 
 
 # ─── 偏离阈值测试 ───────────────────────────────────────
+
 
 class TestDriftThreshold:
     """偏离阈值测试"""
@@ -765,6 +763,7 @@ class TestDriftThreshold:
 
 
 # ─── 交易成本模型测试 ───────────────────────────────────
+
 
 class TestTransactionCostModel:
     """交易成本模型测试"""
@@ -820,6 +819,7 @@ class TestTransactionCostModel:
 
 
 # ─── 模拟假设可复现测试 ────────────────────────────────
+
 
 class TestAssumptionsReproducibility:
     """模拟假设可复现测试"""

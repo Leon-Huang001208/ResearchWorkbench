@@ -142,7 +142,7 @@ class EventExtractor:
                 ],
                 temperature=0.1,
                 max_tokens=1500,
-                model=getattr(self, '_model', None),
+                model=getattr(self, "_model", None),
             )
 
             extracted_data = self._parse_llm_response(response.content)

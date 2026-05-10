@@ -30,6 +30,7 @@ _decision_console_service: DecisionConsoleService | None = None
 
 class CreateWorkspaceRequest(BaseModel):
     """创建工作区请求"""
+
     created_by: str = Field(..., description="创建人ID/名称")
     workspace_date: Optional[str] = Field(None, description="工作区日期（ISO格式，默认今天）")
     team_id: Optional[str] = Field(None, description="团队ID")
@@ -38,21 +39,26 @@ class CreateWorkspaceRequest(BaseModel):
 
 class CloseWorkspaceRequest(BaseModel):
     """关闭工作区请求"""
+
     notes: Optional[str] = Field(None, description="关闭备注")
 
 
 class AddCandidatesRequest(BaseModel):
     """添加候选请求"""
+
     candidate_ids: List[str] = Field(..., description="候选ID列表")
 
 
 class RecordDecisionRequest(BaseModel):
     """记录决策请求"""
+
     workspace_id: str = Field(..., description="工作区ID")
     candidate_id: str = Field(..., description="候选ID")
     candidate_type: str = Field(..., description="候选类型: signal/portfolio_candidate/proposal")
     previous_status: str = Field(..., description="之前状态")
-    action_type: str = Field(..., description="决策动作类型: approve/watch/reject/defer/revise_thesis/add_to_paper_portfolio")
+    action_type: str = Field(
+        ..., description="决策动作类型: approve/watch/reject/defer/revise_thesis/add_to_paper_portfolio"
+    )
     action_by: str = Field(..., description="决策人ID/名称")
     rationale: str = Field(..., description="决策理由")
     changes: Optional[Dict[str, str]] = Field(None, description="修改内容")
@@ -60,6 +66,7 @@ class RecordDecisionRequest(BaseModel):
 
 class CreatePostMortemRequest(BaseModel):
     """创建复盘请求"""
+
     decision_id: str = Field(..., description="关联决策ID")
     original_decision: str = Field(..., description="原始决策内容")
     realized_outcome: str = Field(..., description="实际结果: win/loss/draw/pending")
@@ -70,6 +77,7 @@ class CreatePostMortemRequest(BaseModel):
 
 class UpdatePostMortemRequest(BaseModel):
     """更新复盘请求"""
+
     realized_outcome: Optional[str] = Field(None, description="实际结果")
     learning_points: Optional[str] = Field(None, description="学习要点")
     outcome_metrics: Optional[Dict[str, float]] = Field(None, description="结果指标")
@@ -78,6 +86,7 @@ class UpdatePostMortemRequest(BaseModel):
 
 class WorkspaceResponse(BaseModel):
     """工作区响应"""
+
     workspace_id: str
     workspace_date: str
     status: str
@@ -91,6 +100,7 @@ class WorkspaceResponse(BaseModel):
 
 class DecisionActionResponse(BaseModel):
     """决策动作响应"""
+
     action_type: str
     action_by: str
     action_at: str
@@ -100,6 +110,7 @@ class DecisionActionResponse(BaseModel):
 
 class DecisionResponse(BaseModel):
     """决策响应"""
+
     decision_id: str
     workspace_id: str
     candidate_id: str
@@ -112,6 +123,7 @@ class DecisionResponse(BaseModel):
 
 class AuditResponse(BaseModel):
     """审计响应"""
+
     audit_id: str
     decision_id: str
     action: str
@@ -125,6 +137,7 @@ class AuditResponse(BaseModel):
 
 class PostMortemResponse(BaseModel):
     """复盘响应"""
+
     post_mortem_id: str
     decision_id: str
     original_decision: str
@@ -136,9 +149,7 @@ class PostMortemResponse(BaseModel):
     linked_signal_accuracy: Optional[float]
 
 
-def get_decision_console_service(
-    db: Session = Depends(get_db)
-) -> DecisionConsoleService:
+def get_decision_console_service(db: Session = Depends(get_db)) -> DecisionConsoleService:
     """获取决策控制台服务实例（单例 + 请求级 DB session）"""
     global _decision_console_service
     if _decision_console_service is None:
@@ -226,7 +237,8 @@ def _post_mortem_to_response(post_mortem: PostMortemRecord) -> PostMortemRespons
 
 
 @router.post(
-    "/workspace", response_model=WorkspaceResponse,
+    "/workspace",
+    response_model=WorkspaceResponse,
 )
 async def create_workspace(
     request: CreateWorkspaceRequest,
@@ -237,6 +249,7 @@ async def create_workspace(
         workspace_date = None
         if request.workspace_date:
             from datetime import datetime
+
             workspace_date = datetime.fromisoformat(request.workspace_date)
 
         workspace = service.create_workspace(
@@ -300,8 +313,7 @@ async def close_workspace(
 ):
     """关闭工作区"""
     try:
-        workspace = service.close_workspace(
-            workspace_id=workspace_id, notes=request.notes)
+        workspace = service.close_workspace(workspace_id=workspace_id, notes=request.notes)
         if not workspace:
             raise HTTPException(status_code=404, detail=f"Workspace {workspace_id} not found")
         return _workspace_to_response(workspace)
@@ -324,7 +336,8 @@ async def add_candidates(
     """添加候选到工作区"""
     try:
         workspace = service.add_candidates_to_workspace(
-        workspace_id=workspace_id, candidate_ids=request.candidate_ids)
+            workspace_id=workspace_id, candidate_ids=request.candidate_ids
+        )
         if not workspace:
             raise HTTPException(status_code=404, detail=f"Workspace {workspace_id} not found")
         return _workspace_to_response(workspace)

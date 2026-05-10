@@ -23,6 +23,7 @@ _portfolio_service: PortfolioService | None = None
 
 class BuildRequest(BaseModel):
     """组合构建请求"""
+
     name: Optional[str] = Field(None, description="提案名称")
     constraints: Optional[Dict[str, Any]] = Field(None, description="自定义约束")
     signal_ids: Optional[List[str]] = Field(None, description="指定信号ID列表（为空则取所有活跃信号）")
@@ -30,6 +31,7 @@ class BuildRequest(BaseModel):
 
 class BuildWithConstraintsRequest(BaseModel):
     """自定义约束构建请求"""
+
     name: Optional[str] = Field(None, description="提案名称")
     max_position_size: float = Field(0.15, ge=0.01, le=1.0, description="单个持仓最大权重")
     max_sector_concentration: float = Field(0.40, ge=0.01, le=1.0, description="行业集中度上限")
@@ -43,6 +45,7 @@ class BuildWithConstraintsRequest(BaseModel):
 
 class CandidateResponse(BaseModel):
     """候选响应"""
+
     signal_id: str
     subject_id: str
     event_type: str
@@ -59,6 +62,7 @@ class CandidateResponse(BaseModel):
 
 class ProposalResponse(BaseModel):
     """提案响应"""
+
     proposal_id: str
     name: str
     created_at: str
@@ -71,6 +75,7 @@ class ProposalResponse(BaseModel):
 
 class ProposalSummaryResponse(BaseModel):
     """提案摘要响应"""
+
     proposal_id: str
     name: str
     created_at: str
@@ -103,9 +108,7 @@ def _reset_portfolio_service():
     _portfolio_service = None
 
 
-def _get_active_signals(
-    db: Session, signal_ids: Optional[List[str]] = None
-) -> List[Any]:
+def _get_active_signals(db: Session, signal_ids: Optional[List[str]] = None) -> List[Any]:
     """获取活跃信号列表"""
     signal_repo = SignalRepositoryImpl(db)
     if signal_ids:

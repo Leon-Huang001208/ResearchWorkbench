@@ -3,22 +3,11 @@
 
 覆盖: 特征组, 回测引擎 (SimpleBacktester, VectorBTBacktester, BacktraderEngine), 评分, 标签
 """
-import pytest
-import pandas as pd
 import numpy as np
+import pandas as pd
+import pytest
 
 from core.contracts import AlphaSignal, EventAlphaSignal
-from signal_lab.features import Feature, FeatureBuilder, FeatureGroup
-from signal_lab.features.groups import (
-    PriceVolumeFeatures,
-    ValuationFeatures,
-    FinancialFeatures,
-    FundFlowFeatures,
-    IndustryFeatures,
-    MacroFeatures,
-)
-from signal_lab.labels import RelativeReturnLabeler, compute_relative_return_label
-from signal_lab.scoring import CompositeScorer, ConfidenceScorer, SignalRanker, StrengthScorer
 from signal_lab.backtests import (
     BacktraderEngine,
     EventStudyBacktester,
@@ -26,11 +15,22 @@ from signal_lab.backtests import (
     VectorBTBacktester,
 )
 from signal_lab.backtests.base import BacktestResult
-
+from signal_lab.features import Feature, FeatureBuilder, FeatureGroup
+from signal_lab.features.groups import (
+    FinancialFeatures,
+    FundFlowFeatures,
+    IndustryFeatures,
+    MacroFeatures,
+    PriceVolumeFeatures,
+    ValuationFeatures,
+)
+from signal_lab.labels import RelativeReturnLabeler, compute_relative_return_label
+from signal_lab.scoring import CompositeScorer, ConfidenceScorer, SignalRanker, StrengthScorer
 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def price_data():
@@ -95,6 +95,7 @@ def sample_signals():
 # 特征模块测试
 # ===========================================================================
 
+
 class TestSimpleFeature(Feature):
     """测试用特征"""
 
@@ -156,7 +157,9 @@ class TestPriceVolumeFeatures:
         result = group.compute_all(price_data, feature_names=["price_change_1d"])
         assert "price_change_1d" in result.columns
         # 第二个值应约等于 (close[1] - close[0]) / close[0]
-        expected = (price_data["close"].iloc[1] - price_data["close"].iloc[0]) / price_data["close"].iloc[0]
+        expected = (price_data["close"].iloc[1] - price_data["close"].iloc[0]) / price_data[
+            "close"
+        ].iloc[0]
         actual = result["price_change_1d"].iloc[1]
         assert abs(actual - expected) < 1e-10
 
@@ -208,10 +211,13 @@ class TestFinancialFeatures:
     def test_roe_with_data(self):
         """测试ROE计算"""
         dates = pd.date_range("2023-01-01", periods=50, freq="D")
-        data = pd.DataFrame({
-            "net_profit": np.random.randn(50) * 1e6,
-            "equity": np.random.uniform(1e7, 1e8, 50),
-        }, index=dates)
+        data = pd.DataFrame(
+            {
+                "net_profit": np.random.randn(50) * 1e6,
+                "equity": np.random.uniform(1e7, 1e8, 50),
+            },
+            index=dates,
+        )
         group = FinancialFeatures()
         result = group.compute_all(data, feature_names=["roe"])
         assert "roe" in result.columns
@@ -220,10 +226,13 @@ class TestFinancialFeatures:
     def test_debt_ratio(self):
         """测试资产负债率"""
         dates = pd.date_range("2023-01-01", periods=50, freq="D")
-        data = pd.DataFrame({
-            "total_debt": np.random.uniform(1e7, 5e7, 50),
-            "total_assets": np.random.uniform(5e7, 1e8, 50),
-        }, index=dates)
+        data = pd.DataFrame(
+            {
+                "total_debt": np.random.uniform(1e7, 5e7, 50),
+                "total_assets": np.random.uniform(5e7, 1e8, 50),
+            },
+            index=dates,
+        )
         group = FinancialFeatures()
         result = group.compute_all(data, feature_names=["debt_ratio"])
         assert "debt_ratio" in result.columns
@@ -233,10 +242,13 @@ class TestFinancialFeatures:
     def test_current_ratio(self):
         """测试流动比率"""
         dates = pd.date_range("2023-01-01", periods=50, freq="D")
-        data = pd.DataFrame({
-            "current_assets": np.random.uniform(1e7, 5e7, 50),
-            "current_liabilities": np.random.uniform(5e6, 3e7, 50),
-        }, index=dates)
+        data = pd.DataFrame(
+            {
+                "current_assets": np.random.uniform(1e7, 5e7, 50),
+                "current_liabilities": np.random.uniform(5e6, 3e7, 50),
+            },
+            index=dates,
+        )
         group = FinancialFeatures()
         result = group.compute_all(data, feature_names=["current_ratio"])
         assert "current_ratio" in result.columns
@@ -254,9 +266,12 @@ class TestFundFlowFeatures:
     def test_net_inflow(self):
         """测试净流入"""
         dates = pd.date_range("2023-01-01", periods=50, freq="D")
-        data = pd.DataFrame({
-            "net_inflow": np.random.randn(50) * 1e5,
-        }, index=dates)
+        data = pd.DataFrame(
+            {
+                "net_inflow": np.random.randn(50) * 1e5,
+            },
+            index=dates,
+        )
         group = FundFlowFeatures()
         result = group.compute_all(data, feature_names=["net_inflow_1d"])
         assert "net_inflow_1d" in result.columns
@@ -264,10 +279,13 @@ class TestFundFlowFeatures:
     def test_large_order_ratio(self):
         """测试大单占比"""
         dates = pd.date_range("2023-01-01", periods=50, freq="D")
-        data = pd.DataFrame({
-            "large_order_amount": np.random.uniform(1e5, 1e6, 50),
-            "amount": np.random.uniform(1e6, 1e7, 50),
-        }, index=dates)
+        data = pd.DataFrame(
+            {
+                "large_order_amount": np.random.uniform(1e5, 1e6, 50),
+                "amount": np.random.uniform(1e6, 1e7, 50),
+            },
+            index=dates,
+        )
         group = FundFlowFeatures()
         result = group.compute_all(data, feature_names=["large_order_ratio_20d"])
         assert "large_order_ratio_20d" in result.columns
@@ -275,9 +293,12 @@ class TestFundFlowFeatures:
     def test_main_force_net_inflow(self):
         """测试主力净流入"""
         dates = pd.date_range("2023-01-01", periods=50, freq="D")
-        data = pd.DataFrame({
-            "net_inflow": np.random.randn(50) * 1e5,
-        }, index=dates)
+        data = pd.DataFrame(
+            {
+                "net_inflow": np.random.randn(50) * 1e5,
+            },
+            index=dates,
+        )
         group = FundFlowFeatures()
         result = group.compute_all(data, feature_names=["main_force_net_inflow_5d"])
         assert "main_force_net_inflow_5d" in result.columns
@@ -294,10 +315,13 @@ class TestValuationFeatures:
     def test_pe_ratio(self):
         """测试市盈率"""
         dates = pd.date_range("2023-01-01", periods=50, freq="D")
-        data = pd.DataFrame({
-            "close": np.random.uniform(10, 100, 50),
-            "eps": np.random.uniform(0.5, 5, 50),
-        }, index=dates)
+        data = pd.DataFrame(
+            {
+                "close": np.random.uniform(10, 100, 50),
+                "eps": np.random.uniform(0.5, 5, 50),
+            },
+            index=dates,
+        )
         group = ValuationFeatures()
         result = group.compute_all(data, feature_names=["pe_ratio"])
         assert "pe_ratio" in result.columns
@@ -315,9 +339,12 @@ class TestIndustryFeatures:
     def test_industry_momentum(self):
         """测试行业动量"""
         dates = pd.date_range("2023-01-01", periods=100, freq="D")
-        data = pd.DataFrame({
-            "industry_return": np.random.randn(100) * 0.02,
-        }, index=dates)
+        data = pd.DataFrame(
+            {
+                "industry_return": np.random.randn(100) * 0.02,
+            },
+            index=dates,
+        )
         group = IndustryFeatures()
         result = group.compute_all(data, feature_names=["industry_momentum_20d"])
         assert "industry_momentum_20d" in result.columns
@@ -325,9 +352,12 @@ class TestIndustryFeatures:
     def test_industry_concentration(self):
         """测试行业集中度"""
         dates = pd.date_range("2023-01-01", periods=100, freq="D")
-        data = pd.DataFrame({
-            "industry_return": np.random.randn(100) * 0.02,
-        }, index=dates)
+        data = pd.DataFrame(
+            {
+                "industry_return": np.random.randn(100) * 0.02,
+            },
+            index=dates,
+        )
         group = IndustryFeatures()
         result = group.compute_all(data, feature_names=["industry_concentration_60d"])
         assert "industry_concentration_60d" in result.columns
@@ -344,9 +374,12 @@ class TestMacroFeatures:
     def test_macro_exposure(self):
         """测试宏观暴露"""
         dates = pd.date_range("2023-01-01", periods=50, freq="D")
-        data = pd.DataFrame({
-            "market": np.random.randn(50) * 0.01,
-        }, index=dates)
+        data = pd.DataFrame(
+            {
+                "market": np.random.randn(50) * 0.01,
+            },
+            index=dates,
+        )
         group = MacroFeatures()
         result = group.compute_all(data, feature_names=["market_exposure"])
         assert "market_exposure" in result.columns
@@ -354,9 +387,12 @@ class TestMacroFeatures:
     def test_macro_momentum(self):
         """测试宏观动量"""
         dates = pd.date_range("2023-01-01", periods=100, freq="D")
-        data = pd.DataFrame({
-            "market": np.random.randn(100).cumsum() * 0.01,
-        }, index=dates)
+        data = pd.DataFrame(
+            {
+                "market": np.random.randn(100).cumsum() * 0.01,
+            },
+            index=dates,
+        )
         group = MacroFeatures()
         result = group.compute_all(data, feature_names=["market_momentum_60d"])
         assert "market_momentum_60d" in result.columns
@@ -364,9 +400,12 @@ class TestMacroFeatures:
     def test_credit_spread(self):
         """测试信用利差"""
         dates = pd.date_range("2023-01-01", periods=100, freq="D")
-        data = pd.DataFrame({
-            "credit_spread": np.random.uniform(0.01, 0.05, 100),
-        }, index=dates)
+        data = pd.DataFrame(
+            {
+                "credit_spread": np.random.uniform(0.01, 0.05, 100),
+            },
+            index=dates,
+        )
         group = MacroFeatures()
         result = group.compute_all(data, feature_names=["credit_spread_20d"])
         assert "credit_spread_20d" in result.columns
@@ -375,6 +414,7 @@ class TestMacroFeatures:
 # ===========================================================================
 # 标签模块测试
 # ===========================================================================
+
 
 class TestLabels:
     """标签模块测试"""
@@ -399,6 +439,7 @@ class TestLabels:
 # ===========================================================================
 # 评分模块测试
 # ===========================================================================
+
 
 class TestScoring:
     """评分模块测试"""
@@ -458,6 +499,7 @@ class TestScoring:
 # 事件型 Alpha 契约测试
 # ===========================================================================
 
+
 class TestEventAlphaSignal:
     """事件型Alpha信号契约测试"""
 
@@ -494,12 +536,14 @@ class TestEventAlphaSignal:
 # 回测结果契约测试
 # ===========================================================================
 
+
 class TestBacktestResult:
     """BacktestResult Pydantic模型测试"""
 
     def test_backtest_result_is_pydantic(self):
         """确认BacktestResult是Pydantic模型"""
         from pydantic import BaseModel
+
         assert issubclass(BacktestResult, BaseModel)
 
     def test_backtest_result_fields(self):
@@ -547,6 +591,7 @@ class TestBacktestResult:
 # ===========================================================================
 # 回测引擎测试
 # ===========================================================================
+
 
 class TestSimpleBacktester:
     """简单回测器测试"""
@@ -756,7 +801,9 @@ class TestCrossEngineConsistency:
 
         for engine, data in zip(engines, data_sources):
             result = engine.run(data)
-            assert isinstance(result, BacktestResult), f"{engine.name} did not return BacktestResult"
+            assert isinstance(
+                result, BacktestResult
+            ), f"{engine.name} did not return BacktestResult"
             assert result.engine in ("simple", "vectorbt", "backtrader")
 
     def test_result_format_consistency(self, price_data, price_data_ohlcv):
@@ -772,7 +819,15 @@ class TestCrossEngineConsistency:
             results[name] = engine.run(data)
 
         # 检查所有核心字段存在
-        core_fields = ["total_return", "annual_return", "sharpe_ratio", "max_drawdown", "win_rate", "total_trades", "engine"]
+        core_fields = [
+            "total_return",
+            "annual_return",
+            "sharpe_ratio",
+            "max_drawdown",
+            "win_rate",
+            "total_trades",
+            "engine",
+        ]
         for name, result in results.items():
             for field in core_fields:
                 assert hasattr(result, field), f"{name} missing field {field}"

@@ -8,14 +8,14 @@
 
 import json
 import os
-from pathlib import Path
-from typing import Dict, Any, List, Optional, Tuple
 from functools import lru_cache
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
 import pandas as pd
 
+from ..utils import extract_text_from_html, parse_timestamp
 from .base import BaseProcessor, _clean_html
-from ..utils import parse_timestamp, extract_text_from_html
-
 
 # 默认允许的公众号列表
 DEFAULT_ALLOWED_OPEN_NAMES = [
@@ -36,7 +36,7 @@ DEFAULT_ALLOWED_OPEN_NAMES = [
     "财联社",
     "每日经济新闻",
     "冷眼局中人",
-    "澎湃新闻评论"
+    "澎湃新闻评论",
 ]
 
 
@@ -85,7 +85,7 @@ def _get_allowed_open_names(custom_path: Optional[str] = None) -> Tuple[str, ...
     for config_path in search_paths:
         if config_path and config_path.exists():
             try:
-                with open(config_path, 'r', encoding='utf-8') as f:
+                with open(config_path, "r", encoding="utf-8") as f:
                     config = json.load(f)
                     names = config.get("allowed_open_names", DEFAULT_ALLOWED_OPEN_NAMES)
                     return tuple(names)
@@ -174,7 +174,7 @@ class NewsProcessor(BaseProcessor):
         output_file: str,
         state_manager: Optional[Any] = None,
         skip_existing: bool = True,
-        **kwargs
+        **kwargs,
     ) -> Tuple[pd.DataFrame, List[Dict], int]:
         """
         处理公众号数据
@@ -190,13 +190,13 @@ class NewsProcessor(BaseProcessor):
             (DataFrame, new_reports_list, skipped_count)
         """
         # 从 kwargs 获取允许的账号路径，优先级高于初始化参数
-        allowed_path = kwargs.get('allowed_accounts_path', self.allowed_accounts_path)
+        allowed_path = kwargs.get("allowed_accounts_path", self.allowed_accounts_path)
 
         # 判断数据格式
-        reports_list = data.get('reports', [])
+        reports_list = data.get("reports", [])
         if isinstance(reports_list, dict):
             # 旧格式或嵌套格式
-            inner_reports = reports_list.get('reports', [])
+            inner_reports = reports_list.get("reports", [])
             if isinstance(inner_reports, list):
                 reports_list = inner_reports
 
@@ -205,21 +205,21 @@ class NewsProcessor(BaseProcessor):
         skipped_count = 0
 
         for report in reports_list:
-            doc_type = report.get('docType', '') or report.get('type', '')
+            doc_type = report.get("docType", "") or report.get("type", "")
 
             # 只处理 NEWS 类型
-            if doc_type != 'NEWS':
+            if doc_type != "NEWS":
                 continue
 
             # 检查是否已处理过（持久化去重）
-            obj_id = report.get('id') or report.get('objId')
+            obj_id = report.get("id") or report.get("objId")
             if state_manager and skip_existing and obj_id:
                 if state_manager.is_report_processed(str(obj_id)):
                     skipped_count += 1
                     continue
 
             # 检查公众号是否在允许列表中
-            open_name = report.get('openName', '')
+            open_name = report.get("openName", "")
             if not self._is_allowed_cached(open_name, allowed_path):
                 self.client.logger.debug(f"跳过未允许的公众号: {open_name}")
                 continue
@@ -233,7 +233,7 @@ class NewsProcessor(BaseProcessor):
         # 保存结果
         if output_file:
             os.makedirs(os.path.dirname(output_file), exist_ok=True)
-            with open(output_file, 'w', encoding='utf-8') as f:
+            with open(output_file, "w", encoding="utf-8") as f:
                 json.dump(results, f, ensure_ascii=False, indent=2)
 
         self.client.logger.info(f"已处理 {len(results)} 条公众号 (跳过 {skipped_count} 条)，保存至 {output_file}")
@@ -250,13 +250,13 @@ class NewsProcessor(BaseProcessor):
         Returns:
             公众号条目字典
         """
-        obj_id = report.get('id') or report.get('objId')
+        obj_id = report.get("id") or report.get("objId")
         if not obj_id:
             return None
 
         # 生成内部链接
         internal_url = f"https://www.kanzhiqiu.com/newsadapter/newcjnews/read_news.htm?id={obj_id}"
-        external_url = report.get('url', '')
+        external_url = report.get("url", "")
 
         # 获取文章内容
         content = self._fetch_news_content(internal_url, external_url)
@@ -265,15 +265,15 @@ class NewsProcessor(BaseProcessor):
         date_str = parse_timestamp(report)
 
         return {
-            'OBJID': str(obj_id),
-            'docType': 'NEWS',
-            'docTypeName': '公众号',
-            'title': _clean_html(report.get('title', '')),
-            'url': internal_url,
-            'externalUrl': external_url,
-            'content': content,
-            'date': date_str,
-            'openName': report.get('openName', '')
+            "OBJID": str(obj_id),
+            "docType": "NEWS",
+            "docTypeName": "公众号",
+            "title": _clean_html(report.get("title", "")),
+            "url": internal_url,
+            "externalUrl": external_url,
+            "content": content,
+            "date": date_str,
+            "openName": report.get("openName", ""),
         }
 
     def _fetch_news_content(self, internal_url: str, external_url: str) -> str:
@@ -294,10 +294,9 @@ class NewsProcessor(BaseProcessor):
         # 首先尝试从知丘内部链接获取
         try:
             self.client.anti_scrape.before_request(is_ai_request=False)
-            headers = self.client.anti_scrape.get_headers({
-                "user-agent": self.client.USER_AGENT,
-                "referer": f"{self.client.BASE_URL}/"
-            })
+            headers = self.client.anti_scrape.get_headers(
+                {"user-agent": self.client.USER_AGENT, "referer": f"{self.client.BASE_URL}/"}
+            )
             resp = self.client.session.get(internal_url, headers=headers, timeout=30)
             self.client.anti_scrape.after_success()
 
@@ -312,9 +311,9 @@ class NewsProcessor(BaseProcessor):
         if external_url:
             try:
                 self.client.anti_scrape.before_request(is_ai_request=False)
-                headers = self.client.anti_scrape.get_headers({
-                    "user-agent": self.client.USER_AGENT
-                })
+                headers = self.client.anti_scrape.get_headers(
+                    {"user-agent": self.client.USER_AGENT}
+                )
                 resp = self.client.session.get(external_url, headers=headers, timeout=30)
                 self.client.anti_scrape.after_success()
 

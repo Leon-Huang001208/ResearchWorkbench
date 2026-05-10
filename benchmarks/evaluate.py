@@ -19,15 +19,9 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from benchmarks.SCHEMA import BenchmarkCase, BenchmarkResult, compute_prf, compute_thesis_similarity
 from core.observability import get_logger
 from core.services.event_extractor import EventExtractor
-
-from benchmarks.SCHEMA import (
-    BenchmarkCase,
-    BenchmarkResult,
-    compute_prf,
-    compute_thesis_similarity,
-)
 
 logger = get_logger(__name__)
 
@@ -243,9 +237,7 @@ async def main() -> None:
         datasets = [args.dataset]
     else:
         # Discover all .jsonl files in datasets/
-        datasets = sorted(
-            f.stem for f in DATASETS_DIR.glob("*.jsonl") if f.is_file()
-        )
+        datasets = sorted(f.stem for f in DATASETS_DIR.glob("*.jsonl") if f.is_file())
 
     if not datasets:
         logger.error("No datasets found in %s", DATASETS_DIR)

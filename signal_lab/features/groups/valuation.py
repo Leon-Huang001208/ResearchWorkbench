@@ -5,8 +5,8 @@
 """
 from typing import Any
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 from core.observability import get_logger
 from signal_lab.features.base import Feature, FeatureGroup
@@ -18,10 +18,7 @@ class PEFeature(Feature):
     """市盈率特征"""
 
     def __init__(self):
-        super().__init__(
-            name="pe_ratio",
-            description="市盈率"
-        )
+        super().__init__(name="pe_ratio", description="市盈率")
 
     def compute(self, data: pd.DataFrame, **kwargs: Any) -> pd.Series:
         pe_col = kwargs.get("pe_col", "pe")
@@ -41,10 +38,7 @@ class PBFeature(Feature):
     """市净率特征"""
 
     def __init__(self):
-        super().__init__(
-            name="pb_ratio",
-            description="市净率"
-        )
+        super().__init__(name="pb_ratio", description="市净率")
 
     def compute(self, data: pd.DataFrame, **kwargs: Any) -> pd.Series:
         pb_col = kwargs.get("pb_col", "pb")
@@ -64,10 +58,7 @@ class PSFeature(Feature):
     """市销率特征"""
 
     def __init__(self):
-        super().__init__(
-            name="ps_ratio",
-            description="市销率"
-        )
+        super().__init__(name="ps_ratio", description="市销率")
 
     def compute(self, data: pd.DataFrame, **kwargs: Any) -> pd.Series:
         ps_col = kwargs.get("ps_col", "ps")
@@ -87,10 +78,7 @@ class DividendYieldFeature(Feature):
     """股息率特征"""
 
     def __init__(self):
-        super().__init__(
-            name="dividend_yield",
-            description="股息率"
-        )
+        super().__init__(name="dividend_yield", description="股息率")
 
     def compute(self, data: pd.DataFrame, **kwargs: Any) -> pd.Series:
         dy_col = kwargs.get("dividend_yield_col", "dividend_yield")
@@ -111,8 +99,7 @@ class ValuationPercentileFeature(Feature):
 
     def __init__(self, window: int = 252, metric: str = "pe"):
         super().__init__(
-            name=f"{metric}_percentile_{window}d",
-            description=f"{metric} {window}日百分位"
+            name=f"{metric}_percentile_{window}d", description=f"{metric} {window}日百分位"
         )
         self.window = window
         self.metric = metric

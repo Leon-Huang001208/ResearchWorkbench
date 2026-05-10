@@ -30,10 +30,7 @@ class RelativeReturnLabeler(Labeler):
             forward: 是否使用未来收益作为标签
             relative: 是否计算相对基准的收益
         """
-        super().__init__(
-            name=f"relative_return_{horizon}d",
-            description=f"{horizon}日相对收益标签"
-        )
+        super().__init__(name=f"relative_return_{horizon}d", description=f"{horizon}日相对收益标签")
         self.horizon = horizon
         self.forward = forward
         self.relative = relative

@@ -20,17 +20,18 @@ mock_settings.LOG_LEVEL = "INFO"
 mock_settings.DATABASE_URL = "sqlite:///:memory:"
 
 # Mock pydantic_settings
-sys.modules['pydantic_settings'] = unittest.mock.Mock()
-sys.modules['core.settings'] = unittest.mock.Mock()
-sys.modules['core.settings'].settings = mock_settings
+sys.modules["pydantic_settings"] = unittest.mock.Mock()
+sys.modules["core.settings"] = unittest.mock.Mock()
+sys.modules["core.settings"].settings = mock_settings
 
 # Mock sqlalchemy and database dependencies
-sys.modules['sqlalchemy'] = unittest.mock.Mock()
-sys.modules['sqlalchemy.orm'] = unittest.mock.Mock()
-sys.modules['data_layer.repositories'] = unittest.mock.Mock()
+sys.modules["sqlalchemy"] = unittest.mock.Mock()
+sys.modules["sqlalchemy.orm"] = unittest.mock.Mock()
+sys.modules["data_layer.repositories"] = unittest.mock.Mock()
 
 # Mock observability imports
 import logging
+
 
 def mock_get_logger(name):
     logger = logging.getLogger(name)
@@ -41,8 +42,9 @@ def mock_get_logger(name):
         logger.addHandler(handler)
     return logger
 
-sys.modules['core.observability'] = unittest.mock.Mock()
-sys.modules['core.observability'].get_logger = mock_get_logger
+
+sys.modules["core.observability"] = unittest.mock.Mock()
+sys.modules["core.observability"].get_logger = mock_get_logger
 
 # Now import the modules we need to test
 import numpy as np
@@ -64,15 +66,18 @@ try:
 
     # Create test data
     dates = pd.date_range(start="2024-01-01", periods=100, freq="D")
-    prices = pd.DataFrame({
-        "close": 100.0 + np.random.randn(100).cumsum(),
-        "volume": np.random.randint(100000, 1000000, 100),
-        "pe": 20.0 + np.random.randn(100) * 2,
-        "pb": 2.0 + np.random.randn(100) * 0.5,
-    }, index=dates)
+    prices = pd.DataFrame(
+        {
+            "close": 100.0 + np.random.randn(100).cumsum(),
+            "volume": np.random.randint(100000, 1000000, 100),
+            "pe": 20.0 + np.random.randn(100) * 2,
+            "pb": 2.0 + np.random.randn(100) * 0.5,
+        },
+        index=dates,
+    )
 
     features = builder.compute_features(prices)
-    print(f"  ✓ 特征模块测试通过！")
+    print("  ✓ 特征模块测试通过！")
     print(f"  ✓ 计算了 {len(features.columns)} 个特征")
 except Exception as e:
     print(f"  ✗ 特征模块测试失败: {e}")
@@ -88,7 +93,7 @@ try:
     price_series = pd.Series(100.0 + np.random.randn(100).cumsum(), index=dates)
 
     labels = labeler.compute(price_series)
-    print(f"  ✓ 标签模块测试通过！")
+    print("  ✓ 标签模块测试通过！")
     print(f"  ✓ 生成了 {len(labels.dropna())} 个标签")
 except Exception as e:
     print(f"  ✗ 标签模块测试失败: {e}")
@@ -97,7 +102,7 @@ except Exception as e:
 print("\n[3/5] 测试评分模块...")
 try:
     from core.contracts import AlphaSignal
-    from signal_lab.scoring import CompositeScorer, ConfidenceScorer, StrengthScorer, SignalRanker
+    from signal_lab.scoring import CompositeScorer, ConfidenceScorer, SignalRanker, StrengthScorer
 
     # Create test signals
     signals = [
@@ -121,7 +126,7 @@ try:
     ranker = SignalRanker(scorer)
     ranked = ranker.rank(signals)
 
-    print(f"  ✓ 评分模块测试通过！")
+    print("  ✓ 评分模块测试通过！")
     print(f"  ✓ 排名了 {len(ranked)} 个信号")
     for i, (signal, score, rank) in enumerate(ranked[:3], 1):
         print(f"    {rank}. {signal.subject_id} - 评分: {score:.3f}")
@@ -136,14 +141,17 @@ try:
     # Create test data
     dates = pd.date_range(start="2024-01-01", periods=252, freq="D")
     np.random.seed(42)
-    prices = pd.DataFrame({
-        "close": 100.0 + np.random.randn(252).cumsum(),
-    }, index=dates)
+    prices = pd.DataFrame(
+        {
+            "close": 100.0 + np.random.randn(252).cumsum(),
+        },
+        index=dates,
+    )
 
     backtester = SimpleBacktester(initial_capital=1000000)
     result = backtester.run(prices)
 
-    print(f"  ✓ 回测模块测试通过！")
+    print("  ✓ 回测模块测试通过！")
     print(f"  ✓ 总收益率: {result.total_return:.2%}")
     print(f"  ✓ 夏普比率: {result.sharpe_ratio:.2f}")
     print(f"  ✓ 最大回撤: {result.max_drawdown:.2%}")
@@ -174,7 +182,7 @@ try:
         risk_notes=["测试信号"],
     )
 
-    print(f"  ✓ 信号契约测试通过！")
+    print("  ✓ 信号契约测试通过！")
     print(f"  ✓ 信号: {signal.subject_id} - {signal.thesis}")
     print(f"  ✓ 交易候选: {candidate.action} - 仓位: {candidate.sizing_hint:.2%}")
 except Exception as e:
