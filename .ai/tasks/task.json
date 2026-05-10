@@ -185,6 +185,40 @@
             }
         },
         {
+            "id": "af-auto-000-04d",
+            "title": "Integrate Claude Code executor into the control layer",
+            "description": "Turn the current task orchestrator into a real single-task execution launcher for Claude Code",
+            "priority": "high",
+            "dependencies": [
+                "af-auto-000-04c"
+            ],
+            "success_criteria": [
+                "run-automation.sh supports list/next/check",
+                "New command invokes Claude Code for exactly one selected task",
+                "Generated prompt instructs Claude to read required files and execute one task",
+                "One-task-per-run semantics kept",
+                "No business features implemented in this task",
+                "Limitations documented clearly",
+                "task.json and progress.md updated",
+                "Report created"
+            ],
+            "verification_commands": [
+                ".ai/scripts/run-automation.sh help"
+            ],
+            "required_skill": "automation",
+            "research_required": false,
+            "status": "done",
+            "results": {
+                "execute_command_added": true,
+                "prompt_generation": true,
+                "list_next_check_preserved": true,
+                "one_task_per_run": true,
+                "no_business_changes": true,
+                "limitations_documented": true,
+                "report_created": ".ai/reports/claude_executor_integration.md"
+            }
+        },
+        {
             "id": "af-auto-000-05",
             "title": "Audit Knowledge Layer Modules",
             "description": "Verify the implementation status of knowledge layer modules including entity resolution, assertions, events, graph projection, and retrieval.",
@@ -366,9 +400,9 @@
         "audit_date": "2026-05-10",
         "task_set_id": "af-auto-000",
         "task_set_description": "AF-AUTO-000: Repository Audit and Initial Validation",
-        "total_tasks": 14,
+        "total_tasks": 15,
         "priorities": {
-            "high": 8,
+            "high": 9,
             "medium": 6,
             "low": 0
         },

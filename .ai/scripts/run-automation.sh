@@ -14,13 +14,14 @@
 # - Python 3 with json module available
 # - task.json is valid JSON
 # - Only ONE task executed per invocation
+# - Claude Code CLI is available as 'claude'
 #
 # Limitations:
 # - Does NOT handle task dependencies (yet)
 # - Does NOT resume interrupted tasks (yet)
 # - Does NOT handle concurrent execution (yet)
-# - Does NOT actually IMPLEMENT tasks - only orchestrates state
-# - Only does state transition + health checks
+# - Claude Code runs interactively - requires user approval
+# - Claude Code integration requires 'claude' CLI to be available
 
 set -euo pipefail
 
@@ -300,6 +301,113 @@ mark_task_complete() {
     fi
 }
 
+# Generate Claude Code prompt for a specific task
+generate_claude_prompt() {
+    local task_id="$1"
+
+    cat <<EOF
+Read the following files first:
+1. CLAUDE.md - Project configuration and hard rules
+2. .ai/tasks/task.json - Task definitions
+3. .ai/progress/progress.md - Current progress
+
+Then execute ONLY this task: $task_id
+
+Instructions:
+1. Update task.json - Mark this task as 'doing' if not already
+2. Read the task definition in task.json carefully
+3. Execute the task according to its success criteria
+4. Create any required audit/report files
+5. Stop if blocked by unmet dependencies
+6. Update progress.md with task results
+7. Update task.json with task completion status
+8. Do NOT implement any business features outside this task
+
+Important hard rules from CLAUDE.md:
+- NO business logic modification during audit tasks (af-auto-000)
+- ONLY commit .ai directory and CLAUDE.md changes for audit tasks
+- FAIL LOUDLY - scripts MUST exit with non-zero code on real failures
+- NO fake success states - don't report "✓" unless verified
+- ALWAYS update task.json AND progress.md for each completed task
+EOF
+}
+
+# Execute task with Claude Code
+execute_task() {
+    local task_id="$1"
+
+    if [ -z "$task_id" ]; then
+        task_id=$(get_next_task)
+        if [ -z "$task_id" ]; then
+            print_error "No task found to execute"
+            exit 1
+        fi
+        print_info "Using next task: $task_id"
+    fi
+
+    if ! task_exists "$task_id"; then
+        print_error "Task not found: $task_id"
+        exit 3
+    fi
+
+    print_section "TASK EXECUTION" "Launching Claude Code for $task_id"
+
+    # Check if Claude CLI is available
+    if ! command -v claude &> /dev/null; then
+        print_error "Claude Code CLI ('claude') not found"
+        echo "Please install Claude Code CLI first"
+        exit 2
+    fi
+
+    # Create temporary prompt file
+    local prompt_file=$(mktemp /tmp/claude-prompt.XXXXXX)
+    generate_claude_prompt "$task_id" > "$prompt_file"
+
+    print_info "Generated Claude Code prompt at: $prompt_file"
+    echo ""
+    echo "Press Enter to launch Claude Code with this prompt, or Ctrl+C to cancel..."
+    read -r
+
+    # Mark as doing before launching
+    echo ""
+    print_info "Marking task as 'doing'..."
+    if update_task_status "$task_id" "doing"; then
+        print_success "Task marked as 'doing'"
+    else
+        print_error "Failed to update task status"
+        rm -f "$prompt_file"
+        return 1
+    fi
+
+    # Run health checks
+    echo ""
+    print_info "Running pre-flight health checks..."
+    run_health_checks
+
+    echo ""
+    print_info "Launching Claude Code..."
+    echo "Prompt file will be cleaned up after execution"
+    echo ""
+
+    # Launch Claude with the prompt
+    claude --no-welcome --message "$(cat "$prompt_file")"
+
+    local claude_exit=$?
+
+    # Clean up prompt file
+    rm -f "$prompt_file"
+
+    if [ $claude_exit -ne 0 ]; then
+        print_warning "Claude Code exited with status $claude_exit"
+        print_info "Task may be incomplete - check manually"
+    else
+        print_success "Claude Code execution complete"
+        print_info "Verify task.json and progress.md were updated"
+    fi
+
+    return $claude_exit
+}
+
 # Print help
 print_help() {
     echo "Usage: $0 [COMMAND]"
@@ -309,6 +417,7 @@ print_help() {
     echo "  next          - Show next task to execute"
     echo "  start <ID>    - Mark task as 'doing' and run checks"
     echo "  complete <ID> - Mark task as 'done'"
+    echo "  execute <ID>  - Launch Claude Code to execute a task"
     echo "  check         - Run health checks only"
     echo "  help          - Show this help"
     echo ""
@@ -316,11 +425,13 @@ print_help() {
     echo "  $0 list"
     echo "  $0 next"
     echo "  $0 start af-auto-000-12"
+    echo "  $0 execute af-auto-000-12"
     echo "  $0 complete af-auto-000-12"
     echo ""
     echo "Limitations:"
-    echo "  - Only state management - NO task implementation"
-    echo "  - One task per invocation"
+    echo "  - execute command requires 'claude' CLI available"
+    echo "  - execute runs ONE task at a time only"
+    echo "  - Claude Code requires user approval for changes"
     echo "  - No dependency resolution"
 }
 
@@ -346,7 +457,8 @@ main() {
                 print_info "Next task to execute:"
                 echo "  $next_task"
                 echo ""
-                print_info "To start: $0 start $next_task"
+                print_info "To start manually: $0 start $next_task"
+                print_info "To execute with Claude: $0 execute $next_task"
             else
                 print_success "All tasks completed!"
             fi
@@ -363,6 +475,19 @@ main() {
                 print_info "Using next task: $task_id"
             fi
             orchestrate_task "$task_id"
+            ;;
+        "execute")
+            shift
+            local task_id="$1"
+            if [ -z "$task_id" ]; then
+                task_id=$(get_next_task)
+                if [ -z "$task_id" ]; then
+                    print_error "No task found to execute"
+                    exit 1
+                fi
+                print_info "Using next task: $task_id"
+            fi
+            execute_task "$task_id"
             ;;
         "complete")
             shift
