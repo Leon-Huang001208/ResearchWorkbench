@@ -42,8 +42,8 @@ print_header() {
     echo "AlphaFoundry Task Orchestrator"
     echo "=========================================="
     echo ""
-    echo "⚠  NOTE: This orchestrates state only - NO task implementation"
-    echo "          (Business logic remains manual)"
+    echo "  'start' : Only orchestrates state (no task implementation)"
+    echo "  'execute' : Launches Claude Code to execute single task"
     echo ""
 }
 
@@ -230,7 +230,7 @@ print(' '.join(missing))
 " 2>/dev/null
 }
 
-# Get next task - dependency-aware, prioritizes high priority
+# Get next task - dependency-aware, strictly prioritizes high priority
 get_next_task() {
     python3 -c "
 import json
@@ -251,16 +251,25 @@ def is_ready(task):
             return False
     return True
 
-# Find next task: first ready high priority, then ready medium
-next_task = None
+# Collect ready tasks, strictly prioritized
+ready_high = []
+ready_medium = []
+
 for task in data['tasks']:
     status = task.get('status', 'todo')
     priority = task.get('priority', 'medium')
     if status not in ['done', 'failed'] and is_ready(task):
-        if priority == 'high' and not next_task:
-            next_task = task
-        elif not next_task:
-            next_task = task
+        if priority == 'high':
+            ready_high.append(task)
+        else:
+            ready_medium.append(task)
+
+# Select next task: first ready high, then first ready medium
+next_task = None
+if ready_high:
+    next_task = ready_high[0]
+elif ready_medium:
+    next_task = ready_medium[0]
 
 if next_task:
     print(next_task['id'])
