@@ -107,3 +107,27 @@ class ReadinessScore(BaseModel):
             overall_score=overall_score,
             recommendation=recommendation,
         )
+
+    def should_block(self) -> bool:
+        """Return True if candidate should be blocked due to low readiness."""
+        return self.recommendation == "BLOCK"
+
+    def get_blocking_reason(self) -> str | None:
+        """Get human-readable blocking reason if candidate should be blocked."""
+        if not self.should_block():
+            return None
+
+        reasons: list[str] = []
+        if self.thesis_quality <= 0.4:
+            reasons.append("Thesis quality is too low")
+        if self.historical_edge <= 0.3:
+            reasons.append("Historical edge is weak or inconsistent")
+        if self.timing_fit <= 0.3:
+            reasons.append("Current market timing is unfavorable")
+
+        if not reasons:
+            reasons.append(
+                f"Overall readiness score {self.overall_score:.2f} below blocking threshold"
+            )
+
+        return ", ".join(reasons)

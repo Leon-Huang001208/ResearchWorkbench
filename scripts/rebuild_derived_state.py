@@ -28,8 +28,8 @@ from core.services.outcome_service import OutcomeService
 from core.services.replay_service import ReplayService
 
 # Import domain services
+from core.contracts.timing_engine import EventStudyMetrics, ReadinessScore, TimingFactors
 from core.services.signal_service import SignalService
-from core.services.timing_engine_service import TimingEngineService
 from data_layer.repositories.base import check_database_connection, get_db
 from data_layer.repositories.event_repository import EventRepositoryImpl
 from data_layer.repositories.models import CanonicalEvent
@@ -264,7 +264,6 @@ def phase1_rebuild_signals(
 def phase2_recompute_timing_decisions(
     signal_service: SignalService,
     timing_repo: TimingRepositoryImpl,
-    timing_engine_service: TimingEngineService,
     reporter: RebuildReporter,
     limit: Optional[int] = None,
     dry_run: bool = False,
@@ -278,7 +277,6 @@ def phase2_recompute_timing_decisions(
     signals = signal_service.list_signals(limit=limit)
     logger.info(f"Found {len(signals)} signals to process")
 
-    from core.contracts.timing_engine import EventStudyMetrics
     from timing_engine.contracts import TimingDecision, TimingModelScore
 
     for signal in signals:
@@ -303,7 +301,7 @@ def phase2_recompute_timing_decisions(
             # Get default factors from signal characteristics and market defaults
             # For rebuilt signals, we use consistent defaults matching production logic
             # and apply the same timing engine calculation as main system
-            timing_factors = timing_engine_service.calculate_timing_fit(
+            timing_factors = TimingFactors(
                 regime=0.5,  # Default neutral regime for recovery
                 flow=0.6,
                 theme_diffusion=0.5,
@@ -320,21 +318,33 @@ def phase2_recompute_timing_decisions(
             )
 
             # Calculate unified readiness using production timing engine
-            readiness = timing_engine_service.calculate_readiness(
+            readiness = ReadinessScore.calculate(
                 thesis_quality=signal.confidence,
-                historical_metrics=historical_metrics,
-                timing_factors=timing_factors,
+                historical_edge=historical_metrics.historical_edge_score(),
+                timing_fit=timing_factors.overall_timing_fit(),
+            )
+
+            # Log the calculation
+            logger.info(
+                f"Calculated readiness: overall={readiness.overall_score:.3f}, "
+                f"recommendation={readiness.recommendation} "
+                f"(thesis={signal.confidence}, historical_edge={readiness.historical_edge:.3f}, timing_fit={readiness.timing_fit:.3f})"
             )
 
             # Check for blocking conditions
             blockers = []
-            if timing_engine_service.should_block_candidate(readiness):
-                blockers.append(timing_engine_service.get_candidate_blocking_reason(readiness))
+            if readiness.should_block():
+                reason = readiness.get_blocking_reason()
+                if reason:
+                    blockers.append(reason)
+                logger.warning(
+                    f"Candidate blocked due to low readiness score: {readiness.overall_score:.3f}"
+                )
 
             # Convert readiness recommendation to action
-            if readiness.recommendation == "GO":
+            if readiness.recommendation == "PROCEED":
                 action = "BUY" if signal.score > 0.5 else "HOLD"
-            elif readiness.recommendation == "WAIT":
+            elif readiness.recommendation == "CAUTION":
                 action = "HOLD"
             else:
                 action = "SKIP"
@@ -626,7 +636,6 @@ def main():
     signal_repo = SignalRepositoryImpl()
     signal_service = SignalService(repository=signal_repo)
     timing_repo = TimingRepositoryImpl()
-    timing_engine_service = TimingEngineService()
     outcome_service = OutcomeService()
     replay_service = ReplayService()
 
@@ -642,7 +651,6 @@ def main():
             phase2_recompute_timing_decisions(
                 signal_service,
                 timing_repo,
-                timing_engine_service,
                 reporter,
                 limit=args.limit,
                 dry_run=args.dry_run,

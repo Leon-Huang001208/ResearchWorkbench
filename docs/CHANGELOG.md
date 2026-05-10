@@ -18,6 +18,12 @@
   - 更新 `app/api/routes/event_ingestion.py`：直接使用 `StructuredEventIngestor` 和 `EventRepositoryImpl`，移除中间服务层
   - 添加 `EventQueryResponse` 数据类到 API 路由模块
   - 添加测试用例验证自动断言提取功能
+- **refactor**: 深化时序引擎模块，移除冗余的服务层
+  - 删除 `core/services/timing_engine_service.py`：该服务只是对数据类的简单包装
+  - 将阻塞检查逻辑直接集成到 `core/contracts/timing_engine.py`：`ReadinessScore` 现在有 `should_block()` 和 `get_blocking_reason()` 方法
+  - 更新 `app/api/routes/timing_engine.py`：直接使用 `TimingFactors`、`EventStudyMetrics` 和 `ReadinessScore` 数据类
+  - 更新 `scripts/rebuild_derived_state.py` 和 `scripts/minimal_reingest_bootstrap.py`：移除对已删除服务的依赖
+  - 重写并增加测试用例验证新的集成架构
 - **docs**: 完整更新项目文档（README、REFERENCE、ARCHITECTURE、FILE_GUIDE、CHANGELOG、DATA_STORAGE）
   - 新增 `docs/DATA_STORAGE.md`：数据存储设计文档，包含 PostgreSQL 表结构、数据契约、仓储接口说明
 - **refactor**: 清理项目根目录，移除重复配置

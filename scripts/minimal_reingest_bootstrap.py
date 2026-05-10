@@ -233,7 +233,6 @@ def run_rebuild_derived_state(
         from core.services.outcome_service import OutcomeService
         from core.services.replay_service import ReplayService
         from core.services.signal_service import SignalService
-        from core.services.timing_engine_service import TimingEngineService
         from data_layer.repositories.event_repository import EventRepositoryImpl
         from data_layer.repositories.signal_repository import SignalRepositoryImpl
         from data_layer.repositories.timing_repository import TimingRepositoryImpl
@@ -243,7 +242,6 @@ def run_rebuild_derived_state(
         signal_repo = SignalRepositoryImpl()
         signal_service = SignalService(repository=signal_repo)
         timing_repo = TimingRepositoryImpl()
-        timing_engine_service = TimingEngineService()
         outcome_service = OutcomeService()
         replay_service = ReplayService()
 
@@ -257,7 +255,6 @@ def run_rebuild_derived_state(
             phase2_recompute_timing_decisions(
                 signal_service,
                 timing_repo,
-                timing_engine_service,
                 rebuild_reporter,
                 limit=limit,
                 dry_run=dry_run,
