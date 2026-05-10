@@ -13,12 +13,12 @@
                 "Baseline test coverage has been measured"
             ],
             "verification_commands": [
-                "cd /Users/leon/Desktop/Projects/AlphaFoundry && python -m pytest tests/ -v --tb=short",
-                "cd /Users/leon/Desktop/Projects/AlphaFoundry && python -m pytest tests/ -v --tb=short --cov=core --cov=data_layer --cov=signal_lab"
+                "python -m pytest tests/ -v --tb=short",
+                "python -m pytest tests/ -v --tb=short --cov=core --cov=data_layer --cov=signal_lab"
             ],
             "required_skill": "python-testing",
             "research_required": false,
-            "status": "completed",
+            "status": "done",
             "results": {
                 "total_tests": 840,
                 "passed": 765,
@@ -43,12 +43,12 @@
                 "Service health status has been documented"
             ],
             "verification_commands": [
-                "ls -la /Users/leon/Desktop/Projects/AlphaFoundry/core/services/",
-                "find /Users/leon/Desktop/Projects/AlphaFoundry/core/services -name '*.py' -exec wc -l {} \\;"
+                "ls -la core/services/",
+                "find core/services -name '*.py' -exec wc -l {} \\;"
             ],
             "required_skill": "code-audit",
             "research_required": false,
-            "status": "completed",
+            "status": "done",
             "results": {
                 "total_services": 43,
                 "exported_services": 20,
@@ -72,13 +72,13 @@
                 "Database views work correctly"
             ],
             "verification_commands": [
-                "cd /Users/leon/Desktop/Projects/AlphaFoundry && python scripts/bootstrap_db.py",
-                "cd /Users/leon/Desktop/Projects/AlphaFoundry && python scripts/import_real_data.py",
-                "cd /Users/leon/Desktop/Projects/AlphaFoundry && python scripts/view_db.py all"
+                "python scripts/bootstrap_db.py",
+                "python scripts/import_real_data.py",
+                "python scripts/view_db.py all"
             ],
             "required_skill": "database",
             "research_required": false,
-            "status": "completed",
+            "status": "done",
             "results": {
                 "database_url": "postgresql://leon@localhost:5432/alphafoundry",
                 "connection_success": true,
@@ -104,14 +104,14 @@
                 "Core API endpoints have been tested"
             ],
             "verification_commands": [
-                "cd /Users/leon/Desktop/Projects/AlphaFoundry && python -m uvicorn app.api.main:app --host 127.0.0.1 --port 8000 --workers 1 &",
+                "python -m uvicorn app.api.main:app --host 127.0.0.1 --port 8000 --workers 1 &",
                 "sleep 5 && curl -f http://127.0.0.1:8000/health",
                 "curl -f http://127.0.0.1:8000/docs",
                 "pkill -f uvicorn"
             ],
             "required_skill": "api-testing",
             "research_required": false,
-            "status": "completed",
+            "status": "done",
             "results": {
                 "fastapi_import_success": true,
                 "server_running": true,
@@ -119,6 +119,35 @@
                 "docs_accessible": true,
                 "sample_endpoints_tested": ["/api/review/pending"],
                 "audit_report": ".ai/tasks/api_health_audit.md"
+            }
+        },
+        {
+            "id": "af-auto-000-04b",
+            "title": "Normalize autonomous control layer",
+            "description": "Standardize task status format, create automation scripts, and normalize file paths",
+            "priority": "high",
+            "dependencies": [
+                "af-auto-000-04"
+            ],
+            "success_criteria": [
+                "All task statuses normalized to todo/doing/blocked/done/failed",
+                "CLAUDE.md configuration file created",
+                "Automation scripts created (check-project.sh, check-api.sh, check-db.sh, run-automation.sh)",
+                "All verification commands use repository-relative paths"
+            ],
+            "verification_commands": [
+                ".ai/scripts/check-project.sh",
+                ".ai/scripts/check-api.sh",
+                ".ai/scripts/check-db.sh"
+            ],
+            "required_skill": "automation",
+            "research_required": false,
+            "status": "done",
+            "results": {
+                "status_normalized": true,
+                "claude_md_created": true,
+                "scripts_created": ["check-project.sh", "check-api.sh", "check-db.sh", "run-automation.sh"],
+                "paths_normalized": true
             }
         },
         {
@@ -136,12 +165,12 @@
                 "Integration test status has been verified"
             ],
             "verification_commands": [
-                "ls -la /Users/leon/Desktop/Projects/AlphaFoundry/knowledge_layer/",
-                "find /Users/leon/Desktop/Projects/AlphaFoundry/knowledge_layer -name '*.py' | wc -l"
+                "ls -la knowledge_layer/",
+                "find knowledge_layer -name '*.py' | wc -l"
             ],
             "required_skill": "code-audit",
             "research_required": false,
-            "status": "pending"
+            "status": "todo"
         },
         {
             "id": "af-auto-000-06",
@@ -158,12 +187,12 @@
                 "Evidence chain management audited"
             ],
             "verification_commands": [
-                "ls -la /Users/leon/Desktop/Projects/AlphaFoundry/reasoning/",
-                "head -50 /Users/leon/Desktop/Projects/AlphaFoundry/reasoning/state.py"
+                "ls -la reasoning/",
+                "head -50 reasoning/state.py"
             ],
             "required_skill": "code-audit",
             "research_required": false,
-            "status": "pending"
+            "status": "todo"
         },
         {
             "id": "af-auto-000-07",
@@ -180,12 +209,12 @@
                 "Basic timing decision flow tested"
             ],
             "verification_commands": [
-                "ls -la /Users/leon/Desktop/Projects/AlphaFoundry/timing_engine/models/",
-                "grep -n 'class' /Users/leon/Desktop/Projects/AlphaFoundry/timing_engine/meta.py"
+                "ls -la timing_engine/models/",
+                "grep -n 'class' timing_engine/meta.py"
             ],
             "required_skill": "code-audit",
             "research_required": false,
-            "status": "pending"
+            "status": "todo"
         },
         {
             "id": "af-auto-000-08",
@@ -202,12 +231,12 @@
                 "UI implementation plan recommendations have been made"
             ],
             "verification_commands": [
-                "ls -la /Users/leon/Desktop/Projects/AlphaFoundry/app/web/",
-                "find /Users/leon/Desktop/Projects/AlphaFoundry/app/web -type f | wc -l"
+                "ls -la app/web/",
+                "find app/web -type f | wc -l"
             ],
             "required_skill": "web-frontend",
             "research_required": false,
-            "status": "pending"
+            "status": "todo"
         },
         {
             "id": "af-auto-000-09",
@@ -225,12 +254,12 @@
                 "Backtesting engine produces valid results"
             ],
             "verification_commands": [
-                "cd /Users/leon/Desktop/Projects/AlphaFoundry && python examples/test_signal_lab_simple.py",
-                "cd /Users/leon/Desktop/Projects/AlphaFoundry && python examples/signal_lab_demo.py"
+                "python examples/test_signal_lab_simple.py",
+                "python examples/signal_lab_demo.py"
             ],
             "required_skill": "quantitative",
             "research_required": false,
-            "status": "pending"
+            "status": "todo"
         },
         {
             "id": "af-auto-000-10",
@@ -250,7 +279,7 @@
             "verification_commands": [],
             "required_skill": "test-strategy",
             "research_required": false,
-            "status": "pending"
+            "status": "todo"
         },
         {
             "id": "af-auto-000-11",
@@ -267,12 +296,12 @@
                 "Failure memory management checked"
             ],
             "verification_commands": [
-                "ls -la /Users/leon/Desktop/Projects/AlphaFoundry/memory_learning/",
-                "ls -la /Users/leon/Desktop/Projects/AlphaFoundry/tests/"
+                "ls -la memory_learning/",
+                "ls -la tests/"
             ],
             "required_skill": "code-audit",
             "research_required": false,
-            "status": "pending"
+            "status": "todo"
         },
         {
             "id": "af-auto-000-12",
@@ -291,11 +320,11 @@
                 "End-to-end report generation tested"
             ],
             "verification_commands": [
-                "cd /Users/leon/Desktop/Projects/AlphaFoundry && python scripts/smoke_runner.py"
+                "python scripts/smoke_runner.py"
             ],
             "required_skill": "system-testing",
             "research_required": false,
-            "status": "pending"
+            "status": "todo"
         }
     ],
     "metadata": {
@@ -303,11 +332,18 @@
         "audit_date": "2026-05-10",
         "task_set_id": "af-auto-000",
         "task_set_description": "AF-AUTO-000: Repository Audit and Initial Validation",
-        "total_tasks": 12,
+        "total_tasks": 13,
         "priorities": {
-            "high": 6,
+            "high": 7,
             "medium": 6,
             "low": 0
+        },
+        "status_definitions": {
+            "todo": "Task not started",
+            "doing": "Task currently in progress",
+            "blocked": "Task blocked on dependencies or issues",
+            "done": "Task completed successfully",
+            "failed": "Task failed"
         }
     }
 }
