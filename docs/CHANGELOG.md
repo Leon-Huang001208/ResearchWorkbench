@@ -7,11 +7,17 @@
 ## [Unreleased]
 
 ### Added
+- **ingestion**: 创建 KnowledgePipeline 深模块，统一知识加工流程
+  - 新增 `ingestion/knowledge_pipeline.py`：提供单一 `process(doc)` 接口，内部协调分块、分类、实体提取、事件提取、丰富、去重、保存等步骤
+  - 新增 `data_layer/repositories/search_repository.py`：SearchRepository 接口和 SQLAlchemy 实现，隐藏 session 依赖
 - **docs**: 更新项目文档与实际结构保持一致
   - 更新 `README.md` 项目结构：添加 `ingestion/`、`cron_jobs/` 目录，更新契约和服务列表
   - 更新 `docs/FILE_GUIDE.md`：添加 `ingestion/` 模块说明，调整目录顺序
 
 ### Changed
+- **refactor**: 深化搜索服务模块，隐藏 SQLAlchemy session 依赖
+  - 重构 `core/services/search_service.py`：GlobalSearchService 现在依赖 SearchRepository 接口而非直接依赖 session
+  - 更新 `app/api/routes/search.py`：创建 SearchRepositoryImpl 并注入 GlobalSearchService
 - **refactor**: 深化事件摄入模块，移除冗余的服务层
   - 删除 `core/services/event_ingestion_service.py`：该服务只是对 `StructuredEventIngestor` 和仓储的简单包装
   - 将自动断言提取功能直接集成到 `ingestion/structured_event_ingestion.py`：`StructuredEventIngestor` 现在会在 `ingest()` 和 `bulk_ingest()` 时自动提取断言

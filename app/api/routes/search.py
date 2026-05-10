@@ -7,6 +7,7 @@ from app.api.models import ErrorResponse
 from core.observability import get_logger
 from core.services.search_service import GlobalSearchService
 from data_layer.repositories.base import SessionLocal
+from data_layer.repositories.search_repository import SearchRepositoryImpl
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/search", tags=["search"])
@@ -64,7 +65,8 @@ async def global_search(
     try:
         db = SessionLocal()
         try:
-            service = GlobalSearchService(db)
+            search_repo = SearchRepositoryImpl(db)
+            service = GlobalSearchService(search_repo)
             results = service.search(q, type_filter=type_filter)
             return results
         finally:
