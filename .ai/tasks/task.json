@@ -78,7 +78,16 @@
             ],
             "required_skill": "database",
             "research_required": false,
-            "status": "pending"
+            "status": "completed",
+            "results": {
+                "database_url": "postgresql://leon@localhost:5432/alphafoundry",
+                "connection_success": true,
+                "total_tables": 42,
+                "existing_documents": 1776,
+                "existing_events": 20,
+                "import_script_works": true,
+                "audit_report": ".ai/tasks/database_audit.md"
+            }
         },
         {
             "id": "af-auto-000-04",
