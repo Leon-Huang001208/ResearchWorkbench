@@ -17,7 +17,6 @@
 # - Claude Code CLI is available as 'claude'
 #
 # Limitations:
-# - Does NOT handle task dependencies (yet)
 # - Does NOT resume interrupted tasks (yet)
 # - Does NOT handle concurrent execution (yet)
 # - Claude Code runs interactively - requires user approval
@@ -138,29 +137,6 @@ for task in data['tasks']:
     echo ""
 }
 
-# Get next task (first non-done high priority, then any)
-get_next_task() {
-    python3 -c "
-import json
-with open('$TASK_FILE', 'r') as f:
-    data = json.load(f)
-
-# Find next task: first non-done high priority, then any non-done
-next_task = None
-for task in data['tasks']:
-    status = task.get('status', 'todo')
-    priority = task.get('priority', 'medium')
-    if status not in ['done', 'failed']:
-        if priority == 'high' and not next_task:
-            next_task = task
-        elif not next_task:
-            next_task = task
-
-if next_task:
-    print(next_task['id'])
-" 2>/dev/null
-}
-
 # Check if a task exists
 task_exists() {
     local task_id="$1"
@@ -173,6 +149,121 @@ for task in data['tasks']:
     if task['id'] == '$task_id':
         exit(0)
 exit(1)
+" 2>/dev/null
+}
+
+# Check if a task is ready (all dependencies are done)
+# Prints ready task ID if ready, nothing otherwise
+is_task_ready() {
+    local task_id="$1"
+    python3 -c "
+import json
+with open('$TASK_FILE', 'r') as f:
+    data = json.load(f)
+
+# Find the task
+target_task = None
+for task in data['tasks']:
+    if task['id'] == '$task_id':
+        target_task = task
+        break
+
+if not target_task:
+    exit(2)
+
+# Check dependencies
+dependencies = target_task.get('dependencies', [])
+all_done = True
+
+for dep_id in dependencies:
+    # Find dependency task
+    dep_done = False
+    for task in data['tasks']:
+        if task['id'] == dep_id:
+            if task.get('status', 'todo') == 'done':
+                dep_done = True
+            break
+    if not dep_done:
+        all_done = False
+        break
+
+if all_done:
+    print('$task_id')
+" 2>/dev/null
+}
+
+# Get missing dependencies for a task
+# Prints space-separated list of missing dependency IDs
+get_missing_dependencies() {
+    local task_id="$1"
+    python3 -c "
+import json
+with open('$TASK_FILE', 'r') as f:
+    data = json.load(f)
+
+# Find the task
+target_task = None
+for task in data['tasks']:
+    if task['id'] == '$task_id':
+        target_task = task
+        break
+
+if not target_task:
+    exit(2)
+
+# Check dependencies
+dependencies = target_task.get('dependencies', [])
+missing = []
+
+for dep_id in dependencies:
+    # Find dependency task
+    dep_done = False
+    for task in data['tasks']:
+        if task['id'] == dep_id:
+            if task.get('status', 'todo') == 'done':
+                dep_done = True
+            break
+    if not dep_done:
+        missing.append(dep_id)
+
+print(' '.join(missing))
+" 2>/dev/null
+}
+
+# Get next task - dependency-aware, prioritizes high priority
+get_next_task() {
+    python3 -c "
+import json
+with open('$TASK_FILE', 'r') as f:
+    data = json.load(f)
+
+# Create task map for easy lookup
+task_map = {}
+for task in data['tasks']:
+    task_map[task['id']] = task
+
+# Function to check if a task is ready
+def is_ready(task):
+    dependencies = task.get('dependencies', [])
+    for dep_id in dependencies:
+        dep_task = task_map.get(dep_id)
+        if not dep_task or dep_task.get('status', 'todo') != 'done':
+            return False
+    return True
+
+# Find next task: first ready high priority, then ready medium
+next_task = None
+for task in data['tasks']:
+    status = task.get('status', 'todo')
+    priority = task.get('priority', 'medium')
+    if status not in ['done', 'failed'] and is_ready(task):
+        if priority == 'high' and not next_task:
+            next_task = task
+        elif not next_task:
+            next_task = task
+
+if next_task:
+    print(next_task['id'])
 " 2>/dev/null
 }
 
@@ -240,6 +331,20 @@ orchestrate_task() {
     fi
 
     print_section "TASK ORCHESTRATION" "Selected: $task_id"
+
+    # Check dependencies first
+    echo ""
+    print_info "Checking task dependencies..."
+    local missing_deps
+    missing_deps=$(get_missing_dependencies "$task_id")
+    if [ -n "$missing_deps" ]; then
+        print_error "Task blocked by unmet dependencies"
+        echo "  Missing dependencies: $missing_deps"
+        echo ""
+        print_info "Please complete the above tasks first, then try again."
+        exit 4
+    fi
+    print_success "All dependencies satisfied"
 
     # Step 1: Mark as doing
     echo ""
@@ -352,6 +457,20 @@ execute_task() {
 
     print_section "TASK EXECUTION" "Launching Claude Code for $task_id"
 
+    # Check dependencies first
+    echo ""
+    print_info "Checking task dependencies..."
+    local missing_deps
+    missing_deps=$(get_missing_dependencies "$task_id")
+    if [ -n "$missing_deps" ]; then
+        print_error "Task blocked by unmet dependencies"
+        echo "  Missing dependencies: $missing_deps"
+        echo ""
+        print_info "Please complete the above tasks first, then try again."
+        exit 4
+    fi
+    print_success "All dependencies satisfied"
+
     # Check if Claude CLI is available
     if ! command -v claude &> /dev/null; then
         print_error "Claude Code CLI ('claude') not found"
@@ -432,7 +551,6 @@ print_help() {
     echo "  - execute command requires 'claude' CLI available"
     echo "  - execute runs ONE task at a time only"
     echo "  - Claude Code requires user approval for changes"
-    echo "  - No dependency resolution"
 }
 
 # Main

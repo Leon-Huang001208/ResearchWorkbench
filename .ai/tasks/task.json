@@ -219,6 +219,38 @@
             }
         },
         {
+            "id": "af-auto-000-04e",
+            "title": "Enforce dependency-aware task execution in the orchestrator",
+            "description": "Make the orchestrator choose the correct next task and refuse execution when dependencies are not satisfied",
+            "priority": "high",
+            "dependencies": [
+                "af-auto-000-04d"
+            ],
+            "success_criteria": [
+                "get_next_task must prefer ready high-priority tasks over medium-priority tasks",
+                "start/execute must check task dependencies before changing status",
+                "if dependencies are unmet, print the missing task IDs and exit with a clear non-zero code",
+                "do not modify business logic",
+                "update task.json and progress.md",
+                "create .ai/reports/dependency_aware_orchestration.md"
+            ],
+            "verification_commands": [
+                ".ai/scripts/run-automation.sh next",
+                ".ai/scripts/run-automation.sh execute af-auto-000-12"
+            ],
+            "required_skill": "automation",
+            "research_required": false,
+            "status": "done",
+            "results": {
+                "dependency_check_added": true,
+                "get_next_task_rewritten": true,
+                "start_execute_check_dependencies": true,
+                "blocked_exit_code_4": true,
+                "no_business_changes": true,
+                "report_created": ".ai/reports/dependency_aware_orchestration.md"
+            }
+        },
+        {
             "id": "af-auto-000-05",
             "title": "Audit Knowledge Layer Modules",
             "description": "Verify the implementation status of knowledge layer modules including entity resolution, assertions, events, graph projection, and retrieval.",
@@ -400,9 +432,9 @@
         "audit_date": "2026-05-10",
         "task_set_id": "af-auto-000",
         "task_set_description": "AF-AUTO-000: Repository Audit and Initial Validation",
-        "total_tasks": 15,
+        "total_tasks": 16,
         "priorities": {
-            "high": 9,
+            "high": 10,
             "medium": 6,
             "low": 0
         },
