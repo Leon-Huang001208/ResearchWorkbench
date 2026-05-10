@@ -151,6 +151,40 @@
             }
         },
         {
+            "id": "af-auto-000-04c",
+            "title": "Harden the autonomous control layer",
+            "description": "Strengthen CLAUDE.md with hard rules, improve scripts with strict mode and clear failure semantics, rewrite run-automation.sh as a real task orchestrator",
+            "priority": "high",
+            "dependencies": [
+                "af-auto-000-04b"
+            ],
+            "success_criteria": [
+                "CLAUDE.md updated with hard rules",
+                "All scripts use set -euo pipefail strict mode",
+                "Scripts have clear failure semantics and no fake success states",
+                "check-db.sh only does health checks, no full imports",
+                "check-api.sh only checks running status, no forced startup",
+                "run-automation.sh rewritten as task orchestrator with list/next/start/complete/check commands",
+                "Comprehensive report created",
+                "task.json and progress.md updated"
+            ],
+            "verification_commands": [
+                ".ai/scripts/run-automation.sh list",
+                ".ai/scripts/run-automation.sh next"
+            ],
+            "required_skill": "automation",
+            "research_required": false,
+            "status": "done",
+            "results": {
+                "hard_rules_added": 14,
+                "strict_mode_enabled": true,
+                "check_db_health_only": true,
+                "check_api_smart_detection": true,
+                "orchestrator_rewritten": true,
+                "report_created": ".ai/reports/control_layer_hardening.md"
+            }
+        },
+        {
             "id": "af-auto-000-05",
             "title": "Audit Knowledge Layer Modules",
             "description": "Verify the implementation status of knowledge layer modules including entity resolution, assertions, events, graph projection, and retrieval.",
@@ -332,9 +366,9 @@
         "audit_date": "2026-05-10",
         "task_set_id": "af-auto-000",
         "task_set_description": "AF-AUTO-000: Repository Audit and Initial Validation",
-        "total_tasks": 13,
+        "total_tasks": 14,
         "priorities": {
-            "high": 7,
+            "high": 8,
             "medium": 6,
             "low": 0
         },
