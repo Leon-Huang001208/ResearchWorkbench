@@ -18,7 +18,15 @@
       ],
       "required_skill": "python-testing",
       "research_required": false,
-      "status": "pending"
+      "status": "completed",
+      "results": {
+        "total_tests": 840,
+        "passed": 765,
+        "failed": 70,
+        "errors": 5,
+        "pass_rate": "91%",
+        "coverage": "49%"
+      }
     },
     {
       "id": "af-auto-000-02",
