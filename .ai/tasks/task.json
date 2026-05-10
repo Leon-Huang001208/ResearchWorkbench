@@ -1,0 +1,255 @@
+{
+  "tasks": [
+    {
+      "id": "af-auto-000-01",
+      "title": "Run Existing Tests to Establish Baseline",
+      "description": "Execute all existing tests to understand the current state of the project and establish a baseline for future changes.",
+      "priority": "high",
+      "dependencies": [],
+      "success_criteria": [
+        "All existing tests have been executed",
+        "Test results have been documented",
+        "Any failing tests have been identified",
+        "Baseline test coverage has been measured"
+      ],
+      "verification_commands": [
+        "cd /Users/leon/Desktop/Projects/AlphaFoundry && python -m pytest tests/ -v --tb=short",
+        "cd /Users/leon/Desktop/Projects/AlphaFoundry && python -m pytest tests/ -v --tb=short --cov=core --cov=data_layer --cov=signal_lab"
+      ],
+      "required_skill": "python-testing",
+      "research_required": false,
+      "status": "pending"
+    },
+    {
+      "id": "af-auto-000-02",
+      "title": "Verify Core Services Completeness",
+      "description": "Audit and verify the implementation status of core services to identify any placeholder or incomplete implementations.",
+      "priority": "high",
+      "dependencies": ["af-auto-000-01"],
+      "success_criteria": [
+        "All 40+ core services have been audited",
+        "Placeholder implementations have been identified",
+        "Service completeness report has been created",
+        "Service health status has been documented"
+      ],
+      "verification_commands": [
+        "ls -la /Users/leon/Desktop/Projects/AlphaFoundry/core/services/",
+        "find /Users/leon/Desktop/Projects/AlphaFoundry/core/services -name '*.py' -exec wc -l {} \\;"
+      ],
+      "required_skill": "code-audit",
+      "research_required": false,
+      "status": "pending"
+    },
+    {
+      "id": "af-auto-000-03",
+      "title": "Test Data Import and Database Initialization",
+      "description": "Run the database initialization and data import scripts to verify that real data can be properly loaded into the system.",
+      "priority": "high",
+      "dependencies": ["af-auto-000-01"],
+      "success_criteria": [
+        "Database can be initialized without errors",
+        "Real data (900+ items) can be imported",
+        "Imported data integrity has been verified",
+        "Database views work correctly"
+      ],
+      "verification_commands": [
+        "cd /Users/leon/Desktop/Projects/AlphaFoundry && python scripts/bootstrap_db.py",
+        "cd /Users/leon/Desktop/Projects/AlphaFoundry && python scripts/import_real_data.py",
+        "cd /Users/leon/Desktop/Projects/AlphaFoundry && python scripts/view_db.py all"
+      ],
+      "required_skill": "database",
+      "research_required": false,
+      "status": "pending"
+    },
+    {
+      "id": "af-auto-000-04",
+      "title": "Verify API Endpoints Health",
+      "description": "Start the FastAPI server and verify that all 28+ API endpoints are responding correctly.",
+      "priority": "high",
+      "dependencies": ["af-auto-000-03"],
+      "success_criteria": [
+        "FastAPI server starts successfully",
+        "Health endpoint returns 200 OK",
+        "OpenAPI documentation is accessible",
+        "Core API endpoints have been tested"
+      ],
+      "verification_commands": [
+        "cd /Users/leon/Desktop/Projects/AlphaFoundry && python -m uvicorn app.api.main:app --host 127.0.0.1 --port 8000 --workers 1 &",
+        "sleep 5 && curl -f http://127.0.0.1:8000/health",
+        "curl -f http://127.0.0.1:8000/docs",
+        "pkill -f uvicorn"
+      ],
+      "required_skill": "api-testing",
+      "research_required": false,
+      "status": "pending"
+    },
+    {
+      "id": "af-auto-000-05",
+      "title": "Audit Knowledge Layer Modules",
+      "description": "Verify the implementation status of knowledge layer modules including entity resolution, assertions, events, graph projection, and retrieval.",
+      "priority": "medium",
+      "dependencies": ["af-auto-000-02"],
+      "success_criteria": [
+        "All knowledge layer modules have been audited",
+        "Module health status has been documented",
+        "Any missing implementations have been identified",
+        "Integration test status has been verified"
+      ],
+      "verification_commands": [
+        "ls -la /Users/leon/Desktop/Projects/AlphaFoundry/knowledge_layer/",
+        "find /Users/leon/Desktop/Projects/AlphaFoundry/knowledge_layer -name '*.py' | wc -l"
+      ],
+      "required_skill": "code-audit",
+      "research_required": false,
+      "status": "pending"
+    },
+    {
+      "id": "af-auto-000-06",
+      "title": "Verify Reasoning Layer Implementation",
+      "description": "Check the reasoning layer including evidence management, scenario analysis, skeptic verification, and LangGraph state machine.",
+      "priority": "medium",
+      "dependencies": ["af-auto-000-02"],
+      "success_criteria": [
+        "Reasoning layer modules have been audited",
+        "LangGraph state machine implementation verified",
+        "Scenario analysis capabilities checked",
+        "Evidence chain management audited"
+      ],
+      "verification_commands": [
+        "ls -la /Users/leon/Desktop/Projects/AlphaFoundry/reasoning/",
+        "head -50 /Users/leon/Desktop/Projects/AlphaFoundry/reasoning/state.py"
+      ],
+      "required_skill": "code-audit",
+      "research_required": false,
+      "status": "pending"
+    },
+    {
+      "id": "af-auto-000-07",
+      "title": "Validate Timing Engine Models",
+      "description": "Verify the implementation status of all 10+ timing engine models and the meta timing engine.",
+      "priority": "medium",
+      "dependencies": ["af-auto-000-02"],
+      "success_criteria": [
+        "All 10+ timing models have been audited",
+        "Meta timing engine integration verified",
+        "Model registry functionality checked",
+        "Basic timing decision flow tested"
+      ],
+      "verification_commands": [
+        "ls -la /Users/leon/Desktop/Projects/AlphaFoundry/timing_engine/models/",
+        "grep -n 'class' /Users/leon/Desktop/Projects/AlphaFoundry/timing_engine/meta.py"
+      ],
+      "required_skill": "code-audit",
+      "research_required": false,
+      "status": "pending"
+    },
+    {
+      "id": "af-auto-000-08",
+      "title": "Assess Web UI Status",
+      "description": "Evaluate the current state of the Web UI implementation and document what exists vs what is missing.",
+      "priority": "medium",
+      "dependencies": ["af-auto-000-04"],
+      "success_criteria": [
+        "Web UI directory structure has been audited",
+        "Existing templates and static assets have been inventoried",
+        "UI functionality gaps have been identified",
+        "UI implementation plan recommendations have been made"
+      ],
+      "verification_commands": [
+        "ls -la /Users/leon/Desktop/Projects/AlphaFoundry/app/web/",
+        "find /Users/leon/Desktop/Projects/AlphaFoundry/app/web -type f | wc -l"
+      ],
+      "required_skill": "web-frontend",
+      "research_required": false,
+      "status": "pending"
+    },
+    {
+      "id": "af-auto-000-09",
+      "title": "Test Signal Lab Feature Pipeline",
+      "description": "Run Signal Lab examples and tests to verify that the feature engineering pipeline works correctly.",
+      "priority": "medium",
+      "dependencies": ["af-auto-000-01", "af-auto-000-03"],
+      "success_criteria": [
+        "Signal Lab examples run without errors",
+        "Feature groups can be computed",
+        "Signal scoring functions work",
+        "Backtesting engine produces valid results"
+      ],
+      "verification_commands": [
+        "cd /Users/leon/Desktop/Projects/AlphaFoundry && python examples/test_signal_lab_simple.py",
+        "cd /Users/leon/Desktop/Projects/AlphaFoundry && python examples/signal_lab_demo.py"
+      ],
+      "required_skill": "quantitative",
+      "research_required": false,
+      "status": "pending"
+    },
+    {
+      "id": "af-auto-000-10",
+      "title": "Create Test Coverage Improvement Plan",
+      "description": "Based on baseline test coverage, create a prioritized plan for adding missing tests to critical modules.",
+      "priority": "medium",
+      "dependencies": ["af-auto-000-01", "af-auto-000-02"],
+      "success_criteria": [
+        "High-risk modules without tests have been identified",
+        "Prioritized list of missing tests has been created",
+        "Test coverage improvement roadmap has been written",
+        "Quick-win tests have been identified for immediate implementation"
+      ],
+      "verification_commands": [],
+      "required_skill": "test-strategy",
+      "research_required": false,
+      "status": "pending"
+    },
+    {
+      "id": "af-auto-000-11",
+      "title": "Audit Memory Learning Layer",
+      "description": "Verify the memory learning layer including the learning journal, persistent storage, and pattern learner components.",
+      "priority": "medium",
+      "dependencies": ["af-auto-000-02"],
+      "success_criteria": [
+        "Memory learning layer audited",
+        "Pattern learner implementation verified",
+        "Journal persistence tested",
+        "Failure memory management checked"
+      ],
+      "verification_commands": [
+        "ls -la /Users/leon/Desktop/Projects/AlphaFoundry/memory_learning/",
+        "ls -la /Users/leon/Desktop/Projects/AlphaFoundry/tests/"
+      ],
+      "required_skill": "code-audit",
+      "research_required": false,
+      "status": "pending"
+    },
+    {
+      "id": "af-auto-000-12",
+      "title": "Run End-to-End Smoke Tests",
+      "description": "Execute the smoke test suite to verify that the entire system works correctly from end-to-end.",
+      "priority": "high",
+      "dependencies": ["af-auto-000-03", "af-auto-000-04", "af-auto-000-09"],
+      "success_criteria": [
+        "Smoke test suite has been executed",
+        "All critical components work together",
+        "Data flows correctly through the system",
+        "End-to-end report generation tested"
+      ],
+      "verification_commands": [
+        "cd /Users/leon/Desktop/Projects/AlphaFoundry && python scripts/smoke_runner.py"
+      ],
+      "required_skill": "system-testing",
+      "research_required": false,
+      "status": "pending"
+    }
+  ],
+  "metadata": {
+    "project_name": "AlphaFoundry",
+    "audit_date": "2026-05-10",
+    "task_set_id": "af-auto-000",
+    "task_set_description": "AF-AUTO-000: Repository Audit and Initial Validation",
+    "total_tasks": 12,
+    "priorities": {
+      "high": 6,
+      "medium": 6,
+      "low": 0
+    }
+  }
+}
