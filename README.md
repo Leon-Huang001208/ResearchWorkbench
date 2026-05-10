@@ -350,7 +350,6 @@ AlphaFoundry/
 │   │   ├── entity_extractor.py               # 实体提取
 │   │   ├── event_auto_signal_generator.py    # 事件自动信号生成
 │   │   ├── event_extractor.py                # 事件提取
-│   │   ├── event_ingestion_service.py        # 事件摄入服务
 │   │   ├── failure_memory_service.py         # 失败记忆服务
 │   │   ├── governance_service.py             # 治理服务
 │   │   ├── graph_data_service.py             # 图数据服务
@@ -377,7 +376,6 @@ AlphaFoundry/
 │   │   ├── taxonomy_service.py               # 分类服务
 │   │   ├── thesis_generator_service.py       # 论点生成服务
 │   │   ├── thesis_review_service.py          # 论点审查服务
-│   │   └── timing_engine_service.py          # 择时引擎服务
 │   └── settings/               # 配置管理
 ├── data_layer/                 # 数据层
 │   ├── adapters/               # 数据适配器

@@ -132,7 +132,7 @@
 | `core/contracts/review_framework.py` | 审查框架结构：ReviewTask、ReviewComment、ReviewStatus |
 | `core/contracts/scenarios.py` | 情景结构：ScenarioSet、Scenario、ScenarioProbability |
 | `core/contracts/signals.py` | 信号结构：AlphaSignal、EventAlphaSignal、SignalStatus、TradeCandidate |
-| `core/contracts/timing_engine.py` | 择时引擎结构：TimingModelScore、TimingDecision、TimingAction、TimingBlocker |
+| `core/contracts/timing_engine.py` | 择时引擎结构：TimingFactors、EventStudyMetrics、ReadinessScore。ReadinessScore 包含 should_block() 和 get_blocking_reason() 方法用于阻塞检查 |
 | `core/contracts/traces.py` | 推理追踪结构：ReasoningTrace、TraceStep、EvidenceLink |
 
 ### core/interfaces/ - 核心接口定义
@@ -166,7 +166,6 @@
 | `asset_analysis_service.py` | 资产分析服务：生成资产分析快照 |
 | **数据摄入与处理** | |
 | `ingest_service.py` | 摄入服务：处理文档摄入、提取断言和事件 |
-| `event_ingestion_service.py` | 事件摄入服务：专门处理事件摄入 |
 | `document_chunker.py` | 文档分块：将长文档切分为适合处理的小块 |
 | `document_classifier.py` | 文档分类：自动识别文档类型（研报、新闻、公告等） |
 | `document_enrichment.py` | 文档丰富：为文档添加元数据和标签 |
@@ -191,7 +190,6 @@
 | `paper_trading_service.py` | 模拟交易服务：创建账户、下单、管理持仓 |
 | `portfolio_service.py` | 组合服务：组合构建、风险管理、绩效分析 |
 | **择时与情景** | |
-| `timing_engine_service.py` | 择时引擎服务：运行择时评估 |
 | `scenario_service.py` | 情景服务：生成多情景分析 |
 | `scenario_data_service.py` | 情景数据服务：情景相关数据查询 |
 | **结果与学习** | |
@@ -402,7 +400,7 @@
 
 | 文件 | 说明 |
 |---|---|
-| `ingestion/structured_event_ingestion.py` | 结构化事件摄入器：标准化的结构化事件摄入管道，用于 A 股 Alpha 事件的摄入和去重 |
+| `ingestion/structured_event_ingestion.py` | 结构化事件摄入器：标准化的结构化事件摄入管道，用于 A 股 Alpha 事件的摄入、去重和自动断言提取。包含 AssertionExtractor 用于从原始文本中提取断言。 |
 
 ---
 
