@@ -10,6 +10,14 @@
 - **docs**: 更新项目文档与实际结构保持一致
   - 更新 `README.md` 项目结构：添加 `ingestion/`、`cron_jobs/` 目录，更新契约和服务列表
   - 更新 `docs/FILE_GUIDE.md`：添加 `ingestion/` 模块说明，调整目录顺序
+
+### Changed
+- **refactor**: 深化事件摄入模块，移除冗余的服务层
+  - 删除 `core/services/event_ingestion_service.py`：该服务只是对 `StructuredEventIngestor` 和仓储的简单包装
+  - 将自动断言提取功能直接集成到 `ingestion/structured_event_ingestion.py`：`StructuredEventIngestor` 现在会在 `ingest()` 和 `bulk_ingest()` 时自动提取断言
+  - 更新 `app/api/routes/event_ingestion.py`：直接使用 `StructuredEventIngestor` 和 `EventRepositoryImpl`，移除中间服务层
+  - 添加 `EventQueryResponse` 数据类到 API 路由模块
+  - 添加测试用例验证自动断言提取功能
 - **docs**: 完整更新项目文档（README、REFERENCE、ARCHITECTURE、FILE_GUIDE、CHANGELOG、DATA_STORAGE）
   - 新增 `docs/DATA_STORAGE.md`：数据存储设计文档，包含 PostgreSQL 表结构、数据契约、仓储接口说明
 - **refactor**: 清理项目根目录，移除重复配置

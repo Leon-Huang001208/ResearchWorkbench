@@ -223,3 +223,70 @@ class TestBulkIngestion:
         # Two entries of event1, so two duplicates
         assert sum(1 for r in results if r.is_duplicate) == 2
         assert sum(1 for r in results if r.status == "success") == 1
+
+    def test_auto_extract_assertions_when_not_provided(self):
+        """Test that assertions are automatically extracted when raw_text exists but no assertions are provided"""
+        raw_event = {
+            "event_type": "policy_regulatory",
+            "event_time": "2025-01-01T10:00:00",
+            "source_type": "government",
+            "source_name": "test",
+            "title": "Test policy",
+            "raw_text": "This policy will increase investment and benefit the tech sector. It will also decrease some costs.",
+            "confidence": 0.8,
+        }
+
+        self.mock_repo.get.return_value = None
+        saved_event = None
+
+        def mock_save(event):
+            nonlocal saved_event
+            saved_event = event
+            return event
+
+        self.mock_repo.save = mock_save
+
+        result = self.ingestor.ingest(raw_event)
+        assert result.status == "success"
+        assert saved_event is not None
+        assert len(saved_event.extracted_assertions) > 0
+        for assertion in saved_event.extracted_assertions:
+            assert "assertion_id" in assertion
+            assert "text" in assertion
+            assert "impact_direction" in assertion
+
+    def test_skip_auto_extract_when_assertions_provided(self):
+        """Test that auto extraction is skipped when assertions are already provided"""
+        raw_event = {
+            "event_type": "policy_regulatory",
+            "event_time": "2025-01-01T10:00:00",
+            "source_type": "government",
+            "source_name": "test",
+            "title": "Test policy",
+            "raw_text": "This policy will increase investment.",
+            "extracted_assertions": [
+                {
+                    "assertion_id": "custom_assertion_1",
+                    "text": "Custom assertion text",
+                    "impact_direction": "positive",
+                }
+            ],
+            "confidence": 0.8,
+        }
+
+        self.mock_repo.get.return_value = None
+        saved_event = None
+
+        def mock_save(event):
+            nonlocal saved_event
+            saved_event = event
+            return event
+
+        self.mock_repo.save = mock_save
+
+        result = self.ingestor.ingest(raw_event)
+        assert result.status == "success"
+        assert saved_event is not None
+        assert len(saved_event.extracted_assertions) == 1
+        assert saved_event.extracted_assertions[0]["assertion_id"] == "custom_assertion_1"
+        assert saved_event.extracted_assertions[0]["text"] == "Custom assertion text"
