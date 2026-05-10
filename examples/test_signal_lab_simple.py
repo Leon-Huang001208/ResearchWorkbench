@@ -155,7 +155,7 @@ try:
     print(f"  ✓ 总收益率: {result.total_return:.2%}")
     print(f"  ✓ 夏普比率: {result.sharpe_ratio:.2f}")
     print(f"  ✓ 最大回撤: {result.max_drawdown:.2%}")
-    print(f"  ✓ 交易次数: {result.num_trades}")
+    print(f"  ✓ 交易次数: {result.total_trades}")
 except Exception as e:
     print(f"  ✗ 回测模块测试失败: {e}")
 

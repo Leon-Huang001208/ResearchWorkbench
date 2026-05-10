@@ -194,7 +194,7 @@ def demo_backtesting(prices: pd.DataFrame, service: SignalService):
     print(f"  夏普比率:    {result.sharpe_ratio:>10.2f}")
     print(f"  最大回撤:    {result.max_drawdown:>10.2%}")
     print(f"  胜率:        {result.win_rate:>10.2%}")
-    print(f"  交易次数:    {result.num_trades:>10}")
+    print(f"  交易次数:    {result.total_trades:>10}")
 
     return result
 

@@ -279,6 +279,36 @@
             }
         },
         {
+            "id": "af-auto-000-04g",
+            "title": "Add non-interactive execute mode to the orchestrator",
+            "description": "Allow run-automation.sh execute to run without waiting for Enter",
+            "priority": "high",
+            "dependencies": [
+                "af-auto-000-04f"
+            ],
+            "success_criteria": [
+                "keep current interactive behavior by default",
+                "add --yes flag and/or AUTO_CONFIRM=1 environment variable",
+                "when non-interactive mode is enabled, skip the Press Enter prompt",
+                "update help text",
+                "update progress.md and task.json",
+                "create non_interactive_execution.md report"
+            ],
+            "verification_commands": [
+                ".ai/scripts/run-automation.sh execute --help"
+            ],
+            "required_skill": "automation",
+            "research_required": false,
+            "status": "done",
+            "results": {
+                "yes_flag_added": true,
+                "auto_confirm_env_added": true,
+                "interactive_unchanged": true,
+                "help_text_updated": true,
+                "report_created": ".ai/reports/non_interactive_execution.md"
+            }
+        },
+        {
             "id": "af-auto-000-05",
             "title": "Audit Knowledge Layer Modules",
             "description": "Verify the implementation status of knowledge layer modules including entity resolution, assertions, events, graph projection, and retrieval.",
@@ -387,7 +417,14 @@
             ],
             "required_skill": "quantitative",
             "research_required": false,
-            "status": "todo"
+            "status": "done",
+            "results": {
+                "feature_groups": 4,
+                "total_features": 48,
+                "tests_passed": true,
+                "demo_working": true,
+                "report": ".ai/reports/signal_lab_test_report.md"
+            }
         },
         {
             "id": "af-auto-000-10",
@@ -452,7 +489,16 @@
             ],
             "required_skill": "system-testing",
             "research_required": false,
-            "status": "todo"
+            "status": "done",
+            "results": {
+                "dashboard_api": "working",
+                "outcomes_api": "15 outcomes found",
+                "signal_lab_api": "6 feature groups",
+                "memory_api": "working",
+                "report_api": "working",
+                "health_check": "ok",
+                "report": ".ai/reports/end_to_end_smoke_test_report.md"
+            }
         }
     ],
     "metadata": {
@@ -460,9 +506,9 @@
         "audit_date": "2026-05-10",
         "task_set_id": "af-auto-000",
         "task_set_description": "AF-AUTO-000: Repository Audit and Initial Validation",
-        "total_tasks": 17,
+        "total_tasks": 18,
         "priorities": {
-            "high": 11,
+            "high": 12,
             "medium": 6,
             "low": 0
         },

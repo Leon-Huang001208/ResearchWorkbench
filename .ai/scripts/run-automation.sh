@@ -449,6 +449,7 @@ EOF
 # Execute task with Claude Code
 execute_task() {
     local task_id="$1"
+    local auto_confirm="${2:-0}"
 
     if [ -z "$task_id" ]; then
         task_id=$(get_next_task)
@@ -492,9 +493,16 @@ execute_task() {
     generate_claude_prompt "$task_id" > "$prompt_file"
 
     print_info "Generated Claude Code prompt at: $prompt_file"
-    echo ""
-    echo "Press Enter to launch Claude Code with this prompt, or Ctrl+C to cancel..."
-    read -r
+
+    # Only prompt if not auto-confirm
+    if [ "$auto_confirm" -ne 1 ]; then
+        echo ""
+        echo "Press Enter to launch Claude Code with this prompt, or Ctrl+C to cancel..."
+        read -r
+    else
+        echo ""
+        print_info "Auto-confirm enabled: skipping interactive prompt"
+    fi
 
     # Mark as doing before launching
     echo ""
@@ -538,7 +546,11 @@ execute_task() {
 
 # Print help
 print_help() {
-    echo "Usage: $0 [COMMAND]"
+    echo "Usage: $0 [OPTIONS] [COMMAND]"
+    echo ""
+    echo "Options:"
+    echo "  -y, --yes     - Skip interactive prompts (non-interactive mode)"
+    echo "  -h, --help    - Show this help"
     echo ""
     echo "Commands:"
     echo "  list          - List all tasks and status"
@@ -554,7 +566,11 @@ print_help() {
     echo "  $0 next"
     echo "  $0 start af-auto-000-12"
     echo "  $0 execute af-auto-000-12"
+    echo "  $0 execute af-auto-000-12 --yes"
     echo "  $0 complete af-auto-000-12"
+    echo ""
+    echo "Environment variables:"
+    echo "  AUTO_CONFIRM=1 - Enable non-interactive mode (same as --yes)"
     echo ""
     echo "Limitations:"
     echo "  - execute command requires 'claude' CLI available"
@@ -570,8 +586,44 @@ main() {
     # Validate environment first
     validate_environment
 
-    # Parse command
-    local cmd="${1:-}"
+    # Parse flags and command
+    local auto_confirm=0
+    local cmd=""
+
+    # Check for AUTO_CONFIRM environment variable
+    if [ "${AUTO_CONFIRM:-0}" = "1" ]; then
+        auto_confirm=1
+    fi
+
+    # Parse arguments
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            -y|--yes)
+                auto_confirm=1
+                shift
+                ;;
+            -h|--help|help)
+                print_help
+                exit 0
+                ;;
+            list|next|start|complete|execute|check)
+                cmd="$1"
+                shift
+                break
+                ;;
+            *)
+                print_error "Unknown argument: $1"
+                echo ""
+                print_help
+                exit 1
+                ;;
+        esac
+    done
+
+    if [ -z "$cmd" ]; then
+        print_help
+        exit 0
+    fi
 
     case "$cmd" in
         "list")
@@ -591,7 +643,6 @@ main() {
             fi
             ;;
         "start")
-            shift
             local task_id="$1"
             if [ -z "$task_id" ]; then
                 task_id=$(get_next_task)
@@ -604,7 +655,6 @@ main() {
             orchestrate_task "$task_id"
             ;;
         "execute")
-            shift
             local task_id="$1"
             if [ -z "$task_id" ]; then
                 task_id=$(get_next_task)
@@ -614,10 +664,9 @@ main() {
                 fi
                 print_info "Using next task: $task_id"
             fi
-            execute_task "$task_id"
+            execute_task "$task_id" "$auto_confirm"
             ;;
         "complete")
-            shift
             local task_id="$1"
             if [ -z "$task_id" ]; then
                 print_error "Task ID required"
@@ -627,9 +676,6 @@ main() {
             ;;
         "check")
             run_health_checks
-            ;;
-        "help"|"--help"|"-h"|"")
-            print_help
             ;;
         *)
             print_error "Unknown command: $cmd"
