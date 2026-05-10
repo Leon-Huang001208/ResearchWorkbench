@@ -317,14 +317,18 @@ AlphaFoundry/
 │   │   ├── ingestion.py          # 摄入结构
 │   │   ├── monitoring.py         # 监控结构
 │   │   ├── outcome_journal.py    # 结果日志结构
+│   │   ├── outcomes.py           # 结果结构
 │   │   ├── paper_trading.py      # 模拟交易结构
 │   │   ├── portfolio.py          # 组合结构
+│   │   ├── raw_storage.py        # 原始存储结构
 │   │   ├── replay.py             # 回放结构
 │   │   ├── reporting.py          # 报告结构
 │   │   ├── retrieval.py          # 检索结构
 │   │   ├── review_framework.py   # 审查框架结构
+│   │   ├── scenarios.py          # 情景结构
 │   │   ├── signals.py            # 信号结构
-│   │   └── timing_engine.py      # 择时引擎结构
+│   │   ├── timing_engine.py      # 择时引擎结构
+│   │   └── traces.py             # 推理追踪结构
 │   ├── interfaces/               # 核心接口定义
 │   ├── model_gateway/            # 模型网关
 │   │   └── providers/            # 模型提供商
@@ -364,6 +368,8 @@ AlphaFoundry/
 │   │   ├── raw_storage_service.py            # 原始存储服务
 │   │   ├── replay_service.py                 # 回放服务
 │   │   ├── report_generator.py               # 报告生成器
+│   │   ├── scenario_service.py               # 情景服务
+│   │   ├── scenario_data_service.py          # 情景数据服务
 │   │   ├── search_service.py                 # 搜索服务
 │   │   ├── signal_service.py                 # 信号服务
 │   │   ├── signal_validator_impl.py          # 信号验证实现
@@ -421,7 +427,11 @@ AlphaFoundry/
 │   └── backtests/            # 回测引擎
 ├── storage/                  # 存储层
 │   └── migrations/           # Alembic 数据库迁移
-├── alembic/                  # Alembic 配置
+├── ingestion/                # 结构化摄入模块
+│   └── structured_event_ingestion.py  # 结构化事件摄入器
+├── cron_jobs/                # 定时任务
+│   ├── auto_ingest_service.py  # 自动数据摄入服务
+│   └── auto_generate_signals.py # 自动信号生成
 ├── scripts/                  # 脚本工具
 │   ├── backup_db.py          # 数据库备份
 │   ├── restore_db.py         # 数据库恢复
@@ -430,7 +440,8 @@ AlphaFoundry/
 │   ├── minimal_reingest_bootstrap.py  # 最小重摄入引导
 │   ├── backfill_from_objects.py        # 从对象存储回填
 │   ├── rebuild_derived_state.py        # 重建派生状态
-│   └── smoke_runner.py       # 冒烟测试
+│   ├── smoke_runner.py       # 冒烟测试
+│   └── view_db.py            # 数据库查看工具
 ├── benchmarks/               # 基准数据
 ├── examples/                 # 示例代码
 ├── tests/                    # 测试
@@ -438,6 +449,8 @@ AlphaFoundry/
 │   ├── REFERENCE.md          # 完整参考手册
 │   ├── ARCHITECTURE.md       # 架构文档
 │   ├── FILE_GUIDE.md         # 文件指南
+│   ├── CHANGELOG.md          # 更新日志
+│   ├── DATA_STORAGE.md       # 数据存储文档
 │   ├── backup_restore.md     # 备份恢复文档
 │   └── DATA_SOURCES.md       # 数据源文档
 ├── data/                     # 数据目录
@@ -446,13 +459,7 @@ AlphaFoundry/
 ├── .env.example              # 环境变量示例
 ├── .gitignore                # Git 忽略
 ├── pyproject.toml            # 项目配置
-├── pytest.ini                # Pytest 配置
-├── alembic.ini               # Alembic 配置
-├── auto_ingest_service.py    # 自动摄入服务
-├── insert_real_data.py       # 插入真实数据
-├── view_db.py                # 数据库查看工具
-├── smoke_runner.py           # 冒烟测试运行器
-└── report_cli.py             # 报告 CLI 工具
+└── pytest.ini                # Pytest 配置
 ```
 
 ## 技术栈

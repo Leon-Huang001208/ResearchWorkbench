@@ -18,9 +18,11 @@
 10. [reporting/ - 报告层](#reporting---报告层)
 11. [signal_lab/ - 信号实验室](#signal_lab---信号实验室)
 12. [storage/ - 存储层](#storage---存储层)
-13. [scripts/ - 脚本工具](#scripts---脚本工具)
-14. [tests/ - 测试](#tests---测试)
-15. [docs/ - 文档](#docs---文档)
+13. [ingestion/ - 结构化摄入模块](#ingestion---结构化摄入模块)
+14. [cron_jobs/ - 定时任务](#cron_jobs---定时任务)
+15. [scripts/ - 脚本工具](#scripts---脚本工具)
+16. [tests/ - 测试](#tests---测试)
+17. [docs/ - 文档](#docs---文档)
 
 ---
 
@@ -45,8 +47,9 @@
 | `reporting/` | 报告层，包含报告生成和模板 |
 | `signal_lab/` | 信号实验室，包含特征工程、标签生成、回测 |
 | `storage/` | 存储层，包含 Alembic 迁移和数据库架构 |
-| `scripts/` | 脚本工具，包含数据初始化、备份、测试等脚本 |
+| `ingestion/` | 结构化摄入模块，包含结构化事件摄入器 |
 | `cron_jobs/` | 定时任务目录，包含自动数据摄入服务等 |
+| `scripts/` | 脚本工具，包含数据初始化、备份、测试等脚本 |
 | `tests/` | 测试目录，包含单元测试、集成测试等 |
 | `docs/` | 文档目录，包含项目文档、架构设计、文件指南等 |
 | `data/` | 数据目录，存放 SQLite 数据库、原始数据等 |
@@ -395,6 +398,23 @@
 
 ---
 
+## ingestion/ - 结构化摄入模块
+
+| 文件 | 说明 |
+|---|---|
+| `ingestion/structured_event_ingestion.py` | 结构化事件摄入器：标准化的结构化事件摄入管道，用于 A 股 Alpha 事件的摄入和去重 |
+
+---
+
+## cron_jobs/ - 定时任务
+
+| 文件 | 说明 |
+|---|---|
+| `cron_jobs/auto_ingest_service.py` | 自动数据摄入服务：定时采集财联社、中国证券网、知丘研报、股票数据，支持守护进程模式 |
+| `cron_jobs/auto_generate_signals.py` | 自动信号生成：从批准的事件自动生成候选信号 |
+
+---
+
 ## scripts/ - 脚本工具
 
 | 文件 | 说明 |
@@ -409,15 +429,6 @@
 | `scripts/smoke_runner.py` | 冒烟测试脚本：端到端一键 MVP 验证 |
 | `scripts/view_db.py` | 数据库查看工具：方便查询统计、事件、文档等 |
 | `scripts/test_*.py` | 各种测试脚本：测试功能模块 |
-
----
-
-## cron_jobs/ - 定时任务
-
-| 文件 | 说明 |
-|---|---|
-| `cron_jobs/auto_ingest_service.py` | 自动数据摄入服务：定时采集财联社、中国证券网、知丘研报、股票数据，支持守护进程模式 |
-| `cron_jobs/auto_generate_signals.py` | 自动信号生成：从批准的事件自动生成候选信号 |
 
 ---
 
