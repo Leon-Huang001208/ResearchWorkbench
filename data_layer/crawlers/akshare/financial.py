@@ -1,7 +1,7 @@
 """
 AkShare 财务数据获取器
 """
-from datetime import date, datetime
+from datetime import date
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
@@ -10,6 +10,7 @@ from core.observability import get_logger
 
 from .base import BaseAkShareFetcher, FinancialData
 from .config import AkShareConfig
+from .utils import clean_symbol, parse_date, safe_float
 
 logger = get_logger("akshare_financial")
 
@@ -209,22 +210,13 @@ class AkShareFinancialFetcher(BaseAkShareFetcher):
 
     def _clean_symbol(self, symbol: str) -> str:
         """清理股票代码"""
-        symbol = symbol.strip()
-        if "." in symbol:
-            return symbol.split(".")[0]
-        return symbol
+        return clean_symbol(symbol)
 
     def _safe_float(self, row: pd.Series, key: str) -> Optional[float]:
         """安全地获取浮点值"""
         if key not in row:
             return None
-        val = row[key]
-        if pd.isna(val):
-            return None
-        try:
-            return float(val)
-        except (ValueError, TypeError):
-            return None
+        return safe_float(row[key])
 
     def _parse_report_date(self, row: pd.Series) -> Optional[date]:
         """从行数据中解析报告日期"""
@@ -233,29 +225,9 @@ class AkShareFinancialFetcher(BaseAkShareFetcher):
         for key in date_keys:
             if key in row:
                 date_str = str(row[key])
-                parsed = self._try_parse_date(date_str)
+                parsed = parse_date(date_str)
                 if parsed:
                     return parsed
-
-        return None
-
-    def _try_parse_date(self, date_str: str) -> Optional[date]:
-        """尝试解析日期字符串"""
-        date_str = date_str.strip()
-
-        for fmt in ["%Y-%m-%d", "%Y%m%d", "%Y/%m/%d", "%Y-%m", "%Y年%m月%d日"]:
-            try:
-                dt = datetime.strptime(date_str, fmt)
-                return dt.date()
-            except ValueError:
-                continue
-
-        # 尝试只解析年份
-        if len(date_str) == 4 and date_str.isdigit():
-            try:
-                return date(int(date_str), 12, 31)
-            except ValueError:
-                pass
 
         return None
 

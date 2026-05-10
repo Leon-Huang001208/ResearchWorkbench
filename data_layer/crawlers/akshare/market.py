@@ -10,6 +10,7 @@ from core.observability import get_logger
 
 from .base import BaseAkShareFetcher, MarketData, StockInfo
 from .config import AkShareConfig
+from .utils import clean_symbol, normalize_symbol, parse_date
 
 logger = get_logger("akshare_market")
 
@@ -329,48 +330,28 @@ class AkShareMarketFetcher(BaseAkShareFetcher):
 
     def _normalize_symbol(self, symbol: str) -> str:
         """标准化股票代码，添加市场后缀"""
-        symbol = symbol.strip()
-        if "." in symbol:
-            return symbol.upper()
-
-        # 推断市场
-        if symbol.startswith("6"):
-            return f"{symbol}.SH"
-        elif symbol.startswith("0") or symbol.startswith("3"):
-            return f"{symbol}.SZ"
-        elif symbol.startswith("8") or symbol.startswith("4"):
-            return f"{symbol}.BJ"
-        else:
-            # 默认上海
-            return f"{symbol}.SH"
+        return normalize_symbol(symbol)
 
     def _clean_symbol(self, symbol: str) -> str:
         """清理股票代码，去除市场后缀"""
-        symbol = symbol.strip()
-        if "." in symbol:
-            return symbol.split(".")[0]
-        return symbol
+        return clean_symbol(symbol)
 
     def _infer_market(self, symbol: str) -> str:
         """从代码推断市场"""
-        if ".SH" in symbol or symbol.startswith("6"):
+        normalized = normalize_symbol(symbol)
+        if ".SH" in normalized:
             return "SH"
-        elif ".SZ" in symbol or symbol.startswith("0") or symbol.startswith("3"):
+        elif ".SZ" in normalized:
             return "SZ"
-        elif ".BJ" in symbol or symbol.startswith("8") or symbol.startswith("4"):
+        elif ".BJ" in normalized:
             return "BJ"
         return "UNKNOWN"
 
     def _parse_date(self, date_str: str) -> datetime:
         """解析日期字符串"""
-        # 尝试多种格式
-        date_str = date_str.strip()
-        for fmt in ["%Y-%m-%d", "%Y%m%d", "%Y/%m/%d"]:
-            try:
-                d = datetime.strptime(date_str, fmt)
-                return datetime.combine(d.date(), datetime.min.time())
-            except ValueError:
-                continue
+        parsed = parse_date(date_str)
+        if parsed:
+            return datetime.combine(parsed, datetime.min.time())
         # 回退到当前时间
         logger.warning(f"Could not parse date: {date_str}")
         return datetime.now()

@@ -241,9 +241,6 @@ class AssetAnalysisService:
         self, canonical_id: str, as_of: datetime
     ) -> AssetAnalysisSnapshot:
         """从 AKShare 获取开源真实数据"""
-
-        import akshare as ak
-
         # 获取近一年行情
         end_date = as_of.strftime("%Y-%m-%d")
         start_date = (as_of.replace(year=as_of.year - 1)).strftime("%Y-%m-%d")
@@ -255,14 +252,13 @@ class AssetAnalysisService:
         pe_ttm = None
         pb = None
         try:
-            ak_code = canonical_id.split(".")[0]
-            if ak_code:
-                # 从东方财富接口获取实时估值
-                realtime_df = ak.stock_zh_a_spot_em()
-                row = realtime_df[realtime_df["代码"] == ak_code]
-                if not row.empty:
-                    pe_ttm = float(row.iloc[0]["PE-TTM"])
-                    pb = float(row.iloc[0]["PB"])
+            # Use the crawler's market fetcher to get realtime quotes
+            realtime_quotes = self.akshare_adapter.crawler_adapter.market.get_realtime_quotes(
+                symbols=[canonical_id]
+            )
+            if realtime_quotes:
+                pe_ttm = realtime_quotes[0].pe
+                pb = realtime_quotes[0].pb
         except Exception as e:
             # fallback: 手动计算 PE
             if quotes and financial and financial.get("eps"):

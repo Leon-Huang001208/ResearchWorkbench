@@ -10,6 +10,7 @@ from core.observability import get_logger
 
 from .base import BaseAkShareFetcher, NewsData
 from .config import AkShareConfig
+from .utils import clean_symbol, parse_datetime
 
 logger = get_logger("akshare_news")
 
@@ -244,33 +245,11 @@ class AkShareNewsFetcher(BaseAkShareFetcher):
 
     def _try_parse_time(self, time_str: str) -> Optional[datetime]:
         """尝试解析时间字符串"""
-        time_str = time_str.strip()
-
-        formats = [
-            "%Y-%m-%d %H:%M:%S",
-            "%Y-%m-%d %H:%M",
-            "%Y/%m/%d %H:%M:%S",
-            "%Y/%m/%d %H:%M",
-            "%Y年%m月%d日 %H:%M",
-            "%Y-%m-%d",
-            "%Y/%m/%d",
-            "%Y年%m月%d日",
-        ]
-
-        for fmt in formats:
-            try:
-                return datetime.strptime(time_str, fmt)
-            except ValueError:
-                continue
-
-        return None
+        return parse_datetime(time_str)
 
     def _clean_symbol(self, symbol: str) -> str:
         """清理股票代码"""
-        symbol = symbol.strip()
-        if "." in symbol:
-            return symbol.split(".")[0]
-        return symbol
+        return clean_symbol(symbol)
 
     def _get_stock_name(self, symbol: str) -> Optional[str]:
         """获取股票名称（通过行情接口）"""
