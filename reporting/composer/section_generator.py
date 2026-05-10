@@ -60,6 +60,7 @@ class SectionGenerator:
 
             output = SectionOutput(
                 key=spec.key,
+                title=spec.title,
                 content=content,
                 evidence_refs=evidence_refs,
                 scenario_refs=[],
@@ -73,6 +74,7 @@ class SectionGenerator:
             logger.error(f"Failed to generate section {spec.key}: {e}", exc_info=True)
             return SectionOutput(
                 key=spec.key,
+                title=spec.title,
                 content=f"[生成失败: {e}]",
                 evidence_refs=[],
                 scenario_refs=[],

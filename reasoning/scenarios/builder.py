@@ -2,7 +2,7 @@
 假设构建节点 - 生成情景
 """
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from core.interfaces import ModelGateway
 from core.observability import get_logger

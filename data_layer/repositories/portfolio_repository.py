@@ -1,9 +1,8 @@
 """组合提案仓储实现"""
 from typing import List, Optional
 
-from sqlalchemy.orm import Session
 
-from core.contracts.portfolio import PortfolioCandidate, PortfolioConstraints, PortfolioProposal
+from core.contracts.portfolio import PortfolioCandidate, PortfolioProposal
 from core.observability import get_logger
 from data_layer.repositories.base import BaseRepository
 from data_layer.repositories.models import PortfolioProposalDB

@@ -1,6 +1,5 @@
 """API 端点测试"""
-import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock, AsyncMock
 from fastapi.testclient import TestClient
 
 from app.api.main import app
@@ -398,8 +397,6 @@ class TestIngestAPI:
 
 # ─── 流水线 ────────────────────────────────────────────
 
-from unittest.mock import patch
-from core.services.pipeline_service import ResearchPipeline
 
 class TestPipelineAPI:
     def test_run_asset_analysis(self):

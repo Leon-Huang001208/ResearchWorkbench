@@ -1,5 +1,4 @@
 """信号详情、审计轨迹、全局搜索 API 测试"""
-import pytest
 from unittest.mock import MagicMock, patch
 from fastapi.testclient import TestClient
 

@@ -1,7 +1,6 @@
 """
 审核 CLI 命令
 """
-from typing import Optional
 
 import click
 

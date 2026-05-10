@@ -4,7 +4,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 from core.observability import get_logger
-from data_layer.repositories.base import Base, get_db
+from data_layer.repositories.base import Base
 from data_layer.repositories.memory_repository import MemoryRepositoryImpl
 from memory_learning.contracts import (
     MarketEpisode,

@@ -8,7 +8,7 @@ from typing import Optional
 import click
 
 from core.observability import get_logger
-from timing_engine import MetaTimingEngine, TimingModelRegistry, TimingContext
+from timing_engine import MetaTimingEngine
 
 logger = get_logger(__name__)
 

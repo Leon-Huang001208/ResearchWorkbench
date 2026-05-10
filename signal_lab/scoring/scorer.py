@@ -6,7 +6,6 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
-import pandas as pd
 import numpy as np
 
 from core.contracts import AlphaSignal

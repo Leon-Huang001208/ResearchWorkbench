@@ -1,10 +1,8 @@
 """
 测试 ingest CLI 命令
 """
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 from click.testing import CliRunner
 
 from app.cli.commands.ingest import ingest_command

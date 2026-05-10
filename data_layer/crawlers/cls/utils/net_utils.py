@@ -1,7 +1,7 @@
 """网络请求工具模块"""
 import random
 import time
-from typing import Optional, Dict, Any
+from typing import Optional
 import requests
 
 def random_delay(

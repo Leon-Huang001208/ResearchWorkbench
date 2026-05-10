@@ -1,10 +1,8 @@
 
 """AkShare API 封装层 - 直接调用 akshare Python 包"""
 import os
-import re
 import time
 import json
-from typing import Any
 import pandas as pd
 import requests
 from core.observability import get_logger

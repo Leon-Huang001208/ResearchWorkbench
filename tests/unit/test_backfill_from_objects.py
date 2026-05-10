@@ -4,8 +4,6 @@ Unit tests for backfill from object storage functionality
 import tempfile
 from pathlib import Path
 import json
-from datetime import datetime
-import pytest
 
 from scripts.backfill_from_objects import (
     compute_content_hash,
@@ -14,7 +12,6 @@ from scripts.backfill_from_objects import (
     upsert_source_document,
     BackfillReporter,
 )
-from core.settings import settings
 from data_layer.repositories.models import SourceDocument
 
 

@@ -5,7 +5,7 @@ from typing import Any
 from core.contracts import DocumentEnvelope
 from core.contracts.assets import AssetAnalysisSnapshot
 from core.observability import get_logger
-from data_layer.adapters import ChinaStockAdapter, IFinDAdapter, AKShareAdapter, CLSAdapter, CNStockAdapter, ZQAdapter
+from data_layer.adapters import ChinaStockAdapter, IFinDAdapter, CLSAdapter, CNStockAdapter, ZQAdapter
 from data_layer.adapters.china_stock.exceptions import ChinaStockPluginError
 from data_layer.adapters.ifind.exceptions import IFinDDatasourceError
 # AKShare exception placeholder for now

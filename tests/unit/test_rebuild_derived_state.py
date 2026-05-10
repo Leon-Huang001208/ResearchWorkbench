@@ -1,7 +1,6 @@
 """
 Unit tests for rebuild derived state functionality
 """
-import pytest
 
 from scripts.rebuild_derived_state import (
     RebuildReporter,

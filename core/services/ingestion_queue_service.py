@@ -4,11 +4,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from core.contracts import CanonicalEvent
-from core.contracts.ingestion import (
-    EnqueueRequest,
-    IngestionQueueItem,
-    IngestionQueueStats,
-)
+from core.contracts.ingestion import EnqueueRequest, IngestionQueueItem, IngestionQueueStats
 from core.observability import MetricsCollector, get_logger
 from data_layer.repositories.ingestion_repository import IngestionQueueRepository
 
@@ -79,7 +75,9 @@ class IngestionQueueService:
 
     async def process_item(self, item: IngestionQueueItem) -> Dict[str, Any]:
         """处理单个队列项：归一化为 CanonicalEvent -> 送入 Golden Path"""
-        self._metrics.increment("ingestion_queue.process_item", tags={"source_type": item.source_type})
+        self._metrics.increment(
+            "ingestion_queue.process_item", tags={"source_type": item.source_type}
+        )
         logger.info("Processing item", item_id=item.item_id, source_type=item.source_type)
 
         try:

@@ -2,8 +2,7 @@
 向量存储 - pgvector 封装
 """
 from abc import ABC, abstractmethod
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from core.interfaces import ModelGateway
 from core.observability import get_logger

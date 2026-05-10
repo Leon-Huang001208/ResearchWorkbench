@@ -4,7 +4,7 @@ cls - 财联社电报爬取技能 (CLI 版本)
 仅支持 CLI 调用: python cls.py --args
 """
 from typing import Any, Dict, List, Optional
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 import json

@@ -12,11 +12,10 @@ zq.py - 知丘爬取统一入口
 使用方法：
     python zq.py --config config.yaml --search 建材 --doc-types REPORT,NEWS
 """
-import os
 import sys
 import argparse
 import importlib
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # 模块元数据：单一事实来源

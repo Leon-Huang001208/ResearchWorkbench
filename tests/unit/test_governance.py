@@ -11,7 +11,7 @@
 """
 import pytest
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from core.contracts.governance import (
     ExperimentCompareRequest,
@@ -20,13 +20,11 @@ from core.contracts.governance import (
     ExperimentMetricDiff,
     ExperimentRecord,
     GovernanceMetadata,
-    GovernanceReport,
     RollbackRequest,
     RollbackResult,
     StrategyComponentType,
     StrategyVersion,
     StrategyVersionCreateRequest,
-    StrategyVersionSummary,
 )
 from core.services.governance_service import GovernanceService
 
@@ -842,19 +840,8 @@ class TestContractsExport:
     def test_governance_imports_from_contracts(self):
         """从 core.contracts 导入 governance 类"""
         from core.contracts import (
-            ExperimentCompareRequest,
-            ExperimentComparison,
-            ExperimentCreateRequest,
-            ExperimentMetricDiff,
             ExperimentRecord,
-            GovernanceMetadata,
-            GovernanceReport,
-            RollbackRequest,
-            RollbackResult,
             StrategyComponentType,
-            StrategyVersion,
-            StrategyVersionCreateRequest,
-            StrategyVersionSummary,
         )
         # 所有类可正常导入
         assert StrategyComponentType.PROMPT is not None

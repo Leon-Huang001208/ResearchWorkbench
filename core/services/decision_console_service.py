@@ -3,8 +3,8 @@
 提供每日候选审核、决策动作记录、审计追踪和复盘查询功能。
 """
 import uuid
-from datetime import datetime, UTC
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import UTC, datetime
+from typing import Dict, List, Optional, Tuple
 
 from core.contracts.decision_console import (
     AnalystDecision,
@@ -13,7 +13,6 @@ from core.contracts.decision_console import (
     DecisionWorkspace,
     PostMortemRecord,
 )
-from core.contracts.portfolio import PortfolioProposal
 from core.observability import get_logger
 from data_layer.repositories.decision_console_repository import DecisionConsoleRepository
 
@@ -99,6 +98,7 @@ class DecisionConsoleService:
         workspace.candidate_ids = list(existing_candidates)
 
         return self.repo.save_workspace(workspace)
+
     # endregion
 
     # region Decision Actions
@@ -179,6 +179,7 @@ class DecisionConsoleService:
     ) -> Optional[AnalystDecision]:
         """获取候选的决策"""
         return self.repo.get_decision_by_candidate(workspace_id, candidate_id)
+
     # endregion
 
     # region Post-Mortem
@@ -247,10 +248,12 @@ class DecisionConsoleService:
     def list_post_mortems(self, limit: int = 100) -> List[PostMortemRecord]:
         """列出所有复盘记录"""
         return self.repo.list_post_mortems(limit=limit)
+
     # endregion
 
     # region Audit
     def get_audit_history(self, decision_id: str) -> List[DecisionAudit]:
         """获取决策的审计历史"""
         return self.repo.get_audit_for_decision(decision_id)
+
     # endregion

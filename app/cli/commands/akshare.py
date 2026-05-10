@@ -1,7 +1,6 @@
 """
 AkShare 数据 CLI 命令
 """
-from datetime import date, timedelta
 
 import click
 

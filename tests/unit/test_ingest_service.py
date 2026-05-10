@@ -1,13 +1,11 @@
 """
 测试摄入服务
 """
-from datetime import datetime
 from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
 
-from core.contracts import Assertion, DocumentEnvelope
 from core.services.ingest_service import IngestService
 
 

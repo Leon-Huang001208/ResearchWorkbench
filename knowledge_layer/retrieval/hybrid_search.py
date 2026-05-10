@@ -1,7 +1,7 @@
 """
 混合搜索 - 向量+关键词
 """
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from core.observability import get_logger
 from knowledge_layer.retrieval.vector_store import VectorStore

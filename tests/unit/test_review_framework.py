@@ -7,7 +7,6 @@ from core.contracts import (
     ReviewCard,
     ReviewPosition,
     CognitiveBlackboard,
-    ConflictDetectionSummary,
 )
 from core.services.thesis_review_service import ThesisReviewService
 

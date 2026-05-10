@@ -3,7 +3,7 @@ import uuid
 from core.observability import get_logger
 from core.contracts.events import CanonicalEvent
 from .graph_store import IndustryGraphStore
-from .contracts import PropagationPath, IndustryChain, TemporalRelation, SupplyChainPosition
+from .contracts import PropagationPath, SupplyChainPosition
 
 logger = get_logger(__name__)
 

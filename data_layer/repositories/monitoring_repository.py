@@ -1,9 +1,7 @@
 """Monitoring 持久化仓储实现"""
-import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy.orm import Session
 
 from core.contracts.monitoring import (
     AlertPayload,

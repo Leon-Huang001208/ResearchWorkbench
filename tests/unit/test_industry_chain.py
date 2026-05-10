@@ -1,5 +1,4 @@
 """Test for industry chain mapping and thesis generation"""
-from datetime import datetime
 
 from core.contracts.industry_chain import (
     MappingStrength,

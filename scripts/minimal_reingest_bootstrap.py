@@ -23,7 +23,6 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from core.observability import get_logger
-from core.settings import settings
 from data_layer.repositories.base import (
     check_database_connection,
     ensure_schema,
@@ -224,7 +223,6 @@ def run_rebuild_derived_state(reporter: MinimalReingestReporter, limit: Optional
         from data_layer.repositories.event_repository import EventRepositoryImpl
         from data_layer.repositories.signal_repository import SignalRepositoryImpl
         from data_layer.repositories.timing_repository import TimingRepositoryImpl
-        from data_layer.repositories.outcome_repository import OutcomeRepositoryImpl
         from core.services.signal_service import SignalService
         from core.services.timing_engine_service import TimingEngineService
         from core.services.outcome_service import OutcomeService

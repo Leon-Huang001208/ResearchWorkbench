@@ -4,8 +4,8 @@
 提供信号生成和管理功能。
 """
 import uuid
-from typing import Any, Dict, List, Optional
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 from core.contracts import AlphaSignal, EventAlphaSignal, TradeCandidate
 from core.interfaces import SignalValidator
@@ -244,7 +244,9 @@ class SignalService:
         """
         validation_result = self.validate_signal(signal, **kwargs)
         if self.repository:
-            signal.validation_status = "validated" if validation_result["composite_score"] >= 0.6 else "rejected"
+            signal.validation_status = (
+                "validated" if validation_result["composite_score"] >= 0.6 else "rejected"
+            )
             signal.validation_metrics = validation_result
             self.repository.save(signal)
         return validation_result

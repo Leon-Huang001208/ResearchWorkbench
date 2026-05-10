@@ -1,26 +1,27 @@
 """Dashboard 首页数据聚合服务"""
+from datetime import UTC, datetime, timedelta
 from typing import List
-from datetime import datetime, timedelta, UTC
-from sqlalchemy import or_, desc
 
-from core.observability import get_logger
+from sqlalchemy import desc
+
 from core.contracts.dashboard import (
-    DashboardResponse,
-    TodaySection,
-    TodayEvent,
-    HighPriorityThesis,
     AbnormalFlow,
-    ResearchQueueSection,
-    PendingAssertion,
-    MissingEvidence,
-    MappingReviewItem,
+    BestPerformingEventType,
     CandidateBoardSection,
     CandidateItem,
+    DashboardResponse,
+    HighPriorityThesis,
     LearningSection,
+    MappingReviewItem,
+    MissingEvidence,
+    PendingAssertion,
     RecentFailure,
-    BestPerformingEventType,
+    ResearchQueueSection,
+    TodayEvent,
+    TodaySection,
     WeeklyLesson,
 )
+from core.observability import get_logger
 
 logger = get_logger(__name__)
 
@@ -36,6 +37,7 @@ class DashboardService:
         """获取 Today 板块数据：新事件、高优先级论题、异常流向"""
         # 获取今日/24小时内新事件
         from data_layer.repositories.models import CanonicalEvent
+
         events = (
             self.session.query(CanonicalEvent)
             .filter(CanonicalEvent.created_at >= self.today_cutoff)
@@ -57,6 +59,7 @@ class DashboardService:
 
         # 获取高优先级论题（score > 0.7 且状态活跃）
         from data_layer.repositories.models import AlphaSignalDB
+
         theses = (
             self.session.query(AlphaSignalDB)
             .filter(AlphaSignalDB.score >= 0.7, AlphaSignalDB.status == "active")
@@ -81,6 +84,7 @@ class DashboardService:
         abnormal_flows: List[AbnormalFlow] = []
         try:
             from data_layer.repositories.industry_chain_repository import IndustryChainRepository
+
             repo = IndustryChainRepository(self.session)
             anomalies = repo.get_recent_abnormal_flows(limit=5)
             abnormal_flows = [
@@ -111,7 +115,7 @@ class DashboardService:
         # 获取待处理断言（来自审查框架）
         try:
             from data_layer.repositories.review_repository import ReviewRepository
-            from core.contracts.review_framework import AssertionStatus
+
             repo = ReviewRepository(self.session)
             pending = repo.get_pending_assertions(limit=10)
             pending_assertions = [
@@ -161,18 +165,16 @@ class DashboardService:
         """获取 Candidate Board 板块：就绪度最高的候选机会"""
         candidates: List[CandidateItem] = []
         try:
-            from timing_engine.services.readiness_scorer import ReadinessScorer
             from data_layer.repositories.models import AlphaSignalDB
             from data_layer.repositories.timing_repository import TimingRepository
+            from timing_engine.services.readiness_scorer import ReadinessScorer
 
             timing_repo = TimingRepository(self.session)
             scorer = ReadinessScorer()
 
             # 获取活跃信号，计算就绪度，排序取 top 10
             active_signals = (
-                self.session.query(AlphaSignalDB)
-                .filter(AlphaSignalDB.status == "active")
-                .all()
+                self.session.query(AlphaSignalDB).filter(AlphaSignalDB.status == "active").all()
             )
 
             scored = []
@@ -211,6 +213,7 @@ class DashboardService:
         # 获取最近三个月内失败记录
         try:
             from data_layer.repositories.models import SignalOutcomeDB
+
             three_months_ago = datetime.now(UTC) - timedelta(days=90)
             failures = (
                 self.session.query(SignalOutcomeDB)
@@ -237,6 +240,7 @@ class DashboardService:
 
             # 获取最佳表现事件类型按平均超额收益
             from sqlalchemy import func
+
             event_stats = (
                 self.session.query(
                     SignalOutcomeDB.event_type,
@@ -266,7 +270,10 @@ class DashboardService:
 
             # 获取每周课程（来自 failure_memory）
             try:
-                from memory_learning.repository.weekly_lesson_repository import WeeklyLessonRepository
+                from memory_learning.repository.weekly_lesson_repository import (
+                    WeeklyLessonRepository,
+                )
+
                 lesson_repo = WeeklyLessonRepository(self.session)
                 lessons = lesson_repo.get_recent(limit=3)
                 weekly_lessons = [
@@ -294,23 +301,37 @@ class DashboardService:
         """聚合所有板块数据生成完整仪表盘响应"""
         # 自动拉取真实数据源数据填充数据库（如果数据为空）
         from data_layer.repositories.models import CanonicalEvent
+
         event_count = self.session.query(CanonicalEvent).count()
         if event_count == 0:
             logger.info("No real event data found, triggering auto ingest from real data sources")
             # 异步触发真实数据拉取，不阻塞请求
             import threading
+
             def ingest_real_data():
                 try:
                     import requests
+
                     # 拉取财联社电报
-                    requests.post("http://127.0.0.1:8000/api/ingest/cls", json={"days": 1}, timeout=10)
+                    requests.post(
+                        "http://127.0.0.1:8000/api/ingest/cls", json={"days": 1}, timeout=10
+                    )
                     # 拉取中国证券网新闻
-                    requests.post("http://127.0.0.1:8000/api/ingest/cnstock", json={"channel": "证券"}, timeout=10)
+                    requests.post(
+                        "http://127.0.0.1:8000/api/ingest/cnstock",
+                        json={"channel": "证券"},
+                        timeout=10,
+                    )
                     # 拉取知丘研报
-                    requests.post("http://127.0.0.1:8000/api/ingest/zq", json={"doc_types": "REPORT", "days": 1}, timeout=10)
+                    requests.post(
+                        "http://127.0.0.1:8000/api/ingest/zq",
+                        json={"doc_types": "REPORT", "days": 1},
+                        timeout=10,
+                    )
                     logger.info("Real data ingest completed successfully")
                 except Exception as e:
                     logger.warning(f"Auto ingest failed: {e}")
+
             threading.Thread(target=ingest_real_data, daemon=True).start()
 
         return DashboardResponse(

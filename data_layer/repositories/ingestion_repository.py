@@ -1,11 +1,9 @@
 """统一摄取队列仓储"""
 import hashlib
-import uuid
 from datetime import datetime, timezone
 from typing import List, Optional
 
 from sqlalchemy import func
-from sqlalchemy.orm import Session
 
 from core.contracts.ingestion import IngestionQueueItem, IngestionQueueStats
 from core.observability import get_logger

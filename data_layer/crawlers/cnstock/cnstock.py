@@ -13,8 +13,6 @@ import os
 import random
 import time
 import re
-import logging
-from logging.handlers import RotatingFileHandler
 
 try:
     import requests

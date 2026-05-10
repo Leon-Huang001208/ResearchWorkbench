@@ -7,11 +7,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
-from core.contracts.portfolio import (
-    PortfolioCandidate,
-    PortfolioConstraints,
-    PortfolioProposal,
-)
+from core.contracts.portfolio import PortfolioCandidate, PortfolioConstraints, PortfolioProposal
 from core.observability import get_logger
 
 logger = get_logger(__name__)
@@ -99,7 +95,9 @@ class PortfolioService:
         logger.info("portfolio ranking completed", ranked_count=len(ranked_candidates))
 
         # Step 4: 冲突解决
-        resolved_candidates, conflict_excluded = self.resolve_conflicts(ranked_candidates, constraints)
+        resolved_candidates, conflict_excluded = self.resolve_conflicts(
+            ranked_candidates, constraints
+        )
         excluded_signals.extend(conflict_excluded)
         constraints_applied.append("conflict_resolution")
         rationale_steps["conflict_resolution"] = {
@@ -235,13 +233,15 @@ class PortfolioService:
             if candidate.subject_id in seen_subjects:
                 existing = seen_subjects[candidate.subject_id]
                 # candidate 已经按综合评分排序，第一个就是最高分
-                excluded.append({
-                    "signal_id": candidate.signal_id,
-                    "subject_id": candidate.subject_id,
-                    "event_type": candidate.event_type,
-                    "reason": "duplicate_subject",
-                    "detail": f"Subject {candidate.subject_id} already represented by signal {existing.signal_id}",
-                })
+                excluded.append(
+                    {
+                        "signal_id": candidate.signal_id,
+                        "subject_id": candidate.subject_id,
+                        "event_type": candidate.event_type,
+                        "reason": "duplicate_subject",
+                        "detail": f"Subject {candidate.subject_id} already represented by signal {existing.signal_id}",
+                    }
+                )
             else:
                 seen_subjects[candidate.subject_id] = candidate
 
@@ -293,20 +293,20 @@ class PortfolioService:
         for sector, total_weight in sector_weights.items():
             if total_weight > constraints.max_sector_concentration:
                 # 按权重从低到高排除，直到满足约束
-                sector_cands = sorted(
-                    sector_candidates[sector], key=lambda c: c.suggested_weight
-                )
+                sector_cands = sorted(sector_candidates[sector], key=lambda c: c.suggested_weight)
                 for cand in sector_cands:
                     if sector_weights[sector] <= constraints.max_sector_concentration:
                         break
                     sector_weights[sector] -= cand.suggested_weight
-                    excluded.append({
-                        "signal_id": cand.signal_id,
-                        "subject_id": cand.subject_id,
-                        "event_type": cand.event_type,
-                        "reason": "max_sector_concentration",
-                        "detail": f"Sector {sector} weight {total_weight:.2%} exceeds limit {constraints.max_sector_concentration:.2%}",
-                    })
+                    excluded.append(
+                        {
+                            "signal_id": cand.signal_id,
+                            "subject_id": cand.subject_id,
+                            "event_type": cand.event_type,
+                            "reason": "max_sector_concentration",
+                            "detail": f"Sector {sector} weight {total_weight:.2%} exceeds limit {constraints.max_sector_concentration:.2%}",
+                        }
+                    )
                     cand.suggested_weight = 0.0  # mark for removal
 
         # Check theme concentration
@@ -319,20 +319,20 @@ class PortfolioService:
 
         for theme, total_weight in theme_weights.items():
             if total_weight > constraints.max_theme_concentration:
-                theme_cands = sorted(
-                    theme_candidates[theme], key=lambda c: c.suggested_weight
-                )
+                theme_cands = sorted(theme_candidates[theme], key=lambda c: c.suggested_weight)
                 for cand in theme_cands:
                     if theme_weights[theme] <= constraints.max_theme_concentration:
                         break
                     theme_weights[theme] -= cand.suggested_weight
-                    excluded.append({
-                        "signal_id": cand.signal_id,
-                        "subject_id": cand.subject_id,
-                        "event_type": cand.event_type,
-                        "reason": "max_theme_concentration",
-                        "detail": f"Theme {theme} weight {total_weight:.2%} exceeds limit {constraints.max_theme_concentration:.2%}",
-                    })
+                    excluded.append(
+                        {
+                            "signal_id": cand.signal_id,
+                            "subject_id": cand.subject_id,
+                            "event_type": cand.event_type,
+                            "reason": "max_theme_concentration",
+                            "detail": f"Theme {theme} weight {total_weight:.2%} exceeds limit {constraints.max_theme_concentration:.2%}",
+                        }
+                    )
                     cand.suggested_weight = 0.0
 
         # Remove zero-weight candidates
@@ -420,23 +420,27 @@ class PortfolioService:
 
             # Filter logic
             if score < constraints.min_signal_score:
-                excluded.append({
-                    "signal_id": signal_id,
-                    "subject_id": subject_id,
-                    "event_type": event_type,
-                    "reason": "below_min_signal_score",
-                    "detail": f"Score {score:.3f} < threshold {constraints.min_signal_score:.3f}",
-                })
+                excluded.append(
+                    {
+                        "signal_id": signal_id,
+                        "subject_id": subject_id,
+                        "event_type": event_type,
+                        "reason": "below_min_signal_score",
+                        "detail": f"Score {score:.3f} < threshold {constraints.min_signal_score:.3f}",
+                    }
+                )
                 continue
 
             if confidence < constraints.min_confidence:
-                excluded.append({
-                    "signal_id": signal_id,
-                    "subject_id": subject_id,
-                    "event_type": event_type,
-                    "reason": "below_min_confidence",
-                    "detail": f"Confidence {confidence:.3f} < threshold {constraints.min_confidence:.3f}",
-                })
+                excluded.append(
+                    {
+                        "signal_id": signal_id,
+                        "subject_id": subject_id,
+                        "event_type": event_type,
+                        "reason": "below_min_confidence",
+                        "detail": f"Confidence {confidence:.3f} < threshold {constraints.min_confidence:.3f}",
+                    }
+                )
                 continue
 
             candidate = PortfolioCandidate(
@@ -457,9 +461,7 @@ class PortfolioService:
 
         return candidates, excluded
 
-    def _enrich_candidates(
-        self, candidates: List[PortfolioCandidate]
-    ) -> List[PortfolioCandidate]:
+    def _enrich_candidates(self, candidates: List[PortfolioCandidate]) -> List[PortfolioCandidate]:
         """补充历史质量数据。"""
         for candidate in candidates:
             hit_rate, avg_excess = self.get_historical_quality(
@@ -470,16 +472,16 @@ class PortfolioService:
 
         return candidates
 
-    def _rank_candidates(
-        self, candidates: List[PortfolioCandidate]
-    ) -> List[PortfolioCandidate]:
+    def _rank_candidates(self, candidates: List[PortfolioCandidate]) -> List[PortfolioCandidate]:
         """按综合评分排序：score * confidence * historical_hit_rate。
 
         如果 historical_hit_rate 不可用，使用 0.5 作为中性默认值。
         综合评分存储在 suggested_weight 中，后续用于仓位定权。
         """
         for candidate in candidates:
-            hit_rate = candidate.historical_hit_rate if candidate.historical_hit_rate is not None else 0.5
+            hit_rate = (
+                candidate.historical_hit_rate if candidate.historical_hit_rate is not None else 0.5
+            )
             composite = candidate.signal_score * candidate.signal_confidence * hit_rate
             candidate.suggested_weight = composite
 

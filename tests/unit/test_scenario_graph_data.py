@@ -1,6 +1,5 @@
 """测试 ScenarioDataService 和 GraphDataService，以及场景/图谱 API 集成。"""
-import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from datetime import datetime, timezone
 
 from fastapi.testclient import TestClient

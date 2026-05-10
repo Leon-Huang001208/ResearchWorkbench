@@ -1,8 +1,7 @@
 """Memory & Learning API 路由"""
-from typing import Optional, Dict, Any
+from typing import Optional, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
 
 from app.api.models import ErrorResponse
 from memory_learning.contracts import (

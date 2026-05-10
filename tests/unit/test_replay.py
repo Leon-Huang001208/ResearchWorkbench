@@ -2,13 +2,12 @@
 import pytest
 import uuid
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from core.contracts.replay import ReplayAggregate, ReplayJob, ReplayResult, ReplayJobCreateRequest
-from core.contracts.events import CanonicalEvent
+from core.contracts.replay import ReplayAggregate, ReplayJob, ReplayResult
 from core.contracts.signals import EventAlphaSignal
 from core.services.replay_service import ReplayService
 from data_layer.repositories.base import Base

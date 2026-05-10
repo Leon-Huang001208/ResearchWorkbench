@@ -2,18 +2,17 @@
 最小可行闭环服务 - 规则驱动
 真实事件 → 生成信号 → 回测验证 → 记录 Outcome
 """
-import uuid
 import json
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy import text
 
-from core.observability import get_logger
 from core.contracts import EventAlphaSignal
-from data_layer.repositories.models import CanonicalEvent, AlphaSignalDB
+from core.observability import get_logger
 from data_layer.repositories.base import SessionLocal
-from data_layer.adapters.akshare_adapter import AKShareAdapter
+from data_layer.repositories.models import AlphaSignalDB, CanonicalEvent
 from memory_learning.contracts import MarketEpisode
 from memory_learning.journal import LearningJournal
 from memory_learning.pattern_learner import PatternLearner
@@ -29,16 +28,20 @@ class ClosedLoopService:
     def __init__(self):
         try:
             from data_layer.adapters.multi_source_adapter import MultiSourcePriceAdapter
+
             self.price_adapter = MultiSourcePriceAdapter()
         except Exception as e:
             from data_layer.adapters.hybrid_price_adapter import HybridPriceAdapter
+
             logger.warning(f"Multi-source adapter not available, falling back: {e}")
             self.price_adapter = HybridPriceAdapter()
         self.benchmark_code = "000300.SH"  # 沪深300作为基准
         self.learning_journal = LearningJournal()
         self.pattern_learner = PatternLearner()
 
-    def generate_signals_from_events(self, event_ids: Optional[List[str]] = None) -> List[EventAlphaSignal]:
+    def generate_signals_from_events(
+        self, event_ids: Optional[List[str]] = None
+    ) -> List[EventAlphaSignal]:
         """
         从真实事件生成信号
 
@@ -56,9 +59,11 @@ class ClosedLoopService:
                 query = query.filter(CanonicalEvent.event_id.in_(event_ids))
             else:
                 # 查询未生成过信号的事件
-                existing_event_ids = db.query(AlphaSignalDB.event_id).filter(
-                    AlphaSignalDB.event_id.isnot(None)
-                ).all()
+                existing_event_ids = (
+                    db.query(AlphaSignalDB.event_id)
+                    .filter(AlphaSignalDB.event_id.isnot(None))
+                    .all()
+                )
                 existing_event_ids = [e[0] for e in existing_event_ids if e[0]]
                 query = query.filter(~CanonicalEvent.event_id.in_(existing_event_ids))
 
@@ -189,11 +194,7 @@ class ClosedLoopService:
 
     def _generate_thesis_from_event(self, event: CanonicalEvent) -> str:
         """从事件生成 thesis"""
-        direction_desc = {
-            "positive": "利好",
-            "negative": "利空",
-            "neutral": "中性影响"
-        }
+        direction_desc = {"positive": "利好", "negative": "利空", "neutral": "中性影响"}
         direction = direction_desc.get(event.impact_direction, "中性影响")
 
         thesis_templates = {
@@ -281,8 +282,9 @@ class ClosedLoopService:
             excess_return = outcome_return - benchmark_return
 
             # 确定方向是否正确
-            direction_correct = (outcome_return > 0 and float(signal.score) >= 0.5) or \
-                               (outcome_return < 0 and float(signal.score) < 0.5)
+            direction_correct = (outcome_return > 0 and float(signal.score) >= 0.5) or (
+                outcome_return < 0 and float(signal.score) < 0.5
+            )
 
             # 生成 lesson
             lesson = self._generate_lesson(signal, outcome_return, excess_return, direction_correct)
@@ -297,7 +299,9 @@ class ClosedLoopService:
                 "direction_correct": direction_correct,
             }
 
-            db.execute(text("""
+            db.execute(
+                text(
+                    """
                 INSERT INTO signal_outcome (
                     outcome_id, event_id, signal_id, subject_id, event_date,
                     timing_action, entry_rule, horizon, benchmark,
@@ -309,25 +313,28 @@ class ClosedLoopService:
                     :outcome_return, :outcome_excess_return, :max_drawdown,
                     :failure_reason, :lesson, :evaluated_at, :metadata, :created_at
                 )
-            """), {
-                "outcome_id": outcome_id,
-                "event_id": signal.event_id,
-                "signal_id": signal.signal_id,
-                "subject_id": signal.subject_id,
-                "event_date": event_time,
-                "timing_action": "enter",
-                "entry_rule": "rule_based",
-                "horizon": "20d",
-                "benchmark": self.benchmark_code,
-                "outcome_return": outcome_return,
-                "outcome_excess_return": excess_return,
-                "max_drawdown": max_drawdown,
-                "failure_reason": None if direction_correct else "direction_wrong",
-                "lesson": lesson,
-                "evaluated_at": datetime.now(timezone.utc),
-                "metadata": json.dumps(outcome_metadata),
-                "created_at": datetime.now(timezone.utc),
-            })
+            """
+                ),
+                {
+                    "outcome_id": outcome_id,
+                    "event_id": signal.event_id,
+                    "signal_id": signal.signal_id,
+                    "subject_id": signal.subject_id,
+                    "event_date": event_time,
+                    "timing_action": "enter",
+                    "entry_rule": "rule_based",
+                    "horizon": "20d",
+                    "benchmark": self.benchmark_code,
+                    "outcome_return": outcome_return,
+                    "outcome_excess_return": excess_return,
+                    "max_drawdown": max_drawdown,
+                    "failure_reason": None if direction_correct else "direction_wrong",
+                    "lesson": lesson,
+                    "evaluated_at": datetime.now(timezone.utc),
+                    "metadata": json.dumps(outcome_metadata),
+                    "created_at": datetime.now(timezone.utc),
+                },
+            )
             db.commit()
 
             result = {
@@ -351,6 +358,7 @@ class ClosedLoopService:
     def _get_price_data(self, code: str, start_date: str, end_date: str) -> List[Dict]:
         """获取真实价格数据（优先在线，失败用本地缓存）"""
         import asyncio
+
         try:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
@@ -374,6 +382,7 @@ class ClosedLoopService:
 
         # 转换为 DataFrame 方便处理
         import pandas as pd
+
         df = pd.DataFrame(quotes)
         df["date"] = pd.to_datetime(df["date"])
         df = df.sort_values("date").reset_index(drop=True)
@@ -409,7 +418,11 @@ class ClosedLoopService:
         return entry_price, exit_price, outcome_return, max_drawdown
 
     def _generate_lesson(
-        self, signal: AlphaSignalDB, outcome_return: float, excess_return: float, direction_correct: bool
+        self,
+        signal: AlphaSignalDB,
+        outcome_return: float,
+        excess_return: float,
+        direction_correct: bool,
     ) -> str:
         """生成学习教训"""
         if direction_correct and outcome_return > 0:
@@ -469,7 +482,11 @@ class ClosedLoopService:
                 # Get signal details
                 db = SessionLocal()
                 try:
-                    signal = db.query(AlphaSignalDB).filter(AlphaSignalDB.signal_id == result["signal_id"]).first()
+                    signal = (
+                        db.query(AlphaSignalDB)
+                        .filter(AlphaSignalDB.signal_id == result["signal_id"])
+                        .first()
+                    )
                     if not signal:
                         continue
 
@@ -490,7 +507,9 @@ class ClosedLoopService:
                         evidence_refs=[signal.event_id] if signal.event_id else [],
                         metadata={
                             "signal_score": float(signal.score) if signal.score else 0.5,
-                            "signal_confidence": float(signal.confidence) if signal.confidence else 0.5,
+                            "signal_confidence": float(signal.confidence)
+                            if signal.confidence
+                            else 0.5,
                         },
                     )
 
@@ -506,7 +525,9 @@ class ClosedLoopService:
         logger.info(f"Recorded {recorded_count} market episodes")
         return recorded_count
 
-    def _generate_summary(self, signals: List, results: List[Dict], episodes_recorded: int = 0) -> Dict[str, Any]:
+    def _generate_summary(
+        self, signals: List, results: List[Dict], episodes_recorded: int = 0
+    ) -> Dict[str, Any]:
         """生成闭环摘要"""
         total_signals = len(signals)
         total_backtested = len(results)
@@ -515,7 +536,9 @@ class ClosedLoopService:
             avg_return = sum(r["return"] for r in results) / total_backtested
             avg_excess_return = sum(r["excess_return"] for r in results) / total_backtested
             win_rate = sum(1 for r in results if r["return"] > 0) / total_backtested
-            correct_direction_rate = sum(1 for r in results if r["direction_correct"]) / total_backtested
+            correct_direction_rate = (
+                sum(1 for r in results if r["direction_correct"]) / total_backtested
+            )
         else:
             avg_return = 0.0
             avg_excess_return = 0.0
@@ -532,12 +555,14 @@ class ClosedLoopService:
                 for event_type in event_types:
                     perf = self.pattern_learner.get_event_type_performance(event_type)
                     if perf:
-                        learning_insights.append({
-                            "event_type": event_type,
-                            "win_rate": perf["win_rate"],
-                            "avg_excess_return": perf["average_excess_return"],
-                            "sample_size": perf["sample_size"],
-                        })
+                        learning_insights.append(
+                            {
+                                "event_type": event_type,
+                                "win_rate": perf["win_rate"],
+                                "avg_excess_return": perf["average_excess_return"],
+                                "sample_size": perf["sample_size"],
+                            }
+                        )
 
         summary = {
             "signals_generated": total_signals,

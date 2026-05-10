@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime, UTC
 from data_layer.repositories.base import SessionLocal
-from data_layer.repositories.models import CanonicalEvent, AlphaSignalDB
+from data_layer.repositories.models import CanonicalEvent
 
 db = SessionLocal()
 

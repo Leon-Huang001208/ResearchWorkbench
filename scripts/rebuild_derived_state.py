@@ -15,9 +15,8 @@ If no --phase is provided, runs all phases in order. Supports partial recovery b
 running only the selected phase; repeated runs are safe and idempotent.
 """
 import sys
-import json
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Optional
 from argparse import ArgumentParser
 
 # Add project root to Python path
@@ -25,15 +24,12 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from core.observability import get_logger
-from core.settings import settings
 from data_layer.repositories.base import (
-    engine,
     check_database_connection,
     get_db,
 )
 from data_layer.repositories.event_repository import EventRepositoryImpl
 from data_layer.repositories.timing_repository import TimingRepositoryImpl
-from data_layer.repositories.outcome_repository import OutcomeRepositoryImpl
 from data_layer.repositories.signal_repository import SignalRepositoryImpl
 from data_layer.repositories.models import CanonicalEvent
 
@@ -249,7 +245,7 @@ def phase2_recompute_timing_decisions(
     logger.info(f"Found {len(signals)} signals to process")
     
     from timing_engine.contracts import TimingDecision, TimingModelScore
-    from core.contracts.timing_engine import EventStudyMetrics, TimingFactors, ReadinessScore
+    from core.contracts.timing_engine import EventStudyMetrics
     
     for signal in signals:
         try:

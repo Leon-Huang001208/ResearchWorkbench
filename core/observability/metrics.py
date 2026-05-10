@@ -2,7 +2,6 @@ import threading
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
 
 from core.observability import get_logger
 

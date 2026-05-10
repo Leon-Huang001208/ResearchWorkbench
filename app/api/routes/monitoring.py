@@ -20,7 +20,6 @@ from core.contracts.monitoring import (
     IncidentRecord,
     IncidentResolveRequest,
     Subsystem,
-    SubsystemHealthSummary,
     SystemHealthDashboard,
 )
 from core.observability import get_logger

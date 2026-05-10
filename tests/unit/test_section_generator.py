@@ -1,8 +1,6 @@
 """Tests for SectionGenerator."""
-from pathlib import Path
-from unittest.mock import MagicMock, Mock
+from unittest.mock import Mock
 
-import pytest
 
 from core.contracts import SectionOutput, SectionSpec
 from reporting.composer.section_generator import SectionGenerator

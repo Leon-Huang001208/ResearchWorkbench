@@ -9,14 +9,12 @@ from abc import ABC, abstractmethod
 from typing import Generic, List, Optional, TypeVar
 
 from core.contracts import (
-    AlphaSignal,
     Assertion,
     AssetAnalysisSnapshot,
     CanonicalEvent,
     CanonicalId,
     DocumentEnvelope,
     ReasoningTrace,
-    ScenarioSet,
 )
 
 T = TypeVar("T")

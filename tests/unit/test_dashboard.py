@@ -1,6 +1,5 @@
 """Unit tests for Dashboard Service"""
-import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 from core.services.dashboard_service import DashboardService
 from core.contracts.dashboard import DashboardResponse

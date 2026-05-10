@@ -153,7 +153,6 @@ class VolcanoProvider(BaseProvider):
     def _embed_multimodal(self, text: str, model: str, **kwargs: Any) -> tuple[list[float], int]:
         """调用多模态嵌入端点 /v3/embeddings/multimodal"""
         import httpx
-        import json
 
         url = f"{settings.VOLCANO_BASE_URL}/embeddings/multimodal"
         payload = {

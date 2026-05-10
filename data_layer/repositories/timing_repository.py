@@ -1,8 +1,6 @@
 """Timing Engine 择时决策仓储实现"""
 import uuid
 from typing import List, Optional
-from sqlalchemy import text
-from sqlalchemy.orm import Session
 
 from timing_engine.contracts import TimingDecision, TimingModelScore
 from core.observability import get_logger

@@ -1,8 +1,7 @@
 import json
 from datetime import datetime
 from typing import List, Optional
-import uuid
-from sqlalchemy import select, and_, text
+from sqlalchemy import select, text
 from core.observability import get_logger
 from data_layer.repositories.base import BaseRepository
 from .contracts import (

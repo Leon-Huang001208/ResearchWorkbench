@@ -1,5 +1,5 @@
 """Dashboard 首页数据 API 路由"""
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 
 from app.api.models import ErrorResponse
 from core.observability import get_logger

@@ -13,7 +13,6 @@ sys.path.insert(0, str(project_root))
 import numpy as np
 import pandas as pd
 
-from core.contracts import AlphaSignal
 from core.services import SignalService
 from core.observability import get_logger
 from signal_lab.features import FeatureBuilder

@@ -3,10 +3,9 @@
 
 基于事件生成标签。
 """
-from typing import Any, Optional, List
+from typing import Any, Optional
 
 import pandas as pd
-import numpy as np
 
 from core.observability import get_logger
 from signal_lab.labels.base import Labeler

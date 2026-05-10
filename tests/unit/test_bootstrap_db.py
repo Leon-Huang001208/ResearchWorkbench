@@ -8,10 +8,8 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-import pytest
-from sqlalchemy import text
 
-from scripts.bootstrap_db import main, DEFAULT_ALERT_THRESHOLDS, verify_schema
+from scripts.bootstrap_db import DEFAULT_ALERT_THRESHOLDS, verify_schema
 from data_layer.repositories.base import get_db, check_database_connection, ensure_schema
 from data_layer.repositories.models import AlertThresholdDB
 

@@ -6,7 +6,7 @@ AkShare 使用示例
 """
 import sys
 from pathlib import Path
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 import logging
 
 # 添加项目根目录到路径

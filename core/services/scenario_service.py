@@ -2,14 +2,13 @@
 情景服务 - 专题研究报告生成
 """
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from core.contracts import ScenarioHypothesis as ContractScenarioHypothesis
 from core.contracts import ScenarioSet
 from core.observability import get_logger
 from reasoning import ReasoningEngine, RequestType
 from reporting.composer import ReportComposer
-from reporting.projections import MarkdownProjection
 
 logger = get_logger(__name__)
 

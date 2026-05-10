@@ -8,7 +8,7 @@
 import pytest
 import uuid
 from datetime import datetime, timezone
-from unittest.mock import Mock, AsyncMock, MagicMock
+from unittest.mock import Mock
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -19,10 +19,9 @@ from data_layer.repositories.timing_repository import TimingRepositoryImpl
 from core.contracts import CanonicalEvent, EventAlphaSignal
 from core.services.pipeline_service import ResearchPipeline
 from core.services.signal_service import SignalService
-from core.services.event_extractor import EventExtractor, ExtractedSignalParams
+from core.services.event_extractor import EventExtractor
 from core.interfaces import ModelGateway, ModelResponse
 from memory_learning.journal import LearningJournal
-from timing_engine import MetaTimingEngine, TimingModelRegistry
 
 
 # ── Fixtures ────────────────────────────────────────────

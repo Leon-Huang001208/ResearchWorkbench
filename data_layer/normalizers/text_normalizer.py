@@ -1,7 +1,6 @@
 """文本标准化器"""
 import re
 import unicodedata
-from typing import Optional
 
 from core.observability import get_logger
 

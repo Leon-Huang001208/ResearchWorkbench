@@ -10,11 +10,9 @@
 - 系统健康仪表盘
 - 子系统健康状态判定
 """
-import math
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-import pytest
 
 from core.contracts.monitoring import (
     AlertPayload,
@@ -31,7 +29,6 @@ from core.contracts.monitoring import (
     IncidentRecord,
     IncidentResolveRequest,
     Subsystem,
-    SubsystemHealthSummary,
     SystemHealthDashboard,
 )
 from core.services.monitoring_service import MonitoringService

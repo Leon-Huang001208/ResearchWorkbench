@@ -1,7 +1,7 @@
 """研究流水线 API"""
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List
 from sqlalchemy.orm import Session
 
 from core.contracts import AssetAnalysisSnapshot, CanonicalEvent, ScenarioSet

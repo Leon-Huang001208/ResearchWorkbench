@@ -1,7 +1,6 @@
 """Tests for EvidenceBinder."""
-import pytest
 
-from reporting.composer.evidence_binder import BoundEvidence, EvidenceBinder
+from reporting.composer.evidence_binder import EvidenceBinder
 
 
 class TestEvidenceBinder:

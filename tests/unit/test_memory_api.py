@@ -9,7 +9,6 @@ from memory_learning.contracts import (
     AgentMemory,
     FailureMemory,
 )
-from memory_learning.journal import LearningJournal
 
 
 @pytest.fixture

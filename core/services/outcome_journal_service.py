@@ -1,16 +1,12 @@
 """Outcome journal service for recording and managing trade outcomes."""
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional, Dict
+from typing import Dict, List, Optional
 
-from core.contracts.outcome_journal import (
-    TradeOutcome,
-    FailureClassification,
-    WeeklyReviewReport,
-)
+from core.contracts.outcome_journal import FailureClassification, TradeOutcome, WeeklyReviewReport
 from core.observability import get_logger
-from data_layer.repositories.outcome_journal_repository import OutcomeJournalRepository
 from data_layer.repositories.base import get_db
+from data_layer.repositories.outcome_journal_repository import OutcomeJournalRepository
 
 logger = get_logger(__name__)
 

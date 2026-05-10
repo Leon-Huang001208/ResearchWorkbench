@@ -1,7 +1,7 @@
 """API routes for outcome journal and failure memory engine."""
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 
 from core.contracts.outcome_journal import (
     TradeOutcome,
@@ -11,7 +11,6 @@ from core.contracts.outcome_journal import (
 )
 from core.services.outcome_journal_service import OutcomeJournalService
 from core.services.failure_memory_service import FailureMemoryService
-from data_layer.repositories.base import get_db
 
 router = APIRouter()
 outcome_journal_service = OutcomeJournalService()

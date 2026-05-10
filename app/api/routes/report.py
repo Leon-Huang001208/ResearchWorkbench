@@ -1,9 +1,8 @@
 """
 研报生成和性能报告API路由
 """
-from typing import Dict, Any
 from io import BytesIO
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from datetime import datetime
 from core.services.report_generator import ReportGenerator

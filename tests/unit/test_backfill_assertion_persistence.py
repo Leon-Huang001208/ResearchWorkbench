@@ -10,26 +10,20 @@ Tests cover:
 import tempfile
 from pathlib import Path
 import json
-import hashlib
 
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from core.settings import settings
-from data_layer.repositories.base import Base, check_database_connection
-from data_layer.repositories.models import SourceDocument, Assertion
+from data_layer.repositories.base import Base
+from data_layer.repositories.models import Assertion
 from scripts.backfill_from_objects import (
-    BackfillReporter,
-    compute_content_hash,
-    generate_doc_id,
     upsert_source_document,
     run_extraction,
     generate_assertion_id,
     load_artifact,
 )
 from ingestion.structured_event_ingestion import AssertionExtractor, StructuredEventIngestor
-from data_layer.repositories.event_repository import EventRepositoryImpl
 
 
 @pytest.fixture(scope="function")

@@ -6,7 +6,7 @@ Signal Lab API 路由
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from core.observability import get_logger
@@ -154,7 +154,7 @@ async def compute_features(request: FeatureComputeRequest) -> Dict[str, Any]:
         try:
             from data_layer.adapters.multi_source_adapter import MultiSourcePriceAdapter
             price_adapter = MultiSourcePriceAdapter()
-        except Exception as e:
+        except Exception:
             from data_layer.adapters.hybrid_price_adapter import HybridPriceAdapter
             price_adapter = HybridPriceAdapter()
 
@@ -252,7 +252,7 @@ async def compute_labels(request: LabelComputeRequest) -> Dict[str, Any]:
         try:
             from data_layer.adapters.multi_source_adapter import MultiSourcePriceAdapter
             price_adapter = MultiSourcePriceAdapter()
-        except Exception as e:
+        except Exception:
             from data_layer.adapters.hybrid_price_adapter import HybridPriceAdapter
             price_adapter = HybridPriceAdapter()
 

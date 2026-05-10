@@ -2,14 +2,12 @@
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy.orm import Session
 
 from core.contracts.paper_trading import (
     BenchmarkComparison,
     PaperPortfolio,
     PerformanceMetrics,
     PortfolioSnapshot,
-    PositionSnapshot,
     RebalanceEvent,
     SimulationAssumptions,
     SimulationMode,

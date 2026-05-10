@@ -1,5 +1,5 @@
 """数据适配器基类"""
-from abc import ABC, abstractmethod
+from abc import ABC
 from datetime import datetime
 from hashlib import sha256
 from pathlib import Path

@@ -38,7 +38,7 @@ def test_entity_resolution():
 
     from knowledge_layer.entity_resolution.canonicalizer import Canonicalizer
     from knowledge_layer.entity_resolution.resolver import EntityResolver
-    from knowledge_layer.entity_resolution.types import EntityCandidate, EntityType, ResolvedEntity
+    from knowledge_layer.entity_resolution.types import EntityType
 
     resolver = EntityResolver()
     canonicalizer = Canonicalizer()
@@ -106,9 +106,7 @@ def test_scenario_generation():
     from reasoning.scenarios.calibrator import ProbabilityCalibrator
     from reasoning.skeptic.reviewer import Skeptic
     from reasoning.state import (
-        ReasoningState,
         RequestType,
-        ScenarioHypothesis,
         create_initial_state,
     )
 

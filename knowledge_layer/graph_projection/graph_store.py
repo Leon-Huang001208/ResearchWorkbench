@@ -6,7 +6,6 @@ from .contracts import (
     TemporalRelation,
     IndustryChain,
     RelationshipType,
-    SupplyChainPosition,
 )
 
 logger = get_logger(__name__)

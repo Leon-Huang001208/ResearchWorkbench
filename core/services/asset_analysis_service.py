@@ -3,27 +3,27 @@ from datetime import date, datetime, timedelta
 from typing import Optional
 
 from core.contracts import (
-    AssetAnalysisSnapshot,
     AssetAnalysisCard,
+    AssetAnalysisSnapshot,
     AssetBasicInfo,
-    Shareholder,
-    FinancialSummary,
     CapitalFlow,
-    IndustryData,
-    PriceBar,
     EventImpact,
+    FinancialSummary,
+    IndustryData,
     MacroSensitivity,
+    PriceBar,
+    Shareholder,
 )
 from core.interfaces import AssetSnapshotRepository, EntityRepository
 from core.observability import get_logger
-from data_layer.adapters import IFinDAdapter, LocalDataAdapter, AKShareAdapter
+from data_layer.adapters import AKShareAdapter, IFinDAdapter, LocalDataAdapter
 
 logger = get_logger(__name__)
 
 
 class AssetAnalysisService:
     """资产分析服务
-    
+
     Data source fallback chain:
     1. iFinD (if available) -> highest quality
     2. AKShare (if available) -> open source fallback for macOS
@@ -107,7 +107,10 @@ class AssetAnalysisService:
                     logger.info("Auto fallback: using AKShare open source data (iFinD unavailable)")
                     snapshot = await self._fetch_from_akshare(canonical_id, as_of)
                     # 检查AKShare返回的数据是否有效，如果核心字段都是空的，说明拉取失败
-                    if snapshot.price_volume.get('close_price') is None and snapshot.financial.get('eps', {}).get('ttm') is None:
+                    if (
+                        snapshot.price_volume.get("close_price") is None
+                        and snapshot.financial.get("eps", {}).get("ttm") is None
+                    ):
                         logger.warning(f"AKShare returned empty data for {canonical_id}")
                         success = False
                     else:
@@ -119,7 +122,10 @@ class AssetAnalysisService:
                 logger.info("Auto fallback: using local cached data")
                 snapshot = self._fetch_from_local(canonical_id, as_of)
                 # 检查本地数据是否有效
-                if snapshot.price_volume.get('close_price') is None and snapshot.financial.get('eps', {}).get('ttm') is None:
+                if (
+                    snapshot.price_volume.get("close_price") is None
+                    and snapshot.financial.get("eps", {}).get("ttm") is None
+                ):
                     logger.warning(f"Local cache empty for {canonical_id}")
                     success = False
                 else:
@@ -231,17 +237,20 @@ class AssetAnalysisService:
         logger.warning("iFinD fetch not fully implemented", canonical_id=canonical_id)
         return self._generate_mock_snapshot(canonical_id, as_of)
 
-    async def _fetch_from_akshare(self, canonical_id: str, as_of: datetime) -> AssetAnalysisSnapshot:
+    async def _fetch_from_akshare(
+        self, canonical_id: str, as_of: datetime
+    ) -> AssetAnalysisSnapshot:
         """从 AKShare 获取开源真实数据"""
+
         import akshare as ak
-        import asyncio
+
         # 获取近一年行情
-        end_date = as_of.strftime('%Y-%m-%d')
-        start_date = (as_of.replace(year=as_of.year - 1)).strftime('%Y-%m-%d')
-        
+        end_date = as_of.strftime("%Y-%m-%d")
+        start_date = (as_of.replace(year=as_of.year - 1)).strftime("%Y-%m-%d")
+
         quotes = await self.akshare_adapter.fetch_stock_quotes(canonical_id, start_date, end_date)
         financial = await self.akshare_adapter.fetch_financial_report(canonical_id)
-        
+
         # 获取实时估值数据
         pe_ttm = None
         pb = None
@@ -250,37 +259,37 @@ class AssetAnalysisService:
             if ak_code:
                 # 从东方财富接口获取实时估值
                 realtime_df = ak.stock_zh_a_spot_em()
-                row = realtime_df[realtime_df['代码'] == ak_code]
+                row = realtime_df[realtime_df["代码"] == ak_code]
                 if not row.empty:
-                    pe_ttm = float(row.iloc[0]['PE-TTM'])
-                    pb = float(row.iloc[0]['PB'])
+                    pe_ttm = float(row.iloc[0]["PE-TTM"])
+                    pb = float(row.iloc[0]["PB"])
         except Exception as e:
             # fallback: 手动计算 PE
-            if quotes and financial and financial.get('eps'):
+            if quotes and financial and financial.get("eps"):
                 last_quote = quotes[-1]
-                pe_ttm = last_quote['close'] / financial['eps']
+                pe_ttm = last_quote["close"] / financial["eps"]
             logger.warning(f"AKShare failed to fetch realtime valuation: {e}, fallback manual")
-        
+
         last_quote = quotes[-1] if quotes else None
         snapshot = AssetAnalysisSnapshot(
             canonical_id=canonical_id,
             as_of=as_of,
             financial={
-                'revenue': {'ttm': financial.get('revenue', None) if financial else None},
-                'net_profit': {'ttm': financial.get('net_profit', None) if financial else None},
-                'eps': {'ttm': financial.get('eps', None) if financial else None},
-                'roe': {'ttm': financial.get('roe', None) if financial else None},
-                'debt_ratio': financial.get('debt_ratio', None) if financial else None,
+                "revenue": {"ttm": financial.get("revenue", None) if financial else None},
+                "net_profit": {"ttm": financial.get("net_profit", None) if financial else None},
+                "eps": {"ttm": financial.get("eps", None) if financial else None},
+                "roe": {"ttm": financial.get("roe", None) if financial else None},
+                "debt_ratio": financial.get("debt_ratio", None) if financial else None,
             },
             fund_flow={},
             price_volume={
-                'close_price': last_quote['close'] if last_quote else None,
-                'high_52w': max(q['high'] for q in quotes) if quotes else None,
-                'low_52w': min(q['low'] for q in quotes) if quotes else None,
+                "close_price": last_quote["close"] if last_quote else None,
+                "high_52w": max(q["high"] for q in quotes) if quotes else None,
+                "low_52w": min(q["low"] for q in quotes) if quotes else None,
             },
             valuation={
-                'pe_ttm': pe_ttm,
-                'pb': pb,
+                "pe_ttm": pe_ttm,
+                "pb": pb,
             },
             shareholder={},
             industry={},
@@ -288,7 +297,7 @@ class AssetAnalysisService:
             macro_exposure={},
             evidence_refs=[],
         )
-        
+
         logger.info("Fetched real data from AKShare", canonical_id=canonical_id, quotes=len(quotes))
         return snapshot
 
@@ -390,8 +399,12 @@ class AssetAnalysisService:
         flow_dict = snapshot.fund_flow
         card.capital_flow = CapitalFlow(
             main_net=flow_dict.get("main_net_inflow", 0),
-            main_inflow=flow_dict.get("main_net_inflow", 0) if flow_dict.get("main_net_inflow", 0) > 0 else 0,
-            main_outflow=abs(flow_dict.get("main_net_inflow", 0)) if flow_dict.get("main_net_inflow", 0) < 0 else 0,
+            main_inflow=flow_dict.get("main_net_inflow", 0)
+            if flow_dict.get("main_net_inflow", 0) > 0
+            else 0,
+            main_outflow=abs(flow_dict.get("main_net_inflow", 0))
+            if flow_dict.get("main_net_inflow", 0) < 0
+            else 0,
             northbound_flow=flow_dict.get("northbound_holding"),
         )
 
@@ -423,16 +436,18 @@ class AssetAnalysisService:
             if quotes:
                 card.price_bars = []
                 for q in quotes:
-                    card.price_bars.append(PriceBar(
-                        date=q.get("date", date.today()),
-                        open=q.get("open", 0),
-                        high=q.get("high", 0),
-                        low=q.get("low", 0),
-                        close=q.get("close", 0),
-                        volume=q.get("volume"),
-                        amount=q.get("amount"),
-                        turnover=q.get("turnover"),
-                    ))
+                    card.price_bars.append(
+                        PriceBar(
+                            date=q.get("date", date.today()),
+                            open=q.get("open", 0),
+                            high=q.get("high", 0),
+                            low=q.get("low", 0),
+                            close=q.get("close", 0),
+                            volume=q.get("volume"),
+                            amount=q.get("amount"),
+                            turnover=q.get("turnover"),
+                        )
+                    )
 
                 if card.price_bars:
                     last_bar = card.price_bars[-1]
@@ -518,6 +533,7 @@ class AssetAnalysisService:
         for i in range(90):
             current_date = start_date + timedelta(days=i)
             import random
+
             change = random.uniform(-30, 30)
             open_p = price + random.uniform(-10, 10)
             high_p = max(open_p, price + change) + random.uniform(0, 15)
@@ -525,16 +541,18 @@ class AssetAnalysisService:
             close_p = price + change
             volume = random.uniform(2000000, 5000000)
 
-            base_card.price_bars.append(PriceBar(
-                date=current_date,
-                open=open_p,
-                high=high_p,
-                low=low_p,
-                close=close_p,
-                volume=volume,
-                amount=volume * close_p,
-                turnover=random.uniform(0.15, 0.35),
-            ))
+            base_card.price_bars.append(
+                PriceBar(
+                    date=current_date,
+                    open=open_p,
+                    high=high_p,
+                    low=low_p,
+                    close=close_p,
+                    volume=volume,
+                    amount=volume * close_p,
+                    turnover=random.uniform(0.15, 0.35),
+                )
+            )
             price = close_p
 
         # 财务数据

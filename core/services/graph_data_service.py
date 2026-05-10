@@ -306,7 +306,9 @@ class GraphDataService:
 
         # 标记节点中无真实数据的为 placeholder
         if not nodes:
-            nodes = [{"hint": "No real entity data available; showing placeholder", "real_entity": False}]
+            nodes = [
+                {"hint": "No real entity data available; showing placeholder", "real_entity": False}
+            ]
 
         enriched = {
             "graph_type": graph_type,
@@ -314,7 +316,9 @@ class GraphDataService:
             "edges": edges,
             "propagation_paths": propagation_paths,
             "outcome_paths": outcome_paths,
-            "data_source": "real" if (nodes and nodes[0].get("real_entity", False)) else "placeholder",
+            "data_source": "real"
+            if (nodes and nodes[0].get("real_entity", False))
+            else "placeholder",
         }
 
         logger.info(

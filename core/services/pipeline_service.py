@@ -1,18 +1,18 @@
 """研究流水线服务"""
-from typing import List, Optional, Any
 import uuid
+from typing import Any, List, Optional
 
-from core.contracts import AssetAnalysisSnapshot, CanonicalEvent, ScenarioSet, EventAlphaSignal
+from cognitive_agents.blackboard import CognitiveBlackboard
+from core.contracts import AssetAnalysisSnapshot, CanonicalEvent, EventAlphaSignal, ScenarioSet
+from core.interfaces.model_gateway import ModelGateway
+from core.interfaces.reasoning_engine import ReasoningEngine
 from core.observability import get_logger
 from core.services.event_extractor import EventExtractor, ExtractedSignalParams
 from core.services.signal_service import SignalService
-from core.interfaces.reasoning_engine import ReasoningEngine
-from core.interfaces.model_gateway import ModelGateway
-from cognitive_agents.blackboard import CognitiveBlackboard
+from memory_learning.contracts import FailureMemory, MarketEpisode
+from memory_learning.journal import LearningJournal
 from timing_engine import MetaTimingEngine, TimingContext, TimingModelRegistry
 from timing_engine.contracts import TimingDecision
-from memory_learning.journal import LearningJournal
-from memory_learning.contracts import MarketEpisode, FailureMemory, TimingAction
 
 logger = get_logger(__name__)
 
@@ -56,6 +56,7 @@ class ResearchPipeline:
         # TODO: implement full pipeline steps
         # For now, return a placeholder
         from datetime import datetime, timezone
+
         return AssetAnalysisSnapshot(
             snapshot_id="placeholder",
             canonical_id=asset_id,
@@ -361,12 +362,12 @@ class ResearchPipeline:
         if not self.learning_journal:
             logger.warning("Learning journal not available, skipping outcome record")
             return None
-        
+
         episode = self.learning_journal.get_episode(episode_id)
         if not episode:
             logger.warning(f"Episode not found: {episode_id}")
             return None
-        
+
         # Update the episode
         updated_episode = MarketEpisode(
             episode_id=episode.episode_id,

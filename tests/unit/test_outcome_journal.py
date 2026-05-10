@@ -2,7 +2,6 @@
 import uuid
 from datetime import datetime, timedelta, timezone
 
-import pytest
 
 from core.contracts.outcome_journal import TradeOutcome, FailureClassification
 from core.services.outcome_journal_service import OutcomeJournalService

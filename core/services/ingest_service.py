@@ -4,7 +4,7 @@
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from core.contracts import Assertion, CanonicalEvent, DocumentEnvelope
 from core.interfaces import DocumentRepository, ModelGateway
@@ -32,16 +32,17 @@ class IngestService:
         assertion_repo: Optional["AssertionRepository"] = None,
         event_repo: Optional["EventRepository"] = None,
     ):
-        from core.interfaces import AssertionRepository, EventRepository
 
         self._document_repo = document_repo
         # 自动注入 model_gateway（如果未提供且非测试环境）
         if model_gateway is None:
             import os
+
             _in_test = bool(os.getenv("PYTEST_CURRENT_TEST"))
             if not _in_test:
                 try:
                     from core.model_gateway.gateway import ModelGatewayImpl
+
                     model_gateway = ModelGatewayImpl()
                     logger.info("Auto-initialized ModelGateway for IngestService")
                 except Exception as e:
@@ -280,10 +281,7 @@ class IngestService:
         except UnicodeDecodeError:
             return file_path.read_text(encoding="gbk", errors="replace")
 
-    def ingest_envelope(
-        self,
-        envelope: DocumentEnvelope
-    ) -> Dict[str, Any]:
+    def ingest_envelope(self, envelope: DocumentEnvelope) -> Dict[str, Any]:
         """
         摄入文档信封
 
@@ -374,7 +372,6 @@ class IngestService:
             {"assertions": [Assertion, ...], "events": [CanonicalEvent, ...]}
         """
         from knowledge_layer.assertions.prompts import AssertionPrompts
-        from knowledge_layer.events.types import EventType
 
         try:
             system_prompt = AssertionPrompts.COMBINED_EXTRACT_SYSTEM_ZH
@@ -405,13 +402,13 @@ class IngestService:
                 if event:
                     events.append(event)
 
-            logger.debug(
-                f"Combined extraction: {len(assertions)} assertions, {len(events)} events"
-            )
+            logger.debug(f"Combined extraction: {len(assertions)} assertions, {len(events)} events")
             return {"assertions": assertions, "events": events}
 
         except Exception as e:
-            logger.error(f"Combined extraction failed, falling back to separate: {e}", exc_info=True)
+            logger.error(
+                f"Combined extraction failed, falling back to separate: {e}", exc_info=True
+            )
             # 回退到分步提取
             assertions = self._assertion_extractor.extract(text, doc_id)
             events = self._event_extractor.extract(text, doc_id)
@@ -431,7 +428,7 @@ class IngestService:
     def _build_combined_assertion(self, data: Dict, doc_id: str) -> Optional[Assertion]:
         """从合并提取的数据构建 Assertion"""
         try:
-            from knowledge_layer.entity_resolution import EntityResolver, EntityType
+            from knowledge_layer.entity_resolution import EntityType
 
             subject = data.get("subject", "")
             resolver = self._assertion_extractor._entity_resolver
@@ -460,7 +457,7 @@ class IngestService:
                 confidence=float(data.get("confidence", 0.7)),
                 source_doc_id=doc_id,
                 source_span={"extracted": data},
-                extractor_version=f"combined_v1.0",
+                extractor_version="combined_v1.0",
                 reviewer_status="draft",
             )
         except Exception as e:
@@ -471,7 +468,6 @@ class IngestService:
         """从合并提取的数据构建 CanonicalEvent"""
         try:
             from knowledge_layer.events.types import EventType
-            from data_layer.normalizers.date_normalizer import DateNormalizer
 
             event_type_str = data.get("event_type", "other")
             mapping = {

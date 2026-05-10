@@ -12,7 +12,7 @@ import sys
 import hashlib
 import json
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, Optional, Any, Tuple
 from argparse import ArgumentParser
 
 # Add project root to Python path
@@ -22,11 +22,10 @@ sys.path.insert(0, str(project_root))
 from core.observability import get_logger
 from core.settings import settings
 from data_layer.repositories.base import (
-    engine,
     check_database_connection,
     get_db,
 )
-from data_layer.repositories.models import SourceDocument, Assertion, CanonicalEvent
+from data_layer.repositories.models import SourceDocument, Assertion
 from data_layer.repositories.document_repository import DocumentRepository
 from ingestion.structured_event_ingestion import StructuredEventIngestor, AssertionExtractor
 from data_layer.repositories.event_repository import EventRepositoryImpl

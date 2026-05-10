@@ -9,14 +9,13 @@ report.py - 知丘研报爬取模块
 使用方法：
     python report.py --config config.yaml --search 建材
 """
-from typing import Any, Dict, Optional, List, Tuple
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from typing import Any, Dict, Optional
+from dataclasses import dataclass
 import os
 import sys
 import argparse
 
-from .zhiqiu.base_fetcher import BaseFetcher, BaseConfig, BaseStateManager, YESTERDAY
+from .zhiqiu.base_fetcher import BaseFetcher, BaseConfig, BaseStateManager
 from .zhiqiu.processors.report_processor import ReportProcessor
 
 

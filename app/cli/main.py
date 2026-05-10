@@ -6,7 +6,7 @@ import click
 # 导入子命令
 from app.cli.commands.analyze import analyze
 from app.cli.commands.backtest import backtest
-from app.cli.commands.ingest import ingest
+from app.cli.commands.ingest import ingest, crawl
 from app.cli.commands.memory import memory
 from app.cli.commands.report import report
 from app.cli.commands.review import review
@@ -15,7 +15,6 @@ from app.cli.commands.signal import signal
 from app.cli.commands.timing import timing
 from app.cli.commands.akshare import akshare
 from core.observability import configure_logging
-from core.settings import settings
 
 
 @click.group()
@@ -34,6 +33,7 @@ cli.add_command(analyze)
 cli.add_command(report)
 cli.add_command(scenario)
 cli.add_command(ingest)
+cli.add_command(crawl)
 cli.add_command(review)
 cli.add_command(signal)
 cli.add_command(backtest)

@@ -423,13 +423,15 @@ class GovernanceService:
                 # 非活跃版本可作为回滚候选
                 inactive = [v for v in versions if not v.is_active]
                 for v in inactive:
-                    rollback_candidates.append({
-                        "component_type": ctype,
-                        "component_name": cname,
-                        "version_id": v.version_id,
-                        "version_number": v.version_number,
-                        "created_at": v.created_at.isoformat() if v.created_at else None,
-                    })
+                    rollback_candidates.append(
+                        {
+                            "component_type": ctype,
+                            "component_name": cname,
+                            "version_id": v.version_id,
+                            "version_number": v.version_number,
+                            "created_at": v.created_at.isoformat() if v.created_at else None,
+                        }
+                    )
 
         # 实验摘要
         total_experiments = 0
@@ -463,7 +465,9 @@ class GovernanceService:
             experiment = self._gov_repo.get_experiment(experiment_id)
             if experiment:
                 return GovernanceMetadata(
-                    strategy_version_id=experiment.strategy_version_ids[0] if experiment.strategy_version_ids else None,
+                    strategy_version_id=experiment.strategy_version_ids[0]
+                    if experiment.strategy_version_ids
+                    else None,
                     experiment_id=experiment_id,
                     component_versions=component_versions or {},
                 )

@@ -6,7 +6,6 @@
 """
 import asyncio
 import random
-import time
 import hashlib
 import logging
 from datetime import datetime, timedelta
@@ -204,7 +203,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     if args.daemon:
-        import os
         import daemon
         with daemon.DaemonContext():
             run_scheduler()

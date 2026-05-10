@@ -1,12 +1,9 @@
 """AKShare 开源数据适配器 - macOS 降级数据源"""
-import logging
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import List, Optional
 
 import akshare as ak
-import pandas as pd
 
-from core.contracts.assets import AssetAnalysisSnapshot
 from core.observability import get_logger
 from data_layer.adapters.base import BaseDataAdapter
 

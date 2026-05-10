@@ -1,15 +1,11 @@
 """Failure memory service for retrieving similar historical cases based on thesis similarity."""
 from typing import List, Optional
 
-from core.contracts.outcome_journal import (
-    TradeOutcome,
-    SimilarCase,
-    FailureClassification,
-)
+from core.contracts.outcome_journal import FailureClassification, SimilarCase, TradeOutcome
 from core.observability import get_logger
-from data_layer.repositories.outcome_journal_repository import OutcomeJournalRepository
-from data_layer.repositories.models import OutcomeRecordDB
 from data_layer.repositories.base import get_db
+from data_layer.repositories.models import OutcomeRecordDB
+from data_layer.repositories.outcome_journal_repository import OutcomeJournalRepository
 
 logger = get_logger(__name__)
 
@@ -64,11 +60,7 @@ class FailureMemoryService:
                 all_outcomes = repo.list_all_failures()
             elif filter_success is True:
                 # Get only successful outcomes
-                results = (
-                    db.query(OutcomeRecordDB)
-                    .filter_by(thesis_success=True)
-                    .all()
-                )
+                results = db.query(OutcomeRecordDB).filter_by(thesis_success=True).all()
                 all_outcomes = [repo._to_contract(r) for r in results]
             else:
                 # Get all outcomes if filter is not just successes or failures
@@ -116,8 +108,7 @@ class FailureMemoryService:
 
         if failure_class is not None:
             similar_cases = [
-                c for c in similar_cases
-                if c.trade_outcome.failure_classification == failure_class
+                c for c in similar_cases if c.trade_outcome.failure_classification == failure_class
             ]
 
         return similar_cases

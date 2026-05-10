@@ -1,7 +1,7 @@
 """
 反证审查节点
 """
-from typing import List, Optional
+from typing import List
 
 from core.observability import get_logger
 from reasoning.state import ReasoningState

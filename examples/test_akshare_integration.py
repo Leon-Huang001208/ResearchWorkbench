@@ -11,7 +11,7 @@ from pathlib import Path
 root_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(root_dir))
 
-from datetime import date, datetime, timedelta
+from datetime import datetime
 import logging
 
 # 配置简单日志
@@ -26,16 +26,6 @@ def test_adapter_import():
     """测试导入适配器"""
     logger.info("Testing adapter import...")
 
-    from data_layer.crawlers.akshare import (
-        AkShareConfig,
-        DEFAULT_CONFIG,
-        AkShareAdapter,
-        MarketData,
-        NewsData,
-        FinancialData,
-        MacroData,
-        StockInfo,
-    )
 
     logger.info("✓ All modules imported successfully")
     return True
@@ -72,8 +62,6 @@ def test_data_classes():
     from data_layer.crawlers.akshare import (
         MarketData,
         NewsData,
-        FinancialData,
-        MacroData,
         StockInfo,
     )
 

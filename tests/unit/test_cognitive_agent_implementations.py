@@ -1,6 +1,6 @@
 """认知 Agent 实现测试。"""
 import pytest
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import AsyncMock
 from pydantic import BaseModel
 
 from core.interfaces import ModelGateway
@@ -8,7 +8,7 @@ from cognitive_agents.agents.base import BaseCognitiveAgent, AgentContext
 from cognitive_agents.agents.factory import AgentFactory
 from cognitive_agents.agents.orchestrator import AgentOrchestrator
 from cognitive_agents.blackboard import CognitiveBlackboard
-from cognitive_agents.contracts import AgentView, AgentRole, ViewDirection
+from cognitive_agents.contracts import AgentView, AgentRole
 
 
 class MockModelGateway(ModelGateway):

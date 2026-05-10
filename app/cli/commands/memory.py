@@ -9,8 +9,6 @@ from core.observability import get_logger
 from memory_learning.journal import LearningJournal
 from memory_learning.contracts import (
     MarketEpisode,
-    StrategyMemory,
-    AgentMemory,
     FailureMemory,
 )
 

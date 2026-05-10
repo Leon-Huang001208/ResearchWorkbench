@@ -1,12 +1,9 @@
 """
 测试情景服务
 """
-from pathlib import Path
 from unittest.mock import Mock, patch
 
-import pytest
 
-from core.contracts import ScenarioHypothesis, ScenarioSet
 from core.services.scenario_service import ScenarioService
 
 

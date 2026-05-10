@@ -11,14 +11,6 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from data_layer.repositories.base import Base, engine
-from data_layer.repositories.models import (
-    Entity,
-    SourceDocument,
-    Assertion,
-    CanonicalEvent,
-    ReasoningTrace,
-    AssetSnapshot,
-)
 
 def init_db():
     """初始化数据库"""

@@ -8,15 +8,12 @@
 - 组合构建完整流程测试
 - 排除理由记录测试
 """
-import pytest
-from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
-from core.contracts import AlphaSignal, EventAlphaSignal
+from core.contracts import EventAlphaSignal
 from core.contracts.portfolio import (
     PortfolioCandidate,
     PortfolioConstraints,
-    PortfolioProposal,
 )
 from core.services.portfolio_service import PortfolioService
 

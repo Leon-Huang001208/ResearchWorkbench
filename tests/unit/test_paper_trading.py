@@ -9,25 +9,19 @@
 - 基准比较（等权基准、Top-K 信号基准）
 - 回放驱动模拟完整流程
 """
-import pytest
 from datetime import datetime, timezone, timedelta
 
 from core.contracts.portfolio import (
     PortfolioCandidate,
-    PortfolioConstraints,
     PortfolioProposal,
 )
 from core.contracts.paper_trading import (
-    BenchmarkComparison,
     PaperPortfolio,
-    PerformanceMetrics,
     PortfolioSnapshot,
-    PositionSnapshot,
     RebalanceEvent,
     RebalanceTrigger,
     SimulationAssumptions,
     SimulationMode,
-    SimulationResult,
     TransactionCost,
 )
 from core.services.paper_trading_service import PaperTradingService

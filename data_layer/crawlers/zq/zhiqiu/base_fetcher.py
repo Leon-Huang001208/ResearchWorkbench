@@ -6,7 +6,7 @@
 
 提供统一的基类，消除 report.py、news.py、meeting.py 之间的重复代码。
 """
-from typing import Any, Dict, Optional, List, Tuple, Callable
+from typing import Any, Dict, Optional, List, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path

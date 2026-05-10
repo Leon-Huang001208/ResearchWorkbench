@@ -1,6 +1,6 @@
 """缓存工具模块"""
 from functools import wraps
-from typing import Any, Callable, Dict, Optional
+from typing import Callable
 
 def cached_property(func: Callable) -> property:
     """缓存属性装饰器

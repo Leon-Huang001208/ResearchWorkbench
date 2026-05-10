@@ -3,7 +3,7 @@ import re
 import json
 import logging
 import requests
-from typing import Optional, Dict
+from typing import Optional
 from .utils import rsa_encrypt
 from .anti_scrape import (
     get_manager,

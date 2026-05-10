@@ -64,7 +64,6 @@ def example_2_news_data_processing():
     logger.info("=" * 60)
 
     from data_layer.crawlers.akshare import AkShareAdapter, AkShareConfig
-    from core.contracts import DocumentEnvelope
 
     config = AkShareConfig(enable_cache=False, verbose=True, news_limit=10)
     adapter = AkShareAdapter(config)

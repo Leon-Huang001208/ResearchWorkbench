@@ -1,5 +1,6 @@
 """全局搜索服务"""
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
+
 from pydantic import BaseModel
 from sqlalchemy import or_
 
@@ -10,6 +11,7 @@ logger = get_logger(__name__)
 
 class SearchResult(BaseModel):
     """搜索结果条目基类"""
+
     id: str
     type: str
     title: str
@@ -45,7 +47,18 @@ class GlobalSearchService:
         - review: 审核
         """
         if type_filter is None:
-            type_filter = ["symbol", "event_type", "thesis", "source_doc", "failure_memory", "market_episode", "signal", "event", "outcome", "review"]
+            type_filter = [
+                "symbol",
+                "event_type",
+                "thesis",
+                "source_doc",
+                "failure_memory",
+                "market_episode",
+                "signal",
+                "event",
+                "outcome",
+                "review",
+            ]
 
         results: Dict[str, List[Dict]] = {
             "symbols": [],
@@ -92,7 +105,9 @@ class GlobalSearchService:
             except Exception as e:
                 logger.warning(f"Market episode search failed: {e}")
 
-        if "signal" in type_filter or "thesis" in type_filter: # thesis is already included in signals
+        if (
+            "signal" in type_filter or "thesis" in type_filter
+        ):  # thesis is already included in signals
             try:
                 results["signals"] = self._search_signals(pattern, limit)
             except Exception as e:
@@ -123,6 +138,7 @@ class GlobalSearchService:
     def _search_symbols(self, pattern: str, limit: int) -> List[Dict]:
         """搜索标的"""
         from data_layer.repositories.models import AssetDB
+
         rows = (
             self.session.query(AssetDB)
             .filter(
@@ -149,8 +165,10 @@ class GlobalSearchService:
 
     def _search_event_types(self, pattern: str, limit: int) -> List[Dict]:
         """搜索事件类型"""
+        from sqlalchemy import distinct
+
         from data_layer.repositories.models import CanonicalEvent
-        from sqlalchemy import distinct, func
+
         rows = (
             self.session.query(distinct(CanonicalEvent.event_type))
             .filter(CanonicalEvent.event_type.ilike(pattern))
@@ -167,6 +185,7 @@ class GlobalSearchService:
     def _search_theses(self, pattern: str, limit: int) -> List[Dict]:
         """搜索论题"""
         from data_layer.repositories.models import AlphaSignalDB
+
         rows = (
             self.session.query(AlphaSignalDB)
             .filter(AlphaSignalDB.thesis.ilike(pattern))
@@ -189,6 +208,7 @@ class GlobalSearchService:
         """搜索源文档"""
         try:
             from ingestion.models.source_doc import SourceDocDB
+
             rows = (
                 self.session.query(SourceDocDB)
                 .filter(
@@ -218,6 +238,7 @@ class GlobalSearchService:
     def _search_failure_memory(self, pattern: str, limit: int) -> List[Dict]:
         """搜索失败记忆"""
         from data_layer.repositories.models import SignalOutcomeDB
+
         rows = (
             self.session.query(SignalOutcomeDB)
             .filter(
@@ -245,6 +266,7 @@ class GlobalSearchService:
     def _search_market_episodes(self, pattern: str, limit: int) -> List[Dict]:
         try:
             from knowledge_layer.market_episode import MarketEpisodeDB
+
             rows = (
                 self.session.query(MarketEpisodeDB)
                 .filter(
@@ -274,6 +296,7 @@ class GlobalSearchService:
     def _search_signals(self, pattern: str, limit: int) -> List[Dict]:
         """搜索信号"""
         from data_layer.repositories.models import AlphaSignalDB
+
         rows = (
             self.session.query(AlphaSignalDB)
             .filter(
@@ -304,6 +327,7 @@ class GlobalSearchService:
     def _search_events(self, pattern: str, limit: int) -> List[Dict]:
         """搜索规范事件"""
         from data_layer.repositories.models import CanonicalEvent
+
         rows = (
             self.session.query(CanonicalEvent)
             .filter(
@@ -331,6 +355,7 @@ class GlobalSearchService:
     def _search_outcomes(self, pattern: str, limit: int) -> List[Dict]:
         """搜索结果"""
         from data_layer.repositories.models import SignalOutcomeDB
+
         rows = (
             self.session.query(SignalOutcomeDB)
             .filter(
@@ -361,6 +386,7 @@ class GlobalSearchService:
         """搜索审核记录"""
         from core.services.audit_service import AuditService
         from data_layer.repositories.audit_repository import AuditRepositoryImpl
+
         audit_repo = AuditRepositoryImpl(self.session)
         audit_service = AuditService(repository=audit_repo)
         return audit_service.search(query=query, limit=limit)

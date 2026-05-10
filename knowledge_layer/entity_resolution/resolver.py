@@ -2,12 +2,11 @@
 实体解析器 - 从文本中识别实体
 """
 import re
-from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 from core.interfaces import ModelGateway
 from core.observability import get_logger
-from knowledge_layer.entity_resolution.canonicalizer import Canonicalizer, Market, Venue
+from knowledge_layer.entity_resolution.canonicalizer import Canonicalizer
 from knowledge_layer.entity_resolution.types import EntityCandidate, EntityType, ResolvedEntity
 
 logger = get_logger(__name__)

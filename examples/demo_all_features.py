@@ -5,7 +5,7 @@ AlphaFoundry 完整功能演示
 """
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, Mock
+from unittest.mock import Mock
 
 # 添加项目根目录到路径
 project_root = Path(__file__).parent.parent

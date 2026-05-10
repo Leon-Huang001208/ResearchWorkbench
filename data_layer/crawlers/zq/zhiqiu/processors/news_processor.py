@@ -6,7 +6,6 @@
 专门处理 NEWS 类型（公众号）数据的模块。
 """
 
-import re
 import json
 import os
 from pathlib import Path
@@ -15,7 +14,7 @@ from functools import lru_cache
 import pandas as pd
 
 from .base import BaseProcessor, _clean_html
-from ..utils import parse_timestamp, extract_text_from_html, clean_unwanted_content
+from ..utils import parse_timestamp, extract_text_from_html
 
 
 # 默认允许的公众号列表

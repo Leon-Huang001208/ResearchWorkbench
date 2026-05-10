@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 
 from core.observability import get_logger
-from signal_lab.features.base import Feature, FeatureGroup
+from signal_lab.features.base import FeatureGroup
 
 logger = get_logger(__name__)
 

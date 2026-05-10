@@ -1,11 +1,11 @@
 """
 证据收集节点
 """
-from typing import Any, Dict, List, Optional
+from typing import Optional
 
 from core.interfaces import AssertionRepository, EventRepository
 from core.observability import get_logger
-from knowledge_layer.retrieval import HybridSearcher, VectorStore
+from knowledge_layer.retrieval import VectorStore
 from reasoning.state import ReasoningState
 
 logger = get_logger(__name__)

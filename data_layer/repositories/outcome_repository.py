@@ -1,8 +1,6 @@
 """信号结果评估仓储实现"""
 from typing import List, Optional
-from datetime import datetime
 
-from sqlalchemy.orm import Session
 
 from core.contracts.outcomes import SignalOutcome
 from core.observability import get_logger

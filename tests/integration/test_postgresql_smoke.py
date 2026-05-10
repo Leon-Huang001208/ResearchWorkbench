@@ -2,13 +2,12 @@
 Smoke test for PostgreSQL initialization and basic CRUD operations.
 Skips automatically if not running against PostgreSQL.
 """
-import os
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from core.settings import settings
-from data_layer.repositories.base import Base, check_database_connection, ensure_schema
+from data_layer.repositories.base import check_database_connection, ensure_schema
 from data_layer.repositories.models import Entity
 
 

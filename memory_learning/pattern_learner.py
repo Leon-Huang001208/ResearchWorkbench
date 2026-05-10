@@ -2,7 +2,7 @@
 
 Identifies patterns from historical market episodes to improve future decisions.
 """
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 from collections import defaultdict
 
 from core.observability import get_logger

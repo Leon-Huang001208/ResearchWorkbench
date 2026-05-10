@@ -1,6 +1,5 @@
 
-from contextlib import contextmanager
-from typing import Any, List, Optional, TypeVar
+from typing import Any, TypeVar
 
 from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError

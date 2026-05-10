@@ -2,10 +2,7 @@
 混合价格数据适配器
 优先策略：AKShare在线获取 → 本地数据库缓存
 """
-import asyncio
-import uuid
-from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List
 
 from core.observability import get_logger
 from data_layer.repositories.base import SessionLocal

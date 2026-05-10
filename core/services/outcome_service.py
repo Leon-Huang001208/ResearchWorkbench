@@ -2,7 +2,6 @@
 
 记录信号结果、查询结果、更新教训，并同步更新 LearningJournal。
 """
-import uuid
 from datetime import datetime, timezone
 from typing import List, Optional
 
@@ -90,15 +89,9 @@ class OutcomeService:
             )
         outcomes = list(self._outcomes.values())
         if event_type is not None:
-            outcomes = [
-                o for o in outcomes if o.metadata.get("event_type") == event_type
-            ]
+            outcomes = [o for o in outcomes if o.metadata.get("event_type") == event_type]
         if strategy_family is not None:
-            outcomes = [
-                o
-                for o in outcomes
-                if o.metadata.get("strategy_family") == strategy_family
-            ]
+            outcomes = [o for o in outcomes if o.metadata.get("strategy_family") == strategy_family]
         return outcomes[:limit]
 
     def update_lesson(self, outcome_id: str, lesson: str) -> Optional[SignalOutcome]:

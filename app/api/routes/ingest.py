@@ -1,5 +1,4 @@
 """摄入路由"""
-import asyncio
 import shutil
 import tempfile
 from pathlib import Path

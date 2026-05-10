@@ -6,12 +6,12 @@ from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
 from core.contracts import (
-    ThesisCard,
-    ReviewPosition,
-    EvidenceReference,
-    ReviewCard,
     CognitiveBlackboard,
     ConflictDetectionSummary,
+    EvidenceReference,
+    ReviewCard,
+    ReviewPosition,
+    ThesisCard,
 )
 from core.observability import get_logger
 
@@ -41,7 +41,9 @@ class ThesisReviewService:
             invalidation_triggers=self._extract_invalidation_triggers(thesis, ReviewPosition.BULL),
             created_at=datetime.utcnow().isoformat(),
         )
-        logger.debug(f"Generated bull review: {bull_review.review_id} for thesis {thesis.thesis_id}")
+        logger.debug(
+            f"Generated bull review: {bull_review.review_id} for thesis {thesis.thesis_id}"
+        )
         return bull_review
 
     def generate_bear_review(
@@ -61,7 +63,9 @@ class ThesisReviewService:
             invalidation_triggers=self._extract_invalidation_triggers(thesis, ReviewPosition.BEAR),
             created_at=datetime.utcnow().isoformat(),
         )
-        logger.debug(f"Generated bear review: {bear_review.review_id} for thesis {thesis.thesis_id}")
+        logger.debug(
+            f"Generated bear review: {bear_review.review_id} for thesis {thesis.thesis_id}"
+        )
         return bear_review
 
     def generate_skeptic_review(
@@ -80,10 +84,14 @@ class ThesisReviewService:
             evidence_refs=[e for e in evidence_list if e.confidence_in_evidence > 0.5],
             confidence_score=self._calculate_skeptic_confidence(bull_review, bear_review),
             reasoning_chain=self._generate_skeptic_reasoning(thesis, bull_review, bear_review),
-            invalidation_triggers=self._extract_skeptic_invalidation_triggers(bull_review, bear_review),
+            invalidation_triggers=self._extract_skeptic_invalidation_triggers(
+                bull_review, bear_review
+            ),
             created_at=datetime.utcnow().isoformat(),
         )
-        logger.debug(f"Generated skeptic review: {skeptic_review.review_id} for thesis {thesis.thesis_id}")
+        logger.debug(
+            f"Generated skeptic review: {skeptic_review.review_id} for thesis {thesis.thesis_id}"
+        )
         return skeptic_review
 
     def create_cognitive_blackboard(
@@ -96,7 +104,7 @@ class ThesisReviewService:
         """Create a cognitive blackboard aggregating all reviews and evidence"""
         all_evidence: List[EvidenceReference] = []
         conflicting_count = 0
-        
+
         if bull_review:
             all_evidence.extend(bull_review.evidence_refs)
         if bear_review:
@@ -138,7 +146,7 @@ class ThesisReviewService:
         if len(blackboard.aggregated_evidence) == 0:
             can_promote = False
             reasoning.append("Failed hard rule: No evidence provided, cannot enter candidate stage")
-        
+
         # Hard rule 2: No bear/skeptic review → cannot enter validation stage
         if blackboard.bear_review is None or blackboard.skeptic_review is None:
             can_promote = False
@@ -147,7 +155,9 @@ class ThesisReviewService:
                 missing.append("Bear")
             if blackboard.skeptic_review is None:
                 missing.append("Skeptic")
-            reasoning.append(f"Failed hard rule: Missing {', '.join(missing)} review, cannot enter validation stage")
+            reasoning.append(
+                f"Failed hard rule: Missing {', '.join(missing)} review, cannot enter validation stage"
+            )
         else:
             has_sufficient_opposing = True
             # Check that both bear and skeptic have evidence
@@ -162,11 +172,13 @@ class ThesisReviewService:
         if blackboard.bull_review and blackboard.bear_review:
             bull_conclusion = blackboard.bull_review.summary
             bear_conclusion = blackboard.bear_review.summary
-            conflicting_claims.append({
-                "bull_claim": bull_conclusion,
-                "bear_claim": bear_conclusion,
-                "evidence_point": "Core thesis direction conflict"
-            })
+            conflicting_claims.append(
+                {
+                    "bull_claim": bull_conclusion,
+                    "bear_claim": bear_conclusion,
+                    "evidence_point": "Core thesis direction conflict",
+                }
+            )
             unresolved_conflicts += 1
 
         summary = ConflictDetectionSummary(
@@ -180,7 +192,9 @@ class ThesisReviewService:
             reasoning="\n".join(reasoning) if reasoning else "All hard rules satisfied",
         )
 
-        logger.info(f"Conflict detection done for thesis {blackboard.thesis_id}: can_promote={can_promote}")
+        logger.info(
+            f"Conflict detection done for thesis {blackboard.thesis_id}: can_promote={can_promote}"
+        )
         return summary
 
     def generate_full_review(
@@ -190,10 +204,20 @@ class ThesisReviewService:
     ) -> Dict[str, Any]:
         """Generate full three-position review with conflict detection"""
         # Split evidence by position
-        bull_evidence = [e for e in available_evidence if e.description.lower().startswith("bull") or "bull" in e.description.lower()]
-        bear_evidence = [e for e in available_evidence if e.description.lower().startswith("bear") or "bear" in e.description.lower()]
-        other_evidence = [e for e in available_evidence if e not in bull_evidence and e not in bear_evidence]
-        
+        bull_evidence = [
+            e
+            for e in available_evidence
+            if e.description.lower().startswith("bull") or "bull" in e.description.lower()
+        ]
+        bear_evidence = [
+            e
+            for e in available_evidence
+            if e.description.lower().startswith("bear") or "bear" in e.description.lower()
+        ]
+        other_evidence = [
+            e for e in available_evidence if e not in bull_evidence and e not in bear_evidence
+        ]
+
         # Add other evidence to all (they can use it)
         for e in other_evidence:
             bull_evidence.append(e)
@@ -218,7 +242,9 @@ class ThesisReviewService:
             "conflict_summary": conflict_summary,
         }
 
-    def _calculate_bull_confidence(self, thesis: ThesisCard, evidence: List[EvidenceReference]) -> float:
+    def _calculate_bull_confidence(
+        self, thesis: ThesisCard, evidence: List[EvidenceReference]
+    ) -> float:
         """Calculate bull confidence based on average evidence confidence"""
         if not evidence:
             return 0.0
@@ -228,7 +254,9 @@ class ThesisReviewService:
             avg *= 1.1
         return min(avg, 1.0)
 
-    def _calculate_bear_confidence(self, thesis: ThesisCard, evidence: List[EvidenceReference]) -> float:
+    def _calculate_bear_confidence(
+        self, thesis: ThesisCard, evidence: List[EvidenceReference]
+    ) -> float:
         """Calculate bear confidence based on average evidence confidence"""
         if not evidence:
             return 0.0
@@ -245,26 +273,38 @@ class ThesisReviewService:
         confidence = 0.5 + (diff / 2)
         return min(confidence, 1.0)
 
-    def _generate_bull_reasoning(self, thesis: ThesisCard, evidence: List[EvidenceReference]) -> List[str]:
+    def _generate_bull_reasoning(
+        self, thesis: ThesisCard, evidence: List[EvidenceReference]
+    ) -> List[str]:
         """Generate bull reasoning chain from thesis and evidence"""
         reasoning = [
             f"Core thesis: {thesis.event_summary}",
             f"Target asset {thesis.target_name} should benefit from this event",
         ]
         for i, e in enumerate(evidence[:5]):  # Limit to 5 evidence points in reasoning
-            reasoning.append(f"Evidence {i+1}: {e.description} (confidence: {e.confidence_in_evidence:.2f})")
-        reasoning.append(f"Overall conclusion: The case is strong with confidence {self._calculate_bull_confidence(thesis, evidence):.2f}")
+            reasoning.append(
+                f"Evidence {i+1}: {e.description} (confidence: {e.confidence_in_evidence:.2f})"
+            )
+        reasoning.append(
+            f"Overall conclusion: The case is strong with confidence {self._calculate_bull_confidence(thesis, evidence):.2f}"
+        )
         return reasoning
 
-    def _generate_bear_reasoning(self, thesis: ThesisCard, evidence: List[EvidenceReference]) -> List[str]:
+    def _generate_bear_reasoning(
+        self, thesis: ThesisCard, evidence: List[EvidenceReference]
+    ) -> List[str]:
         """Generate bear reasoning chain from thesis and evidence"""
         reasoning = [
             f"Core counter-thesis: {thesis.event_summary} is overrated for {thesis.target_name}",
             f"Downside risks are underappreciated for {thesis.target_name}",
         ]
         for i, e in enumerate(evidence[:5]):
-            reasoning.append(f"Evidence {i+1}: {e.description} (confidence: {e.confidence_in_evidence:.2f})")
-        reasoning.append(f"Overall conclusion: The bear case has confidence {self._calculate_bear_confidence(thesis, evidence):.2f}")
+            reasoning.append(
+                f"Evidence {i+1}: {e.description} (confidence: {e.confidence_in_evidence:.2f})"
+            )
+        reasoning.append(
+            f"Overall conclusion: The bear case has confidence {self._calculate_bear_confidence(thesis, evidence):.2f}"
+        )
         return reasoning
 
     def _generate_skeptic_reasoning(
@@ -282,19 +322,33 @@ class ThesisReviewService:
             reasoning.append("Large disagreement between sides indicates high uncertainty")
         if len(bull.evidence_refs) == 0 or len(bear.evidence_refs) == 0:
             reasoning.append("Key evidence is missing from one or both sides")
-        reasoning.append(f"Overall skeptic confidence: {self._calculate_skeptic_confidence(bull, bear):.2f}")
+        reasoning.append(
+            f"Overall skeptic confidence: {self._calculate_skeptic_confidence(bull, bear):.2f}"
+        )
         return reasoning
 
-    def _extract_invalidation_triggers(self, thesis: ThesisCard, position: ReviewPosition) -> List[str]:
+    def _extract_invalidation_triggers(
+        self, thesis: ThesisCard, position: ReviewPosition
+    ) -> List[str]:
         """Extract invalidation triggers from thesis based on position"""
         if position == ReviewPosition.BULL:
-            return [*thesis.invalidation_conditions, "If the event fails to materialize as expected", "If key supporting evidence is disproven"]
+            return [
+                *thesis.invalidation_conditions,
+                "If the event fails to materialize as expected",
+                "If key supporting evidence is disproven",
+            ]
         elif position == ReviewPosition.BEAR:
-            return ["If the event has stronger impact than expected", "If contradicting evidence emerges", "If the market does not price in the downside"]
+            return [
+                "If the event has stronger impact than expected",
+                "If contradicting evidence emerges",
+                "If the market does not price in the downside",
+            ]
         else:
             return []
 
-    def _extract_skeptic_invalidation_triggers(self, bull: ReviewCard, bear: ReviewCard) -> List[str]:
+    def _extract_skeptic_invalidation_triggers(
+        self, bull: ReviewCard, bear: ReviewCard
+    ) -> List[str]:
         """Extract invalidation triggers for skeptic review"""
         return [
             "If bull and bear reach consensus with high confidence on the same conclusion",

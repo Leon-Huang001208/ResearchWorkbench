@@ -102,7 +102,10 @@ class MonitoringService:
         """查询健康指标历史"""
         if self._repo:
             return self._repo.list_metrics(
-                subsystem=subsystem, since=since, until=until, limit=limit,
+                subsystem=subsystem,
+                since=since,
+                until=until,
+                limit=limit,
             )
         return []
 
@@ -271,7 +274,11 @@ class MonitoringService:
         """查询告警"""
         if self._repo:
             return self._repo.list_alerts(
-                status=status, severity=severity, subsystem=subsystem, since=since, limit=limit,
+                status=status,
+                severity=severity,
+                subsystem=subsystem,
+                since=since,
+                limit=limit,
             )
         return []
 
@@ -309,7 +316,10 @@ class MonitoringService:
         """查询事件"""
         if self._repo:
             return self._repo.list_incidents(
-                subsystem=subsystem, severity=severity, resolved=resolved, limit=limit,
+                subsystem=subsystem,
+                severity=severity,
+                resolved=resolved,
+                limit=limit,
             )
         return []
 
@@ -346,20 +356,24 @@ class MonitoringService:
                 latest = self._repo.get_latest_metrics(subsystem)
                 open_count = self._repo.count_open_alerts(subsystem=subsystem)
                 status = self._determine_subsystem_status(latest)
-                summaries.append(SubsystemHealthSummary(
-                    subsystem=subsystem,
-                    latest_metrics=latest,
-                    status=status,
-                    open_alerts=open_count,
-                ))
+                summaries.append(
+                    SubsystemHealthSummary(
+                        subsystem=subsystem,
+                        latest_metrics=latest,
+                        status=status,
+                        open_alerts=open_count,
+                    )
+                )
 
             recent_incidents = self._repo.recent_incidents(limit=10)
         else:
             for subsystem in Subsystem:
-                summaries.append(SubsystemHealthSummary(
-                    subsystem=subsystem,
-                    status="unknown",
-                ))
+                summaries.append(
+                    SubsystemHealthSummary(
+                        subsystem=subsystem,
+                        status="unknown",
+                    )
+                )
             recent_incidents = []
 
         return SystemHealthDashboard(
@@ -566,7 +580,10 @@ class MonitoringService:
         if latest is None:
             return "unknown"
 
-        if latest.error_rate >= _DEGRADED_ERROR_RATE or latest.avg_latency_ms >= _DEGRADED_LATENCY_MS:
+        if (
+            latest.error_rate >= _DEGRADED_ERROR_RATE
+            or latest.avg_latency_ms >= _DEGRADED_LATENCY_MS
+        ):
             return "unhealthy"
 
         if latest.error_rate >= _HEALTHY_ERROR_RATE or latest.avg_latency_ms >= _HEALTHY_LATENCY_MS:
@@ -594,10 +611,14 @@ class MonitoringService:
 
         # 使用健康指标作为代理数据来计算分布
         baseline_metrics = self._repo.list_metrics(
-            since=baseline_start, until=baseline_end, limit=10000,
+            since=baseline_start,
+            until=baseline_end,
+            limit=10000,
         )
         current_metrics = self._repo.list_metrics(
-            since=current_start, until=current_end, limit=10000,
+            since=current_start,
+            until=current_end,
+            limit=10000,
         )
 
         if dimension == DriftDimension.SOURCE_MIX:

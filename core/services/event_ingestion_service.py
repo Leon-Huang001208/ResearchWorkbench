@@ -1,10 +1,14 @@
-from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
 from core.contracts import CanonicalEvent
 from core.observability import get_logger
 from data_layer.repositories.event_repository import EventRepositoryImpl
-from ingestion.structured_event_ingestion import StructuredEventIngestor, IngestionResult, AssertionExtractor
+from ingestion.structured_event_ingestion import (
+    AssertionExtractor,
+    IngestionResult,
+    StructuredEventIngestor,
+)
 
 logger = get_logger(__name__)
 
@@ -12,12 +16,14 @@ logger = get_logger(__name__)
 @dataclass
 class EventIngestionRequest:
     """Request for event ingestion"""
+
     raw_event: Dict[str, Any]
 
 
 @dataclass
 class EventQueryResponse:
     """Response for event query"""
+
     events: List[CanonicalEvent]
     total: int
     offset: int
@@ -40,7 +46,9 @@ class EventIngestionService:
         if "raw_text" in raw_event and (not raw_event.get("extracted_assertions")):
             # Auto extract assertions if not provided
             raw_text = raw_event["raw_text"]
-            assertions = self.assertion_extractor.extract_assertions(raw_text, raw_event.get("context"))
+            assertions = self.assertion_extractor.extract_assertions(
+                raw_text, raw_event.get("context")
+            )
             raw_event["extracted_assertions"] = assertions
 
         return self.ingestor.ingest(raw_event)
@@ -50,7 +58,9 @@ class EventIngestionService:
         for event in raw_events:
             if "raw_text" in event and (not event.get("extracted_assertions")):
                 raw_text = event["raw_text"]
-                assertions = self.assertion_extractor.extract_assertions(raw_text, event.get("context"))
+                assertions = self.assertion_extractor.extract_assertions(
+                    raw_text, event.get("context")
+                )
                 event["extracted_assertions"] = assertions
 
         return self.ingestor.bulk_ingest(raw_events)
@@ -62,12 +72,7 @@ class EventIngestionService:
     def list_events(self, limit: int = 100, offset: int = 0) -> EventQueryResponse:
         """List all events"""
         events = self.repo.list(limit, offset)
-        return EventQueryResponse(
-            events=events,
-            total=len(events),
-            offset=offset,
-            limit=limit
-        )
+        return EventQueryResponse(events=events, total=len(events), offset=offset, limit=limit)
 
     def list_events_by_type(self, event_type: str, limit: int = 100) -> List[CanonicalEvent]:
         """List events by type"""
@@ -85,6 +90,8 @@ class EventIngestionService:
         all_events = self.repo.list(limit=limit)
         return [e for e in all_events if symbol in e.impacted_symbols]
 
-    def extract_assertions(self, raw_text: str, context: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    def extract_assertions(
+        self, raw_text: str, context: Optional[Dict[str, Any]] = None
+    ) -> List[Dict[str, Any]]:
         """Extract assertions from raw text"""
         return self.assertion_extractor.extract_assertions(raw_text, context)

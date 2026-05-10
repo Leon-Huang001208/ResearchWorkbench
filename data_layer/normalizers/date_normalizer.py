@@ -1,7 +1,7 @@
 """日期标准化器"""
 import re
 from datetime import date, datetime
-from typing import Optional, Union
+from typing import Optional
 
 from core.observability import get_logger
 

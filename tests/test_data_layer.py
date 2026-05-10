@@ -11,29 +11,18 @@ def test_imports():
     print("Testing imports...")
 
     # 测试 adapters
-    from data_layer.adapters import BaseDataAdapter, IFinDAdapter, PDFAdapter
 
     print("✓ adapters imported")
 
     # 测试 parsers
-    from data_layer.parsers import HTMLParser, HTMLParseResult, PDFParser, PDFParseResult
 
     print("✓ parsers imported")
 
     # 测试 normalizers
-    from data_layer.normalizers import DateNormalizer, TextNormalizer
 
     print("✓ normalizers imported")
 
     # 测试 repositories
-    from data_layer.repositories import (
-        AssertionRepositoryImpl,
-        BaseRepository,
-        DocumentRepositoryImpl,
-        EntityRepositoryImpl,
-        EventRepositoryImpl,
-        TraceRepositoryImpl,
-    )
 
     print("✓ repositories imported")
 

@@ -50,7 +50,7 @@ class MultiSourcePriceAdapter:
                     "available": True
                 })
                 logger.info("Tushare source initialized")
-        except Exception as e:
+        except Exception:
             pass
 
         # 3. BaoStock
@@ -61,7 +61,7 @@ class MultiSourcePriceAdapter:
                 "available": True
             })
             logger.info("BaoStock source initialized")
-        except Exception as e:
+        except Exception:
             pass
 
         # 4. 本地缓存
@@ -103,7 +103,7 @@ class MultiSourcePriceAdapter:
                         self._save_to_cache(data, source_name)
                     return data
 
-            except Exception as e:
+            except Exception:
                 pass
 
         logger.error(f"No data available for {code}")

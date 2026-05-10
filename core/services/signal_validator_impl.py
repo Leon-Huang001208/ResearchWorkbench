@@ -3,15 +3,15 @@
 
 实现SignalValidator接口。
 """
-from typing import Any, Dict, List, Optional
 import uuid
+from typing import Any, Dict, Optional
 
 import pandas as pd
 
 from core.contracts import AlphaSignal, TradeCandidate
 from core.interfaces import SignalValidator
 from core.observability import get_logger
-from signal_lab.backtests import BacktestResult, SimpleBacktester
+from signal_lab.backtests import SimpleBacktester
 from signal_lab.features import FeatureBuilder
 from signal_lab.features.groups import (
     FinancialFeatures,

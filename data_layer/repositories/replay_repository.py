@@ -2,7 +2,6 @@
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from sqlalchemy.orm import Session
 
 from core.contracts.replay import ReplayJob, ReplayResult
 from core.observability import get_logger

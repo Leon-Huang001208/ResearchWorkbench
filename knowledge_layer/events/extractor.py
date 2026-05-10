@@ -4,14 +4,14 @@
 import re
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from core.contracts import CanonicalEvent
 from core.interfaces import ModelGateway
 from core.observability import get_logger
 from data_layer.normalizers.date_normalizer import DateNormalizer
 from knowledge_layer.entity_resolution import EntityResolver
-from knowledge_layer.events.types import EventType, ExtractedEvent
+from knowledge_layer.events.types import EventType
 
 logger = get_logger(__name__)
 

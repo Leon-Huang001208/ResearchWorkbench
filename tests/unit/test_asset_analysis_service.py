@@ -1,8 +1,7 @@
 """Tests for AssetAnalysisService."""
 from datetime import UTC, datetime
-from unittest.mock import MagicMock, Mock
+from unittest.mock import Mock
 
-import pytest
 
 from core.contracts import AssetAnalysisSnapshot
 from core.services.asset_analysis_service import AssetAnalysisService

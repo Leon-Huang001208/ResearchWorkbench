@@ -1,6 +1,5 @@
 """Tests for Timing repository"""
 import pytest
-from uuid import uuid4
 from sqlalchemy import text
 from timing_engine.contracts import TimingDecision, TimingModelScore
 from data_layer.repositories.timing_repository import TimingRepositoryImpl

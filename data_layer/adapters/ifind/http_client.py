@@ -6,7 +6,6 @@ from typing import Any
 import httpx
 
 from core.settings.config import Settings
-from data_layer.adapters.ifind.client import IFinDClient
 from data_layer.adapters.ifind.exceptions import (
     IFinDAuthError,
     IFinDDatasourceError,

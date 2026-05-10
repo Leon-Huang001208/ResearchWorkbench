@@ -1,7 +1,6 @@
 
 import logging
 import pandas as pd
-from typing import Optional
 from .models import TechnicalIndicators
 
 logger = logging.getLogger(__name__)

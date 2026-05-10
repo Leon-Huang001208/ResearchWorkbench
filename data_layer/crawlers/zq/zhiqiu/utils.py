@@ -3,11 +3,10 @@ import base64
 import re
 import os
 import sys
-import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 from Crypto.Cipher import PKCS1_v1_5
 from Crypto.PublicKey import RSA
 

@@ -1,8 +1,6 @@
 """Tests for AssetSnapshotRepositoryImpl."""
 from datetime import UTC, datetime
 
-import pytest
-from sqlalchemy import text
 
 from core.contracts import AssetAnalysisSnapshot
 from data_layer.repositories.asset_snapshot_repository import AssetSnapshotRepositoryImpl

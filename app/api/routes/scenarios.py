@@ -1,5 +1,5 @@
 """情景分析路由"""
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from typing import Optional
 
 from app.api.models import (

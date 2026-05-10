@@ -23,7 +23,6 @@ def generate_realistic_price_data(code: str, base_date: datetime, base_price: fl
     生成真实的历史价格数据（基于实际市场波动模式）
     使用真实的价格波动特征：趋势+波动+成交量相关性
     """
-    import math
     import random
 
     prices = []

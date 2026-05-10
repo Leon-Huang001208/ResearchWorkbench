@@ -2,7 +2,7 @@
 推理引擎 - LangGraph 状态图
 """
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Optional
 
 from core.observability import get_logger
 from reasoning.evidence.collector import EvidenceCollector

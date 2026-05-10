@@ -1,8 +1,5 @@
 """Tests for MarkdownProjection."""
-from datetime import datetime
-from pathlib import Path
 
-import pytest
 
 from core.contracts import SectionOutput
 from reporting.projections.markdown import MarkdownProjection

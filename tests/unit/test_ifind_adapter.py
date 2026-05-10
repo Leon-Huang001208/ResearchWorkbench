@@ -8,10 +8,7 @@ import pytest
 from core.settings.config import Settings
 from data_layer.adapters.ifind import (
     BackendRouter,
-    IFinDAuthError,
-    IFinDDatasourceError,
     IFinDMapper,
-    IFinDSDKNotAvailableError,
 )
 from data_layer.adapters.ifind_adapter import IFinDAdapter
 

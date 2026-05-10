@@ -1,6 +1,6 @@
 
-from dataclasses import dataclass, field
-from typing import Dict, Optional, Any
+from dataclasses import dataclass
+from typing import Dict, Optional
 
 @dataclass
 class TechnicalIndicators:

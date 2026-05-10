@@ -4,10 +4,9 @@
 定义标签生成的基础接口。
 """
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Any
 
 import pandas as pd
-import numpy as np
 
 from core.observability import get_logger
 

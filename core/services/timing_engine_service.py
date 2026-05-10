@@ -1,8 +1,4 @@
-from core.contracts.timing_engine import (
-    TimingFactors,
-    EventStudyMetrics,
-    ReadinessScore,
-)
+from core.contracts.timing_engine import EventStudyMetrics, ReadinessScore, TimingFactors
 from core.observability import get_logger
 
 logger = get_logger(__name__)
@@ -15,18 +11,11 @@ class TimingEngineService:
         logger.info("TimingEngineService initialized")
 
     def calculate_timing_fit(
-        self,
-        regime: float,
-        flow: float,
-        theme_diffusion: float,
-        crowding: float
+        self, regime: float, flow: float, theme_diffusion: float, crowding: float
     ) -> TimingFactors:
         """Create TimingFactors and calculate overall timing fit score."""
         timing_factors = TimingFactors(
-            regime=regime,
-            flow=flow,
-            theme_diffusion=theme_diffusion,
-            crowding=crowding
+            regime=regime, flow=flow, theme_diffusion=theme_diffusion, crowding=crowding
         )
         overall_fit = timing_factors.overall_timing_fit()
         logger.debug(
@@ -49,7 +38,7 @@ class TimingEngineService:
             average_excess_return=average_excess_return,
             win_rate=win_rate,
             decay_by_day=decay_by_day or [],
-            max_drawdown_after_entry=max_drawdown_after_entry
+            max_drawdown_after_entry=max_drawdown_after_entry,
         )
         edge_score = metrics.historical_edge_score()
         logger.debug(
@@ -62,15 +51,13 @@ class TimingEngineService:
         self,
         thesis_quality: float,
         historical_metrics: EventStudyMetrics,
-        timing_factors: TimingFactors
+        timing_factors: TimingFactors,
     ) -> ReadinessScore:
         """Calculate unified readiness score combining all three dimensions."""
         historical_edge = historical_metrics.historical_edge_score()
         timing_fit = timing_factors.overall_timing_fit()
         readiness = ReadinessScore.calculate(
-            thesis_quality=thesis_quality,
-            historical_edge=historical_edge,
-            timing_fit=timing_fit
+            thesis_quality=thesis_quality, historical_edge=historical_edge, timing_fit=timing_fit
         )
         logger.info(
             f"Calculated readiness: overall={readiness.overall_score:.3f}, "
@@ -102,6 +89,8 @@ class TimingEngineService:
             reasons.append("Current market timing is unfavorable")
 
         if not reasons:
-            reasons.append(f"Overall readiness score {readiness.overall_score:.2f} below blocking threshold")
+            reasons.append(
+                f"Overall readiness score {readiness.overall_score:.2f} below blocking threshold"
+            )
 
         return ", ".join(reasons)

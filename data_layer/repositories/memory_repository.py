@@ -2,7 +2,7 @@
 import json
 from typing import List, Optional, Dict, Union
 
-from sqlalchemy import select, text, and_
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from core.observability import get_logger

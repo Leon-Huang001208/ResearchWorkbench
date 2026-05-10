@@ -2,8 +2,8 @@
 AkShare 适配器单元测试
 """
 import pytest
-from datetime import date, datetime, timedelta
-from unittest.mock import Mock, patch
+from datetime import date, datetime
+from unittest.mock import Mock
 
 from data_layer.crawlers.akshare import (
     AkShareConfig,

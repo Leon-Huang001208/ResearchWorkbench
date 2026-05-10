@@ -1,7 +1,6 @@
 """Tests for analyze CLI command."""
 from unittest.mock import Mock, patch
 
-import pytest
 from click.testing import CliRunner
 
 from app.cli.commands.analyze import analyze_command

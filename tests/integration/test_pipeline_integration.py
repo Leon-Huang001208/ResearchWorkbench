@@ -3,7 +3,7 @@
 """
 import pytest
 from unittest.mock import Mock, AsyncMock
-from datetime import datetime, timezone
+from datetime import datetime
 
 from core.contracts import AssetAnalysisSnapshot, CanonicalEvent, ScenarioSet
 from core.services.pipeline_service import ResearchPipeline

@@ -1,6 +1,5 @@
 
 """Tests for timing models"""
-import pytest
 
 from timing_engine import TimingContext, TimingModelRegistry
 from timing_engine.models.regime_model import RegimeModel

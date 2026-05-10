@@ -3,9 +3,8 @@
 模拟组合在时间序列上的运行，包括建仓/调仓/成本建模/绩效计算/基准比较。
 """
 import uuid
-from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from core.contracts.paper_trading import (
     BenchmarkComparison,
@@ -18,7 +17,6 @@ from core.contracts.paper_trading import (
     SimulationAssumptions,
     SimulationMode,
     SimulationResult,
-    TransactionCost,
 )
 from core.contracts.portfolio import PortfolioProposal
 from core.observability import get_logger
@@ -171,7 +169,11 @@ class PaperTradingService:
         turnover = total_abs_drift / 2.0
 
         # 计算当前 NAV
-        total_value = portfolio.current_snapshot.total_value if portfolio.current_snapshot else assumptions.initial_capital
+        total_value = (
+            portfolio.current_snapshot.total_value
+            if portfolio.current_snapshot
+            else assumptions.initial_capital
+        )
 
         # 生成交易明细和成本
         trades: List[Dict[str, Any]] = []
@@ -205,17 +207,19 @@ class PaperTradingService:
             impact = trade_value * cost_model.impact_rate
 
             action = "buy" if weight_delta > 0 else "sell"
-            trades.append({
-                "subject_id": subject_id,
-                "action": action,
-                "weight_delta": weight_delta,
-                "trade_value": trade_value,
-                "price": price,
-                "commission": commission,
-                "slippage": slippage,
-                "stamp_tax": stamp_tax,
-                "impact": impact,
-            })
+            trades.append(
+                {
+                    "subject_id": subject_id,
+                    "action": action,
+                    "weight_delta": weight_delta,
+                    "trade_value": trade_value,
+                    "price": price,
+                    "commission": commission,
+                    "slippage": slippage,
+                    "stamp_tax": stamp_tax,
+                    "impact": impact,
+                }
+            )
 
             total_commission += commission
             total_slippage += slippage + impact
@@ -259,7 +263,13 @@ class PaperTradingService:
                     current_price=price,
                     market_value=allocated,
                     unrealized_pnl=allocated - (old_pos.cost_basis if old_pos else allocated),
-                    unrealized_pnl_pct=(allocated / (old_pos.cost_basis if old_pos and old_pos.cost_basis > 0 else allocated)) - 1.0 if old_pos else 0.0,
+                    unrealized_pnl_pct=(
+                        allocated
+                        / (old_pos.cost_basis if old_pos and old_pos.cost_basis > 0 else allocated)
+                    )
+                    - 1.0
+                    if old_pos
+                    else 0.0,
                     cost_basis=allocated,
                 )
             )
@@ -328,9 +338,7 @@ class PaperTradingService:
             market_value = pos.shares * price
             unrealized_pnl = market_value - pos.cost_basis
             unrealized_pnl_pct = (
-                (market_value / pos.cost_basis - 1.0)
-                if pos.cost_basis > 0
-                else 0.0
+                (market_value / pos.cost_basis - 1.0) if pos.cost_basis > 0 else 0.0
             )
             total_value += market_value
 
@@ -425,7 +433,9 @@ class PaperTradingService:
             num_days = 1
 
         # 年化收益 (252交易日)
-        annualized_return = (1.0 + total_return) ** (252.0 / num_days) - 1.0 if num_days > 0 else 0.0
+        annualized_return = (
+            (1.0 + total_return) ** (252.0 / num_days) - 1.0 if num_days > 0 else 0.0
+        )
 
         # 最大回撤
         max_drawdown = self._compute_max_drawdown(snapshots)
@@ -450,7 +460,9 @@ class PaperTradingService:
         total_turnover = sum(r.turnover for r in portfolio.rebalance_events)
 
         # 平均暴露
-        avg_exposure = sum(s.gross_exposure for s in snapshots) / len(snapshots) if snapshots else 1.0
+        avg_exposure = (
+            sum(s.gross_exposure for s in snapshots) / len(snapshots) if snapshots else 1.0
+        )
 
         # 累计交易成本
         total_transaction_costs = sum(r.total_cost for r in portfolio.rebalance_events)
@@ -536,14 +548,19 @@ class PaperTradingService:
                         diffs = [a - b for a, b in zip(aligned_portfolio, aligned_bench)]
                         mean_diff = sum(diffs) / len(diffs)
                         variance = sum((d - mean_diff) ** 2 for d in diffs) / len(diffs)
-                        tracking_error = (variance ** 0.5) * (252 ** 0.5) if variance > 0 else 0.0
+                        tracking_error = (variance**0.5) * (252**0.5) if variance > 0 else 0.0
 
                         # Information ratio
                         if tracking_error and tracking_error > 0:
-                            information_ratio = (excess_return / tracking_error) if tracking_error > 0 else None
+                            information_ratio = (
+                                (excess_return / tracking_error) if tracking_error > 0 else None
+                            )
 
                         # Beta
-                        bench_var = sum((b - sum(aligned_bench) / len(aligned_bench)) ** 2 for b in aligned_bench) / len(aligned_bench)
+                        bench_var = sum(
+                            (b - sum(aligned_bench) / len(aligned_bench)) ** 2
+                            for b in aligned_bench
+                        ) / len(aligned_bench)
                         if bench_var > 0:
                             bench_mean = sum(aligned_bench) / len(aligned_bench)
                             port_mean = sum(aligned_portfolio) / len(aligned_portfolio)
@@ -554,9 +571,14 @@ class PaperTradingService:
                             beta = cov / bench_var
 
                             # Alpha (annualized)
-                            annualized_bench = (1.0 + bench_return) ** (252.0 / max(metrics.num_trading_days, 1)) - 1.0
+                            annualized_bench = (1.0 + bench_return) ** (
+                                252.0 / max(metrics.num_trading_days, 1)
+                            ) - 1.0
                             risk_free_daily = 0.02 / 252
-                            alpha = metrics.annualized_return - (risk_free_daily * 252 + (beta or 1.0) * (annualized_bench - risk_free_daily * 252))
+                            alpha = metrics.annualized_return - (
+                                risk_free_daily * 252
+                                + (beta or 1.0) * (annualized_bench - risk_free_daily * 252)
+                            )
 
             comparisons.append(
                 BenchmarkComparison(
@@ -611,7 +633,7 @@ class PaperTradingService:
             for sid in subject_ids:
                 prices = price_history.get(sid, [])
                 if len(prices) > i and prices[i - 1] > 0:
-                    daily_return += (prices[i] / prices[i - 1] - 1.0)
+                    daily_return += prices[i] / prices[i - 1] - 1.0
                     valid_count += 1
 
             if valid_count > 0:
@@ -673,12 +695,13 @@ class PaperTradingService:
             assumptions = SimulationAssumptions(mode=SimulationMode.REPLAY)
 
         # 创建模拟组合
-        portfolio = self.create_paper_portfolio(
-            proposal, name=name, assumptions=assumptions
-        )
+        portfolio = self.create_paper_portfolio(proposal, name=name, assumptions=assumptions)
 
         subject_ids = list(proposal.allocations.keys())
-        num_days = min(len(dates), max(len(price_history.get(sid, [])) for sid in subject_ids) if subject_ids else 0)
+        num_days = min(
+            len(dates),
+            max(len(price_history.get(sid, [])) for sid in subject_ids) if subject_ids else 0,
+        )
 
         if num_days < 2:
             logger.warning("insufficient price history for simulation", num_days=num_days)
@@ -711,7 +734,9 @@ class PaperTradingService:
             rebalance_counter += 1
             if rebalance_counter >= assumptions.rebalance_frequency_days:
                 # 检查偏离阈值
-                if self._check_drift_threshold(portfolio, proposal.allocations, assumptions.drift_threshold):
+                if self._check_drift_threshold(
+                    portfolio, proposal.allocations, assumptions.drift_threshold
+                ):
                     portfolio, _ = self.rebalance(
                         portfolio,
                         proposal.allocations,
@@ -733,7 +758,9 @@ class PaperTradingService:
             eq_return, eq_nav = self.generate_equal_weight_baseline(subject_ids, price_history)
             benchmark_returns = {"equal_weight": eq_return}
             benchmark_nav_series["equal_weight"] = eq_nav
-            comparisons = self.compare_benchmarks(portfolio, benchmark_returns, benchmark_nav_series)
+            comparisons = self.compare_benchmarks(
+                portfolio, benchmark_returns, benchmark_nav_series
+            )
             benchmark_comparisons.extend(comparisons)
 
         # Top-K 信号基准
@@ -745,14 +772,13 @@ class PaperTradingService:
             top_k_return, top_k_nav = self.generate_top_k_signal_baseline(candidates, price_history)
             benchmark_returns = {"top_k_signal": top_k_return}
             benchmark_nav_series["top_k_signal"] = top_k_nav
-            comparisons = self.compare_benchmarks(portfolio, benchmark_returns, benchmark_nav_series)
+            comparisons = self.compare_benchmarks(
+                portfolio, benchmark_returns, benchmark_nav_series
+            )
             benchmark_comparisons.extend(comparisons)
 
         # 生成 NAV 序列
-        nav_series = [
-            {"date": s.timestamp.isoformat(), "nav": s.nav}
-            for s in portfolio.snapshots
-        ]
+        nav_series = [{"date": s.timestamp.isoformat(), "nav": s.nav} for s in portfolio.snapshots]
 
         total_turnover = sum(r.turnover for r in portfolio.rebalance_events)
 
@@ -810,10 +836,14 @@ class PaperTradingService:
             return self._paper_trading_repo.get_simulation_result(result_id)
         return None
 
-    def list_simulation_results(self, portfolio_id: Optional[str] = None, limit: int = 100) -> List[SimulationResult]:
+    def list_simulation_results(
+        self, portfolio_id: Optional[str] = None, limit: int = 100
+    ) -> List[SimulationResult]:
         """列出模拟结果"""
         if self._paper_trading_repo:
-            return self._paper_trading_repo.list_simulation_results(portfolio_id=portfolio_id, limit=limit)
+            return self._paper_trading_repo.list_simulation_results(
+                portfolio_id=portfolio_id, limit=limit
+            )
         return []
 
     # ── 内部计算方法 ────────────────────────────────────
@@ -856,7 +886,7 @@ class PaperTradingService:
 
         avg_return = sum(daily_returns) / len(daily_returns)
         variance = sum((r - avg_return) ** 2 for r in daily_returns) / len(daily_returns)
-        std_dev = variance ** 0.5
+        std_dev = variance**0.5
 
         if std_dev < 1e-10:
             return None
@@ -864,7 +894,7 @@ class PaperTradingService:
         # 年化
         daily_rf = risk_free_rate / 252
         excess_return = (avg_return - daily_rf) * 252
-        annualized_std = std_dev * (252 ** 0.5)
+        annualized_std = std_dev * (252**0.5)
 
         return excess_return / annualized_std if annualized_std > 0 else None
 
@@ -881,8 +911,10 @@ class PaperTradingService:
         if not downside_returns:
             return None
 
-        downside_std = (sum((r - daily_rf) ** 2 for r in downside_returns) / len(daily_returns)) ** 0.5
-        annualized_downside_std = downside_std * (252 ** 0.5)
+        downside_std = (
+            sum((r - daily_rf) ** 2 for r in downside_returns) / len(daily_returns)
+        ) ** 0.5
+        annualized_downside_std = downside_std * (252**0.5)
 
         avg_return = sum(daily_returns) / len(daily_returns)
         annualized_excess = (avg_return - daily_rf) * 252
@@ -896,9 +928,7 @@ class PaperTradingService:
         wins = sum(1 for r in daily_returns if r > 0)
         return wins / len(daily_returns)
 
-    def _compute_avg_win_loss(
-        self, daily_returns: List[float]
-    ) -> Tuple[float, float]:
+    def _compute_avg_win_loss(self, daily_returns: List[float]) -> Tuple[float, float]:
         """计算平均盈利和平均亏损"""
         wins = [r for r in daily_returns if r > 0]
         losses = [r for r in daily_returns if r < 0]
@@ -919,8 +949,7 @@ class PaperTradingService:
             return True
 
         current_weights = {
-            pos.subject_id: pos.weight
-            for pos in portfolio.current_snapshot.positions
+            pos.subject_id: pos.weight for pos in portfolio.current_snapshot.positions
         }
 
         all_keys = set(current_weights.keys()) | set(target_allocations.keys())

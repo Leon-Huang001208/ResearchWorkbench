@@ -4,7 +4,6 @@ Canonical ID 生成器
 import hashlib
 import re
 from enum import Enum
-from pathlib import Path
 from typing import Optional
 
 from core.observability import get_logger

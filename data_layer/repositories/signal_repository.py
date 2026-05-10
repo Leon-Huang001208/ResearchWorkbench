@@ -1,6 +1,5 @@
 """信号仓储实现"""
 from typing import List, Optional
-from sqlalchemy.orm import Session
 
 from core.contracts import AlphaSignal, EventAlphaSignal, TradeCandidate
 from core.observability import get_logger

@@ -13,13 +13,12 @@ import uuid
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from core.contracts.events import CanonicalEvent
 from core.contracts.replay import ReplayAggregate, ReplayJob, ReplayResult
-from core.contracts.signals import EventAlphaSignal
 from core.observability import get_logger
-from core.services.event_extractor import EventExtractor, ExtractedSignalParams
+from core.services.event_extractor import EventExtractor
 from data_layer.repositories.replay_repository import ReplayRepositoryImpl
 
 logger = get_logger(__name__)
@@ -29,14 +28,54 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 # 模拟 outcome 参数：按事件类型给出不同的收益率分布
 _OUTCOME_PROFILES: dict[str, dict] = {
-    "earnings": {"mean_return": 0.02, "mean_excess": 0.015, "mean_drawdown": -0.04, "mean_decay": 0.12},
-    "policy": {"mean_return": 0.03, "mean_excess": 0.025, "mean_drawdown": -0.03, "mean_decay": 0.10},
-    "product": {"mean_return": 0.04, "mean_excess": 0.035, "mean_drawdown": -0.05, "mean_decay": 0.15},
-    "merger_acquisition": {"mean_return": 0.05, "mean_excess": 0.04, "mean_drawdown": -0.06, "mean_decay": 0.08},
-    "rating_change": {"mean_return": 0.01, "mean_excess": 0.008, "mean_drawdown": -0.02, "mean_decay": 0.20},
-    "supply_chain": {"mean_return": 0.02, "mean_excess": 0.015, "mean_drawdown": -0.05, "mean_decay": 0.18},
-    "macro": {"mean_return": 0.015, "mean_excess": 0.01, "mean_drawdown": -0.03, "mean_decay": 0.10},
-    "other": {"mean_return": 0.01, "mean_excess": 0.005, "mean_drawdown": -0.04, "mean_decay": 0.15},
+    "earnings": {
+        "mean_return": 0.02,
+        "mean_excess": 0.015,
+        "mean_drawdown": -0.04,
+        "mean_decay": 0.12,
+    },
+    "policy": {
+        "mean_return": 0.03,
+        "mean_excess": 0.025,
+        "mean_drawdown": -0.03,
+        "mean_decay": 0.10,
+    },
+    "product": {
+        "mean_return": 0.04,
+        "mean_excess": 0.035,
+        "mean_drawdown": -0.05,
+        "mean_decay": 0.15,
+    },
+    "merger_acquisition": {
+        "mean_return": 0.05,
+        "mean_excess": 0.04,
+        "mean_drawdown": -0.06,
+        "mean_decay": 0.08,
+    },
+    "rating_change": {
+        "mean_return": 0.01,
+        "mean_excess": 0.008,
+        "mean_drawdown": -0.02,
+        "mean_decay": 0.20,
+    },
+    "supply_chain": {
+        "mean_return": 0.02,
+        "mean_excess": 0.015,
+        "mean_drawdown": -0.05,
+        "mean_decay": 0.18,
+    },
+    "macro": {
+        "mean_return": 0.015,
+        "mean_excess": 0.01,
+        "mean_drawdown": -0.03,
+        "mean_decay": 0.10,
+    },
+    "other": {
+        "mean_return": 0.01,
+        "mean_excess": 0.005,
+        "mean_drawdown": -0.04,
+        "mean_decay": 0.15,
+    },
 }
 
 
@@ -135,13 +174,15 @@ class ReplayService:
                     event_id=event_info.get("event_id", f"event_{i}"),
                     error=str(exc),
                 )
-                results.append(ReplayResult(
-                    job_id=job_id,
-                    event_id=event_info.get("event_id", f"event_{i}"),
-                    event_type=event_info.get("event_type", "unknown"),
-                    source_type=event_info.get("source_type", "unknown"),
-                    error=str(exc),
-                ))
+                results.append(
+                    ReplayResult(
+                        job_id=job_id,
+                        event_id=event_info.get("event_id", f"event_{i}"),
+                        event_type=event_info.get("event_type", "unknown"),
+                        source_type=event_info.get("source_type", "unknown"),
+                        error=str(exc),
+                    )
+                )
 
         # 保存结果
         for result in results:
@@ -218,7 +259,9 @@ class ReplayService:
                 extracted = await self.event_extractor.extract(input_text)
                 signal_score = extracted.score
                 signal_confidence = extracted.confidence
-                event_type = extracted.event_type if extracted.event_type != "unknown" else event_type
+                event_type = (
+                    extracted.event_type if extracted.event_type != "unknown" else event_type
+                )
             except Exception as exc:
                 logger.warning(
                     "event extraction failed in replay",
@@ -438,7 +481,12 @@ class ReplayService:
                 )
                 total = len(action_results)
                 avg_excess = (
-                    sum(r.outcome_excess_return for r in action_results if r.outcome_excess_return is not None) / total
+                    sum(
+                        r.outcome_excess_return
+                        for r in action_results
+                        if r.outcome_excess_return is not None
+                    )
+                    / total
                     if total > 0
                     else 0.0
                 )
@@ -492,14 +540,12 @@ class ReplayService:
             else 0.0
         )
         avg_drawdown = (
-            sum(r.max_drawdown for r in successful if r.max_drawdown is not None)
-            / len(successful)
+            sum(r.max_drawdown for r in successful if r.max_drawdown is not None) / len(successful)
             if successful
             else 0.0
         )
         avg_decay = (
-            sum(r.decay for r in successful if r.decay is not None)
-            / len(successful)
+            sum(r.decay for r in successful if r.decay is not None) / len(successful)
             if successful
             else 0.0
         )
@@ -571,14 +617,17 @@ class ReplayService:
                 if r.outcome_excess_return is not None and r.outcome_excess_return > 0
             )
             avg_excess = (
-                sum(r.outcome_excess_return for r in group_results if r.outcome_excess_return is not None)
+                sum(
+                    r.outcome_excess_return
+                    for r in group_results
+                    if r.outcome_excess_return is not None
+                )
                 / total
                 if total > 0
                 else 0.0
             )
             avg_score = (
-                sum(r.signal_score for r in group_results if r.signal_score is not None)
-                / total
+                sum(r.signal_score for r in group_results if r.signal_score is not None) / total
                 if total > 0
                 else 0.0
             )
@@ -623,7 +672,11 @@ class ReplayService:
                 if r.outcome_excess_return is not None and r.outcome_excess_return > 0
             )
             avg_excess = (
-                sum(r.outcome_excess_return for r in bucket_results if r.outcome_excess_return is not None)
+                sum(
+                    r.outcome_excess_return
+                    for r in bucket_results
+                    if r.outcome_excess_return is not None
+                )
                 / total
                 if total > 0
                 else 0.0
@@ -677,10 +730,13 @@ class ReplayService:
             self.repository.update_job_status(job_id, status, completed_at)
         elif job_id in self._jobs:
             job = self._jobs[job_id]
-            self._jobs[job_id] = job.model_copy(update={
-                "status": status,
-                "completed_at": completed_at or (datetime.now(timezone.utc) if status in ("completed", "failed") else None),
-            })
+            self._jobs[job_id] = job.model_copy(
+                update={
+                    "status": status,
+                    "completed_at": completed_at
+                    or (datetime.now(timezone.utc) if status in ("completed", "failed") else None),
+                }
+            )
 
     def _save_result(self, result: ReplayResult) -> None:
         """保存回放结果。"""

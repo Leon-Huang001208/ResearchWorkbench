@@ -2,7 +2,6 @@
 from typing import List, Optional
 from datetime import datetime
 
-from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
 from core.contracts.decision_console import (

@@ -11,7 +11,6 @@ import pytest
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from core.settings import settings
 from data_layer.repositories.base import check_database_connection, get_db
 from data_layer.repositories.models import SourceDocument, CanonicalEvent, AlphaSignalDB
 

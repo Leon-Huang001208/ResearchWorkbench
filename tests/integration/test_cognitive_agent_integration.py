@@ -8,7 +8,7 @@ import uuid
 from core.interfaces import ModelGateway
 from cognitive_agents.agents import AgentFactory, AgentOrchestrator, AgentContext
 from cognitive_agents.blackboard import CognitiveBlackboard
-from cognitive_agents.contracts import AgentRole, BlackboardConflict, AgentView
+from cognitive_agents.contracts import BlackboardConflict, AgentView
 
 
 @pytest.fixture

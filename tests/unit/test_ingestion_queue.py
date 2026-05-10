@@ -10,12 +10,10 @@ from core.contracts import CanonicalEvent
 from core.contracts.ingestion import (
     EnqueueRequest,
     IngestionQueueItem,
-    IngestionQueueStats,
 )
 from core.services.ingestion_queue_service import IngestionQueueService
 from data_layer.repositories.base import Base
 from data_layer.repositories.ingestion_repository import IngestionQueueRepository
-from data_layer.repositories.models import IngestionQueueItemDB
 
 # ─── 测试数据库设置 ──────────────────────────────────────
 

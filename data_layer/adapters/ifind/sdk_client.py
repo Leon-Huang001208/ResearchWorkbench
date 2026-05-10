@@ -1,10 +1,8 @@
 """iFinD Python SDK 客户端实现（占位）"""
 import logging
-import sys
 from typing import Any
 
 from core.settings.config import Settings
-from data_layer.adapters.ifind.client import IFinDClient
 from data_layer.adapters.ifind.exceptions import IFinDSDKNotAvailableError
 
 logger = logging.getLogger(__name__)

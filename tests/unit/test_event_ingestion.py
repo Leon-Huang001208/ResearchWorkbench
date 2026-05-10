@@ -1,9 +1,8 @@
-import pytest
 from datetime import datetime
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 
 from core.contracts import CanonicalEvent
-from ingestion.structured_event_ingestion import StructuredEventIngestor, AssertionExtractor, IngestionResult
+from ingestion.structured_event_ingestion import StructuredEventIngestor, AssertionExtractor
 from data_layer.repositories.event_repository import EventRepositoryImpl
 
 
