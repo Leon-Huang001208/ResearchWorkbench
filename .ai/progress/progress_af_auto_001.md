@@ -144,11 +144,21 @@ AF-AUTO-001 是 AlphaFoundry 项目的后续任务集，专注于修复失败的
 
 4. **af-auto-001-01d**: Fix signal_lab test failures
    - 依赖: af-auto-001-01c
-   - 状态: todo
+   - 状态: ✅ 已完成
+
+**完成内容**:
+- All 54 signal_lab tests pass
+- No fixes needed - tests were already working
 
 5. **af-auto-001-01e**: Full regression run
    - 依赖: af-auto-001-01d
-   - 状态: todo
+   - 状态: ✅ 已完成
+
+**完成内容**:
+- 778 tests pass (92.6% pass rate)
+- Improved from 765 passes (91.1%) at bootstrap
+- 57 failed, 5 errors remaining
+- Created full regression report
 
 6. **af-auto-001-02**: Add Quick-Win Tests (Phase 1)
    - 依赖: af-auto-001-01e
@@ -178,10 +188,10 @@ AF-AUTO-001 是 AlphaFoundry 项目的后续任务集，专注于修复失败的
 
 | 优先级 | 数量 | 状态 |
 |--------|------|------|
-| 高 | 8 | 5 已完成, 3 待处理 |
+| 高 | 8 | 7 已完成, 1 待处理 |
 | 中 | 3 | 0 已完成, 3 待处理 |
 | 低 | 0 | - |
-| **总计** | **12** | **5 已完成, 7 待处理** |
+| **总计** | **12** | **7 已完成, 5 待处理** |
 
 ---
 
