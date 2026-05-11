@@ -757,10 +757,7 @@ main() {
     print_header
     cd "$PROJECT_ROOT"
 
-    # Validate environment first
-    validate_environment
-
-    # Parse flags and command
+    # Parse flags and command FIRST - so --task-file is applied early
     local auto_confirm=0
     local cmd=""
 
@@ -806,6 +803,9 @@ main() {
                 ;;
         esac
     done
+
+    # Validate environment AFTER parsing arguments
+    validate_environment
 
     if [ -z "$cmd" ]; then
         print_help
