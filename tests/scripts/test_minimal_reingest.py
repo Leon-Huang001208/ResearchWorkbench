@@ -12,7 +12,7 @@ import pytest
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from data_layer.repositories.base import check_database_connection, get_db
+from data_layer.repositories.base import check_database_connection, db_session
 from data_layer.repositories.models import AlphaSignalDB, CanonicalEvent, SourceDocument
 
 
@@ -84,7 +84,7 @@ def test_database_has_data_after_dry_run():
     reporter = MinimalReingestReporter()
 
     # Check connectivity - this will fail if schema doesn't exist
-    with get_db() as db:
+    with db_session() as db:
         # Try to query source documents - should not throw exception
         count = db.query(SourceDocument).count()
         # Count can be zero if we haven't ingested yet, just check query works

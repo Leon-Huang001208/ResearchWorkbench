@@ -5,7 +5,7 @@ from typing import Dict, List, Optional
 
 from core.contracts.outcome_journal import FailureClassification, TradeOutcome, WeeklyReviewReport
 from core.observability import get_logger
-from data_layer.repositories.base import get_db
+from data_layer.repositories.base import db_session
 from data_layer.repositories.outcome_journal_repository import OutcomeJournalRepository
 
 logger = get_logger(__name__)
@@ -21,7 +21,7 @@ class OutcomeJournalService:
     def repository(self) -> OutcomeJournalRepository:
         """Get repository with database session."""
         if self._repository is None:
-            with get_db() as db:
+            with db_session() as db:
                 self._repository = OutcomeJournalRepository(db)
         return self._repository
 
@@ -30,25 +30,25 @@ class OutcomeJournalService:
         if not outcome.outcome_id:
             outcome.outcome_id = str(uuid.uuid4())
 
-        with get_db() as db:
+        with db_session() as db:
             repo = OutcomeJournalRepository(db)
             return repo.save(outcome)
 
     def get_outcome(self, outcome_id: str) -> Optional[TradeOutcome]:
         """Get an outcome by ID."""
-        with get_db() as db:
+        with db_session() as db:
             repo = OutcomeJournalRepository(db)
             return repo.get_by_id(outcome_id)
 
     def list_outcomes_for_signal(self, signal_id: str) -> List[TradeOutcome]:
         """List all outcomes for a signal."""
-        with get_db() as db:
+        with db_session() as db:
             repo = OutcomeJournalRepository(db)
             return repo.list_by_signal_id(signal_id)
 
     def list_failures_by_class(self, failure_class: FailureClassification) -> List[TradeOutcome]:
         """List all failures of a specific class."""
-        with get_db() as db:
+        with db_session() as db:
             repo = OutcomeJournalRepository(db)
             return repo.list_by_failure_class(failure_class)
 
@@ -63,7 +63,7 @@ class OutcomeJournalService:
         start_datetime = datetime.combine(start_of_week, datetime.min.time(), tzinfo=timezone.utc)
         end_datetime = datetime.combine(end_of_week, datetime.max.time(), tzinfo=timezone.utc)
 
-        with get_db() as db:
+        with db_session() as db:
             repo = OutcomeJournalRepository(db)
             outcomes = repo.list_weekly(start_datetime, end_datetime)
             failure_counts = repo.count_by_failure_class()
@@ -102,6 +102,6 @@ class OutcomeJournalService:
 
     def count_failure_distribution(self) -> Dict[FailureClassification, int]:
         """Get the current failure distribution across all outcomes."""
-        with get_db() as db:
+        with db_session() as db:
             repo = OutcomeJournalRepository(db)
             return repo.count_by_failure_class()
