@@ -4,7 +4,7 @@
 **当前状态**: 进行中  
 **任务集ID**: af-auto-001  
 **项目**: AlphaFoundry  
-**当前分支**: af-auto-001-setup-branch-workflow
+**当前分支**: af-auto-001-categorize-failing-tests
 
 ---
 
@@ -15,6 +15,23 @@ AF-AUTO-001 是 AlphaFoundry 项目的后续任务集，专注于修复失败的
 ---
 
 ## 任务状态
+
+### af-auto-001-01a: Categorize failing tests
+
+**状态**: ✅ 已完成（bootstrap 分析已完成）  
+**开始日期**: 2026-05-11  
+**完成日期**: 2026-05-11  
+
+**完成内容**:
+- Bootstrap 分析已提供完整分类
+- 识别出 12 个不同的失败类别
+- 映射了 2 个主要根本原因
+- 创建了级联失败的依赖关系图
+- **没有修复任何测试** - 仅分析
+
+**报告**: `.ai/reports/test_categorization.md`
+
+---
 
 ### af-auto-001-00: Set Up Branch and PR Workflow
 
@@ -83,7 +100,7 @@ AF-AUTO-001 是 AlphaFoundry 项目的后续任务集，专注于修复失败的
 
 1. **af-auto-001-01a**: Categorize failing tests
    - 依赖: af-auto-001-00
-   - 状态: todo
+   - 状态: ✅ 已完成
 
 2. **af-auto-001-01b**: Fix API test failures
    - 依赖: af-auto-001-01a
@@ -129,10 +146,10 @@ AF-AUTO-001 是 AlphaFoundry 项目的后续任务集，专注于修复失败的
 
 | 优先级 | 数量 | 状态 |
 |--------|------|------|
-| 高 | 8 | 2 已完成, 6 待处理 |
+| 高 | 8 | 3 已完成, 5 待处理 |
 | 中 | 3 | 0 已完成, 3 待处理 |
 | 低 | 0 | - |
-| **总计** | **11** | **2 已完成, 9 待处理** |
+| **总计** | **11** | **3 已完成, 8 待处理** |
 
 ---
 
@@ -148,18 +165,18 @@ AF-AUTO-001 是 AlphaFoundry 项目的后续任务集，专注于修复失败的
 
 ## 下一个任务
 
-**下一个可执行任务**（二选一，都依赖 af-auto-001-00 ✓）：
+**下一个可执行任务**（二选一，都可以开始）：
 
-1. **af-auto-001-01a**: Categorize failing tests（继续测试修复路径）
+1. **af-auto-001-01b**: Fix API test failures（继续测试修复路径）
+   - 依赖: af-auto-001-01a ✓ 已完成
 2. **af-auto-001-03**: Complete Reasoning Layer TODOs（并行执行路径）
-
-注意：bootstrap 分析已经创建了详细的分类，01a 可能可以跳过或快速验证。
+   - 依赖: af-auto-001-00 ✓ 已完成
 
 ---
 
 ## 备注
 
-- **分支**: af-auto-001-setup-branch-workflow (feature branch)
+- **分支**: af-auto-001-categorize-failing-tests (feature branch)
 - **任务文件**: .ai/tasks/task_af_auto_001.json
 - **编排器**: 支持 --task-file 选项
 - **第一阶段**: 仅分析，不修复 ✓
