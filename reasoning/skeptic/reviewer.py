@@ -1,6 +1,7 @@
 """
 反证审查节点
 """
+from datetime import datetime, timedelta
 from typing import List
 
 from core.observability import get_logger
@@ -47,7 +48,22 @@ class Skeptic:
             notes.append(f"仅检索到 {len(doc_ids)} 个文档，来源可能不够多样化")
 
         # 4. 检查时间相关性
-        # TODO: 检查证据的时效性
+        now = datetime.utcnow()
+        threshold_days = 90  # 3个月以上视为旧数据
+        old_events = 0
+
+        for event_dict in state.retrieved_events:
+            event_time_str = event_dict.get("event_time")
+            if event_time_str:
+                try:
+                    event_time = datetime.fromisoformat(event_time_str)
+                    if (now - event_time) > timedelta(days=threshold_days):
+                        old_events += 1
+                except (ValueError, TypeError):
+                    pass
+
+        if old_events > 0:
+            notes.append(f"发现 {old_events} 个超过 {threshold_days} 天的旧事件，建议检查时效性")
 
         state.skeptic_notes = notes
 
