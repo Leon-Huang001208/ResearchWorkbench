@@ -1,0 +1,155 @@
+{
+  "tasks": [
+    {
+      "id": "af-auto-001-01",
+      "title": "Fix Failing Tests",
+      "description": "Fix the failing tests identified in AF-AUTO-000 baseline runs until the full test suite is stable enough for AF-AUTO-001 work.",
+      "priority": "high",
+      "dependencies": [],
+      "success_criteria": [
+        "Previously failing tests are categorized by root cause",
+        "At least one full pytest run completes with updated results documented",
+        "The number of failing tests is materially reduced or blockers are explicitly documented",
+        "A detailed fix report is created"
+      ],
+      "verification_commands": [
+        "python -m pytest tests/ -v --tb=short",
+        "python -m pytest tests/ -v --tb=short --maxfail=20"
+      ],
+      "required_skill": "python-testing",
+      "research_required": false,
+      "status": "todo"
+    },
+    {
+      "id": "af-auto-001-02",
+      "title": "Add Quick-Win Tests (Phase 1)",
+      "description": "Add the quick-win tests identified in AF-AUTO-000-10 for critical but lightly tested services.",
+      "priority": "high",
+      "dependencies": [
+        "af-auto-001-01"
+      ],
+      "success_criteria": [
+        "Tests added for signal_service",
+        "Tests added for failure_memory_service",
+        "Tests added for outcome_service",
+        "Tests added for search_service",
+        "Tests added for report_generator",
+        "A report summarizing quick-win test additions is created"
+      ],
+      "verification_commands": [
+        "python -m pytest tests/ -k 'signal_service or failure_memory_service or outcome_service or search_service or report_generator' -v --tb=short"
+      ],
+      "required_skill": "python-testing",
+      "research_required": false,
+      "status": "todo"
+    },
+    {
+      "id": "af-auto-001-03",
+      "title": "Complete Reasoning Layer TODOs",
+      "description": "Implement the remaining TODO items in the reasoning layer that were identified during AF-AUTO-000.",
+      "priority": "high",
+      "dependencies": [],
+      "success_criteria": [
+        "LLM hypothesis generation is implemented or clearly stubbed behind a safe interface",
+        "Assertion query support is added in the evidence collector",
+        "Event query support is added in the evidence collector",
+        "Temporal correlation check is added in skeptic logic",
+        "A reasoning layer completion report is created"
+      ],
+      "verification_commands": [
+        "python -m pytest tests/ -k 'reasoning or skeptic or evidence or scenarios' -v --tb=short"
+      ],
+      "required_skill": "python-backend",
+      "research_required": true,
+      "status": "todo"
+    },
+    {
+      "id": "af-auto-001-04",
+      "title": "Phase 2 - Critical Services Test Coverage",
+      "description": "Add tests for high-risk core services and improve service-level coverage after quick-win tests are complete.",
+      "priority": "medium",
+      "dependencies": [
+        "af-auto-001-02"
+      ],
+      "success_criteria": [
+        "Tests added for paper_trading_service",
+        "Tests added for monitoring_service",
+        "Tests added for replay_service",
+        "Tests added for closed_loop_service",
+        "Tests added for governance_service",
+        "Coverage improves by approximately 10 percentage points or blockers are documented",
+        "A phase 2 coverage report is created"
+      ],
+      "verification_commands": [
+        "python -m pytest tests/ -k 'paper_trading or monitoring or replay or closed_loop or governance' -v --tb=short",
+        "python -m pytest tests/ --cov=core --cov=data_layer --cov=signal_lab --cov-report=term-missing"
+      ],
+      "required_skill": "python-testing",
+      "research_required": false,
+      "status": "todo"
+    },
+    {
+      "id": "af-auto-001-05",
+      "title": "Phase 3 - Knowledge Layer Test Coverage",
+      "description": "Add tests for knowledge layer modules once critical service coverage work is complete.",
+      "priority": "medium",
+      "dependencies": [
+        "af-auto-001-04"
+      ],
+      "success_criteria": [
+        "Tests added for entity resolution",
+        "Tests added for assertion extraction or assertion workflows",
+        "Tests added for event extraction or event workflows",
+        "Tests added for graph projection",
+        "Tests added for retrieval including hybrid search and vector store logic where testable",
+        "A phase 3 coverage report is created"
+      ],
+      "verification_commands": [
+        "python -m pytest tests/ -k 'knowledge or entity_resolution or assertions or events or graph or retrieval' -v --tb=short"
+      ],
+      "required_skill": "python-testing",
+      "research_required": false,
+      "status": "todo"
+    },
+    {
+      "id": "af-auto-001-06",
+      "title": "Phase 4 - Reach 75 Percent Coverage",
+      "description": "Add remaining tests and close the most important coverage gaps until the repository reaches the AF-AUTO-001 target coverage level.",
+      "priority": "medium",
+      "dependencies": [
+        "af-auto-001-05"
+      ],
+      "success_criteria": [
+        "Overall test coverage reaches at least 75 percent or the exact blocker is documented",
+        "All critical modules have explicit test coverage status documented",
+        "A final AF-AUTO-001 coverage report is created"
+      ],
+      "verification_commands": [
+        "python -m pytest tests/ --cov=core --cov=data_layer --cov=signal_lab --cov=knowledge_layer --cov=reasoning --cov=timing_engine --cov=memory_learning --cov-report=term-missing"
+      ],
+      "required_skill": "python-testing",
+      "research_required": false,
+      "status": "todo"
+    }
+  ],
+  "metadata": {
+    "project_name": "AlphaFoundry",
+    "task_set_id": "af-auto-001",
+    "task_set_description": "AF-AUTO-001: Test stabilization, coverage expansion, and reasoning-layer completion",
+    "based_on": "AF-AUTO-000 findings",
+    "status": "ready",
+    "total_tasks": 6,
+    "priorities": {
+      "high": 3,
+      "medium": 3,
+      "low": 0
+    },
+    "status_definitions": {
+      "todo": "Task not started",
+      "doing": "Task currently in progress",
+      "blocked": "Task blocked on dependencies or issues",
+      "done": "Task completed successfully",
+      "failed": "Task failed"
+    }
+  }
+}
