@@ -595,16 +595,67 @@
                 "health_check": "ok",
                 "report": ".ai/reports/end_to_end_smoke_test_report.md"
             }
+        },
+        {
+            "id": "af-auto-000-finalize",
+            "title": "AF-AUTO-000 Final Cleanup",
+            "description": "Clean up AF-AUTO-000 project state after all tasks are done. Reconcile task counts, remove stale sections, create follow-up proposal.",
+            "priority": "high",
+            "dependencies": [
+                "af-auto-000-01",
+                "af-auto-000-02",
+                "af-auto-000-03",
+                "af-auto-000-04",
+                "af-auto-000-04b",
+                "af-auto-000-04c",
+                "af-auto-000-04d",
+                "af-auto-000-04e",
+                "af-auto-000-04f",
+                "af-auto-000-04g",
+                "af-auto-000-04h",
+                "af-auto-000-05",
+                "af-auto-000-06",
+                "af-auto-000-07",
+                "af-auto-000-08",
+                "af-auto-000-09",
+                "af-auto-000-10",
+                "af-auto-000-11",
+                "af-auto-000-12"
+            ],
+            "success_criteria": [
+                "Task count reconciled between task.json and progress.md",
+                "Stale 'next task' sections removed from progress.md",
+                "Remaining issues moved to follow-up task set proposal AF-AUTO-001",
+                "Final summary report created at .ai/reports/af_auto_000_final_summary.md",
+                "No business logic modified"
+            ],
+            "verification_commands": [
+                "ls -la .ai/reports/",
+                "ls -la .ai/tasks/"
+            ],
+            "required_skill": "project-management",
+            "research_required": false,
+            "status": "done",
+            "results": {
+                "task_counts_reconciled": true,
+                "stale_sections_removed": true,
+                "follow_up_proposal_created": true,
+                "final_summary_report_created": true,
+                "no_business_changes": true,
+                "final_summary_report": ".ai/reports/af_auto_000_final_summary.md",
+                "follow_up_proposal": ".ai/tasks/task_af_auto_001_proposal.md"
+            }
         }
     ],
     "metadata": {
         "project_name": "AlphaFoundry",
-        "audit_date": "2026-05-10",
+        "start_date": "2026-05-10",
+        "complete_date": "2026-05-11",
         "task_set_id": "af-auto-000",
         "task_set_description": "AF-AUTO-000: Repository Audit and Initial Validation",
-        "total_tasks": 18,
+        "total_tasks": 20,
         "priorities": {
-            "high": 12,
+            "high": 14,
             "medium": 6,
             "low": 0
         },
