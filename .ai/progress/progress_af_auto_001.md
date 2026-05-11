@@ -192,7 +192,17 @@ AF-AUTO-001 是 AlphaFoundry 项目的后续任务集，专注于修复失败的
 
 8. **af-auto-001-04**: Phase 2 - Critical Services Test Coverage
    - 依赖: af-auto-001-02
-   - 状态: todo
+   - 状态: ✅ 已完成
+
+**完成内容**:
+- 确认 paper_trading_service 已有 test_paper_trading.py (42 测试)
+- 确认 monitoring_service 已有 test_monitoring.py (43 测试)
+- 确认 replay_service 已有 test_replay.py (50 测试)
+- 确认 governance_service 已有 test_governance.py (26 测试)
+- 创建 test_closed_loop_service.py (9 测试)
+- 所有 170 个 Phase 2 测试通过
+
+**报告**: `.ai/reports/phase2_coverage_report.md`
 
 9. **af-auto-001-05**: Phase 3 - Knowledge Layer Test Coverage
    - 依赖: af-auto-001-04
@@ -209,9 +219,9 @@ AF-AUTO-001 是 AlphaFoundry 项目的后续任务集，专注于修复失败的
 | 优先级 | 数量 | 状态 |
 |--------|------|------|
 | 高 | 8 | 8 已完成, 0 待处理 |
-| 中 | 3 | 0 已完成, 3 待处理 |
+| 中 | 3 | 1 已完成, 2 待处理 |
 | 低 | 0 | - |
-| **总计** | **12** | **9 已完成, 3 待处理** |
+| **总计** | **12** | **10 已完成, 2 待处理** |
 
 ---
 
