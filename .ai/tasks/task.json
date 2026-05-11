@@ -482,7 +482,16 @@
             "verification_commands": [],
             "required_skill": "test-strategy",
             "research_required": false,
-            "status": "todo"
+            "status": "done",
+            "results": {
+                "report_created": ".ai/reports/test_coverage_improvement_plan.md",
+                "current_coverage": "49%",
+                "target_coverage": "75%",
+                "core_services_tested": 7,
+                "core_services_missing_tests": 36,
+                "roadmap_phases": 4,
+                "quick_win_tests_identified": 5
+            }
         },
         {
             "id": "af-auto-000-11",
