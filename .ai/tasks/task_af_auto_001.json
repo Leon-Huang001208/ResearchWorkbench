@@ -1,11 +1,31 @@
 {
     "tasks": [
         {
+            "id": "af-auto-001-00",
+            "title": "Set Up Branch and PR Workflow",
+            "description": "Add Git branch workflow rules so AF-AUTO-001 work is done on feature branches and merged via Pull Request instead of direct master commits.",
+            "priority": "high",
+            "dependencies": [],
+            "success_criteria": [
+                "CLAUDE.md includes branch workflow rules",
+                "run-automation.sh refuses execution on master unless explicitly allowed",
+                "AF-AUTO-001 tasks document their expected branch naming convention",
+                "A Git workflow report is created"
+            ],
+            "verification_commands": [
+                "git branch --show-current",
+                "grep -n \"Branch Workflow\" CLAUDE.md"
+            ],
+            "required_skill": "git-workflow",
+            "research_required": false,
+            "status": "done"
+        },
+        {
             "id": "af-auto-001-bootstrap",
             "title": "Analyze and categorize failing tests",
             "description": "Analyze all currently failing tests, categorize them by root cause, create mapping report. DO NOT FIX ANYTHING YET - JUST ANALYZE.",
             "priority": "high",
-            "dependencies": [],
+            "dependencies": ["af-auto-001-00"],
             "success_criteria": [
                 "Run full pytest suite to get current failures",
                 "Categorize failures by root cause",
@@ -19,14 +39,14 @@
             ],
             "required_skill": "python-testing",
             "research_required": false,
-            "status": "todo"
+            "status": "completed"
         },
         {
             "id": "af-auto-001-01a",
             "title": "Categorize failing tests",
             "description": "Categorize failing tests by failure type and create a detailed mapping.",
             "priority": "high",
-            "dependencies": ["af-auto-001-bootstrap"],
+            "dependencies": ["af-auto-001-00"],
             "success_criteria": [
                 "Create detailed categorization of all failing tests",
                 "Group tests by failure pattern",
@@ -141,7 +161,7 @@
             "title": "Complete Reasoning Layer TODOs",
             "description": "Implement the remaining TODO items in the reasoning layer that were identified during AF-AUTO-000.",
             "priority": "high",
-            "dependencies": [],
+            "dependencies": ["af-auto-001-00"],
             "success_criteria": [
                 "LLM hypothesis generation is implemented or clearly stubbed behind a safe interface",
                 "Assertion query support is added in the evidence collector",
@@ -224,10 +244,10 @@
         "task_set_id": "af-auto-001",
         "task_set_description": "AF-AUTO-001: Test stabilization, coverage expansion, and reasoning-layer completion (SPLIT INTO SUBTASKS FOR STABILITY",
         "based_on": "AF-AUTO-000 findings",
-        "status": "ready",
-        "total_tasks": 11,
+        "status": "in_progress",
+        "total_tasks": 12,
         "priorities": {
-            "high": 9,
+            "high": 10,
             "medium": 2,
             "low": 0
         },
