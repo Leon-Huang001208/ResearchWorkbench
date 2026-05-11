@@ -28,6 +28,11 @@ set -euo pipefail
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_ROOT="$( cd "$SCRIPT_DIR/../.." && pwd )"
 TASK_FILE="${PROJECT_ROOT}/.ai/tasks/task.json"
+PROGRESS_FILE="${PROJECT_ROOT}/.ai/progress/progress.md"
+
+# Track original task state for validation
+ORIGINAL_TASK_STATUS=""
+ORIGINAL_PROGRESS_MTIME=""
 
 # Colors for output
 RED='\033[0;31m'
@@ -303,6 +308,157 @@ else:
 " 2>/dev/null
 }
 
+# Get task status
+get_task_status() {
+    local task_id="$1"
+    python3 -c "
+import json
+with open('$TASK_FILE', 'r') as f:
+    data = json.load(f)
+for task in data['tasks']:
+    if task['id'] == '$task_id':
+        print(task.get('status', 'unknown'))
+        exit(0)
+print('unknown')
+" 2>/dev/null
+}
+
+# Check if task expects a report file
+task_expects_report() {
+    local task_id="$1"
+    python3 -c "
+import json
+with open('$TASK_FILE', 'r') as f:
+    data = json.load(f)
+for task in data['tasks']:
+    if task['id'] == '$task_id':
+        # Check if any success criteria mentions report
+        criteria = task.get('success_criteria', [])
+        for c in criteria:
+            if 'report' in c.lower() or 'file' in c.lower():
+                print('true')
+                exit(0)
+        # Check if task has results with audit_report in previous tasks (pattern)
+        if 'audit' in task.get('title', '').lower() or 'verify' in task.get('title', '').lower():
+            print('true')
+            exit(0)
+print('false')
+" 2>/dev/null
+}
+
+# Find report file for a task (looks in .ai/reports/ and .ai/tasks/)
+find_task_report() {
+    local task_id="$1"
+    # Try .ai/reports/ first
+    local report_file=$(find "$PROJECT_ROOT/.ai/reports" -type f -name "*${task_id//-/_}*" -o -name "*${task_id//-}*" 2>/dev/null | head -1)
+    if [ -n "$report_file" ]; then
+        echo "$report_file"
+        return 0
+    fi
+    # Try .ai/tasks/
+    report_file=$(find "$PROJECT_ROOT/.ai/tasks" -type f -name "*${task_id//-/_}*" -o -name "*${task_id//-}*" 2>/dev/null | head -1)
+    if [ -n "$report_file" ]; then
+        echo "$report_file"
+        return 0
+    fi
+    return 1
+}
+
+# Record original state before execution
+record_original_state() {
+    local task_id="$1"
+    ORIGINAL_TASK_STATUS=$(get_task_status "$task_id")
+    if [ -f "$PROGRESS_FILE" ]; then
+        ORIGINAL_PROGRESS_MTIME=$(stat -f "%m" "$PROGRESS_FILE" 2>/dev/null || stat -c "%Y" "$PROGRESS_FILE" 2>/dev/null || echo "0")
+    else
+        ORIGINAL_PROGRESS_MTIME="0"
+    fi
+}
+
+# Validate task artifacts after Claude execution
+validate_task_artifacts() {
+    local task_id="$1"
+
+    print_section "ARTIFACT VALIDATION" "Verifying task completion artifacts"
+
+    local validation_passed=1
+    local error_messages=()
+
+    # Check 1: Task status is no longer todo/doing
+    echo ""
+    print_info "Check 1/3: Task status"
+    local current_status=$(get_task_status "$task_id")
+    if [ "$current_status" = "todo" ] || [ "$current_status" = "doing" ]; then
+        print_error "Task status is still '$current_status' - should be 'done'"
+        error_messages+=("Task status not updated: still '$current_status'")
+        validation_passed=0
+    else
+        print_success "Task status: $current_status ✓"
+    fi
+
+    # Check 2: progress.md was updated
+    echo ""
+    print_info "Check 2/3: progress.md update"
+    if [ -f "$PROGRESS_FILE" ]; then
+        local current_mtime=$(stat -f "%m" "$PROGRESS_FILE" 2>/dev/null || stat -c "%Y" "$PROGRESS_FILE" 2>/dev/null || echo "0")
+        if [ "$current_mtime" != "$ORIGINAL_PROGRESS_MTIME" ]; then
+            print_success "progress.md was updated ✓"
+        else
+            # Check if task is mentioned in progress.md (might have been updated before we recorded)
+            if grep -q "$task_id" "$PROGRESS_FILE"; then
+                print_success "progress.md contains task reference ✓"
+            else
+                print_warning "progress.md doesn't appear to be updated (but could have been updated earlier)"
+                # Not a hard failure - just warning
+            fi
+        fi
+    else
+        print_error "progress.md not found"
+        error_messages+=("progress.md missing")
+        validation_passed=0
+    fi
+
+    # Check 3: Report file exists if expected
+    echo ""
+    print_info "Check 3/3: Report file"
+    local expects_report=$(task_expects_report "$task_id")
+    if [ "$expects_report" = "true" ]; then
+        local report_file=$(find_task_report "$task_id")
+        if [ -n "$report_file" ] && [ -f "$report_file" ]; then
+            print_success "Report file found: $(basename "$report_file") ✓"
+        else
+            # Look for ANY new files in .ai/reports/ or .ai/tasks/
+            local new_reports=$(find "$PROJECT_ROOT/.ai/reports" "$PROJECT_ROOT/.ai/tasks" -type f -mtime -1 2>/dev/null | head -5)
+            if [ -n "$new_reports" ]; then
+                print_success "Found recent report files: $(echo "$new_reports" | xargs basename | tr '\n' ', ') ✓"
+            else
+                print_warning "No report file found (but task might not need one)"
+                # Not a hard failure
+            fi
+        fi
+    else
+        print_info "Task doesn't explicitly expect a report file - skipping"
+    fi
+
+    # Final validation
+    echo ""
+    if [ "$validation_passed" -eq 1 ]; then
+        print_success "All critical artifacts validated successfully!"
+        return 0
+    else
+        print_error "CLAUDE FINISHED, BUT TASK ARTIFACTS WERE NOT WRITTEN"
+        echo ""
+        echo "Issues found:"
+        for msg in "${error_messages[@]}"; do
+            echo "  - $msg"
+        done
+        echo ""
+        echo "Please manually verify and update the task artifacts."
+        echo "Then mark as done with: $0 complete $task_id"
+        return 1
+    fi
+}
+
 # Run pre-flight health checks
 run_health_checks() {
     print_section "HEALTH CHECKS" "Pre-flight validation"
@@ -504,11 +660,13 @@ execute_task() {
         print_info "Auto-confirm enabled: skipping interactive prompt"
     fi
 
-    # Mark as doing before launching
+    # Mark as doing before launching and record state
     echo ""
-    print_info "Marking task as 'doing'..."
+    print_info "Marking task as 'doing' and recording initial state..."
+    record_original_state "$task_id"
     if update_task_status "$task_id" "doing"; then
         print_success "Task marked as 'doing'"
+        print_info "Recorded initial state for later validation"
     else
         print_error "Failed to update task status"
         rm -f "$prompt_file"
@@ -538,10 +696,17 @@ execute_task() {
         print_info "Task may be incomplete - check manually"
     else
         print_success "Claude Code execution complete"
-        print_info "Verify task.json and progress.md were updated"
     fi
 
-    return $claude_exit
+    # Validate task artifacts were created
+    echo ""
+    if validate_task_artifacts "$task_id"; then
+        print_success "Task artifacts verified - task appears complete!"
+        return 0
+    else
+        print_error "Claude finished, but task artifacts were not written"
+        return 1
+    fi
 }
 
 # Print help

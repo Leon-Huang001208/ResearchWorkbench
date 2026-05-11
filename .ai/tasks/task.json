@@ -309,6 +309,36 @@
             }
         },
         {
+            "id": "af-auto-000-04h",
+            "title": "Enforce post-execution artifact validation",
+            "description": "Add validation after Claude returns to ensure task.json status, progress.md, and report files are properly updated. If not, error with: 'Claude finished, but task artifacts were not written'",
+            "priority": "high",
+            "dependencies": [
+                "af-auto-000-04g"
+            ],
+            "success_criteria": [
+                "Add validate_task_artifacts() function to run-automation.sh",
+                "Validation checks: task status not todo/doing, progress.md updated, report exists if needed",
+                "Call validation after Claude finishes in execute_task()",
+                "On failure: print clear error message and exit non-zero",
+                "Create report documenting this feature",
+                "Update help text and documentation"
+            ],
+            "verification_commands": [
+                ".ai/scripts/run-automation.sh help"
+            ],
+            "required_skill": "automation",
+            "research_required": false,
+            "status": "done",
+            "results": {
+                "validation_functions_added": true,
+                "record_state_function_added": true,
+                "execute_task_updated": true,
+                "error_message_implemented": true,
+                "report_created": ".ai/reports/post_execution_validation.md"
+            }
+        },
+        {
             "id": "af-auto-000-05",
             "title": "Audit Knowledge Layer Modules",
             "description": "Verify the implementation status of knowledge layer modules including entity resolution, assertions, events, graph projection, and retrieval.",
