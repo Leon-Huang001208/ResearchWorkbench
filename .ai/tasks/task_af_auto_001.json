@@ -236,7 +236,7 @@
             ],
             "required_skill": "python-testing",
             "research_required": false,
-            "status": "todo"
+            "status": "done"
         }
     ],
     "metadata": {
@@ -244,7 +244,7 @@
         "task_set_id": "af-auto-001",
         "task_set_description": "AF-AUTO-001: Test stabilization, coverage expansion, and reasoning-layer completion (SPLIT INTO SUBTASKS FOR STABILITY",
         "based_on": "AF-AUTO-000 findings",
-        "status": "in_progress",
+        "status": "completed",
         "total_tasks": 12,
         "priorities": {
             "high": 10,
