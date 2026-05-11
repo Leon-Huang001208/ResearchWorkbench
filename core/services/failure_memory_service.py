@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from core.contracts.outcome_journal import FailureClassification, SimilarCase, TradeOutcome
 from core.observability import get_logger
-from data_layer.repositories.base import get_db
+from data_layer.repositories.base import db_session
 from data_layer.repositories.models import OutcomeRecordDB
 from data_layer.repositories.outcome_journal_repository import OutcomeJournalRepository
 
@@ -53,7 +53,7 @@ class FailureMemoryService:
         Returns:
             List of similar cases sorted by similarity descending
         """
-        with get_db() as db:
+        with db_session() as db:
             repo = OutcomeJournalRepository(db)
 
             if filter_success is False:
@@ -129,6 +129,6 @@ class FailureMemoryService:
 
     def get_all_categorized_failures(self) -> List[TradeOutcome]:
         """Get all categorized failures from memory."""
-        with get_db() as db:
+        with db_session() as db:
             repo = OutcomeJournalRepository(db)
             return repo.list_all_failures()

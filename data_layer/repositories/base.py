@@ -108,6 +108,27 @@ def get_db() -> Any:
         db.close()
 
 
+class db_session:
+    """Database session context manager for direct use.
+
+    Usage:
+        with db_session() as db:
+            ...
+    """
+
+    def __enter__(self):
+        self.db = SessionLocal()
+        return self.db
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is None:
+            self.db.commit()
+        else:
+            logger.error("database error", error=str(exc_val))
+            self.db.rollback()
+        self.db.close()
+
+
 class BaseRepository:
     """Base repository class."""
 

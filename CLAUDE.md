@@ -49,6 +49,22 @@ languages: Python (主), HTML/CSS/JS (Web UI)
 - 启动API: python -m uvicorn app.api.main:app --host 127.0.0.1 --port 8000
 - 初始化数据库: python scripts/bootstrap_db.py
 
+## 分支工作流规则
+
+1. 不要在 master/main 上直接执行 AF-AUTO-001 或后续任务。
+2. 在执行实现任务前，先创建或切换到任务分支。
+3. 分支命名约定：
+   - `af-auto-001-<简短描述>` 用于单个任务分支
+   - 示例：
+     - `af-auto-001-fix-failing-tests`
+     - `af-auto-001-reasoning-todos`
+     - `af-auto-001-quick-win-tests`
+4. 每个任务应该产生一个原子提交或一小系列相关提交。
+5. 任务完成后，推送分支并打开 Pull Request。
+6. master/main 仅通过 PR 合并接收更改。
+7. 除非用户明确指示，否则不要自动合并 PR。
+8. 仅审计任务（AF-AUTO-000）可以直接提交到 master。
+
 ## 硬性规则 - 绝不能违反
 
 ### 安全规则

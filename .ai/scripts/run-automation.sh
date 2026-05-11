@@ -81,6 +81,61 @@ print_task() {
     echo -e "  ${BLUE}${id}${NC}: ${title} [${status}]"
 }
 
+# Check if current branch is master/main
+is_master_branch() {
+    local current_branch=$(git branch --show-current 2>/dev/null || echo "")
+    if [ "$current_branch" = "master" ] || [ "$current_branch" = "main" ]; then
+        return 0
+    fi
+    return 1
+}
+
+# Check if task is audit-only (af-auto-000)
+is_audit_task() {
+    local task_id="$1"
+    if [[ "$task_id" == *"af-auto-000"* ]]; then
+        return 0
+    fi
+    return 1
+}
+
+# Validate branch before execution
+validate_branch() {
+    local task_id="$1"
+    local current_branch=$(git branch --show-current 2>/dev/null || echo "unknown")
+
+    print_section "BRANCH CHECK" "Validating Git branch for task execution"
+
+    if is_master_branch; then
+        if [ -z "$task_id" ] || ! is_audit_task "$task_id"; then
+            print_error "Cannot execute this task on master/main branch!"
+            echo ""
+            echo "  Current branch: ${current_branch}"
+            echo ""
+            echo "  AF-AUTO-001 and later tasks require a feature branch."
+            echo ""
+            echo "  To fix this:"
+            echo "  1. Create a feature branch:"
+            echo "     git checkout -b af-auto-001-<task-description>"
+            echo ""
+            echo "  2. Or if you already have a branch:"
+            echo "     git checkout <branch-name>"
+            echo ""
+            echo "  Branch naming examples:"
+            echo "    - af-auto-001-fix-failing-tests"
+            echo "    - af-auto-001-reasoning-todos"
+            echo "    - af-auto-001-quick-win-tests"
+            echo ""
+            print_info "Audit tasks (af-auto-000) can still run on master"
+            exit 5
+        else
+            print_success "Audit task: allowed on master ✓"
+        fi
+    else
+        print_success "On feature branch: ${current_branch} ✓"
+    fi
+}
+
 # Validate project root and files
 validate_environment() {
     cd "$PROJECT_ROOT" || {
@@ -503,6 +558,9 @@ orchestrate_task() {
 
     print_section "TASK ORCHESTRATION" "Selected: $task_id"
 
+    # Check branch first
+    validate_branch "$task_id"
+
     # Check dependencies first
     echo ""
     print_info "Checking task dependencies..."
@@ -628,6 +686,9 @@ execute_task() {
     fi
 
     print_section "TASK EXECUTION" "Launching Claude Code for $task_id"
+
+    # Check branch first
+    validate_branch "$task_id"
 
     # Check dependencies first
     echo ""
@@ -757,10 +818,7 @@ main() {
     print_header
     cd "$PROJECT_ROOT"
 
-    # Validate environment first
-    validate_environment
-
-    # Parse flags and command
+    # Parse flags and command FIRST - so --task-file is applied early
     local auto_confirm=0
     local cmd=""
 
@@ -806,6 +864,9 @@ main() {
                 ;;
         esac
     done
+
+    # Validate environment AFTER parsing arguments
+    validate_environment
 
     if [ -z "$cmd" ]; then
         print_help

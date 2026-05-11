@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 from core.contracts.outcome_journal import FailureClassification, TradeOutcome
 from core.services.outcome_journal_service import OutcomeJournalService
-from data_layer.repositories.base import get_db
+from data_layer.repositories.base import db_session
 from data_layer.repositories.outcome_journal_repository import OutcomeJournalRepository
 
 
@@ -92,7 +92,7 @@ def test_generate_weekly_review():
 
 def test_repository_count_by_failure_class():
     """Test that repository correctly counts failures by classification."""
-    with get_db() as db:
+    with db_session() as db:
         repo = OutcomeJournalRepository(db)
         counts = repo.count_by_failure_class()
         assert isinstance(counts, dict)

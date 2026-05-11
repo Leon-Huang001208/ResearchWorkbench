@@ -9,7 +9,7 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 
-from data_layer.repositories.base import check_database_connection, ensure_schema, get_db
+from data_layer.repositories.base import check_database_connection, ensure_schema, db_session
 from data_layer.repositories.models import AlertThresholdDB
 from scripts.bootstrap_db import DEFAULT_ALERT_THRESHOLDS, verify_schema
 
@@ -22,17 +22,17 @@ def test_bootstrap_idempotent():
     verify_schema()
 
     # Count initial alert thresholds
-    with get_db() as db:
+    with db_session() as db:
         initial_count = db.query(AlertThresholdDB).count()
 
     # Run seeding again
-    with get_db() as db:
+    with db_session() as db:
         from scripts.bootstrap_db import seed_defaults
 
         seed_defaults(db)
 
     # Count after - should be same (all existing updated, no new inserted unless defaults changed)
-    with get_db() as db:
+    with db_session() as db:
         final_count = db.query(AlertThresholdDB).count()
 
     # All default thresholds should exist
@@ -43,7 +43,7 @@ def test_bootstrap_idempotent():
     )
 
     # Check all default thresholds are present and enabled
-    with get_db() as db:
+    with db_session() as db:
         for threshold in DEFAULT_ALERT_THRESHOLDS:
             existing = (
                 db.query(AlertThresholdDB).filter_by(threshold_id=threshold["threshold_id"]).first()
