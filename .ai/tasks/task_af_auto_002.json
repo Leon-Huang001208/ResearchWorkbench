@@ -1,0 +1,370 @@
+{
+  "tasks": [
+    {
+      "id": "af-auto-002-bootstrap",
+      "title": "Audit AF-AUTO-002 Scope and Generate Execution Baseline",
+      "description": "Audit the current codebase for always-on data ingestion and template-driven report generation readiness, then produce a precise execution baseline for AF-AUTO-002 without modifying business logic.",
+      "priority": "high",
+      "dependencies": [],
+      "success_criteria": [
+        "Current ingestion capabilities for CLS, CNStock, and ZQ are documented",
+        "Current report/template capabilities are documented",
+        "Known schema gaps, scheduling gaps, and UI gaps are listed",
+        "A bootstrap report is created for AF-AUTO-002"
+      ],
+      "verification_commands": [
+        "python -m pytest tests/ -k 'ingest or report' -v --tb=short",
+        "python -m uvicorn app.api.main:app --host 127.0.0.1 --port 8000 --workers 1 & sleep 5 && curl -f http://127.0.0.1:8000/health && pkill -f uvicorn"
+      ],
+      "required_skill": "code-audit",
+      "research_required": false,
+      "status": "todo"
+    },
+    {
+      "id": "af-auto-002-01",
+      "title": "Audit Live Ingestion Readiness for CLS CNStock and ZQ",
+      "description": "Audit the existing ingestion pipeline for 财联社, 中国证券报/中国证券网, and 知丘, including fetch entrypoints, dedupe behavior, stop conditions, and database persistence fields.",
+      "priority": "high",
+      "dependencies": [
+        "af-auto-002-bootstrap"
+      ],
+      "success_criteria": [
+        "CLS ingestion path is documented end-to-end",
+        "CNStock ingestion path is documented end-to-end",
+        "ZQ ingestion path is documented end-to-end",
+        "Current dedupe and persistence assumptions are documented",
+        "A readiness audit report is created"
+      ],
+      "verification_commands": [
+        "grep -R \"fetch_news_cls\|fetch_news_cnstock\|fetch_reports_zq\" -n data_layer app core",
+        "grep -R \"ingest_envelope\" -n app core"
+      ],
+      "required_skill": "code-audit",
+      "research_required": false,
+      "status": "todo"
+    },
+    {
+      "id": "af-auto-002-02",
+      "title": "Implement Trading Session Aware Scheduler",
+      "description": "Implement a scheduler that runs data fetching only during A-share trading sessions, supports midday break and market close behavior, and is configurable for future trading-calendar extension.",
+      "priority": "high",
+      "dependencies": [
+        "af-auto-002-01"
+      ],
+      "success_criteria": [
+        "Scheduler only runs inside configured trading sessions",
+        "Midday break handling is implemented",
+        "Scheduler can be manually started and stopped",
+        "Scheduler behavior is documented in a report"
+      ],
+      "verification_commands": [
+        "python -m pytest tests/ -k 'scheduler or crawl_scheduler or trading_session' -v --tb=short"
+      ],
+      "required_skill": "python-backend",
+      "research_required": true,
+      "status": "todo"
+    },
+    {
+      "id": "af-auto-002-03",
+      "title": "Implement Incremental Fetch Until Known Logic",
+      "description": "Implement fetch loops for CLS, CNStock, and ZQ that continue pulling the newest data until previously ingested records are encountered, then stop cleanly.",
+      "priority": "high",
+      "dependencies": [
+        "af-auto-002-02"
+      ],
+      "success_criteria": [
+        "Incremental stop condition is implemented for all target sources",
+        "Previously ingested records terminate the current fetch loop",
+        "Repeated runs do not duplicate persisted records",
+        "A report describing the stop logic and dedupe behavior is created"
+      ],
+      "verification_commands": [
+        "python -m pytest tests/ -k 'dedupe or ingestion_queue or incremental or ingest' -v --tb=short"
+      ],
+      "required_skill": "python-backend",
+      "research_required": false,
+      "status": "todo"
+    },
+    {
+      "id": "af-auto-002-04",
+      "title": "Harden Anti Crawl and Retry Strategy",
+      "description": "Add practical anti-crawl safeguards including rate limiting, jitter, exponential backoff, retry policy, and per-source fetch pacing for the live ingestion workflow.",
+      "priority": "high",
+      "dependencies": [
+        "af-auto-002-03"
+      ],
+      "success_criteria": [
+        "Per-source rate limiting is configurable",
+        "Retry and backoff strategy is implemented",
+        "Jitter or pacing randomness is added",
+        "A report documents anti-crawl behavior and limits"
+      ],
+      "verification_commands": [
+        "python -m pytest tests/ -k 'retry or backoff or anti_crawl or crawler' -v --tb=short"
+      ],
+      "required_skill": "python-backend",
+      "research_required": true,
+      "status": "todo"
+    },
+    {
+      "id": "af-auto-002-05",
+      "title": "Implement ZQ PDF First Report Ingestion",
+      "description": "Make 知丘 REPORT ingestion prefer PDF artifacts first, record PDF metadata, and fall back only when PDF is unavailable or explicitly disabled.",
+      "priority": "high",
+      "dependencies": [
+        "af-auto-002-01"
+      ],
+      "success_criteria": [
+        "ZQ report ingestion prefers PDF-first workflow",
+        "PDF file path and hash metadata are captured",
+        "Fallback logic is explicit and documented",
+        "A PDF-first ingestion report is created"
+      ],
+      "verification_commands": [
+        "python -m pytest tests/ -k 'zq or pdf or ingest_file or report_fetcher' -v --tb=short"
+      ],
+      "required_skill": "python-backend",
+      "research_required": false,
+      "status": "todo"
+    },
+    {
+      "id": "af-auto-002-06",
+      "title": "Add PDF to Markdown Conversion Pipeline",
+      "description": "Add a pluggable PDF ingestion strategy layer that supports raw text extraction fallback and markdown conversion strategies such as MarkItDown and MinerU where available.",
+      "priority": "high",
+      "dependencies": [
+        "af-auto-002-05"
+      ],
+      "success_criteria": [
+        "PDF ingestion strategy abstraction is implemented",
+        "Markdown conversion output is stored separately from raw text",
+        "Fallback path works when external converters are unavailable",
+        "A conversion strategy report is created"
+      ],
+      "verification_commands": [
+        "python -m pytest tests/ -k 'pdf or markdown or ingest_file or report' -v --tb=short"
+      ],
+      "required_skill": "python-backend",
+      "research_required": true,
+      "status": "todo"
+    },
+    {
+      "id": "af-auto-002-07",
+      "title": "Audit and Extend Ingestion Database Schema",
+      "description": "Audit document, assertion, event, and related persistence schemas, then extend them to support crawler state, source identifiers, parsing metadata, markdown output, and fetch lineage.",
+      "priority": "high",
+      "dependencies": [
+        "af-auto-002-01",
+        "af-auto-002-03",
+        "af-auto-002-06"
+      ],
+      "success_criteria": [
+        "Schema audit is completed",
+        "Missing ingestion metadata fields are identified and implemented where needed",
+        "Storage of dedupe keys, fetch timestamps, parse strategy, and raw asset metadata is documented",
+        "A schema extension report is created"
+      ],
+      "verification_commands": [
+        "python -m pytest tests/ -k 'repository or migration or schema or ingest' -v --tb=short"
+      ],
+      "required_skill": "database",
+      "research_required": false,
+      "status": "todo"
+    },
+    {
+      "id": "af-auto-002-08",
+      "title": "Build Ingestion Monitoring and Admin Endpoints",
+      "description": "Expose monitoring and admin capabilities for always-on ingestion, including latest fetch status per source, failure counts, dedupe hits, pause/resume, and manual trigger endpoints.",
+      "priority": "medium",
+      "dependencies": [
+        "af-auto-002-02",
+        "af-auto-002-03",
+        "af-auto-002-07"
+      ],
+      "success_criteria": [
+        "Monitoring API for ingestion health is implemented",
+        "Manual trigger endpoint is implemented",
+        "Pause and resume controls are implemented or clearly documented",
+        "An admin endpoint report is created"
+      ],
+      "verification_commands": [
+        "python -m pytest tests/ -k 'monitoring or dashboard or ingest or admin' -v --tb=short",
+        "python -m uvicorn app.api.main:app --host 127.0.0.1 --port 8000 --workers 1 & sleep 5 && curl -f http://127.0.0.1:8000/health && pkill -f uvicorn"
+      ],
+      "required_skill": "python-backend",
+      "research_required": false,
+      "status": "todo"
+    },
+    {
+      "id": "af-auto-002-09",
+      "title": "Audit Current Report Generation Capabilities",
+      "description": "Audit the existing report generation API and service implementation to determine what can be reused for a template-driven DOCX and PPTX reporting workflow.",
+      "priority": "high",
+      "dependencies": [
+        "af-auto-002-bootstrap"
+      ],
+      "success_criteria": [
+        "Current report API behavior is documented",
+        "Current ReportGenerator capabilities and limitations are documented",
+        "Template workflow reuse points are identified",
+        "A report capability audit is created"
+      ],
+      "verification_commands": [
+        "grep -R \"ReportGenerator\|/api/report\" -n app core",
+        "python -m pytest tests/ -k 'report' -v --tb=short"
+      ],
+      "required_skill": "code-audit",
+      "research_required": false,
+      "status": "todo"
+    },
+    {
+      "id": "af-auto-002-10",
+      "title": "Design Template Driven Report Data Model",
+      "description": "Design the data model for template-driven reporting, including template metadata, placeholder definitions, prompt templates, rendering rules, and output artifact tracking.",
+      "priority": "high",
+      "dependencies": [
+        "af-auto-002-09"
+      ],
+      "success_criteria": [
+        "Template data model is specified",
+        "Placeholder model is specified",
+        "Render prompt and output artifact metadata are specified",
+        "A design report is created"
+      ],
+      "verification_commands": [
+        "python -m pytest tests/ -k 'report or template or placeholder' -v --tb=short"
+      ],
+      "required_skill": "system-design",
+      "research_required": false,
+      "status": "todo"
+    },
+    {
+      "id": "af-auto-002-11",
+      "title": "Implement DOCX Template Upload and Placeholder Rendering",
+      "description": "Implement DOCX template upload, placeholder discovery, prompt-guided value generation, and output rendering for report generation.",
+      "priority": "high",
+      "dependencies": [
+        "af-auto-002-10"
+      ],
+      "success_criteria": [
+        "DOCX templates can be uploaded",
+        "Placeholders can be discovered or declared",
+        "Rendered DOCX output can be generated",
+        "A DOCX template rendering report is created"
+      ],
+      "verification_commands": [
+        "python -m pytest tests/ -k 'docx or template or report' -v --tb=short"
+      ],
+      "required_skill": "document-generation",
+      "research_required": true,
+      "status": "todo"
+    },
+    {
+      "id": "af-auto-002-12",
+      "title": "Implement PPTX Template Upload and Placeholder Rendering",
+      "description": "Implement PPTX template upload, placeholder discovery, prompt-guided value generation, and output rendering for report generation.",
+      "priority": "high",
+      "dependencies": [
+        "af-auto-002-10"
+      ],
+      "success_criteria": [
+        "PPTX templates can be uploaded",
+        "Placeholders can be discovered or declared",
+        "Rendered PPTX output can be generated",
+        "A PPTX template rendering report is created"
+      ],
+      "verification_commands": [
+        "python -m pytest tests/ -k 'pptx or template or report' -v --tb=short"
+      ],
+      "required_skill": "slides-generation",
+      "research_required": true,
+      "status": "todo"
+    },
+    {
+      "id": "af-auto-002-13",
+      "title": "Add Template Management APIs",
+      "description": "Add APIs for uploading templates, listing templates, viewing placeholder definitions, previewing template metadata, deleting templates, and triggering rendered report generation.",
+      "priority": "medium",
+      "dependencies": [
+        "af-auto-002-11",
+        "af-auto-002-12"
+      ],
+      "success_criteria": [
+        "Template upload API is implemented",
+        "Template listing and metadata APIs are implemented",
+        "Rendered generation API is implemented",
+        "An API report is created"
+      ],
+      "verification_commands": [
+        "python -m pytest tests/ -k 'report or template or api' -v --tb=short",
+        "python -m uvicorn app.api.main:app --host 127.0.0.1 --port 8000 --workers 1 & sleep 5 && curl -f http://127.0.0.1:8000/health && pkill -f uvicorn"
+      ],
+      "required_skill": "python-backend",
+      "research_required": false,
+      "status": "todo"
+    },
+    {
+      "id": "af-auto-002-14",
+      "title": "Add Web UI for Template Upload and Report Rendering",
+      "description": "Add Web UI capabilities to upload DOCX and PPTX templates, configure placeholder prompt rules, run report generation, and download rendered output artifacts.",
+      "priority": "medium",
+      "dependencies": [
+        "af-auto-002-13"
+      ],
+      "success_criteria": [
+        "Web UI supports template upload",
+        "Web UI supports placeholder prompt configuration",
+        "Web UI supports report rendering and download",
+        "A web UI feature report is created"
+      ],
+      "verification_commands": [
+        "python -m pytest tests/ -k 'web or report or template' -v --tb=short"
+      ],
+      "required_skill": "web-frontend",
+      "research_required": false,
+      "status": "todo"
+    },
+    {
+      "id": "af-auto-002-15",
+      "title": "Integrate Existing Report Generator with Template Renderer",
+      "description": "Integrate the existing ReportGenerator and analysis pipeline with the new template-driven DOCX and PPTX rendering system so current analysis outputs can drive placeholder payloads.",
+      "priority": "medium",
+      "dependencies": [
+        "af-auto-002-09",
+        "af-auto-002-11",
+        "af-auto-002-12"
+      ],
+      "success_criteria": [
+        "Existing report data can populate template placeholders",
+        "At least one end-to-end rendered DOCX or PPTX example is verified",
+        "Integration behavior is documented in a report"
+      ],
+      "verification_commands": [
+        "python -m pytest tests/ -k 'report or template or renderer or analysis' -v --tb=short"
+      ],
+      "required_skill": "python-backend",
+      "research_required": false,
+      "status": "todo"
+    }
+  ],
+  "metadata": {
+    "project_name": "AlphaFoundry",
+    "task_set_id": "af-auto-002",
+    "task_set_description": "AF-AUTO-002: Always-on market data ingestion and template-driven report generation",
+    "based_on": "User requirements for continuous data capture and report template workflow",
+    "status": "ready",
+    "total_tasks": 16,
+    "priorities": {
+      "high": 11,
+      "medium": 5,
+      "low": 0
+    },
+    "status_definitions": {
+      "todo": "Task not started",
+      "doing": "Task currently in progress",
+      "blocked": "Task blocked on dependencies or issues",
+      "done": "Task completed successfully",
+      "failed": "Task failed"
+    }
+  }
+}
