@@ -4,7 +4,7 @@
 **当前状态**: 进行中  
 **任务集ID**: af-auto-001  
 **项目**: AlphaFoundry  
-**当前分支**: af-auto-001-categorize-failing-tests
+**当前分支**: af-auto-001-fix-api-tests
 
 ---
 
@@ -30,6 +30,22 @@ AF-AUTO-001 是 AlphaFoundry 项目的后续任务集，专注于修复失败的
 - **没有修复任何测试** - 仅分析
 
 **报告**: `.ai/reports/test_categorization.md`
+
+---
+
+### af-auto-001-01b: Fix API test failures
+
+**状态**: ✅ 已完成
+**开始日期**: 2026-05-11
+**完成日期**: 2026-05-11
+
+**完成内容**:
+- 修复了 `test_analyze_asset` 和 `test_analyze_with_as_of` 测试
+- 问题 1: 异步方法需要用 `AsyncMock` 而不是 `MagicMock`
+- 问题 2: `as_of` 字段需要 `datetime` 对象而不是字符串
+- 所有 23 个 API 测试都通过了
+
+**报告**: `.ai/reports/api_test_fixes.md`
 
 ---
 
@@ -146,7 +162,7 @@ AF-AUTO-001 是 AlphaFoundry 项目的后续任务集，专注于修复失败的
 
 | 优先级 | 数量 | 状态 |
 |--------|------|------|
-| 高 | 8 | 3 已完成, 5 待处理 |
+| 高 | 8 | 4 已完成, 4 待处理 |
 | 中 | 3 | 0 已完成, 3 待处理 |
 | 低 | 0 | - |
 | **总计** | **11** | **3 已完成, 8 待处理** |
@@ -167,8 +183,8 @@ AF-AUTO-001 是 AlphaFoundry 项目的后续任务集，专注于修复失败的
 
 **下一个可执行任务**（二选一，都可以开始）：
 
-1. **af-auto-001-01b**: Fix API test failures（继续测试修复路径）
-   - 依赖: af-auto-001-01a ✓ 已完成
+1. **af-auto-001-01c**: Fix database test failures（继续测试修复路径）
+   - 依赖: af-auto-001-01b ✓ 已完成
 2. **af-auto-001-03**: Complete Reasoning Layer TODOs（并行执行路径）
    - 依赖: af-auto-001-00 ✓ 已完成
 
@@ -176,7 +192,7 @@ AF-AUTO-001 是 AlphaFoundry 项目的后续任务集，专注于修复失败的
 
 ## 备注
 
-- **分支**: af-auto-001-categorize-failing-tests (feature branch)
+- **分支**: af-auto-001-fix-api-tests (feature branch)
 - **任务文件**: .ai/tasks/task_af_auto_001.json
 - **编排器**: 支持 --task-file 选项
 - **第一阶段**: 仅分析，不修复 ✓

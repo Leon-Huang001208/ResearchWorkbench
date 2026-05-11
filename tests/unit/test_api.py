@@ -39,14 +39,15 @@ class TestHealthCheck:
 
 class TestAssetsAPI:
     def test_analyze_asset(self):
+        from datetime import datetime, timezone
         mock_service = MagicMock()
         mock_snapshot = AssetAnalysisSnapshot(
             canonical_id="600000.SH",
-            as_of="2026-05-05T12:00:00Z",
+            as_of=datetime(2026, 5, 5, 12, 0, 0, tzinfo=timezone.utc),
             financial={"revenue": {"ttm": 15000000000}},
             valuation={"pe_ttm": 24.9},
         )
-        mock_service.generate_snapshot.return_value = mock_snapshot
+        mock_service.generate_snapshot = AsyncMock(return_value=mock_snapshot)
 
         app.dependency_overrides[get_asset_service] = lambda: mock_service
         try:
@@ -92,12 +93,13 @@ class TestAssetsAPI:
             app.dependency_overrides.pop(get_asset_service, None)
 
     def test_analyze_with_as_of(self):
+        from datetime import datetime, timezone
         mock_service = MagicMock()
         mock_snapshot = AssetAnalysisSnapshot(
             canonical_id="000001.SZ",
-            as_of="2026-01-01T00:00:00Z",
+            as_of=datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
         )
-        mock_service.generate_snapshot.return_value = mock_snapshot
+        mock_service.generate_snapshot = AsyncMock(return_value=mock_snapshot)
 
         app.dependency_overrides[get_asset_service] = lambda: mock_service
         try:
