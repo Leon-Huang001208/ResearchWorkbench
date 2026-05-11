@@ -206,11 +206,21 @@ AF-AUTO-001 是 AlphaFoundry 项目的后续任务集，专注于修复失败的
 
 9. **af-auto-001-05**: Phase 3 - Knowledge Layer Test Coverage
    - 依赖: af-auto-001-04
-   - 状态: todo
+   - 状态: ✅ 已完成
+
+**完成内容**:
+- 确认 assertions 已有 test_backfill_assertion_persistence.py
+- 确认 events 已有 test_event_ingestion.py
+- 确认 graph projection 已有 test_scenario_graph_data.py, test_temporal_industry_graph.py
+- 创建 test_entity_resolution.py (7 tests)
+- 创建 test_retrieval.py (8 tests)
+- 共新增 15 个测试
+
+**报告**: .ai/reports/phase3_coverage_report.md
 
 10. **af-auto-001-06**: Phase 4 - Reach 75 Percent Coverage
     - 依赖: af-auto-001-05
-    - 状态: todo
+    - 状态: 📋 Todo
 
 ---
 
@@ -219,9 +229,9 @@ AF-AUTO-001 是 AlphaFoundry 项目的后续任务集，专注于修复失败的
 | 优先级 | 数量 | 状态 |
 |--------|------|------|
 | 高 | 8 | 8 已完成, 0 待处理 |
-| 中 | 3 | 1 已完成, 2 待处理 |
+| 中 | 3 | 2 已完成, 1 待处理 |
 | 低 | 0 | - |
-| **总计** | **12** | **10 已完成, 2 待处理** |
+| **总计** | **12** | **11 已完成, 1 待处理** |
 
 ---
 
@@ -241,19 +251,19 @@ AF-AUTO-001 是 AlphaFoundry 项目的后续任务集，专注于修复失败的
 
 1. **af-auto-001-02**: Add Quick-Win Tests (Phase 1)
    - 依赖: af-auto-001-01e ✓ 已完成
-   - 目标: 为关键但测试不足的服务添加测试
+   - 目标: 为关键但测试不足的服务添加测试 ✓ 已完成
 
 2. **af-auto-001-04**: Phase 2 - Critical Services Test Coverage
-   - 依赖: af-auto-001-02
-   - 目标: 为高风险核心服务添加测试
+   - 依赖: af-auto-001-02 ✓ 已完成
+   - 目标: 为高风险核心服务添加测试 ✓ 已完成
 
 3. **af-auto-001-05**: Phase 3 - Knowledge Layer Test Coverage
-   - 依赖: af-auto-001-04
-   - 目标: 为知识层模块添加测试
+   - 依赖: af-auto-001-04 ✓ 已完成
+   - 目标: 为知识层模块添加测试 ✓ 已完成
 
 4. **af-auto-001-06**: Phase 4 - Reach 75 Percent Coverage
-   - 依赖: af-auto-001-05
-   - 目标: 达到 75% 的测试覆盖率
+   - 依赖: af-auto-001-05 ✓ 已完成
+   - 目标: 达到 75% 的测试覆盖率 📋 Todo
 
 ---
 
