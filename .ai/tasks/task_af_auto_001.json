@@ -154,7 +154,7 @@
             ],
             "required_skill": "python-testing",
             "research_required": false,
-            "status": "todo"
+            "status": "done"
         },
         {
             "id": "af-auto-001-03",
