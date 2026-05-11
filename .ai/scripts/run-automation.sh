@@ -27,7 +27,8 @@ set -euo pipefail
 # Configuration
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_ROOT="$( cd "$SCRIPT_DIR/../.." && pwd )"
-TASK_FILE="${PROJECT_ROOT}/.ai/tasks/task.json"
+DEFAULT_TASK_FILE="${PROJECT_ROOT}/.ai/tasks/task.json"
+TASK_FILE="${DEFAULT_TASK_FILE}"
 PROGRESS_FILE="${PROJECT_ROOT}/.ai/progress/progress.md"
 
 # Track original task state for validation
@@ -100,6 +101,11 @@ validate_environment() {
     if [ ! -d ".ai/tasks" ]; then
         print_error ".ai/tasks directory not found"
         exit 2
+    fi
+
+    # If not using default task file, show which one we're using
+    if [ "$TASK_FILE" != "$DEFAULT_TASK_FILE" ]; then
+        print_info "Using custom task file: $(basename "$TASK_FILE")"
     fi
 }
 
@@ -714,8 +720,9 @@ print_help() {
     echo "Usage: $0 [OPTIONS] [COMMAND]"
     echo ""
     echo "Options:"
-    echo "  -y, --yes     - Skip interactive prompts (non-interactive mode)"
-    echo "  -h, --help    - Show this help"
+    echo "  -y, --yes              - Skip interactive prompts (non-interactive mode)"
+    echo "  --task-file <PATH>     - Path to task JSON file (default: .ai/tasks/task.json)"
+    echo "  -h, --help             - Show this help"
     echo ""
     echo "Commands:"
     echo "  list          - List all tasks and status"
@@ -733,6 +740,8 @@ print_help() {
     echo "  $0 execute af-auto-000-12"
     echo "  $0 execute af-auto-000-12 --yes"
     echo "  $0 complete af-auto-000-12"
+    echo "  $0 --task-file .ai/tasks/task_af_auto_001.json list"
+    echo "  $0 --task-file .ai/tasks/task_af_auto_001.json execute af-auto-001-01 --yes"
     echo ""
     echo "Environment variables:"
     echo "  AUTO_CONFIRM=1 - Enable non-interactive mode (same as --yes)"
@@ -766,6 +775,19 @@ main() {
             -y|--yes)
                 auto_confirm=1
                 shift
+                ;;
+            --task-file)
+                if [ "$#" -lt 2 ]; then
+                    print_error "--task-file requires an argument"
+                    print_help
+                    exit 1
+                fi
+                TASK_FILE="$2"
+                # If path is relative, make it absolute relative to project root
+                if [[ "$TASK_FILE" != /* ]]; then
+                    TASK_FILE="${PROJECT_ROOT}/${TASK_FILE}"
+                fi
+                shift 2
                 ;;
             -h|--help|help)
                 print_help
