@@ -60,6 +60,7 @@ from app.api.routes import (  # noqa: E402
     governance,
     graph,
     ingest,
+    ingest_admin,
     ingestion_queue,
     memory,
     monitoring,
@@ -75,6 +76,7 @@ from app.api.routes import (  # noqa: E402
     search,
     signal_lab,
     signals,
+    templates,
     thesis_generator,
     thesis_review,
     timing,
@@ -87,6 +89,7 @@ app.include_router(scenarios.router)
 app.include_router(review.router)
 app.include_router(signals.router)
 app.include_router(ingest.router)
+app.include_router(ingest_admin.router)
 app.include_router(pipeline.router)
 app.include_router(workbench.router)
 app.include_router(graph.router)
@@ -109,6 +112,7 @@ app.include_router(thesis_review.router)
 app.include_router(timing_engine.router)
 app.include_router(dashboard.router)
 app.include_router(report.router)
+app.include_router(templates.router)
 app.include_router(signal_lab.router)
 
 # ─── 静态文件 ────────────────────────────────────────────

@@ -65,6 +65,7 @@ class CnstockConfig:
     log_level: str = "INFO"  # 日志级别: DEBUG, INFO, WARNING, ERROR
     state_path: Optional[str] = None  # 状态文件路径，None 表示不启用持久化去重
     skip_existing: bool = True  # 是否跳过已存在的新闻（仅当 state_path 提供时有效）
+    stop_on_known: bool = True  # 遇到已存在新闻时停止抓取（增量模式）
 
 
 from core.observability import get_logger
@@ -118,7 +119,10 @@ class CnstockStateManager:
         if self.state_path.exists():
             try:
                 with open(self.state_path, "r", encoding="utf-8") as f:
-                    return json.load(f)
+                    state = json.load(f)
+                    if "watermarks" not in state:
+                        state["watermarks"] = {}
+                    return state
             except Exception as e:
                 if self.verbose:
                     print(f"[warn] 读取状态文件失败: {e}，使用空状态")
@@ -130,6 +134,7 @@ class CnstockStateManager:
             "version": "1.0",
             "last_updated": datetime.now().isoformat(),
             "processed_articles": {},  # {article_id: {"first_seen": "iso_date", "title": "...", "url": "..."}}
+            "watermarks": {},  # {key: {"last_seen_id": "...", "last_seen_at": "..."}}
         }
 
     def save(self):
@@ -150,6 +155,38 @@ class CnstockStateManager:
             "title": title,
             "url": url,
         }
+
+    # ============================================================
+    # 水位线追踪功能
+    # ============================================================
+
+    def set_watermark(self, key: str, article_id: str, extra: Optional[Dict[str, Any]] = None) -> None:
+        """设置水位线"""
+        watermark = {
+            "last_seen_id": str(article_id),
+            "last_seen_at": datetime.now().isoformat(),
+        }
+        if extra:
+            watermark.update(extra)
+        self.state["watermarks"][key] = watermark
+        self.save()
+
+    def get_watermark(self, key: str) -> Optional[Dict[str, Any]]:
+        """获取水位线"""
+        return self.state["watermarks"].get(key)
+
+    def has_reached_watermark(self, key: str, article_id: str) -> bool:
+        """检查是否已达到水位线"""
+        watermark = self.get_watermark(key)
+        if not watermark:
+            return False
+        return str(article_id) == watermark.get("last_seen_id")
+
+    def clear_watermark(self, key: str) -> None:
+        """清除指定的水位线"""
+        if key in self.state["watermarks"]:
+            del self.state["watermarks"][key]
+            self.save()
 
     def get_processed_articles(self) -> Dict[str, Dict[str, str]]:
         """获取所有已处理的文章"""
@@ -465,6 +502,8 @@ class CnstockCrawler:
 
         # 统计信息
         skipped_existing = 0
+        stopped_by_watermark = 0
+        today_str = datetime.now().strftime("%Y-%m-%d")
 
         if self.config.verbose:
             channel_names = [ch["category"] for ch in channels]
@@ -474,6 +513,10 @@ class CnstockCrawler:
             for ch_info in channels:
                 node_id = ch_info["node_id"]
                 category = ch_info["category"]
+                watermark_key = f"cnstock:{category}:{today_str}"
+                first_new_article_id: Optional[str] = None
+                channel_news: List[NewsItem] = []
+                found_known = False
 
                 if self.config.verbose:
                     self.log.info(f"正在爬取频道: {category}")
@@ -493,13 +536,37 @@ class CnstockCrawler:
                                 news.article_id
                             ):
                                 skipped_existing += 1
+                                if self.config.stop_on_known:
+                                    found_known = True
+                                    if self.config.verbose:
+                                        self.log.info(
+                                            f"[水位线] 频道 {category} 遇到已知新闻: {news.article_id} - {news.title[:30]}..."
+                                        )
+                                    break
                                 continue
 
                         if self._should_include_news(news):
-                            all_news.append(news)
+                            channel_news.append(news)
+                            # 记录第一个新新闻作为水位线
+                            if first_new_article_id is None:
+                                first_new_article_id = news.article_id
+
+                    if found_known:
+                        stopped_by_watermark += 1
+                        break
 
                     if page < self.config.max_pages:
                         time.sleep(self.config.delay)
+
+                # 设置水位线
+                if self._state_manager and first_new_article_id:
+                    self._state_manager.set_watermark(watermark_key, first_new_article_id)
+                    if self.config.verbose:
+                        self.log.info(
+                            f"[水位线] 频道 {category} 水位线已设置为: {first_new_article_id}"
+                        )
+
+                all_news.extend(channel_news)
 
                 # 频道间延迟
                 if ch_info != channels[-1]:
@@ -516,6 +583,8 @@ class CnstockCrawler:
             self.log.info(f"爬取完成，原始 {len(all_news)} 条，去重后 {len(merged_news)} 条新闻")
             if skipped_existing > 0:
                 self.log.info(f"跳过已存在新闻: {skipped_existing} 条")
+            if stopped_by_watermark > 0:
+                self.log.info(f"水位线停止: {stopped_by_watermark} 个频道提前停止")
 
         return merged_news
 
@@ -952,6 +1021,7 @@ class CnstockCrawler:
             "log_level",
             "state_path",
             "skip_existing",
+            "stop_on_known",
         ]
         date_changed = False
         for param in config_params:
@@ -1096,6 +1166,7 @@ def parse_args():
     # 状态管理
     parser.add_argument("--state-path", help="状态文件路径，用于持久化去重")
     parser.add_argument("--no-skip-existing", action="store_true", help="不跳过已存在的新闻 (默认会跳过)")
+    parser.add_argument("--no-stop-on-known", action="store_true", help="遇到已存在新闻时不停止 (默认会停止)")
 
     # 输出格式
     parser.add_argument("--print-json", action="store_true", help="将结果以 JSON 格式打印到 stdout")
@@ -1137,6 +1208,7 @@ def args_to_kwargs(args):
     # 状态管理
     kwargs["state_path"] = args.state_path
     kwargs["skip_existing"] = not args.no_skip_existing
+    kwargs["stop_on_known"] = not args.no_stop_on_known
 
     return kwargs
 

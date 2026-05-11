@@ -2,7 +2,7 @@
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 
 class DeduplicationStore:
@@ -24,6 +24,8 @@ class DeduplicationStore:
 
         if "processed_items" not in self.state:
             self.state["processed_items"] = {}
+        if "watermarks" not in self.state:
+            self.state["watermarks"] = {}
 
     def _save(self) -> None:
         """保存状态文件"""
@@ -47,3 +49,63 @@ class DeduplicationStore:
     def get_count(self) -> int:
         """获取已处理的项目数量"""
         return len(self.state["processed_items"])
+
+    # ============================================================
+    # 水位线追踪功能
+    # ============================================================
+
+    def set_watermark(self, key: str, item_id: str, extra: Optional[Dict[str, Any]] = None) -> None:
+        """
+        设置水位线 - 记录最后一次抓取时看到的 item_id
+
+        Args:
+            key: 水位线标识（如 source_type, channel 等）
+            item_id: 最后看到的已存在的 item_id
+            extra: 额外信息（可选）
+        """
+        watermark = {
+            "last_seen_id": str(item_id),
+            "last_seen_at": datetime.now().isoformat(),
+        }
+        if extra:
+            watermark.update(extra)
+        self.state["watermarks"][key] = watermark
+        self._save()
+
+    def get_watermark(self, key: str) -> Optional[Dict[str, Any]]:
+        """
+        获取水位线
+
+        Args:
+            key: 水位线标识
+
+        Returns:
+            水位线信息，如不存在返回 None
+        """
+        return self.state["watermarks"].get(key)
+
+    def has_reached_watermark(self, key: str, item_id: str) -> bool:
+        """
+        检查是否已达到水位线
+
+        Args:
+            key: 水位线标识
+            item_id: 当前检查的 item_id
+
+        Returns:
+            是否达到水位线（即当前 item_id 与记录的水位线相同）
+        """
+        watermark = self.get_watermark(key)
+        if not watermark:
+            return False
+        return str(item_id) == watermark.get("last_seen_id")
+
+    def clear_watermark(self, key: str) -> None:
+        """清除指定的水位线"""
+        if key in self.state["watermarks"]:
+            del self.state["watermarks"][key]
+            self._save()
+
+    def get_all_watermarks(self) -> Dict[str, Dict[str, Any]]:
+        """获取所有水位线"""
+        return self.state["watermarks"]

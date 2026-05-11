@@ -69,6 +69,7 @@ class CLSConfig:
     # 持久化去重
     state_path: Optional[str] = None  # 状态文件路径
     skip_existing: bool = True  # 是否跳过已存在的电报
+    stop_on_known: bool = True  # 遇到已知电报时停止（水位线功能）
 
 
 # CLSStateManager 已移除，使用通用的 DeduplicationStore
@@ -243,14 +244,42 @@ class CLSTelegramCrawler:
                 self.api_day_total[date_str] = total_num
                 self.logger.info(f"[api] {date_str} 总计 {total_num} 条电报")
 
-            new_count = 0
+            # ============================================================
+            # 检查是否遇到已知的电报
+            # ============================================================
+            found_known_telegram = None
+            parsed_telegrams = []
             for item in telegram_list:
                 telegram = self._parse_telegram(item, date_str)
                 if telegram:
+                    parsed_telegrams.append(telegram)
+                    if self.state_manager and self.state_manager.is_processed(telegram.id):
+                        found_known_telegram = telegram
+                        self.logger.info(
+                            f"[watermark] 检测到已知电报: {telegram.id} - {telegram.content[:50]}..."
+                        )
+                        break
+
+            new_count = 0
+            if found_known_telegram and self.config.stop_on_known:
+                # 遇到已知的，只添加之前的
+                for telegram in parsed_telegrams:
+                    if telegram.id == found_known_telegram.id:
+                        break
+                    self._add_telegram(telegram)
+                    new_count += 1
+            else:
+                # 没有遇到已知的，全部添加
+                for telegram in parsed_telegrams:
                     self._add_telegram(telegram)
                     new_count += 1
 
-            return {"total_num": total_num, "new_count": new_count}
+            return {
+                "total_num": total_num,
+                "new_count": new_count,
+                "found_known": found_known_telegram is not None,
+                "known_telegram_id": found_known_telegram.id if found_known_telegram else None,
+            }
 
         except Exception as e:
             self.logger.exception(f"[fetch] Error: {e}")
@@ -412,6 +441,10 @@ class CLSTelegramCrawler:
         consecutive_empty_pages = 0
         last_all_telegrams_count = len(self.all_telegrams)
 
+        watermark_key = f"cls:{date_str}"
+        stopped_by_watermark = False
+        first_new_telegram_id: Optional[str] = None
+
         while page <= self.config.max_pages:
             self.logger.info(f"[page] 正在获取第 {page} 页...")
 
@@ -424,6 +457,26 @@ class CLSTelegramCrawler:
 
             total_num = result["total_num"]
             new_count = result["new_count"]
+            found_known = result.get("found_known", False)
+            known_telegram_id = result.get("known_telegram_id")
+
+            # ============================================================
+            # 水位线检查：如果遇到已知的电报，停止抓取
+            # ============================================================
+            if found_known and self.config.stop_on_known and self.state_manager:
+                self.logger.info(
+                    f"[watermark] 遇到已知电报: {known_telegram_id}，停止抓取"
+                )
+                # 记录第一个新的电报 ID 作为新的水位线
+                if self.new_telegrams:
+                    first_new_telegram_id = self.new_telegrams[0].id
+                    self.state_manager.set_watermark(watermark_key, first_new_telegram_id)
+                    self.logger.info(
+                        f"[watermark] 已更新水位线: {first_new_telegram_id}"
+                    )
+                stopped_by_watermark = True
+                # 不立即 break，先处理完这个页面，然后在下一轮循环停止
+                # 这样可以确保这一页的新数据被添加
 
             current_all_telegrams_count = len(self.all_telegrams)
             if new_count == 0 or current_all_telegrams_count == last_all_telegrams_count:
@@ -435,6 +488,14 @@ class CLSTelegramCrawler:
             else:
                 consecutive_empty_pages = 0
                 last_all_telegrams_count = current_all_telegrams_count
+
+            # 记录第一个新的电报 ID
+            if self.new_telegrams and first_new_telegram_id is None:
+                first_new_telegram_id = self.new_telegrams[0].id
+
+            # 如果遇到已知的，这一页处理完后停止
+            if stopped_by_watermark:
+                break
 
             page += 1
 
@@ -458,8 +519,9 @@ class CLSTelegramCrawler:
         api_total = self.api_day_total.get(date_str, 0)
         completion_rate = (len(day_telegrams) / api_total * 100) if api_total > 0 else 0
 
+        stop_reason = "遇到水位线停止" if stopped_by_watermark else "正常完成"
         self.logger.info(
-            f"[summary] {date_str} 完成: {len(day_telegrams)}/{api_total} 条 ({completion_rate:.2f}%)"
+            f"[summary] {date_str} 完成: {len(day_telegrams)}/{api_total} 条 ({completion_rate:.2f}%) - {stop_reason}"
         )
 
     def save_to_json(self) -> str:

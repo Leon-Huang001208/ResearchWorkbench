@@ -31,7 +31,7 @@ class BaseProcessor(ABC):
     @abstractmethod
     def process(
         self, data: Dict[str, Any], output_file: str, **kwargs
-    ) -> Tuple[pd.DataFrame, List[Dict], int]:
+    ) -> Tuple[pd.DataFrame, List[Dict], int, bool]:
         """
         处理数据并保存结果
 
@@ -41,7 +41,7 @@ class BaseProcessor(ABC):
             **kwargs: 其他处理参数
 
         Returns:
-            (DataFrame, new_reports_list, skipped_count)
+            (DataFrame, new_reports_list, skipped_count, stopped_by_watermark)
         """
         pass
 

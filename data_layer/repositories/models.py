@@ -1320,3 +1320,183 @@ class ReportRunV1DB(Base):
             completed_at=self.completed_at,
             created_at=self.created_at,
         )
+
+
+# =============================================================================
+# AF-AUTO-002-07: PDF 元数据表与转换结果表
+# =============================================================================
+
+
+class PDFArtifactV1DB(Base):
+    """
+    PDF 制品表 - 存储下载的 PDF 文件元数据.
+
+    AF-AUTO-002-05: ZQ PDF First Report Ingestion
+    """
+
+    __tablename__ = "pdf_artifact_v1"
+
+    pdf_id = Column(Text, primary_key=True)
+    doc_id = Column(Text, ForeignKey("document_v1.doc_id"), nullable=True, index=True)
+    source_obj_id = Column(Text, nullable=True, index=True)
+
+    # 文件信息
+    file_path = Column(Text, nullable=False)
+    file_name = Column(Text, nullable=False)
+    file_size_bytes = Column(Integer, nullable=False)
+    file_hash_sha256 = Column(Text, nullable=False, index=True)
+    file_hash_md5 = Column(Text, nullable=True)
+
+    # 来源信息
+    source_type = Column(Text, nullable=False, index=True)
+    source_name = Column(Text, nullable=True)
+    source_url = Column(Text, nullable=True)
+    source_broker = Column(Text, nullable=True)
+    source_author = Column(Text, nullable=True)
+    source_publish_date = Column(DateTime(timezone=True), nullable=True)
+
+    # 抓取元数据
+    fetch_timestamp = Column(DateTime(timezone=True), nullable=False)
+    fetch_config = Column(JSON, nullable=False, default=dict)
+    fetch_strategy = Column(Text, nullable=True)
+    fetch_duration_ms = Column(Integer, nullable=True)
+
+    # 解析元数据
+    parse_version = Column(Text, nullable=True)
+    parse_config = Column(JSON, nullable=False, default=dict)
+    parse_status = Column(Text, nullable=False, default="pending")
+    parse_error = Column(Text, nullable=True)
+    parsed_at = Column(DateTime(timezone=True), nullable=True)
+
+    # 额外元数据
+    pdf_metadata = Column(JSON, nullable=False, default=dict)  # PDF 自身元数据
+    extra = Column(JSON, nullable=False, default=dict)
+
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    __table_args__ = {"extend_existing": True}
+
+
+class PDFConversionV1DB(Base):
+    """
+    PDF 转换结果表 - 存储 PDF 转换为 Markdown 或文本的结果.
+
+    AF-AUTO-002-06: PDF to Markdown Conversion Pipeline
+    """
+
+    __tablename__ = "pdf_conversion_v1"
+
+    conversion_id = Column(Text, primary_key=True)
+    pdf_id = Column(Text, ForeignKey("pdf_artifact_v1.pdf_id"), nullable=False, index=True)
+
+    # 转换策略信息
+    conversion_strategy = Column(Text, nullable=False, index=True)
+    strategy_version = Column(Text, nullable=True)
+    strategy_config = Column(JSON, nullable=False, default=dict)
+
+    # 转换结果
+    markdown_path = Column(Text, nullable=True)
+    markdown_content = Column(Text, nullable=True)  # 内联存储（小文件）
+    raw_text_path = Column(Text, nullable=True)
+    raw_text_content = Column(Text, nullable=True)  # 内联存储（小文件）
+
+    # 转换统计
+    page_count = Column(Integer, nullable=True)
+    token_count = Column(Integer, nullable=True)
+    conversion_duration_ms = Column(Integer, nullable=True)
+
+    # 质量指标
+    quality_score = Column(Numeric, nullable=True)
+    has_tables = Column(Boolean, nullable=True)
+    has_images = Column(Boolean, nullable=True)
+    has_code_blocks = Column(Boolean, nullable=True)
+
+    # 状态
+    status = Column(Text, nullable=False, default="pending", index=True)
+    error_log = Column(Text, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = {"extend_existing": True}
+
+
+class CrawlStateV1DB(Base):
+    """
+    爬虫状态表 - 持久化存储爬虫状态、水位线、去重信息.
+
+    AF-AUTO-002-03: Incremental Fetch Until Known
+    """
+
+    __tablename__ = "crawl_state_v1"
+
+    state_id = Column(Text, primary_key=True)
+    source_type = Column(Text, nullable=False, index=True)
+    source_name = Column(Text, nullable=True, index=True)
+
+    # 水位线信息
+    watermark_id = Column(Text, nullable=True)
+    watermark_timestamp = Column(DateTime(timezone=True), nullable=True)
+    watermark_metadata = Column(JSON, nullable=False, default=dict)
+
+    # 去重信息
+    dedupe_key = Column(Text, nullable=True, index=True)
+    dedupe_count = Column(Integer, nullable=False, default=0)
+
+    # 爬虫统计
+    total_fetched = Column(Integer, nullable=False, default=0)
+    total_skipped = Column(Integer, nullable=False, default=0)
+    total_failed = Column(Integer, nullable=False, default=0)
+
+    # 爬虫配置
+    crawl_config = Column(JSON, nullable=False, default=dict)
+    crawl_mode = Column(Text, nullable=False, default="incremental")  # full|incremental
+
+    # 会话信息
+    last_run_id = Column(Text, nullable=True)
+    last_run_start = Column(DateTime(timezone=True), nullable=True)
+    last_run_end = Column(DateTime(timezone=True), nullable=True)
+
+    # 暂停控制
+    is_paused = Column(Boolean, nullable=False, default=False)
+    pause_reason = Column(Text, nullable=True)
+
+    extra = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    __table_args__ = {"extend_existing": True}
+
+
+class ProcessedItemV1DB(Base):
+    """
+    已处理项目表 - 用于去重，支持快速检查项目是否已处理.
+
+    AF-AUTO-002-03: Incremental Fetch Until Known
+    """
+
+    __tablename__ = "processed_item_v1"
+
+    item_id = Column(Text, primary_key=True)
+    source_type = Column(Text, nullable=False, index=True)
+    source_name = Column(Text, nullable=True, index=True)
+
+    # 项目元数据
+    item_type = Column(Text, nullable=False, index=True)
+    title = Column(Text, nullable=True)
+    content_preview = Column(Text, nullable=True)
+    content_hash = Column(Text, nullable=True, index=True)
+
+    # 处理信息
+    first_seen_at = Column(DateTime(timezone=True), nullable=False)
+    first_processed_at = Column(DateTime(timezone=True), nullable=True)
+    process_count = Column(Integer, nullable=False, default=1)
+
+    # 来源关联
+    crawl_run_id = Column(Text, nullable=True, index=True)
+    doc_id = Column(Text, nullable=True, index=True)
+
+    extra = Column(JSON, nullable=False, default=dict)
+
+    __table_args__ = {"extend_existing": True}

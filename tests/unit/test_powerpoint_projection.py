@@ -1,4 +1,4 @@
-"""Tests for WordProjection."""
+"""Tests for PowerPointProjection."""
 from io import BytesIO
 from pathlib import Path
 from unittest.mock import patch
@@ -6,16 +6,26 @@ from unittest.mock import patch
 import pytest
 
 from core.contracts import SectionOutput, TableSpec
-from reporting.projections.word import WordProjection
+from reporting.projections.powerpoint import PowerPointProjection
 
 
-class TestWordProjection:
-    """Test suite for WordProjection."""
+class TestPowerPointProjection:
+    """Test suite for PowerPointProjection."""
 
-    @pytest.mark.skipif(not WordProjection()._check_docx(), reason="python-docx not installed")
+    @pytest.fixture
+    def pptx_available(self) -> bool:
+        """Check if python-pptx is available."""
+        try:
+            import pptx
+            from pptx import Presentation
+            return True
+        except ImportError:
+            return False
+
+    @pytest.mark.skipif(not PowerPointProjection()._check_pptx(), reason="python-pptx not installed")
     def test_save_to_file(self, tmp_path):
-        """Test saving Word document to a file."""
-        projection = WordProjection()
+        """Test saving PowerPoint to a file."""
+        projection = PowerPointProjection()
         sections = [
             SectionOutput(
                 key="test",
@@ -25,7 +35,7 @@ class TestWordProjection:
                 warnings=[],
             )
         ]
-        output_file = tmp_path / "report.docx"
+        output_file = tmp_path / "report.pptx"
 
         projection.save(output_file, "Test Report", sections)
 
@@ -33,9 +43,9 @@ class TestWordProjection:
 
     def test_save_with_metadata(self, tmp_path):
         """Test saving with metadata."""
-        projection = WordProjection()
-        if not projection._check_docx():
-            pytest.skip("python-docx not installed")
+        projection = PowerPointProjection()
+        if not projection._check_pptx():
+            pytest.skip("python-pptx not installed")
 
         sections = [
             SectionOutput(
@@ -47,36 +57,16 @@ class TestWordProjection:
             )
         ]
         metadata = {"author": "Test Author"}
-        output_file = tmp_path / "report.docx"
+        output_file = tmp_path / "report.pptx"
 
         projection.save(output_file, "Test Report", sections, metadata=metadata)
         assert output_file.exists()
 
-    def test_save_with_evidence_refs(self, tmp_path):
-        """Test saving with evidence references."""
-        projection = WordProjection()
-        if not projection._check_docx():
-            pytest.skip("python-docx not installed")
-
-        sections = [
-            SectionOutput(
-                key="test",
-                title="Test Section",
-                content="Content",
-                evidence_refs=["doc1", "doc2"],
-                warnings=[],
-            )
-        ]
-        output_file = tmp_path / "report.docx"
-
-        projection.save(output_file, "Test Report", sections)
-        assert output_file.exists()
-
     def test_save_with_warnings(self, tmp_path):
         """Test saving with warnings."""
-        projection = WordProjection()
-        if not projection._check_docx():
-            pytest.skip("python-docx not installed")
+        projection = PowerPointProjection()
+        if not projection._check_pptx():
+            pytest.skip("python-pptx not installed")
 
         sections = [
             SectionOutput(
@@ -87,15 +77,15 @@ class TestWordProjection:
                 warnings=["Warning 1"],
             )
         ]
-        output_file = tmp_path / "report.docx"
+        output_file = tmp_path / "report.pptx"
 
         projection.save(output_file, "Test Report", sections)
         assert output_file.exists()
 
-    def test_save_raises_when_docx_not_installed(self, tmp_path):
-        """Test that it raises ImportError when python-docx is not available."""
-        projection = WordProjection()
-        projection._has_docx = False
+    def test_save_raises_when_pptx_not_installed(self, tmp_path):
+        """Test that it raises ImportError when python-pptx is not available."""
+        projection = PowerPointProjection()
+        projection._has_pptx = False
 
         sections = [
             SectionOutput(
@@ -106,60 +96,68 @@ class TestWordProjection:
                 warnings=[],
             )
         ]
-        output_file = tmp_path / "report.docx"
+        output_file = tmp_path / "report.pptx"
 
         with pytest.raises(ImportError):
             projection.save(output_file, "Test Report", sections)
 
-    def test_check_docx_handles_import_error(self):
-        """Test that _check_docx handles import errors gracefully."""
-        projection = WordProjection()
+    def test_check_pptx_handles_import_error(self):
+        """Test that _check_pptx handles import errors gracefully."""
+        projection = PowerPointProjection()
 
-        with patch("importlib.import_module", side_effect=ImportError):
-            # This test verifies the code path - we can't easily patch the module check
-            # since it happens in __init__
-            result = projection._check_docx()
-            # The exact result depends on whether python-docx is actually installed
-            # but the method should not raise an exception
-            assert isinstance(result, bool)
+        with patch("reporting.projections.powerpoint.PPTX_AVAILABLE", False):
+            # Create a new projection instance with the mocked state
+            projection._has_pptx = False
+            result = projection._check_pptx()
+            assert result is False
 
 
-class TestWordProjectionFromTemplate:
-    """测试从模板生成 Word 文档"""
+class TestPowerPointProjectionFromTemplate:
+    """测试从模板生成 PowerPoint 演示文稿"""
 
     @pytest.fixture
-    def docx_available(self) -> bool:
-        """检查 python-docx 是否可用"""
+    def pptx_available(self) -> bool:
+        """检查 python-pptx 是否可用"""
         try:
-            import docx  # noqa: F401
+            import pptx
+            from pptx import Presentation
             return True
         except ImportError:
             return False
 
     def create_test_template(self, tmp_path) -> Path:
-        """创建测试用的 Word 模板文件"""
-        import docx
+        """创建测试用的 PowerPoint 模板文件"""
+        import pptx
+        from pptx import Presentation
 
-        template_path = tmp_path / "template.docx"
-        doc = docx.Document()
+        template_path = tmp_path / "template.pptx"
+        prs = Presentation()
 
-        doc.add_paragraph("Report Title: {{title}}")
-        doc.add_paragraph("Executive Summary: {{summary}}")
-        doc.add_paragraph("Date: {date}")
+        # Title slide
+        slide_layout = prs.slide_layouts[0]
+        slide = prs.slides.add_slide(slide_layout)
+        slide.shapes.title.text = "Report Title: {{title}}"
 
-        doc.save(template_path)
+        # Content slide
+        slide_layout = prs.slide_layouts[1]
+        slide = prs.slides.add_slide(slide_layout)
+        slide.shapes.title.text = "Executive Summary"
+        slide.placeholders[1].text = "{{summary}}"
+
+        prs.save(template_path)
         return template_path
 
-    @pytest.mark.skipif(not WordProjection()._check_docx(), reason="python-docx not installed")
+    @pytest.mark.skipif(not PowerPointProjection()._check_pptx(), reason="python-pptx not installed")
     def test_save_from_template(self, tmp_path):
         """测试从模板保存"""
-        import docx
+        import pptx
+        from pptx import Presentation
 
-        projection = WordProjection()
+        projection = PowerPointProjection()
 
         # 创建测试模板
         template_path = self.create_test_template(tmp_path)
-        output_path = tmp_path / "output.docx"
+        output_path = tmp_path / "output.pptx"
 
         # 创建章节输出
         sections = [
@@ -183,7 +181,6 @@ class TestWordProjectionFromTemplate:
         placeholders = {
             "title": "Q2 Investment Report",
             "summary": "Market performed well this quarter.",
-            "date": "2024-06-30",
         }
 
         # 从模板保存
@@ -196,16 +193,17 @@ class TestWordProjectionFromTemplate:
 
         assert output_path.exists()
 
-    @pytest.mark.skipif(not WordProjection()._check_docx(), reason="python-docx not installed")
+    @pytest.mark.skipif(not PowerPointProjection()._check_pptx(), reason="python-pptx not installed")
     def test_save_from_template_with_tables(self, tmp_path):
         """测试从模板保存并添加表格"""
-        import docx
+        import pptx
+        from pptx import Presentation
 
-        projection = WordProjection()
+        projection = PowerPointProjection()
 
         # 创建测试模板
         template_path = self.create_test_template(tmp_path)
-        output_path = tmp_path / "output_with_table.docx"
+        output_path = tmp_path / "output_with_table.pptx"
 
         # 创建表格规范
         table = TableSpec(
@@ -220,7 +218,7 @@ class TestWordProjectionFromTemplate:
             output_path,
             template_path,
             sections=[],
-            placeholders={"title": "Test", "summary": "Test", "date": "2024"},
+            placeholders={"title": "Test", "summary": "Test"},
             tables=[table],
         )
 
@@ -228,23 +226,23 @@ class TestWordProjectionFromTemplate:
 
     def test_save_from_template_raises_when_file_not_found(self, tmp_path):
         """测试模板文件不存在时抛出异常"""
-        projection = WordProjection()
-        if not projection._check_docx():
-            pytest.skip("python-docx not installed")
+        projection = PowerPointProjection()
+        if not projection._check_pptx():
+            pytest.skip("python-pptx not installed")
 
-        template_path = tmp_path / "non_existent.docx"
-        output_path = tmp_path / "output.docx"
+        template_path = tmp_path / "non_existent.pptx"
+        output_path = tmp_path / "output.pptx"
 
         with pytest.raises(FileNotFoundError):
             projection.save_from_template(output_path, template_path, [])
 
-    def test_save_from_template_raises_when_docx_not_installed(self, tmp_path):
-        """测试 python-docx 未安装时抛出异常"""
-        projection = WordProjection()
-        projection._has_docx = False
+    def test_save_from_template_raises_when_pptx_not_installed(self, tmp_path):
+        """测试 python-pptx 未安装时抛出异常"""
+        projection = PowerPointProjection()
+        projection._has_pptx = False
 
-        template_path = tmp_path / "template.docx"
-        output_path = tmp_path / "output.docx"
+        template_path = tmp_path / "template.pptx"
+        output_path = tmp_path / "output.pptx"
 
         with pytest.raises(ImportError):
             projection.save_from_template(output_path, template_path, [])

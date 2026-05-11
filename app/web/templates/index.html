@@ -26,6 +26,7 @@
                 <button class="activity-btn" data-section="signal-lab" title="Signal Lab"><i class="codicon codicon-beaker"></i></button>
                 <button class="activity-btn" data-section="ingest" title="文档摄入"><i class="codicon codicon-cloud-download"></i></button>
                 <button class="activity-btn" data-section="memory" title="记忆与学习"><i class="codicon codicon-lightbulb"></i></button>
+                <button class="activity-btn" data-section="templates" title="模板管理"><i class="codicon codicon-file-code"></i></button>
             </div>
             <div class="activity-bar-bottom">
                 <button class="activity-btn" id="btn-settings" title="设置"><i class="codicon codicon-settings-gear"></i></button>
@@ -720,6 +721,133 @@
                         <button id="btn-load-failures" class="btn-secondary" data-i18n="review.btn_refresh">刷新</button>
                     </div>
                     <div id="failure-memory-list" class="failure-memory-list"></div>
+                </div>
+            </section>
+
+            <!-- Templates Section -->
+            <section id="section-templates" class="content-section">
+                <h2 class="section-title">模板管理</h2>
+
+                <div class="templates-grid">
+                    <!-- Left Panel: Template List -->
+                    <div class="card template-list-card">
+                        <div class="card-header">
+                            <h3>模板列表</h3>
+                            <button id="btn-refresh-templates" class="btn-secondary"><i class="codicon codicon-refresh"></i> 刷新</button>
+                        </div>
+                        <div id="template-list" class="template-list"></div>
+                    </div>
+
+                    <!-- Right Panel: Template Details & Actions -->
+                    <div class="template-detail-card">
+                        <!-- Tabs -->
+                        <div class="tabs">
+                            <button class="tab-btn active" data-tab="upload">上传模板</button>
+                            <button class="tab-btn" data-tab="configure">配置占位符</button>
+                            <button class="tab-btn" data-tab="render">渲染报告</button>
+                        </div>
+
+                        <!-- Upload Tab -->
+                        <div id="tab-upload" class="tab-panel">
+                            <div class="card">
+                                <h3>上传模板文件</h3>
+                                <div class="input-row">
+                                    <input type="text" id="template-name-input" placeholder="模板名称，如 quarterly_report">
+                                    <select id="template-type-select">
+                                        <option value="docx">DOCX (Word)</option>
+                                        <option value="pptx">PPTX (PowerPoint)</option>
+                                        <option value="excel">Excel</option>
+                                    </select>
+                                </div>
+                                <div class="input-row">
+                                    <input type="text" id="template-desc-input" placeholder="模板描述">
+                                    <input type="text" id="template-version-input" value="1.0" placeholder="版本">
+                                </div>
+                                <div class="file-drop-zone" id="template-drop-zone">
+                                    <i class="codicon codicon-cloud-upload"></i>
+                                    <p>拖放文件到这里，或点击选择</p>
+                                    <input type="file" id="template-file-input" accept=".docx,.pptx,.xlsx">
+                                    <button id="btn-choose-file" class="btn-secondary">选择文件</button>
+                                </div>
+                                <div id="selected-file-info" class="selected-file-info hidden">
+                                    <span id="selected-file-name"></span>
+                                    <button id="btn-clear-file" class="btn-small"><i class="codicon codicon-close"></i></button>
+                                </div>
+                                <div class="input-row" style="margin-top: 1rem;">
+                                    <button id="btn-upload-template" class="btn-primary">上传模板</button>
+                                    <button id="btn-create-yaml-template" class="btn-secondary">创建 YAML 配置</button>
+                                </div>
+                                <div id="template-upload-status" class="upload-status"></div>
+                            </div>
+                        </div>
+
+                        <!-- Configure Tab -->
+                        <div id="tab-configure" class="tab-panel hidden">
+                            <div class="card">
+                                <h3>占位符配置</h3>
+                                <div class="input-row">
+                                    <select id="configure-template-select">
+                                        <option value="">选择模板...</option>
+                                    </select>
+                                    <select id="configure-type-select">
+                                        <option value="docx">DOCX</option>
+                                        <option value="pptx">PPTX</option>
+                                    </select>
+                                    <button id="btn-discover-placeholders" class="btn-primary">发现占位符</button>
+                                </div>
+                                <div id="discover-loading" class="loading hidden">
+                                    <div class="spinner"></div>
+                                    <span>正在扫描模板...</span>
+                                </div>
+                                <div id="placeholder-list" class="placeholder-list"></div>
+                                <div id="no-placeholders" class="empty-state hidden">
+                                    <i class="codicon codicon-search"></i>
+                                    <p>尚未发现占位符</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Render Tab -->
+                        <div id="tab-render" class="tab-panel hidden">
+                            <div class="card">
+                                <h3>渲染报告</h3>
+                                <div class="input-row">
+                                    <select id="render-template-select">
+                                        <option value="">选择模板...</option>
+                                    </select>
+                                    <select id="render-type-select">
+                                        <option value="docx">DOCX</option>
+                                        <option value="pptx">PPTX</option>
+                                    </select>
+                                </div>
+                                <div class="input-row">
+                                    <input type="text" id="render-canonical-id" placeholder="标的代码 (可选)，如 600519.SH">
+                                    <select id="render-report-type">
+                                        <option value="full">完整报告</option>
+                                        <option value="summary">摘要报告</option>
+                                        <option value="valuation">估值报告</option>
+                                    </select>
+                                </div>
+                                <h4 style="margin-top: 1.5rem;">占位符数据</h4>
+                                <div id="render-placeholders-container" class="render-placeholders-container"></div>
+                                <div class="input-row" style="margin-top: 1rem;">
+                                    <button id="btn-add-placeholder" class="btn-secondary"><i class="codicon codicon-add"></i> 添加占位符</button>
+                                    <button id="btn-render-report" class="btn-primary">渲染报告</button>
+                                </div>
+                                <div id="render-loading" class="loading hidden">
+                                    <div class="spinner"></div>
+                                    <span>正在渲染报告...</span>
+                                </div>
+                                <div id="render-result" class="render-result hidden">
+                                    <div class="success-message">
+                                        <i class="codicon codicon-pass"></i>
+                                        <span>报告渲染成功！</span>
+                                    </div>
+                                    <a id="render-download-link" class="btn-primary" href="#" download>下载报告</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </section>
         </main>

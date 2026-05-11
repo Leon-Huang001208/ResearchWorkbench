@@ -156,11 +156,9 @@ class WordProjection:
         # Build placeholder map
         placeholder_map = dict(placeholders or {})
 
-        # Add section content to placeholder map
+        # Add section content to placeholder map - use section.key as placeholder
         for section in sections:
             placeholder_map[section.key] = section.content
-            if section.placeholder:
-                placeholder_map[section.placeholder] = section.content
 
         # Replace placeholders in paragraphs
         self._replace_placeholders_in_document(doc, placeholder_map)

@@ -13,6 +13,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 
+from ...utils.pdf_converter import convert_and_save
+from ..pdf_utils import PDFMetadata, calculate_file_hash, get_file_size, save_pdf_metadata
 from ..utils import parse_timestamp
 from .base import BaseProcessor, _clean_html
 
@@ -145,13 +147,18 @@ class ReportProcessor(BaseProcessor):
         enable_viewpoint: bool = False,
         enable_companies: bool = False,
         enable_pdf: bool = False,
+        enable_pdf_conversion: bool = False,
         pdf_dir: str = "pdfs",
+        markdown_dir: str = "markdown",
+        raw_text_dir: str = "raw_text",
         ai_interval: int = 10,
         output_dir: Optional[str] = None,
         state_manager: Optional[Any] = None,
         skip_existing: bool = True,
+        stop_on_known: bool = True,
+        watermark_key: Optional[str] = None,
         **kwargs,
-    ) -> Tuple[pd.DataFrame, List[Dict], int]:
+    ) -> Tuple[pd.DataFrame, List[Dict], int, bool]:
         """
         处理研报数据
 
@@ -168,10 +175,12 @@ class ReportProcessor(BaseProcessor):
             output_dir: 输出根目录
             state_manager: 状态管理器（可选，用于去重）
             skip_existing: 是否跳过已存在的条目
+            stop_on_known: 遇到已处理记录时是否停止
+            watermark_key: 水位线标识键
             **kwargs: 其他参数
 
         Returns:
-            (DataFrame, new_reports_list, skipped_count)
+            (DataFrame, new_reports_list, skipped_count, stopped_by_watermark)
         """
         if output_dir is None:
             output_dir = os.path.dirname(output_file) if output_file else "."
@@ -188,11 +197,16 @@ class ReportProcessor(BaseProcessor):
                 enable_viewpoint,
                 enable_companies,
                 enable_pdf,
+                enable_pdf_conversion,
                 os.path.join(output_dir, pdf_dir),
+                os.path.join(output_dir, markdown_dir),
+                os.path.join(output_dir, raw_text_dir),
                 ai_interval,
                 output_dir,
                 state_manager,
                 skip_existing,
+                stop_on_known,
+                watermark_key,
             )
         else:
             return self._process_new_format(
@@ -203,11 +217,16 @@ class ReportProcessor(BaseProcessor):
                 enable_viewpoint,
                 enable_companies,
                 enable_pdf,
+                enable_pdf_conversion,
                 os.path.join(output_dir, pdf_dir),
+                os.path.join(output_dir, markdown_dir),
+                os.path.join(output_dir, raw_text_dir),
                 ai_interval,
                 output_dir,
                 state_manager,
                 skip_existing,
+                stop_on_known,
+                watermark_key,
             )
 
     def build_item(self, report: Dict[str, Any], **kwargs) -> Optional[Dict[str, Any]]:
@@ -231,18 +250,25 @@ class ReportProcessor(BaseProcessor):
         enable_viewpoint: bool,
         enable_companies: bool,
         enable_pdf: bool,
+        enable_pdf_conversion: bool,
         pdf_root_dir: str,
+        markdown_root_dir: str,
+        raw_text_root_dir: str,
         ai_interval: int,
         output_dir: Optional[str],
         state_manager: Optional[Any],
         skip_existing: bool,
-    ) -> Tuple[pd.DataFrame, List[Dict], int]:
+        stop_on_known: bool = True,
+        watermark_key: Optional[str] = None,
+    ) -> Tuple[pd.DataFrame, List[Dict], int, bool]:
         """
         处理旧格式数据（看研报搜索）
         """
         results = []
         new_reports = []
         skipped_count = 0
+        stopped_by_watermark = False
+        first_new_obj_id: Optional[str] = None
 
         for doc_id, attachments in self.attach_map.items():
             report = self.reports_map.get(doc_id)
@@ -252,6 +278,12 @@ class ReportProcessor(BaseProcessor):
                 if state_manager and skip_existing and obj_id:
                     if state_manager.is_report_processed(obj_id):
                         skipped_count += 1
+                        if stop_on_known:
+                            stopped_by_watermark = True
+                            self.client.logger.info(
+                                f"[水位线] 遇到已知研报 {obj_id}，停止抓取"
+                            )
+                            break
                         continue
 
                 item = self._build_item_report(
@@ -262,11 +294,29 @@ class ReportProcessor(BaseProcessor):
                     enable_viewpoint=enable_viewpoint,
                     enable_companies=enable_companies,
                     enable_pdf=enable_pdf,
+                    enable_pdf_conversion=enable_pdf_conversion,
                     pdf_root_dir=pdf_root_dir,
+                    markdown_root_dir=markdown_root_dir,
+                    raw_text_root_dir=raw_text_root_dir,
                     ai_interval=ai_interval,
+                    output_dir=output_dir,
                 )
                 results.append(item)
                 new_reports.append(item)
+
+                # 记录第一个新项目作为水位线
+                if first_new_obj_id is None and obj_id:
+                    first_new_obj_id = obj_id
+
+            if stopped_by_watermark:
+                break
+
+        # 设置水位线
+        if state_manager and first_new_obj_id and watermark_key:
+            state_manager.set_watermark(watermark_key, first_new_obj_id)
+            self.client.logger.info(
+                f"[水位线] 设置水位线为 {first_new_obj_id}"
+            )
 
         if output_file:
             os.makedirs(os.path.dirname(output_file), exist_ok=True)
@@ -274,7 +324,7 @@ class ReportProcessor(BaseProcessor):
                 json.dump(results, f, ensure_ascii=False, indent=2)
 
         self.client.logger.info(f"已处理 {len(results)} 条研报 (跳过 {skipped_count} 条)，保存至 {output_file}")
-        return pd.DataFrame(results), new_reports, skipped_count
+        return pd.DataFrame(results), new_reports, skipped_count, stopped_by_watermark
 
     def _process_new_format(
         self,
@@ -285,12 +335,17 @@ class ReportProcessor(BaseProcessor):
         enable_viewpoint: bool,
         enable_companies: bool,
         enable_pdf: bool,
+        enable_pdf_conversion: bool,
         pdf_root_dir: str,
+        markdown_root_dir: str,
+        raw_text_root_dir: str,
         ai_interval: int,
         output_dir: Optional[str],
         state_manager: Optional[Any],
         skip_existing: bool,
-    ) -> Tuple[pd.DataFrame, List[Dict], int]:
+        stop_on_known: bool = True,
+        watermark_key: Optional[str] = None,
+    ) -> Tuple[pd.DataFrame, List[Dict], int, bool]:
         """
         处理新格式数据（首页搜索）
         """
@@ -299,6 +354,8 @@ class ReportProcessor(BaseProcessor):
         results = []
         new_reports = []
         skipped_count = 0
+        stopped_by_watermark = False
+        first_new_obj_id: Optional[str] = None
 
         for report in reports_list:
             doc_type = report.get("docType", "") or report.get("type", "")
@@ -310,6 +367,12 @@ class ReportProcessor(BaseProcessor):
             if state_manager and skip_existing and obj_id:
                 if state_manager.is_report_processed(str(obj_id)):
                     skipped_count += 1
+                    if stop_on_known:
+                        stopped_by_watermark = True
+                        self.client.logger.info(
+                            f"[水位线] 遇到已知研报 {obj_id}，停止抓取"
+                        )
+                        break
                     continue
 
             item = self._build_item_from_report(
@@ -319,12 +382,27 @@ class ReportProcessor(BaseProcessor):
                 enable_viewpoint,
                 enable_companies,
                 enable_pdf,
+                enable_pdf_conversion,
                 pdf_root_dir,
+                markdown_root_dir,
+                raw_text_root_dir,
                 ai_interval,
+                output_dir=output_dir,
             )
             if item:
                 results.append(item)
                 new_reports.append(item)
+
+                # 记录第一个新项目作为水位线
+                if first_new_obj_id is None and obj_id:
+                    first_new_obj_id = str(obj_id)
+
+        # 设置水位线
+        if state_manager and first_new_obj_id and watermark_key:
+            state_manager.set_watermark(watermark_key, first_new_obj_id)
+            self.client.logger.info(
+                f"[水位线] 设置水位线为 {first_new_obj_id}"
+            )
 
         if output_file:
             os.makedirs(os.path.dirname(output_file), exist_ok=True)
@@ -332,7 +410,7 @@ class ReportProcessor(BaseProcessor):
                 json.dump(results, f, ensure_ascii=False, indent=2)
 
         self.client.logger.info(f"已处理 {len(results)} 条研报 (跳过 {skipped_count} 条)，保存至 {output_file}")
-        return pd.DataFrame(results), new_reports, skipped_count
+        return pd.DataFrame(results), new_reports, skipped_count, stopped_by_watermark
 
     def _build_item_report(
         self,
@@ -343,8 +421,12 @@ class ReportProcessor(BaseProcessor):
         enable_viewpoint: bool = False,
         enable_companies: bool = False,
         enable_pdf: bool = False,
+        enable_pdf_conversion: bool = False,
         pdf_root_dir: str = "pdfs",
+        markdown_root_dir: str = "markdown",
+        raw_text_root_dir: str = "raw_text",
         ai_interval: int = 10,
+        output_dir: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         构建单条研报数据（旧格式）
@@ -397,17 +479,37 @@ class ReportProcessor(BaseProcessor):
                     focus_companies_parsed = _parse_companies(focus_companies)
 
         if enable_pdf and obj_id:
-            pdf_filename = self.client._sanitize_filename(attachment.get("NAME", f"{obj_id}.pdf"))
-            if not pdf_filename.lower().endswith(".pdf"):
-                pdf_filename += ".pdf"
+            pdf_result = self._download_and_record_pdf_old_format(
+                attachment=attachment,
+                report=report,
+                pdf_root_dir=pdf_root_dir,
+                output_dir=os.path.dirname(pdf_root_dir) if pdf_root_dir else None,
+            )
+            if pdf_result:
+                pdf_path = pdf_result["relative_path"]
+                item["pdfPath"] = pdf_path
+                item["pdfHash"] = pdf_result["hash"]
+                item["pdfSize"] = pdf_result["size"]
 
-            broker_subdir = self.client._sanitize_filename(broker) if broker else "unknown"
-            pdf_save_dir = os.path.join(pdf_root_dir, broker_subdir)
-            pdf_full_path = os.path.join(pdf_save_dir, pdf_filename)
-
-            if self.client.download_pdf(obj_id, pdf_full_path):
-                pdf_path = os.path.join(pdf_root_dir, broker_subdir, pdf_filename)
-                pdf_path = pdf_path.replace("\\", "/")
+                # PDF 转换
+                if enable_pdf_conversion and output_dir:
+                    full_pdf_path = os.path.join(output_dir, pdf_path) if not os.path.isabs(pdf_path) else pdf_path
+                    if os.path.exists(full_pdf_path):
+                        try:
+                            conv_result, saved_paths = convert_and_save(
+                                pdf_path=full_pdf_path,
+                                output_dir=markdown_root_dir,
+                                save_raw=True,
+                                save_markdown=True,
+                            )
+                            if conv_result.success:
+                                if "markdown" in saved_paths:
+                                    item["markdownPath"] = os.path.relpath(saved_paths["markdown"], output_dir)
+                                if "raw_text" in saved_paths:
+                                    item["rawTextPath"] = os.path.relpath(saved_paths["raw_text"], output_dir)
+                                item["pdfConversionStrategy"] = conv_result.strategy_used
+                        except Exception as e:
+                            self.client.logger.warning(f"PDF 转换失败: {e}")
 
         item.update(
             {
@@ -421,7 +523,6 @@ class ReportProcessor(BaseProcessor):
                 "coreViewpoint": core_viewpoint,
                 "focusCompanies": focus_companies,
                 "focusCompaniesParsed": focus_companies_parsed,
-                "pdfPath": pdf_path,
                 "date": date_str,
             }
         )
@@ -435,8 +536,12 @@ class ReportProcessor(BaseProcessor):
         enable_viewpoint: bool = False,
         enable_companies: bool = False,
         enable_pdf: bool = False,
+        enable_pdf_conversion: bool = False,
         pdf_root_dir: str = "pdfs",
+        markdown_root_dir: str = "markdown",
+        raw_text_root_dir: str = "raw_text",
         ai_interval: int = 10,
+        output_dir: Optional[str] = None,
         **kwargs,
     ) -> Optional[Dict[str, Any]]:
         """
@@ -483,16 +588,139 @@ class ReportProcessor(BaseProcessor):
                     item["focusCompaniesParsed"] = _parse_companies(item["focusCompanies"])
 
         if enable_pdf and obj_id:
-            pdf_filename = self.client._sanitize_filename(report.get("title", f"{obj_id}.pdf"))
-            if not pdf_filename.lower().endswith(".pdf"):
-                pdf_filename += ".pdf"
+            pdf_result = self._download_and_record_pdf(
+                obj_id=str(obj_id),
+                title=report.get("title", ""),
+                broker=broker,
+                pdf_root_dir=pdf_root_dir,
+                output_dir=os.path.dirname(pdf_root_dir) if pdf_root_dir else None,
+            )
+            if pdf_result:
+                item["pdfPath"] = pdf_result["relative_path"]
+                item["pdfHash"] = pdf_result["hash"]
+                item["pdfSize"] = pdf_result["size"]
 
-            broker_subdir = self.client._sanitize_filename(broker) if broker else "unknown"
-            pdf_save_dir = os.path.join(pdf_root_dir, broker_subdir)
-            pdf_full_path = os.path.join(pdf_save_dir, pdf_filename)
-
-            if self.client.download_pdf(str(obj_id), pdf_full_path):
-                item["pdfPath"] = os.path.join(pdf_root_dir, broker_subdir, pdf_filename)
-                item["pdfPath"] = item["pdfPath"].replace("\\", "/")
+                # PDF 转换
+                if enable_pdf_conversion and output_dir:
+                    full_pdf_path = os.path.join(output_dir, pdf_result["relative_path"]) if not os.path.isabs(pdf_result["relative_path"]) else pdf_result["relative_path"]
+                    if os.path.exists(full_pdf_path):
+                        try:
+                            conv_result, saved_paths = convert_and_save(
+                                pdf_path=full_pdf_path,
+                                output_dir=markdown_root_dir,
+                                save_raw=True,
+                                save_markdown=True,
+                            )
+                            if conv_result.success:
+                                if "markdown" in saved_paths:
+                                    item["markdownPath"] = os.path.relpath(saved_paths["markdown"], output_dir)
+                                if "raw_text" in saved_paths:
+                                    item["rawTextPath"] = os.path.relpath(saved_paths["raw_text"], output_dir)
+                                item["pdfConversionStrategy"] = conv_result.strategy_used
+                        except Exception as e:
+                            self.client.logger.warning(f"PDF 转换失败: {e}")
 
         return item
+
+    def _download_and_record_pdf(
+        self,
+        obj_id: str,
+        title: str,
+        broker: str,
+        pdf_root_dir: str,
+        output_dir: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        下载 PDF 并记录元数据（PDF 优先工作流）
+
+        Args:
+            obj_id: 文档 ID
+            title: 文档标题
+            broker: 券商名称
+            pdf_root_dir: PDF 保存根目录
+            output_dir: 输出根目录（用于保存元数据）
+
+        Returns:
+            {relative_path, hash, size} 或 None（失败）
+        """
+        pdf_filename = self.client._sanitize_filename(title or f"{obj_id}.pdf")
+        if not pdf_filename.lower().endswith(".pdf"):
+            pdf_filename += ".pdf"
+
+        broker_subdir = self.client._sanitize_filename(broker) if broker else "unknown"
+        pdf_save_dir = os.path.join(pdf_root_dir, broker_subdir)
+        pdf_full_path = os.path.join(pdf_save_dir, pdf_filename)
+
+        # 下载 PDF
+        if not self.client.download_pdf(obj_id, pdf_full_path):
+            self.client.logger.warning(f"PDF 下载失败，仅保留元数据: {obj_id}")
+            return None
+
+        # 计算哈希和大小
+        try:
+            file_hash = calculate_file_hash(pdf_full_path, "sha256")
+            file_size = get_file_size(pdf_full_path)
+        except Exception as e:
+            self.client.logger.warning(f"计算 PDF 哈希失败: {e}")
+            file_hash = ""
+            file_size = 0
+
+        # 构建相对路径
+        relative_path = os.path.join(pdf_root_dir, broker_subdir, pdf_filename)
+        relative_path = relative_path.replace("\\", "/")
+
+        # 保存元数据
+        if output_dir:
+            try:
+                metadata = PDFMetadata(
+                    obj_id=obj_id,
+                    file_path=relative_path,
+                    file_hash=file_hash,
+                    file_size=file_size,
+                    title=title,
+                    broker=broker,
+                    source_url=f"{self.client.BASE_URL}/newweb/zqpdf/pdf.html?fileid={obj_id}",
+                )
+                save_pdf_metadata(metadata, output_dir)
+            except Exception as e:
+                self.client.logger.warning(f"保存 PDF 元数据失败: {e}")
+
+        return {
+            "relative_path": relative_path,
+            "hash": file_hash,
+            "size": file_size,
+        }
+
+    def _download_and_record_pdf_old_format(
+        self,
+        attachment: Dict[str, Any],
+        report: Dict[str, Any],
+        pdf_root_dir: str,
+        output_dir: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        旧格式的 PDF 下载和元数据记录
+
+        Args:
+            attachment: 附件数据
+            report: 研报数据
+            pdf_root_dir: PDF 保存根目录
+            output_dir: 输出根目录
+
+        Returns:
+            {relative_path, hash, size} 或 None
+        """
+        obj_id = attachment.get("OBJID")
+        if not obj_id:
+            return None
+
+        title = attachment.get("NAME", report.get("title", ""))
+        broker = report.get("brokerName", "")
+
+        return self._download_and_record_pdf(
+            obj_id=obj_id,
+            title=title,
+            broker=broker,
+            pdf_root_dir=pdf_root_dir,
+            output_dir=output_dir,
+        )

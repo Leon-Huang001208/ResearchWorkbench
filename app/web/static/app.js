@@ -92,6 +92,7 @@ function navigateTo(section) {
     if (section === 'memory') loadMemoryPage();
     if (section === 'outcomes') loadOutcomes();
     if (section === 'signal-lab') loadSignalLab();
+    if (section === 'templates') loadTemplatesPage();
 }
 
 // Wait for DOM ready before binding all interactive events
@@ -165,6 +166,18 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-compute-features')?.addEventListener('click', computeFeatures);
     document.getElementById('btn-compute-labels')?.addEventListener('click', computeLabels);
     document.getElementById('btn-run-backtests')?.addEventListener('click', runBacktests);
+
+    // Templates events
+    document.querySelectorAll('#section-templates .tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => switchTemplatesTab(btn.dataset.tab));
+    });
+    document.getElementById('btn-upload-template')?.addEventListener('click', uploadTemplate);
+    document.getElementById('btn-create-yaml-template')?.addEventListener('click', createYamlConfig);
+    document.getElementById('btn-render-report')?.addEventListener('click', renderReportFromTemplate);
+    document.getElementById('btn-discover-placeholders')?.addEventListener('click', discoverPlaceholders);
+    document.getElementById('btn-refresh-templates')?.addEventListener('click', loadTemplatesList);
+
+    // Drop zone and file select handled in initTemplateDropZone()
 
     // Global search input
     document.getElementById('global-search')?.addEventListener('input', (e) => {
@@ -2332,4 +2345,451 @@ function switchSignalLabTab(tabName) {
     document.querySelectorAll('#section-signal-lab .tab-panel').forEach(p => p.classList.add('hidden'));
     document.querySelector(`#section-signal-lab .tab-btn[data-tab="${tabName}"]`)?.classList.add('active');
     document.getElementById(`tab-${tabName}`)?.classList.remove('hidden');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Template Management
+// ═══════════════════════════════════════════════════════════════
+
+let currentTemplateState = {
+    selectedTemplate: null,
+    selectedFileType: 'docx',
+    discoveredPlaceholders: [],
+    placeholderValues: {},
+    renderedReportId: null
+};
+
+async function loadTemplatesPage() {
+    try {
+        await loadTemplatesList();
+        // Initialize upload drop zone
+        initTemplateDropZone();
+        // Initialize template select dropdowns
+        await initTemplateSelects();
+    } catch (e) {
+        toast('加载模板页面失败: ' + e.message, 'error');
+    }
+}
+
+async function loadTemplatesList() {
+    try {
+        const data = await apiCall('GET', '/api/templates/');
+        renderTemplatesList(data.templates || []);
+    } catch (e) {
+        console.error('Failed to load templates:', e);
+        const container = document.getElementById('template-list');
+        if (container) container.innerHTML = '<p class="empty-state">加载失败</p>';
+    }
+}
+
+function renderTemplatesList(templates) {
+    const container = document.getElementById('template-list');
+    if (!container) return;
+
+    if (!templates.length) {
+        container.innerHTML = '<p class="empty-state">暂无模板</p>';
+        return;
+    }
+    container.innerHTML = templates.map(t => {
+        // Determine file type from template data
+        let fileType = 'docx';
+        if (t.has_docx) fileType = 'docx';
+        else if (t.has_pptx) fileType = 'pptx';
+        else if (t.type) fileType = t.type;
+
+        const templateName = t.template_name || t.name;
+
+        return `
+        <div class="template-card" data-template-name="${esc(templateName)}" onclick="selectTemplate('${esc(templateName)}', '${fileType}')">
+            <div class="template-icon">${fileType === 'pptx' ? '📊' : fileType === 'docx' ? '📄' : '📁'}</div>
+            <div class="template-info">
+                <div class="template-name">${esc(templateName)}</div>
+                <div class="template-meta">${fileType} • ${t.description || ''}</div>
+            </div>
+            <div class="template-actions">
+                <button class="btn-sm" onclick="event.stopPropagation(); downloadTemplateFile('${esc(templateName)}', '${fileType}')">下载</button>
+                <button class="btn-sm btn-danger" onclick="event.stopPropagation(); deleteTemplate('${esc(templateName)}')">删除</button>
+            </div>
+        </div>
+    `}).join('');
+}
+
+async function initTemplateSelects() {
+    try {
+        const data = await apiCall('GET', '/api/templates/');
+        const templates = data.templates || [];
+
+        const configureSelect = document.getElementById('configure-template-select');
+        const renderSelect = document.getElementById('render-template-select');
+
+        const optionsHtml = '<option value="">选择模板...</option>' +
+            templates.map(t => {
+                const templateName = t.template_name || t.name;
+                return `<option value="${esc(templateName)}">${esc(templateName)}</option>`;
+            }).join('');
+
+        if (configureSelect) configureSelect.innerHTML = optionsHtml;
+        if (renderSelect) renderSelect.innerHTML = optionsHtml;
+    } catch (e) {
+        console.error('Failed to init template selects:', e);
+    }
+}
+
+async function selectTemplate(templateName, fileType) {
+    currentTemplateState.selectedTemplate = templateName;
+    currentTemplateState.selectedFileType = fileType;
+    currentTemplateState.discoveredPlaceholders = [];
+    currentTemplateState.placeholderValues = {};
+    currentTemplateState.renderedReportId = null;
+
+    // Update UI
+    const cards = document.querySelectorAll('.template-card');
+    cards.forEach(c => c.classList.remove('selected'));
+    const selected = document.querySelector(`.template-card[data-template-name="${esc(templateName)}"]`);
+    if (selected) selected.classList.add('selected');
+
+    // Update dropdowns
+    const configureSelect = document.getElementById('configure-template-select');
+    const renderSelect = document.getElementById('render-template-select');
+    if (configureSelect) configureSelect.value = templateName;
+    if (renderSelect) renderSelect.value = templateName;
+}
+
+async function discoverPlaceholders() {
+    const templateSelect = document.getElementById('configure-template-select');
+    const typeSelect = document.getElementById('configure-type-select');
+
+    const templateName = templateSelect?.value;
+    const fileType = typeSelect?.value || 'docx';
+
+    if (!templateName) {
+        toast('请先选择模板', 'error');
+        return;
+    }
+
+    const loadingEl = document.getElementById('discover-loading');
+    const placeholderList = document.getElementById('placeholder-list');
+    const noPlaceholders = document.getElementById('no-placeholders');
+
+    if (loadingEl) loadingEl.classList.remove('hidden');
+    if (placeholderList) placeholderList.innerHTML = '';
+    if (noPlaceholders) noPlaceholders.classList.add('hidden');
+
+    try {
+        const data = await apiCall('GET', `/api/templates/${encodeURIComponent(templateName)}/placeholders/${fileType}`);
+        currentTemplateState.discoveredPlaceholders = data.placeholders || [];
+        currentTemplateState.selectedTemplate = templateName;
+        currentTemplateState.selectedFileType = fileType;
+        renderPlaceholders(data.placeholders || []);
+    } catch (e) {
+        toast('发现占位符失败: ' + e.message, 'error');
+    } finally {
+        if (loadingEl) loadingEl.classList.add('hidden');
+    }
+}
+
+function renderPlaceholders(placeholders) {
+    const container = document.getElementById('placeholder-list');
+    const noPlaceholders = document.getElementById('no-placeholders');
+
+    if (!container) return;
+
+    if (!placeholders.length) {
+        if (noPlaceholders) noPlaceholders.classList.remove('hidden');
+        container.innerHTML = '';
+        return;
+    }
+
+    if (noPlaceholders) noPlaceholders.classList.add('hidden');
+
+    container.innerHTML = placeholders.map(ph => {
+        const name = typeof ph === 'string' ? ph : (ph.name || ph);
+        const existingValue = currentTemplateState.placeholderValues[name] || '';
+
+        return `
+        <div class="placeholder-item">
+            <div class="placeholder-name">${esc(name)}</div>
+            <input type="text" class="input" placeholder="输入值"
+                   value="${esc(existingValue)}"
+                   data-placeholder-name="${esc(name)}"
+                   onchange="updatePlaceholderValue('${esc(name)}', this.value)" />
+        </div>
+    `}).join('');
+}
+
+function updatePlaceholderValue(name, value) {
+    currentTemplateState.placeholderValues[name] = value;
+}
+
+function switchTemplatesTab(tabName) {
+    document.querySelectorAll('#section-templates .tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('#section-templates .tab-panel').forEach(p => p.classList.add('hidden'));
+    document.querySelector(`#section-templates .tab-btn[data-tab="${tabName}"]`)?.classList.add('active');
+    document.getElementById(`tab-${tabName}`)?.classList.remove('hidden');
+}
+
+function initTemplateDropZone() {
+    const dropZone = document.getElementById('template-drop-zone');
+    const fileInput = document.getElementById('template-file-input');
+
+    if (!dropZone || !fileInput) return;
+
+    // Handle drop
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        const files = e.dataTransfer.files;
+        if (files.length) {
+            handleTemplateFileSelect(files[0]);
+        }
+    });
+
+    // Handle click on drop zone to open file selector
+    dropZone.addEventListener('click', () => {
+        fileInput.click();
+    });
+
+    // Handle file input change
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files?.[0]) {
+            handleTemplateFileSelect(e.target.files[0]);
+        }
+    });
+
+    // Handle choose file button
+    const chooseBtn = document.getElementById('btn-choose-file');
+    if (chooseBtn) {
+        chooseBtn.addEventListener('click', () => {
+            fileInput.click();
+        });
+    }
+
+    // Handle clear file button
+    const clearBtn = document.getElementById('btn-clear-file');
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            clearFileSelection();
+        });
+    }
+}
+
+async function handleTemplateFileSelect(file) {
+    if (!file.name.match(/\.(pptx|docx)$/i)) {
+        toast('请上传 .pptx 或 .docx 文件', 'error');
+        return;
+    }
+
+    const fileNameEl = document.getElementById('selected-file-name');
+    const fileInfoEl = document.getElementById('selected-file-info');
+
+    if (fileNameEl) fileNameEl.textContent = file.name;
+    if (fileInfoEl) fileInfoEl.classList.remove('hidden');
+}
+
+function clearFileSelection() {
+    const fileNameEl = document.getElementById('selected-file-name');
+    const fileInfoEl = document.getElementById('selected-file-info');
+    const fileInput = document.getElementById('template-file-input');
+
+    if (fileNameEl) fileNameEl.textContent = '';
+    if (fileInfoEl) fileInfoEl.classList.add('hidden');
+    if (fileInput) fileInput.value = '';
+}
+
+async function uploadTemplate() {
+    const fileInput = document.getElementById('template-file-input');
+    const nameInput = document.getElementById('template-name-input');
+    const descInput = document.getElementById('template-desc-input');
+    const typeSelect = document.getElementById('template-type-select');
+    const statusEl = document.getElementById('template-upload-status');
+
+    const file = fileInput?.files?.[0];
+    if (!file) {
+        toast('请选择文件', 'error');
+        return;
+    }
+
+    const name = nameInput?.value.trim() || file.name.replace(/\.(pptx|docx)$/i, '');
+    const description = descInput?.value.trim() || '';
+    const fileType = typeSelect?.value || 'docx';
+
+    // Determine file type from extension if needed
+    const actualFileType = file.name.toLowerCase().endsWith('.pptx') ? 'pptx' : fileType;
+
+    if (statusEl) {
+        statusEl.innerHTML = '<div class="loading"><div class="spinner"></div><span>正在上传...</span></div>';
+        statusEl.classList.remove('hidden');
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('template_name', name);
+    formData.append('file_type', actualFileType);
+    if (description) formData.append('description', description);
+
+    try {
+        const response = await fetch('/api/templates/upload', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer dummy' },
+            body: formData
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ detail: 'Upload failed' }));
+            throw new Error(error.detail || 'Upload failed');
+        }
+
+        const data = await response.json();
+        toast('模板上传成功', 'success');
+        await loadTemplatesList();
+        await initTemplateSelects();
+        switchTemplatesTab('configure');
+
+        // Reset form
+        if (nameInput) nameInput.value = '';
+        if (descInput) descInput.value = '';
+        clearFileSelection();
+    } catch (e) {
+        toast('上传失败: ' + e.message, 'error');
+    } finally {
+        if (statusEl) statusEl.classList.add('hidden');
+    }
+}
+
+async function downloadTemplateFile(name, type) {
+    try {
+        window.open(`/api/templates/files/${encodeURIComponent(name)}/${type}`, '_blank');
+    } catch (e) {
+        toast('下载失败: ' + e.message, 'error');
+    }
+}
+
+async function deleteTemplate(name) {
+    if (!confirm(`确定要删除模板 "${name}" 吗？`)) return;
+
+    try {
+        await apiCall('DELETE', `/api/templates/${encodeURIComponent(name)}`);
+        toast('模板已删除', 'success');
+        await loadTemplatesList();
+        await initTemplateSelects();
+
+        if (currentTemplateState.selectedTemplate === name) {
+            currentTemplateState.selectedTemplate = null;
+        }
+    } catch (e) {
+        toast('删除失败: ' + e.message, 'error');
+    }
+}
+
+async function createYamlConfig() {
+    const name = document.getElementById('template-name-input')?.value.trim();
+    const description = document.getElementById('template-desc-input')?.value.trim();
+    const yamlContent = prompt('请输入YAML配置:');
+
+    if (!name) {
+        toast('请输入模板名称', 'error');
+        return;
+    }
+
+    if (!yamlContent) {
+        toast('请输入YAML配置', 'error');
+        return;
+    }
+
+    try {
+        await apiCall('POST', '/api/templates/create-yaml', {
+            name,
+            description,
+            yaml_content: yamlContent
+        });
+        toast('YAML配置创建成功', 'success');
+        await loadTemplatesList();
+        await initTemplateSelects();
+    } catch (e) {
+        toast('创建失败: ' + e.message, 'error');
+    }
+}
+
+async function renderReportFromTemplate() {
+    const templateSelect = document.getElementById('render-template-select');
+    const typeSelect = document.getElementById('render-type-select');
+    const canonicalIdInput = document.getElementById('render-canonical-id');
+    const reportTypeSelect = document.getElementById('render-report-type');
+
+    const templateName = templateSelect?.value || currentTemplateState.selectedTemplate;
+    const fileType = typeSelect?.value || currentTemplateState.selectedFileType || 'docx';
+    const canonicalId = canonicalIdInput?.value.trim() || null;
+    const reportType = reportTypeSelect?.value || 'full';
+
+    if (!templateName) {
+        toast('请先选择一个模板', 'error');
+        return;
+    }
+
+    const loadingEl = document.getElementById('render-loading');
+    const resultEl = document.getElementById('render-result');
+
+    if (loadingEl) loadingEl.classList.remove('hidden');
+    if (resultEl) resultEl.classList.add('hidden');
+
+    try {
+        let result;
+
+        if (canonicalId) {
+            // Use asset data
+            result = await apiCall('POST', '/api/templates/render-from-asset', {
+                template_name: templateName,
+                file_type: fileType,
+                canonical_id: canonicalId,
+                report_type: reportType,
+                additional_placeholders: currentTemplateState.placeholderValues
+            });
+        } else {
+            // Use manual placeholders only
+            result = await apiCall('POST', '/api/templates/render', {
+                template_name: templateName,
+                file_type: fileType,
+                placeholders: currentTemplateState.placeholderValues
+            });
+        }
+
+        currentTemplateState.renderedReportId = result.report_id;
+
+        if (resultEl) {
+            const downloadLink = document.getElementById('render-download-link');
+            if (downloadLink && result.report_id) {
+                downloadLink.href = `/api/templates/download/${encodeURIComponent(result.report_id)}`;
+            }
+            resultEl.innerHTML = `
+                <div class="success-message">
+                    <i class="codicon codicon-pass"></i>
+                    <span>报告渲染成功！</span>
+                </div>
+                <a id="render-download-link" href="/api/templates/download/${encodeURIComponent(result.report_id)}"
+                   class="btn-primary" target="_blank">下载报告</a>
+            `;
+            resultEl.classList.remove('hidden');
+        }
+    } catch (e) {
+        toast('渲染失败: ' + e.message, 'error');
+    } finally {
+        if (loadingEl) loadingEl.classList.add('hidden');
+    }
+}
+
+async function downloadRenderedReport(reportId) {
+    try {
+        window.open(`/api/templates/download/${encodeURIComponent(reportId)}`, '_blank');
+    } catch (e) {
+        toast('下载失败: ' + e.message, 'error');
+    }
 }
