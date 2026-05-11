@@ -46,13 +46,20 @@ class EvidenceCollector:
 
         # 2. 查询相关断言
         if self._assertion_repo:
-            # TODO: 实现真正的断言查询
-            pass
+            for subject_id in state.subject_ids:
+                assertions = self._assertion_repo.get_by_subject(subject_id)
+                state.retrieved_assertion_ids.extend([a.assertion_id for a in assertions])
+            # 去重
+            state.retrieved_assertion_ids = list(set(state.retrieved_assertion_ids))
 
         # 3. 查询相关事件
         if self._event_repo:
-            # TODO: 实现真正的事件查询
-            pass
+            for subject_id in state.subject_ids:
+                events = self._event_repo.get_by_entity(subject_id)
+                state.retrieved_events.extend([
+                    {"event_id": e.event_id, "title": e.title, "event_time": e.event_time.isoformat() if e.event_time else None}
+                    for e in events
+                ])
 
         logger.info(
             f"Collected: {len(state.retrieved_doc_ids)} docs, "
