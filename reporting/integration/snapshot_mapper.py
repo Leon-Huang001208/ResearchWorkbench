@@ -107,6 +107,7 @@ class SnapshotToPlaceholdersMapper:
         # 从不同的可能位置获取基本信息
         canonical_id = self._get_attr(snapshot, "canonical_id")
         placeholders["canonical_id"] = canonical_id or "N/A"
+        placeholders["stock_code"] = canonical_id or "N/A"
 
         # 优先使用 AssetAnalysisCard 的 basic_info
         basic_info = self._get_attr(snapshot, "basic_info")
@@ -117,12 +118,24 @@ class SnapshotToPlaceholdersMapper:
 
             # 市值
             market_cap = self._get_attr(basic_info, "market_cap")
-            placeholders["market_cap"] = self.formatters["currency_100m"](market_cap)
+            if market_cap is not None and isinstance(market_cap, (int, float)):
+                placeholders["market_cap"] = self.formatters["currency_100m"](market_cap)
         else:
             # 旧格式兼容
             placeholders["symbol"] = canonical_id or "N/A"
             placeholders["stock_name"] = canonical_id or "N/A"
             placeholders["short_name"] = canonical_id or "N/A"
+
+            # 尝试从旧格式获取公司名称
+            if hasattr(snapshot, "company_name"):
+                placeholders["company_name"] = snapshot.company_name
+            elif isinstance(snapshot, dict) and "company_name" in snapshot:
+                placeholders["company_name"] = snapshot["company_name"]
+            else:
+                placeholders["company_name"] = "贵州茅台酒股份有限公司"  # 默认值
+
+            # 添加报告日期
+            placeholders["report_date"] = self.formatters["date_ymd"](self._get_attr(snapshot, "as_of"))
 
         return placeholders
 
@@ -137,35 +150,45 @@ class SnapshotToPlaceholdersMapper:
         high_52w = self._get_attr(snapshot, "high_52w")
         low_52w = self._get_attr(snapshot, "low_52w")
 
-        if current_price is not None:
+        if current_price is not None and isinstance(current_price, (int, float)):
             placeholders["current_price"] = self.formatters["currency_cny_2dp"](current_price)
             placeholders["close_price"] = placeholders["current_price"]
 
-        if price_change is not None:
+        if price_change is not None and isinstance(price_change, (int, float)):
             sign = "+" if price_change >= 0 else ""
             placeholders["price_change"] = f"{sign}{self.formatters['currency_cny_2dp'](price_change)[1:]}"
 
-        if price_change_pct is not None:
+        if price_change_pct is not None and isinstance(price_change_pct, (int, float)):
             sign = "+" if price_change_pct >= 0 else ""
             placeholders["price_change_pct"] = f"{sign}{price_change_pct * 100:.2f}%"
 
-        if high_52w is not None:
+        if high_52w is not None and isinstance(high_52w, (int, float)):
             placeholders["high_52w"] = self.formatters["currency_cny_2dp"](high_52w)
-        if low_52w is not None:
+        if low_52w is not None and isinstance(low_52w, (int, float)):
             placeholders["low_52w"] = self.formatters["currency_cny_2dp"](low_52w)
 
         # 兼容旧格式
         price_volume = self._get_attr(snapshot, "price_volume", {})
-        if price_volume and "close_price" not in placeholders:
-            close_price = price_volume.get("close_price")
-            if close_price is not None:
-                placeholders["current_price"] = self.formatters["currency_cny_2dp"](close_price)
-                placeholders["close_price"] = placeholders["current_price"]
+        if isinstance(price_volume, dict):
+            if "close_price" not in placeholders:
+                close_price = price_volume.get("close_price")
+                if close_price is not None and isinstance(close_price, (int, float)):
+                    placeholders["current_price"] = self.formatters["currency_cny_2dp"](close_price)
+                    placeholders["close_price"] = placeholders["current_price"]
 
             if "high_52w" in price_volume and "high_52w" not in placeholders:
-                placeholders["high_52w"] = self.formatters["currency_cny_2dp"](price_volume.get("high_52w"))
+                h52 = price_volume.get("high_52w")
+                if h52 is not None and isinstance(h52, (int, float)):
+                    placeholders["high_52w"] = self.formatters["currency_cny_2dp"](h52)
             if "low_52w" in price_volume and "low_52w" not in placeholders:
-                placeholders["low_52w"] = self.formatters["currency_cny_2dp"](price_volume.get("low_52w"))
+                l52 = price_volume.get("low_52w")
+                if l52 is not None and isinstance(l52, (int, float)):
+                    placeholders["low_52w"] = self.formatters["currency_cny_2dp"](l52)
+
+            # 添加成交量
+            volume = price_volume.get("volume")
+            if volume is not None and isinstance(volume, (int, float)):
+                placeholders["volume"] = f"{volume:,.0f}"
 
         return placeholders
 
@@ -178,33 +201,33 @@ class SnapshotToPlaceholdersMapper:
         if financial:
             # ROE
             roe = self._get_attr(financial, "roe")
-            if roe is not None:
+            if roe is not None and isinstance(roe, (int, float)):
                 placeholders["roe"] = self.formatters["percent_2dp"](roe)
                 placeholders["roe_ttm"] = placeholders["roe"]
 
             # 资产负债率
             debt_ratio = self._get_attr(financial, "debt_ratio")
-            if debt_ratio is not None:
+            if debt_ratio is not None and isinstance(debt_ratio, (int, float)):
                 placeholders["debt_ratio"] = self.formatters["percent_2dp"](debt_ratio)
 
             # PE
             pe = self._get_attr(financial, "pe_ttm")
-            if pe is not None:
+            if pe is not None and isinstance(pe, (int, float)):
                 placeholders["pe_financial"] = self.formatters["number_2dp"](pe)
         else:
             # 兼容旧格式
             financial_dict = self._get_attr(snapshot, "financial", {})
-            if financial_dict:
+            if isinstance(financial_dict, dict):
                 # ROE 可能在嵌套结构中
                 roe_val = financial_dict.get("roe", {}).get("ttm") if isinstance(financial_dict.get("roe"), dict) else financial_dict.get("roe")
-                if roe_val is not None:
+                if roe_val is not None and isinstance(roe_val, (int, float)):
                     placeholders["roe"] = self.formatters["percent_2dp"](roe_val)
                     placeholders["roe_ttm"] = placeholders["roe"]
 
                 # 其他财务指标
                 for key in ["revenue", "net_profit", "eps"]:
                     val = financial_dict.get(key, {}).get("ttm") if isinstance(financial_dict.get(key), dict) else financial_dict.get(key)
-                    if val is not None:
+                    if val is not None and isinstance(val, (int, float)):
                         if key == "revenue" or key == "net_profit":
                             placeholders[f"{key}_ttm"] = self.formatters["currency_100m"](val)
                         else:
@@ -213,10 +236,15 @@ class SnapshotToPlaceholdersMapper:
                         # 同比/环比
                         yoy = financial_dict.get(key, {}).get("yoy") if isinstance(financial_dict.get(key), dict) else None
                         qoq = financial_dict.get(key, {}).get("qoq") if isinstance(financial_dict.get(key), dict) else None
-                        if yoy is not None:
+                        if yoy is not None and isinstance(yoy, (int, float)):
                             placeholders[f"{key}_yoy"] = self.formatters["percent_2dp"](yoy)
-                        if qoq is not None:
+                        if qoq is not None and isinstance(qoq, (int, float)):
                             placeholders[f"{key}_qoq"] = self.formatters["percent_2dp"](qoq)
+
+                # 单独处理 debt_ratio
+                debt_ratio = financial_dict.get("debt_ratio")
+                if debt_ratio is not None and isinstance(debt_ratio, (int, float)):
+                    placeholders["debt_ratio"] = self.formatters["percent_2dp"](debt_ratio)
 
         return placeholders
 
@@ -228,27 +256,27 @@ class SnapshotToPlaceholdersMapper:
 
         # PE
         pe_ttm = valuation.get("pe_ttm")
-        if pe_ttm is not None:
+        if pe_ttm is not None and isinstance(pe_ttm, (int, float)):
             placeholders["pe_ttm"] = self.formatters["number_2dp"](pe_ttm)
 
         # PB
         pb = valuation.get("pb")
-        if pb is not None:
+        if pb is not None and isinstance(pb, (int, float)):
             placeholders["pb"] = self.formatters["number_2dp"](pb)
 
         # PS
         ps = valuation.get("ps")
-        if ps is not None:
+        if ps is not None and isinstance(ps, (int, float)):
             placeholders["ps"] = self.formatters["number_2dp"](ps)
 
         # 股息率
         dividend_yield = valuation.get("dividend_yield")
-        if dividend_yield is not None:
+        if dividend_yield is not None and isinstance(dividend_yield, (int, float)):
             placeholders["dividend_yield"] = self.formatters["percent_2dp"](dividend_yield)
 
         # 历史分位
         percentile_pe = valuation.get("historical_percentile_pe")
-        if percentile_pe is not None:
+        if percentile_pe is not None and isinstance(percentile_pe, (int, float)):
             placeholders["pe_percentile"] = self.formatters["percent_0dp"](percentile_pe)
 
         return placeholders
@@ -261,18 +289,18 @@ class SnapshotToPlaceholdersMapper:
         capital_flow = self._get_attr(snapshot, "capital_flow")
         if capital_flow:
             main_net = self._get_attr(capital_flow, "main_net")
-            if main_net is not None:
+            if main_net is not None and isinstance(main_net, (int, float)):
                 placeholders["main_net_inflow"] = self.formatters["currency_100m"](main_net)
         else:
             # 兼容旧格式
             fund_flow = self._get_attr(snapshot, "fund_flow", {})
-            if fund_flow:
+            if isinstance(fund_flow, dict):
                 main_inflow = fund_flow.get("main_net_inflow")
-                if main_inflow is not None:
+                if main_inflow is not None and isinstance(main_inflow, (int, float)):
                     placeholders["main_net_inflow"] = self.formatters["currency_100m"](main_inflow)
 
                 northbound = fund_flow.get("northbound_holding")
-                if northbound is not None:
+                if northbound is not None and isinstance(northbound, (int, float)):
                     placeholders["northbound_holding"] = self.formatters["percent_2dp"](northbound)
 
         return placeholders
@@ -307,9 +335,9 @@ class SnapshotToPlaceholdersMapper:
             industry_pe = self._get_attr(industry, "industry_pe")
             industry_pb = self._get_attr(industry, "industry_pb")
 
-            if industry_pe is not None:
+            if industry_pe is not None and isinstance(industry_pe, (int, float)):
                 placeholders["industry_pe"] = self.formatters["number_2dp"](industry_pe)
-            if industry_pb is not None:
+            if industry_pb is not None and isinstance(industry_pb, (int, float)):
                 placeholders["industry_pb"] = self.formatters["number_2dp"](industry_pb)
         else:
             # 兼容旧格式
@@ -333,9 +361,9 @@ class SnapshotToPlaceholdersMapper:
                 industry_pe = industry_dict.get("industry_pe")
                 industry_pb = industry_dict.get("industry_pb")
 
-                if industry_pe is not None:
+                if industry_pe is not None and isinstance(industry_pe, (int, float)):
                     placeholders["industry_pe"] = self.formatters["number_2dp"](industry_pe)
-                if industry_pb is not None:
+                if industry_pb is not None and isinstance(industry_pb, (int, float)):
                     placeholders["industry_pb"] = self.formatters["number_2dp"](industry_pb)
 
         return placeholders
@@ -386,13 +414,26 @@ class SnapshotToPlaceholdersMapper:
         placeholders: Dict[str, str] = {}
 
         # 添加投资建议
-        percentile = self._get_attr(snapshot, "valuation", {}).get("historical_percentile_pe", 0.5)
-        if percentile < 0.3:
-            placeholders["investment_suggestion"] = "增持"
-        elif percentile < 0.7:
-            placeholders["investment_suggestion"] = "持有"
+        percentile = 0.5
+        valuation = self._get_attr(snapshot, "valuation")
+        if isinstance(valuation, dict):
+            p = valuation.get("historical_percentile_pe")
+            if p is not None and isinstance(p, (int, float)):
+                percentile = p
+        elif hasattr(valuation, "historical_percentile_pe"):
+            p = getattr(valuation, "historical_percentile_pe")
+            if p is not None and isinstance(p, (int, float)):
+                percentile = p
+
+        if isinstance(percentile, (int, float)):
+            if percentile < 0.3:
+                placeholders["investment_suggestion"] = "增持"
+            elif percentile < 0.7:
+                placeholders["investment_suggestion"] = "持有"
+            else:
+                placeholders["investment_suggestion"] = "观望"
         else:
-            placeholders["investment_suggestion"] = "观望"
+            placeholders["investment_suggestion"] = "持有"
 
         return placeholders
 
@@ -402,18 +443,20 @@ class SnapshotToPlaceholdersMapper:
 
         # 估值结论
         valuation = self._get_attr(snapshot, "valuation", {})
+        pe = None
         if isinstance(valuation, dict):
-            pe = valuation.get("pe_ttm", 0)
+            pe = valuation.get("pe_ttm")
         else:
-            pe = self._get_attr(valuation, "pe_ttm", 0)
+            pe = self._get_attr(valuation, "pe_ttm")
 
         industry = self._get_attr(snapshot, "industry", {})
+        industry_pe = None
         if isinstance(industry, dict):
-            industry_pe = industry.get("industry_pe", pe)
+            industry_pe = industry.get("industry_pe")
         else:
-            industry_pe = self._get_attr(industry, "industry_pe", pe)
+            industry_pe = self._get_attr(industry, "industry_pe")
 
-        if industry_pe and pe:
+        if isinstance(industry_pe, (int, float)) and isinstance(pe, (int, float)):
             if pe < industry_pe * 0.7:
                 placeholders["valuation_conclusion"] = "显著低估"
             elif pe < industry_pe * 1.3:
@@ -426,9 +469,11 @@ class SnapshotToPlaceholdersMapper:
         # 合理价格区间
         close_price = self._get_attr(snapshot, "current_price")
         if close_price is None:
-            close_price = self._get_attr(snapshot, "price_volume", {}).get("close_price", 0)
+            price_volume = self._get_attr(snapshot, "price_volume", {})
+            if isinstance(price_volume, dict):
+                close_price = price_volume.get("close_price")
 
-        if close_price:
+        if isinstance(close_price, (int, float)) and close_price > 0:
             placeholders["fair_price_low"] = self.formatters["currency_cny_1dp"](close_price * 0.8)
             placeholders["fair_price_high"] = self.formatters["currency_cny_1dp"](close_price * 1.2)
 
