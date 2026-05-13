@@ -3795,3 +3795,237 @@ tr:hover td {
         max-width: 700px;
     }
 }
+
+/* ============================================================
+   Market Overview Styles
+   ============================================================ */
+
+.market-overview-card {
+    grid-column: 1 / -1;
+}
+
+.market-overview-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 1.5rem;
+    margin-top: 0.5rem;
+}
+
+.market-section {
+    background: var(--bg-input);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+}
+
+.market-section h4 {
+    font-size: 0.95rem;
+    margin: 0 0 0.75rem 0;
+    color: var(--text-primary);
+    font-weight: 600;
+    border-bottom: 1px solid var(--border-soft);
+    padding-bottom: 0.5rem;
+}
+
+/* News List */
+.news-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-height: 420px;
+    overflow-y: auto;
+}
+
+.news-item {
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    padding: 0.85rem 1rem;
+    border-left: 3px solid var(--accent-primary);
+    transition: all var(--duration-normal) ease;
+}
+
+.news-item:hover {
+    background: var(--bg-elevated);
+    transform: translateX(2px);
+}
+
+.news-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.4rem;
+}
+
+.news-rank {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    background: var(--accent-primary);
+    color: #000;
+    font-size: 0.7rem;
+    font-weight: 700;
+    border-radius: 50%;
+    font-family: var(--font-mono);
+}
+
+.news-source {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.news-region {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.5rem;
+    background: var(--accent-primary);
+    color: #000;
+    border-radius: 999px;
+    font-weight: 600;
+}
+
+.news-title {
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    font-weight: 600;
+    margin-bottom: 0.3rem;
+    line-height: 1.4;
+}
+
+.news-summary {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-bottom: 0.4rem;
+}
+
+.news-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.news-time {
+    font-family: var(--font-mono);
+}
+
+.news-symbols {
+    font-family: var(--font-mono);
+    background: var(--bg-code);
+    padding: 0.15rem 0.5rem;
+    border-radius: var(--radius-sm);
+    color: var(--text-code);
+}
+
+/* Sector List */
+.sector-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.sector-item {
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    padding: 0.75rem 0.9rem;
+    transition: all var(--duration-normal) ease;
+}
+
+.sector-item:hover {
+    background: var(--bg-elevated);
+    transform: translateX(2px);
+}
+
+.sector-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.4rem;
+}
+
+.sector-name {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.sector-change {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 0.2rem 0.5rem;
+    border-radius: var(--radius-sm);
+}
+
+.sector-up {
+    background: rgba(0, 200, 150, 0.15);
+    color: var(--status-positive);
+}
+
+.sector-down {
+    background: rgba(255, 107, 107, 0.15);
+    color: var(--status-negative);
+}
+
+.sector-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.badge-concept, .badge-sector, .badge-region {
+    font-size: 0.72rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    font-weight: 600;
+}
+
+.badge-concept {
+    background: rgba(139, 92, 246, 0.15);
+    color: #A78BFA;
+}
+
+.badge-sector {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60A5FA;
+}
+
+.sector-stocks {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+    .market-overview-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .news-section {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 768px) {
+    .market-overview-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .news-list {
+        max-height: 300px;
+    }
+}
+}

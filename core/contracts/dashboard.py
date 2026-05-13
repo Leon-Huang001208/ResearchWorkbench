@@ -313,13 +313,93 @@ class LearningSection(BaseModel):
     )
 
 
+class GlobalNewsItem(BaseModel):
+    """全球热点新闻项.
+
+    Represents a global hot news item, including title, source, importance score,
+    summary, publish time, and related symbols.
+
+    Attributes:
+        news_id: Unique identifier for the news.
+        title: News title.
+        source: News source (e.g., "Reuters", "Bloomberg").
+        importance_score: Importance score (0.0 to 1.0), higher is more important.
+        summary: Brief summary of the news.
+        content_url: URL to the full content (optional).
+        published_at: Publish time as a string.
+        related_symbols: List of related ticker symbols (optional).
+        region: Region this news pertains to (e.g., "Global", "US", "China", "Europe").
+    """
+
+    news_id: str = Field(description="Unique identifier for the news")
+    title: str = Field(description="News title")
+    source: str = Field(description="News source (e.g., Reuters, Bloomberg)")
+    importance_score: float = Field(description="Importance score (0.0 to 1.0)")
+    summary: str = Field(description="Brief summary of the news")
+    content_url: Optional[str] = Field(description="URL to the full content", default=None)
+    published_at: str = Field(description="Publish time as an ISO string")
+    related_symbols: List[str] = Field(
+        default_factory=list, description="List of related ticker symbols"
+    )
+    region: str = Field(description="Region this news pertains to (e.g., Global, US, China)")
+
+
+class SectorChangeItem(BaseModel):
+    """板块涨跌项.
+
+    Represents a sector/concept change data, including name, change percentage,
+    leading stocks, and related news count.
+
+    Attributes:
+        sector_id: Unique identifier for the sector/concept.
+        name: Name of the sector/concept (e.g., "AI", "New Energy", "Banking").
+        change_pct: Change percentage (positive for up, negative for down).
+        leading_stocks: List of leading stock symbols in this sector.
+        related_news_count: Number of related news items today.
+        is_concept: Whether this is a concept (True) or a traditional sector (False).
+    """
+
+    sector_id: str = Field(description="Unique identifier for the sector/concept")
+    name: str = Field(description="Name of the sector/concept")
+    change_pct: float = Field(description="Change percentage (positive for up, negative for down)")
+    leading_stocks: List[str] = Field(default_factory=list, description="Leading stock symbols")
+    related_news_count: int = Field(default=0, description="Number of related news items today")
+    is_concept: bool = Field(
+        default=False, description="Whether this is a concept (True) or traditional sector (False)"
+    )
+
+
+class MarketOverviewSection(BaseModel):
+    """市场概览板块数据.
+
+    Contains data for the "Market Overview" dashboard section, including global news
+    and top sectors (up and down).
+
+    Attributes:
+        global_news: List of global hot news items (top 10 by importance).
+        top_up_sectors: List of top gaining sectors/concepts (top 5).
+        top_down_sectors: List of top losing sectors/concepts (top 5).
+    """
+
+    global_news: List[GlobalNewsItem] = Field(
+        default_factory=list, description="List of global hot news items (top 10)"
+    )
+    top_up_sectors: List[SectorChangeItem] = Field(
+        default_factory=list, description="List of top gaining sectors/concepts (top 5)"
+    )
+    top_down_sectors: List[SectorChangeItem] = Field(
+        default_factory=list, description="List of top losing sectors/concepts (top 5)"
+    )
+
+
 class DashboardResponse(BaseModel):
     """完整首页聚合响应.
 
-    Represents the complete dashboard response, including today's section, research queue,
-    candidate board, learning section, and generation timestamp.
+    Represents the complete dashboard response, including market overview, today's section,
+    research queue, candidate board, learning section, and generation timestamp.
 
     Attributes:
+        market_overview: Data for the "Market Overview" section (news and sectors).
         today: Data for the "Today" section.
         research_queue: Data for the "Research Queue" section.
         candidate_board: Data for the "Candidate Board" section.
@@ -327,6 +407,9 @@ class DashboardResponse(BaseModel):
         generated_at: Timestamp when this dashboard response was generated.
     """
 
+    market_overview: MarketOverviewSection = Field(
+        description="Data for the 'Market Overview' section (news and sectors)"
+    )
     today: TodaySection = Field(description="Data for the 'Today' section")
     research_queue: ResearchQueueSection = Field(
         description="Data for the 'Research Queue' section"

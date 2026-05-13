@@ -436,7 +436,68 @@ applyChartDefaults();
 async function loadDashboard() {
     try {
         const data = await apiCall('GET', '/api/dashboard');
-        
+
+        // Render Market Overview Section
+        // Global News
+        const globalNewsEl = document.getElementById('market-global-news');
+        if (data.market_overview.global_news.length) {
+            globalNewsEl.innerHTML = data.market_overview.global_news.map((n, idx) => `
+                <li class="news-item">
+                    <div class="news-header">
+                        <span class="news-rank">#${idx + 1}</span>
+                        <span class="news-source">${esc(n.source)}</span>
+                        <span class="news-region badge badge-region">${esc(n.region)}</span>
+                    </div>
+                    <div class="news-title">${esc(n.title)}</div>
+                    <div class="news-summary">${esc(n.summary)}</div>
+                    <div class="news-meta">
+                        <span class="news-time">${new Date(n.published_at).toLocaleString()}</span>
+                        ${n.related_symbols.length ? `<span class="news-symbols">${n.related_symbols.map(s => esc(s)).join(', ')}</span>` : ''}
+                    </div>
+                </li>
+            `).join('');
+        } else {
+            globalNewsEl.innerHTML = '<li class="empty-state" data-i18n="dashboard.no_data">暂无新闻</li>';
+        }
+
+        // Top Up Sectors
+        const topUpSectorsEl = document.getElementById('market-top-up-sectors');
+        if (data.market_overview.top_up_sectors.length) {
+            topUpSectorsEl.innerHTML = data.market_overview.top_up_sectors.map(s => `
+                <li class="sector-item">
+                    <div class="sector-header">
+                        <span class="sector-name">${esc(s.name)}</span>
+                        <span class="sector-change sector-up">+${s.change_pct.toFixed(2)}%</span>
+                    </div>
+                    <div class="sector-meta">
+                        ${s.is_concept ? '<span class="badge badge-concept">概念</span>' : '<span class="badge badge-sector">板块</span>'}
+                        <span class="sector-stocks">${s.leading_stocks.slice(0, 3).map(st => esc(st)).join(', ')}</span>
+                    </div>
+                </li>
+            `).join('');
+        } else {
+            topUpSectorsEl.innerHTML = '<li class="empty-state" data-i18n="dashboard.no_data">暂无数据</li>';
+        }
+
+        // Top Down Sectors
+        const topDownSectorsEl = document.getElementById('market-top-down-sectors');
+        if (data.market_overview.top_down_sectors.length) {
+            topDownSectorsEl.innerHTML = data.market_overview.top_down_sectors.map(s => `
+                <li class="sector-item">
+                    <div class="sector-header">
+                        <span class="sector-name">${esc(s.name)}</span>
+                        <span class="sector-change sector-down">${s.change_pct.toFixed(2)}%</span>
+                    </div>
+                    <div class="sector-meta">
+                        ${s.is_concept ? '<span class="badge badge-concept">概念</span>' : '<span class="badge badge-sector">板块</span>'}
+                        <span class="sector-stocks">${s.leading_stocks.slice(0, 3).map(st => esc(st)).join(', ')}</span>
+                    </div>
+                </li>
+            `).join('');
+        } else {
+            topDownSectorsEl.innerHTML = '<li class="empty-state" data-i18n="dashboard.no_data">暂无数据</li>';
+        }
+
         // Render Today Section
         // New Events
         const newEventsEl = document.getElementById('today-new-events');
