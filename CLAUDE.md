@@ -250,6 +250,114 @@ mypy core/ data_layer/ knowledge_layer/ reasoning/ reporting/ signal_lab/ app/
 
 ---
 
+## Git 工作流标准
+
+### 标准分支工作流
+
+开始新任务集时的标准流程：
+
+1. **切换到 master 并拉取最新代码**
+   ```bash
+   git checkout master
+   git pull origin master
+   ```
+
+2. **从最新的 master 创建新分支**
+   ```bash
+   git checkout -b af-auto-00X-<简短描述>
+   ```
+
+3. **在分支上进行开发**
+   - 每个任务产生一个原子提交
+   - 提交信息格式: `[任务描述] - completed`
+
+4. **推送分支到远程**
+   ```bash
+   git push origin af-auto-00X-<简短描述>
+   ```
+
+5. **在 GitHub 上打开 Pull Request**
+   - PR 标题: `AF-AUTO-00X: <任务集描述>`
+   - PR 描述: 包含完成的任务列表和变更摘要
+
+6. **合并后的清理**
+   - 合并后删除远程分支
+   - 本地切回 master 并拉取最新代码
+
+### 分支命名约定
+
+- **任务集分支**: `af-auto-00X-<简短描述>`
+  - 示例: `af-auto-004-dashboard-integration`
+  - 示例: `af-auto-005-signal-enhancements`
+
+- **单一任务分支**（可选）: `af-auto-00X-<任务名>`
+  - 示例: `af-auto-004-fix-sector-display`
+
+### 多任务集在一个分支的情况
+
+如果在一个分支上完成了多个任务集（af-auto-002、003、004）：
+
+1. **确认所有工作已提交并推送**
+2. **在 GitHub 上打开包含所有任务集的 PR**
+3. **合并后按标准流程切换回 master 并拉取最新代码**
+
+### 特殊情况处理
+
+- **快速修复**: 如果是小的热修复，可以在 PR 合并后快速开新分支
+- **被阻塞的任务**: 如果任务被阻塞，先提交已有工作，在 git 信息中记录阻塞点
+
+## GitHub 上传流程标准
+
+### 提交代码前检查
+
+1. [ ] `git status` - 确认工作区干净
+2. [ ] `git diff` - 检查所有变更
+3. [ ] 运行相关测试验证功能
+4. [ ] 确认提交信息清晰完整
+
+### 推送步骤
+
+```bash
+# 1. 确认当前分支
+git branch
+
+# 2. 确认所有更改已提交
+git status
+
+# 3. 推送到远程
+git push origin <分支名>
+
+# 4. 如果是新分支，设置上游关联
+git push -u origin <分支名>
+```
+
+### PR 创建指南
+
+在 GitHub 网页上创建 PR 时：
+
+1. **标题**: `AF-AUTO-00X: <任务集描述>`
+2. **描述** 包含:
+   - 完成的任务列表
+   - 关键变更摘要
+   - 测试结果
+   - 相关截图（如适用）
+3. **Reviewers**（如需要）: 指定负责人
+4. **Labels**: 标记为 enhancement、feature 等
+
+### 合并后流程
+
+1. **在 GitHub 上合并 PR**
+2. **删除远程分支**
+3. **本地清理**:
+   ```bash
+   git checkout master
+   git pull origin master
+   git branch -d <已合并的分支名>
+   git remote prune origin
+   ```
+
+---
+
 ## 分支工作流规则
 
 1. **不要在 master/main 上直接执行** AF-AUTO-001 或后续任务
