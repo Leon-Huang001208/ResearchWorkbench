@@ -97,6 +97,34 @@ function navigateTo(section) {
 
 // Wait for DOM ready before binding all interactive events
 document.addEventListener('DOMContentLoaded', () => {
+    // Dashboard refresh button
+    document.getElementById('refresh-dashboard')?.addEventListener('click', () => {
+        const btn = document.getElementById('refresh-dashboard');
+        const icon = btn.querySelector('i');
+        icon.classList.add('rotating');
+        loadDashboard().finally(() => {
+            icon.classList.remove('rotating');
+            toast('数据已刷新', 'success');
+        });
+    });
+
+    // Auto-refresh toggle
+    document.getElementById('auto-refresh')?.addEventListener('change', (e) => {
+        autoRefreshEnabled = e.target.checked;
+        if (autoRefreshEnabled) {
+            autoRefreshInterval = setInterval(() => {
+                loadDashboard();
+            }, 30000); // 30 seconds
+            toast('自动刷新已启用 (每30秒)', 'info');
+        } else {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+            }
+            toast('自动刷新已关闭', 'info');
+        }
+    });
+
     // Navigation buttons
     document.querySelectorAll('.activity-btn[data-section]').forEach(btn => {
         btn.addEventListener('click', () => navigateTo(btn.dataset.section));
@@ -433,20 +461,49 @@ applyChartDefaults();
 // Dashboard
 // ═══════════════════════════════════════════════════════════════
 
+// Auto-refresh state
+let autoRefreshEnabled = false;
+let autoRefreshInterval = null;
+
 async function loadDashboard() {
     try {
         const data = await apiCall('GET', '/api/dashboard');
+
+        // Update data source badge and last updated time
+        const dataSourceBadge = document.getElementById('data-source-badge');
+        const lastUpdatedEl = document.getElementById('last-updated');
+
+        if (data.market_overview.uses_real_news || data.market_overview.uses_real_sectors) {
+            dataSourceBadge.textContent = '真实数据';
+            dataSourceBadge.style.backgroundColor = '';
+            dataSourceBadge.classList.remove('badge-new');
+            dataSourceBadge.classList.add('badge-real');
+            dataSourceBadge.classList.remove('badge-mock');
+        } else {
+            dataSourceBadge.textContent = '模拟数据';
+            dataSourceBadge.style.backgroundColor = '';
+            dataSourceBadge.classList.remove('badge-new');
+            dataSourceBadge.classList.add('badge-mock');
+            dataSourceBadge.classList.remove('badge-real');
+        }
+
+        if (data.market_overview.last_updated) {
+            lastUpdatedEl.textContent = `更新于: ${new Date(data.market_overview.last_updated).toLocaleString()}`;
+        } else {
+            lastUpdatedEl.textContent = '';
+        }
 
         // Render Market Overview Section
         // Global News
         const globalNewsEl = document.getElementById('market-global-news');
         if (data.market_overview.global_news.length) {
             globalNewsEl.innerHTML = data.market_overview.global_news.map((n, idx) => `
-                <li class="news-item">
+                <li class="news-item ${n.is_mock ? 'mock-data-item' : ''}">
                     <div class="news-header">
                         <span class="news-rank">#${idx + 1}</span>
                         <span class="news-source">${esc(n.source)}</span>
                         <span class="news-region badge badge-region">${esc(n.region)}</span>
+                        ${n.is_mock ? '<span class="badge badge-mock">模拟</span>' : ''}
                     </div>
                     <div class="news-title">${esc(n.title)}</div>
                     <div class="news-summary">${esc(n.summary)}</div>
@@ -464,13 +521,14 @@ async function loadDashboard() {
         const topUpSectorsEl = document.getElementById('market-top-up-sectors');
         if (data.market_overview.top_up_sectors.length) {
             topUpSectorsEl.innerHTML = data.market_overview.top_up_sectors.map(s => `
-                <li class="sector-item">
+                <li class="sector-item ${s.is_mock ? 'mock-data-item' : ''}">
                     <div class="sector-header">
                         <span class="sector-name">${esc(s.name)}</span>
                         <span class="sector-change sector-up">+${s.change_pct.toFixed(2)}%</span>
                     </div>
                     <div class="sector-meta">
                         ${s.is_concept ? '<span class="badge badge-concept">概念</span>' : '<span class="badge badge-sector">板块</span>'}
+                        ${s.is_mock ? '<span class="badge badge-mock">模拟</span>' : ''}
                         <span class="sector-stocks">${s.leading_stocks.slice(0, 3).map(st => esc(st)).join(', ')}</span>
                     </div>
                 </li>
@@ -483,13 +541,14 @@ async function loadDashboard() {
         const topDownSectorsEl = document.getElementById('market-top-down-sectors');
         if (data.market_overview.top_down_sectors.length) {
             topDownSectorsEl.innerHTML = data.market_overview.top_down_sectors.map(s => `
-                <li class="sector-item">
+                <li class="sector-item ${s.is_mock ? 'mock-data-item' : ''}">
                     <div class="sector-header">
                         <span class="sector-name">${esc(s.name)}</span>
                         <span class="sector-change sector-down">${s.change_pct.toFixed(2)}%</span>
                     </div>
                     <div class="sector-meta">
                         ${s.is_concept ? '<span class="badge badge-concept">概念</span>' : '<span class="badge badge-sector">板块</span>'}
+                        ${s.is_mock ? '<span class="badge badge-mock">模拟</span>' : ''}
                         <span class="sector-stocks">${s.leading_stocks.slice(0, 3).map(st => esc(st)).join(', ')}</span>
                     </div>
                 </li>

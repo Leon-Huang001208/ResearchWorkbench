@@ -52,6 +52,7 @@ class DashboardService:
                 published_at=(now - timedelta(hours=2)).isoformat(),
                 related_symbols=["SPX", "NDX", "AAPL", "MSFT"],
                 region="Global",
+                is_mock=True,
             ),
             GlobalNewsItem(
                 news_id="news-002",
@@ -164,6 +165,7 @@ class DashboardService:
                 leading_stocks=["NVDA", "MSFT", "600519.SH"],
                 related_news_count=12,
                 is_concept=True,
+                is_mock=True,
             ),
             SectorChangeItem(
                 sector_id="sector-new-energy",
@@ -172,6 +174,7 @@ class DashboardService:
                 leading_stocks=["TSLA", "600030.SH", "002594.SZ"],
                 related_news_count=8,
                 is_concept=True,
+                is_mock=True,
             ),
             SectorChangeItem(
                 sector_id="sector-semiconductor",
@@ -180,6 +183,7 @@ class DashboardService:
                 leading_stocks=["AMD", "INTC", "600584.SH"],
                 related_news_count=10,
                 is_concept=False,
+                is_mock=True,
             ),
             SectorChangeItem(
                 sector_id="sector-fintech",
@@ -188,6 +192,7 @@ class DashboardService:
                 leading_stocks=["SQ", "PYPL", "600036.SH"],
                 related_news_count=5,
                 is_concept=True,
+                is_mock=True,
             ),
             SectorChangeItem(
                 sector_id="sector-gold",
@@ -196,6 +201,7 @@ class DashboardService:
                 leading_stocks=["GOLD", "600547.SH", "601899.SH"],
                 related_news_count=7,
                 is_concept=False,
+                is_mock=True,
             ),
         ]
 
@@ -207,6 +213,7 @@ class DashboardService:
                 leading_stocks=["600048.SH", "000002.SZ", "000069.SZ"],
                 related_news_count=6,
                 is_concept=False,
+                is_mock=True,
             ),
             SectorChangeItem(
                 sector_id="sector-traditional-banking",
@@ -215,6 +222,7 @@ class DashboardService:
                 leading_stocks=["JPM", "WFC", "601398.SH"],
                 related_news_count=4,
                 is_concept=False,
+                is_mock=True,
             ),
             SectorChangeItem(
                 sector_id="sector-retail",
@@ -223,6 +231,7 @@ class DashboardService:
                 leading_stocks=["WMT", "TGT", "600827.SH"],
                 related_news_count=3,
                 is_concept=False,
+                is_mock=True,
             ),
             SectorChangeItem(
                 sector_id="sector-oil-gas",
@@ -231,6 +240,7 @@ class DashboardService:
                 leading_stocks=["XOM", "CVX", "601857.SH"],
                 related_news_count=5,
                 is_concept=False,
+                is_mock=True,
             ),
             SectorChangeItem(
                 sector_id="sector-travel",
@@ -239,6 +249,7 @@ class DashboardService:
                 leading_stocks=["MAR", "HLT", "600754.SH"],
                 related_news_count=2,
                 is_concept=False,
+                is_mock=True,
             ),
         ]
 
@@ -246,6 +257,12 @@ class DashboardService:
 
     def get_market_overview_section(self) -> MarketOverviewSection:
         """获取市场概览板块：全球热点新闻、上涨/下跌板块概念"""
+        from datetime import datetime, UTC
+
+        has_real_news = False
+        has_real_sectors = False
+        last_updated = None
+
         try:
             # 尝试获取真实数据
             news_data, has_real_news = self.dashboard_repo.get_combined_global_news(
@@ -262,14 +279,15 @@ class DashboardService:
                     f"Using real data for market overview: news={has_real_news}, sectors={has_real_sectors}"
                 )
 
-                global_news = [GlobalNewsItem(**n) for n in news_data]
+                global_news = [GlobalNewsItem(**n, is_mock=False) for n in news_data]
 
                 # 如果没有真实新闻数据，回退到模拟
                 if not global_news:
                     global_news = self._get_mock_global_news()
+                    has_real_news = False
 
-                top_up_sectors = [SectorChangeItem(**s) for s in up_sectors_data]
-                top_down_sectors = [SectorChangeItem(**s) for s in down_sectors_data]
+                top_up_sectors = [SectorChangeItem(**s, is_mock=False) for s in up_sectors_data]
+                top_down_sectors = [SectorChangeItem(**s, is_mock=False) for s in down_sectors_data]
 
                 # 如果没有真实板块数据，回退到模拟
                 if not top_up_sectors or not top_down_sectors:
@@ -278,11 +296,18 @@ class DashboardService:
                         top_up_sectors = mock_up
                     if not top_down_sectors:
                         top_down_sectors = mock_down
+                    has_real_sectors = False
+
+                # 获取最后更新时间
+                last_updated = datetime.now(UTC)
 
                 return MarketOverviewSection(
                     global_news=global_news,
                     top_up_sectors=top_up_sectors,
                     top_down_sectors=top_down_sectors,
+                    uses_real_news=has_real_news,
+                    uses_real_sectors=has_real_sectors,
+                    last_updated=last_updated,
                 )
 
         except Exception as e:
@@ -297,6 +322,9 @@ class DashboardService:
             global_news=global_news,
             top_up_sectors=top_up_sectors,
             top_down_sectors=top_down_sectors,
+            uses_real_news=False,
+            uses_real_sectors=False,
+            last_updated=None,
         )
 
     def get_today_section(self) -> TodaySection:
