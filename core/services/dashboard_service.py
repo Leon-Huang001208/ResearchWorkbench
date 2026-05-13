@@ -10,18 +10,22 @@ from core.contracts.dashboard import (
     CandidateBoardSection,
     CandidateItem,
     DashboardResponse,
+    GlobalNewsItem,
     HighPriorityThesis,
     LearningSection,
     MappingReviewItem,
+    MarketOverviewSection,
     MissingEvidence,
     PendingAssertion,
     RecentFailure,
     ResearchQueueSection,
+    SectorChangeItem,
     TodayEvent,
     TodaySection,
     WeeklyLesson,
 )
 from core.observability import get_logger
+from data_layer.repositories.dashboard_data import DashboardDataRepository
 
 logger = get_logger(__name__)
 
@@ -32,6 +36,296 @@ class DashboardService:
     def __init__(self, session):
         self.session = session
         self.today_cutoff = datetime.now(UTC) - timedelta(days=1)
+        self.dashboard_repo = DashboardDataRepository(session)
+
+    def _get_mock_global_news(self) -> List[GlobalNewsItem]:
+        """获取模拟的全球新闻数据"""
+        now = datetime.now(UTC)
+        return [
+            GlobalNewsItem(
+                news_id="news-001",
+                title="美联储暗示或将暂停加息，全球市场应声上涨",
+                source="Reuters",
+                importance_score=0.95,
+                summary="美联储主席在最新讲话中表示，鉴于通胀有所回落，可能会暂停加息步伐，这一表态推动了全球股市上涨。",
+                content_url="https://reuters.com/business/fed-signals-pause-rate-hikes",
+                published_at=(now - timedelta(hours=2)).isoformat(),
+                related_symbols=["SPX", "NDX", "AAPL", "MSFT"],
+                region="Global",
+                is_mock=True,
+            ),
+            GlobalNewsItem(
+                news_id="news-002",
+                title="中国5月制造业PMI好于预期，经济复苏信号增强",
+                source="Bloomberg",
+                importance_score=0.90,
+                summary="最新发布的中国制造业PMI为49.8，好于市场预期的49.5，显示经济复苏动能正在增强。",
+                content_url="https://bloomberg.com/china-pmi-may-2024",
+                published_at=(now - timedelta(hours=4)).isoformat(),
+                related_symbols=["600519.SH", "000001.SZ", "AAPL"],
+                region="China",
+            ),
+            GlobalNewsItem(
+                news_id="news-003",
+                title="英伟达发布重磅新品，AI芯片性能提升3倍",
+                source="TechCrunch",
+                importance_score=0.88,
+                summary="英伟达在GTC大会上发布新一代GH200超级芯片，AI计算性能提升3倍，股价盘后大涨。",
+                content_url="https://techcrunch.com/nvidia-gh200-launch",
+                published_at=(now - timedelta(hours=6)).isoformat(),
+                related_symbols=["NVDA", "MSFT", "GOOGL", "AMD"],
+                region="US",
+            ),
+            GlobalNewsItem(
+                news_id="news-004",
+                title="欧盟达成绿色协议，新能源产业迎来重大利好",
+                source="Financial Times",
+                importance_score=0.85,
+                summary="欧盟就新一轮绿色能源投资计划达成一致，将在未来5年投入5000亿欧元支持新能源产业发展。",
+                content_url="https://ft.com/eu-green-deal",
+                published_at=(now - timedelta(hours=8)).isoformat(),
+                related_symbols=["TSLA", "ENPH", "SEDG", "002594.SZ"],
+                region="Europe",
+            ),
+            GlobalNewsItem(
+                news_id="news-005",
+                title="原油价格反弹，OPEC+考虑延长减产协议",
+                source="CNBC",
+                importance_score=0.82,
+                summary="国际油价单日上涨3.5%，因消息称OPEC+可能考虑延长减产协议至2024年底。",
+                content_url="https://cnbc.com/oil-opec-production",
+                published_at=(now - timedelta(hours=10)).isoformat(),
+                related_symbols=["XOM", "CVX", "601857.SH"],
+                region="Global",
+            ),
+            GlobalNewsItem(
+                news_id="news-006",
+                title="比特币突破6万美元，加密货币市场全线上涨",
+                source="CoinDesk",
+                importance_score=0.80,
+                summary="比特币价格突破6万美元整数关口，创下历史新高，带动整个加密货币市场上涨。",
+                content_url="https://coindesk.com/btc-60k",
+                published_at=(now - timedelta(hours=12)).isoformat(),
+                related_symbols=["BTC-USD", "ETH-USD", "COIN", "MSTR"],
+                region="Global",
+            ),
+            GlobalNewsItem(
+                news_id="news-007",
+                title="苹果Vision Pro正式开售，首批产品秒售罄",
+                source="Wall Street Journal",
+                importance_score=0.78,
+                summary="苹果首款混合现实设备Vision Pro正式开售，首批10万台产品在30分钟内售罄。",
+                content_url="https://wsj.com/apple-vision-pro-launch",
+                published_at=(now - timedelta(hours=14)).isoformat(),
+                related_symbols=["AAPL", "MSFT", "META"],
+                region="US",
+            ),
+            GlobalNewsItem(
+                news_id="news-008",
+                title="中国央行宣布降准0.25个百分点，释放流动性",
+                source="Caixin",
+                importance_score=0.75,
+                summary="中国人民银行宣布下调存款准备金率0.25个百分点，预计将释放约5000亿元流动性。",
+                content_url="https://caixin.com/pboc-rrr-cut",
+                published_at=(now - timedelta(hours=16)).isoformat(),
+                related_symbols=["601398.SH", "000001.SZ", "600036.SH"],
+                region="China",
+            ),
+            GlobalNewsItem(
+                news_id="news-009",
+                title="特斯拉超级工厂落户印度，莫迪见证签约",
+                source="Economic Times",
+                importance_score=0.72,
+                summary="特斯拉宣布在印度投资20亿美元建设超级工厂，计划年产电动车50万辆，印度总理莫迪见证签约。",
+                content_url="https://economictimes.com/tesla-india-factory",
+                published_at=(now - timedelta(hours=18)).isoformat(),
+                related_symbols=["TSLA", "TATAMOTORS.NS"],
+                region="Asia",
+            ),
+            GlobalNewsItem(
+                news_id="news-010",
+                title="国际金价创历史新高，避险情绪推动资金流入",
+                source="MarketWatch",
+                importance_score=0.70,
+                summary="国际金价突破2500美元/盎司，创下历史新高，全球地缘政治紧张推动避险资金持续流入黄金市场。",
+                content_url="https://marketwatch.com/gold-record-high",
+                published_at=(now - timedelta(hours=20)).isoformat(),
+                related_symbols=["GC=F", "GOLD", "600547.SH"],
+                region="Global",
+            ),
+        ]
+
+    def _get_mock_sectors(self) -> tuple[List[SectorChangeItem], List[SectorChangeItem]]:
+        """获取模拟的板块数据"""
+        top_up_sectors = [
+            SectorChangeItem(
+                sector_id="sector-ai",
+                name="AI人工智能",
+                change_pct=5.25,
+                leading_stocks=["NVDA", "MSFT", "600519.SH"],
+                related_news_count=12,
+                is_concept=True,
+                is_mock=True,
+            ),
+            SectorChangeItem(
+                sector_id="sector-new-energy",
+                name="新能源",
+                change_pct=4.10,
+                leading_stocks=["TSLA", "600030.SH", "002594.SZ"],
+                related_news_count=8,
+                is_concept=True,
+                is_mock=True,
+            ),
+            SectorChangeItem(
+                sector_id="sector-semiconductor",
+                name="半导体",
+                change_pct=3.65,
+                leading_stocks=["AMD", "INTC", "600584.SH"],
+                related_news_count=10,
+                is_concept=False,
+                is_mock=True,
+            ),
+            SectorChangeItem(
+                sector_id="sector-fintech",
+                name="金融科技",
+                change_pct=3.20,
+                leading_stocks=["SQ", "PYPL", "600036.SH"],
+                related_news_count=5,
+                is_concept=True,
+                is_mock=True,
+            ),
+            SectorChangeItem(
+                sector_id="sector-gold",
+                name="贵金属",
+                change_pct=2.85,
+                leading_stocks=["GOLD", "600547.SH", "601899.SH"],
+                related_news_count=7,
+                is_concept=False,
+                is_mock=True,
+            ),
+        ]
+
+        top_down_sectors = [
+            SectorChangeItem(
+                sector_id="sector-real-estate",
+                name="房地产",
+                change_pct=-3.45,
+                leading_stocks=["600048.SH", "000002.SZ", "000069.SZ"],
+                related_news_count=6,
+                is_concept=False,
+                is_mock=True,
+            ),
+            SectorChangeItem(
+                sector_id="sector-traditional-banking",
+                name="传统银行",
+                change_pct=-2.70,
+                leading_stocks=["JPM", "WFC", "601398.SH"],
+                related_news_count=4,
+                is_concept=False,
+                is_mock=True,
+            ),
+            SectorChangeItem(
+                sector_id="sector-retail",
+                name="传统零售",
+                change_pct=-2.35,
+                leading_stocks=["WMT", "TGT", "600827.SH"],
+                related_news_count=3,
+                is_concept=False,
+                is_mock=True,
+            ),
+            SectorChangeItem(
+                sector_id="sector-oil-gas",
+                name="石油天然气",
+                change_pct=-1.90,
+                leading_stocks=["XOM", "CVX", "601857.SH"],
+                related_news_count=5,
+                is_concept=False,
+                is_mock=True,
+            ),
+            SectorChangeItem(
+                sector_id="sector-travel",
+                name="旅游酒店",
+                change_pct=-1.55,
+                leading_stocks=["MAR", "HLT", "600754.SH"],
+                related_news_count=2,
+                is_concept=False,
+                is_mock=True,
+            ),
+        ]
+
+        return top_up_sectors, top_down_sectors
+
+    def get_market_overview_section(self) -> MarketOverviewSection:
+        """获取市场概览板块：全球热点新闻、上涨/下跌板块概念"""
+        from datetime import datetime, UTC
+
+        has_real_news = False
+        has_real_sectors = False
+        last_updated = None
+
+        try:
+            # 尝试获取真实数据
+            news_data, has_real_news = self.dashboard_repo.get_combined_global_news(
+                limit=10, days=7
+            )
+            (
+                up_sectors_data,
+                down_sectors_data,
+                has_real_sectors,
+            ) = self.dashboard_repo.get_sector_changes_from_signals(days=7, limit_per_direction=5)
+
+            if has_real_news or has_real_sectors:
+                logger.info(
+                    f"Using real data for market overview: news={has_real_news}, sectors={has_real_sectors}"
+                )
+
+                global_news = [GlobalNewsItem(**n, is_mock=False) for n in news_data]
+
+                # 如果没有真实新闻数据，回退到模拟
+                if not global_news:
+                    global_news = self._get_mock_global_news()
+                    has_real_news = False
+
+                top_up_sectors = [SectorChangeItem(**s, is_mock=False) for s in up_sectors_data]
+                top_down_sectors = [SectorChangeItem(**s, is_mock=False) for s in down_sectors_data]
+
+                # 如果没有真实板块数据，回退到模拟
+                if not top_up_sectors or not top_down_sectors:
+                    mock_up, mock_down = self._get_mock_sectors()
+                    if not top_up_sectors:
+                        top_up_sectors = mock_up
+                    if not top_down_sectors:
+                        top_down_sectors = mock_down
+                    has_real_sectors = False
+
+                # 获取最后更新时间
+                last_updated = datetime.now(UTC)
+
+                return MarketOverviewSection(
+                    global_news=global_news,
+                    top_up_sectors=top_up_sectors,
+                    top_down_sectors=top_down_sectors,
+                    uses_real_news=has_real_news,
+                    uses_real_sectors=has_real_sectors,
+                    last_updated=last_updated,
+                )
+
+        except Exception as e:
+            logger.warning(f"Failed to fetch real market data: {e}, falling back to mock data")
+
+        # 回退到模拟数据
+        logger.info("Using mock data for market overview")
+        global_news = self._get_mock_global_news()
+        top_up_sectors, top_down_sectors = self._get_mock_sectors()
+
+        return MarketOverviewSection(
+            global_news=global_news,
+            top_up_sectors=top_up_sectors,
+            top_down_sectors=top_down_sectors,
+            uses_real_news=False,
+            uses_real_sectors=False,
+            last_updated=None,
+        )
 
     def get_today_section(self) -> TodaySection:
         """获取 Today 板块数据：新事件、高优先级论题、异常流向"""
@@ -335,6 +629,7 @@ class DashboardService:
             threading.Thread(target=ingest_real_data, daemon=True).start()
 
         return DashboardResponse(
+            market_overview=self.get_market_overview_section(),
             today=self.get_today_section(),
             research_queue=self.get_research_queue_section(),
             candidate_board=self.get_candidate_board_section(),

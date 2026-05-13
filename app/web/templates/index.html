@@ -79,6 +79,50 @@
                 <h2 class="section-title" data-i18n="dashboard.title">研究控制台</h2>
                 
                 <div class="dashboard-grid">
+                    <!-- Market Overview Section -->
+                    <div class="dashboard-card market-overview-card" style="grid-column: 1 / -1;">
+                        <div class="card-header">
+                            <h3><i class="codicon codicon-globe"></i> 市场概览</h3>
+                            <div class="card-header-actions">
+                                <span id="data-source-badge" class="badge-new">模拟数据</span>
+                                <span id="last-updated" class="text-muted" style="font-size: 12px;"></span>
+                                <button id="refresh-dashboard" class="btn-secondary" style="padding: 4px 8px; font-size: 12px;" title="刷新数据">
+                                    <i class="codicon codicon-refresh"></i>
+                                </button>
+                                <label style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                                    <input type="checkbox" id="auto-refresh" style="margin: 0;">
+                                    <span>自动刷新</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="market-overview-grid">
+                            <!-- Global News -->
+                            <div class="market-section news-section">
+                                <h4>🌍 全球热点新闻 (Top 10)</h4>
+                                <ul id="market-global-news" class="news-list">
+                                    <li class="empty-state" data-i18n="dashboard.no_data">暂无新闻</li>
+                                </ul>
+                            </div>
+
+                            <!-- Top Up Sectors -->
+                            <div class="market-section sectors-up-section">
+                                <h4>📈 今日上涨板块概念 (Top 5)</h4>
+                                <ul id="market-top-up-sectors" class="sector-list">
+                                    <li class="empty-state" data-i18n="dashboard.no_data">暂无数据</li>
+                                </ul>
+                            </div>
+
+                            <!-- Top Down Sectors -->
+                            <div class="market-section sectors-down-section">
+                                <h4>📉 今日下跌板块概念 (Top 5)</h4>
+                                <ul id="market-top-down-sectors" class="sector-list">
+                                    <li class="empty-state" data-i18n="dashboard.no_data">暂无数据</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Today Section -->
                     <div class="dashboard-card today-card">
                         <div class="card-header">
