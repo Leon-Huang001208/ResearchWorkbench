@@ -18,7 +18,7 @@
       ],
       "required_skill": "code-audit",
       "research_required": false,
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "af-auto-002-01",
@@ -36,12 +36,12 @@
         "A readiness audit report is created"
       ],
       "verification_commands": [
-        "grep -R \"fetch_news_cls\|fetch_news_cnstock\|fetch_reports_zq\" -n data_layer app core",
+        "grep -R \"fetch_news_cls\\|fetch_news_cnstock\\|fetch_reports_zq\" -n data_layer app core",
         "grep -R \"ingest_envelope\" -n app core"
       ],
       "required_skill": "code-audit",
       "research_required": false,
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "af-auto-002-02",
@@ -62,7 +62,7 @@
       ],
       "required_skill": "python-backend",
       "research_required": true,
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "af-auto-002-03",
@@ -83,7 +83,7 @@
       ],
       "required_skill": "python-backend",
       "research_required": false,
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "af-auto-002-04",
@@ -104,7 +104,7 @@
       ],
       "required_skill": "python-backend",
       "research_required": true,
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "af-auto-002-05",
@@ -125,7 +125,7 @@
       ],
       "required_skill": "python-backend",
       "research_required": false,
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "af-auto-002-06",
@@ -146,7 +146,30 @@
       ],
       "required_skill": "python-backend",
       "research_required": true,
-      "status": "todo"
+      "status": "done"
+    },
+    {
+      "id": "af-auto-002-07",
+      "title": "Audit and Extend Ingestion Database Schema",
+      "description": "Audit document, assertion, event, and related persistence schemas, then extend them to support crawler state, source identifiers, parsing metadata, markdown output, and fetch lineage.",
+      "priority": "high",
+      "dependencies": [
+        "af-auto-002-01",
+        "af-auto-002-03",
+        "af-auto-002-06"
+      ],
+      "success_criteria": [
+        "Schema audit is completed",
+        "Missing ingestion metadata fields are identified and implemented where needed",
+        "Storage of dedupe keys, fetch timestamps, parse strategy, and raw asset metadata is documented",
+        "A schema extension report is created"
+      ],
+      "verification_commands": [
+        "python -m pytest tests/ -k 'repository or migration or schema or ingest' -v --tb=short"
+      ],
+      "required_skill": "database",
+      "research_required": false,
+      "status": "done"
     },
     {
       "id": "af-auto-002-07",
@@ -193,7 +216,7 @@
       ],
       "required_skill": "python-backend",
       "research_required": false,
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "af-auto-002-09",
@@ -210,12 +233,12 @@
         "A report capability audit is created"
       ],
       "verification_commands": [
-        "grep -R \"ReportGenerator\|/api/report\" -n app core",
+        "grep -R \"ReportGenerator\\|/api/report\" -n app core",
         "python -m pytest tests/ -k 'report' -v --tb=short"
       ],
       "required_skill": "code-audit",
       "research_required": false,
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "af-auto-002-10",
@@ -236,7 +259,7 @@
       ],
       "required_skill": "system-design",
       "research_required": false,
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "af-auto-002-11",
@@ -257,7 +280,7 @@
       ],
       "required_skill": "document-generation",
       "research_required": true,
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "af-auto-002-12",
@@ -278,7 +301,7 @@
       ],
       "required_skill": "slides-generation",
       "research_required": true,
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "af-auto-002-13",
@@ -301,7 +324,7 @@
       ],
       "required_skill": "python-backend",
       "research_required": false,
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "af-auto-002-14",
@@ -322,7 +345,7 @@
       ],
       "required_skill": "web-frontend",
       "research_required": false,
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "af-auto-002-15",
@@ -344,7 +367,7 @@
       ],
       "required_skill": "python-backend",
       "research_required": false,
-      "status": "todo"
+      "status": "done"
     }
   ],
   "metadata": {

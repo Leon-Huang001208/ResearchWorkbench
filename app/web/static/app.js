@@ -34,7 +34,7 @@ function switchLang(lang) {
 
 // Color scheme
 (function initColorScheme() {
-    const saved = localStorage.getItem('af-color-scheme') || 'vscode';
+    const saved = localStorage.getItem('af-color-scheme') || 'claude';
     document.documentElement.setAttribute('data-color-scheme', saved);
 })();
 
