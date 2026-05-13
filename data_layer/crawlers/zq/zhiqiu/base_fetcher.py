@@ -46,7 +46,10 @@ class BaseStateManager:
         if self.state_path.exists():
             try:
                 with open(self.state_path, "r", encoding="utf-8") as f:
-                    return json.load(f)
+                    state = json.load(f)
+                    if "watermarks" not in state:
+                        state["watermarks"] = {}
+                    return state
             except Exception as e:
                 if self.verbose:
                     print(f"[warn] 读取状态文件失败: {e}，使用空状态")
@@ -57,6 +60,7 @@ class BaseStateManager:
             "version": "1.0",
             "last_updated": datetime.now().isoformat(),
             self.processed_key: {},
+            "watermarks": {},  # {key: {"last_seen_id": "...", "last_seen_at": "..."}}
         }
 
     def save(self):
@@ -75,6 +79,38 @@ class BaseStateManager:
     def get_processed_count(self) -> int:
         return len(self.state[self.processed_key])
 
+    # ============================================================
+    # 水位线追踪功能
+    # ============================================================
+
+    def set_watermark(self, key: str, obj_id: str, extra: Optional[Dict[str, Any]] = None) -> None:
+        """设置水位线"""
+        watermark = {
+            "last_seen_id": str(obj_id),
+            "last_seen_at": datetime.now().isoformat(),
+        }
+        if extra:
+            watermark.update(extra)
+        self.state["watermarks"][key] = watermark
+        self.save()
+
+    def get_watermark(self, key: str) -> Optional[Dict[str, Any]]:
+        """获取水位线"""
+        return self.state["watermarks"].get(key)
+
+    def has_reached_watermark(self, key: str, obj_id: str) -> bool:
+        """检查是否已达到水位线"""
+        watermark = self.get_watermark(key)
+        if not watermark:
+            return False
+        return str(obj_id) == watermark.get("last_seen_id")
+
+    def clear_watermark(self, key: str) -> None:
+        """清除指定的水位线"""
+        if key in self.state["watermarks"]:
+            del self.state["watermarks"][key]
+            self.save()
+
 
 @dataclass
 class BaseConfig:
@@ -91,6 +127,7 @@ class BaseConfig:
     verbose: bool = True
     state_path: Optional[str] = None
     skip_existing: bool = True
+    stop_on_known: bool = True  # 遇到已处理记录时停止抓取（增量模式）
 
     # 搜索接口配置
     use_homepage_search: bool = True
@@ -583,7 +620,7 @@ class BaseFetcher:
                 )
 
     def _process_search_result(
-        self, json_data, processor_class, output_prefix: str, **processor_kwargs
+        self, json_data, processor_class, output_prefix: str, watermark_key: Optional[str] = None, **processor_kwargs
     ):
         """
         通用的搜索结果处理方法
@@ -592,6 +629,7 @@ class BaseFetcher:
             json_data: 搜索结果
             processor_class: 处理器类
             output_prefix: 输出文件前缀
+            watermark_key: 水位线标识键
             **processor_kwargs: 处理器额外参数
 
         Returns:
@@ -613,11 +651,13 @@ class BaseFetcher:
         os.makedirs(self.config.output_dir, exist_ok=True)
 
         processor = processor_class(self._client)
-        df, new_items, skipped_count = processor.process(
+        df, new_items, skipped_count, _ = processor.process(
             json_data,
             output_json,
             state_manager=self._state_manager,
             skip_existing=self.config.skip_existing,
+            stop_on_known=self.config.stop_on_known,
+            watermark_key=watermark_key,
             **processor_kwargs,
         )
 

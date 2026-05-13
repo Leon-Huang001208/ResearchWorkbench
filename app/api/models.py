@@ -199,3 +199,149 @@ class IngestResponse(BaseModel):
     events_extracted: int = 0
     events_approved: int = 0
     events_pending: int = 0
+
+
+# ─── 摄入监控 ───────────────────────────────────────────
+
+
+class IngestSourceStatus(BaseModel):
+    """单个来源的摄入状态"""
+
+    source_type: str
+    source_name: Optional[str] = None
+    status: str = "unknown"  # running/paused/error/unknown
+    last_fetch: Optional[str] = None
+    total_fetched: int = 0
+    total_skipped: int = 0
+    total_failed: int = 0
+    dedupe_rate: float = 0.0
+    is_paused: bool = False
+    pause_reason: Optional[str] = None
+    watermark_id: Optional[str] = None
+    watermark_timestamp: Optional[str] = None
+
+
+class PDFStats(BaseModel):
+    """PDF 统计"""
+
+    total_pdfs: int = 0
+    pending_conversion: int = 0
+    converted: int = 0
+    failed_conversion: int = 0
+    by_status: Dict[str, int] = Field(default_factory=dict)
+
+
+class IngestOverviewResponse(BaseModel):
+    """摄入状态概览"""
+
+    sources: Dict[str, IngestSourceStatus] = Field(default_factory=dict)
+    pdf_stats: PDFStats = Field(default_factory=PDFStats)
+    overall_health: str = "healthy"
+    generated_at: str
+
+
+class ProcessedItemResponse(BaseModel):
+    """已处理项目响应"""
+
+    item_id: str
+    source_type: str
+    source_name: Optional[str] = None
+    item_type: str
+    title: Optional[str] = None
+    content_preview: Optional[str] = None
+    content_hash: Optional[str] = None
+    first_seen_at: str
+    first_processed_at: Optional[str] = None
+    process_count: int = 1
+
+
+class ProcessedStatsResponse(BaseModel):
+    """已处理统计响应"""
+
+    total_items: int = 0
+    by_source_type: Dict[str, int] = Field(default_factory=dict)
+    daily_stats: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class PDFArtifactResponse(BaseModel):
+    """PDF 制品响应"""
+
+    pdf_id: str
+    doc_id: Optional[str] = None
+    source_obj_id: Optional[str] = None
+    file_path: str
+    file_name: str
+    file_size_bytes: int
+    file_hash_sha256: str
+    source_type: str
+    source_name: Optional[str] = None
+    source_url: Optional[str] = None
+    source_broker: Optional[str] = None
+    fetch_timestamp: str
+    parse_status: str = "pending"
+    parse_error: Optional[str] = None
+
+
+# ─── 摄入管理 ───────────────────────────────────────────
+
+
+class IngestTriggerRequest(BaseModel):
+    """手动触发摄入请求"""
+
+    mode: str = Field("incremental", description="incremental/full")
+    dry_run: bool = Field(False, description="是否只预览不执行")
+
+
+class IngestTriggerResponse(BaseModel):
+    """触发响应"""
+
+    source_type: str
+    triggered: bool
+    dry_run: bool
+    message: Optional[str] = None
+    estimated_items: Optional[int] = None
+
+
+class IngestPauseRequest(BaseModel):
+    """暂停摄入请求"""
+
+    reason: str = Field(..., description="暂停原因")
+
+
+class IngestPauseResponse(BaseModel):
+    """暂停响应"""
+
+    source_type: str
+    paused: bool
+    reason: str
+
+
+class IngestResumeResponse(BaseModel):
+    """恢复响应"""
+
+    source_type: str
+    resumed: bool
+
+
+class IngestResetResponse(BaseModel):
+    """重置响应"""
+
+    source_type: str
+    reset: bool
+    message: Optional[str] = None
+
+
+class IngestConfigResponse(BaseModel):
+    """配置响应"""
+
+    source_type: str
+    crawl_config: Dict[str, Any] = Field(default_factory=dict)
+    crawl_mode: str = "incremental"
+    is_paused: bool = False
+
+
+class IngestConfigUpdate(BaseModel):
+    """配置更新请求"""
+
+    crawl_config: Optional[Dict[str, Any]] = None
+    crawl_mode: Optional[str] = None

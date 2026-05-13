@@ -60,7 +60,9 @@ from app.api.routes import (  # noqa: E402
     governance,
     graph,
     ingest,
+    ingest_admin,
     ingestion_queue,
+    llm,
     memory,
     monitoring,
     outcome_journal,
@@ -75,6 +77,7 @@ from app.api.routes import (  # noqa: E402
     search,
     signal_lab,
     signals,
+    templates,
     thesis_generator,
     thesis_review,
     timing,
@@ -87,6 +90,7 @@ app.include_router(scenarios.router)
 app.include_router(review.router)
 app.include_router(signals.router)
 app.include_router(ingest.router)
+app.include_router(ingest_admin.router)
 app.include_router(pipeline.router)
 app.include_router(workbench.router)
 app.include_router(graph.router)
@@ -109,7 +113,9 @@ app.include_router(thesis_review.router)
 app.include_router(timing_engine.router)
 app.include_router(dashboard.router)
 app.include_router(report.router)
+app.include_router(templates.router)
 app.include_router(signal_lab.router)
+app.include_router(llm.router)
 
 # ─── 静态文件 ────────────────────────────────────────────
 _web_dir = Path(__file__).resolve().parent.parent / "web"

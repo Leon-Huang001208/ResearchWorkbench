@@ -49,3 +49,24 @@ storage/migrations/versions/*.pyc
 data/
 !data/.gitkeep
 backup/
+
+# Claude Code
+.claude/
+.ai/
+
+# Playwright
+.playwright/
+.playwright-cli/
+.playwright-mcp/
+
+# Output & Test artifacts
+output/
+server.log
+*.docx
+!reporting/templates/docx/*.docx
+!examples/**/*.docx
+initial-page-load.png
+周报生成方案.md
+
+# Debug test files
+tests/debug_*.py

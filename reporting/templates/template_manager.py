@@ -4,7 +4,7 @@
 Template manager handles loading, validation, and storage of report templates.
 """
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set, Literal
 
 import yaml
 
@@ -35,6 +35,18 @@ class TemplateManager:
         self.template_cache: Dict[str, TemplateConfig] = {}
         self._ensure_templates_dir()
 
+        # 模板文件存储子目录
+        self.yaml_dir = self.templates_dir / "yaml"
+        self.docx_dir = self.templates_dir / "docx"
+        self.pptx_dir = self.templates_dir / "pptx"
+        self.excel_dir = self.templates_dir / "excel"
+
+        # 确保所有子目录存在
+        for dir_path in [self.yaml_dir, self.docx_dir, self.pptx_dir, self.excel_dir]:
+            if not dir_path.exists():
+                dir_path.mkdir(parents=True, exist_ok=True)
+                logger.info(f"Created templates subdirectory: {dir_path}")
+
     def _ensure_templates_dir(self):
         """确保模板目录存在."""
         if not self.templates_dir.exists():
@@ -45,16 +57,77 @@ class TemplateManager:
         """列出所有可用的模板.
 
         Returns:
-            List of template names (without .yaml extension).
+            List of template names sorted by sort_order.
         """
-        if not self.templates_dir.exists():
+        if not self.yaml_dir.exists():
             return []
 
-        templates = []
-        for f in self.templates_dir.glob("*.yaml"):
-            templates.append(f.stem)
+        # 加载所有模板并按sort_order排序
+        templates_with_order = []
+        for f in self.yaml_dir.glob("*.yaml"):
+            try:
+                config = self.load_template(f.stem)
+                templates_with_order.append((config.sort_order, f.stem))
+            except Exception:
+                templates_with_order.append((0, f.stem))
 
-        return sorted(templates)
+        # 同时也检查旧位置（向后兼容）
+        for f in self.templates_dir.glob("*.yaml"):
+            if not any(t[1] == f.stem for t in templates_with_order):
+                templates_with_order.append((0, f.stem))
+
+        # 按sort_order排序，然后按名称
+        templates_with_order.sort(key=lambda x: (x[0], x[1]))
+        return [t[1] for t in templates_with_order]
+
+    def update_template_metadata(self, template_name: str, **kwargs) -> TemplateConfig:
+        """更新模板元数据.
+
+        Args:
+            template_name: Name of the template to update.
+            **kwargs: Metadata to update (name, description, version, sort_order, etc.).
+
+        Returns:
+            Updated TemplateConfig.
+        """
+        config = self.load_template(template_name)
+
+        # 更新字段
+        if "name" in kwargs and kwargs["name"]:
+            # 如果改了名字，需要删除旧的，保存新的
+            new_name = kwargs["name"]
+            if new_name != template_name:
+                self.delete_template(template_name)
+                config.name = new_name
+
+        if "description" in kwargs:
+            config.description = kwargs["description"]
+        if "version" in kwargs:
+            config.version = kwargs["version"]
+        if "sort_order" in kwargs:
+            config.sort_order = kwargs["sort_order"]
+        if "target_audience" in kwargs:
+            config.target_audience = kwargs["target_audience"]
+
+        self.save_template(config, overwrite=True)
+        return config
+
+    def update_templates_order(self, template_names: List[str]) -> bool:
+        """批量更新模板排序.
+
+        Args:
+            template_names: List of template names in desired order.
+
+        Returns:
+            Success status.
+        """
+        for idx, template_name in enumerate(template_names):
+            try:
+                self.update_template_metadata(template_name, sort_order=idx)
+            except Exception as e:
+                logger.error(f"Failed to update order for {template_name}: {e}")
+                return False
+        return True
 
     def load_template(self, template_name: str) -> TemplateConfig:
         """加载模板配置.
@@ -73,9 +146,13 @@ class TemplateManager:
             logger.debug(f"Using cached template: {template_name}")
             return self.template_cache[template_name]
 
-        template_path = self.templates_dir / f"{template_name}.yaml"
+        # 先检查新位置
+        template_path = self.yaml_dir / f"{template_name}.yaml"
         if not template_path.exists():
-            raise FileNotFoundError(f"Template not found: {template_name}")
+            # 检查旧位置（向后兼容）
+            template_path = self.templates_dir / f"{template_name}.yaml"
+            if not template_path.exists():
+                raise FileNotFoundError(f"Template not found: {template_name}")
 
         try:
             with open(template_path, "r", encoding="utf-8") as f:
@@ -105,7 +182,7 @@ class TemplateManager:
         Raises:
             FileExistsError: If template exists and overwrite is False.
         """
-        template_path = self.templates_dir / f"{config.name}.yaml"
+        template_path = self.yaml_dir / f"{config.name}.yaml"
 
         if template_path.exists() and not overwrite:
             raise FileExistsError(f"Template already exists: {config.name}")
@@ -131,10 +208,15 @@ class TemplateManager:
         Args:
             template_name: Name of the template to delete.
         """
-        template_path = self.templates_dir / f"{template_name}.yaml"
-
+        # 从新位置删除
+        template_path = self.yaml_dir / f"{template_name}.yaml"
         if template_path.exists():
             template_path.unlink()
+
+        # 也检查旧位置
+        old_path = self.templates_dir / f"{template_name}.yaml"
+        if old_path.exists():
+            old_path.unlink()
 
         if template_name in self.template_cache:
             del self.template_cache[template_name]
@@ -175,6 +257,7 @@ class TemplateManager:
             word_template_path=data.get("word_template_path"),
             excel_template_path=data.get("excel_template_path"),
             placeholders=data.get("placeholders", {}),
+            sort_order=data.get("sort_order", 0),
             metadata=data.get("metadata", {}),
         )
 
@@ -253,6 +336,8 @@ class TemplateManager:
             data["excel_template_path"] = config.excel_template_path
         if config.placeholders:
             data["placeholders"] = config.placeholders
+        if config.sort_order != 0:
+            data["sort_order"] = config.sort_order
         if config.metadata:
             data["metadata"] = config.metadata
 
@@ -346,3 +431,301 @@ class TemplateManager:
         )
 
         return config
+
+    # ========================================================================
+    # 模板文件管理
+    # ========================================================================
+
+    def save_template_file(
+        self,
+        template_name: str,
+        file_type: Literal["docx", "pptx", "excel"],
+        file_content: bytes,
+        overwrite: bool = False,
+    ) -> Path:
+        """保存模板文件（DOCX/PPTX/Excel）.
+
+        Args:
+            template_name: 模板名称
+            file_type: 文件类型（docx/pptx/excel）
+            file_content: 文件二进制内容
+            overwrite: 是否覆盖已有文件
+
+        Returns:
+            保存的文件路径
+
+        Raises:
+            FileExistsError: 如果文件已存在且 overwrite=False
+        """
+        # 选择目标目录
+        if file_type == "docx":
+            target_dir = self.docx_dir
+            ext = "docx"
+        elif file_type == "pptx":
+            target_dir = self.pptx_dir
+            ext = "pptx"
+        elif file_type == "excel":
+            target_dir = self.excel_dir
+            ext = "xlsx"
+        else:
+            raise ValueError(f"Unsupported file type: {file_type}")
+
+        # 构建文件名
+        filename = f"{template_name}_template.{ext}"
+        file_path = target_dir / filename
+
+        # 检查是否已存在
+        if file_path.exists() and not overwrite:
+            raise FileExistsError(f"Template file already exists: {file_path}")
+
+        # 保存文件
+        file_path.write_bytes(file_content)
+        logger.info(f"Saved template file: {file_path}")
+
+        # 更新 TemplateConfig 中的文件路径
+        try:
+            config = self.load_template(template_name)
+            if file_type == "docx":
+                config.word_template_path = str(file_path)
+            elif file_type == "pptx":
+                # 注意：当前 TemplateConfig 没有 powerpoint_template_path 字段
+                # 可以扩展或存储在 metadata 中
+                config.metadata["powerpoint_template_path"] = str(file_path)
+            elif file_type == "excel":
+                config.excel_template_path = str(file_path)
+
+            self.save_template(config, overwrite=True)
+        except FileNotFoundError:
+            # YAML 配置不存在，仅保存文件
+            logger.info(f"Template YAML not found for {template_name}, only file saved")
+
+        return file_path
+
+    def get_template_file_path(
+        self, template_name: str, file_type: Literal["docx", "pptx", "excel"]
+    ) -> Optional[Path]:
+        """获取模板文件路径.
+
+        Args:
+            template_name: 模板名称
+            file_type: 文件类型
+
+        Returns:
+            文件路径，如果不存在返回 None
+        """
+        if file_type == "docx":
+            target_dir = self.docx_dir
+            ext = "docx"
+        elif file_type == "pptx":
+            target_dir = self.pptx_dir
+            ext = "pptx"
+        elif file_type == "excel":
+            target_dir = self.excel_dir
+            ext = "xlsx"
+        else:
+            raise ValueError(f"Unsupported file type: {file_type}")
+
+        file_path = target_dir / f"{template_name}_template.{ext}"
+        return file_path if file_path.exists() else None
+
+    def delete_template_file(
+        self, template_name: str, file_type: Literal["docx", "pptx", "excel"]
+    ) -> bool:
+        """删除模板文件.
+
+        Args:
+            template_name: 模板名称
+            file_type: 文件类型
+
+        Returns:
+            是否成功删除
+        """
+        file_path = self.get_template_file_path(template_name, file_type)
+        if file_path and file_path.exists():
+            file_path.unlink()
+            logger.info(f"Deleted template file: {file_path}")
+
+            # 更新 TemplateConfig
+            try:
+                config = self.load_template(template_name)
+                if file_type == "docx":
+                    config.word_template_path = None
+                elif file_type == "excel":
+                    config.excel_template_path = None
+                if "powerpoint_template_path" in config.metadata:
+                    del config.metadata["powerpoint_template_path"]
+                self.save_template(config, overwrite=True)
+            except FileNotFoundError:
+                pass
+
+            return True
+        return False
+
+    # ========================================================================
+    # 占位符发现
+    # ========================================================================
+
+    def discover_placeholders_from_docx(
+        self,
+        template_name: str,
+    ) -> Set[str]:
+        """从 DOCX 模板文件中发现占位符.
+
+        支持的占位符格式：
+        - {{placeholder_name}}
+        - {placeholder_name}
+        - placeholder_name（仅当在段落中单独存在时）
+
+        Args:
+            template_name: 模板名称
+
+        Returns:
+            发现的占位符集合
+
+        Raises:
+            FileNotFoundError: 如果模板文件不存在
+            ImportError: 如果 python-docx 未安装
+        """
+        # 检查 python-docx 是否可用
+        try:
+            import docx
+        except ImportError:
+            raise ImportError(
+                "python-docx is required for placeholder discovery. "
+                "Please install it with: pip install python-docx"
+            )
+
+        file_path = self.get_template_file_path(template_name, "docx")
+        if not file_path:
+            raise FileNotFoundError(f"DOCX template not found: {template_name}")
+
+        doc = docx.Document(file_path)
+        placeholders: Set[str] = set()
+
+        # 从段落中发现
+        for paragraph in doc.paragraphs:
+            found = self._extract_placeholders_from_text(paragraph.text)
+            placeholders.update(found)
+
+        # 从表格中发现
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for paragraph in cell.paragraphs:
+                        found = self._extract_placeholders_from_text(paragraph.text)
+                        placeholders.update(found)
+
+        # 从页眉页脚中发现
+        for section in doc.sections:
+            for paragraph in section.header.paragraphs:
+                found = self._extract_placeholders_from_text(paragraph.text)
+                placeholders.update(found)
+            for paragraph in section.footer.paragraphs:
+                found = self._extract_placeholders_from_text(paragraph.text)
+                placeholders.update(found)
+
+        logger.info(f"Discovered {len(placeholders)} placeholders from {template_name}")
+        return placeholders
+
+    def _extract_placeholders_from_text(self, text: str) -> Set[str]:
+        """从文本中提取占位符.
+
+        Args:
+            text: 文本内容
+
+        Returns:
+            发现的占位符集合
+        """
+        import re
+
+        placeholders: Set[str] = set()
+
+        # 匹配 {{placeholder}} 格式
+        double_brace_pattern = r"\{\{([^}]+)\}\}"
+        for match in re.finditer(double_brace_pattern, text):
+            placeholder = match.group(1).strip()
+            if placeholder:
+                placeholders.add(placeholder)
+
+        # 匹配 {placeholder} 格式（不与双大括号重叠）
+        single_brace_pattern = r"(?<!\{)\{([^}]+)\}(?!\})"
+        for match in re.finditer(single_brace_pattern, text):
+            placeholder = match.group(1).strip()
+            if placeholder and placeholder not in placeholders:
+                placeholders.add(placeholder)
+
+        return placeholders
+
+    def discover_placeholders_from_pptx(
+        self,
+        template_name: str,
+    ) -> Set[str]:
+        """从 PPTX 模板文件中发现占位符.
+
+        支持的占位符格式：
+        - {{placeholder_name}}
+        - {placeholder_name}
+
+        Args:
+            template_name: 模板名称
+
+        Returns:
+            发现的占位符集合
+
+        Raises:
+            FileNotFoundError: 如果模板文件不存在
+            ImportError: 如果 python-pptx 未安装
+        """
+        # Check if python-pptx is available
+        try:
+            import pptx
+            from pptx import Presentation
+        except ImportError:
+            raise ImportError(
+                "python-pptx is required for PPTX placeholder discovery. "
+                "Please install it with: pip install python-pptx"
+            )
+
+        file_path = self.get_template_file_path(template_name, "pptx")
+        if not file_path:
+            raise FileNotFoundError(f"PPTX template not found: {template_name}")
+
+        prs = Presentation(file_path)
+        placeholders: Set[str] = set()
+
+        # Discover from slides
+        for slide in prs.slides:
+            for shape in slide.shapes:
+                if shape.has_text_frame:
+                    for paragraph in shape.text_frame.paragraphs:
+                        found = self._extract_placeholders_from_text(paragraph.text)
+                        placeholders.update(found)
+                if shape.has_table:
+                    for row in shape.table.rows:
+                        for cell in row.cells:
+                            for paragraph in cell.text_frame.paragraphs:
+                                found = self._extract_placeholders_from_text(
+                                    paragraph.text
+                                )
+                                placeholders.update(found)
+
+        logger.info(f"Discovered {len(placeholders)} placeholders from PPTX {template_name}")
+        return placeholders
+
+    def list_all_template_files(self) -> Dict[str, Dict[str, Optional[Path]]]:
+        """列出所有模板及其文件.
+
+        Returns:
+            模板名称 -> 文件类型 -> 文件路径的字典
+        """
+        template_names = self.list_templates()
+        result: Dict[str, Dict[str, Optional[Path]]] = {}
+
+        for name in template_names:
+            result[name] = {
+                "docx": self.get_template_file_path(name, "docx"),
+                "pptx": self.get_template_file_path(name, "pptx"),
+                "excel": self.get_template_file_path(name, "excel"),
+            }
+
+        return result

@@ -1,10 +1,19 @@
 """Monitoring API — 健康指标、漂移检测、告警管理、事件记录路由"""
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from app.api.models import (
+    IngestOverviewResponse,
+    IngestSourceStatus,
+    PDFStats,
+    ProcessedItemResponse,
+    ProcessedStatsResponse,
+    PDFArtifactResponse,
+)
 from core.contracts.monitoring import (
     AlertPayload,
     AlertSeverity,
@@ -26,6 +35,11 @@ from core.observability import get_logger
 from core.services.monitoring_service import MonitoringService
 from data_layer.repositories.base import get_db
 from data_layer.repositories.monitoring_repository import MonitoringRepositoryImpl
+from data_layer.repositories import (
+    crawl_state_repository,
+    processed_item_repository,
+    pdf_artifact_repository,
+)
 
 logger = get_logger(__name__)
 
@@ -717,4 +731,213 @@ async def get_system_health_dashboard(
         return _dashboard_to_response(dashboard)
     except Exception as e:
         logger.error(f"Get dashboard failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── 摄入监控路由 ────────────────────────────────────────
+
+
+def _crawl_state_to_status(state: Any) -> IngestSourceStatus:
+    """转换爬虫状态为响应模型"""
+    total = state.total_fetched + state.total_skipped + state.total_failed
+    dedupe_rate = float(state.total_skipped) / total if total > 0 else 0.0
+
+    # 确定状态
+    status = "paused" if state.is_paused else "running"
+
+    return IngestSourceStatus(
+        source_type=state.source_type,
+        source_name=state.source_name,
+        status=status,
+        last_fetch=state.last_run_end.isoformat() if state.last_run_end else None,
+        total_fetched=state.total_fetched,
+        total_skipped=state.total_skipped,
+        total_failed=state.total_failed,
+        dedupe_rate=dedupe_rate,
+        is_paused=state.is_paused,
+        pause_reason=state.pause_reason,
+        watermark_id=state.watermark_id,
+        watermark_timestamp=state.watermark_timestamp.isoformat() if state.watermark_timestamp else None,
+    )
+
+
+def _processed_item_to_response(item: Any) -> ProcessedItemResponse:
+    """转换已处理项目为响应模型"""
+    return ProcessedItemResponse(
+        item_id=item.item_id,
+        source_type=item.source_type,
+        source_name=item.source_name,
+        item_type=item.item_type,
+        title=item.title,
+        content_preview=item.content_preview,
+        content_hash=item.content_hash,
+        first_seen_at=item.first_seen_at.isoformat() if item.first_seen_at else None,
+        first_processed_at=item.first_processed_at.isoformat() if item.first_processed_at else None,
+        process_count=item.process_count,
+    )
+
+
+def _pdf_artifact_to_response(artifact: Any) -> PDFArtifactResponse:
+    """转换 PDF 制品为响应模型"""
+    return PDFArtifactResponse(
+        pdf_id=artifact.pdf_id,
+        doc_id=artifact.doc_id,
+        source_obj_id=artifact.source_obj_id,
+        file_path=artifact.file_path,
+        file_name=artifact.file_name,
+        file_size_bytes=artifact.file_size_bytes,
+        file_hash_sha256=artifact.file_hash_sha256,
+        source_type=artifact.source_type,
+        source_name=artifact.source_name,
+        source_url=artifact.source_url,
+        source_broker=artifact.source_broker,
+        fetch_timestamp=artifact.fetch_timestamp.isoformat() if artifact.fetch_timestamp else None,
+        parse_status=artifact.parse_status,
+        parse_error=artifact.parse_error,
+    )
+
+
+@router.get(
+    "/ingest/status",
+    response_model=IngestOverviewResponse,
+)
+async def get_ingest_status(
+    db: Session = Depends(get_db),
+):
+    """获取摄入状态概览"""
+    try:
+        # 获取所有爬虫状态
+        states = crawl_state_repository.get_all_crawl_states(db)
+        sources = {}
+        for state in states:
+            sources[state.source_type] = _crawl_state_to_status(state)
+
+        # 为标准来源创建默认状态（如果不存在）
+        for source_type in ["cls", "cnstock", "zq"]:
+            if source_type not in sources:
+                sources[source_type] = IngestSourceStatus(
+                    source_type=source_type,
+                    status="unknown",
+                    is_paused=False,
+                )
+
+        # 获取 PDF 统计
+        pdf_stats_data = pdf_artifact_repository.get_conversion_stats(db)
+        pdf_stats = PDFStats(**pdf_stats_data)
+
+        # 确定整体健康状态
+        overall_health = "healthy"
+        for source in sources.values():
+            if source.total_failed > 10:
+                overall_health = "degraded"
+            if source.status == "error":
+                overall_health = "error"
+
+        return IngestOverviewResponse(
+            sources=sources,
+            pdf_stats=pdf_stats,
+            overall_health=overall_health,
+            generated_at=datetime.utcnow().isoformat(),
+        )
+    except Exception as e:
+        logger.error(f"Get ingest status failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get(
+    "/ingest/sources/{source_type}",
+    response_model=IngestSourceStatus,
+)
+async def get_source_status(
+    source_type: str,
+    db: Session = Depends(get_db),
+):
+    """获取特定来源的详细状态"""
+    try:
+        state = crawl_state_repository.get_crawl_state(db, source_type)
+        if state is None:
+            # 返回默认状态
+            return IngestSourceStatus(
+                source_type=source_type,
+                status="unknown",
+                is_paused=False,
+            )
+        return _crawl_state_to_status(state)
+    except Exception as e:
+        logger.error(f"Get source status failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get(
+    "/ingest/processed",
+    response_model=ProcessedStatsResponse,
+)
+async def get_processed_stats(
+    source_type: Optional[str] = Query(None),
+    days: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+):
+    """获取已处理项目统计"""
+    try:
+        stats = processed_item_repository.get_processed_stats(db, source_type=source_type)
+
+        daily_stats = []
+        if source_type and days:
+            daily_stats = processed_item_repository.get_processed_stats_by_day(db, source_type, days)
+
+        return ProcessedStatsResponse(
+            total_items=stats.get("total_items", 0),
+            by_source_type=stats.get("by_source_type", {}),
+            daily_stats=daily_stats,
+        )
+    except Exception as e:
+        logger.error(f"Get processed stats failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get(
+    "/ingest/processed/{source_type}/recent",
+    response_model=List[ProcessedItemResponse],
+)
+async def get_recent_processed(
+    source_type: str,
+    source_name: Optional[str] = Query(None),
+    limit: int = Query(100, ge=1, le=500),
+    db: Session = Depends(get_db),
+):
+    """获取最近处理的项目"""
+    try:
+        items = processed_item_repository.get_recent_processed(
+            db, source_type, source_name, limit
+        )
+        return [_processed_item_to_response(item) for item in items]
+    except Exception as e:
+        logger.error(f"Get recent processed failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get(
+    "/ingest/pdfs",
+    response_model=List[PDFArtifactResponse],
+)
+async def get_pdfs(
+    source_type: Optional[str] = Query(None),
+    limit: int = Query(100, ge=1, le=500),
+    db: Session = Depends(get_db),
+):
+    """获取 PDF 制品列表"""
+    try:
+        if source_type:
+            artifacts = pdf_artifact_repository.get_pdfs_by_source(db, source_type, limit=limit)
+        else:
+            # 临时处理：简单返回所有来源的最新（逐个获取）
+            artifacts = []
+            for st in ["cls", "cnstock", "zq"]:
+                artifacts.extend(pdf_artifact_repository.get_pdfs_by_source(db, st, limit=limit))
+            artifacts.sort(key=lambda a: a.fetch_timestamp, reverse=True)
+            artifacts = artifacts[:limit]
+
+        return [_pdf_artifact_to_response(a) for a in artifacts]
+    except Exception as e:
+        logger.error(f"Get PDFs failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))

@@ -5,13 +5,18 @@
 - 定时任务配置
 - 任务管理
 - 健康检查
+- A股交易时段感知
 """
 from datetime import datetime, timedelta
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 from core.contracts import SourceType
 from core.observability import get_logger
 from core.services.crawl_orchestrator import CrawlOrchestrator
+from core.utils.trading_calendar import (
+    TradingCalendar,
+    get_trading_calendar,
+)
 
 logger = get_logger(__name__)
 
@@ -38,6 +43,8 @@ class SourceCrawlConfig:
         enabled: bool = True,
         backfill_enabled: bool = True,
         backfill_interval_hours: int = 24,
+        only_during_trading_hours: bool = True,
+        include_auction: bool = False,
     ):
         self.source_type = source_type
         self.source_name = source_name or source_type.value
@@ -47,30 +54,35 @@ class SourceCrawlConfig:
         self.enabled = enabled
         self.backfill_enabled = backfill_enabled
         self.backfill_interval_hours = backfill_interval_hours
+        self.only_during_trading_hours = only_during_trading_hours
+        self.include_auction = include_auction
 
 
 # 默认配置
 DEFAULT_CRAWL_CONFIGS = [
-    # 财联社：每 15 分钟抓取一次
+    # 财联社：每 15 分钟抓取一次，仅在交易时段
     SourceCrawlConfig(
         source_type=SourceType.CAILIAN_SHE,
         source_name="财联社",
         interval_minutes=15,
         days_per_crawl=1,
+        only_during_trading_hours=True,
     ),
-    # 中国证券报：每 30 分钟抓取一次
+    # 中国证券报：每 30 分钟抓取一次，仅在交易时段
     SourceCrawlConfig(
         source_type=SourceType.CHINA_SECURITY_JOURNAL,
         source_name="中国证券报",
         interval_minutes=30,
         days_per_crawl=1,
+        only_during_trading_hours=True,
     ),
-    # 知丘研报：每 1 小时抓取一次
+    # 知丘研报：每 1 小时抓取一次，可在非交易时段运行
     SourceCrawlConfig(
         source_type=SourceType.ZHIQIU_REPORTS,
         source_name="知丘研报",
         interval_minutes=60,
         days_per_crawl=2,
+        only_during_trading_hours=False,
     ),
 ]
 
@@ -84,14 +96,21 @@ class CrawlScheduler:
         self.orchestrator = CrawlOrchestrator()
         self.running = False
         self.last_backfill_times: Dict[SourceType, datetime] = {}
+        self.calendars: Dict[SourceType, TradingCalendar] = {}
 
         # 加载默认配置
         for cfg in DEFAULT_CRAWL_CONFIGS:
             self.configs[cfg.source_type] = cfg
+            self.calendars[cfg.source_type] = get_trading_calendar(
+                include_auction=cfg.include_auction
+            )
 
     def add_config(self, config: SourceCrawlConfig) -> None:
         """添加抓取配置"""
         self.configs[config.source_type] = config
+        self.calendars[config.source_type] = get_trading_calendar(
+            include_auction=config.include_auction
+        )
 
         # 如果调度器已运行，添加任务
         if self.running and self.scheduler:
@@ -186,20 +205,33 @@ class CrawlScheduler:
 
     def get_status(self) -> Dict[str, Any]:
         """获取调度器状态"""
+        now = datetime.now()
         status = {
             "running": self.running,
+            "current_time": now.isoformat(),
             "sources": [],
         }
 
         for source_type, config in self.configs.items():
             source_status = self.orchestrator.get_crawl_status(source_type)
+            calendar = self.calendars.get(source_type)
+            should_run, reason = False, ""
+            if calendar:
+                should_run, reason = calendar.should_run_now(
+                    now,
+                    allow_non_trading=not config.only_during_trading_hours,
+                )
+
             status["sources"].append(
                 {
                     "source_type": source_type.value,
                     "enabled": config.enabled,
                     "interval_minutes": config.interval_minutes,
+                    "only_during_trading_hours": config.only_during_trading_hours,
                     "last_backfill": self.last_backfill_times.get(source_type),
                     "crawl_status": source_status,
+                    "should_run": should_run,
+                    "run_reason": reason,
                 }
             )
 
@@ -208,12 +240,35 @@ class CrawlScheduler:
             status["jobs"] = [
                 {
                     "id": job.id,
-                    "next_run_time": job.next_run_time,
+                    "next_run_time": job.next_run_time.isoformat() if job.next_run_time else None,
                 }
                 for job in jobs
             ]
 
         return status
+
+    def check_source_should_run(self, source_type: SourceType) -> Tuple[bool, str]:
+        """
+        检查来源是否应该现在运行
+
+        Args:
+            source_type: 来源类型
+
+        Returns:
+            (bool, str): (是否应该运行, 原因)
+        """
+        config = self.configs.get(source_type)
+        if not config:
+            return False, "无配置"
+
+        if not config.enabled:
+            return False, "已禁用"
+
+        calendar = self.calendars.get(source_type)
+        if not calendar:
+            return True, "无日历配置，总是运行"
+
+        return calendar.should_run_now(allow_non_trading=not config.only_during_trading_hours)
 
     def _add_jobs_for_source(self, config: SourceCrawlConfig) -> None:
         """为来源添加调度任务"""
@@ -251,6 +306,12 @@ class CrawlScheduler:
         if not config:
             return
 
+        # 检查是否应该在当前时段运行
+        should_run, reason = self.check_source_should_run(source_type)
+        if not should_run:
+            logger.info(f"Skipping crawl for {source_type}: {reason}")
+            return
+
         try:
             logger.info(f"Running scheduled crawl for {source_type}")
             self.orchestrator.crawl_source(
@@ -269,6 +330,7 @@ class CrawlScheduler:
         if not config:
             return
 
+        # 补漏任务不受交易时段限制
         try:
             logger.info(f"Running scheduled backfill for {source_type}")
             self.orchestrator.backfill_source(

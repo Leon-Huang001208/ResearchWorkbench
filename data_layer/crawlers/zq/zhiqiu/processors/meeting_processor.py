@@ -38,8 +38,10 @@ class MeetingProcessor(BaseProcessor):
         output_file: str,
         state_manager: Optional[Any] = None,
         skip_existing: bool = True,
+        stop_on_known: bool = True,
+        watermark_key: Optional[str] = None,
         **kwargs,
-    ) -> Tuple[pd.DataFrame, List[Dict], int]:
+    ) -> Tuple[pd.DataFrame, List[Dict], int, bool]:
         """
         处理纪要数据
 
@@ -48,9 +50,11 @@ class MeetingProcessor(BaseProcessor):
             output_file: 输出 JSON 文件路径
             state_manager: 状态管理器（可选，用于去重）
             skip_existing: 是否跳过已存在的条目
+            stop_on_known: 遇到已处理记录时是否停止
+            watermark_key: 水位线标识键
 
         Returns:
-            (DataFrame, new_meetings_list, skipped_count)
+            (DataFrame, new_meetings_list, skipped_count, stopped_by_watermark)
         """
         reports_list = data.get("reports", [])
         if isinstance(reports_list, dict):
@@ -61,6 +65,8 @@ class MeetingProcessor(BaseProcessor):
         results = []
         new_meetings = []
         skipped_count = 0
+        stopped_by_watermark = False
+        first_new_obj_id: Optional[str] = None
 
         for report in reports_list:
             doc_type = report.get("docType", "") or report.get("type", "")
@@ -72,6 +78,12 @@ class MeetingProcessor(BaseProcessor):
             if state_manager and skip_existing and obj_id:
                 if state_manager.is_report_processed(str(obj_id)):
                     skipped_count += 1
+                    if stop_on_known:
+                        stopped_by_watermark = True
+                        self.client.logger.info(
+                            f"[水位线] 遇到已知纪要 {obj_id}，停止抓取"
+                        )
+                        break
                     continue
 
             item = self.build_item(report)
@@ -79,13 +91,24 @@ class MeetingProcessor(BaseProcessor):
                 results.append(item)
                 new_meetings.append(item)
 
+                # 记录第一个新项目作为水位线
+                if first_new_obj_id is None and obj_id:
+                    first_new_obj_id = str(obj_id)
+
+        # 设置水位线
+        if state_manager and first_new_obj_id and watermark_key:
+            state_manager.set_watermark(watermark_key, first_new_obj_id)
+            self.client.logger.info(
+                f"[水位线] 设置水位线为 {first_new_obj_id}"
+            )
+
         if output_file:
             os.makedirs(os.path.dirname(output_file), exist_ok=True)
             with open(output_file, "w", encoding="utf-8") as f:
                 json.dump(results, f, ensure_ascii=False, indent=2)
 
         self.client.logger.info(f"已处理 {len(results)} 条纪要（跳过 {skipped_count} 条），保存至 {output_file}")
-        return pd.DataFrame(results), new_meetings, skipped_count
+        return pd.DataFrame(results), new_meetings, skipped_count, stopped_by_watermark
 
     def build_item(self, report: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """

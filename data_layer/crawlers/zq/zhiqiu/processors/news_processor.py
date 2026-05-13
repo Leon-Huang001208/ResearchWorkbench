@@ -174,8 +174,10 @@ class NewsProcessor(BaseProcessor):
         output_file: str,
         state_manager: Optional[Any] = None,
         skip_existing: bool = True,
+        stop_on_known: bool = True,
+        watermark_key: Optional[str] = None,
         **kwargs,
-    ) -> Tuple[pd.DataFrame, List[Dict], int]:
+    ) -> Tuple[pd.DataFrame, List[Dict], int, bool]:
         """
         处理公众号数据
 
@@ -184,10 +186,12 @@ class NewsProcessor(BaseProcessor):
             output_file: 输出 JSON 文件路径
             state_manager: 状态管理器（可选，用于去重）
             skip_existing: 是否跳过已存在的条目
+            stop_on_known: 遇到已处理记录时是否停止
+            watermark_key: 水位线标识键
             **kwargs: 其他参数，可传入 allowed_accounts_path 覆盖初始化时的设置
 
         Returns:
-            (DataFrame, new_reports_list, skipped_count)
+            (DataFrame, new_reports_list, skipped_count, stopped_by_watermark)
         """
         # 从 kwargs 获取允许的账号路径，优先级高于初始化参数
         allowed_path = kwargs.get("allowed_accounts_path", self.allowed_accounts_path)
@@ -203,6 +207,8 @@ class NewsProcessor(BaseProcessor):
         results = []
         new_reports = []
         skipped_count = 0
+        stopped_by_watermark = False
+        first_new_obj_id: Optional[str] = None
 
         for report in reports_list:
             doc_type = report.get("docType", "") or report.get("type", "")
@@ -216,6 +222,12 @@ class NewsProcessor(BaseProcessor):
             if state_manager and skip_existing and obj_id:
                 if state_manager.is_report_processed(str(obj_id)):
                     skipped_count += 1
+                    if stop_on_known:
+                        stopped_by_watermark = True
+                        self.client.logger.info(
+                            f"[水位线] 遇到已知公众号文章 {obj_id}，停止抓取"
+                        )
+                        break
                     continue
 
             # 检查公众号是否在允许列表中
@@ -230,6 +242,17 @@ class NewsProcessor(BaseProcessor):
                 results.append(item)
                 new_reports.append(item)
 
+                # 记录第一个新项目作为水位线
+                if first_new_obj_id is None and obj_id:
+                    first_new_obj_id = str(obj_id)
+
+        # 设置水位线
+        if state_manager and first_new_obj_id and watermark_key:
+            state_manager.set_watermark(watermark_key, first_new_obj_id)
+            self.client.logger.info(
+                f"[水位线] 设置水位线为 {first_new_obj_id}"
+            )
+
         # 保存结果
         if output_file:
             os.makedirs(os.path.dirname(output_file), exist_ok=True)
@@ -237,7 +260,7 @@ class NewsProcessor(BaseProcessor):
                 json.dump(results, f, ensure_ascii=False, indent=2)
 
         self.client.logger.info(f"已处理 {len(results)} 条公众号 (跳过 {skipped_count} 条)，保存至 {output_file}")
-        return pd.DataFrame(results), new_reports, skipped_count
+        return pd.DataFrame(results), new_reports, skipped_count, stopped_by_watermark
 
     def build_item(self, report: Dict[str, Any], **kwargs) -> Optional[Dict[str, Any]]:
         """
