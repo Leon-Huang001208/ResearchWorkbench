@@ -513,17 +513,20 @@ class RAGRetrievalService:
     RAG 检索服务 - Issue #45 主类.
 
     整合 Profile、过滤、搜索、评分、证据包构建功能。
+    实现三层检索架构：过滤 → 召回 → 重排。
     """
 
     def __init__(
         self,
         vector_store: Optional[VectorStore] = None,
         hybrid_searcher: Optional[HybridSearcher] = None,
+        reranker: Optional[Any] = None,  # 可插拔重排器
     ):
         self.vector_store = vector_store or InMemoryVectorStore()
         self.hybrid_searcher = hybrid_searcher or HybridSearcher(vector_store=self.vector_store)
         self.filter = DocumentFilter()
         self.evidence_builder = EvidencePackageBuilder()
+        self.reranker = reranker  # 重排器，支持自定义实现
 
         # 内存文档存储（实际项目中应使用数据库）
         self._docs: Dict[str, DocumentV1] = {}
@@ -557,6 +560,7 @@ class RAGRetrievalService:
     ) -> EvidencePackage:
         """
         执行检索 - 主入口.
+        实现三层架构：过滤 → 召回 → 重排。
 
         Args:
             query: 检索查询
@@ -580,21 +584,51 @@ class RAGRetrievalService:
                 else None,
             )
 
-        # 过滤文档
         filters = query.filters or RetrievalFilters()
-        filtered_docs = self._filter_documents(filters, profile, reference_time)
 
-        # 搜索排序
-        scored_docs = self._score_and_sort(
+        # =====================================================================
+        # 第一层：结构化过滤（Filtering）
+        # 按照时间、来源、行业、质量等条件缩小候选集范围
+        # =====================================================================
+        filtered_docs = self._filter_documents(filters, profile, reference_time)
+        logger.info(f"Filtered to {len(filtered_docs)} docs after structured filtering")
+
+        if not filtered_docs:
+            # 没有匹配的文档，直接返回空包
+            return self.evidence_builder.build(
+                query=query, documents=[], chunks=[], profile=profile
+            )
+
+        # =====================================================================
+        # 第二层：召回（Retrieval）
+        # 对过滤后的文档进行混合召回（向量 + 关键词），得到初始候选集
+        # =====================================================================
+        recalled_docs = self._retrieve_candidates(
             docs=filtered_docs,
+            query_text=query.query_text,
+            profile=profile,
+        )
+        logger.info(f"Recalled {len(recalled_docs)} docs after hybrid retrieval")
+
+        # 限制召回阶段返回数量，为了减少重排计算量
+        max_recall_docs = min(len(recalled_docs), 2 * (profile.max_documents if profile else 100))
+        recalled_docs = recalled_docs[:max_recall_docs]
+
+        # =====================================================================
+        # 第三层：重排（Reranking）
+        # 对召回的文档进行精排，综合考虑相关性、时效性、质量、来源权重等
+        # =====================================================================
+        reranked_docs = self._rerank_candidates(
+            docs=recalled_docs,
             query_text=query.query_text,
             profile=profile,
             reference_time=reference_time,
         )
+        logger.info(f"Reranked to {len(reranked_docs)} docs after reranking")
 
-        # 限制数量
+        # 限制最终数量
         max_docs = profile.max_documents if profile else query.max_results
-        selected_docs = scored_docs[:max_docs]
+        selected_docs = reranked_docs[:max_docs]
 
         # 获取分块
         selected_chunks = []
@@ -625,7 +659,7 @@ class RAGRetrievalService:
                 filtered.append(doc)
         return filtered
 
-    def _score_and_sort(
+    def _rerank_candidates(
         self,
         docs: List[DocumentV1],
         query_text: str,
@@ -633,34 +667,48 @@ class RAGRetrievalService:
         reference_time: datetime,
     ) -> List[DocumentV1]:
         """
-        评分和排序文档.
+        第三层：重排阶段，精排候选文档.
 
         综合考虑：
-        - 搜索相关性
-        - 时间衰减
-        - 来源权重
-        - 质量评分
+        1. 搜索相关性（来自召回阶段）
+        2. 时间衰减
+        3. 来源权重
+        4. 文档质量
+        5. （可选）外部Reranker模型评分
+
+        Args:
+            docs: 召回的候选文档
+            query_text: 查询文本
+            profile: 检索配置
+            reference_time: 参考时间
+
+        Returns:
+            重排后的文档列表
         """
         if not docs:
             return []
 
-        # 创建评分器
+        # 创建时间衰减评分器
         decay_config = profile.recency_decay if profile else None
         scorer = RecencyDecayScorer(
             half_life_days=decay_config.half_life_days if decay_config else 7.0,
             min_weight=decay_config.min_score_weight if decay_config else 0.1,
         )
 
-        # 简单搜索相关性（实际项目中应使用向量/关键词搜索）
-        search_scores = self._calculate_search_scores(docs, query_text)
+        # 首先尝试使用外部Reranker（如果配置了）
+        if self.reranker:
+            try:
+                return self._rerank_with_external_model(docs, query_text)
+            except Exception as e:
+                logger.warning(f"External reranker failed, falling back to default scoring: {e}")
 
-        # 计算综合分数
+        # 默认的综合评分逻辑
         scored_pairs = []
         for doc in docs:
-            # 搜索相关性
-            search_score = search_scores.get(doc.doc_id, 0.5)
+            # 1. 搜索相关性分数（来自召回阶段）
+            search_score = getattr(doc, "_search_score", 0.5)
 
-            # 时间衰减
+            # 2. 时间衰减分数
             use_available = profile.use_available_time if profile else False
             doc_time = None
             if use_available:
@@ -670,31 +718,120 @@ class RAGRetrievalService:
 
             recency_score = scorer.score(doc_time, reference_time)
 
-            # 来源权重
+            # 3. 来源权重
             source_weight = 1.0
             if profile and doc.source_type in profile.source_weights.weights:
                 source_weight = profile.source_weights.weights[doc.source_type]
 
-            # 质量评分
+            # 4. 文档质量评分
             quality_score = doc.quality.research_usability_score or 0.5
 
-            # 综合分数
+            # 5. 综合评分（权重可配置）
+            weights = {
+                "search": 0.4,
+                "recency": 0.3,
+                "quality": 0.2,
+                "source": 0.1,
+            }
+
             combined_score = (
-                search_score * 0.4 + recency_score * 0.3 + quality_score * 0.2 + source_weight * 0.1
+                search_score * weights["search"] +
+                recency_score * weights["recency"] +
+                quality_score * weights["quality"] +
+                source_weight * weights["source"]
             )
+
+            # 存储分数到文档对象，方便后续追踪
+            doc._combined_score = combined_score
 
             scored_pairs.append((doc, combined_score))
 
-        # 排序
+        # 按综合分数降序排序
         scored_pairs.sort(key=lambda x: x[1], reverse=True)
 
         return [doc for doc, _ in scored_pairs]
 
-    def _calculate_search_scores(self, docs: List[DocumentV1], query_text: str) -> Dict[str, float]:
+    def _rerank_with_external_model(self, docs: List[DocumentV1], query_text: str) -> List[DocumentV1]:
         """
-        计算搜索相关性分数.
+        使用外部Reranker模型进行重排（示例实现）.
 
-        简单实现：关键词匹配。实际项目中应使用向量搜索。
+        实际项目中可以接入如：
+        - Cohere Reranker
+        - BGE Reranker
+        - 自定义重排模型
+        """
+        if not self.reranker:
+            return docs
+
+        # 准备文档文本列表
+        doc_texts = [f"{doc.title} {doc.content[:1000]}" for doc in docs]
+
+        # 调用重排器
+        scores = self.reranker.rerank(query_text, doc_texts)
+
+        # 组合文档和分数并排序
+        scored_pairs = list(zip(docs, scores))
+        scored_pairs.sort(key=lambda x: x[1], reverse=True)
+
+        return [doc for doc, _ in scored_pairs]
+
+    def _retrieve_candidates(
+        self,
+        docs: List[DocumentV1],
+        query_text: str,
+        profile: Optional[RetrievalProfile],
+    ) -> List[DocumentV1]:
+        """
+        第二层：召回阶段，混合向量+关键词搜索.
+
+        Args:
+            docs: 过滤后的文档列表
+            query_text: 查询文本
+            profile: 检索配置
+
+        Returns:
+            召回的候选文档列表
+        """
+        if not docs:
+            return []
+
+        doc_id_map = {doc.doc_id: doc for doc in docs}
+
+        # 获取搜索权重配置
+        vector_weight = profile.vector_weight if profile else 0.7
+        keyword_weight = profile.keyword_weight if profile else 0.3
+
+        # 执行混合搜索
+        search_results = self.hybrid_searcher.search(
+            query_text=query_text,
+            document_ids=list(doc_id_map.keys()),
+            vector_weight=vector_weight,
+            keyword_weight=keyword_weight,
+            limit=200,  # 召回阶段返回较多候选
+        )
+
+        # 转换为文档列表，保持搜索排序
+        recalled_docs = []
+        for result in search_results:
+            doc = doc_id_map.get(result["doc_id"])
+            if doc:
+                # 存储搜索分数到文档对象（临时属性）
+                doc._search_score = result["score"]
+                recalled_docs.append(doc)
+
+        # 如果混合搜索没有返回结果，使用简单关键词匹配作为 fallback
+        if not recalled_docs:
+            keyword_scores = self._calculate_keyword_scores(docs, query_text)
+            scored_docs = sorted(docs, key=lambda d: keyword_scores.get(d.doc_id, 0), reverse=True)
+            for doc in scored_docs:
+                doc._search_score = keyword_scores.get(doc.doc_id, 0.0)
+            recalled_docs = scored_docs
+
+        return recalled_docs
+
+    def _calculate_keyword_scores(self, docs: List[DocumentV1], query_text: str) -> Dict[str, float]:
+        """
+        计算关键词匹配分数（fallback实现）.
         """
         scores: Dict[str, float] = {}
         query_lower = query_text.lower()

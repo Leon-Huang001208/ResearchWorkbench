@@ -57,21 +57,77 @@ class TemplateManager:
         """列出所有可用的模板.
 
         Returns:
-            List of template names (without .yaml extension).
+            List of template names sorted by sort_order.
         """
         if not self.yaml_dir.exists():
             return []
 
-        templates = []
+        # 加载所有模板并按sort_order排序
+        templates_with_order = []
         for f in self.yaml_dir.glob("*.yaml"):
-            templates.append(f.stem)
+            try:
+                config = self.load_template(f.stem)
+                templates_with_order.append((config.sort_order, f.stem))
+            except Exception:
+                templates_with_order.append((0, f.stem))
 
         # 同时也检查旧位置（向后兼容）
         for f in self.templates_dir.glob("*.yaml"):
-            if f.stem not in templates:
-                templates.append(f.stem)
+            if not any(t[1] == f.stem for t in templates_with_order):
+                templates_with_order.append((0, f.stem))
 
-        return sorted(templates)
+        # 按sort_order排序，然后按名称
+        templates_with_order.sort(key=lambda x: (x[0], x[1]))
+        return [t[1] for t in templates_with_order]
+
+    def update_template_metadata(self, template_name: str, **kwargs) -> TemplateConfig:
+        """更新模板元数据.
+
+        Args:
+            template_name: Name of the template to update.
+            **kwargs: Metadata to update (name, description, version, sort_order, etc.).
+
+        Returns:
+            Updated TemplateConfig.
+        """
+        config = self.load_template(template_name)
+
+        # 更新字段
+        if "name" in kwargs and kwargs["name"]:
+            # 如果改了名字，需要删除旧的，保存新的
+            new_name = kwargs["name"]
+            if new_name != template_name:
+                self.delete_template(template_name)
+                config.name = new_name
+
+        if "description" in kwargs:
+            config.description = kwargs["description"]
+        if "version" in kwargs:
+            config.version = kwargs["version"]
+        if "sort_order" in kwargs:
+            config.sort_order = kwargs["sort_order"]
+        if "target_audience" in kwargs:
+            config.target_audience = kwargs["target_audience"]
+
+        self.save_template(config, overwrite=True)
+        return config
+
+    def update_templates_order(self, template_names: List[str]) -> bool:
+        """批量更新模板排序.
+
+        Args:
+            template_names: List of template names in desired order.
+
+        Returns:
+            Success status.
+        """
+        for idx, template_name in enumerate(template_names):
+            try:
+                self.update_template_metadata(template_name, sort_order=idx)
+            except Exception as e:
+                logger.error(f"Failed to update order for {template_name}: {e}")
+                return False
+        return True
 
     def load_template(self, template_name: str) -> TemplateConfig:
         """加载模板配置.
@@ -201,6 +257,7 @@ class TemplateManager:
             word_template_path=data.get("word_template_path"),
             excel_template_path=data.get("excel_template_path"),
             placeholders=data.get("placeholders", {}),
+            sort_order=data.get("sort_order", 0),
             metadata=data.get("metadata", {}),
         )
 
@@ -279,6 +336,8 @@ class TemplateManager:
             data["excel_template_path"] = config.excel_template_path
         if config.placeholders:
             data["placeholders"] = config.placeholders
+        if config.sort_order != 0:
+            data["sort_order"] = config.sort_order
         if config.metadata:
             data["metadata"] = config.metadata
 

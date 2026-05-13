@@ -60,7 +60,7 @@ class ReportPipeline:
         self.template_manager = template_manager or TemplateManager()
         self.retrieval_service = retrieval_service
         self.fact_card_builder = FactCardBuilder(model_gateway)
-        self.validator = ReportValidator()
+        self.validator = ReportValidator(model_gateway)
 
     def create_report_task(
         self,
@@ -154,23 +154,28 @@ class ReportPipeline:
 
         # Step 1: Retrieve evidence if needed and not provided
         evidence_dicts = []
+        evidence_content = []
         if evidence_package:
             for doc in evidence_package.documents:
+                content = doc.summary or doc.title or ""
                 evidence_dicts.append(
                     {
                         "source": f"{doc.doc_type.value} - {doc.source_name or 'Unknown'}",
-                        "content": doc.summary or doc.title or "",
+                        "content": content,
                     }
                 )
+                evidence_content.append(content)
         elif self.retrieval_service and spec.retrieval_profile:
             evidence_package = self._retrieve_evidence_for_section(spec, context)
             for doc in evidence_package.documents:
+                content = doc.summary or doc.title or ""
                 evidence_dicts.append(
                     {
                         "source": f"{doc.doc_type.value} - {doc.source_name or 'Unknown'}",
-                        "content": doc.summary or doc.title or "",
+                        "content": content,
                     }
                 )
+                evidence_content.append(content)
 
         # Step 2: Build fact card
         fact_card = self.fact_card_builder.build_fact_card(
@@ -186,6 +191,8 @@ class ReportPipeline:
             content,
             spec,
             [str(i) for i in range(1, len(evidence_dicts) + 1)],
+            fact_card=fact_card,
+            evidence_content=evidence_content,
         )
 
         # Build warnings
@@ -223,7 +230,7 @@ class ReportPipeline:
         Returns:
             Retrieved evidence package.
         """
-        from core.contracts import RetrievalQuery
+        from core.contracts import RetrievalQuery, RetrievalFilters
 
         if not self.retrieval_service:
             return EvidencePackage(
@@ -240,9 +247,35 @@ class ReportPipeline:
         query_text = context.get("query", spec.title)
         retrieval_profile = spec.retrieval_profile
 
+        # 构建过滤条件：支持从上下文动态获取过滤参数
+        filters = RetrievalFilters()
+
+        # 时间范围过滤（支持上下文传入）
+        if "start_date" in context:
+            filters.publish_time_after = context["start_date"]
+        if "end_date" in context:
+            filters.publish_time_before = context["end_date"]
+
+        # 行业过滤（支持上下文传入）
+        if "industries" in context:
+            filters.primary_industries = context["industries"]
+
+        # 来源过滤（支持上下文传入）
+        if "source_types" in context:
+            filters.source_types = context["source_types"]
+
+        # 质量过滤：按段落证据策略调整
+        if spec.evidence_policy == "strict":
+            filters.min_research_usability = 0.5
+            # 至少是专业媒体来源
+            from core.contracts.documents_v1 import SourceReliabilityLevel
+            filters.min_source_reliability = SourceReliabilityLevel.SPECIALIZED_MEDIA
+
         query = RetrievalQuery(
             query_text=query_text,
             profile_type=retrieval_profile,
+            filters=filters,
+            max_results=30,  # 每个段落最多返回30个文档
         )
 
         evidence = self.retrieval_service.retrieve(query)
@@ -327,6 +360,12 @@ class ReportPipeline:
     ) -> str:
         """构建段落生成提示词.
 
+        按照四部分标准结构构建：
+        1. 系统角色：说明身份和写作要求
+        2. 段落规则：字数限制、禁用词、结构要求等
+        3. 段落任务：说明段落主题和目的
+        4. 参考事实：提供提取的事实和证据
+
         Args:
             spec: Section specification.
             fact_card: Fact card with extracted facts.
@@ -335,50 +374,132 @@ class ReportPipeline:
         Returns:
             Prompt string.
         """
+        # Use custom prompt template if provided
+        if spec.prompt_template:
+            return self._render_custom_prompt(spec.prompt_template, spec, fact_card, context)
+
+        # Part 1: System role
         prompt_parts = [
-            f"# 段落生成: {spec.title}",
+            "# 系统角色",
+            "你是一名专业的基金公司行业研究员，擅长撰写客观、严谨、专业的行业和市场研究报告。",
+            "写作要求：",
+            "- 内容专业、客观、逻辑清晰",
+            "- 语言正式、简洁、准确",
+            "- 不要使用主观、夸大的表述",
+            "- 严格基于提供的事实，不编造任何信息",
             "",
-            f"请生成一段约 {spec.target_words} 字的报告内容。",
-            "",
-            "## 参考事实：",
         ]
 
-        if fact_card.key_changes:
-            prompt_parts.append("### 关键变化")
-            for change in fact_card.key_changes:
-                prompt_parts.append(f"- {change}")
+        # Part 2: Paragraph rules
+        prompt_parts.append("# 段落规则")
+        prompt_parts.append(f"- 目标字数：约 {spec.target_words} 字，允许上下30%的浮动")
 
-        if fact_card.drivers:
-            prompt_parts.append("\n### 驱动因素")
-            for driver in fact_card.drivers:
-                prompt_parts.append(f"- {driver}")
-
-        if fact_card.impacts:
-            prompt_parts.append("\n### 影响分析")
-            for impact in fact_card.impacts:
-                prompt_parts.append(f"- {impact}")
-
-        if fact_card.risks:
-            prompt_parts.append("\n### 风险提示")
-            for risk in fact_card.risks:
-                prompt_parts.append(f"- {risk}")
-
-        if spec.required_facets:
-            prompt_parts.append("\n## 必须覆盖的方面")
-            for facet in spec.required_facets:
-                prompt_parts.append(f"- {facet}")
+        if spec.forbidden_terms:
+            prompt_parts.append(f"- 禁用词汇：{', '.join(spec.forbidden_terms)}，报告中绝对不能出现这些词汇")
 
         if spec.structure:
-            prompt_parts.append(f"\n## 结构要求\n{spec.structure}")
-
-        prompt_parts.append("\n## 输出要求")
-        prompt_parts.append("- 请只返回段落内容，不要包含标题")
-        prompt_parts.append("- 内容要专业、客观、逻辑清晰")
+            prompt_parts.append(f"- 结构要求：\n{spec.structure}")
 
         if spec.evidence_policy == "strict":
-            prompt_parts.append("- 只基于提供的事实，不要编造信息")
+            prompt_parts.append("- 证据要求：必须严格基于提供的事实，不能编造任何信息，不能超出事实范围进行推断")
+
+        if spec.required_facets:
+            prompt_parts.append("- 必须覆盖以下方面：")
+            for facet in spec.required_facets:
+                prompt_parts.append(f"  * {facet}")
+
+        prompt_parts.append("")
+
+        # Part 3: Paragraph task
+        prompt_parts.append("# 段落任务")
+        prompt_parts.append(f"- 段落主题：{spec.title}")
+        prompt_parts.append(f"- 段落目的：{context.get('section_purpose', '为报告提供该主题的专业分析')}")
+        prompt_parts.append("")
+
+        # Part 4: Reference facts
+        prompt_parts.append("# 参考事实")
+        prompt_parts.append("以下是用于撰写本段落的事实依据，请严格基于这些事实撰写：")
+        prompt_parts.append("")
+
+        if fact_card.key_changes:
+            prompt_parts.append("## 关键变化")
+            for change in fact_card.key_changes:
+                prompt_parts.append(f"- {change}")
+            prompt_parts.append("")
+
+        if fact_card.drivers:
+            prompt_parts.append("## 驱动因素")
+            for driver in fact_card.drivers:
+                prompt_parts.append(f"- {driver}")
+            prompt_parts.append("")
+
+        if fact_card.impacts:
+            prompt_parts.append("## 影响分析")
+            for impact in fact_card.impacts:
+                prompt_parts.append(f"- {impact}")
+            prompt_parts.append("")
+
+        if fact_card.risks:
+            prompt_parts.append("## 风险提示")
+            for risk in fact_card.risks:
+                prompt_parts.append(f"- {risk}")
+            prompt_parts.append("")
+
+        if fact_card.watch_points:
+            prompt_parts.append("## 观察重点")
+            for watch_point in fact_card.watch_points:
+                prompt_parts.append(f"- {watch_point}")
+            prompt_parts.append("")
+
+        # Output requirements
+        prompt_parts.append("# 输出要求")
+        prompt_parts.append("- 请只返回段落内容，不要包含任何标题、解释、说明性文字")
+        prompt_parts.append("- 不要分点，要写成连贯的段落")
+        prompt_parts.append("- 严格遵守以上所有规则")
 
         return "\n".join(prompt_parts)
+
+    def _render_custom_prompt(
+        self,
+        template: str,
+        spec: SectionSpec,
+        fact_card: FactCard,
+        context: Dict[str, Any],
+    ) -> str:
+        """渲染自定义提示词模板.
+
+        Args:
+            template: Custom prompt template string with placeholders.
+            spec: Section specification.
+            fact_card: Fact card with extracted facts.
+            context: Report context.
+
+        Returns:
+            Rendered prompt string.
+        """
+        from string import Template
+
+        # Prepare template variables
+        variables = {
+            "section_title": spec.title,
+            "section_key": spec.key,
+            "target_words": spec.target_words,
+            "forbidden_terms": ", ".join(spec.forbidden_terms),
+            "structure": spec.structure or "",
+            "required_facets": "\n".join(f"- {f}" for f in spec.required_facets),
+            "evidence_policy": spec.evidence_policy,
+            "key_changes": "\n".join(f"- {c}" for c in fact_card.key_changes),
+            "drivers": "\n".join(f"- {d}" for d in fact_card.drivers),
+            "impacts": "\n".join(f"- {i}" for i in fact_card.impacts),
+            "risks": "\n".join(f"- {r}" for r in fact_card.risks),
+            "watch_points": "\n".join(f"- {w}" for w in fact_card.watch_points),
+        }
+
+        # Add context variables
+        variables.update(context)
+
+        # Render template
+        return Template(template).safe_substitute(variables)
 
     def save_report(
         self,
@@ -388,6 +509,7 @@ class ReportPipeline:
         task: Optional[ReportTask] = None,
         tables: Optional[List[TableSpec]] = None,
         charts: Optional[List[ChartSpec]] = None,
+        chart_data: Optional[Dict[str, List[List[Any]]]] = None,
     ):
         """保存报告.
 
@@ -398,6 +520,7 @@ class ReportPipeline:
             task: Optional report task for metadata.
             tables: Optional table specifications.
             charts: Optional chart specifications.
+            chart_data: Data for chart generation, dict of sheet name to data.
         """
         output_path = Path(output_path)
         suffix = output_path.suffix.lower()
@@ -422,6 +545,13 @@ class ReportPipeline:
             except Exception:
                 pass
 
+            chart_images = None
+            # 如果有图表和数据，先生成图表图片
+            if charts and chart_data:
+                excel_proj = ExcelProjection()
+                chart_images = excel_proj.generate_charts_from_data(charts, chart_data)
+                logger.info(f"Generated {len(chart_images)} chart images for Word embedding")
+
             if template and template.word_template_path:
                 # Use template
                 projection = WordProjection()
@@ -431,6 +561,7 @@ class ReportPipeline:
                     sections,
                     template.placeholders,
                     tables,
+                    chart_images,
                 )
             else:
                 # Simple save
@@ -441,6 +572,73 @@ class ReportPipeline:
             projection.save(output_path, title, tables, charts, metadata)
         else:
             raise ValueError(f"Unsupported output format: {suffix}")
+
+    def generate_excel_and_word(
+        self,
+        excel_output_path: Path | str,
+        word_output_path: Path | str,
+        title: str,
+        sections: List[SectionOutput],
+        task: ReportTask,
+        tables: Optional[List[TableSpec]] = None,
+        charts: Optional[List[ChartSpec]] = None,
+        excel_data: Optional[Dict[str, List[List[Any]]]] = None,
+    ) -> Dict[str, bytes]:
+        """生成Excel文件并嵌入图表到Word文档.
+
+        完整流程：
+        1. 填充Excel模板并保存
+        2. 从Excel中提取数据生成图表图片
+        3. 将图表图片嵌入到Word文档的对应占位符
+
+        Args:
+            excel_output_path: Excel文件输出路径
+            word_output_path: Word文件输出路径
+            title: 报告标题
+            sections: 段落输出列表
+            task: 报告任务
+            tables: 表格规范列表
+            charts: 图表规范列表
+            excel_data: Excel数据，按工作表分组
+
+        Returns:
+            生成的图表图片字典
+        """
+        # 加载模板
+        template = self.template_manager.load_template(task.template_name)
+
+        # 生成Excel文件并获取图表图片
+        excel_proj = ExcelProjection()
+        chart_images = {}
+        if template.excel_template_path and excel_data:
+            chart_images = excel_proj.save_from_template(
+                excel_output_path,
+                template.excel_template_path,
+                data_sheets=excel_data,
+                chart_specs=charts,
+                generate_chart_images=True,
+            )
+            logger.info(f"Generated {len(chart_images)} chart images from Excel template")
+        elif charts and excel_data:
+            # 没有Excel模板时，直接从数据生成图表
+            chart_images = excel_proj.generate_charts_from_data(charts, excel_data)
+            logger.info(f"Generated {len(chart_images)} chart images from raw data")
+
+        # 生成Word文档，嵌入图表
+        word_proj = WordProjection()
+        if template.word_template_path:
+            word_proj.save_from_template(
+                word_output_path,
+                template.word_template_path,
+                sections,
+                template.placeholders,
+                tables,
+                chart_images,
+            )
+        else:
+            word_proj.save(word_output_path, title, sections)
+
+        return chart_images
 
     def create_run_log(
         self,
@@ -486,6 +684,7 @@ class ReportPipeline:
         context: Optional[Dict[str, Any]] = None,
         tables: Optional[List[TableSpec]] = None,
         charts: Optional[List[ChartSpec]] = None,
+        chart_data: Optional[Dict[str, List[List[Any]]]] = None,
     ) -> Tuple[List[SectionOutput], ReportRunLog]:
         """生成并保存报告（一站式）.
 
@@ -496,6 +695,7 @@ class ReportPipeline:
             context: Optional report context.
             tables: Optional table specifications.
             charts: Optional chart specifications.
+            chart_data: Data for chart generation.
 
         Returns:
             Tuple of (section outputs, run log).
@@ -507,7 +707,7 @@ class ReportPipeline:
         sections = self.generate_report(task)
 
         # Save
-        self.save_report(output_path, title, sections, task, tables, charts)
+        self.save_report(output_path, title, sections, task, tables, charts, chart_data)
 
         # Create log
         run_log = self.create_run_log(task, sections)

@@ -18,3 +18,4 @@ sections:
   evidence_policy: strict
   placeholder: market_analysis
 word_template_path: /Users/leon/Desktop/Projects/AlphaFoundry/reporting/templates/docx/test_template_template.docx
+sort_order: 3

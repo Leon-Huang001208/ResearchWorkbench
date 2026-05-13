@@ -292,13 +292,20 @@ class ExcelProjection:
         output_path: Path | str,
         template_path: Path | str,
         data_sheets: Optional[Dict[str, List[List[Any]]]] = None,
-    ):
-        """从模板保存 Excel 文档.
+        chart_specs: Optional[List[ChartSpec]] = None,
+        generate_chart_images: bool = False,
+    ) -> Dict[str, bytes]:
+        """从模板保存 Excel 文档，并可选生成图表图片.
 
         Args:
             output_path: Output file path.
             template_path: Path to Excel template.
             data_sheets: Dict of sheet name to data.
+            chart_specs: List of chart specifications.
+            generate_chart_images: Whether to generate chart images for Word embedding.
+
+        Returns:
+            Dict of chart ID to image bytes.
         """
         if not self._has_openpyxl:
             raise ImportError(
@@ -315,8 +322,9 @@ class ExcelProjection:
         if not template_path.exists():
             raise FileNotFoundError(f"Template not found: {template_path}")
 
-        wb = load_workbook(str(template_path))
+        wb = load_workbook(str(template_path), data_only=True)
 
+        # 填充数据到各个工作表
         if data_sheets:
             for sheet_name, data in data_sheets.items():
                 if sheet_name in wb.sheetnames:
@@ -324,9 +332,87 @@ class ExcelProjection:
                 else:
                     ws = wb.create_sheet(sheet_name)
 
+                # 清空原有数据
+                for row in ws.iter_rows():
+                    for cell in row:
+                        cell.value = None
+
+                # 写入新数据
                 for row_idx, row_data in enumerate(data, 1):
                     for col_idx, cell_data in enumerate(row_data, 1):
                         ws.cell(row=row_idx, column=col_idx, value=cell_data)
 
+        # 保存 Excel 文件
         wb.save(str(output_path))
         logger.info(f"Saved Excel report from template to: {output_path}")
+
+        # 生成图表图片（如果需要）
+        chart_images = {}
+        if generate_chart_images and chart_specs:
+            for chart_spec in chart_specs:
+                # 查找图表数据所在的工作表和范围
+                if chart_spec.data_range:
+                    try:
+                        sheet_name, range_str = chart_spec.data_range.split("!", 1)
+                        if sheet_name in wb.sheetnames:
+                            ws = wb[sheet_name]
+                            # 读取范围数据
+                            data = []
+                            for row in ws[range_str]:
+                                row_data = []
+                                for cell in row:
+                                    row_data.append(cell.value)
+                                data.append(row_data)
+
+                            # 生成图表图片
+                            img_bytes = self.generate_chart_image(chart_spec, data)
+                            if img_bytes:
+                                chart_images[chart_spec.chart_id] = img_bytes
+                                logger.info(f"Generated chart image: {chart_spec.chart_id}")
+                    except Exception as e:
+                        logger.error(f"Failed to generate chart {chart_spec.chart_id}: {e}", exc_info=True)
+
+        return chart_images
+
+    def generate_charts_from_data(
+        self,
+        chart_specs: List[ChartSpec],
+        data_sheets: Dict[str, List[List[Any]]],
+    ) -> Dict[str, bytes]:
+        """从数据直接生成所有图表图片，不需要Excel模板.
+
+        Args:
+            chart_specs: List of chart specifications.
+            data_sheets: Dict of sheet name to data.
+
+        Returns:
+            Dict of chart ID to image bytes.
+        """
+        chart_images = {}
+
+        for chart_spec in chart_specs:
+            try:
+                # 解析数据范围
+                if chart_spec.data_range:
+                    sheet_name, range_str = chart_spec.data_range.split("!", 1)
+                    if sheet_name in data_sheets:
+                        data = data_sheets[sheet_name]
+                        # 简单的范围解析，只支持A1:B5格式
+                        import re
+                        range_match = re.match(r"([A-Z]+)(\d+):([A-Z]+)(\d+)", range_str)
+                        if range_match:
+                            start_col, start_row, end_col, end_row = range_match.groups()
+                            start_row_idx = int(start_row) - 1
+                            end_row_idx = int(end_row)
+
+                            # 提取数据
+                            chart_data = data[start_row_idx:end_row_idx]
+                            if chart_data:
+                                img_bytes = self.generate_chart_image(chart_spec, chart_data)
+                                if img_bytes:
+                                    chart_images[chart_spec.chart_id] = img_bytes
+                                    logger.info(f"Generated chart image: {chart_spec.chart_id}")
+            except Exception as e:
+                logger.error(f"Failed to generate chart {chart_spec.chart_id}: {e}", exc_info=True)
+
+        return chart_images

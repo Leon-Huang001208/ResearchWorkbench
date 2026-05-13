@@ -726,69 +726,73 @@
 
             <!-- Templates Section -->
             <section id="section-templates" class="content-section">
-                <h2 class="section-title">模板管理</h2>
-
-                <div class="templates-grid">
-                    <!-- Left Panel: Template List -->
-                    <div class="card template-list-card">
-                        <div class="card-header">
-                            <h3>模板列表</h3>
-                            <button id="btn-refresh-templates" class="btn-secondary"><i class="codicon codicon-refresh"></i> 刷新</button>
+                <!-- Templates List View (Default) - iPhone Style -->
+                <div id="templates-list-view">
+                    <!-- iPhone Style Top Bar -->
+                    <div class="iphone-top-bar">
+                        <h2 class="iphone-title">模板</h2>
+                        <div class="iphone-nav-buttons">
+                            <button id="btn-edit-templates" class="iphone-nav-btn">编辑</button>
+                            <button id="btn-save-templates-order" class="iphone-nav-btn hidden">完成</button>
                         </div>
-                        <div id="template-list" class="template-list"></div>
                     </div>
 
-                    <!-- Right Panel: Template Details & Actions -->
-                    <div class="template-detail-card">
-                        <!-- Tabs -->
-                        <div class="tabs">
-                            <button class="tab-btn active" data-tab="upload">上传模板</button>
-                            <button class="tab-btn" data-tab="configure">配置占位符</button>
-                            <button class="tab-btn" data-tab="render">渲染报告</button>
-                        </div>
+                    <!-- Templates Grid - iPhone App Style -->
+                    <div id="templates-grid" class="iphone-templates-grid"></div>
 
-                        <!-- Upload Tab -->
-                        <div id="tab-upload" class="tab-panel">
-                            <div class="card">
-                                <h3>上传模板文件</h3>
-                                <div class="input-row">
-                                    <input type="text" id="template-name-input" placeholder="模板名称，如 quarterly_report">
-                                    <select id="template-type-select">
-                                        <option value="docx">DOCX (Word)</option>
-                                        <option value="pptx">PPTX (PowerPoint)</option>
-                                        <option value="excel">Excel</option>
-                                    </select>
+                    <!-- iPhone Style Dock -->
+                    <div class="iphone-dock">
+                        <button id="btn-new-template" class="iphone-dock-item">
+                            <div class="iphone-dock-icon">
+                                <i class="codicon codicon-cloud-upload"></i>
+                            </div>
+                            <span>上传</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Template Detail View (Hidden by default) -->
+                <div id="template-detail-view" class="hidden">
+                    <div class="section-header">
+                        <button id="btn-back-to-templates" class="btn-secondary"><i class="codicon codicon-arrow-left"></i> 返回模板列表</button>
+                        <h2 class="section-title" id="detail-template-name">模板详情</h2>
+                        <div class="section-actions">
+                            <span id="detail-template-version" class="badge">v1.0</span>
+                        </div>
+                    </div>
+
+                    <div class="template-detail-content">
+                        <!-- Template Info Card -->
+                        <div class="card template-info-card">
+                            <div class="template-icon-large" id="detail-template-icon">
+                                <i class="codicon codicon-file-code"></i>
+                            </div>
+                            <div class="template-meta">
+                                <h3 id="detail-template-title">模板名称</h3>
+                                <p id="detail-template-description" class="text-muted">模板描述</p>
+                                <div class="template-types">
+                                    <span id="detail-has-docx" class="template-type-badge docx hidden">DOCX</span>
+                                    <span id="detail-has-pptx" class="template-type-badge pptx hidden">PPTX</span>
+                                    <span id="detail-has-excel" class="template-type-badge excel hidden">Excel</span>
                                 </div>
-                                <div class="input-row">
-                                    <input type="text" id="template-desc-input" placeholder="模板描述">
-                                    <input type="text" id="template-version-input" value="1.0" placeholder="版本">
-                                </div>
-                                <div class="file-drop-zone" id="template-drop-zone">
-                                    <i class="codicon codicon-cloud-upload"></i>
-                                    <p>拖放文件到这里，或点击选择</p>
-                                    <input type="file" id="template-file-input" accept=".docx,.pptx,.xlsx">
-                                    <button id="btn-choose-file" class="btn-secondary">选择文件</button>
-                                </div>
-                                <div id="selected-file-info" class="selected-file-info hidden">
-                                    <span id="selected-file-name"></span>
-                                    <button id="btn-clear-file" class="btn-small"><i class="codicon codicon-close"></i></button>
-                                </div>
-                                <div class="input-row" style="margin-top: 1rem;">
-                                    <button id="btn-upload-template" class="btn-primary">上传模板</button>
-                                    <button id="btn-create-yaml-template" class="btn-secondary">创建 YAML 配置</button>
-                                </div>
-                                <div id="template-upload-status" class="upload-status"></div>
+                            </div>
+                            <div class="template-actions">
+                                <button id="btn-download-template" class="btn-secondary"><i class="codicon codicon-download"></i> 下载模板</button>
+                                <button id="btn-delete-template" class="btn-danger"><i class="codicon codicon-trash"></i> 删除</button>
                             </div>
                         </div>
 
+                        <!-- Detail Tabs -->
+                        <div class="tabs">
+                            <button class="tab-btn active" data-tab="detail-configure">配置占位符</button>
+                            <button class="tab-btn" data-tab="detail-render">渲染报告</button>
+                        </div>
+
                         <!-- Configure Tab -->
-                        <div id="tab-configure" class="tab-panel hidden">
+                        <div id="tab-detail-configure" class="tab-panel">
                             <div class="card">
                                 <h3>占位符配置</h3>
                                 <div class="input-row">
-                                    <select id="configure-template-select">
-                                        <option value="">选择模板...</option>
-                                    </select>
                                     <select id="configure-type-select">
                                         <option value="docx">DOCX</option>
                                         <option value="pptx">PPTX</option>
@@ -804,34 +808,36 @@
                                     <i class="codicon codicon-search"></i>
                                     <p>尚未发现占位符</p>
                                 </div>
+                                <div class="input-row" style="margin-top: 1rem;">
+                                    <button id="btn-save-placeholder-config" class="btn-primary">保存配置</button>
+                                    <button id="btn-export-yaml" class="btn-secondary">导出YAML配置</button>
+                                </div>
                             </div>
                         </div>
 
                         <!-- Render Tab -->
-                        <div id="tab-render" class="tab-panel hidden">
+                        <div id="tab-detail-render" class="tab-panel hidden">
                             <div class="card">
                                 <h3>渲染报告</h3>
                                 <div class="input-row">
-                                    <select id="render-template-select">
-                                        <option value="">选择模板...</option>
-                                    </select>
                                     <select id="render-type-select">
                                         <option value="docx">DOCX</option>
                                         <option value="pptx">PPTX</option>
                                     </select>
-                                </div>
-                                <div class="input-row">
-                                    <input type="text" id="render-canonical-id" placeholder="标的代码 (可选)，如 600519.SH">
                                     <select id="render-report-type">
                                         <option value="full">完整报告</option>
                                         <option value="summary">摘要报告</option>
                                         <option value="valuation">估值报告</option>
                                     </select>
                                 </div>
+                                <div class="input-row">
+                                    <input type="text" id="render-canonical-id" placeholder="标的代码 (可选)，如 600519.SH">
+                                </div>
                                 <h4 style="margin-top: 1.5rem;">占位符数据</h4>
                                 <div id="render-placeholders-container" class="render-placeholders-container"></div>
                                 <div class="input-row" style="margin-top: 1rem;">
                                     <button id="btn-add-placeholder" class="btn-secondary"><i class="codicon codicon-add"></i> 添加占位符</button>
+                                    <button id="btn-generate-all-ai" class="btn-secondary"><i class="codicon codicon-hubot"></i> 生成所有AI字段</button>
                                     <button id="btn-render-report" class="btn-primary">渲染报告</button>
                                 </div>
                                 <div id="render-loading" class="loading hidden">
@@ -846,6 +852,74 @@
                                     <a id="render-download-link" class="btn-primary" href="#" download>下载报告</a>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Upload Template Modal -->
+                <div id="upload-template-modal" class="modal hidden">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3>上传模板文件</h3>
+                            <button id="btn-close-upload-modal" class="modal-close"><i class="codicon codicon-close"></i></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="input-row">
+                                <input type="text" id="template-name-input" placeholder="模板名称，如 quarterly_report">
+                                <select id="template-type-select">
+                                    <option value="docx">DOCX (Word)</option>
+                                    <option value="pptx">PPTX (PowerPoint)</option>
+                                    <option value="excel">Excel</option>
+                                </select>
+                            </div>
+                            <div class="input-row">
+                                <input type="text" id="template-desc-input" placeholder="模板描述">
+                                <input type="text" id="template-version-input" value="1.0" placeholder="版本">
+                            </div>
+                            <div class="file-drop-zone" id="template-drop-zone">
+                                <i class="codicon codicon-cloud-upload"></i>
+                                <p>拖放文件到这里，或点击选择</p>
+                                <input type="file" id="template-file-input" accept=".docx,.pptx,.xlsx">
+                                <button id="btn-choose-file" class="btn-secondary">选择文件</button>
+                            </div>
+                            <div id="selected-file-info" class="selected-file-info hidden">
+                                <span id="selected-file-name"></span>
+                                <button id="btn-clear-file" class="btn-small"><i class="codicon codicon-close"></i></button>
+                            </div>
+                            <div id="template-upload-status" class="upload-status"></div>
+                        </div>
+                        <div class="modal-footer">
+                            <button id="btn-cancel-upload" class="btn-secondary">取消</button>
+                            <button id="btn-upload-template" class="btn-primary">上传模板</button>
+                            <button id="btn-create-yaml-template" class="btn-secondary">创建 YAML 配置</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Edit Template Modal -->
+                <div id="edit-template-modal" class="modal hidden">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3>编辑模板</h3>
+                            <button id="btn-close-edit-modal" class="modal-close"><i class="codicon codicon-close"></i></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="form-field">
+                                <label>模板名称</label>
+                                <input type="text" id="edit-template-name" placeholder="模板名称">
+                            </div>
+                            <div class="form-field">
+                                <label>模板描述</label>
+                                <input type="text" id="edit-template-description" placeholder="模板描述">
+                            </div>
+                            <div class="form-field">
+                                <label>版本</label>
+                                <input type="text" id="edit-template-version" placeholder="版本">
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button id="btn-cancel-edit" class="btn-secondary">取消</button>
+                            <button id="btn-save-edit" class="btn-primary">保存</button>
                         </div>
                     </div>
                 </div>

@@ -1,6 +1,6 @@
-name: api_test_template
-description: API test template
-version: '1.0'
+name: updated_report
+description: 已更新的测试报告模板
+version: '1.1'
 default_retrieval_profile: weekly_report
 sections:
 - key: market_summary

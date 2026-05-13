@@ -160,6 +160,7 @@ class TemplateConfig(BaseModel):
         word_template_path: Path to Word template file.
         excel_template_path: Path to Excel template file.
         placeholders: Mapping of section keys to Word placeholders.
+        sort_order: Sort order for displaying templates.
         metadata: Additional metadata.
     """
 
@@ -176,6 +177,7 @@ class TemplateConfig(BaseModel):
     placeholders: Dict[str, str] = Field(
         default_factory=dict, description="Section key to placeholder mapping"
     )
+    sort_order: int = Field(default=0, description="Sort order for displaying templates")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
 
@@ -236,13 +238,14 @@ class ChartSpec(BaseModel):
     """图表规范.
 
     Specification for a chart in Excel output.
+    Placeholder naming convention: {{chart_{chart_id}}}
 
     Attributes:
         chart_id: Unique chart ID.
         chart_type: Type of chart.
         title: Chart title.
         data_range: Data range reference.
-        placeholder: Placeholder in Word template.
+        placeholder: Placeholder in Word template (auto-generated if not provided).
     """
 
     chart_id: str = Field(description="Unique chart ID")
@@ -251,27 +254,62 @@ class ChartSpec(BaseModel):
     )
     title: str = Field(description="Chart title")
     data_range: str = Field(description="Data range reference")
-    placeholder: Optional[str] = Field(default=None, description="Placeholder in Word template")
+    placeholder: Optional[str] = Field(
+        default=None,
+        description="Placeholder in Word template (auto-generated as '{{chart_{chart_id}}}' if not provided)"
+    )
+
+    @property
+    def normalized_placeholder(self) -> str:
+        """获取标准化的占位符名称."""
+        return self.placeholder or f"chart_{self.chart_id}"
 
 
 class TableSpec(BaseModel):
     """表格规范.
 
     Specification for a table in report output.
+    Placeholder naming convention: {{table_{table_id}}}
 
     Attributes:
         table_id: Unique table ID.
         title: Table title.
         headers: Column headers.
         rows: Table data rows.
-        placeholder: Placeholder in Word template.
+        placeholder: Placeholder in Word template (auto-generated if not provided).
     """
 
     table_id: str = Field(description="Unique table ID")
     title: str = Field(description="Table title")
     headers: List[str] = Field(default_factory=list, description="Column headers")
     rows: List[List[Any]] = Field(default_factory=list, description="Table data rows")
-    placeholder: Optional[str] = Field(default=None, description="Placeholder in Word template")
+    placeholder: Optional[str] = Field(
+        default=None,
+        description="Placeholder in Word template (auto-generated as '{{table_{table_id}}}' if not provided)"
+    )
+
+    @property
+    def normalized_placeholder(self) -> str:
+        """获取标准化的占位符名称."""
+        return self.placeholder or f"table_{self.table_id}"
+
+
+class TextPlaceholder(BaseModel):
+    """文本占位符规范.
+
+    Placeholder naming convention: {{text_{key}}} or directly use section.key
+    """
+    key: str = Field(description="Placeholder key")
+    content: str = Field(description="Text content")
+    placeholder: Optional[str] = Field(
+        default=None,
+        description="Placeholder in Word template (auto-generated as '{{text_{key}}}' if not provided)"
+    )
+
+    @property
+    def normalized_placeholder(self) -> str:
+        """获取标准化的占位符名称."""
+        return self.placeholder or f"text_{self.key}"
 
 
 # Update forward references

@@ -5,7 +5,8 @@ Report validator checks quality and compliance of generated content.
 """
 from typing import List, Optional, Set
 
-from core.contracts import SectionSpec, ValidationResult, ValidationResults
+from core.contracts import SectionSpec, ValidationResult, ValidationResults, FactCard
+from core.interfaces import ModelGateway
 from core.observability import get_logger
 
 logger = get_logger(__name__)
@@ -20,11 +21,17 @@ class ReportValidator:
     - Forbidden term detection
     - Source traceability
     - Objectivity checks
+    - Fact consistency check (optional, requires LLM)
     """
 
-    def __init__(self):
-        """初始化校验器."""
+    def __init__(self, model_gateway: Optional[ModelGateway] = None):
+        """初始化校验器.
+
+        Args:
+            model_gateway: Optional model gateway for LLM-based checks (fact consistency).
+        """
         self._default_forbidden_terms: Set[str] = set()
+        self._model_gateway = model_gateway
 
     def set_default_forbidden_terms(self, terms: List[str]):
         """设置默认禁用词列表.
@@ -40,6 +47,8 @@ class ReportValidator:
         content: str,
         spec: SectionSpec,
         evidence_refs: Optional[List[str]] = None,
+        fact_card: Optional[FactCard] = None,
+        evidence_content: Optional[List[str]] = None,
     ) -> ValidationResults:
         """校验单个段落.
 
@@ -47,6 +56,8 @@ class ReportValidator:
             content: Generated section content.
             spec: Section specification.
             evidence_refs: List of evidence references used.
+            fact_card: Optional fact card used for generation (for fact consistency check).
+            evidence_content: Optional raw evidence content (for fact consistency check).
 
         Returns:
             Validation results.
@@ -73,6 +84,10 @@ class ReportValidator:
         # Required facets check
         if spec.required_facets:
             results.append(self._check_required_facets(content, spec.required_facets))
+
+        # Fact consistency check (if LLM available and evidence provided)
+        if self._model_gateway and fact_card and evidence_content:
+            results.append(self._check_fact_consistency(content, fact_card, evidence_content))
 
         overall_passed = all(r.passed for r in results if r.severity == "error")
 
@@ -299,6 +314,102 @@ class ReportValidator:
                 passed=True,
                 message="All required facets covered",
                 severity="info",
+            )
+
+    def _check_fact_consistency(
+        self,
+        content: str,
+        fact_card: FactCard,
+        evidence_content: List[str],
+    ) -> ValidationResult:
+        """检查事实一致性，确保内容完全基于提供的证据，没有编造信息.
+
+        Args:
+            content: Generated section content.
+            fact_card: Fact card used for generation.
+            evidence_content: List of raw evidence content.
+
+        Returns:
+            Validation result.
+        """
+        logger.info("Performing fact consistency check")
+
+        try:
+            # Build prompt for LLM
+            facts = []
+            if fact_card.key_changes:
+                facts.extend([f"- 关键变化: {c}" for c in fact_card.key_changes])
+            if fact_card.drivers:
+                facts.extend([f"- 驱动因素: {d}" for d in fact_card.drivers])
+            if fact_card.impacts:
+                facts.extend([f"- 影响分析: {i}" for i in fact_card.impacts])
+            if fact_card.risks:
+                facts.extend([f"- 风险提示: {r}" for r in fact_card.risks])
+            if fact_card.watch_points:
+                facts.extend([f"- 观察重点: {w}" for w in fact_card.watch_points])
+
+            evidence_parts = [f"证据{i+1}:\n{content}" for i, content in enumerate(evidence_content)]
+
+            facts_text = '\n'.join(facts)
+            evidence_text = '\n\n'.join(evidence_parts)
+
+            prompt = f"""
+你是一个事实核查员，请检查下面的报告内容是否完全基于提供的事实和证据，有没有编造、夸大或超出证据范围的信息。
+
+# 报告内容：
+{content}
+
+# 提取的事实：
+{facts_text}
+
+# 原始证据：
+{evidence_text}
+
+# 检查要求：
+1. 只报告内容是否完全基于事实和证据，没有编造
+2. 如果发现不一致的地方，请具体指出
+3. 输出格式：
+首先回答"PASSED"或"FAILED"，然后换行说明原因。
+
+示例：
+FAILED
+报告中提到"行业增长率达到20%"，但证据中只提到增长率为10%。
+"""
+
+            # Call LLM
+            response = self._model_gateway.chat(
+                messages=[{"role": "user", "content": prompt}],
+                model="default",
+                temperature=0.1,  # Low temperature for consistency
+            )
+
+            response_text = response.content.strip()
+
+            if response_text.startswith("PASSED"):
+                return ValidationResult(
+                    check_name="fact_consistency",
+                    passed=True,
+                    message="Fact consistency check passed",
+                    severity="info",
+                )
+            else:
+                # Extract reason
+                lines = response_text.split("\n", 1)
+                reason = lines[1] if len(lines) > 1 else "Unknown inconsistency found"
+                return ValidationResult(
+                    check_name="fact_consistency",
+                    passed=False,
+                    message=f"Fact consistency check failed: {reason}",
+                    severity="error",
+                )
+
+        except Exception as e:
+            logger.error(f"Fact consistency check failed: {e}", exc_info=True)
+            return ValidationResult(
+                check_name="fact_consistency",
+                passed=False,
+                message=f"Fact consistency check error: {str(e)}",
+                severity="warning",
             )
 
     def quick_check(self, content: str) -> bool:

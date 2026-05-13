@@ -115,6 +115,225 @@ class WordProjection:
         doc.save(str(output_path))
         logger.info(f"Saved Word report to: {output_path}")
 
+    def save_review_version(
+        self,
+        output_path: Path | str,
+        title: str,
+        sections: list[SectionOutput],
+        metadata: dict[str, Any] | None = None,
+        include_fact_cards: bool = True,
+        include_validation: bool = True,
+        include_evidence: bool = True,
+    ):
+        """保存审稿友好版本的 Word 文档.
+
+        这个版本包含更多细节，方便审稿人检查内容质量：
+        - 每个段落展示完整信息
+        - 可选择包含事实卡
+        - 可选择包含校验结果
+        - 可选择包含证据来源
+
+        Args:
+            output_path: Output file path.
+            title: Report title.
+            sections: List of section outputs.
+            metadata: Additional metadata.
+            include_fact_cards: Whether to include fact cards in the output.
+            include_validation: Whether to include validation results.
+            include_evidence: Whether to include evidence references.
+        """
+        if not self._has_docx:
+            raise ImportError(
+                "python-docx is required for Word output. "
+                "Please install it with: pip install python-docx"
+            )
+
+        from docx import Document
+        from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+        from docx.shared import Pt, RGBColor
+        from docx.enum.section import WD_SECTION
+
+        output_path = Path(output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        doc = Document()
+
+        # 标题
+        title_para = doc.add_heading(f"【审稿版】{title}", level=0)
+        title_para.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+
+        # 元数据
+        if metadata:
+            info_para = doc.add_paragraph()
+            for key, value in metadata.items():
+                run = info_para.add_run(f"{key}: {value}\n")
+                run.font.size = Pt(10)
+                run.font.italic = True
+
+        # 生成时间
+        time_para = doc.add_paragraph()
+        time_run = time_para.add_run(f"生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        time_run.font.size = Pt(9)
+        time_run.font.italic = True
+
+        doc.add_paragraph()
+
+        # 内容概览
+        overview_heading = doc.add_heading("内容概览", level=1)
+        overview_heading.runs[0].font.color.rgb = RGBColor(0, 51, 102)
+
+        overview_table = doc.add_table(rows=len(sections)+1, cols=4)
+        overview_table.style = "Table Grid"
+        overview_table.rows[0].cells[0].text = "段落ID"
+        overview_table.rows[0].cells[1].text = "段落标题"
+        overview_table.rows[0].cells[2].text = "字数"
+        overview_table.rows[0].cells[3].text = "校验状态"
+
+        for idx, section in enumerate(sections):
+            row = overview_table.rows[idx+1]
+            row.cells[0].text = section.key
+            row.cells[1].text = section.title
+            if section.validation_results:
+                row.cells[2].text = str(section.validation_results.word_count)
+                status = "✅ 通过" if section.validation_results.overall_passed else "❌ 未通过"
+                row.cells[3].text = status
+            else:
+                row.cells[2].text = str(self._count_words(section.content))
+                row.cells[3].text = "⚠️ 未校验"
+
+        doc.add_paragraph()
+
+        # 段落详情
+        details_heading = doc.add_heading("段落详情", level=1)
+        details_heading.runs[0].font.color.rgb = RGBColor(0, 51, 102)
+        doc.add_paragraph()
+
+        for section_idx, section in enumerate(sections):
+            # 段落标题
+            section_heading = doc.add_heading(
+                f"{section_idx + 1}. {section.title} (ID: {section.key})",
+                level=2
+            )
+            section_heading.runs[0].font.color.rgb = RGBColor(0, 102, 204)
+
+            # 段落内容
+            content_heading = doc.add_heading("生成内容", level=3)
+            content_heading.runs[0].font.size = Pt(12)
+
+            content_para = doc.add_paragraph(section.content)
+            content_para.paragraph_format.line_spacing = 1.5
+            content_para.paragraph_format.left_indent = Pt(20)
+
+            # 校验结果
+            if include_validation and section.validation_results:
+                validation_heading = doc.add_heading("校验结果", level=3)
+                validation_heading.runs[0].font.size = Pt(12)
+
+                validation_table = doc.add_table(
+                    rows=len(section.validation_results.results)+1,
+                    cols=3
+                )
+                validation_table.style = "Table Grid"
+                validation_table.rows[0].cells[0].text = "检查项"
+                validation_table.rows[0].cells[1].text = "状态"
+                validation_table.rows[0].cells[2].text = "说明"
+
+                for r_idx, result in enumerate(section.validation_results.results):
+                    row = validation_table.rows[r_idx + 1]
+                    row.cells[0].text = result.check_name
+                    status = "✅ 通过" if result.passed else "❌ 失败" if result.severity == "error" else "⚠️ 警告"
+                    row.cells[1].text = status
+                    row.cells[2].text = result.message
+
+                    # 设置颜色
+                    if not result.passed:
+                        for cell in row.cells:
+                            for paragraph in cell.paragraphs:
+                                for run in paragraph.runs:
+                                    if result.severity == "error":
+                                        run.font.color.rgb = RGBColor(255, 0, 0)
+                                    else:
+                                        run.font.color.rgb = RGBColor(255, 153, 0)
+
+            # 事实卡
+            if include_fact_cards and section.fact_card:
+                fact_card_heading = doc.add_heading("事实卡", level=3)
+                fact_card_heading.runs[0].font.size = Pt(12)
+
+                fact_card = section.fact_card
+                fact_content = []
+
+                if fact_card.key_changes:
+                    fact_content.append("关键变化：")
+                    fact_content.extend([f"- {c}" for c in fact_card.key_changes])
+                    fact_content.append("")
+
+                if fact_card.drivers:
+                    fact_content.append("驱动因素：")
+                    fact_content.extend([f"- {d}" for d in fact_card.drivers])
+                    fact_content.append("")
+
+                if fact_card.impacts:
+                    fact_content.append("影响分析：")
+                    fact_content.extend([f"- {i}" for i in fact_card.impacts])
+                    fact_content.append("")
+
+                if fact_card.risks:
+                    fact_content.append("风险提示：")
+                    fact_content.extend([f"- {r}" for r in fact_card.risks])
+                    fact_content.append("")
+
+                if fact_card.watch_points:
+                    fact_content.append("观察重点：")
+                    fact_content.extend([f"- {w}" for w in fact_card.watch_points])
+                    fact_content.append("")
+
+                if fact_card.source_refs:
+                    fact_content.append("来源引用：")
+                    fact_content.extend([f"- {s}" for s in fact_card.source_refs])
+
+                fact_para = doc.add_paragraph("\n".join(fact_content))
+                fact_para.paragraph_format.left_indent = Pt(20)
+                fact_para.paragraph_format.line_spacing = 1.2
+
+            # 警告
+            if section.warnings:
+                warning_heading = doc.add_heading("警告信息", level=3)
+                warning_heading.runs[0].font.size = Pt(12)
+                warning_heading.runs[0].font.color.rgb = RGBColor(255, 0, 0)
+
+                for warning in section.warnings:
+                    warn_para = doc.add_paragraph(f"⚠️ {warning}", style="List Bullet")
+                    warn_para.paragraph_format.left_indent = Pt(20)
+                    for run in warn_para.runs:
+                        run.font.color.rgb = RGBColor(255, 0, 0)
+
+            # 证据引用
+            if include_evidence and section.evidence_refs:
+                evidence_heading = doc.add_heading("证据引用", level=3)
+                evidence_heading.runs[0].font.size = Pt(12)
+
+                ref_para = doc.add_paragraph("本段落使用了以下证据：")
+                ref_para.paragraph_format.left_indent = Pt(20)
+                for ref in section.evidence_refs:
+                    doc.add_paragraph(f"[{ref}] 来源待补充", style="List Bullet")
+
+            # 分页
+            if section_idx < len(sections) - 1:
+                doc.add_section(WD_SECTION.NEW_PAGE)
+
+        doc.save(str(output_path))
+        logger.info(f"Saved review version Word report to: {output_path}")
+
+    def _count_words(self, content: str) -> int:
+        """计算中文字数和英文单词数总和."""
+        import re
+        # Count Chinese characters
+        chinese_chars = len(re.findall(r"[一-鿿]", content))
+        # Count English words
+        english_words = len(re.findall(r"\b[a-zA-Z]+\b", content))
+        return chinese_chars + english_words
+
     def save_from_template(
         self,
         output_path: Path | str,
@@ -156,9 +375,10 @@ class WordProjection:
         # Build placeholder map
         placeholder_map = dict(placeholders or {})
 
-        # Add section content to placeholder map - use section.key as placeholder
+        # Add section content to placeholder map - support both key and text_<key> formats
         for section in sections:
             placeholder_map[section.key] = section.content
+            placeholder_map[f"text_{section.key}"] = section.content
 
         # Replace placeholders in paragraphs
         self._replace_placeholders_in_document(doc, placeholder_map)
@@ -322,10 +542,8 @@ class WordProjection:
         Returns:
             True if inserted successfully.
         """
-        if not table_spec.placeholder:
-            return False
-
-        placeholder = table_spec.placeholder
+        # Use normalized placeholder name
+        placeholder = table_spec.normalized_placeholder
         patterns = [f"{{{{{placeholder}}}}}", f"{{{placeholder}}}", placeholder]
 
         for para_idx, paragraph in enumerate(doc.paragraphs):
@@ -379,11 +597,19 @@ class WordProjection:
         from io import BytesIO
 
         from docx.shared import Inches
+        from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 
         for chart_id, image_bytes in chart_images.items():
-            # Look for placeholder
+            # Look for placeholder - support both chart_id and chart_{chart_id} formats
             placeholder_found = False
-            patterns = [f"{{{{{chart_id}}}}}", f"{{{chart_id}}}", chart_id]
+            patterns = [
+                f"{{{{{chart_id}}}}}",
+                f"{{{chart_id}}}",
+                chart_id,
+                f"{{{{chart_{chart_id}}}}}",
+                f"{{chart_{chart_id}}}",
+                f"chart_{chart_id}",
+            ]
 
             for paragraph in doc.paragraphs:
                 for pattern in patterns:
@@ -393,10 +619,32 @@ class WordProjection:
                         image_stream = BytesIO(image_bytes)
                         run = paragraph.add_run()
                         run.add_picture(image_stream, width=Inches(4.5))
+                        # 居中显示
+                        paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
                         placeholder_found = True
                         break
                 if placeholder_found:
                     break
+
+            # 也在表格单元格中查找占位符
+            if not placeholder_found:
+                for table in doc.tables:
+                    for row in table.rows:
+                        for cell in row.cells:
+                            for paragraph in cell.paragraphs:
+                                for pattern in patterns:
+                                    if pattern in paragraph.text:
+                                        paragraph.clear()
+                                        image_stream = BytesIO(image_bytes)
+                                        run = paragraph.add_run()
+                                        run.add_picture(image_stream, width=Inches(4.5))
+                                        paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+                                        placeholder_found = True
+                                        break
+                            if placeholder_found:
+                                break
+                        if placeholder_found:
+                            break
 
             if not placeholder_found:
                 # Add at end

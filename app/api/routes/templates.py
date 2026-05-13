@@ -109,6 +109,28 @@ class DeleteTemplateResponse(BaseModel):
     message: Optional[str] = None
 
 
+class PlaceholderConfig(BaseModel):
+    """单个占位符配置"""
+    type: str = "string"
+    description: str = ""
+    prompt: str = ""
+    default: Optional[Any] = None
+
+
+class TemplateConfigSaveRequest(BaseModel):
+    """模板配置保存请求"""
+    template_name: str
+    file_type: str = "docx"
+    placeholders: Dict[str, PlaceholderConfig] = Field(default_factory=dict)
+
+
+class TemplateConfigResponse(BaseModel):
+    """模板配置响应"""
+    template_name: str
+    file_type: str
+    config: Dict[str, Any]
+
+
 # ─── 模板管理 API ─────────────────────────────────────────────────────────
 
 
@@ -220,6 +242,8 @@ async def upload_template(
     template_name: str = Form(..., description="模板名称"),
     file_type: TemplateFileType = Form(..., description="文件类型"),
     description: str = Form("", description="模板描述"),
+    version: str = Form("1.0", description="模板版本"),
+    target_audience: Optional[str] = Form(None, description="目标受众"),
     file: UploadFile = File(..., description="模板文件"),
 ):
     """
@@ -236,6 +260,68 @@ async def upload_template(
             file_content=file_content,
             overwrite=True,  # 允许覆盖
         )
+
+        # 自动创建对应的YAML配置（如果不存在）
+        try:
+            template_manager.load_template(template_name)
+        except FileNotFoundError:
+            # 配置不存在，创建基础配置
+            from core.contracts import TemplateConfig, SectionSpec
+
+            # 创建默认章节结构（如果是周报类型则使用标准结构，否则创建简单结构）
+            if "weekly" in template_name.lower() or "周报" in template_name:
+                sections = [
+                    SectionSpec(
+                        key="market_summary",
+                        title="市场概览",
+                        target_words=300,
+                        required_facets=["大盘走势", "主要指数表现", "成交量"],
+                        placeholder="market_summary_placeholder"
+                    ),
+                    SectionSpec(
+                        key="key_events",
+                        title="本周重要事件",
+                        target_words=400,
+                        required_facets=["政策新闻", "公司公告", "行业动态"],
+                        placeholder="key_events_placeholder"
+                    ),
+                    SectionSpec(
+                        key="industry_performance",
+                        title="行业表现分析",
+                        target_words=350,
+                        required_facets=["涨幅居前行业", "跌幅居前行业", "行业资金流向"],
+                        placeholder="industry_performance_placeholder"
+                    ),
+                    SectionSpec(
+                        key="notable_stocks",
+                        title="重点股票观察",
+                        target_words=300,
+                        required_facets=["涨幅榜", "跌幅榜", "异动股票"],
+                        placeholder="notable_stocks_placeholder"
+                    ),
+                    SectionSpec(
+                        key="outlook",
+                        title="后市展望",
+                        target_words=250,
+                        required_facets=["技术面", "消息面", "风险提示"],
+                        placeholder="outlook_placeholder"
+                    )
+                ]
+            else:
+                sections = []
+
+            config = TemplateConfig(
+                name=template_name,
+                description=description,
+                version=version,
+                target_audience=target_audience,
+                sections=sections,
+                placeholders={}
+            )
+
+            # 保存配置
+            template_manager.save_template(config, overwrite=True)
+            logger.info(f"Created default YAML config for template: {template_name}")
 
         logger.info(f"Uploaded template {template_name} ({file_type.value}): {saved_path}")
 
@@ -577,6 +663,78 @@ async def download_template_file(template_name: str, file_type: TemplateFileType
         raise HTTPException(status_code=500, detail=f"Failed to download template: {str(e)}")
 
 
+@router.get("/{template_name}/config", response_model=TemplateConfigResponse, summary="获取模板配置")
+async def get_template_config(template_name: str, file_type: str = "docx"):
+    """
+    获取模板的占位符配置
+    """
+    try:
+        # 尝试加载模板配置
+        try:
+            config = template_manager.load_template(template_name)
+            config_dict = config.model_dump()
+        except FileNotFoundError:
+            # 如果没有配置，返回空的
+            config_dict = {
+                "name": template_name,
+                "description": "",
+                "version": "1.0",
+                "placeholders": {}
+            }
+
+        return TemplateConfigResponse(
+            template_name=template_name,
+            file_type=file_type,
+            config=config_dict
+        )
+    except Exception as e:
+        logger.exception(f"Failed to get template config {template_name}")
+        raise HTTPException(status_code=500, detail=f"Failed to get template config: {str(e)}")
+
+
+@router.post("/config", summary="保存模板配置")
+async def save_template_config(request: TemplateConfigSaveRequest):
+    """
+    保存模板的占位符配置
+    """
+    try:
+        template_name = request.template_name
+        file_type = request.file_type
+
+        # 尝试加载现有配置，如果不存在就创建新的
+        try:
+            config = template_manager.load_template(template_name)
+        except FileNotFoundError:
+            from core.contracts import TemplateConfig
+            config = TemplateConfig(
+                name=template_name,
+                description=f"{template_name} 模板配置",
+                version="1.0"
+            )
+
+        # 更新占位符配置
+        if not config.placeholders:
+            config.placeholders = {}
+
+        # 将新的占位符配置合并进去
+        for name, ph_config in request.placeholders.items():
+            config.placeholders[name] = ph_config.model_dump()
+
+        # 保存配置
+        template_manager.save_template(config, overwrite=True)
+
+        return {
+            "success": True,
+            "template_name": template_name,
+            "message": "Template config saved successfully"
+        }
+    except Exception as e:
+        logger.exception(f"Failed to save template config {request.template_name}")
+        raise HTTPException(status_code=500, detail=f"Failed to save template config: {str(e)}")
+
+
+
+
 @router.post("/create-yaml", summary="创建 YAML 模板配置")
 async def create_yaml_template(
     template_name: str = Form(..., description="模板名称"),
@@ -616,3 +774,63 @@ async def create_yaml_template(
     except Exception as e:
         logger.exception(f"Failed to create yaml template {template_name}")
         raise HTTPException(status_code=500, detail=f"Failed to create template: {str(e)}")
+
+
+class UpdateTemplateRequest(BaseModel):
+    """更新模板请求."""
+    template_name: Optional[str] = Field(default=None, description="New template name")
+    description: Optional[str] = Field(default=None, description="Template description")
+    version: Optional[str] = Field(default=None, description="Template version")
+    sort_order: Optional[int] = Field(default=None, description="Sort order")
+
+
+class UpdateTemplatesOrderRequest(BaseModel):
+    """批量更新模板排序请求."""
+    template_names: List[str] = Field(description="Template names in desired order")
+
+
+@router.patch("/{template_name}", summary="更新模板元数据")
+async def update_template(template_name: str, request: UpdateTemplateRequest):
+    """
+    更新模板的元数据（名称、描述、版本、排序等）.
+    """
+    try:
+        update_data = request.model_dump(exclude_none=True)
+        if not update_data:
+            raise HTTPException(status_code=400, detail="No fields to update")
+
+        # Map template_name to name for the template manager
+        if 'template_name' in update_data:
+            update_data['name'] = update_data.pop('template_name')
+
+        updated_config = template_manager.update_template_metadata(template_name, **update_data)
+
+        return {
+            "success": True,
+            "template_name": updated_config.name,
+            "message": "Template updated successfully"
+        }
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Template not found: {template_name}")
+    except Exception as e:
+        logger.exception(f"Failed to update template {template_name}")
+        raise HTTPException(status_code=500, detail=f"Failed to update template: {str(e)}")
+
+
+@router.post("/reorder", summary="批量更新模板排序")
+async def reorder_templates(request: UpdateTemplatesOrderRequest):
+    """
+    批量更新模板的排列顺序.
+    """
+    try:
+        success = template_manager.update_templates_order(request.template_names)
+        if success:
+            return {
+                "success": True,
+                "message": "Templates reordered successfully"
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Failed to reorder templates")
+    except Exception as e:
+        logger.exception("Failed to reorder templates")
+        raise HTTPException(status_code=500, detail=f"Failed to reorder templates: {str(e)}")

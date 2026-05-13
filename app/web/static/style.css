@@ -1397,6 +1397,166 @@ tr:hover td {
     align-items: center;
     justify-content: space-between;
     margin-bottom: 16px;
+}
+
+/* ─── Template Module Enhancements ─────────────────────────────────── */
+/* 占位符配置样式 */
+.placeholder-item {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    background-color: var(--bg-secondary);
+}
+
+.placeholder-item-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+    gap: 1rem;
+}
+
+.placeholder-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.placeholder-type-select {
+    width: 120px;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+
+.placeholder-description-input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    margin-bottom: 0.75rem;
+    font-size: 0.9rem;
+}
+
+.placeholder-prompt-textarea {
+    width: 100%;
+    min-height: 80px;
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.9rem;
+    resize: vertical;
+}
+
+/* 渲染占位符样式 */
+.render-placeholder-item {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    background-color: var(--bg-secondary);
+}
+
+.render-placeholder-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+.render-placeholder-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.render-placeholder-type {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    background-color: var(--bg-tertiary);
+    padding: 0.125rem 0.5rem;
+    border-radius: 12px;
+}
+
+.render-placeholder-input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.render-placeholder-textarea {
+    width: 100%;
+    min-height: 100px;
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: inherit;
+    resize: vertical;
+    margin-bottom: 0.5rem;
+}
+
+.btn-ai-generate {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 0.75rem;
+    font-size: 0.85rem;
+    background-color: #8b5cf6;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.btn-ai-generate:hover {
+    background-color: #7c3aed;
+}
+
+.btn-ai-generate.loading {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* 配置按钮样式 */
+#btn-save-placeholder-config,
+#btn-export-yaml,
+#btn-generate-all-ai {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.render-result {
+    margin-top: 1rem;
+    padding: 1rem;
+    border-radius: 8px;
+    background-color: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.render-result .success-message {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #10b981;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
     padding-bottom: 8px;
     border-bottom: 1px solid var(--border);
 }
@@ -2881,4 +3041,633 @@ tr:hover td {
     border-radius: 12px;
     font-size: 12px;
     font-weight: 500;
+}
+
+
+/* ============================================================
+   Templates Management Styles
+   ============================================================ */
+
+/* Section Header */
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.section-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+/* Templates Grid */
+.templates-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1rem;
+}
+
+/* Template Card */
+.template-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+}
+
+.template-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+    border-color: var(--accent);
+}
+
+.template-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    margin-bottom: 1rem;
+    color: white;
+}
+
+.template-icon.docx {
+    background: #2b579a;
+}
+
+.template-icon.pptx {
+    background: #d24726;
+}
+
+.template-icon.excel {
+    background: #217346;
+}
+
+.template-icon.default {
+    background: var(--accent);
+}
+
+.template-card h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0 0 0.5rem 0;
+    color: var(--text-primary);
+}
+
+.template-description {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+    line-height: 1.4;
+    flex-grow: 1;
+}
+
+.template-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.template-type-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.template-type-badge.docx {
+    background: #e8eff9;
+    color: #2b579a;
+}
+
+.template-type-badge.pptx {
+    background: #f9eae8;
+    color: #d24726;
+}
+
+.template-type-badge.excel {
+    background: #e7f0eb;
+    color: #217346;
+}
+
+.template-version {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    background: var(--bg-input);
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+}
+
+.template-card-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.template-card-actions .btn-small {
+    flex: 1;
+}
+
+/* Template Edit Mode */
+.template-card.edit-mode {
+    cursor: grab;
+    position: relative;
+}
+
+.template-card.edit-mode:active {
+    cursor: grabbing;
+}
+
+.template-card.edit-mode .template-content {
+    pointer-events: auto;
+}
+
+.template-card.edit-mode .template-content:hover {
+    background: inherit;
+}
+
+.template-drag-handle {
+    position: absolute;
+    top: 0.5rem;
+    left: 0.5rem;
+    color: var(--text-secondary);
+    cursor: grab;
+    padding: 0.25rem;
+    font-size: 1.25rem;
+    z-index: 1;
+}
+
+.template-drag-handle:active {
+    cursor: grabbing;
+}
+
+.template-card.edit-mode .template-icon {
+    margin-left: 1.5rem;
+}
+
+.template-name-input,
+.template-desc-input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+    font-size: 0.95rem;
+}
+
+.template-name-input:focus,
+.template-desc-input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.template-name-input {
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.template-desc-input {
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+/* Dragging effects - iPhone style */
+.template-card.dragging {
+    opacity: 1;
+    transform: scale(1.08);
+    box-shadow: 0 15px 50px rgba(0,0,0,0.35), 0 0 0 1px rgba(0,0,0,0.08);
+    z-index: 1000;
+    cursor: grabbing !important;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.template-card.dragging * {
+    pointer-events: none;
+}
+
+/* Smooth transitions for all cards during drag */
+.templates-grid .template-card {
+    transition: transform 0.25s ease, opacity 0.2s ease;
+}
+
+.template-card.dragging * {
+    pointer-events: none;
+}
+
+/* Smooth transitions for all cards during drag */
+.templates-grid .template-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+/* Template Detail View */
+.template-detail-content {
+    margin-top: 1.5rem;
+}
+
+.template-info-card {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.template-icon-large {
+    width: 80px;
+    height: 80px;
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    color: white;
+    background: var(--accent);
+    flex-shrink: 0;
+}
+
+.template-icon-large.docx {
+    background: #2b579a;
+}
+
+.template-icon-large.pptx {
+    background: #d24726;
+}
+
+.template-icon-large.excel {
+    background: #217346;
+}
+
+.template-meta h3 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 0 0 0.5rem 0;
+    color: var(--text-primary);
+}
+
+.template-meta p {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    margin: 0 0 1rem 0;
+}
+
+.template-types {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.template-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-left: auto;
+}
+
+.badge {
+    background: var(--accent-light);
+    color: var(--accent);
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--radius);
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+/* Modal Styles */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow-md);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--text-secondary);
+    padding: 0.25rem;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-close:hover {
+    background: var(--bg-input);
+    color: var(--text-primary);
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding: 1.5rem;
+    border-top: 1px solid var(--border);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .templates-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .template-info-card {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .template-actions {
+        margin-left: 0;
+        margin-top: 1rem;
+    }
+
+    .modal-content {
+        width: 95%;
+        margin: 1rem;
+    }
+}
+
+/* ============================================================
+   iPhone Style Templates UI
+   ============================================================ */
+
+/* iPhone Top Bar */
+.iphone-top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    margin-bottom: 8px;
+}
+
+.iphone-nav-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.iphone-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.iphone-nav-btn {
+    font-size: 17px;
+    font-weight: 400;
+    color: var(--accent);
+    background: none;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.iphone-nav-btn:hover {
+    background: var(--accent-light);
+}
+
+/* iPhone Templates Grid */
+.iphone-templates-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 24px 16px;
+    padding: 20px;
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+/* iPhone App Icon */
+.iphone-template-wrapper {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.iphone-template-wrapper.edit-mode {
+    cursor: grab;
+}
+
+.iphone-template-wrapper.edit-mode:active {
+    cursor: grabbing;
+}
+
+.iphone-template-wrapper.dragging {
+    opacity: 0.8;
+    transform: scale(1.1);
+    z-index: 1000;
+}
+
+/* Wiggle Animation */
+@keyframes wiggle {
+    0%, 100% { transform: rotate(-2deg); }
+    50% { transform: rotate(2deg); }
+}
+
+
+/* Delete Button */
+.iphone-delete-btn {
+    position: absolute;
+    top: -12px;
+    left: -8px;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: #ff3b30;
+    border: 2px solid white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    opacity: 0;
+    transform: scale(0);
+    transition: opacity 0.2s, transform 0.2s;
+}
+
+.iphone-template-wrapper.edit-mode .iphone-delete-btn {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.iphone-delete-btn::before {
+    content: '';
+    width: 16px;
+    height: 2px;
+    background: white;
+    border-radius: 1px;
+}
+
+.iphone-delete-btn:hover {
+    background: #ff453a;
+    transform: scale(1.1);
+}
+
+/* App Icon */
+.iphone-app-icon {
+    width: 150px;
+    height: 150px;
+    border-radius: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 64px;
+    color: white;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.1);
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.iphone-template-wrapper:hover .iphone-app-icon {
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.2), 0 2px 6px rgba(0,0,0,0.12);
+}
+
+/* Icon Gradients by Type */
+.iphone-app-icon.docx,
+.iphone-app-icon.pptx,
+.iphone-app-icon.excel,
+.iphone-app-icon.default {
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
+}
+
+/* App Name */
+.iphone-app-name {
+    font-size: 14px;
+    color: var(--text-primary);
+    text-align: center;
+    margin-top: 12px;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.3;
+}
+
+/* iPhone Dock */
+.iphone-dock {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255,255,255,0.75);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 24px;
+    padding: 12px 20px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+    border: 1px solid rgba(255,255,255,0.5);
+    z-index: 100;
+}
+
+[data-theme="dark"] .iphone-dock {
+    background: rgba(40,40,40,0.85);
+    border-color: rgba(255,255,255,0.1);
+}
+
+.iphone-dock-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 12px;
+    transition: background 0.2s;
+}
+
+.iphone-dock-item:hover {
+    background: var(--accent-light);
+}
+
+.iphone-dock-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: white;
+    margin-bottom: 4px;
+    box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.iphone-dock-item span {
+    font-size: 11px;
+    color: var(--text-primary);
+}
+
+/* Responsive for iPhone Grid */
+@media (max-width: 1400px) {
+    .iphone-templates-grid {
+        grid-template-columns: repeat(5, 1fr);
+        max-width: 1200px;
+    }
+}
+
+@media (max-width: 1100px) {
+    .iphone-templates-grid {
+        grid-template-columns: repeat(4, 1fr);
+        max-width: 1000px;
+    }
+}
+
+@media (max-width: 850px) {
+    .iphone-templates-grid {
+        grid-template-columns: repeat(3, 1fr);
+        max-width: 700px;
+    }
 }
