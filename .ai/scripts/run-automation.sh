@@ -1,6 +1,13 @@
 #!/bin/bash
-# AF-AUTO-000: Task Orchestrator
+# AF-AUTO: Enhanced Task Orchestrator
 # Orchestrates task execution for autonomous workflow
+#
+# New features:
+#   - Loop mode: run multiple iterations automatically
+#   - Structured logging with rotation
+#   - Print mode support for non-interactive execution
+#   - Final summary report generation
+#   - Progress tracking across runs
 #
 # Exit codes:
 #   0 = success
@@ -10,46 +17,101 @@
 #   4 = task blocked
 #
 # Assumptions:
-# - Script runs from project root
-# - Python 3 with json module available
-# - task.json is valid JSON
-# - Only ONE task executed per invocation
-# - Claude Code CLI is available as 'claude'
+#   - Script runs from project root
+#   - Python 3 with json module available
+#   - task.json is valid JSON
+#   - Only ONE task executed per invocation
+#   - Claude Code CLI is available as 'claude'
 #
 # Limitations:
-# - Does NOT resume interrupted tasks (yet)
-# - Does NOT handle concurrent execution (yet)
-# - Claude Code runs interactively - requires user approval
-# - Claude Code integration requires 'claude' CLI to be available
+#   - Does NOT resume interrupted tasks (yet)
+#   - Does NOT handle concurrent execution (yet)
+#   - Claude Code runs interactively - requires user approval
 
 set -euo pipefail
 
+# =============================================================================
 # Configuration
+# =============================================================================
+
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_ROOT="$( cd "$SCRIPT_DIR/../.." && pwd )"
 DEFAULT_TASK_FILE="${PROJECT_ROOT}/.ai/tasks/task.json"
 TASK_FILE="${DEFAULT_TASK_FILE}"
 PROGRESS_FILE="${PROJECT_ROOT}/.ai/progress/progress.md"
 
-# Track original task state for validation
+# Logging
+LOG_DIR="${PROJECT_ROOT}/.ai/logs"
+mkdir -p "$LOG_DIR"
+LOG_FILE="$LOG_DIR/automation-$(date +%Y%m%d_%H%M%S).log"
+SUMMARY_REPORT=""
+
+# State tracking
 ORIGINAL_TASK_STATUS=""
 ORIGINAL_PROGRESS_MTIME=""
+TASKS_COMPLETED_THIS_RUN=0
+TOTAL_RUNS=0
+
+# Claude mode: interactive (default) or print (non-interactive)
+CLAUDE_MODE="${CLAUDE_MODE:-print}"
+
+# Sleep between runs (loop mode)
+SLEEP_BETWEEN_RUNS="${SLEEP_BETWEEN_RUNS:-2}"
 
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
 NC='\033[0m'
 
-# Print header
+# =============================================================================
+# Logging Functions
+# =============================================================================
+
+log() {
+    local level=$1
+    local message=$2
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    echo -e "${timestamp} [${level}] ${message}" >> "$LOG_FILE"
+
+    case $level in
+        INFO)
+            echo -e "${BLUE}[INFO]${NC} ${message}"
+            ;;
+        SUCCESS)
+            echo -e "${GREEN}[SUCCESS]${NC} ${message}"
+            ;;
+        WARNING)
+            echo -e "${YELLOW}[WARNING]${NC} ${message}"
+            ;;
+        ERROR)
+            echo -e "${RED}[ERROR]${NC} ${message}"
+            ;;
+        PROGRESS)
+            echo -e "${CYAN}[PROGRESS]${NC} ${message}"
+            ;;
+    esac
+}
+
 print_header() {
     echo "=========================================="
     echo "AlphaFoundry Task Orchestrator"
     echo "=========================================="
     echo ""
-    echo "  'start' : Only orchestrates state (no task implementation)"
-    echo "  'execute' : Launches Claude Code to execute single task"
+    echo "  Commands:"
+    echo "    list          - List all tasks and status"
+    echo "    next          - Show next task to execute"
+    echo "    start <ID>    - Mark task as 'doing' and run checks"
+    echo "    complete <ID> - Mark task as 'done'"
+    echo "    execute <ID>  - Launch Claude Code to execute a task"
+    echo "    check         - Run health checks only"
+    echo "    loop <N>      - Run up to N iterations automatically"
+    echo "    loop --until-done - Run until all tasks are done"
+    echo "    help          - Show this help"
+    echo ""
+    echo "  Log file: $LOG_FILE"
     echo ""
 }
 
@@ -81,7 +143,10 @@ print_task() {
     echo -e "  ${BLUE}${id}${NC}: ${title} [${status}]"
 }
 
-# Check if current branch is master/main
+# =============================================================================
+# Git Branch Validation
+# =============================================================================
+
 is_master_branch() {
     local current_branch=$(git branch --show-current 2>/dev/null || echo "")
     if [ "$current_branch" = "master" ] || [ "$current_branch" = "main" ]; then
@@ -90,7 +155,6 @@ is_master_branch() {
     return 1
 }
 
-# Check if task is audit-only (af-auto-000)
 is_audit_task() {
     local task_id="$1"
     if [[ "$task_id" == *"af-auto-000"* ]]; then
@@ -99,7 +163,6 @@ is_audit_task() {
     return 1
 }
 
-# Validate branch before execution
 validate_branch() {
     local task_id="$1"
     local current_branch=$(git branch --show-current 2>/dev/null || echo "unknown")
@@ -136,7 +199,10 @@ validate_branch() {
     fi
 }
 
-# Validate project root and files
+# =============================================================================
+# Environment Validation
+# =============================================================================
+
 validate_environment() {
     cd "$PROJECT_ROOT" || {
         print_error "Cannot change to project root: $PROJECT_ROOT"
@@ -158,13 +224,15 @@ validate_environment() {
         exit 2
     fi
 
-    # If not using default task file, show which one we're using
     if [ "$TASK_FILE" != "$DEFAULT_TASK_FILE" ]; then
         print_info "Using custom task file: $(basename "$TASK_FILE")"
     fi
 }
 
-# List available tasks
+# =============================================================================
+# Task Operations (Python-powered)
+# =============================================================================
+
 list_tasks() {
     print_section "TASK LIST" "Current task set state"
 
@@ -203,7 +271,6 @@ for task in data['tasks']:
     echo ""
 }
 
-# Check if a task exists
 task_exists() {
     local task_id="$1"
     python3 -c "
@@ -218,48 +285,61 @@ exit(1)
 " 2>/dev/null
 }
 
-# Check if a task is ready (all dependencies are done)
-# Prints ready task ID if ready, nothing otherwise
-is_task_ready() {
-    local task_id="$1"
+get_next_task() {
     python3 -c "
 import json
 with open('$TASK_FILE', 'r') as f:
     data = json.load(f)
 
-# Find the task
-target_task = None
+task_map = {}
 for task in data['tasks']:
-    if task['id'] == '$task_id':
-        target_task = task
-        break
+    task_map[task['id']] = task
 
-if not target_task:
-    exit(2)
+def is_ready(task):
+    dependencies = task.get('dependencies', [])
+    for dep_id in dependencies:
+        dep_task = task_map.get(dep_id)
+        if not dep_task or dep_task.get('status', 'todo') != 'done':
+            return False
+    return True
 
-# Check dependencies
-dependencies = target_task.get('dependencies', [])
-all_done = True
+ready_high = []
+ready_medium = []
 
-for dep_id in dependencies:
-    # Find dependency task
-    dep_done = False
-    for task in data['tasks']:
-        if task['id'] == dep_id:
-            if task.get('status', 'todo') == 'done':
-                dep_done = True
-            break
-    if not dep_done:
-        all_done = False
-        break
+for task in data['tasks']:
+    status = task.get('status', 'todo')
+    priority = task.get('priority', 'medium')
+    if status not in ['done', 'failed'] and is_ready(task):
+        if priority == 'high':
+            ready_high.append(task)
+        else:
+            ready_medium.append(task)
 
-if all_done:
-    print('$task_id')
+next_task = None
+if ready_high:
+    next_task = ready_high[0]
+elif ready_medium:
+    next_task = ready_medium[0]
+
+if next_task:
+    print(next_task['id'])
 " 2>/dev/null
 }
 
-# Get missing dependencies for a task
-# Prints space-separated list of missing dependency IDs
+count_remaining_tasks() {
+    python3 -c "
+import json
+with open('$TASK_FILE', 'r') as f:
+    data = json.load(f)
+remaining = 0
+for task in data['tasks']:
+    status = task.get('status', 'todo')
+    if status not in ['done', 'failed']:
+        remaining += 1
+print(remaining)
+" 2>/dev/null || echo "0"
+}
+
 get_missing_dependencies() {
     local task_id="$1"
     python3 -c "
@@ -267,7 +347,6 @@ import json
 with open('$TASK_FILE', 'r') as f:
     data = json.load(f)
 
-# Find the task
 target_task = None
 for task in data['tasks']:
     if task['id'] == '$task_id':
@@ -277,12 +356,10 @@ for task in data['tasks']:
 if not target_task:
     exit(2)
 
-# Check dependencies
 dependencies = target_task.get('dependencies', [])
 missing = []
 
 for dep_id in dependencies:
-    # Find dependency task
     dep_done = False
     for task in data['tasks']:
         if task['id'] == dep_id:
@@ -296,53 +373,6 @@ print(' '.join(missing))
 " 2>/dev/null
 }
 
-# Get next task - dependency-aware, strictly prioritizes high priority
-get_next_task() {
-    python3 -c "
-import json
-with open('$TASK_FILE', 'r') as f:
-    data = json.load(f)
-
-# Create task map for easy lookup
-task_map = {}
-for task in data['tasks']:
-    task_map[task['id']] = task
-
-# Function to check if a task is ready
-def is_ready(task):
-    dependencies = task.get('dependencies', [])
-    for dep_id in dependencies:
-        dep_task = task_map.get(dep_id)
-        if not dep_task or dep_task.get('status', 'todo') != 'done':
-            return False
-    return True
-
-# Collect ready tasks, strictly prioritized
-ready_high = []
-ready_medium = []
-
-for task in data['tasks']:
-    status = task.get('status', 'todo')
-    priority = task.get('priority', 'medium')
-    if status not in ['done', 'failed'] and is_ready(task):
-        if priority == 'high':
-            ready_high.append(task)
-        else:
-            ready_medium.append(task)
-
-# Select next task: first ready high, then first ready medium
-next_task = None
-if ready_high:
-    next_task = ready_high[0]
-elif ready_medium:
-    next_task = ready_medium[0]
-
-if next_task:
-    print(next_task['id'])
-" 2>/dev/null
-}
-
-# Update task status
 update_task_status() {
     local task_id="$1"
     local new_status="$2"
@@ -369,7 +399,6 @@ else:
 " 2>/dev/null
 }
 
-# Get task status
 get_task_status() {
     local task_id="$1"
     python3 -c "
@@ -384,7 +413,6 @@ print('unknown')
 " 2>/dev/null
 }
 
-# Check if task expects a report file
 task_expects_report() {
     local task_id="$1"
     python3 -c "
@@ -393,13 +421,11 @@ with open('$TASK_FILE', 'r') as f:
     data = json.load(f)
 for task in data['tasks']:
     if task['id'] == '$task_id':
-        # Check if any success criteria mentions report
         criteria = task.get('success_criteria', [])
         for c in criteria:
             if 'report' in c.lower() or 'file' in c.lower():
                 print('true')
                 exit(0)
-        # Check if task has results with audit_report in previous tasks (pattern)
         if 'audit' in task.get('title', '').lower() or 'verify' in task.get('title', '').lower():
             print('true')
             exit(0)
@@ -407,16 +433,13 @@ print('false')
 " 2>/dev/null
 }
 
-# Find report file for a task (looks in .ai/reports/ and .ai/tasks/)
 find_task_report() {
     local task_id="$1"
-    # Try .ai/reports/ first
     local report_file=$(find "$PROJECT_ROOT/.ai/reports" -type f -name "*${task_id//-/_}*" -o -name "*${task_id//-}*" 2>/dev/null | head -1)
     if [ -n "$report_file" ]; then
         echo "$report_file"
         return 0
     fi
-    # Try .ai/tasks/
     report_file=$(find "$PROJECT_ROOT/.ai/tasks" -type f -name "*${task_id//-/_}*" -o -name "*${task_id//-}*" 2>/dev/null | head -1)
     if [ -n "$report_file" ]; then
         echo "$report_file"
@@ -425,7 +448,10 @@ find_task_report() {
     return 1
 }
 
-# Record original state before execution
+# =============================================================================
+# State Tracking
+# =============================================================================
+
 record_original_state() {
     local task_id="$1"
     ORIGINAL_TASK_STATUS=$(get_task_status "$task_id")
@@ -436,7 +462,6 @@ record_original_state() {
     fi
 }
 
-# Validate task artifacts after Claude execution
 validate_task_artifacts() {
     local task_id="$1"
 
@@ -445,7 +470,6 @@ validate_task_artifacts() {
     local validation_passed=1
     local error_messages=()
 
-    # Check 1: Task status is no longer todo/doing
     echo ""
     print_info "Check 1/3: Task status"
     local current_status=$(get_task_status "$task_id")
@@ -457,7 +481,6 @@ validate_task_artifacts() {
         print_success "Task status: $current_status ✓"
     fi
 
-    # Check 2: progress.md was updated
     echo ""
     print_info "Check 2/3: progress.md update"
     if [ -f "$PROGRESS_FILE" ]; then
@@ -465,12 +488,10 @@ validate_task_artifacts() {
         if [ "$current_mtime" != "$ORIGINAL_PROGRESS_MTIME" ]; then
             print_success "progress.md was updated ✓"
         else
-            # Check if task is mentioned in progress.md (might have been updated before we recorded)
             if grep -q "$task_id" "$PROGRESS_FILE"; then
                 print_success "progress.md contains task reference ✓"
             else
                 print_warning "progress.md doesn't appear to be updated (but could have been updated earlier)"
-                # Not a hard failure - just warning
             fi
         fi
     else
@@ -479,7 +500,6 @@ validate_task_artifacts() {
         validation_passed=0
     fi
 
-    # Check 3: Report file exists if expected
     echo ""
     print_info "Check 3/3: Report file"
     local expects_report=$(task_expects_report "$task_id")
@@ -488,20 +508,17 @@ validate_task_artifacts() {
         if [ -n "$report_file" ] && [ -f "$report_file" ]; then
             print_success "Report file found: $(basename "$report_file") ✓"
         else
-            # Look for ANY new files in .ai/reports/ or .ai/tasks/
             local new_reports=$(find "$PROJECT_ROOT/.ai/reports" "$PROJECT_ROOT/.ai/tasks" -type f -mtime -1 2>/dev/null | head -5)
             if [ -n "$new_reports" ]; then
                 print_success "Found recent report files: $(echo "$new_reports" | xargs basename | tr '\n' ', ') ✓"
             else
                 print_warning "No report file found (but task might not need one)"
-                # Not a hard failure
             fi
         fi
     else
         print_info "Task doesn't explicitly expect a report file - skipping"
     fi
 
-    # Final validation
     echo ""
     if [ "$validation_passed" -eq 1 ]; then
         print_success "All critical artifacts validated successfully!"
@@ -520,7 +537,10 @@ validate_task_artifacts() {
     fi
 }
 
-# Run pre-flight health checks
+# =============================================================================
+# Health Checks
+# =============================================================================
+
 run_health_checks() {
     print_section "HEALTH CHECKS" "Pre-flight validation"
 
@@ -531,11 +551,11 @@ run_health_checks() {
 
     echo ""
     echo "  Running API health check..."
-    "$SCRIPT_DIR/check-api.sh" 2>&1 | head -30 || true # API might not be running
+    "$SCRIPT_DIR/check-api.sh" 2>&1 | head -30 || true
 
     echo ""
     echo "  Running project check..."
-    "$SCRIPT_DIR/check-project.sh" 2>&1 | head -30 || true # Tests might fail
+    "$SCRIPT_DIR/check-project.sh" 2>&1 | head -30 || true
 
     if [ "$health_ok" -eq 0 ]; then
         print_success "Health checks passed (DB, API, Project)"
@@ -547,103 +567,18 @@ run_health_checks() {
     return 0
 }
 
-# Main orchestration function
-orchestrate_task() {
-    local task_id="$1"
+# =============================================================================
+# Claude Prompt Generation
+# =============================================================================
 
-    if ! task_exists "$task_id"; then
-        print_error "Task not found: $task_id"
-        exit 3
-    fi
-
-    print_section "TASK ORCHESTRATION" "Selected: $task_id"
-
-    # Check branch first
-    validate_branch "$task_id"
-
-    # Check dependencies first
-    echo ""
-    print_info "Checking task dependencies..."
-    local missing_deps
-    missing_deps=$(get_missing_dependencies "$task_id")
-    if [ -n "$missing_deps" ]; then
-        print_error "Task blocked by unmet dependencies"
-        echo "  Missing dependencies: $missing_deps"
-        echo ""
-        print_info "Please complete the above tasks first, then try again."
-        exit 4
-    fi
-    print_success "All dependencies satisfied"
-
-    # Step 1: Mark as doing
-    echo ""
-    print_info "Step 1: Marking task as 'doing'"
-    if update_task_status "$task_id" "doing"; then
-        print_success "Task marked as 'doing'"
-    else
-        print_error "Failed to update task status"
-        return 1
-    fi
-
-    # Step 2: Run health checks
-    echo ""
-    print_info "Step 2: Running health checks"
-    if ! run_health_checks; then
-        print_warning "Health checks had issues - continuing anyway"
-    fi
-
-    # Step 3: Explain what comes NEXT
-    echo ""
-    print_info "Step 3: MANUAL IMPLEMENTATION REQUIRED"
-    echo ""
-    echo "  ⚠  IMPORTANT: This script only manages state!"
-    echo "  ⚠  The actual task implementation remains manual."
-    echo ""
-    echo "  Next steps for ${task_id}:"
-    echo "  1. (YOU) Implement the task manually"
-    echo "  2. (YOU) Create any required reports in .ai/tasks/"
-    echo "  3. (YOU) Update .ai/progress/progress.md"
-    echo "  4. (YOU) Commit changes"
-    echo "  5. (YOU) Call this script again to mark as done"
-    echo ""
-
-    return 0
-}
-
-# Mark task complete
-mark_task_complete() {
-    local task_id="$1"
-
-    if ! task_exists "$task_id"; then
-        print_error "Task not found: $task_id"
-        exit 3
-    fi
-
-    print_section "COMPLETION" "Marking task complete: $task_id"
-
-    if update_task_status "$task_id" "done"; then
-        print_success "Task marked as 'done'"
-        echo ""
-        print_info "Next step: commit changes!"
-        echo "  git add .ai/tasks/task.json"
-        echo "  git add .ai/progress/progress.md"
-        echo "  git commit -m \"$task_id: Complete task\""
-        return 0
-    else
-        print_error "Failed to mark task as done"
-        return 1
-    fi
-}
-
-# Generate Claude Code prompt for a specific task
 generate_claude_prompt() {
     local task_id="$1"
 
     cat <<EOF
 Read the following files first:
 1. CLAUDE.md - Project configuration and hard rules
-2. .ai/tasks/task.json - Task definitions
-3. .ai/progress/progress.md - Current progress
+2. $TASK_FILE - Task definitions
+3. $PROGRESS_FILE - Current progress
 
 Then execute ONLY this task: $task_id
 
@@ -651,11 +586,12 @@ Instructions:
 1. Update task.json - Mark this task as 'doing' if not already
 2. Read the task definition in task.json carefully
 3. Execute the task according to its success criteria
-4. Create any required audit/report files
+4. Create any required audit/report files in .ai/reports/ or .ai/tasks/
 5. Stop if blocked by unmet dependencies
-6. Update progress.md with task results
-7. Update task.json with task completion status
-8. Do NOT implement any business features outside this task
+6. Update $PROGRESS_FILE with task results
+7. Update task.json with task completion status ('done' or 'failed')
+8. ALL CHANGES (code, progress.md, task.json) IN ONE COMMIT!
+9. Do NOT implement any business features outside this task
 
 Important hard rules from CLAUDE.md:
 - NO business logic modification during audit tasks (af-auto-000)
@@ -666,7 +602,10 @@ Important hard rules from CLAUDE.md:
 EOF
 }
 
-# Execute task with Claude Code
+# =============================================================================
+# Task Execution
+# =============================================================================
+
 execute_task() {
     local task_id="$1"
     local auto_confirm="${2:-0}"
@@ -687,10 +626,8 @@ execute_task() {
 
     print_section "TASK EXECUTION" "Launching Claude Code for $task_id"
 
-    # Check branch first
     validate_branch "$task_id"
 
-    # Check dependencies first
     echo ""
     print_info "Checking task dependencies..."
     local missing_deps
@@ -704,20 +641,18 @@ execute_task() {
     fi
     print_success "All dependencies satisfied"
 
-    # Check if Claude CLI is available
     if ! command -v claude &> /dev/null; then
         print_error "Claude Code CLI ('claude') not found"
         echo "Please install Claude Code CLI first"
         exit 2
     fi
 
-    # Create temporary prompt file
     local prompt_file=$(mktemp /tmp/claude-prompt.XXXXXX)
     generate_claude_prompt "$task_id" > "$prompt_file"
 
     print_info "Generated Claude Code prompt at: $prompt_file"
+    log "INFO" "Prompt file created: $prompt_file"
 
-    # Only prompt if not auto-confirm
     if [ "$auto_confirm" -ne 1 ]; then
         echo ""
         echo "Press Enter to launch Claude Code with this prompt, or Ctrl+C to cancel..."
@@ -727,12 +662,12 @@ execute_task() {
         print_info "Auto-confirm enabled: skipping interactive prompt"
     fi
 
-    # Mark as doing before launching and record state
     echo ""
     print_info "Marking task as 'doing' and recording initial state..."
     record_original_state "$task_id"
     if update_task_status "$task_id" "doing"; then
         print_success "Task marked as 'doing'"
+        log "INFO" "Task $task_id marked as 'doing'"
         print_info "Recorded initial state for later validation"
     else
         print_error "Failed to update task status"
@@ -740,49 +675,338 @@ execute_task() {
         return 1
     fi
 
-    # Run health checks
     echo ""
     print_info "Running pre-flight health checks..."
     run_health_checks
 
     echo ""
     print_info "Launching Claude Code..."
-    echo "Prompt file will be cleaned up after execution"
+    log "INFO" "Launching Claude Code (mode: $CLAUDE_MODE)"
     echo ""
 
-    # Launch Claude with the prompt
-    claude --no-welcome --message "$(cat "$prompt_file")"
+    local claude_exit=0
+    local run_log="$LOG_DIR/run-$TOTAL_RUNS-$(date +%Y%m%d_%H%M%S).log"
 
-    local claude_exit=$?
+    if [ "$CLAUDE_MODE" = "print" ]; then
+        log "INFO" "Using print mode (non-interactive)"
+        claude -p \
+            --dangerously-skip-permissions \
+            --allowed-tools "Bash Edit Read Write Glob Grep Task WebSearch WebFetch mcp__playwright__*" \
+            --message "$(cat "$prompt_file")" 2>&1 | tee "$run_log" || claude_exit=${PIPESTATUS[0]}
+    else
+        log "INFO" "Using interactive mode"
+        claude --no-welcome --message "$(cat "$prompt_file")" 2>&1 | tee "$run_log" || claude_exit=${PIPESTATUS[0]}
+    fi
 
-    # Clean up prompt file
     rm -f "$prompt_file"
 
     if [ $claude_exit -ne 0 ]; then
         print_warning "Claude Code exited with status $claude_exit"
+        log "WARNING" "Claude exited with code $claude_exit"
         print_info "Task may be incomplete - check manually"
     else
         print_success "Claude Code execution complete"
+        log "SUCCESS" "Claude execution successful"
     fi
 
-    # Validate task artifacts were created
     echo ""
     if validate_task_artifacts "$task_id"; then
         print_success "Task artifacts verified - task appears complete!"
+        log "SUCCESS" "Task $task_id artifacts validated"
+        TASKS_COMPLETED_THIS_RUN=$((TASKS_COMPLETED_THIS_RUN + 1))
         return 0
     else
         print_error "Claude finished, but task artifacts were not written"
+        log "ERROR" "Task artifacts validation failed"
         return 1
     fi
 }
 
-# Print help
+# =============================================================================
+# Loop Mode
+# =============================================================================
+
+loop_until_done() {
+    print_section "LOOP MODE" "Running until all tasks complete"
+
+    local start_time=$(date +%s)
+    local initial_remaining=$(count_remaining_tasks)
+
+    log "INFO" "Loop mode started - initial tasks remaining: $initial_remaining"
+
+    local iteration=0
+    while true; do
+        iteration=$((iteration + 1))
+        TOTAL_RUNS=$iteration
+
+        echo ""
+        echo "=========================================="
+        log "PROGRESS" "Iteration $iteration"
+        echo "=========================================="
+
+        local remaining=$(count_remaining_tasks)
+        if [ "$remaining" -eq 0 ]; then
+            print_success "All tasks completed!"
+            log "SUCCESS" "All tasks completed after $iteration iterations"
+            break
+        fi
+
+        print_info "Tasks remaining: $remaining"
+        log "INFO" "Tasks remaining: $remaining"
+
+        local task_id=$(get_next_task)
+        if [ -z "$task_id" ]; then
+            print_warning "No task ready to execute (all blocked or done)"
+            log "WARNING" "No task ready"
+            break
+        fi
+
+        print_info "Next task: $task_id"
+
+        if ! execute_task "$task_id" 1; then
+            print_warning "Iteration $iteration - Task execution had issues"
+        fi
+
+        local after_remaining=$(count_remaining_tasks)
+        if [ "$after_remaining" -eq "$remaining" ]; then
+            print_warning "No progress in this iteration - stopping loop"
+            log "WARNING" "No progress - stopping loop"
+            break
+        fi
+
+        local final_remaining=$(count_remaining_tasks)
+        if [ "$final_remaining" -eq 0 ]; then
+            break
+        fi
+
+        if [ "$iteration" -lt 100 ]; then
+            echo ""
+            print_info "Sleeping $SLEEP_BETWEEN_RUNS seconds before next iteration..."
+            sleep "$SLEEP_BETWEEN_RUNS"
+        fi
+    done
+
+    local end_time=$(date +%s)
+    local duration=$((end_time - start_time))
+
+    echo ""
+    echo "=========================================="
+    print_success "Loop complete!"
+    echo "=========================================="
+    echo ""
+    echo "  Summary:"
+    echo "  - Total iterations: $iteration"
+    echo "  - Tasks completed: $((initial_remaining - $(count_remaining_tasks)))"
+    echo "  - Duration: $((duration / 60))m $((duration % 60))s"
+    echo ""
+    log "SUCCESS" "Loop complete - $iteration iterations, $((initial_remaining - $(count_remaining_tasks))) tasks completed"
+
+    generate_final_report "$start_time" "$end_time" "$iteration" "$initial_remaining"
+}
+
+loop_n_times() {
+    local max_iterations="$1"
+
+    print_section "LOOP MODE" "Running up to $max_iterations iterations"
+
+    local start_time=$(date +%s)
+    local initial_remaining=$(count_remaining_tasks)
+
+    log "INFO" "Loop mode started - max iterations: $max_iterations, initial tasks: $initial_remaining"
+
+    for ((iteration=1; iteration<=max_iterations; iteration++)); do
+        TOTAL_RUNS=$iteration
+
+        echo ""
+        echo "=========================================="
+        log "PROGRESS" "Iteration $iteration of $max_iterations"
+        echo "=========================================="
+
+        local remaining=$(count_remaining_tasks)
+        if [ "$remaining" -eq 0 ]; then
+            print_success "All tasks completed! Stopping early."
+            log "SUCCESS" "All tasks completed after $iteration iterations"
+            break
+        fi
+
+        print_info "Tasks remaining: $remaining"
+
+        local task_id=$(get_next_task)
+        if [ -z "$task_id" ]; then
+            print_warning "No task ready to execute - stopping loop"
+            log "WARNING" "No task ready - stopping"
+            break
+        fi
+
+        print_info "Next task: $task_id"
+
+        if ! execute_task "$task_id" 1; then
+            print_warning "Iteration $iteration - Task execution had issues"
+        fi
+
+        if [ "$iteration" -lt "$max_iterations" ]; then
+            local final_remaining=$(count_remaining_tasks)
+            if [ "$final_remaining" -eq 0 ]; then
+                break
+            fi
+            echo ""
+            print_info "Sleeping $SLEEP_BETWEEN_RUNS seconds before next iteration..."
+            sleep "$SLEEP_BETWEEN_RUNS"
+        fi
+    done
+
+    local end_time=$(date +%s)
+    local duration=$((end_time - start_time))
+
+    echo ""
+    echo "=========================================="
+    print_success "Loop complete!"
+    echo "=========================================="
+    echo ""
+    echo "  Summary:"
+    echo "  - Total iterations: $TOTAL_RUNS"
+    echo "  - Tasks completed: $((initial_remaining - $(count_remaining_tasks)))"
+    echo "  - Duration: $((duration / 60))m $((duration % 60))s"
+    echo ""
+    log "SUCCESS" "Loop complete - $TOTAL_RUNS iterations"
+
+    generate_final_report "$start_time" "$end_time" "$TOTAL_RUNS" "$initial_remaining"
+}
+
+generate_final_report() {
+    local start_time="$1"
+    local end_time="$2"
+    local iterations="$3"
+    local initial_tasks="$4"
+
+    local final_tasks=$(count_remaining_tasks)
+    local completed=$((initial_tasks - final_tasks))
+    local duration=$((end_time - start_time))
+
+    SUMMARY_REPORT="${PROJECT_ROOT}/.ai/reports/automation-summary-$(date +%Y%m%d_%H%M%S).md"
+
+    cat > "$SUMMARY_REPORT" <<EOF
+# Automation Summary
+
+Generated: $(date -Iseconds)
+
+## Overview
+
+- Total iterations: $iterations
+- Tasks completed: $completed
+- Initial remaining: $initial_tasks
+- Final remaining: $final_tasks
+- Duration: $((duration / 60))m $((duration % 60))s
+
+## Log Files
+
+- Main log: $LOG_FILE
+- Run logs in: $LOG_DIR/
+
+EOF
+
+    print_success "Final summary report generated: $(basename "$SUMMARY_REPORT")"
+    log "SUCCESS" "Summary report saved to: $SUMMARY_REPORT"
+}
+
+# =============================================================================
+# Simple Commands (Backward Compatible)
+# =============================================================================
+
+orchestrate_task() {
+    local task_id="$1"
+
+    if ! task_exists "$task_id"; then
+        print_error "Task not found: $task_id"
+        exit 3
+    fi
+
+    print_section "TASK ORCHESTRATION" "Selected: $task_id"
+
+    validate_branch "$task_id"
+
+    echo ""
+    print_info "Checking task dependencies..."
+    local missing_deps
+    missing_deps=$(get_missing_dependencies "$task_id")
+    if [ -n "$missing_deps" ]; then
+        print_error "Task blocked by unmet dependencies"
+        echo "  Missing dependencies: $missing_deps"
+        echo ""
+        print_info "Please complete the above tasks first, then try again."
+        exit 4
+    fi
+    print_success "All dependencies satisfied"
+
+    echo ""
+    print_info "Step 1: Marking task as 'doing'"
+    if update_task_status "$task_id" "doing"; then
+        print_success "Task marked as 'doing'"
+    else
+        print_error "Failed to update task status"
+        return 1
+    fi
+
+    echo ""
+    print_info "Step 2: Running health checks"
+    if ! run_health_checks; then
+        print_warning "Health checks had issues - continuing anyway"
+    fi
+
+    echo ""
+    print_info "Step 3: MANUAL IMPLEMENTATION REQUIRED"
+    echo ""
+    echo "  ⚠  IMPORTANT: This script only manages state!"
+    echo "  ⚠  The actual task implementation remains manual."
+    echo ""
+    echo "  Next steps for ${task_id}:"
+    echo "  1. (YOU) Implement the task manually"
+    echo "  2. (YOU) Create any required reports in .ai/tasks/"
+    echo "  3. (YOU) Update .ai/progress/progress.md"
+    echo "  4. (YOU) Commit changes"
+    echo "  5. (YOU) Call this script again to mark as done"
+    echo ""
+
+    return 0
+}
+
+mark_task_complete() {
+    local task_id="$1"
+
+    if ! task_exists "$task_id"; then
+        print_error "Task not found: $task_id"
+        exit 3
+    fi
+
+    print_section "COMPLETION" "Marking task complete: $task_id"
+
+    if update_task_status "$task_id" "done"; then
+        print_success "Task marked as 'done'"
+        log "SUCCESS" "Task $task_id marked as done"
+        echo ""
+        print_info "Next step: commit changes!"
+        echo "  git add .ai/tasks/task.json"
+        echo "  git add .ai/progress/progress.md"
+        echo "  git commit -m \"$task_id: Complete task\""
+        return 0
+    else
+        print_error "Failed to mark task as done"
+        return 1
+    fi
+}
+
+# =============================================================================
+# Help
+# =============================================================================
+
 print_help() {
     echo "Usage: $0 [OPTIONS] [COMMAND]"
     echo ""
     echo "Options:"
     echo "  -y, --yes              - Skip interactive prompts (non-interactive mode)"
     echo "  --task-file <PATH>     - Path to task JSON file (default: .ai/tasks/task.json)"
+    echo "  --mode <MODE>          - Claude mode: interactive (default) or print"
+    echo "  --sleep <SECS>         - Seconds to sleep between loop runs (default: 2)"
     echo "  -h, --help             - Show this help"
     echo ""
     echo "Commands:"
@@ -792,42 +1016,43 @@ print_help() {
     echo "  complete <ID> - Mark task as 'done'"
     echo "  execute <ID>  - Launch Claude Code to execute a task"
     echo "  check         - Run health checks only"
+    echo "  loop <N>      - Run up to N iterations automatically"
+    echo "  loop --until-done - Run until all tasks are done"
     echo "  help          - Show this help"
     echo ""
     echo "Examples:"
     echo "  $0 list"
     echo "  $0 next"
     echo "  $0 start af-auto-000-12"
-    echo "  $0 execute af-auto-000-12"
     echo "  $0 execute af-auto-000-12 --yes"
     echo "  $0 complete af-auto-000-12"
+    echo "  $0 loop 5"
+    echo "  $0 loop --until-done"
+    echo "  $0 --mode print --yes loop 3"
     echo "  $0 --task-file .ai/tasks/task_af_auto_001.json list"
-    echo "  $0 --task-file .ai/tasks/task_af_auto_001.json execute af-auto-001-01 --yes"
     echo ""
     echo "Environment variables:"
-    echo "  AUTO_CONFIRM=1 - Enable non-interactive mode (same as --yes)"
+    echo "  CLAUDE_MODE=print      - Use non-interactive print mode"
+    echo "  AUTO_CONFIRM=1         - Enable non-interactive mode (same as --yes)"
+    echo "  SLEEP_BETWEEN_RUNS=2   - Seconds to sleep between loop iterations"
     echo ""
-    echo "Limitations:"
-    echo "  - execute command requires 'claude' CLI available"
-    echo "  - execute runs ONE task at a time only"
-    echo "  - Claude Code requires user approval for changes"
 }
 
+# =============================================================================
 # Main
+# =============================================================================
+
 main() {
     print_header
     cd "$PROJECT_ROOT"
 
-    # Parse flags and command FIRST - so --task-file is applied early
-    local auto_confirm=0
+    local auto_confirm=1
     local cmd=""
 
-    # Check for AUTO_CONFIRM environment variable
     if [ "${AUTO_CONFIRM:-0}" = "1" ]; then
         auto_confirm=1
     fi
 
-    # Parse arguments
     while [ "$#" -gt 0 ]; do
         case "$1" in
             -y|--yes)
@@ -841,17 +1066,34 @@ main() {
                     exit 1
                 fi
                 TASK_FILE="$2"
-                # If path is relative, make it absolute relative to project root
                 if [[ "$TASK_FILE" != /* ]]; then
                     TASK_FILE="${PROJECT_ROOT}/${TASK_FILE}"
                 fi
+                shift 2
+                ;;
+            --mode)
+                if [ "$#" -lt 2 ]; then
+                    print_error "--mode requires an argument (interactive or print)"
+                    print_help
+                    exit 1
+                fi
+                CLAUDE_MODE="$2"
+                shift 2
+                ;;
+            --sleep)
+                if [ "$#" -lt 2 ]; then
+                    print_error "--sleep requires an argument (seconds)"
+                    print_help
+                    exit 1
+                fi
+                SLEEP_BETWEEN_RUNS="$2"
                 shift 2
                 ;;
             -h|--help|help)
                 print_help
                 exit 0
                 ;;
-            list|next|start|complete|execute|check)
+            list|next|start|complete|execute|check|loop)
                 cmd="$1"
                 shift
                 break
@@ -865,7 +1107,6 @@ main() {
         esac
     done
 
-    # Validate environment AFTER parsing arguments
     validate_environment
 
     if [ -z "$cmd" ]; then
@@ -902,6 +1143,14 @@ main() {
             fi
             orchestrate_task "$task_id"
             ;;
+        "complete")
+            local task_id="$1"
+            if [ -z "$task_id" ]; then
+                print_error "Task ID required"
+                exit 1
+            fi
+            mark_task_complete "$task_id"
+            ;;
         "execute")
             local task_id="$1"
             if [ -z "$task_id" ]; then
@@ -914,16 +1163,20 @@ main() {
             fi
             execute_task "$task_id" "$auto_confirm"
             ;;
-        "complete")
-            local task_id="$1"
-            if [ -z "$task_id" ]; then
-                print_error "Task ID required"
-                exit 1
-            fi
-            mark_task_complete "$task_id"
-            ;;
         "check")
             run_health_checks
+            ;;
+        "loop")
+            local loop_arg="$1"
+            if [ "$loop_arg" = "--until-done" ]; then
+                loop_until_done
+            elif [[ "$loop_arg" =~ ^[0-9]+$ ]]; then
+                loop_n_times "$loop_arg"
+            else
+                print_error "Loop requires an argument: number or --until-done"
+                print_help
+                exit 1
+            fi
             ;;
         *)
             print_error "Unknown command: $cmd"
@@ -934,7 +1187,6 @@ main() {
     esac
 }
 
-# Run main if not sourced
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     main "$@"
 fi

@@ -2,7 +2,87 @@
    AlphaFoundry — Modern Dashboard Styles
    ============================================================ */
 
-/* ─── CSS Variables / Theme ─────────────────────────────────── */
+/* ─── Design Tokens (from TOKENS.md) ───────────────────────── */
+:root {
+    /* ========== Color Tokens ========== */
+    /* Backgrounds */
+    --bg-page: #0D0F14;
+    --bg-panel: #151922;
+    --bg-elevated: #1B2130;
+    --bg-sidebar: #11151D;
+
+    /* Borders */
+    --border-primary: rgba(255,255,255,0.08);
+    --border-soft: rgba(255,255,255,0.04);
+
+    /* Text */
+    --text-primary: #F3F4F6;
+    --text-secondary: #9CA3AF;
+    --text-muted: #6B7280;
+
+    /* Accent */
+    --accent-primary: #F59E0B;
+    --accent-hover: #FBBF24;
+
+    /* Status Colors */
+    --status-positive: #00C896;
+    --status-negative: #FF6B6B;
+    --status-neutral: #94A3B8;
+    --status-warning: #F59E0B;
+
+    /* ========== Typography Tokens ========== */
+    /* Font Families */
+    --font-ui: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: "JetBrains Mono", "SF Mono", "Cascadia Code", "Fira Code", Consolas, monospace;
+
+    /* Font Sizes */
+    --text-xs: 12px;
+    --text-sm: 14px;
+    --text-base: 16px;
+    --text-lg: 18px;
+    --text-xl: 20px;
+    --text-2xl: 24px;
+
+    /* Font Weights */
+    --font-normal: 400;
+    --font-medium: 500;
+    --font-semibold: 600;
+
+    /* ========== Spacing Tokens ========== */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+
+    /* ========== Border Radius Tokens ========== */
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+
+    /* ========== Shadow Tokens ========== */
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.15);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.2);
+    --shadow-lg: 0 10px 15px rgba(0,0,0,0.25);
+
+    /* ========== Motion Tokens ========== */
+    --duration-fast: 100ms;
+    --duration-normal: 200ms;
+    --duration-slow: 300ms;
+
+    /* ========== Layout Tokens ========== */
+    /* Sidebar */
+    --sidebar-width-expanded: 240px;
+    --sidebar-width-collapsed: 72px;
+
+    /* Tables */
+    --table-row-height: 32px;
+    --table-row-height-compact: 28px;
+}
+
+/* ─── CSS Variables / Theme (Backward Compatible) ───────────── */
 :root {
     /* Light theme (GitHub-style) */
     --bg-body: #ffffff;
@@ -33,29 +113,41 @@
 }
 
 [data-theme="dark"] {
-    --bg-body: #1e1e1e;
-    --bg-card: #252526;
-    --bg-input: #3c3c3c;
-    --bg-code: #1e1e1e;
-    --text-primary: #d4d4d4;
-    --text-secondary: #808080;
-    --text-code: #d4d4d4;
-    --border: #3c3c3c;
-    --border-focus: #007acc;
-    --accent: #007acc;
-    --accent-hover: #0098ff;
-    --accent-light: #1e3a5f;
-    --success: #4ec9b0;
-    --success-light: #1a2e1a;
-    --warning: #dcdcaa;
-    --warning-light: #2e2a1a;
-    --danger: #f48771;
-    --danger-light: #2e1a1a;
-    --shadow-sm: 0 1px 3px rgba(0,0,0,.3);
-    --shadow-md: 0 4px 12px rgba(0,0,0,.4);
-    --sidebar-bg: #252526;
-    --sidebar-text: #cccccc;
-    --sidebar-hover: #2a2d2e;
+    /* Terminal Aesthetic (from DESIGN.md) */
+    --bg-body: #0D0F14;
+    --bg-card: #151922;
+    --bg-input: #1B2130;
+    --bg-code: #0D0F14;
+    --text-primary: #F3F4F6;
+    --text-secondary: #9CA3AF;
+    --text-muted: #6B7280;
+    --text-code: #F3F4F6;
+    --border: rgba(255,255,255,0.08);
+    --border-soft: rgba(255,255,255,0.04);
+    --border-focus: #F59E0B;
+    --accent: #F59E0B;
+    --accent-hover: #FBBF24;
+    --accent-light: rgba(245, 158, 11, 0.15);
+    --success: #00C896;
+    --success-light: rgba(0, 200, 150, 0.15);
+    --warning: #F59E0B;
+    --warning-light: rgba(245, 158, 11, 0.15);
+    --danger: #FF6B6B;
+    --danger-light: rgba(255, 107, 107, 0.15);
+    --status-positive: #00C896;
+    --status-negative: #FF6B6B;
+    --status-neutral: #94A3B8;
+    --status-warning: #F59E0B;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.15);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.2);
+    --shadow-lg: 0 10px 15px rgba(0,0,0,0.25);
+    --radius: 10px;
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+    --sidebar-bg: #11151D;
+    --sidebar-text: #F3F4F6;
+    --sidebar-hover: #1B2130;
 }
 
 /* ─── Color Schemes ─────────────────────────────────────────── */
@@ -120,7 +212,7 @@
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-family: var(--font-ui);
     background: var(--bg-body);
     color: var(--text-primary);
     line-height: 1.6;
@@ -128,7 +220,19 @@ body {
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    transition: background .25s, color .25s;
+    transition: background var(--duration-normal), color var(--duration-normal);
+}
+
+/* Numeric data styling */
+.numeric-data,
+.price,
+.percentage,
+.timestamp,
+.volume,
+.market-cap,
+.stat-value,
+.metric-value {
+    font-family: var(--font-mono);
 }
 
 h1, h2, h3 { color: var(--text-primary); }
@@ -225,7 +329,7 @@ a:hover { text-decoration: underline; }
 
 .stat-card {
     background: var(--bg-card);
-    border-radius: 4px;
+    border-radius: var(--radius-lg);
     padding: 1.25rem;
     border: 1px solid var(--border);
 }
@@ -324,11 +428,11 @@ label {
 .btn-sm {
     padding: 0.3rem 0.7rem;
     font-size: 0.8rem;
-    border-radius: 4px;
+    border-radius: var(--radius-md);
     border: none;
     cursor: pointer;
     font-weight: 600;
-    transition: opacity .2s;
+    transition: opacity var(--duration-fast);
 }
 .btn-sm:hover { opacity: 0.85; }
 .btn-sm.btn-validate { background: var(--warning); color: #fff; }
@@ -346,10 +450,10 @@ label {
 
 .metric-card {
     background: var(--bg-card);
-    border-radius: 4px;
+    border-radius: var(--radius-lg);
     padding: 1.2rem;
     border: 1px solid var(--border);
-    transition: transform .2s;
+    transition: opacity var(--duration-fast);
 }
 .metric-card:hover { border-color: var(--accent); }
 .metric-card .metric-label { font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .5px; }
@@ -508,9 +612,11 @@ table {
     font-size: 0.9rem;
 }
 th, td {
-    padding: 0.65rem 0.85rem;
+    padding: 0.5rem 0.85rem;
     text-align: left;
     border-bottom: 1px solid var(--border);
+    height: var(--table-row-height);
+    box-sizing: border-box;
 }
 th {
     background: var(--bg-input);
@@ -522,6 +628,24 @@ th {
 }
 tr:hover td { background: var(--accent-light); }
 td .actions { display: flex; gap: 0.4rem; }
+
+/* Numeric column alignment */
+th.numeric, td.numeric,
+th.price, td.price,
+th.percentage, td.percentage,
+th.timestamp, td.timestamp,
+th.volume, td.volume,
+th.market-cap, td.market-cap {
+    text-align: right;
+    font-family: var(--font-mono);
+}
+
+/* Compact table variant */
+table.compact th,
+table.compact td {
+    height: var(--table-row-height-compact);
+    padding: 0.35rem 0.7rem;
+}
 
 /* ─── Ingest Result ────────────────────────────────────────── */
 .ingest-summary {
