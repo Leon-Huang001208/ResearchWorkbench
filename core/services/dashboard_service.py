@@ -25,6 +25,7 @@ from core.contracts.dashboard import (
     WeeklyLesson,
 )
 from core.observability import get_logger
+from data_layer.repositories.dashboard_data import DashboardDataRepository
 
 logger = get_logger(__name__)
 
@@ -35,14 +36,12 @@ class DashboardService:
     def __init__(self, session):
         self.session = session
         self.today_cutoff = datetime.now(UTC) - timedelta(days=1)
+        self.dashboard_repo = DashboardDataRepository(session)
 
-    def get_market_overview_section(self) -> MarketOverviewSection:
-        """获取市场概览板块：全球热点新闻、上涨/下跌板块概念"""
-        # 全球热点新闻（模拟数据，实际应从新闻源获取）
-        from datetime import datetime, timedelta
-
+    def _get_mock_global_news(self) -> List[GlobalNewsItem]:
+        """获取模拟的全球新闻数据"""
         now = datetime.now(UTC)
-        global_news = [
+        return [
             GlobalNewsItem(
                 news_id="news-001",
                 title="美联储暗示或将暂停加息，全球市场应声上涨",
@@ -155,7 +154,8 @@ class DashboardService:
             ),
         ]
 
-        # 上涨板块概念（模拟数据）
+    def _get_mock_sectors(self) -> tuple[List[SectorChangeItem], List[SectorChangeItem]]:
+        """获取模拟的板块数据"""
         top_up_sectors = [
             SectorChangeItem(
                 sector_id="sector-ai",
@@ -199,7 +199,6 @@ class DashboardService:
             ),
         ]
 
-        # 下跌板块概念（模拟数据）
         top_down_sectors = [
             SectorChangeItem(
                 sector_id="sector-real-estate",
@@ -242,6 +241,57 @@ class DashboardService:
                 is_concept=False,
             ),
         ]
+
+        return top_up_sectors, top_down_sectors
+
+    def get_market_overview_section(self) -> MarketOverviewSection:
+        """获取市场概览板块：全球热点新闻、上涨/下跌板块概念"""
+        try:
+            # 尝试获取真实数据
+            news_data, has_real_news = self.dashboard_repo.get_combined_global_news(
+                limit=10, days=7
+            )
+            (
+                up_sectors_data,
+                down_sectors_data,
+                has_real_sectors,
+            ) = self.dashboard_repo.get_sector_changes_from_signals(days=7, limit_per_direction=5)
+
+            if has_real_news or has_real_sectors:
+                logger.info(
+                    f"Using real data for market overview: news={has_real_news}, sectors={has_real_sectors}"
+                )
+
+                global_news = [GlobalNewsItem(**n) for n in news_data]
+
+                # 如果没有真实新闻数据，回退到模拟
+                if not global_news:
+                    global_news = self._get_mock_global_news()
+
+                top_up_sectors = [SectorChangeItem(**s) for s in up_sectors_data]
+                top_down_sectors = [SectorChangeItem(**s) for s in down_sectors_data]
+
+                # 如果没有真实板块数据，回退到模拟
+                if not top_up_sectors or not top_down_sectors:
+                    mock_up, mock_down = self._get_mock_sectors()
+                    if not top_up_sectors:
+                        top_up_sectors = mock_up
+                    if not top_down_sectors:
+                        top_down_sectors = mock_down
+
+                return MarketOverviewSection(
+                    global_news=global_news,
+                    top_up_sectors=top_up_sectors,
+                    top_down_sectors=top_down_sectors,
+                )
+
+        except Exception as e:
+            logger.warning(f"Failed to fetch real market data: {e}, falling back to mock data")
+
+        # 回退到模拟数据
+        logger.info("Using mock data for market overview")
+        global_news = self._get_mock_global_news()
+        top_up_sectors, top_down_sectors = self._get_mock_sectors()
 
         return MarketOverviewSection(
             global_news=global_news,

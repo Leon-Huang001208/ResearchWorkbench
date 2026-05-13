@@ -12,6 +12,7 @@
 | **AF-AUTO-001** | ✅ 已完成 | 2026-05-11 | 2026-05-11 | [progress_af_auto_001.md](progress_af_auto_001.md) |
 | **AF-AUTO-002** | ✅ 已完成 | 2026-05-11 | 2026-05-11 | [progress_af_auto_002.md](progress_af_auto_002.md) |
 | **AF-AUTO-003** | ✅ 已完成 | 2026-05-13 | 2026-05-13 | [progress_af_auto_003.md](progress_af_auto_003.md) |
+| **AF-AUTO-004** | ✅ 已完成 | 2026-05-13 | 2026-05-13 | [progress_af_auto_004.md](progress_af_auto_004.md) |
 
 ---
 
@@ -41,6 +42,13 @@
 - **关键**: 设计令牌CSS变量、终端美学配色、JetBrains Mono字体、信息密度优化、Playwright验证
 - **修复**: Dark Mode 循环引用问题已修复
 
+### AF-AUTO-004: 集成真实新闻和板块变化数据 ✅
+- **目标**: 从DocumentV1、CanonicalEvent和AlphaSignal中提取真实数据用于市场概览仪表盘
+- **成果**: 8/10 任务已完成 + 1 个跳过
+- **关键**: 新增DashboardDataRepository、真实数据优先 + 智能回退机制、板块/概念分类
+- **测试**: 10/10 dashboard相关测试全部通过
+- **未完成**: UI增强和自动刷新功能（留作未来迭代）
+
 ---
 
 ## 文件结构
@@ -51,7 +59,8 @@
 ├── progress_af_auto_000.md  # AF-AUTO-000 详细进度
 ├── progress_af_auto_001.md  # AF-AUTO-001 详细进度
 ├── progress_af_auto_002.md  # AF-AUTO-002 详细进度
-└── progress_af_auto_003.md  # AF-AUTO-003 详细进度
+├── progress_af_auto_003.md  # AF-AUTO-003 详细进度
+└── progress_af_auto_004.md  # AF-AUTO-004 详细进度
 ```
 
 ---
