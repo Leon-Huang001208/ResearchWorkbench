@@ -26,8 +26,9 @@
 
 ### 任务管理
 
-- **任务文件**: `.ai/tasks/task.json`
-- **进度文件**: `.ai/progress/progress.md`
+- **任务文件**: `.ai/tasks/task_<任务集ID>.json` (例如: `task_af_auto_003.json`)
+- **进度文件**: `.ai/progress/progress_<任务集ID>.md` (每个任务集有自己的进度文件，例如: `progress_af_auto_003.md`)
+- **通用进度**: `.ai/progress/progress.md` (包含所有任务集的摘要)
 - **报告目录**: `.ai/reports/`
 
 ### 任务状态
@@ -103,7 +104,11 @@ lsof -ti :5432 || echo "PostgreSQL not running"
 
 ### Step 5: 更新进度
 
-将工作写入 `.ai/progress/progress.md`：
+**重要规则：每个任务集都有自己的进度文件！**
+
+对于任务集 `af-auto-xxx`：
+1. 首先创建/更新任务集专用进度文件：`.ai/progress/progress_af_auto_xxx.md`
+2. 然后在通用进度文件 `.ai/progress/progress.md` 中添加该任务集的摘要引用
 
 ```markdown
 ## [日期] - Task: [任务描述]
@@ -123,9 +128,10 @@ lsof -ti :5432 || echo "PostgreSQL not running"
 **IMPORTANT: 所有更改必须在同一个 commit 中提交，包括 task.json 的更新！**
 
 流程：
-1. 更新 `.ai/tasks/task.json`，将任务的 `status` 从 `"todo"` 改为 `"done"`
-2. 更新 `.ai/progress/progress.md` 记录工作内容
-3. 一次性提交所有更改：
+1. 更新 `.ai/tasks/task_<任务集ID>.json`，将任务的 `status` 从 `"todo"` 改为 `"done"`
+2. 创建/更新 `.ai/progress/progress_<任务集ID>.md` 记录该任务集的完整工作
+3. 在 `.ai/progress/progress.md` 中添加该任务集的摘要
+4. 一次性提交所有更改：
 
 ```bash
 git add .
@@ -247,8 +253,8 @@ mypy core/ data_layer/ knowledge_layer/ reasoning/ reporting/ signal_lab/ app/
 16. **每个会话只处理一个任务** - 专注高质量完成一个任务
 17. **标记完成前必须测试** - 所有成功标准都必须通过
 18. **UI变更必须浏览器测试** - 新建或大幅修改页面必须使用 Playwright MCP 测试
-19. **在 progress.txt 中记录** - 帮助未来的 agent 理解你的工作
-20. **每个任务一个 commit** - 所有更改（代码、progress.md、task.json）必须在同一个 commit 中提交
+19. **每个任务集必须有自己的进度文件** - 任务集 `af-auto-xxx` 必须有对应的 `progress_af_auto_xxx.md`
+20. **每个任务一个 commit** - 所有更改（代码、progress 文件、task.json）必须在同一个 commit 中提交
 21. **永远不要删除任务** - 只将 `status` 从 `"todo"` 改为 `"done"`
 22. **阻塞时立即停止** - 需要人工介入时，不要提交，输出阻塞信息并停止
 
