@@ -260,6 +260,9 @@ class AssetAnalysisService:
             if card.price_bars:
                 last_bar = card.price_bars[-1]
                 card.current_price = last_bar.close
+                card.volume = last_bar.volume
+                card.amount = last_bar.amount
+                card.turnover = last_bar.turnover
                 if len(card.price_bars) >= 2:
                     prev_close = card.price_bars[-2].close
                     card.price_change = last_bar.close - prev_close
