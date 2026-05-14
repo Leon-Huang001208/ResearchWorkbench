@@ -2,28 +2,30 @@
 多源协调器
 
 整合所有组件，提供统一的接口：
-1. 时间窗口策略
-2. 数据源拉取
-3. 复权对齐
-4. 双源校验
-5. 告警和审计
+1. 优先本地缓存
+2. 检查缺失范围
+3. 数据源拉取（AKShare → BaoStock → Yahoo 自动降级）
+4. 更新缓存
+5. 复权对齐
+6. 双源校验
+7. 告警和审计
 """
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional
 
 from core.observability import get_logger
-from data_layer.crawlers.akshare import AkShareAdapter
+from data_layer.adapters.akshare_adapter import AKShareAdapter
+from data_layer.adapters.baostock_adapter import BaoStockAdapter
+from data_layer.adapters.yahoo_adapter import YahooAdapter
+from data_layer.coordinator.cache_manager import MarketDataCache, get_market_data_cache
 from data_layer.crawlers.akshare.base import MarketData
-from data_layer.crawlers.baostock import BaoStockAdapter
 from data_layer.validation import (
     AdjustmentNormalizer,
     AdjustmentType,
     AlertManager,
     AuditLogger,
     DualSourceValidator,
-    FetchPlan,
-    TimeWindowStrategy,
     ValidationResult,
     ValidationStatus,
     get_alert_manager,
@@ -40,6 +42,8 @@ class CoordinatorResult:
     symbol: str
     data: List[MarketData]
     primary_source: str
+    from_cache: bool = False
+    cache_updated: bool = False
     validation_result: Optional[ValidationResult] = None
     sources_used: List[str] = None
     fetch_time: datetime = None
@@ -58,182 +62,59 @@ class MultiSourceCoordinator:
     多源协调器
 
     整合所有组件，提供统一的接口。
+    数据源策略：缓存优先 → AKShare → BaoStock → Yahoo 自动降级
     """
 
     def __init__(
         self,
-        time_window_strategy: Optional[TimeWindowStrategy] = None,
-        dual_source_validator: Optional[DualSourceValidator] = None,
         adjustment_normalizer: Optional[AdjustmentNormalizer] = None,
+        dual_source_validator: Optional[DualSourceValidator] = None,
         alert_manager: Optional[AlertManager] = None,
         audit_logger: Optional[AuditLogger] = None,
+        cache: Optional[MarketDataCache] = None,
+        use_cache: bool = True,
         target_adjustment: AdjustmentType = AdjustmentType.QFQ,
     ):
         """
         初始化协调器
 
         Args:
-            time_window_strategy: 时间窗口策略
-            dual_source_validator: 双源校验器
             adjustment_normalizer: 复权对齐器
+            dual_source_validator: 双源校验器
             alert_manager: 告警管理器
             audit_logger: 审计日志记录器
+            cache: 缓存管理器
+            use_cache: 是否使用缓存
             target_adjustment: 目标复权方式
         """
-        self.time_window_strategy = time_window_strategy or TimeWindowStrategy()
-        self.dual_source_validator = dual_source_validator or DualSourceValidator()
+        # 验证和审计组件
         self.adjustment_normalizer = adjustment_normalizer or AdjustmentNormalizer()
+        self.dual_source_validator = dual_source_validator or DualSourceValidator()
         self.alert_manager = alert_manager or get_alert_manager()
         self.audit_logger = audit_logger or get_audit_logger()
         self.target_adjustment = target_adjustment
 
-        # 初始化适配器
-        self.akshare_adapter = AkShareAdapter()
+        # 缓存
+        self.use_cache = use_cache
+        self.cache = cache or get_market_data_cache()
+
+        # 初始化适配器 - 按优先级排序
+        self.akshare_adapter = AKShareAdapter()
         self.baostock_adapter = BaoStockAdapter()
+        self.yahoo_adapter = YahooAdapter()
 
         self.logger = get_logger("multi_source_coordinator")
 
-    def fetch_historical_data(
-        self,
-        symbol: str,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-        force_dual_validation: bool = False,
-    ) -> CoordinatorResult:
-        """
-        获取历史数据（主入口）
-
-        Args:
-            symbol: 股票代码
-            start_date: 开始日期
-            end_date: 结束日期
-            force_dual_validation: 强制双源校验
-
-        Returns:
-            协调器结果
-        """
-        fetch_time = datetime.now()
-
-        # 获取拉取计划
-        fetch_plan = self.time_window_strategy.get_fetch_plan(symbol)
-        self.logger.info(
-            f"Fetch plan for {symbol}: mode={fetch_plan.decision.current_mode.value}, "
-            f"sources={fetch_plan.all_sources}"
-        )
-
-        # 获取拉取时应该使用的复权参数
-        adjust_flags = self.adjustment_normalizer.get_fetch_adjustment_flags(
-            self.target_adjustment
-        )
-
-        # 拉取数据
-        data_by_source = {}
-        errors = []
-
-        for source in fetch_plan.all_sources:
-            try:
-                data = self._fetch_from_source(
-                    symbol,
-                    source,
-                    start_date,
-                    end_date,
-                    adjust_flags.get(source),
-                )
-                data_by_source[source] = data
-                self.audit_logger.log_fetch(
-                    symbol=symbol,
-                    source=source,
-                    data_count=len(data),
-                    success=True,
-                )
-                self.logger.info(f"Fetched {len(data)} records from {source} for {symbol}")
-            except Exception as e:
-                self.logger.error(f"Failed to fetch from {source} for {symbol}: {e}")
-                errors.append(f"{source}: {str(e)}")
-                self.audit_logger.log_fetch(
-                    symbol=symbol,
-                    source=source,
-                    data_count=0,
-                    success=False,
-                    error=str(e),
-                )
-                self.alert_manager.send_data_source_error(source, e)
-
-        if not data_by_source:
-            # 所有源都失败了
-            return CoordinatorResult(
-                symbol=symbol,
-                data=[],
-                primary_source=fetch_plan.primary_source or "unknown",
-                sources_used=list(data_by_source.keys()),
-                fetch_time=fetch_time,
-                success=False,
-                error_message="All data sources failed: " + "; ".join(errors),
-            )
-
-        # 确定主数据
-        primary_source = fetch_plan.primary_source or list(data_by_source.keys())[0]
-        if primary_source not in data_by_source:
-            # 如果主源失败，选择第一个可用源
-            primary_source = list(data_by_source.keys())[0]
-
-        primary_data = data_by_source[primary_source]
-
-        # 执行校验（如果需要）
-        validation_result = None
-        should_validate = force_dual_validation or fetch_plan.should_validate
-
-        if should_validate and len(data_by_source) >= 2:
-            # 获取两个源进行校验
-            sources = list(data_by_source.keys())
-            source1, source2 = sources[0], sources[1]
-
-            validation_result = self.dual_source_validator.validate(
-                symbol=symbol,
-                data_source1=data_by_source[source1],
-                data_source2=data_by_source[source2],
-                source1_name=source1,
-                source2_name=source2,
-            )
-
-            # 记录校验结果
-            self.audit_logger.log_validation(validation_result)
-
-            # 如果校验失败，发送告警
-            if validation_result.status != ValidationStatus.PASSED:
-                self.alert_manager.send_validation_alert(validation_result)
-
-            # 确定最终使用哪个源
-            if validation_result.recommended_source:
-                primary_source = validation_result.recommended_source
-                if primary_source in data_by_source:
-                    primary_data = data_by_source[primary_source]
-
-            self.logger.info(
-                f"Validation result for {symbol}: {validation_result.status.value}, "
-                f"recommended source: {validation_result.recommended_source}"
-            )
-
-        # 记录合并操作
-        self.audit_logger.log_merge(
-            symbol=symbol,
-            sources=list(data_by_source.keys()),
-            final_data_count=len(primary_data),
-            selected_source=primary_source,
-            validation_passed=(validation_result.status == ValidationStatus.PASSED)
-            if validation_result
-            else False,
-        )
-
-        return CoordinatorResult(
-            symbol=symbol,
-            data=primary_data,
-            primary_source=primary_source,
-            validation_result=validation_result,
-            sources_used=list(data_by_source.keys()),
-            fetch_time=fetch_time,
-            success=True,
-        )
+    def _get_available_sources(self) -> List[str]:
+        """获取当前可用的数据源列表（按优先级排序）"""
+        sources = []
+        if self.akshare_adapter.is_available():
+            sources.append("akshare")
+        if self.baostock_adapter.is_available():
+            sources.append("baostock")
+        if self.yahoo_adapter.is_available():
+            sources.append("yahoo")
+        return sources
 
     def _fetch_from_source(
         self,
@@ -241,7 +122,7 @@ class MultiSourceCoordinator:
         source: str,
         start_date: Optional[date],
         end_date: Optional[date],
-        adjust_flag: Optional[str],
+        adjust_flags: Dict[str, str],
     ) -> List[MarketData]:
         """
         从指定源拉取数据
@@ -251,31 +132,380 @@ class MultiSourceCoordinator:
             source: 数据源名称
             start_date: 开始日期
             end_date: 结束日期
-            adjust_flag: 复权标志
+            adjust_flags: 各数据源的复权参数
 
         Returns:
             市场数据列表
         """
         if source == "akshare":
-            # AkShare 使用前复权
-            adjust = adjust_flag if adjust_flag else "qfq"
-            return self.akshare_adapter.market.get_historical_data(
+            return self.akshare_adapter.crawler_adapter.market.get_historical_data(
                 symbol=symbol,
                 start_date=start_date,
                 end_date=end_date,
-                adjust=adjust,
+                adjust=adjust_flags.get("akshare", "qfq"),
             )
         elif source == "baostock":
-            # BaoStock 使用对应的 adjustflag
-            adjustflag = adjust_flag if adjust_flag else "2"  # 2=前复权
-            return self.baostock_adapter.market.get_historical_data(
+            return self.baostock_adapter.crawler_adapter.market.get_historical_data(
                 symbol=symbol,
                 start_date=start_date,
                 end_date=end_date,
-                adjustflag=adjustflag,
+                adjustflag=adjust_flags.get("baostock", "3"),
+            )
+        elif source == "yahoo":
+            return self.yahoo_adapter.crawler_adapter.market.get_historical_data(
+                symbol=symbol,
+                start_date=start_date,
+                end_date=end_date,
             )
         else:
             raise ValueError(f"Unknown data source: {source}")
+
+    def _fetch_from_available_sources(
+        self,
+        symbol: str,
+        start_date: date,
+        end_date: date,
+        available_sources: List[str],
+        adjust_flags: Dict[str, str],
+    ) -> tuple[List[MarketData], Optional[str]]:
+        """
+        从可用的数据源中获取数据（按优先级尝试）
+
+        Args:
+            symbol: 股票代码
+            start_date: 开始日期
+            end_date: 结束日期
+            available_sources: 可用的数据源列表
+            adjust_flags: 各数据源的复权参数
+
+        Returns:
+            (获取的数据列表, 使用的数据源)
+        """
+        for source in available_sources:
+            try:
+                self.logger.info(f"Fetching {symbol} from {source}: {start_date} to {end_date}")
+                data = self._fetch_from_source(symbol, source, start_date, end_date, adjust_flags)
+                if data:
+                    self.audit_logger.log_fetch(
+                        symbol=symbol, source=source, data_count=len(data), success=True
+                    )
+                    self.logger.info(f"Fetched {len(data)} records from {source} for {symbol}")
+                    return data, source
+                else:
+                    self.logger.warning(f"{source} returned empty data for {symbol}")
+                    self.audit_logger.log_fetch(
+                        symbol=symbol, source=source, data_count=0, success=True
+                    )
+            except Exception as e:
+                self.logger.error(f"Failed to fetch from {source} for {symbol}: {e}")
+                self.audit_logger.log_fetch(
+                    symbol=symbol, source=source, data_count=0, success=False, error=str(e)
+                )
+                self.alert_manager.send_data_source_error(source, e)
+
+        return [], None
+
+    def _perform_validation(
+        self,
+        symbol: str,
+        data_by_source: dict[str, List[MarketData]],
+        available_sources: List[str],
+    ) -> Optional[ValidationResult]:
+        """
+        执行双源校验
+
+        Args:
+            symbol: 股票代码
+            data_by_source: 按源分组的数据
+            available_sources: 可用的数据源列表
+
+        Returns:
+            校验结果，如果没有足够的数据则返回 None
+        """
+        if len(data_by_source) >= 2:
+            # 获取前两个源进行校验
+            source1, source2 = available_sources[:2]
+            if source1 in data_by_source and source2 in data_by_source:
+                validation_result = self.dual_source_validator.validate(
+                    symbol=symbol,
+                    data_source1=data_by_source[source1],
+                    data_source2=data_by_source[source2],
+                    source1_name=source1,
+                    source2_name=source2,
+                )
+
+                self.audit_logger.log_validation(validation_result)
+
+                if validation_result.status != ValidationStatus.PASSED:
+                    self.alert_manager.send_validation_alert(validation_result)
+
+                self.logger.info(
+                    f"Validation result for {symbol}: {validation_result.status.value}, "
+                    f"recommended source: {validation_result.recommended_source}"
+                )
+
+                return validation_result
+
+        return None
+
+    def fetch_historical_data(
+        self,
+        symbol: str,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+        force_refresh: bool = False,
+        force_dual_validation: bool = False,
+    ) -> CoordinatorResult:
+        """
+        获取历史数据（主入口）
+
+        Args:
+            symbol: 股票代码
+            start_date: 开始日期
+            end_date: 结束日期
+            force_refresh: 强制刷新缓存
+            force_dual_validation: 强制双源校验
+
+        Returns:
+            协调器结果
+        """
+        fetch_time = datetime.now()
+
+        # 设置默认日期范围
+        if end_date is None:
+            end_date = date.today()
+        if start_date is None:
+            start_date = end_date - timedelta(days=365)  # 默认一年
+
+        self.logger.info(
+            f"Requesting data for {symbol}: {start_date} to {end_date}, "
+            f"force_refresh={force_refresh}, force_dual_validation={force_dual_validation}"
+        )
+
+        # 策略 1: 优先从缓存获取
+        if self.use_cache and not force_refresh:
+            cache_range = self.cache.get_cache_range(symbol)
+            if cache_range:
+                # 检查缓存是否完整覆盖了请求的范围
+                cache_covers = (
+                    cache_range.start_date <= start_date and cache_range.end_date >= end_date
+                )
+                if cache_covers:
+                    cached_data = self.cache.get_cached_data(symbol, start_date, end_date)
+                    if cached_data:
+                        self.logger.info(
+                            f"Cache hit for {symbol}, returning {len(cached_data)} records"
+                        )
+                        return CoordinatorResult(
+                            symbol=symbol,
+                            data=cached_data,
+                            primary_source="cache",
+                            from_cache=True,
+                            sources_used=["cache"],
+                            fetch_time=fetch_time,
+                            success=True,
+                        )
+
+        # 获取可用的数据源
+        available_sources = self._get_available_sources()
+        if not available_sources:
+            return CoordinatorResult(
+                symbol=symbol,
+                data=[],
+                primary_source="none",
+                sources_used=[],
+                fetch_time=fetch_time,
+                success=False,
+                error_message="No data sources available",
+            )
+
+        self.logger.info(f"Available sources for {symbol}: {available_sources}")
+
+        # 获取拉取时应该使用的复权参数
+        adjust_flags = self.adjustment_normalizer.get_fetch_adjustment_flags(
+            self.target_adjustment
+        )
+
+        # 策略 2: 如果启用缓存，计算缺失范围
+        missing_ranges = []
+        if self.use_cache and not force_refresh:
+            missing_ranges = self.cache.calculate_missing_ranges(symbol, start_date, end_date)
+            if not missing_ranges:
+                # 缓存完全覆盖
+                cached_data = self.cache.get_cached_data(symbol, start_date, end_date)
+                self.logger.info(
+                    f"Cache complete for {symbol}, returning {len(cached_data)} records"
+                )
+                return CoordinatorResult(
+                    symbol=symbol,
+                    data=cached_data,
+                    primary_source="cache",
+                    from_cache=True,
+                    sources_used=["cache"],
+                    fetch_time=fetch_time,
+                    success=True,
+                )
+
+            self.logger.info(f"Cache missing ranges for {symbol}: {missing_ranges}")
+
+        # 策略 3: 从数据源获取缺失的数据
+        data_by_source = {}
+        all_new_data = []
+        used_source = None
+
+        if missing_ranges:
+            # 有缓存，只获取缺失的范围
+            for miss_start, miss_end in missing_ranges:
+                data, source = self._fetch_from_available_sources(
+                    symbol, miss_start, miss_end, available_sources, adjust_flags
+                )
+                if data:
+                    # 复权归一化
+                    norm_result = self.adjustment_normalizer.normalize(
+                        data, self.target_adjustment
+                    )
+                    if norm_result.warnings:
+                        for warning in norm_result.warnings:
+                            self.logger.warning(warning)
+                    normalized_data = norm_result.data
+
+                    all_new_data.extend(normalized_data)
+                    if not used_source:
+                        used_source = source
+                    if source and source not in data_by_source:
+                        data_by_source[source] = []
+                    if source:
+                        data_by_source[source].extend(normalized_data)
+        else:
+            # 无缓存或强制刷新，获取整个范围
+            all_new_data, used_source = self._fetch_from_available_sources(
+                symbol, start_date, end_date, available_sources, adjust_flags
+            )
+            if used_source and all_new_data:
+                # 复权归一化
+                norm_result = self.adjustment_normalizer.normalize(
+                    all_new_data, self.target_adjustment
+                )
+                if norm_result.warnings:
+                    for warning in norm_result.warnings:
+                        self.logger.warning(warning)
+                all_new_data = norm_result.data
+                data_by_source[used_source] = all_new_data
+
+            # 如果强制双源校验，尝试从第二个源也获取数据
+            if force_dual_validation and len(available_sources) >= 2 and used_source:
+                second_source = available_sources[1] if available_sources[0] == used_source else available_sources[0]
+                try:
+                    second_data = self._fetch_from_source(
+                        symbol, second_source, start_date, end_date, adjust_flags
+                    )
+                    if second_data:
+                        # 复权归一化
+                        norm_result = self.adjustment_normalizer.normalize(
+                            second_data, self.target_adjustment
+                        )
+                        if norm_result.warnings:
+                            for warning in norm_result.warnings:
+                                self.logger.warning(warning)
+                        normalized_second_data = norm_result.data
+
+                        data_by_source[second_source] = normalized_second_data
+                        self.audit_logger.log_fetch(
+                            symbol=symbol,
+                            source=second_source,
+                            data_count=len(normalized_second_data),
+                            success=True,
+                        )
+                except Exception as e:
+                    self.logger.warning(f"Failed to fetch from {second_source} for validation: {e}")
+
+        if not all_new_data and not self.use_cache:
+            # 没有获取到数据，也没有缓存
+            return CoordinatorResult(
+                symbol=symbol,
+                data=[],
+                primary_source=available_sources[0] if available_sources else "none",
+                sources_used=available_sources,
+                fetch_time=fetch_time,
+                success=False,
+                error_message="Failed to fetch data from all sources",
+            )
+
+        # 策略 4: 更新缓存（如果启用缓存）
+        cache_updated = False
+        if self.use_cache and all_new_data and used_source:
+            self.cache.save_data(symbol, all_new_data, used_source)
+            cache_updated = True
+
+        # 策略 5: 合并缓存数据和新数据
+        final_data = []
+        if self.use_cache:
+            final_data = self.cache.get_cached_data(symbol, start_date, end_date)
+            if not final_data:
+                final_data = all_new_data
+        else:
+            final_data = all_new_data
+
+        if not final_data:
+            return CoordinatorResult(
+                symbol=symbol,
+                data=[],
+                primary_source=used_source or available_sources[0],
+                sources_used=available_sources,
+                fetch_time=fetch_time,
+                success=False,
+                error_message="No data available",
+            )
+
+        # 策略 6: 执行双源校验（如果需要）
+        validation_result = None
+        if force_dual_validation:
+            validation_result = self._perform_validation(
+                symbol, data_by_source, available_sources
+            )
+            # 如果校验结果推荐了另一个源，且我们有那个源的数据，使用那个源
+            if (
+                validation_result
+                and validation_result.recommended_source
+                and validation_result.recommended_source in data_by_source
+            ):
+                self.logger.info(
+                    f"Using recommended source from validation: {validation_result.recommended_source}"
+                )
+                used_source = validation_result.recommended_source
+                # 更新缓存（如果需要）
+                if self.use_cache and data_by_source[used_source]:
+                    self.cache.save_data(symbol, data_by_source[used_source], used_source)
+                    final_data = self.cache.get_cached_data(symbol, start_date, end_date)
+                    cache_updated = True
+
+        # 记录合并操作
+        self.audit_logger.log_merge(
+            symbol=symbol,
+            sources=list(data_by_source.keys()) or available_sources,
+            final_data_count=len(final_data),
+            selected_source=used_source or "cache",
+            validation_passed=(validation_result.status == ValidationStatus.PASSED)
+            if validation_result
+            else False,
+        )
+
+        self.logger.info(
+            f"Returning {len(final_data)} records for {symbol}, "
+            f"source={used_source or 'cache'}, cache_updated={cache_updated}"
+        )
+
+        return CoordinatorResult(
+            symbol=symbol,
+            data=final_data,
+            primary_source=used_source or "cache",
+            from_cache=self.use_cache and not missing_ranges and not force_refresh,
+            cache_updated=cache_updated,
+            validation_result=validation_result,
+            sources_used=available_sources + (["cache"] if self.use_cache else []),
+            fetch_time=fetch_time,
+            success=True,
+        )
 
     def health_check(self) -> dict:
         """
@@ -286,7 +516,19 @@ class MultiSourceCoordinator:
         """
         results = {}
 
-        # 检查 AkShare
+        # 检查缓存
+        if self.use_cache:
+            try:
+                cache_stats = self.cache.get_cache_stats()
+                results["cache"] = {
+                    "status": "healthy",
+                    "total_records": cache_stats["total_records"],
+                    "total_symbols": cache_stats["total_symbols"],
+                }
+            except Exception as e:
+                results["cache"] = {"status": "unhealthy", "error": str(e)}
+
+        # 检查 AKShare
         try:
             ak_health = self.akshare_adapter.health_check()
             results["akshare"] = ak_health
@@ -300,18 +542,24 @@ class MultiSourceCoordinator:
         except Exception as e:
             results["baostock"] = {"status": "unhealthy", "error": str(e)}
 
-        # 检查时间窗口
+        # 检查 Yahoo
         try:
-            decision = self.time_window_strategy.get_decision()
-            results["time_window"] = {
-                "current_mode": decision.current_mode.value,
-                "active_sources": decision.active_sources,
-                "should_validate": decision.should_validate,
-            }
+            yh_health = self.yahoo_adapter.health_check()
+            results["yahoo"] = yh_health
         except Exception as e:
-            results["time_window"] = {"status": "error", "error": str(e)}
+            results["yahoo"] = {"status": "unhealthy", "error": str(e)}
 
         return results
+
+    def clear_cache(self, symbol: Optional[str] = None):
+        """
+        清除缓存
+
+        Args:
+            symbol: 指定符号，None 则清除所有
+        """
+        if self.use_cache:
+            self.cache.clear_cache(symbol)
 
 
 # 全局协调器实例
@@ -331,4 +579,3 @@ def get_coordinator() -> MultiSourceCoordinator:
         _default_coordinator = MultiSourceCoordinator()
 
     return _default_coordinator
-

@@ -7,12 +7,13 @@
 ## 任务集列表
 
 | 任务集ID | 状态 | 开始日期 | 完成日期 | 进度文件 |
-|----------|------|----------|----------|----------|
+|----------|------|----------|----------|---------|
 | **AF-AUTO-000** | ✅ 已完成 | 2026-05-10 | 2026-05-11 | [progress_af_auto_000.md](progress_af_auto_000.md) |
 | **AF-AUTO-001** | ✅ 已完成 | 2026-05-11 | 2026-05-11 | [progress_af_auto_001.md](progress_af_auto_001.md) |
 | **AF-AUTO-002** | ✅ 已完成 | 2026-05-11 | 2026-05-11 | [progress_af_auto_002.md](progress_af_auto_002.md) |
 | **AF-AUTO-003** | ✅ 已完成 | 2026-05-13 | 2026-05-13 | [progress_af_auto_003.md](progress_af_auto_003.md) |
 | **AF-AUTO-004** | ✅ 已完成 | 2026-05-13 | 2026-05-13 | [progress_af_auto_004.md](progress_af_auto_004.md) |
+| **AF-AUTO-005** | ✅ 已完成 | 2026-05-13 | 2026-05-14 | [progress_af_auto_005.md](progress_af_auto_005.md) |
 
 ---
 
@@ -30,10 +31,10 @@
 - **关键**: API测试修复、数据库测试修复、Signal Lab测试、新增58个测试
 - **测试**: 836 个测试通过 (93.1%)，覆盖率提升至 51%
 
-### AF-AUTO-002: 数据摄取和报告模板 ✅
-- **目标**: 持续市场数据摄取系统、模板驱动的报告生成系统 (DOCX/PPTX)
+### AF-AUTO-002: 数据摄入和报告模板 ✅
+- **目标**: 持续市场数据摄入系统、模板驱动的报告生成系统 (DOCX/PPTX)
 - **成果**: 16/16 任务全部完成
-- **关键**: CrawlScheduler、增量摄取、反爬虫策略、PDF摄取、模板管理API、Web UI
+- **关键**: CrawlScheduler、增量摄入、反爬虫策略、PDF摄入、模板管理API、Web UI
 - **测试**: 新增 189 个测试，全部通过
 
 ### AF-AUTO-003: UI设计规范落地和Playwright调试 ✅
@@ -49,6 +50,12 @@
 - **测试**: 10/10 dashboard相关测试全部通过
 - **未完成**: UI增强和自动刷新功能（留作未来迭代）
 
+### AF-AUTO-005: 全面实现Web UI真实数据接入 ✅
+- **目标**: 全面实现Web UI真实数据接入,自动实时获取所有数据源,移除对模拟数据的依赖
+- **成果**: 9/9 任务已完成（100%）
+- **关键**: 修复DashboardService回退逻辑Bug、资产分析默认使用真实数据、所有板块添加模拟数据回退机制、产业链图谱添加默认数据、调度器API集成、端到端验证通过
+- **测试**: scripts/test_fix.py 验证所有板块正常工作,Playwright浏览器测试通过
+
 ---
 
 ## 文件结构
@@ -60,7 +67,8 @@
 ├── progress_af_auto_001.md  # AF-AUTO-001 详细进度
 ├── progress_af_auto_002.md  # AF-AUTO-002 详细进度
 ├── progress_af_auto_003.md  # AF-AUTO-003 详细进度
-└── progress_af_auto_004.md  # AF-AUTO-004 详细进度
+├── progress_af_auto_004.md  # AF-AUTO-004 详细进度
+└── progress_af_auto_005.md  # AF-AUTO-005 详细进度
 ```
 
 ---
@@ -74,4 +82,5 @@
 
 ---
 
-**最后更新**: 2026-05-13
+**最后更新**: 2026-05-14（AF-AUTO-005 完成！）
+

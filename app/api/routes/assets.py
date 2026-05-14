@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.api.models import AnalyzeRequest, AnalyzeResponse, ErrorResponse
 from core.contracts import AssetAnalysisCard, AssetAnalysisSnapshot
 from core.services.asset_analysis_service import AssetAnalysisService
+from data_layer.coordinator.multi_source_coordinator import get_coordinator
 from data_layer.repositories.base import get_db
 
 router = APIRouter(prefix="/api/assets", tags=["assets"])
@@ -18,8 +19,6 @@ class AnalysisCardRequest(BaseModel):
 
     canonical_id: str = Field(..., description="资产唯一标识")
     as_of: datetime | None = Field(None, description="指定分析时间")
-    use_mock: bool = Field(True, description="是否使用模拟数据")
-    source: str | None = Field(None, description="数据源")
 
 
 class AnalysisCardResponse(AssetAnalysisCard):
@@ -46,22 +45,14 @@ def _snapshot_to_response(snapshot: AssetAnalysisSnapshot) -> AnalyzeResponse:
 
 
 def get_asset_service(db: Session = Depends(get_db)) -> AssetAnalysisService:
-    """获取资产分析服务实例，自动降级：iFinD → AKShare → Local → Mock"""
-    from data_layer.adapters.akshare_adapter import AKShareAdapter
-    from data_layer.adapters.ifind_adapter import IFinDAdapter
-    from data_layer.adapters.local_data_adapter import LocalDataAdapter
+    """获取资产分析服务实例"""
     from data_layer.repositories.postgres_asset_snapshot_repo import PostgresAssetSnapshotRepository
 
     repo = PostgresAssetSnapshotRepository(db_session=db)
-    ifind_adapter = IFinDAdapter()
-    local_adapter = LocalDataAdapter()
-    akshare_adapter = AKShareAdapter()
+    coordinator = get_coordinator()
     return AssetAnalysisService(
         asset_snapshot_repo=repo,
-        ifind_adapter=ifind_adapter,
-        local_adapter=local_adapter,
-        akshare_adapter=akshare_adapter,
-        use_mock=False,
+        coordinator=coordinator,
     )
 
 
@@ -79,8 +70,6 @@ async def analyze_asset(
         snapshot = await service.generate_snapshot(
             canonical_id=request.canonical_id,
             as_of=request.as_of,
-            use_mock=request.use_mock,
-            source=request.source,
         )
         return _snapshot_to_response(snapshot)
     except Exception as e:
@@ -112,13 +101,11 @@ async def get_analysis_card(
     request: AnalysisCardRequest,
     service: AssetAnalysisService = Depends(get_asset_service),
 ):
-    """生成资产分析卡（包含K线、资金流向、股东、财务、行业、事件、宏观等完整信息）"""
+    """生成资产分析卡片（包含K线、资金流向、股东、财务、行业、事件、宏观等完整信息）"""
     try:
         card = await service.generate_analysis_card(
             canonical_id=request.canonical_id,
             as_of=request.as_of,
-            use_mock=request.use_mock,
-            source=request.source,
         )
         return card
     except Exception as e:
