@@ -2227,7 +2227,7 @@ tr:hover td {
 }
 
 .badge-real {
-    background-color: var(--success);
+    background-color: var(--accent);
     color: white;
     padding: 2px 8px;
     border-radius: 12px;

@@ -708,10 +708,9 @@ async function loadDashboard() {
 // Asset Analysis
 // ═══════════════════════════════════════════════════════════════
 
-// 新的资产分析方法
+// 资产分析方法
 async function analyzeAsset() {
     const code = document.getElementById('asset-code').value.trim();
-    const source = document.getElementById('asset-source').value;
     if (!code) return toast(I18N.t('toast.enter_asset_code'), 'error');
 
     const loading = document.getElementById('asset-loading');
@@ -722,25 +721,12 @@ async function analyzeAsset() {
     try {
         const data = await apiCall('POST', '/api/assets/analysis-card', {
             canonical_id: code,
-            source: source,
-            use_mock: source === 'mock',
         });
         renderAssetAnalysisCard(data);
         result.classList.remove('hidden');
         toast(I18N.t('toast.analyze_complete'), 'success');
     } catch (e) {
-        // 降级到老方法
-        console.log('Falling back to legacy asset analysis:', e);
-        try {
-            const legacyData = await apiCall('POST', '/api/assets/analyze', {
-                canonical_id: code,
-            });
-            renderAssetResult(legacyData);
-            result.classList.remove('hidden');
-            toast(I18N.t('toast.analyze_complete'), 'success');
-        } catch (e2) {
-            toast(e2.message, 'error');
-        }
+        toast(e.message, 'error');
     } finally {
         loading.classList.add('hidden');
     }
@@ -1418,24 +1404,14 @@ function renderIndustryGraph(data) {
     const width = container.clientWidth;
     const height = container.clientHeight;
 
-    const mockNodes = [
-        { id: 'up1', label: '上游1', group: 'upstream' },
-        { id: 'up2', label: '上游2', group: 'upstream' },
-        { id: 'mid1', label: '中游1', group: 'midstream' },
-        { id: 'mid2', label: '中游2', group: 'midstream' },
-        { id: 'down1', label: '下游1', group: 'downstream' },
-        { id: 'down2', label: '下游2', group: 'downstream' },
-    ];
-    const mockLinks = [
-        { source: 'up1', target: 'mid1', label: '供应' },
-        { source: 'up2', target: 'mid1', label: '供应' },
-        { source: 'mid1', target: 'down1', label: '供应' },
-        { source: 'mid2', target: 'down1', label: '替代' },
-        { source: 'mid2', target: 'down2', label: '依赖' },
-    ];
+    const nodes = data.nodes || [];
+    const links = data.edges || [];
 
-    const nodes = data.nodes?.length ? data.nodes : mockNodes;
-    const links = data.edges?.length ? data.edges : mockLinks;
+    // 如果没有数据，显示空状态提示
+    if (!nodes.length) {
+        container.innerHTML = '<div class="empty-state">暂无产业链数据</div>';
+        return;
+    }
 
     const svg = d3.select(container).append('svg').attr('width', width).attr('height', height);
 
