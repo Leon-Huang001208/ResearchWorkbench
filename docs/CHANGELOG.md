@@ -7,6 +7,42 @@
 ## [Unreleased]
 
 ### Added
+- **dev-governance**: 完整的开发治理系统与 Claude 工作流程
+  - 新增 `CLAUDE.md`：精简的最高优先级入口文档，定义必须加载的规则
+  - 新增 `.claude/rules/`：详细的规则目录
+  - 新增 `.claude/commands/`：可复用的任务命令模板
+  - 新增 `docs/DEVELOPMENT_MAP.md`：开发地图，任务到子系统的路由表
+  - 新增 `docs/modules/`：模块级详细文档（完整的17个模块文档）
+  - 新增 `scripts/generate_py_file_index.py`：Python 文件索引生成脚本
+  - 新增 `scripts/check_task_completion.py`：任务完成检查脚本
+  - 新增 `scripts/check_doc_sync.py`：文档同步检查脚本
+  - 新增 `.ai/reports/test_report_TEMPLATE.md`：测试报告模板
+  - 新增 `docs/generated/py_file_index.md`：生成的文档目录
+- **ingestion**: 创建 KnowledgePipeline 深模块，统一知识加工流程
+  - 新增 `ingestion/knowledge_pipeline.py`：提供单一 `process(doc)` 接口，内部协调分块、分类、实体提取、事件提取、丰富、去重、保存等步骤
+  - 新增 `data_layer/repositories/search_repository.py`：SearchRepository 接口和 SQLAlchemy 实现，隐藏 session 依赖
+    - `00-core-rules.md`：核心行为规则
+    - `01-task-workflow.md`：任务工作流程
+    - `02-test-policy.md`：测试策略
+    - `03-doc-sync-policy.md`：文档同步策略
+    - `04-git-workflow.md`：Git 工作流程
+    - `05-blocking-policy.md`：阻塞策略
+    - `06-final-response.md`：最终响应格式
+  - 新增 `.claude/commands/`：可复用的任务命令模板
+    - `start-task.md`：任务启动命令
+    - `verify-task.md`：任务验证命令
+    - `finish-task.md`：任务完成命令
+  - 新增 `docs/DEVELOPMENT_MAP.md`：开发地图，任务到子系统的路由表
+  - 新增 `docs/modules/`：模块级详细文档
+    - `core_services.md`：核心服务模块文档
+    - `app_api.md`：API 模块文档
+    - `data_layer_crawlers.md`：数据爬虫模块文档
+  - 新增 `scripts/generate_py_file_index.py`：Python 文件索引生成脚本
+  - 新增 `scripts/check_task_completion.py`：任务完成检查脚本
+  - 新增 `scripts/check_doc_sync.py`：文档同步检查脚本
+  - 新增 `.ai/reports/test_report_TEMPLATE.md`：测试报告模板
+  - 新增 `docs/generated/`：生成的文档目录
+- **ingestion**: 创建 KnowledgePipeline 深模块，统一知识加工流程
 - **ingestion**: 创建 KnowledgePipeline 深模块，统一知识加工流程
   - 新增 `ingestion/knowledge_pipeline.py`：提供单一 `process(doc)` 接口，内部协调分块、分类、实体提取、事件提取、丰富、去重、保存等步骤
   - 新增 `data_layer/repositories/search_repository.py`：SearchRepository 接口和 SQLAlchemy 实现，隐藏 session 依赖

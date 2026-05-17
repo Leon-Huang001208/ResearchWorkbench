@@ -227,9 +227,11 @@
             <!-- Asset Analysis Section -->
             <section id="section-asset-analysis" class="content-section">
                 <h2 class="section-title" data-i18n="asset.title">资产分析</h2>
-                <div class="input-row">
-                    <input type="text" id="asset-code" value="600519.SH" data-i18n-placeholder="asset.code_placeholder" placeholder="输入资产代码，如 600519.SH">
-                    <button id="btn-analyze" class="btn-primary" data-i18n="asset.btn_analyze">分析</button>
+                <div class="input-row asset-search-container">
+                    <div class="asset-search-wrapper">
+                        <input type="text" id="asset-code" data-i18n-placeholder="asset.code_placeholder" placeholder="代码/名称/简拼" autocomplete="off">
+                        <div id="asset-search-dropdown" class="search-dropdown hidden"></div>
+                    </div>
                 </div>
                 <div id="asset-loading" class="loading hidden">
                     <div class="spinner"></div>
