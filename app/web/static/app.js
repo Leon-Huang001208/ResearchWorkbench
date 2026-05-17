@@ -149,9 +149,33 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Asset analysis button
-    document.getElementById('btn-analyze')?.addEventListener('click', analyzeAsset);
-    
+    // Asset search input
+    const assetInput = document.getElementById('asset-code');
+    if (assetInput) {
+        assetInput.addEventListener('input', (e) => {
+            clearTimeout(assetSearchDebounceTimer);
+            const query = e.target.value.trim();
+            assetSearchDebounceTimer = setTimeout(() => searchAssets(query), 200);
+        });
+
+        assetInput.addEventListener('keydown', handleAssetSearchKeydown);
+
+        assetInput.addEventListener('focus', (e) => {
+            if (e.target.value.trim()) {
+                searchAssets(e.target.value.trim());
+            }
+        });
+    }
+
+    // Close asset search dropdown on outside click
+    document.addEventListener('click', (e) => {
+        const dropdown = document.getElementById('asset-search-dropdown');
+        const input = document.getElementById('asset-code');
+        if (dropdown && !dropdown.contains(e.target) && e.target !== input) {
+            dropdown.classList.add('hidden');
+        }
+    });
+
     // Scenario analysis button
     document.getElementById('btn-generate-scenarios')?.addEventListener('click', generateScenarios);
     
@@ -708,7 +732,148 @@ async function loadDashboard() {
 // Asset Analysis
 // ═══════════════════════════════════════════════════════════════
 
-// 资产分析方法
+// 资产搜索相关变量
+let assetSearchDebounceTimer = null;
+let selectedAssetIndex = -1;
+let assetSearchResults = [];
+
+// 资产搜索功能
+async function searchAssets(query) {
+    if (!query || query.length < 1) {
+        hideAssetSearchDropdown();
+        return;
+    }
+
+    try {
+        const results = await apiCall('GET', `/api/search?q=${encodeURIComponent(query)}&types=symbol`);
+        assetSearchResults = results.symbols || [];
+        renderAssetSearchDropdown(assetSearchResults, query);
+    } catch (e) {
+        console.error('Asset search failed:', e);
+    }
+}
+
+function renderAssetSearchDropdown(results, query) {
+    const dropdown = document.getElementById('asset-search-dropdown');
+    if (!results || results.length === 0) {
+        dropdown.classList.add('hidden');
+        return;
+    }
+
+    selectedAssetIndex = -1;
+    let html = '<div class="search-result-group"><div class="group-title">标的</div>';
+    results.forEach((item, index) => {
+        const name = item.name || item.display_name || '';
+        const symbol = item.symbol || '';
+        const industry = item.industry || '';
+        html += `
+            <div class="search-result-item asset-result-item" data-index="${index}" data-symbol="${esc(symbol)}">
+                <div class="result-title">
+                    <span class="asset-symbol">${esc(symbol)}</span>
+                    <span class="asset-name">${esc(name)}</span>
+                </div>
+                ${industry ? `<div class="result-subtitle">${esc(industry)}</div>` : ''}
+            </div>
+        `;
+    });
+    html += '</div>';
+
+    dropdown.innerHTML = html;
+    dropdown.classList.remove('hidden');
+
+    // 添加点击事件
+    dropdown.querySelectorAll('.asset-result-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const symbol = item.dataset.symbol;
+            selectAsset(symbol, item);
+        });
+        item.addEventListener('mouseenter', () => {
+            dropdown.querySelectorAll('.asset-result-item').forEach(el => el.classList.remove('selected'));
+            item.classList.add('selected');
+            selectedAssetIndex = parseInt(item.dataset.index);
+        });
+    });
+}
+
+function selectAsset(symbol, element) {
+    const input = document.getElementById('asset-code');
+    input.value = symbol;
+    hideAssetSearchDropdown();
+    analyzeAssetByCode(symbol);
+}
+
+function hideAssetSearchDropdown() {
+    const dropdown = document.getElementById('asset-search-dropdown');
+    dropdown.classList.add('hidden');
+}
+
+// 键盘导航
+function handleAssetSearchKeydown(e) {
+    const dropdown = document.getElementById('asset-search-dropdown');
+    const items = dropdown.querySelectorAll('.asset-result-item');
+
+    if (dropdown.classList.contains('hidden')) return;
+
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        selectedAssetIndex = Math.min(selectedAssetIndex + 1, items.length - 1);
+        updateSelectedItem(items);
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        selectedAssetIndex = Math.max(selectedAssetIndex - 1, 0);
+        updateSelectedItem(items);
+    } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (selectedAssetIndex >= 0 && items[selectedAssetIndex]) {
+            items[selectedAssetIndex].click();
+        } else {
+            // 直接使用输入框的值进行分析
+            const code = e.target.value.trim();
+            if (code) {
+                hideAssetSearchDropdown();
+                analyzeAssetByCode(code);
+            }
+        }
+    } else if (e.key === 'Escape') {
+        hideAssetSearchDropdown();
+    }
+}
+
+function updateSelectedItem(items) {
+    items.forEach((item, index) => {
+        if (index === selectedAssetIndex) {
+            item.classList.add('selected');
+            item.scrollIntoView({ block: 'nearest' });
+        } else {
+            item.classList.remove('selected');
+        }
+    });
+}
+
+// 直接通过代码分析资产
+async function analyzeAssetByCode(code) {
+    if (!code) return toast(I18N.t('toast.enter_asset_code'), 'error');
+
+    const loading = document.getElementById('asset-loading');
+    const result = document.getElementById('asset-result');
+    result.classList.add('hidden');
+    loading.classList.remove('hidden');
+
+    try {
+        const data = await apiCall('POST', '/api/assets/analysis-card', {
+            canonical_id: code,
+        });
+        renderAssetAnalysisCard(data);
+        result.classList.remove('hidden');
+        toast(I18N.t('toast.analyze_complete'), 'success');
+    } catch (e) {
+        toast(e.message, 'error');
+    } finally {
+        loading.classList.add('hidden');
+    }
+}
+
+// 资产分析方法 - 保留向后兼容
 async function analyzeAsset() {
     const code = document.getElementById('asset-code').value.trim();
     if (!code) return toast(I18N.t('toast.enter_asset_code'), 'error');

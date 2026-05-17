@@ -1872,6 +1872,36 @@ tr:hover td {
     color: var(--text-secondary);
 }
 
+.search-result-item.selected {
+    background: var(--accent-light);
+}
+
+/* Asset search specific styles */
+.asset-search-container {
+    position: relative;
+}
+
+.asset-search-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.asset-search-wrapper .search-dropdown {
+    border-radius: var(--radius);
+    margin-top: 4px;
+}
+
+.asset-result-item .asset-symbol {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    color: var(--accent);
+    margin-right: 8px;
+}
+
+.asset-result-item .asset-name {
+    color: var(--text-primary);
+}
+
 /* Abnormal flow items */
 .abnormal-flow-item .diffusion {
     display: inline-block;

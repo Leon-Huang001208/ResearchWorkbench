@@ -40,7 +40,7 @@ const I18N = (() => {
 
         // Asset Analysis
         'asset.title': '资产分析',
-        'asset.code_placeholder': '输入资产代码，如 600000.SH',
+        'asset.code_placeholder': '代码/名称/简拼',
         'asset.source_auto': '自动（推荐）',
         'asset.source_akshare': 'AKShare 开源',
         'asset.source_mock': 'Mock 数据',
@@ -264,7 +264,7 @@ const I18N = (() => {
 
         // Asset Analysis
         'asset.title': 'Asset Analysis',
-        'asset.code_placeholder': 'Enter asset code, e.g. 600000.SH',
+        'asset.code_placeholder': 'Code/Name/Pinyin',
         'asset.source_auto': 'Auto (Recommended)',
         'asset.source_akshare': 'AKShare Open Source',
         'asset.source_mock': 'Mock Data',
