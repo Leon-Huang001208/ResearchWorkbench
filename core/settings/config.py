@@ -51,10 +51,18 @@ class Settings(BaseSettings):
     # 对象存储
     OBJECT_STORAGE_PATH: Path = PROJECT_ROOT / "data" / "objects"
 
+    # PDF 转换输出目录
+    PDF_MARKDOWN_DIR: Path = PROJECT_ROOT / "data" / "markdown"
+    PDF_RAW_TEXT_DIR: Path = PROJECT_ROOT / "data" / "raw_text"
+    # 小于此字节数的内容会同时内联到数据库
+    PDF_INLINE_THRESHOLD_BYTES: int = 256 * 1024  # 256 KB
+
     def ensure_dirs(self) -> None:
         """确保必要的目录存在"""
         self.LOG_DIR.mkdir(parents=True, exist_ok=True)
         self.OBJECT_STORAGE_PATH.mkdir(parents=True, exist_ok=True)
+        self.PDF_MARKDOWN_DIR.mkdir(parents=True, exist_ok=True)
+        self.PDF_RAW_TEXT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 settings = Settings()

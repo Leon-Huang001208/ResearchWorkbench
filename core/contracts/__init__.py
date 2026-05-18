@@ -117,6 +117,13 @@ from .monitoring import (
 )
 from .outcome_journal import FailureClassification, SimilarCase, TradeOutcome, WeeklyReviewReport
 from .outcomes import SignalOutcome
+from .pdf_conversion import (
+    ConversionRequest,
+    ConversionResult,
+    ConversionStatus,
+    ConversionStatusResponse,
+    StrategyType,
+)
 from .paper_trading import (
     BenchmarkComparison,
     PaperPortfolio,
@@ -208,6 +215,12 @@ __all__ = [
     "EventAlphaSignal",
     "TradeCandidate",
     "SignalOutcome",
+    # PDF Conversion
+    "ConversionResult",
+    "ConversionRequest",
+    "ConversionStatus",
+    "ConversionStatusResponse",
+    "StrategyType",
     "FailureClassification",
     "TradeOutcome",
     "SimilarCase",

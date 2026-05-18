@@ -595,6 +595,118 @@ af timing --signal signal_123
 
 ---
 
+### PDF Admin API
+
+PDF 转换管理接口，支持三种策略自动降级 (MinerU → MarkItDown → RawText)。
+
+#### POST /api/admin/pdf/convert
+
+触发指定 PDF 的转换。
+
+**请求体**:
+
+```json
+{
+  "pdf_id": "pdf_001",
+  "strategy": "auto"
+}
+```
+
+**参数说明**:
+
+| 参数 | 必需 | 说明 |
+|------|------|------|
+| `pdf_id` | ✅ | PDF artifact ID |
+| `strategy` | ❌ | 首选策略: `auto`, `mineru`, `markitdown`, `raw_text` (默认 `auto`) |
+
+**响应示例**:
+
+```json
+{
+  "pdf_id": "pdf_001",
+  "success": true,
+  "strategy_used": "mineru",
+  "error_message": "",
+  "page_count": 5,
+  "token_count": 1000,
+  "quality_score": 0.85,
+  "has_tables": true,
+  "has_images": false,
+  "has_code_blocks": true
+}
+```
+
+#### GET /api/admin/pdf/stats
+
+获取 PDF 转换统计。
+
+**响应示例**:
+
+```json
+{
+  "total_pdfs": 10,
+  "pending_conversion": 3,
+  "converted": 5,
+  "failed_conversion": 2,
+  "by_status": {"success": 5, "error": 2, "pending": 3}
+}
+```
+
+#### GET /api/admin/pdf/pending
+
+列出待转换的 PDF。
+
+**查询参数**:
+
+- `limit`: 返回数量上限 (默认 50, 最大 200)
+
+**响应示例**:
+
+```json
+{
+  "items": [
+    {
+      "pdf_id": "pdf_001",
+      "file_name": "report.pdf",
+      "source_type": "zhiqiu",
+      "conversion_strategy": "mineru",
+      "status": "pending",
+      "created_at": "2025-05-10T00:00:00"
+    }
+  ],
+  "count": 1
+}
+```
+
+#### POST /api/admin/pdf/retry
+
+重试失败的 PDF 转换。
+
+**请求体**:
+
+```json
+{
+  "limit": 10
+}
+```
+
+**参数说明**:
+
+- `limit`: 每次重试的最大数量 (1-100, 默认 10)
+
+**响应示例**:
+
+```json
+{
+  "total": 2,
+  "success": 1,
+  "failed": 1,
+  "results": [...]
+}
+```
+
+---
+
 ## Python API
 
 ### 1. 资产分析服务

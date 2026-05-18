@@ -164,6 +164,7 @@ AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System�
   - `monitoring.py`：监控结构
   - `outcome_journal.py`：结果日志结构
   - `paper_trading.py`：模拟交易结构
+  - `pdf_conversion.py`：PDF 转换结构
   - `portfolio.py`：组合结构
   - `replay.py`：回放结构
   - `reporting.py`：报告结构
@@ -210,6 +211,7 @@ AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System�
   - `OutcomeJournalService`：结果日志服务
   - `OutcomeService`：结果服务
   - `PaperTradingService`：模拟交易服务
+  - `PDFConversionService`：PDF 转换编排服务
   - `PipelineService`：管道服务
   - `PortfolioService`：组合服务
   - `RAGRetrieval`：RAG 检索
@@ -361,6 +363,12 @@ AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System�
   - `zq/`：知丘采集器（研报、公众号、会议纪要）
 
 - `parsers/`：非结构化数据解析（PDF、网页、财报）
+- `converters/`：PDF 转换策略 (MinerU / MarkItDown / RawText)
+  - `base.py`：PDFConversionStrategy 抽象基类
+  - `mineru.py`：MinerUStrategy (opendatalab/mineru, 最高质量)
+  - `markitdown.py`：MarkItDownStrategy (microsoft/markitdown)
+  - `raw_text.py`：RawTextStrategy (pdfplumber, 始终可用)
+  - `persistence.py`：磁盘持久化 (data/markdown/, data/raw_text/)
 - `normalizers/`：数据归一化，统一不同数据源的格式
 - `repositories/`：实现 core.interfaces 中定义的仓储接口，对接存储层
 
@@ -407,7 +415,8 @@ AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System�
 ### 数据摄入管道详解
 
 1. **原始数据采集**：从财联社、中国证券网、知丘、AKShare 等源采集原始数据
-2. **文档分块**：将长文档切分为适合处理的小块（DocumentChunker）
+2. **PDF 转换**：PDF 文件通过策略链自动转换为 Markdown/文本 (MinerU → MarkItDown → RawText 自动降级)
+3. **文档分块**：将长文档切分为适合处理的小块（DocumentChunker）
 3. **文档分类**：自动识别文档类型（研报、新闻、公告等）（DocumentClassifier）
 4. **实体提取**：从文本中提取实体（公司、行业、产品等）（EntityExtractor）
 5. **断言提取**：提取事实断言（Assertion）

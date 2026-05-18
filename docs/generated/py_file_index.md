@@ -819,6 +819,48 @@ Functions:
   - 获取模拟结果详情
 
 
+## `app/api/routes/pdf_admin.py`
+
+Module docstring:
+> PDF Conversion Admin API — PDF 转换管理路由
+
+Imports:
+- `core.contracts.pdf_conversion`
+- `core.observability`
+- `core.services.pdf_conversion_service`
+- `data_layer.repositories.base`
+- `fastapi`
+- `pydantic`
+- `sqlalchemy.orm`
+- `typing`
+
+Classes:
+- `ConvertPdfRequest`
+  - PDF 转换请求
+- `ConvertPdfResponse`
+  - PDF 转换响应
+- `PdfStatsResponse`
+  - PDF 统计响应
+- `PdfPendingResponse`
+  - 待转换 PDF 列表
+- `RetryRequest`
+  - 重试请求
+- `RetryResponse`
+  - 重试响应
+
+Functions:
+- `_get_service`
+  - 获取 PDF 转换服务实例
+- `convert_pdf`
+  - 触发 PDF 转换
+- `get_pdf_stats`
+  - 获取 PDF 转换统计
+- `get_pending`
+  - 获取待转换的 PDF 列表
+- `retry_failed`
+  - 重试失败的 PDF 转换
+
+
 ## `app/api/routes/pipeline.py`
 
 Module docstring:
@@ -1630,6 +1672,7 @@ Imports:
 - `outcome_journal`
 - `outcomes`
 - `paper_trading`
+- `pdf_conversion`
 - `portfolio`
 - `replay`
 - `reporting`
@@ -2128,6 +2171,30 @@ Classes:
   - 模拟组合 — 跟踪一个组合提案在模拟环境中的运行
 - `SimulationResult`
   - 模拟结果 — 一次完整模拟的输出
+
+
+## `core/contracts/pdf_conversion.py`
+
+Module docstring:
+> PDF 转换契约 —— 统一的转换结果模型和策略相关枚举.
+
+Imports:
+- `datetime`
+- `enum`
+- `pydantic`
+- `typing`
+
+Classes:
+- `StrategyType`
+  - PDF 转换策略类型
+- `ConversionStatus`
+  - PDF 转换状态
+- `ConversionResult`
+  - PDF 转换统一结果模型
+- `ConversionRequest`
+  - PDF 转换请求
+- `ConversionStatusResponse`
+  - 转换状态响应
 
 
 ## `core/contracts/portfolio.py`
@@ -3255,6 +3322,42 @@ Classes:
   - methods: __init__, create_paper_portfolio, rebalance, update_daily, compute_performance, compare_benchmarks, generate_equal_weight_baseline, generate_top_k_signal_baseline, run_replay_simulation, get_paper_portfolio, list_paper_portfolios, get_simulation_result, list_simulation_results, _compute_max_drawdown, _compute_daily_returns, _compute_sharpe_ratio, _compute_sortino_ratio, _compute_hit_rate, _compute_avg_win_loss, _check_drift_threshold
 
 
+## `core/services/pdf_conversion_service.py`
+
+Module docstring:
+> PDF 转换服务 —— 核心编排逻辑.
+
+Imports:
+- `core.contracts.documents_v1`
+- `core.contracts.pdf_conversion`
+- `core.observability`
+- `core.services.document_chunker`
+- `core.utils.id_gen`
+- `data_layer.converters.base`
+- `data_layer.converters.markitdown`
+- `data_layer.converters.mineru`
+- `data_layer.converters.persistence`
+- `data_layer.converters.raw_text`
+- `data_layer.repositories`
+- `data_layer.repositories.documents_v1`
+- `data_layer.repositories.models`
+- `datetime`
+- `hashlib`
+- `sqlalchemy.orm`
+- `time`
+- `typing`
+- `uuid`
+
+Classes:
+- `PDFConversionService`
+  - PDF 转换预案服务
+  - methods: __init__, _register_default_strategies, get_available_strategies, _select_strategy, convert_pdf, _create_document_from_conversion, convert_pending, retry_failed, get_stats, get_pending
+
+Functions:
+- `_map_source_type`
+  - 将 artifact 的 source_type 字符串映射到 SourceType 枚举
+
+
 ## `core/services/pipeline_service.py`
 
 Module docstring:
@@ -4202,6 +4305,122 @@ Classes:
 - `ZQAdapter`
   - 知丘数据适配器 (研报/公众号/纪要)
   - methods: __init__, fetch, _fetch_reports, _fetch_news, _fetch_meetings, _parse_json_output, parse
+
+
+## `data_layer/converters/__init__.py`
+
+Module docstring:
+> PDF 转换器模块 —— 可插拔的 PDF 转换策略
+
+Imports:
+- `data_layer.converters.base`
+
+
+## `data_layer/converters/base.py`
+
+Module docstring:
+> PDF 转换策略基类.
+
+Imports:
+- `abc`
+- `core.contracts.pdf_conversion`
+- `logging`
+
+Classes:
+- `PDFConversionStrategy`
+  - PDF 转换策略抽象基类
+  - methods: is_available, convert, strategy_type, name, estimate_tokens
+
+
+## `data_layer/converters/markitdown.py`
+
+Module docstring:
+> MarkItDown 转换策略 —— 基于 microsoft/markitdown 的 PDF 转 Markdown
+
+Imports:
+- `core.contracts.pdf_conversion`
+- `data_layer.converters.base`
+- `logging`
+- `typing`
+
+Classes:
+- `MarkItDownStrategy`
+  - 基于 microsoft/markitdown 的 Markdown 转换策略
+  - methods: is_available, convert, strategy_type, name, _add_page_anchors, _detect_features, _compute_quality_score
+
+
+## `data_layer/converters/mineru.py`
+
+Module docstring:
+> MinerU 转换策略 —— 基于 opendatalab/mineru 的高质量 PDF 解析
+
+Imports:
+- `core.contracts.pdf_conversion`
+- `data_layer.converters.base`
+- `logging`
+- `os`
+- `subprocess`
+- `tempfile`
+- `typing`
+
+Classes:
+- `MinerUStrategy`
+  - 基于 opendatalab/mineru 的高质量 PDF 转换策略
+  - methods: __init__, is_available, _check_cli_available, convert, _run_mineru, strategy_type, name, _read_output, _count_pages, _detect_features, _compute_quality_score
+
+
+## `data_layer/converters/persistence.py`
+
+Module docstring:
+> PDF 转换输出持久化 —— 将 markdown/raw_text 写入磁盘并管理路径
+
+Imports:
+- `core.observability`
+- `core.settings.config`
+- `os`
+- `pathlib`
+- `typing`
+
+Functions:
+- `ensure_output_dirs`
+  - 确保输出目录存在
+- `persist_markdown`
+  - 将 markdown 内容持久化到磁盘
+- `persist_raw_text`
+  - 将 raw_text 内容持久化到磁盘
+- `should_inline`
+  - 判断内容是否足够小以内联到数据库
+- `read_markdown`
+  - 从磁盘读取 markdown 内容
+- `read_raw_text`
+  - 从磁盘读取 raw_text 内容
+- `delete_outputs`
+  - 删除 pdf_id 对应的所有输出文件
+- `_output_path`
+  - 生成输出文件路径，使用 pdf_id 防碰撞
+- `_sanitize_filename`
+  - 清除文件名中的不安全字符
+- `_write_file`
+  - 写入文件，确保父目录存在
+- `_read_file`
+  - 读取文件内容
+
+
+## `data_layer/converters/raw_text.py`
+
+Module docstring:
+> Raw Text 回退策略 —— 基于 pdfplumber 的纯文本提取
+
+Imports:
+- `core.contracts.pdf_conversion`
+- `data_layer.converters.base`
+- `logging`
+- `typing`
+
+Classes:
+- `RawTextStrategy`
+  - 基于 pdfplumber 的原始文本提取策略
+  - methods: is_available, convert, strategy_type, name, _compute_quality_score
 
 
 ## `data_layer/coordinator/__init__.py`
@@ -8792,14 +9011,12 @@ Module docstring:
 > 全自动数据抓取服务：定时自动抓取财联社、中国证券网、知丘研报、股票行情等真实数据
 
 Imports:
-- `apscheduler.schedulers.asyncio`
-- `asyncio`
+- `apscheduler.schedulers.blocking`
 - `datetime`
-- `fake_useragent`
-- `hashlib`
 - `logging`
+- `pathlib`
 - `random`
-- `requests`
+- `sys`
 - `typing`
 
 Functions:
@@ -8807,18 +9024,16 @@ Functions:
   - 生成随机请求头，防爬
 - `get_content_hash`
   - 生成内容哈希，用于去重
-- `fetch_with_retry`
-  - 带重试的请求，防爬
 - `ingest_cls_data`
   - 抓取财联社电报数据
 - `ingest_cnstock_data`
   - 抓取中国证券网新闻数据
 - `ingest_zq_data`
-  - 抓取知丘研报数据
+  - 抓取知丘所有数据（研报、公众号、会议纪要）
 - `ingest_stock_data`
   - 抓取股票行情、财务数据
 - `health_check`
-  - 健康检查，确保服务正常运行
+  - 健康检查
 - `run_scheduler`
   - 启动定时任务调度器
 
