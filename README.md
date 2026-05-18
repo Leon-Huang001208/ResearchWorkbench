@@ -176,6 +176,10 @@ cd ~/Desktop/Projects/AlphaFoundry
 
 # 安装依赖
 pip install -e ".[dev]"
+
+# 可选：PDF 转换支持
+pip install -e ".[pdf]"        # MarkItDown 支持 (microsoft/markitdown)
+pip install -e ".[pdf-full]"   # 完整支持 (含 MinerU, opendatalab/mineru)
 ```
 
 ### 配置数据库

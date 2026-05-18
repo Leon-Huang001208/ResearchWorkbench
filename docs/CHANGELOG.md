@@ -7,6 +7,22 @@
 ## [Unreleased]
 
 ### Added
+- **pdf-conversion-pipeline**: 完整的 PDF 到 Markdown 转换管道
+  - 新增 `core/contracts/pdf_conversion.py`：Pydantic 契约 (ConversionResult, StrategyType, ConversionStatus)
+  - 新增 `data_layer/converters/base.py`：PDFConversionStrategy 抽象基类
+  - 新增 `data_layer/converters/raw_text.py`：RawTextStrategy (pdfplumber, 始终可用)
+  - 新增 `data_layer/converters/markitdown.py`：MarkItDownStrategy (microsoft/markitdown)
+  - 新增 `data_layer/converters/mineru.py`：MinerUStrategy (opendatalab/mineru)
+  - 新增 `data_layer/converters/persistence.py`：磁盘持久化工具 (data/markdown/, data/raw_text/)
+  - 新增 `core/services/pdf_conversion_service.py`：PDFConversionService 核心编排
+  - 新增 `core/settings/config.py`：PDF 输出目录和阈值配置
+  - 新增 `app/api/routes/pdf_admin.py`：Admin API (convert/stats/pending/retry)
+  - 新增 `docs/modules/pdf_conversion_pipeline.md`：模块文档
+  - 新增 `tests/unit/core/services/test_pdf_conversion_service.py`：27 个服务层测试
+  - 新增 `tests/unit/data_layer/converters/test_persistence.py`：12 个持久化测试
+  - 新增 `tests/unit/test_pdf_admin_api.py`：7 个 API 测试
+  - 新增 `tests/integration/test_pdf_conversion_integration.py`：4 个集成测试
+  - 安装方式：`pip install -e ".[pdf]"` (MarkItDown) / `pip install -e ".[pdf-full]"` (MinerU)
 - **dev-governance**: 完整的开发治理系统与 Claude 工作流程
   - 新增 `CLAUDE.md`：精简的最高优先级入口文档，定义必须加载的规则
   - 新增 `.claude/rules/`：详细的规则目录

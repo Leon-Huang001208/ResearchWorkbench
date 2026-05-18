@@ -68,6 +68,7 @@ from app.api.routes import (  # noqa: E402
     outcome_journal,
     outcomes,
     paper_trading,
+    pdf_admin,
     pipeline,
     portfolio,
     replay,
@@ -118,6 +119,7 @@ app.include_router(templates.router)
 app.include_router(signal_lab.router)
 app.include_router(llm.router)
 app.include_router(scheduler.router)
+app.include_router(pdf_admin.router)
 
 # ─── 静态文件 ────────────────────────────────────────────
 _web_dir = Path(__file__).resolve().parent.parent / "web"

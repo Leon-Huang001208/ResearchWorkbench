@@ -128,3 +128,37 @@ python scripts/view_db.py
 - `data_layer/adapters/akshare_adapter.py`
 
 PR欢迎！
+
+## PDF 转换
+
+AlphaFoundry 支持将 PDF 研报自动转换为 Markdown/文本，支持三种策略自动降级：
+
+| 优先级 | 策略 | 质量 | 依赖 | 描述 |
+|--------|------|------|------|------|
+| 1 (最高) | MinerU | 最高 | `mineru[all]` + `magic-pdf` CLI | opendatalab/mineru, 保留表格结构和文档布局 |
+| 2 | MarkItDown | 高 | `markitdown[pdf]` | microsoft/markitdown, Markdown 转换 + 特征检测 |
+| 3 (始终可用) | Raw Text | 基线 | `pdfplumber` | 纯文本提取, 内置页面标记 |
+
+### 安装
+
+```bash
+# 基础安装 (pdfplumber only, always works)
+pip install -e .
+
+# 安装 MarkItDown 支持
+pip install -e ".[pdf]"
+
+# 安装完整 PDF 转换支持 (包括 MinerU)
+pip install -e ".[pdf-full]"
+```
+
+### Admin API
+
+| 方法 | 路由 | 描述 |
+|------|------|------|
+| POST | `/api/admin/pdf/convert` | 触发指定 PDF 转换 |
+| GET | `/api/admin/pdf/stats` | 获取转换统计 |
+| GET | `/api/admin/pdf/pending` | 列出待转换的 PDF |
+| POST | `/api/admin/pdf/retry` | 重试失败的转换 |
+
+详见 `docs/modules/pdf_conversion_pipeline.md`。

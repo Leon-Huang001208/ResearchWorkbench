@@ -36,6 +36,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+pdf = [
+    "markitdown[pdf]>=0.1.0",
+]
+pdf-full = [
+    "markitdown[pdf]>=0.1.0",
+    "mineru[all]>=2.0.0",
+]
 dev = [
     "pytest>=7.4.0",
     "pytest-asyncio>=0.21.0",

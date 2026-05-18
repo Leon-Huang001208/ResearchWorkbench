@@ -14,6 +14,7 @@
 | **AF-AUTO-003** | ✅ 已完成 | 2026-05-13 | 2026-05-13 | [progress_af_auto_003.md](progress_af_auto_003.md) |
 | **AF-AUTO-004** | ✅ 已完成 | 2026-05-13 | 2026-05-13 | [progress_af_auto_004.md](progress_af_auto_004.md) |
 | **AF-AUTO-005** | ✅ 已完成 | 2026-05-13 | 2026-05-14 | [progress_af_auto_005.md](progress_af_auto_005.md) |
+| **AF-AUTO-006** | ✅ 已完成 | 2026-05-14 | 2026-05-18 | [progress_af_auto_006.md](progress_af_auto_006.md) |
 
 ---
 
@@ -56,6 +57,11 @@
 - **关键**: 修复DashboardService回退逻辑Bug、资产分析默认使用真实数据、所有板块添加模拟数据回退机制、产业链图谱添加默认数据、调度器API集成、端到端验证通过
 - **测试**: scripts/test_fix.py 验证所有板块正常工作,Playwright浏览器测试通过
 
+### AF-AUTO-006: PDF to Markdown 转换管道 ✅
+- **目标**: 完整实现 PDF 到 Markdown 的转换管道，支持三策略自动降级
+- **成果**: 12/12 任务已完成（100%）
+- **关键**: MinerU/MarkItDown/RawText 三策略、自动降级、磁盘持久化、DocumentV1 自动创建、Admin API、50 个测试全部通过
+
 ---
 
 ## 文件结构
@@ -68,7 +74,8 @@
 ├── progress_af_auto_002.md  # AF-AUTO-002 详细进度
 ├── progress_af_auto_003.md  # AF-AUTO-003 详细进度
 ├── progress_af_auto_004.md  # AF-AUTO-004 详细进度
-└── progress_af_auto_005.md  # AF-AUTO-005 详细进度
+├── progress_af_auto_005.md  # AF-AUTO-005 详细进度
+└── progress_af_auto_006.md  # AF-AUTO-006 详细进度
 ```
 
 ---
@@ -82,5 +89,5 @@
 
 ---
 
-**最后更新**: 2026-05-14（AF-AUTO-005 完成！）
+**最后更新**: 2026-05-18（AF-AUTO-006 完成！）
 
