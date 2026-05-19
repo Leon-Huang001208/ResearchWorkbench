@@ -51,6 +51,13 @@ class Settings(BaseSettings):
     # 对象存储
     OBJECT_STORAGE_PATH: Path = PROJECT_ROOT / "data" / "objects"
 
+    # LLM 并发提取配置
+    LLM_EXTRACT_MAX_WORKERS: int = 8
+    LLM_EXTRACT_CHUNK_SIZE: int = 3500
+    LLM_EXTRACT_CHUNK_OVERLAP: int = 300
+    LLM_EXTRACT_MAX_RETRIES: int = 2
+    LLM_EXTRACT_LONG_TEXT_THRESHOLD: int = 1000
+
     # PDF 转换输出目录
     PDF_MARKDOWN_DIR: Path = PROJECT_ROOT / "data" / "markdown"
     PDF_RAW_TEXT_DIR: Path = PROJECT_ROOT / "data" / "raw_text"

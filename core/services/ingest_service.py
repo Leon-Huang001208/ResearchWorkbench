@@ -9,8 +9,10 @@ from typing import Any, Dict, Optional
 from core.contracts import Assertion, CanonicalEvent, DocumentEnvelope
 from core.interfaces import DocumentRepository, ModelGateway
 from core.observability import get_logger
+from core.settings.config import settings
 from knowledge_layer.assertions import AssertionExtractor, AssertionValidator, QualityGate
 from knowledge_layer.events import EventExtractor, EventQualityGate
+from knowledge_layer.extraction import ConcurrentLLMExtractor, split_text
 from knowledge_layer.retrieval import InMemoryVectorStore, VectorStore
 
 try:
@@ -64,31 +66,17 @@ class IngestService:
         source_name: Optional[str] = None,
         title: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """
-        摄入文件
-
-        Args:
-            file_path: 文件路径
-            source_type: 来源类型
-            source_name: 来源名称
-            title: 标题
-
-        Returns:
-            摄入结果
-        """
+        """摄入文件 —— 统一走 ingest_envelope() 管道"""
         logger.info(f"Ingesting file: {file_path}")
 
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
 
-        # 读取文件
         raw_text = self._read_file(file_path)
         canonical_text = self._normalize_text(raw_text)
 
-        # 创建文档信封
-        doc_id = str(uuid.uuid4())
-        doc = DocumentEnvelope(
-            doc_id=doc_id,
+        envelope = DocumentEnvelope(
+            doc_id=str(uuid.uuid4()),
             source_type=source_type,
             title=title or file_path.name,
             published_at=datetime.utcnow(),
@@ -99,60 +87,7 @@ class IngestService:
             canonical_text=canonical_text,
         )
 
-        # 提取断言
-        assertions = self._assertion_extractor.extract(canonical_text, doc_id)
-
-        # 质量门
-        approved_assertions, pending_assertions = self._assertion_quality_gate.process_batch(
-            assertions
-        )
-
-        # 提取事件
-        events = self._event_extractor.extract(canonical_text, doc_id)
-
-        # 质量门
-        approved_events, pending_events = self._event_quality_gate.process_batch(events)
-
-        # 保存断言到仓储
-        if self._assertion_repo:
-            for a in approved_assertions + pending_assertions:
-                try:
-                    self._assertion_repo.save(a)
-                except Exception as e:
-                    logger.warning(f"Failed to save assertion {a.assertion_id}: {e}")
-
-        # 保存事件到仓储
-        if self._event_repo:
-            for ev in approved_events + pending_events:
-                try:
-                    self._event_repo.save(ev)
-                except Exception as e:
-                    logger.warning(f"Failed to save event {ev.event_id}: {e}")
-
-        # 索引文档
-        self._vector_store.add_document(
-            doc_id=doc_id,
-            text=canonical_text,
-            metadata={"source_type": source_type, "source_name": source_name},
-        )
-
-        # 保存文档
-        if self._document_repo:
-            self._document_repo.save(doc)
-
-        result = {
-            "doc_id": doc_id,
-            "title": doc.title,
-            "assertions_extracted": len(assertions),
-            "assertions_approved": len(approved_assertions),
-            "assertions_pending": len(pending_assertions),
-            "events_extracted": len(events),
-            "events_approved": len(approved_events),
-            "events_pending": len(pending_events),
-        }
-
-        logger.info(f"Ingest completed: {result}")
-        return result
+        return self.ingest_envelope(envelope)
 
     def ingest_text(
         self,
@@ -161,105 +96,24 @@ class IngestService:
         source_name: str = "unknown",
         title: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """
-        摄入文本
-
-        Args:
-            text: 文本内容
-            source_type: 来源类型
-            source_name: 来源名称
-            title: 标题
-
-        Returns:
-            摄入结果
-        """
+        """摄入文本 —— 统一走 ingest_envelope() 管道"""
         logger.info(f"Ingesting text from source: {source_name}, title: {title or 'Untitled'}")
 
-        try:
-            # 创建临时文件或者直接处理
-            doc_id = str(uuid.uuid4())
-            canonical_text = self._normalize_text(text)
+        canonical_text = self._normalize_text(text)
 
-            logger.debug(f"Normalized text length: {len(canonical_text)}")
+        envelope = DocumentEnvelope(
+            doc_id=str(uuid.uuid4()),
+            source_type=source_type,
+            title=title or "Untitled",
+            published_at=datetime.utcnow(),
+            source_name=source_name,
+            language="zh",
+            metadata={},
+            raw_text=text,
+            canonical_text=canonical_text,
+        )
 
-            # 创建文档信封
-            doc = DocumentEnvelope(
-                doc_id=doc_id,
-                source_type=source_type,
-                title=title or "Untitled",
-                published_at=datetime.utcnow(),
-                source_name=source_name,
-                language="zh",
-                metadata={},
-                raw_text=text,
-                canonical_text=canonical_text,
-            )
-
-            # 提取断言
-            logger.debug("Extracting assertions...")
-            assertions = self._assertion_extractor.extract(canonical_text, doc_id)
-            logger.debug(f"Extracted {len(assertions)} assertions")
-
-            approved_assertions, pending_assertions = self._assertion_quality_gate.process_batch(
-                assertions
-            )
-
-            # 提取事件
-            logger.debug("Extracting events...")
-            events = self._event_extractor.extract(canonical_text, doc_id)
-            logger.debug(f"Extracted {len(events)} events")
-
-            approved_events, pending_events = self._event_quality_gate.process_batch(events)
-
-            # 保存断言到仓储
-            if self._assertion_repo:
-                for a in approved_assertions + pending_assertions:
-                    try:
-                        self._assertion_repo.save(a)
-                    except Exception as e:
-                        logger.warning(f"Failed to save assertion {a.assertion_id}: {e}")
-
-            # 保存事件到仓储
-            if self._event_repo:
-                for ev in approved_events + pending_events:
-                    try:
-                        self._event_repo.save(ev)
-                    except Exception as e:
-                        logger.warning(f"Failed to save event {ev.event_id}: {e}")
-
-            # 索引文档
-            logger.debug("Indexing document in vector store...")
-            self._vector_store.add_document(
-                doc_id=doc_id,
-                text=canonical_text,
-                metadata={"source_type": source_type, "source_name": source_name},
-            )
-
-            # 保存文档
-            if self._document_repo:
-                try:
-                    self._document_repo.save(doc)
-                    logger.debug(f"Document saved to repository: {doc_id}")
-                except Exception as e:
-                    logger.warning(f"Failed to save document to repository: {e}", exc_info=True)
-
-            result = {
-                "doc_id": doc_id,
-                "title": doc.title,
-                "assertions_extracted": len(assertions),
-                "assertions_approved": len(approved_assertions),
-                "assertions_pending": len(pending_assertions),
-                "events_extracted": len(events),
-                "events_approved": len(approved_events),
-                "events_pending": len(pending_events),
-            }
-
-            logger.info(f"Ingest completed successfully: {result}")
-            return result
-
-        except Exception as e:
-            logger.error(f"Ingest failed: {e}", exc_info=True)
-            raise
+        return self.ingest_envelope(envelope)
 
     def _read_file(self, file_path: Path) -> str:
         """读取文件内容"""
@@ -295,16 +149,26 @@ class IngestService:
         # 规范化文本
         canonical_text = self._normalize_text(envelope.canonical_text or envelope.raw_text)
 
-        # 合并提取（1次LLM调用） vs 分步提取
-        if len(canonical_text) > 100 and self._model_gateway:
-            # 合并提取（1次LLM调用）
-            combined = self._extract_combined(canonical_text, envelope.doc_id)
-            assertions = combined.get("assertions", [])
-            events = combined.get("events", [])
+        # 根据文本长度选择提取策略
+        if self._model_gateway:
+            threshold = settings.LLM_EXTRACT_LONG_TEXT_THRESHOLD
+            if len(canonical_text) > threshold:
+                # 长文本：chunk + 并发 LLM
+                combined = self._extract_combined_concurrent(canonical_text, envelope.doc_id)
+                assertions = combined.get("assertions", [])
+                events = combined.get("events", [])
+                extract_stats = combined.get("stats", {})
+            else:
+                # 短文本：一次 combined LLM
+                combined = self._extract_combined(canonical_text, envelope.doc_id)
+                assertions = combined.get("assertions", [])
+                events = combined.get("events", [])
+                extract_stats = {"mode": "combined_single_shot"}
         else:
-            # 短文本或无LLM：使用原有分步提取（rule-based fallback）
+            # 无 LLM：规则 fallback
             assertions = self._assertion_extractor.extract(canonical_text, envelope.doc_id)
             events = self._event_extractor.extract(canonical_text, envelope.doc_id)
+            extract_stats = {"mode": "rule_fallback"}
 
         # 质量门
         approved_assertions, pending_assertions = self._assertion_quality_gate.process_batch(
@@ -350,6 +214,7 @@ class IngestService:
             "events_extracted": len(events),
             "events_approved": len(approved_events),
             "events_pending": len(pending_events),
+            "extract_stats": extract_stats,
         }
 
         logger.info(f"Ingest envelope completed: {result}")
@@ -382,6 +247,7 @@ class IngestService:
                     {"role": "user", "content": user_prompt},
                 ],
                 temperature=0.1,
+                model=settings.EXTRACTION_MODEL,
             )
 
             # 解析 LLM 响应
@@ -413,6 +279,57 @@ class IngestService:
             events = self._event_extractor.extract(text, doc_id)
             return {"assertions": assertions, "events": events}
 
+    def _extract_combined_concurrent(
+        self,
+        text: str,
+        doc_id: str,
+        max_workers: int | None = None,
+    ) -> Dict[str, Any]:
+        """并发 chunk + LLM 提取（长文本用）
+
+        Args:
+            text: 规范化文本
+            doc_id: 文档 ID
+            max_workers: 并发数，默认从 settings 读取
+
+        Returns:
+            {"assertions": [...], "events": [...], "stats": {...}}
+        """
+        if max_workers is None:
+            max_workers = settings.LLM_EXTRACT_MAX_WORKERS
+
+        chunks = split_text(
+            text,
+            chunk_size=settings.LLM_EXTRACT_CHUNK_SIZE,
+            overlap=settings.LLM_EXTRACT_CHUNK_OVERLAP,
+        )
+
+        extractor = ConcurrentLLMExtractor(
+            model_gateway=self._model_gateway,
+            build_assertion_fn=self._build_combined_assertion,
+            build_event_fn=self._build_combined_event,
+            parse_response_fn=self._parse_combined_response,
+            max_workers=max_workers,
+            max_retries=settings.LLM_EXTRACT_MAX_RETRIES,
+        )
+
+        assertions, events, stats = extractor.extract_chunks(chunks, doc_id)
+
+        assertions = self._deduplicate_assertions(assertions)
+        events = self._deduplicate_events(events)
+
+        stats["mode"] = "combined_concurrent"
+
+        logger.info(
+            "concurrent combined extraction completed",
+            doc_id=doc_id,
+            stats=stats,
+            final_assertions=len(assertions),
+            final_events=len(events),
+        )
+
+        return {"assertions": assertions, "events": events, "stats": stats}
+
     def _parse_combined_response(self, content: str) -> Dict:
         """解析合并提取的 LLM 响应"""
         import json as _json
@@ -424,7 +341,46 @@ class IngestService:
         json_str = content[json_start:json_end]
         return _json.loads(json_str)
 
-    def _build_combined_assertion(self, data: Dict, doc_id: str) -> Optional[Assertion]:
+    def _deduplicate_assertions(self, assertions: list[Assertion]) -> list[Assertion]:
+        """对并发 chunk 提取的断言去重（基于 subject + predicate + object_value + source_doc_id）"""
+        seen: set[tuple] = set()
+        unique: list[Assertion] = []
+
+        for a in assertions:
+            key = (
+                a.subject_entity_id or "",
+                a.predicate.strip().lower(),
+                str(a.object_value or {}).strip().lower(),
+                a.source_doc_id,
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+            unique.append(a)
+
+        return unique
+
+    def _deduplicate_events(self, events: list[CanonicalEvent]) -> list[CanonicalEvent]:
+        """对并发 chunk 提取的事件去重（基于 event_type + summary[:80] + source_doc_id）"""
+        seen: set[tuple] = set()
+        unique: list[CanonicalEvent] = []
+
+        for e in events:
+            key = (
+                e.event_type,
+                (e.summary or "").strip()[:80],
+                getattr(e, "source_doc_id", ""),
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+            unique.append(e)
+
+        return unique
+
+    def _build_combined_assertion(
+        self, data: Dict, doc_id: str, chunk_index: int | None = None
+    ) -> Optional[Assertion]:
         """从合并提取的数据构建 Assertion"""
         try:
             from knowledge_layer.entity_resolution import EntityType
@@ -446,6 +402,10 @@ class IngestService:
                 except ValueError:
                     pass
 
+            source_span: dict = {"extracted": data}
+            if chunk_index is not None:
+                source_span["chunk_index"] = chunk_index
+
             return Assertion(
                 assertion_id=str(uuid.uuid4()),
                 subject_entity_id=subject_entity_id,
@@ -455,7 +415,7 @@ class IngestService:
                 observed_at=observed_at,
                 confidence=float(data.get("confidence", 0.7)),
                 source_doc_id=doc_id,
-                source_span={"extracted": data},
+                source_span=source_span,
                 extractor_version="combined_v1.0",
                 reviewer_status="draft",
             )
@@ -463,7 +423,9 @@ class IngestService:
             logger.error(f"Failed to build combined assertion: {e}", exc_info=True)
             return None
 
-    def _build_combined_event(self, data: Dict, doc_id: str) -> Optional[CanonicalEvent]:
+    def _build_combined_event(
+        self, data: Dict, doc_id: str, chunk_index: int | None = None
+    ) -> Optional[CanonicalEvent]:
         """从合并提取的数据构建 CanonicalEvent"""
         try:
             from knowledge_layer.events.types import EventType
@@ -491,6 +453,10 @@ class IngestService:
             evidence = data.get("evidence", "")
             event_time = self._event_extractor._extract_event_time(evidence) if evidence else None
 
+            evidence_spans: list[dict] = [{"text": evidence[:300]}]
+            if chunk_index is not None:
+                evidence_spans[0]["chunk_index"] = chunk_index
+
             return CanonicalEvent(
                 event_id=str(uuid.uuid4()),
                 event_type=event_type,
@@ -501,7 +467,7 @@ class IngestService:
                 needs_review=data.get("confidence", 0.7) < 0.8,
                 entities=entity_dicts,
                 assertions=[],
-                evidence_spans=[{"text": evidence[:300]}],
+                evidence_spans=evidence_spans,
                 source_doc_id=doc_id,
             )
         except Exception as e:

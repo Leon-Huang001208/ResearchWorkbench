@@ -1632,6 +1632,7 @@ AlphaFoundry/
 │   │   ├── thesis_review_service.py          # 论点审查服务
 │   │   └── timing_engine_service.py          # 择时引擎服务
 │   └── settings/               # 配置管理
+│       └── config.py           # Settings (模型网关/LLM提取/数据库/日志等)
 ├── data_layer/                 # 数据层
 │   ├── __init__.py
 │   ├── adapters/               # 数据适配器
@@ -1658,6 +1659,7 @@ AlphaFoundry/
 │   ├── entity_resolution/    # 实体解析
 │   ├── assertions/           # 断言管理
 │   ├── events/               # 事件管理
+│   ├── extraction/           # 并发 LLM 提取 (文本切分 + 并发抽取器)
 │   └── retrieval/            # 向量检索
 ├── reasoning/                # 推理层
 │   ├── evidence/             # 证据链管理

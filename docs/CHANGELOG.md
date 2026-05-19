@@ -7,6 +7,16 @@
 ## [Unreleased]
 
 ### Added
+- **concurrent-llm-extraction**: 数据提取管道升级 — 从单次串行 LLM 调用升级为 chunk 切分 + ThreadPoolExecutor 并发 + 去重
+  - 新增 `knowledge_layer/extraction/text_chunker.py`：轻量级滑动窗口文本切分器 (split_text)
+  - 新增 `knowledge_layer/extraction/concurrent_extractor.py`：ConcurrentLLMExtractor (并发 LLM 抽取, 重试, 统计)
+  - 重构 `core/services/ingest_service.py`：所有入口统一走 ingest_envelope() 管道，长文本自动切 chunk 并发提取
+  - 新增配置项：LLM_EXTRACT_MAX_WORKERS, LLM_EXTRACT_CHUNK_SIZE, LLM_EXTRACT_CHUNK_OVERLAP, LLM_EXTRACT_MAX_RETRIES, LLM_EXTRACT_LONG_TEXT_THRESHOLD
+  - **修复**: `_extract_combined()` 传入 EXTRACTION_MODEL 代替默认模型
+  - **修复**: `EventExtractor._extract_by_rules()` 补充 source_type/source_name/title 必填字段
+  - 新增 `tests/unit/knowledge_layer/extraction/test_text_chunker.py`：8 个切分测试
+  - 新增 `tests/unit/knowledge_layer/extraction/test_concurrent_extractor.py`：11 个并发提取器测试
+  - 新增 `tests/unit/test_ingest_service.py`：4 个新测试 (去重、委托、统计)
 - **market-data-pipeline**: 数据全流程升级 — 从 crawler → JSON 快照 升级为 crawler → normalizer → 结构化 SQL 表 → 派生 snapshot
   - 新增 `data_layer/repositories/models.py`：8 张结构化 SQL 表 (StockMasterDB, StockDailyBarDB, StockQuoteSnapshotDB, StockFinancialMetricDB, StockValuationDB, StockShareholderDB, IndexComponentDB, ETLRunDB)
   - 新增 `data_layer/repositories/market_data_repository.py`：MarketDataRepository (PostgreSQL upsert + SQLite fallback)

@@ -296,6 +296,7 @@
 | `knowledge_layer/entity_resolution/` | 实体解析与归一化 |
 | `knowledge_layer/assertions/` | 断言管理 |
 | `knowledge_layer/events/` | 事件存储与时间线索引 |
+| `knowledge_layer/extraction/` | 并发 LLM 提取 (文本切分 + 并发抽取器) |
 | `knowledge_layer/retrieval/` | 向量检索 |
 
 ---

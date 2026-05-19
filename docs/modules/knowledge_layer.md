@@ -26,6 +26,7 @@ Purpose:
 - Event storage and querying
 - Graph projection operations
 - Vector and keyword retrieval
+- Concurrent LLM extraction (text chunking + ThreadPoolExecutor)
 
 Update this section when:
 - Entity resolution logic changes

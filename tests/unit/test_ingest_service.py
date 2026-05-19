@@ -105,3 +105,93 @@ class TestIngestService:
         # 断言应该被提取（数量 >= 0）
         assert result["assertions_extracted"] >= 0
         assert result["events_extracted"] >= 0
+
+    def test_result_includes_extract_stats(self):
+        """测试结果包含 extract_stats"""
+        service = IngestService()
+        result = service.ingest_text(text="测试文本")
+        assert "extract_stats" in result
+        assert "mode" in result["extract_stats"]
+
+    def test_deduplicate_assertions_removes_duplicates(self):
+        """测试断言去重"""
+        from core.contracts import Assertion
+
+        service = IngestService()
+        a1 = Assertion(
+            assertion_id="id1",
+            subject_entity_id="COMP::600519.SH",
+            predicate="净利润增长",
+            object_value={"value": 28},
+            confidence=0.8,
+            source_doc_id="doc-1",
+            extractor_version="test",
+        )
+        a2 = Assertion(
+            assertion_id="id2",
+            subject_entity_id="COMP::600519.SH",
+            predicate="净利润增长",
+            object_value={"value": 28},
+            confidence=0.7,
+            source_doc_id="doc-1",
+            extractor_version="test",
+        )
+        a3 = Assertion(
+            assertion_id="id3",
+            subject_entity_id="COMP::000858.SZ",
+            predicate="营收下降",
+            object_value={"value": -5},
+            confidence=0.6,
+            source_doc_id="doc-1",
+            extractor_version="test",
+        )
+
+        result = service._deduplicate_assertions([a1, a2, a3])
+        assert len(result) == 2
+
+    def test_deduplicate_events_removes_duplicates(self):
+        """测试事件去重"""
+        from core.contracts import CanonicalEvent
+
+        service = IngestService()
+        e1 = CanonicalEvent(
+            event_id="e1",
+            event_type="earnings",
+            summary="茅台发布财报",
+            confidence=0.8,
+            source_type="report",
+            source_name="test",
+            title="test",
+            source_doc_id="doc-1",
+        )
+        e2 = CanonicalEvent(
+            event_id="e2",
+            event_type="earnings",
+            summary="茅台发布财报",
+            confidence=0.7,
+            source_type="report",
+            source_name="test",
+            title="test",
+            source_doc_id="doc-1",
+        )
+
+        result = service._deduplicate_events([e1, e2])
+        assert len(result) == 1
+
+    def test_ingest_file_delegates_to_envelope(self, tmp_path):
+        """测试 ingest_file 委托给 ingest_envelope"""
+        test_file = tmp_path / "test.txt"
+        test_file.write_text("测试内容", encoding="utf-8")
+        service = IngestService()
+        with patch.object(service, "ingest_envelope") as mock_envelope:
+            mock_envelope.return_value = {"doc_id": "test", "title": "test"}
+            service.ingest_file(file_path=test_file, source_type="report")
+        mock_envelope.assert_called_once()
+
+    def test_ingest_text_delegates_to_envelope(self):
+        """测试 ingest_text 委托给 ingest_envelope"""
+        service = IngestService()
+        with patch.object(service, "ingest_envelope") as mock_envelope:
+            mock_envelope.return_value = {"doc_id": "test", "title": "test"}
+            service.ingest_text(text="测试", source_type="report")
+        mock_envelope.assert_called_once()

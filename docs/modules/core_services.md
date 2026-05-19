@@ -82,7 +82,10 @@ Update this section when:
 Purpose:
 
 - Orchestrates document and event ingestion.
-- Coordinates chunking, classification, entity extraction, event extraction, storage, and indexing.
+- All entry points (`ingest_file`, `ingest_text`, `ingest_envelope`) unified through `ingest_envelope()`.
+- Short text (≤1000 chars): one-shot combined LLM extraction (assertions + events).
+- Long text (>1000 chars): auto chunking → concurrent LLM extraction (ThreadPoolExecutor 16 workers) → deduplication.
+- Coordinates quality gate, storage, and vector indexing.
 
 Related files:
 
@@ -91,6 +94,8 @@ Related files:
 - `core/services/entity_extractor.py`
 - `core/services/event_extractor.py`
 - `core/services/raw_storage_service.py`
+- `knowledge_layer/extraction/concurrent_extractor.py`
+- `knowledge_layer/extraction/text_chunker.py`
 
 Tests:
 
@@ -100,6 +105,7 @@ Update this section when:
 
 - Ingestion pipeline changes.
 - New document type is added.
+- Concurrency or chunking parameters change.
 - Extraction behavior changes.
 - Storage/indexing behavior changes.
 
