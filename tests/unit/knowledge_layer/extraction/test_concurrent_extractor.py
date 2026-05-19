@@ -213,3 +213,135 @@ class TestConcurrentLLMExtractor:
 
         extractor.extract_chunks(["chunk-0", "chunk-1"], "doc-1")
         assert captured_chunk_indices == [0, 1]
+
+    def test_model_parameter_passed_to_gateway(self):
+        import json
+
+        captured_models = []
+
+        def side_effect(messages, **kwargs):
+            captured_models.append(kwargs.get("model"))
+            return Mock(content=json.dumps({"assertions": [], "events": []}))
+
+        mock_gw = Mock()
+        mock_gw.chat = Mock(side_effect=side_effect)
+
+        extractor = ConcurrentLLMExtractor(
+            model_gateway=mock_gw,
+            build_assertion_fn=lambda d, doc_id, chunk_index=None: d,
+            build_event_fn=lambda d, doc_id, chunk_index=None: None,
+            parse_response_fn=json.loads,
+            max_workers=1,
+            max_retries=1,
+            model="gpt-4o-mini",
+        )
+
+        extractor.extract_chunks(["chunk-0", "chunk-1"], "doc-1")
+        assert all(m == "gpt-4o-mini" for m in captured_models), captured_models
+
+    def test_model_none_when_not_set(self):
+        import json
+
+        captured_models = []
+
+        def side_effect(messages, **kwargs):
+            captured_models.append(kwargs.get("model"))
+            return Mock(content=json.dumps({"assertions": [], "events": []}))
+
+        mock_gw = Mock()
+        mock_gw.chat = Mock(side_effect=side_effect)
+
+        extractor = ConcurrentLLMExtractor(
+            model_gateway=mock_gw,
+            build_assertion_fn=lambda d, doc_id, chunk_index=None: d,
+            build_event_fn=lambda d, doc_id, chunk_index=None: None,
+            parse_response_fn=json.loads,
+            max_workers=1,
+            max_retries=1,
+        )
+
+        extractor.extract_chunks(["chunk-0"], "doc-1")
+        assert captured_models == [None]
+
+    def test_many_chunks_all_processed(self):
+        import json
+
+        response = json.dumps({"assertions": [{"subject": "X"}], "events": []})
+        mock_gw = self._make_mock_gateway([response] * 32)
+        extractor = self._make_extractor(mock_gw, max_workers=8)
+
+        chunks = [f"chunk-{i}" for i in range(32)]
+        assertions, events, stats = extractor.extract_chunks(chunks, "doc-1")
+
+        assert len(assertions) == 32
+        assert stats["chunk_count"] == 32
+        assert stats["success_chunks"] == 32
+        assert stats["failed_chunks"] == 0
+
+    def test_concurrent_faster_than_serial(self):
+        import json
+        import time
+
+        def delayed_response(messages, **kwargs):
+            time.sleep(0.05)
+            return Mock(content=json.dumps({"assertions": [], "events": []}))
+
+        mock_gw = Mock()
+        mock_gw.chat = Mock(side_effect=delayed_response)
+
+        chunks = [f"chunk-{i}" for i in range(8)]
+
+        # serial (max_workers=1)
+        extractor_serial = ConcurrentLLMExtractor(
+            model_gateway=mock_gw,
+            build_assertion_fn=lambda d, doc_id, chunk_index=None: d,
+            build_event_fn=lambda d, doc_id, chunk_index=None: None,
+            parse_response_fn=json.loads,
+            max_workers=1,
+            max_retries=1,
+        )
+        t0 = time.perf_counter()
+        extractor_serial.extract_chunks(chunks, "doc-1")
+        serial_time = time.perf_counter() - t0
+
+        # concurrent (max_workers=8)
+        extractor_concurrent = ConcurrentLLMExtractor(
+            model_gateway=mock_gw,
+            build_assertion_fn=lambda d, doc_id, chunk_index=None: d,
+            build_event_fn=lambda d, doc_id, chunk_index=None: None,
+            parse_response_fn=json.loads,
+            max_workers=8,
+            max_retries=1,
+        )
+        t0 = time.perf_counter()
+        extractor_concurrent.extract_chunks(chunks, "doc-1")
+        concurrent_time = time.perf_counter() - t0
+
+        # 8 并发应该显著快于串行（每个 chunk 延迟 0.05s）
+        assert (
+            concurrent_time < serial_time * 0.5
+        ), f"serial={serial_time:.3f}s, concurrent={concurrent_time:.3f}s"
+
+    def test_retry_success_counts_as_success(self):
+        import json
+
+        call_count = {"count": 0}
+
+        def side_effect(messages, **kwargs):
+            call_count["count"] += 1
+            if call_count["count"] == 1:
+                raise RuntimeError("first attempt fails")
+            return Mock(
+                content=json.dumps({"assertions": [{"subject": "recovered"}], "events": []})
+            )
+
+        mock_gw = Mock()
+        mock_gw.chat = Mock(side_effect=side_effect)
+        extractor = self._make_extractor(mock_gw, max_workers=1)
+
+        assertions, events, stats = extractor.extract_chunks(["test"], "doc-1")
+
+        assert stats["success_chunks"] == 1
+        assert stats["failed_chunks"] == 0
+        assert len(assertions) == 1
+        assert assertions[0]["subject"] == "recovered"

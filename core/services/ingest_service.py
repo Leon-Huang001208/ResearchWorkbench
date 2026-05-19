@@ -1,6 +1,8 @@
 """
 摄入服务 - 文档摄入流程
 """
+import json
+import re
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -311,6 +313,7 @@ class IngestService:
             parse_response_fn=self._parse_combined_response,
             max_workers=max_workers,
             max_retries=settings.LLM_EXTRACT_MAX_RETRIES,
+            model=settings.EXTRACTION_MODEL,
         )
 
         assertions, events, stats = extractor.extract_chunks(chunks, doc_id)
@@ -341,16 +344,28 @@ class IngestService:
         json_str = content[json_start:json_end]
         return _json.loads(json_str)
 
+    @staticmethod
+    def _normalize_dedup_value(value: Any) -> str:
+        """规范化去重 key 值：JSON 化 dict + 去空白 + 全角半角归一化"""
+        if value is None:
+            return ""
+        if isinstance(value, dict):
+            value = json.dumps(value, ensure_ascii=False, sort_keys=True)
+        text = str(value).lower().strip()
+        text = re.sub(r"\s+", "", text)
+        text = text.replace("％", "%")
+        return text
+
     def _deduplicate_assertions(self, assertions: list[Assertion]) -> list[Assertion]:
         """对并发 chunk 提取的断言去重（基于 subject + predicate + object_value + source_doc_id）"""
-        seen: set[tuple] = set()
+        seen: set[tuple[str, str, str, str]] = set()
         unique: list[Assertion] = []
 
         for a in assertions:
             key = (
                 a.subject_entity_id or "",
-                a.predicate.strip().lower(),
-                str(a.object_value or {}).strip().lower(),
+                self._normalize_dedup_value(a.predicate),
+                self._normalize_dedup_value(a.object_value),
                 a.source_doc_id,
             )
             if key in seen:
@@ -362,7 +377,7 @@ class IngestService:
 
     def _deduplicate_events(self, events: list[CanonicalEvent]) -> list[CanonicalEvent]:
         """对并发 chunk 提取的事件去重（基于 event_type + summary[:80] + source_doc_id）"""
-        seen: set[tuple] = set()
+        seen: set[tuple[str, str, str]] = set()
         unique: list[CanonicalEvent] = []
 
         for e in events:

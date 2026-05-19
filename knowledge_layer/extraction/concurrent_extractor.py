@@ -4,12 +4,32 @@
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any, Callable, Protocol
 
 from core.observability import get_logger
 from knowledge_layer.assertions.prompts import AssertionPrompts
 
 logger = get_logger(__name__)
+
+
+class ModelResponseLike(Protocol):
+    content: str
+
+
+class ModelGatewayLike(Protocol):
+    def chat(
+        self,
+        messages: list[dict[str, str]],
+        temperature: float = ...,
+        model: str | None = ...,
+        **kwargs: Any,
+    ) -> ModelResponseLike:
+        ...
+
+
+BuildAssertionFn = Callable[[dict[str, Any], str, int | None], Any]
+BuildEventFn = Callable[[dict[str, Any], str, int | None], Any]
+ParseResponseFn = Callable[[str], dict[str, Any]]
 
 
 @dataclass
@@ -28,19 +48,21 @@ class ConcurrentLLMExtractor:
 
     def __init__(
         self,
-        model_gateway: Any,
-        build_assertion_fn: Callable,
-        build_event_fn: Callable,
-        parse_response_fn: Callable,
+        model_gateway: ModelGatewayLike,
+        build_assertion_fn: BuildAssertionFn,
+        build_event_fn: BuildEventFn,
+        parse_response_fn: ParseResponseFn,
         max_workers: int = 16,
         max_retries: int = 2,
-    ):
+        model: str | None = None,
+    ) -> None:
         self.model_gateway = model_gateway
         self.build_assertion_fn = build_assertion_fn
         self.build_event_fn = build_event_fn
         self.parse_response_fn = parse_response_fn
         self.max_workers = max_workers
         self.max_retries = max_retries
+        self.model = model
 
     def extract_chunks(
         self,
@@ -119,6 +141,7 @@ class ConcurrentLLMExtractor:
                         {"role": "user", "content": user_prompt},
                     ],
                     temperature=0.1,
+                    model=self.model,
                 )
 
                 raw_data = self.parse_response_fn(response.content)

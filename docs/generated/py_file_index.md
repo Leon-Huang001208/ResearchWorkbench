@@ -3227,18 +3227,20 @@ Imports:
 - `core.observability`
 - `core.settings.config`
 - `datetime`
+- `json`
 - `knowledge_layer.assertions`
 - `knowledge_layer.events`
 - `knowledge_layer.extraction`
 - `knowledge_layer.retrieval`
 - `pathlib`
+- `re`
 - `typing`
 - `uuid`
 
 Classes:
 - `IngestService`
   - 摄入服务
-  - methods: __init__, ingest_file, ingest_text, _read_file, ingest_envelope, _extract_combined, _extract_combined_concurrent, _parse_combined_response, _deduplicate_assertions, _deduplicate_events, _build_combined_assertion, _build_combined_event, _normalize_text
+  - methods: __init__, ingest_file, ingest_text, _read_file, ingest_envelope, _extract_combined, _extract_combined_concurrent, _parse_combined_response, _normalize_dedup_value, _deduplicate_assertions, _deduplicate_events, _build_combined_assertion, _build_combined_event, _normalize_text
 
 
 ## `core/services/ingestion_queue_service.py`
@@ -7110,6 +7112,9 @@ Imports:
 - `typing`
 
 Classes:
+- `ModelResponseLike`
+- `ModelGatewayLike`
+  - methods: chat
 - `ChunkExtractionResult`
   - 单个 chunk 的提取结果
 - `ConcurrentLLMExtractor`
