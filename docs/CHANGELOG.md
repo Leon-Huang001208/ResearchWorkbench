@@ -14,8 +14,11 @@
   - 新增配置项：LLM_EXTRACT_MAX_WORKERS, LLM_EXTRACT_CHUNK_SIZE, LLM_EXTRACT_CHUNK_OVERLAP, LLM_EXTRACT_MAX_RETRIES, LLM_EXTRACT_LONG_TEXT_THRESHOLD
   - **修复**: `_extract_combined()` 传入 EXTRACTION_MODEL 代替默认模型
   - **修复**: `EventExtractor._extract_by_rules()` 补充 source_type/source_name/title 必填字段
+  - **修复 (风险处置)**: 并发路径 `_extract_one_chunk()` 传入 `model=self.model`，消除并发/非并发路径结果不一致
+  - **改进**: `ConcurrentLLMExtractor` 补 Protocol / Callable 精确类型，targeted mypy 通过
+  - **改进**: 去重 key 从 `str(dict)` 升级为 `json.dumps(sort_keys=True)` + 空白归一化
   - 新增 `tests/unit/knowledge_layer/extraction/test_text_chunker.py`：8 个切分测试
-  - 新增 `tests/unit/knowledge_layer/extraction/test_concurrent_extractor.py`：11 个并发提取器测试
+  - 新增 `tests/unit/knowledge_layer/extraction/test_concurrent_extractor.py`：16 个并发提取器测试 (含 model 透传、32 chunk 全量、并发加速验证、retry 成功计数)
   - 新增 `tests/unit/test_ingest_service.py`：4 个新测试 (去重、委托、统计)
 - **market-data-pipeline**: 数据全流程升级 — 从 crawler → JSON 快照 升级为 crawler → normalizer → 结构化 SQL 表 → 派生 snapshot
   - 新增 `data_layer/repositories/models.py`：8 张结构化 SQL 表 (StockMasterDB, StockDailyBarDB, StockQuoteSnapshotDB, StockFinancialMetricDB, StockValuationDB, StockShareholderDB, IndexComponentDB, ETLRunDB)
