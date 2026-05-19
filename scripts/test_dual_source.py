@@ -8,7 +8,7 @@
 3. 时间窗口策略是否正确
 """
 import sys
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 # 添加项目根目录到路径
@@ -99,7 +99,7 @@ def test_time_window_strategy():
     print("\n=== Testing Time Window Strategy ===")
 
     try:
-        from data_layer.validation import TimeWindowStrategy, TimeWindowConfig
+        from data_layer.validation import TimeWindowConfig, TimeWindowStrategy
 
         # 测试白天模式（09:00-21:00）
         config = TimeWindowConfig()
@@ -108,7 +108,7 @@ def test_time_window_strategy():
         # 测试白天
         daytime = datetime(2024, 5, 15, 14, 30, 0)
         decision_day = strategy.get_decision(daytime)
-        print(f"Daytime (14:30):")
+        print("Daytime (14:30):")
         print(f"  Mode: {decision_day.current_mode.value}")
         print(f"  Active sources: {decision_day.active_sources}")
         print(f"  Should validate: {decision_day.should_validate}")
@@ -116,7 +116,7 @@ def test_time_window_strategy():
         # 测试晚上
         nighttime = datetime(2024, 5, 15, 22, 30, 0)
         decision_night = strategy.get_decision(nighttime)
-        print(f"\nNighttime (22:30):")
+        print("\nNighttime (22:30):")
         print(f"  Mode: {decision_night.current_mode.value}")
         print(f"  Active sources: {decision_night.active_sources}")
         print(f"  Should validate: {decision_night.should_validate}")
@@ -133,9 +133,10 @@ def test_dual_source_validator():
     print("\n=== Testing Dual Source Validator ===")
 
     try:
-        from data_layer.crawlers.akshare.base import MarketData
-        from data_layer.validation import DualSourceValidator, ValidationStatus
         from datetime import datetime, timedelta
+
+        from data_layer.crawlers.akshare.base import MarketData
+        from data_layer.validation import DualSourceValidator
 
         validator = DualSourceValidator(threshold_pct=0.5, warning_threshold_pct=0.2)
 
@@ -205,12 +206,12 @@ def test_adjustment_normalizer():
 
         # 测试获取拉取参数
         flags = normalizer.get_fetch_adjustment_flags(AdjustmentType.QFQ)
-        print(f"Fetch flags for QFQ:")
+        print("Fetch flags for QFQ:")
         print(f"  AkShare: {flags['akshare']}")
         print(f"  BaoStock: {flags['baostock']}")
 
         flags = normalizer.get_fetch_adjustment_flags(AdjustmentType.NONE)
-        print(f"\nFetch flags for NONE:")
+        print("\nFetch flags for NONE:")
         print(f"  AkShare: {flags['akshare']}")
         print(f"  BaoStock: {flags['baostock']}")
 
@@ -226,7 +227,7 @@ def test_alert_manager():
     print("\n=== Testing Alert Manager ===")
 
     try:
-        from data_layer.validation import AlertManager, Alert, AlertLevel
+        from data_layer.validation import Alert, AlertLevel, AlertManager
 
         manager = AlertManager()
         manager.add_log_channel()
@@ -333,4 +334,3 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
-

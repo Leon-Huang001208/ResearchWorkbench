@@ -1,4 +1,3 @@
-
 """
 Yahoo Finance 数据爬虫模块
 
@@ -15,13 +14,13 @@ data = adapter.market.get_historical_data("AAPL", period="1y")
 info = adapter.fundamental.get_stock_info("AAPL")
 """
 from .base import (
+    DEFAULT_CONFIG,
+    YahooAdapter,
     YahooConfig,
+    YahooError,
+    YahooFinancialData,
     YahooMarketData,
     YahooStockInfo,
-    YahooFinancialData,
-    YahooAdapter,
-    YahooError,
-    DEFAULT_CONFIG,
 )
 from .utils import (
     convert_symbol,
@@ -45,4 +44,3 @@ __all__ = [
     "get_supported_periods",
     "is_valid_yahoo_symbol",
 ]
-

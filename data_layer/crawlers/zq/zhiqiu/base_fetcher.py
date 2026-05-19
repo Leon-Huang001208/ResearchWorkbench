@@ -620,7 +620,12 @@ class BaseFetcher:
                 )
 
     def _process_search_result(
-        self, json_data, processor_class, output_prefix: str, watermark_key: Optional[str] = None, **processor_kwargs
+        self,
+        json_data,
+        processor_class,
+        output_prefix: str,
+        watermark_key: Optional[str] = None,
+        **processor_kwargs,
     ):
         """
         通用的搜索结果处理方法

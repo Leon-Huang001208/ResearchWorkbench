@@ -3,6 +3,7 @@
 
 from playwright.sync_api import sync_playwright
 
+
 def main():
     with sync_playwright() as p:
         # Launch browser
@@ -18,10 +19,10 @@ def main():
         page.click('button.activity-btn[data-section="asset-analysis"]')
 
         # Wait for the section to become active
-        page.wait_for_selector('section#section-asset-analysis.content-section.active')
+        page.wait_for_selector("section#section-asset-analysis.content-section.active")
 
         # 3. Find the input element
-        input_elem = page.locator('input#asset-code')
+        input_elem = page.locator("input#asset-code")
         input_elem.wait_for(state="visible")
 
         # 4. Get the placeholder attribute
@@ -48,7 +49,7 @@ def main():
                 "x": max(0, input_bounding["x"] - 20),
                 "y": max(0, input_bounding["y"] - 20),
                 "width": input_bounding["width"] + 40,
-                "height": input_bounding["height"] + 40
+                "height": input_bounding["height"] + 40,
             }
             detail_screenshot = "/Users/leon/Desktop/Projects/AlphaFoundry/tests/e2e/screenshots/asset-placeholder-detail.png"
             page.screenshot(path=detail_screenshot, clip=clip)
@@ -59,6 +60,7 @@ def main():
         browser.close()
 
         return placeholder == expected
+
 
 if __name__ == "__main__":
     success = main()

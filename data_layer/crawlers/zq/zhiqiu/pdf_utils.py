@@ -10,13 +10,13 @@ import hashlib
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
-from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
 
 @dataclass
 class PDFMetadata:
     """PDF 元数据"""
+
     obj_id: str  # 知丘文档 ID
     file_path: str  # 文件路径（相对或绝对）
     file_hash: str  # SHA-256 哈希
@@ -163,14 +163,22 @@ def is_pdf_available(obj_id: str, output_dir: str, pdf_dir: str = "pdfs") -> boo
     # 先检查元数据
     metadata = load_pdf_metadata(obj_id, output_dir)
     if metadata and metadata.file_path:
-        full_path = os.path.join(output_dir, metadata.file_path) if not os.path.isabs(metadata.file_path) else metadata.file_path
+        full_path = (
+            os.path.join(output_dir, metadata.file_path)
+            if not os.path.isabs(metadata.file_path)
+            else metadata.file_path
+        )
         if os.path.exists(full_path):
             return True
 
     # 直接检查常见的 PDF 文件路径
     for broker_subdir in ["", "unknown"]:
         # 尝试多种可能的文件名模式
-        base_dir = os.path.join(output_dir, pdf_dir, broker_subdir) if broker_subdir else os.path.join(output_dir, pdf_dir)
+        base_dir = (
+            os.path.join(output_dir, pdf_dir, broker_subdir)
+            if broker_subdir
+            else os.path.join(output_dir, pdf_dir)
+        )
         if not os.path.exists(base_dir):
             continue
 
@@ -196,7 +204,11 @@ def get_pdf_path(obj_id: str, output_dir: str, pdf_dir: str = "pdfs") -> Optiona
     # 先检查元数据
     metadata = load_pdf_metadata(obj_id, output_dir)
     if metadata and metadata.file_path:
-        full_path = os.path.join(output_dir, metadata.file_path) if not os.path.isabs(metadata.file_path) else metadata.file_path
+        full_path = (
+            os.path.join(output_dir, metadata.file_path)
+            if not os.path.isabs(metadata.file_path)
+            else metadata.file_path
+        )
         if os.path.exists(full_path):
             return full_path
 

@@ -9,7 +9,7 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 
-from data_layer.repositories.base import check_database_connection, ensure_schema, db_session
+from data_layer.repositories.base import check_database_connection, db_session, ensure_schema
 from data_layer.repositories.models import AlertThresholdDB
 from scripts.bootstrap_db import DEFAULT_ALERT_THRESHOLDS, verify_schema
 

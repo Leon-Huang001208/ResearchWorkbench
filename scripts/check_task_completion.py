@@ -6,7 +6,6 @@ from __future__ import annotations
 import subprocess
 import sys
 
-
 SOURCE_DIRS = [
     "app/",
     "core/",
@@ -54,12 +53,8 @@ def main() -> int:
         return 0
 
     changed_source = [file for file in changed if is_source_py(file)]
-    changed_tests = [
-        file for file in changed if file.startswith("tests/") and file.endswith(".py")
-    ]
-    changed_docs = [
-        file for file in changed if file.startswith("docs/") and file.endswith(".md")
-    ]
+    changed_tests = [file for file in changed if file.startswith("tests/") and file.endswith(".py")]
+    changed_docs = [file for file in changed if file.startswith("docs/") and file.endswith(".md")]
     changed_reports = [
         file for file in changed if file.startswith(".ai/reports/") and file.endswith(".md")
     ]
@@ -77,7 +72,9 @@ def main() -> int:
 
     if changed_source and not changed_docs:
         print("❌ Source Python files changed, but no docs were changed.")
-        print("Expected: update docs/modules, docs/FILE_GUIDE.md, docs/ARCHITECTURE.md, or related docs.")
+        print(
+            "Expected: update docs/modules, docs/FILE_GUIDE.md, docs/ARCHITECTURE.md, or related docs."
+        )
         failed = True
 
     if changed_source and not changed_changelog:

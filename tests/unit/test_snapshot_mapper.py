@@ -2,6 +2,7 @@
 SnapshotToPlaceholdersMapper 的单元测试
 """
 from datetime import datetime
+
 import pytest
 
 from reporting.integration.snapshot_mapper import SnapshotToPlaceholdersMapper, get_snapshot_mapper
@@ -19,7 +20,7 @@ class MockAssetAnalysisCard:
             "symbol": "600519",
             "name": "贵州茅台",
             "short_name": "贵州茅台",
-            "market_cap": 2_200_000_000_000.0
+            "market_cap": 2_200_000_000_000.0,
         }
 
         # 市场数据
@@ -30,11 +31,7 @@ class MockAssetAnalysisCard:
         self.low_52w = 1400.00
 
         # 财务数据
-        self.financial = {
-            "roe": 0.245,
-            "debt_ratio": 0.25,
-            "pe_ttm": 35.5
-        }
+        self.financial = {"roe": 0.245, "debt_ratio": 0.25, "pe_ttm": 35.5}
 
         # 估值数据
         self.valuation = {
@@ -51,21 +48,14 @@ class MockAssetAnalysisCard:
             "sw_level_2": "白酒",
             "sw_level_3": "高端白酒",
             "industry_pe": 30.0,
-            "industry_pb": 8.5
+            "industry_pb": 8.5,
         }
 
         # 资金流向
-        self.capital_flow = {
-            "main_net": 500_000_000.0
-        }
+        self.capital_flow = {"main_net": 500_000_000.0}
 
         # 事件
-        self.recent_events = [
-            {
-                "title": "贵州茅台发布年报，业绩超预期",
-                "content": "公司实现营收同比增长15%，净利润同比增长18%"
-            }
-        ]
+        self.recent_events = [{"title": "贵州茅台发布年报，业绩超预期", "content": "公司实现营收同比增长15%，净利润同比增长18%"}]
 
         # 旧格式兼容
         self.price_volume = {
@@ -77,7 +67,6 @@ class MockAssetAnalysisCard:
 
 
 class TestSnapshotToPlaceholdersMapper:
-
     @pytest.fixture
     def mapper(self):
         return SnapshotToPlaceholdersMapper()

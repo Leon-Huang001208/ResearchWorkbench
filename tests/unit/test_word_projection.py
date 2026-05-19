@@ -1,5 +1,4 @@
 """Tests for WordProjection."""
-from io import BytesIO
 from pathlib import Path
 from unittest.mock import patch
 
@@ -132,6 +131,7 @@ class TestWordProjectionFromTemplate:
         """检查 python-docx 是否可用"""
         try:
             import docx  # noqa: F401
+
             return True
         except ImportError:
             return False
@@ -153,7 +153,6 @@ class TestWordProjectionFromTemplate:
     @pytest.mark.skipif(not WordProjection()._check_docx(), reason="python-docx not installed")
     def test_save_from_template(self, tmp_path):
         """测试从模板保存"""
-        import docx
 
         projection = WordProjection()
 
@@ -199,7 +198,6 @@ class TestWordProjectionFromTemplate:
     @pytest.mark.skipif(not WordProjection()._check_docx(), reason="python-docx not installed")
     def test_save_from_template_with_tables(self, tmp_path):
         """测试从模板保存并添加表格"""
-        import docx
 
         projection = WordProjection()
 

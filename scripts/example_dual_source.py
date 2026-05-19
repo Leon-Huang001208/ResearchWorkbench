@@ -8,7 +8,7 @@ AlphaFoundry 双源数据系统使用示例
 3. 告警和审计 - 记录所有操作
 """
 import sys
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 
 # 添加项目根目录到路径
@@ -44,7 +44,7 @@ def example_time_window():
     print("Example 2: Time Window Strategy")
     print("=" * 60)
 
-    from data_layer.validation import TimeWindowStrategy, TimeWindowConfig
+    from data_layer.validation import TimeWindowConfig, TimeWindowStrategy
 
     # 创建策略
     config = TimeWindowConfig()
@@ -52,11 +52,11 @@ def example_time_window():
 
     # 测试不同时间点
     test_times = [
-        datetime(2024, 5, 15, 9, 0, 0),   # 刚进入白天
-        datetime(2024, 5, 15, 14, 30, 0), # 白天中间
-        datetime(2024, 5, 15, 20, 59, 0), # 白天快结束
+        datetime(2024, 5, 15, 9, 0, 0),  # 刚进入白天
+        datetime(2024, 5, 15, 14, 30, 0),  # 白天中间
+        datetime(2024, 5, 15, 20, 59, 0),  # 白天快结束
         datetime(2024, 5, 15, 21, 0, 0),  # 刚进入晚上
-        datetime(2024, 5, 15, 23, 30, 0), # 深夜
+        datetime(2024, 5, 15, 23, 30, 0),  # 深夜
     ]
 
     for t in test_times:
@@ -89,15 +89,9 @@ def example_dual_validation():
     for i in range(5):
         dt = base_date + timedelta(days=i)
         close = 100.0 + i * 0.5
-        data1_p.append(
-            MarketData(symbol="600519.SH", timestamp=dt, close=close, source="akshare")
-        )
-        data2_p.append(
-            MarketData(symbol="600519.SH", timestamp=dt, close=close, source="baostock")
-        )
-    result1 = validator.validate(
-        "600519.SH", data1_p, data2_p, "akshare", "baostock"
-    )
+        data1_p.append(MarketData(symbol="600519.SH", timestamp=dt, close=close, source="akshare"))
+        data2_p.append(MarketData(symbol="600519.SH", timestamp=dt, close=close, source="baostock"))
+    result1 = validator.validate("600519.SH", data1_p, data2_p, "akshare", "baostock")
     print(f"  Status: {result1.status.value}")
     print(f"  Summary: {result1.summary}")
 
@@ -108,12 +102,8 @@ def example_dual_validation():
         dt = base_date + timedelta(days=i)
         # 添加 0.1% 差异
         close = 100.0 + i * 0.5 + 0.1
-        data2_s.append(
-            MarketData(symbol="600519.SH", timestamp=dt, close=close, source="baostock")
-        )
-    result2 = validator.validate(
-        "600519.SH", data1_p, data2_s, "akshare", "baostock"
-    )
+        data2_s.append(MarketData(symbol="600519.SH", timestamp=dt, close=close, source="baostock"))
+    result2 = validator.validate("600519.SH", data1_p, data2_s, "akshare", "baostock")
     print(f"  Status: {result2.status.value}")
     print(f"  Max diff: {result2.max_relative_diff_pct:.2f}%")
 
@@ -124,12 +114,8 @@ def example_dual_validation():
         dt = base_date + timedelta(days=i)
         # 添加 1% 差异
         close = 100.0 + i * 0.5 + 1.0
-        data2_l.append(
-            MarketData(symbol="600519.SH", timestamp=dt, close=close, source="baostock")
-        )
-    result3 = validator.validate(
-        "600519.SH", data1_p, data2_l, "akshare", "baostock"
-    )
+        data2_l.append(MarketData(symbol="600519.SH", timestamp=dt, close=close, source="baostock"))
+    result3 = validator.validate("600519.SH", data1_p, data2_l, "akshare", "baostock")
     print(f"  Status: {result3.status.value}")
     print(f"  Max diff: {result3.max_relative_diff_pct:.2f}%")
     print(f"  Recommended source: {result3.recommended_source}")
@@ -215,4 +201,3 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
-

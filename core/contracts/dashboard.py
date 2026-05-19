@@ -342,7 +342,9 @@ class GlobalNewsItem(BaseModel):
         default_factory=list, description="List of related ticker symbols"
     )
     region: str = Field(description="Region this news pertains to (e.g., Global, US, China)")
-    is_mock: bool = Field(default=False, description="Whether this is mock data (True) or real data (False)")
+    is_mock: bool = Field(
+        default=False, description="Whether this is mock data (True) or real data (False)"
+    )
 
 
 class SectorChangeItem(BaseModel):
@@ -368,7 +370,9 @@ class SectorChangeItem(BaseModel):
     is_concept: bool = Field(
         default=False, description="Whether this is a concept (True) or traditional sector (False)"
     )
-    is_mock: bool = Field(default=False, description="Whether this is mock data (True) or real data (False)")
+    is_mock: bool = Field(
+        default=False, description="Whether this is mock data (True) or real data (False)"
+    )
 
 
 class MarketOverviewSection(BaseModel):
@@ -392,9 +396,15 @@ class MarketOverviewSection(BaseModel):
     top_down_sectors: List[SectorChangeItem] = Field(
         default_factory=list, description="List of top losing sectors/concepts (top 5)"
     )
-    uses_real_news: bool = Field(default=False, description="Whether news data is from real sources")
-    uses_real_sectors: bool = Field(default=False, description="Whether sector data is from real sources")
-    last_updated: Optional[datetime] = Field(default=None, description="Timestamp when data was last updated from real sources")
+    uses_real_news: bool = Field(
+        default=False, description="Whether news data is from real sources"
+    )
+    uses_real_sectors: bool = Field(
+        default=False, description="Whether sector data is from real sources"
+    )
+    last_updated: Optional[datetime] = Field(
+        default=None, description="Timestamp when data was last updated from real sources"
+    )
 
 
 class DashboardResponse(BaseModel):

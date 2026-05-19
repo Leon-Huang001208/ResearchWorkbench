@@ -3,12 +3,8 @@
 """
 from datetime import datetime, time, timedelta
 
-import pytest
-
 from core.utils.trading_calendar import (
-    AFTERNOON_END,
     AFTERNOON_START,
-    MORNING_END,
     MORNING_START,
     TradingCalendar,
     TradingPeriod,

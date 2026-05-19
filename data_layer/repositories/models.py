@@ -1,6 +1,16 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import JSON, Boolean, Column, DateTime, ForeignKey, Integer, Numeric, Text
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import relationship
 
 from data_layer.repositories.base import Base
@@ -1498,5 +1508,189 @@ class ProcessedItemV1DB(Base):
     doc_id = Column(Text, nullable=True, index=True)
 
     extra = Column(JSON, nullable=False, default=dict)
+
+    __table_args__ = {"extend_existing": True}
+
+
+# =============================================================================
+# AF-AUTO-007: 市场结构化事实表
+# =============================================================================
+
+
+class StockMasterDB(Base):
+    """股票基础信息表"""
+
+    __tablename__ = "stock_master"
+
+    symbol = Column(Text, primary_key=True)
+    raw_code = Column(Text, nullable=False, index=True)
+    name = Column(Text, nullable=False)
+    exchange = Column(Text, nullable=True)
+    market = Column(Text, nullable=True)
+    industry_level1 = Column(Text, nullable=True)
+    industry_level2 = Column(Text, nullable=True)
+    industry_level3 = Column(Text, nullable=True)
+    list_date = Column(DateTime(timezone=True), nullable=True)
+    source = Column(Text, nullable=False, default="unknown")
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    __table_args__ = {"extend_existing": True}
+
+
+class StockDailyBarDB(Base):
+    """日行情表"""
+
+    __tablename__ = "stock_daily_bar"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    symbol = Column(Text, nullable=False, index=True)
+    trade_date = Column(DateTime(timezone=True), nullable=False, index=True)
+    open = Column(Numeric, nullable=True)
+    high = Column(Numeric, nullable=True)
+    low = Column(Numeric, nullable=True)
+    close = Column(Numeric, nullable=True)
+    volume = Column(Numeric, nullable=True)
+    amount = Column(Numeric, nullable=True)
+    turnover = Column(Numeric, nullable=True)
+    source = Column(Text, nullable=False, default="unknown")
+    raw_payload = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "symbol",
+            "trade_date",
+            "source",
+            name="uq_stock_daily_bar_symbol_date_source",
+        ),
+        {"extend_existing": True},
+    )
+
+
+class StockQuoteSnapshotDB(Base):
+    """实时行情快照表"""
+
+    __tablename__ = "stock_quote_snapshot"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    symbol = Column(Text, nullable=False, index=True)
+    quote_time = Column(DateTime(timezone=True), nullable=False, index=True)
+    last_price = Column(Numeric, nullable=True)
+    change_pct = Column(Numeric, nullable=True)
+    volume = Column(Numeric, nullable=True)
+    amount = Column(Numeric, nullable=True)
+    turnover = Column(Numeric, nullable=True)
+    pe = Column(Numeric, nullable=True)
+    pb = Column(Numeric, nullable=True)
+    source = Column(Text, nullable=False, default="unknown")
+    raw_payload = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    __table_args__ = {"extend_existing": True}
+
+
+class StockFinancialMetricDB(Base):
+    """财务指标表"""
+
+    __tablename__ = "stock_financial_metric"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    symbol = Column(Text, nullable=False, index=True)
+    report_date = Column(DateTime(timezone=True), nullable=False, index=True)
+    report_type = Column(Text, nullable=True)
+    total_revenue = Column(Numeric, nullable=True)
+    net_profit = Column(Numeric, nullable=True)
+    total_assets = Column(Numeric, nullable=True)
+    total_liabilities = Column(Numeric, nullable=True)
+    equity = Column(Numeric, nullable=True)
+    roe = Column(Numeric, nullable=True)
+    roa = Column(Numeric, nullable=True)
+    gross_margin = Column(Numeric, nullable=True)
+    net_margin = Column(Numeric, nullable=True)
+    debt_ratio = Column(Numeric, nullable=True)
+    source = Column(Text, nullable=False, default="unknown")
+    raw_payload = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    __table_args__ = {"extend_existing": True}
+
+
+class StockValuationDB(Base):
+    """估值指标表"""
+
+    __tablename__ = "stock_valuation"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    symbol = Column(Text, nullable=False, index=True)
+    as_of = Column(DateTime(timezone=True), nullable=False, index=True)
+    pe_ttm = Column(Numeric, nullable=True)
+    pe_dynamic = Column(Numeric, nullable=True)
+    pb = Column(Numeric, nullable=True)
+    ps = Column(Numeric, nullable=True)
+    market_cap = Column(Numeric, nullable=True)
+    float_market_cap = Column(Numeric, nullable=True)
+    source = Column(Text, nullable=False, default="unknown")
+    raw_payload = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    __table_args__ = {"extend_existing": True}
+
+
+class StockShareholderDB(Base):
+    """股东信息表"""
+
+    __tablename__ = "stock_shareholder"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    symbol = Column(Text, nullable=False, index=True)
+    report_date = Column(DateTime(timezone=True), nullable=False, index=True)
+    holder_name = Column(Text, nullable=False)
+    holder_rank = Column(Integer, nullable=True)
+    shares = Column(Numeric, nullable=True)
+    holding_pct = Column(Numeric, nullable=True)
+    holder_type = Column(Text, nullable=True)
+    source = Column(Text, nullable=False, default="unknown")
+    raw_payload = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    __table_args__ = {"extend_existing": True}
+
+
+class IndexComponentDB(Base):
+    """指数成分表"""
+
+    __tablename__ = "index_component"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    index_symbol = Column(Text, nullable=False, index=True)
+    component_symbol = Column(Text, nullable=False, index=True)
+    component_name = Column(Text, nullable=True)
+    weight = Column(Numeric, nullable=True)
+    as_of = Column(DateTime(timezone=True), nullable=False, index=True)
+    source = Column(Text, nullable=False, default="unknown")
+    raw_payload = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    __table_args__ = {"extend_existing": True}
+
+
+class ETLRunDB(Base):
+    """ETL 运行记录表"""
+
+    __tablename__ = "etl_run"
+
+    run_id = Column(Text, primary_key=True)
+    job_name = Column(Text, nullable=False, index=True)
+    source = Column(Text, nullable=False, index=True)
+    status = Column(Text, nullable=False, default="running")
+    started_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    finished_at = Column(DateTime(timezone=True), nullable=True)
+    items_fetched = Column(Integer, nullable=False, default=0)
+    items_normalized = Column(Integer, nullable=False, default=0)
+    items_saved = Column(Integer, nullable=False, default=0)
+    error_message = Column(Text, nullable=True)
+    metadata_ = Column("metadata", JSON, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
 
     __table_args__ = {"extend_existing": True}

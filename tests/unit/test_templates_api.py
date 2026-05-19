@@ -3,7 +3,7 @@
 """
 import io
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -125,7 +125,13 @@ class TestTemplatesAPI:
                 "file_type": "docx",
                 "description": "Test template",
             },
-            files={"file": ("test_template.docx", test_file, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+            files={
+                "file": (
+                    "test_template.docx",
+                    test_file,
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                )
+            },
         )
 
         # 响应应该是成功或缺少依赖时返回 500
@@ -154,7 +160,13 @@ class TestTemplatesAPI:
                 "file_type": "pptx",
                 "description": "Test PPTX template",
             },
-            files={"file": ("test_template.pptx", test_file, "application/vnd.openxmlformats-officedocument.presentationml.presentation")},
+            files={
+                "file": (
+                    "test_template.pptx",
+                    test_file,
+                    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                )
+            },
         )
 
         # 响应应该是成功或缺少依赖时返回 500
@@ -317,7 +329,13 @@ class TestTemplatesAPITemplates:
                 "file_type": "docx",
                 "description": "Test template",
             },
-            files={"file": ("test_template.docx", test_file, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+            files={
+                "file": (
+                    "test_template.docx",
+                    test_file,
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                )
+            },
         )
         # 不做断言，因为这依赖于外部库
 

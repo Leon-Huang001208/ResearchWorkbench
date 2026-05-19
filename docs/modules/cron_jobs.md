@@ -17,18 +17,36 @@
 
 ## Files
 
-### `cron_jobs/*.py`
+### `cron_jobs/auto_ingest_service.py`
 
 Purpose:
-- Scheduled job definitions
-- Automation scripts
-- Background processing logic
+- Scheduled market data ingestion pipeline.
+
+Schedule:
+- `15:15` — `ingest_stock_master()`: sync stock list via `POST /api/market-data/stocks/sync`.
+- `15:30` — `ingest_daily_bars()`: sync daily bars via `POST /api/market-data/daily-bars/sync`.
+- `15:45` — `ingest_stock_snapshots()`: trigger asset analysis via `POST /api/assets/analyze`.
+
+Related service:
+- `core/services/market_data_ingestion_service.py`
 
 Update this section when:
-- New scheduled jobs are added
-- Schedule frequency changes
-- Job dependency changes
-- Failure/retry behavior changes
+- Schedule frequency changes.
+- Ingestion steps change.
+- API endpoints change.
+- Failure/retry behavior changes.
+
+---
+
+### `cron_jobs/auto_generate_signals.py`
+
+Purpose:
+- Scheduled signal generation from approved events.
+
+Update this section when:
+- Signal generation logic changes.
+- Schedule frequency changes.
+- Signal approval workflow changes.
 
 ---
 

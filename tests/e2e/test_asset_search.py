@@ -25,11 +25,8 @@ async def test_asset_search():
 
     async with async_playwright() as p:
         # 启动浏览器（非无头模式便于观察）
-        browser = await p.chromium.launch(
-            headless=False,
-            slow_mo=100  # 慢动作便于调试
-        )
-        context = await browser.new_context(viewport={'width': 1400, 'height': 900})
+        browser = await p.chromium.launch(headless=False, slow_mo=100)  # 慢动作便于调试
+        context = await browser.new_context(viewport={"width": 1400, "height": 900})
         page = await context.new_page()
 
         # 监听控制台消息便于调试
@@ -46,7 +43,9 @@ async def test_asset_search():
             print(f"页面标题: {await page.title()}")
 
             # 截图：初始仪表盘
-            await page.screenshot(path=str(screenshot_dir / "01_initial_dashboard.png"), full_page=True)
+            await page.screenshot(
+                path=str(screenshot_dir / "01_initial_dashboard.png"), full_page=True
+            )
             print("✓ 截图已保存: 01_initial_dashboard.png")
 
             print("\n" + "=" * 60)
@@ -128,45 +127,53 @@ async def test_asset_search():
             await asyncio.sleep(1.5)  # 等待防抖和网络请求
 
             # 检查 API 返回结果
-            symbols_count = await page.evaluate(f"""
-                async () => {{
-                    try {{
+            symbols_count = await page.evaluate(
+                """
+                async () => {
+                    try {
                         const response = await fetch('/api/search?q=600519&types=symbol');
                         const data = await response.json();
                         return data.symbols.length;
-                    }} catch(e) {{
+                    } catch(e) {
                         console.error('Fetch error:', e);
                         return -1;
-                    }}
-                }}
-            """)
+                    }
+                }
+            """
+            )
             print(f"API 返回 {symbols_count} 个标的结果")
 
             # 检查下拉框状态
             dropdown_selector = "#asset-search-dropdown"
-            is_dropdown_visible = await page.evaluate("""
+            is_dropdown_visible = await page.evaluate(
+                """
                 () => {
                     const el = document.querySelector('#asset-search-dropdown');
                     return el && !el.classList.contains('hidden');
                 }
-            """)
+            """
+            )
 
-            html_content = await page.evaluate("""
+            html_content = await page.evaluate(
+                """
                 () => {
                     const el = document.querySelector('#asset-search-dropdown');
                     return el ? el.innerHTML.trim() : 'not found';
                 }
-            """)
+            """
+            )
             print(f"下拉框可见: {is_dropdown_visible}, HTML 长度: {len(html_content)}")
 
             # 根据代码逻辑，如果结果为空会保持 hidden，这是正确的
-            data = await page.evaluate(f"""
-                async () => {{
+            data = await page.evaluate(
+                """
+                async () => {
                     const response = await fetch('/api/search?q=6&types=symbol');
                     const data = await response.json();
                     return data.symbols.length;
-                }}
-            """)
+                }
+            """
+            )
             print(f"测试：搜索 '6' 返回 {data} 个结果")
 
             # 如果没有数据，尝试更长的等待并确认前端逻辑正确
@@ -178,17 +185,22 @@ async def test_asset_search():
                 print("  - API 请求成功发出")
                 print("  - 空结果时下拉框保持隐藏是正确行为")
                 # 截图当前状态
-                await page.screenshot(path=str(screenshot_dir / "04_empty_results.png"), full_page=True)
+                await page.screenshot(
+                    path=str(screenshot_dir / "04_empty_results.png"), full_page=True
+                )
                 print("✓ 截图已保存: 04_empty_results.png")
                 item_count = 0
             else:
                 # 有结果，等待下拉框显示
-                await page.wait_for_function(f"""
+                await page.wait_for_function(
+                    f"""
                     () => {{
                         const el = document.querySelector('{dropdown_selector}');
                         return el && !el.classList.contains('hidden');
                     }}
-                """, timeout=3000)
+                """,
+                    timeout=3000,
+                )
                 dropdown = page.locator(dropdown_selector)
                 result_items = dropdown.locator(".search-result-item")
                 item_count = await result_items.count()
@@ -196,7 +208,9 @@ async def test_asset_search():
                 if item_count > 0:
                     first_item_text = await result_items.first.inner_text()
                     print(f"第一个结果: {first_item_text.strip()[:100]}")
-                await page.screenshot(path=str(screenshot_dir / "04_search_results.png"), full_page=True)
+                await page.screenshot(
+                    path=str(screenshot_dir / "04_search_results.png"), full_page=True
+                )
                 print("✓ 截图已保存: 04_search_results.png")
 
             print("\n" + "=" * 60)
@@ -219,12 +233,16 @@ async def test_asset_search():
                 print("✓ 方向键导航完成")
 
                 # 截图：键盘导航后
-                await page.screenshot(path=str(screenshot_dir / "05_keyboard_navigation.png"), full_page=True)
+                await page.screenshot(
+                    path=str(screenshot_dir / "05_keyboard_navigation.png"), full_page=True
+                )
                 print("✓ 截图已保存: 05_keyboard_navigation.png")
             else:
                 print("⚠  没有搜索结果，跳过键盘导航测试")
                 print("  键盘导航事件已绑定，代码逻辑正确")
-                await page.screenshot(path=str(screenshot_dir / "05_no_results.png"), full_page=True)
+                await page.screenshot(
+                    path=str(screenshot_dir / "05_no_results.png"), full_page=True
+                )
                 print("✓ 截图已保存: 05_no_results.png")
 
             print("\n" + "=" * 60)
@@ -243,12 +261,15 @@ async def test_asset_search():
                     loading_visible = True
                     print("✓ 检测到资产加载状态，分析已触发")
                     # 等待加载完成
-                    await page.wait_for_function(f"""
-                        () => {{
+                    await page.wait_for_function(
+                        """
+                        () => {
                             const el = document.querySelector('#asset-loading');
                             return !el || el.classList.contains('hidden');
-                        }}
-                    """, timeout=10000)
+                        }
+                    """,
+                        timeout=10000,
+                    )
                     await asyncio.sleep(2)
                 else:
                     # 加载可能非常快，直接检查结果
@@ -259,22 +280,29 @@ async def test_asset_search():
             # 检查分析结果是否显示 - #asset-result 应该可见
             result_selector = "#asset-result"
             try:
-                await page.wait_for_function(f"""
+                await page.wait_for_function(
+                    f"""
                     () => {{
                         const el = document.querySelector('{result_selector}');
                         return el && !el.classList.contains('hidden');
                     }}
-                """, timeout=10000)
+                """,
+                    timeout=10000,
+                )
 
                 if await page.locator(result_selector).is_visible():
                     print(f"✓ 分析结果区域可见: {result_selector}")
 
                 # 截图：分析结果
-                await page.screenshot(path=str(screenshot_dir / "07_analysis_result.png"), full_page=True)
+                await page.screenshot(
+                    path=str(screenshot_dir / "07_analysis_result.png"), full_page=True
+                )
                 print("✓ 截图已保存: 07_analysis_result.png")
             except Exception:
                 print("⚠ 分析结果未显示（可能因为没有数据或 API 错误）")
-                await page.screenshot(path=str(screenshot_dir / "07_after_enter.png"), full_page=True)
+                await page.screenshot(
+                    path=str(screenshot_dir / "07_after_enter.png"), full_page=True
+                )
                 print("✓ 当前状态截图已保存: 07_after_enter.png")
 
             print("\n" + "=" * 60)
@@ -294,7 +322,7 @@ async def test_asset_search():
             print(f"1. 占位符检查: {'✓ 通过' if placeholder_ok else '✗ 失败'}")
             print(f"2. 无默认值: {'✓ 通过' if value == '' else '✗ 失败'}")
             print(f"3. 搜索结果显示: {'✓ 通过' if item_count > 0 else '✗ 失败'}")
-            print(f"4. Enter 触发分析: ✓ 通过")
+            print("4. Enter 触发分析: ✓ 通过")
 
             # 保持浏览器打开供手动检查
             print("\n浏览器保持打开中，按 Ctrl+C 关闭...")
@@ -307,6 +335,7 @@ async def test_asset_search():
         except Exception as e:
             print(f"\n✗ 测试失败: {e}")
             import traceback
+
             traceback.print_exc()
             # 出错时也保存截图
             try:

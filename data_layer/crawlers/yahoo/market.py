@@ -1,4 +1,3 @@
-
 """
 Yahoo Finance 行情数据获取器
 
@@ -8,12 +7,8 @@ from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 
 from core.observability import get_logger
-from .base import (
-    BaseYahooFetcher,
-    YahooConfig,
-    YahooMarketData,
-    YahooStockInfo,
-)
+
+from .base import BaseYahooFetcher, YahooConfig, YahooMarketData, YahooStockInfo
 
 logger = get_logger("yahoo_market")
 
@@ -68,9 +63,7 @@ class YahooMarketFetcher(BaseYahooFetcher):
                 )
             else:
                 if start_date is None or end_date is None:
-                    raise ValueError(
-                        "Either period or start_date + end_date must be provided"
-                    )
+                    raise ValueError("Either period or start_date + end_date must be provided")
                 df = ticker.history(
                     start=start_date,
                     end=end_date,
@@ -212,9 +205,7 @@ class YahooMarketFetcher(BaseYahooFetcher):
             logger.error("Failed to batch fetch historical data: %s", e)
             raise
 
-    def _df_to_market_data(
-        self, df: Any, symbol: str
-    ) -> List[YahooMarketData]:
+    def _df_to_market_data(self, df: Any, symbol: str) -> List[YahooMarketData]:
         """将 DataFrame 转换为 YahooMarketData 列表"""
         result = []
 
@@ -272,4 +263,3 @@ class YahooMarketFetcher(BaseYahooFetcher):
             pass
 
         return data
-

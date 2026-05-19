@@ -9,7 +9,6 @@ sys.path.insert(0, str(project_root))
 
 import asyncio
 import json
-from io import BytesIO
 
 import httpx
 
@@ -33,13 +32,14 @@ async def test_templates_api():
             if response.status_code == 200:
                 data = response.json()
                 print(f"Found {data.get('total', 0)} template(s)")
-                for tmpl in data.get('templates', []):
+                for tmpl in data.get("templates", []):
                     print(f"  - {tmpl['template_name']}: {tmpl['description']}")
             else:
                 print(f"Error: {response.text}")
         except Exception as e:
             print(f"Error listing templates: {e}")
             import traceback
+
             traceback.print_exc()
 
         # 3. Try to create a YAML template (without file upload)

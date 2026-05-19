@@ -16,8 +16,9 @@ logger = get_logger(__name__)
 try:
     import pptx
     from pptx import Presentation
-    from pptx.util import Inches, Pt
     from pptx.enum.text import PP_ALIGN
+    from pptx.util import Inches, Pt
+
     PPTX_AVAILABLE = True
 except ImportError:
     PPTX_AVAILABLE = False
@@ -171,13 +172,9 @@ class PowerPointProjection:
             # Replace in shapes
             for shape in slide.shapes:
                 if shape.has_text_frame:
-                    self._replace_placeholders_in_text_frame(
-                        shape.text_frame, placeholder_map
-                    )
+                    self._replace_placeholders_in_text_frame(shape.text_frame, placeholder_map)
                 if shape.has_table:
-                    self._replace_placeholders_in_table(
-                        shape.table, placeholder_map
-                    )
+                    self._replace_placeholders_in_table(shape.table, placeholder_map)
 
     def _replace_placeholders_in_text_frame(
         self,
@@ -332,13 +329,13 @@ class PowerPointProjection:
             height = Inches(4)
 
         num_rows = len(table_spec.rows) + 1  # +1 for header
-        num_cols = len(table_spec.headers) if table_spec.headers else (
-            len(table_spec.rows[0]) if table_spec.rows else 1
+        num_cols = (
+            len(table_spec.headers)
+            if table_spec.headers
+            else (len(table_spec.rows[0]) if table_spec.rows else 1)
         )
 
-        table = slide.shapes.add_table(
-            num_rows, num_cols, left, top, width, height
-        ).table
+        table = slide.shapes.add_table(num_rows, num_cols, left, top, width, height).table
 
         # Add header
         if table_spec.headers:
@@ -389,9 +386,7 @@ class PowerPointProjection:
 
                                 # Add picture
                                 image_stream = BytesIO(image_bytes)
-                                slide.shapes.add_picture(
-                                    image_stream, left, top, width, height
-                                )
+                                slide.shapes.add_picture(image_stream, left, top, width, height)
                                 placeholder_found = True
                                 break
                     if placeholder_found:

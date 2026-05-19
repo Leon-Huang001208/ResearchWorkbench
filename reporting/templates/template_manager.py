@@ -4,7 +4,7 @@
 Template manager handles loading, validation, and storage of report templates.
 """
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Literal
+from typing import Any, Dict, List, Literal, Optional, Set
 
 import yaml
 
@@ -704,9 +704,7 @@ class TemplateManager:
                     for row in shape.table.rows:
                         for cell in row.cells:
                             for paragraph in cell.text_frame.paragraphs:
-                                found = self._extract_placeholders_from_text(
-                                    paragraph.text
-                                )
+                                found = self._extract_placeholders_from_text(paragraph.text)
                                 placeholders.update(found)
 
         logger.info(f"Discovered {len(placeholders)} placeholders from PPTX {template_name}")

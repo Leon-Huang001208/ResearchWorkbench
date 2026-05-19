@@ -40,6 +40,7 @@ class TestHealthCheck:
 class TestAssetsAPI:
     def test_analyze_asset(self):
         from datetime import datetime, timezone
+
         mock_service = MagicMock()
         mock_snapshot = AssetAnalysisSnapshot(
             canonical_id="600000.SH",
@@ -94,6 +95,7 @@ class TestAssetsAPI:
 
     def test_analyze_with_as_of(self):
         from datetime import datetime, timezone
+
         mock_service = MagicMock()
         mock_snapshot = AssetAnalysisSnapshot(
             canonical_id="000001.SZ",

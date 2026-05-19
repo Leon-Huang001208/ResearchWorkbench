@@ -280,9 +280,7 @@ class ReportProcessor(BaseProcessor):
                         skipped_count += 1
                         if stop_on_known:
                             stopped_by_watermark = True
-                            self.client.logger.info(
-                                f"[水位线] 遇到已知研报 {obj_id}，停止抓取"
-                            )
+                            self.client.logger.info(f"[水位线] 遇到已知研报 {obj_id}，停止抓取")
                             break
                         continue
 
@@ -314,9 +312,7 @@ class ReportProcessor(BaseProcessor):
         # 设置水位线
         if state_manager and first_new_obj_id and watermark_key:
             state_manager.set_watermark(watermark_key, first_new_obj_id)
-            self.client.logger.info(
-                f"[水位线] 设置水位线为 {first_new_obj_id}"
-            )
+            self.client.logger.info(f"[水位线] 设置水位线为 {first_new_obj_id}")
 
         if output_file:
             os.makedirs(os.path.dirname(output_file), exist_ok=True)
@@ -369,9 +365,7 @@ class ReportProcessor(BaseProcessor):
                     skipped_count += 1
                     if stop_on_known:
                         stopped_by_watermark = True
-                        self.client.logger.info(
-                            f"[水位线] 遇到已知研报 {obj_id}，停止抓取"
-                        )
+                        self.client.logger.info(f"[水位线] 遇到已知研报 {obj_id}，停止抓取")
                         break
                     continue
 
@@ -400,9 +394,7 @@ class ReportProcessor(BaseProcessor):
         # 设置水位线
         if state_manager and first_new_obj_id and watermark_key:
             state_manager.set_watermark(watermark_key, first_new_obj_id)
-            self.client.logger.info(
-                f"[水位线] 设置水位线为 {first_new_obj_id}"
-            )
+            self.client.logger.info(f"[水位线] 设置水位线为 {first_new_obj_id}")
 
         if output_file:
             os.makedirs(os.path.dirname(output_file), exist_ok=True)
@@ -493,7 +485,11 @@ class ReportProcessor(BaseProcessor):
 
                 # PDF 转换
                 if enable_pdf_conversion and output_dir:
-                    full_pdf_path = os.path.join(output_dir, pdf_path) if not os.path.isabs(pdf_path) else pdf_path
+                    full_pdf_path = (
+                        os.path.join(output_dir, pdf_path)
+                        if not os.path.isabs(pdf_path)
+                        else pdf_path
+                    )
                     if os.path.exists(full_pdf_path):
                         try:
                             conv_result, saved_paths = convert_and_save(
@@ -504,9 +500,13 @@ class ReportProcessor(BaseProcessor):
                             )
                             if conv_result.success:
                                 if "markdown" in saved_paths:
-                                    item["markdownPath"] = os.path.relpath(saved_paths["markdown"], output_dir)
+                                    item["markdownPath"] = os.path.relpath(
+                                        saved_paths["markdown"], output_dir
+                                    )
                                 if "raw_text" in saved_paths:
-                                    item["rawTextPath"] = os.path.relpath(saved_paths["raw_text"], output_dir)
+                                    item["rawTextPath"] = os.path.relpath(
+                                        saved_paths["raw_text"], output_dir
+                                    )
                                 item["pdfConversionStrategy"] = conv_result.strategy_used
                         except Exception as e:
                             self.client.logger.warning(f"PDF 转换失败: {e}")
@@ -602,7 +602,11 @@ class ReportProcessor(BaseProcessor):
 
                 # PDF 转换
                 if enable_pdf_conversion and output_dir:
-                    full_pdf_path = os.path.join(output_dir, pdf_result["relative_path"]) if not os.path.isabs(pdf_result["relative_path"]) else pdf_result["relative_path"]
+                    full_pdf_path = (
+                        os.path.join(output_dir, pdf_result["relative_path"])
+                        if not os.path.isabs(pdf_result["relative_path"])
+                        else pdf_result["relative_path"]
+                    )
                     if os.path.exists(full_pdf_path):
                         try:
                             conv_result, saved_paths = convert_and_save(
@@ -613,9 +617,13 @@ class ReportProcessor(BaseProcessor):
                             )
                             if conv_result.success:
                                 if "markdown" in saved_paths:
-                                    item["markdownPath"] = os.path.relpath(saved_paths["markdown"], output_dir)
+                                    item["markdownPath"] = os.path.relpath(
+                                        saved_paths["markdown"], output_dir
+                                    )
                                 if "raw_text" in saved_paths:
-                                    item["rawTextPath"] = os.path.relpath(saved_paths["raw_text"], output_dir)
+                                    item["rawTextPath"] = os.path.relpath(
+                                        saved_paths["raw_text"], output_dir
+                                    )
                                 item["pdfConversionStrategy"] = conv_result.strategy_used
                         except Exception as e:
                             self.client.logger.warning(f"PDF 转换失败: {e}")

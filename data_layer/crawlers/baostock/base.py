@@ -8,7 +8,7 @@ from abc import ABC
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from core.observability import get_logger
 
@@ -148,4 +148,3 @@ class BaoStockAdapter:
                 "error": str(e),
                 "timestamp": datetime.now().isoformat(),
             }
-

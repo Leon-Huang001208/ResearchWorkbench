@@ -1,18 +1,16 @@
-
 """
 Yahoo Finance 基础模块测试
 """
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 
 import pytest
 
 from data_layer.crawlers.yahoo.base import (
     YahooConfig,
+    YahooError,
+    YahooFinancialData,
     YahooMarketData,
     YahooStockInfo,
-    YahooFinancialData,
-    YahooError,
-    DEFAULT_CONFIG,
 )
 
 
@@ -183,4 +181,3 @@ class TestYahooError:
         with pytest.raises(YahooError) as exc_info:
             raise YahooError("Something went wrong")
         assert "Something went wrong" in str(exc_info.value)
-

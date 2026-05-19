@@ -314,4 +314,3 @@ class DualSourceValidator:
             f"Found {discrepancy_count} discrepancies exceeding warning threshold. "
             f"Max diff: {max_diff_str}, Avg diff: {avg_diff_str}."
         )
-

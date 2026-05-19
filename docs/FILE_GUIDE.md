@@ -72,6 +72,7 @@
 | `app/api/routes/dashboard.py` | 仪表盘 API：获取仪表盘汇总数据 |
 | `app/api/routes/governance.py` | 治理 API：版本控制、配置管理 |
 | `app/api/routes/ingest.py` | 数据摄入 API：上传文件、拉取实时源 |
+| `app/api/routes/market_data.py` | 市场数据 API：同步股票列表、同步日行情、查询日行情、查询 ETL 运行记录 |
 | `app/api/routes/memory.py` | 记忆 API：查询失败记忆、市场事件记忆 |
 | `app/api/routes/monitoring.py` | 监控 API：健康检查、指标、告警 |
 | `app/api/routes/outcome_journal.py` | 结果日志 API：记录结果、查询相似案例 |
@@ -216,6 +217,8 @@
 | `raw_storage_service.py` | 原始存储服务：原始文件存储和管理 |
 | `news_feature_service.py` | 新闻特征服务：从新闻提取特征 |
 | `pipeline_service.py` | 管道服务：数据处理管道编排 |
+| **市场数据 ETL** | |
+| `market_data_ingestion_service.py` | 市场数据摄入服务：编排 ETL 流程（爬取 → normalizer → 结构化表 → ETL 运行记录） |
 
 ---
 
@@ -268,15 +271,21 @@
 
 ### data_layer/normalizers/ - 归一化器
 
-| 目录 | 说明 |
+| 文件 | 说明 |
 |---|---|
-| `data_layer/normalizers/` | 数据归一化，统一不同数据源的格式 |
+| `data_layer/normalizers/common.py` | 通用工具：to_decimal 安全数值转换 |
+| `data_layer/normalizers/symbol.py` | A 股代码标准化：60/68/90→SH，00/30/20→SZ，43/83/87/88→BJ |
+| `data_layer/normalizers/akshare_market.py` | AKShare 行情数据 normalizer：MarketData / StockInfo → dict |
+| `data_layer/normalizers/akshare_financial.py` | AKShare 财务数据 normalizer：FinancialData → dict |
 
 ### data_layer/repositories/ - 仓储实现
 
-| 目录 | 说明 |
+| 文件 | 说明 |
 |---|---|
-| `data_layer/repositories/` | 仓储实现，实现 core.interfaces 中定义的接口 |
+| `data_layer/repositories/base.py` | 仓储基类：BaseRepository，提供通用数据库操作方法 |
+| `data_layer/repositories/models.py` | SQLAlchemy ORM 模型：定义所有数据库表模型 |
+| `data_layer/repositories/market_data_repository.py` | 市场数据仓储：PostgreSQL upsert / SQLite fallback，管理股票主表、日行情、估值、财务、股东等结构化表 |
+| `data_layer/repositories/etl_run_repository.py` | ETL 运行记录仓储：记录 ETL 运行开始、成功、失败，查询运行历史 |
 
 ---
 

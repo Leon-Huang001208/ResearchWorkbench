@@ -2,7 +2,7 @@
 from typing import Dict, List, Optional
 
 from core.observability import get_logger
-from data_layer.repositories.search_repository import SearchRepository, SearchRepositoryImpl
+from data_layer.repositories.search_repository import SearchRepository
 
 logger = get_logger(__name__)
 
@@ -92,7 +92,9 @@ class GlobalSearchService:
             except Exception as e:
                 logger.warning(f"Market episode search failed: {e}")
 
-        if "signal" in type_filter or "thesis" in type_filter:  # thesis is already included in signals
+        if (
+            "signal" in type_filter or "thesis" in type_filter
+        ):  # thesis is already included in signals
             try:
                 results["signals"] = self.search_repo.search_signals(pattern, limit)
             except Exception as e:

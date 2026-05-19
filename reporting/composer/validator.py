@@ -5,7 +5,7 @@ Report validator checks quality and compliance of generated content.
 """
 from typing import List, Optional, Set
 
-from core.contracts import SectionSpec, ValidationResult, ValidationResults, FactCard
+from core.contracts import FactCard, SectionSpec, ValidationResult, ValidationResults
 from core.interfaces import ModelGateway
 from core.observability import get_logger
 
@@ -350,8 +350,8 @@ class ReportValidator:
 
             evidence_parts = [f"证据{i+1}:\n{content}" for i, content in enumerate(evidence_content)]
 
-            facts_text = '\n'.join(facts)
-            evidence_text = '\n\n'.join(evidence_parts)
+            facts_text = "\n".join(facts)
+            evidence_text = "\n\n".join(evidence_parts)
 
             prompt = f"""
 你是一个事实核查员，请检查下面的报告内容是否完全基于提供的事实和证据，有没有编造、夸大或超出证据范围的信息。

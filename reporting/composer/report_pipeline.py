@@ -230,7 +230,7 @@ class ReportPipeline:
         Returns:
             Retrieved evidence package.
         """
-        from core.contracts import RetrievalQuery, RetrievalFilters
+        from core.contracts import RetrievalFilters, RetrievalQuery
 
         if not self.retrieval_service:
             return EvidencePackage(
@@ -269,6 +269,7 @@ class ReportPipeline:
             filters.min_research_usability = 0.5
             # 至少是专业媒体来源
             from core.contracts.documents_v1 import SourceReliabilityLevel
+
             filters.min_source_reliability = SourceReliabilityLevel.SPECIALIZED_MEDIA
 
         query = RetrievalQuery(

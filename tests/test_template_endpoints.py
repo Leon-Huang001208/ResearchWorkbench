@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """测试所有模板相关的API端点"""
 import asyncio
-import json
-from pathlib import Path
 import sys
+from pathlib import Path
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
@@ -16,9 +15,9 @@ async def test_all_endpoints():
     """测试所有模板API端点"""
     base_url = "http://127.0.0.1:8000"
 
-    print("="*60)
+    print("=" * 60)
     print("测试模板管理API端点")
-    print("="*60)
+    print("=" * 60)
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         # 1. 测试列出模板
@@ -29,9 +28,11 @@ async def test_all_endpoints():
             if response.status_code == 200:
                 data = response.json()
                 print(f"   找到 {data.get('total', 0)} 个模板:")
-                for tmpl in data.get('templates', []):
+                for tmpl in data.get("templates", []):
                     print(f"   - {tmpl.get('template_name')}: {tmpl.get('description')}")
-                    print(f"     has_docx: {tmpl.get('has_docx')}, has_pptx: {tmpl.get('has_pptx')}")
+                    print(
+                        f"     has_docx: {tmpl.get('has_docx')}, has_pptx: {tmpl.get('has_pptx')}"
+                    )
             else:
                 print(f"   错误: {response.text}")
         except Exception as e:
@@ -56,15 +57,17 @@ async def test_all_endpoints():
         print("\n3. 测试发现占位符...")
         try:
             template_name = "test_report"
-            response = await client.get(f"{base_url}/api/templates/{template_name}/placeholders/docx")
+            response = await client.get(
+                f"{base_url}/api/templates/{template_name}/placeholders/docx"
+            )
             print(f"   状态码: {response.status_code}")
             if response.status_code == 200:
                 data = response.json()
                 print(f"   发现 {data.get('total', 0)} 个占位符:")
-                for ph in data.get('placeholders', []):
+                for ph in data.get("placeholders", []):
                     print(f"   - {ph}")
             elif response.status_code == 404:
-                print(f"   模板文件不存在 (这是预期的，因为我们只有YAML)")
+                print("   模板文件不存在 (这是预期的，因为我们只有YAML)")
             else:
                 print(f"   错误: {response.text}")
         except Exception as e:
@@ -77,16 +80,20 @@ async def test_all_endpoints():
             if test_file_path.exists():
                 print(f"   使用测试文件: {test_file_path}")
                 with open(test_file_path, "rb") as f:
-                    files = {"file": ("test_upload.docx", f, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")}
+                    files = {
+                        "file": (
+                            "test_upload.docx",
+                            f,
+                            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        )
+                    }
                     data = {
                         "template_name": "test_upload",
                         "file_type": "docx",
-                        "description": "测试上传的模板"
+                        "description": "测试上传的模板",
                     }
                     response = await client.post(
-                        f"{base_url}/api/templates/upload",
-                        files=files,
-                        data=data
+                        f"{base_url}/api/templates/upload", files=files, data=data
                     )
                     print(f"   状态码: {response.status_code}")
                     if response.status_code == 200:
@@ -104,16 +111,9 @@ async def test_all_endpoints():
             payload = {
                 "template_name": "test_report",
                 "file_type": "docx",
-                "placeholders": {
-                    "title": "测试报告",
-                    "date": "2026-05-12",
-                    "author": "测试用户"
-                }
+                "placeholders": {"title": "测试报告", "date": "2026-05-12", "author": "测试用户"},
             }
-            response = await client.post(
-                f"{base_url}/api/templates/render",
-                json=payload
-            )
+            response = await client.post(f"{base_url}/api/templates/render", json=payload)
             print(f"   状态码: {response.status_code}")
             if response.status_code == 200:
                 data = response.json()
@@ -131,11 +131,10 @@ async def test_all_endpoints():
                 "template_name": "test_report",
                 "file_type": "docx",
                 "canonical_id": "600519.SH",
-                "report_type": "full"
+                "report_type": "full",
             }
             response = await client.post(
-                f"{base_url}/api/templates/render-from-asset",
-                json=payload
+                f"{base_url}/api/templates/render-from-asset", json=payload
             )
             print(f"   状态码: {response.status_code}")
             if response.status_code == 200:

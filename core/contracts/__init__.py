@@ -117,13 +117,6 @@ from .monitoring import (
 )
 from .outcome_journal import FailureClassification, SimilarCase, TradeOutcome, WeeklyReviewReport
 from .outcomes import SignalOutcome
-from .pdf_conversion import (
-    ConversionRequest,
-    ConversionResult,
-    ConversionStatus,
-    ConversionStatusResponse,
-    StrategyType,
-)
 from .paper_trading import (
     BenchmarkComparison,
     PaperPortfolio,
@@ -136,6 +129,13 @@ from .paper_trading import (
     SimulationMode,
     SimulationResult,
     TransactionCost,
+)
+from .pdf_conversion import (
+    ConversionRequest,
+    ConversionResult,
+    ConversionStatus,
+    ConversionStatusResponse,
+    StrategyType,
 )
 from .portfolio import PortfolioCandidate, PortfolioConstraints, PortfolioProposal
 from .replay import ReplayAggregate, ReplayJob, ReplayResult

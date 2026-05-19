@@ -7,6 +7,22 @@
 ## [Unreleased]
 
 ### Added
+- **market-data-pipeline**: 数据全流程升级 — 从 crawler → JSON 快照 升级为 crawler → normalizer → 结构化 SQL 表 → 派生 snapshot
+  - 新增 `data_layer/repositories/models.py`：8 张结构化 SQL 表 (StockMasterDB, StockDailyBarDB, StockQuoteSnapshotDB, StockFinancialMetricDB, StockValuationDB, StockShareholderDB, IndexComponentDB, ETLRunDB)
+  - 新增 `data_layer/repositories/market_data_repository.py`：MarketDataRepository (PostgreSQL upsert + SQLite fallback)
+  - 新增 `data_layer/repositories/etl_run_repository.py`：ETLRunRepository (ETL 运行记录管理)
+  - 新增 `data_layer/normalizers/common.py`：通用 normalizer 工具 (to_decimal)
+  - 新增 `data_layer/normalizers/symbol.py`：A 股代码标准化 (normalize_a_share_symbol)
+  - 新增 `data_layer/normalizers/akshare_market.py`：行情/股票信息标准化
+  - 新增 `data_layer/normalizers/akshare_financial.py`：财务数据标准化
+  - 新增 `core/services/market_data_ingestion_service.py`：ETL 编排服务 (fetcher → normalizer → repository → etl_run)
+  - 新增 `app/api/routes/market_data.py`：Market Data API (stocks/sync, daily-bars/sync, daily-bars query, etl-runs)
+  - 重构 `core/services/asset_analysis_service.py`：优先从结构化表生成 snapshot，回退到 coordinator
+  - 更新 `cron_jobs/auto_ingest_service.py`：分步执行 15:15 股票列表 → 15:30 日行情 → 15:45 资产快照
+  - 新增 `tests/unit/data_layer/normalizers/`：12 个 normalizer 单测
+  - 新增 `tests/unit/data_layer/repositories/test_market_data_repository.py`：8 个 repository 测试
+  - 新增 `tests/unit/data_layer/repositories/test_etl_run_repository.py`：5 个 ETL run 测试
+  - 新增 `tests/unit/core/services/test_market_data_ingestion_service.py`：4 个 ingestion service 测试
 - **pdf-conversion-pipeline**: 完整的 PDF 到 Markdown 转换管道
   - 新增 `core/contracts/pdf_conversion.py`：Pydantic 契约 (ConversionResult, StrategyType, ConversionStatus)
   - 新增 `data_layer/converters/base.py`：PDFConversionStrategy 抽象基类

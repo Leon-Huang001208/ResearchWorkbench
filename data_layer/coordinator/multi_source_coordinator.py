@@ -322,9 +322,7 @@ class MultiSourceCoordinator:
         self.logger.info(f"Available sources for {symbol}: {available_sources}")
 
         # 获取拉取时应该使用的复权参数
-        adjust_flags = self.adjustment_normalizer.get_fetch_adjustment_flags(
-            self.target_adjustment
-        )
+        adjust_flags = self.adjustment_normalizer.get_fetch_adjustment_flags(self.target_adjustment)
 
         # 策略 2: 如果启用缓存，计算缺失范围
         missing_ranges = []
@@ -361,9 +359,7 @@ class MultiSourceCoordinator:
                 )
                 if data:
                     # 复权归一化
-                    norm_result = self.adjustment_normalizer.normalize(
-                        data, self.target_adjustment
-                    )
+                    norm_result = self.adjustment_normalizer.normalize(data, self.target_adjustment)
                     if norm_result.warnings:
                         for warning in norm_result.warnings:
                             self.logger.warning(warning)
@@ -394,7 +390,11 @@ class MultiSourceCoordinator:
 
             # 如果强制双源校验，尝试从第二个源也获取数据
             if force_dual_validation and len(available_sources) >= 2 and used_source:
-                second_source = available_sources[1] if available_sources[0] == used_source else available_sources[0]
+                second_source = (
+                    available_sources[1]
+                    if available_sources[0] == used_source
+                    else available_sources[0]
+                )
                 try:
                     second_data = self._fetch_from_source(
                         symbol, second_source, start_date, end_date, adjust_flags
@@ -460,9 +460,7 @@ class MultiSourceCoordinator:
         # 策略 6: 执行双源校验（如果需要）
         validation_result = None
         if force_dual_validation:
-            validation_result = self._perform_validation(
-                symbol, data_by_source, available_sources
-            )
+            validation_result = self._perform_validation(symbol, data_by_source, available_sources)
             # 如果校验结果推荐了另一个源，且我们有那个源的数据，使用那个源
             if (
                 validation_result

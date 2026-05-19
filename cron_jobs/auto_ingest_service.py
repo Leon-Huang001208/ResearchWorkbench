@@ -134,12 +134,47 @@ async def ingest_zq_data():
         logger.error(f"知丘研报数据抓取失败：{e}")
 
 
-async def ingest_stock_data():
-    """抓取股票行情、财务数据"""
-    logger.info("开始抓取股票行情数据...")
+async def ingest_stock_master():
+    """同步股票列表到 stock_master 表"""
+    logger.info("开始同步股票列表...")
     try:
-        # 这里可以扩展抓取股票实时行情、财务数据的逻辑
-        # 调用资产分析接口自动拉取数据并存入数据库
+        resp = await fetch_with_retry(
+            "http://127.0.0.1:8000/api/market-data/stocks/sync",
+            method="POST",
+            params={"limit": 5000},
+        )
+        result = resp.json()
+        logger.info(f"股票列表同步完成：fetched={result.get('fetched', 0)} saved={result.get('saved', 0)}")
+    except Exception as e:
+        logger.error(f"股票列表同步失败：{e}")
+
+
+async def ingest_daily_bars():
+    """同步日行情数据到 stock_daily_bar 表"""
+    from datetime import date
+
+    logger.info("开始同步日行情数据...")
+    today = date.today().isoformat()
+    try:
+        resp = await fetch_with_retry(
+            "http://127.0.0.1:8000/api/market-data/daily-bars/sync",
+            method="POST",
+            json={
+                "symbols": ["600519.SH", "002594.SZ", "601012.SH", "600036.SH", "000858.SZ"],
+                "start_date": today,
+                "end_date": today,
+            },
+        )
+        result = resp.json()
+        logger.info(f"日行情同步完成：fetched={result.get('fetched', 0)} saved={result.get('saved', 0)}")
+    except Exception as e:
+        logger.error(f"日行情同步失败：{e}")
+
+
+async def ingest_stock_snapshots():
+    """生成资产快照（依赖 stock_master + stock_daily_bar 已有数据）"""
+    logger.info("开始生成资产快照...")
+    try:
         stocks = ["600519.SH", "002594.SZ", "601012.SH", "600036.SH", "000858.SZ"]
         for stock in stocks:
             try:
@@ -154,11 +189,9 @@ async def ingest_stock_data():
             except Exception as e:
                 logger.warning(f"更新股票{stock}数据失败：{e}")
                 continue
-
-        logger.info("股票数据抓取完成")
-
+        logger.info("资产快照生成完成")
     except Exception as e:
-        logger.error(f"股票数据抓取失败：{e}")
+        logger.error(f"资产快照生成失败：{e}")
 
 
 async def health_check():
@@ -201,14 +234,31 @@ def run_scheduler():
         next_run_time=datetime.now() + timedelta(minutes=6),
     )
 
-    # 股票数据：每天下午15:30（收盘后）抓一次
+    # 股票列表：每天下午15:15 同步
     scheduler.add_job(
-        ingest_stock_data,
+        ingest_stock_master,
+        "cron",
+        hour=15,
+        minute=15,
+        id="ingest_stock_master",
+    )
+
+    # 日行情：每天下午15:30 同步
+    scheduler.add_job(
+        ingest_daily_bars,
         "cron",
         hour=15,
         minute=30,
-        id="ingest_stock",
-        next_run_time=datetime.now() + timedelta(minutes=10),
+        id="ingest_daily_bars",
+    )
+
+    # 资产快照：每天下午15:45 生成
+    scheduler.add_job(
+        ingest_stock_snapshots,
+        "cron",
+        hour=15,
+        minute=45,
+        id="ingest_stock_snapshots",
     )
 
     # 健康检查：每10分钟一次
@@ -221,7 +271,9 @@ def run_scheduler():
     logger.info("- 财联社电报：每15分钟抓取一次")
     logger.info("- 中国证券网新闻：每30分钟抓取一次")
     logger.info("- 知丘研报：每1小时抓取一次")
-    logger.info("- 股票行情数据：每天15:30收盘后抓取")
+    logger.info("- 股票列表同步：每天15:15")
+    logger.info("- 日行情同步：每天15:30")
+    logger.info("- 资产快照生成：每天15:45")
     logger.info("- 健康检查：每10分钟一次")
 
     try:

@@ -1,5 +1,4 @@
 """Tests for PowerPointProjection."""
-from io import BytesIO
 from pathlib import Path
 from unittest.mock import patch
 
@@ -18,11 +17,14 @@ class TestPowerPointProjection:
         try:
             import pptx
             from pptx import Presentation
+
             return True
         except ImportError:
             return False
 
-    @pytest.mark.skipif(not PowerPointProjection()._check_pptx(), reason="python-pptx not installed")
+    @pytest.mark.skipif(
+        not PowerPointProjection()._check_pptx(), reason="python-pptx not installed"
+    )
     def test_save_to_file(self, tmp_path):
         """Test saving PowerPoint to a file."""
         projection = PowerPointProjection()
@@ -121,13 +123,13 @@ class TestPowerPointProjectionFromTemplate:
         try:
             import pptx
             from pptx import Presentation
+
             return True
         except ImportError:
             return False
 
     def create_test_template(self, tmp_path) -> Path:
         """创建测试用的 PowerPoint 模板文件"""
-        import pptx
         from pptx import Presentation
 
         template_path = tmp_path / "template.pptx"
@@ -147,11 +149,11 @@ class TestPowerPointProjectionFromTemplate:
         prs.save(template_path)
         return template_path
 
-    @pytest.mark.skipif(not PowerPointProjection()._check_pptx(), reason="python-pptx not installed")
+    @pytest.mark.skipif(
+        not PowerPointProjection()._check_pptx(), reason="python-pptx not installed"
+    )
     def test_save_from_template(self, tmp_path):
         """测试从模板保存"""
-        import pptx
-        from pptx import Presentation
 
         projection = PowerPointProjection()
 
@@ -193,11 +195,11 @@ class TestPowerPointProjectionFromTemplate:
 
         assert output_path.exists()
 
-    @pytest.mark.skipif(not PowerPointProjection()._check_pptx(), reason="python-pptx not installed")
+    @pytest.mark.skipif(
+        not PowerPointProjection()._check_pptx(), reason="python-pptx not installed"
+    )
     def test_save_from_template_with_tables(self, tmp_path):
         """测试从模板保存并添加表格"""
-        import pptx
-        from pptx import Presentation
 
         projection = PowerPointProjection()
 

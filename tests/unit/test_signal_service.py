@@ -3,8 +3,6 @@ import uuid
 from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
-import pytest
-
 from core.contracts import AlphaSignal, EventAlphaSignal
 from core.services.signal_service import SignalService
 

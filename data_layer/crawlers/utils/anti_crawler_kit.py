@@ -41,9 +41,8 @@ import logging
 import random
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional, TypeVar, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar
 
 T = TypeVar("T")
 
@@ -51,19 +50,19 @@ T = TypeVar("T")
 @dataclass
 class RetryConfig:
     """重试策略配置"""
+
     max_retries: int = 5
     base_delay: float = 1.0
     max_delay: float = 60.0
     exponential_base: float = 2.0
     jitter: bool = True
-    retry_exceptions: Tuple[Exception, ...] = field(
-        default_factory=lambda: (Exception,)
-    )
+    retry_exceptions: Tuple[Exception, ...] = field(default_factory=lambda: (Exception,))
 
 
 @dataclass
 class AntiScrapeConfig:
     """反爬虫配置"""
+
     # 基础延迟配置
     base_delay: float = 1.5
     jitter_range: float = 0.8
@@ -214,10 +213,10 @@ class SmartDelayer:
             if self.success_streak >= self.config.success_streak_threshold:
                 base *= self.config.success_speedup_factor
             if self.failure_count > 0:
-                base *= self.config.failure_slowdown_factor ** self.failure_count
+                base *= self.config.failure_slowdown_factor**self.failure_count
 
         if self.failure_count > 0:
-            backoff = min(self.config.backoff_base ** self.failure_count, self.config.backoff_max)
+            backoff = min(self.config.backoff_base**self.failure_count, self.config.backoff_max)
             base = max(base, backoff)
             self._logger.debug(f"检测到 {self.failure_count} 次失败，使用退避延迟: {base:.1f}s")
 
@@ -280,7 +279,9 @@ class HeaderRandomizer:
             headers["Cache-Control"] = cache_control
 
         if random.random() > 0.5:
-            headers["Sec-CH-UA"] = '"Chromium";v="130", "Not=A?Brand";v="24", "Google Chrome";v="130"'
+            headers[
+                "Sec-CH-UA"
+            ] = '"Chromium";v="130", "Not=A?Brand";v="24", "Google Chrome";v="130"'
             headers["Sec-CH-UA-Mobile"] = "?0"
             headers["Sec-CH-UA-Platform"] = '"Windows"'
 
@@ -398,9 +399,9 @@ def retry_with_backoff(
                         logger.error(f"重试次数已用尽，最后异常: {e}")
                         break
 
-                    delay = config.base_delay * (config.exponential_base ** attempt)
+                    delay = config.base_delay * (config.exponential_base**attempt)
                     if config.jitter:
-                        delay *= (0.5 + random.random())
+                        delay *= 0.5 + random.random()
                     delay = min(delay, config.max_delay)
 
                     logger.warning(

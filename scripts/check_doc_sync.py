@@ -6,7 +6,6 @@ from __future__ import annotations
 import subprocess
 import sys
 
-
 DOC_RULES = {
     "app/api/": [
         "docs/modules/app_api.md",

@@ -224,9 +224,7 @@ class NewsProcessor(BaseProcessor):
                     skipped_count += 1
                     if stop_on_known:
                         stopped_by_watermark = True
-                        self.client.logger.info(
-                            f"[水位线] 遇到已知公众号文章 {obj_id}，停止抓取"
-                        )
+                        self.client.logger.info(f"[水位线] 遇到已知公众号文章 {obj_id}，停止抓取")
                         break
                     continue
 
@@ -249,9 +247,7 @@ class NewsProcessor(BaseProcessor):
         # 设置水位线
         if state_manager and first_new_obj_id and watermark_key:
             state_manager.set_watermark(watermark_key, first_new_obj_id)
-            self.client.logger.info(
-                f"[水位线] 设置水位线为 {first_new_obj_id}"
-            )
+            self.client.logger.info(f"[水位线] 设置水位线为 {first_new_obj_id}")
 
         # 保存结果
         if output_file:

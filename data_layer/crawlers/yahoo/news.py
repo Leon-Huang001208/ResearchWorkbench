@@ -1,4 +1,3 @@
-
 """
 Yahoo Finance 新闻数据获取器
 
@@ -9,6 +8,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from core.observability import get_logger
+
 from .base import BaseYahooFetcher, YahooConfig
 
 logger = get_logger("yahoo_news")
@@ -147,4 +147,3 @@ class YahooNewsFetcher(BaseYahooFetcher):
                 unique_news.append(item)
 
         return unique_news[:limit]
-

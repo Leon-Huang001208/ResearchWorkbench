@@ -7,10 +7,7 @@
 3. 端到端报告生成流程
 """
 
-from reporting.integration.snapshot_mapper import (
-    SnapshotToPlaceholdersMapper,
-    get_snapshot_mapper,
-)
+from reporting.integration.snapshot_mapper import SnapshotToPlaceholdersMapper, get_snapshot_mapper
 
 __all__ = [
     "SnapshotToPlaceholdersMapper",

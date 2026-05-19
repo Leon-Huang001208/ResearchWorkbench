@@ -6,7 +6,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Callable, List, Optional
+from typing import List, Optional
 
 from core.observability import get_logger
 from data_layer.validation.dual_source_validator import ValidationResult, ValidationStatus
@@ -164,7 +164,9 @@ class AlertManager:
             return
 
         # WARNING 或 FAILED
-        level = AlertLevel.CRITICAL if result.status == ValidationStatus.FAILED else AlertLevel.WARNING
+        level = (
+            AlertLevel.CRITICAL if result.status == ValidationStatus.FAILED else AlertLevel.WARNING
+        )
 
         alert = Alert(
             level=level,
@@ -228,4 +230,3 @@ def get_alert_manager() -> AlertManager:
         _default_alert_manager.add_console_channel()
 
     return _default_alert_manager
-

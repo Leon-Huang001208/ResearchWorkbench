@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Dict, Generator, List, Optional
+from typing import Any, Dict, Generator, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -147,7 +147,11 @@ def approve_event(
         generator = EventAutoSignalGenerator()
         generator.on_event_approved(event_id)
 
-    return {"event_id": event_id, "status": event.reviewer_status, "auto_signal_generated": approved}
+    return {
+        "event_id": event_id,
+        "status": event.reviewer_status,
+        "auto_signal_generated": approved,
+    }
 
 
 @router.post("/auto-generate-signals", response_model=dict)

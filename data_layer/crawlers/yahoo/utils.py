@@ -1,4 +1,3 @@
-
 """
 Yahoo Finance 工具函数
 
@@ -165,4 +164,3 @@ def is_valid_yahoo_symbol(symbol: str) -> bool:
         return len(parts[0]) > 0 and len(parts[1]) > 0
 
     return symbol.isalnum()
-

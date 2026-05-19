@@ -2,7 +2,7 @@
 测试 Processed Item Repository
 """
 from datetime import datetime, timedelta
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 
@@ -40,6 +40,7 @@ class TestProcessedItemRepository:
 
         # Act
         from data_layer.repositories import processed_item_repository
+
         result = processed_item_repository.item_exists(db_session, "item_123")
 
         # Assert
@@ -53,6 +54,7 @@ class TestProcessedItemRepository:
 
         # Act
         from data_layer.repositories import processed_item_repository
+
         result = processed_item_repository.item_exists(db_session, "item_nonexistent")
 
         # Assert
@@ -66,6 +68,7 @@ class TestProcessedItemRepository:
 
         # Act
         from data_layer.repositories import processed_item_repository
+
         result = processed_item_repository.item_exists_by_hash(db_session, "abc123def456")
 
         # Assert
@@ -79,6 +82,7 @@ class TestProcessedItemRepository:
 
         # Act
         from data_layer.repositories import processed_item_repository
+
         result = processed_item_repository.add_processed_item(db_session, sample_processed_item)
 
         # Assert
@@ -95,6 +99,7 @@ class TestProcessedItemRepository:
 
         # Act
         from data_layer.repositories import processed_item_repository
+
         result = processed_item_repository.add_processed_item(db_session, sample_processed_item)
 
         # Assert
@@ -108,6 +113,7 @@ class TestProcessedItemRepository:
 
         # Act
         from data_layer.repositories import processed_item_repository
+
         results = processed_item_repository.get_recent_processed(db_session, "cls", limit=10)
 
         # Assert
@@ -120,11 +126,12 @@ class TestProcessedItemRepository:
         # Arrange
         mock_get_stats.return_value = {
             "total_items": 100,
-            "by_source_type": {"cls": 60, "cnstock": 30, "zq": 10}
+            "by_source_type": {"cls": 60, "cnstock": 30, "zq": 10},
         }
 
         # Act
         from data_layer.repositories import processed_item_repository
+
         result = processed_item_repository.get_processed_stats(db_session)
 
         # Assert
@@ -142,6 +149,7 @@ class TestProcessedItemRepository:
 
         # Act
         from data_layer.repositories import processed_item_repository
+
         result = processed_item_repository.get_processed_stats_by_day(db_session, "cls", days=7)
 
         # Assert

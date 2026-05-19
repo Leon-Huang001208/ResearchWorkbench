@@ -464,16 +464,12 @@ class CLSTelegramCrawler:
             # 水位线检查：如果遇到已知的电报，停止抓取
             # ============================================================
             if found_known and self.config.stop_on_known and self.state_manager:
-                self.logger.info(
-                    f"[watermark] 遇到已知电报: {known_telegram_id}，停止抓取"
-                )
+                self.logger.info(f"[watermark] 遇到已知电报: {known_telegram_id}，停止抓取")
                 # 记录第一个新的电报 ID 作为新的水位线
                 if self.new_telegrams:
                     first_new_telegram_id = self.new_telegrams[0].id
                     self.state_manager.set_watermark(watermark_key, first_new_telegram_id)
-                    self.logger.info(
-                        f"[watermark] 已更新水位线: {first_new_telegram_id}"
-                    )
+                    self.logger.info(f"[watermark] 已更新水位线: {first_new_telegram_id}")
                 stopped_by_watermark = True
                 # 不立即 break，先处理完这个页面，然后在下一轮循环停止
                 # 这样可以确保这一页的新数据被添加

@@ -1,7 +1,8 @@
 """
 LLM 相关 API 路由
 """
-from typing import Any, Dict, Optional
+from typing import Dict, Optional
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
@@ -13,6 +14,7 @@ router = APIRouter(prefix="/api/llm", tags=["llm"])
 
 class LlmGenerateRequest(BaseModel):
     """LLM生成请求"""
+
     prompt: str
     temperature: float = Field(0.7, ge=0.0, le=1.0)
     max_tokens: int = Field(2000, ge=1, le=8000)
@@ -21,6 +23,7 @@ class LlmGenerateRequest(BaseModel):
 
 class LlmGenerateResponse(BaseModel):
     """LLM生成响应"""
+
     success: bool
     content: str
     model: str
@@ -34,6 +37,7 @@ async def llm_generate(request: LlmGenerateRequest):
     """
     try:
         import os
+
         from openai import OpenAI
 
         # 从环境变量获取API密钥
@@ -53,24 +57,25 @@ async def llm_generate(request: LlmGenerateRequest):
                 success=True,
                 content=mock_content,
                 model=request.model,
-                usage={"prompt_tokens": 0, "completion_tokens": len(mock_content), "total_tokens": len(mock_content)}
+                usage={
+                    "prompt_tokens": 0,
+                    "completion_tokens": len(mock_content),
+                    "total_tokens": len(mock_content),
+                },
             )
 
         # 初始化OpenAI客户端
-        client = OpenAI(
-            api_key=api_key,
-            base_url=base_url
-        )
+        client = OpenAI(api_key=api_key, base_url=base_url)
 
         # 调用API
         response = client.chat.completions.create(
             model=request.model,
             messages=[
                 {"role": "system", "content": "你是一个专业的金融分析师，擅长撰写券商研究报告。输出内容要专业、严谨，符合A股市场的实际情况。"},
-                {"role": "user", "content": request.prompt}
+                {"role": "user", "content": request.prompt},
             ],
             temperature=request.temperature,
-            max_tokens=request.max_tokens
+            max_tokens=request.max_tokens,
         )
 
         content = response.choices[0].message.content.strip()
@@ -82,15 +87,17 @@ async def llm_generate(request: LlmGenerateRequest):
             usage={
                 "prompt_tokens": response.usage.prompt_tokens,
                 "completion_tokens": response.usage.completion_tokens,
-                "total_tokens": response.usage.total_tokens
-            } if response.usage else None
+                "total_tokens": response.usage.total_tokens,
+            }
+            if response.usage
+            else None,
         )
 
     except ImportError:
         raise HTTPException(
             status_code=400,
-            detail="OpenAI library not installed. Please install it with: pip install openai"
+            detail="OpenAI library not installed. Please install it with: pip install openai",
         )
     except Exception as e:
-        logger.exception(f"Failed to generate LLM content")
+        logger.exception("Failed to generate LLM content")
         raise HTTPException(status_code=500, detail=f"Failed to generate content: {str(e)}")

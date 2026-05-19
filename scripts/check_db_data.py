@@ -7,15 +7,16 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
+from data_layer.repositories.base import SessionLocal, check_database_connection
 from data_layer.repositories.models import (
-    DocumentV1DB,
-    CanonicalEvent,
     AlphaSignalDB,
-    EntityMentionV1DB,
+    CanonicalEvent,
+    DocumentV1DB,
     Entity,
+    EntityMentionV1DB,
     SignalOutcomeDB,
 )
-from data_layer.repositories.base import SessionLocal, check_database_connection
+
 
 def check_data():
     """检查数据库中的数据"""
@@ -54,19 +55,28 @@ def check_data():
 
             # 显示一些示例数据
             if event_count > 0:
-                latest_event = db.query(CanonicalEvent).order_by(CanonicalEvent.created_at.desc()).first()
-                print(f"\n📰 最新事件: {latest_event.summary[:50] if latest_event.summary else '无摘要'}...")
+                latest_event = (
+                    db.query(CanonicalEvent).order_by(CanonicalEvent.created_at.desc()).first()
+                )
+                print(
+                    f"\n📰 最新事件: {latest_event.summary[:50] if latest_event.summary else '无摘要'}..."
+                )
                 print(f"   创建时间: {latest_event.created_at}")
 
             if signal_count > 0:
-                latest_signal = db.query(AlphaSignalDB).order_by(AlphaSignalDB.created_at.desc()).first()
-                print(f"\n📈 最新信号: {latest_signal.thesis[:50] if latest_signal.thesis else '无论点'}...")
+                latest_signal = (
+                    db.query(AlphaSignalDB).order_by(AlphaSignalDB.created_at.desc()).first()
+                )
+                print(
+                    f"\n📈 最新信号: {latest_signal.thesis[:50] if latest_signal.thesis else '无论点'}..."
+                )
                 print(f"   标的: {latest_signal.subject_id}, 分数: {latest_signal.score}")
 
         print("\n" + "=" * 60)
 
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     check_data()

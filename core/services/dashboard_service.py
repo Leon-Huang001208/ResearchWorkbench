@@ -257,7 +257,7 @@ class DashboardService:
 
     def get_market_overview_section(self) -> MarketOverviewSection:
         """获取市场概览板块：全球热点新闻、上涨/下跌板块概念"""
-        from datetime import datetime, UTC
+        from datetime import UTC, datetime
 
         has_real_news = False
         has_real_sectors = False
@@ -406,7 +406,8 @@ class DashboardService:
 
     def _get_mock_abnormal_flows(self):
         """获取模拟的异常流向数据"""
-        from datetime import datetime, UTC
+        from datetime import UTC, datetime
+
         return [
             AbnormalFlow(
                 symbol="600519.SH",
@@ -438,9 +439,12 @@ class DashboardService:
 
             # 获取待审核的断言
             assertion_repo = AssertionRepositoryImpl(self.session)
-            pending_assertions_db = self.session.query(Assertion).filter(
-                Assertion.reviewer_status == "pending"
-            ).limit(10).all()
+            pending_assertions_db = (
+                self.session.query(Assertion)
+                .filter(Assertion.reviewer_status == "pending")
+                .limit(10)
+                .all()
+            )
 
             if pending_assertions_db:
                 has_real_data = True
@@ -459,7 +463,11 @@ class DashboardService:
             # 如果没有真实数据或部分数据缺失，使用模拟数据补充
             if not has_real_data:
                 logger.info("No real research queue data found, using mock data")
-                pending_assertions, missing_evidence, mapping_reviews = self._get_mock_research_queue()
+                (
+                    pending_assertions,
+                    missing_evidence,
+                    mapping_reviews,
+                ) = self._get_mock_research_queue()
             else:
                 # 如果有真实断言数据，但缺失其他数据，用模拟数据补充
                 if not missing_evidence:
@@ -479,7 +487,7 @@ class DashboardService:
 
     def _get_mock_research_queue(self):
         """获取模拟的研究队列数据"""
-        from datetime import datetime, UTC
+        from datetime import UTC, datetime
 
         pending_assertions = [
             PendingAssertion(
@@ -629,8 +637,9 @@ class DashboardService:
 
         # 获取最近三个月内失败记录
         try:
-            from data_layer.repositories.models import SignalOutcomeDB
             from sqlalchemy import func
+
+            from data_layer.repositories.models import SignalOutcomeDB
 
             three_months_ago = datetime.now(UTC) - timedelta(days=90)
             failures = (
@@ -709,7 +718,7 @@ class DashboardService:
 
     def _get_mock_learning_data(self):
         """获取模拟的学习数据"""
-        from datetime import datetime, UTC
+        from datetime import UTC, datetime
 
         recent_failures = [
             RecentFailure(

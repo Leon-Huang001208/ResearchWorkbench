@@ -735,10 +735,10 @@ class RAGRetrievalService:
             }
 
             combined_score = (
-                search_score * weights["search"] +
-                recency_score * weights["recency"] +
-                quality_score * weights["quality"] +
-                source_weight * weights["source"]
+                search_score * weights["search"]
+                + recency_score * weights["recency"]
+                + quality_score * weights["quality"]
+                + source_weight * weights["source"]
             )
 
             # 存储分数到文档对象，方便后续追踪
@@ -751,7 +751,9 @@ class RAGRetrievalService:
 
         return [doc for doc, _ in scored_pairs]
 
-    def _rerank_with_external_model(self, docs: List[DocumentV1], query_text: str) -> List[DocumentV1]:
+    def _rerank_with_external_model(
+        self, docs: List[DocumentV1], query_text: str
+    ) -> List[DocumentV1]:
         """
         使用外部Reranker模型进行重排（示例实现）.
 
@@ -829,7 +831,9 @@ class RAGRetrievalService:
 
         return recalled_docs
 
-    def _calculate_keyword_scores(self, docs: List[DocumentV1], query_text: str) -> Dict[str, float]:
+    def _calculate_keyword_scores(
+        self, docs: List[DocumentV1], query_text: str
+    ) -> Dict[str, float]:
         """
         计算关键词匹配分数（fallback实现）.
         """

@@ -2,8 +2,6 @@
 import os
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from data_layer.converters.mineru import MinerUStrategy
 
 
@@ -74,8 +72,7 @@ class TestMinerUStrategy:
     def test_compute_quality_score_excellent(self):
         md = (
             "# Title\n\n## Section\n\n### Sub\n\n#### Detail\n\n"
-            "Content " * 200
-            + "\n\n| A | B |\n|---|---|\n"
+            "Content " * 200 + "\n\n| A | B |\n|---|---|\n"
         )
         features = {"has_tables": True}
         score = MinerUStrategy._compute_quality_score(md, features)

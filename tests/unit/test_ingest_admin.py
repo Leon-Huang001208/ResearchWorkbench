@@ -2,7 +2,7 @@
 测试 Ingest Admin API
 """
 from datetime import datetime, timedelta
-from unittest.mock import patch, AsyncMock, MagicMock
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
@@ -28,8 +28,7 @@ class TestIngestAdminAPI:
 
         # Act
         resp = client.post(
-            "/api/ingest/admin/cls/trigger",
-            json={"mode": "incremental", "dry_run": False}
+            "/api/ingest/admin/cls/trigger", json={"mode": "incremental", "dry_run": False}
         )
 
         # Assert
@@ -43,8 +42,7 @@ class TestIngestAdminAPI:
         """测试 dry_run 模式"""
         # Act
         resp = client.post(
-            "/api/ingest/admin/cls/trigger",
-            json={"mode": "incremental", "dry_run": True}
+            "/api/ingest/admin/cls/trigger", json={"mode": "incremental", "dry_run": True}
         )
 
         # Assert
@@ -65,8 +63,7 @@ class TestIngestAdminAPI:
 
         # Act
         resp = client.post(
-            "/api/ingest/admin/cls/trigger",
-            json={"mode": "incremental", "dry_run": False}
+            "/api/ingest/admin/cls/trigger", json={"mode": "incremental", "dry_run": False}
         )
 
         # Assert
@@ -93,10 +90,7 @@ class TestIngestAdminAPI:
         mock_pause.return_value = paused_state
 
         # Act
-        resp = client.post(
-            "/api/ingest/admin/cls/pause",
-            json={"reason": "Maintenance"}
-        )
+        resp = client.post("/api/ingest/admin/cls/pause", json={"reason": "Maintenance"})
 
         # Assert
         assert resp.status_code == 200
@@ -204,7 +198,7 @@ class TestIngestAdminAPI:
         # Act
         resp = client.put(
             "/api/ingest/admin/cls/config",
-            json={"crawl_config": {"rate_limit": 5}, "crawl_mode": "full"}
+            json={"crawl_config": {"rate_limit": 5}, "crawl_mode": "full"},
         )
 
         # Assert
@@ -220,8 +214,7 @@ class TestIngestAdminAPI:
 
         # Act
         resp = client.put(
-            "/api/ingest/admin/nonexistent/config",
-            json={"crawl_config": {"rate_limit": 5}}
+            "/api/ingest/admin/nonexistent/config", json={"crawl_config": {"rate_limit": 5}}
         )
 
         # Assert

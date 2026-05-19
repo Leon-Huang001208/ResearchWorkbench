@@ -1,9 +1,6 @@
 """测试 PDF 转换输出持久化"""
-import tempfile
 from pathlib import Path
 from unittest.mock import patch
-
-import pytest
 
 from core.settings.config import Settings
 
@@ -41,7 +38,7 @@ class TestPersistence:
         assert result == "unnamed"
 
     def test_persist_markdown(self, tmp_path):
-        from data_layer.converters.persistence import persist_markdown, read_markdown
+        from data_layer.converters.persistence import persist_markdown
 
         md_dir = tmp_path / "markdown"
         raw_dir = tmp_path / "raw_text"
@@ -58,7 +55,7 @@ class TestPersistence:
         assert "World" in content
 
     def test_persist_raw_text(self, tmp_path):
-        from data_layer.converters.persistence import persist_raw_text, read_raw_text
+        from data_layer.converters.persistence import persist_raw_text
 
         md_dir = tmp_path / "markdown"
         raw_dir = tmp_path / "raw_text"
