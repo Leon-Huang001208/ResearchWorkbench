@@ -189,6 +189,8 @@ AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System�
   - `ClosedLoopService`：闭循环服务
   - `CrawlOrchestrator`：采集编排器
   - `CrawlScheduler`：采集调度器
+      - `CrawlerIngestionBridge`：采集到摄入队列桥接器
+      - `SystemEventBus`：系统事件总线（SSE 实时推送、JSONL 持久化、worker 心跳）
   - `DashboardService`：仪表盘服务
   - `DataTierService`：数据层服务
   - `DecisionConsoleService`：决策控制台服务

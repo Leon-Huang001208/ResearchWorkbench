@@ -7,6 +7,22 @@
 ## [Unreleased]
 
 ### Added
+- **end-to-end-orchestration**: 端到端自动化第一阶段 — 爬虫→队列→KnowledgePipeline 全自动打通 + 实时前端
+  - 新增 `core/services/crawler_ingestion_bridge.py`：CrawlerIngestionBridge (爬虫输出统一转 DocumentEnvelope → EnqueueRequest → 入队)
+  - 新增 `core/services/system_event_bus.py`：SystemEventBus (内存事件总线, SSE 推送, worker heartbeat)
+  - 新增 `workers/knowledge_worker.py`：常驻后台 worker (asyncio, 自动消费 ingestion_queue, 调用 KnowledgePipeline)
+  - 新增 `app/api/routes/system.py`：GET /api/system/health 和 /api/system/health/minimal 端点
+  - 新增 `app/api/routes/realtime.py`：GET /api/realtime/stream SSE 实时推送端点
+  - 新增 `scripts/start_all.sh` + `scripts/stop_all.sh`：一键启动/停止全系统 (API + scheduler + knowledge worker)
+  - 新增 `ingestion/__init__.py`：ingestion 包初始化
+  - **修复**: DataSourceRouter 中 AKShareAdapter 缺失 import + 名称不匹配 (AkShareAdapter → AKShareAdapter)
+  - **增强**: CrawlOrchestrator._fetch_from_adapter() 从 stub 升级为真实适配器调用 (CLSAdapter/CNStockAdapter/ZQAdapter) + 自动 enqueue
+  - **增强**: 前端 app.js 接入 EventSource SSE 实时流 (document_parsed/event_created/signal_generated/queue_update/error_alert)
+  - 新增 `tests/unit/core/services/test_crawler_ingestion_bridge.py`：6 个 bridge 测试
+  - 新增 `tests/unit/data_layer/adapters/test_akshare_adapter.py`：6 个 adapter/router 测试
+  - 新增 `tests/unit/core/services/test_system_event_bus.py`：4 个 event bus 测试
+  - 新增 `tests/unit/app/api/routes/test_system_realtime.py`：2 个 API 端点测试
+  - 新增 `tests/unit/workers/test_knowledge_worker.py`：3 个 worker 测试
 - **concurrent-llm-extraction**: 数据提取管道升级 — 从单次串行 LLM 调用升级为 chunk 切分 + ThreadPoolExecutor 并发 + 去重
   - 新增 `knowledge_layer/extraction/text_chunker.py`：轻量级滑动窗口文本切分器 (split_text)
   - 新增 `knowledge_layer/extraction/concurrent_extractor.py`：ConcurrentLLMExtractor (并发 LLM 抽取, 重试, 统计)

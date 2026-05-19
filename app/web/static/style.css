@@ -4124,4 +4124,13 @@ tr:hover td {
         max-height: 300px;
     }
 }
+
+/* ─── SSE Realtime Fresh Events ─────────────────────────── */
+.fresh-event {
+    animation: freshHighligh 2s ease-out;
+}
+@keyframes freshHighligh {
+    0% { background: var(--color-accent-light, #e8f4fd); }
+    100% { background: transparent; }
+}
 }

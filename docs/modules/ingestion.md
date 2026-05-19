@@ -17,6 +17,12 @@
 
 ## Files
 
+### `ingestion/__init__.py`
+
+Purpose:
+- Package initialization for the ingestion module.
+- Makes ingestion a proper Python package for importing submodules.
+
 ### `ingestion/*.py`
 
 Purpose:

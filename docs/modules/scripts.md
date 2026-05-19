@@ -34,7 +34,7 @@ Update this section when:
 
 Purpose:
 - Verifies source changes have corresponding tests/docs/reports
-- Checks git diff for changes
+- Checks git diff and untracked files for changes (via shared `core/utils/git.py`)
 - Ensures CHANGELOG is updated
 
 Update this section when:
@@ -48,6 +48,7 @@ Purpose:
 - Verifies source changes have corresponding documentation updates
 - Maps source directories to required docs
 - Ensures generated index is updated
+- Detects changes via shared `core/utils/git.py` (includes untracked files)
 
 Update this section when:
 - DOC_RULES mapping changes

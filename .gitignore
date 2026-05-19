@@ -48,11 +48,13 @@ scripts/debug/
 storage/migrations/versions/*.pyc
 data/
 !data/.gitkeep
+.data/
 backup/
 
 # Claude Code
 .claude/
-.ai/
+.ai/*
+!.ai/reports/
 
 # Playwright
 .playwright/

@@ -3,8 +3,12 @@
 
 from __future__ import annotations
 
-import subprocess
 import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from core.utils.git import get_changed_files
 
 DOC_RULES = {
     "app/api/": [
@@ -134,23 +138,6 @@ DOC_RULES = {
         "docs/CHANGELOG.md",
     ],
 }
-
-
-def run_git(args: list[str]) -> list[str]:
-    result = subprocess.run(
-        ["git", *args],
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    return [line for line in result.stdout.strip().splitlines() if line]
-
-
-def get_changed_files() -> list[str]:
-    files: list[str] = []
-    files.extend(run_git(["diff", "--name-only"]))
-    files.extend(run_git(["diff", "--cached", "--name-only"]))
-    return sorted(set(files))
 
 
 def main() -> int:

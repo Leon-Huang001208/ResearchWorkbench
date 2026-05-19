@@ -171,6 +171,71 @@ Update this section when:
 
 ---
 
+### `core/services/crawler_ingestion_bridge.py`
+
+Purpose:
+
+- Bridges crawler output to the ingestion queue.
+- Converts crawler results into `DocumentEnvelope` → `EnqueueRequest` → ingestion queue items.
+- Supports `submit_crawled_item()` for single items and `submit_batch()` for batch processing.
+- Infers priority by source type (e.g., CLS news = high priority).
+
+Related files:
+
+- `core/services/ingestion_queue_service.py`
+- `core/contracts/documents_v1.py`
+- `core/contracts/ingestion.py`
+
+Tests:
+
+- `tests/unit/core/services/test_crawler_ingestion_bridge.py`
+
+Update this section when:
+
+- Bridge conversion logic changes.
+- New source types are added.
+- Priority inference rules change.
+
+---
+
+### `core/services/system_event_bus.py`
+
+Purpose:
+
+- System-wide event bus for SSE (Server-Sent Events) real-time push.
+- Tracks worker heartbeats for health monitoring.
+- Implements pub/sub pattern with `asyncio.Queue`.
+- Maintains a sliding window of the last 500 events.
+- Supports optional JSONL file persistence (`.data/event_log.jsonl`) with automatic replay on restart.
+- `get_events_after(after_id)` returns events after the matched ID for SSE reconnection replay.
+
+Key API:
+
+- `event_bus.publish(event_type, payload)` — publish an event to all subscribers.
+- `event_bus.subscribe()` — create a subscriber queue.
+- `event_bus.get_events_after(after_id)` — get events after a given event ID for reconnection replay.
+- `event_bus.record_worker_heartbeat(worker_name)` — record worker heartbeat.
+- `event_bus.get_worker_heartbeats()` — get all worker heartbeat timestamps.
+
+Related files:
+
+- `app/api/routes/realtime.py`
+- `app/api/routes/system.py`
+- `workers/knowledge_worker.py`
+
+Tests:
+
+- `tests/unit/core/services/test_system_event_bus.py`
+
+Update this section when:
+
+- Event types change.
+- Subscriber model changes.
+- Heartbeat tracking changes.
+- Event retention policy changes or persistence format changes.
+
+---
+
 ## Common Pitfalls
 
 - Do not put API-specific response formatting inside services.

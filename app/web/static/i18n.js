@@ -37,6 +37,7 @@ const I18N = (() => {
         'dashboard.recent_events': '最近事件',
         'dashboard.recent_reports': '最近报告',
         'dashboard.no_data': '暂无数据',
+        'dashboard.just_now': '刚刚',
 
         // Asset Analysis
         'asset.title': '资产分析',
@@ -261,6 +262,7 @@ const I18N = (() => {
         'dashboard.recent_events': 'Recent Events',
         'dashboard.recent_reports': 'Recent Reports',
         'dashboard.no_data': 'No data',
+        'dashboard.just_now': 'Just now',
 
         // Asset Analysis
         'asset.title': 'Asset Analysis',

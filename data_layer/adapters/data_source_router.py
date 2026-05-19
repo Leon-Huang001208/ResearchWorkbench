@@ -6,6 +6,7 @@ from core.contracts import DocumentEnvelope
 from core.contracts.assets import AssetAnalysisSnapshot
 from core.observability import get_logger
 from data_layer.adapters import (
+    AKShareAdapter,
     ChinaStockAdapter,
     CLSAdapter,
     CNStockAdapter,
@@ -32,7 +33,7 @@ class DataSourceRouter:
 
     def __init__(self):
         self.ifind_adapter = IFinDAdapter()
-        self.akshare_adapter = AkShareAdapter()
+        self.akshare_adapter = AKShareAdapter()
         self.china_stock_adapter = ChinaStockAdapter()
         self.cls_adapter = CLSAdapter()
         self.cnstock_adapter = CNStockAdapter()

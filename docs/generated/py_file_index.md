@@ -982,6 +982,26 @@ Functions:
   - 获取提案详情（含排除理由）
 
 
+## `app/api/routes/realtime.py`
+
+Module docstring:
+> SSE realtime stream — 推送新文档/断言/事件/信号/队列状态
+
+Imports:
+- `asyncio`
+- `core.observability`
+- `core.services.system_event_bus`
+- `fastapi`
+- `fastapi.responses`
+- `json`
+
+Functions:
+- `event_stream`
+  - SSE 事件流，每 2 秒推送一次系统事件
+- `stream`
+  - GET /api/realtime/stream — Server-Sent Events 端点
+
+
 ## `app/api/routes/replay.py`
 
 Module docstring:
@@ -1206,6 +1226,28 @@ Functions:
   - 升级信号状态
 - `get_signal_detail`
   - 获取信号完整详情：基本信息、关联事件、择时建议、关联 Outcome、审核历史
+
+
+## `app/api/routes/system.py`
+
+Module docstring:
+> System health endpoint — scheduler / queue / worker 状态
+
+Imports:
+- `asyncio`
+- `core.observability`
+- `core.services.system_event_bus`
+- `datetime`
+- `fastapi`
+- `json`
+
+Functions:
+- `get_health`
+  - 返回系统健康状态
+- `publish_event`
+  - 发布系统事件到 event bus（用于外部系统/测试集成）
+- `get_health_minimal`
+  - 最小健康检查（不查数据库，快速返回）
 
 
 ## `app/api/routes/templates.py`
@@ -2795,6 +2837,7 @@ Module docstring:
 
 Imports:
 - `asset_analysis_service`
+- `crawler_ingestion_bridge`
 - `data_tier_service`
 - `document_chunker`
 - `document_classifier`
@@ -2811,6 +2854,7 @@ Imports:
 - `signal_service`
 - `signal_validator_impl`
 - `summary_generator`
+- `system_event_bus`
 - `taxonomy_service`
 
 
@@ -2899,7 +2943,7 @@ Classes:
   - methods: __init__
 - `CrawlOrchestrator`
   - 采集编排器
-  - methods: __init__, crawl_source, backfill_source, _calculate_time_window, _fetch_from_adapter, _deduplicate_docs, get_crawl_status
+  - methods: __init__, crawl_source, backfill_source, _calculate_time_window, _fetch_from_adapter, _envelope_to_doc_v1, _enqueue_to_bridge, _deduplicate_docs, get_crawl_status
 
 
 ## `core/services/crawl_scheduler.py`
@@ -2926,6 +2970,26 @@ Classes:
 Functions:
 - `get_crawl_scheduler`
   - 获取全局调度器实例
+
+
+## `core/services/crawler_ingestion_bridge.py`
+
+Module docstring:
+> 爬虫摄取桥接器 — 将所有爬虫输出统一转为 IngestionQueueItem 入队
+
+Imports:
+- `core.contracts`
+- `core.contracts.ingestion`
+- `core.observability`
+- `datetime`
+- `hashlib`
+- `typing`
+- `uuid`
+
+Classes:
+- `CrawlerIngestionBridge`
+  - 爬虫摄取桥接器 — 统一入口，将爬虫输出送入摄取队列
+  - methods: __init__, submit_crawled_item, submit_batch, _to_document_envelope, _infer_priority, _hash_item
 
 
 ## `core/services/dashboard_service.py`
@@ -3695,6 +3759,31 @@ Classes:
   - methods: __init__, generate_short_summary, generate_bullet_points, generate_document_summary, _extract_first_sentence, _extract_list_items, _extract_key_sentences, _split_sentences, _score_sentence
 
 
+## `core/services/system_event_bus.py`
+
+Module docstring:
+> System event bus — 轻量级内存事件总线，用于 SSE 实时推送
+
+Imports:
+- `asyncio`
+- `collections`
+- `core.observability`
+- `dataclasses`
+- `json`
+- `os`
+- `pathlib`
+- `time`
+- `typing`
+- `uuid`
+
+Classes:
+- `SystemEvent`
+  - methods: to_sse_dict
+- `SystemEventBus`
+  - 轻量级内存事件总线，用于 SSE 实时推送和 worker heartbeat 记录
+  - methods: __init__, _load_history, _append_to_log, publish, get_events_after, subscribe, unsubscribe, record_worker_heartbeat, get_worker_heartbeats
+
+
 ## `core/services/taxonomy_service.py`
 
 Module docstring:
@@ -3781,8 +3870,23 @@ Classes:
 ## `core/utils/__init__.py`
 
 Imports:
+- `git`
 - `id_gen`
 - `trading_calendar`
+
+
+## `core/utils/git.py`
+
+Module docstring:
+> Git utilities shared by CI and task-completion check scripts.
+
+Imports:
+- `__future__`
+- `subprocess`
+
+Functions:
+- `run_git`
+- `get_changed_files`
 
 
 ## `core/utils/id_gen.py`
@@ -9172,6 +9276,15 @@ Functions:
 - `downgrade`
 
 
+## `ingestion/__init__.py`
+
+Module docstring:
+> Ingestion package
+
+Imports:
+- `knowledge_pipeline`
+
+
 ## `ingestion/knowledge_pipeline.py`
 
 Module docstring:
@@ -9423,12 +9536,11 @@ Module docstring:
 
 Imports:
 - `__future__`
-- `subprocess`
+- `core.utils.git`
+- `pathlib`
 - `sys`
 
 Functions:
-- `run_git`
-- `get_changed_files`
 - `main`
 
 
@@ -9454,12 +9566,11 @@ Module docstring:
 
 Imports:
 - `__future__`
-- `subprocess`
+- `core.utils.git`
+- `pathlib`
 - `sys`
 
 Functions:
-- `run_git`
-- `get_changed_files`
 - `is_source_py`
 - `main`
 

@@ -72,6 +72,7 @@ from app.api.routes import (  # noqa: E402
     pdf_admin,
     pipeline,
     portfolio,
+    realtime,
     replay,
     report,
     review,
@@ -80,6 +81,7 @@ from app.api.routes import (  # noqa: E402
     search,
     signal_lab,
     signals,
+    system,
     templates,
     thesis_generator,
     thesis_review,
@@ -122,6 +124,8 @@ app.include_router(llm.router)
 app.include_router(scheduler.router)
 app.include_router(pdf_admin.router)
 app.include_router(market_data.router)
+app.include_router(system.router)
+app.include_router(realtime.router)
 
 # ─── 静态文件 ────────────────────────────────────────────
 _web_dir = Path(__file__).resolve().parent.parent / "web"

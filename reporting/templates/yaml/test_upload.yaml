@@ -1,0 +1,5 @@
+name: test_upload
+description: 测试上传的模板
+version: '1.0'
+default_retrieval_profile: weekly_report
+sections: []

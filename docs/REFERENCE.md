@@ -595,6 +595,75 @@ af timing --signal signal_123
 
 ---
 
+### 系统 API
+
+#### GET /api/system/health
+
+获取系统健康状态，包含队列深度、Worker 心跳和数据库状态。
+
+**响应示例**:
+
+```json
+{
+  "status": "ok",
+  "queue_depth": 42,
+  "pending": 30,
+  "processing": 8,
+  "completed": 1234,
+  "failed": 3,
+  "worker_heartbeats": {
+    "knowledge_worker": "2025-05-19T10:30:00Z"
+  },
+  "timestamp": "2025-05-19T10:30:05Z"
+}
+```
+
+#### GET /api/system/health/minimal
+
+轻量健康检查，不查询数据库，仅返回 Worker 心跳。
+
+**响应示例**:
+
+```json
+{
+  "status": "ok",
+  "worker_heartbeats": {
+    "knowledge_worker": "2025-05-19T10:30:00Z"
+  },
+  "timestamp": "2025-05-19T10:30:05Z"
+}
+```
+
+---
+
+### 实时 API
+
+#### GET /api/realtime/stream
+
+SSE (Server-Sent Events) 端点，推送实时系统事件到前端。
+
+**事件类型**:
+
+| 事件类型 | 说明 |
+|----------|------|
+| `document_parsed` | 文档处理完成 |
+| `event_created` | 新事件创建 |
+| `assertion_created` | 新断言创建 |
+| `queue_status` | 队列状态更新 |
+| `worker_heartbeat` | Worker 心跳 |
+
+**使用示例**:
+
+```javascript
+const evtSource = new EventSource('/api/realtime/stream');
+evtSource.addEventListener('event_created', (e) => {
+  const data = JSON.parse(e.data);
+  console.log('New event:', data);
+});
+```
+
+---
+
 ### PDF Admin API
 
 PDF 转换管理接口，支持三种策略自动降级 (MinerU → MarkItDown → RawText)。
@@ -1533,7 +1602,9 @@ AlphaFoundry/
 │   │       ├── report.py         # 报告 API
 │   │       ├── scenarios.py      # 情景 API
 │   │       ├── search.py         # 搜索 API
-│   │       └── signal_lab.py     # 信号实验室 API
+│   │       ├── signal_lab.py     # 信号实验室 API
+│   │       ├── system.py         # 系统健康检查 API
+│   │       └── realtime.py       # 实时 SSE 推送 API
 │   ├── cli/                      # 命令行工具
 │   │   ├── __init__.py
 │   │   ├── main.py               # CLI 入口点
@@ -1592,6 +1663,7 @@ AlphaFoundry/
 │   │   ├── closed_loop_service.py            # 闭循环服务
 │   │   ├── crawl_orchestrator.py             # 采集编排器
 │   │   ├── crawl_scheduler.py                # 采集调度器
+│   │   ├── crawler_ingestion_bridge.py       # 采集摄入桥接
 │   │   ├── dashboard_service.py              # 仪表盘服务
 │   │   ├── data_tier_service.py              # 数据层服务
 │   │   ├── decision_console_service.py       # 决策控制台服务
@@ -1627,6 +1699,7 @@ AlphaFoundry/
 │   │   ├── signal_service.py                 # 信号服务
 │   │   ├── signal_validator_impl.py          # 信号验证实现
 │   │   ├── summary_generator.py              # 摘要生成器
+│   │   ├── system_event_bus.py               # 系统事件总线
 │   │   ├── taxonomy_service.py               # 分类服务
 │   │   ├── thesis_generator_service.py       # 论点生成服务
 │   │   ├── thesis_review_service.py          # 论点审查服务
@@ -1637,7 +1710,8 @@ AlphaFoundry/
 │   ├── __init__.py
 │   ├── adapters/               # 数据适配器
 │   │   ├── __init__.py
-│   │   └── akshare_adapter.py # AKShare 适配器
+│   │   ├── akshare_adapter.py # AKShare 适配器
+│   │   └── data_source_router.py # 数据源路由器
 │   ├── crawlers/              # 数据采集器
 │   │   ├── __init__.py
 │   │   ├── akshare/           # AKShare 采集器
@@ -1704,6 +1778,10 @@ AlphaFoundry/
 │   └── backtests/            # 回测引擎
 │       ├── base.py          # Backtester, BacktestResult 基类
 │       └── simple.py        # 简单回测实现
+├── ingestion/                 # 结构化摄入模块
+│   ├── __init__.py            # 导出 KnowledgePipeline
+│   ├── knowledge_pipeline.py  # 6 步知识处理管道
+│   └── structured_event_ingestion.py  # 结构化事件摄入器
 ├── storage/                  # 存储层
 │   └── migrations/           # Alembic 数据库迁移
 ├── alembic/                  # Alembic 配置
@@ -1715,7 +1793,10 @@ AlphaFoundry/
 │   ├── minimal_reingest_bootstrap.py  # 最小重摄入引导脚本
 │   ├── backfill_from_objects.py        # 从对象存储回填脚本
 │   ├── rebuild_derived_state.py        # 重建派生状态脚本
-│   └── smoke_runner.py       # 冒烟测试脚本
+│   ├── start_all.sh           # 一键启动脚本
+│   └── stop_all.sh            # 一键停止脚本
+├── workers/                   # 后台 Worker
+│   └── knowledge_worker.py    # 知识处理 Worker
 ├── benchmarks/               # 基准数据
 ├── examples/                 # 示例代码
 ├── tests/                    # 测试
@@ -1818,6 +1899,18 @@ uvicorn app.api.main:app --reload
 
 ```bash
 nohup python -m uvicorn app.api.main:app --host 127.0.0.1 --port 8000 > logs/web_server.log 2>&1 &
+```
+
+或使用一键启动脚本（启动 API + 调度器 + Knowledge Worker）：
+
+```bash
+bash scripts/start_all.sh
+```
+
+停止所有服务：
+
+```bash
+bash scripts/stop_all.sh
 ```
 
 然后访问：http://127.0.0.1:8000/

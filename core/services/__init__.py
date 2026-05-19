@@ -1,5 +1,6 @@
 """核心服务模块"""
 from .asset_analysis_service import AssetAnalysisService
+from .crawler_ingestion_bridge import CrawlerIngestionBridge
 from .data_tier_service import DataTierService
 from .document_chunker import ChunkingOptions, ChunkingStrategy, DocumentChunker
 from .document_classifier import DocumentClassifier
@@ -23,10 +24,12 @@ from .scenario_service import ScenarioService
 from .signal_service import SignalService
 from .signal_validator_impl import SignalValidatorImpl
 from .summary_generator import SummaryGenerator
+from .system_event_bus import SystemEventBus, event_bus
 from .taxonomy_service import TaxonomyService
 
 __all__ = [
     "AssetAnalysisService",
+    "CrawlerIngestionBridge",
     "DocumentChunker",
     "ChunkingOptions",
     "ChunkingStrategy",
@@ -55,4 +58,6 @@ __all__ = [
     "HistoricalReplayService",
     "NewsFeatureService",
     "DataTierService",
+    "SystemEventBus",
+    "event_bus",
 ]

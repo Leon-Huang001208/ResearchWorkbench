@@ -2171,7 +2171,94 @@ window.addEventListener('DOMContentLoaded', () => {
         } catch (e) { /* ignore */ }
     };
     updateStatusBar();
+
+    // ─── SSE Realtime Stream ──────────────────────────────────
+    initRealtimeStream();
 });
+
+let _realtimeEventSource = null;
+
+function initRealtimeStream() {
+    if (_realtimeEventSource) {
+        _realtimeEventSource.close();
+    }
+    try {
+        const es = new EventSource('/api/realtime/stream');
+        _realtimeEventSource = es;
+
+        es.addEventListener('document_parsed', (msg) => {
+            try {
+                const ev = JSON.parse(msg.data);
+                updateQueuePanel({ type: 'document', ...ev.payload });
+            } catch (_) {}
+        });
+
+        es.addEventListener('event_created', (msg) => {
+            try {
+                const ev = JSON.parse(msg.data);
+                prependEventCard(ev.payload);
+            } catch (_) {}
+        });
+
+        es.addEventListener('signal_generated', (msg) => {
+            try {
+                const ev = JSON.parse(msg.data);
+                prependSignalCard(ev.payload);
+            } catch (_) {}
+        });
+
+        es.addEventListener('queue_update', (msg) => {
+            try {
+                const ev = JSON.parse(msg.data);
+                updateQueuePanel(ev.payload);
+            } catch (_) {}
+        });
+
+        es.addEventListener('error_alert', (msg) => {
+            try {
+                const ev = JSON.parse(msg.data);
+                console.warn('[SSE] Error:', ev.payload);
+                toast(ev.payload.error || '系统错误', 'error');
+            } catch (_) {}
+        });
+
+        es.onerror = () => {
+            // EventSource auto-reconnects; no action needed
+        };
+
+        console.log('[SSE] Realtime stream connected');
+    } catch (e) {
+        console.warn('[SSE] Failed to connect:', e);
+    }
+}
+
+function updateQueuePanel(payload) {
+    const badge = document.getElementById('queue-pending-count');
+    if (badge && payload.processed !== undefined) {
+        const current = parseInt(badge.textContent || '0', 10);
+        badge.textContent = Math.max(0, current - (payload.processed || 0));
+    }
+}
+
+function prependEventCard(payload) {
+    const container = document.getElementById('today-new-events');
+    if (!container || !payload.summary) return;
+    const li = document.createElement('li');
+    li.innerHTML = `<div class="item-title">${esc(payload.summary)}</div><div class="item-meta">${esc(payload.event_type || '')} • ${I18N.t('dashboard.just_now')}</div>`;
+    li.classList.add('fresh-event');
+    container.prepend(li);
+    setTimeout(() => li.classList.remove('fresh-event'), 3000);
+}
+
+function prependSignalCard(payload) {
+    const container = document.getElementById('today-high-priority');
+    if (!container || !payload.thesis) return;
+    const li = document.createElement('li');
+    li.innerHTML = `<div class="item-title">${esc(payload.thesis)}</div><div class="item-meta">${esc(payload.subject_id || '')} • ${I18N.t('dashboard.score')}: ${(payload.score || 0).toFixed(2)}</div>`;
+    li.classList.add('fresh-event');
+    container.prepend(li);
+    setTimeout(() => li.classList.remove('fresh-event'), 3000);
+}
 
 // ═══════════════════════════════════════════════════════════════
 // Outcomes Management

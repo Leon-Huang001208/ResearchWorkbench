@@ -81,6 +81,8 @@
 | `app/api/routes/scenarios.py` | 情景 API：生成多情景分析 |
 | `app/api/routes/search.py` | 搜索 API：全局跨对象搜索 |
 | `app/api/routes/signal_lab.py` | 信号实验室 API：特征、标签、评分、回测 |
+| `app/api/routes/system.py` | 系统 API：健康检查、队列深度、Worker 心跳 |
+| `app/api/routes/realtime.py` | 实时 API：SSE 事件推送、实时数据流 |
 
 ### app/cli/ - 命令行工具
 
@@ -177,6 +179,8 @@
 | **数据采集** | |
 | `crawl_orchestrator.py` | 采集编排器：协调多个采集器运行 |
 | `crawl_scheduler.py` | 采集调度器：定时任务调度、后台运行 |
+| `crawler_ingestion_bridge.py` | 采集摄入桥接：将采集器输出转为 DocumentEnvelope → 摄入队列 |
+| `system_event_bus.py` | 系统事件总线：SSE 实时推送、Worker 心跳追踪 |
 | **知识与检索** | |
 | `search_service.py` | 搜索服务：全局跨对象搜索 |
 | `rag_retrieval.py` | RAG 检索服务：向量检索 + 增强生成 |
@@ -229,6 +233,7 @@
 | 文件 | 说明 |
 |---|---|
 | `data_layer/adapters/akshare_adapter.py` | AKShare 开源数据适配器：集成 crawler 模块，提供行情、财务、新闻、股东数据获取 |
+| `data_layer/adapters/data_source_router.py` | 数据源路由器：iFinD → AKShare → ChinaStock 三级降级策略，统一管理所有数据适配器 |
 
 ### data_layer/crawlers/ - 数据采集器
 
@@ -410,7 +415,17 @@
 
 | 文件 | 说明 |
 |---|---|
+| `ingestion/__init__.py` | 摄入模块初始化：导出 KnowledgePipeline、PipelineConfig、PipelineResult |
+| `ingestion/knowledge_pipeline.py` | 知识管道：6 步处理管道（切块→分类→实体提取→事件提取→去重→保存） |
 | `ingestion/structured_event_ingestion.py` | 结构化事件摄入器：标准化的结构化事件摄入管道，用于 A 股 Alpha 事件的摄入、去重和自动断言提取。包含 AssertionExtractor 用于从原始文本中提取断言。 |
+
+---
+
+## workers/ - 后台 Worker
+
+| 文件 | 说明 |
+|---|---|
+| `workers/knowledge_worker.py` | 知识处理 Worker：持续消费摄入队列，通过 KnowledgePipeline 处理文档，发布 SSE 事件 |
 
 ---
 
@@ -435,6 +450,8 @@
 | `scripts/backfill_from_objects.py` | 从对象存储回填脚本：从幸存的原始制品重建源文档和事实层 |
 | `scripts/rebuild_derived_state.py` | 重建派生状态脚本：从恢复的事实记录重建派生系统状态（信号、择时决策、结果、回放） |
 | `scripts/smoke_runner.py` | 冒烟测试脚本：端到端一键 MVP 验证 |
+| `scripts/start_all.sh` | 一键启动脚本：启动 API → 调度器 → Knowledge Worker |
+| `scripts/stop_all.sh` | 一键停止脚本：读取 PID 文件，停止所有后台服务 |
 | `scripts/check_market_data_schema.py` | 结构化行情数据表 Schema 检查：验证 8 张市场数据表是否存在 |
 | `scripts/bootstrap_market_data.py` | 结构化行情数据初始化脚本：同步股票列表和核心股票日行情 |
 | `scripts/view_db.py` | 数据库查看工具：方便查询统计、事件、文档等 |

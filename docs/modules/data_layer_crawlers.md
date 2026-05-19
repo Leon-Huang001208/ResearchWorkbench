@@ -89,6 +89,25 @@ Update this section when:
 
 ---
 
+### `data_layer/adapters/data_source_router.py`
+
+Purpose:
+
+- Implements a 3-tier degradation strategy: iFinD → AKShare → ChinaStock.
+- Maintains instances of all 7 adapters: IFinDAdapter, AKShareAdapter, ChinaStockAdapter, CLSAdapter, CNStockAdapter, ZQAdapter.
+- Provides async methods for each data category: `fetch_stock_quotes`, `fetch_financial_report`, `fetch_fund_flow`, `fetch_industry_classification`, `fetch_macro_indicators`, `fetch_technical_indicators`, `fetch_sentiment`.
+- Direct adapter calls for news: `fetch_news_cls`, `fetch_news_cnstock`, `fetch_reports_zq`.
+- Falls back to `AssetAnalysisSnapshot` with `evidence_refs=["insufficient_evidence"]` when all adapters fail.
+
+Update this section when:
+
+- New adapter is added.
+- Degradation strategy changes.
+- New data category method is added.
+- Insufficient evidence fallback behavior changes.
+
+---
+
 ## Required Tests
 
 - Mocked crawler tests

@@ -130,6 +130,50 @@ Update this section when:
 
 ---
 
+### `app/api/routes/system.py`
+
+Purpose:
+
+- System health check and event publishing endpoints.
+- `GET /api/system/health` — full health check with queue depth, pending/processing/completed/failed counts, and worker heartbeats.
+- `GET /api/system/health/minimal` — lightweight health check without database query.
+- `POST /api/system/event` — publish a system event to the event bus (for external integration/testing).
+
+Related service:
+
+- `core/services/system_event_bus.py`
+- `core/services/ingestion_queue_service.py`
+
+Update this section when:
+
+- Health check response format changes.
+- New metrics are added to health check.
+- New system management endpoints are added.
+
+---
+
+### `app/api/routes/realtime.py`
+
+Purpose:
+
+- SSE (Server-Sent Events) endpoint for real-time frontend updates.
+- `GET /api/realtime/stream` — subscribes to SystemEventBus, pushes events with 2-second heartbeat.
+- Supports `Last-Event-ID` header for reconnection replay of missed events.
+- Each SSE message includes an `id:` field for automatic reconnection tracking by browsers.
+
+Related service:
+
+- `core/services/system_event_bus.py`
+
+Update this section when:
+
+- SSE event types change.
+- Heartbeat interval changes.
+- Event format changes.
+- Reconnection/replay behavior changes.
+
+---
+
 ## Required Tests
 
 - API route tests

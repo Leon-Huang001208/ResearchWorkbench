@@ -11,7 +11,7 @@
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
-from core.contracts import CrawlRunV1, DocumentV1, SourceCursorV1, SourceType
+from core.contracts import CrawlRunV1, DocumentEnvelope, DocumentV1, SourceCursorV1, SourceType
 from core.observability import get_logger
 from core.services.deduplication_service import DeduplicationService
 from core.services.raw_storage_service import RawStorageService
@@ -234,42 +234,115 @@ class CrawlOrchestrator:
         end_time: datetime,
         max_docs: Optional[int],
     ) -> Tuple[List[DocumentV1], List]:
-        """
-        从适配器获取数据
+        """从适配器获取数据并转换为 DocumentV1 列表"""
+        envelopes: List[DocumentEnvelope] = []
+        raw_files: List[Any] = []
 
-        这是一个模板方法，实际项目中应该根据 source_type 调用对应的适配器
-        """
+        try:
+            if source_type == SourceType.CAILIAN_SHE:
+                from data_layer.adapters.cls_adapter import CLSAdapter
 
-        # 根据 source_type 选择适配器
+                adapter = CLSAdapter()
+                envelopes = adapter.fetch(
+                    start_date=start_time.strftime("%Y-%m-%d"),
+                    end_date=end_time.strftime("%Y-%m-%d"),
+                    days=(end_time - start_time).days or 1,
+                )
+            elif source_type == SourceType.CHINA_SECURITY_JOURNAL:
+                from data_layer.adapters.cnstock_adapter import CNStockAdapter
+
+                adapter = CNStockAdapter()
+                envelopes = adapter.fetch(
+                    start_date=start_time.strftime("%Y-%m-%d"),
+                    end_date=end_time.strftime("%Y-%m-%d"),
+                )
+            elif source_type == SourceType.ZHIQIU_REPORTS:
+                from data_layer.adapters.zq_adapter import ZQAdapter
+
+                adapter = ZQAdapter()
+                envelopes = adapter.fetch(
+                    start_date=start_time.strftime("%Y-%m-%d"),
+                    end_date=end_time.strftime("%Y-%m-%d"),
+                )
+            else:
+                logger.warning(f"No adapter for source_type: {source_type}")
+        except Exception as e:
+            logger.error(f"Adapter fetch failed for {source_type}: {e}", exc_info=True)
+
+        # Convert DocumentEnvelope → DocumentV1
         docs: List[DocumentV1] = []
-        raw_files = []
+        for env in envelopes[:max_docs] if max_docs else envelopes:
+            try:
+                doc = self._envelope_to_doc_v1(env, source_type)
+                docs.append(doc)
+            except Exception as e:
+                logger.error(f"Failed to convert envelope {env.doc_id}: {e}")
 
-        if source_type == SourceType.CAILIAN_SHE:
-            # adapter = CLSAdapter()
-            # 这里调用适配器，获取 DocumentEnvelope，然后转换为 DocumentV1
-            # 这部分需要根据实际适配器实现来调整
-            # 暂时返回空列表作为示例
-            pass
+        # Enqueue via CrawlerIngestionBridge for KnowledgePipeline processing
+        if envelopes:
+            self._enqueue_to_bridge(source_type, envelopes)
 
-        elif source_type == SourceType.CHINA_SECURITY_JOURNAL:
-            # adapter = CnStockAdapter()
-            pass
-
-        # 对于其他来源，需要实现对应的适配器
-
-        # 模拟返回（实际应该调用真实适配器）
-        logger.debug(f"Fetching from {source_type.value}: {start_time} to {end_time}")
-
-        # 保存原始数据（即使是模拟，也演示如何使用 raw_storage）
-        # raw_file = self.raw_storage.save_raw_data(
-        #     source_type=source_type,
-        #     data={...},
-        #     data_type=RawDataType.JSON,
-        #     timestamp=start_time,
-        # )
-        # raw_files.append(raw_file)
-
+        logger.info(f"Fetched {len(docs)} docs from {source_type.value}")
         return docs, raw_files
+
+    @staticmethod
+    def _envelope_to_doc_v1(envelope: DocumentEnvelope, source_type: SourceType) -> DocumentV1:
+        """将 DocumentEnvelope 转为 DocumentV1"""
+        from core.contracts.documents_v1 import DocType
+
+        doc_type_map = {
+            SourceType.CAILIAN_SHE: DocType.NEWS,
+            SourceType.CHINA_SECURITY_JOURNAL: DocType.NEWS,
+            SourceType.ZHIQIU_REPORTS: DocType.REPORT,
+        }
+        return DocumentV1(
+            doc_id=envelope.doc_id,
+            doc_type=doc_type_map.get(source_type, DocType.NEWS),
+            source_type=source_type,
+            title=envelope.title,
+            content=envelope.canonical_text or envelope.raw_text,
+            source_name=envelope.source_name,
+            source_url=envelope.metadata.get("url") if envelope.metadata else None,
+            doc_metadata=envelope.metadata or {},
+            language=envelope.language,
+        )
+
+    @staticmethod
+    def _enqueue_to_bridge(
+        source_type: SourceType,
+        envelopes: List[DocumentEnvelope],
+    ) -> None:
+        """将抓取到的文档通过 CrawlerIngestionBridge 送入摄取队列"""
+        try:
+            from core.services.crawler_ingestion_bridge import CrawlerIngestionBridge
+            from core.services.ingestion_queue_service import IngestionQueueService
+            from data_layer.repositories.base import SessionLocal
+            from data_layer.repositories.ingestion_repository import IngestionQueueRepository
+
+            db = SessionLocal()
+            try:
+                repo = IngestionQueueRepository(db)
+                queue_service = IngestionQueueService(repository=repo)
+                bridge = CrawlerIngestionBridge(queue_service=queue_service)
+
+                source_type_str = (
+                    source_type.value if hasattr(source_type, "value") else str(source_type)
+                )
+                for env in envelopes:
+                    item = {
+                        "id": env.doc_id,
+                        "title": env.title,
+                        "content": env.canonical_text or env.raw_text,
+                        "url": env.metadata.get("url") if env.metadata else None,
+                        "published_at": env.published_at,
+                        "source_name": env.source_name,
+                    }
+                    bridge.submit_crawled_item(source_type_str, item)
+                logger.info(f"Enqueued {len(envelopes)} items from {source_type_str}")
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"Failed to enqueue to bridge: {e}", exc_info=True)
 
     def _deduplicate_docs(
         self,
