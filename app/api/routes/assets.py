@@ -46,6 +46,7 @@ def _snapshot_to_response(snapshot: AssetAnalysisSnapshot) -> AnalyzeResponse:
 
 def get_asset_service(db: Session = Depends(get_db)) -> AssetAnalysisService:
     """获取资产分析服务实例"""
+    from data_layer.repositories.market_data_repository import MarketDataRepository
     from data_layer.repositories.postgres_asset_snapshot_repo import PostgresAssetSnapshotRepository
 
     repo = PostgresAssetSnapshotRepository(db_session=db)
@@ -53,6 +54,7 @@ def get_asset_service(db: Session = Depends(get_db)) -> AssetAnalysisService:
     return AssetAnalysisService(
         asset_snapshot_repo=repo,
         coordinator=coordinator,
+        market_repo=MarketDataRepository(db),
     )
 
 

@@ -1618,6 +1618,7 @@ class ExampleRepositoryImpl(BaseRepository):
 | 006 | 006_memory_learning_tables.py | 添加记忆学习表 |
 | 007 | 007_add_stock_price_table.py | 添加股票价格表 |
 | 008 | 008_add_event_type_column.py | 添加事件类型字段 |
+| 009 | 009_add_structured_market_data_tables.py | 添加结构化行情数据表 (stock_master, stock_daily_bar, stock_quote_snapshot, stock_financial_metric, stock_valuation, stock_shareholder, index_component, etl_run) |
 
 ### 常用命令
 

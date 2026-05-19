@@ -30,6 +30,17 @@ Update this section when:
 - Connection logic changes
 - Storage utilities change
 
+### `storage/migrations/env.py`
+
+Purpose:
+- Alembic environment configuration.
+- `target_metadata = Base.metadata` (now uncommented, enabling `--autogenerate` migration generation).
+
+Update this section when:
+- Autogenerate configuration changes.
+- Migration target metadata changes.
+- Migration run-time logic changes.
+
 ### `storage/migrations/*`
 
 Purpose:

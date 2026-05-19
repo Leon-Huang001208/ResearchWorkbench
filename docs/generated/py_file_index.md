@@ -2831,7 +2831,7 @@ Imports:
 Classes:
 - `AssetAnalysisService`
   - 资产分析服务
-  - methods: __init__, generate_snapshot, _fetch_from_coordinator, _build_from_structured_tables, _build_from_coordinator, get_latest_snapshot, generate_analysis_card, _fill_structured_data, _enrich_from_coordinator
+  - methods: __init__, generate_snapshot, _fetch_from_coordinator, _has_enough_structured_data, _build_from_structured_tables, _build_from_coordinator, get_latest_snapshot, generate_analysis_card, _fill_structured_data, _enrich_from_coordinator
 
 
 ## `core/services/audit_service.py`
@@ -8965,6 +8965,7 @@ Classes:
 
 Imports:
 - `alembic`
+- `data_layer.repositories.models`
 - `logging.config`
 - `sqlalchemy`
 
@@ -9099,6 +9100,20 @@ Functions:
 
 Module docstring:
 > Add event_type column to signal_outcome
+
+Imports:
+- `alembic`
+- `sqlalchemy`
+
+Functions:
+- `upgrade`
+- `downgrade`
+
+
+## `storage/migrations/versions/009_add_structured_market_data_tables.py`
+
+Module docstring:
+> Add structured market data tables (AF-AUTO-007)
 
 Imports:
 - `alembic`
@@ -9320,6 +9335,23 @@ Functions:
   - Main bootstrap flow.
 
 
+## `scripts/bootstrap_market_data.py`
+
+Module docstring:
+> bootstrap 脚本：填充初始结构化行情数据
+
+Imports:
+- `__future__`
+- `core.observability`
+- `core.settings`
+- `datetime`
+- `pathlib`
+- `sys`
+
+Functions:
+- `main`
+
+
 ## `scripts/check_db_data.py`
 
 Module docstring:
@@ -9349,6 +9381,21 @@ Imports:
 Functions:
 - `run_git`
 - `get_changed_files`
+- `main`
+
+
+## `scripts/check_market_data_schema.py`
+
+Module docstring:
+> 验证结构化行情数据表是否存在
+
+Imports:
+- `data_layer.repositories.base`
+- `pathlib`
+- `sqlalchemy`
+- `sys`
+
+Functions:
 - `main`
 
 
