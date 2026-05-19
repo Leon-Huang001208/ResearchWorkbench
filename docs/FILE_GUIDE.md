@@ -434,6 +434,8 @@
 | `scripts/backfill_from_objects.py` | 从对象存储回填脚本：从幸存的原始制品重建源文档和事实层 |
 | `scripts/rebuild_derived_state.py` | 重建派生状态脚本：从恢复的事实记录重建派生系统状态（信号、择时决策、结果、回放） |
 | `scripts/smoke_runner.py` | 冒烟测试脚本：端到端一键 MVP 验证 |
+| `scripts/check_market_data_schema.py` | 结构化行情数据表 Schema 检查：验证 8 张市场数据表是否存在 |
+| `scripts/bootstrap_market_data.py` | 结构化行情数据初始化脚本：同步股票列表和核心股票日行情 |
 | `scripts/view_db.py` | 数据库查看工具：方便查询统计、事件、文档等 |
 | `scripts/test_*.py` | 各种测试脚本：测试功能模块 |
 

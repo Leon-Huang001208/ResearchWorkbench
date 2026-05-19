@@ -101,6 +101,35 @@ Update this section when:
 
 ---
 
+### `app/api/routes/assets.py`
+
+Purpose:
+
+- Asset analysis endpoints.
+
+Endpoints:
+
+- `POST /api/assets/analyze` — generate asset analysis snapshot.
+- `GET /api/assets/{canonical_id}` — query latest snapshot.
+- `POST /api/assets/analysis-card` — generate full analysis card with K-line data, capital flow, shareholders, etc.
+
+Dependency injection:
+
+- `get_asset_service()` creates `AssetAnalysisService` with `MarketDataRepository` injected via `market_repo` parameter.
+- Structured tables (stock_daily_bar, stock_valuation, etc.) queried first before falling back to `MultiSourceCoordinator`.
+
+Related contracts:
+
+- `core/contracts/assets.py`
+
+Update this section when:
+
+- Asset analysis endpoint changes.
+- Dependency injection configuration changes.
+- Structured data fallback logic changes.
+
+---
+
 ## Required Tests
 
 - API route tests

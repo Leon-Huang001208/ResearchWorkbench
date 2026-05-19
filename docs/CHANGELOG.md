@@ -23,6 +23,12 @@
   - 新增 `tests/unit/data_layer/repositories/test_market_data_repository.py`：8 个 repository 测试
   - 新增 `tests/unit/data_layer/repositories/test_etl_run_repository.py`：5 个 ETL run 测试
   - 新增 `tests/unit/core/services/test_market_data_ingestion_service.py`：4 个 ingestion service 测试
+  - 新增 `storage/migrations/versions/009_add_structured_market_data_tables.py`：Alembic 迁移 (8 张市场数据表)
+  - 新增 `scripts/check_market_data_schema.py`：Schema 验证脚本 (检查 8 张表是否存在)
+  - 新增 `scripts/bootstrap_market_data.py`：初始化数据填充脚本
+  - **修复**: `app/api/routes/assets.py` 中 `get_asset_service()` 注入 `MarketDataRepository`，使结构化表路径可用
+  - **修复**: `core/services/asset_analysis_service.py` 增加 `_has_enough_structured_data` 数据质量检查，防止空表数据被错误当作"结构化路径已启用"
+  - **修复**: `tests/unit/test_asset_analysis_service.py` 适配新的构造函数签名和 async 接口
 - **pdf-conversion-pipeline**: 完整的 PDF 到 Markdown 转换管道
   - 新增 `core/contracts/pdf_conversion.py`：Pydantic 契约 (ConversionResult, StrategyType, ConversionStatus)
   - 新增 `data_layer/converters/base.py`：PDFConversionStrategy 抽象基类

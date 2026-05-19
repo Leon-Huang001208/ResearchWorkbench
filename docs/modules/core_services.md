@@ -105,6 +105,34 @@ Update this section when:
 
 ---
 
+### `core/services/asset_analysis_service.py`
+
+Purpose:
+
+- Generates `AssetAnalysisSnapshot` and `AssetAnalysisCard` for a given asset.
+- Structured-first: queries `stock_daily_bar`, `stock_valuation`, `stock_financial_metric`, `stock_shareholder` tables.
+- `_has_enough_structured_data()` guards against empty tables — if no price/valuation/financial/shareholder data found, falls back to coordinator.
+- Falls back to `MultiSourceCoordinator` when structured tables have no data or fail.
+
+Data source priority:
+
+1. Structured SQL tables (fastest, via `MarketDataRepository`)
+2. `MultiSourceCoordinator` with automatic degradation chain: iFinD → AKShare → Local
+
+Dependencies:
+
+- `data_layer/repositories/market_data_repository.py` — structured data access
+- `data_layer/coordinator/multi_source_coordinator.py` — fallback data source
+
+Update this section when:
+
+- Snapshot assembly logic changes.
+- Data source priority changes.
+- Structured table query logic changes.
+- Fallback behavior changes.
+
+---
+
 ### `core/services/market_data_ingestion_service.py`
 
 Purpose:

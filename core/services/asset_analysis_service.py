@@ -83,7 +83,13 @@ class AssetAnalysisService:
         # 优先从结构化 SQL 表构建快照
         if self.market_repo:
             try:
-                return self._build_from_structured_tables(canonical_id, as_of)
+                snapshot = self._build_from_structured_tables(canonical_id, as_of)
+                if self._has_enough_structured_data(snapshot):
+                    return snapshot
+                logger.info(
+                    "Structured tables have no data, falling back to coordinator",
+                    canonical_id=canonical_id,
+                )
             except Exception as e:
                 logger.warning(
                     f"Failed to build from structured tables, falling back to coordinator: {e}",
@@ -92,6 +98,16 @@ class AssetAnalysisService:
 
         # 回退到 coordinator
         return await self._build_from_coordinator(canonical_id, as_of)
+
+    @staticmethod
+    def _has_enough_structured_data(snapshot: AssetAnalysisSnapshot) -> bool:
+        """判断结构化数据是否包含可用数据"""
+        return bool(
+            snapshot.price_volume
+            or snapshot.valuation
+            or snapshot.financial
+            or snapshot.shareholder
+        )
 
     def _build_from_structured_tables(
         self, canonical_id: str, as_of: datetime
