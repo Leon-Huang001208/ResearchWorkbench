@@ -707,6 +707,135 @@ PDF 转换管理接口，支持三种策略自动降级 (MinerU → MarkItDown �
 
 ---
 
+### 市场数据 API
+
+Market Data API 提供股票结构化数据的同步和查询接口，由 `app/api/routes/market_data.py` 实现。
+
+#### POST /api/market-data/stocks/sync
+
+同步股票列表到 `stock_master` 表。
+
+**请求体**:
+
+```json
+{"limit": 5000}
+```
+
+**参数说明**:
+
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `limit` | ❌ | 限制同步数量 |
+
+**响应示例**:
+
+```json
+{
+  "run_id": "uuid",
+  "fetched": 5000,
+  "saved": 5000
+}
+```
+
+#### POST /api/market-data/daily-bars/sync
+
+同步日行情到 `stock_daily_bar` 表。
+
+**请求体**:
+
+```json
+{
+  "symbols": ["600519.SH", "000001.SZ"],
+  "start_date": "2024-01-01",
+  "end_date": "2024-01-31"
+}
+```
+
+**参数说明**:
+
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `symbols` | ✅ | 股票代码列表 |
+| `start_date` | ✅ | 开始日期 |
+| `end_date` | ✅ | 结束日期 |
+
+**响应示例**:
+
+```json
+{
+  "run_id": "uuid",
+  "fetched": 50,
+  "saved": 50
+}
+```
+
+#### GET /api/market-data/{symbol}/daily-bars
+
+查询某只股票的日行情数据。
+
+**查询参数**:
+
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `start_date` | ❌ | 开始日期 (YYYY-MM-DD) |
+| `end_date` | ❌ | 结束日期 (YYYY-MM-DD) |
+| `limit` | ❌ | 最大返回条数 (默认 500) |
+
+**响应示例**:
+
+```json
+{
+  "symbol": "600519.SH",
+  "count": 2,
+  "bars": [
+    {
+      "trade_date": "2024-01-15",
+      "open": 1700.0,
+      "high": 1720.0,
+      "low": 1690.0,
+      "close": 1715.0,
+      "volume": 1000000,
+      "amount": 1700000000.0,
+      "turnover": 0.8
+    }
+  ]
+}
+```
+
+#### GET /api/market-data/etl-runs
+
+查询最近的 ETL 运行记录。
+
+**查询参数**:
+
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `limit` | ❌ | 最大返回条数 (默认 50) |
+
+**响应示例**:
+
+```json
+{
+  "count": 1,
+  "runs": [
+    {
+      "run_id": "uuid",
+      "job_name": "ingest_stock_master",
+      "source": "akshare",
+      "status": "success",
+      "started_at": "2024-01-15T15:15:00Z",
+      "finished_at": "2024-01-15T15:15:10Z",
+      "items_fetched": 5000,
+      "items_normalized": 5000,
+      "items_saved": 5000,
+      "error_message": null
+    }
+  ]
+}
+```
+
+---
+
 ## Python API
 
 ### 1. 资产分析服务

@@ -1,12 +1,10 @@
 """测试 PDFConversionService"""
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock, patch
 
-import pytest
-
-from core.contracts.pdf_conversion import ConversionResult, ConversionStatus, StrategyType
+from core.contracts.pdf_conversion import ConversionResult, StrategyType
 from core.services.pdf_conversion_service import PDFConversionService
-from data_layer.repositories.models import PDFArtifactV1DB, PDFConversionV1DB
+from data_layer.repositories.models import PDFArtifactV1DB
 
 
 def _make_artifact(pdf_id="pdf_001", file_path="/tmp/test.pdf", parse_status="pending"):
@@ -296,7 +294,9 @@ class TestConvertPdf:
     @patch("core.services.pdf_conversion_service.MarkItDownStrategy")
     @patch("core.services.pdf_conversion_service.RawTextStrategy")
     @patch("core.services.pdf_conversion_service.pdf_repo")
-    def test_convert_pdf_exception_during_conversion(self, mock_repo, mock_raw, mock_md, mock_mineru):
+    def test_convert_pdf_exception_during_conversion(
+        self, mock_repo, mock_raw, mock_md, mock_mineru
+    ):
         """转换过程中抛异常应捕获并更新状态为 error"""
         mock_mineru.return_value.name = "mineru"
         mock_mineru.return_value.is_available.return_value = True
@@ -321,7 +321,9 @@ class TestConvertPdf:
     @patch("core.services.pdf_conversion_service.MarkItDownStrategy")
     @patch("core.services.pdf_conversion_service.RawTextStrategy")
     @patch("core.services.pdf_conversion_service.pdf_repo")
-    def test_convert_pdf_updates_metadata_on_success(self, mock_repo, mock_raw, mock_md, mock_mineru):
+    def test_convert_pdf_updates_metadata_on_success(
+        self, mock_repo, mock_raw, mock_md, mock_mineru
+    ):
         """成功转换后应合并 metadata 到 artifact"""
         result_with_meta = ConversionResult(
             success=True,
@@ -442,7 +444,9 @@ class TestConvertPending:
     @patch("core.services.pdf_conversion_service.MarkItDownStrategy")
     @patch("core.services.pdf_conversion_service.RawTextStrategy")
     @patch("core.services.pdf_conversion_service.pdf_repo")
-    def test_convert_pending_handles_exception_in_one(self, mock_repo, mock_raw, mock_md, mock_mineru):
+    def test_convert_pending_handles_exception_in_one(
+        self, mock_repo, mock_raw, mock_md, mock_mineru
+    ):
         """批量转换中某个失败不应中断整个批次"""
         mock_mineru.return_value.name = "mineru"
         mock_mineru.return_value.is_available.return_value = True
@@ -630,8 +634,14 @@ class TestDocumentCreationFromConversion:
     @patch("core.services.pdf_conversion_service.RawTextStrategy")
     @patch("core.services.pdf_conversion_service.pdf_repo")
     def test_create_document_after_successful_conversion(
-        self, mock_repo, mock_raw, mock_md, mock_mineru,
-        mock_doc_repo_class, mock_chunk_repo_class, mock_chunker_class,
+        self,
+        mock_repo,
+        mock_raw,
+        mock_md,
+        mock_mineru,
+        mock_doc_repo_class,
+        mock_chunk_repo_class,
+        mock_chunker_class,
     ):
         """转换成功后应自动创建 DocumentV1 和分块"""
         # Setup strategies
@@ -679,8 +689,14 @@ class TestDocumentCreationFromConversion:
     @patch("core.services.pdf_conversion_service.RawTextStrategy")
     @patch("core.services.pdf_conversion_service.pdf_repo")
     def test_skip_document_when_create_document_false(
-        self, mock_repo, mock_raw, mock_md, mock_mineru,
-        mock_doc_repo_class, mock_chunk_repo_class, mock_chunker_class,
+        self,
+        mock_repo,
+        mock_raw,
+        mock_md,
+        mock_mineru,
+        mock_doc_repo_class,
+        mock_chunk_repo_class,
+        mock_chunker_class,
     ):
         """create_document=False 时不创建 DocumentV1"""
         mock_mineru.return_value.name = "mineru"
@@ -709,8 +725,14 @@ class TestDocumentCreationFromConversion:
     @patch("core.services.pdf_conversion_service.RawTextStrategy")
     @patch("core.services.pdf_conversion_service.pdf_repo")
     def test_no_document_on_failed_conversion(
-        self, mock_repo, mock_raw, mock_md, mock_mineru,
-        mock_doc_repo_class, mock_chunk_repo_class, mock_chunker_class,
+        self,
+        mock_repo,
+        mock_raw,
+        mock_md,
+        mock_mineru,
+        mock_doc_repo_class,
+        mock_chunk_repo_class,
+        mock_chunker_class,
     ):
         """转换失败时不应创建 DocumentV1"""
         mock_mineru.return_value.name = "mineru"
@@ -738,8 +760,14 @@ class TestDocumentCreationFromConversion:
     @patch("core.services.pdf_conversion_service.RawTextStrategy")
     @patch("core.services.pdf_conversion_service.pdf_repo")
     def test_skip_duplicate_by_content_hash(
-        self, mock_repo, mock_raw, mock_md, mock_mineru,
-        mock_doc_repo_class, mock_chunk_repo_class, mock_chunker_class,
+        self,
+        mock_repo,
+        mock_raw,
+        mock_md,
+        mock_mineru,
+        mock_doc_repo_class,
+        mock_chunk_repo_class,
+        mock_chunker_class,
     ):
         """相同内容哈希的文档不重复创建"""
         mock_mineru.return_value.name = "mineru"
@@ -776,8 +804,14 @@ class TestDocumentCreationFromConversion:
     @patch("core.services.pdf_conversion_service.RawTextStrategy")
     @patch("core.services.pdf_conversion_service.pdf_repo")
     def test_document_creation_failure_does_not_break_conversion(
-        self, mock_repo, mock_raw, mock_md, mock_mineru,
-        mock_doc_repo_class, mock_chunk_repo_class, mock_chunker_class,
+        self,
+        mock_repo,
+        mock_raw,
+        mock_md,
+        mock_mineru,
+        mock_doc_repo_class,
+        mock_chunk_repo_class,
+        mock_chunker_class,
     ):
         """DocumentV1 创建失败不应影响转换结果"""
         mock_mineru.return_value.name = "mineru"

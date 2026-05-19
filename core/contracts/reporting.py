@@ -256,7 +256,7 @@ class ChartSpec(BaseModel):
     data_range: str = Field(description="Data range reference")
     placeholder: Optional[str] = Field(
         default=None,
-        description="Placeholder in Word template (auto-generated as '{{chart_{chart_id}}}' if not provided)"
+        description="Placeholder in Word template (auto-generated as '{{chart_{chart_id}}}' if not provided)",
     )
 
     @property
@@ -285,7 +285,7 @@ class TableSpec(BaseModel):
     rows: List[List[Any]] = Field(default_factory=list, description="Table data rows")
     placeholder: Optional[str] = Field(
         default=None,
-        description="Placeholder in Word template (auto-generated as '{{table_{table_id}}}' if not provided)"
+        description="Placeholder in Word template (auto-generated as '{{table_{table_id}}}' if not provided)",
     )
 
     @property
@@ -299,11 +299,12 @@ class TextPlaceholder(BaseModel):
 
     Placeholder naming convention: {{text_{key}}} or directly use section.key
     """
+
     key: str = Field(description="Placeholder key")
     content: str = Field(description="Text content")
     placeholder: Optional[str] = Field(
         default=None,
-        description="Placeholder in Word template (auto-generated as '{{text_{key}}}' if not provided)"
+        description="Placeholder in Word template (auto-generated as '{{text_{key}}}' if not provided)",
     )
 
     @property

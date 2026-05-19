@@ -69,6 +69,26 @@ Update this section when:
 
 ---
 
+### `data_layer/normalizers/` (normalizer layer)
+
+Normalizers transform raw crawler output into structured dicts for repository upsert. They are pure functions: deterministic, no side effects, directly unit-testable.
+
+Main normalizers:
+
+| File | Input | Output |
+|---|---|---|
+| `normalizers/symbol.py` | raw A-share code | normalized `XXXXXX.SH/SZ/BJ` |
+| `normalizers/akshare_market.py` | `MarketData` / `StockInfo` | dict for `stock_master` / `stock_daily_bar` |
+| `normalizers/akshare_financial.py` | `FinancialData` | dict for `stock_financial_metric` |
+
+Update this section when:
+
+- New normalizer is added.
+- Field mapping changes.
+- Symbol normalization rules change.
+
+---
+
 ## Required Tests
 
 - Mocked crawler tests

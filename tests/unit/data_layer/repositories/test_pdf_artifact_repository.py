@@ -2,7 +2,7 @@
 测试 PDF Artifact Repository
 """
 from datetime import datetime, timedelta
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 
@@ -81,6 +81,7 @@ class TestPDFArtifactRepository:
 
         # Act
         from data_layer.repositories import pdf_artifact_repository
+
         result = pdf_artifact_repository.add_pdf_artifact(db_session, sample_pdf_artifact)
 
         # Assert
@@ -96,6 +97,7 @@ class TestPDFArtifactRepository:
 
         # Act
         from data_layer.repositories import pdf_artifact_repository
+
         result = pdf_artifact_repository.get_pdf_by_id(db_session, "pdf_123")
 
         # Assert
@@ -110,6 +112,7 @@ class TestPDFArtifactRepository:
 
         # Act
         from data_layer.repositories import pdf_artifact_repository
+
         result = pdf_artifact_repository.get_pdf_by_doc_id(db_session, "doc_123")
 
         # Assert
@@ -124,6 +127,7 @@ class TestPDFArtifactRepository:
 
         # Act
         from data_layer.repositories import pdf_artifact_repository
+
         result = pdf_artifact_repository.get_pdf_by_hash(db_session, "abc123def456789abc")
 
         # Assert
@@ -138,6 +142,7 @@ class TestPDFArtifactRepository:
 
         # Act
         from data_layer.repositories import pdf_artifact_repository
+
         results = pdf_artifact_repository.get_pdfs_by_source(db_session, "zq", limit=10)
 
         # Assert
@@ -152,6 +157,7 @@ class TestPDFArtifactRepository:
 
         # Act
         from data_layer.repositories import pdf_artifact_repository
+
         result = pdf_artifact_repository.add_conversion(db_session, sample_pdf_conversion)
 
         # Assert
@@ -169,6 +175,7 @@ class TestPDFArtifactRepository:
 
         # Act
         from data_layer.repositories import pdf_artifact_repository
+
         result = pdf_artifact_repository.update_conversion_status(
             db_session, "conv_123", "error", error_log="Failed to parse"
         )
@@ -187,11 +194,12 @@ class TestPDFArtifactRepository:
             "pending_conversion": 12,
             "converted": 244,
             "failed_conversion": 0,
-            "by_status": {"success": 244, "pending": 12}
+            "by_status": {"success": 244, "pending": 12},
         }
 
         # Act
         from data_layer.repositories import pdf_artifact_repository
+
         result = pdf_artifact_repository.get_conversion_stats(db_session)
 
         # Assert
@@ -207,6 +215,7 @@ class TestPDFArtifactRepository:
 
         # Act
         from data_layer.repositories import pdf_artifact_repository
+
         results = pdf_artifact_repository.get_pending_conversions(db_session, limit=10)
 
         # Assert

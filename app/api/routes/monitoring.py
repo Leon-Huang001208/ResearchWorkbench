@@ -9,10 +9,10 @@ from sqlalchemy.orm import Session
 from app.api.models import (
     IngestOverviewResponse,
     IngestSourceStatus,
+    PDFArtifactResponse,
     PDFStats,
     ProcessedItemResponse,
     ProcessedStatsResponse,
-    PDFArtifactResponse,
 )
 from core.contracts.monitoring import (
     AlertPayload,
@@ -33,13 +33,13 @@ from core.contracts.monitoring import (
 )
 from core.observability import get_logger
 from core.services.monitoring_service import MonitoringService
-from data_layer.repositories.base import get_db
-from data_layer.repositories.monitoring_repository import MonitoringRepositoryImpl
 from data_layer.repositories import (
     crawl_state_repository,
-    processed_item_repository,
     pdf_artifact_repository,
+    processed_item_repository,
 )
+from data_layer.repositories.base import get_db
+from data_layer.repositories.monitoring_repository import MonitoringRepositoryImpl
 
 logger = get_logger(__name__)
 
@@ -757,7 +757,9 @@ def _crawl_state_to_status(state: Any) -> IngestSourceStatus:
         is_paused=state.is_paused,
         pause_reason=state.pause_reason,
         watermark_id=state.watermark_id,
-        watermark_timestamp=state.watermark_timestamp.isoformat() if state.watermark_timestamp else None,
+        watermark_timestamp=state.watermark_timestamp.isoformat()
+        if state.watermark_timestamp
+        else None,
     )
 
 
@@ -883,7 +885,9 @@ async def get_processed_stats(
 
         daily_stats = []
         if source_type and days:
-            daily_stats = processed_item_repository.get_processed_stats_by_day(db, source_type, days)
+            daily_stats = processed_item_repository.get_processed_stats_by_day(
+                db, source_type, days
+            )
 
         return ProcessedStatsResponse(
             total_items=stats.get("total_items", 0),
@@ -907,9 +911,7 @@ async def get_recent_processed(
 ):
     """获取最近处理的项目"""
     try:
-        items = processed_item_repository.get_recent_processed(
-            db, source_type, source_name, limit
-        )
+        items = processed_item_repository.get_recent_processed(db, source_type, source_name, limit)
         return [_processed_item_to_response(item) for item in items]
     except Exception as e:
         logger.error(f"Get recent processed failed: {e}")

@@ -7,13 +7,9 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from data_layer.repositories.models import (
-    DocumentV1DB,
-    CanonicalEvent,
-    AlphaSignalDB,
-)
 from data_layer.repositories.base import SessionLocal, check_database_connection
 from data_layer.repositories.dashboard_data import DashboardDataRepository
+
 
 def test_dashboard_repo():
     """测试 DashboardDataRepository"""
@@ -48,9 +44,13 @@ def test_dashboard_repo():
         up, down, has_sectors = repo.get_sector_changes_from_signals(days=30, limit_per_direction=5)
         print(f"   上涨板块: {len(up)}, 下跌板块: {len(down)}, has_real={has_sectors}")
         for i, sector in enumerate(up[:3]):
-            print(f"   ↑ {i+1}. {sector['name']}: +{sector['change_pct']:.2f}% (领头: {sector['leading_stocks'][:2]})")
+            print(
+                f"   ↑ {i+1}. {sector['name']}: +{sector['change_pct']:.2f}% (领头: {sector['leading_stocks'][:2]})"
+            )
         for i, sector in enumerate(down[:3]):
-            print(f"   ↓ {i+1}. {sector['name']}: {sector['change_pct']:.2f}% (领头: {sector['leading_stocks'][:2]})")
+            print(
+                f"   ↓ {i+1}. {sector['name']}: {sector['change_pct']:.2f}% (领头: {sector['leading_stocks'][:2]})"
+            )
 
         # 3. 检查数据是否足够
         print("\n5️⃣  测试 has_enough_data...")
@@ -75,6 +75,7 @@ def test_dashboard_repo():
 
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     test_dashboard_repo()

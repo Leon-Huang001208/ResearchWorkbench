@@ -63,6 +63,7 @@ from app.api.routes import (  # noqa: E402
     ingest_admin,
     ingestion_queue,
     llm,
+    market_data,
     memory,
     monitoring,
     outcome_journal,
@@ -120,6 +121,7 @@ app.include_router(signal_lab.router)
 app.include_router(llm.router)
 app.include_router(scheduler.router)
 app.include_router(pdf_admin.router)
+app.include_router(market_data.router)
 
 # ─── 静态文件 ────────────────────────────────────────────
 _web_dir = Path(__file__).resolve().parent.parent / "web"

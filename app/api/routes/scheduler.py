@@ -4,11 +4,7 @@ from typing import Any, Dict, Optional
 from fastapi import APIRouter, HTTPException
 
 from core.observability import get_logger
-from core.services.crawl_scheduler import (
-    APSCHEDULER_AVAILABLE,
-    CrawlScheduler,
-    get_crawl_scheduler,
-)
+from core.services.crawl_scheduler import APSCHEDULER_AVAILABLE, CrawlScheduler, get_crawl_scheduler
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/scheduler", tags=["scheduler"])

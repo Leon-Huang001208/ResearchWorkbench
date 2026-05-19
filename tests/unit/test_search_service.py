@@ -7,9 +7,7 @@ from core.services.search_service import GlobalSearchService
 def test_search_basic():
     """Test basic search functionality."""
     mock_repo = MagicMock()
-    mock_repo.search_symbols.return_value = [
-        {"symbol": "600519.SH", "name": "贵州茅台"}
-    ]
+    mock_repo.search_symbols.return_value = [{"symbol": "600519.SH", "name": "贵州茅台"}]
     mock_repo.search_theses.return_value = [{"thesis_id": "1", "text": "Earnings growth"}]
 
     service = GlobalSearchService(search_repo=mock_repo)

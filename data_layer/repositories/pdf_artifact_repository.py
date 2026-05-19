@@ -1,10 +1,12 @@
 """PDF Artifact Repository — PDF 制品仓储"""
 from datetime import datetime
 from typing import Optional
-from sqlalchemy.orm import Session
+
 from sqlalchemy import func
-from data_layer.repositories.models import PDFArtifactV1DB, PDFConversionV1DB
+from sqlalchemy.orm import Session
+
 from core.observability import get_logger
+from data_layer.repositories.models import PDFArtifactV1DB, PDFConversionV1DB
 
 logger = get_logger(__name__)
 
@@ -19,41 +21,28 @@ def add_pdf_artifact(db: Session, artifact: PDFArtifactV1DB) -> PDFArtifactV1DB:
 
 def get_pdf_by_id(db: Session, pdf_id: str) -> Optional[PDFArtifactV1DB]:
     """通过 ID 获取 PDF"""
-    return db.query(PDFArtifactV1DB).filter(
-        PDFArtifactV1DB.pdf_id == pdf_id
-    ).first()
+    return db.query(PDFArtifactV1DB).filter(PDFArtifactV1DB.pdf_id == pdf_id).first()
 
 
 def get_pdf_by_doc_id(db: Session, doc_id: str) -> Optional[PDFArtifactV1DB]:
     """通过文档 ID 获取 PDF"""
-    return db.query(PDFArtifactV1DB).filter(
-        PDFArtifactV1DB.doc_id == doc_id
-    ).first()
+    return db.query(PDFArtifactV1DB).filter(PDFArtifactV1DB.doc_id == doc_id).first()
 
 
 def get_pdf_by_hash(db: Session, file_hash: str) -> Optional[PDFArtifactV1DB]:
     """通过哈希获取 PDF"""
-    return db.query(PDFArtifactV1DB).filter(
-        PDFArtifactV1DB.file_hash_sha256 == file_hash
-    ).first()
+    return db.query(PDFArtifactV1DB).filter(PDFArtifactV1DB.file_hash_sha256 == file_hash).first()
 
 
 def get_pdfs_by_source(
-    db: Session,
-    source_type: str,
-    source_name: Optional[str] = None,
-    limit: int = 100
+    db: Session, source_type: str, source_name: Optional[str] = None, limit: int = 100
 ) -> list[PDFArtifactV1DB]:
     """按来源获取 PDFs"""
-    query = db.query(PDFArtifactV1DB).filter(
-        PDFArtifactV1DB.source_type == source_type
-    )
+    query = db.query(PDFArtifactV1DB).filter(PDFArtifactV1DB.source_type == source_type)
     if source_name:
         query = query.filter(PDFArtifactV1DB.source_name == source_name)
 
-    return query.order_by(
-        PDFArtifactV1DB.fetch_timestamp.desc()
-    ).limit(limit).all()
+    return query.order_by(PDFArtifactV1DB.fetch_timestamp.desc()).limit(limit).all()
 
 
 def add_conversion(db: Session, conversion: PDFConversionV1DB) -> PDFConversionV1DB:
@@ -69,12 +58,12 @@ def update_conversion_status(
     conversion_id: str,
     status: str,
     error_log: Optional[str] = None,
-    completed_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None,
 ) -> Optional[PDFConversionV1DB]:
     """更新转换状态"""
-    conversion = db.query(PDFConversionV1DB).filter(
-        PDFConversionV1DB.conversion_id == conversion_id
-    ).first()
+    conversion = (
+        db.query(PDFConversionV1DB).filter(PDFConversionV1DB.conversion_id == conversion_id).first()
+    )
 
     if conversion:
         conversion.status = status
@@ -92,10 +81,11 @@ def get_conversion_stats(db: Session) -> dict:
     """获取转换统计"""
     total_pdfs = db.query(PDFArtifactV1DB).count()
 
-    status_stats = db.query(
-        PDFConversionV1DB.status,
-        func.count(PDFConversionV1DB.conversion_id)
-    ).group_by(PDFConversionV1DB.status).all()
+    status_stats = (
+        db.query(PDFConversionV1DB.status, func.count(PDFConversionV1DB.conversion_id))
+        .group_by(PDFConversionV1DB.status)
+        .all()
+    )
 
     by_status = {s[0]: s[1] for s in status_stats}
 
@@ -113,14 +103,16 @@ def get_conversion_stats(db: Session) -> dict:
         "pending_conversion": pending,
         "converted": converted,
         "failed_conversion": failed,
-        "by_status": by_status
+        "by_status": by_status,
     }
 
 
 def get_pending_conversions(db: Session, limit: int = 50) -> list[PDFConversionV1DB]:
     """获取待处理的转换"""
-    return db.query(PDFConversionV1DB).filter(
-        PDFConversionV1DB.status == "pending"
-    ).order_by(
-        PDFConversionV1DB.created_at.asc()
-    ).limit(limit).all()
+    return (
+        db.query(PDFConversionV1DB)
+        .filter(PDFConversionV1DB.status == "pending")
+        .order_by(PDFConversionV1DB.created_at.asc())
+        .limit(limit)
+        .all()
+    )

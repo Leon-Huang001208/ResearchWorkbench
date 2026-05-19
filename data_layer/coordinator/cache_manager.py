@@ -7,7 +7,6 @@
 3. 从数据源获取缺失部分
 4. 更新缓存
 """
-import json
 import sqlite3
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
@@ -71,7 +70,8 @@ class MarketDataCache:
             cursor = conn.cursor()
 
             # K线数据表
-            cursor.execute("""
+            cursor.execute(
+                """
                 CREATE TABLE IF NOT EXISTS market_data (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     symbol TEXT NOT NULL,
@@ -87,10 +87,12 @@ class MarketDataCache:
                     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE(symbol, timestamp)
                 )
-            """)
+            """
+            )
 
             # 缓存元数据表
-            cursor.execute("""
+            cursor.execute(
+                """
                 CREATE TABLE IF NOT EXISTS cache_metadata (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     symbol TEXT NOT NULL UNIQUE,
@@ -100,7 +102,8 @@ class MarketDataCache:
                     data_source TEXT,
                     total_records INTEGER DEFAULT 0
                 )
-            """)
+            """
+            )
 
             # 索引
             cursor.execute(
@@ -185,9 +188,7 @@ class MarketDataCache:
 
         return missing_ranges
 
-    def get_cached_data(
-        self, symbol: str, start_date: date, end_date: date
-    ) -> List[MarketData]:
+    def get_cached_data(self, symbol: str, start_date: date, end_date: date) -> List[MarketData]:
         """
         获取缓存的数据
 

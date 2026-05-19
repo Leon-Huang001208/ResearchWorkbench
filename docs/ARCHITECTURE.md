@@ -370,7 +370,12 @@ AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System�
   - `raw_text.py`：RawTextStrategy (pdfplumber, 始终可用)
   - `persistence.py`：磁盘持久化 (data/markdown/, data/raw_text/)
 - `normalizers/`：数据归一化，统一不同数据源的格式
+  - `symbol.py`：A 股代码标准化（60/68/90→SH, 00/30/20→SZ）
+  - `akshare_market.py`：行情/股票信息标准化
+  - `akshare_financial.py`：财务数据标准化
 - `repositories/`：实现 core.interfaces 中定义的仓储接口，对接存储层
+  - `market_data_repository.py`：市场结构化数据 upsert/查询仓储（stock_master, stock_daily_bar 等 7 张表）
+  - `etl_run_repository.py`：ETL 运行记录管理
 
 **关键契约**：实现 core 中定义的仓储接口，返回遵循核心契约的数据对象。
 
@@ -423,6 +428,24 @@ AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System�
 6. **事件提取**：识别和提取事件（CanonicalEvent）（EventExtractor）
 7. **向量化**：将文本转换为向量，存储到 pgvector 中
 8. **持久化**：将所有结构化数据存入 PostgreSQL
+
+### 市场数据 ETL 管道
+
+```
+AKShare 数据源
+  → MarketDataIngestionService (ETL 编排)
+    → normalizer (纯函数, 确定性, 可单测)
+    → MarketDataRepository (PostgreSQL upsert / SQLite fallback)
+    → 结构化 SQL 表 (stock_master, stock_daily_bar, etl_run 等 8 张表)
+  → ETLRunRepository (运行追踪, status/fetched/saved/error)
+  → AssetAnalysisService (优先从结构化表读取 → 回退到 MultiSourceCoordinator)
+  → asset_snapshot / API / dashboard (派生结果)
+```
+
+**定时执行**（cron_jobs/auto_ingest_service.py）:
+- 15:15 → 同步股票列表 (POST /api/market-data/stocks/sync)
+- 15:30 → 同步日行情 (POST /api/market-data/daily-bars/sync)
+- 15:45 → 生成资产快照 (POST /api/assets/analyze)
 
 ### 信号生成管道
 

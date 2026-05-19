@@ -129,9 +129,12 @@ class MinerUStrategy(PDFConversionStrategy):
             try:
                 cmd = [
                     "magic-pdf",
-                    "-p", pdf_path,
-                    "-o", output_dir,
-                    "-m", self._method,
+                    "-p",
+                    pdf_path,
+                    "-o",
+                    output_dir,
+                    "-m",
+                    self._method,
                 ]
                 subprocess.run(cmd, capture_output=True, text=True, timeout=300)
 

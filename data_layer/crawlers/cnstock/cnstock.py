@@ -160,7 +160,9 @@ class CnstockStateManager:
     # 水位线追踪功能
     # ============================================================
 
-    def set_watermark(self, key: str, article_id: str, extra: Optional[Dict[str, Any]] = None) -> None:
+    def set_watermark(
+        self, key: str, article_id: str, extra: Optional[Dict[str, Any]] = None
+    ) -> None:
         """设置水位线"""
         watermark = {
             "last_seen_id": str(article_id),
@@ -562,9 +564,7 @@ class CnstockCrawler:
                 if self._state_manager and first_new_article_id:
                     self._state_manager.set_watermark(watermark_key, first_new_article_id)
                     if self.config.verbose:
-                        self.log.info(
-                            f"[水位线] 频道 {category} 水位线已设置为: {first_new_article_id}"
-                        )
+                        self.log.info(f"[水位线] 频道 {category} 水位线已设置为: {first_new_article_id}")
 
                 all_news.extend(channel_news)
 

@@ -8,8 +8,8 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 import asyncio
-from datetime import datetime
 import json
+from datetime import datetime
 
 from core.services import AssetAnalysisService
 from data_layer.coordinator.multi_source_coordinator import get_coordinator
@@ -26,11 +26,10 @@ async def test_analysis_card():
 
     try:
         card = await service.generate_analysis_card(
-            canonical_id=canonical_id,
-            as_of=datetime.utcnow()
+            canonical_id=canonical_id, as_of=datetime.utcnow()
         )
 
-        print(f"\n✓ Analysis card generated!")
+        print("\n✓ Analysis card generated!")
         print(f"  - Canonical ID: {card.canonical_id}")
         print(f"  - Current price: {card.current_price}")
         print(f"  - Price change: {card.price_change}")
@@ -44,7 +43,7 @@ async def test_analysis_card():
         print("\n=== Testing JSON Serialization ===")
         try:
             # 使用Pydantic V2 style
-            if hasattr(card, 'model_dump'):
+            if hasattr(card, "model_dump"):
                 data = card.model_dump()
             else:
                 data = card.dict()
@@ -58,12 +57,13 @@ async def test_analysis_card():
             # 保存到文件
             output_path = project_root / "output" / "debug_analysis_card.json"
             output_path.parent.mkdir(exist_ok=True)
-            output_path.write_text(json_str, encoding='utf-8')
+            output_path.write_text(json_str, encoding="utf-8")
             print(f"\nSaved to: {output_path}")
 
         except Exception as e:
             print(f"✗ JSON serialization failed: {e}")
             import traceback
+
             traceback.print_exc()
 
         return card
@@ -71,6 +71,7 @@ async def test_analysis_card():
     except Exception as e:
         print(f"✗ Failed: {e}")
         import traceback
+
         traceback.print_exc()
         return None
 
@@ -94,6 +95,7 @@ def main():
     except Exception as e:
         print(f"\n✗ Test failed: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 

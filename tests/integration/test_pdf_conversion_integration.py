@@ -13,9 +13,7 @@ class TestPdfIntegration:
     @pytest.fixture
     def sample_pdf_path(self):
         """sample PDF 文件路径"""
-        return os.path.join(
-            os.path.dirname(__file__), "..", "fixtures", "sample.pdf"
-        )
+        return os.path.join(os.path.dirname(__file__), "..", "fixtures", "sample.pdf")
 
     def test_raw_text_conversion_with_real_pdf(self, sample_pdf_path):
         """RawTextStrategy 能成功转换真实 PDF"""
@@ -65,9 +63,7 @@ class TestPdfToMarkdownIntegration:
         if not HAS_MARKITDOWN:
             pytest.skip("markitdown 未安装")
 
-        sample_pdf = os.path.join(
-            os.path.dirname(__file__), "..", "fixtures", "sample.pdf"
-        )
+        sample_pdf = os.path.join(os.path.dirname(__file__), "..", "fixtures", "sample.pdf")
         assert os.path.exists(sample_pdf)
 
         strategy = MarkItDownStrategy()

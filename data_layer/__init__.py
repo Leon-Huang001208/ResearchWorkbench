@@ -1,5 +1,13 @@
 """AlphaFoundry Data Layer - 数据层"""
-from data_layer import adapters, coordinator, crawlers, normalizers, parsers, repositories, validation
+from data_layer import (
+    adapters,
+    coordinator,
+    crawlers,
+    normalizers,
+    parsers,
+    repositories,
+    validation,
+)
 
 __all__ = [
     "adapters",

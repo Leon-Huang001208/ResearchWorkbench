@@ -1,11 +1,9 @@
-
 """
 Yahoo Finance 数据适配器
 
 提供全球市场数据，作为 AkShare/BaoStock 的补充数据源。
 """
-from datetime import date, datetime
-from typing import List, Optional
+from datetime import datetime
 
 from core.observability import get_logger
 from data_layer.adapters.base import BaseDataAdapter
@@ -237,9 +235,7 @@ class YahooAdapter(BaseDataAdapter):
                     {
                         "title": nd.title,
                         "content": nd.content,
-                        "publish_time": nd.publish_time.isoformat()
-                        if nd.publish_time
-                        else None,
+                        "publish_time": nd.publish_time.isoformat() if nd.publish_time else None,
                         "source": nd.source,
                         "url": nd.url,
                         "summary": nd.summary,
@@ -313,4 +309,3 @@ class YahooAdapter(BaseDataAdapter):
         raise NotImplementedError(
             "YahooAdapter doesn't support document parsing, use for market data only"
         )
-

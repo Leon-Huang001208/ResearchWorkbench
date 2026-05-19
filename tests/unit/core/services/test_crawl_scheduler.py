@@ -1,10 +1,7 @@
 """
 测试采集调度器
 """
-from datetime import datetime, time
 from unittest.mock import Mock, patch
-
-import pytest
 
 from core.contracts import SourceType
 from core.services.crawl_scheduler import CrawlScheduler, SourceCrawlConfig

@@ -2,12 +2,12 @@
 测试 Ingest Monitoring API
 """
 from datetime import datetime, timedelta
-from unittest.mock import patch, AsyncMock, MagicMock
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
 from app.api.main import app
-from data_layer.repositories.models import CrawlStateV1DB, ProcessedItemV1DB, PDFArtifactV1DB
+from data_layer.repositories.models import CrawlStateV1DB, PDFArtifactV1DB, ProcessedItemV1DB
 
 client = TestClient(app)
 
@@ -56,7 +56,7 @@ class TestIngestMonitoringAPI:
             "pending_conversion": 12,
             "converted": 244,
             "failed_conversion": 0,
-            "by_status": {"success": 244, "pending": 12}
+            "by_status": {"success": 244, "pending": 12},
         }
 
         # Act
@@ -119,7 +119,7 @@ class TestIngestMonitoringAPI:
         # Arrange
         mock_get_stats.return_value = {
             "total_items": 2280,
-            "by_source_type": {"cls": 1250, "cnstock": 850, "zq": 180}
+            "by_source_type": {"cls": 1250, "cnstock": 850, "zq": 180},
         }
         mock_get_daily.return_value = []
 

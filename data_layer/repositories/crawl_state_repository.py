@@ -1,22 +1,20 @@
 """Crawl State Repository — 爬虫状态仓储"""
 from datetime import datetime
 from typing import Optional
+
 from sqlalchemy.orm import Session
-from data_layer.repositories.models import CrawlStateV1DB
+
 from core.observability import get_logger
+from data_layer.repositories.models import CrawlStateV1DB
 
 logger = get_logger(__name__)
 
 
 def get_crawl_state(
-    db: Session,
-    source_type: str,
-    source_name: Optional[str] = None
+    db: Session, source_type: str, source_name: Optional[str] = None
 ) -> Optional[CrawlStateV1DB]:
     """获取指定来源的爬虫状态"""
-    query = db.query(CrawlStateV1DB).filter(
-        CrawlStateV1DB.source_type == source_type
-    )
+    query = db.query(CrawlStateV1DB).filter(CrawlStateV1DB.source_type == source_type)
     if source_name:
         query = query.filter(CrawlStateV1DB.source_name == source_name)
     return query.first()
@@ -33,7 +31,7 @@ def upsert_crawl_state(db: Session, state: CrawlStateV1DB) -> CrawlStateV1DB:
     if existing:
         # 更新现有记录
         for key, value in vars(state).items():
-            if not key.startswith('_'):
+            if not key.startswith("_"):
                 setattr(existing, key, value)
         existing.updated_at = datetime.utcnow()
         db.commit()
@@ -78,7 +76,7 @@ def update_watermark(
     source_type: str,
     watermark_id: str,
     watermark_ts: datetime,
-    watermark_metadata: Optional[dict] = None
+    watermark_metadata: Optional[dict] = None,
 ) -> Optional[CrawlStateV1DB]:
     """更新水位线"""
     state = get_crawl_state(db, source_type)
@@ -94,11 +92,7 @@ def update_watermark(
 
 
 def increment_crawl_stats(
-    db: Session,
-    source_type: str,
-    fetched: int = 0,
-    skipped: int = 0,
-    failed: int = 0
+    db: Session, source_type: str, fetched: int = 0, skipped: int = 0, failed: int = 0
 ) -> Optional[CrawlStateV1DB]:
     """递增爬虫统计"""
     state = get_crawl_state(db, source_type)

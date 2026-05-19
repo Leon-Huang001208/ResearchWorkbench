@@ -2,10 +2,8 @@
 测试 TemplateManager
 """
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
-import yaml
 
 from core.contracts import RetrievalProfileType, SectionSpec, TemplateConfig
 from reporting.templates.template_manager import TemplateManager
@@ -52,9 +50,7 @@ def sample_template_config() -> TemplateConfig:
 class TestTemplateManager:
     """测试 TemplateManager"""
 
-    def test_initialization_creates_directories(
-        self, template_manager: TemplateManager
-    ):
+    def test_initialization_creates_directories(self, template_manager: TemplateManager):
         """测试初始化创建目录结构"""
         assert template_manager.yaml_dir.exists()
         assert template_manager.docx_dir.exists()
@@ -112,9 +108,7 @@ class TestTemplateManager:
 
         # 保存 DOCX 模板文件
         test_content = b"fake docx content"
-        saved_path = template_manager.save_template_file(
-            "test_template", "docx", test_content
-        )
+        saved_path = template_manager.save_template_file("test_template", "docx", test_content)
 
         assert saved_path.exists()
         assert saved_path.read_bytes() == test_content
@@ -210,9 +204,7 @@ class TestTemplateManager:
             template_manager.save_template_file("test_template", "docx", b"v2")
 
         # 覆盖保存
-        saved = template_manager.save_template_file(
-            "test_template", "docx", b"v2", overwrite=True
-        )
+        saved = template_manager.save_template_file("test_template", "docx", b"v2", overwrite=True)
         assert saved.read_bytes() == b"v2"
 
     def test_create_weekly_report_template(self, template_manager: TemplateManager):
@@ -233,6 +225,7 @@ class TestPlaceholderDiscovery:
         """检查 python-docx 是否可用"""
         try:
             import docx  # noqa: F401
+
             return True
         except ImportError:
             return False
@@ -242,6 +235,7 @@ class TestPlaceholderDiscovery:
         """检查 python-pptx 是否可用"""
         try:
             import pptx  # noqa: F401
+
             return True
         except ImportError:
             return False
@@ -251,8 +245,9 @@ class TestPlaceholderDiscovery:
         self, template_manager: TemplateManager, sample_template_config: TemplateConfig
     ):
         """测试从 DOCX 发现占位符"""
-        import docx
         from io import BytesIO
+
+        import docx
 
         # 创建一个简单的测试文档
         doc = docx.Document()
@@ -278,9 +273,9 @@ class TestPlaceholderDiscovery:
         self, template_manager: TemplateManager, sample_template_config: TemplateConfig
     ):
         """测试从 PPTX 发现占位符"""
-        import pptx
-        from pptx import Presentation
         from io import BytesIO
+
+        from pptx import Presentation
 
         # 创建一个简单的测试演示文稿
         prs = Presentation()

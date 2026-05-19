@@ -1,16 +1,17 @@
 """Dashboard 专用数据仓储"""
 from datetime import UTC, datetime, timedelta
 from typing import Dict, List, Tuple
+
 from sqlalchemy import and_, desc, func
 
 from core.contracts import DocType
 from core.observability import get_logger
 from data_layer.repositories.models import (
-    DocumentV1DB,
-    CanonicalEvent,
     AlphaSignalDB,
-    EntityMentionV1DB,
+    CanonicalEvent,
+    DocumentV1DB,
     Entity,
+    EntityMentionV1DB,
 )
 
 logger = get_logger(__name__)

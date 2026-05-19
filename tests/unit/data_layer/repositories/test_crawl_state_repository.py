@@ -2,7 +2,7 @@
 测试 Crawl State Repository
 """
 from datetime import datetime, timedelta
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 
@@ -48,6 +48,7 @@ class TestCrawlStateRepository:
 
         # Act
         from data_layer.repositories import crawl_state_repository
+
         result = crawl_state_repository.get_crawl_state(db_session, "cls")
 
         # Assert
@@ -59,6 +60,7 @@ class TestCrawlStateRepository:
         """测试获取所有状态"""
         # Arrange
         from data_layer.repositories.models import CrawlStateV1DB
+
         states = [
             CrawlStateV1DB(state_id="state_cls", source_type="cls"),
             CrawlStateV1DB(state_id="state_cnstock", source_type="cnstock"),
@@ -67,6 +69,7 @@ class TestCrawlStateRepository:
 
         # Act
         from data_layer.repositories import crawl_state_repository
+
         result = crawl_state_repository.get_all_crawl_states(db_session)
 
         # Assert
@@ -82,6 +85,7 @@ class TestCrawlStateRepository:
 
         # Act
         from data_layer.repositories import crawl_state_repository
+
         result = crawl_state_repository.pause_crawl(db_session, "cls", "Maintenance")
 
         # Assert
@@ -99,6 +103,7 @@ class TestCrawlStateRepository:
 
         # Act
         from data_layer.repositories import crawl_state_repository
+
         result = crawl_state_repository.resume_crawl(db_session, "cls")
 
         # Assert
@@ -118,6 +123,7 @@ class TestCrawlStateRepository:
 
         # Act
         from data_layer.repositories import crawl_state_repository
+
         result = crawl_state_repository.update_watermark(
             db_session, "cls", new_watermark_id, new_timestamp
         )
@@ -138,6 +144,7 @@ class TestCrawlStateRepository:
 
         # Act
         from data_layer.repositories import crawl_state_repository
+
         result = crawl_state_repository.increment_crawl_stats(
             db_session, "cls", fetched=1, skipped=1, failed=1
         )
@@ -160,6 +167,7 @@ class TestCrawlStateRepository:
 
         # Act
         from data_layer.repositories import crawl_state_repository
+
         result = crawl_state_repository.reset_crawl_state(db_session, "cls")
 
         # Assert

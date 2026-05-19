@@ -225,4 +225,3 @@ class FetchPlan:
             sources.append(self.primary_source)
         sources.extend(self.secondary_sources)
         return sources
-

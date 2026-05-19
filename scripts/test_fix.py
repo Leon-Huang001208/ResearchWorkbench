@@ -7,8 +7,9 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from data_layer.repositories.base import SessionLocal, check_database_connection
 from core.services.dashboard_service import DashboardService
+from data_layer.repositories.base import SessionLocal, check_database_connection
+
 
 def test_dashboard_service():
     """测试 DashboardService 的修复"""
@@ -40,7 +41,7 @@ def test_dashboard_service():
             mock_label = " (模拟)" if sector.is_mock else " (真实)"
             print(f"   {i+1}. {sector.name}: {sector.change_pct:.2f}%{mock_label}")
 
-        print(f"\n📊 数据来源标识:")
+        print("\n📊 数据来源标识:")
         print(f"   uses_real_news: {market_overview.uses_real_news}")
         print(f"   uses_real_sectors: {market_overview.uses_real_sectors}")
         print(f"   last_updated: {market_overview.last_updated}")
@@ -68,7 +69,7 @@ def test_dashboard_service():
         real_sectors_up = sum(1 for s in market_overview.top_up_sectors if not s.is_mock)
         real_sectors_down = sum(1 for s in market_overview.top_down_sectors if not s.is_mock)
 
-        print(f"\n📊 详细统计:")
+        print("\n📊 详细统计:")
         print(f"   真实新闻: {real_news_count} 条, 模拟新闻: {mock_news_count} 条")
         print(f"   真实上涨板块: {real_sectors_up} 个")
         print(f"   真实下跌板块: {real_sectors_down} 个")
@@ -111,6 +112,7 @@ def test_dashboard_service():
 
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     test_dashboard_service()

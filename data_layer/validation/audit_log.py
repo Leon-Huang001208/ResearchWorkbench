@@ -3,12 +3,11 @@
 
 记录所有校验结果，用于后续分析和回溯。
 """
+import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
-
-import json
 
 from core.observability import get_logger
 from data_layer.validation.dual_source_validator import ValidationResult
@@ -257,4 +256,3 @@ def get_audit_logger() -> AuditLogger:
         _default_audit_logger = AuditLogger()
 
     return _default_audit_logger
-

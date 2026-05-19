@@ -1,5 +1,4 @@
 """PDF 转换输出持久化 —— 将 markdown/raw_text 写入磁盘并管理路径"""
-import os
 from pathlib import Path
 from typing import Optional
 

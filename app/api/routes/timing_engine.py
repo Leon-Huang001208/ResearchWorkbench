@@ -1,5 +1,5 @@
 """Timing Engine and Event Study validation API routes"""
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 
 from core.contracts.timing_engine import EventStudyMetrics, ReadinessScore, TimingFactors
 from core.observability import get_logger

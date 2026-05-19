@@ -1,5 +1,5 @@
 """产业链图谱 API"""
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -35,13 +35,15 @@ def _convert_to_frontend_format(enriched: Dict[str, Any]) -> Dict[str, Any]:
         elif "down" in node_type.lower() or "下游" in node_name:
             group = "downstream"
 
-        nodes.append({
-            "id": node_id,
-            "label": node_name,
-            "group": group,
-            "type": node_type,
-            "real_entity": node.get("real_entity", False),
-        })
+        nodes.append(
+            {
+                "id": node_id,
+                "label": node_name,
+                "group": group,
+                "type": node_type,
+                "real_entity": node.get("real_entity", False),
+            }
+        )
 
     # 转换边：source/target -> source/target, 添加 label
     links = []
@@ -57,13 +59,15 @@ def _convert_to_frontend_format(enriched: Dict[str, Any]) -> Dict[str, Any]:
                 "low": "弱关联",
                 "none": "关联",
             }
-            links.append({
-                "source": source,
-                "target": target,
-                "label": label_map.get(evidence_strength, "关联"),
-                "evidence_count": edge.get("evidence_count", 0),
-                "evidence_strength": evidence_strength,
-            })
+            links.append(
+                {
+                    "source": source,
+                    "target": target,
+                    "label": label_map.get(evidence_strength, "关联"),
+                    "evidence_count": edge.get("evidence_count", 0),
+                    "evidence_strength": evidence_strength,
+                }
+            )
 
     return {
         "nodes": nodes,
@@ -129,20 +133,26 @@ def _get_default_industry_chain(industry: str) -> Dict[str, Any]:
     }
 
     # 如果有特定行业的默认数据，使用它；否则使用通用数据
-    nodes = industry_nodes.get(industry, [
-        {"id": "up_1", "label": "上游", "group": "upstream"},
-        {"id": "up_2", "label": "供应商", "group": "upstream"},
-        {"id": "mid_1", "label": "中游", "group": "midstream"},
-        {"id": "down_1", "label": "下游", "group": "downstream"},
-        {"id": "down_2", "label": "终端", "group": "downstream"},
-    ])
+    nodes = industry_nodes.get(
+        industry,
+        [
+            {"id": "up_1", "label": "上游", "group": "upstream"},
+            {"id": "up_2", "label": "供应商", "group": "upstream"},
+            {"id": "mid_1", "label": "中游", "group": "midstream"},
+            {"id": "down_1", "label": "下游", "group": "downstream"},
+            {"id": "down_2", "label": "终端", "group": "downstream"},
+        ],
+    )
 
-    links = industry_links.get(industry, [
-        {"source": "up_1", "target": "mid_1", "label": "供应"},
-        {"source": "up_2", "target": "mid_1", "label": "供应"},
-        {"source": "mid_1", "target": "down_1", "label": "供应"},
-        {"source": "down_1", "target": "down_2", "label": "销售"},
-    ])
+    links = industry_links.get(
+        industry,
+        [
+            {"source": "up_1", "target": "mid_1", "label": "供应"},
+            {"source": "up_2", "target": "mid_1", "label": "供应"},
+            {"source": "mid_1", "target": "down_1", "label": "供应"},
+            {"source": "down_1", "target": "down_2", "label": "销售"},
+        ],
+    )
 
     return {
         "industry": industry,

@@ -5,7 +5,7 @@
 模板占位符，支持各种报告模板的自动填充。
 """
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from core.observability import get_logger
 
@@ -114,7 +114,9 @@ class SnapshotToPlaceholdersMapper:
         if basic_info:
             placeholders["symbol"] = self._get_attr(basic_info, "symbol", "N/A")
             placeholders["stock_name"] = self._get_attr(basic_info, "name", "N/A")
-            placeholders["short_name"] = self._get_attr(basic_info, "short_name", placeholders["stock_name"])
+            placeholders["short_name"] = self._get_attr(
+                basic_info, "short_name", placeholders["stock_name"]
+            )
 
             # 市值
             market_cap = self._get_attr(basic_info, "market_cap")
@@ -135,7 +137,9 @@ class SnapshotToPlaceholdersMapper:
                 placeholders["company_name"] = "贵州茅台酒股份有限公司"  # 默认值
 
             # 添加报告日期
-            placeholders["report_date"] = self.formatters["date_ymd"](self._get_attr(snapshot, "as_of"))
+            placeholders["report_date"] = self.formatters["date_ymd"](
+                self._get_attr(snapshot, "as_of")
+            )
 
         return placeholders
 
@@ -156,7 +160,9 @@ class SnapshotToPlaceholdersMapper:
 
         if price_change is not None and isinstance(price_change, (int, float)):
             sign = "+" if price_change >= 0 else ""
-            placeholders["price_change"] = f"{sign}{self.formatters['currency_cny_2dp'](price_change)[1:]}"
+            placeholders[
+                "price_change"
+            ] = f"{sign}{self.formatters['currency_cny_2dp'](price_change)[1:]}"
 
         if price_change_pct is not None and isinstance(price_change_pct, (int, float)):
             sign = "+" if price_change_pct >= 0 else ""
@@ -219,14 +225,22 @@ class SnapshotToPlaceholdersMapper:
             financial_dict = self._get_attr(snapshot, "financial", {})
             if isinstance(financial_dict, dict):
                 # ROE 可能在嵌套结构中
-                roe_val = financial_dict.get("roe", {}).get("ttm") if isinstance(financial_dict.get("roe"), dict) else financial_dict.get("roe")
+                roe_val = (
+                    financial_dict.get("roe", {}).get("ttm")
+                    if isinstance(financial_dict.get("roe"), dict)
+                    else financial_dict.get("roe")
+                )
                 if roe_val is not None and isinstance(roe_val, (int, float)):
                     placeholders["roe"] = self.formatters["percent_2dp"](roe_val)
                     placeholders["roe_ttm"] = placeholders["roe"]
 
                 # 其他财务指标
                 for key in ["revenue", "net_profit", "eps"]:
-                    val = financial_dict.get(key, {}).get("ttm") if isinstance(financial_dict.get(key), dict) else financial_dict.get(key)
+                    val = (
+                        financial_dict.get(key, {}).get("ttm")
+                        if isinstance(financial_dict.get(key), dict)
+                        else financial_dict.get(key)
+                    )
                     if val is not None and isinstance(val, (int, float)):
                         if key == "revenue" or key == "net_profit":
                             placeholders[f"{key}_ttm"] = self.formatters["currency_100m"](val)
@@ -234,8 +248,16 @@ class SnapshotToPlaceholdersMapper:
                             placeholders[f"{key}_ttm"] = self.formatters["number_2dp"](val)
 
                         # 同比/环比
-                        yoy = financial_dict.get(key, {}).get("yoy") if isinstance(financial_dict.get(key), dict) else None
-                        qoq = financial_dict.get(key, {}).get("qoq") if isinstance(financial_dict.get(key), dict) else None
+                        yoy = (
+                            financial_dict.get(key, {}).get("yoy")
+                            if isinstance(financial_dict.get(key), dict)
+                            else None
+                        )
+                        qoq = (
+                            financial_dict.get(key, {}).get("qoq")
+                            if isinstance(financial_dict.get(key), dict)
+                            else None
+                        )
                         if yoy is not None and isinstance(yoy, (int, float)):
                             placeholders[f"{key}_yoy"] = self.formatters["percent_2dp"](yoy)
                         if qoq is not None and isinstance(qoq, (int, float)):
@@ -395,13 +417,17 @@ class SnapshotToPlaceholdersMapper:
             # 构建事件列表摘要
             event_titles = [self._get_attr(e, "title", "") for e in recent_events[:3]]
             if event_titles:
-                placeholders["recent_events_summary"] = "\n".join([f"• {t}" for t in event_titles if t])
+                placeholders["recent_events_summary"] = "\n".join(
+                    [f"• {t}" for t in event_titles if t]
+                )
         else:
             # 兼容旧格式
             event_impact = self._get_attr(snapshot, "event_impact", [])
             if event_impact:
                 if isinstance(event_impact[0], str):
-                    placeholders["recent_events_summary"] = "\n".join([f"• {e}" for e in event_impact[:3]])
+                    placeholders["recent_events_summary"] = "\n".join(
+                        [f"• {e}" for e in event_impact[:3]]
+                    )
                     if len(event_impact) > 0:
                         placeholders["recent_event_title"] = event_impact[0]
                 else:

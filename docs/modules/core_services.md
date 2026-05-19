@@ -105,6 +105,38 @@ Update this section when:
 
 ---
 
+### `core/services/market_data_ingestion_service.py`
+
+Purpose:
+
+- Orchestrates ETL pipeline for market data: crawler → normalizer → structured SQL tables → ETL run tracking.
+- `ingest_stock_master(limit)`: fetch stock list from AKShare, normalize, upsert to `stock_master` table.
+- `ingest_daily_bars(symbols, start_date, end_date)`: fetch daily bars, normalize, upsert to `stock_daily_bar` table.
+
+Related files:
+
+- `data_layer/normalizers/akshare_market.py`
+- `data_layer/repositories/market_data_repository.py`
+- `data_layer/repositories/etl_run_repository.py`
+- `data_layer/adapters/akshare_adapter.py`
+
+Related API:
+
+- `app/api/routes/market_data.py`
+
+Tests:
+
+- Add ingestion service tests when ETL pipeline order, input type, or failure recovery behavior changes.
+
+Update this section when:
+
+- ETL steps change.
+- Normalizer adapter changes.
+- New ingestion target is added.
+- Failure/retry behavior changes.
+
+---
+
 ## Common Pitfalls
 
 - Do not put API-specific response formatting inside services.

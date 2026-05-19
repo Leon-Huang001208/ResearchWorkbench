@@ -8,11 +8,7 @@ from typing import List, Optional
 
 from core.observability import get_logger
 from data_layer.crawlers.akshare.base import MarketData, StockInfo
-from data_layer.crawlers.baostock.base import (
-    BaseBaoStockFetcher,
-    BaoStockConfig,
-    BaoStockError,
-)
+from data_layer.crawlers.baostock.base import BaoStockConfig, BaoStockError, BaseBaoStockFetcher
 
 logger = get_logger("baostock_market")
 
@@ -318,4 +314,3 @@ class BaoStockMarketFetcher(BaseBaoStockFetcher):
             return int(float(value))
         except (ValueError, TypeError):
             return None
-

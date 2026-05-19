@@ -1,4 +1,3 @@
-
 """
 Yahoo Finance 基础适配器模块
 
@@ -8,13 +7,10 @@ Yahoo Finance 基础适配器模块
 from abc import ABC
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from core.observability import get_logger
-from data_layer.crawlers.utils.anti_crawler_kit import (
-    AntiScrapeConfig,
-    AntiScrapeKit,
-)
+from data_layer.crawlers.utils.anti_crawler_kit import AntiScrapeConfig, AntiScrapeKit
 
 logger = get_logger("yahoo")
 
@@ -44,6 +40,7 @@ DEFAULT_CONFIG = YahooConfig()
 
 class YahooError(Exception):
     """Yahoo Finance 操作错误"""
+
     pass
 
 
@@ -290,4 +287,3 @@ class YahooAdapter:
                 "error": str(e),
                 "timestamp": datetime.now().isoformat(),
             }
-

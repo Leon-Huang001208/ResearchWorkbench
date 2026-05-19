@@ -1,22 +1,21 @@
 """Ingest Admin API — 摄入管理路由"""
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.models import (
-    IngestTriggerRequest,
-    IngestTriggerResponse,
-    IngestPauseRequest,
-    IngestPauseResponse,
-    IngestResumeResponse,
-    IngestResetResponse,
     IngestConfigResponse,
     IngestConfigUpdate,
+    IngestPauseRequest,
+    IngestPauseResponse,
+    IngestResetResponse,
+    IngestResumeResponse,
+    IngestTriggerRequest,
+    IngestTriggerResponse,
 )
 from core.observability import get_logger
-from data_layer.repositories.base import get_db
 from data_layer.repositories import crawl_state_repository
+from data_layer.repositories.base import get_db
 
 logger = get_logger(__name__)
 
@@ -76,7 +75,9 @@ async def pause_ingest(
         if not state:
             # 如果不存在，创建一个基础状态
             from datetime import datetime
+
             from data_layer.repositories.models import CrawlStateV1DB
+
             state = CrawlStateV1DB(
                 state_id=f"state_{source_type}",
                 source_type=source_type,
@@ -227,11 +228,14 @@ async def update_ingest_config(
             )
 
         # 更新配置
-        new_crawl_config = body.crawl_config if body.crawl_config is not None else state.crawl_config
+        new_crawl_config = (
+            body.crawl_config if body.crawl_config is not None else state.crawl_config
+        )
         new_crawl_mode = body.crawl_mode if body.crawl_mode is not None else state.crawl_mode
 
         # 使用 UPSERT 或者直接更新
         from datetime import datetime
+
         # 直接更新字段（兼容各种情况）
         state.crawl_config = new_crawl_config
         state.crawl_mode = new_crawl_mode

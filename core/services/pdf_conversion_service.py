@@ -13,7 +13,6 @@ from sqlalchemy.orm import Session
 
 from core.contracts.documents_v1 import (
     DocType,
-    DocumentChunkV1,
     DocumentProcessingMeta,
     DocumentProcessingStatus,
     DocumentV1,
@@ -22,7 +21,6 @@ from core.contracts.documents_v1 import (
 from core.contracts.pdf_conversion import ConversionResult, ConversionStatus, StrategyType
 from core.observability import get_logger
 from core.services.document_chunker import DocumentChunker
-from core.utils.id_gen import generate_id
 from data_layer.converters.base import PDFConversionStrategy
 from data_layer.converters.markitdown import MarkItDownStrategy
 from data_layer.converters.mineru import MinerUStrategy
@@ -75,7 +73,9 @@ class PDFConversionService:
         """获取当前可用的策略列表"""
         return [name for name, s in self._strategies.items() if s.is_available()]
 
-    def _select_strategy(self, preferred: Optional[StrategyType] = None) -> Optional[PDFConversionStrategy]:
+    def _select_strategy(
+        self, preferred: Optional[StrategyType] = None
+    ) -> Optional[PDFConversionStrategy]:
         """选择转换策略
 
         优先使用 preferred，不可用时按优先级列表自动选择。
@@ -159,7 +159,9 @@ class PDFConversionService:
                         conversion.raw_text_content = result.raw_text
 
             # 6. 更新转换记录
-            conversion.status = ConversionStatus.SUCCESS.value if result.success else ConversionStatus.ERROR.value
+            conversion.status = (
+                ConversionStatus.SUCCESS.value if result.success else ConversionStatus.ERROR.value
+            )
             conversion.page_count = result.page_count
             conversion.token_count = result.token_count
             conversion.quality_score = result.quality_score
@@ -189,9 +191,7 @@ class PDFConversionService:
             # 7. 转换成功后自动创建 DocumentV1 和分块
             if result.success and self._create_document:
                 try:
-                    self._create_document_from_conversion(
-                        artifact, conversion, result
-                    )
+                    self._create_document_from_conversion(artifact, conversion, result)
                 except Exception as e:
                     logger.error(
                         f"创建 DocumentV1 失败 (pdf_id={pdf_id}): {e}",

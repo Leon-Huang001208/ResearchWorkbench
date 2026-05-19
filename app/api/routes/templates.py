@@ -1,14 +1,13 @@
 """
 模板管理 API 路由 - 支持 DOCX/PPTX/Excel 模板上传、占位符发现、报告渲染
 """
-import io
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from core.observability import get_logger
@@ -111,6 +110,7 @@ class DeleteTemplateResponse(BaseModel):
 
 class PlaceholderConfig(BaseModel):
     """单个占位符配置"""
+
     type: str = "string"
     description: str = ""
     prompt: str = ""
@@ -119,6 +119,7 @@ class PlaceholderConfig(BaseModel):
 
 class TemplateConfigSaveRequest(BaseModel):
     """模板配置保存请求"""
+
     template_name: str
     file_type: str = "docx"
     placeholders: Dict[str, PlaceholderConfig] = Field(default_factory=dict)
@@ -126,6 +127,7 @@ class TemplateConfigSaveRequest(BaseModel):
 
 class TemplateConfigResponse(BaseModel):
     """模板配置响应"""
+
     template_name: str
     file_type: str
     config: Dict[str, Any]
@@ -153,7 +155,9 @@ async def list_templates():
                 excel_path = template_manager.get_template_file_path(template_name, "excel")
 
                 # 从配置中提取占位符和节信息
-                config_placeholders = list(config.placeholders.keys()) if config.placeholders else []
+                config_placeholders = (
+                    list(config.placeholders.keys()) if config.placeholders else []
+                )
                 config_sections = [
                     {
                         "key": s.key,
@@ -266,7 +270,7 @@ async def upload_template(
             template_manager.load_template(template_name)
         except FileNotFoundError:
             # 配置不存在，创建基础配置
-            from core.contracts import TemplateConfig, SectionSpec
+            from core.contracts import SectionSpec, TemplateConfig
 
             # 创建默认章节结构（如果是周报类型则使用标准结构，否则创建简单结构）
             if "weekly" in template_name.lower() or "周报" in template_name:
@@ -276,36 +280,36 @@ async def upload_template(
                         title="市场概览",
                         target_words=300,
                         required_facets=["大盘走势", "主要指数表现", "成交量"],
-                        placeholder="market_summary_placeholder"
+                        placeholder="market_summary_placeholder",
                     ),
                     SectionSpec(
                         key="key_events",
                         title="本周重要事件",
                         target_words=400,
                         required_facets=["政策新闻", "公司公告", "行业动态"],
-                        placeholder="key_events_placeholder"
+                        placeholder="key_events_placeholder",
                     ),
                     SectionSpec(
                         key="industry_performance",
                         title="行业表现分析",
                         target_words=350,
                         required_facets=["涨幅居前行业", "跌幅居前行业", "行业资金流向"],
-                        placeholder="industry_performance_placeholder"
+                        placeholder="industry_performance_placeholder",
                     ),
                     SectionSpec(
                         key="notable_stocks",
                         title="重点股票观察",
                         target_words=300,
                         required_facets=["涨幅榜", "跌幅榜", "异动股票"],
-                        placeholder="notable_stocks_placeholder"
+                        placeholder="notable_stocks_placeholder",
                     ),
                     SectionSpec(
                         key="outlook",
                         title="后市展望",
                         target_words=250,
                         required_facets=["技术面", "消息面", "风险提示"],
-                        placeholder="outlook_placeholder"
-                    )
+                        placeholder="outlook_placeholder",
+                    ),
                 ]
             else:
                 sections = []
@@ -316,7 +320,7 @@ async def upload_template(
                 version=version,
                 target_audience=target_audience,
                 sections=sections,
-                placeholders={}
+                placeholders={},
             )
 
             # 保存配置
@@ -585,9 +589,7 @@ async def download_rendered_report(report_id: str, file_type: str = "docx"):
             "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
             "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        }.get(
-            file_type, "application/octet-stream"
-        )
+        }.get(file_type, "application/octet-stream")
 
         return FileResponse(
             output_path,
@@ -641,15 +643,13 @@ async def download_template_file(template_name: str, file_type: TemplateFileType
         file_path = template_manager.get_template_file_path(template_name, file_type.value)
 
         if not file_path:
-            raise HTTPException(status_code=404, detail=f"Template file not found")
+            raise HTTPException(status_code=404, detail="Template file not found")
 
         media_type = {
             "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
             "excel": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        }.get(
-            file_type.value, "application/octet-stream"
-        )
+        }.get(file_type.value, "application/octet-stream")
 
         return FileResponse(
             file_path,
@@ -679,13 +679,11 @@ async def get_template_config(template_name: str, file_type: str = "docx"):
                 "name": template_name,
                 "description": "",
                 "version": "1.0",
-                "placeholders": {}
+                "placeholders": {},
             }
 
         return TemplateConfigResponse(
-            template_name=template_name,
-            file_type=file_type,
-            config=config_dict
+            template_name=template_name, file_type=file_type, config=config_dict
         )
     except Exception as e:
         logger.exception(f"Failed to get template config {template_name}")
@@ -706,10 +704,9 @@ async def save_template_config(request: TemplateConfigSaveRequest):
             config = template_manager.load_template(template_name)
         except FileNotFoundError:
             from core.contracts import TemplateConfig
+
             config = TemplateConfig(
-                name=template_name,
-                description=f"{template_name} 模板配置",
-                version="1.0"
+                name=template_name, description=f"{template_name} 模板配置", version="1.0"
             )
 
         # 更新占位符配置
@@ -726,13 +723,11 @@ async def save_template_config(request: TemplateConfigSaveRequest):
         return {
             "success": True,
             "template_name": template_name,
-            "message": "Template config saved successfully"
+            "message": "Template config saved successfully",
         }
     except Exception as e:
         logger.exception(f"Failed to save template config {request.template_name}")
         raise HTTPException(status_code=500, detail=f"Failed to save template config: {str(e)}")
-
-
 
 
 @router.post("/create-yaml", summary="创建 YAML 模板配置")
@@ -747,7 +742,7 @@ async def create_yaml_template(
     创建一个新的 YAML 模板配置（不包含文件上传，仅创建基础配置）
     """
     try:
-        from core.contracts import RetrievalProfileType, SectionSpec, TemplateConfig
+        from core.contracts import RetrievalProfileType
 
         # 创建基本的周报模板配置
         config = template_manager.create_weekly_report_template()
@@ -778,6 +773,7 @@ async def create_yaml_template(
 
 class UpdateTemplateRequest(BaseModel):
     """更新模板请求."""
+
     template_name: Optional[str] = Field(default=None, description="New template name")
     description: Optional[str] = Field(default=None, description="Template description")
     version: Optional[str] = Field(default=None, description="Template version")
@@ -786,6 +782,7 @@ class UpdateTemplateRequest(BaseModel):
 
 class UpdateTemplatesOrderRequest(BaseModel):
     """批量更新模板排序请求."""
+
     template_names: List[str] = Field(description="Template names in desired order")
 
 
@@ -800,15 +797,15 @@ async def update_template(template_name: str, request: UpdateTemplateRequest):
             raise HTTPException(status_code=400, detail="No fields to update")
 
         # Map template_name to name for the template manager
-        if 'template_name' in update_data:
-            update_data['name'] = update_data.pop('template_name')
+        if "template_name" in update_data:
+            update_data["name"] = update_data.pop("template_name")
 
         updated_config = template_manager.update_template_metadata(template_name, **update_data)
 
         return {
             "success": True,
             "template_name": updated_config.name,
-            "message": "Template updated successfully"
+            "message": "Template updated successfully",
         }
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"Template not found: {template_name}")
@@ -825,10 +822,7 @@ async def reorder_templates(request: UpdateTemplatesOrderRequest):
     try:
         success = template_manager.update_templates_order(request.template_names)
         if success:
-            return {
-                "success": True,
-                "message": "Templates reordered successfully"
-            }
+            return {"success": True, "message": "Templates reordered successfully"}
         else:
             raise HTTPException(status_code=500, detail="Failed to reorder templates")
     except Exception as e:

@@ -56,10 +56,16 @@ class EvidenceCollector:
         if self._event_repo:
             for subject_id in state.subject_ids:
                 events = self._event_repo.get_by_entity(subject_id)
-                state.retrieved_events.extend([
-                    {"event_id": e.event_id, "title": e.title, "event_time": e.event_time.isoformat() if e.event_time else None}
-                    for e in events
-                ])
+                state.retrieved_events.extend(
+                    [
+                        {
+                            "event_id": e.event_id,
+                            "title": e.title,
+                            "event_time": e.event_time.isoformat() if e.event_time else None,
+                        }
+                        for e in events
+                    ]
+                )
 
         logger.info(
             f"Collected: {len(state.retrieved_doc_ids)} docs, "

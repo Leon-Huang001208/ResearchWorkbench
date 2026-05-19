@@ -13,10 +13,7 @@ from typing import Any, Dict, Optional, Tuple
 from core.contracts import SourceType
 from core.observability import get_logger
 from core.services.crawl_orchestrator import CrawlOrchestrator
-from core.utils.trading_calendar import (
-    TradingCalendar,
-    get_trading_calendar,
-)
+from core.utils.trading_calendar import TradingCalendar, get_trading_calendar
 
 logger = get_logger(__name__)
 

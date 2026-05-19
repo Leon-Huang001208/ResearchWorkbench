@@ -217,7 +217,152 @@ AlphaFoundry 使用 PostgreSQL + pgvector 作为主要数据存储，采用模�
 
 ---
 
-### 3. 信号与决策层
+### 3. 市场结构化事实层 (AF-AUTO-007)
+
+#### stock_master（股票基础信息表）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| symbol | TEXT PK | 股票代码 (如 600519.SH) |
+| raw_code | TEXT | 纯数字代码 (如 600519) |
+| name | TEXT | 公司名称 |
+| exchange | TEXT | 交易所 (SH/SZ/BJ) |
+| market | TEXT | 市场 (A-share/HK/US) |
+| industry_level1 | TEXT | 一级行业 |
+| industry_level2 | TEXT | 二级行业 |
+| industry_level3 | TEXT | 三级行业 |
+| list_date | TIMESTAMPTZ | 上市日期 |
+| source | TEXT | 数据来源 |
+| updated_at | TIMESTAMPTZ | 更新时间 |
+| created_at | TIMESTAMPTZ | 创建时间 |
+
+#### stock_daily_bar（日行情表）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INTEGER PK | 自增 ID |
+| symbol | TEXT | 股票代码 |
+| trade_date | TIMESTAMPTZ | 交易日 |
+| open | NUMERIC | 开盘价 |
+| high | NUMERIC | 最高价 |
+| low | NUMERIC | 最低价 |
+| close | NUMERIC | 收盘价 |
+| volume | NUMERIC | 成交量 |
+| amount | NUMERIC | 成交额 |
+| turnover | NUMERIC | 换手率 |
+| source | TEXT | 数据来源 |
+| raw_payload | JSONB | 原始数据 |
+| created_at | TIMESTAMPTZ | 创建时间 |
+
+**唯一约束**: (symbol, trade_date, source) → uq_stock_daily_bar_symbol_date_source
+
+#### stock_quote_snapshot（实时行情快照表）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INTEGER PK | 自增 ID |
+| symbol | TEXT | 股票代码 |
+| quote_time | TIMESTAMPTZ | 行情时间 |
+| last_price | NUMERIC | 最新价 |
+| change_pct | NUMERIC | 涨跌幅 |
+| volume | NUMERIC | 成交量 |
+| amount | NUMERIC | 成交额 |
+| turnover | NUMERIC | 换手率 |
+| pe | NUMERIC | 市盈率 |
+| pb | NUMERIC | 市净率 |
+| source | TEXT | 数据来源 |
+| raw_payload | JSONB | 原始数据 |
+| created_at | TIMESTAMPTZ | 创建时间 |
+
+#### stock_financial_metric（财务指标表）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INTEGER PK | 自增 ID |
+| symbol | TEXT | 股票代码 |
+| report_date | TIMESTAMPTZ | 报告期 |
+| report_type | TEXT | 类型 (annual/quarterly) |
+| total_revenue | NUMERIC | 营业收入 |
+| net_profit | NUMERIC | 净利润 |
+| total_assets | NUMERIC | 总资产 |
+| total_liabilities | NUMERIC | 总负债 |
+| equity | NUMERIC | 净资产 |
+| roe | NUMERIC | 净资产收益率 |
+| roa | NUMERIC | 总资产收益率 |
+| gross_margin | NUMERIC | 毛利率 |
+| net_margin | NUMERIC | 净利率 |
+| debt_ratio | NUMERIC | 资产负债率 |
+| source | TEXT | 数据来源 |
+| raw_payload | JSONB | 原始数据 |
+| created_at | TIMESTAMPTZ | 创建时间 |
+
+#### stock_valuation（估值指标表）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INTEGER PK | 自增 ID |
+| symbol | TEXT | 股票代码 |
+| as_of | TIMESTAMPTZ | 估值日期 |
+| pe_ttm | NUMERIC | 市盈率 TTM |
+| pe_dynamic | NUMERIC | 动态市盈率 |
+| pb | NUMERIC | 市净率 |
+| ps | NUMERIC | 市销率 |
+| market_cap | NUMERIC | 总市值 |
+| float_market_cap | NUMERIC | 流通市值 |
+| source | TEXT | 数据来源 |
+| raw_payload | JSONB | 原始数据 |
+| created_at | TIMESTAMPTZ | 创建时间 |
+
+#### stock_shareholder（股东信息表）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INTEGER PK | 自增 ID |
+| symbol | TEXT | 股票代码 |
+| report_date | TIMESTAMPTZ | 报告期 |
+| holder_name | TEXT | 股东名称 |
+| holder_rank | INTEGER | 排名 |
+| shares | NUMERIC | 持股数量 |
+| holding_pct | NUMERIC | 持股比例 |
+| holder_type | TEXT | 股东类型 |
+| source | TEXT | 数据来源 |
+| raw_payload | JSONB | 原始数据 |
+| created_at | TIMESTAMPTZ | 创建时间 |
+
+#### index_component（指数成分表）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INTEGER PK | 自增 ID |
+| index_symbol | TEXT | 指数代码 |
+| component_symbol | TEXT | 成分股代码 |
+| component_name | TEXT | 成分股名称 |
+| weight | NUMERIC | 权重 |
+| as_of | TIMESTAMPTZ | 日期 |
+| source | TEXT | 数据来源 |
+| raw_payload | JSONB | 原始数据 |
+| created_at | TIMESTAMPTZ | 创建时间 |
+
+#### etl_run（ETL 运行记录表）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| run_id | TEXT PK | 运行 ID |
+| job_name | TEXT | 任务名称 |
+| source | TEXT | 数据源 |
+| status | TEXT | 状态 (running/success/failed/partial) |
+| started_at | TIMESTAMPTZ | 开始时间 |
+| finished_at | TIMESTAMPTZ | 完成时间 |
+| items_fetched | INTEGER | 获取数量 |
+| items_normalized | INTEGER | 标准化数量 |
+| items_saved | INTEGER | 保存数量 |
+| error_message | TEXT | 错误信息 |
+| metadata | JSONB | 元数据 |
+| created_at | TIMESTAMPTZ | 创建时间 |
+
+---
+
+### 4. 信号与决策层
 
 #### alpha_signal（Alpha 信号表）
 

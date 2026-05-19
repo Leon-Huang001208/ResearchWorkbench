@@ -370,7 +370,9 @@ class ExcelProjection:
                                 chart_images[chart_spec.chart_id] = img_bytes
                                 logger.info(f"Generated chart image: {chart_spec.chart_id}")
                     except Exception as e:
-                        logger.error(f"Failed to generate chart {chart_spec.chart_id}: {e}", exc_info=True)
+                        logger.error(
+                            f"Failed to generate chart {chart_spec.chart_id}: {e}", exc_info=True
+                        )
 
         return chart_images
 
@@ -399,6 +401,7 @@ class ExcelProjection:
                         data = data_sheets[sheet_name]
                         # 简单的范围解析，只支持A1:B5格式
                         import re
+
                         range_match = re.match(r"([A-Z]+)(\d+):([A-Z]+)(\d+)", range_str)
                         if range_match:
                             start_col, start_row, end_col, end_row = range_match.groups()

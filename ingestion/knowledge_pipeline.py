@@ -16,9 +16,9 @@ from core.contracts import (
     DocumentV1,
 )
 from core.observability import get_logger
+from core.services.deduplication_service import DeduplicationService
 from core.services.document_chunker import DocumentChunker
 from core.services.document_classifier import DocumentClassifier
-from core.services.deduplication_service import DeduplicationService
 from core.services.entity_extractor import EntityExtractor
 from core.services.event_extractor import EventExtractor
 from data_layer.repositories.event_repository import EventRepositoryImpl
@@ -141,9 +141,11 @@ class KnowledgePipeline:
             is_duplicate=is_duplicate,
         )
 
-        logger.info(f"Knowledge pipeline completed for {doc.doc_id}, "
-                   f"extracted {len(events)} events, "
-                   f"duplicate: {is_duplicate}")
+        logger.info(
+            f"Knowledge pipeline completed for {doc.doc_id}, "
+            f"extracted {len(events)} events, "
+            f"duplicate: {is_duplicate}"
+        )
 
         return result
 

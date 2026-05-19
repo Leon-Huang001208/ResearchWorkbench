@@ -463,7 +463,6 @@ Imports:
 - `data_layer.repositories.base`
 - `fastapi`
 - `sqlalchemy.orm`
-- `typing`
 
 Functions:
 - `trigger_ingest`
@@ -530,6 +529,41 @@ Classes:
 Functions:
 - `llm_generate`
   - 使用LLM生成文本内容
+
+
+## `app/api/routes/market_data.py`
+
+Module docstring:
+> Market Data API 路由
+
+Imports:
+- `core.services.market_data_ingestion_service`
+- `data_layer.repositories.base`
+- `data_layer.repositories.etl_run_repository`
+- `data_layer.repositories.market_data_repository`
+- `datetime`
+- `fastapi`
+- `pydantic`
+- `sqlalchemy.orm`
+
+Classes:
+- `DailyBarSyncRequest`
+  - 日行情同步请求
+- `SyncResponse`
+  - 同步操作响应
+
+Functions:
+- `_get_market_repo`
+- `_get_etl_repo`
+- `_get_ingestion_service`
+- `sync_stock_master`
+  - 同步股票列表到 stock_master 表
+- `sync_daily_bars`
+  - 同步日行情到 stock_daily_bar 表
+- `get_daily_bars`
+  - 查询某只股票的日行情数据
+- `list_etl_runs`
+  - 查询最近的 ETL 运行记录
 
 
 ## `app/api/routes/memory.py`
@@ -1185,7 +1219,6 @@ Imports:
 - `enum`
 - `fastapi`
 - `fastapi.responses`
-- `io`
 - `pathlib`
 - `pydantic`
 - `reporting.templates.template_manager`
@@ -2791,13 +2824,14 @@ Imports:
 - `core.interfaces`
 - `core.observability`
 - `data_layer.coordinator.multi_source_coordinator`
+- `data_layer.repositories.market_data_repository`
 - `datetime`
 - `typing`
 
 Classes:
 - `AssetAnalysisService`
   - 资产分析服务
-  - methods: __init__, generate_snapshot, _fetch_from_coordinator, get_latest_snapshot, generate_analysis_card, _fill_structured_data, _enrich_from_coordinator
+  - methods: __init__, generate_snapshot, _fetch_from_coordinator, _build_from_structured_tables, _build_from_coordinator, get_latest_snapshot, generate_analysis_card, _fill_structured_data, _enrich_from_coordinator
 
 
 ## `core/services/audit_service.py`
@@ -3225,6 +3259,27 @@ Classes:
   - methods: __init__, enqueue, dequeue, process_item, process_batch, get_stats, retry_failed, get_recent, _normalize_to_event
 
 
+## `core/services/market_data_ingestion_service.py`
+
+Module docstring:
+> MarketDataIngestionService — ETL 编排服务
+
+Imports:
+- `core.observability`
+- `data_layer.crawlers.akshare.base`
+- `data_layer.normalizers.akshare_market`
+- `data_layer.repositories.etl_run_repository`
+- `data_layer.repositories.market_data_repository`
+- `datetime`
+- `typing`
+- `uuid`
+
+Classes:
+- `MarketDataIngestionService`
+  - 市场数据摄入编排服务
+  - methods: __init__, ingest_stock_master, ingest_daily_bars
+
+
 ## `core/services/monitoring_service.py`
 
 Module docstring:
@@ -3332,7 +3387,6 @@ Imports:
 - `core.contracts.pdf_conversion`
 - `core.observability`
 - `core.services.document_chunker`
-- `core.utils.id_gen`
 - `data_layer.converters.base`
 - `data_layer.converters.markitdown`
 - `data_layer.converters.mineru`
@@ -4278,7 +4332,6 @@ Imports:
 - `data_layer.adapters.base`
 - `data_layer.crawlers.yahoo`
 - `datetime`
-- `typing`
 
 Classes:
 - `YahooAdapter`
@@ -4377,7 +4430,6 @@ Module docstring:
 Imports:
 - `core.observability`
 - `core.settings.config`
-- `os`
 - `pathlib`
 - `typing`
 
@@ -4442,7 +4494,6 @@ Imports:
 - `data_layer.crawlers.akshare.base`
 - `dataclasses`
 - `datetime`
-- `json`
 - `pathlib`
 - `sqlite3`
 - `typing`
@@ -4914,7 +4965,6 @@ Module docstring:
 
 Imports:
 - `dataclasses`
-- `datetime`
 - `functools`
 - `logging`
 - `random`
@@ -5040,7 +5090,6 @@ Module docstring:
 Imports:
 - `base`
 - `core.observability`
-- `datetime`
 - `typing`
 
 Classes:
@@ -5363,7 +5412,6 @@ Imports:
 - `datetime`
 - `hashlib`
 - `os`
-- `pathlib`
 - `typing`
 
 Classes:
@@ -5689,8 +5737,56 @@ Module docstring:
 > 数据标准化器
 
 Imports:
+- `data_layer.normalizers.akshare_financial`
+- `data_layer.normalizers.akshare_market`
+- `data_layer.normalizers.common`
 - `data_layer.normalizers.date_normalizer`
+- `data_layer.normalizers.symbol`
 - `data_layer.normalizers.text_normalizer`
+
+
+## `data_layer/normalizers/akshare_financial.py`
+
+Module docstring:
+> AkShare 财务数据标准化器
+
+Imports:
+- `data_layer.crawlers.akshare.base`
+- `data_layer.normalizers.common`
+
+Functions:
+- `normalize_financial_data`
+  - 将 FinancialData dataclass 转为 stock_financial_metric 表格式
+
+
+## `data_layer/normalizers/akshare_market.py`
+
+Module docstring:
+> AkShare 市场数据标准化器
+
+Imports:
+- `data_layer.crawlers.akshare.base`
+- `data_layer.normalizers.common`
+
+Functions:
+- `normalize_market_data`
+  - 将 MarketData dataclass 转为 stock_daily_bar 表格式
+- `normalize_stock_info`
+  - 将 StockInfo dataclass 转为 stock_master 表格式
+
+
+## `data_layer/normalizers/common.py`
+
+Module docstring:
+> 通用 normalizer 工具函数
+
+Imports:
+- `decimal`
+- `typing`
+
+Functions:
+- `to_decimal`
+  - 安全转换数值为 Decimal，处理 None 和异常值
 
 
 ## `data_layer/normalizers/date_normalizer.py`
@@ -5708,6 +5804,16 @@ Classes:
 - `DateNormalizer`
   - 日期标准化器
   - methods: __init__, normalize, normalize_to_str, _try_relative_date, _try_parse_pattern
+
+
+## `data_layer/normalizers/symbol.py`
+
+Module docstring:
+> 股票代码标准化
+
+Functions:
+- `normalize_a_share_symbol`
+  - 将各种格式的 A 股代码标准化为 {code}.{exchange} 格式
 
 
 ## `data_layer/normalizers/text_normalizer.py`
@@ -6043,6 +6149,27 @@ Classes:
   - methods: _to_domain, _to_model, save, get, list, delete, get_by_symbol, search
 
 
+## `data_layer/repositories/etl_run_repository.py`
+
+Module docstring:
+> ETLRunRepository — ETL 运行记录管理
+
+Imports:
+- `core.observability`
+- `data_layer.repositories.base`
+- `data_layer.repositories.models`
+- `datetime`
+- `typing`
+
+Classes:
+- `ETLRunRepository`
+  - ETL 运行记录仓储
+  - methods: start, finish, fail, get_run, get_recent_runs
+
+Functions:
+- `_utc_now`
+
+
 ## `data_layer/repositories/event_repository.py`
 
 Imports:
@@ -6099,6 +6226,30 @@ Classes:
 - `IngestionQueueRepository`
   - 统一摄取队列仓储
   - methods: enqueue, dequeue, mark_completed, mark_failed, get_stats, find_by_dedup_hash, get_failed_items, get_recent, reset_failed_for_retry, _compute_dedup_hash, _to_domain
+
+
+## `data_layer/repositories/market_data_repository.py`
+
+Module docstring:
+> MarketDataRepository — 市场结构化数据的 upsert/查询层
+
+Imports:
+- `core.observability`
+- `data_layer.repositories.base`
+- `data_layer.repositories.models`
+- `sqlalchemy`
+- `sqlalchemy.dialects.postgresql`
+- `sqlalchemy.orm`
+- `typing`
+
+Classes:
+- `MarketDataRepository`
+  - 市场数据仓储
+  - methods: upsert_stock_master, upsert_stock_master_many, get_stock_master, get_all_stock_symbols, upsert_daily_bars, get_daily_bars, get_latest_daily_bar, insert_quote_snapshots, upsert_financial_metrics, get_latest_financial, upsert_valuations, get_latest_valuation, upsert_shareholders, get_latest_shareholders, upsert_index_components, _upsert_postgres, _upsert_sqlite
+
+Functions:
+- `_is_postgresql`
+  - 检测当前数据库是否为 PostgreSQL
 
 
 ## `data_layer/repositories/memory_asset_snapshot_repo.py`
@@ -6249,6 +6400,22 @@ Classes:
   - 爬虫状态表 - 持久化存储爬虫状态、水位线、去重信息.
 - `ProcessedItemV1DB`
   - 已处理项目表 - 用于去重，支持快速检查项目是否已处理.
+- `StockMasterDB`
+  - 股票基础信息表
+- `StockDailyBarDB`
+  - 日行情表
+- `StockQuoteSnapshotDB`
+  - 实时行情快照表
+- `StockFinancialMetricDB`
+  - 财务指标表
+- `StockValuationDB`
+  - 估值指标表
+- `StockShareholderDB`
+  - 股东信息表
+- `IndexComponentDB`
+  - 指数成分表
+- `ETLRunDB`
+  - ETL 运行记录表
 
 Functions:
 - `utc_now`
@@ -6542,7 +6709,6 @@ Imports:
 - `core.observability`
 - `data_layer.crawlers.akshare.base`
 - `dataclasses`
-- `datetime`
 - `enum`
 - `typing`
 
@@ -9011,12 +9177,14 @@ Module docstring:
 > 全自动数据抓取服务：定时自动抓取财联社、中国证券网、知丘研报、股票行情等真实数据
 
 Imports:
-- `apscheduler.schedulers.blocking`
+- `apscheduler.schedulers.asyncio`
+- `asyncio`
 - `datetime`
+- `fake_useragent`
+- `hashlib`
 - `logging`
-- `pathlib`
 - `random`
-- `sys`
+- `requests`
 - `typing`
 
 Functions:
@@ -9024,16 +9192,22 @@ Functions:
   - 生成随机请求头，防爬
 - `get_content_hash`
   - 生成内容哈希，用于去重
+- `fetch_with_retry`
+  - 带重试的请求，防爬
 - `ingest_cls_data`
   - 抓取财联社电报数据
 - `ingest_cnstock_data`
   - 抓取中国证券网新闻数据
 - `ingest_zq_data`
-  - 抓取知丘所有数据（研报、公众号、会议纪要）
-- `ingest_stock_data`
-  - 抓取股票行情、财务数据
+  - 抓取知丘研报数据
+- `ingest_stock_master`
+  - 同步股票列表到 stock_master 表
+- `ingest_daily_bars`
+  - 同步日行情数据到 stock_daily_bar 表
+- `ingest_stock_snapshots`
+  - 生成资产快照（依赖 stock_master + stock_daily_bar 已有数据）
 - `health_check`
-  - 健康检查
+  - 健康检查，确保服务正常运行
 - `run_scheduler`
   - 启动定时任务调度器
 
@@ -9700,7 +9874,6 @@ Module docstring:
 Imports:
 - `data_layer.repositories.base`
 - `data_layer.repositories.dashboard_data`
-- `data_layer.repositories.models`
 - `pathlib`
 - `sys`
 

@@ -1,19 +1,13 @@
-
 """
 Yahoo Finance 基本面数据获取器
 
 提供股票信息、财务报表、分红拆股等数据。
 """
-from datetime import date
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from core.observability import get_logger
-from .base import (
-    BaseYahooFetcher,
-    YahooConfig,
-    YahooFinancialData,
-    YahooStockInfo,
-)
+
+from .base import BaseYahooFetcher, YahooConfig, YahooFinancialData, YahooStockInfo
 
 logger = get_logger("yahoo_fundamental")
 
@@ -127,7 +121,9 @@ class YahooFundamentalFetcher(BaseYahooFetcher):
                     result[date_key].total_liabilities = self._safe_float(
                         row_data.get("Total Liabilities Net Minority Interest")
                     )
-                    result[date_key].total_equity = self._safe_float(row_data.get("Stockholders Equity"))
+                    result[date_key].total_equity = self._safe_float(
+                        row_data.get("Stockholders Equity")
+                    )
 
                     equity = result[date_key].total_equity
                     net_inc = result[date_key].net_income
@@ -148,7 +144,9 @@ class YahooFundamentalFetcher(BaseYahooFetcher):
                     result[date_key].operating_cash_flow = self._safe_float(
                         row_data.get("Operating Cash Flow")
                     )
-                    result[date_key].free_cash_flow = self._safe_float(row_data.get("Free Cash Flow"))
+                    result[date_key].free_cash_flow = self._safe_float(
+                        row_data.get("Free Cash Flow")
+                    )
 
             logger.info("Fetched financials for %s: %d periods", symbol, len(result))
             return result
@@ -243,4 +241,3 @@ class YahooFundamentalFetcher(BaseYahooFetcher):
             self._record_failure()
             logger.error("Failed to fetch earnings for %s: %s", symbol, e)
             raise
-

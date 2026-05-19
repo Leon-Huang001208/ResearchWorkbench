@@ -149,9 +149,9 @@ class WordProjection:
             )
 
         from docx import Document
+        from docx.enum.section import WD_SECTION
         from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
         from docx.shared import Pt, RGBColor
-        from docx.enum.section import WD_SECTION
 
         output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -182,7 +182,7 @@ class WordProjection:
         overview_heading = doc.add_heading("内容概览", level=1)
         overview_heading.runs[0].font.color.rgb = RGBColor(0, 51, 102)
 
-        overview_table = doc.add_table(rows=len(sections)+1, cols=4)
+        overview_table = doc.add_table(rows=len(sections) + 1, cols=4)
         overview_table.style = "Table Grid"
         overview_table.rows[0].cells[0].text = "段落ID"
         overview_table.rows[0].cells[1].text = "段落标题"
@@ -190,7 +190,7 @@ class WordProjection:
         overview_table.rows[0].cells[3].text = "校验状态"
 
         for idx, section in enumerate(sections):
-            row = overview_table.rows[idx+1]
+            row = overview_table.rows[idx + 1]
             row.cells[0].text = section.key
             row.cells[1].text = section.title
             if section.validation_results:
@@ -211,8 +211,7 @@ class WordProjection:
         for section_idx, section in enumerate(sections):
             # 段落标题
             section_heading = doc.add_heading(
-                f"{section_idx + 1}. {section.title} (ID: {section.key})",
-                level=2
+                f"{section_idx + 1}. {section.title} (ID: {section.key})", level=2
             )
             section_heading.runs[0].font.color.rgb = RGBColor(0, 102, 204)
 
@@ -230,8 +229,7 @@ class WordProjection:
                 validation_heading.runs[0].font.size = Pt(12)
 
                 validation_table = doc.add_table(
-                    rows=len(section.validation_results.results)+1,
-                    cols=3
+                    rows=len(section.validation_results.results) + 1, cols=3
                 )
                 validation_table.style = "Table Grid"
                 validation_table.rows[0].cells[0].text = "检查项"
@@ -241,7 +239,13 @@ class WordProjection:
                 for r_idx, result in enumerate(section.validation_results.results):
                     row = validation_table.rows[r_idx + 1]
                     row.cells[0].text = result.check_name
-                    status = "✅ 通过" if result.passed else "❌ 失败" if result.severity == "error" else "⚠️ 警告"
+                    status = (
+                        "✅ 通过"
+                        if result.passed
+                        else "❌ 失败"
+                        if result.severity == "error"
+                        else "⚠️ 警告"
+                    )
                     row.cells[1].text = status
                     row.cells[2].text = result.message
 
@@ -328,6 +332,7 @@ class WordProjection:
     def _count_words(self, content: str) -> int:
         """计算中文字数和英文单词数总和."""
         import re
+
         # Count Chinese characters
         chinese_chars = len(re.findall(r"[一-鿿]", content))
         # Count English words
@@ -596,8 +601,8 @@ class WordProjection:
         """
         from io import BytesIO
 
-        from docx.shared import Inches
         from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+        from docx.shared import Inches
 
         for chart_id, image_bytes in chart_images.items():
             # Look for placeholder - support both chart_id and chart_{chart_id} formats
