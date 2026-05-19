@@ -424,10 +424,13 @@ AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System�
 3. **文档分块**：将长文档切分为适合处理的小块（DocumentChunker）
 3. **文档分类**：自动识别文档类型（研报、新闻、公告等）（DocumentClassifier）
 4. **实体提取**：从文本中提取实体（公司、行业、产品等）（EntityExtractor）
-5. **断言提取**：提取事实断言（Assertion）
-6. **事件提取**：识别和提取事件（CanonicalEvent）（EventExtractor）
-7. **向量化**：将文本转换为向量，存储到 pgvector 中
-8. **持久化**：将所有结构化数据存入 PostgreSQL
+5. **并发 LLM 提取**（新）：对长文本自动切 chunk + ThreadPoolExecutor 并发提取断言和事件 (ConcurrentLLMExtractor)
+   - 短文本 (≤1000字符): 一次 combined LLM 调用
+   - 长文本 (>1000字符): chunk 切分 → 16 并发 LLM → 去重 → 质量门
+6. **断言提取**：提取事实断言（Assertion）
+7. **事件提取**：识别和提取事件（CanonicalEvent）（EventExtractor）
+8. **向量化**：将文本转换为向量，存储到 pgvector 中
+9. **持久化**：将所有结构化数据存入 PostgreSQL
 
 ### 市场数据 ETL 管道
 

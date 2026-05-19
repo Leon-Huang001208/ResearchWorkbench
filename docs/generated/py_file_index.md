@@ -3225,9 +3225,11 @@ Imports:
 - `core.contracts`
 - `core.interfaces`
 - `core.observability`
+- `core.settings.config`
 - `datetime`
 - `knowledge_layer.assertions`
 - `knowledge_layer.events`
+- `knowledge_layer.extraction`
 - `knowledge_layer.retrieval`
 - `pathlib`
 - `typing`
@@ -3236,7 +3238,7 @@ Imports:
 Classes:
 - `IngestService`
   - 摄入服务
-  - methods: __init__, ingest_file, ingest_text, _read_file, ingest_envelope, _extract_combined, _parse_combined_response, _build_combined_assertion, _build_combined_event, _normalize_text
+  - methods: __init__, ingest_file, ingest_text, _read_file, ingest_envelope, _extract_combined, _extract_combined_concurrent, _parse_combined_response, _deduplicate_assertions, _deduplicate_events, _build_combined_assertion, _build_combined_event, _normalize_text
 
 
 ## `core/services/ingestion_queue_service.py`
@@ -7082,6 +7084,47 @@ Classes:
   - 事件类型
 - `ExtractedEvent`
   - 提取的事件（原始）
+
+
+## `knowledge_layer/extraction/__init__.py`
+
+Module docstring:
+> Extraction - 文本抽取模块
+
+Imports:
+- `knowledge_layer.extraction.concurrent_extractor`
+- `knowledge_layer.extraction.text_chunker`
+
+
+## `knowledge_layer/extraction/concurrent_extractor.py`
+
+Module docstring:
+> 并发 LLM 抽取器 - 使用 ThreadPoolExecutor 对文本 chunk 并发调用 LLM 提取断言和事件
+
+Imports:
+- `concurrent.futures`
+- `core.observability`
+- `dataclasses`
+- `knowledge_layer.assertions.prompts`
+- `time`
+- `typing`
+
+Classes:
+- `ChunkExtractionResult`
+  - 单个 chunk 的提取结果
+- `ConcurrentLLMExtractor`
+  - 并发 LLM 抽取器 - 对多个 chunk 并发调用 LLM 提取断言和事件
+  - methods: __init__, extract_chunks, _extract_one_chunk
+
+
+## `knowledge_layer/extraction/text_chunker.py`
+
+Module docstring:
+> 文本切分工具 - 为 LLM 提取设计的轻量级 sliding window 切分器
+
+Functions:
+- `split_text`
+  - 将长文本切分为固定大小的 chunk，相邻 chunk 之间有 overlap。
 
 
 ## `knowledge_layer/graph_projection/__init__.py`
