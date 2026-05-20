@@ -6,6 +6,18 @@
 
 ## [Unreleased]
 
+### Fixed
+- **test-suite-regression**: 修复 52 个测试失败和 5 个 mypy 错误 — 全流程验证通过 (1243 passed, 1 skipped)
+  - 修复 `CanonicalEvent` (Pydantic contract) 新增必填字段 `source_type`/`source_name`/`title` 导致的 ~30 个测试失败 — 在 `ingestion_queue_service.py` 和所有测试 fixture 中补充必填字段
+  - 修复 `GlobalSearchService` 构造函数变更 (session → search_repo) — 重写 `test_search.py` 和 `test_signal_detail.py` 搜索测试
+  - 修复 `DashboardService` 内部使用 `DashboardDataRepository` — 重写 `test_dashboard.py` mock 策略
+  - 修复 `SectionOutput` 新增必填 `title` 字段 — 在 `app/cli/commands/analyze.py` 和 `test_markdown_projection.py` 中补充
+  - 修复 `HybridSearcher.search()` API 参数不匹配 — `rag_retrieval.py` 中 `query_text`→`query`, `limit`→`top_k`
+  - 修复 `SignalOutcome` 默认值变更 (max_drawdown/decay: 0.0→None) — 更新 `test_outcome_protocol.py` 断言
+  - 修复 `VectorBT` 不可用时的回退测试 — `test_signal_lab.py` 适配 SimpleBacktester 回退
+  - 修复 `test_closed_loop_service.py` ORM model 不支持新字段 — 移除不存在的 `source_type`/`source_name`/`title`
+  - 修复 `test_scenario_graph_data.py` API 返回值断言 (data_source: disabled→placeholder)
+
 ### Added
 - **end-to-end-orchestration**: 端到端自动化第一阶段 — 爬虫→队列→KnowledgePipeline 全自动打通 + 实时前端
   - 新增 `core/services/crawler_ingestion_bridge.py`：CrawlerIngestionBridge (爬虫输出统一转 DocumentEnvelope → EnqueueRequest → 入队)

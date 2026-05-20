@@ -112,24 +112,28 @@ def _build_sections(snapshot):
     sections = [
         SectionOutput(
             key="overview",
+            title="概览",
             content=f"# {snapshot.canonical_id} 资产分析报告\n\n生成时间: {datetime.now().isoformat()}\n\n## 摘要\n\n本报告基于最新市场数据生成。",
             evidence_refs=snapshot.evidence_refs,
             warnings=[],
         ),
         SectionOutput(
             key="valuation",
+            title="估值分析",
             content=f"\n## 估值分析\n\n- PE TTM: {snapshot.valuation.get('pe_ttm', 'N/A')}\n- PB: {snapshot.valuation.get('pb', 'N/A')}\n- PS: {snapshot.valuation.get('ps', 'N/A')}\n- Dividend Yield: {snapshot.valuation.get('dividend_yield', 0) * 100:.1f}%",
             evidence_refs=[],
             warnings=[],
         ),
         SectionOutput(
             key="price_volume",
+            title="价量分析",
             content=f"\n## 价量分析\n\n- 收盘价: {snapshot.price_volume.get('close_price', 'N/A')}\n- MA5: {snapshot.price_volume.get('ma5', 'N/A')}\n- MA20: {snapshot.price_volume.get('ma20', 'N/A')}\n- MA60: {snapshot.price_volume.get('ma60', 'N/A')}",
             evidence_refs=[],
             warnings=[],
         ),
         SectionOutput(
             key="events",
+            title="事件影响",
             content="\n## 事件影响\n\n" + "\n".join([f"- {e}" for e in snapshot.event_impact]),
             evidence_refs=snapshot.evidence_refs,
             warnings=[],

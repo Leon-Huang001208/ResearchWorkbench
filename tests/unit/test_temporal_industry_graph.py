@@ -174,6 +174,9 @@ class TestPropagationAnalyzer:
         event = CanonicalEvent(
             event_id="event_001",
             event_type="export_restriction",
+            source_type="news",
+            source_name="TestSource",
+            title="Export restrictions on semiconductor equipment",
             summary="Export restrictions on semiconductor equipment",
             impact_direction="negative",
             confidence=0.9,

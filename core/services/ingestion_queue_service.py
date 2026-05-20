@@ -173,6 +173,9 @@ class IngestionQueueService:
         return CanonicalEvent(
             event_id=str(uuid.uuid4()),
             event_type=event_type,
+            source_type=item.source_type,
+            source_name=item.source_type,
+            title=item.title or item.raw_content[:80],
             summary=summary[:200],
             event_time=item.created_at,
             impact_direction="unknown",

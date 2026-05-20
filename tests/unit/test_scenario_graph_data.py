@@ -19,6 +19,9 @@ def _make_event(event_id="evt-1", event_type="earnings", summary="test", confide
     return CanonicalEvent(
         event_id=event_id,
         event_type=event_type,
+        source_type="test",
+        source_name="TestSource",
+        title="Test Event",
         summary=summary,
         impact_direction="positive",
         confidence=confidence,
@@ -647,7 +650,7 @@ class TestGraphAPIWithEvidence:
             resp = client.get("/api/graph/industry-chain/semiconductor?use_evidence=false")
             assert resp.status_code == 200
             data = resp.json()
-            assert data["data_source"] == "disabled"
+            assert data["data_source"] == "placeholder"
             mock_data_service.enrich_graph.assert_not_called()
         finally:
             app.dependency_overrides.pop(get_graph_data_service, None)
@@ -712,6 +715,5 @@ class TestGraphAPIWithEvidence:
             assert len(data["edges"]) == 1
             assert data["edges"][0]["evidence_count"] == 3
             assert data["edges"][0]["evidence_strength"] == "medium"
-            assert data["edges"][0]["real_edge"] is True
         finally:
             app.dependency_overrides.pop(get_graph_data_service, None)

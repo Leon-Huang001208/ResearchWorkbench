@@ -42,6 +42,9 @@ async def test_run_event_signal_runs_without_exception():
     event = CanonicalEvent(
         event_id="test-evt-123",
         event_type="test",
+        source_type="test",
+        source_name="TestSource",
+        title="test event",
         summary="test event",
         impact_direction="positive",
         confidence=0.8,
@@ -76,6 +79,9 @@ async def test_run_event_signal_records_to_journal():
     event = CanonicalEvent(
         event_id="test-evt-456",
         event_type="earnings",
+        source_type="report",
+        source_name="TestSource",
+        title="test event",
         summary="test event",
         impact_direction="positive",
         confidence=0.8,

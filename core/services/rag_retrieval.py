@@ -799,17 +799,11 @@ class RAGRetrievalService:
 
         doc_id_map = {doc.doc_id: doc for doc in docs}
 
-        # 获取搜索权重配置
-        vector_weight = profile.vector_weight if profile else 0.7
-        keyword_weight = profile.keyword_weight if profile else 0.3
-
         # 执行混合搜索
         search_results = self.hybrid_searcher.search(
-            query_text=query_text,
-            document_ids=list(doc_id_map.keys()),
-            vector_weight=vector_weight,
-            keyword_weight=keyword_weight,
-            limit=200,  # 召回阶段返回较多候选
+            query=query_text,
+            top_k=200,
+            filters={"document_ids": list(doc_id_map.keys())} if doc_id_map else None,
         )
 
         # 转换为文档列表，保持搜索排序

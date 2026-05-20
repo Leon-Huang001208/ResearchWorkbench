@@ -66,8 +66,8 @@ class TestSignalOutcomeContract:
         assert outcome.horizon == "20d"
         assert outcome.outcome_return == 0.0
         assert outcome.outcome_excess_return == 0.0
-        assert outcome.max_drawdown == 0.0
-        assert outcome.decay == 0.0
+        assert outcome.max_drawdown is None
+        assert outcome.decay is None
         assert outcome.failure_reason is None
         assert outcome.lesson is None
 

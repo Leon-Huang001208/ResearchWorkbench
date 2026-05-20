@@ -61,6 +61,9 @@ class TestResearchPipelineIntegration:
         test_event = CanonicalEvent(
             event_id="evt-test-001",
             event_type="earnings",
+            source_type="report",
+            source_name="TestSource",
+            title="贵州茅台2026Q1净利润增长28%",
             summary="贵州茅台2026Q1净利润增长28%",
             impact_direction="positive",
             confidence=0.8,

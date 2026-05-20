@@ -1,5 +1,5 @@
 """信号详情、审计轨迹、全局搜索 API 测试"""
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 from fastapi.testclient import TestClient
 
@@ -172,48 +172,6 @@ class TestAuditTrailAPI:
 
 
 class TestGlobalSearchAPI:
-    def test_search_returns_all_groups(self):
-        """全局搜索应返回所有分组（信号/事件/Outcome/审核）"""
-        with patch("app.api.routes.search._search_signals") as mock_sig, patch(
-            "app.api.routes.search._search_events"
-        ) as mock_evt, patch("app.api.routes.search._search_outcomes") as mock_out, patch(
-            "app.api.routes.search._search_reviews"
-        ) as mock_rev:
-            mock_sig.return_value = [
-                {"signal_id": "s1", "thesis": "test thesis", "score": 0.8, "status": "candidate"}
-            ]
-            mock_evt.return_value = []
-            mock_out.return_value = [{"outcome_id": "o1", "lesson": "test lesson"}]
-            mock_rev.return_value = []
-
-            resp = client.get("/api/search?q=test")
-            assert resp.status_code == 200
-            data = resp.json()
-            assert "signals" in data
-            assert "events" in data
-            assert "outcomes" in data
-            assert "reviews" in data
-            assert len(data["signals"]) == 1
-            assert len(data["outcomes"]) == 1
-
-    def test_search_with_type_filter(self):
-        """带类型过滤的搜索应只返回指定类型"""
-        with patch("app.api.routes.search._search_signals") as mock_sig, patch(
-            "app.api.routes.search._search_events"
-        ) as mock_evt:
-            mock_sig.return_value = [
-                {"signal_id": "s1", "thesis": "test", "score": 0.8, "status": "candidate"}
-            ]
-            mock_evt.return_value = []
-
-            resp = client.get("/api/search?q=test&types=signal,event")
-            assert resp.status_code == 200
-            data = resp.json()
-            assert len(data["signals"]) == 1
-            # outcomes and reviews should be empty when not in type filter
-            assert data["outcomes"] == []
-            assert data["reviews"] == []
-
     def test_search_invalid_type(self):
         """无效的搜索类型应返回 400"""
         resp = client.get("/api/search?q=test&types=invalid_type")
@@ -224,25 +182,87 @@ class TestGlobalSearchAPI:
         resp = client.get("/api/search")
         assert resp.status_code == 422
 
+
+# ─── 全局搜索服务单元测试 ──────────────────────────────
+
+
+class TestGlobalSearchService:
+    def test_search_returns_all_groups(self):
+        """全局搜索应返回所有分组（信号/事件/Outcome/审核）"""
+        from core.services.search_service import GlobalSearchService
+
+        mock_repo = Mock()
+        mock_repo.search_symbols.return_value = []
+        mock_repo.search_theses.return_value = []
+        mock_repo.search_source_docs.return_value = []
+        mock_repo.search_failure_memory.return_value = []
+        mock_repo.search_market_episodes.return_value = []
+        mock_repo.search_signals.return_value = [
+            {"signal_id": "s1", "thesis": "test thesis", "score": 0.8, "status": "candidate"}
+        ]
+        mock_repo.search_events.return_value = []
+        mock_repo.search_event_types.return_value = []
+        mock_repo.search_outcomes.return_value = [{"outcome_id": "o1", "lesson": "test lesson"}]
+        mock_repo.search_reviews.return_value = []
+
+        service = GlobalSearchService(mock_repo)
+        results = service.search("test")
+
+        assert "signals" in results
+        assert "events" in results
+        assert "outcomes" in results
+        assert "reviews" in results
+        assert len(results["signals"]) == 1
+        assert len(results["outcomes"]) == 1
+
+    def test_search_with_type_filter(self):
+        """带类型过滤的搜索应只返回指定类型"""
+        from core.services.search_service import GlobalSearchService
+
+        mock_repo = Mock()
+        mock_repo.search_symbols.return_value = []
+        mock_repo.search_theses.return_value = []
+        mock_repo.search_source_docs.return_value = []
+        mock_repo.search_failure_memory.return_value = []
+        mock_repo.search_market_episodes.return_value = []
+        mock_repo.search_signals.return_value = [
+            {"signal_id": "s1", "thesis": "test", "score": 0.8, "status": "candidate"}
+        ]
+        mock_repo.search_events.return_value = []
+        mock_repo.search_event_types.return_value = []
+        mock_repo.search_outcomes.return_value = []
+        mock_repo.search_reviews.return_value = []
+
+        service = GlobalSearchService(mock_repo)
+        results = service.search("test", type_filter=["signal", "event"])
+
+        assert len(results["signals"]) == 1
+        assert results["outcomes"] == []
+        assert results["reviews"] == []
+
     def test_search_empty_results(self):
         """搜索无匹配时返回空分组"""
-        with patch("app.api.routes.search._search_signals") as mock_sig, patch(
-            "app.api.routes.search._search_events"
-        ) as mock_evt, patch("app.api.routes.search._search_outcomes") as mock_out, patch(
-            "app.api.routes.search._search_reviews"
-        ) as mock_rev:
-            mock_sig.return_value = []
-            mock_evt.return_value = []
-            mock_out.return_value = []
-            mock_rev.return_value = []
+        from core.services.search_service import GlobalSearchService
 
-            resp = client.get("/api/search?q=nothingmatchesthis")
-            assert resp.status_code == 200
-            data = resp.json()
-            assert data["signals"] == []
-            assert data["events"] == []
-            assert data["outcomes"] == []
-            assert data["reviews"] == []
+        mock_repo = Mock()
+        mock_repo.search_symbols.return_value = []
+        mock_repo.search_theses.return_value = []
+        mock_repo.search_source_docs.return_value = []
+        mock_repo.search_failure_memory.return_value = []
+        mock_repo.search_market_episodes.return_value = []
+        mock_repo.search_signals.return_value = []
+        mock_repo.search_events.return_value = []
+        mock_repo.search_event_types.return_value = []
+        mock_repo.search_outcomes.return_value = []
+        mock_repo.search_reviews.return_value = []
+
+        service = GlobalSearchService(mock_repo)
+        results = service.search("nothingmatchesthis")
+
+        assert results["signals"] == []
+        assert results["events"] == []
+        assert results["outcomes"] == []
+        assert results["reviews"] == []
 
 
 # ─── AuditService 单元测试 ────────────────────────────────

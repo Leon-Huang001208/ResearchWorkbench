@@ -110,7 +110,7 @@ class TestDataSourceRouter:
     """测试 DataSourceRouter"""
 
     @patch("data_layer.adapters.china_stock_adapter.ChinaStockAdapter.fetch_stock_quotes")
-    @patch("data_layer.adapters.akshare_adapter.AkShareAdapter.fetch_stock_quotes")
+    @patch("data_layer.adapters.akshare_adapter.AKShareAdapter.fetch_stock_quotes")
     @patch("data_layer.adapters.ifind_adapter.IFinDAdapter.fetch_stock_quotes")
     def test_router_fallback(self, mock_ifind_fetch, mock_akshare_fetch, mock_cs_fetch):
         """测试降级策略：iFinD 失败后使用 AkShare, then China Stock"""

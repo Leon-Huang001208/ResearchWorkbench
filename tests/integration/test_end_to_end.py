@@ -253,6 +253,9 @@ class TestIngestToReviewEndToEnd:
         event = CanonicalEvent(
             event_id="evt-test-001",
             event_type="earnings",
+            source_type="report",
+            source_name="TestSource",
+            title="贵州茅台2026Q1净利润增长28%",
             summary="贵州茅台2026Q1净利润增长28%",
             impact_direction="positive",
             confidence=0.75,
@@ -288,6 +291,9 @@ class TestIngestToReviewEndToEnd:
         event = CanonicalEvent(
             event_id="evt-test-002",
             event_type="other",
+            source_type="test",
+            source_name="TestSource",
+            title="无关信息",
             summary="无关信息",
             impact_direction="unknown",
             confidence=0.3,
@@ -315,6 +321,9 @@ class TestIngestToReviewEndToEnd:
         good_event = CanonicalEvent(
             event_id="evt-good",
             event_type="earnings",
+            source_type="report",
+            source_name="TestSource",
+            title="贵州茅台净利润增长28%",
             summary="贵州茅台净利润增长28%，超出预期",
             impact_direction="positive",
             confidence=0.9,
@@ -328,6 +337,9 @@ class TestIngestToReviewEndToEnd:
         bad_event = CanonicalEvent(
             event_id="evt-bad",
             event_type="other",
+            source_type="test",
+            source_name="TestSource",
+            title="短",
             summary="短",
             impact_direction="unknown",
             confidence=0.3,
@@ -357,6 +369,9 @@ class TestIngestToReviewEndToEnd:
         short_event = CanonicalEvent(
             event_id="evt-short",
             event_type="other",
+            source_type="test",
+            source_name="TestSource",
+            title="短",
             summary="短",
             impact_direction="positive",
             confidence=0.9,
@@ -379,6 +394,9 @@ class TestIngestToReviewEndToEnd:
         no_entity_event = CanonicalEvent(
             event_id="evt-noentity",
             event_type="earnings",
+            source_type="report",
+            source_name="TestSource",
+            title="净利润增长28%",
             summary="净利润增长28%",
             impact_direction="positive",
             confidence=0.9,
@@ -401,6 +419,9 @@ class TestIngestToReviewEndToEnd:
         no_evidence_event = CanonicalEvent(
             event_id="evt-noev",
             event_type="earnings",
+            source_type="report",
+            source_name="TestSource",
+            title="净利润增长28%",
             summary="净利润增长28%，超出预期",
             impact_direction="positive",
             confidence=0.9,
@@ -427,6 +448,9 @@ class TestIngestToReviewEndToEnd:
         unknown_event = CanonicalEvent(
             event_id="evt-unknown",
             event_type="other",
+            source_type="news",
+            source_name="TestSource",
+            title="市场行情波动",
             summary="市场行情波动，涨跌互现",
             impact_direction="unknown",
             confidence=0.8,

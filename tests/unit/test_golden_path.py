@@ -89,6 +89,9 @@ def sample_event():
     return CanonicalEvent(
         event_id=f"evt-{uuid.uuid4().hex[:8]}",
         event_type="policy",
+        source_type="news",
+        source_name="央行",
+        title="央行宣布降准0.5个百分点",
         summary="央行宣布降准0.5个百分点，释放长期流动性约1万亿元",
         event_time=datetime.now(timezone.utc),
         impact_direction="positive",
