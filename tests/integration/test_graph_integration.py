@@ -89,6 +89,9 @@ def create_test_event(impact_direction="positive"):
     return CanonicalEvent(
         event_id="evt-test-graph-001",
         event_type="supply_disruption",
+        source_type="news",
+        source_name="TestSource",
+        title="Lithium price decreases 15%",
         summary="Lithium price decreases",
         impact_direction=impact_direction,
         confidence=0.8,

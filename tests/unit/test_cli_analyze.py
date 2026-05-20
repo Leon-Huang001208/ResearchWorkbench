@@ -123,13 +123,16 @@ class TestAnalyzeCommand:
         """Test analyze with invalid date format."""
         runner = CliRunner()
 
-        result = runner.invoke(
-            analyze_command,
-            ["--asset", "600000.SH", "--as-of", "invalid-date"],
-        )
+        with patch("app.cli.commands.analyze.get_db"), patch(
+            "app.cli.commands.analyze.AssetAnalysisService"
+        ), patch("app.cli.commands.analyze.AssetSnapshotRepositoryImpl"):
+            result = runner.invoke(
+                analyze_command,
+                ["--asset", "600000.SH", "--as-of", "invalid-date"],
+            )
 
-        assert result.exit_code != 0
-        assert "Invalid date format" in result.output
+            assert result.exit_code != 0
+            assert "Invalid date format" in result.output
 
     def test_analyze_handles_service_error(self):
         """Test that analyze handles service errors gracefully."""

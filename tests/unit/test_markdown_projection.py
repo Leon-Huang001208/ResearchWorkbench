@@ -14,12 +14,14 @@ class TestMarkdownProjection:
         sections = [
             SectionOutput(
                 key="summary",
+                title="Summary",
                 content="This is the summary content",
                 evidence_refs=[],
                 warnings=[],
             ),
             SectionOutput(
                 key="analysis",
+                title="Analysis",
                 content="This is the analysis content",
                 evidence_refs=[],
                 warnings=[],
@@ -40,6 +42,7 @@ class TestMarkdownProjection:
         sections = [
             SectionOutput(
                 key="test",
+                title="Test Section",
                 content="Test content",
                 evidence_refs=[],
                 warnings=[],
@@ -59,6 +62,7 @@ class TestMarkdownProjection:
         sections = [
             SectionOutput(
                 key="test",
+                title="Test Section",
                 content="Content with evidence",
                 evidence_refs=["doc1", "doc2"],
                 warnings=[],
@@ -77,6 +81,7 @@ class TestMarkdownProjection:
         sections = [
             SectionOutput(
                 key="test",
+                title="Test Section",
                 content="Content",
                 evidence_refs=[],
                 warnings=["Warning 1", "Warning 2"],
@@ -95,6 +100,7 @@ class TestMarkdownProjection:
         sections = [
             SectionOutput(
                 key="test",
+                title="Test Section",
                 content="Test content",
                 evidence_refs=[],
                 warnings=[],
@@ -114,6 +120,7 @@ class TestMarkdownProjection:
         sections = [
             SectionOutput(
                 key="test",
+                title="Test Section",
                 content="Content",
                 evidence_refs=[],
                 warnings=[],

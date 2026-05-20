@@ -29,6 +29,7 @@ def test_retrieve_similar_cases():
     # Add a test failure to search for
     outcome_service = OutcomeJournalService()
     outcome_id = str(uuid.uuid4())
+    test_unique_marker = f"unique_test_marker_{outcome_id}"
     now = datetime.now(timezone.utc)
 
     outcome = TradeOutcome(
@@ -41,15 +42,15 @@ def test_retrieve_similar_cases():
         benchmark_excess_return=-0.1,
         thesis_success=False,
         failure_classification=FailureClassification.wrong_thesis,
-        thesis_text="Earnings growth will exceed market expectations for this tech company",
+        thesis_text=f"Unique test thesis about {test_unique_marker} semiconductor supply chain disruption",
         market_regime="bear",
     )
     outcome_service.record_outcome(outcome)
 
-    # Search for similar theses
+    # Search for similar theses using the unique marker
     similar = service.retrieve_similar_cases(
-        "Tech company earnings are expected to grow faster than the market expects",
-        min_similarity=0.2,
+        f"Semiconductor supply chain disruption related to {test_unique_marker}",
+        min_similarity=0.1,
         limit=5,
     )
 

@@ -355,6 +355,9 @@ class TestReviewServiceWithSQLite:
         event = CanonicalEvent(
             event_id="evt-sqlite-001",
             event_type="earnings",
+            source_type="report",
+            source_name="贵州茅台",
+            title="贵州茅台净利润增长28%",
             summary="贵州茅台净利润增长28%",
             impact_direction="positive",
             confidence=0.75,

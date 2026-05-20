@@ -1,5 +1,4 @@
 """Unit tests for closed_loop_service."""
-import json
 import uuid
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
@@ -34,8 +33,6 @@ def sample_event():
         impact_direction="positive",
         confidence=0.9,
         event_time=datetime(2024, 5, 1, tzinfo=timezone.utc),
-        created_at=datetime(2024, 5, 1, tzinfo=timezone.utc),
-        payload=json.dumps({"subject_ids": ["600519.SH"]}),
     )
 
 
