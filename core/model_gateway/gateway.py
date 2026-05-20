@@ -1,9 +1,11 @@
 """
-Implementation of ModelGatewayInterface that delegates to a BaseProvider.
+Multi-provider ModelGateway implementation with per-task routing.
 
-This module provides ModelGatewayImpl, which uses settings to initialize a
-BaseProvider (VolcanoProvider or OpenAICompatibleProvider) and delegates chat,
-structured_output, and embed calls to it.
+ModelGatewayImpl reads ProviderProfile definitions from settings and initializes
+one provider per profile (OpenAI-compatible or Anthropic). Task-to-provider+model
+routing is configured via TASK_ROUTES in settings, allowing different tasks
+(extraction, classification, code, reasoning, embedding) to use different
+providers and models.
 """
 from typing import Any
 
@@ -13,7 +15,11 @@ from core.interfaces import EmbeddingResponse
 from core.interfaces import ModelGateway as ModelGatewayInterface
 from core.interfaces import ModelResponse
 from core.model_gateway.base import BaseProvider
-from core.model_gateway.providers import OpenAICompatibleProvider, VolcanoProvider
+from core.model_gateway.providers import (
+    AnthropicProvider,
+    LocalEmbeddingProvider,
+    OpenAICompatibleProvider,
+)
 from core.observability import get_logger
 from core.settings import settings
 
@@ -21,41 +27,81 @@ logger = get_logger(__name__)
 
 
 class ModelGatewayImpl(ModelGatewayInterface):
-    """模型网关实现.
+    """多 provider 模型网关，支持按任务路由到不同平台/模型."""
 
-    Implementation of ModelGatewayInterface that delegates to a BaseProvider (configured
-    via settings.MODEL_PROVIDER).
-    """
+    def __init__(self) -> None:
+        self._providers: dict[str, BaseProvider] = {}
+        self._task_routes: dict[str, Any] = {}
+        self._default_provider: BaseProvider | None = None
+        self._init_providers()
 
-    def __init__(self):
-        self._provider: BaseProvider | None = None
-        self._init_provider()
+    def _init_providers(self) -> None:
+        """从 settings.PROVIDER_PROFILES 初始化所有 provider."""
+        for name, profile in settings.PROVIDER_PROFILES.items():
+            try:
+                if profile.protocol == "anthropic":
+                    provider: BaseProvider = AnthropicProvider(profile)
+                elif profile.protocol == "local":
+                    provider = LocalEmbeddingProvider(profile)
+                else:
+                    provider = OpenAICompatibleProvider(profile)
+                self._providers[name] = provider
+                logger.info(
+                    "provider initialized",
+                    name=name,
+                    protocol=profile.protocol,
+                )
+            except Exception as e:
+                logger.error(
+                    "failed to initialize provider",
+                    name=name,
+                    error=str(e),
+                )
 
-    def _init_provider(self) -> None:
-        """初始化提供商.
+        self._task_routes = dict(settings.TASK_ROUTES)
 
-        Initializes the model provider based on settings.MODEL_PROVIDER. If the provider
-        is unknown, defaults to VolcanoProvider and logs a warning.
-        """
-        if settings.MODEL_PROVIDER == "volcano":
-            self._provider = VolcanoProvider()
-        elif settings.MODEL_PROVIDER == "openai_compatible":
-            self._provider = OpenAICompatibleProvider()
-        else:
-            logger.warning(
-                "unknown model provider, using volcano", provider=settings.MODEL_PROVIDER
-            )
-            self._provider = VolcanoProvider()
+        # 设置默认 provider：优先 "default" task 路由的 provider，其次第一个
+        default_route = self._task_routes.get("default")
+        if default_route and default_route.provider in self._providers:
+            self._default_provider = self._providers[default_route.provider]
+        elif self._providers:
+            self._default_provider = next(iter(self._providers.values()))
+
+        if not self._providers:
+            logger.warning("no model providers configured — all calls will fail")
 
     def set_provider(self, provider: BaseProvider) -> None:
-        """设置提供商.
+        """替换默认 provider（用于测试注入）."""
+        self._default_provider = provider
+        self._providers["_injected"] = provider
 
-        Sets the model provider to use (overrides the configured one).
+    def _resolve(
+        self, task: str | None, model: str | None
+    ) -> tuple[BaseProvider, str]:
+        """Resolve (provider, model) for a given task.
 
-        Args:
-            provider: BaseProvider instance to use.
+        Priority:
+        1. Task route lookup → use route.provider + (model or route.model)
+        2. Explicit model only → use default provider + explicit model
+        3. Fallback → default provider + empty model (provider uses its own default)
         """
-        self._provider = provider
+        if task and task in self._task_routes:
+            route = self._task_routes[task]
+            provider = self._providers.get(route.provider)
+            if provider is not None:
+                resolved_model = model or route.model
+                return provider, resolved_model
+
+        provider = self._default_provider
+        if provider is None:
+            # Last resort: pick first available
+            provider = next(iter(self._providers.values()), None)  # type: ignore[arg-type]
+        if provider is None:
+            raise RuntimeError(
+                "No model provider available. "
+                "Configure PROVIDER_PROFILES in settings."
+            )
+        return provider, model or ""
 
     def chat(
         self,
@@ -63,38 +109,36 @@ class ModelGatewayImpl(ModelGatewayInterface):
         model: str | None = None,
         temperature: float = 0.7,
         max_tokens: int | None = None,
+        task: str | None = None,
         **kwargs: Any,
     ) -> ModelResponse:
-        """聊天补全.
-
-        Delegates chat completion to the underlying model provider and logs the request.
+        """Chat completion with optional task-based routing.
 
         Args:
-            messages: List of message dictionaries (each with "role" and "content").
-            model: Name of the model to use (if None, uses default).
+            messages: List of message dicts (each with "role" and "content").
+            model: Model name override (defaults to task route or provider default).
             temperature: Sampling temperature (0.0 to 2.0).
-            max_tokens: Maximum tokens to generate (if None, uses provider default).
-            **kwargs: Additional provider-specific keyword arguments.
+            max_tokens: Maximum tokens to generate.
+            task: Task name for routing (e.g. "extraction", "code", "default").
+            **kwargs: Additional provider-specific parameters.
 
         Returns:
-            ModelResponse: Response from the model provider.
-
-        Raises:
-            RuntimeError: If no model provider is initialized.
+            ModelResponse with content, model name, provider, tokens, and latency.
         """
-        if self._provider is None:
-            raise RuntimeError("No model provider initialized")
+        provider, resolved_model = self._resolve(task, model)
 
         logger.debug(
             "chat request",
             message_count=len(messages),
-            model=model or settings.DEFAULT_CHAT_MODEL,
+            model=resolved_model,
+            task=task,
+            provider=getattr(provider, "_provider_name", "unknown"),
             temperature=temperature,
         )
 
-        return self._provider.chat(
+        return provider.chat(
             messages=messages,
-            model=model,
+            model=resolved_model or None,
             temperature=temperature,
             max_tokens=max_tokens,
             **kwargs,
@@ -106,67 +150,69 @@ class ModelGatewayImpl(ModelGatewayInterface):
         output_schema: type[BaseModel],
         model: str | None = None,
         temperature: float = 0.1,
+        task: str | None = None,
         **kwargs: Any,
     ) -> BaseModel:
-        """结构化输出.
-
-        Delegates structured output request to the underlying model provider and logs
-        the request.
+        """Structured output with optional task-based routing.
 
         Args:
-            messages: List of message dictionaries (each with "role" and "content").
-            output_schema: Pydantic BaseModel class to use for parsing the output.
-            model: Name of the model to use (if None, uses default).
-            temperature: Sampling temperature (0.0 to 2.0).
-            **kwargs: Additional provider-specific keyword arguments.
+            messages: List of message dicts.
+            output_schema: Pydantic BaseModel class for parsing output.
+            model: Model name override.
+            temperature: Sampling temperature.
+            task: Task name for routing.
+            **kwargs: Additional provider-specific parameters.
 
         Returns:
-            BaseModel: Parsed structured output as an instance of output_schema.
-
-        Raises:
-            RuntimeError: If no model provider is initialized.
+            Parsed BaseModel instance.
         """
-        if self._provider is None:
-            raise RuntimeError("No model provider initialized")
+        provider, resolved_model = self._resolve(task, model)
 
         logger.debug(
             "structured output request",
             message_count=len(messages),
-            model=model or settings.DEFAULT_CHAT_MODEL,
+            model=resolved_model,
+            task=task,
             schema_name=output_schema.__name__,
+            provider=getattr(provider, "_provider_name", "unknown"),
         )
 
-        return self._provider.structured_output(
+        return provider.structured_output(
             messages=messages,
             output_schema=output_schema,
-            model=model,
+            model=resolved_model or None,
             temperature=temperature,
             **kwargs,
         )
 
-    def embed(self, text: str, model: str | None = None, **kwargs: Any) -> EmbeddingResponse:
-        """文本嵌入.
+    def embed(
+        self,
+        text: str,
+        model: str | None = None,
+        task: str | None = "embedding",
+        **kwargs: Any,
+    ) -> EmbeddingResponse:
+        """Text embedding with optional task-based routing.
 
-        Delegates embedding request to the underlying model provider and logs the request.
+        Defaults to task="embedding" for embedding-specific routing.
 
         Args:
             text: Text to embed.
-            model: Name of the embedding model to use (if None, uses default).
-            **kwargs: Additional provider-specific keyword arguments.
+            model: Model name override.
+            task: Task name for routing (defaults to "embedding").
+            **kwargs: Additional provider-specific parameters.
 
         Returns:
-            EmbeddingResponse: Response from the embedding provider.
-
-        Raises:
-            RuntimeError: If no model provider is initialized.
+            EmbeddingResponse with embedding vector and metadata.
         """
-        if self._provider is None:
-            raise RuntimeError("No model provider initialized")
+        provider, resolved_model = self._resolve(task, model)
 
         logger.debug(
             "embed request",
             text_length=len(text),
-            model=model or settings.DEFAULT_EMBEDDING_MODEL,
+            model=resolved_model,
+            task=task,
+            provider=getattr(provider, "_provider_name", "unknown"),
         )
 
-        return self._provider.embed(text=text, model=model, **kwargs)
+        return provider.embed(text=text, model=resolved_model or None, **kwargs)

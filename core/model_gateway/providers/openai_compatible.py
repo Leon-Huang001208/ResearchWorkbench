@@ -2,8 +2,11 @@
 OpenAI-compatible model provider implementation.
 
 Provides OpenAICompatibleProvider, which uses the OpenAI Python SDK (if installed)
-to connect to an OpenAI-compatible API endpoint (configured via OPENAI_API_KEY and
-OPENAI_BASE_URL in settings) for chat completions, structured outputs, and embeddings.
+to connect to any OpenAI-compatible API endpoint for chat completions, structured
+outputs, and embeddings. Accepts a ProviderProfile to support multiple simultaneous
+providers (Volcano, DeepSeek, OpenAI, local vLLM/Ollama, etc.).
+
+Volcano-specific multimodal embedding endpoint is auto-detected from the base_url.
 """
 import time
 from typing import Any
@@ -13,7 +16,7 @@ from pydantic import BaseModel
 from core.interfaces import EmbeddingResponse, ModelResponse
 from core.model_gateway.base import BaseProvider
 from core.observability import get_logger
-from core.settings import settings
+from core.settings.config import ProviderProfile
 
 logger = get_logger(__name__)
 
@@ -26,19 +29,25 @@ except ImportError:
 class OpenAICompatibleProvider(BaseProvider):
     """OpenAI 兼容提供商实现.
 
-    Concrete BaseProvider implementation that connects to an OpenAI-compatible API
-    endpoint (configured via settings.OPENAI_API_KEY and settings.OPENAI_BASE_URL).
-    Falls back to placeholder responses if the OpenAI package is not installed.
+    Connects to any OpenAI-compatible API endpoint using a ProviderProfile.
+    Supports chat completions, structured outputs (via JSON prompt injection),
+    and embeddings. Auto-detects Volcano multimodal embedding endpoint from
+    the base_url.
     """
 
-    def __init__(self):
-        # Initialize OpenAI client if the package is available
+    def __init__(self, profile: ProviderProfile):
+        self._provider_name = profile.name
+        self._base_url = profile.base_url
+        self._has_multimodal_embed = (
+            profile.base_url and "volces.com" in profile.base_url
+        )
         if OpenAI is not None:
             self._client = OpenAI(
-                api_key=settings.OPENAI_API_KEY,
-                base_url=settings.OPENAI_BASE_URL,
+                api_key=profile.api_key,
+                base_url=profile.base_url,
             )
-        self._provider_name = "openai_compatible"
+        else:
+            self._client = None
 
     def chat(
         self,
@@ -48,22 +57,7 @@ class OpenAICompatibleProvider(BaseProvider):
         max_tokens: int | None = None,
         **kwargs: Any,
     ) -> ModelResponse:
-        """聊天补全.
-
-        Sends a chat completion request to the OpenAI-compatible API and returns a
-        ModelResponse. Tracks latency and token usage.
-
-        Args:
-            messages: List of message dictionaries (each with "role" and "content").
-            model: Name of the model to use (if None, uses DEFAULT_CHAT_MODEL from settings).
-            temperature: Sampling temperature (0.0 to 2.0).
-            max_tokens: Maximum tokens to generate (if None, uses provider default).
-            **kwargs: Additional keyword arguments to pass to the API client.
-
-        Returns:
-            ModelResponse: Response with content, model name, provider, tokens used, and latency.
-        """
-        model = model or settings.DEFAULT_CHAT_MODEL
+        model = model or "gpt-3.5-turbo"
         start_time = time.time()
         tokens_used = 0
         content = ""
@@ -80,9 +74,15 @@ class OpenAICompatibleProvider(BaseProvider):
                 content = response.choices[0].message.content or ""
                 tokens_used = response.usage.total_tokens if response.usage else 0
             else:
-                content = "[OpenAI compatible API not available - OpenAI package not installed]"
+                content = (
+                    f"[{self._provider_name} API not available"
+                    " - OpenAI package not installed]"
+                )
         except Exception as e:
-            logger.error("openai compatible chat error", error=str(e))
+            logger.error(
+                f"{self._provider_name} chat error",
+                error=str(e),
+            )
             content = f"Error: {e}"
 
         latency_ms = int((time.time() - start_time) * 1000)
@@ -103,26 +103,8 @@ class OpenAICompatibleProvider(BaseProvider):
         temperature: float = 0.1,
         **kwargs: Any,
     ) -> BaseModel:
-        """结构化输出.
+        model = model or "gpt-3.5-turbo"
 
-        Sends a chat completion request with a system prompt to return JSON matching the
-        output schema, then parses the response into a BaseModel instance. Strips markdown
-        code blocks (if any) before parsing.
-
-        Args:
-            messages: List of message dictionaries (each with "role" and "content").
-            output_schema: Pydantic BaseModel class to use for parsing the output.
-            model: Name of the model to use (if None, uses DEFAULT_CHAT_MODEL from settings).
-            temperature: Sampling temperature (0.0 to 2.0).
-            **kwargs: Additional keyword arguments to pass to the chat method.
-
-        Returns:
-            BaseModel: Parsed structured output as an instance of output_schema. If parsing
-                fails, returns an empty model constructed with model_construct().
-        """
-        model = model or settings.DEFAULT_CHAT_MODEL
-
-        # Simple implementation: first get JSON string, then parse
         schema_str = output_schema.model_json_schema()
         system_msg = f"Please respond only JSON matching this schema: {schema_str}"
 
@@ -137,7 +119,6 @@ class OpenAICompatibleProvider(BaseProvider):
             import json
 
             content = response.content.strip()
-            # Strip markdown code block markers if present
             if content.startswith("```json"):
                 content = content[7:]
             if content.startswith("```"):
@@ -149,41 +130,28 @@ class OpenAICompatibleProvider(BaseProvider):
             data = json.loads(content)
             return output_schema(**data)
         except Exception as e:
-            logger.error("structured output parse error", error=str(e))
+            logger.error(
+                f"{self._provider_name} structured output parse error",
+                error=str(e),
+            )
             return output_schema.model_construct()
 
-    def embed(self, text: str, model: str | None = None, **kwargs: Any) -> EmbeddingResponse:
-        """文本嵌入.
-
-        Sends an embedding request to the OpenAI-compatible API and returns an
-        EmbeddingResponse. Tracks latency and token usage.
-
-        Args:
-            text: Text to embed.
-            model: Name of the embedding model to use (if None, uses DEFAULT_EMBEDDING_MODEL
-                from settings).
-            **kwargs: Additional keyword arguments to pass to the API client.
-
-        Returns:
-            EmbeddingResponse: Response with embedding, model name, provider, tokens used,
-                and latency.
-        """
-        model = model or settings.DEFAULT_EMBEDDING_MODEL
+    def embed(
+        self, text: str, model: str | None = None, **kwargs: Any
+    ) -> EmbeddingResponse:
+        model = model or "text-embedding-3-small"
         start_time = time.time()
         tokens_used = 0
-        embedding = []
+        embedding: list[float] = []
 
         try:
             if self._client:
-                response = self._client.embeddings.create(
-                    model=model,
-                    input=text,
-                    **kwargs,
-                )
-                embedding = response.data[0].embedding
-                tokens_used = response.usage.total_tokens if response.usage else 0
+                embedding, tokens_used = self._do_embed(text, model, **kwargs)
         except Exception as e:
-            logger.error("openai compatible embed error", error=str(e))
+            logger.error(
+                f"{self._provider_name} embed error",
+                error=str(e),
+            )
 
         latency_ms = int((time.time() - start_time) * 1000)
 
@@ -194,3 +162,73 @@ class OpenAICompatibleProvider(BaseProvider):
             tokens_used=tokens_used,
             latency_ms=latency_ms,
         )
+
+    def _do_embed(
+        self, text: str, model: str, **kwargs: Any
+    ) -> tuple[list[float], int]:
+        """Try standard embeddings first, fall back to multimodal endpoint."""
+        try:
+            assert self._client is not None
+            response = self._client.embeddings.create(
+                model=model,
+                input=text,
+                **kwargs,
+            )
+            embedding = response.data[0].embedding
+            tokens_used = response.usage.total_tokens if response.usage else 0
+            return embedding, tokens_used
+        except Exception as standard_err:
+            if self._has_multimodal_embed:
+                err_str = str(standard_err)
+                if (
+                    "does not support this api" in err_str
+                    or "InvalidEndpointOrModel" in err_str
+                ):
+                    logger.debug(
+                        "standard embed failed, trying multimodal endpoint",
+                        model=model,
+                    )
+                    return self._embed_multimodal(text, model, **kwargs)
+            raise
+
+    def _embed_multimodal(
+        self, text: str, model: str, **kwargs: Any
+    ) -> tuple[list[float], int]:
+        """调用火山多模态嵌入端点 /v3/embeddings/multimodal"""
+        import httpx
+
+        base_url = self._base_url
+        # Strip /v1 suffix if present (multimodal endpoint uses /v3)
+        if base_url.endswith("/v1"):
+            base_url = base_url[:-3]
+
+        url = f"{base_url.rstrip('/')}/v3/embeddings/multimodal"
+        payload = {
+            "model": model,
+            "input": [{"type": "text", "text": text}],
+        }
+        headers = {
+            "Authorization": f"Bearer {self._client.api_key if self._client else ''}",
+            "Content-Type": "application/json",
+        }
+
+        resp = httpx.post(url, json=payload, headers=headers, timeout=30.0)
+        resp.raise_for_status()
+        data = resp.json()
+
+        data_field = data.get("data", {})
+        if isinstance(data_field, dict):
+            embedding = data_field.get("embedding", [])
+        elif isinstance(data_field, list) and len(data_field) > 0:
+            embedding = data_field[0].get("embedding", [])
+        else:
+            embedding = []
+
+        tokens_used = data.get("usage", {}).get("total_tokens", 0)
+
+        logger.debug(
+            f"{self._provider_name} multimodal embed success",
+            dim=len(embedding),
+            tokens=tokens_used,
+        )
+        return embedding, tokens_used

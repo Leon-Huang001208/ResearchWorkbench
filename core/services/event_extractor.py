@@ -236,6 +236,7 @@ class EventExtractor:
             messages=messages,
             temperature=0.1,
             max_tokens=1024,
+            task="extraction",
         )
 
         content = response.content.strip()

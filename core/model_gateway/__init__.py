@@ -1,12 +1,19 @@
 """
-Model gateway implementation for unified LLM access.
+Model gateway implementation for unified multi-provider LLM access.
 
-This package provides the ModelGatewayImpl and BaseProvider abstract base class,
-plus concrete providers (VolcanoProvider, OpenAICompatibleProvider) in AlphaFoundry.
+This package provides ModelGatewayImpl (multi-provider + task routing),
+BaseProvider (abstract base class), and concrete providers:
+OpenAICompatibleProvider (Volcano/DeepSeek/OpenAI/local) and
+AnthropicProvider (Anthropic native protocol).
 """
 from .base import BaseProvider
 from .gateway import ModelGatewayImpl
+from .providers.anthropic import AnthropicProvider
 from .providers.openai_compatible import OpenAICompatibleProvider
-from .providers.volcano import VolcanoProvider
 
-__all__ = ["ModelGatewayImpl", "BaseProvider", "VolcanoProvider", "OpenAICompatibleProvider"]
+__all__ = [
+    "ModelGatewayImpl",
+    "BaseProvider",
+    "AnthropicProvider",
+    "OpenAICompatibleProvider",
+]

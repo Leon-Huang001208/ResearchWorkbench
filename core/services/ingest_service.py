@@ -249,7 +249,7 @@ class IngestService:
                     {"role": "user", "content": user_prompt},
                 ],
                 temperature=0.1,
-                model=settings.EXTRACTION_MODEL,
+                task="extraction",
             )
 
             # 解析 LLM 响应
@@ -313,7 +313,8 @@ class IngestService:
             parse_response_fn=self._parse_combined_response,
             max_workers=max_workers,
             max_retries=settings.LLM_EXTRACT_MAX_RETRIES,
-            model=settings.EXTRACTION_MODEL,
+            model=None,  # use task routing instead
+            task="extraction",
         )
 
         assertions, events, stats = extractor.extract_chunks(chunks, doc_id)

@@ -2660,13 +2660,13 @@ Classes:
 ## `core/model_gateway/__init__.py`
 
 Module docstring:
-> Model gateway implementation for unified LLM access.
+> Model gateway implementation for unified multi-provider LLM access.
 
 Imports:
 - `base`
 - `gateway`
+- `providers.anthropic`
 - `providers.openai_compatible`
-- `providers.volcano`
 
 
 ## `core/model_gateway/base.py`
@@ -2690,7 +2690,7 @@ Classes:
 ## `core/model_gateway/gateway.py`
 
 Module docstring:
-> Implementation of ModelGatewayInterface that delegates to a BaseProvider.
+> Multi-provider ModelGateway implementation with per-task routing.
 
 Imports:
 - `core.interfaces`
@@ -2703,8 +2703,8 @@ Imports:
 
 Classes:
 - `ModelGatewayImpl`
-  - 模型网关实现.
-  - methods: __init__, _init_provider, set_provider, chat, structured_output, embed
+  - 多 provider 模型网关，支持按任务路由到不同平台/模型.
+  - methods: __init__, _init_providers, set_provider, _resolve, chat, structured_output, embed
 
 
 ## `core/model_gateway/providers/__init__.py`
@@ -2713,8 +2713,51 @@ Module docstring:
 > Concrete model provider implementations.
 
 Imports:
+- `anthropic`
+- `local_embedding`
 - `openai_compatible`
-- `volcano`
+
+
+## `core/model_gateway/providers/anthropic.py`
+
+Module docstring:
+> Anthropic native protocol provider implementation.
+
+Imports:
+- `core.interfaces`
+- `core.model_gateway.base`
+- `core.observability`
+- `core.settings.config`
+- `pydantic`
+- `time`
+- `typing`
+
+Classes:
+- `AnthropicProvider`
+  - Anthropic 原生协议提供商.
+  - methods: __init__, chat, structured_output, embed
+
+Functions:
+- `_extract_system_and_messages`
+  - Extract system message from OpenAI-format messages for Anthropic.
+
+
+## `core/model_gateway/providers/local_embedding.py`
+
+Module docstring:
+> Local embedding provider using sentence-transformers.
+
+Imports:
+- `core.interfaces`
+- `core.model_gateway.base`
+- `core.observability`
+- `core.settings.config`
+- `time`
+
+Classes:
+- `LocalEmbeddingProvider`
+  - 本地 embedding provider，使用 sentence-transformers 加载模型.
+  - methods: __init__, _load_model, chat, structured_output, embed
 
 
 ## `core/model_gateway/providers/openai_compatible.py`
@@ -2726,7 +2769,7 @@ Imports:
 - `core.interfaces`
 - `core.model_gateway.base`
 - `core.observability`
-- `core.settings`
+- `core.settings.config`
 - `pydantic`
 - `time`
 - `typing`
@@ -2734,24 +2777,7 @@ Imports:
 Classes:
 - `OpenAICompatibleProvider`
   - OpenAI 兼容提供商实现.
-  - methods: __init__, chat, structured_output, embed
-
-
-## `core/model_gateway/providers/volcano.py`
-
-Imports:
-- `core.interfaces`
-- `core.model_gateway.base`
-- `core.observability`
-- `core.settings`
-- `pydantic`
-- `time`
-- `typing`
-
-Classes:
-- `VolcanoProvider`
-  - 火山方舟提供商实现
-  - methods: __init__, chat, structured_output, embed, _embed_multimodal
+  - methods: __init__, chat, structured_output, embed, _do_embed, _embed_multimodal
 
 
 ## `core/observability/__init__.py`
@@ -3858,13 +3884,20 @@ Imports:
 ## `core/settings/config.py`
 
 Imports:
+- `os`
 - `pathlib`
+- `pydantic`
 - `pydantic_settings`
+- `re`
 - `typing`
 
 Classes:
+- `ProviderProfile`
+  - 单个 LLM provider 配置
+- `TaskRoute`
+  - 任务 → provider + model 路由
 - `Settings`
-  - methods: ensure_dirs
+  - methods: _build_provider_configs, _parse_provider_profiles_from_env, _parse_task_routes_from_env, ensure_dirs
 
 
 ## `core/utils/__init__.py`

@@ -74,7 +74,7 @@ class AssertionExtractor:
                     {"role": "user", "content": user_prompt},
                 ],
                 temperature=0.1,
-                model=getattr(self, "_model", None),
+                task="extraction",
             )
 
             # 解析响应

@@ -55,6 +55,7 @@ class ConcurrentLLMExtractor:
         max_workers: int = 16,
         max_retries: int = 2,
         model: str | None = None,
+        task: str | None = "extraction",
     ) -> None:
         self.model_gateway = model_gateway
         self.build_assertion_fn = build_assertion_fn
@@ -63,6 +64,7 @@ class ConcurrentLLMExtractor:
         self.max_workers = max_workers
         self.max_retries = max_retries
         self.model = model
+        self.task = task
 
     def extract_chunks(
         self,
@@ -142,6 +144,7 @@ class ConcurrentLLMExtractor:
                     ],
                     temperature=0.1,
                     model=self.model,
+                    task=self.task,
                 )
 
                 raw_data = self.parse_response_fn(response.content)

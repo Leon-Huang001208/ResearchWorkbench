@@ -1,39 +1,45 @@
+import os
+import re
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
+from pydantic import BaseModel, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+class ProviderProfile(BaseModel):
+    """单个 LLM provider 配置"""
+
+    name: str
+    protocol: Literal["openai_compatible", "anthropic", "local"] = "openai_compatible"
+    base_url: str = ""
+    api_key: str = ""
+
+
+class TaskRoute(BaseModel):
+    """任务 → provider + model 路由"""
+
+    provider: str
+    model: str
+
+
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+    )
 
     # 项目根目录
     PROJECT_ROOT: Path = Path(__file__).parent.parent.parent
 
     # Runtime environment: dev/prod
-    # dev: allows in-memory fallbacks for demo purposes
-    # prod: no silent fallback, fail immediately if persistence not configured
     APP_ENV: Literal["dev", "prod"] = "dev"
 
-    # 数据库 (默认推荐 PostgreSQL 用于持久化运行；SQLite 保留用于零配置演示)
+    # 数据库
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/alphafoundry"
 
-    # 模型网关
-    MODEL_PROVIDER: Literal["volcano", "openai_compatible"] = "volcano"
-    VOLCANO_API_KEY: str = ""
-    VOLCANO_BASE_URL: str = "https://ark.cn-beijing.volces.com/api/v3"
-    OPENAI_API_KEY: str = ""
-    OPENAI_BASE_URL: str = "https://api.openai.com/v1"
-
-    # 默认模型
-    DEFAULT_CHAT_MODEL: str = "doubao-seed-2-0-pro-260215"
-    DEFAULT_EMBEDDING_MODEL: str = "doubao-embedding-vision-251215"
-
-    # 模型路由（不同任务用不同模型）
-    EXTRACTION_MODEL: str = "doubao-seed-2-0-pro-260215"
-    CLASSIFICATION_MODEL: str = "doubao-seed-2-0-lite-260428"
-    CODE_MODEL: str = "doubao-seed-2-0-code-preview-260215"
-    REASONING_MODEL: str = "deepseek-v3-2-251201"
+    # ── 多 provider profiles + 任务路由 ──
+    PROVIDER_PROFILES: dict[str, ProviderProfile] = Field(default_factory=dict)
+    TASK_ROUTES: dict[str, TaskRoute] = Field(default_factory=dict)
 
     # 日志
     LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
@@ -45,7 +51,7 @@ class Settings(BaseSettings):
     IFIND_BACKEND: Literal["auto", "python_sdk", "http_api"] = "auto"
     IFIND_HTTP_BASE_URL: str = "https://quantapi.10jqka.com.cn"
 
-    # China Stock 数据源
+    # China Stock
     CHINA_STOCK_ENABLED: bool = True
 
     # 对象存储
@@ -61,8 +67,70 @@ class Settings(BaseSettings):
     # PDF 转换输出目录
     PDF_MARKDOWN_DIR: Path = PROJECT_ROOT / "data" / "markdown"
     PDF_RAW_TEXT_DIR: Path = PROJECT_ROOT / "data" / "raw_text"
-    # 小于此字节数的内容会同时内联到数据库
     PDF_INLINE_THRESHOLD_BYTES: int = 256 * 1024  # 256 KB
+
+    @model_validator(mode="before")
+    @classmethod
+    def _build_provider_configs(cls, data: Any) -> Any:
+        """从环境变量解析 provider profiles 和 task routes"""
+        if not isinstance(data, dict):
+            return data
+
+        data["PROVIDER_PROFILES"] = cls._parse_provider_profiles_from_env()
+        data["TASK_ROUTES"] = cls._parse_task_routes_from_env()
+        return data
+
+    @staticmethod
+    def _parse_provider_profiles_from_env() -> dict[str, ProviderProfile]:
+        """从 LLM_PROVIDER_N_* 环境变量解析 provider profiles"""
+        groups: dict[int, dict[str, str]] = {}
+        pattern = re.compile(r"^LLM_PROVIDER_(\d+)_(\w+)$")
+
+        for key, value in os.environ.items():
+            match = pattern.match(key)
+            if not match:
+                continue
+            index = int(match.group(1))
+            field = match.group(2).lower()
+            if index not in groups:
+                groups[index] = {}
+            groups[index][field] = value
+
+        profiles: dict[str, ProviderProfile] = {}
+        for index in sorted(groups.keys()):
+            group = groups[index]
+            name = group.get("name", f"provider_{index}")
+            profiles[name] = ProviderProfile(
+                name=name,
+                protocol=group.get("protocol", "openai_compatible"),  # type: ignore[arg-type]
+                base_url=group.get("base_url", ""),
+                api_key=group.get("api_key", ""),
+            )
+        return profiles
+
+    @staticmethod
+    def _parse_task_routes_from_env() -> dict[str, TaskRoute]:
+        """从 TASK_*_PROVIDER / TASK_*_MODEL 环境变量解析任务路由"""
+        provider_pattern = re.compile(r"^TASK_(\w+)_PROVIDER$")
+        task_providers: dict[str, str] = {}
+        task_models: dict[str, str] = {}
+
+        for key, value in os.environ.items():
+            pm = provider_pattern.match(key)
+            if pm:
+                task_providers[pm.group(1).lower()] = value
+            elif key.startswith("TASK_") and key.endswith("_MODEL"):
+                task_name = key[5:-6].lower()
+                task_models[task_name] = value
+
+        all_tasks = set(task_providers.keys()) | set(task_models.keys())
+        routes: dict[str, TaskRoute] = {}
+        for task in all_tasks:
+            routes[task] = TaskRoute(
+                provider=task_providers.get(task, "volcano"),
+                model=task_models.get(task, ""),
+            )
+        return routes
 
     def ensure_dirs(self) -> None:
         """确保必要的目录存在"""

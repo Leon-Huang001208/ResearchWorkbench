@@ -1,10 +1,12 @@
 """
 Concrete model provider implementations.
 
-This package provides VolcanoProvider (for Volcano Engine/ByteDance models) and
-OpenAICompatibleProvider (for OpenAI-compatible API endpoints) in AlphaFoundry.
+Provides OpenAICompatibleProvider (for OpenAI-compatible endpoints: Volcano,
+DeepSeek, OpenAI, local), AnthropicProvider (for Anthropic native protocol),
+and LocalEmbeddingProvider (for offline sentence-transformers embeddings).
 """
+from .anthropic import AnthropicProvider
+from .local_embedding import LocalEmbeddingProvider
 from .openai_compatible import OpenAICompatibleProvider
-from .volcano import VolcanoProvider
 
-__all__ = ["VolcanoProvider", "OpenAICompatibleProvider"]
+__all__ = ["AnthropicProvider", "LocalEmbeddingProvider", "OpenAICompatibleProvider"]
