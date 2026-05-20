@@ -8,10 +8,8 @@ E2E 测试：SSE realtime event stream
 4. SSE 正确推送事件到浏览器
 """
 import asyncio
-import json
 import multiprocessing
 import sys
-import time
 from pathlib import Path
 
 project_root = Path(__file__).resolve().parent.parent.parent

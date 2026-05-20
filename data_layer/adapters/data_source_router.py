@@ -13,6 +13,7 @@ from data_layer.adapters import (
     IFinDAdapter,
     ZQAdapter,
 )
+from data_layer.adapters.akshare.exceptions import AkShareAdapterError
 from data_layer.adapters.china_stock.exceptions import ChinaStockPluginError
 from data_layer.adapters.ifind.exceptions import IFinDDatasourceError
 

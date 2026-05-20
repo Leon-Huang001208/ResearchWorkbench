@@ -48,7 +48,7 @@ def main():
     )
 
     # 准备上下文
-    context = {
+    {
         "title": "2026 年 Q2 投资策略",
         "date": datetime.now(UTC).isoformat(),
         "author": "AI Analyst",

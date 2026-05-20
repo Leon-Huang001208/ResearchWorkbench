@@ -697,7 +697,6 @@ async def save_template_config(request: TemplateConfigSaveRequest):
     """
     try:
         template_name = request.template_name
-        file_type = request.file_type
 
         # 尝试加载现有配置，如果不存在就创建新的
         try:

@@ -19,7 +19,7 @@ class TALibProvider:
         df = df.sort_index(ascending=True)
 
         # 提取所需数据
-        open_data = df["open"].values.astype(np.float64)
+        df["open"].values.astype(np.float64)
         high_data = df["high"].values.astype(np.float64)
         low_data = df["low"].values.astype(np.float64)
         close_data = df["close"].values.astype(np.float64)

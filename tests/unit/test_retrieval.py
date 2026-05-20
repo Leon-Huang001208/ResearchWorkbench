@@ -38,7 +38,7 @@ def test_in_memory_vector_store_search_with_filters():
     store.add_document("doc1", "贵州茅台", metadata={"type": "company"})
     store.add_document("doc2", "人工智能", metadata={"type": "concept"})
 
-    results = store.search("茅台", top_k=10, filters={"type": "company"})
+    store.search("茅台", top_k=10, filters={"type": "company"})
     # Results should be filtered, but since we're using dummy embeddings,
     # just verify the search works without error
 

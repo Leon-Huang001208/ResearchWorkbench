@@ -66,7 +66,7 @@ def example_2_news_data_processing():
     from data_layer.crawlers.akshare import AkShareAdapter, AkShareConfig
 
     config = AkShareConfig(enable_cache=False, verbose=True, news_limit=10)
-    adapter = AkShareAdapter(config)
+    AkShareAdapter(config)
 
     logger.info("✓ AkShare adapter ready for news fetching")
 
@@ -134,7 +134,7 @@ def example_3_financial_data_usage():
     from data_layer.crawlers.akshare import AkShareAdapter, AkShareConfig
 
     config = AkShareConfig(enable_cache=False, verbose=True)
-    adapter = AkShareAdapter(config)
+    AkShareAdapter(config)
 
     logger.info("✓ Financial fetcher ready")
 
@@ -183,7 +183,7 @@ def example_4_macro_data_analysis():
     from data_layer.crawlers.akshare.base import MacroData
 
     config = AkShareConfig(enable_cache=False, verbose=True)
-    adapter = AkShareAdapter(config)
+    AkShareAdapter(config)
 
     logger.info("✓ Macro fetcher ready")
 
@@ -220,7 +220,7 @@ def example_5_combined_workflow():
     from data_layer.crawlers.akshare import AkShareAdapter, AkShareConfig
 
     config = AkShareConfig(enable_cache=False, verbose=True)
-    adapter = AkShareAdapter(config)
+    AkShareAdapter(config)
 
     logger.info("✓ Starting research workflow...")
 

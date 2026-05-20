@@ -155,7 +155,7 @@ class TestEndToEndPipeline:
     def test_vector_search_relevance(self):
         """测试向量检索的相关性"""
         vector_store = InMemoryVectorStore()
-        ingest_service = IngestService(vector_store=vector_store)
+        IngestService(vector_store=vector_store)
 
         # 添加多个文档
         docs = [

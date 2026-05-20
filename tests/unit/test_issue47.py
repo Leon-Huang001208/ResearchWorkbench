@@ -206,9 +206,7 @@ class TestNewsFeatureService:
 
         assert isinstance(feature_set, NewsFeatureSet)
         # 检查是否有 MENTION_COUNT 类型的特征
-        has_mention = any(
-            f.feature_type == NewsFeatureType.MENTION_COUNT for f in feature_set.features
-        )
+        any(f.feature_type == NewsFeatureType.MENTION_COUNT for f in feature_set.features)
         # 因为我们只有模拟数据，结果可能为空，这里主要检查没有报错
 
     def test_compute_sentiment_score(self):
@@ -371,7 +369,7 @@ class TestIntegration:
     def test_full_time_aware_workflow(self):
         """测试完整的时间感知工作流"""
         replay_service = HistoricalReplayService()
-        feature_service = NewsFeatureService()
+        NewsFeatureService()
         tier_service = DataTierService()
         now = datetime.utcnow()
 

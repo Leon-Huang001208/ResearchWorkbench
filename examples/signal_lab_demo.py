@@ -117,7 +117,7 @@ def demo_signal_creation():
     service = SignalService()
 
     # 创建几个信号
-    signal1 = service.create_signal(
+    service.create_signal(
         subject_id="600519.SH",
         thesis="白酒行业景气度回升，茅台业绩超预期",
         horizon="20d",
@@ -127,7 +127,7 @@ def demo_signal_creation():
         evidence_refs=["assertion1", "assertion2", "assertion3"],
     )
 
-    signal2 = service.create_signal(
+    service.create_signal(
         subject_id="000001.SZ",
         thesis="银行业受益于政策支持，估值修复",
         horizon="60d",
@@ -136,7 +136,7 @@ def demo_signal_creation():
         evidence_refs=["assertion4"],
     )
 
-    signal3 = service.create_signal(
+    service.create_signal(
         subject_id="600036.SH",
         thesis="新能源汽车销量超预期，带动产业链",
         horizon="20d",

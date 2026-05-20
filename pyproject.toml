@@ -81,3 +81,12 @@ disallow_untyped_defs = true
 testpaths = ["tests"]
 pythonpath = ["."]
 asyncio_mode = "auto"
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/**" = ["E402"]
+"examples/**" = ["E402"]
+"storage/migrations/env.py" = ["E402"]
+"tests/**" = ["E402"]
+"app/api/main.py" = ["E402"]
+"data_layer/crawlers/cls/cls.py" = ["E402"]
+"data_layer/crawlers/cnstock/cnstock.py" = ["E402"]

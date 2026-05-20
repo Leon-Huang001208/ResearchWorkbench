@@ -372,7 +372,7 @@ class TestAlertTriggering:
             subsystem=Subsystem.INGESTION,
             error_rate=0.25,  # 超过阈值 0.1
         )
-        metrics = service.submit_health_metrics(request)
+        service.submit_health_metrics(request)
 
         # 应该触发了告警
         repo.save_alert.assert_called()
@@ -393,7 +393,7 @@ class TestAlertTriggering:
             subsystem=Subsystem.INGESTION,
             error_rate=0.02,  # 低于阈值
         )
-        metrics = service.submit_health_metrics(request)
+        service.submit_health_metrics(request)
         repo.save_alert.assert_not_called()
 
     def test_alert_cooldown_prevents_duplicate(self):
@@ -417,7 +417,7 @@ class TestAlertTriggering:
             subsystem=Subsystem.INGESTION,
             error_rate=0.25,
         )
-        metrics = service.submit_health_metrics(request)
+        service.submit_health_metrics(request)
         # 冷却期内不应触发
         repo.save_alert.assert_not_called()
 
@@ -442,7 +442,7 @@ class TestAlertTriggering:
             subsystem=Subsystem.INGESTION,
             error_rate=0.25,
         )
-        metrics = service.submit_health_metrics(request)
+        service.submit_health_metrics(request)
         repo.save_alert.assert_called()
 
     def test_drift_triggers_alert(self):
@@ -509,7 +509,7 @@ class TestAlertManagement:
         """查询告警列表"""
         repo = _make_mock_repo()
         service = MonitoringService(monitoring_repository=repo)
-        results = service.list_alerts(status=AlertStatus.OPEN)
+        service.list_alerts(status=AlertStatus.OPEN)
         repo.list_alerts.assert_called_once()
 
     def test_acknowledge_alert(self):
@@ -568,7 +568,7 @@ class TestIncidentRecords:
         """查询事件列表"""
         repo = _make_mock_repo()
         service = MonitoringService(monitoring_repository=repo)
-        results = service.list_incidents(subsystem=Subsystem.INGESTION)
+        service.list_incidents(subsystem=Subsystem.INGESTION)
         repo.list_incidents.assert_called_once()
 
     def test_resolve_incident(self):

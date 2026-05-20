@@ -612,7 +612,7 @@ class CnstockCrawler:
                     self._session.get(
                         self.BASE_URL, headers={"User-Agent": headers["User-Agent"]}, timeout=10
                     )
-                except:
+                except Exception:
                     pass
 
             # 根据是否有 keywords 选择不同的 API
@@ -878,7 +878,7 @@ class CnstockCrawler:
                             timeout=10,
                         )
                         time.sleep(random.uniform(0.8, 2))
-                except:
+                except Exception:
                     pass
 
                 response = self._session.get(

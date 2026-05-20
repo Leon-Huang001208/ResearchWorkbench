@@ -40,7 +40,7 @@ def test_entity_resolution():
     from knowledge_layer.entity_resolution.resolver import EntityResolver
     from knowledge_layer.entity_resolution.types import EntityType
 
-    resolver = EntityResolver()
+    EntityResolver()
     canonicalizer = Canonicalizer()
 
     # 测试文本

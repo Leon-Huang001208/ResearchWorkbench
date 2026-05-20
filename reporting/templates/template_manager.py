@@ -678,7 +678,7 @@ class TemplateManager:
         """
         # Check if python-pptx is available
         try:
-            import pptx
+            import pptx  # noqa: F401
             from pptx import Presentation
         except ImportError:
             raise ImportError(

@@ -285,7 +285,7 @@ def test_document_v1_repository_basic():
     """
     # 这里只验证我们可以导入 Repository
     try:
-        from data_layer.repositories.documents_v1 import DocumentV1Repository
+        from data_layer.repositories.documents_v1 import DocumentV1Repository  # noqa: F401
 
         # 验证导入成功
         assert True

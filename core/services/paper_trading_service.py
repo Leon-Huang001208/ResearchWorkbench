@@ -625,7 +625,7 @@ class PaperTradingService:
 
         # 等权 NAV
         nav_series = [1.0]
-        n = len(subject_ids)
+        len(subject_ids)
 
         for i in range(1, min_len):
             daily_return = 0.0

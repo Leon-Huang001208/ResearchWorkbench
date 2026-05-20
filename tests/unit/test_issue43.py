@@ -206,7 +206,7 @@ class TestCrawlOrchestratorIntegration:
         """测试编排器初始化"""
         # 不实际连接数据库，只测试导入和初始化
         try:
-            from core.services.crawl_orchestrator import CrawlOrchestrator
+            from core.services.crawl_orchestrator import CrawlOrchestrator  # noqa: F401
 
             # 测试导入成功
             assert True
@@ -284,7 +284,7 @@ class TestIssue43Acceptance:
 
         # 标记后，在 memory cache 中应该检测到重复
         service.mark_seen(doc)
-        result2 = service.check_duplicate(doc)
+        service.check_duplicate(doc)
         # 注意：需要数据库查询来完全实现，但 API 设计正确
 
     def test_incremental_crawl_requirement(self):
@@ -315,7 +315,7 @@ class TestIssue43Acceptance:
 
         # 验证有相关的 API 设计
         try:
-            from core.services.crawl_orchestrator import CrawlOrchestrator
+            from core.services.crawl_orchestrator import CrawlOrchestrator  # noqa: F401
 
             # 检查有 backfill_source 方法
             assert hasattr(CrawlOrchestrator, "backfill_source")

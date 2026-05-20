@@ -26,7 +26,7 @@ def main() -> int:
     inspector = inspect(engine)
     existing = set(inspector.get_table_names())
     missing = REQUIRED_TABLES - existing
-    present = REQUIRED_TABLES & existing
+    REQUIRED_TABLES & existing
 
     print("=" * 60)
     print("结构化行情数据表 Schema 检查")

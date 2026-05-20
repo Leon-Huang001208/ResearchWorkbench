@@ -1,9 +1,7 @@
 """CrawlerIngestionBridge 单元测试"""
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-import pytest
-
-from core.contracts.ingestion import EnqueueRequest, IngestionQueueItem
+from core.contracts.ingestion import EnqueueRequest
 
 
 class TestCrawlerIngestionBridge:
@@ -114,10 +112,7 @@ class TestCrawlerIngestionBridge:
         assert call_args.priority == 0  # default/normal priority
 
     def test_to_document_envelope_maps_source_types(self):
-        from core.services.crawler_ingestion_bridge import (
-            SOURCE_TYPE_TO_CATEGORY,
-            CrawlerIngestionBridge,
-        )
+        from core.services.crawler_ingestion_bridge import CrawlerIngestionBridge
 
         bridge = CrawlerIngestionBridge(queue_service=MagicMock())
         envelope = bridge._to_document_envelope(

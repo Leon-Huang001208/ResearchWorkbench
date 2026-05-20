@@ -28,7 +28,7 @@ class IFinDAdapter(BaseDataAdapter):
     def _check_availability(self) -> bool:
         """检查iFinD是否可用"""
         try:
-            import iFinDPy
+            import iFinDPy  # noqa: F401
 
             # 检查账号配置是否存在
             if not settings.IFIND_USERNAME or not settings.IFIND_PASSWORD:

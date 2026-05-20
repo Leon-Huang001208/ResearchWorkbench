@@ -54,7 +54,7 @@ class RawTextStrategy(PDFConversionStrategy):
 
     def is_available(self) -> bool:
         try:
-            import pdfplumber
+            import pdfplumber  # noqa: F401
 
             return True
         except ImportError:
@@ -100,7 +100,7 @@ class MarkItDownStrategy(PDFConversionStrategy):
 
     def is_available(self) -> bool:
         try:
-            import markitdown
+            import markitdown  # noqa: F401
 
             return True
         except ImportError:

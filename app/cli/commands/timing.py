@@ -35,7 +35,7 @@ def evaluate(scores: str, signal_id: Optional[str], regime: str):
     try:
         engine = MetaTimingEngine()
         scores_data = json.loads(scores)
-        model_scores = [
+        [
             # We'll just validate the data structure, proper parsing would use Pydantic
             type("TimingModelScore", (object,), s)
             for s in scores_data

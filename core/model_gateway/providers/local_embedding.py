@@ -44,9 +44,7 @@ class LocalEmbeddingProvider(BaseProvider):
         self._loaded_model_name = model_name
 
     def chat(self, *args, **kwargs):  # type: ignore[override]
-        raise NotImplementedError(
-            "LocalEmbeddingProvider only supports embeddings, not chat"
-        )
+        raise NotImplementedError("LocalEmbeddingProvider only supports embeddings, not chat")
 
     def structured_output(self, *args, **kwargs):  # type: ignore[override]
         raise NotImplementedError(

@@ -129,9 +129,9 @@ class DualSourceValidator:
         close_diffs: List[float] = []
 
         for date, (d1, d2) in aligned_data.items():
-            for field in fields_to_check:
-                v1 = self._get_field_value(d1, field)
-                v2 = self._get_field_value(d2, field)
+            for field_name in fields_to_check:
+                v1 = self._get_field_value(d1, field_name)
+                v2 = self._get_field_value(d2, field_name)
 
                 if v1 is not None and v2 is not None:
                     abs_diff = abs(v1 - v2)
@@ -276,8 +276,6 @@ class DualSourceValidator:
             return name2
 
         # 统计差异偏向
-        source1_better = 0
-        source2_better = 0
 
         for disc in discrepancies:
             if disc.relative_diff_pct is not None:

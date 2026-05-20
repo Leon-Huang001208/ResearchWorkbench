@@ -15,8 +15,8 @@ class TestPowerPointProjection:
     def pptx_available(self) -> bool:
         """Check if python-pptx is available."""
         try:
-            import pptx
-            from pptx import Presentation
+            import pptx  # noqa: F401
+            from pptx import Presentation  # noqa: F401
 
             return True
         except ImportError:
@@ -121,8 +121,8 @@ class TestPowerPointProjectionFromTemplate:
     def pptx_available(self) -> bool:
         """检查 python-pptx 是否可用"""
         try:
-            import pptx
-            from pptx import Presentation
+            import pptx  # noqa: F401
+            from pptx import Presentation  # noqa: F401
 
             return True
         except ImportError:

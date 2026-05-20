@@ -12,8 +12,8 @@ class TestSystemEventBus:
         from core.services.system_event_bus import SystemEventBus
 
         bus = SystemEventBus()
-        e1 = await bus.publish("test_type", {"k": "v1"})
-        e2 = await bus.publish("test_type", {"k": "v2"})
+        await bus.publish("test_type", {"k": "v1"})
+        await bus.publish("test_type", {"k": "v2"})
 
         events = await bus.get_events_after(None)
         assert len(events) >= 2
@@ -47,7 +47,7 @@ class TestSystemEventBus:
     def test_event_to_sse_dict(self):
         from core.services.system_event_bus import SystemEvent, SystemEventBus
 
-        bus = SystemEventBus()
+        SystemEventBus()
         e = SystemEvent(event_id="e1", event_type="t", payload={"x": 1})
         d = e.to_sse_dict()
         assert d["id"] == "e1"

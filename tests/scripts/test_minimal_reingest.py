@@ -81,7 +81,7 @@ def test_database_has_data_after_dry_run():
     """Test that after a dry run, we can still query the database (schema exists)."""
     from scripts.minimal_reingest_bootstrap import MinimalReingestReporter
 
-    reporter = MinimalReingestReporter()
+    MinimalReingestReporter()
 
     # Check connectivity - this will fail if schema doesn't exist
     with db_session() as db:

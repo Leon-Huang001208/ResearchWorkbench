@@ -24,9 +24,7 @@ class TaskRoute(BaseModel):
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore"
-    )
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     # 项目根目录
     PROJECT_ROOT: Path = Path(__file__).parent.parent.parent

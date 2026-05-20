@@ -37,7 +37,7 @@ try:
             if outcome.get("metadata"):
                 try:
                     metadata = json.loads(outcome["metadata"])
-                except:
+                except Exception:
                     pass
 
             # Create market episode

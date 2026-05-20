@@ -6,7 +6,7 @@ import re
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from core.contracts import Assertion, CanonicalEvent, DocumentEnvelope
 from core.interfaces import DocumentRepository, ModelGateway
@@ -16,6 +16,9 @@ from knowledge_layer.assertions import AssertionExtractor, AssertionValidator, Q
 from knowledge_layer.events import EventExtractor, EventQualityGate
 from knowledge_layer.extraction import ConcurrentLLMExtractor, split_text
 from knowledge_layer.retrieval import InMemoryVectorStore, VectorStore
+
+if TYPE_CHECKING:
+    from core.interfaces.repository import AssertionRepository, EventRepository
 
 try:
     import pdfplumber

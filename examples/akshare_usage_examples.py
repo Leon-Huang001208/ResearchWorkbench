@@ -146,14 +146,14 @@ def example_4_with_existing_adapter():
     logger.info("=" * 60)
 
     try:
-        from data_layer.adapters.akshare_adapter import AKShareAdapter
+        from data_layer.adapters.akshare_adapter import AKShareAdapter  # noqa: F401
 
         logger.info("✓ Existing AKShareAdapter available")
     except ImportError:
         logger.warning("Existing AKShareAdapter not found (this is normal)")
 
     try:
-        from data_layer.adapters.data_source_router import DataSourceRouter
+        from data_layer.adapters.data_source_router import DataSourceRouter  # noqa: F401
 
         logger.info("✓ DataSourceRouter available")
     except ImportError:

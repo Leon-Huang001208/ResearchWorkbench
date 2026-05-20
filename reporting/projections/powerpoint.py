@@ -16,7 +16,6 @@ logger = get_logger(__name__)
 try:
     import pptx
     from pptx import Presentation
-    from pptx.enum.text import PP_ALIGN
     from pptx.util import Inches, Pt
 
     PPTX_AVAILABLE = True

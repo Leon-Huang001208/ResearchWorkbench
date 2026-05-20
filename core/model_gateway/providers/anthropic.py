@@ -96,9 +96,7 @@ class AnthropicProvider(BaseProvider):
 
                 response = self._client.messages.create(**create_kwargs)
                 content = response.content[0].text
-                tokens_used = (
-                    response.usage.input_tokens + response.usage.output_tokens
-                )
+                tokens_used = response.usage.input_tokens + response.usage.output_tokens
             else:
                 content = (
                     f"[{self._provider_name} API not available"
@@ -132,9 +130,7 @@ class AnthropicProvider(BaseProvider):
         model = model or "claude-sonnet-4-6"
 
         schema_str = output_schema.model_json_schema()
-        system_msg = (
-            f"Please respond only with valid JSON matching this schema: {schema_str}"
-        )
+        system_msg = f"Please respond only with valid JSON matching this schema: {schema_str}"
 
         system, api_messages = _extract_system_and_messages(messages)
         if system:
@@ -170,9 +166,7 @@ class AnthropicProvider(BaseProvider):
             )
             return output_schema.model_construct()
 
-    def embed(
-        self, text: str, model: str | None = None, **kwargs: Any
-    ) -> EmbeddingResponse:
+    def embed(self, text: str, model: str | None = None, **kwargs: Any) -> EmbeddingResponse:
         """Anthropic does not support embedding API."""
         raise NotImplementedError(
             "Anthropic does not support embeddings. Use an OpenAI-compatible provider."

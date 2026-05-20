@@ -23,7 +23,7 @@ class SentimentModel(BaseTimingModel):
             # Example logic using sentiment data
             consecutive_limit_up = context.sentiment_data.get("consecutive_limit_up", 0)
             limit_up_failure_rate = context.sentiment_data.get("limit_up_failure_rate", 0.5)
-            limit_up_premium = context.sentiment_data.get("limit_up_premium", 0)
+            context.sentiment_data.get("limit_up_premium", 0)
 
             if consecutive_limit_up >= 5 and limit_up_failure_rate < 0.2:
                 score = 0.85

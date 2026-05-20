@@ -1234,12 +1234,10 @@ Module docstring:
 > System health endpoint — scheduler / queue / worker 状态
 
 Imports:
-- `asyncio`
 - `core.observability`
 - `core.services.system_event_bus`
 - `datetime`
 - `fastapi`
-- `json`
 
 Functions:
 - `get_health`
@@ -3007,7 +3005,6 @@ Imports:
 - `core.contracts`
 - `core.contracts.ingestion`
 - `core.observability`
-- `datetime`
 - `hashlib`
 - `typing`
 - `uuid`
@@ -4225,6 +4222,7 @@ Imports:
 - `core.contracts.assets`
 - `core.observability`
 - `data_layer.adapters`
+- `data_layer.adapters.akshare.exceptions`
 - `data_layer.adapters.china_stock.exceptions`
 - `data_layer.adapters.ifind.exceptions`
 - `datetime`

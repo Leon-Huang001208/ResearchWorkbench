@@ -255,10 +255,8 @@ async def test_asset_search():
             await asyncio.sleep(1)
 
             # 检查加载状态 - #asset-loading 应该会显示然后隐藏
-            loading_visible = False
             try:
                 if await page.locator("#asset-loading:not(.hidden)").is_visible(timeout=2000):
-                    loading_visible = True
                     print("✓ 检测到资产加载状态，分析已触发")
                     # 等待加载完成
                     await page.wait_for_function(

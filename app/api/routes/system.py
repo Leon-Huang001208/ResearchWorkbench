@@ -1,10 +1,8 @@
 """System health endpoint — scheduler / queue / worker 状态"""
 
-import asyncio
-import json
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
 from core.observability import get_logger
 from core.services.system_event_bus import event_bus

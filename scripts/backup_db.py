@@ -66,7 +66,7 @@ def backup_postgres(database_url: str, output_path: Path) -> bool:
     ]
 
     try:
-        result = subprocess.run(cmd, env=env, check=True, capture_output=True, text=True)
+        subprocess.run(cmd, env=env, check=True, capture_output=True, text=True)
         logger.info("PostgreSQL backup completed successfully", output_path=output_path)
         return True
     except subprocess.CalledProcessError as e:
@@ -81,7 +81,7 @@ def backup_sqlite(sqlite_path: Path, output_path: Path) -> bool:
     cmd = ["sqlite3", str(sqlite_path), f".backup {output_path}"]
 
     try:
-        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+        subprocess.run(cmd, check=True, capture_output=True, text=True)
         logger.info("SQLite backup completed successfully", output_path=output_path)
         return True
     except subprocess.CalledProcessError as e:

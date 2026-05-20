@@ -51,7 +51,6 @@ class HypothesisBuilder:
 
     def _build_by_rules(self, state: ReasoningState) -> List[ScenarioHypothesis]:
         """使用规则构建假设（简单实现）"""
-        question = state.question
         hypotheses: List[ScenarioHypothesis] = []
 
         # 基准情景

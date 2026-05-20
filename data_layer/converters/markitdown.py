@@ -110,7 +110,7 @@ class MarkItDownStrategy(PDFConversionStrategy):
 
         if has_tables:
             # 估算表格行数
-            table_lines = [l for l in markdown.split("\n") if l.strip().startswith("|")]
+            table_lines = [line for line in markdown.split("\n") if line.strip().startswith("|")]
             metadata["table_rows"] = len(table_lines)
 
         return metadata

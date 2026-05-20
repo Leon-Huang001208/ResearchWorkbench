@@ -71,7 +71,6 @@ def ensure_schema() -> None:
                 for col in table.columns:
                     if col.name not in existing_cols:
                         col_type = col.type.compile(dialect=engine.dialect)
-                        nullable = "" if col.primary_key or not col.nullable else " DEFAULT NULL"
                         default_clause = ""
                         if col.server_default is not None:
                             default_clause = f" DEFAULT {col.server_default.arg}"

@@ -75,9 +75,7 @@ class ModelGatewayImpl(ModelGatewayInterface):
         self._default_provider = provider
         self._providers["_injected"] = provider
 
-    def _resolve(
-        self, task: str | None, model: str | None
-    ) -> tuple[BaseProvider, str]:
+    def _resolve(self, task: str | None, model: str | None) -> tuple[BaseProvider, str]:
         """Resolve (provider, model) for a given task.
 
         Priority:
@@ -98,8 +96,7 @@ class ModelGatewayImpl(ModelGatewayInterface):
             provider = next(iter(self._providers.values()), None)  # type: ignore[arg-type]
         if provider is None:
             raise RuntimeError(
-                "No model provider available. "
-                "Configure PROVIDER_PROFILES in settings."
+                "No model provider available. " "Configure PROVIDER_PROFILES in settings."
             )
         return provider, model or ""
 

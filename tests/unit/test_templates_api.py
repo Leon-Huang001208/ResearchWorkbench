@@ -322,7 +322,7 @@ class TestTemplatesAPITemplates:
 
         # 2. 上传模板（如果可用）
         test_file = io.BytesIO(sample_docx_bytes)
-        upload_response = client.post(
+        client.post(
             "/api/templates/upload",
             data={
                 "template_name": "test_template",

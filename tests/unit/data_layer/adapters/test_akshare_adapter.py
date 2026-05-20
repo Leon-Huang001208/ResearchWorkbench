@@ -1,5 +1,5 @@
 """AkShareAdapter 单元测试"""
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -16,8 +16,6 @@ class TestAKShareAdapter:
 
     @patch("data_layer.adapters.akshare_adapter.CrawlerAkShareAdapter")
     def test_is_available_when_akshare_installed(self, mock_crawler):
-        import importlib
-
         from data_layer.adapters.akshare_adapter import AKShareAdapter
 
         adapter = AKShareAdapter()

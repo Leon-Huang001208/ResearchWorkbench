@@ -145,7 +145,7 @@ def restore_postgres(
                 logger.error("PostgreSQL restore failed", returncode=p2.returncode, stderr=stderr)
                 return False
         else:
-            result = subprocess.run(psql_cmd, env=env, check=True, capture_output=True, text=True)
+            subprocess.run(psql_cmd, env=env, check=True, capture_output=True, text=True)
 
         logger.info("PostgreSQL restore completed successfully")
         return True
@@ -170,11 +170,11 @@ def restore_sqlite(backup_file: Path, sqlite_path: Path) -> bool:
             # Decompress directly to the target file
             cmd = ["gunzip", "-c", str(backup_file)]
             with open(sqlite_path, "w") as f:
-                result = subprocess.run(cmd, stdout=f, check=True, capture_output=True, text=True)
+                subprocess.run(cmd, stdout=f, check=True, capture_output=True, text=True)
         else:
             # Just copy the backup
             cmd = ["cp", str(backup_file), str(sqlite_path)]
-            result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+            subprocess.run(cmd, check=True, capture_output=True, text=True)
 
         logger.info("SQLite restore completed successfully")
         return True

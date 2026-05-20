@@ -38,9 +38,7 @@ class OpenAICompatibleProvider(BaseProvider):
     def __init__(self, profile: ProviderProfile):
         self._provider_name = profile.name
         self._base_url = profile.base_url
-        self._has_multimodal_embed = (
-            profile.base_url and "volces.com" in profile.base_url
-        )
+        self._has_multimodal_embed = profile.base_url and "volces.com" in profile.base_url
         if OpenAI is not None:
             self._client = OpenAI(
                 api_key=profile.api_key,
@@ -75,8 +73,7 @@ class OpenAICompatibleProvider(BaseProvider):
                 tokens_used = response.usage.total_tokens if response.usage else 0
             else:
                 content = (
-                    f"[{self._provider_name} API not available"
-                    " - OpenAI package not installed]"
+                    f"[{self._provider_name} API not available" " - OpenAI package not installed]"
                 )
         except Exception as e:
             logger.error(
@@ -136,9 +133,7 @@ class OpenAICompatibleProvider(BaseProvider):
             )
             return output_schema.model_construct()
 
-    def embed(
-        self, text: str, model: str | None = None, **kwargs: Any
-    ) -> EmbeddingResponse:
+    def embed(self, text: str, model: str | None = None, **kwargs: Any) -> EmbeddingResponse:
         model = model or "text-embedding-3-small"
         start_time = time.time()
         tokens_used = 0
@@ -163,9 +158,7 @@ class OpenAICompatibleProvider(BaseProvider):
             latency_ms=latency_ms,
         )
 
-    def _do_embed(
-        self, text: str, model: str, **kwargs: Any
-    ) -> tuple[list[float], int]:
+    def _do_embed(self, text: str, model: str, **kwargs: Any) -> tuple[list[float], int]:
         """Try standard embeddings first, fall back to multimodal endpoint."""
         try:
             assert self._client is not None
@@ -180,10 +173,7 @@ class OpenAICompatibleProvider(BaseProvider):
         except Exception as standard_err:
             if self._has_multimodal_embed:
                 err_str = str(standard_err)
-                if (
-                    "does not support this api" in err_str
-                    or "InvalidEndpointOrModel" in err_str
-                ):
+                if "does not support this api" in err_str or "InvalidEndpointOrModel" in err_str:
                     logger.debug(
                         "standard embed failed, trying multimodal endpoint",
                         model=model,
@@ -191,9 +181,7 @@ class OpenAICompatibleProvider(BaseProvider):
                     return self._embed_multimodal(text, model, **kwargs)
             raise
 
-    def _embed_multimodal(
-        self, text: str, model: str, **kwargs: Any
-    ) -> tuple[list[float], int]:
+    def _embed_multimodal(self, text: str, model: str, **kwargs: Any) -> tuple[list[float], int]:
         """调用火山多模态嵌入端点 /v3/embeddings/multimodal"""
         import httpx
 

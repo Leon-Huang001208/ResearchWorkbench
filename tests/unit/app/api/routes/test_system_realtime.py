@@ -1,7 +1,4 @@
 """Health + Realtime API 端点测试"""
-from unittest.mock import MagicMock, patch
-
-import pytest
 
 
 class TestSystemHealthEndpoint:

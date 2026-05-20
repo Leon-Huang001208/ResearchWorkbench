@@ -551,7 +551,7 @@ def phase4_regenerate_artifacts(
             if not dry_run:
                 if hasattr(replay_service, "rebuild_replay"):
                     # Regenerate replay with actual production replay logic
-                    rebuilt_replay = replay_service.rebuild_replay(replay.replay_id)
+                    replay_service.rebuild_replay(replay.replay_id)
                     reporter.add_replay_result(replay.replay_id, regenerated=True)
                 else:
                     # If rebuild_replay is not available, use existing job rerun

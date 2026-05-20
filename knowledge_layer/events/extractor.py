@@ -331,7 +331,7 @@ class EventExtractor:
         positive_words = ["增长", "上涨", "利好", "超预期", "盈利", "增加", "提升"]
         negative_words = ["下降", "下跌", "利空", "低于预期", "亏损", "减少", "下滑"]
 
-        text_lower = text.lower()
+        text.lower()
         positive_count = sum(1 for w in positive_words if w in text)
         negative_count = sum(1 for w in negative_words if w in text)
 

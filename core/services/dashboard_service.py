@@ -438,7 +438,7 @@ class DashboardService:
             from data_layer.repositories.models import Assertion
 
             # 获取待审核的断言
-            assertion_repo = AssertionRepositoryImpl(self.session)
+            AssertionRepositoryImpl(self.session)
             pending_assertions_db = (
                 self.session.query(Assertion)
                 .filter(Assertion.reviewer_status == "pending")

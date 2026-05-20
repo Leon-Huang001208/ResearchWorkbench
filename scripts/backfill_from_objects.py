@@ -363,7 +363,7 @@ def main():
         sys.exit(1)
 
     # Initialize services
-    doc_repo = DocumentRepository()
+    DocumentRepository()
     event_repo = EventRepositoryImpl()
     assertion_extractor = AssertionExtractor()
     event_ingestor = StructuredEventIngestor(event_repo)

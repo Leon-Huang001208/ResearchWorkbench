@@ -202,7 +202,7 @@ class TestConstraints:
         final, excluded = service.apply_constraints(candidates, constraints)
 
         # banking sector should have at most 0.40
-        banking_weight = sum(c.suggested_weight for c in final if c.sector == "banking")
+        sum(c.suggested_weight for c in final if c.sector == "banking")
         # After normalization, check sector concentration
         # The excluded should have some entries
         assert len(excluded) > 0

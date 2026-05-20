@@ -23,7 +23,7 @@ class LiquidityModel(BaseTimingModel):
             # Example logic: check interest rates, M2, social financing
             interest_rate = context.macro_data.get("interest_rate", 0.03)
             m2_growth = context.macro_data.get("m2_growth", 0.08)
-            social_financing = context.macro_data.get("social_financing", 0)
+            context.macro_data.get("social_financing", 0)
 
             if interest_rate < 0.025 and m2_growth > 0.08:
                 score = 0.8

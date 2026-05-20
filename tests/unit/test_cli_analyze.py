@@ -15,9 +15,7 @@ class TestAnalyzeCommand:
 
         with patch("app.cli.commands.analyze.get_db") as mock_get_db, patch(
             "app.cli.commands.analyze.AssetAnalysisService"
-        ) as mock_service, patch(
-            "app.cli.commands.analyze.AssetSnapshotRepositoryImpl"
-        ) as mock_repo:
+        ) as mock_service, patch("app.cli.commands.analyze.AssetSnapshotRepositoryImpl"):
             # Setup mocks
             mock_session = Mock()
             mock_get_db.return_value.__enter__.return_value = mock_session

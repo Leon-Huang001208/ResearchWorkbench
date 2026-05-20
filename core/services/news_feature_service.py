@@ -47,7 +47,7 @@ class NewsFeatureService:
             # 模拟数据
             now = datetime.utcnow()
             for i in range(30):
-                event_time = now - timedelta(days=i)
+                now - timedelta(days=i)
                 self._sentiment_scores[f"event_{i:03d}"] = 0.5 + (i % 7 - 3) * 0.1
 
     def compute_features(

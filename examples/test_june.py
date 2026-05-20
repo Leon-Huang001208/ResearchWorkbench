@@ -23,7 +23,7 @@ def test_entity_resolution():
     )
 
     resolver = EntityResolver()
-    canonicalizer = Canonicalizer()
+    Canonicalizer()
     alias_manager = create_default_alias_manager()
 
     # 测试文本

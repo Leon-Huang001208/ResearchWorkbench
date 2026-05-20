@@ -140,7 +140,7 @@ class TestIngestionQueueRepository:
 
     def test_mark_completed(self, repo):
         """标记完成"""
-        item = repo.enqueue(_make_item(raw_content="完成测试"))
+        repo.enqueue(_make_item(raw_content="完成测试"))
         items = repo.dequeue(limit=1)
         result = repo.mark_completed(items[0].item_id)
         assert result.status == "completed"
@@ -198,7 +198,7 @@ class TestIngestionQueueRepository:
 
     def test_get_recent(self, repo):
         """获取最近处理记录"""
-        item = repo.enqueue(_make_item(raw_content="recent-test"))
+        repo.enqueue(_make_item(raw_content="recent-test"))
         items = repo.dequeue(limit=1)
         repo.mark_completed(items[0].item_id)
 
@@ -208,7 +208,7 @@ class TestIngestionQueueRepository:
 
     def test_reset_failed_for_retry(self, repo):
         """重置失败项以重试"""
-        item = repo.enqueue(_make_item(raw_content="retry-reset", max_retries=1))
+        repo.enqueue(_make_item(raw_content="retry-reset", max_retries=1))
         items = repo.dequeue(limit=1)
         repo.mark_failed(items[0].item_id, "permanent failure")
 

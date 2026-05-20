@@ -83,8 +83,7 @@ class TestSupportedValues:
         """测试支持的 K线间隔"""
         intervals = get_supported_intervals()
         assert isinstance(intervals, list)
-        assert len(intervals) & gt
-        0
+        assert len(intervals) > 0
         assert "1d" in intervals
         assert "1wk" in intervals
         assert "1mo" in intervals
@@ -94,8 +93,7 @@ class TestSupportedValues:
         """测试支持的时间段"""
         periods = get_supported_periods()
         assert isinstance(periods, list)
-        assert len(periods) & gt
-        0
+        assert len(periods) > 0
         assert "1d" in periods
         assert "1y" in periods
         assert "max" in periods
