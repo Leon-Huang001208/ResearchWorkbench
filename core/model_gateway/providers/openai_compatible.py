@@ -70,6 +70,11 @@ class OpenAICompatibleProvider(BaseProvider):
                     **kwargs,
                 )
                 content = response.choices[0].message.content or ""
+                # DeepSeek V4 may return reasoning_content when thinking mode is on
+                if not content:
+                    reasoning = getattr(response.choices[0].message, "reasoning_content", None)
+                    if reasoning:
+                        content = reasoning
                 tokens_used = response.usage.total_tokens if response.usage else 0
             else:
                 content = (

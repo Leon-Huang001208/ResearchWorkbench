@@ -1,8 +1,10 @@
 """Dashboard 专用数据仓储"""
+import json
+import re
 from datetime import UTC, datetime, timedelta
 from typing import Any, Dict, List, Tuple
 
-from sqlalchemy import String, and_, cast, desc, func
+from sqlalchemy import DateTime, String, and_, cast, desc, func
 
 from core.contracts import DocType
 from core.observability import get_logger
@@ -15,6 +17,29 @@ from data_layer.repositories.models import (
 )
 
 logger = get_logger(__name__)
+
+# LLM importance scoring prompt for batch news evaluation
+_IMPORTANCE_SYSTEM_PROMPT = """\
+你是一位全球宏观对冲基金的研究主管。评估以下新闻对全球资本市场的重要性。
+
+评分标准（0.0-1.0）：
+- 0.8-1.0: 行业里程碑事件——重大科技突破（SpaceX发射、AI大模型发布、芯片制程突破、新药获批）、
+         旗舰产品发布（英伟达新GPU、Apple发布会）、颠覆性创新、可控核聚变进展
+- 0.6-0.8: 重大宏观/政策——美联储利率决议、央行降准降息、政治局会议定调、
+         关税/贸易战/制裁升级、地缘政治重大变化
+- 0.4-0.6: 重要行业动态——龙头公司财报超预期、重大并购重组、行业趋势拐点、
+         监管新规影响全行业
+- 0.2-0.4: 常规市场报道——日常涨跌、板块轮动、个股公告、外围市场小波动
+- 0.0-0.2: 噪音——非金融社会新闻（火山、地震、天气、景区）、无市场影响的琐事
+
+对于每条新闻，返回JSON数组：
+[{"id": 编号, "importance": 0.0-1.0, "reason": "一句话判断理由"}]"""
+
+_IMPORTANCE_USER_PROMPT_TEMPLATE = """请评估以下新闻的重要性：
+
+{news_list}
+
+返回JSON数组，按顺序对应每条新闻。"""
 
 
 class DashboardDataRepository:
@@ -46,7 +71,7 @@ class DashboardDataRepository:
             self.session.query(CanonicalEvent)
             .filter(
                 and_(
-                    CanonicalEvent.created_at >= cutoff,
+                    func.coalesce(CanonicalEvent.event_time, CanonicalEvent.created_at) >= cutoff,
                     CanonicalEvent.reviewer_status != "rejected",
                 )
             )
@@ -69,9 +94,12 @@ class DashboardDataRepository:
             # 计算重要性评分：结合 novelty_score 和 confidence
             importance_score = (novelty_score * 0.6) + (float(event.confidence) * 0.4)
 
-            # 时间衰减：越新的新闻权重越高
-            age_days = (datetime.now(UTC) - event.created_at).total_seconds() / 86400
-            decay = 1.0 / (1.0 + age_days * 0.25)
+            # 时间衰减：基于事件实际发生时间
+            ref_time = event.event_time if event.event_time else event.created_at
+            if ref_time.tzinfo is None:
+                ref_time = ref_time.replace(tzinfo=UTC)
+            age_days = (datetime.now(UTC) - ref_time).total_seconds() / 86400
+            decay = 1.0 / (1.0 + age_days * 0.10)
             importance_score *= decay
 
             # 提取区域信息
@@ -134,13 +162,38 @@ class DashboardDataRepository:
                 and_(
                     DocumentV1DB.doc_type.in_(doc_types),
                     DocumentV1DB.source_type.in_(source_types),
-                    DocumentV1DB.created_at >= cutoff,
+                    func.coalesce(
+                    cast(func.json_extract_path_text(DocumentV1DB.timeliness, "publish_time"), DateTime(timezone=True)),
+                    DocumentV1DB.created_at,
+                ) >= cutoff,
                 )
             )
             .order_by(desc(DocumentV1DB.created_at))
             .limit(limit * 4)
             .all()
         )
+
+        # Pre-compute rule-based quality scores for docs missing them.
+        # NOTE: dict() copy is required — SQLAlchemy JSON columns don't
+        # track in-place mutation; reassigning the same dict ref is a no-op.
+        pre_filled = 0
+        for doc in documents:
+            quality = dict(doc.quality or {})
+            has_usability = quality.get("research_usability_score") is not None
+            has_content = quality.get("content_quality_score") is not None
+            if not has_usability or not has_content:
+                usability, content_q = self._compute_quality_scores(doc)
+                if not has_usability:
+                    quality["research_usability_score"] = usability
+                if not has_content:
+                    quality["content_quality_score"] = content_q
+                doc.quality = quality
+                pre_filled += 1
+        if pre_filled:
+            logger.info("quality pre-fill", filled=pre_filled, total=len(documents))
+
+        # Batch LLM importance scoring (caches to doc.quality.importance_score)
+        llm_scores = self._batch_score_importance(documents)
 
         news_items = []
         for doc in documents:
@@ -149,12 +202,14 @@ class DashboardDataRepository:
                 classification = doc.classification or {}
                 timeliness = doc.timeliness or {}
 
-                # 计算重要性评分
+                # 计算重要性评分：规则质量分 + LLM 影响力评分
                 research_score = quality.get("research_usability_score") or 0.5
                 content_score = quality.get("content_quality_score") or 0.5
-                importance_score = (research_score * 0.5) + (content_score * 0.5)
+                quality_avg = (research_score + content_score) / 2
+                llm_score = llm_scores.get(doc.doc_id, quality_avg)
+                importance_score = (quality_avg * 0.3) + (llm_score * 0.7)
 
-                # 时间衰减：使用原始发布时间（有则用，无则回退到 created_at）
+                # 时间衰减（温和系数，重要旧闻仍可胜出今日噪音）
                 publish_time_str = timeliness.get("publish_time")
                 if publish_time_str:
                     try:
@@ -164,7 +219,6 @@ class DashboardDataRepository:
                             publish_dt = datetime.fromisoformat(publish_time_str)
                         else:
                             publish_dt = doc.created_at
-                        # 确保 naive datetime 可以比较
                         if publish_dt.tzinfo is None:
                             publish_dt = publish_dt.replace(tzinfo=UTC)
                         else:
@@ -174,7 +228,7 @@ class DashboardDataRepository:
                 else:
                     publish_dt = doc.created_at
                 age_days = (datetime.now(UTC) - publish_dt).total_seconds() / 86400
-                decay = 1.0 / (1.0 + age_days * 0.25)
+                decay = 1.0 / (1.0 + age_days * 0.10)
                 importance_score *= decay
 
                 # 获取区域信息
@@ -227,6 +281,177 @@ class DashboardDataRepository:
         # 按重要性评分排序
         news_items.sort(key=lambda x: x["importance_score"], reverse=True)
         return news_items[:limit]
+
+    # ── inline quality scoring (rule-based) ──────────────────────────
+
+    @staticmethod
+    def _compute_quality_scores(doc: DocumentV1DB) -> Tuple[float, float]:
+        """Compute (research_usability_score, content_quality_score) for a DocumentV1DB.
+
+        Mirrors DocumentClassifier.analyze_quality() logic but works directly
+        with ORM objects (string fields / JSON dicts) instead of Pydantic contracts.
+        """
+        content = doc.content or ""
+        content_len = len(content)
+
+        # --- financial relevance penalty ---
+        # Heavily penalise content clearly unrelated to markets / industry
+        _NON_FINANCIAL_PATTERNS = [
+            r"火山(喷发|灰柱|地震)",
+            r"地震",
+            r"景区.*(岩石|塌方|关闭|事故)",
+            r"高架桥.*(拆除|坍塌)",
+            r"体育(赛事|比赛|联赛|冠军)",
+            r"天气(预报|预警)",
+        ]
+        non_financial_penalty = 0.0
+        for pat in _NON_FINANCIAL_PATTERNS:
+            if re.search(pat, content):
+                non_financial_penalty = 0.25
+                break
+
+        # --- research_usability_score ---
+        usability = 0.30
+
+        if content_len > 500:
+            usability += 0.10
+        if content_len > 1000:
+            usability += 0.10
+
+        if any(c.isdigit() for c in content):
+            usability += 0.15
+
+        if re.search(r"(股份有限公司|有限公司|集团|[0-9]{6}\.(SZ|SH|BJ))", content):
+            usability += 0.15
+
+        if re.search(r"20[2-9][0-9]年", content):
+            usability += 0.10
+
+        # CLS = established media
+        usability += 0.20
+
+        usability = max(0.0, min(usability - non_financial_penalty, 1.0))
+
+        # --- content_quality_score ---
+        quality = 0.40
+
+        if content_len > 500:
+            quality += 0.10
+        if content_len > 1000:
+            quality += 0.10
+
+        paragraphs = [p for p in content.split("\n") if p.strip()]
+        if len(paragraphs) >= 3:
+            quality += 0.10
+
+        classification = doc.classification or {}
+        if classification.get("topics"):
+            quality += 0.10
+
+        quality = max(0.0, min(quality - non_financial_penalty, 1.0))
+
+        return usability, quality
+
+    # ── LLM batch importance scoring ─────────────────────────────────
+
+    def _batch_score_importance(self, docs: list) -> Dict[str, float]:
+        """Score a batch of documents for global importance via LLM.
+
+        Only calls the LLM when >50% of docs are unscored.
+        Returns {doc_id: importance_score}.
+        """
+        # Separate already-scored from unscored
+        unscored: list = []
+        cached: Dict[str, float] = {}
+        for i, doc in enumerate(docs):
+            quality = doc.quality or {}
+            cached_score = quality.get("importance_score") if isinstance(quality, dict) else None
+            if cached_score is not None:
+                cached[doc.doc_id] = float(cached_score)
+            else:
+                unscored.append((i, doc))
+
+        # Only invoke LLM if majority are unscored
+        if len(unscored) <= len(docs) * 0.5:
+            return cached
+
+        try:
+            from core.model_gateway.gateway import ModelGatewayImpl
+
+            gateway = ModelGatewayImpl()
+            scored = self._llm_score_batch(gateway, [d for _, d in unscored])
+
+            # Persist scores back to DB.
+            # NOTE: dict() copy required — SQLAlchemy JSON mutation tracking
+            # won't detect in-place dict[key] = value.
+            for _, doc in unscored:
+                score = scored.get(doc.doc_id)
+                if score is not None:
+                    quality = dict(doc.quality or {})
+                    quality["importance_score"] = score
+                    doc.quality = quality
+                    cached[doc.doc_id] = score
+            self.session.commit()
+        except Exception:
+            logger.warning("LLM importance scoring unavailable, using quality-only scores")
+
+        return cached
+
+    def _llm_score_batch(self, gateway, docs: list) -> Dict[str, float]:
+        """Call LLM to score a batch of documents. Returns {doc_id: importance_score}."""
+        # Build numbered news list for the prompt
+        items: list[str] = []
+        for i, doc in enumerate(docs):
+            title = (doc.title or "")[:120]
+            summary = (doc.summary or doc.content or "")[:200]
+            text = f"{title}。{summary}" if summary else title
+            items.append(f"[{i}] {text}")
+
+        news_text = "\n\n".join(items)
+        user_prompt = _IMPORTANCE_USER_PROMPT_TEMPLATE.format(news_list=news_text)
+
+        try:
+            response = gateway.chat(
+                messages=[
+                    {"role": "system", "content": _IMPORTANCE_SYSTEM_PROMPT},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0.1,
+                max_tokens=2048,
+                task="classification",
+                extra_body={"thinking": {"type": "disabled"}},
+            )
+            raw = response.content.strip()
+        except Exception:
+            logger.warning("LLM chat call failed", exc_info=True)
+            return {}
+
+        # Parse JSON response (handle markdown wrapping)
+        if raw.startswith("```json"):
+            raw = raw[7:]
+        elif raw.startswith("```"):
+            raw = raw[3:]
+        if raw.endswith("```"):
+            raw = raw[:-3]
+        raw = raw.strip()
+
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            logger.warning("Failed to parse LLM importance response", extra={"raw": raw[:200]})
+            return {}
+
+        scores: Dict[str, float] = {}
+        for item in parsed:
+            try:
+                idx = int(item["id"])
+                score = max(0.0, min(1.0, float(item["importance"])))
+                if 0 <= idx < len(docs):
+                    scores[docs[idx].doc_id] = score
+            except (KeyError, ValueError, IndexError):
+                continue
+
+        return scores
 
     def _get_related_symbols_for_doc(self, doc_id: str) -> List[str]:
         """获取文档相关的标的符号"""
