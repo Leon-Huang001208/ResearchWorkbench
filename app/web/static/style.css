@@ -3902,7 +3902,7 @@ tr:hover td {
 
 .market-overview-grid {
     display: grid;
-    grid-template-columns: 2.08fr 1fr 1fr;
+    grid-template-columns: 3fr 1fr 1fr;
     gap: 1.5rem;
     margin-top: 0.5rem;
     height: 520px;
@@ -3932,6 +3932,7 @@ tr:hover td {
 .market-section .sector-list {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     min-height: 0;
 }
 

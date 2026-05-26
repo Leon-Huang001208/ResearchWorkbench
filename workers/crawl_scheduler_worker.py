@@ -1,6 +1,7 @@
 """后台爬虫调度器 Worker — 独立进程，管理 APScheduler 定时抓取任务"""
 
 import asyncio
+import concurrent.futures
 import os
 import signal
 import sys
@@ -65,15 +66,11 @@ async def _async_main() -> None:
     sys.exit(0)
 
 
-async def _startup_gap_backfill(scheduler) -> None:
-    """启动时检测所有来源的抓取遗漏并回补"""
-    from core.contracts import SourceType
+def _run_backfill_in_thread(scheduler, source_type) -> None:
+    """在线程中运行单个来源的回补检查（每个线程拥有独立事件循环）"""
+    from core.contracts import SourceType as _SourceType
 
-    for source_type in [
-        SourceType.CAILIAN_SHE,
-        SourceType.CHINA_SECURITY_JOURNAL,
-        SourceType.ZHIQIU_REPORTS,
-    ]:
+    async def _run() -> None:
         try:
             result = await scheduler.check_and_backfill_gap(source_type)
             if result:
@@ -84,6 +81,32 @@ async def _startup_gap_backfill(scheduler) -> None:
                 )
         except Exception:
             logger.exception(f"[startup] {source_type.value} startup backfill failed")
+
+    asyncio.run(_run())
+
+
+async def _startup_gap_backfill(scheduler) -> None:
+    """启动时检测所有来源的抓取遗漏并回补（线程池并行执行）"""
+    from core.contracts import SourceType
+
+    source_types = [
+        SourceType.CAILIAN_SHE,
+        SourceType.CHINA_SECURITY_JOURNAL,
+        SourceType.CNSTOCK_FLASH,
+        SourceType.ZHIQIU_REPORTS,
+        SourceType.ZHIQIU_WECHAT,
+        SourceType.ZHIQIU_TRANSCRIPT,
+    ]
+
+    loop = asyncio.get_running_loop()
+    max_workers = len(source_types)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
+        futures = [
+            loop.run_in_executor(pool, _run_backfill_in_thread, scheduler, st)
+            for st in source_types
+        ]
+        await asyncio.gather(*futures)
 
 
 def main() -> None:
