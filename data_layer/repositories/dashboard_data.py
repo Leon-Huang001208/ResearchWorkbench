@@ -98,8 +98,9 @@ class DashboardDataRepository:
             ref_time = event.event_time if event.event_time else event.created_at
             if ref_time.tzinfo is None:
                 ref_time = ref_time.replace(tzinfo=UTC)
-            age_days = (datetime.now(UTC) - ref_time).total_seconds() / 86400
-            decay = 1.0 / (1.0 + age_days * 0.10)
+            age_seconds = (datetime.now(UTC) - ref_time).total_seconds()
+            age_days = int(age_seconds / 86400)
+            decay = 1.0 / (1.0 + age_days * 0.15)
             importance_score *= decay
 
             # 提取区域信息
@@ -144,7 +145,7 @@ class DashboardDataRepository:
         Args:
             limit: 返回数量上限
             days: 时间范围（天）
-            source_types: 来源类型过滤，默认仅财联社 (cailian_she)
+            source_types: 来源类型过滤，默认财联社 + 中国证券网快讯
 
         Returns:
             新闻数据列表
@@ -152,7 +153,7 @@ class DashboardDataRepository:
         cutoff = datetime.now(UTC) - timedelta(days=days)
 
         if source_types is None:
-            source_types = ["cailian_she"]
+            source_types = ["cailian_she", "cnstock_flash"]
 
         # 只查询新闻类文档，排除研报和评论
         doc_types = [DocType.NEWS.value, DocType.TELEGRAM.value]
@@ -163,9 +164,13 @@ class DashboardDataRepository:
                     DocumentV1DB.doc_type.in_(doc_types),
                     DocumentV1DB.source_type.in_(source_types),
                     func.coalesce(
-                    cast(func.json_extract_path_text(DocumentV1DB.timeliness, "publish_time"), DateTime(timezone=True)),
-                    DocumentV1DB.created_at,
-                ) >= cutoff,
+                        cast(
+                            func.json_extract_path_text(DocumentV1DB.timeliness, "publish_time"),
+                            DateTime(timezone=True),
+                        ),
+                        DocumentV1DB.created_at,
+                    )
+                    >= cutoff,
                 )
             )
             .order_by(desc(DocumentV1DB.created_at))
@@ -227,8 +232,9 @@ class DashboardDataRepository:
                         publish_dt = doc.created_at
                 else:
                     publish_dt = doc.created_at
-                age_days = (datetime.now(UTC) - publish_dt).total_seconds() / 86400
-                decay = 1.0 / (1.0 + age_days * 0.10)
+                age_seconds = (datetime.now(UTC) - publish_dt).total_seconds()
+                age_days = int(age_seconds / 86400)
+                decay = 1.0 / (1.0 + age_days * 0.15)
                 importance_score *= decay
 
                 # 获取区域信息
