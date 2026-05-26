@@ -53,7 +53,7 @@ class TestProcessOne:
         mock_result.events = []
         mock_result.entities = []
         mock_pipeline_cls_instance = MagicMock()
-        mock_pipeline_cls_instance.process.return_value = mock_result
+        mock_pipeline_cls_instance.process = AsyncMock(return_value=mock_result)
         mock_pipeline_cls.return_value = mock_pipeline_cls_instance
 
         mock_item = MagicMock()

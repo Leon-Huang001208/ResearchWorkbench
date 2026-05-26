@@ -4,6 +4,7 @@
 对外只暴露一个主要接口：process(doc)
 内部步骤是私有实现细节，不对外暴露
 """
+import uuid
 from dataclasses import dataclass
 from typing import List, Optional
 
@@ -20,7 +21,7 @@ from core.services.deduplication_service import DeduplicationService
 from core.services.document_chunker import DocumentChunker
 from core.services.document_classifier import DocumentClassifier
 from core.services.entity_extractor import EntityExtractor
-from core.services.event_extractor import EventExtractor
+from core.services.event_extractor import EventExtractor, ExtractedSignalParams
 from data_layer.repositories.event_repository import EventRepositoryImpl
 
 logger = get_logger(__name__)
@@ -75,7 +76,7 @@ class KnowledgePipeline:
         self._event_extractor = EventExtractor()
         self._deduplicator = DeduplicationService()
 
-    def process(self, doc: DocumentV1) -> PipelineResult:
+    async def process(self, doc: DocumentV1) -> PipelineResult:
         """
         处理单个文档，运行完整知识加工管道
 
@@ -108,17 +109,21 @@ class KnowledgePipeline:
 
         # 步骤3: 实体提取
         if self.config.enable_entity_extraction:
-            entities = self._entity_extractor.extract_entities(doc.content)
+            entity_mentions = self._entity_extractor.extract(doc)
+            entities = [e.model_dump() for e in entity_mentions]
             logger.debug(f"Extracted {len(entities)} entities")
 
         # 步骤4: 事件提取
         if self.config.enable_event_extraction:
-            events = self._event_extractor.extract_from_document(doc)
-            logger.debug(f"Extracted {len(events)} events")
+            params = await self._event_extractor.extract(doc.content)
+            event = self._params_to_event(params, doc)
+            events = [event]
+            logger.debug(f"Extracted event: {event.event_id}")
 
         # 步骤5: 去重检测
         if self.config.enable_deduplication:
-            is_duplicate = self._deduplicator.is_duplicate(doc)
+            dedup_result = self._deduplicator.check_duplicate(doc)
+            is_duplicate = dedup_result.is_duplicate
             if is_duplicate:
                 logger.info(f"Document {doc.doc_id} is duplicate, skipping save")
 
@@ -149,7 +154,24 @@ class KnowledgePipeline:
 
         return result
 
-    def process_envelope(self, envelope: DocumentEnvelope) -> PipelineResult:
+    def _params_to_event(self, params: ExtractedSignalParams, doc: DocumentV1) -> CanonicalEvent:
+        """将 ExtractedSignalParams 转换为 CanonicalEvent"""
+        return CanonicalEvent(
+            event_id=str(uuid.uuid4()),
+            event_type=params.event_type,
+            event_time=doc.timeliness.publish_time if doc.timeliness else None,
+            source_type=doc.source_type.value
+            if hasattr(doc.source_type, "value")
+            else str(doc.source_type),
+            source_name=doc.source_name or "unknown",
+            title=doc.title or "",
+            raw_text=doc.content,
+            impacted_symbols=params.subject_ids,
+            confidence=params.confidence,
+            summary=params.thesis,
+        )
+
+    async def process_envelope(self, envelope: DocumentEnvelope) -> PipelineResult:
         """
         处理文档信封（方便方法）
 
@@ -159,4 +181,4 @@ class KnowledgePipeline:
         Returns:
             PipelineResult: 处理结果
         """
-        return self.process(envelope.document)
+        return await self.process(envelope.document)

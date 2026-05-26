@@ -64,19 +64,18 @@ class DeduplicationService:
             "original_id"
         )
         if source_doc_id:
-            source_key = f"{doc.source_type.value}:{source_doc_id}"
-
-            # 检查传入的已存在列表
-            if existing_doc_ids and source_key in existing_doc_ids:
+            # 检查 DB 提供的已存在列表（key 是纯 source_doc_id，不带 source_type 前缀）
+            if existing_doc_ids and source_doc_id in existing_doc_ids:
                 result.is_duplicate = True
                 result.duplicate_type = "source_id"
-                result.duplicate_doc_id = existing_doc_ids[source_key]
+                result.duplicate_doc_id = existing_doc_ids[source_doc_id]
                 result.confidence = 1.0
-                result.details["source_key"] = source_key
-                logger.debug(f"Duplicate by source_id: {source_key}")
+                result.details["source_key"] = source_doc_id
+                logger.debug(f"Duplicate by source_id: {source_doc_id}")
                 return result
 
-            # 检查内存缓存
+            # 检查内存缓存（key 格式: {source_type}:{source_doc_id}）
+            source_key = f"{doc.source_type.value}:{source_doc_id}"
             if source_key in self._seen_source_ids:
                 cached_doc_id, cached_ts = self._seen_source_ids[source_key]
                 if datetime.now() - cached_ts < self._cache_ttl:

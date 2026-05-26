@@ -141,12 +141,12 @@ class IngestionQueueRepository(BaseRepository):
             or 0
         )
 
-        # 计算平均延迟
+        # 计算平均延迟（extract('epoch') 兼容 PostgreSQL 和 SQLite）
         avg_latency_result = (
             self.db.query(
                 func.avg(
-                    func.strftime("%s", IngestionQueueItemDB.processed_at)
-                    - func.strftime("%s", IngestionQueueItemDB.created_at)
+                    func.extract("epoch", IngestionQueueItemDB.processed_at)
+                    - func.extract("epoch", IngestionQueueItemDB.created_at)
                 )
                 * 1000
             )

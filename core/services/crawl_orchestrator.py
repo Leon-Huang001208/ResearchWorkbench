@@ -297,7 +297,8 @@ class CrawlOrchestrator:
                     end_date=end_time.strftime("%Y-%m-%d"),
                     doc_types="REPORT",
                     max_pages=max_pages or 20,
-                    use_homepage_search=True,
+                    use_homepage_search=False,
+                    enable_pdf=True,
                 )
             elif source_type == SourceType.ZHIQIU_WECHAT:
                 from data_layer.adapters.zq_adapter import ZQAdapter

@@ -815,25 +815,17 @@ class DashboardService:
 
             def ingest_real_data():
                 try:
-                    import requests
+                    from core.contracts import SourceType
+                    from core.services.crawl_orchestrator import CrawlOrchestrator
 
-                    # 拉取财联社电报
-                    requests.post(
-                        "http://127.0.0.1:8000/api/ingest/cls", json={"days": 1}, timeout=10
-                    )
-                    # 拉取中国证券网新闻
-                    requests.post(
-                        "http://127.0.0.1:8000/api/ingest/cnstock",
-                        json={"channel": "证券"},
-                        timeout=10,
-                    )
-                    # 拉取知丘内容（研报/公众号/会议纪要）
-                    requests.post(
-                        "http://127.0.0.1:8000/api/ingest/zq",
-                        json={"doc_types": "REPORT,NEWS,ZQMEETING", "days": 1},
-                        timeout=10,
-                    )
-                    logger.info("Real data ingest completed successfully")
+                    orchestrator = CrawlOrchestrator()
+                    orchestrator.crawl_source(SourceType.CAILIAN_SHE)
+                    orchestrator.crawl_source(SourceType.CHINA_SECURITY_JOURNAL)
+                    orchestrator.crawl_source(SourceType.CNSTOCK_FLASH)
+                    orchestrator.crawl_source(SourceType.ZHIQIU_REPORTS)
+                    orchestrator.crawl_source(SourceType.ZHIQIU_WECHAT)
+                    orchestrator.crawl_source(SourceType.ZHIQIU_TRANSCRIPT)
+                    logger.info("Real data ingest completed successfully via CrawlOrchestrator")
                 except Exception as e:
                     logger.warning(f"Auto ingest failed: {e}")
 

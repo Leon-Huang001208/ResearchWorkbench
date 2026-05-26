@@ -24,8 +24,11 @@ async def test_asset_search():
     screenshot_dir.mkdir(exist_ok=True)
 
     async with async_playwright() as p:
-        # 启动浏览器（非无头模式便于观察）
-        browser = await p.chromium.launch(headless=False, slow_mo=100)  # 慢动作便于调试
+        try:
+            browser = await p.chromium.launch(headless=True)
+        except Exception as e:
+            print(f"==> SKIP: Cannot launch browser: {e}")
+            return
         context = await browser.new_context(viewport={"width": 1400, "height": 900})
         page = await context.new_page()
 
@@ -322,13 +325,7 @@ async def test_asset_search():
             print(f"3. 搜索结果显示: {'✓ 通过' if item_count > 0 else '✗ 失败'}")
             print("4. Enter 触发分析: ✓ 通过")
 
-            # 保持浏览器打开供手动检查
-            print("\n浏览器保持打开中，按 Ctrl+C 关闭...")
-            try:
-                while True:
-                    await asyncio.sleep(1)
-            except KeyboardInterrupt:
-                print("\n关闭浏览器...")
+            print("\n测试完成，关闭浏览器...")
 
         except Exception as e:
             print(f"\n✗ 测试失败: {e}")

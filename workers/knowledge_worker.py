@@ -51,10 +51,10 @@ async def process_one(item: Any) -> Dict[str, Any]:
     """处理单个队列项：DocumentV1 -> KnowledgePipeline -> 标记完成/失败"""
     from ingestion.knowledge_pipeline import KnowledgePipeline, PipelineConfig
 
-    config = PipelineConfig(auto_save=True)
+    config = PipelineConfig(auto_save=False)
     pipeline = KnowledgePipeline(config=config)
     doc = _create_document_v1(item)
-    result = pipeline.process(doc)
+    result = await pipeline.process(doc)
 
     await event_bus.publish(
         "document_parsed",

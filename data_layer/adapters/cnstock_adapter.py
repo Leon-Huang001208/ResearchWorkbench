@@ -88,11 +88,20 @@ class CNStockAdapter(BaseDataAdapter):
             # Parse from dict
             article_id = source.get("article_id", "") or source.get("url", "").split("/")[-1]
             title = source.get("title", "")
-            content = (
+            content_body = (
                 source.get("content_text", "")
                 or source.get("content", "")
                 or source.get("summary", "")
             )
+            # Ensure unique content per article: many cnstock API results share
+            # the same default slogan as summary, causing batch-level content_hash
+            # dedup to discard distinct articles as duplicates.
+            if title and content_body:
+                content = title + "\n" + content_body
+            elif title:
+                content = title
+            else:
+                content = content_body
             # Try multiple date field names
             published_at_str = (
                 source.get("publish_time", "")

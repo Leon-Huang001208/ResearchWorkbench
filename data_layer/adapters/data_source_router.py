@@ -1,4 +1,8 @@
-"""数据源路由器 - 实现 iFinD 优先、AKShare 其次、China Stock 降级的策略"""
+"""数据源路由器 - 实现 iFinD 优先、AKShare 其次、China Stock 降级的策略
+
+NOTE: DataSourceRouter 已标记为 legacy。自动化爬取请使用
+CrawlOrchestrator (core/services/crawl_orchestrator.py)。
+"""
 from datetime import datetime
 from typing import Any
 

@@ -14,18 +14,46 @@ from core.contracts.ingestion import (
 )
 from core.observability import get_logger
 from core.services.ingestion_queue_service import IngestionQueueService
+from core.services.pipeline_service import ResearchPipeline
+from core.services.signal_service import SignalService
 from data_layer.repositories.base import get_db
 from data_layer.repositories.ingestion_repository import IngestionQueueRepository
+from data_layer.repositories.signal_repository import SignalRepositoryImpl
+from data_layer.repositories.timing_repository import TimingRepositoryImpl as TimingRepository
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/ingestion-queue", tags=["ingestion-queue"])
 
+# 模块级缓存：避免每次请求都重建 pipeline
+_pipeline: ResearchPipeline | None = None
+
+
+def _build_pipeline(db: Session) -> ResearchPipeline:
+    """构建/更新 ResearchPipeline（带信号/择时持久化，模块级缓存）"""
+    global _pipeline
+    if _pipeline is None:
+        signal_repo = SignalRepositoryImpl(db)
+        signal_service = SignalService(repository=signal_repo)
+        timing_repo = TimingRepository(db)
+        _pipeline = ResearchPipeline(
+            signal_service=signal_service,
+            timing_repository=timing_repo,
+        )
+    else:
+        # 每次请求更新 db session（防止使用已关闭的旧 session）
+        if _pipeline.signal_service and _pipeline.signal_service.repository:
+            _pipeline.signal_service.repository.db = db
+        if _pipeline.timing_repository:
+            _pipeline.timing_repository.db = db
+    return _pipeline
+
 
 def get_ingestion_queue_service(db: Session = Depends(get_db)) -> IngestionQueueService:
-    """获取摄取队列服务实例"""
+    """获取摄取队列服务实例（已注入 Golden Path pipeline）"""
     repo = IngestionQueueRepository(db)
-    return IngestionQueueService(repository=repo)
+    pipeline = _build_pipeline(db)
+    return IngestionQueueService(repository=repo, pipeline=pipeline)
 
 
 @router.post("/enqueue", response_model=EnqueueResponse)
