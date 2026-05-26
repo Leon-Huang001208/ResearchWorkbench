@@ -569,8 +569,15 @@ async function loadDashboard() {
         }
 
         // Render Market Overview Section
-        // Global News
+        // Save scroll positions before updating content
         const globalNewsEl = document.getElementById('market-global-news');
+        const topUpSectorsEl = document.getElementById('market-top-up-sectors');
+        const topDownSectorsEl = document.getElementById('market-top-down-sectors');
+        const newsScroll = globalNewsEl.scrollTop || 0;
+        const upScroll = topUpSectorsEl.scrollTop || 0;
+        const downScroll = topDownSectorsEl.scrollTop || 0;
+
+        // Global News
         if (data.market_overview.global_news.length) {
             globalNewsEl.innerHTML = data.market_overview.global_news.map((n, idx) => `
                 <li class="news-item ${n.is_mock ? 'mock-data-item' : ''}">
@@ -592,7 +599,6 @@ async function loadDashboard() {
         }
 
         // Top Up Sectors
-        const topUpSectorsEl = document.getElementById('market-top-up-sectors');
         if (data.market_overview.top_up_sectors.length) {
             topUpSectorsEl.innerHTML = data.market_overview.top_up_sectors.map(s => `
                 <li class="sector-item ${s.is_mock ? 'mock-data-item' : ''}">
@@ -610,7 +616,6 @@ async function loadDashboard() {
         }
 
         // Top Down Sectors
-        const topDownSectorsEl = document.getElementById('market-top-down-sectors');
         if (data.market_overview.top_down_sectors.length) {
             topDownSectorsEl.innerHTML = data.market_overview.top_down_sectors.map(s => `
                 <li class="sector-item ${s.is_mock ? 'mock-data-item' : ''}">
@@ -626,6 +631,11 @@ async function loadDashboard() {
         } else {
             topDownSectorsEl.innerHTML = '<li class="empty-state" data-i18n="dashboard.no_data">暂无数据</li>';
         }
+
+        // Restore scroll positions after content update
+        globalNewsEl.scrollTop = newsScroll;
+        topUpSectorsEl.scrollTop = upScroll;
+        topDownSectorsEl.scrollTop = downScroll;
 
         // Render Today Section
         // New Events

@@ -3906,28 +3906,33 @@ tr:hover td {
     gap: 1.5rem;
     margin-top: 0.5rem;
     height: 520px;
-    overflow: hidden;
 }
 
 .market-section {
     background: var(--bg-input);
     border-radius: var(--radius-md);
     padding: 1rem;
-    overflow-y: auto;
     min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 .market-section h4 {
-    position: sticky;
-    top: 0;
-    background: var(--bg-input);
-    z-index: 1;
+    flex-shrink: 0;
     font-size: 0.95rem;
     margin: 0 0 0.75rem 0;
     color: var(--text-primary);
     font-weight: 600;
     border-bottom: 1px solid var(--border-soft);
     padding-bottom: 0.5rem;
+}
+
+.market-section .news-list,
+.market-section .sector-list {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
 }
 
 /* News List */
@@ -3945,7 +3950,7 @@ tr:hover td {
     border-radius: var(--radius-md);
     padding: 0.85rem 1rem;
     border-left: 3px solid var(--accent);
-    transition: all var(--duration-normal) ease;
+    transition: background var(--duration-normal) ease, transform var(--duration-normal) ease;
 }
 
 .news-item:hover {
@@ -4036,7 +4041,7 @@ tr:hover td {
     background: var(--bg-card);
     border-radius: var(--radius-md);
     padding: 0.75rem 0.9rem;
-    transition: all var(--duration-normal) ease;
+    transition: background var(--duration-normal) ease, transform var(--duration-normal) ease;
 }
 
 .sector-item:hover {
