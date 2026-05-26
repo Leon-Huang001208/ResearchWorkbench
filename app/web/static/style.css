@@ -205,7 +205,7 @@
 [data-theme="dark"][data-color-scheme="obsidian"] {
     --accent: #a78bfa;
     --accent-hover: #c4b5fd;
-    --accent-light: #2e1a2e;
+    --accent-light: #2e2a3a;
 }
 
 /* ─── Reset & Base ─────────────────────────────────────────── */
@@ -4160,7 +4160,7 @@ tr:hover td {
     animation: freshHighligh 2s ease-out;
 }
 @keyframes freshHighligh {
-    0% { background: var(--color-accent-light, #e8f4fd); }
+    0% { background: var(--accent-light, #e8f4fd); }
     100% { background: transparent; }
 }
 
@@ -4181,7 +4181,7 @@ tr:hover td {
 .crawl-feed-row .crawl-feed-card .card-header {
     position: sticky;
     top: 0;
-    background: var(--color-surface, #fff);
+    background: var(--bg-card, #fff);
     z-index: 1;
 }
 
@@ -4193,7 +4193,7 @@ tr:hover td {
 
 .crawl-feed-list li {
     padding: 8px 12px;
-    border-bottom: 1px solid var(--color-border-light, #eee);
+    border-bottom: 1px solid var(--border-soft, #eee);
     display: flex;
     align-items: flex-start;
     gap: 10px;
@@ -4210,8 +4210,8 @@ tr:hover td {
     font-size: 11px;
     padding: 1px 6px;
     border-radius: 3px;
-    background: var(--color-accent-light, #e8f4fd);
-    color: var(--color-accent, #0366d6);
+    background: var(--accent-light, #e8f4fd);
+    color: var(--accent, #0366d6);
     white-space: nowrap;
     margin-top: 2px;
 }
@@ -4226,18 +4226,18 @@ tr:hover td {
 .crawl-feed-list .feed-time {
     flex-shrink: 0;
     font-size: 11px;
-    color: var(--color-text-muted, #999);
+    color: var(--text-muted, #999);
     white-space: nowrap;
 }
 
 .crawl-feed-list .feed-new {
-    background: var(--color-accent-light, #e8f4fd);
+    background: var(--accent-light, #e8f4fd);
 }
 
 .crawl-feed-list .empty-state {
     padding: 24px;
     text-align: center;
-    color: var(--color-text-muted, #999);
+    color: var(--text-muted, #999);
 }
 
 /* 响应式：窄屏时列数递减（默认 3 列 / 2 行） */
