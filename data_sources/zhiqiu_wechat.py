@@ -10,7 +10,6 @@ register(SourceSpec(
         "doc_types": "NEWS",
     },
     interval_minutes=30,
-    only_during_trading_hours=False,
     deep_backfill_enabled=True,
     doc_type=DocType.NEWS,
     reliability=SourceReliabilityLevel.SPECIALIZED_MEDIA,

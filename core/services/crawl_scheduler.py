@@ -5,14 +5,11 @@
 - 定时任务配置
 - 任务管理
 - 健康检查
-- A股交易时段感知
 """
 import os
-from datetime import datetime, time, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
-
-import yaml
 
 from core.contracts import SourceType
 from core.observability import get_logger
@@ -20,36 +17,6 @@ from core.services.crawl_orchestrator import CrawlOrchestrator
 from core.utils.trading_calendar import TradingCalendar, get_trading_calendar
 
 logger = get_logger(__name__)
-
-
-def _load_crawl_config() -> dict:
-    """从 config/crawl.yaml 加载抓取时间配置"""
-    config_path = Path(__file__).parent.parent.parent / "config" / "crawl.yaml"
-    if not config_path.exists():
-        logger.warning(f"Crawl config not found at {config_path}, using defaults")
-        return {}
-    try:
-        with open(config_path, encoding="utf-8") as f:
-            cfg = yaml.safe_load(f) or {}
-    except Exception:
-        logger.warning("Failed to load crawl config, using defaults", exc_info=True)
-        return {}
-
-    def _parse_time(key: str) -> time | None:
-        val = cfg.get(key)
-        if val is None:
-            return None
-        if isinstance(val, time):
-            return val
-        parts = str(val).strip().split(":")
-        if len(parts) == 2:
-            return time(int(parts[0]), int(parts[1]))
-        return None
-
-    return {
-        "extended_start_time": _parse_time("extended_start_time"),
-        "extended_end_time": _parse_time("extended_end_time"),
-    }
 
 
 # 尝试导入 APScheduler
@@ -75,8 +42,6 @@ class SourceCrawlConfig:
         enabled: bool = True,
         backfill_enabled: bool = True,
         backfill_interval_hours: int = 24,
-        only_during_trading_hours: bool = True,
-        include_auction: bool = False,
         deep_backfill_enabled: bool = False,
     ):
         self.source_type = source_type
@@ -87,13 +52,8 @@ class SourceCrawlConfig:
         self.enabled = enabled
         self.backfill_enabled = backfill_enabled
         self.backfill_interval_hours = backfill_interval_hours
-        self.only_during_trading_hours = only_during_trading_hours
-        self.include_auction = include_auction
         self.deep_backfill_enabled = deep_backfill_enabled
 
-
-# 抓取时间配置（从 config/crawl.yaml 加载）
-_crawl_time_config = _load_crawl_config()
 
 # 默认配置 — 从数据源注册表自动生成
 def _get_default_configs() -> List[SourceCrawlConfig]:
@@ -102,19 +62,19 @@ def _get_default_configs() -> List[SourceCrawlConfig]:
 
     configs = []
     for spec in get_enabled():
-        configs.append(SourceCrawlConfig(
-            source_type=spec.source_type,
-            source_name=spec.source_name,
-            interval_minutes=spec.interval_minutes,
-            days_per_crawl=spec.days_per_crawl,
-            max_docs=spec.max_docs,
-            enabled=spec.enabled,
-            backfill_enabled=spec.backfill_enabled,
-            backfill_interval_hours=spec.backfill_interval_hours,
-            only_during_trading_hours=spec.only_during_trading_hours,
-            include_auction=spec.include_auction,
-            deep_backfill_enabled=spec.deep_backfill_enabled,
-        ))
+        configs.append(
+            SourceCrawlConfig(
+                source_type=spec.source_type,
+                source_name=spec.source_name,
+                interval_minutes=spec.interval_minutes,
+                days_per_crawl=spec.days_per_crawl,
+                max_docs=spec.max_docs,
+                enabled=spec.enabled,
+                backfill_enabled=spec.backfill_enabled,
+                backfill_interval_hours=spec.backfill_interval_hours,
+                deep_backfill_enabled=spec.deep_backfill_enabled,
+            )
+        )
     return configs
 
 
@@ -134,28 +94,12 @@ class CrawlScheduler:
         # 加载默认配置
         for cfg in DEFAULT_CRAWL_CONFIGS:
             self.configs[cfg.source_type] = cfg
-            self.calendars[cfg.source_type] = get_trading_calendar(
-                include_auction=cfg.include_auction,
-                extended_start_time=_crawl_time_config["extended_start_time"]
-                if cfg.only_during_trading_hours
-                else None,
-                extended_end_time=_crawl_time_config["extended_end_time"]
-                if cfg.only_during_trading_hours
-                else None,
-            )
+            self.calendars[cfg.source_type] = get_trading_calendar()
 
     def add_config(self, config: SourceCrawlConfig) -> None:
         """添加抓取配置"""
         self.configs[config.source_type] = config
-        self.calendars[config.source_type] = get_trading_calendar(
-            include_auction=config.include_auction,
-            extended_start_time=_crawl_time_config["extended_start_time"]
-            if config.only_during_trading_hours
-            else None,
-            extended_end_time=_crawl_time_config["extended_end_time"]
-            if config.only_during_trading_hours
-            else None,
-        )
+        self.calendars[config.source_type] = get_trading_calendar()
 
         # 如果调度器已运行，添加任务
         if self.running and self.scheduler:
@@ -267,7 +211,7 @@ class CrawlScheduler:
             if calendar:
                 should_run, reason = calendar.should_run_now(
                     now,
-                    allow_non_trading=not config.only_during_trading_hours,
+                    allow_non_trading=True,
                 )
 
             status["sources"].append(
@@ -275,7 +219,6 @@ class CrawlScheduler:
                     "source_type": source_type.value,
                     "enabled": config.enabled,
                     "interval_minutes": config.interval_minutes,
-                    "only_during_trading_hours": config.only_during_trading_hours,
                     "last_backfill": self.last_backfill_times.get(source_type),
                     "crawl_status": source_status,
                     "should_run": should_run,
@@ -316,7 +259,7 @@ class CrawlScheduler:
         if not calendar:
             return True, "无日历配置，总是运行"
 
-        return calendar.should_run_now(allow_non_trading=not config.only_during_trading_hours)
+        return calendar.should_run_now(allow_non_trading=True)
 
     def _add_jobs_for_source(self, config: SourceCrawlConfig) -> None:
         """为来源添加调度任务（含 ±20% 随机抖动，避免整点雷同）"""
@@ -639,25 +582,14 @@ def build_scheduler_status() -> Dict[str, Any]:
     sources = []
     for cfg in DEFAULT_CRAWL_CONFIGS:
         source_status = orchestrator.get_crawl_status(cfg.source_type)
-        calendar = get_trading_calendar(
-            include_auction=cfg.include_auction,
-            extended_start_time=_crawl_time_config["extended_start_time"]
-            if cfg.only_during_trading_hours
-            else None,
-            extended_end_time=_crawl_time_config["extended_end_time"]
-            if cfg.only_during_trading_hours
-            else None,
-        )
-        should_run, reason = calendar.should_run_now(
-            now, allow_non_trading=not cfg.only_during_trading_hours
-        )
+        calendar = get_trading_calendar()
+        should_run, reason = calendar.should_run_now(now, allow_non_trading=True)
 
         sources.append(
             {
                 "source_type": cfg.source_type.value,
                 "enabled": cfg.enabled,
                 "interval_minutes": cfg.interval_minutes,
-                "only_during_trading_hours": cfg.only_during_trading_hours,
                 "last_backfill": None,
                 "crawl_status": source_status,
                 "should_run": should_run,

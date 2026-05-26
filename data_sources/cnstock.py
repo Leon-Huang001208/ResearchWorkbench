@@ -10,7 +10,6 @@ register(SourceSpec(
         "channel": ["证券", "公司", "产经", "金融", "时政"],
     },
     interval_minutes=30,
-    only_during_trading_hours=True,
     deep_backfill_enabled=True,
     doc_type=DocType.NEWS,
     reliability=SourceReliabilityLevel.OFFICIAL,

@@ -11,7 +11,6 @@ register(SourceSpec(
         "use_incremental": True,
     },
     interval_minutes=15,
-    only_during_trading_hours=False,
     doc_type=DocType.NEWS,
     reliability=SourceReliabilityLevel.ESTABLISHED_MEDIA,
     backfill_family="cls",

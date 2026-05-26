@@ -10,7 +10,6 @@ register(SourceSpec(
         "doc_types": "ZQMEETING",
     },
     interval_minutes=60,
-    only_during_trading_hours=False,
     deep_backfill_enabled=True,
     doc_type=DocType.REPORT,
     reliability=SourceReliabilityLevel.RESEARCH_INSTITUTE,

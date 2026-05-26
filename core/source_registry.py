@@ -32,14 +32,12 @@ class SourceSpec:
 
     # 调度配置
     interval_minutes: int = 60
-    only_during_trading_hours: bool = True
     enabled: bool = True
     backfill_enabled: bool = True
     backfill_interval_hours: int = 24
     deep_backfill_enabled: bool = False
     days_per_crawl: int = 1
     max_docs: Optional[int] = None
-    include_auction: bool = False
 
     # 文档分类
     doc_type: DocType = DocType.NEWS

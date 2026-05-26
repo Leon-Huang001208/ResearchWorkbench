@@ -14,13 +14,41 @@ AlphaFoundry支持多数据源，按优先级自动切换。
 
 降级策略由 `data_layer/adapters/data_source_router.py` 实现：iFinD → AKShare → ChinaStock，所有数据源都失败时返回 `insufficient_evidence` 标记。
 
-### 新闻/研报数据源（直接调用）
+### 新闻/研报数据源（源注册表 + 自动发现）
 
-| 数据源 | 适配器 | 内容类型 |
-|--------|--------|----------|
-| 财联社 (CLS) | `CLSAdapter` | 电报、快讯 |
-| 中国证券网 (CNStock) | `CNStockAdapter` | 新闻 |
-| 知丘 (ZQ) | `ZQAdapter` | 研报、公众号文章、会议纪要 |
+所有爬取数据源通过 `core/source_registry.py` 的 `SourceSpec` 自描述注册，`data_sources/__init__.py` 使用 `pkgutil.iter_modules` 自动发现模块。添加新来源 = 在 `data_sources/` 下新建一个 `.py` 文件，无需修改任何其他代码。
+
+| 来源类型 (source_type) | 数据源 | 适配器 | 内容类型 | 频率 |
+|------------------------|--------|--------|----------|------|
+| `cls` | 财联社 | `CLSAdapter` | 电报、快讯 | 15min |
+| `cnstock` | 中国证券网 | `CNStockAdapter` | 正文新闻 | 30min |
+| `cnstock_flash` | 中国证券网·快讯 | `CNStockAdapter` | 快讯 | 30min |
+| `zhiqiu_reports` | 知丘研报 | `ZQAdapter` | 券商研报 (PDF) | 60min |
+| `zhiqiu_wechat` | 知丘公众号 | `ZQAdapter` | 公众号文章 | 60min |
+| `zhiqiu_transcript` | 知丘纪要 | `ZQAdapter` | 会议纪要 | 60min |
+
+### 添加新数据源
+
+在 `data_sources/` 下创建新文件（如 `my_source.py`）：
+
+```python
+from core.contracts.documents_v1 import DocType, SourceReliabilityLevel, SourceType
+from core.source_registry import SourceSpec, register
+
+register(SourceSpec(
+    source_type=SourceType.OTHER,      # 或新增的 SourceType 枚举值
+    source_name="我的数据源",
+    adapter_class="data_layer.adapters.my_adapter.MyAdapter",
+    adapter_kwargs={"key": "value"},
+    interval_minutes=60,
+    doc_type=DocType.NEWS,
+    reliability=SourceReliabilityLevel.ESTABLISHED_MEDIA,
+    backfill_family=None,
+    retrieval_weight=1.0,
+))
+```
+
+文件保存后，自动发现机制会在下次启动时加载该来源。所有下游模块（调度器、编排器、仪表盘、分类器、PDF 转换）都会自动感知。详见 `core/source_registry.py` 中的 `SourceSpec` 完整字段定义。
 
 ### 其他数据源
 

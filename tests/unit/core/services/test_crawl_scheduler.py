@@ -10,28 +10,6 @@ from core.services.crawl_scheduler import (
 )
 
 
-class TestSourceCrawlConfig:
-    """测试来源抓取配置"""
-
-    def test_default_config(self):
-        config = SourceCrawlConfig(
-            source_type=SourceType.CLS,
-            source_name="财联社",
-        )
-        assert config.only_during_trading_hours is True
-        assert config.include_auction is False
-
-    def test_config_with_trading_options(self):
-        config = SourceCrawlConfig(
-            source_type=SourceType.CLS,
-            source_name="财联社",
-            only_during_trading_hours=False,
-            include_auction=True,
-        )
-        assert config.only_during_trading_hours is False
-        assert config.include_auction is True
-
-
 class TestCrawlScheduler:
     """测试采集调度器"""
 
@@ -72,9 +50,7 @@ class TestCrawlScheduler:
     def test_check_source_should_run_during_trading(self):
         scheduler = CrawlScheduler()
 
-        with patch.object(
-            scheduler.calendars[SourceType.CLS], "should_run_now"
-        ) as mock_should:
+        with patch.object(scheduler.calendars[SourceType.CLS], "should_run_now") as mock_should:
             mock_should.return_value = (True, "在交易时段")
             should_run, reason = scheduler.check_source_should_run(SourceType.CLS)
             assert should_run is True

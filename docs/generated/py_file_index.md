@@ -187,8 +187,11 @@ Imports:
 - `core.services.dashboard_service`
 - `data_layer.repositories.base`
 - `fastapi`
+- `typing`
 
 Functions:
+- `get_crawl_feed`
+  - 获取实时抓取数据流（最近抓取的文档列表）
 - `get_dashboard`
   - 获取首页仪表盘完整聚合数据
 
@@ -430,7 +433,6 @@ Imports:
 - `app.api.models`
 - `core.observability`
 - `core.services.ingest_service`
-- `data_layer.adapters.data_source_router`
 - `fastapi`
 - `pathlib`
 - `shutil`
@@ -445,12 +447,6 @@ Functions:
   - 摄入文本
 - `ingest_file`
   - 上传文件摄入
-- `ingest_cls`
-  - 摄入财联社电报（走完整envelope ingestion流程）
-- `ingest_cnstock`
-  - 摄入中国证券网新闻（走完整envelope ingestion流程）
-- `ingest_zq`
-  - 摄入知丘内容（研报/公众号/会议纪要，走完整envelope ingestion流程）
 
 
 ## `app/api/routes/ingest_admin.py`
@@ -490,15 +486,21 @@ Imports:
 - `core.contracts.ingestion`
 - `core.observability`
 - `core.services.ingestion_queue_service`
+- `core.services.pipeline_service`
+- `core.services.signal_service`
 - `data_layer.repositories.base`
 - `data_layer.repositories.ingestion_repository`
+- `data_layer.repositories.signal_repository`
+- `data_layer.repositories.timing_repository`
 - `fastapi`
 - `sqlalchemy.orm`
 - `typing`
 
 Functions:
+- `_build_pipeline`
+  - 构建/更新 ResearchPipeline（带信号/择时持久化，模块级缓存）
 - `get_ingestion_queue_service`
-  - 获取摄取队列服务实例
+  - 获取摄取队列服务实例（已注入 Golden Path pipeline）
 - `enqueue`
   - 入队
 - `process`
@@ -509,6 +511,33 @@ Functions:
   - 最近处理记录
 - `retry`
   - 重试失败项
+
+
+## `app/api/routes/knowledge.py`
+
+Module docstring:
+> Knowledge Worker API — 知识加工 Worker 进程管理
+
+Imports:
+- `core.observability`
+- `fastapi`
+- `os`
+- `pathlib`
+- `signal`
+- `subprocess`
+- `sys`
+- `typing`
+
+Functions:
+- `_pid_file_for`
+- `_get_all_worker_statuses`
+  - 检查所有 knowledge worker 进程状态
+- `get_knowledge_status`
+  - 获取所有 Knowledge Worker 状态
+- `start_knowledge`
+  - 启动 Knowledge Worker 进程（支持多进程）
+- `stop_knowledge`
+  - 停止所有 Knowledge Worker 进程
 
 
 ## `app/api/routes/llm.py`
@@ -1119,6 +1148,7 @@ Module docstring:
 > Scheduler API — 自动数据刷新调度管理
 
 Imports:
+- `asyncio`
 - `core.contracts`
 - `core.observability`
 - `core.services.crawl_orchestrator`
@@ -1541,13 +1571,11 @@ Module docstring:
 > 数据摄入 CLI 命令
 
 Imports:
-- `asyncio`
 - `click`
 - `core.contracts`
 - `core.observability`
 - `core.services.crawl_orchestrator`
 - `core.services.ingest_service`
-- `data_layer.adapters.data_source_router`
 - `pathlib`
 - `typing`
 
@@ -1556,12 +1584,6 @@ Functions:
   - 数据摄入命令组
 - `ingest_file_command`
   - 摄入文档并提取断言和事件
-- `ingest_cls_command`
-  - 摄入财联社电报
-- `ingest_cnstock_command`
-  - 摄入中国证券网新闻
-- `ingest_zq_command`
-  - 摄入知丘内容 (研报/公众号/纪要)
 - `crawl_group`
   - 数据采集命令组 (Issue #43)
 - `crawl_run_command`
@@ -1572,6 +1594,14 @@ Functions:
   - 查看采集状态
 - `crawl_scheduler_start_command`
   - 启动采集调度器（后台独立进程）
+- `knowledge_group`
+  - 知识加工 Worker 命令组
+- `knowledge_start_command`
+  - 启动知识加工 Worker（后台独立进程）
+- `knowledge_stop_command`
+  - 停止所有知识加工 Worker 进程
+- `knowledge_status_command`
+  - 查看所有知识加工 Worker 状态
 
 
 ## `app/cli/commands/memory.py`
@@ -2965,7 +2995,9 @@ Imports:
 - `core.utils.id_gen`
 - `data_layer.repositories.base`
 - `data_layer.repositories.documents_v1`
+- `data_sources`
 - `datetime`
+- `pathlib`
 - `typing`
 
 Classes:
@@ -2974,7 +3006,7 @@ Classes:
   - methods: __init__
 - `CrawlOrchestrator`
   - 采集编排器
-  - methods: __init__, crawl_source, backfill_source, _naive_utc, _calculate_time_window, _fetch_from_adapter, _envelope_to_doc_v1, _enqueue_to_bridge, _deduplicate_docs, get_crawl_status
+  - methods: __init__, crawl_source, backfill_source, _naive_utc, _calculate_time_window, _fetch_from_adapter, _envelope_to_doc_v1, _enqueue_to_bridge, _deduplicate_docs, deep_backfill_step, zq_deep_backfill_step, get_latest_document_time, get_crawl_status
 
 
 ## `core/services/crawl_scheduler.py`
@@ -2991,7 +3023,6 @@ Imports:
 - `os`
 - `pathlib`
 - `typing`
-- `yaml`
 
 Classes:
 - `SourceCrawlConfig`
@@ -2999,11 +3030,11 @@ Classes:
   - methods: __init__
 - `CrawlScheduler`
   - 采集调度器
-  - methods: __init__, add_config, start, stop, trigger_crawl, trigger_backfill, get_status, check_source_should_run, _add_jobs_for_source, _run_crawl_job, _run_backfill_job, _health_check
+  - methods: __init__, add_config, start, stop, trigger_crawl, trigger_backfill, get_status, check_source_should_run, _add_jobs_for_source, _run_crawl_job, _run_backfill_job, _run_deep_backfill_job, _run_cnstock_deep_backfill_job, _run_zq_deep_backfill_job, check_and_backfill_gap, _health_check
 
 Functions:
-- `_load_crawl_config`
-  - 从 config/crawl.yaml 加载抓取时间配置
+- `_get_default_configs`
+  - 从 SourceSpec 注册表构建 SourceCrawlConfig 列表。
 - `build_scheduler_status`
   - 纯函数：从 DB 读取所有来源的抓取状态，不依赖 in-process 调度器。
 - `get_scheduler_process_status`
@@ -3047,7 +3078,7 @@ Imports:
 Classes:
 - `DashboardService`
   - 首页仪表盘数据聚合服务
-  - methods: __init__, _get_mock_global_news, _get_mock_sectors, get_market_overview_section, get_today_section, _get_mock_abnormal_flows, get_research_queue_section, _get_mock_research_queue, get_candidate_board_section, _get_mock_candidates, get_learning_section, _get_mock_learning_data, get_full_dashboard
+  - methods: __init__, _get_mock_global_news, _get_mock_sectors, get_market_overview_section, get_today_section, _get_mock_abnormal_flows, get_research_queue_section, _get_mock_research_queue, get_candidate_board_section, _get_mock_candidates, get_learning_section, _get_mock_learning_data, get_crawl_feed, get_full_dashboard
 
 
 ## `core/services/data_tier_service.py`
@@ -3897,6 +3928,7 @@ Imports:
 ## `core/settings/config.py`
 
 Imports:
+- `dotenv`
 - `os`
 - `pathlib`
 - `pydantic`
@@ -3911,6 +3943,40 @@ Classes:
   - 任务 → provider + model 路由
 - `Settings`
   - methods: _build_provider_configs, _parse_provider_profiles_from_env, _parse_task_routes_from_env, ensure_dirs
+
+
+## `core/source_registry.py`
+
+Module docstring:
+> 数据源注册中心 — 所有爬取数据源的自描述注册表。
+
+Imports:
+- `__future__`
+- `core.contracts.documents_v1`
+- `dataclasses`
+- `typing`
+
+Classes:
+- `SourceSpec`
+  - 数据源的完整自描述。
+
+Functions:
+- `register`
+  - 注册一个数据源。由 data_sources/ 下的模块在 import 时调用。
+- `on_register`
+  - 注册回调 — 每次 register() 被调用时触发。用于需要动态感知新来源的消费者。
+- `_ensure_discovered`
+  - 如果注册表为空，触发数据源自动发现。
+- `get`
+  - 获取单个来源的 spec。
+- `get_all`
+  - 获取所有已注册来源 (不含顺序保证)。
+- `get_enabled`
+  - 获取所有 enabled=True 的来源。
+- `get_by_family`
+  - 获取属于同一 backfill_family 的所有来源。
+- `is_registered`
+  - 来源是否已注册。
 
 
 ## `core/utils/__init__.py`
@@ -4204,7 +4270,7 @@ Imports:
 Classes:
 - `CLSAdapter`
   - 财联社电报适配器
-  - methods: __init__, fetch, parse
+  - methods: __init__, fetch, fetch_deep_backfill_batch, parse_deep_backfill_item, parse
 
 
 ## `data_layer/adapters/cnstock_adapter.py`
@@ -4749,6 +4815,35 @@ Classes:
   - methods: __init__, market, financial, news, macro, health_check, _initialize
 
 
+## `data_layer/crawlers/akshare/board.py`
+
+Module docstring:
+> AkShare 板块行情获取器
+
+Imports:
+- `core.observability`
+- `dataclasses`
+- `time`
+- `typing`
+
+Classes:
+- `SectorBoardItem`
+  - 板块行情数据
+- `SectorBoardSnapshot`
+  - 板块行情快照
+
+Functions:
+- `_is_cache_valid`
+- `fetch_sector_board`
+  - 获取同花顺行业板块实时行情（带缓存）
+- `get_last_fetch_time`
+  - 获取板块数据最后获取时间（Unix timestamp），用于前端显示数据日期
+- `get_top_gainers`
+  - 获取涨幅最高的板块
+- `get_top_losers`
+  - 获取跌幅最高的板块
+
+
 ## `data_layer/crawlers/akshare/config.py`
 
 Module docstring:
@@ -4948,6 +5043,8 @@ Imports:
 - `logging`
 - `pathlib`
 - `random`
+- `re`
+- `time`
 - `typing`
 - `utils.date_utils`
 - `utils.deduplication`
@@ -4961,7 +5058,12 @@ Classes:
   - 财联社爬虫配置
 - `CLSTelegramCrawler`
   - 财联社电报爬虫
-  - methods: __init__, initialize, _setup_logging, _warmup_cookies, _get_headers, _random_delay, _retry_request, get_telegram_data, _parse_telegram, _add_telegram, _filter_telegrams, get_filtered_telegrams, get_filtered_daily_telegrams, _get_output_folder, _get_output_filename, _parse_and_validate_dates, get_summary, crawl_telegrams, _get_all_day_telegrams, save_to_json, execute
+  - methods: __init__, initialize, _setup_logging, _warmup_cookies, _get_headers, _random_delay, _retry_request, get_telegram_data, _parse_telegram, _get_update_telegrams, _crawl_incremental, _add_telegram, _filter_telegrams, get_filtered_telegrams, get_filtered_daily_telegrams, _get_output_folder, _get_output_filename, _parse_and_validate_dates, get_summary, crawl_telegrams, _get_all_day_telegrams, save_to_json, execute
+- `DeepBackfillState`
+  - 深度回补游标状态
+- `CLSDeepBackfill`
+  - CLS 深度历史回补 — 通过 /detail/{id} 逐条获取历史电报
+  - methods: __init__, _load_state, _estimate_current_max_id, _save_state, _init_session, _get_headers, _random_delay, _cooldown, fetch_detail, run_batch
 
 Functions:
 - `parse_args`
@@ -6192,13 +6294,15 @@ Imports:
 - `core.observability`
 - `data_layer.repositories.models`
 - `datetime`
+- `json`
+- `re`
 - `sqlalchemy`
 - `typing`
 
 Classes:
 - `DashboardDataRepository`
   - 仪表盘数据专用仓储
-  - methods: __init__, get_global_news_from_events, get_global_news_from_documents, _get_related_symbols_for_doc, get_combined_global_news, get_sector_changes_from_signals, _is_concept_sector, has_enough_data
+  - methods: __init__, get_global_news_from_events, get_global_news_from_documents, _compute_quality_scores, _batch_score_importance, _llm_score_batch, _get_related_symbols_for_doc, _strip_headline_from_summary, _extract_news_headline, get_combined_global_news, get_sector_changes_from_signals, _is_concept_sector, get_recent_crawled_documents, has_enough_data
 
 
 ## `data_layer/repositories/decision_console_repository.py`
@@ -9346,7 +9450,9 @@ Imports:
 - `core.services.event_extractor`
 - `data_layer.repositories.event_repository`
 - `dataclasses`
+- `json`
 - `typing`
+- `uuid`
 
 Classes:
 - `PipelineConfig`
@@ -9355,7 +9461,7 @@ Classes:
   - 知识加工管道结果
 - `KnowledgePipeline`
   - 知识加工管道 - 深模块
-  - methods: __init__, process, process_envelope
+  - methods: __init__, process, _extract_concurrent, _parse_concurrent_response, _build_concurrent_assertion, _build_concurrent_event, _params_to_event, process_envelope
 
 
 ## `ingestion/structured_event_ingestion.py`
@@ -9403,25 +9509,27 @@ Imports:
 - `asyncio`
 - `datetime`
 - `fake_useragent`
-- `hashlib`
 - `logging`
+- `os`
 - `random`
 - `requests`
-- `typing`
+- `sys`
 
 Functions:
 - `get_random_headers`
   - 生成随机请求头，防爬
-- `get_content_hash`
-  - 生成内容哈希，用于去重
 - `fetch_with_retry`
   - 带重试的请求，防爬
+- `_run_crawl`
+  - 在线程池中运行同步的 CrawlOrchestrator.crawl_source()
+- `ingest_all_sources`
+  - 抓取所有已注册的数据源（通过 CrawlOrchestrator）
 - `ingest_cls_data`
-  - 抓取财联社电报数据
+  - 抓取所有已注册来源（兼容旧调用方）
 - `ingest_cnstock_data`
-  - 抓取中国证券网新闻数据
+  - 由 ingest_all_sources 覆盖，保留别名向后兼容
 - `ingest_zq_data`
-  - 抓取知丘研报数据
+  - 由 ingest_all_sources 覆盖，保留别名向后兼容
 - `ingest_stock_master`
   - 同步股票列表到 stock_master 表
 - `ingest_daily_bars`

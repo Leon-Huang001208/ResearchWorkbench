@@ -60,13 +60,9 @@ class TradingCalendar:
         self,
         include_auction: bool = False,
         timezone: str = "Asia/Shanghai",
-        extended_start_time: time | None = None,
-        extended_end_time: time | None = None,
     ):
         self.include_auction = include_auction
         self.timezone = timezone
-        self.extended_start_time = extended_start_time
-        self.extended_end_time = extended_end_time
 
         # 构建时段列表
         self.periods: list[TradingPeriod] = []
@@ -225,23 +221,6 @@ class TradingCalendar:
         if allow_non_trading:
             return True, "非交易时段但允许运行"
 
-        # extended_start_time 允许在盘前提前开始运行
-        if self.extended_start_time and dt.time() >= self.extended_start_time:
-            if self.is_before_trading(dt):
-                return True, f"盘前延长时段（自{self.extended_start_time}）"
-
-        # extended_end_time 允许在收盘后继续运行到指定时间
-        if self.extended_end_time and dt.time() < self.extended_end_time:
-            if self.is_after_trading(dt):
-                return True, f"收盘后延长时段（至{self.extended_end_time}）"
-            if self.is_midday_break(dt):
-                wait_time = self.get_time_until_next_session(dt)
-                return False, f"午间休市，{wait_time}后开始下午交易"
-            if self.is_before_trading(dt):
-                wait_time = self.get_time_until_next_session(dt)
-                return False, f"开盘前，{wait_time}后开始交易"
-            return True, "延长时段内"
-
         if self.is_midday_break(dt):
             wait_time = self.get_time_until_next_session(dt)
             return False, f"午间休市，{wait_time}后开始下午交易"
@@ -264,33 +243,18 @@ _default_calendar: Optional[TradingCalendar] = None
 def get_trading_calendar(
     include_auction: bool = False,
     timezone: str = "Asia/Shanghai",
-    extended_start_time: time | None = None,
-    extended_end_time: time | None = None,
 ) -> TradingCalendar:
     """
     获取交易日历实例
 
-    注意：extended_* 参数会使此函数每次返回新实例（而非全局单例），
-    因为不同调用方可能需要不同的延长时段。
-
     Args:
         include_auction: 是否包含集合竞价时段
         timezone: 时区
-        extended_start_time: 盘前延长运行开始时间，None 表示使用标准开盘时间
-        extended_end_time: 收盘后延长运行截止时间，None 表示使用标准收盘时间
 
     Returns:
         TradingCalendar: 交易日历实例
     """
     global _default_calendar
-
-    if extended_start_time is not None or extended_end_time is not None:
-        return TradingCalendar(
-            include_auction=include_auction,
-            timezone=timezone,
-            extended_start_time=extended_start_time,
-            extended_end_time=extended_end_time,
-        )
 
     if _default_calendar is None:
         _default_calendar = TradingCalendar(include_auction=include_auction, timezone=timezone)

@@ -13,7 +13,6 @@ register(SourceSpec(
     },
     interval_minutes=60,
     days_per_crawl=2,
-    only_during_trading_hours=False,
     deep_backfill_enabled=True,
     doc_type=DocType.REPORT,
     reliability=SourceReliabilityLevel.RESEARCH_INSTITUTE,
