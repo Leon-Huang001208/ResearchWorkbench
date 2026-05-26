@@ -28,6 +28,7 @@ stop_by_pid() {
 }
 
 stop_by_pid "knowledge_worker"
+stop_by_pid "scheduler"
 stop_by_pid "api"
 
 echo "=========================================="

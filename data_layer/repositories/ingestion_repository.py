@@ -47,6 +47,7 @@ class IngestionQueueRepository(BaseRepository):
             created_at=item.created_at,
             processed_at=item.processed_at,
             dedup_hash=item.dedup_hash,
+            published_at=item.published_at,
         )
         self.db.add(db_item)
         self.db.flush()
@@ -241,4 +242,5 @@ class IngestionQueueRepository(BaseRepository):
             created_at=db_item.created_at,
             processed_at=db_item.processed_at,
             dedup_hash=db_item.dedup_hash,
+            published_at=db_item.published_at,
         )

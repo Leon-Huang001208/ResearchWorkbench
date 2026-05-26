@@ -43,6 +43,7 @@ class IngestionQueueService:
             url=request.url,
             priority=request.priority,
             created_at=datetime.now(timezone.utc),
+            published_at=request.published_at,
         )
 
         persisted = self._repo.enqueue(item)

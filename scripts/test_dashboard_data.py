@@ -41,7 +41,9 @@ def test_dashboard_repo():
 
         # 2. 测试获取板块变化
         print("\n4️⃣  测试 get_sector_changes_from_signals...")
-        up, down, has_sectors = repo.get_sector_changes_from_signals(days=30, limit_per_direction=5)
+        up, down, has_sectors, _ = repo.get_sector_changes_from_signals(
+            days=30, limit_per_direction=5
+        )
         print(f"   上涨板块: {len(up)}, 下跌板块: {len(down)}, has_real={has_sectors}")
         for i, sector in enumerate(up[:3]):
             print(

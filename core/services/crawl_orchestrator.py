@@ -9,6 +9,7 @@
 - 补漏机制
 """
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from core.contracts import CrawlRunV1, DocumentEnvelope, DocumentV1, SourceCursorV1, SourceType
@@ -59,8 +60,10 @@ class CrawlOrchestrator:
         source_name: Optional[str] = None,
         days: int = 1,
         max_docs: Optional[int] = None,
+        max_pages: Optional[int] = None,
         skip_existing: bool = True,
         enable_backfill: bool = True,
+        use_incremental: bool = True,
     ) -> CrawlResult:
         """
         抓取单个来源
@@ -72,6 +75,7 @@ class CrawlOrchestrator:
             max_docs: 最大文档数
             skip_existing: 跳过已存在的文档
             enable_backfill: 启用补漏
+            use_incremental: CLS 使用 updateTelegraphList 增量抓取（全部电报）
 
         Returns:
             CrawlResult
@@ -91,6 +95,7 @@ class CrawlOrchestrator:
             config={
                 "days": days,
                 "max_docs": max_docs,
+                "max_pages": max_pages,
                 "skip_existing": skip_existing,
                 "enable_backfill": enable_backfill,
             },
@@ -113,6 +118,8 @@ class CrawlOrchestrator:
                 start_time,
                 end_time,
                 max_docs,
+                use_incremental=use_incremental,
+                max_pages=max_pages,
             )
 
             result.raw_file_paths = [f.file_path for f in raw_files]
@@ -131,22 +138,19 @@ class CrawlOrchestrator:
                     self.deduplication.mark_seen(saved_doc)
                     result.success_count += 1
                 except Exception as e:
+                    self.db.rollback()
                     logger.error(f"Failed to save doc {doc.doc_id}: {e}")
                     result.failure_count += 1
 
-            # 7. 更新游标
+            # 7. 更新游标（仅在有实际数据入库时更新，防止 0 结果回填补丁污染游标）
             if result.success_count > 0:
-                last_doc = None
-                if docs:
-                    last_doc = docs[-1]
+                last_doc = docs[-1] if docs else None
                 last_source_doc_id = None
                 if last_doc:
                     last_source_doc_id = last_doc.source_metadata.get(
                         "source_doc_id"
                     ) or last_doc.source_metadata.get("original_id")
                 self.cursor_repo.record_success(cursor.cursor_id, last_source_doc_id)
-            else:
-                self.cursor_repo.record_success(cursor.cursor_id, None)
 
             # 8. 更新抓取记录
             result.completed_at = datetime.utcnow()
@@ -182,6 +186,7 @@ class CrawlOrchestrator:
         source_type: SourceType,
         lookback_days: int = 7,
         max_docs: Optional[int] = None,
+        max_pages: Optional[int] = None,
     ) -> CrawlResult:
         """
         补漏：回溯检查是否有遗漏的文档
@@ -196,9 +201,20 @@ class CrawlOrchestrator:
             source_type=source_type,
             days=lookback_days,
             max_docs=max_docs,
+            max_pages=max_pages,
             skip_existing=True,
             enable_backfill=False,
+            use_incremental=False,  # backfill 用历史 API
         )
+
+    @staticmethod
+    def _naive_utc(dt: datetime) -> datetime:
+        """将 timezone-aware datetime 转为 naive UTC，兼容 naive 输入"""
+        if dt.tzinfo is not None:
+            from datetime import timezone as tz
+
+            return dt.astimezone(tz.utc).replace(tzinfo=None)
+        return dt
 
     def _calculate_time_window(
         self,
@@ -206,13 +222,13 @@ class CrawlOrchestrator:
         days: int,
         enable_backfill: bool,
     ) -> Tuple[datetime, datetime]:
-        """计算抓取时间窗口"""
+        """计算抓取时间窗口（所有 datetime 均为 naive UTC）"""
         now = datetime.utcnow()
         end_time = now
 
         # 从游标获取上次成功时间
         if cursor.last_successful_crawl_time:
-            start_time = cursor.last_successful_crawl_time
+            start_time = self._naive_utc(cursor.last_successful_crawl_time)
             # 如果启用补漏，添加回顾窗口
             if enable_backfill and cursor.lookback_window_minutes:
                 start_time -= timedelta(minutes=cursor.lookback_window_minutes)
@@ -233,6 +249,8 @@ class CrawlOrchestrator:
         start_time: datetime,
         end_time: datetime,
         max_docs: Optional[int],
+        use_incremental: bool = True,
+        max_pages: Optional[int] = None,
     ) -> Tuple[List[DocumentV1], List]:
         """从适配器获取数据并转换为 DocumentV1 列表"""
         envelopes: List[DocumentEnvelope] = []
@@ -247,6 +265,8 @@ class CrawlOrchestrator:
                     start_date=start_time.strftime("%Y-%m-%d"),
                     end_date=end_time.strftime("%Y-%m-%d"),
                     days=(end_time - start_time).days or 1,
+                    state_path="./data/crawlers/cls/.dedup_state.json",
+                    use_incremental=use_incremental,
                 )
             elif source_type == SourceType.CHINA_SECURITY_JOURNAL:
                 from data_layer.adapters.cnstock_adapter import CNStockAdapter
@@ -255,6 +275,18 @@ class CrawlOrchestrator:
                 envelopes = adapter.fetch(
                     start_date=start_time.strftime("%Y-%m-%d"),
                     end_date=end_time.strftime("%Y-%m-%d"),
+                    channel=["证券", "公司", "产经", "金融", "时政"],
+                    max_pages=max_pages or 10,
+                )
+            elif source_type == SourceType.CNSTOCK_FLASH:
+                from data_layer.adapters.cnstock_adapter import CNStockAdapter
+
+                adapter = CNStockAdapter()
+                envelopes = adapter.fetch(
+                    start_date=start_time.strftime("%Y-%m-%d"),
+                    end_date=end_time.strftime("%Y-%m-%d"),
+                    channel="快讯",
+                    max_pages=max_pages or 10,
                 )
             elif source_type == SourceType.ZHIQIU_REPORTS:
                 from data_layer.adapters.zq_adapter import ZQAdapter
@@ -263,6 +295,29 @@ class CrawlOrchestrator:
                 envelopes = adapter.fetch(
                     start_date=start_time.strftime("%Y-%m-%d"),
                     end_date=end_time.strftime("%Y-%m-%d"),
+                    doc_types="REPORT",
+                    max_pages=max_pages or 20,
+                    use_homepage_search=True,
+                )
+            elif source_type == SourceType.ZHIQIU_WECHAT:
+                from data_layer.adapters.zq_adapter import ZQAdapter
+
+                adapter = ZQAdapter()
+                envelopes = adapter.fetch(
+                    start_date=start_time.strftime("%Y-%m-%d"),
+                    end_date=end_time.strftime("%Y-%m-%d"),
+                    doc_types="NEWS",
+                    max_pages=max_pages or 20,
+                )
+            elif source_type == SourceType.ZHIQIU_TRANSCRIPT:
+                from data_layer.adapters.zq_adapter import ZQAdapter
+
+                adapter = ZQAdapter()
+                envelopes = adapter.fetch(
+                    start_date=start_time.strftime("%Y-%m-%d"),
+                    end_date=end_time.strftime("%Y-%m-%d"),
+                    doc_types="ZQMEETING",
+                    max_pages=max_pages or 20,
                 )
             else:
                 logger.warning(f"No adapter for source_type: {source_type}")
@@ -288,23 +343,42 @@ class CrawlOrchestrator:
     @staticmethod
     def _envelope_to_doc_v1(envelope: DocumentEnvelope, source_type: SourceType) -> DocumentV1:
         """将 DocumentEnvelope 转为 DocumentV1"""
-        from core.contracts.documents_v1 import DocType
+        import hashlib
+
+        from core.contracts.documents_v1 import DocType, DocumentTimeliness
 
         doc_type_map = {
             SourceType.CAILIAN_SHE: DocType.NEWS,
             SourceType.CHINA_SECURITY_JOURNAL: DocType.NEWS,
+            SourceType.CNSTOCK_FLASH: DocType.NEWS,
             SourceType.ZHIQIU_REPORTS: DocType.REPORT,
+            SourceType.ZHIQIU_WECHAT: DocType.NEWS,
+            SourceType.ZHIQIU_TRANSCRIPT: DocType.REPORT,
         }
+
+        metadata = dict(envelope.metadata or {})
+        source_doc_id = (
+            str(metadata.get("telegram_id", ""))
+            or str(metadata.get("obj_id", ""))
+            or envelope.doc_id
+        )
+
+        content = envelope.canonical_text or envelope.raw_text
+        content_hash = hashlib.sha256(content.encode("utf-8")).hexdigest() if content else None
+
         return DocumentV1(
             doc_id=envelope.doc_id,
             doc_type=doc_type_map.get(source_type, DocType.NEWS),
             source_type=source_type,
             title=envelope.title,
-            content=envelope.canonical_text or envelope.raw_text,
+            content=content,
             source_name=envelope.source_name,
             source_url=envelope.metadata.get("url") if envelope.metadata else None,
-            doc_metadata=envelope.metadata or {},
+            doc_metadata=metadata,
+            source_metadata={"source_doc_id": source_doc_id},
+            content_hash=content_hash,
             language=envelope.language,
+            timeliness=DocumentTimeliness(publish_time=envelope.published_at),
         )
 
     @staticmethod
@@ -338,6 +412,7 @@ class CrawlOrchestrator:
                         "source_name": env.source_name,
                     }
                     bridge.submit_crawled_item(source_type_str, item)
+                db.commit()
                 logger.info(f"Enqueued {len(envelopes)} items from {source_type_str}")
             finally:
                 db.close()
@@ -356,6 +431,7 @@ class CrawlOrchestrator:
         # 1. 收集需要检查的 ID 和哈希
         source_doc_ids: List[str] = []
         content_hashes: List[str] = []
+        doc_ids: List[str] = []
 
         for doc in docs:
             source_doc_id = doc.source_metadata.get("source_doc_id") or doc.source_metadata.get(
@@ -365,10 +441,12 @@ class CrawlOrchestrator:
                 source_doc_ids.append(source_doc_id)
             if doc.content_hash:
                 content_hashes.append(doc.content_hash)
+            doc_ids.append(doc.doc_id)
 
         # 2. 批量查询已存在的
         existing_source_ids = self.doc_repo.get_existing_source_ids(source_type, source_doc_ids)
         existing_content_hashes = self.doc_repo.get_existing_content_hashes(content_hashes)
+        existing_doc_ids = self.doc_repo.get_existing_doc_ids(doc_ids)
 
         # 3. 逐个检查
         kept: List[DocumentV1] = []
@@ -380,23 +458,241 @@ class CrawlOrchestrator:
 
         for doc in docs:
             result = batch_results.get(doc.doc_id)
-            if result and result.is_duplicate:
+            is_dup_by_meta = result is not None and result.is_duplicate
+            is_dup_by_doc_id = doc.doc_id in existing_doc_ids
+            if is_dup_by_meta or is_dup_by_doc_id:
                 duplicates.append(doc)
             else:
                 kept.append(doc)
 
         return kept, duplicates
 
+    def deep_backfill_step(
+        self,
+        batch_size: int = 10,
+        state_path: str = "./data/crawlers/cls/.deep_backfill_state.json",
+    ) -> CrawlResult:
+        """深度历史回补：通过 /detail/{id} 逐条获取一批历史电报
+
+        与常规 crawl_source() 的区别：
+        - 不通过适配器的 fetch()，而是用 fetch_deep_backfill_batch()
+        - 不送入 IngestionBridge（避免淹没摄取队列）
+        - 使用独立 DB 会话
+        - 非常低频运行（每 30 分钟一批）
+        """
+        from data_layer.adapters.cls_adapter import CLSAdapter
+        from data_layer.repositories.base import SessionLocal
+
+        result = CrawlResult()
+        result.source_type = SourceType.CAILIAN_SHE
+
+        db = SessionLocal()
+        try:
+            doc_repo = DocumentV1Repository(db)
+            adapter = CLSAdapter()
+
+            envelopes = adapter.fetch_deep_backfill_batch(
+                batch_size=batch_size,
+                state_path=state_path,
+            )
+            if not envelopes:
+                return result
+
+            docs: List[DocumentV1] = []
+            for env in envelopes:
+                try:
+                    doc = self._envelope_to_doc_v1(env, SourceType.CAILIAN_SHE)
+                    docs.append(doc)
+                except Exception as e:
+                    logger.error(f"Failed to convert deep backfill envelope {env.doc_id}: {e}")
+
+            # 去重
+            new_docs, duplicates = self._deduplicate_docs(SourceType.CAILIAN_SHE, docs)
+            result.skipped_count = len(duplicates)
+            result.duplicate_doc_ids = [d.doc_id for d in duplicates]
+
+            # 保存
+            for doc in new_docs:
+                try:
+                    saved_doc = doc_repo.create(doc)
+                    result.saved_doc_ids.append(saved_doc.doc_id)
+                    result.success_count += 1
+                except Exception as e:
+                    db.rollback()
+                    logger.error(f"Failed to save deep backfill doc {doc.doc_id}: {e}")
+                    result.failure_count += 1
+
+            db.commit()
+            result.completed_at = datetime.utcnow()
+
+            logger.info(
+                f"Deep backfill step completed: "
+                f"{result.success_count} saved, "
+                f"{result.skipped_count} skipped, "
+                f"{result.failure_count} failed"
+            )
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Deep backfill step failed: {e}", exc_info=True)
+            result.completed_at = datetime.utcnow()
+            result.error_log = str(e)
+        finally:
+            db.close()
+
+        return result
+
+    def zq_deep_backfill_step(
+        self,
+        state_path: str = "./data/crawlers/zq/.deep_backfill_state.json",
+        window_days: int = 5,
+        max_pages: int = 30,
+    ) -> CrawlResult:
+        """ZQ 滑动窗口深度历史回补
+
+        用 5 天滑动窗口从旧到新逐窗口回补 ZQ 历史数据。
+        使用状态文件跟踪进度，每次处理一个窗口。
+        """
+        import json
+        from datetime import timedelta
+
+        result = CrawlResult()
+        result.source_type = SourceType.ZHIQIU_REPORTS
+
+        state_file = Path(state_path)
+        state: Dict[str, Any] = {}
+        if state_file.exists():
+            try:
+                state = json.loads(state_file.read_text())
+            except Exception:
+                state = {}
+
+        if not state:
+            state = {
+                "source_order": [
+                    "zhiqiu_reports",
+                    "zhiqiu_wechat",
+                    "zhiqiu_transcript",
+                ],
+                "current_source_idx": 0,
+                "current_window_start": None,
+                "completed": False,
+                "total_saved": 0,
+                "total_skipped": 0,
+            }
+
+        if state.get("completed"):
+            logger.info("ZQ deep backfill already completed, nothing to do")
+            return result
+
+        source_order = state["source_order"]
+        current_idx = state.get("current_source_idx", 0)
+
+        if current_idx >= len(source_order):
+            state["completed"] = True
+            state_file.parent.mkdir(parents=True, exist_ok=True)
+            state_file.write_text(json.dumps(state, ensure_ascii=False, indent=2))
+            logger.info("ZQ deep backfill: all sources done")
+            return result
+
+        source_type_str = source_order[current_idx]
+        source_type = SourceType(source_type_str)
+        source_label = source_type_str.replace("zhiqiu_", "ZQ ").title()
+
+        now = datetime.utcnow()
+        if state["current_window_start"] is None:
+            # 从 30 天前开始
+            state["current_window_start"] = (now - timedelta(days=30)).strftime("%Y-%m-%d")
+
+        win_start_str = state["current_window_start"]
+        win_start = datetime.strptime(win_start_str, "%Y-%m-%d")
+        win_end = win_start + timedelta(days=window_days)
+
+        if win_end >= now:
+            # 当前来源完成，移到下一个来源
+            logger.info(f"ZQ deep backfill: {source_label} done, moving to next source")
+            state["current_source_idx"] = current_idx + 1
+            state["current_window_start"] = None
+            state_file.parent.mkdir(parents=True, exist_ok=True)
+            state_file.write_text(json.dumps(state, ensure_ascii=False, indent=2))
+            return self.zq_deep_backfill_step(
+                state_path=state_path, window_days=window_days, max_pages=max_pages
+            )
+
+        logger.info(
+            f"ZQ deep backfill: {source_label} window {win_start_str} → {win_end.strftime('%Y-%m-%d')}"
+        )
+
+        try:
+            step_result = self.crawl_source(
+                source_type=source_type,
+                days=window_days,
+                max_pages=max_pages,
+                skip_existing=True,
+                enable_backfill=False,
+                use_incremental=False,
+            )
+
+            result.success_count = step_result.success_count
+            result.skipped_count = step_result.skipped_count
+            result.failure_count = step_result.failure_count
+            result.saved_doc_ids = step_result.saved_doc_ids
+
+            state["total_saved"] = state.get("total_saved", 0) + result.success_count
+            state["total_skipped"] = state.get("total_skipped", 0) + result.skipped_count
+            state["current_window_start"] = win_end.strftime("%Y-%m-%d")
+
+            state_file.parent.mkdir(parents=True, exist_ok=True)
+            state_file.write_text(json.dumps(state, ensure_ascii=False, indent=2))
+
+            logger.info(
+                f"ZQ deep backfill {source_label}: {result.success_count} saved, "
+                f"{result.skipped_count} skipped. "
+                f"Total so far: {state['total_saved']} saved, {state['total_skipped']} skipped"
+            )
+        except Exception as e:
+            logger.error(f"ZQ deep backfill step failed: {e}", exc_info=True)
+            result.error_log = str(e)
+            result.completed_at = datetime.utcnow()
+
+        return result
+
+    def get_latest_document_time(self, source_type: SourceType) -> Optional[datetime]:
+        """获取指定来源最近一条文档的 created_at 时间（naive UTC）
+
+        用于双重缺口检测：当 cursor 被手动触发污染时，DB 实际文档时间
+        可以揭示真实的数据覆盖缺口。
+        """
+        from data_layer.repositories.models import DocumentV1DB
+
+        result = (
+            self.db.query(DocumentV1DB)
+            .filter(DocumentV1DB.source_type == source_type.value)
+            .order_by(DocumentV1DB.created_at.desc())
+            .first()
+        )
+        if result and result.created_at:
+            return self._naive_utc(result.created_at)
+        return None
+
     def get_crawl_status(self, source_type: SourceType) -> Optional[Dict[str, Any]]:
-        """获取抓取状态"""
-        latest_run = self.crawl_run_repo.get_latest(source_type)
-        cursor = self.cursor_repo.get_by_source_type(source_type)
+        """获取抓取状态（使用独立会话避免 PendingRollbackError）"""
+        from data_layer.repositories.base import SessionLocal
 
-        if not latest_run and not cursor:
-            return None
+        db = SessionLocal()
+        try:
+            crawl_run_repo = CrawlRunV1Repository(db)
+            cursor_repo = SourceCursorV1Repository(db)
 
-        return {
-            "source_type": source_type.value,
-            "latest_run": latest_run.model_dump() if latest_run else None,
-            "cursor": cursor.model_dump() if cursor else None,
-        }
+            latest_run = crawl_run_repo.get_latest(source_type)
+            cursor = cursor_repo.get_by_source_type(source_type)
+
+            if not latest_run and not cursor:
+                return None
+
+            return {
+                "source_type": source_type.value,
+                "latest_run": latest_run.model_dump() if latest_run else None,
+                "cursor": cursor.model_dump() if cursor else None,
+            }
+        finally:
+            db.close()

@@ -14,28 +14,29 @@ echo "=========================================="
 
 # ── API Server ──────────────────────────────────
 echo ""
-echo "[1/4] Starting API server..."
+echo "[1/3] Starting API server..."
 if [ -f "$LOGS_DIR/api.pid" ] && kill -0 "$(cat "$LOGS_DIR/api.pid")" 2>/dev/null; then
     echo "  [WARN] API server already running (PID $(cat "$LOGS_DIR/api.pid"))"
 else
-    nohup python -m uvicorn app.api.main:app --host 127.0.0.1 --port 8000 --reload \
+    nohup python -m uvicorn app.api.main:app --host 127.0.0.1 --port 8000 \
         > "$LOGS_DIR/api.log" 2>&1 &
     echo $! > "$LOGS_DIR/api.pid"
     echo "  [OK] API server started (PID $(cat "$LOGS_DIR/api.pid"))"
 fi
 
-sleep 3
-
 # ── Scheduler ────────────────────────────────────
-echo "[2/4] Starting scheduler..."
-if curl -s -X POST http://127.0.0.1:8000/api/scheduler/start > /dev/null 2>&1; then
-    echo "  [OK] Scheduler started"
+echo "[2/3] Starting crawl scheduler..."
+if [ -f "$LOGS_DIR/scheduler.pid" ] && kill -0 "$(cat "$LOGS_DIR/scheduler.pid")" 2>/dev/null; then
+    echo "  [WARN] Scheduler already running (PID $(cat "$LOGS_DIR/scheduler.pid"))"
 else
-    echo "  [WARN] Scheduler start returned non-200 (may already be running)"
+    nohup python -m workers.crawl_scheduler_worker \
+        > "$LOGS_DIR/scheduler.log" 2>&1 &
+    echo $! > "$LOGS_DIR/scheduler.pid"
+    echo "  [OK] Scheduler started (PID $(cat "$LOGS_DIR/scheduler.pid"))"
 fi
 
 # ── Knowledge Worker ─────────────────────────────
-echo "[3/4] Starting knowledge worker..."
+echo "[3/3] Starting knowledge worker..."
 if [ -f "$LOGS_DIR/knowledge_worker.pid" ] && kill -0 "$(cat "$LOGS_DIR/knowledge_worker.pid")" 2>/dev/null; then
     echo "  [WARN] Knowledge worker already running (PID $(cat "$LOGS_DIR/knowledge_worker.pid"))"
 else
@@ -46,7 +47,7 @@ else
 fi
 
 # ── Health Check ─────────────────────────────────
-echo "[4/4] Verifying services..."
+echo ""
 sleep 2
 if curl -s http://127.0.0.1:8000/health > /dev/null 2>&1; then
     echo "  [OK] API health check passed"

@@ -1,8 +1,8 @@
 """Dashboard 专用数据仓储"""
 from datetime import UTC, datetime, timedelta
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
-from sqlalchemy import and_, desc, func
+from sqlalchemy import String, and_, cast, desc, func
 
 from core.contracts import DocType
 from core.observability import get_logger
@@ -23,17 +23,23 @@ class DashboardDataRepository:
     def __init__(self, session):
         self.session = session
 
-    def get_global_news_from_events(self, limit: int = 10, days: int = 7) -> List[Dict]:
+    def get_global_news_from_events(
+        self, limit: int = 10, days: int = 7, allowed_sources: List[str] = None
+    ) -> List[Dict]:
         """
         从 CanonicalEvent 获取全球新闻
 
         Args:
             limit: 返回数量上限
             days: 时间范围（天）
+            allowed_sources: 允许的来源名称列表，默认仅财联社
 
         Returns:
             新闻数据列表
         """
+        if allowed_sources is None:
+            allowed_sources = ["财联社"]
+
         cutoff = datetime.now(UTC) - timedelta(days=days)
 
         events = (
@@ -52,13 +58,21 @@ class DashboardDataRepository:
         news_items = []
         for event in events:
             payload = event.payload or {}
+            source_name = payload.get("source_name", "Unknown")
+            # 过滤非财联社来源
+            if source_name not in allowed_sources:
+                continue
             novelty_score = payload.get("novelty_score", 0.5)
             impacted_symbols = payload.get("impacted_symbols", [])
-            source_name = payload.get("source_name", "Unknown")
             title = payload.get("title", event.summary or "")
 
             # 计算重要性评分：结合 novelty_score 和 confidence
             importance_score = (novelty_score * 0.6) + (float(event.confidence) * 0.4)
+
+            # 时间衰减：越新的新闻权重越高
+            age_days = (datetime.now(UTC) - event.created_at).total_seconds() / 86400
+            decay = 1.0 / (1.0 + age_days * 0.25)
+            importance_score *= decay
 
             # 提取区域信息
             region = "Global"
@@ -93,75 +107,122 @@ class DashboardDataRepository:
         news_items.sort(key=lambda x: x["importance_score"], reverse=True)
         return news_items[:limit]
 
-    def get_global_news_from_documents(self, limit: int = 10, days: int = 7) -> List[Dict]:
+    def get_global_news_from_documents(
+        self, limit: int = 10, days: int = 7, source_types: List[str] = None
+    ) -> List[Dict]:
         """
         从 DocumentV1 获取全球新闻
 
         Args:
             limit: 返回数量上限
             days: 时间范围（天）
+            source_types: 来源类型过滤，默认仅财联社 (cailian_she)
 
         Returns:
             新闻数据列表
         """
         cutoff = datetime.now(UTC) - timedelta(days=days)
 
-        # 查询新闻类文档
-        doc_types = [DocType.NEWS.value, DocType.REPORT.value, DocType.COMMENTARY.value]
+        if source_types is None:
+            source_types = ["cailian_she"]
+
+        # 只查询新闻类文档，排除研报和评论
+        doc_types = [DocType.NEWS.value, DocType.TELEGRAM.value]
         documents = (
             self.session.query(DocumentV1DB)
             .filter(
                 and_(
                     DocumentV1DB.doc_type.in_(doc_types),
+                    DocumentV1DB.source_type.in_(source_types),
                     DocumentV1DB.created_at >= cutoff,
                 )
             )
             .order_by(desc(DocumentV1DB.created_at))
-            .limit(limit * 2)
+            .limit(limit * 4)
             .all()
         )
 
         news_items = []
         for doc in documents:
-            quality = doc.quality or {}
-            classification = doc.classification or {}
-            timeliness = doc.timeliness or {}
+            try:
+                quality = doc.quality or {}
+                classification = doc.classification or {}
+                timeliness = doc.timeliness or {}
 
-            # 计算重要性评分
-            research_score = quality.get("research_usability_score", 0.5)
-            content_score = quality.get("content_quality_score", 0.5)
-            importance_score = (research_score * 0.5) + (content_score * 0.5)
+                # 计算重要性评分
+                research_score = quality.get("research_usability_score") or 0.5
+                content_score = quality.get("content_quality_score") or 0.5
+                importance_score = (research_score * 0.5) + (content_score * 0.5)
 
-            # 获取区域信息
-            region = classification.get("region", "Global")
+                # 时间衰减：使用原始发布时间（有则用，无则回退到 created_at）
+                publish_time_str = timeliness.get("publish_time")
+                if publish_time_str:
+                    try:
+                        if isinstance(publish_time_str, datetime):
+                            publish_dt = publish_time_str
+                        elif isinstance(publish_time_str, str):
+                            publish_dt = datetime.fromisoformat(publish_time_str)
+                        else:
+                            publish_dt = doc.created_at
+                        # 确保 naive datetime 可以比较
+                        if publish_dt.tzinfo is None:
+                            publish_dt = publish_dt.replace(tzinfo=UTC)
+                        else:
+                            publish_dt = publish_dt.astimezone(UTC)
+                    except (ValueError, TypeError):
+                        publish_dt = doc.created_at
+                else:
+                    publish_dt = doc.created_at
+                age_days = (datetime.now(UTC) - publish_dt).total_seconds() / 86400
+                decay = 1.0 / (1.0 + age_days * 0.25)
+                importance_score *= decay
 
-            # 获取相关标的（从 entity mentions）
-            related_symbols = self._get_related_symbols_for_doc(doc.doc_id)
+                # 获取区域信息
+                region = classification.get("region") or "Global"
 
-            # 生成摘要
-            summary = doc.summary or (doc.content[:200] + "..." if doc.content else "")
+                # 获取相关标的（从 entity mentions）
+                related_symbols = self._get_related_symbols_for_doc(doc.doc_id)
 
-            # 获取发布时间
-            published_at = timeliness.get("publish_time")
-            if not published_at:
-                published_at = doc.created_at.isoformat()
-            elif isinstance(published_at, datetime):
-                published_at = published_at.isoformat()
+                # 生成摘要
+                raw_text = doc.summary or doc.content or ""
+                summary = raw_text[:200] + "..." if len(raw_text) > 200 else raw_text
 
-            news_items.append(
-                {
-                    "news_id": f"doc-{doc.doc_id}",
-                    "title": doc.title or "市场资讯",
-                    "source": doc.source_name or "Unknown",
-                    "importance_score": importance_score,
-                    "summary": summary,
-                    "content_url": doc.source_url,
-                    "published_at": published_at,
-                    "related_symbols": related_symbols[:5],
-                    "region": region,
-                    "doc_type": doc.doc_type,
-                }
-            )
+                # 为财联社等来源提取有意义的标题，避免显示内部ID
+                title = doc.title or "市场资讯"
+                use_clean_title = title.startswith("财联社电报") or title.startswith("电报")
+                if not use_clean_title and title.startswith("【"):
+                    # CLS adapter 提取了首句作为标题，缩短为【】内的内容
+                    use_clean_title = True
+                if use_clean_title:
+                    title = self._extract_news_headline(doc.summary, doc.content, title)
+                    # 从摘要中移除重复的【标题】前缀
+                    summary = self._strip_headline_from_summary(title, summary)
+
+                # 获取发布时间
+                published_at = timeliness.get("publish_time")
+                if not published_at:
+                    published_at = doc.created_at.isoformat() if doc.created_at else ""
+                elif isinstance(published_at, datetime):
+                    published_at = published_at.isoformat()
+                else:
+                    published_at = str(published_at)
+
+                news_items.append(
+                    {
+                        "news_id": f"doc-{doc.doc_id}",
+                        "title": title,
+                        "source": doc.source_name or "Unknown",
+                        "importance_score": importance_score,
+                        "summary": summary or "",
+                        "content_url": doc.source_url or "",
+                        "published_at": published_at,
+                        "related_symbols": related_symbols[:5],
+                        "region": region,
+                        "doc_type": doc.doc_type or "",
+                    }
+                )
+            except Exception:
+                continue
 
         # 按重要性评分排序
         news_items.sort(key=lambda x: x["importance_score"], reverse=True)
@@ -191,6 +252,44 @@ class DashboardDataRepository:
                 symbols.append(mention.entity_name)
 
         return symbols
+
+    @staticmethod
+    def _strip_headline_from_summary(title: str, summary: str) -> str:
+        """从摘要中移除与标题重复的前缀（如【...】）"""
+        if not summary:
+            return summary
+        import re
+
+        # 移除开头的【标题内容】及其变体
+        result = re.sub(r"^【[^】]*】\s*", "", summary, count=1)
+        # 如果提取的标题不在括号中也尝试匹配
+        if result == summary and title and len(title) > 3:
+            if summary.startswith(title):
+                result = summary[len(title) :].lstrip("，,。；;：:、\n\r ")
+        return result
+
+    @staticmethod
+    def _extract_news_headline(summary: str, content: str, fallback: str) -> str:
+        """从 summary 或 content 中提取有意义的新闻标题"""
+        text = (summary or content or "").strip()
+        if not text:
+            return fallback
+
+        # 尝试提取【...】中的内容作为标题
+        import re
+
+        bracket_match = re.search(r"【(.+?)】", text)
+        if bracket_match:
+            headline = bracket_match.group(1).strip()
+            if len(headline) >= 4:
+                return headline
+
+        # 没有括号标题则取第一句
+        for sep in ["。", "，", "、", "\n"]:
+            if sep in text:
+                return text.split(sep)[0].strip()[:100]
+
+        return text[:100]
 
     def get_combined_global_news(self, limit: int = 10, days: int = 7) -> Tuple[List[Dict], bool]:
         """
@@ -227,147 +326,599 @@ class DashboardDataRepository:
         return combined[:limit], has_real_data
 
     def get_sector_changes_from_signals(
-        self, days: int = 7, limit_per_direction: int = 5
-    ) -> Tuple[List[Dict], List[Dict], bool]:
+        self, days: int = 7, limit_per_direction: int = 10
+    ) -> Tuple[List[Dict], List[Dict], bool, float]:
         """
-        从 EventAlphaSignal 获取板块变化
+        从 AKShare 同花顺行业板块接口获取真实板块涨跌幅
 
         Returns:
-            (上涨板块列表, 下跌板块列表, 是否使用了真实数据)
+            (上涨板块列表, 下跌板块列表, 是否使用了真实数据, 数据获取时间戳)
         """
-        cutoff = datetime.now(UTC) - timedelta(days=days)
-
-        signals = (
-            self.session.query(AlphaSignalDB)
-            .filter(
-                and_(
-                    AlphaSignalDB.discriminator == "event_alpha_signal",
-                    AlphaSignalDB.created_at >= cutoff,
-                )
+        try:
+            from data_layer.crawlers.akshare.board import (
+                get_last_fetch_time,
+                get_top_gainers,
+                get_top_losers,
             )
-            .order_by(desc(AlphaSignalDB.created_at))
-            .limit(100)
-            .all()
-        )
+        except ImportError:
+            logger.warning("AKShare board module not available")
+            return [], [], False, 0.0
 
-        if not signals:
-            return [], [], False
+        try:
+            gainers = get_top_gainers(limit=limit_per_direction)
+            losers = get_top_losers(limit=limit_per_direction)
+        except Exception as e:
+            logger.error(f"Failed to fetch sector board data: {e}")
+            return [], [], False, 0.0
 
-        # 按行业聚合
-        sector_data: Dict[str, Dict] = {}
+        fetched_at = get_last_fetch_time()
 
-        for signal in signals:
-            industries = signal.industry_impacts or []
-            bullish = signal.bullish_companies or []
-            bearish = signal.bearish_companies or []
-
-            for industry in industries:
-                if industry not in sector_data:
-                    sector_data[industry] = {
-                        "sector_id": f"sector-{hash(industry) % 10000}",
-                        "name": industry,
-                        "bullish_count": 0,
-                        "bearish_count": 0,
-                        "bullish_companies": set(),
-                        "bearish_companies": set(),
-                        "signal_count": 0,
-                        "avg_score": 0.0,
-                    }
-
-                data = sector_data[industry]
-                data["signal_count"] += 1
-                data["avg_score"] += float(signal.score)
-
-                for company in bullish:
-                    data["bullish_companies"].add(company)
-                data["bullish_count"] += len(bullish)
-
-                for company in bearish:
-                    data["bearish_companies"].add(company)
-                data["bearish_count"] += len(bearish)
-
-        # 计算最终数据
-        sectors = []
-        for name, data in sector_data.items():
-            if data["signal_count"] > 0:
-                data["avg_score"] /= data["signal_count"]
-
-            # 计算变化百分比
-            total = data["bullish_count"] + data["bearish_count"]
-            if total > 0:
-                change_pct = ((data["bullish_count"] - data["bearish_count"]) / total) * 10
-            else:
-                change_pct = (data["avg_score"] - 0.5) * 10
-
-            # 判断是否为概念板块
-            is_concept = self._is_concept_sector(name)
-
-            sectors.append(
+        up_sectors = []
+        for s in gainers:
+            if s.change_pct <= 0:
+                continue
+            up_sectors.append(
                 {
-                    "sector_id": data["sector_id"],
-                    "name": name,
-                    "change_pct": change_pct,
-                    "leading_stocks": list(data["bullish_companies"])[:3]
-                    if change_pct > 0
-                    else list(data["bearish_companies"])[:3],
-                    "related_news_count": data["signal_count"],
-                    "is_concept": is_concept,
+                    "sector_id": f"sector-{hash(s.name) % 10000}",
+                    "name": s.name,
+                    "change_pct": round(s.change_pct, 2),
+                    "leading_stocks": [],
+                    "related_news_count": s.up_count + s.down_count,
+                    "is_concept": self._is_concept_sector(s.name),
                 }
             )
 
-        # 分离上涨和下跌
-        up_sectors = [s for s in sectors if s["change_pct"] > 0]
-        down_sectors = [s for s in sectors if s["change_pct"] < 0]
+        down_sectors = []
+        for s in losers:
+            if s.change_pct >= 0:
+                continue
+            down_sectors.append(
+                {
+                    "sector_id": f"sector-{hash(s.name) % 10000}",
+                    "name": s.name,
+                    "change_pct": round(s.change_pct, 2),
+                    "leading_stocks": [],
+                    "related_news_count": s.up_count + s.down_count,
+                    "is_concept": self._is_concept_sector(s.name),
+                }
+            )
 
-        # 排序
-        up_sectors.sort(key=lambda x: x["change_pct"], reverse=True)
-        down_sectors.sort(key=lambda x: x["change_pct"])
-
-        return up_sectors[:limit_per_direction], down_sectors[:limit_per_direction], True
+        has_real_data = bool(up_sectors or down_sectors)
+        return up_sectors, down_sectors, has_real_data, fetched_at
 
     def _is_concept_sector(self, name: str) -> bool:
         """判断是否为概念板块（而非传统行业）"""
         concept_keywords = [
+            # AI / 人工智能
             "AI",
             "人工智能",
-            "新能源",
-            "半导体",
-            "芯片",
+            "ChatGPT",
+            "AIGC",
+            "大模型",
+            "具身智能",
+            "人形机器人",
+            "脑机接口",
+            "机器人",
+            "智能体",
+            "Agent",
+            "机器学习",
+            "深度学习",
+            "神经网络",
+            "GPU",
+            "NPU",
+            "TPU",
+            # 元宇宙 / 虚拟
             "元宇宙",
             "区块链",
             "Web3",
+            "NFT",
+            "数字孪生",
             "VR",
             "AR",
-            "自动驾驶",
-            "电动车",
-            "光伏",
-            "风电",
-            "储能",
-            "创新药",
-            "CXO",
-            "医美",
+            "MR",
+            "虚拟现实",
+            "增强现实",
+            "混合现实",
+            "虚拟人",
+            "数字人",
+            "虚拟数字人",
+            # 互联网 / 新媒体
             "网红",
             "直播",
+            "短视频",
+            "私域",
+            "跨境电商",
+            "社区团购",
+            "互联网",
+            "电商",
+            "小程序",
+            "社交",
+            "平台经济",
+            "共享经济",
+            "在线",
+            "线上",
+            # 数字经济 / 算力
+            "数字经济",
+            "数据要素",
+            "数据确权",
+            "东数西算",
+            "算力",
+            "云计算",
+            "大数据",
+            "数据中心",
+            "边缘计算",
+            "算力网络",
+            "数字",
+            "数据",
+            # 碳中和
+            "碳中和",
+            "碳交易",
+            "碳捕捉",
+            "CCUS",
+            "碳达峰",
+            "碳减排",
+            "绿色",
+            "新能源",
+            "清洁能源",
+            # 智能驾驶
+            "自动驾驶",
+            "无人驾驶",
+            "智能座舱",
+            "车路协同",
+            "飞行汽车",
+            "eVTOL",
+            "低空经济",
+            "智能汽车",
+            "智能网联",
+            "智慧交通",
+            # 新消费
+            "医美",
+            "预制菜",
+            "露营",
+            "盲盒",
+            "电子烟",
+            "新消费",
+            "新零售",
+            "国潮",
+            "潮玩",
+            "谷子经济",
+            "宠物",
+            "美妆",
+            "颜值经济",
+            "单身经济",
+            "银发经济",
+            "代糖",
+            "植物肉",
+            "功能性食品",
+            # 生物技术
+            "创新药",
+            "CXO",
+            "CRO",
+            "CDMO",
+            "基因编辑",
+            "细胞治疗",
+            "合成生物",
+            "基因",
+            "免疫治疗",
+            "mRNA",
+            "ADC",
+            "双抗",
+            "CAR-T",
+            "精准医疗",
+            "再生医学",
+            "生物制药",
+            # 信创 / 国产替代
+            "信创",
+            "国产替代",
+            "鸿蒙",
+            "欧拉",
+            "国产",
+            "自主可控",
+            "国产化",
+            # 前沿技术
+            "量子",
+            "6G",
+            "超导",
+            "可控核聚变",
+            "钙钛矿",
+            "固态电池",
+            "室温超导",
+            "拓扑绝缘体",
+            "纳米",
+            "石墨烯",
+            "液态金属",
+            # 新兴制造
+            "工业互联网",
+            "专精特新",
+            "新型工业化",
+            "3D打印",
+            "增材制造",
+            "智能制造",
+            # 太空 / 深海
+            "航天",
+            "商业航天",
+            "卫星互联网",
+            "北斗",
+            "太空",
+            "深海",
+            "深地",
+            "深空",
+            # 金融科技
+            "金融科技",
+            "数字货币",
+            "移动支付",
+            "第三方支付",
+            "跨境支付",
+            "数字人民币",
+            "金融IT",
+            # 游戏 / 电竞 / 文化娱乐
+            "游戏",
+            "电竞",
+            "动漫",
+            "二次元",
+            "IP经济",
+            "网文",
+            "短视频",
+            "MCN",
+            "自媒体",
+            "内容创作",
+            # 安全
+            "网络安全",
+            "数据安全",
+            "信息安全",
+            "安防",
+            # 新材料
+            "新材料",
+            "碳纤维",
+            "高温合金",
+            "钛合金",
+            "稀土永磁",
+            # 泛科技概念
+            "智能",
+            "智慧",
+            "物联网",
+            "车联网",
+            "工业软件",
+            "SaaS",
+            "PaaS",
+            "API",
+            "开源",
+            "RISC-V",
+            # 教育
+            "在线教育",
+            "素质教育",
+            "职业教育",
+            # 体育 / 健康
+            "体育",
+            "健身",
+            "户外",
+            "极限运动",
+            # 其他概念
+            "外贸",
+            "出海",
+            "RCEP",
+            "一带一路",
+            "自贸区",
+            "国企改革",
+            "混改",
+            "重组",
+            "借壳",
+            "高股息",
+            "高分红",
+            "破净",
+            "回购",
+            "美容",
+            "护理",
+            "医美",
+            "轻医美",
+            "抗衰老",
+            "微短剧",
+            "短剧",
         ]
         traditional_keywords = [
-            "银行",
-            "保险",
-            "证券",
-            "房地产",
-            "钢铁",
+            # 能源资源
             "煤炭",
             "石油",
             "天然气",
-            "消费",
-            "零售",
-            "家电",
-            "汽车",
-            "医药",
-            "医疗",
-            "交通运输",
-            "物流",
+            "电力",
+            "水力",
+            "火力",
+            "油气",
+            "油田",
+            "燃气",
+            "供暖",
+            # 金属矿产
+            "钢铁",
+            "有色",
+            "贵金属",
+            "黄金",
+            "稀土",
+            "矿产",
+            "金属",
+            "采矿",
+            "冶炼",
+            "锻造",
+            "铸造",
+            "铜",
+            "铝",
+            "锌",
+            "铅",
+            "镍",
+            "锡",
+            "锂矿",
+            # 金融
+            "银行",
+            "保险",
+            "证券",
+            "期货",
+            "信托",
+            "金融",
+            "多元金融",
+            "资产管理",
+            "基金",
+            "租赁",
+            "担保",
+            "典当",
+            "拍卖",
+            "不良资产",
+            # 地产基建
+            "房地产",
             "建筑",
             "建材",
+            "水泥",
+            "玻璃",
+            "装修",
+            "地产",
+            "物业",
+            "不动产",
+            # 交通物流
+            "交通运输",
+            "物流",
+            "铁路",
+            "公路",
+            "港口",
+            "航运",
+            "航空",
+            "机场",
+            "高速公路",
+            "快递",
+            "轨交",
+            "高铁",
+            "地铁",
+            "公交",
+            "出租",
+            "运输",
+            # 消费
+            "食品",
+            "饮料",
+            "白酒",
+            "啤酒",
+            "乳业",
+            "调味品",
+            "零售",
+            "百货",
+            "超市",
+            "家电",
+            "家居",
+            "纺织",
+            "服装",
+            "造纸",
+            "包装",
+            "厨卫",
+            "电器",
+            "小家电",
+            "厨房",
+            "卫生",
+            "香烟",
+            "烟草",
+            "酿酒",
+            # 汽车
+            "汽车",
+            "摩托车",
+            "乘用车",
+            "商用车",
+            "重卡",
+            "轻卡",
+            "客车",
+            "轿车",
+            "SUV",
+            "电动车",
+            # 医药
+            "医药",
+            "医疗",
+            "中药",
+            "化药",
+            "生物制品",
+            "医疗器械",
+            "药店",
+            "药房",
+            "制剂",
+            "原料药",
+            "疫苗",
+            "血制品",
+            "诊断",
+            "体外诊断",
+            "IVD",
+            # 农业
+            "农业",
+            "林业",
+            "牧业",
+            "渔业",
+            "化肥",
+            "农药",
+            "饲料",
+            "养殖",
+            "种业",
+            "种子",
+            "种植",
+            "畜牧",
+            "水产",
+            "农产品",
+            "农化",
+            "农机",
+            "农资",
+            # 化工
+            "化工",
+            "化学",
+            "塑料",
+            "橡胶",
+            "石化",
+            "炼化",
+            "煤化工",
+            "盐化工",
+            "精细化工",
+            # 机械设备
+            "机械",
+            "通用设备",
+            "专用设备",
+            "工程机械",
+            "仪器仪表",
+            "设备",
+            "电机",
+            "机床",
+            "泵",
+            "阀",
+            "轴承",
+            "齿轮",
+            "模具",
+            "刀具",
+            "量具",
+            "自动化",
+            # 军工
+            "军工",
+            "航天",
+            "航空装备",
+            "船舶",
+            "武器",
+            "弹药",
+            "雷达",
+            "电子对抗",
+            # 公用事业
+            "水务",
+            "燃气",
+            "供热",
+            "环保",
+            "环卫",
+            "供水",
+            "排水",
+            "污水处理",
+            "固废",
+            "危废",
+            "环境",
+            "治理",
+            "监测",
+            "园林",
+            # 传媒
+            "出版",
+            "广告",
+            "广电",
+            "影视",
+            "报纸",
+            "杂志",
+            "图书",
+            "传媒",
+            # 通信
+            "通信",
+            "电信",
+            "卫星",
+            # 电子
+            "电子",
+            "半导体",
+            "元件",
+            "光学",
+            "光电子",
+            "芯片",
+            "LED",
+            "OLED",
+            "MiniLED",
+            "MicroLED",
+            "PCB",
+            "FPC",
+            "传感器",
+            "连接器",
+            "电容器",
+            "电阻",
+            "电感",
+            "集成电路",
+            "IC",
+            "晶圆",
+            # 计算机
+            "计算机",
+            "软件",
+            "IT服务",
+            "信息服务",
+            # 商贸
+            "贸易",
+            "商业",
+            "批发",
+            "零售",
+            "连锁",
+            "供应链",
+            # 旅游
+            "旅游",
+            "酒店",
+            "餐饮",
+            "景区",
+            # 新能源制造（实体制造 → 板块，不是概念）
+            "光伏",
+            "风电",
+            "储能",
+            "锂电池",
+            "电池",
+            "新能源车",
+            "充电桩",
+            # 教育
+            "教育",
+            "体育",
+            "学校",
+            "培训",
+            "考试",
+            "留学",
+            # 其他制造
+            "钢铁",
+            "金属",
+            "采矿",
+            "冶炼",
+            "锻造",
+            "铸造",
+            "纺织",
+            "印染",
+            "皮革",
+            "家具",
+            "木材",
+            # 电力设备
+            "电网",
+            "电缆",
+            "变压器",
+            "开关",
+            "配电",
+            "发电",
+            "火电",
+            "水电",
+            "核电",
+            "光电",
+            "风电",
+            "电力设备",
+            "电源",
+            # 社会服务
+            "社会服务",
+            "职业",
+            "人力资源",
+            "劳务",
+            "咨询",
+            "检测",
+            "认证",
+            # 综合类
+            "综合",
+            # 建筑装饰
+            "装饰",
+            "幕墙",
+            "钢结构",
+            "防水",
+            # 地产链
+            "地产",
+            "开发",
+            "中介",
         ]
 
         name_lower = name.lower()
@@ -375,6 +926,74 @@ class DashboardDataRepository:
         has_traditional = any(k in name for k in traditional_keywords)
 
         return has_concept and not has_traditional
+
+    def get_recent_crawled_documents(
+        self, limit: int = 20, since: str = None, source_type: str = None
+    ) -> Dict[str, Any]:
+        """
+        获取最近抓取的文档（用于首页实时抓取流）
+
+        Args:
+            limit: 返回数量上限
+            since: ISO 时间戳，只返回此时间之后的数据（增量查询）
+            source_type: 按来源类型过滤 (cailian_she / china_security_journal / zhiqiu_reports)
+
+        Returns:
+            {"items": [...], "total_today": N}
+        """
+        base_query = self.session.query(DocumentV1DB)
+        if source_type:
+            base_query = base_query.filter(DocumentV1DB.source_type == source_type)
+
+        # Today's total count: prefer timeliness.publish_time, fall back to created_at
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        publish_or_created_coalesce = func.coalesce(
+            func.json_extract_path_text(DocumentV1DB.timeliness, "publish_time"),
+            cast(DocumentV1DB.created_at, String),
+        )
+        total_today = base_query.filter(publish_or_created_coalesce.like(f"{today_str}%")).count()
+
+        query = base_query
+        if since:
+            try:
+                since_dt = datetime.fromisoformat(since)
+                query = query.filter(DocumentV1DB.created_at > since_dt)
+            except (ValueError, TypeError):
+                pass
+
+        publish_or_created = func.coalesce(
+            func.json_extract_path_text(DocumentV1DB.timeliness, "publish_time"),
+            cast(DocumentV1DB.created_at, String),
+        )
+        documents = query.order_by(desc(publish_or_created)).limit(limit).all()
+
+        results = []
+        for doc in documents:
+            published_at = ""
+            timeliness = doc.timeliness or {}
+            publish_time = timeliness.get("publish_time") if isinstance(timeliness, dict) else None
+            if publish_time:
+                if hasattr(publish_time, "isoformat"):
+                    published_at = publish_time.isoformat()
+                else:
+                    published_at = str(publish_time)
+            if not published_at and doc.created_at:
+                published_at = doc.created_at.isoformat()
+
+            results.append(
+                {
+                    "doc_id": doc.doc_id,
+                    "title": doc.title or "",
+                    "source_type": doc.source_type or "",
+                    "source_name": doc.source_name or "",
+                    "doc_type": doc.doc_type or "",
+                    "url": doc.source_url or "",
+                    "published_at": published_at,
+                    "crawled_at": doc.created_at.isoformat() if doc.created_at else "",
+                }
+            )
+
+        return {"items": results, "total_today": total_today}
 
     def has_enough_data(self) -> bool:
         """检查是否有足够的真实数据"""

@@ -42,7 +42,7 @@ class ReportConfig(BaseConfig):
     pdf_dir: str = "pdfs"
 
     # 重写基类的默认值
-    use_homepage_search: bool = False
+    use_homepage_search: bool = True
     doc_type: str = "REPORT"
     module_name: str = "report"
     module_label: str = "研报"
@@ -153,7 +153,7 @@ class ReportFetcher(BaseFetcher):
         prompt = self.config.prompt.format(search=search_term if search_term else "全部")
 
         processor = ReportProcessor(self._client)
-        df, new_reports, skipped_count = processor.process(
+        df, new_reports, skipped_count, stopped_by_watermark = processor.process(
             json_data,
             output_json,
             prompt=prompt,

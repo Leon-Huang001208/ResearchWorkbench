@@ -98,6 +98,9 @@ class ZQAdapter(BaseDataAdapter):
             enable_companies=kwargs.get("enable_companies", False),
             enable_core=kwargs.get("enable_core", False),
             enable_pdf=kwargs.get("enable_pdf", False),
+            use_homepage_search=kwargs.get("use_homepage_search", True),
+            max_pages=kwargs.get("max_pages", 20),
+            page_size=kwargs.get("page_size", 100),
         )
 
         fetcher = ReportFetcher(config)
@@ -141,6 +144,8 @@ class ZQAdapter(BaseDataAdapter):
             state_path=kwargs.get("state_path"),
             skip_existing=kwargs.get("skip_existing", True),
             verbose=kwargs.get("verbose", True),
+            max_pages=kwargs.get("max_pages", 20),
+            page_size=kwargs.get("page_size", 100),
         )
 
         fetcher = NewsFetcher(config)
@@ -184,6 +189,8 @@ class ZQAdapter(BaseDataAdapter):
             state_path=kwargs.get("state_path"),
             skip_existing=kwargs.get("skip_existing", True),
             verbose=kwargs.get("verbose", True),
+            max_pages=kwargs.get("max_pages", 20),
+            page_size=kwargs.get("page_size", 100),
         )
 
         fetcher = MeetingFetcher(config)
@@ -239,6 +246,8 @@ class ZQAdapter(BaseDataAdapter):
             title = source.get("title", "")
             content = (
                 source.get("coreViewpoint", "")
+                or source.get("viewpoint", "")
+                or source.get("core", "")
                 or source.get("content", "")
                 or source.get("summary", "")
             )

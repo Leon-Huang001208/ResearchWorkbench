@@ -15,29 +15,38 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/api/ingest", tags=["ingest"])
 
 
-def get_ingest_service() -> IngestService:
-    """获取摄入服务实例（使用持久化仓库和共享向量库）"""
-    if not hasattr(get_ingest_service, "_instance"):
-        from data_layer.repositories.assertion_repository import AssertionRepositoryImpl
+_shared_vector_store = None
+
+
+def _get_vector_store():
+    """懒加载共享向量库"""
+    global _shared_vector_store
+    if _shared_vector_store is None:
         from data_layer.repositories.base import SessionLocal
-        from data_layer.repositories.document_repository import DocumentRepositoryImpl
-        from data_layer.repositories.event_repository import EventRepositoryImpl
-        from knowledge_layer.retrieval import SharedPGVectorStore
+        from knowledge_layer.retrieval.vector_store import PGVectorStore
 
-        # 注入持久化仓库
-        doc_repo = DocumentRepositoryImpl(SessionLocal())
-        assertion_repo = AssertionRepositoryImpl(SessionLocal())
-        event_repo = EventRepositoryImpl(SessionLocal())
-        # 注入共享向量库
-        vector_store = SharedPGVectorStore()
+        _shared_vector_store = PGVectorStore(session_factory=SessionLocal)
+    return _shared_vector_store
 
-        get_ingest_service._instance = IngestService(
-            document_repo=doc_repo,
-            assertion_repo=assertion_repo,
-            event_repo=event_repo,
-            vector_store=vector_store,
-        )
-    return get_ingest_service._instance
+
+def get_ingest_service() -> IngestService:
+    """获取摄入服务实例（每次请求使用统一 DB 会话）"""
+    from data_layer.repositories.assertion_repository import AssertionRepositoryImpl
+    from data_layer.repositories.base import SessionLocal
+    from data_layer.repositories.document_repository import DocumentRepositoryImpl
+    from data_layer.repositories.event_repository import EventRepositoryImpl
+
+    session = SessionLocal()
+    doc_repo = DocumentRepositoryImpl(session)
+    assertion_repo = AssertionRepositoryImpl(session)
+    event_repo = EventRepositoryImpl(session)
+
+    return IngestService(
+        document_repo=doc_repo,
+        assertion_repo=assertion_repo,
+        event_repo=event_repo,
+        vector_store=_get_vector_store(),
+    )
 
 
 @router.post(
@@ -163,7 +172,7 @@ async def ingest_cnstock(
 @router.post("/zq", response_model=IngestResponse)
 async def ingest_zq(
     search: str = "",
-    doc_types: str = "REPORT",
+    doc_types: str = "REPORT,NEWS,ZQMEETING",
     start_date: str | None = None,
     end_date: str | None = None,
     service: IngestService = Depends(get_ingest_service),

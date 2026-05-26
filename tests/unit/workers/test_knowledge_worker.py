@@ -12,6 +12,7 @@ class TestKnowledgeWorker:
 
         mock_item = MagicMock()
         mock_item.item_id = "item-001"
+        mock_item.source_id = None
         mock_item.source_type = "cls"
         mock_item.title = "Test Title"
         mock_item.raw_content = "Raw content here"
@@ -28,6 +29,7 @@ class TestKnowledgeWorker:
 
         mock_item = MagicMock()
         mock_item.item_id = "item-002"
+        mock_item.source_id = None
         mock_item.source_type = "unknown"
         mock_item.title = ""
         mock_item.raw_content = "Content"
@@ -56,6 +58,7 @@ class TestProcessOne:
 
         mock_item = MagicMock()
         mock_item.item_id = "i1"
+        mock_item.source_id = None
         mock_item.source_type = "cls"
         mock_item.title = "T"
         mock_item.raw_content = "C"

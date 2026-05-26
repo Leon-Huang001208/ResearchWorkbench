@@ -3902,18 +3902,26 @@ tr:hover td {
 
 .market-overview-grid {
     display: grid;
-    grid-template-columns: 2fr 1fr 1fr;
+    grid-template-columns: 2.08fr 1fr 1fr;
     gap: 1.5rem;
     margin-top: 0.5rem;
+    height: 520px;
+    overflow: hidden;
 }
 
 .market-section {
     background: var(--bg-input);
     border-radius: var(--radius-md);
     padding: 1rem;
+    overflow-y: auto;
+    min-height: 0;
 }
 
 .market-section h4 {
+    position: sticky;
+    top: 0;
+    background: var(--bg-input);
+    z-index: 1;
     font-size: 0.95rem;
     margin: 0 0 0.75rem 0;
     color: var(--text-primary);
@@ -3930,8 +3938,6 @@ tr:hover td {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
-    max-height: 420px;
-    overflow-y: auto;
 }
 
 .news-item {
@@ -3968,29 +3974,24 @@ tr:hover td {
     font-family: var(--font-mono);
 }
 
-.news-source {
-    font-size: 0.78rem;
-    color: var(--text-muted);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.news-region {
-    font-size: 0.7rem;
-    padding: 0.15rem 0.5rem;
-    background: var(--accent);
-    color: #fff;
-    border-radius: 999px;
-    font-weight: 600;
-}
-
-.news-title {
+.news-title-inline {
     font-size: 0.9rem;
     color: var(--text-primary);
     font-weight: 600;
-    margin-bottom: 0.3rem;
     line-height: 1.4;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.news-source-tag {
+    font-size: 0.7rem;
+    color: var(--accent);
+    background: var(--accent-light, #e8f4fd);
+    padding: 0.12rem 0.45rem;
+    border-radius: 3px;
+    font-weight: 600;
 }
 
 .news-summary {
@@ -4045,15 +4046,21 @@ tr:hover td {
 
 .sector-header {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: 0.4rem;
+    gap: 0.5rem;
 }
 
 .sector-name {
     font-size: 0.88rem;
     font-weight: 600;
     color: var(--text-primary);
+}
+
+.sector-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .sector-change {
@@ -4108,20 +4115,38 @@ tr:hover td {
 @media (max-width: 1200px) {
     .market-overview-grid {
         grid-template-columns: 1fr 1fr;
+        height: auto;
+        overflow: visible;
     }
 
     .news-section {
         grid-column: 1 / -1;
+        height: 360px;
+        overflow-y: auto;
+    }
+
+    .market-section {
+        height: 400px;
+        overflow-y: auto;
+        min-height: 0;
     }
 }
 
 @media (max-width: 768px) {
     .market-overview-grid {
         grid-template-columns: 1fr;
+        height: auto;
+        overflow: visible;
     }
 
-    .news-list {
-        max-height: 300px;
+    .news-section {
+        height: auto;
+        max-height: 360px;
+    }
+
+    .market-section {
+        height: auto;
+        max-height: 400px;
     }
 }
 
@@ -4133,4 +4158,91 @@ tr:hover td {
     0% { background: var(--color-accent-light, #e8f4fd); }
     100% { background: transparent; }
 }
+
+/* ─── Live Crawl Feed ───────────────────────────────────── */
+.crawl-feed-row .crawl-feed-card {
+    max-height: 340px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.crawl-feed-row .crawl-feed-card .crawl-feed-list {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+.crawl-feed-row .crawl-feed-card .card-header {
+    position: sticky;
+    top: 0;
+    background: var(--color-surface, #fff);
+    z-index: 1;
+}
+
+.crawl-feed-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.crawl-feed-list li {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--color-border-light, #eee);
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 13px;
+    transition: background 0.3s;
+}
+
+.crawl-feed-list li:last-child {
+    border-bottom: none;
+}
+
+.crawl-feed-list .feed-source {
+    flex-shrink: 0;
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: var(--color-accent-light, #e8f4fd);
+    color: var(--color-accent, #0366d6);
+    white-space: nowrap;
+    margin-top: 2px;
+}
+
+.crawl-feed-list .feed-title {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.crawl-feed-list .feed-time {
+    flex-shrink: 0;
+    font-size: 11px;
+    color: var(--color-text-muted, #999);
+    white-space: nowrap;
+}
+
+.crawl-feed-list .feed-new {
+    background: var(--color-accent-light, #e8f4fd);
+}
+
+.crawl-feed-list .empty-state {
+    padding: 24px;
+    text-align: center;
+    color: var(--color-text-muted, #999);
+}
+
+/* 响应式：窄屏时列数递减（默认 3 列 / 2 行） */
+@media (max-width: 1400px) {
+    .crawl-feed-row {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+@media (max-width: 1100px) {
+    .crawl-feed-row {
+        grid-template-columns: 1fr !important;
+    }
 }

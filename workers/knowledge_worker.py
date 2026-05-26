@@ -16,7 +16,7 @@ WORKER_NAME = "knowledge_worker"
 
 def _create_document_v1(item: Any) -> Any:
     """从 IngestionQueueItem 创建 DocumentV1"""
-    from core.contracts.documents_v1 import DocType, DocumentV1, SourceType
+    from core.contracts.documents_v1 import DocType, DocumentTimeliness, DocumentV1, SourceType
 
     source_type_map = {
         "cls": SourceType.CAILIAN_SHE,
@@ -36,13 +36,14 @@ def _create_document_v1(item: Any) -> Any:
     }
 
     return DocumentV1(
-        doc_id=item.item_id,
+        doc_id=item.source_id or item.item_id,
         doc_type=doc_type_map.get(item.source_type, DocType.NEWS),
         source_type=source_type_map.get(item.source_type, SourceType.CAILIAN_SHE),
         title=item.title or "",
         content=item.raw_content,
         source_name=item.source_type,
         source_url=item.url,
+        timeliness=DocumentTimeliness(publish_time=item.published_at),
     )
 
 

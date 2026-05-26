@@ -52,6 +52,12 @@ class CrawlerIngestionBridge:
             enqueue 结果字典，含 item_id, dedup_hash, was_duplicate, message
         """
         envelope = self._to_document_envelope(source_type, item)
+        published_at = item.get("published_at")
+        if published_at and hasattr(published_at, "isoformat"):
+            published_at = published_at.isoformat()
+        elif published_at:
+            published_at = str(published_at)
+
         request = EnqueueRequest(
             source_type=source_type,
             source_id=envelope.doc_id,
@@ -59,6 +65,7 @@ class CrawlerIngestionBridge:
             title=envelope.title,
             url=item.get("url", ""),
             priority=self._infer_priority(source_type),
+            published_at=published_at,
         )
         result = self._queue_service.enqueue(request)
         logger.info(

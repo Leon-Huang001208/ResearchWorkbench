@@ -34,6 +34,7 @@ class SourceType(str, Enum):
 
     CAILIAN_SHE = "cailian_she"  # 财联社
     CHINA_SECURITY_JOURNAL = "china_security_journal"  # 中国证券报
+    CNSTOCK_FLASH = "cnstock_flash"  # 中国证券网-快讯
     ZHIQIU_REPORTS = "zhiqiu_reports"  # 知丘研报
     ZHIQIU_WECHAT = "zhiqiu_wechat"  # 知丘公众号
     ZHIQIU_TRANSCRIPT = "zhiqiu_transcript"  # 知丘会议纪要

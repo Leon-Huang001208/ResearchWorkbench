@@ -24,11 +24,13 @@ class CNStockAdapter(BaseDataAdapter):
         end_date: str,
         channel: str = "证券",
         output_dir: str = "./data/crawlers/cnstock",
+        all_channels: bool = False,
         **kwargs,
     ) -> list[DocumentEnvelope]:
         """爬取中国证券网新闻,返回 DocumentEnvelope 列表"""
         logger.info(
-            f"Fetching CNStock news: start_date={start_date}, end_date={end_date}, channel={channel}, output_dir={output_dir}"
+            f"Fetching CNStock news: start_date={start_date}, end_date={end_date}, "
+            f"channel={channel}, all_channels={all_channels}, output_dir={output_dir}"
         )
 
         # 创建配置和爬虫实例
@@ -36,12 +38,14 @@ class CNStockAdapter(BaseDataAdapter):
             start_date=start_date,
             end_date=end_date,
             channel=channel,
+            all_channels=all_channels,
             output_path=output_dir,
             state_path=kwargs.get("state_path"),
             skip_existing=kwargs.get("skip_existing", True),
             verbose=kwargs.get("verbose", True),
             fetch_content=kwargs.get("fetch_content", False),
-            max_pages=kwargs.get("max_pages", 5),
+            max_pages=kwargs.get("max_pages", 10),
+            stop_on_known=kwargs.get("stop_on_known", True),
         )
 
         crawler = CnstockCrawler(config)

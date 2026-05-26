@@ -7,6 +7,21 @@
 ## [Unreleased]
 
 ### Fixed
+- **scheduler-process-separation**: 拆分爬虫调度器为独立进程 + 修复多源并发线程安全问题
+  - 新建 `workers/crawl_scheduler_worker.py` — 独立调度器进程，通过 PID 文件管理生命周期，SIGTERM/SIGINT 优雅退出
+  - `CrawlScheduler` 线程安全修复：`_run_crawl_job` / `_run_backfill_job` / `trigger_crawl` / `trigger_backfill` 每次创建独立 `CrawlOrchestrator`（独立 DB session），支持 CLS/CNStock/ZQ 多源并行抓取
+  - 新增 `build_scheduler_status()` — 纯函数从 DB 读取抓取状态（CrawlRun + SourceCursor）
+  - 新增 `get_scheduler_process_status()` — 通过 PID 文件检查调度器进程存活
+  - `app/api/routes/scheduler.py` 全部 5 个端点重写为跨进程操作（start 用 subprocess.Popen, stop 用 os.kill, status 读 DB+PID, trigger/backfill 用临时 CrawlOrchestrator）
+  - `scripts/start_all.sh`：调度器从 `curl POST /api/scheduler/start` 改为独立 `nohup python -m workers.crawl_scheduler_worker`
+  - `scripts/stop_all.sh`：新增 `stop_by_pid "scheduler"`
+  - `app/cli/commands/ingest.py`：`crawl status` 改用 `build_scheduler_status()` + `get_scheduler_process_status()`；`crawl scheduler-start` 改用 subprocess 启动独立进程
+- **crawl-dedup-title-fk**: 修复爬虫三大问题 — CLS 标题显示 "财联社电报 XXX" 而非真实标题、断言/事件 FK 约束冲突（source_document 缺失）、ZQ 适配器返回 0 条文档
+  - CLS 标题修复：从内容首句提取标题（`cls_adapter.py`）
+  - FK 约束修复：共享 DB 会话 + 文档优先保存顺序（`ingest.py`, `ingest_service.py`）
+  - ZQ 适配器修复：惰性导入 pdf_converter + 修复返回值解包 + 补充 viewpoint 字段作为内容源（`report_processor.py`, `report.py`, `zq_adapter.py`）
+  - 去重系统增强：source_doc_id/content_hash/doc_id 三重去重 + upsert（`crawl_orchestrator.py`, `documents_v1.py`）
+  - Knowledge Worker doc_id 一致性修复（`knowledge_worker.py`）
 - **test-suite-regression**: 修复 52 个测试失败和 5 个 mypy 错误 — 全流程验证通过 (1243 passed, 1 skipped)
   - 修复 `CanonicalEvent` (Pydantic contract) 新增必填字段 `source_type`/`source_name`/`title` 导致的 ~30 个测试失败 — 在 `ingestion_queue_service.py` 和所有测试 fixture 中补充必填字段
   - 修复 `GlobalSearchService` 构造函数变更 (session → search_repo) — 重写 `test_search.py` 和 `test_signal_detail.py` 搜索测试

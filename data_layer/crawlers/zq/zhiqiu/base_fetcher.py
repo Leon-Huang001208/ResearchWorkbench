@@ -134,7 +134,7 @@ class BaseConfig:
     date_limit: str = ""
     doc_type: str = ""  # 如 "REPORT", "NEWS", "ZQMEETING"
     page: int = 1
-    page_size: int = 50
+    page_size: int = 100
     fetch_all_pages: bool = True
     max_pages: int = 20
 

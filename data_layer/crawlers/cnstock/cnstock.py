@@ -54,7 +54,7 @@ class CnstockConfig:
     start_date: Optional[str] = None
     end_date: Optional[str] = None
     keywords: List[str] = field(default_factory=list)
-    max_pages: int = 5
+    max_pages: int = 10
     delay: float = 1.0
     node_id: str = "10232"
     page_size: int = 32
@@ -568,9 +568,9 @@ class CnstockCrawler:
 
                 all_news.extend(channel_news)
 
-                # 频道间延迟
+                # 频道间延迟（随机 2-5s，避免规律模式触发反爬）
                 if ch_info != channels[-1]:
-                    time.sleep(self.config.delay)
+                    time.sleep(random.uniform(2.0, 5.0))
 
         except Exception as e:
             if self.config.verbose:

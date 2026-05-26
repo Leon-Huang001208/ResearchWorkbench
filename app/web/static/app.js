@@ -86,7 +86,8 @@ function navigateTo(section) {
     document.querySelectorAll(`.activity-btn[data-section="${section}"]`).forEach(b => b.classList.add('active'));
     document.getElementById(`section-${section}`).classList.add('active');
     // Load data
-    if (section === 'dashboard') loadDashboard();
+    if (section === 'dashboard') { loadDashboard(); startCrawlFeedPolling(); }
+    else stopCrawlFeedPolling();
     if (section === 'signals') loadSignals();
     if (section === 'review') { loadReviewStats(); loadReviewPending(); }
     if (section === 'memory') loadMemoryPage();
@@ -109,12 +110,20 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Auto-refresh toggle
-    document.getElementById('auto-refresh')?.addEventListener('change', (e) => {
+    const autoRefreshCheckbox = document.getElementById('auto-refresh');
+    autoRefreshEnabled = autoRefreshCheckbox?.checked ?? true;
+    if (autoRefreshEnabled) {
+        autoRefreshInterval = setInterval(() => {
+            loadDashboard();
+        }, 30000);
+    }
+
+    autoRefreshCheckbox?.addEventListener('change', (e) => {
         autoRefreshEnabled = e.target.checked;
         if (autoRefreshEnabled) {
             autoRefreshInterval = setInterval(() => {
                 loadDashboard();
-            }, 30000); // 30 seconds
+            }, 30000);
             toast('自动刷新已启用 (每30秒)', 'info');
         } else {
             if (autoRefreshInterval) {
@@ -486,8 +495,50 @@ applyChartDefaults();
 // ═══════════════════════════════════════════════════════════════
 
 // Auto-refresh state
-let autoRefreshEnabled = false;
+let autoRefreshEnabled = true;
 let autoRefreshInterval = null;
+
+// SSE real-time event stream
+let sseConnection = null;
+
+function connectSSE() {
+    if (sseConnection) { sseConnection.close(); }
+    sseConnection = new EventSource('/api/realtime/stream');
+
+    sseConnection.onopen = () => console.log('[SSE] Connected to real-time stream');
+
+    sseConnection.addEventListener('document_parsed', (e) => {
+        const data = JSON.parse(e.data);
+        toast(`📄 ${data.source_type}: ${(data.title || '').substring(0, 40)}... — ${data.event_count || 0} events`, 'info');
+        loadDashboard();  // always refresh to show new crawl data
+    });
+
+    sseConnection.addEventListener('event_created', (e) => {
+        const data = JSON.parse(e.data);
+        toast(`📰 新事件: ${(data.summary || '').substring(0, 50)}...`, 'info');
+        loadDashboard();  // always refresh to show new crawl data
+    });
+
+    sseConnection.addEventListener('queue_update', (e) => {
+        const data = JSON.parse(e.data);
+        if (data.processed > 0) loadDashboard();
+    });
+
+    sseConnection.addEventListener('error_alert', (e) => {
+        const data = JSON.parse(e.data);
+        toast(`⚠️ 处理错误: ${(data.error || '').substring(0, 80)}`, 'error');
+    });
+
+    sseConnection.onerror = () => {
+        console.warn('[SSE] Connection error, retrying in 5s...');
+        sseConnection.close();
+        setTimeout(connectSSE, 5000);
+    };
+}
+
+// Connect SSE on page load, disconnect on unload
+connectSSE();
+window.addEventListener('beforeunload', () => { if (sseConnection) sseConnection.close(); });
 
 async function loadDashboard() {
     try {
@@ -525,13 +576,12 @@ async function loadDashboard() {
                 <li class="news-item ${n.is_mock ? 'mock-data-item' : ''}">
                     <div class="news-header">
                         <span class="news-rank">#${idx + 1}</span>
-                        <span class="news-source">${esc(n.source)}</span>
-                        <span class="news-region badge badge-region">${esc(n.region)}</span>
+                        <span class="news-title-inline">${esc(n.title)}</span>
                         ${n.is_mock ? '<span class="badge badge-mock">模拟</span>' : ''}
                     </div>
-                    <div class="news-title">${esc(n.title)}</div>
                     <div class="news-summary">${esc(n.summary)}</div>
                     <div class="news-meta">
+                        <span class="news-source-tag">${esc(n.source)}</span>
                         <span class="news-time">${new Date(n.published_at).toLocaleString()}</span>
                         ${n.related_symbols.length ? `<span class="news-symbols">${n.related_symbols.map(s => esc(s)).join(', ')}</span>` : ''}
                     </div>
@@ -548,12 +598,10 @@ async function loadDashboard() {
                 <li class="sector-item ${s.is_mock ? 'mock-data-item' : ''}">
                     <div class="sector-header">
                         <span class="sector-name">${esc(s.name)}</span>
-                        <span class="sector-change sector-up">+${s.change_pct.toFixed(2)}%</span>
-                    </div>
-                    <div class="sector-meta">
-                        ${s.is_concept ? '<span class="badge badge-concept">概念</span>' : '<span class="badge badge-sector">板块</span>'}
-                        ${s.is_mock ? '<span class="badge badge-mock">模拟</span>' : ''}
-                        <span class="sector-stocks">${s.leading_stocks.slice(0, 3).map(st => esc(st)).join(', ')}</span>
+                        <span class="sector-right">
+                            <span class="badge ${s.is_concept ? 'badge-concept' : 'badge-sector'}">${s.is_concept ? '概念' : '板块'}</span>
+                            <span class="sector-change sector-up">+${s.change_pct.toFixed(2)}%</span>
+                        </span>
                     </div>
                 </li>
             `).join('');
@@ -568,12 +616,10 @@ async function loadDashboard() {
                 <li class="sector-item ${s.is_mock ? 'mock-data-item' : ''}">
                     <div class="sector-header">
                         <span class="sector-name">${esc(s.name)}</span>
-                        <span class="sector-change sector-down">${s.change_pct.toFixed(2)}%</span>
-                    </div>
-                    <div class="sector-meta">
-                        ${s.is_concept ? '<span class="badge badge-concept">概念</span>' : '<span class="badge badge-sector">板块</span>'}
-                        ${s.is_mock ? '<span class="badge badge-mock">模拟</span>' : ''}
-                        <span class="sector-stocks">${s.leading_stocks.slice(0, 3).map(st => esc(st)).join(', ')}</span>
+                        <span class="sector-right">
+                            <span class="badge ${s.is_concept ? 'badge-concept' : 'badge-sector'}">${s.is_concept ? '概念' : '板块'}</span>
+                            <span class="sector-change sector-down">${s.change_pct.toFixed(2)}%</span>
+                        </span>
                     </div>
                 </li>
             `).join('');
@@ -2258,6 +2304,133 @@ function prependSignalCard(payload) {
     li.classList.add('fresh-event');
     container.prepend(li);
     setTimeout(() => li.classList.remove('fresh-event'), 3000);
+}
+
+// ─── Live Crawl Feed Polling (分源独立轮询) ─────────────────
+const CRAWL_FEED_SOURCES = [
+    { id: 'cailian_she', label: 'CLS', limit: 200 },
+    { id: 'china_security_journal', label: 'CNSTOCK', limit: 200 },
+    { id: 'cnstock_flash', label: '快讯', limit: 200 },
+    { id: 'zhiqiu_reports', label: 'ZQ研报', limit: 200 },
+    { id: 'zhiqiu_wechat', label: 'ZQ公众号', limit: 200 },
+    { id: 'zhiqiu_transcript', label: 'ZQ纪要', limit: 200 },
+];
+
+const crawlFeedStates = {};
+
+function getFeedState(sourceType) {
+    if (!crawlFeedStates[sourceType]) {
+        crawlFeedStates[sourceType] = { lastTs: null, seenIds: new Set() };
+    }
+    return crawlFeedStates[sourceType];
+}
+
+async function loadCrawlFeedForSource(sourceType, initial) {
+    try {
+        const state = getFeedState(sourceType);
+        let url = `/api/dashboard/crawl-feed?limit=500&source_type=${encodeURIComponent(sourceType)}`;
+        if (!initial && state.lastTs) {
+            url += '&since=' + encodeURIComponent(state.lastTs);
+        }
+        const data = await apiCall('GET', url);
+        if (!data || !Array.isArray(data.items)) return;
+
+        const list = document.getElementById('feed-list-' + sourceType);
+        const countEl = document.getElementById('feed-count-' + sourceType);
+        const statusEl = document.getElementById('feed-status-' + sourceType);
+        if (!list) return;
+
+        // Update today's total count from API
+        if (countEl && data.total_today !== undefined) {
+            countEl.textContent = data.total_today + ' 条';
+        }
+
+        let newCount = 0;
+
+        for (const item of [...data.items].reverse()) {
+            if (state.seenIds.has(item.doc_id)) continue;
+            state.seenIds.add(item.doc_id);
+            newCount++;
+
+            const li = document.createElement('li');
+            const timeStr = item.published_at || item.crawled_at;
+            let time = '';
+            if (timeStr) {
+                const d = new Date(timeStr);
+                const now = new Date();
+                const isToday = d.toDateString() === now.toDateString();
+                time = isToday ? d.toLocaleTimeString() : d.toLocaleString();
+            }
+            li.innerHTML = `
+                <span class="feed-title" title="${esc(item.title)}">${esc(item.title || '(无标题)')}</span>
+                <span class="feed-time">${time}</span>
+            `;
+            li.classList.add('feed-new');
+            setTimeout(() => li.classList.remove('feed-new'), 3000);
+            list.prepend(li);
+        }
+
+        // Trim to source-configured max items
+        const srcConfig = CRAWL_FEED_SOURCES.find(s => s.id === sourceType);
+        const maxItems = srcConfig ? srcConfig.limit : 100;
+        while (list.children.length > maxItems) {
+            list.removeChild(list.lastChild);
+        }
+
+        // Remove empty-state if present
+        const empty = list.querySelector('.empty-state');
+        if (empty && list.children.length > 1) empty.remove();
+
+        // Update trailing timestamp for next incremental poll
+        const latest = data.items.reduce((best, item) => {
+            const t = item.crawled_at || item.published_at;
+            return t && (!best || t > best) ? t : best;
+        }, null);
+        if (latest) state.lastTs = latest;
+
+        if (statusEl && newCount > 0) {
+            statusEl.textContent = '+' + newCount + ' 新';
+            statusEl.classList.add('badge-real');
+            setTimeout(() => {
+                statusEl.textContent = '监听中';
+                statusEl.classList.remove('badge-real');
+            }, 3000);
+        }
+    } catch (e) {
+        console.warn('[CrawlFeed:' + sourceType + '] Poll error:', e);
+    }
+}
+
+const crawlFeedIntervals = {};
+
+async function triggerCrawlAllSources() {
+    for (const { id } of CRAWL_FEED_SOURCES) {
+        try {
+            const resp = await fetch('/api/scheduler/trigger/' + encodeURIComponent(id), { method: 'POST' });
+            const result = await resp.json();
+            if (result.success) {
+                console.log('[CrawlFeed] Triggered crawl for', id, ':', result.result.success_count, 'new');
+            }
+        } catch (e) {
+            console.warn('[CrawlFeed] Failed to trigger crawl for', id, ':', e);
+        }
+    }
+}
+
+function startCrawlFeedPolling() {
+    CRAWL_FEED_SOURCES.forEach(({ id }) => {
+        if (crawlFeedIntervals[id]) return;
+        loadCrawlFeedForSource(id, true);
+        crawlFeedIntervals[id] = setInterval(() => loadCrawlFeedForSource(id, false), 5000);
+    });
+    console.log('[CrawlFeed] Per-source polling started (5s interval)');
+}
+
+function stopCrawlFeedPolling() {
+    Object.keys(crawlFeedIntervals).forEach(id => {
+        clearInterval(crawlFeedIntervals[id]);
+        delete crawlFeedIntervals[id];
+    });
 }
 
 // ═══════════════════════════════════════════════════════════════

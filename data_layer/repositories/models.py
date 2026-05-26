@@ -317,6 +317,7 @@ class IngestionQueueItemDB(Base):
     created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
     processed_at = Column(DateTime(timezone=True), nullable=True)
     dedup_hash = Column(Text, nullable=True, unique=True, index=True)
+    published_at = Column(Text, nullable=True)
 
 
 class ReplayJobDB(Base):
@@ -808,8 +809,8 @@ class DocumentV1DB(Base):
             evidence_profile=contract.evidence_profile.model_dump()
             if contract.evidence_profile
             else {},
-            timeliness=contract.timeliness.model_dump() if contract.timeliness else {},
-            processing=contract.processing.model_dump() if contract.processing else {},
+            timeliness=contract.timeliness.model_dump(mode="json") if contract.timeliness else {},
+            processing=contract.processing.model_dump(mode="json") if contract.processing else {},
             review=contract.review.model_dump() if contract.review else {},
             extra=contract.extra,
             source_name=contract.source_name,

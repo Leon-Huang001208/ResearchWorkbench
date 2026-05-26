@@ -13,7 +13,6 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 
-from ...utils.pdf_converter import convert_and_save
 from ..pdf_utils import PDFMetadata, calculate_file_hash, get_file_size, save_pdf_metadata
 from ..utils import parse_timestamp
 from .base import BaseProcessor, _clean_html
@@ -492,6 +491,8 @@ class ReportProcessor(BaseProcessor):
                     )
                     if os.path.exists(full_pdf_path):
                         try:
+                            from ...utils.pdf_converter import convert_and_save
+
                             conv_result, saved_paths = convert_and_save(
                                 pdf_path=full_pdf_path,
                                 output_dir=markdown_root_dir,
@@ -508,6 +509,10 @@ class ReportProcessor(BaseProcessor):
                                         saved_paths["raw_text"], output_dir
                                     )
                                 item["pdfConversionStrategy"] = conv_result.strategy_used
+                        except ImportError:
+                            self.client.logger.warning(
+                                "pdf_converter module not available, skipping PDF conversion"
+                            )
                         except Exception as e:
                             self.client.logger.warning(f"PDF 转换失败: {e}")
 
@@ -609,6 +614,8 @@ class ReportProcessor(BaseProcessor):
                     )
                     if os.path.exists(full_pdf_path):
                         try:
+                            from ...utils.pdf_converter import convert_and_save
+
                             conv_result, saved_paths = convert_and_save(
                                 pdf_path=full_pdf_path,
                                 output_dir=markdown_root_dir,
@@ -625,6 +632,10 @@ class ReportProcessor(BaseProcessor):
                                         saved_paths["raw_text"], output_dir
                                     )
                                 item["pdfConversionStrategy"] = conv_result.strategy_used
+                        except ImportError:
+                            self.client.logger.warning(
+                                "pdf_converter module not available, skipping PDF conversion"
+                            )
                         except Exception as e:
                             self.client.logger.warning(f"PDF 转换失败: {e}")
 

@@ -7,8 +7,12 @@
 - 健康检查
 - A股交易时段感知
 """
-from datetime import datetime, timedelta
+import os
+from datetime import datetime, time, timedelta
+from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
+
+import yaml
 
 from core.contracts import SourceType
 from core.observability import get_logger
@@ -16,6 +20,37 @@ from core.services.crawl_orchestrator import CrawlOrchestrator
 from core.utils.trading_calendar import TradingCalendar, get_trading_calendar
 
 logger = get_logger(__name__)
+
+
+def _load_crawl_config() -> dict:
+    """从 config/crawl.yaml 加载抓取时间配置"""
+    config_path = Path(__file__).parent.parent.parent / "config" / "crawl.yaml"
+    if not config_path.exists():
+        logger.warning(f"Crawl config not found at {config_path}, using defaults")
+        return {}
+    try:
+        with open(config_path, encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
+    except Exception:
+        logger.warning("Failed to load crawl config, using defaults", exc_info=True)
+        return {}
+
+    def _parse_time(key: str) -> time | None:
+        val = cfg.get(key)
+        if val is None:
+            return None
+        if isinstance(val, time):
+            return val
+        parts = str(val).strip().split(":")
+        if len(parts) == 2:
+            return time(int(parts[0]), int(parts[1]))
+        return None
+
+    return {
+        "extended_start_time": _parse_time("extended_start_time"),
+        "extended_end_time": _parse_time("extended_end_time"),
+    }
+
 
 # 尝试导入 APScheduler
 try:
@@ -42,6 +77,7 @@ class SourceCrawlConfig:
         backfill_interval_hours: int = 24,
         only_during_trading_hours: bool = True,
         include_auction: bool = False,
+        deep_backfill_enabled: bool = False,
     ):
         self.source_type = source_type
         self.source_name = source_name or source_type.value
@@ -53,25 +89,39 @@ class SourceCrawlConfig:
         self.backfill_interval_hours = backfill_interval_hours
         self.only_during_trading_hours = only_during_trading_hours
         self.include_auction = include_auction
+        self.deep_backfill_enabled = deep_backfill_enabled
 
+
+# 抓取时间配置（从 config/crawl.yaml 加载）
+_crawl_time_config = _load_crawl_config()
 
 # 默认配置
 DEFAULT_CRAWL_CONFIGS = [
-    # 财联社：每 15 分钟抓取一次，仅在交易时段
+    # 财联社：每 15 分钟抓取一次，7x24 运行
     SourceCrawlConfig(
         source_type=SourceType.CAILIAN_SHE,
         source_name="财联社",
         interval_minutes=15,
         days_per_crawl=1,
-        only_during_trading_hours=True,
+        only_during_trading_hours=False,
     ),
     # 中国证券报：每 30 分钟抓取一次，仅在交易时段
     SourceCrawlConfig(
         source_type=SourceType.CHINA_SECURITY_JOURNAL,
-        source_name="中国证券报",
+        source_name="中国证券网",
         interval_minutes=30,
         days_per_crawl=1,
         only_during_trading_hours=True,
+        deep_backfill_enabled=True,
+    ),
+    # 中国证券网快讯：每 10 分钟抓取一次，7x24 运行
+    SourceCrawlConfig(
+        source_type=SourceType.CNSTOCK_FLASH,
+        source_name="中国证券网·快讯",
+        interval_minutes=10,
+        days_per_crawl=1,
+        only_during_trading_hours=False,
+        deep_backfill_enabled=True,
     ),
     # 知丘研报：每 1 小时抓取一次，可在非交易时段运行
     SourceCrawlConfig(
@@ -80,6 +130,25 @@ DEFAULT_CRAWL_CONFIGS = [
         interval_minutes=60,
         days_per_crawl=2,
         only_during_trading_hours=False,
+        deep_backfill_enabled=True,
+    ),
+    # 知丘公众号：每 30 分钟抓取一次
+    SourceCrawlConfig(
+        source_type=SourceType.ZHIQIU_WECHAT,
+        source_name="知丘公众号",
+        interval_minutes=30,
+        days_per_crawl=1,
+        only_during_trading_hours=False,
+        deep_backfill_enabled=True,
+    ),
+    # 知丘纪要：每 60 分钟抓取一次
+    SourceCrawlConfig(
+        source_type=SourceType.ZHIQIU_TRANSCRIPT,
+        source_name="知丘纪要",
+        interval_minutes=60,
+        days_per_crawl=1,
+        only_during_trading_hours=False,
+        deep_backfill_enabled=True,
     ),
 ]
 
@@ -90,7 +159,6 @@ class CrawlScheduler:
     def __init__(self):
         self.scheduler: Optional[Any] = None
         self.configs: Dict[SourceType, SourceCrawlConfig] = {}
-        self.orchestrator = CrawlOrchestrator()
         self.running = False
         self.last_backfill_times: Dict[SourceType, datetime] = {}
         self.calendars: Dict[SourceType, TradingCalendar] = {}
@@ -99,14 +167,26 @@ class CrawlScheduler:
         for cfg in DEFAULT_CRAWL_CONFIGS:
             self.configs[cfg.source_type] = cfg
             self.calendars[cfg.source_type] = get_trading_calendar(
-                include_auction=cfg.include_auction
+                include_auction=cfg.include_auction,
+                extended_start_time=_crawl_time_config["extended_start_time"]
+                if cfg.only_during_trading_hours
+                else None,
+                extended_end_time=_crawl_time_config["extended_end_time"]
+                if cfg.only_during_trading_hours
+                else None,
             )
 
     def add_config(self, config: SourceCrawlConfig) -> None:
         """添加抓取配置"""
         self.configs[config.source_type] = config
         self.calendars[config.source_type] = get_trading_calendar(
-            include_auction=config.include_auction
+            include_auction=config.include_auction,
+            extended_start_time=_crawl_time_config["extended_start_time"]
+            if config.only_during_trading_hours
+            else None,
+            extended_end_time=_crawl_time_config["extended_end_time"]
+            if config.only_during_trading_hours
+            else None,
         )
 
         # 如果调度器已运行，添加任务
@@ -151,7 +231,7 @@ class CrawlScheduler:
 
         logger.info("Stopping crawl scheduler")
         if self.scheduler:
-            self.scheduler.shutdown()
+            self.scheduler.shutdown(wait=False)
         self.running = False
 
     def trigger_crawl(self, source_type: SourceType) -> Optional[Dict[str, Any]]:
@@ -162,7 +242,8 @@ class CrawlScheduler:
             return None
 
         logger.info(f"Manually triggering crawl for {source_type}")
-        result = self.orchestrator.crawl_source(
+        orchestrator = CrawlOrchestrator()
+        result = orchestrator.crawl_source(
             source_type=config.source_type,
             source_name=config.source_name,
             days=config.days_per_crawl,
@@ -188,7 +269,8 @@ class CrawlScheduler:
             return None
 
         logger.info(f"Manually triggering backfill for {source_type}")
-        result = self.orchestrator.backfill_source(
+        orchestrator = CrawlOrchestrator()
+        result = orchestrator.backfill_source(
             source_type=config.source_type,
             lookback_days=lookback_days,
         )
@@ -203,6 +285,7 @@ class CrawlScheduler:
     def get_status(self) -> Dict[str, Any]:
         """获取调度器状态"""
         now = datetime.now()
+        orchestrator = CrawlOrchestrator()
         status = {
             "running": self.running,
             "current_time": now.isoformat(),
@@ -210,7 +293,7 @@ class CrawlScheduler:
         }
 
         for source_type, config in self.configs.items():
-            source_status = self.orchestrator.get_crawl_status(source_type)
+            source_status = orchestrator.get_crawl_status(source_type)
             calendar = self.calendars.get(source_type)
             should_run, reason = False, ""
             if calendar:
@@ -268,16 +351,18 @@ class CrawlScheduler:
         return calendar.should_run_now(allow_non_trading=not config.only_during_trading_hours)
 
     def _add_jobs_for_source(self, config: SourceCrawlConfig) -> None:
-        """为来源添加调度任务"""
+        """为来源添加调度任务（含 ±20% 随机抖动，避免整点雷同）"""
         if not self.scheduler:
             return
 
         # 常规抓取任务
         job_id = f"crawl_{config.source_type.value}"
+        crawl_jitter = int(config.interval_minutes * 60 * 0.2)
         self.scheduler.add_job(
             self._run_crawl_job,
             "interval",
             minutes=config.interval_minutes,
+            jitter=crawl_jitter,
             id=job_id,
             name=f"Crawl {config.source_name}",
             kwargs={"source_type": config.source_type},
@@ -287,14 +372,63 @@ class CrawlScheduler:
         # 补漏任务（如果启用）
         if config.backfill_enabled:
             backfill_job_id = f"backfill_{config.source_type.value}"
+            backfill_jitter = int(config.backfill_interval_hours * 3600 * 0.2)
             self.scheduler.add_job(
                 self._run_backfill_job,
                 "interval",
                 hours=config.backfill_interval_hours,
+                jitter=backfill_jitter,
                 id=backfill_job_id,
                 name=f"Backfill {config.source_name}",
                 kwargs={"source_type": config.source_type},
                 next_run_time=datetime.now() + timedelta(hours=6),
+            )
+
+        # 深度历史回补任务（仅财联社）
+        if config.source_type == SourceType.CAILIAN_SHE:
+            deep_job_id = f"deep_backfill_{config.source_type.value}"
+            self.scheduler.add_job(
+                self._run_deep_backfill_job,
+                "interval",
+                minutes=30,
+                jitter=360,  # ±6 分钟
+                id=deep_job_id,
+                name=f"Deep Backfill {config.source_name}",
+                next_run_time=datetime.now() + timedelta(minutes=5),
+            )
+
+        # CNSTOCK 深度回补（每 6 小时，max_pages=30）
+        if config.deep_backfill_enabled and config.source_type in (
+            SourceType.CHINA_SECURITY_JOURNAL,
+            SourceType.CNSTOCK_FLASH,
+        ):
+            cn_deep_job_id = f"cn_deep_backfill_{config.source_type.value}"
+            self.scheduler.add_job(
+                self._run_cnstock_deep_backfill_job,
+                "interval",
+                hours=6,
+                jitter=4320,  # ±72 分钟
+                id=cn_deep_job_id,
+                name=f"CN Deep Backfill {config.source_name}",
+                kwargs={"source_type": config.source_type},
+                next_run_time=datetime.now() + timedelta(minutes=10),
+            )
+
+        # ZQ 深度回补（每 2 小时，滑动窗口逐来源推进）
+        if config.deep_backfill_enabled and config.source_type in (
+            SourceType.ZHIQIU_REPORTS,
+            SourceType.ZHIQIU_WECHAT,
+            SourceType.ZHIQIU_TRANSCRIPT,
+        ):
+            zq_deep_job_id = f"zq_deep_backfill_{config.source_type.value}"
+            self.scheduler.add_job(
+                self._run_zq_deep_backfill_job,
+                "interval",
+                hours=2,
+                jitter=1440,  # ±24 分钟
+                id=zq_deep_job_id,
+                name=f"ZQ Deep Backfill {config.source_name}",
+                next_run_time=datetime.now() + timedelta(minutes=20),
             )
 
     async def _run_crawl_job(self, source_type: SourceType) -> None:
@@ -303,7 +437,6 @@ class CrawlScheduler:
         if not config:
             return
 
-        # 检查是否应该在当前时段运行
         should_run, reason = self.check_source_should_run(source_type)
         if not should_run:
             logger.info(f"Skipping crawl for {source_type}: {reason}")
@@ -311,7 +444,8 @@ class CrawlScheduler:
 
         try:
             logger.info(f"Running scheduled crawl for {source_type}")
-            self.orchestrator.crawl_source(
+            orchestrator = CrawlOrchestrator()
+            orchestrator.crawl_source(
                 source_type=config.source_type,
                 source_name=config.source_name,
                 days=config.days_per_crawl,
@@ -327,10 +461,10 @@ class CrawlScheduler:
         if not config:
             return
 
-        # 补漏任务不受交易时段限制
         try:
             logger.info(f"Running scheduled backfill for {source_type}")
-            self.orchestrator.backfill_source(
+            orchestrator = CrawlOrchestrator()
+            orchestrator.backfill_source(
                 source_type=config.source_type,
                 lookback_days=7,
             )
@@ -338,15 +472,268 @@ class CrawlScheduler:
         except Exception as e:
             logger.error(f"Scheduled backfill failed for {source_type}: {e}", exc_info=True)
 
+    async def _run_deep_backfill_job(self) -> None:
+        """执行深度历史回补任务（仅财联社 /detail/{id} 逐条扫描）"""
+        try:
+            logger.info("Running scheduled deep backfill for CLS")
+            orchestrator = CrawlOrchestrator()
+            result = orchestrator.deep_backfill_step(batch_size=10)
+            logger.info(
+                f"Deep backfill done: {result.success_count} saved, "
+                f"{result.skipped_count} skipped, {result.failure_count} failed"
+            )
+        except Exception as e:
+            logger.error(f"Scheduled deep backfill failed: {e}", exc_info=True)
+
+    async def _run_cnstock_deep_backfill_job(self, source_type: SourceType) -> None:
+        """执行 CNSTOCK 深度回补（max_pages=30，扩展历史覆盖）"""
+        config = self.configs.get(source_type)
+        if not config:
+            return
+
+        should_run, reason = self.check_source_should_run(source_type)
+        if not should_run:
+            logger.info(f"Skipping CN deep backfill for {source_type}: {reason}")
+            return
+
+        try:
+            logger.info(f"Running scheduled CN deep backfill for {source_type}")
+            orchestrator = CrawlOrchestrator()
+            result = orchestrator.backfill_source(
+                source_type=config.source_type,
+                lookback_days=7,
+                max_pages=30,
+            )
+            logger.info(
+                f"CN deep backfill {source_type.value}: {result.success_count} saved, "
+                f"{result.skipped_count} skipped, {result.failure_count} failed"
+            )
+        except Exception as e:
+            logger.error(f"CN deep backfill failed for {source_type}: {e}", exc_info=True)
+
+    async def _run_zq_deep_backfill_job(self) -> None:
+        """执行 ZQ 滑动窗口深度历史回补"""
+        try:
+            logger.info("Running scheduled ZQ deep backfill step")
+            orchestrator = CrawlOrchestrator()
+            result = orchestrator.zq_deep_backfill_step(
+                window_days=5,
+                max_pages=30,
+            )
+            logger.info(
+                f"ZQ deep backfill step: {result.success_count} saved, "
+                f"{result.skipped_count} skipped, {result.failure_count} failed"
+            )
+        except Exception as e:
+            logger.error(f"ZQ deep backfill failed: {e}", exc_info=True)
+
+    async def check_and_backfill_gap(self, source_type: SourceType) -> Optional[Dict[str, Any]]:
+        """启动时检测抓取遗漏窗口并回补
+
+        双重检测：
+        1. cursor.last_successful_crawl_time（scheduler 上次成功爬取时间）
+        2. 数据库中该 source_type 最近一条文档的 created_at（实际覆盖终点）
+        取两者中更久的作为有效缺口，避免手动触发/cursor脏数据掩盖真实缺口。
+        """
+        config = self.configs.get(source_type)
+        if not config or not config.enabled:
+            return None
+
+        orchestrator = CrawlOrchestrator()
+        threshold = config.interval_minutes * 2
+
+        # ── 来源 A：cursor 记录的“上次调度成功时间” ──
+        status = orchestrator.get_crawl_status(source_type)
+        cursor = (status or {}).get("cursor") if status else None
+        cursor_gap_minutes: Optional[float] = None
+
+        if cursor:
+            last_crawl_str = cursor.get("last_successful_crawl_time")
+            if last_crawl_str:
+                try:
+                    last_crawl = datetime.fromisoformat(str(last_crawl_str))
+                    cursor_gap_minutes = (
+                        datetime.utcnow() - last_crawl.replace(tzinfo=None)
+                    ).total_seconds() / 60
+                except (ValueError, TypeError):
+                    pass
+
+        # ── 来源 B：数据库中实际最近文档时间 ──
+        db_gap_minutes: Optional[float] = None
+        try:
+            latest_doc_ts = orchestrator.get_latest_document_time(source_type)
+            if latest_doc_ts:
+                db_gap_minutes = (
+                    datetime.utcnow() - latest_doc_ts.replace(tzinfo=None)
+                ).total_seconds() / 60
+        except Exception:
+            logger.debug(
+                f"[startup] {source_type.value}: could not query latest doc time", exc_info=True
+            )
+
+        # 取两个来源中更保守（更大）的缺口
+        effective_gap = cursor_gap_minutes or 0
+        if db_gap_minutes is not None and db_gap_minutes > effective_gap:
+            effective_gap = db_gap_minutes
+
+        if cursor_gap_minutes is None and db_gap_minutes is None:
+            # 首次启动：CNSTOCK 来源执行 max_pages=50 的初始历史回填
+            if config.source_type in (SourceType.CHINA_SECURITY_JOURNAL, SourceType.CNSTOCK_FLASH):
+                logger.info(
+                    f"[startup] {source_type.value}: no data yet, running initial backfill with max_pages=50"
+                )
+                try:
+                    result = orchestrator.backfill_source(
+                        source_type=config.source_type,
+                        lookback_days=7,
+                        max_pages=50,
+                    )
+                    self.last_backfill_times[source_type] = datetime.utcnow()
+                    logger.info(
+                        f"[startup] {source_type.value}: initial backfill completed — "
+                        f"{result.success_count} saved, {result.skipped_count} skipped"
+                    )
+                    return {
+                        "source_type": source_type.value,
+                        "lookback_days": 7,
+                        "max_pages": 50,
+                        "success_count": result.success_count,
+                        "skipped_count": result.skipped_count,
+                    }
+                except Exception as e:
+                    logger.error(
+                        f"[startup] {source_type.value}: initial backfill failed: {e}",
+                        exc_info=True,
+                    )
+                    return None
+            logger.info(f"[startup] {source_type.value}: no data yet, skipping gap check")
+            return None
+
+        if effective_gap <= threshold:
+            logger.info(
+                f"[startup] {source_type.value}: effective gap {effective_gap:.0f}min <= "
+                f"threshold {threshold}min (cursor={cursor_gap_minutes}min, db={db_gap_minutes}min), "
+                f"no backfill needed"
+            )
+            return None
+
+        lookback_days = max(1, int(effective_gap / (60 * 24)) + 1)
+        lookback_days = min(lookback_days, 18)
+
+        logger.info(
+            f"[startup] {source_type.value}: effective gap {effective_gap:.0f}min > "
+            f"threshold {threshold}min (cursor={cursor_gap_minutes}min, db={db_gap_minutes}min), "
+            f"running backfill with lookback={lookback_days}d"
+        )
+
+        try:
+            _max_pages = (
+                50
+                if config.source_type
+                in (SourceType.CHINA_SECURITY_JOURNAL, SourceType.CNSTOCK_FLASH)
+                else None
+            )
+            result = orchestrator.backfill_source(
+                source_type=config.source_type,
+                lookback_days=lookback_days,
+                max_pages=_max_pages,
+            )
+            self.last_backfill_times[source_type] = datetime.utcnow()
+            logger.info(
+                f"[startup] {source_type.value}: backfill completed — "
+                f"{result.success_count} saved, {result.skipped_count} skipped"
+            )
+            return {
+                "source_type": source_type.value,
+                "gap_minutes": effective_gap,
+                "lookback_days": lookback_days,
+                "max_pages": _max_pages,
+                "success_count": result.success_count,
+                "skipped_count": result.skipped_count,
+            }
+        except Exception as e:
+            logger.error(f"[startup] {source_type.value}: backfill failed: {e}", exc_info=True)
+            return None
+
     async def _health_check(self) -> None:
         """健康检查"""
         logger.debug("Health check")
-        # 可以在这里添加健康检查逻辑
-        # 例如：检查连续失败次数，暂停有问题的来源
+
+
+def build_scheduler_status() -> Dict[str, Any]:
+    """纯函数：从 DB 读取所有来源的抓取状态，不依赖 in-process 调度器。
+
+    供 API 路由 / CLI 在跨进程场景使用。
+    """
+    now = datetime.now()
+    orchestrator = CrawlOrchestrator()
+
+    sources = []
+    for cfg in DEFAULT_CRAWL_CONFIGS:
+        source_status = orchestrator.get_crawl_status(cfg.source_type)
+        calendar = get_trading_calendar(
+            include_auction=cfg.include_auction,
+            extended_start_time=_crawl_time_config["extended_start_time"]
+            if cfg.only_during_trading_hours
+            else None,
+            extended_end_time=_crawl_time_config["extended_end_time"]
+            if cfg.only_during_trading_hours
+            else None,
+        )
+        should_run, reason = calendar.should_run_now(
+            now, allow_non_trading=not cfg.only_during_trading_hours
+        )
+
+        sources.append(
+            {
+                "source_type": cfg.source_type.value,
+                "enabled": cfg.enabled,
+                "interval_minutes": cfg.interval_minutes,
+                "only_during_trading_hours": cfg.only_during_trading_hours,
+                "last_backfill": None,
+                "crawl_status": source_status,
+                "should_run": should_run,
+                "run_reason": reason,
+            }
+        )
+
+    return {
+        "running": True,
+        "current_time": now.isoformat(),
+        "sources": sources,
+    }
+
+
+def get_scheduler_process_status(pid_file: str | None = None) -> Dict[str, Any]:
+    """检查调度器进程是否存活（通过 PID 文件）。
+
+    Args:
+        pid_file: PID 文件路径，默认使用 logs/scheduler.pid
+
+    Returns:
+        {"alive": bool, "pid": int|None, "pid_file": str}
+    """
+    if pid_file is None:
+        pid_file = str(Path(__file__).parent.parent.parent / "logs" / "scheduler.pid")
+
+    result: Dict[str, Any] = {"alive": False, "pid": None, "pid_file": pid_file}
+
+    pid_path = Path(pid_file)
+    if not pid_path.exists():
+        return result
+
+    try:
+        pid = int(pid_path.read_text().strip())
+        result["pid"] = pid
+        os.kill(pid, 0)
+        result["alive"] = True
+    except (ValueError, OSError):
         pass
 
+    return result
 
-# 全局调度器实例
+
+# 全局调度器实例（仅在调度器 worker 进程内使用）
 _scheduler: Optional[CrawlScheduler] = None
 
 

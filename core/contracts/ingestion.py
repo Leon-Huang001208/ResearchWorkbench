@@ -64,6 +64,9 @@ class IngestionQueueItem(BaseModel):
     dedup_hash: Optional[str] = Field(
         default=None, description="Optional hash used for deduplication"
     )
+    published_at: Optional[str] = Field(
+        default=None, description="Original publish timestamp (ISO 8601)"
+    )
 
 
 class IngestionQueueStats(BaseModel):
@@ -116,6 +119,7 @@ class EnqueueRequest(BaseModel):
     title: Optional[str] = Field(None, description="Optional title of the item")
     url: Optional[str] = Field(None, description="Optional URL of the item")
     priority: int = Field(0, description="Priority of the item (0=normal, 1=high, 2=urgent)")
+    published_at: Optional[str] = Field(None, description="Original publish timestamp (ISO 8601)")
 
 
 class EnqueueResponse(BaseModel):

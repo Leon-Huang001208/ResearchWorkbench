@@ -272,7 +272,8 @@ class DashboardService:
                 up_sectors_data,
                 down_sectors_data,
                 has_real_sectors,
-            ) = self.dashboard_repo.get_sector_changes_from_signals(days=7, limit_per_direction=5)
+                _,
+            ) = self.dashboard_repo.get_sector_changes_from_signals(days=7, limit_per_direction=10)
 
             if has_real_news or has_real_sectors:
                 logger.info(
@@ -297,8 +298,24 @@ class DashboardService:
                     top_down_sectors = mock_down
                     has_real_sectors = False
 
-                # 获取最后更新时间
-                last_updated = datetime.now(UTC)
+                # 使用新闻的实际发布时间作为"更新于"时间戳
+                # 板块数据是实时行情（无原始发布日期），不参与计算
+                def _to_utc(d: datetime) -> datetime:
+                    """将 datetime 转为 UTC-aware，兼容 naive 输入"""
+                    if d.tzinfo is None:
+                        return d.replace(tzinfo=UTC)
+                    return d.astimezone(UTC)
+
+                candidates: List[datetime] = []
+                if global_news:
+                    for n in global_news:
+                        if n.published_at:
+                            try:
+                                candidates.append(_to_utc(datetime.fromisoformat(n.published_at)))
+                            except (ValueError, TypeError):
+                                pass
+
+                last_updated = max(candidates) if candidates else datetime.now(UTC)
 
                 return MarketOverviewSection(
                     global_news=global_news,
@@ -779,6 +796,12 @@ class DashboardService:
 
         return recent_failures, best_event_types, weekly_lessons
 
+    def get_crawl_feed(self, limit: int = 20, since: str = None, source_type: str = None) -> dict:
+        """获取实时抓取数据流，返回 {"items": [...], "total_today": N}"""
+        return self.dashboard_repo.get_recent_crawled_documents(
+            limit=limit, since=since, source_type=source_type
+        )
+
     def get_full_dashboard(self) -> DashboardResponse:
         """聚合所有板块数据生成完整仪表盘响应"""
         # 自动拉取真实数据源数据填充数据库（如果数据为空）
@@ -804,10 +827,10 @@ class DashboardService:
                         json={"channel": "证券"},
                         timeout=10,
                     )
-                    # 拉取知丘研报
+                    # 拉取知丘内容（研报/公众号/会议纪要）
                     requests.post(
                         "http://127.0.0.1:8000/api/ingest/zq",
-                        json={"doc_types": "REPORT", "days": 1},
+                        json={"doc_types": "REPORT,NEWS,ZQMEETING", "days": 1},
                         timeout=10,
                     )
                     logger.info("Real data ingest completed successfully")

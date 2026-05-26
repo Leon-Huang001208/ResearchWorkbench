@@ -7,7 +7,7 @@ from typing import Any
 from core.contracts import DocumentEnvelope
 from core.observability import get_logger
 from data_layer.adapters.base import BaseDataAdapter
-from data_layer.crawlers.cls.cls import CLSConfig, CLSTelegramCrawler
+from data_layer.crawlers.cls.cls import CLSConfig, CLSDeepBackfill, CLSTelegramCrawler
 
 logger = get_logger(__name__)
 
@@ -32,6 +32,7 @@ class CLSAdapter(BaseDataAdapter):
         )
 
         # 创建配置和爬虫实例
+        use_incremental = kwargs.get("use_incremental", True)
         config = CLSConfig(
             start_date=start_date,
             end_date=end_date,
@@ -39,8 +40,10 @@ class CLSAdapter(BaseDataAdapter):
             output_dir=output_dir,
             state_path=kwargs.get("state_path"),
             skip_existing=kwargs.get("skip_existing", True),
+            stop_on_known=use_incremental,  # 仅增量模式用水位线；回填模式用连续空页停止
             verbose=kwargs.get("verbose", True),
             max_pages=kwargs.get("max_pages", 50),
+            use_incremental=use_incremental,
         )
 
         crawler = CLSTelegramCrawler(config)
@@ -69,6 +72,55 @@ class CLSAdapter(BaseDataAdapter):
             logger.error(f"Failed to read CLS output file {output_file}: {e}", exc_info=True)
 
         return envelopes
+
+    def fetch_deep_backfill_batch(
+        self,
+        batch_size: int = 10,
+        state_path: str = "./data/crawlers/cls/.deep_backfill_state.json",
+    ) -> list[DocumentEnvelope]:
+        """深度历史回补：通过 /detail/{id} 逐条获取一批历史电报
+
+        Args:
+            batch_size: 每批扫描数量
+            state_path: 游标状态文件路径
+        """
+        logger.info(f"Deep backfill batch: batch_size={batch_size}")
+        backfill = CLSDeepBackfill(state_path=state_path, verbose=True)
+        items = backfill.run_batch(batch_size=batch_size)
+        envelopes = [self.parse_deep_backfill_item(item) for item in items]
+        logger.info(f"Deep backfill batch done: {len(envelopes)} telegrams saved")
+        return envelopes
+
+    def parse_deep_backfill_item(self, item: dict) -> DocumentEnvelope:
+        """解析深度回补条目（来自 __NEXT_DATA__ 的 articleDetail）"""
+        t_id = item.get("id", "")
+        content = item.get("content", "")
+        title = item.get("title", "")
+        ctime = item.get("ctime", 0)
+
+        published_at = None
+        if ctime:
+            try:
+                published_at = datetime.fromtimestamp(ctime)
+            except (ValueError, OSError):
+                pass
+
+        if not title and content:
+            title = content.split("。")[0].strip()[:100]
+        if not title:
+            title = f"财联社电报 {t_id}"
+
+        return DocumentEnvelope(
+            doc_id=self._generate_idempotency_key(f"cls-{t_id}"),
+            source_type="news",
+            title=title,
+            published_at=published_at,
+            source_name="财联社",
+            language="zh",
+            metadata={"telegram_id": t_id},
+            raw_text=content,
+            canonical_text=content,
+        )
 
     def parse(self, source: Any, **kwargs) -> DocumentEnvelope:
         """解析单条电报 JSON (dict)"""
@@ -108,10 +160,18 @@ class CLSAdapter(BaseDataAdapter):
                     except ValueError:
                         pass
 
+            # Extract meaningful title from content (first sentence), fall back to ID format
+            if content:
+                title = content.split("。")[0].strip()[:100]
+                if not title:
+                    title = f"财联社电报 {t_id}"
+            else:
+                title = f"财联社电报 {t_id}"
+
             return DocumentEnvelope(
                 doc_id=self._generate_idempotency_key(f"cls-{t_id}"),
                 source_type="news",
-                title=f"财联社电报 {t_id}",
+                title=title,
                 published_at=published_at,
                 source_name="财联社",
                 language="zh",

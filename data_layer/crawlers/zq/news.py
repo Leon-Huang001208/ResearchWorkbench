@@ -99,7 +99,7 @@ class NewsFetcher(BaseFetcher):
         os.makedirs(self.config.output_dir, exist_ok=True)
 
         processor = NewsProcessor(self._client, self.config.allowed_accounts_path)
-        df, new_news, skipped_count = processor.process(
+        df, new_news, skipped_count, _ = processor.process(
             json_data,
             output_json,
             state_manager=self._state_manager,

@@ -10,7 +10,6 @@ import click
 from core.contracts import SourceType
 from core.observability import get_logger
 from core.services.crawl_orchestrator import CrawlOrchestrator
-from core.services.crawl_scheduler import get_crawl_scheduler
 from core.services.ingest_service import IngestService
 from data_layer.adapters.data_source_router import DataSourceRouter
 
@@ -331,14 +330,14 @@ def crawl_status_command(source: Optional[str]):
         try:
             source_type = SourceType(source)
             orchestrator = CrawlOrchestrator()
-            status = orchestrator.get_crawl_status(source_type)
+            crawl_status = orchestrator.get_crawl_status(source_type)
 
-            if status:
+            if crawl_status:
                 click.echo(f"\nCrawl status for {source_type.value}")
                 click.echo("=" * 60)
 
-                if status.get("latest_run"):
-                    run = status["latest_run"]
+                if crawl_status.get("latest_run"):
+                    run = crawl_status["latest_run"]
                     click.echo("Latest run:")
                     click.echo(f"  Status: {run.get('status')}")
                     click.echo(f"  Started: {run.get('started_at')}")
@@ -346,8 +345,8 @@ def crawl_status_command(source: Optional[str]):
                     click.echo(f"  Success: {run.get('success_count')}")
                     click.echo(f"  Failed: {run.get('failure_count')}")
 
-                if status.get("cursor"):
-                    cursor = status["cursor"]
+                if crawl_status.get("cursor"):
+                    cursor = crawl_status["cursor"]
                     click.echo("\nCursor:")
                     click.echo(f"  Last crawl: {cursor.get('last_successful_crawl_time')}")
                     click.echo(f"  Last doc ID: {cursor.get('last_source_doc_id')}")
@@ -362,23 +361,29 @@ def crawl_status_command(source: Optional[str]):
             click.echo(f"✗ Invalid source type: {source}", err=True)
             raise click.Abort()
     else:
-        # 显示所有来源的状态
-        scheduler = get_crawl_scheduler()
-        status = scheduler.get_status()
+        from core.services.crawl_scheduler import (
+            build_scheduler_status,
+            get_scheduler_process_status,
+        )
+
+        process_status = get_scheduler_process_status()
+        db_status = build_scheduler_status()
 
         click.echo("\nCrawl Scheduler Status")
         click.echo("=" * 60)
-        click.echo(f"Running: {status.get('running')}")
+        click.echo(f"Process alive: {process_status.get('alive')}")
+        click.echo(f"PID: {process_status.get('pid')}")
 
         click.echo("\nSources:")
-        for source in status.get("sources", []):
-            enabled = "✓" if source.get("enabled") else "✗"
-            click.echo(f"  {enabled} {source.get('source_type')}")
-            click.echo(f"    Interval: {source.get('interval_minutes')} min")
+        for src in db_status.get("sources", []):
+            enabled = "✓" if src.get("enabled") else "✗"
+            click.echo(f"  {enabled} {src.get('source_type')}")
+            click.echo(f"    Interval: {src.get('interval_minutes')} min")
+            click.echo(f"    Should run: {src.get('should_run')} ({src.get('run_reason')})")
 
-        if status.get("jobs"):
+        if db_status.get("jobs"):
             click.echo("\nScheduled jobs:")
-            for job in status.get("jobs", []):
+            for job in db_status.get("jobs", []):
                 click.echo(f"  - {job.get('id')}: next={job.get('next_run_time')}")
 
         click.echo("=" * 60)
@@ -387,30 +392,36 @@ def crawl_status_command(source: Optional[str]):
 @crawl_group.command(name="scheduler-start")
 def crawl_scheduler_start_command():
     """
-    启动采集调度器（后台运行）
+    启动采集调度器（后台独立进程）
 
     示例:
         af crawl scheduler-start
     """
-    click.echo("Starting crawl scheduler...")
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    from core.services.crawl_scheduler import get_scheduler_process_status
+
+    process_status = get_scheduler_process_status()
+    if process_status["alive"]:
+        click.echo(f"✓ Scheduler already running (PID {process_status['pid']})")
+        return
+
+    project_dir = Path(__file__).resolve().parent.parent.parent.parent
+    worker_module = "workers.crawl_scheduler_worker"
+
+    click.echo("Starting crawl scheduler process...")
 
     try:
-        scheduler = get_crawl_scheduler()
-        scheduler.start()
-        click.echo("✓ Crawl scheduler started successfully!")
-        click.echo("\nTo stop the scheduler, press Ctrl+C")
-
-        # 保持运行
-        import time
-
-        try:
-            while True:
-                time.sleep(1)
-        except KeyboardInterrupt:
-            click.echo("\nStopping scheduler...")
-            scheduler.stop()
-            click.echo("✓ Scheduler stopped")
-
+        subprocess.Popen(
+            [sys.executable, "-m", worker_module],
+            cwd=str(project_dir),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+        click.echo("✓ Crawl scheduler started in background")
     except Exception as e:
         click.echo(f"\n✗ Failed to start scheduler: {e}", err=True)
         logger.error("Scheduler start failed", error=str(e), exc_info=True)

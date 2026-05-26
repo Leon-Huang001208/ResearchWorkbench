@@ -183,6 +183,13 @@ class IngestService:
         # 质量门
         approved_events, pending_events = self._event_quality_gate.process_batch(events)
 
+        # 保存文档到 source_document (FIRST — FK constraints on assertion/event reference this)
+        if self._document_repo:
+            try:
+                self._document_repo.save(envelope)
+            except Exception as e:
+                logger.warning(f"Failed to save document {envelope.doc_id}: {e}")
+
         # 保存断言到仓储
         if self._assertion_repo:
             for a in approved_assertions + pending_assertions:
@@ -205,10 +212,6 @@ class IngestService:
             text=canonical_text,
             metadata={"source_type": envelope.source_type, "source_name": envelope.source_name},
         )
-
-        # 保存文档
-        if self._document_repo:
-            self._document_repo.save(envelope)
 
         result = {
             "doc_id": envelope.doc_id,

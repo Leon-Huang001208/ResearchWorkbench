@@ -6,7 +6,7 @@
     <title>AlphaFoundry — 买方投研情报系统</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/style.css?v=20250526c">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@vscode/codicons@0.0.36/dist/codicon.min.css">
 </head>
 <body>
@@ -90,7 +90,7 @@
                                     <i class="codicon codicon-refresh"></i>
                                 </button>
                                 <label style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
-                                    <input type="checkbox" id="auto-refresh" style="margin: 0;">
+                                    <input type="checkbox" id="auto-refresh" style="margin: 0;" checked>
                                     <span>自动刷新</span>
                                 </label>
                             </div>
@@ -107,7 +107,7 @@
 
                             <!-- Top Up Sectors -->
                             <div class="market-section sectors-up-section">
-                                <h4>📈 今日上涨板块概念 (Top 5)</h4>
+                                <h4>📈 今日上涨板块概念 (Top 10)</h4>
                                 <ul id="market-top-up-sectors" class="sector-list">
                                     <li class="empty-state" data-i18n="dashboard.no_data">暂无数据</li>
                                 </ul>
@@ -115,11 +115,93 @@
 
                             <!-- Top Down Sectors -->
                             <div class="market-section sectors-down-section">
-                                <h4>📉 今日下跌板块概念 (Top 5)</h4>
+                                <h4>📉 今日下跌板块概念 (Top 10)</h4>
                                 <ul id="market-top-down-sectors" class="sector-list">
                                     <li class="empty-state" data-i18n="dashboard.no_data">暂无数据</li>
                                 </ul>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Live Crawl Feed - 三列两行 -->
+                    <div class="crawl-feed-row" style="grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
+                        <!-- CLS 财联社 -->
+                        <div class="dashboard-card crawl-feed-card" data-source="cailian_she">
+                            <div class="card-header">
+                                <h3><i class="codicon codicon-rss"></i> 财联社 CLS</h3>
+                                <div class="card-header-actions">
+                                    <span class="feed-status badge-new" id="feed-status-cailian_she">监听中</span>
+                                    <span class="feed-count text-muted" id="feed-count-cailian_she" style="font-size: 12px;">0 条</span>
+                                </div>
+                            </div>
+                            <ul class="crawl-feed-list" id="feed-list-cailian_she">
+                                <li class="empty-state">等待抓取数据...</li>
+                            </ul>
+                        </div>
+                        <!-- 中国证券网 -->
+                        <div class="dashboard-card crawl-feed-card" data-source="china_security_journal">
+                            <div class="card-header">
+                                <h3><i class="codicon codicon-rss"></i> 中国证券网</h3>
+                                <div class="card-header-actions">
+                                    <span class="feed-status badge-new" id="feed-status-china_security_journal">监听中</span>
+                                    <span class="feed-count text-muted" id="feed-count-china_security_journal" style="font-size: 12px;">0 条</span>
+                                </div>
+                            </div>
+                            <ul class="crawl-feed-list" id="feed-list-china_security_journal">
+                                <li class="empty-state">等待抓取数据...</li>
+                            </ul>
+                        </div>
+                        <!-- 中国证券网·快讯 -->
+                        <div class="dashboard-card crawl-feed-card" data-source="cnstock_flash">
+                            <div class="card-header">
+                                <h3><i class="codicon codicon-zap"></i> CNSTOCK 快讯</h3>
+                                <div class="card-header-actions">
+                                    <span class="feed-status badge-new" id="feed-status-cnstock_flash">监听中</span>
+                                    <span class="feed-count text-muted" id="feed-count-cnstock_flash" style="font-size: 12px;">0 条</span>
+                                </div>
+                            </div>
+                            <ul class="crawl-feed-list" id="feed-list-cnstock_flash">
+                                <li class="empty-state">等待抓取数据...</li>
+                            </ul>
+                        </div>
+                        <!-- 知丘研报 ZQ Reports -->
+                        <div class="dashboard-card crawl-feed-card" data-source="zhiqiu_reports">
+                            <div class="card-header">
+                                <h3><i class="codicon codicon-rss"></i> 知丘研报</h3>
+                                <div class="card-header-actions">
+                                    <span class="feed-status badge-new" id="feed-status-zhiqiu_reports">监听中</span>
+                                    <span class="feed-count text-muted" id="feed-count-zhiqiu_reports" style="font-size: 12px;">0 条</span>
+                                </div>
+                            </div>
+                            <ul class="crawl-feed-list" id="feed-list-zhiqiu_reports">
+                                <li class="empty-state">等待抓取数据...</li>
+                            </ul>
+                        </div>
+                        <!-- 知丘公众号 ZQ WeChat -->
+                        <div class="dashboard-card crawl-feed-card" data-source="zhiqiu_wechat">
+                            <div class="card-header">
+                                <h3><i class="codicon codicon-rss"></i> 知丘公众号</h3>
+                                <div class="card-header-actions">
+                                    <span class="feed-status badge-new" id="feed-status-zhiqiu_wechat">监听中</span>
+                                    <span class="feed-count text-muted" id="feed-count-zhiqiu_wechat" style="font-size: 12px;">0 条</span>
+                                </div>
+                            </div>
+                            <ul class="crawl-feed-list" id="feed-list-zhiqiu_wechat">
+                                <li class="empty-state">等待抓取数据...</li>
+                            </ul>
+                        </div>
+                        <!-- 知丘纪要 ZQ Transcript -->
+                        <div class="dashboard-card crawl-feed-card" data-source="zhiqiu_transcript">
+                            <div class="card-header">
+                                <h3><i class="codicon codicon-rss"></i> 知丘纪要</h3>
+                                <div class="card-header-actions">
+                                    <span class="feed-status badge-new" id="feed-status-zhiqiu_transcript">监听中</span>
+                                    <span class="feed-count text-muted" id="feed-count-zhiqiu_transcript" style="font-size: 12px;">0 条</span>
+                                </div>
+                            </div>
+                            <ul class="crawl-feed-list" id="feed-list-zhiqiu_transcript">
+                                <li class="empty-state">等待抓取数据...</li>
+                            </ul>
                         </div>
                     </div>
 
@@ -986,6 +1068,6 @@
 
     <!-- Scripts: i18n must load before app.js -->
     <script src="/static/i18n.js"></script>
-    <script src="/static/app.js"></script>
+    <script src="/static/app.js?v=20250526a"></script>
 </body>
 </html>

@@ -437,8 +437,10 @@ Imports:
 - `tempfile`
 
 Functions:
+- `_get_vector_store`
+  - 懒加载共享向量库
 - `get_ingest_service`
-  - 获取摄入服务实例（使用持久化仓库和共享向量库）
+  - 获取摄入服务实例（每次请求使用统一 DB 会话）
 - `ingest_text`
   - 摄入文本
 - `ingest_file`
@@ -1117,20 +1119,26 @@ Module docstring:
 > Scheduler API — 自动数据刷新调度管理
 
 Imports:
+- `core.contracts`
 - `core.observability`
+- `core.services.crawl_orchestrator`
 - `core.services.crawl_scheduler`
 - `fastapi`
+- `os`
+- `pathlib`
+- `signal`
+- `subprocess`
+- `sys`
 - `typing`
 
 Functions:
-- `_get_scheduler`
-  - 获取调度器实例（延迟初始化）
+- `_get_config`
 - `get_scheduler_status`
   - 获取调度器状态
 - `start_scheduler`
-  - 启动调度器
+  - 启动调度器进程
 - `stop_scheduler`
-  - 停止调度器
+  - 停止调度器进程
 - `trigger_crawl`
   - 手动触发指定来源的抓取
 - `trigger_backfill`
@@ -1538,7 +1546,6 @@ Imports:
 - `core.contracts`
 - `core.observability`
 - `core.services.crawl_orchestrator`
-- `core.services.crawl_scheduler`
 - `core.services.ingest_service`
 - `data_layer.adapters.data_source_router`
 - `pathlib`
@@ -1564,7 +1571,7 @@ Functions:
 - `crawl_status_command`
   - 查看采集状态
 - `crawl_scheduler_start_command`
-  - 启动采集调度器（后台运行）
+  - 启动采集调度器（后台独立进程）
 
 
 ## `app/cli/commands/memory.py`
@@ -2967,7 +2974,7 @@ Classes:
   - methods: __init__
 - `CrawlOrchestrator`
   - 采集编排器
-  - methods: __init__, crawl_source, backfill_source, _calculate_time_window, _fetch_from_adapter, _envelope_to_doc_v1, _enqueue_to_bridge, _deduplicate_docs, get_crawl_status
+  - methods: __init__, crawl_source, backfill_source, _naive_utc, _calculate_time_window, _fetch_from_adapter, _envelope_to_doc_v1, _enqueue_to_bridge, _deduplicate_docs, get_crawl_status
 
 
 ## `core/services/crawl_scheduler.py`
@@ -2981,7 +2988,10 @@ Imports:
 - `core.services.crawl_orchestrator`
 - `core.utils.trading_calendar`
 - `datetime`
+- `os`
+- `pathlib`
 - `typing`
+- `yaml`
 
 Classes:
 - `SourceCrawlConfig`
@@ -2992,6 +3002,12 @@ Classes:
   - methods: __init__, add_config, start, stop, trigger_crawl, trigger_backfill, get_status, check_source_should_run, _add_jobs_for_source, _run_crawl_job, _run_backfill_job, _health_check
 
 Functions:
+- `_load_crawl_config`
+  - 从 config/crawl.yaml 加载抓取时间配置
+- `build_scheduler_status`
+  - 纯函数：从 DB 读取所有来源的抓取状态，不依赖 in-process 调度器。
+- `get_scheduler_process_status`
+  - 检查调度器进程是否存活（通过 PID 文件）。
 - `get_crawl_scheduler`
   - 获取全局调度器实例
 
@@ -3948,7 +3964,7 @@ Classes:
 
 Functions:
 - `get_trading_calendar`
-  - 获取全局交易日历实例
+  - 获取交易日历实例
 
 
 ## `data_layer/__init__.py`
@@ -5696,7 +5712,6 @@ Imports:
 - `re`
 - `typing`
 - `utils`
-- `utils.pdf_converter`
 
 Classes:
 - `ReportProcessor`
@@ -6241,7 +6256,7 @@ Imports:
 Classes:
 - `DocumentV1Repository`
   - 文档 Repository - 统一文档 v1
-  - methods: __init__, create, get, get_by_content_hash, update, delete, list, search_by_keyword, count, get_existing_source_ids, get_existing_content_hashes, list_by_time_range
+  - methods: __init__, create, get, get_by_content_hash, update, delete, list, search_by_keyword, count, get_existing_source_ids, get_existing_content_hashes, get_existing_doc_ids, list_by_time_range
 - `DocumentChunkV1Repository`
   - 文档分块 Repository
   - methods: __init__, create, bulk_create, get, get_by_doc_id, delete_by_doc_id

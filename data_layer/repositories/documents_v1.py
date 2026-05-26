@@ -62,7 +62,23 @@ class DocumentV1Repository(BaseRepository):
         super().__init__(db)
 
     def create(self, doc: DocumentV1) -> DocumentV1:
-        """创建新文档"""
+        """创建或更新文档（upsert）"""
+        existing = self.db.get(DocumentV1DB, doc.doc_id)
+        if existing:
+            # Update existing: merge metadata, update title/content/hash
+            existing.title = doc.title
+            existing.content = doc.content
+            existing.content_hash = doc.content_hash
+            existing.source_url = doc.source_url
+            if doc.doc_metadata:
+                existing.doc_metadata = {**existing.doc_metadata, **doc.doc_metadata}
+            if doc.source_metadata:
+                existing.source_metadata = {**existing.source_metadata, **doc.source_metadata}
+            self.db.commit()
+            self.db.refresh(existing)
+            logger.debug(f"Updated document: {doc.doc_id}")
+            return existing.to_contract()
+
         db_doc = DocumentV1DB.from_contract(doc)
         self.db.add(db_doc)
         self.db.commit()
@@ -100,8 +116,8 @@ class DocumentV1Repository(BaseRepository):
         db_doc.classification = doc.classification.model_dump() if doc.classification else {}
         db_doc.quality = doc.quality.model_dump() if doc.quality else {}
         db_doc.evidence_profile = doc.evidence_profile.model_dump() if doc.evidence_profile else {}
-        db_doc.timeliness = doc.timeliness.model_dump() if doc.timeliness else {}
-        db_doc.processing = doc.processing.model_dump() if doc.processing else {}
+        db_doc.timeliness = doc.timeliness.model_dump(mode="json") if doc.timeliness else {}
+        db_doc.processing = doc.processing.model_dump(mode="json") if doc.processing else {}
         db_doc.review = doc.review.model_dump() if doc.review else {}
         db_doc.extra = doc.extra
         db_doc.source_name = doc.source_name
@@ -224,6 +240,20 @@ class DocumentV1Repository(BaseRepository):
         results = self.db.execute(stmt).all()
 
         return {h: doc_id for doc_id, h in results if h}
+
+    def get_existing_doc_ids(self, doc_ids: List[str]) -> Dict[str, str]:
+        """批量检查 doc_id 是否已存在
+
+        Returns:
+            {doc_id -> doc_id} 映射（仅存在的 key）
+        """
+        if not doc_ids:
+            return {}
+
+        stmt = select(DocumentV1DB.doc_id).where(DocumentV1DB.doc_id.in_(doc_ids))
+        results = self.db.execute(stmt).scalars().all()
+
+        return {doc_id: doc_id for doc_id in results}
 
     def list_by_time_range(
         self,
