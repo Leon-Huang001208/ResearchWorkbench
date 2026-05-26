@@ -407,13 +407,17 @@ class PDFConversionService:
 
 def _map_source_type(source_type: str) -> SourceType:
     """将 artifact 的 source_type 字符串映射到 SourceType 枚举"""
-    type_map: Dict[str, SourceType] = {
+    # 从注册表自动构建映射（SourceType value → SourceType）
+    from core.source_registry import get_all as _get_all_specs
+
+    type_map: Dict[str, SourceType] = {}
+    for spec in _get_all_specs():
+        type_map[spec.source_type.value] = spec.source_type
+
+    # 历史别名（不在注册表中的遗留映射）
+    type_map.update({
         "zhiqiu": SourceType.ZHIQIU_REPORTS,
-        "zhiqiu_reports": SourceType.ZHIQIU_REPORTS,
-        "zhiqiu_wechat": SourceType.ZHIQIU_WECHAT,
-        "zhiqiu_transcript": SourceType.ZHIQIU_TRANSCRIPT,
-        "cailian_she": SourceType.CAILIAN_SHE,
         "east_money": SourceType.EAST_MONEY,
         "sina_finance": SourceType.SINA_FINANCE,
-    }
+    })
     return type_map.get(source_type, SourceType.OTHER)

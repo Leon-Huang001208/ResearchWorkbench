@@ -320,8 +320,8 @@ def create_daily_report_profile() -> RetrievalProfile:
         ),
         source_weights=SourceWeightConfig(
             weights={
-                SourceType.CAILIAN_SHE: 1.2,
-                SourceType.CHINA_SECURITY_JOURNAL: 1.1,
+                SourceType.CLS: 1.2,
+                SourceType.CNSTOCK: 1.1,
                 SourceType.ZHIQIU_REPORTS: 1.0,
             },
             default_weight=1.0,
@@ -359,8 +359,8 @@ def create_weekly_report_profile() -> RetrievalProfile:
         source_weights=SourceWeightConfig(
             weights={
                 SourceType.ZHIQIU_REPORTS: 1.3,
-                SourceType.CHINA_SECURITY_JOURNAL: 1.1,
-                SourceType.CAILIAN_SHE: 1.0,
+                SourceType.CNSTOCK: 1.1,
+                SourceType.CLS: 1.0,
             },
             default_weight=1.0,
         ),
@@ -480,8 +480,8 @@ def create_backtest_replay_profile(
         ),
         source_weights=SourceWeightConfig(
             weights={
-                SourceType.CAILIAN_SHE: 1.0,
-                SourceType.CHINA_SECURITY_JOURNAL: 1.0,
+                SourceType.CLS: 1.0,
+                SourceType.CNSTOCK: 1.0,
                 SourceType.ZHIQIU_REPORTS: 1.0,
             },
             default_weight=1.0,

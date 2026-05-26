@@ -43,7 +43,7 @@ def test_document_v1_creation():
     doc = DocumentV1(
         doc_id=generate_id(),
         doc_type=DocType.NEWS,
-        source_type=SourceType.CAILIAN_SHE,
+        source_type=SourceType.CLS,
         title="Test News Article",
         summary="A test news article for validation",
         content="This is the full content of the test news article...",
@@ -53,7 +53,7 @@ def test_document_v1_creation():
 
     assert doc.doc_id is not None
     assert doc.doc_type == DocType.NEWS
-    assert doc.source_type == SourceType.CAILIAN_SHE
+    assert doc.source_type == SourceType.CLS
     assert doc.title == "Test News Article"
     assert doc.content == "This is the full content of the test news article..."
 
@@ -107,7 +107,7 @@ def test_document_v1_model_dump():
     doc = DocumentV1(
         doc_id="test-doc-001",
         doc_type=DocType.TELEGRAM,
-        source_type=SourceType.CAILIAN_SHE,
+        source_type=SourceType.CLS,
         title="Breaking News",
         content="Important breaking news...",
     )
@@ -219,7 +219,7 @@ def test_crawl_run_v1():
     """测试抓取运行记录模型"""
     run = CrawlRunV1(
         run_id=generate_id(),
-        source_type=SourceType.CAILIAN_SHE,
+        source_type=SourceType.CLS,
         status="completed",
         started_at=datetime(2024, 5, 1, 10, 0, 0),
         completed_at=datetime(2024, 5, 1, 10, 5, 0),
@@ -230,7 +230,7 @@ def test_crawl_run_v1():
         config={"limit": 100},
     )
 
-    assert run.source_type == SourceType.CAILIAN_SHE
+    assert run.source_type == SourceType.CLS
     assert run.success_count == 100
     assert run.failure_count == 2
 
@@ -239,7 +239,7 @@ def test_source_cursor_v1():
     """测试来源游标模型"""
     cursor = SourceCursorV1(
         cursor_id=generate_id(),
-        source_type=SourceType.CAILIAN_SHE,
+        source_type=SourceType.CLS,
         source_name="财联社",
         last_successful_crawl_time=datetime(2024, 5, 1, 10, 0, 0),
         last_source_doc_id="last-doc-123",
@@ -248,7 +248,7 @@ def test_source_cursor_v1():
         is_paused=False,
     )
 
-    assert cursor.source_type == SourceType.CAILIAN_SHE
+    assert cursor.source_type == SourceType.CLS
     assert cursor.consecutive_failures == 0
 
 
@@ -310,11 +310,11 @@ def test_doc_type_enum():
 
 def test_source_type_enum():
     """测试 SourceType 枚举"""
-    assert SourceType.CAILIAN_SHE == "cailian_she"
+    assert SourceType.CLS == "cls"
     assert SourceType.ZHIQIU_REPORTS == "zhiqiu_reports"
     assert SourceType.ZHIQIU_WECHAT == "zhiqiu_wechat"
     assert SourceType.ZHIQIU_TRANSCRIPT == "zhiqiu_transcript"
-    assert SourceType.CHINA_SECURITY_JOURNAL == "china_security_journal"
+    assert SourceType.CNSTOCK == "cnstock"
 
 
 def test_source_reliability_level():
@@ -344,7 +344,7 @@ def test_document_v1_example():
     doc_data = {
         "doc_id": "test-example-001",
         "doc_type": "telegram",
-        "source_type": "cailian_she",
+        "source_type": "cls",
         "title": "央行宣布降准",
         "summary": "中国人民银行决定下调金融机构存款准备金率",
         "content": "中国人民银行决定，自2024年5月10日起，下调金融机构存款准备金率0.5个百分点...",

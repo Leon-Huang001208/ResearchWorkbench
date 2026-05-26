@@ -787,14 +787,14 @@ class CLSDeepBackfill:
             "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
         ]
 
-        # 加载或创建游标
-        self.state = self._load_state(start_id)
-
-        # 日志
+        # 日志（必须在 _load_state 之前，因为 _load_state 会用到 logger）
         if verbose:
             self.logger = setup_logging(logger_name="cls_deep_backfill", verbose=verbose)
         else:
             self.logger = logging.getLogger("cls_deep_backfill")
+
+        # 加载或创建游标
+        self.state = self._load_state(start_id)
 
     def _load_state(self, start_id: Optional[int] = None) -> DeepBackfillState:
         """加载游标状态，如不存在则创建"""

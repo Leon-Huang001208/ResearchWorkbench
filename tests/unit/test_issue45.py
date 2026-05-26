@@ -42,7 +42,7 @@ def create_test_document(
     title: str = "Test Document",
     content: str = "This is a test document about investment research.",
     doc_type: DocType = DocType.NEWS,
-    source_type: SourceType = SourceType.CAILIAN_SHE,
+    source_type: SourceType = SourceType.CLS,
     days_ago: int = 1,
     primary_industry: str = "tech",
     topics: list = None,

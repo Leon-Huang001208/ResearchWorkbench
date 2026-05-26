@@ -153,7 +153,7 @@ class DashboardDataRepository:
         cutoff = datetime.now(UTC) - timedelta(days=days)
 
         if source_types is None:
-            source_types = ["cailian_she", "cnstock_flash"]
+            source_types = ["cls", "cnstock_flash"]
 
         # 只查询新闻类文档，排除研报和评论
         doc_types = [DocType.NEWS.value, DocType.TELEGRAM.value]
@@ -1167,7 +1167,7 @@ class DashboardDataRepository:
         Args:
             limit: 返回数量上限
             since: ISO 时间戳，只返回此时间之后的数据（增量查询）
-            source_type: 按来源类型过滤 (cailian_she / china_security_journal / zhiqiu_reports)
+            source_type: 按来源类型过滤 (cls / cnstock / zhiqiu_reports)
 
         Returns:
             {"items": [...], "total_today": N}

@@ -15,7 +15,7 @@ class TestSourceCrawlConfig:
 
     def test_default_config(self):
         config = SourceCrawlConfig(
-            source_type=SourceType.CAILIAN_SHE,
+            source_type=SourceType.CLS,
             source_name="财联社",
         )
         assert config.only_during_trading_hours is True
@@ -23,7 +23,7 @@ class TestSourceCrawlConfig:
 
     def test_config_with_trading_options(self):
         config = SourceCrawlConfig(
-            source_type=SourceType.CAILIAN_SHE,
+            source_type=SourceType.CLS,
             source_name="财联社",
             only_during_trading_hours=False,
             include_auction=True,
@@ -73,18 +73,18 @@ class TestCrawlScheduler:
         scheduler = CrawlScheduler()
 
         with patch.object(
-            scheduler.calendars[SourceType.CAILIAN_SHE], "should_run_now"
+            scheduler.calendars[SourceType.CLS], "should_run_now"
         ) as mock_should:
             mock_should.return_value = (True, "在交易时段")
-            should_run, reason = scheduler.check_source_should_run(SourceType.CAILIAN_SHE)
+            should_run, reason = scheduler.check_source_should_run(SourceType.CLS)
             assert should_run is True
             assert "交易时段" in reason
 
     def test_check_source_should_run_disabled(self):
         scheduler = CrawlScheduler()
-        scheduler.configs[SourceType.CAILIAN_SHE].enabled = False
+        scheduler.configs[SourceType.CLS].enabled = False
 
-        should_run, reason = scheduler.check_source_should_run(SourceType.CAILIAN_SHE)
+        should_run, reason = scheduler.check_source_should_run(SourceType.CLS)
         assert should_run is False
         assert "已禁用" in reason
 
@@ -126,7 +126,7 @@ class TestCrawlScheduler:
         mock_orch_cls.return_value = mock_orch
 
         scheduler = CrawlScheduler()
-        result = scheduler.trigger_crawl(SourceType.CAILIAN_SHE)
+        result = scheduler.trigger_crawl(SourceType.CLS)
         assert result is not None
         assert result["success_count"] == 1
         mock_orch.crawl_source.assert_called_once()
@@ -148,7 +148,7 @@ class TestCrawlScheduler:
         mock_orch_cls.return_value = mock_orch
 
         scheduler = CrawlScheduler()
-        result = scheduler.trigger_backfill(SourceType.CAILIAN_SHE)
+        result = scheduler.trigger_backfill(SourceType.CLS)
         assert result is not None
         assert result["success_count"] == 2
         mock_orch.backfill_source.assert_called_once()

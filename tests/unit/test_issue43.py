@@ -31,25 +31,25 @@ class TestRawStorage:
         """测试获取存储路径"""
         dt = datetime(2024, 5, 10, 14, 30)
         path = get_raw_storage_path(
-            SourceType.CAILIAN_SHE,
+            SourceType.CLS,
             dt,
             RawDataType.JSON,
             base_dir="/tmp/test",
         )
 
-        assert str(path).startswith("/tmp/test/cailian_she/2024/05/10")
+        assert str(path).startswith("/tmp/test/cls/2024/05/10")
 
     def test_generate_raw_file_name(self):
         """测试生成文件名"""
         dt = datetime(2024, 5, 10, 14, 30)
         name = generate_raw_file_name(
-            "cailian_she",
+            "cls",
             RawDataType.JSON,
             dt,
         )
 
         assert "20240510_143000" in name
-        assert "cailian_she" in name
+        assert "cls" in name
         assert name.endswith(".json")
 
     def test_save_and_load_json(self, tmp_path):
@@ -59,7 +59,7 @@ class TestRawStorage:
 
         data = {"key": "value", "number": 42}
         file_info = service.save_raw_data(
-            source_type=SourceType.CAILIAN_SHE,
+            source_type=SourceType.CLS,
             data=data,
             data_type=RawDataType.JSON,
         )
@@ -78,7 +78,7 @@ class TestRawStorage:
 
         data = "这是一段测试内容"
         file_info = service.save_raw_data(
-            source_type=SourceType.CAILIAN_SHE,
+            source_type=SourceType.CLS,
             data=data,
             data_type=RawDataType.TEXT,
         )
@@ -93,18 +93,18 @@ class TestRawStorage:
 
         # 保存几个文件
         service.save_raw_data(
-            source_type=SourceType.CAILIAN_SHE,
+            source_type=SourceType.CLS,
             data={"test": 1},
             data_type=RawDataType.JSON,
         )
         service.save_raw_data(
-            source_type=SourceType.CAILIAN_SHE,
+            source_type=SourceType.CLS,
             data={"test": 2},
             data_type=RawDataType.JSON,
         )
 
         # 列出文件
-        files = service.list_raw_files(source_type=SourceType.CAILIAN_SHE)
+        files = service.list_raw_files(source_type=SourceType.CLS)
         assert len(files) >= 2
 
 
@@ -121,7 +121,7 @@ class TestDeduplication:
         return DocumentV1(
             doc_id=generate_id(),
             doc_type=DocType.NEWS,
-            source_type=SourceType.CAILIAN_SHE,
+            source_type=SourceType.CLS,
             title="测试新闻",
             content=content,
             source_metadata={"source_doc_id": source_doc_id} if source_doc_id else {},
@@ -187,7 +187,7 @@ class TestDeduplication:
 
         # 手动将缓存时间调旧
         old_time = datetime.now() - timedelta(hours=25)
-        service._seen_source_ids["cailian_she:doc_123"] = (doc.doc_id, old_time)
+        service._seen_source_ids["cls:doc_123"] = (doc.doc_id, old_time)
 
         # 清理
         cleaned = service.cleanup_cache()
@@ -247,7 +247,7 @@ class TestIssue43Acceptance:
         }
 
         file_info = service.save_raw_data(
-            source_type=SourceType.CAILIAN_SHE,
+            source_type=SourceType.CLS,
             data=raw_data,
             data_type=RawDataType.JSON,
         )
@@ -257,7 +257,7 @@ class TestIssue43Acceptance:
 
         # 验证路径结构包含 source_type
         path_str = str(file_info.file_path)
-        assert "cailian_she" in path_str
+        assert "cls" in path_str
 
     def test_deduplication_requirement(self):
         """去重需求验证"""
@@ -271,7 +271,7 @@ class TestIssue43Acceptance:
         doc = DocumentV1(
             doc_id=generate_id(),
             doc_type=DocType.NEWS,
-            source_type=SourceType.CAILIAN_SHE,
+            source_type=SourceType.CLS,
             title="测试新闻",
             content="新闻内容",
             source_metadata={"source_doc_id": "external_123"},
@@ -294,7 +294,7 @@ class TestIssue43Acceptance:
 
         cursor = SourceCursorV1(
             cursor_id=generate_id(),
-            source_type=SourceType.CAILIAN_SHE,
+            source_type=SourceType.CLS,
             source_name="财联社",
             last_successful_crawl_time=datetime.utcnow() - timedelta(hours=2),
             last_source_doc_id="last_doc_123",

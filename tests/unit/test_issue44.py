@@ -15,7 +15,7 @@ from core.utils.id_gen import generate_id
 
 def create_test_document(
     doc_type: DocType = DocType.NEWS,
-    source_type: SourceType = SourceType.CAILIAN_SHE,
+    source_type: SourceType = SourceType.CLS,
     content: str = None,
     title: str = None,
 ) -> DocumentV1:

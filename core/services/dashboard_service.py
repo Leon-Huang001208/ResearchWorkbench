@@ -815,16 +815,12 @@ class DashboardService:
 
             def ingest_real_data():
                 try:
-                    from core.contracts import SourceType
+                    from core.source_registry import get_enabled
                     from core.services.crawl_orchestrator import CrawlOrchestrator
 
                     orchestrator = CrawlOrchestrator()
-                    orchestrator.crawl_source(SourceType.CAILIAN_SHE)
-                    orchestrator.crawl_source(SourceType.CHINA_SECURITY_JOURNAL)
-                    orchestrator.crawl_source(SourceType.CNSTOCK_FLASH)
-                    orchestrator.crawl_source(SourceType.ZHIQIU_REPORTS)
-                    orchestrator.crawl_source(SourceType.ZHIQIU_WECHAT)
-                    orchestrator.crawl_source(SourceType.ZHIQIU_TRANSCRIPT)
+                    for spec in get_enabled():
+                        orchestrator.crawl_source(spec.source_type)
                     logger.info("Real data ingest completed successfully via CrawlOrchestrator")
                 except Exception as e:
                     logger.warning(f"Auto ingest failed: {e}")

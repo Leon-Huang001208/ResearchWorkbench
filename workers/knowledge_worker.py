@@ -19,12 +19,12 @@ def _create_document_v1(item: Any) -> Any:
     from core.contracts.documents_v1 import DocType, DocumentTimeliness, DocumentV1, SourceType
 
     source_type_map = {
-        "cls": SourceType.CAILIAN_SHE,
-        "cnstock": SourceType.CHINA_SECURITY_JOURNAL,
+        "cls": SourceType.CLS,
+        "cnstock": SourceType.CNSTOCK,
         "zq": SourceType.ZHIQIU_REPORTS,
         "report": SourceType.ZHIQIU_REPORTS,
         "pdf": SourceType.ZHIQIU_REPORTS,
-        "manual": SourceType.CHINA_SECURITY_JOURNAL,
+        "manual": SourceType.CNSTOCK,
     }
     doc_type_map = {
         "cls": DocType.NEWS,
@@ -38,7 +38,7 @@ def _create_document_v1(item: Any) -> Any:
     return DocumentV1(
         doc_id=item.source_id or item.item_id,
         doc_type=doc_type_map.get(item.source_type, DocType.NEWS),
-        source_type=source_type_map.get(item.source_type, SourceType.CAILIAN_SHE),
+        source_type=source_type_map.get(item.source_type, SourceType.CLS),
         title=item.title or "",
         content=item.raw_content,
         source_name=item.source_type,
@@ -112,7 +112,7 @@ async def main() -> None:
                 try:
                     result = await process_one(item)
                     repo.mark_completed(item.item_id)
-                    logger.info("Item processed", item_id=item.item_id, **result)
+                    logger.info("Item processed", **result)
                 except Exception as e:
                     repo.mark_failed(item.item_id, str(e))
                     logger.error(

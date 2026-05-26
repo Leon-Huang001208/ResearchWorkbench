@@ -49,7 +49,7 @@ def check_data():
             print("\n建议执行以下操作之一:")
             print("  1. 运行爬虫摄入数据: python -m app.cli.main ingest")
             print("  2. 访问 Web UI 的 '文档摄入' 页面手动添加数据")
-            print("  3. 运行爬虫: python -m app.cli.main crawl run --source cailian_she")
+            print("  3. 运行爬虫: python -m app.cli.main crawl run --source cls")
         else:
             print("✅ 数据库中有真实数据！")
 

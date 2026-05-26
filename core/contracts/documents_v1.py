@@ -32,8 +32,8 @@ class DocType(str, Enum):
 class SourceType(str, Enum):
     """来源类型枚举"""
 
-    CAILIAN_SHE = "cailian_she"  # 财联社
-    CHINA_SECURITY_JOURNAL = "china_security_journal"  # 中国证券报
+    CLS = "cls"  # 财联社
+    CNSTOCK = "cnstock"  # 中国证券网
     CNSTOCK_FLASH = "cnstock_flash"  # 中国证券网-快讯
     ZHIQIU_REPORTS = "zhiqiu_reports"  # 知丘研报
     ZHIQIU_WECHAT = "zhiqiu_wechat"  # 知丘公众号
@@ -245,7 +245,7 @@ class DocumentV1(BaseModel):
                 {
                     "doc_id": "doc_001",
                     "doc_type": "telegram",
-                    "source_type": "cailian_she",
+                    "source_type": "cls",
                     "title": "央行宣布降准0.5个百分点",
                     "summary": "中国人民银行决定下调金融机构存款准备金率",
                     "content": "中国人民银行决定，自2024年5月10日起，下调金融机构存款准备金率0.5个百分点...",

@@ -92,53 +92,36 @@ async def _run_crawl(source_type, source_name=None, days=1):
     )
 
 
-async def ingest_cls_data():
-    """抓取财联社电报数据（通过 CrawlOrchestrator）"""
-    from core.contracts import SourceType
+async def ingest_all_sources():
+    """抓取所有已注册的数据源（通过 CrawlOrchestrator）"""
+    from core.source_registry import get_enabled
 
-    logger.info("开始抓取财联社电报数据...")
-    try:
-        result = await _run_crawl(SourceType.CAILIAN_SHE, days=1)
-        logger.info(
-            f"财联社数据抓取完成：{result.success_count} 条成功, "
-            f"{result.skipped_count} 条跳过, {result.failure_count} 条失败"
-        )
-    except Exception as e:
-        logger.error(f"财联社数据抓取失败：{e}")
+    for spec in get_enabled():
+        logger.info(f"开始抓取 {spec.source_name} 数据...")
+        try:
+            result = await _run_crawl(spec.source_type, days=1)
+            logger.info(
+                f"{spec.source_name} 数据抓取完成：{result.success_count} 条成功, "
+                f"{result.skipped_count} 条跳过, {result.failure_count} 条失败"
+            )
+        except Exception as e:
+            logger.error(f"{spec.source_name} 数据抓取失败：{e}")
+
+
+# 向后兼容别名
+async def ingest_cls_data():
+    """抓取所有已注册来源（兼容旧调用方）"""
+    await ingest_all_sources()
 
 
 async def ingest_cnstock_data():
-    """抓取中国证券网新闻数据（通过 CrawlOrchestrator）"""
-    from core.contracts import SourceType
-
-    logger.info("开始抓取中国证券网新闻数据...")
-    try:
-        result1 = await _run_crawl(SourceType.CHINA_SECURITY_JOURNAL, days=1)
-        result2 = await _run_crawl(SourceType.CNSTOCK_FLASH, days=1)
-        total = result1.success_count + result2.success_count
-        logger.info(
-            f"中国证券网数据抓取完成：{total} 条成功 " f"(正文{result1.success_count}, 快讯{result2.success_count})"
-        )
-    except Exception as e:
-        logger.error(f"中国证券网数据抓取失败：{e}")
+    """由 ingest_all_sources 覆盖，保留别名向后兼容"""
+    pass
 
 
 async def ingest_zq_data():
-    """抓取知丘数据（通过 CrawlOrchestrator）"""
-    from core.contracts import SourceType
-
-    logger.info("开始抓取知丘数据...")
-    try:
-        result1 = await _run_crawl(SourceType.ZHIQIU_REPORTS, days=1)
-        result2 = await _run_crawl(SourceType.ZHIQIU_WECHAT, days=1)
-        result3 = await _run_crawl(SourceType.ZHIQIU_TRANSCRIPT, days=1)
-        total = result1.success_count + result2.success_count + result3.success_count
-        logger.info(
-            f"知丘数据抓取完成：{total} 条成功 "
-            f"(研报{result1.success_count}, 公众号{result2.success_count}, 纪要{result3.success_count})"
-        )
-    except Exception as e:
-        logger.error(f"知丘数据抓取失败：{e}")
+    """由 ingest_all_sources 覆盖，保留别名向后兼容"""
+    pass
 
 
 async def ingest_stock_master():

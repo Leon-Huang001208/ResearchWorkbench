@@ -87,16 +87,9 @@ def _run_backfill_in_thread(scheduler, source_type) -> None:
 
 async def _startup_gap_backfill(scheduler) -> None:
     """启动时检测所有来源的抓取遗漏并回补（线程池并行执行）"""
-    from core.contracts import SourceType
+    from core.source_registry import get_enabled
 
-    source_types = [
-        SourceType.CAILIAN_SHE,
-        SourceType.CHINA_SECURITY_JOURNAL,
-        SourceType.CNSTOCK_FLASH,
-        SourceType.ZHIQIU_REPORTS,
-        SourceType.ZHIQIU_WECHAT,
-        SourceType.ZHIQIU_TRANSCRIPT,
-    ]
+    source_types = [s.source_type for s in get_enabled()]
 
     loop = asyncio.get_running_loop()
     max_workers = len(source_types)

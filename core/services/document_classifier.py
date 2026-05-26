@@ -292,13 +292,14 @@ class DocumentClassifier:
         if not source_type:
             return SourceReliabilityLevel.UNKNOWN
 
-        # 根据来源类型判断
+        # 根据来源类型判断 — 优先从注册表读取，未注册的来源使用默认映射
+        from core.source_registry import get as _get_spec
+
+        _spec = _get_spec(source_type)
+        if _spec:
+            return _spec.reliability
+
         reliability_map = {
-            SourceType.CAILIAN_SHE: SourceReliabilityLevel.ESTABLISHED_MEDIA,
-            SourceType.CHINA_SECURITY_JOURNAL: SourceReliabilityLevel.OFFICIAL,
-            SourceType.ZHIQIU_REPORTS: SourceReliabilityLevel.RESEARCH_INSTITUTE,
-            SourceType.ZHIQIU_WECHAT: SourceReliabilityLevel.SPECIALIZED_MEDIA,
-            SourceType.ZHIQIU_TRANSCRIPT: SourceReliabilityLevel.RESEARCH_INSTITUTE,
             SourceType.COMPANY_ANNOUNCEMENT: SourceReliabilityLevel.OFFICIAL,
             SourceType.GOVERNMENT_POLICY: SourceReliabilityLevel.OFFICIAL,
             SourceType.WIND: SourceReliabilityLevel.RESEARCH_INSTITUTE,

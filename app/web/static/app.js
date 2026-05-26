@@ -2271,8 +2271,8 @@ function prependSignalCard(payload) {
 
 // ─── Live Crawl Feed Polling (分源独立轮询) ─────────────────
 const CRAWL_FEED_SOURCES = [
-    { id: 'cailian_she', label: 'CLS', limit: 200 },
-    { id: 'china_security_journal', label: 'CNSTOCK', limit: 200 },
+    { id: 'cls', label: 'CLS', limit: 200 },
+    { id: 'cnstock', label: 'CNSTOCK', limit: 200 },
     { id: 'cnstock_flash', label: '快讯', limit: 200 },
     { id: 'zhiqiu_reports', label: 'ZQ研报', limit: 200 },
     { id: 'zhiqiu_wechat', label: 'ZQ公众号', limit: 200 },

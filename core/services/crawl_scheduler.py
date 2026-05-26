@@ -10,7 +10,7 @@
 import os
 from datetime import datetime, time, timedelta
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
 
@@ -95,62 +95,30 @@ class SourceCrawlConfig:
 # 抓取时间配置（从 config/crawl.yaml 加载）
 _crawl_time_config = _load_crawl_config()
 
-# 默认配置
-DEFAULT_CRAWL_CONFIGS = [
-    # 财联社：每 15 分钟抓取一次，7x24 运行
-    SourceCrawlConfig(
-        source_type=SourceType.CAILIAN_SHE,
-        source_name="财联社",
-        interval_minutes=15,
-        days_per_crawl=1,
-        only_during_trading_hours=False,
-    ),
-    # 中国证券报：每 30 分钟抓取一次，仅在交易时段
-    SourceCrawlConfig(
-        source_type=SourceType.CHINA_SECURITY_JOURNAL,
-        source_name="中国证券网",
-        interval_minutes=30,
-        days_per_crawl=1,
-        only_during_trading_hours=True,
-        deep_backfill_enabled=True,
-    ),
-    # 中国证券网快讯：每 10 分钟抓取一次，7x24 运行
-    SourceCrawlConfig(
-        source_type=SourceType.CNSTOCK_FLASH,
-        source_name="中国证券网·快讯",
-        interval_minutes=10,
-        days_per_crawl=1,
-        only_during_trading_hours=False,
-        deep_backfill_enabled=True,
-    ),
-    # 知丘研报：每 1 小时抓取一次，可在非交易时段运行
-    SourceCrawlConfig(
-        source_type=SourceType.ZHIQIU_REPORTS,
-        source_name="知丘研报",
-        interval_minutes=60,
-        days_per_crawl=2,
-        only_during_trading_hours=False,
-        deep_backfill_enabled=True,
-    ),
-    # 知丘公众号：每 30 分钟抓取一次
-    SourceCrawlConfig(
-        source_type=SourceType.ZHIQIU_WECHAT,
-        source_name="知丘公众号",
-        interval_minutes=30,
-        days_per_crawl=1,
-        only_during_trading_hours=False,
-        deep_backfill_enabled=True,
-    ),
-    # 知丘纪要：每 60 分钟抓取一次
-    SourceCrawlConfig(
-        source_type=SourceType.ZHIQIU_TRANSCRIPT,
-        source_name="知丘纪要",
-        interval_minutes=60,
-        days_per_crawl=1,
-        only_during_trading_hours=False,
-        deep_backfill_enabled=True,
-    ),
-]
+# 默认配置 — 从数据源注册表自动生成
+def _get_default_configs() -> List[SourceCrawlConfig]:
+    """从 SourceSpec 注册表构建 SourceCrawlConfig 列表。"""
+    from core.source_registry import get_enabled  # 延迟导入避免循环
+
+    configs = []
+    for spec in get_enabled():
+        configs.append(SourceCrawlConfig(
+            source_type=spec.source_type,
+            source_name=spec.source_name,
+            interval_minutes=spec.interval_minutes,
+            days_per_crawl=spec.days_per_crawl,
+            max_docs=spec.max_docs,
+            enabled=spec.enabled,
+            backfill_enabled=spec.backfill_enabled,
+            backfill_interval_hours=spec.backfill_interval_hours,
+            only_during_trading_hours=spec.only_during_trading_hours,
+            include_auction=spec.include_auction,
+            deep_backfill_enabled=spec.deep_backfill_enabled,
+        ))
+    return configs
+
+
+DEFAULT_CRAWL_CONFIGS = _get_default_configs()
 
 
 class CrawlScheduler:
@@ -384,48 +352,47 @@ class CrawlScheduler:
                 next_run_time=datetime.now() + timedelta(hours=6),
             )
 
-        # 深度历史回补任务（仅财联社）
-        if config.source_type == SourceType.CAILIAN_SHE:
+        # 深度历史回补 — 按 backfill_family 分类
+        from core.source_registry import get as _get_spec
+
+        spec = _get_spec(config.source_type)
+        family = spec.backfill_family if spec else None
+
+        if family == "cls":
+            # CLS 专属深度回补（每 30 分钟）
             deep_job_id = f"deep_backfill_{config.source_type.value}"
             self.scheduler.add_job(
                 self._run_deep_backfill_job,
                 "interval",
                 minutes=30,
-                jitter=360,  # ±6 分钟
+                jitter=360,
                 id=deep_job_id,
                 name=f"Deep Backfill {config.source_name}",
                 next_run_time=datetime.now() + timedelta(minutes=5),
             )
 
-        # CNSTOCK 深度回补（每 6 小时，max_pages=30）
-        if config.deep_backfill_enabled and config.source_type in (
-            SourceType.CHINA_SECURITY_JOURNAL,
-            SourceType.CNSTOCK_FLASH,
-        ):
+        if config.deep_backfill_enabled and family == "cnstock":
+            # CNSTOCK 深度回补（每 6 小时）
             cn_deep_job_id = f"cn_deep_backfill_{config.source_type.value}"
             self.scheduler.add_job(
                 self._run_cnstock_deep_backfill_job,
                 "interval",
                 hours=6,
-                jitter=4320,  # ±72 分钟
+                jitter=4320,
                 id=cn_deep_job_id,
                 name=f"CN Deep Backfill {config.source_name}",
                 kwargs={"source_type": config.source_type},
                 next_run_time=datetime.now() + timedelta(minutes=10),
             )
 
-        # ZQ 深度回补（每 2 小时，滑动窗口逐来源推进）
-        if config.deep_backfill_enabled and config.source_type in (
-            SourceType.ZHIQIU_REPORTS,
-            SourceType.ZHIQIU_WECHAT,
-            SourceType.ZHIQIU_TRANSCRIPT,
-        ):
+        if config.deep_backfill_enabled and family == "zq":
+            # ZQ 深度回补（每 2 小时）
             zq_deep_job_id = f"zq_deep_backfill_{config.source_type.value}"
             self.scheduler.add_job(
                 self._run_zq_deep_backfill_job,
                 "interval",
                 hours=2,
-                jitter=1440,  # ±24 分钟
+                jitter=1440,
                 id=zq_deep_job_id,
                 name=f"ZQ Deep Backfill {config.source_name}",
                 next_run_time=datetime.now() + timedelta(minutes=20),
@@ -577,8 +544,11 @@ class CrawlScheduler:
             effective_gap = db_gap_minutes
 
         if cursor_gap_minutes is None and db_gap_minutes is None:
-            # 首次启动：CNSTOCK 来源执行 max_pages=50 的初始历史回填
-            if config.source_type in (SourceType.CHINA_SECURITY_JOURNAL, SourceType.CNSTOCK_FLASH):
+            # 首次启动：cnstock 系列执行 max_pages=50 的初始历史回填
+            from core.source_registry import get as _gs
+
+            _sp = _gs(config.source_type)
+            if _sp and _sp.backfill_family == "cnstock":
                 logger.info(
                     f"[startup] {source_type.value}: no data yet, running initial backfill with max_pages=50"
                 )
@@ -627,12 +597,10 @@ class CrawlScheduler:
         )
 
         try:
-            _max_pages = (
-                50
-                if config.source_type
-                in (SourceType.CHINA_SECURITY_JOURNAL, SourceType.CNSTOCK_FLASH)
-                else None
-            )
+            from core.source_registry import get as _gs2
+
+            _sp2 = _gs2(config.source_type)
+            _max_pages = 50 if (_sp2 and _sp2.backfill_family == "cnstock") else None
             result = orchestrator.backfill_source(
                 source_type=config.source_type,
                 lookback_days=lookback_days,

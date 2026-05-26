@@ -17,6 +17,10 @@ from core.observability import get_logger
 from core.services.deduplication_service import DeduplicationService
 from core.services.raw_storage_service import RawStorageService
 from core.utils.id_gen import generate_id
+
+# 触发数据源自动注册
+import data_sources  # noqa: F401
+
 from data_layer.repositories.base import get_db
 from data_layer.repositories.documents_v1 import (
     CrawlRunV1Repository,
@@ -257,71 +261,38 @@ class CrawlOrchestrator:
         raw_files: List[Any] = []
 
         try:
-            if source_type == SourceType.CAILIAN_SHE:
-                from data_layer.adapters.cls_adapter import CLSAdapter
+            from core.source_registry import get as get_spec
 
-                adapter = CLSAdapter()
-                envelopes = adapter.fetch(
-                    start_date=start_time.strftime("%Y-%m-%d"),
-                    end_date=end_time.strftime("%Y-%m-%d"),
-                    days=(end_time - start_time).days or 1,
-                    state_path="./data/crawlers/cls/.dedup_state.json",
-                    use_incremental=use_incremental,
-                )
-            elif source_type == SourceType.CHINA_SECURITY_JOURNAL:
-                from data_layer.adapters.cnstock_adapter import CNStockAdapter
+            spec = get_spec(source_type)
+            if spec is None:
+                logger.warning(f"No source spec registered for: {source_type}")
+                return [], []
 
-                adapter = CNStockAdapter()
-                envelopes = adapter.fetch(
-                    start_date=start_time.strftime("%Y-%m-%d"),
-                    end_date=end_time.strftime("%Y-%m-%d"),
-                    channel=["证券", "公司", "产经", "金融", "时政"],
-                    max_pages=max_pages or 10,
-                )
-            elif source_type == SourceType.CNSTOCK_FLASH:
-                from data_layer.adapters.cnstock_adapter import CNStockAdapter
+            # 动态导入适配器
+            module_path, class_name = spec.adapter_class.rsplit(".", 1)
+            module = __import__(module_path, fromlist=[class_name])
+            adapter_cls = getattr(module, class_name)
+            adapter = adapter_cls()
 
-                adapter = CNStockAdapter()
-                envelopes = adapter.fetch(
-                    start_date=start_time.strftime("%Y-%m-%d"),
-                    end_date=end_time.strftime("%Y-%m-%d"),
-                    channel="快讯",
-                    max_pages=max_pages or 10,
-                )
-            elif source_type == SourceType.ZHIQIU_REPORTS:
-                from data_layer.adapters.zq_adapter import ZQAdapter
+            # 构建 fetch 参数: spec 中的默认值 + 运行时覆盖
+            fetch_kwargs: Dict[str, Any] = {
+                "start_date": start_time.strftime("%Y-%m-%d"),
+                "end_date": end_time.strftime("%Y-%m-%d"),
+                **spec.adapter_kwargs,
+            }
 
-                adapter = ZQAdapter()
-                envelopes = adapter.fetch(
-                    start_date=start_time.strftime("%Y-%m-%d"),
-                    end_date=end_time.strftime("%Y-%m-%d"),
-                    doc_types="REPORT",
-                    max_pages=max_pages or 20,
-                    use_homepage_search=False,
-                    enable_pdf=True,
-                )
-            elif source_type == SourceType.ZHIQIU_WECHAT:
-                from data_layer.adapters.zq_adapter import ZQAdapter
+            # 动态 max_pages / max_docs
+            if max_pages is not None:
+                fetch_kwargs["max_pages"] = max_pages
+            elif "max_pages" not in fetch_kwargs:
+                fetch_kwargs["max_pages"] = 10
 
-                adapter = ZQAdapter()
-                envelopes = adapter.fetch(
-                    start_date=start_time.strftime("%Y-%m-%d"),
-                    end_date=end_time.strftime("%Y-%m-%d"),
-                    doc_types="NEWS",
-                    max_pages=max_pages or 20,
-                )
-            elif source_type == SourceType.ZHIQIU_TRANSCRIPT:
-                from data_layer.adapters.zq_adapter import ZQAdapter
+            # CLS 特殊: days 和 use_incremental 由调用方控制
+            if spec.backfill_family == "cls":
+                fetch_kwargs.setdefault("days", (end_time - start_time).days or 1)
+                fetch_kwargs["use_incremental"] = use_incremental
 
-                adapter = ZQAdapter()
-                envelopes = adapter.fetch(
-                    start_date=start_time.strftime("%Y-%m-%d"),
-                    end_date=end_time.strftime("%Y-%m-%d"),
-                    doc_types="ZQMEETING",
-                    max_pages=max_pages or 20,
-                )
-            else:
-                logger.warning(f"No adapter for source_type: {source_type}")
+            envelopes = adapter.fetch(**fetch_kwargs)
         except Exception as e:
             logger.error(f"Adapter fetch failed for {source_type}: {e}", exc_info=True)
 
@@ -348,14 +319,10 @@ class CrawlOrchestrator:
 
         from core.contracts.documents_v1 import DocType, DocumentTimeliness
 
-        doc_type_map = {
-            SourceType.CAILIAN_SHE: DocType.NEWS,
-            SourceType.CHINA_SECURITY_JOURNAL: DocType.NEWS,
-            SourceType.CNSTOCK_FLASH: DocType.NEWS,
-            SourceType.ZHIQIU_REPORTS: DocType.REPORT,
-            SourceType.ZHIQIU_WECHAT: DocType.NEWS,
-            SourceType.ZHIQIU_TRANSCRIPT: DocType.REPORT,
-        }
+        from core.source_registry import get as get_spec
+
+        spec = get_spec(source_type)
+        doc_type = spec.doc_type if spec else DocType.NEWS
 
         metadata = dict(envelope.metadata or {})
         source_doc_id = (
@@ -369,7 +336,7 @@ class CrawlOrchestrator:
 
         return DocumentV1(
             doc_id=envelope.doc_id,
-            doc_type=doc_type_map.get(source_type, DocType.NEWS),
+            doc_type=doc_type,
             source_type=source_type,
             title=envelope.title,
             content=content,
@@ -485,7 +452,7 @@ class CrawlOrchestrator:
         from data_layer.repositories.base import SessionLocal
 
         result = CrawlResult()
-        result.source_type = SourceType.CAILIAN_SHE
+        result.source_type = SourceType.CLS
 
         db = SessionLocal()
         try:
@@ -502,13 +469,13 @@ class CrawlOrchestrator:
             docs: List[DocumentV1] = []
             for env in envelopes:
                 try:
-                    doc = self._envelope_to_doc_v1(env, SourceType.CAILIAN_SHE)
+                    doc = self._envelope_to_doc_v1(env, SourceType.CLS)
                     docs.append(doc)
                 except Exception as e:
                     logger.error(f"Failed to convert deep backfill envelope {env.doc_id}: {e}")
 
             # 去重
-            new_docs, duplicates = self._deduplicate_docs(SourceType.CAILIAN_SHE, docs)
+            new_docs, duplicates = self._deduplicate_docs(SourceType.CLS, docs)
             result.skipped_count = len(duplicates)
             result.duplicate_doc_ids = [d.doc_id for d in duplicates]
 
