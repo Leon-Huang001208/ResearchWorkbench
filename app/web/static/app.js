@@ -98,42 +98,6 @@ function navigateTo(section) {
 
 // Wait for DOM ready before binding all interactive events
 document.addEventListener('DOMContentLoaded', () => {
-    // Dashboard refresh button
-    document.getElementById('refresh-dashboard')?.addEventListener('click', () => {
-        const btn = document.getElementById('refresh-dashboard');
-        const icon = btn.querySelector('i');
-        icon.classList.add('rotating');
-        loadDashboard().finally(() => {
-            icon.classList.remove('rotating');
-            toast('数据已刷新', 'success');
-        });
-    });
-
-    // Auto-refresh toggle
-    const autoRefreshCheckbox = document.getElementById('auto-refresh');
-    autoRefreshEnabled = autoRefreshCheckbox?.checked ?? true;
-    if (autoRefreshEnabled) {
-        autoRefreshInterval = setInterval(() => {
-            loadDashboard();
-        }, 30000);
-    }
-
-    autoRefreshCheckbox?.addEventListener('change', (e) => {
-        autoRefreshEnabled = e.target.checked;
-        if (autoRefreshEnabled) {
-            autoRefreshInterval = setInterval(() => {
-                loadDashboard();
-            }, 30000);
-            toast('自动刷新已启用 (每30秒)', 'info');
-        } else {
-            if (autoRefreshInterval) {
-                clearInterval(autoRefreshInterval);
-                autoRefreshInterval = null;
-            }
-            toast('自动刷新已关闭', 'info');
-        }
-    });
-
     // Navigation buttons
     document.querySelectorAll('.activity-btn[data-section]').forEach(btn => {
         btn.addEventListener('click', () => navigateTo(btn.dataset.section));
@@ -494,10 +458,6 @@ applyChartDefaults();
 // Dashboard
 // ═══════════════════════════════════════════════════════════════
 
-// Auto-refresh state
-let autoRefreshEnabled = true;
-let autoRefreshInterval = null;
-
 // SSE real-time event stream
 let sseConnection = null;
 
@@ -544,9 +504,8 @@ async function loadDashboard() {
     try {
         const data = await apiCall('GET', '/api/dashboard');
 
-        // Update data source badge and last updated time
+        // Update data source badge
         const dataSourceBadge = document.getElementById('data-source-badge');
-        const lastUpdatedEl = document.getElementById('last-updated');
 
         if (data.market_overview.uses_real_news || data.market_overview.uses_real_sectors) {
             dataSourceBadge.textContent = '真实数据';
@@ -560,12 +519,6 @@ async function loadDashboard() {
             dataSourceBadge.classList.remove('badge-new');
             dataSourceBadge.classList.add('badge-mock');
             dataSourceBadge.classList.remove('badge-real');
-        }
-
-        if (data.market_overview.last_updated) {
-            lastUpdatedEl.textContent = `更新于: ${new Date(data.market_overview.last_updated).toLocaleString()}`;
-        } else {
-            lastUpdatedEl.textContent = '';
         }
 
         // Render Market Overview Section
