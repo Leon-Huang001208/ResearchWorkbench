@@ -30,6 +30,38 @@ from data_layer.repositories.dashboard_data import DashboardDataRepository
 logger = get_logger(__name__)
 
 
+def _translate_failure_reason(reason: str) -> str:
+    """将数据库中的失败原因代码翻译为中文"""
+    mapping = {
+        "direction_wrong": "方向判断错误",
+        "timing_error": "择时错误",
+        "thesis_wrong": "论点错误",
+        "crowding_error": "拥挤错误",
+        "regime_misread": "环境误判",
+        "data_quality": "数据质量",
+        "execution_error": "执行错误",
+        "risk_error": "风控错误",
+    }
+    return mapping.get(reason, reason)
+
+
+def _translate_event_type(event_type: str) -> str:
+    """将事件类型翻译为中文"""
+    if event_type == "unknown":
+        return "综合"
+    mapping = {
+        "earnings": "财报",
+        "policy": "政策",
+        "industry": "行业",
+        "product_launch": "产品发布",
+        "macro": "宏观",
+        "merger_acquisition": "并购",
+        "sales_data": "销售数据",
+        "other": "其他",
+    }
+    return mapping.get(event_type, event_type)
+
+
 class DashboardService:
     """首页仪表盘数据聚合服务"""
 
@@ -374,9 +406,10 @@ class DashboardService:
             self.session.query(AlphaSignalDB)
             .filter(AlphaSignalDB.score >= 0.7, AlphaSignalDB.status == "active")
             .order_by(desc(AlphaSignalDB.score))
-            .limit(8)
+            .limit(24)
             .all()
         )
+        theses = self._deduplicate_signals(theses)[:8]
         high_priority = [
             HighPriorityThesis(
                 signal_id=thesis.signal_id,
@@ -442,6 +475,37 @@ class DashboardService:
             ),
         ]
 
+    @staticmethod
+    def _deduplicate_signals(signals: list) -> list:
+        """按 subject_id 去重，每个 subject 只保留 score 最高的一条"""
+        seen: dict = {}
+        for s in signals:
+            key = s.subject_id
+            if key not in seen or (s.score or 0) > (seen[key].score or 0):
+                seen[key] = s
+        return list(seen.values())
+
+    def _calc_win_rate_for_type(self, event_type: str) -> float:
+        """计算指定 event_type 的胜率"""
+        from data_layer.repositories.models import SignalOutcomeDB
+
+        total = (
+            self.session.query(SignalOutcomeDB)
+            .filter(SignalOutcomeDB.event_type == event_type)
+            .count()
+        )
+        if total == 0:
+            return 0.0
+        wins = (
+            self.session.query(SignalOutcomeDB)
+            .filter(
+                SignalOutcomeDB.event_type == event_type,
+                SignalOutcomeDB.outcome_return > 0,
+            )
+            .count()
+        )
+        return wins / total
+
     def get_research_queue_section(self) -> ResearchQueueSection:
         """获取 Research Queue 板块数据：待处理断言、缺失证据、映射审查"""
         pending_assertions: List[PendingAssertion] = []
@@ -454,11 +518,12 @@ class DashboardService:
             from data_layer.repositories.assertion_repository import AssertionRepositoryImpl
             from data_layer.repositories.models import Assertion
 
-            # 获取待审核的断言
+            # 获取待审核的断言（放宽状态条件，获取所有非终态断言）
             AssertionRepositoryImpl(self.session)
             pending_assertions_db = (
                 self.session.query(Assertion)
-                .filter(Assertion.reviewer_status == "pending")
+                .filter(Assertion.reviewer_status.in_(["pending", "draft", "in_review"]))
+                .order_by(desc(Assertion.observed_at))
                 .limit(10)
                 .all()
             )
@@ -578,20 +643,22 @@ class DashboardService:
 
             if active_signals:
                 has_real_data = True
+                # deduplicate by subject_id before scoring
+                active_signals = self._deduplicate_signals(active_signals)
+
                 scored = []
                 for signal in active_signals:
-                    # 使用简单的就绪度计算（基于 score 和 confidence）
-                    score = float(signal.score or 0.5) * float(signal.confidence or 0.5)
+                    readiness = float(signal.score or 0.5) * float(signal.confidence or 0.5)
                     scored.append(
                         {
                             "candidate_id": signal.signal_id,
                             "signal_id": signal.signal_id,
                             "subject": signal.subject_id,
-                            "readiness_score": score,
+                            "readiness_score": readiness,
                             "thesis": signal.thesis,
-                            "timing_blocker": "等待更多确认信号",
-                            "trigger_condition": "价格突破关键阻力位",
-                            "event_type": signal.event_type or "earnings",
+                            "timing_blocker": getattr(signal, "timing_blocker", None),
+                            "trigger_condition": getattr(signal, "trigger_condition", None),
+                            "event_type": signal.event_type or "综合",
                         }
                     )
 
@@ -652,17 +719,17 @@ class DashboardService:
         weekly_lessons: List[WeeklyLesson] = []
         has_real_data = False
 
-        # 获取最近三个月内失败记录
+        # 获取最近六个月内失败记录
         try:
             from sqlalchemy import func
 
             from data_layer.repositories.models import SignalOutcomeDB
 
-            three_months_ago = datetime.now(UTC) - timedelta(days=90)
+            six_months_ago = datetime.now(UTC) - timedelta(days=180)
             failures = (
                 self.session.query(SignalOutcomeDB)
                 .filter(
-                    SignalOutcomeDB.created_at >= three_months_ago,
+                    SignalOutcomeDB.created_at >= six_months_ago,
                     SignalOutcomeDB.outcome_return < 0,
                 )
                 .order_by(desc(SignalOutcomeDB.created_at))
@@ -677,7 +744,7 @@ class DashboardService:
                         outcome_id=f.outcome_id,
                         signal_id=f.signal_id,
                         subject_id=f.subject_id,
-                        failure_reason=f.failure_reason if f.failure_reason else "",
+                        failure_reason=_translate_failure_reason(f.failure_reason) if f.failure_reason else "",
                         lesson=f.lesson if f.lesson else "",
                         outcome_return=float(f.outcome_return) if f.outcome_return else None,
                         created_at=f.created_at.isoformat() if f.created_at else None,
@@ -694,7 +761,7 @@ class DashboardService:
                 )
                 .filter(SignalOutcomeDB.event_type.isnot(None))
                 .group_by(SignalOutcomeDB.event_type)
-                .having(func.count(SignalOutcomeDB.outcome_id) >= 2)
+                .having(func.count(SignalOutcomeDB.outcome_id) >= 1)
                 .order_by(desc("avg_excess"))
                 .limit(5)
                 .all()
@@ -703,10 +770,10 @@ class DashboardService:
             if event_stats:
                 best_event_types = [
                     BestPerformingEventType(
-                        event_type=stat.event_type,
+                        event_type=_translate_event_type(stat.event_type),
                         avg_excess_return=float(stat.avg_excess),
                         total_signals=stat.count,
-                        win_rate=0.6,
+                        win_rate=self._calc_win_rate_for_type(stat.event_type),
                     )
                     for stat in event_stats
                 ]

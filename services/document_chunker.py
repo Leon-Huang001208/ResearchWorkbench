@@ -155,6 +155,9 @@ class DocumentChunker:
             if chunk:
                 chunks.append(chunk)
 
+            if end == text_len:
+                break
+
             start = end - options.chunk_overlap
 
         return chunks

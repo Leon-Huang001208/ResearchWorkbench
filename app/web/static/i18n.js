@@ -41,6 +41,16 @@ const I18N = (() => {
         'dashboard.recent_reports': '最近报告',
         'dashboard.no_data': '暂无数据',
         'dashboard.just_now': '刚刚',
+        'dashboard.score': '评分',
+        'dashboard.diffusion': '扩散强度',
+        'dashboard.change': '涨跌幅',
+        'dashboard.required_evidence': '所需证据',
+        'dashboard.readiness': '就绪度',
+        'dashboard.timing_blocker': '择时阻碍',
+        'dashboard.trigger': '触发条件',
+        'dashboard.lesson': '教训',
+        'dashboard.avg_excess': '平均超额',
+        'dashboard.win_rate': '胜率',
 
         // Asset Analysis
         'asset.title': '资产分析',
@@ -269,6 +279,16 @@ const I18N = (() => {
         'dashboard.recent_reports': 'Recent Reports',
         'dashboard.no_data': 'No data',
         'dashboard.just_now': 'Just now',
+        'dashboard.score': 'Score',
+        'dashboard.diffusion': 'Diffusion',
+        'dashboard.change': 'Change',
+        'dashboard.required_evidence': 'Required Evidence',
+        'dashboard.readiness': 'Readiness',
+        'dashboard.timing_blocker': 'Timing Blocker',
+        'dashboard.trigger': 'Trigger',
+        'dashboard.lesson': 'Lesson',
+        'dashboard.avg_excess': 'Avg Excess',
+        'dashboard.win_rate': 'Win Rate',
 
         // Asset Analysis
         'asset.title': 'Asset Analysis',
