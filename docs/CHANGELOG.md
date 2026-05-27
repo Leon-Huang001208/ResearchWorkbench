@@ -15,8 +15,12 @@
   - `data_layer/crawlers/zq/zhiqiu/account_manager.py` — `AccountStats` 新增 `consecutive_failures`、`is_disabled` 字段，`record_failure()` 达到阈值后自动禁用
   - `data_layer/crawlers/zq/.config_account_state.json` — `max_consecutive_failures: 10`
 - **EventRepository 空 source_doc_id 校验守卫**: `save()` 方法拒绝空 source_doc_id，直接抛 `ValueError` 而非产生 FK 约束违反
-- **进程监管 watchdog**: `scripts/start_all.sh` 添加 worker 进程自动重启机制
+- **进程监管 watchdog**: `workers/watchdog.py` 外部 watchdog 进程，SIGKILL/SIGTERM 下自动重启 worker，信号处理中同步终止子进程避免孤儿残留
 - **HTTP 请求超时**: `core/model_gateway/providers/openai_compatible.py` LLM 调用添加 120s 超时；`data_layer/crawlers/zq/zhiqiu/client.py` 所有 HTTP 请求添加 30s/60s 超时
+- **仪表盘状态栏动态数据**: 新增 `GET /api/system/status-bar` 端点，返回 git 分支、数据库类型、LLM provider、文档数、错误/警告数等实时数据
+  - `app/api/routes/system.py` — `_get_git_branch()`、`_get_db_type()`、`_get_llm_provider()` 辅助函数
+  - `app/web/templates/index.html` — 状态栏动态值添加 `<span id="status-XXX">`
+  - `app/web/static/app.js` — `updateStatusBar()` 函数，页面加载 + 30s 轮询 + SSE 事件联动
 
 ### Changed
 - **移除关键词/规则提取 fallback**: 所有提取器 LLM 失败时返回空结果，不再产生低质量数据
@@ -25,6 +29,7 @@
   - `knowledge_layer/assertions/extractor.py` — 移除 `_extract_by_rules()`
 - **LLM 提取 max_tokens 提升**: `services/event_extractor.py` 从 1024 → 4096，避免 JSON 截断
 - **`.env` 模型配置**: `TASK_EXTRACTION_MODEL` 使用 `deepseek-v4-flash` 为主，pro 为 fallback
+- **Knowledge Worker 可靠性加固**: `__main__` 改为指数退避重启循环；新增 `_recover_stuck_items()` 自动将超时 processing item 重置为 pending
 
 ### Fixed
 - **知丘纪要日增量极少**: `days_per_crawl` 默认为 1 天，kanzhiqiu.com 日发布量本身就少 → 改为 `days_per_crawl=3`，每次增量抓取覆盖最近 3 天

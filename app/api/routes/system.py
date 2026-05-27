@@ -1,6 +1,7 @@
 """System health endpoint — scheduler / queue / worker 状态"""
 
 import json
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
@@ -15,6 +16,104 @@ logger = get_logger(__name__)
 PROJECT_DIR = Path(__file__).resolve().parent.parent.parent.parent
 
 router = APIRouter(prefix="/api/system", tags=["system"])
+
+
+def _get_git_branch() -> str:
+    """获取当前 git 分支名"""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True, text=True, cwd=str(PROJECT_DIR), timeout=5
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except Exception:
+        pass
+    return "unknown"
+
+
+def _get_db_type() -> str:
+    """从 DATABASE_URL 解析数据库类型"""
+    try:
+        from core.settings.config import settings
+        url = settings.DATABASE_URL
+        scheme = url.split("://")[0] if "://" in url else url
+        return {"postgresql": "PostgreSQL", "sqlite": "SQLite", "mysql": "MySQL"}.get(
+            scheme.lower(), scheme.capitalize()
+        )
+    except Exception:
+        return "PostgreSQL"
+
+
+def _get_llm_provider() -> str:
+    """获取当前默认 LLM provider 名称"""
+    try:
+        from core.settings.config import settings
+        # 优先使用 TASK_DEFAULT_PROVIDER 对应的 provider
+        default_route = settings.TASK_ROUTES.get("default")
+        if default_route:
+            return default_route.provider
+        # fallback: 第一个 provider profile
+        profiles = settings.PROVIDER_PROFILES
+        if profiles:
+            return list(profiles.keys())[0]
+    except Exception:
+        pass
+    return "unknown"
+
+
+@router.get("/status-bar")
+async def get_status_bar():
+    """返回底部状态栏所需的动态数据"""
+    result: Dict[str, Any] = {
+        "git_branch": _get_git_branch(),
+        "db_type": _get_db_type(),
+        "llm_provider": _get_llm_provider(),
+        "error_count": 0,
+        "warning_count": 0,
+        "doc_count": 0,
+    }
+
+    # 文档总数
+    try:
+        from data_layer.repositories.base import SessionLocal
+        from data_layer.repositories.dashboard_data import DocumentV1DB
+        from sqlalchemy import func
+
+        db = SessionLocal()
+        try:
+            doc_count = db.query(func.count(DocumentV1DB.doc_id)).scalar()
+            result["doc_count"] = doc_count or 0
+        finally:
+            db.close()
+    except Exception as e:
+        logger.warning(f"Failed to get doc count for status bar: {e}")
+
+    # 告警计数
+    try:
+        from data_layer.repositories.base import get_db
+        from data_layer.repositories.monitoring_repository import MonitoringRepositoryImpl
+        from services.monitoring_service import MonitoringService
+
+        db_gen = get_db()
+        session = next(db_gen)
+        try:
+            repo = MonitoringRepositoryImpl(session)
+            service = MonitoringService(monitoring_repository=repo)
+            dashboard = service.get_system_health_dashboard()
+            result["error_count"] = dashboard.total_open_critical
+            result["warning_count"] = max(
+                0, dashboard.total_open_alerts - dashboard.total_open_critical
+            )
+        finally:
+            try:
+                next(db_gen)
+            except StopIteration:
+                pass
+    except Exception as e:
+        logger.warning(f"Failed to get alert counts for status bar: {e}")
+
+    return result
 
 
 @router.get("/health")

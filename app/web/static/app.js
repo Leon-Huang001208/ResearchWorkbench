@@ -2276,15 +2276,27 @@ window.addEventListener('DOMContentLoaded', () => {
     navigateTo('dashboard');
     loadEventSignals();
 
-    // Update status bar doc count on dashboard load
-    const updateStatusBar = async () => {
+    // ─── Status Bar Updates ──────────────────────────────────
+    let _statusBarInterval = null;
+
+    async function updateStatusBar() {
         try {
-            const data = await apiCall('GET', '/api/workbench/dashboard');
-            const dc = document.getElementById('status-doc-count');
-            if (dc) dc.textContent = data.review_queue?.length ?? 0;
+            const data = await apiCall('GET', '/api/system/status-bar');
+            const setText = (id, text) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = text;
+            };
+            setText('status-branch', data.git_branch || 'unknown');
+            setText('status-errors', String(data.error_count ?? 0));
+            setText('status-warnings', String(data.warning_count ?? 0));
+            setText('status-db', data.db_type || 'PostgreSQL');
+            setText('status-llm', data.llm_provider || 'Volcengine');
+            setText('status-doc-count', String(data.doc_count ?? 0));
         } catch (e) { /* ignore */ }
-    };
+    }
+
     updateStatusBar();
+    _statusBarInterval = setInterval(updateStatusBar, 30000);
 
     // ─── SSE Realtime Stream ──────────────────────────────────
     initRealtimeStream();
@@ -2304,6 +2316,7 @@ function initRealtimeStream() {
             try {
                 const ev = JSON.parse(msg.data);
                 updateQueuePanel({ type: 'document', ...ev.payload });
+                updateStatusBar();  // refresh doc count
             } catch (_) {}
         });
 

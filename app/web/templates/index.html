@@ -1079,15 +1079,15 @@
     <!-- VS Code Status Bar -->
     <footer class="status-bar">
         <div class="status-bar-left">
-            <span class="status-item" id="status-branch"><i class="codicon codicon-source-control"></i> main</span>
-            <span class="status-item" id="status-errors"><i class="codicon codicon-error"></i> 0</span>
-            <span class="status-item" id="status-warnings"><i class="codicon codicon-warning"></i> 0</span>
+            <span class="status-item"><i class="codicon codicon-source-control"></i> <span id="status-branch">main</span></span>
+            <span class="status-item"><i class="codicon codicon-error"></i> <span id="status-errors">0</span></span>
+            <span class="status-item"><i class="codicon codicon-warning"></i> <span id="status-warnings">0</span></span>
         </div>
         <div class="status-bar-right">
-            <span class="status-item" id="status-db"><i class="codicon codicon-database"></i> SQLite</span>
-            <span class="status-item" id="status-llm"><i class="codicon codicon-hubot"></i> Volcengine</span>
-            <span class="status-item" id="status-docs"><i class="codicon codicon-file-text"></i> <span id="status-doc-count">0</span> docs</span>
-            <span class="status-item" id="status-lang"><i class="codicon codicon-globe"></i> <span id="status-lang-label">中文</span></span>
+            <span class="status-item"><i class="codicon codicon-database"></i> <span id="status-db">PostgreSQL</span></span>
+            <span class="status-item"><i class="codicon codicon-hubot"></i> <span id="status-llm">Volcengine</span></span>
+            <span class="status-item"><i class="codicon codicon-file-text"></i> <span id="status-doc-count">0</span> docs</span>
+            <span class="status-item"><i class="codicon codicon-globe"></i> <span id="status-lang-label">中文</span></span>
         </div>
     </footer>
 
@@ -1096,6 +1096,6 @@
 
     <!-- Scripts: i18n must load before app.js -->
     <script src="/static/i18n.js"></script>
-    <script src="/static/app.js?v=20250526b"></script>
+    <script src="/static/app.js?v=20250527"></script>
 </body>
 </html>

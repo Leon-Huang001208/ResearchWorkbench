@@ -25,6 +25,9 @@ MAX_CONCURRENCY = int(os.environ.get("KNOWLEDGE_WORKER_MAX_CONCURRENCY", "16"))
 SHUTDOWN_TIMEOUT = int(os.environ.get("KNOWLEDGE_WORKER_SHUTDOWN_TIMEOUT", "60"))
 MAX_BACKOFF = float(os.environ.get("KNOWLEDGE_WORKER_MAX_BACKOFF", "60"))
 ITEM_PROCESSING_TIMEOUT = float(os.environ.get("KNOWLEDGE_WORKER_ITEM_TIMEOUT", "300"))
+STUCK_RECOVERY_MINUTES = int(os.environ.get("KNOWLEDGE_WORKER_STUCK_RECOVERY_MINUTES", "5"))
+MAX_RESTARTS = int(os.environ.get("KNOWLEDGE_WORKER_MAX_RESTARTS", "10"))
+RESTART_COOLDOWN = float(os.environ.get("KNOWLEDGE_WORKER_RESTART_COOLDOWN", "300"))
 WORKER_NAME = "knowledge_worker"
 
 
@@ -62,6 +65,32 @@ def _write_heartbeat(worker_label: str, activity: str) -> None:
             ensure_ascii=False,
         )
     )
+
+
+def _recover_stuck_items(db_session: Any) -> int:
+    """将卡在 processing 状态超过 STUCK_RECOVERY_MINUTES 分钟的 item 重置为 pending"""
+    from datetime import datetime, timedelta, timezone
+    from data_layer.repositories.models import IngestionQueueItemDB
+
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=STUCK_RECOVERY_MINUTES)
+    stuck = (
+        db_session.query(IngestionQueueItemDB)
+        .filter(
+            IngestionQueueItemDB.status == "processing",
+            IngestionQueueItemDB.created_at < cutoff,
+        )
+        .all()
+    )
+    if stuck:
+        for item in stuck:
+            item.status = "pending"
+        db_session.flush()
+        logger.warning(
+            "Recovered stuck processing items",
+            count=len(stuck),
+            cutoff=cutoff.isoformat(),
+        )
+    return len(stuck)
 
 
 def _create_document_v1(item: Any) -> Any:
@@ -256,6 +285,13 @@ async def main(worker_id: Optional[int] = None) -> None:
         try:
             db = SessionLocal()
             repo = IngestionQueueRepository(db)
+
+            # 恢复卡在 processing 超时的 item
+            stuck_count = _recover_stuck_items(db)
+            if stuck_count > 0:
+                db.commit()
+                logger.info(f"[{worker_label}] Recovered {stuck_count} stuck items → pending")
+
             items = repo.dequeue(limit=BATCH_SIZE)
             db.commit()  # release row locks so processing tasks can update same rows
 
@@ -363,12 +399,40 @@ def _parse_args() -> argparse.Namespace:
 
 if __name__ == "__main__":
     args = _parse_args()
-    try:
-        asyncio.run(main(worker_id=args.worker_id))
-    except Exception:
-        logger.exception("Knowledge worker crashed with unhandled exception, restarting in 5s")
-        # Ensure log handlers flush before restarting
+    restart_count = 0
+    last_restart_at = 0.0
+
+    while True:
+        try:
+            asyncio.run(main(worker_id=args.worker_id))
+        except Exception:
+            logger.exception(
+                "Knowledge worker crashed with unhandled exception"
+            )
+            for handler in logging.getLogger().handlers:
+                handler.flush()
+
+        restart_count += 1
+        now = time.time()
+
+        # 冷却期内频繁重启则拉长等待
+        if now - last_restart_at < RESTART_COOLDOWN and restart_count > MAX_RESTARTS:
+            logger.critical(
+                "Knowledge worker restart limit exceeded",
+                restart_count=restart_count,
+                cooldown=RESTART_COOLDOWN,
+            )
+            for handler in logging.getLogger().handlers:
+                handler.flush()
+            sys.exit(1)
+
+        last_restart_at = now
+        backoff = min(5 * (2 ** min(restart_count, 5)), 120)
+        logger.info(
+            "Restarting knowledge worker after crash",
+            restart_count=restart_count,
+            backoff_seconds=backoff,
+        )
         for handler in logging.getLogger().handlers:
             handler.flush()
-        time.sleep(5)
-        sys.exit(1)
+        time.sleep(backoff)
