@@ -1275,7 +1275,10 @@ Imports:
 - `core.observability`
 - `datetime`
 - `fastapi`
+- `json`
+- `pathlib`
 - `services.system_event_bus`
+- `typing`
 
 Functions:
 - `get_health`
@@ -1284,6 +1287,10 @@ Functions:
   - 发布系统事件到 event bus（用于外部系统/测试集成）
 - `get_health_minimal`
   - 最小健康检查（不查数据库，快速返回）
+- `_read_heartbeat_files`
+  - 扫描 logs/ 目录下的 .heartbeat.json 文件，返回 {worker_name: {timestamp, activity}}
+- `get_workers_status`
+  - 聚合返回所有后台 worker 的实时状态和队列统计
 
 
 ## `app/api/routes/templates.py`
@@ -5982,7 +5989,7 @@ Imports:
 Classes:
 - `AssertionExtractor`
   - 断言提取器
-  - methods: __init__, extract, _extract_by_llm, _extract_by_rules, _parse_llm_response, _build_assertion
+  - methods: __init__, _call_llm, extract, _extract_by_llm, _build_assertions, _parse_llm_response, _build_assertion
 
 
 ## `knowledge_layer/assertions/prompts.py`
@@ -6141,7 +6148,7 @@ Imports:
 Classes:
 - `EventExtractor`
   - 事件提取器
-  - methods: __init__, extract, _extract_by_llm, _parse_llm_response, _build_event, _map_event_type, _extract_by_rules, _score_event_types, _extract_event_time, _infer_impact_direction, _generate_summary
+  - methods: __init__, _call_llm, extract, _extract_by_llm, _build_events, _parse_llm_response, _build_event, _map_event_type, _extract_event_time
 
 
 ## `knowledge_layer/events/prompts.py`

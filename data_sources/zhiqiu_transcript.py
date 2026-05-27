@@ -11,6 +11,7 @@ register(
             "doc_types": "ZQMEETING",
         },
         interval_minutes=60,
+        days_per_crawl=3,
         deep_backfill_enabled=True,
         doc_type=DocType.REPORT,
         reliability=SourceReliabilityLevel.RESEARCH_INSTITUTE,

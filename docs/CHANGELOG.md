@@ -27,6 +27,8 @@
 - **`.env` 模型配置**: `TASK_EXTRACTION_MODEL` 使用 `deepseek-v4-flash` 为主，pro 为 fallback
 
 ### Fixed
+- **知丘纪要日增量极少**: `days_per_crawl` 默认为 1 天，kanzhiqiu.com 日发布量本身就少 → 改为 `days_per_crawl=3`，每次增量抓取覆盖最近 3 天
+  - `data_sources/zhiqiu_transcript.py` — 新增 `days_per_crawl=3` 参数
 - **ZQ 爬虫无限挂起**: `majingyi` 账号 0/54 成功率仍被重复调度 → 已永久禁用
 - **DeepSeek JSON 截断**: max_tokens=1024 不足以完成事件提取 → 提升至 4096
 - **事件静默丢失**: `source_doc_id` 为空字符串导致 FK 约束违反而插入失败
