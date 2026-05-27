@@ -44,17 +44,15 @@ class TestProcessOne:
     """测试 process_one"""
 
     @pytest.mark.asyncio
-    @patch("ingestion.knowledge_pipeline.KnowledgePipeline")
     @patch("workers.knowledge_worker.event_bus", new_callable=AsyncMock)
-    async def test_process_one_publishes_events(self, mock_bus, mock_pipeline_cls):
+    async def test_process_one_publishes_events(self, mock_bus):
         from workers.knowledge_worker import process_one
 
         mock_result = MagicMock()
         mock_result.events = []
         mock_result.entities = []
-        mock_pipeline_cls_instance = MagicMock()
-        mock_pipeline_cls_instance.process = AsyncMock(return_value=mock_result)
-        mock_pipeline_cls.return_value = mock_pipeline_cls_instance
+        mock_pipeline = MagicMock()
+        mock_pipeline.process = AsyncMock(return_value=mock_result)
 
         mock_item = MagicMock()
         mock_item.item_id = "i1"
@@ -64,7 +62,7 @@ class TestProcessOne:
         mock_item.raw_content = "C"
         mock_item.url = None
 
-        result = await process_one(mock_item)
+        result = await process_one(mock_item, mock_pipeline)
         assert result["item_id"] == "i1"
         assert result["events"] == 0
         assert result["entities"] == 0

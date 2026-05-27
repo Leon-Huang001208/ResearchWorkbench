@@ -21,7 +21,7 @@ from typing import Any
 
 from benchmarks.SCHEMA import BenchmarkCase, BenchmarkResult, compute_prf, compute_thesis_similarity
 from core.observability import get_logger
-from core.services.event_extractor import EventExtractor
+from services.event_extractor import EventExtractor
 
 logger = get_logger(__name__)
 

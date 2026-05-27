@@ -7,11 +7,11 @@ from sqlalchemy.orm import Session
 
 from core.contracts.portfolio import PortfolioConstraints, PortfolioProposal
 from core.observability import get_logger
-from core.services.portfolio_service import PortfolioService
 from data_layer.repositories.base import get_db
 from data_layer.repositories.outcome_repository import OutcomeRepositoryImpl
 from data_layer.repositories.portfolio_repository import PortfolioRepositoryImpl
 from data_layer.repositories.signal_repository import SignalRepositoryImpl
+from services.portfolio_service import PortfolioService
 
 logger = get_logger(__name__)
 

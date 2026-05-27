@@ -5,7 +5,7 @@
 import click
 
 from core.observability import get_logger
-from core.services.review_service import ReviewService
+from services.review_service import ReviewService
 
 logger = get_logger(__name__)
 

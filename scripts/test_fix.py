@@ -7,8 +7,8 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from core.services.dashboard_service import DashboardService
 from data_layer.repositories.base import SessionLocal, check_database_connection
+from services.dashboard_service import DashboardService
 
 
 def test_dashboard_service():

@@ -24,12 +24,12 @@ from core.contracts import (
     EntityMentionV1,
 )
 from core.observability import get_logger
-from core.services.document_chunker import ChunkingOptions, DocumentChunker
-from core.services.document_classifier import DocumentClassifier
-from core.services.entity_extractor import EntityExtractor
-from core.services.event_extractor import EventExtractor
-from core.services.summary_generator import SummaryGenerator
-from core.services.taxonomy_service import TaxonomyService
+from services.document_chunker import ChunkingOptions, DocumentChunker
+from services.document_classifier import DocumentClassifier
+from services.entity_extractor import EntityExtractor
+from services.event_extractor import EventExtractor
+from services.summary_generator import SummaryGenerator
+from services.taxonomy_service import TaxonomyService
 
 logger = get_logger(__name__)
 

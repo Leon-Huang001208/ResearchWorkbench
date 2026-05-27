@@ -323,8 +323,8 @@ class SearchRepositoryImpl(SearchRepository):
 
     def search_reviews(self, query: str, limit: int) -> List[Dict]:
         """搜索审核记录"""
-        from core.services.audit_service import AuditService
         from data_layer.repositories.audit_repository import AuditRepositoryImpl
+        from services.audit_service import AuditService
 
         audit_repo = AuditRepositoryImpl(self.session)
         audit_service = AuditService(repository=audit_repo)

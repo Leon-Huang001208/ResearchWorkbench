@@ -23,9 +23,9 @@ from core.contracts.backtest import (
     TimeAvailability,
     ViewContext,
 )
-from core.services.data_tier_service import DataTierService
-from core.services.historical_replay_service import HistoricalReplayService
-from core.services.news_feature_service import NewsFeatureService
+from services.data_tier_service import DataTierService
+from services.historical_replay_service import HistoricalReplayService
+from services.news_feature_service import NewsFeatureService
 
 
 class TestTimeAvailability:

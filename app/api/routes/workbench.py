@@ -11,8 +11,8 @@ router = APIRouter(prefix="/api/workbench", tags=["workbench"])
 
 def get_signal_service():
     """获取 SignalService 实例"""
-    from core.services.signal_service import SignalService
     from data_layer.repositories.signal_repository import SignalRepositoryImpl
+    from services.signal_service import SignalService
 
     try:
         from data_layer.repositories.base import SessionLocal
@@ -27,7 +27,7 @@ def get_signal_service():
 
 def get_review_service():
     """获取 ReviewService 实例"""
-    from core.services.review_service import ReviewService
+    from services.review_service import ReviewService
 
     try:
         from data_layer.repositories.base import ensure_schema

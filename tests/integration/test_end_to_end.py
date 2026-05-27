@@ -9,13 +9,13 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from core.contracts import CanonicalEvent
-from core.services.ingest_service import IngestService
-from core.services.review_service import ReviewService
-from core.services.scenario_service import ScenarioService
 from data_layer.repositories.assertion_repository import AssertionRepositoryImpl
 from data_layer.repositories.base import Base
 from data_layer.repositories.event_repository import EventRepositoryImpl
 from knowledge_layer.retrieval import InMemoryVectorStore
+from services.ingest_service import IngestService
+from services.review_service import ReviewService
+from services.scenario_service import ScenarioService
 
 
 @pytest.fixture(scope="function")

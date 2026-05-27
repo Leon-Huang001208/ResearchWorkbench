@@ -128,12 +128,12 @@ Module docstring:
 Imports:
 - `app.api.models`
 - `core.contracts`
-- `core.services.asset_analysis_service`
 - `data_layer.coordinator.multi_source_coordinator`
 - `data_layer.repositories.base`
 - `datetime`
 - `fastapi`
 - `pydantic`
+- `services.asset_analysis_service`
 - `sqlalchemy.orm`
 
 Classes:
@@ -184,9 +184,9 @@ Imports:
 - `app.api.models`
 - `core.contracts.dashboard`
 - `core.observability`
-- `core.services.dashboard_service`
 - `data_layer.repositories.base`
 - `fastapi`
+- `services.dashboard_service`
 - `typing`
 
 Functions:
@@ -204,11 +204,11 @@ Module docstring:
 Imports:
 - `core.contracts.decision_console`
 - `core.observability`
-- `core.services.decision_console_service`
 - `data_layer.repositories.base`
 - `data_layer.repositories.decision_console_repository`
 - `fastapi`
 - `pydantic`
+- `services.decision_console_service`
 - `sqlalchemy.orm`
 - `typing`
 
@@ -331,11 +331,11 @@ Module docstring:
 Imports:
 - `core.contracts.governance`
 - `core.observability`
-- `core.services.governance_service`
 - `data_layer.repositories.base`
 - `data_layer.repositories.governance_repository`
 - `fastapi`
 - `pydantic`
+- `services.governance_service`
 - `sqlalchemy.orm`
 - `typing`
 
@@ -407,8 +407,8 @@ Module docstring:
 
 Imports:
 - `core.observability`
-- `core.services.graph_data_service`
 - `fastapi`
+- `services.graph_data_service`
 - `typing`
 
 Functions:
@@ -432,9 +432,9 @@ Module docstring:
 Imports:
 - `app.api.models`
 - `core.observability`
-- `core.services.ingest_service`
 - `fastapi`
 - `pathlib`
+- `services.ingest_service`
 - `shutil`
 - `tempfile`
 
@@ -485,14 +485,14 @@ Module docstring:
 Imports:
 - `core.contracts.ingestion`
 - `core.observability`
-- `core.services.ingestion_queue_service`
-- `core.services.pipeline_service`
-- `core.services.signal_service`
 - `data_layer.repositories.base`
 - `data_layer.repositories.ingestion_repository`
 - `data_layer.repositories.signal_repository`
 - `data_layer.repositories.timing_repository`
 - `fastapi`
+- `services.ingestion_queue_service`
+- `services.pipeline_service`
+- `services.signal_service`
 - `sqlalchemy.orm`
 - `typing`
 
@@ -568,13 +568,13 @@ Module docstring:
 > Market Data API 路由
 
 Imports:
-- `core.services.market_data_ingestion_service`
 - `data_layer.repositories.base`
 - `data_layer.repositories.etl_run_repository`
 - `data_layer.repositories.market_data_repository`
 - `datetime`
 - `fastapi`
 - `pydantic`
+- `services.market_data_ingestion_service`
 - `sqlalchemy.orm`
 
 Classes:
@@ -656,13 +656,13 @@ Imports:
 - `app.api.models`
 - `core.contracts.monitoring`
 - `core.observability`
-- `core.services.monitoring_service`
 - `data_layer.repositories`
 - `data_layer.repositories.base`
 - `data_layer.repositories.monitoring_repository`
 - `datetime`
 - `fastapi`
 - `pydantic`
+- `services.monitoring_service`
 - `sqlalchemy.orm`
 - `typing`
 
@@ -760,9 +760,9 @@ Module docstring:
 
 Imports:
 - `core.contracts.outcome_journal`
-- `core.services.failure_memory_service`
-- `core.services.outcome_journal_service`
 - `fastapi`
+- `services.failure_memory_service`
+- `services.outcome_journal_service`
 - `typing`
 
 Functions:
@@ -794,8 +794,8 @@ Module docstring:
 Imports:
 - `app.api.models`
 - `core.contracts.outcomes`
-- `core.services.outcome_service`
 - `fastapi`
+- `services.outcome_service`
 - `typing`
 
 Functions:
@@ -821,13 +821,13 @@ Module docstring:
 Imports:
 - `core.contracts.paper_trading`
 - `core.observability`
-- `core.services.paper_trading_service`
 - `data_layer.repositories.base`
 - `data_layer.repositories.outcome_repository`
 - `data_layer.repositories.paper_trading_repository`
 - `data_layer.repositories.portfolio_repository`
 - `fastapi`
 - `pydantic`
+- `services.paper_trading_service`
 - `sqlalchemy.orm`
 - `typing`
 
@@ -892,10 +892,10 @@ Module docstring:
 Imports:
 - `core.contracts.pdf_conversion`
 - `core.observability`
-- `core.services.pdf_conversion_service`
 - `data_layer.repositories.base`
 - `fastapi`
 - `pydantic`
+- `services.pdf_conversion_service`
 - `sqlalchemy.orm`
 - `typing`
 
@@ -934,13 +934,13 @@ Module docstring:
 Imports:
 - `core.contracts`
 - `core.observability`
-- `core.services.pipeline_service`
-- `core.services.signal_service`
 - `data_layer.repositories.base`
 - `data_layer.repositories.signal_repository`
 - `data_layer.repositories.timing_repository`
 - `fastapi`
 - `pydantic`
+- `services.pipeline_service`
+- `services.signal_service`
 - `sqlalchemy.orm`
 - `typing`
 
@@ -972,13 +972,13 @@ Module docstring:
 Imports:
 - `core.contracts.portfolio`
 - `core.observability`
-- `core.services.portfolio_service`
 - `data_layer.repositories.base`
 - `data_layer.repositories.outcome_repository`
 - `data_layer.repositories.portfolio_repository`
 - `data_layer.repositories.signal_repository`
 - `fastapi`
 - `pydantic`
+- `services.portfolio_service`
 - `sqlalchemy.orm`
 - `typing`
 
@@ -1021,10 +1021,10 @@ Module docstring:
 Imports:
 - `asyncio`
 - `core.observability`
-- `core.services.system_event_bus`
 - `fastapi`
 - `fastapi.responses`
 - `json`
+- `services.system_event_bus`
 
 Functions:
 - `event_stream`
@@ -1041,8 +1041,8 @@ Module docstring:
 Imports:
 - `app.api.models`
 - `core.contracts.replay`
-- `core.services.replay_service`
 - `fastapi`
+- `services.replay_service`
 
 Functions:
 - `get_replay_service`
@@ -1068,11 +1068,11 @@ Module docstring:
 
 Imports:
 - `core.observability`
-- `core.services.report_generator`
 - `datetime`
 - `fastapi`
 - `io`
 - `pydantic`
+- `services.report_generator`
 
 Classes:
 - `ReportGenerateRequest`
@@ -1098,8 +1098,8 @@ Module docstring:
 
 Imports:
 - `app.api.models`
-- `core.services.review_service`
 - `fastapi`
+- `services.review_service`
 - `typing`
 
 Functions:
@@ -1124,9 +1124,9 @@ Imports:
 - `app.api.models`
 - `core.contracts`
 - `core.observability`
-- `core.services.scenario_data_service`
-- `core.services.scenario_service`
 - `fastapi`
+- `services.scenario_data_service`
+- `services.scenario_service`
 - `typing`
 
 Functions:
@@ -1151,11 +1151,11 @@ Imports:
 - `asyncio`
 - `core.contracts`
 - `core.observability`
-- `core.services.crawl_orchestrator`
-- `core.services.crawl_scheduler`
 - `fastapi`
 - `os`
 - `pathlib`
+- `services.crawl_orchestrator`
+- `services.crawl_scheduler`
 - `signal`
 - `subprocess`
 - `sys`
@@ -1183,10 +1183,10 @@ Module docstring:
 Imports:
 - `app.api.models`
 - `core.observability`
-- `core.services.search_service`
 - `data_layer.repositories.base`
 - `data_layer.repositories.search_repository`
 - `fastapi`
+- `services.search_service`
 - `typing`
 
 Functions:
@@ -1242,10 +1242,10 @@ Module docstring:
 
 Imports:
 - `app.api.models`
-- `core.services.signal_service`
 - `data_layer.repositories.base`
 - `data_layer.repositories.signal_repository`
 - `fastapi`
+- `services.signal_service`
 - `sqlalchemy.orm`
 - `typing`
 
@@ -1273,9 +1273,9 @@ Module docstring:
 
 Imports:
 - `core.observability`
-- `core.services.system_event_bus`
 - `datetime`
 - `fastapi`
+- `services.system_event_bus`
 
 Functions:
 - `get_health`
@@ -1369,8 +1369,8 @@ Module docstring:
 Imports:
 - `core.contracts.events`
 - `core.contracts.industry_chain`
-- `core.services.thesis_generator_service`
 - `fastapi`
+- `services.thesis_generator_service`
 
 Functions:
 - `list_industry_graphs`
@@ -1388,8 +1388,8 @@ Module docstring:
 
 Imports:
 - `core.contracts`
-- `core.services.thesis_review_service`
 - `fastapi`
+- `services.thesis_review_service`
 - `typing`
 
 Functions:
@@ -1534,18 +1534,31 @@ Imports:
 - `click`
 - `core.contracts`
 - `core.observability`
-- `core.services`
 - `data_layer.repositories`
 - `data_layer.repositories.base`
 - `datetime`
 - `pathlib`
 - `reporting.projections`
+- `services`
 
 Functions:
 - `analyze_command`
   - 生成资产分析快照
 - `_build_sections`
   - 构建报告章节
+
+
+## `app/cli/commands/auto_generate_signals.py`
+
+Module docstring:
+> 定时任务：每小时自动从已批准事件生成候选信号
+
+Imports:
+- `services.event_auto_signal_generator`
+- `sys`
+
+Functions:
+- `main`
 
 
 ## `app/cli/commands/backtest.py`
@@ -1574,9 +1587,9 @@ Imports:
 - `click`
 - `core.contracts`
 - `core.observability`
-- `core.services.crawl_orchestrator`
-- `core.services.ingest_service`
 - `pathlib`
+- `services.crawl_orchestrator`
+- `services.ingest_service`
 - `typing`
 
 Functions:
@@ -1655,7 +1668,7 @@ Module docstring:
 Imports:
 - `click`
 - `core.observability`
-- `core.services.review_service`
+- `services.review_service`
 
 Functions:
 - `review_group`
@@ -1678,8 +1691,8 @@ Module docstring:
 Imports:
 - `click`
 - `core.observability`
-- `core.services.scenario_service`
 - `pathlib`
+- `services.scenario_service`
 
 Functions:
 - `scenario_command`
@@ -1694,7 +1707,7 @@ Module docstring:
 Imports:
 - `click`
 - `core.observability`
-- `core.services.signal_service`
+- `services.signal_service`
 - `typing`
 
 Functions:
@@ -1767,6 +1780,7 @@ Module docstring:
 ## `core/contracts/__init__.py`
 
 Imports:
+- `agent_types`
 - `assertions`
 - `assets`
 - `backtest`
@@ -1791,7 +1805,24 @@ Imports:
 - `scenarios`
 - `signals`
 - `timing_engine`
+- `timing_types`
 - `traces`
+
+
+## `core/contracts/agent_types.py`
+
+Module docstring:
+> Agent-related shared types.
+
+Imports:
+- `pydantic`
+- `typing`
+
+Classes:
+- `AgentView`
+  - Structured view written to the blackboard by a single agent.
+- `BlackboardConflict`
+  - Multi-perspective conflict detected by the blackboard.
 
 
 ## `core/contracts/assertions.py`
@@ -2237,8 +2268,8 @@ Module docstring:
 > Core contracts for event signal outcome evaluation.
 
 Imports:
+- `core.contracts.timing_types`
 - `datetime`
-- `memory_learning.contracts`
 - `pydantic`
 - `typing`
 
@@ -2542,6 +2573,15 @@ Classes:
 - `ReadinessScore`
   - Unified readiness score combining all three dimensions.
   - methods: calculate, should_block, get_blocking_reason
+
+
+## `core/contracts/timing_types.py`
+
+Module docstring:
+> Timing and outcome shared types.
+
+Imports:
+- `typing`
 
 
 ## `core/contracts/traces.py`
@@ -2894,1029 +2934,29 @@ Classes:
 ## `core/services/__init__.py`
 
 Module docstring:
-> 核心服务模块
+> Deprecated: import from services/ instead.
 
 Imports:
-- `asset_analysis_service`
-- `crawler_ingestion_bridge`
-- `data_tier_service`
-- `document_chunker`
-- `document_classifier`
-- `document_enrichment`
-- `entity_extractor`
-- `event_extractor`
-- `historical_replay_service`
-- `ingest_service`
-- `news_feature_service`
-- `outcome_service`
-- `rag_retrieval`
-- `review_service`
-- `scenario_service`
-- `signal_service`
-- `signal_validator_impl`
-- `summary_generator`
-- `system_event_bus`
-- `taxonomy_service`
-
-
-## `core/services/asset_analysis_service.py`
-
-Module docstring:
-> 资产分析服务
-
-Imports:
-- `core.contracts`
-- `core.interfaces`
-- `core.observability`
-- `data_layer.coordinator.multi_source_coordinator`
-- `data_layer.repositories.market_data_repository`
-- `datetime`
-- `typing`
-
-Classes:
-- `AssetAnalysisService`
-  - 资产分析服务
-  - methods: __init__, generate_snapshot, _fetch_from_coordinator, _has_enough_structured_data, _build_from_structured_tables, _build_from_coordinator, get_latest_snapshot, generate_analysis_card, _fill_structured_data, _enrich_from_coordinator
-
-
-## `core/services/audit_service.py`
-
-Module docstring:
-> 审计服务 — 记录和查询操作审计轨迹。
-
-Imports:
-- `core.observability`
-- `data_layer.repositories.audit_repository`
-- `datetime`
-- `typing`
-- `uuid`
-
-Classes:
-- `AuditService`
-  - 审计服务
-  - methods: __init__, record, get_trail, get_trail_for_signal, search
-
-
-## `core/services/closed_loop_service.py`
-
-Module docstring:
-> 最小可行闭环服务 - 规则驱动
-
-Imports:
-- `core.contracts`
-- `core.observability`
-- `data_layer.repositories.base`
-- `data_layer.repositories.models`
-- `datetime`
-- `json`
-- `memory_learning.contracts`
-- `memory_learning.journal`
-- `memory_learning.pattern_learner`
-- `sqlalchemy`
-- `typing`
-- `uuid`
-
-Classes:
-- `ClosedLoopService`
-  - 最小可行闭环服务 - 使用真实价格数据
-  - methods: __init__, generate_signals_from_events, _generate_signal_from_event, _generate_thesis_from_event, backtest_signals, _backtest_single_signal, _get_price_data, _calculate_returns, _generate_lesson, run_full_loop, _record_market_episodes, _generate_summary
-
-
-## `core/services/crawl_orchestrator.py`
-
-Module docstring:
-> 采集编排服务 - Issue #43: 多源采集、增量调度、补漏机制
-
-Imports:
-- `core.contracts`
-- `core.observability`
-- `core.services.deduplication_service`
-- `core.services.raw_storage_service`
-- `core.utils.id_gen`
-- `data_layer.repositories.base`
-- `data_layer.repositories.documents_v1`
-- `data_sources`
-- `datetime`
-- `pathlib`
-- `typing`
-
-Classes:
-- `CrawlResult`
-  - 单次抓取结果
-  - methods: __init__
-- `CrawlOrchestrator`
-  - 采集编排器
-  - methods: __init__, crawl_source, backfill_source, _naive_utc, _calculate_time_window, _fetch_from_adapter, _envelope_to_doc_v1, _enqueue_to_bridge, _deduplicate_docs, deep_backfill_step, zq_deep_backfill_step, get_latest_document_time, get_crawl_status
-
-
-## `core/services/crawl_scheduler.py`
-
-Module docstring:
-> 采集调度器 - Issue #43: 增量调度机制
-
-Imports:
-- `core.contracts`
-- `core.observability`
-- `core.services.crawl_orchestrator`
-- `core.utils.trading_calendar`
-- `datetime`
-- `os`
-- `pathlib`
-- `typing`
-
-Classes:
-- `SourceCrawlConfig`
-  - 来源抓取配置
-  - methods: __init__
-- `CrawlScheduler`
-  - 采集调度器
-  - methods: __init__, add_config, start, stop, trigger_crawl, trigger_backfill, get_status, check_source_should_run, _add_jobs_for_source, _run_crawl_job, _run_backfill_job, _run_deep_backfill_job, _run_cnstock_deep_backfill_job, _run_zq_deep_backfill_job, check_and_backfill_gap, _health_check
-
-Functions:
-- `_get_default_configs`
-  - 从 SourceSpec 注册表构建 SourceCrawlConfig 列表。
-- `build_scheduler_status`
-  - 纯函数：从 DB 读取所有来源的抓取状态，不依赖 in-process 调度器。
-- `get_scheduler_process_status`
-  - 检查调度器进程是否存活（通过 PID 文件）。
-- `get_crawl_scheduler`
-  - 获取全局调度器实例
-
-
-## `core/services/crawler_ingestion_bridge.py`
-
-Module docstring:
-> 爬虫摄取桥接器 — 将所有爬虫输出统一转为 IngestionQueueItem 入队
-
-Imports:
-- `core.contracts`
-- `core.contracts.ingestion`
-- `core.observability`
-- `hashlib`
-- `typing`
-- `uuid`
-
-Classes:
-- `CrawlerIngestionBridge`
-  - 爬虫摄取桥接器 — 统一入口，将爬虫输出送入摄取队列
-  - methods: __init__, submit_crawled_item, submit_batch, _to_document_envelope, _infer_priority, _hash_item
-
-
-## `core/services/dashboard_service.py`
-
-Module docstring:
-> Dashboard 首页数据聚合服务
-
-Imports:
-- `core.contracts.dashboard`
-- `core.observability`
-- `data_layer.repositories.dashboard_data`
-- `datetime`
-- `sqlalchemy`
-- `typing`
-
-Classes:
-- `DashboardService`
-  - 首页仪表盘数据聚合服务
-  - methods: __init__, _get_mock_global_news, _get_mock_sectors, get_market_overview_section, get_today_section, _get_mock_abnormal_flows, get_research_queue_section, _get_mock_research_queue, get_candidate_board_section, _get_mock_candidates, get_learning_section, _get_mock_learning_data, get_crawl_feed, get_full_dashboard
-
-
-## `core/services/data_tier_service.py`
-
-Module docstring:
-> Issue #47: 数据分层服务 - 管理热/温/冷/归档数据
-
-Imports:
-- `collections`
-- `core.contracts.backtest`
-- `core.observability`
-- `datetime`
-- `typing`
-
-Classes:
-- `DataTierService`
-  - 数据分层服务
-  - methods: __init__, get_data_tier, get_tier_for_age, should_migrate, record_access, get_access_frequency, get_tier_summary, set_data_tier, get_migration_candidates, get_tier_retention_policy
-
-
-## `core/services/decision_console_service.py`
-
-Module docstring:
-> 分析师循环决策控制台服务。
-
-Imports:
-- `core.contracts.decision_console`
-- `core.observability`
-- `data_layer.repositories.decision_console_repository`
-- `datetime`
-- `typing`
-- `uuid`
-
-Classes:
-- `DecisionConsoleService`
-  - 分析师循环决策控制台服务
-  - methods: __init__, create_workspace, get_workspace, list_open_workspaces, close_workspace, add_candidates_to_workspace, record_decision, get_decision, get_workspace_decisions, get_decision_for_candidate, create_post_mortem, update_post_mortem, get_post_mortem, get_post_mortem_for_decision, list_post_mortems, get_audit_history
-
-
-## `core/services/deduplication_service.py`
-
-Module docstring:
-> 去重服务 - Issue #43: 三层去重机制
-
-Imports:
-- `core.contracts`
-- `core.observability`
-- `datetime`
-- `hashlib`
-- `re`
-- `typing`
-
-Classes:
-- `DeduplicationResult`
-  - 去重结果
-  - methods: __init__
-- `DeduplicationService`
-  - 去重服务
-  - methods: __init__, check_duplicate, mark_seen, batch_check, cleanup_cache, _compute_content_hash, _normalize_content, _check_approximate_duplicate
-
-
-## `core/services/document_chunker.py`
-
-Module docstring:
-> 文档分块服务 - Issue #44
-
-Imports:
-- `core.contracts`
-- `core.observability`
-- `core.utils.id_gen`
-- `dataclasses`
-- `enum`
-- `re`
-- `typing`
-
-Classes:
-- `ChunkingStrategy`
-  - 分块策略
-- `ChunkingOptions`
-  - 分块选项
-- `DocumentChunker`
-  - 文档分块器
-  - methods: __init__, chunk_document, _select_strategy, _chunk_by_strategy, _chunk_simple, _chunk_by_paragraph, _chunk_semantic, _chunk_by_speaker, _is_heading_line, _merge_small_chunks, _extract_chunk_title
-
-
-## `core/services/document_classifier.py`
-
-Module docstring:
-> 文档分类器 - Issue #44
-
-Imports:
-- `core.contracts`
-- `core.observability`
-- `core.services.taxonomy_service`
-- `core.utils.id_gen`
-- `re`
-- `typing`
-
-Classes:
-- `DocumentClassifier`
-  - 文档分类器
-  - methods: __init__, classify, analyze_quality, analyze_evidence, _identify_event_types, _estimate_source_reliability, _estimate_subjectivity, _estimate_usability, _estimate_content_quality, _has_explicit_facts, _has_explicit_opinions, _has_data_points, _has_quotes, _has_analysis
-
-
-## `core/services/document_enrichment.py`
-
-Module docstring:
-> 文档富集流水线 - Issue #44
-
-Imports:
-- `core.contracts`
-- `core.observability`
-- `core.services.document_chunker`
-- `core.services.document_classifier`
-- `core.services.entity_extractor`
-- `core.services.event_extractor`
-- `core.services.summary_generator`
-- `core.services.taxonomy_service`
-- `dataclasses`
-- `datetime`
-- `typing`
-
-Classes:
-- `EnrichmentResult`
-  - 富集结果
-- `EnrichmentConfig`
-  - 富集配置
-- `DocumentEnrichmentPipeline`
-  - 文档富集流水线
-  - methods: __init__, enrich, enrich_batch
-
-
-## `core/services/entity_extractor.py`
-
-Module docstring:
-> Entity Extractor - Issue #44
-
-Imports:
-- `core.contracts`
-- `core.observability`
-- `core.utils.id_gen`
-- `dataclasses`
-- `enum`
-- `re`
-- `typing`
-
-Classes:
-- `EntityType`
-  - Entity types
-- `EntityCandidate`
-  - Entity candidate
-- `EntityExtractor`
-  - Entity extractor
-  - methods: __init__, _init_patterns, extract, _extract_stock_codes, _extract_companies, _extract_context
-
-
-## `core/services/event_auto_signal_generator.py`
-
-Module docstring:
-> 事件自动生成信号服务
-
-Imports:
-- `core.observability`
-- `core.services.signal_generator_service`
-- `data_layer.repositories.event_repository`
-- `data_layer.repositories.signal_repository`
-
-Classes:
-- `EventAutoSignalGenerator`
-  - 事件自动信号生成器
-  - methods: __init__, process_approved_events, on_event_approved
-
-
-## `core/services/event_extractor.py`
-
-Module docstring:
-> 事件提取器 - 从文本中提取结构化事件信号参数。
-
-Imports:
-- `__future__`
-- `core.interfaces`
-- `core.observability`
-- `json`
-- `pydantic`
-- `re`
-
-Classes:
-- `ExtractedSignalParams`
-  - 从文本中提取的信号参数。
-- `EventExtractor`
-  - 从文本中提取事件信号参数。
-  - methods: __init__, extract, _extract_via_llm, _extract_via_keywords
-
-
-## `core/services/failure_memory_service.py`
-
-Module docstring:
-> Failure memory service for retrieving similar historical cases based on thesis similarity.
-
-Imports:
-- `core.contracts.outcome_journal`
-- `core.observability`
-- `data_layer.repositories.base`
-- `data_layer.repositories.models`
-- `data_layer.repositories.outcome_journal_repository`
-- `typing`
-
-Classes:
-- `FailureMemoryService`
-  - Service for failure memory and similar case retrieval.
-  - methods: __init__, _calculate_similarity, retrieve_similar_cases, retrieve_similar_failures, retrieve_similar_successes, get_all_categorized_failures
-
-
-## `core/services/governance_service.py`
-
-Module docstring:
-> Governance 服务 — 策略版本管理、实验追踪、回滚、治理报告。
-
-Imports:
-- `core.contracts.governance`
-- `core.observability`
-- `datetime`
-- `hashlib`
-- `json`
-- `typing`
-- `uuid`
-
-Classes:
-- `GovernanceService`
-  - 策略治理与实验追踪核心服务
-  - methods: __init__, _compute_hash, register_strategy_version, get_strategy_version, get_active_strategy_version, list_strategy_versions, rollback_strategy, create_experiment, get_experiment, list_experiments, complete_experiment, fail_experiment, compare_experiments, generate_governance_report, build_governance_metadata, record_entity_governance
-
-
-## `core/services/graph_data_service.py`
-
-Module docstring:
-> GraphDataService — 用真实实体/关系/传播路径数据丰富行业图谱。
-
-Imports:
-- `__future__`
-- `core.observability`
-- `memory_learning.journal`
-- `typing`
-
-Classes:
-- `GraphDataService`
-  - 从真实存储获取实体、关系和传播路径，丰富图谱视图。
-  - methods: __init__, get_real_entities, get_propagation_paths, get_outcome_paths, enrich_graph
-
-Functions:
-- `_compute_evidence_strength`
-  - 根据证据数量计算证据强度。
-
-
-## `core/services/historical_replay_service.py`
-
-Module docstring:
-> Issue #47: 历史回放服务 - 提供过去某个时间点可见的信息
-
-Imports:
-- `core.contracts.backtest`
-- `core.observability`
-- `datetime`
-- `typing`
-
-Classes:
-- `HistoricalReplayService`
-  - 历史回放服务 - 提供时间旅行视角
-  - methods: __init__, _init_sample_data, query, get_available_at, check_time_travel_safety, get_retrieval_config, add_event, get_event
-
-
-## `core/services/ingest_service.py`
-
-Module docstring:
-> 摄入服务 - 文档摄入流程
-
-Imports:
-- `core.contracts`
-- `core.interfaces`
-- `core.observability`
-- `core.settings.config`
-- `datetime`
-- `json`
-- `knowledge_layer.assertions`
-- `knowledge_layer.events`
-- `knowledge_layer.extraction`
-- `knowledge_layer.retrieval`
-- `pathlib`
-- `re`
-- `typing`
-- `uuid`
-
-Classes:
-- `IngestService`
-  - 摄入服务
-  - methods: __init__, ingest_file, ingest_text, _read_file, ingest_envelope, _extract_combined, _extract_combined_concurrent, _parse_combined_response, _normalize_dedup_value, _deduplicate_assertions, _deduplicate_events, _build_combined_assertion, _build_combined_event, _normalize_text
-
-
-## `core/services/ingestion_queue_service.py`
-
-Module docstring:
-> 统一摄取队列服务 — 将实时源事件归一化后送入 Golden Path
-
-Imports:
-- `core.contracts`
-- `core.contracts.ingestion`
-- `core.observability`
-- `data_layer.repositories.ingestion_repository`
-- `datetime`
-- `typing`
-- `uuid`
-
-Classes:
-- `IngestionQueueService`
-  - 统一摄取队列服务
-  - methods: __init__, enqueue, dequeue, process_item, process_batch, get_stats, retry_failed, get_recent, _normalize_to_event
-
-
-## `core/services/market_data_ingestion_service.py`
-
-Module docstring:
-> MarketDataIngestionService — ETL 编排服务
-
-Imports:
-- `core.observability`
-- `data_layer.crawlers.akshare.base`
-- `data_layer.normalizers.akshare_market`
-- `data_layer.repositories.etl_run_repository`
-- `data_layer.repositories.market_data_repository`
-- `datetime`
-- `typing`
-- `uuid`
-
-Classes:
-- `MarketDataIngestionService`
-  - 市场数据摄入编排服务
-  - methods: __init__, ingest_stock_master, ingest_daily_bars
-
-
-## `core/services/monitoring_service.py`
-
-Module docstring:
-> Monitoring 服务 — 健康指标采集、漂移检测、告警触发、事件记录。
-
-Imports:
-- `core.contracts.monitoring`
-- `core.observability`
-- `datetime`
-- `math`
-- `typing`
-- `uuid`
-
-Classes:
-- `MonitoringService`
-  - 生产监控核心服务
-  - methods: __init__, submit_health_metrics, get_latest_health, list_health_metrics, check_drift, list_drift_reports, create_alert_threshold, get_alert_threshold, list_alert_thresholds, update_alert_threshold, delete_alert_threshold, list_alerts, acknowledge_alert, resolve_alert, list_incidents, resolve_incident, get_system_health_dashboard, _check_metric_thresholds, _evaluate_threshold, _check_cooldown, _create_metric_alert, _trigger_drift_alert, _create_incident_from_alert, _determine_subsystem_status, _compute_distributions, _count_by_field, _avg_by_field, _normalize, _js_divergence
-
-
-## `core/services/news_feature_service.py`
-
-Module docstring:
-> Issue #47: 消息面特征服务 - 计算新闻相关的特征
-
-Imports:
-- `collections`
-- `core.contracts.backtest`
-- `core.observability`
-- `datetime`
-- `typing`
-
-Classes:
-- `NewsFeatureService`
-  - 消息面特征服务
-  - methods: __init__, _init_sample_data, compute_features, _compute_features_for_bucket, _filter_events, _count_by_source, _compute_sentiment, _compute_positive_intensity, _compute_negative_intensity, _compute_theme_heat, _get_bucket_delta, get_entity_feature_ts, add_event
-
-
-## `core/services/outcome_journal_service.py`
-
-Module docstring:
-> Outcome journal service for recording and managing trade outcomes.
-
-Imports:
-- `core.contracts.outcome_journal`
-- `core.observability`
-- `data_layer.repositories.base`
-- `data_layer.repositories.outcome_journal_repository`
-- `datetime`
-- `typing`
-- `uuid`
-
-Classes:
-- `OutcomeJournalService`
-  - Service for managing the outcome journal.
-  - methods: __init__, repository, record_outcome, get_outcome, list_outcomes_for_signal, list_failures_by_class, generate_weekly_review, count_failure_distribution
-
-
-## `core/services/outcome_service.py`
-
-Module docstring:
-> Outcome Service — 事件信号结果评估服务。
-
-Imports:
-- `core.contracts.outcomes`
-- `core.observability`
-- `core.settings.config`
-- `data_layer.repositories.outcome_repository`
-- `datetime`
-- `memory_learning.contracts`
-- `memory_learning.journal`
-- `typing`
-
-Classes:
-- `OutcomeService`
-  - 事件信号结果评估服务
-  - methods: __init__, record_outcome, get_outcome, get_outcome_by_signal, list_outcomes, update_lesson, _sync_to_journal, _sync_lesson_to_journal
-
-
-## `core/services/paper_trading_service.py`
-
-Module docstring:
-> Paper Trading 和 Portfolio Simulation 服务。
-
-Imports:
-- `core.contracts.paper_trading`
-- `core.contracts.portfolio`
-- `core.observability`
-- `datetime`
-- `typing`
-- `uuid`
-
-Classes:
-- `PaperTradingService`
-  - 模拟交易核心服务
-  - methods: __init__, create_paper_portfolio, rebalance, update_daily, compute_performance, compare_benchmarks, generate_equal_weight_baseline, generate_top_k_signal_baseline, run_replay_simulation, get_paper_portfolio, list_paper_portfolios, get_simulation_result, list_simulation_results, _compute_max_drawdown, _compute_daily_returns, _compute_sharpe_ratio, _compute_sortino_ratio, _compute_hit_rate, _compute_avg_win_loss, _check_drift_threshold
-
-
-## `core/services/pdf_conversion_service.py`
-
-Module docstring:
-> PDF 转换服务 —— 核心编排逻辑.
-
-Imports:
-- `core.contracts.documents_v1`
-- `core.contracts.pdf_conversion`
-- `core.observability`
-- `core.services.document_chunker`
-- `data_layer.converters.base`
-- `data_layer.converters.markitdown`
-- `data_layer.converters.mineru`
-- `data_layer.converters.persistence`
-- `data_layer.converters.raw_text`
-- `data_layer.repositories`
-- `data_layer.repositories.documents_v1`
-- `data_layer.repositories.models`
-- `datetime`
-- `hashlib`
-- `sqlalchemy.orm`
-- `time`
-- `typing`
-- `uuid`
-
-Classes:
-- `PDFConversionService`
-  - PDF 转换预案服务
-  - methods: __init__, _register_default_strategies, get_available_strategies, _select_strategy, convert_pdf, _create_document_from_conversion, convert_pending, retry_failed, get_stats, get_pending
-
-Functions:
-- `_map_source_type`
-  - 将 artifact 的 source_type 字符串映射到 SourceType 枚举
-
-
-## `core/services/pipeline_service.py`
-
-Module docstring:
-> 研究流水线服务
-
-Imports:
-- `cognitive_agents.blackboard`
-- `core.contracts`
-- `core.interfaces.model_gateway`
-- `core.interfaces.reasoning_engine`
-- `core.observability`
-- `core.services.event_extractor`
-- `core.services.signal_service`
-- `memory_learning.contracts`
-- `memory_learning.journal`
-- `timing_engine`
-- `timing_engine.contracts`
-- `typing`
-- `uuid`
-
-Classes:
-- `ResearchPipeline`
-  - 端到端研究流水线
-  - methods: __init__, run_asset_analysis, run_event_signal, _extract_signal_params, _build_signal, _persist_signal, _evaluate_timing, _persist_timing_decision, _record_to_journal, record_outcome, run_scenario_analysis
-
-
-## `core/services/portfolio_service.py`
-
-Module docstring:
-> 组合构建与风险预算服务。
-
-Imports:
-- `collections`
-- `core.contracts.portfolio`
-- `core.observability`
-- `datetime`
-- `typing`
-- `uuid`
-
-Classes:
-- `PortfolioService`
-  - 组合构建与风险预算服务
-  - methods: __init__, build_proposal, get_historical_quality, resolve_conflicts, apply_constraints, size_positions, _filter_signals, _enrich_candidates, _rank_candidates, get_proposal, list_proposals
-
-
-## `core/services/rag_retrieval.py`
-
-Module docstring:
-> RAG 检索服务 - Issue #45.
-
-Imports:
-- `core.contracts.documents_v1`
-- `core.contracts.retrieval`
-- `core.observability`
-- `datetime`
-- `knowledge_layer.retrieval.hybrid_search`
-- `knowledge_layer.retrieval.vector_store`
-- `math`
-- `typing`
-
-Classes:
-- `RecencyDecayScorer`
-  - 时间衰减评分器 - Issue #45 要求.
-  - methods: __init__, score
-- `DocumentFilter`
-  - 文档过滤器 - 实现 Issue #45 要求的结构化过滤.
-  - methods: filter_document, _check_time_filters, _check_source_filters, _check_classification_filters, _check_quality_filters, _check_evidence_filters, _check_reliability_level
-- `EvidencePackageBuilder`
-  - 证据包构建器 - Issue #45 要求.
-  - methods: __init__, build, _build_evidence_doc, _build_evidence_chunk, _determine_evidence_type, _group_chunks_by_doc, _calculate_source_distribution, _calculate_industry_distribution, _build_filters_summary
-- `RAGRetrievalService`
-  - RAG 检索服务 - Issue #45 主类.
-  - methods: __init__, index_document, retrieve, _filter_documents, _rerank_candidates, _rerank_with_external_model, _retrieve_candidates, _calculate_keyword_scores
-
-
-## `core/services/raw_storage_service.py`
-
-Module docstring:
-> 原始数据存储服务 - Issue #43: 原始落盘
-
-Imports:
-- `core.contracts`
-- `core.contracts.raw_storage`
-- `core.observability`
-- `datetime`
-- `gzip`
-- `hashlib`
-- `json`
-- `pathlib`
-- `typing`
-
-Classes:
-- `RawStorageService`
-  - 原始数据存储服务
-  - methods: __init__, save_raw_data, load_raw_data, list_raw_files, _parse_file_info, cleanup_old_files, get_file_info
-
-
-## `core/services/replay_service.py`
-
-Module docstring:
-> 回放服务 — 历史事件批量回放 & 信号校准。
-
-Imports:
-- `__future__`
-- `collections`
-- `core.contracts.events`
-- `core.contracts.replay`
-- `core.observability`
-- `core.services.event_extractor`
-- `data_layer.repositories.replay_repository`
-- `datetime`
-- `json`
-- `pathlib`
-- `typing`
-- `uuid`
-
-Classes:
-- `ReplayService`
-  - 历史事件回放 & 信号校准服务
-  - methods: __init__, create_job, get_job, run_job, _replay_single_event, _simulate_outcome, _load_events, _matches_filter, get_aggregate, calibrate, _compute_aggregate, _compute_calibration, _group_stats, _bucket_analysis, _find_best_threshold, _update_job_status, _save_result, _get_all_results
-
-
-## `core/services/report_generator.py`
-
-Module docstring:
-> 研报生成服务
-
-Imports:
-- `core.observability`
-- `core.services.asset_analysis_service`
-- `core.utils.id_gen`
-- `datetime`
-- `typing`
-
-Classes:
-- `ReportGenerator`
-  - 研报生成器，支持生成多种类型的资产研究报告
-  - methods: __init__, generate, get_report_content, _generate_summary_report, _generate_valuation_report, _generate_full_report
-
-
-## `core/services/review_service.py`
-
-Module docstring:
-> 审核服务 - 审核队列管理
-
-Imports:
-- `core.contracts`
-- `core.interfaces`
-- `core.observability`
-- `data_layer.repositories.assertion_repository`
-- `data_layer.repositories.event_repository`
-- `datetime`
-- `typing`
-
-Classes:
-- `ReviewService`
-  - 审核服务
-  - methods: __init__, list_pending_assertions, approve_assertion, reject_assertion, list_pending_events, approve_event, reject_event, get_statistics
-
-
-## `core/services/scenario_data_service.py`
-
-Module docstring:
-> ScenarioDataService — 用真实事件/Outcome/记忆数据丰富场景分析。
-
-Imports:
-- `__future__`
-- `core.observability`
-- `memory_learning.journal`
-- `typing`
-
-Classes:
-- `ScenarioDataService`
-  - 从真实存储获取事件历史、Outcome 记录和传播模式，丰富场景输出。
-  - methods: __init__, get_event_evidence, get_outcome_evidence, get_propagation_patterns, get_regime_summaries, enrich_scenario
-
-Functions:
-- `_compute_evidence_strength`
-  - 根据证据数量计算证据强度。
-
-
-## `core/services/scenario_service.py`
-
-Module docstring:
-> 情景服务 - 专题研究报告生成
-
-Imports:
-- `core.contracts`
-- `core.observability`
-- `pathlib`
-- `reasoning`
-- `reporting.composer`
-- `typing`
-
-Classes:
-- `ScenarioService`
-  - 情景服务
-  - methods: __init__, generate_scenario_set, generate_thesis_report
-
-
-## `core/services/search_service.py`
-
-Module docstring:
-> 全局搜索服务
-
-Imports:
-- `core.observability`
-- `data_layer.repositories.search_repository`
-- `typing`
-
-Classes:
-- `GlobalSearchService`
-  - 全局跨类型搜索服务
-  - methods: __init__, search
-
-
-## `core/services/signal_service.py`
-
-Module docstring:
-> 信号服务
-
-Imports:
-- `core.contracts`
-- `core.interfaces`
-- `core.observability`
-- `core.services.signal_validator_impl`
-- `core.settings.config`
-- `data_layer.repositories.signal_repository`
-- `datetime`
-- `typing`
-- `uuid`
-
-Classes:
-- `SignalService`
-  - 信号服务
-  - methods: __init__, create_signal, create_event_signal, get_signal, list_signals, validate_signal, validate_event_signal, promote_signal, generate_trade_candidate
-
-
-## `core/services/signal_validator_impl.py`
-
-Module docstring:
-> 信号验证器实现
-
-Imports:
-- `core.contracts`
-- `core.interfaces`
-- `core.observability`
-- `pandas`
-- `signal_lab.backtests`
-- `signal_lab.features`
-- `signal_lab.features.groups`
-- `signal_lab.scoring`
-- `typing`
-- `uuid`
-
-Classes:
-- `SignalValidatorImpl`
-  - 信号验证器实现
-  - methods: __init__, generate_features, score_signal, backtest, generate_candidate
-
-
-## `core/services/summary_generator.py`
-
-Module docstring:
-> 文档总结生成器 - Issue #44
-
-Imports:
-- `core.contracts`
-- `core.observability`
-- `core.utils.id_gen`
-- `re`
-- `typing`
-
-Classes:
-- `SummaryGenerator`
-  - 总结生成器
-  - methods: __init__, generate_short_summary, generate_bullet_points, generate_document_summary, _extract_first_sentence, _extract_list_items, _extract_key_sentences, _split_sentences, _score_sentence
-
-
-## `core/services/system_event_bus.py`
-
-Module docstring:
-> System event bus — 轻量级内存事件总线，用于 SSE 实时推送
-
-Imports:
-- `asyncio`
-- `collections`
-- `core.observability`
-- `dataclasses`
-- `json`
-- `os`
-- `pathlib`
-- `time`
-- `typing`
-- `uuid`
-
-Classes:
-- `SystemEvent`
-  - methods: to_sse_dict
-- `SystemEventBus`
-  - 轻量级内存事件总线，用于 SSE 实时推送和 worker heartbeat 记录
-  - methods: __init__, _load_history, _append_to_log, publish, get_events_after, subscribe, unsubscribe, record_worker_heartbeat, get_worker_heartbeats
-
-
-## `core/services/taxonomy_service.py`
-
-Module docstring:
-> 分类体系服务 - Issue #44
-
-Imports:
-- `core.observability`
-- `dataclasses`
-- `enum`
-- `typing`
-
-Classes:
-- `IndustryLevel`
-  - 行业层级
-- `IndustryNode`
-  - 行业节点
-- `ThemeNode`
-  - 主题节点
-- `ClassificationResult`
-  - 分类结果
-- `TaxonomyService`
-  - 分类体系服务
-  - methods: __init__, _init_taxonomy, _init_industries, _init_themes, classify, get_industry_hierarchy, get_industry_keywords, list_level_1_industries, list_child_industries, get_theme, list_themes
-
-
-## `core/services/thesis_generator_service.py`
-
-Imports:
-- `core.contracts.events`
-- `core.contracts.industry_chain`
-- `core.observability`
-- `datetime`
-- `json`
-- `pathlib`
-- `typing`
-- `uuid`
-
-Classes:
-- `ThesisGeneratorService`
-  - 主题生成服务：将事件转换为结构化投资主题，包含产业链传播和A股映射
-  - methods: __init__, _load_all_industry_graphs, list_graphs, get_graph, generate_theses_from_event, _find_starting_nodes, _propagate_from_node, _build_thesis_card
-
-Functions:
-- `get_thesis_generator_service`
-  - Get the singleton instance of ThesisGeneratorService
-
-
-## `core/services/thesis_review_service.py`
-
-Module docstring:
-> Thesis Review Service - Evidence-driven Bull/Bear/Skeptic structured review framework
-
-Imports:
-- `core.contracts`
-- `core.observability`
-- `datetime`
-- `typing`
-- `uuid`
-
-Classes:
-- `ThesisReviewService`
-  - Service for generating structured Bull/Bear/Skeptic reviews for investment theses
-  - methods: __init__, generate_bull_review, generate_bear_review, generate_skeptic_review, create_cognitive_blackboard, detect_conflicts, generate_full_review, _calculate_bull_confidence, _calculate_bear_confidence, _calculate_skeptic_confidence, _generate_bull_reasoning, _generate_bear_reasoning, _generate_skeptic_reasoning, _extract_invalidation_triggers, _extract_skeptic_invalidation_triggers
+- `services.asset_analysis_service`
+- `services.crawler_ingestion_bridge`
+- `services.data_tier_service`
+- `services.document_chunker`
+- `services.document_classifier`
+- `services.document_enrichment`
+- `services.entity_extractor`
+- `services.event_extractor`
+- `services.historical_replay_service`
+- `services.ingest_service`
+- `services.news_feature_service`
+- `services.outcome_service`
+- `services.rag_retrieval`
+- `services.review_service`
+- `services.scenario_service`
+- `services.signal_service`
+- `services.signal_validator_impl`
+- `services.summary_generator`
+- `services.system_event_bus`
+- `services.taxonomy_service`
 
 
 ## `core/settings/__init__.py`
@@ -4579,121 +3619,6 @@ Classes:
 - `ZQAdapter`
   - 知丘数据适配器 (研报/公众号/纪要)
   - methods: __init__, fetch, _fetch_reports, _fetch_news, _fetch_meetings, _parse_json_output, parse
-
-
-## `data_layer/converters/__init__.py`
-
-Module docstring:
-> PDF 转换器模块 —— 可插拔的 PDF 转换策略
-
-Imports:
-- `data_layer.converters.base`
-
-
-## `data_layer/converters/base.py`
-
-Module docstring:
-> PDF 转换策略基类.
-
-Imports:
-- `abc`
-- `core.contracts.pdf_conversion`
-- `logging`
-
-Classes:
-- `PDFConversionStrategy`
-  - PDF 转换策略抽象基类
-  - methods: is_available, convert, strategy_type, name, estimate_tokens
-
-
-## `data_layer/converters/markitdown.py`
-
-Module docstring:
-> MarkItDown 转换策略 —— 基于 microsoft/markitdown 的 PDF 转 Markdown
-
-Imports:
-- `core.contracts.pdf_conversion`
-- `data_layer.converters.base`
-- `logging`
-- `typing`
-
-Classes:
-- `MarkItDownStrategy`
-  - 基于 microsoft/markitdown 的 Markdown 转换策略
-  - methods: is_available, convert, strategy_type, name, _add_page_anchors, _detect_features, _compute_quality_score
-
-
-## `data_layer/converters/mineru.py`
-
-Module docstring:
-> MinerU 转换策略 —— 基于 opendatalab/mineru 的高质量 PDF 解析
-
-Imports:
-- `core.contracts.pdf_conversion`
-- `data_layer.converters.base`
-- `logging`
-- `os`
-- `subprocess`
-- `tempfile`
-- `typing`
-
-Classes:
-- `MinerUStrategy`
-  - 基于 opendatalab/mineru 的高质量 PDF 转换策略
-  - methods: __init__, is_available, _check_cli_available, convert, _run_mineru, strategy_type, name, _read_output, _count_pages, _detect_features, _compute_quality_score
-
-
-## `data_layer/converters/persistence.py`
-
-Module docstring:
-> PDF 转换输出持久化 —— 将 markdown/raw_text 写入磁盘并管理路径
-
-Imports:
-- `core.observability`
-- `core.settings.config`
-- `pathlib`
-- `typing`
-
-Functions:
-- `ensure_output_dirs`
-  - 确保输出目录存在
-- `persist_markdown`
-  - 将 markdown 内容持久化到磁盘
-- `persist_raw_text`
-  - 将 raw_text 内容持久化到磁盘
-- `should_inline`
-  - 判断内容是否足够小以内联到数据库
-- `read_markdown`
-  - 从磁盘读取 markdown 内容
-- `read_raw_text`
-  - 从磁盘读取 raw_text 内容
-- `delete_outputs`
-  - 删除 pdf_id 对应的所有输出文件
-- `_output_path`
-  - 生成输出文件路径，使用 pdf_id 防碰撞
-- `_sanitize_filename`
-  - 清除文件名中的不安全字符
-- `_write_file`
-  - 写入文件，确保父目录存在
-- `_read_file`
-  - 读取文件内容
-
-
-## `data_layer/converters/raw_text.py`
-
-Module docstring:
-> Raw Text 回退策略 —— 基于 pdfplumber 的纯文本提取
-
-Imports:
-- `core.contracts.pdf_conversion`
-- `data_layer.converters.base`
-- `logging`
-- `typing`
-
-Classes:
-- `RawTextStrategy`
-  - 基于 pdfplumber 的原始文本提取策略
-  - methods: is_available, convert, strategy_type, name, _compute_quality_score
 
 
 ## `data_layer/coordinator/__init__.py`
@@ -5909,84 +4834,6 @@ Functions:
 - `main_cli`
 
 
-## `data_layer/indicators/__init__.py`
-
-Imports:
-- `builtin_provider`
-- `engine`
-- `models`
-- `pandas_ta_provider`
-- `talib_provider`
-
-
-## `data_layer/indicators/builtin_provider.py`
-
-Imports:
-- `logging`
-- `models`
-- `numpy`
-- `pandas`
-- `typing`
-
-Classes:
-- `BuiltinProvider`
-  - 自写指标实现（兜底）
-  - methods: calculate, _get_last_valid, _calculate_sar, _calculate_dmi, _calculate_trix, _calculate_rsi, _calculate_kdj, _calculate_wr, _calculate_cci, _calculate_roc, _calculate_boll, _calculate_atr, _calculate_obv, _calculate_vwap
-
-
-## `data_layer/indicators/engine.py`
-
-Imports:
-- `logging`
-- `models`
-- `pandas`
-
-Classes:
-- `TechnicalIndicatorEngine`
-  - 技术指标引擎 - 三层降级
-  - methods: __init__, _init_provider, calculate, provider_name
-
-
-## `data_layer/indicators/models.py`
-
-Imports:
-- `dataclasses`
-- `typing`
-
-Classes:
-- `TechnicalIndicators`
-  - 技术指标计算结果
-
-
-## `data_layer/indicators/pandas_ta_provider.py`
-
-Imports:
-- `logging`
-- `models`
-- `pandas`
-
-Classes:
-- `PandasTAProvider`
-  - pandas-ta 指标实现（第二优先级，预留空壳）
-  - methods: calculate
-
-
-## `data_layer/indicators/talib_provider.py`
-
-Imports:
-- `logging`
-- `models`
-- `numpy`
-- `pandas`
-- `talib`
-- `typing`
-
-Classes:
-- `TALibProvider`
-  - TA-Lib 指标实现（第一优先级）
-  - methods: calculate, _get_last_valid
-
-
 ## `data_layer/normalizers/__init__.py`
 
 Module docstring:
@@ -6161,7 +5008,7 @@ Module docstring:
 > Agent 观点仓储实现
 
 Imports:
-- `cognitive_agents.contracts`
+- `core.contracts.agent_types`
 - `core.observability`
 - `data_layer.repositories.base`
 - `data_layer.repositories.models`
@@ -8151,14 +6998,7 @@ Module docstring:
 > 认知 Agent 层契约。
 
 Imports:
-- `pydantic`
-- `typing`
-
-Classes:
-- `AgentView`
-  - 单个 Agent 写入黑板的结构化观点。
-- `BlackboardConflict`
-  - 黑板检测出的多视角冲突。
+- `core.contracts.agent_types`
 
 
 ## `timing_engine/__init__.py`
@@ -8179,6 +7019,7 @@ Module docstring:
 > Timing Engine 契约。
 
 Imports:
+- `core.contracts.timing_types`
 - `pydantic`
 - `typing`
 
@@ -8764,6 +7605,84 @@ Classes:
   - methods: __init__
 
 
+## `signal_lab/features/indicators/__init__.py`
+
+Imports:
+- `builtin_provider`
+- `engine`
+- `models`
+- `pandas_ta_provider`
+- `talib_provider`
+
+
+## `signal_lab/features/indicators/builtin_provider.py`
+
+Imports:
+- `logging`
+- `models`
+- `numpy`
+- `pandas`
+- `typing`
+
+Classes:
+- `BuiltinProvider`
+  - 自写指标实现（兜底）
+  - methods: calculate, _get_last_valid, _calculate_sar, _calculate_dmi, _calculate_trix, _calculate_rsi, _calculate_kdj, _calculate_wr, _calculate_cci, _calculate_roc, _calculate_boll, _calculate_atr, _calculate_obv, _calculate_vwap
+
+
+## `signal_lab/features/indicators/engine.py`
+
+Imports:
+- `logging`
+- `models`
+- `pandas`
+
+Classes:
+- `TechnicalIndicatorEngine`
+  - 技术指标引擎 - 三层降级
+  - methods: __init__, _init_provider, calculate, provider_name
+
+
+## `signal_lab/features/indicators/models.py`
+
+Imports:
+- `dataclasses`
+- `typing`
+
+Classes:
+- `TechnicalIndicators`
+  - 技术指标计算结果
+
+
+## `signal_lab/features/indicators/pandas_ta_provider.py`
+
+Imports:
+- `logging`
+- `models`
+- `pandas`
+
+Classes:
+- `PandasTAProvider`
+  - pandas-ta 指标实现（第二优先级，预留空壳）
+  - methods: calculate
+
+
+## `signal_lab/features/indicators/talib_provider.py`
+
+Imports:
+- `logging`
+- `models`
+- `numpy`
+- `pandas`
+- `talib`
+- `typing`
+
+Classes:
+- `TALibProvider`
+  - TA-Lib 指标实现（第一优先级）
+  - methods: calculate, _get_last_valid
+
+
 ## `signal_lab/labels/__init__.py`
 
 Module docstring:
@@ -8914,8 +7833,8 @@ Module docstring:
 > Memory & Learning 契约。
 
 Imports:
+- `core.contracts.timing_types`
 - `pydantic`
-- `typing`
 
 Classes:
 - `MarketEpisode`
@@ -9068,7 +7987,6 @@ Imports:
 - `core.contracts`
 - `core.interfaces`
 - `core.observability`
-- `core.services.rag_retrieval`
 - `datetime`
 - `pathlib`
 - `reporting.composer.fact_card_builder`
@@ -9077,6 +7995,7 @@ Imports:
 - `reporting.projections.markdown`
 - `reporting.projections.word`
 - `reporting.templates.template_manager`
+- `services.rag_retrieval`
 - `typing`
 
 Classes:
@@ -9435,6 +8354,121 @@ Imports:
 - `knowledge_pipeline`
 
 
+## `ingestion/converters/__init__.py`
+
+Module docstring:
+> PDF 转换器模块 —— 可插拔的 PDF 转换策略
+
+Imports:
+- `ingestion.converters.base`
+
+
+## `ingestion/converters/base.py`
+
+Module docstring:
+> PDF 转换策略基类.
+
+Imports:
+- `abc`
+- `core.contracts.pdf_conversion`
+- `logging`
+
+Classes:
+- `PDFConversionStrategy`
+  - PDF 转换策略抽象基类
+  - methods: is_available, convert, strategy_type, name, estimate_tokens
+
+
+## `ingestion/converters/markitdown.py`
+
+Module docstring:
+> MarkItDown 转换策略 —— 基于 microsoft/markitdown 的 PDF 转 Markdown
+
+Imports:
+- `core.contracts.pdf_conversion`
+- `ingestion.converters.base`
+- `logging`
+- `typing`
+
+Classes:
+- `MarkItDownStrategy`
+  - 基于 microsoft/markitdown 的 Markdown 转换策略
+  - methods: is_available, convert, strategy_type, name, _add_page_anchors, _detect_features, _compute_quality_score
+
+
+## `ingestion/converters/mineru.py`
+
+Module docstring:
+> MinerU 转换策略 —— 基于 opendatalab/mineru 的高质量 PDF 解析
+
+Imports:
+- `core.contracts.pdf_conversion`
+- `ingestion.converters.base`
+- `logging`
+- `os`
+- `subprocess`
+- `tempfile`
+- `typing`
+
+Classes:
+- `MinerUStrategy`
+  - 基于 opendatalab/mineru 的高质量 PDF 转换策略
+  - methods: __init__, is_available, _check_cli_available, convert, _run_mineru, strategy_type, name, _read_output, _count_pages, _detect_features, _compute_quality_score
+
+
+## `ingestion/converters/persistence.py`
+
+Module docstring:
+> PDF 转换输出持久化 —— 将 markdown/raw_text 写入磁盘并管理路径
+
+Imports:
+- `core.observability`
+- `core.settings.config`
+- `pathlib`
+- `typing`
+
+Functions:
+- `ensure_output_dirs`
+  - 确保输出目录存在
+- `persist_markdown`
+  - 将 markdown 内容持久化到磁盘
+- `persist_raw_text`
+  - 将 raw_text 内容持久化到磁盘
+- `should_inline`
+  - 判断内容是否足够小以内联到数据库
+- `read_markdown`
+  - 从磁盘读取 markdown 内容
+- `read_raw_text`
+  - 从磁盘读取 raw_text 内容
+- `delete_outputs`
+  - 删除 pdf_id 对应的所有输出文件
+- `_output_path`
+  - 生成输出文件路径，使用 pdf_id 防碰撞
+- `_sanitize_filename`
+  - 清除文件名中的不安全字符
+- `_write_file`
+  - 写入文件，确保父目录存在
+- `_read_file`
+  - 读取文件内容
+
+
+## `ingestion/converters/raw_text.py`
+
+Module docstring:
+> Raw Text 回退策略 —— 基于 pdfplumber 的纯文本提取
+
+Imports:
+- `core.contracts.pdf_conversion`
+- `ingestion.converters.base`
+- `logging`
+- `typing`
+
+Classes:
+- `RawTextStrategy`
+  - 基于 pdfplumber 的原始文本提取策略
+  - methods: is_available, convert, strategy_type, name, _compute_quality_score
+
+
 ## `ingestion/knowledge_pipeline.py`
 
 Module docstring:
@@ -9443,14 +8477,14 @@ Module docstring:
 Imports:
 - `core.contracts`
 - `core.observability`
-- `core.services.deduplication_service`
-- `core.services.document_chunker`
-- `core.services.document_classifier`
-- `core.services.entity_extractor`
-- `core.services.event_extractor`
 - `data_layer.repositories.event_repository`
 - `dataclasses`
 - `json`
+- `services.deduplication_service`
+- `services.document_chunker`
+- `services.document_classifier`
+- `services.entity_extractor`
+- `services.event_extractor`
 - `typing`
 - `uuid`
 
@@ -9484,19 +8518,6 @@ Classes:
 - `StructuredEventIngestor`
   - Standardized structured event ingestion pipeline for A-share alpha events
   - methods: __init__, _generate_event_id, normalize_event, ingest, bulk_ingest, extract_assertions
-
-
-## `cron_jobs/auto_generate_signals.py`
-
-Module docstring:
-> 定时任务：每小时自动从已批准事件生成候选信号
-
-Imports:
-- `core.services.event_auto_signal_generator`
-- `sys`
-
-Functions:
-- `main`
 
 
 ## `cron_jobs/auto_ingest_service.py`
@@ -9763,11 +8784,11 @@ Module docstring:
 
 Imports:
 - `asyncio`
-- `core.services`
 - `data_layer.coordinator.multi_source_coordinator`
 - `datetime`
 - `json`
 - `pathlib`
+- `services`
 - `sys`
 
 Functions:
@@ -9784,10 +8805,10 @@ Module docstring:
 
 Imports:
 - `core.observability`
-- `core.services.closed_loop_service`
 - `data_layer.repositories.base`
 - `data_layer.repositories.models`
 - `pathlib`
+- `services.closed_loop_service`
 - `sqlalchemy`
 - `sys`
 
@@ -10021,12 +9042,12 @@ Imports:
 - `core.contracts`
 - `core.model_gateway.gateway`
 - `core.observability`
-- `core.services.ingest_service`
 - `data_layer.repositories.assertion_repository`
 - `data_layer.repositories.base`
 - `data_layer.repositories.event_repository`
 - `json`
 - `pathlib`
+- `services.ingest_service`
 - `sqlalchemy`
 - `sys`
 - `time`
@@ -10044,13 +9065,13 @@ Imports:
 - `core.contracts`
 - `core.model_gateway.gateway`
 - `core.observability`
-- `core.services.ingest_service`
 - `data_layer.repositories.assertion_repository`
 - `data_layer.repositories.base`
 - `data_layer.repositories.event_repository`
 - `json`
 - `os`
 - `pathlib`
+- `services.ingest_service`
 - `sqlalchemy`
 - `sys`
 - `time`
@@ -10068,15 +9089,15 @@ Imports:
 - `argparse`
 - `core.contracts.timing_engine`
 - `core.observability`
-- `core.services.outcome_service`
-- `core.services.replay_service`
-- `core.services.signal_service`
 - `data_layer.repositories.base`
 - `data_layer.repositories.event_repository`
 - `data_layer.repositories.models`
 - `data_layer.repositories.signal_repository`
 - `data_layer.repositories.timing_repository`
 - `pathlib`
+- `services.outcome_service`
+- `services.replay_service`
+- `services.signal_service`
 - `sys`
 - `typing`
 
@@ -10195,12 +9216,12 @@ Module docstring:
 Imports:
 - `core.contracts`
 - `core.observability`
-- `core.services`
 - `data_layer.repositories`
 - `data_layer.repositories.base`
 - `datetime`
 - `pathlib`
 - `reporting.projections`
+- `services`
 - `sys`
 
 Functions:
@@ -10306,9 +9327,9 @@ Module docstring:
 > 测试 DashboardService 修复
 
 Imports:
-- `core.services.dashboard_service`
 - `data_layer.repositories.base`
 - `pathlib`
+- `services.dashboard_service`
 - `sys`
 
 Functions:
@@ -10323,9 +9344,9 @@ Module docstring:
 
 Imports:
 - `app.api.main`
-- `core.services.closed_loop_service`
 - `fastapi.testclient`
 - `pathlib`
+- `services.closed_loop_service`
 - `sys`
 
 

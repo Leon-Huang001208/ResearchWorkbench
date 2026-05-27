@@ -30,7 +30,7 @@ from core.contracts.monitoring import (
     Subsystem,
     SystemHealthDashboard,
 )
-from core.services.monitoring_service import MonitoringService
+from services.monitoring_service import MonitoringService
 
 # ─── 辅助函数 ────────────────────────────────────────────
 

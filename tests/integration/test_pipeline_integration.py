@@ -8,7 +8,7 @@ import pytest
 
 from cognitive_agents.blackboard import CognitiveBlackboard
 from core.contracts import AssetAnalysisSnapshot, CanonicalEvent, ScenarioSet
-from core.services.pipeline_service import ResearchPipeline
+from services.pipeline_service import ResearchPipeline
 
 
 @pytest.fixture

@@ -5,9 +5,9 @@ from fastapi import APIRouter, HTTPException, Query
 
 from app.api.models import ErrorResponse
 from core.observability import get_logger
-from core.services.search_service import GlobalSearchService
 from data_layer.repositories.base import SessionLocal
 from data_layer.repositories.search_repository import SearchRepositoryImpl
+from services.search_service import GlobalSearchService
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/search", tags=["search"])

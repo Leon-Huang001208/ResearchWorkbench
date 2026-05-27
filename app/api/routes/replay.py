@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.api.models import ErrorResponse
 from core.contracts.replay import ReplayAggregate, ReplayJob, ReplayJobCreateRequest, ReplayResult
-from core.services.replay_service import ReplayService
+from services.replay_service import ReplayService
 
 router = APIRouter(prefix="/api/replay", tags=["replay"])
 

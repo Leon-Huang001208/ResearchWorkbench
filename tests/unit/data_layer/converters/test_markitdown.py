@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from data_layer.converters.markitdown import MarkItDownStrategy
+from ingestion.converters.markitdown import MarkItDownStrategy
 
 
 class TestMarkItDownStrategy:
@@ -97,10 +97,10 @@ class TestMarkItDownStrategy:
 class TestMarkItDownStrategyWithMock:
     """使用 mock MarkItDown 的测试"""
 
-    @patch("data_layer.converters.markitdown.HAS_MARKITDOWN", True)
+    @patch("ingestion.converters.markitdown.HAS_MARKITDOWN", True)
     def test_convert_success(self):
         """测试成功转换"""
-        import data_layer.converters.markitdown as md_module
+        import ingestion.converters.markitdown as md_module
 
         mock_result = MagicMock()
         mock_result.text_content = "# Test Report\n\nContent of the report"
@@ -117,10 +117,10 @@ class TestMarkItDownStrategyWithMock:
         assert result.token_count > 0
         assert result.quality_score is not None
 
-    @patch("data_layer.converters.markitdown.HAS_MARKITDOWN", True)
+    @patch("ingestion.converters.markitdown.HAS_MARKITDOWN", True)
     def test_convert_error(self):
         """测试 MarkItDown 抛出异常时返回错误"""
-        import data_layer.converters.markitdown as md_module
+        import ingestion.converters.markitdown as md_module
 
         mock_instance = MagicMock()
         mock_instance.convert.side_effect = Exception("Conversion failed")

@@ -85,7 +85,7 @@ def test_scenario_service():
     print("测试情景服务")
     print("=" * 60)
 
-    from core.services.scenario_service import ScenarioService
+    from services.scenario_service import ScenarioService
 
     service = ScenarioService()
 
@@ -206,7 +206,7 @@ def test_ingest_service():
     print("测试摄入服务")
     print("=" * 60)
 
-    from core.services.ingest_service import IngestService
+    from services.ingest_service import IngestService
 
     service = IngestService()
 

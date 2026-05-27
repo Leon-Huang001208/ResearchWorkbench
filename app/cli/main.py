@@ -8,7 +8,7 @@ from app.cli.commands.akshare import akshare
 # 导入子命令
 from app.cli.commands.analyze import analyze
 from app.cli.commands.backtest import backtest
-from app.cli.commands.ingest import crawl, ingest
+from app.cli.commands.ingest import crawl, ingest, knowledge
 from app.cli.commands.memory import memory
 from app.cli.commands.report import report
 from app.cli.commands.review import review
@@ -41,6 +41,7 @@ cli.add_command(backtest)
 cli.add_command(timing)
 cli.add_command(memory)
 cli.add_command(akshare)
+cli.add_command(knowledge)
 
 
 if __name__ == "__main__":

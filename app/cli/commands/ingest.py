@@ -8,8 +8,8 @@ import click
 
 from core.contracts import SourceType
 from core.observability import get_logger
-from core.services.crawl_orchestrator import CrawlOrchestrator
-from core.services.ingest_service import IngestService
+from services.crawl_orchestrator import CrawlOrchestrator
+from services.ingest_service import IngestService
 
 logger = get_logger(__name__)
 
@@ -242,10 +242,7 @@ def crawl_status_command(source: Optional[str]):
             click.echo(f"✗ Invalid source type: {source}", err=True)
             raise click.Abort()
     else:
-        from core.services.crawl_scheduler import (
-            build_scheduler_status,
-            get_scheduler_process_status,
-        )
+        from services.crawl_scheduler import build_scheduler_status, get_scheduler_process_status
 
         process_status = get_scheduler_process_status()
         db_status = build_scheduler_status()
@@ -282,7 +279,7 @@ def crawl_scheduler_start_command():
     import sys
     from pathlib import Path
 
-    from core.services.crawl_scheduler import get_scheduler_process_status
+    from services.crawl_scheduler import get_scheduler_process_status
 
     process_status = get_scheduler_process_status()
     if process_status["alive"]:
@@ -310,3 +307,133 @@ def crawl_scheduler_start_command():
 
 
 crawl = crawl_group
+
+
+# =============================================================================
+# Knowledge Worker Commands
+# =============================================================================
+
+
+@click.group(name="knowledge")
+def knowledge_group():
+    """知识加工 Worker 命令组"""
+    pass
+
+
+@knowledge_group.command(name="start")
+@click.option("--workers", "-w", type=int, default=1, help="Worker 进程数量 (默认 1)")
+def knowledge_start_command(workers: int):
+    """启动知识加工 Worker（后台独立进程）
+
+    示例:
+        af knowledge start
+        af knowledge start --workers 4
+    """
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    from workers.knowledge_worker import get_all_worker_statuses
+
+    existing = get_all_worker_statuses()
+    alive_workers = [w for w in existing if w["alive"]]
+
+    project_dir = Path(__file__).resolve().parent.parent.parent.parent
+    worker_module = "workers.knowledge_worker"
+
+    if workers < 1:
+        click.echo("✗ --workers must be >= 1", err=True)
+        raise click.Abort()
+
+    started = 0
+    for worker_id in range(1, workers + 1):
+        already_running = any(w.get("worker_id") == worker_id and w["alive"] for w in alive_workers)
+        if already_running:
+            click.echo(f"  Worker {worker_id}: already running, skipped")
+            continue
+
+        try:
+            subprocess.Popen(
+                [sys.executable, "-m", worker_module, "--worker-id", str(worker_id)],
+                cwd=str(project_dir),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+            click.echo(f"  Worker {worker_id}: started")
+            started += 1
+        except Exception as e:
+            click.echo(f"  Worker {worker_id}: failed - {e}", err=True)
+            logger.error(
+                "Knowledge worker start failed", worker_id=worker_id, error=str(e), exc_info=True
+            )
+
+    if started > 0:
+        click.echo(f"✓ {started} knowledge worker(s) started")
+    elif not any(w.get("worker_id") and w["alive"] for w in alive_workers):
+        click.echo("✓ All requested workers already running")
+
+
+@knowledge_group.command(name="stop")
+def knowledge_stop_command():
+    """停止所有知识加工 Worker 进程
+
+    示例:
+        af knowledge stop
+    """
+    import os as _os
+    import signal as _signal
+
+    from workers.knowledge_worker import get_all_worker_statuses
+
+    all_statuses = get_all_worker_statuses()
+    alive_workers = [w for w in all_statuses if w["alive"]]
+
+    if not alive_workers:
+        for pid_path in Path("logs").glob("knowledge_worker*.pid"):
+            pid_path.unlink(missing_ok=True)
+        click.echo("✓ No knowledge workers running")
+        return
+
+    stopped = 0
+    for w in alive_workers:
+        label = f"worker {w['worker_id']}" if w.get("worker_id") else "main worker"
+        try:
+            _os.kill(w["pid"], _signal.SIGTERM)
+            click.echo(f"  {label}: stopped (PID {w['pid']})")
+            stopped += 1
+        except OSError as e:
+            click.echo(f"  {label}: failed to stop - {e}", err=True)
+
+    click.echo(f"✓ Stopped {stopped} knowledge worker(s)")
+
+
+@knowledge_group.command(name="status")
+def knowledge_status_command():
+    """查看所有知识加工 Worker 状态
+
+    示例:
+        af knowledge status
+    """
+    from workers.knowledge_worker import get_all_worker_statuses
+
+    all_statuses = get_all_worker_statuses()
+
+    if not all_statuses:
+        click.echo("\nKnowledge Worker Status")
+        click.echo("=" * 40)
+        click.echo("No PID files found. Worker not started yet.")
+        click.echo("=" * 40)
+        return
+
+    click.echo("\nKnowledge Worker Status")
+    click.echo("=" * 50)
+    for w in all_statuses:
+        label = f"Worker {w['worker_id']}" if w.get("worker_id") else "Main worker"
+        status_icon = "✓" if w["alive"] else "✗"
+        pid = w["pid"] or "N/A"
+        click.echo(f"  {status_icon} {label}: PID {pid}")
+    click.echo("=" * 50)
+
+
+knowledge = knowledge_group

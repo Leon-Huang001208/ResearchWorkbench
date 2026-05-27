@@ -816,7 +816,7 @@ class DashboardService:
             def ingest_real_data():
                 try:
                     from core.source_registry import get_enabled
-                    from core.services.crawl_orchestrator import CrawlOrchestrator
+                    from services.crawl_orchestrator import CrawlOrchestrator
 
                     orchestrator = CrawlOrchestrator()
                     for spec in get_enabled():

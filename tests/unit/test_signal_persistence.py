@@ -3,9 +3,9 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from core.services.signal_service import SignalService
 from data_layer.repositories.base import Base
 from data_layer.repositories.signal_repository import SignalRepositoryImpl
+from services.signal_service import SignalService
 
 
 @pytest.fixture(scope="function")

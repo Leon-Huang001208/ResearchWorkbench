@@ -13,11 +13,11 @@ from core.contracts.paper_trading import (
     SimulationResult,
 )
 from core.observability import get_logger
-from core.services.paper_trading_service import PaperTradingService
 from data_layer.repositories.base import get_db
 from data_layer.repositories.outcome_repository import OutcomeRepositoryImpl
 from data_layer.repositories.paper_trading_repository import PaperTradingRepositoryImpl
 from data_layer.repositories.portfolio_repository import PortfolioRepositoryImpl
+from services.paper_trading_service import PaperTradingService
 
 logger = get_logger(__name__)
 

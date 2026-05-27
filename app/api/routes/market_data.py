@@ -8,10 +8,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from core.services.market_data_ingestion_service import MarketDataIngestionService
 from data_layer.repositories.base import get_db
 from data_layer.repositories.etl_run_repository import ETLRunRepository
 from data_layer.repositories.market_data_repository import MarketDataRepository
+from services.market_data_ingestion_service import MarketDataIngestionService
 
 router = APIRouter(prefix="/api/market-data", tags=["market-data"])
 

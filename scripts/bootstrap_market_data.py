@@ -62,7 +62,7 @@ def main() -> int:
         market_repo = MarketDataRepository(db)
         etl_repo = ETLRunRepository(db)
 
-        from core.services.market_data_ingestion_service import MarketDataIngestionService
+        from services.market_data_ingestion_service import MarketDataIngestionService
 
         service = MarketDataIngestionService(
             market_repo=market_repo,

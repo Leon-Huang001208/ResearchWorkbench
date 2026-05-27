@@ -9,7 +9,7 @@ class TestSystemEventBus:
 
     @pytest.mark.asyncio
     async def test_publish_and_get_events(self):
-        from core.services.system_event_bus import SystemEventBus
+        from services.system_event_bus import SystemEventBus
 
         bus = SystemEventBus()
         await bus.publish("test_type", {"k": "v1"})
@@ -22,7 +22,7 @@ class TestSystemEventBus:
 
     @pytest.mark.asyncio
     async def test_worker_heartbeat(self):
-        from core.services.system_event_bus import SystemEventBus
+        from services.system_event_bus import SystemEventBus
 
         bus = SystemEventBus()
         bus.record_worker_heartbeat("knowledge_worker")
@@ -31,7 +31,7 @@ class TestSystemEventBus:
 
     @pytest.mark.asyncio
     async def test_subscribe_and_receive(self):
-        from core.services.system_event_bus import SystemEventBus
+        from services.system_event_bus import SystemEventBus
 
         bus = SystemEventBus()
         q = await bus.subscribe()
@@ -45,7 +45,7 @@ class TestSystemEventBus:
         await bus.unsubscribe(q)
 
     def test_event_to_sse_dict(self):
-        from core.services.system_event_bus import SystemEvent, SystemEventBus
+        from services.system_event_bus import SystemEvent, SystemEventBus
 
         SystemEventBus()
         e = SystemEvent(event_id="e1", event_type="t", payload={"x": 1})

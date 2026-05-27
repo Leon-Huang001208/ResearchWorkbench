@@ -99,13 +99,13 @@ data/raw/
 
 ```bash
 # 单次抓取
-af crawl run --source cailian_she --days 1
+af crawl run --source cls --days 1
 
 # 补漏抓取
-af crawl backfill --source cailian_she --days 7
+af crawl backfill --source cls --days 7
 
 # 查看状态
-af crawl status [--source cailian_she]
+af crawl status [--source cls]
 
 # 启动调度器（前台运行）
 af crawl scheduler-start
@@ -192,7 +192,7 @@ from core.services.crawl_orchestrator import CrawlOrchestrator
 
 orchestrator = CrawlOrchestrator()
 result = orchestrator.crawl_source(
-    source_type=SourceType.CAILIAN_SHE,
+    source_type=SourceType.CLS,
     days=1,
     max_docs=100,
 )
@@ -206,7 +206,7 @@ print(f"失败: {result.failure_count}")
 
 ```python
 result = orchestrator.backfill_source(
-    source_type=SourceType.CAILIAN_SHE,
+    source_type=SourceType.CLS,
     lookback_days=7,
 )
 ```
@@ -220,7 +220,7 @@ scheduler = CrawlScheduler()
 
 # 自定义配置
 config = SourceCrawlConfig(
-    source_type=SourceType.CAILIAN_SHE,
+    source_type=SourceType.CLS,
     interval_minutes=10,
     backfill_enabled=True,
     backfill_interval_hours=12,
@@ -231,7 +231,7 @@ scheduler.add_config(config)
 scheduler.start()
 
 # 手动触发
-scheduler.trigger_crawl(SourceType.CAILIAN_SHE)
+scheduler.trigger_crawl(SourceType.CLS)
 
 # 查看状态
 status = scheduler.get_status()
@@ -241,10 +241,10 @@ status = scheduler.get_status()
 
 ```bash
 # 抓取财联社最近 1 天
-af crawl run --source cailian_she --days 1
+af crawl run --source cls --days 1
 
 # 补漏最近 7 天
-af crawl backfill --source cailian_she --days 7
+af crawl backfill --source cls --days 7
 
 # 查看所有来源状态
 af crawl status

@@ -8,7 +8,7 @@ from core.contracts.industry_chain import (
     PropagationPath,
     ThesisCard,
 )
-from core.services.thesis_generator_service import ThesisGeneratorService
+from services.thesis_generator_service import ThesisGeneratorService
 
 
 def test_mapping_strength_values():

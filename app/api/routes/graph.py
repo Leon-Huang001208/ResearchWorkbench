@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from core.observability import get_logger
-from core.services.graph_data_service import GraphDataService
+from services.graph_data_service import GraphDataService
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/graph", tags=["graph"])

@@ -13,8 +13,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from core.contracts import SourceType
 from core.observability import get_logger
-from core.services.crawl_orchestrator import CrawlOrchestrator
 from core.utils.trading_calendar import TradingCalendar, get_trading_calendar
+from services.crawl_orchestrator import CrawlOrchestrator
 
 logger = get_logger(__name__)
 
@@ -614,7 +614,7 @@ def get_scheduler_process_status(pid_file: str | None = None) -> Dict[str, Any]:
         {"alive": bool, "pid": int|None, "pid_file": str}
     """
     if pid_file is None:
-        pid_file = str(Path(__file__).parent.parent.parent / "logs" / "scheduler.pid")
+        pid_file = str(Path(__file__).parent.parent / "logs" / "scheduler.pid")
 
     result: Dict[str, Any] = {"alive": False, "pid": None, "pid_file": pid_file}
 

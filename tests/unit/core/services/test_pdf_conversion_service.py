@@ -3,8 +3,8 @@ from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 from core.contracts.pdf_conversion import ConversionResult, StrategyType
-from core.services.pdf_conversion_service import PDFConversionService
 from data_layer.repositories.models import PDFArtifactV1DB
+from services.pdf_conversion_service import PDFConversionService
 
 
 def _make_artifact(pdf_id="pdf_001", file_path="/tmp/test.pdf", parse_status="pending"):
@@ -50,9 +50,9 @@ def _make_error_result():
 class TestPDFConversionServiceInit:
     """测试服务初始化"""
 
-    @patch("core.services.pdf_conversion_service.MinerUStrategy")
-    @patch("core.services.pdf_conversion_service.MarkItDownStrategy")
-    @patch("core.services.pdf_conversion_service.RawTextStrategy")
+    @patch("services.pdf_conversion_service.MinerUStrategy")
+    @patch("services.pdf_conversion_service.MarkItDownStrategy")
+    @patch("services.pdf_conversion_service.RawTextStrategy")
     def test_init_registers_all_strategies(self, mock_raw, mock_md, mock_mineru):
         """初始化应注册所有三个策略"""
         mock_mineru.return_value.name = "mineru"
@@ -69,9 +69,9 @@ class TestPDFConversionServiceInit:
         assert "markitdown" in service._strategies
         assert "raw_text" in service._strategies
 
-    @patch("core.services.pdf_conversion_service.MinerUStrategy")
-    @patch("core.services.pdf_conversion_service.MarkItDownStrategy")
-    @patch("core.services.pdf_conversion_service.RawTextStrategy")
+    @patch("services.pdf_conversion_service.MinerUStrategy")
+    @patch("services.pdf_conversion_service.MarkItDownStrategy")
+    @patch("services.pdf_conversion_service.RawTextStrategy")
     def test_get_available_strategies_filters_unavailable(self, mock_raw, mock_md, mock_mineru):
         """get_available_strategies 应只返回可用的策略"""
         mock_mineru.return_value.name = "mineru"
@@ -93,9 +93,9 @@ class TestPDFConversionServiceInit:
 class TestStrategySelection:
     """测试策略选择逻辑"""
 
-    @patch("core.services.pdf_conversion_service.MinerUStrategy")
-    @patch("core.services.pdf_conversion_service.MarkItDownStrategy")
-    @patch("core.services.pdf_conversion_service.RawTextStrategy")
+    @patch("services.pdf_conversion_service.MinerUStrategy")
+    @patch("services.pdf_conversion_service.MarkItDownStrategy")
+    @patch("services.pdf_conversion_service.RawTextStrategy")
     def test_select_preferred_when_available(self, mock_raw, mock_md, mock_mineru):
         """首选策略可用时应选中它"""
         mock_mineru.return_value.name = "mineru"
@@ -111,9 +111,9 @@ class TestStrategySelection:
         assert result is not None
         assert result.name == "markitdown"
 
-    @patch("core.services.pdf_conversion_service.MinerUStrategy")
-    @patch("core.services.pdf_conversion_service.MarkItDownStrategy")
-    @patch("core.services.pdf_conversion_service.RawTextStrategy")
+    @patch("services.pdf_conversion_service.MinerUStrategy")
+    @patch("services.pdf_conversion_service.MarkItDownStrategy")
+    @patch("services.pdf_conversion_service.RawTextStrategy")
     def test_select_falls_back_when_preferred_unavailable(self, mock_raw, mock_md, mock_mineru):
         """首选策略不可用时应按优先级降级"""
         mock_mineru.return_value.name = "mineru"
@@ -129,9 +129,9 @@ class TestStrategySelection:
         assert result is not None
         assert result.name == "mineru"
 
-    @patch("core.services.pdf_conversion_service.MinerUStrategy")
-    @patch("core.services.pdf_conversion_service.MarkItDownStrategy")
-    @patch("core.services.pdf_conversion_service.RawTextStrategy")
+    @patch("services.pdf_conversion_service.MinerUStrategy")
+    @patch("services.pdf_conversion_service.MarkItDownStrategy")
+    @patch("services.pdf_conversion_service.RawTextStrategy")
     def test_select_auto_picks_highest_priority_available(self, mock_raw, mock_md, mock_mineru):
         """AUTO 模式应按优先级选择最高可用策略"""
         mock_mineru.return_value.name = "mineru"
@@ -147,9 +147,9 @@ class TestStrategySelection:
         assert result is not None
         assert result.name == "markitdown"
 
-    @patch("core.services.pdf_conversion_service.MinerUStrategy")
-    @patch("core.services.pdf_conversion_service.MarkItDownStrategy")
-    @patch("core.services.pdf_conversion_service.RawTextStrategy")
+    @patch("services.pdf_conversion_service.MinerUStrategy")
+    @patch("services.pdf_conversion_service.MarkItDownStrategy")
+    @patch("services.pdf_conversion_service.RawTextStrategy")
     def test_select_returns_none_when_all_unavailable(self, mock_raw, mock_md, mock_mineru):
         """所有策略都不可用时应返回 None"""
         mock_mineru.return_value.name = "mineru"
@@ -164,9 +164,9 @@ class TestStrategySelection:
 
         assert result is None
 
-    @patch("core.services.pdf_conversion_service.MinerUStrategy")
-    @patch("core.services.pdf_conversion_service.MarkItDownStrategy")
-    @patch("core.services.pdf_conversion_service.RawTextStrategy")
+    @patch("services.pdf_conversion_service.MinerUStrategy")
+    @patch("services.pdf_conversion_service.MarkItDownStrategy")
+    @patch("services.pdf_conversion_service.RawTextStrategy")
     def test_select_none_preferred_uses_auto(self, mock_raw, mock_md, mock_mineru):
         """preferred=None 时等同于 AUTO"""
         mock_mineru.return_value.name = "mineru"
@@ -186,10 +186,10 @@ class TestStrategySelection:
 class TestConvertPdf:
     """测试 convert_pdf 方法"""
 
-    @patch("core.services.pdf_conversion_service.MinerUStrategy")
-    @patch("core.services.pdf_conversion_service.MarkItDownStrategy")
-    @patch("core.services.pdf_conversion_service.RawTextStrategy")
-    @patch("core.services.pdf_conversion_service.pdf_repo")
+    @patch("services.pdf_conversion_service.MinerUStrategy")
+    @patch("services.pdf_conversion_service.MarkItDownStrategy")
+    @patch("services.pdf_conversion_service.RawTextStrategy")
+    @patch("services.pdf_conversion_service.pdf_repo")
     def test_convert_pdf_artifact_not_found(self, mock_repo, mock_raw, mock_md, mock_mineru):
         """PDF artifact 不存在时应返回错误"""
         mock_mineru.return_value.name = "mineru"
@@ -208,10 +208,10 @@ class TestConvertPdf:
         assert "不存在" in result.error_message
         assert result.strategy_used == ""
 
-    @patch("core.services.pdf_conversion_service.MinerUStrategy")
-    @patch("core.services.pdf_conversion_service.MarkItDownStrategy")
-    @patch("core.services.pdf_conversion_service.RawTextStrategy")
-    @patch("core.services.pdf_conversion_service.pdf_repo")
+    @patch("services.pdf_conversion_service.MinerUStrategy")
+    @patch("services.pdf_conversion_service.MarkItDownStrategy")
+    @patch("services.pdf_conversion_service.RawTextStrategy")
+    @patch("services.pdf_conversion_service.pdf_repo")
     def test_convert_pdf_no_strategy_available(self, mock_repo, mock_raw, mock_md, mock_mineru):
         """没有可用策略时应返回错误"""
         mock_mineru.return_value.name = "mineru"
@@ -229,10 +229,10 @@ class TestConvertPdf:
         assert result.success is False
         assert "没有可用的转换策略" in result.error_message
 
-    @patch("core.services.pdf_conversion_service.MinerUStrategy")
-    @patch("core.services.pdf_conversion_service.MarkItDownStrategy")
-    @patch("core.services.pdf_conversion_service.RawTextStrategy")
-    @patch("core.services.pdf_conversion_service.pdf_repo")
+    @patch("services.pdf_conversion_service.MinerUStrategy")
+    @patch("services.pdf_conversion_service.MarkItDownStrategy")
+    @patch("services.pdf_conversion_service.RawTextStrategy")
+    @patch("services.pdf_conversion_service.pdf_repo")
     def test_convert_pdf_success(self, mock_repo, mock_raw, mock_md, mock_mineru):
         """成功转换应更新 artifact 和 conversion 状态"""
         mock_mineru.return_value.name = "mineru"
@@ -265,10 +265,10 @@ class TestConvertPdf:
         assert mock_repo.add_conversion.called
         assert db.commit.call_count >= 2  # 创建 conversion + 更新状态
 
-    @patch("core.services.pdf_conversion_service.MinerUStrategy")
-    @patch("core.services.pdf_conversion_service.MarkItDownStrategy")
-    @patch("core.services.pdf_conversion_service.RawTextStrategy")
-    @patch("core.services.pdf_conversion_service.pdf_repo")
+    @patch("services.pdf_conversion_service.MinerUStrategy")
+    @patch("services.pdf_conversion_service.MarkItDownStrategy")
+    @patch("services.pdf_conversion_service.RawTextStrategy")
+    @patch("services.pdf_conversion_service.pdf_repo")
     def test_convert_pdf_strategy_returns_error(self, mock_repo, mock_raw, mock_md, mock_mineru):
         """策略返回失败结果时应更新为 error 状态"""
         mock_mineru.return_value.name = "mineru"
@@ -290,10 +290,10 @@ class TestConvertPdf:
         assert result.error_message == "Conversion failed"
         assert artifact.parse_status == "error"
 
-    @patch("core.services.pdf_conversion_service.MinerUStrategy")
-    @patch("core.services.pdf_conversion_service.MarkItDownStrategy")
-    @patch("core.services.pdf_conversion_service.RawTextStrategy")
-    @patch("core.services.pdf_conversion_service.pdf_repo")
+    @patch("services.pdf_conversion_service.MinerUStrategy")
+    @patch("services.pdf_conversion_service.MarkItDownStrategy")
+    @patch("services.pdf_conversion_service.RawTextStrategy")
+    @patch("services.pdf_conversion_service.pdf_repo")
     def test_convert_pdf_exception_during_conversion(
         self, mock_repo, mock_raw, mock_md, mock_mineru
     ):
@@ -317,10 +317,10 @@ class TestConvertPdf:
         assert "Unexpected crash" in result.error_message
         assert artifact.parse_status == "error"
 
-    @patch("core.services.pdf_conversion_service.MinerUStrategy")
-    @patch("core.services.pdf_conversion_service.MarkItDownStrategy")
-    @patch("core.services.pdf_conversion_service.RawTextStrategy")
-    @patch("core.services.pdf_conversion_service.pdf_repo")
+    @patch("services.pdf_conversion_service.MinerUStrategy")
+    @patch("services.pdf_conversion_service.MarkItDownStrategy")
+    @patch("services.pdf_conversion_service.RawTextStrategy")
+    @patch("services.pdf_conversion_service.pdf_repo")
     def test_convert_pdf_updates_metadata_on_success(
         self, mock_repo, mock_raw, mock_md, mock_mineru
     ):
@@ -352,10 +352,10 @@ class TestConvertPdf:
         assert artifact.pdf_metadata["pages"] == 3
         assert artifact.pdf_metadata["author"] == "test"
 
-    @patch("core.services.pdf_conversion_service.MinerUStrategy")
-    @patch("core.services.pdf_conversion_service.MarkItDownStrategy")
-    @patch("core.services.pdf_conversion_service.RawTextStrategy")
-    @patch("core.services.pdf_conversion_service.pdf_repo")
+    @patch("services.pdf_conversion_service.MinerUStrategy")
+    @patch("services.pdf_conversion_service.MarkItDownStrategy")
+    @patch("services.pdf_conversion_service.RawTextStrategy")
+    @patch("services.pdf_conversion_service.pdf_repo")
     def test_convert_pdf_tracks_duration(self, mock_repo, mock_raw, mock_md, mock_mineru):
         """转换应记录耗时"""
         mock_mineru.return_value.name = "mineru"
@@ -380,10 +380,10 @@ class TestConvertPdf:
 class TestConvertPending:
     """测试批量转换 pending PDF"""
 
-    @patch("core.services.pdf_conversion_service.MinerUStrategy")
-    @patch("core.services.pdf_conversion_service.MarkItDownStrategy")
-    @patch("core.services.pdf_conversion_service.RawTextStrategy")
-    @patch("core.services.pdf_conversion_service.pdf_repo")
+    @patch("services.pdf_conversion_service.MinerUStrategy")
+    @patch("services.pdf_conversion_service.MarkItDownStrategy")
+    @patch("services.pdf_conversion_service.RawTextStrategy")
+    @patch("services.pdf_conversion_service.pdf_repo")
     def test_convert_pending_no_pending_artifacts(self, mock_repo, mock_raw, mock_md, mock_mineru):
         """没有 pending artifact 时返回空列表"""
         mock_mineru.return_value.name = "mineru"
@@ -407,10 +407,10 @@ class TestConvertPending:
 
         assert results == []
 
-    @patch("core.services.pdf_conversion_service.MinerUStrategy")
-    @patch("core.services.pdf_conversion_service.MarkItDownStrategy")
-    @patch("core.services.pdf_conversion_service.RawTextStrategy")
-    @patch("core.services.pdf_conversion_service.pdf_repo")
+    @patch("services.pdf_conversion_service.MinerUStrategy")
+    @patch("services.pdf_conversion_service.MarkItDownStrategy")
+    @patch("services.pdf_conversion_service.RawTextStrategy")
+    @patch("services.pdf_conversion_service.pdf_repo")
     def test_convert_pending_with_artifacts(self, mock_repo, mock_raw, mock_md, mock_mineru):
         """有 pending artifact 时应逐个转换"""
         mock_mineru.return_value.name = "mineru"
@@ -440,10 +440,10 @@ class TestConvertPending:
         assert len(results) == 2
         assert all(r.success for r in results)
 
-    @patch("core.services.pdf_conversion_service.MinerUStrategy")
-    @patch("core.services.pdf_conversion_service.MarkItDownStrategy")
-    @patch("core.services.pdf_conversion_service.RawTextStrategy")
-    @patch("core.services.pdf_conversion_service.pdf_repo")
+    @patch("services.pdf_conversion_service.MinerUStrategy")
+    @patch("services.pdf_conversion_service.MarkItDownStrategy")
+    @patch("services.pdf_conversion_service.RawTextStrategy")
+    @patch("services.pdf_conversion_service.pdf_repo")
     def test_convert_pending_handles_exception_in_one(
         self, mock_repo, mock_raw, mock_md, mock_mineru
     ):
@@ -484,10 +484,10 @@ class TestConvertPending:
 class TestRetryFailed:
     """测试重试失败转换"""
 
-    @patch("core.services.pdf_conversion_service.MinerUStrategy")
-    @patch("core.services.pdf_conversion_service.MarkItDownStrategy")
-    @patch("core.services.pdf_conversion_service.RawTextStrategy")
-    @patch("core.services.pdf_conversion_service.pdf_repo")
+    @patch("services.pdf_conversion_service.MinerUStrategy")
+    @patch("services.pdf_conversion_service.MarkItDownStrategy")
+    @patch("services.pdf_conversion_service.RawTextStrategy")
+    @patch("services.pdf_conversion_service.pdf_repo")
     def test_retry_failed_no_failed_artifacts(self, mock_repo, mock_raw, mock_md, mock_mineru):
         """没有失败 artifact 时返回空列表"""
         mock_mineru.return_value.name = "mineru"
@@ -510,10 +510,10 @@ class TestRetryFailed:
 
         assert results == []
 
-    @patch("core.services.pdf_conversion_service.MinerUStrategy")
-    @patch("core.services.pdf_conversion_service.MarkItDownStrategy")
-    @patch("core.services.pdf_conversion_service.RawTextStrategy")
-    @patch("core.services.pdf_conversion_service.pdf_repo")
+    @patch("services.pdf_conversion_service.MinerUStrategy")
+    @patch("services.pdf_conversion_service.MarkItDownStrategy")
+    @patch("services.pdf_conversion_service.RawTextStrategy")
+    @patch("services.pdf_conversion_service.pdf_repo")
     def test_retry_failed_resets_status_to_pending(self, mock_repo, mock_raw, mock_md, mock_mineru):
         """重试前应将 artifact 状态重置为 pending"""
         mock_mineru.return_value.name = "mineru"
@@ -543,10 +543,10 @@ class TestRetryFailed:
         # commit 应被调用至少 3 次：重置状态 + add_conversion + 更新状态
         assert db.commit.call_count >= 3
 
-    @patch("core.services.pdf_conversion_service.MinerUStrategy")
-    @patch("core.services.pdf_conversion_service.MarkItDownStrategy")
-    @patch("core.services.pdf_conversion_service.RawTextStrategy")
-    @patch("core.services.pdf_conversion_service.pdf_repo")
+    @patch("services.pdf_conversion_service.MinerUStrategy")
+    @patch("services.pdf_conversion_service.MarkItDownStrategy")
+    @patch("services.pdf_conversion_service.RawTextStrategy")
+    @patch("services.pdf_conversion_service.pdf_repo")
     def test_retry_failed_handles_exception(self, mock_repo, mock_raw, mock_md, mock_mineru):
         """重试时异常不应中断批次"""
         mock_mineru.return_value.name = "mineru"
@@ -580,10 +580,10 @@ class TestRetryFailed:
 class TestGetStatsAndPending:
     """测试统计和查询方法"""
 
-    @patch("core.services.pdf_conversion_service.MinerUStrategy")
-    @patch("core.services.pdf_conversion_service.MarkItDownStrategy")
-    @patch("core.services.pdf_conversion_service.RawTextStrategy")
-    @patch("core.services.pdf_conversion_service.pdf_repo")
+    @patch("services.pdf_conversion_service.MinerUStrategy")
+    @patch("services.pdf_conversion_service.MarkItDownStrategy")
+    @patch("services.pdf_conversion_service.RawTextStrategy")
+    @patch("services.pdf_conversion_service.pdf_repo")
     def test_get_stats_delegates_to_repo(self, mock_repo, mock_raw, mock_md, mock_mineru):
         """get_stats 应委托给 repository"""
         mock_mineru.return_value.name = "mineru"
@@ -601,10 +601,10 @@ class TestGetStatsAndPending:
         assert stats == {"total_pdfs": 10, "converted": 5}
         mock_repo.get_conversion_stats.assert_called_once_with(db)
 
-    @patch("core.services.pdf_conversion_service.MinerUStrategy")
-    @patch("core.services.pdf_conversion_service.MarkItDownStrategy")
-    @patch("core.services.pdf_conversion_service.RawTextStrategy")
-    @patch("core.services.pdf_conversion_service.pdf_repo")
+    @patch("services.pdf_conversion_service.MinerUStrategy")
+    @patch("services.pdf_conversion_service.MarkItDownStrategy")
+    @patch("services.pdf_conversion_service.RawTextStrategy")
+    @patch("services.pdf_conversion_service.pdf_repo")
     def test_get_pending_delegates_to_repo(self, mock_repo, mock_raw, mock_md, mock_mineru):
         """get_pending 应委托给 repository"""
         mock_mineru.return_value.name = "mineru"
@@ -626,13 +626,13 @@ class TestGetStatsAndPending:
 class TestDocumentCreationFromConversion:
     """测试转换成功后自动创建 DocumentV1 和分块"""
 
-    @patch("core.services.pdf_conversion_service.DocumentChunker")
-    @patch("core.services.pdf_conversion_service.DocumentChunkV1Repository")
-    @patch("core.services.pdf_conversion_service.DocumentV1Repository")
-    @patch("core.services.pdf_conversion_service.MinerUStrategy")
-    @patch("core.services.pdf_conversion_service.MarkItDownStrategy")
-    @patch("core.services.pdf_conversion_service.RawTextStrategy")
-    @patch("core.services.pdf_conversion_service.pdf_repo")
+    @patch("services.pdf_conversion_service.DocumentChunker")
+    @patch("services.pdf_conversion_service.DocumentChunkV1Repository")
+    @patch("services.pdf_conversion_service.DocumentV1Repository")
+    @patch("services.pdf_conversion_service.MinerUStrategy")
+    @patch("services.pdf_conversion_service.MarkItDownStrategy")
+    @patch("services.pdf_conversion_service.RawTextStrategy")
+    @patch("services.pdf_conversion_service.pdf_repo")
     def test_create_document_after_successful_conversion(
         self,
         mock_repo,
@@ -681,13 +681,13 @@ class TestDocumentCreationFromConversion:
         mock_chunker.chunk_document.assert_called_once()
         mock_chunk_repo.bulk_create.assert_called_once()
 
-    @patch("core.services.pdf_conversion_service.DocumentChunker")
-    @patch("core.services.pdf_conversion_service.DocumentChunkV1Repository")
-    @patch("core.services.pdf_conversion_service.DocumentV1Repository")
-    @patch("core.services.pdf_conversion_service.MinerUStrategy")
-    @patch("core.services.pdf_conversion_service.MarkItDownStrategy")
-    @patch("core.services.pdf_conversion_service.RawTextStrategy")
-    @patch("core.services.pdf_conversion_service.pdf_repo")
+    @patch("services.pdf_conversion_service.DocumentChunker")
+    @patch("services.pdf_conversion_service.DocumentChunkV1Repository")
+    @patch("services.pdf_conversion_service.DocumentV1Repository")
+    @patch("services.pdf_conversion_service.MinerUStrategy")
+    @patch("services.pdf_conversion_service.MarkItDownStrategy")
+    @patch("services.pdf_conversion_service.RawTextStrategy")
+    @patch("services.pdf_conversion_service.pdf_repo")
     def test_skip_document_when_create_document_false(
         self,
         mock_repo,
@@ -717,13 +717,13 @@ class TestDocumentCreationFromConversion:
         # 不应创建 DocumentV1
         mock_doc_repo_class.assert_not_called()
 
-    @patch("core.services.pdf_conversion_service.DocumentChunker")
-    @patch("core.services.pdf_conversion_service.DocumentChunkV1Repository")
-    @patch("core.services.pdf_conversion_service.DocumentV1Repository")
-    @patch("core.services.pdf_conversion_service.MinerUStrategy")
-    @patch("core.services.pdf_conversion_service.MarkItDownStrategy")
-    @patch("core.services.pdf_conversion_service.RawTextStrategy")
-    @patch("core.services.pdf_conversion_service.pdf_repo")
+    @patch("services.pdf_conversion_service.DocumentChunker")
+    @patch("services.pdf_conversion_service.DocumentChunkV1Repository")
+    @patch("services.pdf_conversion_service.DocumentV1Repository")
+    @patch("services.pdf_conversion_service.MinerUStrategy")
+    @patch("services.pdf_conversion_service.MarkItDownStrategy")
+    @patch("services.pdf_conversion_service.RawTextStrategy")
+    @patch("services.pdf_conversion_service.pdf_repo")
     def test_no_document_on_failed_conversion(
         self,
         mock_repo,
@@ -752,13 +752,13 @@ class TestDocumentCreationFromConversion:
         assert result.success is False
         mock_doc_repo_class.assert_not_called()
 
-    @patch("core.services.pdf_conversion_service.DocumentChunker")
-    @patch("core.services.pdf_conversion_service.DocumentChunkV1Repository")
-    @patch("core.services.pdf_conversion_service.DocumentV1Repository")
-    @patch("core.services.pdf_conversion_service.MinerUStrategy")
-    @patch("core.services.pdf_conversion_service.MarkItDownStrategy")
-    @patch("core.services.pdf_conversion_service.RawTextStrategy")
-    @patch("core.services.pdf_conversion_service.pdf_repo")
+    @patch("services.pdf_conversion_service.DocumentChunker")
+    @patch("services.pdf_conversion_service.DocumentChunkV1Repository")
+    @patch("services.pdf_conversion_service.DocumentV1Repository")
+    @patch("services.pdf_conversion_service.MinerUStrategy")
+    @patch("services.pdf_conversion_service.MarkItDownStrategy")
+    @patch("services.pdf_conversion_service.RawTextStrategy")
+    @patch("services.pdf_conversion_service.pdf_repo")
     def test_skip_duplicate_by_content_hash(
         self,
         mock_repo,
@@ -796,13 +796,13 @@ class TestDocumentCreationFromConversion:
         # 但没有 create
         mock_doc_repo.create.assert_not_called()
 
-    @patch("core.services.pdf_conversion_service.DocumentChunker")
-    @patch("core.services.pdf_conversion_service.DocumentChunkV1Repository")
-    @patch("core.services.pdf_conversion_service.DocumentV1Repository")
-    @patch("core.services.pdf_conversion_service.MinerUStrategy")
-    @patch("core.services.pdf_conversion_service.MarkItDownStrategy")
-    @patch("core.services.pdf_conversion_service.RawTextStrategy")
-    @patch("core.services.pdf_conversion_service.pdf_repo")
+    @patch("services.pdf_conversion_service.DocumentChunker")
+    @patch("services.pdf_conversion_service.DocumentChunkV1Repository")
+    @patch("services.pdf_conversion_service.DocumentV1Repository")
+    @patch("services.pdf_conversion_service.MinerUStrategy")
+    @patch("services.pdf_conversion_service.MarkItDownStrategy")
+    @patch("services.pdf_conversion_service.RawTextStrategy")
+    @patch("services.pdf_conversion_service.pdf_repo")
     def test_document_creation_failure_does_not_break_conversion(
         self,
         mock_repo,

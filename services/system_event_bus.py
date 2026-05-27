@@ -136,13 +136,16 @@ class SystemEventBus:
                 self._subscribers.remove(q)
         logger.info("SSE subscriber removed", total_subscribers=len(self._subscribers))
 
-    def record_worker_heartbeat(self, worker_name: str) -> None:
-        self._worker_heartbeat[worker_name] = time.time()
+    def record_worker_heartbeat(self, worker_name: str, activity: str | None = None) -> None:
+        self._worker_heartbeat[worker_name] = {
+            "timestamp": time.time(),
+            "activity": activity,
+        }
 
-    def get_worker_heartbeats(self) -> Dict[str, float]:
+    def get_worker_heartbeats(self) -> Dict[str, Any]:
         return dict(self._worker_heartbeat)
 
 
 event_bus = SystemEventBus(
-    log_path=str(Path(__file__).resolve().parent.parent.parent / ".data" / "event_log.jsonl")
+    log_path=str(Path(__file__).resolve().parent.parent / ".data" / "event_log.jsonl")
 )

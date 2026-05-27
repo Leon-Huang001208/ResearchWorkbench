@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session
 
 from core.contracts.pdf_conversion import StrategyType
 from core.observability import get_logger
-from core.services.pdf_conversion_service import PDFConversionService
 from data_layer.repositories.base import get_db
+from services.pdf_conversion_service import PDFConversionService
 
 logger = get_logger(__name__)
 

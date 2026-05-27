@@ -4,13 +4,13 @@ Issue #44 Unit Tests: Document Chunking, Taxonomy, Classification, and Enrichmen
 
 
 from core.contracts import DocType, DocumentV1, SourceType
-from core.services.document_chunker import DocumentChunker
-from core.services.document_classifier import DocumentClassifier
-from core.services.document_enrichment import DocumentEnrichmentPipeline, EnrichmentConfig
-from core.services.entity_extractor import EntityExtractor
-from core.services.summary_generator import SummaryGenerator
-from core.services.taxonomy_service import TaxonomyService
 from core.utils.id_gen import generate_id
+from services.document_chunker import DocumentChunker
+from services.document_classifier import DocumentClassifier
+from services.document_enrichment import DocumentEnrichmentPipeline, EnrichmentConfig
+from services.entity_extractor import EntityExtractor
+from services.summary_generator import SummaryGenerator
+from services.taxonomy_service import TaxonomyService
 
 
 def create_test_document(

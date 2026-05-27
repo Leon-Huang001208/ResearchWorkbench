@@ -15,9 +15,9 @@ from core.contracts.raw_storage import (
     generate_raw_file_name,
     get_raw_storage_path,
 )
-from core.services.deduplication_service import DeduplicationService
-from core.services.raw_storage_service import RawStorageService
 from core.utils.id_gen import generate_id
+from services.deduplication_service import DeduplicationService
+from services.raw_storage_service import RawStorageService
 
 # =============================================================================
 # Raw Storage Tests
@@ -206,7 +206,7 @@ class TestCrawlOrchestratorIntegration:
         """测试编排器初始化"""
         # 不实际连接数据库，只测试导入和初始化
         try:
-            from core.services.crawl_orchestrator import CrawlOrchestrator  # noqa: F401
+            from services.crawl_orchestrator import CrawlOrchestrator  # noqa: F401
 
             # 测试导入成功
             assert True
@@ -216,7 +216,7 @@ class TestCrawlOrchestratorIntegration:
     def test_scheduler_init(self):
         """测试调度器初始化"""
         try:
-            from core.services.crawl_scheduler import CrawlScheduler
+            from services.crawl_scheduler import CrawlScheduler
 
             # 测试导入成功
             scheduler = CrawlScheduler()
@@ -315,7 +315,7 @@ class TestIssue43Acceptance:
 
         # 验证有相关的 API 设计
         try:
-            from core.services.crawl_orchestrator import CrawlOrchestrator  # noqa: F401
+            from services.crawl_orchestrator import CrawlOrchestrator  # noqa: F401
 
             # 检查有 backfill_source 方法
             assert hasattr(CrawlOrchestrator, "backfill_source")

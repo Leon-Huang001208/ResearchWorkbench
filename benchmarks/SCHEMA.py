@@ -11,7 +11,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from core.services.event_extractor import ExtractedSignalParams
+from services.event_extractor import ExtractedSignalParams
 
 
 class BenchmarkCase(BaseModel):

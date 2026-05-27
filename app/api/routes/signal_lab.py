@@ -418,7 +418,7 @@ async def run_backtest(request: BacktestRequest) -> Dict[str, Any]:
         回测结果
     """
     try:
-        from core.services.closed_loop_service import ClosedLoopService
+        from services.closed_loop_service import ClosedLoopService
 
         service = ClosedLoopService()
         results = service.backtest_signals(signal_ids=request.signal_ids)

@@ -6,7 +6,7 @@ import logging
 from typing import Any, Dict
 
 from core.contracts.pdf_conversion import ConversionResult, StrategyType
-from data_layer.converters.base import PDFConversionStrategy
+from ingestion.converters.base import PDFConversionStrategy
 
 logger = logging.getLogger(__name__)
 

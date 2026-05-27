@@ -8,7 +8,7 @@ class TestCrawlerIngestionBridge:
     """测试 CrawlerIngestionBridge"""
 
     def test_submit_crawled_item_enqueues_correctly(self):
-        from core.services.crawler_ingestion_bridge import CrawlerIngestionBridge
+        from services.crawler_ingestion_bridge import CrawlerIngestionBridge
 
         mock_queue = MagicMock()
         mock_queue.enqueue.return_value = {
@@ -38,7 +38,7 @@ class TestCrawlerIngestionBridge:
         assert call_args.raw_content == "Test content body"
 
     def test_submit_crawled_item_generates_id_from_hash(self):
-        from core.services.crawler_ingestion_bridge import CrawlerIngestionBridge
+        from services.crawler_ingestion_bridge import CrawlerIngestionBridge
 
         mock_queue = MagicMock()
         mock_queue.enqueue.return_value = {
@@ -58,7 +58,7 @@ class TestCrawlerIngestionBridge:
         assert len(call_args.source_id) == 16  # SHA256[:16]
 
     def test_submit_batch_enqueues_all_items(self):
-        from core.services.crawler_ingestion_bridge import CrawlerIngestionBridge
+        from services.crawler_ingestion_bridge import CrawlerIngestionBridge
 
         mock_queue = MagicMock()
         mock_queue.enqueue.return_value = {
@@ -80,7 +80,7 @@ class TestCrawlerIngestionBridge:
         assert mock_queue.enqueue.call_count == 3
 
     def test_infer_priority_zq_is_high(self):
-        from core.services.crawler_ingestion_bridge import CrawlerIngestionBridge
+        from services.crawler_ingestion_bridge import CrawlerIngestionBridge
 
         mock_queue = MagicMock()
         mock_queue.enqueue.return_value = {
@@ -96,7 +96,7 @@ class TestCrawlerIngestionBridge:
         assert call_args.priority == 1  # high priority for ZQ reports
 
     def test_infer_priority_default_is_normal(self):
-        from core.services.crawler_ingestion_bridge import CrawlerIngestionBridge
+        from services.crawler_ingestion_bridge import CrawlerIngestionBridge
 
         mock_queue = MagicMock()
         mock_queue.enqueue.return_value = {
@@ -112,7 +112,7 @@ class TestCrawlerIngestionBridge:
         assert call_args.priority == 0  # default/normal priority
 
     def test_to_document_envelope_maps_source_types(self):
-        from core.services.crawler_ingestion_bridge import CrawlerIngestionBridge
+        from services.crawler_ingestion_bridge import CrawlerIngestionBridge
 
         bridge = CrawlerIngestionBridge(queue_service=MagicMock())
         envelope = bridge._to_document_envelope(

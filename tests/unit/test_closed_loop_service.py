@@ -7,9 +7,9 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from core.services.closed_loop_service import ClosedLoopService
 from data_layer.repositories.base import Base
 from data_layer.repositories.models import CanonicalEvent
+from services.closed_loop_service import ClosedLoopService
 
 
 @pytest.fixture
@@ -118,7 +118,7 @@ def test_closed_loop_service_with_db(in_memory_db, sample_event):
     in_memory_db.add(sample_event)
     in_memory_db.commit()
 
-    with patch("core.services.closed_loop_service.SessionLocal", return_value=in_memory_db):
+    with patch("services.closed_loop_service.SessionLocal", return_value=in_memory_db):
         service = ClosedLoopService()
         with patch.object(service, "_get_price_data") as mock_get_price:
             mock_get_price.return_value = [

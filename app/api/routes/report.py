@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from core.observability import get_logger
-from core.services.report_generator import ReportGenerator
+from services.report_generator import ReportGenerator
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/report", tags=["report"])

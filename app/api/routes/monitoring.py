@@ -32,7 +32,6 @@ from core.contracts.monitoring import (
     SystemHealthDashboard,
 )
 from core.observability import get_logger
-from core.services.monitoring_service import MonitoringService
 from data_layer.repositories import (
     crawl_state_repository,
     pdf_artifact_repository,
@@ -40,6 +39,7 @@ from data_layer.repositories import (
 )
 from data_layer.repositories.base import get_db
 from data_layer.repositories.monitoring_repository import MonitoringRepositoryImpl
+from services.monitoring_service import MonitoringService
 
 logger = get_logger(__name__)
 

@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.api.models import ErrorResponse
 from core.contracts.outcomes import SignalOutcome
-from core.services.outcome_service import OutcomeService
+from services.outcome_service import OutcomeService
 
 router = APIRouter(prefix="/api/outcomes", tags=["outcomes"])
 

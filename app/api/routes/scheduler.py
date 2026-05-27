@@ -15,8 +15,8 @@ from fastapi import APIRouter, HTTPException
 
 from core.contracts import SourceType
 from core.observability import get_logger
-from core.services.crawl_orchestrator import CrawlOrchestrator
-from core.services.crawl_scheduler import (
+from services.crawl_orchestrator import CrawlOrchestrator
+from services.crawl_scheduler import (
     APSCHEDULER_AVAILABLE,
     DEFAULT_CRAWL_CONFIGS,
     SourceCrawlConfig,

@@ -9,9 +9,9 @@ from sqlalchemy.orm import sessionmaker
 
 from core.contracts.replay import ReplayAggregate, ReplayJob, ReplayResult
 from core.contracts.signals import EventAlphaSignal
-from core.services.replay_service import ReplayService
 from data_layer.repositories.base import Base
 from data_layer.repositories.replay_repository import ReplayRepositoryImpl
+from services.replay_service import ReplayService
 
 # ── Fixtures ──────────────────────────────────────────────
 

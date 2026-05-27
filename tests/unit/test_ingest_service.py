@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from core.services.ingest_service import IngestService
+from services.ingest_service import IngestService
 
 
 class TestIngestService:
@@ -59,7 +59,7 @@ class TestIngestService:
         with pytest.raises(FileNotFoundError):
             service.ingest_file(file_path=Path("/nonexistent/file.txt"), source_type="report")
 
-    @patch("core.services.ingest_service.pdfplumber")
+    @patch("services.ingest_service.pdfplumber")
     def test_ingest_file_pdf(self, mock_pdfplumber, tmp_path):
         """测试摄入 PDF 文件"""
         # 设置模拟

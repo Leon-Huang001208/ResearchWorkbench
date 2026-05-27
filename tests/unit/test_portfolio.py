@@ -12,7 +12,7 @@ from unittest.mock import MagicMock
 
 from core.contracts import EventAlphaSignal
 from core.contracts.portfolio import PortfolioCandidate, PortfolioConstraints
-from core.services.portfolio_service import PortfolioService
+from services.portfolio_service import PortfolioService
 
 # ─── 辅助函数 ────────────────────────────────────────────
 

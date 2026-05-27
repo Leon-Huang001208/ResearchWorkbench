@@ -12,7 +12,7 @@ Issue #42 要求为 AlphaFoundry v1 设计统一的文档 schema，使所有来�
 
 #### 枚举类型
 - `DocType`: 文档类型 (telegram, news, commentary, report, wechat, transcript 等)
-- `SourceType`: 来源类型 (cailian_she, china_security_journal, zhiqiu_reports 等)
+- `SourceType`: 来源类型 (cls, cnstock, zhiqiu_reports 等)
 - `SourceReliabilityLevel`: 来源可信度等级 (official, established_media, research_institute 等)
 - `SubjectivityLevel`: 主观性等级 (fact_only, mixed, opinion_only)
 - `DocumentProcessingStatus`: 处理状态
@@ -146,7 +146,7 @@ from data_layer.repositories.base import get_db
 doc = DocumentV1(
     doc_id="doc-001",
     doc_type=DocType.NEWS,
-    source_type=SourceType.CAILIAN_SHE,
+    source_type=SourceType.CLS,
     title="市场新闻",
     summary="新闻摘要",
     content="新闻内容...",
@@ -179,7 +179,7 @@ from data_layer.repositories.documents_v1 import SourceCursorV1Repository
 
 # 获取或创建游标
 cursor_repo = SourceCursorV1Repository(db)
-cursor = cursor_repo.get_or_create(SourceType.CAILIAN_SHE, "财联社")
+cursor = cursor_repo.get_or_create(SourceType.CLS, "财联社")
 
 # 抓取完成后记录成功
 cursor_repo.record_success(cursor.cursor_id, "last-doc-id-123")

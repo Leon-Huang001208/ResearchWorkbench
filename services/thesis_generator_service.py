@@ -17,7 +17,7 @@ from core.observability import get_logger
 logger = get_logger(__name__)
 
 
-DATA_DIR = Path(__file__).parent.parent.parent / "data" / "industry_graphs"
+DATA_DIR = Path(__file__).parent.parent / "data" / "industry_graphs"
 
 
 class ThesisGeneratorService:

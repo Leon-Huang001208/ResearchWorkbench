@@ -21,7 +21,7 @@ from core.contracts.paper_trading import (
     TransactionCost,
 )
 from core.contracts.portfolio import PortfolioCandidate, PortfolioProposal
-from core.services.paper_trading_service import PaperTradingService
+from services.paper_trading_service import PaperTradingService
 
 # ─── 辅助函数 ────────────────────────────────────────────
 

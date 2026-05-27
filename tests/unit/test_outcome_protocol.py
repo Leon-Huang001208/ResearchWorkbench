@@ -8,8 +8,8 @@ from datetime import datetime, timezone
 import pytest
 
 from core.contracts.outcomes import SignalOutcome
-from core.services.outcome_service import OutcomeService
 from memory_learning.journal import LearningJournal
+from services.outcome_service import OutcomeService
 
 
 def _make_outcome(**overrides) -> SignalOutcome:

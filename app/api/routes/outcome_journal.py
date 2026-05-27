@@ -9,8 +9,8 @@ from core.contracts.outcome_journal import (
     TradeOutcome,
     WeeklyReviewReport,
 )
-from core.services.failure_memory_service import FailureMemoryService
-from core.services.outcome_journal_service import OutcomeJournalService
+from services.failure_memory_service import FailureMemoryService
+from services.outcome_journal_service import OutcomeJournalService
 
 router = APIRouter()
 outcome_journal_service = OutcomeJournalService()

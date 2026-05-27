@@ -12,8 +12,8 @@ from app.api.models import (
 )
 from core.contracts import ScenarioSet
 from core.observability import get_logger
-from core.services.scenario_data_service import ScenarioDataService
-from core.services.scenario_service import ScenarioService
+from services.scenario_data_service import ScenarioDataService
+from services.scenario_service import ScenarioService
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/scenarios", tags=["scenarios"])

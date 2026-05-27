@@ -58,6 +58,13 @@ class Settings(BaseSettings):
     # 对象存储
     OBJECT_STORAGE_PATH: Path = PROJECT_ROOT / "data" / "objects"
 
+    # Knowledge Worker 配置
+    KNOWLEDGE_WORKER_POLL_INTERVAL: float = 3.0
+    KNOWLEDGE_WORKER_BATCH_SIZE: int = 10
+    KNOWLEDGE_WORKER_MAX_CONCURRENCY: int = 8
+    KNOWLEDGE_WORKER_SHUTDOWN_TIMEOUT: int = 30
+    KNOWLEDGE_WORKER_MAX_BACKOFF: float = 60.0
+
     # LLM 并发提取配置
     LLM_EXTRACT_MAX_WORKERS: int = 8
     LLM_EXTRACT_CHUNK_SIZE: int = 3500

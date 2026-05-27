@@ -17,9 +17,9 @@ def example_1_basic_analysis():
     """示例 1: 基本资产分析"""
     print("\n--- 示例 1: 基本资产分析 ---")
 
-    from core.services import AssetAnalysisService
     from data_layer.repositories import AssetSnapshotRepositoryImpl
     from data_layer.repositories.base import get_db
+    from services import AssetAnalysisService
 
     with get_db() as db:
         repo = AssetSnapshotRepositoryImpl(db)
@@ -134,9 +134,9 @@ def example_5_retrieve_history():
     """示例 5: 检索历史快照"""
     print("\n--- 示例 5: 检索历史快照 ---")
 
-    from core.services import AssetAnalysisService
     from data_layer.repositories import AssetSnapshotRepositoryImpl
     from data_layer.repositories.base import get_db
+    from services import AssetAnalysisService
 
     with get_db() as db:
         repo = AssetSnapshotRepositoryImpl(db)

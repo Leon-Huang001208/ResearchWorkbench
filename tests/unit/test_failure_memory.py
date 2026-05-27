@@ -3,8 +3,8 @@ import uuid
 from datetime import datetime, timezone
 
 from core.contracts.outcome_journal import FailureClassification, TradeOutcome
-from core.services.failure_memory_service import FailureMemoryService
-from core.services.outcome_journal_service import OutcomeJournalService
+from services.failure_memory_service import FailureMemoryService
+from services.outcome_journal_service import OutcomeJournalService
 
 
 def test_similarity_calculation():

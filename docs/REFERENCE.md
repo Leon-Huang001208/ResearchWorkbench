@@ -251,6 +251,40 @@ af timing --signal signal_123
 
 ---
 
+### 11. knowledge - Knowledge Worker 管理
+
+管理知识加工 Worker 进程的启停和状态查询。
+
+#### 子命令
+
+- `knowledge start` - 启动 Knowledge Worker（后台独立进程）
+- `knowledge stop` - 停止 Knowledge Worker（SIGTERM 优雅关闭）
+- `knowledge status` - 查看 Worker 状态（PID、心跳）
+
+#### 使用示例
+
+```bash
+# 启动 Knowledge Worker
+af knowledge start
+
+# 查看状态
+af knowledge status
+
+# 停止 Knowledge Worker
+af knowledge stop
+```
+
+#### 配置环境变量
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `KNOWLEDGE_WORKER_POLL_INTERVAL` | 3 | 轮询间隔（秒） |
+| `KNOWLEDGE_WORKER_BATCH_SIZE` | 10 | 每批出队数量 |
+| `KNOWLEDGE_WORKER_MAX_CONCURRENCY` | 8 | item 级并发数 |
+| `KNOWLEDGE_WORKER_SHUTDOWN_TIMEOUT` | 30 | 优雅关闭超时（秒） |
+
+---
+
 ## REST API
 
 ### 基础信息
@@ -631,6 +665,102 @@ af timing --signal signal_123
     "knowledge_worker": "2025-05-19T10:30:00Z"
   },
   "timestamp": "2025-05-19T10:30:05Z"
+}
+```
+
+#### GET /api/system/workers/status
+
+聚合返回所有后台 Worker 的实时状态和队列统计，用于 Dashboard 监控面板。
+
+**响应示例**:
+
+```json
+{
+  "workers": [
+    {
+      "name": "knowledge_worker",
+      "type": "knowledge",
+      "pid": 68198,
+      "alive": true,
+      "last_heartbeat": null,
+      "activity": null
+    }
+  ],
+  "scheduler": {
+    "name": "crawl_scheduler",
+    "pid": 39323,
+    "alive": true,
+    "last_heartbeat": null,
+    "activity": null
+  },
+  "queue_stats": {
+    "pending": 2735,
+    "processing": 58,
+    "completed": 463,
+    "failed": 1
+  }
+}
+```
+
+**字段说明**:
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `workers` | array | Knowledge Worker 列表，PID 文件检测活性 |
+| `workers[].name` | string | Worker 名称 |
+| `workers[].type` | string | Worker 类型（`knowledge`） |
+| `workers[].pid` | int\|null | 进程 PID |
+| `workers[].alive` | bool | 进程是否存活 |
+| `workers[].last_heartbeat` | number\|null | 最后心跳时间戳（跨进程为 null，Phase 2 支持） |
+| `workers[].activity` | string\|null | 当前活动描述 |
+| `scheduler` | object | Crawl Scheduler 状态 |
+| `queue_stats` | object | 摄入队列统计 |
+
+---
+
+### Knowledge Worker API
+
+管理 Knowledge Worker 进程（`workers/knowledge_worker.py`）的启停和状态查询。
+
+#### GET /api/knowledge/status
+
+获取 Knowledge Worker 运行状态。
+
+**响应示例**:
+
+```json
+{
+  "available": true,
+  "running": true,
+  "pid": 12345,
+  "pid_file": "/path/to/logs/knowledge_worker.pid"
+}
+```
+
+#### POST /api/knowledge/start
+
+启动 Knowledge Worker 进程（后台子进程）。
+
+**响应示例**:
+
+```json
+{
+  "success": true,
+  "message": "Knowledge worker process started"
+}
+```
+
+#### POST /api/knowledge/stop
+
+停止 Knowledge Worker 进程（发送 SIGTERM）。
+
+**响应示例**:
+
+```json
+{
+  "success": true,
+  "message": "Knowledge worker stopped",
+  "pid": 12345
 }
 ```
 

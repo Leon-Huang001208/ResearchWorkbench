@@ -1,8 +1,8 @@
-# Module: core/services
+# Module: services
 
 ## Responsibility
 
-`core/services` contains AlphaFoundry's business orchestration logic.
+`services` contains AlphaFoundry's business orchestration logic.
 
 Services coordinate:
 
@@ -28,6 +28,15 @@ Services coordinate:
 - Mock external dependencies in tests.
 - Avoid UI-specific assumptions.
 - Avoid direct network calls unless wrapped by adapters/gateways.
+- Use `core.source_registry` for data source metadata — never hardcode source lists or if/elif adapter dispatch.
+
+---
+
+## Source Registry (`core/source_registry.py`)
+
+`SourceSpec` frozen dataclass 是数据源的唯一自描述入口。所有下游模块（调度器、编排器、分类器、仪表盘、PDF 转换）通过 `get()` / `get_all()` / `get_enabled()` 动态读取。`data_sources/` 目录下的每个 `.py` 文件在 import 时调用 `register()`。
+
+添加新爬取源 = 在 `data_sources/` 下新建一个 `.py` 文件，无需修改任何其他代码。
 - Add or update tests when service behavior changes.
 
 ---
@@ -38,7 +47,7 @@ Typical flow:
 
 ```text
 app/api or app/cli
-→ core/services
+→ services
 → core/contracts
 → data_layer / knowledge_layer / reasoning / signal_lab / timing_engine / memory_learning
 → storage or repositories
@@ -49,7 +58,7 @@ app/api or app/cli
 
 ## Files
 
-### `core/services/dashboard_service.py`
+### `services/dashboard_service.py`
 
 Purpose:
 
@@ -77,7 +86,7 @@ Update this section when:
 
 ---
 
-### `core/services/ingest_service.py`
+### `services/ingest_service.py`
 
 Purpose:
 
@@ -89,11 +98,11 @@ Purpose:
 
 Related files:
 
-- `core/services/document_chunker.py`
-- `core/services/document_classifier.py`
-- `core/services/entity_extractor.py`
-- `core/services/event_extractor.py`
-- `core/services/raw_storage_service.py`
+- `services/document_chunker.py`
+- `services/document_classifier.py`
+- `services/entity_extractor.py`
+- `services/event_extractor.py`
+- `services/raw_storage_service.py`
 - `knowledge_layer/extraction/concurrent_extractor.py`
 - `knowledge_layer/extraction/text_chunker.py`
 
@@ -111,7 +120,7 @@ Update this section when:
 
 ---
 
-### `core/services/asset_analysis_service.py`
+### `services/asset_analysis_service.py`
 
 Purpose:
 
@@ -139,7 +148,7 @@ Update this section when:
 
 ---
 
-### `core/services/market_data_ingestion_service.py`
+### `services/market_data_ingestion_service.py`
 
 Purpose:
 
@@ -171,7 +180,7 @@ Update this section when:
 
 ---
 
-### `core/services/crawler_ingestion_bridge.py`
+### `services/crawler_ingestion_bridge.py`
 
 Purpose:
 
@@ -182,13 +191,13 @@ Purpose:
 
 Related files:
 
-- `core/services/ingestion_queue_service.py`
+- `services/ingestion_queue_service.py`
 - `core/contracts/documents_v1.py`
 - `core/contracts/ingestion.py`
 
 Tests:
 
-- `tests/unit/core/services/test_crawler_ingestion_bridge.py`
+- `tests/unit/services/test_crawler_ingestion_bridge.py`
 
 Update this section when:
 
@@ -198,7 +207,7 @@ Update this section when:
 
 ---
 
-### `core/services/system_event_bus.py`
+### `services/system_event_bus.py`
 
 Purpose:
 
@@ -225,7 +234,7 @@ Related files:
 
 Tests:
 
-- `tests/unit/core/services/test_system_event_bus.py`
+- `tests/unit/services/test_system_event_bus.py`
 
 Update this section when:
 

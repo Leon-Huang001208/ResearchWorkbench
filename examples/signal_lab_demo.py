@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 
 from core.observability import get_logger
-from core.services import SignalService
+from services import SignalService
 from signal_lab.backtests import SimpleBacktester
 from signal_lab.features import FeatureBuilder
 from signal_lab.features.groups import (

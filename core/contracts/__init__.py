@@ -1,3 +1,4 @@
+from .agent_types import AgentRole, AgentView, BlackboardConflict, ViewDirection
 from .assertions import Assertion
 from .assets import (
     AssetAnalysisCard,
@@ -180,6 +181,7 @@ from .review_framework import (
 from .scenarios import ScenarioHypothesis, ScenarioSet
 from .signals import AlphaSignal, EventAlphaSignal, TradeCandidate
 from .timing_engine import EventStudyMetrics, ReadinessScore, TimingFactors
+from .timing_types import FailureType, OutcomeHorizon, TimingAction
 from .traces import ReasoningTrace
 
 __all__ = [
@@ -317,6 +319,14 @@ __all__ = [
     "TimingFactors",
     "EventStudyMetrics",
     "ReadinessScore",
+    # Shared types (timing, agents)
+    "TimingAction",
+    "OutcomeHorizon",
+    "FailureType",
+    "AgentRole",
+    "AgentView",
+    "ViewDirection",
+    "BlackboardConflict",
     # V1 Document Schemas (Issue #42)
     "DocType",
     "SourceType",

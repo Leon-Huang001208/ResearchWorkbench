@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from data_layer.converters.raw_text import RawTextStrategy
+from ingestion.converters.raw_text import RawTextStrategy
 
 
 class TestRawTextStrategy:

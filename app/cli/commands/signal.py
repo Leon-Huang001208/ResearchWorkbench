@@ -6,7 +6,7 @@ from typing import Optional
 import click
 
 from core.observability import get_logger
-from core.services.signal_service import SignalService
+from services.signal_service import SignalService
 
 logger = get_logger(__name__)
 

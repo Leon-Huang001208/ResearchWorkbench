@@ -4,7 +4,7 @@
 """
 import sys
 
-from core.services.event_auto_signal_generator import EventAutoSignalGenerator
+from services.event_auto_signal_generator import EventAutoSignalGenerator
 
 
 def main():

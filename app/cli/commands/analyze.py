@@ -6,10 +6,10 @@ import click
 
 from core.contracts import SectionOutput
 from core.observability import get_logger
-from core.services import AssetAnalysisService
 from data_layer.repositories import AssetSnapshotRepositoryImpl
 from data_layer.repositories.base import get_db
 from reporting.projections import MarkdownProjection, WordProjection
+from services import AssetAnalysisService
 
 logger = get_logger(__name__)
 

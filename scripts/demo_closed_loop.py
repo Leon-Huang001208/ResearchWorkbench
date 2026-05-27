@@ -13,9 +13,9 @@ sys.path.insert(0, str(project_root))
 from sqlalchemy import text
 
 from core.observability import get_logger
-from core.services.closed_loop_service import ClosedLoopService
 from data_layer.repositories.base import SessionLocal
 from data_layer.repositories.models import AlphaSignalDB, CanonicalEvent
+from services.closed_loop_service import ClosedLoopService
 
 logger = get_logger(__name__)
 

@@ -11,10 +11,10 @@ from datetime import datetime
 
 from core.contracts import SectionOutput
 from core.observability import configure_logging
-from core.services import AssetAnalysisService
 from data_layer.repositories import AssetSnapshotRepositoryImpl
 from data_layer.repositories.base import Base, engine, get_db
 from reporting.projections import MarkdownProjection, WordProjection
+from services import AssetAnalysisService
 
 
 def init_database():

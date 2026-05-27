@@ -4,7 +4,7 @@
 
 `app/api` exposes AlphaFoundry capabilities through FastAPI.
 
-API routes should be thin and delegate business logic to `core/services`.
+API routes should be thin and delegate business logic to `services`.
 
 ---
 
@@ -57,7 +57,7 @@ Purpose:
 
 Related service:
 
-- `core/services/dashboard_service.py`
+- `services/dashboard_service.py`
 
 Related contracts:
 
@@ -86,7 +86,7 @@ Endpoints:
 
 Related service:
 
-- `core/services/market_data_ingestion_service.py`
+- `services/market_data_ingestion_service.py`
 
 Related repositories:
 
@@ -141,8 +141,8 @@ Purpose:
 
 Related service:
 
-- `core/services/system_event_bus.py`
-- `core/services/ingestion_queue_service.py`
+- `services/system_event_bus.py`
+- `services/ingestion_queue_service.py`
 
 Update this section when:
 
@@ -163,7 +163,7 @@ Purpose:
 
 Related service:
 
-- `core/services/system_event_bus.py`
+- `services/system_event_bus.py`
 
 Update this section when:
 
@@ -171,6 +171,28 @@ Update this section when:
 - Heartbeat interval changes.
 - Event format changes.
 - Reconnection/replay behavior changes.
+
+---
+
+### `app/api/routes/knowledge.py`
+
+Purpose:
+
+- Knowledge Worker 进程管理 API（启动/停止/状态查询），支持多进程水平扩展。
+- `GET /api/knowledge/status` — 查询所有 worker 进程存活状态。
+- `POST /api/knowledge/start?workers=N` — 启动 N 个 worker 子进程（默认 1，最大 16）。
+- `POST /api/knowledge/stop` — 停止所有运行中的 worker 进程。
+
+Related service:
+
+- `workers/knowledge_worker.py`
+- `services/system_event_bus.py`
+
+Update this section when:
+
+- Knowledge Worker API 端点变更。
+- 启动/停止机制变更。
+- PID 文件路径变更。
 
 ---
 

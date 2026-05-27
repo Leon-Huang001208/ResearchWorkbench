@@ -5,8 +5,8 @@ from datetime import datetime
 from typing import Dict
 
 from core.observability import get_logger
-from core.services.asset_analysis_service import AssetAnalysisService
 from core.utils.id_gen import generate_id
+from services.asset_analysis_service import AssetAnalysisService
 
 logger = get_logger(__name__)
 

@@ -17,9 +17,9 @@ from core.contracts.governance import (
     StrategyVersionCreateRequest,
 )
 from core.observability import get_logger
-from core.services.governance_service import GovernanceService
 from data_layer.repositories.base import get_db
 from data_layer.repositories.governance_repository import GovernanceRepositoryImpl
+from services.governance_service import GovernanceService
 
 logger = get_logger(__name__)
 

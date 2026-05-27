@@ -79,7 +79,7 @@ async def fetch_with_retry(url: str, method: str = "GET", **kwargs) -> requests.
 
 async def _run_crawl(source_type, source_name=None, days=1):
     """在线程池中运行同步的 CrawlOrchestrator.crawl_source()"""
-    from core.services.crawl_orchestrator import CrawlOrchestrator
+    from services.crawl_orchestrator import CrawlOrchestrator
 
     loop = asyncio.get_running_loop()
     orchestrator = CrawlOrchestrator()
@@ -184,37 +184,6 @@ async def ingest_stock_snapshots():
         logger.error(f"资产快照生成失败：{e}")
 
 
-async def process_ingestion_queue():
-    """消费摄入队列：KnowledgePipeline → ResearchPipeline Golden Path"""
-    from core.services.ingestion_queue_service import IngestionQueueService
-    from core.services.pipeline_service import ResearchPipeline
-    from core.services.signal_service import SignalService
-    from data_layer.repositories.base import SessionLocal
-    from data_layer.repositories.ingestion_repository import IngestionQueueRepository
-    from data_layer.repositories.signal_repository import SignalRepositoryImpl
-    from data_layer.repositories.timing_repository import TimingRepositoryImpl as TimingRepository
-
-    db = SessionLocal()
-    try:
-        repo = IngestionQueueRepository(db)
-        signal_repo = SignalRepositoryImpl(db)
-        signal_service = SignalService(repository=signal_repo)
-        timing_repo = TimingRepository(db)
-        pipeline = ResearchPipeline(
-            signal_service=signal_service,
-            timing_repository=timing_repo,
-        )
-        queue_service = IngestionQueueService(repository=repo, pipeline=pipeline)
-        result = await queue_service.process_batch(limit=20)
-        processed = result.get("processed_count", 0)
-        if processed > 0:
-            logger.info(f"摄入队列处理完成：{processed} 条")
-    except Exception as e:
-        logger.error(f"摄入队列处理失败：{e}")
-    finally:
-        db.close()
-
-
 async def health_check():
     """健康检查，确保服务正常运行"""
     try:
@@ -287,15 +256,8 @@ async def run_scheduler():
         health_check, "interval", minutes=10, id="health_check", next_run_time=datetime.now()
     )
 
-    # 摄入队列消费：每5分钟处理一批（Golden Path: 事件提取 → 信号生成 → 择时评估）
-    scheduler.add_job(
-        process_ingestion_queue,
-        "interval",
-        minutes=5,
-        id="process_ingestion_queue",
-        next_run_time=datetime.now() + timedelta(minutes=1),
-    )
-
+    # 摄入队列消费由 Knowledge Worker (workers/knowledge_worker.py) 常驻处理，
+    # 不再通过 cron_jobs 定时消费
     scheduler.start()
     logger.info("全自动数据抓取服务已启动，定时任务配置完成：")
     logger.info("- 财联社电报：每15分钟抓取一次")
@@ -305,7 +267,7 @@ async def run_scheduler():
     logger.info("- 日行情同步：每天15:30")
     logger.info("- 资产快照生成：每天15:45")
     logger.info("- 健康检查：每10分钟一次")
-    logger.info("- 摄入队列消费（Golden Path）：每5分钟 20条")
+    logger.info("- 摄入队列消费：由 Knowledge Worker 常驻处理")
 
     try:
         await asyncio.Event().wait()

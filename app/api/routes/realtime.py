@@ -7,7 +7,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
 from core.observability import get_logger
-from core.services.system_event_bus import event_bus
+from services.system_event_bus import event_bus
 
 logger = get_logger(__name__)
 

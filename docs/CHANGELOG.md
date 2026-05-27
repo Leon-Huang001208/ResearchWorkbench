@@ -6,6 +6,65 @@
 
 ## [Unreleased]
 
+### Changed
+- **类型统一**: 共享类型集中到 `core/contracts/`
+  - 新建 `core/contracts/timing_types.py` — `TimingAction`, `OutcomeHorizon`, `FailureType`
+  - 新建 `core/contracts/agent_types.py` — `AgentRole`, `AgentView`, `ViewDirection`, `BlackboardConflict`
+  - 消除 `TimingAction` 重复定义（原`timing_engine/contracts.py`和`memory_learning/contracts.py`）
+  - `data_layer/repositories/agent_view_repository.py` 改为从 `core.contracts.agent_types` 导入，消除 data_layer → cognitive_agents 依赖
+- **模块化重构**: 拆分 `core/services/` → `services/` 顶层包
+  - 将 47 个服务文件从 `core/services/` 移动到顶层 `services/`，消除 `core/` ↔ `data_layer/` 循环依赖
+  - 所有导入路径从 `core.services.xxx` 更新为 `services.xxx`
+  - `core/services/__init__.py` 保留为废弃重导出兼容层
+  - 修复 4 个 `__file__` 路径计算（从 `.parent.parent.parent` 到 `.parent.parent`）
+  - 文档更新：`docs/ARCHITECTURE.md`, `docs/DEVELOPMENT_MAP.md`, `docs/FILE_GUIDE.md`, `docs/modules/services.md`
+- **内容净化**: `data_layer/` 内部不相干模块迁移
+  - `data_layer/indicators/` → `signal_lab/features/indicators/`：技术指标引擎属于信号研究
+  - `data_layer/converters/` → `ingestion/converters/`：PDF转换策略链属于内容处理
+  - `cron_jobs/auto_generate_signals.py` → `app/cli/commands/auto_generate_signals.py`
+
+### Added
+- **knowledge-worker-concurrency**: Knowledge Worker item 级并发 + 完整生命周期管理
+  - `workers/knowledge_worker.py` — 重写为 PID 管理 + 信号处理 + `asyncio.Semaphore` item 级并发（默认 8 并发）
+  - 两层并发架构：item 级 (asyncio.Semaphore, 8) + chunk 级 (ThreadPoolExecutor, 8)
+  - CLI 命令：`af knowledge start|stop|status` (app/cli/commands/ingest.py)
+  - API 端点：`POST /api/knowledge/start|stop`, `GET /api/knowledge/status` (app/api/routes/knowledge.py)
+  - 配置项：`KNOWLEDGE_WORKER_POLL_INTERVAL`, `BATCH_SIZE`, `MAX_CONCURRENCY`, `SHUTDOWN_TIMEOUT` (core/settings/config.py)
+- **source-registry**: 数据源注册中心 — 可插拔源模块架构
+  - 新建 `core/source_registry.py` — `SourceSpec` frozen dataclass + `register()`/`get()`/`get_all()`/`get_enabled()`/`get_by_family()` API
+  - 新建 `data_sources/__init__.py` — `pkgutil.iter_modules` 自动发现，无需手动 import
+  - 新建 6 个源注册模块：`data_sources/cls.py` (财联社), `data_sources/cnstock.py` (中国证券网), `data_sources/cnstock_flash.py` (快讯), `data_sources/zhiqiu_reports.py`, `data_sources/zhiqiu_wechat.py`, `data_sources/zhiqiu_transcript.py`
+  - `CrawlOrchestrator._fetch_from_adapter()` 从 if/elif 链 (65 行) 改为动态 import：通过 `spec.adapter_class` 字符串 import 并实例化适配器
+  - `CrawlScheduler.DEFAULT_CRAWL_CONFIGS` 从硬编码列表改为 `_get_default_configs()` 从注册表自动生成
+  - `CrawlScheduler._add_jobs_for_source()` 深度回补逻辑从硬编码 `SourceType` 检查改为 `backfill_family` 字段
+  - `workers/crawl_scheduler_worker.py` 启动源列表从硬编码改为 `source_registry.get_enabled()`
+  - `services/dashboard_service.py` 6 个硬编码 `crawl_source()` 调用改为 `get_enabled()` 循环
+  - `cron_jobs/auto_ingest_service.py` 3 个独立 `ingest_*` 函数改为 `ingest_all_sources()` 单循环 + 向后兼容别名
+  - `services/document_classifier.py` 硬编码 `reliability_map` 改为注册表查找 + 非爬取源 fallback
+  - `services/pdf_conversion_service.py` 硬编码 `type_map` 改为注册表自动生成 + 遗留别名
+  - **添加新爬取源 = 在 `data_sources/` 下新建一个 `.py` 文件，不再需要修改 13+ 个文件**
+
+### Changed
+- **knowledge-worker-optimization**: Knowledge Worker 四项优化
+  - Pipeline 实例复用：`process_one()` 接受共享 `KnowledgePipeline`，Worker 启动时创建单例（含 `ModelGateway`），不再每个 item 创建全套组件
+  - 空队列指数退避：连续空轮询时 sleep 从 3s 指数增长到 60s cap，有数据时立即重置
+  - 长文档并发 LLM 提取：`KnowledgePipeline` 注入 `ModelGateway` 后，>1000 字符自动走 `ConcurrentLLMExtractor` 分块并发提取
+  - 多进程水平扩展：`af knowledge start --workers N` 启动 N 个独立 Worker 进程，各自独立 PID 文件和 polling，DB 层原子状态转换天然支持多消费者
+  - `workers/knowledge_worker.py` — `--worker-id` 参数，`_create_pipeline()` 单例，指数退避，`get_all_worker_statuses()`
+  - `app/cli/commands/ingest.py` — `knowledge start --workers N`，`stop`/`status` 支持多 worker
+  - `app/api/routes/knowledge.py` — `start?workers=N`（最大 16），`stop`/`status` 多 worker 聚合
+  - `ingestion/knowledge_pipeline.py` — 移除未使用的 `AssertionPrompts` import
+- **knowledge-worker-consolidation**: 移除 cron_jobs 中的冗余队列消费
+  - `cron_jobs/auto_ingest_service.py` — 删除 `process_ingestion_queue()` 及对应 scheduler job
+  - Knowledge Worker 成为 ingestion_queue 的唯一消费者
+- **source-type-rename**: SourceType 枚举重命名和数据库迁移
+  - `SourceType.CAILIAN_SHE = "cailian_she"` → `SourceType.CLS = "cls"`
+  - `SourceType.CHINA_SECURITY_JOURNAL = "china_security_journal"` → `SourceType.CNSTOCK = "cnstock"`
+  - 数据源文件重命名：`cailian_she.py` → `cls.py`, `china_security_journal.py` → `cnstock.py`
+  - 数据库迁移：9 张表 `source_type` 列更新 (~5000 行)，后端/frontend 全面对齐
+- **startup-backfill-parallel**: 启动间隔回填从串行改为并行 — 每个源独立线程 + 独立 event loop，6 个源同时回填
+- **backfill-3-missing-sources**: 启动回填新增 3 个源（cnstock_flash, zhiqiu_wechat, zhiqiu_transcript），之前仅 cls/cnstock/zhiqiu_reports
+
 ### Fixed
 - **scheduler-process-separation**: 拆分爬虫调度器为独立进程 + 修复多源并发线程安全问题
   - 新建 `workers/crawl_scheduler_worker.py` — 独立调度器进程，通过 PID 文件管理生命周期，SIGTERM/SIGINT 优雅退出
@@ -35,8 +94,8 @@
 
 ### Added
 - **end-to-end-orchestration**: 端到端自动化第一阶段 — 爬虫→队列→KnowledgePipeline 全自动打通 + 实时前端
-  - 新增 `core/services/crawler_ingestion_bridge.py`：CrawlerIngestionBridge (爬虫输出统一转 DocumentEnvelope → EnqueueRequest → 入队)
-  - 新增 `core/services/system_event_bus.py`：SystemEventBus (内存事件总线, SSE 推送, worker heartbeat)
+  - 新增 `services/crawler_ingestion_bridge.py`：CrawlerIngestionBridge (爬虫输出统一转 DocumentEnvelope → EnqueueRequest → 入队)
+  - 新增 `services/system_event_bus.py`：SystemEventBus (内存事件总线, SSE 推送, worker heartbeat)
   - 新增 `workers/knowledge_worker.py`：常驻后台 worker (asyncio, 自动消费 ingestion_queue, 调用 KnowledgePipeline)
   - 新增 `app/api/routes/system.py`：GET /api/system/health 和 /api/system/health/minimal 端点
   - 新增 `app/api/routes/realtime.py`：GET /api/realtime/stream SSE 实时推送端点
@@ -45,15 +104,15 @@
   - **修复**: DataSourceRouter 中 AKShareAdapter 缺失 import + 名称不匹配 (AkShareAdapter → AKShareAdapter)
   - **增强**: CrawlOrchestrator._fetch_from_adapter() 从 stub 升级为真实适配器调用 (CLSAdapter/CNStockAdapter/ZQAdapter) + 自动 enqueue
   - **增强**: 前端 app.js 接入 EventSource SSE 实时流 (document_parsed/event_created/signal_generated/queue_update/error_alert)
-  - 新增 `tests/unit/core/services/test_crawler_ingestion_bridge.py`：6 个 bridge 测试
+  - 新增 `tests/unit/services/test_crawler_ingestion_bridge.py`：6 个 bridge 测试
   - 新增 `tests/unit/data_layer/adapters/test_akshare_adapter.py`：6 个 adapter/router 测试
-  - 新增 `tests/unit/core/services/test_system_event_bus.py`：4 个 event bus 测试
+  - 新增 `tests/unit/services/test_system_event_bus.py`：4 个 event bus 测试
   - 新增 `tests/unit/app/api/routes/test_system_realtime.py`：2 个 API 端点测试
   - 新增 `tests/unit/workers/test_knowledge_worker.py`：3 个 worker 测试
 - **concurrent-llm-extraction**: 数据提取管道升级 — 从单次串行 LLM 调用升级为 chunk 切分 + ThreadPoolExecutor 并发 + 去重
   - 新增 `knowledge_layer/extraction/text_chunker.py`：轻量级滑动窗口文本切分器 (split_text)
   - 新增 `knowledge_layer/extraction/concurrent_extractor.py`：ConcurrentLLMExtractor (并发 LLM 抽取, 重试, 统计)
-  - 重构 `core/services/ingest_service.py`：所有入口统一走 ingest_envelope() 管道，长文本自动切 chunk 并发提取
+  - 重构 `services/ingest_service.py`：所有入口统一走 ingest_envelope() 管道，长文本自动切 chunk 并发提取
   - 新增配置项：LLM_EXTRACT_MAX_WORKERS, LLM_EXTRACT_CHUNK_SIZE, LLM_EXTRACT_CHUNK_OVERLAP, LLM_EXTRACT_MAX_RETRIES, LLM_EXTRACT_LONG_TEXT_THRESHOLD
   - **修复**: `_extract_combined()` 传入 EXTRACTION_MODEL 代替默认模型
   - **修复**: `EventExtractor._extract_by_rules()` 补充 source_type/source_name/title 必填字段
@@ -71,19 +130,19 @@
   - 新增 `data_layer/normalizers/symbol.py`：A 股代码标准化 (normalize_a_share_symbol)
   - 新增 `data_layer/normalizers/akshare_market.py`：行情/股票信息标准化
   - 新增 `data_layer/normalizers/akshare_financial.py`：财务数据标准化
-  - 新增 `core/services/market_data_ingestion_service.py`：ETL 编排服务 (fetcher → normalizer → repository → etl_run)
+  - 新增 `services/market_data_ingestion_service.py`：ETL 编排服务 (fetcher → normalizer → repository → etl_run)
   - 新增 `app/api/routes/market_data.py`：Market Data API (stocks/sync, daily-bars/sync, daily-bars query, etl-runs)
-  - 重构 `core/services/asset_analysis_service.py`：优先从结构化表生成 snapshot，回退到 coordinator
+  - 重构 `services/asset_analysis_service.py`：优先从结构化表生成 snapshot，回退到 coordinator
   - 更新 `cron_jobs/auto_ingest_service.py`：分步执行 15:15 股票列表 → 15:30 日行情 → 15:45 资产快照
   - 新增 `tests/unit/data_layer/normalizers/`：12 个 normalizer 单测
   - 新增 `tests/unit/data_layer/repositories/test_market_data_repository.py`：8 个 repository 测试
   - 新增 `tests/unit/data_layer/repositories/test_etl_run_repository.py`：5 个 ETL run 测试
-  - 新增 `tests/unit/core/services/test_market_data_ingestion_service.py`：4 个 ingestion service 测试
+  - 新增 `tests/unit/services/test_market_data_ingestion_service.py`：4 个 ingestion service 测试
   - 新增 `storage/migrations/versions/009_add_structured_market_data_tables.py`：Alembic 迁移 (8 张市场数据表)
   - 新增 `scripts/check_market_data_schema.py`：Schema 验证脚本 (检查 8 张表是否存在)
   - 新增 `scripts/bootstrap_market_data.py`：初始化数据填充脚本
   - **修复**: `app/api/routes/assets.py` 中 `get_asset_service()` 注入 `MarketDataRepository`，使结构化表路径可用
-  - **修复**: `core/services/asset_analysis_service.py` 增加 `_has_enough_structured_data` 数据质量检查，防止空表数据被错误当作"结构化路径已启用"
+  - **修复**: `services/asset_analysis_service.py` 增加 `_has_enough_structured_data` 数据质量检查，防止空表数据被错误当作"结构化路径已启用"
   - **修复**: `tests/unit/test_asset_analysis_service.py` 适配新的构造函数签名和 async 接口
 - **pdf-conversion-pipeline**: 完整的 PDF 到 Markdown 转换管道
   - 新增 `core/contracts/pdf_conversion.py`：Pydantic 契约 (ConversionResult, StrategyType, ConversionStatus)
@@ -92,11 +151,11 @@
   - 新增 `data_layer/converters/markitdown.py`：MarkItDownStrategy (microsoft/markitdown)
   - 新增 `data_layer/converters/mineru.py`：MinerUStrategy (opendatalab/mineru)
   - 新增 `data_layer/converters/persistence.py`：磁盘持久化工具 (data/markdown/, data/raw_text/)
-  - 新增 `core/services/pdf_conversion_service.py`：PDFConversionService 核心编排
+  - 新增 `services/pdf_conversion_service.py`：PDFConversionService 核心编排
   - 新增 `core/settings/config.py`：PDF 输出目录和阈值配置
   - 新增 `app/api/routes/pdf_admin.py`：Admin API (convert/stats/pending/retry)
   - 新增 `docs/modules/pdf_conversion_pipeline.md`：模块文档
-  - 新增 `tests/unit/core/services/test_pdf_conversion_service.py`：27 个服务层测试
+  - 新增 `tests/unit/services/test_pdf_conversion_service.py`：27 个服务层测试
   - 新增 `tests/unit/data_layer/converters/test_persistence.py`：12 个持久化测试
   - 新增 `tests/unit/test_pdf_admin_api.py`：7 个 API 测试
   - 新增 `tests/integration/test_pdf_conversion_integration.py`：4 个集成测试
@@ -143,19 +202,26 @@
 - **docs**: 更新项目文档与实际结构保持一致
   - 更新 `README.md` 项目结构：添加 `ingestion/`、`cron_jobs/` 目录，更新契约和服务列表
   - 更新 `docs/FILE_GUIDE.md`：添加 `ingestion/` 模块说明，调整目录顺序
+- **worker-monitoring-panel**: WebUI 实时 Worker 监控面板
+  - 新增 `GET /api/system/workers/status` 端点 — 聚合 Knowledge Worker / Crawl Scheduler PID 活性 + 心跳 + 队列统计
+  - `services/system_event_bus.py` — `record_worker_heartbeat()` 扩展支持 `activity` 描述字段
+  - `workers/knowledge_worker.py` — 心跳调用增加活动描述（处理中/空闲/启动/关闭）
+  - `workers/crawl_scheduler_worker.py` — 新增完整心跳机制（启动/运行中/停止），30 秒定期心跳
+  - 前端 Dashboard 新增"系统工作进程"卡片 — 状态指示灯（绿色脉冲/红色）+ 队列统计（待处理/处理中/已完成/失败）
+  - 前端 15 秒自动轮询 + SSE `worker_heartbeat` 事件预留（Phase 2 零延迟推送）
 
 ### Changed
 - **refactor**: 深化搜索服务模块，隐藏 SQLAlchemy session 依赖
-  - 重构 `core/services/search_service.py`：GlobalSearchService 现在依赖 SearchRepository 接口而非直接依赖 session
+  - 重构 `services/search_service.py`：GlobalSearchService 现在依赖 SearchRepository 接口而非直接依赖 session
   - 更新 `app/api/routes/search.py`：创建 SearchRepositoryImpl 并注入 GlobalSearchService
 - **refactor**: 深化事件摄入模块，移除冗余的服务层
-  - 删除 `core/services/event_ingestion_service.py`：该服务只是对 `StructuredEventIngestor` 和仓储的简单包装
+  - 删除 `services/event_ingestion_service.py`：该服务只是对 `StructuredEventIngestor` 和仓储的简单包装
   - 将自动断言提取功能直接集成到 `ingestion/structured_event_ingestion.py`：`StructuredEventIngestor` 现在会在 `ingest()` 和 `bulk_ingest()` 时自动提取断言
   - 更新 `app/api/routes/event_ingestion.py`：直接使用 `StructuredEventIngestor` 和 `EventRepositoryImpl`，移除中间服务层
   - 添加 `EventQueryResponse` 数据类到 API 路由模块
   - 添加测试用例验证自动断言提取功能
 - **refactor**: 深化时序引擎模块，移除冗余的服务层
-  - 删除 `core/services/timing_engine_service.py`：该服务只是对数据类的简单包装
+  - 删除 `services/timing_engine_service.py`：该服务只是对数据类的简单包装
   - 将阻塞检查逻辑直接集成到 `core/contracts/timing_engine.py`：`ReadinessScore` 现在有 `should_block()` 和 `get_blocking_reason()` 方法
   - 更新 `app/api/routes/timing_engine.py`：直接使用 `TimingFactors`、`EventStudyMetrics` 和 `ReadinessScore` 数据类
   - 更新 `scripts/rebuild_derived_state.py` 和 `scripts/minimal_reingest_bootstrap.py`：移除对已删除服务的依赖

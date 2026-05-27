@@ -3,7 +3,7 @@
 """
 from unittest.mock import Mock, patch
 
-from core.services.scenario_service import ScenarioService
+from services.scenario_service import ScenarioService
 
 
 class TestScenarioService:
@@ -68,7 +68,7 @@ class TestScenarioService:
             assert hypothesis.probability is not None
             # 可选字段可能存在也可能不存在，不强制断言
 
-    @patch("core.services.scenario_service.ReasoningEngine")
+    @patch("services.scenario_service.ReasoningEngine")
     def test_with_mock_reasoning_engine(self, mock_engine_class):
         """测试使用模拟推理引擎"""
         # 设置模拟

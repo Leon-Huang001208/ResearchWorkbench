@@ -69,7 +69,7 @@ def demo_scenario_generation():
     """演示情景生成功能"""
     print_separator("1. 多情景分析功能演示")
 
-    from core.services.scenario_service import ScenarioService
+    from services.scenario_service import ScenarioService
 
     topic = "人工智能产业发展对股票市场的影响"
     print(f"\n研究主题: {topic}")
@@ -99,7 +99,7 @@ def demo_document_ingestion():
     """演示文档摄入功能"""
     print_separator("2. 文档摄入功能演示")
 
-    from core.services.ingest_service import IngestService
+    from services.ingest_service import IngestService
 
     # 使用示例文本进行演示
     sample_text = """贵州茅台2026年一季度财报显示，净利润同比增长28%。
@@ -194,7 +194,7 @@ def demo_report_generation():
 
     from pathlib import Path
 
-    from core.services.scenario_service import ScenarioService
+    from services.scenario_service import ScenarioService
 
     topic = "美联储政策走向分析"
     print(f"\n研究主题: {topic}")

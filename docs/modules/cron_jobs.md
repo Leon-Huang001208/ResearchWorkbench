@@ -20,15 +20,21 @@
 ### `cron_jobs/auto_ingest_service.py`
 
 Purpose:
-- Scheduled market data ingestion pipeline.
+- Scheduled market data and crawl data ingestion pipeline.
 
 Schedule:
+- **Crawl ingest**: `ingest_all_sources()` iterates over all enabled sources from `core.source_registry.get_enabled()`, running each through `CrawlOrchestrator.crawl_source()`. Default intervals from each `SourceSpec.interval_minutes`.
 - `15:15` — `ingest_stock_master()`: sync stock list via `POST /api/market-data/stocks/sync`.
 - `15:30` — `ingest_daily_bars()`: sync daily bars via `POST /api/market-data/daily-bars/sync`.
 - `15:45` — `ingest_stock_snapshots()`: trigger asset analysis via `POST /api/assets/analyze`.
+- Every 5 min — `process_ingestion_queue()`: consume ingestion queue → KnowledgePipeline → ResearchPipeline (Golden Path).
+
+Backward-compat aliases: `ingest_cls_data()` delegates to `ingest_all_sources()`. `ingest_cnstock_data()` and `ingest_zq_data()` are no-ops.
 
 Related service:
-- `core/services/market_data_ingestion_service.py`
+- `services/market_data_ingestion_service.py`
+- `services/crawl_orchestrator.py`
+- `core/source_registry.py`
 
 Update this section when:
 - Schedule frequency changes.

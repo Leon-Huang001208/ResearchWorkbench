@@ -9,7 +9,7 @@ from app.api.models import (
     ReviewItemResponse,
     ReviewStatsResponse,
 )
-from core.services.review_service import ReviewService
+from services.review_service import ReviewService
 
 router = APIRouter(prefix="/api/review", tags=["review"])
 

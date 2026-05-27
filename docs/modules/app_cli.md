@@ -42,6 +42,23 @@ Update this section when:
 - Command arguments change
 - Command output format changes
 
+### `app/cli/commands/ingest.py`
+
+Purpose:
+
+- 数据摄入和 Worker 管理命令。
+- `af ingest file` — 摄入文件（PDF/TXT/MD）并提取断言和事件。
+- `af crawl run|backfill|status|scheduler-start` — 数据采集命令组。
+- `af knowledge start|stop|status` — Knowledge Worker 进程管理命令。
+- `af knowledge start --workers N` — 启动 N 个 Worker 进程实现水平扩展。
+
+Related service:
+
+- `services/ingest_service.py`
+- `services/crawl_orchestrator.py`
+- `workers/crawl_scheduler_worker.py`
+- `workers/knowledge_worker.py`
+
 ---
 
 ## Required Tests

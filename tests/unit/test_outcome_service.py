@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
 from core.contracts.outcomes import SignalOutcome
-from core.services.outcome_service import OutcomeService
+from services.outcome_service import OutcomeService
 
 
 def test_record_outcome_basic():

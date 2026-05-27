@@ -2,7 +2,7 @@
 from unittest.mock import Mock, patch
 
 from core.contracts.dashboard import DashboardResponse
-from core.services.dashboard_service import DashboardService
+from services.dashboard_service import DashboardService
 
 
 def test_dashboard_service_initialization():
@@ -13,7 +13,7 @@ def test_dashboard_service_initialization():
     assert service.today_cutoff is not None
 
 
-@patch("core.services.dashboard_service.DashboardDataRepository")
+@patch("services.dashboard_service.DashboardDataRepository")
 def test_get_full_dashboard(mock_repo_cls):
     """Test full dashboard aggregation doesn't crash"""
     mock_repo = Mock()
@@ -50,7 +50,7 @@ def test_get_full_dashboard(mock_repo_cls):
     assert isinstance(dashboard.learning.recent_failures, list)
 
 
-@patch("core.services.dashboard_service.DashboardDataRepository")
+@patch("services.dashboard_service.DashboardDataRepository")
 def test_abnormal_flows_handled(mock_repo_cls):
     """Test abnormal flows are handled gracefully even when missing"""
     mock_repo = Mock()

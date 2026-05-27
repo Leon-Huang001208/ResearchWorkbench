@@ -15,6 +15,7 @@ AlphaFoundry 是一个面向基金研究员和量化研究员的 **AI-native Inv
 ## 核心特性
 
 ### 事实层与知识加工
+
 - **资产分析卡**：对股票、ETF、指数、商品、外汇、债券、基金等资产形成标准化快照，覆盖财务、资金、量价、估值、股东、产业、事件、宏观八大维度
 - **文档摄入管道**：支持 PDF、网页、研报等多格式文档，自动分块、分类、实体提取、事件提取
 - **多源数据采集**：财联社电报、中国证券网、知丘研报、AKShare 开源数据等四大数据源自动采集
@@ -22,12 +23,14 @@ AlphaFoundry 是一个面向基金研究员和量化研究员的 **AI-native Inv
 - **向量检索与 RAG**：基于 pgvector 的语义检索，支持知识召回和增强生成
 
 ### 信号实验室
+
 - **特征工程框架**：模块化特征定义，支持价量、估值、财务、资金流、行业、宏观等特征组
 - **标签工程框架**：支持相对收益、事件驱动等多种标签定义
 - **信号评分系统**：多维度评分，包括置信度、历史胜率、市场时机匹配度
 - **回测引擎**：事件研究回测、简单回测，计算超额收益、胜率、衰减等指标
 
 ### 认知与决策
+
 - **专题研究备忘录**：围绕产业链、政策变化、地缘冲突、供需错配、AI compute 等主题形成结构化研究
 - **多情景市场分析报告**：对不确定性问题输出 3-4 个情景，每个情景包含概率、关键假设、触发条件、失效信号
 - **事件数据库**：沉淀事件发生时间、事件类型、产业影响、公司映射、传播阶段与后续收益
@@ -36,6 +39,7 @@ AlphaFoundry 是一个面向基金研究员和量化研究员的 **AI-native Inv
 - **事件型 Alpha 信号**：将"全球事件 → 产业链传播 → A股映射"转为可验证信号
 
 ### 生产级工作台
+
 - **Web 工作台**：研究优先的操作系统式控制台，包含 Today、Research Queue、Candidate Board、Learning、全局搜索五个板块
 - **决策控制台**：每日候选审核、决策动作记录、理由捕获、复盘视图、审计追踪
 - **模拟交易系统**：Paper Trading + Simulation + 基准比较
@@ -43,6 +47,7 @@ AlphaFoundry 是一个面向基金研究员和量化研究员的 **AI-native Inv
 - **监控与告警**：健康指标采集、分布漂移检测、可配置阈值告警
 
 ### 学习与闭环
+
 - **Memory & Learning Layer**：记录 Event → Return、策略有效性、Agent 长期观点和失败原因
 - **结果反馈循环**：Outcome Journal 持久化存储交易结果
 - **失败记忆引擎**：标准化失败分类，基于 thesis 文本相似度自动检索相似历史成功/失败案例
@@ -57,6 +62,7 @@ python scripts/bootstrap_db.py
 ```
 
 这将：
+
 - 验证数据库连接
 - 创建所有必需的表
 - 验证 schema 完整性
@@ -71,6 +77,7 @@ python scripts/import_real_data.py
 ```
 
 导入内容包括：
+
 - **财联社电报**：292条 + 608条30天存档（共900条）
 - **中国证券网新闻**：24条
 - **知丘研报**：A股、AI、市场、策略、成长、价值、指数等专题（共约747条）
@@ -79,6 +86,7 @@ python scripts/import_real_data.py
 - **示例真实事件**：5条精选事件（贵州茅台财报、降准政策、新能源销量、光伏价格、科创政策）
 
 导入后查看数据：
+
 ```bash
 python view_db.py all
 ```
@@ -90,6 +98,7 @@ uvicorn app.api.main:app --reload
 ```
 
 或后台运行：
+
 ```bash
 nohup python -m uvicorn app.api.main:app --host 127.0.0.1 --port 8000 > logs/web_server.log 2>&1 &
 ```
@@ -97,16 +106,19 @@ nohup python -m uvicorn app.api.main:app --host 127.0.0.1 --port 8000 > logs/web
 ### 4. 验证服务
 
 检查健康状态：
+
 ```bash
 curl http://127.0.0.1:8000/health
 ```
 
 查看仪表盘数据：
+
 ```bash
 curl http://127.0.0.1:8000/api/dashboard
 ```
 
 访问 Web 界面：
+
 - 首页：http://127.0.0.1:8000/
 - API 文档：http://127.0.0.1:8000/docs
 
@@ -119,6 +131,7 @@ python auto_ingest_service.py
 ```
 
 定时任务配置：
+
 - 财联社电报：每15分钟抓取一次
 - 中国证券网新闻：每30分钟抓取一次
 - 知丘研报：每1小时抓取一次
@@ -126,6 +139,7 @@ python auto_ingest_service.py
 - 健康检查：每10分钟一次
 
 后台运行：
+
 ```bash
 python auto_ingest_service.py --daemon
 ```
@@ -149,6 +163,7 @@ af report --asset 600519.SH --type full
 ## Web 工作台功能
 
 ### 首页五板块
+
 1. **Today**：今日概览、市场快照、待办事项
 2. **Research Queue**：研究队列、待分析事件、候选生成
 3. **Candidate Board**：候选看板、信号评分、回测结果
@@ -156,6 +171,7 @@ af report --asset 600519.SH --type full
 5. **全局搜索**：跨对象搜索 symbol/event_type/thesis/source_doc/failure_memory/market_episode
 
 ### 核心页面
+
 - **仪表盘**：聚合显示研究进度、信号统计、市场状态
 - **股票分析**：五面板展示，包含 K 线图、资金流向、财务数据、新闻、研报
 - **信号实验室**：特征工程、标签工程、信号评分、回测分析
@@ -189,11 +205,13 @@ AlphaFoundry 默认使用 PostgreSQL，也支持 SQLite。
 #### 方式一：SQLite（零配置，快速开始）
 
 修改 `.env` 文件：
+
 ```env
 DATABASE_URL=sqlite:///./data/alphafoundry.db
 ```
 
 然后初始化数据库：
+
 ```bash
 python scripts/bootstrap_db.py
 ```
@@ -204,6 +222,7 @@ python scripts/bootstrap_db.py
 2. 创建数据库 `alphafoundry`
 3. 修改 `.env` 文件中的 `DATABASE_URL`
 4. 初始化数据库：
+
 ```bash
 python scripts/bootstrap_db.py
 ```
@@ -252,10 +271,13 @@ python scripts/restore_db.py --input backups/backup_20250510_120000.sql.gz
 1. 克隆项目到新环境
 2. 复制 `.env` 配置（或从 `.env.example` 重新配置）
 3. 使用最小样本重新引导系统：
+
 ```bash
 python scripts/minimal_reingest_bootstrap.py --sample-size 20
 ```
+
 4. 恢复完成后，运行回放和验证：
+
 ```bash
 python scripts/minimal_reingest_bootstrap.py --skip-bootstrap --dry-run
 ```
@@ -332,6 +354,8 @@ AlphaFoundry/
 │   │   ├── scenarios.py          # 情景结构
 │   │   ├── signals.py            # 信号结构
 │   │   ├── timing_engine.py      # 择时引擎结构
+│   │   ├── timing_types.py       # 择时/结果共享类型
+│   │   ├── agent_types.py        # Agent 共享类型
 │   │   └── traces.py             # 推理追踪结构
 │   ├── interfaces/               # 核心接口定义
 │   ├── model_gateway/            # 模型网关
@@ -339,48 +363,22 @@ AlphaFoundry/
 │   │       └── volcano.py        # 火山引擎提供商
 │   ├── observability/            # 可观测性（日志、指标、追踪）
 │   │   └── metrics.py            # 指标
-│   ├── services/                 # 业务服务
-│   │   ├── asset_analysis_service.py         # 资产分析服务
-│   │   ├── closed_loop_service.py            # 闭循环服务
-│   │   ├── crawl_orchestrator.py             # 采集编排器
-│   │   ├── crawl_scheduler.py                # 采集调度器
-│   │   ├── dashboard_service.py              # 仪表盘服务
-│   │   ├── data_tier_service.py              # 数据层服务
-│   │   ├── decision_console_service.py       # 决策控制台服务
-│   │   ├── deduplication_service.py          # 去重服务
-│   │   ├── document_chunker.py               # 文档分块
-│   │   ├── document_classifier.py            # 文档分类
-│   │   ├── document_enrichment.py            # 文档丰富
-│   │   ├── entity_extractor.py               # 实体提取
-│   │   ├── event_auto_signal_generator.py    # 事件自动信号生成
-│   │   ├── event_extractor.py                # 事件提取
-│   │   ├── failure_memory_service.py         # 失败记忆服务
-│   │   ├── governance_service.py             # 治理服务
-│   │   ├── graph_data_service.py             # 图数据服务
-│   │   ├── historical_replay_service.py      # 历史回放服务
-│   │   ├── ingest_service.py                 # 摄入服务
-│   │   ├── ingestion_queue_service.py        # 摄入队列服务
-│   │   ├── monitoring_service.py             # 监控服务
-│   │   ├── news_feature_service.py           # 新闻特征服务
-│   │   ├── outcome_journal_service.py        # 结果日志服务
-│   │   ├── outcome_service.py                # 结果服务
-│   │   ├── paper_trading_service.py          # 模拟交易服务
-│   │   ├── pipeline_service.py               # 管道服务
-│   │   ├── portfolio_service.py              # 组合服务
-│   │   ├── rag_retrieval.py                  # RAG 检索
-│   │   ├── raw_storage_service.py            # 原始存储服务
-│   │   ├── replay_service.py                 # 回放服务
-│   │   ├── report_generator.py               # 报告生成器
-│   │   ├── scenario_service.py               # 情景服务
-│   │   ├── scenario_data_service.py          # 情景数据服务
-│   │   ├── search_service.py                 # 搜索服务
-│   │   ├── signal_service.py                 # 信号服务
-│   │   ├── signal_validator_impl.py          # 信号验证实现
-│   │   ├── summary_generator.py              # 摘要生成器
-│   │   ├── taxonomy_service.py               # 分类服务
-│   │   ├── thesis_generator_service.py       # 论点生成服务
-│   │   ├── thesis_review_service.py          # 论点审查服务
-│   └── settings/               # 配置管理
+│   ├── services/                 # 废弃重导出 → services/
+│   └── settings/                 # 配置管理
+├── services/                    # 业务服务层
+│   ├── asset_analysis_service.py
+│   ├── crawl_scheduler.py
+│   ├── crawl_orchestrator.py
+│   ├── document_chunker.py
+│   ├── document_classifier.py
+│   ├── ingest_service.py
+│   ├── monitoring_service.py
+│   ├── pdf_conversion_service.py
+│   ├── pipeline_service.py
+│   ├── report_generator.py
+│   ├── search_service.py
+│   ├── signal_service.py
+│   └── ...                      # 共 47 个服务文件
 ├── data_layer/                 # 数据层
 │   ├── adapters/               # 数据适配器
 │   │   └── akshare_adapter.py # AKShare 适配器
@@ -424,12 +422,15 @@ AlphaFoundry/
 │   └── projections/          # 输出投影
 ├── signal_lab/               # 信号实验室
 │   ├── features/             # 特征工程
+│   │   └── indicators/        # 技术指标引擎（TA-Lib, pandas-ta）
 │   ├── labels/               # 标签工程
 │   ├── scoring/              # 信号评分
 │   └── backtests/            # 回测引擎
 ├── storage/                  # 存储层
 │   └── migrations/           # Alembic 数据库迁移
 ├── ingestion/                # 结构化摄入模块
+│   ├── converters/           # PDF 转换策略链（MinerU → MarkItDown → RawText）
+│   ├── knowledge_pipeline.py # 知识管道
 │   └── structured_event_ingestion.py  # 结构化事件摄入器
 ├── cron_jobs/                # 定时任务
 │   ├── auto_ingest_service.py  # 自动数据摄入服务
@@ -467,7 +468,7 @@ AlphaFoundry/
 ## 技术栈
 
 | 领域       | 技术选型                |
-|------------|-------------------------|
+| ---------- | ----------------------- |
 | 编程语言   | Python 3.11+            |
 | 数据验证   | Pydantic v2             |
 | Web 框架   | FastAPI                 |
@@ -543,4 +544,3 @@ alembic history --verbose
 ## 许可证
 
 MIT License
-

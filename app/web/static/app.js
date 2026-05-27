@@ -86,8 +86,8 @@ function navigateTo(section) {
     document.querySelectorAll(`.activity-btn[data-section="${section}"]`).forEach(b => b.classList.add('active'));
     document.getElementById(`section-${section}`).classList.add('active');
     // Load data
-    if (section === 'dashboard') { loadDashboard(); startCrawlFeedPolling(); }
-    else stopCrawlFeedPolling();
+    if (section === 'dashboard') { loadDashboard(); startCrawlFeedPolling(); startWorkersPolling(); }
+    else { stopCrawlFeedPolling(); stopWorkersPolling(); }
     if (section === 'signals') loadSignals();
     if (section === 'review') { loadReviewStats(); loadReviewPending(); }
     if (section === 'memory') loadMemoryPage();
@@ -734,6 +734,96 @@ async function loadDashboard() {
     } catch (e) {
         console.error('Failed to load dashboard:', e);
         toast(I18N.t('toast.load_dashboard_failed'), 'error');
+    }
+
+    // Also refresh workers status
+    loadWorkersStatus();
+}
+
+// ── Workers Panel ──────────────────────────────────────────────
+
+let _workersPollTimer = null;
+
+function startWorkersPolling() {
+    stopWorkersPolling();
+    _workersPollTimer = setInterval(loadWorkersStatus, 15000);
+}
+
+function stopWorkersPolling() {
+    if (_workersPollTimer) {
+        clearInterval(_workersPollTimer);
+        _workersPollTimer = null;
+    }
+}
+
+async function loadWorkersStatus() {
+    try {
+        const data = await apiCall('GET', '/api/system/workers/status');
+        renderWorkersPanel(data);
+    } catch (e) {
+        console.error('Failed to load workers status:', e);
+    }
+}
+
+function renderWorkersPanel(data) {
+    const panel = document.getElementById('workers-panel');
+    const queueEl = document.getElementById('workers-queue-stats');
+    const lastUpdated = document.getElementById('workers-last-updated');
+
+    if (lastUpdated) {
+        lastUpdated.textContent = new Date().toLocaleTimeString();
+    }
+
+    // ── Worker rows ──────────────────────────────────────────
+    let html = '';
+
+    // Knowledge workers
+    if (data.workers && data.workers.length) {
+        data.workers.forEach(function(w) {
+            const statusClass = w.alive ? 'worker-alive' : 'worker-dead';
+            const statusText = w.alive ? '运行中' : '已停止';
+            const pidText = w.pid ? 'PID ' + w.pid : '—';
+            const activityText = w.activity || (w.alive ? '—' : '—');
+
+            html += '<div class="worker-row">';
+            html += '<span class="worker-dot ' + statusClass + '" title="' + statusText + '"></span>';
+            html += '<span class="worker-name">' + esc(w.name) + '</span>';
+            html += '<span class="worker-type badge badge-outline">知识加工</span>';
+            html += '<span class="worker-pid text-muted">' + pidText + '</span>';
+            html += '<span class="worker-activity text-muted">' + esc(activityText) + '</span>';
+            html += '</div>';
+        });
+    } else {
+        html += '<div class="empty-state">无知识加工 Worker</div>';
+    }
+
+    // Scheduler
+    if (data.scheduler) {
+        var s = data.scheduler;
+        var sStatusClass = s.alive ? 'worker-alive' : 'worker-dead';
+        var sStatusText = s.alive ? '运行中' : '已停止';
+        var sPidText = s.pid ? 'PID ' + s.pid : '—';
+        var sActivityText = s.activity || '—';
+
+        html += '<div class="worker-row">';
+        html += '<span class="worker-dot ' + sStatusClass + '" title="' + sStatusText + '"></span>';
+        html += '<span class="worker-name">' + esc(s.name) + '</span>';
+        html += '<span class="worker-type badge badge-outline">调度</span>';
+        html += '<span class="worker-pid text-muted">' + sPidText + '</span>';
+        html += '<span class="worker-activity text-muted">' + esc(sActivityText) + '</span>';
+        html += '</div>';
+    }
+
+    panel.innerHTML = html;
+
+    // ── Queue stats ──────────────────────────────────────────
+    if (queueEl && data.queue_stats) {
+        var qs = data.queue_stats;
+        queueEl.innerHTML =
+            '<span class="queue-stat"><span class="queue-stat-label">待处理</span><span class="queue-stat-value">' + qs.pending + '</span></span>' +
+            '<span class="queue-stat"><span class="queue-stat-label">处理中</span><span class="queue-stat-value queue-processing">' + qs.processing + '</span></span>' +
+            '<span class="queue-stat"><span class="queue-stat-label">已完成</span><span class="queue-stat-value queue-completed">' + qs.completed + '</span></span>' +
+            '<span class="queue-stat"><span class="queue-stat-label">失败</span><span class="queue-stat-value queue-failed">' + qs.failed + '</span></span>';
     }
 }
 
@@ -2229,6 +2319,10 @@ function initRealtimeStream() {
                 console.warn('[SSE] Error:', ev.payload);
                 toast(ev.payload.error || '系统错误', 'error');
             } catch (_) {}
+        });
+
+        es.addEventListener('worker_heartbeat', () => {
+            loadWorkersStatus();  // Phase 2: real-time refresh on heartbeat
         });
 
         es.onerror = () => {

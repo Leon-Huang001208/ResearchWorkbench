@@ -7,9 +7,9 @@ from sqlalchemy.orm import Session
 
 from app.api.models import AnalyzeRequest, AnalyzeResponse, ErrorResponse
 from core.contracts import AssetAnalysisCard, AssetAnalysisSnapshot
-from core.services.asset_analysis_service import AssetAnalysisService
 from data_layer.coordinator.multi_source_coordinator import get_coordinator
 from data_layer.repositories.base import get_db
+from services.asset_analysis_service import AssetAnalysisService
 
 router = APIRouter(prefix="/api/assets", tags=["assets"])
 

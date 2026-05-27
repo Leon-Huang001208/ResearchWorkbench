@@ -6,8 +6,8 @@ from unittest.mock import Mock
 import pytest
 
 from core.contracts import CanonicalEvent
-from core.services.pipeline_service import ResearchPipeline
 from memory_learning.journal import LearningJournal
+from services.pipeline_service import ResearchPipeline
 
 
 def test_research_pipeline_initialization():

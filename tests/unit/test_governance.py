@@ -27,7 +27,7 @@ from core.contracts.governance import (
     StrategyVersion,
     StrategyVersionCreateRequest,
 )
-from core.services.governance_service import GovernanceService
+from services.governance_service import GovernanceService
 
 # ─── 辅助函数 ────────────────────────────────────────────
 

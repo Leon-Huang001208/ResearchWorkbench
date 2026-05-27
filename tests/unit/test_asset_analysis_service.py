@@ -5,7 +5,7 @@ from unittest.mock import Mock
 import pytest
 
 from core.contracts import AssetAnalysisSnapshot
-from core.services.asset_analysis_service import AssetAnalysisService
+from services.asset_analysis_service import AssetAnalysisService
 
 
 def _make_quote(close=100.0, high=105.0, low=95.0):

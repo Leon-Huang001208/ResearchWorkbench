@@ -11,9 +11,9 @@ from app.api.models import (
     SignalResponse,
     SignalValidateResponse,
 )
-from core.services.signal_service import SignalService
 from data_layer.repositories.base import get_db
 from data_layer.repositories.signal_repository import SignalRepositoryImpl
+from services.signal_service import SignalService
 
 router = APIRouter(prefix="/api/signals", tags=["signals"])
 
@@ -274,9 +274,9 @@ async def get_signal_detail(
 
     # 审核历史
     try:
-        from core.services.audit_service import AuditService
         from data_layer.repositories.audit_repository import AuditRepositoryImpl
         from data_layer.repositories.base import SessionLocal
+        from services.audit_service import AuditService
 
         db = SessionLocal()
         try:

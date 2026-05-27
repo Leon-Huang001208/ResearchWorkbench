@@ -48,7 +48,7 @@ Purpose:
 - Query methods for latest bars, latest financials, symbol listing.
 
 Related service:
-- `core/services/market_data_ingestion_service.py`
+- `services/market_data_ingestion_service.py`
 
 Related contracts:
 - `data_layer/normalizers/` (normalized dict input)
@@ -67,7 +67,7 @@ Purpose:
 - Query recent run history.
 
 Related service:
-- `core/services/market_data_ingestion_service.py`
+- `services/market_data_ingestion_service.py`
 
 Update this section when:
 - ETL tracking fields change.

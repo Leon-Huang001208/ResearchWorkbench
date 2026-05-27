@@ -3,7 +3,7 @@ import os
 
 import pytest
 
-from data_layer.converters.raw_text import RawTextStrategy
+from ingestion.converters.raw_text import RawTextStrategy
 
 
 @pytest.mark.integration
@@ -58,7 +58,7 @@ class TestPdfToMarkdownIntegration:
 
     def test_markitdown_conversion_if_available(self):
         """如果 markitdown 可用，测试真实 PDF 转换"""
-        from data_layer.converters.markitdown import HAS_MARKITDOWN, MarkItDownStrategy
+        from ingestion.converters.markitdown import HAS_MARKITDOWN, MarkItDownStrategy
 
         if not HAS_MARKITDOWN:
             pytest.skip("markitdown 未安装")

@@ -5,6 +5,7 @@
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 
@@ -213,17 +214,18 @@ class EventExtractor:
             "rating_change/supply_chain/macro/other)\n"
             "- subject_ids: 相关 A 股主体代码列表 (如 600000.SH)\n"
             "- thesis: 研究论点 (一句话总结该事件的投资逻辑)\n"
-            "- impact_path: 影响路径 (从事件到股价的传导链条)\n"
-            "- bullish_companies: 利好公司代码列表\n"
-            "- bearish_companies: 利空公司代码列表\n"
-            "- score: 投资机会评分 (0.0-1.0)\n"
-            "- confidence: 置信度 (0.0-1.0)\n"
+            "- impact_path: 影响路径 (从事件到股价的传导链条, 字符串数组)\n"
+            "- bullish_companies: 利好公司代码列表 (字符串数组)\n"
+            "- bearish_companies: 利空公司代码列表 (字符串数组)\n"
+            "- score: 投资机会评分 (浮点数 0.0-1.0)\n"
+            "- confidence: 置信度 (浮点数 0.0-1.0)\n"
             "- diffusion_stage: 主题扩散阶段 (discovery/early_awareness/"
             "theme_trading/institutional_coverage/consensus/decay/unknown)\n"
-            "- industry_impacts: 受影响行业列表\n"
+            "- industry_impacts: 受影响行业列表 (字符串数组)\n"
             "- market_regime: 当前市场环境 (ai_growth/dividend_defensive/"
             "risk_off/hot_money_theme/institutional_trend/"
             "liquidity_bull/bear_rebound/unknown)\n\n"
+            "所有数组字段都必须返回 JSON 数组格式，即使只有一个元素。\n"
             "只返回 JSON，不要包含其他文字。"
         )
 
@@ -232,7 +234,8 @@ class EventExtractor:
             {"role": "user", "content": text[:2000]},  # 截断过长文本
         ]
 
-        response = self._gateway.chat(
+        response = await asyncio.to_thread(
+            self._gateway.chat,
             messages=messages,
             temperature=0.1,
             max_tokens=1024,
@@ -252,17 +255,27 @@ class EventExtractor:
         data = json.loads(content)
 
         # 验证并构造 ExtractedSignalParams
+        def _ensure_list(value):
+            """Ensure value is a list; wrap single string in list, return [] for None."""
+            if value is None:
+                return []
+            if isinstance(value, str):
+                return [value] if value.strip() else []
+            if isinstance(value, list):
+                return value
+            return []
+
         return ExtractedSignalParams(
             event_type=data.get("event_type", "unknown"),
-            subject_ids=data.get("subject_ids", []),
+            subject_ids=_ensure_list(data.get("subject_ids")),
             thesis=data.get("thesis", ""),
-            impact_path=data.get("impact_path", []),
-            bullish_companies=data.get("bullish_companies", []),
-            bearish_companies=data.get("bearish_companies", []),
+            impact_path=_ensure_list(data.get("impact_path")),
+            bullish_companies=_ensure_list(data.get("bullish_companies")),
+            bearish_companies=_ensure_list(data.get("bearish_companies")),
             score=max(0.0, min(1.0, float(data.get("score", 0.5)))),
             confidence=max(0.0, min(1.0, float(data.get("confidence", 0.5)))),
             diffusion_stage=data.get("diffusion_stage", "unknown"),
-            industry_impacts=data.get("industry_impacts", []),
+            industry_impacts=_ensure_list(data.get("industry_impacts")),
             market_regime=data.get("market_regime"),
         )
 

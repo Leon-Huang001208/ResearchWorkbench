@@ -2,7 +2,7 @@
 import os
 from unittest.mock import MagicMock, patch
 
-from data_layer.converters.mineru import MinerUStrategy
+from ingestion.converters.mineru import MinerUStrategy
 
 
 class TestMinerUStrategy:
@@ -23,14 +23,14 @@ class TestMinerUStrategy:
         assert strategy._backend == "pipeline"
         assert strategy._method == "ocr"
 
-    @patch("data_layer.converters.mineru.HAS_MINERU", True)
+    @patch("ingestion.converters.mineru.HAS_MINERU", True)
     def test_convert_file_not_found(self):
         strategy = MinerUStrategy()
         result = strategy.convert("/nonexistent/path/file.pdf")
         assert result.success is False
         assert "文件不存在" in result.error_message
 
-    @patch("data_layer.converters.mineru.HAS_MINERU", False)
+    @patch("ingestion.converters.mineru.HAS_MINERU", False)
     def test_convert_not_installed(self):
         strategy = MinerUStrategy()
         result = strategy.convert("test.pdf")
@@ -83,9 +83,9 @@ class TestMinerUStrategy:
 class TestMinerUStrategyWithMock:
     """使用 mock mineru 的测试"""
 
-    @patch("data_layer.converters.mineru.HAS_MINERU", True)
-    @patch("data_layer.converters.mineru.os.path.exists")
-    @patch("data_layer.converters.mineru.tempfile.mkdtemp")
+    @patch("ingestion.converters.mineru.HAS_MINERU", True)
+    @patch("ingestion.converters.mineru.os.path.exists")
+    @patch("ingestion.converters.mineru.tempfile.mkdtemp")
     def test_convert_success(self, mock_mkdtemp, mock_exists, tmp_path):
         """测试成功转换（使用 CLI mock）"""
         output_dir = str(tmp_path / "mineru_output")
@@ -115,9 +115,9 @@ class TestMinerUStrategyWithMock:
             assert result.page_count >= 1
             assert result.quality_score is not None
 
-    @patch("data_layer.converters.mineru.HAS_MINERU", True)
-    @patch("data_layer.converters.mineru.os.path.exists")
-    @patch("data_layer.converters.mineru.tempfile.mkdtemp")
+    @patch("ingestion.converters.mineru.HAS_MINERU", True)
+    @patch("ingestion.converters.mineru.os.path.exists")
+    @patch("ingestion.converters.mineru.tempfile.mkdtemp")
     def test_convert_error(self, mock_mkdtemp, mock_exists, tmp_path):
         """测试 mineru 执行失败"""
         output_dir = str(tmp_path / "mineru_error")

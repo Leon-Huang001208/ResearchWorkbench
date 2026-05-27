@@ -7,9 +7,9 @@ from fastapi.testclient import TestClient
 from app.api.main import app
 from core.contracts import CanonicalEvent, ScenarioHypothesis, ScenarioSet
 from core.contracts.outcomes import SignalOutcome
-from core.services.graph_data_service import GraphDataService
-from core.services.scenario_data_service import ScenarioDataService, _compute_evidence_strength
 from memory_learning.contracts import MarketEpisode, StrategyMemory
+from services.graph_data_service import GraphDataService
+from services.scenario_data_service import ScenarioDataService, _compute_evidence_strength
 
 # ─── Helpers ────────────────────────────────────────────
 

@@ -21,10 +21,10 @@ if str(PROJECT_ROOT) not in sys.path:
 from core.contracts import DocumentEnvelope
 from core.model_gateway.gateway import ModelGatewayImpl
 from core.observability import get_logger
-from core.services.ingest_service import IngestService
 from data_layer.repositories.assertion_repository import AssertionRepositoryImpl
 from data_layer.repositories.base import SessionLocal, engine
 from data_layer.repositories.event_repository import EventRepositoryImpl
+from services.ingest_service import IngestService
 
 logger = get_logger(__name__)
 

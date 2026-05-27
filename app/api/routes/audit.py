@@ -12,7 +12,7 @@ router = APIRouter(prefix="/api/audit", tags=["audit"])
 
 def get_audit_service():
     """获取 AuditService 实例"""
-    from core.services.audit_service import AuditService
+    from services.audit_service import AuditService
 
     try:
         from data_layer.repositories.audit_repository import AuditRepositoryImpl

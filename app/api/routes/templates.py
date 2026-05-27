@@ -396,8 +396,8 @@ async def render_template_report(request: RenderReportRequest):
 
         # 如果提供了 canonical_id，从 ReportGenerator 获取数据并使用映射器
         if request.canonical_id:
-            from core.services.asset_analysis_service import AssetAnalysisService
             from reporting.integration.snapshot_mapper import get_snapshot_mapper
+            from services.asset_analysis_service import AssetAnalysisService
 
             asset_service = AssetAnalysisService(use_mock=True)
             mapper = get_snapshot_mapper()
@@ -495,8 +495,8 @@ async def render_report_from_asset(request: RenderReportFromAssetRequest):
         as_of = request.as_of or datetime.now()
 
         # 获取资产分析快照
-        from core.services.asset_analysis_service import AssetAnalysisService
         from reporting.integration.snapshot_mapper import get_snapshot_mapper
+        from services.asset_analysis_service import AssetAnalysisService
 
         asset_service = AssetAnalysisService(use_mock=True)
         mapper = get_snapshot_mapper()

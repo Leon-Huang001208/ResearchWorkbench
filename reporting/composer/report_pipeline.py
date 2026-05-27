@@ -26,13 +26,13 @@ from core.contracts import (
 )
 from core.interfaces import ModelGateway
 from core.observability import get_logger
-from core.services.rag_retrieval import RAGRetrievalService
 from reporting.composer.fact_card_builder import FactCardBuilder
 from reporting.composer.validator import ReportValidator
 from reporting.projections.excel import ExcelProjection
 from reporting.projections.markdown import MarkdownProjection
 from reporting.projections.word import WordProjection
 from reporting.templates.template_manager import TemplateManager
+from services.rag_retrieval import RAGRetrievalService
 
 logger = get_logger(__name__)
 

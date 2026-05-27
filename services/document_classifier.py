@@ -21,8 +21,8 @@ from core.contracts import (
     SubjectivityLevel,
 )
 from core.observability import get_logger
-from core.services.taxonomy_service import TaxonomyService
 from core.utils.id_gen import generate_id
+from services.taxonomy_service import TaxonomyService
 
 logger = get_logger(__name__)
 

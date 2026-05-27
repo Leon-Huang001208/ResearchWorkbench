@@ -295,6 +295,18 @@
                             </ul>
                         </div>
                     </div>
+
+                    <!-- System Workers Section -->
+                    <div class="dashboard-card workers-card" style="grid-column: 1 / -1;">
+                        <div class="card-header">
+                            <h3><i class="codicon codicon-server"></i> 系统工作进程</h3>
+                            <span class="text-muted" style="font-size: 12px;" id="workers-last-updated"></span>
+                        </div>
+                        <div id="workers-panel" class="workers-panel">
+                            <div class="empty-state">正在加载...</div>
+                        </div>
+                        <div id="workers-queue-stats" class="workers-queue-stats"></div>
+                    </div>
                 </div>
             </section>
 

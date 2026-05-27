@@ -10,16 +10,16 @@ PDF 到 Markdown/文本的完整转换管道。支持多策略自动降级、磁
 PDF Artifact (pdf_artifact_v1)
     │
     ▼
-PDFConversionService (core/services/pdf_conversion_service.py)
+PDFConversionService (services/pdf_conversion_service.py)
     │
     ├── 策略选择 (mineru → markitdown → raw_text)
     │
-    ├── 执行转换 (data_layer/converters/)
+    ├── 执行转换 (ingestion/converters/)
     │   ├── MinerUStrategy     (mineru.py)  - opendatalab/mineru
     │   ├── MarkItDownStrategy (markitdown.py) - microsoft/markitdown
     │   └── RawTextStrategy    (raw_text.py) - pdfplumber (always available)
     │
-    ├── 磁盘持久化 (data_layer/converters/persistence.py)
+    ├── 磁盘持久化 (ingestion/converters/persistence.py)
     │   ├── data/markdown/{pdf_id}.md
     │   └── data/raw_text/{pdf_id}.txt
     │
@@ -48,13 +48,13 @@ PDFConversionService (core/services/pdf_conversion_service.py)
 | 文件 | 职责 |
 |------|------|
 | `core/contracts/pdf_conversion.py` | Pydantic 契约: ConversionResult, StrategyType, ConversionStatus |
-| `data_layer/converters/base.py` | PDFConversionStrategy 抽象基类 |
-| `data_layer/converters/raw_text.py` | RawTextStrategy (pdfplumber) |
-| `data_layer/converters/markitdown.py` | MarkItDownStrategy (microsoft/markitdown) |
-| `data_layer/converters/mineru.py` | MinerUStrategy (opendatalab/mineru) |
-| `data_layer/converters/persistence.py` | 磁盘持久化工具 |
-| `core/services/pdf_conversion_service.py` | PDFConversionService 核心编排 |
-| `core/services/document_chunker.py` | DocumentChunker 分块器 |
+| `ingestion/converters/base.py` | PDFConversionStrategy 抽象基类 |
+| `ingestion/converters/raw_text.py` | RawTextStrategy (pdfplumber) |
+| `ingestion/converters/markitdown.py` | MarkItDownStrategy (microsoft/markitdown) |
+| `ingestion/converters/mineru.py` | MinerUStrategy (opendatalab/mineru) |
+| `ingestion/converters/persistence.py` | 磁盘持久化工具 |
+| `services/pdf_conversion_service.py` | PDFConversionService 核心编排 |
+| `services/document_chunker.py` | DocumentChunker 分块器 |
 | `app/api/routes/pdf_admin.py` | Admin API 路由 |
 | `data_layer/repositories/pdf_artifact_repository.py` | PDF artifact CRUD |
 | `data_layer/repositories/documents_v1.py` | DocumentV1 + ChunkV1 CRUD |

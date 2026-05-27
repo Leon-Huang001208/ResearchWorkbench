@@ -4,9 +4,9 @@
 """
 
 from core.observability import get_logger
-from core.services.signal_generator_service import SignalGeneratorService
 from data_layer.repositories.event_repository import EventRepositoryImpl
 from data_layer.repositories.signal_repository import SignalRepositoryImpl
+from services.signal_generator_service import SignalGeneratorService
 
 logger = get_logger(__name__)
 

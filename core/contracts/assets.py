@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any, Optional
 from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
-    from data_layer.indicators.models import TechnicalIndicators
+    from signal_lab.features.indicators.models import TechnicalIndicators
 else:
     TechnicalIndicators = Any
 

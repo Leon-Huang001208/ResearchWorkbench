@@ -1,7 +1,7 @@
 """Agent 观点仓储实现"""
 from typing import List, Optional
 
-from cognitive_agents.contracts import AgentView, BlackboardConflict
+from core.contracts.agent_types import AgentView, BlackboardConflict
 from core.observability import get_logger
 from data_layer.repositories.base import BaseRepository
 from data_layer.repositories.models import AgentViewDB, BlackboardConflictDB

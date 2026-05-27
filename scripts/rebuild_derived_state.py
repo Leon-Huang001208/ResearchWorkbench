@@ -26,14 +26,14 @@ sys.path.insert(0, str(project_root))
 # Import domain services
 from core.contracts.timing_engine import EventStudyMetrics, ReadinessScore, TimingFactors
 from core.observability import get_logger
-from core.services.outcome_service import OutcomeService
-from core.services.replay_service import ReplayService
-from core.services.signal_service import SignalService
 from data_layer.repositories.base import check_database_connection, get_db
 from data_layer.repositories.event_repository import EventRepositoryImpl
 from data_layer.repositories.models import CanonicalEvent
 from data_layer.repositories.signal_repository import SignalRepositoryImpl
 from data_layer.repositories.timing_repository import TimingRepositoryImpl
+from services.outcome_service import OutcomeService
+from services.replay_service import ReplayService
+from services.signal_service import SignalService
 
 logger = get_logger(__name__)
 

@@ -15,13 +15,13 @@ from sqlalchemy.orm import sessionmaker
 
 from core.contracts import CanonicalEvent, EventAlphaSignal
 from core.interfaces import ModelGateway, ModelResponse
-from core.services.event_extractor import EventExtractor
-from core.services.pipeline_service import ResearchPipeline
-from core.services.signal_service import SignalService
 from data_layer.repositories.base import Base
 from data_layer.repositories.signal_repository import SignalRepositoryImpl
 from data_layer.repositories.timing_repository import TimingRepositoryImpl
 from memory_learning.journal import LearningJournal
+from services.event_extractor import EventExtractor
+from services.pipeline_service import ResearchPipeline
+from services.signal_service import SignalService
 
 # ── Fixtures ────────────────────────────────────────────
 

@@ -39,6 +39,7 @@
 | `app/` | 应用层，包含 API、CLI、Web 界面 |
 | `core/` | 核心层，包含契约、接口、服务等 |
 | `data_layer/` | 数据层，包含仓储实现和数据访问 |
+| `data_sources/` | 数据源注册模块，每个 .py 文件自动发现并注册一个数据源 |
 | `knowledge_layer/` | 知识层，包含知识处理和图谱 |
 | `reasoning/` | 推理层，包含推理引擎和 Agent |
 | `cognitive_agents/` | 认知 Agent 层，包含多 Agent 协作 |
@@ -158,13 +159,26 @@
 | `core/observability/__init__.py` | 可观测性模块初始化 |
 | `core/observability/metrics.py` | 指标定义和记录：counter、gauge、histogram |
 
-### core/services/ - 业务服务（40+ 个服务）
+### core/source_registry.py - 数据源注册中心
+
+| 文件 | 说明 |
+|---|---|
+| `core/source_registry.py` | `SourceSpec` frozen dataclass + `register()`/`get()`/`get_all()`/`get_enabled()`/`get_by_family()`。所有消费者从此读取，不再需要硬编码分支。 |
+| `data_sources/__init__.py` | `pkgutil.iter_modules` 自动发现目录下所有 `.py` 模块 |
+| `data_sources/cls.py` | 财联社 (CLS) 源注册 |
+| `data_sources/cnstock.py` | 中国证券网 (CNSTOCK) 源注册 |
+| `data_sources/cnstock_flash.py` | 中国证券网·快讯 源注册 |
+| `data_sources/zhiqiu_reports.py` | 知丘研报 源注册 |
+| `data_sources/zhiqiu_wechat.py` | 知丘公众号 源注册 |
+| `data_sources/zhiqiu_transcript.py` | 知丘纪要 源注册 |
+
+### services/ - 业务服务（40+ 个服务）
 
 这是系统的核心逻辑层，所有业务功能都在这里实现。
 
 | 文件 | 说明 |
 |---|---|
-| `core/services/__init__.py` | 导出所有服务 |
+| `services/__init__.py` | 导出所有服务 |
 | **资产分析** | |
 | `asset_analysis_service.py` | 资产分析服务：生成资产分析快照 |
 | **数据摄入与处理** | |
@@ -501,7 +515,7 @@
 所有契约定义在 `core/contracts/`，按功能分类命名，文件名清晰说明内容。
 
 ### 查找服务
-所有业务服务在 `core/services/`，文件名 = 服务名 + `_service.py`，例如：
+所有业务服务在 `services/`，文件名 = 服务名 + `_service.py`，例如：
 - 信号服务 → `signal_service.py`
 - 报告生成器 → `report_generator.py`
 

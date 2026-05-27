@@ -2,7 +2,7 @@
 from unittest.mock import Mock, patch
 
 from core.contracts import SourceType
-from core.services.crawl_scheduler import (
+from services.crawl_scheduler import (
     CrawlScheduler,
     SourceCrawlConfig,
     build_scheduler_status,
@@ -29,7 +29,7 @@ class TestCrawlScheduler:
         assert SourceType.OTHER in scheduler.configs
         assert SourceType.OTHER in scheduler.calendars
 
-    @patch("core.services.crawl_scheduler.CrawlOrchestrator")
+    @patch("services.crawl_scheduler.CrawlOrchestrator")
     def test_get_status(self, mock_orch_cls):
         mock_orch = Mock()
         mock_orch.get_crawl_status.return_value = {}
@@ -70,13 +70,13 @@ class TestCrawlScheduler:
         assert should_run is False
         assert "无配置" in reason
 
-    @patch("core.services.crawl_scheduler.APSCHEDULER_AVAILABLE", False)
+    @patch("services.crawl_scheduler.APSCHEDULER_AVAILABLE", False)
     def test_start_without_apscheduler(self):
         scheduler = CrawlScheduler()
         scheduler.start()
         assert scheduler.running is False
 
-    @patch("core.services.crawl_scheduler.APSCHEDULER_AVAILABLE", True)
+    @patch("services.crawl_scheduler.APSCHEDULER_AVAILABLE", True)
     def test_start_stop(self):
         scheduler = CrawlScheduler()
 
@@ -89,7 +89,7 @@ class TestCrawlScheduler:
         scheduler.stop()
         assert scheduler.running is False
 
-    @patch("core.services.crawl_scheduler.CrawlOrchestrator")
+    @patch("services.crawl_scheduler.CrawlOrchestrator")
     def test_trigger_crawl(self, mock_orch_cls):
         mock_result = Mock()
         mock_result.success_count = 1
@@ -112,7 +112,7 @@ class TestCrawlScheduler:
         result = scheduler.trigger_crawl(SourceType.OTHER)
         assert result is None
 
-    @patch("core.services.crawl_scheduler.CrawlOrchestrator")
+    @patch("services.crawl_scheduler.CrawlOrchestrator")
     def test_trigger_backfill(self, mock_orch_cls):
         mock_result = Mock()
         mock_result.success_count = 2
@@ -133,7 +133,7 @@ class TestCrawlScheduler:
 class TestBuildSchedulerStatus:
     """测试 build_scheduler_status 独立函数"""
 
-    @patch("core.services.crawl_scheduler.CrawlOrchestrator")
+    @patch("services.crawl_scheduler.CrawlOrchestrator")
     def test_returns_expected_structure(self, mock_orch_cls):
         mock_orch = Mock()
         mock_orch.get_crawl_status.return_value = {}

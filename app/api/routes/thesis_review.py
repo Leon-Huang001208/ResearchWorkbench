@@ -9,7 +9,7 @@ from core.contracts import (
     EvidenceReference,
     ThesisCard,
 )
-from core.services.thesis_review_service import ThesisReviewService
+from services.thesis_review_service import ThesisReviewService
 
 router = APIRouter(prefix="/api/thesis-review", tags=["thesis-review"])
 

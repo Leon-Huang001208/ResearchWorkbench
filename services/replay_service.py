@@ -18,13 +18,13 @@ from typing import Any, Optional
 from core.contracts.events import CanonicalEvent
 from core.contracts.replay import ReplayAggregate, ReplayJob, ReplayResult
 from core.observability import get_logger
-from core.services.event_extractor import EventExtractor
 from data_layer.repositories.replay_repository import ReplayRepositoryImpl
+from services.event_extractor import EventExtractor
 
 logger = get_logger(__name__)
 
 # 项目根目录
-_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # 模拟 outcome 参数：按事件类型给出不同的收益率分布
 _OUTCOME_PROFILES: dict[str, dict] = {

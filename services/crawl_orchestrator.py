@@ -12,21 +12,19 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from core.contracts import CrawlRunV1, DocumentEnvelope, DocumentV1, SourceCursorV1, SourceType
-from core.observability import get_logger
-from core.services.deduplication_service import DeduplicationService
-from core.services.raw_storage_service import RawStorageService
-from core.utils.id_gen import generate_id
-
 # 触发数据源自动注册
 import data_sources  # noqa: F401
-
+from core.contracts import CrawlRunV1, DocumentEnvelope, DocumentV1, SourceCursorV1, SourceType
+from core.observability import get_logger
+from core.utils.id_gen import generate_id
 from data_layer.repositories.base import get_db
 from data_layer.repositories.documents_v1 import (
     CrawlRunV1Repository,
     DocumentV1Repository,
     SourceCursorV1Repository,
 )
+from services.deduplication_service import DeduplicationService
+from services.raw_storage_service import RawStorageService
 
 logger = get_logger(__name__)
 
@@ -318,7 +316,6 @@ class CrawlOrchestrator:
         import hashlib
 
         from core.contracts.documents_v1 import DocType, DocumentTimeliness
-
         from core.source_registry import get as get_spec
 
         spec = get_spec(source_type)
@@ -356,10 +353,10 @@ class CrawlOrchestrator:
     ) -> None:
         """将抓取到的文档通过 CrawlerIngestionBridge 送入摄取队列"""
         try:
-            from core.services.crawler_ingestion_bridge import CrawlerIngestionBridge
-            from core.services.ingestion_queue_service import IngestionQueueService
             from data_layer.repositories.base import SessionLocal
             from data_layer.repositories.ingestion_repository import IngestionQueueRepository
+            from services.crawler_ingestion_bridge import CrawlerIngestionBridge
+            from services.ingestion_queue_service import IngestionQueueService
 
             db = SessionLocal()
             try:

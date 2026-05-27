@@ -38,7 +38,7 @@ AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System�
 │  ├─ Model Gateway 模型网关 (core/model_gateway)              │
 │  ├─ 可观测性工具 (logging/metrics/tracer) (core/observability)│
 │  ├─ 全局配置 (core/settings)                                 │
-│  └─ 业务服务 (core/services)                                 │
+│  └─ 业务服务 (services)                                 │
 └─────────────┴───────────────────────────────────────────────┘
               │
 ┌─────────────▼───────────────────────────────────────────────┐
@@ -184,7 +184,7 @@ AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System�
 - **core/observability/**：可观测性三件套（日志/指标/追踪）
   - `metrics.py`：指标定义
 
-- **core/services/**：业务服务，是系统的核心逻辑层
+- **services/**：业务服务，是系统的核心逻辑层
   - `AssetAnalysisService`：资产分析服务
   - `ClosedLoopService`：闭循环服务
   - `CrawlOrchestrator`：采集编排器
@@ -348,6 +348,9 @@ AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System�
 
 **核心模块**：
 
+- **数据源注册中心** (`core/source_registry.py` + `data_sources/`)：每个爬取源通过 `SourceSpec` frozen dataclass 自描述注册，`data_sources/__init__.py` 自动发现。所有下游消费者（调度器、编排器、分类器、仪表盘）动态从注册表读取，不依赖硬编码列表。
+  - 添加新爬取源 = 在 `data_sources/` 下新建一个 `.py` 文件
+
 - **adapters/**：各个数据源的适配器实现
   - `akshare_adapter.py`：AKShare 开源数据适配器（集成新的 crawler 模块）
 
@@ -421,18 +424,50 @@ AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System�
 
 ### 数据摄入管道详解
 
-1. **原始数据采集**：从财联社、中国证券网、知丘、AKShare 等源采集原始数据
+1. **原始数据采集**：从财联社、中国证券网、知丘、AKShare 等源采集原始数据，入队到 ingestion_queue
 2. **PDF 转换**：PDF 文件通过策略链自动转换为 Markdown/文本 (MinerU → MarkItDown → RawText 自动降级)
-3. **文档分块**：将长文档切分为适合处理的小块（DocumentChunker）
-3. **文档分类**：自动识别文档类型（研报、新闻、公告等）（DocumentClassifier）
-4. **实体提取**：从文本中提取实体（公司、行业、产品等）（EntityExtractor）
-5. **并发 LLM 提取**（新）：对长文本自动切 chunk + ThreadPoolExecutor 并发提取断言和事件 (ConcurrentLLMExtractor)
+3. **Knowledge Worker 消费**：常驻进程并发消费 ingestion_queue，每批 10 条、最多 8 并发处理
+4. **KnowledgePipeline 加工**：分块 → 分类 → 实体提取 → 事件提取 → 去重
+5. **并发 LLM 提取**：对长文本自动切 chunk + ThreadPoolExecutor 并发提取断言和事件 (ConcurrentLLMExtractor)
    - 短文本 (≤1000字符): 一次 combined LLM 调用
-   - 长文本 (>1000字符): chunk 切分 → 16 并发 LLM → 去重 → 质量门
+   - 长文本 (>1000字符): chunk 切分 → 8 并发 LLM → 去重 → 质量门
 6. **断言提取**：提取事实断言（Assertion）
 7. **事件提取**：识别和提取事件（CanonicalEvent）（EventExtractor）
 8. **向量化**：将文本转换为向量，存储到 pgvector 中
 9. **持久化**：将所有结构化数据存入 PostgreSQL
+
+### Worker 进程架构
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  Crawl Scheduler Worker (workers/crawl_scheduler_worker.py) │
+│  - 管理 APScheduler 定时抓取任务                              │
+│  - 启动时并发回填所有数据源                                    │
+│  - PID: logs/scheduler.pid, CLI: af crawl scheduler-start    │
+│  - API: POST /api/scheduler/start|stop, GET /api/scheduler/status │
+└──────────────────────────────────────────────────────────────┘
+                               │
+                               ▼ 爬虫抓取 → CrawlerIngestionBridge
+                               │
+┌──────────────────────────────▼───────────────────────────────┐
+│  IngestionQueue (PostgreSQL)                                  │
+│  - 去重 (SHA256 hash)                                        │
+│  - 优先级排序 (priority DESC, created_at ASC)                 │
+│  - 状态流转: pending → processing → completed/failed          │
+└──────────────────────────────┬───────────────────────────────┘
+                               │
+                               ▼ 常驻消费
+┌──────────────────────────────────────────────────────────────┐
+│  Knowledge Worker (workers/knowledge_worker.py)              │
+│  - 并发消费 ingestion_queue (默认 8 并发)                     │
+│  - KnowledgePipeline 加工: 分块→分类→实体提取→事件提取→去重   │
+│  - PID: logs/knowledge_worker.pid                            │
+│  - CLI: af knowledge start|stop|status                       │
+│  - API: POST /api/knowledge/start|stop, GET /api/knowledge/status │
+│  - 两层并发: item 级 (asyncio.Semaphore, 8) + chunk 级        │
+│    (ThreadPoolExecutor, 8)                                    │
+└──────────────────────────────────────────────────────────────┘
+```
 
 ### 市场数据 ETL 管道
 
@@ -448,9 +483,12 @@ AKShare 数据源
 ```
 
 **定时执行**（cron_jobs/auto_ingest_service.py）:
+
+- 数据源定时抓取（财联社 15min、中国证券网 30min、知丘研报 1h 等）
 - 15:15 → 同步股票列表 (POST /api/market-data/stocks/sync)
 - 15:30 → 同步日行情 (POST /api/market-data/daily-bars/sync)
 - 15:45 → 生成资产快照 (POST /api/assets/analyze)
+- 摄入队列消费由 Knowledge Worker 常驻处理，不再通过 cron_jobs
 
 ### 信号生成管道
 
@@ -737,7 +775,7 @@ class BaseProvider(ABC):
 - 模型调用
 - 配置变更
 
-详见 `core/services/audit_service.py` 和 `app/api/routes/audit.py`。
+详见 `services/audit_service.py` 和 `app/api/routes/audit.py`。
 
 ### 版本控制
 
@@ -754,7 +792,7 @@ class BaseProvider(ABC):
 - 可配置阈值告警
 - 漂移检测
 
-详见 `core/services/monitoring_service.py` 和 `app/api/routes/monitoring.py`。
+详见 `services/monitoring_service.py` 和 `app/api/routes/monitoring.py`。
 
 ---
 

@@ -9,7 +9,7 @@ from core.contracts import (
     ReviewPosition,
     ThesisCard,
 )
-from core.services.thesis_review_service import ThesisReviewService
+from services.thesis_review_service import ThesisReviewService
 
 
 def test_create_evidence_reference():

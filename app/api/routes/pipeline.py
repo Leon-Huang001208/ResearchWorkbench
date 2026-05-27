@@ -7,11 +7,11 @@ from sqlalchemy.orm import Session
 
 from core.contracts import AssetAnalysisSnapshot, CanonicalEvent, ScenarioSet
 from core.observability import get_logger
-from core.services.pipeline_service import ResearchPipeline
-from core.services.signal_service import SignalService
 from data_layer.repositories.base import get_db
 from data_layer.repositories.signal_repository import SignalRepositoryImpl
 from data_layer.repositories.timing_repository import TimingRepositoryImpl as TimingRepository
+from services.pipeline_service import ResearchPipeline
+from services.signal_service import SignalService
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/pipeline", tags=["pipeline"])
@@ -107,7 +107,7 @@ async def run_scenario_analysis(
 @router.post("/closed-loop", response_model=dict)
 async def run_closed_loop():
     """运行完整闭循环：事件 → 信号 → 回测 → 记录结果"""
-    from core.services.closed_loop_service import ClosedLoopService
+    from services.closed_loop_service import ClosedLoopService
 
     try:
         service = ClosedLoopService()

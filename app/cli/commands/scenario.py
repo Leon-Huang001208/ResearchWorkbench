@@ -6,7 +6,7 @@ from pathlib import Path
 import click
 
 from core.observability import get_logger
-from core.services.scenario_service import ScenarioService
+from services.scenario_service import ScenarioService
 
 logger = get_logger(__name__)
 

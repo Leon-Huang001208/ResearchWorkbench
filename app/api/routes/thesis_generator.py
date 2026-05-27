@@ -3,10 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from core.contracts.events import CanonicalEvent
 from core.contracts.industry_chain import IndustryGraph, ThesisCard
-from core.services.thesis_generator_service import (
-    ThesisGeneratorService,
-    get_thesis_generator_service,
-)
+from services.thesis_generator_service import ThesisGeneratorService, get_thesis_generator_service
 
 router = APIRouter(prefix="/api/thesis", tags=["thesis-generator"])
 

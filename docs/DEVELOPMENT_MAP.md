@@ -18,7 +18,7 @@ Responsibilities:
 
 - Expose AlphaFoundry capabilities through FastAPI.
 - Provide endpoints for dashboard, ingest, search, scenarios, signal lab, monitoring, governance, reports, and memory.
-- Keep API routes thin and delegate business logic to `core/services`.
+- Keep API routes thin and delegate business logic to `services`.
 
 Main files:
 
@@ -31,7 +31,7 @@ app/api/routes/*.py
 Related modules:
 
 ```text
-core/services/*
+services/*
 core/contracts/*
 ```
 
@@ -200,7 +200,7 @@ Update triggers:
 Subsystem:
 
 ```text
-core/services
+services
 ```
 
 Responsibilities:
@@ -211,7 +211,7 @@ Responsibilities:
 Main files:
 
 ```text
-core/services/*.py
+services/*.py
 ```
 
 Required tests:
@@ -591,8 +591,8 @@ Main files:
 
 ```text
 memory_learning/*.py
-core/services/failure_memory_service.py
-core/services/outcome_journal_service.py
+services/failure_memory_service.py
+services/outcome_journal_service.py
 ```
 
 Required tests:
@@ -639,7 +639,7 @@ Main files:
 
 ```text
 reporting/**/*.py
-core/services/report_generator.py
+services/report_generator.py
 ```
 
 Required tests:

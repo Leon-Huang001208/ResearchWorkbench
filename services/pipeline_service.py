@@ -7,10 +7,10 @@ from core.contracts import AssetAnalysisSnapshot, CanonicalEvent, EventAlphaSign
 from core.interfaces.model_gateway import ModelGateway
 from core.interfaces.reasoning_engine import ReasoningEngine
 from core.observability import get_logger
-from core.services.event_extractor import EventExtractor, ExtractedSignalParams
-from core.services.signal_service import SignalService
 from memory_learning.contracts import FailureMemory, MarketEpisode
 from memory_learning.journal import LearningJournal
+from services.event_extractor import EventExtractor, ExtractedSignalParams
+from services.signal_service import SignalService
 from timing_engine import MetaTimingEngine, TimingContext, TimingModelRegistry
 from timing_engine.contracts import TimingDecision
 

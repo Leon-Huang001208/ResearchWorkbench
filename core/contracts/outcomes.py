@@ -10,7 +10,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
-from memory_learning.contracts import OutcomeHorizon, TimingAction
+from core.contracts.timing_types import OutcomeHorizon, TimingAction
 
 
 class SignalOutcome(BaseModel):

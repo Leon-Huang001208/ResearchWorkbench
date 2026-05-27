@@ -189,7 +189,7 @@ class TestGlobalSearchAPI:
 class TestGlobalSearchService:
     def test_search_returns_all_groups(self):
         """全局搜索应返回所有分组（信号/事件/Outcome/审核）"""
-        from core.services.search_service import GlobalSearchService
+        from services.search_service import GlobalSearchService
 
         mock_repo = Mock()
         mock_repo.search_symbols.return_value = []
@@ -217,7 +217,7 @@ class TestGlobalSearchService:
 
     def test_search_with_type_filter(self):
         """带类型过滤的搜索应只返回指定类型"""
-        from core.services.search_service import GlobalSearchService
+        from services.search_service import GlobalSearchService
 
         mock_repo = Mock()
         mock_repo.search_symbols.return_value = []
@@ -242,7 +242,7 @@ class TestGlobalSearchService:
 
     def test_search_empty_results(self):
         """搜索无匹配时返回空分组"""
-        from core.services.search_service import GlobalSearchService
+        from services.search_service import GlobalSearchService
 
         mock_repo = Mock()
         mock_repo.search_symbols.return_value = []
@@ -271,7 +271,7 @@ class TestGlobalSearchService:
 class TestAuditService:
     def test_record_and_get_trail_in_memory(self):
         """AuditService 内存版应能记录和查询审计日志"""
-        from core.services.audit_service import AuditService
+        from services.audit_service import AuditService
 
         service = AuditService()  # no repository → in-memory
 
@@ -293,7 +293,7 @@ class TestAuditService:
 
     def test_search_in_memory(self):
         """AuditService 内存版搜索功能"""
-        from core.services.audit_service import AuditService
+        from services.audit_service import AuditService
 
         service = AuditService()
 
@@ -305,7 +305,7 @@ class TestAuditService:
 
     def test_get_trail_nonexistent(self):
         """查询不存在的实体审计轨迹应返回空列表"""
-        from core.services.audit_service import AuditService
+        from services.audit_service import AuditService
 
         service = AuditService()
 

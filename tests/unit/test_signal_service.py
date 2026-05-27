@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
 from core.contracts import AlphaSignal, EventAlphaSignal
-from core.services.signal_service import SignalService
+from services.signal_service import SignalService
 
 
 def test_create_signal_basic():

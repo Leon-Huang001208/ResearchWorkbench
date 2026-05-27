@@ -8,10 +8,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from core.contracts import Assertion, CanonicalEvent
-from core.services.review_service import ReviewService
 from data_layer.repositories.assertion_repository import AssertionRepositoryImpl
 from data_layer.repositories.base import Base
 from data_layer.repositories.event_repository import EventRepositoryImpl
+from services.review_service import ReviewService
 
 
 def _make_mock_assertion_repo(pending_return=None):

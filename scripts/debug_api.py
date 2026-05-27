@@ -11,8 +11,8 @@ import asyncio
 import json
 from datetime import datetime
 
-from core.services import AssetAnalysisService
 from data_layer.coordinator.multi_source_coordinator import get_coordinator
+from services import AssetAnalysisService
 
 
 async def test_analysis_card():

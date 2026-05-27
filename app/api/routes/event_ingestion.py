@@ -132,7 +132,7 @@ def approve_event(
     db: Session = Depends(get_db_session),
 ):
     """审批事件，批准后自动生成候选信号"""
-    from core.services.event_auto_signal_generator import EventAutoSignalGenerator
+    from services.event_auto_signal_generator import EventAutoSignalGenerator
 
     repo = EventRepositoryImpl(db)
     event = repo.get(event_id)
@@ -157,7 +157,7 @@ def approve_event(
 @router.post("/auto-generate-signals", response_model=dict)
 def trigger_auto_generate_signals():
     """手动触发所有已批准事件的信号生成"""
-    from core.services.event_auto_signal_generator import EventAutoSignalGenerator
+    from services.event_auto_signal_generator import EventAutoSignalGenerator
 
     generator = EventAutoSignalGenerator()
     count = generator.process_approved_events()

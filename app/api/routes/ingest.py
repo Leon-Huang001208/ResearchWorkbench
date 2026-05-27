@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile
 
 from app.api.models import ErrorResponse, IngestResponse, IngestTextRequest
 from core.observability import get_logger
-from core.services.ingest_service import IngestService
+from services.ingest_service import IngestService
 
 logger = get_logger(__name__)
 

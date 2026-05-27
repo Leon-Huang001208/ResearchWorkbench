@@ -20,15 +20,15 @@ from core.contracts.documents_v1 import (
 )
 from core.contracts.pdf_conversion import ConversionResult, ConversionStatus, StrategyType
 from core.observability import get_logger
-from core.services.document_chunker import DocumentChunker
-from data_layer.converters.base import PDFConversionStrategy
-from data_layer.converters.markitdown import MarkItDownStrategy
-from data_layer.converters.mineru import MinerUStrategy
-from data_layer.converters.persistence import persist_markdown, persist_raw_text, should_inline
-from data_layer.converters.raw_text import RawTextStrategy
 from data_layer.repositories import pdf_artifact_repository as pdf_repo
 from data_layer.repositories.documents_v1 import DocumentChunkV1Repository, DocumentV1Repository
 from data_layer.repositories.models import PDFArtifactV1DB, PDFConversionV1DB
+from ingestion.converters.base import PDFConversionStrategy
+from ingestion.converters.markitdown import MarkItDownStrategy
+from ingestion.converters.mineru import MinerUStrategy
+from ingestion.converters.persistence import persist_markdown, persist_raw_text, should_inline
+from ingestion.converters.raw_text import RawTextStrategy
+from services.document_chunker import DocumentChunker
 
 logger = get_logger(__name__)
 
@@ -415,9 +415,11 @@ def _map_source_type(source_type: str) -> SourceType:
         type_map[spec.source_type.value] = spec.source_type
 
     # 历史别名（不在注册表中的遗留映射）
-    type_map.update({
-        "zhiqiu": SourceType.ZHIQIU_REPORTS,
-        "east_money": SourceType.EAST_MONEY,
-        "sina_finance": SourceType.SINA_FINANCE,
-    })
+    type_map.update(
+        {
+            "zhiqiu": SourceType.ZHIQIU_REPORTS,
+            "east_money": SourceType.EAST_MONEY,
+            "sina_finance": SourceType.SINA_FINANCE,
+        }
+    )
     return type_map.get(source_type, SourceType.OTHER)

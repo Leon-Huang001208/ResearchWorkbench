@@ -27,13 +27,13 @@ from core.contracts.retrieval import (
     create_weekly_report_profile,
     get_profile,
 )
-from core.services.rag_retrieval import (
+from core.utils.id_gen import generate_id
+from services.rag_retrieval import (
     DocumentFilter,
     EvidencePackageBuilder,
     RAGRetrievalService,
     RecencyDecayScorer,
 )
-from core.utils.id_gen import generate_id
 
 # ==================== Test Data ====================
 

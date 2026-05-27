@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from core.contracts.timing_types import TimingAction  # noqa: F401 - re-exported
+
 TimingModelName = Literal[
     "regime",
     "flow",
@@ -25,8 +27,6 @@ MarketRegime = Literal[
     "bear_rebound",
     "unknown",
 ]
-
-TimingAction = Literal["enter", "wait", "reduce", "exit", "block"]
 
 
 class TimingModelScore(BaseModel):

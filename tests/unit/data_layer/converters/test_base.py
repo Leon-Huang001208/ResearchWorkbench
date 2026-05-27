@@ -8,7 +8,7 @@ from core.contracts.pdf_conversion import (
     ConversionStatusResponse,
     StrategyType,
 )
-from data_layer.converters.base import PDFConversionStrategy
+from ingestion.converters.base import PDFConversionStrategy
 
 
 class TestStrategyType:

@@ -1,63 +1,40 @@
-"""核心服务模块"""
-from .asset_analysis_service import AssetAnalysisService
-from .crawler_ingestion_bridge import CrawlerIngestionBridge
-from .data_tier_service import DataTierService
-from .document_chunker import ChunkingOptions, ChunkingStrategy, DocumentChunker
-from .document_classifier import DocumentClassifier
-from .document_enrichment import DocumentEnrichmentPipeline, EnrichmentConfig, EnrichmentResult
-from .entity_extractor import EntityExtractor, EntityType
-from .event_extractor import EventExtractor, ExtractedSignalParams
+"""Deprecated: import from services/ instead.
 
-# Issue #47: 回测视角服务
-from .historical_replay_service import HistoricalReplayService
-from .ingest_service import IngestService
-from .news_feature_service import NewsFeatureService
-from .outcome_service import OutcomeService
-from .rag_retrieval import (
+This module is kept for backward compatibility. All services have been moved
+to the top-level services/ package. Existing imports will continue to work
+but new code should import directly from services/.
+"""
+# Re-export everything from the new services/ package
+from services.asset_analysis_service import AssetAnalysisService  # noqa: F401
+from services.crawler_ingestion_bridge import CrawlerIngestionBridge  # noqa: F401
+from services.data_tier_service import DataTierService  # noqa: F401
+from services.document_chunker import (  # noqa: F401, E501
+    ChunkingOptions,
+    ChunkingStrategy,
+    DocumentChunker,
+)
+from services.document_classifier import DocumentClassifier  # noqa: F401
+from services.document_enrichment import (  # noqa: F401
+    DocumentEnrichmentPipeline,
+    EnrichmentConfig,
+    EnrichmentResult,
+)
+from services.entity_extractor import EntityExtractor, EntityType  # noqa: F401
+from services.event_extractor import EventExtractor, ExtractedSignalParams  # noqa: F401
+from services.historical_replay_service import HistoricalReplayService  # noqa: F401
+from services.ingest_service import IngestService  # noqa: F401
+from services.news_feature_service import NewsFeatureService  # noqa: F401
+from services.outcome_service import OutcomeService  # noqa: F401
+from services.rag_retrieval import (  # noqa: F401
     DocumentFilter,
     EvidencePackageBuilder,
     RAGRetrievalService,
     RecencyDecayScorer,
 )
-from .review_service import ReviewService
-from .scenario_service import ScenarioService
-from .signal_service import SignalService
-from .signal_validator_impl import SignalValidatorImpl
-from .summary_generator import SummaryGenerator
-from .system_event_bus import SystemEventBus, event_bus
-from .taxonomy_service import TaxonomyService
-
-__all__ = [
-    "AssetAnalysisService",
-    "CrawlerIngestionBridge",
-    "DocumentChunker",
-    "ChunkingOptions",
-    "ChunkingStrategy",
-    "DocumentClassifier",
-    "DocumentEnrichmentPipeline",
-    "EnrichmentConfig",
-    "EnrichmentResult",
-    "EntityExtractor",
-    "EntityType",
-    "EventExtractor",
-    "ExtractedSignalParams",
-    "IngestService",
-    "OutcomeService",
-    "ReviewService",
-    "ScenarioService",
-    "SignalService",
-    "SignalValidatorImpl",
-    "SummaryGenerator",
-    "TaxonomyService",
-    # RAG Retrieval (Issue #45)
-    "RecencyDecayScorer",
-    "DocumentFilter",
-    "EvidencePackageBuilder",
-    "RAGRetrievalService",
-    # Issue #47: 回测视角服务
-    "HistoricalReplayService",
-    "NewsFeatureService",
-    "DataTierService",
-    "SystemEventBus",
-    "event_bus",
-]
+from services.review_service import ReviewService  # noqa: F401
+from services.scenario_service import ScenarioService  # noqa: F401
+from services.signal_service import SignalService  # noqa: F401
+from services.signal_validator_impl import SignalValidatorImpl  # noqa: F401
+from services.summary_generator import SummaryGenerator  # noqa: F401
+from services.system_event_bus import SystemEventBus, event_bus  # noqa: F401
+from services.taxonomy_service import TaxonomyService  # noqa: F401

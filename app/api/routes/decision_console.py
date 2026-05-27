@@ -13,9 +13,9 @@ from core.contracts.decision_console import (
     PostMortemRecord,
 )
 from core.observability import get_logger
-from core.services.decision_console_service import DecisionConsoleService
 from data_layer.repositories.base import get_db
 from data_layer.repositories.decision_console_repository import DecisionConsoleRepository
+from services.decision_console_service import DecisionConsoleService
 
 logger = get_logger(__name__)
 

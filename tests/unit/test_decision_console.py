@@ -16,8 +16,8 @@ from core.contracts.decision_console import (
     DecisionWorkspace,
     PostMortemRecord,
 )
-from core.services.decision_console_service import DecisionConsoleService
 from data_layer.repositories.decision_console_repository import DecisionConsoleRepository
+from services.decision_console_service import DecisionConsoleService
 
 # ─── 测试设置 ────────────────────────────────────────────
 

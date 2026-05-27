@@ -9,7 +9,7 @@ sys.path.insert(0, str(project_root))
 from fastapi.testclient import TestClient
 
 from app.api.main import app
-from core.services.closed_loop_service import ClosedLoopService
+from services.closed_loop_service import ClosedLoopService
 
 client = TestClient(app)
 

@@ -6,8 +6,8 @@ from fastapi import APIRouter, HTTPException, Query
 from app.api.models import ErrorResponse
 from core.contracts.dashboard import DashboardResponse
 from core.observability import get_logger
-from core.services.dashboard_service import DashboardService
 from data_layer.repositories.base import SessionLocal
+from services.dashboard_service import DashboardService
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
@@ -20,9 +20,7 @@ router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 async def get_crawl_feed(
     limit: int = Query(20, ge=1, le=500, description="返回数量上限"),
     since: Optional[str] = Query(None, description="ISO 时间戳，只返回此时间之后的数据"),
-    source_type: Optional[str] = Query(
-        None, description="来源类型过滤: cls / cnstock / zhiqiu_reports"
-    ),
+    source_type: Optional[str] = Query(None, description="来源类型过滤: cls / cnstock / zhiqiu_reports"),
 ):
     """获取实时抓取数据流（最近抓取的文档列表）"""
     try:

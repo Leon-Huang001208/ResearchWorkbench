@@ -9,6 +9,7 @@ import threading
 from pathlib import Path
 
 from core.observability import get_logger
+from services.system_event_bus import event_bus
 
 logger = get_logger(__name__)
 
@@ -29,17 +30,20 @@ def _remove_pid() -> None:
 
 
 async def _async_main() -> None:
-    from core.services.crawl_scheduler import CrawlScheduler
+    from services.crawl_scheduler import CrawlScheduler
 
     logger.info("Crawl scheduler worker starting")
     _write_pid()
+    event_bus.record_worker_heartbeat("crawl_scheduler", "starting")
 
     scheduler = CrawlScheduler()
     scheduler.start()
+    event_bus.record_worker_heartbeat("crawl_scheduler", "started, jobs scheduled")
 
     await _startup_gap_backfill(scheduler)
 
     stop_event = asyncio.Event()
+    _heartbeat_task = asyncio.create_task(_periodic_heartbeat(stop_event))
 
     def _force_exit() -> None:
         logger.warning(f"Scheduler did not exit within {_SHUTDOWN_TIMEOUT}s, forcing exit")
@@ -47,6 +51,7 @@ async def _async_main() -> None:
 
     def _shutdown() -> None:
         logger.info("Received shutdown signal")
+        event_bus.record_worker_heartbeat("crawl_scheduler", "stopping")
         scheduler.stop()
         _remove_pid()
         stop_event.set()
@@ -68,7 +73,6 @@ async def _async_main() -> None:
 
 def _run_backfill_in_thread(scheduler, source_type) -> None:
     """在线程中运行单个来源的回补检查（每个线程拥有独立事件循环）"""
-    from core.contracts import SourceType as _SourceType
 
     async def _run() -> None:
         try:
@@ -100,6 +104,15 @@ async def _startup_gap_backfill(scheduler) -> None:
             for st in source_types
         ]
         await asyncio.gather(*futures)
+
+
+async def _periodic_heartbeat(stop_event: asyncio.Event, interval: int = 30) -> None:
+    """每 30 秒记录一次调度器心跳"""
+    while not stop_event.is_set():
+        try:
+            await asyncio.wait_for(stop_event.wait(), timeout=interval)
+        except asyncio.TimeoutError:
+            event_bus.record_worker_heartbeat("crawl_scheduler", "running, jobs active")
 
 
 def main() -> None:

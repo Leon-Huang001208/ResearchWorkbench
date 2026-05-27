@@ -13,13 +13,13 @@ from core.contracts.ingestion import (
     RetryResponse,
 )
 from core.observability import get_logger
-from core.services.ingestion_queue_service import IngestionQueueService
-from core.services.pipeline_service import ResearchPipeline
-from core.services.signal_service import SignalService
 from data_layer.repositories.base import get_db
 from data_layer.repositories.ingestion_repository import IngestionQueueRepository
 from data_layer.repositories.signal_repository import SignalRepositoryImpl
 from data_layer.repositories.timing_repository import TimingRepositoryImpl as TimingRepository
+from services.ingestion_queue_service import IngestionQueueService
+from services.pipeline_service import ResearchPipeline
+from services.signal_service import SignalService
 
 logger = get_logger(__name__)
 

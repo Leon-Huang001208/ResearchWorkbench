@@ -1,7 +1,7 @@
 """Unit tests for Global Search Service"""
 from unittest.mock import Mock
 
-from core.services.search_service import GlobalSearchService
+from services.search_service import GlobalSearchService
 
 
 def test_search_service_initialization():

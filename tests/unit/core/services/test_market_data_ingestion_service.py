@@ -8,11 +8,11 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from core.services.market_data_ingestion_service import MarketDataIngestionService
 from data_layer.crawlers.akshare.base import MarketData, StockInfo
 from data_layer.repositories.base import Base
 from data_layer.repositories.etl_run_repository import ETLRunRepository
 from data_layer.repositories.market_data_repository import MarketDataRepository
+from services.market_data_ingestion_service import MarketDataIngestionService
 
 
 class FakeAkShareMarket:

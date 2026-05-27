@@ -10,6 +10,6 @@ import pkgutil
 __all__: list[str] = []
 
 for _, modname, _ in pkgutil.iter_modules(__path__):
-    if not modname.startswith('_'):
-        importlib.import_module(f'.{modname}', __name__)
+    if not modname.startswith("_"):
+        importlib.import_module(f".{modname}", __name__)
         __all__.append(modname)

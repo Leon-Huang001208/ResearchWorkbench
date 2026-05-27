@@ -1,11 +1,12 @@
 """System health endpoint — scheduler / queue / worker 状态"""
 
 from datetime import datetime, timezone
+from typing import Any, Dict, List
 
 from fastapi import APIRouter
 
 from core.observability import get_logger
-from core.services.system_event_bus import event_bus
+from services.system_event_bus import event_bus
 
 logger = get_logger(__name__)
 
@@ -75,3 +76,85 @@ async def get_health_minimal():
         "worker_heartbeats": heartbeats,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
+
+
+@router.get("/workers/status")
+async def get_workers_status():
+    """聚合返回所有后台 worker 的实时状态和队列统计"""
+    result: Dict[str, Any] = {
+        "workers": [],
+        "scheduler": {"name": "crawl_scheduler", "alive": False, "pid": None},
+        "queue_stats": {"pending": 0, "processing": 0, "completed": 0, "failed": 0},
+    }
+
+    # ── Knowledge Workers (PID-based) ──────────────────────────
+    try:
+        from workers.knowledge_worker import get_all_worker_statuses
+
+        kw_statuses: List[Dict[str, Any]] = get_all_worker_statuses()
+        for ws in kw_statuses:
+            worker_info: Dict[str, Any] = {
+                "name": f"knowledge_worker_{ws.get('worker_id')}" if ws.get("worker_id") is not None else "knowledge_worker",
+                "type": "knowledge",
+                "pid": ws.get("pid"),
+                "alive": ws.get("alive", False),
+            }
+            result["workers"].append(worker_info)
+    except Exception as e:
+        logger.warning(f"Failed to get knowledge worker statuses: {e}")
+
+    # ── Crawl Scheduler (PID-based) ────────────────────────────
+    try:
+        from services.crawl_scheduler import get_scheduler_process_status
+
+        scheduler_status = get_scheduler_process_status()
+        result["scheduler"] = {
+            "name": "crawl_scheduler",
+            "pid": scheduler_status.get("pid"),
+            "alive": scheduler_status.get("alive", False),
+        }
+    except Exception as e:
+        logger.warning(f"Failed to get scheduler process status: {e}")
+
+    # ── Heartbeats (in-process event_bus) ──────────────────────
+    heartbeats = event_bus.get_worker_heartbeats()
+    for worker_info in result["workers"]:
+        name = worker_info["name"]
+        if name in heartbeats:
+            hb = heartbeats[name]
+            worker_info["last_heartbeat"] = hb.get("timestamp") if isinstance(hb, dict) else hb
+            worker_info["activity"] = hb.get("activity") if isinstance(hb, dict) else None
+        else:
+            worker_info["last_heartbeat"] = None
+            worker_info["activity"] = None
+
+    sched_name = result["scheduler"]["name"]
+    if sched_name in heartbeats:
+        hb = heartbeats[sched_name]
+        result["scheduler"]["last_heartbeat"] = hb.get("timestamp") if isinstance(hb, dict) else hb
+        result["scheduler"]["activity"] = hb.get("activity") if isinstance(hb, dict) else None
+    else:
+        result["scheduler"]["last_heartbeat"] = None
+        result["scheduler"]["activity"] = None
+
+    # ── Queue Stats ────────────────────────────────────────────
+    try:
+        from data_layer.repositories.base import SessionLocal
+        from data_layer.repositories.ingestion_repository import IngestionQueueRepository
+
+        db = SessionLocal()
+        try:
+            repo = IngestionQueueRepository(db)
+            stats = repo.get_stats()
+            result["queue_stats"] = {
+                "pending": stats.pending,
+                "processing": stats.processing,
+                "completed": stats.completed,
+                "failed": stats.failed,
+            }
+        finally:
+            db.close()
+    except Exception as e:
+        logger.warning(f"Failed to get queue stats: {e}")
+
+    return result

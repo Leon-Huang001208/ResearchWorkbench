@@ -4,13 +4,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from core.services.report_generator import ReportGenerator
+from services.report_generator import ReportGenerator
 
 
 @pytest.mark.asyncio
 async def test_generate_summary_report():
     """Test generating a summary report."""
-    with patch("core.services.report_generator.AssetAnalysisService") as MockService:
+    with patch("services.report_generator.AssetAnalysisService") as MockService:
         mock_snapshot = MagicMock()
         mock_snapshot.canonical_id = "600519.SH"
         mock_snapshot.as_of = datetime(2024, 5, 10, tzinfo=timezone.utc)
@@ -39,7 +39,7 @@ async def test_generate_summary_report():
 @pytest.mark.asyncio
 async def test_generate_valuation_report():
     """Test generating a valuation report."""
-    with patch("core.services.report_generator.AssetAnalysisService") as MockService:
+    with patch("services.report_generator.AssetAnalysisService") as MockService:
         mock_snapshot = MagicMock()
         mock_snapshot.canonical_id = "600036.SH"
         mock_snapshot.as_of = datetime(2024, 5, 10, tzinfo=timezone.utc)
@@ -65,7 +65,7 @@ async def test_generate_valuation_report():
 @pytest.mark.asyncio
 async def test_generate_full_report():
     """Test generating a full report."""
-    with patch("core.services.report_generator.AssetAnalysisService") as MockService:
+    with patch("services.report_generator.AssetAnalysisService") as MockService:
         mock_snapshot = MagicMock()
         mock_snapshot.canonical_id = "600519.SH"
         mock_snapshot.as_of = datetime(2024, 5, 10, tzinfo=timezone.utc)
@@ -112,7 +112,7 @@ async def test_generate_full_report():
 @pytest.mark.asyncio
 async def test_get_report_content():
     """Test retrieving report content."""
-    with patch("core.services.report_generator.AssetAnalysisService") as MockService:
+    with patch("services.report_generator.AssetAnalysisService") as MockService:
         mock_snapshot = MagicMock()
         mock_snapshot.canonical_id = "600519.SH"
         mock_snapshot.as_of = datetime(2024, 5, 10, tzinfo=timezone.utc)

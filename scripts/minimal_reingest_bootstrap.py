@@ -230,12 +230,12 @@ def run_rebuild_derived_state(
     logger.info("Starting derived state rebuild after re-ingestion...")
 
     try:
-        from core.services.outcome_service import OutcomeService
-        from core.services.replay_service import ReplayService
-        from core.services.signal_service import SignalService
         from data_layer.repositories.event_repository import EventRepositoryImpl
         from data_layer.repositories.signal_repository import SignalRepositoryImpl
         from data_layer.repositories.timing_repository import TimingRepositoryImpl
+        from services.outcome_service import OutcomeService
+        from services.replay_service import ReplayService
+        from services.signal_service import SignalService
 
         # Initialize all repositories and services
         event_repo = EventRepositoryImpl()

@@ -1,20 +1,7 @@
 """Memory & Learning 契约。"""
-from typing import Literal
-
 from pydantic import BaseModel, Field
 
-OutcomeHorizon = Literal["1d", "5d", "20d", "30d", "60d"]
-TimingAction = Literal["enter", "wait", "reduce", "exit", "block"]
-FailureType = Literal[
-    "wrong_thesis",
-    "timing_error",
-    "crowding_error",
-    "regime_misread",
-    "data_quality",
-    "execution_error",
-    "risk_error",
-    "unknown",
-]
+from core.contracts.timing_types import FailureType, OutcomeHorizon, TimingAction
 
 
 class MarketEpisode(BaseModel):

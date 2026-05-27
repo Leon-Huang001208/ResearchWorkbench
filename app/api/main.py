@@ -62,6 +62,7 @@ from app.api.routes import (  # noqa: E402
     ingest,
     ingest_admin,
     ingestion_queue,
+    knowledge,
     llm,
     market_data,
     memory,
@@ -122,6 +123,7 @@ app.include_router(templates.router)
 app.include_router(signal_lab.router)
 app.include_router(llm.router)
 app.include_router(scheduler.router)
+app.include_router(knowledge.router)
 app.include_router(pdf_admin.router)
 app.include_router(market_data.router)
 app.include_router(system.router)

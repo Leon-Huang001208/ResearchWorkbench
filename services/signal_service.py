@@ -10,9 +10,9 @@ from typing import Any, Dict, List, Optional
 from core.contracts import AlphaSignal, EventAlphaSignal, TradeCandidate
 from core.interfaces import SignalValidator
 from core.observability import get_logger
-from core.services.signal_validator_impl import SignalValidatorImpl
 from core.settings.config import settings
 from data_layer.repositories.signal_repository import SignalRepositoryImpl
+from services.signal_validator_impl import SignalValidatorImpl
 
 logger = get_logger(__name__)
 
