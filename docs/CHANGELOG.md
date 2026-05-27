@@ -66,6 +66,11 @@
 - **backfill-3-missing-sources**: 启动回填新增 3 个源（cnstock_flash, zhiqiu_wechat, zhiqiu_transcript），之前仅 cls/cnstock/zhiqiu_reports
 
 ### Fixed
+- **worker-heartbeat-cross-process**: Worker 心跳数据跨进程不可见修复
+  - `workers/knowledge_worker.py` — 新增 `_write_heartbeat()` 将心跳写入 `logs/{worker_label}.heartbeat.json`
+  - `workers/crawl_scheduler_worker.py` — 新增 `_write_heartbeat()` 将心跳写入 `logs/scheduler.heartbeat.json`
+  - `app/api/routes/system.py` — 新增 `_read_heartbeat_files()` 扫描文件心跳，文件优先于进程内 event_bus；修复 `PROJECT_DIR` 路径计算（4 层 parent）
+  - 修复 `Path.stem` 只剥离 `.json` 的问题：`Path(hb_path.stem).stem` 同时剥离 `.heartbeat` 和 `.json`
 - **scheduler-process-separation**: 拆分爬虫调度器为独立进程 + 修复多源并发线程安全问题
   - 新建 `workers/crawl_scheduler_worker.py` — 独立调度器进程，通过 PID 文件管理生命周期，SIGTERM/SIGINT 优雅退出
   - `CrawlScheduler` 线程安全修复：`_run_crawl_job` / `_run_backfill_job` / `trigger_crawl` / `trigger_backfill` 每次创建独立 `CrawlOrchestrator`（独立 DB session），支持 CLS/CNStock/ZQ 多源并行抓取

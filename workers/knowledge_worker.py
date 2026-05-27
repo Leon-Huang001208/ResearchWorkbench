@@ -2,10 +2,12 @@
 
 import argparse
 import asyncio
+import json
 import os
 import signal
 import sys
 import threading
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -40,6 +42,24 @@ def _remove_pid(worker_id: Optional[int] = None) -> None:
     pid_file = _pid_file_for(worker_id)
     if pid_file.exists():
         pid_file.unlink()
+
+
+def _heartbeat_file_for(worker_label: str) -> Path:
+    return PROJECT_DIR / "logs" / f"{worker_label}.heartbeat.json"
+
+
+def _write_heartbeat(worker_label: str, activity: str) -> None:
+    hb_file = _heartbeat_file_for(worker_label)
+    hb_file.parent.mkdir(parents=True, exist_ok=True)
+    hb_file.write_text(
+        json.dumps(
+            {
+                "timestamp": time.time(),
+                "activity": activity,
+            },
+            ensure_ascii=False,
+        )
+    )
 
 
 def _create_document_v1(item: Any) -> Any:
@@ -142,7 +162,10 @@ async def _process_and_mark(
                         )
 
             db.commit()
-            logger.info("Item processed", **{k: v for k, v in result.items() if k not in ("event_list", "entity_list")})
+            logger.info(
+                "Item processed",
+                **{k: v for k, v in result.items() if k not in ("event_list", "entity_list")},
+            )
             return result
         except Exception as e:
             repo = IngestionQueueRepository(db)
@@ -177,9 +200,7 @@ def _create_pipeline():
             model_gateway = ModelGatewayImpl()
             logger.info("ModelGateway initialized for KnowledgePipeline")
         except Exception as e:
-            logger.warning(
-                f"Failed to init ModelGateway: {e}, falling back to keyword extraction"
-            )
+            logger.warning(f"Failed to init ModelGateway: {e}, falling back to keyword extraction")
 
     return KnowledgePipeline(config=config, model_gateway=model_gateway)
 
@@ -223,6 +244,7 @@ async def main(worker_id: Optional[int] = None) -> None:
     loop.add_signal_handler(signal.SIGINT, _shutdown)
 
     event_bus.record_worker_heartbeat(worker_label, "started, consuming queue")
+    _write_heartbeat(worker_label, "started, consuming queue")
     logger.info(f"[{worker_label}] Started, consuming ingestion_queue")
 
     while not shutting_down:
@@ -237,6 +259,7 @@ async def main(worker_id: Optional[int] = None) -> None:
                 backoff = min(POLL_INTERVAL * (2**consecutive_empty), MAX_BACKOFF)
                 if consecutive_empty == 1:
                     event_bus.record_worker_heartbeat(worker_label, "idle, queue empty")
+                    _write_heartbeat(worker_label, "idle, queue empty")
                 logger.debug(
                     f"[{worker_label}] Empty queue, backoff {backoff:.1f}s (empty={consecutive_empty})"
                 )
@@ -248,6 +271,7 @@ async def main(worker_id: Optional[int] = None) -> None:
             await asyncio.gather(*tasks)
 
             event_bus.record_worker_heartbeat(worker_label, f"processed {len(items)} items")
+            _write_heartbeat(worker_label, f"processed {len(items)} items")
             await event_bus.publish(
                 "queue_update",
                 {"processed": len(items), "worker": worker_label},

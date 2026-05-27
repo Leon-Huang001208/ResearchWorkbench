@@ -2,10 +2,12 @@
 
 import asyncio
 import concurrent.futures
+import json
 import os
 import signal
 import sys
 import threading
+import time
 from pathlib import Path
 
 from core.observability import get_logger
@@ -15,6 +17,7 @@ logger = get_logger(__name__)
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 PID_FILE = PROJECT_DIR / "logs" / "scheduler.pid"
+HEARTBEAT_FILE = PROJECT_DIR / "logs" / "scheduler.heartbeat.json"
 
 _SHUTDOWN_TIMEOUT = 10  # 优雅退出超时秒数
 
@@ -29,16 +32,31 @@ def _remove_pid() -> None:
         PID_FILE.unlink()
 
 
+def _write_heartbeat(activity: str) -> None:
+    HEARTBEAT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    HEARTBEAT_FILE.write_text(
+        json.dumps(
+            {
+                "timestamp": time.time(),
+                "activity": activity,
+            },
+            ensure_ascii=False,
+        )
+    )
+
+
 async def _async_main() -> None:
     from services.crawl_scheduler import CrawlScheduler
 
     logger.info("Crawl scheduler worker starting")
     _write_pid()
     event_bus.record_worker_heartbeat("crawl_scheduler", "starting")
+    _write_heartbeat("starting")
 
     scheduler = CrawlScheduler()
     scheduler.start()
     event_bus.record_worker_heartbeat("crawl_scheduler", "started, jobs scheduled")
+    _write_heartbeat("started, jobs scheduled")
 
     await _startup_gap_backfill(scheduler)
 
@@ -52,6 +70,7 @@ async def _async_main() -> None:
     def _shutdown() -> None:
         logger.info("Received shutdown signal")
         event_bus.record_worker_heartbeat("crawl_scheduler", "stopping")
+        _write_heartbeat("stopping")
         scheduler.stop()
         _remove_pid()
         stop_event.set()
@@ -113,6 +132,7 @@ async def _periodic_heartbeat(stop_event: asyncio.Event, interval: int = 30) -> 
             await asyncio.wait_for(stop_event.wait(), timeout=interval)
         except asyncio.TimeoutError:
             event_bus.record_worker_heartbeat("crawl_scheduler", "running, jobs active")
+            _write_heartbeat("running, jobs active")
 
 
 def main() -> None:

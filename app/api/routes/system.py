@@ -1,6 +1,8 @@
 """System health endpoint — scheduler / queue / worker 状态"""
 
+import json
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Dict, List
 
 from fastapi import APIRouter
@@ -9,6 +11,8 @@ from core.observability import get_logger
 from services.system_event_bus import event_bus
 
 logger = get_logger(__name__)
+
+PROJECT_DIR = Path(__file__).resolve().parent.parent.parent.parent
 
 router = APIRouter(prefix="/api/system", tags=["system"])
 
@@ -78,6 +82,27 @@ async def get_health_minimal():
     }
 
 
+def _read_heartbeat_files() -> Dict[str, Dict[str, Any]]:
+    """扫描 logs/ 目录下的 .heartbeat.json 文件，返回 {worker_name: {timestamp, activity}}"""
+    heartbeats: Dict[str, Dict[str, Any]] = {}
+    log_dir = PROJECT_DIR / "logs"
+    if not log_dir.exists():
+        return heartbeats
+
+    for hb_path in log_dir.glob("*.heartbeat.json"):
+        worker_name = Path(hb_path.stem).stem  # strip both .json and .heartbeat
+        try:
+            data = json.loads(hb_path.read_text())
+            heartbeats[worker_name] = {
+                "timestamp": data.get("timestamp"),
+                "activity": data.get("activity"),
+            }
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    return heartbeats
+
+
 @router.get("/workers/status")
 async def get_workers_status():
     """聚合返回所有后台 worker 的实时状态和队列统计"""
@@ -94,7 +119,9 @@ async def get_workers_status():
         kw_statuses: List[Dict[str, Any]] = get_all_worker_statuses()
         for ws in kw_statuses:
             worker_info: Dict[str, Any] = {
-                "name": f"knowledge_worker_{ws.get('worker_id')}" if ws.get("worker_id") is not None else "knowledge_worker",
+                "name": f"knowledge_worker_{ws.get('worker_id')}"
+                if ws.get("worker_id") is not None
+                else "knowledge_worker",
                 "type": "knowledge",
                 "pid": ws.get("pid"),
                 "alive": ws.get("alive", False),
@@ -116,12 +143,16 @@ async def get_workers_status():
     except Exception as e:
         logger.warning(f"Failed to get scheduler process status: {e}")
 
-    # ── Heartbeats (in-process event_bus) ──────────────────────
-    heartbeats = event_bus.get_worker_heartbeats()
+    # ── Heartbeats (file-based primary, in-process event_bus fallback) ──
+    file_heartbeats = _read_heartbeat_files()
+    inproc_heartbeats = event_bus.get_worker_heartbeats()
+    # file-based takes priority since workers run in separate processes
+    merged = {**inproc_heartbeats, **file_heartbeats}
+
     for worker_info in result["workers"]:
         name = worker_info["name"]
-        if name in heartbeats:
-            hb = heartbeats[name]
+        if name in merged:
+            hb = merged[name]
             worker_info["last_heartbeat"] = hb.get("timestamp") if isinstance(hb, dict) else hb
             worker_info["activity"] = hb.get("activity") if isinstance(hb, dict) else None
         else:
@@ -129,10 +160,14 @@ async def get_workers_status():
             worker_info["activity"] = None
 
     sched_name = result["scheduler"]["name"]
-    if sched_name in heartbeats:
-        hb = heartbeats[sched_name]
-        result["scheduler"]["last_heartbeat"] = hb.get("timestamp") if isinstance(hb, dict) else hb
-        result["scheduler"]["activity"] = hb.get("activity") if isinstance(hb, dict) else None
+    sched_hb = merged.get(sched_name) or merged.get("scheduler")
+    if sched_hb:
+        result["scheduler"]["last_heartbeat"] = (
+            sched_hb.get("timestamp") if isinstance(sched_hb, dict) else sched_hb
+        )
+        result["scheduler"]["activity"] = (
+            sched_hb.get("activity") if isinstance(sched_hb, dict) else None
+        )
     else:
         result["scheduler"]["last_heartbeat"] = None
         result["scheduler"]["activity"] = None
