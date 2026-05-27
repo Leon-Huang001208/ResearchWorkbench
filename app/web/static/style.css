@@ -86,6 +86,8 @@
 :root {
     /* Light theme (GitHub-style) */
     --bg-body: #ffffff;
+    --bg-panel: #f0f2f5;
+    --bg-elevated: #ffffff;
     --bg-card: #ffffff;
     --bg-input: #f6f8fa;
     --bg-code: #1e293b;
@@ -1501,6 +1503,66 @@ tr:hover td {
 }
 
 /* ─── Redesigned Research Console Dashboard Styles ─────────── */
+
+/* Dashboard Tab Navigation */
+.dash-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.dash-header-row .section-title {
+    margin-bottom: 0;
+}
+
+.dash-tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--bg-panel);
+    border-radius: var(--radius-sm);
+    padding: 3px;
+}
+
+.dash-tab {
+    padding: 6px 16px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    font-family: var(--font-ui);
+    cursor: pointer;
+    transition: all var(--duration-fast) ease;
+    white-space: nowrap;
+}
+
+.dash-tab:hover {
+    color: var(--text-primary);
+    background: rgba(255,255,255,0.04);
+}
+
+.dash-tab.active {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    font-weight: var(--font-medium);
+    box-shadow: var(--shadow-sm);
+}
+
+.dash-tab-panel {
+    display: none;
+    animation: fadeIn .25s ease;
+}
+
+.dash-tab-panel.active {
+    display: block;
+}
+
+.dash-tab-panel .dashboard-grid {
+    margin-top: 0;
+}
+
 .dashboard-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -3905,7 +3967,7 @@ tr:hover td {
     grid-template-columns: 3fr 1fr 1fr;
     gap: 1.5rem;
     margin-top: 0.5rem;
-    height: 520px;
+    height: 700px;
 }
 
 .market-section {
@@ -3931,9 +3993,12 @@ tr:hover td {
 .market-section .news-list,
 .market-section .sector-list {
     flex: 1;
-    overflow-y: auto;
     overflow-x: hidden;
     min-height: 0;
+}
+
+.market-section .news-list {
+    overflow-y: auto;
 }
 
 /* News List */

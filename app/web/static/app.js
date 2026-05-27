@@ -96,11 +96,26 @@ function navigateTo(section) {
     if (section === 'templates') loadTemplatesPage();
 }
 
+// ─── Dashboard Tab Switching ──────────────────────────────────
+function switchDashTab(tabName) {
+    document.querySelectorAll('.dash-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.dash-tab-panel').forEach(p => p.classList.remove('active'));
+    const tabBtn = document.querySelector(`.dash-tab[data-dash-tab="${tabName}"]`);
+    const panel = document.getElementById(`dash-panel-${tabName}`);
+    if (tabBtn) tabBtn.classList.add('active');
+    if (panel) panel.classList.add('active');
+}
+
 // Wait for DOM ready before binding all interactive events
 document.addEventListener('DOMContentLoaded', () => {
     // Navigation buttons
     document.querySelectorAll('.activity-btn[data-section]').forEach(btn => {
         btn.addEventListener('click', () => navigateTo(btn.dataset.section));
+    });
+
+    // Dashboard tab switching
+    document.querySelectorAll('.dash-tab').forEach(tab => {
+        tab.addEventListener('click', () => switchDashTab(tab.dataset.dashTab));
     });
 
     // Settings popover toggle

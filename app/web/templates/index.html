@@ -74,10 +74,19 @@
                 <div id="search-results-dropdown" class="search-dropdown hidden"></div>
             </div>
 
-            <!-- Dashboard Section (Redesigned) -->
+            <!-- Dashboard Section (Tabbed) -->
             <section id="section-dashboard" class="content-section active">
-                <h2 class="section-title" data-i18n="dashboard.title">研究控制台</h2>
-                
+                <div class="dash-header-row">
+                    <h2 class="section-title" data-i18n="dashboard.title">研究控制台</h2>
+                    <nav class="dash-tabs" id="dash-tabs">
+                        <button class="dash-tab active" data-dash-tab="market" data-i18n="dash_tab.market">市场总览</button>
+                        <button class="dash-tab" data-dash-tab="monitor" data-i18n="dash_tab.monitor">实时监控</button>
+                        <button class="dash-tab" data-dash-tab="workbench" data-i18n="dash_tab.workbench">投研工作台</button>
+                    </nav>
+                </div>
+
+                <!-- Tab: Market Overview -->
+                <div class="dash-tab-panel active" id="dash-panel-market">
                 <div class="dashboard-grid">
                     <!-- Market Overview Section -->
                     <div class="dashboard-card market-overview-card" style="grid-column: 1 / -1;">
@@ -114,7 +123,13 @@
                             </div>
                         </div>
                     </div>
+                </div>
+                </div>
+                <!-- /Tab: Market Overview -->
 
+                <!-- Tab: Live Monitor -->
+                <div class="dash-tab-panel" id="dash-panel-monitor">
+                <div class="dashboard-grid">
                     <!-- Live Crawl Feed - 三列两行 -->
                     <div class="crawl-feed-row" style="grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
                         <!-- CLS 财联社 -->
@@ -196,6 +211,25 @@
                             </ul>
                         </div>
                     </div>
+
+                    <!-- System Workers Section -->
+                    <div class="dashboard-card workers-card" style="grid-column: 1 / -1;">
+                        <div class="card-header">
+                            <h3><i class="codicon codicon-server"></i> 系统工作进程</h3>
+                            <span class="text-muted" style="font-size: 12px;" id="workers-last-updated"></span>
+                        </div>
+                        <div id="workers-panel" class="workers-panel">
+                            <div class="empty-state">正在加载...</div>
+                        </div>
+                        <div id="workers-queue-stats" class="workers-queue-stats"></div>
+                    </div>
+                </div>
+                </div>
+                <!-- /Tab: Live Monitor -->
+
+                <!-- Tab: Workbench -->
+                <div class="dash-tab-panel" id="dash-panel-workbench">
+                <div class="dashboard-grid">
 
                     <!-- Today Section -->
                     <div class="dashboard-card today-card">
@@ -295,19 +329,9 @@
                             </ul>
                         </div>
                     </div>
-
-                    <!-- System Workers Section -->
-                    <div class="dashboard-card workers-card" style="grid-column: 1 / -1;">
-                        <div class="card-header">
-                            <h3><i class="codicon codicon-server"></i> 系统工作进程</h3>
-                            <span class="text-muted" style="font-size: 12px;" id="workers-last-updated"></span>
-                        </div>
-                        <div id="workers-panel" class="workers-panel">
-                            <div class="empty-state">正在加载...</div>
-                        </div>
-                        <div id="workers-queue-stats" class="workers-queue-stats"></div>
-                    </div>
                 </div>
+                </div>
+                <!-- /Tab: Workbench -->
             </section>
 
             <!-- Asset Analysis Section -->

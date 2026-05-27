@@ -29,6 +29,9 @@ const I18N = (() => {
 
         // Dashboard
         'dashboard.title': '仪表盘',
+        'dash_tab.market': '市场总览',
+        'dash_tab.monitor': '实时监控',
+        'dash_tab.workbench': '投研工作台',
         'dashboard.total_signals': '总信号数',
         'dashboard.research': '研究中',
         'dashboard.candidate': '候选信号',
@@ -254,6 +257,9 @@ const I18N = (() => {
 
         // Dashboard
         'dashboard.title': 'Dashboard',
+        'dash_tab.market': 'Market Overview',
+        'dash_tab.monitor': 'Live Monitor',
+        'dash_tab.workbench': 'Workbench',
         'dashboard.total_signals': 'Total Signals',
         'dashboard.research': 'In Research',
         'dashboard.candidate': 'Candidates',
