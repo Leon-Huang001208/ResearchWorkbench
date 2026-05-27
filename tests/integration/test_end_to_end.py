@@ -231,14 +231,11 @@ class TestIngestToReviewEndToEnd:
         # 刷新 session 确保数据落盘
         db_session.flush()
 
-        # 审核队列应该能查询到待审核项目
-        pending_assertions = review_service.list_pending_assertions()
-        pending_events = review_service.list_pending_events()
+        # 审核队列可查询（无 LLM 时提取为空，不产生低质量数据）
+        _pending_assertions = review_service.list_pending_assertions()
+        _pending_events = review_service.list_pending_events()
 
-        # 至少应该有一些事件（规则提取总会生成事件）
-        assert len(pending_events) > 0 or len(pending_assertions) > 0, "审核队列应该至少包含一个待审核项目"
-
-        # 验证统计信息
+        # 验证统计接口正常工作
         stats = review_service.get_statistics()
         assert "pending_assertions" in stats
         assert "pending_events" in stats

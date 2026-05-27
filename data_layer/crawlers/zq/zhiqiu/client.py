@@ -9,6 +9,10 @@ import requests
 from .anti_scrape import AntiScrapeConfig, AntiScrapeManager, get_manager
 from .utils import rsa_encrypt
 
+# HTTP 超时常量，防止 TCP 死连接导致无限阻塞
+DEFAULT_TIMEOUT = 30
+SEARCH_TIMEOUT = 60
+
 
 class ZhiQiuClient:
     """知丘客户端：登录、研报搜索、AI问答、PDF下载"""
@@ -61,7 +65,9 @@ class ZhiQiuClient:
         # 访问首页获取cookie
         self.anti_scrape.before_request(is_ai_request=False)
         headers = self.anti_scrape.get_headers({"user-agent": self.USER_AGENT})
-        self.session.get(f"{self.BASE_URL}/newreport/index.htm", headers=headers)
+        self.session.get(
+            f"{self.BASE_URL}/newreport/index.htm", headers=headers, timeout=DEFAULT_TIMEOUT
+        )
         self.anti_scrape.after_success()
 
         # 获取RSA公钥
@@ -73,7 +79,9 @@ class ZhiQiuClient:
                 "x-requested-with": "XMLHttpRequest",
             }
         )
-        pre_resp = self.session.post(f"{self.BASE_URL}/user/loginPre.json", headers=headers)
+        pre_resp = self.session.post(
+            f"{self.BASE_URL}/user/loginPre.json", headers=headers, timeout=DEFAULT_TIMEOUT
+        )
         if pre_resp.status_code != 200:
             self.logger.error(f"loginPre.json 请求失败，状态码: {pre_resp.status_code}")
             return False
@@ -112,6 +120,7 @@ class ZhiQiuClient:
             data=login_data,
             headers=headers,
             allow_redirects=True,
+            timeout=DEFAULT_TIMEOUT,
         )
 
         if "REPORT_SESSION_COOKIE" in self.session.cookies:
@@ -223,6 +232,7 @@ class ZhiQiuClient:
             f"{self.BASE_URL}/newsadapter/fulltextsearch/fulltext_report_news_search.json",
             headers=headers,
             data=payload,
+            timeout=SEARCH_TIMEOUT,
         )
 
         if response.status_code != 200:
@@ -450,6 +460,7 @@ class ZhiQiuClient:
             f"{self.BASE_URL}/newsadapter/fulltextsearch/fulltext_search.json",
             headers=headers,
             files=files,
+            timeout=SEARCH_TIMEOUT,
         )
 
         if response.status_code != 200:
@@ -631,7 +642,10 @@ class ZhiQiuClient:
 
         try:
             response = self.session.post(
-                f"{self.BASE_URL}/meeting/getMeetingDetail.json", headers=headers, files=files
+                f"{self.BASE_URL}/meeting/getMeetingDetail.json",
+                headers=headers,
+                files=files,
+                timeout=DEFAULT_TIMEOUT,
             )
 
             if response.status_code != 200:

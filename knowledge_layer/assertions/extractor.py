@@ -18,6 +18,8 @@ logger = get_logger(__name__)
 class AssertionExtractor:
     """断言提取器"""
 
+    FALLBACK_MODEL = "deepseek-v4-pro"
+
     def __init__(
         self,
         model_gateway: Optional[ModelGateway] = None,
@@ -25,6 +27,15 @@ class AssertionExtractor:
     ):
         self._model_gateway = model_gateway
         self._entity_resolver = entity_resolver or EntityResolver()
+
+    def _call_llm(self, messages, model=None):
+        """调用 LLM，可指定模型。"""
+        return self._model_gateway.chat(
+            messages=messages,
+            model=model,
+            temperature=0.1,
+            task="extraction" if model is None else None,
+        )
 
     def extract(
         self,
@@ -45,82 +56,55 @@ class AssertionExtractor:
         """
         logger.debug(f"Extracting assertions from text (length: {len(text)})")
 
-        # 1. 尝试使用 LLM 提取
         if self._model_gateway:
             assertions = self._extract_by_llm(text, source_doc_id)
             if assertions:
                 return assertions
+            logger.warning("LLM assertion extraction returned empty, returning empty list")
 
-        # 2. 回退到规则提取
-        assertions = self._extract_by_rules(text, source_doc_id)
-
-        return assertions
+        logger.warning("No LLM available for assertion extraction, returning empty list")
+        return []
 
     def _extract_by_llm(
         self,
         text: str,
         source_doc_id: str,
     ) -> List[Assertion]:
-        """使用 LLM 提取断言"""
+        """使用 LLM 提取断言，flash 失败则用 pro 重试。"""
         try:
-            # 构建提示
             system_prompt = AssertionPrompts.EXTRACT_SYSTEM_ZH
             user_prompt = AssertionPrompts.EXTRACT_USER_ZH.format(text=text)
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ]
 
-            # 调用模型
-            response = self._model_gateway.chat(
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=0.1,
-                task="extraction",
-            )
+            try:
+                response = self._call_llm(messages)
+                extracted_data = self._parse_llm_response(response.content)
+                if extracted_data:
+                    return self._build_assertions(extracted_data, source_doc_id)
+            except Exception:
+                logger.warning(
+                    "Primary extraction model failed, retrying with fallback model",
+                    fallback_model=self.FALLBACK_MODEL,
+                )
 
-            # 解析响应
+            response = self._call_llm(messages, model=self.FALLBACK_MODEL)
             extracted_data = self._parse_llm_response(response.content)
-
-            # 转换为 Assertion 对象
-            assertions = []
-            for data in extracted_data:
-                assertion = self._build_assertion(data, source_doc_id)
-                if assertion:
-                    assertions.append(assertion)
-
-            logger.debug(f"LLM extracted {len(assertions)} assertions")
-            return assertions
+            return self._build_assertions(extracted_data, source_doc_id)
 
         except Exception as e:
             logger.error(f"LLM extraction failed: {e}", exc_info=True)
             return []
 
-    def _extract_by_rules(
-        self,
-        text: str,
-        source_doc_id: str,
-    ) -> List[Assertion]:
-        """使用规则提取断言（简单实现）"""
-        assertions: List[Assertion] = []
-
-        # 提取实体作为主体
-        entities = self._entity_resolver.extract_candidates(text)
-
-        # 为每个实体创建一个断言（简单实现）
-        for entity in entities[:5]:  # 限制数量
-            assertion = Assertion(
-                assertion_id=str(uuid.uuid4()),
-                subject_entity_id=None,
-                predicate="mentioned",
-                object_value={"text": entity.text},
-                confidence=entity.confidence,
-                source_doc_id=source_doc_id,
-                source_span={"text": text[:100], "entity": entity.text},
-                extractor_version="rule_v1",
-                reviewer_status="draft",
-            )
-            assertions.append(assertion)
-
-        logger.debug(f"Rule-based extracted {len(assertions)} assertions")
+    def _build_assertions(self, extracted_data: List[Dict], source_doc_id: str) -> List[Assertion]:
+        assertions = []
+        for data in extracted_data:
+            assertion = self._build_assertion(data, source_doc_id)
+            if assertion:
+                assertions.append(assertion)
+        logger.debug(f"LLM extracted {len(assertions)} assertions")
         return assertions
 
     def _parse_llm_response(self, content: str) -> List[Dict]:

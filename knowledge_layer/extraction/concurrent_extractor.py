@@ -46,6 +46,8 @@ class ChunkExtractionResult:
 class ConcurrentLLMExtractor:
     """并发 LLM 抽取器 - 对多个 chunk 并发调用 LLM 提取断言和事件"""
 
+    CHUNK_TIMEOUT_SEC = 120  # 单个 chunk 提取最大等待时间
+
     def __init__(
         self,
         model_gateway: ModelGatewayLike,
@@ -92,7 +94,7 @@ class ConcurrentLLMExtractor:
             }
 
             for future in as_completed(futures):
-                result = future.result()
+                result = future.result(timeout=self.CHUNK_TIMEOUT_SEC)
                 results.append(result)
 
         results.sort(key=lambda x: x.chunk_index)

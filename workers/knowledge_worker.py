@@ -3,6 +3,7 @@
 import argparse
 import asyncio
 import json
+import logging
 import os
 import signal
 import sys
@@ -21,8 +22,9 @@ PROJECT_DIR = Path(__file__).resolve().parent.parent
 POLL_INTERVAL = float(os.environ.get("KNOWLEDGE_WORKER_POLL_INTERVAL", "1"))
 BATCH_SIZE = int(os.environ.get("KNOWLEDGE_WORKER_BATCH_SIZE", "50"))
 MAX_CONCURRENCY = int(os.environ.get("KNOWLEDGE_WORKER_MAX_CONCURRENCY", "16"))
-SHUTDOWN_TIMEOUT = int(os.environ.get("KNOWLEDGE_WORKER_SHUTDOWN_TIMEOUT", "30"))
+SHUTDOWN_TIMEOUT = int(os.environ.get("KNOWLEDGE_WORKER_SHUTDOWN_TIMEOUT", "60"))
 MAX_BACKOFF = float(os.environ.get("KNOWLEDGE_WORKER_MAX_BACKOFF", "60"))
+ITEM_PROCESSING_TIMEOUT = float(os.environ.get("KNOWLEDGE_WORKER_ITEM_TIMEOUT", "300"))
 WORKER_NAME = "knowledge_worker"
 
 
@@ -96,9 +98,9 @@ def _create_document_v1(item: Any) -> Any:
 
 
 async def process_one(item: Any, pipeline: Any) -> Dict[str, Any]:
-    """处理单个队列项：DocumentV1 -> KnowledgePipeline -> 发布事件"""
+    """处理单个队列项：DocumentV1 -> KnowledgePipeline -> 发布事件（带超时保护）"""
     doc = _create_document_v1(item)
-    result = await pipeline.process(doc)
+    result = await asyncio.wait_for(pipeline.process(doc), timeout=ITEM_PROCESSING_TIMEOUT)
 
     await event_bus.publish(
         "document_parsed",
@@ -229,6 +231,9 @@ async def main(worker_id: Optional[int] = None) -> None:
     consecutive_empty = 0
 
     def _force_exit() -> None:
+        # Flush all log handlers before forced exit
+        for handler in logging.getLogger().handlers:
+            handler.flush()
         logger.warning(f"[{worker_label}] Did not exit within {SHUTDOWN_TIMEOUT}s, forcing exit")
         os._exit(1)
 
@@ -248,8 +253,8 @@ async def main(worker_id: Optional[int] = None) -> None:
     logger.info(f"[{worker_label}] Started, consuming ingestion_queue")
 
     while not shutting_down:
-        db = SessionLocal()
         try:
+            db = SessionLocal()
             repo = IngestionQueueRepository(db)
             items = repo.dequeue(limit=BATCH_SIZE)
             db.commit()  # release row locks so processing tasks can update same rows
@@ -358,4 +363,12 @@ def _parse_args() -> argparse.Namespace:
 
 if __name__ == "__main__":
     args = _parse_args()
-    asyncio.run(main(worker_id=args.worker_id))
+    try:
+        asyncio.run(main(worker_id=args.worker_id))
+    except Exception:
+        logger.exception("Knowledge worker crashed with unhandled exception, restarting in 5s")
+        # Ensure log handlers flush before restarting
+        for handler in logging.getLogger().handlers:
+            handler.flush()
+        time.sleep(5)
+        sys.exit(1)

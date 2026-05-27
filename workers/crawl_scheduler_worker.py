@@ -3,6 +3,7 @@
 import asyncio
 import concurrent.futures
 import json
+import logging
 import os
 import signal
 import sys
@@ -19,7 +20,7 @@ PROJECT_DIR = Path(__file__).resolve().parent.parent
 PID_FILE = PROJECT_DIR / "logs" / "scheduler.pid"
 HEARTBEAT_FILE = PROJECT_DIR / "logs" / "scheduler.heartbeat.json"
 
-_SHUTDOWN_TIMEOUT = 10  # 优雅退出超时秒数
+_SHUTDOWN_TIMEOUT = 60  # 优雅退出超时秒数（需足够长以完成启动回补）
 
 
 def _write_pid() -> None:
@@ -64,6 +65,8 @@ async def _async_main() -> None:
     _heartbeat_task = asyncio.create_task(_periodic_heartbeat(stop_event))
 
     def _force_exit() -> None:
+        for handler in logging.getLogger().handlers:
+            handler.flush()
         logger.warning(f"Scheduler did not exit within {_SHUTDOWN_TIMEOUT}s, forcing exit")
         os._exit(1)
 
@@ -71,10 +74,7 @@ async def _async_main() -> None:
         logger.info("Received shutdown signal")
         event_bus.record_worker_heartbeat("crawl_scheduler", "stopping")
         _write_heartbeat("stopping")
-        scheduler.stop()
-        _remove_pid()
         stop_event.set()
-        # 确保进程在超时后强制退出
         threading.Timer(_SHUTDOWN_TIMEOUT, _force_exit).start()
 
     loop = asyncio.get_running_loop()
@@ -90,8 +90,11 @@ async def _async_main() -> None:
     sys.exit(0)
 
 
-def _run_backfill_in_thread(scheduler, source_type) -> None:
-    """在线程中运行单个来源的回补检查（每个线程拥有独立事件循环）"""
+def _run_backfill_in_thread(scheduler, source_type, backfill_timeout: int = 600) -> None:
+    """在线程中运行单个来源的回补检查（每个线程拥有独立事件循环）
+
+    带超时保护：单个来源超时不会阻塞其他来源的启动回补。
+    """
 
     async def _run() -> None:
         try:
@@ -105,7 +108,16 @@ def _run_backfill_in_thread(scheduler, source_type) -> None:
         except Exception:
             logger.exception(f"[startup] {source_type.value} startup backfill failed")
 
-    asyncio.run(_run())
+    async def _run_with_timeout() -> None:
+        try:
+            await asyncio.wait_for(_run(), timeout=backfill_timeout)
+        except asyncio.TimeoutError:
+            logger.error(
+                f"[startup] {source_type.value} startup backfill TIMEOUT after "
+                f"{backfill_timeout}s — source may be hanging, will retry on next schedule"
+            )
+
+    asyncio.run(_run_with_timeout())
 
 
 async def _startup_gap_backfill(scheduler) -> None:

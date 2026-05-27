@@ -40,9 +40,12 @@ class OpenAICompatibleProvider(BaseProvider):
         self._base_url = profile.base_url
         self._has_multimodal_embed = profile.base_url and "volces.com" in profile.base_url
         if OpenAI is not None:
+            import httpx
+
             self._client = OpenAI(
                 api_key=profile.api_key,
                 base_url=profile.base_url,
+                timeout=httpx.Timeout(120.0, connect=30.0),
             )
         else:
             self._client = None

@@ -12,7 +12,60 @@ echo "=========================================="
 echo "  AlphaFoundry - Starting All Services"
 echo "=========================================="
 
-# ── API Server ──────────────────────────────────
+# ── Helper: launch a worker with auto-restart ──────
+# Usage: start_with_watchdog <name> <pid_file> <log_file> <command...>
+# The watchdog monitors the PID and restarts the worker if it dies.
+# Fast crash detection: 3 crashes within 5 minutes → stop restarting and alert.
+start_with_watchdog() {
+    local name="$1"
+    local pid_file="$LOGS_DIR/$2"
+    local log_file="$LOGS_DIR/$3"
+    shift 3
+    local cmd=("$@")
+
+    (
+        local crash_count=0
+        local crash_window_start=0
+        local watchdog_pid_file="$pid_file.watchdog"
+        echo $BASHPID > "$watchdog_pid_file"
+
+        while true; do
+            # Start the worker
+            "${cmd[@]}" >> "$log_file" 2>&1 &
+            local worker_pid=$!
+            echo "$worker_pid" > "$pid_file"
+            echo "[$(date '+%H:%M:%S')] [$name] Started (PID $worker_pid)"
+
+            # Wait for it to exit
+            wait "$worker_pid" 2>/dev/null
+            local exit_code=$?
+
+            local now
+            now=$(date +%s)
+
+            # Fast crash detection
+            if [ "$crash_window_start" -eq 0 ] || [ $((now - crash_window_start)) -gt 300 ]; then
+                crash_window_start=$now
+                crash_count=1
+            else
+                crash_count=$((crash_count + 1))
+            fi
+
+            echo "[$(date '+%H:%M:%S')] [$name] Exited (code=$exit_code), crash #$crash_count in window"
+
+            if [ "$crash_count" -ge 3 ]; then
+                echo "[$(date '+%H:%M:%S')] [$name] CRITICAL: 3 crashes in 5min, stopping auto-restart!"
+                echo "[$(date '+%H:%M:%S')] [$name] CRITICAL: 3 crashes in 5min!" >> "$log_file"
+                rm -f "$pid_file" "$watchdog_pid_file"
+                exit 1
+            fi
+
+            sleep 3
+        done
+    ) &
+    disown
+}
+
 echo ""
 echo "[1/3] Starting API server..."
 if [ -f "$LOGS_DIR/api.pid" ] && kill -0 "$(cat "$LOGS_DIR/api.pid")" 2>/dev/null; then
@@ -24,26 +77,24 @@ else
     echo "  [OK] API server started (PID $(cat "$LOGS_DIR/api.pid"))"
 fi
 
-# ── Scheduler ────────────────────────────────────
-echo "[2/3] Starting crawl scheduler..."
+# ── Scheduler (with watchdog) ─────────────────────
+echo "[2/3] Starting crawl scheduler (with auto-restart)..."
 if [ -f "$LOGS_DIR/scheduler.pid" ] && kill -0 "$(cat "$LOGS_DIR/scheduler.pid")" 2>/dev/null; then
     echo "  [WARN] Scheduler already running (PID $(cat "$LOGS_DIR/scheduler.pid"))"
 else
-    nohup python -m workers.crawl_scheduler_worker \
-        > "$LOGS_DIR/scheduler.log" 2>&1 &
-    echo $! > "$LOGS_DIR/scheduler.pid"
-    echo "  [OK] Scheduler started (PID $(cat "$LOGS_DIR/scheduler.pid"))"
+    start_with_watchdog "scheduler" "scheduler.pid" "scheduler_stdout.log" \
+        python -m workers.crawl_scheduler_worker
+    echo "  [OK] Scheduler started with watchdog"
 fi
 
-# ── Knowledge Worker ─────────────────────────────
-echo "[3/3] Starting knowledge worker..."
+# ── Knowledge Worker (with watchdog) ──────────────
+echo "[3/3] Starting knowledge worker (with auto-restart)..."
 if [ -f "$LOGS_DIR/knowledge_worker.pid" ] && kill -0 "$(cat "$LOGS_DIR/knowledge_worker.pid")" 2>/dev/null; then
     echo "  [WARN] Knowledge worker already running (PID $(cat "$LOGS_DIR/knowledge_worker.pid"))"
 else
-    nohup python -m workers.knowledge_worker \
-        > "$LOGS_DIR/knowledge_worker.log" 2>&1 &
-    echo $! > "$LOGS_DIR/knowledge_worker.pid"
-    echo "  [OK] Knowledge worker started (PID $(cat "$LOGS_DIR/knowledge_worker.pid"))"
+    start_with_watchdog "knowledge" "knowledge_worker.pid" "knowledge_worker.log" \
+        python -m workers.knowledge_worker
+    echo "  [OK] Knowledge worker started with watchdog"
 fi
 
 # ── Health Check ─────────────────────────────────

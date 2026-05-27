@@ -73,6 +73,18 @@ class EventRepositoryImpl(BaseRepository, EventRepository):
 
     def save(self, entity: CanonicalEvent) -> CanonicalEvent:
         """保存事件"""
+        if not entity.source_doc_id:
+            logger.warning(
+                "Skipping event with empty source_doc_id — would violate FK constraint",
+                event_id=entity.event_id,
+                event_type=entity.event_type,
+                source_type=entity.source_type,
+            )
+            raise ValueError(
+                f"Event {entity.event_id} has empty source_doc_id, "
+                f"cannot save due to FK constraint on source_document"
+            )
+
         model = self.db.query(CanonicalEventModel).filter_by(event_id=entity.event_id).first()
         if model:
             model.event_type = entity.event_type

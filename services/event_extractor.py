@@ -1,13 +1,11 @@
 """事件提取器 - 从文本中提取结构化事件信号参数。
 
-优先使用 ModelGateway (LLM) 进行深度提取；
-若 LLM 不可用，回退到基于关键词的简单提取。
+仅使用 ModelGateway (LLM) 进行深度提取，LLM 不可用时返回空结果。
 """
 from __future__ import annotations
 
 import asyncio
 import json
-import re
 
 from pydantic import BaseModel, Field
 
@@ -33,135 +31,11 @@ class ExtractedSignalParams(BaseModel):
     market_regime: str | None = None
 
 
-# ── A 股公司代码模式 ──────────────────────────────────
-_A_SHARE_PATTERN = re.compile(r"\b(\d{6})\.(SH|SZ)\b", re.IGNORECASE)
-
-# ── 事件类型关键词字典 ────────────────────────────────
-_EVENT_TYPE_KEYWORDS: dict[str, list[str]] = {
-    "earnings": [
-        "业绩",
-        "营收",
-        "净利润",
-        "一季报",
-        "中报",
-        "三季报",
-        "年报",
-        "财报",
-        "盈利",
-        "亏损",
-        "扭亏",
-        "增收",
-    ],
-    "policy": [
-        "政策",
-        "法规",
-        "监管",
-        "批复",
-        "补贴",
-        "减税",
-        "新规",
-        "国务院",
-        "发改委",
-        "证监会",
-        "银保监",
-        "降准",
-        "降息",
-    ],
-    "product": [
-        "发布",
-        "上市",
-        "量产",
-        "获批",
-        "新品",
-        "投产",
-        "突破",
-        "技术突破",
-        "研发",
-    ],
-    "merger_acquisition": [
-        "收购",
-        "并购",
-        "重组",
-        "合并",
-        "分拆",
-        "借壳",
-    ],
-    "rating_change": [
-        "上调",
-        "下调",
-        "增持",
-        "减持",
-        "买入",
-        "卖出",
-        "评级",
-        "目标价",
-        "券商",
-    ],
-    "supply_chain": [
-        "供应",
-        "断供",
-        "缺货",
-        "涨价",
-        "降价",
-        "产能",
-        "库存",
-    ],
-    "macro": [
-        "GDP",
-        "CPI",
-        "PMI",
-        "利率",
-        "汇率",
-        "通胀",
-        "通缩",
-        "降息",
-        "加息",
-        "社融",
-    ],
-}
-
-# ── 行业关键词 ─────────────────────────────────────
-_INDUSTRY_KEYWORDS: dict[str, list[str]] = {
-    "semiconductor": ["芯片", "半导体", "光刻", "EDA", "晶圆", "封测"],
-    "new_energy": ["新能源", "光伏", "风电", "储能", "锂电", "充电桩"],
-    "ai": ["人工智能", "AI", "大模型", "算力", "GPU", "智能"],
-    "pharmaceutical": ["医药", "创新药", "仿制药", "CRO", "医疗器械"],
-    "consumer": ["消费", "白酒", "乳制品", "零售", "品牌"],
-    "finance": ["银行", "保险", "券商", "信托", "金融"],
-    "real_estate": ["房地产", "地产", "房价", "土地"],
-    "auto": ["汽车", "新能源车", "智能驾驶", "整车"],
-}
-
-# ── 影响方向关键词 ──────────────────────────────────
-_BULLISH_KEYWORDS = [
-    "利好",
-    "增长",
-    "上涨",
-    "突破",
-    "超预期",
-    "新高",
-    "获批",
-    "放量",
-    "强势",
-    "增持",
-    "上调",
-]
-_BEARISH_KEYWORDS = [
-    "利空",
-    "下跌",
-    "下滑",
-    "不及预期",
-    "亏损",
-    "暴雷",
-    "减持",
-    "下调",
-    "退市",
-    "违规",
-]
-
-
 class EventExtractor:
     """从文本中提取事件信号参数。"""
+
+    LLM_TIMEOUT_SEC = 120  # LLM 调用最大等待时间
+    FALLBACK_MODEL = "deepseek-v4-pro"
 
     def __init__(self, model_gateway: ModelGateway | None = None):
         self._gateway = model_gateway
@@ -171,15 +45,11 @@ class EventExtractor:
         )
 
     async def extract(self, text: str) -> ExtractedSignalParams:
-        """从文本中提取信号参数。
-
-        优先使用 LLM，失败则回退到关键词提取。
-        """
+        """从文本中提取信号参数。仅使用 LLM，LLM 不可用时返回空结果。"""
         if not text or not text.strip():
             logger.warning("Empty text provided to EventExtractor")
             return ExtractedSignalParams()
 
-        # 尝试 LLM 提取
         if self._gateway is not None:
             try:
                 result = await self._extract_via_llm(text)
@@ -191,22 +61,30 @@ class EventExtractor:
                     )
                     return result
             except Exception as exc:
-                logger.warning(
-                    "LLM extraction failed, falling back to keyword extraction",
+                logger.error(
+                    "LLM extraction failed after retry, returning empty result",
                     error=str(exc),
                 )
 
-        # 回退到关键词提取
-        result = self._extract_via_keywords(text)
-        logger.info(
-            "Keyword event extraction completed",
-            event_type=result.event_type,
-            subject_count=len(result.subject_ids),
+        logger.warning("No LLM available or extraction failed, returning empty result")
+        return ExtractedSignalParams()
+
+    async def _call_llm(self, messages, model=None):
+        """调用 LLM，可指定模型。"""
+        return await asyncio.wait_for(
+            asyncio.to_thread(
+                self._gateway.chat,
+                messages=messages,
+                model=model,
+                temperature=0.1,
+                max_tokens=4096,
+                task="extraction" if model is None else None,
+            ),
+            timeout=self.LLM_TIMEOUT_SEC,
         )
-        return result
 
     async def _extract_via_llm(self, text: str) -> ExtractedSignalParams | None:
-        """使用 LLM 提取事件信号参数。"""
+        """使用 LLM 提取事件信号参数，flash 失败则用 pro 重试。"""
         system_prompt = (
             "你是一个专业的 A 股事件分析引擎。请从以下文本中提取结构化的事件信号参数。\n"
             "你必须返回 JSON 格式，包含以下字段：\n"
@@ -234,16 +112,20 @@ class EventExtractor:
             {"role": "user", "content": text[:2000]},  # 截断过长文本
         ]
 
-        response = await asyncio.to_thread(
-            self._gateway.chat,
-            messages=messages,
-            temperature=0.1,
-            max_tokens=1024,
-            task="extraction",
-        )
+        try:
+            response = await self._call_llm(messages)
+            return self._parse_llm_response(response.content)
+        except Exception:
+            logger.warning(
+                "Primary extraction model failed, retrying with fallback model",
+                fallback_model=self.FALLBACK_MODEL,
+            )
+            response = await self._call_llm(messages, model=self.FALLBACK_MODEL)
+            return self._parse_llm_response(response.content)
 
-        content = response.content.strip()
-        # 清理 markdown 代码块标记
+    @staticmethod
+    def _parse_llm_response(content: str) -> ExtractedSignalParams:
+        content = content.strip()
         if content.startswith("```json"):
             content = content[7:]
         elif content.startswith("```"):
@@ -254,7 +136,6 @@ class EventExtractor:
 
         data = json.loads(content)
 
-        # 验证并构造 ExtractedSignalParams
         def _ensure_list(value):
             """Ensure value is a list; wrap single string in list, return [] for None."""
             if value is None:
@@ -277,76 +158,4 @@ class EventExtractor:
             diffusion_stage=data.get("diffusion_stage", "unknown"),
             industry_impacts=_ensure_list(data.get("industry_impacts")),
             market_regime=data.get("market_regime"),
-        )
-
-    def _extract_via_keywords(self, text: str) -> ExtractedSignalParams:
-        """基于关键词的简单提取（LLM 不可用时的 fallback）。"""
-        # 1. 提取 A 股代码
-        subject_ids = [m.group(0).upper() for m in _A_SHARE_PATTERN.finditer(text)]
-
-        # 2. 判断事件类型
-        event_type = "other"
-        max_hits = 0
-        for etype, keywords in _EVENT_TYPE_KEYWORDS.items():
-            hits = sum(1 for kw in keywords if kw in text)
-            if hits > max_hits:
-                max_hits = hits
-                event_type = etype
-
-        # 3. 判断影响行业
-        industry_impacts = []
-        for industry, keywords in _INDUSTRY_KEYWORDS.items():
-            if any(kw in text for kw in keywords):
-                industry_impacts.append(industry)
-
-        # 4. 判断多空方向
-        bullish_count = sum(1 for kw in _BULLISH_KEYWORDS if kw in text)
-        bearish_count = sum(1 for kw in _BEARISH_KEYWORDS if kw in text)
-
-        # 5. 计算分数
-        if bullish_count + bearish_count > 0:
-            raw_score = bullish_count / (bullish_count + bearish_count)
-            # 映射到 0.3-0.8 区间（保守估计）
-            score = 0.3 + raw_score * 0.5
-        else:
-            score = 0.5
-
-        # 6. 置信度基于信息丰富程度
-        confidence = 0.4
-        if subject_ids:
-            confidence += 0.1
-        if event_type != "other":
-            confidence += 0.1
-        if industry_impacts:
-            confidence += 0.1
-        confidence = min(0.8, confidence)
-
-        # 7. 生成简单论点
-        thesis = f"基于{event_type}类事件的文本分析"
-        if subject_ids:
-            thesis += f"，涉及主体：{'、'.join(subject_ids[:3])}"
-        if bullish_count > bearish_count:
-            thesis += "，整体偏利好"
-        elif bearish_count > bullish_count:
-            thesis += "，整体偏利空"
-
-        # 8. 构建影响路径
-        impact_path = []
-        if event_type != "other":
-            impact_path.append(f"事件类型: {event_type}")
-        if industry_impacts:
-            impact_path.append(f"影响行业: {', '.join(industry_impacts)}")
-
-        return ExtractedSignalParams(
-            event_type=event_type,
-            subject_ids=subject_ids,
-            thesis=thesis,
-            impact_path=impact_path,
-            bullish_companies=[],
-            bearish_companies=[],
-            score=score,
-            confidence=confidence,
-            diffusion_stage="unknown",
-            industry_impacts=industry_impacts,
-            market_regime=None,
         )

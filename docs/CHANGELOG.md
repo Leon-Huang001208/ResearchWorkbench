@@ -6,7 +6,34 @@
 
 ## [Unreleased]
 
+### Added
+- **LLM 提取 flash→pro 自动回退**: 所有提取器先用 deepseek-v4-flash，失败时自动用 deepseek-v4-pro 重试
+  - `services/event_extractor.py` — `_extract_via_llm()` 添加 flash→pro 两级调用
+  - `knowledge_layer/events/extractor.py` — `_extract_by_llm()` 添加 flash→pro 两级调用
+  - `knowledge_layer/assertions/extractor.py` — `_extract_by_llm()` 添加 flash→pro 两级调用
+- **ZQ 账号永久禁用机制**: 连续失败 N 次后自动永久禁用该账号，不再无限重试
+  - `data_layer/crawlers/zq/zhiqiu/account_manager.py` — `AccountStats` 新增 `consecutive_failures`、`is_disabled` 字段，`record_failure()` 达到阈值后自动禁用
+  - `data_layer/crawlers/zq/.config_account_state.json` — `max_consecutive_failures: 10`
+- **EventRepository 空 source_doc_id 校验守卫**: `save()` 方法拒绝空 source_doc_id，直接抛 `ValueError` 而非产生 FK 约束违反
+- **进程监管 watchdog**: `scripts/start_all.sh` 添加 worker 进程自动重启机制
+- **HTTP 请求超时**: `core/model_gateway/providers/openai_compatible.py` LLM 调用添加 120s 超时；`data_layer/crawlers/zq/zhiqiu/client.py` 所有 HTTP 请求添加 30s/60s 超时
+
 ### Changed
+- **移除关键词/规则提取 fallback**: 所有提取器 LLM 失败时返回空结果，不再产生低质量数据
+  - `services/event_extractor.py` — 移除 `_extract_via_keywords()` 及 5 个关键词字典（~150 行死代码）
+  - `knowledge_layer/events/extractor.py` — 移除 `_extract_by_rules()` 及 4 个辅助方法（~120 行死代码）
+  - `knowledge_layer/assertions/extractor.py` — 移除 `_extract_by_rules()`
+- **LLM 提取 max_tokens 提升**: `services/event_extractor.py` 从 1024 → 4096，避免 JSON 截断
+- **`.env` 模型配置**: `TASK_EXTRACTION_MODEL` 使用 `deepseek-v4-flash` 为主，pro 为 fallback
+
+### Fixed
+- **ZQ 爬虫无限挂起**: `majingyi` 账号 0/54 成功率仍被重复调度 → 已永久禁用
+- **DeepSeek JSON 截断**: max_tokens=1024 不足以完成事件提取 → 提升至 4096
+- **事件静默丢失**: `source_doc_id` 为空字符串导致 FK 约束违反而插入失败
+  - `services/crawl_orchestrator.py` — 修复 `str(None)` → `"None"` bug
+  - `ingestion/structured_event_ingestion.py` — `normalize_event()` 传递 `source_doc_id`
+- **Knowledge Worker 崩溃**: `SessionLocal()` 移入 try 块内；`asyncio.run(main())` 添加 try/except；关闭超时延长至 60s
+- **Scheduler 启动回补阻塞**: 单个来源挂起不再阻塞全部，添加超时保护
 - **类型统一**: 共享类型集中到 `core/contracts/`
   - 新建 `core/contracts/timing_types.py` — `TimingAction`, `OutcomeHorizon`, `FailureType`
   - 新建 `core/contracts/agent_types.py` — `AgentRole`, `AgentView`, `ViewDirection`, `BlackboardConflict`
@@ -23,7 +50,6 @@
   - `data_layer/converters/` → `ingestion/converters/`：PDF转换策略链属于内容处理
   - `cron_jobs/auto_generate_signals.py` → `app/cli/commands/auto_generate_signals.py`
 
-### Added
 - **knowledge-worker-concurrency**: Knowledge Worker item 级并发 + 完整生命周期管理
   - `workers/knowledge_worker.py` — 重写为 PID 管理 + 信号处理 + `asyncio.Semaphore` item 级并发（默认 8 并发）
   - 两层并发架构：item 级 (asyncio.Semaphore, 8) + chunk 级 (ThreadPoolExecutor, 8)

@@ -19,6 +19,8 @@ logger = get_logger(__name__)
 class EventExtractor:
     """事件提取器"""
 
+    FALLBACK_MODEL = "deepseek-v4-pro"
+
     def __init__(
         self,
         model_gateway: Optional[ModelGateway] = None,
@@ -29,69 +31,22 @@ class EventExtractor:
         self._entity_resolver = entity_resolver or EntityResolver()
         self._date_normalizer = date_normalizer or DateNormalizer()
 
-        # 事件类型关键词
-        self._event_keywords = {
-            EventType.EARNINGS: [
-                "财报",
-                "年报",
-                "季报",
-                "业绩",
-                "净利润",
-                "营收",
-                "盈利",
-                "earnings",
-                "revenue",
-                "profit",
-                "financial report",
-            ],
-            EventType.MERGER_ACQUISITION: [
-                "收购",
-                "并购",
-                "合并",
-                "重组",
-                "资产注入",
-                "acquire",
-                "merge",
-                "acquisition",
-                "merger",
-            ],
-            EventType.DIVIDEND: [
-                "分红",
-                "派息",
-                "股利",
-                "分红方案",
-                "dividend",
-                "payout",
-            ],
-            EventType.REGULATION: [
-                "政策",
-                "监管",
-                "新规",
-                "条例",
-                "法规",
-                "利好",
-                "利空",
-                "policy",
-                "regulation",
-                "new rule",
-            ],
-            EventType.PRODUCT_LAUNCH: [
-                "发布",
-                "推出",
-                "新品",
-                "新产品",
-                "launch",
-                "release",
-                "new product",
-            ],
-        }
-
         # 时间模式
         self._date_patterns = [
             re.compile(r"(\d{4})[年/-](\d{1,2})[月/-](\d{1,2})"),
             re.compile(r"(\d{2})[月/-](\d{1,2})"),
             re.compile(r"(\d{4})年(\d{1,2})月"),
         ]
+
+    def _call_llm(self, messages, model=None):
+        """调用 LLM，可指定模型。"""
+        return self._model_gateway.chat(
+            messages=messages,
+            model=model,
+            temperature=0.1,
+            max_tokens=1500,
+            task="extraction" if model is None else None,
+        )
 
     def extract(
         self,
@@ -112,52 +67,59 @@ class EventExtractor:
         """
         logger.debug(f"Extracting events from text (length: {len(text)})")
 
-        # 1. 尝试使用 LLM 提取
         if self._model_gateway:
             events = self._extract_by_llm(text, source_doc_id)
             if events:
                 return events
+            logger.warning("LLM event extraction returned empty, returning empty list")
 
-        # 2. 回退到规则提取
-        events = self._extract_by_rules(text, source_doc_id)
-
-        return events
+        logger.warning("No LLM available for event extraction, returning empty list")
+        return []
 
     def _extract_by_llm(
         self,
         text: str,
         source_doc_id: str,
     ) -> List[CanonicalEvent]:
-        """使用 LLM 提取事件"""
+        """使用 LLM 提取事件，flash 失败则用 pro 重试。"""
         try:
             from knowledge_layer.events.prompts import EventPrompts
 
             system_prompt = EventPrompts.EXTRACT_SYSTEM_ZH
             user_prompt = EventPrompts.EXTRACT_USER_ZH.format(text=text)
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ]
 
-            response = self._model_gateway.chat(
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=0.1,
-                max_tokens=1500,
-                task="extraction",
-            )
+            try:
+                response = self._call_llm(messages)
+                extracted_data = self._parse_llm_response(response.content)
+                if extracted_data:
+                    return self._build_events(extracted_data, source_doc_id)
+            except Exception:
+                logger.warning(
+                    "Primary extraction model failed, retrying with fallback model",
+                    fallback_model=self.FALLBACK_MODEL,
+                )
+                response = self._call_llm(messages, model=self.FALLBACK_MODEL)
+                extracted_data = self._parse_llm_response(response.content)
+                return self._build_events(extracted_data, source_doc_id)
 
-            extracted_data = self._parse_llm_response(response.content)
-            events = []
-            for data in extracted_data:
-                event = self._build_event(data, source_doc_id)
-                if event:
-                    events.append(event)
-
-            logger.debug(f"LLM extracted {len(events)} events")
-            return events
+            return []
 
         except Exception as e:
             logger.error(f"LLM event extraction failed: {e}", exc_info=True)
             return []
+
+    def _build_events(self, extracted_data: List[Dict], source_doc_id: str) -> List[CanonicalEvent]:
+        events = []
+        for data in extracted_data:
+            event = self._build_event(data, source_doc_id)
+            if event:
+                events.append(event)
+        logger.debug(f"LLM extracted {len(events)} events")
+        return events
 
     def _parse_llm_response(self, content: str) -> List[Dict]:
         """解析 LLM 响应"""
@@ -222,89 +184,6 @@ class EventExtractor:
         }
         return mapping.get(type_str, EventType.OTHER.value)
 
-    def _extract_by_rules(
-        self,
-        text: str,
-        source_doc_id: str,
-    ) -> List[CanonicalEvent]:
-        """使用规则提取事件"""
-        events: List[CanonicalEvent] = []
-
-        # 1. 检测事件类型
-        event_type_scores = self._score_event_types(text)
-
-        # 2. 提取时间
-        event_time = self._extract_event_time(text)
-
-        # 3. 提取实体
-        entities = self._entity_resolver.extract_candidates(text)
-        entity_dicts = [
-            {"text": e.text, "type": e.entity_type.value, "confidence": e.confidence}
-            for e in entities
-        ]
-
-        # 4. 创建事件（为每个检测到的类型创建一个）
-        for event_type, score in event_type_scores.items():
-            if score < 0.3:
-                continue
-
-            impact_direction = self._infer_impact_direction(text)
-
-            event = CanonicalEvent(
-                event_id=str(uuid.uuid4()),
-                event_type=event_type.value,
-                summary=self._generate_summary(text, event_type, entities),
-                event_time=event_time,
-                source_type="unknown",
-                source_name="unknown",
-                title="Untitled",
-                impact_direction=impact_direction,
-                confidence=score,
-                needs_review=True,
-                entities=entity_dicts,
-                assertions=[],
-                evidence_spans=[{"text": text[:200]}],
-                source_doc_id=source_doc_id,
-            )
-            events.append(event)
-
-        # 如果没有检测到特定类型，创建一个通用事件
-        if not events:
-            event = CanonicalEvent(
-                event_id=str(uuid.uuid4()),
-                event_type=EventType.OTHER.value,
-                summary=text[:100] if len(text) > 100 else text,
-                event_time=event_time,
-                source_type="unknown",
-                source_name="unknown",
-                title="Untitled",
-                impact_direction="unknown",
-                confidence=0.5,
-                needs_review=True,
-                entities=entity_dicts,
-                assertions=[],
-                evidence_spans=[{"text": text[:200]}],
-                source_doc_id=source_doc_id,
-            )
-            events.append(event)
-
-        logger.debug(f"Rule-based extracted {len(events)} events")
-        return events
-
-    def _score_event_types(self, text: str) -> Dict[EventType, float]:
-        """为每个事件类型打分"""
-        scores: Dict[EventType, float] = {}
-        text_lower = text.lower()
-
-        for event_type, keywords in self._event_keywords.items():
-            score = 0.0
-            for keyword in keywords:
-                if keyword.lower() in text_lower:
-                    score += 0.2
-            scores[event_type] = min(score, 1.0)
-
-        return scores
-
     def _extract_event_time(self, text: str) -> Optional[datetime]:
         """从文本中提取时间"""
         # 先尝试从元数据或已知位置提取
@@ -325,40 +204,3 @@ class EventExtractor:
                     continue
 
         return None
-
-    def _infer_impact_direction(self, text: str) -> str:
-        """推断影响方向"""
-        positive_words = ["增长", "上涨", "利好", "超预期", "盈利", "增加", "提升"]
-        negative_words = ["下降", "下跌", "利空", "低于预期", "亏损", "减少", "下滑"]
-
-        text.lower()
-        positive_count = sum(1 for w in positive_words if w in text)
-        negative_count = sum(1 for w in negative_words if w in text)
-
-        if positive_count > negative_count:
-            return "positive"
-        elif negative_count > positive_count:
-            return "negative"
-        elif positive_count > 0 and negative_count > 0:
-            return "mixed"
-        else:
-            return "unknown"
-
-    def _generate_summary(
-        self,
-        text: str,
-        event_type: EventType,
-        entities: List,
-    ) -> str:
-        """生成事件摘要"""
-        # 简单实现：取前100字符
-        if len(text) <= 100:
-            return text
-
-        # 尝试找到包含实体的句子
-        entity_texts = [e.text for e in entities[:3]]
-        for sentence in text.split("。")[:3]:
-            if any(et in sentence for et in entity_texts):
-                return sentence[:100]
-
-        return text[:100]

@@ -44,10 +44,12 @@ class AccountStats:
     use_count: int = 0
     success_count: int = 0
     failure_count: int = 0
+    consecutive_failures: int = 0
     last_used: Optional[str] = None  # ISO format string
     last_failure: Optional[str] = None  # ISO format string
     is_locked: bool = False
     lock_until: Optional[str] = None  # ISO format string
+    is_disabled: bool = False  # 永久禁用（连续失败过多）
     leased_by: Optional[str] = None  # 租借者标识（模块名或进程ID）
     leased_at: Optional[str] = None  # 租借时间
 
@@ -61,6 +63,7 @@ class RotationConfig:
     retry_delay: int = 5
     rotation_strategy: str = "round_robin"  # round_robin|random|least_used
     lease_timeout: int = 300  # 账号租借超时时间（秒）
+    max_consecutive_failures: int = 10  # 连续失败 N 次后永久禁用账号
 
 
 @dataclass
@@ -203,6 +206,7 @@ class AccountManager:
             retry_delay=cfg.get("retry_delay", 5),
             rotation_strategy=cfg.get("rotation_strategy", "round_robin"),
             lease_timeout=cfg.get("lease_timeout", 300),
+            max_consecutive_failures=cfg.get("max_consecutive_failures", 10),
         )
 
     def _init_state(self):
@@ -275,6 +279,10 @@ class AccountManager:
     def _is_account_available(self, account: AccountStats) -> bool:
         """检查账号是否可用"""
         now = datetime.now()
+
+        # 检查永久禁用
+        if account.is_disabled:
+            return False
 
         # 检查临时锁定
         if account.is_locked and account.lock_until:
@@ -399,20 +407,31 @@ class AccountManager:
             state = self._load_state()
 
             if account_name in state.accounts:
-                state.accounts[account_name].success_count += 1
+                account = state.accounts[account_name]
+                account.success_count += 1
+                account.consecutive_failures = 0
                 self._save_state(state)
 
     def record_failure(self, account_name: str, lock_seconds: int = 300):
-        """记录失败（可选择临时锁定）"""
+        """记录失败（临时锁定，连续失败过多则永久禁用）"""
         with FileLock(self.lock_path):
             state = self._load_state()
 
             if account_name in state.accounts:
                 account = state.accounts[account_name]
                 account.failure_count += 1
+                account.consecutive_failures += 1
                 account.last_failure = datetime.now().isoformat()
 
-                if lock_seconds > 0:
+                # 连续失败超过阈值 → 永久禁用
+                if account.consecutive_failures >= self.rotation_config.max_consecutive_failures:
+                    account.is_disabled = True
+                    account.is_locked = False
+                    account.lock_until = None
+                    account.leased_by = None
+                    account.leased_at = None
+                    logger.error(f"账号 {account_name} 连续失败 {account.consecutive_failures} 次，已永久禁用")
+                elif lock_seconds > 0:
                     account.is_locked = True
                     lock_until = datetime.now() + timedelta(seconds=lock_seconds)
                     account.lock_until = lock_until.isoformat()

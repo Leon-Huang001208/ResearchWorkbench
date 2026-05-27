@@ -323,8 +323,8 @@ class CrawlOrchestrator:
 
         metadata = dict(envelope.metadata or {})
         source_doc_id = (
-            str(metadata.get("telegram_id", ""))
-            or str(metadata.get("obj_id", ""))
+            (str(v) if (v := metadata.get("telegram_id")) else "")
+            or (str(v) if (v := metadata.get("obj_id")) else "")
             or envelope.doc_id
         )
 

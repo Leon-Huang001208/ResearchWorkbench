@@ -185,6 +185,7 @@ class StructuredEventIngestor:
             impacted_symbols=impacted_symbols,
             confidence=confidence,
             novelty_score=novelty_score,
+            source_doc_id=raw_event.get("source_doc_id", raw_event.get("doc_id", "")),
         )
 
         logger.debug(

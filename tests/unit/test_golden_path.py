@@ -176,9 +176,10 @@ class TestGoldenPath:
             assert len(episodes) >= 1
 
     @pytest.mark.asyncio
-    async def test_golden_path_keyword_fallback(self, sample_event, signal_service, timing_repo):
-        """测试关键词 fallback 路径（无 LLM）。"""
-        # 不传 model_gateway，EventExtractor 会 fallback 到关键词提取
+    async def test_golden_path_no_llm_returns_empty(
+        self, sample_event, signal_service, timing_repo
+    ):
+        """无 LLM 时 EventExtractor 返回空结果。"""
         event_extractor = EventExtractor(model_gateway=None)
 
         pipeline = ResearchPipeline(
@@ -189,16 +190,11 @@ class TestGoldenPath:
 
         signal = await pipeline.run_event_signal(sample_event)
 
-        # 验证返回了非 placeholder 信号
+        # 无 LLM 时应返回空结果，而非低质量的关键词猜测
         assert isinstance(signal, EventAlphaSignal)
         assert signal.signal_id is not None
         assert signal.event_id == sample_event.event_id
-        # 关键词提取也能识别 policy 类型（因为摘要包含"降准"）
-        assert signal.event_type in ("policy", "macro")
-        assert signal.confidence > 0.0
-        # 信号被持久化
-        persisted = signal_service.list_signals(subject_id=signal.subject_id)
-        assert len(persisted) >= 1
+        assert signal.event_type == "unknown"
 
     @pytest.mark.asyncio
     async def test_golden_path_no_persistence_services(self, sample_event):
@@ -241,31 +237,14 @@ class TestEventExtractor:
     """测试 EventExtractor 的提取逻辑。"""
 
     @pytest.mark.asyncio
-    async def test_keyword_extraction_a_share_codes(self):
-        """关键词提取能识别 A 股代码。"""
+    async def test_no_llm_returns_default(self):
+        """无 LLM 时返回默认空结果。"""
         extractor = EventExtractor(model_gateway=None)
         result = await extractor.extract("600000.SH 发布一季报，净利润同比增长30%")
 
-        assert "600000.SH" in result.subject_ids
-        assert result.event_type == "earnings"
-
-    @pytest.mark.asyncio
-    async def test_keyword_extraction_policy(self):
-        """关键词提取能识别政策事件。"""
-        extractor = EventExtractor(model_gateway=None)
-        result = await extractor.extract("国务院发布新能源补贴新规，利好光伏行业")
-
-        assert result.event_type == "policy"
-        assert "new_energy" in result.industry_impacts
-        assert result.score > 0.5  # 利好 -> 偏高
-
-    @pytest.mark.asyncio
-    async def test_keyword_extraction_bearish(self):
-        """关键词提取能识别利空。"""
-        extractor = EventExtractor(model_gateway=None)
-        result = await extractor.extract("某公司暴雷，净利润大幅下滑，减持")
-
-        assert result.score < 0.5  # 利空 -> 偏低
+        assert result.event_type == "unknown"
+        assert result.subject_ids == []
+        assert result.confidence == 0.5
 
     @pytest.mark.asyncio
     async def test_keyword_extraction_empty_text(self):
@@ -289,18 +268,16 @@ class TestEventExtractor:
         assert result.confidence == 0.8
 
     @pytest.mark.asyncio
-    async def test_llm_fallback_on_error(self):
-        """LLM 失败时自动 fallback 到关键词提取。"""
-        # 创建一个会抛异常的 mock gateway
+    async def test_llm_failure_returns_empty(self):
+        """LLM 失败时返回空结果，不回退到低质量关键词提取。"""
         failing_gateway = Mock(spec=ModelGateway)
         failing_gateway.chat = Mock(side_effect=RuntimeError("API unavailable"))
 
         extractor = EventExtractor(model_gateway=failing_gateway)
         result = await extractor.extract("600000.SH 营收增长，利好")
 
-        # 应该 fallback 到关键词提取
-        assert result.event_type == "earnings"
-        assert "600000.SH" in result.subject_ids
+        assert result.event_type == "unknown"
+        assert result.subject_ids == []
 
 
 class TestPipelineAPIResponse:
