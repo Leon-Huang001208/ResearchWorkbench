@@ -14,7 +14,11 @@ logger = get_logger(__name__)
 _SOURCE_TYPE_TO_EVENT_TYPE = {
     "cls": "regulation",
     "cnstock": "regulation",
+    "cnstock_flash": "regulation",
     "zq": "earnings",
+    "zhiqiu_reports": "earnings",
+    "zhiqiu_wechat": "industry",
+    "zhiqiu_transcript": "earnings",
     "report": "earnings",
     "manual": "other",
 }

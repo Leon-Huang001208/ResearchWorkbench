@@ -6,7 +6,14 @@ one provider per profile (OpenAI-compatible or Anthropic). Task-to-provider+mode
 routing is configured via TASK_ROUTES in settings, allowing different tasks
 (extraction, classification, code, reasoning, embedding) to use different
 providers and models.
+
+LLM 响应缓存：基于 (model, messages_hash, temperature) 的 TTL 缓存，
+默认 5 分钟有效期，减少重复 prompt 的 API 调用开销。
 """
+import hashlib
+import json
+import threading
+import time
 from typing import Any
 
 from pydantic import BaseModel
@@ -25,6 +32,9 @@ from core.settings import settings
 
 logger = get_logger(__name__)
 
+# 缓存默认 TTL（秒）
+_CACHE_TTL = 300  # 5 分钟
+
 
 class ModelGatewayImpl(ModelGatewayInterface):
     """多 provider 模型网关，支持按任务路由到不同平台/模型."""
@@ -33,6 +43,8 @@ class ModelGatewayImpl(ModelGatewayInterface):
         self._providers: dict[str, BaseProvider] = {}
         self._task_routes: dict[str, Any] = {}
         self._default_provider: BaseProvider | None = None
+        self._cache: dict[str, tuple[float, Any]] = {}  # key → (expire_at, response)
+        self._cache_lock = threading.Lock()
         self._init_providers()
 
     def _init_providers(self) -> None:
@@ -74,6 +86,36 @@ class ModelGatewayImpl(ModelGatewayInterface):
         """替换默认 provider（用于测试注入）."""
         self._default_provider = provider
         self._providers["_injected"] = provider
+
+    # ── LLM Response Cache ──────────────────────────────────────
+
+    @staticmethod
+    def _cache_key(
+        messages: list[dict[str, str]],
+        model: str | None,
+        temperature: float,
+    ) -> str:
+        """生成确定性缓存键：model + messages_hash + temperature。"""
+        payload = json.dumps({"m": messages, "t": temperature}, sort_keys=True, ensure_ascii=False)
+        digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()[:32]
+        return f"{model or 'default'}:{digest}"
+
+    def _cache_get(self, key: str) -> Any | None:
+        """从缓存读取未过期的值。"""
+        with self._cache_lock:
+            entry = self._cache.get(key)
+            if entry is None:
+                return None
+            expire_at, value = entry
+            if time.monotonic() > expire_at:
+                del self._cache[key]
+                return None
+            return value
+
+    def _cache_set(self, key: str, value: Any, ttl: int = _CACHE_TTL) -> None:
+        """写入缓存。"""
+        with self._cache_lock:
+            self._cache[key] = (time.monotonic() + ttl, value)
 
     def _resolve(self, task: str | None, model: str | None) -> tuple[BaseProvider, str]:
         """Resolve (provider, model) for a given task.
@@ -124,6 +166,13 @@ class ModelGatewayImpl(ModelGatewayInterface):
         """
         provider, resolved_model = self._resolve(task, model)
 
+        # Check TTL cache
+        cache_key = self._cache_key(messages, resolved_model or None, temperature)
+        cached = self._cache_get(cache_key)
+        if cached is not None:
+            logger.debug("chat cache hit", cache_key=cache_key[:40])
+            return cached
+
         logger.debug(
             "chat request",
             message_count=len(messages),
@@ -133,13 +182,15 @@ class ModelGatewayImpl(ModelGatewayInterface):
             temperature=temperature,
         )
 
-        return provider.chat(
+        response = provider.chat(
             messages=messages,
             model=resolved_model or None,
             temperature=temperature,
             max_tokens=max_tokens,
             **kwargs,
         )
+        self._cache_set(cache_key, response)
+        return response
 
     def structured_output(
         self,
@@ -165,6 +216,17 @@ class ModelGatewayImpl(ModelGatewayInterface):
         """
         provider, resolved_model = self._resolve(task, model)
 
+        # Check TTL cache (include schema name in key for structured output)
+        cache_key = self._cache_key(
+            [{"schema": output_schema.__name__}] + messages,
+            resolved_model or None,
+            temperature,
+        )
+        cached = self._cache_get(cache_key)
+        if cached is not None:
+            logger.debug("structured output cache hit", cache_key=cache_key[:40])
+            return cached
+
         logger.debug(
             "structured output request",
             message_count=len(messages),
@@ -174,13 +236,15 @@ class ModelGatewayImpl(ModelGatewayInterface):
             provider=getattr(provider, "_provider_name", "unknown"),
         )
 
-        return provider.structured_output(
+        response = provider.structured_output(
             messages=messages,
             output_schema=output_schema,
             model=resolved_model or None,
             temperature=temperature,
             **kwargs,
         )
+        self._cache_set(cache_key, response)
+        return response
 
     def embed(
         self,

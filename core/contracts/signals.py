@@ -48,6 +48,7 @@ class AlphaSignal(BaseModel):
         default="research_only",
         description="Status of the signal (research_only, candidate, paper_trade)",
     )
+    metadata: dict = Field(default_factory=dict, description="Extensible metadata (trace_id, etc.)")
 
 
 class EventAlphaSignal(AlphaSignal):

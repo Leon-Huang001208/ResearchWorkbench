@@ -7,6 +7,8 @@ from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
+from core.contracts.scenarios import ScenarioHypothesis
+
 
 class RequestType(str, Enum):
     """请求类型"""
@@ -15,21 +17,6 @@ class RequestType(str, Enum):
     THESIS_RESEARCH = "thesis_research"  # 专题研究
     MARKET_REPORT = "market_report"  # 市场报告
     SIGNAL_VALIDATION = "signal_validation"  # 信号验证
-
-
-class ScenarioHypothesis(BaseModel):
-    """情景假设"""
-
-    scenario_id: str
-    title: str
-    horizon: str = "mid"  # short/mid/long
-    probability: float = Field(ge=0.0, le=1.0)
-    assumptions: List[str] = Field(default_factory=list)
-    key_triggers: List[str] = Field(default_factory=list)
-    invalidation_signals: List[str] = Field(default_factory=list)
-    impact_map: Dict = Field(default_factory=dict)
-    evidence_assertion_ids: List[str] = Field(default_factory=list)
-    confidence: float = 0.7
 
 
 class ReasoningState(BaseModel):
@@ -63,6 +50,10 @@ class ReasoningState(BaseModel):
     prompt_version: str = "v1"
     total_latency_ms: int = 0
     total_tokens: int = 0
+
+    # 产业链传播
+    propagation_path: Optional[Dict] = None
+    canonical_event_summary: Optional[str] = None
 
     # 元数据
     metadata: Dict = Field(default_factory=dict)

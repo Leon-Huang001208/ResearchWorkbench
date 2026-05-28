@@ -43,6 +43,28 @@ async function loadCrawlFeedForSource(sourceType, initial) {
             countEl.textContent = data.total_today + ' 条';
         }
 
+        // 更新最后获取时间
+        const lastFetchEl = document.getElementById('feed-last-fetch-' + sourceType);
+        if (lastFetchEl && data.last_crawled_at) {
+            const d = new Date(data.last_crawled_at);
+            const now = new Date();
+            const diffMs = now - d;
+            const diffMin = Math.floor(diffMs / 60000);
+            const diffHour = Math.floor(diffMs / 3600000);
+            const diffDay = Math.floor(diffMs / 86400000);
+            if (diffMin < 1) {
+                lastFetchEl.textContent = '刚刚抓取';
+            } else if (diffMin < 60) {
+                lastFetchEl.textContent = diffMin + ' 分钟前';
+            } else if (diffHour < 24 && d.toDateString() === now.toDateString()) {
+                lastFetchEl.textContent = '今天 ' + d.toLocaleTimeString();
+            } else if (diffDay < 2) {
+                lastFetchEl.textContent = diffHour + ' 小时前';
+            } else {
+                lastFetchEl.textContent = diffDay + ' 天前';
+            }
+        }
+
         let newCount = 0;
 
         for (const item of [...data.items].reverse()) {
@@ -211,6 +233,44 @@ function renderWorkersPanel(data) {
             '<span class="queue-stat"><span class="queue-stat-label">处理中</span><span class="queue-stat-value queue-processing">' + (qs.processing || 0) + '</span></span>' +
             '<span class="queue-stat"><span class="queue-stat-label">已完成</span><span class="queue-stat-value queue-completed">' + (qs.completed || 0) + '</span></span>' +
             '<span class="queue-stat"><span class="queue-stat-label">失败</span><span class="queue-stat-value queue-failed">' + (qs.failed || 0) + '</span></span>';
+    }
+
+    // Processing stats (今日/近7天/近30天/总计 + 趋势对比)
+    var procEl = document.getElementById('workers-processing-stats');
+    if (procEl && data.processing_stats) {
+        var ps = data.processing_stats;
+
+        // 今日 vs 昨日同期环比
+        var trendHtml = '';
+        if (ps.yesterday_same_time > 0) {
+            var delta = ps.today - ps.yesterday_same_time;
+            var pct = Math.round((delta / ps.yesterday_same_time) * 100);
+            if (pct > 0) {
+                trendHtml = '<span class="trend-badge trend-up">+' + pct + '%</span>';
+            } else if (pct < 0) {
+                trendHtml = '<span class="trend-badge trend-down">' + pct + '%</span>';
+            } else {
+                trendHtml = '<span class="trend-badge trend-flat">→</span>';
+            }
+        }
+
+        procEl.innerHTML =
+            '<span class="queue-stat">' +
+                '<span class="queue-stat-label">今日' + trendHtml + '</span>' +
+                '<span class="queue-stat-value">' + (ps.today || 0) + '</span>' +
+            '</span>' +
+            '<span class="queue-stat">' +
+                '<span class="queue-stat-label">近7天 <span class="proc-avg">日均' + (ps.daily_avg_7d || 0).toFixed(0) + '</span></span>' +
+                '<span class="queue-stat-value">' + (ps.last_7_days || 0) + '</span>' +
+            '</span>' +
+            '<span class="queue-stat">' +
+                '<span class="queue-stat-label">近30天</span>' +
+                '<span class="queue-stat-value">' + (ps.last_30_days || 0) + '</span>' +
+            '</span>' +
+            '<span class="queue-stat">' +
+                '<span class="queue-stat-label">总计</span>' +
+                '<span class="queue-stat-value queue-completed">' + (ps.total || 0) + '</span>' +
+            '</span>';
     }
 }
 

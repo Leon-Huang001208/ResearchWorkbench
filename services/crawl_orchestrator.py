@@ -12,6 +12,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from sqlalchemy import text
+
 # 触发数据源自动注册
 import data_sources  # noqa: F401
 from core.contracts import CrawlRunV1, DocumentEnvelope, DocumentV1, SourceCursorV1, SourceType
@@ -114,7 +116,10 @@ class CrawlOrchestrator:
 
             logger.info(f"Crawling {source_type.value} from {start_time} to {end_time}")
 
-            # 4. 执行抓取（委托给适配器）
+            # 4. 同步爬虫级去重文件 — 修剪已被数据库删除的孤儿条目
+            self._sync_dedup_state(source_type)
+
+            # 5. 执行抓取（委托给适配器）
             docs, raw_files = self._fetch_from_adapter(
                 source_type,
                 start_time,
@@ -126,13 +131,13 @@ class CrawlOrchestrator:
 
             result.raw_file_paths = [f.file_path for f in raw_files]
 
-            # 5. 去重检查
+            # 6. 去重检查
             if skip_existing:
                 docs, duplicates = self._deduplicate_docs(source_type, docs)
                 result.skipped_count = len(duplicates)
                 result.duplicate_doc_ids = [d.doc_id for d in duplicates]
 
-            # 6. 保存文档
+            # 7. 保存文档
             for doc in docs:
                 try:
                     saved_doc = self.doc_repo.create(doc)
@@ -144,7 +149,7 @@ class CrawlOrchestrator:
                     logger.error(f"Failed to save doc {doc.doc_id}: {e}")
                     result.failure_count += 1
 
-            # 7. 更新游标（仅在有实际数据入库时更新，防止 0 结果回填补丁污染游标）
+            # 8. 更新游标（仅在有实际数据入库时更新，防止 0 结果回填补丁污染游标）
             if result.success_count > 0:
                 last_doc = docs[-1] if docs else None
                 last_source_doc_id = None
@@ -154,7 +159,7 @@ class CrawlOrchestrator:
                     ) or last_doc.source_metadata.get("original_id")
                 self.cursor_repo.record_success(cursor.cursor_id, last_source_doc_id)
 
-            # 8. 更新抓取记录
+            # 9. 更新抓取记录
             result.completed_at = datetime.utcnow()
             crawl_run.status = "completed"
             crawl_run.completed_at = result.completed_at
@@ -347,42 +352,50 @@ class CrawlOrchestrator:
         )
 
     @staticmethod
+    def _enqueue_items(source_type_str: str, items: List[Dict[str, Any]]) -> None:
+        """将 item dict 列表通过 CrawlerIngestionBridge 送入摄取队列
+
+        每个 item dict 需包含: id, title, content, 可选 url, published_at, source_name
+        """
+        from data_layer.repositories.base import SessionLocal
+        from data_layer.repositories.ingestion_repository import IngestionQueueRepository
+        from services.crawler_ingestion_bridge import CrawlerIngestionBridge
+        from services.ingestion_queue_service import IngestionQueueService
+
+        db = SessionLocal()
+        try:
+            repo = IngestionQueueRepository(db)
+            queue_service = IngestionQueueService(repository=repo)
+            bridge = CrawlerIngestionBridge(queue_service=queue_service)
+            for item in items:
+                bridge.submit_crawled_item(source_type_str, item)
+            db.commit()
+            logger.info(f"Enqueued {len(items)} items from {source_type_str}")
+        except Exception as e:
+            logger.error(f"Failed to enqueue items to bridge: {e}", exc_info=True)
+        finally:
+            db.close()
+
+    @staticmethod
     def _enqueue_to_bridge(
         source_type: SourceType,
         envelopes: List[DocumentEnvelope],
     ) -> None:
-        """将抓取到的文档通过 CrawlerIngestionBridge 送入摄取队列"""
-        try:
-            from data_layer.repositories.base import SessionLocal
-            from data_layer.repositories.ingestion_repository import IngestionQueueRepository
-            from services.crawler_ingestion_bridge import CrawlerIngestionBridge
-            from services.ingestion_queue_service import IngestionQueueService
-
-            db = SessionLocal()
-            try:
-                repo = IngestionQueueRepository(db)
-                queue_service = IngestionQueueService(repository=repo)
-                bridge = CrawlerIngestionBridge(queue_service=queue_service)
-
-                source_type_str = (
-                    source_type.value if hasattr(source_type, "value") else str(source_type)
-                )
-                for env in envelopes:
-                    item = {
-                        "id": env.doc_id,
-                        "title": env.title,
-                        "content": env.canonical_text or env.raw_text,
-                        "url": env.metadata.get("url") if env.metadata else None,
-                        "published_at": env.published_at,
-                        "source_name": env.source_name,
-                    }
-                    bridge.submit_crawled_item(source_type_str, item)
-                db.commit()
-                logger.info(f"Enqueued {len(envelopes)} items from {source_type_str}")
-            finally:
-                db.close()
-        except Exception as e:
-            logger.error(f"Failed to enqueue to bridge: {e}", exc_info=True)
+        """将抓取到的 DocumentEnvelope 列表送入摄取队列"""
+        source_type_str = source_type.value if hasattr(source_type, "value") else str(source_type)
+        items: List[Dict[str, Any]] = []
+        for env in envelopes:
+            items.append(
+                {
+                    "id": env.doc_id,
+                    "title": env.title,
+                    "content": env.canonical_text or env.raw_text,
+                    "url": env.metadata.get("url") if env.metadata else None,
+                    "published_at": env.published_at,
+                    "source_name": env.source_name,
+                }
+            )
+        CrawlOrchestrator._enqueue_items(source_type_str, items)
 
     def _deduplicate_docs(
         self,
@@ -432,6 +445,52 @@ class CrawlOrchestrator:
 
         return kept, duplicates
 
+    def _sync_dedup_state(self, source_type: SourceType) -> None:
+        """同步爬虫级去重文件与数据库状态
+
+        爬虫使用的文件级去重（如 CLS DeduplicationStore）独立于数据库。
+        如果文档被从数据库删除但去重文件仍保留条目，则重新爬取时这些项会被永久跳过。
+        此方法在每次抓取前将去重文件修剪为仅包含数据库中确实存在的文档 ID。
+
+        Args:
+            source_type: 来源类型
+        """
+        from core.source_registry import get as get_spec
+        from data_layer.crawlers.cls.utils.deduplication import DeduplicationStore
+
+        spec = get_spec(source_type)
+        if spec is None:
+            return
+
+        state_path = (spec.adapter_kwargs or {}).get("state_path")
+        if not state_path:
+            return
+
+        state_file = Path(state_path)
+        if not state_file.exists():
+            return
+
+        try:
+            src = source_type.value if hasattr(source_type, "value") else str(source_type)
+            rows = self.db.execute(
+                text(
+                    "SELECT source_metadata->>'source_doc_id' FROM document_v1 WHERE source_type = :st"
+                ),
+                {"st": src},
+            ).fetchall()
+            valid_ids = {r[0] for r in rows if r[0]}
+
+            store = DeduplicationStore(state_path)
+            before = store.get_count()
+            removed = store.remove_stale(valid_ids)
+            if removed > 0:
+                logger.info(
+                    f"Dedup state synced for {src}: removed {removed} orphan entries "
+                    f"({before} → {store.get_count()})"
+                )
+        except Exception as e:
+            logger.error(f"Failed to sync dedup state for {source_type}: {e}", exc_info=True)
+
     def deep_backfill_step(
         self,
         batch_size: int = 10,
@@ -441,9 +500,9 @@ class CrawlOrchestrator:
 
         与常规 crawl_source() 的区别：
         - 不通过适配器的 fetch()，而是用 fetch_deep_backfill_batch()
-        - 不送入 IngestionBridge（避免淹没摄取队列）
         - 使用独立 DB 会话
         - 非常低频运行（每 30 分钟一批）
+        - 文档保存后送入 IngestionBridge，由 KnowledgePipeline 做 LLM 提取
         """
         from data_layer.adapters.cls_adapter import CLSAdapter
         from data_layer.repositories.base import SessionLocal
@@ -488,6 +547,11 @@ class CrawlOrchestrator:
                     result.failure_count += 1
 
             db.commit()
+
+            # 送入摄取队列，由 KnowledgePipeline 做 LLM 提取
+            if envelopes:
+                self._enqueue_to_bridge(SourceType.CLS, envelopes)
+
             result.completed_at = datetime.utcnow()
 
             logger.info(

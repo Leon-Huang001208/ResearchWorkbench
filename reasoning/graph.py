@@ -2,8 +2,10 @@
 推理引擎 - LangGraph 状态图
 """
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
+from core.contracts import AssetAnalysisSnapshot, ReasoningTrace, ScenarioSet
+from core.interfaces.reasoning_engine import ReasoningEngine as ReasoningEngineABC
 from core.observability import get_logger
 from reasoning.evidence.collector import EvidenceCollector
 from reasoning.router.task_router import TaskRouter
@@ -16,7 +18,7 @@ from reasoning.traces.writer import TraceWriter
 logger = get_logger(__name__)
 
 
-class ReasoningEngine:
+class ReasoningEngine(ReasoningEngineABC):
     """推理引擎"""
 
     def __init__(
@@ -107,3 +109,38 @@ class ReasoningEngine:
                 parts.append(f"- {item}")
 
         return "\n".join(parts)
+
+    # ---- ReasoningEngineABC interface ----
+
+    def analyze_asset(self, canonical_id: str, **kwargs: Any) -> AssetAnalysisSnapshot:
+        """实现 ReasoningEngineABC.analyze_asset。
+
+        委托给 run() 使用 ASSET_ANALYSIS 请求类型，将结果转为
+        AssetAnalysisSnapshot。
+        """
+        state = self.run(canonical_id, RequestType.ASSET_ANALYSIS)
+        return AssetAnalysisSnapshot(
+            canonical_id=canonical_id,
+            as_of=state.created_at,
+            evidence_refs=state.retrieved_doc_ids,
+            event_impact=[],
+        )
+
+    def generate_scenarios(self, question: str, **kwargs: Any) -> ScenarioSet:
+        """实现 ReasoningEngineABC.generate_scenarios。
+
+        委托给 run() 使用 THESIS_RESEARCH 请求类型，将 hypotheses
+        转为 ScenarioSet。
+        """
+        state = self.run(question, RequestType.THESIS_RESEARCH)
+        return ScenarioSet(
+            set_id=state.trace_id or "",
+            question=question,
+            hypotheses=state.hypotheses,
+            normalization_check=True,
+            residual_uncertainty=state.residual_uncertainty,
+        )
+
+    def get_trace(self, trace_id: str) -> ReasoningTrace | None:
+        """实现 ReasoningEngineABC.get_trace。当前暂无持久化跟踪，return None。"""
+        return None

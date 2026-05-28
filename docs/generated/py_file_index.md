@@ -962,6 +962,10 @@ Functions:
   - 触发情景分析流水线
 - `run_closed_loop`
   - 运行完整闭循环：事件 → 信号 → 回测 → 记录结果
+- `get_pipeline_status`
+  - 获取管线各层实时状态
+- `get_recent_activity`
+  - 获取最近管线活动日志
 
 
 ## `app/api/routes/portfolio.py`
@@ -1791,6 +1795,31 @@ Functions:
 
 Module docstring:
 > AlphaFoundry Core 模块
+
+
+## `core/adapters/__init__.py`
+
+Module docstring:
+> Adapters for converting between DB models and Pydantic contracts.
+
+Imports:
+- `core.adapters.event_adapter`
+
+
+## `core/adapters/event_adapter.py`
+
+Module docstring:
+> Adapter: DB CanonicalEvent (SQLAlchemy, payload JSON) ↔ Pydantic CanonicalEvent.
+
+Imports:
+- `__future__`
+- `core.contracts.events`
+- `typing`
+
+Functions:
+- `db_event_to_pydantic`
+  - 将 DB CanonicalEvent (payload JSON 列) 转为 Pydantic CanonicalEvent。
+- `_coerce_impact_direction`
 
 
 ## `core/contracts/__init__.py`
@@ -2789,13 +2818,17 @@ Imports:
 - `core.model_gateway.providers`
 - `core.observability`
 - `core.settings`
+- `hashlib`
+- `json`
 - `pydantic`
+- `threading`
+- `time`
 - `typing`
 
 Classes:
 - `ModelGatewayImpl`
   - 多 provider 模型网关，支持按任务路由到不同平台/模型.
-  - methods: __init__, _init_providers, set_provider, _resolve, chat, structured_output, embed
+  - methods: __init__, _init_providers, set_provider, _cache_key, _cache_get, _cache_set, _resolve, chat, structured_output, embed
 
 
 ## `core/model_gateway/providers/__init__.py`
@@ -6059,6 +6092,7 @@ Module docstring:
 Imports:
 - `core.interfaces`
 - `core.observability`
+- `json`
 - `knowledge_layer.entity_resolution.canonicalizer`
 - `knowledge_layer.entity_resolution.types`
 - `re`
@@ -6067,7 +6101,7 @@ Imports:
 Classes:
 - `EntityResolver`
   - 实体解析器
-  - methods: __init__, extract_candidates, resolve, _extract_stock_codes, _extract_by_dictionary, _extract_by_llm, _deduplicate_candidates, _resolve_direct
+  - methods: __init__, extract_candidates, resolve, _publish_entity_event, _extract_stock_codes, _extract_by_dictionary, _extract_by_llm, _deduplicate_candidates, _resolve_direct
 
 
 ## `knowledge_layer/entity_resolution/types.py`
@@ -6219,6 +6253,7 @@ Module docstring:
 
 Imports:
 - `contracts`
+- `core.contracts.industry_chain`
 - `graph_store`
 - `propagation`
 - `repository`
@@ -6238,21 +6273,25 @@ Classes:
 - `TemporalRelation`
 - `IndustryChain`
 - `PropagationPath`
+  - @deprecated: 使用 core.contracts.industry_chain.PropagationPath 替代。
 
 
 ## `knowledge_layer/graph_projection/graph_store.py`
 
 Imports:
+- `__future__`
 - `collections`
 - `contracts`
 - `core.observability`
 - `datetime`
+- `json`
+- `pathlib`
 - `typing`
 
 Classes:
 - `IndustryGraphStore`
   - 内存存储实现时间化产业链图谱
-  - methods: __init__, add_relation, remove_relation, get_relation, find_relations, add_chain, get_chain, find_chains, get_upstream, get_downstream, shortest_path
+  - methods: __init__, add_relation, remove_relation, get_relation, find_relations, add_chain, get_chain, find_chains, get_upstream, get_downstream, shortest_path, load_from_json, load_all_seed_data
 
 
 ## `knowledge_layer/graph_projection/propagation.py`
@@ -6260,10 +6299,10 @@ Classes:
 Imports:
 - `contracts`
 - `core.contracts.events`
+- `core.contracts.industry_chain`
 - `core.observability`
 - `graph_store`
 - `typing`
-- `uuid`
 
 Classes:
 - `PropagationAnalyzer`
@@ -6286,6 +6325,21 @@ Classes:
 - `GraphRepository`
   - PostgreSQL 仓储实现时间化产业链图谱持久化
   - methods: add_temporal_relation, get_temporal_relation, find_relations, add_industry_chain, get_industry_chain, find_chains, _row_to_relation
+
+
+## `knowledge_layer/graph_projection/seed_data.py`
+
+Module docstring:
+> 启动时加载产业链种子数据到 IndustryGraphStore。
+
+Imports:
+- `core.observability`
+- `knowledge_layer.graph_projection.graph_store`
+- `pathlib`
+
+Functions:
+- `seed_graph_store`
+  - 将 data/industry_graphs/ 下所有 JSON 种子数据加载到 store。
 
 
 ## `knowledge_layer/retrieval/__init__.py`
@@ -6330,8 +6384,8 @@ Classes:
   - 向量存储接口
   - methods: add_document, search, delete_document
 - `InMemoryVectorStore`
-  - 内存向量存储（用于测试和开发）
-  - methods: __init__, add_document, search, delete_document, _get_embedding, _dummy_embedding, _cosine_similarity, _match_filters
+  - 内存向量存储（用于测试和开发）。
+  - methods: __init__, add_document, search, delete_document, _get_embedding, _st_embed, _load_st_model, _dummy_embedding, _cosine_similarity, _match_filters
 - `PGVectorStore`
   - PostgreSQL pgvector 存储（占位实现）
   - methods: __init__, add_document, search, delete_document
@@ -6343,6 +6397,7 @@ Module docstring:
 > 推理引擎模块
 
 Imports:
+- `core.contracts.scenarios`
 - `reasoning.evidence.collector`
 - `reasoning.graph`
 - `reasoning.router.task_router`
@@ -6383,6 +6438,8 @@ Module docstring:
 > 推理引擎 - LangGraph 状态图
 
 Imports:
+- `core.contracts`
+- `core.interfaces.reasoning_engine`
 - `core.observability`
 - `datetime`
 - `reasoning.evidence.collector`
@@ -6397,7 +6454,7 @@ Imports:
 Classes:
 - `ReasoningEngine`
   - 推理引擎
-  - methods: __init__, run, _generate_final_answer
+  - methods: __init__, run, _generate_final_answer, analyze_asset, generate_scenarios, get_trace
 
 
 ## `reasoning/router/__init__.py`
@@ -6491,6 +6548,7 @@ Module docstring:
 > 推理引擎 - 状态定义
 
 Imports:
+- `core.contracts.scenarios`
 - `datetime`
 - `enum`
 - `pydantic`
@@ -6499,8 +6557,6 @@ Imports:
 Classes:
 - `RequestType`
   - 请求类型
-- `ScenarioHypothesis`
-  - 情景假设
 - `ReasoningState`
   - 推理状态
 
@@ -6877,6 +6933,7 @@ Module docstring:
 > Agent 编排器。
 
 Imports:
+- `asyncio`
 - `cognitive_agents.agents.base`
 - `cognitive_agents.agents.factory`
 - `cognitive_agents.blackboard`
@@ -8637,7 +8694,6 @@ Imports:
 - `data_layer.repositories.models`
 - `datetime`
 - `hashlib`
-- `json`
 - `os`
 - `pathlib`
 - `sqlalchemy`

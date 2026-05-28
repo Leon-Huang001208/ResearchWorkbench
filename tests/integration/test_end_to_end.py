@@ -154,26 +154,31 @@ class TestEndToEndPipeline:
 
     def test_vector_search_relevance(self):
         """测试向量检索的相关性"""
-        vector_store = InMemoryVectorStore()
-        IngestService(vector_store=vector_store)
+        # Force bigram fallback for deterministic Chinese text matching
+        InMemoryVectorStore._st_disabled = True
+        try:
+            vector_store = InMemoryVectorStore()
+            IngestService(vector_store=vector_store)
 
-        # 添加多个文档
-        docs = [
-            ("doc1", "贵州茅台发布财报，净利润同比增长28%", {"type": "finance"}),
-            ("doc2", "腾讯控股公布业绩，云业务收入增长强劲", {"type": "finance"}),
-            ("doc3", "美联储加息，影响全球资产定价", {"type": "macro"}),
-            ("doc4", "人工智能技术突破，推动科技股上涨", {"type": "tech"}),
-            ("doc5", "新能源汽车销量创新高，比亚迪领先", {"type": "auto"}),
-        ]
+            # 添加多个文档
+            docs = [
+                ("doc1", "贵州茅台发布财报，净利润同比增长28%", {"type": "finance"}),
+                ("doc2", "腾讯控股公布业绩，云业务收入增长强劲", {"type": "finance"}),
+                ("doc3", "美联储加息，影响全球资产定价", {"type": "macro"}),
+                ("doc4", "人工智能技术突破，推动科技股上涨", {"type": "tech"}),
+                ("doc5", "新能源汽车销量创新高，比亚迪领先", {"type": "auto"}),
+            ]
 
-        for doc_id, text, metadata in docs:
-            vector_store.add_document(doc_id, text, metadata)
+            for doc_id, text, metadata in docs:
+                vector_store.add_document(doc_id, text, metadata)
 
-        # 测试搜索
-        results = vector_store.search("茅台财报", top_k=2)
-        assert len(results) > 0
-        # 第一个结果应该最相关
-        assert "茅台" in results[0]["text"] or "贵州" in results[0]["text"]
+            # 测试搜索
+            results = vector_store.search("茅台财报", top_k=2)
+            assert len(results) > 0
+            # 第一个结果应该最相关
+            assert "茅台" in results[0]["text"] or "贵州" in results[0]["text"]
+        finally:
+            InMemoryVectorStore._st_disabled = False
 
     def test_report_generation(self):
         """测试报告生成"""

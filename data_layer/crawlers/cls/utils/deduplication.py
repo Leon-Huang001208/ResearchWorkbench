@@ -100,6 +100,22 @@ class DeduplicationStore:
             return False
         return str(item_id) == watermark.get("last_seen_id")
 
+    def remove_stale(self, valid_ids: set) -> int:
+        """删除不在 valid_ids 中的已处理条目
+
+        Args:
+            valid_ids: 当前数据库中存在的 source_doc_id 集合
+
+        Returns:
+            int: 删除的条目数
+        """
+        stale = [k for k in self.state["processed_items"] if str(k) not in valid_ids]
+        for k in stale:
+            del self.state["processed_items"][k]
+        if stale:
+            self._save()
+        return len(stale)
+
     def clear_watermark(self, key: str) -> None:
         """清除指定的水位线"""
         if key in self.state["watermarks"]:

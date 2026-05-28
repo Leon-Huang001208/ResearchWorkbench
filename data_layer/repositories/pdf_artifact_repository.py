@@ -107,12 +107,12 @@ def get_conversion_stats(db: Session) -> dict:
     }
 
 
-def get_pending_conversions(db: Session, limit: int = 50) -> list[PDFConversionV1DB]:
-    """获取待处理的转换"""
+def get_pending_conversions(db: Session, limit: int = 50) -> list[PDFArtifactV1DB]:
+    """获取待处理的转换 — 查询 parse_status=pending 的 PDF 制品"""
     return (
-        db.query(PDFConversionV1DB)
-        .filter(PDFConversionV1DB.status == "pending")
-        .order_by(PDFConversionV1DB.created_at.asc())
+        db.query(PDFArtifactV1DB)
+        .filter(PDFArtifactV1DB.parse_status == "pending")
+        .order_by(PDFArtifactV1DB.created_at.asc())
         .limit(limit)
         .all()
     )

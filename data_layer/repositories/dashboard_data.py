@@ -14,6 +14,7 @@ from data_layer.repositories.models import (
     DocumentV1DB,
     Entity,
     EntityMentionV1DB,
+    IngestionQueueItemDB,
 )
 
 logger = get_logger(__name__)
@@ -1170,7 +1171,7 @@ class DashboardDataRepository:
             source_type: 按来源类型过滤 (cls / cnstock / zhiqiu_reports)
 
         Returns:
-            {"items": [...], "total_today": N}
+            {"items": [...], "total_today": N, "last_crawled_at": "..."}
         """
         base_query = self.session.query(DocumentV1DB)
         if source_type:
@@ -1224,7 +1225,20 @@ class DashboardDataRepository:
                 }
             )
 
-        return {"items": results, "total_today": total_today}
+        # 最近一次爬虫执行时间：取该 source 最新入队记录的 created_at
+        last_crawl = (
+            self.session.query(IngestionQueueItemDB.created_at)
+            .filter(IngestionQueueItemDB.source_type == source_type)
+            .order_by(desc(IngestionQueueItemDB.created_at))
+            .first()
+        )
+        last_crawled_at = last_crawl[0].isoformat() if last_crawl and last_crawl[0] else None
+
+        return {
+            "items": results,
+            "total_today": total_today,
+            "last_crawled_at": last_crawled_at,
+        }
 
     def has_enough_data(self) -> bool:
         """检查是否有足够的真实数据"""

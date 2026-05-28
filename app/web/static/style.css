@@ -2298,6 +2298,15 @@ tr:hover td {
     gap: 12px;
 }
 
+.feed-last-fetch {
+    white-space: nowrap;
+    opacity: 0.8;
+}
+.feed-last-fetch::before {
+    content: '最后抓取: ';
+    opacity: 0.6;
+}
+
 /* Badge styles for mock/real data */
 .badge-mock {
     background-color: var(--accent);
@@ -4369,4 +4378,245 @@ tr:hover td {
 
 .queue-stat-value.queue-failed {
     color: #ef4444;
+}
+
+/* Processing Stats Section Label */
+.proc-section-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted, #999);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    padding: 6px 16px 4px;
+    border-top: 1px dashed var(--border-soft, #eee);
+}
+
+/* Trend Badge */
+.trend-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 0 3px;
+    border-radius: 3px;
+    margin-left: 3px;
+    vertical-align: middle;
+}
+.trend-badge.trend-up {
+    color: #16a34a;
+    background: rgba(22, 163, 74, 0.08);
+}
+.trend-badge.trend-down {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.08);
+}
+.trend-badge.trend-flat {
+    color: #999;
+    background: rgba(153, 153, 153, 0.08);
+}
+
+/* Daily Average Sub-text */
+.proc-avg {
+    font-size: 10px;
+    font-weight: 400;
+    color: var(--text-muted, #aaa);
+    margin-left: 4px;
+}
+
+/* ============================================================
+   Pipeline Monitor — 管线监控页面
+   ============================================================ */
+
+/* Toolbar */
+.pipeline-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.pipeline-toolbar h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+.pipeline-toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.pipeline-auto-badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 12px;
+    background: var(--bg-muted, #f0f0f0);
+    color: var(--text-muted, #999);
+}
+.pipeline-auto-badge.auto-on {
+    background: rgba(34, 197, 94, 0.12);
+    color: var(--color-success, #22c55e);
+}
+
+/* Stage Flow */
+.pipeline-stages {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    padding: 20px 0;
+}
+.stage-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 16px 20px;
+    border-radius: 12px;
+    background: var(--bg-surface, #fff);
+    border: 1px solid var(--border-color, #e5e5e5);
+    min-width: 110px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.stage-card:hover {
+    border-color: var(--color-accent, #3b82f6);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+.stage-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--text-muted, #bbb);
+    transition: background 0.3s;
+}
+.stage-indicator.running {
+    background: var(--color-success, #22c55e);
+    animation: pulse-indicator 1s ease-in-out infinite;
+}
+.stage-indicator.idle {
+    background: var(--text-muted, #bbb);
+}
+.stage-indicator.error {
+    background: var(--color-error, #ef4444);
+}
+@keyframes pulse-indicator {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.3); }
+}
+.stage-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary, #333);
+}
+.stage-count {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--color-accent, #3b82f6);
+}
+.stage-status {
+    font-size: 11px;
+    color: var(--text-muted, #aaa);
+}
+.stage-arrow {
+    font-size: 20px;
+    color: var(--text-muted, #ccc);
+    margin: 0 4px;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* Activity Log */
+.pipeline-activity {
+    margin-bottom: 24px;
+}
+.pipeline-activity h4,
+.pipeline-stats h4 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary, #333);
+}
+.activity-log {
+    max-height: 320px;
+    overflow-y: auto;
+    background: var(--bg-surface, #fff);
+    border: 1px solid var(--border-color, #e5e5e5);
+    border-radius: 8px;
+    padding: 8px 4px;
+}
+.activity-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 5px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    line-height: 1.5;
+    border-left: 3px solid transparent;
+}
+.activity-item + .activity-item {
+    border-top: 1px solid var(--border-color-light, #f0f0f0);
+}
+.activity-item.activity-ingestion { border-left-color: var(--color-info, #3b82f6); }
+.activity-item.activity-knowledge { border-left-color: var(--color-warning, #f59e0b); }
+.activity-item.activity-signal_generation { border-left-color: var(--color-success, #22c55e); }
+.activity-item.activity-backtest { border-left-color: #8b5cf6; }
+.activity-item.activity-learning { border-left-color: #ec4899; }
+.activity-item.activity-error { border-left-color: var(--color-error, #ef4444); background: rgba(239,68,68,0.04); }
+
+.activity-time {
+    font-family: monospace;
+    color: var(--text-muted, #999);
+    white-space: nowrap;
+    min-width: 70px;
+}
+.activity-stage {
+    font-weight: 600;
+    color: var(--text-secondary, #666);
+    white-space: nowrap;
+    min-width: 80px;
+}
+.activity-msg {
+    color: var(--text-primary, #333);
+    word-break: break-word;
+}
+
+/* Cumulative Stats */
+.pipeline-stats .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+}
+.pipeline-stats .stat-card {
+    padding: 14px 16px;
+    border-radius: 8px;
+    background: var(--bg-surface, #fff);
+    border: 1px solid var(--border-color, #e5e5e5);
+    text-align: center;
+}
+.pipeline-stats .stat-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--color-accent, #3b82f6);
+    margin-bottom: 4px;
+}
+.pipeline-stats .stat-label {
+    font-size: 11px;
+    color: var(--text-muted, #aaa);
+}
+
+/* Dark mode overrides */
+[data-theme="dark"] .stage-card {
+    background: var(--bg-card, #1e1e2e);
+    border-color: var(--border-color, #2e2e3e);
+}
+[data-theme="dark"] .activity-log,
+[data-theme="dark"] .pipeline-stats .stat-card {
+    background: var(--bg-card, #1e1e2e);
+    border-color: var(--border-color, #2e2e3e);
+}
+[data-theme="dark"] .activity-item + .activity-item {
+    border-top-color: var(--border-color, #2e2e3e);
 }

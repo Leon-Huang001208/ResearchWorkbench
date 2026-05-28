@@ -2,6 +2,7 @@
 最小可行闭环服务 - 规则驱动
 真实事件 → 生成信号 → 回测验证 → 记录 Outcome
 """
+import asyncio
 import json
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -20,12 +21,29 @@ from memory_learning.pattern_learner import PatternLearner
 logger = get_logger(__name__)
 
 
+def _publish_event(event_type: str, payload: Dict[str, Any]) -> None:
+    """在同步代码中安全发布事件到 event_bus 并记录到 PipelineMonitor。"""
+    try:
+        from services.system_event_bus import event_bus
+
+        asyncio.run(event_bus.publish(event_type, payload))
+    except Exception:
+        pass  # 事件发布失败不应影响管线执行
+
+    try:
+        from services.pipeline_monitor import pipeline_monitor
+
+        pipeline_monitor.record_event(event_type, payload)
+    except Exception:
+        pass
+
+
 class ClosedLoopService:
     """
     最小可行闭环服务 - 使用真实价格数据
     """
 
-    def __init__(self):
+    def __init__(self, use_event_study: bool = True):
         try:
             from data_layer.adapters.multi_source_adapter import MultiSourcePriceAdapter
 
@@ -38,6 +56,14 @@ class ClosedLoopService:
         self.benchmark_code = "000300.SH"  # 沪深300作为基准
         self.learning_journal = LearningJournal()
         self.pattern_learner = PatternLearner()
+        self.use_event_study = use_event_study
+
+        # Event study backtester and signal ranker
+        from signal_lab.backtests.event_study import EventStudyBacktester
+        from signal_lab.scoring.ranker import SignalRanker
+
+        self.event_study_backtester = EventStudyBacktester(horizon=20)
+        self.signal_ranker = SignalRanker()
 
     def generate_signals_from_events(
         self, event_ids: Optional[List[str]] = None
@@ -93,7 +119,7 @@ class ClosedLoopService:
         """
         try:
             # 从 event payload 提取标的
-            subject_ids = event.payload.get("subject_ids", []) if event.payload else []
+            subject_ids = event.payload.get("impacted_symbols", []) if event.payload else []
 
             # 清理标的列表，只保留有效的 A 股代码
             valid_subjects = []
@@ -149,7 +175,9 @@ class ClosedLoopService:
                 confidence=confidence,
                 event_time=event.event_time,
                 impact_path=[],
-                industry_impacts=event.payload.get("tags", []) if event.payload else [],
+                industry_impacts=event.payload.get("impacted_industries", [])
+                if event.payload
+                else [],
                 bullish_companies=subject_ids if event.impact_direction == "positive" else [],
                 bearish_companies=subject_ids if event.impact_direction == "negative" else [],
                 scenario_refs=[],
@@ -205,16 +233,24 @@ class ClosedLoopService:
 
         return thesis_templates.get(event.event_type, f"{event.summary[:100]}...")
 
-    def backtest_signals(self, signal_ids: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+    def backtest_signals(
+        self,
+        signal_ids: Optional[List[str]] = None,
+        use_event_study: Optional[bool] = None,
+    ) -> List[Dict[str, Any]]:
         """
         回测信号
 
         Args:
             signal_ids: 可选，指定信号ID列表
+            use_event_study: 若为 True，使用 EventStudyBacktester（事件窗统计）；
+                             为 None 时取 self.use_event_study 的默认值。
 
         Returns:
             回测结果列表
         """
+        use_es = use_event_study if use_event_study is not None else self.use_event_study
+
         db = SessionLocal()
         try:
             # 查询信号
@@ -231,11 +267,14 @@ class ClosedLoopService:
             signals = query.order_by(AlphaSignalDB.created_at.desc()).all()
             logger.info(f"Found {len(signals)} signals to backtest")
 
-            results = []
-            for signal in signals:
-                result = self._backtest_single_signal(signal, db)
-                if result:
-                    results.append(result)
+            if use_es:
+                results = self._backtest_with_event_study(signals, db)
+            else:
+                results = []
+                for signal in signals:
+                    r = self._backtest_single_signal(signal, db)
+                    if r:
+                        results.append(r)
 
             logger.info(f"Completed backtest for {len(results)} signals")
             return results
@@ -244,7 +283,7 @@ class ClosedLoopService:
             db.close()
 
     def _backtest_single_signal(self, signal: AlphaSignalDB, db) -> Optional[Dict[str, Any]]:
-        """回测单个信号"""
+        """回测单个信号（规则驱动，简单买入持有收益计算）。"""
         try:
             # 确定回测时间范围
             event_time = signal.event_time
@@ -289,53 +328,16 @@ class ClosedLoopService:
             # 生成 lesson
             lesson = self._generate_lesson(signal, outcome_return, excess_return, direction_correct)
 
-            # 直接用 SQL 插入到 signal_outcome
-            outcome_id = str(uuid.uuid4())
-            outcome_metadata = {
-                "event_type": signal.event_type,
-                "entry_price": entry_price,
-                "exit_price": exit_price,
-                "signal_score": float(signal.score),
-                "direction_correct": direction_correct,
-            }
-
-            db.execute(
-                text(
-                    """
-                INSERT INTO signal_outcome (
-                    outcome_id, event_id, signal_id, subject_id, event_date,
-                    timing_action, entry_rule, horizon, benchmark,
-                    outcome_return, outcome_excess_return, max_drawdown,
-                    failure_reason, lesson, evaluated_at, metadata, created_at
-                ) VALUES (
-                    :outcome_id, :event_id, :signal_id, :subject_id, :event_date,
-                    :timing_action, :entry_rule, :horizon, :benchmark,
-                    :outcome_return, :outcome_excess_return, :max_drawdown,
-                    :failure_reason, :lesson, :evaluated_at, :metadata, :created_at
-                )
-            """
-                ),
-                {
-                    "outcome_id": outcome_id,
-                    "event_id": signal.event_id,
-                    "signal_id": signal.signal_id,
-                    "subject_id": signal.subject_id,
-                    "event_date": event_time,
-                    "timing_action": "enter",
-                    "entry_rule": "rule_based",
-                    "horizon": "20d",
-                    "benchmark": self.benchmark_code,
-                    "outcome_return": outcome_return,
-                    "outcome_excess_return": excess_return,
-                    "max_drawdown": max_drawdown,
-                    "failure_reason": None if direction_correct else "direction_wrong",
-                    "lesson": lesson,
-                    "evaluated_at": datetime.now(timezone.utc),
-                    "metadata": json.dumps(outcome_metadata),
-                    "created_at": datetime.now(timezone.utc),
-                },
+            self._persist_outcome(
+                signal,
+                db,
+                event_time,
+                outcome_return,
+                excess_return,
+                max_drawdown,
+                direction_correct,
+                lesson,
             )
-            db.commit()
 
             result = {
                 "signal_id": signal.signal_id,
@@ -354,6 +356,174 @@ class ClosedLoopService:
             logger.error(f"Failed to backtest signal {signal.signal_id}: {e}")
             db.rollback()
             return None
+
+    def _backtest_with_event_study(self, signals: List[AlphaSignalDB], db) -> List[Dict[str, Any]]:
+        """使用 EventStudyBacktester 对信号批量事件研究回测。
+
+        将价格数据转为 DataFrame，按标的+事件日对齐，计算事件窗
+        超额收益、夏普比率、decay_by_day 等统计量并存入 signal_outcome。
+        """
+        import pandas as pd
+
+        results: List[Dict[str, Any]] = []
+        # 按标的分组，同一标的的信号共享价格数据
+        by_subject: Dict[str, List[AlphaSignalDB]] = {}
+        for signal in signals:
+            by_subject.setdefault(signal.subject_id, []).append(signal)
+
+        for subject_id, subject_signals in by_subject.items():
+            # 获取价格数据
+            price_data = self._fetch_price_range(subject_id)
+            benchmark_data = self._fetch_price_range(self.benchmark_code)
+            if price_data is None or price_data.empty:
+                logger.warning(f"No price data for {subject_id}, skipping event study")
+                continue
+
+            # 构建事件 DataFrame
+            event_rows = []
+            for sig in subject_signals:
+                event_time = sig.event_time or sig.created_at
+                event_rows.append(
+                    {
+                        "event_date": pd.Timestamp(event_time),
+                        "signal_id": sig.signal_id,
+                        "event_id": sig.event_id,
+                        "score": float(sig.score) if sig.score else 0.5,
+                    }
+                )
+            events_df = pd.DataFrame(event_rows)
+
+            # 调用 EventStudyBacktester
+            try:
+                bt_kwargs = {"events": events_df}
+                if benchmark_data is not None and not benchmark_data.empty:
+                    bt_kwargs["benchmark"] = benchmark_data
+                bt_result = self.event_study_backtester.run(price_data, **bt_kwargs)
+
+                # 为每个信号记录结果
+                for sig in subject_signals:
+                    direction_correct = (
+                        bt_result.total_return > 0 and float(sig.score) >= 0.5
+                    ) or (bt_result.total_return < 0 and float(sig.score) < 0.5)
+                    lesson = self._generate_lesson(
+                        sig, bt_result.total_return, bt_result.total_return, direction_correct
+                    )
+
+                    self._persist_outcome(
+                        sig,
+                        db,
+                        sig.event_time or sig.created_at,
+                        bt_result.total_return,
+                        bt_result.total_return,  # excess ≈ total when using event study avg
+                        bt_result.max_drawdown,
+                        direction_correct,
+                        lesson,
+                        extra_metadata={
+                            "engine": "event_study",
+                            "sharpe_ratio": bt_result.sharpe_ratio,
+                            "volatility": bt_result.volatility,
+                            "win_rate": bt_result.win_rate,
+                            "decay_by_day": bt_result.metadata.get("decay_by_day", {}),
+                            "event_count": bt_result.metadata.get("event_count", 0),
+                        },
+                    )
+
+                    results.append(
+                        {
+                            "signal_id": sig.signal_id,
+                            "event_id": sig.event_id,
+                            "subject_id": sig.subject_id,
+                            "return": bt_result.total_return,
+                            "excess_return": bt_result.total_return,
+                            "max_drawdown": bt_result.max_drawdown,
+                            "direction_correct": direction_correct,
+                            "sharpe_ratio": bt_result.sharpe_ratio,
+                        }
+                    )
+            except Exception as exc:
+                logger.error(
+                    f"Event study backtest failed for {subject_id}: {exc}",
+                    exc_info=True,
+                )
+
+        return results
+
+    def _persist_outcome(
+        self,
+        signal: AlphaSignalDB,
+        db,
+        event_time: datetime,
+        outcome_return: float,
+        excess_return: float,
+        max_drawdown: float,
+        direction_correct: bool,
+        lesson: str,
+        extra_metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """将回测结果写入 signal_outcome 表。"""
+        outcome_id = str(uuid.uuid4())
+        outcome_metadata = {
+            "event_type": signal.event_type,
+            "signal_score": float(signal.score),
+            "direction_correct": direction_correct,
+        }
+        if extra_metadata:
+            outcome_metadata.update(extra_metadata)
+
+        db.execute(
+            text(
+                """
+            INSERT INTO signal_outcome (
+                outcome_id, event_id, signal_id, subject_id, event_date,
+                timing_action, entry_rule, horizon, benchmark,
+                outcome_return, outcome_excess_return, max_drawdown,
+                failure_reason, lesson, evaluated_at, metadata, created_at
+            ) VALUES (
+                :outcome_id, :event_id, :signal_id, :subject_id, :event_date,
+                :timing_action, :entry_rule, :horizon, :benchmark,
+                :outcome_return, :outcome_excess_return, :max_drawdown,
+                :failure_reason, :lesson, :evaluated_at, :metadata, :created_at
+            )
+        """
+            ),
+            {
+                "outcome_id": outcome_id,
+                "event_id": signal.event_id,
+                "signal_id": signal.signal_id,
+                "subject_id": signal.subject_id,
+                "event_date": event_time,
+                "timing_action": "enter",
+                "entry_rule": "event_study"
+                if extra_metadata and "decay_by_day" in extra_metadata
+                else "rule_based",
+                "horizon": "20d",
+                "benchmark": self.benchmark_code,
+                "outcome_return": outcome_return,
+                "outcome_excess_return": excess_return,
+                "max_drawdown": max_drawdown,
+                "failure_reason": None if direction_correct else "direction_wrong",
+                "lesson": lesson,
+                "evaluated_at": datetime.now(timezone.utc),
+                "metadata": json.dumps(outcome_metadata),
+                "created_at": datetime.now(timezone.utc),
+            },
+        )
+        db.commit()
+
+    def _fetch_price_range(
+        self, code: str, lookback_days: int = 252
+    ) -> "pd.DataFrame | None":  # noqa: F821
+        """拉取标的价格，返回以 date 为索引的 DataFrame。"""
+        import pandas as pd
+
+        end_date = datetime.now().strftime("%Y-%m-%d")
+        start_date = (datetime.now() - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
+        quotes = self._get_price_data(code, start_date, end_date)
+        if not quotes:
+            return None
+        df = pd.DataFrame(quotes)
+        df["date"] = pd.to_datetime(df["date"])
+        return df.set_index("date").sort_index()
 
     def _get_price_data(self, code: str, start_date: str, end_date: str) -> List[Dict]:
         """获取真实价格数据（优先在线，失败用本地缓存）"""
@@ -407,15 +577,15 @@ class ClosedLoopService:
         exit_price = df.loc[exit_idx, "close"]
 
         # 计算收益
-        outcome_return = (exit_price - entry_price) / entry_price
+        outcome_return = float((exit_price - entry_price) / entry_price)
 
         # 计算期间最大回撤
         period_df = df.loc[entry_idx:exit_idx].copy()
         period_df["cummax"] = period_df["close"].cummax()
         period_df["drawdown"] = (period_df["close"] - period_df["cummax"]) / period_df["cummax"]
-        max_drawdown = period_df["drawdown"].min()
+        max_drawdown = float(period_df["drawdown"].min())
 
-        return entry_price, exit_price, outcome_return, max_drawdown
+        return float(entry_price), float(exit_price), outcome_return, max_drawdown
 
     def _generate_lesson(
         self,
@@ -435,6 +605,29 @@ class ClosedLoopService:
         else:
             return f"{signal.event_type} 事件信号方向判断错误，需要重新评估事件影响逻辑"
 
+    def rank_and_filter_signals(
+        self,
+        signals: Optional[List[EventAlphaSignal]] = None,
+        top_n: int = 10,
+    ) -> List[EventAlphaSignal]:
+        """使用 SignalRanker 对信号排序并返回前 top_n 个。
+
+        Args:
+            signals: 待排序的信号列表；不传则从事件生成。
+            top_n: 返回前 N 个信号
+
+        Returns:
+            排名前 top_n 的信号。
+        """
+        if signals is None:
+            signals = self.generate_signals_from_events()
+
+        if not signals:
+            logger.warning("No signals to rank")
+            return []
+
+        return self.signal_ranker.filter_top_n(signals, n=top_n)
+
     def run_full_loop(self) -> Dict[str, Any]:
         """
         运行完整闭环
@@ -442,36 +635,116 @@ class ClosedLoopService:
         Returns:
             闭环结果摘要
         """
+        start_time = datetime.now(timezone.utc)
+        _publish_event("pipeline.closed_loop.started", {"started_at": start_time.isoformat()})
+
         logger.info("=" * 60)
         logger.info("Starting closed-loop pipeline")
         logger.info("=" * 60)
 
-        # Step 1: 从事件生成信号
-        logger.info("Step 1: Generating signals from events...")
-        signals = self.generate_signals_from_events()
+        try:
+            # Step 1: 从事件生成信号
+            logger.info("Step 1: Generating signals from events...")
+            step1_start = datetime.now(timezone.utc)
+            signals = self.generate_signals_from_events()
+            _publish_event(
+                "pipeline.signal.generated",
+                {
+                    "count": len(signals),
+                    "duration_ms": int(
+                        (datetime.now(timezone.utc) - step1_start).total_seconds() * 1000
+                    ),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                },
+            )
 
-        # Step 2: 回测信号
-        logger.info("Step 2: Backtesting signals...")
-        results = self.backtest_signals()
+            # Step 2: 回测信号
+            logger.info("Step 2: Backtesting signals...")
+            step2_start = datetime.now(timezone.utc)
+            results = self.backtest_signals()
+            _publish_event(
+                "pipeline.backtest.completed",
+                {
+                    "count": len(results),
+                    "duration_ms": int(
+                        (datetime.now(timezone.utc) - step2_start).total_seconds() * 1000
+                    ),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                },
+            )
 
-        # Step 3: 记录market episodes（学习）
-        logger.info("Step 3: Recording market episodes...")
-        episodes_recorded = self._record_market_episodes(results)
+            # Step 3: 记录market episodes（学习）
+            logger.info("Step 3: Recording market episodes...")
+            step3_start = datetime.now(timezone.utc)
+            episodes_recorded = self._record_market_episodes(results)
+            _publish_event(
+                "pipeline.episode.recorded",
+                {
+                    "count": episodes_recorded,
+                    "duration_ms": int(
+                        (datetime.now(timezone.utc) - step3_start).total_seconds() * 1000
+                    ),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                },
+            )
 
-        # Step 4: 更新pattern learner
-        if episodes_recorded > 0:
-            logger.info("Step 4: Learning patterns from episodes...")
-            all_episodes = self.learning_journal.list_episodes()
-            self.pattern_learner.learn_from_episodes(all_episodes)
+            # Step 4: 更新pattern learner
+            patterns_learned = 0
+            if episodes_recorded > 0:
+                logger.info("Step 4: Learning patterns from episodes...")
+                step4_start = datetime.now(timezone.utc)
+                all_episodes = self.learning_journal.list_episodes()
+                self.pattern_learner.learn_from_episodes(all_episodes)
+                patterns_learned = len(all_episodes)
+                _publish_event(
+                    "pipeline.pattern.learned",
+                    {
+                        "episodes_analyzed": patterns_learned,
+                        "duration_ms": int(
+                            (datetime.now(timezone.utc) - step4_start).total_seconds() * 1000
+                        ),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    },
+                )
 
-        # Step 5: 生成摘要
-        summary = self._generate_summary(signals, results, episodes_recorded)
+            # Step 5: 生成摘要
+            summary = self._generate_summary(signals, results, episodes_recorded)
 
-        logger.info("=" * 60)
-        logger.info("Closed-loop pipeline completed")
-        logger.info("=" * 60)
+            total_duration = int((datetime.now(timezone.utc) - start_time).total_seconds() * 1000)
+            logger.info("=" * 60)
+            logger.info(
+                "Closed-loop pipeline completed",
+                duration_ms=total_duration,
+                signals=len(signals),
+                backtests=len(results),
+                episodes=episodes_recorded,
+            )
+            logger.info("=" * 60)
 
-        return summary
+            _publish_event(
+                "pipeline.closed_loop.completed",
+                {
+                    **summary,
+                    "duration_ms": total_duration,
+                    "completed_at": datetime.now(timezone.utc).isoformat(),
+                },
+            )
+
+            return summary
+
+        except Exception as exc:
+            logger.error("Closed-loop pipeline failed: %s", exc, exc_info=True)
+            _publish_event(
+                "pipeline.closed_loop.error",
+                {
+                    "error": str(exc),
+                    "failed_at": datetime.now(timezone.utc).isoformat(),
+                    "duration_ms": int(
+                        (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+                    ),
+                },
+            )
+            raise
 
     def _record_market_episodes(self, results: List[Dict[str, Any]]) -> int:
         """Record market episodes from backtest results."""

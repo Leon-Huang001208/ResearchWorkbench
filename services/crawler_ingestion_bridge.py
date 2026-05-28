@@ -19,7 +19,11 @@ logger = get_logger(__name__)
 SOURCE_TYPE_TO_CATEGORY: Dict[str, str] = {
     "cls": "news",
     "cnstock": "news",
+    "cnstock_flash": "news",
     "zq": "report",
+    "zhiqiu_reports": "report",
+    "zhiqiu_wechat": "wechat",
+    "zhiqiu_transcript": "transcript",
     "report": "report",
     "pdf": "pdf",
     "manual": "internal_note",
@@ -27,9 +31,13 @@ SOURCE_TYPE_TO_CATEGORY: Dict[str, str] = {
 
 DEFAULT_PRIORITIES: Dict[str, int] = {
     "zq": 1,
+    "zhiqiu_reports": 1,
+    "zhiqiu_wechat": 1,
+    "zhiqiu_transcript": 1,
     "report": 1,
     "cls": 0,
     "cnstock": 0,
+    "cnstock_flash": 0,
     "pdf": 0,
     "manual": 0,
 }

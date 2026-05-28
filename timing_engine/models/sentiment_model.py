@@ -34,6 +34,24 @@ class SentimentModel(BaseTimingModel):
             elif limit_up_failure_rate > 0.6:
                 score = 0.3
                 rationale = "Weak sentiment: high limit up failure rate"
+        elif context.agent_views:
+            confidence = 0.6
+            evidence_refs.append("agent_views")
+            bullish = sum(1 for v in context.agent_views if v.get("direction") == "bullish")
+            bearish = sum(1 for v in context.agent_views if v.get("direction") == "bearish")
+            total = len(context.agent_views)
+            # Sentiment score: more bullish = higher, with neutral views diluting
+            avg_score = sum(v.get("score", 0.5) for v in context.agent_views) / max(total, 1)
+            direction_bias = (bullish - bearish) / max(total, 1)
+
+            score = 0.5 + direction_bias * 0.4  # bias from 0.1 to 0.9
+            score = max(0.0, min(1.0, score * 0.6 + avg_score * 0.4))
+            if direction_bias > 0.2:
+                rationale = f"Bullish sentiment: {bullish}B/{bearish}S/{total - bullish - bearish}N"
+            elif direction_bias < -0.2:
+                rationale = f"Bearish sentiment: {bullish}B/{bearish}S/{total - bullish - bearish}N"
+            else:
+                rationale = f"Neutral sentiment: {bullish}B/{bearish}S/{total - bullish - bearish}N"
         else:
             confidence = 0.3
             rationale = "No sentiment data available"

@@ -23,7 +23,10 @@ def _get_git_branch() -> str:
     try:
         result = subprocess.run(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            capture_output=True, text=True, cwd=str(PROJECT_DIR), timeout=5
+            capture_output=True,
+            text=True,
+            cwd=str(PROJECT_DIR),
+            timeout=5,
         )
         if result.returncode == 0:
             return result.stdout.strip()
@@ -36,6 +39,7 @@ def _get_db_type() -> str:
     """从 DATABASE_URL 解析数据库类型"""
     try:
         from core.settings.config import settings
+
         url = settings.DATABASE_URL
         scheme = url.split("://")[0] if "://" in url else url
         return {"postgresql": "PostgreSQL", "sqlite": "SQLite", "mysql": "MySQL"}.get(
@@ -49,6 +53,7 @@ def _get_llm_provider() -> str:
     """获取当前默认 LLM provider 名称"""
     try:
         from core.settings.config import settings
+
         # 优先使用 TASK_DEFAULT_PROVIDER 对应的 provider
         default_route = settings.TASK_ROUTES.get("default")
         if default_route:
@@ -76,9 +81,10 @@ async def get_status_bar():
 
     # 文档总数
     try:
+        from sqlalchemy import func
+
         from data_layer.repositories.base import SessionLocal
         from data_layer.repositories.dashboard_data import DocumentV1DB
-        from sqlalchemy import func
 
         db = SessionLocal()
         try:
@@ -209,6 +215,14 @@ async def get_workers_status():
         "workers": [],
         "scheduler": {"name": "crawl_scheduler", "alive": False, "pid": None},
         "queue_stats": {"pending": 0, "processing": 0, "completed": 0, "failed": 0},
+        "processing_stats": {
+            "today": 0,
+            "last_7_days": 0,
+            "last_30_days": 0,
+            "total": 0,
+            "yesterday_same_time": 0,
+            "daily_avg_7d": 0.0,
+        },
     }
 
     # ── Knowledge Workers (PID-based) ──────────────────────────
@@ -286,6 +300,7 @@ async def get_workers_status():
                 "completed": stats.completed,
                 "failed": stats.failed,
             }
+            result["processing_stats"] = repo.get_processing_stats()
         finally:
             db.close()
     except Exception as e:

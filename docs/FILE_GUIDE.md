@@ -191,9 +191,10 @@
 | `deduplication_service.py` | 去重服务：检测和去除重复文档/事件 |
 | `ingestion_queue_service.py` | 摄入队列服务：管理异步摄入任务 |
 | **数据采集** | |
-| `crawl_orchestrator.py` | 采集编排器：协调多个采集器运行 |
-| `crawl_scheduler.py` | 采集调度器：定时任务调度、后台运行 |
+| `crawl_orchestrator.py` | 采集编排器：协调多源采集（fetch→normalize→dedup→store→enqueue），含去重同步和深度回填 |
+| `crawl_scheduler.py` | 采集调度器：APScheduler 定时爬取 + PDF 转换（每 5 分钟） |
 | `crawler_ingestion_bridge.py` | 采集摄入桥接：将采集器输出转为 DocumentEnvelope → 摄入队列 |
+| `pdf_conversion_service.py` | PDF 转换服务：MinerU→MarkItDown→RawText 多策略降级，创建 DocumentV1 + 分块 |
 | `system_event_bus.py` | 系统事件总线：SSE 实时推送、Worker 心跳追踪 |
 | **知识与检索** | |
 | `search_service.py` | 搜索服务：全局跨对象搜索 |
@@ -458,6 +459,9 @@
 |---|---|
 | `scripts/backup_db.py` | 数据库备份脚本：支持 PostgreSQL 完整备份、自动压缩、保留策略 |
 | `scripts/restore_db.py` | 数据库恢复脚本：支持从备份恢复、时间点恢复 |
+| `scripts/backfill_pdf_artifacts.py` | PDF 制品回补：扫描磁盘 PDF 并注册到 pdf_artifact_v1 以触发自动转换 |
+| `scripts/backfill_missing_llm_extraction.py` | LLM 提取回补：将缺少 canonical_event 的文档入队让 KnowledgePipeline 补做提取 |
+| `scripts/cleanup_dedup_orphans.py` | 去重孤儿清理：移除爬虫去重文件中 DB 已不存在的条目，防止永久跳过 |
 | `scripts/bootstrap_db.py` | 数据库初始化脚本：验证连接、创建表、验证 schema、植入默认配置 |
 | `scripts/import_real_data.py` | 导入真实数据脚本：导入 benchmarks/ 中的真实数据存档 |
 | `scripts/minimal_reingest_bootstrap.py` | 最小重摄入引导脚本：从零重建系统，使用基准样本和上游连接器 |

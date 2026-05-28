@@ -604,23 +604,24 @@ class TestGetStatsAndPending:
     @patch("services.pdf_conversion_service.MinerUStrategy")
     @patch("services.pdf_conversion_service.MarkItDownStrategy")
     @patch("services.pdf_conversion_service.RawTextStrategy")
-    @patch("services.pdf_conversion_service.pdf_repo")
-    def test_get_pending_delegates_to_repo(self, mock_repo, mock_raw, mock_md, mock_mineru):
-        """get_pending 应委托给 repository"""
+    def test_get_pending_queries_db_directly(self, mock_raw, mock_md, mock_mineru):
+        """get_pending 应直接查询数据库"""
         mock_mineru.return_value.name = "mineru"
         mock_mineru.return_value.is_available.return_value = True
         mock_md.return_value.name = "markitdown"
         mock_md.return_value.is_available.return_value = True
         mock_raw.return_value.name = "raw_text"
         mock_raw.return_value.is_available.return_value = True
-        mock_repo.get_pending_conversions.return_value = []
 
         db = MagicMock()
+        db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = (
+            []
+        )
+
         service = PDFConversionService(db)
         result = service.get_pending(limit=20)
 
         assert result == []
-        mock_repo.get_pending_conversions.assert_called_once_with(db, 20)
 
 
 class TestDocumentCreationFromConversion:

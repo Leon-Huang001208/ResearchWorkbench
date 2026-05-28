@@ -1,4 +1,5 @@
 """Agent 编排器。"""
+import asyncio
 from typing import List, Tuple
 
 from cognitive_agents.agents.base import AgentContext
@@ -11,7 +12,10 @@ logger = get_logger(__name__)
 
 
 class AgentOrchestrator:
-    """负责按序执行 Agent Swarm 的编排器。"""
+    """负责按序执行 Agent Swarm 的编排器。
+
+    阶段间串行（信息→认知→对抗→验证），阶段内 Agent 并行执行。
+    """
 
     def __init__(self, agent_factory: AgentFactory):
         self.agent_factory = agent_factory
@@ -29,14 +33,18 @@ class AgentOrchestrator:
         blackboard: CognitiveBlackboard,
         agent_roles: List[AgentRole] | None = None,
     ) -> Tuple[List[AgentView], List[BlackboardConflict]]:
-        """执行 Agent Swarm。"""
+        """执行 Agent Swarm，阶段间串行，阶段内并行。"""
         all_views: List[AgentView] = []
+
         for stage in self.execution_order:
-            for role in stage:
-                if agent_roles and role not in agent_roles:
-                    continue
+            # 过滤角色
+            roles_in_stage = [r for r in stage if agent_roles is None or r in agent_roles]
+            if not roles_in_stage:
+                continue
+
+            # 阶段内 Agent 并行执行
+            async def _run_agent(role: AgentRole) -> AgentView:
                 agent = self.agent_factory.create(role)
-                # 更新 context 的 prior_views
                 updated_context = AgentContext(
                     target_id=context.target_id,
                     event_id=context.event_id,
@@ -47,7 +55,10 @@ class AgentOrchestrator:
                         target_id=context.target_id, event_id=context.event_id
                     ),
                 )
-                view = await agent.run(updated_context, blackboard)
-                all_views.append(view)
+                return await agent.run(updated_context, blackboard)
+
+            stage_views = await asyncio.gather(*[_run_agent(role) for role in roles_in_stage])
+            all_views.extend(stage_views)
+
         conflicts = blackboard.find_conflicts()
         return all_views, conflicts

@@ -1,78 +1,76 @@
-import uuid
 from typing import List
 
 from core.contracts.events import CanonicalEvent
+from core.contracts.industry_chain import PropagationPath as CorePropagationPath
+from core.contracts.industry_chain import PropagationStep
 from core.observability import get_logger
 
-from .contracts import PropagationPath, SupplyChainPosition
+from .contracts import SupplyChainPosition
 from .graph_store import IndustryGraphStore
 
 logger = get_logger(__name__)
 
 
 class PropagationAnalyzer:
-    """分析事件在产业链中的影响传播路径"""
+    """分析事件在产业链中的影响传播路径
+
+    输出 core.contracts.industry_chain.PropagationPath，
+    与 knowledge_layer 自身的 PropagationPath (deprecated) 不同。
+    """
 
     def analyze_impact_propagation(
         self,
         graph_store: IndustryGraphStore,
         event: CanonicalEvent,
         chain_id: str | None = None,
-    ) -> PropagationPath:
+    ) -> CorePropagationPath:
         """
-        基于事件类型和产业链拓扑推导事件影响的传播路径
-        默认按照从上游到下游的顺序传播，根据事件影响方向调整每个节点的影响方向
-        """
-        path_id = f"prop_{uuid.uuid4().hex[:8]}"
-        propagation_path = []
-        confidence = 0.8
+        基于事件类型和产业链拓扑推导事件影响的传播路径。
+        默认按照从上游到下游的顺序传播。
 
-        # If specific chain is provided, use it
+        Returns:
+            core.contracts.industry_chain.PropagationPath
+        """
+        steps: list[PropagationStep] = []
+
         target_chain = None
         if chain_id:
             target_chain = graph_store.get_chain(chain_id)
 
-        # Collect all affected entities from event
         affected_entities = [e["entity_id"] for e in event.entities if "entity_id" in e]
 
         if target_chain:
-            # Process chain in order from upstream to downstream
             for idx, entity_id in enumerate(target_chain.nodes):
-                # Determine position based on position in chain
                 if idx == 0:
                     position = SupplyChainPosition.UPSTREAM
-                    # Event typically hits upstream first with shorter lag
                     expected_lag_days = 2
                 elif idx == len(target_chain.nodes) - 1:
                     position = SupplyChainPosition.DOWNSTREAM
-                    # Downstream lags more
                     expected_lag_days = 10
                 else:
                     position = SupplyChainPosition.MIDSTREAM
                     expected_lag_days = 5
 
-                propagation_path.append(
-                    {
-                        "entity_id": entity_id,
-                        "position": position,
-                        "expected_lag_days": expected_lag_days,
-                        "impact_direction": event.impact_direction,
-                    }
+                mapping_strength = max(0.2, 1.0 - expected_lag_days * 0.05)
+                steps.append(
+                    PropagationStep(
+                        node_id=entity_id,
+                        node_name=entity_id,
+                        impact=f"{position.value}: {event.impact_direction}, lag {expected_lag_days}d",
+                        mapping_strength=mapping_strength,
+                    )
                 )
         else:
-            # If no chain specified, start from affected entities and expand downstream
-            processed = set()
+            processed: set[str] = set()
             current_level = affected_entities
             day_offset = 0
 
-            # Get position info based on how far from the trigger
-            while current_level and len(propagation_path) < 20:
+            while current_level and len(steps) < 20:
                 for entity_id in current_level:
                     if entity_id in processed:
                         continue
                     processed.add(entity_id)
 
-                    # Guess position based on distance
                     if day_offset == 0:
                         position = SupplyChainPosition.UPSTREAM
                         lag = 1
@@ -83,16 +81,16 @@ class PropagationAnalyzer:
                         position = SupplyChainPosition.DOWNSTREAM
                         lag = 5 + day_offset * 3
 
-                    propagation_path.append(
-                        {
-                            "entity_id": entity_id,
-                            "position": position,
-                            "expected_lag_days": lag,
-                            "impact_direction": event.impact_direction,
-                        }
+                    mapping_strength = max(0.2, 1.0 - lag * 0.05)
+                    steps.append(
+                        PropagationStep(
+                            node_id=entity_id,
+                            node_name=entity_id,
+                            impact=f"{position.value}: {event.impact_direction}, lag {lag}d",
+                            mapping_strength=mapping_strength,
+                        )
                     )
 
-                # Get next level (downstream)
                 next_level = []
                 for entity_id in current_level:
                     relations = graph_store.get_downstream(entity_id)
@@ -103,27 +101,36 @@ class PropagationAnalyzer:
                 current_level = next_level
                 day_offset += 1
 
-        # Reduce confidence if we couldn't find a proper chain
-        if not target_chain:
-            confidence = 0.5
+        result = CorePropagationPath(steps=steps)
+        result.overall_strength = result.calculate_overall_strength()
 
-        return PropagationPath(
-            path_id=path_id,
-            trigger_event_type=event.event_type,
-            affected_chain_id=chain_id if chain_id else "unknown",
-            path=propagation_path,
-            confidence=confidence,
-        )
+        # 发布传播分析完成事件
+        try:
+            import asyncio
+
+            from services.pipeline_monitor import pipeline_monitor
+            from services.system_event_bus import event_bus
+
+            payload = {
+                "event_id": event.event_id,
+                "chain_id": chain_id,
+                "steps": len(steps),
+                "overall_strength": result.overall_strength,
+            }
+            asyncio.run(event_bus.publish("knowledge.propagation_analyzed", payload))
+            pipeline_monitor.record_event("knowledge.propagation_analyzed", payload)
+        except Exception:
+            pass
+
+        return result
 
     def find_similar_historical_paths(
         self,
         graph_store: IndustryGraphStore,
         event_type: str,
         industry: str,
-    ) -> List[PropagationPath]:
-        """Find historically similar propagation paths for this event type and industry"""
-        # This implementation just returns an empty list for now
-        # In the future this can query the database of past propagation paths and outcomes
+    ) -> List[CorePropagationPath]:
+        """查找历史上相似事件类型的传播路径（当前返回空列表）"""
         logger.info(
             "Looking for similar historical propagation paths",
             event_type=event_type,

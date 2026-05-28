@@ -69,7 +69,57 @@ Update this section when:
 
 ---
 
-### `data_layer/normalizers/` (normalizer layer)
+### `data_layer/crawlers/zq/zhiqiu/processors/report_processor.py`
+
+Purpose:
+
+- Processes ZhiQiu research report PDFs: download, register as `PDFArtifactV1DB` (parse_status=pending), and save metadata.
+- `_download_and_record_pdf()` — downloads PDF to disk, computes SHA-256 hash, registers in `pdf_artifact_v1` for automatic pickup by `CrawlScheduler` → `PDFConversionService`.
+- `process()`, `_process_old_format()`, `_process_new_format()` — entry points for report processing.
+
+Update this section when:
+
+- PDF download/registration logic changes.
+- Report format detection changes.
+- PDF artifact metadata fields change.
+
+---
+
+### `data_layer/crawlers/cls/utils/deduplication.py`
+
+Purpose:
+
+- File-based deduplication store for CLS crawler (`DeduplicationStore`).
+- `is_processed(item_id)` — checks if an item was already crawled.
+- `mark_processed(item_id)` — marks an item as processed.
+- `remove_stale(valid_ids)` — removes processed entries no longer present in the database, preventing permanent crawl skip after document deletion.
+- `has_reached_watermark()` — watermark-based dedup for time-series items.
+
+Update this section when:
+
+- Dedup state file format changes.
+- New dedup methods are added.
+- Watermark logic changes.
+
+---
+
+### `data_layer/crawlers/utils/__init__.py`
+
+Purpose:
+
+- Exports anti-crawling utilities: `AntiScrapeKit`, `UserAgentRotator`, `SmartDelayer`, `retry_with_backoff`.
+- PDF conversion exports were removed (dead code — `pdf_converter.py` deleted, conversion handled by `PDFConversionService`).
+
+Update this section when:
+
+- New crawler utilities are added.
+- Anti-crawling exports change.
+
+---
+
+### `data_layer/crawlers/utils/pdf_converter.py` (DELETED)
+
+This file was deleted as dead code. It contained a crawler-level `PDFConverter` (pdfplumber-based) that was never activated (`enable_pdf_conversion` always `False`). PDF conversion is now handled exclusively by `services/pdf_conversion_service.py` with MinerU/MarkItDown/RawText strategies and full database tracking.
 
 Normalizers transform raw crawler output into structured dicts for repository upsert. They are pure functions: deterministic, no side effects, directly unit-testable.
 

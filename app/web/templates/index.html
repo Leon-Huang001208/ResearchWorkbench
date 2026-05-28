@@ -22,7 +22,7 @@
                 <button class="activity-btn" data-section="review" title="审核队列"><i class="codicon codicon-checklist"></i></button>
                 <button class="activity-btn" data-section="signals" title="信号管理"><i class="codicon codicon-pulse"></i></button>
                 <button class="activity-btn" data-section="outcomes" title="回测结果"><i class="codicon codicon-checklist"></i></button>
-                <button class="activity-btn" data-section="closed-loop" title="闭循环运行"><i class="codicon codicon-sync"></i></button>
+                <button class="activity-btn" data-section="pipeline-monitor" title="管线监控"><i class="codicon codicon-pulse"></i></button>
                 <button class="activity-btn" data-section="signal-lab" title="Signal Lab"><i class="codicon codicon-beaker"></i></button>
                 <button class="activity-btn" data-section="ingest" title="文档摄入"><i class="codicon codicon-cloud-download"></i></button>
                 <button class="activity-btn" data-section="memory" title="记忆与学习"><i class="codicon codicon-lightbulb"></i></button>
@@ -81,7 +81,6 @@
                     <nav class="dash-tabs" id="dash-tabs">
                         <button class="dash-tab active" data-dash-tab="market" data-i18n="dash_tab.market">市场总览</button>
                         <button class="dash-tab" data-dash-tab="monitor" data-i18n="dash_tab.monitor">实时监控</button>
-                        <button class="dash-tab" data-dash-tab="workbench" data-i18n="dash_tab.workbench">投研工作台</button>
                     </nav>
                 </div>
 
@@ -139,6 +138,7 @@
                                 <div class="card-header-actions">
                                     <span class="feed-status badge-new" id="feed-status-cls">监听中</span>
                                     <span class="feed-count text-muted" id="feed-count-cls" style="font-size: 12px;">0 条</span>
+                                    <span class="feed-last-fetch text-muted" id="feed-last-fetch-cls" style="font-size: 11px;"></span>
                                 </div>
                             </div>
                             <ul class="crawl-feed-list" id="feed-list-cls">
@@ -148,10 +148,11 @@
                         <!-- 中国证券网·快讯 -->
                         <div class="dashboard-card crawl-feed-card" data-source="cnstock_flash">
                             <div class="card-header">
-                                <h3><i class="codicon codicon-zap"></i> 中国证券网快讯</h3>
+                                <h3><i class="codicon codicon-rss"></i> 中国证券网快讯</h3>
                                 <div class="card-header-actions">
                                     <span class="feed-status badge-new" id="feed-status-cnstock_flash">监听中</span>
                                     <span class="feed-count text-muted" id="feed-count-cnstock_flash" style="font-size: 12px;">0 条</span>
+                                    <span class="feed-last-fetch text-muted" id="feed-last-fetch-cnstock_flash" style="font-size: 11px;"></span>
                                 </div>
                             </div>
                             <ul class="crawl-feed-list" id="feed-list-cnstock_flash">
@@ -165,6 +166,7 @@
                                 <div class="card-header-actions">
                                     <span class="feed-status badge-new" id="feed-status-cnstock">监听中</span>
                                     <span class="feed-count text-muted" id="feed-count-cnstock" style="font-size: 12px;">0 条</span>
+                                    <span class="feed-last-fetch text-muted" id="feed-last-fetch-cnstock" style="font-size: 11px;"></span>
                                 </div>
                             </div>
                             <ul class="crawl-feed-list" id="feed-list-cnstock">
@@ -178,6 +180,7 @@
                                 <div class="card-header-actions">
                                     <span class="feed-status badge-new" id="feed-status-zhiqiu_reports">监听中</span>
                                     <span class="feed-count text-muted" id="feed-count-zhiqiu_reports" style="font-size: 12px;">0 条</span>
+                                    <span class="feed-last-fetch text-muted" id="feed-last-fetch-zhiqiu_reports" style="font-size: 11px;"></span>
                                 </div>
                             </div>
                             <ul class="crawl-feed-list" id="feed-list-zhiqiu_reports">
@@ -191,6 +194,7 @@
                                 <div class="card-header-actions">
                                     <span class="feed-status badge-new" id="feed-status-zhiqiu_wechat">监听中</span>
                                     <span class="feed-count text-muted" id="feed-count-zhiqiu_wechat" style="font-size: 12px;">0 条</span>
+                                    <span class="feed-last-fetch text-muted" id="feed-last-fetch-zhiqiu_wechat" style="font-size: 11px;"></span>
                                 </div>
                             </div>
                             <ul class="crawl-feed-list" id="feed-list-zhiqiu_wechat">
@@ -204,6 +208,7 @@
                                 <div class="card-header-actions">
                                     <span class="feed-status badge-new" id="feed-status-zhiqiu_transcript">监听中</span>
                                     <span class="feed-count text-muted" id="feed-count-zhiqiu_transcript" style="font-size: 12px;">0 条</span>
+                                    <span class="feed-last-fetch text-muted" id="feed-last-fetch-zhiqiu_transcript" style="font-size: 11px;"></span>
                                 </div>
                             </div>
                             <ul class="crawl-feed-list" id="feed-list-zhiqiu_transcript">
@@ -222,116 +227,14 @@
                             <div class="empty-state">正在加载...</div>
                         </div>
                         <div id="workers-queue-stats" class="workers-queue-stats"></div>
+                        <div class="proc-section-label">处理统计</div>
+                        <div id="workers-processing-stats" class="workers-queue-stats"></div>
                     </div>
                 </div>
                 </div>
                 <!-- /Tab: Live Monitor -->
 
                 <!-- Tab: Workbench -->
-                <div class="dash-tab-panel" id="dash-panel-workbench">
-                <div class="dashboard-grid">
-
-                    <!-- Today Section -->
-                    <div class="dashboard-card today-card">
-                        <div class="card-header">
-                            <h3><i class="codicon codicon-calendar"></i> Today</h3>
-                            <span class="badge-new">今日</span>
-                        </div>
-                        
-                        <div class="dashboard-section">
-                            <h4>新事件</h4>
-                            <ul id="today-new-events" class="item-list">
-                                <li class="empty-state" data-i18n="dashboard.no_data">暂无新事件</li>
-                            </ul>
-                        </div>
-
-                        <div class="dashboard-section">
-                            <h4>高优先级论题</h4>
-                            <ul id="today-high-priority" class="item-list">
-                                <li class="empty-state" data-i18n="dashboard.no_data">暂无高优先级论题</li>
-                            </ul>
-                        </div>
-
-                        <div class="dashboard-section">
-                            <h4>异常流向 / 主题扩散</h4>
-                            <ul id="today-abnormal-flows" class="item-list">
-                                <li class="empty-state" data-i18n="dashboard.no_data">暂无异常</li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <!-- Research Queue Section -->
-                    <div class="dashboard-card queue-card">
-                        <div class="card-header">
-                            <h3><i class="codicon codicon-checklist"></i> Research Queue</h3>
-                        </div>
-
-                        <div class="dashboard-section">
-                            <h4>待处理断言</h4>
-                            <ul id="queue-pending-assertions" class="item-list">
-                                <li class="empty-state" data-i18n="dashboard.no_data">无待处理断言</li>
-                            </ul>
-                        </div>
-
-                        <div class="dashboard-section">
-                            <h4>缺失证据</h4>
-                            <ul id="queue-missing-evidence" class="item-list">
-                                <li class="empty-state" data-i18n="dashboard.no_data">无缺失证据</li>
-                            </ul>
-                        </div>
-
-                        <div class="dashboard-section">
-                            <h4>待映射审查</h4>
-                            <ul id="queue-mapping-reviews" class="item-list">
-                                <li class="empty-state" data-i18n="dashboard.no_data">无待审查</li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <!-- Candidate Board Section -->
-                    <div class="dashboard-card candidate-card">
-                        <div class="card-header">
-                            <h3><i class="codicon codicon-rocket"></i> Candidate Board</h3>
-                        </div>
-
-                        <div class="dashboard-section">
-                            <h4>就绪度 Top 候选机会</h4>
-                            <div id="candidate-top-candidates" class="candidate-list">
-                                <div class="empty-state" data-i18n="dashboard.no_data">暂无候选机会</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Learning Section -->
-                    <div class="dashboard-card learning-card">
-                        <div class="card-header">
-                            <h3><i class="codicon codicon-lightbulb"></i> Learning</h3>
-                        </div>
-
-                        <div class="dashboard-section">
-                            <h4>最近失败</h4>
-                            <ul id="learning-recent-failures" class="item-list">
-                                <li class="empty-state" data-i18n="dashboard.no_data">无失败记录</li>
-                            </ul>
-                        </div>
-
-                        <div class="dashboard-section">
-                            <h4>最佳表现事件类型</h4>
-                            <div id="learning-best-event-types" class="event-type-list">
-                                <div class="empty-state" data-i18n="dashboard.no_data">暂无数据</div>
-                            </div>
-                        </div>
-
-                        <div class="dashboard-section">
-                            <h4>每周经验</h4>
-                            <ul id="learning-weekly-lessons" class="item-list">
-                                <li class="empty-state" data-i18n="dashboard.no_data">无总结</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-                </div>
-                <!-- /Tab: Workbench -->
             </section>
 
             <!-- Asset Analysis Section -->
@@ -661,17 +564,10 @@
                 </div>
             </section>
 
-            <!-- Closed Loop Section -->
-            <section id="section-closed-loop" class="content-section">
-                <h2 class="section-title">闭循环运行</h2>
-                <div class="card">
-                    <div class="card-header">
-                        <h3>运行完整闭循环</h3>
-                        <button id="btn-run-closed-loop" class="btn-primary">运行闭循环</button>
-                    </div>
-                    <div id="closed-loop-status" class="empty-state">点击上方按钮运行闭循环</div>
-                    <div id="closed-loop-results" class="data-table-wrap" style="display:none;"></div>
-                </div>
+            <!-- Pipeline Monitor Section -->
+            <section id="section-pipeline-monitor" class="content-section">
+                <h2 class="section-title">管线监控</h2>
+                <div id="pipeline-monitor-content"></div>
             </section>
 
             <!-- Ingest Section -->

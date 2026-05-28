@@ -21,19 +21,31 @@ class ExpectationGapModel(BaseTimingModel):
         if context.agent_views:
             confidence = 0.7
             evidence_refs.append("agent_views")
-            # Example: count number of agents with contrarian views
-            contrarian_count = sum(
-                1 for view in context.agent_views if view.get("contrarian", False)
+            # Compute bull/bear ratio from agent views
+            bullish = sum(1 for v in context.agent_views if v.get("direction") == "bullish")
+            bearish = sum(1 for v in context.agent_views if v.get("direction") == "bearish")
+            total_directional = bullish + bearish or 1
+            bull_ratio = bullish / total_directional
+
+            # Contrarian: if market is bullish but agents lean bearish, or vice versa
+            event_direction = (
+                context.event_signal.get("impact_direction", "") if context.event_signal else ""
             )
-            if contrarian_count > len(context.agent_views) / 2:
+            market_is_bullish = event_direction == "positive"
+            agent_is_bullish = bull_ratio >= 0.5
+
+            if market_is_bullish != agent_is_bullish:
                 score = 0.8
-                rationale = "High expectation gap: many contrarian views"
-            elif contrarian_count > 0:
+                rationale = (
+                    f"High expectation gap: bull ratio={bull_ratio:.2f} diverges from "
+                    f"market direction ({event_direction})"
+                )
+            elif abs(bull_ratio - 0.5) < 0.15:
                 score = 0.6
-                rationale = "Moderate expectation gap"
+                rationale = f"Moderate expectation gap: split views (bull ratio={bull_ratio:.2f})"
             else:
                 score = 0.4
-                rationale = "Low expectation gap"
+                rationale = f"Low expectation gap: consensus aligned (bull ratio={bull_ratio:.2f})"
         elif context.event_signal:
             confidence = 0.6
             evidence_refs.append("event_signal")

@@ -7,7 +7,14 @@ PDF 到 Markdown/文本的完整转换管道。支持多策略自动降级、磁
 ## Architecture
 
 ```
-PDF Artifact (pdf_artifact_v1)
+ZQ Crawler (ReportProcessor._download_and_record_pdf)
+    │
+    ├── 下载 PDF 到磁盘 (data/crawlers/zq/pdfs/)
+    ├── 保存 JSON 元数据
+    └── 注册 PDFArtifactV1DB (parse_status=pending)  ← NEW
+        │
+        ▼
+CrawlScheduler (每 5 分钟)  ← NEW
     │
     ▼
 PDFConversionService (services/pdf_conversion_service.py)
@@ -27,7 +34,8 @@ PDFConversionService (services/pdf_conversion_service.py)
     │
     └── DocumentV1 创建 (自动)
         ├── DocumentV1 (document_v1)
-        └── DocumentChunkV1 (document_chunk_v1)
+        ├── DocumentChunkV1 (document_chunk_v1)
+        └── 入队 IngestionBridge → KnowledgePipeline (LLM 提取)  ← NEW
 ```
 
 ## Strategy Priority

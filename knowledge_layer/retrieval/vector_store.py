@@ -40,7 +40,16 @@ class VectorStore(ABC):
 
 
 class InMemoryVectorStore(VectorStore):
-    """内存向量存储（用于测试和开发）"""
+    """内存向量存储（用于测试和开发）。
+
+    嵌入优先级：
+    1. model_gateway.embed()（若已注入）
+    2. 本地 sentence-transformers 模型（若已安装）
+    3. character-bigram 伪嵌入（始终可用）
+    """
+
+    _sentence_model = None  # 类级别缓存，所有实例共享
+    _st_disabled = False  # 可设为 True 来禁用 sentence-transformers
 
     def __init__(self, model_gateway: Optional[ModelGateway] = None):
         self._model_gateway = model_gateway
@@ -113,15 +122,54 @@ class InMemoryVectorStore(VectorStore):
         logger.debug(f"Deleted document from vector store: {doc_id}")
 
     def _get_embedding(self, text: str) -> List[float]:
-        """获取文本的嵌入向量"""
+        """获取文本的嵌入向量。
+
+        优先级：model_gateway > sentence-transformers > bigram dummy。
+        """
+        # 1. 优先使用已注入的 model_gateway
         if self._model_gateway:
             try:
                 return self._model_gateway.embed(text).embedding
             except Exception as e:
-                logger.error(f"Failed to get embedding: {e}", exc_info=True)
+                logger.warning("model_gateway.embed failed, trying fallbacks: %s", e)
 
-        # 回退到简单的伪嵌入（仅用于测试）
+        # 2. 尝试本地 sentence-transformers
+        embed = self._st_embed(text)
+        if embed is not None:
+            return embed
+
+        # 3. 回退到 bigram 伪嵌入
         return self._dummy_embedding(text)
+
+    @classmethod
+    def _st_embed(cls, text: str) -> List[float] | None:
+        """使用本地 sentence-transformers 编码，失败返回 None。"""
+        try:
+            model = cls._load_st_model()
+            if model is None:
+                return None
+            vec = model.encode(text, normalize_embeddings=True)
+            return vec.tolist()
+        except Exception:
+            return None
+
+    @classmethod
+    def _load_st_model(cls):
+        """惰性加载 sentence-transformers 模型（类级别缓存）。"""
+        if cls._st_disabled:
+            return None
+        if cls._sentence_model is not None:
+            return cls._sentence_model
+        try:
+            from sentence_transformers import SentenceTransformer
+
+            cls._sentence_model = SentenceTransformer("all-MiniLM-L6-v2")
+            logger.info("Loaded sentence-transformers model: all-MiniLM-L6-v2")
+        except ImportError:
+            logger.debug("sentence-transformers not installed, using bigram fallback")
+        except Exception as exc:
+            logger.warning("Failed to load sentence-transformers model: %s", exc)
+        return cls._sentence_model
 
     def _dummy_embedding(self, text: str) -> List[float]:
         """生成基于字符 n-gram 的伪嵌入（用于无模型时）

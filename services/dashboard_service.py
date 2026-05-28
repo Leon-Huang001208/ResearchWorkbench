@@ -744,7 +744,9 @@ class DashboardService:
                         outcome_id=f.outcome_id,
                         signal_id=f.signal_id,
                         subject_id=f.subject_id,
-                        failure_reason=_translate_failure_reason(f.failure_reason) if f.failure_reason else "",
+                        failure_reason=_translate_failure_reason(f.failure_reason)
+                        if f.failure_reason
+                        else "",
                         lesson=f.lesson if f.lesson else "",
                         outcome_return=float(f.outcome_return) if f.outcome_return else None,
                         created_at=f.created_at.isoformat() if f.created_at else None,

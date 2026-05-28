@@ -116,3 +116,19 @@ async def run_closed_loop():
     except Exception as e:
         logger.error(f"Closed loop failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/status", response_model=dict)
+async def get_pipeline_status():
+    """获取管线各层实时状态"""
+    from services.pipeline_monitor import pipeline_monitor
+
+    return pipeline_monitor.get_full_status()
+
+
+@router.get("/recent-activity", response_model=dict)
+async def get_recent_activity(limit: int = 50):
+    """获取最近管线活动日志"""
+    from services.pipeline_monitor import pipeline_monitor
+
+    return {"activities": pipeline_monitor.get_recent_activity(limit=limit)}

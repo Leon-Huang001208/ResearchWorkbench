@@ -1,14 +1,22 @@
 """研究流水线服务"""
+import asyncio
 import uuid
 from typing import Any, List, Optional
 
+from cognitive_agents.agents.base import AgentContext
+from cognitive_agents.agents.factory import AgentFactory
+from cognitive_agents.agents.orchestrator import AgentOrchestrator
 from cognitive_agents.blackboard import CognitiveBlackboard
 from core.contracts import AssetAnalysisSnapshot, CanonicalEvent, EventAlphaSignal, ScenarioSet
+from core.contracts.industry_chain import PropagationPath
 from core.interfaces.model_gateway import ModelGateway
-from core.interfaces.reasoning_engine import ReasoningEngine
 from core.observability import get_logger
+from knowledge_layer.entity_resolution.resolver import EntityResolver
+from knowledge_layer.graph_projection.graph_store import IndustryGraphStore
+from knowledge_layer.graph_projection.propagation import PropagationAnalyzer
 from memory_learning.contracts import FailureMemory, MarketEpisode
 from memory_learning.journal import LearningJournal
+from reasoning.graph import ReasoningEngine
 from services.event_extractor import EventExtractor, ExtractedSignalParams
 from services.signal_service import SignalService
 from timing_engine import MetaTimingEngine, TimingContext, TimingModelRegistry
@@ -33,6 +41,11 @@ class ResearchPipeline:
         learning_journal: Optional[LearningJournal] = None,
         event_extractor: Optional[EventExtractor] = None,
         timing_repository: Optional[Any] = None,
+        graph_store: Optional[IndustryGraphStore] = None,
+        propagation_analyzer: Optional[PropagationAnalyzer] = None,
+        entity_resolver: Optional[EntityResolver] = None,
+        agent_factory: Optional[AgentFactory] = None,
+        agent_orchestrator: Optional[AgentOrchestrator] = None,
     ):
         self.data_router = data_router
         self.knowledge_extractor = knowledge_extractor
@@ -44,6 +57,13 @@ class ResearchPipeline:
         self.model_gateway = model_gateway
         self.learning_journal = learning_journal
         self.timing_repository = timing_repository
+        self.graph_store = graph_store
+        self.propagation_analyzer = propagation_analyzer
+        self.entity_resolver = entity_resolver
+        self.agent_factory = agent_factory
+        self.agent_orchestrator = agent_orchestrator
+        # 最新一轮 agent swarm 的输出视图（供择时模型消费）
+        self._latest_agent_views: list[dict] = []
         # 构建 EventExtractor：优先用传入的，否则基于 model_gateway 创建
         if event_extractor is not None:
             self.event_extractor = event_extractor
@@ -51,17 +71,70 @@ class ResearchPipeline:
             self.event_extractor = EventExtractor(model_gateway=model_gateway)
 
     async def run_asset_analysis(self, asset_id: str) -> AssetAnalysisSnapshot:
-        """资产分析完整流水线"""
-        logger.info(f"Running asset analysis for {asset_id}")
-        # TODO: implement full pipeline steps
-        # For now, return a placeholder
-        from datetime import datetime, timezone
+        """资产分析完整流水线。
 
-        return AssetAnalysisSnapshot(
-            snapshot_id="placeholder",
-            canonical_id=asset_id,
-            as_of=datetime.now(timezone.utc),
-        )
+        流程：ReasoningEngine → Agent Swarm → Snapshot。
+        """
+        logger.info("Running asset analysis pipeline", asset_id=asset_id)
+
+        # Step 1: Reasoning
+        if self.reasoning_engine is None:
+            logger.warning("No ReasoningEngine, returning placeholder snapshot")
+            from datetime import datetime, timezone
+
+            return AssetAnalysisSnapshot(
+                snapshot_id="no-reasoning-engine",
+                canonical_id=asset_id,
+                as_of=datetime.now(timezone.utc),
+            )
+
+        snapshot = self.reasoning_engine.analyze_asset(asset_id)
+
+        # Step 2: Agent Swarm (if available)
+        if self.agent_orchestrator is not None and self.blackboard is not None:
+            try:
+                from datetime import datetime, timezone
+
+                context = AgentContext(
+                    target_id=asset_id,
+                    event_id=None,
+                    question=f"资产分析: {asset_id}",
+                    evidence=snapshot.evidence_refs,
+                    market_data={
+                        "snapshot_id": snapshot.snapshot_id,
+                        "as_of": snapshot.as_of.isoformat(),
+                    },
+                )
+                views, conflicts = await self.agent_orchestrator.run_swarm(
+                    context,
+                    self.blackboard,
+                )
+                self._latest_agent_views = [
+                    {
+                        "agent": v.agent_name,
+                        "role": v.role.value if hasattr(v.role, "value") else str(v.role),
+                        "direction": v.direction.value
+                        if hasattr(v.direction, "value")
+                        else str(v.direction),
+                        "thesis": v.thesis,
+                        "score": v.score,
+                    }
+                    for v in views
+                ]
+                logger.info(
+                    "Asset analysis agent swarm complete",
+                    asset_id=asset_id,
+                    views=len(views),
+                    conflicts=len(conflicts),
+                )
+            except Exception as exc:
+                logger.error(
+                    "Agent swarm failed during asset analysis",
+                    asset_id=asset_id,
+                    error=str(exc),
+                )
+
+        return snapshot
 
     async def run_event_signal(self, event: CanonicalEvent) -> EventAlphaSignal:
         """事件型 Alpha 信号流水线 — Golden Path。
@@ -75,19 +148,46 @@ class ResearchPipeline:
         6. 记录到 LearningJournal
         7. 返回完整信号（含 timing_decision）
         """
-        logger.info("Running Golden Path event signal pipeline", event_id=event.event_id)
+        # ── 生成跨层 trace ID ────────────────────────────
+        trace_id = str(uuid.uuid4())[:8]
+
+        logger.info(
+            "Running Golden Path event signal pipeline",
+            event_id=event.event_id,
+            trace_id=trace_id,
+        )
 
         # ── Step 1: 事件提取 ──────────────────────────────
         extracted = await self._extract_signal_params(event)
 
+        # ── Step 1.5: 实体解析 + 产业链传导 ────────────────
+        self._resolve_entities(event)  # entities collected for Phase 3 agent context
+        propagation_path = self._analyze_propagation(event)
+        if propagation_path is not None:
+            logger.info(
+                "Propagation analysis complete",
+                event_id=event.event_id,
+                trace_id=trace_id,
+                steps=len(propagation_path.steps),
+                overall_strength=propagation_path.overall_strength,
+            )
+
         # ── Step 2: 生成 EventAlphaSignal ─────────────────
-        signal = self._build_signal(event, extracted)
+        signal = self._build_signal(event, extracted, propagation_path)
+
+        # ── Step 2.5: 推理分析 ─────────────────────────────
+        self._run_reasoning(event, signal, trace_id=trace_id)
+
+        # ── Step 2.75: Cognitive Agent Swarm ───────────────
+        await self._run_agent_swarm(event, signal, trace_id=trace_id)
 
         # ── Step 3: 持久化信号 ───────────────────────────
         signal = self._persist_signal(signal)
+        # 将 trace_id 写入 signal metadata
+        signal.metadata["trace_id"] = trace_id
 
         # ── Step 4: 择时评估 ─────────────────────────────
-        timing_decision = self._evaluate_timing(signal)
+        timing_decision = self._evaluate_timing(signal, trace_id=trace_id)
         if timing_decision is not None:
             signal.timing_decision = timing_decision
 
@@ -149,10 +249,226 @@ class ResearchPipeline:
                 confidence=event.confidence,
             )
 
+    def _resolve_entities(self, event: CanonicalEvent) -> list:
+        """从事件中解析实体。"""
+        if self.entity_resolver is None:
+            logger.debug("No EntityResolver, skipping entity resolution")
+            return []
+
+        # 从事件构建文本用于实体提取
+        text_parts = [event.title, event.summary]
+        for entity in event.entities:
+            if isinstance(entity, dict):
+                text_parts.append(entity.get("text", entity.get("name", "")))
+        text = "\n".join(filter(None, text_parts))
+
+        if not text.strip():
+            return []
+
+        try:
+            candidates = self.entity_resolver.extract_candidates(text)
+            return [c.model_dump() for c in candidates]
+        except Exception as exc:
+            logger.error(
+                "Entity resolution failed",
+                event_id=event.event_id,
+                error=str(exc),
+            )
+            return []
+
+    def _analyze_propagation(
+        self,
+        event: CanonicalEvent,
+    ) -> Optional[PropagationPath]:
+        """分析事件在产业链中的传播路径。"""
+        if self.propagation_analyzer is None or self.graph_store is None:
+            logger.debug(
+                "PropagationAnalyzer/GraphStore not available, skipping propagation analysis"
+            )
+            return None
+
+        try:
+            # 尝试通过事件中的行业信息匹配产业链
+            industries = event.impacted_industries or []
+            chain_id: Optional[str] = None
+            if industries:
+                for chain in self.graph_store.find_chains():
+                    if chain.industry in industries or any(ind in chain.name for ind in industries):
+                        chain_id = chain.chain_id
+                        break
+
+            result = self.propagation_analyzer.analyze_impact_propagation(
+                self.graph_store,
+                event,
+                chain_id=chain_id,
+            )
+            try:
+                from services.pipeline_monitor import pipeline_monitor
+                from services.system_event_bus import event_bus
+
+                payload = {
+                    "event_id": event.event_id,
+                    "steps": len(result.steps),
+                    "overall_strength": result.overall_strength,
+                }
+                asyncio.run(event_bus.publish("knowledge.propagation_analyzed", payload))
+                pipeline_monitor.record_event("knowledge.propagation_analyzed", payload)
+            except Exception:
+                pass
+            return result
+        except Exception as exc:
+            logger.error(
+                "Propagation analysis failed",
+                event_id=event.event_id,
+                error=str(exc),
+            )
+            return None
+
+    def _run_reasoning(
+        self,
+        event: CanonicalEvent,
+        signal: EventAlphaSignal,
+        trace_id: str = "",
+    ) -> None:
+        """运行推理引擎，将生成的 hypotheses 填入 signal.scenario_refs。"""
+        if self.reasoning_engine is None:
+            logger.debug("No ReasoningEngine, skipping reasoning step")
+            return
+
+        try:
+            from reasoning.state import RequestType
+
+            question = f"{event.event_type}: {event.title or event.summary}"
+            state = self.reasoning_engine.run(
+                question,
+                RequestType.SIGNAL_VALIDATION,
+            )
+
+            # 将 hypothesis IDs 写入 signal.scenario_refs
+            scenario_ids = [h.scenario_id for h in state.hypotheses]
+            if scenario_ids:
+                signal.scenario_refs = list(set(signal.scenario_refs + scenario_ids))
+                logger.info(
+                    "Reasoning complete, added scenario refs",
+                    signal_id=signal.signal_id,
+                    trace_id=trace_id,
+                    count=len(scenario_ids),
+                )
+            try:
+                from services.pipeline_monitor import pipeline_monitor
+                from services.system_event_bus import event_bus
+
+                payload = {
+                    "signal_id": signal.signal_id,
+                    "trace_id": trace_id,
+                    "scenario_count": len(scenario_ids),
+                }
+                asyncio.run(event_bus.publish("reasoning.completed", payload))
+                pipeline_monitor.record_event("reasoning.completed", payload)
+            except Exception:
+                pass
+        except Exception as exc:
+            logger.error(
+                "Reasoning step failed",
+                signal_id=signal.signal_id,
+                error=str(exc),
+            )
+
+    async def _run_agent_swarm(
+        self,
+        event: CanonicalEvent,
+        signal: EventAlphaSignal,
+        trace_id: str = "",
+    ) -> None:
+        """运行认知 Agent 群体辩论，将观点写入 CognitiveBlackboard。
+
+        观点同时缓存到 self._latest_agent_views 供择时模型消费。
+        """
+        if self.agent_orchestrator is None:
+            logger.debug("No AgentOrchestrator, skipping agent swarm")
+            return
+
+        try:
+            from datetime import datetime, timezone
+
+            blackboard = self.blackboard or CognitiveBlackboard()
+            context = AgentContext(
+                target_id=signal.subject_id,
+                event_id=event.event_id,
+                question=f"事件类型: {event.event_type}\n标题: {event.title}\n摘要: {event.summary}\n信号论点: {signal.thesis}",
+                evidence=event.assertions + event.entities,
+                market_data={
+                    "confidence": signal.confidence,
+                    "score": signal.score,
+                    "impact_path": signal.impact_path,
+                    "generated_at": datetime.now(timezone.utc).isoformat(),
+                },
+            )
+
+            views, conflicts = await self.agent_orchestrator.run_swarm(
+                context,
+                blackboard,
+            )
+
+            # 缓存 agent views 供择时模型使用
+            self._latest_agent_views = [
+                {
+                    "agent": v.agent_name,
+                    "role": v.role.value if hasattr(v.role, "value") else str(v.role),
+                    "direction": v.direction.value
+                    if hasattr(v.direction, "value")
+                    else str(v.direction),
+                    "thesis": v.thesis,
+                    "score": v.score,
+                }
+                for v in views
+            ]
+
+            logger.info(
+                "Agent swarm complete",
+                signal_id=signal.signal_id,
+                trace_id=trace_id,
+                views=len(views),
+                conflicts=len(conflicts),
+            )
+            try:
+                from services.pipeline_monitor import pipeline_monitor
+                from services.system_event_bus import event_bus
+
+                payload = {
+                    "signal_id": signal.signal_id,
+                    "trace_id": trace_id,
+                    "views": len(views),
+                    "conflicts": len(conflicts),
+                    "bull_count": sum(
+                        1
+                        for v in views
+                        if hasattr(v, "direction")
+                        and getattr(v.direction, "value", str(v.direction)) == "bull"
+                    ),
+                    "bear_count": sum(
+                        1
+                        for v in views
+                        if hasattr(v, "direction")
+                        and getattr(v.direction, "value", str(v.direction)) == "bear"
+                    ),
+                }
+                asyncio.run(event_bus.publish("agent.swarm.completed", payload))
+                pipeline_monitor.record_event("agent.swarm.completed", payload)
+            except Exception:
+                pass
+        except Exception as exc:
+            logger.error(
+                "Agent swarm failed",
+                signal_id=signal.signal_id,
+                error=str(exc),
+            )
+
     def _build_signal(
         self,
         event: CanonicalEvent,
         extracted: ExtractedSignalParams,
+        propagation_path: Optional[PropagationPath] = None,
     ) -> EventAlphaSignal:
         """构建 EventAlphaSignal。"""
         # 优先使用提取的 subject_ids，否则从事件 entities 中尝试获取
@@ -165,6 +481,15 @@ class ResearchPipeline:
                     subject_id = entity["canonical_id"]
                     break
 
+        # 合并 impact_path：LLM 提取的 + 图谱传播分析的
+        impact_path = list(extracted.impact_path) if extracted.impact_path else []
+        if propagation_path is not None:
+            for step in propagation_path.steps:
+                impact_path.append(
+                    f"{step.node_id}({step.node_name}): {step.impact} "
+                    f"[mapping={step.mapping_strength:.2f}]"
+                )
+
         signal = EventAlphaSignal(
             signal_id=str(uuid.uuid4()),
             subject_id=subject_id,
@@ -175,7 +500,7 @@ class ResearchPipeline:
             event_id=event.event_id,
             event_type=extracted.event_type or event.event_type,
             event_time=event.event_time,
-            impact_path=extracted.impact_path,
+            impact_path=impact_path,
             industry_impacts=extracted.industry_impacts,
             bullish_companies=extracted.bullish_companies,
             bearish_companies=extracted.bearish_companies,
@@ -226,7 +551,9 @@ class ResearchPipeline:
             )
             return signal
 
-    def _evaluate_timing(self, signal: EventAlphaSignal) -> Optional[TimingDecision]:
+    def _evaluate_timing(
+        self, signal: EventAlphaSignal, trace_id: str = ""
+    ) -> Optional[TimingDecision]:
         """运行择时评估。"""
         if self.timing_registry is None or self.timing_engine is None:
             logger.debug("Timing engine/registry not available, skipping timing evaluation")
@@ -237,6 +564,7 @@ class ResearchPipeline:
                 signal_id=signal.signal_id,
                 event_signal=signal.model_dump(),
                 market_regime=signal.market_regime or "unknown",
+                agent_views=self._latest_agent_views,
             )
             model_scores = self.timing_registry.score_all(context)
             if not model_scores:
@@ -254,9 +582,24 @@ class ResearchPipeline:
             logger.info(
                 "Timing evaluation complete",
                 signal_id=signal.signal_id,
+                trace_id=trace_id,
                 action=timing_decision.action,
                 readiness_score=timing_decision.readiness_score,
             )
+            try:
+                from services.pipeline_monitor import pipeline_monitor
+                from services.system_event_bus import event_bus
+
+                payload = {
+                    "signal_id": signal.signal_id,
+                    "trace_id": trace_id,
+                    "action": timing_decision.action,
+                    "readiness_score": timing_decision.readiness_score,
+                }
+                asyncio.run(event_bus.publish("timing.evaluated", payload))
+                pipeline_monitor.record_event("timing.evaluated", payload)
+            except Exception:
+                pass
             return timing_decision
         except Exception as exc:
             logger.error(
@@ -396,7 +739,15 @@ class ResearchPipeline:
         return updated_episode
 
     async def run_scenario_analysis(self, question: str, subject_ids: List[str]) -> ScenarioSet:
-        """情景分析流水线"""
-        logger.info(f"Running scenario analysis for question: {question}")
-        # TODO: implement full pipeline steps
-        return ScenarioSet(set_id="placeholder", question=question, hypotheses=[])
+        """情景分析流水线。
+
+        流程：ReasoningEngine.generate_scenarios → 返回 ScenarioSet。
+        """
+        logger.info("Running scenario analysis pipeline", question=question)
+
+        if self.reasoning_engine is None:
+            logger.warning("No ReasoningEngine, returning placeholder ScenarioSet")
+            return ScenarioSet(set_id="no-reasoning-engine", question=question, hypotheses=[])
+
+        scenario_set = self.reasoning_engine.generate_scenarios(question)
+        return scenario_set

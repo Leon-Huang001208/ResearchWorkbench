@@ -42,6 +42,13 @@ class TestResearchPipelineIntegration:
         pipeline = ResearchPipeline(**mock_dependencies)
         test_asset_id = "asset:maotai:600519"
 
+        # Configure mock reasoning engine to return a valid snapshot
+        expected_snapshot = AssetAnalysisSnapshot(
+            canonical_id=test_asset_id,
+            as_of=datetime.now(),
+        )
+        mock_dependencies["reasoning_engine"].analyze_asset = Mock(return_value=expected_snapshot)
+
         # Execute
         result = await pipeline.run_asset_analysis(test_asset_id)
 
@@ -50,8 +57,6 @@ class TestResearchPipelineIntegration:
         assert result.canonical_id == test_asset_id
         assert result.as_of is not None
         assert isinstance(result.as_of, datetime)
-        # Verify logging (disabled for simplicity)
-        # assert any("Running asset analysis for asset:maotai:600519" in record.message for record in caplog.records)
 
     @pytest.mark.asyncio
     async def test_run_event_signal(self, mock_dependencies, caplog):
@@ -91,10 +96,19 @@ class TestResearchPipelineIntegration:
         test_question = "美联储加息对中国科技股的影响"
         test_subjects = ["company:tencent", "index:csaps"]
 
+        # Configure mock reasoning engine to return a valid ScenarioSet
+        expected_scenarios = ScenarioSet(
+            set_id="test-scenario-set",
+            question=test_question,
+            hypotheses=[],
+        )
+        mock_dependencies["reasoning_engine"].generate_scenarios = Mock(
+            return_value=expected_scenarios
+        )
+
         # Execute
         result = await pipeline.run_scenario_analysis(test_question, test_subjects)
 
         # Verify
         assert isinstance(result, ScenarioSet)
-        # Verify logging (disabled for simplicity)
-        # assert any("Running scenario analysis for question: 美联储加息对中国科技股的影响" in record.message for record in caplog.records)
+        assert result.question == test_question

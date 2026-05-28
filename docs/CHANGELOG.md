@@ -7,6 +7,20 @@
 ## [Unreleased]
 
 ### Added
+- **所有文档创建路径强制入队 LLM 提取**: CLS deep backfill 和 PDF 转换保存文档后通过 CrawlerIngestionBridge 入队，确保 KnowledgePipeline 做 LLM 提取
+  - `services/crawl_orchestrator.py` — `deep_backfill_step()` 保存后调用 `_enqueue_to_bridge()`
+  - `services/pdf_conversion_service.py` — `_create_document_from_conversion()` 创建后调用 `_enqueue_document()`
+  - 提取 `_enqueue_items()` 静态方法，供回补脚本和 `_enqueue_to_bridge()` 复用
+- **回补脚本: 缺失 LLM 提取文档**: `scripts/backfill_missing_llm_extraction.py`，找到缺少 `canonical_event` 的文档并批量入队 (首次运行回补 2056 条)
+- **爬虫去重文件自动同步**: 每次抓取前将文件级去重状态与 `document_v1` 表同步，防止已删除文档永久被跳过
+  - `data_layer/crawlers/cls/utils/deduplication.py` — `DeduplicationStore.remove_stale()` 方法
+  - `services/crawl_orchestrator.py` — `_sync_dedup_state()` 方法，`crawl_source()` 步骤 4 调用
+- **回补脚本: 去重孤儿清理**: `scripts/cleanup_dedup_orphans.py`，对比去重文件和数据库，移除孤儿条目 (首次运行清理 10 条)
+- **ZQ PDF 下载后自动注册到数据库**: `ReportProcessor._download_and_record_pdf()` 下载成功后在 `pdf_artifact_v1` 创建记录
+  - `data_layer/crawlers/zq/zhiqiu/processors/report_processor.py` — 新增 DB 注册逻辑
+- **PDF 转换自动调度**: `CrawlScheduler` 新增每 5 分钟 PDF 转换任务，自动调用 `convert_pending(limit=5)` 并重试失败项
+  - `services/crawl_scheduler.py` — `_run_pdf_conversion_job()` 方法
+- **回补脚本: PDF 制品注册**: `scripts/backfill_pdf_artifacts.py`，扫描磁盘 PDF 文件并批量注册到 `pdf_artifact_v1` (首次运行注册 287 个)
 - **LLM 提取 flash→pro 自动回退**: 所有提取器先用 deepseek-v4-flash，失败时自动用 deepseek-v4-pro 重试
   - `services/event_extractor.py` — `_extract_via_llm()` 添加 flash→pro 两级调用
   - `knowledge_layer/events/extractor.py` — `_extract_by_llm()` 添加 flash→pro 两级调用
@@ -30,8 +44,18 @@
 - **LLM 提取 max_tokens 提升**: `services/event_extractor.py` 从 1024 → 4096，避免 JSON 截断
 - **`.env` 模型配置**: `TASK_EXTRACTION_MODEL` 使用 `deepseek-v4-flash` 为主，pro 为 fallback
 - **Knowledge Worker 可靠性加固**: `__main__` 改为指数退避重启循环；新增 `_recover_stuck_items()` 自动将超时 processing item 重置为 pending
+- **移除爬虫层 PDF 转换器 (死代码)**: 删除 `data_layer/crawlers/utils/pdf_converter.py` (347 行)，其依赖的 `enable_pdf_conversion` 参数在所有 SourceSpec 中默认为 False
+  - `data_layer/crawlers/zq/zhiqiu/processors/report_processor.py` — 移除 6 个方法中的 `enable_pdf_conversion`/`markdown_dir`/`raw_text_dir` 参数及 2 处转换代码块
+  - `data_layer/crawlers/utils/__init__.py` — 移除 8 个 PDF 相关导出
+- **`_enqueue_to_bridge()` 委托给 `_enqueue_items()`**: 消除重复代码，两个方法共享同一入队逻辑
+- **`get_pending_conversions()` 修复**: 从查询 `PDFConversionV1DB` 改为查询 `PDFArtifactV1DB.parse_status='pending'`
+  - `data_layer/repositories/pdf_artifact_repository.py` + `services/pdf_conversion_service.py`
+- **`list_by_time_range()` 修复**: `available_time` → `created_at`，消除不存在的列引用
+  - `data_layer/repositories/documents_v1.py`
 
 ### Fixed
+- **PDF 转换后文档创建失败静默吞掉**: `_create_document_from_conversion()` 异常现在写入 `conversion.error_log`，运维可发现
+  - `services/pdf_conversion_service.py`
 - **知丘纪要日增量极少**: `days_per_crawl` 默认为 1 天，kanzhiqiu.com 日发布量本身就少 → 改为 `days_per_crawl=3`，每次增量抓取覆盖最近 3 天
   - `data_sources/zhiqiu_transcript.py` — 新增 `days_per_crawl=3` 参数
 - **ZQ 爬虫无限挂起**: `majingyi` 账号 0/54 成功率仍被重复调度 → 已永久禁用

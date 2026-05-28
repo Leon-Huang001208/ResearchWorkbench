@@ -10,7 +10,7 @@ register(
         adapter_kwargs={
             "channel": "快讯",
         },
-        interval_minutes=10,
+        interval_minutes=30,
         deep_backfill_enabled=True,
         doc_type=DocType.NEWS,
         reliability=SourceReliabilityLevel.ESTABLISHED_MEDIA,

@@ -55,6 +55,48 @@ Update this section when:
 - Check logic changes
 - Required docs change
 
+### `scripts/backfill_missing_llm_extraction.py`
+
+Purpose:
+- Finds documents in `document_v1` missing corresponding LLM extraction results in `canonical_event`
+- Enqueues them into the ingestion queue so KnowledgePipeline can perform LLM extraction
+- Supports `--dry-run` preview and `--batch` for batch size control
+
+Update this section when:
+- Backfill query logic changes
+- Enqueue batching behavior changes
+
+---
+
+### `scripts/cleanup_dedup_orphans.py`
+
+Purpose:
+- Cleans orphan entries from file-based CLS crawler dedup state (`DeduplicationStore`)
+- Queries `document_v1` for valid `source_doc_id`s, removes any dedup entries without matching DB rows
+- Prevents permanent crawl skip when documents are deleted from DB but dedup file retains IDs
+- Supports `--dry-run` preview
+
+Update this section when:
+- Dedup state file paths change
+- Cleanup logic changes
+
+---
+
+### `scripts/backfill_pdf_artifacts.py`
+
+Purpose:
+- Scans `data/crawlers/zq/pdfs/` for existing PDF files not yet registered in `pdf_artifact_v1`
+- Computes SHA-256 hash for each file, creates `PDFArtifactV1DB` records with `parse_status='pending'`
+- Skip files already registered (hash-based dedup)
+- Registered PDFs are automatically picked up by `CrawlScheduler` → `PDFConversionService` within 5 minutes
+- Supports `--dry-run` preview
+
+Update this section when:
+- PDF root directory changes
+- Registration fields change
+
+---
+
 ### Other `scripts/*.py`
 
 Purpose:

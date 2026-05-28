@@ -16,7 +16,7 @@ import { showSignalDetail, renderSignalDetail, renderAuditTrailTimeline, loadAud
 import { generateScenarios, renderScenarioResult } from './scenario.js';
 import { generateEventSignal, loadEventSignals, renderEventSignalResult, renderTimingDecision } from './event-signal.js';
 import { loadIndustryChain, loadPropagationPath, renderIndustryGraph, renderPropagationGraph } from './industry.js';
-import { runClosedLoop, renderClosedLoopResults } from './closed-loop.js';
+import { renderPipelineMonitor, stopPipelinePolling, handlePipelineSSEEvent } from './pipeline-monitor.js';
 import { ingestText, renderIngestResult } from './ingest.js';
 import { globalSearch, renderSearchResults, navigateToSignalDetail } from './search.js';
 
@@ -101,7 +101,6 @@ window.loadEventSignals = loadEventSignals;
 window.renderTimingDecision = renderTimingDecision;
 window.loadIndustryChain = loadIndustryChain;
 window.loadPropagationPath = loadPropagationPath;
-window.runClosedLoop = runClosedLoop;
 window.ingestText = ingestText;
 window.globalSearch = globalSearch;
 window.navigateToSignalDetail = navigateToSignalDetail;
@@ -181,6 +180,8 @@ function navigateTo(section) {
     if (section === 'outcomes') loadOutcomes();
     if (section === 'signal-lab') loadSignalLab();
     if (section === 'templates') loadTemplatesPage();
+    if (section === 'pipeline-monitor') renderPipelineMonitor();
+    else stopPipelinePolling();
 }
 window.navigateTo = navigateTo;
 
@@ -209,6 +210,23 @@ function connectSSE() {
             const data = JSON.parse(e.data);
             if (data.processed > 0) loadDashboard();
         } catch (_) {}
+    });
+    // Pipeline events — forward to pipeline-monitor module
+    const pipelineEventTypes = [
+        'pipeline.closed_loop.started', 'pipeline.signal.generated',
+        'pipeline.backtest.completed', 'pipeline.episode.recorded',
+        'pipeline.pattern.learned', 'pipeline.closed_loop.completed',
+        'pipeline.closed_loop.error',
+        'knowledge.entity_resolved', 'knowledge.propagation_analyzed',
+        'reasoning.completed', 'agent.swarm.completed', 'timing.evaluated',
+    ];
+    pipelineEventTypes.forEach(type => {
+        sseConnection.addEventListener(type, (e) => {
+            try {
+                const payload = JSON.parse(e.data);
+                handlePipelineSSEEvent({ type, payload });
+            } catch (_) {}
+        });
     });
 }
 
@@ -288,8 +306,6 @@ document.addEventListener('DOMContentLoaded', () => {
     initSignals();
     initMemory();
     document.getElementById('btn-ingest')?.addEventListener('click', ingestText);
-    document.getElementById('btn-run-closed-loop')?.addEventListener('click', runClosedLoop);
-
     initSignalLab();
 
     connectSSE();

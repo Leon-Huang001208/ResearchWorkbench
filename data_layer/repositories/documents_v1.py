@@ -265,22 +265,22 @@ class DocumentV1Repository(BaseRepository):
         """
         按时间范围列出文档（用于回测视角）
 
-        使用 available_time 来确定文档对回测的可见性
+        使用 created_at 来确定文档对回测的可见性
         """
         stmt = select(DocumentV1DB)
 
         conditions = []
         if start_time:
-            conditions.append(DocumentV1DB.available_time >= start_time)
+            conditions.append(DocumentV1DB.created_at >= start_time)
         if end_time:
-            conditions.append(DocumentV1DB.available_time <= end_time)
+            conditions.append(DocumentV1DB.created_at <= end_time)
         if source_type:
             conditions.append(DocumentV1DB.source_type == source_type.value)
 
         if conditions:
             stmt = stmt.where(and_(*conditions))
 
-        stmt = stmt.order_by(desc(DocumentV1DB.available_time)).limit(limit)
+        stmt = stmt.order_by(desc(DocumentV1DB.created_at)).limit(limit)
         results = self.db.execute(stmt).scalars().all()
         return [r.to_contract() for r in results]
 

@@ -1,6 +1,6 @@
 """统一摄取队列仓储"""
 import hashlib
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from sqlalchemy import func
@@ -166,6 +166,56 @@ class IngestionQueueRepository(BaseRepository):
             failed=failed,
             avg_latency_ms=avg_latency_ms,
         )
+
+    def get_processing_stats(self) -> dict:
+        """按时间维度统计已处理数量：今日 / 近7天 / 近30天 / 总计，含趋势对比"""
+        tz_cn = timezone(timedelta(hours=8))
+        now = datetime.now(tz_cn)
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        yesterday_start = today_start - timedelta(days=1)
+
+        base_query = self.db.query(func.count(IngestionQueueItemDB.item_id)).filter(
+            IngestionQueueItemDB.status == "completed"
+        )
+
+        today = base_query.filter(IngestionQueueItemDB.processed_at >= today_start).scalar() or 0
+
+        # 昨日同期：昨天 00:00 到昨天同一时刻的完成数
+        yesterday_same_time = (
+            base_query.filter(
+                IngestionQueueItemDB.processed_at >= yesterday_start,
+                IngestionQueueItemDB.processed_at < yesterday_start + (now - today_start),
+            ).scalar()
+            or 0
+        )
+
+        last_7_days = (
+            base_query.filter(
+                IngestionQueueItemDB.processed_at >= today_start - timedelta(days=7)
+            ).scalar()
+            or 0
+        )
+
+        last_30_days = (
+            base_query.filter(
+                IngestionQueueItemDB.processed_at >= today_start - timedelta(days=30)
+            ).scalar()
+            or 0
+        )
+
+        total = base_query.scalar() or 0
+
+        # 7日均值：近7天总数 / 7
+        daily_avg_7d = round(last_7_days / 7, 1) if last_7_days > 0 else 0.0
+
+        return {
+            "today": today,
+            "last_7_days": last_7_days,
+            "last_30_days": last_30_days,
+            "total": total,
+            "yesterday_same_time": yesterday_same_time,
+            "daily_avg_7d": daily_avg_7d,
+        }
 
     def find_by_dedup_hash(self, dedup_hash: str) -> Optional[IngestionQueueItem]:
         """根据去重哈希查找"""

@@ -197,6 +197,11 @@ class PDFConversionService:
                         f"创建 DocumentV1 失败 (pdf_id={pdf_id}): {e}",
                         exc_info=True,
                     )
+                    # 记录到 conversion，使运维可发现
+                    conversion.error_log = (
+                        f"PDF conversion succeeded but DocumentV1 creation failed: {e}"
+                    )
+                    self._db.commit()
 
             return result
 
@@ -294,6 +299,9 @@ class PDFConversionService:
         doc_repo.create(doc)
         logger.info(f"DocumentV1 已创建: {doc_id} (pdf_id={artifact.pdf_id})")
 
+        # 送入摄取队列，由 KnowledgePipeline 做 LLM 提取（实体、事件等）
+        self._enqueue_document(doc)
+
         # 创建分块
         assert self._chunker is not None
         chunks = self._chunker.chunk_document(doc)
@@ -306,6 +314,36 @@ class PDFConversionService:
         if chunks:
             chunk_repo.bulk_create(chunks)
             logger.info(f"已创建 {len(chunks)} 个分块 (doc_id={doc_id})")
+
+    @staticmethod
+    def _enqueue_document(doc: DocumentV1) -> None:
+        """将 DocumentV1 送入摄取队列，由 KnowledgePipeline 做 LLM 提取"""
+        try:
+            from services.crawl_orchestrator import CrawlOrchestrator
+
+            source_type_str = (
+                doc.source_type.value if hasattr(doc.source_type, "value") else str(doc.source_type)
+            )
+            published_at = None
+            if doc.timeliness and doc.timeliness.publish_time:
+                pt = doc.timeliness.publish_time
+                published_at = pt.isoformat() if hasattr(pt, "isoformat") else str(pt)
+
+            CrawlOrchestrator._enqueue_items(
+                source_type_str,
+                [
+                    {
+                        "id": doc.doc_id,
+                        "title": doc.title,
+                        "content": doc.content,
+                        "url": doc.source_url,
+                        "published_at": published_at,
+                        "source_name": doc.source_name,
+                    }
+                ],
+            )
+        except Exception as e:
+            logger.error(f"Failed to enqueue document {doc.doc_id}: {e}", exc_info=True)
 
     def convert_pending(self, limit: int = 10) -> List[ConversionResult]:
         """批量转换所有 pending 的 PDF
@@ -400,9 +438,15 @@ class PDFConversionService:
         """获取转换统计信息"""
         return pdf_repo.get_conversion_stats(self._db)
 
-    def get_pending(self, limit: int = 50) -> list[PDFConversionV1DB]:
+    def get_pending(self, limit: int = 50) -> list[PDFArtifactV1DB]:
         """获取待转换列表"""
-        return pdf_repo.get_pending_conversions(self._db, limit)
+        return (
+            self._db.query(PDFArtifactV1DB)
+            .filter(PDFArtifactV1DB.parse_status == "pending")
+            .order_by(PDFArtifactV1DB.created_at.asc())
+            .limit(limit)
+            .all()
+        )
 
 
 def _map_source_type(source_type: str) -> SourceType:

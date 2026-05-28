@@ -58,6 +58,81 @@ app/api or app/cli
 
 ## Files
 
+### `services/crawl_orchestrator.py`
+
+Purpose:
+
+- Orchestrates multi-source crawling: fetch → normalize → dedup → store → enqueue.
+- `_enqueue_items(source_type, items)` — static method that converts raw items to `DocumentEnvelope` and submits to IngestionBridge via batch.
+- `_sync_dedup_state(source_type)` — syncs file-based crawler dedup state against database, removing orphan entries for documents deleted from DB.
+- `deep_backfill_step()` — backfills historical documents and enqueues them for LLM extraction.
+- `crawl_source()` step ordering: resolve spec → fetch → normalize → sync dedup → store → enqueue → mark complete.
+
+Related files:
+
+- `services/crawl_scheduler.py`
+- `services/crawler_ingestion_bridge.py`
+- `data_layer/crawlers/cls/utils/deduplication.py`
+- `core/source_registry.py`
+
+Update this section when:
+
+- Crawl orchestration logic changes.
+- New crawl step is added.
+- Dedup sync behavior changes.
+- Enqueue batching changes.
+
+---
+
+### `services/crawl_scheduler.py`
+
+Purpose:
+
+- Schedules periodic crawl and PDF conversion jobs via APScheduler.
+- Crawl jobs: `_run_crawl_job()` loops over `source_registry.get_enabled()` sources with staggered intervals.
+- PDF conversion job: `_run_pdf_conversion_job()` runs every 5 minutes, calls `PDFConversionService.convert_pending(limit=5)` + `retry_failed(limit=3)`.
+
+Related files:
+
+- `services/crawl_orchestrator.py`
+- `services/pdf_conversion_service.py`
+- `core/source_registry.py`
+
+Update this section when:
+
+- Job scheduling intervals change.
+- New scheduled jobs are added.
+- PDF conversion batch size or retry limits change.
+
+---
+
+### `services/pdf_conversion_service.py`
+
+Purpose:
+
+- Orchestrates PDF-to-Markdown/text conversion with multi-strategy fallback (MinerU → MarkItDown → RawText).
+- `convert_pdf(pdf_id)` — converts a single PDF, persists results to disk (`data/markdown/`, `data/raw_text/`), creates `DocumentV1` + chunks.
+- `convert_pending(limit)` — queries `PDFArtifactV1DB` with `parse_status='pending'`, converts up to `limit` PDFs.
+- `retry_failed(limit)` — retries conversions where `parse_status != 'completed'`.
+- Automatic `DocumentV1` creation with content hash dedup (can be disabled via `create_document=False`).
+
+Related files:
+
+- `ingestion/converters/mineru.py`
+- `ingestion/converters/markitdown.py`
+- `ingestion/converters/raw_text.py`
+- `ingestion/converters/persistence.py`
+- `data_layer/repositories/pdf_artifact_repository.py`
+- `data_layer/repositories/documents_v1.py`
+
+Update this section when:
+
+- Conversion strategy priority changes.
+- File persistence paths change.
+- Document creation logic changes.
+
+---
+
 ### `services/dashboard_service.py`
 
 Purpose:

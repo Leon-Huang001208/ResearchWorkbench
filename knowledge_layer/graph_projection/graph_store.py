@@ -1,5 +1,9 @@
+from __future__ import annotations
+
+import json
 from collections import deque
 from datetime import datetime
+from pathlib import Path
 from typing import List, Optional
 
 from core.observability import get_logger
@@ -7,6 +11,26 @@ from core.observability import get_logger
 from .contracts import IndustryChain, RelationshipType, TemporalRelation
 
 logger = get_logger(__name__)
+
+# 将 JSON 文件中的关系类型映射到 RelationshipType 枚举
+_JSON_RELATION_MAP: dict[str, RelationshipType] = {
+    "supplies": RelationshipType.SUPPLIES,
+    "depends_on": RelationshipType.DEPENDS_ON,
+    "substitutes": RelationshipType.SUBSTITUTES,
+    "complements": RelationshipType.COMPLEMENTS,
+    "competes_with": RelationshipType.COMPETES_WITH,
+    "derives_from": RelationshipType.DERIVES_FROM,
+    # 种子数据中的自定义类型，映射到最近似的标准类型
+    "accelerates": RelationshipType.DEPENDS_ON,
+    "requires": RelationshipType.DEPENDS_ON,
+    "requires_local": RelationshipType.DEPENDS_ON,
+    "produced_by": RelationshipType.SUPPLIES,
+    "drives": RelationshipType.DEPENDS_ON,
+    "drives_demand": RelationshipType.DEPENDS_ON,
+    "direct_demand": RelationshipType.DEPENDS_ON,
+    "uses": RelationshipType.DEPENDS_ON,
+    "supplied_by": RelationshipType.SUPPLIES,
+}
 
 
 class IndustryGraphStore:
@@ -166,3 +190,75 @@ class IndustryGraphStore:
 
         # No path found
         return []
+
+    def load_from_json(self, file_path: str | Path) -> tuple[IndustryChain, list[TemporalRelation]]:
+        """从 JSON 文件加载产业链数据。
+
+        解析 data/industry_graphs/ 下的 JSON 文件，将其节点和边
+        转换为 IndustryChain + TemporalRelation。已有的关系和链
+        会被覆盖（add_relation / add_chain 使用相同 ID 时会更新）。
+
+        Returns:
+            (loaded_chain, loaded_relations)
+        """
+        file_path = Path(file_path)
+        with open(file_path, encoding="utf-8") as f:
+            data = json.load(f)
+
+        graph_id = data["graph_id"]
+        name = data.get("name", graph_id)
+        industry = data.get("industry", "")
+        node_ids: list[str] = [n["node_id"] for n in data.get("nodes", [])]
+
+        relation_ids: list[str] = []
+        relations: list[TemporalRelation] = []
+
+        for edge in data.get("edges", []):
+            rel_id = f"{graph_id}:{edge['from_node']}-{edge['to_node']}"
+            rel_type_str = edge.get("relationship_type", "depends_on")
+            rel_type = _JSON_RELATION_MAP.get(rel_type_str, RelationshipType.DEPENDS_ON)
+
+            relation = TemporalRelation(
+                relation_id=rel_id,
+                from_entity_id=edge["from_node"],
+                to_entity_id=edge["to_node"],
+                relationship_type=rel_type,
+                strength=edge.get("strength", 0.5),
+                industry=data.get("industry", ""),
+            )
+            self.add_relation(relation)
+            relation_ids.append(rel_id)
+            relations.append(relation)
+
+        chain = IndustryChain(
+            chain_id=graph_id,
+            name=name,
+            industry=industry or name,
+            nodes=node_ids,
+            relations=relation_ids,
+        )
+        self.add_chain(chain)
+
+        logger.info(
+            "Loaded industry chain from JSON",
+            chain_id=graph_id,
+            name=name,
+            nodes=len(node_ids),
+            edges=len(relations),
+        )
+        return chain, relations
+
+    def load_all_seed_data(
+        self, data_dir: str | Path = "data/industry_graphs"
+    ) -> list[IndustryChain]:
+        """加载 data_dir 下所有 JSON 种子数据到本 store。
+
+        Returns:
+            加载的所有 IndustryChain 列表。
+        """
+        data_dir = Path(data_dir)
+        chains: list[IndustryChain] = []
+        for json_file in sorted(data_dir.glob("*.json")):
+            chain, _ = self.load_from_json(json_file)
+            chains.append(chain)
+        return chains

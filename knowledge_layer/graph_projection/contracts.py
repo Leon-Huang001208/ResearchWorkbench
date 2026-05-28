@@ -45,6 +45,13 @@ class IndustryChain(BaseModel):
 
 
 class PropagationPath(BaseModel):
+    """@deprecated: 使用 core.contracts.industry_chain.PropagationPath 替代。
+
+    旧版传播路径，path 字段为 list[dict]。
+    新版使用 steps: list[PropagationStep]，结构更清晰。
+    PropagationAnalyzer.analyze_impact_propagation() 现在返回 core 版本。
+    """
+
     path_id: str
     trigger_event_type: str
     affected_chain_id: str

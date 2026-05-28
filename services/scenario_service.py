@@ -4,7 +4,6 @@
 from pathlib import Path
 from typing import List, Optional
 
-from core.contracts import ScenarioHypothesis as ContractScenarioHypothesis
 from core.contracts import ScenarioSet
 from core.observability import get_logger
 from reasoning import ReasoningEngine, RequestType
@@ -48,23 +47,8 @@ class ScenarioService:
             subject_ids,
         )
 
-        # 转换为契约类型
-        hypotheses = []
-        for h in state.hypotheses:
-            hypotheses.append(
-                ContractScenarioHypothesis(
-                    scenario_id=h.scenario_id,
-                    title=h.title,
-                    horizon=h.horizon,
-                    probability=h.probability,
-                    assumptions=h.assumptions,
-                    key_triggers=h.key_triggers,
-                    invalidation_signals=h.invalidation_signals,
-                    impact_map=h.impact_map,
-                    evidence_assertion_ids=h.evidence_assertion_ids,
-                    confidence=h.confidence,
-                )
-            )
+        # state.hypotheses 已经是 core.contracts.ScenarioHypothesis 类型，无需转换
+        hypotheses = state.hypotheses
 
         return ScenarioSet(
             set_id=state.trace_id or "",

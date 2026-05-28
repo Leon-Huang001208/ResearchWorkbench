@@ -1,6 +1,7 @@
 """
 实体解析器 - 从文本中识别实体
 """
+import json
 import re
 from typing import Optional
 
@@ -10,6 +11,22 @@ from knowledge_layer.entity_resolution.canonicalizer import Canonicalizer
 from knowledge_layer.entity_resolution.types import EntityCandidate, EntityType, ResolvedEntity
 
 logger = get_logger(__name__)
+
+_ENTITY_EXTRACTION_SYSTEM = """你是一个金融实体提取专家。从给定的文本中提取所有实体（公司、人物、概念、指数、商品等）。
+
+返回 JSON 数组，每个元素格式：
+{
+  "text": "实体名称",
+  "entity_type": "company|person|concept|index|commodity|currency|government|organization",
+  "confidence": 0.0-1.0
+}
+
+规则：
+- 只提取明确出现在文本中的实体
+- 公司名、股票代码用 "company"
+- 行业概念、政策名词用 "concept"
+- 置信度基于文本中明确程度（代码/全称=高，简称=低）
+- 不要返回空数组外的无关文本"""
 
 
 class EntityResolver:
@@ -109,7 +126,10 @@ class EntityResolver:
         candidates = self.extract_candidates(text)
         if not candidates:
             # 如果没有候选，尝试直接解析
-            return self._resolve_direct(text, entity_type)
+            result = self._resolve_direct(text, entity_type)
+            if result is not None:
+                self._publish_entity_event(text, result)
+            return result
 
         # 选择置信度最高的
         best_candidate = max(candidates, key=lambda c: c.confidence)
@@ -120,7 +140,7 @@ class EntityResolver:
             best_candidate.entity_type,
         )
 
-        return ResolvedEntity(
+        result = ResolvedEntity(
             canonical_id=canonical_id,
             entity_type=best_candidate.entity_type,
             canonical_name=best_candidate.text,
@@ -128,6 +148,28 @@ class EntityResolver:
             confidence=best_candidate.confidence,
             matched_text=best_candidate.text,
         )
+        self._publish_entity_event(text, result)
+        return result
+
+    @staticmethod
+    def _publish_entity_event(raw_text: str, result: ResolvedEntity) -> None:
+        """发布实体解析事件到管线监控。"""
+        try:
+            import asyncio
+
+            from services.pipeline_monitor import pipeline_monitor
+            from services.system_event_bus import event_bus
+
+            payload = {
+                "raw_text": raw_text[:100],
+                "canonical_name": result.canonical_name,
+                "entity_type": result.entity_type.value,
+                "confidence": result.confidence,
+            }
+            asyncio.run(event_bus.publish("knowledge.entity_resolved", payload))
+            pipeline_monitor.record_event("knowledge.entity_resolved", payload)
+        except Exception:
+            pass
 
     def _extract_stock_codes(self, text: str) -> list[EntityCandidate]:
         """使用规则提取股票代码"""
@@ -196,10 +238,60 @@ class EntityResolver:
         return candidates
 
     def _extract_by_llm(self, text: str) -> list[EntityCandidate]:
-        """使用 LLM 提取实体（占位实现）"""
-        # TODO: 实现真正的 LLM 提取逻辑
-        logger.debug("LLM extraction not implemented yet")
-        return []
+        """使用 LLM 提取实体"""
+        if not self._model_gateway:
+            return []
+
+        messages = [
+            {"role": "system", "content": _ENTITY_EXTRACTION_SYSTEM},
+            {"role": "user", "content": text},
+        ]
+
+        try:
+            response = self._model_gateway.chat(messages, temperature=0.1)
+            raw = response.content.strip()
+
+            # 去除可能的 markdown 代码块包裹
+            if raw.startswith("```"):
+                raw = raw.split("\n", 1)[-1]
+                if raw.endswith("```"):
+                    raw = raw[:-3]
+                raw = raw.strip()
+
+            items = json.loads(raw)
+            if not isinstance(items, list):
+                logger.warning("LLM entity extraction returned non-list, ignoring")
+                return []
+
+            candidates: list[EntityCandidate] = []
+            for item in items:
+                entity_text = item.get("text", "").strip()
+                if not entity_text:
+                    continue
+
+                entity_type_str = item.get("entity_type", "concept")
+                try:
+                    entity_type = EntityType(entity_type_str)
+                except ValueError:
+                    entity_type = EntityType.CONCEPT
+
+                confidence = float(item.get("confidence", 0.6))
+                confidence = max(0.0, min(1.0, confidence))
+
+                candidates.append(
+                    EntityCandidate(
+                        text=entity_text,
+                        entity_type=entity_type,
+                        confidence=confidence,
+                    )
+                )
+
+            logger.info("LLM extracted %d entities from text", len(candidates))
+            return candidates
+
+        except (json.JSONDecodeError, AttributeError, ValueError) as e:
+            logger.error("LLM entity extraction failed: %s", e, exc_info=True)
+            return []
 
     def _deduplicate_candidates(
         self,

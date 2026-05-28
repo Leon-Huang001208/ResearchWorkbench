@@ -9,6 +9,8 @@
 import json
 import os
 import re
+import uuid
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
@@ -146,10 +148,7 @@ class ReportProcessor(BaseProcessor):
         enable_viewpoint: bool = False,
         enable_companies: bool = False,
         enable_pdf: bool = False,
-        enable_pdf_conversion: bool = False,
         pdf_dir: str = "pdfs",
-        markdown_dir: str = "markdown",
-        raw_text_dir: str = "raw_text",
         ai_interval: int = 10,
         output_dir: Optional[str] = None,
         state_manager: Optional[Any] = None,
@@ -196,10 +195,7 @@ class ReportProcessor(BaseProcessor):
                 enable_viewpoint,
                 enable_companies,
                 enable_pdf,
-                enable_pdf_conversion,
                 os.path.join(output_dir, pdf_dir),
-                os.path.join(output_dir, markdown_dir),
-                os.path.join(output_dir, raw_text_dir),
                 ai_interval,
                 output_dir,
                 state_manager,
@@ -216,10 +212,7 @@ class ReportProcessor(BaseProcessor):
                 enable_viewpoint,
                 enable_companies,
                 enable_pdf,
-                enable_pdf_conversion,
                 os.path.join(output_dir, pdf_dir),
-                os.path.join(output_dir, markdown_dir),
-                os.path.join(output_dir, raw_text_dir),
                 ai_interval,
                 output_dir,
                 state_manager,
@@ -249,10 +242,7 @@ class ReportProcessor(BaseProcessor):
         enable_viewpoint: bool,
         enable_companies: bool,
         enable_pdf: bool,
-        enable_pdf_conversion: bool,
         pdf_root_dir: str,
-        markdown_root_dir: str,
-        raw_text_root_dir: str,
         ai_interval: int,
         output_dir: Optional[str],
         state_manager: Optional[Any],
@@ -291,10 +281,7 @@ class ReportProcessor(BaseProcessor):
                     enable_viewpoint=enable_viewpoint,
                     enable_companies=enable_companies,
                     enable_pdf=enable_pdf,
-                    enable_pdf_conversion=enable_pdf_conversion,
                     pdf_root_dir=pdf_root_dir,
-                    markdown_root_dir=markdown_root_dir,
-                    raw_text_root_dir=raw_text_root_dir,
                     ai_interval=ai_interval,
                     output_dir=output_dir,
                 )
@@ -330,10 +317,7 @@ class ReportProcessor(BaseProcessor):
         enable_viewpoint: bool,
         enable_companies: bool,
         enable_pdf: bool,
-        enable_pdf_conversion: bool,
         pdf_root_dir: str,
-        markdown_root_dir: str,
-        raw_text_root_dir: str,
         ai_interval: int,
         output_dir: Optional[str],
         state_manager: Optional[Any],
@@ -375,10 +359,7 @@ class ReportProcessor(BaseProcessor):
                 enable_viewpoint,
                 enable_companies,
                 enable_pdf,
-                enable_pdf_conversion,
                 pdf_root_dir,
-                markdown_root_dir,
-                raw_text_root_dir,
                 ai_interval,
                 output_dir=output_dir,
             )
@@ -412,10 +393,7 @@ class ReportProcessor(BaseProcessor):
         enable_viewpoint: bool = False,
         enable_companies: bool = False,
         enable_pdf: bool = False,
-        enable_pdf_conversion: bool = False,
         pdf_root_dir: str = "pdfs",
-        markdown_root_dir: str = "markdown",
-        raw_text_root_dir: str = "raw_text",
         ai_interval: int = 10,
         output_dir: Optional[str] = None,
     ) -> Dict[str, Any]:
@@ -482,40 +460,6 @@ class ReportProcessor(BaseProcessor):
                 item["pdfHash"] = pdf_result["hash"]
                 item["pdfSize"] = pdf_result["size"]
 
-                # PDF 转换
-                if enable_pdf_conversion and output_dir:
-                    full_pdf_path = (
-                        os.path.join(output_dir, pdf_path)
-                        if not os.path.isabs(pdf_path)
-                        else pdf_path
-                    )
-                    if os.path.exists(full_pdf_path):
-                        try:
-                            from ...utils.pdf_converter import convert_and_save
-
-                            conv_result, saved_paths = convert_and_save(
-                                pdf_path=full_pdf_path,
-                                output_dir=markdown_root_dir,
-                                save_raw=True,
-                                save_markdown=True,
-                            )
-                            if conv_result.success:
-                                if "markdown" in saved_paths:
-                                    item["markdownPath"] = os.path.relpath(
-                                        saved_paths["markdown"], output_dir
-                                    )
-                                if "raw_text" in saved_paths:
-                                    item["rawTextPath"] = os.path.relpath(
-                                        saved_paths["raw_text"], output_dir
-                                    )
-                                item["pdfConversionStrategy"] = conv_result.strategy_used
-                        except ImportError:
-                            self.client.logger.warning(
-                                "pdf_converter module not available, skipping PDF conversion"
-                            )
-                        except Exception as e:
-                            self.client.logger.warning(f"PDF 转换失败: {e}")
-
         item.update(
             {
                 "brokerName": broker,
@@ -541,10 +485,7 @@ class ReportProcessor(BaseProcessor):
         enable_viewpoint: bool = False,
         enable_companies: bool = False,
         enable_pdf: bool = False,
-        enable_pdf_conversion: bool = False,
         pdf_root_dir: str = "pdfs",
-        markdown_root_dir: str = "markdown",
-        raw_text_root_dir: str = "raw_text",
         ai_interval: int = 10,
         output_dir: Optional[str] = None,
         **kwargs,
@@ -604,40 +545,6 @@ class ReportProcessor(BaseProcessor):
                 item["pdfPath"] = pdf_result["relative_path"]
                 item["pdfHash"] = pdf_result["hash"]
                 item["pdfSize"] = pdf_result["size"]
-
-                # PDF 转换
-                if enable_pdf_conversion and output_dir:
-                    full_pdf_path = (
-                        os.path.join(output_dir, pdf_result["relative_path"])
-                        if not os.path.isabs(pdf_result["relative_path"])
-                        else pdf_result["relative_path"]
-                    )
-                    if os.path.exists(full_pdf_path):
-                        try:
-                            from ...utils.pdf_converter import convert_and_save
-
-                            conv_result, saved_paths = convert_and_save(
-                                pdf_path=full_pdf_path,
-                                output_dir=markdown_root_dir,
-                                save_raw=True,
-                                save_markdown=True,
-                            )
-                            if conv_result.success:
-                                if "markdown" in saved_paths:
-                                    item["markdownPath"] = os.path.relpath(
-                                        saved_paths["markdown"], output_dir
-                                    )
-                                if "raw_text" in saved_paths:
-                                    item["rawTextPath"] = os.path.relpath(
-                                        saved_paths["raw_text"], output_dir
-                                    )
-                                item["pdfConversionStrategy"] = conv_result.strategy_used
-                        except ImportError:
-                            self.client.logger.warning(
-                                "pdf_converter module not available, skipping PDF conversion"
-                            )
-                        except Exception as e:
-                            self.client.logger.warning(f"PDF 转换失败: {e}")
 
         return item
 
@@ -703,6 +610,34 @@ class ReportProcessor(BaseProcessor):
                 save_pdf_metadata(metadata, output_dir)
             except Exception as e:
                 self.client.logger.warning(f"保存 PDF 元数据失败: {e}")
+
+        # 注册到数据库，使 PDFConversionService 可以发现并转换它
+        try:
+            from data_layer.repositories.base import SessionLocal
+            from data_layer.repositories.models import PDFArtifactV1DB
+            from data_layer.repositories.pdf_artifact_repository import add_pdf_artifact
+
+            db = SessionLocal()
+            try:
+                artifact = PDFArtifactV1DB(
+                    pdf_id=f"pdf_{uuid.uuid4().hex[:12]}",
+                    source_obj_id=obj_id,
+                    file_path=relative_path,
+                    file_name=pdf_filename,
+                    file_size_bytes=file_size,
+                    file_hash_sha256=file_hash,
+                    source_type="zhiqiu_reports",
+                    source_name="知丘",
+                    source_broker=broker,
+                    source_url=(f"{self.client.BASE_URL}/newweb/zqpdf/pdf.html?fileid={obj_id}"),
+                    fetch_timestamp=datetime.now(timezone.utc),
+                    parse_status="pending",
+                )
+                add_pdf_artifact(db, artifact)
+            finally:
+                db.close()
+        except Exception as e:
+            self.client.logger.warning(f"注册 PDF 制品到数据库失败: {e}")
 
         return {
             "relative_path": relative_path,

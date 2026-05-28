@@ -132,6 +132,28 @@ class CrawlScheduler:
             next_run_time=datetime.now(),
         )
 
+        # PDF 转换任务 — 每 5 分钟检查一次待转换的 PDF
+        self.scheduler.add_job(
+            self._run_pdf_conversion_job,
+            "interval",
+            minutes=5,
+            jitter=60,
+            id="pdf_conversion",
+            name="PDF Conversion",
+            next_run_time=datetime.now() + timedelta(minutes=1),
+        )
+
+        # 闭循环任务 — 每 10 分钟自动运行 (信号生成 + 回测 + 学习)
+        self.scheduler.add_job(
+            self._run_closed_loop_job,
+            "interval",
+            minutes=10,
+            jitter=60,
+            id="closed_loop",
+            name="Closed Loop Pipeline",
+            next_run_time=datetime.now() + timedelta(minutes=2),
+        )
+
         self.scheduler.start()
         self.running = True
         logger.info("Crawl scheduler started")
@@ -566,9 +588,56 @@ class CrawlScheduler:
             logger.error(f"[startup] {source_type.value}: backfill failed: {e}", exc_info=True)
             return None
 
+    async def _run_pdf_conversion_job(self) -> None:
+        """执行 PDF 转换任务 — 将待转换的 PDF 转为 Markdown"""
+        try:
+            from data_layer.repositories.base import SessionLocal
+            from services.pdf_conversion_service import PDFConversionService
+
+            db = SessionLocal()
+            try:
+                service = PDFConversionService(db, create_document=True)
+                results = service.convert_pending(limit=5)
+                success = sum(1 for r in results if r.success)
+                failed = len(results) - success
+                if results:
+                    logger.info(
+                        f"PDF conversion batch: {success} success, {failed} failed "
+                        f"(out of {len(results)} pending)"
+                    )
+                    # 重试之前失败的
+                    if failed > 0:
+                        retry_results = service.retry_failed(limit=3)
+                        retry_success = sum(1 for r in retry_results if r.success)
+                        if retry_results:
+                            logger.info(
+                                f"PDF retry: {retry_success}/{len(retry_results)} recovered"
+                            )
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"PDF conversion job failed: {e}", exc_info=True)
+
     async def _health_check(self) -> None:
         """健康检查"""
         logger.debug("Health check")
+
+    async def _run_closed_loop_job(self) -> None:
+        """执行闭循环任务 — 自动生成信号 + 回测 + 学习"""
+        try:
+            from services.closed_loop_service import ClosedLoopService
+
+            logger.info("Running scheduled closed loop")
+            service = ClosedLoopService()
+            summary = service.run_full_loop()
+            logger.info(
+                "Scheduled closed loop completed",
+                signals_generated=summary.get("signals_generated", 0),
+                signals_backtested=summary.get("signals_backtested", 0),
+                duration_ms=summary.get("duration_ms", 0),
+            )
+        except Exception as e:
+            logger.error(f"Scheduled closed loop failed: {e}", exc_info=True)
 
 
 def build_scheduler_status() -> Dict[str, Any]:

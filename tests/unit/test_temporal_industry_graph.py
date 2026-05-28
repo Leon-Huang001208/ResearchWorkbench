@@ -6,11 +6,10 @@ import pytest
 from sqlalchemy import text
 
 from core.contracts.events import CanonicalEvent
+from core.contracts.industry_chain import PropagationPath as CorePropagationPath
 from knowledge_layer.graph_projection.contracts import (
     IndustryChain,
-    PropagationPath,
     RelationshipType,
-    SupplyChainPosition,
     TemporalRelation,
 )
 from knowledge_layer.graph_projection.graph_store import IndustryGraphStore
@@ -184,14 +183,14 @@ class TestPropagationAnalyzer:
         )
 
         result = analyzer.analyze_impact_propagation(store, event, chain_id="chain_001")
-        assert isinstance(result, PropagationPath)
-        assert len(result.path) == 4
-        # First node should be upstream
-        assert result.path[0]["position"] == SupplyChainPosition.UPSTREAM
-        # Last node should be downstream
-        assert result.path[-1]["position"] == SupplyChainPosition.DOWNSTREAM
-        # Lag should increase along path
-        assert result.path[0]["expected_lag_days"] < result.path[-1]["expected_lag_days"]
+        assert isinstance(result, CorePropagationPath)
+        assert len(result.steps) == 4
+        # First step should reference upstream entity
+        assert "upstream" in result.steps[0].impact
+        # Last step should reference downstream entity
+        assert "downstream" in result.steps[-1].impact
+        # Mapping strength should decay (upstream stronger than downstream)
+        assert result.steps[0].mapping_strength > result.steps[-1].mapping_strength
 
 
 class TestGraphRepositorySQLite:

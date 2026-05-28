@@ -135,8 +135,8 @@ async def get_pending(
             "pdf_id": p.pdf_id,
             "file_name": getattr(p, "file_name", ""),
             "source_type": getattr(p, "source_type", ""),
-            "conversion_strategy": getattr(p, "conversion_strategy", ""),
-            "status": p.status,
+            "conversion_strategy": getattr(p, "parse_version", ""),
+            "status": p.parse_status,
             "created_at": str(p.created_at) if p.created_at else None,
         }
         for p in pending

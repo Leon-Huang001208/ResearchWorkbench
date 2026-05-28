@@ -70,6 +70,7 @@ def _write_heartbeat(worker_label: str, activity: str) -> None:
 def _recover_stuck_items(db_session: Any) -> int:
     """将卡在 processing 状态超过 STUCK_RECOVERY_MINUTES 分钟的 item 重置为 pending"""
     from datetime import datetime, timedelta, timezone
+
     from data_layer.repositories.models import IngestionQueueItemDB
 
     cutoff = datetime.now(timezone.utc) - timedelta(minutes=STUCK_RECOVERY_MINUTES)
@@ -101,7 +102,11 @@ def _create_document_v1(item: Any) -> Any:
     source_type_map = {
         "cls": SourceType.CLS,
         "cnstock": SourceType.CNSTOCK,
+        "cnstock_flash": SourceType.CNSTOCK_FLASH,
         "zq": SourceType.ZHIQIU_REPORTS,
+        "zhiqiu_reports": SourceType.ZHIQIU_REPORTS,
+        "zhiqiu_wechat": SourceType.ZHIQIU_WECHAT,
+        "zhiqiu_transcript": SourceType.ZHIQIU_TRANSCRIPT,
         "report": SourceType.ZHIQIU_REPORTS,
         "pdf": SourceType.ZHIQIU_REPORTS,
         "manual": SourceType.CNSTOCK,
@@ -109,7 +114,11 @@ def _create_document_v1(item: Any) -> Any:
     doc_type_map = {
         "cls": DocType.NEWS,
         "cnstock": DocType.NEWS,
+        "cnstock_flash": DocType.TELEGRAM,
         "zq": DocType.REPORT,
+        "zhiqiu_reports": DocType.REPORT,
+        "zhiqiu_wechat": DocType.WECHAT,
+        "zhiqiu_transcript": DocType.TRANSCRIPT,
         "report": DocType.REPORT,
         "pdf": DocType.REPORT,
         "manual": DocType.INTERNAL_NOTE,
@@ -132,28 +141,36 @@ async def process_one(item: Any, pipeline: Any) -> Dict[str, Any]:
     doc = _create_document_v1(item)
     result = await asyncio.wait_for(pipeline.process(doc), timeout=ITEM_PROCESSING_TIMEOUT)
 
-    await event_bus.publish(
-        "document_parsed",
-        {
-            "item_id": item.item_id,
-            "doc_id": doc.doc_id,
-            "title": item.title,
-            "source_type": item.source_type,
-            "event_count": len(result.events),
-            "entity_count": len(result.entities),
-        },
-    )
+    doc_payload = {
+        "item_id": item.item_id,
+        "doc_id": doc.doc_id,
+        "title": item.title,
+        "source_type": item.source_type,
+        "event_count": len(result.events),
+        "entity_count": len(result.entities),
+    }
+    await event_bus.publish("document_parsed", doc_payload)
+    try:
+        from services.pipeline_monitor import pipeline_monitor
+
+        pipeline_monitor.record_event("document_parsed", doc_payload)
+    except Exception:
+        pass
 
     for event in result.events:
-        await event_bus.publish(
-            "event_created",
-            {
-                "event_id": event.event_id,
-                "event_type": event.event_type,
-                "summary": event.summary,
-                "doc_id": doc.doc_id,
-            },
-        )
+        event_payload = {
+            "event_id": event.event_id,
+            "event_type": event.event_type,
+            "summary": event.summary,
+            "doc_id": doc.doc_id,
+        }
+        await event_bus.publish("event_created", event_payload)
+        try:
+            from services.pipeline_monitor import pipeline_monitor
+
+            pipeline_monitor.record_event("event_created", event_payload)
+        except Exception:
+            pass
 
     return {
         "item_id": item.item_id,
@@ -177,10 +194,8 @@ async def _process_and_mark(
         db = SessionLocal()
         try:
             result = await process_one(item, pipeline)
-            repo = IngestionQueueRepository(db)
-            repo.mark_completed(item.item_id)
 
-            # Persist events to DB
+            # Persist events to DB BEFORE marking item completed
             if result["event_list"]:
                 event_repo = EventRepositoryImpl(db)
                 for event in result["event_list"]:
@@ -193,6 +208,8 @@ async def _process_and_mark(
                             error=str(e),
                         )
 
+            repo = IngestionQueueRepository(db)
+            repo.mark_completed(item.item_id)
             db.commit()
             logger.info(
                 "Item processed",
@@ -314,10 +331,14 @@ async def main(worker_id: Optional[int] = None) -> None:
 
             event_bus.record_worker_heartbeat(worker_label, f"processed {len(items)} items")
             _write_heartbeat(worker_label, f"processed {len(items)} items")
-            await event_bus.publish(
-                "queue_update",
-                {"processed": len(items), "worker": worker_label},
-            )
+            queue_payload = {"processed": len(items), "worker": worker_label}
+            await event_bus.publish("queue_update", queue_payload)
+            try:
+                from services.pipeline_monitor import pipeline_monitor
+
+                pipeline_monitor.record_event("queue_update", queue_payload)
+            except Exception:
+                pass
 
         except Exception as e:
             logger.error(f"[{worker_label}] Loop error", error=str(e), exc_info=True)
@@ -407,9 +428,7 @@ if __name__ == "__main__":
         try:
             asyncio.run(main(worker_id=args.worker_id))
         except Exception:
-            logger.exception(
-                "Knowledge worker crashed with unhandled exception"
-            )
+            logger.exception("Knowledge worker crashed with unhandled exception")
             for handler in logging.getLogger().handlers:
                 handler.flush()
 
