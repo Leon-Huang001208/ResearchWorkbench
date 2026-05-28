@@ -101,6 +101,31 @@ Update this section when:
 
 ---
 
+### `app/api/routes/pdf_admin.py`
+
+Purpose:
+
+- PDF 转换管理 API。
+- `GET /api/admin/pdf/pending` — 列出待转换的 PDF（直接查询 `pdf_artifact_v1` 表 `parse_status='pending'`）。
+- `GET /api/admin/pdf/stats` — 获取转换统计。
+- `POST /api/admin/pdf/convert` — 触发指定 PDF 转换。
+- `POST /api/admin/pdf/retry` — 重试失败的转换。
+
+Related service:
+
+- `services/pdf_conversion_service.py`
+
+Related repositories:
+
+- `data_layer/repositories/pdf_artifact_repository.py`
+
+Update this section when:
+
+- PDF admin endpoints change.
+- Response schema changes.
+
+---
+
 ### `app/api/routes/assets.py`
 
 Purpose:
@@ -134,9 +159,11 @@ Update this section when:
 
 Purpose:
 
-- System health check and event publishing endpoints.
+- System health check, worker status, status bar, and event publishing endpoints.
 - `GET /api/system/health` — full health check with queue depth, pending/processing/completed/failed counts, and worker heartbeats.
 - `GET /api/system/health/minimal` — lightweight health check without database query.
+- `GET /api/system/workers/status` — aggregated worker/scheduler status + queue stats + processing stats (today, last_7_days, last_30_days, total, yesterday_same_time, daily_avg_7d).
+- `GET /api/system/status-bar` — dashboard status bar data (git branch, DB type, LLM provider, document count, error/warning counts).
 - `POST /api/system/event` — publish a system event to the event bus (for external integration/testing).
 
 Related service:
@@ -147,7 +174,7 @@ Related service:
 Update this section when:
 
 - Health check response format changes.
-- New metrics are added to health check.
+- New metrics are added to health check or worker status.
 - New system management endpoints are added.
 
 ---

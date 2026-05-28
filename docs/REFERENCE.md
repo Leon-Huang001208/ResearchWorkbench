@@ -715,6 +715,24 @@ af knowledge stop
 | `workers[].activity` | string\|null | 当前活动描述 |
 | `scheduler` | object | Crawl Scheduler 状态 |
 | `queue_stats` | object | 摄入队列统计 |
+| `processing_stats` | object | 处理统计（今日/7天/30天/总计/昨日同期/7日均值） |
+
+#### GET /api/system/status-bar
+
+获取仪表盘状态栏动态数据（git 分支、数据库类型、LLM provider、文档数等）。
+
+**响应示例**:
+
+```json
+{
+  "git_branch": "master",
+  "db_type": "postgresql",
+  "llm_provider": "deepseek-v4-flash",
+  "document_count": 12345,
+  "error_count": 3,
+  "warning_count": 12
+}
+```
 
 ---
 
@@ -867,8 +885,8 @@ PDF 转换管理接口，支持三种策略自动降级 (MinerU → MarkItDown �
     {
       "pdf_id": "pdf_001",
       "file_name": "report.pdf",
-      "source_type": "zhiqiu",
-      "conversion_strategy": "mineru",
+      "source_type": "zhiqiu_reports",
+      "conversion_strategy": "",
       "status": "pending",
       "created_at": "2025-05-10T00:00:00"
     }
@@ -876,6 +894,8 @@ PDF 转换管理接口，支持三种策略自动降级 (MinerU → MarkItDown �
   "count": 1
 }
 ```
+
+> 注意：待转换列表直接查询 `pdf_artifact_v1` 表，字段名使用 `parse_version`（映射为 `conversion_strategy`）和 `parse_status`（映射为 `status`）。
 
 #### POST /api/admin/pdf/retry
 

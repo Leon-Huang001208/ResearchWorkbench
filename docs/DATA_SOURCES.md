@@ -178,7 +178,17 @@ PR欢迎！
 
 ## PDF 转换
 
-AlphaFoundry 支持将 PDF 研报自动转换为 Markdown/文本，支持三种策略自动降级：
+AlphaFoundry 支持将 PDF 研报自动转换为 Markdown/文本，支持三种策略自动降级。
+
+### 架构
+
+PDF 转换已从爬虫层 (`data_layer/crawlers/utils/pdf_converter.py`) 重构为服务层自动化：
+
+1. **下载阶段**：ZQ 爬虫下载 PDF 后自动注册到 `pdf_artifact_v1` 表（`parse_status='pending'`）
+2. **转换阶段**：`CrawlScheduler` 每 5 分钟自动调用 `PDFConversionService.convert_pending(limit=5)` 并重试失败项
+3. **提取阶段**：转换成功后自动创建 `DocumentV1` + 分块，并送入摄取队列由 `KnowledgePipeline` 做 LLM 提取
+
+### 转换策略升降级
 
 | 优先级 | 策略 | 质量 | 依赖 | 描述 |
 |--------|------|------|------|------|

@@ -75,6 +75,71 @@ Update this section when:
 
 ---
 
+---
+
+### `data_layer/repositories/dashboard_data.py`
+
+Purpose:
+- Dashboard data aggregation repository.
+- `get_crawl_history(source_type)` — returns crawl history items with `last_crawled_at` timestamp (queried from `ingestion_queue_item` table).
+- `get_processing_stats()` — returns processing statistics (today, last_7_days, last_30_days, total, yesterday_same_time, daily_avg_7d).
+- `has_enough_data()` — checks if enough real data exists.
+
+Related service:
+- `services/dashboard_service.py`
+
+Update this section when:
+- Dashboard query metrics change.
+- New aggregation queries are added.
+
+---
+
+### `data_layer/repositories/documents_v1.py`
+
+Purpose:
+- DocumentV1 CRUD operations.
+- `list_by_time_range(start_time, end_time)` — filters by `created_at` (not `available_time`).
+- Dedup by `content_hash`.
+
+Update this section when:
+- Document query fields change.
+- Dedup logic changes.
+
+---
+
+### `data_layer/repositories/ingestion_repository.py`
+
+Purpose:
+- Ingestion queue item CRUD and statistics.
+- `get_processing_stats()` — aggregate processing counts across time windows.
+- Queue item lifecycle: pending → processing → completed/failed.
+
+Related service:
+- `services/ingestion_queue_service.py`
+
+Update this section when:
+- Queue item status flow changes.
+- Statistics aggregation changes.
+
+---
+
+### `data_layer/repositories/pdf_artifact_repository.py`
+
+Purpose:
+- PDF artifact CRUD and status tracking.
+- `get_conversion_stats()` — aggregate stats by `parse_status`.
+- `add_pdf_artifact()` — register new PDF artifact with hash-based dedup.
+- Pending PDFs queried by `parse_status='pending'` for automatic conversion.
+
+Related service:
+- `services/pdf_conversion_service.py`
+
+Update this section when:
+- PDF artifact schema changes.
+- Conversion status tracking changes.
+
+---
+
 ## Required Tests
 
 - Repository CRUD operation tests

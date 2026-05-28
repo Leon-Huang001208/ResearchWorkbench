@@ -865,6 +865,44 @@ AlphaFoundry 使用 PostgreSQL + pgvector 作为主要数据存储，采用模�
 
 ---
 
+#### pdf_artifact_v1（PDF 制品表）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| pdf_id | TEXT PK | PDF 制品 ID |
+| source_obj_id | TEXT | 来源对象 ID |
+| file_path | TEXT | 文件路径 |
+| file_name | TEXT | 文件名 |
+| file_size_bytes | INTEGER | 文件大小 |
+| file_hash_sha256 | TEXT | 文件 SHA-256 哈希 |
+| source_type | TEXT | 来源类型 |
+| source_name | TEXT | 来源名称 |
+| source_broker | TEXT | 券商名 |
+| source_url | TEXT | 来源 URL |
+| fetch_timestamp | TIMESTAMPTZ | 获取时间 |
+| parse_version | TEXT | 解析版本号 |
+| parse_status | TEXT | 解析状态 (pending/success/error) |
+| parse_error | TEXT | 解析错误信息 |
+| markdown_path | TEXT | Markdown 输出路径 |
+| raw_text_path | TEXT | 原始文本输出路径 |
+| page_count | INTEGER | 页数 |
+| token_count | INTEGER | Token 数 |
+| quality_score | NUMERIC | 质量评分 |
+| has_tables | BOOLEAN | 是否含表格 |
+| has_images | BOOLEAN | 是否含图片 |
+| has_code_blocks | BOOLEAN | 是否含代码块 |
+| created_at | TIMESTAMPTZ | 创建时间 |
+| updated_at | TIMESTAMPTZ | 更新时间 |
+
+**索引**:
+- idx_pdf_artifact_v1_source_type: source_type
+- idx_pdf_artifact_v1_parse_status: parse_status
+- idx_pdf_artifact_v1_file_hash: file_hash_sha256
+
+PDF 制品由爬虫下载时自动注册（`ReportProcessor._download_and_record_pdf()`），由 `CrawlScheduler` 每 5 分钟通过 `PDFConversionService` 自动转换。
+
+---
+
 ### 7. 决策与审核层
 
 #### decision_workspace（决策工作表）

@@ -1278,9 +1278,18 @@ Imports:
 - `json`
 - `pathlib`
 - `services.system_event_bus`
+- `subprocess`
 - `typing`
 
 Functions:
+- `_get_git_branch`
+  - 获取当前 git 分支名
+- `_get_db_type`
+  - 从 DATABASE_URL 解析数据库类型
+- `_get_llm_provider`
+  - 获取当前默认 LLM provider 名称
+- `get_status_bar`
+  - 返回底部状态栏所需的动态数据
 - `get_health`
   - 返回系统健康状态
 - `publish_event`
@@ -4054,7 +4063,7 @@ Imports:
 Classes:
 - `DeduplicationStore`
   - 通用去重存储类
-  - methods: __init__, _load, _save, is_processed, mark_processed, get_count, set_watermark, get_watermark, has_reached_watermark, clear_watermark, get_all_watermarks
+  - methods: __init__, _load, _save, is_processed, mark_processed, get_count, set_watermark, get_watermark, has_reached_watermark, remove_stale, clear_watermark, get_all_watermarks
 
 
 ## `data_layer/crawlers/cls/utils/log_utils.py`
@@ -4144,7 +4153,6 @@ Module docstring:
 
 Imports:
 - `anti_crawler_kit`
-- `pdf_converter`
 
 
 ## `data_layer/crawlers/utils/anti_crawler_kit.py`
@@ -4186,44 +4194,6 @@ Functions:
   - 指数退避重试装饰器
 - `random_delay`
   - 简单随机延迟函数
-
-
-## `data_layer/crawlers/utils/pdf_converter.py`
-
-Module docstring:
-> PDF 转换工具模块
-
-Imports:
-- `abc`
-- `dataclasses`
-- `logging`
-- `os`
-- `pathlib`
-- `typing`
-
-Classes:
-- `PDFConversionResult`
-  - PDF 转换结果
-- `PDFConversionStrategy`
-  - PDF 转换策略基类
-  - methods: is_available, convert, get_name
-- `RawTextStrategy`
-  - 原始文本提取策略（基于 pdfplumber）
-  - methods: is_available, convert, get_name
-- `MarkItDownStrategy`
-  - MarkItDown 转换策略（如果可用）
-  - methods: is_available, convert, get_name
-- `PDFConverter`
-  - PDF 转换器 - 可插拔策略
-  - methods: __init__, _register_default_strategies, register_strategy, get_available_strategies, convert, convert_and_save
-
-Functions:
-- `get_converter`
-  - 获取全局 PDF 转换器实例
-- `convert_pdf`
-  - 便捷函数：转换 PDF
-- `convert_and_save`
-  - 便捷函数：转换 PDF 并保存
 
 
 ## `data_layer/crawlers/yahoo/__init__.py`
@@ -4739,6 +4709,7 @@ Module docstring:
 
 Imports:
 - `base`
+- `datetime`
 - `json`
 - `os`
 - `pandas`
@@ -4746,6 +4717,7 @@ Imports:
 - `re`
 - `typing`
 - `utils`
+- `uuid`
 
 Classes:
 - `ReportProcessor`
@@ -5337,7 +5309,7 @@ Imports:
 Classes:
 - `IngestionQueueRepository`
   - 统一摄取队列仓储
-  - methods: enqueue, dequeue, mark_completed, mark_failed, get_stats, find_by_dedup_hash, get_failed_items, get_recent, reset_failed_for_retry, _compute_dedup_hash, _to_domain
+  - methods: enqueue, dequeue, mark_completed, mark_failed, get_stats, get_processing_stats, find_by_dedup_hash, get_failed_items, get_recent, reset_failed_for_retry, _compute_dedup_hash, _to_domain
 
 
 ## `data_layer/repositories/market_data_repository.py`
@@ -5640,7 +5612,7 @@ Functions:
 - `get_conversion_stats`
   - 获取转换统计
 - `get_pending_conversions`
-  - 获取待处理的转换
+  - 获取待处理的转换 — 查询 parse_status=pending 的 PDF 制品
 
 
 ## `data_layer/repositories/portfolio_repository.py`
@@ -8630,6 +8602,60 @@ Functions:
 - `main`
 
 
+## `scripts/backfill_missing_llm_extraction.py`
+
+Module docstring:
+> 一次性回补脚本：将缺少 LLM 提取的文档送入摄取队列。
+
+Imports:
+- `argparse`
+- `core.observability`
+- `data_layer.repositories.base`
+- `pathlib`
+- `sqlalchemy`
+- `sys`
+
+Functions:
+- `find_missing_docs`
+  - 查找 document_v1 中有但 canonical_event 中没有的文档
+- `build_items`
+  - 将数据库行转为入队所需的 item dict，按 source_type 分组
+- `enqueue_items`
+  - 按 source_type 分批入队
+- `main`
+
+
+## `scripts/backfill_pdf_artifacts.py`
+
+Module docstring:
+> 回补脚本：将磁盘上已有的 PDF 文件注册到 pdf_artifact_v1。
+
+Imports:
+- `argparse`
+- `core.observability`
+- `data_layer.repositories.base`
+- `data_layer.repositories.models`
+- `datetime`
+- `hashlib`
+- `json`
+- `os`
+- `pathlib`
+- `sqlalchemy`
+- `sys`
+- `uuid`
+
+Functions:
+- `find_pdf_files`
+  - 扫描 PDF 目录，返回未注册的 PDF 文件信息列表
+- `_hash_file`
+  - 计算文件 SHA-256
+- `get_existing_hashes`
+  - 获取所有已注册的文件哈希
+- `register_pdfs`
+  - 批量注册 PDF 制品
+- `main`
+
+
 ## `scripts/backup_db.py`
 
 Module docstring:
@@ -8754,6 +8780,27 @@ Imports:
 
 Functions:
 - `is_source_py`
+- `main`
+
+
+## `scripts/cleanup_dedup_orphans.py`
+
+Module docstring:
+> 一次性清理脚本：移除爬虫去重文件中数据库里已不存在的孤儿条目。
+
+Imports:
+- `argparse`
+- `core.observability`
+- `data_layer.crawlers.cls.utils.deduplication`
+- `data_layer.repositories.base`
+- `pathlib`
+- `sqlalchemy`
+- `sys`
+
+Functions:
+- `get_valid_ids`
+  - 查询数据库中某个 source_type 的所有 source_doc_id
+- `cleanup_state`
 - `main`
 
 
