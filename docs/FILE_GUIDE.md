@@ -99,9 +99,15 @@
 
 ### app/web/ - Web 工作台界面
 
-| 目录 | 说明 |
+| 文件/目录 | 说明 |
 |---|---|
-| `app/web/` | Web 前端界面目录 |
+| `app/web/templates/index.html` | Web 工作台主页面，包含侧边栏导航和所有 section 面板 |
+| `app/web/static/style.css` | 全局样式表，包含管线监控、仪表盘等所有页面样式 |
+| `app/web/static/js/app.js` | 主入口模块：导航路由、SSE 连接、全局状态管理 |
+| `app/web/static/js/core.js` | 核心工具模块：apiCall、toast、esc 等公共函数 |
+| `app/web/static/js/dashboard.js` | 仪表盘模块：Market Overview + Live Monitor 标签页 |
+| `app/web/static/js/pipeline-monitor.js` | 管线监控模块：5 阶段流程可视化、实时活动日志（SSE + 15s 轮询）、累计统计、手动触发闭环 |
+| `app/web/static/js/monitor.js` | 系统监控模块：Worker 心跳、队列深度、服务状态 |
 
 ---
 
@@ -158,6 +164,13 @@
 |---|---|
 | `core/observability/__init__.py` | 可观测性模块初始化 |
 | `core/observability/metrics.py` | 指标定义和记录：counter、gauge、histogram |
+
+### core/adapters/ - 核心适配器
+
+| 文件 | 说明 |
+|---|---|
+| `core/adapters/__init__.py` | 适配器包初始化 |
+| `core/adapters/event_adapter.py` | 事件适配器：将系统事件转换为标准化格式，用于跨层通信 |
 
 ### core/source_registry.py - 数据源注册中心
 
@@ -231,6 +244,8 @@
 | `historical_replay_service.py` | 历史回放服务：历史场景重放 |
 | **闭循环** | |
 | `closed_loop_service.py` | 闭循环服务：协调从数据摄入到结果反馈的完整闭环 |
+| **管线监控** | |
+| `pipeline_monitor.py` | 管线监控服务：内存单例追踪 9 个管线阶段（数据采集→知识提取→信号生成→择时回测→学习反馈），聚合 DB 统计，线程安全活动日志（最多 200 条），SSE 实时推送 |
 | **支持服务** | |
 | `data_tier_service.py` | 数据层服务：数据分层管理 |
 | `raw_storage_service.py` | 原始存储服务：原始文件存储和管理 |
@@ -317,6 +332,11 @@
 | `knowledge_layer/assertions/` | 断言管理 |
 | `knowledge_layer/events/` | 事件存储与时间线索引 |
 | `knowledge_layer/extraction/` | 并发 LLM 提取 (文本切分 + 并发抽取器) |
+| `knowledge_layer/graph_projection/` | 产业链图谱投影：实体关系图构建、传播路径分析、种子数据 |
+| `knowledge_layer/graph_projection/propagation.py` | 传播分析器：基于事件类型和产业链拓扑推导影响传播路径 |
+| `knowledge_layer/graph_projection/graph_store.py` | 图存储：管理 IndustryChain 的 CRUD 和下游关系查询 |
+| `knowledge_layer/graph_projection/seed_data.py` | 种子数据：A 股核心产业链预置数据（锂电、光伏、半导体、白酒） |
+| `knowledge_layer/graph_projection/contracts.py` | 图谱契约：IndustryChain、RelationshipType、SupplyChainPosition |
 | `knowledge_layer/retrieval/` | 向量检索 |
 
 ---

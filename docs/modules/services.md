@@ -88,9 +88,11 @@ Update this section when:
 
 Purpose:
 
-- Schedules periodic crawl and PDF conversion jobs via APScheduler.
+- Schedules periodic crawl, PDF conversion, and closed loop jobs via APScheduler.
 - Crawl jobs: `_run_crawl_job()` loops over `source_registry.get_enabled()` sources with staggered intervals.
 - PDF conversion job: `_run_pdf_conversion_job()` runs every 5 minutes, calls `PDFConversionService.convert_pending(limit=5)` + `retry_failed(limit=3)`.
+- Closed loop job: `_run_closed_loop_job()` runs every 10 minutes with 60s jitter, creates `ClosedLoopService` and calls `run_full_loop()`.
+- All jobs wrapped in try/except to ensure single job failure does not affect scheduler.
 
 Related files:
 
@@ -317,6 +319,62 @@ Update this section when:
 - Subscriber model changes.
 - Heartbeat tracking changes.
 - Event retention policy changes or persistence format changes.
+
+---
+
+### `services/pipeline_monitor.py`
+
+Purpose:
+
+- Lightweight in-memory singleton tracking 9 pipeline stages with thread-safe activity logging (max 200 items).
+- Aggregates DB stats from `DocumentV1DB`, `CanonicalEvent`, `AlphaSignalDB`, `SignalOutcomeDB` for ingestion, knowledge, signal, backtest, and learning stages.
+- Records events from `SystemEventBus` and provides `get_full_status()` for API consumption.
+- `record_event(event_type, payload)` — thread-safe append to activity log with automatic stage mapping.
+- `get_full_status()` — returns stages (with DB counts), closed_loop status, and recent activity (20 items).
+- `get_recent_activity(limit)` — returns most recent activity items in reverse chronological order.
+- `_query_db_stats()` — queries DB for cumulative counts with Asia/Shanghai timezone alignment.
+
+Related files:
+
+- `services/system_event_bus.py`
+- `services/closed_loop_service.py`
+- `services/pipeline_service.py`
+- `app/api/routes/pipeline.py`
+- `app/web/static/js/pipeline-monitor.js`
+
+Update this section when:
+
+- New pipeline stage is added.
+- DB stats query logic changes.
+- Activity retention limit changes.
+- Event-to-stage mapping changes.
+
+---
+
+### `services/pipeline_service.py`
+
+Purpose:
+
+- Orchestrates the 7-layer research pipeline: event → signal → reasoning → agent swarm → timing evaluation.
+- Each step publishes events via `SystemEventBus` and `PipelineMonitor` for real-time observability.
+- `_analyze_propagation()` — runs `PropagationAnalyzer` for industry chain impact propagation.
+- `_run_reasoning()` — runs `ReasoningEngine` with scenario generation.
+- `_run_agent_swarm()` — runs `AgentOrchestrator` multi-agent debate.
+- `_evaluate_timing()` — runs `MetaTimingEngine` for market timing evaluation.
+
+Related files:
+
+- `services/closed_loop_service.py`
+- `services/pipeline_monitor.py`
+- `reasoning/`
+- `cognitive_agents/`
+- `timing_engine/`
+
+Update this section when:
+
+- Pipeline step order changes.
+- New pipeline step is added.
+- Event publishing at any step changes.
 
 ---
 

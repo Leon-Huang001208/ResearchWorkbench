@@ -7,6 +7,16 @@
 ## [Unreleased]
 
 ### Added
+- **7 层管线可观测性 + 全自动闭环**: 实时管线监控页面、SSE 事件推送、自动定时闭环运行
+  - `services/pipeline_monitor.py` — 管线状态追踪单例，9 阶段线程安全活动日志（200 条上限），DB 统计聚合（DocumentV1DB / CanonicalEvent / AlphaSignalDB / SignalOutcomeDB），北京时间对齐
+  - `app/web/static/js/pipeline-monitor.js` — 管线监控前端模块，5 阶段流程可视化（数据采集→知识提取→信号生成→择时回测→学习反馈），SSE 实时日志 + 15s 轮询，手动触发闭环
+  - `app/api/routes/pipeline.py` — `GET /api/pipeline/status` 完整管线状态，`POST /api/pipeline/closed-loop` 手动触发闭环
+  - `services/crawl_scheduler.py` — `_run_closed_loop_job()` 每 10 分钟自动运行闭环（60s jitter）
+  - 12 种管线事件类型覆盖全 7 层：`pipeline.*`, `knowledge.*`, `reasoning.*`, `agent.*`, `timing.*`
+  - 事件发布接入：`ClosedLoopService`, `PipelineService`, `EntityResolver`, `PropagationAnalyzer`, `KnowledgeWorker`
+  - Dashboard 精简：移除 Workbench 标签页，保留 Market Overview + Live Monitor
+  - `core/adapters/event_adapter.py` — 事件标准化适配器
+  - `knowledge_layer/graph_projection/seed_data.py` — 产业链种子数据
 - **所有文档创建路径强制入队 LLM 提取**: CLS deep backfill 和 PDF 转换保存文档后通过 CrawlerIngestionBridge 入队，确保 KnowledgePipeline 做 LLM 提取
   - `services/crawl_orchestrator.py` — `deep_backfill_step()` 保存后调用 `_enqueue_to_bridge()`
   - `services/pdf_conversion_service.py` — `_create_document_from_conversion()` 创建后调用 `_enqueue_document()`

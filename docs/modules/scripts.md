@@ -58,9 +58,10 @@ Update this section when:
 ### `scripts/backfill_missing_llm_extraction.py`
 
 Purpose:
-- Finds documents in `document_v1` missing corresponding LLM extraction results in `canonical_event`
-- Enqueues them into the ingestion queue so KnowledgePipeline can perform LLM extraction
-- Supports `--dry-run` preview and `--batch` for batch size control
+- Finds documents in `document_v1` missing corresponding LLM extraction results in `canonical_event`.
+- Enqueues them into the ingestion queue via `CrawlOrchestrator._enqueue_items()` so KnowledgePipeline can perform LLM extraction.
+- Supports `--dry-run` preview and `--batch` for batch size control.
+- Related: `services/crawl_orchestrator.py`, `ingestion/knowledge_pipeline.py`.
 
 Update this section when:
 - Backfill query logic changes
