@@ -8,6 +8,7 @@ from data_layer.adapters.cnstock_adapter import CNStockAdapter
 from data_layer.adapters.ifind_adapter import IFinDAdapter
 from data_layer.adapters.local_data_adapter import LocalDataAdapter
 from data_layer.adapters.pdf_adapter import PDFAdapter
+from data_layer.adapters.wind.wind_adapter import WindAdapter
 from data_layer.adapters.yahoo_adapter import YahooAdapter
 from data_layer.adapters.zq_adapter import ZQAdapter
 
@@ -23,4 +24,5 @@ __all__ = [
     "CLSAdapter",
     "CNStockAdapter",
     "ZQAdapter",
+    "WindAdapter",
 ]

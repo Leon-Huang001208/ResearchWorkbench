@@ -7,6 +7,33 @@
 ## [Unreleased]
 
 ### Added
+- **Wind Excel 适配器**: 通过 xlwings → AppleScript → Excel Wind 插件获取专业金融数据，macOS 原生支持
+  - `data_layer/adapters/wind/client.py` — `WindExcelClient`：xlwings 连接管理、心跳检测、批量公式执行、后台保活线程（30min 间隔防自动登出）
+  - `data_layer/adapters/wind/formulas.py` — 35 个 Wind 公式生成器，覆盖一致预期（净利润/EPS/营收/目标价/评级，支持 fy1/fy2/fy3/ftm/avg）、融资融券（余额/买入/偿还/卖出/偿还）、龙虎榜（净买入/买入额/卖出额/上榜次数）
+  - `data_layer/adapters/wind/wind_adapter.py` — `WindAdapter` 继承 `BaseDataAdapter`，提供 `fetch_consensus_estimates`、`fetch_margin_trading`、`fetch_block_trades` 三个高层接口
+  - `data_layer/adapters/wind/exceptions.py` — 5 个自定义异常：`WindError`、`WindSessionExpiredError`、`WindNotConnectedError`、`WindFormulaError`、`WindTimeoutError`
+  - `data_layer/adapters/wind/__init__.py` — 模块导出
+  - `tests/unit/test_wind_adapter.py` — 43 个单元测试覆盖异常、公式生成、适配器结构、客户端逻辑
+  - 所有 35 个公式名已通过 Mac 版 Wind Excel 函数浏览器逐个验证并实测通过
+- **动态多因子 MVP**: 新增事件型量化的第一版动态因子研究层
+  - `core/contracts/factors.py` — 因子 taxonomy、因子定义、点时因子值、因子评估记录、动态因子权重契约
+  - `signal_lab/factors/matrix.py` — `FactorMatrixBuilder`，将点时 `FactorValue` pivot 为横截面因子矩阵
+  - `signal_lab/factors/evaluation.py` — `FactorEvaluator`，支持 IC、RankIC、decile spread、coverage、sample size
+  - `signal_lab/factors/models.py` — `RollingICWeightedModel`，基于滚动 IC/RankIC 学习 signed dynamic weights 并输出横截面 alpha score
+  - `signal_lab/factors/fusion.py` — `EventFactorFusion`，融合事件 alpha、动态因子 alpha、Timing readiness 和风险惩罚
+  - `tests/unit/test_dynamic_factors.py` — 覆盖矩阵构建、因子评估、动态权重、事件-因子融合
+- **Signal Lab 动态因子可视化**: 在不修改 dashboard 与模板文件的前提下，为现有 WebUI 增加动态多因子 Alpha Control Room
+  - `services/dynamic_factor_visualization_service.py` — 构建闭环步骤、因子矩阵、IC/RankIC、动态权重、事件-因子融合 payload
+  - `app/api/routes/signal_lab.py` — 新增 `GET /api/signal-lab/dynamic-factors/overview`
+  - `app/web/static/js/signal-lab.js` — 运行时注入“动态因子”页签和面板
+  - `app/web/static/style.css` — 追加动态因子面板样式
+  - `tests/unit/test_dynamic_factor_visualization_service.py` — 覆盖可视化 payload 结构
+- **WebUI 导航收敛**: 在不修改 dashboard 与模板文件的前提下，将低频/历史页面归档隐藏，保留“更多”按钮随时展开
+  - `app/web/static/js/navigation-curation.js` — 新增导航归档配置和显示/隐藏状态管理
+  - `app/web/static/js/app.js` — 初始化导航收敛模块
+  - `app/web/static/style.css` — 新增归档导航按钮样式
+  - 默认归档页面：情景分析、产业链、审核队列、回测结果、文档摄入
+  - 资产分析保留在主导航，避免常用资产入口被隐藏
 - **7 层管线可观测性 + 全自动闭环**: 实时管线监控页面、SSE 事件推送、自动定时闭环运行
   - `services/pipeline_monitor.py` — 管线状态追踪单例，9 阶段线程安全活动日志（200 条上限），DB 统计聚合（DocumentV1DB / CanonicalEvent / AlphaSignalDB / SignalOutcomeDB），北京时间对齐
   - `app/web/static/js/pipeline-monitor.js` — 管线监控前端模块，5 阶段流程可视化（数据采集→知识提取→信号生成→择时回测→学习反馈），SSE 实时日志 + 15s 轮询，手动触发闭环
@@ -549,4 +576,3 @@
 - **[FILE_GUIDE.md](FILE_GUIDE.md)** - 文件指南
 - **[backup_restore.md](backup_restore.md)** - 备份恢复文档
 - **[DATA_SOURCES.md](DATA_SOURCES.md)** - 数据源文档
-
