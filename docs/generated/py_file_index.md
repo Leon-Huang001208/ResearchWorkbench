@@ -30,6 +30,11 @@ Imports:
 - `pathlib`
 - `sys`
 
+Classes:
+- `NoCacheStaticFiles`
+  - 开发期静态资源重新校验，避免前端模块缓存旧代码。
+  - methods: get_response
+
 Functions:
 - `startup`
   - Startup hook: configure logging and check database connection
@@ -1237,6 +1242,8 @@ Functions:
   - 运行回测
 - `get_signal_lab_summary`
   - 获取Signal Lab摘要信息
+- `get_dynamic_factor_overview`
+  - 获取动态多因子 Alpha Control Room 可视化数据。
 
 
 ## `app/api/routes/signals.py`
@@ -1833,6 +1840,7 @@ Imports:
 - `documents`
 - `documents_v1`
 - `events`
+- `factors`
 - `governance`
 - `ids`
 - `industry_chain`
@@ -2129,6 +2137,33 @@ Imports:
 Classes:
 - `CanonicalEvent`
   - 规范事件 - 从文档中提取的标准化Alpha事件.
+
+
+## `core/contracts/factors.py`
+
+Module docstring:
+> Dynamic factor model contracts.
+
+Imports:
+- `__future__`
+- `datetime`
+- `enum`
+- `pydantic`
+- `typing`
+
+Classes:
+- `FactorCategory`
+  - Top-level factor taxonomy used by the dynamic factor layer.
+- `FactorDefinition`
+  - Metadata for one reproducible factor.
+  - methods: factor_id_must_not_be_empty
+- `FactorValue`
+  - Point-in-time factor observation for one subject.
+- `FactorEvaluation`
+  - Evaluation metrics for one factor at one date or window.
+- `DynamicFactorWeights`
+  - Signed dynamic weights learned from historical factor evaluations.
+  - methods: absolute_weight_sum
 
 
 ## `core/contracts/governance.py`
@@ -3146,6 +3181,7 @@ Imports:
 - `data_layer.adapters.ifind_adapter`
 - `data_layer.adapters.local_data_adapter`
 - `data_layer.adapters.pdf_adapter`
+- `data_layer.adapters.wind.wind_adapter`
 - `data_layer.adapters.yahoo_adapter`
 - `data_layer.adapters.zq_adapter`
 
@@ -3630,6 +3666,148 @@ Classes:
 - `PDFAdapter`
   - PDF 文件数据适配器
   - methods: __init__, fetch, parse, _extract_title
+
+
+## `data_layer/adapters/wind/__init__.py`
+
+Module docstring:
+> Wind 数据适配器 —— 通过 Excel Wind 插件获取数据
+
+Imports:
+- `data_layer.adapters.wind.client`
+- `data_layer.adapters.wind.exceptions`
+- `data_layer.adapters.wind.wind_adapter`
+
+
+## `data_layer/adapters/wind/client.py`
+
+Module docstring:
+> Wind Excel 客户端 —— 通过 xlwings 操控 Excel Wind 插件
+
+Imports:
+- `core.observability`
+- `data_layer.adapters.wind.exceptions`
+- `threading`
+- `time`
+- `typing`
+
+Classes:
+- `WindExcelClient`
+  - 通过 xlwings 操控 Excel 中的 Wind 插件执行公式
+  - methods: __init__, _connect, heartbeat, _ensure_connected, _ensure_session, _execute_raw, execute, execute_batch, start_keepalive, stop_keepalive, _keepalive_loop, close, __enter__, __exit__
+
+Functions:
+- `_is_error_value`
+  - 检查返回值是否是 Excel 错误
+
+
+## `data_layer/adapters/wind/exceptions.py`
+
+Module docstring:
+> Wind Excel 插件自定义异常
+
+Classes:
+- `WindError`
+  - Wind 插件通用错误基类
+- `WindNotConnectedError`
+  - Excel 未运行或 Wind 插件未加载
+  - methods: __init__
+- `WindSessionExpiredError`
+  - Wind 会话过期，需要用户重新登录
+  - methods: __init__
+- `WindFormulaError`
+  - Wind 公式执行错误（#N/A, #VALUE! 等）
+  - methods: __init__
+- `WindTimeoutError`
+  - Wind 公式执行超时
+  - methods: __init__
+
+
+## `data_layer/adapters/wind/formulas.py`
+
+Module docstring:
+> Wind 公式常量定义 —— Mac 版 Wind Excel 插件
+
+Imports:
+- `datetime`
+- `typing`
+
+Functions:
+- `_td`
+  - 默认交易日期为今日
+- `s_info_compname`
+  - 公司全称
+- `s_info_windcode`
+  - Wind 代码
+- `s_info_industry`
+  - Wind 行业分类
+- `s_info_listeddate`
+  - 上市日期
+- `s_info_shares`
+  - 总股本
+- `cons_net_profit`
+  - 一致预测净利润 —— 算术平均值，单位: 元
+- `cons_eps`
+  - 一致预测 EPS —— 算术平均值，单位: 元/股
+- `cons_revenue`
+  - 一致预测营业收入 —— 算术平均值，单位: 元
+- `cons_target_price`
+  - 一致预测目标价（万得一致预测，180天） —— 算术平均值，单位: 元
+- `cons_target_price_ex`
+  - 一致预测目标价（可选综合值类型）
+- `cons_rating`
+  - 综合评级(数值) —— 算术平均值，1-5分
+- `cons_rating_chn`
+  - 综合评级(中文) —— 如 "买入"、"增持+"、"中性-" 等
+- `cons_rating_eng`
+  - 综合评级(英文) —— 如 "Buy"、"Outperform"、"Hold" 等
+- `cons_rating_num`
+  - 参与评级的机构数量 [待验证]
+- `margin_balance`
+  - 融资余额（元）
+- `short_balance`
+  - 融券余量（股）
+- `margin_buy`
+  - 融资买入额（元）
+- `margin_repay`
+  - 融资偿还额（元）
+- `short_sell_vol`
+  - 融券卖出量（股）
+- `short_repay_vol`
+  - 融券偿还量（股）
+- `lhb_net_buy`
+  - 龙虎榜净买入额 —— 单日（元）
+- `lhb_buy_amt`
+  - 龙虎榜买入金额 —— 单日，用区间公式 start=end（元）
+- `lhb_sell_amt`
+  - 龙虎榜卖出金额 —— 单日，用区间公式 start=end（元）
+- `lhb_buy_seat`
+  - 龙虎榜买入席位 [待验证]
+- `lhb_sell_seat`
+  - 龙虎榜卖出席位 [待验证]
+- `lhb_count`
+  - 区间龙虎榜上榜次数
+
+
+## `data_layer/adapters/wind/wind_adapter.py`
+
+Module docstring:
+> Wind 数据适配器 —— 通过 Excel 插件获取 Wind 数据
+
+Imports:
+- `core.contracts`
+- `core.observability`
+- `data_layer.adapters.base`
+- `data_layer.adapters.wind`
+- `data_layer.adapters.wind.client`
+- `pandas`
+- `pathlib`
+- `typing`
+
+Classes:
+- `WindAdapter`
+  - Wind 数据适配器
+  - methods: __init__, _get_client, is_available, fetch_consensus_estimates, fetch_margin_trading, fetch_block_trades, fetch, parse
 
 
 ## `data_layer/adapters/yahoo_adapter.py`
@@ -5745,10 +5923,10 @@ Imports:
 Classes:
 - `SearchRepository`
   - 搜索仓储接口
-  - methods: search_symbols, search_event_types, search_theses, search_source_docs, search_failure_memory, search_market_episodes, search_signals, search_events, search_outcomes, search_reviews
+  - methods: search_symbols, get_symbol_search_status, search_event_types, search_theses, search_source_docs, search_failure_memory, search_market_episodes, search_signals, search_events, search_outcomes, search_reviews
 - `SearchRepositoryImpl`
   - 搜索仓储 SQLAlchemy 实现
-  - methods: __init__, search_symbols, search_event_types, search_theses, search_source_docs, search_failure_memory, search_market_episodes, search_signals, search_events, search_outcomes, search_reviews
+  - methods: __init__, search_symbols, get_symbol_search_status, search_event_types, search_theses, search_source_docs, search_failure_memory, search_market_episodes, search_signals, search_events, search_outcomes, search_reviews
 
 
 ## `data_layer/repositories/signal_repository.py`
@@ -7383,6 +7561,110 @@ Classes:
 - `VectorBTBacktester`
   - 基于vectorbt的向量化回测引擎
   - methods: __init__, run, _extract_close, _resolve_signals, _horizon_to_days, _default_ma_cross, _build_result
+
+
+## `signal_lab/factors/__init__.py`
+
+Module docstring:
+> Dynamic multi-factor research layer.
+
+Imports:
+- `core.contracts.factors`
+- `signal_lab.factors.evaluation`
+- `signal_lab.factors.fusion`
+- `signal_lab.factors.matrix`
+- `signal_lab.factors.models`
+
+
+## `signal_lab/factors/contracts.py`
+
+Module docstring:
+> Local exports for dynamic factor contracts.
+
+Imports:
+- `core.contracts.factors`
+
+
+## `signal_lab/factors/evaluation.py`
+
+Module docstring:
+> Factor evaluation metrics for dynamic multi-factor research.
+
+Imports:
+- `__future__`
+- `core.contracts.factors`
+- `core.observability`
+- `datetime`
+- `numpy`
+- `pandas`
+
+Classes:
+- `FactorEvaluator`
+  - Evaluate cross-sectional factor predictive power.
+  - methods: __init__, evaluate, _extract_returns, _correlation, _decile_spread
+
+
+## `signal_lab/factors/fusion.py`
+
+Module docstring:
+> Fusion of event alpha, dynamic factor alpha, timing, and risk penalties.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `dataclasses`
+- `pandas`
+
+Classes:
+- `FusionWeights`
+  - Transparent alpha fusion weights.
+  - methods: __post_init__
+- `EventFactorFusion`
+  - Combine factor, event, timing, and risk signals into final alpha scores.
+  - methods: __init__, fuse, _to_series, _timing_series, _risk_penalty, _top_contributors
+
+
+## `signal_lab/factors/matrix.py`
+
+Module docstring:
+> Point-in-time factor matrix construction.
+
+Imports:
+- `__future__`
+- `core.contracts.factors`
+- `core.observability`
+- `datetime`
+- `pandas`
+- `typing`
+
+Classes:
+- `FactorMatrixBuilder`
+  - Build a cross-sectional factor matrix for one trading date.
+  - methods: __init__, register, build, _ordered_factor_ids, _ordered_subject_ids
+
+
+## `signal_lab/factors/models.py`
+
+Module docstring:
+> Dynamic factor models.
+
+Imports:
+- `__future__`
+- `collections`
+- `core.contracts.factors`
+- `core.observability`
+- `dataclasses`
+- `datetime`
+- `numpy`
+- `pandas`
+- `typing`
+
+Classes:
+- `FactorScoreResult`
+  - Scoring output from a dynamic factor model.
+- `RollingICWeightedModel`
+  - Learn signed dynamic factor weights from rolling IC or RankIC.
+  - methods: __init__, weights, fit, score, _normalize_signed, _standardize, _percentile_scores
 
 
 ## `signal_lab/features/__init__.py`

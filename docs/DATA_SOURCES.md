@@ -8,10 +8,12 @@ AlphaFoundry支持多数据源，按优先级自动切换。
 
 | 优先级 | 数据源 | 状态 | 安装方式 | 说明 |
 |--------|--------|------|----------|------|
-| 1 (最高) | iFinD | ✅ 主源 | 内置 | 专业金融数据终端，最高质量 |
+| 0 (最高) | Wind (万得) | ✅ 专业源 | 需 Excel + Wind 插件 | 专业金融数据终端，一致预期/两融/龙虎榜等独有数据 |
+| 1 | iFinD | ✅ 主源 | 内置 | 专业金融数据终端，高质量行情/财务数据 |
 | 2 | AKShare | ✅ 降级 | `pip install akshare` | 开源免费，iFinD 不可用时自动切换 |
 | 3 | ChinaStock | ✅ 兜底 | 内置 | 最后降级选择 |
 
+Wind 适配器通过 xlwings 操控 macOS Excel 中的 Wind 插件获取数据，是项目唯一能获取**一致预期（分析师预测）**、**融资融券**、**龙虎榜**三类高价值投研数据的来源。使用前需确保 Excel 已启动且 Wind 插件已登录。
 降级策略由 `data_layer/adapters/data_source_router.py` 实现：iFinD → AKShare → ChinaStock，所有数据源都失败时返回 `insufficient_evidence` 标记。
 
 ### 新闻/研报数据源（源注册表 + 自动发现）

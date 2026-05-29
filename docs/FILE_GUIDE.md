@@ -264,6 +264,10 @@
 |---|---|
 | `data_layer/adapters/akshare_adapter.py` | AKShare 开源数据适配器：集成 crawler 模块，提供行情、财务、新闻、股东数据获取 |
 | `data_layer/adapters/data_source_router.py` | 数据源路由器：iFinD → AKShare → ChinaStock 三级降级策略，统一管理所有数据适配器 |
+| `data_layer/adapters/wind/wind_adapter.py` | Wind Excel 适配器：通过 xlwings → AppleScript → Excel Wind 插件获取一致预期、融资融券、龙虎榜数据 |
+| `data_layer/adapters/wind/client.py` | Wind Excel 客户端：xlwings 连接管理、心跳检测、批量公式执行、后台保活 |
+| `data_layer/adapters/wind/formulas.py` | Wind 公式生成器：35 个已验证公式，覆盖一致预期/融资融券/龙虎榜 |
+| `data_layer/adapters/wind/exceptions.py` | Wind 自定义异常：会话过期、未连接、公式错误、超时 |
 
 ### data_layer/crawlers/ - 数据采集器
 

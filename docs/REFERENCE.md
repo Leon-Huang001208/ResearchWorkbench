@@ -1861,7 +1861,13 @@ AlphaFoundry/
 │   ├── adapters/               # 数据适配器
 │   │   ├── __init__.py
 │   │   ├── akshare_adapter.py # AKShare 适配器
-│   │   └── data_source_router.py # 数据源路由器
+│   │   ├── data_source_router.py # 数据源路由器
+│   │   └── wind/               # Wind Excel 适配器
+│   │       ├── __init__.py
+│   │       ├── exceptions.py  # Wind 自定义异常
+│   │       ├── client.py      # Wind Excel 客户端 (xlwings)
+│   │       ├── formulas.py    # Wind 公式生成器 (35个)
+│   │       └── wind_adapter.py # Wind 数据适配器
 │   ├── crawlers/              # 数据采集器
 │   │   ├── __init__.py
 │   │   ├── akshare/           # AKShare 采集器
