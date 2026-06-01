@@ -18,7 +18,7 @@ class GlobalSearchService:
         query: str,
         type_filter: Optional[List[str]] = None,
         limit: int = 20,
-    ) -> Dict[str, List[Dict]]:
+    ) -> Dict[str, object]:
         """全局搜索入口
 
         支持搜索类型:
@@ -47,8 +47,9 @@ class GlobalSearchService:
                 "review",
             ]
 
-        results: Dict[str, List[Dict]] = {
+        results: Dict[str, object] = {
             "symbols": [],
+            "symbol_search_status": {},
             "event_types": [],
             "theses": [],
             "source_docs": [],
@@ -65,6 +66,11 @@ class GlobalSearchService:
         if "symbol" in type_filter:
             try:
                 results["symbols"] = self.search_repo.search_symbols(pattern, limit)
+                status_getter = getattr(self.search_repo, "get_symbol_search_status", None)
+                if callable(status_getter):
+                    status = status_getter()
+                    if isinstance(status, dict):
+                        results["symbol_search_status"] = status
             except Exception as e:
                 logger.warning(f"Symbol search failed: {e}")
 

@@ -1297,6 +1297,90 @@ PDF 制品由爬虫下载时自动注册（`ReportProcessor._download_and_record
 
 ---
 
+### Wind 专业数据表（`010_add_wind_data_tables.py`）
+
+#### wind_consensus_estimate（一致预期表）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INTEGER PK | 自增主键 |
+| symbol | TEXT | 证券代码 |
+| trade_date | TIMESTAMPTZ | 交易日期 |
+| cons_net_profit | NUMERIC | 一致预期净利润 |
+| cons_eps | NUMERIC | 一致预期 EPS |
+| cons_revenue | NUMERIC | 一致预期营收 |
+| target_price | NUMERIC | 目标价 |
+| rating | NUMERIC | 综合评级 |
+| rating_num | INTEGER | 评级机构数 |
+| source | TEXT | 数据来源 (wind) |
+| raw_payload | JSON | 原始载荷 |
+| created_at | TIMESTAMPTZ | 创建时间 |
+
+唯一约束: `(symbol, trade_date, source)`
+
+#### wind_margin_trading（融资融券表）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INTEGER PK | 自增主键 |
+| symbol | TEXT | 证券代码 |
+| trade_date | TIMESTAMPTZ | 交易日期 |
+| margin_balance | NUMERIC | 融资余额 |
+| short_balance | NUMERIC | 融券余额 |
+| margin_buy | NUMERIC | 融资买入额 |
+| margin_repay | NUMERIC | 融资偿还额 |
+| short_sell_vol | NUMERIC | 融券卖出量 |
+| short_repay_vol | NUMERIC | 融券偿还量 |
+| source | TEXT | 数据来源 (wind) |
+| raw_payload | JSON | 原始载荷 |
+| created_at | TIMESTAMPTZ | 创建时间 |
+
+唯一约束: `(symbol, trade_date, source)`
+
+#### wind_block_trade（龙虎榜表）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INTEGER PK | 自增主键 |
+| symbol | TEXT | 证券代码 |
+| trade_date | TIMESTAMPTZ | 交易日期 |
+| lhb_buy_amt | NUMERIC | 龙虎榜买入额 |
+| lhb_sell_amt | NUMERIC | 龙虎榜卖出额 |
+| lhb_buy_seat | TEXT | 买入席位 |
+| lhb_sell_seat | TEXT | 卖出席位 |
+| source | TEXT | 数据来源 (wind) |
+| raw_payload | JSON | 原始载荷 |
+| created_at | TIMESTAMPTZ | 创建时间 |
+
+唯一约束: `(symbol, trade_date, source)`
+
+#### wind_daily_bar（日行情表，含 Wind 独有字段）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INTEGER PK | 自增主键 |
+| symbol | TEXT | 证券代码 |
+| trade_date | TIMESTAMPTZ | 交易日期 |
+| open | NUMERIC | 开盘价 |
+| high | NUMERIC | 最高价 |
+| low | NUMERIC | 最低价 |
+| close | NUMERIC | 收盘价 |
+| volume | NUMERIC | 成交量 |
+| amount | NUMERIC | 成交额 |
+| turnover | NUMERIC | 换手率 |
+| adj_close | NUMERIC | 复权收盘价 |
+| adj_factor | NUMERIC | 复权因子 |
+| vwap | NUMERIC | 均价 |
+| pct_change | NUMERIC | 涨跌幅 |
+| amplitude | NUMERIC | 振幅 |
+| source | TEXT | 数据来源 (wind) |
+| raw_payload | JSON | 原始载荷 |
+| created_at | TIMESTAMPTZ | 创建时间 |
+
+唯一约束: `(symbol, trade_date, source)`
+
+---
+
 #### industry_chain（产业链表）
 
 | 字段 | 类型 | 说明 |

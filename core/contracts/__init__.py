@@ -65,6 +65,14 @@ from .documents_v1 import (  # Enums; Core Models; Source-Specific Schemas; Supp
     WechatSchema,
 )
 from .events import CanonicalEvent
+from .factors import (
+    DynamicFactorWeights,
+    FactorCategory,
+    FactorDefinition,
+    FactorDirection,
+    FactorEvaluation,
+    FactorValue,
+)
 from .governance import (
     ExperimentCompareRequest,
     ExperimentComparison,
@@ -186,6 +194,12 @@ from .traces import ReasoningTrace
 
 __all__ = [
     "CanonicalId",
+    "DynamicFactorWeights",
+    "FactorCategory",
+    "FactorDefinition",
+    "FactorDirection",
+    "FactorEvaluation",
+    "FactorValue",
     "DocumentEnvelope",
     "AssetAnalysisSnapshot",
     "AssetAnalysisCard",

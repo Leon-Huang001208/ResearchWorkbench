@@ -88,6 +88,7 @@ from app.api.routes import (  # noqa: E402
     thesis_review,
     timing,
     timing_engine,
+    wind,
     workbench,
 )
 
@@ -126,6 +127,7 @@ app.include_router(scheduler.router)
 app.include_router(knowledge.router)
 app.include_router(pdf_admin.router)
 app.include_router(market_data.router)
+app.include_router(wind.router)
 app.include_router(system.router)
 app.include_router(realtime.router)
 
@@ -134,7 +136,19 @@ _web_dir = Path(__file__).resolve().parent.parent / "web"
 _static_dir = _web_dir / "static"
 _templates_dir = _web_dir / "templates"
 
-app.mount("/static", StaticFiles(directory=str(_static_dir)), name="static")
+
+class NoCacheStaticFiles(StaticFiles):
+    """开发期静态资源重新校验，避免前端模块缓存旧代码。"""
+
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        if path.endswith((".js", ".css")):
+            response.headers["Cache-Control"] = "no-cache, max-age=0, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+        return response
+
+
+app.mount("/static", NoCacheStaticFiles(directory=str(_static_dir)), name="static")
 
 
 # ─── 首页 & 健康检查 ───────────────────────────────────
@@ -144,7 +158,10 @@ app.mount("/static", StaticFiles(directory=str(_static_dir)), name="static")
 async def index():
     """首页 - 交互式 Web 前端"""
     index_path = _templates_dir / "index.html"
-    return index_path.read_text(encoding="utf-8")
+    return HTMLResponse(
+        index_path.read_text(encoding="utf-8"),
+        headers={"Cache-Control": "no-cache, max-age=0, must-revalidate"},
+    )
 
 
 @app.get("/health")

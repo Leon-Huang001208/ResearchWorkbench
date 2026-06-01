@@ -38,12 +38,13 @@ class BaseDataAdapter(DataAdapter, ABC):
         now = datetime.utcnow()
 
         return DocumentEnvelope(
-            id=doc_id,
+            doc_id=doc_id,
             title=title or f"Document-{now.strftime('%Y%m%d%H%M%S')}",
-            content=content,
+            raw_text=content,
+            canonical_text=content,
             source_type=self.source_type,
-            source_path=source_path,
-            created_at=now,
+            source_name=self.source_type,
+            published_at=now,
             metadata=metadata or {},
         )
 

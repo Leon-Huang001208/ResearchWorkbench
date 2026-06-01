@@ -638,24 +638,42 @@ class CnstockCrawler:
             response = self._session.post(api_url, json=payload, headers=headers, timeout=10)
 
             if response.status_code == 200:
+                resp_json = response.json()
+                # 检查 API 业务错误码（如 "未登录" 返回 code=10304, data=null）
+                if (
+                    isinstance(resp_json, dict)
+                    and resp_json.get("code") not in (None, 0, 200)
+                    and resp_json.get("data") is None
+                ):
+                    if self.config.verbose:
+                        self.log.warning(
+                            f"API 业务错误: code={resp_json.get('code')}, desc={resp_json.get('desc', '')}"
+                        )
+                    return []  # 返回空列表，让调度器下次重试
                 if self.config.keywords:
-                    news_list = self._parse_search_api_response(response.json())
+                    news_list = self._parse_search_api_response(resp_json)
                 else:
-                    news_list = self._parse_api_response(response.json(), category)
+                    news_list = self._parse_api_response(resp_json, category)
             else:
                 if self.config.verbose:
                     self.log.warning(f"请求失败，状态码: {response.status_code}")
-                news_list = self._generate_sample_news()
+                news_list = []  # 不再回退到示例数据
 
         except Exception as e:
             if self.config.verbose:
                 self.log.warning(f"爬取第 {page} 页失败: {e}", exc_info=True)
-            news_list = self._generate_sample_news()
+            news_list = []  # 不再回退到示例数据
 
         return news_list
 
     def _parse_api_response(self, data: Dict[str, Any], category: str = "") -> List[NewsItem]:
         """解析 API 响应"""
+
+        # 防御：API 返回 data=null 时安全处理
+        if not isinstance(data, dict) or data.get("data") is None:
+            if self.config.verbose:
+                self.log.warning("API 响应中 data 字段为 null，无法解析")
+            return []
 
         def extract_items():
             page_info = data.get("data", {}).get("pageInfo", {})
@@ -671,6 +689,12 @@ class CnstockCrawler:
 
     def _parse_search_api_response(self, data: Dict[str, Any]) -> List[NewsItem]:
         """解析搜索 API 响应"""
+
+        # 防御：API 返回 data=null 时安全处理
+        if not isinstance(data, dict) or data.get("data") is None:
+            if self.config.verbose:
+                self.log.warning("搜索 API 响应中 data 字段为 null，无法解析")
+            return []
 
         def extract_items():
             items = data.get("data", {}).get("list", [])
@@ -693,13 +717,11 @@ class CnstockCrawler:
 
             if not news_list:
                 if self.config.verbose:
-                    self.log.warning(f"未解析到{log_label}，使用示例数据")
-                news_list = self._generate_sample_news()
+                    self.log.warning(f"未解析到{log_label}")
 
         except Exception as e:
             if self.config.verbose:
                 self.log.warning(f"解析{log_label}失败: {e}", exc_info=True)
-            news_list = self._generate_sample_news()
 
         return news_list
 

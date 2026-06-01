@@ -6,7 +6,7 @@
 import { apiCall, toast, esc, getChartColors, applyChartDefaults } from './core.js';
 import { loadDashboard, switchDashTab } from './dashboard.js';
 import { startCrawlFeedPolling, stopCrawlFeedPolling, startWorkersPolling, stopWorkersPolling, loadWorkersStatus } from './monitor.js?v=4';
-import { searchAssets, selectAsset, analyzeAssetByCode, analyzeAsset, handleAssetSearchKeydown, initAssetSearch } from './asset.js';
+import { searchAssets, selectAsset, analyzeAssetByCode, analyzeAsset, handleAssetSearchKeydown, initAssetSearch } from './asset.js?v=20250529a';
 import { switchSignalLabTab, loadSignalLab, initSignalLab } from './signal-lab.js';
 import { loadMemoryPage, loadEpisodes, loadStrategies, loadFailures, loadEventSummary, initMemory } from './memory.js';
 import { loadSignals, createSignal, validateSignal, promoteSignal, loadOutcomes, initSignals } from './signals.js';
@@ -19,6 +19,8 @@ import { loadIndustryChain, loadPropagationPath, renderIndustryGraph, renderProp
 import { renderPipelineMonitor, stopPipelinePolling, handlePipelineSSEEvent } from './pipeline-monitor.js';
 import { ingestText, renderIngestResult } from './ingest.js';
 import { globalSearch, renderSearchResults, navigateToSignalDetail } from './search.js';
+import { initNavigationCuration } from './navigation-curation.js';
+import { initWindPanel } from './wind.js';
 
 // ─── Window Exports (for HTML onclick handlers) ────────────────
 window.apiCall = apiCall;
@@ -104,6 +106,7 @@ window.loadPropagationPath = loadPropagationPath;
 window.ingestText = ingestText;
 window.globalSearch = globalSearch;
 window.navigateToSignalDetail = navigateToSignalDetail;
+window.initWindPanel = initWindPanel;
 
 // ─── Theme & i18n Init ───────────────────────────────────────
 (function initTheme() {
@@ -180,6 +183,7 @@ function navigateTo(section) {
     if (section === 'outcomes') loadOutcomes();
     if (section === 'signal-lab') loadSignalLab();
     if (section === 'templates') loadTemplatesPage();
+    if (section === 'wind') initWindPanel();
     if (section === 'pipeline-monitor') renderPipelineMonitor();
     else stopPipelinePolling();
 }
@@ -263,6 +267,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.activity-btn[data-section]').forEach(btn => {
         btn.addEventListener('click', () => navigateTo(btn.dataset.section));
     });
+    initNavigationCuration();
 
     document.querySelectorAll('.dash-tab').forEach(tab => {
         tab.addEventListener('click', () => switchDashTab(tab.dataset.dashTab));

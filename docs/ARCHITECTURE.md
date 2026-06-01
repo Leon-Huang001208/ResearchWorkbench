@@ -424,7 +424,7 @@ AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System�
 
 ### 数据摄入管道详解
 
-1. **原始数据采集**：从财联社、中国证券网、知丘、AKShare 等源采集原始数据，入队到 ingestion_queue
+1. **原始数据采集**：从财联社、中国证券网、知丘、AKShare、Wind Excel 等源采集原始数据，入队到 ingestion_queue
 2. **PDF 转换**：PDF 文件通过策略链自动转换为 Markdown/文本 (MinerU → MarkItDown → RawText 自动降级)
 3. **Knowledge Worker 消费**：常驻进程并发消费 ingestion_queue，每批 10 条、最多 8 并发处理
 4. **KnowledgePipeline 加工**：分块 → 分类 → 实体提取 → 事件提取 → 去重

@@ -534,8 +534,10 @@ class CLSTelegramCrawler:
             self.initialize()
 
         if self.config.use_incremental:
-            self._crawl_incremental()
-            return
+            count = self._crawl_incremental()
+            if count > 0:
+                return
+            self.logger.info("[fallback] 增量模式未获取到新电报，回退到全量模式")
 
         start_date, end_date = self._parse_and_validate_dates()
 

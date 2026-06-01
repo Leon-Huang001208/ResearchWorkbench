@@ -21,6 +21,10 @@ class SearchRepository(ABC):
         """搜索标的"""
         pass
 
+    def get_symbol_search_status(self) -> Dict:
+        """返回标的搜索索引状态"""
+        return {}
+
     @abstractmethod
     def search_event_types(self, pattern: str, limit: int) -> List[Dict]:
         """搜索事件类型"""
@@ -75,31 +79,16 @@ class SearchRepositoryImpl(SearchRepository):
 
     def search_symbols(self, pattern: str, limit: int) -> List[Dict]:
         """搜索标的"""
-        from data_layer.repositories.models import AssetDB
+        from services.asset_search_index_service import AssetSearchIndexService
 
-        rows = (
-            self.session.query(AssetDB)
-            .filter(
-                or_(
-                    AssetDB.symbol.ilike(pattern),
-                    AssetDB.name.ilike(pattern),
-                    AssetDB.display_name.ilike(pattern),
-                )
-            )
-            .order_by(AssetDB.created_at.desc())
-            .limit(limit)
-            .all()
-        )
-        return [
-            {
-                "symbol": r.symbol,
-                "name": r.name,
-                "display_name": r.display_name,
-                "asset_type": r.asset_type,
-                "industry": r.industry,
-            }
-            for r in rows
-        ]
+        query = pattern.strip("%")
+        return AssetSearchIndexService(self.session).search(query, limit=limit)
+
+    def get_symbol_search_status(self) -> Dict:
+        """返回标的搜索索引状态"""
+        from services.asset_search_index_service import AssetSearchIndexService
+
+        return AssetSearchIndexService(self.session).status()
 
     def search_event_types(self, pattern: str, limit: int) -> List[Dict]:
         """搜索事件类型"""

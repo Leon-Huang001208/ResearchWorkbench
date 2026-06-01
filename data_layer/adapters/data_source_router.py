@@ -15,6 +15,7 @@ from data_layer.adapters import (
     CLSAdapter,
     CNStockAdapter,
     IFinDAdapter,
+    WindAdapter,
     ZQAdapter,
 )
 from data_layer.adapters.akshare.exceptions import AkShareAdapterError
@@ -43,6 +44,7 @@ class DataSourceRouter:
         self.cls_adapter = CLSAdapter()
         self.cnstock_adapter = CNStockAdapter()
         self.zq_adapter = ZQAdapter()
+        self.wind_adapter = WindAdapter()
 
     async def fetch_stock_quotes(
         self, codes: list[str], start_date: str, end_date: str
@@ -243,3 +245,51 @@ class DataSourceRouter:
         """Fetch ZQ (知丘) content (reports/news/meetings)"""
         logger.info("Fetching ZQ content via DataSourceRouter")
         return self.zq_adapter.fetch(**kwargs)
+
+    # ─── Wind Excel 专业数据（无降级，Wind 独有）──────────────
+
+    def is_wind_available(self) -> bool:
+        """检查 Wind Excel 插件是否可用"""
+        return self.wind_adapter.is_available()
+
+    def fetch_wind_consensus(self, codes: list[str], trade_date: str | None = None):
+        """获取 Wind 一致预期数据（无降级，Wind 独有）"""
+        logger.info("Using Wind adapter for consensus estimates")
+        return self.wind_adapter.fetch_consensus_estimates(codes, trade_date)
+
+    def fetch_wind_margin_trading(self, codes: list[str], start_date: str, end_date: str):
+        """获取 Wind 融资融券数据（无降级，Wind 独有）"""
+        logger.info("Using Wind adapter for margin trading")
+        return self.wind_adapter.fetch_margin_trading(codes, start_date, end_date)
+
+    def fetch_wind_block_trades(self, codes: list[str], start_date: str, end_date: str):
+        """获取 Wind 龙虎榜数据（无降级，Wind 独有）"""
+        logger.info("Using Wind adapter for block trades")
+        return self.wind_adapter.fetch_block_trades(codes, start_date, end_date)
+
+    def fetch_wind_daily_quotes(self, codes: list[str], start_date: str, end_date: str):
+        """获取 Wind 日行情数据（无降级，Wind 独有）"""
+        logger.info("Using Wind adapter for daily quotes")
+        return self.wind_adapter.fetch_daily_quotes(codes, start_date, end_date)
+
+    def fetch_wind_financials(
+        self, codes: list[str], report_date: str, statement_type: str = "annual"
+    ):
+        """获取 Wind 财务报表数据（无降级，Wind 独有）"""
+        logger.info("Using Wind adapter for financial statements")
+        return self.wind_adapter.fetch_financial_statements(codes, report_date, statement_type)
+
+    def fetch_wind_industry(self, codes: list[str]):
+        """获取 Wind 行业分类数据（无降级，Wind 独有）"""
+        logger.info("Using Wind adapter for industry data")
+        return self.wind_adapter.fetch_industry_data(codes)
+
+    def fetch_wind_fund_flow(self, codes: list[str], start_date: str, end_date: str):
+        """获取 Wind 资金流向数据（无降级，Wind 独有）"""
+        logger.info("Using Wind adapter for fund flow")
+        return self.wind_adapter.fetch_fund_flow(codes, start_date, end_date)
+
+    def fetch_wind_holders(self, codes: list[str], report_date: str):
+        """获取 Wind 持有人数据（无降级，Wind 独有）"""
+        logger.info("Using Wind adapter for holder data")
+        return self.wind_adapter.fetch_holder_data(codes, report_date)

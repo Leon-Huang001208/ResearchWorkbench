@@ -215,6 +215,7 @@ class MarketDataCache:
             data = []
             for row in cursor.fetchall():
                 md = MarketData(
+                    symbol=symbol,
                     timestamp=datetime.fromisoformat(row[0]),
                     open=row[1],
                     high=row[2],

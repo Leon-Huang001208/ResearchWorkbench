@@ -553,6 +553,106 @@ af knowledge stop
 
 ---
 
+### Wind Excel API
+
+Wind Excel 适配器通过 xlwings → AppleScript → macOS Excel Wind 插件获取专业金融数据。所有端点以 `/api/wind` 为前缀。
+
+#### GET /api/wind/health
+
+检查 Wind Excel 连接状态。
+
+**响应**:
+```json
+{
+  "available": true,
+  "message": "Wind 已连接"
+}
+```
+
+#### POST /api/wind/consensus
+
+获取一致预期数据（净利润、EPS、营收、目标价、评级）。
+
+**请求**:
+```json
+{
+  "codes": ["600519.SH"],
+  "trade_date": "2025-06-01"
+}
+```
+
+**响应**:
+```json
+{
+  "success": true,
+  "data": [{"code": "600519.SH", "trade_date": "2025-06-01", "cons_net_profit": 1e10, "cons_eps": 5.0}],
+  "count": 1
+}
+```
+
+#### POST /api/wind/margin-trading
+
+获取融资融券数据。
+
+**请求**:
+```json
+{
+  "codes": ["600519.SH"],
+  "start_date": "2025-06-01",
+  "end_date": "2025-06-05"
+}
+```
+
+#### POST /api/wind/block-trades
+
+获取龙虎榜数据。请求格式同 margin-trading。
+
+#### POST /api/wind/prices
+
+获取日行情数据（OHLCV + adj_close + adj_factor + vwap + 振幅）。请求格式同 margin-trading。
+
+#### POST /api/wind/financials
+
+获取财务报表数据。
+
+**请求**:
+```json
+{
+  "codes": ["600519.SH"],
+  "report_date": "2024-12-31",
+  "statement_type": "annual"
+}
+```
+
+#### POST /api/wind/industry
+
+获取行业分类数据。
+
+**请求**:
+```json
+{
+  "codes": ["600519.SH"]
+}
+```
+
+#### POST /api/wind/fund-flow
+
+获取资金流向数据。请求格式同 margin-trading。
+
+#### POST /api/wind/holders
+
+获取持有人数据。
+
+**请求**:
+```json
+{
+  "codes": ["600519.SH"],
+  "report_date": "2024-12-31"
+}
+```
+
+---
+
 ### 结果日志 API
 
 #### GET /api/outcomes
@@ -1866,8 +1966,8 @@ AlphaFoundry/
 │   │       ├── __init__.py
 │   │       ├── exceptions.py  # Wind 自定义异常
 │   │       ├── client.py      # Wind Excel 客户端 (xlwings)
-│   │       ├── formulas.py    # Wind 公式生成器 (35个)
-│   │       └── wind_adapter.py # Wind 数据适配器
+│   │       ├── formulas.py    # Wind 公式生成器 (~75个)
+│   │       └── wind_adapter.py # Wind 数据适配器 (8种数据类型)
 │   ├── crawlers/              # 数据采集器
 │   │   ├── __init__.py
 │   │   ├── akshare/           # AKShare 采集器
