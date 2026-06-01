@@ -424,6 +424,9 @@ python scripts/seed_factor_data.py --skip-ingest
 
 ### 资产分析 API
 
+> **数据源优先级**: Wind Excel（如可用）→ 结构化 SQL 表 → MultiSourceCoordinator（AKShare/BaoStock/Yahoo）。
+> Wind 可用时提供机构级数据质量（K 线/财务/估值/行业/资金流向/股东全面板），不可用时静默降级。
+
 #### GET /api/asset/{asset_id}
 
 获取资产分析快照。

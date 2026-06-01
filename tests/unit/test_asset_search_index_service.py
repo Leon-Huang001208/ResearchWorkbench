@@ -88,14 +88,21 @@ def test_search_matches_code_prefix_and_name_fragment(db_session):
 
 def test_search_ranks_exact_code_before_prefix_matches(db_session):
     db_session.add(_stock("600519.SH", "贵州茅台", "食品饮料"))
-    db_session.add(_stock("600000.SH", "浦发银行", "银行"))
+    db_session.add(_stock("600518.SH", "贵州茅台", "食品饮料"))
     db_session.commit()
 
+    # "600519" should exact-match 600519.SH and not match 600518.SH
     results = AssetSearchIndexService(db_session).search("600519")
 
+    assert len(results) >= 1
     assert results[0]["symbol"] == "600519.SH"
-    assert results[0]["match_type"] in {"exact_code", "code_prefix"}
-    assert results[0]["score"] >= results[1]["score"]
+    assert results[0]["match_type"] == "exact_code"
+
+    # "60051" should prefix-match both stocks, with 600518 ranked lower
+    results2 = AssetSearchIndexService(db_session).search("60051")
+    assert len(results2) >= 2
+    assert results2[0]["match_type"] == "code_prefix"
+    assert results2[0]["score"] >= results2[1]["score"]
 
 
 def test_status_reports_stock_master_empty_and_seed_fallback(db_session):

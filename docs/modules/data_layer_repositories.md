@@ -117,6 +117,28 @@ Purpose:
 Related service:
 - `services/ingestion_queue_service.py`
 
+---
+
+### `data_layer/repositories/factor_repository.py`
+
+Purpose:
+- 动态多因子数据持久化仓储
+- 通用 `_upsert(model, records, key_cols)` 方法：基于 PostgreSQL `ON CONFLICT DO UPDATE`
+- `save_definitions()` / `get_definitions()` / `get_all_categories()` — 因子定义 CRUD
+- `save_values()` / `get_values()` / `get_values_for_date()` / `get_available_dates()` — 因子值存取
+- `save_evaluations()` / `get_evaluations()` / `get_latest_evaluations()` — 因子评估存取
+- `save_weights()` / `get_latest_weights()` / `get_weights_history()` — 动态权重存取
+- `close()` — 清理数据库 session
+
+Related services:
+- `services/factor_store_service.py`
+- `services/factor_computation_service.py`
+
+Update this section when:
+- 新表或新查询方法添加
+- Upsert 逻辑变更
+- 索引策略变更
+
 Update this section when:
 - Queue item status flow changes.
 - Statistics aggregation changes.

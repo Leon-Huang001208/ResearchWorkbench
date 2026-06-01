@@ -34,7 +34,7 @@ WSD_EXTRA_TIMEOUT_PER_DAYS = 250
 WSD_EXTRA_TIMEOUT_SECONDS = 5.0
 
 # WSD 最大行数（A股 ~250 交易日/年，保守估计 5000 行覆盖 20 年）
-WSD_MAX_ROWS = 5000
+WSD_MAX_ROWS = 1000  # ~4 年交易日，避免过大范围导致 AppleScript 错误
 
 EXCEL_ERRORS = frozenset({"#N/A", "#VALUE!", "#REF!", "#DIV/0!", "#NAME?", "#NUM!", "#NULL!"})
 WIND_LOADING = frozenset({"fetch...", "loading...", "calculating...", "connecting..."})
@@ -175,6 +175,20 @@ class WindExcelClient:
         if not self.heartbeat():
             raise WindSessionExpiredError()
 
+    def _read_cell_value(self, cell):
+        """读取单元格值，优先使用 raw_value 避免 datetime 串行号误转换。
+
+        xlwings 会将 Excel 中的数字（如股价 1385.0）根据单元格格式转换为
+        Python datetime，导致数据错乱。raw_value 返回原始数值。
+        """
+        try:
+            raw = cell.raw_value
+            if raw is not None:
+                return raw
+        except Exception:
+            pass
+        return cell.value
+
     def _execute_raw(self, formula: str, timeout: float | None = None) -> Any:
         """底层：写公式到 Excel 单元格，等待求值，读回结果"""
         self._ensure_connected()
@@ -188,7 +202,7 @@ class WindExcelClient:
         while elapsed < timeout:
             time.sleep(interval)
             elapsed += interval
-            result = cell.value
+            result = self._read_cell_value(cell)
             if not _is_error_value(result):
                 return result
             if result is None:
@@ -302,14 +316,39 @@ class WindExcelClient:
             raise last_error
         return []
 
+    # WSD 溢位矩阵配置
+    WSD_MAX_COLS = 20  # 最多读取的列数（date + 多个字段）
+
     def _execute_wsd_once(self, formula: str, timeout: float) -> list[list]:
-        """执行单次 WSD 调用（不含重试逻辑）"""
+        """执行单次 WSD 调用（不含重试逻辑）。
+
+        读取 WSD 溢位全矩阵（date + 所有请求字段），使用 raw_value
+        避免 xlwings 将数字误转为 datetime。
+        """
         sheet = self._sheet
         col = self._col
 
-        # 清除可能残留的数据
+        # 清除可能残留的宽范围数据
         try:
-            sheet.range(f"{col}1:{col}{WSD_MAX_ROWS}").value = None
+            top = f"{col}1"
+            # 计算最远端列名（col + WSD_MAX_COLS - 1）
+            col_num = 0
+            for ch in col:
+                col_num = col_num * 26 + (ord(ch) - ord("A") + 1)
+            end_col_num = col_num + self.WSD_MAX_COLS - 1
+            import string as _string
+
+            def _col_name(n: int) -> str:
+                result = ""
+                while n > 0:
+                    n -= 1
+                    result = _string.ascii_uppercase[n % 26] + result
+                    n //= 26
+                return result
+
+            end_col = _col_name(end_col_num)
+            clear_range = f"{top}:{end_col}{WSD_MAX_ROWS}"
+            sheet.range(clear_range).value = None
         except Exception:
             pass
 
@@ -323,7 +362,7 @@ class WindExcelClient:
         while elapsed < timeout:
             time.sleep(interval)
             elapsed += interval
-            val = sheet.range(f"{col}1").value
+            val = self._read_cell_value(sheet.range(f"{col}1"))
             if val is not None and not _is_error_value(val):
                 resolved = True
                 break
@@ -337,29 +376,48 @@ class WindExcelClient:
             sheet.range(f"{col}1").value = None
             raise WindTimeoutError(formula, timeout)
 
-        # 动态检测实际数据行数：从 WSD_MAX_ROWS 逐步下探到第一个全空行
+        # 动态检测实际数据矩阵尺寸
         try:
-            # 先尝试批量读取一个大范围
-            raw_data = sheet.range(f"{col}1:{col}{WSD_MAX_ROWS}").value
+            # 从 col 开始，最多读 WSD_MAX_COLS 列、WSD_MAX_ROWS 行
+            end_col = _col_name(end_col_num)
+            wide_range = f"{col}1:{end_col}{WSD_MAX_ROWS}"
+            raw_data = sheet.range(wide_range).raw_value
 
             if raw_data is None:
                 return []
 
             if not isinstance(raw_data, list):
+                # 单值结果
                 sheet.range(f"{col}1").value = None
                 return [[raw_data]]
 
-            # 过滤全空行（从第一行 None 开始截断，保留表头）
+            # 确定实际列数（从第一行非空单元格）
+            header_row = raw_data[0]
+            if isinstance(header_row, list):
+                n_cols = 0
+                for v in header_row:
+                    if v is not None:
+                        n_cols += 1
+                    else:
+                        break
+            else:
+                n_cols = 1
+
+            if n_cols == 0:
+                return []
+
+            # 构建结果：截取实际列数，过滤全空行
             result = []
             saw_data = False
             for row in raw_data:
                 if isinstance(row, list):
-                    if any(cell is not None for cell in row):
-                        result.append(row)
+                    # 截取实际列数
+                    trimmed = row[:n_cols]
+                    if any(cell is not None for cell in trimmed):
+                        result.append(trimmed)
                         saw_data = True
                     elif saw_data:
-                        # 遇到第一行全空，后续不再有数据（WSD spill 连续）
-                        break
+                        break  # 连续全空行 → WSD 溢位结束
                 elif row is not None:
                     result.append([row])
                     saw_data = True
@@ -367,7 +425,7 @@ class WindExcelClient:
                     break
 
             sheet.range(f"{col}1").value = None
-            logger.debug("WSD: 读取 %d 行数据（含表头）", len(result))
+            logger.debug("WSD: 读取 %d 行 × %d 列", len(result), n_cols)
             return result
 
         except Exception as exc:
@@ -400,10 +458,10 @@ class WindExcelClient:
 
         # 等待 Excel 完成所有计算
         # 策略：
-        # - None → 可能还在计算中（继续等待，最多 3 秒善期）
-        # - 3 秒后仍为 None → 视为空结果（公式完成但无数据）
-        # - Excel 错误（#N/A 等）→ 终态，立即接受
-        GRACE_TIMEOUT = 3.0  # None 的最长等待时间
+        # - None → 可能还在计算中（继续等待，最多 GRACE_TIMEOUT 善期）
+        # - Excel 错误（#N/A 等）→ 善期内也继续等待（Wind 可能在计算中）
+        # - GRACE_TIMEOUT 后仍为 None/错误 → 视为终态
+        GRACE_TIMEOUT = 5.0  # None/Excel 错误的最长善期等待
         elapsed = 0.0
         interval = 0.3
         results: list[Any] = [None] * len(formulas)
@@ -413,16 +471,24 @@ class WindExcelClient:
             elapsed += interval
             all_ready = True
             for i in range(len(formulas)):
-                if results[i] is None:
-                    val = sheet.range(f"{col}{i + 1}").value
+                if results[i] is None or (elapsed < GRACE_TIMEOUT and _is_error_value(results[i])):
+                    cell = sheet.range(f"{col}{i + 1}")
+                    val = self._read_cell_value(cell)
                     if val is None:
-                        # 超过善期则视为空结果；否则继续等待
                         if elapsed < GRACE_TIMEOUT:
                             all_ready = False
                         # else: 接受 None 为终态空值
+                    elif _is_error_value(val):
+                        if elapsed < GRACE_TIMEOUT:
+                            all_ready = False  # 善期内继续等待
+                        else:
+                            results[i] = val  # 善期后接受错误
                     else:
-                        results[i] = val  # 包括 Excel 错误和有效值
-                # else: 已有结果，不需再查
+                        results[i] = val  # 有效值
+                elif results[i] is not None:
+                    pass  # 已有终态结果
+                else:
+                    all_ready = False  # 仍是 None 且已过善期，但还没到总超时
             if all_ready:
                 break
 
@@ -439,7 +505,8 @@ class WindExcelClient:
         final_results = []
         for i in range(len(formulas)):
             if results[i] is None or _is_error_value(results[i]):
-                val = sheet.range(f"{col}{i + 1}").value
+                cell = sheet.range(f"{col}{i + 1}")
+                val = self._read_cell_value(cell)
                 if _is_error_value(val):
                     final_results.append(WindFormulaError(formulas[i], str(val) if val else "#N/A"))
                 else:

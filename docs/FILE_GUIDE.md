@@ -193,7 +193,8 @@
 |---|---|
 | `services/__init__.py` | 导出所有服务 |
 | **资产分析** | |
-| `asset_analysis_service.py` | 资产分析服务：生成资产分析快照 |
+| `asset_analysis_service.py` | 资产分析服务：生成资产分析快照，Wind 数据源优先（不可用时降级到 AKShare/BaoStock/Yahoo） |
+| `wind_analysis_service.py` | Wind 数据分析服务：将 WindAdapter 数据映射为 AssetAnalysisCard，提供机构级 K 线、财务、估值、行业、资金流向、股东数据 |
 | **数据摄入与处理** | |
 | `ingest_service.py` | 摄入服务：处理文档摄入、提取断言和事件 |
 | `document_chunker.py` | 文档分块：将长文档切分为适合处理的小块 |

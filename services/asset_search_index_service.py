@@ -127,6 +127,11 @@ def _char_initial(ch: str) -> str:
 class AssetSearchIndexService:
     """构建并查询资产候选索引。"""
 
+    # 实时候选缓存（避免重复调用 AKShare）
+    _live_candidates_cache: Optional[List[AssetSearchCandidate]] = None
+    _live_cache_timestamp: float = 0.0
+    _live_cache_ttl: float = 300.0  # 5 分钟
+
     def __init__(self, db_session: Optional[Session] = None):
         self.db = db_session
 
@@ -145,6 +150,21 @@ class AssetSearchIndexService:
             item["score"] = score
             scored.append(item)
 
+        # 如果数据库无数据（只有种子），尝试实时 AKShare 搜索回退
+        stock_master_empty = self._stock_master_count() == 0
+        entity_empty = self._entity_count() == 0
+        if stock_master_empty and entity_empty and len(scored) <= len(_SEEDED_ASSETS):
+            try:
+                live_scored = self._live_search(normalized_query, limit)
+                # 合并去重：live 结果追加在数据库结果之后
+                seen_ids = {item.get("canonical_id") for item in scored}
+                for item in live_scored:
+                    if item.get("canonical_id") not in seen_ids:
+                        seen_ids.add(item["canonical_id"])
+                        scored.append(item)
+            except Exception:
+                pass  # 实时搜索失败不影响数据库结果
+
         scored.sort(
             key=lambda item: (
                 -item["score"],
@@ -157,13 +177,100 @@ class AssetSearchIndexService:
     def status(self) -> dict:
         stock_master_count = self._stock_master_count()
         entity_count = self._entity_count()
+        has_live_fallback = (
+            self._get_live_candidates() is not None and len(self._get_live_candidates() or []) > 0
+        )
         return {
             "stock_master_count": stock_master_count,
             "entity_count": entity_count,
             "seed_count": len(_SEEDED_ASSETS),
             "stock_master_empty": stock_master_count == 0,
             "using_seed_fallback": stock_master_count == 0,
+            "using_live_fallback": stock_master_count == 0 and has_live_fallback,
         }
+
+    def _live_search(self, normalized_query: str, limit: int) -> List[dict]:
+        """实时从 AKShare 获取 A 股列表并搜索。
+
+        结果会被短暂缓存以避免频繁调用外部 API。
+        """
+        candidates = self._get_live_candidates()
+        if not candidates:
+            return []
+
+        scored = []
+        for candidate in candidates:
+            # 快速预过滤：跳过明显不匹配的
+            code = (candidate.symbol or "").lower()
+            name = (candidate.name or "").lower()
+            abbr = pinyin_abbr(candidate.name)
+            if (
+                normalized_query not in code
+                and normalized_query not in name
+                and normalized_query not in abbr
+            ):
+                continue
+
+            item = candidate.to_dict()
+            match_type, score = self._score(item, normalized_query)
+            if score <= 0:
+                continue
+            item["match_type"] = match_type
+            item["score"] = score - 50  # 略微降权，数据库结果优先
+            item["source"] = "akshare_live"
+            scored.append(item)
+
+        scored.sort(key=lambda i: (-i["score"], i.get("symbol") or ""))
+        return scored[:limit]
+
+    @classmethod
+    def _get_live_candidates(cls) -> List[AssetSearchCandidate]:
+        """获取实时 A 股候选列表（带缓存）"""
+        import time
+
+        now = time.time()
+        if (
+            cls._live_candidates_cache is not None
+            and (now - cls._live_cache_timestamp) < cls._live_cache_ttl
+        ):
+            return cls._live_candidates_cache
+
+        try:
+            from data_layer.crawlers.akshare.base import AkShareAdapter
+
+            adapter = AkShareAdapter()
+            stock_list = adapter.market.get_stock_list(limit=None)
+
+            candidates = []
+            for stock in stock_list:
+                candidates.append(
+                    AssetSearchCandidate(
+                        canonical_id=stock.symbol,
+                        symbol=stock.symbol,
+                        raw_code=stock.symbol.split(".")[0],
+                        name=stock.name,
+                        asset_type="equity",
+                        exchange=stock.symbol.split(".")[-1] if "." in stock.symbol else None,
+                        market="A-share",
+                        industry=stock.industry,
+                        source="akshare_live",
+                    )
+                )
+
+            cls._live_candidates_cache = candidates
+            cls._live_cache_timestamp = now
+            logger.info(
+                "live AKShare candidates cached",
+                count=len(candidates),
+            )
+            return candidates
+
+        except Exception as exc:
+            logger.warning("live AKShare candidate fetch failed: %s", exc)
+            # 缓存空结果以避免短时间内重复尝试
+            cls._live_candidates_cache = []
+            cls._live_cache_timestamp = now
+            return []
 
     def _iter_candidates(self) -> Iterable[AssetSearchCandidate]:
         seen: set[str] = set()

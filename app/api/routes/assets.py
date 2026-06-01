@@ -48,13 +48,23 @@ def get_asset_service(db: Session = Depends(get_db)) -> AssetAnalysisService:
     """获取资产分析服务实例"""
     from data_layer.repositories.market_data_repository import MarketDataRepository
     from data_layer.repositories.postgres_asset_snapshot_repo import PostgresAssetSnapshotRepository
+    from services.wind_analysis_service import WindAnalysisService
 
     repo = PostgresAssetSnapshotRepository(db_session=db)
     coordinator = get_coordinator()
+
+    # 尝试创建 Wind 分析服务（如果 Wind 不可用则跳过，自动降级）
+    wind_service = None
+    try:
+        wind_service = WindAnalysisService()
+    except Exception:
+        pass
+
     return AssetAnalysisService(
         asset_snapshot_repo=repo,
         coordinator=coordinator,
         market_repo=MarketDataRepository(db),
+        wind_service=wind_service,
     )
 
 

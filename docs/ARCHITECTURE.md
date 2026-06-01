@@ -190,6 +190,7 @@ AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System�
 
 - **services/**：业务服务，是系统的核心逻辑层
   - `AssetAnalysisService`：资产分析服务
+  - `WindAnalysisService`：Wind 数据分析服务（Wind 数据源优先 → AssetAnalysisCard 映射，不可用时降级）
   - `ClosedLoopService`：闭循环服务
   - `CrawlOrchestrator`：采集编排器
   - `CrawlScheduler`：采集调度器
@@ -482,7 +483,7 @@ AKShare / Wind WSD (双数据源, --source auto 自动降级)
     → MarketDataRepository (PostgreSQL upsert / SQLite fallback)
     → 结构化 SQL 表 (stock_master, stock_daily_bar, etl_run 等 8 张表)
   → ETLRunRepository (运行追踪, status/fetched/saved/error)
-  → AssetAnalysisService (优先从结构化表读取 → 回退到 MultiSourceCoordinator)
+  → AssetAnalysisService (Wind 优先 → 结构化表 → MultiSourceCoordinator 降级)
   → asset_snapshot / API / dashboard (派生结果)
 ```
 

@@ -131,6 +131,33 @@ Update this section when:
 
 ---
 
+### `scripts/debug_wind_formulas.py`
+
+Purpose:
+- Debug tool for Wind Excel formulas
+- Tests individual Wind formulas against a given stock code and date
+- Reports which formulas return data and which fail
+- Useful for verifying formula availability on Mac Wind
+
+Update this section when:
+- New debug commands are added
+- Formula test patterns change
+
+---
+
+### `scripts/seed_stock_master_static.py`
+
+Purpose:
+- Seeds the `stock_master` table with static A-share stock data
+- Provides a fallback when AKShare is unavailable for stock list bootstrap
+- Includes hardcoded stock codes and names for common A-shares
+
+Update this section when:
+- Seed data is updated
+- Stock list is expanded
+
+---
+
 ### Other `scripts/*.py`
 
 Purpose:

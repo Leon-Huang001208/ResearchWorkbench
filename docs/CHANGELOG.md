@@ -6,7 +6,28 @@
 
 ## [Unreleased]
 
+### Added
+- **资产分析 Wind 数据集成**: Wind Excel 数据源优先集成到资产分析卡片 API，提供机构级数据质量
+  - `services/wind_analysis_service.py` — 新建，将 WindAdapter 的 5 个 fetch 方法映射为 AssetAnalysisCard 的完整面板数据（基础信息/估值/K 线/财务/行业/资金流向/股东）
+  - `app/api/routes/assets.py` 和 `app/api/main.py` — 注入 WindAdapter 依赖，Wind 可用时优先使用（不可用时降级到原有链）
+  - `services/asset_search_index_service.py` — 添加实时 AKShare 搜索回退（数据库为空时通过东方财富 API 实时搜索）
+  - `app/web/static/js/asset.js` — 改进搜索结果状态消息和空状态提示
+
 ### Changed
+
+- **Wind 客户端重大性能优化**: 批量执行引擎重写，分析卡片响应时间从 ~7 分钟降至 ~17 秒
+  - `data_layer/adapters/wind/client.py`:
+    - `execute_batch()` 轮询逻辑重写：None 值 3 秒善期（超期视为空结果），Excel 错误（#N/A 等）即时接受为终态，不再等待 15 秒超时
+    - 心跳 TTL 缓存（30s 内跳过重复 `_ensure_session` 探测），避免批量操作中冗余心跳
+    - WSD 重试从 2 次（空 options + "Days=Trading"）精简为 1 次（仅 "Days=Trading"）
+    - 新增时间诊断日志（write time vs wait time）
+  - `data_layer/adapters/wind/wind_adapter.py`:
+    - `fetch_fund_flow()` 完全重写：从逐日循环改为单次 `execute_batch`（所有日期 × 所有字段一次性执行），5 日回溯数据 ~2 秒
+    - `fetch_fund_flow()`：新增 `_fetch_dq_recent_batch()` WSD 回退方案（近 3 交易日批量获取 OHLCV，33 公式单次 `execute_batch`）
+    - 所有 fetch 方法都使用批量执行，大幅降低 API 响应时间
+  - `services/wind_analysis_service.py`:
+    - 资金流向回溯从 365 天缩短为 5 天（分析卡片仅需最新值）
+    - 操作顺序优化：先执行 `execute_batch`（占 Z1-ZN），再执行 WSD（占 Z1:Z5000），避免 spill range 冲突
 
 - **Wind 客户端连接稳定性修复与 seed 脚本双数据源**: Wind Excel 客户端连接和 WSD 重构，seed 脚本支持 AKShare/Wind 双数据源、限流处理、断点续传
   - `data_layer/adapters/wind/client.py` — `_connect()` 完全重写：遍历所有 Excel 实例，通过 heartbeat 检测含 Wind 插件的实例；`execute_wsd()` 新增 3 次指数退避重试（3s→6s→12s，上限 30s）；新增 `_wsd_timeout()` 根据日期跨度动态计算超时（基础 15s + 每 250 天 + 5s）；新增 `_execute_wsd_once()` 单次 WSD 调用（提取自原 `execute_wsd()`）；心跳 TTL 缓存（30s 内跳过重复心跳）
@@ -148,6 +169,10 @@
   - `data_layer/repositories/documents_v1.py`
 
 ### Fixed
+- **Wind WSD 日期获取 + 字段数据修复**: 修复两个导致 WSD 日期获取失败和日行情字段丢失的关键 bug
+  - `data_layer/adapters/wind/client.py` — 修复 `_execute_wsd_once` 中 `self.WSD_MAX_ROWS` → `WSD_MAX_ROWS`（模块级常量，不可通过 self 访问）；原有 `WSD_MAX_COLS` 已是类属性无需修改
+  - `data_layer/adapters/wind/wind_adapter.py` — `fetch_daily_quotes` 中 WSD 调用 `options="Days=Trading"` → `options=""`（Mac Wind 不支持 "Days=Trading" 选项，会导致 "无法读取数据！" 错误）；不传选项时 WSD 默认返回全部日期（含非交易日），配合 raw_value 读取可正常获取日期+价格数据
+  - `services/wind_analysis_service.py` — 估值面板 fallback：财务数据不可用但估值字典非空时，从 valuation dict 创建 FinancialSummary 填充 PE/PB 字段
 - **PDF 转换后文档创建失败静默吞掉**: `_create_document_from_conversion()` 异常现在写入 `conversion.error_log`，运维可发现
   - `services/pdf_conversion_service.py`
 - **知丘纪要日增量极少**: `days_per_crawl` 默认为 1 天，kanzhiqiu.com 日发布量本身就少 → 改为 `days_per_crawl=3`，每次增量抓取覆盖最近 3 天

@@ -1,6 +1,6 @@
 """资产分析服务"""
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from core.contracts import (
     AssetAnalysisCard,
@@ -17,6 +17,9 @@ from core.observability import get_logger
 from data_layer.coordinator.multi_source_coordinator import MultiSourceCoordinator, get_coordinator
 from data_layer.repositories.market_data_repository import MarketDataRepository
 
+if TYPE_CHECKING:
+    from services.wind_analysis_service import WindAnalysisService
+
 logger = get_logger(__name__)
 
 
@@ -24,8 +27,9 @@ class AssetAnalysisService:
     """资产分析服务
 
     数据源优先级:
-    1. 结构化 SQL 表 (stock_daily_bar, stock_valuation, stock_financial_metric) -> 最快
-    2. MultiSourceCoordinator 自动降级链: iFinD -> AKShare -> Local
+    1. Wind Excel 插件 (如可用) -> 机构级数据质量
+    2. 结构化 SQL 表 (stock_daily_bar, stock_valuation, stock_financial_metric)
+    3. MultiSourceCoordinator 自动降级链: AKShare -> BaoStock -> Yahoo
     """
 
     def __init__(
@@ -34,11 +38,13 @@ class AssetAnalysisService:
         entity_repo: Optional[EntityRepository] = None,
         coordinator: Optional[MultiSourceCoordinator] = None,
         market_repo: Optional[MarketDataRepository] = None,
+        wind_service: Optional["WindAnalysisService"] = None,
     ):
         self.asset_snapshot_repo = asset_snapshot_repo
         self.entity_repo = entity_repo
         self.coordinator = coordinator or get_coordinator()
         self.market_repo = market_repo
+        self.wind_service = wind_service
 
     async def generate_snapshot(
         self,
@@ -275,6 +281,10 @@ class AssetAnalysisService:
         """
         生成完整的资产分析卡片
 
+        数据源优先级:
+        1. Wind Excel 插件 (如可用)
+        2. 结构化 SQL 表 -> MultiSourceCoordinator 降级
+
         Args:
             canonical_id: 资产代码
             as_of: 快照时间
@@ -289,6 +299,27 @@ class AssetAnalysisService:
 
         logger.info("generating asset analysis card", canonical_id=canonical_id)
 
+        # 数据源优先级:
+        # 1. Wind Excel 插件 (如可用，WSD 批量获取 ~15-30 秒)
+        # 2. 结构化 SQL 表 (毫秒级)
+        # 3. MultiSourceCoordinator 降级链
+
+        # 优先尝试 Wind 数据源
+        if self.wind_service is not None:
+            try:
+                wind_card = self.wind_service.build_analysis_card(
+                    canonical_id=canonical_id, as_of=as_of
+                )
+                if wind_card is not None:
+                    logger.info("analysis card built from Wind", canonical_id=canonical_id)
+                    return wind_card
+            except Exception as e:
+                logger.warning(
+                    f"Wind data source failed, falling back: {e}",
+                    canonical_id=canonical_id,
+                )
+
+        # Wind 不可用或失败，回退到原有逻辑
         # 先生成基础快照
         snapshot = await self.generate_snapshot(
             canonical_id=canonical_id,

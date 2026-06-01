@@ -182,11 +182,24 @@ Update this section when:
 
 **关键设计决策：**
 - 连接复用：整个 session 复用同一 Excel 连接，优先连接已运行的实例
-- 批量执行：列式写入公式（Z 列），一次等待 Excel 完成所有计算
+- 批量执行：列式写入公式（Z 列），一次等待 Excel 完成所有计算。`GRACE_TIMEOUT=5.0s`，None 和 Excel 错误视为最终结果
+- `raw_value` 必须使用：`.value` 会将股价数值按 Excel 日期错误转换，`.raw_value` 返回原始数值
 - 心跳检测：每次批量执行前自动检测 Wind 会话有效性，过期时抛出 `WindSessionExpiredError`
 - 保活机制：后台 daemon 线程每 30 分钟执行心跳，防止 Wind 自动登出；过期时触发回调
 
-**测试：** `tests/unit/test_wind_adapter.py` — 90+ 个单元测试（5 异常 + 50+ 公式 + 7 结构 + 4 客户端 + 9 新方法）
+**WSD（Wind Series Data）模式：**
+- Excel 公式 `=wsd("code","fields","start","end","options")` 在 Excel 中 spill 为日期+数值矩阵
+- `WSD_MAX_ROWS = 1000`：避免大范围读取导致 AppleScript 错误 -1728
+- Mac Wind 限制：`options="Days=Trading"` 不支持（返回"无法读取数据！"），使用 `options=""`
+- 字段兼容性：仅 `open`、`turn`、`pct_chg` 在 WSD 中可靠返回，其余字段通过 `execute_batch` 逐日期获取
+- 空行停止：WSD 返回矩阵中首次遇到 None 或空字符串即停止，避免处理填充空行
+
+**日行情获取策略：**
+1. WSD（`options=""`）获取交易日历 + open 价格
+2. `execute_batch` 按日期逐字段获取全部 11 个 OHLCV 字段（`s_dq_open/high/low/close/volume/amount/turn/vwap/pre_close/adj_factor/adj_close`）
+3. WSD 返回空时自动回退到纯 batch 模式
+
+**测试：** `tests/unit/test_wind_adapter.py` — 102 个单元测试（5 异常 + 50+ 公式 + 7 结构 + 4 客户端 + 9 新方法 + WSD 日期提取）
 
 ---
 

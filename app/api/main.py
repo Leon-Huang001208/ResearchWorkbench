@@ -57,6 +57,7 @@ from app.api.routes import (  # noqa: E402
     dashboard,
     decision_console,
     event_ingestion,
+    factors,
     governance,
     graph,
     ingest,
@@ -128,6 +129,7 @@ app.include_router(knowledge.router)
 app.include_router(pdf_admin.router)
 app.include_router(market_data.router)
 app.include_router(wind.router)
+app.include_router(factors.router)
 app.include_router(system.router)
 app.include_router(realtime.router)
 

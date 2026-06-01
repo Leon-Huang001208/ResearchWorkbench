@@ -1381,6 +1381,77 @@ PDF 制品由爬虫下载时自动注册（`ReportProcessor._download_and_record
 
 ---
 
+### 5. 动态多因子表 (`011_add_factor_store_tables.py`)
+
+#### factor_definition（因子定义表）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| factor_id | TEXT PK | 因子 ID |
+| name | TEXT NOT NULL | 因子名称 |
+| category | TEXT NOT NULL | 类别（value/quality/growth/momentum/reversal/risk/liquidity/flow/sentiment/crowding/event/narrative/timing）|
+| direction | TEXT NOT NULL | 方向（positive/negative/neutral）|
+| description | TEXT | 描述 |
+| version | TEXT | 版本号 |
+| horizon_days | INTEGER | 预测周期（天）|
+| refresh_frequency | TEXT | 更新频率（1d/1w/1m）|
+| meta | JSONB | 扩展元数据 |
+| created_at | TIMESTAMPTZ | 创建时间 |
+
+**索引**: idx_factor_definition_category ON category
+
+#### factor_value（因子值表）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | SERIAL PK | 自增 ID |
+| factor_id | TEXT NOT NULL | 因子 ID |
+| subject_id | TEXT NOT NULL | 标的 ID |
+| as_of_date | DATE NOT NULL | 观测日期 |
+| value | NUMERIC | 因子值 |
+| available_at | TIMESTAMPTZ | 可用时间 |
+| source | TEXT | 数据来源 |
+| meta | JSONB | 扩展元数据 |
+| created_at | TIMESTAMPTZ | 创建时间 |
+
+唯一约束: `(factor_id, subject_id, as_of_date)`
+索引: idx_factor_value_factor_id, idx_factor_value_subject_id, idx_factor_value_as_of_date
+
+#### factor_evaluation（因子评估表）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | SERIAL PK | 自增 ID |
+| factor_id | TEXT NOT NULL | 因子 ID |
+| as_of_date | DATE | 评估日期 |
+| horizon_days | INTEGER | 预测周期（天）|
+| sample_size | INTEGER | 样本量 |
+| coverage | FLOAT | 覆盖率 |
+| ic | FLOAT | Information Coefficient |
+| rank_ic | FLOAT | Rank IC (Spearman) |
+| decile_spread | FLOAT | 十分位收益差 |
+| meta | JSONB | 扩展元数据 |
+| created_at | TIMESTAMPTZ | 创建时间 |
+
+唯一约束: `(factor_id, as_of_date, horizon_days)`
+索引: idx_factor_evaluation_factor_id, idx_factor_evaluation_as_of_date
+
+#### dynamic_factor_weight（动态因子权重表）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | SERIAL PK | 自增 ID |
+| as_of_date | DATE | 权重日期 |
+| lookback_periods | INTEGER | 回看周期数 |
+| metric | TEXT | 指标名称（ic/rank_ic）|
+| weights | JSONB | 因子权重映射 |
+| raw_scores | JSONB | 原始评分映射 |
+| created_at | TIMESTAMPTZ | 创建时间 |
+
+索引: idx_dynamic_factor_weight_as_of_date, idx_dynamic_factor_weight_metric
+
+---
+
 #### industry_chain（产业链表）
 
 | 字段 | 类型 | 说明 |

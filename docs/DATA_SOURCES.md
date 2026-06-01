@@ -14,6 +14,14 @@ AlphaFoundry支持多数据源，按优先级自动切换。
 | 3 | ChinaStock | ✅ 兜底 | 内置 | 最后降级选择 |
 
 Wind 适配器通过 xlwings 操控 macOS Excel 中的 Wind 插件获取数据，是项目唯一能获取**一致预期（分析师预测）**、**融资融券**、**龙虎榜**、**日行情（含 adj_close/adj_factor/vwap）**、**财务报表**、**行业分类（申万）**、**资金流向**、**持有人结构**八类高价值投研数据的来源。使用前需确保 Excel 已启动且 Wind 插件已登录。
+
+**Mac Wind 已知限制**：
+
+- WSD 函数字段兼容性：仅 `open`、`turn`、`pct_chg` 三个字段在 WSD 中可靠返回数据，其余字段（high/low/close/volume/amount/vwap/swing）返回空字符串
+- WSD options 参数：`"Days=Trading"` 选项不被支持，会导致 "无法读取数据！" 错误，应使用 `""`（空字符串）
+- 日行情获取策略：先用 WSD（`options=""`）获取交易日历和 open 价格，再用 `execute_batch` 逐日期逐字段批量获取全部 11 个字段的 OHLCV 数据
+- 单值公式 `=@s_dq_*("code","date",adj)` 全部 11 个字段均可可靠返回数据
+- xlwings `raw_value` 必须使用：`.value` 会错误地将股价数值（如 1385.0）按 Excel 日期格式转换为 `datetime(1903,6,23)`，`.raw_value` 返回原始数值
 降级策略由 `data_layer/adapters/data_source_router.py` 实现：iFinD → AKShare → ChinaStock，所有数据源都失败时返回 `insufficient_evidence` 标记。
 
 ### 新闻/研报数据源（源注册表 + 自动发现）

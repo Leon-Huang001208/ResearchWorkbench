@@ -261,6 +261,8 @@ class TestWindClientLogic:
         sheet = MagicMock()
         cell = MagicMock()
         type(cell).value = PropertyMock(return_value="贵州茅台酒股份有限公司")
+        # _read_cell_value 优先读 raw_value，所以两者都设置
+        cell.raw_value = "贵州茅台酒股份有限公司"
         sheet.range.return_value = cell
 
         client = self._setup_client_with_mock_sheet(sheet)
@@ -270,6 +272,7 @@ class TestWindClientLogic:
         sheet = MagicMock()
         cell = MagicMock()
         type(cell).value = PropertyMock(return_value="#N/A")
+        cell.raw_value = "#N/A"
         sheet.range.return_value = cell
 
         client = self._setup_client_with_mock_sheet(sheet)
@@ -279,6 +282,7 @@ class TestWindClientLogic:
         sheet = MagicMock()
         cell = MagicMock()
         type(cell).value = PropertyMock(return_value=None)
+        cell.raw_value = None
         sheet.range.return_value = cell
 
         client = self._setup_client_with_mock_sheet(sheet)
@@ -292,6 +296,7 @@ class TestWindClientLogic:
         sheet = MagicMock()
         cell = MagicMock()
         type(cell).value = PropertyMock(return_value="#N/A")
+        cell.raw_value = "#N/A"
         sheet.range.return_value = cell
 
         client = WindExcelClient()
@@ -570,7 +575,9 @@ class TestWindAdapterNewMethods:
         from data_layer.adapters.wind import WindAdapter, WindExcelClient
 
         mock_client = MagicMock(spec=WindExcelClient)
-        mock_client.execute_batch.return_value = ["测试值"] * 12
+        # 大量 mock 值以支持 fund_flow 批量操作 (days × 5 fields)
+        mock_client.execute_batch.return_value = ["测试值"] * 500
+        mock_client.execute_wsd.return_value = []  # WSD 回退到批量
         adapter = WindAdapter(client=mock_client)
 
         # 验证新 data_type 不会抛出 "未知数据类型"
@@ -589,14 +596,31 @@ class TestWindAdapterNewMethods:
                 assert "未知数据类型" not in str(e)
 
     def test_fetch_daily_quotes_with_mock(self):
-        """使用 mock client 测试 fetch_daily_quotes 返回 DataFrame"""
+        """使用 mock client 测试 fetch_daily_quotes 返回 DataFrame (WSD + batch)"""
         from data_layer.adapters.wind import WindAdapter, WindExcelClient
 
         mock_client = MagicMock(spec=WindExcelClient)
-        mock_client.execute_batch.return_value = [100.0] * 11
+        # WSD 返回交易日历: 3 天 (日期用 Excel serial number)
+        # 日期: 2025-01-06=45663, 2025-01-07=45664, 2025-01-08=45665
+        mock_client.execute_wsd.return_value = [
+            [45663.0, 100.0],
+            [45664.0, 100.5],
+            [45665.0, 101.5],
+        ]
+        # batch 返回 3 天 × 11 字段 = 33 个值
+        mock_client.execute_batch.return_value = (
+            # 2025-01-06: open,high,low,close,volume,amount,turnover,adj,vwap,pct,amp
+            [100.0, 101.0, 99.0, 100.5, 1e6, 1e8, 1.5, 1.0, 100.2, 0.5, 2.0]
+            +
+            # 2025-01-07
+            [100.5, 102.0, 100.0, 101.5, 1.2e6, 1.2e8, 1.8, 1.0, 101.0, 1.0, 2.0]
+            +
+            # 2025-01-08
+            [101.5, 103.0, 101.0, 102.0, 1.1e6, 1.1e8, 1.6, 1.0, 102.0, 0.5, 1.5]
+        )
         adapter = WindAdapter(client=mock_client)
 
-        df = adapter.fetch_daily_quotes(["600519.SH"], "2025-01-06", "2025-01-10")
+        df = adapter.fetch_daily_quotes(["600519.SH"], "2025-01-06", "2025-01-08")
         expected_cols = [
             "code",
             "date",
@@ -613,19 +637,47 @@ class TestWindAdapterNewMethods:
             "amplitude",
         ]
         for col in expected_cols:
-            assert col in df.columns
-        # 确认 adj_close 已移除（用 daily_close + adj_type=2 代替）
+            assert col in df.columns, f"Missing column: {col}"
+        assert len(df) == 3
+        assert df.iloc[0]["close"] == 100.5
+        assert df.iloc[1]["open"] == 100.5
         assert "adj_close" not in df.columns
 
     def test_fetch_daily_quotes_with_adj_type(self):
+        """测试 adj_type=2 时调用 adj 参数"""
         from data_layer.adapters.wind import WindAdapter, WindExcelClient
 
         mock_client = MagicMock(spec=WindExcelClient)
-        mock_client.execute_batch.return_value = [100.0] * 11
+        # WSD: 1 day
+        mock_client.execute_wsd.return_value = [
+            [45663.0, 100.0],
+        ]
+        # batch: 1 day × 11 fields
+        mock_client.execute_batch.return_value = [
+            100.0,
+            101.0,
+            99.0,
+            100.5,
+            1e6,
+            1e8,
+            1.5,
+            1.0,
+            100.2,
+            0.5,
+            2.0,
+        ]
         adapter = WindAdapter(client=mock_client)
 
         df = adapter.fetch_daily_quotes(["600519.SH"], "2025-01-06", "2025-01-06", adj_type=2)
         assert len(df) == 1
+        # 验证 open formula 使用 adj_type=2
+        call_args_list = mock_client.execute_batch.call_args_list
+        assert len(call_args_list) >= 1
+        # 第一批 batch 包含带 adj_type=2 的 open/high/low/close 公式
+        first_batch_formulas = call_args_list[0][0][0]
+        # open 公式包含 ",2)" (adj_type=2)
+        open_formula = first_batch_formulas[0]
+        assert ",2)" in open_formula, f"Expected adj_type=2 in formula, got: {open_formula}"
 
     def test_fetch_financial_statements_with_mock(self):
         from data_layer.adapters.wind import WindAdapter, WindExcelClient
@@ -680,7 +732,8 @@ class TestWindAdapterNewMethods:
         from data_layer.adapters.wind import WindAdapter, WindExcelClient
 
         mock_client = MagicMock(spec=WindExcelClient)
-        mock_client.execute_batch.return_value = [1e8] * 5
+        # 5 business days × 5 fields = 25 mock values needed
+        mock_client.execute_batch.return_value = [1e8] * 50
         adapter = WindAdapter(client=mock_client)
 
         df = adapter.fetch_fund_flow(["600519.SH"], "2025-01-06", "2025-01-10")

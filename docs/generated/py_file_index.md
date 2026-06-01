@@ -3795,7 +3795,7 @@ Imports:
 Classes:
 - `WindExcelClient`
   - 通过 xlwings 操控 Excel 中的 Wind 插件执行公式
-  - methods: __init__, _connect, heartbeat, _ensure_connected, _ensure_session, _execute_raw, execute, _wsd_timeout, execute_wsd, _execute_wsd_once, execute_batch, start_keepalive, stop_keepalive, _keepalive_loop, close, __enter__, __exit__
+  - methods: __init__, _connect, heartbeat, _ensure_connected, _ensure_session, _read_cell_value, _execute_raw, execute, _wsd_timeout, execute_wsd, _execute_wsd_once, execute_batch, start_keepalive, stop_keepalive, _keepalive_loop, close, __enter__, __exit__
 
 Functions:
 - `_is_error_value`
@@ -4019,6 +4019,7 @@ Imports:
 - `data_layer.adapters.base`
 - `data_layer.adapters.wind`
 - `data_layer.adapters.wind.client`
+- `datetime`
 - `pandas`
 - `pathlib`
 - `typing`
@@ -4026,7 +4027,7 @@ Imports:
 Classes:
 - `WindAdapter`
   - Wind 数据适配器
-  - methods: __init__, _get_client, is_available, fetch_consensus_estimates, fetch_margin_trading, fetch_block_trades, fetch_daily_quotes, _fetch_dq_recent_batch, fetch_financial_statements, fetch_industry_data, fetch_fund_flow, fetch_holder_data, fetch, parse
+  - methods: __init__, _get_client, is_available, fetch_consensus_estimates, fetch_margin_trading, fetch_block_trades, fetch_daily_quotes, _dq_row_to_dict, _fetch_dq_recent_batch, fetch_financial_statements, fetch_industry_data, fetch_fund_flow, fetch_holder_data, fetch, parse
 
 Functions:
 - `_safe_float_wind`
@@ -9586,6 +9587,22 @@ Functions:
   - 主函数
 
 
+## `scripts/debug_wind_formulas.py`
+
+Module docstring:
+> 测试 per-field range 公式 — 每字段独立列溢位
+
+Imports:
+- `data_layer.adapters.wind.client`
+- `datetime`
+- `string`
+- `time`
+
+Functions:
+- `to_num`
+- `col_name`
+
+
 ## `scripts/demo_closed_loop.py`
 
 Module docstring:
@@ -10040,6 +10057,24 @@ Imports:
 - `data_layer.repositories.base`
 - `pathlib`
 - `sys`
+
+Functions:
+- `main`
+
+
+## `scripts/smiley_face.py`
+
+Module docstring:
+> Smiley Face macOS App - 用 tkinter 画一个笑脸
+
+Imports:
+- `math`
+- `tkinter`
+
+Classes:
+- `SmileyFace`
+  - 画笑脸的 Canvas
+  - methods: __init__, draw
 
 Functions:
 - `main`

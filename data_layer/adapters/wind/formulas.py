@@ -277,6 +277,64 @@ def daily_amplitude(code: str, trade_date: str) -> str:
     return f'=@s_dq_swing("{code}","{trade_date}")'
 
 
+# ===== 日行情数据 - 日期范围版（一次返回整段时间序列）=====
+
+
+def daily_open_range(code: str, start_date: str, end_date: str, adj_type: int = 1) -> str:
+    """开盘价时间序列 — Wind 日期范围公式（无 @ 前缀，返回数组）"""
+    return f'=s_dq_open("{code}","{start_date}","{end_date}",{adj_type})'
+
+
+def daily_high_range(code: str, start_date: str, end_date: str, adj_type: int = 1) -> str:
+    """最高价时间序列"""
+    return f'=s_dq_high("{code}","{start_date}","{end_date}",{adj_type})'
+
+
+def daily_low_range(code: str, start_date: str, end_date: str, adj_type: int = 1) -> str:
+    """最低价时间序列"""
+    return f'=s_dq_low("{code}","{start_date}","{end_date}",{adj_type})'
+
+
+def daily_close_range(code: str, start_date: str, end_date: str, adj_type: int = 1) -> str:
+    """收盘价时间序列"""
+    return f'=s_dq_close("{code}","{start_date}","{end_date}",{adj_type})'
+
+
+def daily_volume_range(code: str, start_date: str, end_date: str) -> str:
+    """成交量时间序列（Wind 成交量函数只有 2 参数，不含复权）"""
+    return f'=s_dq_volume("{code}","{start_date}","{end_date}")'
+
+
+def daily_amount_range(code: str, start_date: str, end_date: str) -> str:
+    """成交额时间序列"""
+    return f'=s_dq_amount("{code}","{start_date}","{end_date}")'
+
+
+def daily_turnover_range(code: str, start_date: str, end_date: str) -> str:
+    """换手率时间序列"""
+    return f'=s_dq_turn("{code}","{start_date}","{end_date}")'
+
+
+def daily_adj_factor_range(code: str, start_date: str, end_date: str) -> str:
+    """复权因子时间序列"""
+    return f'=s_dq_adjfactor2("{code}","{start_date}","{end_date}")'
+
+
+def daily_vwap_range(code: str, start_date: str, end_date: str) -> str:
+    """均价时间序列"""
+    return f'=s_dq_avgprice("{code}","{start_date}","{end_date}")'
+
+
+def daily_pct_change_range(code: str, start_date: str, end_date: str) -> str:
+    """涨跌幅时间序列"""
+    return f'=s_dq_pctchange("{code}","{start_date}","{end_date}")'
+
+
+def daily_amplitude_range(code: str, start_date: str, end_date: str) -> str:
+    """振幅时间序列"""
+    return f'=s_dq_swing("{code}","{start_date}","{end_date}")'
+
+
 # ===== 财务报表数据 =====
 
 
