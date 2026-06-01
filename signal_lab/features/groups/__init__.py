@@ -9,6 +9,9 @@ from .industry import IndustryFeatures
 from .macro import MacroFeatures
 from .price_volume import PriceVolumeFeatures
 from .valuation import ValuationFeatures
+from .wind_block import WindBlockFeatures
+from .wind_consensus import WindConsensusFeatures
+from .wind_margin import WindMarginFeatures
 
 __all__ = [
     "PriceVolumeFeatures",
@@ -17,4 +20,7 @@ __all__ = [
     "FundFlowFeatures",
     "IndustryFeatures",
     "MacroFeatures",
+    "WindBlockFeatures",
+    "WindConsensusFeatures",
+    "WindMarginFeatures",
 ]

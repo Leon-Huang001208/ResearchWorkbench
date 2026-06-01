@@ -6,6 +6,19 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **Wind 客户端连接稳定性修复与 seed 脚本双数据源**: Wind Excel 客户端连接和 WSD 重构，seed 脚本支持 AKShare/Wind 双数据源、限流处理、断点续传
+  - `data_layer/adapters/wind/client.py` — `_connect()` 完全重写：遍历所有 Excel 实例，通过 heartbeat 检测含 Wind 插件的实例；`execute_wsd()` 新增 3 次指数退避重试（3s→6s→12s，上限 30s）；新增 `_wsd_timeout()` 根据日期跨度动态计算超时（基础 15s + 每 250 天 + 5s）；新增 `_execute_wsd_once()` 单次 WSD 调用（提取自原 `execute_wsd()`）；心跳 TTL 缓存（30s 内跳过重复心跳）
+  - `scripts/seed_factor_data.py` — 新增 `--source {akshare,wind,auto}` 参数：AKShare 限流处理（请求间延迟 `--delay`、指数退避重试 `--max-retries`、限流关键词检测）、Wind WSD 数据源（单次调用获取完整时间序列）、`auto` 模式 Wind 优先自动降级；JSON 断点续传（每 10 只保存 checkpoint，`--resume` 恢复）；新增 `_fetch_akshare_hist_with_retry()`、`_normalize_akshare_hist()`、`_wsd_to_daily_bars()`、`_safe_float_wind()`、`_is_wind_available()`、`ingest_daily_bars_from_wind()` 等函数
+  - 日行情 `s_dq_*` (非 s_pq_*)，OHLC 增加 adj_type，移除 adj_close
+  - 财务 TTM 参数不统一（trade_date vs report_date），fin_equity MRQ 无日期参数
+  - 行业三函数合并为 `s_info_industry_sw_2021` + level 参数
+  - 资金流向保留主力三时段，北向改用 s_share_n/pct_n
+  - 指数 `i_dq_*` 前缀，index_weight 增加 trade_date
+  - 删除 8 个未验证 placeholder（total_liabilities/operating_cf/industry_pe_pb/fund_hold_pct 等）
+  - `wind_adapter.py` 所有 fetch 方法签名更新
+
 ### Added
 - **Wind Excel 适配器**: 通过 xlwings → AppleScript → Excel Wind 插件获取专业金融数据，macOS 原生支持
   - `data_layer/adapters/wind/client.py` — `WindExcelClient`：xlwings 连接管理、心跳检测、批量公式执行、后台保活线程（30min 间隔防自动登出）
@@ -28,7 +41,51 @@
   - `app/web/static/js/signal-lab.js` — 运行时注入“动态因子”页签和面板
   - `app/web/static/style.css` — 追加动态因子面板样式
   - `tests/unit/test_dynamic_factor_visualization_service.py` — 覆盖可视化 payload 结构
-- **WebUI 导航收敛**: 在不修改 dashboard 与模板文件的前提下，将低频/历史页面归档隐藏，保留“更多”按钮随时展开
+- **Wind Excel 适配器 ⭐ 重大扩展**: 公式覆盖从 35 个扩展到 78 个（43 个新增均已通过 Mac Wind Excel 函数浏览器验证），新增 API 端点 + Web UI + Signal Lab 因子 + 数据持久化
+  - `data_layer/adapters/wind/formulas.py` — 新增 43 个已验证公式（日行情 11、财务/估值 20、行业/指数 6、资金流向/北向 5、股东结构 8）；移除未验证 placeholder（总负债/经营现金流/行业PE/PB/散户资金流等）
+  - `data_layer/adapters/wind/wind_adapter.py` — 新增 5 个 fetch 方法：`fetch_daily_quotes`、`fetch_financial_statements`、`fetch_industry_data`、`fetch_fund_flow`、`fetch_holder_data`；实现 `parse()` 方法；source_type 改为 `vendor_snapshot`
+  - `app/api/routes/wind.py` — 新增 8 个 REST API 端点：health/prices/financials/industry/fund-flow/holders（含 Pydantic 请求/响应模型）
+  - `app/web/static/js/wind.js` — 新增 Wind 数据面板模块（fetch/渲染/健康检查）
+  - `app/web/templates/index.html` — 新增 Wind 面板（代码输入、数据类型选择器、日期选择、结果显示表格）
+  - `app/web/static/style.css` — 新增 Wind 面板样式
+  - `signal_lab/features/groups/wind_consensus.py` — WindConsensusFeatures：一致预期因子（9 个特征：净利润 fy1/fy2/ftm、EPS fy1/fy2/ftm、目标价上涨空间、评级分数、评级机构数）
+  - `signal_lab/features/groups/wind_margin.py` — WindMarginFeatures：融资融券因子（5 个特征：融资余额、融券余额、融资净买入、融资净流入、融券占比）
+  - `signal_lab/features/groups/wind_block.py` — WindBlockFeatures：龙虎榜因子（3 个特征：LHB 净买入、买卖比、密集度）
+  - `data_layer/adapters/data_source_router.py` — 新增 9 个 Wind 类型方法：`is_wind_available`、`fetch_wind_consensus`、`fetch_wind_margin_trading`、`fetch_wind_block_trades`、`fetch_wind_daily_quotes`、`fetch_wind_financials`、`fetch_wind_industry`、`fetch_wind_fund_flow`、`fetch_wind_holders`
+  - `storage/migrations/versions/010_add_wind_data_tables.py` — 创建 4 张表：`wind_consensus_estimate`、`wind_margin_trading`、`wind_block_trade`、`wind_daily_bar`（含索引和唯一约束）
+  - `data_layer/repositories/models.py` — 新增 4 个 ORM 模型：`WindConsensusEstimateDB`、`WindMarginTradingDB`、`WindBlockTradeDB`、`WindDailyBarDB`
+  - `data_layer/repositories/wind_repository.py` — `WindRepository`：基于 PostgreSQL upsert 的持久化层（4 类数据的批量保存和查询）
+  - `data_layer/adapters/base.py` — 修复 `_create_document_envelope` 字段名（id→doc_id、content→raw_text、source_path→source_name、created_at→published_at）
+  - `tests/unit/test_wind_adapter.py` — 新增 102 个测试（价格 12、财务 17、行业 6、资金流向 5、持有人 8、适配器方法 10、异常 8、公式基础 16、客户端逻辑 4、解析 2）
+  - `tests/unit/test_wind_api.py` — 新增 13 个 API 测试（健康检查、一致预期、两融、龙虎榜、行情、财务、行业、资金流向、持有人）
+  - `tests/unit/test_wind_features.py` — 新增 15 个特征测试（一致预期 6、融资融券 4、龙虎榜 4、集成 2）
+  - `tests/unit/test_wind_repository.py` — 新增 14 个仓储测试（空记录、upsert、查询、初始化）
+- **动态多因子持久化**: 因子定义、因子值、评估和权重的数据库持久化闭环
+  - `storage/migrations/versions/011_add_factor_store_tables.py` — 创建 4 张表：factor_definition、factor_value、factor_evaluation、dynamic_factor_weight（含索引和唯一约束）
+  - `data_layer/repositories/models.py` — 新增 FactorDefinitionDB、FactorValueDB、FactorEvaluationDB、DynamicFactorWeightDB ORM 模型
+  - `data_layer/repositories/factor_repository.py` — FactorRepository：通用 upsert + 专用查询方法（点日期查询、范围查询、最新权重等）
+  - `services/factor_store_service.py` — FactorStore：桥接 Pydantic 契约 ↔ ORM 记录，提供 definition/value/evaluation/weight 完整持久化能力
+  - `tests/unit/test_factor_repository.py` — 13 个单元测试（空记录、upsert 委托、查询、session 生命周期）
+  - `tests/unit/test_factor_store_service.py` — 27 个单元测试（契约转换、CRUD 路径、端到端流程）
+- **动态多因子 REST API**: 因子数据端到端 REST 接口
+  - `app/api/routes/factors.py` — 10 个 API 端点（definitions GET/POST, values GET/POST, evaluations GET/POST, weights/latest GET, weights POST, weights/history GET, available-dates GET, categories GET）
+  - `app/api/main.py` — 注册 factors.router
+  - `tests/unit/test_factor_api.py` — 13 个单元测试（端点覆盖、请求验证、空数据处理）
+- **动态多因子定时计算**: 因子研究闭环的定时编排服务
+  - `services/factor_computation_service.py` — FactorComputationService：编排因子定义加载 → 值加载 → 矩阵构建 → 评估 → 动态权重拟合 → 持久化
+  - `services/crawl_scheduler.py` — 注册每日盘后因子计算定时任务（cron `16:27`）
+  - `tests/unit/test_factor_computation_service.py` — 11 个单元测试（空定义/空值/完整循环/资源关闭）
+	- **因子数据播种 + 唯一约束修复**: 解决因子数据表为空导致每日定时任务跳过的风险
+	  - `scripts/seed_factor_data.py` — 种子数据管线：Phase 1 AKShare 摄入（带 legacy stock_price_data 回退），Phase 2 因子定义注册/值时序计算/评估周期
+	  - `data_layer/repositories/models.py` — FactorValueDB、FactorEvaluationDB、DynamicFactorWeightDB 添加 `__table_args__` UniqueConstraint
+	  - PostgreSQL 添加 3 个唯一约束：`uq_factor_value_factor_subject_date`、`uq_factor_eval_factor_date_horizon`、`uq_dynamic_weight_date_metric`
+	- **财务数据播种 + 财务因子**: AKShare stock_financial_abstract() 摄入财务数据，注册并计算 VALUE/QUALITY/GROWTH 因子
+	  - `scripts/seed_factor_data.py` — 新增 `get_stock_list_akshare_direct()`（stock_info_a_code_name, 5,525 只股票）、`ingest_daily_bars_direct()`（stock_zh_a_hist 日行情）、`ingest_financials_direct()`（stock_financial_abstract 财务数据）、`compute_financial_factor_values()`（季报因子计算）
+	  - 新增 8 个财务因子定义：pe_ttm, pb, bvps (VALUE) / roe, eps (QUALITY) / revenue_growth_yoy, profit_growth_yoy (GROWTH) / debt_ratio (RISK)
+	  - 播种结果：18 个因子（10 技术 + 8 财务），26,081 条因子值（8 个类别），4,262 行财务数据（51 个标的）
+	  - PostgreSQL 添加 `uq_financial_metric_symbol_date` 唯一约束
+	  - 种子运行结果：10 个因子定义，2,260 个因子值（4 个交易日 × 65 标的），10 个因子评估（IC/RankIC/DecileSpread），1 组动态权重
+- **WebUI 导航收敛**: 在不修改 dashboard 与模板文件的前提下，将低频/历史页面归档隐藏，保留”更多”按钮随时展开
   - `app/web/static/js/navigation-curation.js` — 新增导航归档配置和显示/隐藏状态管理
   - `app/web/static/js/app.js` — 初始化导航收敛模块
   - `app/web/static/style.css` — 新增归档导航按钮样式
@@ -160,6 +217,14 @@
 - **backfill-3-missing-sources**: 启动回填新增 3 个源（cnstock_flash, zhiqiu_wechat, zhiqiu_transcript），之前仅 cls/cnstock/zhiqiu_reports
 
 ### Fixed
+- **cnstock 爬虫 API 错误时注入虚构新闻**: `cnstock.py` `_crawl_page()` 在 API 返回业务错误码（如 "未登录" 10304）或 `data=null` 时，异常处理 fallback 到 `_generate_sample_news()`，可能将虚构新闻注入数据库
+  - `data_layer/crawlers/cnstock/cnstock.py` — `_crawl_page()` 添加 API 业务错误码检查（`code not in (None, 0, 200) and data is None`），返回空列表
+  - `data_layer/crawlers/cnstock/cnstock.py` — `_parse_response_common()` 返回空列表而非 `_generate_sample_news()`
+  - `data_layer/crawlers/cnstock/cnstock.py` — `_parse_api_response()` 和 `_parse_search_api_response()` 添加 None-safety：`data.get("data")` 返回 None 时安全处理
+- **Scheduler 事件循环阻塞导致非 CLS 作业被跳过**: `_run_crawl_job()` 等 5 个 async 方法内同步调用 `CrawlOrchestrator`，阻塞 asyncio 事件循环。CLS（先注册）执行期间（~11s），其他作业的 `next_run_time` 超过 APScheduler 默认 `misfire_grace_time=1s` 被跳过
+  - `services/crawl_scheduler.py` — 5 个 async 方法全部改为 `loop.run_in_executor(None, sync_fn)` 在线程池中运行同步抓取代码
+  - 影响方法：`_run_crawl_job`、`_run_backfill_job`、`_run_deep_backfill_job`、`_run_cnstock_deep_backfill_job`、`_run_zq_deep_backfill_job`
+  - 修复后全部 6 个定时作业同时触发（10:37:07 同一秒），不再排队等待
 - **worker-heartbeat-cross-process**: Worker 心跳数据跨进程不可见修复
   - `workers/knowledge_worker.py` — 新增 `_write_heartbeat()` 将心跳写入 `logs/{worker_label}.heartbeat.json`
   - `workers/crawl_scheduler_worker.py` — 新增 `_write_heartbeat()` 将心跳写入 `logs/scheduler.heartbeat.json`

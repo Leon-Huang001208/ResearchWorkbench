@@ -1036,6 +1036,27 @@ table.compact td {
     border-radius: 0 2px 2px 0;
 }
 
+.activity-btn-hidden {
+    display: none;
+}
+
+.activity-btn-archived {
+    opacity: 0.58;
+}
+
+.activity-btn-more {
+    margin-top: 8px;
+    border-top: 1px solid rgba(255,255,255,0.12);
+}
+
+.activity-btn-more.active {
+    color: #fff;
+}
+
+.activity-btn-more.active::before {
+    display: none;
+}
+
 /* ─── Settings Popover (VS Code style) ──────────────────────── */
 .settings-popover {
     position: fixed;
@@ -1954,6 +1975,51 @@ tr:hover td {
 .asset-search-wrapper .search-dropdown {
     border-radius: var(--radius);
     margin-top: 4px;
+}
+
+.asset-search-status {
+    padding: 10px 8px;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.asset-search-status.is-error {
+    color: var(--danger);
+}
+
+.asset-search-status.is-warning {
+    color: var(--warning);
+}
+
+.asset-result-item {
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr);
+    align-items: center;
+    column-gap: 8px;
+}
+
+.asset-result-item .result-title,
+.asset-result-item .result-subtitle {
+    grid-column: 2;
+}
+
+.asset-result-rank {
+    grid-row: 1 / span 2;
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: 11px;
+}
+
+.asset-result-item.selected .asset-result-rank {
+    background: var(--accent);
+    color: white;
 }
 
 .asset-result-item .asset-symbol {
@@ -4619,4 +4685,259 @@ tr:hover td {
 }
 [data-theme="dark"] .activity-item + .activity-item {
     border-top-color: var(--border-color, #2e2e3e);
+}
+
+/* ─── Signal Lab: Dynamic Factor Alpha Control Room ───────── */
+.dynamic-factor-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.dynamic-factor-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 4px;
+}
+
+.dynamic-factor-header h3 {
+    margin: 0 0 6px;
+    font-size: 1rem;
+    color: var(--text-primary);
+}
+
+.dynamic-factor-header p {
+    margin: 0;
+    max-width: 780px;
+    color: var(--text-secondary);
+    font-size: 0.86rem;
+    line-height: 1.5;
+}
+
+.df-status {
+    padding: 12px 14px;
+    border: 1px solid var(--border, #d0d7de);
+    border-radius: 6px;
+    color: var(--text-secondary);
+    background: var(--bg-input, #f6f8fa);
+}
+
+.df-loop-steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 8px;
+}
+
+.df-loop-step {
+    min-height: 74px;
+    padding: 10px;
+    border: 1px solid var(--border, #d0d7de);
+    border-radius: 6px;
+    background: var(--bg-input, #f6f8fa);
+}
+
+.df-step-ready {
+    border-left: 3px solid var(--success, #cf222e);
+}
+
+.df-step-next {
+    border-left: 3px solid var(--warning, #9a6700);
+}
+
+.df-step-name {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}
+
+.df-step-label {
+    margin-top: 4px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.df-step-metric {
+    margin-top: 4px;
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+}
+
+.df-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 0.55fr);
+    gap: 14px;
+}
+
+.df-panel {
+    min-width: 0;
+    padding: 14px;
+    border: 1px solid var(--border, #d0d7de);
+    border-radius: 6px;
+    background: var(--bg-card, #ffffff);
+}
+
+.df-panel-title {
+    margin-bottom: 12px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.df-weight-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.df-weight-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 0.82rem;
+}
+
+.df-bar-track,
+.df-mini-track {
+    width: 100%;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--bg-input, #f6f8fa);
+}
+
+.df-bar-track {
+    height: 8px;
+}
+
+.df-mini-track {
+    height: 6px;
+    margin-top: 5px;
+}
+
+.df-bar-fill,
+.df-mini-fill {
+    height: 100%;
+    border-radius: inherit;
+}
+
+.df-bar-positive,
+.df-mini-fill {
+    background: var(--success, #cf222e);
+}
+
+.df-bar-negative {
+    background: var(--danger, #1a7f37);
+}
+
+.df-score-cell {
+    min-width: 120px;
+}
+
+.df-chip {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 7px;
+    margin: 2px 4px 2px 0;
+    border: 1px solid var(--border, #d0d7de);
+    border-radius: 999px;
+    color: var(--text-secondary);
+    background: var(--bg-input, #f6f8fa);
+    font-size: 0.74rem;
+    white-space: nowrap;
+}
+
+@media (max-width: 980px) {
+    .dynamic-factor-header {
+        flex-direction: column;
+    }
+
+    .df-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ─── Wind Data Panel ─────────────────────────────────── */
+
+#wind-health-badge {
+    font-size: 0.8em;
+    padding: 2px 10px;
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+#wind-health-badge.badge-success {
+    background: var(--success-bg, #d4edda);
+    color: var(--success-text, #155724);
+}
+
+#wind-health-badge.badge-error {
+    background: var(--error-bg, #f8d7da);
+    color: var(--error-text, #721c24);
+}
+
+#wind-health-badge.badge-warning {
+    background: var(--warning-bg, #fff3cd);
+    color: var(--warning-text, #856404);
+}
+
+#wind-table {
+    max-height: 500px;
+    overflow-y: auto;
+    margin-top: 1rem;
+}
+
+#wind-table table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9em;
+}
+
+#wind-table th {
+    position: sticky;
+    top: 0;
+    background: var(--surface-bg, #f8f9fa);
+    z-index: 1;
+    padding: 8px 10px;
+    text-align: left;
+    border-bottom: 2px solid var(--border-color, #dee2e6);
+    white-space: nowrap;
+}
+
+#wind-table td {
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border-color, #e9ecef);
+    white-space: nowrap;
+    text-align: right;
+}
+
+#wind-table td:first-child {
+    text-align: left;
+    font-weight: 500;
+}
+
+#wind-table tr:hover {
+    background: var(--hover-bg, rgba(0,0,0,0.03));
+}
+
+#wind-loading {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1.5rem 0;
+    color: var(--text-muted, #6c757d);
+}
+
+#wind-result {
+    margin-top: 1rem;
+}
+
+.wind-data-type-hint {
+    font-size: 0.8em;
+    color: var(--text-muted, #6c757d);
+    margin-left: 0.5rem;
 }

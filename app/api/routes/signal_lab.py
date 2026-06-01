@@ -494,3 +494,15 @@ async def get_signal_lab_summary() -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Failed to get signal lab summary: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/dynamic-factors/overview")
+async def get_dynamic_factor_overview() -> Dict[str, Any]:
+    """获取动态多因子 Alpha Control Room 可视化数据。"""
+    try:
+        from services.dynamic_factor_visualization_service import DynamicFactorVisualizationService
+
+        return DynamicFactorVisualizationService().build_overview()
+    except Exception as e:
+        logger.error(f"Failed to get dynamic factor overview: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

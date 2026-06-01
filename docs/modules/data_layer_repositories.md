@@ -138,6 +138,19 @@ Update this section when:
 - PDF artifact schema changes.
 - Conversion status tracking changes.
 
+### `data_layer/repositories/wind_repository.py`
+
+Purpose:
+- `WindRepository` - PostgreSQL upsert 持久化层，支持 Wind 四类数据的批量保存和查询
+- `save_consensus_estimates` / `get_consensus_estimates` - 一致预期
+- `save_margin_trading` / `get_margin_trading` - 融资融券
+- `save_block_trades` / `get_block_trades` - 龙虎榜
+- `save_daily_bars` / `get_daily_bars` - 日行情
+
+Update this section when:
+- Wind 数据表结构变更
+- 查询接口参数变更
+
 ---
 
 ## Required Tests

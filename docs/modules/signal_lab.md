@@ -4,6 +4,14 @@
 
 `signal_lab` provides feature engineering, label engineering, signal scoring, and event study and backtesting capabilities.
 
+It now also contains the first dynamic multi-factor MVP: point-in-time factor
+matrix construction, IC / RankIC evaluation, rolling IC dynamic weights, and
+event-factor-timing fusion.
+
+The WebUI visualizes this MVP inside the existing Signal Lab section by runtime
+DOM injection from `app/web/static/js/signal-lab.js`. Do not modify dashboard or
+template modules for this view.
+
 ---
 
 ## Design Rules
@@ -25,10 +33,52 @@ Purpose:
 - Feature group definitions
 - Feature engineering pipelines
 
+Feature groups:
+
+| Group | File | Features | Data Source |
+| ----- | ---- | -------- | ----------- |
+| `WindConsensusFeatures` | `groups/wind_consensus.py` | cons_net_profit (fy1/fy2/ftm), cons_eps (fy1/fy2/ftm), cons_target_price_upside, cons_rating_score, cons_rating_num | Wind Excel |
+| `WindMarginFeatures` | `groups/wind_margin.py` | margin_balance, short_balance, margin_buy, net_margin_flow, short_ratio | Wind Excel |
+| `WindBlockFeatures` | `groups/wind_block.py` | lhb_net_buy, lhb_buy_sell_ratio, lhb_intensity | Wind Excel |
+| `PriceVolumeFeatures` | `groups/price_volume.py` | price_change, moving_average, volume_ratio | Market data |
+| `ValuationFeatures` | `groups/valuation.py` | pe, pb, ps, dividend_yield | Market data |
+| `FinancialFeatures` | `groups/financial.py` | roe, roa, revenue_growth, profit_growth | Financials |
+| `FundFlowFeatures` | `groups/fund_flow.py` | net_inflow, main_force, retail | Fund flow |
+| `IndustryFeatures` | `groups/industry.py` | industry_pct, sector_rank | Industry |
+| `MacroFeatures` | `groups/macro.py` | gdp, cpi, pmi, interest_rate | Macro |
+
 Update this section when:
 - New features are added
 - Feature calculation changes
 - Feature group structure changes
+
+### `signal_lab/factors/*.py`
+
+Purpose:
+- Dynamic multi-factor contracts and local exports
+- Point-in-time factor matrix construction
+- IC / RankIC / decile spread evaluation
+- Rolling IC weighted factor scoring
+- Event alpha + factor alpha + timing readiness fusion
+
+Update this section when:
+- Factor taxonomy changes
+- Factor matrix semantics change
+- Evaluation metrics change
+- Dynamic weighting logic changes
+- Event-factor fusion weights or risk penalties change
+
+### `services/dynamic_factor_visualization_service.py`
+
+Purpose:
+- Build the read-only Alpha Control Room payload for the WebUI
+- Use the dynamic factor MVP components end-to-end
+- Clearly mark sample/demo data until a production Factor Store is connected
+
+Update this section when:
+- Dynamic factor visualization payload shape changes
+- Demo payload is replaced with real Factor Store data
+- WebUI requires new factor, timing, or fusion fields
 
 ### `signal_lab/labels/*.py`
 
@@ -71,6 +121,10 @@ Update this section when:
 ## Required Tests
 
 - Feature calculation tests
+- Factor matrix construction tests
+- Factor IC / RankIC evaluation tests
+- Dynamic factor weighting tests
+- Event-factor fusion tests
 - Label generation tests
 - Scoring logic tests
 - Backtest correctness tests

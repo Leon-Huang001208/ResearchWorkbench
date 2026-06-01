@@ -218,6 +218,8 @@
 | `signal_service.py` | 信号服务：创建、查询、验证、升级信号 |
 | `signal_validator_impl.py` | 信号验证实现：验证信号逻辑和历史表现 |
 | `event_auto_signal_generator.py` | 事件自动信号生成：批准的事件自动触发信号生成 |
+| `factor_store_service.py` | 动态因子持久化服务：桥接 Pydantic 契约 ↔ ORM 记录，提供因子定义/值/评估/权重的完整持久化能力 |
+| `factor_computation_service.py` | 动态因子计算服务：编排因子定义加载 → 值加载 → 矩阵构建 → 评估 → 动态权重拟合 → 持久化的日终流程 |
 | `thesis_generator_service.py` | 论点生成服务：生成投资论点 |
 | `thesis_review_service.py` | 论点审查服务：多视角审查论点 |
 | `paper_trading_service.py` | 模拟交易服务：创建账户、下单、管理持仓 |
@@ -264,10 +266,18 @@
 |---|---|
 | `data_layer/adapters/akshare_adapter.py` | AKShare 开源数据适配器：集成 crawler 模块，提供行情、财务、新闻、股东数据获取 |
 | `data_layer/adapters/data_source_router.py` | 数据源路由器：iFinD → AKShare → ChinaStock 三级降级策略，统一管理所有数据适配器 |
-| `data_layer/adapters/wind/wind_adapter.py` | Wind Excel 适配器：通过 xlwings → AppleScript → Excel Wind 插件获取一致预期、融资融券、龙虎榜数据 |
-| `data_layer/adapters/wind/client.py` | Wind Excel 客户端：xlwings 连接管理、心跳检测、批量公式执行、后台保活 |
-| `data_layer/adapters/wind/formulas.py` | Wind 公式生成器：35 个已验证公式，覆盖一致预期/融资融券/龙虎榜 |
+| `data_layer/adapters/wind/wind_adapter.py` | Wind Excel 适配器：8 个 fetch 方法（一致预期/两融/龙虎榜/日行情/财务/行业/资金流向/持有人） + parse() + fetch() dispatch |
+| `data_layer/adapters/wind/client.py` | Wind Excel 客户端：xlwings 连接管理（遍历所有 Excel 实例检测 Wind 插件）、心跳检测（TTL 30s 缓存）、WSD 时间序列查询（3 次指数退避重试 + 动态超时）、批量公式执行、后台保活（30min 间隔防自动登出） |
+| `data_layer/adapters/wind/formulas.py` | Wind 公式生成器：78 个公式（43 个已验证），覆盖一致预期/融资融券/龙虎榜/日行情/财务TTM+MRQ/估值/行业/资金流向/北向/股东/指数 |
 | `data_layer/adapters/wind/exceptions.py` | Wind 自定义异常：会话过期、未连接、公式错误、超时 |
+| `data_layer/repositories/wind_repository.py` | Wind 数据仓储：基于 PostgreSQL upsert 的持久化层，支持 4 类 Wind 数据批量保存和查询 |
+| `data_layer/repositories/factor_repository.py` | 因子仓储：基于 PostgreSQL upsert 的持久化层，支持因子定义/值/评估/权重的批量保存和查询 |
+| `app/api/routes/wind.py` | Wind REST API：8 个端点（health/prices/financials/industry/fund-flow/holders） |
+| `app/api/routes/factors.py` | 动态多因子 REST API：10 个端点（definitions GET/POST, values GET/POST, evaluations GET/POST, weights/latest GET, weights POST, weights/history GET, available-dates GET, categories GET） |
+| `app/web/static/js/wind.js` | Wind Web UI 模块：数据查询、结果渲染、健康检查 |
+| `signal_lab/features/groups/wind_consensus.py` | WindConsensusFeatures：一致预期因子组（9 特征） |
+| `signal_lab/features/groups/wind_margin.py` | WindMarginFeatures：融资融券因子组（5 特征） |
+| `signal_lab/features/groups/wind_block.py` | WindBlockFeatures：龙虎榜因子组（3 特征） |
 
 ### data_layer/crawlers/ - 数据采集器
 
@@ -447,6 +457,7 @@
 | `storage/migrations/alembic.ini` | Alembic 配置文件 |
 | `storage/migrations/env.py` | Alembic 环境配置 |
 | `storage/migrations/versions/` | 迁移版本文件目录 |
+| `storage/migrations/versions/011_add_factor_store_tables.py` | 迁移 011：创建 factor_definition、factor_value、factor_evaluation、dynamic_factor_weight 四张表 |
 
 ---
 
@@ -484,6 +495,7 @@
 | `scripts/backup_db.py` | 数据库备份脚本：支持 PostgreSQL 完整备份、自动压缩、保留策略 |
 | `scripts/restore_db.py` | 数据库恢复脚本：支持从备份恢复、时间点恢复 |
 | `scripts/backfill_pdf_artifacts.py` | PDF 制品回补：扫描磁盘 PDF 并注册到 pdf_artifact_v1 以触发自动转换 |
+| `scripts/seed_factor_data.py` | 因子数据播种管线：双数据源（AKShare + Wind WSD）、限流重试（指数退避 + 关键词检测）、JSON 断点续传、3 Phase 流水线（市场数据摄入 → 技术因子 → 财务因子） |
 | `scripts/backfill_missing_llm_extraction.py` | LLM 提取回补：将缺少 canonical_event 的文档入队让 KnowledgePipeline 补做提取 |
 | `scripts/cleanup_dedup_orphans.py` | 去重孤儿清理：移除爬虫去重文件中 DB 已不存在的条目，防止永久跳过 |
 | `scripts/bootstrap_db.py` | 数据库初始化脚本：验证连接、创建表、验证 schema、植入默认配置 |
@@ -509,6 +521,11 @@
 | `tests/unit/core/` | 核心层单元测试 |
 | `tests/unit/data_layer/` | 数据层单元测试 |
 | `tests/unit/data_layer/crawlers/test_akshare.py` | AKShare 采集器单元测试（14 个测试用例 ✅） |
+| `tests/unit/test_factor_repository.py` | 因子仓储单元测试：13 个测试覆盖空记录、upsert 委托、查询方法、session 生命周期 |
+| `tests/unit/test_factor_store_service.py` | 因子存储服务单元测试：27 个测试覆盖 Pydantic 契约 ↔ ORM 双向转换、CRUD 路径、端到端流程 |
+| `tests/unit/test_factor_api.py` | 因子 API 单元测试：13 个测试覆盖所有端点、请求验证、空数据处理 |
+| `tests/unit/test_factor_computation_service.py` | 因子计算服务单元测试：11 个测试覆盖空定义/空值/完整循环/资源关闭 |
+| `tests/unit/test_dynamic_factors.py` | 动态多因子核心测试：覆盖矩阵构建、因子评估、动态权重、事件-因子融合 |
 | `tests/integration/` | 集成测试目录 |
 
 ---

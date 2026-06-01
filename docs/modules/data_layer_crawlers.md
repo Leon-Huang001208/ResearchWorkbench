@@ -168,8 +168,8 @@ Update this section when:
 |------|------|
 | `exceptions.py` | 5 个自定义异常：`WindError`、`WindSessionExpiredError`、`WindNotConnectedError`、`WindFormulaError`、`WindTimeoutError` |
 | `client.py` | `WindExcelClient`：xlwings 连接管理、心跳检测（`s_info_compname`）、批量列式公式执行、后台保活线程（30min 间隔防自动登出）、15s 超时 |
-| `formulas.py` | 35 个 Wind 公式生成器（所有公式名已通过 Mac 版 Wind Excel 函数浏览器逐个验证并实测通过） |
-| `wind_adapter.py` | `WindAdapter(BaseDataAdapter)`：三个高层接口 `fetch_consensus_estimates`、`fetch_margin_trading`、`fetch_block_trades` |
+| `formulas.py` | ~75 个 Wind 公式生成器，覆盖一致预期/两融/龙虎榜/价格K线/财务/行业指数/资金流向/持有人 |
+| `wind_adapter.py` | `WindAdapter(BaseDataAdapter)`：8 个高层接口（一致预期、两融、龙虎榜、日行情、财务、行业、资金流向、持有人） |
 | `__init__.py` | 模块导出 |
 
 **三类数据接口：**
@@ -186,7 +186,7 @@ Update this section when:
 - 心跳检测：每次批量执行前自动检测 Wind 会话有效性，过期时抛出 `WindSessionExpiredError`
 - 保活机制：后台 daemon 线程每 30 分钟执行心跳，防止 Wind 自动登出；过期时触发回调
 
-**测试：** `tests/unit/test_wind_adapter.py` — 43 个单元测试（5 异常 + 23 公式 + 5 结构 + 4 客户端逻辑）
+**测试：** `tests/unit/test_wind_adapter.py` — 90+ 个单元测试（5 异常 + 50+ 公式 + 7 结构 + 4 客户端 + 9 新方法）
 
 ---
 

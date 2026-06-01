@@ -301,6 +301,10 @@ class CrawlScheduler:
             kwargs={"source_type": config.source_type},
             next_run_time=datetime.now(),
         )
+        logger.info(
+            f"[scheduler] Added crawl job: {job_id} interval={config.interval_minutes}m "
+            f"jitter={crawl_jitter}s next_run=now"
+        )
 
         # 补漏任务（如果启用）
         if config.backfill_enabled:
@@ -364,9 +368,12 @@ class CrawlScheduler:
             )
 
     async def _run_crawl_job(self, source_type: SourceType) -> None:
-        """执行抓取任务"""
+        """执行抓取任务（在线程池中运行同步阻塞调用，避免阻塞 event loop）"""
+        import asyncio as _asyncio
+
         config = self.configs.get(source_type)
         if not config:
+            logger.warning(f"[scheduler] No config for {source_type}, skipping crawl")
             return
 
         should_run, reason = self.check_source_should_run(source_type)
@@ -376,40 +383,59 @@ class CrawlScheduler:
 
         try:
             logger.info(f"Running scheduled crawl for {source_type}")
-            orchestrator = CrawlOrchestrator()
-            orchestrator.crawl_source(
-                source_type=config.source_type,
-                source_name=config.source_name,
-                days=config.days_per_crawl,
-                max_docs=config.max_docs,
-                enable_backfill=config.backfill_enabled,
-            )
+
+            def _sync():
+                orchestrator = CrawlOrchestrator()
+                return orchestrator.crawl_source(
+                    source_type=config.source_type,
+                    source_name=config.source_name,
+                    days=config.days_per_crawl,
+                    max_docs=config.max_docs,
+                    enable_backfill=config.backfill_enabled,
+                )
+
+            loop = _asyncio.get_running_loop()
+            await loop.run_in_executor(None, _sync)
         except Exception as e:
             logger.error(f"Scheduled crawl failed for {source_type}: {e}", exc_info=True)
 
     async def _run_backfill_job(self, source_type: SourceType) -> None:
-        """执行补漏任务"""
+        """执行补漏任务（在线程池中运行）"""
+        import asyncio as _asyncio
+
         config = self.configs.get(source_type)
         if not config:
             return
 
         try:
             logger.info(f"Running scheduled backfill for {source_type}")
-            orchestrator = CrawlOrchestrator()
-            orchestrator.backfill_source(
-                source_type=config.source_type,
-                lookback_days=7,
-            )
+
+            def _sync():
+                orchestrator = CrawlOrchestrator()
+                return orchestrator.backfill_source(
+                    source_type=config.source_type,
+                    lookback_days=7,
+                )
+
+            loop = _asyncio.get_running_loop()
+            await loop.run_in_executor(None, _sync)
             self.last_backfill_times[source_type] = datetime.utcnow()
         except Exception as e:
             logger.error(f"Scheduled backfill failed for {source_type}: {e}", exc_info=True)
 
     async def _run_deep_backfill_job(self) -> None:
-        """执行深度历史回补任务（仅财联社 /detail/{id} 逐条扫描）"""
+        """执行深度历史回补任务（仅财联社 /detail/{id} 逐条扫描，在线程池中运行）"""
+        import asyncio as _asyncio
+
         try:
             logger.info("Running scheduled deep backfill for CLS")
-            orchestrator = CrawlOrchestrator()
-            result = orchestrator.deep_backfill_step(batch_size=10)
+
+            def _sync():
+                orchestrator = CrawlOrchestrator()
+                return orchestrator.deep_backfill_step(batch_size=10)
+
+            loop = _asyncio.get_running_loop()
+            result = await loop.run_in_executor(None, _sync)
             logger.info(
                 f"Deep backfill done: {result.success_count} saved, "
                 f"{result.skipped_count} skipped, {result.failure_count} failed"
@@ -418,7 +444,9 @@ class CrawlScheduler:
             logger.error(f"Scheduled deep backfill failed: {e}", exc_info=True)
 
     async def _run_cnstock_deep_backfill_job(self, source_type: SourceType) -> None:
-        """执行 CNSTOCK 深度回补（max_pages=30，扩展历史覆盖）"""
+        """执行 CNSTOCK 深度回补（max_pages=30，扩展历史覆盖，在线程池中运行）"""
+        import asyncio as _asyncio
+
         config = self.configs.get(source_type)
         if not config:
             return
@@ -430,12 +458,17 @@ class CrawlScheduler:
 
         try:
             logger.info(f"Running scheduled CN deep backfill for {source_type}")
-            orchestrator = CrawlOrchestrator()
-            result = orchestrator.backfill_source(
-                source_type=config.source_type,
-                lookback_days=7,
-                max_pages=30,
-            )
+
+            def _sync():
+                orchestrator = CrawlOrchestrator()
+                return orchestrator.backfill_source(
+                    source_type=config.source_type,
+                    lookback_days=7,
+                    max_pages=30,
+                )
+
+            loop = _asyncio.get_running_loop()
+            result = await loop.run_in_executor(None, _sync)
             logger.info(
                 f"CN deep backfill {source_type.value}: {result.success_count} saved, "
                 f"{result.skipped_count} skipped, {result.failure_count} failed"
@@ -444,14 +477,21 @@ class CrawlScheduler:
             logger.error(f"CN deep backfill failed for {source_type}: {e}", exc_info=True)
 
     async def _run_zq_deep_backfill_job(self) -> None:
-        """执行 ZQ 滑动窗口深度历史回补"""
+        """执行 ZQ 滑动窗口深度历史回补（在线程池中运行以避免阻塞事件循环）"""
+        import asyncio as _asyncio
+
         try:
             logger.info("Running scheduled ZQ deep backfill step")
-            orchestrator = CrawlOrchestrator()
-            result = orchestrator.zq_deep_backfill_step(
-                window_days=5,
-                max_pages=30,
-            )
+
+            def _sync():
+                orchestrator = CrawlOrchestrator()
+                return orchestrator.zq_deep_backfill_step(
+                    window_days=5,
+                    max_pages=30,
+                )
+
+            loop = _asyncio.get_running_loop()
+            result = await loop.run_in_executor(None, _sync)
             logger.info(
                 f"ZQ deep backfill step: {result.success_count} saved, "
                 f"{result.skipped_count} skipped, {result.failure_count} failed"

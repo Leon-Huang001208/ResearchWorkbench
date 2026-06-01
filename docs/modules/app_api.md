@@ -49,6 +49,29 @@ Update this section when:
 
 ---
 
+### `app/api/routes/wind.py`
+
+Purpose:
+- Wind Excel 数据查询 API（8 个端点，`/api/wind` 前缀）
+- `GET /api/wind/health` - 连接健康检查
+- `POST /api/wind/consensus` - 一致预期查询
+- `POST /api/wind/margin-trading` - 融资融券查询
+- `POST /api/wind/block-trades` - 龙虎榜查询
+- `POST /api/wind/prices` - 日行情查询
+- `POST /api/wind/financials` - 财务报表查询
+- `POST /api/wind/industry` - 行业分类查询
+- `POST /api/wind/fund-flow` - 资金流向查询
+- `POST /api/wind/holders` - 持有人数据查询
+
+Related adapter:
+- `data_layer/adapters/wind/wind_adapter.py`
+
+Update this section when:
+- Wind API 端点增删或参数变更
+- 请求/响应模型变更
+
+---
+
 ### `app/api/routes/dashboard.py`
 
 Purpose:

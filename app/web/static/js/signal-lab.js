@@ -12,6 +12,7 @@ let signalLabData = {
 
 async function loadSignalLab() {
     try {
+        ensureDynamicFactorsPanel();
         const summary = await apiCall('GET', '/api/signal-lab/summary');
         if (summary.success && summary.summary) {
             const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val ?? '—'; };
@@ -23,6 +24,7 @@ async function loadSignalLab() {
         await loadFeatureGroups();
         await loadLabelTypes();
         await loadScorers();
+        await loadDynamicFactorsOverview();
     } catch (e) {
         toast('加载Signal Lab失败: ' + e.message, 'error');
     }
@@ -299,16 +301,265 @@ function renderBacktestsResult(data) {
     `;
 }
 
+function ensureDynamicFactorsPanel() {
+    const section = document.getElementById('section-signal-lab');
+    if (!section) return;
+
+    const tabs = section.querySelector('.tabs');
+    if (tabs && !tabs.querySelector('[data-tab="dynamic-factors"]')) {
+        const tab = document.createElement('button');
+        tab.className = 'tab-btn';
+        tab.dataset.tab = 'dynamic-factors';
+        tab.textContent = '动态因子';
+        tabs.appendChild(tab);
+    }
+
+    if (!document.getElementById('tab-dynamic-factors')) {
+        const panel = document.createElement('div');
+        panel.id = 'tab-dynamic-factors';
+        panel.className = 'tab-panel hidden';
+        panel.innerHTML = `
+            <div class="dynamic-factor-shell">
+                <div class="dynamic-factor-header">
+                    <div>
+                        <h3>动态多因子 Alpha Control Room</h3>
+                        <p id="df-note">事件信号、因子验证、择时门控与最终 alpha 的可解释视图。</p>
+                    </div>
+                    <button id="btn-refresh-dynamic-factors" class="btn-secondary">
+                        <i class="codicon codicon-refresh"></i> 刷新
+                    </button>
+                </div>
+                <div id="df-status" class="df-status">加载中...</div>
+                <div id="df-content" class="hidden">
+                    <div id="df-loop-steps" class="df-loop-steps"></div>
+                    <div class="df-grid">
+                        <section class="df-panel df-panel-wide">
+                            <div class="df-panel-title">最终 Alpha 排名</div>
+                            <div id="df-fusion-table" class="data-table-wrap"></div>
+                        </section>
+                        <section class="df-panel">
+                            <div class="df-panel-title">滚动因子权重</div>
+                            <div id="df-weights"></div>
+                        </section>
+                        <section class="df-panel">
+                            <div class="df-panel-title">IC / RankIC</div>
+                            <div id="df-evaluation-table" class="data-table-wrap"></div>
+                        </section>
+                        <section class="df-panel df-panel-wide">
+                            <div class="df-panel-title">点时因子矩阵</div>
+                            <div id="df-matrix-table" class="data-table-wrap"></div>
+                        </section>
+                    </div>
+                </div>
+            </div>
+        `;
+        const backtestsPanel = document.getElementById('tab-backtests');
+        if (backtestsPanel?.parentNode) {
+            backtestsPanel.parentNode.insertBefore(panel, backtestsPanel.nextSibling);
+        } else {
+            section.appendChild(panel);
+        }
+        document
+            .getElementById('btn-refresh-dynamic-factors')
+            ?.addEventListener('click', loadDynamicFactorsOverview);
+    }
+}
+
+async function loadDynamicFactorsOverview() {
+    ensureDynamicFactorsPanel();
+    const statusEl = document.getElementById('df-status');
+    const contentEl = document.getElementById('df-content');
+    if (statusEl) {
+        statusEl.textContent = '加载动态因子视图...';
+        statusEl.classList.remove('hidden');
+    }
+    if (contentEl) contentEl.classList.add('hidden');
+
+    try {
+        const data = await apiCall('GET', '/api/signal-lab/dynamic-factors/overview');
+        renderDynamicFactorsOverview(data);
+        if (statusEl) statusEl.classList.add('hidden');
+        if (contentEl) contentEl.classList.remove('hidden');
+    } catch (e) {
+        if (statusEl) statusEl.textContent = '加载动态因子失败: ' + e.message;
+        toast('加载动态因子失败: ' + e.message, 'error');
+    }
+}
+
+function renderDynamicFactorsOverview(data) {
+    if (!data?.success) return;
+    const noteEl = document.getElementById('df-note');
+    if (noteEl) {
+        const mode = data.data_mode === 'demo' ? '样例数据' : '真实数据';
+        noteEl.textContent = `${mode} · ${data.as_of_date || '—'} · ${data.note || ''}`;
+    }
+    renderDynamicLoopSteps(data.closed_loop_steps || []);
+    renderDynamicWeights(data.dynamic_weights || {});
+    renderDynamicEvaluations(data.evaluations || []);
+    renderDynamicFusion(data.fusion_results || []);
+    renderDynamicMatrix(data.factor_matrix || {});
+}
+
+function renderDynamicLoopSteps(steps) {
+    const container = document.getElementById('df-loop-steps');
+    if (!container) return;
+    container.innerHTML = steps.map(step => `
+        <div class="df-loop-step df-step-${esc(step.status || 'unknown')}">
+            <div class="df-step-name">${esc(step.step)}</div>
+            <div class="df-step-label">${esc(step.label)}</div>
+            <div class="df-step-metric">${esc(step.metric || '')}</div>
+        </div>
+    `).join('');
+}
+
+function renderDynamicWeights(dynamicWeights) {
+    const container = document.getElementById('df-weights');
+    if (!container) return;
+    const weights = dynamicWeights.weights || {};
+    const entries = Object.entries(weights).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
+    if (!entries.length) {
+        container.innerHTML = '<p class="empty-state">暂无动态权重</p>';
+        return;
+    }
+    container.innerHTML = entries.map(([factor, weight]) => {
+        const pct = Math.min(100, Math.abs(weight) * 100);
+        return `
+            <div class="df-weight-row">
+                <div class="df-weight-meta">
+                    <span>${esc(factor)}</span>
+                    <strong class="${weight >= 0 ? 'positive' : 'negative'}">${formatSigned(weight)}</strong>
+                </div>
+                <div class="df-bar-track">
+                    <div class="df-bar-fill ${weight >= 0 ? 'df-bar-positive' : 'df-bar-negative'}" style="width:${pct}%"></div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderDynamicEvaluations(evaluations) {
+    const container = document.getElementById('df-evaluation-table');
+    if (!container) return;
+    if (!evaluations.length) {
+        container.innerHTML = '<p class="empty-state">暂无因子评估</p>';
+        return;
+    }
+    container.innerHTML = `
+        <table class="compact">
+            <thead>
+                <tr><th>因子</th><th>IC</th><th>RankIC</th><th>Decile Spread</th><th>覆盖率</th></tr>
+            </thead>
+            <tbody>
+                ${evaluations.map(item => `
+                    <tr>
+                        <td>${esc(item.factor_id)}</td>
+                        <td class="${item.ic >= 0 ? 'positive' : 'negative'}">${formatSigned(item.ic)}</td>
+                        <td class="${item.rank_ic >= 0 ? 'positive' : 'negative'}">${formatSigned(item.rank_ic)}</td>
+                        <td class="${item.decile_spread >= 0 ? 'positive' : 'negative'}">${formatSigned(item.decile_spread)}</td>
+                        <td>${formatPct(item.coverage)}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+function renderDynamicFusion(rows) {
+    const container = document.getElementById('df-fusion-table');
+    if (!container) return;
+    if (!rows.length) {
+        container.innerHTML = '<p class="empty-state">暂无融合结果</p>';
+        return;
+    }
+    container.innerHTML = `
+        <table class="compact">
+            <thead>
+                <tr>
+                    <th>标的</th><th>Final Alpha</th><th>事件</th><th>因子</th><th>择时</th><th>风险</th><th>主要贡献</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${rows.map(row => `
+                    <tr>
+                        <td>${esc(row.subject_id)}</td>
+                        <td>
+                            <div class="df-score-cell">
+                                <span>${formatPct(row.final_alpha_score)}</span>
+                                <div class="df-mini-track"><div class="df-mini-fill" style="width:${clampPct(row.final_alpha_score)}%"></div></div>
+                            </div>
+                        </td>
+                        <td>${formatPct(row.event_alpha_score)}</td>
+                        <td>${formatPct(row.factor_alpha_score)}</td>
+                        <td>${formatPct(row.timing_readiness)}</td>
+                        <td>${formatPct(row.risk_penalty)}</td>
+                        <td>${(row.top_contributors || []).map(name => `<span class="df-chip">${esc(name)}</span>`).join('')}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+function renderDynamicMatrix(matrix) {
+    const container = document.getElementById('df-matrix-table');
+    if (!container) return;
+    const factors = matrix.factors || [];
+    const rows = matrix.rows || [];
+    if (!factors.length || !rows.length) {
+        container.innerHTML = '<p class="empty-state">暂无因子矩阵</p>';
+        return;
+    }
+    container.innerHTML = `
+        <table class="compact">
+            <thead>
+                <tr><th>标的</th>${factors.map(factor => `<th>${esc(factor)}</th>`).join('')}</tr>
+            </thead>
+            <tbody>
+                ${rows.map(row => `
+                    <tr>
+                        <td>${esc(row.subject_id)}</td>
+                        ${factors.map(factor => `<td>${formatNumber(row[factor])}</td>`).join('')}
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+function formatNumber(value) {
+    if (value === undefined || value === null || Number.isNaN(Number(value))) return '—';
+    return Number(value).toFixed(3);
+}
+
+function formatPct(value) {
+    if (value === undefined || value === null || Number.isNaN(Number(value))) return '—';
+    return `${(Number(value) * 100).toFixed(1)}%`;
+}
+
+function formatSigned(value) {
+    if (value === undefined || value === null || Number.isNaN(Number(value))) return '—';
+    const num = Number(value);
+    return `${num >= 0 ? '+' : ''}${num.toFixed(3)}`;
+}
+
+function clampPct(value) {
+    if (value === undefined || value === null || Number.isNaN(Number(value))) return 0;
+    return Math.max(0, Math.min(100, Number(value) * 100));
+}
+
 function switchSignalLabTab(tabName) {
+    ensureDynamicFactorsPanel();
     document.querySelectorAll('#section-signal-lab .tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('#section-signal-lab .tab-panel').forEach(p => p.classList.add('hidden'));
     const tabBtn = document.querySelector(`#section-signal-lab .tab-btn[data-tab="${tabName}"]`);
     if (tabBtn) tabBtn.classList.add('active');
     const tabPanel = document.getElementById(`tab-${tabName}`);
     if (tabPanel) tabPanel.classList.remove('hidden');
+    if (tabName === 'dynamic-factors') loadDynamicFactorsOverview();
 }
 
 function initSignalLab() {
+    ensureDynamicFactorsPanel();
     document.querySelectorAll('#section-signal-lab .tab-btn').forEach(btn => {
         btn.addEventListener('click', () => switchSignalLabTab(btn.dataset.tab));
     });
@@ -317,4 +568,4 @@ function initSignalLab() {
     document.getElementById('btn-run-backtests')?.addEventListener('click', runBacktests);
 }
 
-export { switchSignalLabTab, loadSignalLab, loadFeatureGroups, loadLabelTypes, loadScorers, computeFeatures, computeLabels, runBacktests, initSignalLab, renderFeatureGroups, renderLabelTypes, renderScorers, renderFeaturesResult, renderLabelsResult, renderBacktestsResult };
+export { switchSignalLabTab, loadSignalLab, loadFeatureGroups, loadLabelTypes, loadScorers, computeFeatures, computeLabels, runBacktests, initSignalLab, renderFeatureGroups, renderLabelTypes, renderScorers, renderFeaturesResult, renderLabelsResult, renderBacktestsResult, loadDynamicFactorsOverview, renderDynamicFactorsOverview };

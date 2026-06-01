@@ -48,6 +48,11 @@ Purpose:
 - Schema versioning
 - Data migration scripts
 
+Key migrations:
+| 编号 | 文件 | 说明 |
+|------|------|------|
+| 010 | `010_add_wind_data_tables.py` | Wind 数据表：wind_consensus_estimate, wind_margin_trading, wind_block_trade, wind_daily_bar |
+
 Update this section when:
 - New migrations are added
 - Migration logic changes

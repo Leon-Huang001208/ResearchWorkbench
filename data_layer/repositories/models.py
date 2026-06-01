@@ -1695,3 +1695,86 @@ class ETLRunDB(Base):
     created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
 
     __table_args__ = {"extend_existing": True}
+
+
+# ─── Wind Excel 数据表 ────────────────────────────────
+
+
+class WindConsensusEstimateDB(Base):
+    """Wind 一致预期数据"""
+
+    __tablename__ = "wind_consensus_estimate"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    symbol = Column(Text, nullable=False)
+    trade_date = Column(DateTime(timezone=True), nullable=False)
+    cons_net_profit = Column(Numeric, nullable=True)
+    cons_eps = Column(Numeric, nullable=True)
+    cons_revenue = Column(Numeric, nullable=True)
+    target_price = Column(Numeric, nullable=True)
+    rating = Column(Numeric, nullable=True)
+    rating_num = Column(Integer, nullable=True)
+    source = Column(Text, nullable=False, default="wind")
+    raw_payload = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class WindMarginTradingDB(Base):
+    """Wind 融资融券数据"""
+
+    __tablename__ = "wind_margin_trading"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    symbol = Column(Text, nullable=False)
+    trade_date = Column(DateTime(timezone=True), nullable=False)
+    margin_balance = Column(Numeric, nullable=True)
+    short_balance = Column(Numeric, nullable=True)
+    margin_buy = Column(Numeric, nullable=True)
+    margin_repay = Column(Numeric, nullable=True)
+    short_sell_vol = Column(Numeric, nullable=True)
+    short_repay_vol = Column(Numeric, nullable=True)
+    source = Column(Text, nullable=False, default="wind")
+    raw_payload = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class WindBlockTradeDB(Base):
+    """Wind 龙虎榜数据"""
+
+    __tablename__ = "wind_block_trade"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    symbol = Column(Text, nullable=False)
+    trade_date = Column(DateTime(timezone=True), nullable=False)
+    lhb_buy_amt = Column(Numeric, nullable=True)
+    lhb_sell_amt = Column(Numeric, nullable=True)
+    lhb_buy_seat = Column(Text, nullable=True)
+    lhb_sell_seat = Column(Text, nullable=True)
+    source = Column(Text, nullable=False, default="wind")
+    raw_payload = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class WindDailyBarDB(Base):
+    """Wind 日行情数据（含 Wind 独家字段：adj_close, adj_factor, vwap）"""
+
+    __tablename__ = "wind_daily_bar"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    symbol = Column(Text, nullable=False)
+    trade_date = Column(DateTime(timezone=True), nullable=False)
+    open = Column(Numeric, nullable=True)
+    high = Column(Numeric, nullable=True)
+    low = Column(Numeric, nullable=True)
+    close = Column(Numeric, nullable=True)
+    volume = Column(Numeric, nullable=True)
+    amount = Column(Numeric, nullable=True)
+    turnover = Column(Numeric, nullable=True)
+    adj_close = Column(Numeric, nullable=True)
+    adj_factor = Column(Numeric, nullable=True)
+    vwap = Column(Numeric, nullable=True)
+    pct_change = Column(Numeric, nullable=True)
+    amplitude = Column(Numeric, nullable=True)
+    source = Column(Text, nullable=False, default="wind")
+    raw_payload = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)

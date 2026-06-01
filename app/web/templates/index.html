@@ -27,6 +27,7 @@
                 <button class="activity-btn" data-section="ingest" title="文档摄入"><i class="codicon codicon-cloud-download"></i></button>
                 <button class="activity-btn" data-section="memory" title="记忆与学习"><i class="codicon codicon-lightbulb"></i></button>
                 <button class="activity-btn" data-section="templates" title="模板管理"><i class="codicon codicon-file-code"></i></button>
+                <button class="activity-btn" data-section="wind" title="Wind 数据"><i class="codicon codicon-database"></i></button>
             </div>
             <div class="activity-bar-bottom">
                 <button class="activity-btn" id="btn-settings" title="设置"><i class="codicon codicon-settings-gear"></i></button>
@@ -769,6 +770,46 @@
                 </div>
             </section>
 
+            <!-- Wind Data Section -->
+            <section id="section-wind" class="content-section">
+                <h2 class="section-title">Wind 专业数据</h2>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Wind Excel 数据查询</h3>
+                        <div class="card-header-actions">
+                            <span id="wind-health-badge" class="badge badge-warning">检查中...</span>
+                        </div>
+                    </div>
+
+                    <div class="input-row">
+                        <input type="text" id="wind-stock-code" value="600519.SH"
+                               placeholder="股票代码，多个用逗号分隔" style="flex:2">
+                        <select id="wind-data-type">
+                            <option value="consensus">一致预期</option>
+                            <option value="margin_trading">融资融券</option>
+                            <option value="block_trades">龙虎榜</option>
+                            <option value="prices">日行情</option>
+                            <option value="financials">财务数据</option>
+                            <option value="fund_flow">资金流向</option>
+                            <option value="industry">行业分类</option>
+                            <option value="holders">持有人结构</option>
+                        </select>
+                        <input type="date" id="wind-start-date" title="开始日期">
+                        <input type="date" id="wind-end-date" title="结束日期/报告期">
+                        <button id="btn-wind-fetch" class="btn-primary">查询</button>
+                    </div>
+
+                    <div id="wind-loading" class="loading hidden">
+                        <div class="spinner"></div>
+                        <span>正在通过 Excel Wind 插件获取数据...</span>
+                    </div>
+                    <div id="wind-result" class="result-area hidden">
+                        <div id="wind-table"></div>
+                    </div>
+                </div>
+            </section>
+
             <!-- Templates Section -->
             <section id="section-templates" class="content-section">
                 <!-- Templates List View (Default) - iPhone Style -->
@@ -992,6 +1033,7 @@
 
     <!-- Scripts: i18n must load before app.js -->
     <script src="/static/i18n.js?v=20250527"></script>
-    <script type="module" src="/static/js/app.js?v=20250527e"></script>
+    <script type="module" src="/static/js/app.js?v=20250529a"></script>
+    <script type="module" src="/static/js/wind.js?v=20250601a"></script>
 </body>
 </html>
