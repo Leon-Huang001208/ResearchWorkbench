@@ -98,6 +98,39 @@ Update this section when:
 
 ---
 
+### `scripts/seed_factor_data.py`
+
+Purpose:
+
+- Seeds factor data pipeline from market data (AKShare) or Wind WSD
+- **Phase 1**: Ingests `stock_master` + `stock_daily_bar` via AKShare (with rate limiting, retry, checkpoint) or Wind WSD (single-call full time series per stock)
+- **Phase 2**: Registers 10 factor definitions (momentum, reversal, liquidity, risk), computes factor values per trading day, runs evaluation cycle via `FactorComputationService`
+- **Phase 3**: Ingests financial data via AKShare, registers 8 financial factor definitions (VALUE/QUALITY/GROWTH/RISK), computes quarterly factor values
+- Supports `--skip-ingest`, `--stock-count`, `--symbols`, `--source`, `--delay`, `--max-retries`, `--resume`, `--date-start`, `--date-end`, `--skip-financials`, `--no-akshare-direct` CLI options
+
+Key features:
+
+- **双数据源**: `--source akshare` (默认)、`--source wind` (Wind Excel 插件 WSD)、`--source auto` (Wind 优先，不可用时自动降级 AKShare)
+- **限流处理**: AKShare 请求间延迟 (`--delay`, 默认 2s)、指数退避重试 (`--max-retries`, 默认 3 次)、限流关键词检测 (频率/rate limit/429/throttle)
+- **断点续传**: JSON checkpoint 每 10 只保存 (`--resume` 恢复), Wind/auto 模式自动生成 checkpoint
+- **Wind WSD 集成**: `ingest_daily_bars_from_wind()` 单次 WSD 调用获取完整时间序列 (比 AKShare 逐只请求更高效)
+- `_fetch_akshare_hist_with_retry()`: 带指数退避重试的 AKShare stock_zh_a_hist 封装
+- `_normalize_akshare_hist()`: AKShare DataFrame → stock_daily_bar dict 转换
+- `_wsd_to_daily_bars()`: Wind WSD list[list] → stock_daily_bar dict 转换
+- `_is_wind_available()`: Wind 终端可用性检测
+- `_save_checkpoint()` / `_load_checkpoint()`: JSON 断点持久化/恢复
+
+Update this section when:
+
+- Factor definitions change
+- Factor computation formula changes
+- Data source fallback behavior changes
+- Rate limiting or retry strategy changes
+- Checkpoint/resume mechanism changes
+- New `--source` or data ingestion methods are added
+
+---
+
 ### Other `scripts/*.py`
 
 Purpose:

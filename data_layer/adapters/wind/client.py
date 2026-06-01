@@ -1,7 +1,9 @@
 """Wind Excel 客户端 —— 通过 xlwings 操控 Excel Wind 插件"""
 
+import math
 import threading
 import time
+from datetime import datetime
 from typing import Any, Callable
 
 from core.observability import get_logger
@@ -21,6 +23,19 @@ HEARTBEAT_RETRY_DELAY = 3.0
 
 HELPER_SHEET_NAME = "_wind_helper_"
 
+# WSD 重试配置
+WSD_MAX_RETRIES = 3
+WSD_RETRY_BASE_DELAY = 3.0
+WSD_RETRY_MAX_DELAY = 30.0
+
+# 超时计算: 基础超时 + 每 N 个交易日增加额外秒数
+WSD_BASE_TIMEOUT = 15.0
+WSD_EXTRA_TIMEOUT_PER_DAYS = 250
+WSD_EXTRA_TIMEOUT_SECONDS = 5.0
+
+# WSD 最大行数（A股 ~250 交易日/年，保守估计 5000 行覆盖 20 年）
+WSD_MAX_ROWS = 5000
+
 EXCEL_ERRORS = frozenset({"#N/A", "#VALUE!", "#REF!", "#DIV/0!", "#NAME?", "#NUM!", "#NULL!"})
 WIND_LOADING = frozenset({"fetch...", "loading...", "calculating...", "connecting..."})
 
@@ -37,9 +52,10 @@ def _is_error_value(value: Any) -> bool:
 class WindExcelClient:
     """通过 xlwings 操控 Excel 中的 Wind 插件执行公式"""
 
-    def __init__(self, visible: bool = False, timeout: float = 15.0):
+    def __init__(self, visible: bool = False, timeout: float = 15.0, col: str = "Z"):
         self._visible = visible
         self._timeout = timeout
+        self._col = col
         self._app = None
         self._wb = None
         self._sheet = None
@@ -47,20 +63,51 @@ class WindExcelClient:
         self._keepalive_thread: threading.Thread | None = None
         self._keepalive_running = False
         self._keepalive_interval = 1800  # 默认 30 分钟
+        self._last_heartbeat: float = 0.0
+        self._heartbeat_ttl: float = 30.0  # 30 秒内跳过重复心跳
 
     def _connect(self):
-        """连接 Excel：优先连接已运行的实例，否则启动新实例"""
+        """连接 Excel：在所有运行实例中查找含 Wind 插件的，找不到则启动新实例"""
         try:
             import xlwings as xw
         except ImportError:
             raise WindNotConnectedError()
 
-        # 先尝试连接已运行的 Excel（遍历所有实例，不仅限 active）
+        # Step 1: 遍历所有已运行的 Excel 实例，尝试找到含 Wind 插件的
         try:
             all_apps = list(xw.apps)
             if all_apps:
+                for app in all_apps:
+                    try:
+                        if len(app.books) == 0:
+                            continue
+                        wb = app.books[0]
+                        sheet = wb.sheets[0]
+                        cell = sheet.range(f"{self._col}1")
+                        cell.value = HEARTBEAT_FORMULA
+                        # 等待 Wind 插件求值（最多 5s）
+                        for _ in range(10):
+                            time.sleep(0.5)
+                            result = cell.value
+                            if isinstance(result, str) and result.strip() == HEARTBEAT_EXPECTED:
+                                self._app = app
+                                self._wb = wb
+                                self._sheet = sheet
+                                self._owns_app = False
+                                cell.value = None  # 清理
+                                logger.info(
+                                    "已连接到含 Wind 插件的 Excel (PID=%s, 工作表=%s)",
+                                    self._app.pid,
+                                    self._sheet.name,
+                                )
+                                return
+                        cell.value = None  # 清理
+                    except Exception:
+                        continue
+
+                # 没找到含 Wind 的实例，用第一个
                 self._app = all_apps[0]
-                logger.info(f"已连接到运行中的 Excel 实例 (PID={self._app.pid})")
+                logger.info("未找到含 Wind 插件的实例，连接到第一个 Excel (PID=%s)", self._app.pid)
                 self._owns_app = False
             else:
                 raise RuntimeError("no running Excel")
@@ -75,10 +122,9 @@ class WindExcelClient:
         else:
             self._wb = self._app.books[0]
 
-        # 使用第一个 sheet（与 AppleScript 测试一致），用 Z 列避免覆盖用户数据
+        # 使用第一个 sheet，用指定列避免覆盖用户数据
         self._sheet = self._wb.sheets[0]
-        logger.info(f"使用工作表: {self._sheet.name}")
-        self._col = "Z"  # 使用远离用户数据的列
+        logger.info(f"使用工作表: {self._sheet.name}，列: {self._col}")
 
     def heartbeat(self) -> bool:
         """检测 Wind 会话是否有效（带重试，处理 Wind 加载中间态）"""
@@ -92,7 +138,8 @@ class WindExcelClient:
                 if isinstance(result, str):
                     stripped = result.strip()
                     if stripped == HEARTBEAT_EXPECTED:
-                        logger.info("Wind 会话心跳检测通过")
+                        self._last_heartbeat = time.monotonic()
+                        logger.debug("Wind 会话心跳检测通过")
                         return True
                     if stripped.lower() in WIND_LOADING:
                         logger.info(f"Wind 仍在加载中: {result!r} (第{attempt}次)")
@@ -117,9 +164,14 @@ class WindExcelClient:
         if self._app is None:
             self._connect()
 
-    def _ensure_session(self):
-        """确保 Wind 会话有效，否则抛出异常"""
+    def _ensure_session(self, force: bool = False):
+        """确保 Wind 会话有效，否则抛出异常
+
+        在 TTL 内复用上一次心跳结果，避免执行批量操作时重复探测。
+        """
         self._ensure_connected()
+        if not force and (time.monotonic() - self._last_heartbeat) < self._heartbeat_ttl:
+            return
         if not self.heartbeat():
             raise WindSessionExpiredError()
 
@@ -155,6 +207,177 @@ class WindExcelClient:
             raise WindFormulaError(formula, str(result) if result else "#N/A")
         return result
 
+    def _wsd_timeout(self, start_date: str, end_date: str) -> float:
+        """根据日期跨度动态计算 WSD 超时时间。
+
+        基础超时 15s，每 250 个自然日增加 5s（约一年的交易日）。
+        """
+        try:
+            sd = datetime.strptime(start_date, "%Y-%m-%d")
+            ed = datetime.strptime(end_date, "%Y-%m-%d")
+            days = max(1, (ed - sd).days)
+        except (ValueError, TypeError):
+            days = 365
+        extra = math.ceil(days / WSD_EXTRA_TIMEOUT_PER_DAYS) * WSD_EXTRA_TIMEOUT_SECONDS
+        return WSD_BASE_TIMEOUT + extra
+
+    def execute_wsd(
+        self,
+        code: str,
+        fields: str,
+        start_date: str,
+        end_date: str,
+        options: str = "",
+        timeout: float | None = None,
+    ) -> list[list]:
+        """执行 Wind WSD 公式并返回完整时间序列表（带重试）。
+
+        WSD 是 Wind 的多字段时间序列函数，一次公式返回所有字段的完整历史。
+        结果以 Excel spill range 形式返回。
+
+        Args:
+            code: Wind 证券代码
+            fields: 逗号分隔的字段名，如 "open,high,low,close,volume,amount"
+            start_date: 起始日期 "YYYY-MM-DD"
+            end_date: 截止日期 "YYYY-MM-DD"
+            options: 额外参数，如 "Days=Trading;PriceAdj=QFQ"
+            timeout: 超时秒数，不指定则根据日期范围动态计算
+
+        Returns:
+            list[list]: 第一行为表头，后续行为数据行。每个内层列表对应一行。
+        """
+        calculated_timeout = timeout or self._wsd_timeout(start_date, end_date)
+
+        formula = f'=wsd("{code}","{fields}","{start_date}","{end_date}","{options}")'
+        logger.info(
+            "WSD: code=%s, %s ~ %s, timeout=%.0fs",
+            code,
+            start_date,
+            end_date,
+            calculated_timeout,
+        )
+
+        last_error = None
+        for attempt in range(1, WSD_MAX_RETRIES + 1):
+            try:
+                self._ensure_session()
+                result = self._execute_wsd_once(formula, calculated_timeout)
+                if result:
+                    return result
+                # 空结果也重试（可能是 Wind 还没算完）
+                if attempt < WSD_MAX_RETRIES:
+                    delay = min(
+                        WSD_RETRY_BASE_DELAY * (2 ** (attempt - 1)),
+                        WSD_RETRY_MAX_DELAY,
+                    )
+                    logger.warning(
+                        "WSD 返回空结果 code=%s (第%d次)，%.1fs 后重试",
+                        code,
+                        attempt,
+                        delay,
+                    )
+                    time.sleep(delay)
+            except (WindTimeoutError, WindSessionExpiredError) as e:
+                last_error = e
+                if attempt < WSD_MAX_RETRIES:
+                    delay = min(
+                        WSD_RETRY_BASE_DELAY * (2 ** (attempt - 1)),
+                        WSD_RETRY_MAX_DELAY,
+                    )
+                    logger.warning(
+                        "WSD 失败 code=%s (第%d次): %s，%.1fs 后重试",
+                        code,
+                        attempt,
+                        e,
+                        delay,
+                    )
+                    time.sleep(delay)
+                else:
+                    raise
+            except WindFormulaError:
+                # 公式错误不重试
+                raise
+
+        if last_error:
+            raise last_error
+        return []
+
+    def _execute_wsd_once(self, formula: str, timeout: float) -> list[list]:
+        """执行单次 WSD 调用（不含重试逻辑）"""
+        sheet = self._sheet
+        col = self._col
+
+        # 清除可能残留的数据
+        try:
+            sheet.range(f"{col}1:{col}{WSD_MAX_ROWS}").value = None
+        except Exception:
+            pass
+
+        # 写入 WSD 公式
+        sheet.range(f"{col}1").value = formula
+
+        # 等待 Excel 完成溢位计算
+        elapsed = 0.0
+        interval = 0.5
+        resolved = False
+        while elapsed < timeout:
+            time.sleep(interval)
+            elapsed += interval
+            val = sheet.range(f"{col}1").value
+            if val is not None and not _is_error_value(val):
+                resolved = True
+                break
+            # 检查是否是 Excel 错误
+            if isinstance(val, str) and val.strip().upper() in EXCEL_ERRORS:
+                error_val = str(val).strip()
+                sheet.range(f"{col}1").value = None
+                raise WindFormulaError(formula, error_val)
+
+        if not resolved:
+            sheet.range(f"{col}1").value = None
+            raise WindTimeoutError(formula, timeout)
+
+        # 动态检测实际数据行数：从 WSD_MAX_ROWS 逐步下探到第一个全空行
+        try:
+            # 先尝试批量读取一个大范围
+            raw_data = sheet.range(f"{col}1:{col}{WSD_MAX_ROWS}").value
+
+            if raw_data is None:
+                return []
+
+            if not isinstance(raw_data, list):
+                sheet.range(f"{col}1").value = None
+                return [[raw_data]]
+
+            # 过滤全空行（从第一行 None 开始截断，保留表头）
+            result = []
+            saw_data = False
+            for row in raw_data:
+                if isinstance(row, list):
+                    if any(cell is not None for cell in row):
+                        result.append(row)
+                        saw_data = True
+                    elif saw_data:
+                        # 遇到第一行全空，后续不再有数据（WSD spill 连续）
+                        break
+                elif row is not None:
+                    result.append([row])
+                    saw_data = True
+                elif saw_data:
+                    break
+
+            sheet.range(f"{col}1").value = None
+            logger.debug("WSD: 读取 %d 行数据（含表头）", len(result))
+            return result
+
+        except Exception as exc:
+            logger.warning("WSD 范围读取失败: %s", exc)
+            try:
+                sheet.range(f"{col}1").value = None
+            except Exception:
+                pass
+            return []
+
     def execute_batch(self, formulas: list[str], timeout: float | None = None) -> list[Any]:
         """批量执行 Wind 公式 —— 列式写入，一次 recalc
 
@@ -166,14 +389,23 @@ class WindExcelClient:
         sheet = self._sheet
         col = self._col
 
+        t0 = time.monotonic()
+
         # 列式写入所有公式
         for i, formula in enumerate(formulas):
             row = i + 1
             sheet.range(f"{col}{row}").value = formula
 
+        t_write = time.monotonic()
+
         # 等待 Excel 完成所有计算
+        # 策略：
+        # - None → 可能还在计算中（继续等待，最多 3 秒善期）
+        # - 3 秒后仍为 None → 视为空结果（公式完成但无数据）
+        # - Excel 错误（#N/A 等）→ 终态，立即接受
+        GRACE_TIMEOUT = 3.0  # None 的最长等待时间
         elapsed = 0.0
-        interval = 0.5
+        interval = 0.3
         results: list[Any] = [None] * len(formulas)
 
         while elapsed < timeout:
@@ -181,16 +413,27 @@ class WindExcelClient:
             elapsed += interval
             all_ready = True
             for i in range(len(formulas)):
-                if results[i] is None or _is_error_value(results[i]):
+                if results[i] is None:
                     val = sheet.range(f"{col}{i + 1}").value
-                    if _is_error_value(val):
-                        all_ready = False
+                    if val is None:
+                        # 超过善期则视为空结果；否则继续等待
+                        if elapsed < GRACE_TIMEOUT:
+                            all_ready = False
+                        # else: 接受 None 为终态空值
                     else:
-                        results[i] = val
-                else:
-                    pass
+                        results[i] = val  # 包括 Excel 错误和有效值
+                # else: 已有结果，不需再查
             if all_ready:
                 break
+
+        t_wait = time.monotonic()
+        if t_wait - t0 > 2.0:
+            logger.debug(
+                "execute_batch: %d formulas, write=%.2fs, wait=%.2fs",
+                len(formulas),
+                t_write - t0,
+                t_wait - t_write,
+            )
 
         # 收集最终结果
         final_results = []

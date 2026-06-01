@@ -328,6 +328,56 @@ Functions:
   - 手动触发所有已批准事件的信号生成
 
 
+## `app/api/routes/factors.py`
+
+Module docstring:
+> 动态多因子 API 端点
+
+Imports:
+- `core.contracts.factors`
+- `core.observability`
+- `datetime`
+- `fastapi`
+- `pydantic`
+- `services.factor_store_service`
+- `typing`
+
+Classes:
+- `FactorDefinitionRequest`
+  - 因子定义创建/更新请求
+- `FactorValueRequest`
+  - 因子值批量提交请求
+- `FactorEvaluationRequest`
+  - 因子评估批量提交请求
+- `WeightsSnapshotRequest`
+  - 动态权重快照请求
+
+Functions:
+- `_get_store`
+- `list_definitions`
+  - 列出已注册的因子定义
+- `register_definitions`
+  - 注册或更新因子定义
+- `query_values`
+  - 查询因子值
+- `store_values`
+  - 批量存储因子值
+- `query_evaluations`
+  - 查询因子评估记录
+- `store_evaluations`
+  - 批量存储因子评估指标
+- `get_latest_weights`
+  - 获取最新的动态因子权重
+- `save_weights`
+  - 保存动态因子权重快照
+- `get_weights_history`
+  - 查询动态权重历史
+- `get_available_dates`
+  - 获取有因子数据的日期列表
+- `get_categories`
+  - 获取所有已注册的因子类别
+
+
 ## `app/api/routes/governance.py`
 
 Module docstring:
@@ -3736,6 +3786,8 @@ Module docstring:
 Imports:
 - `core.observability`
 - `data_layer.adapters.wind.exceptions`
+- `datetime`
+- `math`
 - `threading`
 - `time`
 - `typing`
@@ -3743,7 +3795,7 @@ Imports:
 Classes:
 - `WindExcelClient`
   - 通过 xlwings 操控 Excel 中的 Wind 插件执行公式
-  - methods: __init__, _connect, heartbeat, _ensure_connected, _ensure_session, _execute_raw, execute, execute_batch, start_keepalive, stop_keepalive, _keepalive_loop, close, __enter__, __exit__
+  - methods: __init__, _connect, heartbeat, _ensure_connected, _ensure_session, _execute_raw, execute, _wsd_timeout, execute_wsd, _execute_wsd_once, execute_batch, start_keepalive, stop_keepalive, _keepalive_loop, close, __enter__, __exit__
 
 Functions:
 - `_is_error_value`
@@ -3858,6 +3910,28 @@ Functions:
   - 涨跌幅（%） ✅ 已确认
 - `daily_amplitude`
   - 振幅（%） ✅ 已确认 (Wind 函数名: s_dq_swing)
+- `daily_open_range`
+  - 开盘价时间序列 — Wind 日期范围公式（无 @ 前缀，返回数组）
+- `daily_high_range`
+  - 最高价时间序列
+- `daily_low_range`
+  - 最低价时间序列
+- `daily_close_range`
+  - 收盘价时间序列
+- `daily_volume_range`
+  - 成交量时间序列（Wind 成交量函数只有 2 参数，不含复权）
+- `daily_amount_range`
+  - 成交额时间序列
+- `daily_turnover_range`
+  - 换手率时间序列
+- `daily_adj_factor_range`
+  - 复权因子时间序列
+- `daily_vwap_range`
+  - 均价时间序列
+- `daily_pct_change_range`
+  - 涨跌幅时间序列
+- `daily_amplitude_range`
+  - 振幅时间序列
 - `fin_revenue`
   - 营业收入 TTM（元） ✅ 已确认
 - `fin_operating_cost`
@@ -3952,7 +4026,11 @@ Imports:
 Classes:
 - `WindAdapter`
   - Wind 数据适配器
-  - methods: __init__, _get_client, is_available, fetch_consensus_estimates, fetch_margin_trading, fetch_block_trades, fetch_daily_quotes, fetch_financial_statements, fetch_industry_data, fetch_fund_flow, fetch_holder_data, fetch, parse
+  - methods: __init__, _get_client, is_available, fetch_consensus_estimates, fetch_margin_trading, fetch_block_trades, fetch_daily_quotes, _fetch_dq_recent_batch, fetch_financial_statements, fetch_industry_data, fetch_fund_flow, fetch_holder_data, fetch, parse
+
+Functions:
+- `_safe_float_wind`
+  - Wind 公式返回值转 float，None/非数字返回 None
 
 
 ## `data_layer/adapters/yahoo_adapter.py`
@@ -5626,6 +5704,25 @@ Classes:
   - methods: _to_domain, _to_model, save, get, list, delete, get_by_entity, get_by_time_range, get_pending_review, list_by_status, list_by_event_type, list_by_impacted_symbol
 
 
+## `data_layer/repositories/factor_repository.py`
+
+Module docstring:
+> FactorRepository — 动态因子持久化层
+
+Imports:
+- `core.observability`
+- `data_layer.repositories.base`
+- `data_layer.repositories.models`
+- `datetime`
+- `sqlalchemy.dialects.postgresql`
+- `typing`
+
+Classes:
+- `FactorRepository`
+  - 因子数据仓储 —— 基于 PostgreSQL upsert 的持久化层
+  - methods: __init__, db, _upsert, save_definitions, get_definitions, get_all_categories, save_values, get_values, get_values_for_date, get_available_dates, save_evaluations, get_evaluations, get_latest_evaluations, save_weights, get_latest_weights, get_weights_history, close
+
+
 ## `data_layer/repositories/governance_repository.py`
 
 Module docstring:
@@ -5864,6 +5961,14 @@ Classes:
   - Wind 龙虎榜数据
 - `WindDailyBarDB`
   - Wind 日行情数据（含 Wind 独家字段：adj_close, adj_factor, vwap）
+- `FactorDefinitionDB`
+  - 因子元数据定义
+- `FactorValueDB`
+  - 点时因子观察值
+- `FactorEvaluationDB`
+  - 因子评估指标
+- `DynamicFactorWeightDB`
+  - 动态因子权重快照
 
 Functions:
 - `utc_now`
@@ -8939,6 +9044,21 @@ Functions:
 - `downgrade`
 
 
+## `storage/migrations/versions/011_add_factor_store_tables.py`
+
+Module docstring:
+> Add factor store tables (factor_definition, factor_value, factor_evaluation, dynamic_factor_weight)
+
+Imports:
+- `alembic`
+- `sqlalchemy`
+- `typing`
+
+Functions:
+- `upgrade`
+- `downgrade`
+
+
 ## `ingestion/__init__.py`
 
 Module docstring:
@@ -9822,6 +9942,90 @@ Functions:
   - Restore a PostgreSQL backup using psql.
 - `restore_sqlite`
   - Restore a SQLite backup.
+- `main`
+
+
+## `scripts/seed_factor_data.py`
+
+Module docstring:
+> Seed factor data pipeline.
+
+Imports:
+- `__future__`
+- `argparse`
+- `core.contracts.factors`
+- `core.observability`
+- `datetime`
+- `numpy`
+- `pandas`
+- `pathlib`
+- `sys`
+- `time`
+
+Functions:
+- `_save_checkpoint`
+  - 保存断点 JSON 文件
+- `_load_checkpoint`
+  - 加载断点 JSON 文件，返回 (completed_symbols, total_saved)
+- `ingest_stock_master`
+  - Ingest A-share stock list via AKShare. Returns list of stock symbols.
+- `ingest_daily_bars`
+  - Ingest daily bars via AKShare for given symbols and date range.
+- `filter_liquid_stocks`
+  - Filter to the most liquid stocks (prioritize SH/SZ main board, large cap).
+- `create_factor_definitions`
+  - Create 10 canonical factor definitions (momentum, reversal, liquidity, risk).
+- `create_financial_factor_definitions`
+  - Create VALUE, QUALITY, GROWTH factor definitions from financial data.
+- `load_daily_bar_frame`
+  - Load stock_daily_bar for given symbols into a flat DataFrame.
+- `_load_legacy_price_frame`
+  - Fallback: load from legacy stock_price_data table (uses 'code' not 'symbol').
+- `compute_factor_values`
+  - Compute 10 factor values from daily bar data.
+- `_get_legacy_symbols`
+  - Get available symbols from legacy stock_price_data table.
+- `get_stock_list_akshare_direct`
+  - Get A-share stock list directly via AKShare stock_info_a_code_name().
+- `_fetch_akshare_hist_with_retry`
+  - 带指数退避重试的 AKShare stock_zh_a_hist 调用。
+- `_normalize_akshare_hist`
+  - 将 AKShare stock_zh_a_hist 返回的 DataFrame 转为 stock_daily_bar dict 列表。
+- `ingest_daily_bars_direct`
+  - Ingest daily bars via AKShare stock_zh_a_hist() with retry, delay, checkpoint.
+- `_wsd_to_daily_bars`
+  - 将 Wind WSD 返回数据转为 stock_daily_bar dict 列表。
+- `_safe_float_wind`
+  - Wind 公式返回值转 float
+- `_is_wind_available`
+  - 检查 Wind 终端是否可用。
+- `ingest_daily_bars_from_wind`
+  - 使用 Wind WSD 获取日行情数据并存入 stock_daily_bar 表。
+- `ingest_financials_direct`
+  - Ingest financial data via AKShare stock_financial_abstract() to stock_financial_metric.
+- `seed_factor_pipeline`
+  - Run the full seed pipeline.
+- `_build_forward_returns`
+  - Build forward returns series for evaluation.
+- `load_financial_frame`
+  - Load stock_financial_metric into a flat DataFrame.
+- `compute_financial_factor_values`
+  - Compute VALUE/QUALITY/GROWTH factor values from financial data.
+- `main`
+
+
+## `scripts/seed_stock_master_static.py`
+
+Module docstring:
+> 用静态预定义列表填充 stock_master 表。
+
+Imports:
+- `__future__`
+- `core.observability`
+- `pathlib`
+- `sys`
+
+Functions:
 - `main`
 
 

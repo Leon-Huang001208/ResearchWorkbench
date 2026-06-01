@@ -285,6 +285,72 @@ af knowledge stop
 
 ---
 
+### 12. seed_factor_data - 因子数据播种
+
+种子数据管线脚本，为因子研究系统播种市场数据、财务数据和因子定义。
+
+#### 基本用法
+
+```bash
+# AKShare only (default, with rate limiting)
+python scripts/seed_factor_data.py --stock-count 200
+
+# Wind WSD (fast, requires Wind Excel plugin)
+python scripts/seed_factor_data.py --stock-count 200 --source wind
+
+# Auto (Wind first, fallback to AKShare)
+python scripts/seed_factor_data.py --stock-count 200 --source auto
+```
+
+#### 参数说明
+
+| 参数 | 必需 | 说明 |
+|------|------|------|
+| `--stock-count` | ❌ | 播种股票数量，默认 200 |
+| `--symbols` | ❌ | 逗号分隔的特定股票代码，如 `600519.SH,000858.SZ` |
+| `--source` | ❌ | 日行情数据源：`akshare`（默认）、`wind`（Wind Excel 插件）、`auto`（Wind 优先，不可用时降级 AKShare） |
+| `--delay` | ❌ | API 请求间延迟（秒），默认 2.0，用于限流控制 |
+| `--max-retries` | ❌ | 每次 AKShare API 调用最大重试次数，默认 3 |
+| `--resume` | ❌ | 断点续传 JSON 文件路径，从中断处恢复 |
+| `--date-start` | ❌ | 日行情起始日期 (YYYY-MM-DD)，默认 2024-01-01 |
+| `--date-end` | ❌ | 日行情截止日期 (YYYY-MM-DD)，默认 2026-05-31 |
+| `--skip-ingest` | ❌ | 跳过 Phase 1（数据已存在于 DB） |
+| `--no-akshare-direct` | ❌ | 使用摄入服务而非直接 AKShare 调用 |
+| `--skip-financials` | ❌ | 跳过 Phase 3（财务数据和 VALUE/QUALITY/GROWTH 因子） |
+
+#### 使用示例
+
+```bash
+# 控制 AKShare 限流
+python scripts/seed_factor_data.py --stock-count 200 --delay 3.0 --max-retries 5
+
+# 断点续传（中断后恢复）
+python scripts/seed_factor_data.py --stock-count 200 --source auto
+# Ctrl+C 中断后:
+python scripts/seed_factor_data.py --stock-count 200 --source auto --resume .ai/checkpoints/seed_auto_200.json
+
+# 纯 Wind 数据源 + 特定股票
+python scripts/seed_factor_data.py --symbols 600519.SH,000858.SZ --source wind
+
+# 仅计算因子（跳过数据摄入）
+python scripts/seed_factor_data.py --skip-ingest
+```
+
+#### 断点续传机制
+
+- Wind/auto 模式自动生成 checkpoint 文件到 `.ai/checkpoints/`
+- 每 10 只股票保存一次，支持 Ctrl+C 中断后恢复
+- checkpoint 记录已完成股票列表和已保存行数
+- 手动断点路径通过 `--resume` 指定
+
+#### 重试策略
+
+- **AKShare**: 指数退避重试（5s → 10s → 20s → 40s，上限 60s）
+- **限流检测**: 自动识别 "频率"/"rate limit"/"429"/"throttle" 关键词，限流时额外等待 10s×attempt
+- **Wind WSD**: 3 次重试（3s → 6s → 12s，上限 30s），根据日期跨度动态调整超时
+
+---
+
 ## REST API
 
 ### 基础信息
@@ -627,6 +693,91 @@ Wind Excel 适配器通过 xlwings → AppleScript → macOS Excel Wind 插件�
 #### POST /api/wind/industry
 
 获取行业分类数据。
+
+---
+
+### 动态多因子 API
+
+动态多因子 REST API 提供因子定义管理、因子值存取、因子评估查询和动态权重管理。所有端点以 `/api/factors` 为前缀。
+
+#### GET /api/factors/definitions
+
+列出已注册的因子定义。
+
+**查询参数**:
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `category` | string | 按类别过滤 |
+| `factor_ids` | string | 逗号分隔的因子 ID 列表 |
+
+**响应**:
+```json
+{
+  "success": true,
+  "data": [{"factor_id": "pe_ttm", "name": "PE TTM", "category": "value", "direction": "negative"}],
+  "count": 1
+}
+```
+
+#### POST /api/factors/definitions
+
+注册或更新因子定义。
+
+**请求**:
+```json
+[{
+  "factor_id": "pe_ttm",
+  "name": "PE TTM",
+  "category": "value",
+  "direction": "negative",
+  "description": "Trailing PE"
+}]
+```
+
+#### GET /api/factors/values
+
+查询因子值（支持点日期查询或范围查询）。
+
+**查询参数**: `as_of_date`, `factor_ids`, `subject_ids`, `start_date`, `end_date`, `limit` (默认 10000)
+
+#### POST /api/factors/values
+
+批量存储因子值。
+
+**请求**:
+```json
+{
+  "values": [{"factor_id": "pe_ttm", "subject_id": "600519.SH", "as_of_date": "2024-12-31", "value": 25.5, "source": "wind"}]
+}
+```
+
+#### GET /api/factors/evaluations
+
+查询因子评估记录（IC, RankIC, decile spread 等）。
+
+#### POST /api/factors/evaluations
+
+批量存储因子评估指标。
+
+#### GET /api/factors/weights/latest
+
+获取最新的动态因子权重。查询参数: `metric` (默认 "rank_ic")。
+
+#### POST /api/factors/weights
+
+保存动态因子权重快照。
+
+#### GET /api/factors/weights/history
+
+查询动态权重历史。查询参数: `metric`, `limit` (默认 50)。
+
+#### GET /api/factors/available-dates
+
+获取有因子数据的日期列表。
+
+#### GET /api/factors/categories
+
+获取所有已注册的因子类别。例如: `["value", "momentum", "quality", "growth"]`
 
 **请求**:
 ```json
@@ -2042,6 +2193,7 @@ AlphaFoundry/
 │   └── migrations/           # Alembic 数据库迁移
 ├── alembic/                  # Alembic 配置
 ├── scripts/                  # 脚本工具
+│   ├── seed_factor_data.py   # 因子数据播种（双数据源+限流+断点续传）
 │   ├── backup_db.py          # 数据库备份脚本
 │   ├── restore_db.py         # 数据库恢复脚本
 │   ├── bootstrap_db.py       # 数据库初始化脚本

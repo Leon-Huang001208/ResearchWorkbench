@@ -160,6 +160,24 @@ af ingest --file report.pdf
 af report --asset 600519.SH --type full
 ```
 
+### 7. 播种因子数据
+
+运行因子数据种子管线，播种市场数据并计算技术面和财务面因子：
+
+```bash
+# AKShare 数据源（默认，含限流保护）
+python scripts/seed_factor_data.py --stock-count 200
+
+# Wind Excel 数据源（需 Wind 终端 + Excel 插件，速度更快）
+python scripts/seed_factor_data.py --stock-count 200 --source wind
+
+# 自动选择（Wind 优先，不可用时降级 AKShare）
+python scripts/seed_factor_data.py --stock-count 200 --source auto
+
+# 断点续传（中断后恢复）
+python scripts/seed_factor_data.py --stock-count 200 --source auto --resume .ai/checkpoints/seed_auto_200.json
+```
+
 ## Web 工作台功能
 
 ### 首页五板块
@@ -381,7 +399,13 @@ AlphaFoundry/
 │   └── ...                      # 共 47 个服务文件
 ├── data_layer/                 # 数据层
 │   ├── adapters/               # 数据适配器
-│   │   └── akshare_adapter.py # AKShare 适配器
+│   │   ├── akshare_adapter.py # AKShare 适配器
+│   │   ├── data_source_router.py # 多源路由（Wind / AKShare / ChinaStock）
+│   │   └── wind/              # Wind Excel 适配器（xlwings → AppleScript）
+│   │       ├── client.py      # WindExcelClient：WSD 时间序列 / 批量公式 / 保活
+│   │       ├── formulas.py    # 78 个 Wind 公式生成器
+│   │       ├── wind_adapter.py # 8 个 fetch 方法 + parse()
+│   │       └── exceptions.py  # Wind 自定义异常
 │   ├── crawlers/              # 数据采集器
 │   │   ├── akshare/           # AKShare 采集器
 │   │   │   ├── base.py       # 基础类
@@ -436,6 +460,7 @@ AlphaFoundry/
 │   ├── auto_ingest_service.py  # 自动数据摄入服务
 │   └── auto_generate_signals.py # 自动信号生成
 ├── scripts/                  # 脚本工具
+│   ├── seed_factor_data.py   # 因子数据播种（AKShare/Wind 双源 + 限流重试 + 断点续传）
 │   ├── backup_db.py          # 数据库备份
 │   ├── restore_db.py         # 数据库恢复
 │   ├── bootstrap_db.py       # 数据库初始化

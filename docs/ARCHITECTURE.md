@@ -80,6 +80,7 @@ AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System�
 │  量化验证层 / 信号实验室 (signal_lab)                        │
 │  ├─ Event Study Backtest Engine                              │
 │  ├─ 特征工程 / 标签工程                                      │
+│  ├─ 动态因子研究 (factors/)：Matrix / IC / Dynamic Weights    │
 │  ├─ 信号评分 / RankIC / Decay                                │
 │  └─ 组合、仓位与风险控制                                     │
 └─────────────┴───────────────────────────────────────────────┘
@@ -95,6 +96,9 @@ AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System�
 ┌─────────────▼───────────────────────────────────────────────┐
 │  数据层 (data_layer)                                         │
 │  ├─ 数据源适配器 (adapters)                                   │
+│  │  ├─ AKShare 免费开源数据                                    │
+│  │  ├─ Wind Excel 插件 (xlwings → WSD/批量公式)               │
+│  │  └─ 多源路由器 (data_source_router.py, 自动降级)            │
 │  ├─ 数据采集器 (crawlers)                                     │
 │  │  ├─ AKShare 采集器 (crawlers/akshare)                     │
 │  │  ├─ 财联社采集器 (crawlers/cls)                           │
@@ -472,7 +476,7 @@ AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System�
 ### 市场数据 ETL 管道
 
 ```
-AKShare 数据源
+AKShare / Wind WSD (双数据源, --source auto 自动降级)
   → MarketDataIngestionService (ETL 编排)
     → normalizer (纯函数, 确定性, 可单测)
     → MarketDataRepository (PostgreSQL upsert / SQLite fallback)
@@ -482,12 +486,31 @@ AKShare 数据源
   → asset_snapshot / API / dashboard (派生结果)
 ```
 
+### 因子数据播种管道
+
+```
+seed_factor_data.py (scripts/)
+Phase 1: 市场数据摄入
+  AKShare: stock_zh_a_hist() → 限流重试（指数退避 + 关键词检测）→ stock_daily_bar
+  Wind:    WSD(code, fields, dates) → 单次完整时间序列 → stock_daily_bar
+  └─ 断点续传: JSON checkpoint 每 10 只保存, --resume 恢复
+
+Phase 2: 技术面因子
+  stock_daily_bar DB → compute_factor_values() → 10 因子 (momentum/reversal/liquidity/risk)
+  → FactorStore → factor_value DB → FactorComputationService (IC/RankIC/动态权重)
+
+Phase 3: 财务面因子
+  AKShare stock_financial_abstract() → stock_financial_metric DB
+  → compute_financial_factor_values() → 8 因子 (VALUE/QUALITY/GROWTH/RISK)
+```
+
 **定时执行**（cron_jobs/auto_ingest_service.py）:
 
 - 数据源定时抓取（财联社 15min、中国证券网 30min、知丘研报 1h 等）
 - 15:15 → 同步股票列表 (POST /api/market-data/stocks/sync)
 - 15:30 → 同步日行情 (POST /api/market-data/daily-bars/sync)
 - 15:45 → 生成资产快照 (POST /api/assets/analyze)
+- 16:27 → 每日盘后因子计算 (FactorComputationService, crawl_scheduler 注册)
 - 摄入队列消费由 Knowledge Worker 常驻处理，不再通过 cron_jobs
 
 ### 信号生成管道

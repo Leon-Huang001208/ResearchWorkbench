@@ -8,7 +8,9 @@
 
 ### Changed
 
-- **Wind 公式验证与清理**: 43 个新增公式全部通过 Mac Wind Excel 函数浏览器逐个验证
+- **Wind 客户端连接稳定性修复与 seed 脚本双数据源**: Wind Excel 客户端连接和 WSD 重构，seed 脚本支持 AKShare/Wind 双数据源、限流处理、断点续传
+  - `data_layer/adapters/wind/client.py` — `_connect()` 完全重写：遍历所有 Excel 实例，通过 heartbeat 检测含 Wind 插件的实例；`execute_wsd()` 新增 3 次指数退避重试（3s→6s→12s，上限 30s）；新增 `_wsd_timeout()` 根据日期跨度动态计算超时（基础 15s + 每 250 天 + 5s）；新增 `_execute_wsd_once()` 单次 WSD 调用（提取自原 `execute_wsd()`）；心跳 TTL 缓存（30s 内跳过重复心跳）
+  - `scripts/seed_factor_data.py` — 新增 `--source {akshare,wind,auto}` 参数：AKShare 限流处理（请求间延迟 `--delay`、指数退避重试 `--max-retries`、限流关键词检测）、Wind WSD 数据源（单次调用获取完整时间序列）、`auto` 模式 Wind 优先自动降级；JSON 断点续传（每 10 只保存 checkpoint，`--resume` 恢复）；新增 `_fetch_akshare_hist_with_retry()`、`_normalize_akshare_hist()`、`_wsd_to_daily_bars()`、`_safe_float_wind()`、`_is_wind_available()`、`ingest_daily_bars_from_wind()` 等函数
   - 日行情 `s_dq_*` (非 s_pq_*)，OHLC 增加 adj_type，移除 adj_close
   - 财务 TTM 参数不统一（trade_date vs report_date），fin_equity MRQ 无日期参数
   - 行业三函数合并为 `s_info_industry_sw_2021` + level 参数
@@ -58,6 +60,31 @@
   - `tests/unit/test_wind_api.py` — 新增 13 个 API 测试（健康检查、一致预期、两融、龙虎榜、行情、财务、行业、资金流向、持有人）
   - `tests/unit/test_wind_features.py` — 新增 15 个特征测试（一致预期 6、融资融券 4、龙虎榜 4、集成 2）
   - `tests/unit/test_wind_repository.py` — 新增 14 个仓储测试（空记录、upsert、查询、初始化）
+- **动态多因子持久化**: 因子定义、因子值、评估和权重的数据库持久化闭环
+  - `storage/migrations/versions/011_add_factor_store_tables.py` — 创建 4 张表：factor_definition、factor_value、factor_evaluation、dynamic_factor_weight（含索引和唯一约束）
+  - `data_layer/repositories/models.py` — 新增 FactorDefinitionDB、FactorValueDB、FactorEvaluationDB、DynamicFactorWeightDB ORM 模型
+  - `data_layer/repositories/factor_repository.py` — FactorRepository：通用 upsert + 专用查询方法（点日期查询、范围查询、最新权重等）
+  - `services/factor_store_service.py` — FactorStore：桥接 Pydantic 契约 ↔ ORM 记录，提供 definition/value/evaluation/weight 完整持久化能力
+  - `tests/unit/test_factor_repository.py` — 13 个单元测试（空记录、upsert 委托、查询、session 生命周期）
+  - `tests/unit/test_factor_store_service.py` — 27 个单元测试（契约转换、CRUD 路径、端到端流程）
+- **动态多因子 REST API**: 因子数据端到端 REST 接口
+  - `app/api/routes/factors.py` — 10 个 API 端点（definitions GET/POST, values GET/POST, evaluations GET/POST, weights/latest GET, weights POST, weights/history GET, available-dates GET, categories GET）
+  - `app/api/main.py` — 注册 factors.router
+  - `tests/unit/test_factor_api.py` — 13 个单元测试（端点覆盖、请求验证、空数据处理）
+- **动态多因子定时计算**: 因子研究闭环的定时编排服务
+  - `services/factor_computation_service.py` — FactorComputationService：编排因子定义加载 → 值加载 → 矩阵构建 → 评估 → 动态权重拟合 → 持久化
+  - `services/crawl_scheduler.py` — 注册每日盘后因子计算定时任务（cron `16:27`）
+  - `tests/unit/test_factor_computation_service.py` — 11 个单元测试（空定义/空值/完整循环/资源关闭）
+	- **因子数据播种 + 唯一约束修复**: 解决因子数据表为空导致每日定时任务跳过的风险
+	  - `scripts/seed_factor_data.py` — 种子数据管线：Phase 1 AKShare 摄入（带 legacy stock_price_data 回退），Phase 2 因子定义注册/值时序计算/评估周期
+	  - `data_layer/repositories/models.py` — FactorValueDB、FactorEvaluationDB、DynamicFactorWeightDB 添加 `__table_args__` UniqueConstraint
+	  - PostgreSQL 添加 3 个唯一约束：`uq_factor_value_factor_subject_date`、`uq_factor_eval_factor_date_horizon`、`uq_dynamic_weight_date_metric`
+	- **财务数据播种 + 财务因子**: AKShare stock_financial_abstract() 摄入财务数据，注册并计算 VALUE/QUALITY/GROWTH 因子
+	  - `scripts/seed_factor_data.py` — 新增 `get_stock_list_akshare_direct()`（stock_info_a_code_name, 5,525 只股票）、`ingest_daily_bars_direct()`（stock_zh_a_hist 日行情）、`ingest_financials_direct()`（stock_financial_abstract 财务数据）、`compute_financial_factor_values()`（季报因子计算）
+	  - 新增 8 个财务因子定义：pe_ttm, pb, bvps (VALUE) / roe, eps (QUALITY) / revenue_growth_yoy, profit_growth_yoy (GROWTH) / debt_ratio (RISK)
+	  - 播种结果：18 个因子（10 技术 + 8 财务），26,081 条因子值（8 个类别），4,262 行财务数据（51 个标的）
+	  - PostgreSQL 添加 `uq_financial_metric_symbol_date` 唯一约束
+	  - 种子运行结果：10 个因子定义，2,260 个因子值（4 个交易日 × 65 标的），10 个因子评估（IC/RankIC/DecileSpread），1 组动态权重
 - **WebUI 导航收敛**: 在不修改 dashboard 与模板文件的前提下，将低频/历史页面归档隐藏，保留”更多”按钮随时展开
   - `app/web/static/js/navigation-curation.js` — 新增导航归档配置和显示/隐藏状态管理
   - `app/web/static/js/app.js` — 初始化导航收敛模块
