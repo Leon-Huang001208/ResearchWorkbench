@@ -264,10 +264,16 @@
 |---|---|
 | `data_layer/adapters/akshare_adapter.py` | AKShare 开源数据适配器：集成 crawler 模块，提供行情、财务、新闻、股东数据获取 |
 | `data_layer/adapters/data_source_router.py` | 数据源路由器：iFinD → AKShare → ChinaStock 三级降级策略，统一管理所有数据适配器 |
-| `data_layer/adapters/wind/wind_adapter.py` | Wind Excel 适配器：通过 xlwings → AppleScript → Excel Wind 插件获取一致预期、融资融券、龙虎榜数据 |
+| `data_layer/adapters/wind/wind_adapter.py` | Wind Excel 适配器：8 个 fetch 方法（一致预期/两融/龙虎榜/日行情/财务/行业/资金流向/持有人） + parse() + fetch() dispatch |
 | `data_layer/adapters/wind/client.py` | Wind Excel 客户端：xlwings 连接管理、心跳检测、批量公式执行、后台保活 |
-| `data_layer/adapters/wind/formulas.py` | Wind 公式生成器：35 个已验证公式，覆盖一致预期/融资融券/龙虎榜 |
+| `data_layer/adapters/wind/formulas.py` | Wind 公式生成器：78 个公式（43 个已验证），覆盖一致预期/融资融券/龙虎榜/日行情/财务TTM+MRQ/估值/行业/资金流向/北向/股东/指数 |
 | `data_layer/adapters/wind/exceptions.py` | Wind 自定义异常：会话过期、未连接、公式错误、超时 |
+| `data_layer/repositories/wind_repository.py` | Wind 数据仓储：基于 PostgreSQL upsert 的持久化层，支持 4 类 Wind 数据批量保存和查询 |
+| `app/api/routes/wind.py` | Wind REST API：8 个端点（health/prices/financials/industry/fund-flow/holders） |
+| `app/web/static/js/wind.js` | Wind Web UI 模块：数据查询、结果渲染、健康检查 |
+| `signal_lab/features/groups/wind_consensus.py` | WindConsensusFeatures：一致预期因子组（9 特征） |
+| `signal_lab/features/groups/wind_margin.py` | WindMarginFeatures：融资融券因子组（5 特征） |
+| `signal_lab/features/groups/wind_block.py` | WindBlockFeatures：龙虎榜因子组（3 特征） |
 
 ### data_layer/crawlers/ - 数据采集器
 

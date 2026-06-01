@@ -196,7 +196,7 @@ class TestWindAdapterStructure:
         from data_layer.adapters.wind import WindAdapter
 
         adapter = WindAdapter()
-        assert adapter.source_type == "wind"
+        assert adapter.source_type == "vendor_snapshot"
 
     def test_adapter_extends_base(self):
         from data_layer.adapters.base import BaseDataAdapter
@@ -220,12 +220,28 @@ class TestWindAdapterStructure:
         with pytest.raises(ValueError, match="未知数据类型"):
             adapter.fetch(data_type="invalid_type", codes=["600519.SH"])
 
-    def test_parse_not_implemented(self):
+    def test_parse_returns_document_envelope(self):
+        from core.contracts import DocumentEnvelope
         from data_layer.adapters.wind import WindAdapter
 
         adapter = WindAdapter()
-        with pytest.raises(NotImplementedError):
-            adapter.parse("test")
+        result = adapter.parse('{"test": "data"}', data_type="consensus", code="600519.SH")
+        assert isinstance(result, DocumentEnvelope)
+        assert result.metadata["data_type"] == "consensus"
+        assert result.metadata["code"] == "600519.SH"
+        assert result.metadata["source"] == "wind_excel"
+
+    def test_parse_from_path(self, tmp_path):
+        from core.contracts import DocumentEnvelope
+        from data_layer.adapters.wind import WindAdapter
+
+        test_file = tmp_path / "wind_data.json"
+        test_file.write_text('{"test": "data"}', encoding="utf-8")
+
+        adapter = WindAdapter()
+        result = adapter.parse(test_file, data_type="financials", code="000858.SZ")
+        assert isinstance(result, DocumentEnvelope)
+        assert result.metadata["data_type"] == "financials"
 
 
 class TestWindClientLogic:
@@ -286,3 +302,422 @@ class TestWindClientLogic:
 
         with pytest.raises(WindSessionExpiredError):
             client.execute_batch(['=@s_info_compname("600519.SH")'])
+
+
+# ===== Phase 1 新增公式测试 =====
+
+
+class TestWindPriceFormulas:
+    """日行情/价格公式测试 —— 全部 s_dq_* 已确认"""
+
+    def test_daily_open(self):
+        f = wf.daily_open("600519.SH", "2025-06-01")
+        assert "s_dq_open" in f
+        assert f.startswith("=@")
+
+    def test_daily_open_with_adj_type(self):
+        f = wf.daily_open("600519.SH", "2025-06-01", adj_type=2)
+        assert "s_dq_open" in f
+        assert ",2)" in f  # 后复权
+
+    def test_daily_high(self):
+        f = wf.daily_high("600519.SH", "2025-06-01")
+        assert "s_dq_high" in f
+        assert f.startswith("=@")
+
+    def test_daily_low(self):
+        f = wf.daily_low("600519.SH", "2025-06-01")
+        assert "s_dq_low" in f
+        assert f.startswith("=@")
+
+    def test_daily_close(self):
+        f = wf.daily_close("600519.SH", "2025-06-01")
+        assert "s_dq_close" in f
+        assert f.startswith("=@")
+
+    def test_daily_volume(self):
+        f = wf.daily_volume("600519.SH", "2025-06-01")
+        assert "s_dq_volume" in f
+
+    def test_daily_amount(self):
+        f = wf.daily_amount("600519.SH", "2025-06-01")
+        assert "s_dq_amount" in f
+        assert "600519.SH" in f
+
+    def test_daily_turnover(self):
+        f = wf.daily_turnover("000858.SZ", "2025-06-01")
+        assert "s_dq_turn" in f
+        assert "000858.SZ" in f
+
+    def test_daily_adj_factor(self):
+        f = wf.daily_adj_factor("600519.SH", "2025-06-01")
+        assert "s_dq_adjfactor2" in f
+
+    def test_daily_vwap(self):
+        f = wf.daily_vwap("600519.SH", "2025-06-01")
+        assert "s_dq_avgprice" in f
+
+    def test_daily_pct_change(self):
+        f = wf.daily_pct_change("600519.SH", "2025-06-01")
+        assert "s_dq_pctchange" in f
+
+    def test_daily_amplitude(self):
+        f = wf.daily_amplitude("600519.SH", "2025-06-01")
+        assert "s_dq_swing" in f
+
+
+class TestWindFinancialFormulas:
+    """财务报表公式测试 —— 全部已确认"""
+
+    def test_fin_revenue(self):
+        f = wf.fin_revenue("600519.SH", "2024-12-31")
+        assert "s_fa_or_ttm" in f
+        assert "2024-12-31" in f
+
+    def test_fin_operating_cost(self):
+        f = wf.fin_operating_cost("600519.SH", "2024/12/31")
+        assert "s_fa_cost_ttm2" in f
+        assert "2024/12/31" in f
+
+    def test_fin_gross_profit(self):
+        f = wf.fin_gross_profit("600519.SH", "2024/12/31")
+        assert "s_fa_grossmargin" in f
+
+    def test_fin_gross_profit_ttm(self):
+        f = wf.fin_gross_profit_ttm("600519.SH", "2024/12/31")
+        assert "s_fa_grossmargin_ttm2" in f
+
+    def test_fin_gross_profit_margin(self):
+        f = wf.fin_gross_profit_margin("600519.SH", "2024/12/31")
+        assert "s_fa_grossprofitmargin" in f
+
+    def test_fin_net_profit(self):
+        f = wf.fin_net_profit("600519.SH", "2024-12-31")
+        assert "s_fa_profit_ttm" in f
+
+    def test_fin_eps(self):
+        f = wf.fin_eps("000858.SZ", "2024-12-31")
+        assert "s_fa_eps_ttm2" in f
+
+    def test_fin_roe(self):
+        f = wf.fin_roe("600519.SH", "2024/12/31")
+        assert "s_fa_roe_ttm2" in f
+
+    def test_fin_total_assets(self):
+        f = wf.fin_total_assets("600519.SH", "2024/12/31")
+        assert "s_performanceexpress_perfextotalassets" in f
+
+    def test_fin_equity(self):
+        f = wf.fin_equity("600519.SH")
+        assert "s_fa_totalequity_mrq" in f
+        # equity MRQ 无日期参数
+        assert '""' not in f or '"600519.SH")' in f
+
+    def test_fin_free_cf(self):
+        f = wf.fin_free_cf("600519.SH", "2024/12/31")
+        assert "s_fa_fcff" in f
+
+    def test_fin_free_cf_per_share(self):
+        f = wf.fin_free_cf_per_share("600519.SH", "2024/12/31")
+        assert "s_fa_fcffps" in f
+
+    def test_fin_debt_yoy(self):
+        f = wf.fin_debt_yoy("600519.SH", "2024/12/31")
+        assert "s_fa_yoydebt" in f
+
+    def test_val_pe_ttm(self):
+        f = wf.val_pe_ttm("600519.SH", "2024-12-31")
+        assert "s_val_pe_ttm" in f
+
+    def test_val_pb_lf(self):
+        f = wf.val_pb_lf("600519.SH", "2024-12-31")
+        assert "s_val_pb_lf" in f
+
+
+class TestWindIndustryFormulas:
+    """行业/指数公式测试 —— 全部已确认"""
+
+    def test_industry_sw(self):
+        f = wf.industry_sw("600519.SH")
+        assert "s_info_industry_sw_2021" in f
+        assert "600519.SH" in f
+
+    def test_industry_sw_level2(self):
+        f = wf.industry_sw_level2("600519.SH")
+        assert "s_info_industry_sw_2021" in f
+        assert ",2)" in f
+
+    def test_industry_sw_level3(self):
+        f = wf.industry_sw_level3("600519.SH")
+        assert "s_info_industry_sw_2021" in f
+        assert ",3)" in f
+
+    def test_index_close(self):
+        f = wf.index_close("000300.SH", "2025-06-01")
+        assert "i_dq_close" in f
+        assert "000300.SH" in f
+
+    def test_index_pct_change(self):
+        f = wf.index_pct_change("000300.SH", "2025-06-01")
+        assert "i_dq_pctchange" in f
+
+    def test_index_weight(self):
+        f = wf.index_weight("600519.SH", "2025-06-01", "000300.SH")
+        assert "s_info_indexweight" in f
+        assert "000300.SH" in f
+
+
+class TestWindFundFlowFormulas:
+    """资金流向公式测试 —— 全部已确认"""
+
+    def test_moneyflow_main_force(self):
+        f = wf.moneyflow_main_force("600519.SH", "2025-06-01")
+        assert "s_mfd_inflow_m" in f
+
+    def test_moneyflow_main_force_open(self):
+        f = wf.moneyflow_main_force_open("600519.SH", "2025-06-01")
+        assert "s_mfd_inflow_open_m" in f
+
+    def test_moneyflow_main_force_close(self):
+        f = wf.moneyflow_main_force_close("600519.SH", "2025-06-01")
+        assert "s_mfd_inflow_close_m" in f
+
+    def test_north_bound_shares(self):
+        f = wf.north_bound_shares("600519.SH", "2025-06-01")
+        assert "s_share_n" in f
+
+    def test_north_bound_pct(self):
+        f = wf.north_bound_pct("600519.SH", "2025-06-01")
+        assert "s_share_pct_n" in f
+
+
+class TestWindHolderFormulas:
+    """股东/持有人公式测试 —— 全部已确认"""
+
+    def test_holder_num(self):
+        f = wf.holder_num("600519.SH", "2024/12/31")
+        assert "s_holder_num2" in f
+
+    def test_holder_liq_num(self):
+        f = wf.holder_liq_num("600519.SH", "2025-06-01")
+        assert "s_liqholder_num" in f
+
+    def test_holder_avg_hold(self):
+        f = wf.holder_avg_hold("600519.SH", "2024/12/31")
+        assert "s_holder_avgnum" in f
+
+    def test_holder_avg_pct(self):
+        f = wf.holder_avg_pct("600519.SH", "2024/12/31")
+        assert "s_holder_avgpct" in f
+
+    def test_top10_holder_pct(self):
+        f = wf.top10_holder_pct("600519.SH", "2024/12/31")
+        assert "s_holder_sumt10pct" in f
+
+    def test_top10_holder_quantity(self):
+        f = wf.top10_holder_quantity("600519.SH", "2024/12/31")
+        assert "s_holder_sumt10quantity" in f
+
+    def test_institutional_hold(self):
+        f = wf.institutional_hold("600519.SH", "2024/12/31")
+        assert "s_holder_totalbyinst" in f
+
+    def test_institutional_hold_pct(self):
+        f = wf.institutional_hold_pct("600519.SH", "2024/12/31")
+        assert "s_holder_pctbyinst" in f
+
+
+class TestWindAdapterNewMethods:
+    """WindAdapter 新方法结构测试"""
+
+    def test_fetch_daily_quotes_method_exists(self):
+        from data_layer.adapters.wind import WindAdapter
+
+        adapter = WindAdapter()
+        assert hasattr(adapter, "fetch_daily_quotes")
+        assert callable(adapter.fetch_daily_quotes)
+
+    def test_fetch_financial_statements_method_exists(self):
+        from data_layer.adapters.wind import WindAdapter
+
+        adapter = WindAdapter()
+        assert hasattr(adapter, "fetch_financial_statements")
+        assert callable(adapter.fetch_financial_statements)
+
+    def test_fetch_industry_data_method_exists(self):
+        from data_layer.adapters.wind import WindAdapter
+
+        adapter = WindAdapter()
+        assert hasattr(adapter, "fetch_industry_data")
+        assert callable(adapter.fetch_industry_data)
+
+    def test_fetch_fund_flow_method_exists(self):
+        from data_layer.adapters.wind import WindAdapter
+
+        adapter = WindAdapter()
+        assert hasattr(adapter, "fetch_fund_flow")
+        assert callable(adapter.fetch_fund_flow)
+
+    def test_fetch_holder_data_method_exists(self):
+        from data_layer.adapters.wind import WindAdapter
+
+        adapter = WindAdapter()
+        assert hasattr(adapter, "fetch_holder_data")
+        assert callable(adapter.fetch_holder_data)
+
+    def test_fetch_dispatches_new_data_types(self):
+        """测试 fetch() 可以分发到新的数据类型"""
+        from data_layer.adapters.wind import WindAdapter, WindExcelClient
+
+        mock_client = MagicMock(spec=WindExcelClient)
+        mock_client.execute_batch.return_value = ["测试值"] * 12
+        adapter = WindAdapter(client=mock_client)
+
+        # 验证新 data_type 不会抛出 "未知数据类型"
+        for data_type in ["daily_quotes", "financials", "industry", "fund_flow", "holders"]:
+            try:
+                result = adapter.fetch(
+                    data_type=data_type,
+                    codes=["600519.SH"],
+                    start_date="2025-01-01",
+                    end_date="2025-01-10",
+                    report_date="2024-12-31",
+                )
+                assert isinstance(result, list)
+            except ValueError as e:
+                # 参数验证 error 可以接受，但不能是 "未知数据类型"
+                assert "未知数据类型" not in str(e)
+
+    def test_fetch_daily_quotes_with_mock(self):
+        """使用 mock client 测试 fetch_daily_quotes 返回 DataFrame"""
+        from data_layer.adapters.wind import WindAdapter, WindExcelClient
+
+        mock_client = MagicMock(spec=WindExcelClient)
+        mock_client.execute_batch.return_value = [100.0] * 11
+        adapter = WindAdapter(client=mock_client)
+
+        df = adapter.fetch_daily_quotes(["600519.SH"], "2025-01-06", "2025-01-10")
+        expected_cols = [
+            "code",
+            "date",
+            "open",
+            "high",
+            "low",
+            "close",
+            "volume",
+            "amount",
+            "turnover",
+            "adj_factor",
+            "vwap",
+            "pct_change",
+            "amplitude",
+        ]
+        for col in expected_cols:
+            assert col in df.columns
+        # 确认 adj_close 已移除（用 daily_close + adj_type=2 代替）
+        assert "adj_close" not in df.columns
+
+    def test_fetch_daily_quotes_with_adj_type(self):
+        from data_layer.adapters.wind import WindAdapter, WindExcelClient
+
+        mock_client = MagicMock(spec=WindExcelClient)
+        mock_client.execute_batch.return_value = [100.0] * 11
+        adapter = WindAdapter(client=mock_client)
+
+        df = adapter.fetch_daily_quotes(["600519.SH"], "2025-01-06", "2025-01-06", adj_type=2)
+        assert len(df) == 1
+
+    def test_fetch_financial_statements_with_mock(self):
+        from data_layer.adapters.wind import WindAdapter, WindExcelClient
+
+        mock_client = MagicMock(spec=WindExcelClient)
+        # 3 trade_date + 8 report_date + 1 no_date = 12 formulas total
+        mock_client.execute_batch.return_value = [1e9] * 12
+        adapter = WindAdapter(client=mock_client)
+
+        df = adapter.fetch_financial_statements(
+            ["600519.SH"], trade_date="2024-12-31", report_date="2024/12/31"
+        )
+        expected_cols = [
+            "code",
+            "trade_date",
+            "report_date",
+            "revenue",
+            "operating_cost",
+            "gross_profit",
+            "gross_profit_ttm",
+            "gross_profit_margin",
+            "net_profit",
+            "eps",
+            "roe",
+            "total_assets",
+            "equity",
+            "free_cf",
+            "free_cf_per_share",
+        ]
+        for col in expected_cols:
+            assert col in df.columns
+        # 确认已删除的字段不存在
+        assert "total_liabilities" not in df.columns
+        assert "operating_cf" not in df.columns
+
+    def test_fetch_industry_data_with_mock(self):
+        from data_layer.adapters.wind import WindAdapter, WindExcelClient
+
+        mock_client = MagicMock(spec=WindExcelClient)
+        mock_client.execute_batch.return_value = ["食品饮料", "白酒", "白酒"]
+        adapter = WindAdapter(client=mock_client)
+
+        df = adapter.fetch_industry_data(["600519.SH"])
+        assert "industry_sw" in df.columns
+        assert "industry_sw_l2" in df.columns
+        assert "industry_sw_l3" in df.columns
+        # PE/PB 已删除
+        assert "industry_avg_pe" not in df.columns
+        assert "industry_avg_pb" not in df.columns
+
+    def test_fetch_fund_flow_with_mock(self):
+        from data_layer.adapters.wind import WindAdapter, WindExcelClient
+
+        mock_client = MagicMock(spec=WindExcelClient)
+        mock_client.execute_batch.return_value = [1e8] * 5
+        adapter = WindAdapter(client=mock_client)
+
+        df = adapter.fetch_fund_flow(["600519.SH"], "2025-01-06", "2025-01-10")
+        expected_cols = [
+            "code",
+            "date",
+            "main_force_inflow",
+            "main_force_open",
+            "main_force_close",
+            "north_bound_shares",
+            "north_bound_pct",
+        ]
+        for col in expected_cols:
+            assert col in df.columns
+        assert "net_inflow" not in df.columns
+        assert "retail_inflow" not in df.columns
+        assert "north_bound_inflow" not in df.columns
+
+    def test_fetch_holder_data_with_mock(self):
+        from data_layer.adapters.wind import WindAdapter, WindExcelClient
+
+        mock_client = MagicMock(spec=WindExcelClient)
+        mock_client.execute_batch.return_value = [150000] * 7
+        adapter = WindAdapter(client=mock_client)
+
+        df = adapter.fetch_holder_data(["600519.SH"], "2024-12-31")
+        expected_cols = [
+            "code",
+            "report_date",
+            "holder_num",
+            "holder_avg_hold",
+            "holder_avg_pct",
+            "top10_pct",
+            "top10_quantity",
+            "institutional_hold",
+            "institutional_pct",
+        ]
+        for col in expected_cols:
+            assert col in df.columns
+        assert "fund_pct" not in df.columns

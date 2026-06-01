@@ -1486,6 +1486,55 @@ Functions:
   - Check if candidate should be blocked based on readiness score
 
 
+## `app/api/routes/wind.py`
+
+Module docstring:
+> Wind Excel Data API 路由
+
+Imports:
+- `core.observability`
+- `data_layer.adapters.wind`
+- `datetime`
+- `fastapi`
+- `pydantic`
+
+Classes:
+- `WindConsensusRequest`
+  - 一致预期查询请求
+- `WindDateRangeRequest`
+  - 带日期范围的查询请求（两融/龙虎榜/日行情/资金流向）
+- `WindReportDateRequest`
+  - 带报告期的查询请求（财务/持有人）
+- `WindFinancialsRequest`
+  - 财务报表查询请求
+- `WindResponse`
+  - Wind 查询响应
+
+Functions:
+- `_create_adapter`
+  - 创建 Wind 适配器实例
+- `_build_response`
+  - 将 DataFrame 转为统一响应格式
+- `check_health`
+  - 检查 Wind Excel 插件是否可用
+- `get_consensus`
+  - 获取一致预期数据
+- `get_margin_trading`
+  - 获取融资融券数据
+- `get_block_trades`
+  - 获取龙虎榜数据
+- `get_prices`
+  - 获取日行情数据
+- `get_financials`
+  - 获取财务报表数据
+- `get_industry`
+  - 获取行业分类数据
+- `get_fund_flow`
+  - 获取资金流向数据
+- `get_holders`
+  - 获取股东/持有人结构数据
+
+
 ## `app/api/routes/workbench.py`
 
 Module docstring:
@@ -3439,7 +3488,7 @@ Classes:
 - `AKShareAdapterError`
 - `DataSourceRouter`
   - 数据源路由器
-  - methods: __init__, fetch_stock_quotes, fetch_financial_report, fetch_fund_flow, fetch_industry_classification, fetch_macro_indicators, fetch_technical_indicators, fetch_sentiment, fetch, fetch_news_cls, fetch_news_cnstock, fetch_reports_zq
+  - methods: __init__, fetch_stock_quotes, fetch_financial_report, fetch_fund_flow, fetch_industry_classification, fetch_macro_indicators, fetch_technical_indicators, fetch_sentiment, fetch, fetch_news_cls, fetch_news_cnstock, fetch_reports_zq, is_wind_available, fetch_wind_consensus, fetch_wind_margin_trading, fetch_wind_block_trades, fetch_wind_daily_quotes, fetch_wind_financials, fetch_wind_industry, fetch_wind_fund_flow, fetch_wind_holders
 
 
 ## `data_layer/adapters/hybrid_price_adapter.py`
@@ -3787,6 +3836,102 @@ Functions:
   - 龙虎榜卖出席位 [待验证]
 - `lhb_count`
   - 区间龙虎榜上榜次数
+- `daily_open`
+  - 开盘价（元） ✅ 已确认
+- `daily_high`
+  - 最高价（元） ✅ 已确认
+- `daily_low`
+  - 最低价（元） ✅ 已确认
+- `daily_close`
+  - 收盘价（元） ✅ 已确认
+- `daily_volume`
+  - 成交量 ✅ 已确认（2 参数，无复权方式）
+- `daily_amount`
+  - 成交额（元） ✅ 已确认
+- `daily_turnover`
+  - 换手率（%） ✅ 已确认
+- `daily_adj_factor`
+  - 复权因子 ✅ 已确认
+- `daily_vwap`
+  - 均价（元） ✅ 已确认 (Wind 函数名: s_dq_avgprice)
+- `daily_pct_change`
+  - 涨跌幅（%） ✅ 已确认
+- `daily_amplitude`
+  - 振幅（%） ✅ 已确认 (Wind 函数名: s_dq_swing)
+- `fin_revenue`
+  - 营业收入 TTM（元） ✅ 已确认
+- `fin_operating_cost`
+  - 营业成本 TTM（元） ✅ 已确认
+- `fin_gross_profit`
+  - 毛利（元）—— 单报告期版 ✅ 已确认
+- `fin_gross_profit_ttm`
+  - 毛利 TTM（元） ✅ 已确认
+- `fin_gross_profit_margin`
+  - 销售毛利率（%） ✅ 已确认
+- `fin_net_profit`
+  - 净利润 TTM（元） ✅ 已确认
+- `fin_eps`
+  - 基本每股收益 TTM（元/股） ✅ 已确认
+- `fin_roe`
+  - 净资产收益率 ROE TTM（%） ✅ 已确认
+- `fin_total_assets`
+  - 总资产（元）—— 业绩快报版
+- `fin_debt_yoy`
+  - 总负债同比增长率（%） ✅ 已确认
+- `fin_equity`
+  - 归属母公司股东权益 MRQ（元） ✅ 已确认
+- `fin_equity_yoy_growth`
+  - 归属母公司股东权益 比年初增长率（%）—— 业绩快报版
+- `fin_free_cf`
+  - 企业自由现金流量 FCFF（元） ✅ 已确认
+- `fin_free_cf_per_share`
+  - 每股企业自由现金流量（元） ✅ 已确认
+- `val_pe_ttm`
+  - 市盈率 PE(TTM) ✅ 已确认
+- `val_pb_lf`
+  - 市净率 PB(LF) ✅ 已确认
+- `val_pcf_ocf_ttm`
+  - 市现率 PCF（经营现金流 TTM，可回测） ✅ 已确认
+- `val_pcf_ocf_lyr`
+  - 市现率 PCF（经营现金流，最新年报 LYR） ✅ 已确认
+- `industry_sw`
+  - 申万行业分类 (2021) ✅ 已确认
+- `industry_sw_level2`
+  - 申万二级行业分类（industry_sw 的便捷包装）
+- `industry_sw_level3`
+  - 申万三级行业分类（industry_sw 的便捷包装）
+- `index_close`
+  - 指数收盘价 ✅ 已确认（i_dq_* 为指数专用前缀）
+- `index_pct_change`
+  - 指数涨跌幅（%） ✅ 已确认
+- `index_weight`
+  - 所属指数权重（%） ✅ 已确认
+- `moneyflow_main_force`
+  - 主力净流入额（元） ✅ 已确认
+- `moneyflow_main_force_open`
+  - 开盘主力净流入额（元） ✅ 已确认
+- `moneyflow_main_force_close`
+  - 尾盘主力净流入额（元） ✅ 已确认
+- `north_bound_shares`
+  - 沪(深)股通持股数量（股） ✅ 已确认
+- `north_bound_pct`
+  - 沪(深)股通持股占比（%） ✅ 已确认
+- `holder_num`
+  - 股东户数 ✅ 已确认
+- `holder_liq_num`
+  - 流通股东户数 ✅ 已确认
+- `holder_avg_hold`
+  - 户均持股数量（股） ✅ 已确认
+- `holder_avg_pct`
+  - 户均持股比例（‰） ✅ 已确认
+- `top10_holder_pct`
+  - 前十大股东持股比例合计（%） ✅ 已确认
+- `top10_holder_quantity`
+  - 前十大股东持股数量合计（股） ✅ 已确认
+- `institutional_hold`
+  - 机构持股数量合计（股） ✅ 已确认
+- `institutional_hold_pct`
+  - 机构持股比例合计（%） ✅ 已确认
 
 
 ## `data_layer/adapters/wind/wind_adapter.py`
@@ -3807,7 +3952,7 @@ Imports:
 Classes:
 - `WindAdapter`
   - Wind 数据适配器
-  - methods: __init__, _get_client, is_available, fetch_consensus_estimates, fetch_margin_trading, fetch_block_trades, fetch, parse
+  - methods: __init__, _get_client, is_available, fetch_consensus_estimates, fetch_margin_trading, fetch_block_trades, fetch_daily_quotes, fetch_financial_statements, fetch_industry_data, fetch_fund_flow, fetch_holder_data, fetch, parse
 
 
 ## `data_layer/adapters/yahoo_adapter.py`
@@ -5711,6 +5856,14 @@ Classes:
   - 指数成分表
 - `ETLRunDB`
   - ETL 运行记录表
+- `WindConsensusEstimateDB`
+  - Wind 一致预期数据
+- `WindMarginTradingDB`
+  - Wind 融资融券数据
+- `WindBlockTradeDB`
+  - Wind 龙虎榜数据
+- `WindDailyBarDB`
+  - Wind 日行情数据（含 Wind 独家字段：adj_close, adj_factor, vwap）
 
 Functions:
 - `utc_now`
@@ -5980,6 +6133,24 @@ Classes:
 - `TraceRepositoryImpl`
   - 推理追踪仓储实现
   - methods: _to_domain, _to_model, save, get, list, delete, get_by_request_type
+
+
+## `data_layer/repositories/wind_repository.py`
+
+Module docstring:
+> WindRepository — Wind 数据持久化层
+
+Imports:
+- `core.observability`
+- `data_layer.repositories.base`
+- `data_layer.repositories.models`
+- `sqlalchemy.dialects.postgresql`
+- `typing`
+
+Classes:
+- `WindRepository`
+  - Wind 数据仓储 —— 基于 PostgreSQL upsert 的持久化层
+  - methods: __init__, db, _upsert, save_consensus_estimates, get_consensus_estimates, save_margin_trading, get_margin_trading, save_block_trades, get_block_trades, save_daily_bars, get_daily_bars, close
 
 
 ## `data_layer/validation/__init__.py`
@@ -7726,6 +7897,9 @@ Imports:
 - `macro`
 - `price_volume`
 - `valuation`
+- `wind_block`
+- `wind_consensus`
+- `wind_margin`
 
 
 ## `signal_lab/features/groups/financial.py`
@@ -7920,6 +8094,93 @@ Classes:
   - methods: __init__, compute
 - `ValuationFeatures`
   - 估值特征组
+  - methods: __init__
+
+
+## `signal_lab/features/groups/wind_block.py`
+
+Module docstring:
+> Wind 龙虎榜特征组 —— 从 Wind Excel 插件获取龙虎榜数据作为异常交易/聪明钱因子
+
+Imports:
+- `pandas`
+- `signal_lab.features.base`
+- `typing`
+
+Classes:
+- `LHBNetBuyFeature`
+  - 龙虎榜净买入额特征 —— 聪明钱净方向
+  - methods: __init__, compute
+- `LHBBuySellRatioFeature`
+  - 龙虎榜买卖比 = 买入金额 / 卖出金额 — >1 表示净买入
+  - methods: __init__, compute
+- `LHBIntensityFeature`
+  - 龙虎榜强度 = 净买入额 / 成交额 — 聪明钱参与度
+  - methods: __init__, compute
+- `WindBlockFeatures`
+  - Wind 龙虎榜特征组
+  - methods: __init__
+
+
+## `signal_lab/features/groups/wind_consensus.py`
+
+Module docstring:
+> Wind 一致预期特征组 —— 从 Wind Excel 插件获取分析师一致预期数据作为 Alpha 因子
+
+Imports:
+- `pandas`
+- `signal_lab.features.base`
+- `typing`
+
+Classes:
+- `ConsensusNetProfitFeature`
+  - 一致预测净利润特征
+  - methods: __init__, compute
+- `ConsensusEPSFeature`
+  - 一致预测 EPS 特征
+  - methods: __init__, compute
+- `ConsensusTargetPriceFeature`
+  - 一致预测目标价特征
+  - methods: __init__, compute
+- `ConsensusRatingFeature`
+  - 综合评级特征（数值越低越好：1=买入, 5=卖出）
+  - methods: __init__, compute
+- `ConsensusRatingNumFeature`
+  - 评级机构数量特征 —— 越多机构覆盖 = 越受关注
+  - methods: __init__, compute
+- `WindConsensusFeatures`
+  - Wind 一致预期特征组
+  - methods: __init__
+
+
+## `signal_lab/features/groups/wind_margin.py`
+
+Module docstring:
+> Wind 融资融券特征组 —— 从 Wind Excel 插件获取两融数据作为市场情绪/资金面因子
+
+Imports:
+- `pandas`
+- `signal_lab.features.base`
+- `typing`
+
+Classes:
+- `MarginBalanceFeature`
+  - 融资余额特征 —— 绝对规模反映做多杠杆
+  - methods: __init__, compute
+- `ShortBalanceFeature`
+  - 融券余量特征 —— 绝对规模反映做空压力
+  - methods: __init__, compute
+- `MarginBuyFeature`
+  - 融资买入额特征 —— 当日做多意愿
+  - methods: __init__, compute
+- `NetMarginFlowFeature`
+  - 融资净流入特征 = 融资买入 - 融资偿还
+  - methods: __init__, compute
+- `ShortRatioFeature`
+  - 融券/融资比率 = 融券余量 / 融资余额 — 做空相对做多强度
+  - methods: __init__, compute
+- `WindMarginFeatures`
+  - Wind 融资融券特征组
   - methods: __init__
 
 
@@ -8657,6 +8918,21 @@ Module docstring:
 Imports:
 - `alembic`
 - `sqlalchemy`
+
+Functions:
+- `upgrade`
+- `downgrade`
+
+
+## `storage/migrations/versions/010_add_wind_data_tables.py`
+
+Module docstring:
+> Add Wind data tables (wind_consensus_estimate, wind_margin_trading, wind_block_trade, wind_daily_bar)
+
+Imports:
+- `alembic`
+- `sqlalchemy`
+- `typing`
 
 Functions:
 - `upgrade`

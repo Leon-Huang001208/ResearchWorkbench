@@ -6,6 +6,17 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **Wind 公式验证与清理**: 43 个新增公式全部通过 Mac Wind Excel 函数浏览器逐个验证
+  - 日行情 `s_dq_*` (非 s_pq_*)，OHLC 增加 adj_type，移除 adj_close
+  - 财务 TTM 参数不统一（trade_date vs report_date），fin_equity MRQ 无日期参数
+  - 行业三函数合并为 `s_info_industry_sw_2021` + level 参数
+  - 资金流向保留主力三时段，北向改用 s_share_n/pct_n
+  - 指数 `i_dq_*` 前缀，index_weight 增加 trade_date
+  - 删除 8 个未验证 placeholder（total_liabilities/operating_cf/industry_pe_pb/fund_hold_pct 等）
+  - `wind_adapter.py` 所有 fetch 方法签名更新
+
 ### Added
 - **Wind Excel 适配器**: 通过 xlwings → AppleScript → Excel Wind 插件获取专业金融数据，macOS 原生支持
   - `data_layer/adapters/wind/client.py` — `WindExcelClient`：xlwings 连接管理、心跳检测、批量公式执行、后台保活线程（30min 间隔防自动登出）
@@ -28,7 +39,26 @@
   - `app/web/static/js/signal-lab.js` — 运行时注入“动态因子”页签和面板
   - `app/web/static/style.css` — 追加动态因子面板样式
   - `tests/unit/test_dynamic_factor_visualization_service.py` — 覆盖可视化 payload 结构
-- **WebUI 导航收敛**: 在不修改 dashboard 与模板文件的前提下，将低频/历史页面归档隐藏，保留“更多”按钮随时展开
+- **Wind Excel 适配器 ⭐ 重大扩展**: 公式覆盖从 35 个扩展到 78 个（43 个新增均已通过 Mac Wind Excel 函数浏览器验证），新增 API 端点 + Web UI + Signal Lab 因子 + 数据持久化
+  - `data_layer/adapters/wind/formulas.py` — 新增 43 个已验证公式（日行情 11、财务/估值 20、行业/指数 6、资金流向/北向 5、股东结构 8）；移除未验证 placeholder（总负债/经营现金流/行业PE/PB/散户资金流等）
+  - `data_layer/adapters/wind/wind_adapter.py` — 新增 5 个 fetch 方法：`fetch_daily_quotes`、`fetch_financial_statements`、`fetch_industry_data`、`fetch_fund_flow`、`fetch_holder_data`；实现 `parse()` 方法；source_type 改为 `vendor_snapshot`
+  - `app/api/routes/wind.py` — 新增 8 个 REST API 端点：health/prices/financials/industry/fund-flow/holders（含 Pydantic 请求/响应模型）
+  - `app/web/static/js/wind.js` — 新增 Wind 数据面板模块（fetch/渲染/健康检查）
+  - `app/web/templates/index.html` — 新增 Wind 面板（代码输入、数据类型选择器、日期选择、结果显示表格）
+  - `app/web/static/style.css` — 新增 Wind 面板样式
+  - `signal_lab/features/groups/wind_consensus.py` — WindConsensusFeatures：一致预期因子（9 个特征：净利润 fy1/fy2/ftm、EPS fy1/fy2/ftm、目标价上涨空间、评级分数、评级机构数）
+  - `signal_lab/features/groups/wind_margin.py` — WindMarginFeatures：融资融券因子（5 个特征：融资余额、融券余额、融资净买入、融资净流入、融券占比）
+  - `signal_lab/features/groups/wind_block.py` — WindBlockFeatures：龙虎榜因子（3 个特征：LHB 净买入、买卖比、密集度）
+  - `data_layer/adapters/data_source_router.py` — 新增 9 个 Wind 类型方法：`is_wind_available`、`fetch_wind_consensus`、`fetch_wind_margin_trading`、`fetch_wind_block_trades`、`fetch_wind_daily_quotes`、`fetch_wind_financials`、`fetch_wind_industry`、`fetch_wind_fund_flow`、`fetch_wind_holders`
+  - `storage/migrations/versions/010_add_wind_data_tables.py` — 创建 4 张表：`wind_consensus_estimate`、`wind_margin_trading`、`wind_block_trade`、`wind_daily_bar`（含索引和唯一约束）
+  - `data_layer/repositories/models.py` — 新增 4 个 ORM 模型：`WindConsensusEstimateDB`、`WindMarginTradingDB`、`WindBlockTradeDB`、`WindDailyBarDB`
+  - `data_layer/repositories/wind_repository.py` — `WindRepository`：基于 PostgreSQL upsert 的持久化层（4 类数据的批量保存和查询）
+  - `data_layer/adapters/base.py` — 修复 `_create_document_envelope` 字段名（id→doc_id、content→raw_text、source_path→source_name、created_at→published_at）
+  - `tests/unit/test_wind_adapter.py` — 新增 102 个测试（价格 12、财务 17、行业 6、资金流向 5、持有人 8、适配器方法 10、异常 8、公式基础 16、客户端逻辑 4、解析 2）
+  - `tests/unit/test_wind_api.py` — 新增 13 个 API 测试（健康检查、一致预期、两融、龙虎榜、行情、财务、行业、资金流向、持有人）
+  - `tests/unit/test_wind_features.py` — 新增 15 个特征测试（一致预期 6、融资融券 4、龙虎榜 4、集成 2）
+  - `tests/unit/test_wind_repository.py` — 新增 14 个仓储测试（空记录、upsert、查询、初始化）
+- **WebUI 导航收敛**: 在不修改 dashboard 与模板文件的前提下，将低频/历史页面归档隐藏，保留”更多”按钮随时展开
   - `app/web/static/js/navigation-curation.js` — 新增导航归档配置和显示/隐藏状态管理
   - `app/web/static/js/app.js` — 初始化导航收敛模块
   - `app/web/static/style.css` — 新增归档导航按钮样式
@@ -160,6 +190,14 @@
 - **backfill-3-missing-sources**: 启动回填新增 3 个源（cnstock_flash, zhiqiu_wechat, zhiqiu_transcript），之前仅 cls/cnstock/zhiqiu_reports
 
 ### Fixed
+- **cnstock 爬虫 API 错误时注入虚构新闻**: `cnstock.py` `_crawl_page()` 在 API 返回业务错误码（如 "未登录" 10304）或 `data=null` 时，异常处理 fallback 到 `_generate_sample_news()`，可能将虚构新闻注入数据库
+  - `data_layer/crawlers/cnstock/cnstock.py` — `_crawl_page()` 添加 API 业务错误码检查（`code not in (None, 0, 200) and data is None`），返回空列表
+  - `data_layer/crawlers/cnstock/cnstock.py` — `_parse_response_common()` 返回空列表而非 `_generate_sample_news()`
+  - `data_layer/crawlers/cnstock/cnstock.py` — `_parse_api_response()` 和 `_parse_search_api_response()` 添加 None-safety：`data.get("data")` 返回 None 时安全处理
+- **Scheduler 事件循环阻塞导致非 CLS 作业被跳过**: `_run_crawl_job()` 等 5 个 async 方法内同步调用 `CrawlOrchestrator`，阻塞 asyncio 事件循环。CLS（先注册）执行期间（~11s），其他作业的 `next_run_time` 超过 APScheduler 默认 `misfire_grace_time=1s` 被跳过
+  - `services/crawl_scheduler.py` — 5 个 async 方法全部改为 `loop.run_in_executor(None, sync_fn)` 在线程池中运行同步抓取代码
+  - 影响方法：`_run_crawl_job`、`_run_backfill_job`、`_run_deep_backfill_job`、`_run_cnstock_deep_backfill_job`、`_run_zq_deep_backfill_job`
+  - 修复后全部 6 个定时作业同时触发（10:37:07 同一秒），不再排队等待
 - **worker-heartbeat-cross-process**: Worker 心跳数据跨进程不可见修复
   - `workers/knowledge_worker.py` — 新增 `_write_heartbeat()` 将心跳写入 `logs/{worker_label}.heartbeat.json`
   - `workers/crawl_scheduler_worker.py` — 新增 `_write_heartbeat()` 将心跳写入 `logs/scheduler.heartbeat.json`
