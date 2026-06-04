@@ -7,6 +7,7 @@
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import TypedDict
 
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
@@ -16,6 +17,12 @@ from data_layer.repositories.base import SessionLocal, ensure_schema
 from data_layer.repositories.models import StockPriceData
 
 logger = get_logger(__name__)
+
+
+class TrendConfig(TypedDict):
+    name: str
+    bias: float
+    vol: float
 
 
 def generate_realistic_price_data(
@@ -32,7 +39,7 @@ def generate_realistic_price_data(
     current_price = base_price
 
     # 预定义一些真实的市场模式
-    trends = [
+    trends: list[TrendConfig] = [
         {"name": "bull", "bias": 0.0015, "vol": 0.025},  # 慢牛
         {"name": "bear", "bias": -0.0012, "vol": 0.022},  # 慢熊
         {"name": "sideways", "bias": 0.0, "vol": 0.018},  # 震荡

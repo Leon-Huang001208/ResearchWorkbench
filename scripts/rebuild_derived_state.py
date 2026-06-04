@@ -273,7 +273,8 @@ def phase2_recompute_timing_decisions(
     )
 
     # Get all rebuilt signals
-    signals = signal_service.list_signals(limit=limit)
+    effective_limit = limit if limit is not None else 100
+    signals = signal_service.list_signals(limit=effective_limit)
     logger.info(f"Found {len(signals)} signals to process")
 
     from timing_engine.contracts import TimingDecision, TimingModelScore
@@ -349,15 +350,51 @@ def phase2_recompute_timing_decisions(
                 action = "SKIP"
 
             # Build model scores structure from timing factors for consistency
+            active_weights = {
+                "regime": 0.2,
+                "flow": 0.2,
+                "sentiment": 0.3,
+                "liquidity": 0.1,
+                "theme_diffusion": 0.1,
+                "crowding": 0.1,
+            }
             model_scores = [
-                TimingModelScore(model_name="regime", score=timing_factors.regime, weight=0.2),
-                TimingModelScore(model_name="flow", score=timing_factors.flow, weight=0.2),
-                TimingModelScore(model_name="sentiment", score=signal.confidence, weight=0.3),
-                TimingModelScore(model_name="liquidity", score=0.7, weight=0.1),
                 TimingModelScore(
-                    model_name="theme_diffusion", score=timing_factors.theme_diffusion, weight=0.1
+                    model_name="regime",
+                    score=timing_factors.regime,
+                    confidence=signal.confidence,
+                    rationale="Neutral regime default used during deterministic recovery.",
                 ),
-                TimingModelScore(model_name="crowding", score=timing_factors.crowding, weight=0.1),
+                TimingModelScore(
+                    model_name="flow",
+                    score=timing_factors.flow,
+                    confidence=signal.confidence,
+                    rationale="Flow default used during deterministic recovery.",
+                ),
+                TimingModelScore(
+                    model_name="sentiment",
+                    score=signal.confidence,
+                    confidence=signal.confidence,
+                    rationale="Recovered signal confidence used as sentiment proxy.",
+                ),
+                TimingModelScore(
+                    model_name="liquidity",
+                    score=0.7,
+                    confidence=signal.confidence,
+                    rationale="Liquidity default used during deterministic recovery.",
+                ),
+                TimingModelScore(
+                    model_name="theme_diffusion",
+                    score=timing_factors.theme_diffusion,
+                    confidence=signal.confidence,
+                    rationale="Theme diffusion default used during deterministic recovery.",
+                ),
+                TimingModelScore(
+                    model_name="crowding",
+                    score=timing_factors.crowding,
+                    confidence=signal.confidence,
+                    rationale="Crowding default used during deterministic recovery.",
+                ),
             ]
 
             # Create timing decision with production-calculated values
@@ -367,7 +404,7 @@ def phase2_recompute_timing_decisions(
                 readiness_score=readiness.overall_score,
                 market_regime="neutral",
                 model_scores=model_scores,
-                active_weights={m.model_name: m.weight for m in model_scores},
+                active_weights=active_weights,
                 blockers=blockers,
                 rationale=f"Auto-rebuilt from restored event {signal.event_id} using production timing engine",
             )
@@ -405,7 +442,8 @@ def phase3_rebuild_outcomes(
     )
 
     # Get all timing decisions
-    timing_decisions = timing_repo.list(limit=limit)
+    effective_limit = limit if limit is not None else 100
+    timing_decisions = timing_repo.list(limit=effective_limit)
     logger.info(f"Found {len(timing_decisions)} timing decisions to process for outcomes")
 
     import uuid
@@ -415,18 +453,25 @@ def phase3_rebuild_outcomes(
     from data_layer.market_data import market_data_provider
 
     for decision in timing_decisions:
+        signal_id = decision.signal_id or "unknown"
         try:
+            if signal_id == "unknown":
+                reason = f"No signal_id found for decision {decision.decision_id}"
+                logger.warning(reason)
+                reporter.add_outcome_result(signal_id, rebuilt=False, failed=True, reason=reason)
+                continue
+
             # Check if outcome already exists for this signal
-            existing_outcome = outcome_service.get_outcome_by_signal(decision.signal_id)
+            existing_outcome = outcome_service.get_outcome_by_signal(signal_id)
 
             if existing_outcome and not dry_run:
-                logger.debug(f"Outcome already exists for signal {decision.signal_id}, skipping")
-                reporter.add_outcome_result(decision.signal_id, rebuilt=False)
+                logger.debug(f"Outcome already exists for signal {signal_id}, skipping")
+                reporter.add_outcome_result(signal_id, rebuilt=False)
                 continue
 
             if dry_run:
                 logger.debug(f"Dry run: would rebuild outcome for decision {decision.decision_id}")
-                reporter.add_outcome_result(decision.signal_id, rebuilt=False)
+                reporter.add_outcome_result(signal_id, rebuilt=False)
                 continue
 
             # Get the signal to get subject/symbol info
@@ -435,10 +480,10 @@ def phase3_rebuild_outcomes(
             # For recovery, we assume symbols that were in the original event have data if indexed
             subject_id = getattr(decision, "subject_id", None)
             if not subject_id:
-                reason = f"No subject symbol found for decision {decision.decision_id} on signal {decision.signal_id}"
+                reason = f"No subject symbol found for decision {decision.decision_id} on signal {signal_id}"
                 logger.warning(reason)
                 reporter.add_outcome_result(
-                    decision.signal_id, rebuilt=False, missing_market=True, reason=reason
+                    signal_id, rebuilt=False, missing_market=True, reason=reason
                 )
                 continue
 
@@ -449,15 +494,15 @@ def phase3_rebuild_outcomes(
                 reason = f"Market data check failed for {subject_id}: {str(e)}"
                 logger.warning(reason)
                 reporter.add_outcome_result(
-                    decision.signal_id, rebuilt=False, missing_market=True, reason=reason
+                    signal_id, rebuilt=False, missing_market=True, reason=reason
                 )
                 continue
 
             if not market_data_available:
-                reason = f"No price history available for symbol {subject_id} (signal {decision.signal_id})"
+                reason = f"No price history available for symbol {subject_id} (signal {signal_id})"
                 logger.warning(reason)
                 reporter.add_outcome_result(
-                    decision.signal_id, rebuilt=False, missing_market=True, reason=reason
+                    signal_id, rebuilt=False, missing_market=True, reason=reason
                 )
                 continue
 
@@ -476,7 +521,7 @@ def phase3_rebuild_outcomes(
             outcome = SignalOutcome(
                 outcome_id=str(uuid.uuid4()),
                 event_id=getattr(decision, "event_id", ""),
-                signal_id=decision.signal_id,
+                signal_id=signal_id,
                 subject_id=subject_id,
                 event_date=datetime.now(timezone.utc).date().isoformat(),
                 timing_action=decision.action,
@@ -500,10 +545,8 @@ def phase3_rebuild_outcomes(
 
             # Save using the production outcome service (syncs to learning journal automatically)
             outcome = outcome_service.record_outcome(outcome)
-            logger.debug(
-                f"Rebuilt outcome for signal {decision.signal_id}: outcome_id={outcome.outcome_id}"
-            )
-            reporter.add_outcome_result(decision.signal_id, rebuilt=True)
+            logger.debug(f"Rebuilt outcome for signal {signal_id}: outcome_id={outcome.outcome_id}")
+            reporter.add_outcome_result(signal_id, rebuilt=True)
 
         except Exception as e:
             logger.error(
@@ -511,7 +554,7 @@ def phase3_rebuild_outcomes(
                 exc_info=True,
             )
             reporter.add_outcome_result(
-                decision.signal_id if hasattr(decision, "signal_id") else "unknown",
+                signal_id,
                 rebuilt=False,
                 failed=True,
                 reason=str(e),

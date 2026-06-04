@@ -233,7 +233,9 @@ def run_extraction(
     assertions_extracted = 0
     assertions_persisted = 0
     events_created = 0
-    content_hash = source_doc.content_hash
+    doc_id = str(source_doc.doc_id)
+    source_type = str(source_doc.source_type)
+    content_hash = str(source_doc.content_hash)
     extractor_version = f"backfill-{assertion_extractor.__class__.__name__}-v1"
 
     try:
@@ -243,16 +245,16 @@ def run_extraction(
                 # If it's a PDF we would need a parser, but for backfill
                 # we just skip and note that extraction isn't possible
                 logger.debug(
-                    f"Binary artifact {source_doc.doc_id} requires external parsing, skipping extraction"
+                    f"Binary artifact {doc_id} requires external parsing, skipping extraction"
                 )
                 return 0, 0, 0, False
 
-            logger.debug(f"No raw text available for extraction for doc {source_doc.doc_id}")
+            logger.debug(f"No raw text available for extraction for doc {doc_id}")
             return 0, 0, 0, False
 
         # Extract assertions
         raw_assertions = assertion_extractor.extract_assertions(
-            raw_text, {"doc_id": source_doc.doc_id, "source_type": source_doc.source_type}
+            raw_text, {"doc_id": doc_id, "source_type": source_type}
         )
 
         assertions_extracted = len(raw_assertions)
@@ -260,7 +262,7 @@ def run_extraction(
         # Persist each assertion to database with idempotency
         for idx, raw_assertion in enumerate(raw_assertions):
             # Generate stable assertion id for deduplication
-            assertion_id = generate_assertion_id(source_doc.doc_id, idx, content_hash)
+            assertion_id = generate_assertion_id(doc_id, idx, content_hash)
 
             # Check if assertion already exists
             existing = db.query(Assertion).filter_by(assertion_id=assertion_id).first()

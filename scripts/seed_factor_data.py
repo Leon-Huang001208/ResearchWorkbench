@@ -35,6 +35,7 @@ import sys
 import time
 from datetime import date, datetime, timezone
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -1410,18 +1411,25 @@ def _build_forward_returns(df: pd.DataFrame, horizon_days: int = 20) -> pd.Serie
     df = df.sort_values(["symbol", "trade_date"]).copy()
     grouped = df.groupby("symbol")
 
-    records: list[dict] = []
+    records: list[dict[str, object]] = []
     for symbol, group in grouped:
+        subject_id = str(symbol)
         group = group.reset_index(drop=True)
         for i in range(len(group) - horizon_days):
-            close_now = group.loc[i, "close"]
-            close_fwd = group.loc[i + horizon_days, "close"]
-            if close_now and close_fwd and close_now != 0:
+            close_now = _to_optional_float(group.loc[i, "close"])
+            close_fwd = _to_optional_float(group.loc[i + horizon_days, "close"])
+            as_of_date = _to_optional_date(group.loc[i, "trade_date"])
+            if (
+                as_of_date is not None
+                and close_now is not None
+                and close_fwd is not None
+                and close_now != 0
+            ):
                 ret = (close_fwd - close_now) / close_now
                 records.append(
                     {
-                        "subject_id": symbol,
-                        "as_of_date": group.loc[i, "trade_date"],
+                        "subject_id": subject_id,
+                        "as_of_date": as_of_date,
                         "forward_return": float(ret),
                     }
                 )
@@ -1438,6 +1446,30 @@ def _build_forward_returns(df: pd.DataFrame, horizon_days: int = 20) -> pd.Serie
 
 
 # ─── Financial factor computation ──────────────────────────
+
+
+def _to_optional_float(value: Any) -> float | None:
+    """Convert nullable DB/pandas scalar values to float."""
+    if value is None:
+        return None
+    missing = pd.isna(value)
+    if isinstance(missing, (bool, np.bool_)) and missing:
+        return None
+    return float(value)
+
+
+def _to_optional_date(value: Any) -> date | None:
+    """Convert nullable DB/pandas date values to date."""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    parsed = pd.to_datetime(value, errors="coerce")
+    if pd.isna(parsed):
+        return None
+    return parsed.date()
 
 
 def load_financial_frame(symbols: list[str]) -> pd.DataFrame:
@@ -1457,19 +1489,20 @@ def load_financial_frame(symbols: list[str]) -> pd.DataFrame:
         records = []
         for row in rows:
             # Extract from raw_payload (pe_ttm, pb, eps, bvps)
-            rp = row.raw_payload or {}
+            rp_raw: Any = row.raw_payload or {}
+            rp: dict[str, Any] = rp_raw if isinstance(rp_raw, dict) else {}
             records.append(
                 {
                     "symbol": row.symbol,
                     "trade_date": row.report_date,  # model uses report_date
-                    "pe_ttm": float(rp.get("pe_ttm")) if rp.get("pe_ttm") is not None else None,
-                    "pb": float(rp.get("pb")) if rp.get("pb") is not None else None,
-                    "eps": float(rp.get("eps")) if rp.get("eps") is not None else None,
-                    "bvps": float(rp.get("bvps")) if rp.get("bvps") is not None else None,
-                    "roe": float(row.roe) if row.roe else None,
-                    "revenue": float(row.total_revenue) if row.total_revenue else None,
-                    "net_profit": float(row.net_profit) if row.net_profit else None,
-                    "debt_ratio": float(row.debt_ratio) if row.debt_ratio else None,
+                    "pe_ttm": _to_optional_float(rp.get("pe_ttm")),
+                    "pb": _to_optional_float(rp.get("pb")),
+                    "eps": _to_optional_float(rp.get("eps")),
+                    "bvps": _to_optional_float(rp.get("bvps")),
+                    "roe": _to_optional_float(row.roe),
+                    "revenue": _to_optional_float(row.total_revenue),
+                    "net_profit": _to_optional_float(row.net_profit),
+                    "debt_ratio": _to_optional_float(row.debt_ratio),
                 }
             )
         df = pd.DataFrame(records)
@@ -1514,48 +1547,45 @@ def compute_financial_factor_values(df: pd.DataFrame) -> list[FactorValue]:
     grouped = df.groupby("symbol")
 
     for symbol, group in grouped:
+        subject_id = str(symbol)
         group = group.sort_values("trade_date")
 
         for _, row in group.iterrows():
-            as_of_date = row["trade_date"]
+            as_of_date = _to_optional_date(row.get("trade_date"))
+            if as_of_date is None:
+                continue
 
             # Direct factor mappings
             for factor_id, col in direct_mappings.items():
-                val = row.get(col)
-                if val is not None and not (isinstance(val, float) and pd.isna(val)):
+                val = _to_optional_float(row.get(col))
+                if val is not None:
                     values.append(
                         FactorValue(
                             factor_id=factor_id,
-                            subject_id=symbol,
+                            subject_id=subject_id,
                             as_of_date=as_of_date,
-                            value=float(val),
+                            value=val,
                             available_at=now_utc,
                             source="akshare_financial",
                         )
                     )
 
             # YoY growth: compare with same quarter 1 year ago
-            current_revenue = row.get("revenue")
-            current_profit = row.get("net_profit")
+            current_revenue = _to_optional_float(row.get("revenue"))
+            current_profit = _to_optional_float(row.get("net_profit"))
 
-            if current_revenue is not None and not (
-                isinstance(current_revenue, float) and pd.isna(current_revenue)
-            ):
+            if current_revenue is not None:
                 prev_year = group[
                     group["trade_date"] == as_of_date.replace(year=as_of_date.year - 1)
                 ]
                 if not prev_year.empty:
-                    prev_rev = prev_year["revenue"].iloc[0]
-                    if (
-                        prev_rev is not None
-                        and not (isinstance(prev_rev, float) and pd.isna(prev_rev))
-                        and prev_rev != 0
-                    ):
+                    prev_rev = _to_optional_float(prev_year["revenue"].iloc[0])
+                    if prev_rev is not None and prev_rev != 0:
                         growth = float(current_revenue / prev_rev - 1.0)
                         values.append(
                             FactorValue(
                                 factor_id="revenue_growth_yoy",
-                                subject_id=symbol,
+                                subject_id=subject_id,
                                 as_of_date=as_of_date,
                                 value=growth,
                                 available_at=now_utc,
@@ -1563,24 +1593,18 @@ def compute_financial_factor_values(df: pd.DataFrame) -> list[FactorValue]:
                             )
                         )
 
-            if current_profit is not None and not (
-                isinstance(current_profit, float) and pd.isna(current_profit)
-            ):
+            if current_profit is not None:
                 prev_year = group[
                     group["trade_date"] == as_of_date.replace(year=as_of_date.year - 1)
                 ]
                 if not prev_year.empty:
-                    prev_profit = prev_year["net_profit"].iloc[0]
-                    if (
-                        prev_profit is not None
-                        and not (isinstance(prev_profit, float) and pd.isna(prev_profit))
-                        and prev_profit != 0
-                    ):
+                    prev_profit = _to_optional_float(prev_year["net_profit"].iloc[0])
+                    if prev_profit is not None and prev_profit != 0:
                         growth = float(current_profit / prev_profit - 1.0)
                         values.append(
                             FactorValue(
                                 factor_id="profit_growth_yoy",
-                                subject_id=symbol,
+                                subject_id=subject_id,
                                 as_of_date=as_of_date,
                                 value=growth,
                                 available_at=now_utc,

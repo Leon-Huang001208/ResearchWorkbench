@@ -80,7 +80,7 @@ def context() -> AgentContext:
 
 def test_agent_factory_creation(agent_factory: AgentFactory):
     """测试 AgentFactory 能正确创建各种 Agent。"""
-    roles = [
+    roles: list[AgentRole] = [
         "news",
         "social_media",
         "financial_report",

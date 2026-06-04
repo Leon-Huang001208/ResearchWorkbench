@@ -120,6 +120,7 @@ Key features:
 - `_wsd_to_daily_bars()`: Wind WSD list[list] → stock_daily_bar dict 转换
 - `_is_wind_available()`: Wind 终端可用性检测
 - `_save_checkpoint()` / `_load_checkpoint()`: JSON 断点持久化/恢复
+- Type boundaries: financial rows and forward-return inputs normalize pandas/DB scalar values through explicit optional float/date conversion before arithmetic, keeping recovery/seed flows compatible with strict mypy checks.
 
 Update this section when:
 
@@ -140,6 +141,11 @@ Purpose:
 - Smoke tests and verification
 - Data import and export
 - Operational utilities
+
+Typing notes:
+- Backup/restore scripts narrow subprocess commands and pipe handles before use.
+- Recovery scripts coerce ORM `Column`-typed fields such as document ids, content hashes, and signal ids into runtime strings at service/reporting boundaries.
+- Derived-state rebuild scripts must construct `TimingModelScore` with complete contract fields and keep active weights outside the score object.
 
 Update this section when:
 - New scripts are added

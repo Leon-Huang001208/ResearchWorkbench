@@ -136,6 +136,7 @@ Module docstring:
 Imports:
 - `app.api.models`
 - `core.contracts`
+- `core.interfaces.repository`
 - `data_layer.coordinator.multi_source_coordinator`
 - `data_layer.repositories.base`
 - `datetime`
@@ -143,6 +144,7 @@ Imports:
 - `pydantic`
 - `services.asset_analysis_service`
 - `sqlalchemy.orm`
+- `typing`
 
 Classes:
 - `AnalysisCardRequest`
@@ -451,6 +453,7 @@ Imports:
 - `services.ingest_service`
 - `shutil`
 - `tempfile`
+- `typing`
 
 Functions:
 - `_get_vector_store`
@@ -1328,6 +1331,7 @@ Module docstring:
 > 模板管理 API 路由 - 支持 DOCX/PPTX/Excel 模板上传、占位符发现、报告渲染
 
 Imports:
+- `core.contracts`
 - `core.observability`
 - `datetime`
 - `enum`
@@ -1883,6 +1887,7 @@ Imports:
 - `core.observability`
 - `json`
 - `timing_engine`
+- `timing_engine.contracts`
 - `typing`
 
 Functions:
@@ -3175,6 +3180,7 @@ Imports:
 - `core.observability`
 - `core.settings.config`
 - `time`
+- `typing`
 
 Classes:
 - `LocalEmbeddingProvider`
@@ -4627,7 +4633,7 @@ Classes:
   - 财联社爬虫配置
 - `CLSTelegramCrawler`
   - 财联社电报爬虫
-  - methods: __init__, initialize, _setup_logging, _warmup_cookies, _get_headers, _random_delay, _retry_request, get_telegram_data, _parse_telegram, _get_update_telegrams, _crawl_incremental, _add_telegram, _filter_telegrams, get_filtered_telegrams, get_filtered_daily_telegrams, _get_output_folder, _get_output_filename, _parse_and_validate_dates, get_summary, crawl_telegrams, _get_all_day_telegrams, save_to_json, execute
+  - methods: __init__, initialize, _setup_logging, _require_session, _warmup_cookies, _get_headers, _random_delay, _retry_request, get_telegram_data, _parse_telegram, _get_update_telegrams, _crawl_incremental, _add_telegram, _filter_telegrams, get_filtered_telegrams, get_filtered_daily_telegrams, _get_output_folder, _get_output_filename, _parse_and_validate_dates, get_summary, crawl_telegrams, _get_all_day_telegrams, save_to_json, execute
 - `DeepBackfillState`
   - 深度回补游标状态
 - `CLSDeepBackfill`
@@ -4797,7 +4803,7 @@ Classes:
   - methods: __init__, _load_state, _get_default_state, save, is_article_processed, add_processed_article, set_watermark, get_watermark, has_reached_watermark, clear_watermark, get_processed_articles, get_processed_count
 - `CnstockCrawler`
   - 中国证券网爬虫
-  - methods: __init__, _init_logger_and_state, _acquire_waf_cookies, _inject_waf_cookies, _resolve_channel, _check_waf_cooldown, _trigger_waf_cooldown, _get_random_sec_ch_ua, _to_desktop_url, _build_url, initialize, _get_headers, _parse_date, _is_in_date_range, _matches_keywords, _get_channels_to_crawl, _merge_news_list, crawl_news_list, _should_include_news, _get_channel_url, _crawl_page, _crawl_page_via_requests, _create_playwright_browser, _crawl_channel_via_playwright, _extract_ssr_data, _parse_api_response, _parse_search_api_response, _parse_flash_api_response, _convert_flash_item_to_news_item, _parse_response_common, _convert_search_item_to_news_item, _normalize_search_time, _convert_to_news_item, _extract_publish_time, _generate_sample_news, _fetch_article_content, _html_to_text, save_to_json, execute, _calculate_fetch_delay
+  - methods: __init__, _init_logger_and_state, _acquire_waf_cookies, _inject_waf_cookies, _require_session, _resolve_channel, _check_waf_cooldown, _trigger_waf_cooldown, _get_random_sec_ch_ua, _to_desktop_url, _build_url, initialize, _get_headers, _parse_date, _is_in_date_range, _matches_keywords, _get_channels_to_crawl, _merge_news_list, crawl_news_list, _should_include_news, _get_channel_url, _crawl_page, _crawl_page_via_requests, _create_playwright_browser, _crawl_channel_via_playwright, _extract_ssr_data, _parse_api_response, _parse_search_api_response, _parse_flash_api_response, _convert_flash_item_to_news_item, _parse_response_common, _convert_search_item_to_news_item, _normalize_search_time, _convert_to_news_item, _extract_publish_time, _generate_sample_news, _fetch_article_content, _html_to_text, save_to_json, execute, _calculate_fetch_delay
 
 Functions:
 - `parse_args`
@@ -5708,6 +5714,7 @@ Imports:
 - `core.observability`
 - `data_layer.repositories.base`
 - `data_layer.repositories.models`
+- `sqlalchemy`
 - `typing`
 - `uuid`
 
@@ -8084,6 +8091,7 @@ Imports:
 - `datetime`
 - `numpy`
 - `pandas`
+- `typing`
 
 Classes:
 - `FactorEvaluator`
@@ -9976,6 +9984,10 @@ Imports:
 - `datetime`
 - `pathlib`
 - `sys`
+- `typing`
+
+Classes:
+- `TrendConfig`
 
 Functions:
 - `generate_realistic_price_data`
@@ -10158,6 +10170,7 @@ Imports:
 - `pathlib`
 - `sys`
 - `time`
+- `typing`
 
 Functions:
 - `_save_checkpoint`
@@ -10204,6 +10217,10 @@ Functions:
   - Run the full seed pipeline.
 - `_build_forward_returns`
   - Build forward returns series for evaluation.
+- `_to_optional_float`
+  - Convert nullable DB/pandas scalar values to float.
+- `_to_optional_date`
+  - Convert nullable DB/pandas date values to date.
 - `load_financial_frame`
   - Load stock_financial_metric into a flat DataFrame.
 - `compute_financial_factor_values`

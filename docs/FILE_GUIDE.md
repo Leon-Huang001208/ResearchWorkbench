@@ -543,16 +543,16 @@
 | 文件 | 说明 |
 |---|---|
 | `scripts/backup_db.py` | 数据库备份脚本：支持 PostgreSQL 完整备份、自动压缩、保留策略 |
-| `scripts/restore_db.py` | 数据库恢复脚本：支持从备份恢复、时间点恢复 |
+| `scripts/restore_db.py` | 数据库恢复脚本：支持从备份恢复、时间点恢复；压缩恢复路径显式校验解压命令和管道句柄 |
 | `scripts/backfill_pdf_artifacts.py` | PDF 制品回补：扫描磁盘 PDF 并注册到 pdf_artifact_v1 以触发自动转换 |
-| `scripts/seed_factor_data.py` | 因子数据播种管线：双数据源（AKShare + Wind WSD）、限流重试（指数退避 + 关键词检测）、JSON 断点续传、3 Phase 流水线（市场数据摄入 → 技术因子 → 财务因子） |
+| `scripts/seed_factor_data.py` | 因子数据播种管线：双数据源（AKShare + Wind WSD）、限流重试（指数退避 + 关键词检测）、JSON 断点续传、3 Phase 流水线（市场数据摄入 → 技术因子 → 财务因子）；pandas/DB 标量先标准化再参与收益和财务因子计算 |
 | `scripts/backfill_missing_llm_extraction.py` | LLM 提取回补：将缺少 canonical_event 的文档入队让 KnowledgePipeline 补做提取 |
 | `scripts/cleanup_dedup_orphans.py` | 去重孤儿清理：移除爬虫去重文件中 DB 已不存在的条目，防止永久跳过 |
 | `scripts/bootstrap_db.py` | 数据库初始化脚本：验证连接、创建表、验证 schema、植入默认配置 |
-| `scripts/import_real_data.py` | 导入真实数据脚本：导入 benchmarks/ 中的真实数据存档 |
+| `scripts/import_real_data.py` | 导入真实数据脚本：导入 benchmarks/ 中的真实数据存档，返回运行时字符串 doc_id |
 | `scripts/minimal_reingest_bootstrap.py` | 最小重摄入引导脚本：从零重建系统，使用基准样本和上游连接器 |
-| `scripts/backfill_from_objects.py` | 从对象存储回填脚本：从幸存的原始制品重建源文档和事实层 |
-| `scripts/rebuild_derived_state.py` | 重建派生状态脚本：从恢复的事实记录重建派生系统状态（信号、择时决策、结果、回放） |
+| `scripts/backfill_from_objects.py` | 从对象存储回填脚本：从幸存的原始制品重建源文档和事实层；抽取前将 ORM 文档字段规整为字符串边界值 |
+| `scripts/rebuild_derived_state.py` | 重建派生状态脚本：从恢复的事实记录重建派生系统状态（信号、择时决策、结果、回放），并按 `TimingModelScore` 完整契约重建择时评分 |
 | `scripts/smoke_runner.py` | 冒烟测试脚本：端到端一键 MVP 验证 |
 | `scripts/start_all.sh` | 一键启动脚本：启动 API → 调度器 → Knowledge Worker |
 | `scripts/stop_all.sh` | 一键停止脚本：读取 PID 文件，停止所有后台服务 |

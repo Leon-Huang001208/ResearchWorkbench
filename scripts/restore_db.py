@@ -129,7 +129,9 @@ def restore_postgres(
     try:
         if is_compressed:
             # Pipe decompressed output to psql
+            assert decompress_cmd is not None
             p1 = subprocess.Popen(decompress_cmd, stdout=subprocess.PIPE)
+            assert p1.stdout is not None
             p2 = subprocess.Popen(
                 psql_cmd,
                 env=env,

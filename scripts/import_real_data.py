@@ -60,7 +60,7 @@ def save_document_to_db(doc_data: dict, db) -> str:
         created_at=datetime.now(timezone.utc),
     )
     db.add(doc)
-    return doc.doc_id
+    return str(doc.doc_id)
 
 
 def import_documents_from_file(filepath: Path, db) -> int:
