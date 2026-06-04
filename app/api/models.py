@@ -24,6 +24,7 @@ class AnalyzeRequest(BaseModel):
     as_of: Optional[datetime] = Field(None, description="快照时间，默认当前时间")
     source: str = Field("auto", description="数据源: auto（自动降级）/ mock / local / ifind / akshare")
     use_mock: Optional[bool] = Field(None, description="是否使用模拟数据")
+    time_range: Optional[str] = Field(None, description="时间范围: 1M/3M/6M/1Y/2Y/3Y/5Y/ALL，默认1Y")
 
 
 class AnalyzeResponse(BaseModel):

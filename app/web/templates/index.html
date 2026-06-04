@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AlphaFoundry — 买方投研情报系统</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
     <link rel="stylesheet" href="/static/style.css?v=20250527e">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@vscode/codicons@0.0.36/dist/codicon.min.css">
@@ -293,10 +294,80 @@
                         </div>
                     </div>
 
-                    <!-- K线图 -->
-                    <div class="card">
-                        <h3>K线走势</h3>
-                        <canvas id="chart-price-volume"></canvas>
+                    <!-- Wind 风格 K线图 + 筹码分布 -->
+                    <div class="card kline-terminal-card">
+                        <div class="kline-terminal-toolbar">
+                            <div class="kline-period-group" aria-label="K线周期">
+                                <button class="kline-period-item" type="button" disabled>分时</button>
+                                <button class="kline-period-item" type="button" disabled>多日</button>
+                                <button class="kline-period-item active" type="button" data-period="D">日</button>
+                                <button class="kline-period-item" type="button" data-period="W">周</button>
+                                <button class="kline-period-item" type="button" data-period="M">月</button>
+                                <button class="kline-period-item" type="button" data-period="ALL">全部</button>
+                            </div>
+                            <div class="kline-ma-toggle-group" id="kline-ma-toggle-group" aria-label="均线开关">
+                                <button class="kline-btn active ma-mode" data-overlay="ma">MA均线</button>
+                                <button class="kline-btn boll" data-overlay="boll">BOLL布林带</button>
+                                <button class="kline-btn naked" data-overlay="none">裸K</button>
+                            </div>
+                        </div>
+                        <div class="kline-terminal-quote">
+                            <span><strong id="kline-quote-code">--</strong> <span id="kline-quote-name">--</span></span>
+                            <span id="kline-quote-date">--</span>
+                            <span>收 <strong id="kline-quote-close">--</strong></span>
+                            <span>幅 <strong id="kline-quote-change-pct">--</strong><strong id="kline-quote-change">(--)</strong></span>
+                            <span>开 <strong id="kline-quote-open">--</strong></span>
+                            <span>高 <strong id="kline-quote-high">--</strong></span>
+                            <span>低 <strong id="kline-quote-low">--</strong></span>
+                            <span>均 <strong id="kline-quote-avg">--</strong></span>
+                            <span>量 <strong id="kline-quote-volume">--</strong></span>
+                            <span>换 <strong id="kline-quote-turnover">--</strong></span>
+                            <span>振 <strong id="kline-quote-amplitude">--</strong></span>
+                            <span>额 <strong id="kline-quote-amount">--</strong></span>
+                        </div>
+                        <div class="kline-terminal-layout">
+                            <div class="kline-indicator-rail" aria-label="指标导航">
+                                <span class="active">K线图</span>
+                                <span>成交量</span>
+                                <span>MACD</span>
+                                <span>KDJ</span>
+                                <span>RSI</span>
+                            </div>
+                            <div id="chart-kline" class="kline-chart-area"></div>
+                            <div class="chip-distribution-sidebar">
+                                <div class="chip-sidebar-header">
+                                    <h4>普通筹码</h4>
+                                    <span class="chip-window-label">--</span>
+                                </div>
+                                <div id="chart-chip-distribution" class="chip-chart-area"></div>
+                                <div class="chip-sidebar-stats" id="chip-stats">
+                                    <div class="chip-stat-item chip-stat-peak">
+                                        <span class="chip-stat-label">筹码峰</span>
+                                        <span id="chip-peak-price" class="chip-stat-value">--</span>
+                                    </div>
+                                    <div class="chip-stat-item">
+                                        <span class="chip-stat-label">上边界</span>
+                                        <span id="chip-peak-upper" class="chip-stat-value">--</span>
+                                    </div>
+                                    <div class="chip-stat-item">
+                                        <span class="chip-stat-label">下边界</span>
+                                        <span id="chip-peak-lower" class="chip-stat-value">--</span>
+                                    </div>
+                                    <div class="chip-stat-item">
+                                        <span class="chip-stat-label">均本</span>
+                                        <span id="chip-avg-cost" class="chip-stat-value">--</span>
+                                    </div>
+                                    <div class="chip-stat-item">
+                                        <span class="chip-stat-label">获利</span>
+                                        <span id="chip-profit-ratio" class="chip-stat-value">--</span>
+                                    </div>
+                                    <div class="chip-stat-item">
+                                        <span class="chip-stat-label">套牢</span>
+                                        <span id="chip-loss-ratio" class="chip-stat-value">--</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- 资金流向卡片 -->
@@ -1033,7 +1104,7 @@
 
     <!-- Scripts: i18n must load before app.js -->
     <script src="/static/i18n.js?v=20250527"></script>
-    <script type="module" src="/static/js/app.js?v=20250529a"></script>
+    <script type="module" src="/static/js/app.js?v=20250604d"></script>
     <script type="module" src="/static/js/wind.js?v=20250601a"></script>
 </body>
 </html>

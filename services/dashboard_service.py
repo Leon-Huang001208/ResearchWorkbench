@@ -426,9 +426,12 @@ class DashboardService:
         # 获取异常流向（来自产业链映射）
         abnormal_flows: List[AbnormalFlow] = []
         try:
-            from data_layer.repositories.industry_chain_repository import IndustryChainRepository
+            import importlib
 
-            repo = IndustryChainRepository(self.session)
+            industry_chain_module = importlib.import_module(
+                "data_layer.repositories.industry_chain_repository"
+            )
+            repo = industry_chain_module.IndustryChainRepository(self.session)
             anomalies = repo.get_recent_abnormal_flows(limit=5)
             if anomalies:
                 abnormal_flows = [

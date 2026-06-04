@@ -120,7 +120,7 @@ class ProgressStateManager:
             logger.error(f"加载进度失败: {e}")
             return None
 
-    def save(self):
+    def save(self) -> None:
         """保存当前进度"""
         if not self.current_progress:
             return
@@ -142,7 +142,7 @@ class ProgressStateManager:
         except Exception as e:
             logger.error(f"保存进度失败: {e}")
 
-    def checkpoint(self, force: bool = False):
+    def checkpoint(self, force: bool = False) -> None:
         """检查点保存（根据间隔）"""
         if not self.auto_save:
             return
@@ -152,7 +152,9 @@ class ProgressStateManager:
             self.save()
             self.save_counter = 0
 
-    def initialize_reports(self, report_ids: List[str], report_titles: Optional[List[str]] = None):
+    def initialize_reports(
+        self, report_ids: List[str], report_titles: Optional[List[str]] = None
+    ) -> None:
         """初始化报告列表"""
         if not self.current_progress:
             return
@@ -190,14 +192,14 @@ class ProgressStateManager:
         # 没有更多待处理
         return None
 
-    def mark_report_completed(self, report_id: str):
+    def mark_report_completed(self, report_id: str) -> None:
         """标记报告已完成"""
         self._update_report_status(report_id, "completed")
         if self.current_progress:
             self.current_progress.processed_reports += 1
         self.checkpoint()
 
-    def mark_report_failed(self, report_id: str, max_retries: int = 3):
+    def mark_report_failed(self, report_id: str, max_retries: int = 3) -> None:
         """标记报告失败"""
         report = self._find_report(report_id)
         if report:
@@ -219,14 +221,14 @@ class ProgressStateManager:
                 return report
         return None
 
-    def _update_report_status(self, report_id: str, status: str):
+    def _update_report_status(self, report_id: str, status: str) -> None:
         """更新报告状态"""
         report = self._find_report(report_id)
         if report:
             report.status = status
             report.processed_at = datetime.now().isoformat()
 
-    def update_last_account(self, account_name: str):
+    def update_last_account(self, account_name: str) -> None:
         """更新最后使用的账号"""
         if self.current_progress:
             self.current_progress.last_used_account = account_name
@@ -241,7 +243,7 @@ class ProgressStateManager:
         failed = self.current_progress.failed_reports
         return (processed + failed) >= total
 
-    def clear_progress(self):
+    def clear_progress(self) -> None:
         """清除进度"""
         if self.state_file.exists():
             self.state_file.unlink()

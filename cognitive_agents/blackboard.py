@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Iterable
+from typing import Iterable, Literal
 
 from core.observability import get_logger
 from memory_learning.contracts import AgentMemory
@@ -159,7 +159,7 @@ class CognitiveBlackboard:
                 )
 
     @staticmethod
-    def _severity(confidence: float) -> str:
+    def _severity(confidence: float) -> Literal["low", "medium", "high"]:
         if confidence >= 0.75:
             return "high"
         if confidence >= 0.65:

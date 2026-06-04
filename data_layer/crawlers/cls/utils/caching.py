@@ -1,9 +1,11 @@
 """缓存工具模块"""
 from functools import wraps
-from typing import Callable
+from typing import Any, Callable, TypeVar, cast
+
+T = TypeVar("T")
 
 
-def cached_property(func: Callable) -> property:
+def cached_property(func: Callable[[Any], T]) -> property:
     """缓存属性装饰器
 
     该装饰器会将属性的计算结果缓存到实例变量中，避免重复计算
@@ -11,9 +13,9 @@ def cached_property(func: Callable) -> property:
     cache_name = f"_{func.__name__}"
 
     @wraps(func)
-    def wrapper(self):
+    def wrapper(self: Any) -> T:
         if not hasattr(self, cache_name):
             setattr(self, cache_name, func(self))
-        return getattr(self, cache_name)
+        return cast(T, getattr(self, cache_name))
 
     return property(wrapper)

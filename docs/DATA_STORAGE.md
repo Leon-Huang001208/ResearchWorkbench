@@ -1432,6 +1432,7 @@ PDF 制品由爬虫下载时自动注册（`ReportProcessor._download_and_record
 | retrieval.py | RetrievalProfileType, EvidenceType, RecencyDecayConfig, SourceWeightConfig, DocTypeLookbackConfig, RetrievalProfile, RetrievalFilters, RetrievalQuery, EvidenceChunk, EvidenceDocument, EvidencePackage, create_daily_report_profile, create_weekly_report_profile, create_monthly_report_profile, create_deep_dive_profile, create_backtest_replay_profile, get_profile |
 | industry_chain.py | IndustryNode, IndustryEdge, IndustryGraph, MappingStrength, PropagationStep, PropagationPath, ThesisCard |
 | ingestion.py | IngestionQueueItem, IngestionQueueStats, EnqueueRequest, EnqueueResponse, ProcessResponse, RetryResponse |
+| ingestion_record.py | IngestionRecord, IngestionStats, IngestionSource, IngestionStatus — 连接器产出的标准化摄入记录，经 `DocumentConnector.persist()` 写入 `ingestion_queue_item` |
 | traces.py | ReasoningTrace |
 | scenarios.py | ScenarioHypothesis, ScenarioSet |
 | raw_storage.py | (原始存储) |

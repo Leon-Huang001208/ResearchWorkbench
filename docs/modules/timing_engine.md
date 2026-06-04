@@ -33,6 +33,10 @@ Update this section when:
 - Blocking criteria change
 - Meta timing behavior changes
 
+#### Recent Changes
+
+- **2026-06**: Added `Literal` import and `_action(...) -> Literal["enter", "wait", "reduce", "exit", "block"]` return type annotation in `meta.py`; added `-> None` return type annotations on `__init__` and `_register_defaults` in `models/registry.py` for improved type safety.
+
 ---
 
 ## Required Tests

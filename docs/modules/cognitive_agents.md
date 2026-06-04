@@ -32,6 +32,10 @@ Update this section when:
 - New agent types are added
 - Orchestration logic changes
 
+#### Recent Changes
+
+- **2026-06**: Added `Literal` import and `_severity(confidence: float) -> Literal["low", "medium", "high"]` return type annotation in `blackboard.py` for improved type safety.
+
 ---
 
 ## Required Tests

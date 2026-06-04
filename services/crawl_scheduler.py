@@ -288,6 +288,13 @@ class CrawlScheduler:
         if not self.scheduler:
             return
 
+        if config.interval_minutes <= 0:
+            logger.info(
+                f"[scheduler] Skipping scheduled crawl for {config.source_type.value}: "
+                f"interval_minutes={config.interval_minutes}"
+            )
+            return
+
         # 常规抓取任务
         job_id = f"crawl_{config.source_type.value}"
         crawl_jitter = int(config.interval_minutes * 60 * 0.2)
@@ -299,11 +306,10 @@ class CrawlScheduler:
             id=job_id,
             name=f"Crawl {config.source_name}",
             kwargs={"source_type": config.source_type},
-            next_run_time=datetime.now(),
         )
         logger.info(
             f"[scheduler] Added crawl job: {job_id} interval={config.interval_minutes}m "
-            f"jitter={crawl_jitter}s next_run=now"
+            f"jitter={crawl_jitter}s"
         )
 
         # 补漏任务（如果启用）
@@ -558,7 +564,10 @@ class CrawlScheduler:
                     f"[startup] {source_type.value}: no data yet, running initial backfill with max_pages=50"
                 )
                 try:
-                    result = orchestrator.backfill_source(
+                    import asyncio as _asyncio
+
+                    result = await _asyncio.to_thread(
+                        orchestrator.backfill_source,
                         source_type=config.source_type,
                         lookback_days=7,
                         max_pages=50,
@@ -606,7 +615,10 @@ class CrawlScheduler:
 
             _sp2 = _gs2(config.source_type)
             _max_pages = 50 if (_sp2 and _sp2.backfill_family == "cnstock") else None
-            result = orchestrator.backfill_source(
+            import asyncio as _asyncio
+
+            result = await _asyncio.to_thread(
+                orchestrator.backfill_source,
                 source_type=config.source_type,
                 lookback_days=lookback_days,
                 max_pages=_max_pages,

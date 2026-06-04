@@ -21,6 +21,13 @@ try:
 except ImportError:
     HAS_DEPENDENCIES = False
 
+try:
+    from playwright.sync_api import sync_playwright
+
+    HAS_PLAYWRIGHT = True
+except ImportError:
+    HAS_PLAYWRIGHT = False
+
 
 @dataclass
 class NewsItem:
@@ -217,6 +224,18 @@ class CnstockCrawler:
     ]
     LOG_LEVELS = ["DEBUG", "INFO", "WARNING", "ERROR"]
 
+    # 频道 URL 映射（2026年6月更新：cnstock.com 改用 Next.js SSR 页面）
+    CHANNEL_URL_MAP: Dict[str, str] = {
+        "10004": "/fastNews/10004",  # 快讯
+        "10005": "/channel/10005",  # 时政
+        "10006": "/channel/10006",  # 公司
+        "10007": "/channel/10007",  # 产经
+        "10011": "/channel/10011",  # 金融
+        "10232": "/channel/10232",  # 证券
+    }
+    # 快讯（Flash News）专用 API 端点（2026年6月新增）
+    API_FLASH_NEWS = "https://api.cnstock.com/fastNews/www/page"
+
     # 频道名称到 node_id 的映射
     CHANNEL_MAP = {
         "快讯": "10004",
@@ -276,6 +295,12 @@ class CnstockCrawler:
 
         # 状态管理器（持久化去重用）
         self._state_manager: Optional[CnstockStateManager] = None
+
+        # WAF Cookie 管理（Playwright 浏览器获取有效 cookie）
+        self._waf_cookies: Dict[str, str] = {}
+        self._waf_cookies_expiry: float = 0.0
+        self._playwright_browser = None  # 复用的浏览器实例
+
         self._init_logger_and_state()
 
     def _init_logger_and_state(self):
@@ -292,6 +317,92 @@ class CnstockCrawler:
             except Exception as e:
                 if self.config.verbose:
                     self.log.warning(f"初始化状态管理器失败: {e}，持久化去重将不可用")
+
+    def _acquire_waf_cookies(self) -> Dict[str, str]:
+        """使用 Playwright 无头浏览器获取通过 WAF 验证的有效 cookie。
+
+        cnstock.com 使用了阿里云 WAF (awsc.js)，需要 JavaScript 执行
+        才能生成有效的 acw_tc cookie。直接 curl/requests 获取的 cookie
+        不足以通过 API 认证（返回 code=10304 "未登录"）。
+
+        Returns:
+            Dict[str, str]: cookie name -> value 映射
+        """
+        # 如果缓存的 cookie 未过期，直接返回（acw_tc 有效期 30 分钟，提前 5 分钟刷新）
+        if self._waf_cookies and time.time() < self._waf_cookies_expiry:
+            if self.config.verbose:
+                remaining = int(self._waf_cookies_expiry - time.time())
+                self.log.debug(f"使用缓存的 WAF cookie，剩余有效时间 {remaining}s")
+            return self._waf_cookies
+
+        if not HAS_PLAYWRIGHT:
+            self.log.warning("playwright 未安装，无法绕过 WAF，API 调用可能返回'未登录'")
+            self.log.warning(
+                "安装方法: pip install playwright && python -m playwright install chromium"
+            )
+            return {}
+
+        if self.config.verbose:
+            self.log.info("正在通过无头浏览器获取 WAF cookie...")
+
+        browser = None
+        try:
+            playwright = sync_playwright().start()
+            browser = playwright.chromium.launch(headless=True)
+            context = browser.new_context(
+                user_agent=random.choice(self.user_agents),
+                locale="zh-CN",
+            )
+            page = context.new_page()
+
+            # 访问首页以触发 WAF JS 验证
+            page.goto(self.BASE_URL, wait_until="networkidle", timeout=30000)
+            # 等待 WAF JS 执行完成（awsc.js 需要时间计算 token）
+            page.wait_for_timeout(5000)
+
+            # 提取所有 cookie
+            browser_cookies = context.cookies()
+            cookies_dict = {}
+            for c in browser_cookies:
+                cookies_dict[c["name"]] = c["value"]
+
+            # 记录获取到的 cookie
+            self._waf_cookies = cookies_dict
+            # acw_tc 有效期 30 分钟，提前 5 分钟刷新
+            self._waf_cookies_expiry = time.time() + 25 * 60
+
+            context.close()
+            browser.close()
+            playwright.stop()
+
+            if self.config.verbose:
+                cookie_names = list(cookies_dict.keys())
+                self.log.info(f"WAF cookie 获取成功，获取到 {len(cookies_dict)} 个 cookie: {cookie_names}")
+
+            return cookies_dict
+
+        except Exception as e:
+            self.log.warning(f"获取 WAF cookie 失败: {e}", exc_info=True)
+            if browser:
+                try:
+                    browser.close()
+                except Exception:
+                    pass
+            # 返回已有的 cookie（可能已过期，但总比没有好）
+            return self._waf_cookies
+
+    def _inject_waf_cookies(self) -> None:
+        """将 WAF cookie 注入到 requests Session 中。"""
+        if not self._session:
+            return
+
+        cookies = self._acquire_waf_cookies()
+        if not cookies:
+            return
+
+        # 将 cookie 设置到 session 中
+        for name, value in cookies.items():
+            self._session.cookies.set(name, value, domain=".cnstock.com")
 
     def _resolve_channel(self, channel_or_node: str) -> str:
         """解析频道参数，支持频道名称和 node_id"""
@@ -495,14 +606,17 @@ class CnstockCrawler:
         return list(news_map.values())
 
     def crawl_news_list(self) -> List[NewsItem]:
-        """爬取新闻列表"""
+        """爬取新闻列表。
+
+        优先使用 Playwright 无头浏览器绕过 WAF；如果 Playwright 未安装，
+        则回退到 requests + cookie 方案（可能因 WAF 失败）。
+        """
         if not self._initialized:
             self.initialize()
 
         all_news: List[NewsItem] = []
         channels = self._get_channels_to_crawl()
 
-        # 统计信息
         skipped_existing = 0
         stopped_by_watermark = 0
         today_str = datetime.now().strftime("%Y-%m-%d")
@@ -510,6 +624,21 @@ class CnstockCrawler:
         if self.config.verbose:
             channel_names = [ch["category"] for ch in channels]
             self.log.info(f"开始爬取新闻，频道: {', '.join(channel_names)}")
+
+        # 决定使用 Playwright 还是 requests 回退
+        use_playwright = HAS_PLAYWRIGHT
+        if not use_playwright:
+            self.log.warning("playwright 未安装，将使用 requests 方案（可能因 WAF 失败）")
+
+        # Playwright 浏览器复用：所有频道共享一个浏览器实例
+        _pw_playwright = None
+        _pw_browser = None
+        if use_playwright:
+            try:
+                _pw_playwright, _pw_browser = self._create_playwright_browser()
+            except Exception as e:
+                self.log.warning(f"Playwright 初始化失败: {e}，回退到 requests 方案")
+                use_playwright = False
 
         try:
             for ch_info in channels:
@@ -523,42 +652,74 @@ class CnstockCrawler:
                 if self.config.verbose:
                     self.log.info(f"正在爬取频道: {category}")
 
-                for page in range(1, self.config.max_pages + 1):
-                    if self.config.verbose and len(channels) == 1:
-                        self.log.info(f"正在爬取第 {page} 页...")
+                if use_playwright:
+                    # ── Playwright WAF 绕过方案 ──
+                    page_news = self._crawl_channel_via_playwright(
+                        node_id, category, browser=_pw_browser
+                    )
 
-                    page_news = self._crawl_page(page, node_id, category)
-                    if not page_news:
-                        break
+                    if page_news:
+                        for news in page_news:
+                            # 持久化去重
+                            if self._state_manager and self.config.skip_existing:
+                                if news.article_id and self._state_manager.is_article_processed(
+                                    news.article_id
+                                ):
+                                    skipped_existing += 1
+                                    if self.config.stop_on_known:
+                                        found_known = True
+                                        if self.config.verbose:
+                                            self.log.info(
+                                                f"[水位线] 频道 {category} 遇到已知新闻: "
+                                                f"{news.article_id} - {news.title[:30]}..."
+                                            )
+                                        break
+                                    continue
 
-                    for news in page_news:
-                        # 检查是否已处理过（持久化去重）
-                        if self._state_manager and self.config.skip_existing:
-                            if news.article_id and self._state_manager.is_article_processed(
-                                news.article_id
-                            ):
-                                skipped_existing += 1
-                                if self.config.stop_on_known:
-                                    found_known = True
-                                    if self.config.verbose:
-                                        self.log.info(
-                                            f"[水位线] 频道 {category} 遇到已知新闻: {news.article_id} - {news.title[:30]}..."
-                                        )
-                                    break
-                                continue
+                            if self._should_include_news(news):
+                                channel_news.append(news)
+                                if first_new_article_id is None:
+                                    first_new_article_id = news.article_id
 
-                        if self._should_include_news(news):
-                            channel_news.append(news)
-                            # 记录第一个新新闻作为水位线
-                            if first_new_article_id is None:
-                                first_new_article_id = news.article_id
+                        if found_known:
+                            stopped_by_watermark += 1
+                else:
+                    # ── requests 回退方案 ──
+                    for page in range(1, self.config.max_pages + 1):
+                        if self.config.verbose and len(channels) == 1:
+                            self.log.info(f"正在爬取第 {page} 页...")
 
-                    if found_known:
-                        stopped_by_watermark += 1
-                        break
+                        page_news = self._crawl_page_via_requests(page, node_id, category)
+                        if not page_news:
+                            break
 
-                    if page < self.config.max_pages:
-                        time.sleep(self.config.delay)
+                        for news in page_news:
+                            if self._state_manager and self.config.skip_existing:
+                                if news.article_id and self._state_manager.is_article_processed(
+                                    news.article_id
+                                ):
+                                    skipped_existing += 1
+                                    if self.config.stop_on_known:
+                                        found_known = True
+                                        if self.config.verbose:
+                                            self.log.info(
+                                                f"[水位线] 频道 {category} 遇到已知新闻: "
+                                                f"{news.article_id} - {news.title[:30]}..."
+                                            )
+                                        break
+                                    continue
+
+                            if self._should_include_news(news):
+                                channel_news.append(news)
+                                if first_new_article_id is None:
+                                    first_new_article_id = news.article_id
+
+                        if found_known:
+                            stopped_by_watermark += 1
+                            break
+
+                        if page < self.config.max_pages:
+                            time.sleep(self.config.delay)
 
                 # 设置水位线
                 if self._state_manager and first_new_article_id:
@@ -568,13 +729,25 @@ class CnstockCrawler:
 
                 all_news.extend(channel_news)
 
-                # 频道间延迟（随机 2-5s，避免规律模式触发反爬）
+                # 频道间延迟
                 if ch_info != channels[-1]:
                     time.sleep(random.uniform(2.0, 5.0))
 
         except Exception as e:
             if self.config.verbose:
                 self.log.error(f"爬取过程出错: {e}", exc_info=True)
+        finally:
+            # 清理 Playwright 浏览器
+            if _pw_browser:
+                try:
+                    _pw_browser.close()
+                except Exception:
+                    pass
+            if _pw_playwright:
+                try:
+                    _pw_playwright.stop()
+                except Exception:
+                    pass
 
         # 去重合并
         merged_news = self._merge_news_list(all_news)
@@ -596,35 +769,58 @@ class CnstockCrawler:
             return False
         return True
 
+    def _get_channel_url(self, node_id: str) -> str:
+        """获取频道对应的页面 URL。"""
+        path = self.CHANNEL_URL_MAP.get(node_id, f"/channel/{node_id}")
+        return f"{self.BASE_URL}{path}"
+
     def _crawl_page(
         self, page: int, node_id: Optional[str] = None, category: str = ""
     ) -> List[NewsItem]:
-        """爬取单页新闻（使用 API）"""
+        """爬取单页新闻（requests 旧版，仅作 Playwright 失败时的回退）。"""
+        return self._crawl_page_via_requests(page, node_id, category)
+
+    def _crawl_page_via_requests(
+        self, page: int, node_id: Optional[str] = None, category: str = ""
+    ) -> List[NewsItem]:
+        """（旧版）使用 requests 直接调用 API 爬取单页新闻。
+
+        注意：cnstock.com 在 2026年5月部署了更强的 WAF 验证，
+        requests 直接调用 API 大概率返回 10304（"未登录"）。
+        此方法保留作为 Playwright 不可用时的回退。
+        """
         news_list: List[NewsItem] = []
 
         try:
             headers = self._get_headers()
             use_node_id = node_id or self.config.node_id
+            is_flash = use_node_id == "10004"
 
-            # 确保有 cookie，先访问主页
+            # 注入 WAF cookie（使用 Playwright 无头浏览器获取有效 cookie）
             if page == 1:
-                try:
-                    self._session.get(
-                        self.BASE_URL, headers={"User-Agent": headers["User-Agent"]}, timeout=10
-                    )
-                except Exception:
-                    pass
+                self._inject_waf_cookies()
 
-            # 根据是否有 keywords 选择不同的 API
+            # 根据来源和有无 keywords 选择 API 端点与参数
             if self.config.keywords:
-                # 有关键词，使用搜索 API（只取第一个关键词）
                 keyword = self.config.keywords[0]
                 payload = {"type": "0", "word": keyword, "activeKey": "0", "pageNum": page}
                 api_url = self.API_SEARCH
                 if self.config.verbose and page == 1:
                     self.log.info(f"使用搜索 API，关键词: {keyword}")
+            elif is_flash:
+                start_time_ms = (
+                    int(time.time() * 1000) if page == 1 else int((time.time() - 86400) * 1000)
+                )
+                payload = {
+                    "nodeId": "10004",
+                    "startTime": str(start_time_ms),
+                    "pageSize": self.config.page_size,
+                    "pageNum": page,
+                }
+                api_url = self.API_FLASH_NEWS
+                if self.config.verbose and page == 1:
+                    self.log.info(f"使用快讯 API: {self.API_FLASH_NEWS}")
             else:
-                # 无关键词，使用频道新闻 API
                 payload = {
                     "nodeId": use_node_id,
                     "pageNum": page,
@@ -639,32 +835,219 @@ class CnstockCrawler:
 
             if response.status_code == 200:
                 resp_json = response.json()
-                # 检查 API 业务错误码（如 "未登录" 返回 code=10304, data=null）
                 if (
                     isinstance(resp_json, dict)
                     and resp_json.get("code") not in (None, 0, 200)
                     and resp_json.get("data") is None
                 ):
+                    error_code = resp_json.get("code")
+                    error_desc = resp_json.get("desc", "")
                     if self.config.verbose:
-                        self.log.warning(
-                            f"API 业务错误: code={resp_json.get('code')}, desc={resp_json.get('desc', '')}"
-                        )
-                    return []  # 返回空列表，让调度器下次重试
+                        self.log.warning(f"API 业务错误: code={error_code}, desc={error_desc}")
+                    if error_code == 10304:
+                        self._waf_cookies_expiry = 0
+                        self._inject_waf_cookies()
+                        if self._waf_cookies:
+                            response2 = self._session.post(
+                                api_url, json=payload, headers=headers, timeout=10
+                            )
+                            if response2.status_code == 200:
+                                resp_json = response2.json()
+                                if resp_json.get("code") in (None, 0, 200):
+                                    pass
+                                else:
+                                    return []
+                            else:
+                                return []
+                        else:
+                            return []
+                    else:
+                        return []
                 if self.config.keywords:
                     news_list = self._parse_search_api_response(resp_json)
+                elif is_flash:
+                    news_list = self._parse_flash_api_response(resp_json, category)
                 else:
                     news_list = self._parse_api_response(resp_json, category)
             else:
                 if self.config.verbose:
                     self.log.warning(f"请求失败，状态码: {response.status_code}")
-                news_list = []  # 不再回退到示例数据
+                news_list = []
 
         except Exception as e:
             if self.config.verbose:
                 self.log.warning(f"爬取第 {page} 页失败: {e}", exc_info=True)
-            news_list = []  # 不再回退到示例数据
+            news_list = []
 
         return news_list
+
+    # ── Playwright 浏览器辅助方法 ──────────────────────────────────────
+
+    def _create_playwright_browser(self):
+        """创建并返回 Playwright 浏览器实例（headless Chromium）。"""
+        if not HAS_PLAYWRIGHT:
+            raise RuntimeError(
+                "playwright 未安装，请执行: pip install playwright && python -m playwright install chromium"
+            )
+        playwright = sync_playwright().start()
+        browser = playwright.chromium.launch(headless=True)
+        return playwright, browser
+
+    # ── Playwright 页面导航 + API 响应拦截（2026年6月 WAF 绕过方案）──
+
+    def _crawl_channel_via_playwright(
+        self, node_id: str, category: str, browser=None
+    ) -> List[NewsItem]:
+        """使用 Playwright 无头浏览器爬取频道新闻（WAF 绕过方案）。
+
+        核心原理：
+        cnstock.com 在 2026年5月部署了更强的 WAF 验证，requests 或
+        孤立的 fetch() 调用均返回 10304（"未登录"）。但页面自身的
+        JavaScript 在导航完成后发起的 XHR 请求能通过 WAF 验证，
+        因为浏览器自动附带了正确的 TLS 指纹、Referer、sec-fetch-* 头。
+
+        本方法通过 Playwright 导航到频道页面，拦截页面 JS 发起的
+        API 响应，从而获取新闻数据。
+
+        - 快讯（10004）：数据通过 Next.js SSR 嵌入在 __NEXT_DATA__ 中
+        - 常规频道：页面 JS 自动调用 channelNewsList API
+
+        Args:
+            node_id: 频道节点 ID
+            category: 频道名称
+            browser: 可选的共享 Playwright Browser 实例。如果提供则复用，
+                     否则创建新的浏览器实例。
+        """
+        is_flash = node_id == "10004"
+        url = self._get_channel_url(node_id)
+        all_news: List[NewsItem] = []
+
+        _own_browser = False  # 标记是否需要自行清理 browser
+        try:
+            if browser is None:
+                _, browser = self._create_playwright_browser()
+                _own_browser = True
+            context = browser.new_context(
+                user_agent=random.choice(self.user_agents),
+                locale="zh-CN",
+            )
+            page = context.new_page()
+
+            # 用于存储页面 JS 发起的 API 响应数据
+            api_responses: List[Dict[str, Any]] = []
+
+            def _on_response(resp):
+                """响应拦截器 —— 在页面 JS 发起 API 调用后立即捕获。"""
+                try:
+                    url_lower = resp.url.lower()
+                    if is_flash and "fastnews/www/page" in url_lower and resp.status == 200:
+                        body = resp.body()
+                        api_responses.append(json.loads(body))
+                    elif not is_flash and "channelnewslist" in url_lower and resp.status == 200:
+                        body = resp.body()
+                        api_responses.append(json.loads(body))
+                except Exception:
+                    if self.config.verbose:
+                        self.log.debug("非 JSON 响应或响应体已释放，跳过")
+
+            page.on("response", _on_response)
+
+            if self.config.verbose:
+                self.log.info(f"[Playwright] 正在访问: {url}")
+
+            # 导航到频道页面（触发 WAF 验证 → 页面 JS 发起 API 调用）
+            page.goto(url, wait_until="networkidle", timeout=30000)
+            page.wait_for_timeout(3000)  # 等待 JS 执行完毕
+
+            # ── 解析快讯的 SSR 数据 ──
+            if is_flash:
+                html = page.content()
+                ssr_data = self._extract_ssr_data(html)
+                if ssr_data:
+                    ssr_news = self._parse_flash_api_response(ssr_data, category)
+                    all_news.extend(ssr_news)
+                    if self.config.verbose:
+                        self.log.info(f"[Playwright] 快讯 SSR 数据解析: {len(ssr_news)} 条")
+
+            # ── 解析拦截到的 API 响应 ──
+            if api_responses:
+                for resp_data in api_responses:
+                    if is_flash:
+                        parsed = self._parse_flash_api_response(resp_data, category)
+                    else:
+                        parsed = self._parse_api_response(resp_data, category)
+                    all_news.extend(parsed)
+                    if self.config.verbose:
+                        source = "SSR" if is_flash else "API"
+                        self.log.info(f"[Playwright] {source} 第1页: {len(parsed)} 条")
+            elif not is_flash:
+                self.log.warning(f"[Playwright] 未拦截到 channelNewsList 响应，频道 {category} 可能无数据")
+
+            # ── 翻页：滚动页面触发懒加载 ──
+            for page_num in range(2, self.config.max_pages + 1):
+                prev_count = len(api_responses)
+
+                page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                page.wait_for_timeout(2000)
+
+                new_responses = api_responses[prev_count:]
+                if not new_responses:
+                    break  # 无更多数据
+
+                for resp_data in new_responses:
+                    if is_flash:
+                        parsed = self._parse_flash_api_response(resp_data, category)
+                    else:
+                        parsed = self._parse_api_response(resp_data, category)
+                    all_news.extend(parsed)
+                    if self.config.verbose:
+                        self.log.info(f"[Playwright] 第{page_num}页: {len(parsed)} 条")
+
+            context.close()
+
+        except Exception as e:
+            self.log.warning(f"[Playwright] 频道 {category} 爬取失败: {e}", exc_info=True)
+        finally:
+            if _own_browser and browser:
+                try:
+                    browser.close()
+                except Exception:
+                    pass
+
+        return all_news
+
+    def _extract_ssr_data(self, html: str) -> Optional[Dict[str, Any]]:
+        """从 HTML 中提取 Next.js SSR 数据（__NEXT_DATA__ → initSsrData）。
+
+        快讯页面（/fastNews/10004）使用 Next.js SSR，初始数据嵌入在
+        <script id="__NEXT_DATA__"> 中，路径为 props.pageProps.initSsrData。
+
+        注意：SSR 数据结构为 {pageInfo: ..., nodeInfo: ...}（pageInfo
+        直接在根级别），与 API 响应 {code: 200, data: {pageInfo: ...}}
+        不同。本方法将 SSR 数据包装为 API 兼容格式，以便复用
+        _parse_flash_api_response()。
+        """
+        try:
+            match = re.search(
+                r'<script[^>]*id="__NEXT_DATA__"[^>]*>(.*?)</script>',
+                html,
+                re.DOTALL,
+            )
+            if not match:
+                return None
+            ssr = json.loads(match.group(1))
+            # 路径: props.pageProps.initSsrData
+            init_data = ssr.get("props", {}).get("pageProps", {}).get("initSsrData", {})
+            if not isinstance(init_data, dict) or not init_data:
+                return None
+            # SSR 数据中 pageInfo 在根级别，包装为 API 兼容格式
+            if "pageInfo" in init_data and "code" not in init_data:
+                return {"code": 200, "data": init_data}
+            return init_data
+        except Exception as e:
+            if self.config.verbose:
+                self.log.debug(f"提取 SSR 数据失败: {e}")
+        return None
 
     def _parse_api_response(self, data: Dict[str, Any], category: str = "") -> List[NewsItem]:
         """解析 API 响应"""
@@ -702,6 +1085,90 @@ class CnstockCrawler:
                 yield self._convert_search_item_to_news_item(item)
 
         return self._parse_response_common(data, extract_items, "搜索 API 响应")
+
+    def _parse_flash_api_response(self, data: Dict[str, Any], category: str = "") -> List[NewsItem]:
+        """解析快讯 API (/fastNews/www/page) 响应。
+
+        快讯 API 返回格式与频道 API 不同，按天分组：
+        {
+            "code": 200,
+            "data": {
+                "pageInfo": {
+                    "list": [
+                        {
+                            "day": 3, "month": 6, "year": 2026,
+                            "timeList": [
+                                {"contId": "724449", "title": "...", "text": "...", "time": "20:02"}
+                            ]
+                        }
+                    ]
+                }
+            }
+        }
+        """
+        news_list: List[NewsItem] = []
+
+        if not isinstance(data, dict) or data.get("data") is None:
+            if self.config.verbose:
+                self.log.warning("快讯 API 响应中 data 字段为 null")
+            return []
+
+        try:
+            page_info = data.get("data", {}).get("pageInfo", {})
+            day_list = page_info.get("list", [])
+
+            for day_group in day_list:
+                year = day_group.get("year", datetime.now().year)
+                month = day_group.get("month", 1)
+                day = day_group.get("day", 1)
+                date_prefix = f"{year}-{month:02d}-{day:02d}"
+
+                for item in day_group.get("timeList", []):
+                    news = self._convert_flash_item_to_news_item(item, date_prefix, category)
+                    if news:
+                        news_list.append(news)
+
+            if not news_list and self.config.verbose:
+                self.log.warning("未解析到快讯数据")
+
+        except Exception as e:
+            if self.config.verbose:
+                self.log.warning(f"解析快讯 API 响应失败: {e}", exc_info=True)
+
+        return news_list
+
+    def _convert_flash_item_to_news_item(
+        self, item: Dict[str, Any], date_prefix: str, category: str = ""
+    ) -> Optional[NewsItem]:
+        """将快讯 API 的单条数据转换为 NewsItem。"""
+        try:
+            title = item.get("title", "")
+            text = item.get("text", "")
+            article_id = str(item.get("contId", ""))
+
+            if not title and not text:
+                return None
+
+            # 时间格式: "HH:MM"，拼上日期前缀
+            time_str = item.get("time", "00:00")
+            publish_time = f"{date_prefix} {time_str}:00"
+
+            # URL 通过 article_id 构建
+            url = f"{self.BASE_URL}/commonDetail/{article_id}" if article_id else ""
+
+            return NewsItem(
+                title=title,
+                url=url,
+                publish_time=publish_time,
+                source="中国证券网",
+                summary=text,
+                article_id=article_id,
+                categories=[category] if category else ["快讯"],
+            )
+        except Exception as e:
+            if self.config.verbose:
+                self.log.debug(f"转换快讯新闻项失败: {e}")
+            return None
 
     def _parse_response_common(
         self, data: Dict[str, Any], extractor, log_label: str

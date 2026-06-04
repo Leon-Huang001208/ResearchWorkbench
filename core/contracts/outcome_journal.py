@@ -45,7 +45,7 @@ class TradeOutcome(BaseModel):
     )
     failure_notes: Optional[str] = Field(default=None, description="Additional notes on failure")
     thesis_text: str = Field(description="Original thesis text for similarity comparison")
-    propagation_path: Optional[List[str]] = Field(
+    propagation_path: List[str] = Field(
         default_factory=list, description="Propagation path of the thesis"
     )
     market_regime: Optional[str] = Field(default=None, description="Market regime at time of trade")

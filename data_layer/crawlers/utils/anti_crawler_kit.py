@@ -42,7 +42,7 @@ import random
 import time
 from dataclasses import dataclass, field
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar
 
 T = TypeVar("T")
 
@@ -56,7 +56,7 @@ class RetryConfig:
     max_delay: float = 60.0
     exponential_base: float = 2.0
     jitter: bool = True
-    retry_exceptions: Tuple[Exception, ...] = field(default_factory=lambda: (Exception,))
+    retry_exceptions: Tuple[Type[Exception], ...] = field(default_factory=lambda: (Exception,))
 
 
 @dataclass
@@ -100,13 +100,13 @@ class AntiScrapeConfig:
 class RequestTiming:
     """请求时序追踪器"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.requests_minute: List[float] = []
         self.requests_hour: List[float] = []
         self.last_request_time: float = 0.0
         self._lock = None
 
-    def record_request(self):
+    def record_request(self) -> None:
         """记录一次请求"""
         now = time.time()
         self.last_request_time = now
@@ -114,7 +114,7 @@ class RequestTiming:
         self.requests_hour.append(now)
         self._cleanup()
 
-    def _cleanup(self):
+    def _cleanup(self) -> None:
         """清理过期记录"""
         now = time.time()
         self.requests_minute = [t for t in self.requests_minute if now - t < 60]
@@ -183,13 +183,13 @@ class SmartDelayer:
         self.timing = RequestTiming()
         self._logger = logging.getLogger(__name__)
 
-    def record_success(self):
+    def record_success(self) -> None:
         """记录成功请求"""
         self.failure_count = 0
         self.success_streak += 1
         self.timing.record_request()
 
-    def record_failure(self):
+    def record_failure(self) -> None:
         """记录失败请求"""
         self.failure_count += 1
         self.success_streak = 0
@@ -238,7 +238,7 @@ class SmartDelayer:
 
         return delay
 
-    def sleep(self, is_heavy_request: bool = False):
+    def sleep(self, is_heavy_request: bool = False) -> None:
         """执行延迟"""
         delay = self.get_delay(is_heavy_request)
         self._logger.debug(f"等待 {delay:.1f}s...")
@@ -332,15 +332,15 @@ class AntiScrapeKit:
 
         return headers
 
-    def before_request(self, is_heavy_request: bool = False):
+    def before_request(self, is_heavy_request: bool = False) -> None:
         """请求前的处理（延迟等）"""
         self.delayer.sleep(is_heavy_request)
 
-    def after_success(self):
+    def after_success(self) -> None:
         """成功后的处理"""
         self.delayer.record_success()
 
-    def after_failure(self):
+    def after_failure(self) -> None:
         """失败后的处理"""
         self.delayer.record_failure()
 
@@ -360,7 +360,7 @@ def retry_with_backoff(
     max_retries: Optional[int] = None,
     base_delay: Optional[float] = None,
     on_retry: Optional[Callable[[int, Exception], None]] = None,
-):
+) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """
     指数退避重试装饰器
 
@@ -384,7 +384,7 @@ def retry_with_backoff(
 
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @wraps(func)
-        def wrapper(*args, **kwargs) -> T:
+        def wrapper(*args: Any, **kwargs: Any) -> T:
             last_exception: Optional[Exception] = None
             logger = logging.getLogger(func.__module__)
 

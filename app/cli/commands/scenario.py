@@ -15,7 +15,7 @@ logger = get_logger(__name__)
 @click.option("--topic", "-t", required=True, help="研究主题")
 @click.option("--output", "-o", help="输出文件路径")
 @click.option("--subject", "-s", multiple=True, help="主题 ID（可多次指定）")
-def scenario_command(topic: str, output: str, subject: tuple):
+def scenario_command(topic: str, output: str, subject: tuple) -> None:
     """
     生成多情景分析报告
 

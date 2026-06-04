@@ -6,7 +6,7 @@
 import { apiCall, toast, esc, getChartColors, applyChartDefaults } from './core.js';
 import { loadDashboard, switchDashTab } from './dashboard.js';
 import { startCrawlFeedPolling, stopCrawlFeedPolling, startWorkersPolling, stopWorkersPolling, loadWorkersStatus } from './monitor.js?v=4';
-import { searchAssets, selectAsset, analyzeAssetByCode, analyzeAsset, handleAssetSearchKeydown, initAssetSearch } from './asset.js?v=20250529a';
+import { searchAssets, selectAsset, analyzeAssetByCode, analyzeAsset, handleAssetSearchKeydown, initAssetSearch, setKLineTimeRange, toggleMA, initKLineToolbar } from './asset.js?v=20250604d';
 import { switchSignalLabTab, loadSignalLab, initSignalLab } from './signal-lab.js';
 import { loadMemoryPage, loadEpisodes, loadStrategies, loadFailures, loadEventSummary, initMemory } from './memory.js';
 import { loadSignals, createSignal, validateSignal, promoteSignal, loadOutcomes, initSignals } from './signals.js';
@@ -37,6 +37,8 @@ window.selectAsset = selectAsset;
 window.analyzeAssetByCode = analyzeAssetByCode;
 window.analyzeAsset = analyzeAsset;
 window.handleAssetSearchKeydown = handleAssetSearchKeydown;
+window.setKLineTimeRange = setKLineTimeRange;
+window.toggleMA = toggleMA;
 
 window.switchSignalLabTab = switchSignalLabTab;
 window.loadSignalLab = loadSignalLab;
@@ -294,6 +296,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     initAssetSearch();
+    initKLineToolbar();
 
     const searchInput = document.getElementById('global-search');
     if (searchInput) {

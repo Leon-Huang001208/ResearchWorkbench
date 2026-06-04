@@ -16,7 +16,7 @@ logger = get_logger(__name__)
 class FeatureBuilder:
     """特征构建器 - 管理多个特征组"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.groups: Dict[str, FeatureGroup] = {}
 
     def add_group(self, group: FeatureGroup) -> None:

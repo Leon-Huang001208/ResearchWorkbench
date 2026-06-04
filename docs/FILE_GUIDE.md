@@ -9,20 +9,21 @@
 1. [项目根目录文件](#项目根目录文件)
 2. [app/ - 应用层](#app---应用层)
 3. [core/ - 核心层](#core---核心层)
-4. [data_layer/ - 数据层](#data_layer---数据层)
-5. [knowledge_layer/ - 知识层](#knowledge_layer---知识层)
-6. [reasoning/ - 推理层](#reasoning---推理层)
-7. [cognitive_agents/ - 认知 Agent 层](#cognitive_agents---认知-agent-层)
-8. [timing_engine/ - 择时层](#timing_engine---择时层)
-9. [memory_learning/ - 记忆与学习层](#memory_learning---记忆与学习层)
-10. [reporting/ - 报告层](#reporting---报告层)
-11. [signal_lab/ - 信号实验室](#signal_lab---信号实验室)
-12. [storage/ - 存储层](#storage---存储层)
-13. [ingestion/ - 结构化摄入模块](#ingestion---结构化摄入模块)
-14. [cron_jobs/ - 定时任务](#cron_jobs---定时任务)
-15. [scripts/ - 脚本工具](#scripts---脚本工具)
-16. [tests/ - 测试](#tests---测试)
-17. [docs/ - 文档](#docs---文档)
+4. [connectors/ - 数据源连接器实现](#connectors---数据源连接器实现)
+5. [data_layer/ - 数据层](#data_layer---数据层)
+6. [knowledge_layer/ - 知识层](#knowledge_layer---知识层)
+7. [reasoning/ - 推理层](#reasoning---推理层)
+8. [cognitive_agents/ - 认知 Agent 层](#cognitive_agents---认知-agent-层)
+9. [timing_engine/ - 择时层](#timing_engine---择时层)
+10. [memory_learning/ - 记忆与学习层](#memory_learning---记忆与学习层)
+11. [reporting/ - 报告层](#reporting---报告层)
+12. [signal_lab/ - 信号实验室](#signal_lab---信号实验室)
+13. [storage/ - 存储层](#storage---存储层)
+14. [ingestion/ - 结构化摄入模块](#ingestion---结构化摄入模块)
+15. [cron_jobs/ - 定时任务](#cron_jobs---定时任务)
+16. [scripts/ - 脚本工具](#scripts---脚本工具)
+17. [tests/ - 测试](#tests---测试)
+18. [docs/ - 文档](#docs---文档)
 
 ---
 
@@ -40,6 +41,7 @@
 | `core/` | 核心层，包含契约、接口、服务等 |
 | `data_layer/` | 数据层，包含仓储实现和数据访问 |
 | `data_sources/` | 数据源注册模块，每个 .py 文件自动发现并注册一个数据源 |
+| `connectors/` | 数据源连接器实现，分 document/ 和 market/ 子包 |
 | `knowledge_layer/` | 知识层，包含知识处理和图谱 |
 | `reasoning/` | 推理层，包含推理引擎和 Agent |
 | `cognitive_agents/` | 认知 Agent 层，包含多 Agent 协作 |
@@ -108,6 +110,7 @@
 | `app/web/static/js/dashboard.js` | 仪表盘模块：Market Overview + Live Monitor 标签页 |
 | `app/web/static/js/pipeline-monitor.js` | 管线监控模块：5 阶段流程可视化、实时活动日志（SSE + 15s 轮询）、累计统计、手动触发闭环 |
 | `app/web/static/js/monitor.js` | 系统监控模块：Worker 心跳、队列深度、服务状态 |
+| `app/web/static/js/asset.js` | 资产分析模块：Wind 风格 5 面板 K 线图（K 线+成交量/MACD/KDJ/RSI，支持日/周/月聚合与 MA120/MA250）、筹码分布图（筹码峰及上/下界标注）、资产搜索、分析卡渲染 |
 
 ---
 
@@ -121,7 +124,7 @@
 |---|---|
 | `core/contracts/__init__.py` | 导出所有契约，方便导入 |
 | `core/contracts/assertions.py` | 事实断言结构：Assertion、AssertionStatus |
-| `core/contracts/assets.py` | 资产定义结构：Asset、AssetType、AssetSnapshot |
+| `core/contracts/assets.py` | 资产定义结构：Asset、AssetType、AssetSnapshot、ChipDistributionPoint、PriceBar（含 KDJ/RSI/BOLL/MACD 技术指标字段） |
 | `core/contracts/backtest.py` | 回测结构：BacktestResult、BacktestMetrics |
 | `core/contracts/dashboard.py` | 仪表盘结构：DashboardSummary、RecentNews、MarketStatus |
 | `core/contracts/decision_console.py` | 决策控制台结构：DailyCandidate、DecisionRecord |
@@ -165,6 +168,14 @@
 | `core/observability/__init__.py` | 可观测性模块初始化 |
 | `core/observability/metrics.py` | 指标定义和记录：counter、gauge、histogram |
 
+### core/connectors/ - 统一数据源连接器抽象
+
+| 文件 | 说明 |
+|---|---|
+| `core/connectors/__init__.py` | 导出所有连接器组件 |
+| `core/connectors/base.py` | 基础连接器：`BaseConnector`、`DocumentConnector`、`MarketDataConnector` ABC |
+| `core/connectors/registry.py` | 连接器注册表：`ConnectorRegistry`、模块级单例 |
+
 ### core/adapters/ - 核心适配器
 
 | 文件 | 说明 |
@@ -193,7 +204,8 @@
 |---|---|
 | `services/__init__.py` | 导出所有服务 |
 | **资产分析** | |
-| `asset_analysis_service.py` | 资产分析服务：生成资产分析快照 |
+| `asset_analysis_service.py` | 资产分析服务：生成资产分析快照、K线技术指标计算（KDJ/RSI）、筹码分布计算、Wind 直连数据补齐 |
+| `macro_sensitivity.py` | 宏观敏感性计算：通过时间序列回归计算个股对宏观因子的敏感度 |
 | **数据摄入与处理** | |
 | `ingest_service.py` | 摄入服务：处理文档摄入、提取断言和事件 |
 | `document_chunker.py` | 文档分块：将长文档切分为适合处理的小块 |
@@ -205,7 +217,7 @@
 | `ingestion_queue_service.py` | 摄入队列服务：管理异步摄入任务 |
 | **数据采集** | |
 | `crawl_orchestrator.py` | 采集编排器：协调多源采集（fetch→normalize→dedup→store→enqueue），含去重同步和深度回填 |
-| `crawl_scheduler.py` | 采集调度器：APScheduler 定时爬取 + PDF 转换（每 5 分钟） |
+| `crawl_scheduler.py` | 采集调度器：APScheduler 定时爬取 + PDF 转换。`check_and_backfill_gap()` 将阻塞回补委托到线程执行器 (`loop.run_in_executor`)，支持 per-source 超时 |
 | `crawler_ingestion_bridge.py` | 采集摄入桥接：将采集器输出转为 DocumentEnvelope → 摄入队列 |
 | `pdf_conversion_service.py` | PDF 转换服务：MinerU→MarkItDown→RawText 多策略降级，创建 DocumentV1 + 分块 |
 | `system_event_bus.py` | 系统事件总线：SSE 实时推送、Worker 心跳追踪 |
@@ -258,6 +270,31 @@
 
 ---
 
+## connectors/ - 数据源连接器实现
+
+顶层 `connectors/` 包存放所有具体连接器实现，分两个子包：
+
+### connectors/document/ — 文档连接器
+
+| 文件 | 说明 |
+|---|---|
+| `cls.py` | `CLSDocumentConnector`：财联社电报文档连接器，委托 `CLSAdapter` |
+| `cninfo.py` | `CninfoDocumentConnector`：巨潮资讯网公告文档连接器，委托 `CninfoAdapter` |
+| `cnstock.py` | `CNStockDocumentConnector`：中国证券网新闻文档连接器，委托 `CNStockAdapter` |
+| `zq.py` | `ZQDocumentConnector`：知丘（研报/微信/纪要）文档连接器，委托 `ZQAdapter` |
+
+### connectors/market/ — 市场数据连接器
+
+| 文件 | 说明 |
+|---|---|
+| `akshare.py` | `AkShareMarketConnector`：AKShare 市场数据连接器，委托 `AKShareAdapter` |
+| `wind.py` | `WindMarketConnector`：Wind 市场数据连接器，委托 `WindAdapter` |
+| `baostock.py` | `BaostockMarketConnector`：BaoStock 市场数据连接器，委托 `BaoStockAdapter` |
+| `cjpy.py` | `CjpyMarketConnector`：天软市场数据连接器，委托 `CjpyAdapter` |
+| `yahoo.py` | `YahooMarketConnector`：Yahoo Finance 市场数据连接器，委托 `YahooAdapter` |
+
+---
+
 ## data_layer/ - 数据层
 
 ### data_layer/adapters/ - 数据适配器
@@ -265,6 +302,7 @@
 | 文件 | 说明 |
 |---|---|
 | `data_layer/adapters/akshare_adapter.py` | AKShare 开源数据适配器：集成 crawler 模块，提供行情、财务、新闻、股东数据获取 |
+| `data_layer/adapters/cninfo_adapter.py` | 巨潮资讯网公告适配器：包装 CninfoCrawler，输出 DocumentEnvelope（source_type=filing） |
 | `data_layer/adapters/data_source_router.py` | 数据源路由器：iFinD → AKShare → ChinaStock 三级降级策略，统一管理所有数据适配器 |
 | `data_layer/adapters/wind/wind_adapter.py` | Wind Excel 适配器：8 个 fetch 方法（一致预期/两融/龙虎榜/日行情/财务/行业/资金流向/持有人） + parse() + fetch() dispatch |
 | `data_layer/adapters/wind/client.py` | Wind Excel 客户端：xlwings 连接管理（遍历所有 Excel 实例检测 Wind 插件）、心跳检测（TTL 30s 缓存）、WSD 时间序列查询（3 次指数退避重试 + 动态超时）、批量公式执行、后台保活（30min 间隔防自动登出） |
@@ -300,11 +338,21 @@
 |---|---|
 | `data_layer/crawlers/cls/` | 财联社电报采集器 |
 
-#### data_layer/crawlers/cnstock/ - 中国证券网采集器
+#### data_layer/crawlers/cninfo/ - 巨潮资讯网采集器
 
 | 目录 | 说明 |
 |---|---|
-| `data_layer/crawlers/cnstock/` | 中国证券网新闻采集器 |
+| `data_layer/crawlers/cninfo/` | 巨潮资讯网上市公司公告采集器 |
+
+#### data_layer/crawlers/cnstock/ - 中国证券网采集器
+
+| 文件/目录 | 说明 |
+|---|---|
+| `data_layer/crawlers/cnstock/` | 中国证券网新闻采集器（快讯 + 普通频道） |
+| `data_layer/crawlers/cnstock/cnstock.py` | CNStock 爬虫核心 (~1740行)：双路径架构（Playwright 优先 / requests 回退），支持快讯（fastNews/10004）和 5 个普通频道（证券/公司/产经/金融/时政），浏览器跨频道复用 |
+| `data_layer/crawlers/cnstock/utils/` | 反爬/去重/缓存工具（`AntiScrapeKit`、`UserAgentRotator`、`DeduplicationStore`、`NetUtils`）|
+
+**关键设计**：2026年5月 cnstock.com 升级阿里云 WAF，`requests` API 调用返回 `10304`（"未登录"）。修复方案使用 Playwright 无头浏览器导航 → 拦截页面 JS 发起的 XHR 响应获取数据。快讯通过提取 `__NEXT_DATA__` SSR 数据，普通频道通过拦截 `channelNewsList` API 响应。浏览器在 `crawl_news_list()` 中创建一次，跨频道复用。
 
 #### data_layer/crawlers/zq/ - 知丘采集器
 
@@ -475,7 +523,8 @@
 
 | 文件 | 说明 |
 |---|---|
-| `workers/knowledge_worker.py` | 知识处理 Worker：持续消费摄入队列，通过 KnowledgePipeline 处理文档，发布 SSE 事件 |
+| `workers/crawl_scheduler_worker.py` | 爬虫调度 Worker：独立进程管理 APScheduler 定时抓取任务，启动时并行回填所有数据源（每源 600s 超时，全局 900s 超时），通过 CrawlerIngestionBridge 将爬取结果写入摄入队列 |
+| `workers/knowledge_worker.py` | 知识处理 Worker：持续消费摄入队列，通过 KnowledgePipeline 处理文档（LLM 提取），发布 SSE 事件 |
 
 ---
 
@@ -591,4 +640,3 @@ CLI 命令在 `app/cli/commands/`，文件名 = 功能 + `.py`，例如：
 - **[CHANGELOG.md](CHANGELOG.md)** - 更新日志
 - **[backup_restore.md](backup_restore.md)** - 备份恢复文档
 - **[DATA_SOURCES.md](DATA_SOURCES.md)** - 数据源文档
-

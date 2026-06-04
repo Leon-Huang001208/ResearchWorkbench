@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 import pandas as pd
 
@@ -10,12 +11,12 @@ logger = logging.getLogger(__name__)
 class TechnicalIndicatorEngine:
     """技术指标引擎 - 三层降级"""
 
-    def __init__(self):
-        self._provider = None
-        self._provider_name = "unknown"
+    def __init__(self) -> None:
+        self._provider: Any = None
+        self._provider_name: str = "unknown"
         self._init_provider()
 
-    def _init_provider(self):
+    def _init_provider(self) -> None:
         """按优先级初始化 provider"""
         # 1. 尝试 TA-Lib
         try:
@@ -62,7 +63,7 @@ class TechnicalIndicatorEngine:
 
         result = self._provider.calculate(df, symbol)
         result.provider = self._provider_name
-        return result
+        return result  # type: ignore[no-any-return]
 
     @property
     def provider_name(self) -> str:

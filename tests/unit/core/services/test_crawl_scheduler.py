@@ -3,6 +3,7 @@ from unittest.mock import Mock, patch
 
 from core.contracts import SourceType
 from services.crawl_scheduler import (
+    DEFAULT_CRAWL_CONFIGS,
     CrawlScheduler,
     SourceCrawlConfig,
     build_scheduler_status,
@@ -89,6 +90,36 @@ class TestCrawlScheduler:
         scheduler.stop()
         assert scheduler.running is False
 
+    def test_add_jobs_skips_non_positive_interval(self):
+        scheduler = CrawlScheduler()
+        scheduler.scheduler = Mock()
+
+        config = SourceCrawlConfig(
+            source_type=SourceType.WIND,
+            source_name="Wind",
+            interval_minutes=0,
+        )
+
+        scheduler._add_jobs_for_source(config)
+
+        scheduler.scheduler.add_job.assert_not_called()
+
+    def test_add_jobs_waits_for_interval_instead_of_running_immediately(self):
+        scheduler = CrawlScheduler()
+        scheduler.scheduler = Mock()
+
+        config = SourceCrawlConfig(
+            source_type=SourceType.OTHER,
+            source_name="测试来源",
+            interval_minutes=15,
+            backfill_enabled=False,
+        )
+
+        scheduler._add_jobs_for_source(config)
+
+        _, kwargs = scheduler.scheduler.add_job.call_args
+        assert "next_run_time" not in kwargs
+
     @patch("services.crawl_scheduler.CrawlOrchestrator")
     def test_trigger_crawl(self, mock_orch_cls):
         mock_result = Mock()
@@ -144,9 +175,7 @@ class TestBuildSchedulerStatus:
         assert status["running"] is True
         assert "current_time" in status
         assert "sources" in status
-        assert (
-            len(status["sources"]) == 6
-        )  # CLS, CNStock, CNStock Flash, ZQ Reports, WeChat, Transcript
+        assert len(status["sources"]) == len(DEFAULT_CRAWL_CONFIGS)
 
         for source in status["sources"]:
             assert "source_type" in source

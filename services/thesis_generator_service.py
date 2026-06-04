@@ -23,7 +23,7 @@ DATA_DIR = Path(__file__).parent.parent / "data" / "industry_graphs"
 class ThesisGeneratorService:
     """主题生成服务：将事件转换为结构化投资主题，包含产业链传播和A股映射"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._loaded_graphs: Dict[str, IndustryGraph] = {}
         self._load_all_industry_graphs()
 

@@ -19,11 +19,11 @@ logger = get_logger(__name__)
 class TimingModelRegistry:
     """择时模型注册表。"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._models: dict[str, BaseTimingModel] = {}
         self._register_defaults()
 
-    def _register_defaults(self):
+    def _register_defaults(self) -> None:
         """注册默认的 9 个择时模型。"""
         self.register(RegimeModel())
         self.register(FlowModel())

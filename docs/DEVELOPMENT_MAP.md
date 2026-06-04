@@ -846,3 +846,58 @@ Update triggers:
 - Script behavior changes
 - Operational workflow changes
 - Backup/restore behavior changes
+
+## 19. Connector System
+
+Subsystem:
+
+```text
+core/connectors
+connectors
+```
+
+Responsibilities:
+
+- Unified data source connector abstraction (`BaseConnector → DocumentConnector / MarketDataConnector`)
+- Connector lifecycle: `discover → fetch → save_raw → parse → normalize → validate → persist`
+- Connector registry for discovery, registration, and health management
+- Concrete implementations wrap existing `data_layer/adapters/` classes (Wrapper-first strategy)
+
+Main files:
+
+```text
+core/connectors/base.py
+core/connectors/registry.py
+connectors/document/cls.py
+connectors/document/cnstock.py
+connectors/document/zq.py
+connectors/market/akshare.py
+connectors/market/wind.py
+connectors/market/baostock.py
+connectors/market/cjpy.py
+connectors/market/yahoo.py
+```
+
+Required tests:
+
+- Base connector lifecycle tests
+- Concrete connector integration tests (mock external dependencies)
+- Registry registration/discovery tests
+- Health check tests
+
+Required docs:
+
+```text
+docs/modules/core_connectors.md
+docs/ARCHITECTURE.md
+docs/FILE_GUIDE.md
+docs/DATA_SOURCES.md
+docs/CHANGELOG.md
+```
+
+Update triggers:
+
+- New connector type added
+- Base class lifecycle changes
+- Registry API changes
+- New concrete connector implementation

@@ -42,6 +42,30 @@ Update this section when:
 - Command arguments change
 - Command output format changes
 
+### `app/cli/commands/data.py`
+
+Purpose:
+
+- 统一数据摄入 CLI（Connector 架构）：`af data` 命令组。
+- `af data list` — 列出所有可用数据源及 datasets。
+- `af data ingest -s <src> -d <dataset>` — 统一数据摄入入口。
+- `af data backfill -s <src>` — 历史数据回填。
+- `af data validate -s <src> -d <dataset>` — 数据校验。
+- `af data status [--source <s>]` — 聚合 connector 健康 + Worker + Scheduler 状态。
+- `af data file -f <path>` — 摄入单个文件。
+- `af data schedule start|stop|status` — 采集调度器管理。
+- `af data workers start|stop|status` — 知识加工 Worker 管理。
+
+Related:
+- `core/connectors/registry.py` — `ConnectorRegistry`
+- `connectors/` — 具体连接器实现
+
+Update this section when:
+- New `af data` subcommands are added.
+- CLI → Connector integration changes.
+
+---
+
 ### `app/cli/commands/ingest.py`
 
 Purpose:

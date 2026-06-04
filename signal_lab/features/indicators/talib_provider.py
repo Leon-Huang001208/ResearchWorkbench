@@ -18,12 +18,11 @@ class TALibProvider:
         # 确保数据按时间排序（假设 index 是日期）
         df = df.sort_index(ascending=True)
 
-        # 提取所需数据
-        df["open"].values.astype(np.float64)
-        high_data = df["high"].values.astype(np.float64)
-        low_data = df["low"].values.astype(np.float64)
-        close_data = df["close"].values.astype(np.float64)
-        volume_data = df["volume"].values.astype(np.float64)
+        # 提取所需数据（使用 np.asarray 确保 numpy 类型兼容性）
+        high_data: np.ndarray = np.asarray(df["high"].values, dtype=np.float64)
+        low_data: np.ndarray = np.asarray(df["low"].values, dtype=np.float64)
+        close_data: np.ndarray = np.asarray(df["close"].values, dtype=np.float64)
+        volume_data: np.ndarray = np.asarray(df["volume"].values, dtype=np.float64)
 
         # 获取最新日期
         latest_date = (
@@ -120,9 +119,9 @@ class TALibProvider:
                     close_data,
                     fastk_period=9,
                     slowk_period=3,
-                    slowk_matype=0,
+                    slowk_matype=0,  # type: ignore[arg-type]
                     slowd_period=3,
-                    slowd_matype=0,
+                    slowd_matype=0,  # type: ignore[arg-type]
                 )
                 k = self._get_last_valid(slowk)
                 d = self._get_last_valid(slowd)
@@ -159,7 +158,7 @@ class TALibProvider:
         try:
             if len(close_data) >= 20:
                 upper, middle, lower = talib.BBANDS(
-                    close_data, timeperiod=20, nbdevup=2, nbdevdn=2, matype=0
+                    close_data, timeperiod=20, nbdevup=2, nbdevdn=2, matype=0  # type: ignore[arg-type]
                 )
                 result.boll = {
                     "upper": self._get_last_valid(upper),

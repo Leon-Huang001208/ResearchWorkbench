@@ -34,14 +34,14 @@ class Tracer:
     _instance = None
     _lock = threading.Lock()
 
-    def __new__(cls):
+    def __new__(cls) -> "Tracer":
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
                     cls._instance = super().__new__(cls)
         return cls._instance
 
-    def __init__(self):
+    def __init__(self) -> None:
         if hasattr(self, "_initialized"):
             return
         self._spans: dict[str, Span] = {}
@@ -63,7 +63,8 @@ class Tracer:
     def _pop_span_id(self) -> str | None:
         """从栈弹出 span_id"""
         if hasattr(self._thread_local, "span_stack") and self._thread_local.span_stack:
-            return self._thread_local.span_stack.pop()
+            result: str = self._thread_local.span_stack.pop()
+            return result
         return None
 
     def start_span(self, name: str, trace_id: str | None = None) -> str:

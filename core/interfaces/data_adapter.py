@@ -4,7 +4,7 @@ Abstract base class (interface) for data adapters.
 Defines the interface for data adapters that fetch and parse data from various sources
 into DocumentEnvelope objects in AlphaFoundry.
 """
-from abc import ABC, abstractmethod
+from abc import ABC
 from pathlib import Path
 from typing import Any
 
@@ -16,9 +16,11 @@ class DataAdapter(ABC):
 
     Abstract base class for data adapters, which are responsible for fetching data from
     various sources and parsing raw data into DocumentEnvelope objects.
+
+    Subclasses may override fetch/parse for document sources, or skip them for
+    market-data-only adapters.
     """
 
-    @abstractmethod
     def fetch(self, **kwargs: Any) -> list[DocumentEnvelope]:
         """获取数据.
 
@@ -31,9 +33,8 @@ class DataAdapter(ABC):
         Returns:
             list[DocumentEnvelope]: List of parsed document envelopes.
         """
-        pass
+        raise NotImplementedError(f"{self.__class__.__name__} does not support document fetching")
 
-    @abstractmethod
     def parse(self, source: Path | bytes | str, **kwargs: Any) -> DocumentEnvelope:
         """解析原始数据.
 
@@ -46,4 +47,4 @@ class DataAdapter(ABC):
         Returns:
             DocumentEnvelope: Parsed document envelope.
         """
-        pass
+        raise NotImplementedError(f"{self.__class__.__name__} does not support document parsing")

@@ -6,7 +6,6 @@ import json
 import logging
 import os
 import signal
-import sys
 import threading
 import time
 from pathlib import Path
@@ -59,7 +58,16 @@ async def _async_main() -> None:
     event_bus.record_worker_heartbeat("crawl_scheduler", "started, jobs scheduled")
     _write_heartbeat("started, jobs scheduled")
 
-    await _startup_gap_backfill(scheduler)
+    def _log_startup_gap_result(task: asyncio.Task) -> None:
+        try:
+            task.result()
+        except asyncio.CancelledError:
+            logger.info("[startup] gap backfill cancelled")
+        except Exception:
+            logger.exception("[startup] gap backfill crashed")
+
+    startup_backfill_task = asyncio.create_task(_startup_gap_backfill(scheduler))
+    startup_backfill_task.add_done_callback(_log_startup_gap_result)
 
     stop_event = asyncio.Event()
     _heartbeat_task = asyncio.create_task(_periodic_heartbeat(stop_event))
@@ -87,7 +95,6 @@ async def _async_main() -> None:
     scheduler.stop()
     _remove_pid()
     logger.info("Crawl scheduler worker stopped")
-    sys.exit(0)
 
 
 def _run_backfill_in_thread(scheduler, source_type, backfill_timeout: int = 600) -> None:
@@ -124,17 +131,34 @@ async def _startup_gap_backfill(scheduler) -> None:
     """启动时检测所有来源的抓取遗漏并回补（线程池并行执行）"""
     from core.source_registry import get_enabled
 
-    source_types = [s.source_type for s in get_enabled()]
+    source_specs = [s for s in get_enabled() if s.interval_minutes > 0]
+    skipped = [s.source_type.value for s in get_enabled() if s.interval_minutes <= 0]
+    if skipped:
+        logger.info(
+            "[startup] skipping startup backfill for non-scheduled sources",
+            extra={"sources": skipped},
+        )
+
+    source_types = [s.source_type for s in source_specs]
+    if not source_types:
+        logger.info("[startup] no scheduled sources enabled for gap backfill")
+        return
 
     loop = asyncio.get_running_loop()
-    max_workers = len(source_types)
+    max_workers = max(1, min(len(source_types), 8))
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
         futures = [
             loop.run_in_executor(pool, _run_backfill_in_thread, scheduler, st)
             for st in source_types
         ]
-        await asyncio.gather(*futures)
+        results = await asyncio.gather(*futures, return_exceptions=True)
+        for source_type, result in zip(source_types, results):
+            if isinstance(result, Exception):
+                logger.error(
+                    f"[startup] {source_type.value} startup backfill crashed outside guard",
+                    extra={"error": str(result)},
+                )
 
 
 async def _periodic_heartbeat(stop_event: asyncio.Event, interval: int = 30) -> None:

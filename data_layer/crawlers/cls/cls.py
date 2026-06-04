@@ -140,6 +140,8 @@ class CLSTelegramCrawler:
 
         # 创建 session
         self._session = requests.Session()
+        # 本地开发机可能配置了已失效的系统代理；CLS 抓取应直接访问数据源。
+        self._session.trust_env = False
 
         # Cookie 预热
         self._warmup_cookies()
@@ -242,15 +244,17 @@ class CLSTelegramCrawler:
                 self.logger.warning(f"[api] Error: {result.get('msg')}")
                 return None
 
-            telegram_list = result.get("data", {}).get("telegram", {}).get("data", [])
-            total_num = result.get("data", {}).get("telegram", {}).get("total_num", 0)
+            telegram_data = result.get("data", {}).get("telegram", {})
+            telegram_list = telegram_data.get("data") or []
+            total_num = telegram_data.get("total_num", 0)
 
             if date_str not in self.api_day_total:
                 self.api_day_total[date_str] = total_num
                 self.logger.info(f"[api] {date_str} 总计 {total_num} 条电报")
 
             # ============================================================
-            # 检查是否遇到已知的电报
+            # 检查是否遇到已知的电报。不要在页内提前截断：
+            # CLS 历史 API 页内可能按时间升序返回，已知条目后面仍可能有新电报。
             # ============================================================
             found_known_telegram = None
             parsed_telegrams = []
@@ -258,25 +262,19 @@ class CLSTelegramCrawler:
                 telegram = self._parse_telegram(item, date_str)
                 if telegram:
                     parsed_telegrams.append(telegram)
-                    if self.state_manager and self.state_manager.is_processed(telegram.id):
+                    if (
+                        not found_known_telegram
+                        and self.state_manager
+                        and self.state_manager.is_processed(telegram.id)
+                    ):
                         found_known_telegram = telegram
                         self.logger.info(
                             f"[watermark] 检测到已知电报: {telegram.id} - {telegram.content[:50]}..."
                         )
-                        break
 
             new_count = 0
-            if found_known_telegram and self.config.stop_on_known:
-                # 遇到已知的，只添加之前的
-                for telegram in parsed_telegrams:
-                    if telegram.id == found_known_telegram.id:
-                        break
-                    self._add_telegram(telegram)
-                    new_count += 1
-            else:
-                # 没有遇到已知的，全部添加
-                for telegram in parsed_telegrams:
-                    self._add_telegram(telegram)
+            for telegram in parsed_telegrams:
+                if self._add_telegram(telegram):
                     new_count += 1
 
             return {
@@ -401,65 +399,60 @@ class CLSTelegramCrawler:
             return None
 
     def _crawl_incremental(self) -> int:
-        """增量抓取：使用 updateTelegraphList，只拉取上次以来的新电报"""
-        # 从状态文件读取上次的 lastTime
-        last_time = "0"
+        """增量抓取：使用历史 API 的最新页补漏。
+
+        旧的 updateTelegraphList 端点当前会返回 404；历史 API 仍稳定可用。
+        因此增量模式按调度窗口从最新页往旧页扫描，并依靠状态文件去重。
+        """
+        start_date, end_date = self._parse_and_validate_dates()
+        before_total = len(self.all_telegrams)
+        before_count = len(self.new_telegrams)
+
+        self.logger.info(
+            f"[incremental] 使用历史 API 最新页补漏: " f"{self.config.start_date} 至 {self.config.end_date}"
+        )
+
+        current_date = end_date
+        while current_date >= start_date:
+            self._get_all_day_telegrams(current_date)
+            current_date -= timedelta(days=1)
+            if current_date >= start_date:
+                self._random_delay(is_page_delay=True)
+
         if self.state_manager:
-            wm = self.state_manager.get_watermark("cls:lastTime")
-            if wm:
-                last_time = str(wm.get("last_seen_id", "0"))
-
-        self.logger.info(f"[incremental] 增量抓取, lastTime={last_time}")
-
-        result = self._get_update_telegrams(last_time)
-        if not result or not result.get("items"):
-            return 0
-
-        items = result["items"]
-        latest_ctime = result.get("latest_ctime")
-
-        new_count = 0
-        for telegram in items:
-            if self.state_manager and self.state_manager.is_processed(telegram.id):
-                self.skipped_count += 1
-                continue
-            self._add_telegram(telegram)
-            new_count += 1
-
-        # 更新 lastTime 水位线
-        if latest_ctime and self.state_manager:
-            self.state_manager.set_watermark("cls:lastTime", latest_ctime)
-            self.logger.info(f"[incremental] 更新 lastTime={latest_ctime}")
-
+            new_count = len(self.new_telegrams) - before_count
+        else:
+            new_count = len(self.all_telegrams) - before_total
         self.logger.info(f"[incremental] 完成: {new_count} 条新增, {self.skipped_count} 条跳过")
         return new_count
 
-    def _add_telegram(self, telegram: TelegramItem):
-        """添加电报"""
+    def _add_telegram(self, telegram: TelegramItem) -> bool:
+        """添加电报，返回是否真正新增。"""
         # O(1) 去重
         if telegram.id in self._seen_telegram_ids:
-            return
-        self._seen_telegram_ids.add(telegram.id)
-
-        self.all_telegrams.append(telegram)
-
-        if telegram.day not in self.daily_telegrams:
-            self.daily_telegrams[telegram.day] = []
-        self.daily_telegrams[telegram.day].append(telegram)
+            return False
 
         # 持久化去重检查（使用通用去重存储）
         if self.state_manager:
             if self.state_manager.is_processed(telegram.id):
                 if self.config.skip_existing:
                     self.skipped_count += 1
-                    return
+                    return False
             else:
                 self.new_telegrams.append(telegram)
                 self.state_manager.mark_processed(telegram.id, content_preview=telegram.content)
 
+        self._seen_telegram_ids.add(telegram.id)
+        self.all_telegrams.append(telegram)
+
+        if telegram.day not in self.daily_telegrams:
+            self.daily_telegrams[telegram.day] = []
+        self.daily_telegrams[telegram.day].append(telegram)
+
         # 清除缓存
         self._filtered_telegrams = None
         self._filtered_daily_telegrams = None
+        return True
 
     def _filter_telegrams(self, telegrams: List[TelegramItem]) -> List[TelegramItem]:
         """过滤电报"""
@@ -535,9 +528,8 @@ class CLSTelegramCrawler:
 
         if self.config.use_incremental:
             count = self._crawl_incremental()
-            if count > 0:
-                return
-            self.logger.info("[fallback] 增量模式未获取到新电报，回退到全量模式")
+            self.logger.info(f"[incremental] 本轮处理完成，新增 {count} 条")
+            return
 
         start_date, end_date = self._parse_and_validate_dates()
 
@@ -599,22 +591,23 @@ class CLSTelegramCrawler:
             self.api_day_total[date_str] = total_num
             self.logger.info(f"[api] {date_str} 总计 {total_num} 条电报")
 
-        # CLS API rn=100 → page 1 = 最旧条目，逐页递增 → 越来越新
-        max_page = min(
-            (total_num + items_per_page - 1) // items_per_page if items_per_page > 0 else 1,
-            self.config.max_pages,
+        # CLS API 的 total_num 是全局搜索结果数，不适合作为指定日期的最后页号。
+        # page 1 返回最近电报，调度任务按 page 1 往后扫有限页即可覆盖最新数据。
+        total_pages = (
+            (total_num + items_per_page - 1) // items_per_page if items_per_page > 0 else 1
         )
+        page_limit = min(total_pages, self.config.max_pages)
 
-        self.logger.info(f"[page] 从第1页(最旧)往后抓取, " f"每页~{items_per_page}条, 最多{max_page}页")
+        self.logger.info(f"[page] 从第1页(最新)往后抓取, " f"每页~{items_per_page}条, 最多{page_limit}页")
 
-        # Step 2: 从第1页往后迭代（page 1 = 最旧电报）
+        # Step 2: 从最新页往后迭代
         watermark_key = f"cls:{date_str}"
         stopped_by_watermark = False
         first_new_telegram_id: Optional[str] = None
         consecutive_known_pages = 0
 
-        for page in range(1, max_page + 1):
-            self.logger.info(f"[page] 正在获取第 {page}/{max_page} 页...")
+        for page in range(1, page_limit + 1):
+            self.logger.info(f"[page] 正在获取第 {page}/{page_limit} 页...")
 
             result = self.get_telegram_data(date, page)
             if not result:
@@ -625,7 +618,7 @@ class CLSTelegramCrawler:
             found_known = result.get("found_known", False)
             known_telegram_id = result.get("known_telegram_id")
 
-            # 水位线（最旧优先：遇到已知条目只记录，不停止，因为后续页可能有更新的未知条目）
+            # 水位线：当前按最新页往旧页扫描，处理完本页后可以停止。
             if found_known and self.config.stop_on_known and self.state_manager:
                 self.logger.info(f"[watermark] 遇到已知电报: {known_telegram_id}")
                 if self.new_telegrams and first_new_telegram_id is None:
@@ -641,7 +634,7 @@ class CLSTelegramCrawler:
                     self.logger.info(f"[watermark] 已更新水位线: {first_new_telegram_id}")
                 break
 
-            # 整页无新数据 → 更旧的页大概率也都是已知的
+            # 从最新页往旧页扫时，整页无新数据说明后续更旧页大概率也都是已知的。
             if new_count == 0:
                 consecutive_known_pages += 1
                 self.logger.info(f"[page] 第 {page} 页无新数据 (连续{consecutive_known_pages}页)")

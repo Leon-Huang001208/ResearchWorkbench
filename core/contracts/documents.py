@@ -6,7 +6,6 @@ across the AlphaFoundry system, including envelopes that wrap raw documents
 and their metadata.
 """
 from datetime import datetime
-from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -30,9 +29,7 @@ class DocumentEnvelope(BaseModel):
     """
 
     doc_id: str = Field(description="Unique identifier for the document")
-    source_type: Literal[
-        "policy", "news", "report", "pdf", "ppt", "filing", "vendor_snapshot", "internal_note"
-    ] = Field(description="Type of source")
+    source_type: str = Field(description="Type of source")
     title: str = Field(description="Title of the document")
     published_at: datetime | None = Field(
         default=None, description="Publication date/time of the document (if available)"

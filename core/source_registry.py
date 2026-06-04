@@ -50,6 +50,10 @@ class SourceSpec:
     # 检索权重 (供 retrieval.py 使用)
     retrieval_weight: float = 1.0
 
+    # 多源降级路由 — 同一 fallback_group 内按 fallback_priority 升序尝试
+    fallback_group: Optional[str] = None
+    fallback_priority: int = 100
+
 
 # ---------------------------------------------------------------------------
 # 注册表
@@ -115,3 +119,18 @@ def is_registered(source_type: SourceType) -> bool:
     """来源是否已注册。"""
     _ensure_discovered()
     return source_type in _registry
+
+
+def get_fallback_groups() -> Dict[str, List[SourceSpec]]:
+    """获取按优先级排序的多源降级组。"""
+    _ensure_discovered()
+    groups: Dict[str, List[SourceSpec]] = {}
+    for spec in _registry.values():
+        if spec.fallback_group is None:
+            continue
+        groups.setdefault(spec.fallback_group, []).append(spec)
+
+    return {
+        group: sorted(specs, key=lambda spec: spec.fallback_priority)
+        for group, specs in groups.items()
+    }

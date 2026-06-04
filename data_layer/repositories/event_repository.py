@@ -1,4 +1,8 @@
-from typing import List, Optional
+from typing import List, Optional, cast
+
+from sqlalchemy import Text
+from sqlalchemy import cast as sql_cast
+from sqlalchemy import false, func
 
 from core.contracts import CanonicalEvent
 from core.interfaces import EventRepository
@@ -130,11 +134,12 @@ class EventRepositoryImpl(BaseRepository, EventRepository):
     def delete(self, id: str) -> bool:
         """删除事件"""
         count = self.db.query(CanonicalEventModel).filter_by(event_id=id).delete()
-        return count > 0
+        return int(count) > 0
 
     def get_by_entity(self, entity_id: str) -> List[CanonicalEvent]:
         """获取关联到某实体的事件"""
-        models = self.db.query(CanonicalEventModel).all()
+        payload_text = sql_cast(CanonicalEventModel.payload, Text)
+        models = self.db.query(CanonicalEventModel).filter(payload_text.contains(entity_id)).all()
         results = []
         for m in models:
             payload = m.payload or {}
@@ -152,17 +157,19 @@ class EventRepositoryImpl(BaseRepository, EventRepository):
         try:
             start_dt = datetime.fromisoformat(start)
             end_dt = datetime.fromisoformat(end)
-            models = (
-                self.db.query(CanonicalEventModel)
-                .filter(
-                    CanonicalEventModel.event_time >= start_dt,
-                    CanonicalEventModel.event_time <= end_dt,
-                )
-                .all()
-            )
-            return [self._to_domain(m) for m in models]
-        except Exception:
+        except ValueError:
+            logger.warning("Invalid event time range", start=start, end=end)
             return []
+
+        models = (
+            self.db.query(CanonicalEventModel)
+            .filter(
+                CanonicalEventModel.event_time >= start_dt,
+                CanonicalEventModel.event_time <= end_dt,
+            )
+            .all()
+        )
+        return [self._to_domain(m) for m in models]
 
     def get_pending_review(self) -> List[CanonicalEvent]:
         """获取待审核的事件"""
@@ -185,11 +192,41 @@ class EventRepositoryImpl(BaseRepository, EventRepository):
 
     def list_by_impacted_symbol(self, symbol: str, limit: int = 100) -> List[CanonicalEvent]:
         """根据影响股票列出事件"""
-        models = self.db.query(CanonicalEventModel).all()
+        payload_text = sql_cast(CanonicalEventModel.payload, Text)
+        models = self.db.query(CanonicalEventModel).filter(payload_text.contains(symbol)).all()
         results = []
         for m in models:
             payload = m.payload or {}
             impacted_symbols = payload.get("impacted_symbols", [])
             if symbol in impacted_symbols:
                 results.append(self._to_domain(m))
+                if len(results) >= limit:
+                    break
         return results
+
+    def list_approved_pending_signal(self, limit: int = 100) -> List[CanonicalEvent]:
+        """列出已批准且尚未自动生成信号的事件。"""
+        signal_generated = CanonicalEventModel.payload["signal_generated"].as_boolean()
+        models = (
+            self.db.query(CanonicalEventModel)
+            .filter(
+                CanonicalEventModel.reviewer_status == "approved",
+                func.coalesce(signal_generated, false()).is_(false()),
+            )
+            .order_by(CanonicalEventModel.created_at.desc())
+            .limit(limit)
+            .all()
+        )
+        return [self._to_domain(model) for model in models]
+
+    def mark_signal_generated(self, event_id: str) -> None:
+        """标记事件已完成自动信号生成。"""
+        model = self.db.query(CanonicalEventModel).filter_by(event_id=event_id).first()
+        if model is None:
+            logger.warning("Cannot mark missing event as signal generated", event_id=event_id)
+            return
+
+        payload = cast(dict, model.payload or {})
+        model.payload = {**payload, "signal_generated": True}
+        self.db.flush()
+        logger.info("event signal generation marked", event_id=event_id)

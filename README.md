@@ -18,7 +18,7 @@ AlphaFoundry 是一个面向基金研究员和量化研究员的 **AI-native Inv
 
 - **资产分析卡**：对股票、ETF、指数、商品、外汇、债券、基金等资产形成标准化快照，覆盖财务、资金、量价、估值、股东、产业、事件、宏观八大维度
 - **文档摄入管道**：支持 PDF、网页、研报等多格式文档，自动分块、分类、实体提取、事件提取
-- **多源数据采集**：财联社电报、中国证券网、知丘研报、AKShare 开源数据等四大数据源自动采集
+- **多源数据采集**：财联社电报、中国证券网、知丘研报、AKShare 开源数据、Wind 专业终端、BaoStock、Yahoo Finance、Cjpy 等数据源，通过统一的 Connector 架构（DocumentConnector / MarketDataConnector）自动采集和降级切换
 - **实体解析与归一化**：自动消歧，确保同一实体在不同数据源中被统一标识
 - **向量检索与 RAG**：基于 pgvector 的语义检索，支持知识召回和增强生成
 
@@ -383,6 +383,9 @@ AlphaFoundry/
 │   │   └── metrics.py            # 指标
 │   ├── services/                 # 废弃重导出 → services/
 │   └── settings/                 # 配置管理
+├── connectors/                   # 数据源连接器实现
+│   ├── document/                 # 文档类连接器 (CLS, CNStock, ZQ)
+│   └── market/                   # 行情类连接器 (AKShare, Baostock, Cjpy, Wind, Yahoo)
 ├── services/                    # 业务服务层
 │   ├── asset_analysis_service.py
 │   ├── crawl_scheduler.py
@@ -459,6 +462,9 @@ AlphaFoundry/
 ├── cron_jobs/                # 定时任务
 │   ├── auto_ingest_service.py  # 自动数据摄入服务
 │   └── auto_generate_signals.py # 自动信号生成
+├── workers/                   # 后台 Worker 进程
+│   ├── crawl_scheduler_worker.py  # 爬虫调度 Worker
+│   └── knowledge_worker.py    # 知识处理 Worker (LLM 管道)
 ├── scripts/                  # 脚本工具
 │   ├── seed_factor_data.py   # 因子数据播种（AKShare/Wind 双源 + 限流重试 + 断点续传）
 │   ├── backup_db.py          # 数据库备份
@@ -492,13 +498,15 @@ AlphaFoundry/
 
 ## 技术栈
 
-| 领域       | 技术选型                |
-| ---------- | ----------------------- |
-| 编程语言   | Python 3.11+            |
-| 数据验证   | Pydantic v2             |
-| Web 框架   | FastAPI                 |
-| 命令行     | Click                   |
-| 数据库     | PostgreSQL 15+ / SQLite |
+| 领域 | 技术选型 |
+| --- | --- |
+| 编程语言 | Python 3.11+ |
+| 数据采集 | DocumentConnector / MarketDataConnector |
+| 数据源 | AKShare、财联社、中国证券网、知丘、Wind、BaoStock、Yahoo |
+| 数据验证 | Pydantic v2 |
+| Web 框架 | FastAPI |
+| 命令行 | Click |
+| 数据库 | PostgreSQL 15+ / SQLite |
 | 向量存储   | pgvector                |
 | ORM        | SQLAlchemy 2.0          |
 | 数据库迁移 | Alembic                 |
@@ -515,6 +523,8 @@ AlphaFoundry/
 - ✅ **第 4 个月**：Web Workbench v1、多源采集、知识加工、RAG 检索、模板报告、回测视角
 - ✅ **第 5 个月**：闭循环服务、失败记忆、结果反馈、每周回顾
 - 🔄 **进行中**：持续优化与迭代
+  - Scheduler 稳定性改进：启动回填改为异步后台任务，支持 per-source 和全局超时保护
+  - 数据管道修复：知丘公众号和会议纪要内容现已正确进入 LLM 提取管道
 
 ## 文档索引
 

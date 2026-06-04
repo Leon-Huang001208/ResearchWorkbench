@@ -14,6 +14,83 @@
 
 ## CLI 命令
 
+### 0. data - 统一数据命令组（推荐）
+
+**新增于 2026-06-02**。统一替代分散的 `af crawl` / `af ingest` / `af knowledge` 命令。
+
+旧命令保留为别名，可继续使用但建议迁移。
+
+#### `af data list` — 列出所有数据源
+
+```bash
+af data list
+# 显示所有已注册的 connector 及支持的 datasets
+```
+
+#### `af data ingest` — 执行数据摄入
+
+```bash
+af data ingest --source cls --dataset news --days 2
+af data ingest -s akshare -d stock_daily --codes "600519.SH" --start-date 2026-01-01 --end-date 2026-06-01
+af data ingest -s wind -d daily_quotes --codes "600519.SH" --days 5
+af data ingest -s cnstock -d news --max-items 50
+```
+
+| 参数 | 必需 | 说明 |
+|------|------|------|
+| `--source`, `-s` | ✅ | 数据源标识（cls, akshare, wind, cnstock, zq, yahoo） |
+| `--dataset`, `-d` | ✅ | 数据集（news, stock_daily, daily_quotes, ...） |
+| `--start-date` | ❌ | 开始日期 YYYY-MM-DD |
+| `--end-date` | ❌ | 结束日期 YYYY-MM-DD |
+| `--codes` | ❌ | 证券代码，逗号分隔 |
+| `--days` | ❌ | 最近 N 天（与 start-date/end-date 互斥） |
+| `--max-items` | ❌ | 最大抓取数量 |
+
+#### `af data backfill` — 历史数据回填
+
+```bash
+af data backfill -s cls --days 30
+```
+
+#### `af data validate` — 校验已有数据
+
+```bash
+af data validate -s akshare -d stock_daily
+af data validate -s wind -d daily_quotes --start-date 2026-05-01
+```
+
+#### `af data status` — 查看数据状态
+
+```bash
+af data status              # 所有数据源概览
+af data status -s akshare   # 单个数据源详情
+```
+
+#### `af data file` — 摄入单个文件
+
+```bash
+af data file -f report.pdf -t report -s "券商研报"
+```
+
+#### `af data schedule` — 采集调度器管理
+
+```bash
+af data schedule start      # 启动后台调度器
+af data schedule stop       # 停止调度器
+af data schedule status     # 查看调度器状态
+```
+
+#### `af data workers` — 知识加工 Worker 管理
+
+```bash
+af data workers start       # 启动 Worker（默认 1 个）
+af data workers start -n 4  # 启动 4 个 Worker
+af data workers stop        # 停止所有 Worker
+af data workers status      # 查看 Worker 状态
+```
+
+---
+
 ### 1. analyze - 资产分析
 
 生成资产分析快照。
@@ -424,32 +501,55 @@ python scripts/seed_factor_data.py --skip-ingest
 
 ### 资产分析 API
 
-#### GET /api/asset/{asset_id}
+#### POST /api/assets/analysis-card
 
-获取资产分析快照。
+生成资产分析卡片，包含基本信息、K线、成交量、MACD、资金流向、股东、财务、行业、事件和宏观敏感性等数据。
 
-**路径参数**:
+**请求体**:
 
-- `asset_id`: 资产代码，例如 `600519.SH`
+| 字段 | 必需 | 说明 |
+| --- | --- | --- |
+| `canonical_id` | ✅ | 资产代码，例如 `600519.SH` |
+| `as_of` | ❌ | 指定分析时间，ISO 格式 |
+| `time_range` | ❌ | K线时间范围：`1M` / `3M` / `6M` / `1Y` / `2Y` / `3Y` / `5Y` / `ALL`，默认 `1Y` |
 
-**查询参数**:
+**请求示例**:
 
-- `as_of`: (可选) 指定时间
+```json
+{
+  "canonical_id": "600519.SH",
+  "time_range": "2Y"
+}
+```
 
 **响应示例**:
 
 ```json
 {
-  "asset_id": "600519.SH",
-  "as_of": "2025-05-10T00:00:00Z",
-  "valuation": {...},
+  "canonical_id": "600519.SH",
+  "as_of": "2026-06-03T00:00:00Z",
+  "current_price": 1600.0,
+  "price_bars": [
+    {
+      "date": "2026-06-03",
+      "open": 1580.0,
+      "high": 1610.0,
+      "low": 1570.0,
+      "close": 1600.0,
+      "volume": 1000000,
+      "ma5": 1590.0,
+      "boll_upper": 1660.0,
+      "macd_dif": 1.25
+    }
+  ],
   "financial": {...},
-  "price_volume": {...},
-  "capital_flow": {...},
-  "news": [...],
-  "research_reports": [...]
+  "capital_flow": {...}
 }
 ```
+
+#### GET /api/assets/{canonical_id}
+
+获取资产最新分析快照。
 
 ---
 

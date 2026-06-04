@@ -1,5 +1,5 @@
 """Wind 适配器单元测试 —— 所有公式名已通过 Wind Excel 实测验证"""
-from unittest.mock import MagicMock, PropertyMock
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 
@@ -256,6 +256,30 @@ class TestWindClientLogic:
         client._sheet = sheet_mock
         client._col = "Z"
         return client
+
+    def test_connect_starts_excel_when_no_running_instance(self):
+        from data_layer.adapters.wind.client import WindExcelClient
+
+        sheet = MagicMock()
+        workbook = MagicMock()
+        workbook.sheets = [sheet]
+        books = MagicMock()
+        books.__len__.return_value = 0
+        books.add.return_value = workbook
+        app = MagicMock()
+        app.books = books
+
+        xw = MagicMock()
+        xw.apps = []
+        xw.App.return_value = app
+
+        with patch.dict("sys.modules", {"xlwings": xw}):
+            client = WindExcelClient(visible=False)
+            client._connect()
+
+        xw.App.assert_called_once_with(visible=False, add_book=True)
+        assert client._owns_app is True
+        assert client._app is app
 
     def test_heartbeat_returns_true_when_wind_ok(self):
         sheet = MagicMock()

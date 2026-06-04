@@ -52,3 +52,12 @@ When files in this module change, check:
 - `docs/FILE_GUIDE.md`
 - `docs/CHANGELOG.md`
 - `docs/generated/py_file_index.md`
+
+---
+
+## Key Files
+
+| 文件 | 说明 |
+|------|------|
+| `memory_learning/pattern_learner.py` | 模式学习器：从历史结果中提取可复用模式 |
+| `memory_learning/journal.py` | 学习日志管理

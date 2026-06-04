@@ -11,7 +11,7 @@ logger = get_logger(__name__)
 class LearningJournal:
     """记录 Episode、Strategy、Agent 和 Failure memory 的最小实现。"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._episodes: dict[str, MarketEpisode] = {}
         self._strategies: dict[str, StrategyMemory] = {}
         self._agent_memories: dict[str, AgentMemory] = {}

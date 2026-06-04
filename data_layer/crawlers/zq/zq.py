@@ -14,8 +14,9 @@ zq.py - 知丘爬取统一入口
 import argparse
 import importlib
 import sys
+from argparse import Namespace
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 # 模块元数据：单一事实来源
 _MODULE_METADATA = {
@@ -25,7 +26,7 @@ _MODULE_METADATA = {
 }
 
 
-def _get_module_handler(doc_type: str):
+def _get_module_handler(doc_type: str) -> Optional[Tuple[str, List[str]]]:
     """
     获取文档类型对应的模块处理器信息
 
@@ -53,7 +54,7 @@ def _merge_results(results_list: List[Dict[str, Any]]) -> Dict[str, Any]:
     Returns:
         Dict[str, Any]: 合并后的结果
     """
-    merged = {
+    merged: Dict[str, Any] = {
         "success": True,
         "message": "",
         "terms": [],
@@ -190,14 +191,14 @@ def _run_single_module(doc_type: str, kwargs: Dict[str, Any]) -> Optional[Dict[s
                     if hasattr(config, key):
                         setattr(config, key, value)
                 fetcher = fetcher_class(config)
-                return fetcher.fetch()
-        else:
-            return {
-                "success": False,
-                "message": f"不支持的文档类型: {doc_type}",
-                "errors": [f"不支持的文档类型: {doc_type}"],
-                "terms": [],
-            }
+                return cast(Dict[str, Any], fetcher.fetch())
+
+        return {
+            "success": False,
+            "message": f"不支持的文档类型: {doc_type}",
+            "errors": [f"不支持的文档类型: {doc_type}"],
+            "terms": [],
+        }
     except Exception as e:
         return {
             "success": False,
@@ -207,7 +208,7 @@ def _run_single_module(doc_type: str, kwargs: Dict[str, Any]) -> Optional[Dict[s
         }
 
 
-def parse_args():
+def parse_args() -> Namespace:
     parser = argparse.ArgumentParser(
         description="知丘研报爬取统一入口（调用独立模块）",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -270,7 +271,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def args_to_kwargs(args) -> Dict[str, Any]:
+def args_to_kwargs(args: Namespace) -> Dict[str, Any]:
     kwargs = {}
     for key, value in vars(args).items():
         if value is not None:
@@ -280,7 +281,7 @@ def args_to_kwargs(args) -> Dict[str, Any]:
     return kwargs
 
 
-def main_cli():
+def main_cli() -> int:
     args = parse_args()
     kwargs = args_to_kwargs(args)
 
@@ -309,7 +310,7 @@ def main_cli():
             for future in as_completed(future_to_type):
                 results.append(future.result())
 
-    result = _merge_results(results)
+    result = _merge_results([item for item in results if item is not None])
 
     if result.get("success"):
         print(f"\n[OK] {result.get('message', '')}")

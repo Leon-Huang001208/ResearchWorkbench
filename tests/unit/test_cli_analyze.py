@@ -13,12 +13,16 @@ class TestAnalyzeCommand:
         """Test basic analyze command execution."""
         runner = CliRunner()
 
-        with patch("app.cli.commands.analyze.get_db") as mock_get_db, patch(
+        with patch("app.cli.commands.analyze.db_session") as mock_db_session, patch(
+            "app.cli.commands.analyze.asyncio.run"
+        ) as mock_async_run, patch(
             "app.cli.commands.analyze.AssetAnalysisService"
-        ) as mock_service, patch("app.cli.commands.analyze.AssetSnapshotRepositoryImpl"):
+        ) as mock_service, patch(
+            "app.cli.commands.analyze.AssetSnapshotRepositoryImpl"
+        ):
             # Setup mocks
             mock_session = Mock()
-            mock_get_db.return_value.__enter__.return_value = mock_session
+            mock_db_session.return_value.__enter__.return_value = mock_session
 
             mock_snapshot = Mock()
             mock_snapshot.canonical_id = "600000.SH"
@@ -28,6 +32,8 @@ class TestAnalyzeCommand:
             mock_service_instance = Mock()
             mock_service_instance.generate_snapshot.return_value = mock_snapshot
             mock_service.return_value = mock_service_instance
+
+            mock_async_run.return_value = mock_snapshot
 
             result = runner.invoke(
                 analyze_command,
@@ -42,9 +48,13 @@ class TestAnalyzeCommand:
         runner = CliRunner()
         output_file = tmp_path / "report.md"
 
-        with patch("app.cli.commands.analyze.get_db"), patch(
+        with patch("app.cli.commands.analyze.db_session"), patch(
+            "app.cli.commands.analyze.asyncio.run"
+        ) as mock_async_run, patch(
             "app.cli.commands.analyze.AssetAnalysisService"
-        ) as mock_service, patch("app.cli.commands.analyze.AssetSnapshotRepositoryImpl"), patch(
+        ) as mock_service, patch(
+            "app.cli.commands.analyze.AssetSnapshotRepositoryImpl"
+        ), patch(
             "app.cli.commands.analyze.MarkdownProjection"
         ) as mock_md:
             mock_snapshot = Mock()
@@ -58,6 +68,8 @@ class TestAnalyzeCommand:
             mock_service_instance = Mock()
             mock_service_instance.generate_snapshot.return_value = mock_snapshot
             mock_service.return_value = mock_service_instance
+
+            mock_async_run.return_value = mock_snapshot
 
             mock_projection = Mock()
             mock_md.return_value = mock_projection
@@ -74,9 +86,13 @@ class TestAnalyzeCommand:
         """Test analyze with --no-mock flag."""
         runner = CliRunner()
 
-        with patch("app.cli.commands.analyze.get_db"), patch(
+        with patch("app.cli.commands.analyze.db_session"), patch(
+            "app.cli.commands.analyze.asyncio.run"
+        ) as mock_async_run, patch(
             "app.cli.commands.analyze.AssetAnalysisService"
-        ) as mock_service, patch("app.cli.commands.analyze.AssetSnapshotRepositoryImpl"):
+        ) as mock_service, patch(
+            "app.cli.commands.analyze.AssetSnapshotRepositoryImpl"
+        ):
             mock_snapshot = Mock()
             mock_snapshot.canonical_id = "600000.SH"
             mock_snapshot.valuation = {}
@@ -85,6 +101,8 @@ class TestAnalyzeCommand:
             mock_service_instance = Mock()
             mock_service_instance.generate_snapshot.return_value = mock_snapshot
             mock_service.return_value = mock_service_instance
+
+            mock_async_run.return_value = mock_snapshot
 
             result = runner.invoke(
                 analyze_command,
@@ -100,9 +118,13 @@ class TestAnalyzeCommand:
         """Test analyze with --as-of flag."""
         runner = CliRunner()
 
-        with patch("app.cli.commands.analyze.get_db"), patch(
+        with patch("app.cli.commands.analyze.db_session"), patch(
+            "app.cli.commands.analyze.asyncio.run"
+        ) as mock_async_run, patch(
             "app.cli.commands.analyze.AssetAnalysisService"
-        ) as mock_service, patch("app.cli.commands.analyze.AssetSnapshotRepositoryImpl"):
+        ) as mock_service, patch(
+            "app.cli.commands.analyze.AssetSnapshotRepositoryImpl"
+        ):
             mock_snapshot = Mock()
             mock_snapshot.canonical_id = "600000.SH"
             mock_snapshot.valuation = {}
@@ -111,6 +133,8 @@ class TestAnalyzeCommand:
             mock_service_instance = Mock()
             mock_service_instance.generate_snapshot.return_value = mock_snapshot
             mock_service.return_value = mock_service_instance
+
+            mock_async_run.return_value = mock_snapshot
 
             result = runner.invoke(
                 analyze_command,
@@ -123,7 +147,7 @@ class TestAnalyzeCommand:
         """Test analyze with invalid date format."""
         runner = CliRunner()
 
-        with patch("app.cli.commands.analyze.get_db"), patch(
+        with patch("app.cli.commands.analyze.db_session"), patch(
             "app.cli.commands.analyze.AssetAnalysisService"
         ), patch("app.cli.commands.analyze.AssetSnapshotRepositoryImpl"):
             result = runner.invoke(
@@ -138,9 +162,11 @@ class TestAnalyzeCommand:
         """Test that analyze handles service errors gracefully."""
         runner = CliRunner()
 
-        with patch("app.cli.commands.analyze.get_db"), patch(
-            "app.cli.commands.analyze.AssetAnalysisService"
-        ) as mock_service, patch("app.cli.commands.analyze.AssetSnapshotRepositoryImpl"):
+        with patch("app.cli.commands.analyze.db_session"), patch(
+            "app.cli.commands.analyze.asyncio.run"
+        ), patch("app.cli.commands.analyze.AssetAnalysisService") as mock_service, patch(
+            "app.cli.commands.analyze.AssetSnapshotRepositoryImpl"
+        ):
             mock_service_instance = Mock()
             mock_service_instance.generate_snapshot.side_effect = Exception("API Error")
             mock_service.return_value = mock_service_instance

@@ -1,6 +1,8 @@
 """Meta Timing System。"""
 from __future__ import annotations
 
+from typing import Literal
+
 from core.observability import get_logger
 from memory_learning.contracts import FailureMemory
 
@@ -146,7 +148,9 @@ class MetaTimingEngine:
                 blockers.append(score.model_name)
         return sorted(set(blockers))
 
-    def _action(self, readiness: float, blockers: list[str]) -> str:
+    def _action(
+        self, readiness: float, blockers: list[str]
+    ) -> Literal["enter", "wait", "reduce", "exit", "block"]:
         if "regime" in blockers or "crowding" in blockers:
             return "block"
         if readiness >= self.enter_threshold and not blockers:

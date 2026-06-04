@@ -4,6 +4,7 @@ Yahoo Finance 基础适配器模块
 定义统一的数据结构和适配器基类。
 遵循项目现有架构，与 AkShare/BaoStock 适配器保持一致。
 """
+import importlib
 from abc import ABC
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
@@ -177,9 +178,7 @@ class BaseYahooFetcher(ABC):
             return
 
         try:
-            import yfinance as yf
-
-            self._yf = yf
+            self._yf = importlib.import_module("yfinance")
             self._initialized = True
             if self.config.verbose:
                 logger.debug("yfinance initialized successfully")
@@ -258,9 +257,8 @@ class YahooAdapter:
     def options(self):
         if self._options is None:
             try:
-                from .options import YahooOptionsFetcher
-
-                self._options = YahooOptionsFetcher(self.config)
+                options_module = importlib.import_module("data_layer.crawlers.yahoo.options")
+                self._options = options_module.YahooOptionsFetcher(self.config)
             except ImportError:
                 logger.warning("YahooOptionsFetcher not available")
                 self._options = None

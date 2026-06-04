@@ -1,7 +1,7 @@
 """网络请求工具模块"""
 import random
 import time
-from typing import Optional
+from typing import Any, Optional
 
 import requests
 
@@ -20,7 +20,7 @@ def retry_request(
     max_retries: int = 3,
     retry_delay_min: float = 2.0,
     retry_delay_max: float = 5.0,
-    **kwargs,
+    **kwargs: Any,
 ) -> Optional[requests.Response]:
     """带重试机制的通用请求函数"""
     for attempt in range(max_retries):

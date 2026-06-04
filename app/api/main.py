@@ -1,11 +1,14 @@
 """AlphaFoundry API"""
 import sys
 from pathlib import Path
+from typing import Any, Dict
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.responses import Response
+from starlette.types import Scope
 
 # 把项目根目录加入path
 script_path = Path(__file__).resolve()
@@ -24,7 +27,7 @@ app = FastAPI(
 
 
 @app.on_event("startup")
-def startup():
+def startup() -> None:
     """Startup hook: configure logging and check database connection"""
     configure_logging()
     logger.info("AlphaFoundry API starting up...")
@@ -36,7 +39,7 @@ def startup():
 
 
 @app.on_event("shutdown")
-def shutdown():
+def shutdown() -> None:
     """Shutdown hook"""
     logger.info("AlphaFoundry API shutting down...")
 
@@ -140,7 +143,7 @@ _templates_dir = _web_dir / "templates"
 class NoCacheStaticFiles(StaticFiles):
     """开发期静态资源重新校验，避免前端模块缓存旧代码。"""
 
-    async def get_response(self, path, scope):
+    async def get_response(self, path: str, scope: Scope) -> Response:
         response = await super().get_response(path, scope)
         if path.endswith((".js", ".css")):
             response.headers["Cache-Control"] = "no-cache, max-age=0, must-revalidate"
@@ -155,7 +158,7 @@ app.mount("/static", NoCacheStaticFiles(directory=str(_static_dir)), name="stati
 
 
 @app.get("/", response_class=HTMLResponse)
-async def index():
+async def index() -> HTMLResponse:
     """首页 - 交互式 Web 前端"""
     index_path = _templates_dir / "index.html"
     return HTMLResponse(
@@ -165,7 +168,7 @@ async def index():
 
 
 @app.get("/health")
-async def health_check():
+async def health_check() -> Dict[str, Any]:
     """健康检查 - includes persistence status"""
     from sqlalchemy import text
 
