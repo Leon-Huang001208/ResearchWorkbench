@@ -535,8 +535,8 @@ class ReportPipeline:
             }
 
         if suffix == ".md":
-            projection = MarkdownProjection()
-            projection.save(output_path, title, sections, metadata)
+            markdown_projection = MarkdownProjection()
+            markdown_projection.save(output_path, title, sections, metadata)
         elif suffix == ".docx":
             # Try to load template and use it
             template = None
@@ -555,8 +555,8 @@ class ReportPipeline:
 
             if template and template.word_template_path:
                 # Use template
-                projection = WordProjection()
-                projection.save_from_template(
+                word_projection = WordProjection()
+                word_projection.save_from_template(
                     output_path,
                     template.word_template_path,
                     sections,
@@ -566,11 +566,11 @@ class ReportPipeline:
                 )
             else:
                 # Simple save
-                projection = WordProjection()
-                projection.save(output_path, title, sections, metadata)
+                word_projection = WordProjection()
+                word_projection.save(output_path, title, sections, metadata)
         elif suffix == ".xlsx":
-            projection = ExcelProjection()
-            projection.save(output_path, title, tables, charts, metadata)
+            excel_projection = ExcelProjection()
+            excel_projection.save(output_path, title, tables, charts, metadata)
         else:
             raise ValueError(f"Unsupported output format: {suffix}")
 

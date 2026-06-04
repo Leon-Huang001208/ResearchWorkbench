@@ -1,4 +1,5 @@
 """Test configuration and fixtures."""
+import os
 from unittest.mock import Mock
 
 import pytest
@@ -6,6 +7,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from data_layer.repositories.base import Base
+
+
+def pytest_configure(config):
+    """Keep default test runs deterministic and offline."""
+    os.environ.setdefault("ALPHAFOUNDRY_DISABLE_LOCAL_EMBEDDINGS", "1")
 
 
 @pytest.fixture(scope="function")

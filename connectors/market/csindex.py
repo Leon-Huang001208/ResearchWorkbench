@@ -320,7 +320,7 @@ class CsindexMarketConnector(MarketDataConnector):
 
     def _fetch_constituents(self, index_code: str) -> RawObject:
         """获取指数成分股列表."""
-        params = {
+        params: dict[str, str | int] = {
             "indexCode": index_code,
             "pageNum": 1,
             "pageSize": 500,

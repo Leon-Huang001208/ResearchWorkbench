@@ -41,7 +41,7 @@ class _CompatibleProcessor:
 
     def process(
         self, data: Dict[str, Any], output_file: str, **kwargs
-    ) -> Tuple[Any, List[Dict], int]:
+    ) -> Tuple[Any, List[Dict], int, bool]:
         doc_types = set()
         reports_list = data.get("reports", [])
         if isinstance(reports_list, dict):
@@ -69,7 +69,7 @@ class _CompatibleProcessor:
 
     def _process_mixed(
         self, data: Dict[str, Any], output_file: str, **kwargs
-    ) -> Tuple[Any, List[Dict], int]:
+    ) -> Tuple[Any, List[Dict], int, bool]:
         reports_list = data.get("reports", [])
         if isinstance(reports_list, dict):
             inner_reports = reports_list.get("reports", [])
@@ -83,7 +83,7 @@ class _CompatibleProcessor:
 
     def _process_old_format(
         self, data: Dict[str, Any], output_file: str, **kwargs
-    ) -> Tuple[Any, List[Dict], int]:
+    ) -> Tuple[Any, List[Dict], int, bool]:
         reports_data = data.get("reports", {}) if isinstance(data.get("reports"), dict) else {}
         attach_map = reports_data.get("reportAttachMap", {})
         reports_map = {r["id"]: r for r in reports_data.get("reports", []) if r.get("id")}
@@ -132,11 +132,11 @@ class _CompatibleProcessor:
 
         import pandas as pd
 
-        return pd.DataFrame(results), new_reports, skipped_count
+        return pd.DataFrame(results), new_reports, skipped_count, False
 
     def _process_new_format(
         self, data: Dict[str, Any], output_file: str, **kwargs
-    ) -> Tuple[Any, List[Dict], int]:
+    ) -> Tuple[Any, List[Dict], int, bool]:
         reports_list = data.get("reports", [])
 
         results = []
@@ -192,7 +192,7 @@ class _CompatibleProcessor:
 
         import pandas as pd
 
-        return pd.DataFrame(results), new_reports, skipped_count
+        return pd.DataFrame(results), new_reports, skipped_count, False
 
 
 def process_reports(
@@ -210,7 +210,7 @@ def process_reports(
     state_manager: Optional[Any] = None,
     skip_existing: bool = True,
     allowed_accounts_path: Optional[str] = None,
-) -> Tuple[Any, List[Dict], int]:
+) -> Tuple[Any, List[Dict], int, bool]:
     processor = _CompatibleProcessor(client, allowed_accounts_path)
 
     if output_dir is None:

@@ -20,10 +20,13 @@ from core.settings.config import ProviderProfile
 
 logger = get_logger(__name__)
 
+OpenAIClient: Any = None
 try:
-    from openai import OpenAI
+    from openai import OpenAI as _OpenAIClient
+
+    OpenAIClient = _OpenAIClient
 except ImportError:
-    OpenAI = None
+    pass
 
 
 class OpenAICompatibleProvider(BaseProvider):
@@ -39,10 +42,10 @@ class OpenAICompatibleProvider(BaseProvider):
         self._provider_name = profile.name
         self._base_url = profile.base_url
         self._has_multimodal_embed = profile.base_url and "volces.com" in profile.base_url
-        if OpenAI is not None:
+        if OpenAIClient is not None:
             import httpx
 
-            self._client = OpenAI(
+            self._client = OpenAIClient(
                 api_key=profile.api_key,
                 base_url=profile.base_url,
                 timeout=httpx.Timeout(120.0, connect=30.0),

@@ -6,11 +6,13 @@ register(
     SourceSpec(
         source_type=SourceType.SZSE,
         source_name="深圳证券交易所",
-        adapter_class="connectors.market.szse.SzseMarketConnector",
+        connector_class="connectors.market.szse.SzseMarketConnector",
         adapter_kwargs={
             "timeout": 30,
             "catalog_id": "1110",
         },
+        connector_dataset="listed_companies",
+        pipeline_kind="market",
         interval_minutes=120,
         deep_backfill_enabled=False,
         doc_type=DocType.FILING,

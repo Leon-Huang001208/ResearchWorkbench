@@ -298,7 +298,7 @@ class DashboardDataRepository:
         Mirrors DocumentClassifier.analyze_quality() logic but works directly
         with ORM objects (string fields / JSON dicts) instead of Pydantic contracts.
         """
-        content = doc.content or ""
+        content = str(doc.content or "")
         content_len = len(content)
 
         # --- financial relevance penalty ---
@@ -351,7 +351,7 @@ class DashboardDataRepository:
         if len(paragraphs) >= 3:
             quality += 0.10
 
-        classification = doc.classification or {}
+        classification: Dict[str, Any] = dict(doc.classification) if doc.classification else {}
         if classification.get("topics"):
             quality += 0.10
 

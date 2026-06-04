@@ -1,4 +1,4 @@
-from typing import List, Optional, cast
+from typing import Any, Dict, List, Optional, cast
 
 from sqlalchemy import Text
 from sqlalchemy import cast as sql_cast
@@ -18,7 +18,7 @@ class EventRepositoryImpl(BaseRepository, EventRepository):
 
     def _to_domain(self, model: CanonicalEventModel) -> CanonicalEvent:
         """转换为领域模型"""
-        payload = model.payload or {}
+        payload: Dict[str, Any] = dict(model.payload) if model.payload else {}
         return CanonicalEvent(
             event_id=model.event_id,
             event_type=model.event_type,
@@ -142,7 +142,7 @@ class EventRepositoryImpl(BaseRepository, EventRepository):
         models = self.db.query(CanonicalEventModel).filter(payload_text.contains(entity_id)).all()
         results = []
         for m in models:
-            payload = m.payload or {}
+            payload: Dict[str, Any] = dict(m.payload) if m.payload else {}
             entities = payload.get("entities", [])
             for e in entities:
                 if e.get("entity_id") == entity_id:
@@ -196,7 +196,7 @@ class EventRepositoryImpl(BaseRepository, EventRepository):
         models = self.db.query(CanonicalEventModel).filter(payload_text.contains(symbol)).all()
         results = []
         for m in models:
-            payload = m.payload or {}
+            payload: Dict[str, Any] = dict(m.payload) if m.payload else {}
             impacted_symbols = payload.get("impacted_symbols", [])
             if symbol in impacted_symbols:
                 results.append(self._to_domain(m))

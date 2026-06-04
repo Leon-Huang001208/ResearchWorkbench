@@ -43,7 +43,7 @@ class DeduplicationService:
     def check_duplicate(
         self,
         doc: DocumentV1,
-        existing_doc_ids: Optional[List[str]] = None,
+        existing_doc_ids: Optional[Dict[str, str]] = None,
         existing_content_hashes: Optional[Dict[str, str]] = None,
     ) -> DeduplicationResult:
         """

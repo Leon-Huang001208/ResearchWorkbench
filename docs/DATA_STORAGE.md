@@ -64,7 +64,7 @@ AlphaFoundry 使用 PostgreSQL + pgvector 作为主要数据存储，采用模�
 | rights_ref | TEXT | 版权引用 |
 | parser_version | TEXT | 解析器版本 |
 | object_uri | TEXT | 对象存储 URI |
-| metadata | JSONB | 元数据 |
+| doc_metadata | JSONB | 文档元数据 |
 | embedding | vector(1536) | 嵌入向量 |
 | team_id | TEXT | 团队 ID |
 | project_id | TEXT | 项目 ID |
@@ -75,6 +75,8 @@ AlphaFoundry 使用 PostgreSQL + pgvector 作为主要数据存储，采用模�
 - idx_document_published_at: published_at
 - idx_document_team_project: (team_id, project_id)
 - idx_document_embedding: USING hnsw (embedding vector_cosine_ops)
+
+`DocumentRepositoryImpl` 通过 ORM 字段 `doc_metadata` 读写 `source_document` 元数据；更新已存在文档时会同步刷新 `content_hash`、`parser_version` 和 `object_uri`，避免同一 `doc_id` 的重新解析结果只更新标题正文而遗漏存储指针。
 
 ---
 
@@ -862,6 +864,8 @@ AlphaFoundry 使用 PostgreSQL + pgvector 作为主要数据存储，采用模�
 - idx_ingestion_queue_item_source_type: source_type
 - idx_ingestion_queue_item_status: status
 - idx_ingestion_queue_item_dedup_hash: dedup_hash
+
+`processed_at` 表示最近一次被 Worker 认领或完成失败处理的时间：出队进入 `processing` 时写入，失败后可重试回到 `pending` 时清空，永久失败时记录最终失败时间。`KnowledgeWorker` 的卡死恢复同时检查 `processed_at` 和旧数据的 `created_at`。
 
 ---
 

@@ -50,15 +50,18 @@ class LocalDataAdapter(BaseDataAdapter):
             data = json.load(f)
 
         # 简单封装为 DocumentEnvelope
+        content = json.dumps(data, ensure_ascii=False)
         envelope = DocumentEnvelope(
             doc_id=f"local_{canonical_id}_{self._now_str()}",
             source_type="local",
+            source_name=data_file.name,
             title=f"{canonical_id} 本地数据",
-            content=json.dumps(data, ensure_ascii=False),
             metadata={
                 "canonical_id": canonical_id,
                 "source": data_file.name,
             },
+            raw_text=content,
+            canonical_text=content,
         )
 
         return [envelope]
@@ -79,12 +82,15 @@ class LocalDataAdapter(BaseDataAdapter):
 
         canonical_id = data.get("canonical_id", "unknown")
 
+        content = json.dumps(data, ensure_ascii=False)
         return DocumentEnvelope(
             doc_id=f"local_parsed_{canonical_id}_{self._now_str()}",
             source_type="local",
+            source_name="local",
             title=data.get("name", f"{canonical_id} 数据"),
-            content=json.dumps(data, ensure_ascii=False),
             metadata=data,
+            raw_text=content,
+            canonical_text=content,
         )
 
     def get_asset_data(self, canonical_id: str) -> Optional[Dict[str, Any]]:
@@ -114,7 +120,7 @@ class LocalDataAdapter(BaseDataAdapter):
         Returns:
             资产代码列表
         """
-        assets = []
+        assets: list[str] = []
         if not self.data_dir.exists():
             return assets
 

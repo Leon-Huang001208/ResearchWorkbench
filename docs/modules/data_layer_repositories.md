@@ -107,12 +107,29 @@ Update this section when:
 
 ---
 
+### `data_layer/repositories/document_repository.py`
+
+Purpose:
+- SourceDocument CRUD operations for the `source_document` table.
+- Uses ORM field `doc_metadata` for document metadata.
+- Upserts existing documents by refreshing title, published time, source name, `content_hash`, `parser_version`, `object_uri`, and metadata.
+
+Related worker:
+- `workers/knowledge_worker.py` — persists `source_document` before extracted events are saved.
+
+Update this section when:
+- SourceDocument field mapping changes.
+- Upsert behavior changes.
+
+---
+
 ### `data_layer/repositories/ingestion_repository.py`
 
 Purpose:
 - Ingestion queue item CRUD and statistics.
 - `get_processing_stats()` — aggregate processing counts across time windows.
 - Queue item lifecycle: pending → processing → completed/failed.
+- `processed_at` is set when an item is claimed for processing, cleared when a retry returns to pending, and set to the final failure time for permanently failed items.
 
 Related service:
 - `services/ingestion_queue_service.py`

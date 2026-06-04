@@ -15,19 +15,21 @@ logger = get_logger(__name__)
 class CNStockAdapter(BaseDataAdapter):
     """中国证券网新闻适配器"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(source_type="news")
 
-    def fetch(
-        self,
-        start_date: str,
-        end_date: str,
-        channel: str = "证券",
-        output_dir: str = "./data/crawlers/cnstock",
-        all_channels: bool = False,
-        **kwargs,
-    ) -> list[DocumentEnvelope]:
+    def fetch(self, **kwargs: Any) -> list[DocumentEnvelope]:
         """爬取中国证券网新闻,返回 DocumentEnvelope 列表"""
+        if "start_date" not in kwargs or "end_date" not in kwargs:
+            logger.error("CNStock fetch requires start_date and end_date")
+            raise ValueError("CNStock fetch requires start_date and end_date")
+
+        start_date = str(kwargs["start_date"])
+        end_date = str(kwargs["end_date"])
+        channel = str(kwargs.get("channel", "证券"))
+        output_dir = str(kwargs.get("output_dir", "./data/crawlers/cnstock"))
+        all_channels = bool(kwargs.get("all_channels", False))
+
         logger.info(
             f"Fetching CNStock news: start_date={start_date}, end_date={end_date}, "
             f"channel={channel}, all_channels={all_channels}, output_dir={output_dir}"

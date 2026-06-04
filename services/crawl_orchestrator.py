@@ -116,6 +116,22 @@ class CrawlOrchestrator:
 
             logger.info(f"Crawling {source_type.value} from {start_time} to {end_time}")
 
+            if self._source_uses_connector(source_type):
+                self._run_connector_source(
+                    result=result,
+                    crawl_run=crawl_run,
+                    cursor_id=cursor.cursor_id,
+                    source_type=source_type,
+                    start_time=start_time,
+                    end_time=end_time,
+                    days=days,
+                    max_docs=max_docs,
+                    max_pages=max_pages,
+                    skip_existing=skip_existing,
+                    use_incremental=use_incremental,
+                )
+                return result
+
             # 4. 同步爬虫级去重文件 — 修剪已被数据库删除的孤儿条目
             self._sync_dedup_state(source_type)
 
@@ -187,6 +203,103 @@ class CrawlOrchestrator:
             self.crawl_run_repo.update(crawl_run)
 
         return result
+
+    def _source_uses_connector(self, source_type: SourceType) -> bool:
+        """Return True when the registered source points at a BaseConnector."""
+        try:
+            from core.connectors.base import BaseConnector
+            from core.source_registry import get as get_spec
+
+            spec = get_spec(source_type)
+            if spec is None:
+                return False
+            module_path, class_name = spec.connector_class.rsplit(".", 1)
+            module = __import__(module_path, fromlist=[class_name])
+            connector_cls = getattr(module, class_name)
+            return isinstance(connector_cls, type) and issubclass(connector_cls, BaseConnector)
+        except Exception:
+            return False
+
+    def _run_connector_source(
+        self,
+        result: CrawlResult,
+        crawl_run: CrawlRunV1,
+        cursor_id: str,
+        source_type: SourceType,
+        start_time: datetime,
+        end_time: datetime,
+        days: int,
+        max_docs: Optional[int],
+        max_pages: Optional[int],
+        skip_existing: bool,
+        use_incremental: bool,
+    ) -> None:
+        """Run a connector-backed source through the unified connector lifecycle."""
+        from core.contracts.ingestion_record import IngestionStatus
+        from core.source_registry import get as get_spec
+
+        spec = get_spec(source_type)
+        if spec is None or not spec.connector_dataset:
+            raise ValueError(f"Connector source {source_type.value} is missing connector_dataset")
+
+        module_path, class_name = spec.connector_class.rsplit(".", 1)
+        module = __import__(module_path, fromlist=[class_name])
+        connector_cls = getattr(module, class_name)
+        connector = connector_cls(config=spec.adapter_kwargs)
+
+        params: Dict[str, Any] = {
+            "start_date": start_time.strftime("%Y-%m-%d"),
+            "end_date": end_time.strftime("%Y-%m-%d"),
+            "days": days,
+            "skip_existing": skip_existing,
+        }
+        if max_pages is not None:
+            params["max_pages"] = max_pages
+        if max_docs is not None:
+            params["max_items"] = max_docs
+        if spec.backfill_family == "cls":
+            params["use_incremental"] = use_incremental
+
+        ingestion_result = connector.run(spec.connector_dataset, **params)
+
+        result.raw_file_paths = [raw.source_uri for raw in ingestion_result.raw_objects]
+        result.success_count = ingestion_result.stats.persisted
+        result.failure_count = ingestion_result.stats.failed
+        result.skipped_count = ingestion_result.stats.skipped
+        result.saved_doc_ids = [
+            str(record.entity_id)
+            for record in ingestion_result.records[: max_docs or len(ingestion_result.records)]
+            if record.entity_id
+        ]
+        if ingestion_result.error_message:
+            result.error_log = ingestion_result.error_message
+
+        if result.success_count > 0:
+            last_source_doc_id = result.saved_doc_ids[-1] if result.saved_doc_ids else None
+            self.cursor_repo.record_success(cursor_id, last_source_doc_id)
+
+        result.completed_at = datetime.utcnow()
+        crawl_run.completed_at = result.completed_at
+        crawl_run.success_count = result.success_count
+        crawl_run.failure_count = result.failure_count
+        crawl_run.skipped_count = result.skipped_count
+        crawl_run.error_log = result.error_log
+        crawl_run.status = (
+            "failed"
+            if ingestion_result.status == IngestionStatus.FAILED and result.success_count == 0
+            else "completed"
+        )
+        self.crawl_run_repo.update(crawl_run)
+
+        logger.info(
+            "Connector crawl completed",
+            source_type=source_type.value,
+            dataset=spec.connector_dataset,
+            pipeline_kind=spec.pipeline_kind,
+            status=ingestion_result.status.value,
+            persisted=result.success_count,
+            failed=result.failure_count,
+        )
 
     def backfill_source(
         self,
@@ -271,8 +384,8 @@ class CrawlOrchestrator:
                 logger.warning(f"No source spec registered for: {source_type}")
                 return [], []
 
-            # 动态导入适配器
-            module_path, class_name = spec.adapter_class.rsplit(".", 1)
+            # 动态导入注册类（connector-first；非 connector 时作为 legacy fallback）
+            module_path, class_name = spec.connector_class.rsplit(".", 1)
             module = __import__(module_path, fromlist=[class_name])
             adapter_cls = getattr(module, class_name)
             adapter = adapter_cls()
@@ -632,7 +745,7 @@ class CrawlOrchestrator:
             # 从 30 天前开始
             state["current_window_start"] = (now - timedelta(days=30)).strftime("%Y-%m-%d")
 
-        win_start_str = state["current_window_start"]
+        win_start_str = str(state["current_window_start"])
         win_start = datetime.strptime(win_start_str, "%Y-%m-%d")
         win_end = win_start + timedelta(days=window_days)
 

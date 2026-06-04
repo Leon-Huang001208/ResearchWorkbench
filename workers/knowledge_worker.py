@@ -71,6 +71,8 @@ def _recover_stuck_items(db_session: Any) -> int:
     """将卡在 processing 状态超过 STUCK_RECOVERY_MINUTES 分钟的 item 重置为 pending"""
     from datetime import datetime, timedelta, timezone
 
+    from sqlalchemy import and_, or_
+
     from data_layer.repositories.models import IngestionQueueItemDB
 
     cutoff = datetime.now(timezone.utc) - timedelta(minutes=STUCK_RECOVERY_MINUTES)
@@ -78,7 +80,13 @@ def _recover_stuck_items(db_session: Any) -> int:
         db_session.query(IngestionQueueItemDB)
         .filter(
             IngestionQueueItemDB.status == "processing",
-            IngestionQueueItemDB.created_at < cutoff,
+            or_(
+                IngestionQueueItemDB.processed_at < cutoff,
+                and_(
+                    IngestionQueueItemDB.processed_at.is_(None),
+                    IngestionQueueItemDB.created_at < cutoff,
+                ),
+            ),
         )
         .limit(BATCH_SIZE)
         .all()
@@ -97,12 +105,15 @@ def _recover_stuck_items(db_session: Any) -> int:
 
 def _create_document_v1(item: Any) -> Any:
     """从 IngestionQueueItem 创建 DocumentV1"""
+    import hashlib
+
     from core.contracts.documents_v1 import DocType, DocumentTimeliness, DocumentV1, SourceType
 
     source_type_map = {
         "cls": SourceType.CLS,
         "cnstock": SourceType.CNSTOCK,
         "cnstock_flash": SourceType.CNSTOCK_FLASH,
+        "cninfo": SourceType.CNINFO,
         "zq": SourceType.ZHIQIU_REPORTS,
         "zhiqiu_reports": SourceType.ZHIQIU_REPORTS,
         "zhiqiu_wechat": SourceType.ZHIQIU_WECHAT,
@@ -112,9 +123,10 @@ def _create_document_v1(item: Any) -> Any:
         "manual": SourceType.CNSTOCK,
     }
     doc_type_map = {
-        "cls": DocType.NEWS,
+        "cls": DocType.TELEGRAM,
         "cnstock": DocType.NEWS,
         "cnstock_flash": DocType.TELEGRAM,
+        "cninfo": DocType.FILING,
         "zq": DocType.REPORT,
         "zhiqiu_reports": DocType.REPORT,
         "zhiqiu_wechat": DocType.WECHAT,
@@ -127,12 +139,64 @@ def _create_document_v1(item: Any) -> Any:
     return DocumentV1(
         doc_id=item.source_id or item.item_id,
         doc_type=doc_type_map.get(item.source_type, DocType.NEWS),
-        source_type=source_type_map.get(item.source_type, SourceType.CLS),
+        source_type=source_type_map.get(item.source_type, SourceType.OTHER),
         title=item.title or "",
         content=item.raw_content,
+        doc_metadata={
+            "queue_item_id": item.item_id,
+            "source_id": item.source_id,
+        },
+        source_metadata={
+            "source_doc_id": item.source_id or item.item_id,
+            "queue_item_id": item.item_id,
+        },
         source_name=item.source_type,
         source_url=item.url,
-        timeliness=DocumentTimeliness(publish_time=item.published_at),
+        content_hash=hashlib.sha256((item.raw_content or "").encode("utf-8")).hexdigest(),
+        timeliness=DocumentTimeliness(publish_time=_parse_published_at(item.published_at)),
+    )
+
+
+def _parse_published_at(value: Any) -> Any:
+    """Parse queue published_at text into datetime when possible."""
+    from datetime import datetime
+
+    if value is None or isinstance(value, datetime):
+        return value
+    if isinstance(value, str) and value:
+        try:
+            return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    return None
+
+
+def _create_source_document_envelope(item: Any, doc: Any) -> Any:
+    """Create SourceDocument-compatible envelope for FK-backed event persistence."""
+    import hashlib
+
+    from core.contracts import DocumentEnvelope
+
+    content_hash = (
+        doc.content_hash or hashlib.sha256((item.raw_content or "").encode("utf-8")).hexdigest()
+    )
+    return DocumentEnvelope(
+        doc_id=doc.doc_id,
+        source_type=item.source_type,
+        title=item.title or "",
+        published_at=_parse_published_at(item.published_at),
+        source_name=item.source_type,
+        language="zh",
+        metadata={
+            "content_hash": content_hash,
+            "parser_version": "knowledge_worker.v1",
+            "object_uri": item.url or f"ingestion_queue://{item.item_id}",
+            "url": item.url,
+            "queue_item_id": item.item_id,
+            "source_id": item.source_id,
+        },
+        raw_text=item.raw_content,
+        canonical_text=item.raw_content,
     )
 
 
@@ -175,6 +239,7 @@ async def process_one(item: Any, pipeline: Any) -> Dict[str, Any]:
     return {
         "item_id": item.item_id,
         "doc_id": doc.doc_id,
+        "doc": doc,
         "events": len(result.events),
         "entities": len(result.entities),
         "event_list": result.events,
@@ -187,6 +252,8 @@ async def _process_and_mark(
 ) -> Dict[str, Any] | None:
     """带并发控制的单 item 处理，每个 item 使用独立的 DB 会话"""
     from data_layer.repositories.base import SessionLocal
+    from data_layer.repositories.document_repository import DocumentRepositoryImpl
+    from data_layer.repositories.documents_v1 import DocumentV1Repository
     from data_layer.repositories.event_repository import EventRepositoryImpl
     from data_layer.repositories.ingestion_repository import IngestionQueueRepository
 
@@ -195,7 +262,13 @@ async def _process_and_mark(
         try:
             result = await process_one(item, pipeline)
 
-            # Persist events to DB BEFORE marking item completed
+            # Persist source documents BEFORE events to satisfy source_document FK.
+            doc_repo = DocumentV1Repository(db)
+            doc_repo.create(result["doc"])
+            source_doc_repo = DocumentRepositoryImpl(db)
+            source_doc_repo.save(_create_source_document_envelope(item, result["doc"]))
+
+            # Persist events to DB BEFORE marking item completed.
             if result["event_list"]:
                 event_repo = EventRepositoryImpl(db)
                 for event in result["event_list"]:
@@ -235,7 +308,7 @@ async def _process_and_mark(
             db.close()
 
 
-def _create_pipeline():
+def _create_pipeline() -> Any:
     """创建共享的 KnowledgePipeline 实例（含 ModelGateway）"""
     from ingestion.knowledge_pipeline import KnowledgePipeline, PipelineConfig
 
@@ -348,7 +421,7 @@ async def main(worker_id: Optional[int] = None) -> None:
 
     _remove_pid(worker_id)
     logger.info(f"[{worker_label}] Stopped")
-    sys.exit(0)
+    return
 
 
 def get_process_status(pid_file: Optional[str] = None) -> dict:
@@ -427,6 +500,7 @@ if __name__ == "__main__":
     while True:
         try:
             asyncio.run(main(worker_id=args.worker_id))
+            break
         except Exception:
             logger.exception("Knowledge worker crashed with unhandled exception")
             for handler in logging.getLogger().handlers:

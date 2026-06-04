@@ -153,13 +153,13 @@ class ConcurrentLLMExtractor:
 
                 assertions = []
                 for item in raw_data.get("assertions", []):
-                    obj = self.build_assertion_fn(item, doc_id, chunk_index=chunk_index)
+                    obj = self.build_assertion_fn(item, doc_id, chunk_index)
                     if obj:
                         assertions.append(obj)
 
                 events = []
                 for item in raw_data.get("events", []):
-                    obj = self.build_event_fn(item, doc_id, chunk_index=chunk_index)
+                    obj = self.build_event_fn(item, doc_id, chunk_index)
                     if obj:
                         events.append(obj)
 

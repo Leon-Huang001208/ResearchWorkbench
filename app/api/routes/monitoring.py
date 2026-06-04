@@ -1,6 +1,6 @@
 """Monitoring API — 健康指标、漂移检测、告警管理、事件记录路由"""
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -810,9 +810,9 @@ async def get_ingest_status(
     try:
         # 获取所有爬虫状态
         states = crawl_state_repository.get_all_crawl_states(db)
-        sources = {}
+        sources: Dict[str, IngestSourceStatus] = {}
         for state in states:
-            sources[state.source_type] = _crawl_state_to_status(state)
+            sources[str(state.source_type)] = _crawl_state_to_status(state)
 
         # 为标准来源创建默认状态（如果不存在）
         for source_type in ["cls", "cnstock", "zq"]:
@@ -936,7 +936,7 @@ async def get_pdfs(
             artifacts = []
             for st in ["cls", "cnstock", "zq"]:
                 artifacts.extend(pdf_artifact_repository.get_pdfs_by_source(db, st, limit=limit))
-            artifacts.sort(key=lambda a: a.fetch_timestamp, reverse=True)
+            artifacts.sort(key=lambda a: cast(Any, a.fetch_timestamp), reverse=True)
             artifacts = artifacts[:limit]
 
         return [_pdf_artifact_to_response(a) for a in artifacts]

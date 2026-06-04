@@ -74,7 +74,7 @@ class ZQDocumentConnector(DocumentConnector):
 
     @property
     def source(self) -> str:
-        return "zq"
+        return str(self.config.get("source_type", "zq"))
 
     @property
     def datasets(self) -> List[str]:

@@ -6,10 +6,13 @@ register(
     SourceSpec(
         source_type=SourceType.CNSTOCK_FLASH,
         source_name="中国证券网·快讯",
-        adapter_class="data_layer.adapters.cnstock_adapter.CNStockAdapter",
+        connector_class="connectors.document.cnstock.CNStockDocumentConnector",
         adapter_kwargs={
-            "channel": "快讯",
+            "source_type": "cnstock_flash",
+            "default_channel": "快讯",
         },
+        connector_dataset="flash",
+        pipeline_kind="document",
         interval_minutes=30,
         deep_backfill_enabled=True,
         doc_type=DocType.NEWS,

@@ -46,8 +46,11 @@ class NewsStateManager(BaseStateManager):
     def __init__(self, state_path: str, verbose: bool = False):
         super().__init__(state_path, "processed_news", verbose)
 
-    def add_processed_report(self, obj_id: str, title: str, open_name: str = ""):
-        super().add_processed_report(obj_id, title, openName=open_name)
+    def add_processed_report(
+        self, obj_id: str, title: str, open_name: str = "", **extra: Any
+    ) -> None:
+        open_name = open_name or str(extra.pop("openName", ""))
+        super().add_processed_report(obj_id, title, openName=open_name, **extra)
 
 
 class NewsFetcher(BaseFetcher):
@@ -76,8 +79,10 @@ class NewsFetcher(BaseFetcher):
                     print(f"[warn] 初始化状态管理器失败: {e}，持久化去重将不可用")
 
     def _save_processed_item(self, obj_id: str, title: str, item: Dict[str, Any]):
+        if self._state_manager is None:
+            return
         open_name = item.get("openName", "")
-        self._state_manager.add_processed_report(obj_id, title, open_name)
+        self._state_manager.add_processed_report(obj_id, title, openName=open_name)
 
     def _fetch_single_term(self, search_term: str):
         if self._logger:

@@ -2,12 +2,13 @@
 Timing CLI 命令
 """
 import json
-from typing import Optional
+from typing import Optional, cast
 
 import click
 
 from core.observability import get_logger
 from timing_engine import MetaTimingEngine
+from timing_engine.contracts import MarketRegime
 
 logger = get_logger(__name__)
 
@@ -44,7 +45,8 @@ def evaluate(scores: str, signal_id: Optional[str], regime: str):
         from timing_engine import TimingModelScore
 
         parsed_scores = [TimingModelScore(**s) for s in scores_data]
-        decision = engine.evaluate(parsed_scores, signal_id=signal_id, market_regime=regime)
+        market_regime = cast(MarketRegime, regime)
+        decision = engine.evaluate(parsed_scores, signal_id=signal_id, market_regime=market_regime)
         click.echo("\n✓ Timing decision:")
         click.echo(f"  Action: {decision.action}")
         click.echo(f"  Readiness score: {decision.readiness_score:.3f}")
@@ -65,7 +67,7 @@ def regime_weights(regime: str):
     """Get model weights for a regime"""
     try:
         engine = MetaTimingEngine()
-        weights = engine.weights_for_regime(regime)
+        weights = engine.weights_for_regime(cast(MarketRegime, regime))
         click.echo(f"\nRegime weights for '{regime}':")
         for model, weight in weights.items():
             click.echo(f"  {model}: {weight:.3f}")

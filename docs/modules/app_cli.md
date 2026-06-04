@@ -48,7 +48,7 @@ Purpose:
 
 - 统一数据摄入 CLI（Connector 架构）：`af data` 命令组。
 - `af data list` — 列出所有可用数据源及 datasets。
-- `af data ingest -s <src> -d <dataset>` — 统一数据摄入入口。
+- `af data ingest -s <src> -d <dataset>` — 统一数据摄入入口；CLS 电报数据集为 `telegram`。
 - `af data backfill -s <src>` — 历史数据回填。
 - `af data validate -s <src> -d <dataset>` — 数据校验。
 - `af data status [--source <s>]` — 聚合 connector 健康 + Worker + Scheduler 状态。
@@ -63,6 +63,7 @@ Related:
 Update this section when:
 - New `af data` subcommands are added.
 - CLI → Connector integration changes.
+- Dataset names or help examples change.
 
 ---
 

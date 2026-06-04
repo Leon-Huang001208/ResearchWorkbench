@@ -7,7 +7,7 @@
 import json as _json
 import uuid
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, cast
 
 from core.contracts import (
     Assertion,
@@ -194,6 +194,10 @@ class KnowledgePipeline:
         from core.settings.config import settings
         from knowledge_layer.extraction import ConcurrentLLMExtractor, split_text
 
+        model_gateway = self._model_gateway
+        if model_gateway is None:
+            return []
+
         # 如果只有1个chunk且够短，不要再次 split
         if len(text_chunks) == 1 and len(text_chunks[0]) <= settings.LLM_EXTRACT_CHUNK_SIZE:
             final_chunks = text_chunks
@@ -207,7 +211,7 @@ class KnowledgePipeline:
             final_chunks = text_chunks
 
         extractor = ConcurrentLLMExtractor(
-            model_gateway=self._model_gateway,
+            model_gateway=cast(Any, model_gateway),
             build_assertion_fn=self._build_concurrent_assertion,
             build_event_fn=self._build_concurrent_event,
             parse_response_fn=self._parse_concurrent_response,
@@ -282,6 +286,9 @@ class KnowledgePipeline:
             return CanonicalEvent(
                 event_id=str(uuid.uuid4()),
                 event_type=data.get("event_type", "other"),
+                source_type="document",
+                source_name=doc_id,
+                title=(data.get("summary") or data.get("event_type") or "extracted event")[:200],
                 summary=(data.get("summary") or "")[:200],
                 event_time=None,
                 impact_direction=data.get("impact_direction", "unknown"),

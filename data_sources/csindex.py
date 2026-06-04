@@ -6,10 +6,12 @@ register(
     SourceSpec(
         source_type=SourceType.CSINDEX,
         source_name="中证指数",
-        adapter_class="connectors.market.csindex.CsindexMarketConnector",
+        connector_class="connectors.market.csindex.CsindexMarketConnector",
         adapter_kwargs={
             "timeout": 30,
         },
+        connector_dataset="index_constituents",
+        pipeline_kind="market",
         interval_minutes=120,
         deep_backfill_enabled=False,
         doc_type=DocType.FILING,

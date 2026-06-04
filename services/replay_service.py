@@ -13,7 +13,7 @@ import uuid
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 from core.contracts.events import CanonicalEvent
 from core.contracts.replay import ReplayAggregate, ReplayJob, ReplayResult
@@ -235,6 +235,9 @@ class ReplayService:
                 event = CanonicalEvent(
                     event_id=event_id,
                     event_type=event_type,
+                    source_type="replay",
+                    source_name=f"replay_{job_id}",
+                    title=input_text[:200] or event_type,
                     summary=input_text,
                     impact_direction="unknown",
                     confidence=0.5,
@@ -272,7 +275,12 @@ class ReplayService:
                 signal_confidence = 0.3
 
         # 模拟 outcome
-        outcome = self._simulate_outcome(event_type, signal_score, signal_confidence, timing_action)
+        outcome = self._simulate_outcome(
+            event_type,
+            float(signal_score if signal_score is not None else 0.5),
+            float(signal_confidence if signal_confidence is not None else 0.3),
+            timing_action,
+        )
         outcome_id = str(uuid.uuid4())
         outcome_return = outcome["outcome_return"]
         outcome_excess_return = outcome["outcome_excess_return"]
@@ -601,7 +609,7 @@ class ReplayService:
     def _group_stats(
         self,
         results: list[ReplayResult],
-        key: callable,
+        key: Callable[[ReplayResult], str],
     ) -> dict[str, dict]:
         """按指定 key 分组统计。"""
         groups: dict[str, list[ReplayResult]] = defaultdict(list)
@@ -643,7 +651,7 @@ class ReplayService:
     def _bucket_analysis(
         self,
         results: list[ReplayResult],
-        key: callable,
+        key: Callable[[ReplayResult], float | None],
         bucket_edges: list[float],
     ) -> dict[str, dict]:
         """按数值分桶统计 hit_rate。"""

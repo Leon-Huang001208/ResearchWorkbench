@@ -1,5 +1,5 @@
 """信号结果评估仓储实现"""
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from core.contracts.outcomes import SignalOutcome
 from core.observability import get_logger
@@ -116,7 +116,9 @@ class OutcomeRepositoryImpl(BaseRepository):
 
     def _to_domain(self, db_outcome: SignalOutcomeDB) -> SignalOutcome:
         """转换为领域模型"""
-        metadata = db_outcome.outcome_metadata if db_outcome.outcome_metadata else {}
+        metadata: Dict[str, Any] = (
+            dict(db_outcome.outcome_metadata) if db_outcome.outcome_metadata else {}
+        )
         if db_outcome.event_type:
             metadata["event_type"] = db_outcome.event_type
         return SignalOutcome(

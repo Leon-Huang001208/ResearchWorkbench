@@ -63,7 +63,7 @@ class CLSDocumentConnector(DocumentConnector):
 
     @property
     def source(self) -> str:
-        return "cls"
+        return str(self.config.get("source_type", "cls"))
 
     @property
     def datasets(self) -> List[str]:

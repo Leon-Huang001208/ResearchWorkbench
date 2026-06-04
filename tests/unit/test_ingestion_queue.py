@@ -132,6 +132,7 @@ class TestIngestionQueueRepository:
         repo.enqueue(_make_item(raw_content="待处理"))
         items = repo.dequeue(limit=1)
         assert items[0].status == "processing"
+        assert items[0].processed_at is not None
 
     def test_dequeue_empty(self, repo):
         """空队列出队返回空列表"""
@@ -155,6 +156,7 @@ class TestIngestionQueueRepository:
         result = repo.mark_failed(items[0].item_id, "timeout")
         assert result.retry_count == 1
         assert result.status == "pending"  # 应该重置为 pending 以便重试
+        assert result.processed_at is None
 
     def test_mark_failed_permanent(self, repo):
         """超过最大重试次数后永久失败"""

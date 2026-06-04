@@ -106,7 +106,7 @@ class MeetingProcessor(BaseProcessor):
         self.client.logger.info(f"已处理 {len(results)} 条纪要（跳过 {skipped_count} 条），保存至 {output_file}")
         return pd.DataFrame(results), new_meetings, skipped_count, stopped_by_watermark
 
-    def build_item(self, report: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def build_item(self, report: Dict[str, Any], **kwargs: Any) -> Optional[Dict[str, Any]]:
         """
         构建纪要条目
 

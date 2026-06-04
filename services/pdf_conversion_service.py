@@ -143,7 +143,7 @@ class PDFConversionService:
         # 4. 执行转换
         start_time = time.time()
         try:
-            result = strategy.convert(artifact.file_path)
+            result = strategy.convert(str(artifact.file_path))
 
             duration_ms = int((time.time() - start_time) * 1000)
 
@@ -252,7 +252,7 @@ class PDFConversionService:
 
         # 确定文档类型
         doc_type = DocType.REPORT
-        source_type = _map_source_type(artifact.source_type)
+        source_type = _map_source_type(str(artifact.source_type))
 
         # 创建 DocumentV1
         doc_id = f"doc_{uuid.uuid4().hex[:12]}"
@@ -373,7 +373,7 @@ class PDFConversionService:
 
         for artifact in pending_artifacts:
             try:
-                result = self.convert_pdf(artifact.pdf_id)
+                result = self.convert_pdf(str(artifact.pdf_id))
                 results.append(result)
             except Exception as e:
                 logger.error(f"批量转换中出错: {artifact.pdf_id}: {e}")
@@ -420,7 +420,7 @@ class PDFConversionService:
                 # 重置状态为 pending 然后重新转换
                 artifact.parse_status = "pending"
                 self._db.commit()
-                result = self.convert_pdf(artifact.pdf_id)
+                result = self.convert_pdf(str(artifact.pdf_id))
                 results.append(result)
             except Exception as e:
                 logger.error(f"重试转换时出错: {artifact.pdf_id}: {e}")

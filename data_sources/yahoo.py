@@ -6,8 +6,10 @@ register(
     SourceSpec(
         source_type=SourceType.YAHOO,
         source_name="Yahoo Finance",
-        adapter_class="connectors.market.yahoo.YahooMarketConnector",
+        connector_class="connectors.market.yahoo.YahooMarketConnector",
         adapter_kwargs={},
+        connector_dataset="stock_daily",
+        pipeline_kind="market",
         interval_minutes=0,
         deep_backfill_enabled=True,
         backfill_family="yahoo",

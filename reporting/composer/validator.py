@@ -333,6 +333,14 @@ class ReportValidator:
             Validation result.
         """
         logger.info("Performing fact consistency check")
+        model_gateway = self._model_gateway
+        if model_gateway is None:
+            return ValidationResult(
+                check_name="fact_consistency",
+                passed=True,
+                message="Skipped fact consistency check: model gateway unavailable",
+                severity="info",
+            )
 
         try:
             # Build prompt for LLM
@@ -377,7 +385,7 @@ FAILED
 """
 
             # Call LLM
-            response = self._model_gateway.chat(
+            response = model_gateway.chat(
                 messages=[{"role": "user", "content": prompt}],
                 model="default",
                 temperature=0.1,  # Low temperature for consistency

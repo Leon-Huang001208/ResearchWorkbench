@@ -8,6 +8,15 @@
 
 ### Fixed
 
+- **Connector-first ingestion architecture hardening**: all enabled `data_sources` now point to `BaseConnector` subclasses with explicit `connector_dataset` and `pipeline_kind`; `CrawlOrchestrator` uses connector-first execution, document sources enqueue per-document records for `KnowledgeWorker`, and `source_document` / `document_v1` persistence is completed before queue items are marked done.
+  - `DocumentRepositoryImpl` now updates `content_hash`, `parser_version`, and `object_uri` on existing `source_document` rows.
+  - `KnowledgeWorker` stuck-item recovery now handles legacy `processing` rows where `processed_at` is NULL.
+  - CLI/docs examples use the actual CLS dataset `telegram`.
+  - `SourceSpec.connector_class` is now the canonical connector path; legacy `adapter_class` remains as a compatibility alias and is normalized in `SourceSpec.__post_init__()`.
+  - Full-gate isolation now disables local embedding model loading during tests by default and skips live API/E2E smoke tests unless `ALPHAFOUNDRY_RUN_LIVE_API_TESTS=1` or `ALPHAFOUNDRY_RUN_LIVE_E2E_TESTS=1` is set.
+  - Local sentence-transformers loading is now local-first: `ALPHAFOUNDRY_LOCAL_EMBEDDING_MODEL_PATH` points to a downloaded model directory, Hugging Face model ids are cache-only by default, and `ALPHAFOUNDRY_ALLOW_EMBEDDING_DOWNLOAD=1` is required for first-time downloads.
+  - `pyproject.toml` replaces the package-level mypy `ignore_errors` baseline with an explicit error-code debt list plus `ignore_missing_imports` for third-party stub gaps, so mypy still walks every checked project source file.
+
 - **crawl_scheduler 诊断与恢复**: 调度器于 2026-05-26 收到 shutdown signal 后停止运行，宕机约 9 天（5/26→6/4）。根因为调度器缺乏持久化进程管理，手动 kill 或系统事件导致退出后无法自动恢复。2026-06-04 手动重启 `python3 -m workers.crawl_scheduler_worker`（PID 75941），启动后自动执行 gap backfill，所有新闻源（CLS/CNStock/ZQ）已恢复数据采集。
   - **CLS "不再更新"根因确认**: CLS 爬虫代码中已有 `updateTelegraphList` 404 的 workaround（`_crawl_incremental()` 降级到稳定历史 API `POST /api/sw`）。CLS 数据中断的真实原因是调度器宕机，而非 API 问题。
 
@@ -26,6 +35,7 @@
   - `app/web/static/js/asset.js` — 行情条复用资产分析数据；K 线图改为固定暗色终端配色；筹码图增加上/下边界清晰 `markLine` 标签并按现价上下分色。
   - 迭代修正：K 线默认请求全量数据，不再显示 1月/3月/6月等截断范围按钮；各副图直接显示 BOLL、VOL、MACD、KDJ、RSI 标题和值；筹码分布高度对齐主 K 线价格区，并按当前可见区间起点到当前激活 K 线动态重算普通筹码分布，鼠标移出后回到当前可见最右侧交易日。
   - 可视化细节修正：MA60 改为更醒目的绿色以区别 MA250；顶部行情条的开/高/低/均按相对昨收动态显示红绿；BOLL 上/MID/下轨调整为 Wind 风格的黄、浅灰、品红实线配色。
+  - 交互响应修正：普通筹码跟随鼠标切换 K 线时不再使用 120ms 定时防抖，改为下一帧合并渲染，减少筹码图滞后感。
   - 继续完善：新增 MA120、MA250 均线开关和前端均线计算；日 K 初始窗口只展示最近 120 根 K 线，保留滑块查看更早数据；新增周 K、月 K 前端聚合切换；左侧竖向标签按主图/成交量/MACD/KDJ/RSI 分区比例对齐。
   - 覆盖线和筹码图修正：筹码分布从分类价格桶改为连续价格轴自定义横条，并与主 K 线价格轴共享 y 轴范围，现价/均本/筹码峰/上界/下界位置与 K 线价格位置对齐；右上角 MA 按钮使用对应均线颜色；覆盖线切换改为 MA / BOLL / 裸K 三种互斥模式。
   - 最新交互修正：K 线缩放或拖动后按当前可见 K 线和当前覆盖模式自动重算主图价格轴，避免放大全量区间时蜡烛线超出画布；主图左上角 MA/BOLL 数值跟随鼠标所在交易日更新并按对应线条颜色显示；右上角覆盖线控制收敛为 `MA均线`、`BOLL布林带`、`裸K` 三个模式按钮。
@@ -100,7 +110,7 @@
 - **zhiqiu_wechat / zhiqiu_transcript 绕过 IngestionQueue**: 公众号和纪要内容抓取后未进入 LLM 提取管道
   - 根因: `CrawlerIngestionBridge.SOURCE_TYPE_TO_CATEGORY` 将 `zhiqiu_wechat` → `"wechat"`、`zhiqiu_transcript` → `"transcript"`，但 `DocumentEnvelope.source_type` 的 Pydantic Literal 不包含这两个值，导致 `ValidationError` 被 `_enqueue_items()` 的 `except Exception` 静默吞掉
   - `core/contracts/documents.py` — `DocumentEnvelope.source_type` Literal 增加 `"wechat"` 和 `"transcript"`
-  - `data_sources/zhiqiu_wechat.py` / `data_sources/zhiqiu_reports.py` / `data_sources/zhiqiu_transcript.py` — 恢复 `adapter_class` 为 `data_layer.adapters.zq_adapter.ZQAdapter`（之前的未提交改动错误地改成了不兼容的 `ZQDocumentConnector`）
+  - `data_sources/zhiqiu_wechat.py` / `data_sources/zhiqiu_reports.py` / `data_sources/zhiqiu_transcript.py` — 后续已统一切换为 `connectors.document.zq.ZQDocumentConnector`，由 connector-first 路径保留单文档粒度并进入 `KnowledgeWorker`
 - **Scheduler 启动回补 ZQ 爬虫卡住**: ZQ 爬虫在 `_startup_gap_backfill` 阶段挂起导致 scheduler 无法开始正常调度
   - `workers/crawl_scheduler_worker.py` — 启动回补改为 `asyncio.create_task()` 异步后台任务，不再阻塞 scheduler 主循环；`_startup_gap_backfill` 增加 900s 全局超时 (`asyncio.wait(timeout=...)`)；`ThreadPoolExecutor` 使用 `shutdown(wait=False)` 避免等待卡死线程；线程池上限从 `len(source_types)` 改为 `min(len(source_types), 8)`
   - `services/crawl_scheduler.py` — `check_and_backfill_gap()` 中阻塞的 `orchestrator.backfill_source()` 改为 `await loop.run_in_executor(None, lambda: ...)`，让 per-source 600s 超时可以真正生效（之前 event loop 被同步 I/O 卡住无法处理取消信号）
@@ -312,7 +322,7 @@
   - 新建 `core/source_registry.py` — `SourceSpec` frozen dataclass + `register()`/`get()`/`get_all()`/`get_enabled()`/`get_by_family()` API
   - 新建 `data_sources/__init__.py` — `pkgutil.iter_modules` 自动发现，无需手动 import
   - 新建 6 个源注册模块：`data_sources/cls.py` (财联社), `data_sources/cnstock.py` (中国证券网), `data_sources/cnstock_flash.py` (快讯), `data_sources/zhiqiu_reports.py`, `data_sources/zhiqiu_wechat.py`, `data_sources/zhiqiu_transcript.py`
-  - `CrawlOrchestrator._fetch_from_adapter()` 从 if/elif 链 (65 行) 改为动态 import：通过 `spec.adapter_class` 字符串 import 并实例化适配器
+  - `CrawlOrchestrator._fetch_from_adapter()` 从 if/elif 链 (65 行) 改为动态 import；当前 canonical 路径为 `spec.connector_class`，`spec.adapter_class` 仅保留为历史兼容别名
   - `CrawlScheduler.DEFAULT_CRAWL_CONFIGS` 从硬编码列表改为 `_get_default_configs()` 从注册表自动生成
   - `CrawlScheduler._add_jobs_for_source()` 深度回补逻辑从硬编码 `SourceType` 检查改为 `backfill_family` 字段
   - `workers/crawl_scheduler_worker.py` 启动源列表从硬编码改为 `source_registry.get_enabled()`

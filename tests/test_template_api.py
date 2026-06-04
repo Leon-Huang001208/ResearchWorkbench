@@ -9,8 +9,15 @@ sys.path.insert(0, str(project_root))
 
 import asyncio
 import json
+import os
 
 import httpx
+import pytest
+
+pytestmark = pytest.mark.skipif(
+    os.getenv("ALPHAFOUNDRY_RUN_LIVE_API_TESTS") != "1",
+    reason="live API smoke test requires an already-running server on 127.0.0.1:8000",
+)
 
 
 async def test_templates_api():

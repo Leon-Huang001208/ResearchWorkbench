@@ -291,19 +291,19 @@ class AssetSearchIndexService:
 
         candidates = []
         for row in rows:
-            symbol = normalize_a_share_symbol(row.symbol)
+            symbol = normalize_a_share_symbol(str(row.symbol))
             raw_code = row.raw_code or symbol.split(".")[0]
             exchange = row.exchange or (symbol.split(".")[1] if "." in symbol else None)
             candidates.append(
                 AssetSearchCandidate(
                     canonical_id=symbol,
                     symbol=symbol,
-                    raw_code=raw_code,
-                    name=row.name,
+                    raw_code=str(raw_code),
+                    name=str(row.name),
                     asset_type="equity",
-                    exchange=exchange,
-                    market=row.market,
-                    industry=row.industry_level1,
+                    exchange=str(exchange) if exchange is not None else None,
+                    market=str(row.market) if row.market is not None else None,
+                    industry=str(row.industry_level1) if row.industry_level1 is not None else None,
                     source="stock_master",
                 )
             )
@@ -325,11 +325,11 @@ class AssetSearchIndexService:
             logger.warning("entity asset search source unavailable: %s", exc)
             return []
 
-        candidates = []
+        candidates: List[AssetSearchCandidate] = []
         for row in rows:
-            props = row.properties or {}
+            props: dict[str, Any] = dict(row.properties) if row.properties else {}
             symbol = props.get("symbol") or row.canonical_id
-            symbol = normalize_a_share_symbol(symbol)
+            symbol = normalize_a_share_symbol(str(symbol))
             raw_code = props.get("raw_code") or symbol.split(".")[0]
             exchange = props.get("exchange") or (symbol.split(".")[1] if "." in symbol else None)
             name = props.get("name_zh") or row.canonical_name
@@ -337,9 +337,9 @@ class AssetSearchIndexService:
                 AssetSearchCandidate(
                     canonical_id=symbol,
                     symbol=symbol,
-                    raw_code=raw_code,
-                    name=name,
-                    asset_type=row.entity_type,
+                    raw_code=str(raw_code),
+                    name=str(name),
+                    asset_type=str(row.entity_type),
                     exchange=exchange,
                     market=props.get("market"),
                     industry=props.get("industry")

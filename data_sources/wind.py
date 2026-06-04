@@ -6,8 +6,10 @@ register(
     SourceSpec(
         source_type=SourceType.WIND,
         source_name="Wind",
-        adapter_class="connectors.market.wind.WindMarketConnector",
+        connector_class="connectors.market.wind.WindMarketConnector",
         adapter_kwargs={},
+        connector_dataset="daily_quotes",
+        pipeline_kind="market",
         interval_minutes=0,
         backfill_family="wind",
         retrieval_weight=0.0,

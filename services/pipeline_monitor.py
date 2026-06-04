@@ -58,14 +58,18 @@ class PipelineMonitor:
 
     _instance: Optional["PipelineMonitor"] = None
     _lock = threading.Lock()
+    _activities: List[ActivityItem]
+    _stage_updates: Dict[str, float]
+    _closed_loop_last_run: Optional[float]
+    _closed_loop_last_result: Dict[str, Any]
 
     def __new__(cls) -> "PipelineMonitor":
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            cls._instance._activities: List[ActivityItem] = []
-            cls._instance._stage_updates: Dict[str, float] = {}
-            cls._instance._closed_loop_last_run: Optional[float] = None
-            cls._instance._closed_loop_last_result: Dict[str, Any] = {}
+            cls._instance._activities = []
+            cls._instance._stage_updates = {}
+            cls._instance._closed_loop_last_run = None
+            cls._instance._closed_loop_last_result = {}
         return cls._instance
 
     @classmethod

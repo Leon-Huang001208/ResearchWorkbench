@@ -30,7 +30,7 @@ af data list
 #### `af data ingest` — 执行数据摄入
 
 ```bash
-af data ingest --source cls --dataset news --days 2
+af data ingest --source cls --dataset telegram --days 2
 af data ingest -s akshare -d stock_daily --codes "600519.SH" --start-date 2026-01-01 --end-date 2026-06-01
 af data ingest -s wind -d daily_quotes --codes "600519.SH" --days 5
 af data ingest -s cnstock -d news --max-items 50
@@ -39,7 +39,7 @@ af data ingest -s cnstock -d news --max-items 50
 | 参数 | 必需 | 说明 |
 |------|------|------|
 | `--source`, `-s` | ✅ | 数据源标识（cls, akshare, wind, cnstock, zq, yahoo） |
-| `--dataset`, `-d` | ✅ | 数据集（news, stock_daily, daily_quotes, ...） |
+| `--dataset`, `-d` | ✅ | 数据集（telegram, news, flash, stock_daily, daily_quotes, ...） |
 | `--start-date` | ❌ | 开始日期 YYYY-MM-DD |
 | `--end-date` | ❌ | 结束日期 YYYY-MM-DD |
 | `--codes` | ❌ | 证券代码，逗号分隔 |
@@ -2330,7 +2330,7 @@ AlphaFoundry/
 ├── .env.example              # 环境变量示例
 ├── .env                      # 环境变量（不提交到 git）
 ├── .gitignore                # Git 忽略
-├── pyproject.toml            # 项目配置（black, isort, ruff, pytest）
+├── pyproject.toml            # 项目配置（black, isort, ruff, pytest, mypy error-code debt list）
 ├── pytest.ini                # Pytest 配置
 ├── alembic.ini               # Alembic 配置
 ├── auto_ingest_service.py    # 自动摄入服务
@@ -2368,6 +2368,8 @@ pytest tests/unit/data_layer/crawlers/test_akshare.py
 # 查看覆盖率
 pytest --cov=core --cov=data_layer --cov-report=html
 ```
+
+默认测试环境会设置 `ALPHAFOUNDRY_DISABLE_LOCAL_EMBEDDINGS=1`，避免单元测试加载 embedding 模型。运行时本地 embedding 支持 `ALPHAFOUNDRY_LOCAL_EMBEDDING_MODEL_PATH=/path/to/model` 指向已下载模型目录；未设置本地路径时，sentence-transformers 只读本机 Hugging Face cache，只有设置 `ALPHAFOUNDRY_ALLOW_EMBEDDING_DOWNLOAD=1` 才允许联网下载。需要真实服务的 API smoke 测试默认跳过，设置 `ALPHAFOUNDRY_RUN_LIVE_API_TESTS=1` 后才会访问 `127.0.0.1:8000`；浏览器 E2E smoke 默认跳过，设置 `ALPHAFOUNDRY_RUN_LIVE_E2E_TESTS=1` 后才会运行。
 
 ### Q: 必须使用数据库吗？
 
@@ -2459,4 +2461,3 @@ python view_db.py query "SELECT * FROM canonical_event LIMIT 5"
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - 架构文档
 - **[FILE_GUIDE.md](FILE_GUIDE.md)** - 文件指南
 - **[CHANGELOG.md](CHANGELOG.md)** - 更新日志
-

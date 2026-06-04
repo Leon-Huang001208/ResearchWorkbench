@@ -261,7 +261,7 @@ async def update_ingest_config(
             source_type=source_type,
             crawl_config=new_crawl_config or {},
             crawl_mode=new_crawl_mode or "incremental",
-            is_paused=state.is_paused,
+            is_paused=bool(state.is_paused) if state is not None else False,
         )
     except HTTPException:
         raise

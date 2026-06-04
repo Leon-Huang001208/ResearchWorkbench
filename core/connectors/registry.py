@@ -222,7 +222,7 @@ class ConnectorRegistry:
 
     与现有 core/source_registry.py 集成：
     - 从现有的 data_sources/ 自动发现机制读取注册的适配器
-    - 将 SourceSpec 中的 adapter_class 字符串延迟解析为 connector 实例
+    - 将 SourceSpec 中的 connector_class 字符串延迟解析为 connector 实例
     - 支持两个注册体系共存（SourceSpec + Connector 实例）
 
     Attributes:
@@ -311,7 +311,7 @@ class ConnectorRegistry:
     ) -> BaseConnector:
         """从类注册并实例化 connector.
 
-        如果 connector 尚未实例化（如通过 SourceSpec.adapter_class 发现），
+        如果 connector 尚未实例化（如通过 SourceSpec.connector_class 发现），
         使用此方法延迟创建实例。
 
         Args:
@@ -334,7 +334,7 @@ class ConnectorRegistry:
         """从现有 source_registry 自动发现并尝试实例化所有注册的 connector.
 
         对于每个已注册的 SourceSpec，尝试：
-        1. 从 adapter_class 路径导入对应的类
+        1. 从 connector_class 路径导入对应的类
         2. 如果该类是 BaseConnector 的子类，实例化并注册
         3. 如果不是，记录为待迁移的 source
 
@@ -357,9 +357,11 @@ class ConnectorRegistry:
             if source_type_str in self._connectors:
                 continue  # 已经注册
 
-            # 尝试从 adapter_class 导入
+            connector_path = spec.connector_class or spec.adapter_class
+
+            # 尝试从 connector_class 导入
             try:
-                connector_class = self._import_class(spec.adapter_class)
+                connector_class = self._import_class(connector_path)
 
                 # 检查是否已是 BaseConnector 子类（新 connector 或已包装的）
                 if issubclass(connector_class, BaseConnector):
@@ -367,7 +369,7 @@ class ConnectorRegistry:
                     registered_count += 1
                     logger.info(
                         "connector_auto_migrated",
-                        extra={"source_type": source_type_str, "class": spec.adapter_class},
+                        extra={"source_type": source_type_str, "class": connector_path},
                     )
                 else:
                     # 旧的适配器类 — 等待包装为 BaseConnector
@@ -375,7 +377,7 @@ class ConnectorRegistry:
                         "connector_pending_migration",
                         extra={
                             "source_type": source_type_str,
-                            "class": spec.adapter_class,
+                            "class": connector_path,
                             "reason": "Not a BaseConnector subclass",
                         },
                     )
@@ -384,7 +386,7 @@ class ConnectorRegistry:
                     "connector_import_failed",
                     extra={
                         "source_type": source_type_str,
-                        "class": spec.adapter_class,
+                        "class": connector_path,
                         "error": str(e),
                     },
                 )
@@ -393,7 +395,7 @@ class ConnectorRegistry:
                     "connector_init_failed",
                     extra={
                         "source_type": source_type_str,
-                        "class": spec.adapter_class,
+                        "class": connector_path,
                         "error": str(e),
                     },
                 )

@@ -1,6 +1,6 @@
 """Processed Item Repository — 已处理项目仓储"""
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Dict, Optional
 
 from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
@@ -101,7 +101,7 @@ def get_processed_stats_by_day(db: Session, source_type: str, days: int = 7) -> 
     )
 
     # 简单的按天聚合
-    stats = {}
+    stats: Dict[str, int] = {}
     for item in items:
         day = item.first_seen_at.date().isoformat()
         stats[day] = stats.get(day, 0) + 1

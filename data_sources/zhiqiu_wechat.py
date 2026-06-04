@@ -6,10 +6,13 @@ register(
     SourceSpec(
         source_type=SourceType.ZHIQIU_WECHAT,
         source_name="知丘公众号",
-        adapter_class="data_layer.adapters.zq_adapter.ZQAdapter",
+        connector_class="connectors.document.zq.ZQDocumentConnector",
         adapter_kwargs={
+            "source_type": "zhiqiu_wechat",
             "doc_types": "NEWS",
         },
+        connector_dataset="news",
+        pipeline_kind="document",
         interval_minutes=30,
         deep_backfill_enabled=True,
         doc_type=DocType.NEWS,

@@ -544,6 +544,8 @@ AlphaFoundry/
 pytest
 ```
 
+默认测试环境会禁用本地 embedding 模型加载。运行时可用 `ALPHAFOUNDRY_LOCAL_EMBEDDING_MODEL_PATH=/path/to/model` 指向已下载的 sentence-transformers 模型目录；未设置本地路径时只读本机 Hugging Face cache，只有设置 `ALPHAFOUNDRY_ALLOW_EMBEDDING_DOWNLOAD=1` 才允许联网下载。需要访问已启动 API 服务的 smoke 测试请设置 `ALPHAFOUNDRY_RUN_LIVE_API_TESTS=1`；需要运行浏览器 E2E smoke 请设置 `ALPHAFOUNDRY_RUN_LIVE_E2E_TESTS=1`。
+
 ### 代码格式化
 
 ```bash

@@ -87,8 +87,8 @@ class ZQAdapter(BaseDataAdapter):
 
         config = ReportConfig(
             config_path=config_path,
-            starttime=start_date,
-            endtime=end_date,
+            starttime=start_date or "",
+            endtime=end_date or "",
             search=search,
             output_dir=output_dir,
             state_path=kwargs.get("state_path"),
@@ -137,8 +137,8 @@ class ZQAdapter(BaseDataAdapter):
 
         config = NewsConfig(
             config_path=config_path,
-            starttime=start_date,
-            endtime=end_date,
+            starttime=start_date or "",
+            endtime=end_date or "",
             search=search,
             output_dir=output_dir,
             state_path=kwargs.get("state_path"),
@@ -182,8 +182,8 @@ class ZQAdapter(BaseDataAdapter):
 
         config = MeetingConfig(
             config_path=config_path,
-            starttime=start_date,
-            endtime=end_date,
+            starttime=start_date or "",
+            endtime=end_date or "",
             search=search,
             output_dir=output_dir,
             state_path=kwargs.get("state_path"),

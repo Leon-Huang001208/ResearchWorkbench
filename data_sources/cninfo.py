@@ -6,12 +6,15 @@ register(
     SourceSpec(
         source_type=SourceType.CNINFO,
         source_name="巨潮资讯网",
-        adapter_class="connectors.document.cninfo.CninfoDocumentConnector",
+        connector_class="connectors.document.cninfo.CninfoDocumentConnector",
         adapter_kwargs={
+            "source_type": "cninfo",
             "plate": "all",
             "page_size": 30,
             "max_pages": 5,
         },
+        connector_dataset="announcements",
+        pipeline_kind="document",
         interval_minutes=60,
         deep_backfill_enabled=True,
         doc_type=DocType.FILING,

@@ -6,10 +6,14 @@ register(
     SourceSpec(
         source_type=SourceType.CNSTOCK,
         source_name="中国证券网",
-        adapter_class="data_layer.adapters.cnstock_adapter.CNStockAdapter",
+        connector_class="connectors.document.cnstock.CNStockDocumentConnector",
         adapter_kwargs={
-            "channel": ["证券", "公司", "产经", "金融", "时政"],
+            "source_type": "cnstock",
+            "default_channel": "证券",
+            "all_channels": True,
         },
+        connector_dataset="news",
+        pipeline_kind="document",
         interval_minutes=30,
         deep_backfill_enabled=True,
         doc_type=DocType.NEWS,

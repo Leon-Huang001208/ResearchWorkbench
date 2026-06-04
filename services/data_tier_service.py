@@ -227,7 +227,7 @@ class DataTierService:
         Returns:
             保留策略
         """
-        policies = {
+        policies: Dict[DataTier, Dict[str, Any]] = {
             DataTier.HOT: {
                 "retention_days": 7,
                 "compression": "none",

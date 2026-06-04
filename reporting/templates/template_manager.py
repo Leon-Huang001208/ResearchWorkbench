@@ -599,7 +599,7 @@ class TemplateManager:
         if not file_path:
             raise FileNotFoundError(f"DOCX template not found: {template_name}")
 
-        doc = docx.Document(file_path)
+        doc = docx.Document(str(file_path))
         placeholders: Set[str] = set()
 
         # 从段落中发现
@@ -690,7 +690,7 @@ class TemplateManager:
         if not file_path:
             raise FileNotFoundError(f"PPTX template not found: {template_name}")
 
-        prs = Presentation(file_path)
+        prs = Presentation(str(file_path))
         placeholders: Set[str] = set()
 
         # Discover from slides

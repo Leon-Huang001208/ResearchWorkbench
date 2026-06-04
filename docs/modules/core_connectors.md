@@ -88,16 +88,18 @@ discover → fetch → save_raw → parse → normalize → validate → persist
 from core.source_registry import register, SourceSpec
 
 register(SourceSpec(
-    key="cls",
-    name="CLS Telegram",
-    adapter_class="connectors.document.cls.CLSDocumentConnector",
+    source_type=SourceType.CLS,
+    source_name="CLS Telegram",
+    connector_class="connectors.document.cls.CLSDocumentConnector",
+    connector_dataset="telegram",
+    pipeline_kind="document",
     ...
 ))
 ```
 
 `data_sources/__init__.py` 通过 `pkgutil.iter_modules` 自动导入所有数据源文件，触发注册。
 
-`SourceSpec` 可声明 `fallback_group` 与 `fallback_priority`。`core.source_registry.get_fallback_groups()` 会按优先级升序返回每个组，`DatasetRouter` 再据此构建如 `daily_quotes_cn -> cjpy -> wind -> baostock` 的降级链。
+`connector_class` 是 Connector 架构下的 canonical 字段，必须指向 `BaseConnector` 子类；`adapter_class` 仅作为历史兼容别名保留。`connector_dataset` 声明调度时传给 `connector.run()` 的 dataset，`pipeline_kind` 声明 `document` 或 `market` 分流。`SourceSpec` 也可声明 `fallback_group` 与 `fallback_priority`。`core.source_registry.get_fallback_groups()` 会按优先级升序返回每个组，`DatasetRouter` 再据此构建如 `daily_quotes_cn -> cjpy -> wind -> baostock` 的降级链。
 
 CLI 通过 `ConnectorRegistry` 统一调度：
 - `af data list` — 列出已注册数据源

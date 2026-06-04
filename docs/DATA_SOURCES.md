@@ -46,8 +46,10 @@ from core.source_registry import SourceSpec, register
 register(SourceSpec(
     source_type=SourceType.OTHER,      # 或新增的 SourceType 枚举值
     source_name="我的数据源",
-    adapter_class="connectors.document.my_source.MyDocumentConnector",
+    connector_class="connectors.document.my_source.MyDocumentConnector",
     adapter_kwargs={"key": "value"},
+    connector_dataset="news",
+    pipeline_kind="document",
     interval_minutes=60,
     doc_type=DocType.NEWS,
     reliability=SourceReliabilityLevel.ESTABLISHED_MEDIA,
@@ -56,7 +58,7 @@ register(SourceSpec(
 ))
 ```
 
-文件保存后，自动发现机制会在下次启动时加载该来源。所有下游模块（调度器、编排器、仪表盘、分类器、PDF 转换）都会自动感知。详见 `core/source_registry.py` 中的 `SourceSpec` 完整字段定义。
+`connector_class` 是新数据源的 canonical 字段，必须指向 `BaseConnector` 子类；`adapter_class` 仅为历史兼容别名，并会在 `SourceSpec.__post_init__()` 中与 `connector_class` 互相回填。`connector_dataset` 指定 connector 的 dataset，`pipeline_kind` 指定 `document` 或 `market` 分流。文件保存后，自动发现机制会在下次启动时加载该来源。所有下游模块（调度器、编排器、仪表盘、分类器、PDF 转换）都会自动感知。详见 `core/source_registry.py` 中的 `SourceSpec` 完整字段定义。
 
 ### 其他数据源
 

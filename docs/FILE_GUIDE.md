@@ -32,7 +32,7 @@
 | 文件/目录 | 说明 |
 |---|---|
 | `README.md` | 项目主文档，包含概述、快速开始、核心特性、使用指南 |
-| `pyproject.toml` | 项目配置文件，包含 black、isort、ruff、pytest 等工具配置 |
+| `pyproject.toml` | 项目配置文件，包含 black、isort、ruff、pytest、mypy error-code debt list 等工具配置 |
 | `pytest.ini` | Pytest 测试框架配置 |
 | `.env.example` | 环境变量模板，复制为 `.env` 后使用 |
 | `.gitignore` | Git 忽略文件配置 |
@@ -158,6 +158,7 @@
 
 | 目录/文件 | 说明 |
 |---|---|
+| `core/model_gateway/local_embedding_config.py` | 本地 embedding 模型解析：支持 `ALPHAFOUNDRY_LOCAL_EMBEDDING_MODEL_PATH`，默认 Hugging Face cache-only，只有 `ALPHAFOUNDRY_ALLOW_EMBEDDING_DOWNLOAD=1` 才允许联网下载 |
 | `core/model_gateway/providers/` | 模型提供商实现 |
 | `core/model_gateway/providers/volcano.py` | 火山引擎提供商实现 |
 
@@ -187,7 +188,7 @@
 
 | 文件 | 说明 |
 |---|---|
-| `core/source_registry.py` | `SourceSpec` frozen dataclass + `register()`/`get()`/`get_all()`/`get_enabled()`/`get_by_family()`。所有消费者从此读取，不再需要硬编码分支。 |
+| `core/source_registry.py` | `SourceSpec` frozen dataclass + `register()`/`get()`/`get_all()`/`get_enabled()`/`get_by_family()`。所有消费者从此读取；`connector_class` 是 canonical 连接器路径，`adapter_class` 仅为历史兼容别名。 |
 | `data_sources/__init__.py` | `pkgutil.iter_modules` 自动发现目录下所有 `.py` 模块 |
 | `data_sources/cls.py` | 财联社 (CLS) 源注册 |
 | `data_sources/cnstock.py` | 中国证券网 (CNSTOCK) 源注册 |
@@ -523,7 +524,7 @@
 
 | 文件 | 说明 |
 |---|---|
-| `workers/crawl_scheduler_worker.py` | 爬虫调度 Worker：独立进程管理 APScheduler 定时抓取任务，启动时并行回填所有数据源（每源 600s 超时，全局 900s 超时），通过 CrawlerIngestionBridge 将爬取结果写入摄入队列 |
+| `workers/crawl_scheduler_worker.py` | 爬虫调度 Worker：独立进程管理 APScheduler 定时抓取任务，启动时后台并行回填可调度数据源（每源 600s 超时，全局 900s 超时）；当前通过 `CrawlOrchestrator` 的 connector-first 路径分流，文档源入队给 KnowledgePipeline，市场源写入结构化表 |
 | `workers/knowledge_worker.py` | 知识处理 Worker：持续消费摄入队列，通过 KnowledgePipeline 处理文档（LLM 提取），发布 SSE 事件 |
 
 ---

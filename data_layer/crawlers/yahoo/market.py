@@ -207,7 +207,7 @@ class YahooMarketFetcher(BaseYahooFetcher):
 
     def _df_to_market_data(self, df: Any, symbol: str) -> List[YahooMarketData]:
         """将 DataFrame 转换为 YahooMarketData 列表"""
-        result = []
+        result: List[YahooMarketData] = []
 
         if df.empty:
             return result

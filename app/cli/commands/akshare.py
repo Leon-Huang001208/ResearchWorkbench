@@ -313,7 +313,7 @@ def akshare_quotes_command(
             enable_cache=False,
             verbose=True,
             default_period=period,
-            default_adjust=adjust if adjust != "none" else None,
+            default_adjust=adjust,
         )
         adapter = AkShareAdapter(config)
 

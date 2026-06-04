@@ -18,7 +18,7 @@ let showAllKLineBars = false;
 let currentOverlayMode = 'ma';
 let currentMainPriceRange = null;
 let lastChipUpdateIndex = null;
-let chipUpdateTimer = null;
+let chipUpdateFrame = null;
 const visibleMA = { ma5: true, ma10: true, ma20: true, ma60: true, ma120: true, ma250: true, boll: true };
 
 // ─── Search State ──────────────────────────────────────────
@@ -890,8 +890,8 @@ function scheduleVisibleChipDistributionUpdate(startIndex, endIndex) {
     const safeEnd = Math.min(Math.max(Number(endIndex) || safeStart, safeStart), currentDisplayKLineBars.length - 1);
     const rangeKey = `${safeStart}:${safeEnd}`;
     if (rangeKey === lastChipUpdateIndex) return;
-    clearTimeout(chipUpdateTimer);
-    chipUpdateTimer = setTimeout(() => {
+    const runUpdate = () => {
+        chipUpdateFrame = null;
         lastChipUpdateIndex = rangeKey;
         try {
             renderChipDistributionChart(
@@ -900,7 +900,13 @@ function scheduleVisibleChipDistributionUpdate(startIndex, endIndex) {
         } catch (error) {
             console.warn('Failed to update chip distribution for visible K-line range:', error);
         }
-    }, 120);
+    };
+    if (chipUpdateFrame !== null && typeof cancelAnimationFrame === 'function') {
+        cancelAnimationFrame(chipUpdateFrame);
+    }
+    chipUpdateFrame = typeof requestAnimationFrame === 'function'
+        ? requestAnimationFrame(runUpdate)
+        : (runUpdate(), null);
 }
 
 function renderKLineChart(priceBars) {

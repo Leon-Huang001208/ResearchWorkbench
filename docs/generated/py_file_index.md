@@ -1988,7 +1988,7 @@ Classes:
   - methods: __init__, source, datasets, asset_type, health_check, discover, fetch, save_raw, get_metadata, validate_existing, run, _fetch_with_retry, _process_item, _compute_hash
 - `DocumentConnector`
   - 文档型数据源连接器 — 处理非结构化内容（公告、研报、新闻等）.
-  - methods: asset_type, parse_document, normalize_metadata, persist, _process_item
+  - methods: asset_type, parse_document, normalize_metadata, persist, _process_item, _process_envelope_json
 - `MarketDataConnector`
   - 市场数据连接器 — 处理结构化时间序列（行情、估值、成分股等）.
   - methods: asset_type, parse_table, normalize_bars, _daily_bar_datasets, _build_daily_bar_row, _persist_extra_records, persist, _format_date, _to_decimal, _parse_date, validate_time_series, _process_item
@@ -3104,6 +3104,29 @@ Classes:
   - methods: __init__, _init_providers, set_provider, _cache_key, _cache_get, _cache_set, _resolve, chat, structured_output, embed
 
 
+## `core/model_gateway/local_embedding_config.py`
+
+Module docstring:
+> Local embedding model resolution helpers.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `os`
+- `pathlib`
+- `typing`
+
+Functions:
+- `local_embeddings_disabled`
+  - Return True when local embedding model loading is disabled.
+- `embedding_download_allowed`
+  - Return True only when network model downloads are explicitly enabled.
+- `resolve_local_embedding_model`
+  - Resolve the model reference to pass to sentence-transformers.
+- `sentence_transformer_kwargs`
+  - Build safe SentenceTransformer constructor kwargs for a model reference.
+
+
 ## `core/model_gateway/providers/__init__.py`
 
 Module docstring:
@@ -3148,6 +3171,7 @@ Module docstring:
 Imports:
 - `core.interfaces`
 - `core.model_gateway.base`
+- `core.model_gateway.local_embedding_config`
 - `core.observability`
 - `core.settings.config`
 - `time`
@@ -3323,6 +3347,7 @@ Imports:
 Classes:
 - `SourceSpec`
   - 数据源的完整自描述。
+  - methods: __post_init__
 
 Functions:
 - `register`
@@ -7014,6 +7039,7 @@ Module docstring:
 Imports:
 - `abc`
 - `core.interfaces`
+- `core.model_gateway.local_embedding_config`
 - `core.observability`
 - `typing`
 
