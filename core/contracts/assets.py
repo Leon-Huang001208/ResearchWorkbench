@@ -90,6 +90,14 @@ class IndustryData(BaseModel):
     related_concepts: list[str] = Field(default_factory=list, description="相关概念")
 
 
+class ChipDistributionPoint(BaseModel):
+    """筹码分布数据点 - 单个价格区间上的筹码集中度"""
+
+    price: float = Field(description="价格区间中值")
+    volume: float = Field(description="该价格区间的成交量/筹码量")
+    concentration_pct: float = Field(description="筹码集中度百分比(该区间筹码占总筹码比例)")
+
+
 class PriceBar(BaseModel):
     """K线数据"""
 
@@ -105,6 +113,21 @@ class PriceBar(BaseModel):
     ma10: Optional[float] = Field(None, description="10日均线")
     ma20: Optional[float] = Field(None, description="20日均线")
     ma60: Optional[float] = Field(None, description="60日均线")
+    boll_upper: Optional[float] = Field(None, description="布林带上轨")
+    boll_middle: Optional[float] = Field(None, description="布林带中轨")
+    boll_lower: Optional[float] = Field(None, description="布林带下轨")
+    macd_dif: Optional[float] = Field(None, description="MACD DIF")
+    macd_dea: Optional[float] = Field(None, description="MACD DEA")
+    macd_hist: Optional[float] = Field(None, description="MACD 柱")
+    vwap: Optional[float] = Field(None, description="均价(VWAP)")
+    kdj_k: Optional[float] = Field(None, description="KDJ K值")
+    kdj_d: Optional[float] = Field(None, description="KDJ D值")
+    kdj_j: Optional[float] = Field(None, description="KDJ J值")
+    rsi: Optional[float] = Field(None, description="RSI(14)")
+    pe_ttm: Optional[float] = Field(None, description="市盈率TTM(日频)")
+    pb: Optional[float] = Field(None, description="市净率(日频)")
+    pct_change: Optional[float] = Field(None, description="涨跌幅")
+    amplitude: Optional[float] = Field(None, description="振幅")
 
 
 class EventImpact(BaseModel):
@@ -203,10 +226,17 @@ class AssetAnalysisCard(BaseModel):
     event_impact: list[str] = Field(default_factory=list, description="事件影响ID列表（兼容旧格式）")
     macro_exposure: dict[str, Any] = Field(default_factory=dict, description="宏观暴露（兼容旧格式）")
     evidence_refs: list[str] = Field(default_factory=list, description="证据引用")
-    technical: TechnicalIndicators | dict[str, Any] | None = Field(
-        default_factory=dict, description="技术指标"
+    technical: TechnicalIndicators | dict[str, Any] = Field(
+        default_factory=lambda: {}, description="技术指标"
     )
-    sentiment: dict[str, Any] | None = Field(default_factory=dict, description="情绪指标")
+    sentiment: dict[str, Any] = Field(default_factory=dict, description="情绪指标")
+    chip_distribution: list[ChipDistributionPoint] = Field(
+        default_factory=list, description="筹码分布数据"
+    )
+    avg_cost: Optional[float] = Field(None, description="平均持仓成本")
+    chip_peak_price: Optional[float] = Field(None, description="筹码峰价格(最大筹码集中价位)")
+    chip_peak_upper: Optional[float] = Field(None, description="筹码峰上边界(半峰高价位)")
+    chip_peak_lower: Optional[float] = Field(None, description="筹码峰下边界(半峰低价位)")
 
 
 class AssetAnalysisSnapshot(BaseModel):
@@ -264,10 +294,10 @@ class AssetAnalysisSnapshot(BaseModel):
         default_factory=list,
         description="Reference identifiers for supporting evidence (news, reports, etc.)",
     )
-    technical: TechnicalIndicators | dict[str, Any] | None = Field(
-        default_factory=dict, description="Technical indicators data"
+    technical: TechnicalIndicators | dict[str, Any] = Field(
+        default_factory=lambda: {}, description="Technical indicators data"
     )
-    sentiment: dict[str, Any] | None = Field(
+    sentiment: dict[str, Any] = Field(
         default_factory=dict,
         description="Sentiment metrics (news sentiment, social sentiment, etc.)",
     )

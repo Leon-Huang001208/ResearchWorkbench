@@ -4,6 +4,7 @@ RAG 检索层契约 - Issue #45.
 定义检索配置、过滤条件、证据包等数据结构，支持多种检索 profiles、
 时间衰减、结构化过滤，以及报告与回测视角分离。
 """
+from collections.abc import Callable
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
@@ -47,16 +48,16 @@ class EvidenceType(str, Enum):
 class RecencyDecayConfig(BaseModel):
     """时间衰减配置"""
 
-    half_life_days: float = Field(7.0, description="半衰期（天）")
-    decay_factor: float = Field(0.95, description="衰减因子")
-    min_score_weight: float = Field(0.1, description="最小分数权重")
+    half_life_days: float = Field(default=7.0, description="半衰期（天）")
+    decay_factor: float = Field(default=0.95, description="衰减因子")
+    min_score_weight: float = Field(default=0.1, description="最小分数权重")
 
 
 class SourceWeightConfig(BaseModel):
     """来源权重配置"""
 
-    weights: Dict[SourceType, float] = Field(default_factory=dict, description="来源权重")
-    default_weight: float = Field(1.0, description="默认权重")
+    weights: Dict[SourceType, float] = Field(default_factory=lambda: {}, description="来源权重")
+    default_weight: float = Field(default=1.0, description="默认权重")
 
 
 class DocTypeLookbackConfig(BaseModel):
@@ -72,7 +73,7 @@ class DocTypeLookbackConfig(BaseModel):
             DocType.WECHAT: 14,
         }
     )
-    default_lookback_days: int = Field(14, description="默认回看天数")
+    default_lookback_days: int = Field(default=14, description="默认回看天数")
 
 
 class RetrievalProfile(BaseModel):
@@ -89,15 +90,15 @@ class RetrievalProfile(BaseModel):
 
     # 时间配置
     lookback_config: DocTypeLookbackConfig = Field(
-        default_factory=DocTypeLookbackConfig, description="文档类型回看配置"
+        default_factory=lambda: DocTypeLookbackConfig(), description="文档类型回看配置"
     )
     recency_decay: RecencyDecayConfig = Field(
-        default_factory=RecencyDecayConfig, description="时间衰减配置"
+        default_factory=lambda: RecencyDecayConfig(), description="时间衰减配置"
     )
 
     # 来源配置
     source_weights: SourceWeightConfig = Field(
-        default_factory=SourceWeightConfig, description="来源权重配置"
+        default_factory=lambda: SourceWeightConfig(), description="来源权重配置"
     )
 
     # 质量过滤
@@ -327,7 +328,9 @@ def create_daily_report_profile() -> RetrievalProfile:
             default_weight=1.0,
         ),
         min_research_usability=0.3,
+        min_source_reliability=None,
         allow_opinion_sources=True,
+        available_time_cutoff=None,
         max_documents=30,
         max_chunks=60,
         vector_weight=0.7,
@@ -365,7 +368,9 @@ def create_weekly_report_profile() -> RetrievalProfile:
             default_weight=1.0,
         ),
         min_research_usability=0.4,
+        min_source_reliability=None,
         allow_opinion_sources=True,
+        available_time_cutoff=None,
         max_documents=50,
         max_chunks=100,
         vector_weight=0.75,
@@ -404,7 +409,9 @@ def create_monthly_report_profile() -> RetrievalProfile:
             default_weight=1.0,
         ),
         min_research_usability=0.5,
+        min_source_reliability=None,
         allow_opinion_sources=True,
+        available_time_cutoff=None,
         max_documents=80,
         max_chunks=150,
         vector_weight=0.8,
@@ -443,7 +450,9 @@ def create_deep_dive_profile() -> RetrievalProfile:
             default_weight=1.0,
         ),
         min_research_usability=0.3,
+        min_source_reliability=None,
         allow_opinion_sources=True,
+        available_time_cutoff=None,
         max_documents=150,
         max_chunks=300,
         vector_weight=0.85,
@@ -487,6 +496,7 @@ def create_backtest_replay_profile(
             default_weight=1.0,
         ),
         min_research_usability=0.2,
+        min_source_reliability=None,
         allow_opinion_sources=True,
         max_documents=100,
         max_chunks=200,
@@ -497,12 +507,11 @@ def create_backtest_replay_profile(
     )
 
 
-PROFILE_FACTORY = {
-    RetrievalProfileType.DAILY_REPORT: create_daily_report_profile,
-    RetrievalProfileType.WEEKLY_REPORT: create_weekly_report_profile,
-    RetrievalProfileType.MONTHLY_REPORT: create_monthly_report_profile,
-    RetrievalProfileType.DEEP_DIVE: create_deep_dive_profile,
-    RetrievalProfileType.BACKTEST_REPLAY: create_backtest_replay_profile,
+PROFILE_FACTORY: dict[str, Callable[[], RetrievalProfile]] = {
+    RetrievalProfileType.DAILY_REPORT.value: create_daily_report_profile,
+    RetrievalProfileType.WEEKLY_REPORT.value: create_weekly_report_profile,
+    RetrievalProfileType.MONTHLY_REPORT.value: create_monthly_report_profile,
+    RetrievalProfileType.DEEP_DIVE.value: create_deep_dive_profile,
 }
 
 
@@ -513,8 +522,8 @@ def get_profile(
     if profile_type == RetrievalProfileType.BACKTEST_REPLAY:
         return create_backtest_replay_profile(available_time_cutoff)
 
-    factory = PROFILE_FACTORY.get(profile_type)
-    if not factory:
+    factory = PROFILE_FACTORY.get(profile_type.value)
+    if factory is None:
         raise ValueError(f"Unknown profile type: {profile_type}")
 
     return factory()

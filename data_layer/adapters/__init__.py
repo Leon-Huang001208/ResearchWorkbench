@@ -4,6 +4,7 @@ from data_layer.adapters.baostock_adapter import BaoStockAdapter
 from data_layer.adapters.base import BaseDataAdapter
 from data_layer.adapters.china_stock_adapter import ChinaStockAdapter
 from data_layer.adapters.cls_adapter import CLSAdapter
+from data_layer.adapters.cninfo_adapter import CninfoAdapter
 from data_layer.adapters.cnstock_adapter import CNStockAdapter
 from data_layer.adapters.ifind_adapter import IFinDAdapter
 from data_layer.adapters.local_data_adapter import LocalDataAdapter
@@ -22,6 +23,7 @@ __all__ = [
     "YahooAdapter",
     "LocalDataAdapter",
     "CLSAdapter",
+    "CninfoAdapter",
     "CNStockAdapter",
     "ZQAdapter",
     "WindAdapter",

@@ -9,6 +9,7 @@ Message format conversion:
   OpenAI:  [{"role":"system","content":"..."}, {"role":"user","content":"..."}]
   Anthropic: system="..." (separate param), messages=[{"role":"user","content":"..."}]
 """
+import importlib
 import time
 from typing import Any
 
@@ -22,9 +23,9 @@ from core.settings.config import ProviderProfile
 logger = get_logger(__name__)
 
 try:
-    import anthropic
+    anthropic = importlib.import_module("anthropic")
 except ImportError:
-    anthropic = None  # type: ignore[assignment]
+    anthropic = None
 
 
 def _extract_system_and_messages(

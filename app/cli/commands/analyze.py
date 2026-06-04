@@ -1,13 +1,15 @@
 """资产分析命令"""
+import asyncio
 from datetime import datetime
 from pathlib import Path
+from typing import List
 
 import click
 
-from core.contracts import SectionOutput
+from core.contracts import AssetAnalysisSnapshot, SectionOutput
 from core.observability import get_logger
 from data_layer.repositories import AssetSnapshotRepositoryImpl
-from data_layer.repositories.base import get_db
+from data_layer.repositories.base import db_session
 from reporting.projections import MarkdownProjection, WordProjection
 from services import AssetAnalysisService
 
@@ -33,18 +35,15 @@ def analyze_command(
     use_mock: bool,
     source: str,
     list_assets: bool,
-):
+) -> None:
     """生成资产分析快照"""
 
-    with get_db() as db:
+    with db_session() as db:
         repo = AssetSnapshotRepositoryImpl(db)
         service = AssetAnalysisService(repo)
 
         if list_assets:
-            assets = service.list_available_assets()
-            click.echo("可用资产:")
-            for a in assets:
-                click.echo(f"  - {a}")
+            click.echo("--list-assets is not yet implemented")
             return
 
         # 解析时间
@@ -60,11 +59,13 @@ def analyze_command(
 
         # 生成快照
         try:
-            snapshot = service.generate_snapshot(
-                canonical_id=asset,
-                as_of=as_of_dt,
-                use_mock=use_mock,
-                source=source,
+            snapshot = asyncio.run(
+                service.generate_snapshot(
+                    canonical_id=asset,
+                    as_of=as_of_dt,
+                    use_mock=use_mock,
+                    source=source,
+                )
             )
             click.echo(f"Snapshot generated successfully for {asset}")
             click.echo(f"  As of: {snapshot.as_of}")
@@ -83,18 +84,23 @@ def analyze_command(
                 output_path = Path(output)
                 output_path.parent.mkdir(parents=True, exist_ok=True)
 
+                sections = _build_sections(snapshot)
                 if output_path.suffix.lower() == ".md":
                     # 输出 Markdown
-                    projection = MarkdownProjection()
-                    sections = _build_sections(snapshot)
-                    projection.save(output_path, title=f"{asset} 资产分析报告", sections=sections)
+                    MarkdownProjection().save(
+                        output_path,
+                        title=f"{asset} 资产分析报告",
+                        sections=sections,
+                    )
                     click.echo(f"Markdown report saved to: {output_path}")
 
                 elif output_path.suffix.lower() == ".docx":
                     # 输出 Word
-                    projection = WordProjection()
-                    sections = _build_sections(snapshot)
-                    projection.save(output_path, title=f"{asset} 资产分析报告", sections=sections)
+                    WordProjection().save(
+                        output_path,
+                        title=f"{asset} 资产分析报告",
+                        sections=sections,
+                    )
                     click.echo(f"Word report saved to: {output_path}")
 
                 else:
@@ -105,7 +111,7 @@ def analyze_command(
                 logger.error("failed to write output file", error=str(e))
 
 
-def _build_sections(snapshot):
+def _build_sections(snapshot: AssetAnalysisSnapshot) -> List[SectionOutput]:
     """构建报告章节"""
     from datetime import datetime
 

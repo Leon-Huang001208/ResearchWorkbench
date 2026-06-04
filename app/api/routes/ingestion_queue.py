@@ -1,5 +1,5 @@
 """统一摄取队列 API"""
-from typing import List
+from typing import List, cast
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -60,7 +60,7 @@ def get_ingestion_queue_service(db: Session = Depends(get_db)) -> IngestionQueue
 async def enqueue(
     request: EnqueueRequest,
     service: IngestionQueueService = Depends(get_ingestion_queue_service),
-):
+) -> EnqueueResponse:
     """入队"""
     try:
         result = service.enqueue(request)
@@ -74,7 +74,7 @@ async def enqueue(
 async def process(
     limit: int = 10,
     service: IngestionQueueService = Depends(get_ingestion_queue_service),
-):
+) -> ProcessResponse:
     """处理下一批队列项"""
     try:
         result = await service.process_batch(limit=limit)
@@ -87,7 +87,7 @@ async def process(
 @router.get("/stats", response_model=IngestionQueueStats)
 async def stats(
     service: IngestionQueueService = Depends(get_ingestion_queue_service),
-):
+) -> IngestionQueueStats:
     """队列统计"""
     try:
         return service.get_stats()
@@ -100,10 +100,10 @@ async def stats(
 async def recent(
     limit: int = 20,
     service: IngestionQueueService = Depends(get_ingestion_queue_service),
-):
+) -> List[IngestionQueueItem]:
     """最近处理记录"""
     try:
-        return service.get_recent(limit=limit)
+        return cast(List[IngestionQueueItem], service.get_recent(limit=limit))
     except Exception as e:
         logger.error("Recent query failed", error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
@@ -113,7 +113,7 @@ async def recent(
 async def retry(
     limit: int = 100,
     service: IngestionQueueService = Depends(get_ingestion_queue_service),
-):
+) -> RetryResponse:
     """重试失败项"""
     try:
         result = service.retry_failed(limit=limit)

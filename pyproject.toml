@@ -3,90 +3,56 @@ name = "alphafoundry"
 version = "0.1.0"
 description = "本地优先、可企业化的买方投研情报系统"
 requires-python = ">=3.11"
-authors = [
-    { name = "AlphaFoundry Team" }
-]
-dependencies = [
-    "pydantic>=2.0.0",
-    "pydantic-settings>=2.0.0",
-    "fastapi>=0.100.0",
-    "uvicorn[standard]>=0.20.0",
-    "sqlalchemy>=2.0.0",
-    "alembic>=1.10.0",
-    "psycopg[binary]>=3.1.0",
-    "pgvector>=0.2.0",
-    "langgraph>=0.0.0",
-    "openai>=1.0.0",
-    "anthropic>=0.39.0",
-    "python-dotenv>=1.0.0",
-    "pyyaml>=6.0.0",
-    "click>=8.0.0",
-    "structlog>=23.0.0",
-    "python-json-logger>=2.0.0",
-    "jinja2>=3.1.0",
-    "python-docx>=1.0.0",
-    "pdfplumber>=0.10.0",
-    "beautifulsoup4>=4.12.0",
-    "lxml>=4.9.0",
-    "vectorbt>=0.25.0",
-    "backtrader>=1.9.0",
-    "pandas>=2.0.0",
-    "numpy>=1.24.0",
-    "httpx>=0.24.0",
-    "sentence-transformers>=3.0.0",
-    "akshare>=1.13.0",
-]
+dependencies = [ "pydantic>=2.0.0", "pydantic-settings>=2.0.0", "fastapi>=0.100.0", "uvicorn[standard]>=0.20.0", "sqlalchemy>=2.0.0", "alembic>=1.10.0", "psycopg[binary]>=3.1.0", "pgvector>=0.2.0", "langgraph>=0.0.0", "openai>=1.0.0", "anthropic>=0.39.0", "python-dotenv>=1.0.0", "pyyaml>=6.0.0", "click>=8.0.0", "structlog>=23.0.0", "python-json-logger>=2.0.0", "jinja2>=3.1.0", "python-docx>=1.0.0", "pdfplumber>=0.10.0", "beautifulsoup4>=4.12.0", "lxml>=4.9.0", "vectorbt>=0.25.0", "backtrader>=1.9.0", "pandas>=2.0.0", "numpy>=1.24.0", "httpx>=0.24.0", "sentence-transformers>=3.0.0", "akshare>=1.13.0",]
+[[project.authors]]
+name = "AlphaFoundry Team"
+
+[build-system]
+requires = [ "hatchling",]
+build-backend = "hatchling.build"
 
 [project.optional-dependencies]
-pdf = [
-    "markitdown[pdf]>=0.1.0",
-]
-pdf-full = [
-    "markitdown[pdf]>=0.1.0",
-    "mineru[all]>=2.0.0",
-]
-dev = [
-    "pytest>=7.4.0",
-    "pytest-asyncio>=0.21.0",
-    "pytest-cov>=4.1.0",
-    "black>=23.7.0",
-    "isort>=5.12.0",
-    "mypy>=1.5.0",
-    "ruff>=0.0.290",
-    "ipython>=8.14.0",
-]
+pdf = [ "markitdown[pdf]>=0.1.0",]
+pdf-full = [ "markitdown[pdf]>=0.1.0", "mineru[all]>=2.0.0",]
+dev = [ "pytest>=7.4.0", "pytest-asyncio>=0.21.0", "pytest-cov>=4.1.0", "black>=23.7.0", "isort>=5.12.0", "mypy>=1.5.0", "ruff>=0.0.290", "ipython>=8.14.0",]
 
 [project.scripts]
 af = "app.cli.main:main"
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
 [tool.black]
 line-length = 100
-target-version = ['py311']
+target-version = [ "py311",]
 
 [tool.isort]
 profile = "black"
 line_length = 100
 
 [tool.mypy]
+plugins = ["pydantic.mypy"]
 python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
+disable_error_code = [ "import-untyped",]
+
+[[tool.mypy.overrides]]
+module = "transformers"
+follow_imports = "skip"
+
+[[tool.mypy.overrides]]
+module = "transformers.*"
+follow_imports = "skip"
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
-pythonpath = ["."]
+testpaths = [ "tests",]
+pythonpath = [ ".",]
 asyncio_mode = "auto"
 
 [tool.ruff.lint.per-file-ignores]
-"scripts/**" = ["E402"]
-"examples/**" = ["E402"]
-"storage/migrations/env.py" = ["E402"]
-"tests/**" = ["E402"]
-"app/api/main.py" = ["E402"]
-"data_layer/crawlers/cls/cls.py" = ["E402"]
-"data_layer/crawlers/cnstock/cnstock.py" = ["E402"]
+"scripts/**" = [ "E402",]
+"examples/**" = [ "E402",]
+"storage/migrations/env.py" = [ "E402",]
+"tests/**" = [ "E402",]
+"app/api/main.py" = [ "E402",]
+"data_layer/crawlers/cls/cls.py" = [ "E402",]
+"data_layer/crawlers/cnstock/cnstock.py" = [ "E402",]

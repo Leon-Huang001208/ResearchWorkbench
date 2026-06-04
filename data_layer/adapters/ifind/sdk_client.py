@@ -1,4 +1,5 @@
 """iFinD Python SDK 客户端实现（占位）"""
+import importlib
 import logging
 from typing import Any
 
@@ -9,19 +10,17 @@ logger = logging.getLogger(__name__)
 
 # 尝试导入 iFinD SDK
 try:
-    # 假设 iFinD SDK 的导入语句是这样的
-    # 实际使用时可能需要调整
-    from iFinD import (
-        THS_Basic,
-        THS_DataPool,
-        THS_DateSerial,
-        THS_EdbQuery,
-        THS_Financial,
-        THS_History,
-        THS_iFinDLogin,
-        THS_iFinDLogout,
-        THS_Realtime,
-    )
+    # iFinD SDK is optional and only available on supported terminals.
+    _ifind_sdk = importlib.import_module("iFinD")
+    THS_Basic = _ifind_sdk.THS_Basic
+    THS_DataPool = _ifind_sdk.THS_DataPool
+    THS_DateSerial = _ifind_sdk.THS_DateSerial
+    THS_EdbQuery = _ifind_sdk.THS_EdbQuery
+    THS_Financial = _ifind_sdk.THS_Financial
+    THS_History = _ifind_sdk.THS_History
+    THS_iFinDLogin = _ifind_sdk.THS_iFinDLogin
+    THS_iFinDLogout = _ifind_sdk.THS_iFinDLogout
+    THS_Realtime = _ifind_sdk.THS_Realtime
 
     IFIND_SDK_AVAILABLE = True
 except ImportError:

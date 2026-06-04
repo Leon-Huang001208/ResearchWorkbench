@@ -6,11 +6,157 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- **crawl_scheduler 诊断与恢复**: 调度器于 2026-05-26 收到 shutdown signal 后停止运行，宕机约 9 天（5/26→6/4）。根因为调度器缺乏持久化进程管理，手动 kill 或系统事件导致退出后无法自动恢复。2026-06-04 手动重启 `python3 -m workers.crawl_scheduler_worker`（PID 75941），启动后自动执行 gap backfill，所有新闻源（CLS/CNStock/ZQ）已恢复数据采集。
+  - **CLS "不再更新"根因确认**: CLS 爬虫代码中已有 `updateTelegraphList` 404 的 workaround（`_crawl_incremental()` 降级到稳定历史 API `POST /api/sw`）。CLS 数据中断的真实原因是调度器宕机，而非 API 问题。
+
+- **CNStock 爬虫 WAF 绕过修复**: 中国证券网在 2026年5月升级了 WAF 验证，导致 `requests` 直接调用 API 返回 `10304`（"未登录"）。修复方案使用 Playwright 无头浏览器导航到频道页面，拦截页面自身 JavaScript 发起的 API 响应来获取数据。
+  - 快讯（node_id=10004）：通过提取页面 `__NEXT_DATA__` 中的 SSR 数据获取
+  - 常规频道（证券/金融/公司等）：通过拦截页面 JS 发起的 `channelNewsList` API 响应获取
+  - 支持跨频道浏览器复用，减少资源消耗
+  - 保留 `requests` 方案作为 Playwright 不可用时的回退
+  - `data_layer/crawlers/cnstock/cnstock.py` — 新增 `_crawl_channel_via_playwright()`、`_extract_ssr_data()`、`_create_playwright_browser()` 方法；重构 `crawl_news_list()` 支持双路径
+
+### Added
+
+- **Wind 风格 K 线终端面板**: 资产分析页 K 线区域改为高密度终端式布局，保留时间范围和均线切换，新增顶部行情信息条、左侧竖向指标栏、右侧筹码分布窄栏；筹码图明确标注筹码峰、筹码峰上界、筹码峰下界、现价和均本。
+  - `app/web/templates/index.html` — K 线区域重排为终端工具栏、行情条、指标栏、主图和筹码侧栏结构。
+  - `app/web/static/style.css` — 新增 `.kline-terminal-*` 终端式布局样式，筹码统计区改为紧凑表格样式。
+  - `app/web/static/js/asset.js` — 行情条复用资产分析数据；K 线图改为固定暗色终端配色；筹码图增加上/下边界清晰 `markLine` 标签并按现价上下分色。
+  - 迭代修正：K 线默认请求全量数据，不再显示 1月/3月/6月等截断范围按钮；各副图直接显示 BOLL、VOL、MACD、KDJ、RSI 标题和值；筹码分布高度对齐主 K 线价格区，并按当前可见区间起点到当前激活 K 线动态重算普通筹码分布，鼠标移出后回到当前可见最右侧交易日。
+  - 可视化细节修正：MA60 改为更醒目的绿色以区别 MA250；顶部行情条的开/高/低/均按相对昨收动态显示红绿；BOLL 上/MID/下轨调整为 Wind 风格的黄、浅灰、品红实线配色。
+  - 继续完善：新增 MA120、MA250 均线开关和前端均线计算；日 K 初始窗口只展示最近 120 根 K 线，保留滑块查看更早数据；新增周 K、月 K 前端聚合切换；左侧竖向标签按主图/成交量/MACD/KDJ/RSI 分区比例对齐。
+  - 覆盖线和筹码图修正：筹码分布从分类价格桶改为连续价格轴自定义横条，并与主 K 线价格轴共享 y 轴范围，现价/均本/筹码峰/上界/下界位置与 K 线价格位置对齐；右上角 MA 按钮使用对应均线颜色；覆盖线切换改为 MA / BOLL / 裸K 三种互斥模式。
+  - 最新交互修正：K 线缩放或拖动后按当前可见 K 线和当前覆盖模式自动重算主图价格轴，避免放大全量区间时蜡烛线超出画布；主图左上角 MA/BOLL 数值跟随鼠标所在交易日更新并按对应线条颜色显示；右上角覆盖线控制收敛为 `MA均线`、`BOLL布林带`、`裸K` 三个模式按钮。
+  - 指标读数修正：统一 MA250 线条、tooltip 和主图读数颜色；VOL、MACD、KDJ、RSI 副图标题值随鼠标所在 K 线位置同步更新。
+
+- **K线技术指标增强 (KDJ/RSI/筹码峰)**: 资产分析页 K 线图从 3 面板升级为 5 面板专业图表，新增筹码分布独立图表
+  - `services/asset_analysis_service.py` — `_build_price_bars_from_dataframe()` 新增 KDJ(9,3,3) 和 RSI(14) 全序列计算，填充每个 `PriceBar` 的 `kdj_k`/`kdj_d`/`kdj_j`/`rsi` 字段；新增 `_calculate_chip_distribution()` 基于输入 K 线区间的价格-成交量分布计算高密度普通筹码（筹码集中度、平均持仓成本、筹码峰价格）
+  - `core/contracts/assets.py` — 新增 `ChipDistributionPoint` 模型（price/volume/concentration_pct）；`AssetAnalysisCard` 新增 `chip_distribution`、`avg_cost`、`chip_peak_price` 字段
+  - `app/web/static/js/asset.js` — K 线图 ECharts 从 3 面板（K 线+成交量 40%+9%、MACD 9%）扩展为 5 面板（+KDJ 10%、+RSI 9%），所有面板共享 `dataZoom` 联动缩放；KDJ 面板显示 K/D/J 三线及 20/50/80 超买超卖参考线；RSI 面板显示 RSI 线及 30/70 参考线；新增筹码分布水平柱状图独立 ECharts 实例，带现价和均本 `markLine` 标注
+  - `app/web/templates/index.html` — 新增筹码分布面板，显示筹码峰价格、平均成本、获利/套牢比例
+  - `app/web/static/style.css` — 新增 `.chip-distribution-card`、`.chip-stats` 样式
+
+- **宏观敏感性计算**: 通过时间序列回归计算个股对宏观因子的敏感度
+  - `services/macro_sensitivity.py` — 新增 `MacroSensitivityCalculator`，通过 Cjpy 批量获取标的+5 个代理 ETF 日线，用 `numpy.linalg.lstsq` 执行 OLS 回归，返回 `interest_rate_sensitivity`、`inflation_sensitivity` 等 5 个 Beta 系数
+  - `services/asset_analysis_service.py` — `_enrich_from_coordinator()` 中集成 `_compute_macro_sensitivity()`，替代之前的空 `MacroSensitivity()`
+  - 数据源：Cjpy 天软批量行情（`rate="不复权"`），一次调用包含所有代码，速度约 0.5s
+  - 代理 ETF 映射：利率=511010.SH（国债ETF）、通胀=510880.SH（红利ETF）、汇率=510050.SH（上证50ETF）、商品=159980.SZ（有色ETF）、流动性=510300.SH（沪深300ETF）
+  - 错误处理：Cjpy 不可用/数据不足/回归异常时均返回空 `MacroSensitivity()`
+
+- **前十大股东明细**: 实现 4 级数据源优先级，支持逐项股东名称
+  - `data_layer/adapters/akshare_adapter.py` — `fetch_top_shareholders()` 从 mock 数据改为真实 AKShare `stock_gdfx_top_10_em` 接口，返回股东名称/持股比例/数量/类型/排名
+  - `data_layer/adapters/wind/formulas.py` — 新增 `s_info_top10_holdername`、`s_info_top10_holderratio`、`s_info_top10_holderquantity` 三个按排名公式
+  - `data_layer/adapters/wind/wind_adapter.py` — 新增 `fetch_top10_holder_details()` 遍历排名 1-10 调用 Wind Excel，返回含股东名称的逐项明细
+  - `services/asset_analysis_service.py` — `_fill_shareholder_data()` 改为 async，4 级优先级：StockShareholderDB → Wind 逐项 → Wind 聚合 → AKShare 开源数据
+  - `tests/unit/test_asset_analysis_service.py` — 修复测试为 async，增加新 fallback 路径 mock
+
+- **近期事件多源 fallback**: `_fill_recent_events()` 3 级数据源
+  - `services/asset_analysis_service.py` — 新增 CanonicalEvent (Tier 2) 和 AKShare 个股公告 (Tier 3) fallback；新增 `_map_to_event_impact()` 静态方法统一映射
+  - `data_layer/adapters/akshare/akshare_client.py` — 新增 `get_stock_notice_report()` 封装 `ak.stock_individual_notice_report`
+
+- **ETF 搜索支持**: `AssetSearchIndexService` 新增 ETF 候选源
+  - `services/asset_search_index_service.py` — 新增模块级 ETF 缓存（AKShare `fund_etf_spot_em()`，24h TTL），`_fund_candidates()` 方法，`_etf_suffix()` 代码到交易所映射
+  - `data_layer/normalizers/symbol.py` — `normalize_a_share_symbol` 新增 ETF 前缀识别：159/16/399→SZ，51/58→SH
+  - 搜索 `159267` 可精确匹配 `159267.SZ 航天ETF华安`
+
 ### Changed
 
-- **Wind 客户端连接稳定性修复与 seed 脚本双数据源**: Wind Excel 客户端连接和 WSD 重构，seed 脚本支持 AKShare/Wind 双数据源、限流处理、断点续传
-  - `data_layer/adapters/wind/client.py` — `_connect()` 完全重写：遍历所有 Excel 实例，通过 heartbeat 检测含 Wind 插件的实例；`execute_wsd()` 新增 3 次指数退避重试（3s→6s→12s，上限 30s）；新增 `_wsd_timeout()` 根据日期跨度动态计算超时（基础 15s + 每 250 天 + 5s）；新增 `_execute_wsd_once()` 单次 WSD 调用（提取自原 `execute_wsd()`）；心跳 TTL 缓存（30s 内跳过重复心跳）
-  - `scripts/seed_factor_data.py` — 新增 `--source {akshare,wind,auto}` 参数：AKShare 限流处理（请求间延迟 `--delay`、指数退避重试 `--max-retries`、限流关键词检测）、Wind WSD 数据源（单次调用获取完整时间序列）、`auto` 模式 Wind 优先自动降级；JSON 断点续传（每 10 只保存 checkpoint，`--resume` 恢复）；新增 `_fetch_akshare_hist_with_retry()`、`_normalize_akshare_hist()`、`_wsd_to_daily_bars()`、`_safe_float_wind()`、`_is_wind_available()`、`ingest_daily_bars_from_wind()` 等函数
+- **资产分析 K 线交互升级**: 资产分析页 K 线图从静态 Canvas 升级为 ECharts 专业图表
+  - `app/web/static/js/asset.js` — 新增 K 线/成交量/MACD 多面板渲染，支持 `dataZoom` 缩放、拖动平移、十字光标 tooltip、时间范围切换和 MA/BOLL 显隐
+  - `app/api/routes/assets.py` / `services/asset_analysis_service.py` — `analysis-card` 支持 `time_range` 参数（`1M`/`3M`/`6M`/`1Y`/`2Y`/`3Y`/`5Y`/`ALL`）
+  - `core/contracts/assets.py` — `PriceBar` 补充 BOLL、MACD、VWAP、涨跌幅和振幅字段，避免技术指标在 Pydantic 序列化时丢失
+  - `tests/unit/test_asset_analysis_service.py` — 增加时间范围透传和技术指标字段保留回归测试
+- **资产分析服务数据填充**: `AssetAnalysisService._enrich_from_coordinator()` 实现 Phase 2-4 数据填充
+  - `_fill_industry_data()` — 从 StockMasterDB / Wind 填充行业分类
+  - `_fill_shareholder_data()` — 从 StockShareholderDB 填充前十大股东
+  - `_fill_recent_events()` — 从 DocumentEventV1DB 填充近期事件（按 subject_entity 匹配，最多 20 条）
+  - 宏观敏感性通过 Cjpy + OLS 回归实现实时计算（详见新增 Added 中"宏观敏感性计算"）
+	- **资产分析 Wind 直连补齐**: 服务端用 Wind Excel 实时数据补齐数据库空字段（Phase 1-3）
+	  - `data_layer/adapters/wind/wind_adapter.py` — 新增 `fetch_market_snapshot()` 轻量市场快照（收盘价、换手率、PE/PB/PCF、总股本）
+	  - `services/asset_analysis_service.py` — 新增 `_fill_wind_market_snapshot()` 补齐估值/换手率/市值；`_fill_industry_data()` 行业 level2/3 缺失时 Wind fallback；`_fill_shareholder_data()` 股东表空时 Wind 聚合 fallback
+	  - `services/asset_analysis_service.py` — 新增 `_get_available_wind_adapter()` 懒初始化+缓存；`_fetch_wind_price_bars()` 复用该方法去重
+	  - `_build_basic_info()` stock 和 fallback 分支从 valuation dict 读取 `total_shares`/`market_cap`
+	  - `tests/unit/test_asset_analysis_service.py` — 新增 3 个测试 + 修复时间依赖测试
+
+### Fixed
+
+- **Wind Excel `execute_batch` 无限轮询修复**: `data_layer/adapters/wind/client.py` — `execute_batch()` 将 Excel 错误值（#N/A, #VALUE! 等）视为已完成结果而非"未就绪"状态，防止轮询循环无限等待；最终结果收集时 None=超时、error string=Wind 错误、其他=有效值
+- **Wind Excel COM 阻塞事件循环修复**: `services/asset_analysis_service.py` — `fetch_top10_holder_details` 调用包装在 `loop.run_in_executor` + `asyncio.wait_for(timeout=30.0)` 中，防止同步 Excel COM 调用阻塞整个 asyncio 事件循环
+- **筹码分布 markLine 显示修复**: `app/web/static/js/asset.js` — 筹码峰图表从不可见的 `graphic` 元素改为 ECharts `markLine`，新增 `closestBucketPrice()` 辅助函数匹配最近价格桶，现价和均本线正确显示
+- **Mypy 类型注解修复**: 修复 6 个文件的 mypy `no-untyped-def` 错误
+  - `app/api/main.py` — 添加 `startup()`, `shutdown()`, `get_response()`, `index()`, `health_check()` 返回类型注解
+  - `app/api/routes/ingestion_queue.py` — 添加 5 个路由处理器返回类型，`get_recent()` 使用 `cast()`
+  - `app/api/routes/scenarios.py` — 添加路由处理器返回类型
+  - `app/api/routes/event_ingestion.py` — 添加 TypedDict 响应类型，`db_session` 参数注入
+  - `app/cli/main.py` — 修复 `log_path` 类型从 `Path` 到 `str`
+  - `app/cli/commands/analyze.py` — `get_db()`→`db_session` 上下文管理器，`asyncio.run()` 包裹异步调用，移除不存在的 `list_available_assets()` 调用，重构内联 MarkdownProjection 避免类型重赋值
+- **EventAutoSignalGenerator 审查修复**:
+  - `data_layer/repositories/event_repository.py` — `list_approved_pending_signal` NULL coalesce 修复（`func.coalesce(signal_generated, false()).is_(false())`）
+  - `services/event_auto_signal_generator.py` — `__enter__`/`__exit__` session 生命周期管理，`model_dump()`+重构替代 `model_copy(update=...)` 以触发 Pydantic 验证
+- **CLI analyze 测试修复**: `tests/unit/test_cli_analyze.py` — 替换 `get_db`→`db_session`，添加 `asyncio.run` mock，修复 MarkdownProjection 内联构造后的 mock 断言
+
+- **zhiqiu_wechat / zhiqiu_transcript 绕过 IngestionQueue**: 公众号和纪要内容抓取后未进入 LLM 提取管道
+  - 根因: `CrawlerIngestionBridge.SOURCE_TYPE_TO_CATEGORY` 将 `zhiqiu_wechat` → `"wechat"`、`zhiqiu_transcript` → `"transcript"`，但 `DocumentEnvelope.source_type` 的 Pydantic Literal 不包含这两个值，导致 `ValidationError` 被 `_enqueue_items()` 的 `except Exception` 静默吞掉
+  - `core/contracts/documents.py` — `DocumentEnvelope.source_type` Literal 增加 `"wechat"` 和 `"transcript"`
+  - `data_sources/zhiqiu_wechat.py` / `data_sources/zhiqiu_reports.py` / `data_sources/zhiqiu_transcript.py` — 恢复 `adapter_class` 为 `data_layer.adapters.zq_adapter.ZQAdapter`（之前的未提交改动错误地改成了不兼容的 `ZQDocumentConnector`）
+- **Scheduler 启动回补 ZQ 爬虫卡住**: ZQ 爬虫在 `_startup_gap_backfill` 阶段挂起导致 scheduler 无法开始正常调度
+  - `workers/crawl_scheduler_worker.py` — 启动回补改为 `asyncio.create_task()` 异步后台任务，不再阻塞 scheduler 主循环；`_startup_gap_backfill` 增加 900s 全局超时 (`asyncio.wait(timeout=...)`)；`ThreadPoolExecutor` 使用 `shutdown(wait=False)` 避免等待卡死线程；线程池上限从 `len(source_types)` 改为 `min(len(source_types), 8)`
+  - `services/crawl_scheduler.py` — `check_and_backfill_gap()` 中阻塞的 `orchestrator.backfill_source()` 改为 `await loop.run_in_executor(None, lambda: ...)`，让 per-source 600s 超时可以真正生效（之前 event loop 被同步 I/O 卡住无法处理取消信号）
+- **Mypy 错误修复**: 修复合同文件中的 Pydantic `default_factory` 类型签名
+  - `core/contracts/retrieval.py` — 修复 `default_factory=ModelClass` → `default_factory=lambda: ModelClass()`（或 `# type: ignore[arg-type]`），Profile 工厂函数添加 `min_source_reliability=None, available_time_cutoff=None`
+  - `core/contracts/assets.py` — 修复 `default_factory=dict` → `default_factory=lambda: {}`（Optional union 类型字段）
+  - `core/contracts/documents_v1.py` — 修复 6 处 `default_factory=ModelClass` → `default_factory=lambda: ModelClass()`
+  - `core/contracts/ingestion_record.py` — 修复 `default_factory=IngestionStats` → `default_factory=lambda: IngestionStats()`
+  - `core/contracts/outcome_journal.py` — 修复 `default_factory=list` → `default_factory=lambda: []`（Optional 类型字段）
+
+### Changed
+
+- **Cninfo (巨潮资讯网) 数据源重构**: Phase 1 直接 HTTP 实现升级为完整的三层架构
+  - `data_layer/crawlers/cninfo/cninfo.py` — **新建**：CninfoCrawler 爬虫类，从 Connector 层提取 HTTP 逻辑（session 管理、分页、限速）
+  - `data_layer/adapters/cninfo_adapter.py` — **新建**：CninfoAdapter，包装 Crawler 输出为 DocumentEnvelope
+  - `connectors/document/cninfo.py` — 重构为 wrapper-first 模式，委托 CninfoAdapter
+  - `data_layer/adapters/__init__.py` — 导出 CninfoAdapter
+  - `tests/unit/test_connectors/test_cninfo_connector.py` — **新建**：13 个单元测试覆盖完整生命周期
+- **Connector fallback 路由修复**: `SourceSpec` 补齐 `fallback_group` / `fallback_priority`，并新增 `get_fallback_groups()` 供 `DatasetRouter` 构建多源降级链
+  - `core/source_registry.py` — `SourceSpec` 接受 data_sources 中已声明的 fallback 元数据，按优先级排序返回 fallback groups
+  - `core/connectors/registry.py` — `DatasetRouter.build()` 对输入 spec 再按 `fallback_priority` 排序，避免依赖调用方顺序
+  - `tests/unit/test_connectors/test_registry.py` — 新增 fallback 链顺序回归测试
+- **Wind Excel 自动启动回归覆盖**: 验证没有运行中的 Excel 时 `WindExcelClient._connect()` 会主动启动 Excel，而不是跳过或 mock 掉真实行为
+  - `tests/unit/test_wind_adapter.py` — 新增无运行实例时调用 `xw.App(visible=False, add_book=True)` 的回归测试
+- **文档重构**: 更新所有 markdown 文档以反映 Connector 架构
+  - `docs/modules/core_connectors.md` — **新建**：完整的连接器子系统文档
+  - `docs/ARCHITECTURE.md` — 核心层增加 `core/connectors/`，数据层增加 `connectors/` 连接器实现，更新"如何添加新数据源"章节
+  - `docs/FILE_GUIDE.md` — 新增 `core/connectors/` 和 `connectors/` 目录条目，目录导航增加连接器章节
+  - `docs/DATA_SOURCES.md` — 更新数据源表格，适配器→连接器列名，代码示例改为 Connector 路径
+  - `docs/DEVELOPMENT_MAP.md` — 新增子系统 #19 "Connector System"
+  - `docs/modules/` — 更新 8 个模块文档以反映连接器架构变更
+  - `docs/generated/py_file_index.md` — 重新生成，包含 `connectors/` 和 `workers/` 目录
+
+- **数据源架构重构 Direction A 完成**: 统一 BaseConnector → CLI → Skill 全链路
+  - **BaseConnector 重构** (`core/connectors/base.py`): 消除 6 个子类中约 549 行重复代码
+    - `DocumentConnector.persist()`: 从 abstract 改为 concrete（~80 行），3 个子类各自约 65-70 行的 persist() 全部移除
+    - `MarketDataConnector.persist()`: Template Method 模式 + Hook 方法
+      - 子类覆盖轻量 hook（`_daily_bar_datasets()` / `_build_daily_bar_row()` / `_persist_extra_records()`），不用覆盖整个 persist()
+      - 静态工具方法 `_format_date()` / `_to_decimal()` / `_parse_date()` 从 3 个子类各约 55-65 行合并到基类
+    - 净减少约 329 行代码，100% 向后兼容，1526 测试全通过
+  - **统一 CLI**: 新增 `af data` 命令组 (`app/cli/commands/data.py`) 替代分散的 ingest/crawl/knowledge
+    - `af data list` — 列出所有可用数据源及 datasets
+    - `af data ingest -s <src> -d <dataset>` — 统一数据摄入入口
+    - `af data backfill -s <src>` — 历史数据回填
+    - `af data validate -s <src> -d <dataset>` — 数据校验（新增）
+    - `af data status [--source <s>]` — 聚合 connector 健康 + Worker + Scheduler 状态
+    - `af data file -f <path>` — 摄入单个文件
+    - `af data schedule start|stop|status` — 采集调度器管理
+    - `af data workers start|stop|status` — 知识加工 Worker 管理
+    - 旧命令 `af crawl` / `af ingest` / `af knowledge` 保留为向后兼容别名
+  - **Skill**: 新增 data-connector-development Skill 文档
+    - Template Method + Hook 模式说明
+    - Wrapper-first 策略指南
+    - 完整开发检查清单
+
+- **Wind 公式验证与清理**: 43 个新增公式全部通过 Mac Wind Excel 函数浏览器逐个验证
   - 日行情 `s_dq_*` (非 s_pq_*)，OHLC 增加 adj_type，移除 adj_close
   - 财务 TTM 参数不统一（trade_date vs report_date），fin_equity MRQ 无日期参数
   - 行业三函数合并为 `s_info_industry_sw_2021` + level 参数
@@ -20,6 +166,12 @@
   - `wind_adapter.py` 所有 fetch 方法签名更新
 
 ### Added
+
+- **天软 (Tinysoft) 数据源集成**: 通过 cjpy 包接入天软行情、因子、表格数据
+  - `data_layer/adapters/cjpy_adapter.py` — CjpyAdapter 数据适配器
+  - `data_sources/cjpy.py` — 数据源注册
+  - 支持功能: 股票/基金列表、交易日查询、日线/分钟线行情、因子数据、表格数据、实时订阅
+  - 69 个系统因子、21 张数据表格
 - **Wind Excel 适配器**: 通过 xlwings → AppleScript → Excel Wind 插件获取专业金融数据，macOS 原生支持
   - `data_layer/adapters/wind/client.py` — `WindExcelClient`：xlwings 连接管理、心跳检测、批量公式执行、后台保活线程（30min 间隔防自动登出）
   - `data_layer/adapters/wind/formulas.py` — 35 个 Wind 公式生成器，覆盖一致预期（净利润/EPS/营收/目标价/评级，支持 fy1/fy2/fy3/ftm/avg）、融资融券（余额/买入/偿还/卖出/偿还）、龙虎榜（净买入/买入额/卖出额/上榜次数）
@@ -60,31 +212,6 @@
   - `tests/unit/test_wind_api.py` — 新增 13 个 API 测试（健康检查、一致预期、两融、龙虎榜、行情、财务、行业、资金流向、持有人）
   - `tests/unit/test_wind_features.py` — 新增 15 个特征测试（一致预期 6、融资融券 4、龙虎榜 4、集成 2）
   - `tests/unit/test_wind_repository.py` — 新增 14 个仓储测试（空记录、upsert、查询、初始化）
-- **动态多因子持久化**: 因子定义、因子值、评估和权重的数据库持久化闭环
-  - `storage/migrations/versions/011_add_factor_store_tables.py` — 创建 4 张表：factor_definition、factor_value、factor_evaluation、dynamic_factor_weight（含索引和唯一约束）
-  - `data_layer/repositories/models.py` — 新增 FactorDefinitionDB、FactorValueDB、FactorEvaluationDB、DynamicFactorWeightDB ORM 模型
-  - `data_layer/repositories/factor_repository.py` — FactorRepository：通用 upsert + 专用查询方法（点日期查询、范围查询、最新权重等）
-  - `services/factor_store_service.py` — FactorStore：桥接 Pydantic 契约 ↔ ORM 记录，提供 definition/value/evaluation/weight 完整持久化能力
-  - `tests/unit/test_factor_repository.py` — 13 个单元测试（空记录、upsert 委托、查询、session 生命周期）
-  - `tests/unit/test_factor_store_service.py` — 27 个单元测试（契约转换、CRUD 路径、端到端流程）
-- **动态多因子 REST API**: 因子数据端到端 REST 接口
-  - `app/api/routes/factors.py` — 10 个 API 端点（definitions GET/POST, values GET/POST, evaluations GET/POST, weights/latest GET, weights POST, weights/history GET, available-dates GET, categories GET）
-  - `app/api/main.py` — 注册 factors.router
-  - `tests/unit/test_factor_api.py` — 13 个单元测试（端点覆盖、请求验证、空数据处理）
-- **动态多因子定时计算**: 因子研究闭环的定时编排服务
-  - `services/factor_computation_service.py` — FactorComputationService：编排因子定义加载 → 值加载 → 矩阵构建 → 评估 → 动态权重拟合 → 持久化
-  - `services/crawl_scheduler.py` — 注册每日盘后因子计算定时任务（cron `16:27`）
-  - `tests/unit/test_factor_computation_service.py` — 11 个单元测试（空定义/空值/完整循环/资源关闭）
-	- **因子数据播种 + 唯一约束修复**: 解决因子数据表为空导致每日定时任务跳过的风险
-	  - `scripts/seed_factor_data.py` — 种子数据管线：Phase 1 AKShare 摄入（带 legacy stock_price_data 回退），Phase 2 因子定义注册/值时序计算/评估周期
-	  - `data_layer/repositories/models.py` — FactorValueDB、FactorEvaluationDB、DynamicFactorWeightDB 添加 `__table_args__` UniqueConstraint
-	  - PostgreSQL 添加 3 个唯一约束：`uq_factor_value_factor_subject_date`、`uq_factor_eval_factor_date_horizon`、`uq_dynamic_weight_date_metric`
-	- **财务数据播种 + 财务因子**: AKShare stock_financial_abstract() 摄入财务数据，注册并计算 VALUE/QUALITY/GROWTH 因子
-	  - `scripts/seed_factor_data.py` — 新增 `get_stock_list_akshare_direct()`（stock_info_a_code_name, 5,525 只股票）、`ingest_daily_bars_direct()`（stock_zh_a_hist 日行情）、`ingest_financials_direct()`（stock_financial_abstract 财务数据）、`compute_financial_factor_values()`（季报因子计算）
-	  - 新增 8 个财务因子定义：pe_ttm, pb, bvps (VALUE) / roe, eps (QUALITY) / revenue_growth_yoy, profit_growth_yoy (GROWTH) / debt_ratio (RISK)
-	  - 播种结果：18 个因子（10 技术 + 8 财务），26,081 条因子值（8 个类别），4,262 行财务数据（51 个标的）
-	  - PostgreSQL 添加 `uq_financial_metric_symbol_date` 唯一约束
-	  - 种子运行结果：10 个因子定义，2,260 个因子值（4 个交易日 × 65 标的），10 个因子评估（IC/RankIC/DecileSpread），1 组动态权重
 - **WebUI 导航收敛**: 在不修改 dashboard 与模板文件的前提下，将低频/历史页面归档隐藏，保留”更多”按钮随时展开
   - `app/web/static/js/navigation-curation.js` — 新增导航归档配置和显示/隐藏状态管理
   - `app/web/static/js/app.js` — 初始化导航收敛模块

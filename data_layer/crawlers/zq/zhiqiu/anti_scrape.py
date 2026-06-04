@@ -49,12 +49,12 @@ class AntiScrapeConfig:
 class RequestTiming:
     """请求时序追踪器"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.requests_minute: List[float] = []
         self.requests_hour: List[float] = []
         self.last_request_time: float = 0.0
 
-    def record_request(self):
+    def record_request(self) -> None:
         """记录一次请求"""
         now = time.time()
         self.last_request_time = now
@@ -62,7 +62,7 @@ class RequestTiming:
         self.requests_hour.append(now)
         self._cleanup()
 
-    def _cleanup(self):
+    def _cleanup(self) -> None:
         """清理过期记录"""
         now = time.time()
         self.requests_minute = [t for t in self.requests_minute if now - t < 60]
@@ -110,7 +110,7 @@ class UserAgentRotator:
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Safari/605.1.15",
     ]
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._last_ua: Optional[str] = None
 
     def get_random(self) -> str:
@@ -132,7 +132,7 @@ class RefererRotator:
         "https://www.kanzhiqiu.com/",
     ]
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._last_referer: Optional[str] = None
 
     def get_random(self) -> str:
@@ -173,7 +173,7 @@ class HeaderRandomizer:
         "",
     ]
 
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
     def get_random_headers(self, base_headers: Optional[Dict] = None) -> Dict[str, str]:
@@ -221,13 +221,13 @@ class SmartDelayer:
         self.timing = RequestTiming()
         self._logger = logging.getLogger(__name__)
 
-    def record_success(self):
+    def record_success(self) -> None:
         """记录成功请求"""
         self.failure_count = 0
         self.success_streak += 1
         self.timing.record_request()
 
-    def record_failure(self):
+    def record_failure(self) -> None:
         """记录失败请求"""
         self.failure_count += 1
         self.success_streak = 0
@@ -278,7 +278,7 @@ class SmartDelayer:
 
         return delay
 
-    def sleep(self, is_ai_request: bool = False):
+    def sleep(self, is_ai_request: bool = False) -> None:
         """执行延迟"""
         delay = self.get_delay(is_ai_request)
         self._logger.debug(f"等待 {delay:.1f}s...")
@@ -288,7 +288,7 @@ class SmartDelayer:
 class AntiScrapeManager:
     """反爬管理器 - 统一入口"""
 
-    def __init__(self, config: Optional[AntiScrapeConfig] = None):
+    def __init__(self, config: Optional[AntiScrapeConfig] = None) -> None:
         self.config = config or AntiScrapeConfig()
         self.ua_rotator = UserAgentRotator()
         self.referer_rotator = RefererRotator()
@@ -332,19 +332,19 @@ class AntiScrapeManager:
 
         return headers
 
-    def before_request(self, is_ai_request: bool = False):
+    def before_request(self, is_ai_request: bool = False) -> None:
         """请求前的处理（延迟等）"""
         self.delayer.sleep(is_ai_request)
 
-    def after_success(self):
+    def after_success(self) -> None:
         """成功后的处理"""
         self.delayer.record_success()
 
-    def after_failure(self):
+    def after_failure(self) -> None:
         """失败后的处理"""
         self.delayer.record_failure()
 
-    def get_current_stats(self) -> Dict:
+    def get_current_stats(self) -> Dict[str, int]:
         """获取当前统计信息"""
         return {
             "minute_requests": self.delayer.timing.get_minute_count(),
@@ -366,7 +366,7 @@ def get_manager(config: Optional[AntiScrapeConfig] = None) -> AntiScrapeManager:
     return _default_manager
 
 
-def reset_manager():
+def reset_manager() -> None:
     """重置全局管理器"""
     global _default_manager
     _default_manager = None

@@ -32,16 +32,18 @@ class DetectionConfig:
 class AccountEjectionDetector:
     """账号顶出检测器"""
 
-    def __init__(self, config: Optional[DetectionConfig] = None):
+    def __init__(self, config: Optional[DetectionConfig] = None) -> None:
         self.config = config or DetectionConfig()
         self.consecutive_errors = 0
-        self._custom_checkers: List[Callable] = []
+        self._custom_checkers: List[Callable[[str, Optional[int], Optional[Exception]], bool]] = []
 
-    def add_checker(self, checker: Callable):
+    def add_checker(
+        self, checker: Callable[[str, Optional[int], Optional[Exception]], bool]
+    ) -> None:
         """添加自定义检测器"""
         self._custom_checkers.append(checker)
 
-    def reset(self):
+    def reset(self) -> None:
         """重置错误计数"""
         self.consecutive_errors = 0
 

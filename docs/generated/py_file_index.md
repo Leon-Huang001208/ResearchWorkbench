@@ -28,7 +28,10 @@ Imports:
 - `fastapi.responses`
 - `fastapi.staticfiles`
 - `pathlib`
+- `starlette.responses`
+- `starlette.types`
 - `sys`
+- `typing`
 
 Classes:
 - `NoCacheStaticFiles`
@@ -144,6 +147,7 @@ Imports:
 Classes:
 - `AnalysisCardRequest`
   - 资产分析卡请求
+  - methods: _validate_time_range
 - `AnalysisCardResponse`
   - 资产分析卡响应
 
@@ -291,6 +295,7 @@ Imports:
 - `core.observability`
 - `data_layer.repositories.base`
 - `data_layer.repositories.event_repository`
+- `data_layer.repositories.signal_repository`
 - `dataclasses`
 - `fastapi`
 - `ingestion.structured_event_ingestion`
@@ -300,6 +305,10 @@ Imports:
 Classes:
 - `EventQueryResponse`
   - Response for event query
+- `ApproveEventResponse`
+  - Response for event approval.
+- `AutoGenerateSignalsResponse`
+  - Response for manual auto-signal generation.
 
 Functions:
 - `get_db_session`
@@ -326,56 +335,6 @@ Functions:
   - 审批事件，批准后自动生成候选信号
 - `trigger_auto_generate_signals`
   - 手动触发所有已批准事件的信号生成
-
-
-## `app/api/routes/factors.py`
-
-Module docstring:
-> 动态多因子 API 端点
-
-Imports:
-- `core.contracts.factors`
-- `core.observability`
-- `datetime`
-- `fastapi`
-- `pydantic`
-- `services.factor_store_service`
-- `typing`
-
-Classes:
-- `FactorDefinitionRequest`
-  - 因子定义创建/更新请求
-- `FactorValueRequest`
-  - 因子值批量提交请求
-- `FactorEvaluationRequest`
-  - 因子评估批量提交请求
-- `WeightsSnapshotRequest`
-  - 动态权重快照请求
-
-Functions:
-- `_get_store`
-- `list_definitions`
-  - 列出已注册的因子定义
-- `register_definitions`
-  - 注册或更新因子定义
-- `query_values`
-  - 查询因子值
-- `store_values`
-  - 批量存储因子值
-- `query_evaluations`
-  - 查询因子评估记录
-- `store_evaluations`
-  - 批量存储因子评估指标
-- `get_latest_weights`
-  - 获取最新的动态因子权重
-- `save_weights`
-  - 保存动态因子权重快照
-- `get_weights_history`
-  - 查询动态权重历史
-- `get_available_dates`
-  - 获取有因子数据的日期列表
-- `get_categories`
-  - 获取所有已注册的因子类别
 
 
 ## `app/api/routes/governance.py`
@@ -1657,6 +1616,7 @@ Module docstring:
 > 资产分析命令
 
 Imports:
+- `asyncio`
 - `click`
 - `core.contracts`
 - `core.observability`
@@ -1666,6 +1626,7 @@ Imports:
 - `pathlib`
 - `reporting.projections`
 - `services`
+- `typing`
 
 Functions:
 - `analyze_command`
@@ -1702,6 +1663,67 @@ Imports:
 Functions:
 - `backtest_command`
   - 运行信号回测
+
+
+## `app/cli/commands/data.py`
+
+Module docstring:
+> 统一数据命令组 — af data ingest|backfill|validate|status|list|file|schedule|workers
+
+Imports:
+- `__future__`
+- `click`
+- `core.observability`
+- `pathlib`
+- `typing`
+
+Functions:
+- `_ensure_registry`
+  - 延迟加载 connector 注册表，优先使用 ConnectorRegistry.discover_all().
+- `_get_connector`
+  - 获取 connector 实例.
+- `_get_available_sources`
+  - 获取所有可用数据源及其元信息.
+- `data_group`
+  - 统一数据命令组 — 数据摄入、回填、验证、状态管理
+- `data_list_command`
+  - 列出所有可用数据源及其支持的数据集
+- `data_ingest_command`
+  - 执行数据摄入任务
+- `data_backfill_command`
+  - 历史数据回填
+- `data_validate_command`
+  - 校验已有数据
+- `data_status_command`
+  - 查看数据采集和加工的整体状态
+- `data_file_command`
+  - 摄入单个文件并提取断言和事件
+- `data_stream_command`
+  - 启动 Cjpy 实时行情订阅
+- `schedule_group`
+  - 采集调度器管理
+- `schedule_start_command`
+  - 启动采集调度器（后台进程）
+- `schedule_stop_command`
+  - 停止采集调度器
+- `schedule_status_command`
+  - 查看采集调度器状态
+- `schedule_market_group`
+  - 市场数据自动调度管理
+- `market_schedule_start_command`
+  - 启动市场数据调度器（后台进程）
+- `market_schedule_stop_command`
+  - 停止市场数据调度器
+- `market_schedule_status_command`
+  - 查看市场数据调度器状态
+- `workers_group`
+  - 知识加工 Worker 管理
+- `workers_start_command`
+  - 启动知识加工 Worker（后台进程）
+- `workers_stop_command`
+  - 停止所有知识加工 Worker 进程
+- `workers_status_command`
+  - 查看所有知识加工 Worker 状态
 
 
 ## `app/cli/commands/ingest.py`
@@ -1890,7 +1912,6 @@ Imports:
 - `app.cli.commands.timing`
 - `click`
 - `core.observability`
-- `pathlib`
 
 Functions:
 - `cli`
@@ -1926,6 +1947,78 @@ Functions:
 - `db_event_to_pydantic`
   - 将 DB CanonicalEvent (payload JSON 列) 转为 Pydantic CanonicalEvent。
 - `_coerce_impact_direction`
+
+
+## `core/connectors/__init__.py`
+
+Module docstring:
+> 数据源连接器 — BaseConnector + DocumentConnector + MarketDataConnector + ConnectorRegistry.
+
+Imports:
+- `core.connectors.base`
+- `core.connectors.registry`
+
+
+## `core/connectors/base.py`
+
+Module docstring:
+> 统一数据源连接器基类 — BaseConnector → DocumentConnector / MarketDataConnector.
+
+Imports:
+- `__future__`
+- `abc`
+- `core.contracts.ingestion_record`
+- `core.observability`
+- `dataclasses`
+- `datetime`
+- `decimal`
+- `typing`
+
+Classes:
+- `DiscoveryItem`
+  - 发现的可抓取对象 — discover() 的返回类型.
+- `RawObject`
+  - 原始数据对象 — fetch() 的返回类型.
+- `ParsedDocument`
+  - 解析后的文档 — DocumentConnector.parse_document() 的返回类型.
+- `ParsedTable`
+  - 解析后的表格数据 — MarketDataConnector.parse_table() 的返回类型.
+- `BaseConnector`
+  - 数据源连接器抽象基类 — 统一生命周期.
+  - methods: __init__, source, datasets, asset_type, health_check, discover, fetch, save_raw, get_metadata, validate_existing, run, _fetch_with_retry, _process_item, _compute_hash
+- `DocumentConnector`
+  - 文档型数据源连接器 — 处理非结构化内容（公告、研报、新闻等）.
+  - methods: asset_type, parse_document, normalize_metadata, persist, _process_item
+- `MarketDataConnector`
+  - 市场数据连接器 — 处理结构化时间序列（行情、估值、成分股等）.
+  - methods: asset_type, parse_table, normalize_bars, _daily_bar_datasets, _build_daily_bar_row, _persist_extra_records, persist, _format_date, _to_decimal, _parse_date, validate_time_series, _process_item
+
+
+## `core/connectors/registry.py`
+
+Module docstring:
+> Connector Registry — 已实例化的数据源连接器注册表.
+
+Imports:
+- `__future__`
+- `core.connectors.base`
+- `core.contracts.ingestion_record`
+- `core.observability`
+- `typing`
+
+Classes:
+- `DatasetRouter`
+  - 数据集级多源路由 — 按 fallback 组优先级自动降级.
+  - methods: __init__, build, get_chain, get_chain_for_source, run_with_fallback, list_groups
+- `ConnectorRegistry`
+  - 数据源连接器注册表 — 管理 connector 实例的注册、发现和生命周期.
+  - methods: __init__, router, run_with_fallback, register, register_class, discover_all, _import_class, get_connector, get_connector_or_raise, get_all_connectors, list_sources, list_datasets, get_health, get_all_health, get_health_summary, stop_all, clear
+
+Functions:
+- `get_connector_registry`
+  - 获取全局 ConnectorRegistry 单例.
+- `reset_connector_registry`
+  - 重置全局注册表（主要用于测试）.
 
 
 ## `core/contracts/__init__.py`
@@ -2013,6 +2106,8 @@ Classes:
   - 资金流向数据
 - `IndustryData`
   - 行业数据
+- `ChipDistributionPoint`
+  - 筹码分布数据点 - 单个价格区间上的筹码集中度
 - `PriceBar`
   - K线数据
 - `EventImpact`
@@ -2150,7 +2245,6 @@ Module docstring:
 Imports:
 - `datetime`
 - `pydantic`
-- `typing`
 
 Classes:
 - `DocumentEnvelope`
@@ -2371,6 +2465,50 @@ Classes:
   - 处理响应.
 - `RetryResponse`
   - 重试响应.
+
+
+## `core/contracts/ingestion_record.py`
+
+Module docstring:
+> 统一摄入记录契约 — IngestionRecord 外壳 + 分型 Payload.
+
+Imports:
+- `datetime`
+- `enum`
+- `pydantic`
+- `typing`
+
+Classes:
+- `AssetType`
+  - 数据资产类型 — 区分非结构化文档和结构化市场数据.
+- `EntityType`
+  - 实体类型.
+- `IngestionStatus`
+  - 摄入状态.
+- `HealthStatus`
+  - 数据源健康状态.
+- `DocumentPayload`
+  - 文档型数据 payload — 非结构化内容.
+- `MarketBarPayload`
+  - 行情数据 payload — 单条 OHLCV 记录.
+- `IndexPayload`
+  - 指数数据 payload — 成分股、权重、估值.
+- `NewsPayload`
+  - 新闻/快讯数据 payload.
+- `FundamentalPayload`
+  - 基本面/财务数据 payload.
+- `MacroPayload`
+  - 宏观经济数据 payload.
+- `IngestionRecord`
+  - 统一摄入记录 — 外壳 + 分型 payload.
+- `IngestionStats`
+  - 单次摄入的统计信息.
+- `RawObjectSummary`
+  - 原始数据对象摘要 — 用于 IngestionResult 溯源.
+- `IngestionResult`
+  - connector.run() 的统一返回类型.
+- `ValidationReport`
+  - 数据校验报告 — connector.validate_existing() 的返回类型.
 
 
 ## `core/contracts/monitoring.py`
@@ -2629,6 +2767,7 @@ Module docstring:
 > RAG 检索层契约 - Issue #45.
 
 Imports:
+- `collections.abc`
 - `core.contracts.documents_v1`
 - `datetime`
 - `enum`
@@ -2986,6 +3125,7 @@ Imports:
 - `core.model_gateway.base`
 - `core.observability`
 - `core.settings.config`
+- `importlib`
 - `pydantic`
 - `time`
 - `typing`
@@ -3060,6 +3200,7 @@ Imports:
 - `logging`
 - `pathlib`
 - `sys`
+- `typing`
 
 Classes:
 - `_SimpleLoggerWrapper`
@@ -3200,6 +3341,8 @@ Functions:
   - 获取属于同一 backfill_family 的所有来源。
 - `is_registered`
   - 来源是否已注册。
+- `get_fallback_groups`
+  - 获取按优先级排序的多源降级组。
 
 
 ## `core/utils/__init__.py`
@@ -3276,6 +3419,7 @@ Imports:
 - `data_layer.adapters.base`
 - `data_layer.adapters.china_stock_adapter`
 - `data_layer.adapters.cls_adapter`
+- `data_layer.adapters.cninfo_adapter`
 - `data_layer.adapters.cnstock_adapter`
 - `data_layer.adapters.ifind_adapter`
 - `data_layer.adapters.local_data_adapter`
@@ -3313,7 +3457,7 @@ Imports:
 Classes:
 - `AkShareClient`
   - AkShare API 封装客户端
-  - methods: __init__, _convert_code, _fetch_sina_kline, _fetch_tencent_kline, _fetch_realtime_quotes, _with_retry, get_stock_hist, get_financial_report, get_stock_individual_fund_flow, get_stock_a_indicator_lg, get_macro_china_gdp, get_macro_china_cpi, get_stock_hsgt_north_net_flow_in_em, get_stock_zt_pool_em, get_stock_gdfx_top_10_em, get_stock_lhb_stock_statistic_em, get_stock_board_industry_name
+  - methods: __init__, _convert_code, _fetch_sina_kline, _fetch_tencent_kline, _fetch_realtime_quotes, _with_retry, get_stock_hist, get_financial_report, get_stock_individual_fund_flow, get_stock_a_indicator_lg, get_macro_china_gdp, get_macro_china_cpi, get_stock_hsgt_north_net_flow_in_em, get_stock_zt_pool_em, get_stock_gdfx_top_10_em, get_stock_lhb_stock_statistic_em, get_stock_notice_report, get_stock_board_industry_name
 
 
 ## `data_layer/adapters/akshare/akshare_mapper.py`
@@ -3358,9 +3502,11 @@ Module docstring:
 
 Imports:
 - `core.observability`
+- `data_layer.adapters.akshare.akshare_client`
 - `data_layer.adapters.base`
 - `data_layer.crawlers.akshare`
 - `datetime`
+- `pandas`
 - `typing`
 
 Classes:
@@ -3476,6 +3622,27 @@ Classes:
   - methods: __init__, _call_plugin_tool, fetch_stock_quotes, fetch_financial_report, fetch_fund_flow, fetch_valuation, fetch_technical_indicators, fetch_macro_indicators, fetch_sentiment, fetch, parse
 
 
+## `data_layer/adapters/cjpy_adapter.py`
+
+Module docstring:
+> 天软 (Tinysoft) 数据适配器 —— 通过 cjpy 包获取天软行情、因子、表格数据
+
+Imports:
+- `core.contracts`
+- `core.observability`
+- `data_layer.adapters.base`
+- `datetime`
+- `os`
+- `pandas`
+- `pathlib`
+- `typing`
+
+Classes:
+- `CjpyAdapter`
+  - 天软 (Tinysoft) 数据适配器
+  - methods: __init__, _get_token, _ensure_token, is_available, fetch_stock_list, fetch_fund_list, fetch_trading_days, fetch_daily_quotes, fetch_factor_data, get_factor_repo, fetch_table_data, get_supported_tables, subscribe, fetch, parse, info
+
+
 ## `data_layer/adapters/cls_adapter.py`
 
 Module docstring:
@@ -3495,6 +3662,27 @@ Classes:
 - `CLSAdapter`
   - 财联社电报适配器
   - methods: __init__, fetch, fetch_deep_backfill_batch, parse_deep_backfill_item, parse
+
+
+## `data_layer/adapters/cninfo_adapter.py`
+
+Module docstring:
+> 巨潮资讯网数据适配器
+
+Imports:
+- `core.contracts`
+- `core.observability`
+- `data_layer.adapters.base`
+- `data_layer.crawlers.cninfo.cninfo`
+- `datetime`
+- `json`
+- `pathlib`
+- `typing`
+
+Classes:
+- `CninfoAdapter`
+  - 巨潮资讯网公告适配器
+  - methods: __init__, fetch, parse, _parse_dict
 
 
 ## `data_layer/adapters/cnstock_adapter.py`
@@ -3674,6 +3862,7 @@ Module docstring:
 Imports:
 - `core.settings.config`
 - `data_layer.adapters.ifind.exceptions`
+- `importlib`
 - `logging`
 - `typing`
 
@@ -3696,6 +3885,7 @@ Imports:
 - `data_layer.adapters.base`
 - `data_layer.adapters.ifind`
 - `datetime`
+- `importlib`
 - `pathlib`
 - `typing`
 
@@ -3786,8 +3976,6 @@ Module docstring:
 Imports:
 - `core.observability`
 - `data_layer.adapters.wind.exceptions`
-- `datetime`
-- `math`
 - `threading`
 - `time`
 - `typing`
@@ -3795,7 +3983,7 @@ Imports:
 Classes:
 - `WindExcelClient`
   - 通过 xlwings 操控 Excel 中的 Wind 插件执行公式
-  - methods: __init__, _connect, heartbeat, _ensure_connected, _ensure_session, _execute_raw, execute, _wsd_timeout, execute_wsd, _execute_wsd_once, execute_batch, start_keepalive, stop_keepalive, _keepalive_loop, close, __enter__, __exit__
+  - methods: __init__, _connect, heartbeat, _ensure_connected, _ensure_session, _execute_raw, execute, execute_batch, start_keepalive, stop_keepalive, _keepalive_loop, close, __enter__, __exit__
 
 Functions:
 - `_is_error_value`
@@ -3910,28 +4098,6 @@ Functions:
   - 涨跌幅（%） ✅ 已确认
 - `daily_amplitude`
   - 振幅（%） ✅ 已确认 (Wind 函数名: s_dq_swing)
-- `daily_open_range`
-  - 开盘价时间序列 — Wind 日期范围公式（无 @ 前缀，返回数组）
-- `daily_high_range`
-  - 最高价时间序列
-- `daily_low_range`
-  - 最低价时间序列
-- `daily_close_range`
-  - 收盘价时间序列
-- `daily_volume_range`
-  - 成交量时间序列（Wind 成交量函数只有 2 参数，不含复权）
-- `daily_amount_range`
-  - 成交额时间序列
-- `daily_turnover_range`
-  - 换手率时间序列
-- `daily_adj_factor_range`
-  - 复权因子时间序列
-- `daily_vwap_range`
-  - 均价时间序列
-- `daily_pct_change_range`
-  - 涨跌幅时间序列
-- `daily_amplitude_range`
-  - 振幅时间序列
 - `fin_revenue`
   - 营业收入 TTM（元） ✅ 已确认
 - `fin_operating_cost`
@@ -4006,6 +4172,12 @@ Functions:
   - 机构持股数量合计（股） ✅ 已确认
 - `institutional_hold_pct`
   - 机构持股比例合计（%） ✅ 已确认
+- `s_info_top10_holdername`
+  - 前十大股东名称（按排名）
+- `s_info_top10_holderratio`
+  - 前十大股东持股比例（按排名）
+- `s_info_top10_holderquantity`
+  - 前十大股东持股数量（按排名）
 
 
 ## `data_layer/adapters/wind/wind_adapter.py`
@@ -4026,11 +4198,7 @@ Imports:
 Classes:
 - `WindAdapter`
   - Wind 数据适配器
-  - methods: __init__, _get_client, is_available, fetch_consensus_estimates, fetch_margin_trading, fetch_block_trades, fetch_daily_quotes, _fetch_dq_recent_batch, fetch_financial_statements, fetch_industry_data, fetch_fund_flow, fetch_holder_data, fetch, parse
-
-Functions:
-- `_safe_float_wind`
-  - Wind 公式返回值转 float，None/非数字返回 None
+  - methods: __init__, _get_client, is_available, fetch_consensus_estimates, fetch_margin_trading, fetch_block_trades, fetch_daily_quotes, fetch_market_snapshot, fetch_financial_statements, fetch_industry_data, fetch_fund_flow, fetch_holder_data, fetch_top10_holder_details, fetch, parse
 
 
 ## `data_layer/adapters/yahoo_adapter.py`
@@ -4043,6 +4211,7 @@ Imports:
 - `data_layer.adapters.base`
 - `data_layer.crawlers.yahoo`
 - `datetime`
+- `importlib`
 
 Classes:
 - `YahooAdapter`
@@ -4532,6 +4701,40 @@ Functions:
   - 带重试机制的通用请求函数
 
 
+## `data_layer/crawlers/cninfo/__init__.py`
+
+Module docstring:
+> 巨潮资讯网（Cninfo）爬虫模块
+
+Imports:
+- `data_layer.crawlers.cninfo.cninfo`
+
+
+## `data_layer/crawlers/cninfo/cninfo.py`
+
+Module docstring:
+> 巨潮资讯网（Cninfo）爬虫模块
+
+Imports:
+- `__future__`
+- `argparse`
+- `core.observability`
+- `dataclasses`
+- `time`
+- `typing`
+
+Classes:
+- `CninfoConfig`
+  - 爬虫配置
+- `CninfoCrawler`
+  - 巨潮资讯网公告爬虫.
+  - methods: __init__, execute, _initialize, _crawl_all, _post_search
+
+Functions:
+- `cninfo_main`
+  - CLI 入口 — 独立运行 cninfo 爬虫.
+
+
 ## `data_layer/crawlers/cnstock/__init__.py`
 
 Module docstring:
@@ -4569,7 +4772,7 @@ Classes:
   - methods: __init__, _load_state, _get_default_state, save, is_article_processed, add_processed_article, set_watermark, get_watermark, has_reached_watermark, clear_watermark, get_processed_articles, get_processed_count
 - `CnstockCrawler`
   - 中国证券网爬虫
-  - methods: __init__, _init_logger_and_state, _resolve_channel, _check_waf_cooldown, _trigger_waf_cooldown, _get_random_sec_ch_ua, _to_desktop_url, _build_url, initialize, _get_headers, _parse_date, _is_in_date_range, _matches_keywords, _get_channels_to_crawl, _merge_news_list, crawl_news_list, _should_include_news, _crawl_page, _parse_api_response, _parse_search_api_response, _parse_response_common, _convert_search_item_to_news_item, _normalize_search_time, _convert_to_news_item, _extract_publish_time, _generate_sample_news, _fetch_article_content, _html_to_text, save_to_json, execute, _calculate_fetch_delay
+  - methods: __init__, _init_logger_and_state, _acquire_waf_cookies, _inject_waf_cookies, _resolve_channel, _check_waf_cooldown, _trigger_waf_cooldown, _get_random_sec_ch_ua, _to_desktop_url, _build_url, initialize, _get_headers, _parse_date, _is_in_date_range, _matches_keywords, _get_channels_to_crawl, _merge_news_list, crawl_news_list, _should_include_news, _get_channel_url, _crawl_page, _crawl_page_via_requests, _create_playwright_browser, _crawl_channel_via_playwright, _extract_ssr_data, _parse_api_response, _parse_search_api_response, _parse_flash_api_response, _convert_flash_item_to_news_item, _parse_response_common, _convert_search_item_to_news_item, _normalize_search_time, _convert_to_news_item, _extract_publish_time, _generate_sample_news, _fetch_article_content, _html_to_text, save_to_json, execute, _calculate_fetch_delay
 
 Functions:
 - `parse_args`
@@ -4651,6 +4854,7 @@ Imports:
 - `data_layer.crawlers.utils.anti_crawler_kit`
 - `dataclasses`
 - `datetime`
+- `importlib`
 - `typing`
 
 Classes:
@@ -4861,11 +5065,13 @@ Module docstring:
 Imports:
 - `dataclasses`
 - `datetime`
+- `importlib`
 - `json`
 - `logging`
 - `pathlib`
 - `random`
 - `time`
+- `types`
 - `typing`
 - `yaml`
 
@@ -5489,14 +5695,18 @@ Classes:
 ## `data_layer/repositories/base.py`
 
 Imports:
+- `collections.abc`
 - `core.observability`
 - `core.settings`
 - `sqlalchemy`
 - `sqlalchemy.exc`
 - `sqlalchemy.orm`
+- `types`
 - `typing`
 
 Classes:
+- `Base`
+  - SQLAlchemy declarative base with mypy-visible type information.
 - `db_session`
   - Database session context manager for direct use.
   - methods: __enter__, __exit__
@@ -5696,31 +5906,13 @@ Imports:
 - `core.observability`
 - `data_layer.repositories.base`
 - `data_layer.repositories.models`
+- `sqlalchemy`
 - `typing`
 
 Classes:
 - `EventRepositoryImpl`
   - 事件仓储实现
-  - methods: _to_domain, _to_model, save, get, list, delete, get_by_entity, get_by_time_range, get_pending_review, list_by_status, list_by_event_type, list_by_impacted_symbol
-
-
-## `data_layer/repositories/factor_repository.py`
-
-Module docstring:
-> FactorRepository — 动态因子持久化层
-
-Imports:
-- `core.observability`
-- `data_layer.repositories.base`
-- `data_layer.repositories.models`
-- `datetime`
-- `sqlalchemy.dialects.postgresql`
-- `typing`
-
-Classes:
-- `FactorRepository`
-  - 因子数据仓储 —— 基于 PostgreSQL upsert 的持久化层
-  - methods: __init__, db, _upsert, save_definitions, get_definitions, get_all_categories, save_values, get_values, get_values_for_date, get_available_dates, save_evaluations, get_evaluations, get_latest_evaluations, save_weights, get_latest_weights, get_weights_history, close
+  - methods: _to_domain, _to_model, save, get, list, delete, get_by_entity, get_by_time_range, get_pending_review, list_by_status, list_by_event_type, list_by_impacted_symbol, list_approved_pending_signal, mark_signal_generated
 
 
 ## `data_layer/repositories/governance_repository.py`
@@ -5961,14 +6153,6 @@ Classes:
   - Wind 龙虎榜数据
 - `WindDailyBarDB`
   - Wind 日行情数据（含 Wind 独家字段：adj_close, adj_factor, vwap）
-- `FactorDefinitionDB`
-  - 因子元数据定义
-- `FactorValueDB`
-  - 点时因子观察值
-- `FactorEvaluationDB`
-  - 因子评估指标
-- `DynamicFactorWeightDB`
-  - 动态因子权重快照
 
 Functions:
 - `utc_now`
@@ -7530,6 +7714,7 @@ Imports:
 - `contracts`
 - `core.observability`
 - `memory_learning.contracts`
+- `typing`
 
 Classes:
 - `MetaTimingEngine`
@@ -8320,6 +8505,7 @@ Imports:
 - `logging`
 - `models`
 - `pandas`
+- `typing`
 
 Classes:
 - `TechnicalIndicatorEngine`
@@ -9033,21 +9219,6 @@ Functions:
 
 Module docstring:
 > Add Wind data tables (wind_consensus_estimate, wind_margin_trading, wind_block_trade, wind_daily_bar)
-
-Imports:
-- `alembic`
-- `sqlalchemy`
-- `typing`
-
-Functions:
-- `upgrade`
-- `downgrade`
-
-
-## `storage/migrations/versions/011_add_factor_store_tables.py`
-
-Module docstring:
-> Add factor store tables (factor_definition, factor_value, factor_evaluation, dynamic_factor_weight)
 
 Imports:
 - `alembic`
@@ -10011,21 +10182,6 @@ Functions:
   - Load stock_financial_metric into a flat DataFrame.
 - `compute_financial_factor_values`
   - Compute VALUE/QUALITY/GROWTH factor values from financial data.
-- `main`
-
-
-## `scripts/seed_stock_master_static.py`
-
-Module docstring:
-> 用静态预定义列表填充 stock_master 表。
-
-Imports:
-- `__future__`
-- `core.observability`
-- `pathlib`
-- `sys`
-
-Functions:
 - `main`
 
 

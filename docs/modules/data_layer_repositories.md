@@ -169,3 +169,10 @@ When files in this module change, check:
 - `docs/FILE_GUIDE.md`
 - `docs/CHANGELOG.md`
 - `docs/generated/py_file_index.md`
+
+---
+
+## Related Subsystems
+
+- `core/connectors/` — 连接器通过 `DocumentConnector.persist()` 将 `IngestionRecord` 入队到 `IngestionQueueRepository`，最终由 `KnowledgeWorker` 消费
+- `connectors/` — 具体连接器在 `persist()` 中调用本模块的仓储进行数据库写入

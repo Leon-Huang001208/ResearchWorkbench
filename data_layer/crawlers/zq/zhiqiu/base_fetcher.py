@@ -12,7 +12,7 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Type, cast
 
 from .account_manager import AccountManager
 from .client import ZhiQiuClient
@@ -46,7 +46,7 @@ class BaseStateManager:
         if self.state_path.exists():
             try:
                 with open(self.state_path, "r", encoding="utf-8") as f:
-                    state = json.load(f)
+                    state = cast(Dict[str, Any], json.load(f))
                     if "watermarks" not in state:
                         state["watermarks"] = {}
                     return state
@@ -63,7 +63,7 @@ class BaseStateManager:
             "watermarks": {},  # {key: {"last_seen_id": "...", "last_seen_at": "..."}}
         }
 
-    def save(self):
+    def save(self) -> None:
         self.state["last_updated"] = datetime.now().isoformat()
         self.state_path.parent.mkdir(parents=True, exist_ok=True)
         with open(self.state_path, "w", encoding="utf-8") as f:
@@ -72,7 +72,7 @@ class BaseStateManager:
     def is_report_processed(self, obj_id: str) -> bool:
         return obj_id in self.state[self.processed_key]
 
-    def add_processed_report(self, obj_id: str, title: str, **extra):
+    def add_processed_report(self, obj_id: str, title: str, **extra: Any) -> None:
         record = {"first_seen": datetime.now().isoformat(), "title": title, **extra}
         self.state[self.processed_key][obj_id] = record
 
@@ -96,7 +96,8 @@ class BaseStateManager:
 
     def get_watermark(self, key: str) -> Optional[Dict[str, Any]]:
         """获取水位线"""
-        return self.state["watermarks"].get(key)
+        watermarks = cast(Dict[str, Dict[str, Any]], self.state["watermarks"])
+        return watermarks.get(key)
 
     def has_reached_watermark(self, key: str, obj_id: str) -> bool:
         """检查是否已达到水位线"""
@@ -149,7 +150,7 @@ class BaseConfig:
     # 从配置文件加载的原始数据
     _raw_config: Dict = field(default_factory=dict, repr=False)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not self.starttime:
             self.starttime = YESTERDAY
         if not self.endtime:
@@ -198,7 +199,7 @@ class BaseFetcher:
         self._initialized = True
         return True
 
-    def _init_advanced_components(self):
+    def _init_advanced_components(self) -> None:
         cfg = self.config._raw_config
 
         try:
@@ -245,12 +246,12 @@ class BaseFetcher:
             if self._logger:
                 self._logger.warning(f"初始化顶出检测器失败: {e}")
 
-    def _load_config_file(self):
+    def _load_config_file(self) -> None:
         try:
             import yaml
 
             with open(self.config.config_path, "r", encoding="utf-8") as f:
-                self.config._raw_config = yaml.safe_load(f) or {}
+                self.config._raw_config = cast(Dict[str, Any], yaml.safe_load(f) or {})
 
             # config.yaml 只负责提供：
             # 1. 账号凭证 (accounts)
@@ -268,7 +269,7 @@ class BaseFetcher:
             if self.config.verbose:
                 print(f"[warn] config file load failed: {e}")
 
-    def _setup_logging(self):
+    def _setup_logging(self) -> None:
         if self._logger is not None and self._logger.handlers:
             return
 
@@ -289,7 +290,7 @@ class BaseFetcher:
             self._logger.addHandler(console_handler)
             self._logger.propagate = False
 
-    def _login(self, credentials: dict, account_name: str = None) -> bool:
+    def _login(self, credentials: Dict[str, Any], account_name: Optional[str] = None) -> bool:
         username = credentials.get("username")
         password = credentials.get("password")
 
@@ -302,16 +303,17 @@ class BaseFetcher:
             return False
 
         self._client = ZhiQiuClient(username, password)
-        return self._client.login()
+        return bool(self._client.login())
 
     def _test_login(self) -> bool:
         if not self._client:
             return False
         result = self._client.check_login_status()
-        return result.get("success", False)
+        return bool(result.get("success", False))
 
     def _handle_account_ejection(self, current_account: str) -> Optional[str]:
-        if not self._account_manager:
+        account_manager = self._account_manager
+        if not account_manager:
             if self._logger:
                 self._logger.error("账号管理器未初始化，无法切换账号")
             return None
@@ -319,14 +321,14 @@ class BaseFetcher:
         if self._logger:
             self._logger.warning("检测到账号被顶出，尝试切换账号...")
 
-        self._account_manager.record_failure(current_account, lock_seconds=300)
-        self._account_manager.release_account(current_account)
+        account_manager.record_failure(current_account, lock_seconds=300)
+        account_manager.release_account(current_account)
 
         accounts = self.config._raw_config.get("accounts", {})
         max_attempts = len(accounts) if accounts else 3
 
         for attempt in range(max_attempts):
-            next_account = self._account_manager.acquire_account()
+            next_account = account_manager.acquire_account()
             if not next_account:
                 if self._logger:
                     self._logger.error("没有更多可用账号")
@@ -335,18 +337,18 @@ class BaseFetcher:
             if self._logger:
                 self._logger.info(f"尝试切换到账号: {next_account} (尝试 {attempt + 1}/{max_attempts})")
 
-            credentials = self._account_manager.get_account_credentials(next_account)
-            if not self._login(credentials, next_account):
+            credentials = account_manager.get_account_credentials(next_account)
+            if credentials is None or not self._login(credentials, next_account):
                 if self._logger:
                     self._logger.warning(f"账号 {next_account} 登录失败")
-                self._account_manager.record_failure(next_account, lock_seconds=60)
-                self._account_manager.release_account(next_account)
+                account_manager.record_failure(next_account, lock_seconds=60)
+                account_manager.release_account(next_account)
                 continue
 
             if self._test_login():
                 if self._logger:
                     self._logger.info(f"账号 {next_account} 登录成功")
-                self._account_manager.record_success(next_account)
+                account_manager.record_success(next_account)
 
                 if self._progress_manager:
                     self._progress_manager.update_last_account(next_account)
@@ -354,17 +356,17 @@ class BaseFetcher:
                 if self._ejection_detector:
                     self._ejection_detector.reset()
 
-                return next_account
+                return str(next_account)
 
             if self._logger:
                 self._logger.warning(f"账号 {next_account} 也无法使用")
-            self._account_manager.release_account(next_account)
+            account_manager.release_account(next_account)
 
         if self._logger:
             self._logger.error("所有账号都无法使用")
         return None
 
-    def _log_feature_status(self):
+    def _log_feature_status(self) -> None:
         if not self._logger:
             return
         self._logger.info("=" * 50)
@@ -383,7 +385,7 @@ class BaseFetcher:
             self._logger.info("  - 顶出检测: 启用")
         self._logger.info("=" * 50)
 
-    def fetch(self, **kwargs) -> Dict[str, Any]:
+    def fetch(self, **kwargs: Any) -> Dict[str, Any]:
         if not self._initialized:
             self.initialize()
 
@@ -412,13 +414,14 @@ class BaseFetcher:
         if self._logger:
             self._logger.info(f"开始爬取{self.config.module_label}: {self.config.search or '全部'}")
 
-        if not self._account_manager:
+        account_manager = self._account_manager
+        if not account_manager:
             return {"success": False, "message": "账号管理器未初始化", "errors": ["需要配置文件以使用账号管理"]}
 
-        return self._fetch_with_account_lease()
+        return self._fetch_with_account_lease(account_manager)
 
-    def _fetch_with_account_lease(self) -> Dict[str, Any]:
-        results = {
+    def _fetch_with_account_lease(self, account_manager: AccountManager) -> Dict[str, Any]:
+        results: Dict[str, Any] = {
             "success": True,
             "message": "",
             "terms": [],
@@ -429,26 +432,26 @@ class BaseFetcher:
             "new": 0,
         }
 
-        all_new_items = []
-        leased_account = None
+        all_new_items: List[Dict[str, Any]] = []
+        leased_account: Optional[str] = None
 
         try:
-            leased_account = self._account_manager.acquire_account()
+            leased_account = account_manager.acquire_account()
             if not leased_account:
                 return {"success": False, "message": "获取账号失败", "errors": ["没有可用的账号"]}
 
             login_success = False
             for attempt in range(3):
-                credentials = self._account_manager.get_account_credentials(leased_account)
-                if self._login(credentials, leased_account):
+                credentials = account_manager.get_account_credentials(leased_account)
+                if credentials is not None and self._login(credentials, leased_account):
                     login_success = True
-                    self._account_manager.record_success(leased_account)
+                    account_manager.record_success(leased_account)
                     break
                 if self._logger:
                     self._logger.warning(f"登录失败，尝试切换账号 (尝试 {attempt + 1}/3)")
-                self._account_manager.record_failure(leased_account, lock_seconds=60)
-                self._account_manager.release_account(leased_account)
-                leased_account = self._account_manager.acquire_account()
+                account_manager.record_failure(leased_account, lock_seconds=60)
+                account_manager.release_account(leased_account)
+                leased_account = account_manager.acquire_account()
                 if not leased_account:
                     break
 
@@ -474,14 +477,17 @@ class BaseFetcher:
                 for attempt in range(max_retries):
                     try:
                         if self.config.rotate_account_per_request and i > 1:
-                            new_account = self._account_manager.acquire_account()
+                            new_account = account_manager.acquire_account()
                             if new_account and new_account != leased_account:
-                                self._account_manager.release_account(leased_account)
+                                if leased_account:
+                                    account_manager.release_account(leased_account)
                                 leased_account = new_account
-                                credentials = self._account_manager.get_account_credentials(
+                                credentials = account_manager.get_account_credentials(
                                     leased_account
                                 )
-                                if not self._login(credentials, leased_account):
+                                if credentials is None or not self._login(
+                                    credentials, leased_account
+                                ):
                                     if self._logger:
                                         self._logger.warning("账号切换后登录失败")
                                     continue
@@ -499,6 +505,8 @@ class BaseFetcher:
                         ):
                             if self._logger:
                                 self._logger.warning(f"检测到账号被顶出 (处理 '{term_name}' 时)")
+                            if leased_account is None:
+                                break
                             new_account = self._handle_account_ejection(leased_account)
                             if new_account:
                                 leased_account = new_account
@@ -528,8 +536,10 @@ class BaseFetcher:
                     print(f"[state] 正在记录 {len(all_new_items)} 条记录到状态文件...")
                 for item in all_new_items:
                     obj_id = item.get("OBJID") or item.get("id")
-                    title = item.get("title", "")
-                    self._save_processed_item(obj_id, title, item)
+                    if obj_id is None:
+                        continue
+                    title = str(item.get("title", ""))
+                    self._save_processed_item(str(obj_id), title, item)
                 self._state_manager.save()
                 if self.config.verbose:
                     print(f"[state] 状态文件已更新，共记录 {self._state_manager.get_processed_count()} 条记录")
@@ -545,12 +555,12 @@ class BaseFetcher:
             return results
 
         finally:
-            if leased_account:
-                self._account_manager.release_account(leased_account)
+            if leased_account and self._account_manager:
+                account_manager.release_account(leased_account)
 
     # 以下为子类需要重写的钩子方法
 
-    def _save_processed_item(self, obj_id: str, title: str, item: Dict[str, Any]):
+    def _save_processed_item(self, obj_id: str, title: str, item: Dict[str, Any]) -> None:
         """
         保存已处理项目的钩子方法，子类可重写以保存额外字段
 
@@ -559,9 +569,12 @@ class BaseFetcher:
             title: 项目标题
             item: 完整项目数据
         """
-        self._state_manager.add_processed_report(obj_id, title)
+        if self._state_manager:
+            self._state_manager.add_processed_report(obj_id, title)
 
-    def _search_homepage(self, search_term: str, hyper_search_fields: str = "title"):
+    def _search_homepage(
+        self, search_term: str, hyper_search_fields: str = "title"
+    ) -> Optional[Dict[str, Any]]:
         """
         通用的首页搜索方法
 
@@ -572,61 +585,76 @@ class BaseFetcher:
         Returns:
             搜索结果 JSON 数据
         """
+        if self._client is None:
+            return None
+
         if self.config.fetch_all_pages:
             if self.config.date_limit == "CUSTOM":
-                return self._client.search_homepage_all_pages(
-                    search=search_term,
-                    date_limit=self.config.date_limit,
-                    start_date=self.config.starttime,
-                    end_date=self.config.endtime,
-                    doc_types=self.config.doc_type,
-                    page_size=self.config.page_size,
-                    hyper_search_fields=hyper_search_fields,
-                    sort_by_time=True,
-                    max_pages=self.config.max_pages,
+                return cast(
+                    Dict[str, Any],
+                    self._client.search_homepage_all_pages(
+                        search=search_term,
+                        date_limit=self.config.date_limit,
+                        start_date=self.config.starttime,
+                        end_date=self.config.endtime,
+                        doc_types=self.config.doc_type,
+                        page_size=self.config.page_size,
+                        hyper_search_fields=hyper_search_fields,
+                        sort_by_time=True,
+                        max_pages=self.config.max_pages,
+                    ),
                 )
             else:
-                return self._client.search_homepage_all_pages(
-                    search=search_term,
-                    date_limit=self.config.date_limit,
-                    doc_types=self.config.doc_type,
-                    page_size=self.config.page_size,
-                    hyper_search_fields=hyper_search_fields,
-                    sort_by_time=True,
-                    max_pages=self.config.max_pages,
+                return cast(
+                    Dict[str, Any],
+                    self._client.search_homepage_all_pages(
+                        search=search_term,
+                        date_limit=self.config.date_limit,
+                        doc_types=self.config.doc_type,
+                        page_size=self.config.page_size,
+                        hyper_search_fields=hyper_search_fields,
+                        sort_by_time=True,
+                        max_pages=self.config.max_pages,
+                    ),
                 )
         else:
             if self.config.date_limit == "CUSTOM":
-                return self._client.search_homepage(
-                    search=search_term,
-                    date_limit=self.config.date_limit,
-                    start_date=self.config.starttime,
-                    end_date=self.config.endtime,
-                    doc_types=self.config.doc_type,
-                    page=self.config.page,
-                    page_size=self.config.page_size,
-                    hyper_search_fields=hyper_search_fields,
-                    sort_by_time=True,
+                return cast(
+                    Dict[str, Any],
+                    self._client.search_homepage(
+                        search=search_term,
+                        date_limit=self.config.date_limit,
+                        start_date=self.config.starttime,
+                        end_date=self.config.endtime,
+                        doc_types=self.config.doc_type,
+                        page=self.config.page,
+                        page_size=self.config.page_size,
+                        hyper_search_fields=hyper_search_fields,
+                        sort_by_time=True,
+                    ),
                 )
             else:
-                return self._client.search_homepage(
-                    search=search_term,
-                    date_limit=self.config.date_limit,
-                    doc_types=self.config.doc_type,
-                    page=self.config.page,
-                    page_size=self.config.page_size,
-                    hyper_search_fields=hyper_search_fields,
-                    sort_by_time=True,
+                return cast(
+                    Dict[str, Any],
+                    self._client.search_homepage(
+                        search=search_term,
+                        date_limit=self.config.date_limit,
+                        doc_types=self.config.doc_type,
+                        page=self.config.page,
+                        page_size=self.config.page_size,
+                        hyper_search_fields=hyper_search_fields,
+                        sort_by_time=True,
+                    ),
                 )
 
     def _process_search_result(
         self,
-        json_data,
-        processor_class,
+        json_data: Dict[str, Any],
+        processor_class: Type[Any],
         output_prefix: str,
         watermark_key: Optional[str] = None,
-        **processor_kwargs,
-    ):
+        **processor_kwargs: Any,
+    ) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
         """
         通用的搜索结果处理方法
 
@@ -675,7 +703,7 @@ class BaseFetcher:
             "new": len(new_items),
         }, new_items
 
-    def _fetch_single_term(self, search_term: str) -> Tuple[Dict[str, Any], List[Dict]]:
+    def _fetch_single_term(self, search_term: str) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
         """
         获取单个搜索词的结果，必须由子类重写
 

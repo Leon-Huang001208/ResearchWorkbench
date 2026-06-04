@@ -2,7 +2,7 @@
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, cast
 
 
 class DeduplicationStore:
@@ -18,7 +18,7 @@ class DeduplicationStore:
         if self.state_path.exists():
             try:
                 with open(self.state_path, "r", encoding="utf-8") as f:
-                    self.state = json.load(f)
+                    self.state = cast(Dict[str, Any], json.load(f))
             except Exception:
                 self.state = {}
 
@@ -82,7 +82,8 @@ class DeduplicationStore:
         Returns:
             水位线信息，如不存在返回 None
         """
-        return self.state["watermarks"].get(key)
+        watermarks = cast(Dict[str, Dict[str, Any]], self.state["watermarks"])
+        return watermarks.get(key)
 
     def has_reached_watermark(self, key: str, item_id: str) -> bool:
         """
@@ -124,4 +125,4 @@ class DeduplicationStore:
 
     def get_all_watermarks(self) -> Dict[str, Dict[str, Any]]:
         """获取所有水位线"""
-        return self.state["watermarks"]
+        return cast(Dict[str, Dict[str, Any]], self.state["watermarks"])

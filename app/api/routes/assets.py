@@ -2,7 +2,7 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
 from app.api.models import AnalyzeRequest, AnalyzeResponse, ErrorResponse
@@ -14,11 +14,24 @@ from services.asset_analysis_service import AssetAnalysisService
 router = APIRouter(prefix="/api/assets", tags=["assets"])
 
 
+VALID_TIME_RANGES = {"1M", "3M", "6M", "1Y", "2Y", "3Y", "5Y", "ALL"}
+
+
 class AnalysisCardRequest(BaseModel):
     """资产分析卡请求"""
 
     canonical_id: str = Field(..., description="资产唯一标识")
     as_of: datetime | None = Field(None, description="指定分析时间")
+    time_range: str | None = Field(None, description="时间范围: 1M/3M/6M/1Y/2Y/3Y/5Y/ALL，默认1Y")
+
+    @field_validator("time_range")
+    @classmethod
+    def _validate_time_range(cls, v: str | None) -> str | None:
+        if v is not None and v.upper() not in VALID_TIME_RANGES:
+            raise ValueError(
+                f"Invalid time_range '{v}'. Must be one of: {', '.join(sorted(VALID_TIME_RANGES))}"
+            )
+        return v.upper() if v else v
 
 
 class AnalysisCardResponse(AssetAnalysisCard):
@@ -108,6 +121,7 @@ async def get_analysis_card(
         card = await service.generate_analysis_card(
             canonical_id=request.canonical_id,
             as_of=request.as_of,
+            time_range=request.time_range,
         )
         return card
     except Exception as e:

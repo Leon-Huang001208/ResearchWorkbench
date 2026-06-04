@@ -336,6 +336,19 @@ class AkShareClient:
             logger.error(f"Failed to get lhb statistic: {e}")
             raise AkShareDataError("Failed to get lhb statistic data") from e
 
+    def get_stock_notice_report(
+        self, symbol: str, begin_date: str = "", end_date: str = ""
+    ) -> pd.DataFrame:
+        """获取个股公告"""
+        code = symbol.replace(".SH", "").replace(".SZ", "")
+        return self._with_retry(
+            ak.stock_individual_notice_report,
+            security=code,
+            symbol="全部",
+            begin_date=begin_date,
+            end_date=end_date,
+        )
+
     def get_stock_board_industry_name(self, source: str = "sina") -> pd.DataFrame:
         """获取行业板块列表（支持多源）"""
         logger.debug(f"Fetching industry board list from {source}")

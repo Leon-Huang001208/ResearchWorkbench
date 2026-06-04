@@ -2,7 +2,10 @@
 from datetime import datetime
 from typing import List, Optional
 
+import pandas as pd
+
 from core.observability import get_logger
+from data_layer.adapters.akshare.akshare_client import AkShareClient
 from data_layer.adapters.base import BaseDataAdapter
 
 # Use the new crawler modules
@@ -117,36 +120,49 @@ class AKShareAdapter(BaseDataAdapter):
         return await self.fetch_top_shareholders(code)
 
     async def fetch_top_shareholders(self, code: str) -> Optional[List[dict]]:
-        """获取前十大股东信息"""
+        """获取前十大股东信息
+
+        使用 AKShare stock_gdfx_top_10_em 接口获取真实前十大股东数据。
+        失败时返回空列表让调用方降级。
+
+        Returns:
+            list[dict] — 每个元素包含 name, share_ratio, shares, holder_type, rank
+        """
         if not self._is_available:
             return None
         try:
-            # Try to get stock list and find the name, then try to get shareholders
-            # Note: AKShare doesn't have a great API for top shareholders, so we'll return mock
-            # In future, can implement this with real AKShare APIs if available
+            client = AkShareClient()
+            # get_stock_gdfx_top_10_em 接受裸代码（如 "600519"）并自动加 sh/sz 前缀
+            bare_code = self._clean_symbol(code)
+            df = client.get_stock_gdfx_top_10_em(bare_code)
+
+            if df is None or df.empty:
+                logger.info(f"AKShare top 10 shareholders empty for {code}")
+                return []
+
             shareholders = []
+            # AKShare 返回的典型列名：股东名称, 持股数量, 持股比例, 股东类型, 序号
+            for _, row in df.iterrows():
+                shareholders.append(
+                    {
+                        "name": str(row.get("股东名称", "")),
+                        "share_ratio": float(row.get("持股比例", 0))
+                        if row.get("持股比例") is not None and not pd.isna(row.get("持股比例"))
+                        else 0.0,
+                        "shares": float(row.get("持股数量", 0))
+                        if row.get("持股数量") is not None and not pd.isna(row.get("持股数量"))
+                        else 0.0,
+                        "holder_type": str(row.get("股东类型", "")),
+                        "rank": int(row.get("序号", 0))
+                        if row.get("序号") is not None and not pd.isna(row.get("序号"))
+                        else 0,
+                    }
+                )
 
-            # Try to get stock info
-            try:
-                stock_list = self.crawler_adapter.market.get_stock_list(limit=100)
-                for stock in stock_list:
-                    if self._clean_symbol(stock.symbol) == self._clean_symbol(code):
-                        # For now, just add a placeholder
-                        shareholders.append(
-                            {
-                                "name": stock.name + " (控股股东)",
-                                "ratio": 30.0,
-                                "change": 0.0,
-                            }
-                        )
-                        break
-            except Exception:
-                pass
-
-            logger.info(f"AKShare fetched {len(shareholders)} shareholders for {code}")
+            logger.info(f"AKShare fetched {len(shareholders)} top 10 shareholders for {code}")
             return shareholders
         except Exception as e:
-            logger.error(f"AKShare fetch shareholders failed for {code}: {e}")
+            logger.error(f"AKShare fetch top shareholders failed for {code}: {e}")
             return []
 
     async def fetch_news(self, code: str, limit: int = 10) -> Optional[List[dict]]:

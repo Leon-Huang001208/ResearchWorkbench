@@ -656,3 +656,39 @@ def institutional_hold_pct(code: str, report_date: str) -> str:
         report_date: 报告期，如 "2024/12/31"
     """
     return f'=@s_holder_pctbyinst("{code}","{report_date}")'
+
+
+# ===== 前十大股东逐项数据（按排名） =====
+
+
+def s_info_top10_holdername(code: str, report_date: str, rank: int) -> str:
+    """前十大股东名称（按排名）
+
+    Args:
+        code: Wind代码或交易代码
+        report_date: 报告期，如 "2024/12/31"
+        rank: 排名 1-10
+    """
+    return f'=@s_info_top10holdername("{code}","{report_date}",{rank})'
+
+
+def s_info_top10_holderratio(code: str, report_date: str, rank: int) -> str:
+    """前十大股东持股比例（按排名）
+
+    Args:
+        code: Wind代码或交易代码
+        report_date: 报告期，如 "2024/12/31"
+        rank: 排名 1-10
+    """
+    return f'=@s_info_top10holderratio("{code}","{report_date}",{rank})'
+
+
+def s_info_top10_holderquantity(code: str, report_date: str, rank: int) -> str:
+    """前十大股东持股数量（按排名）
+
+    Args:
+        code: Wind代码或交易代码
+        report_date: 报告期，如 "2024/12/31"
+        rank: 排名 1-10
+    """
+    return f'=@s_info_top10holderquantity("{code}","{report_date}",{rank})'

@@ -69,6 +69,38 @@ Update this section when:
 
 ---
 
+### `data_layer/crawlers/cninfo/`
+
+Purpose:
+
+- Fetch listed-company announcements from 巨潮资讯网 (CNINFO) through `CninfoCrawler`.
+- Own CNINFO HTTP session setup, search API pagination, timeout, and rate-limit delay behavior.
+- Return raw announcement dictionaries for `CninfoAdapter` to convert into `DocumentEnvelope` records.
+
+Update this section when:
+
+- CNINFO query parameters, pagination, or retry/rate-limit behavior changes.
+- Raw announcement field mapping changes.
+- New CNINFO datasets are added.
+
+---
+
+### `data_layer/adapters/cninfo_adapter.py`
+
+Purpose:
+
+- Wrap `CninfoCrawler` and convert CNINFO announcement dictionaries into `DocumentEnvelope` objects.
+- Generate idempotent document IDs from `adjunctUrl` or stable announcement fields.
+- Normalize CNINFO metadata (`sec_code`, `sec_name`, `announcement_type`, `announcement_id`) for downstream document ingestion.
+
+Update this section when:
+
+- CNINFO envelope fields or metadata mapping changes.
+- CNINFO adapter fetch parameters change.
+- Document source type or canonical text construction changes.
+
+---
+
 ### `data_layer/crawlers/zq/zhiqiu/processors/report_processor.py`
 
 Purpose:
@@ -82,6 +114,27 @@ Update this section when:
 - PDF download/registration logic changes.
 - Report format detection changes.
 - PDF artifact metadata fields change.
+
+---
+
+### `data_layer/crawlers/cnstock/cnstock.py`
+
+Purpose:
+
+- Core CNStock (中国证券网) crawler: fetch flash news (快讯) and regular channel news (证券/公司/产经/金融/时政).
+- Dual-path architecture: **Playwright** (primary) for WAF bypass, **requests** (fallback) when Playwright unavailable.
+- Flash news extracted from `__NEXT_DATA__` SSR payload embedded in page HTML.
+- Regular channels captured by intercepting `channelNewsList` XHR responses triggered by page navigation.
+- Browser reuse across channels: single `playwright.Browser` instance shared in `crawl_news_list()`.
+
+**WAF bypass background**: On 2026-05, cnstock.com deployed Alibaba Cloud WAF that blocks direct `requests` calls (returns `10304` "未登录"). Both `requests.Session` with Playwright cookies and `page.evaluate(fetch)` are blocked — only page-native XHR/fetch responses captured via `page.on("response")` before `page.goto()` succeed.
+
+Update this section when:
+
+- CNStock site structure or URL scheme changes.
+- WAF behavior or bypass strategy changes.
+- Playwright interaction pattern changes.
+- SSR data extraction path changes.
 
 ---
 
@@ -181,7 +234,9 @@ Update this section when:
 | 龙虎榜 | 净买入额、买入金额、卖出金额、上榜次数 | `s_abnormaltrade_*`, `s_pq_abnormaltrade_*` |
 
 **关键设计决策：**
+
 - 连接复用：整个 session 复用同一 Excel 连接，优先连接已运行的实例
+- 自动启动：如果未检测到运行中的 Excel，`WindExcelClient._connect()` 会通过 `xlwings.App(visible=..., add_book=True)` 启动新实例，而不是跳过 Wind 健康检查
 - 批量执行：列式写入公式（Z 列），一次等待 Excel 完成所有计算
 - 心跳检测：每次批量执行前自动检测 Wind 会话有效性，过期时抛出 `WindSessionExpiredError`
 - 保活机制：后台 daemon 线程每 30 分钟执行心跳，防止 Wind 自动登出；过期时触发回调
@@ -209,3 +264,10 @@ When files in this module change, check:
 - `docs/FILE_GUIDE.md`
 - `docs/CHANGELOG.md`
 - `docs/generated/py_file_index.md`
+
+---
+
+## Related Subsystems
+
+- `connectors/` — 连接器实现通过 Wrapper-first 策略委托本模块的适配器（如 `CLSDocumentConnector` → `CLSAdapter`），最终目标是所有新摄入通过 Connector 架构
+- `core/connectors/` — 连接器抽象基类和注册表

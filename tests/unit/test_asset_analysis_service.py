@@ -1,10 +1,11 @@
 """Tests for AssetAnalysisService."""
-from datetime import UTC, datetime
-from unittest.mock import Mock
+from datetime import UTC, date, datetime
+from unittest.mock import AsyncMock, Mock, patch
 
+import pandas as pd
 import pytest
 
-from core.contracts import AssetAnalysisSnapshot
+from core.contracts import AssetAnalysisCard, AssetAnalysisSnapshot, IndustryData, PriceBar
 from services.asset_analysis_service import AssetAnalysisService
 
 
@@ -117,3 +118,265 @@ class TestAssetAnalysisService:
         assert snapshot.event_impact is not None
         assert snapshot.macro_exposure is not None
         assert snapshot.evidence_refs is not None
+
+    def test_price_bar_keeps_technical_indicator_fields(self):
+        """PriceBar should preserve enriched technical indicator fields for the UI."""
+        bar = PriceBar(
+            date=date(2026, 6, 3),
+            open=100.0,
+            high=105.0,
+            low=99.0,
+            close=103.0,
+            volume=1_000_000,
+            amount=103_000_000,
+            turnover=2.5,
+            ma5=101.0,
+            ma10=100.5,
+            ma20=99.8,
+            ma60=98.0,
+            boll_upper=107.0,
+            boll_middle=100.0,
+            boll_lower=93.0,
+            macd_dif=1.5,
+            macd_dea=1.2,
+            macd_hist=0.6,
+            vwap=102.0,
+            pct_change=3.0,
+            amplitude=6.0,
+        )
+
+        dumped = bar.model_dump()
+
+        assert dumped["boll_upper"] == 107.0
+        assert dumped["boll_middle"] == 100.0
+        assert dumped["boll_lower"] == 93.0
+        assert dumped["macd_dif"] == 1.5
+        assert dumped["macd_dea"] == 1.2
+        assert dumped["macd_hist"] == 0.6
+        assert dumped["vwap"] == 102.0
+        assert dumped["pct_change"] == 3.0
+        assert dumped["amplitude"] == 6.0
+
+    @pytest.mark.asyncio
+    async def test_generate_analysis_card_uses_requested_time_range(self):
+        """Analysis card should pass requested time range into K-line enrichment."""
+        service = AssetAnalysisService()
+        service.generate_snapshot = AsyncMock(
+            return_value=AssetAnalysisSnapshot(
+                canonical_id="600000.SH",
+                as_of=datetime(2026, 6, 3, 12, 0, 0, tzinfo=UTC),
+                financial={},
+                fund_flow={},
+                price_volume={},
+                valuation={},
+                shareholder={},
+                industry={},
+                event_impact=[],
+                macro_exposure={},
+                evidence_refs=[],
+            )
+        )
+        service._fill_structured_data = Mock(side_effect=lambda card, snapshot: card)
+        service._enrich_from_coordinator = AsyncMock(
+            return_value=AssetAnalysisCard(
+                canonical_id="600000.SH",
+                as_of=datetime(2026, 6, 3, 12, 0, 0, tzinfo=UTC),
+            )
+        )
+
+        await service.generate_analysis_card(
+            canonical_id="600000.SH",
+            as_of=datetime(2026, 6, 3, 12, 0, 0, tzinfo=UTC),
+            time_range="2Y",
+        )
+
+        service._enrich_from_coordinator.assert_awaited_once()
+        assert service._enrich_from_coordinator.await_args.args[3] == "2Y"
+
+    def test_days_from_time_range_maps_wind_style_ranges(self):
+        """Time range mapping should support Wind-style quick range buttons."""
+        assert AssetAnalysisService._days_from_time_range(None) == 252
+        assert AssetAnalysisService._days_from_time_range("1M") == 31
+        assert AssetAnalysisService._days_from_time_range("3M") == 92
+        assert AssetAnalysisService._days_from_time_range("6M") == 183
+        assert AssetAnalysisService._days_from_time_range("1Y") == 365
+        assert AssetAnalysisService._days_from_time_range("2Y") == 730
+        assert AssetAnalysisService._days_from_time_range("3Y") == 1095
+        assert AssetAnalysisService._days_from_time_range("5Y") == 1826
+        assert AssetAnalysisService._days_from_time_range("ALL") == 0
+        assert AssetAnalysisService._days_from_time_range("all") == 0
+        assert AssetAnalysisService._days_from_time_range("unknown") == 252
+
+    def test_chip_distribution_profiles_all_supplied_price_volume(self):
+        """Chip distribution should preserve volume across the supplied K-line range."""
+        bars = [
+            PriceBar(
+                date=date(2026, 1, 1),
+                open=10.0,
+                high=10.1,
+                low=9.9,
+                close=10.0,
+                volume=1_000_000,
+                turnover=100.0,
+            ),
+            PriceBar(
+                date=date(2026, 1, 2),
+                open=20.0,
+                high=20.1,
+                low=19.9,
+                close=20.0,
+                volume=1_000_000,
+                turnover=100.0,
+            ),
+            PriceBar(
+                date=date(2026, 1, 3),
+                open=30.0,
+                high=30.1,
+                low=29.9,
+                close=30.0,
+                volume=1_000_000,
+                turnover=100.0,
+            ),
+            PriceBar(
+                date=date(2026, 1, 4),
+                open=40.0,
+                high=40.1,
+                low=39.9,
+                close=40.0,
+                volume=1_000_000,
+                turnover=100.0,
+            ),
+            PriceBar(
+                date=date(2026, 1, 5),
+                open=50.0,
+                high=50.1,
+                low=49.9,
+                close=50.0,
+                volume=1_000_000,
+                turnover=100.0,
+            ),
+        ]
+
+        chip_data = AssetAnalysisService._calculate_chip_distribution(bars, buckets=60)
+        peak = max(chip_data, key=lambda point: point.concentration_pct)
+        low_cost_concentration = sum(
+            point.concentration_pct for point in chip_data if point.price < 15.0
+        )
+        high_cost_concentration = sum(
+            point.concentration_pct for point in chip_data if point.price > 45.0
+        )
+
+        assert 9.0 <= peak.price <= 51.0
+        assert low_cost_concentration > 10.0
+        assert high_cost_concentration > 10.0
+
+    def test_fill_wind_market_snapshot_populates_valuation_turnover_and_basic_info(self):
+        """Wind market snapshot should fill empty valuation, turnover, and share fields."""
+        wind_adapter = Mock()
+        wind_adapter.is_available.return_value = True
+        wind_adapter.fetch_market_snapshot.return_value = pd.DataFrame(
+            [
+                {
+                    "code": "600519.SH",
+                    "close": 1500.0,
+                    "turnover": 0.72,
+                    "pe_ttm": 28.5,
+                    "pb": 9.1,
+                    "pcf_ocf_ttm": 31.2,
+                    "total_shares": 1_256_197_800.0,
+                }
+            ]
+        )
+        service = AssetAnalysisService(wind_adapter=wind_adapter)
+        card = AssetAnalysisCard(
+            canonical_id="600519.SH",
+            as_of=datetime(2026, 6, 3, 12, 0, 0, tzinfo=UTC),
+        )
+
+        service._fill_wind_market_snapshot(
+            card,
+            "600519.SH",
+            datetime(2026, 6, 3, 12, 0, 0, tzinfo=UTC),
+        )
+        basic_info = service._build_basic_info("600519.SH", card.valuation)
+
+        assert card.current_price == 1500.0
+        assert card.turnover == 0.72
+        assert card.price_volume["turnover"] == 0.72
+        assert card.valuation["pe_ttm"] == 28.5
+        assert card.valuation["pb"] == 9.1
+        assert card.valuation["pcf_ocf_ttm"] == 31.2
+        assert card.valuation["total_shares"] == 1_256_197_800.0
+        assert card.valuation["market_cap"] == 1_884_296_700_000.0
+        assert basic_info.total_shares == 1_256_197_800.0
+        assert basic_info.market_cap == 1_884_296_700_000.0
+        wind_adapter.fetch_market_snapshot.assert_called_once_with(
+            ["600519.SH"], trade_date="2026-06-03"
+        )
+
+    def test_fill_industry_data_uses_wind_when_stock_master_has_only_level1(self):
+        """Industry fallback should use Wind for missing SW level 2/3 fields."""
+        stock = Mock()
+        stock.industry_level1 = "食品饮料"
+        stock.industry_level2 = None
+        stock.industry_level3 = None
+        market_repo = Mock()
+        market_repo.get_stock_master.return_value = stock
+        wind_adapter = Mock()
+        wind_adapter.is_available.return_value = True
+        wind_adapter.fetch_industry_data.return_value = pd.DataFrame(
+            [
+                {
+                    "code": "600519.SH",
+                    "industry_sw": "食品饮料",
+                    "industry_sw_l2": "白酒Ⅱ",
+                    "industry_sw_l3": "白酒Ⅲ",
+                }
+            ]
+        )
+        service = AssetAnalysisService(market_repo=market_repo, wind_adapter=wind_adapter)
+
+        industry = service._fill_industry_data("600519.SH")
+
+        assert industry == IndustryData(
+            sw_level_1="食品饮料",
+            sw_level_2="白酒Ⅱ",
+            sw_level_3="白酒Ⅲ",
+        )
+        wind_adapter.fetch_industry_data.assert_called_once_with(["600519.SH"])
+
+    @pytest.mark.asyncio
+    async def test_fill_shareholder_data_falls_back_to_wind_aggregates_when_db_empty(self):
+        """Empty shareholder table should fall back to Wind individual details, then aggregate."""
+        market_repo = Mock()
+        market_repo.get_latest_shareholders.return_value = []
+        wind_adapter = Mock()
+        wind_adapter.is_available.return_value = True
+        # individual details returns empty -> fall through to aggregate
+        wind_adapter.fetch_top10_holder_details.return_value = pd.DataFrame()
+        wind_adapter.fetch_holder_data.return_value = pd.DataFrame(
+            [
+                {
+                    "code": "600519.SH",
+                    "holder_num": 152345,
+                    "top10_pct": 64.3,
+                    "institutional_pct": 42.5,
+                }
+            ]
+        )
+        service = AssetAnalysisService(market_repo=market_repo, wind_adapter=wind_adapter)
+
+        with patch.object(service, "_latest_report_date", return_value=date(2026, 3, 31)):
+            top10, floating = await service._fill_shareholder_data("600519.SH")
+
+        assert floating == []
+        assert [holder.name for holder in top10] == ["前十大股东合计", "机构持股合计", "股东户数"]
+        assert [holder.share_ratio for holder in top10] == [64.3, 42.5, 0.0]
+        assert [holder.shareholder_type for holder in top10] == [
+            "aggregate_top10",
+            "aggregate_institutional",
+            "count:152345",
+        ]
+        wind_adapter.fetch_holder_data.assert_called_once_with(
+            ["600519.SH"], report_date="2026/03/31"
+        )

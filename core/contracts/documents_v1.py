@@ -41,6 +41,13 @@ class SourceType(str, Enum):
     EAST_MONEY = "east_money"  # 东方财富
     SINA_FINANCE = "sina_finance"  # 新浪财经
     WIND = "wind"  # Wind
+    AKSHARE = "akshare"  # AKShare
+    BAOSTOCK = "baostock"  # BaoStock
+    CJPY = "cjpy"  # 财经朋友圈
+    CNINFO = "cninfo"  # 巨潮资讯网
+    CSINDEX = "csindex"  # 中证指数
+    SZSE = "szse"  # 深圳证券交易所
+    YAHOO = "yahoo"  # Yahoo Finance
     BLOOMBERG = "bloomberg"  # Bloomberg
     REUTERS = "reuters"  # Reuters
     COMPANY_ANNOUNCEMENT = "company_announcement"  # 公司公告

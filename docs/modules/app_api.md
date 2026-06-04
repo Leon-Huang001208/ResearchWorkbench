@@ -159,7 +159,7 @@ Endpoints:
 
 - `POST /api/assets/analyze` — generate asset analysis snapshot.
 - `GET /api/assets/{canonical_id}` — query latest snapshot.
-- `POST /api/assets/analysis-card` — generate full analysis card with K-line data, capital flow, shareholders, etc.
+- `POST /api/assets/analysis-card` — generate full analysis card with K-line data, capital flow, shareholders, etc.; request supports optional `time_range` (`1M`/`3M`/`6M`/`1Y`/`2Y`/`3Y`/`5Y`/`ALL`) for K-line history windows.
 
 Dependency injection:
 
@@ -263,3 +263,10 @@ When files in this module change, check:
 - `docs/FILE_GUIDE.md`
 - `docs/CHANGELOG.md`
 - `docs/generated/py_file_index.md`
+
+---
+
+## Related Subsystems
+
+- `core/connectors/` — 连接器通过 `ConnectorRegistry` 向 API 暴露数据源状态和摄入能力
+- `connectors/` — 具体连接器实现（如 `WindMarketConnector`），通过 `app/api/routes/wind.py` 暴露 Wind 数据 API

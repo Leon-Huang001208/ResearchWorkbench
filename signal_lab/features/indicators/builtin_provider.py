@@ -310,7 +310,7 @@ class BuiltinProvider:
     def _calculate_obv(self, df: pd.DataFrame) -> pd.Series:
         """计算 OBV"""
         obv = (np.sign(df["close"].diff()) * df["volume"]).fillna(0).cumsum()
-        return obv
+        return obv  # type: ignore[no-any-return]
 
     def _calculate_vwap(self, df: pd.DataFrame) -> pd.Series:
         """计算 VWAP"""

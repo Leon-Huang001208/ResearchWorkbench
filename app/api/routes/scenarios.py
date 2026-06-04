@@ -1,5 +1,5 @@
 """情景分析路由"""
-from typing import Optional
+from typing import NoReturn, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -84,7 +84,7 @@ async def generate_scenarios(
     request: ScenarioRequest,
     service: ScenarioService = Depends(get_scenario_service),
     data_service: ScenarioDataService = Depends(get_scenario_data_service),
-):
+) -> ScenarioResponse:
     """生成多情景分析"""
     try:
         scenario_set = service.generate_scenario_set(
@@ -128,7 +128,7 @@ async def generate_scenarios(
 )
 async def get_scenario_set(
     set_id: str,
-):
+) -> NoReturn:
     """查询情景集（当前为占位实现，后续接入持久化）"""
     raise HTTPException(
         status_code=404,

@@ -189,7 +189,7 @@ class PriceVolumeFeatures(FeatureGroup):
         if windows is None:
             windows = [5, 10, 20, 60]
 
-        features = []
+        features: list[Feature] = []
         for window in windows:
             features.append(MovingAverageFeature(window))
             features.append(VolatilityFeature(window))

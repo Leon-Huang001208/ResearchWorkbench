@@ -2,7 +2,7 @@ import json
 import logging
 import os
 import re
-from typing import Optional
+from typing import Any, Dict, Optional, cast
 
 import requests
 
@@ -163,7 +163,8 @@ class ZhiQiuClient:
         self.logger.info(f"提问 {obj_id}: {query[:30]}...")
         result = ""
         try:
-            for line in response.iter_lines(decode_unicode=True):
+            for raw_line in response.iter_lines(decode_unicode=True):
+                line = raw_line.decode("utf-8") if isinstance(raw_line, bytes) else raw_line
                 line = line.strip()
                 if not line or not line.startswith("data:"):
                     continue
@@ -241,7 +242,7 @@ class ZhiQiuClient:
             return None
 
         try:
-            json_data = response.json()
+            json_data = cast(Dict[str, Any], response.json())
             count = len(json_data.get("reports", {}).get("reportAttachMap", {}))
             self.logger.info(f"研报数量: {count}")
             self.anti_scrape.after_success()
@@ -318,7 +319,7 @@ class ZhiQiuClient:
                             self.anti_scrape.after_success()
                             return True
                         else:
-                            self.logger.warning(f"URL {i} 返回内容不是 PDF，开始字节: {content_start}")
+                            self.logger.warning(f"URL {i} 返回内容不是 PDF，开始字节: {content_start!r}")
                     else:
                         self.logger.warning(f"URL {i} 返回状态码: {resp.status_code}")
 
@@ -469,7 +470,7 @@ class ZhiQiuClient:
             return None
 
         try:
-            json_data = response.json()
+            json_data = cast(Dict[str, Any], response.json())
             # 总是尝试转换格式，确保与旧接口兼容
             json_data = self._convert_new_format(json_data)
 
@@ -653,7 +654,7 @@ class ZhiQiuClient:
                 self.anti_scrape.after_failure()
                 return None
 
-            json_data = response.json()
+            json_data = cast(Dict[str, Any], response.json())
             self.anti_scrape.after_success()
             return json_data
 

@@ -140,3 +140,15 @@ When files in this module change, check:
 - `docs/FILE_GUIDE.md`
 - `docs/CHANGELOG.md`
 - `docs/generated/py_file_index.md`
+
+---
+
+## Recent Changes
+
+- `signal_lab/features/indicators/engine.py` — 指标计算引擎重构
+- `signal_lab/features/indicators/models.py` — 指标数据模型定义
+- `signal_lab/features/indicators/talib_provider.py` — TA-Lib 技术指标提供商
+
+## Related Subsystems
+
+- `connectors/market/` — 市场数据连接器（如 `WindMarketConnector`）为信号实验室提供结构化行情/财务数据

@@ -5,14 +5,14 @@ import re
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, cast
 
 from Crypto.Cipher import PKCS1_v1_5
 from Crypto.PublicKey import RSA
 
-_config_cache = {}
-_created_dirs = set()
-_allowed_accounts_cache = {}
+_config_cache: Dict[str, Dict[str, Any]] = {}
+_created_dirs: set[str] = set()
+_allowed_accounts_cache: Dict[str, Any] = {}
 
 
 _HTML_PATTERNS = [
@@ -67,7 +67,7 @@ def parse_timestamp(report: Dict) -> str:
         return ""
 
     try:
-        ts = int(timestamp)
+        ts = float(timestamp)
         if ts > 9999999999:
             ts = ts / 1000
         return datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
@@ -75,7 +75,7 @@ def parse_timestamp(report: Dict) -> str:
         return ""
 
 
-def ensure_dir(path: str):
+def ensure_dir(path: str) -> None:
     """确保目录存在，使用缓存避免重复系统调用"""
     if path in _created_dirs:
         return
@@ -94,7 +94,7 @@ def load_config(config_path: str) -> Dict[str, Any]:
         import yaml
 
         with open(config_path, "r", encoding="utf-8") as f:
-            config = yaml.safe_load(f) or {}
+            config = cast(Dict[str, Any], yaml.safe_load(f) or {})
         _config_cache[config_path] = config
         return config
     except ImportError:

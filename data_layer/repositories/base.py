@@ -1,8 +1,10 @@
-from typing import Any, TypeVar
+from collections.abc import Generator
+from types import TracebackType
+from typing import TypeVar
 
 from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import Session, declarative_base, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from core.observability import get_logger
 from core.settings import settings
@@ -13,8 +15,12 @@ logger = get_logger(__name__)
 engine = create_engine(settings.DATABASE_URL, echo=False)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+
 # Base class for ORM models
-Base = declarative_base()
+class Base(DeclarativeBase):
+    """SQLAlchemy declarative base with mypy-visible type information."""
+
+    pass
 
 
 def check_database_connection() -> None:
@@ -93,7 +99,7 @@ def ensure_schema() -> None:
 T = TypeVar("T")
 
 
-def get_db() -> Any:
+def get_db() -> Generator[Session, None, None]:
     """Get database session for FastAPI dependency injection."""
     db = SessionLocal()
     try:
@@ -115,11 +121,16 @@ class db_session:
             ...
     """
 
-    def __enter__(self):
+    def __enter__(self) -> Session:
         self.db = SessionLocal()
         return self.db
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         if exc_type is None:
             self.db.commit()
         else:

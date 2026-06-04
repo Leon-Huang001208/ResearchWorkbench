@@ -24,6 +24,7 @@ Purpose:
 - Generates Python file index documentation
 - Parses source files for classes, functions, imports
 - Outputs to docs/generated/py_file_index.md
+- Scans the following directories (INCLUDE_DIRS): `app/`, `connectors/`, `core/`, `data_layer/`, `knowledge_layer/`, `reasoning/`, `cognitive_agents/`, `timing_engine/`, `signal_lab/`, `memory_learning/`, `reporting/`, `services/`, `storage/`, `ingestion/`, `cron_jobs/`, `scripts/`, `workers/`
 
 Update this section when:
 - Parsing logic changes

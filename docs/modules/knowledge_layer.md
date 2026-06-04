@@ -53,3 +53,10 @@ When files in this module change, check:
 - `docs/FILE_GUIDE.md`
 - `docs/CHANGELOG.md`
 - `docs/generated/py_file_index.md`
+
+---
+
+## Related Subsystems
+
+- `core/connectors/` — 连接器负责数据采集和基础解析，产出的 `IngestionRecord` 通过 `IngestionQueue` 传递给本模块的 `KnowledgeWorker` 进行 LLM 知识提取
+- `connectors/` — 文档连接器（`CLSDocumentConnector` 等）在 `persist()` 阶段将摄入记录入队

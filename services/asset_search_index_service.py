@@ -4,8 +4,9 @@
 """
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, replace
-from typing import Iterable, List, Optional
+from typing import Any, Iterable, List, Optional, cast
 
 from sqlalchemy.orm import Session
 
@@ -13,6 +14,85 @@ from core.observability import get_logger
 from data_layer.normalizers.symbol import normalize_a_share_symbol
 
 logger = get_logger(__name__)
+
+# ── ETF 缓存 ─────────────────────────────────────────────────────────
+_FUND_CACHE: list[dict[str, Any]] | None = None
+_FUND_CACHE_TIME: float = 0.0
+_FUND_CACHE_TTL: float = 86400.0  # 24h
+
+
+def _build_fund_cache() -> list[dict[str, Any]]:
+    """通过 AKShare fund_etf_spot_em() 获取全量 ETF 列表并缓存。
+
+    返回 list[dict]，每项包含 code, name, market 三个 key。
+    首次调用约 20s，后续 24h 内命中模块级缓存。
+    """
+    global _FUND_CACHE, _FUND_CACHE_TIME
+    now = time.time()
+    if _FUND_CACHE is not None and (now - _FUND_CACHE_TIME) < _FUND_CACHE_TTL:
+        return _FUND_CACHE
+
+    try:
+        import akshare as ak  # type: ignore[import-untyped]
+
+        df = ak.fund_etf_spot_em()
+        if df is None or df.empty:
+            logger.warning("fund_etf_spot_em returned empty DataFrame")
+            _FUND_CACHE = []
+            _FUND_CACHE_TIME = now
+            return _FUND_CACHE
+
+        funds: list[dict[str, Any]] = []
+        for _, row in df.iterrows():
+            code_val = str(row.get("代码", "")).strip()
+            name_val = str(row.get("名称", "")).strip()
+            if not code_val or not name_val:
+                continue
+            # 推断交易所后缀
+            suffix = _etf_suffix(code_val)
+            funds.append(
+                {
+                    "raw_code": code_val,
+                    "symbol": f"{code_val}.{suffix}",
+                    "name": name_val,
+                    "exchange": suffix,
+                    "market": "A-share",
+                }
+            )
+
+        _FUND_CACHE = funds
+        _FUND_CACHE_TIME = now
+        logger.info("ETF cache built", extra={"count": len(funds)})
+        return funds
+    except Exception as exc:
+        logger.warning("Failed to build ETF cache: %s", exc)
+        _FUND_CACHE = []
+        _FUND_CACHE_TIME = now
+        return _FUND_CACHE
+
+
+def _etf_suffix(raw_code: str) -> str:
+    """根据 ETF 原始代码推断交易所后缀。
+
+    - 159xxx → SZ（深交所 ETF）
+    - 51xxxx → SH（上交所 ETF）
+    - 58xxxx → SH（上交所 ETF）
+    - 其他按首数字：5/6→SH，0/1/2/3→SZ
+    """
+    if not raw_code:
+        return "SH"
+    if raw_code.startswith("159"):
+        return "SZ"
+    if raw_code.startswith("51"):
+        return "SH"
+    if raw_code.startswith("58"):
+        return "SH"
+    if raw_code.startswith("16"):
+        return "SZ"
+    first_digit = raw_code[0]
+    if first_digit in ("5", "6"):
+        return "SH"
+    return "SZ"
 
 
 _PINYIN_INITIAL_RANGES = (
@@ -157,9 +237,11 @@ class AssetSearchIndexService:
     def status(self) -> dict:
         stock_master_count = self._stock_master_count()
         entity_count = self._entity_count()
+        fund_count = self._fund_count()
         return {
             "stock_master_count": stock_master_count,
             "entity_count": entity_count,
+            "fund_etf_count": fund_count,
             "seed_count": len(_SEEDED_ASSETS),
             "stock_master_empty": stock_master_count == 0,
             "using_seed_fallback": stock_master_count == 0,
@@ -179,6 +261,11 @@ class AssetSearchIndexService:
             seed_candidate = seed_by_symbol.get(candidate.symbol)
             if seed_candidate:
                 candidate = _merge_candidate_metadata(candidate, seed_candidate)
+            seen.add(candidate.symbol)
+            yield candidate
+        for candidate in self._fund_candidates():
+            if candidate.symbol in seen:
+                continue
             seen.add(candidate.symbol)
             yield candidate
         for candidate in seed_by_symbol.values():
@@ -263,13 +350,41 @@ class AssetSearchIndexService:
             )
         return candidates
 
+    def _fund_candidates(self) -> Iterable[AssetSearchCandidate]:
+        """从 AKShare fund_etf_spot_em 缓存中生成 ETF 候选。
+
+        首次调用会触发 AKShare 拉取（约 20s），后续命中 24h 缓存。
+        AKShare 不可用时返回空列表，不阻塞其他候选源。
+        """
+        try:
+            funds = _build_fund_cache()
+        except Exception as exc:
+            logger.warning("fund ETF candidate source unavailable: %s", exc)
+            return []
+
+        for fund in funds:
+            yield AssetSearchCandidate(
+                canonical_id=fund["symbol"],
+                symbol=fund["symbol"],
+                raw_code=fund.get("raw_code", ""),
+                name=fund["name"],
+                asset_type="etf",
+                exchange=fund.get("exchange"),
+                market=fund.get("market"),
+                source="fund_etf",
+            )
+
+    def _fund_count(self) -> int:
+        """ETF 缓存候选数（不触发远程拉取）。"""
+        return len(_FUND_CACHE) if _FUND_CACHE is not None else 0
+
     def _stock_master_count(self) -> int:
         if self.db is None:
             return 0
         try:
             from data_layer.repositories.models import StockMasterDB
 
-            return self.db.query(StockMasterDB).count()
+            return cast(int, self.db.query(StockMasterDB).count())
         except Exception as exc:
             logger.warning("stock_master count unavailable: %s", exc)
             return 0
@@ -280,10 +395,15 @@ class AssetSearchIndexService:
         try:
             from data_layer.repositories.models import Entity
 
-            return (
-                self.db.query(Entity)
-                .filter(Entity.entity_type.in_(["equity", "stock", "company", "asset", "index"]))
-                .count()
+            return cast(
+                int,
+                (
+                    self.db.query(Entity)
+                    .filter(
+                        Entity.entity_type.in_(["equity", "stock", "company", "asset", "index"])
+                    )
+                    .count()
+                ),
             )
         except Exception as exc:
             logger.warning("entity count unavailable: %s", exc)

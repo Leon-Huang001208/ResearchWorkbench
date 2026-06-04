@@ -7,6 +7,7 @@
 3. 账号租借模式（acquire/release）
 4. 支持按模块分配不同账号
 """
+import importlib
 import json
 import logging
 import random
@@ -14,7 +15,8 @@ import time
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional
+from types import TracebackType
+from typing import IO, Any, Dict, List, Optional, cast
 
 import yaml
 
@@ -26,7 +28,7 @@ try:
 except ImportError:
     HAS_FCNTL = False
     try:
-        import msvcrt
+        msvcrt = importlib.import_module("msvcrt")
 
         HAS_MSVCRT = True
     except ImportError:
@@ -82,7 +84,7 @@ class FileLock:
     def __init__(self, lock_path: Path, timeout: int = 30):
         self.lock_path = Path(lock_path)
         self.timeout = timeout
-        self._lock_file = None
+        self._lock_file: Optional[IO[str]] = None
 
     def acquire(self) -> bool:
         """获取锁"""
@@ -118,7 +120,7 @@ class FileLock:
 
                 time.sleep(0.1)
 
-    def release(self):
+    def release(self) -> None:
         """释放锁"""
         if self._lock_file:
             try:
@@ -131,12 +133,17 @@ class FileLock:
                 pass
             self._lock_file = None
 
-    def __enter__(self):
+    def __enter__(self) -> "FileLock":
         if not self.acquire():
             raise RuntimeError(f"无法获取锁: {self.lock_path}")
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         self.release()
 
 
@@ -209,7 +216,7 @@ class AccountManager:
             max_consecutive_failures=cfg.get("max_consecutive_failures", 10),
         )
 
-    def _init_state(self):
+    def _init_state(self) -> None:
         """初始化账号状态"""
         if self.state_path.exists():
             try:
@@ -220,7 +227,7 @@ class AccountManager:
         else:
             self._init_new_state()
 
-    def _init_new_state(self):
+    def _init_new_state(self) -> None:
         """初始化新状态"""
         accounts = self.config.get("accounts", {})
         state = AccountManagerState()
@@ -246,7 +253,7 @@ class AccountManager:
 
         return state
 
-    def _save_state(self, state: AccountManagerState):
+    def _save_state(self, state: AccountManagerState) -> None:
         """保存状态到文件"""
         state.last_updated = datetime.now().isoformat()
 
@@ -374,7 +381,7 @@ class AccountManager:
         logger.info(f"模块 {self.module_identifier} 租借账号: {account_name}")
         return account_name
 
-    def release_account(self, account_name: str):
+    def release_account(self, account_name: str) -> None:
         """
         释放账号
 
@@ -401,7 +408,7 @@ class AccountManager:
             if candidate in available:
                 return candidate
 
-    def record_success(self, account_name: str):
+    def record_success(self, account_name: str) -> None:
         """记录成功"""
         with FileLock(self.lock_path):
             state = self._load_state()
@@ -412,7 +419,7 @@ class AccountManager:
                 account.consecutive_failures = 0
                 self._save_state(state)
 
-    def record_failure(self, account_name: str, lock_seconds: int = 300):
+    def record_failure(self, account_name: str, lock_seconds: int = 300) -> None:
         """记录失败（临时锁定，连续失败过多则永久禁用）"""
         with FileLock(self.lock_path):
             state = self._load_state()
@@ -439,9 +446,9 @@ class AccountManager:
 
                 self._save_state(state)
 
-    def get_account_credentials(self, account_name: str) -> Optional[Dict]:
+    def get_account_credentials(self, account_name: str) -> Optional[Dict[str, Any]]:
         """获取指定账号的凭证"""
-        accounts = self.config.get("accounts", {})
+        accounts = cast(Dict[str, Dict[str, Any]], self.config.get("accounts", {}))
         return accounts.get(account_name)
 
     def get_account_stats(self, account_name: str) -> Optional[AccountStats]:
@@ -476,6 +483,11 @@ class AccountLease:
         self.account_name = self.manager.acquire_account(self.preferred_account)
         return self.account_name
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         if self.account_name:
             self.manager.release_account(self.account_name)

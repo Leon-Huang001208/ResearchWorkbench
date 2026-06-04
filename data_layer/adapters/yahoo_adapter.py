@@ -3,6 +3,7 @@ Yahoo Finance 数据适配器
 
 提供全球市场数据，作为 AkShare/BaoStock 的补充数据源。
 """
+import importlib
 from datetime import datetime
 
 from core.observability import get_logger
@@ -29,7 +30,7 @@ class YahooAdapter(BaseDataAdapter):
     def _check_availability(self):
         """检查 Yahoo Finance 是否可用"""
         try:
-            import yfinance  # noqa: F401
+            importlib.import_module("yfinance")
 
             return True
         except ImportError:

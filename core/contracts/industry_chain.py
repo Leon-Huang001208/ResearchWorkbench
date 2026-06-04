@@ -186,7 +186,7 @@ class PropagationPath(BaseModel):
         product = 1.0
         for step in self.steps:
             product *= step.mapping_strength
-        return product ** (1 / len(self.steps))
+        return float(product ** (1 / len(self.steps)))
 
 
 class ThesisCard(BaseModel):

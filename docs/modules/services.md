@@ -90,6 +90,7 @@ Purpose:
 
 - Schedules periodic crawl, PDF conversion, and closed loop jobs via APScheduler.
 - Crawl jobs: `_run_crawl_job()` loops over `source_registry.get_enabled()` sources with staggered intervals.
+- Gap backfill: `check_and_backfill_gap()` detects missed crawl periods and backfills. Blocking `orchestrator.backfill_source()` calls are delegated to thread executor via `await loop.run_in_executor()` so that per-source timeouts (via `asyncio.wait_for`) can fire instead of being blocked by sync I/O.
 - PDF conversion job: `_run_pdf_conversion_job()` runs every 5 minutes, calls `PDFConversionService.convert_pending(limit=5)` + `retry_failed(limit=3)`.
 - Closed loop job: `_run_closed_loop_job()` runs every 10 minutes with 60s jitter, creates `ClosedLoopService` and calls `run_full_loop()`.
 - All jobs wrapped in try/except to ensure single job failure does not affect scheduler.
@@ -98,6 +99,7 @@ Related files:
 
 - `services/crawl_orchestrator.py`
 - `services/pdf_conversion_service.py`
+- `workers/crawl_scheduler_worker.py` — standalone process, manages startup backfill with per-source and global timeouts
 - `core/source_registry.py`
 
 Update this section when:
@@ -105,6 +107,7 @@ Update this section when:
 - Job scheduling intervals change.
 - New scheduled jobs are added.
 - PDF conversion batch size or retry limits change.
+- Gap backfill timeout or concurrency model changes.
 
 ---
 
@@ -205,6 +208,7 @@ Purpose:
 - Structured-first: queries `stock_daily_bar`, `stock_valuation`, `stock_financial_metric`, `stock_shareholder` tables.
 - `_has_enough_structured_data()` guards against empty tables — if no price/valuation/financial/shareholder data found, falls back to coordinator.
 - Falls back to `MultiSourceCoordinator` when structured tables have no data or fail.
+- `generate_analysis_card(..., time_range=...)` supports Wind-style K-line windows (`1M`/`3M`/`6M`/`1Y`/`2Y`/`3Y`/`5Y`/`ALL`) and passes the resolved date window into Cjpy/Wind/coordinator price-bar enrichment.
 
 Data source priority:
 
@@ -254,6 +258,35 @@ Update this section when:
 - Normalizer adapter changes.
 - New ingestion target is added.
 - Failure/retry behavior changes.
+
+---
+
+### `services/asset_search_index_service.py`
+
+Purpose:
+
+- Builds and queries a unified asset candidate search index for the asset analysis page.
+- Supports match types: exact code, code prefix, pinyin abbreviation (exact/prefix/contains), name contains.
+- Candidate sources in priority order:
+  1. StockMasterDB (A-share equities)
+  2. Entity table (vendor-mapped assets)
+  3. AKShare `fund_etf_spot_em()` (ETF列表，24h模块级缓存)
+  4. Seeded assets (贵州茅台, 绿色煤炭)
+- Scoring: exact code match (1000) > code prefix (900) > pinyin exact (850) > pinyin prefix (800) > name contains (700) > code contains (600) > pinyin contains (500)
+- Asset type ranking for sort: equity (0) > company (1) > index (2) > asset (3) > other (9)
+
+Related files:
+
+- `core/contracts/assets.py`
+- `data_layer/repositories/models.py` (StockMasterDB, Entity)
+- `data_layer/normalizers/symbol.py`
+- `tests/unit/test_asset_search_index_service.py`
+
+Update this section when:
+
+- New candidate source is added.
+- Scoring or ranking rules change.
+- ETF cache TTL or source changes.
 
 ---
 

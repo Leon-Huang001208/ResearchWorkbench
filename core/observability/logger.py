@@ -9,6 +9,7 @@ import logging
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from core.settings import settings
 
@@ -37,13 +38,13 @@ def configure_logging(level: str = "INFO", log_file: str | None = None) -> None:
 
     formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
-    handler = logging.StreamHandler(sys.stdout)
+    handler: logging.Handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(formatter)
 
-    handlers = [handler]
+    handlers: list[logging.Handler] = [handler]
 
     if log_file:
-        file_handler = logging.FileHandler(log_file, encoding="utf-8")
+        file_handler: logging.Handler = logging.FileHandler(log_file, encoding="utf-8")
         file_handler.setFormatter(formatter)
         handlers.append(file_handler)
     else:
@@ -76,7 +77,7 @@ def setup_logging() -> None:
         _setup_simple_logging(log_dir)
 
 
-def _setup_structlog(log_dir: Path):
+def _setup_structlog(log_dir: Path) -> None:
     """配置结构化日志.
 
     Configures structlog with shared processors (log level, logger name, timestamp),
@@ -99,7 +100,7 @@ def _setup_structlog(log_dir: Path):
 
     # Configure structlog
     structlog.configure(
-        processors=shared_processors
+        processors=shared_processors  # type: ignore[arg-type]
         + [
             structlog.stdlib.PositionalArgumentsFormatter(),
             structlog.processors.StackInfoRenderer(),
@@ -124,7 +125,7 @@ def _setup_structlog(log_dir: Path):
         processor=structlog.dev.ConsoleRenderer()
         if sys.stdout.isatty()
         else structlog.processors.JSONRenderer(),
-        foreign_pre_chain=shared_processors,
+        foreign_pre_chain=shared_processors,  # type: ignore[arg-type]
     )
 
     handler.setFormatter(formatter)
@@ -136,7 +137,7 @@ def _setup_structlog(log_dir: Path):
     root_logger.setLevel(getattr(logging, settings.LOG_LEVEL))
 
 
-def _setup_simple_logging(log_dir: Path):
+def _setup_simple_logging(log_dir: Path) -> None:
     """配置简单日志（structlog 不可用时）.
 
     Configures simple standard library logging when structlog is not available. Sets
@@ -163,7 +164,7 @@ def _setup_simple_logging(log_dir: Path):
     root_logger.setLevel(getattr(logging, settings.LOG_LEVEL))
 
 
-def get_logger(name: str):
+def get_logger(name: str) -> Any:
     """获取 logger.
 
     Returns a logger instance: structlog.get_logger(name) if structlog is available,
@@ -190,11 +191,11 @@ class _SimpleLoggerWrapper:
     exception methods that accept **kwargs and format them into the message.
     """
 
-    def __init__(self, logger):
+    def __init__(self, logger: logging.Logger) -> None:
         self._logger = logger
-        self._context = {}
+        self._context: dict[str, Any] = {}
 
-    def bind(self, **kwargs):
+    def bind(self, **kwargs: Any) -> "_SimpleLoggerWrapper":
         """绑定上下文变量到 logger.
 
         Creates a new _SimpleLoggerWrapper with the given kwargs added to the context.
@@ -209,7 +210,7 @@ class _SimpleLoggerWrapper:
         new_logger._context = {**self._context, **kwargs}
         return new_logger
 
-    def _format_msg(self, msg, **kwargs):
+    def _format_msg(self, msg: str, **kwargs: Any) -> str:
         """格式化消息，附加上下文变量.
 
         Formats the message by appending key-value pairs from self._context and kwargs
@@ -228,20 +229,20 @@ class _SimpleLoggerWrapper:
             return f"{msg} {ctx_str}"
         return msg
 
-    def debug(self, msg, **kwargs):
+    def debug(self, msg: str, **kwargs: Any) -> None:
         self._logger.debug(self._format_msg(msg, **kwargs))
 
-    def info(self, msg, **kwargs):
+    def info(self, msg: str, **kwargs: Any) -> None:
         self._logger.info(self._format_msg(msg, **kwargs))
 
-    def warning(self, msg, **kwargs):
+    def warning(self, msg: str, **kwargs: Any) -> None:
         self._logger.warning(self._format_msg(msg, **kwargs))
 
-    def warn(self, msg, **kwargs):
+    def warn(self, msg: str, **kwargs: Any) -> None:
         self._logger.warning(self._format_msg(msg, **kwargs))
 
-    def error(self, msg, **kwargs):
+    def error(self, msg: str, **kwargs: Any) -> None:
         self._logger.error(self._format_msg(msg, **kwargs), exc_info=kwargs.get("exc_info"))
 
-    def exception(self, msg, **kwargs):
+    def exception(self, msg: str, **kwargs: Any) -> None:
         self._logger.exception(self._format_msg(msg, **kwargs))

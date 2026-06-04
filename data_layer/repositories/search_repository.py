@@ -134,7 +134,10 @@ class SearchRepositoryImpl(SearchRepository):
     def search_source_docs(self, pattern: str, limit: int) -> List[Dict]:
         """搜索源文档"""
         try:
-            from ingestion.models.source_doc import SourceDocDB
+            import importlib
+
+            source_doc_module = importlib.import_module("ingestion.models.source_doc")
+            SourceDocDB = source_doc_module.SourceDocDB
 
             rows = (
                 self.session.query(SourceDocDB)
@@ -193,7 +196,10 @@ class SearchRepositoryImpl(SearchRepository):
     def search_market_episodes(self, pattern: str, limit: int) -> List[Dict]:
         """搜索市场片段"""
         try:
-            from knowledge_layer.market_episode import MarketEpisodeDB
+            import importlib
+
+            market_episode_module = importlib.import_module("knowledge_layer.market_episode")
+            MarketEpisodeDB = market_episode_module.MarketEpisodeDB
 
             rows = (
                 self.session.query(MarketEpisodeDB)

@@ -264,6 +264,51 @@ class WindAdapter(BaseDataAdapter):
 
         return pd.DataFrame(rows)
 
+    def fetch_market_snapshot(
+        self, codes: list[str], trade_date: str | None = None
+    ) -> pd.DataFrame:
+        """获取资产分析页需要的轻量市场快照。
+
+        只拉取估值、换手率和总股本等少数字段，避免调用完整日行情
+        接口时按日期循环导致页面请求过慢。
+        """
+        client = self._get_client()
+        td = trade_date or wf._td(None)
+        rows = []
+
+        for code in codes:
+            logger.info(f"获取市场快照: {code}, {td}")
+            formulas = [
+                wf.daily_close(code, td),
+                wf.daily_turnover(code, td),
+                wf.val_pe_ttm(code, td),
+                wf.val_pb_lf(code, td),
+                wf.val_pcf_ocf_ttm(code, td),
+                wf.s_info_shares(code),
+            ]
+            raw = client.execute_batch(formulas)
+
+            def _val(idx: int):
+                r = raw[idx]
+                if isinstance(r, Exception):
+                    return None
+                return r
+
+            rows.append(
+                {
+                    "code": code,
+                    "trade_date": td,
+                    "close": _val(0),
+                    "turnover": _val(1),
+                    "pe_ttm": _val(2),
+                    "pb": _val(3),
+                    "pcf_ocf_ttm": _val(4),
+                    "total_shares": _val(5),
+                }
+            )
+
+        return pd.DataFrame(rows)
+
     def fetch_financial_statements(
         self,
         codes: list[str],
@@ -480,6 +525,65 @@ class WindAdapter(BaseDataAdapter):
                     "institutional_pct": _val(6),
                 }
             )
+
+        return pd.DataFrame(rows)
+
+    # ===== 前十大股东逐项数据 =====
+
+    def fetch_top10_holder_details(self, codes: list[str], report_date: str) -> pd.DataFrame:
+        """获取前十大股东逐项数据（名称、持股比例、持股数量）
+
+        将所有公式批量写入 Excel，一次等待全部返回，避免逐 rank 轮询的 COM 开销。
+
+        Args:
+            codes: 证券代码列表
+            report_date: 报告期 "YYYY/MM/DD"（或 "2024/12/31" 格式）
+
+        Returns:
+            DataFrame，列为: code, report_date, rank, name, ratio, quantity
+        """
+        client = self._get_client()
+        rows = []
+
+        for code in codes:
+            logger.info(f"获取前十大股东逐项: {code}, {report_date}")
+
+            # 批量构建所有公式: 10 ranks × 3 fields = 30 公式
+            formulas: list[str] = []
+            formula_meta: list[tuple[int, str]] = []  # (rank, field)
+            for rank in range(1, 11):
+                for field, formula in [
+                    ("name", wf.s_info_top10_holdername(code, report_date, rank)),
+                    ("ratio", wf.s_info_top10_holderratio(code, report_date, rank)),
+                    ("quantity", wf.s_info_top10_holderquantity(code, report_date, rank)),
+                ]:
+                    formulas.append(formula)
+                    formula_meta.append((rank, field))
+
+            raw = client.execute_batch(formulas)
+
+            # 按 rank 聚合结果
+            rank_data: dict[int, dict[str, Any]] = {}
+            for idx, (rank, field) in enumerate(formula_meta):
+                val = raw[idx]
+                if isinstance(val, Exception):
+                    continue
+                rank_data.setdefault(rank, {})[field] = val
+
+            for rank, data in sorted(rank_data.items()):
+                name = data.get("name")
+                if not name:
+                    continue
+                rows.append(
+                    {
+                        "code": code,
+                        "report_date": report_date,
+                        "rank": rank,
+                        "name": str(name),
+                        "ratio": data.get("ratio"),
+                        "quantity": data.get("quantity"),
+                    }
+                )
 
         return pd.DataFrame(rows)
 
