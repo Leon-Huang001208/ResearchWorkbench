@@ -6,11 +6,14 @@ register(
     SourceSpec(
         source_type=SourceType.CLS,
         source_name="财联社",
-        adapter_class="data_layer.adapters.cls_adapter.CLSAdapter",
+        connector_class="connectors.document.cls.CLSDocumentConnector",
         adapter_kwargs={
+            "source_type": "cls",
             "state_path": "./data/crawlers/cls/.dedup_state.json",
             "use_incremental": True,
         },
+        connector_dataset="telegram",
+        pipeline_kind="document",
         interval_minutes=15,
         doc_type=DocType.NEWS,
         reliability=SourceReliabilityLevel.ESTABLISHED_MEDIA,

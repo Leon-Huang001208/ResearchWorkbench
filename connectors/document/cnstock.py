@@ -72,7 +72,7 @@ class CNStockDocumentConnector(DocumentConnector):
 
     @property
     def source(self) -> str:
-        return "cnstock"
+        return str(self.config.get("source_type", "cnstock"))
 
     @property
     def datasets(self) -> List[str]:

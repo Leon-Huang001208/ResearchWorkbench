@@ -193,7 +193,6 @@ def get_financials(request: WindFinancialsRequest):
         df = adapter.fetch_financial_statements(
             request.codes,
             request.report_date,
-            statement_type=request.statement_type,
         )
         return _build_response(df)
     except Exception as e:

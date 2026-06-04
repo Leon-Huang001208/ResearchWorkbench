@@ -17,7 +17,7 @@ class SectionGenerator:
     def __init__(self, model_gateway: ModelGateway, templates_dir: Path | None = None):
         self.model_gateway = model_gateway
         self.templates_dir = templates_dir or Path(__file__).parent.parent / "templates"
-        self._template_cache: dict[str, dict[str, Any]] = {}
+        self._template_cache: dict[str, list[SectionSpec]] = {}
 
     def load_template(self, template_name: str) -> list[SectionSpec]:
         """加载报告模板"""

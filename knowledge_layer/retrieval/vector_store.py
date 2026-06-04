@@ -5,6 +5,10 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Tuple
 
 from core.interfaces import ModelGateway
+from core.model_gateway.local_embedding_config import (
+    resolve_local_embedding_model,
+    sentence_transformer_kwargs,
+)
 from core.observability import get_logger
 
 logger = get_logger(__name__)
@@ -44,7 +48,7 @@ class InMemoryVectorStore(VectorStore):
 
     嵌入优先级：
     1. model_gateway.embed()（若已注入）
-    2. 本地 sentence-transformers 模型（若已安装）
+    2. 本地 sentence-transformers 模型（本地目录或已缓存模型；默认不联网下载）
     3. character-bigram 伪嵌入（始终可用）
     """
 
@@ -160,11 +164,15 @@ class InMemoryVectorStore(VectorStore):
             return None
         if cls._sentence_model is not None:
             return cls._sentence_model
+        model_ref = resolve_local_embedding_model("all-MiniLM-L6-v2")
+        if model_ref is None:
+            return None
         try:
             from sentence_transformers import SentenceTransformer
 
-            cls._sentence_model = SentenceTransformer("all-MiniLM-L6-v2")
-            logger.info("Loaded sentence-transformers model: all-MiniLM-L6-v2")
+            kwargs = sentence_transformer_kwargs(model_ref)
+            cls._sentence_model = SentenceTransformer(model_ref, **kwargs)
+            logger.info("Loaded sentence-transformers model: %s", model_ref)
         except ImportError:
             logger.debug("sentence-transformers not installed, using bigram fallback")
         except Exception as exc:

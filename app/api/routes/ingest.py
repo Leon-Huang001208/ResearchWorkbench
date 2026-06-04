@@ -2,6 +2,7 @@
 import shutil
 import tempfile
 from pathlib import Path
+from typing import Any, BinaryIO, cast
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 
@@ -86,7 +87,7 @@ async def ingest_file(
     # 将上传文件保存到临时路径
     suffix = Path(file.filename or "upload.txt").suffix
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-        shutil.copyfileobj(file.file, tmp)
+        shutil.copyfileobj(cast(BinaryIO, file.file), cast(Any, tmp))
         tmp_path = Path(tmp.name)
 
     try:

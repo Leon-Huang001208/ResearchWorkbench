@@ -42,8 +42,8 @@ class MeetingStateManager(BaseStateManager):
     def __init__(self, state_path: str, verbose: bool = False):
         super().__init__(state_path, "processed_meetings", verbose)
 
-    def add_processed_report(self, obj_id: str, title: str):
-        super().add_processed_report(obj_id, title)
+    def add_processed_report(self, obj_id: str, title: str, **extra: Any) -> None:
+        super().add_processed_report(obj_id, title, **extra)
 
 
 class MeetingFetcher(BaseFetcher):
@@ -76,6 +76,8 @@ class MeetingFetcher(BaseFetcher):
             self._logger.info(f"正在爬取纪要: {search_term if search_term else '全部'}")
 
         json_data = self._search_homepage(search_term, "title")
+        if json_data is None:
+            return None
         return self._process_search_result(json_data, MeetingProcessor, "meeting")
 
     def fetch(self, **kwargs) -> Dict[str, Any]:

@@ -3,7 +3,7 @@
 为 stock_master, stock_daily_bar 等表提供幂等写入方法。
 PostgreSQL 使用 on_conflict_do_update，SQLite fallback 用 check-then-update-or-insert。
 """
-from typing import Optional
+from typing import Any, Optional, cast
 
 from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import insert
@@ -26,7 +26,7 @@ logger = get_logger(__name__)
 
 def _is_postgresql(db: Session) -> bool:
     """检测当前数据库是否为 PostgreSQL"""
-    return db.bind and db.bind.dialect.name == "postgresql"
+    return bool(db.bind and db.bind.dialect.name == "postgresql")
 
 
 class MarketDataRepository(BaseRepository):
@@ -132,7 +132,7 @@ class MarketDataRepository(BaseRepository):
         if not quotes:
             return 0
         self.db.execute(text(""), {})  # no-op, placeholder for batch insert
-        self.db.bulk_insert_mappings(StockQuoteSnapshotDB, quotes)
+        self.db.bulk_insert_mappings(cast(Any, StockQuoteSnapshotDB), quotes)
         self.db.flush()
         return len(quotes)
 

@@ -115,7 +115,7 @@ class AKShareAdapter(BaseDataAdapter):
             logger.error(f"AKShare fetch financial failed for {code}: {e}")
             return None
 
-    async def fetch_shareholders(self, code: str) -> Optional[dict]:
+    async def fetch_shareholders(self, code: str) -> Optional[List[dict]]:
         """获取股东信息"""
         return await self.fetch_top_shareholders(code)
 

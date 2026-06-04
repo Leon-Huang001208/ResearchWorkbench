@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import Literal, cast
 
 import numpy as np
 import pandas as pd
@@ -92,7 +93,8 @@ class FactorEvaluator:
     def _correlation(aligned: pd.DataFrame, method: str) -> float:
         if len(aligned) < 2:
             return 0.0
-        corr = aligned["factor"].corr(aligned["forward_return"], method=method)
+        corr_method = cast(Literal["pearson", "kendall", "spearman"], method)
+        corr = aligned["factor"].corr(aligned["forward_return"], method=corr_method)
         if corr is None or np.isnan(corr):
             return 0.0
         return float(corr)

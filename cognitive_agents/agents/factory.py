@@ -1,5 +1,5 @@
 """Agent 工厂。"""
-from typing import Dict, Type
+from typing import Callable, Dict
 
 from cognitive_agents.agents.adversarial.bear_agent import BearAgent
 from cognitive_agents.agents.adversarial.bull_agent import BullAgent
@@ -30,7 +30,7 @@ class AgentFactory:
 
     def __init__(self, model_gateway: ModelGateway):
         self.model_gateway = model_gateway
-        self.registry: Dict[AgentRole, Type[BaseCognitiveAgent]] = {
+        self.registry: Dict[AgentRole, Callable[[ModelGateway], BaseCognitiveAgent]] = {
             "news": NewsAgent,
             "social_media": SocialMediaAgent,
             "financial_report": FinancialReportAgent,

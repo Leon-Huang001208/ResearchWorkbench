@@ -6,12 +6,15 @@ register(
     SourceSpec(
         source_type=SourceType.ZHIQIU_REPORTS,
         source_name="知丘研报",
-        adapter_class="data_layer.adapters.zq_adapter.ZQAdapter",
+        connector_class="connectors.document.zq.ZQDocumentConnector",
         adapter_kwargs={
+            "source_type": "zhiqiu_reports",
             "doc_types": "REPORT",
             "use_homepage_search": False,
             "enable_pdf": True,
         },
+        connector_dataset="report",
+        pipeline_kind="document",
         interval_minutes=60,
         days_per_crawl=2,
         deep_backfill_enabled=True,

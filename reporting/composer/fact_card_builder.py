@@ -75,12 +75,12 @@ class FactCardBuilder:
         Returns:
             Extracted FactCard.
         """
-        key_changes = []
-        drivers = []
-        impacts = []
-        watch_points = []
-        risks = []
-        source_refs = []
+        key_changes: List[str] = []
+        drivers: List[str] = []
+        impacts: List[str] = []
+        watch_points: List[str] = []
+        risks: List[str] = []
+        source_refs: List[str] = []
 
         for idx, ev in enumerate(evidence, 1):
             content = ev.get("content", "")
@@ -174,9 +174,12 @@ class FactCardBuilder:
             Extracted FactCard.
         """
         prompt = self._build_fact_extraction_prompt(evidence, section_context)
+        model_gateway = self.model_gateway
+        if model_gateway is None:
+            return self._extract_facts_rule_based(evidence)
 
         try:
-            response = self.model_gateway.chat(
+            response = model_gateway.chat(
                 messages=[{"role": "user", "content": prompt}],
                 model="default",
                 temperature=0.3,

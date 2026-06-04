@@ -240,13 +240,18 @@ class IFinDAdapter(BaseDataAdapter):
         # 转换为 DocumentEnvelope
         envelopes = []
         for snapshot in snapshots:
+            content = snapshot.model_dump_json()
             envelope = DocumentEnvelope(
-                canonical_id=snapshot.canonical_id,
+                doc_id=f"ifind_{snapshot.canonical_id}_{snapshot.as_of.isoformat()}",
                 source_type=self.source_type,
-                content=snapshot.model_dump_json(),
+                source_name="ifind",
+                title=f"{snapshot.canonical_id} iFinD snapshot",
                 metadata={
+                    "canonical_id": snapshot.canonical_id,
                     "as_of": snapshot.as_of.isoformat(),
                 },
+                raw_text=content,
+                canonical_text=content,
             )
             envelopes.append(envelope)
         return envelopes

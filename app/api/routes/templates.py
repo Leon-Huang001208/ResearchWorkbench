@@ -4,12 +4,13 @@
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Literal, Optional, Set, cast
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
+from core.contracts import SectionOutput
 from core.observability import get_logger
 from reporting.templates.template_manager import TemplateManager
 
@@ -392,14 +393,14 @@ async def render_template_report(request: RenderReportRequest):
 
         report_id = str(uuid.uuid4())[:8]
         placeholders = dict(request.placeholders)
-        sections = []
+        sections: List[Dict[str, Any]] = []
 
         # 如果提供了 canonical_id，从 ReportGenerator 获取数据并使用映射器
         if request.canonical_id:
             from reporting.integration.snapshot_mapper import get_snapshot_mapper
             from services.asset_analysis_service import AssetAnalysisService
 
-            asset_service = AssetAnalysisService(use_mock=True)
+            asset_service = AssetAnalysisService()
             mapper = get_snapshot_mapper()
             as_of = request.as_of or datetime.now()
 
@@ -421,9 +422,8 @@ async def render_template_report(request: RenderReportRequest):
             placeholders.setdefault("date", datetime.now().strftime("%Y-%m-%d"))
 
         # 获取模板文件路径
-        template_path = template_manager.get_template_file_path(
-            request.template_name, request.file_type
-        )
+        file_type = cast(Literal["docx", "pptx", "excel"], request.file_type)
+        template_path = template_manager.get_template_file_path(request.template_name, file_type)
 
         if not template_path:
             raise HTTPException(
@@ -454,7 +454,7 @@ async def render_template_report(request: RenderReportRequest):
         projection.save_from_template(
             output_path=output_path,
             template_path=template_path,
-            sections=sections,
+            sections=cast(List[SectionOutput], sections),
             placeholders=placeholders,
         )
 
@@ -498,7 +498,7 @@ async def render_report_from_asset(request: RenderReportFromAssetRequest):
         from reporting.integration.snapshot_mapper import get_snapshot_mapper
         from services.asset_analysis_service import AssetAnalysisService
 
-        asset_service = AssetAnalysisService(use_mock=True)
+        asset_service = AssetAnalysisService()
         mapper = get_snapshot_mapper()
 
         # Use mock directly
@@ -512,9 +512,8 @@ async def render_report_from_asset(request: RenderReportFromAssetRequest):
         )
 
         # 获取模板文件路径
-        template_path = template_manager.get_template_file_path(
-            request.template_name, request.file_type
-        )
+        file_type = cast(Literal["docx", "pptx", "excel"], request.file_type)
+        template_path = template_manager.get_template_file_path(request.template_name, file_type)
 
         if not template_path:
             raise HTTPException(
@@ -612,7 +611,8 @@ async def delete_template(template_name: str):
         # 删除所有相关的模板文件
         deleted_files = []
         for file_type in ["docx", "pptx", "excel"]:
-            if template_manager.delete_template_file(template_name, file_type):
+            typed_file_type = cast(Literal["docx", "pptx", "excel"], file_type)
+            if template_manager.delete_template_file(template_name, typed_file_type):
                 deleted_files.append(file_type)
 
         # 删除 YAML 配置
@@ -705,7 +705,10 @@ async def save_template_config(request: TemplateConfigSaveRequest):
             from core.contracts import TemplateConfig
 
             config = TemplateConfig(
-                name=template_name, description=f"{template_name} 模板配置", version="1.0"
+                name=template_name,
+                description=f"{template_name} 模板配置",
+                version="1.0",
+                sections=[],
             )
 
         # 更新占位符配置

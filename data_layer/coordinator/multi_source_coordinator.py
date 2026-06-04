@@ -347,8 +347,8 @@ class MultiSourceCoordinator:
             self.logger.info(f"Cache missing ranges for {symbol}: {missing_ranges}")
 
         # 策略 3: 从数据源获取缺失的数据
-        data_by_source = {}
-        all_new_data = []
+        data_by_source: Dict[str, List[MarketData]] = {}
+        all_new_data: List[MarketData] = []
         used_source = None
 
         if missing_ranges:

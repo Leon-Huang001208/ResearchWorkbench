@@ -12,6 +12,88 @@ echo "=========================================="
 echo "  AlphaFoundry - Starting All Services"
 echo "=========================================="
 
+is_alive() {
+    local pid="$1"
+    [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null
+}
+
+pid_command_matches() {
+    local pid="$1"
+    local pattern="$2"
+    ps -p "$pid" -o command= 2>/dev/null | grep -F "$pattern" >/dev/null 2>&1
+}
+
+heartbeat_fresh() {
+    local heartbeat_file="$1"
+    local max_age="$2"
+    [ -f "$heartbeat_file" ] || return 1
+    local now
+    local mtime
+    now=$(date +%s)
+    mtime=$(stat -f %m "$heartbeat_file" 2>/dev/null || echo 0)
+    [ $((now - mtime)) -le "$max_age" ]
+}
+
+terminate_pid() {
+    local name="$1"
+    local pid="$2"
+    if is_alive "$pid"; then
+        echo "  [INFO] Stopping stale $name (PID $pid)"
+        kill "$pid" 2>/dev/null || true
+        sleep 2
+        if is_alive "$pid"; then
+            echo "  [WARN] Force killing stale $name (PID $pid)"
+            kill -9 "$pid" 2>/dev/null || true
+        fi
+    fi
+}
+
+prepare_supervised_worker() {
+    local name="$1"
+    local pid_file="$LOGS_DIR/$2"
+    local watchdog_file="$pid_file.watchdog"
+    local command_pattern="$3"
+    local heartbeat_file="$4"
+    local max_heartbeat_age="$5"
+
+    local worker_pid=""
+    local watchdog_pid=""
+    [ -f "$pid_file" ] && worker_pid=$(cat "$pid_file" 2>/dev/null || true)
+    [ -f "$watchdog_file" ] && watchdog_pid=$(cat "$watchdog_file" 2>/dev/null || true)
+
+    local worker_ok=0
+    if is_alive "$worker_pid" && pid_command_matches "$worker_pid" "$command_pattern" \
+        && heartbeat_fresh "$heartbeat_file" "$max_heartbeat_age"; then
+        worker_ok=1
+    fi
+
+    local watchdog_ok=0
+    if is_alive "$watchdog_pid"; then
+        watchdog_ok=1
+    fi
+
+    if [ "$worker_ok" -eq 1 ] && [ "$watchdog_ok" -eq 1 ]; then
+        echo "  [WARN] $name already running under watchdog (PID $worker_pid)"
+        return 1
+    fi
+
+    if [ "$worker_ok" -eq 1 ] && [ "$watchdog_ok" -ne 1 ]; then
+        echo "  [WARN] $name worker alive but watchdog missing; restarting under supervision"
+        terminate_pid "$name" "$worker_pid"
+    elif [ -n "$worker_pid" ]; then
+        terminate_pid "$name" "$worker_pid"
+    fi
+
+    if [ -n "$watchdog_pid" ] && ! is_alive "$watchdog_pid"; then
+        echo "  [INFO] Removing stale $name watchdog PID file"
+    elif [ -n "$watchdog_pid" ]; then
+        terminate_pid "$name watchdog" "$watchdog_pid"
+    fi
+
+    rm -f "$pid_file" "$watchdog_file"
+    return 0
+}
+
 # ── Helper: launch a worker with auto-restart ──────
 # Usage: start_with_watchdog <name> <pid_file> <log_file> <command...>
 # The watchdog monitors the PID and restarts the worker if it dies.
@@ -79,9 +161,7 @@ fi
 
 # ── Scheduler (with watchdog) ─────────────────────
 echo "[2/3] Starting crawl scheduler (with auto-restart)..."
-if [ -f "$LOGS_DIR/scheduler.pid" ] && kill -0 "$(cat "$LOGS_DIR/scheduler.pid")" 2>/dev/null; then
-    echo "  [WARN] Scheduler already running (PID $(cat "$LOGS_DIR/scheduler.pid"))"
-else
+if prepare_supervised_worker "Scheduler" "scheduler.pid" "workers.crawl_scheduler_worker" "$LOGS_DIR/scheduler.heartbeat.json" 180; then
     start_with_watchdog "scheduler" "scheduler.pid" "scheduler_stdout.log" \
         python -m workers.crawl_scheduler_worker
     echo "  [OK] Scheduler started with watchdog"
@@ -89,9 +169,7 @@ fi
 
 # ── Knowledge Worker (with watchdog) ──────────────
 echo "[3/3] Starting knowledge worker (with auto-restart)..."
-if [ -f "$LOGS_DIR/knowledge_worker.pid" ] && kill -0 "$(cat "$LOGS_DIR/knowledge_worker.pid")" 2>/dev/null; then
-    echo "  [WARN] Knowledge worker already running (PID $(cat "$LOGS_DIR/knowledge_worker.pid"))"
-else
+if prepare_supervised_worker "Knowledge worker" "knowledge_worker.pid" "workers.knowledge_worker" "$LOGS_DIR/knowledge_worker.heartbeat.json" 180; then
     start_with_watchdog "knowledge" "knowledge_worker.pid" "knowledge_worker.log" \
         python -m workers.knowledge_worker
     echo "  [OK] Knowledge worker started with watchdog"

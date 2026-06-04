@@ -119,7 +119,7 @@ class CLSTelegramCrawler:
         self.skipped_count: int = 0
 
         # 日志
-        self.logger: Optional[logging.Logger] = None
+        self.logger: logging.Logger = logging.getLogger("cls")
 
     def initialize(self):
         """初始化"""
@@ -158,12 +158,18 @@ class CLSTelegramCrawler:
             log_filename=self.config.log_filename,
         )
 
+    def _require_session(self) -> requests.Session:
+        """返回已初始化的 requests session。"""
+        if self._session is None:
+            raise RuntimeError("CLS crawler session is not initialized")
+        return self._session
+
     def _warmup_cookies(self):
         """Cookie 预热 - 模拟真实用户访问"""
         self.logger.info("[warmup] 开始 Cookie 预热...")
         try:
             headers = self._get_headers()
-            response = self._session.get(self.base_url, headers=headers, timeout=30)
+            response = self._require_session().get(self.base_url, headers=headers, timeout=30)
             self.logger.info(f"[warmup] 预热完成, Status: {response.status_code}")
         except Exception as e:
             self.logger.warning(f"[warmup] 预热失败: {e}")
@@ -197,7 +203,7 @@ class CLSTelegramCrawler:
     ) -> Optional[requests.Response]:
         """带重试的请求（使用通用工具函数）"""
         return retry_request(
-            session=self._session,
+            session=self._require_session(),
             url=url,
             method=method,
             max_retries=self.config.max_retries,
@@ -213,7 +219,7 @@ class CLSTelegramCrawler:
 
         try:
             page_url = f"{self.base_url}/telegraph?date={date_str}"
-            self._session.get(page_url, headers=self._get_headers(page_url), timeout=30)
+            self._require_session().get(page_url, headers=self._get_headers(page_url), timeout=30)
 
             headers = self._get_headers(page_url)
             params = {
@@ -629,8 +635,9 @@ class CLSTelegramCrawler:
                 first_new_telegram_id = self.new_telegrams[0].id
 
             if stopped_by_watermark:
-                if first_new_telegram_id:
-                    self.state_manager.set_watermark(watermark_key, first_new_telegram_id)
+                state_manager = self.state_manager
+                if first_new_telegram_id and state_manager is not None:
+                    state_manager.set_watermark(watermark_key, first_new_telegram_id)
                     self.logger.info(f"[watermark] 已更新水位线: {first_new_telegram_id}")
                 break
 

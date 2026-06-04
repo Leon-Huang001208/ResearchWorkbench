@@ -6,7 +6,7 @@ import re
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional, cast
 
 from core.contracts import Assertion, CanonicalEvent, DocumentEnvelope
 from core.interfaces import DocumentRepository, ModelGateway
@@ -245,11 +245,15 @@ class IngestService:
         """
         from knowledge_layer.assertions.prompts import AssertionPrompts
 
+        model_gateway = self._model_gateway
+        if model_gateway is None:
+            return {"assertions": [], "events": [], "mode": "no_model_gateway"}
+
         try:
             system_prompt = AssertionPrompts.COMBINED_EXTRACT_SYSTEM_ZH
             user_prompt = AssertionPrompts.COMBINED_EXTRACT_USER_ZH.format(text=text)
 
-            response = self._model_gateway.chat(
+            response = model_gateway.chat(
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
@@ -303,6 +307,10 @@ class IngestService:
         Returns:
             {"assertions": [...], "events": [...], "stats": {...}}
         """
+        model_gateway = self._model_gateway
+        if model_gateway is None:
+            return {"assertions": [], "events": [], "stats": {"mode": "no_model_gateway"}}
+
         if max_workers is None:
             max_workers = settings.LLM_EXTRACT_MAX_WORKERS
 
@@ -313,7 +321,7 @@ class IngestService:
         )
 
         extractor = ConcurrentLLMExtractor(
-            model_gateway=self._model_gateway,
+            model_gateway=cast(Any, model_gateway),
             build_assertion_fn=self._build_combined_assertion,
             build_event_fn=self._build_combined_event,
             parse_response_fn=self._parse_combined_response,
@@ -482,6 +490,9 @@ class IngestService:
             return CanonicalEvent(
                 event_id=str(uuid.uuid4()),
                 event_type=event_type,
+                source_type="document",
+                source_name=doc_id,
+                title=data.get("summary", "")[:200] or event_type,
                 summary=data.get("summary", "")[:200],
                 event_time=event_time,
                 impact_direction=data.get("impact_direction", "unknown"),

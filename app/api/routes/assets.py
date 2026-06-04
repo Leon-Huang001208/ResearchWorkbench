@@ -1,5 +1,6 @@
 """资产分析路由"""
 from datetime import datetime
+from typing import cast
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
@@ -7,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.api.models import AnalyzeRequest, AnalyzeResponse, ErrorResponse
 from core.contracts import AssetAnalysisCard, AssetAnalysisSnapshot
+from core.interfaces.repository import AssetSnapshotRepository
 from data_layer.coordinator.multi_source_coordinator import get_coordinator
 from data_layer.repositories.base import get_db
 from services.asset_analysis_service import AssetAnalysisService
@@ -65,7 +67,7 @@ def get_asset_service(db: Session = Depends(get_db)) -> AssetAnalysisService:
     repo = PostgresAssetSnapshotRepository(db_session=db)
     coordinator = get_coordinator()
     return AssetAnalysisService(
-        asset_snapshot_repo=repo,
+        asset_snapshot_repo=cast(AssetSnapshotRepository, repo),
         coordinator=coordinator,
         market_repo=MarketDataRepository(db),
     )

@@ -14,7 +14,7 @@ logger = get_logger(__name__)
 class IngestionResult:
     """Result of structured event ingestion"""
 
-    event: CanonicalEvent
+    event: Optional[CanonicalEvent]
     is_duplicate: bool
     status: str
     message: str = ""

@@ -172,20 +172,20 @@ class AkShareNewsFetcher(BaseAkShareFetcher):
             source_limit = limit - len(all_news)
 
             if source == "sina":
-                news = self.fetch_sina_news(limit=source_limit, keywords=keywords)
-                all_news.extend(news)
+                source_news = self.fetch_sina_news(limit=source_limit, keywords=keywords)
+                all_news.extend(source_news)
             elif source == "eastmoney":
-                news = self.fetch_eastmoney_news(limit=source_limit, keywords=keywords)
-                all_news.extend(news)
+                source_news = self.fetch_eastmoney_news(limit=source_limit, keywords=keywords)
+                all_news.extend(source_news)
 
         # 去重（基于标题）
         seen_titles = set()
         unique_news: List[NewsData] = []
 
-        for news in all_news:
-            if news.title not in seen_titles:
-                seen_titles.add(news.title)
-                unique_news.append(news)
+        for news_item in all_news:
+            if news_item.title not in seen_titles:
+                seen_titles.add(news_item.title)
+                unique_news.append(news_item)
 
         logger.info(f"Fetched {len(unique_news)} unique news from all sources")
         return unique_news

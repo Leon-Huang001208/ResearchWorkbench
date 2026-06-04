@@ -34,7 +34,7 @@ Services coordinate:
 
 ## Source Registry (`core/source_registry.py`)
 
-`SourceSpec` frozen dataclass 是数据源的唯一自描述入口。所有下游模块（调度器、编排器、分类器、仪表盘、PDF 转换）通过 `get()` / `get_all()` / `get_enabled()` 动态读取。`data_sources/` 目录下的每个 `.py` 文件在 import 时调用 `register()`。
+`SourceSpec` frozen dataclass 是数据源的唯一自描述入口。所有下游模块（调度器、编排器、分类器、仪表盘、PDF 转换）通过 `get()` / `get_all()` / `get_enabled()` 动态读取。`data_sources/` 目录下的每个 `.py` 文件在 import 时调用 `register()`。新数据源使用 `connector_class` 指向 `BaseConnector` 子类；`adapter_class` 仅为历史兼容别名。
 
 添加新爬取源 = 在 `data_sources/` 下新建一个 `.py` 文件，无需修改任何其他代码。
 - Add or update tests when service behavior changes.
@@ -62,11 +62,11 @@ app/api or app/cli
 
 Purpose:
 
-- Orchestrates multi-source crawling: fetch → normalize → dedup → store → enqueue.
+- Orchestrates multi-source crawling through a connector-first path. Connector-backed sources run `connector.run(spec.connector_dataset, **params)`; document connectors enqueue per-document records for `KnowledgeWorker`, while market connectors persist through market repositories. The older adapter fetch path remains only as a compatibility fallback for non-connector sources.
 - `_enqueue_items(source_type, items)` — static method that converts raw items to `DocumentEnvelope` and submits to IngestionBridge via batch.
 - `_sync_dedup_state(source_type)` — syncs file-based crawler dedup state against database, removing orphan entries for documents deleted from DB.
 - `deep_backfill_step()` — backfills historical documents and enqueues them for LLM extraction.
-- `crawl_source()` step ordering: resolve spec → fetch → normalize → sync dedup → store → enqueue → mark complete.
+- `crawl_source()` step ordering for current sources: resolve `SourceSpec` → run connector → record `crawl_run_v1`/cursor → let document or market connector persist according to `pipeline_kind`.
 
 Related files:
 
@@ -297,7 +297,7 @@ Purpose:
 - Bridges crawler output to the ingestion queue.
 - Converts crawler results into `DocumentEnvelope` → `EnqueueRequest` → ingestion queue items.
 - Supports `submit_crawled_item()` for single items and `submit_batch()` for batch processing.
-- Infers priority by source type (e.g., CLS news = high priority).
+- Infers priority by source type (e.g., ZQ reports are higher priority than default news).
 
 Related files:
 

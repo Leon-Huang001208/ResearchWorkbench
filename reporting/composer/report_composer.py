@@ -5,7 +5,7 @@
 """
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 from core.contracts import SectionOutput
 from core.interfaces import ModelGateway
@@ -27,7 +27,7 @@ class ReportComposer:
         templates_dir: Optional[Path] = None,
     ):
         self.model_gateway = model_gateway
-        self.section_generator = SectionGenerator(model_gateway, templates_dir)
+        self.section_generator = SectionGenerator(cast(ModelGateway, model_gateway), templates_dir)
         self.evidence_binder = EvidenceBinder()
 
     def add_evidence(

@@ -60,6 +60,7 @@ def fetch_sector_board(force_refresh: bool = False) -> SectorBoardSnapshot:
     global _cache
 
     if _is_cache_valid() and not force_refresh:
+        assert _cache is not None
         return _cache
 
     try:

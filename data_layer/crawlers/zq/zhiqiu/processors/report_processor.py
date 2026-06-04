@@ -80,7 +80,7 @@ def _parse_companies(companies_text: str) -> List[Dict[str, str]]:
     Returns:
         公司信息列表，格式：[{"name": "公司名", "code": "股票代码"}, ...]
     """
-    results = []
+    results: List[Dict[str, str]] = []
     if not companies_text or not companies_text.strip():
         return results
 

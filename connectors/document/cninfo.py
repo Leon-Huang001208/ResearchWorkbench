@@ -63,7 +63,7 @@ class CninfoDocumentConnector(DocumentConnector):
 
     @property
     def source(self) -> str:
-        return "cninfo"
+        return str(self.config.get("source_type", "cninfo"))
 
     @property
     def datasets(self) -> List[str]:

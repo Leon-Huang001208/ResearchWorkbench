@@ -3,7 +3,7 @@
 Identifies patterns from historical market episodes to improve future decisions.
 """
 from collections import defaultdict
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from core.observability import get_logger
 from memory_learning.contracts import MarketEpisode
@@ -14,7 +14,7 @@ logger = get_logger(__name__)
 class PatternLearner:
     """Learns patterns from historical market episodes."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._episodes_by_type: Dict[str, List[MarketEpisode]] = defaultdict(list)
         self._episodes_by_regime: Dict[str, List[MarketEpisode]] = defaultdict(list)
 
@@ -55,7 +55,7 @@ class PatternLearner:
             "sharpe_ratio": sharpe,
         }
 
-    def get_market_regime_performance(self, market_regime: str) -> Optional[Dict[str, float]]:
+    def get_market_regime_performance(self, market_regime: str) -> Optional[Dict[str, Any]]:
         """Get performance statistics for a market regime."""
         episodes = self._episodes_by_regime.get(market_regime, [])
         if not episodes:
@@ -95,12 +95,12 @@ class PatternLearner:
 
         return sorted_episodes[:top_k]
 
-    def get_recommendation(self, event_type: str, market_regime: str) -> Dict[str, any]:
+    def get_recommendation(self, event_type: str, market_regime: str) -> Dict[str, Any]:
         """Get a recommendation for a new event based on past patterns."""
         event_performance = self.get_event_type_performance(event_type)
         regime_performance = self.get_market_regime_performance(market_regime)
 
-        recommendation = {
+        recommendation: Dict[str, Any] = {
             "should_trade": False,
             "confidence": 0.0,
             "reason": "",
@@ -115,8 +115,11 @@ class PatternLearner:
             ] = f"Event type {event_type} has {event_performance['win_rate']:.1%} win rate with {event_performance['average_excess_return']:.1%} avg excess return"
 
         if regime_performance and event_type in regime_performance.get("best_event_types", []):
-            recommendation["confidence"] = min(0.95, recommendation["confidence"] + 0.2)
-            recommendation["reason"] += f" and performs well in {market_regime} regime"
+            confidence = float(recommendation["confidence"])
+            recommendation["confidence"] = min(0.95, confidence + 0.2)
+            recommendation["reason"] = (
+                str(recommendation["reason"]) + f" and performs well in {market_regime} regime"
+            )
 
         return recommendation
 
@@ -126,4 +129,4 @@ class PatternLearner:
             return 0.0
         mean = sum(returns) / len(returns)
         variance = sum((r - mean) ** 2 for r in returns) / len(returns)
-        return variance**0.5
+        return float(variance**0.5)

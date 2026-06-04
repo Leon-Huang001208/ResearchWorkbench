@@ -159,6 +159,9 @@ class EventExtractor:
             return CanonicalEvent(
                 event_id=str(uuid.uuid4()),
                 event_type=event_type,
+                source_type="document",
+                source_name=source_doc_id,
+                title=data.get("summary", "")[:200] or event_type,
                 summary=data.get("summary", "")[:200],
                 event_time=event_time,
                 impact_direction=data.get("impact_direction", "unknown"),

@@ -869,12 +869,15 @@ Main files:
 core/connectors/base.py
 core/connectors/registry.py
 connectors/document/cls.py
+connectors/document/cninfo.py
 connectors/document/cnstock.py
 connectors/document/zq.py
 connectors/market/akshare.py
 connectors/market/wind.py
 connectors/market/baostock.py
 connectors/market/cjpy.py
+connectors/market/csindex.py
+connectors/market/szse.py
 connectors/market/yahoo.py
 ```
 

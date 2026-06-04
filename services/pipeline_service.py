@@ -1,7 +1,7 @@
 """研究流水线服务"""
 import asyncio
 import uuid
-from typing import Any, List, Optional
+from typing import Any, List, Optional, cast
 
 from cognitive_agents.agents.base import AgentContext
 from cognitive_agents.agents.factory import AgentFactory
@@ -20,7 +20,7 @@ from reasoning.graph import ReasoningEngine
 from services.event_extractor import EventExtractor, ExtractedSignalParams
 from services.signal_service import SignalService
 from timing_engine import MetaTimingEngine, TimingContext, TimingModelRegistry
-from timing_engine.contracts import TimingDecision
+from timing_engine.contracts import MarketRegime, TimingDecision
 
 logger = get_logger(__name__)
 
@@ -225,7 +225,7 @@ class ResearchPipeline:
             else:
                 text_parts.append(str(entity))
 
-        text = "\n".join(text_parts)
+        text = "\n".join(part for part in text_parts if part is not None)
         if not text.strip():
             logger.warning(
                 "No text content in event, using default params",
@@ -577,7 +577,7 @@ class ResearchPipeline:
             timing_decision = self.timing_engine.evaluate(
                 model_scores,
                 signal_id=signal.signal_id,
-                market_regime=signal.market_regime or "unknown",
+                market_regime=cast(MarketRegime, signal.market_regime or "unknown"),
             )
             logger.info(
                 "Timing evaluation complete",

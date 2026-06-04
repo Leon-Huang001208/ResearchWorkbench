@@ -57,7 +57,7 @@ class BaseDataAdapter(DataAdapter, ABC):
             try:
                 result = self.parse(source, **kwargs)
                 results.append(result)
-                logger.debug(f"Successfully parsed source: {source}")
+                logger.debug(f"Successfully parsed source: {source!r}")
             except Exception as e:
-                logger.error(f"Failed to parse source {source}: {e}", exc_info=True)
+                logger.error(f"Failed to parse source {source!r}: {e}", exc_info=True)
         return results

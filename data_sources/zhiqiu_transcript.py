@@ -6,10 +6,13 @@ register(
     SourceSpec(
         source_type=SourceType.ZHIQIU_TRANSCRIPT,
         source_name="知丘纪要",
-        adapter_class="data_layer.adapters.zq_adapter.ZQAdapter",
+        connector_class="connectors.document.zq.ZQDocumentConnector",
         adapter_kwargs={
+            "source_type": "zhiqiu_transcript",
             "doc_types": "ZQMEETING",
         },
+        connector_dataset="meeting",
+        pipeline_kind="document",
         interval_minutes=60,
         days_per_crawl=3,
         deep_backfill_enabled=True,

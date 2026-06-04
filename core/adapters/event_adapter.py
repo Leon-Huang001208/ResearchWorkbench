@@ -17,7 +17,7 @@ def db_event_to_pydantic(db_event: DBCanonicalEvent) -> CanonicalEvent:
     """
     payload: dict = getattr(db_event, "payload", {}) or {}
 
-    impact_direction = _coerce_impact_direction(db_event.impact_direction)
+    impact_direction = _coerce_impact_direction(str(db_event.impact_direction))
 
     return CanonicalEvent(
         event_id=db_event.event_id,

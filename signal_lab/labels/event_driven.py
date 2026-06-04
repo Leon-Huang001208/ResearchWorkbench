@@ -75,6 +75,8 @@ class EventDrivenLabeler(Labeler):
                 event_date = event["event_date"]
                 if event_date in asset_prices.index:
                     start_idx = asset_prices.index.get_loc(event_date)
+                    if not isinstance(start_idx, int):
+                        continue
                     end_idx = min(start_idx + self.horizon, len(asset_prices) - 1)
 
                     if end_idx < len(asset_prices):

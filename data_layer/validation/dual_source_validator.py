@@ -141,7 +141,7 @@ class DualSourceValidator:
                         discrepancies.append(
                             Discrepancy(
                                 date=date,
-                                field=field,
+                                field=field_name,
                                 value_source1=v1,
                                 value_source2=v2,
                                 absolute_diff=abs_diff,

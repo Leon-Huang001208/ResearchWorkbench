@@ -72,7 +72,7 @@ class SignalValidatorImpl(SignalValidator):
 
         if len(features_df) > 0:
             latest_features = features_df.iloc[-1].to_dict()
-            return {k: float(v) for k, v in latest_features.items() if pd.notna(v)}
+            return {str(k): float(v) for k, v in latest_features.items() if pd.notna(v)}
 
         return {}
 

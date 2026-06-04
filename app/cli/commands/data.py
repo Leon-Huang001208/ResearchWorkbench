@@ -103,7 +103,7 @@ def data_group() -> None:
     \b
     常用命令:
       af data list                    列出所有可用数据源
-      af data ingest -s cls -d news   摄入数据
+      af data ingest -s cls -d telegram   摄入数据
       af data status                  查看数据状态
       af data validate -s akshare -d stock_daily  校验数据
     """
@@ -182,7 +182,7 @@ def data_ingest_command(
 
     \b
     示例:
-        af data ingest -s cls -d news --days 2
+        af data ingest -s cls -d telegram --days 2
         af data ingest -s akshare -d stock_daily --codes "600519.SH" --start-date 2026-01-01 --end-date 2026-06-01
         af data ingest -s auto -d daily_quotes --codes "600519.SH" --days 5   # 自动降级: Cjpy → Wind → BaoStock
         af data ingest -s cnstock -d news --max-items 50

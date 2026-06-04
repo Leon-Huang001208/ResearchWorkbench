@@ -37,8 +37,8 @@ def test_kline_static_module_versions_are_bumped():
     app_source = APP_JS.read_text(encoding="utf-8")
     index_source = INDEX_HTML.read_text(encoding="utf-8")
 
-    assert "./asset.js?v=20250604d" in app_source
-    assert "/static/js/app.js?v=20250604d" in index_source
+    assert "./asset.js?v=20250604e" in app_source
+    assert "/static/js/app.js?v=20250604e" in index_source
 
 
 def test_chip_distribution_uses_visible_range_volume_profile_like_wind():
@@ -67,9 +67,18 @@ def test_kline_overlay_colors_match_wind_and_distinguish_ma60():
 
     assert "{ key: 'ma60', name: 'MA60', color: '#10b981' }" in source
     assert "{ key: 'ma250', name: 'MA250', color: '#a3a3a3' }" in source
-    assert "{ key: 'boll_upper', name: 'BOLL上轨', label: 'UPPER', color: '#ffff00', lineColor: '#ffff00' }" in source
-    assert "{ key: 'boll_middle', name: 'BOLL中轨', label: 'MID', color: '#d9d9d9', lineColor: '#d9d9d9' }" in source
-    assert "{ key: 'boll_lower', name: 'BOLL下轨', label: 'LOWER', color: '#ff00ff', lineColor: '#ff00ff' }" in source
+    assert (
+        "{ key: 'boll_upper', name: 'BOLL上轨', label: 'UPPER', color: '#ffff00', lineColor: '#ffff00' }"
+        in source
+    )
+    assert (
+        "{ key: 'boll_middle', name: 'BOLL中轨', label: 'MID', color: '#d9d9d9', lineColor: '#d9d9d9' }"
+        in source
+    )
+    assert (
+        "{ key: 'boll_lower', name: 'BOLL下轨', label: 'LOWER', color: '#ff00ff', lineColor: '#ff00ff' }"
+        in source
+    )
     assert "lineStyle: { width: 1, color: cfg.lineColor }" in source
 
 
@@ -77,8 +86,29 @@ def test_kline_quote_open_high_low_avg_use_price_direction_classes():
     source = ASSET_JS.read_text(encoding="utf-8")
 
     assert "function getQuotePriceClass(value, reference)" in source
-    assert "const priceReference = safeIndex > 0 ? toFiniteNumber(quoteBars[safeIndex - 1]?.close) : toFiniteNumber(activeBar.open);" in source
-    assert "setClass('kline-quote-open', getQuotePriceClass(activeBar.open, priceReference));" in source
-    assert "setClass('kline-quote-high', getQuotePriceClass(activeBar.high, priceReference));" in source
-    assert "setClass('kline-quote-low', getQuotePriceClass(activeBar.low, priceReference));" in source
+    assert (
+        "const priceReference = safeIndex > 0 ? toFiniteNumber(quoteBars[safeIndex - 1]?.close) : toFiniteNumber(activeBar.open);"
+        in source
+    )
+    assert (
+        "setClass('kline-quote-open', getQuotePriceClass(activeBar.open, priceReference));"
+        in source
+    )
+    assert (
+        "setClass('kline-quote-high', getQuotePriceClass(activeBar.high, priceReference));"
+        in source
+    )
+    assert (
+        "setClass('kline-quote-low', getQuotePriceClass(activeBar.low, priceReference));" in source
+    )
     assert "setClass('kline-quote-avg', getQuotePriceClass(avgPrice, priceReference));" in source
+
+
+def test_chip_distribution_mouse_follow_uses_next_frame_not_debounce_delay():
+    source = ASSET_JS.read_text(encoding="utf-8")
+
+    assert "let chipUpdateFrame = null;" in source
+    assert "requestAnimationFrame(runUpdate)" in source
+    assert "cancelAnimationFrame(chipUpdateFrame)" in source
+    assert "setTimeout(() => {\n        lastChipUpdateIndex = rangeKey;" not in source
+    assert "}, 120);" not in source

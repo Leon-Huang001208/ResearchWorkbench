@@ -1,6 +1,6 @@
 """Dashboard 首页数据聚合服务"""
 from datetime import UTC, datetime, timedelta
-from typing import List
+from typing import List, Optional
 
 from sqlalchemy import desc
 
@@ -868,7 +868,9 @@ class DashboardService:
 
         return recent_failures, best_event_types, weekly_lessons
 
-    def get_crawl_feed(self, limit: int = 20, since: str = None, source_type: str = None) -> dict:
+    def get_crawl_feed(
+        self, limit: int = 20, since: Optional[str] = None, source_type: Optional[str] = None
+    ) -> dict:
         """获取实时抓取数据流，返回 {"items": [...], "total_today": N}"""
         return self.dashboard_repo.get_recent_crawled_documents(
             limit=limit, since=since, source_type=source_type

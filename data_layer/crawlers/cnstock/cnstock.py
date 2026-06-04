@@ -404,6 +404,12 @@ class CnstockCrawler:
         for name, value in cookies.items():
             self._session.cookies.set(name, value, domain=".cnstock.com")
 
+    def _require_session(self) -> requests.Session:
+        """返回已初始化的 requests session。"""
+        if self._session is None:
+            raise RuntimeError("Cnstock crawler session is not initialized")
+        return self._session
+
     def _resolve_channel(self, channel_or_node: str) -> str:
         """解析频道参数，支持频道名称和 node_id"""
         if not channel_or_node:
@@ -537,6 +543,9 @@ class CnstockCrawler:
         """检查新闻是否在日期范围内"""
         dt = self._parse_date(news_date)
         if not dt:
+            return True
+
+        if self._start_dt is None or self._end_dt is None:
             return True
 
         if dt < self._start_dt:
@@ -803,7 +812,12 @@ class CnstockCrawler:
             # 根据来源和有无 keywords 选择 API 端点与参数
             if self.config.keywords:
                 keyword = self.config.keywords[0]
-                payload = {"type": "0", "word": keyword, "activeKey": "0", "pageNum": page}
+                payload: Dict[str, Any] = {
+                    "type": "0",
+                    "word": keyword,
+                    "activeKey": "0",
+                    "pageNum": page,
+                }
                 api_url = self.API_SEARCH
                 if self.config.verbose and page == 1:
                     self.log.info(f"使用搜索 API，关键词: {keyword}")
@@ -831,7 +845,8 @@ class CnstockCrawler:
                 }
                 api_url = self.API_NEWS_LIST
 
-            response = self._session.post(api_url, json=payload, headers=headers, timeout=10)
+            session = self._require_session()
+            response = session.post(api_url, json=payload, headers=headers, timeout=10)
 
             if response.status_code == 200:
                 resp_json = response.json()
@@ -848,7 +863,7 @@ class CnstockCrawler:
                         self._waf_cookies_expiry = 0
                         self._inject_waf_cookies()
                         if self._waf_cookies:
-                            response2 = self._session.post(
+                            response2 = session.post(
                                 api_url, json=payload, headers=headers, timeout=10
                             )
                             if response2.status_code == 200:
@@ -1355,13 +1370,14 @@ class CnstockCrawler:
 
                 # 模拟真实用户浏览路径
                 try:
-                    self._session.get(
+                    session = self._require_session()
+                    session.get(
                         self.BASE_URL, headers=self._get_headers(is_browser=True), timeout=15
                     )
                     time.sleep(random.uniform(1, 2.5))
 
                     if random.random() < 0.5:
-                        self._session.get(
+                        session.get(
                             f"{self.BASE_URL}/news_list",
                             headers=self._get_headers(is_browser=True),
                             timeout=10,
@@ -1370,9 +1386,8 @@ class CnstockCrawler:
                 except Exception:
                     pass
 
-                response = self._session.get(
-                    url, headers=self._get_headers(is_browser=True), timeout=20
-                )
+                session = self._require_session()
+                response = session.get(url, headers=self._get_headers(is_browser=True), timeout=20)
                 response.encoding = "utf-8"
 
                 # 检测 WAF
@@ -1528,8 +1543,10 @@ class CnstockCrawler:
 
         # 如果日期改变了，重新缓存解析后的日期
         if date_changed:
-            self._start_dt = self._parse_date(self.config.start_date)
-            self._end_dt = self._parse_date(self.config.end_date)
+            if self.config.start_date:
+                self._start_dt = self._parse_date(self.config.start_date)
+            if self.config.end_date:
+                self._end_dt = self._parse_date(self.config.end_date)
             if self._end_dt:
                 self._end_dt = self._end_dt.replace(hour=23, minute=59, second=59)
 

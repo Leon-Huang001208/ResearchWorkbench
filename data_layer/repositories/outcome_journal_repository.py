@@ -126,7 +126,7 @@ class OutcomeJournalRepository(BaseRepository):
             self.db.query(
                 OutcomeRecordDB.failure_classification, func.count(OutcomeRecordDB.outcome_id)
             )
-            .filter(not OutcomeRecordDB.thesis_success)
+            .filter(OutcomeRecordDB.thesis_success.is_(False))
             .filter(OutcomeRecordDB.failure_classification.isnot(None))
             .group_by(OutcomeRecordDB.failure_classification)
             .all()

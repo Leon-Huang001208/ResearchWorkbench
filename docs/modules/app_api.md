@@ -270,3 +270,9 @@ When files in this module change, check:
 
 - `core/connectors/` — 连接器通过 `ConnectorRegistry` 向 API 暴露数据源状态和摄入能力
 - `connectors/` — 具体连接器实现（如 `WindMarketConnector`），通过 `app/api/routes/wind.py` 暴露 Wind 数据 API
+
+---
+
+## Recent Changes
+
+- 2026-06-04: 收敛 API 路由层 mypy 历史债务，补齐上传流、监控响应、模板 section 拼装的显式类型，保持现有请求/响应行为不变。

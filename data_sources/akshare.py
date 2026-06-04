@@ -6,8 +6,10 @@ register(
     SourceSpec(
         source_type=SourceType.AKSHARE,
         source_name="AKShare",
-        adapter_class="connectors.market.akshare.AkShareMarketConnector",
+        connector_class="connectors.market.akshare.AkShareMarketConnector",
         adapter_kwargs={},
+        connector_dataset="stock_daily",
+        pipeline_kind="market",
         interval_minutes=0,
         deep_backfill_enabled=True,
         backfill_family="akshare",

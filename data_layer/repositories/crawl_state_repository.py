@@ -27,7 +27,8 @@ def get_all_crawl_states(db: Session) -> list[CrawlStateV1DB]:
 
 def upsert_crawl_state(db: Session, state: CrawlStateV1DB) -> CrawlStateV1DB:
     """更新或插入爬虫状态"""
-    existing = get_crawl_state(db, state.source_type, state.source_name)
+    source_name = str(state.source_name) if state.source_name is not None else None
+    existing = get_crawl_state(db, str(state.source_type), source_name)
     if existing:
         # 更新现有记录
         for key, value in vars(state).items():

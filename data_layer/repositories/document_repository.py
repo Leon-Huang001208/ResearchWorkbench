@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from core.contracts import DocumentEnvelope
 from core.interfaces import DocumentRepository
@@ -14,16 +14,17 @@ class DocumentRepositoryImpl(BaseRepository, DocumentRepository):
 
     def _to_domain(self, model: SourceDocumentModel) -> DocumentEnvelope:
         """转换为领域模型"""
+        metadata: Dict[str, Any] = dict(model.doc_metadata) if model.doc_metadata else {}
         return DocumentEnvelope(
             doc_id=model.doc_id,
             source_type=model.source_type,
             title=model.title or "",
             published_at=model.published_at,
             source_name=model.source_name,
-            language=model.metadata.get("language", "zh"),
-            metadata=model.metadata,
-            raw_text=model.metadata.get("raw_text", ""),
-            canonical_text=model.metadata.get("canonical_text", ""),
+            language=metadata.get("language", "zh"),
+            metadata=metadata,
+            raw_text=metadata.get("raw_text", ""),
+            canonical_text=metadata.get("canonical_text", ""),
         )
 
     def _to_model(self, domain: DocumentEnvelope) -> SourceDocumentModel:
@@ -37,7 +38,7 @@ class DocumentRepositoryImpl(BaseRepository, DocumentRepository):
             content_hash=domain.metadata.get("content_hash", ""),
             parser_version=domain.metadata.get("parser_version", "1.0"),
             object_uri=domain.metadata.get("object_uri", ""),
-            metadata={
+            doc_metadata={
                 **domain.metadata,
                 "language": domain.language,
                 "raw_text": domain.raw_text,
@@ -53,7 +54,10 @@ class DocumentRepositoryImpl(BaseRepository, DocumentRepository):
             model.title = entity.title
             model.published_at = entity.published_at
             model.source_name = entity.source_name
-            model.metadata = {
+            model.content_hash = entity.metadata.get("content_hash", model.content_hash)
+            model.parser_version = entity.metadata.get("parser_version", model.parser_version)
+            model.object_uri = entity.metadata.get("object_uri", model.object_uri)
+            model.doc_metadata = {
                 **entity.metadata,
                 "language": entity.language,
                 "raw_text": entity.raw_text,

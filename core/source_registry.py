@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Literal, Optional
 
 from core.contracts.documents_v1 import DocType, SourceReliabilityLevel, SourceType
 
@@ -26,9 +26,12 @@ class SourceSpec:
     source_type: SourceType
     source_name: str  # 人类可读名称，如 "财联社"
 
-    # 适配器派发
-    adapter_class: str  # 完全限定导入路径，如 "data_layer.adapters.cls_adapter.CLSAdapter"
+    # 连接器派发
+    connector_class: str = ""  # 完全限定导入路径，如 "connectors.document.cls.CLSDocumentConnector"
+    adapter_class: str = ""  # 旧字段名，兼容历史调用；新来源请使用 connector_class
     adapter_kwargs: Dict[str, Any] = field(default_factory=dict)
+    connector_dataset: Optional[str] = None
+    pipeline_kind: Literal["document", "market"] = "document"
 
     # 调度配置
     interval_minutes: int = 60
@@ -53,6 +56,14 @@ class SourceSpec:
     # 多源降级路由 — 同一 fallback_group 内按 fallback_priority 升序尝试
     fallback_group: Optional[str] = None
     fallback_priority: int = 100
+
+    def __post_init__(self) -> None:
+        """Normalize legacy adapter_class and canonical connector_class fields."""
+        resolved_class = self.connector_class or self.adapter_class
+        if not resolved_class:
+            raise ValueError("SourceSpec requires connector_class (or legacy adapter_class)")
+        object.__setattr__(self, "connector_class", resolved_class)
+        object.__setattr__(self, "adapter_class", resolved_class)
 
 
 # ---------------------------------------------------------------------------

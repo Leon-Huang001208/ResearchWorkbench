@@ -68,8 +68,10 @@ class IngestionQueueRepository(BaseRepository):
         )
 
         # 标记为 processing
+        now = datetime.now(timezone.utc)
         for db_item in db_items:
             db_item.status = "processing"
+            db_item.processed_at = now
         self.db.flush()
 
         result = [self._to_domain(db_item) for db_item in db_items]
@@ -97,6 +99,7 @@ class IngestionQueueRepository(BaseRepository):
         db_item.failure_reason = reason
         if db_item.retry_count < db_item.max_retries:
             db_item.status = "pending"  # 重置为 pending 以便重试
+            db_item.processed_at = None
             logger.info(
                 "Item failed, queued for retry",
                 item_id=item_id,
@@ -105,6 +108,7 @@ class IngestionQueueRepository(BaseRepository):
             )
         else:
             db_item.status = "failed"
+            db_item.processed_at = datetime.now(timezone.utc)
             logger.warning(
                 "Item failed permanently",
                 item_id=item_id,

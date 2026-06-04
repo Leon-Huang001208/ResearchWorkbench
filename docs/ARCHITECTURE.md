@@ -426,7 +426,7 @@ AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System�
 
 ### 数据摄入管道详解
 
-1. **原始数据采集**：从财联社、中国证券网、知丘、AKShare、Wind Excel 等源采集原始数据，入队到 ingestion_queue
+1. **原始数据采集**：所有已启用来源先进入 Connector 层；文档源（财联社、中国证券网、巨潮资讯、知丘等）入队到 `ingestion_queue`，市场/结构化源（AKShare、Wind、Yahoo、中证指数、深交所等）写入 market tables
 2. **PDF 转换**：PDF 文件通过策略链自动转换为 Markdown/文本 (MinerU → MarkItDown → RawText 自动降级)
 3. **Knowledge Worker 消费**：常驻进程并发消费 ingestion_queue，每批 10 条、最多 8 并发处理
 4. **KnowledgePipeline 加工**：分块 → 分类 → 实体提取 → 事件提取 → 去重
@@ -449,7 +449,7 @@ AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System�
 │  - API: POST /api/scheduler/start|stop, GET /api/scheduler/status │
 └──────────────────────────────────────────────────────────────┘
                                │
-                               ▼ 爬虫抓取 → CrawlerIngestionBridge
+                               ▼ Connector.run → document/market 分流
                                │
 ┌──────────────────────────────▼───────────────────────────────┐
 │  IngestionQueue (PostgreSQL)                                  │
@@ -850,7 +850,7 @@ class BaseProvider(ABC):
 
 1. 在 `connectors/document/` 或 `connectors/market/` 中创建新的连接器实现，继承 `DocumentConnector` 或 `MarketDataConnector`
 2. 在 `data_layer/adapters/` 中创建或复用已有的适配器实现（Wrapper-first 策略，内部委托）
-3. 在 `data_sources/` 中创建新文件调用 `register(SourceSpec(...))`，`adapter_class` 指向新连接器的完全限定路径
+3. 在 `data_sources/` 中创建新文件调用 `register(SourceSpec(...))`，`connector_class` 指向新连接器的完全限定路径；`adapter_class` 仅作历史兼容别名
 4. 连接器将自动被 `ConnectorRegistry` 发现和注册
 
 **旧路径（向后兼容）**：
@@ -900,4 +900,3 @@ class BaseProvider(ABC):
 - **[CHANGELOG.md](CHANGELOG.md)** - 更新日志
 - **[backup_restore.md](backup_restore.md)** - 备份恢复文档
 - **[DATA_SOURCES.md](DATA_SOURCES.md)** - 数据源文档
-

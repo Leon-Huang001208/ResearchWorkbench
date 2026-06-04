@@ -6,11 +6,11 @@ import asyncio
 import json
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, cast
 
 from sqlalchemy import text
 
-from core.contracts import EventAlphaSignal
+from core.contracts import AlphaSignal, EventAlphaSignal
 from core.observability import get_logger
 from data_layer.repositories.base import SessionLocal
 from data_layer.repositories.models import AlphaSignalDB, CanonicalEvent
@@ -19,6 +19,9 @@ from memory_learning.journal import LearningJournal
 from memory_learning.pattern_learner import PatternLearner
 
 logger = get_logger(__name__)
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 
 def _publish_event(event_type: str, payload: Dict[str, Any]) -> None:
@@ -223,15 +226,18 @@ class ClosedLoopService:
     def _generate_thesis_from_event(self, event: CanonicalEvent) -> str:
         """从事件生成 thesis"""
         direction_desc = {"positive": "利好", "negative": "利空", "neutral": "中性影响"}
-        direction = direction_desc.get(event.impact_direction, "中性影响")
+        impact_direction = str(event.impact_direction or "neutral")
+        event_type = str(event.event_type or "")
+        summary = str(event.summary or "")
+        direction = direction_desc.get(impact_direction, "中性影响")
 
         thesis_templates = {
-            "earnings": f"{event.summary[:100]}...，{direction}相关标的",
-            "policy": f"{event.summary[:100]}...，政策{direction}市场",
-            "industry": f"{event.summary[:100]}...，行业{direction}",
+            "earnings": f"{summary[:100]}...，{direction}相关标的",
+            "policy": f"{summary[:100]}...，政策{direction}市场",
+            "industry": f"{summary[:100]}...，行业{direction}",
         }
 
-        return thesis_templates.get(event.event_type, f"{event.summary[:100]}...")
+        return thesis_templates.get(event_type, f"{summary[:100]}...")
 
     def backtest_signals(
         self,
@@ -286,10 +292,11 @@ class ClosedLoopService:
         """回测单个信号（规则驱动，简单买入持有收益计算）。"""
         try:
             # 确定回测时间范围
-            event_time = signal.event_time
+            event_time = cast(Optional[datetime], signal.event_time)
             if not event_time:
                 # 用创建时间
-                event_time = signal.created_at
+                event_time = cast(datetime, signal.created_at)
+            subject_id = str(signal.subject_id)
 
             # 回测未来 20 天
             horizon_days = 20
@@ -297,9 +304,9 @@ class ClosedLoopService:
             end_date = (event_time + timedelta(days=horizon_days + 30)).strftime("%Y-%m-%d")
 
             # 获取标的价格
-            quotes = self._get_price_data(signal.subject_id, start_date, end_date)
+            quotes = self._get_price_data(subject_id, start_date, end_date)
             if not quotes:
-                logger.warning(f"No price data for {signal.subject_id}, skipping backtest")
+                logger.warning(f"No price data for {subject_id}, skipping backtest")
                 return None
 
             # 计算收益
@@ -369,7 +376,7 @@ class ClosedLoopService:
         # 按标的分组，同一标的的信号共享价格数据
         by_subject: Dict[str, List[AlphaSignalDB]] = {}
         for signal in signals:
-            by_subject.setdefault(signal.subject_id, []).append(signal)
+            by_subject.setdefault(str(signal.subject_id), []).append(signal)
 
         for subject_id, subject_signals in by_subject.items():
             # 获取价格数据
@@ -382,7 +389,7 @@ class ClosedLoopService:
             # 构建事件 DataFrame
             event_rows = []
             for sig in subject_signals:
-                event_time = sig.event_time or sig.created_at
+                event_time = cast(datetime, sig.event_time or sig.created_at)
                 event_rows.append(
                     {
                         "event_date": pd.Timestamp(event_time),
@@ -395,10 +402,10 @@ class ClosedLoopService:
 
             # 调用 EventStudyBacktester
             try:
-                bt_kwargs = {"events": events_df}
+                bt_kwargs: Dict[str, Any] = {"events": events_df}
                 if benchmark_data is not None and not benchmark_data.empty:
                     bt_kwargs["benchmark"] = benchmark_data
-                bt_result = self.event_study_backtester.run(price_data, **bt_kwargs)
+                bt_result = self.event_study_backtester.run(price_data, None, **bt_kwargs)
 
                 # 为每个信号记录结果
                 for sig in subject_signals:
@@ -412,7 +419,7 @@ class ClosedLoopService:
                     self._persist_outcome(
                         sig,
                         db,
-                        sig.event_time or sig.created_at,
+                        cast(datetime, sig.event_time or sig.created_at),
                         bt_result.total_return,
                         bt_result.total_return,  # excess ≈ total when using event study avg
                         bt_result.max_drawdown,
@@ -626,7 +633,8 @@ class ClosedLoopService:
             logger.warning("No signals to rank")
             return []
 
-        return self.signal_ranker.filter_top_n(signals, n=top_n)
+        ranked = self.signal_ranker.filter_top_n(cast(List[AlphaSignal], signals), n=top_n)
+        return cast(List[EventAlphaSignal], ranked)
 
     def run_full_loop(self) -> Dict[str, Any]:
         """

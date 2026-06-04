@@ -78,7 +78,7 @@ async def llm_generate(request: LlmGenerateRequest):
             max_tokens=request.max_tokens,
         )
 
-        content = response.choices[0].message.content.strip()
+        content = (response.choices[0].message.content or "").strip()
 
         return LlmGenerateResponse(
             success=True,

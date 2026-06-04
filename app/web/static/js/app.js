@@ -6,7 +6,7 @@
 import { apiCall, toast, esc, getChartColors, applyChartDefaults } from './core.js';
 import { loadDashboard, switchDashTab } from './dashboard.js';
 import { startCrawlFeedPolling, stopCrawlFeedPolling, startWorkersPolling, stopWorkersPolling, loadWorkersStatus } from './monitor.js?v=4';
-import { searchAssets, selectAsset, analyzeAssetByCode, analyzeAsset, handleAssetSearchKeydown, initAssetSearch, setKLineTimeRange, toggleMA, initKLineToolbar } from './asset.js?v=20250604d';
+import { searchAssets, selectAsset, analyzeAssetByCode, analyzeAsset, handleAssetSearchKeydown, initAssetSearch, setKLineTimeRange, toggleMA, initKLineToolbar } from './asset.js?v=20250604e';
 import { switchSignalLabTab, loadSignalLab, initSignalLab } from './signal-lab.js';
 import { loadMemoryPage, loadEpisodes, loadStrategies, loadFailures, loadEventSummary, initMemory } from './memory.js';
 import { loadSignals, createSignal, validateSignal, promoteSignal, loadOutcomes, initSignals } from './signals.js';

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """测试所有模板相关的API端点"""
 import asyncio
+import os
 import sys
 from pathlib import Path
 
@@ -9,6 +10,12 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 import httpx
+import pytest
+
+pytestmark = pytest.mark.skipif(
+    os.getenv("ALPHAFOUNDRY_RUN_LIVE_API_TESTS") != "1",
+    reason="live API smoke test requires an already-running server on 127.0.0.1:8000",
+)
 
 
 async def test_all_endpoints():

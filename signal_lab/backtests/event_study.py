@@ -159,6 +159,8 @@ class EventStudyBacktester(Backtester):
                 continue
 
             start_idx = prices.index.get_loc(aligned_date)
+            if not isinstance(start_idx, int):
+                continue
             end_idx = start_idx + self.horizon
             if end_idx >= len(prices):
                 continue
@@ -169,6 +171,8 @@ class EventStudyBacktester(Backtester):
                 benchmark_aligned = self._align_to_next_session(aligned_date, benchmark.index)
                 if benchmark_aligned is not None:
                     benchmark_start_idx = benchmark.index.get_loc(benchmark_aligned)
+                    if not isinstance(benchmark_start_idx, int):
+                        continue
                     benchmark_end_idx = benchmark_start_idx + self.horizon
                     if benchmark_end_idx < len(benchmark):
                         benchmark_return = self._window_return(
@@ -222,6 +226,8 @@ class EventStudyBacktester(Backtester):
             daily_excess_returns: list[float] = []
             for event_date in aligned_event_dates:
                 start_idx = prices.index.get_loc(event_date)
+                if not isinstance(start_idx, int):
+                    continue
                 end_idx = start_idx + day
                 if end_idx >= len(prices):
                     continue
@@ -231,6 +237,8 @@ class EventStudyBacktester(Backtester):
                     benchmark_start = self._align_to_next_session(event_date, benchmark.index)
                     if benchmark_start is not None:
                         benchmark_start_idx = benchmark.index.get_loc(benchmark_start)
+                        if not isinstance(benchmark_start_idx, int):
+                            continue
                         benchmark_end_idx = benchmark_start_idx + day
                         if benchmark_end_idx < len(benchmark):
                             benchmark_return = self._window_return(

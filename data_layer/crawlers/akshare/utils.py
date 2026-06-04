@@ -26,7 +26,7 @@ def df_to_dict_list(df: pd.DataFrame) -> List[Dict[str, Any]]:
 
     # 替换 NaN 为 None
     df_clean = df.where(pd.notna(df), None)
-    return df_clean.to_dict("records")
+    return [{str(k): v for k, v in row.items()} for row in df_clean.to_dict("records")]
 
 
 def safe_float(value: Any) -> Optional[float]:

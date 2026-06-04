@@ -7,8 +7,10 @@ register(
     SourceSpec(
         source_type=SourceType.CJPY,
         source_name="Tinysoft (天软)",
-        adapter_class="connectors.market.cjpy.CjpyMarketConnector",
+        connector_class="connectors.market.cjpy.CjpyMarketConnector",
         adapter_kwargs={},
+        connector_dataset="daily_quotes",
+        pipeline_kind="market",
         interval_minutes=0,
         backfill_family="tinysoft",
         retrieval_weight=1.0,

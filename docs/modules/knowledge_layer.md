@@ -27,6 +27,7 @@ Purpose:
 - Graph projection operations
 - Vector and keyword retrieval
 - Concurrent LLM extraction (text chunking + ThreadPoolExecutor)
+- `knowledge_layer/retrieval/vector_store.py` honors `ALPHAFOUNDRY_DISABLE_LOCAL_EMBEDDINGS=1`; tests set this by default. Runtime local embeddings use `ALPHAFOUNDRY_LOCAL_EMBEDDING_MODEL_PATH` first, otherwise sentence-transformers is called with `local_files_only=True`; set `ALPHAFOUNDRY_ALLOW_EMBEDDING_DOWNLOAD=1` only when first-time Hugging Face download is intentional.
 
 Update this section when:
 - Entity resolution logic changes

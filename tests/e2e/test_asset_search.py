@@ -8,8 +8,16 @@ E2E 测试：资产搜索功能
 4. 不需要 "analyze" 按钮 - search/Enter 触发分析
 """
 import asyncio
+import os
 import sys
 from pathlib import Path
+
+import pytest
+
+pytestmark = pytest.mark.skipif(
+    os.getenv("ALPHAFOUNDRY_RUN_LIVE_E2E_TESTS") != "1",
+    reason="live E2E asset search test requires an already-running web server on 127.0.0.1:8000",
+)
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent

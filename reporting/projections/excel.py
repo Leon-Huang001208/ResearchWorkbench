@@ -73,6 +73,7 @@ class ExcelProjection:
 
         wb = Workbook()
         ws = wb.active
+        assert ws is not None
         ws.title = "报告"
 
         # Title
@@ -198,6 +199,7 @@ class ExcelProjection:
 
         wb = Workbook()
         ws = wb.active
+        assert ws is not None
         ws.title = sheet_name
 
         current_row = 1
@@ -247,27 +249,27 @@ class ExcelProjection:
 
             if chart_type == "bar" and values:
                 x = list(range(len(values)))
-                y = [float(v[1]) if len(v) > 1 else 0 for v in values]
+                y = [float(v[1]) if len(v) > 1 else 0.0 for v in values]
                 ax.bar(x, y)
                 ax.set_xticks(x)
                 ax.set_xticklabels([str(v[0]) if len(v) > 0 else "" for v in values])
 
             elif chart_type == "line" and values:
                 x = list(range(len(values)))
-                y = [float(v[1]) if len(v) > 1 else 0 for v in values]
+                y = [float(v[1]) if len(v) > 1 else 0.0 for v in values]
                 ax.plot(x, y, marker="o")
                 ax.set_xticks(x)
                 ax.set_xticklabels([str(v[0]) if len(v) > 0 else "" for v in values])
 
             elif chart_type == "pie" and values:
                 labels = [str(v[0]) if len(v) > 0 else "" for v in values]
-                sizes = [float(v[1]) if len(v) > 1 else 0 for v in values]
+                sizes = [float(v[1]) if len(v) > 1 else 0.0 for v in values]
                 ax.pie(sizes, labels=labels, autopct="%1.1f%%")
 
             elif chart_type == "scatter" and values:
-                x = [float(v[0]) if len(v) > 0 else 0 for v in values]
-                y = [float(v[1]) if len(v) > 1 else 0 for v in values]
-                ax.scatter(x, y)
+                scatter_x = [float(v[0]) if len(v) > 0 else 0.0 for v in values]
+                scatter_y = [float(v[1]) if len(v) > 1 else 0.0 for v in values]
+                ax.scatter(scatter_x, scatter_y)
 
             ax.set_title(chart_spec.title)
 

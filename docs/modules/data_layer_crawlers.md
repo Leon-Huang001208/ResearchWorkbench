@@ -269,5 +269,5 @@ When files in this module change, check:
 
 ## Related Subsystems
 
-- `connectors/` — 连接器实现通过 Wrapper-first 策略委托本模块的适配器（如 `CLSDocumentConnector` → `CLSAdapter`），最终目标是所有新摄入通过 Connector 架构
+- `connectors/` — 连接器实现通过 Wrapper-first 策略委托本模块的适配器（如 `CLSDocumentConnector` → `CLSAdapter`）。当前调度和 CLI 的统一入口是 Connector；`data_layer/adapters/` 只保留为连接器内部委托层和少量 legacy 调用层。
 - `core/connectors/` — 连接器抽象基类和注册表

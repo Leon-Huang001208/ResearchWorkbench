@@ -57,8 +57,11 @@ class ReportStateManager(BaseStateManager):
     def __init__(self, state_path: str, verbose: bool = False):
         super().__init__(state_path, "processed_reports", verbose)
 
-    def add_processed_report(self, obj_id: str, title: str, pdf_name: str = ""):
-        super().add_processed_report(obj_id, title, pdfNAME=pdf_name)
+    def add_processed_report(
+        self, obj_id: str, title: str, pdf_name: str = "", **extra: Any
+    ) -> None:
+        pdf_name = pdf_name or str(extra.pop("pdfNAME", ""))
+        super().add_processed_report(obj_id, title, pdfNAME=pdf_name, **extra)
 
 
 class ReportFetcher(BaseFetcher):
@@ -118,8 +121,10 @@ class ReportFetcher(BaseFetcher):
         self._logger.info("=" * 50)
 
     def _save_processed_item(self, obj_id: str, title: str, item: Dict[str, Any]):
+        if self._state_manager is None:
+            return
         pdf_name = item.get("pdfNAME", "")
-        self._state_manager.add_processed_report(obj_id, title, pdf_name)
+        self._state_manager.add_processed_report(obj_id, title, pdfNAME=pdf_name)
 
     def _fetch_single_term(self, search_term: str):
         if self._logger:
@@ -128,6 +133,8 @@ class ReportFetcher(BaseFetcher):
         if self.config.use_homepage_search:
             json_data = self._search_homepage(search_term, self.config.hyperSearchField)
         else:
+            if self._client is None:
+                return None
             json_data = self._client.search_reports(
                 search=search_term,
                 starttime=self.config.starttime,

@@ -326,7 +326,7 @@ class CjpyMarketConnector(MarketDataConnector):
                 raise ValueError("factor_data requires factors")
             df = adapter.fetch_factor_data(
                 codes=codes,
-                dates=dates,
+                dates=dates or [],
                 factors=factors,
                 repo=item.params.get("repo"),
             )

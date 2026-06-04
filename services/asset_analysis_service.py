@@ -250,6 +250,8 @@ class AssetAnalysisService:
             raise RuntimeError("No data returned from coordinator")
 
         last_quote = result.data[-1]
+        highs = [quote.high for quote in result.data if quote.high is not None]
+        lows = [quote.low for quote in result.data if quote.low is not None]
 
         snapshot = AssetAnalysisSnapshot(
             canonical_id=canonical_id,
@@ -258,8 +260,8 @@ class AssetAnalysisService:
             fund_flow={},
             price_volume={
                 "close_price": last_quote.close,
-                "high_52w": max(q.high for q in result.data),
-                "low_52w": min(q.low for q in result.data),
+                "high_52w": max(highs) if highs else None,
+                "low_52w": min(lows) if lows else None,
             },
             valuation={},
             shareholder={},
@@ -1566,12 +1568,17 @@ class AssetAnalysisService:
 
         price_bars = []
         for q in result.data:
+            if q.close is None:
+                continue
+            open_price = q.open if q.open is not None else q.close
+            high_price = q.high if q.high is not None else q.close
+            low_price = q.low if q.low is not None else q.close
             price_bars.append(
                 PriceBar(
                     date=q.timestamp.date(),
-                    open=float(q.open),
-                    high=float(q.high),
-                    low=float(q.low),
+                    open=float(open_price),
+                    high=float(high_price),
+                    low=float(low_price),
                     close=float(q.close),
                     volume=self._optional_float(getattr(q, "volume", None)),
                     amount=self._optional_float(getattr(q, "amount", None)),

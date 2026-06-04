@@ -167,8 +167,8 @@ class IndustryGraphStore:
         if from_entity == to_entity:
             return [from_entity]
 
-        visited = {}
-        queue = deque()
+        visited: dict[str, bool] = {}
+        queue: deque[tuple[str, List[str]]] = deque()
         queue.append((from_entity, []))
         visited[from_entity] = True
 

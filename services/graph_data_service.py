@@ -167,11 +167,11 @@ class GraphDataService:
                 if event_type:
                     events = [e for e in events if e.event_type == event_type]
 
-                by_type: Dict[str, List[Any]] = {}
+                events_by_type: Dict[str, List[Any]] = {}
                 for event in events:
-                    by_type.setdefault(event.event_type, []).append(event)
+                    events_by_type.setdefault(event.event_type, []).append(event)
 
-                for etype, evts in by_type.items():
+                for etype, evts in events_by_type.items():
                     entity_ids = []
                     for event in evts:
                         for entity in getattr(event, "entities", []):

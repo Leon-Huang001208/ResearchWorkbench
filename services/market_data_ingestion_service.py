@@ -4,7 +4,7 @@
 """
 import uuid
 from datetime import date
-from typing import Optional
+from typing import Any, Optional
 
 from core.observability import get_logger
 from data_layer.crawlers.akshare.base import AkShareAdapter
@@ -63,7 +63,7 @@ class MarketDataIngestionService:
         self.etl_repo.start(run_id, job_name="ingest_daily_bars", source="akshare")
 
         fetched = 0
-        rows = []
+        rows: list[dict[str, Any]] = []
 
         try:
             for symbol in symbols:

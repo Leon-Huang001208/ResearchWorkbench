@@ -19,6 +19,7 @@ from typing import Any, Dict, List, Optional, cast
 
 from core.contracts.ingestion_record import (
     AssetType,
+    EntityType,
     HealthStatus,
     IngestionRecord,
     IngestionResult,
@@ -342,7 +343,7 @@ class BaseConnector(ABC):
             # Step 3-6: 逐 item 处理
             for item in items:
                 try:
-                    raw = self._fetch_with_retry(dataset, item)
+                    raw = self._fetch_with_retry(dataset, item, **params)
                     stats.fetched += 1
 
                     raw.content_hash = self._compute_hash(raw.data)
@@ -360,10 +361,12 @@ class BaseConnector(ABC):
                         )
                     )
 
-                    records.extend(self._process_item(dataset, item, raw, raw_uri))
-                    stats.parsed += 1
-                    stats.validated += 1
-                    stats.persisted += 1
+                    item_records = self._process_item(dataset, item, raw, raw_uri)
+                    records.extend(item_records)
+                    processed_count = len(item_records) or 1
+                    stats.parsed += processed_count
+                    stats.validated += processed_count
+                    stats.persisted += len(item_records)
 
                 except Exception as item_error:
                     stats.failed += 1
@@ -440,7 +443,7 @@ class BaseConnector(ABC):
     # 内部辅助方法
     # ------------------------------------------------------------------
 
-    def _fetch_with_retry(self, dataset: str, item: DiscoveryItem) -> RawObject:
+    def _fetch_with_retry(self, dataset: str, item: DiscoveryItem, **params: Any) -> RawObject:
         """带重试的数据获取（内部方法）."""
         retry_config = self.config.get("retry", {})
         max_retries = retry_config.get("max_retries", 3)
@@ -449,7 +452,7 @@ class BaseConnector(ABC):
         last_error = None
         for attempt in range(max_retries + 1):
             try:
-                return self.fetch(dataset, item)
+                return self.fetch(dataset, item, **params)
             except Exception as e:
                 last_error = e
                 if attempt < max_retries:
@@ -595,10 +598,10 @@ class DocumentConnector(BaseConnector, ABC):
 
                         request = EnqueueRequest(
                             source_type=record.source,
-                            source_id=record.content_hash,
+                            source_id=record.entity_id or record.content_hash,
                             raw_content=content,
                             title=title,
-                            url=None,
+                            url=payload.get("url"),
                             priority=0,
                             published_at=(
                                 record.published_at.isoformat() if record.published_at else None
@@ -643,6 +646,11 @@ class DocumentConnector(BaseConnector, ABC):
         raw_uri: str,
     ) -> List[IngestionRecord]:
         """DocumentConnector 的默认处理逻辑."""
+        envelope_records = self._process_envelope_json(dataset, raw, raw_uri)
+        if envelope_records is not None:
+            self.persist(envelope_records)
+            return envelope_records
+
         parsed = self.parse_document(raw)
         record = self.normalize_metadata(
             dataset=dataset,
@@ -652,6 +660,80 @@ class DocumentConnector(BaseConnector, ABC):
         )
         self.persist([record])
         return [record]
+
+    def _process_envelope_json(
+        self,
+        dataset: str,
+        raw: RawObject,
+        raw_uri: str,
+    ) -> Optional[List[IngestionRecord]]:
+        """Convert a JSON list of DocumentEnvelope-like dicts into per-document records."""
+        if raw.content_type != "application/json":
+            return None
+
+        try:
+            import json
+            from datetime import datetime
+
+            data = raw.data.decode("utf-8") if isinstance(raw.data, bytes) else raw.data
+            items = json.loads(data)
+        except Exception:
+            return None
+
+        if not isinstance(items, list):
+            return None
+
+        records: List[IngestionRecord] = []
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+
+            content = item.get("canonical_text") or item.get("raw_text") or ""
+            title = item.get("title") or ""
+            metadata = item.get("metadata") or {}
+            doc_id = item.get("doc_id") or metadata.get("source_doc_id")
+            if not doc_id:
+                doc_id = self._compute_hash(f"{title}\n{content}")
+
+            published_at = item.get("published_at")
+            if isinstance(published_at, str) and published_at:
+                try:
+                    published_at = datetime.fromisoformat(published_at.replace("Z", "+00:00"))
+                except ValueError:
+                    published_at = None
+            elif not isinstance(published_at, datetime):
+                published_at = None
+
+            content_hash = self._compute_hash(content or title or doc_id)
+            payload = {
+                "title": title,
+                "content": content,
+                "summary": item.get("summary"),
+                "url": metadata.get("url") or item.get("url"),
+                "source_name": item.get("source_name") or self.source,
+                "tags": [self.source, dataset],
+                "metadata": metadata,
+                "raw_uri": raw_uri,
+            }
+
+            asset_type = (
+                AssetType.DOCUMENT if dataset in {"announcements", "report"} else AssetType.NEWS
+            )
+            records.append(
+                IngestionRecord(
+                    source=self.source,
+                    dataset=dataset,
+                    asset_type=asset_type,
+                    entity_type=EntityType.UNKNOWN,
+                    entity_id=str(doc_id),
+                    published_at=published_at,
+                    raw_uri=f"{raw_uri}#{doc_id}",
+                    content_hash=content_hash,
+                    payload=payload,
+                )
+            )
+
+        return records
 
 
 # =============================================================================
