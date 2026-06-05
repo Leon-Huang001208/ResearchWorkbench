@@ -1,0 +1,6 @@
+name: 创业板50周报
+active_word_template: templates/report_template.docx
+active_excel_workbook: data/创业板50周报（iFind版）.xlsx
+section_config: config/section_config.yaml
+output_dir: generated
+run_log_dir: runs

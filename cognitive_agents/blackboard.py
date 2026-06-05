@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Iterable, Literal
+from typing import TYPE_CHECKING, Iterable, Literal
 
 from core.observability import get_logger
-from memory_learning.contracts import AgentMemory
 
 from .contracts import AgentView, BlackboardConflict
+
+if TYPE_CHECKING:
+    from memory_learning.contracts import AgentMemory
 
 logger = get_logger(__name__)
 
@@ -145,7 +147,15 @@ class CognitiveBlackboard:
                     + [
                         f"Adjusted confidence from {original_confidence:.2f} to {new_confidence:.2f} based on agent memory (contradictions > supports)"
                     ],
+                    assumptions=view.assumptions,
+                    risks=view.risks,
+                    invalidation_triggers=view.invalidation_triggers,
+                    recommended_next_checks=view.recommended_next_checks,
                     evidence_refs=view.evidence_refs,
+                    tool_refs=view.tool_refs,
+                    memory_refs=view.memory_refs,
+                    workflow_id=view.workflow_id,
+                    evaluation=view.evaluation,
                     metadata=view.metadata,
                 )
                 self._views[view_id] = updated_view

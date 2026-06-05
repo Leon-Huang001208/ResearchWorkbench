@@ -526,7 +526,28 @@ class TemplateManager:
             raise ValueError(f"Unsupported file type: {file_type}")
 
         file_path = target_dir / f"{template_name}_template.{ext}"
-        return file_path if file_path.exists() else None
+        if file_path.exists():
+            return file_path
+
+        try:
+            config = self.load_template(template_name)
+        except FileNotFoundError:
+            return None
+
+        configured_path: Optional[str] = None
+        if file_type == "docx":
+            configured_path = config.word_template_path
+        elif file_type == "pptx":
+            configured_path = config.metadata.get("powerpoint_template_path")
+        elif file_type == "excel":
+            configured_path = config.excel_template_path
+
+        if configured_path:
+            path = Path(configured_path)
+            if path.exists():
+                return path
+
+        return None
 
     def delete_template_file(
         self, template_name: str, file_type: Literal["docx", "pptx", "excel"]

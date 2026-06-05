@@ -1,0 +1,10 @@
+{
+  "project_name": "创业板50周报",
+  "slug": "创业板50周报",
+  "word_template_path": "/Users/leon/Desktop/Projects/AlphaFoundry/report_projects/创业板50周报/templates/report_template.docx",
+  "excel_workbook_path": "/Users/leon/Desktop/Projects/AlphaFoundry/report_projects/创业板50周报/data/创业板50周报（iFind版）.xlsx",
+  "section_config_path": "/Users/leon/Desktop/Projects/AlphaFoundry/report_projects/创业板50周报/config/section_config.yaml",
+  "output_path": "/Users/leon/Desktop/Projects/AlphaFoundry/report_projects/创业板50周报/generated/2026-06-05_150119_创业板50周报.docx",
+  "generated_at": "2026-06-05T15:01:19.228838",
+  "placeholder_count": 1
+}

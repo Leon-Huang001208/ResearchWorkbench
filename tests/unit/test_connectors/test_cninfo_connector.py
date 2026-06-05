@@ -154,6 +154,42 @@ class TestCninfoFetch:
         with pytest.raises(ValueError, match="Unknown dataset"):
             cninfo_connector.fetch(dataset="unknown", item=item)
 
+    def test_fetch_passes_attachment_text_options(self, cninfo_connector, sample_envelopes, tmp_path):
+        with patch("data_layer.adapters.cninfo_adapter.CninfoAdapter") as mock_adapter_class:
+            mock_adapter = MagicMock()
+            mock_adapter.fetch.return_value = [
+                MagicMock(model_dump=lambda e=env: e) for env in sample_envelopes[:1]
+            ]
+            mock_adapter_class.return_value = mock_adapter
+
+            item = DiscoveryItem(
+                item_id="cninfo_szse_all_2026-01-01_2026-01-31",
+                item_type="announcements",
+                params={
+                    "start_date": "2026-01-01",
+                    "end_date": "2026-01-31",
+                    "plate": "szse",
+                    "column": "szse",
+                    "category": "",
+                    "stock": "",
+                },
+            )
+
+            cninfo_connector.fetch(
+                dataset="announcements",
+                item=item,
+                fetch_attachment_text=True,
+                attachment_output_dir=str(tmp_path),
+                max_attachment_bytes=2048,
+                trust_env=True,
+            )
+
+            call_kwargs = mock_adapter.fetch.call_args.kwargs
+            assert call_kwargs["fetch_attachment_text"] is True
+            assert call_kwargs["attachment_output_dir"] == str(tmp_path)
+            assert call_kwargs["max_attachment_bytes"] == 2048
+            assert call_kwargs["trust_env"] is True
+
 
 # ---------------------------------------------------------------------------
 # parse_document

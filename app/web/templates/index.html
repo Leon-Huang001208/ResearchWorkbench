@@ -7,7 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
-    <link rel="stylesheet" href="/static/style.css?v=20250527e">
+    <link rel="stylesheet" href="/static/style.css?v=20250605c">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@vscode/codicons@0.0.36/dist/codicon.min.css">
 </head>
 <body>
@@ -131,8 +131,8 @@
                 <!-- Tab: Live Monitor -->
                 <div class="dash-tab-panel" id="dash-panel-monitor">
                 <div class="dashboard-grid">
-                    <!-- Live Crawl Feed - 三列两行 -->
-                    <div class="crawl-feed-row" style="grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
+                    <!-- Live Crawl Feed -->
+                    <div class="crawl-feed-row" style="grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
                         <!-- CLS 财联社 -->
                         <div class="dashboard-card crawl-feed-card" data-source="cls">
                             <div class="card-header">
@@ -144,6 +144,20 @@
                                 </div>
                             </div>
                             <ul class="crawl-feed-list" id="feed-list-cls">
+                                <li class="empty-state">等待抓取数据...</li>
+                            </ul>
+                        </div>
+                        <!-- 巨潮公告 -->
+                        <div class="dashboard-card crawl-feed-card" data-source="cninfo">
+                            <div class="card-header">
+                                <h3><i class="codicon codicon-rss"></i> 巨潮公告</h3>
+                                <div class="card-header-actions">
+                                    <span class="feed-status badge-new" id="feed-status-cninfo">监听中</span>
+                                    <span class="feed-count text-muted" id="feed-count-cninfo" style="font-size: 12px;">0 条</span>
+                                    <span class="feed-last-fetch text-muted" id="feed-last-fetch-cninfo" style="font-size: 11px;"></span>
+                                </div>
+                            </div>
+                            <ul class="crawl-feed-list" id="feed-list-cninfo">
                                 <li class="empty-state">等待抓取数据...</li>
                             </ul>
                         </div>
@@ -381,6 +395,18 @@
                                 <!-- 资金流向详情 -->
                             </div>
                         </div>
+                    </div>
+
+                    <!-- 多 Agent 委员会 -->
+                    <div class="card asset-agent-committee-card" id="asset-agent-committee-card">
+                        <div class="asset-agent-committee-header">
+                            <h3><i class="codicon codicon-comment-discussion"></i> 多 Agent 委员会</h3>
+                            <span id="asset-agent-committee-status" class="agent-committee-status">等待分析</span>
+                        </div>
+                        <div id="asset-agent-committee-summary" class="agent-committee-summary">
+                            <div class="empty-state">等待资产分析完成...</div>
+                        </div>
+                        <div id="asset-agent-committee-views" class="agent-committee-view-grid"></div>
                     </div>
 
                     <!-- 5面板核心数据卡片 -->
@@ -889,8 +915,8 @@
                     <div class="iphone-top-bar">
                         <h2 class="iphone-title">模板</h2>
                         <div class="iphone-nav-buttons">
-                            <button id="btn-edit-templates" class="iphone-nav-btn">编辑</button>
-                            <button id="btn-save-templates-order" class="iphone-nav-btn hidden">完成</button>
+                            <button id="btn-edit-templates" class="iphone-nav-btn" onclick="toggleEditMode()">编辑</button>
+                            <button id="btn-save-templates-order" class="iphone-nav-btn hidden" onclick="saveTemplatesOrder()">完成</button>
                         </div>
                     </div>
 
@@ -899,7 +925,7 @@
 
                     <!-- iPhone Style Dock -->
                     <div class="iphone-dock">
-                        <button id="btn-new-template" class="iphone-dock-item">
+                        <button id="btn-new-template" class="iphone-dock-item" onclick="openUploadModal()">
                             <div class="iphone-dock-icon">
                                 <i class="codicon codicon-cloud-upload"></i>
                             </div>
@@ -911,7 +937,7 @@
                 <!-- Template Detail View (Hidden by default) -->
                 <div id="template-detail-view" class="hidden">
                     <div class="section-header">
-                        <button id="btn-back-to-templates" class="btn-secondary"><i class="codicon codicon-arrow-left"></i> 返回模板列表</button>
+                        <button id="btn-back-to-templates" class="btn-secondary" onclick="goBackToTemplates()"><i class="codicon codicon-arrow-left"></i> 返回模板列表</button>
                         <h2 class="section-title" id="detail-template-name">模板详情</h2>
                         <div class="section-actions">
                             <span id="detail-template-version" class="badge">v1.0</span>
@@ -933,20 +959,92 @@
                                     <span id="detail-has-excel" class="template-type-badge excel hidden">Excel</span>
                                 </div>
                             </div>
-                            <div class="template-actions">
+                            <div class="template-actions hidden">
                                 <button id="btn-download-template" class="btn-secondary"><i class="codicon codicon-download"></i> 下载模板</button>
                                 <button id="btn-delete-template" class="btn-danger"><i class="codicon codicon-trash"></i> 删除</button>
                             </div>
                         </div>
 
+                        <!-- Report Template Workbench -->
+                        <div class="template-workbench" id="template-workbench-summary">
+                            <div class="template-workbench-header">
+                                <div>
+                                    <p class="eyebrow">报告模板工作台</p>
+                                    <h3>Word 占位符、Excel 底稿、Section 配置统一维护</h3>
+                                </div>
+                            <div class="template-workbench-actions">
+                                    <button id="btn-template-save-source" class="btn-secondary"><i class="codicon codicon-save"></i> 保存配置</button>
+                                    <button id="btn-template-generate-report" class="btn-primary"><i class="codicon codicon-play"></i> 生成报告</button>
+                                    <a id="btn-template-download-report" class="btn-secondary disabled" href="#" aria-disabled="true"><i class="codicon codicon-cloud-download"></i> 下载文档</a>
+                                </div>
+                            </div>
+
+                            <div class="template-workbench-main-grid">
+                                <div class="template-workbench-left">
+                                    <div class="template-workbench-panel">
+                                        <div class="panel-title-row">
+                                            <h4>模板资产</h4>
+                                            <span id="template-asset-status" class="badge">待加载</span>
+                                        </div>
+                                        <div id="template-asset-checklist" class="template-asset-checklist">
+                                            <div class="asset-check-item"><i class="codicon codicon-file-code"></i><span>Word 模板</span><strong>未确认</strong></div>
+                                            <div class="asset-check-item"><i class="codicon codicon-table"></i><span>Excel 底稿</span><strong>未确认</strong></div>
+                                            <div class="asset-check-item"><i class="codicon codicon-settings-gear"></i><span>Section 配置</span><strong>未确认</strong></div>
+                                        </div>
+                                    </div>
+
+                                    <div class="template-workbench-panel">
+                                        <div class="panel-title-row">
+                                            <h4>占位符地图</h4>
+                                            <span id="template-placeholder-count" class="text-muted">0 个</span>
+                                        </div>
+                                        <div id="template-placeholder-map" class="template-placeholder-map">
+                                            <div class="empty-state compact">选择模板后显示占位符映射</div>
+                                        </div>
+                                    </div>
+
+                                    <div class="template-workbench-panel">
+                                        <div class="panel-title-row">
+                                            <h4>Excel 底稿映射</h4>
+                                            <span class="text-muted">数据槽 / 图表 / 表格</span>
+                                        </div>
+                                        <div id="template-excel-mapping" class="template-mapping-table">
+                                            <div class="empty-state compact">绑定 Excel 后显示数据来源</div>
+                                        </div>
+                                    </div>
+
+                                    <div class="template-workbench-panel" id="template-validation-preview">
+                                        <div class="panel-title-row">
+                                            <h4>生成预检</h4>
+                                            <span id="template-validation-status" class="badge">未运行</span>
+                                        </div>
+                                        <div id="template-validation-list" class="template-validation-list">
+                                            <div class="validation-item pending"><i class="codicon codicon-circle-outline"></i><span>Word 占位符均有 section 映射</span></div>
+                                            <div class="validation-item pending"><i class="codicon codicon-circle-outline"></i><span>AI 文本 section 已配置 prompt</span></div>
+                                            <div class="validation-item pending"><i class="codicon codicon-circle-outline"></i><span>Excel 图表和表格已绑定来源</span></div>
+                                            <div class="validation-item pending"><i class="codicon codicon-circle-outline"></i><span>数字、禁用词、投资建议规则已配置</span></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="template-workbench-panel template-section-editor-panel" id="template-section-config-editor">
+                                    <div class="panel-title-row">
+                                        <h4>Section 配置源码</h4>
+                                        <span class="text-muted">YAML / Markdown Prompt</span>
+                                    </div>
+                                    <textarea id="template-source-editor" class="template-source-editor" spellcheck="false">选择模板后生成配置草稿...</textarea>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Detail Tabs -->
-                        <div class="tabs">
+                        <div class="tabs template-legacy-tabs hidden">
                             <button class="tab-btn active" data-tab="detail-configure">配置占位符</button>
                             <button class="tab-btn" data-tab="detail-render">渲染报告</button>
                         </div>
 
                         <!-- Configure Tab -->
-                        <div id="tab-detail-configure" class="tab-panel">
+                        <div id="tab-detail-configure" class="tab-panel hidden">
                             <div class="card">
                                 <h3>占位符配置</h3>
                                 <div class="input-row">
@@ -1013,42 +1111,43 @@
                     </div>
                 </div>
 
-                <!-- Upload Template Modal -->
+                <!-- Upload Report Project Modal -->
                 <div id="upload-template-modal" class="modal hidden">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h3>上传模板文件</h3>
-                            <button id="btn-close-upload-modal" class="modal-close"><i class="codicon codicon-close"></i></button>
+                            <h3>上传报告项目</h3>
+                            <button id="btn-close-upload-modal" class="modal-close" onclick="closeUploadModal()"><i class="codicon codicon-close"></i></button>
                         </div>
                         <div class="modal-body">
-                            <div class="input-row">
-                                <input type="text" id="template-name-input" placeholder="模板名称，如 quarterly_report">
-                                <select id="template-type-select">
-                                    <option value="docx">DOCX (Word)</option>
-                                    <option value="pptx">PPTX (PowerPoint)</option>
-                                    <option value="excel">Excel</option>
-                                </select>
+                            <div class="form-field">
+                                <label>报告项目名称</label>
+                                <input type="text" id="template-name-input" placeholder="例如：华安ETF周报">
                             </div>
-                            <div class="input-row">
-                                <input type="text" id="template-desc-input" placeholder="模板描述">
-                                <input type="text" id="template-version-input" value="1.0" placeholder="版本">
+                            <div class="form-field">
+                                <label>Word 模板 (.docx)</label>
+                                <input type="file" id="project-word-template-input" accept=".docx">
                             </div>
-                            <div class="file-drop-zone" id="template-drop-zone">
-                                <i class="codicon codicon-cloud-upload"></i>
-                                <p>拖放文件到这里，或点击选择</p>
-                                <input type="file" id="template-file-input" accept=".docx,.pptx,.xlsx">
-                                <button id="btn-choose-file" class="btn-secondary">选择文件</button>
+                            <div class="form-field">
+                                <label>Excel 数据底稿 (.xlsx)</label>
+                                <input type="file" id="project-excel-workbook-input" accept=".xlsx">
                             </div>
-                            <div id="selected-file-info" class="selected-file-info hidden">
-                                <span id="selected-file-name"></span>
-                                <button id="btn-clear-file" class="btn-small"><i class="codicon codicon-close"></i></button>
+                            <div class="form-field">
+                                <label>Section 配置 (.yaml/.yml)</label>
+                                <input type="file" id="project-section-config-input" accept=".yaml,.yml">
+                            </div>
+                            <div class="form-field">
+                                <label>Prompt 模板 (.md，可选)</label>
+                                <input type="file" id="project-prompt-templates-input" accept=".md">
+                            </div>
+                            <div class="form-field">
+                                <label>数据文件，可多选 (.json/.xlsx/.png)</label>
+                                <input type="file" id="project-data-files-input" accept=".json,.xlsx,.png" multiple>
                             </div>
                             <div id="template-upload-status" class="upload-status"></div>
                         </div>
                         <div class="modal-footer">
-                            <button id="btn-cancel-upload" class="btn-secondary">取消</button>
-                            <button id="btn-upload-template" class="btn-primary">上传模板</button>
-                            <button id="btn-create-yaml-template" class="btn-secondary">创建 YAML 配置</button>
+                            <button id="btn-cancel-upload" class="btn-secondary" onclick="closeUploadModal()">取消</button>
+                            <button id="btn-upload-template" class="btn-primary" onclick="uploadTemplate()">创建项目</button>
                         </div>
                     </div>
                 </div>
@@ -1104,7 +1203,7 @@
 
     <!-- Scripts: i18n must load before app.js -->
     <script src="/static/i18n.js?v=20250527"></script>
-    <script type="module" src="/static/js/app.js?v=20250604e"></script>
+    <script type="module" src="/static/js/app.js?v=20250605i"></script>
     <script type="module" src="/static/js/wind.js?v=20250601a"></script>
 </body>
 </html>

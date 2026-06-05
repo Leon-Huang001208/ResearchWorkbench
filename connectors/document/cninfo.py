@@ -196,7 +196,23 @@ class CninfoDocumentConnector(DocumentConnector):
             page_size=params.get("page_size", self._default_page_size),
             delay=params.get("delay", 0.5),
             timeout=params.get("timeout", 30),
+            trust_env=params.get("trust_env", self.config.get("trust_env", False)),
             verbose=params.get("verbose", False),
+            fetch_attachment_text=params.get(
+                "fetch_attachment_text", self.config.get("fetch_attachment_text", False)
+            ),
+            attachment_output_dir=params.get(
+                "attachment_output_dir", self.config.get("attachment_output_dir", self._output_dir)
+            ),
+            attachment_timeout=params.get(
+                "attachment_timeout", self.config.get("attachment_timeout", 30)
+            ),
+            max_attachment_bytes=params.get(
+                "max_attachment_bytes", self.config.get("max_attachment_bytes", 80 * 1024 * 1024)
+            ),
+            preferred_converter=params.get(
+                "preferred_converter", self.config.get("preferred_converter", "auto")
+            ),
         )
 
         # 序列化 DocumentEnvelope 列表为 JSON

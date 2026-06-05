@@ -12,6 +12,10 @@ register(
             "plate": "all",
             "page_size": 30,
             "max_pages": 5,
+            "trust_env": False,
+            # 巨潮公告是官方事实源，默认抽取 PDF 正文；下载有超时和大小保护。
+            "fetch_attachment_text": True,
+            "preferred_converter": "auto",
         },
         connector_dataset="announcements",
         pipeline_kind="document",

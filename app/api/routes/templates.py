@@ -166,6 +166,8 @@ async def list_templates():
                         "target_words": s.target_words,
                         "placeholder": s.placeholder,
                         "required_facets": s.required_facets,
+                        "evidence_policy": s.evidence_policy,
+                        "forbidden_terms": s.forbidden_terms,
                     }
                     for s in config.sections
                 ]
@@ -217,6 +219,8 @@ async def get_template(template_name: str):
                 "target_words": s.target_words,
                 "placeholder": s.placeholder,
                 "required_facets": s.required_facets,
+                "evidence_policy": s.evidence_policy,
+                "forbidden_terms": s.forbidden_terms,
             }
             for s in config.sections
         ]

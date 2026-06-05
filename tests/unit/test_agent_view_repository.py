@@ -34,6 +34,11 @@ def test_save_and_list_agent_view(db_session):
         view="bullish",
         thesis="Strong earnings",
         confidence=0.8,
+        assumptions=["EPS growth persists"],
+        risks=["valuation compression"],
+        invalidation_triggers=["guidance cut"],
+        recommended_next_checks=["check consensus revision"],
+        metadata={"source": "unit_test"},
     )
 
     saved = repo.save(view)
@@ -42,6 +47,11 @@ def test_save_and_list_agent_view(db_session):
     views = repo.list(target_id="AAPL")
     assert len(views) == 1
     assert views[0].agent_name == "BullAgent"
+    assert views[0].assumptions == ["EPS growth persists"]
+    assert views[0].risks == ["valuation compression"]
+    assert views[0].invalidation_triggers == ["guidance cut"]
+    assert views[0].recommended_next_checks == ["check consensus revision"]
+    assert views[0].metadata == {"source": "unit_test"}
 
 
 def test_save_and_list_conflict(db_session):

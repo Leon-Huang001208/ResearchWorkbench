@@ -1,0 +1,86 @@
+<h2>报告模板工作台：Word 模板 + Excel 底稿 + Section Prompt</h2>
+<p class="subtitle">围绕“创业板50周报”样本，把模板页从通用占位符输入升级为可审计的报告生成配置台。</p>
+
+<div class="mockup">
+  <div class="mockup-header">Recommended Layout</div>
+  <div class="mockup-body">
+    <div style="display:grid;grid-template-columns:240px 1.2fr 1fr;gap:14px;min-height:520px">
+      <div style="border-right:1px solid #e5e7eb;padding-right:12px">
+        <div class="label">Template Assets</div>
+        <div style="margin-top:10px;border:1px solid #d1d5db;border-radius:8px;padding:10px;background:#fff">
+          <strong>创业板50周报</strong>
+          <p style="margin:6px 0 0;color:#6b7280;font-size:13px">DOCX + Excel + YAML</p>
+        </div>
+        <div style="margin-top:10px;border:1px solid #d1d5db;border-radius:8px;padding:10px;background:#fff">
+          <strong>华安ETF周报</strong>
+          <p style="margin:6px 0 0;color:#6b7280;font-size:13px">DOCX + Excel + Prompt</p>
+        </div>
+        <button class="mock-button" style="margin-top:14px;width:100%">上传模板组</button>
+      </div>
+
+      <div>
+        <div class="label">Word Placeholder Map</div>
+        <div style="margin-top:10px;border:1px solid #d1d5db;border-radius:8px;background:#fff;overflow:hidden">
+          <div style="display:grid;grid-template-columns:40px 1fr 100px 100px;background:#f3f4f6;padding:8px 10px;font-size:13px;font-weight:600">
+            <span>#</span><span>占位符 / Section</span><span>类型</span><span>状态</span>
+          </div>
+          <div style="display:grid;grid-template-columns:40px 1fr 100px 100px;padding:10px;border-top:1px solid #e5e7eb">
+            <span>1</span><span>{{main_viewpoint}} 行情回顾及主要观点</span><span>AI 文本</span><span style="color:#059669">已映射</span>
+          </div>
+          <div style="display:grid;grid-template-columns:40px 1fr 100px 100px;padding:10px;border-top:1px solid #e5e7eb">
+            <span>2</span><span>{{chart_sector_performance}} 申万一级各板块表现</span><span>Excel 图表</span><span style="color:#059669">已映射</span>
+          </div>
+          <div style="display:grid;grid-template-columns:40px 1fr 100px 100px;padding:10px;border-top:1px solid #e5e7eb">
+            <span>3</span><span>{{industry_views.tech_ai}} 科技/AI/通信</span><span>AI 文本</span><span style="color:#d97706">待校验</span>
+          </div>
+          <div style="display:grid;grid-template-columns:40px 1fr 100px 100px;padding:10px;border-top:1px solid #e5e7eb">
+            <span>4</span><span>{{table_top_holdings}} 前十权重股</span><span>Excel 表格</span><span style="color:#059669">已映射</span>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="label">Excel Data Slots</div>
+        <div style="margin-top:10px;border:1px solid #d1d5db;border-radius:8px;background:#fff;padding:12px">
+          <div style="font-weight:600">创业板50周报（iFind版）.xlsx</div>
+          <p style="font-size:13px;color:#6b7280;margin:6px 0 12px">Sheets: 基本信息、成份股、行业、四个第一</p>
+          <div style="display:grid;gap:8px;font-size:13px">
+            <div style="display:flex;justify-content:space-between"><span>report_date</span><code>基本信息!A1</code></div>
+            <div style="display:flex;justify-content:space-between"><span>period_start/end</span><code>A3:B3</code></div>
+            <div style="display:flex;justify-content:space-between"><span>etf_info</span><code>C3:J3</code></div>
+            <div style="display:flex;justify-content:space-between"><span>top_holdings</span><code>成份股!B3:M12</code></div>
+            <div style="display:flex;justify-content:space-between"><span>charts</span><code>基本信息#1-2, 行业#1-3</code></div>
+          </div>
+        </div>
+
+        <div style="margin-top:14px;border:1px solid #d1d5db;border-radius:8px;background:#fff;padding:12px">
+          <div class="label">Generation Run</div>
+          <div style="margin-top:8px;height:8px;background:#e5e7eb;border-radius:99px;overflow:hidden">
+            <div style="width:64%;height:8px;background:#2563eb"></div>
+          </div>
+          <p style="font-size:13px;color:#6b7280">读取 Excel → 组装 Prompt → 校验数字 → 替换 Word → 导出 DOCX</p>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:16px;border-top:1px solid #e5e7eb;padding-top:14px">
+      <div class="label">Selected Section Config</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:10px">
+        <div style="border:1px solid #d1d5db;border-radius:8px;padding:10px;background:#fff">
+          <strong>Prompt</strong>
+          <p style="font-size:13px;color:#6b7280">本段职责、字数、语气、禁用表达、输出格式</p>
+        </div>
+        <div style="border:1px solid #d1d5db;border-radius:8px;padding:10px;background:#fff">
+          <strong>Data Dependencies</strong>
+          <p style="font-size:13px;color:#6b7280">Excel range、RAG profile、事件证据、派生指标</p>
+        </div>
+        <div style="border:1px solid #d1d5db;border-radius:8px;padding:10px;background:#fff">
+          <strong>Validation</strong>
+          <p style="font-size:13px;color:#6b7280">字数、数字一致性、禁用词、投资建议风险</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle">看这个方向是否符合你的预期：模板页不是单纯上传文件，而是管理“模板组”和每个 section 的生成契约。</p>

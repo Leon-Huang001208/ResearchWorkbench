@@ -1,0 +1,502 @@
+"""Report project API routes."""
+from datetime import datetime
+import json
+from pathlib import Path
+import re
+from typing import Any, Dict, List
+import xml.etree.ElementTree as ET
+import zipfile
+
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse
+from pydantic import BaseModel, Field
+import yaml
+
+from core.observability import get_logger
+from reporting.projects.project_manager import ReportProject, ReportProjectManager
+
+logger = get_logger(__name__)
+router = APIRouter(prefix="/api/report-projects", tags=["report-projects"])
+
+report_project_manager = ReportProjectManager()
+
+
+class GeneratedReportInfo(BaseModel):
+    """Generated report metadata."""
+
+    file_name: str
+    file_path: str
+    generated_at: datetime
+
+
+class ExcelSheetInfo(BaseModel):
+    """Excel worksheet summary."""
+
+    name: str
+    dimension: str
+    nonempty_count: int
+    sample_cells: List[str] = Field(default_factory=list)
+
+
+class ReportProjectInfo(BaseModel):
+    """Report project summary for the frontend."""
+
+    name: str
+    slug: str
+    project_dir: str
+    word_template_path: str
+    word_template_filename: str
+    excel_workbook_path: str
+    excel_workbook_filename: str
+    section_config_path: str
+    section_config_filename: str
+    prompt_templates_path: str | None = None
+    prompt_templates_filename: str | None = None
+    data_source_files: List[str] = Field(default_factory=list)
+    word_placeholders: List[str] = Field(default_factory=list)
+    section_config: Dict[str, Any] = Field(default_factory=dict)
+    section_config_source: str = ""
+    excel_sheets: List[ExcelSheetInfo] = Field(default_factory=list)
+    output_dir: str
+    run_log_dir: str
+    generated_reports: List[GeneratedReportInfo] = Field(default_factory=list)
+
+
+class ReportProjectsListResponse(BaseModel):
+    """Report projects list response."""
+
+    projects: List[ReportProjectInfo]
+    total: int
+
+
+class RenderReportProjectRequest(BaseModel):
+    """Project report render request."""
+
+    placeholders: Dict[str, str] = Field(default_factory=dict)
+
+
+class UpdateReportProjectRequest(BaseModel):
+    """Report project update request."""
+
+    project_name: str
+
+
+class RenderReportProjectResponse(BaseModel):
+    """Project report render response."""
+
+    success: bool
+    project_name: str
+    slug: str
+    file_name: str
+    file_path: str
+    download_url: str
+    generated_at: datetime
+
+
+@router.get("/", response_model=ReportProjectsListResponse, summary="列出报告项目")
+async def list_report_projects():
+    """List report projects stored as project folders."""
+    try:
+        projects = [_to_project_info(project) for project in report_project_manager.list_projects()]
+        return ReportProjectsListResponse(projects=projects, total=len(projects))
+    except Exception as exc:
+        logger.exception("Failed to list report projects")
+        raise HTTPException(status_code=500, detail=f"Failed to list report projects: {exc}")
+
+
+@router.post("/upload", response_model=ReportProjectInfo, summary="上传报告项目包")
+async def upload_report_project(
+    project_name: str = Form(..., description="报告项目名称"),
+    word_template: UploadFile = File(..., description="Word 模板 .docx"),
+    excel_workbook: UploadFile = File(..., description="Excel 数据底稿 .xlsx"),
+    section_config: UploadFile = File(..., description="Section 配置 .yaml/.yml"),
+    prompt_templates: UploadFile | None = File(None, description="Prompt 模板 .md"),
+    data_files: List[UploadFile] = File(default_factory=list, description="配套数据文件"),
+):
+    """Create a report project folder from uploaded project package assets."""
+    slug = _safe_project_slug(project_name)
+    project_dir = report_project_manager.projects_root / slug
+    if project_dir.exists():
+        raise HTTPException(status_code=409, detail=f"Report project already exists: {slug}")
+
+    try:
+        templates_dir = project_dir / "templates"
+        data_dir = project_dir / "data"
+        config_dir = project_dir / "config"
+        generated_dir = project_dir / "generated"
+        runs_dir = project_dir / "runs"
+        for directory in [templates_dir, data_dir, config_dir, generated_dir, runs_dir]:
+            directory.mkdir(parents=True, exist_ok=True)
+
+        _require_suffix(word_template.filename or "", [".docx"], "Word 模板")
+        _require_suffix(excel_workbook.filename or "", [".xlsx"], "Excel 数据底稿")
+        _require_suffix(section_config.filename or "", [".yaml", ".yml"], "Section 配置")
+        if prompt_templates:
+            _require_suffix(prompt_templates.filename or "", [".md"], "Prompt 模板")
+
+        word_path = templates_dir / "report_template.docx"
+        excel_filename = _safe_filename(excel_workbook.filename or "workbook.xlsx")
+        excel_path = data_dir / excel_filename
+        section_path = config_dir / "section_config.yaml"
+
+        word_path.write_bytes(await word_template.read())
+        excel_path.write_bytes(await excel_workbook.read())
+        section_path.write_bytes(await section_config.read())
+
+        prompt_path = None
+        if prompt_templates:
+            prompt_path = config_dir / "prompt_templates.md"
+            prompt_path.write_bytes(await prompt_templates.read())
+
+        data_source_paths: List[Path] = []
+        for upload in data_files or []:
+            filename = _safe_filename(upload.filename or "")
+            if not filename:
+                continue
+            _require_suffix(filename, [".json", ".xlsx", ".png"], "数据文件")
+            target_path = data_dir / filename
+            target_path.write_bytes(await upload.read())
+            data_source_paths.append(target_path)
+
+        project_data = {
+            "name": project_name,
+            "active_word_template": "templates/report_template.docx",
+            "active_excel_workbook": f"data/{excel_filename}",
+            "section_config": "config/section_config.yaml",
+            "output_dir": "generated",
+            "run_log_dir": "runs",
+        }
+        if prompt_path:
+            project_data["prompt_templates"] = "config/prompt_templates.md"
+        if data_source_paths:
+            project_data["data_sources"] = [f"data/{path.name}" for path in data_source_paths]
+
+        import yaml
+
+        (project_dir / "project.yaml").write_text(
+            yaml.safe_dump(project_data, allow_unicode=True, sort_keys=False),
+            encoding="utf-8",
+        )
+
+        project = report_project_manager.get_project(slug)
+        logger.info("Uploaded report project package", slug=slug, project_dir=str(project_dir))
+        return _to_project_info(project)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Failed to upload report project", project_name=project_name)
+        raise HTTPException(status_code=500, detail=f"Failed to upload report project: {exc}")
+
+
+@router.get("/{slug}", response_model=ReportProjectInfo, summary="获取报告项目详情")
+async def get_report_project(slug: str):
+    """Get one report project by folder slug."""
+    try:
+        return _to_project_info(report_project_manager.get_project(slug))
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Report project not found: {slug}")
+    except Exception as exc:
+        logger.exception("Failed to get report project", slug=slug)
+        raise HTTPException(status_code=500, detail=f"Failed to get report project: {exc}")
+
+
+@router.patch("/{slug}", response_model=ReportProjectInfo, summary="更新报告项目")
+async def update_report_project(slug: str, request: UpdateReportProjectRequest):
+    """Rename a report project and update its project.yaml."""
+    try:
+        project = report_project_manager.rename_project(slug, request.project_name)
+        return _to_project_info(project)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Report project not found: {slug}")
+    except FileExistsError:
+        raise HTTPException(
+            status_code=409, detail=f"Report project already exists: {request.project_name}"
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        logger.exception("Failed to update report project", slug=slug)
+        raise HTTPException(status_code=500, detail=f"Failed to update report project: {exc}")
+
+
+@router.post("/{slug}/render", response_model=RenderReportProjectResponse, summary="生成报告项目文档")
+async def render_report_project(slug: str, request: RenderReportProjectRequest):
+    """Render a report project into its own generated directory."""
+    try:
+        from reporting.projections.word import WordProjection
+
+        project = report_project_manager.get_project(slug)
+        generated_at = datetime.now()
+        timestamp = generated_at.strftime("%Y-%m-%d_%H%M%S")
+        safe_project_name = project.name.replace("/", "_").replace(":", "_")
+        file_name = f"{timestamp}_{safe_project_name}.docx"
+        output_path = project.output_dir / file_name
+
+        projection = WordProjection()
+        projection.save_from_template(
+            output_path=output_path,
+            template_path=project.word_template_path,
+            sections=[],
+            placeholders=request.placeholders,
+        )
+
+        run_record = {
+            "project_name": project.name,
+            "slug": project.slug,
+            "word_template_path": str(project.word_template_path),
+        "excel_workbook_path": str(project.excel_workbook_path),
+        "section_config_path": str(project.section_config_path),
+        "prompt_templates_path": str(project.prompt_templates_path) if project.prompt_templates_path else None,
+        "data_source_paths": [str(path) for path in project.data_source_paths],
+        "output_path": str(output_path),
+        "generated_at": generated_at.isoformat(),
+        "placeholder_count": len(request.placeholders),
+        }
+        run_path = project.run_log_dir / f"{timestamp}.json"
+        run_path.write_text(
+            json.dumps(run_record, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+
+        logger.info(
+            "Rendered report project",
+            slug=slug,
+            output_path=str(output_path),
+            run_path=str(run_path),
+        )
+
+        return RenderReportProjectResponse(
+            success=True,
+            project_name=project.name,
+            slug=project.slug,
+            file_name=file_name,
+            file_path=str(output_path),
+            download_url=f"/api/report-projects/{project.slug}/download/{file_name}",
+            generated_at=generated_at,
+        )
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Report project not found: {slug}")
+    except Exception as exc:
+        logger.exception("Failed to render report project", slug=slug)
+        raise HTTPException(status_code=500, detail=f"Failed to render report project: {exc}")
+
+
+@router.get("/{slug}/download/{file_name}", summary="下载报告项目生成文档")
+async def download_report_project_file(slug: str, file_name: str):
+    """Download one generated project report."""
+    try:
+        project = report_project_manager.get_project(slug)
+        output_path = project.output_dir / file_name
+        if output_path.parent.resolve() != project.output_dir.resolve():
+            raise HTTPException(status_code=400, detail="Invalid generated report file name")
+        if not output_path.exists():
+            raise HTTPException(status_code=404, detail=f"Generated report not found: {file_name}")
+
+        return FileResponse(
+            output_path,
+            filename=file_name,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        )
+    except HTTPException:
+        raise
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Report project not found: {slug}")
+    except Exception as exc:
+        logger.exception("Failed to download report project file", slug=slug, file_name=file_name)
+        raise HTTPException(status_code=500, detail=f"Failed to download report: {exc}")
+
+
+def _to_project_info(project: ReportProject) -> ReportProjectInfo:
+    section_config, section_config_source = _read_section_config(project.section_config_path)
+    return ReportProjectInfo(
+        name=project.name,
+        slug=project.slug,
+        project_dir=str(project.project_dir),
+        word_template_path=str(project.word_template_path),
+        word_template_filename=project.word_template_path.name,
+        excel_workbook_path=str(project.excel_workbook_path),
+        excel_workbook_filename=project.excel_workbook_path.name,
+        section_config_path=str(project.section_config_path),
+        section_config_filename=project.section_config_path.name,
+        prompt_templates_path=str(project.prompt_templates_path)
+        if project.prompt_templates_path
+        else None,
+        prompt_templates_filename=project.prompt_templates_path.name
+        if project.prompt_templates_path
+        else None,
+        data_source_files=[path.name for path in project.data_source_paths],
+        word_placeholders=_extract_docx_placeholders(project.word_template_path),
+        section_config=section_config,
+        section_config_source=section_config_source,
+        excel_sheets=_summarize_excel_workbook(project.excel_workbook_path),
+        output_dir=str(project.output_dir),
+        run_log_dir=str(project.run_log_dir),
+        generated_reports=[_to_generated_report_info(path) for path in project.generated_reports],
+    )
+
+
+def _read_section_config(path: Path) -> tuple[Dict[str, Any], str]:
+    """Read raw and parsed section YAML for frontend inspection."""
+    try:
+        source = path.read_text(encoding="utf-8")
+        parsed = yaml.safe_load(source) or {}
+        if not isinstance(parsed, dict):
+            parsed = {}
+        return parsed, source
+    except Exception as exc:
+        logger.warning("Failed to read section config summary", path=str(path), error=str(exc))
+        return {}, ""
+
+
+def _extract_docx_placeholders(path: Path) -> List[str]:
+    """Extract {{placeholder}} tokens from Word text, including tokens split across runs."""
+    word_ns = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+    placeholders: set[str] = set()
+    try:
+        with zipfile.ZipFile(path) as archive:
+            for name in archive.namelist():
+                if not (name.startswith("word/") and name.endswith(".xml")):
+                    continue
+                if any(
+                    skipped in name
+                    for skipped in [
+                        "styles",
+                        "settings",
+                        "numbering",
+                        "fontTable",
+                        "theme",
+                        "webSettings",
+                    ]
+                ):
+                    continue
+                try:
+                    root = ET.fromstring(archive.read(name))
+                except ET.ParseError:
+                    continue
+                for paragraph in root.iter(f"{word_ns}p"):
+                    text = "".join(node.text or "" for node in paragraph.iter(f"{word_ns}t"))
+                    for match in re.findall(r"\{\{\s*([^{}]+?)\s*\}\}", text):
+                        normalized = match.strip()
+                        if normalized:
+                            placeholders.add(normalized)
+        return sorted(placeholders)
+    except Exception as exc:
+        logger.warning("Failed to extract docx placeholders", path=str(path), error=str(exc))
+        return []
+
+
+def _summarize_excel_workbook(path: Path) -> List[ExcelSheetInfo]:
+    """Summarize worksheet names, dimensions, and sample cells from an xlsx package."""
+    try:
+        with zipfile.ZipFile(path) as archive:
+            shared_strings = _read_xlsx_shared_strings(archive)
+            workbook = ET.fromstring(archive.read("xl/workbook.xml"))
+            rels = ET.fromstring(archive.read("xl/_rels/workbook.xml.rels"))
+            rel_map = {rel.attrib["Id"]: rel.attrib["Target"] for rel in rels}
+            sheets: List[ExcelSheetInfo] = []
+            for sheet in workbook.findall(".//{http://schemas.openxmlformats.org/spreadsheetml/2006/main}sheet"):
+                sheet_name = sheet.attrib.get("name", "Sheet")
+                rel_id = sheet.attrib.get(
+                    "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id"
+                )
+                target = rel_map.get(rel_id or "")
+                if not target:
+                    continue
+                sheet_path = target if target.startswith("xl/") else f"xl/{target.lstrip('/')}"
+                sheet_root = ET.fromstring(archive.read(sheet_path))
+                dimension_el = sheet_root.find(
+                    ".//{http://schemas.openxmlformats.org/spreadsheetml/2006/main}dimension"
+                )
+                dimension = dimension_el.attrib.get("ref", "") if dimension_el is not None else ""
+                cells = _read_xlsx_nonempty_cells(sheet_root, shared_strings)
+                sample = [f"{address}={str(value)[:60]}" for address, value in cells[:12]]
+                sheets.append(
+                    ExcelSheetInfo(
+                        name=sheet_name,
+                        dimension=dimension,
+                        nonempty_count=len(cells),
+                        sample_cells=sample,
+                    )
+                )
+            return sheets
+    except Exception as exc:
+        logger.warning("Failed to summarize excel workbook", path=str(path), error=str(exc))
+        return []
+
+
+def _read_xlsx_shared_strings(archive: zipfile.ZipFile) -> List[str]:
+    try:
+        root = ET.fromstring(archive.read("xl/sharedStrings.xml"))
+    except KeyError:
+        return []
+    text_tag = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}t"
+    return ["".join(node.text or "" for node in item.iter(text_tag)) for item in root]
+
+
+def _read_xlsx_nonempty_cells(
+    sheet_root: ET.Element, shared_strings: List[str]
+) -> List[tuple[str, str]]:
+    cell_tag = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}c"
+    value_tag = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}v"
+    text_tag = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}t"
+    cells: List[tuple[str, str]] = []
+    for cell in sheet_root.iter(cell_tag):
+        address = cell.attrib.get("r", "")
+        value = ""
+        cell_type = cell.attrib.get("t")
+        if cell_type == "inlineStr":
+            value = "".join(node.text or "" for node in cell.iter(text_tag))
+        else:
+            value_el = cell.find(value_tag)
+            if value_el is not None and value_el.text is not None:
+                value = value_el.text
+                if cell_type == "s":
+                    try:
+                        value = shared_strings[int(value)]
+                    except (ValueError, IndexError):
+                        pass
+        if value:
+            cells.append((address, value))
+    return sorted(cells, key=lambda item: _xlsx_cell_sort_key(item[0]))
+
+
+def _xlsx_cell_sort_key(address: str) -> tuple[int, int]:
+    match = re.match(r"([A-Z]+)(\d+)", address)
+    if not match:
+        return (10**9, 10**9)
+    col = 0
+    for char in match.group(1):
+        col = col * 26 + ord(char) - 64
+    return (int(match.group(2)), col)
+
+
+def _to_generated_report_info(path: Path) -> GeneratedReportInfo:
+    stat = path.stat()
+    return GeneratedReportInfo(
+        file_name=path.name,
+        file_path=str(path),
+        generated_at=datetime.fromtimestamp(stat.st_mtime),
+    )
+
+
+def _safe_project_slug(project_name: str) -> str:
+    slug = project_name.strip()
+    if not slug:
+        raise HTTPException(status_code=400, detail="Report project name is required")
+    if any(part in slug for part in ["/", "\\", ".."]):
+        raise HTTPException(status_code=400, detail="Invalid report project name")
+    return slug
+
+
+def _safe_filename(filename: str) -> str:
+    name = Path(filename).name.strip()
+    if not name or name in {".", ".."}:
+        raise HTTPException(status_code=400, detail="Invalid upload file name")
+    return name
+
+
+def _require_suffix(filename: str, allowed_suffixes: List[str], label: str) -> None:
+    suffix = Path(filename).suffix.lower()
+    if suffix not in allowed_suffixes:
+        allowed = "、".join(allowed_suffixes)
+        raise HTTPException(status_code=400, detail=f"{label} 仅支持 {allowed}")

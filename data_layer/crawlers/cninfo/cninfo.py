@@ -69,6 +69,7 @@ class CninfoConfig:
     max_pages: int = 5
     timeout: int = 30
     delay: float = 0.5
+    trust_env: bool = False
     start_date: str | None = None
     end_date: str | None = None
     plate: str = ""
@@ -118,11 +119,11 @@ class CninfoCrawler:
 
         try:
             self._initialize()
-            announcements = self._crawl_all()
+            announcements = self._crawl_all(errors)
 
             elapsed = time.time() - start_time
             result = {
-                "success": True,
+                "success": len(errors) == 0,
                 "announcements": announcements,
                 "total_count": len(announcements),
                 "elapsed_seconds": round(elapsed, 1),
@@ -156,6 +157,7 @@ class CninfoCrawler:
             raise ImportError("requests is required for CninfoCrawler. pip install requests")
 
         self._session = req_lib.Session()
+        self._session.trust_env = self.config.trust_env
         self._session.headers.update(
             {
                 "User-Agent": (
@@ -172,7 +174,7 @@ class CninfoCrawler:
     # 爬取循环
     # ------------------------------------------------------------------
 
-    def _crawl_all(self) -> list[dict[str, Any]]:
+    def _crawl_all(self, errors: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """分页爬取所有公告.
 
         Returns:
@@ -181,7 +183,7 @@ class CninfoCrawler:
         all_announcements: list[dict[str, Any]] = []
 
         for page in range(1, self.config.max_pages + 1):
-            result = self._post_search(page)
+            result = self._post_search(page, errors)
             if result is None:
                 break
 
@@ -201,7 +203,11 @@ class CninfoCrawler:
 
         return all_announcements
 
-    def _post_search(self, page_num: int) -> dict[str, Any] | None:
+    def _post_search(
+        self,
+        page_num: int,
+        errors: list[dict[str, Any]],
+    ) -> dict[str, Any] | None:
         """发送单页搜索请求.
 
         Args:
@@ -238,6 +244,7 @@ class CninfoCrawler:
             data: dict[str, Any] = resp.json()
             return data
         except Exception as e:
+            errors.append({"page": page_num, "error": str(e)})
             logger.warning(
                 "cninfo_crawl_page_failed",
                 extra={"page": page_num, "error": str(e)},

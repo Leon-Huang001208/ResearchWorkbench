@@ -10,6 +10,7 @@ from app.api.routes.review import get_review_service
 from app.api.routes.scenarios import get_scenario_service
 from app.api.routes.signals import get_signal_service
 from core.contracts import AlphaSignal, AssetAnalysisSnapshot, ScenarioHypothesis, ScenarioSet
+from cognitive_agents import AgentWorkflowResult, CommitteeSynthesis
 
 client = TestClient(app)
 
@@ -118,6 +119,62 @@ class TestAssetsAPI:
             assert data["canonical_id"] == "000001.SZ"
         finally:
             app.dependency_overrides.pop(get_asset_service, None)
+
+    def test_asset_agent_committee(self):
+        from app.api.routes.assets import get_asset_committee_service
+
+        mock_service = MagicMock()
+        mock_service.analyze = AsyncMock(
+            return_value=AgentWorkflowResult(
+                workflow_id="workflow_asset_committee_v1",
+                target_id="300308.SZ",
+                views=[],
+                synthesis=CommitteeSynthesis(
+                    synthesis_id="synthesis_workflow_asset_committee_v1_300308_SZ_no_event",
+                    workflow_id="workflow_asset_committee_v1",
+                    target_id="300308.SZ",
+                    final_view="bullish",
+                    confidence=0.72,
+                    thesis="多维观点偏积极",
+                    rationale=["Direction scores: {'bullish': 2.1}."],
+                    metadata={"view_count": 3},
+                ),
+            )
+        )
+
+        app.dependency_overrides[get_asset_committee_service] = lambda: mock_service
+        try:
+            resp = client.post(
+                "/api/assets/agent-committee",
+                json={"canonical_id": "300308.SZ", "question": "是否进入研究池？"},
+            )
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["workflow_id"] == "workflow_asset_committee_v1"
+            assert data["synthesis"]["final_view"] == "bullish"
+            assert data["synthesis"]["metadata"]["view_count"] == 3
+        finally:
+            app.dependency_overrides.pop(get_asset_committee_service, None)
+
+    def test_official_evidence_backfill_cninfo(self):
+        from app.api.routes.assets import get_official_evidence_backfill_service
+
+        mock_service = MagicMock()
+        mock_service.backfill_cninfo = AsyncMock(
+            return_value={"processed": 2, "events": 3, "failed": 0}
+        )
+
+        app.dependency_overrides[get_official_evidence_backfill_service] = lambda: mock_service
+        try:
+            resp = client.post(
+                "/api/assets/official-evidence/backfill-cninfo",
+                json={"limit": 2, "offset": 1},
+            )
+            assert resp.status_code == 200
+            assert resp.json() == {"processed": 2, "events": 3, "failed": 0}
+            mock_service.backfill_cninfo.assert_awaited_once_with(limit=2, offset=1)
+        finally:
+            app.dependency_overrides.pop(get_official_evidence_backfill_service, None)
 
 
 # ─── 情景分析 ───────────────────────────────────────────

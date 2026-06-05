@@ -53,4 +53,3 @@ sections:
   scenario_required: true
   evidence_policy: strict
   placeholder: outlook_placeholder
-sort_order: 1

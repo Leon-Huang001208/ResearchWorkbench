@@ -8,6 +8,7 @@ import { apiCall, esc } from './core.js';
 // ─── Live Crawl Feed Polling (分源独立轮询) ─────────────────
 const CRAWL_FEED_SOURCES = [
     { id: 'cls', label: 'CLS', limit: 200 },
+    { id: 'cninfo', label: '巨潮公告', limit: 200 },
     { id: 'cnstock', label: 'CNSTOCK', limit: 200 },
     { id: 'cnstock_flash', label: '快讯', limit: 200 },
     { id: 'zhiqiu_reports', label: 'ZQ研报', limit: 200 },

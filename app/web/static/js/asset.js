@@ -628,6 +628,7 @@ async function analyzeAssetByCode(code, timeRange = null) {
         const data = await apiCall('POST', '/api/assets/analysis-card', { canonical_id: code, time_range: range });
         renderAssetAnalysisCard(data);
         if (result) result.classList.remove('hidden');
+        loadAssetAgentCommittee(code, range);
     } catch (e) {
         toast(e.message, 'error');
     } finally {
@@ -684,6 +685,122 @@ function renderAssetAnalysisCard(data) {
     renderIndustryInfo(data.industry);
     renderEventListPanel(data.recent_events || []);
     renderMacroSensitivity(data.macro_sensitivity);
+}
+
+function setAssetAgentCommitteeStatus(text, state = 'idle') {
+    const status = document.getElementById('asset-agent-committee-status');
+    if (!status) return;
+    status.textContent = text;
+    status.className = `agent-committee-status ${state}`;
+}
+
+function resetAssetAgentCommittee() {
+    const summary = document.getElementById('asset-agent-committee-summary');
+    const views = document.getElementById('asset-agent-committee-views');
+    setAssetAgentCommitteeStatus('分析中', 'loading');
+    if (summary) summary.innerHTML = '<div class="empty-state">正在运行宏观、基本面、技术面 Agent...</div>';
+    if (views) views.innerHTML = '';
+}
+
+async function loadAssetAgentCommittee(code, range) {
+    resetAssetAgentCommittee();
+    try {
+        const data = await apiCall('POST', '/api/assets/agent-committee', {
+            canonical_id: code,
+            time_range: range,
+            question: '这个标的是否值得进入研究池？',
+        });
+        if (currentCanonicalId !== code) return;
+        renderAssetAgentCommittee(data);
+    } catch (e) {
+        if (currentCanonicalId !== code) return;
+        renderAssetAgentCommitteeError(e.message);
+    }
+}
+
+function renderAssetAgentCommitteeError(message) {
+    const summary = document.getElementById('asset-agent-committee-summary');
+    const views = document.getElementById('asset-agent-committee-views');
+    setAssetAgentCommitteeStatus('失败', 'error');
+    if (summary) {
+        summary.innerHTML = `<div class="agent-committee-error">${esc(message || '委员会分析失败')}</div>`;
+    }
+    if (views) views.innerHTML = '';
+}
+
+function renderAssetAgentCommittee(data) {
+    const synthesis = data?.synthesis || {};
+    const views = Array.isArray(data?.views) ? data.views : [];
+    const summary = document.getElementById('asset-agent-committee-summary');
+    const viewGrid = document.getElementById('asset-agent-committee-views');
+    const finalView = synthesis.final_view || 'unknown';
+    const confidence = isFiniteNumber(synthesis.confidence) ? `${Math.round(synthesis.confidence * 100)}%` : '--';
+
+    setAssetAgentCommitteeStatus(directionLabel(finalView), finalView);
+    if (summary) {
+        const rationale = (synthesis.rationale || []).slice(0, 2).map(item => `<li>${esc(item)}</li>`).join('');
+        const risks = (synthesis.risks || []).slice(0, 3).map(item => `<li>${esc(item)}</li>`).join('');
+        const nextChecks = (synthesis.recommended_next_checks || []).slice(0, 3).map(item => `<li>${esc(item)}</li>`).join('');
+        summary.innerHTML = `
+            <div class="agent-committee-final">
+                <div>
+                    <span class="agent-committee-label">委员会结论</span>
+                    <strong class="agent-committee-view ${directionClass(finalView)}">${esc(directionLabel(finalView))}</strong>
+                </div>
+                <div>
+                    <span class="agent-committee-label">置信度</span>
+                    <strong>${esc(confidence)}</strong>
+                </div>
+            </div>
+            <p class="agent-committee-thesis">${esc(synthesis.thesis || '暂无委员会论点')}</p>
+            <div class="agent-committee-lists">
+                <div><span>依据</span><ul>${rationale || '<li>暂无</li>'}</ul></div>
+                <div><span>风险</span><ul>${risks || '<li>暂无</li>'}</ul></div>
+                <div><span>下一步</span><ul>${nextChecks || '<li>暂无</li>'}</ul></div>
+            </div>
+        `;
+    }
+    if (viewGrid) {
+        viewGrid.innerHTML = views.map(renderAgentViewCard).join('') || '<div class="empty-state">暂无 Agent 观点</div>';
+    }
+}
+
+function renderAgentViewCard(view) {
+    const role = agentRoleLabel(view.agent_role);
+    const confidence = isFiniteNumber(view.confidence) ? `${Math.round(view.confidence * 100)}%` : '--';
+    const reasoning = (view.reasoning || []).slice(0, 3).map(item => `<li>${esc(item)}</li>`).join('');
+    return `
+        <div class="agent-view-card">
+            <div class="agent-view-card-header">
+                <strong>${esc(role)}</strong>
+                <span class="agent-view-badge ${directionClass(view.view)}">${esc(directionLabel(view.view))} ${esc(confidence)}</span>
+            </div>
+            <p>${esc(view.thesis || '暂无论点')}</p>
+            <ul>${reasoning || '<li>暂无推理</li>'}</ul>
+        </div>
+    `;
+}
+
+function directionLabel(direction) {
+    return {
+        bullish: '积极',
+        bearish: '谨慎',
+        neutral: '中性',
+        mixed: '分歧',
+        unknown: '未知',
+    }[direction] || '未知';
+}
+
+function directionClass(direction) {
+    return ['bullish', 'bearish', 'neutral', 'mixed', 'unknown'].includes(direction) ? direction : 'unknown';
+}
+
+function agentRoleLabel(role) {
+    return {
+        macro: '宏观 Agent',
+        fundamental: '基本面 Agent',
+        technical: '技术面 Agent',
+    }[role] || `${role || '未知'} Agent`;
 }
 
 function buildDailyChipPriceWeights(bar, priceMin, bucketWidth, buckets) {

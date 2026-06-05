@@ -72,3 +72,29 @@ def test_abnormal_flows_handled(mock_repo_cls):
 
     assert isinstance(today.abnormal_flows, list)
     # When import fails, falls back to mock data (2 entries)
+
+
+@patch("services.dashboard_service.DashboardDataRepository")
+def test_crawl_feed_supports_cninfo_source_filter(mock_repo_cls):
+    """Dashboard crawl feed should expose cninfo for implementation monitoring."""
+    mock_repo = Mock()
+    mock_repo.get_recent_crawled_documents.return_value = {
+        "items": [
+            {
+                "doc_id": "doc_cninfo_001",
+                "title": "贵州茅台2025年年度报告",
+                "source_type": "cninfo",
+            }
+        ],
+        "total_today": 1,
+        "last_crawled_at": "2026-06-05T09:00:00",
+    }
+    mock_repo_cls.return_value = mock_repo
+
+    service = DashboardService(Mock())
+    result = service.get_crawl_feed(limit=20, source_type="cninfo")
+
+    mock_repo.get_recent_crawled_documents.assert_called_once_with(
+        limit=20, since=None, source_type="cninfo"
+    )
+    assert result["items"][0]["source_type"] == "cninfo"

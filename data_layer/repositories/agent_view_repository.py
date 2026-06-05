@@ -8,6 +8,8 @@ from data_layer.repositories.models import AgentViewDB, BlackboardConflictDB
 
 logger = get_logger(__name__)
 
+_EXTENSION_KEY = "_agent_view_extensions"
+
 
 class AgentViewRepositoryImpl(BaseRepository):
     """Agent 观点仓储实现"""
@@ -29,7 +31,7 @@ class AgentViewRepositoryImpl(BaseRepository):
             existing.memory_refs = view.memory_refs
             existing.workflow_id = view.workflow_id
             existing.evaluation = view.evaluation
-            existing.view_metadata = view.metadata
+            existing.view_metadata = self._pack_metadata(view)
             db_view = existing
         else:
             db_view = AgentViewDB(
@@ -47,7 +49,7 @@ class AgentViewRepositoryImpl(BaseRepository):
                 memory_refs=view.memory_refs,
                 workflow_id=view.workflow_id,
                 evaluation=view.evaluation,
-                view_metadata=view.metadata,
+                view_metadata=self._pack_metadata(view),
             )
             self.db.add(db_view)
         self.db.flush()
@@ -112,6 +114,7 @@ class AgentViewRepositoryImpl(BaseRepository):
 
     def _to_domain_view(self, db_view: AgentViewDB) -> AgentView:
         """转换为领域模型"""
+        metadata, extensions = self._unpack_metadata(db_view.view_metadata)
         return AgentView(
             view_id=db_view.view_id,
             agent_name=db_view.agent_name,
@@ -122,13 +125,37 @@ class AgentViewRepositoryImpl(BaseRepository):
             confidence=float(db_view.confidence),
             event_id=db_view.event_id,
             reasoning=db_view.reasoning,
+            assumptions=extensions.get("assumptions", []),
+            risks=extensions.get("risks", []),
+            invalidation_triggers=extensions.get("invalidation_triggers", []),
+            recommended_next_checks=extensions.get("recommended_next_checks", []),
             evidence_refs=db_view.evidence_refs,
             tool_refs=db_view.tool_refs,
             memory_refs=db_view.memory_refs,
             workflow_id=db_view.workflow_id,
             evaluation=db_view.evaluation,
-            metadata=db_view.view_metadata,
+            metadata=metadata,
         )
+
+    @staticmethod
+    def _pack_metadata(view: AgentView) -> dict:
+        """Store new AgentView extension fields without requiring a schema migration."""
+        metadata = dict(view.metadata or {})
+        metadata[_EXTENSION_KEY] = {
+            "assumptions": view.assumptions,
+            "risks": view.risks,
+            "invalidation_triggers": view.invalidation_triggers,
+            "recommended_next_checks": view.recommended_next_checks,
+        }
+        return metadata
+
+    @staticmethod
+    def _unpack_metadata(raw_metadata: dict | None) -> tuple[dict, dict]:
+        metadata = dict(raw_metadata or {})
+        extensions = metadata.pop(_EXTENSION_KEY, {})
+        if not isinstance(extensions, dict):
+            extensions = {}
+        return metadata, extensions
 
     def _to_domain_conflict(self, db_conflict: BlackboardConflictDB) -> BlackboardConflict:
         """转换为领域模型"""

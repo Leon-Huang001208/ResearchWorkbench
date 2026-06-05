@@ -12,7 +12,9 @@ let currentTemplateState = {
     discoveredPlaceholders: [],
     placeholderValues: {},
     renderedReportId: null,
-    templates: []
+    templates: [],
+    reportProjects: [],
+    selectedReportProject: null
 };
 
 let currentSelectedTemplate = null;
@@ -20,12 +22,14 @@ let currentSelectedFileType = null;
 let isEditMode = false;
 let draggedTemplateName = null;
 let draggedElement = null;
+let pointerDragState = null;
 let editingTemplateName = null;
 let originalTemplates = [];
 
 // ─── Template Page / List ──────────────────────────────────────
 async function loadTemplatesPage() {
     try {
+        await loadReportProjectsList();
         await loadTemplatesList();
         initTemplateDropZone();
         await initTemplateSelects();
@@ -36,8 +40,12 @@ async function loadTemplatesPage() {
 
 async function loadTemplatesList() {
     try {
+        await loadReportProjectsList();
         const data = await apiCall('GET', '/api/templates/');
-        currentTemplateState.templates = data.templates || [];
+        currentTemplateState.templates = mergeTemplatesWithReportProjects(
+            data.templates || [],
+            currentTemplateState.reportProjects || []
+        );
         renderTemplatesList(currentTemplateState.templates);
     } catch (e) {
         console.error('Failed to load templates:', e);
@@ -48,6 +56,65 @@ async function loadTemplatesList() {
 
 async function loadTemplates() {
     return loadTemplatesList();
+}
+
+async function loadReportProjectsList() {
+    try {
+        const data = await apiCall('GET', '/api/report-projects/');
+        currentTemplateState.reportProjects = data.projects || [];
+        return currentTemplateState.reportProjects;
+    } catch (e) {
+        console.warn('Failed to load report projects:', e);
+        currentTemplateState.reportProjects = [];
+        return [];
+    }
+}
+
+function mergeTemplatesWithReportProjects(templates, projects) {
+    const merged = [...templates];
+    const byName = new Map(merged.map(template => [template.template_name || template.name, template]));
+
+    projects.forEach(project => {
+        const templateName = project.name || project.slug;
+        const existing = byName.get(templateName) || byName.get(`${templateName}模板`);
+        if (existing) {
+            existing.report_project = project;
+            existing.has_docx = existing.has_docx || Boolean(project.word_template_filename);
+            existing.has_excel = existing.has_excel || Boolean(project.excel_workbook_filename);
+            return;
+        }
+
+        merged.push({
+            template_name: templateName,
+            name: templateName,
+            description: '报告项目包',
+            version: '1.0',
+            has_docx: Boolean(project.word_template_filename),
+            has_excel: Boolean(project.excel_workbook_filename),
+            placeholders: [],
+            sections: [],
+            report_project: project,
+            is_report_project_only: true
+        });
+    });
+
+    return merged;
+}
+
+async function findReportProjectForTemplate(templateName) {
+    if (!currentTemplateState.reportProjects.length) {
+        await loadReportProjectsList();
+    }
+
+    const rawTemplateName = String(templateName || '');
+    const normalizedTemplateName = rawTemplateName.replace(/模板$/, '');
+    return currentTemplateState.reportProjects.find(project => {
+        const projectName = project.name || project.slug || '';
+        return projectName === normalizedTemplateName
+            || normalizedTemplateName.includes(projectName)
+            || projectName.includes(normalizedTemplateName)
+            || (rawTemplateName.includes('创业板50') && projectName.includes('创业板50'));
+    }) || null;
 }
 
 function renderTemplatesList(templates) {
@@ -69,6 +136,7 @@ function renderTemplatesList(templates) {
         const templateName = t.template_name || t.name;
         const version = t.version || '1.0';
         const description = t.description || '';
+        const project = t.report_project || null;
 
         let iconHtml = '';
         if (fileType === 'pptx') {
@@ -81,14 +149,25 @@ function renderTemplatesList(templates) {
 
         const wrapperClasses = ['iphone-template-wrapper'];
         if (isEditMode) wrapperClasses.push('edit-mode');
+        const clickAttr = isEditMode ? '' : `onclick="selectTemplate('${esc(templateName)}', '${fileType}')"`;
 
         return `
-        <div class="${wrapperClasses.join(' ')}" data-template-name="${esc(templateName)}" data-index="${index}" ${isEditMode ? 'draggable="true" ondragstart="handleDragStart(event)" ondragover="handleDragOver(event)" ondrop="handleDrop(event)"' : ''}>
+        <div class="${wrapperClasses.join(' ')}" data-template-name="${esc(templateName)}" data-index="${index}" ${clickAttr} ${isEditMode ? 'onpointerdown="handleTemplatePointerDown(event)"' : ''}>
             <button class="iphone-delete-btn" onclick="event.stopPropagation(); deleteTemplate('${esc(templateName)}')"></button>
-            <div class="iphone-app-icon ${fileType}" onclick="!isEditMode && selectTemplate('${esc(templateName)}', '${fileType}')">
+            <div class="iphone-app-icon ${fileType}">
                 ${iconHtml}
             </div>
-            <div class="iphone-app-name">${esc(templateName)}</div>
+            ${isEditMode ? `
+                <input class="iphone-template-name-input"
+                       value="${esc(templateName)}"
+                       data-original-name="${esc(templateName)}"
+                       data-project-slug="${esc(project?.slug || '')}"
+                       draggable="false"
+                       onclick="event.stopPropagation()"
+                       ondragstart="event.preventDefault()"
+                       onkeydown="handleTemplateNameKeydown(event)"
+                       onblur="saveTemplateInlineName(this)" />
+            ` : `<div class="iphone-app-name">${esc(templateName)}</div>`}
         </div>
     `}).join('');
 }
@@ -102,6 +181,7 @@ async function selectTemplate(templateName, fileType) {
     currentTemplateState.discoveredPlaceholders = [];
     currentTemplateState.placeholderValues = {};
     currentTemplateState.renderedReportId = null;
+    currentTemplateState.selectedReportProject = null;
 
     const cards = document.querySelectorAll('.iphone-template-wrapper');
     cards.forEach(c => c.classList.remove('selected'));
@@ -119,11 +199,16 @@ async function selectTemplate(templateName, fileType) {
 
 async function loadTemplateDetails(templateName) {
     try {
-        const data = await apiCall('GET', '/api/templates/');
-        const templates = data.templates || [];
+        if (!currentTemplateState.templates.length) {
+            await loadTemplatesList();
+        }
+        const templates = currentTemplateState.templates || [];
         const template = templates.find(t => (t.template_name || t.name) === templateName);
 
         if (template) {
+            template.report_project = template.report_project || await findReportProjectForTemplate(templateName);
+            currentTemplateState.selectedReportProject = template.report_project || null;
+
             document.getElementById('detail-template-name').textContent = template.template_name || template.name;
             document.getElementById('detail-template-title').textContent = template.template_name || template.name;
             document.getElementById('detail-template-description').textContent = template.description || '';
@@ -147,6 +232,8 @@ async function loadTemplateDetails(templateName) {
             document.getElementById('btn-delete-template').onclick = () => {
                 deleteTemplate(templateName);
             };
+
+            renderTemplateWorkbench(template);
         }
     } catch (e) {
         console.error('Failed to load template details:', e);
@@ -159,6 +246,7 @@ function goBackToTemplates() {
     document.getElementById('templates-list-view').classList.remove('hidden');
     currentSelectedTemplate = null;
     currentSelectedFileType = null;
+    currentTemplateState.selectedReportProject = null;
     clearPlaceholderData();
 }
 
@@ -166,10 +254,11 @@ function goBackToTemplates() {
 function openUploadModal() {
     document.getElementById('upload-template-modal').classList.remove('hidden');
     document.getElementById('template-name-input').value = '';
-    document.getElementById('template-desc-input').value = '';
-    document.getElementById('template-version-input').value = '1.0';
-    document.getElementById('template-file-input').value = '';
-    document.getElementById('selected-file-info').classList.add('hidden');
+    document.getElementById('project-word-template-input').value = '';
+    document.getElementById('project-excel-workbook-input').value = '';
+    document.getElementById('project-section-config-input').value = '';
+    document.getElementById('project-prompt-templates-input').value = '';
+    document.getElementById('project-data-files-input').value = '';
     document.getElementById('template-upload-status').innerHTML = '';
 }
 
@@ -178,7 +267,135 @@ function closeUploadModal() {
 }
 
 // ─── Drag & Drop Reordering ────────────────────────────────────
+function handleTemplatePointerDown(event) {
+    if (!isEditMode || event.button !== 0) return;
+    if (event.target.closest('.iphone-template-name-input, .iphone-delete-btn')) return;
+
+    const card = event.target.closest('.iphone-template-wrapper');
+    if (!card) return;
+
+    const rect = card.getBoundingClientRect();
+    pointerDragState = {
+        card,
+        templateName: card.dataset.templateName,
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        offsetX: event.clientX - rect.left,
+        offsetY: event.clientY - rect.top,
+        rect,
+        placeholder: null,
+        hasMoved: false
+    };
+
+    card.setPointerCapture?.(event.pointerId);
+    document.addEventListener('pointermove', handleTemplatePointerMove);
+    document.addEventListener('pointerup', handleTemplatePointerUp);
+    document.addEventListener('pointercancel', handleTemplatePointerCancel);
+}
+
+function handleTemplatePointerMove(event) {
+    if (!pointerDragState || event.pointerId !== pointerDragState.pointerId) return;
+
+    const dx = event.clientX - pointerDragState.startX;
+    const dy = event.clientY - pointerDragState.startY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    if (!pointerDragState.hasMoved && distance < 6) return;
+
+    event.preventDefault();
+
+    if (!pointerDragState.hasMoved) {
+        startTemplatePointerDrag();
+    }
+
+    const { card, offsetX, offsetY } = pointerDragState;
+    card.style.left = `${event.clientX - offsetX}px`;
+    card.style.top = `${event.clientY - offsetY}px`;
+    moveTemplateDragPlaceholder(event.clientX, event.clientY);
+}
+
+function startTemplatePointerDrag() {
+    const { card, rect } = pointerDragState;
+    const placeholder = document.createElement('div');
+    placeholder.className = 'iphone-template-placeholder';
+    placeholder.style.width = `${rect.width}px`;
+    placeholder.style.height = `${rect.height}px`;
+
+    card.parentNode.insertBefore(placeholder, card);
+    card.classList.add('dragging');
+    card.style.position = 'fixed';
+    card.style.left = `${rect.left}px`;
+    card.style.top = `${rect.top}px`;
+    card.style.width = `${rect.width}px`;
+    card.style.height = `${rect.height}px`;
+
+    pointerDragState.placeholder = placeholder;
+    pointerDragState.hasMoved = true;
+    draggedTemplateName = pointerDragState.templateName;
+    draggedElement = card;
+}
+
+function moveTemplateDragPlaceholder(clientX, clientY) {
+    const container = document.getElementById('templates-grid');
+    if (!container || !pointerDragState?.placeholder) return;
+
+    const afterElement = getDragAfterElement(container, clientX, clientY);
+    if (afterElement) {
+        container.insertBefore(pointerDragState.placeholder, afterElement);
+    } else {
+        container.appendChild(pointerDragState.placeholder);
+    }
+}
+
+async function handleTemplatePointerUp(event) {
+    if (!pointerDragState || event.pointerId !== pointerDragState.pointerId) return;
+    await finishTemplatePointerDrag();
+}
+
+async function handleTemplatePointerCancel(event) {
+    if (!pointerDragState || event.pointerId !== pointerDragState.pointerId) return;
+    await finishTemplatePointerDrag({ persist: false });
+}
+
+async function finishTemplatePointerDrag({ persist = true } = {}) {
+    const state = pointerDragState;
+    if (!state) return;
+
+    cleanupTemplatePointerListeners();
+    state.card.releasePointerCapture?.(state.pointerId);
+
+    if (state.hasMoved && state.placeholder) {
+        state.placeholder.parentNode.insertBefore(state.card, state.placeholder);
+        state.placeholder.remove();
+    }
+
+    state.card.classList.remove('dragging');
+    state.card.style.position = '';
+    state.card.style.left = '';
+    state.card.style.top = '';
+    state.card.style.width = '';
+    state.card.style.height = '';
+
+    pointerDragState = null;
+    draggedTemplateName = null;
+    draggedElement = null;
+
+    if (state.hasMoved && persist) {
+        await persistCurrentTemplateOrder('模板顺序已更新');
+    }
+}
+
+function cleanupTemplatePointerListeners() {
+    document.removeEventListener('pointermove', handleTemplatePointerMove);
+    document.removeEventListener('pointerup', handleTemplatePointerUp);
+    document.removeEventListener('pointercancel', handleTemplatePointerCancel);
+}
+
 function handleDragStart(event) {
+    if (event.target.closest('.iphone-template-name-input')) {
+        event.preventDefault();
+        return;
+    }
     const card = event.target.closest('.iphone-template-wrapper');
     if (!card) return;
     draggedTemplateName = card.dataset.templateName;
@@ -236,6 +453,13 @@ function getDragAfterElement(container, x, y) {
 async function handleDrop(event) {
     event.preventDefault();
 
+    await persistCurrentTemplateOrder('模板顺序已更新');
+
+    draggedTemplateName = null;
+    draggedElement = null;
+}
+
+async function persistCurrentTemplateOrder(successMessage = '模板顺序已更新') {
     const container = document.getElementById('templates-grid');
     const cards = Array.from(container.querySelectorAll('.iphone-template-wrapper'));
 
@@ -255,15 +479,72 @@ async function handleDrop(event) {
     currentTemplateState.templates = newOrder.map(name => templateMap[name]);
 
     try {
-        await apiCall('POST', '/api/templates/reorder', { template_names: newOrder });
-        toast('模板顺序已更新', 'success');
+        const reorderableNames = getReorderableTemplateNames(newOrder);
+        if (reorderableNames.length) {
+            await apiCall('POST', '/api/templates/reorder', { template_names: reorderableNames });
+        }
+        toast(successMessage, 'success');
     } catch (e) {
         toast('更新顺序失败: ' + e.message, 'error');
         await loadTemplates();
     }
+}
 
-    draggedTemplateName = null;
-    draggedElement = null;
+function handleTemplateNameKeydown(event) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        event.target.blur();
+    }
+    if (event.key === 'Escape') {
+        event.preventDefault();
+        event.target.value = event.target.dataset.originalName || event.target.value;
+        event.target.blur();
+    }
+}
+
+async function saveTemplateInlineName(input) {
+    const originalName = input.dataset.originalName || '';
+    const newName = input.value.trim();
+    const projectSlug = input.dataset.projectSlug || '';
+
+    if (!newName) {
+        input.value = originalName;
+        toast('名称不能为空', 'error');
+        return;
+    }
+    if (newName === originalName) return;
+
+    input.disabled = true;
+    try {
+        if (projectSlug) {
+            await apiCall('PATCH', `/api/report-projects/${encodeURIComponent(projectSlug)}`, {
+                project_name: newName
+            });
+            try {
+                await apiCall('PATCH', `/api/templates/${encodeURIComponent(originalName)}`, {
+                    template_name: newName
+                });
+            } catch (templateError) {
+                console.warn('Template metadata rename skipped:', templateError);
+            }
+        } else {
+            await apiCall('PATCH', `/api/templates/${encodeURIComponent(originalName)}`, {
+                template_name: newName
+            });
+        }
+
+        toast('名称已更新', 'success');
+        await loadTemplates();
+        isEditMode = true;
+        document.getElementById('btn-edit-templates')?.classList.add('hidden');
+        document.getElementById('btn-save-templates-order')?.classList.remove('hidden');
+        renderTemplatesList(currentTemplateState.templates || []);
+    } catch (e) {
+        input.value = originalName;
+        toast('改名失败: ' + e.message, 'error');
+    } finally {
+        input.disabled = false;
+    }
 }
 
 // ─── Edit Template Modal ───────────────────────────────────────
@@ -330,7 +611,10 @@ async function saveTemplatesOrder() {
     const newOrder = Array.from(cards).map(card => card.dataset.templateName);
 
     try {
-        await apiCall('POST', '/api/templates/reorder', { template_names: newOrder });
+        const reorderableNames = getReorderableTemplateNames(newOrder);
+        if (reorderableNames.length) {
+            await apiCall('POST', '/api/templates/reorder', { template_names: reorderableNames });
+        }
 
         toast('模板已保存', 'success');
         isEditMode = false;
@@ -342,6 +626,16 @@ async function saveTemplatesOrder() {
     } catch (e) {
         toast('保存失败: ' + e.message, 'error');
     }
+}
+
+function getReorderableTemplateNames(templateNames) {
+    const templateByName = new Map(
+        (currentTemplateState.templates || []).map(template => [
+            template.template_name || template.name,
+            template
+        ])
+    );
+    return templateNames.filter(name => !templateByName.get(name)?.is_report_project_only);
 }
 
 // ─── Placeholder Management ────────────────────────────────────
@@ -477,11 +771,17 @@ async function loadTemplatePlaceholdersForRender(templateName, fileType = 'docx'
 
     try {
         let placeholders = [];
-        try {
-            const data = await apiCall('GET', `/api/templates/${encodeURIComponent(templateName)}/placeholders/${fileType}`);
-            placeholders = data.placeholders || [];
-        } catch (e) {
-            placeholders = [];
+        const projectPlaceholders = currentTemplateState.selectedReportProject?.word_placeholders;
+        if (Array.isArray(projectPlaceholders) && projectPlaceholders.length) {
+            // 使用项目包解析出的 Word 占位符，避免报告项目走旧模板 API。
+            placeholders = projectPlaceholders;
+        } else {
+            try {
+                const data = await apiCall('GET', `/api/templates/${encodeURIComponent(templateName)}/placeholders/${fileType}`);
+                placeholders = data.placeholders || [];
+            } catch (e) {
+                placeholders = [];
+            }
         }
 
         let config = {};
@@ -544,6 +844,315 @@ function renderRenderPlaceholders(placeholders, configs = {}) {
             ${inputHtml}
         </div>
         `}).join('');
+}
+
+// ─── Report Template Workbench ────────────────────────────────
+function renderTemplateWorkbench(template) {
+    const project = template.report_project || null;
+    const placeholders = getTemplateWorkbenchPlaceholders(template);
+    const sections = getTemplateWorkbenchSections(template);
+    const templateName = template.template_name || template.name || currentSelectedTemplate || '未命名模板';
+
+    renderTemplateAssetChecklist(template, sections);
+    renderTemplatePlaceholderMap(placeholders, sections);
+    renderTemplateExcelMapping(template, templateName);
+
+    const primaryDownloadLink = document.getElementById('btn-template-download-report');
+    if (primaryDownloadLink) {
+        primaryDownloadLink.href = '#';
+        primaryDownloadLink.classList.add('disabled');
+        primaryDownloadLink.setAttribute('aria-disabled', 'true');
+    }
+
+    const sourceEditor = document.getElementById('template-source-editor');
+    if (sourceEditor) {
+        const projectSource = project?.section_config_source || '';
+        const draftKey = `report-template-source:${project?.slug || templateName}:project-v2`;
+        sourceEditor.value = projectSource || localStorage.getItem(draftKey) || buildTemplateConfigYaml(template);
+        sourceEditor.dataset.draftKey = draftKey;
+    }
+
+    renderTemplateValidationPreview(template, sections, placeholders);
+    bindTemplateWorkbenchActions();
+}
+
+function getTemplateWorkbenchSections(template) {
+    const project = template.report_project || null;
+    const projectSections = project?.section_config?.sections;
+    if (Array.isArray(projectSections) && projectSections.length) {
+        return projectSections;
+    }
+    return template.sections || [];
+}
+
+function getTemplateWorkbenchPlaceholders(template) {
+    const project = template.report_project || null;
+    const projectPlaceholders = project?.word_placeholders;
+    if (Array.isArray(projectPlaceholders) && projectPlaceholders.length) {
+        return projectPlaceholders;
+    }
+    return template.placeholders || [];
+}
+
+function renderTemplateAssetChecklist(template, sections) {
+    const statusEl = document.getElementById('template-asset-status');
+    const checklist = document.getElementById('template-asset-checklist');
+    if (!checklist) return;
+
+    const project = template.report_project || null;
+    const assets = [
+        {
+            icon: 'codicon-file-code',
+            label: 'Word 模板',
+            ok: Boolean(project?.word_template_filename || template.has_docx),
+            value: project?.word_template_filename || (template.has_docx ? '已绑定' : '缺失')
+        },
+        {
+            icon: 'codicon-table',
+            label: 'Excel 底稿',
+            ok: Boolean(project?.excel_workbook_filename || template.has_excel),
+            value: project?.excel_workbook_filename || (template.has_excel ? '已绑定' : '待绑定')
+        },
+        {
+            icon: 'codicon-settings-gear',
+            label: 'Section 配置',
+            ok: Boolean(project?.section_config_filename || sections.length > 0),
+            value: project?.section_config_filename || (sections.length ? `${sections.length} 段` : '待配置')
+        }
+    ];
+
+    checklist.innerHTML = assets.map(asset => `
+        <div class="asset-check-item ${asset.ok ? 'ok' : 'missing'}">
+            <i class="codicon ${asset.icon}"></i>
+            <span>${esc(asset.label)}</span>
+            <strong>${esc(asset.value)}</strong>
+        </div>
+    `).join('');
+
+    const readyCount = assets.filter(asset => asset.ok).length;
+    if (statusEl) {
+        statusEl.textContent = `${readyCount}/${assets.length} 就绪`;
+        statusEl.classList.toggle('warning', readyCount < assets.length);
+    }
+}
+
+function renderTemplatePlaceholderMap(placeholders, sections) {
+    const countEl = document.getElementById('template-placeholder-count');
+    const container = document.getElementById('template-placeholder-map');
+    if (!container) return;
+
+    const sectionByPlaceholder = new Map(
+        sections
+            .filter(section => section.placeholder)
+            .map(section => [normalizePlaceholderName(section.placeholder), section])
+    );
+    const names = placeholders.length
+        ? placeholders
+        : sections.map(section => section.placeholder || section.key).filter(Boolean);
+
+    if (countEl) countEl.textContent = `${names.length} 个`;
+
+    if (!names.length) {
+        container.innerHTML = '<div class="empty-state compact">当前配置里还没有占位符</div>';
+        return;
+    }
+
+    container.innerHTML = names.slice(0, 8).map(name => {
+        const normalizedName = normalizePlaceholderName(name);
+        const section = sectionByPlaceholder.get(normalizedName)
+            || sections.find(item => item.key === normalizedName);
+        const status = section ? '已映射' : '未映射';
+        return `
+            <div class="placeholder-map-row ${section ? 'mapped' : 'unmapped'}">
+                <code>{{${esc(normalizedName)}}}</code>
+                <span>${esc(section?.title || '待指定 Section')}</span>
+                <strong>${status}</strong>
+            </div>
+        `;
+    }).join('');
+}
+
+function normalizePlaceholderName(name) {
+    return String(name || '').replace(/^\{\{\s*/, '').replace(/\s*\}\}$/, '').trim();
+}
+
+function renderTemplateExcelMapping(template, templateName) {
+    const container = document.getElementById('template-excel-mapping');
+    if (!container) return;
+
+    const rows = buildExcelMappingRows(template);
+
+    if (!rows.length) {
+        container.innerHTML = '<div class="empty-state compact">上传或绑定 Excel 底稿后配置数据槽</div>';
+        return;
+    }
+
+    container.innerHTML = `
+        <div class="mapping-row mapping-head"><span>数据槽</span><span>来源</span><span>用途</span></div>
+        ${rows.map(row => `
+            <div class="mapping-row">
+                <span>${esc(row.slot)}</span>
+                <code>${esc(row.source)}</code>
+                <span>${esc(row.usage)}</span>
+            </div>
+        `).join('')}
+    `;
+}
+
+function buildExcelMappingRows(template) {
+    const project = template.report_project || null;
+    const projectSheets = project?.excel_sheets;
+    if (Array.isArray(projectSheets) && projectSheets.length) {
+        return projectSheets.map(sheet => ({
+            slot: sheet.name,
+            source: `${sheet.name}!${sheet.dimension || '未识别范围'}`,
+            usage: `${sheet.nonempty_count || 0} 个非空单元格`
+        }));
+    }
+    if (!template.has_excel) return [];
+    return [
+        { slot: 'report_date', source: 'Excel!A1', usage: '标题日期' },
+        { slot: 'summary_table', source: 'Excel!A1:F20', usage: '表格占位符' },
+        { slot: 'chart_1', source: '第 1 个图表', usage: '图表占位符' }
+    ];
+}
+
+function renderTemplateValidationPreview(template, sections, placeholders) {
+    const statusEl = document.getElementById('template-validation-status');
+    const list = document.getElementById('template-validation-list');
+    if (!list) return;
+
+    const hasRuleConfig = sections.some(section =>
+        section.evidence_policy
+        || section.forbidden_terms?.length
+        || section.investment_advice_policy
+    ) || Boolean(template.report_project);
+    const checks = [
+        { label: 'Word 占位符均有 section 映射', ok: placeholders.length === 0 || sections.length > 0 },
+        { label: 'AI 文本 section 已配置 prompt', ok: sections.some(section => section.prompt_template || section.required_facets?.length) },
+        { label: 'Excel 图表和表格已绑定来源', ok: template.has_excel || (template.template_name || '').includes('创业板50') },
+        { label: '数字、禁用词、投资建议规则已配置', ok: hasRuleConfig }
+    ];
+
+    list.innerHTML = checks.map(check => `
+        <div class="validation-item ${check.ok ? 'ok' : 'pending'}">
+            <i class="codicon ${check.ok ? 'codicon-pass' : 'codicon-circle-outline'}"></i>
+            <span>${esc(check.label)}</span>
+        </div>
+    `).join('');
+
+    if (statusEl) {
+        const passed = checks.filter(check => check.ok).length;
+        statusEl.textContent = `${passed}/${checks.length}`;
+        statusEl.classList.toggle('warning', passed < checks.length);
+    }
+}
+
+function buildTemplateConfigYaml(template) {
+    if (template.report_project?.section_config_source) {
+        return template.report_project.section_config_source;
+    }
+    const name = template.template_name || template.name || currentSelectedTemplate || 'report_template';
+    const project = template.report_project || null;
+    const sections = getTemplateWorkbenchSections(template).length ? getTemplateWorkbenchSections(template) : [
+        {
+            key: 'main_viewpoint',
+            title: '行情回顾及主要观点',
+            target_words: 350,
+            placeholder: 'main_viewpoint',
+            required_facets: ['主要指数表现', '成交额', '市场主线']
+        }
+    ];
+
+    const lines = [
+        `name: ${name}`,
+        `description: ${template.description || `${name} 模板配置`}`,
+        `version: ${template.version || '1.0'}`,
+        'assets:',
+        `  project: ${project?.name || '待绑定项目包'}`,
+        `  word_template: ${project?.word_template_filename || (template.has_docx ? '已绑定' : '待上传')}`,
+        `  excel_workbook: ${project?.excel_workbook_filename || (template.has_excel ? '已绑定' : '待上传')}`,
+        `  section_config: ${project?.section_config_filename || '当前模板 YAML'}`,
+        `  prompt_templates: ${project?.prompt_templates_filename || '未绑定'}`,
+        `  output_dir: ${project?.output_dir || '待绑定 generated 目录'}`,
+        '  data_sources:',
+        ...(project?.data_source_files?.length
+            ? project.data_source_files.map(file => `    - ${file}`)
+            : ['    - 未绑定']),
+        'sections:'
+    ];
+
+    sections.forEach(section => {
+        lines.push(`  - id: ${section.key}`);
+        lines.push(`    title: ${section.title || section.key}`);
+        lines.push(`    placeholder: "{{${section.placeholder || section.key}}}"`);
+        lines.push(`    type: ${section.placeholder?.includes('chart') ? 'excel_chart' : 'ai_text'}`);
+        lines.push(`    max_words: ${section.target_words || 250}`);
+        lines.push('    data_slots:');
+        const facets = section.required_facets?.length ? section.required_facets : ['excel.range_or_rag_profile'];
+        facets.forEach(facet => lines.push(`      - ${facet}`));
+        lines.push('    prompt: |');
+        lines.push(`      请围绕“${section.title || section.key}”撰写正式周报段落。`);
+        lines.push('      使用给定数据，语言客观审慎，不输出投资收益保证。');
+        lines.push('    validators:');
+        lines.push(`      evidence_policy: ${section.evidence_policy || 'strict'}`);
+        lines.push('      require_numbers_from_data: true');
+        lines.push('      forbidden_terms:');
+        const forbiddenTerms = section.forbidden_terms?.length
+            ? section.forbidden_terms
+            : ['保本', '稳赚', '收益保证', '明确买入', '目标价'];
+        forbiddenTerms.forEach(term => lines.push(`        - ${term}`));
+        lines.push(`      investment_advice_policy: ${section.investment_advice_policy || 'no_direct_recommendation'}`);
+    });
+
+    return lines.join('\n');
+}
+
+function bindTemplateWorkbenchActions() {
+    const saveBtn = document.getElementById('btn-template-save-source');
+    const dryRunBtn = document.getElementById('btn-template-dry-run');
+    const generateBtn = document.getElementById('btn-template-generate-report');
+    const sourceEditor = document.getElementById('template-source-editor');
+
+    if (saveBtn && sourceEditor && !saveBtn.dataset.bound) {
+        saveBtn.dataset.bound = 'true';
+        saveBtn.addEventListener('click', () => {
+            const key = sourceEditor.dataset.draftKey || 'report-template-source:draft';
+            localStorage.setItem(key, sourceEditor.value);
+            toast('配置草稿已保存到本地', 'success');
+        });
+    }
+
+    if (dryRunBtn && !dryRunBtn.dataset.bound) {
+        dryRunBtn.dataset.bound = 'true';
+        dryRunBtn.addEventListener('click', () => {
+            const statusEl = document.getElementById('template-validation-status');
+            if (statusEl) {
+                statusEl.textContent = '已预检';
+                statusEl.classList.remove('warning');
+            }
+            toast('已完成前端预检；真实生成校验下一版接入', 'info');
+        });
+    }
+
+    if (generateBtn && !generateBtn.dataset.bound) {
+        generateBtn.dataset.bound = 'true';
+        generateBtn.addEventListener('click', async () => {
+            if (sourceEditor?.dataset.draftKey) {
+                localStorage.setItem(sourceEditor.dataset.draftKey, sourceEditor.value);
+            }
+
+            generateBtn.disabled = true;
+            const originalText = generateBtn.innerHTML;
+            generateBtn.innerHTML = '<i class="codicon codicon-loading spin"></i> 生成中...';
+            try {
+                await renderReportFromTemplate();
+            } finally {
+                generateBtn.disabled = false;
+                generateBtn.innerHTML = originalText;
+            }
+        });
+    }
 }
 
 // ─── Tab Switching ─────────────────────────────────────────────
@@ -614,8 +1223,8 @@ function initTemplateDropZone() {
 }
 
 async function handleTemplateFileSelect(file) {
-    if (!file.name.match(/\.(pptx|docx)$/i)) {
-        toast('请上传 .pptx 或 .docx 文件', 'error');
+    if (!file.name.match(/\.(pptx|docx|xlsx)$/i)) {
+        toast('请上传 .pptx、.docx 或 .xlsx 文件', 'error');
         return;
     }
 
@@ -638,42 +1247,47 @@ function clearFileSelection() {
 
 // ─── Upload / Download / Delete ────────────────────────────────
 async function uploadTemplate() {
-    const fileInput = document.getElementById('template-file-input');
     const nameInput = document.getElementById('template-name-input');
-    const descInput = document.getElementById('template-desc-input');
-    const versionInput = document.getElementById('template-version-input');
-    const typeSelect = document.getElementById('template-type-select');
+    const wordInput = document.getElementById('project-word-template-input');
+    const excelInput = document.getElementById('project-excel-workbook-input');
+    const sectionInput = document.getElementById('project-section-config-input');
+    const promptInput = document.getElementById('project-prompt-templates-input');
+    const dataFilesInput = document.getElementById('project-data-files-input');
     const statusEl = document.getElementById('template-upload-status');
 
-    const file = fileInput?.files?.[0];
-    if (!file) {
-        toast('请选择文件', 'error');
+    const projectName = nameInput?.value.trim();
+    const wordFile = wordInput?.files?.[0];
+    const excelFile = excelInput?.files?.[0];
+    const sectionFile = sectionInput?.files?.[0];
+
+    if (!projectName) {
+        toast('请输入报告项目名称', 'error');
+        return;
+    }
+    if (!wordFile || !excelFile || !sectionFile) {
+        toast('请至少选择 Word 模板、Excel 底稿和 Section 配置', 'error');
         return;
     }
 
-    const name = nameInput?.value.trim() || file.name.replace(/\.(pptx|docx|xlsx)$/i, '');
-    const description = descInput?.value.trim() || '';
-    const version = versionInput?.value.trim() || '1.0';
-    const fileType = typeSelect?.value || 'docx';
-
-    let actualFileType = fileType;
-    if (file.name.toLowerCase().endsWith('.pptx')) actualFileType = 'pptx';
-    if (file.name.toLowerCase().endsWith('.xlsx')) actualFileType = 'excel';
-
     if (statusEl) {
-        statusEl.innerHTML = '<div class="loading"><div class="spinner"></div><span>正在上传...</span></div>';
+        statusEl.innerHTML = '<div class="loading"><div class="spinner"></div><span>正在创建报告项目...</span></div>';
         statusEl.classList.remove('hidden');
     }
 
     const formData = new FormData();
-    formData.append('file', file);
-    formData.append('template_name', name);
-    formData.append('file_type', actualFileType);
-    formData.append('description', description);
-    formData.append('version', version);
+    formData.append('project_name', projectName);
+    formData.append('word_template', wordFile);
+    formData.append('excel_workbook', excelFile);
+    formData.append('section_config', sectionFile);
+    if (promptInput?.files?.[0]) {
+        formData.append('prompt_templates', promptInput.files[0]);
+    }
+    Array.from(dataFilesInput?.files || []).forEach(file => {
+        formData.append('data_files', file);
+    });
 
     try {
-        const response = await fetch('/api/templates/upload', {
+        const response = await fetch('/api/report-projects/upload', {
             method: 'POST',
             headers: { 'Authorization': 'Bearer dummy' },
             body: formData
@@ -685,16 +1299,20 @@ async function uploadTemplate() {
         }
 
         const data = await response.json();
-        toast('模板上传成功', 'success');
+        toast('报告项目已创建', 'success');
+        await loadReportProjectsList();
         await loadTemplatesList();
         await initTemplateSelects();
-        switchTemplatesTab('configure');
+        closeUploadModal();
 
         if (nameInput) nameInput.value = '';
-        if (descInput) descInput.value = '';
-        clearFileSelection();
+        if (wordInput) wordInput.value = '';
+        if (excelInput) excelInput.value = '';
+        if (sectionInput) sectionInput.value = '';
+        if (promptInput) promptInput.value = '';
+        if (dataFilesInput) dataFilesInput.value = '';
     } catch (e) {
-        toast('上传失败: ' + e.message, 'error');
+        toast('创建报告项目失败: ' + e.message, 'error');
     } finally {
         if (statusEl) statusEl.classList.add('hidden');
     }
@@ -781,7 +1399,9 @@ async function renderReportFromTemplate() {
     try {
         let result;
 
-        if (canonicalId) {
+        if (!canonicalId && currentTemplateState.selectedReportProject) {
+            result = await renderReportProject(currentTemplateState.selectedReportProject);
+        } else if (canonicalId) {
             result = await apiCall('POST', '/api/templates/render-from-asset', {
                 template_name: templateName,
                 file_type: fileType,
@@ -797,19 +1417,27 @@ async function renderReportFromTemplate() {
             });
         }
 
-        currentTemplateState.renderedReportId = result.report_id;
+        currentTemplateState.renderedReportId = result.report_id || result.file_name || null;
 
         if (resultEl) {
+            const downloadUrl = result.download_url
+                || (result.report_id ? `/api/templates/download/${encodeURIComponent(result.report_id)}` : null);
             const downloadLink = document.getElementById('render-download-link');
-            if (downloadLink && result.report_id) {
-                downloadLink.href = `/api/templates/download/${encodeURIComponent(result.report_id)}`;
+            if (downloadLink && downloadUrl) {
+                downloadLink.href = downloadUrl;
+            }
+            const primaryDownloadLink = document.getElementById('btn-template-download-report');
+            if (primaryDownloadLink && downloadUrl) {
+                primaryDownloadLink.href = downloadUrl;
+                primaryDownloadLink.classList.remove('disabled');
+                primaryDownloadLink.removeAttribute('aria-disabled');
             }
             resultEl.innerHTML = `
                 <div class="success-message">
                     <i class="codicon codicon-pass"></i>
                     <span>报告渲染成功！</span>
                 </div>
-                <a id="render-download-link" href="/api/templates/download/${encodeURIComponent(result.report_id)}"
+                <a id="render-download-link" href="${esc(downloadUrl || '#')}"
                    class="btn-primary" target="_blank">下载报告</a>
             `;
             resultEl.classList.remove('hidden');
@@ -819,6 +1447,18 @@ async function renderReportFromTemplate() {
     } finally {
         if (loadingEl) loadingEl.classList.add('hidden');
     }
+}
+
+async function renderReportProject(project) {
+    if (!project?.slug) {
+        throw new Error('报告项目未绑定');
+    }
+
+    return apiCall(
+        'POST',
+        `/api/report-projects/${encodeURIComponent(project.slug)}/render`,
+        { placeholders: currentTemplateState.placeholderValues || {} }
+    );
 }
 
 async function downloadRenderedReport(reportId) {
@@ -998,6 +1638,7 @@ export {
     loadTemplatesPage, loadTemplatesList, loadTemplates,
     renderTemplatesList, selectTemplate, loadTemplateDetails, goBackToTemplates,
     openUploadModal, closeUploadModal,
+    handleTemplatePointerDown,
     handleDragStart, handleDragOver, getDragAfterElement, handleDrop,
     openEditTemplateModal, closeEditTemplateModal, saveTemplateEdit,
     toggleEditMode, saveTemplatesOrder,
@@ -1009,5 +1650,6 @@ export {
     uploadTemplate, downloadTemplateFile, deleteTemplate,
     createYamlConfig, renderReportFromTemplate, downloadRenderedReport,
     savePlaceholderConfig, exportYamlConfig,
-    generateAiContent, generateAllAiFields, callLlmApi
+    generateAiContent, generateAllAiFields, callLlmApi,
+    handleTemplateNameKeydown, saveTemplateInlineName
 };

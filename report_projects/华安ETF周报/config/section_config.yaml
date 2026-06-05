@@ -1,4 +1,4 @@
-name: 创业板50周报模板
+name: 华安ETF周报
 description: ''
 version: '1.0'
 default_retrieval_profile: weekly_report
@@ -53,4 +53,4 @@ sections:
   scenario_required: true
   evidence_policy: strict
   placeholder: outlook_placeholder
-sort_order: 2
+sort_order: 1

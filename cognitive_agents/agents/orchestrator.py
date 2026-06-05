@@ -50,6 +50,7 @@ class AgentOrchestrator:
                     event_id=context.event_id,
                     question=context.question,
                     evidence=context.evidence,
+                    evidence_bundle=context.evidence_bundle,
                     market_data=context.market_data,
                     prior_views=blackboard.list_views(
                         target_id=context.target_id, event_id=context.event_id

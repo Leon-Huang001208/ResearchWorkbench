@@ -79,6 +79,7 @@ from app.api.routes import (  # noqa: E402
     realtime,
     replay,
     report,
+    report_projects,
     review,
     scenarios,
     scheduler,
@@ -123,6 +124,7 @@ app.include_router(thesis_review.router)
 app.include_router(timing_engine.router)
 app.include_router(dashboard.router)
 app.include_router(report.router)
+app.include_router(report_projects.router)
 app.include_router(templates.router)
 app.include_router(signal_lab.router)
 app.include_router(llm.router)

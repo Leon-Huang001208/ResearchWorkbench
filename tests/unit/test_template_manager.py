@@ -131,6 +131,19 @@ class TestTemplateManager:
         assert path is not None
         assert path.exists()
 
+    def test_get_template_file_path_uses_configured_excel_path(
+        self, template_manager: TemplateManager, sample_template_config: TemplateConfig, tmp_path: Path
+    ):
+        """测试 Excel 模板可以使用 YAML 中配置的已有文件路径"""
+        excel_path = tmp_path / "existing_workbook.xlsx"
+        excel_path.write_bytes(b"excel")
+        sample_template_config.excel_template_path = str(excel_path)
+        template_manager.save_template(sample_template_config)
+
+        path = template_manager.get_template_file_path("test_template", "excel")
+
+        assert path == excel_path
+
     def test_delete_template_file(
         self, template_manager: TemplateManager, sample_template_config: TemplateConfig
     ):

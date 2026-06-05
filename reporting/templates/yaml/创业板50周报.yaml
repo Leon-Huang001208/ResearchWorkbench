@@ -1,5 +1,5 @@
-name: test_report
-description: 测试报告模板
+name: 创业板50周报
+description: ''
 version: '1.0'
 default_retrieval_profile: weekly_report
 sections:
@@ -12,7 +12,6 @@ sections:
   - 成交量
   scenario_required: true
   evidence_policy: strict
-  retrieval_profile: weekly_report
   placeholder: market_summary_placeholder
 - key: key_events
   title: 本周重要事件
@@ -23,7 +22,6 @@ sections:
   - 行业动态
   scenario_required: true
   evidence_policy: strict
-  retrieval_profile: weekly_report
   placeholder: key_events_placeholder
 - key: industry_performance
   title: 行业表现分析
@@ -34,7 +32,6 @@ sections:
   - 行业资金流向
   scenario_required: true
   evidence_policy: strict
-  retrieval_profile: weekly_report
   placeholder: industry_performance_placeholder
 - key: notable_stocks
   title: 重点股票观察
@@ -45,7 +42,6 @@ sections:
   - 异动股票
   scenario_required: true
   evidence_policy: strict
-  retrieval_profile: weekly_report
   placeholder: notable_stocks_placeholder
 - key: outlook
   title: 后市展望
@@ -55,6 +51,7 @@ sections:
   - 消息面
   - 风险提示
   scenario_required: true
-  evidence_policy: allow_synthesis
-  retrieval_profile: weekly_report
+  evidence_policy: strict
   placeholder: outlook_placeholder
+excel_template_path: /Users/leon/Desktop/Projects/AlphaFoundry/创业板50周报（iFind版）.xlsx
+sort_order: 1

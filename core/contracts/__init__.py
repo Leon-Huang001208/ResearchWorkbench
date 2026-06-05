@@ -1,4 +1,18 @@
-from .agent_types import AgentRole, AgentView, BlackboardConflict, ViewDirection
+from .agent_types import (
+    AgentRole,
+    AgentSOP,
+    AgentView,
+    AgentWorkflow,
+    AgentWorkflowResult,
+    AgentWorkflowStage,
+    BlackboardConflict,
+    CommitteeSynthesis,
+    EvidenceBundle,
+    EvidenceItem,
+    EvidenceKind,
+    EvidenceRefType,
+    ViewDirection,
+)
 from .assertions import Assertion
 from .assets import (
     AssetAnalysisCard,
@@ -195,6 +209,15 @@ from .traces import ReasoningTrace
 
 __all__ = [
     "CanonicalId",
+    "AgentSOP",
+    "AgentWorkflow",
+    "AgentWorkflowResult",
+    "AgentWorkflowStage",
+    "CommitteeSynthesis",
+    "EvidenceBundle",
+    "EvidenceItem",
+    "EvidenceKind",
+    "EvidenceRefType",
     "DynamicFactorWeights",
     "FactorCategory",
     "FactorDefinition",
