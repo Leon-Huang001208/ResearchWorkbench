@@ -35,6 +35,8 @@ Wind 适配器通过 xlwings 操控 macOS Excel 中的 Wind 插件获取数据�
 
 > **注意**：上表中的"连接器"列指向 `connectors/document/` 下的 `DocumentConnector` 实现。连接器内部通过 Wrapper-first 策略委托给旧 `data_layer/adapters/` 下的适配器（如 `CLSAdapter`、`CNStockAdapter`、`ZQAdapter`）。
 
+> **CNINFO 附件文本元数据**：`data_layer/adapters/cninfo_adapter.py` 在启用附件转换时，会把 `attachment_text_status`、`attachment_text_strategy`、`attachment_page_count` 等字段写入 `DocumentEnvelope.metadata`。这些字段用于判断公告 PDF/附件是否成功转为可检索文本，不改变 CNINFO 的 source type 或分页查询参数。
+
 ### 添加新数据源
 
 在 `data_sources/` 下创建新文件（如 `my_source.py`），使用 Connector 架构：

@@ -20,6 +20,7 @@
 | **cninfo_connector** | ⚠️ 阻塞 / 部分完成 | 2026-06-02 | - | [progress_cninfo_connector.md](progress_cninfo_connector.md) |
 | **AF-AUTO-010** | 🔄 进行中 | 2026-06-02 | - | [progress_af_auto_010.md](progress_af_auto_010.md) |
 | **AF-AUTO-013** | ✅ 已完成 | 2026-05-30 | 2026-06-03 | [progress_af_auto_013.md](progress_af_auto_013.md) |
+| **report-projects-doc-sync-2026-06-08** | ✅ 已完成 | 2026-06-08 | 2026-06-08 | [progress_report_projects_doc_sync.md](progress_report_projects_doc_sync.md) |
 
 ---
 
@@ -136,4 +137,12 @@
 
 ---
 
-**最后更新**: 2026-06-04（crawl_scheduler 诊断恢复 + CNStock WAF 修复 + CLS 诊断）
+### report-projects-doc-sync-2026-06-08: 报告项目 Markdown 文档同步与剩余风险清理 ✅
+
+- **目标**: 按 `CLAUDE.md` 文档同步规范更新长期未同步的 Markdown 文档，覆盖 `report_projects` API、模板工作台、项目级报告生成、图表嵌入和华安 ETF 周报配置。
+- **成果**: 已读取规则和相关文档，扫描 Markdown 文件，更新 README、ARCHITECTURE、DEVELOPMENT_MAP、REFERENCE、FILE_GUIDE、CHANGELOG、数据源/存储文档和模块文档；后续清理 full-gate mypy/静态测试风险。
+- **验证**: `generate_py_file_index`、`check_doc_sync`、`check_task_completion`、ruff、black、isort、mypy 均通过；全量 pytest `1680 passed, 4 skipped`。
+
+---
+
+**最后更新**: 2026-06-08（report_projects 文档同步 + full-gate 剩余风险清理）

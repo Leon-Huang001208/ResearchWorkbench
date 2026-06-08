@@ -34,6 +34,7 @@ Update this section when:
 
 #### Recent Changes
 
+- **2026-06-08**: `AgentWorkflowRunner` now accepts an `AgentFactoryLike` protocol instead of only the concrete `AgentFactory`, so deterministic service-level agent adapters can run the same staged workflow as full cognitive agents. The runner still requires created agents to expose async `analyze(AgentContext) -> AgentView`, keeping blackboard writes and synthesis behavior unchanged.
 - **2026-06**: Added `Literal` import and `_severity(confidence: float) -> Literal["low", "medium", "high"]` return type annotation in `blackboard.py` for improved type safety.
 
 ---

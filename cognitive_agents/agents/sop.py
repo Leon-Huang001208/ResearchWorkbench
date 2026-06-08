@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from cognitive_agents.contracts import AgentRole, AgentSOP
 
-
 _SOPS: dict[AgentRole, AgentSOP] = {
     "macro": AgentSOP(
         agent_role="macro",

@@ -3,9 +3,9 @@
 Each report project owns its Word template, Excel workbook, section config,
 generated documents, and run logs under one project directory.
 """
+import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
-import shutil
 from typing import Any, Dict, List, Optional
 
 import yaml
@@ -37,7 +37,9 @@ class ReportProjectManager:
     """Read and bootstrap report project folders."""
 
     def __init__(self, projects_root: Optional[Path] = None):
-        self.projects_root = projects_root or Path(__file__).resolve().parents[2] / "report_projects"
+        self.projects_root = (
+            projects_root or Path(__file__).resolve().parents[2] / "report_projects"
+        )
         self.projects_root.mkdir(parents=True, exist_ok=True)
         logger.info("ReportProjectManager initialized", projects_root=str(self.projects_root))
 
@@ -50,7 +52,9 @@ class ReportProjectManager:
                     continue
                 project_yaml = project_dir / "project.yaml"
                 if not project_yaml.exists():
-                    logger.warning("Skipping report project without project.yaml", path=str(project_dir))
+                    logger.warning(
+                        "Skipping report project without project.yaml", path=str(project_dir)
+                    )
                     continue
                 try:
                     projects.append(self._load_project(project_dir))
@@ -63,7 +67,9 @@ class ReportProjectManager:
                     )
             return projects
         except Exception:
-            logger.exception("Failed to list report projects", projects_root=str(self.projects_root))
+            logger.exception(
+                "Failed to list report projects", projects_root=str(self.projects_root)
+            )
             raise
 
     def get_project(self, slug: str) -> ReportProject:
@@ -127,7 +133,9 @@ class ReportProjectManager:
             for source, target in copy_map.items():
                 if source.exists():
                     shutil.copy2(source, target)
-                    logger.info("Copied report project asset", source=str(source), target=str(target))
+                    logger.info(
+                        "Copied report project asset", source=str(source), target=str(target)
+                    )
                 else:
                     logger.warning("Report project source asset missing", source=str(source))
 
@@ -148,7 +156,9 @@ class ReportProjectManager:
             logger.info("Bootstrapped report project", project_dir=str(project_dir))
             return self._load_project(project_dir)
         except Exception:
-            logger.exception("Failed to bootstrap CYB50 report project", project_dir=str(project_dir))
+            logger.exception(
+                "Failed to bootstrap CYB50 report project", project_dir=str(project_dir)
+            )
             raise
 
     def _load_project(self, project_dir: Path) -> ReportProject:

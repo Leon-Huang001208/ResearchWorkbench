@@ -22,6 +22,8 @@ class AssetAnalysisCardService(Protocol):
         self,
         canonical_id: str,
         as_of: datetime | None = None,
+        use_mock: bool | None = None,
+        source: str | None = None,
         time_range: str | None = None,
     ) -> AssetAnalysisCard:
         """Generate an asset analysis card."""
@@ -213,7 +215,10 @@ class _DeterministicAssetAgent:
             invalidation_triggers=["后续财报显示盈利质量恶化", "行业估值中枢快速下移"],
             recommended_next_checks=["核对最新定期报告与巨潮公告", "比较同业估值和盈利增速"],
             evidence_refs=bundle.evidence_ref_ids(),
-            evaluation={"positive_signals": float(len(positive)), "negative_signals": float(len(negative))},
+            evaluation={
+                "positive_signals": float(len(positive)),
+                "negative_signals": float(len(negative)),
+            },
         )
 
     def _technical_view(self, context: AgentContext, bundle: EvidenceBundle) -> AgentView:
@@ -267,7 +272,10 @@ class _DeterministicAssetAgent:
             invalidation_triggers=["跌破关键均线且主力资金转为净流出"],
             recommended_next_checks=["查看成交量是否同步放大", "复核筹码峰与压力位"],
             evidence_refs=bundle.evidence_ref_ids(),
-            evaluation={"positive_signals": float(len(positive)), "negative_signals": float(len(negative))},
+            evaluation={
+                "positive_signals": float(len(positive)),
+                "negative_signals": float(len(negative)),
+            },
         )
 
     def _macro_view(self, context: AgentContext, bundle: EvidenceBundle) -> AgentView:
@@ -311,7 +319,10 @@ class _DeterministicAssetAgent:
             invalidation_triggers=["流动性或行业景气拐头向下", "利率和汇率冲击超出历史区间"],
             recommended_next_checks=["跟踪流动性指标与行业景气数据", "补充政策与宏观事件证据"],
             evidence_refs=bundle.evidence_ref_ids(),
-            evaluation={"positive_signals": float(len(positive)), "negative_signals": float(len(negative))},
+            evaluation={
+                "positive_signals": float(len(positive)),
+                "negative_signals": float(len(negative)),
+            },
         )
 
     def _view(

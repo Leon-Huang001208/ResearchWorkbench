@@ -135,14 +135,22 @@ Module docstring:
 
 Imports:
 - `app.api.models`
+- `cognitive_agents`
 - `core.contracts`
 - `core.interfaces.repository`
+- `core.observability`
 - `data_layer.coordinator.multi_source_coordinator`
 - `data_layer.repositories.base`
+- `data_layer.repositories.documents_v1`
+- `data_layer.repositories.event_repository`
 - `datetime`
 - `fastapi`
+- `ingestion`
 - `pydantic`
+- `services.asset_agent_committee_service`
 - `services.asset_analysis_service`
+- `services.official_evidence_backfill_service`
+- `services.official_evidence_service`
 - `sqlalchemy.orm`
 - `typing`
 
@@ -152,18 +160,33 @@ Classes:
   - methods: _validate_time_range
 - `AnalysisCardResponse`
   - 资产分析卡响应
+- `AgentCommitteeRequest`
+  - 资产多 Agent 委员会请求
+  - methods: _validate_time_range
+- `OfficialEvidenceBackfillRequest`
+  - 巨潮官方证据回补请求
+- `OfficialEvidenceBackfillResponse`
+  - 巨潮官方证据回补响应
 
 Functions:
 - `_snapshot_to_response`
   - 将核心契约转换为 API 响应模型
 - `get_asset_service`
   - 获取资产分析服务实例
+- `get_asset_committee_service`
+  - 获取资产多 Agent 委员会服务实例
+- `get_official_evidence_backfill_service`
+  - 获取巨潮官方证据回补服务实例
 - `analyze_asset`
   - 生成资产分析快照
 - `get_asset_snapshot`
   - 查询资产最新快照
 - `get_analysis_card`
   - 生成资产分析卡片（包含K线、资金流向、股东、财务、行业、事件、宏观等完整信息）
+- `run_asset_agent_committee`
+  - 运行资产多 Agent 委员会分析，不替换原资产分析卡。
+- `backfill_cninfo_official_evidence`
+  - 将已入库的巨潮公告回补进 KnowledgePipeline，生成官方事件证据。
 
 
 ## `app/api/routes/audit.py`
@@ -1110,6 +1133,92 @@ Functions:
   - Get performance report data as JSON.
 - `export_performance_report`
   - Export performance report as downloadable JSON file.
+
+
+## `app/api/routes/report_projects.py`
+
+Module docstring:
+> Report project API routes.
+
+Imports:
+- `base64`
+- `core.observability`
+- `datetime`
+- `fastapi`
+- `fastapi.responses`
+- `html`
+- `json`
+- `pathlib`
+- `pydantic`
+- `re`
+- `reporting.projects.chart_generation`
+- `reporting.projects.generation`
+- `reporting.projects.project_manager`
+- `typing`
+- `xml.etree.ElementTree`
+- `yaml`
+- `zipfile`
+
+Classes:
+- `GeneratedReportInfo`
+  - Generated report metadata.
+- `ExcelSheetInfo`
+  - Excel worksheet summary.
+- `ReportProjectInfo`
+  - Report project summary for the frontend.
+- `ReportProjectsListResponse`
+  - Report projects list response.
+- `RenderReportProjectRequest`
+  - Project report render request.
+- `UpdateReportProjectRequest`
+  - Report project update request.
+- `UpdateReportProjectSourceRequest`
+  - Report project source update request.
+- `RenderReportProjectResponse`
+  - Project report render response.
+
+Functions:
+- `list_report_projects`
+  - List report projects stored as project folders.
+- `upload_report_project`
+  - Create a report project folder from uploaded project package assets.
+- `get_report_project`
+  - Get one report project by folder slug.
+- `update_report_project`
+  - Rename a report project and update its project.yaml.
+- `update_report_project_source`
+  - Persist editable report project source files.
+- `render_report_project`
+  - Render a report project into its own generated directory.
+- `preview_report_project_file`
+  - Render one generated docx as an inline HTML preview.
+- `download_report_project_file`
+  - Download one generated project report.
+- `_to_project_info`
+- `_attach_prompt_templates`
+  - Attach a newly created prompt template file to project.yaml.
+- `_read_section_config`
+  - Read raw and parsed section YAML for frontend inspection.
+- `_read_prompt_templates`
+  - Read raw Markdown prompt templates when bound to the project.
+- `_extract_docx_placeholders`
+  - Extract {{placeholder}} tokens from Word text, including tokens split across runs.
+- `_ordered_docx_xml_names`
+  - Return Word XML files in a user-facing reading order.
+- `_docx_xml_sort_key`
+- `_summarize_excel_workbook`
+  - Summarize worksheet names, dimensions, and sample cells from an xlsx package.
+- `_read_xlsx_shared_strings`
+- `_read_xlsx_nonempty_cells`
+- `_xlsx_cell_sort_key`
+- `_to_generated_report_info`
+- `_docx_to_preview_html`
+  - Convert a generated docx package into a lightweight HTML preview.
+- `_preview_paragraph_html`
+- `_preview_table_html`
+- `_safe_project_slug`
+- `_safe_filename`
+- `_require_suffix`
 
 
 ## `app/api/routes/review.py`
@@ -2065,14 +2174,35 @@ Module docstring:
 > Agent-related shared types.
 
 Imports:
+- `datetime`
 - `pydantic`
 - `typing`
 
 Classes:
+- `EvidenceItem`
+  - Single evidence item made available to an Agent.
+  - methods: from_legacy
+- `EvidenceBundle`
+  - Evidence package passed into Agents for one target/event analysis.
+  - methods: from_legacy, evidence_ref_ids
+- `AgentSOP`
+  - Role-specific analysis discipline for an Agent.
+- `AgentWorkflowStage`
+  - One executable stage in a multi-Agent workflow.
+- `AgentWorkflow`
+  - Reusable workflow definition for orchestrating Agent analysis.
+  - methods: default_research_committee
 - `AgentView`
   - Structured view written to the blackboard by a single agent.
+- `CommitteeSynthesis`
+  - Committee-level synthesis derived from blackboard Agent views.
 - `BlackboardConflict`
   - Multi-perspective conflict detected by the blackboard.
+- `AgentWorkflowResult`
+  - Result of running an AgentWorkflow.
+
+Functions:
+- `_clamp_score`
 
 
 ## `core/contracts/assertions.py`
@@ -3702,18 +3832,21 @@ Module docstring:
 
 Imports:
 - `core.contracts`
+- `core.contracts.pdf_conversion`
 - `core.observability`
 - `data_layer.adapters.base`
 - `data_layer.crawlers.cninfo.cninfo`
 - `datetime`
 - `json`
 - `pathlib`
+- `time`
 - `typing`
+- `urllib.parse`
 
 Classes:
 - `CninfoAdapter`
   - 巨潮资讯网公告适配器
-  - methods: __init__, fetch, parse, _parse_dict
+  - methods: __init__, fetch, parse, _parse_dict, _parse_announcement_time, _append_attachment_text, _absolute_attachment_url, _download_attachment, _convert_attachment_to_text, _candidate_converter_strategies, _conversion_to_dict
 
 
 ## `data_layer/adapters/cnstock_adapter.py`
@@ -5667,7 +5800,7 @@ Imports:
 Classes:
 - `AgentViewRepositoryImpl`
   - Agent 观点仓储实现
-  - methods: save, list, save_conflict, list_conflicts, _to_domain_view, _to_domain_conflict
+  - methods: save, list, save_conflict, list_conflicts, _to_domain_view, _pack_metadata, _unpack_metadata, _to_domain_conflict
 
 
 ## `data_layer/repositories/assertion_repository.py`
@@ -7270,7 +7403,9 @@ Module docstring:
 Imports:
 - `agents`
 - `blackboard`
+- `committee`
 - `contracts`
+- `workflow`
 
 
 ## `cognitive_agents/agents/__init__.py`
@@ -7359,9 +7494,10 @@ Imports:
 Classes:
 - `AgentContext`
   - Agent 执行上下文。
+  - methods: get_evidence_bundle
 - `BaseCognitiveAgent`
   - 认知 Agent 抽象基类。
-  - methods: __init__, analyze, run
+  - methods: __init__, analyze, build_sop_prompt, run, _format_list
 
 
 ## `cognitive_agents/agents/cognitive/__init__.py`
@@ -7382,6 +7518,7 @@ Module docstring:
 
 Imports:
 - `cognitive_agents.agents.base`
+- `cognitive_agents.agents.sop`
 - `cognitive_agents.contracts`
 - `core.interfaces`
 - `core.observability`
@@ -7418,6 +7555,7 @@ Module docstring:
 
 Imports:
 - `cognitive_agents.agents.base`
+- `cognitive_agents.agents.sop`
 - `cognitive_agents.contracts`
 - `core.interfaces`
 - `core.observability`
@@ -7472,6 +7610,7 @@ Module docstring:
 
 Imports:
 - `cognitive_agents.agents.base`
+- `cognitive_agents.agents.sop`
 - `cognitive_agents.contracts`
 - `core.interfaces`
 - `core.observability`
@@ -7618,6 +7757,20 @@ Classes:
   - methods: __init__, run_swarm
 
 
+## `cognitive_agents/agents/sop.py`
+
+Module docstring:
+> Role-specific SOP definitions for cognitive Agents.
+
+Imports:
+- `__future__`
+- `cognitive_agents.contracts`
+
+Functions:
+- `get_agent_sop`
+  - Return the SOP for a role, or a conservative generic SOP.
+
+
 ## `cognitive_agents/agents/validation/__init__.py`
 
 Imports:
@@ -7690,13 +7843,29 @@ Imports:
 - `collections`
 - `contracts`
 - `core.observability`
-- `memory_learning.contracts`
 - `typing`
 
 Classes:
 - `CognitiveBlackboard`
   - Agent Swarm 的共享记忆入口。
   - methods: __init__, add_view, list_views, find_conflicts, _group_by_target_event, _conflict_id, apply_agent_memory, _severity
+
+
+## `cognitive_agents/committee.py`
+
+Module docstring:
+> Committee synthesis for blackboard Agent views.
+
+Imports:
+- `__future__`
+- `cognitive_agents.contracts`
+- `collections`
+- `typing`
+
+Classes:
+- `CommitteeSynthesisService`
+  - Create a deterministic committee summary from AgentView objects.
+  - methods: synthesize, _direction_scores, _final_view, _confidence, _rationale, _merge_lists, _synthesis_id
 
 
 ## `cognitive_agents/contracts.py`
@@ -7706,6 +7875,33 @@ Module docstring:
 
 Imports:
 - `core.contracts.agent_types`
+
+
+## `cognitive_agents/workflow.py`
+
+Module docstring:
+> Workflow runner for staged Agent execution.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `cognitive_agents.agents.base`
+- `cognitive_agents.blackboard`
+- `cognitive_agents.committee`
+- `cognitive_agents.contracts`
+- `core.observability`
+- `typing`
+
+Classes:
+- `WorkflowAgent`
+  - Minimal agent interface required by the workflow runner.
+  - methods: analyze
+- `AgentFactoryLike`
+  - Factory interface accepted by the workflow runner.
+  - methods: create
+- `AgentWorkflowRunner`
+  - Run an AgentWorkflow without replacing the existing AgentOrchestrator.
+  - methods: __init__, run, _run_agent
 
 
 ## `timing_engine/__init__.py`
@@ -9058,6 +9254,166 @@ Classes:
   - methods: __init__, _check_docx, save, save_review_version, _count_words, save_from_template, _replace_placeholders_in_document, _replace_placeholders_in_paragraph, _add_tables_to_document, _insert_table_at_placeholder, _add_chart_images_to_document
 
 
+## `reporting/projects/__init__.py`
+
+Module docstring:
+> Report project package management.
+
+Imports:
+- `reporting.projects.project_manager`
+
+
+## `reporting/projects/chart_generation.py`
+
+Module docstring:
+> Generate report charts from Excel chart caches and embed them into DOCX.
+
+Imports:
+- `__future__`
+- `copy`
+- `core.observability`
+- `dataclasses`
+- `io`
+- `openpyxl.utils.cell`
+- `openpyxl.utils.datetime`
+- `pathlib`
+- `re`
+- `reporting.projects.project_manager`
+- `tempfile`
+- `typing`
+- `xml.etree.ElementTree`
+- `zipfile`
+
+Classes:
+- `ChartSeries`
+  - One chart series parsed from Excel chart cache.
+- `GeneratedChartInfo`
+  - Generated chart metadata for run logs.
+- `GeneratedChartImage`
+  - In-memory chart image and its DOCX replacement target.
+- `ReportProjectChartService`
+  - Render configured report charts and embed them into a DOCX package.
+  - methods: generate_and_embed, _generate_chart, _read_fallback_chart_series
+
+Functions:
+- `_dict_config`
+- `_int_config`
+- `read_excel_chart_series`
+  - Read chart series from an xlsx chart XML cache.
+- `read_worksheet_chart_series`
+  - Read chart series from worksheet cached cell values and drop incomplete rows.
+- `validate_chart_series`
+  - Return warnings for suspicious chart data.
+- `_all_chart_values_zero`
+- `_worksheet_source_label`
+- `_read_worksheet_cached_rows`
+- `_worksheet_xml_path`
+- `_read_shared_strings`
+- `_cached_cell_value`
+- `render_chart_image`
+  - Render chart image bytes with matplotlib.
+- `embed_chart_images_in_docx`
+  - Write generated image bytes directly into a docx package.
+- `sync_native_chart_parts`
+  - Copy Excel native chart XML into matching Word chart parts when configured.
+- `_cache_values`
+- `_is_blank`
+- `_to_float`
+- `_configure_chinese_fonts`
+- `_render_column_bar`
+- `_render_dual_axis_line`
+- `_render_line`
+- `_categories_to_dates`
+- `_format_date_axis`
+- `_apply_excel_axis_style`
+- `_apply_y_limits`
+- `_apply_x_limits`
+- `_slice_recent`
+- `_year_start_ticks`
+- `_date_tick_values`
+- `_figure_to_png_bytes`
+- `_replace_chart_drawing_with_image`
+- `_find_first_image_drawing`
+- `_find_chart_drawing`
+- `_replace_descendant`
+- `_set_picture_relationship`
+- `_next_relationship_id`
+- `_remove_relationship`
+
+
+## `reporting/projects/generation.py`
+
+Module docstring:
+> Evidence-grounded report project generation.
+
+Imports:
+- `__future__`
+- `core.interfaces.model_gateway`
+- `core.model_gateway.gateway`
+- `core.observability`
+- `core.settings`
+- `dataclasses`
+- `datetime`
+- `re`
+- `reporting.projects.project_manager`
+- `sqlalchemy`
+- `typing`
+
+Classes:
+- `PromptTemplateBlock`
+  - Parsed Markdown prompt template block.
+- `EvidenceSnippet`
+  - Retrieved evidence item passed to the LLM.
+- `GeneratedSectionInfo`
+  - Generation metadata for one placeholder.
+- `ReportGenerationResult`
+  - Generated placeholder map plus run metadata.
+- `EvidenceRetriever`
+  - Retrieves factual evidence for a section query.
+  - methods: retrieve
+- `DatabaseEvidenceRetriever`
+  - Keyword evidence retriever over existing AlphaFoundry database tables.
+  - methods: retrieve, _retrieve_ingestion_items, _retrieve_events, _extract_terms, _compact_text
+- `ReportProjectGenerationService`
+  - Generates Word placeholders from project config, evidence, and LLM.
+  - methods: __init__, generate_placeholders, _generate_section, _fallback_content, _clean_model_content
+
+Functions:
+- `iter_placeholder_configs`
+  - Yield normalized placeholder configs from both new and legacy schemas.
+- `parse_prompt_templates`
+  - Parse Markdown prompt templates keyed by second-level heading.
+- `build_fallback_template`
+  - Build a prompt template from legacy section config.
+- `build_generation_messages`
+  - Build strict evidence-grounded LLM messages.
+- `format_evidence_context`
+  - Format evidence snippets for an LLM prompt.
+- `_strip_code_fences`
+- `_extract_label_value`
+
+
+## `reporting/projects/project_manager.py`
+
+Module docstring:
+> Report project folder manager.
+
+Imports:
+- `core.observability`
+- `dataclasses`
+- `pathlib`
+- `shutil`
+- `typing`
+- `yaml`
+
+Classes:
+- `ReportProject`
+  - Resolved report project assets.
+- `ReportProjectManager`
+  - Read and bootstrap report project folders.
+  - methods: __init__, list_projects, get_project, rename_project, bootstrap_cyb50_project, _load_project, _resolve, _resolve_optional
+
+
 ## `reporting/templates/__init__.py`
 
 Module docstring:
@@ -10244,6 +10600,40 @@ Functions:
 - `main`
 
 
+## `scripts/switch_huaan_word_template_to_native_charts.py`
+
+Module docstring:
+> Switch Huaan ETF Word template chart placeholders from images to native charts.
+
+Imports:
+- `__future__`
+- `copy`
+- `core.observability`
+- `pathlib`
+- `shutil`
+- `sys`
+- `tempfile`
+- `xml.etree.ElementTree`
+- `zipfile`
+
+Functions:
+- `_q`
+- `_read_entries`
+- `_write_entries`
+- `_relationship_target_map`
+- `_next_relationship_id`
+- `_ensure_chart_relationship`
+- `_ensure_content_type`
+- `_ensure_override_content_type`
+- `_ensure_related_part_content_types`
+- `_find_image_rel_id`
+- `_replace_image_drawing_with_chart`
+- `_chart_drawing_from_image_drawing`
+- `_replace_element`
+- `switch_template_to_native_charts`
+  - Replace chart images in the Huaan Word template with native chart drawings.
+
+
 ## `scripts/test_akshare.py`
 
 Module docstring:
@@ -10443,6 +10833,31 @@ Imports:
 - `fastapi.testclient`
 - `pathlib`
 - `sys`
+
+
+## `scripts/update_huaan_chart_workbook_excel.py`
+
+Module docstring:
+> Update Huaan ETF weekly chart workbook through Microsoft Excel.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `pathlib`
+- `shutil`
+- `sys`
+- `typing`
+
+Functions:
+- `_connect_excel`
+- `_open_or_get_workbook`
+- `_last_data_row`
+- `_set_series_formulas`
+- `_set_display_blanks_as_span`
+- `_update_gold_sheet`
+- `_update_oil_sheet`
+- `update_huaan_chart_workbook`
+  - Update chart sources and remove duplicate right-side data ranges.
 
 
 ## `scripts/view_db.py`

@@ -1,5 +1,5 @@
 """Agent 观点仓储实现"""
-from typing import List, Optional
+from typing import Any, List, Optional, cast
 
 from core.contracts.agent_types import AgentView, BlackboardConflict
 from core.observability import get_logger
@@ -114,7 +114,9 @@ class AgentViewRepositoryImpl(BaseRepository):
 
     def _to_domain_view(self, db_view: AgentViewDB) -> AgentView:
         """转换为领域模型"""
-        metadata, extensions = self._unpack_metadata(db_view.view_metadata)
+        metadata, extensions = self._unpack_metadata(
+            cast(dict[str, Any] | None, db_view.view_metadata)
+        )
         return AgentView(
             view_id=db_view.view_id,
             agent_name=db_view.agent_name,

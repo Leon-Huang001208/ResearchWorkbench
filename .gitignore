@@ -65,6 +65,7 @@ backup/
 output/
 server.log
 *.docx
+report_projects/*/runs/*.json
 !reporting/templates/docx/*.docx
 !examples/**/*.docx
 initial-page-load.png

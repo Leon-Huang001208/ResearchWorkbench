@@ -1,7 +1,6 @@
 """Static wiring tests for the report template workbench frontend."""
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 INDEX_HTML = ROOT / "app" / "web" / "templates" / "index.html"
 TEMPLATES_JS = ROOT / "app" / "web" / "static" / "js" / "templates.js"
@@ -14,14 +13,21 @@ def test_template_detail_has_report_workbench_regions():
     assert 'id="template-workbench-summary"' in html
     assert 'id="template-section-config-editor"' in html
     assert 'id="template-source-editor"' in html
+    assert 'id="btn-template-source-section"' in html
+    assert 'id="btn-template-source-prompt"' in html
     assert 'id="template-excel-mapping"' in html
     assert 'id="template-validation-preview"' in html
     assert 'id="btn-template-save-source"' in html
+    assert 'id="btn-template-edit-source"' in html
+    assert "readonly" in html
     assert 'id="btn-template-generate-report"' in html
     assert 'id="btn-template-download-report"' in html
     assert 'id="btn-back-to-templates" class="btn-secondary" onclick="goBackToTemplates()"' in html
     assert 'id="btn-edit-templates" class="iphone-nav-btn" onclick="toggleEditMode()"' in html
-    assert 'id="btn-new-template" class="iphone-dock-item" onclick="openUploadModal()"' in html
+    assert (
+        'id="btn-new-template" class="iphone-nav-btn iphone-upload-btn" onclick="openUploadModal()"'
+        in html
+    )
     assert 'id="project-word-template-input"' in html
     assert 'id="project-excel-workbook-input"' in html
     assert 'id="project-section-config-input"' in html
@@ -45,7 +51,7 @@ def test_templates_js_populates_report_workbench():
     assert "/api/report-projects/${encodeURIComponent(project.slug)}" in source
     assert "iphone-template-name-input" in source
     assert "handleTemplatePointerDown" in source
-    assert "onpointerdown=\"handleTemplatePointerDown(event)\"" in source
+    assert 'onpointerdown="handleTemplatePointerDown(event)"' in source
     assert "pointerDragState" in source
     assert "download_url" in source
     assert "buildTemplateConfigYaml" in source
@@ -66,8 +72,81 @@ def test_report_workbench_uses_report_project_real_asset_summary():
     assert "project?.word_placeholders" in source
     assert "project?.section_config?.sections" in source
     assert "project?.section_config_source" in source
+    assert "project?.prompt_templates_source" in source
+    assert "getTemplateWorkbenchSource" in source
+    assert "buildPlaceholderMappingConfigYaml" in source
+    assert "getPlaceholderMappings" in source
+    assert "placeholder_mappings" not in source
+    assert "placeholders:" in source
+    assert "setTemplateSourceEditing" in source
+    assert "/source" in source
+    assert "source_kind" in source
     assert "project?.excel_sheets" in source
     assert "buildCyb50ExcelMappingRows" not in source
+
+
+def test_workbench_keeps_section_mapping_and_prompt_source_separate():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+
+    assert "btn-template-source-section" in source
+    assert "btn-template-source-prompt" in source
+    assert "switchTemplateSourceKind" in source
+    assert "activeSourceKind" in source
+    assert "Markdown Prompt" in source
+    assert "YAML 占位符映射" in source
+
+
+def test_workbench_uses_current_placeholder_mapping_draft_for_status():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+
+    assert "getStoredPlaceholderMappings" in source
+    assert "buildDraftPlaceholderMappings" in source
+    assert "getCurrentPlaceholderMappings" in source
+    assert "const placeholderMappings = getCurrentPlaceholderMappings(template);" in source
+    assert (
+        "const placeholderMappings = getCurrentPlaceholderMappings(getCurrentWorkbenchTemplate() || {});"
+        in source
+    )
+
+
+def test_placeholder_map_does_not_truncate_word_placeholders():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+
+    assert "names.map(name =>" in source
+    assert "names.slice(0, 8)" not in source
+
+
+def test_placeholder_mapping_connects_word_prompt_and_query_source():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+
+    assert "resolvePromptTemplateName" in source
+    assert "inferQuerySource" in source
+    assert (
+        "prompt_template: ${mapping.prompt_template || resolvePromptTemplateName(key, project)}"
+        in source
+    )
+    assert "query_source: ${mapping.query_source || inferQuerySource(key, project)}" in source
+    assert "renderMappingSummary" in source
+    assert "prompt_template" in source
+    assert "query_source" in source
+
+
+def test_embedded_query_mode_uses_prompt_template_without_json_source():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+
+    assert "usesEmbeddedPromptQueries" in source
+    assert "query_mode: retrieval_query_embedded" in source
+    assert "检索 Query: 模板内置" in source
+    assert "resolvePromptTemplateName(key, project)" in source
+    assert "if (!usesEmbeddedPromptQueries(project)) {" in source
+
+
+def test_prompt_template_view_uses_generated_library_when_reference_is_raw():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+
+    assert "buildPromptTemplateLibraryMarkdown" in source
+    assert "shouldUsePromptTemplateLibraryDraft" in source
+    assert "Markdown Prompt（模板库草稿）" in source
 
 
 def test_report_project_placeholders_skip_legacy_template_placeholder_api():
@@ -81,7 +160,18 @@ def test_template_cards_do_not_reference_module_state_inline():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
 
     assert 'onclick="selectTemplate(' in source
-    assert "onclick=\"!isEditMode" not in source
+    assert 'onclick="!isEditMode' not in source
+
+
+def test_template_upload_action_lives_in_top_toolbar():
+    html = INDEX_HTML.read_text(encoding="utf-8")
+    css = STYLE_CSS.read_text(encoding="utf-8")
+
+    assert '<div class="iphone-dock">' not in html
+    assert 'class="iphone-dock-item"' not in html
+    assert ".iphone-dock" not in css
+    assert ".iphone-dock-item" not in css
+    assert ".iphone-upload-btn" in css
 
 
 def test_report_template_workbench_styles_exist():
@@ -98,3 +188,13 @@ def test_report_template_workbench_styles_exist():
     assert ".iphone-template-wrapper.dragging" in css
     assert "position: fixed" in css
     assert ".iphone-template-name-input" in css
+
+
+def test_template_detail_icon_follows_active_color_scheme():
+    css = STYLE_CSS.read_text(encoding="utf-8")
+
+    detail_icon_block = css.split(".template-icon-large {", 1)[1].split("}", 1)[0]
+    assert "background: var(--accent);" in detail_icon_block
+    assert ".template-icon-large.docx" not in css
+    assert ".template-icon-large.pptx" not in css
+    assert ".template-icon-large.excel" not in css

@@ -1,7 +1,7 @@
 {
   "version": "1.0",
-  "current_index": 2,
-  "last_updated": "2026-06-05T17:29:06.711625",
+  "current_index": 4,
+  "last_updated": "2026-06-08T14:02:44.188242",
   "accounts": {
     "huangyongjia": {
       "name": "huangyongjia",
@@ -42,8 +42,8 @@
       "is_locked": false,
       "lock_until": null,
       "is_disabled": false,
-      "leased_by": "meeting",
-      "leased_at": "2026-06-05T17:29:03.567222"
+      "leased_by": null,
+      "leased_at": null
     },
     "majingyi": {
       "name": "majingyi",
@@ -61,11 +61,11 @@
     },
     "wanghao": {
       "name": "wanghao",
-      "use_count": 95,
+      "use_count": 96,
       "success_count": 88,
       "failure_count": 2,
       "consecutive_failures": 0,
-      "last_used": "2026-06-05T16:29:02.580932",
+      "last_used": "2026-06-08T14:02:35.456384",
       "last_failure": "2026-05-26T17:11:56.904061",
       "is_locked": false,
       "lock_until": null,

@@ -132,7 +132,10 @@ class TestTemplateManager:
         assert path.exists()
 
     def test_get_template_file_path_uses_configured_excel_path(
-        self, template_manager: TemplateManager, sample_template_config: TemplateConfig, tmp_path: Path
+        self,
+        template_manager: TemplateManager,
+        sample_template_config: TemplateConfig,
+        tmp_path: Path,
     ):
         """测试 Excel 模板可以使用 YAML 中配置的已有文件路径"""
         excel_path = tmp_path / "existing_workbook.xlsx"

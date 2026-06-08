@@ -553,6 +553,104 @@ python scripts/seed_factor_data.py --skip-ingest
 
 ---
 
+### 报告项目 API
+
+报告项目 API 管理 `report_projects/<项目名>/` 下的一组项目资产：Word 模板、Excel 底稿、`section_config.yaml`、可选 `prompt_templates.md`、生成目录和运行日志目录。
+
+#### GET /api/report-projects/
+
+列出所有报告项目。
+
+**响应字段要点**:
+
+| 字段 | 说明 |
+| --- | --- |
+| `word_placeholders` | 从 Word 正文、页眉、页脚 XML 中按首次出现顺序提取的占位符 |
+| `section_config` | 解析后的 YAML 配置 |
+| `section_config_source` | 原始 YAML 文本，可在工作台编辑 |
+| `prompt_templates_source` | 原始 Markdown Prompt 模板文本 |
+| `excel_sheets` | Excel 工作表维度和样例单元格摘要 |
+| `generated_reports` | 已生成 DOCX 列表 |
+
+#### PUT /api/report-projects/{slug}/source
+
+保存报告项目源码文件。
+
+**请求体**:
+
+```json
+{
+  "source_kind": "prompt_templates",
+  "content": "# Prompt 模板库\n\n## 人工智能\n```text\n检索 Query：人工智能 新闻\n\n写作要求：严格依据 evidence。\n```"
+}
+```
+
+`source_kind` 支持：
+
+| 值 | 写入文件 |
+| --- | --- |
+| `section_config` | 项目的 `section_config.yaml` |
+| `prompt_templates` | 项目的 `prompt_templates.md`；如果项目尚未绑定，会创建 `config/prompt_templates.md` 并写回 `project.yaml` |
+
+#### POST /api/report-projects/{slug}/render
+
+生成项目 DOCX。
+
+默认 `generate_from_config=true`，后端会按以下顺序执行：
+
+```text
+section_config.yaml
+→ prompt_templates.md
+→ evidence 检索
+→ ModelGateway 生成占位符正文
+→ Word 占位符替换
+→ 图表生成和 DOCX 图片嵌入
+→ runs/*.json 运行日志
+```
+
+**请求体**:
+
+```json
+{
+  "placeholders": {
+    "title": "华安ETF周报"
+  },
+  "generate_from_config": true,
+  "lookback_days": 7
+}
+```
+
+| 字段 | 必需 | 说明 |
+| --- | --- | --- |
+| `placeholders` | ❌ | 手工占位符覆盖值；非空值优先于自动生成 |
+| `generate_from_config` | ❌ | 是否从 YAML + Prompt 模板自动生成，占默认 `true` |
+| `lookback_days` | ❌ | evidence 检索窗口，1-90 天，默认 7 |
+
+**响应示例**:
+
+```json
+{
+  "success": true,
+  "project_name": "华安ETF周报",
+  "file_name": "2026-06-08_153000_华安ETF周报.docx",
+  "download_url": "/api/report-projects/华安ETF周报/download/2026-06-08_153000_华安ETF周报.docx",
+  "preview_url": "/api/report-projects/华安ETF周报/preview/2026-06-08_153000_华安ETF周报.docx",
+  "generated_placeholder_count": 21,
+  "evidence_count": 42,
+  "warnings": []
+}
+```
+
+#### GET /api/report-projects/{slug}/preview/{file_name}
+
+把已生成 DOCX 转换为轻量 HTML 预览。预览支持正文段落、表格和图片；它用于快速检查内容，不替代最终 Word 版式验收。
+
+#### GET /api/report-projects/{slug}/download/{file_name}
+
+下载已生成 DOCX。
+
+---
+
 ### 数据摄入 API
 
 #### POST /api/ingest/file
@@ -1570,6 +1668,41 @@ with get_db() as db:
     weekly_report = generator.generate_weekly_report()
     generator.save_report(weekly_report, "weekly_review.md")
 ```
+
+#### 报告项目生成服务
+
+```python
+from pathlib import Path
+
+import yaml
+
+from reporting.projects.generation import ReportProjectGenerationService
+from reporting.projects.project_manager import ReportProjectManager
+
+manager = ReportProjectManager(projects_root=Path("report_projects"))
+project = manager.get_project("华安ETF周报")
+section_config = yaml.safe_load(project.section_config_path.read_text(encoding="utf-8"))
+prompt_templates = project.prompt_templates_path.read_text(encoding="utf-8")
+
+service = ReportProjectGenerationService()
+result = service.generate_placeholders(
+    project=project,
+    section_config=section_config,
+    prompt_templates_source=prompt_templates,
+    manual_placeholders={"title": "华安ETF周报"},
+    lookback_days=7,
+)
+
+print(result.placeholders)
+print(result.sections[0].evidence_count)
+```
+
+配置口径：
+
+- `section_config.yaml` 的 `placeholders:` 绑定 Word 占位符、Prompt 模板、静态值或 Excel 来源。
+- `prompt_templates.md` 每个 `##` 标题是一个模板名；`检索 Query` 用于找事实材料，`写作要求` 用于约束最终正文。
+- 模型调用通过 `ModelGatewayImpl.chat(task="reporting")`，未配置 reporting task route 时回落到 default。
+- 运行日志由 `/api/report-projects/{slug}/render` 写入项目 `runs/` 目录，包含 evidence count、模型、token、图表和 warnings。
 
 ---
 

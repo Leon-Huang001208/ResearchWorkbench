@@ -133,6 +133,48 @@ Update this section when:
 
 ---
 
+### `scripts/update_huaan_chart_workbook_excel.py`
+
+Purpose:
+
+- Uses Microsoft Excel via `xlwings` to update `report_projects/华安ETF周报/data/周报图表.xlsx`.
+- Rebinds gold and crude-oil chart series to the left-side Wind data ranges.
+- Removes duplicate right-side copied data ranges from the workbook sheets.
+- Saves a backup under `report_projects/华安ETF周报/data/backups/` before writing.
+
+Operational notes:
+
+- Requires a local Excel/xlwings environment.
+- The script intentionally uses Excel rather than ZIP-level XLSX mutation because Excel is stricter about chart XML and relationship consistency.
+- It logs workbook open/save and chart-series updates through `core.observability`.
+
+Update this section when:
+
+- Huaan workbook sheet names, chart source ranges, or backup behavior changes.
+- Excel automation behavior or dependencies change.
+
+---
+
+### `scripts/switch_huaan_word_template_to_native_charts.py`
+
+Purpose:
+
+- Updates `report_projects/华安ETF周报/templates/report_template.docx` so selected chart placeholders become native Word chart drawings.
+- Copies chart XML from `report_projects/华安ETF周报/data/周报图表.xlsx` where configured.
+- Updates DOCX relationships and content types, then writes a backup under `report_projects/华安ETF周报/templates/backups/`.
+
+Operational notes:
+
+- This script mutates the DOCX package structure and should be run only after the workbook chart XML is known good.
+- It logs backup and relationship replacement details through `core.observability`.
+
+Update this section when:
+
+- Huaan Word template media targets, chart relationship ids, chart XML parts, or backup behavior changes.
+- DOCX chart replacement semantics change.
+
+---
+
 ### Other `scripts/*.py`
 
 Purpose:

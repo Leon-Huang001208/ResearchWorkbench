@@ -1,13 +1,21 @@
 """Tests for report project API routes."""
-from pathlib import Path
+import json
 import zipfile
+from pathlib import Path
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
 from app.api.main import app
+from core.interfaces.model_gateway import ModelResponse
+from reporting.projects.chart_generation import GeneratedChartInfo
+from reporting.projects.generation import (
+    EvidenceSnippet,
+    GeneratedSectionInfo,
+    ReportGenerationResult,
+    ReportProjectGenerationService,
+)
 from reporting.projects.project_manager import ReportProjectManager
-
 
 client = TestClient(app)
 
@@ -20,6 +28,10 @@ def write_minimal_docx(path: Path, text: str) -> None:
 </w:document>"""
     with zipfile.ZipFile(path, "w") as archive:
         archive.writestr("word/document.xml", document_xml)
+        archive.writestr(
+            "word/_rels/document.xml.rels",
+            """<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>""",
+        )
 
 
 def write_minimal_xlsx(path: Path) -> None:
@@ -127,6 +139,8 @@ def test_get_report_project_returns_real_template_asset_summary(tmp_path: Path, 
         ]
     )
     (project_dir / "config" / "section_config.yaml").write_text(section_yaml, encoding="utf-8")
+    prompt_source = "中国市场\n{{query}}\n\n要求如下：\n1. 严格依据上传文件"
+    (project_dir / "config" / "prompt_templates.md").write_text(prompt_source, encoding="utf-8")
     (project_dir / "project.yaml").write_text(
         "\n".join(
             [
@@ -134,6 +148,7 @@ def test_get_report_project_returns_real_template_asset_summary(tmp_path: Path, 
                 "active_word_template: templates/report_template.docx",
                 "active_excel_workbook: data/cyb50.xlsx",
                 "section_config: config/section_config.yaml",
+                "prompt_templates: config/prompt_templates.md",
                 "output_dir: generated",
                 "run_log_dir: runs",
             ]
@@ -153,13 +168,104 @@ def test_get_report_project_returns_real_template_asset_summary(tmp_path: Path, 
 
     assert response.status_code == 200
     project = response.json()
-    assert project["word_placeholders"] == ["content1", "start_date", "title"]
+    assert project["word_placeholders"] == ["title", "start_date", "content1"]
     assert project["section_config_source"] == section_yaml
+    assert project["prompt_templates_source"] == prompt_source
     assert project["section_config"]["sections"][0]["placeholder"] == "content1"
     assert project["excel_sheets"][0]["name"] == "基本信息"
     assert project["excel_sheets"][0]["dimension"] == "A1:C3"
     assert project["excel_sheets"][0]["nonempty_count"] == 2
     assert "A1=日期" in project["excel_sheets"][0]["sample_cells"]
+
+
+def test_docx_placeholders_keep_word_first_seen_order(tmp_path: Path, monkeypatch):
+    """占位符地图应按 Word 正文首次出现顺序展示，而不是按名称排序。"""
+    project_dir = tmp_path / "排序周报"
+    (project_dir / "templates").mkdir(parents=True)
+    (project_dir / "data").mkdir()
+    (project_dir / "config").mkdir()
+    (project_dir / "generated").mkdir()
+    (project_dir / "runs").mkdir()
+    write_minimal_docx(
+        project_dir / "templates" / "report_template.docx",
+        "{{z_last}} {{a_first}} {{middle}} {{a_first}}",
+    )
+    write_minimal_xlsx(project_dir / "data" / "data.xlsx")
+    (project_dir / "config" / "section_config.yaml").write_text("sections: []\n", encoding="utf-8")
+    (project_dir / "project.yaml").write_text(
+        "\n".join(
+            [
+                "name: 排序周报",
+                "active_word_template: templates/report_template.docx",
+                "active_excel_workbook: data/data.xlsx",
+                "section_config: config/section_config.yaml",
+                "output_dir: generated",
+                "run_log_dir: runs",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    import app.api.routes.report_projects as report_projects_route
+
+    monkeypatch.setattr(
+        report_projects_route,
+        "report_project_manager",
+        ReportProjectManager(projects_root=tmp_path),
+    )
+
+    response = client.get("/api/report-projects/排序周报")
+
+    assert response.status_code == 200
+    assert response.json()["word_placeholders"] == ["z_last", "a_first", "middle"]
+
+
+def test_update_report_project_source_persists_prompt_templates(tmp_path: Path, monkeypatch):
+    """源码保存应写回项目文件，而不是只保存浏览器草稿。"""
+    project_dir = tmp_path / "华安ETF周报"
+    (project_dir / "templates").mkdir(parents=True)
+    (project_dir / "data").mkdir()
+    (project_dir / "config").mkdir()
+    (project_dir / "generated").mkdir()
+    (project_dir / "runs").mkdir()
+    write_minimal_docx(project_dir / "templates" / "report_template.docx", "{{ content1 }}")
+    write_minimal_xlsx(project_dir / "data" / "data.xlsx")
+    (project_dir / "config" / "section_config.yaml").write_text("sections: []\n", encoding="utf-8")
+    (project_dir / "config" / "prompt_templates.md").write_text("旧 prompt", encoding="utf-8")
+    (project_dir / "project.yaml").write_text(
+        "\n".join(
+            [
+                "name: 华安ETF周报",
+                "active_word_template: templates/report_template.docx",
+                "active_excel_workbook: data/data.xlsx",
+                "section_config: config/section_config.yaml",
+                "prompt_templates: config/prompt_templates.md",
+                "output_dir: generated",
+                "run_log_dir: runs",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    import app.api.routes.report_projects as report_projects_route
+
+    monkeypatch.setattr(
+        report_projects_route,
+        "report_project_manager",
+        ReportProjectManager(projects_root=tmp_path),
+    )
+
+    response = client.put(
+        "/api/report-projects/华安ETF周报/source",
+        json={"source_kind": "prompt_templates", "content": "新 prompt\n{{query}}"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["prompt_templates_source"] == "新 prompt\n{{query}}"
+    assert (project_dir / "config" / "prompt_templates.md").read_text(
+        encoding="utf-8"
+    ) == "新 prompt\n{{query}}"
 
 
 def test_render_report_project_writes_to_project_generated_dir(tmp_path: Path, monkeypatch):
@@ -214,6 +320,271 @@ def test_render_report_project_writes_to_project_generated_dir(tmp_path: Path, m
     assert output_path.name.endswith("_创业板50周报.docx")
     assert output_path.read_bytes() == b"rendered"
     assert data["download_url"].startswith("/api/report-projects/创业板50周报/download/")
+    assert data["preview_url"].startswith("/api/report-projects/创业板50周报/preview/")
+
+
+def test_generation_service_uses_prompt_query_evidence_and_reporting_model(tmp_path: Path):
+    """生成服务应把 Prompt 内置 Query 检索结果交给 reporting 模型路由生成。"""
+    project_dir = tmp_path / "华安ETF周报"
+    (project_dir / "templates").mkdir(parents=True)
+    (project_dir / "data").mkdir()
+    (project_dir / "config").mkdir()
+    (project_dir / "generated").mkdir()
+    (project_dir / "runs").mkdir()
+    write_minimal_docx(project_dir / "templates" / "report_template.docx", "{{人工智能}}")
+    write_minimal_xlsx(project_dir / "data" / "data.xlsx")
+    (project_dir / "config" / "section_config.yaml").write_text(
+        "placeholders: {}\n", encoding="utf-8"
+    )
+    (project_dir / "project.yaml").write_text(
+        "\n".join(
+            [
+                "name: 华安ETF周报",
+                "active_word_template: templates/report_template.docx",
+                "active_excel_workbook: data/data.xlsx",
+                "section_config: config/section_config.yaml",
+                "output_dir: generated",
+                "run_log_dir: runs",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    project = ReportProjectManager(projects_root=tmp_path).get_project("华安ETF周报")
+
+    class FakeRetriever:
+        def __init__(self):
+            self.query = ""
+
+        def retrieve(self, query, *, title, params, lookback_days, limit):
+            self.query = query
+            assert title == "人工智能"
+            assert params == {"param": "人工智能"}
+            assert lookback_days == 7
+            return [
+                EvidenceSnippet(
+                    source="ingestion:news",
+                    title="AI 新闻",
+                    content="人工智能产业链本周出现多条政策和产品进展。",
+                    published_at="2026-06-01",
+                    url="https://example.test/ai",
+                )
+            ]
+
+    class FakeGateway:
+        def __init__(self):
+            self.messages = []
+            self.task = None
+
+        def chat(self, messages, model=None, temperature=0.7, max_tokens=None, task=None, **kwargs):
+            self.messages = messages
+            self.task = task
+            assert task in {"reporting", "default"}
+            assert "人工智能产业链本周出现多条政策和产品进展" in messages[1]["content"]
+            assert "请检索本周人工智能相关新闻" in messages[1]["content"]
+            return ModelResponse(
+                content="我们根据提供的evidence撰写。可以写：人工智能板块本周围绕政策和产品进展延续活跃。",
+                model_name="deepseek-chat",
+                provider="deepseek",
+                tokens_used=123,
+                latency_ms=456,
+            )
+
+    retriever = FakeRetriever()
+    gateway = FakeGateway()
+    service = ReportProjectGenerationService(retriever=retriever, model_gateway=gateway)
+    result = service.generate_placeholders(
+        project=project,
+        section_config={
+            "placeholders": {
+                "人工智能": {
+                    "title": "人工智能",
+                    "type": "prompt",
+                    "prompt_template": "人工智能",
+                    "max_words": 120,
+                    "params": {"param": "人工智能"},
+                }
+            }
+        },
+        prompt_templates_source=(
+            "## 人工智能\n\n"
+            "```text\n"
+            "检索 Query：请检索本周人工智能相关新闻\n\n"
+            "写作要求：控制在 100 字以内，不输出投资建议。\n"
+            "```"
+        ),
+    )
+
+    assert retriever.query == "请检索本周人工智能相关新闻"
+    assert gateway.task in {"reporting", "default"}
+    assert result.placeholders["人工智能"] == "人工智能板块本周围绕政策和产品进展延续活跃。"
+    assert result.sections[0].provider == "deepseek"
+    assert result.sections[0].evidence_count == 1
+
+
+def test_render_report_project_generates_from_config_and_writes_generation_log(
+    tmp_path: Path, monkeypatch
+):
+    """render 接口应默认从配置生成占位符并记录证据/模型信息。"""
+    project_dir = tmp_path / "华安ETF周报"
+    (project_dir / "templates").mkdir(parents=True)
+    (project_dir / "data").mkdir()
+    (project_dir / "config").mkdir()
+    (project_dir / "generated").mkdir()
+    (project_dir / "runs").mkdir()
+    (project_dir / "templates" / "report_template.docx").write_bytes(b"docx")
+    (project_dir / "data" / "data.xlsx").write_bytes(b"xlsx")
+    (project_dir / "config" / "section_config.yaml").write_text(
+        "\n".join(
+            [
+                "placeholders:",
+                "  人工智能:",
+                "    title: 人工智能",
+                "    prompt_template: 人工智能",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (project_dir / "config" / "prompt_templates.md").write_text(
+        "## 人工智能\n检索 Query：AI\n\n写作要求：周报口吻",
+        encoding="utf-8",
+    )
+    (project_dir / "project.yaml").write_text(
+        "\n".join(
+            [
+                "name: 华安ETF周报",
+                "active_word_template: templates/report_template.docx",
+                "active_excel_workbook: data/data.xlsx",
+                "section_config: config/section_config.yaml",
+                "prompt_templates: config/prompt_templates.md",
+                "output_dir: generated",
+                "run_log_dir: runs",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    import app.api.routes.report_projects as report_projects_route
+
+    monkeypatch.setattr(
+        report_projects_route,
+        "report_project_manager",
+        ReportProjectManager(projects_root=tmp_path),
+    )
+
+    class FakeGenerationService:
+        def generate_placeholders(self, **kwargs):
+            assert kwargs["project"].name == "华安ETF周报"
+            assert kwargs["manual_placeholders"] == {}
+            assert kwargs["lookback_days"] == 7
+            return ReportGenerationResult(
+                placeholders={"人工智能": "AI 生成段落"},
+                sections=[
+                    GeneratedSectionInfo(
+                        placeholder="人工智能",
+                        title="人工智能",
+                        prompt_template="人工智能",
+                        retrieval_query="AI",
+                        evidence_count=2,
+                        model_name="deepseek-chat",
+                        provider="deepseek",
+                        tokens_used=88,
+                    )
+                ],
+            )
+
+    monkeypatch.setattr(
+        report_projects_route,
+        "report_generation_service",
+        FakeGenerationService(),
+    )
+
+    class FakeChartService:
+        def generate_and_embed(self, **kwargs):
+            return [
+                GeneratedChartInfo(
+                    chart_id="industry_weekly_performance",
+                    title="申万一级行业周涨跌幅",
+                    workbook="周报图表.xlsx",
+                    source_chart="xl/charts/chart2.xml",
+                    replace_kind="chart_to_image",
+                    point_count=31,
+                    warnings=["图表缓存数值全为 0，请确认 Excel/Wind 已刷新并保存"],
+                )
+            ]
+
+    monkeypatch.setattr(
+        report_projects_route,
+        "report_chart_service",
+        FakeChartService(),
+    )
+
+    captured = {}
+
+    def fake_save_from_template(output_path, template_path, sections, placeholders):
+        captured["placeholders"] = placeholders
+        output_path.write_bytes(b"rendered")
+
+    with patch(
+        "reporting.projections.word.WordProjection.save_from_template",
+        side_effect=fake_save_from_template,
+    ):
+        response = client.post("/api/report-projects/华安ETF周报/render", json={})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert captured["placeholders"] == {"人工智能": "AI 生成段落"}
+    assert data["generated_placeholder_count"] == 1
+    assert data["evidence_count"] == 2
+    assert "图表缓存数值全为 0" in data["warnings"][0]
+    run_files = list((project_dir / "runs").glob("*.json"))
+    assert len(run_files) == 1
+    run_record = json.loads(run_files[0].read_text(encoding="utf-8"))
+    assert run_record["generation"]["sections"][0]["provider"] == "deepseek"
+    assert run_record["generation"]["sections"][0]["retrieval_query"] == "AI"
+    assert run_record["charts"][0]["chart_id"] == "industry_weekly_performance"
+
+
+def test_preview_report_project_file_returns_docx_html(tmp_path: Path, monkeypatch):
+    """生成后的 Word 文件应能在网页端转换为轻量 HTML 预览。"""
+    project_dir = tmp_path / "华安ETF周报"
+    (project_dir / "templates").mkdir(parents=True)
+    (project_dir / "data").mkdir()
+    (project_dir / "config").mkdir()
+    (project_dir / "generated").mkdir()
+    (project_dir / "runs").mkdir()
+    write_minimal_docx(project_dir / "templates" / "report_template.docx", "{{人工智能}}")
+    write_minimal_xlsx(project_dir / "data" / "data.xlsx")
+    (project_dir / "config" / "section_config.yaml").write_text("sections: []\n", encoding="utf-8")
+    (project_dir / "generated" / "preview.docx").write_bytes(
+        (project_dir / "templates" / "report_template.docx").read_bytes()
+    )
+    (project_dir / "project.yaml").write_text(
+        "\n".join(
+            [
+                "name: 华安ETF周报",
+                "active_word_template: templates/report_template.docx",
+                "active_excel_workbook: data/data.xlsx",
+                "section_config: config/section_config.yaml",
+                "output_dir: generated",
+                "run_log_dir: runs",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    import app.api.routes.report_projects as report_projects_route
+
+    monkeypatch.setattr(
+        report_projects_route,
+        "report_project_manager",
+        ReportProjectManager(projects_root=tmp_path),
+    )
+
+    response = client.get("/api/report-projects/华安ETF周报/preview/preview.docx")
+
+    assert response.status_code == 200
+    assert "docx-preview-page" in response.text
+    assert "{{人工智能}}" in response.text
 
 
 def test_upload_report_project_package_creates_project_folder(tmp_path: Path, monkeypatch):

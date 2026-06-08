@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 import asyncio
+from typing import Protocol
 
 from cognitive_agents.agents.base import AgentContext
-from cognitive_agents.agents.factory import AgentFactory
 from cognitive_agents.blackboard import CognitiveBlackboard
 from cognitive_agents.committee import CommitteeSynthesisService
 from cognitive_agents.contracts import (
@@ -12,7 +12,6 @@ from cognitive_agents.contracts import (
     AgentView,
     AgentWorkflow,
     AgentWorkflowResult,
-    BlackboardConflict,
     CommitteeSynthesis,
 )
 from core.observability import get_logger
@@ -20,12 +19,26 @@ from core.observability import get_logger
 logger = get_logger(__name__)
 
 
+class WorkflowAgent(Protocol):
+    """Minimal agent interface required by the workflow runner."""
+
+    async def analyze(self, context: AgentContext) -> AgentView:
+        """Analyze the stage context and return one Agent view."""
+
+
+class AgentFactoryLike(Protocol):
+    """Factory interface accepted by the workflow runner."""
+
+    def create(self, role: AgentRole) -> WorkflowAgent:
+        """Create an Agent for the requested role."""
+
+
 class AgentWorkflowRunner:
     """Run an AgentWorkflow without replacing the existing AgentOrchestrator."""
 
     def __init__(
         self,
-        agent_factory: AgentFactory,
+        agent_factory: AgentFactoryLike,
         synthesis_service: CommitteeSynthesisService | None = None,
     ):
         self.agent_factory = agent_factory
@@ -104,11 +117,15 @@ class AgentWorkflowRunner:
             evidence=context.evidence,
             evidence_bundle=context.evidence_bundle,
             market_data=context.market_data,
-            prior_views=blackboard.list_views(target_id=workflow.target_id, event_id=workflow.event_id),
+            prior_views=blackboard.list_views(
+                target_id=workflow.target_id, event_id=workflow.event_id
+            ),
         )
         view = await agent.analyze(stage_context)
         if view.target_id != workflow.target_id or view.event_id != workflow.event_id:
-            view = view.model_copy(update={"target_id": workflow.target_id, "event_id": workflow.event_id})
+            view = view.model_copy(
+                update={"target_id": workflow.target_id, "event_id": workflow.event_id}
+            )
         if view.workflow_id != workflow.workflow_id:
             view = view.model_copy(update={"workflow_id": workflow.workflow_id})
         blackboard.add_view(view)

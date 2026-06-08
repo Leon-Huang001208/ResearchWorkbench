@@ -92,12 +92,14 @@ Purpose:
 - Wrap `CninfoCrawler` and convert CNINFO announcement dictionaries into `DocumentEnvelope` objects.
 - Generate idempotent document IDs from `adjunctUrl` or stable announcement fields.
 - Normalize CNINFO metadata (`sec_code`, `sec_name`, `announcement_type`, `announcement_id`) for downstream document ingestion.
+- When attachment conversion is enabled, record attachment text status, strategy, page count, and related metadata on the envelope for downstream evidence/debugging.
 
 Update this section when:
 
 - CNINFO envelope fields or metadata mapping changes.
 - CNINFO adapter fetch parameters change.
 - Document source type or canonical text construction changes.
+- Attachment text extraction metadata changes.
 
 ---
 

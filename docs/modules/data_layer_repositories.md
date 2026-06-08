@@ -123,6 +123,20 @@ Update this section when:
 
 ---
 
+### `data_layer/repositories/agent_view_repository.py`
+
+Purpose:
+- Agent view and blackboard conflict persistence.
+- Packs newer `AgentView` extension fields (`assumptions`, `risks`, `invalidation_triggers`, `recommended_next_checks`) into JSON metadata under `_agent_view_extensions`.
+- Unpacks metadata with explicit JSONB boundary type narrowing before constructing the domain `AgentView`.
+
+Update this section when:
+- Agent view metadata packing/unpacking changes.
+- Extension fields move from metadata into first-class table columns.
+- Conflict persistence or query behavior changes.
+
+---
+
 ### `data_layer/repositories/ingestion_repository.py`
 
 Purpose:

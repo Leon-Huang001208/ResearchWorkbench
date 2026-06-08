@@ -145,6 +145,7 @@ When files in this module change, check:
 
 ## Recent Changes
 
+- 2026-06-08: `EventDrivenLabeler.classify()` now uses pandas `Series.mask()` for threshold classification (`1` / `0` / `-1`) instead of boolean-index assignment. Label semantics are unchanged, while pandas type handling is explicit enough for full mypy gates.
 - 2026-06-04: 收敛事件研究与事件驱动标签的 pandas index 类型处理，显式处理 `get_loc` 非整数返回，避免重复索引导致窗口计算类型不确定。
 - `signal_lab/features/indicators/engine.py` — 指标计算引擎重构
 - `signal_lab/features/indicators/models.py` — 指标数据模型定义

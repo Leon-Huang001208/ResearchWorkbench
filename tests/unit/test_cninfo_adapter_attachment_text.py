@@ -1,5 +1,6 @@
 """Tests for CNINFO attachment text extraction."""
 from pathlib import Path
+
 import requests
 
 from data_layer.adapters.cninfo_adapter import CninfoAdapter
@@ -61,7 +62,9 @@ def test_parse_dict_embeds_downloaded_attachment_text(monkeypatch, tmp_path):
 def test_parse_dict_marks_attachment_download_failure(monkeypatch, tmp_path):
     adapter = CninfoAdapter()
 
-    monkeypatch.setattr(adapter, "_download_attachment", lambda *args, **kwargs: None, raising=False)
+    monkeypatch.setattr(
+        adapter, "_download_attachment", lambda *args, **kwargs: None, raising=False
+    )
 
     envelope = adapter.parse(
         {

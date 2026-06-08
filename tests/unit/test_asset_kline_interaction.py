@@ -38,7 +38,7 @@ def test_kline_static_module_versions_are_bumped():
     index_source = INDEX_HTML.read_text(encoding="utf-8")
 
     assert "./asset.js?v=20250605a" in app_source
-    assert "/static/js/app.js?v=20250605a" in index_source
+    assert "/static/js/app.js?v=20250606e" in index_source
 
 
 def test_chip_distribution_uses_visible_range_volume_profile_like_wind():

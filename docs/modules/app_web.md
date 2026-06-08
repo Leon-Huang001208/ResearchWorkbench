@@ -24,6 +24,7 @@
 Purpose:
 - Jinja2 templates for HTML pages
 - Page structure and layout
+- Report template workbench layout, including the top-toolbar upload action, source editor, YAML/Prompt source switcher, edit/save controls, generate/download actions, and generated Word preview container
 
 Update this section when:
 - New pages are added
@@ -37,6 +38,9 @@ Purpose:
 - API client interactions
 - User interface behavior
 - Asset analysis K-line chart uses ECharts for a Wind-style terminal panel with candlestick/volume/MACD/KDJ/RSI rendering, `dataZoom` drag/scroll zoom with visible-range y-axis recalculation, crosshair tooltip, cursor-following color-coded MA/BOLL value labels, cursor-following VOL/MACD/KDJ/RSI panel labels, daily/weekly/monthly aggregation, an initial recent-120-bar viewport, mutually exclusive MA/BOLL/naked-candle overlay modes, and a right-side ordinary chip distribution chart that uses the current visible range start through the active K-line, shares the main price-axis range, and marks chip peak, peak upper/lower boundaries, current price, and average cost.
+- Report template workbench logic keeps `section_config.yaml` and `prompt_templates.md` as separate editable sources. The editor opens read-only, requires an explicit edit action, saves project-backed sources through `PUT /api/report-projects/{slug}/source`, and falls back to local drafts for non-project templates.
+- Placeholder mapping shows every Word placeholder in first-seen order, builds draft mappings for missing entries, infers prompt/static/Excel placeholder types, supports embedded prompt retrieval queries for report projects such as `华安ETF周报`, and displays mapping status without truncating to the first eight placeholders.
+- Report rendering uses `/api/report-projects/{slug}/render`, shows download and preview actions, and loads the inline DOCX HTML preview from the returned `preview_url`.
 
 Update this section when:
 - New JS modules are added
@@ -48,6 +52,8 @@ Update this section when:
 Purpose:
 - Styling for the web interface
 - Visual design and layout
+- Report preview styling (`.report-preview-*`, `.docx-preview-*`) and template source switcher/read-only/editor states
+- Template upload action now lives in the template page top toolbar (`.iphone-upload-btn`) instead of the old fixed dock
 
 Update this section when:
 - Visual design changes
@@ -71,6 +77,7 @@ Update this section when:
 - Browser verification via Playwright MCP
 - Page load verification
 - Main interaction flow testing
+- Frontend static regression tests for template workbench markup, source switching, placeholder mapping, upload button placement, and preview styles
 
 ---
 
@@ -82,3 +89,9 @@ When files in this module change, check:
 - `docs/FILE_GUIDE.md`
 - `docs/CHANGELOG.md`
 - `docs/generated/py_file_index.md`
+
+---
+
+## Recent Changes
+
+- 2026-06-08: 模板工作台拆分 YAML 占位符映射与 Markdown Prompt 模板源码，源码编辑默认只读并通过 `/api/report-projects/{slug}/source` 写回项目文件；生成成功后显示下载入口和 Word HTML 预览；上传按钮从固定 dock 移到顶部工具栏。

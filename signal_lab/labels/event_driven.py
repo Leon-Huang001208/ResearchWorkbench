@@ -102,7 +102,7 @@ class EventDrivenLabeler(Labeler):
         Returns:
             分类标签（1: 上涨, 0: 中性, -1: 下跌）
         """
-        labels = pd.Series([0] * len(returns), index=returns.index)
-        labels[returns > self.return_threshold] = 1
-        labels[returns < -self.return_threshold] = -1
+        labels = pd.Series(0, index=returns.index, dtype=int)
+        labels = labels.mask(returns > self.return_threshold, 1)
+        labels = labels.mask(returns < -self.return_threshold, -1)
         return labels

@@ -45,10 +45,13 @@ class OpenAICompatibleProvider(BaseProvider):
         if OpenAIClient is not None:
             import httpx
 
+            timeout = httpx.Timeout(120.0, connect=30.0)
+            self._http_client = httpx.Client(timeout=timeout, trust_env=False)
             self._client = OpenAIClient(
                 api_key=profile.api_key,
                 base_url=profile.base_url,
-                timeout=httpx.Timeout(120.0, connect=30.0),
+                timeout=timeout,
+                http_client=self._http_client,
             )
         else:
             self._client = None

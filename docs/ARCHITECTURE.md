@@ -397,6 +397,22 @@ AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System�
 - `templates/`：各类报告模板（资产分析卡、专题备忘录、情景分析报告）
 - `composer/`：内容合成引擎，将碎片化结果组合为完整报告
 - `projections/`：格式投影，转换为 Markdown、Word、HTML 等格式输出
+- `projects/`：项目级报告生成链路，读取 `report_projects/<项目>/project.yaml`、Word 模板、Excel 底稿、`section_config.yaml` 和 `prompt_templates.md`，执行 evidence 检索、ModelGateway 生成、图表渲染、DOCX 填充、HTML 预览和 runs 日志记录
+
+**项目级报告数据流**：
+
+```text
+Word 占位符
+→ section_config.yaml placeholders/charts
+→ prompt_templates.md 检索 Query + 写作要求
+→ ingestion_queue_item / canonical_event evidence 检索
+→ ModelGateway(reporting/default task route)
+→ WordProjection 占位符替换
+→ ReportProjectChartService 图表图片嵌入
+→ generated/*.docx + runs/*.json + HTML 预览
+```
+
+当前 `华安ETF周报` 使用 `placeholders:` 映射 Word 占位符到 Markdown Prompt 模板，Prompt 模板内置检索 Query，不再依赖单独 JSON 数据源文件；`charts:` 配置负责把 Excel 图表缓存或 worksheet 缓存数据渲染为图片并写回 DOCX。
 
 **关键契约**：使用 core.contracts.reporting 中的报告结构契约。
 
@@ -873,11 +889,19 @@ class BaseProvider(ABC):
 
 ### 如何添加新报告模板
 
-1. 在 `reporting/templates/` 中添加新模板类
-2. 实现 `ReportTemplate` 接口
-3. 在报告合成器中注册即可使用
+1. 在 `report_projects/<项目名>/` 下创建项目目录。
+2. 在 `project.yaml` 中声明：
+   - `active_word_template`
+   - `active_excel_workbook`
+   - `section_config`
+   - 可选 `prompt_templates`
+   - `output_dir`
+   - `run_log_dir`
+3. 在 `config/section_config.yaml` 中用 `placeholders:` 绑定 Word 占位符；需要图表时用 `charts:` 声明 Excel/worksheet 数据源和 DOCX 替换目标。
+4. 在 `config/prompt_templates.md` 中用 `## 模板名` 定义 Prompt 模板；`检索 Query` 负责找事实材料，`写作要求` 负责约束最终正文。
+5. 通过 Web 模板工作台或 `POST /api/report-projects/{slug}/render` 生成 DOCX，并检查 `runs/*.json` 中的 evidence、模型、token、图表和 warning 记录。
 
-**约定**：模板只负责内容结构，不负责业务逻辑，业务数据由上层传入。
+**约定**：Word 模板只负责版式和占位符；`section_config.yaml` 负责映射；`prompt_templates.md` 负责检索和写作规则；业务事实必须来自 evidence 检索或显式手工占位符，不允许模型自由补事实。
 
 ### 如何添加新信号评分算法
 

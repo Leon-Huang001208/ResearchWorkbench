@@ -26,6 +26,7 @@ Main files:
 app/api/main.py
 app/api/models.py
 app/api/routes/*.py
+app/api/routes/report_projects.py
 ```
 
 Related modules:
@@ -57,6 +58,7 @@ Update triggers:
 - Request/response schema changes
 - Route dependency changes
 - Error response behavior changes
+- Report project source persistence, generation, preview, or download behavior changes
 
 ---
 
@@ -640,6 +642,10 @@ Main files:
 ```text
 reporting/**/*.py
 services/report_generator.py
+reporting/projects/*.py
+report_projects/*/project.yaml
+report_projects/*/config/*.yaml
+report_projects/*/config/*.md
 ```
 
 Required tests:
@@ -647,6 +653,9 @@ Required tests:
 - Report generation tests
 - Template rendering tests
 - Output format tests
+- Report project API/source persistence tests
+- Chart generation and DOCX embedding tests
+- Frontend template workbench tests when Web UI behavior changes
 
 Required docs:
 
@@ -663,6 +672,8 @@ Update triggers:
 - Template changes
 - Output format changes
 - Report section changes
+- Report project folder schema changes
+- Word placeholder, section config, prompt template, chart embedding, preview, or run-log behavior changes
 
 ---
 

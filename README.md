@@ -33,6 +33,7 @@ AlphaFoundry 是一个面向基金研究员和量化研究员的 **AI-native Inv
 
 - **专题研究备忘录**：围绕产业链、政策变化、地缘冲突、供需错配、AI compute 等主题形成结构化研究
 - **多情景市场分析报告**：对不确定性问题输出 3-4 个情景，每个情景包含概率、关键假设、触发条件、失效信号
+- **项目级模板报告**：`report_projects/` 工作台支持 Word 占位符、Excel 底稿、YAML 映射和 Markdown Prompt 模板联动；生成时先检索 evidence，再通过 ModelGateway 写作，自动嵌入配置图表并提供 Word HTML 预览和 runs 审计日志
 - **事件数据库**：沉淀事件发生时间、事件类型、产业影响、公司映射、传播阶段与后续收益
 - **认知 Agent 黑板**：Fundamental、Macro、Policy、Industry Chain、Bull、Bear、Skeptic 等 Agent 通过统一 schema 写入结构化观点
 - **Timing Engine**：融合 regime、flow、theme diffusion、sentiment、crowding、liquidity、expectation gap 等模型
@@ -334,6 +335,7 @@ AlphaFoundry/
 │   │       ├── outcome_journal.py # 结果日志 API
 │   │       ├── pipeline.py       # 管道 API
 │   │       ├── report.py         # 报告 API
+│   │       ├── report_projects.py # 报告项目 API（源码保存、生成、预览、下载）
 │   │       ├── scenarios.py      # 情景 API
 │   │       ├── search.py         # 搜索 API
 │   │       └── signal_lab.py     # 信号实验室 API
@@ -445,8 +447,10 @@ AlphaFoundry/
 │   └── journal.py           # 学习日志
 ├── reporting/                # 报告层
 │   ├── composer/             # 报告合成
+│   ├── projects/             # 项目级报告生成（evidence 检索、LLM 生成、图表嵌入、run logs）
 │   ├── templates/            # 报告模板
 │   └── projections/          # 输出投影
+├── report_projects/          # 报告项目资产（project.yaml、Word 模板、Excel 底稿、section_config、prompt_templates）
 ├── signal_lab/               # 信号实验室
 │   ├── features/             # 特征工程
 │   │   └── indicators/        # 技术指标引擎（TA-Lib, pandas-ta）
@@ -523,6 +527,7 @@ AlphaFoundry/
 - ✅ **第 4 个月**：Web Workbench v1、多源采集、知识加工、RAG 检索、模板报告、回测视角
 - ✅ **第 5 个月**：闭循环服务、失败记忆、结果反馈、每周回顾
 - 🔄 **进行中**：持续优化与迭代
+  - 报告项目工作台：支持 `section_config.yaml` / `prompt_templates.md` 源码保存、配置驱动生成、图表嵌入、Word HTML 预览和 runs 审计日志
   - Scheduler 稳定性改进：启动回填改为异步后台任务，支持 per-source 和全局超时保护
   - 数据管道修复：知丘公众号和会议纪要内容现已正确进入 LLM 提取管道
 

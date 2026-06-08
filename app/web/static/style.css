@@ -2788,6 +2788,98 @@ tr:hover td {
     font-size: 20px;
 }
 
+.render-result-actions {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+
+.report-preview-shell {
+    margin-top: 16px;
+    border: 1px solid var(--border-primary, #d1d5db);
+    border-radius: 8px;
+    background: var(--bg-panel, #ffffff);
+    overflow: hidden;
+    text-align: left;
+}
+
+.report-preview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-primary, #d1d5db);
+    color: var(--text-primary, #111827);
+}
+
+.report-preview-header span {
+    color: var(--text-muted, #6b7280);
+    font-size: 12px;
+}
+
+.report-preview-content {
+    max-height: 760px;
+    overflow: auto;
+    padding: 18px;
+    background: #eef1f5;
+}
+
+.docx-preview-page {
+    width: min(820px, 100%);
+    margin: 0 auto;
+    padding: 34px 42px;
+    background: #ffffff;
+    color: #111827;
+    border: 1px solid #d9dee7;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+    font-family: "Times New Roman", "Songti SC", serif;
+    line-height: 1.72;
+}
+
+.docx-preview-page p {
+    margin: 0 0 12px;
+    font-size: 14px;
+    white-space: pre-wrap;
+}
+
+.docx-preview-page p.caption,
+.docx-preview-figure figcaption {
+    color: #4b5563;
+    font-size: 12px;
+    text-align: center;
+}
+
+.docx-preview-figure {
+    margin: 14px 0;
+    text-align: center;
+}
+
+.docx-preview-figure img {
+    max-width: 100%;
+    height: auto;
+}
+
+.docx-preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 12px;
+}
+
+.docx-preview-table td {
+    border: 1px solid #d1d5db;
+    padding: 6px 8px;
+}
+
+.docx-preview-empty {
+    padding: 24px;
+    color: var(--text-muted, #6b7280);
+    text-align: center;
+}
+
 .event-item-panel.neutral {
     border-left-color: var(--warning);
 }
@@ -4000,18 +4092,6 @@ tr:hover td {
     flex-shrink: 0;
 }
 
-.template-icon-large.docx {
-    background: #2b579a;
-}
-
-.template-icon-large.pptx {
-    background: #d24726;
-}
-
-.template-icon-large.excel {
-    background: #217346;
-}
-
 .template-meta h3 {
     font-size: 1.5rem;
     font-weight: 600;
@@ -4178,6 +4258,28 @@ tr:hover td {
     color: var(--accent);
 }
 
+.mapping-summary {
+    min-width: 0;
+}
+
+.mapping-summary-title {
+    display: block;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mapping-summary small {
+    display: block;
+    margin-top: 0.16rem;
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .placeholder-map-row strong {
     color: var(--success);
     font-size: 0.78rem;
@@ -4220,6 +4322,48 @@ tr:hover td {
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: 0.82rem;
     line-height: 1.55;
+}
+
+.template-source-switcher {
+    display: inline-flex;
+    align-self: flex-start;
+    gap: 4px;
+    padding: 3px;
+    margin-bottom: 8px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+}
+
+.source-switch-btn {
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-secondary);
+    padding: 5px 10px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.source-switch-btn.active {
+    background: var(--bg-card);
+    color: var(--accent);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
+.source-switch-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.template-source-editor.readonly {
+    cursor: default;
+    color: var(--text-secondary);
+}
+
+.template-source-editor.editing {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-light);
 }
 
 .template-section-editor-panel {
@@ -4398,6 +4542,7 @@ tr:hover td {
 .iphone-nav-buttons {
     display: flex;
     gap: 8px;
+    align-items: center;
 }
 
 .iphone-title {
@@ -4421,6 +4566,24 @@ tr:hover td {
 
 .iphone-nav-btn:hover {
     background: var(--accent-light);
+}
+
+.iphone-upload-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--accent-light);
+    border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+    color: var(--accent);
+    font-weight: 500;
+}
+
+.iphone-upload-btn:hover {
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.iphone-upload-btn .codicon {
+    font-size: 16px;
 }
 
 /* iPhone Templates Grid */
@@ -4575,62 +4738,6 @@ tr:hover td {
     border-color: var(--accent);
     background: var(--bg-input);
     box-shadow: 0 0 0 2px var(--accent-light);
-}
-
-/* iPhone Dock */
-.iphone-dock {
-    position: fixed;
-    bottom: 30px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(255,255,255,0.75);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-radius: 24px;
-    padding: 12px 20px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.15);
-    border: 1px solid rgba(255,255,255,0.5);
-    z-index: 100;
-}
-
-[data-theme="dark"] .iphone-dock {
-    background: rgba(40,40,40,0.85);
-    border-color: rgba(255,255,255,0.1);
-}
-
-.iphone-dock-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 4px 8px;
-    border-radius: 12px;
-    transition: background 0.2s;
-}
-
-.iphone-dock-item:hover {
-    background: var(--accent-light);
-}
-
-.iphone-dock-icon {
-    width: 56px;
-    height: 56px;
-    border-radius: 12px;
-    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    color: white;
-    margin-bottom: 4px;
-    box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 30%, transparent);
-}
-
-.iphone-dock-item span {
-    font-size: 11px;
-    color: var(--text-primary);
 }
 
 /* Responsive for iPhone Grid */

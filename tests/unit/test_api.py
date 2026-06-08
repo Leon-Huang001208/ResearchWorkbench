@@ -9,8 +9,8 @@ from app.api.routes.ingest import get_ingest_service
 from app.api.routes.review import get_review_service
 from app.api.routes.scenarios import get_scenario_service
 from app.api.routes.signals import get_signal_service
-from core.contracts import AlphaSignal, AssetAnalysisSnapshot, ScenarioHypothesis, ScenarioSet
 from cognitive_agents import AgentWorkflowResult, CommitteeSynthesis
+from core.contracts import AlphaSignal, AssetAnalysisSnapshot, ScenarioHypothesis, ScenarioSet
 
 client = TestClient(app)
 

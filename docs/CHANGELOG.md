@@ -6,8 +6,26 @@
 
 ## [Unreleased]
 
+### Added
+
+- **报告项目工作台配置驱动生成**: `report_projects` 工作台从静态占位符渲染升级为项目配置驱动生成，支持源码保存、evidence 检索、LLM 生成、图表嵌入、运行日志和 Word HTML 预览。
+  - `app/api/routes/report_projects.py` — 新增 `PUT /api/report-projects/{slug}/source` 保存 `section_config.yaml` / `prompt_templates.md`；`POST /render` 默认执行 `section_config.yaml` + `prompt_templates.md` 的 evidence-grounded 生成；响应增加 `preview_url`、生成占位符数、evidence 数和 warnings；新增 `GET /preview/{file_name}` 轻量 DOCX HTML 预览。
+  - `reporting/projects/generation.py` — 新增项目级报告生成服务，解析 Markdown Prompt 模板二级标题、提取 `检索 Query` / `写作要求`、从 `ingestion_queue_item` 和 `canonical_event` 检索证据，并通过 `ModelGatewayImpl` reporting/default task route 生成 Word 占位符正文。
+  - `reporting/projects/chart_generation.py` — 新增 Excel chart cache / worksheet 缓存读取、matplotlib 图表渲染和 DOCX 图片嵌入服务，支持 media 替换和 chart drawing 转图片。
+  - `app/web/templates/index.html` / `app/web/static/js/templates.js` / `app/web/static/style.css` — 模板工作台拆分 YAML 占位符映射与 Markdown Prompt 源码视图，源码默认只读、显式编辑后可写回项目文件；生成后显示下载与预览；上传按钮移到模板页顶部工具栏。
+  - `report_projects/华安ETF周报/config/section_config.yaml` — 切换为 `placeholders:` + `charts:` 配置，绑定 Word 占位符、内置检索 Query Prompt 模板和黄金/原油/行业图表替换规则。
+  - `report_projects/华安ETF周报/config/prompt_templates.md` — 重写为 Markdown Prompt 模板库，每个 `##` 标题对应一个 Word 占位符/Prompt 模板，并内置检索 Query。
+  - `tests/unit/test_report_projects_api.py` / `tests/unit/test_report_template_workbench_frontend.py` / `tests/unit/test_report_project_chart_generation.py` — 补充源码保存、占位符顺序、配置生成、run-log、预览、图表读取/嵌入和前端静态回归测试。
+
 ### Fixed
 
+- **Full gate remaining-risk cleanup**: 清理文档同步后的剩余门禁风险，消除 full mypy 报告的类型问题并修正静态资源版本回归断言。
+  - `cognitive_agents/workflow.py` — `AgentWorkflowRunner` 接受协议型 `AgentFactoryLike`，支持资产委员会的 deterministic agents 复用 staged workflow。
+  - `services/asset_agent_committee_service.py` — `AssetAnalysisCardService` protocol 对齐实际 `generate_analysis_card()` 可选参数。
+  - `data_layer/repositories/agent_view_repository.py` — 在 JSONB/ORM 边界显式收窄 `view_metadata` 类型。
+  - `reporting/projects/chart_generation.py` / `reporting/projects/generation.py` — 对配置字典、整数选项、图表维度和 worksheet 数值行做显式收窄。
+  - `signal_lab/labels/event_driven.py` — 使用 `Series.mask()` 保持事件标签分类语义并通过 pandas 类型检查。
+  - `tests/unit/test_asset_kline_interaction.py` — 更新 `app.js` bundle 版本断言到 `20250606e`。
 - **Connector-first ingestion architecture hardening**: all enabled `data_sources` now point to `BaseConnector` subclasses with explicit `connector_dataset` and `pipeline_kind`; `CrawlOrchestrator` uses connector-first execution, document sources enqueue per-document records for `KnowledgeWorker`, and `source_document` / `document_v1` persistence is completed before queue items are marked done.
   - `DocumentRepositoryImpl` now updates `content_hash`, `parser_version`, and `object_uri` on existing `source_document` rows.
   - `KnowledgeWorker` stuck-item recovery now handles legacy `processing` rows where `processed_at` is NULL.

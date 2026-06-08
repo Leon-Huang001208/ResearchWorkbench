@@ -278,7 +278,9 @@ class CninfoAdapter(BaseDataAdapter):
                 pdf_path,
                 preferred_converter=preferred_converter,
             )
-            metadata["attachment_text_status"] = "success" if conversion.get("success") else "conversion_failed"
+            metadata["attachment_text_status"] = (
+                "success" if conversion.get("success") else "conversion_failed"
+            )
             metadata["attachment_text_strategy"] = conversion.get("strategy", "")
             if conversion.get("page_count") is not None:
                 metadata["attachment_page_count"] = conversion.get("page_count")

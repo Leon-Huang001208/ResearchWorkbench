@@ -14,7 +14,8 @@ let currentTemplateState = {
     renderedReportId: null,
     templates: [],
     reportProjects: [],
-    selectedReportProject: null
+    selectedReportProject: null,
+    activeSourceKind: 'section_config'
 };
 
 let currentSelectedTemplate = null;
@@ -852,6 +853,7 @@ function renderTemplateWorkbench(template) {
     const placeholders = getTemplateWorkbenchPlaceholders(template);
     const sections = getTemplateWorkbenchSections(template);
     const templateName = template.template_name || template.name || currentSelectedTemplate || '未命名模板';
+    currentTemplateState.activeSourceKind = 'section_config';
 
     renderTemplateAssetChecklist(template, sections);
     renderTemplatePlaceholderMap(placeholders, sections);
@@ -866,14 +868,92 @@ function renderTemplateWorkbench(template) {
 
     const sourceEditor = document.getElementById('template-source-editor');
     if (sourceEditor) {
-        const projectSource = project?.section_config_source || '';
+        const source = getTemplateWorkbenchSource(template, currentTemplateState.activeSourceKind);
         const draftKey = `report-template-source:${project?.slug || templateName}:project-v2`;
-        sourceEditor.value = projectSource || localStorage.getItem(draftKey) || buildTemplateConfigYaml(template);
+        sourceEditor.value = source.content || localStorage.getItem(draftKey) || buildTemplateConfigYaml(template);
         sourceEditor.dataset.draftKey = draftKey;
+        sourceEditor.dataset.sourceKind = source.sourceKind;
+        sourceEditor.readOnly = true;
+        sourceEditor.classList.add('readonly');
     }
+
+    const sourceKindLabel = document.getElementById('template-source-kind-label');
+    if (sourceKindLabel) {
+        const source = getTemplateWorkbenchSource(template, currentTemplateState.activeSourceKind);
+        sourceKindLabel.textContent = source.label;
+    }
+
+    updateTemplateSourceSwitcher(template);
+    setTemplateSourceEditing(false);
 
     renderTemplateValidationPreview(template, sections, placeholders);
     bindTemplateWorkbenchActions();
+}
+
+function getTemplateWorkbenchSource(template, sourceKind = 'section_config') {
+    const project = template.report_project || null;
+    if (sourceKind === 'prompt_templates') {
+        const useLibraryDraft = shouldUsePromptTemplateLibraryDraft(template);
+        return {
+            content: useLibraryDraft
+                ? buildPromptTemplateLibraryMarkdown(template)
+                : (project?.prompt_templates_source || buildPromptTemplateLibraryMarkdown(template)),
+            sourceKind: 'prompt_templates',
+            label: useLibraryDraft ? 'Markdown Prompt（模板库草稿）' : 'Markdown Prompt'
+        };
+    }
+    return {
+        content: shouldUsePlaceholderMappingDraft(template)
+            ? buildPlaceholderMappingConfigYaml(template)
+            : (project?.section_config_source || buildPlaceholderMappingConfigYaml(template)),
+        sourceKind: 'section_config',
+        label: shouldUsePlaceholderMappingDraft(template)
+            ? 'YAML 占位符映射（草稿）'
+            : 'YAML 占位符映射'
+    };
+}
+
+function shouldUsePlaceholderMappingDraft(template) {
+    const placeholders = getTemplateWorkbenchPlaceholders(template);
+    if (!placeholders.length) return false;
+    const mappings = getStoredPlaceholderMappings(template);
+    if (mappings.size === 0) return true;
+    return placeholders.some(placeholder => !mappings.has(normalizePlaceholderName(placeholder)));
+}
+
+function updateTemplateSourceSwitcher(template) {
+    const sectionBtn = document.getElementById('btn-template-source-section');
+    const promptBtn = document.getElementById('btn-template-source-prompt');
+    if (!sectionBtn || !promptBtn) return;
+    sectionBtn.classList.toggle('active', currentTemplateState.activeSourceKind === 'section_config');
+    promptBtn.classList.toggle('active', currentTemplateState.activeSourceKind === 'prompt_templates');
+    promptBtn.disabled = !template.report_project?.prompt_templates_source;
+}
+
+function switchTemplateSourceKind(sourceKind) {
+    const template = getCurrentWorkbenchTemplate();
+    if (!template) return;
+    currentTemplateState.activeSourceKind = sourceKind;
+    const source = getTemplateWorkbenchSource(template, sourceKind);
+    const sourceEditor = document.getElementById('template-source-editor');
+    if (sourceEditor) {
+        sourceEditor.value = source.content;
+        sourceEditor.dataset.sourceKind = source.sourceKind;
+    }
+    const sourceKindLabel = document.getElementById('template-source-kind-label');
+    if (sourceKindLabel) {
+        sourceKindLabel.textContent = source.label;
+    }
+    updateTemplateSourceSwitcher(template);
+    setTemplateSourceEditing(false);
+}
+
+function getCurrentWorkbenchTemplate() {
+    const selectedName = currentSelectedTemplate || currentTemplateState.selectedTemplate;
+    return (currentTemplateState.templates || []).find(template =>
+        (template.template_name || template.name) === selectedName
+        || template.report_project?.slug === currentTemplateState.selectedReportProject?.slug
+    ) || null;
 }
 
 function getTemplateWorkbenchSections(template) {
@@ -941,6 +1021,7 @@ function renderTemplatePlaceholderMap(placeholders, sections) {
     const container = document.getElementById('template-placeholder-map');
     if (!container) return;
 
+    const placeholderMappings = getCurrentPlaceholderMappings(getCurrentWorkbenchTemplate() || {});
     const sectionByPlaceholder = new Map(
         sections
             .filter(section => section.placeholder)
@@ -957,19 +1038,104 @@ function renderTemplatePlaceholderMap(placeholders, sections) {
         return;
     }
 
-    container.innerHTML = names.slice(0, 8).map(name => {
+    container.innerHTML = names.map(name => {
         const normalizedName = normalizePlaceholderName(name);
+        const mapping = placeholderMappings.get(normalizedName);
         const section = sectionByPlaceholder.get(normalizedName)
             || sections.find(item => item.key === normalizedName);
-        const status = section ? '已映射' : '未映射';
+        const mapped = Boolean(mapping || section);
+        const status = mapping
+            ? (isPlaceholderMappingConfigured(mapping) ? '已配置' : '待补参数')
+            : (section ? '旧配置映射' : '未映射');
         return `
-            <div class="placeholder-map-row ${section ? 'mapped' : 'unmapped'}">
+            <div class="placeholder-map-row ${mapped ? 'mapped' : 'unmapped'}">
                 <code>{{${esc(normalizedName)}}}</code>
-                <span>${esc(section?.title || '待指定 Section')}</span>
+                <div class="mapping-summary">${renderMappingSummary(mapping, section, getCurrentWorkbenchTemplate() || {})}</div>
                 <strong>${status}</strong>
             </div>
         `;
     }).join('');
+}
+
+function renderMappingSummary(mapping, section, template = {}) {
+    const project = template.report_project || null;
+    const title = mapping?.title || section?.title || '待配置来源';
+    const details = [];
+    if (mapping?.prompt_template) details.push(`Prompt: ${mapping.prompt_template}`);
+    if (mapping?.query_source) {
+        details.push(`Query: ${mapping.query_source}`);
+    } else if (mapping?.prompt_template && usesEmbeddedPromptQueries(project)) {
+        details.push('检索 Query: 模板内置');
+    }
+    if (mapping?.source) details.push(`Excel: ${mapping.source}`);
+    if (mapping?.value) details.push('静态文本已填写');
+    const detailText = details.length ? details.join(' / ') : '需要补 prompt_template 或检索 Query';
+    return `
+        <span class="mapping-summary-title">${esc(title)}</span>
+        <small>${esc(detailText)}</small>
+    `;
+}
+
+function getStoredPlaceholderMappings(template) {
+    const raw = template?.report_project?.section_config?.placeholders;
+    const mappings = new Map();
+    if (Array.isArray(raw)) {
+        raw.forEach(item => {
+            const key = normalizePlaceholderName(item?.name || item?.key || item?.placeholder);
+            if (key) mappings.set(key, item);
+        });
+    } else if (raw && typeof raw === 'object') {
+        Object.entries(raw).forEach(([key, value]) => {
+            mappings.set(normalizePlaceholderName(key), value || {});
+        });
+    }
+    return mappings;
+}
+
+function getPlaceholderMappings(template) {
+    return getStoredPlaceholderMappings(template);
+}
+
+function getCurrentPlaceholderMappings(template) {
+    const storedMappings = getStoredPlaceholderMappings(template);
+    const placeholders = getTemplateWorkbenchPlaceholders(template);
+    if (!placeholders.length) return storedMappings;
+
+    const hasMissingPlaceholders = placeholders.some(placeholder =>
+        !storedMappings.has(normalizePlaceholderName(placeholder))
+    );
+    if (!hasMissingPlaceholders && storedMappings.size) return storedMappings;
+
+    return buildDraftPlaceholderMappings(template, storedMappings);
+}
+
+function buildDraftPlaceholderMappings(template, storedMappings = new Map()) {
+    const project = template.report_project || null;
+    const mappings = new Map(storedMappings);
+    getTemplateWorkbenchPlaceholders(template).forEach(placeholder => {
+        const key = normalizePlaceholderName(placeholder);
+        if (!key) return;
+        const stored = storedMappings.get(key) || {};
+        const type = stored.type || inferPlaceholderType(key);
+        mappings.set(key, {
+            title: inferPlaceholderTitle(key),
+            type,
+            prompt_template: type === 'prompt' ? resolvePromptTemplateName(key, project) : undefined,
+            query_mode: type === 'prompt' && usesEmbeddedPromptQueries(project) ? 'retrieval_query_embedded' : undefined,
+            query_source: type === 'prompt' && !usesEmbeddedPromptQueries(project) ? inferQuerySource(key, project) : undefined,
+            ...stored
+        });
+    });
+    return mappings;
+}
+
+function isPlaceholderMappingConfigured(mapping) {
+    return Boolean(
+        mapping?.source
+        || mapping?.value
+        || mapping?.prompt_template
+        || mapping?.query_source
+    );
 }
 
 function normalizePlaceholderName(name) {
@@ -1022,14 +1188,18 @@ function renderTemplateValidationPreview(template, sections, placeholders) {
     const list = document.getElementById('template-validation-list');
     if (!list) return;
 
+    const placeholderMappings = getCurrentPlaceholderMappings(template);
+    const allPlaceholdersMapped = placeholders.length === 0
+        || placeholders.every(placeholder => placeholderMappings.has(normalizePlaceholderName(placeholder)));
+    const hasPromptMapping = [...placeholderMappings.values()].some(mapping => mapping.prompt_template);
     const hasRuleConfig = sections.some(section =>
         section.evidence_policy
         || section.forbidden_terms?.length
         || section.investment_advice_policy
     ) || Boolean(template.report_project);
     const checks = [
-        { label: 'Word 占位符均有 section 映射', ok: placeholders.length === 0 || sections.length > 0 },
-        { label: 'AI 文本 section 已配置 prompt', ok: sections.some(section => section.prompt_template || section.required_facets?.length) },
+        { label: 'Word 占位符均有 section 映射', ok: allPlaceholdersMapped },
+        { label: 'AI 文本 section 已配置 prompt', ok: hasPromptMapping || sections.some(section => section.prompt_template || section.required_facets?.length) },
         { label: 'Excel 图表和表格已绑定来源', ok: template.has_excel || (template.template_name || '').includes('创业板50') },
         { label: '数字、禁用词、投资建议规则已配置', ok: hasRuleConfig }
     ];
@@ -1049,9 +1219,7 @@ function renderTemplateValidationPreview(template, sections, placeholders) {
 }
 
 function buildTemplateConfigYaml(template) {
-    if (template.report_project?.section_config_source) {
-        return template.report_project.section_config_source;
-    }
+    if (template.report_project) return buildPlaceholderMappingConfigYaml(template);
     const name = template.template_name || template.name || currentSelectedTemplate || 'report_template';
     const project = template.report_project || null;
     const sections = getTemplateWorkbenchSections(template).length ? getTemplateWorkbenchSections(template) : [
@@ -1108,18 +1276,299 @@ function buildTemplateConfigYaml(template) {
     return lines.join('\n');
 }
 
+function buildPlaceholderMappingConfigYaml(template) {
+    const name = template.template_name || template.name || currentSelectedTemplate || 'report_template';
+    const project = template.report_project || null;
+    const placeholders = getTemplateWorkbenchPlaceholders(template);
+    const existingMappings = getStoredPlaceholderMappings(template);
+    const lines = [
+        '# 填写方式：',
+        '# - placeholders 下每一项对应 Word 模板里的一个 {{占位符}}。',
+        usesEmbeddedPromptQueries(project)
+            ? '# - type=prompt 时，系统直接使用 prompt_template 中内置的检索 Query 和写作规则。'
+            : '# - type=prompt 时，系统会读取 query_source，再套用 prompt_template 生成正文。',
+        usesEmbeddedPromptQueries(project)
+            ? '# - prompt_template 写 Word 占位符对应的模板标题，例如：人工智能。'
+            : '# - query_source 写法示例：data/industry.json#人工智能，表示取该 JSON 中“人工智能”的 QUERY。',
+        '# - params 用来传给 Prompt 模板中的 {{param}} 等变量。',
+        `name: ${name}`,
+        `version: ${template.version || '1.0'}`,
+        'description: Word 占位符到 Excel / Prompt / 静态文本的映射',
+        'assets:',
+        `  word_template: ${project?.word_template_filename || '待绑定'}`,
+        `  excel_workbook: ${project?.excel_workbook_filename || '待绑定'}`,
+        `  prompt_templates: ${project?.prompt_templates_filename || '未绑定'}`,
+        'placeholders:'
+    ];
+
+    placeholders.forEach(placeholder => {
+        const key = normalizePlaceholderName(placeholder);
+        const mapping = existingMappings.get(key) || {};
+        const type = mapping.type || inferPlaceholderType(key);
+        lines.push(`  ${key}:`);
+        lines.push(`    title: ${mapping.title || inferPlaceholderTitle(key)}`);
+        lines.push(`    type: ${type}`);
+        if (type === 'excel_cell' || type === 'excel_range') {
+            lines.push(`    source: ${mapping.source || ''}`);
+        } else if (type === 'prompt') {
+            lines.push(`    prompt_template: ${mapping.prompt_template || resolvePromptTemplateName(key, project)}`);
+            if (!usesEmbeddedPromptQueries(project)) {
+                lines.push(`    query_source: ${mapping.query_source || inferQuerySource(key, project)}`);
+            } else {
+                lines.push('    query_mode: retrieval_query_embedded');
+            }
+            const param = inferPromptParam(key);
+            if (param) {
+                lines.push('    params:');
+                lines.push(`      param: ${param}`);
+            } else {
+                lines.push('    params: {}');
+            }
+        } else {
+            lines.push(`    value: ${mapping.value || ''}`);
+        }
+    });
+
+    return lines.join('\n');
+}
+
+function inferPlaceholderType(name) {
+    if (/^(start_date|end_date|data\d+)$/i.test(name)) return 'excel_cell';
+    if (/^(content\d+|phrase\d+|sector\d+)$/i.test(name)) return 'prompt';
+    if (/[\u4e00-\u9fff]/.test(name)) return 'prompt';
+    return 'static_text';
+}
+
+function inferPlaceholderTitle(name) {
+    const titles = {
+        title: '报告标题',
+        start_date: '开始日期',
+        end_date: '结束日期'
+    };
+    return titles[name] || name;
+}
+
+function resolvePromptTemplateName(name, project = null) {
+    const normalized = normalizePlaceholderName(name);
+    if (usesEmbeddedPromptQueries(project) && /[\u4e00-\u9fff]/.test(normalized)) {
+        return normalized;
+    }
+    const directMap = {
+        'A股市场回顾': 'domestic_market',
+        '中国宏观': 'domestic_macro',
+        '港股科技': 'overseas_hk_tech',
+        '港股央企红利': 'overseas_hk_dividend',
+        '原油': 'commodity_market',
+        '原油市场回顾': 'commodity_market',
+        '黄金': 'commodity_market',
+        '美国新闻': 'overseas_news',
+        '欧洲新闻': 'overseas_news'
+    };
+    if (directMap[normalized]) return directMap[normalized];
+    if (['美国', '欧洲', '日本', '海外市场'].includes(normalized)) return 'overseas_market';
+    if (['人工智能', '医药生物', '消费', '金融地产', '电子', '航天', '电力设备新能源'].includes(normalized)) {
+        return 'industry_review';
+    }
+    if (/^(content\d+|phrase\d+|sector\d+)$/i.test(normalized)) return 'section_paragraph';
+    return 'section_paragraph';
+}
+
+function usesEmbeddedPromptQueries(project = null) {
+    const projectName = project?.name || project?.slug || '';
+    const sourceFiles = project?.data_source_files || [];
+    const promptName = project?.prompt_templates_filename || '';
+    return projectName.includes('华安ETF周报')
+        || (promptName && sourceFiles.length === 0);
+}
+
+function inferQuerySource(name, project = null) {
+    const normalized = normalizePlaceholderName(name);
+    const sourceMap = {
+        'A股市场回顾': 'data/domestic.json#市场',
+        '中国宏观': 'data/domestic.json#宏观',
+        '人工智能': 'data/industry.json#人工智能',
+        '电子': 'data/industry.json#电子',
+        '航天': 'data/industry.json#航天',
+        '电力设备新能源': 'data/industry.json#电力设备新能源',
+        '消费': 'data/industry.json#消费',
+        '金融地产': 'data/industry.json#金融地产',
+        '医药生物': 'data/industry.json#医药生物',
+        '港股科技': 'data/overseas.json#港股科技',
+        '港股央企红利': 'data/overseas.json#港股央企红利',
+        '美国': 'data/overseas.json#美国',
+        '欧洲': 'data/overseas.json#欧洲',
+        '日本': 'data/overseas.json#日本',
+        '美国新闻': 'data/overseas.json#美国新闻',
+        '欧洲新闻': 'data/overseas.json#欧洲新闻',
+        '海外市场': 'data/overseas.json#美国',
+        '原油': 'data/commodity.json#石油',
+        '原油市场回顾': 'data/commodity.json#石油',
+        '黄金': 'data/commodity.json#黄金'
+    };
+    if (sourceMap[normalized]) return sourceMap[normalized];
+    const firstDataSource = project?.data_source_files?.[0];
+    return firstDataSource ? `data/${firstDataSource}#${normalized}` : '';
+}
+
+function inferPromptParam(name) {
+    const normalized = normalizePlaceholderName(name);
+    if (['人工智能', '医药生物', '消费', '金融地产', '电子', '航天', '电力设备新能源'].includes(normalized)) {
+        return normalized;
+    }
+    if (['美国', '欧洲', '日本', '港股科技', '港股央企红利'].includes(normalized)) {
+        return normalized;
+    }
+    if (['原油', '原油市场回顾'].includes(normalized)) return '原油';
+    if (normalized === '黄金') return '黄金';
+    return '';
+}
+
+function shouldUsePromptTemplateLibraryDraft(template) {
+    const source = template.report_project?.prompt_templates_source || '';
+    if (!source.trim()) return true;
+    return source.includes('要求如下：') && !source.includes('# Prompt 模板库');
+}
+
+function buildPromptTemplateLibraryMarkdown(template) {
+    const name = template.template_name || template.name || currentSelectedTemplate || 'report_template';
+    return [
+        '# Prompt 模板库',
+        '',
+        `适用项目：${name}`,
+        '',
+        '说明：这里是可复用写作模板，不是单个占位符的完整提示词。占位符在 section_config.yaml 里通过 prompt_template 选择下面的模板；检索 Query 用来先从数据库/新闻库取 evidence，再由写作规则生成正文。',
+        '',
+        '## domestic_market',
+        '用于：A股市场回顾',
+        '',
+        '```text',
+        '{{query}}',
+        '基于上传材料概括本周 A 股市场热点与风格变化。只使用材料内事实和数据，避免指数点位预测、个股推荐和收益承诺。输出一段正式周报文字，控制在 100-150 字。',
+        '```',
+        '',
+        '## domestic_macro',
+        '用于：中国宏观',
+        '',
+        '```text',
+        '{{query}}',
+        '围绕宏观数据、货币政策、财政政策和产业政策提炼本周变化。结论必须由材料事实支撑，语言客观审慎，不使用“根据文件/数据显示”等引导语。输出一段 250-350 字。',
+        '```',
+        '',
+        '## industry_review',
+        '用于：人工智能、电子、医药生物、消费、金融地产、航天、电力设备新能源等行业段落',
+        '',
+        '```text',
+        '{{query}}',
+        '请撰写 {{param}} 行业周度点评，覆盖政策、供需、技术、价格或景气度变化。优先使用材料中的新闻和数据，避免外部知识、个股推荐和投资收益保证。输出一段 250-400 字。',
+        '```',
+        '',
+        '## overseas_market',
+        '用于：美国、欧洲、日本、海外市场',
+        '',
+        '```text',
+        '{{query}}',
+        '请概括 {{param}} 市场相关宏观、政策、利率、汇率、地缘或权益市场信息。只陈述材料内事实，并给出由事实支撑的审慎总结。输出一段 250-350 字。',
+        '```',
+        '',
+        '## overseas_news',
+        '用于：美国新闻、欧洲新闻',
+        '',
+        '```text',
+        '{{query}}',
+        '提炼影响当地权益、债券、汇率或风险偏好的核心新闻。保留事实链条，避免无依据推断。输出一段 150-250 字。',
+        '```',
+        '',
+        '## overseas_hk_tech',
+        '用于：港股科技',
+        '',
+        '```text',
+        '{{query}}',
+        '概括港股科技相关板块、政策、产业和上市公司动态。若提及个股，仅作为事实示例，不构成投资建议。输出一段 250-350 字。',
+        '```',
+        '',
+        '## overseas_hk_dividend',
+        '用于：港股央企红利',
+        '',
+        '```text',
+        '{{query}}',
+        '概括港股央企红利相关行业、政策、资金偏好和高股息资产变化。不得直接推荐买入或承诺收益。输出一段 250-350 字。',
+        '```',
+        '',
+        '## commodity_market',
+        '用于：原油、黄金',
+        '',
+        '```text',
+        '{{query}}',
+        '围绕 {{param}} 的供需、政策、美元/利率、地缘风险和资金面变化撰写周度点评。只使用材料内信息，输出一段 200-300 字。',
+        '```',
+        ''
+    ].join('\n');
+}
+
 function bindTemplateWorkbenchActions() {
+    const editBtn = document.getElementById('btn-template-edit-source');
     const saveBtn = document.getElementById('btn-template-save-source');
     const dryRunBtn = document.getElementById('btn-template-dry-run');
     const generateBtn = document.getElementById('btn-template-generate-report');
     const sourceEditor = document.getElementById('template-source-editor');
 
+    if (editBtn && sourceEditor && !editBtn.dataset.bound) {
+        editBtn.dataset.bound = 'true';
+        editBtn.addEventListener('click', () => {
+            setTemplateSourceEditing(true);
+            sourceEditor.focus();
+        });
+    }
+
+    const sourceSectionBtn = document.getElementById('btn-template-source-section');
+    const sourcePromptBtn = document.getElementById('btn-template-source-prompt');
+    if (sourceSectionBtn && !sourceSectionBtn.dataset.bound) {
+        sourceSectionBtn.dataset.bound = 'true';
+        sourceSectionBtn.addEventListener('click', () => switchTemplateSourceKind('section_config'));
+    }
+    if (sourcePromptBtn && !sourcePromptBtn.dataset.bound) {
+        sourcePromptBtn.dataset.bound = 'true';
+        sourcePromptBtn.addEventListener('click', () => switchTemplateSourceKind('prompt_templates'));
+    }
+
     if (saveBtn && sourceEditor && !saveBtn.dataset.bound) {
         saveBtn.dataset.bound = 'true';
-        saveBtn.addEventListener('click', () => {
+        saveBtn.addEventListener('click', async () => {
             const key = sourceEditor.dataset.draftKey || 'report-template-source:draft';
-            localStorage.setItem(key, sourceEditor.value);
-            toast('配置草稿已保存到本地', 'success');
+            const sourceKind = sourceEditor.dataset.sourceKind || 'local_draft';
+            saveBtn.disabled = true;
+            const originalText = saveBtn.innerHTML;
+            saveBtn.innerHTML = '<i class="codicon codicon-loading spin"></i> 保存中...';
+            try {
+                if (currentTemplateState.selectedReportProject && sourceKind !== 'local_draft') {
+                    const project = currentTemplateState.selectedReportProject;
+                    const updatedProject = await apiCall(
+                        'PUT',
+                        `/api/report-projects/${encodeURIComponent(project.slug)}/source`,
+                        {
+                            source_kind: sourceKind,
+                            content: sourceEditor.value
+                        }
+                    );
+                    currentTemplateState.selectedReportProject = updatedProject;
+                    const selectedTemplate = (currentTemplateState.templates || []).find(template =>
+                        template.report_project?.slug === project.slug
+                    );
+                    if (selectedTemplate) {
+                        selectedTemplate.report_project = updatedProject;
+                    }
+                    toast('配置已保存到项目文件', 'success');
+                } else {
+                    localStorage.setItem(key, sourceEditor.value);
+                    toast('配置草稿已保存到本地', 'success');
+                }
+                setTemplateSourceEditing(false);
+            } catch (e) {
+                saveBtn.disabled = false;
+                toast('保存配置失败: ' + e.message, 'error');
+            } finally {
+                saveBtn.innerHTML = originalText;
+            }
         });
     }
 
@@ -1152,6 +1601,23 @@ function bindTemplateWorkbenchActions() {
                 generateBtn.innerHTML = originalText;
             }
         });
+    }
+}
+
+function setTemplateSourceEditing(editing) {
+    const sourceEditor = document.getElementById('template-source-editor');
+    const editBtn = document.getElementById('btn-template-edit-source');
+    const saveBtn = document.getElementById('btn-template-save-source');
+    if (sourceEditor) {
+        sourceEditor.readOnly = !editing;
+        sourceEditor.classList.toggle('readonly', !editing);
+        sourceEditor.classList.toggle('editing', editing);
+    }
+    if (editBtn) {
+        editBtn.disabled = editing;
+    }
+    if (saveBtn) {
+        saveBtn.disabled = !editing;
     }
 }
 
@@ -1422,6 +1888,7 @@ async function renderReportFromTemplate() {
         if (resultEl) {
             const downloadUrl = result.download_url
                 || (result.report_id ? `/api/templates/download/${encodeURIComponent(result.report_id)}` : null);
+            const previewUrl = result.preview_url || null;
             const downloadLink = document.getElementById('render-download-link');
             if (downloadLink && downloadUrl) {
                 downloadLink.href = downloadUrl;
@@ -1437,15 +1904,46 @@ async function renderReportFromTemplate() {
                     <i class="codicon codicon-pass"></i>
                     <span>报告渲染成功！</span>
                 </div>
-                <a id="render-download-link" href="${esc(downloadUrl || '#')}"
-                   class="btn-primary" target="_blank">下载报告</a>
+                <div class="render-result-actions">
+                    <a id="render-download-link" href="${esc(downloadUrl || '#')}"
+                       class="btn-primary" target="_blank">下载报告</a>
+                    ${previewUrl ? `<a href="${esc(previewUrl)}" class="btn-secondary" target="_blank">打开预览</a>` : ''}
+                </div>
+                ${previewUrl ? `
+                    <div class="report-preview-shell">
+                        <div class="report-preview-header">
+                            <strong>Word 内容预览</strong>
+                            <span>生成后自动刷新</span>
+                        </div>
+                        <div id="render-preview-content" class="report-preview-content">
+                            <div class="loading compact"><div class="spinner"></div><span>正在加载预览...</span></div>
+                        </div>
+                    </div>
+                ` : ''}
             `;
             resultEl.classList.remove('hidden');
+            if (previewUrl) {
+                await loadRenderedReportPreview(previewUrl);
+            }
         }
     } catch (e) {
         toast('渲染失败: ' + e.message, 'error');
     } finally {
         if (loadingEl) loadingEl.classList.add('hidden');
+    }
+}
+
+async function loadRenderedReportPreview(previewUrl) {
+    const container = document.getElementById('render-preview-content');
+    if (!container) return;
+    try {
+        const response = await fetch(previewUrl, { credentials: 'same-origin' });
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        container.innerHTML = await response.text();
+    } catch (error) {
+        container.innerHTML = `<div class="empty-state compact">预览加载失败：${esc(error.message)}</div>`;
     }
 }
 

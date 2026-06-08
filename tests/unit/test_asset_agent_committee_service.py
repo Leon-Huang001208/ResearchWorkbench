@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
+from cognitive_agents import EvidenceItem
 from core.contracts import (
     AssetAnalysisCard,
     AssetBasicInfo,
@@ -13,7 +14,6 @@ from core.contracts import (
     MacroSensitivity,
     PriceBar,
 )
-from cognitive_agents import EvidenceItem
 from services.asset_agent_committee_service import AssetAgentCommitteeService
 
 
@@ -118,7 +118,9 @@ async def test_asset_agent_committee_adds_cninfo_official_evidence_to_views():
     asset_service = Mock()
     asset_service.generate_analysis_card = AsyncMock(return_value=_sample_card())
     official_provider = _FakeOfficialEvidenceProvider()
-    service = AssetAgentCommitteeService(asset_service, official_evidence_provider=official_provider)
+    service = AssetAgentCommitteeService(
+        asset_service, official_evidence_provider=official_provider
+    )
 
     result = await service.analyze(canonical_id="300308.SZ", question="是否进入研究池？")
 

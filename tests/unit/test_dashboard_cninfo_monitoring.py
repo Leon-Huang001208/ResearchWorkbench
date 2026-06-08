@@ -1,7 +1,6 @@
 """Dashboard cninfo monitoring wiring tests."""
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 INDEX_HTML = ROOT / "app" / "web" / "templates" / "index.html"
 MONITOR_JS = ROOT / "app" / "web" / "static" / "js" / "monitor.js"

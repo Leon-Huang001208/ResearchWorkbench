@@ -154,7 +154,9 @@ class TestCninfoFetch:
         with pytest.raises(ValueError, match="Unknown dataset"):
             cninfo_connector.fetch(dataset="unknown", item=item)
 
-    def test_fetch_passes_attachment_text_options(self, cninfo_connector, sample_envelopes, tmp_path):
+    def test_fetch_passes_attachment_text_options(
+        self, cninfo_connector, sample_envelopes, tmp_path
+    ):
         with patch("data_layer.adapters.cninfo_adapter.CninfoAdapter") as mock_adapter_class:
             mock_adapter = MagicMock()
             mock_adapter.fetch.return_value = [

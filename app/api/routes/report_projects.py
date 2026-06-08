@@ -1,24 +1,30 @@
 """Report project API routes."""
-from datetime import datetime
+import base64
 import json
-from pathlib import Path
 import re
-from typing import Any, Dict, List
 import xml.etree.ElementTree as ET
 import zipfile
+from datetime import datetime
+from html import escape
+from pathlib import Path
+from typing import Any, Dict, List
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
-from pydantic import BaseModel, Field
 import yaml
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse, HTMLResponse
+from pydantic import BaseModel, Field
 
 from core.observability import get_logger
+from reporting.projects.chart_generation import ReportProjectChartService
+from reporting.projects.generation import ReportProjectGenerationService
 from reporting.projects.project_manager import ReportProject, ReportProjectManager
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/report-projects", tags=["report-projects"])
 
 report_project_manager = ReportProjectManager()
+report_generation_service = ReportProjectGenerationService()
+report_chart_service = ReportProjectChartService()
 
 
 class GeneratedReportInfo(BaseModel):
@@ -56,6 +62,7 @@ class ReportProjectInfo(BaseModel):
     word_placeholders: List[str] = Field(default_factory=list)
     section_config: Dict[str, Any] = Field(default_factory=dict)
     section_config_source: str = ""
+    prompt_templates_source: str = ""
     excel_sheets: List[ExcelSheetInfo] = Field(default_factory=list)
     output_dir: str
     run_log_dir: str
@@ -73,12 +80,21 @@ class RenderReportProjectRequest(BaseModel):
     """Project report render request."""
 
     placeholders: Dict[str, str] = Field(default_factory=dict)
+    generate_from_config: bool = True
+    lookback_days: int = Field(default=7, ge=1, le=90)
 
 
 class UpdateReportProjectRequest(BaseModel):
     """Report project update request."""
 
     project_name: str
+
+
+class UpdateReportProjectSourceRequest(BaseModel):
+    """Report project source update request."""
+
+    source_kind: str
+    content: str
 
 
 class RenderReportProjectResponse(BaseModel):
@@ -90,7 +106,11 @@ class RenderReportProjectResponse(BaseModel):
     file_name: str
     file_path: str
     download_url: str
+    preview_url: str
     generated_at: datetime
+    generated_placeholder_count: int = 0
+    evidence_count: int = 0
+    warnings: List[str] = Field(default_factory=list)
 
 
 @router.get("/", response_model=ReportProjectsListResponse, summary="列出报告项目")
@@ -219,6 +239,41 @@ async def update_report_project(slug: str, request: UpdateReportProjectRequest):
         raise HTTPException(status_code=500, detail=f"Failed to update report project: {exc}")
 
 
+@router.put("/{slug}/source", response_model=ReportProjectInfo, summary="保存报告项目源码")
+async def update_report_project_source(slug: str, request: UpdateReportProjectSourceRequest):
+    """Persist editable report project source files."""
+    try:
+        project = report_project_manager.get_project(slug)
+        if request.source_kind == "prompt_templates":
+            target_path = project.prompt_templates_path
+            if not target_path:
+                target_path = project.project_dir / "config" / "prompt_templates.md"
+                _attach_prompt_templates(project.project_dir, target_path)
+        elif request.source_kind == "section_config":
+            target_path = project.section_config_path
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported source kind")
+
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        target_path.write_text(request.content, encoding="utf-8")
+        logger.info(
+            "Updated report project source",
+            slug=slug,
+            source_kind=request.source_kind,
+            path=str(target_path),
+        )
+        return _to_project_info(report_project_manager.get_project(slug))
+    except HTTPException:
+        raise
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Report project not found: {slug}")
+    except Exception as exc:
+        logger.exception("Failed to update report project source", slug=slug)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to update report project source: {exc}"
+        )
+
+
 @router.post("/{slug}/render", response_model=RenderReportProjectResponse, summary="生成报告项目文档")
 async def render_report_project(slug: str, request: RenderReportProjectRequest):
     """Render a report project into its own generated directory."""
@@ -226,6 +281,25 @@ async def render_report_project(slug: str, request: RenderReportProjectRequest):
         from reporting.projections.word import WordProjection
 
         project = report_project_manager.get_project(slug)
+        section_config, _ = _read_section_config(project.section_config_path)
+        prompt_templates_source = _read_prompt_templates(project.prompt_templates_path)
+
+        if request.generate_from_config:
+            generation_result = report_generation_service.generate_placeholders(
+                project=project,
+                section_config=section_config,
+                prompt_templates_source=prompt_templates_source,
+                manual_placeholders=request.placeholders,
+                lookback_days=request.lookback_days,
+            )
+            placeholder_map = generation_result.placeholders
+            generated_sections = generation_result.sections
+            generation_warnings = generation_result.warnings
+        else:
+            placeholder_map = request.placeholders
+            generated_sections = []
+            generation_warnings = []
+
         generated_at = datetime.now()
         timestamp = generated_at.strftime("%Y-%m-%d_%H%M%S")
         safe_project_name = project.name.replace("/", "_").replace(":", "_")
@@ -237,20 +311,59 @@ async def render_report_project(slug: str, request: RenderReportProjectRequest):
             output_path=output_path,
             template_path=project.word_template_path,
             sections=[],
-            placeholders=request.placeholders,
+            placeholders=placeholder_map,
+        )
+        chart_infos = report_chart_service.generate_and_embed(
+            project=project,
+            section_config=section_config,
+            docx_path=output_path,
         )
 
         run_record = {
             "project_name": project.name,
             "slug": project.slug,
             "word_template_path": str(project.word_template_path),
-        "excel_workbook_path": str(project.excel_workbook_path),
-        "section_config_path": str(project.section_config_path),
-        "prompt_templates_path": str(project.prompt_templates_path) if project.prompt_templates_path else None,
-        "data_source_paths": [str(path) for path in project.data_source_paths],
-        "output_path": str(output_path),
-        "generated_at": generated_at.isoformat(),
-        "placeholder_count": len(request.placeholders),
+            "excel_workbook_path": str(project.excel_workbook_path),
+            "section_config_path": str(project.section_config_path),
+            "prompt_templates_path": str(project.prompt_templates_path)
+            if project.prompt_templates_path
+            else None,
+            "data_source_paths": [str(path) for path in project.data_source_paths],
+            "output_path": str(output_path),
+            "generated_at": generated_at.isoformat(),
+            "placeholder_count": len(placeholder_map),
+            "manual_placeholder_count": len(request.placeholders),
+            "generate_from_config": request.generate_from_config,
+            "lookback_days": request.lookback_days,
+            "generation": {
+                "sections": [
+                    {
+                        "placeholder": section.placeholder,
+                        "title": section.title,
+                        "prompt_template": section.prompt_template,
+                        "retrieval_query": section.retrieval_query,
+                        "evidence_count": section.evidence_count,
+                        "model_name": section.model_name,
+                        "provider": section.provider,
+                        "tokens_used": section.tokens_used,
+                        "warnings": section.warnings,
+                    }
+                    for section in generated_sections
+                ],
+                "warnings": generation_warnings,
+            },
+            "charts": [
+                {
+                    "chart_id": chart.chart_id,
+                    "title": chart.title,
+                    "workbook": chart.workbook,
+                    "source_chart": chart.source_chart,
+                    "replace_kind": chart.replace_kind,
+                    "point_count": chart.point_count,
+                    "warnings": chart.warnings,
+                }
+                for chart in chart_infos
+            ],
         }
         run_path = project.run_log_dir / f"{timestamp}.json"
         run_path.write_text(
@@ -265,6 +378,8 @@ async def render_report_project(slug: str, request: RenderReportProjectRequest):
             run_path=str(run_path),
         )
 
+        chart_warnings = [warning for chart in chart_infos for warning in chart.warnings]
+
         return RenderReportProjectResponse(
             success=True,
             project_name=project.name,
@@ -272,13 +387,39 @@ async def render_report_project(slug: str, request: RenderReportProjectRequest):
             file_name=file_name,
             file_path=str(output_path),
             download_url=f"/api/report-projects/{project.slug}/download/{file_name}",
+            preview_url=f"/api/report-projects/{project.slug}/preview/{file_name}",
             generated_at=generated_at,
+            generated_placeholder_count=len(placeholder_map),
+            evidence_count=sum(section.evidence_count for section in generated_sections),
+            warnings=generation_warnings
+            + [warning for section in generated_sections for warning in section.warnings]
+            + chart_warnings,
         )
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"Report project not found: {slug}")
     except Exception as exc:
         logger.exception("Failed to render report project", slug=slug)
         raise HTTPException(status_code=500, detail=f"Failed to render report project: {exc}")
+
+
+@router.get("/{slug}/preview/{file_name}", response_class=HTMLResponse, summary="预览报告项目生成文档")
+async def preview_report_project_file(slug: str, file_name: str):
+    """Render one generated docx as an inline HTML preview."""
+    try:
+        project = report_project_manager.get_project(slug)
+        output_path = project.output_dir / file_name
+        if output_path.parent.resolve() != project.output_dir.resolve():
+            raise HTTPException(status_code=400, detail="Invalid generated report file name")
+        if not output_path.exists():
+            raise HTTPException(status_code=404, detail=f"Generated report not found: {file_name}")
+        return HTMLResponse(_docx_to_preview_html(output_path))
+    except HTTPException:
+        raise
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Report project not found: {slug}")
+    except Exception as exc:
+        logger.exception("Failed to preview report project file", slug=slug, file_name=file_name)
+        raise HTTPException(status_code=500, detail=f"Failed to preview report: {exc}")
 
 
 @router.get("/{slug}/download/{file_name}", summary="下载报告项目生成文档")
@@ -308,6 +449,7 @@ async def download_report_project_file(slug: str, file_name: str):
 
 def _to_project_info(project: ReportProject) -> ReportProjectInfo:
     section_config, section_config_source = _read_section_config(project.section_config_path)
+    prompt_templates_source = _read_prompt_templates(project.prompt_templates_path)
     return ReportProjectInfo(
         name=project.name,
         slug=project.slug,
@@ -328,10 +470,22 @@ def _to_project_info(project: ReportProject) -> ReportProjectInfo:
         word_placeholders=_extract_docx_placeholders(project.word_template_path),
         section_config=section_config,
         section_config_source=section_config_source,
+        prompt_templates_source=prompt_templates_source,
         excel_sheets=_summarize_excel_workbook(project.excel_workbook_path),
         output_dir=str(project.output_dir),
         run_log_dir=str(project.run_log_dir),
         generated_reports=[_to_generated_report_info(path) for path in project.generated_reports],
+    )
+
+
+def _attach_prompt_templates(project_dir: Path, prompt_path: Path) -> None:
+    """Attach a newly created prompt template file to project.yaml."""
+    project_yaml = project_dir / "project.yaml"
+    data = yaml.safe_load(project_yaml.read_text(encoding="utf-8")) or {}
+    data["prompt_templates"] = str(prompt_path.relative_to(project_dir))
+    project_yaml.write_text(
+        yaml.safe_dump(data, allow_unicode=True, sort_keys=False),
+        encoding="utf-8",
     )
 
 
@@ -348,13 +502,25 @@ def _read_section_config(path: Path) -> tuple[Dict[str, Any], str]:
         return {}, ""
 
 
+def _read_prompt_templates(path: Path | None) -> str:
+    """Read raw Markdown prompt templates when bound to the project."""
+    if not path:
+        return ""
+    try:
+        return path.read_text(encoding="utf-8")
+    except Exception as exc:
+        logger.warning("Failed to read prompt templates", path=str(path), error=str(exc))
+        return ""
+
+
 def _extract_docx_placeholders(path: Path) -> List[str]:
     """Extract {{placeholder}} tokens from Word text, including tokens split across runs."""
     word_ns = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
-    placeholders: set[str] = set()
+    placeholders: List[str] = []
+    seen: set[str] = set()
     try:
         with zipfile.ZipFile(path) as archive:
-            for name in archive.namelist():
+            for name in _ordered_docx_xml_names(archive.namelist()):
                 if not (name.startswith("word/") and name.endswith(".xml")):
                     continue
                 if any(
@@ -377,12 +543,28 @@ def _extract_docx_placeholders(path: Path) -> List[str]:
                     text = "".join(node.text or "" for node in paragraph.iter(f"{word_ns}t"))
                     for match in re.findall(r"\{\{\s*([^{}]+?)\s*\}\}", text):
                         normalized = match.strip()
-                        if normalized:
-                            placeholders.add(normalized)
-        return sorted(placeholders)
+                        if normalized and normalized not in seen:
+                            placeholders.append(normalized)
+                            seen.add(normalized)
+        return placeholders
     except Exception as exc:
         logger.warning("Failed to extract docx placeholders", path=str(path), error=str(exc))
         return []
+
+
+def _ordered_docx_xml_names(names: List[str]) -> List[str]:
+    """Return Word XML files in a user-facing reading order."""
+    return sorted(names, key=_docx_xml_sort_key)
+
+
+def _docx_xml_sort_key(name: str) -> tuple[int, str]:
+    if name == "word/document.xml":
+        return (0, name)
+    if name.startswith("word/header"):
+        return (1, name)
+    if name.startswith("word/footer"):
+        return (2, name)
+    return (3, name)
 
 
 def _summarize_excel_workbook(path: Path) -> List[ExcelSheetInfo]:
@@ -394,7 +576,9 @@ def _summarize_excel_workbook(path: Path) -> List[ExcelSheetInfo]:
             rels = ET.fromstring(archive.read("xl/_rels/workbook.xml.rels"))
             rel_map = {rel.attrib["Id"]: rel.attrib["Target"] for rel in rels}
             sheets: List[ExcelSheetInfo] = []
-            for sheet in workbook.findall(".//{http://schemas.openxmlformats.org/spreadsheetml/2006/main}sheet"):
+            for sheet in workbook.findall(
+                ".//{http://schemas.openxmlformats.org/spreadsheetml/2006/main}sheet"
+            ):
                 sheet_name = sheet.attrib.get("name", "Sheet")
                 rel_id = sheet.attrib.get(
                     "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id"
@@ -477,6 +661,94 @@ def _to_generated_report_info(path: Path) -> GeneratedReportInfo:
         file_path=str(path),
         generated_at=datetime.fromtimestamp(stat.st_mtime),
     )
+
+
+def _docx_to_preview_html(path: Path) -> str:
+    """Convert a generated docx package into a lightweight HTML preview."""
+    word_ns = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+    rel_ns = "{http://schemas.openxmlformats.org/package/2006/relationships}"
+    rel_attr = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}embed"
+    drawing_ns = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
+    try:
+        with zipfile.ZipFile(path) as archive:
+            document_root = ET.fromstring(archive.read("word/document.xml"))
+            try:
+                rels_root = ET.fromstring(archive.read("word/_rels/document.xml.rels"))
+                rel_map = {
+                    str(rel.attrib["Id"]): str(rel.attrib.get("Target", ""))
+                    for rel in rels_root.iter(f"{rel_ns}Relationship")
+                    if rel.attrib.get("Id")
+                }
+            except KeyError:
+                rel_map = {}
+            body = document_root.find(f"{word_ns}body")
+            if body is None:
+                return '<div class="docx-preview-empty">无法读取 Word 正文</div>'
+            parts = ['<div class="docx-preview-page">']
+            for child in list(body):
+                tag = child.tag
+                if tag == f"{word_ns}p":
+                    parts.append(
+                        _preview_paragraph_html(
+                            child, archive, rel_map, rel_attr, drawing_ns, word_ns
+                        )
+                    )
+                elif tag == f"{word_ns}tbl":
+                    parts.append(_preview_table_html(child, word_ns))
+            parts.append("</div>")
+            return "".join(part for part in parts if part)
+    except Exception as exc:
+        logger.warning("Failed to convert docx preview", path=str(path), error=str(exc))
+        return f'<div class="docx-preview-empty">预览生成失败：{escape(str(exc))}</div>'
+
+
+def _preview_paragraph_html(
+    paragraph: ET.Element,
+    archive: zipfile.ZipFile,
+    rel_map: Dict[str, str],
+    rel_attr: str,
+    drawing_ns: str,
+    word_ns: str,
+) -> str:
+    text = "".join(node.text or "" for node in paragraph.iter(f"{word_ns}t")).strip()
+    images = []
+    for blip in paragraph.iter(f"{drawing_ns}blip"):
+        rel_id = blip.attrib.get(rel_attr)
+        target = rel_map.get(rel_id or "")
+        if not target:
+            continue
+        image_path = target if target.startswith("word/") else f"word/{target.lstrip('/')}"
+        try:
+            image_bytes = archive.read(image_path)
+        except KeyError:
+            continue
+        ext = Path(image_path).suffix.lower().lstrip(".") or "png"
+        mime = "jpeg" if ext in {"jpg", "jpeg"} else ext
+        encoded = base64.b64encode(image_bytes).decode("ascii")
+        images.append(
+            f'<img src="data:image/{mime};base64,{encoded}" alt="{escape(text or image_path)}">'
+        )
+    if images:
+        caption = f"<figcaption>{escape(text)}</figcaption>" if text else ""
+        return f'<figure class="docx-preview-figure">{"".join(images)}{caption}</figure>'
+    if not text:
+        return ""
+    class_name = "caption" if text.startswith(("图", "数据来源")) else ""
+    return f'<p class="{class_name}">{escape(text)}</p>'
+
+
+def _preview_table_html(table: ET.Element, word_ns: str) -> str:
+    rows = []
+    for row in table.iter(f"{word_ns}tr"):
+        cells = []
+        for cell in row.iter(f"{word_ns}tc"):
+            text = "".join(node.text or "" for node in cell.iter(f"{word_ns}t")).strip()
+            cells.append(f"<td>{escape(text)}</td>")
+        if cells:
+            rows.append(f"<tr>{''.join(cells)}</tr>")
+    if not rows:
+        return ""
+    return f'<table class="docx-preview-table">{"".join(rows)}</table>'
 
 
 def _safe_project_slug(project_name: str) -> str:

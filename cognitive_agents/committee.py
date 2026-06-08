@@ -45,7 +45,8 @@ class CommitteeSynthesisService:
         supporting = [
             view.view_id
             for view in scoped_views
-            if view.view == final_view or (final_view == "mixed" and view.view in {"bullish", "bearish"})
+            if view.view == final_view
+            or (final_view == "mixed" and view.view in {"bullish", "bearish"})
         ]
         dissenting = [
             view.view_id

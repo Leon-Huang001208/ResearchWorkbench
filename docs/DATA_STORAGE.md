@@ -445,6 +445,8 @@ AlphaFoundry 使用 PostgreSQL + pgvector 作为主要数据存储，采用模�
 | project_id | TEXT | 项目 ID |
 | created_at | TIMESTAMPTZ | 创建时间 |
 
+`AgentViewRepositoryImpl` 会把尚未迁入独立列的新观点扩展字段写入 `metadata._agent_view_extensions`，包括 `assumptions`、`risks`、`invalidation_triggers`、`recommended_next_checks`。读取时先在 JSONB/ORM 边界显式收窄为字典，再拆出扩展字段构造领域对象；这不改变表结构，但需要保留 `_agent_view_extensions` 键的兼容性。
+
 **索引**:
 - idx_agent_view_agent_role: agent_role
 - idx_agent_view_target_id: target_id
@@ -1649,7 +1651,7 @@ class AssetSnapshotRepository(Repository[AssetAnalysisSnapshot]):
 | TraceRepository | trace_repository.py | 推理追踪仓储实现 |
 | AssetSnapshotRepository | asset_snapshot_repository.py | 资产快照仓储实现 |
 | SignalRepository | signal_repository.py | 信号仓储实现 |
-| AgentViewRepository | agent_view_repository.py | Agent 观点仓储实现 |
+| AgentViewRepository | agent_view_repository.py | Agent 观点仓储实现；将新增观点扩展字段打包进 `metadata._agent_view_extensions` |
 | TimingRepository | timing_repository.py | 择时仓储实现 |
 | OutcomeRepository | outcome_repository.py | 结果仓储实现 |
 | MemoryRepository | memory_repository.py | 记忆仓储实现 |
