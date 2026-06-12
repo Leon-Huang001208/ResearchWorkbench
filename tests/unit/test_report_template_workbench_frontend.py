@@ -246,10 +246,13 @@ def test_advanced_workbench_exposes_common_defaults_and_target_words():
     assert 'id="template-common-rules"' not in right_panel
     assert "共用 Prompt 约束" in source
     assert "检索策略" in source
-    assert "Rerank" in source
+    assert "证据重排" in source
+    assert "启用 DeepSeek/LLM 重排" not in source
+    assert "按当前占位符 Prompt 的相关性排序" in source
     assert "template-common-summary-card" in source
     assert "template-common-summary-title" in source
     assert "template-common-rule-editor" in source
+    assert "template-rerank-editor" in source
     assert "template-weight-meter" in source
     assert "formatRulePercent" in source
     assert "getHardConstraintPromptText" in source
@@ -287,6 +290,8 @@ def test_advanced_workbench_exposes_common_defaults_and_target_words():
     assert ".template-common-rule-card" in css
     assert ".template-common-summary-card > summary" in css
     assert ".template-common-rule-editor" in css
+    assert ".template-rerank-editor" in css
+    assert ".template-rerank-toggle" in css
     assert ".template-weight-meter" in css
 
 

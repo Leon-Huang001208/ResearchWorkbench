@@ -1370,26 +1370,29 @@ function renderCommonGenerationRules(template) {
         <details class="template-common-rule-card template-common-summary-card">
             <summary>
                 <span class="template-common-summary-title">
-                    <strong>Rerank</strong>
-                    <small>${rerank.enabled !== false ? '已启用 DeepSeek/LLM 重排' : '未启用重排'}</small>
+                    <strong>证据重排</strong>
+                    <small>${rerank.enabled !== false ? '初筛后按当前 Prompt 相关性重新排序' : '按检索分数直接排序'}</small>
                 </span>
                 <span class="template-common-summary-meta">
-                    候选 ${esc(rerank.candidates ?? 16)} · 最低分 ${esc(rerank.min_score ?? 30)}
+                    候选 ${esc(rerank.candidates ?? 16)} · 阈值 ${esc(rerank.min_score ?? 30)}
                     <i class="codicon codicon-chevron-down"></i>
                 </span>
             </summary>
             <div class="template-common-rule-editor">
-                <div class="template-common-rules-grid">
-                    <label class="template-common-rules-check">
+                <div class="template-rerank-editor">
+                    <label class="template-common-rules-check template-rerank-toggle">
                         <input type="checkbox" data-common-rule-field="rerank.enabled" ${rerank.enabled !== false ? 'checked' : ''}>
-                        <span>启用 DeepSeek/LLM 重排</span>
+                        <span>
+                            <strong>启用证据重排</strong>
+                            <small>先召回候选证据，再按当前占位符 Prompt 的相关性排序</small>
+                        </span>
                     </label>
                     <label class="template-common-field">
-                        <span>重排候选数</span>
+                        <span>参与重排的候选证据数</span>
                         <input type="number" min="1" step="1" data-common-rule-field="rerank.candidates" value="${esc(rerank.candidates ?? 16)}">
                     </label>
                     <label class="template-common-field">
-                        <span>最低分</span>
+                        <span>最低相关分</span>
                         <input type="number" min="0" step="1" data-common-rule-field="rerank.min_score" value="${esc(rerank.min_score ?? 30)}">
                     </label>
                 </div>
