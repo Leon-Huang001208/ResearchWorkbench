@@ -47,3 +47,12 @@ def test_document_sources_have_document_connector_datasets():
     actual = {spec.source_type.value: spec.connector_dataset for spec in document_specs}
 
     assert actual == expected
+
+
+def test_orchestrator_identifies_connector_sources_from_spec_metadata():
+    from core.contracts.documents_v1 import SourceType
+    from services.crawl_orchestrator import CrawlOrchestrator
+
+    orchestrator = CrawlOrchestrator.__new__(CrawlOrchestrator)
+
+    assert orchestrator._source_uses_connector(SourceType.ZHIQIU_REPORTS) is True

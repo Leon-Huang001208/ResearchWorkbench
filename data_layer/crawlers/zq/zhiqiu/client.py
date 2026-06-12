@@ -55,6 +55,7 @@ class ZhiQiuClient:
         self.username = username
         self.password = password
         self.session = requests.Session()
+        self.session.trust_env = False  # 禁用系统代理，避免 SSL EOF 错误
         self._logged_in = False
         self.logger = logging.getLogger(__name__)
         # 反爬管理器

@@ -58,6 +58,18 @@ def _daily_bar_dict(symbol="600519.SH", trade_date=None):
     }
 
 
+def _index_component_dict(weight=5.0):
+    return {
+        "index_symbol": "000300",
+        "component_symbol": "300308.SZ",
+        "component_name": "中际旭创",
+        "weight": weight,
+        "as_of": datetime(2026, 6, 9, tzinfo=timezone.utc),
+        "source": "csindex",
+        "raw_payload": {"rank": 1},
+    }
+
+
 class TestMarketDataRepository:
     def test_upsert_stock_master_insert(self, repo):
         """第一次 insert 成功"""
@@ -119,6 +131,16 @@ class TestMarketDataRepository:
             end_date=datetime(2024, 1, 18, tzinfo=timezone.utc),
         )
         assert len(filtered) == 1  # only bar2
+
+    def test_upsert_index_components_no_duplicate(self, repo, db_session):
+        repo.upsert_index_components([_index_component_dict(weight=5.0)])
+        repo.upsert_index_components([_index_component_dict(weight=5.5)])
+
+        from data_layer.repositories.models import IndexComponentDB
+
+        rows = db_session.query(IndexComponentDB).all()
+        assert len(rows) == 1
+        assert float(rows[0].weight) == 5.5
 
     def test_get_all_stock_symbols(self, repo):
         """获取所有股票 symbol"""

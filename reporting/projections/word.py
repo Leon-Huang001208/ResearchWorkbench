@@ -3,6 +3,7 @@
 Supports both simple Word generation and template-based generation
 with placeholder replacement.
 """
+from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -442,15 +443,27 @@ class WordProjection:
             paragraph: Word Paragraph object.
             placeholder_map: Mapping of placeholder to replacement text.
         """
-        for placeholder, replacement in placeholder_map.items():
-            # Support both {{placeholder}} and placeholder formats
-            patterns = [
+        replacement_items = sorted(
+            placeholder_map.items(),
+            key=lambda item: len(str(item[0])),
+            reverse=True,
+        )
+        for placeholder, replacement in replacement_items:
+            # Support both {{placeholder}} and {placeholder} formats inline.
+            # Bare placeholders are replaced only when the whole paragraph is
+            # the placeholder, otherwise common words like "黄金" can corrupt
+            # generated content after a longer placeholder was replaced.
+            braced_patterns = [
                 f"{{{{{placeholder}}}}}",
                 f"{{{placeholder}}}",
-                placeholder,
             ]
+            bare_pattern = str(placeholder)
+            allow_bare_pattern = self._allows_bare_placeholder_match(bare_pattern)
+            patterns = braced_patterns + ([bare_pattern] if allow_bare_pattern else [])
 
             for pattern in patterns:
+                if pattern == bare_pattern and paragraph.text.strip() != bare_pattern.strip():
+                    continue
                 if pattern in paragraph.text:
                     # Simple replacement - replace entire text
                     if paragraph.text.strip() == pattern.strip():
@@ -489,6 +502,19 @@ class WordProjection:
                                     if first_run.font.color and first_run.font.color.rgb:
                                         new_run.font.color.rgb = first_run.font.color.rgb
 
+    @staticmethod
+    def _allows_bare_placeholder_match(placeholder: str) -> bool:
+        """Return whether a non-braced placeholder can be matched safely.
+
+        Project report templates should use ``{{...}}`` for Chinese section
+        placeholders. Bare matching is kept only for legacy ASCII template
+        fields such as ``title`` or ``text_summary``; matching common Chinese
+        words like "美国" or "黄金" corrupts static tables and product names.
+        """
+        import re
+
+        return bool(re.fullmatch(r"[A-Za-z_][A-Za-z0-9_:-]*", placeholder))
+
     def _add_tables_to_document(
         self,
         doc: Any,
@@ -506,31 +532,14 @@ class WordProjection:
                 inserted = self._insert_table_at_placeholder(doc, table_spec)
                 if inserted:
                     continue
+            if table_spec.title:
+                replaced = self._replace_table_after_title(doc, table_spec)
+                if replaced:
+                    continue
 
             # Add at end as fallback
             doc.add_heading(table_spec.title, level=3)
-
-            # Create table
-            num_rows = len(table_spec.rows) + 1  # +1 for header
-            num_cols = (
-                len(table_spec.headers)
-                if table_spec.headers
-                else (len(table_spec.rows[0]) if table_spec.rows else 1)
-            )
-
-            table = doc.add_table(rows=num_rows, cols=num_cols)
-            table.style = "Table Grid"
-
-            # Add header
-            if table_spec.headers:
-                for idx, header in enumerate(table_spec.headers):
-                    table.rows[0].cells[idx].text = header
-
-            # Add data
-            for row_idx, row_data in enumerate(table_spec.rows):
-                for col_idx, cell_data in enumerate(row_data):
-                    table.rows[row_idx + 1].cells[col_idx].text = str(cell_data)
-
+            self._create_word_table(doc, table_spec)
             doc.add_paragraph()
 
     def _insert_table_at_placeholder(
@@ -549,44 +558,131 @@ class WordProjection:
         """
         # Use normalized placeholder name
         placeholder = table_spec.normalized_placeholder
-        patterns = [f"{{{{{placeholder}}}}}", f"{{{placeholder}}}", placeholder]
+        patterns = [f"{{{{{placeholder}}}}}", f"{{{placeholder}}}"]
+        if self._allows_bare_placeholder_match(placeholder):
+            patterns.append(placeholder)
 
         for para_idx, paragraph in enumerate(doc.paragraphs):
             for pattern in patterns:
                 if pattern in paragraph.text:
                     # Found placeholder
-                    paragraph.clear()
-
-                    # Add table after this paragraph
-                    # First find the paragraph index
-                    paragraphs = list(doc.paragraphs)
-                    for idx, p in enumerate(paragraphs):
-                        if p == paragraph:
-                            # Create table
-                            num_rows = len(table_spec.rows) + 1
-                            num_cols = (
-                                len(table_spec.headers)
-                                if table_spec.headers
-                                else (len(table_spec.rows[0]) if table_spec.rows else 1)
-                            )
-
-                            # Insert table at correct position
-                            table = doc.add_table(rows=num_rows, cols=num_cols)
-                            table.style = "Table Grid"
-
-                            # Add header
-                            if table_spec.headers:
-                                for h_idx, header in enumerate(table_spec.headers):
-                                    table.rows[0].cells[h_idx].text = header
-
-                            # Add data
-                            for row_idx, row_data in enumerate(table_spec.rows):
-                                for col_idx, cell_data in enumerate(row_data):
-                                    table.rows[row_idx + 1].cells[col_idx].text = str(cell_data)
-
-                            return True
+                    table = self._create_word_table(doc, table_spec)
+                    paragraph._p.addnext(table._tbl)
+                    paragraph._element.getparent().remove(paragraph._element)
+                    return True
 
         return False
+
+    def _replace_table_after_title(self, doc: Any, table_spec: TableSpec) -> bool:
+        """Replace the first table after a title paragraph with generated rows."""
+        title = table_spec.title.strip()
+        if not title:
+            return False
+
+        body = doc.element.body
+        children = list(body)
+        for index, child in enumerate(children):
+            if child.tag.rsplit("}", 1)[-1] != "p":
+                continue
+            paragraph_text = "".join(child.itertext()).strip()
+            if title not in paragraph_text:
+                continue
+
+            table = self._create_word_table(doc, table_spec)
+            for next_child in children[index + 1 :]:
+                if next_child.tag.rsplit("}", 1)[-1] == "tbl":
+                    self._copy_table_format(next_child, table._tbl)
+                    body.replace(next_child, table._tbl)
+                    return True
+                if next_child.tag.rsplit("}", 1)[-1] == "p" and "".join(next_child.itertext()).strip():
+                    child.addnext(table._tbl)
+                    return True
+            child.addnext(table._tbl)
+            return True
+        return False
+
+    def _create_word_table(self, doc: Any, table_spec: TableSpec) -> Any:
+        """Create and populate a Word table for a table spec."""
+        num_rows = len(table_spec.rows) + (1 if table_spec.headers else 0)
+        num_cols = (
+            len(table_spec.headers)
+            if table_spec.headers
+            else (len(table_spec.rows[0]) if table_spec.rows else 1)
+        )
+        table = doc.add_table(rows=max(num_rows, 1), cols=max(num_cols, 1))
+        table.style = "Table Grid"
+
+        row_offset = 0
+        if table_spec.headers:
+            for idx, header in enumerate(table_spec.headers):
+                table.rows[0].cells[idx].text = str(header)
+            row_offset = 1
+
+        for row_idx, row_data in enumerate(table_spec.rows):
+            for col_idx, cell_data in enumerate(row_data[:num_cols]):
+                table.rows[row_idx + row_offset].cells[col_idx].text = str(cell_data)
+        return table
+
+    def _copy_table_format(self, source_tbl: Any, target_tbl: Any) -> None:
+        """Copy reusable table layout/style XML from an existing template table."""
+        self._replace_child_by_local_name(
+            target_tbl,
+            "tblPr",
+            self._child_by_local_name(source_tbl, "tblPr"),
+        )
+        self._replace_child_by_local_name(
+            target_tbl,
+            "tblGrid",
+            self._child_by_local_name(source_tbl, "tblGrid"),
+        )
+
+        source_rows = [child for child in source_tbl if child.tag.rsplit("}", 1)[-1] == "tr"]
+        target_rows = [child for child in target_tbl if child.tag.rsplit("}", 1)[-1] == "tr"]
+        if not source_rows or not target_rows:
+            return
+
+        header_source = source_rows[0]
+        data_source = source_rows[1] if len(source_rows) > 1 else source_rows[0]
+        for index, target_row in enumerate(target_rows):
+            source_row = header_source if index == 0 else data_source
+            self._replace_child_by_local_name(
+                target_row,
+                "trPr",
+                self._child_by_local_name(source_row, "trPr"),
+            )
+            source_cells = [
+                child for child in source_row if child.tag.rsplit("}", 1)[-1] == "tc"
+            ]
+            target_cells = [
+                child for child in target_row if child.tag.rsplit("}", 1)[-1] == "tc"
+            ]
+            for cell_index, target_cell in enumerate(target_cells):
+                if not source_cells:
+                    break
+                source_cell = source_cells[min(cell_index, len(source_cells) - 1)]
+                self._replace_child_by_local_name(
+                    target_cell,
+                    "tcPr",
+                    self._child_by_local_name(source_cell, "tcPr"),
+                )
+
+    @staticmethod
+    def _child_by_local_name(element: Any, local_name: str) -> Any | None:
+        for child in element:
+            if child.tag.rsplit("}", 1)[-1] == local_name:
+                return child
+        return None
+
+    @staticmethod
+    def _replace_child_by_local_name(element: Any, local_name: str, replacement: Any | None) -> None:
+        if replacement is None:
+            return
+        for index, child in enumerate(list(element)):
+            if child.tag.rsplit("}", 1)[-1] == local_name:
+                element.remove(child)
+                element.insert(index, deepcopy(replacement))
+                return
+        element.insert(0, deepcopy(replacement))
 
     def _add_chart_images_to_document(
         self,

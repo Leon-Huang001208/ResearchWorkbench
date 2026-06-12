@@ -4,6 +4,8 @@ AkShare 板块行情获取器
 从同花顺行业板块接口获取实时涨跌幅数据。
 """
 import time
+import os
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import List, Optional
 
@@ -12,6 +14,10 @@ from core.observability import get_logger
 logger = get_logger("akshare_board")
 
 CACHE_TTL_SECONDS = 300  # 5 分钟缓存
+STALE_CACHE_TTL_SECONDS = 1800  # 刷新失败时，旧缓存最多再用 30 分钟
+MAX_RETRIES = 3  # AKShare 接口重试次数
+RETRY_BACKOFF = 2.0  # 重试退避系数（秒）
+PROXY_ENV_KEYS = ("http_proxy", "https_proxy", "HTTP_PROXY", "HTTPS_PROXY", "all_proxy", "ALL_PROXY")
 
 
 @dataclass
@@ -44,8 +50,65 @@ class SectorBoardSnapshot:
 _cache: Optional[SectorBoardSnapshot] = None
 
 
+@contextmanager
+def _without_proxy_env():
+    """临时绕过桌面代理，避免本地坏代理导致 AKShare 请求失败"""
+    saved = {key: os.environ.get(key) for key in (*PROXY_ENV_KEYS, "NO_PROXY")}
+    removed = [key for key in PROXY_ENV_KEYS if os.environ.get(key)]
+
+    for key in PROXY_ENV_KEYS:
+        os.environ.pop(key, None)
+    os.environ["NO_PROXY"] = "*"
+
+    if removed:
+        logger.debug(f"Temporarily disabled proxy env for AKShare board fetch: {removed}")
+
+    try:
+        yield
+    finally:
+        for key in PROXY_ENV_KEYS:
+            value = saved[key]
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+
+        no_proxy = saved["NO_PROXY"]
+        if no_proxy is None:
+            os.environ.pop("NO_PROXY", None)
+        else:
+            os.environ["NO_PROXY"] = no_proxy
+
+
 def _is_cache_valid() -> bool:
     return _cache is not None and (time.time() - _cache.fetched_at) < CACHE_TTL_SECONDS
+
+
+def _is_cache_stale() -> bool:
+    """缓存是否过期但仍在可容忍范围内（用于刷新失败时兜底）"""
+    return _cache is not None and (time.time() - _cache.fetched_at) < STALE_CACHE_TTL_SECONDS
+
+
+def _fetch_with_retry():
+    """带重试的 AKShare 板块数据获取"""
+    import akshare as ak
+
+    last_error = None
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            with _without_proxy_env():
+                df = ak.stock_board_industry_summary_ths()
+            return df
+        except Exception as e:
+            last_error = e
+            if attempt < MAX_RETRIES:
+                wait = RETRY_BACKOFF * attempt
+                logger.warning(
+                    f"AKShare board fetch attempt {attempt}/{MAX_RETRIES} failed: {e}. "
+                    f"Retrying in {wait:.1f}s..."
+                )
+                time.sleep(wait)
+    raise last_error  # type: ignore[misc]
 
 
 def fetch_sector_board(force_refresh: bool = False) -> SectorBoardSnapshot:
@@ -64,9 +127,7 @@ def fetch_sector_board(force_refresh: bool = False) -> SectorBoardSnapshot:
         return _cache
 
     try:
-        import akshare as ak
-
-        df = ak.stock_board_industry_summary_ths()
+        df = _fetch_with_retry()
 
         sectors = []
         for _, row in df.iterrows():
@@ -95,9 +156,15 @@ def fetch_sector_board(force_refresh: bool = False) -> SectorBoardSnapshot:
         return _cache
 
     except Exception as e:
-        logger.error(f"Failed to fetch sector board data: {e}")
+        logger.error(f"Failed to fetch sector board data after {MAX_RETRIES} retries: {e}")
+        if _is_cache_stale():
+            logger.warning(
+                f"Returning stale cache (age={time.time() - _cache.fetched_at:.0f}s)"
+            )
+            assert _cache is not None
+            return _cache
         if _cache is not None:
-            logger.warning("Returning stale cache")
+            logger.warning("Cache too old, but returning as last resort")
             return _cache
         return SectorBoardSnapshot()
 
@@ -110,14 +177,16 @@ def get_last_fetch_time() -> float:
 
 
 def get_top_gainers(limit: int = 5) -> List[SectorBoardItem]:
-    """获取涨幅最高的板块"""
+    """获取涨幅最高的板块（仅返回 change_pct > 0 的上涨板块）"""
     snapshot = fetch_sector_board()
-    sorted_sectors = sorted(snapshot.sectors, key=lambda s: s.change_pct, reverse=True)
-    return sorted_sectors[:limit]
+    positive = [s for s in snapshot.sectors if s.change_pct > 0]
+    positive.sort(key=lambda s: s.change_pct, reverse=True)
+    return positive[:limit]
 
 
 def get_top_losers(limit: int = 5) -> List[SectorBoardItem]:
-    """获取跌幅最高的板块"""
+    """获取跌幅最高的板块（仅返回 change_pct < 0 的下跌板块）"""
     snapshot = fetch_sector_board()
-    sorted_sectors = sorted(snapshot.sectors, key=lambda s: s.change_pct)
-    return sorted_sectors[:limit]
+    negative = [s for s in snapshot.sectors if s.change_pct < 0]
+    negative.sort(key=lambda s: s.change_pct)
+    return negative[:limit]

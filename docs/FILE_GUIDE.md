@@ -457,7 +457,7 @@
 | `reporting/projections/` | 格式投影：Markdown、Word、HTML 等格式输出 |
 | `reporting/projects/project_manager.py` | 报告项目管理：加载 `report_projects/<项目>/project.yaml`，解析 Word、Excel、section config、prompt templates、生成目录和 runs 目录 |
 | `reporting/projects/generation.py` | 项目级报告生成：解析 Markdown Prompt 模板，检索 `ingestion_queue_item` / `canonical_event` evidence，通过 ModelGateway 生成 Word 占位符正文，并返回证据/模型/token 元数据 |
-| `reporting/projects/chart_generation.py` | 报告图表生成：读取 Excel chart cache 或 worksheet 缓存数据，用 matplotlib 渲染图片并直接嵌入 DOCX 包 |
+| `reporting/projects/chart_generation.py` | 报告图表生成：读取 Excel chart cache 或 worksheet 缓存数据；旧模板可用 matplotlib 渲染图片并嵌入 DOCX，新模板可同步 Excel 原生 chart 到 Word chart parts |
 
 ## report_projects/ - 报告项目资产
 
@@ -576,6 +576,8 @@
 | `scripts/check_market_data_schema.py` | 结构化行情数据表 Schema 检查：验证 8 张市场数据表是否存在 |
 | `scripts/bootstrap_market_data.py` | 结构化行情数据初始化脚本：同步股票列表和核心股票日行情 |
 | `scripts/view_db.py` | 数据库查看工具：方便查询统计、事件、文档等 |
+| `scripts/replace_huaan_word_charts_office.py` | 华安 ETF 周报图表替换脚本：通过 Excel/Word 原生复制粘贴生成可编辑 Word chart parts |
+| `scripts/merge_huaan_layout_with_native_charts.py` | 华安 ETF 周报模板修复脚本：以原 Word 模板为母版，仅移植原生 chart drawing 和 chart parts，保留页眉页脚与版式 |
 | `scripts/test_*.py` | 各种测试脚本：测试功能模块 |
 
 ---

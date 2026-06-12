@@ -9,15 +9,25 @@
 ### Added
 
 - **报告项目工作台配置驱动生成**: `report_projects` 工作台从静态占位符渲染升级为项目配置驱动生成，支持源码保存、evidence 检索、LLM 生成、图表嵌入、运行日志和 Word HTML 预览。
-  - `app/api/routes/report_projects.py` — 新增 `PUT /api/report-projects/{slug}/source` 保存 `section_config.yaml` / `prompt_templates.md`；`POST /render` 默认执行 `section_config.yaml` + `prompt_templates.md` 的 evidence-grounded 生成；响应增加 `preview_url`、生成占位符数、evidence 数和 warnings；新增 `GET /preview/{file_name}` 轻量 DOCX HTML 预览。
-  - `reporting/projects/generation.py` — 新增项目级报告生成服务，解析 Markdown Prompt 模板二级标题、提取 `检索 Query` / `写作要求`、从 `ingestion_queue_item` 和 `canonical_event` 检索证据，并通过 `ModelGatewayImpl` reporting/default task route 生成 Word 占位符正文。
+  - `app/api/routes/report_projects.py` — 新增 `PUT /api/report-projects/{slug}/source` 保存 `section_config.yaml` / `prompt_templates.md`；`POST /render` 默认执行 `section_config.yaml` + `prompt_templates.md` 的 evidence-grounded 生成；响应增加 `preview_url`、生成占位符数、evidence 数和 warnings；新增 `GET /preview/{file_name}` 轻量 DOCX HTML 预览；run log 记录本期报告周期。
+  - `reporting/projects/generation.py` — 新增项目级报告生成服务，解析 Markdown Prompt 模板二级标题、提取 `检索 Query` / `写作要求`、从 `ingestion_queue_item` 和 `canonical_event` 检索证据，并通过 `ModelGatewayImpl` reporting/default task route 生成 Word 占位符正文；`type: report_period` 占位符由生成器统一计算，开始日期为报告日所在周周一，结束日期为报告日；`type: composite_market_review` 支持先从 `周报数据.xlsx` 生成确定性的 A 股指数涨跌和成交额句子，再只让模型基于 evidence 生成市场热点归纳；独立 section 默认使用 4 路有界并行生成，最终结果仍按配置顺序写入 run log 和 Word。
+  - `reporting/projects/generation.py` / `report_projects/华安ETF周报/config/section_config.yaml` / `report_projects/华安ETF周报/config/prompt_templates.md` — 明确 Prompt 与参数分工：`section_config.yaml` 的 `defaults.validators` / `defaults.retrieval` 负责报告级硬性生成约束、hybrid/RRF 检索和 LLM rerank；单个占位符只保留目标字数、最少新闻条数、检索关键词、Excel/static 来源等差异项，最终模型消息统一渲染这些规则；`prompt_templates.md` 只保留检索 Query、写作要求和写作格式，不再重复写字数、禁用词等硬参数。
+  - `reporting/projects/generation.py` / `app/api/routes/report_projects.py` — 接入 Phase 1 关键词检索配置：每个 section 可配置 `retrieval.top_k`、`candidate_k`、`must_any`、`exclude`、`source_types` 和 `min_keyword_score`，生成前先过滤、评分、排序 evidence；run log 记录每段的检索配置、命中词和 keyword score，并提供 `run_log_url` 供前端调试。
+  - `reporting/projects/keyword_profiles.py` / `reporting/projects/keyword_profiles.json` / `app/web/static/js/templates.js` — 将旧财联社筛选 `params.json` 升级为内置 `keyword_profiles`，新模板占位符按名称或显式 `retrieval.keyword_profile` 自动继承检索关键词；未知占位符生成可后续维护的关键词草稿。前端将机器字段 `query_terms.must_any` 收敛为业务字段 `keyword_profile` + `keywords`，并不再默认展示“排除词”。
+  - `reporting/projects/generation.py` / `report_projects/华安ETF周报/config/section_config.yaml` — 接入 Phase 2 混合召回：`retrieval.mode: hybrid` 会在关键词候选外追加近期语义候选，使用本地 n-gram 语义相似度与 RRF 融合排序；华安 ETF 周报的 `A股市场回顾`、`航天`、`电力设备新能源` 已切换为 hybrid，并配置 keyword/semantic 权重。
+  - `reporting/projects/generation.py` / `report_projects/华安ETF周报/config/section_config.yaml` — 接入 Phase 3 LLM rerank：`retrieval.rerank.enabled: true` 时先保留 `rerank.top_n` 条候选，再通过 reporting/default 模型路由要求模型输出 JSON 排序，最终进入写作 prompt 的 evidence 会记录 `rerank_score`、`rerank_rank` 和 `rerank_reason`；华安 ETF 周报的三个重点 section 已启用 DeepSeek/LLM rerank。
   - `reporting/projects/chart_generation.py` — 新增 Excel chart cache / worksheet 缓存读取、matplotlib 图表渲染和 DOCX 图片嵌入服务，支持 media 替换和 chart drawing 转图片。
-  - `app/web/templates/index.html` / `app/web/static/js/templates.js` / `app/web/static/style.css` — 模板工作台拆分 YAML 占位符映射与 Markdown Prompt 源码视图，源码默认只读、显式编辑后可写回项目文件；生成后显示下载与预览；上传按钮移到模板页顶部工具栏。
-  - `report_projects/华安ETF周报/config/section_config.yaml` — 切换为 `placeholders:` + `charts:` 配置，绑定 Word 占位符、内置检索 Query Prompt 模板和黄金/原油/行业图表替换规则。
+  - `reporting/projects/table_generation.py` / `reporting/projections/word.py` / `app/api/routes/report_projects.py` — 新增项目级 Excel 表格确定性生成：`tables:` 配置可从项目 `data/` 下的 Excel 读取指定 sheet、列和过滤条件，生成 Word `TableSpec`，并以 `{{占位符}}` 原位替换为真实 Word 表格；若模板没有占位符，则回退替换同名标题后的旧表格。华安 ETF 周报的“下周全球投资日历”已绑定 `全球经济日历.xlsx` 的 `经济数据` sheet。
+  - `scripts/replace_huaan_word_charts_office.py` / `scripts/merge_huaan_layout_with_native_charts.py` / `report_projects/华安ETF周报/templates/report_template.docx` — 华安 ETF 周报三张图通过 Excel/Word 原生复制粘贴切换为可编辑 Word chart，并将 chart parts 合并回原 Word 模板版式，保留页眉页脚；生成配置改为 `replace.kind: native_chart`，后续生成只同步 Excel chart XML，不再降级为 PNG。
+  - `app/web/templates/index.html` / `app/web/static/js/templates.js` / `app/web/static/style.css` — 模板工作台拆分 YAML 占位符映射与 Markdown Prompt 源码视图，改为按 Word 占位符逐项展示配置详情；右侧表单只维护占位符差异项（类型、字数、最少新闻条数、关键词 Profile、检索关键词、报告周期或 Excel/static 来源），报告级硬性生成约束、检索参数和 rerank 策略由 `defaults` 统一继承；源码区只显示当前 YAML 片段 / Prompt 模板作为对照；生成后显示下载、预览和 Evidence 检索调试，包含命中词、关键词分、语义分、融合分、检索 rank、rerank 分数和重排理由；上传按钮移到模板页顶部工具栏。
+  - `report_projects/华安ETF周报/config/section_config.yaml` — 切换为 `placeholders:` + `charts:` 配置，绑定 Word 占位符、报告周期占位符、A 股市场回顾复合生成、内置检索 Query Prompt 模板和黄金/原油/行业图表替换规则。
+  - `report_projects/华安ETF周报/config/section_config.yaml` — 所有 `type: prompt` 占位符补齐主题 `keyword_profile` 和 `keywords` 检索关键词，避免未配置段落因召回过宽或无 evidence 而空缺；公共 hybrid 检索、RRF 融合和 LLM rerank 已收敛到报告级 `defaults.retrieval`。
   - `report_projects/华安ETF周报/config/prompt_templates.md` — 重写为 Markdown Prompt 模板库，每个 `##` 标题对应一个 Word 占位符/Prompt 模板，并内置检索 Query。
-  - `tests/unit/test_report_projects_api.py` / `tests/unit/test_report_template_workbench_frontend.py` / `tests/unit/test_report_project_chart_generation.py` — 补充源码保存、占位符顺序、配置生成、run-log、预览、图表读取/嵌入和前端静态回归测试。
+  - `tests/unit/test_report_projects_api.py` / `tests/unit/test_report_template_workbench_frontend.py` / `tests/unit/test_report_project_chart_generation.py` / `tests/unit/test_word_projection.py` — 补充源码保存、占位符顺序、并行生成、配置生成、run-log、预览、图表读取/嵌入、占位符包含关系替换和前端静态回归测试。
 
 ### Fixed
+
+- **Word 占位符包含关系替换**: `WordProjection.save_from_template()` 改为长占位符优先，并限制裸占位符只在整段文本等于占位符时替换，避免 `{{黄金市场回顾}}` 被 `{{黄金}}` / `市场回顾` 这类短占位符提前拆坏。
 
 - **Full gate remaining-risk cleanup**: 清理文档同步后的剩余门禁风险，消除 full mypy 报告的类型问题并修正静态资源版本回归断言。
   - `cognitive_agents/workflow.py` — `AgentWorkflowRunner` 接受协议型 `AgentFactoryLike`，支持资产委员会的 deterministic agents 复用 staged workflow。

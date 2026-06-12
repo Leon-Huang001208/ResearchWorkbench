@@ -31,18 +31,24 @@ export async function loadDashboard() {
 
 // ─── Data Source Badge ──────────────────────────────────────
 function updateDataSourceBadge(data) {
-    const badge = document.getElementById('data-source-badge');
-    if (!badge) return;
+    const overview = data.market_overview || {};
+    setSourceBadge(
+        document.getElementById('data-source-news-badge'),
+        '新闻',
+        Boolean(overview.uses_real_news)
+    );
+    setSourceBadge(
+        document.getElementById('data-source-sectors-badge'),
+        '板块',
+        Boolean(overview.uses_real_sectors)
+    );
+}
 
-    if (data.market_overview.uses_real_news || data.market_overview.uses_real_sectors) {
-        badge.textContent = '真实数据';
-        badge.classList.remove('badge-mock');
-        badge.classList.add('badge-real');
-    } else {
-        badge.textContent = '模拟数据';
-        badge.classList.remove('badge-real');
-        badge.classList.add('badge-mock');
-    }
+function setSourceBadge(badge, label, isReal) {
+    if (!badge) return;
+    badge.textContent = `${label}${isReal ? '真实' : '模拟'}`;
+    badge.classList.toggle('badge-real', isReal);
+    badge.classList.toggle('badge-mock', !isReal);
 }
 
 // ─── Market Overview Tab ────────────────────────────────────

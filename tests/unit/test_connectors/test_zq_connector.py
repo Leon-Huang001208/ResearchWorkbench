@@ -115,6 +115,35 @@ class TestZQDiscover:
 
 
 class TestZQFetch:
+    def test_fetch_respects_connector_config(self, sample_report_envelopes):
+        zq_connector = ZQDocumentConnector(
+            {"use_homepage_search": False, "enable_pdf": True, "max_pages": 7}
+        )
+
+        with patch("data_layer.adapters.zq_adapter.ZQAdapter") as mock_adapter_class:
+            mock_adapter = MagicMock()
+            mock_adapter.fetch.return_value = [
+                MagicMock(model_dump=lambda e=env: e) for env in sample_report_envelopes
+            ]
+            mock_adapter_class.return_value = mock_adapter
+
+            item = DiscoveryItem(
+                item_id="zq_report_2026-06-07_2026-06-09",
+                item_type="report",
+                params={
+                    "start_date": "2026-06-07",
+                    "end_date": "2026-06-09",
+                    "doc_type": "REPORT",
+                },
+            )
+
+            zq_connector.fetch(dataset="report", item=item)
+
+            _, kwargs = mock_adapter.fetch.call_args
+            assert kwargs["use_homepage_search"] is False
+            assert kwargs["enable_pdf"] is True
+            assert kwargs["max_pages"] == 7
+
     def test_fetch_report(self, zq_connector, sample_report_envelopes):
         with patch("data_layer.adapters.zq_adapter.ZQAdapter") as mock_adapter_class:
             mock_adapter = MagicMock()

@@ -206,19 +206,12 @@ class CrawlOrchestrator:
 
     def _source_uses_connector(self, source_type: SourceType) -> bool:
         """Return True when the registered source points at a BaseConnector."""
-        try:
-            from core.connectors.base import BaseConnector
-            from core.source_registry import get as get_spec
+        from core.source_registry import get as get_spec
 
-            spec = get_spec(source_type)
-            if spec is None:
-                return False
-            module_path, class_name = spec.connector_class.rsplit(".", 1)
-            module = __import__(module_path, fromlist=[class_name])
-            connector_cls = getattr(module, class_name)
-            return isinstance(connector_cls, type) and issubclass(connector_cls, BaseConnector)
-        except Exception:
+        spec = get_spec(source_type)
+        if spec is None:
             return False
+        return bool(spec.connector_dataset and spec.connector_class.startswith("connectors."))
 
     def _run_connector_source(
         self,

@@ -866,20 +866,22 @@ class MarketDataConnector(BaseConnector, ABC):
             return 0
 
         try:
+            from data_layer.repositories.base import db_session
             from data_layer.repositories.market_data_repository import MarketDataRepository
-
-            repo = MarketDataRepository()
 
             daily_datasets = self._daily_bar_datasets()
             daily_records = [r for r in records if r.dataset in daily_datasets]
             persisted = 0
 
-            if daily_records:
-                rows = [self._build_daily_bar_row(rec) for rec in daily_records]
-                persisted += repo.upsert_daily_bars(rows)
+            with db_session() as db:
+                repo = MarketDataRepository(db)
 
-            # 额外数据集处理（如 stock_master）
-            persisted += self._persist_extra_records(records, repo)
+                if daily_records:
+                    rows = [self._build_daily_bar_row(rec) for rec in daily_records]
+                    persisted += repo.upsert_daily_bars(rows)
+
+                # 额外数据集处理（如 stock_master）
+                persisted += self._persist_extra_records(records, repo)
 
             logger.info(
                 f"{self.source}_persist_done",

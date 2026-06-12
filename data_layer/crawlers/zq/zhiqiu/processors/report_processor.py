@@ -186,23 +186,47 @@ class ReportProcessor(BaseProcessor):
         # 判断数据格式
         reports_list = data.get("reports", [])
         if isinstance(reports_list, dict):
+            # 兼容旧格式（reportAttachMap 非空）和新格式（reportAttachMap 为空但 reports 是列表）
             self.attach_map = reports_list.get("reportAttachMap", {})
             self.reports_map = {r["id"]: r for r in reports_list.get("reports", []) if r.get("id")}
-            return self._process_old_format(
-                output_file,
-                prompt,
-                enable_core,
-                enable_viewpoint,
-                enable_companies,
-                enable_pdf,
-                os.path.join(output_dir, pdf_dir),
-                ai_interval,
-                output_dir,
-                state_manager,
-                skip_existing,
-                stop_on_known,
-                watermark_key,
-            )
+            if self.attach_map:
+                # 旧格式：通过 attach_map 遍历附件
+                return self._process_old_format(
+                    output_file,
+                    prompt,
+                    enable_core,
+                    enable_viewpoint,
+                    enable_companies,
+                    enable_pdf,
+                    os.path.join(output_dir, pdf_dir),
+                    ai_interval,
+                    output_dir,
+                    state_manager,
+                    skip_existing,
+                    stop_on_known,
+                    watermark_key,
+                )
+            else:
+                # 新格式（首页搜索）：reportAttachMap 为空，使用 reports 列表直接处理
+                # 需要展开嵌套的 data 结构，使 data["reports"] 成为列表
+                inner_reports = reports_list.get("reports", [])
+                unwrapped_data = {**data, "reports": inner_reports}
+                return self._process_new_format(
+                    unwrapped_data,
+                    output_file,
+                    prompt,
+                    enable_core,
+                    enable_viewpoint,
+                    enable_companies,
+                    enable_pdf,
+                    os.path.join(output_dir, pdf_dir),
+                    ai_interval,
+                    output_dir,
+                    state_manager,
+                    skip_existing,
+                    stop_on_known,
+                    watermark_key,
+                )
         else:
             return self._process_new_format(
                 data,
@@ -329,6 +353,9 @@ class ReportProcessor(BaseProcessor):
         处理新格式数据（首页搜索）
         """
         reports_list = data.get("reports", [])
+        # 兼容嵌套格式：如果 reports 的值仍是 dict，展开内层列表
+        if isinstance(reports_list, dict):
+            reports_list = reports_list.get("reports", [])
 
         results = []
         new_reports = []

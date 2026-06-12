@@ -1,7 +1,7 @@
 """统一摄取队列仓储"""
 import hashlib
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional
+from typing import List, Optional, Set
 
 from sqlalchemy import func
 
@@ -55,29 +55,99 @@ class IngestionQueueRepository(BaseRepository):
         return self._to_domain(db_item)
 
     def dequeue(self, limit: int = 10) -> List[IngestionQueueItem]:
-        """出队（按 priority 降序 + created_at 升序）"""
-        db_items = (
-            self.db.query(IngestionQueueItemDB)
-            .filter(IngestionQueueItemDB.status == "pending")
-            .order_by(
-                IngestionQueueItemDB.priority.desc(),
-                IngestionQueueItemDB.created_at.asc(),
-            )
-            .limit(limit)
-            .all()
-        )
+        """出队（priority 优先，同优先级按来源公平轮询）"""
+        if limit <= 0:
+            return []
 
-        # 标记为 processing
         now = datetime.now(timezone.utc)
-        for db_item in db_items:
-            db_item.status = "processing"
-            db_item.processed_at = now
+        db_items = self._dequeue_fair(limit=limit, processing_time=now)
         self.db.flush()
 
         result = [self._to_domain(db_item) for db_item in db_items]
         if result:
             logger.info("Dequeued items", count=len(result))
         return result
+
+    def _dequeue_fair(
+        self,
+        limit: int,
+        processing_time: datetime,
+    ) -> List[IngestionQueueItemDB]:
+        """公平选择 pending 项，避免单一来源占满整个批次。"""
+        selected: List[IngestionQueueItemDB] = []
+        selected_ids: Set[str] = set()
+
+        priorities = [
+            row[0]
+            for row in (
+                self.db.query(IngestionQueueItemDB.priority)
+                .filter(IngestionQueueItemDB.status == "pending")
+                .distinct()
+                .order_by(IngestionQueueItemDB.priority.desc())
+                .all()
+            )
+        ]
+
+        for priority in priorities:
+            while len(selected) < limit:
+                oldest_created = func.min(IngestionQueueItemDB.created_at)
+                source_query = (
+                    self.db.query(
+                        IngestionQueueItemDB.source_type,
+                        oldest_created.label("oldest_created"),
+                    )
+                    .filter(
+                        IngestionQueueItemDB.status == "pending",
+                        IngestionQueueItemDB.priority == priority,
+                    )
+                )
+                if selected_ids:
+                    source_query = source_query.filter(
+                        ~IngestionQueueItemDB.item_id.in_(selected_ids)
+                    )
+
+                source_rows = (
+                    source_query.group_by(IngestionQueueItemDB.source_type)
+                    .order_by(oldest_created.asc(), IngestionQueueItemDB.source_type.asc())
+                    .all()
+                )
+                if not source_rows:
+                    break
+
+                made_progress = False
+                for source_type, _oldest in source_rows:
+                    if len(selected) >= limit:
+                        break
+
+                    item_query = (
+                        self.db.query(IngestionQueueItemDB)
+                        .filter(
+                            IngestionQueueItemDB.status == "pending",
+                            IngestionQueueItemDB.priority == priority,
+                            IngestionQueueItemDB.source_type == source_type,
+                        )
+                        .order_by(IngestionQueueItemDB.created_at.asc())
+                        .with_for_update(skip_locked=True)
+                    )
+                    if selected_ids:
+                        item_query = item_query.filter(
+                            ~IngestionQueueItemDB.item_id.in_(selected_ids)
+                        )
+
+                    db_item = item_query.first()
+                    if db_item is None:
+                        continue
+
+                    db_item.status = "processing"
+                    db_item.processed_at = processing_time
+                    selected.append(db_item)
+                    selected_ids.add(db_item.item_id)
+                    made_progress = True
+
+                if not made_progress:
+                    break
+
+        return selected
 
     def mark_completed(self, item_id: str) -> Optional[IngestionQueueItem]:
         """标记完成"""

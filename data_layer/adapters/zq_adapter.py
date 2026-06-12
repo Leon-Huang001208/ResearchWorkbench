@@ -44,6 +44,7 @@ class ZQAdapter(BaseDataAdapter):
         doc_type_list = [dt.strip() for dt in doc_types.split(",") if dt.strip()]
 
         envelopes = []
+        errors = []
 
         for doc_type in doc_type_list:
             try:
@@ -69,7 +70,10 @@ class ZQAdapter(BaseDataAdapter):
                     logger.warning(f"Unsupported ZQ doc type: {doc_type}")
             except Exception as e:
                 logger.error(f"Failed to fetch ZQ {doc_type}: {e}", exc_info=True)
+                errors.append(f"{doc_type}: {e}")
 
+        if errors and not envelopes:
+            raise RuntimeError("; ".join(errors))
         logger.info(f"Fetched {len(envelopes)} ZQ documents")
         return envelopes
 
@@ -107,8 +111,9 @@ class ZQAdapter(BaseDataAdapter):
         result = fetcher.fetch()
 
         if not result.get("success"):
-            logger.error(f"ZQ report fetch failed: {result.get('message')}")
-            return []
+            message = result.get("message") or "unknown error"
+            logger.error(f"ZQ report fetch failed: {message}")
+            raise RuntimeError(str(message))
 
         # Read output file
         output_file = None
@@ -119,7 +124,7 @@ class ZQAdapter(BaseDataAdapter):
 
         if not output_file:
             logger.warning("No output file from ZQ report fetcher")
-            return []
+            raise RuntimeError("No output file from ZQ report fetcher")
 
         return self._parse_json_output(output_file, "report")
 
@@ -152,8 +157,9 @@ class ZQAdapter(BaseDataAdapter):
         result = fetcher.fetch()
 
         if not result.get("success"):
-            logger.error(f"ZQ news fetch failed: {result.get('message')}")
-            return []
+            message = result.get("message") or "unknown error"
+            logger.error(f"ZQ news fetch failed: {message}")
+            raise RuntimeError(str(message))
 
         # Read output file
         output_file = None
@@ -164,7 +170,7 @@ class ZQAdapter(BaseDataAdapter):
 
         if not output_file:
             logger.warning("No output file from ZQ news fetcher")
-            return []
+            raise RuntimeError("No output file from ZQ news fetcher")
 
         return self._parse_json_output(output_file, "news")
 
@@ -197,8 +203,9 @@ class ZQAdapter(BaseDataAdapter):
         result = fetcher.fetch()
 
         if not result.get("success"):
-            logger.error(f"ZQ meeting fetch failed: {result.get('message')}")
-            return []
+            message = result.get("message") or "unknown error"
+            logger.error(f"ZQ meeting fetch failed: {message}")
+            raise RuntimeError(str(message))
 
         # Read output file
         output_file = None
@@ -209,7 +216,7 @@ class ZQAdapter(BaseDataAdapter):
 
         if not output_file:
             logger.warning("No output file from ZQ meeting fetcher")
-            return []
+            raise RuntimeError("No output file from ZQ meeting fetcher")
 
         return self._parse_json_output(output_file, "meeting")
 

@@ -15,6 +15,8 @@ Usage:
 from __future__ import annotations
 
 import json
+import re
+import time
 from datetime import datetime
 from typing import Any, Dict, List
 
@@ -57,7 +59,12 @@ class SzseMarketConnector(MarketDataConnector):
         super().__init__(config)
         self._timeout = self.config.get("timeout", 30)
         self._catalog_id = self.config.get("catalog_id", "1110")
+        self._max_pages = self.config.get("max_pages")
+        retry_config = self.config.get("retry", {}) or {}
+        self._max_retries = int(retry_config.get("max_retries", 3))
+        self._retry_base_delay = float(retry_config.get("base_delay", 0.5))
         self._session = requests.Session()
+        self._session.trust_env = bool(self.config.get("trust_env", False))
         self._session.headers.update(
             {
                 "User-Agent": (
@@ -92,24 +99,16 @@ class SzseMarketConnector(MarketDataConnector):
         尝试请求上市公司列表接口验证连通性。
         """
         try:
-            resp = self._session.get(
-                SZSE_LISTED_COMPANIES,
-                params={
+            self._get_json_with_retry(
+                {
                     "CATALOGID": self._catalog_id,
                     "TABKEY": "tab1",
                     "random": str(datetime.utcnow().timestamp()),
                 },
-                timeout=self._timeout,
+                context="health",
             )
-            if resp.status_code == 200:
-                self._health = HealthStatus.HEALTHY
-                return HealthStatus.HEALTHY
-            self._health = HealthStatus.DEGRADED
-            logger.warning(
-                "szse_health_http_error",
-                extra={"status_code": resp.status_code},
-            )
-            return HealthStatus.DEGRADED
+            self._health = HealthStatus.HEALTHY
+            return HealthStatus.HEALTHY
         except Exception as e:
             self._health = HealthStatus.UNAVAILABLE
             logger.error("szse_health_failed", extra={"error": str(e)}, exc_info=True)
@@ -197,15 +196,7 @@ class SzseMarketConnector(MarketDataConnector):
             text = raw.data
 
         data_raw = json.loads(text)
-        if isinstance(data_raw, dict):
-            # API returned a dict wrapper, try to extract the list
-            data = data_raw.get("data", data_raw.get("result", []))
-            if isinstance(data, dict):
-                data = [data]
-        elif isinstance(data_raw, list):
-            data = data_raw
-        else:
-            data = []
+        data = self._extract_rows(data_raw)
         item_type = raw.metadata.get("item_type", "listed_companies")
 
         if not data:
@@ -248,12 +239,15 @@ class SzseMarketConnector(MarketDataConnector):
         records: List[IngestionRecord] = []
 
         for row in table.rows:
-            # szse API 返回的字段映射
-            # 常见字段: zqdm (证券代码), zqjc (证券简称), ssrq (上市日期), zgb (总股本)
-            stock_code = row.get("zqdm", "") or row.get("code", "")
-            stock_name = row.get("zqjc", "") or row.get("name", "")
-            listing_date = row.get("ssrq", "") or row.get("listingDate", "")
-            total_shares = row.get("zgb", "") or row.get("totalShares", "")
+            # szse API 返回的字段映射。当前列表接口使用 ag* 字段，保留旧字段兜底。
+            stock_code = row.get("agdm", "") or row.get("zqdm", "") or row.get("code", "")
+            stock_name = self._clean_html_text(
+                row.get("agjc", "") or row.get("zqjc", "") or row.get("name", "")
+            )
+            listing_date = row.get("agssrq", "") or row.get("ssrq", "") or row.get("listingDate", "")
+            total_shares = row.get("agzgb", "") or row.get("zgb", "") or row.get("totalShares", "")
+            industry = row.get("sshymc", "") or row.get("industry", "")
+            board = row.get("bk", "") or row.get("board", "")
 
             # 构建 entity_id: 补齐后缀 .SZ
             if stock_code and not stock_code.endswith((".SZ", ".SH")):
@@ -287,6 +281,8 @@ class SzseMarketConnector(MarketDataConnector):
                     "listing_date": str(listing_date) if listing_date else "",
                     "total_shares": str(total_shares) if total_shares else "",
                     "exchange": "SZSE",
+                    "industry": industry,
+                    "board": board,
                     # 保留原始行数据用于后续扩展
                     "_raw_row": {k: str(v) for k, v in row.items() if v is not None},
                 },
@@ -306,32 +302,20 @@ class SzseMarketConnector(MarketDataConnector):
         params: CATALOGID=1110, TABKEY=tab1
         返回 JSON 数组，每项包含 zqdm（证券代码）、zqjc（证券简称）等字段.
         """
-        resp = self._session.get(
-            SZSE_LISTED_COMPANIES,
-            params={
-                "CATALOGID": self._catalog_id,
-                "TABKEY": "tab1",
-                "random": str(datetime.utcnow().timestamp()),
-            },
-            timeout=self._timeout,
-        )
-        resp.raise_for_status()
+        data = self._fetch_listed_page(1)
+        rows = self._extract_rows(data)
+        page_count = self._extract_page_count(data)
 
-        # szse API 返回的 JSON 结构可能是嵌套的
-        try:
-            data = resp.json()
-        except json.JSONDecodeError:
-            # 某些 szse 端点返回 HTML 包裹的 JSON
-            text = resp.text
-            start = text.find("[")
-            end = text.rfind("]") + 1
-            if start >= 0 and end > start:
-                data = json.loads(text[start:end])
-            else:
-                data = []
+        if self._max_pages is not None:
+            page_count = min(page_count, int(self._max_pages))
+
+        for page_no in range(2, page_count + 1):
+            rows.extend(self._extract_rows(self._fetch_listed_page(page_no)))
 
         serialized = json.dumps(
-            data if isinstance(data, list) else [data], ensure_ascii=False, default=str
+            rows,
+            ensure_ascii=False,
+            default=str,
         )
 
         return RawObject(
@@ -342,8 +326,20 @@ class SzseMarketConnector(MarketDataConnector):
                 "dataset": "listed_companies",
                 "item_type": "listed_companies",
                 "catalog_id": self._catalog_id,
-                "item_count": len(data) if isinstance(data, list) else 1,
+                "item_count": len(rows),
+                "page_count": page_count,
             },
+        )
+
+    def _fetch_listed_page(self, page_no: int) -> Any:
+        return self._get_json_with_retry(
+            {
+                "CATALOGID": self._catalog_id,
+                "TABKEY": "tab1",
+                "PAGENO": page_no,
+                "random": str(datetime.utcnow().timestamp()),
+            },
+            context=f"listed_companies_page_{page_no}",
         )
 
     def _fetch_company_info(self, item: DiscoveryItem) -> RawObject:
@@ -359,29 +355,15 @@ class SzseMarketConnector(MarketDataConnector):
         # 去掉 .SZ 后缀（szse API 用纯数字代码）
         raw_code = stock_code.replace(".SZ", "").replace(".sz", "")
 
-        resp = self._session.get(
-            SZSE_COMPANY_INFO,
-            params={
+        data = self._get_json_with_retry(
+            {
                 "CATALOGID": "1110x",
                 "TABKEY": "tab1",
                 "stockCode": raw_code,
                 "random": str(datetime.utcnow().timestamp()),
             },
-            timeout=self._timeout,
+            context=f"company_info_{raw_code}",
         )
-        resp.raise_for_status()
-
-        try:
-            data = resp.json()
-        except json.JSONDecodeError:
-            # szse API sometimes wraps JSON in HTML, use same extraction as _fetch_listed_companies
-            text = resp.text
-            start = text.find("[")
-            end = text.rfind("]") + 1
-            if start >= 0 and end > start:
-                data = json.loads(text[start:end])
-            else:
-                data = []
 
         serialized = json.dumps(
             data if isinstance(data, list) else [data], ensure_ascii=False, default=str
@@ -398,6 +380,132 @@ class SzseMarketConnector(MarketDataConnector):
                 "item_count": len(data) if isinstance(data, list) else 1,
             },
         )
+
+    def _persist_extra_records(self, records: List[IngestionRecord], repo: Any) -> int:
+        if not records or records[0].dataset != "listed_companies":
+            return 0
+
+        now = datetime.utcnow()
+        rows = []
+        for record in records:
+            payload = record.payload or {}
+            raw_row = payload.get("_raw_row", {})
+            symbol = record.entity_id or ""
+            raw_code = symbol.replace(".SZ", "")
+            name = payload.get("stock_name") or raw_row.get("agjc") or symbol
+            rows.append(
+                {
+                    "symbol": symbol,
+                    "raw_code": raw_code,
+                    "name": self._clean_html_text(str(name)),
+                    "exchange": "SZSE",
+                    "market": payload.get("board") or raw_row.get("bk"),
+                    "industry_level1": payload.get("industry") or raw_row.get("sshymc"),
+                    "industry_level2": None,
+                    "industry_level3": None,
+                    "list_date": self._parse_date(payload.get("listing_date")),
+                    "source": self.source,
+                    "updated_at": now,
+                }
+            )
+
+        return repo.upsert_stock_master_many(rows)
+
+    def _get_json_with_retry(self, params: Dict[str, Any], context: str) -> Any:
+        attempts = max(1, self._max_retries)
+        last_error: Exception | None = None
+
+        for attempt in range(1, attempts + 1):
+            try:
+                resp = self._session.get(
+                    SZSE_LISTED_COMPANIES,
+                    params=params,
+                    timeout=self._timeout,
+                )
+                resp.raise_for_status()
+                return self._decode_response_json(resp)
+            except (requests.RequestException, json.JSONDecodeError) as exc:
+                last_error = exc
+                if attempt >= attempts:
+                    break
+                delay = self._retry_base_delay * (2 ** (attempt - 1))
+                logger.warning(
+                    "szse_request_retry",
+                    extra={
+                        "context": context,
+                        "attempt": attempt,
+                        "max_retries": attempts,
+                        "delay": delay,
+                        "error": str(exc),
+                    },
+                )
+                if delay > 0:
+                    time.sleep(delay)
+
+        assert last_error is not None
+        raise last_error
+
+    @staticmethod
+    def _decode_response_json(resp: requests.Response) -> Any:
+        try:
+            return resp.json()
+        except json.JSONDecodeError:
+            text = resp.text
+            start = text.find("[")
+            end = text.rfind("]") + 1
+            if start >= 0 and end > start:
+                return json.loads(text[start:end])
+            return []
+
+    @staticmethod
+    def _extract_rows(data_raw: Any) -> List[Dict[str, Any]]:
+        if isinstance(data_raw, dict):
+            data = data_raw.get("data", data_raw.get("result", []))
+            if isinstance(data, dict):
+                return [data]
+            return data if isinstance(data, list) else []
+
+        if not isinstance(data_raw, list):
+            return []
+
+        rows: List[Dict[str, Any]] = []
+        for item in data_raw:
+            if isinstance(item, dict) and isinstance(item.get("data"), list):
+                rows.extend(row for row in item["data"] if isinstance(row, dict))
+            elif isinstance(item, dict) and ("agdm" in item or "zqdm" in item or "code" in item):
+                rows.append(item)
+        return rows
+
+    @staticmethod
+    def _extract_page_count(data_raw: Any) -> int:
+        if not isinstance(data_raw, list):
+            return 1
+        for item in data_raw:
+            if not isinstance(item, dict):
+                continue
+            metadata = item.get("metadata") or {}
+            if metadata.get("tabkey") == "tab1":
+                try:
+                    return max(1, int(metadata.get("pagecount") or 1))
+                except (TypeError, ValueError):
+                    return 1
+        return 1
+
+    @staticmethod
+    def _clean_html_text(value: str) -> str:
+        text = re.sub(r"<[^>]+>", "", value or "")
+        return text.replace("&nbsp;", " ").strip()
+
+    @staticmethod
+    def _parse_date(value: Any) -> datetime | None:
+        if not value:
+            return None
+        if isinstance(value, datetime):
+            return value
+        try:
+            return datetime.strptime(str(value)[:10], "%Y-%m-%d")
+        except ValueError:
+            return None
 
     # persist() 由 MarketDataConnector 基类提供（模板方法）
     # _format_date() / _to_decimal() / _parse_date() 由 MarketDataConnector 基类提供

@@ -56,17 +56,19 @@ def _make_item(
     title: str | None = None,
     priority: int = 0,
     max_retries: int = 3,
+    created_at: datetime | None = None,
+    item_id: str | None = None,
 ) -> IngestionQueueItem:
     """创建测试队列项"""
     return IngestionQueueItem(
-        item_id=f"item-{source_type}-{raw_content[:8]}",
+        item_id=item_id or f"item-{source_type}-{raw_content[:8]}",
         source_type=source_type,
         source_id=source_id,
         raw_content=raw_content,
         title=title,
         priority=priority,
         max_retries=max_retries,
-        created_at=datetime.now(timezone.utc),
+        created_at=created_at or datetime.now(timezone.utc),
     )
 
 
@@ -126,6 +128,35 @@ class TestIngestionQueueRepository:
         assert items[0].priority == 2
         assert items[1].priority == 1
         assert items[2].priority == 0
+
+    def test_dequeue_spreads_batch_across_sources_with_same_priority(self, repo):
+        """同优先级积压时，一个来源不能占满整个批次"""
+        from datetime import timedelta
+
+        base = datetime(2026, 6, 10, tzinfo=timezone.utc)
+        for i in range(5):
+            repo.enqueue(
+                _make_item(
+                    source_type="zhiqiu_reports",
+                    raw_content=f"old-report-{i}",
+                    item_id=f"old-report-{i}",
+                    created_at=base + timedelta(seconds=i),
+                )
+            )
+        for i in range(2):
+            repo.enqueue(
+                _make_item(
+                    source_type="cls",
+                    raw_content=f"new-cls-{i}",
+                    item_id=f"new-cls-{i}",
+                    created_at=base + timedelta(minutes=10, seconds=i),
+                )
+            )
+
+        items = repo.dequeue(limit=4)
+
+        assert len(items) == 4
+        assert {item.source_type for item in items} == {"zhiqiu_reports", "cls"}
 
     def test_dequeue_marks_processing(self, repo):
         """出队后状态变为 processing"""

@@ -37,9 +37,13 @@ logger = get_logger(__name__)
 
 # csindex API 端点
 CSINDEX_BASE = "https://www.csindex.com.cn"
-CSINDEX_INDEX_LIST = f"{CSINDEX_BASE}/csindex-home/index-list/query-index-list"
-CSINDEX_COMPONENTS = f"{CSINDEX_BASE}/csindex-home/index-component/component-list"
-CSINDEX_DETAIL = f"{CSINDEX_BASE}/csindex-home/index-detail/detail"
+CSINDEX_SAMPLE_TRADE_DATE = (
+    f"{CSINDEX_BASE}/csindex-home/indexInfo/index-sample-information-trade-date-new"
+)
+CSINDEX_TOP10_WEIGHT = f"{CSINDEX_BASE}/csindex-home/index/weight/top10new"
+CSINDEX_BASIC_INFO = f"{CSINDEX_BASE}/csindex-home/indexInfo/index-basic-info"
+CSINDEX_INDEX_FEATURE = f"{CSINDEX_BASE}/csindex-home/indexInfo/index-feature"
+CSINDEX_YIELD_ITEM = f"{CSINDEX_BASE}/csindex-home/perf/get-index-yield-item"
 
 # 常用指数代码
 COMMON_INDICES = {
@@ -72,6 +76,7 @@ class CsindexMarketConnector(MarketDataConnector):
         super().__init__(config)
         self._timeout = self.config.get("timeout", 30)
         self._session = requests.Session()
+        self._session.trust_env = bool(self.config.get("trust_env", False))
         self._session.headers.update(
             {
                 "User-Agent": (
@@ -106,11 +111,7 @@ class CsindexMarketConnector(MarketDataConnector):
         尝试请求指数列表接口验证连通性。
         """
         try:
-            resp = self._session.get(
-                f"{CSINDEX_BASE}/csindex-home/index-list/query-index-list",
-                params={"pageNum": 1, "pageSize": 1},
-                timeout=self._timeout,
-            )
+            resp = self._session.get(CSINDEX_SAMPLE_TRADE_DATE, timeout=self._timeout)
             if resp.status_code == 200:
                 self._health = HealthStatus.HEALTHY
                 return HealthStatus.HEALTHY
@@ -212,12 +213,8 @@ class CsindexMarketConnector(MarketDataConnector):
         item_type = raw.metadata.get("item_type", "index_constituents")
 
         if item_type == "index_constituents":
-            result = (
-                data.get("data", {}).get("result", [])
-                if isinstance(data.get("data"), dict)
-                else data.get("result", [])
-            )
-            rows = result if result is not None else []
+            payload = data.get("data", {}) if isinstance(data.get("data"), dict) else {}
+            rows = payload.get("weightList", [])
         elif item_type == "index_valuation":
             detail = data.get("data", {}) if isinstance(data.get("data"), dict) else {}
             if not detail and isinstance(data, dict):
@@ -260,11 +257,16 @@ class CsindexMarketConnector(MarketDataConnector):
             for row in table.rows:
                 payload = IndexPayload(
                     index_code=index_code,
-                    index_name=row.get("indexName", "") or row.get("indexNameCN", ""),
+                    index_name=(
+                        row.get("indexName")
+                        or row.get("indexNameCN")
+                        or row.get("indexNameCn")
+                        or row.get("indexNameEn")
+                    ),
                     index_pe=self._safe_float(row.get("pe", row.get("pe_ttm"))),
                     index_pb=self._safe_float(row.get("pb")),
                     dividend_yield=self._safe_float(row.get("dividendYield", row.get("dyr"))),
-                    as_of=row.get("tradeDate", row.get("asOf", "")),
+                    as_of=self._format_csindex_date(row.get("endDate", row.get("tradeDate", ""))),
                 )
                 records.append(
                     IngestionRecord(
@@ -280,23 +282,34 @@ class CsindexMarketConnector(MarketDataConnector):
                     )
                 )
         elif dataset == "index_constituents":
-            # 成分股数据 — 聚合成单条 IndexPayload
+            # 当前官网公开接口提供指数详情页十大权重，作为官方权重成分样本保存。
             constituents = []
             for row in table.rows:
                 constituents.append(
                     {
-                        "entity_id": row.get("instrumentId", ""),
-                        "name": row.get("instrumentName", ""),
+                        "entity_id": self._format_security_symbol(
+                            row.get("securityCode", ""),
+                            row.get("marketNameCn", row.get("marketName", "")),
+                        ),
+                        "name": row.get("securityName", ""),
+                        "name_en": row.get("securityNameEn", ""),
                         "weight": self._safe_float(row.get("weight")),
-                        "market_cap": self._safe_float(row.get("marketValue")),
+                        "market": row.get("marketNameCn", row.get("marketName", "")),
+                        "rank": self._safe_int(row.get("rowNum")),
                     }
                 )
+
+            as_of = ""
+            if table.rows:
+                as_of = self._format_csindex_date(table.rows[0].get("tradeDate"))
+            if not as_of:
+                as_of = self._format_csindex_date(table.metadata.get("update_date"))
 
             payload = IndexPayload(
                 index_code=index_code,
                 index_name=COMMON_INDICES.get(index_code, ""),
                 constituents=constituents,
-                as_of=str(datetime.utcnow().date()),
+                as_of=as_of or str(datetime.utcnow().date()),
             )
             records.append(
                 IngestionRecord(
@@ -319,22 +332,20 @@ class CsindexMarketConnector(MarketDataConnector):
     # ------------------------------------------------------------------
 
     def _fetch_constituents(self, index_code: str) -> RawObject:
-        """获取指数成分股列表."""
-        params: dict[str, str | int] = {
-            "indexCode": index_code,
-            "pageNum": 1,
-            "pageSize": 500,
-        }
+        """获取指数官方十大权重样本.
+
+        中证官网旧的 component-list API 已下线；当前指数详情页公开暴露的是
+        /index/weight/top10new/{indexCode}，返回十大权重与更新日期。
+        """
         resp = self._session.get(
-            CSINDEX_COMPONENTS,
-            params=params,
+            f"{CSINDEX_TOP10_WEIGHT}/{index_code}",
             timeout=self._timeout,
         )
         resp.raise_for_status()
         data = resp.json()
 
         serialized = json.dumps(data, ensure_ascii=False, default=str)
-        source_uri = f"csindex://constituents/{index_code}"
+        source_uri = f"csindex://constituents/{index_code}/top10"
 
         return RawObject(
             data=serialized,
@@ -344,14 +355,17 @@ class CsindexMarketConnector(MarketDataConnector):
                 "index_code": index_code,
                 "dataset": "index_constituents",
                 "item_type": "index_constituents",
+                "source_scope": "top10_weight",
+                "update_date": self._format_csindex_date(
+                    data.get("data", {}).get("updateDate") if isinstance(data, dict) else None
+                ),
             },
         )
 
     def _fetch_valuation(self, index_code: str) -> RawObject:
-        """获取指数估值数据."""
+        """获取指数收益/估值概览数据."""
         resp = self._session.get(
-            CSINDEX_DETAIL,
-            params={"indexCode": index_code},
+            f"{CSINDEX_YIELD_ITEM}/{index_code}",
             timeout=self._timeout,
         )
         resp.raise_for_status()
@@ -371,6 +385,31 @@ class CsindexMarketConnector(MarketDataConnector):
             },
         )
 
+    def _persist_extra_records(self, records: List[IngestionRecord], repo: Any) -> int:
+        if not records:
+            return 0
+
+        rows = []
+        for record in records:
+            if record.dataset != "index_constituents":
+                continue
+            payload = record.payload or {}
+            as_of = self._parse_date(payload.get("as_of"))
+            for component in payload.get("constituents", []):
+                rows.append(
+                    {
+                        "index_symbol": payload.get("index_code") or record.entity_id,
+                        "component_symbol": component.get("entity_id", ""),
+                        "component_name": component.get("name"),
+                        "weight": self._safe_float(component.get("weight")),
+                        "as_of": as_of,
+                        "source": self.source,
+                        "raw_payload": component,
+                    }
+                )
+
+        return repo.upsert_index_components(rows)
+
     @staticmethod
     def _safe_float(value: Any) -> Optional[float]:
         """安全转换为 float."""
@@ -380,6 +419,47 @@ class CsindexMarketConnector(MarketDataConnector):
             return float(value)
         except (ValueError, TypeError):
             return None
+
+    @staticmethod
+    def _safe_int(value: Any) -> Optional[int]:
+        if value in (None, ""):
+            return None
+        try:
+            return int(value)
+        except (ValueError, TypeError):
+            return None
+
+    @staticmethod
+    def _format_security_symbol(code: str, market_name: str) -> str:
+        if not code:
+            return ""
+        code = str(code)
+        if code.endswith((".SH", ".SZ", ".BJ")):
+            return code
+        if "深圳" in str(market_name) or code.startswith(("0", "2", "3")):
+            return f"{code}.SZ"
+        if "上海" in str(market_name) or code.startswith(("5", "6", "9")):
+            return f"{code}.SH"
+        return code
+
+    @staticmethod
+    def _format_csindex_date(value: Any) -> str:
+        if not value:
+            return ""
+        text = str(value)
+        if len(text) == 8 and text.isdigit():
+            return f"{text[:4]}-{text[4:6]}-{text[6:8]}"
+        return text[:10]
+
+    @staticmethod
+    def _parse_date(value: Any) -> datetime:
+        formatted = CsindexMarketConnector._format_csindex_date(value)
+        if not formatted:
+            return datetime.utcnow()
+        try:
+            return datetime.strptime(formatted, "%Y-%m-%d")
+        except ValueError:
+            return datetime.utcnow()
 
     # persist() 由 MarketDataConnector 基类提供（模板方法）
     # _format_date() / _to_decimal() / _parse_date() 由 MarketDataConnector 基类提供

@@ -20,8 +20,8 @@ logger = get_logger(__name__)
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 
 POLL_INTERVAL = float(os.environ.get("KNOWLEDGE_WORKER_POLL_INTERVAL", "1"))
-BATCH_SIZE = int(os.environ.get("KNOWLEDGE_WORKER_BATCH_SIZE", "5"))
-MAX_CONCURRENCY = int(os.environ.get("KNOWLEDGE_WORKER_MAX_CONCURRENCY", "5"))
+BATCH_SIZE = int(os.environ.get("KNOWLEDGE_WORKER_BATCH_SIZE", "10"))
+MAX_CONCURRENCY = int(os.environ.get("KNOWLEDGE_WORKER_MAX_CONCURRENCY", "8"))
 SHUTDOWN_TIMEOUT = int(os.environ.get("KNOWLEDGE_WORKER_SHUTDOWN_TIMEOUT", "60"))
 MAX_BACKOFF = float(os.environ.get("KNOWLEDGE_WORKER_MAX_BACKOFF", "60"))
 ITEM_PROCESSING_TIMEOUT = float(os.environ.get("KNOWLEDGE_WORKER_ITEM_TIMEOUT", "300"))

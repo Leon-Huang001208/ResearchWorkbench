@@ -11,7 +11,7 @@ register(
             "source_type": "zhiqiu_reports",
             "doc_types": "REPORT",
             "use_homepage_search": False,
-            "enable_pdf": True,
+            "enable_pdf": False,
         },
         connector_dataset="report",
         pipeline_kind="document",

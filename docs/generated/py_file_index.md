@@ -4542,14 +4542,18 @@ Classes:
 
 Functions:
 - `_is_cache_valid`
+- `_is_cache_stale`
+  - 缓存是否过期但仍在可容忍范围内（用于刷新失败时兜底）
+- `_fetch_with_retry`
+  - 带重试的 AKShare 板块数据获取
 - `fetch_sector_board`
   - 获取同花顺行业板块实时行情（带缓存）
 - `get_last_fetch_time`
   - 获取板块数据最后获取时间（Unix timestamp），用于前端显示数据日期
 - `get_top_gainers`
-  - 获取涨幅最高的板块
+  - 获取涨幅最高的板块（仅返回 change_pct > 0 的上涨板块）
 - `get_top_losers`
-  - 获取跌幅最高的板块
+  - 获取跌幅最高的板块（仅返回 change_pct < 0 的下跌板块）
 
 
 ## `data_layer/crawlers/akshare/config.py`
@@ -10351,6 +10355,28 @@ Functions:
 - `main`
 
 
+## `scripts/merge_huaan_layout_with_native_charts.py`
+
+Module docstring:
+> Merge Huaan Word original layout with native Office chart objects.
+
+Imports:
+- `__future__`
+- `logging`
+- `lxml`
+- `pathlib`
+- `shutil`
+- `tempfile`
+- `zipfile`
+
+Functions:
+- `_read_xml`
+- `_write_xml`
+- `_replace_zip_entries`
+- `merge_layout_with_native_charts`
+  - Create a docx preserving layout_template and replacing chart images.
+
+
 ## `scripts/minimal_reingest_bootstrap.py`
 
 Module docstring:
@@ -10469,6 +10495,31 @@ Functions:
 - `phase4_regenerate_artifacts`
   - Phase 4: Regenerate replay, calibration, portfolio, and simulation state.
 - `main`
+
+
+## `scripts/replace_huaan_word_charts_office.py`
+
+Module docstring:
+> Replace Huaan weekly report chart images using native Excel -> Word paste.
+
+Imports:
+- `__future__`
+- `pathlib`
+- `shutil`
+- `subprocess`
+- `sys`
+- `time`
+
+Functions:
+- `_run_osascript`
+- `_apple_quote`
+- `_wait_for_word_document`
+  - Grant file access when Word asks for macOS sandbox permission.
+- `_open_word_document`
+- `_open_excel_workbook`
+- `_replace_one_chart`
+- `replace_charts_with_office`
+  - Create a Word document whose chart placeholders are native Office charts.
 
 
 ## `scripts/reset_demo.py`
@@ -10608,7 +10659,6 @@ Module docstring:
 Imports:
 - `__future__`
 - `copy`
-- `core.observability`
 - `pathlib`
 - `shutil`
 - `sys`
@@ -10622,8 +10672,11 @@ Functions:
 - `_write_entries`
 - `_relationship_target_map`
 - `_next_relationship_id`
+- `_next_part_relationship_id`
 - `_ensure_chart_relationship`
 - `_ensure_content_type`
+- `_ensure_external_workbook_link`
+  - Make a Word chart editable by linking its chart part to the source workbook.
 - `_ensure_override_content_type`
 - `_ensure_related_part_content_types`
 - `_find_image_rel_id`

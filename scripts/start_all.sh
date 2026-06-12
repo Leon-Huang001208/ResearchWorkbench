@@ -8,6 +8,11 @@ LOGS_DIR="$PROJECT_DIR/logs"
 mkdir -p "$LOGS_DIR"
 cd "$PROJECT_DIR"
 
+# The desktop shell may export a local proxy (for example 127.0.0.1:7890).
+# If that proxy is not running, crawler requests fail before reaching sources.
+unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY all_proxy ALL_PROXY
+export NO_PROXY="*"
+
 echo "=========================================="
 echo "  AlphaFoundry - Starting All Services"
 echo "=========================================="
@@ -105,47 +110,12 @@ start_with_watchdog() {
     shift 3
     local cmd=("$@")
 
-    (
-        local crash_count=0
-        local crash_window_start=0
-        local watchdog_pid_file="$pid_file.watchdog"
-        echo $BASHPID > "$watchdog_pid_file"
-
-        while true; do
-            # Start the worker
-            "${cmd[@]}" >> "$log_file" 2>&1 &
-            local worker_pid=$!
-            echo "$worker_pid" > "$pid_file"
-            echo "[$(date '+%H:%M:%S')] [$name] Started (PID $worker_pid)"
-
-            # Wait for it to exit
-            wait "$worker_pid" 2>/dev/null
-            local exit_code=$?
-
-            local now
-            now=$(date +%s)
-
-            # Fast crash detection
-            if [ "$crash_window_start" -eq 0 ] || [ $((now - crash_window_start)) -gt 300 ]; then
-                crash_window_start=$now
-                crash_count=1
-            else
-                crash_count=$((crash_count + 1))
-            fi
-
-            echo "[$(date '+%H:%M:%S')] [$name] Exited (code=$exit_code), crash #$crash_count in window"
-
-            if [ "$crash_count" -ge 3 ]; then
-                echo "[$(date '+%H:%M:%S')] [$name] CRITICAL: 3 crashes in 5min, stopping auto-restart!"
-                echo "[$(date '+%H:%M:%S')] [$name] CRITICAL: 3 crashes in 5min!" >> "$log_file"
-                rm -f "$pid_file" "$watchdog_pid_file"
-                exit 1
-            fi
-
-            sleep 3
-        done
-    ) &
-    disown
+    python "$PROJECT_DIR/scripts/daemonize.py" \
+        --cwd "$PROJECT_DIR" \
+        --pid-file "$pid_file.watchdog" \
+        --stdout "$log_file" \
+        --stderr "$log_file" \
+        -- "$PROJECT_DIR/scripts/watchdog_worker.sh" "$name" "$pid_file" "$log_file" "${cmd[@]}"
 }
 
 echo ""
@@ -153,9 +123,12 @@ echo "[1/3] Starting API server..."
 if [ -f "$LOGS_DIR/api.pid" ] && kill -0 "$(cat "$LOGS_DIR/api.pid")" 2>/dev/null; then
     echo "  [WARN] API server already running (PID $(cat "$LOGS_DIR/api.pid"))"
 else
-    nohup python -m uvicorn app.api.main:app --host 127.0.0.1 --port 8000 \
-        > "$LOGS_DIR/api.log" 2>&1 &
-    echo $! > "$LOGS_DIR/api.pid"
+    python "$PROJECT_DIR/scripts/daemonize.py" \
+        --cwd "$PROJECT_DIR" \
+        --pid-file "$LOGS_DIR/api.pid" \
+        --stdout "$LOGS_DIR/api.log" \
+        --stderr "$LOGS_DIR/api.log" \
+        -- python -m uvicorn app.api.main:app --host 127.0.0.1 --port 8000
     echo "  [OK] API server started (PID $(cat "$LOGS_DIR/api.pid"))"
 fi
 

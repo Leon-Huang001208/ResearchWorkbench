@@ -114,6 +114,26 @@ class ReportProjectChartService:
         for chart_id, config in chart_configs.items():
             if not isinstance(config, dict) or not config.get("enabled", True):
                 continue
+            replace = _dict_config(config.get("replace"))
+            if replace.get("kind") == "native_chart":
+                images.append(
+                    GeneratedChartImage(
+                        chart_id=str(chart_id),
+                        title=str(config.get("title") or chart_id),
+                        image_bytes=b"",
+                        replace=replace,
+                        info=GeneratedChartInfo(
+                            chart_id=str(chart_id),
+                            title=str(config.get("title") or chart_id),
+                            workbook=str(config.get("workbook") or ""),
+                            source_chart=str(config.get("source_chart") or ""),
+                            replace_kind="native_chart",
+                            point_count=0,
+                            warnings=[],
+                        ),
+                    )
+                )
+                continue
             try:
                 images.append(self._generate_chart(project, str(chart_id), config))
             except Exception as exc:

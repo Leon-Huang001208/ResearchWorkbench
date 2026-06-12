@@ -16,8 +16,10 @@ from pydantic import BaseModel, Field
 
 from core.observability import get_logger
 from reporting.projects.chart_generation import ReportProjectChartService
-from reporting.projects.generation import ReportProjectGenerationService
+from reporting.projects.generation import ReportProjectGenerationService, compute_report_period
+from reporting.projects.keyword_profiles import keyword_profiles_for_api
 from reporting.projects.project_manager import ReportProject, ReportProjectManager
+from reporting.projects.table_generation import build_project_tables
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/report-projects", tags=["report-projects"])
@@ -44,6 +46,16 @@ class ExcelSheetInfo(BaseModel):
     sample_cells: List[str] = Field(default_factory=list)
 
 
+class DataAssetInfo(BaseModel):
+    """Project data-folder asset summary."""
+
+    file_name: str
+    relative_path: str
+    kind: str
+    usage: str
+    is_primary: bool = False
+
+
 class ReportProjectInfo(BaseModel):
     """Report project summary for the frontend."""
 
@@ -59,10 +71,12 @@ class ReportProjectInfo(BaseModel):
     prompt_templates_path: str | None = None
     prompt_templates_filename: str | None = None
     data_source_files: List[str] = Field(default_factory=list)
+    data_assets: List[DataAssetInfo] = Field(default_factory=list)
     word_placeholders: List[str] = Field(default_factory=list)
     section_config: Dict[str, Any] = Field(default_factory=dict)
     section_config_source: str = ""
     prompt_templates_source: str = ""
+    keyword_profiles: Dict[str, Any] = Field(default_factory=dict)
     excel_sheets: List[ExcelSheetInfo] = Field(default_factory=list)
     output_dir: str
     run_log_dir: str
@@ -82,6 +96,7 @@ class RenderReportProjectRequest(BaseModel):
     placeholders: Dict[str, str] = Field(default_factory=dict)
     generate_from_config: bool = True
     lookback_days: int = Field(default=7, ge=1, le=90)
+    report_date: str | None = None
 
 
 class UpdateReportProjectRequest(BaseModel):
@@ -107,6 +122,7 @@ class RenderReportProjectResponse(BaseModel):
     file_path: str
     download_url: str
     preview_url: str
+    run_log_url: str
     generated_at: datetime
     generated_placeholder_count: int = 0
     evidence_count: int = 0
@@ -283,6 +299,7 @@ async def render_report_project(slug: str, request: RenderReportProjectRequest):
         project = report_project_manager.get_project(slug)
         section_config, _ = _read_section_config(project.section_config_path)
         prompt_templates_source = _read_prompt_templates(project.prompt_templates_path)
+        report_period = compute_report_period(request.report_date)
 
         if request.generate_from_config:
             generation_result = report_generation_service.generate_placeholders(
@@ -291,6 +308,7 @@ async def render_report_project(slug: str, request: RenderReportProjectRequest):
                 prompt_templates_source=prompt_templates_source,
                 manual_placeholders=request.placeholders,
                 lookback_days=request.lookback_days,
+                report_date=request.report_date,
             )
             placeholder_map = generation_result.placeholders
             generated_sections = generation_result.sections
@@ -306,12 +324,18 @@ async def render_report_project(slug: str, request: RenderReportProjectRequest):
         file_name = f"{timestamp}_{safe_project_name}.docx"
         output_path = project.output_dir / file_name
 
+        tables, table_infos = build_project_tables(
+            project=project,
+            section_config=section_config,
+        )
+
         projection = WordProjection()
         projection.save_from_template(
             output_path=output_path,
             template_path=project.word_template_path,
             sections=[],
             placeholders=placeholder_map,
+            tables=tables,
         )
         chart_infos = report_chart_service.generate_and_embed(
             project=project,
@@ -335,6 +359,10 @@ async def render_report_project(slug: str, request: RenderReportProjectRequest):
             "manual_placeholder_count": len(request.placeholders),
             "generate_from_config": request.generate_from_config,
             "lookback_days": request.lookback_days,
+            "report_period": {
+                "start_date": report_period.start_date,
+                "end_date": report_period.end_date,
+            },
             "generation": {
                 "sections": [
                     {
@@ -347,6 +375,10 @@ async def render_report_project(slug: str, request: RenderReportProjectRequest):
                         "provider": section.provider,
                         "tokens_used": section.tokens_used,
                         "warnings": section.warnings,
+                        "retrieval_config": _serialize_retrieval_config(
+                            section.retrieval_config
+                        ),
+                        "evidence": [_serialize_evidence(item) for item in section.evidence],
                     }
                     for section in generated_sections
                 ],
@@ -364,6 +396,7 @@ async def render_report_project(slug: str, request: RenderReportProjectRequest):
                 }
                 for chart in chart_infos
             ],
+            "tables": table_infos,
         }
         run_path = project.run_log_dir / f"{timestamp}.json"
         run_path.write_text(
@@ -379,6 +412,7 @@ async def render_report_project(slug: str, request: RenderReportProjectRequest):
         )
 
         chart_warnings = [warning for chart in chart_infos for warning in chart.warnings]
+        table_warnings = [warning for table in table_infos for warning in table["warnings"]]
 
         return RenderReportProjectResponse(
             success=True,
@@ -388,12 +422,14 @@ async def render_report_project(slug: str, request: RenderReportProjectRequest):
             file_path=str(output_path),
             download_url=f"/api/report-projects/{project.slug}/download/{file_name}",
             preview_url=f"/api/report-projects/{project.slug}/preview/{file_name}",
+            run_log_url=f"/api/report-projects/{project.slug}/runs/{run_path.name}",
             generated_at=generated_at,
             generated_placeholder_count=len(placeholder_map),
             evidence_count=sum(section.evidence_count for section in generated_sections),
             warnings=generation_warnings
             + [warning for section in generated_sections for warning in section.warnings]
-            + chart_warnings,
+            + chart_warnings
+            + table_warnings,
         )
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"Report project not found: {slug}")
@@ -412,7 +448,10 @@ async def preview_report_project_file(slug: str, file_name: str):
             raise HTTPException(status_code=400, detail="Invalid generated report file name")
         if not output_path.exists():
             raise HTTPException(status_code=404, detail=f"Generated report not found: {file_name}")
-        return HTMLResponse(_docx_to_preview_html(output_path))
+        return HTMLResponse(
+            _docx_to_preview_html(output_path),
+            media_type="text/html; charset=utf-8",
+        )
     except HTTPException:
         raise
     except FileNotFoundError:
@@ -447,6 +486,26 @@ async def download_report_project_file(slug: str, file_name: str):
         raise HTTPException(status_code=500, detail=f"Failed to download report: {exc}")
 
 
+@router.get("/{slug}/runs/{file_name}", summary="获取报告项目生成日志")
+async def get_report_project_run_log(slug: str, file_name: str) -> Dict[str, Any]:
+    """Return one report project run log JSON."""
+    try:
+        project = report_project_manager.get_project(slug)
+        run_path = project.run_log_dir / file_name
+        if run_path.parent.resolve() != project.run_log_dir.resolve():
+            raise HTTPException(status_code=400, detail="Invalid run log file name")
+        if not run_path.exists():
+            raise HTTPException(status_code=404, detail=f"Run log not found: {file_name}")
+        return json.loads(run_path.read_text(encoding="utf-8"))
+    except HTTPException:
+        raise
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Report project not found: {slug}")
+    except Exception as exc:
+        logger.exception("Failed to read report project run log", slug=slug, file_name=file_name)
+        raise HTTPException(status_code=500, detail=f"Failed to read run log: {exc}")
+
+
 def _to_project_info(project: ReportProject) -> ReportProjectInfo:
     section_config, section_config_source = _read_section_config(project.section_config_path)
     prompt_templates_source = _read_prompt_templates(project.prompt_templates_path)
@@ -467,15 +526,98 @@ def _to_project_info(project: ReportProject) -> ReportProjectInfo:
         if project.prompt_templates_path
         else None,
         data_source_files=[path.name for path in project.data_source_paths],
+        data_assets=_list_project_data_assets(project, section_config),
         word_placeholders=_extract_docx_placeholders(project.word_template_path),
         section_config=section_config,
         section_config_source=section_config_source,
         prompt_templates_source=prompt_templates_source,
+        keyword_profiles=keyword_profiles_for_api(),
         excel_sheets=_summarize_excel_workbook(project.excel_workbook_path),
         output_dir=str(project.output_dir),
         run_log_dir=str(project.run_log_dir),
         generated_reports=[_to_generated_report_info(path) for path in project.generated_reports],
     )
+
+
+def _list_project_data_assets(
+    project: ReportProject, section_config: Dict[str, Any]
+) -> List[DataAssetInfo]:
+    """Return every file in the project data directory with a user-facing role."""
+    data_dir = project.project_dir / "data"
+    if not data_dir.exists():
+        return []
+
+    config_assets = section_config.get("assets") or {}
+    chart_workbooks = {
+        str(chart.get("workbook") or "")
+        for chart in (section_config.get("charts") or {}).values()
+        if isinstance(chart, dict)
+    }
+    table_workbooks = {
+        str(table.get("workbook") or "")
+        for table in (section_config.get("tables") or {}).values()
+        if isinstance(table, dict)
+    }
+    configured_chart_workbook = str(config_assets.get("chart_workbook") or "")
+    if configured_chart_workbook:
+        chart_workbooks.add(configured_chart_workbook)
+
+    assets: List[DataAssetInfo] = []
+    for path in sorted(data_dir.iterdir(), key=lambda item: item.name):
+        if not path.is_file() or path.name.startswith("~$") or path.name.startswith("."):
+            continue
+        kind, usage = _classify_data_asset(
+            path=path,
+            project=project,
+            chart_workbooks=chart_workbooks,
+            table_workbooks=table_workbooks,
+        )
+        assets.append(
+            DataAssetInfo(
+                file_name=path.name,
+                relative_path=str(path.relative_to(project.project_dir)),
+                kind=kind,
+                usage=usage,
+                is_primary=path.resolve() == project.excel_workbook_path.resolve(),
+            )
+        )
+    return sorted(assets, key=lambda item: (_data_asset_sort_key(item), item.file_name))
+
+
+def _classify_data_asset(
+    path: Path,
+    project: ReportProject,
+    chart_workbooks: set[str],
+    table_workbooks: set[str],
+) -> tuple[str, str]:
+    """Classify a data-folder file for the template workbench."""
+    suffix = path.suffix.lower()
+    if path.resolve() == project.excel_workbook_path.resolve():
+        return "primary_excel", "主 Excel 底稿"
+    if path.name in chart_workbooks:
+        return "chart_workbook", "图表底稿"
+    if path.name in table_workbooks:
+        return "table_workbook", "表格底稿"
+    if suffix == ".json":
+        return "query_json", "检索 Query / 旧数据源"
+    if suffix in {".xlsx", ".xlsm"}:
+        return "workbook", "配套 Excel"
+    if suffix in {".png", ".jpg", ".jpeg"}:
+        return "image", "配套图片"
+    return "file", "配套文件"
+
+
+def _data_asset_sort_key(asset: DataAssetInfo) -> int:
+    order = {
+        "primary_excel": 0,
+        "chart_workbook": 1,
+        "table_workbook": 2,
+        "workbook": 3,
+        "query_json": 4,
+        "image": 5,
+        "file": 6,
+    }
+    return order.get(asset.kind, 99)
 
 
 def _attach_prompt_templates(project_dir: Path, prompt_path: Path) -> None:
@@ -487,6 +629,50 @@ def _attach_prompt_templates(project_dir: Path, prompt_path: Path) -> None:
         yaml.safe_dump(data, allow_unicode=True, sort_keys=False),
         encoding="utf-8",
     )
+
+
+def _serialize_retrieval_config(config: Any) -> Dict[str, Any] | None:
+    """Serialize retrieval controls into run logs."""
+    if config is None:
+        return None
+    return {
+        "mode": config.mode,
+        "top_k": config.top_k,
+        "candidate_k": config.candidate_k,
+        "must_any": config.must_any,
+        "exclude": config.exclude,
+        "source_types": config.source_types,
+        "min_keyword_score": config.min_keyword_score,
+        "fusion_method": config.fusion_method,
+        "keyword_weight": config.keyword_weight,
+        "semantic_weight": config.semantic_weight,
+        "rrf_k": config.rrf_k,
+        "semantic_candidate_k": config.semantic_candidate_k,
+        "rerank_enabled": config.rerank_enabled,
+        "rerank_provider": config.rerank_provider,
+        "rerank_top_n": config.rerank_top_n,
+        "min_rerank_score": config.min_rerank_score,
+    }
+
+
+def _serialize_evidence(evidence: Any) -> Dict[str, Any]:
+    """Serialize one evidence snippet into run logs."""
+    return {
+        "source": evidence.source,
+        "title": evidence.title,
+        "content": evidence.content,
+        "published_at": evidence.published_at,
+        "url": evidence.url,
+        "keyword_score": evidence.keyword_score,
+        "semantic_score": evidence.semantic_score,
+        "retrieval_score": evidence.retrieval_score,
+        "retrieval_rank": evidence.retrieval_rank,
+        "retrieval_method": evidence.retrieval_method,
+        "rerank_score": evidence.rerank_score,
+        "rerank_rank": evidence.rerank_rank,
+        "rerank_reason": evidence.rerank_reason,
+        "matched_terms": evidence.matched_terms,
+    }
 
 
 def _read_section_config(path: Path) -> tuple[Dict[str, Any], str]:
@@ -684,7 +870,10 @@ def _docx_to_preview_html(path: Path) -> str:
             body = document_root.find(f"{word_ns}body")
             if body is None:
                 return '<div class="docx-preview-empty">无法读取 Word 正文</div>'
-            parts = ['<div class="docx-preview-page">']
+            parts = [
+                "<!doctype html><html><head><meta charset=\"utf-8\">"
+                "<title>Word 预览</title></head><body><div class=\"docx-preview-page\">"
+            ]
             for child in list(body):
                 tag = child.tag
                 if tag == f"{word_ns}p":
@@ -695,7 +884,7 @@ def _docx_to_preview_html(path: Path) -> str:
                     )
                 elif tag == f"{word_ns}tbl":
                     parts.append(_preview_table_html(child, word_ns))
-            parts.append("</div>")
+            parts.append("</div></body></html>")
             return "".join(part for part in parts if part)
     except Exception as exc:
         logger.warning("Failed to convert docx preview", path=str(path), error=str(exc))

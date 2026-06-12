@@ -196,6 +196,80 @@ class TestWordProjectionFromTemplate:
         assert output_path.exists()
 
     @pytest.mark.skipif(not WordProjection()._check_docx(), reason="python-docx not installed")
+    def test_save_from_template_prefers_long_placeholders_over_bare_words(self, tmp_path):
+        """Overlapping Chinese placeholders should not corrupt generated text."""
+        import docx
+
+        template_path = tmp_path / "overlap_template.docx"
+        output_path = tmp_path / "overlap_output.docx"
+        doc = docx.Document()
+        doc.add_paragraph("{{黄金市场回顾}}")
+        doc.save(template_path)
+
+        projection = WordProjection()
+        projection.save_from_template(
+            output_path,
+            template_path,
+            sections=[],
+            placeholders={
+                "黄金": "黄金短句",
+                "市场回顾": "市场回顾短句",
+                "黄金市场回顾": "黄金市场回顾完整正文。",
+            },
+        )
+
+        result = docx.Document(output_path)
+        text = "\n".join(paragraph.text for paragraph in result.paragraphs)
+        assert text == "黄金市场回顾完整正文。"
+        assert "{{" not in text
+        assert "黄金短句" not in text
+        assert "市场回顾短句" not in text
+
+    @pytest.mark.skipif(not WordProjection()._check_docx(), reason="python-docx not installed")
+    def test_save_from_template_does_not_replace_bare_chinese_table_labels(self, tmp_path):
+        """Chinese labels in static tables are not implicit placeholders."""
+        import docx
+
+        template_path = tmp_path / "calendar_template.docx"
+        output_path = tmp_path / "calendar_output.docx"
+        doc = docx.Document()
+        table = doc.add_table(rows=2, cols=3)
+        table.rows[0].cells[0].text = "地区"
+        table.rows[0].cells[1].text = "周内新闻"
+        table.rows[0].cells[2].text = "影响标的"
+        table.rows[1].cells[0].text = "美国"
+        table.rows[1].cells[1].text = "{{美国新闻}}"
+        table.rows[1].cells[2].text = "美元，美债，美股"
+        doc.add_paragraph("2026-04-30")
+        table2 = doc.add_table(rows=1, cols=2)
+        table2.rows[0].cells[0].text = "美国"
+        table2.rows[0].cells[1].text = "联邦基金目标利率(%)"
+        doc.save(template_path)
+
+        projection = WordProjection()
+        projection.save_from_template(
+            output_path,
+            template_path,
+            sections=[],
+            placeholders={
+                "美国": "美国宏观正文",
+                "美国新闻": "美国新闻正文",
+            },
+        )
+
+        result = docx.Document(output_path)
+        all_cells = [
+            cell.text
+            for table in result.tables
+            for row in table.rows
+            for cell in row.cells
+        ]
+        assert all_cells[3] == "美国"
+        assert all_cells[4] == "美国新闻正文"
+        assert all_cells[6] == "美国"
+        assert "美国宏观正文" not in all_cells
+
+    @pytest.mark.skipif(not WordProjection()._check_docx(), reason="python-docx not installed")
     def test_save_from_template_with_tables(self, tmp_path):
         """测试从模板保存并添加表格"""
 
@@ -223,6 +297,61 @@ class TestWordProjectionFromTemplate:
         )
 
         assert output_path.exists()
+
+    @pytest.mark.skipif(not WordProjection()._check_docx(), reason="python-docx not installed")
+    def test_save_from_template_replaces_placeholder_with_table_in_place(self, tmp_path):
+        """Table placeholders should become real Word tables at the placeholder position."""
+        import docx
+
+        template_path = tmp_path / "calendar_template.docx"
+        output_path = tmp_path / "calendar_output.docx"
+        doc = docx.Document()
+        doc.add_paragraph("前文")
+        doc.add_paragraph("{{下周全球投资日历}}")
+        doc.add_paragraph("后文")
+        doc.save(template_path)
+
+        table = TableSpec(
+            table_id="global_investment_calendar",
+            title="下周全球投资日历",
+            placeholder="下周全球投资日历",
+            headers=["日期", "国家/地区", "指标名称"],
+            rows=[
+                ["2026-06-15", "美国", "6月纽约联储制造业指数"],
+                ["2026-06-16", "欧盟", "5月欧元区CPI:同比"],
+            ],
+        )
+
+        projection = WordProjection()
+        projection.save_from_template(
+            output_path=output_path,
+            template_path=template_path,
+            sections=[],
+            placeholders={},
+            tables=[table],
+        )
+
+        result = docx.Document(output_path)
+        assert len(result.tables) == 1
+        assert result.tables[0].rows[0].cells[0].text == "日期"
+        assert result.tables[0].rows[1].cells[1].text == "美国"
+        paragraphs = [paragraph.text for paragraph in result.paragraphs]
+        assert "{{下周全球投资日历}}" not in paragraphs
+
+        body_tags = [child.tag.rsplit("}", 1)[-1] for child in result.element.body]
+        table_index = body_tags.index("tbl")
+        paragraph_texts_before_table = [
+            child.text
+            for child in result.element.body[:table_index]
+            if child.tag.rsplit("}", 1)[-1] == "p"
+        ]
+        paragraph_texts_after_table = [
+            child.text
+            for child in result.element.body[table_index + 1 :]
+            if child.tag.rsplit("}", 1)[-1] == "p"
+        ]
+        assert "前文" in paragraph_texts_before_table
+        assert "后文" in paragraph_texts_after_table
 
     def test_save_from_template_raises_when_file_not_found(self, tmp_path):
         """测试模板文件不存在时抛出异常"""

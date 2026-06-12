@@ -5,7 +5,7 @@ Issue #44 Unit Tests: Document Chunking, Taxonomy, Classification, and Enrichmen
 
 from core.contracts import DocType, DocumentV1, SourceType
 from core.utils.id_gen import generate_id
-from services.document_chunker import DocumentChunker
+from services.document_chunker import ChunkingOptions, DocumentChunker
 from services.document_classifier import DocumentClassifier
 from services.document_enrichment import DocumentEnrichmentPipeline, EnrichmentConfig
 from services.entity_extractor import EntityExtractor
@@ -63,6 +63,27 @@ class TestDocumentChunker:
             assert chunk.doc_id == doc.doc_id
             assert chunk.content is not None
             assert len(chunk.content) > 0
+
+    def test_chunk_simple_progresses_when_split_falls_inside_overlap(self):
+        """Chunking must always advance even when punctuation is near the boundary."""
+        import signal
+
+        def timeout_handler(signum, frame):
+            raise TimeoutError("chunking did not terminate")
+
+        old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(1)
+        try:
+            text = "".join(("a" * 101 + "。" + "b" * 1898) for _ in range(5))
+            chunks = DocumentChunker(ChunkingOptions())._chunk_simple(
+                text, ChunkingOptions()
+            )
+        finally:
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, old_handler)
+
+        assert chunks
+        assert "".join(chunks).replace("\n", "")
 
 
 class TestTaxonomyService:

@@ -55,9 +55,17 @@ Purpose:
 - Generate Word placeholder values from project config, Markdown prompt templates, database evidence, and `ModelGatewayImpl`.
 - Support both current `section_config.yaml` `placeholders` schema and legacy `sections` schema.
 - Parse `prompt_templates.md` by second-level heading; `检索 Query` is used to retrieve factual evidence, while `写作要求` constrains final writing.
+- Merge report-level `defaults.validators` / `defaults.retrieval` into each text placeholder before generation, while allowing placeholder-specific overrides such as words, evidence count, and keywords.
+- Render hard generation constraints from merged `section_config.yaml` settings (`target_words`, `max_words`, `min_news_count`, `validators`) into the final model message so prompt templates do not duplicate字数、禁用词、数据来源等硬参数.
 - Retrieve lightweight evidence from `ingestion_queue_item` and `canonical_event` within the requested lookback window.
+- Apply report-level retrieval controls from `defaults.retrieval`: keyword or hybrid mode, `top_k`, `candidate_k`, `source_types`, `min_keyword_score`, optional fusion weights, and optional LLM rerank. Placeholder-level `retrieval.keywords` remains the per-section topical keyword override. Legacy `retrieval.query_terms.must_any` / `exclude` is still parsed for compatibility, but the workbench no longer exposes it by default.
+- Fill missing placeholder `retrieval.keywords` from `reporting/projects/keyword_profiles.json`, either by placeholder name or explicit `retrieval.keyword_profile`.
+- In `mode: hybrid`, merge keyword candidates and recent semantic candidates with RRF, using local n-gram semantic similarity as the phase-2 fallback until pgvector/rerank is enabled.
+- Optionally rerank retrieved evidence with the configured LLM (`retrieval.rerank.enabled: true`) before writing, preserving rerank score, rank, and reason in run logs.
 - Route model calls through the `reporting` task route when configured, otherwise through the default model route.
-- Return generated placeholders plus per-section metadata: evidence count, model/provider, token usage, retrieval query, and warnings.
+- Generate independent configured sections with bounded parallelism while preserving placeholder and run-log order.
+- Build `type: composite_market_review` placeholders by combining deterministic Excel-derived market data text with an evidence-grounded model-generated hotspot paragraph.
+- Return generated placeholders plus per-section metadata: evidence count, keyword score, semantic score, fusion score/rank, LLM rerank score/rank/reason, matched terms, retrieval config, model/provider, token usage, retrieval query, and warnings.
 
 Update this section when:
 - Evidence retrieval sources change.
@@ -72,6 +80,7 @@ Purpose:
 - Read Excel chart XML caches or worksheet cached cell values from project workbooks.
 - Render configured charts with matplotlib in memory.
 - Embed generated chart images directly into DOCX packages, either by replacing existing media targets or converting Word chart drawings into images.
+- For templates that already contain editable Word charts, sync Excel native chart XML into `word/charts/*.xml` and skip PNG embedding when `replace.kind: native_chart`.
 - Emit chart metadata and warnings into the report run log.
 
 Update this section when:
@@ -80,15 +89,34 @@ Update this section when:
 
 ---
 
+### `reporting/projects/table_generation.py`
+
+Purpose:
+- Convert configured project Excel tables into Word `TableSpec` objects without model generation.
+- Resolve table workbooks from the project `data/` directory.
+- Read configured worksheet columns, apply simple filters such as `重要性=重要`, and preserve source row order.
+- Emit table metadata and warnings into the report run log.
+
+Update this section when:
+- `tables:` config schema changes.
+- Excel table filtering, date formatting, or Word table insertion behavior changes.
+
+---
+
 ### `report_projects/*/config/section_config.yaml`
 
 Purpose:
-- Project-owned YAML mapping from Word placeholders to prompt templates, static values, Excel cells/ranges, and chart replacement rules.
-- Current `华安ETF周报` uses `placeholders:` plus embedded prompt retrieval queries and a `charts:` block for industry performance, gold, and crude-oil visuals.
+- Project-owned YAML mapping from Word placeholders to prompt templates, static values, Excel cells/ranges, retrieval controls, and chart replacement rules.
+- Report-wide hard generation and retrieval defaults live under `defaults.validators` and `defaults.retrieval`. Text placeholders should only carry section-specific differences such as `target_words`, `max_words`, `min_news_count`, `retrieval.keyword_profile`, `retrieval.keywords`, and Excel/static sources.
+- Current `华安ETF周报` uses `placeholders:` plus embedded prompt retrieval queries, `type: report_period` for `开始日期` / `结束日期`, `type: composite_market_review` for `A股市场回顾`, and a `charts:` block for industry performance, gold, and crude-oil visuals.
+- `tables:` maps deterministic Word tables to refreshed project Excel files. `华安ETF周报` currently binds `下周全球投资日历` to `data/全球经济日历.xlsx` sheet `经济数据`, reading `日期`、`国家/地区`、`指标名称` rows where `重要性=重要`.
+- Text placeholders can set `retrieval.keyword_profile` to reuse a curated keyword profile and `retrieval.keywords` to constrain evidence selection before model generation. `keywords` is presented as “检索关键词” in the workbench and keeps evidence on-topic; shared `top_k` / hybrid fusion / rerank settings are inherited from `defaults.retrieval`.
+- The web template workbench presents this file by Word placeholder order: selecting a placeholder shows the matching config form, current YAML fragment, and linked prompt template so users can edit one placeholder at a time instead of scanning the full file. The placeholder form hides report-wide defaults and only exposes per-placeholder fields.
 
 Update this section when:
 - A report project changes placeholder mapping or chart config semantics.
 - Prompt query mode changes between embedded query and external JSON query sources.
+- Report-period semantics change, such as using a manually selected end date or a non-Monday start date.
 
 ---
 
@@ -96,7 +124,8 @@ Update this section when:
 
 Purpose:
 - Markdown prompt template library for project-level generation.
-- Each `##` heading is a reusable prompt template name. The template body may include `检索 Query：...` and `写作要求：...`.
+- Each `##` heading is a reusable prompt template name. The template body may include `检索 Query：...`, `写作要求：...`, or `写作格式：...`.
+- Prompt templates describe retrieval intent and output structure. Hard constraints such as word limits, minimum evidence count, forbidden phrases, no-Wind/no-daily-data rules, and entity bans belong in `section_config.yaml`.
 
 Update this section when:
 - Prompt template naming, parsing rules, or writing constraints change.
@@ -109,7 +138,7 @@ Update this section when:
 - Template rendering tests
 - Output format verification
 - API tests for source persistence, config-driven generation, run logs, chart metadata, and DOCX preview
-- Chart-generation tests for Excel chart cache reading, worksheet source reading, and DOCX image embedding
+- Chart-generation tests for Excel chart cache reading, worksheet source reading, native Word chart syncing, and legacy DOCX image embedding
 - Frontend static tests for report template workbench behavior when UI surfaces change
 
 ---
@@ -128,4 +157,12 @@ When files in this module change, check:
 ## Recent Changes
 
 - 2026-06-08: 报告项目生成链路升级为配置驱动：`section_config.yaml` 的 `placeholders` 绑定 Word 占位符，`prompt_templates.md` 的二级标题提供内置检索 Query 和写作规则；`/api/report-projects/{slug}/render` 默认检索 evidence、调用 ModelGateway 生成正文、嵌入 Excel/worksheet 生成图表、写入 runs JSON，并返回下载和预览 URL。
+- 2026-06-08: 华安 ETF 周报模板图表从 PNG 占位切换为 Word 原生可编辑 chart：`scripts/replace_huaan_word_charts_office.py` 通过 Excel/Word 原生复制粘贴生成 chart parts，`scripts/merge_huaan_layout_with_native_charts.py` 将 chart parts 合并回原模板以保留页眉页脚和版式，`section_config.yaml` 使用 `replace.kind: native_chart`，生成时同步 Excel chart XML 而不再回写 PNG。
+- 2026-06-09: `A股市场回顾` 切换为复合生成：指数涨跌和成交额由 `周报数据.xlsx` 确定性计算，市场热点部分继续走 evidence retrieval + DeepSeek/model route，减少手动改“涨/跌”和成交额表述；独立 section 生成改为 4 路有界并行，`WordProjection` 修复短占位符破坏长占位符的问题。
+- 2026-06-09: 报告生成接入 Phase 1 关键词检索控制：section 配置可声明 `retrieval.must_any` / `exclude` / `top_k` 等参数，生成前对数据库 evidence 做过滤、评分和排序；run log 和前端预览新增 evidence 检索调试信息，方便定位某个占位符为什么没有内容或引用了错误材料。
+- 2026-06-09: 报告生成接入 Phase 2 混合召回：`retrieval.mode: hybrid` 会在关键词候选外追加近期语义候选，使用本地 n-gram 语义相似度和 RRF 融合排序；run log / 前端 Evidence 调试显示 `semantic_score`、`retrieval_score`、`retrieval_rank` 和 `retrieval_method`。
+- 2026-06-09: 报告生成接入 Phase 3 LLM rerank：`retrieval.rerank.enabled: true` 时，生成器会先取 `rerank.top_n` 条候选，再调用 reporting/default 模型路由输出 JSON 排序，最终 evidence 记录 `rerank_score`、`rerank_rank` 和 `rerank_reason`；华安 ETF 周报的 `A股市场回顾`、`航天`、`电力设备新能源` 已启用。
+- 2026-06-10: 拆分 Prompt 模板与硬性生成参数：`section_config.yaml` 新增/使用 `target_words`、`min_news_count`、`validators`，生成器统一把这些参数渲染进最终模型消息；`prompt_templates.md` 去掉重复的“控制在 X 字”表述，只保留检索 Query 和写作格式。
+- 2026-06-10: 新增 `keyword_profiles`：将旧财联社筛选 `params.json` 升级为项目内置关键词 profile，新模板占位符会按占位符名自动继承检索关键词；未知占位符生成可后续维护的关键词草稿。前端将机器字段 `query_terms.must_any` 收敛为业务字段 `keyword_profile` + `keywords`，不再默认展示“排除词”。
+- 2026-06-10: 华安 ETF 周报配置收敛为报告级 defaults + 占位符差异项：`defaults.validators` / `defaults.retrieval` 统一承载禁用词、no-Wind/no-daily、hybrid、RRF、LLM rerank 等公共策略；每个占位符表单只维护类型、字数、关键词 Profile、检索关键词、报告周期或 Excel/static 来源。
 - 2026-06-04: 收敛 reporting composer/projection 的 mypy 历史债务，补齐模板缓存、fact card 列表、Excel worksheet/chart 数据的显式类型，输出格式保持不变。

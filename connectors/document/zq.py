@@ -192,6 +192,10 @@ class ZQDocumentConnector(DocumentConnector):
         search = item.params.get("search") or params.get("search", "")
         doc_type = item.params.get("doc_type") or DATASET_TO_DOC_TYPE[dataset]
         max_pages = params.get("max_pages", self._max_pages)
+        use_homepage_search = params.get(
+            "use_homepage_search", self.config.get("use_homepage_search", True)
+        )
+        enable_pdf = params.get("enable_pdf", self.config.get("enable_pdf", False))
 
         envelopes = adapter.fetch(
             search=search,
@@ -203,7 +207,8 @@ class ZQDocumentConnector(DocumentConnector):
             page_size=params.get("page_size", self._page_size),
             skip_existing=params.get("skip_existing", True),
             verbose=params.get("verbose", False),
-            use_homepage_search=params.get("use_homepage_search", True),
+            use_homepage_search=use_homepage_search,
+            enable_pdf=enable_pdf,
         )
 
         serialized = json.dumps(

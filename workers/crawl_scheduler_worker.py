@@ -2,6 +2,7 @@
 
 import asyncio
 import concurrent.futures
+import importlib
 import json
 import logging
 import os
@@ -45,6 +46,11 @@ def _write_heartbeat(activity: str) -> None:
     )
 
 
+def _flush_logs() -> None:
+    for handler in logging.getLogger().handlers:
+        handler.flush()
+
+
 async def _async_main() -> None:
     from services.crawl_scheduler import CrawlScheduler
 
@@ -72,18 +78,23 @@ async def _async_main() -> None:
     stop_event = asyncio.Event()
     _heartbeat_task = asyncio.create_task(_periodic_heartbeat(stop_event))
 
+    shutdown_timer: threading.Timer | None = None
+
     def _force_exit() -> None:
-        for handler in logging.getLogger().handlers:
-            handler.flush()
         logger.warning(f"Scheduler did not exit within {_SHUTDOWN_TIMEOUT}s, forcing exit")
+        _flush_logs()
         os._exit(1)
 
     def _shutdown() -> None:
+        nonlocal shutdown_timer
         logger.info("Received shutdown signal")
         event_bus.record_worker_heartbeat("crawl_scheduler", "stopping")
         _write_heartbeat("stopping")
         stop_event.set()
-        threading.Timer(_SHUTDOWN_TIMEOUT, _force_exit).start()
+        if shutdown_timer is None:
+            shutdown_timer = threading.Timer(_SHUTDOWN_TIMEOUT, _force_exit)
+            shutdown_timer.daemon = True
+            shutdown_timer.start()
 
     loop = asyncio.get_running_loop()
     loop.add_signal_handler(signal.SIGTERM, _shutdown)
@@ -92,9 +103,15 @@ async def _async_main() -> None:
     logger.info("Crawl scheduler worker started, waiting for jobs")
 
     await stop_event.wait()
-    scheduler.stop()
-    _remove_pid()
-    logger.info("Crawl scheduler worker stopped")
+    startup_backfill_task.cancel()
+    _heartbeat_task.cancel()
+    try:
+        scheduler.stop()
+    finally:
+        _remove_pid()
+        logger.info("Crawl scheduler worker stopped")
+        _flush_logs()
+        os._exit(0)
 
 
 def _run_backfill_in_thread(scheduler, source_type, backfill_timeout: int = 600) -> None:
@@ -143,6 +160,15 @@ async def _startup_gap_backfill(scheduler) -> None:
     if not source_types:
         logger.info("[startup] no scheduled sources enabled for gap backfill")
         return
+
+    # Import connector modules serially before threaded backfill. Some connector modules
+    # import shared dependencies; doing that lazily in worker threads can trip Python's
+    # module lock and make connector-backed sources look like empty legacy adapter runs.
+    for spec in source_specs:
+        if not spec.connector_class:
+            continue
+        module_path, _ = spec.connector_class.rsplit(".", 1)
+        importlib.import_module(module_path)
 
     loop = asyncio.get_running_loop()
     max_workers = max(1, min(len(source_types), 8))

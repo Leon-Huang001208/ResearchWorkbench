@@ -260,19 +260,11 @@ class MarketDataRepository(BaseRepository):
         if not components:
             return 0
 
-        if _is_postgresql(self.db):
-            return self._upsert_postgres(
-                IndexComponentDB,
-                components,
-                constraint="index_component_pkey",
-                update_cols=["component_name", "weight", "source", "raw_payload"],
-            )
-        else:
-            return self._upsert_sqlite(
-                IndexComponentDB,
-                components,
-                key_cols=["index_symbol", "component_symbol", "as_of", "source"],
-            )
+        return self._upsert_sqlite(
+            IndexComponentDB,
+            components,
+            key_cols=["index_symbol", "component_symbol", "as_of", "source"],
+        )
 
     # ── Internal helpers ─────────────────────────────────────────
 

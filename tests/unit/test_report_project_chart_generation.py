@@ -3,28 +3,18 @@ import re
 import shutil
 import xml.etree.ElementTree as ET
 import zipfile
-from io import BytesIO
 from pathlib import Path
 
 from openpyxl.utils.cell import column_index_from_string
-from PIL import Image
+import yaml
 
 from reporting.projects.chart_generation import (
-    GeneratedChartImage,
-    GeneratedChartInfo,
-    embed_chart_images_in_docx,
+    ReportProjectChartService,
     read_excel_chart_series,
     read_worksheet_chart_series,
     sync_native_chart_parts,
 )
 from reporting.projects.project_manager import ReportProjectManager
-
-
-def tiny_png(color: tuple[int, int, int]) -> bytes:
-    """Return a tiny PNG image."""
-    buffer = BytesIO()
-    Image.new("RGB", (12, 8), color).save(buffer, format="PNG")
-    return buffer.getvalue()
 
 
 def test_reads_huaan_excel_chart_cache_series():
@@ -116,59 +106,65 @@ def test_huaan_chart_workbook_uses_left_wind_data_without_duplicate_ranges():
             assert copied_cells_with_values == []
 
 
-def test_embed_chart_images_replaces_media_and_chart_drawing(tmp_path: Path):
-    """图表图片应直接写入 docx 包，且可重复更新已替换过的模板。"""
-    source = Path("report_projects/华安ETF周报/templates/report_template.docx")
+def test_huaan_native_chart_template_skips_png_embedding(tmp_path: Path):
+    """原生图表模板生成时应保留 Word chart，不再回退为 PNG。"""
+    manager = ReportProjectManager()
+    project = manager.get_project("华安ETF周报")
+    source = project.word_template_path
     output = tmp_path / "report.docx"
     shutil.copy2(source, output)
 
-    images = [
-        GeneratedChartImage(
-            chart_id="gold_price",
-            title="黄金价格走势",
-            image_bytes=tiny_png((220, 180, 20)),
-            replace={"kind": "media", "target": "word/media/image1.png"},
-            info=GeneratedChartInfo(
-                chart_id="gold_price",
-                title="黄金价格走势",
-                workbook="",
-                source_chart="",
-                replace_kind="media",
-                point_count=1,
-                warnings=[],
-            ),
-        ),
-        GeneratedChartImage(
-            chart_id="industry_weekly_performance",
-            title="申万一级行业周涨跌幅",
-            image_bytes=tiny_png((40, 120, 220)),
-            replace={"kind": "chart_to_image", "chart_relationship_id": "rId8"},
-            info=GeneratedChartInfo(
-                chart_id="industry_weekly_performance",
-                title="申万一级行业周涨跌幅",
-                workbook="",
-                source_chart="",
-                replace_kind="chart_to_image",
-                point_count=1,
-                warnings=[],
-            ),
-        ),
-    ]
-
-    embed_chart_images_in_docx(output, images)
+    section_config = yaml.safe_load(
+        (project.project_dir / "config" / "section_config.yaml").read_text()
+    )
+    infos = ReportProjectChartService().generate_and_embed(
+        project=project,
+        section_config=section_config,
+        docx_path=output,
+    )
 
     with zipfile.ZipFile(output) as archive:
-        assert archive.read("word/media/image1.png") == images[0].image_bytes
-        assert (
-            archive.read("word/media/generated_industry_weekly_performance.png")
-            == images[1].image_bytes
-        )
-        document_xml = archive.read("word/document.xml").decode("utf-8")
-        rels_xml = archive.read("word/_rels/document.xml.rels").decode("utf-8")
+        document_xml = archive.read("word/document.xml")
+        assert document_xml.count(b"<c:chart") == 3
+        assert document_xml.count(b"<a:blip") == 0
+        assert "word/header1.xml" in archive.namelist()
+        assert "word/footer1.xml" in archive.namelist()
+        assert not document_xml.count(b"generated_industry_weekly_performance")
 
-    assert "generated_industry_weekly_performance.png" in rels_xml
-    assert "rId8" not in document_xml
-    assert "rId8" not in rels_xml
+    assert {info.replace_kind for info in infos} == {"native_chart"}
+
+
+def test_huaan_first_chart_is_below_figure_caption():
+    """第一张行业图应位于“图1”标题下方，而不是标题上方。"""
+    manager = ReportProjectManager()
+    project = manager.get_project("华安ETF周报")
+    namespace = {
+        "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+        "c": "http://schemas.openxmlformats.org/drawingml/2006/chart",
+        "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+    }
+
+    with zipfile.ZipFile(project.word_template_path) as archive:
+        root = ET.fromstring(archive.read("word/document.xml"))
+
+    body = root.find("w:body", namespace)
+    assert body is not None
+    paragraphs = [child for child in list(body) if child.tag.endswith("}p")]
+    caption_index = None
+    chart_index = None
+    for index, paragraph in enumerate(paragraphs):
+        text = "".join(
+            text_node.text or "" for text_node in paragraph.findall(".//w:t", namespace)
+        ).strip()
+        chart = paragraph.find(".//c:chart", namespace)
+        if text == "图1：申万一级各板块表现":
+            caption_index = index
+        if chart is not None and chart.get(f"{{{namespace['r']}}}id") == "rId8":
+            chart_index = index
+
+    assert caption_index is not None
+    assert chart_index is not None
+    assert caption_index < chart_index
 
 
 def test_sync_native_chart_parts_copies_excel_chart_xml(tmp_path: Path):

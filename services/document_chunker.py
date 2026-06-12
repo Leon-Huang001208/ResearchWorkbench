@@ -147,7 +147,8 @@ class DocumentChunker:
                     text.rfind("！", start, end),
                     text.rfind("？", start, end),
                 ]
-                valid_splits = [p for p in split_positions if p > start + options.min_chunk_size]
+                min_split = start + options.chunk_overlap + options.min_chunk_size
+                valid_splits = [p for p in split_positions if p > min_split]
                 if valid_splits:
                     end = max(valid_splits) + 1
 
@@ -158,7 +159,10 @@ class DocumentChunker:
             if end == text_len:
                 break
 
-            start = end - options.chunk_overlap
+            next_start = end - options.chunk_overlap
+            if next_start <= start:
+                next_start = end
+            start = next_start
 
         return chunks
 

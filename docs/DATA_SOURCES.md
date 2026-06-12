@@ -29,11 +29,13 @@ Wind 适配器通过 xlwings 操控 macOS Excel 中的 Wind 插件获取数据�
 | `cnstock_flash` | 中国证券网·快讯 | `CNStockDocumentConnector` | 快讯 | 30min |
 
 > **CNStock WAF 说明**：cnstock.com 于 2026年5月升级阿里云 WAF，`requests` 直接调用 API 被拦截（`10304`）。爬虫已切换为 Playwright 方案：快讯通过 `__NEXT_DATA__` SSR 数据提取，普通频道通过拦截页面 `channelNewsList` XHR 响应获取。Playwright 不可用时自动回退到 requests 方案。详见 `data_layer/crawlers/cnstock/cnstock.py`。
-| `zhiqiu_reports` | 知丘研报 | `ZQDocumentConnector` | 券商研报 (PDF) | 60min |
+| `zhiqiu_reports` | 知丘研报 | `ZQDocumentConnector` | 券商研报元数据 | 60min |
 | `zhiqiu_wechat` | 知丘公众号 | `ZQDocumentConnector` | 公众号文章 | 60min |
 | `zhiqiu_transcript` | 知丘纪要 | `ZQDocumentConnector` | 会议纪要 | 60min |
 
 > **注意**：上表中的"连接器"列指向 `connectors/document/` 下的 `DocumentConnector` 实现。连接器内部通过 Wrapper-first 策略委托给旧 `data_layer/adapters/` 下的适配器（如 `CLSAdapter`、`CNStockAdapter`、`ZQAdapter`）。
+
+> **知丘研报 PDF 说明**：`zhiqiu_reports` 的定时抓取默认只抓研报元数据并入队，不在调度路径同步下载 PDF。PDF 下载/转换应由后续文档处理链路承接，避免远端下载耗时拖住增量抓取。
 
 > **CNINFO 附件文本元数据**：`data_layer/adapters/cninfo_adapter.py` 在启用附件转换时，会把 `attachment_text_status`、`attachment_text_strategy`、`attachment_page_count` 等字段写入 `DocumentEnvelope.metadata`。这些字段用于判断公告 PDF/附件是否成功转为可检索文本，不改变 CNINFO 的 source type 或分页查询参数。
 
