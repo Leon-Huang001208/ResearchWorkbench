@@ -8,7 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
-    <link rel="stylesheet" href="/static/style.css?v=20250612l">
+    <link rel="stylesheet" href="/static/style.css?v=20250612m">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@vscode/codicons@0.0.36/dist/codicon.min.css">
 </head>
 <body>
@@ -939,7 +939,10 @@
                             <div class="template-generation-center" id="template-generation-center">
                                 <section class="template-generation-hero">
                                     <div class="template-generation-copy">
-                                        <p class="eyebrow">周报生成中心</p>
+                                        <div class="template-generation-title-row">
+                                            <p class="eyebrow">周报生成</p>
+                                            <span id="template-generation-health" class="template-generation-health pending">待检查</span>
+                                        </div>
                                         <h3 id="template-generation-title">生成本周报告</h3>
                                         <div class="template-generation-meta">
                                             <span id="template-generation-period">报告周期待加载</span>
@@ -951,6 +954,7 @@
                                         <button id="btn-template-generate-report" class="btn-primary"><i class="codicon codicon-play"></i> 生成报告</button>
                                         <button id="btn-template-preview-report" class="btn-secondary" disabled><i class="codicon codicon-open-preview"></i> 预览最近版本</button>
                                         <a id="btn-template-download-report" class="btn-secondary disabled" href="#" aria-disabled="true"><i class="codicon codicon-cloud-download"></i> 下载文档</a>
+                                        <small id="template-generation-action-hint">先检查资料和内容状态，再生成 Word 报告</small>
                                     </div>
                                 </section>
 
@@ -1036,8 +1040,8 @@
 
                                 <details class="template-advanced-maintenance" id="template-advanced-maintenance">
                                     <summary>
-                                        <span><i class="codicon codicon-tools"></i> 高级维护：模板、占位符、Prompt、YAML</span>
-                                        <small>维护 Word 占位符、Section 配置、Prompt 模板和 Excel 映射</small>
+                                        <span><i class="codicon codicon-tools"></i> 高级配置</span>
+                                        <small>占位符、Prompt、检索策略和 YAML 片段</small>
                                     </summary>
                                     <div class="template-workbench-main-grid">
                                         <div class="template-workbench-left">
@@ -1248,7 +1252,7 @@
 
     <!-- Scripts: i18n must load before app.js -->
     <script src="/static/i18n.js?v=20250527"></script>
-    <script type="module" src="/static/js/app.js?v=20250612l"></script>
+    <script type="module" src="/static/js/app.js?v=20250612m"></script>
     <script type="module" src="/static/js/wind.js?v=20250601a"></script>
 </body>
 </html>

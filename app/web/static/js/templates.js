@@ -909,11 +909,25 @@ function renderGenerationHero(template, readiness) {
     const periodEl = document.getElementById('template-generation-period');
     const lookbackEl = document.getElementById('template-generation-lookback');
     const placeholderTotalEl = document.getElementById('template-generation-placeholder-total');
+    const healthEl = document.getElementById('template-generation-health');
+    const actionHintEl = document.getElementById('template-generation-action-hint');
 
-    if (titleEl) titleEl.textContent = `${templateName} · 生成本周报告`;
+    const canGenerate = Boolean(readiness.dataOk && readiness.contentOk);
+
+    if (titleEl) titleEl.textContent = `${templateName} · 本周报告`;
     if (periodEl) periodEl.textContent = '报告周期：本周';
     if (lookbackEl) lookbackEl.textContent = '证据检索 7 天';
     if (placeholderTotalEl) placeholderTotalEl.textContent = `${readiness.placeholderCount} 个占位符`;
+    if (healthEl) {
+        healthEl.textContent = canGenerate ? '可生成' : '需检查';
+        healthEl.classList.toggle('ok', canGenerate);
+        healthEl.classList.toggle('pending', !canGenerate);
+    }
+    if (actionHintEl) {
+        actionHintEl.textContent = canGenerate
+            ? '资料和内容已就绪，生成后可预览和下载 Word'
+            : '还有检查项未通过，请先展开生成前检查确认';
+    }
 
     const previewBtn = document.getElementById('btn-template-preview-report');
     const latestReport = readiness.latestReport;
@@ -981,13 +995,23 @@ function renderRecentGenerationPanel(template) {
     }
 
     if (!latest) {
-        card.innerHTML = '<div class="empty-state compact">尚未生成。点击“生成报告”后，这里会显示最近版本。</div>';
+        card.innerHTML = `
+            <div class="template-result-empty">
+                <i class="codicon codicon-file"></i>
+                <span>尚未生成。点击“生成报告”后，这里会显示最近版本。</span>
+            </div>
+        `;
         return;
     }
 
     card.innerHTML = `
-        <strong>${esc(latest.file_name || '最近生成文档')}</strong>
-        <small>${esc(formatGeneratedAt(latest.generated_at))}</small>
+        <div class="template-result-main">
+            <i class="codicon codicon-file-text"></i>
+            <span>
+                <strong>${esc(latest.file_name || '最近生成文档')}</strong>
+                <small>${esc(formatGeneratedAt(latest.generated_at))}</small>
+            </span>
+        </div>
         <div class="template-recent-generation-actions">
             ${previewUrl ? `<a class="btn-secondary" href="${esc(previewUrl)}" target="_blank">打开预览</a>` : ''}
             ${downloadUrl ? `<a class="btn-secondary" href="${esc(downloadUrl)}" target="_blank">下载 Word</a>` : ''}

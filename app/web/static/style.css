@@ -4118,7 +4118,7 @@ tr:hover td {
 
 .template-generation-center {
     display: grid;
-    gap: 1rem;
+    gap: 0.85rem;
     padding: 1rem;
     margin-bottom: 1.5rem;
 }
@@ -4126,13 +4126,53 @@ tr:hover td {
 .template-generation-hero {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
     gap: 1rem;
-    padding: 1.25rem 1.5rem;
+    padding: 1.15rem 1.25rem;
     border: 1px solid var(--border);
     border-radius: var(--radius);
     background: var(--bg-card);
     box-shadow: var(--shadow-sm);
+}
+
+.template-generation-copy {
+    min-width: 0;
+}
+
+.template-generation-title-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.35rem;
+}
+
+.template-generation-title-row .eyebrow {
+    margin: 0;
+}
+
+.template-generation-health {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 0 0.55rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--bg-input);
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.template-generation-health.ok {
+    border-color: color-mix(in srgb, var(--success) 45%, var(--border));
+    background: color-mix(in srgb, var(--success) 14%, var(--bg-card));
+    color: var(--success);
+}
+
+.template-generation-health.pending {
+    border-color: color-mix(in srgb, var(--warning) 45%, var(--border));
+    background: color-mix(in srgb, var(--warning) 13%, var(--bg-card));
+    color: var(--warning);
 }
 
 .template-generation-copy h3 {
@@ -4146,7 +4186,7 @@ tr:hover td {
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
-    margin-top: 0.75rem;
+    margin-top: 0.65rem;
 }
 
 .template-generation-meta span {
@@ -4163,31 +4203,50 @@ tr:hover td {
     gap: 0.65rem;
     flex-wrap: wrap;
     justify-content: flex-end;
+    max-width: 540px;
+}
+
+.template-generation-actions .btn-primary {
+    min-width: 132px;
+}
+
+.template-generation-actions small {
+    flex-basis: 100%;
+    color: var(--text-muted);
+    font-size: 0.74rem;
+    text-align: right;
 }
 
 .template-generation-status-strip {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.75rem;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    overflow: hidden;
 }
 
 .template-generation-step {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
-    gap: 0.7rem;
-    min-height: 74px;
-    padding: 0.9rem;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: var(--bg-card);
+    gap: 0.65rem;
+    min-height: 62px;
+    padding: 0.75rem 0.9rem;
+    border-right: 1px solid var(--border);
+    background: transparent;
+}
+
+.template-generation-step:last-child {
+    border-right: 0;
 }
 
 .template-generation-step .step-index {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     background: var(--bg-input);
     color: var(--text-secondary);
@@ -4198,6 +4257,7 @@ tr:hover td {
 .template-recent-generation-card strong {
     display: block;
     color: var(--text-primary);
+    font-size: 0.88rem;
 }
 
 .template-generation-step small,
@@ -4220,21 +4280,93 @@ tr:hover td {
 
 .template-generation-panels {
     display: grid;
-    grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);
-    gap: 1rem;
+    grid-template-columns: minmax(300px, 0.8fr) minmax(0, 1.2fr);
+    gap: 0.85rem;
 }
 
 .template-recent-generation-card {
     display: grid;
-    gap: 0.7rem;
-    min-height: 132px;
+    gap: 0.55rem;
+    min-height: 72px;
     align-content: start;
+}
+
+.template-result-empty,
+.template-result-main {
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr);
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.template-result-empty {
+    color: var(--text-muted);
+    font-size: 0.86rem;
+}
+
+.template-result-main i,
+.template-result-empty i {
+    color: var(--accent);
+}
+
+.template-result-main span {
+    min-width: 0;
+}
+
+.template-result-main strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .template-recent-generation-actions {
     display: flex;
     gap: 0.6rem;
     flex-wrap: wrap;
+}
+
+.template-project-check-panel {
+    padding: 0;
+}
+
+.template-project-check-panel > summary {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.9rem 1rem;
+    cursor: pointer;
+    list-style: none;
+}
+
+.template-project-check-panel > summary::-webkit-details-marker {
+    display: none;
+}
+
+.template-project-check-panel > summary span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--text-primary);
+    font-weight: 650;
+}
+
+.template-project-check-panel > summary small {
+    overflow: hidden;
+    color: var(--text-muted);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.template-project-check-panel[open] > summary {
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-input);
+}
+
+.template-project-check-body {
+    display: grid;
+    gap: 1rem;
+    padding: 1rem;
 }
 
 .template-advanced-maintenance {
@@ -4248,8 +4380,9 @@ tr:hover td {
 .template-advanced-maintenance > summary {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     gap: 1rem;
-    padding: 0.9rem 1rem;
+    padding: 0.8rem 1rem;
     cursor: pointer;
     list-style: none;
 }
@@ -4268,6 +4401,7 @@ tr:hover td {
 
 .template-advanced-maintenance > summary small {
     color: var(--text-muted);
+    font-size: 0.78rem;
 }
 
 .template-advanced-maintenance[open] > summary {
@@ -4319,7 +4453,7 @@ tr:hover td {
 
 .template-workbench-main-grid {
     display: grid;
-    grid-template-columns: minmax(380px, 0.72fr) minmax(680px, 1.28fr);
+    grid-template-columns: minmax(340px, 0.66fr) minmax(680px, 1.34fr);
     align-items: stretch;
     gap: 1rem;
     padding: 1rem;
@@ -4344,6 +4478,10 @@ tr:hover td {
     border-radius: var(--radius-sm);
     background: var(--bg-primary);
     padding: 1rem;
+}
+
+.template-workbench-left .template-workbench-panel {
+    background: var(--bg-card);
 }
 
 .panel-title-row {

@@ -45,8 +45,10 @@ def test_template_detail_prioritizes_weekly_report_generation_center():
     html = INDEX_HTML.read_text(encoding="utf-8")
 
     assert 'id="template-generation-center"' in html
-    assert "周报生成中心" in html
+    assert "周报生成" in html
     assert "生成本周报告" in html
+    assert 'id="template-generation-health"' in html
+    assert 'id="template-generation-action-hint"' in html
     assert 'id="template-generation-period"' in html
     assert 'id="template-generation-lookback"' in html
     assert 'id="template-generation-status-strip"' in html
@@ -56,7 +58,8 @@ def test_template_detail_prioritizes_weekly_report_generation_center():
     assert 'id="template-recent-generation-panel"' in html
     assert 'id="template-generation-readiness-panel"' in html
     assert 'id="template-advanced-maintenance"' in html
-    assert "高级维护：模板、占位符、Prompt、YAML" in html
+    assert "高级配置" in html
+    assert "占位符、Prompt、检索策略和 YAML 片段" in html
     assert 'id="detail-template-name"' not in html
     assert 'id="detail-template-version"' not in html
     assert 'id="detail-template-title"' not in html
@@ -293,6 +296,11 @@ def test_advanced_workbench_exposes_common_defaults_and_target_words():
     assert ".template-rerank-editor" in css
     assert ".template-rerank-toggle" in css
     assert ".template-weight-meter" in css
+    assert ".template-generation-health" in css
+    assert ".template-result-main" in css
+    assert ".template-project-check-panel > summary" in css
+    assert "template-result-empty" in source
+    assert "template-result-main" in source
 
 
 def test_placeholder_mapping_connects_word_prompt_and_query_source():
