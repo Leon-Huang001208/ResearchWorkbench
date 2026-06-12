@@ -1247,12 +1247,12 @@ function getStoredCommonDefaults(template) {
             forbidden_terms: ['保本', '稳赚', '收益保证', '明确买入', '目标价']
         },
         hard_constraints: {
-            no_wind_data: true,
-            no_baidu_data: true,
-            require_number_source: true,
-            single_paragraph: true,
-            forbidden_phrases: ['根据文件', '据报道', '数据显示'],
-            forbidden_entity_categories: ['指数名称', '公司名称', '证券机构']
+            prompt_text: [
+                '仅基于上传素材、Excel 数据和检索证据撰写，不使用 Wind 数据、百度数据或外部事实补充。',
+                '涉及数字时必须说明来源，避免使用“根据文件”“据报道”“数据显示”等模板化表述。',
+                '不要输出指数名称、公司名称、证券机构等实体清单式堆砌，不输出投资收益保证或直接买卖建议。',
+                '除模板特别要求外，只输出一段正式周报正文，不换行。'
+            ].join('\n')
         },
         retrieval: {
             mode: 'hybrid',
@@ -1293,21 +1293,7 @@ function renderCommonGenerationRules(template) {
     const hardConstraints = defaults.hard_constraints || {};
     const retrieval = defaults.retrieval || {};
     const rerank = defaults.rerank || {};
-    const forbiddenTerms = Array.isArray(validators.forbidden_terms)
-        ? validators.forbidden_terms.join('\n')
-        : '';
-    const forbiddenPhrases = Array.isArray(hardConstraints.forbidden_phrases)
-        ? hardConstraints.forbidden_phrases.join('\n')
-        : '';
-    const forbiddenEntityCategories = Array.isArray(hardConstraints.forbidden_entity_categories)
-        ? hardConstraints.forbidden_entity_categories.join('\n')
-        : '';
-    const hardConstraintPills = [
-        hardConstraints.no_wind_data !== false ? 'Wind 禁用' : 'Wind 可用',
-        hardConstraints.no_baidu_data !== false ? '百度禁用' : '百度可用',
-        hardConstraints.require_number_source !== false ? '数字带来源' : '数字来源不强制',
-        hardConstraints.single_paragraph !== false ? '单段输出' : '允许换行'
-    ];
+    const promptConstraintText = getHardConstraintPromptText(hardConstraints);
     const keywordWeightPercent = formatRulePercent(retrieval.keyword_weight ?? 0.7);
     const semanticWeightPercent = formatRulePercent(retrieval.semantic_weight ?? 0.3);
 
@@ -1316,31 +1302,21 @@ function renderCommonGenerationRules(template) {
             <h4>共用参数</h4>
             <span class="text-muted">所有 prompt 占位符默认继承</span>
         </div>
-        <details class="template-common-rule-card template-common-summary-card">
+        <details class="template-common-rule-card template-common-summary-card" open>
             <summary>
                 <span class="template-common-summary-title">
-                    <strong>硬性生成约束</strong>
-                    <small>${hardConstraintPills.join(' · ')}</small>
+                    <strong>共用 Prompt 约束</strong>
+                    <small>${esc(getFirstLine(promptConstraintText))}</small>
                 </span>
                 <span class="template-common-summary-meta">
-                    禁用短语 ${countLines(forbiddenPhrases)} · 实体 ${countLines(forbiddenEntityCategories)}
+                    拼入每个占位符
                     <i class="codicon codicon-chevron-down"></i>
                 </span>
             </summary>
             <div class="template-common-rule-editor">
-                <div class="template-common-check-grid">
-                    <label><input type="checkbox" data-common-rule-field="hard_constraints.no_wind_data" ${hardConstraints.no_wind_data !== false ? 'checked' : ''}><span>不使用 Wind 数据</span></label>
-                    <label><input type="checkbox" data-common-rule-field="hard_constraints.no_baidu_data" ${hardConstraints.no_baidu_data !== false ? 'checked' : ''}><span>不使用百度数据</span></label>
-                    <label><input type="checkbox" data-common-rule-field="hard_constraints.require_number_source" ${hardConstraints.require_number_source !== false ? 'checked' : ''}><span>数字必须说明来源</span></label>
-                    <label><input type="checkbox" data-common-rule-field="hard_constraints.single_paragraph" ${hardConstraints.single_paragraph !== false ? 'checked' : ''}><span>只输出一段，不换行</span></label>
-                </div>
                 <label class="template-common-field wide">
-                    <span>禁用短语（逗号或换行分隔）</span>
-                    <textarea data-common-rule-field="hard_constraints.forbidden_phrases" rows="3">${esc(forbiddenPhrases)}</textarea>
-                </label>
-                <label class="template-common-field wide">
-                    <span>禁用实体类别（逗号或换行分隔）</span>
-                    <textarea data-common-rule-field="hard_constraints.forbidden_entity_categories" rows="3">${esc(forbiddenEntityCategories)}</textarea>
+                    <span>这段文字会和每个占位符的 Prompt 模板、RAG 证据一起传给大模型</span>
+                    <textarea data-common-rule-field="hard_constraints.prompt_text" rows="7">${esc(promptConstraintText)}</textarea>
                 </label>
             </div>
         </details>
@@ -1431,18 +1407,45 @@ function renderCommonGenerationRules(template) {
     });
 }
 
-function countLines(value) {
-    return String(value || '')
-        .split(/[\n,，]/)
-        .map(item => item.trim())
-        .filter(Boolean)
-        .length;
-}
-
 function formatRulePercent(value) {
     const numberValue = Number(value);
     if (!Number.isFinite(numberValue)) return '0%';
     return `${Math.round(numberValue * 100)}%`;
+}
+
+function getFirstLine(value) {
+    return String(value || '').split('\n').map(line => line.trim()).find(Boolean) || '未填写共用约束';
+}
+
+function getHardConstraintPromptText(hardConstraints = {}) {
+    if (typeof hardConstraints.prompt_text === 'string' && hardConstraints.prompt_text.trim()) {
+        return hardConstraints.prompt_text;
+    }
+
+    const lines = [];
+    if (hardConstraints.no_wind_data !== false || hardConstraints.no_baidu_data !== false) {
+        const blocked = [
+            hardConstraints.no_wind_data !== false ? 'Wind 数据' : '',
+            hardConstraints.no_baidu_data !== false ? '百度数据' : ''
+        ].filter(Boolean).join('、');
+        lines.push(`不使用${blocked}，仅基于上传素材、Excel 数据和检索证据撰写。`);
+    }
+    if (hardConstraints.require_number_source !== false) {
+        lines.push('涉及数字时必须说明来源。');
+    }
+    if (Array.isArray(hardConstraints.forbidden_phrases) && hardConstraints.forbidden_phrases.length) {
+        lines.push(`避免使用这些模板化表述：${hardConstraints.forbidden_phrases.join('、')}。`);
+    }
+    if (Array.isArray(hardConstraints.forbidden_entity_categories) && hardConstraints.forbidden_entity_categories.length) {
+        lines.push(`不要输出这些实体类别的清单式堆砌：${hardConstraints.forbidden_entity_categories.join('、')}。`);
+    }
+    if (hardConstraints.single_paragraph !== false) {
+        lines.push('除模板特别要求外，只输出一段正式周报正文，不换行。');
+    }
+    return lines.join('\n') || [
+        '仅基于上传素材、Excel 数据和检索证据撰写，不使用外部事实补充。',
+        '语言客观审慎，不输出投资收益保证或直接买卖建议。'
+    ].join('\n');
 }
 
 function collectCommonDefaultsDraft(template) {
@@ -2065,12 +2068,7 @@ function buildDefaultsBlock(defaults) {
     const forbiddenTerms = Array.isArray(validators.forbidden_terms)
         ? validators.forbidden_terms
         : ['保本', '稳赚', '收益保证', '明确买入', '目标价'];
-    const forbiddenPhrases = Array.isArray(hardConstraints.forbidden_phrases)
-        ? hardConstraints.forbidden_phrases
-        : ['根据文件', '据报道', '数据显示'];
-    const forbiddenEntityCategories = Array.isArray(hardConstraints.forbidden_entity_categories)
-        ? hardConstraints.forbidden_entity_categories
-        : ['指数名称', '公司名称', '证券机构'];
+    const promptConstraintText = getHardConstraintPromptText(hardConstraints);
     const lines = [
         'defaults:',
         `  generation_mode: ${defaults?.generation_mode || 'evidence_grounded_generation'}`,
@@ -2084,14 +2082,8 @@ function buildDefaultsBlock(defaults) {
     ];
     forbiddenTerms.forEach(term => lines.push(`      - ${term}`));
     lines.push('  hard_constraints:');
-    lines.push(`    no_wind_data: ${hardConstraints.no_wind_data !== false}`);
-    lines.push(`    no_baidu_data: ${hardConstraints.no_baidu_data !== false}`);
-    lines.push(`    require_number_source: ${hardConstraints.require_number_source !== false}`);
-    lines.push(`    single_paragraph: ${hardConstraints.single_paragraph !== false}`);
-    lines.push('    forbidden_phrases:');
-    forbiddenPhrases.forEach(term => lines.push(`      - ${term}`));
-    lines.push('    forbidden_entity_categories:');
-    forbiddenEntityCategories.forEach(term => lines.push(`      - ${term}`));
+    lines.push('    prompt_text: |');
+    promptConstraintText.split('\n').forEach(line => lines.push(`      ${line}`));
     lines.push('  retrieval:');
     lines.push(`    mode: ${retrieval.mode || 'hybrid'}`);
     lines.push(`    top_k: ${retrieval.top_k ?? 8}`);
@@ -2122,7 +2114,7 @@ function buildSelectedPlaceholderYamlFragment(template, existingMappings) {
     const mapping = existingMappings.get(key) || {};
     return [
         '# 当前占位符片段',
-        '# 继承 defaults: 硬性生成约束 / 检索配置 / Rerank / validators。',
+        '# 继承 defaults: 共用 Prompt 约束 / 检索配置 / Rerank / validators。',
         '# 下方只写当前占位符自己的覆盖项，例如 prompt_template、max_words、params。',
         'placeholders:',
         ...buildPlaceholderYamlEntry(template, key, mapping)

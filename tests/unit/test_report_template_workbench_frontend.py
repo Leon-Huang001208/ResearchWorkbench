@@ -244,7 +244,7 @@ def test_advanced_workbench_exposes_common_defaults_and_target_words():
     right_panel = html[html.index('<div class="template-workbench-panel template-section-editor-panel"') :]
     assert 'id="template-common-rules"' in left_panel
     assert 'id="template-common-rules"' not in right_panel
-    assert "硬性生成约束" in source
+    assert "共用 Prompt 约束" in source
     assert "检索策略" in source
     assert "Rerank" in source
     assert "template-common-summary-card" in source
@@ -252,13 +252,15 @@ def test_advanced_workbench_exposes_common_defaults_and_target_words():
     assert "template-common-rule-editor" in source
     assert "template-weight-meter" in source
     assert "formatRulePercent" in source
-    assert "countLines" in source
-    assert 'data-common-rule-field="hard_constraints.no_wind_data"' in source
-    assert 'data-common-rule-field="hard_constraints.no_baidu_data"' in source
-    assert 'data-common-rule-field="hard_constraints.require_number_source"' in source
-    assert 'data-common-rule-field="hard_constraints.single_paragraph"' in source
-    assert 'data-common-rule-field="hard_constraints.forbidden_phrases"' in source
-    assert 'data-common-rule-field="hard_constraints.forbidden_entity_categories"' in source
+    assert "getHardConstraintPromptText" in source
+    assert "getFirstLine" in source
+    assert 'data-common-rule-field="hard_constraints.prompt_text"' in source
+    assert 'data-common-rule-field="hard_constraints.no_wind_data"' not in source
+    assert 'data-common-rule-field="hard_constraints.no_baidu_data"' not in source
+    assert 'data-common-rule-field="hard_constraints.require_number_source"' not in source
+    assert 'data-common-rule-field="hard_constraints.single_paragraph"' not in source
+    assert 'data-common-rule-field="hard_constraints.forbidden_phrases"' not in source
+    assert 'data-common-rule-field="hard_constraints.forbidden_entity_categories"' not in source
     assert 'data-common-rule-field="retrieval.mode"' in source
     assert 'data-common-rule-field="retrieval.top_k"' in source
     assert 'data-common-rule-field="retrieval.keyword_candidates"' in source
@@ -276,8 +278,9 @@ def test_advanced_workbench_exposes_common_defaults_and_target_words():
     assert "'人工智能': ['CPO', '算力', '人工智能', '大模型', '先进封装']" in source
     assert "buildDefaultsBlock" in source
     assert "insertTopLevelBlockBefore" in source
-    assert "硬性生成约束 / 检索配置 / Rerank" in source
+    assert "继承 defaults: 共用 Prompt 约束 / 检索配置 / Rerank" in source
     assert "hard_constraints:" in source
+    assert "prompt_text: |" in source
     assert "retrieval:" in source
     assert "rerank:" in source
     assert ".template-common-rules-grid" in css
