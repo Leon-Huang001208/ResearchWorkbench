@@ -958,78 +958,147 @@
 
                         <!-- Report Template Workbench -->
                         <div class="template-workbench" id="template-workbench-summary">
-                            <div class="template-workbench-header">
-                                <div>
-                                    <p class="eyebrow">报告模板工作台</p>
-                                    <h3>Word 占位符、Excel 底稿、Section 配置统一维护</h3>
-                                </div>
-                            <div class="template-workbench-actions">
-                                    <button id="btn-template-edit-source" class="btn-secondary"><i class="codicon codicon-edit"></i> 编辑配置</button>
-                                    <button id="btn-template-save-source" class="btn-secondary" disabled><i class="codicon codicon-save"></i> 保存配置</button>
-                                    <button id="btn-template-generate-report" class="btn-primary"><i class="codicon codicon-play"></i> 生成报告</button>
-                                    <a id="btn-template-download-report" class="btn-secondary disabled" href="#" aria-disabled="true"><i class="codicon codicon-cloud-download"></i> 下载文档</a>
-                                </div>
-                            </div>
+                            <!-- Weekly Report Generation Center -->
+                            <div class="template-generation-center" id="template-generation-center">
+                                <section class="template-generation-hero">
+                                    <div class="template-generation-copy">
+                                        <p class="eyebrow">周报生成中心</p>
+                                        <h3 id="template-generation-title">生成本周报告</h3>
+                                        <div class="template-generation-meta">
+                                            <span id="template-generation-period">报告周期待加载</span>
+                                            <span id="template-generation-lookback">证据检索 7 天</span>
+                                            <span id="template-generation-placeholder-total">0 个占位符</span>
+                                        </div>
+                                    </div>
+                                    <div class="template-generation-actions">
+                                        <button id="btn-template-generate-report" class="btn-primary"><i class="codicon codicon-play"></i> 生成报告</button>
+                                        <button id="btn-template-preview-report" class="btn-secondary" disabled><i class="codicon codicon-open-preview"></i> 预览最近版本</button>
+                                        <a id="btn-template-download-report" class="btn-secondary disabled" href="#" aria-disabled="true"><i class="codicon codicon-cloud-download"></i> 下载文档</a>
+                                    </div>
+                                </section>
 
-                            <div class="template-workbench-main-grid">
-                                <div class="template-workbench-left">
-                                    <div class="template-workbench-panel">
+                                <section class="template-generation-status-strip" id="template-generation-status-strip">
+                                    <div class="template-generation-step" id="template-generation-step-data">
+                                        <span class="step-index">1</span>
+                                        <div>
+                                            <strong>数据就绪</strong>
+                                            <small id="template-generation-data-summary">Word、Excel、配套数据待检查</small>
+                                        </div>
+                                    </div>
+                                    <div class="template-generation-step" id="template-generation-step-content">
+                                        <span class="step-index">2</span>
+                                        <div>
+                                            <strong>内容就绪</strong>
+                                            <small id="template-generation-content-summary">段落和 Prompt 待检查</small>
+                                        </div>
+                                    </div>
+                                    <div class="template-generation-step" id="template-generation-step-output">
+                                        <span class="step-index">3</span>
+                                        <div>
+                                            <strong>输出就绪</strong>
+                                            <small id="template-generation-output-summary">生成后可预览和下载</small>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <section class="template-generation-panels">
+                                    <div class="template-workbench-panel" id="template-recent-generation-panel">
                                         <div class="panel-title-row">
-                                            <h4>模板资产</h4>
-                                            <span id="template-asset-status" class="badge">待加载</span>
+                                            <h4>最近生成</h4>
+                                            <span id="template-recent-generation-status" class="badge">尚未生成</span>
                                         </div>
-                                        <div id="template-asset-checklist" class="template-asset-checklist">
-                                            <div class="asset-check-item"><i class="codicon codicon-file-code"></i><span>Word 模板</span><strong>未确认</strong></div>
-                                            <div class="asset-check-item"><i class="codicon codicon-table"></i><span>Excel 底稿</span><strong>未确认</strong></div>
-                                            <div class="asset-check-item"><i class="codicon codicon-settings-gear"></i><span>Section 配置</span><strong>未确认</strong></div>
+                                        <div id="template-recent-generation-card" class="template-recent-generation-card">
+                                            <div class="empty-state compact">生成报告后显示预览和下载入口</div>
                                         </div>
                                     </div>
 
-                                    <div class="template-workbench-panel">
-                                        <div class="panel-title-row">
-                                            <h4>占位符地图</h4>
-                                            <span id="template-placeholder-count" class="text-muted">0 个</span>
-                                        </div>
-                                        <div id="template-placeholder-map" class="template-placeholder-map">
-                                            <div class="empty-state compact">选择模板后显示占位符映射</div>
-                                        </div>
-                                    </div>
+                                    <details class="template-workbench-panel template-project-check-panel" id="template-project-check-details">
+                                        <summary>
+                                            <span><i class="codicon codicon-checklist"></i> 生成前检查</span>
+                                            <small id="template-project-check-summary">素材、数据和生成规则</small>
+                                            <strong id="template-project-check-status" class="badge">待加载</strong>
+                                        </summary>
+                                        <div class="template-project-check-body" id="template-generation-readiness-panel">
+                                            <div class="template-project-check-section">
+                                                <div class="panel-title-row compact">
+                                                    <h4>模板资产</h4>
+                                                    <span id="template-asset-status" class="badge">待加载</span>
+                                                </div>
+                                                <div id="template-asset-checklist" class="template-asset-checklist">
+                                                    <div class="asset-check-item"><i class="codicon codicon-file-code"></i><span>Word 模板</span><strong>未确认</strong></div>
+                                                    <div class="asset-check-item"><i class="codicon codicon-table"></i><span>主 Excel 底稿</span><strong>未确认</strong></div>
+                                                    <div class="asset-check-item"><i class="codicon codicon-settings-gear"></i><span>Section 配置</span><strong>未确认</strong></div>
+                                                </div>
+                                            </div>
 
-                                    <div class="template-workbench-panel">
-                                        <div class="panel-title-row">
-                                            <h4>Excel 底稿映射</h4>
-                                            <span class="text-muted">数据槽 / 图表 / 表格</span>
-                                        </div>
-                                        <div id="template-excel-mapping" class="template-mapping-table">
-                                            <div class="empty-state compact">绑定 Excel 后显示数据来源</div>
-                                        </div>
-                                    </div>
+                                            <div class="template-project-check-section">
+                                                <div class="panel-title-row compact">
+                                                    <h4>Excel 底稿映射</h4>
+                                                    <span class="text-muted">数据槽 / 图表 / 表格</span>
+                                                </div>
+                                                <div id="template-excel-mapping" class="template-mapping-table">
+                                                    <div class="empty-state compact">绑定 Excel 后显示数据来源</div>
+                                                </div>
+                                            </div>
 
-                                    <div class="template-workbench-panel" id="template-validation-preview">
-                                        <div class="panel-title-row">
-                                            <h4>生成预检</h4>
-                                            <span id="template-validation-status" class="badge">未运行</span>
+                                            <div class="template-project-check-section" id="template-validation-preview">
+                                                <div class="panel-title-row compact">
+                                                    <h4>生成预检</h4>
+                                                    <span id="template-validation-status" class="badge">未运行</span>
+                                                </div>
+                                                <div id="template-validation-list" class="template-validation-list">
+                                                    <div class="validation-item pending"><i class="codicon codicon-circle-outline"></i><span>Word 占位符均有 section 映射</span></div>
+                                                    <div class="validation-item pending"><i class="codicon codicon-circle-outline"></i><span>AI 文本 section 已配置 prompt</span></div>
+                                                    <div class="validation-item pending"><i class="codicon codicon-circle-outline"></i><span>Excel 图表和表格已绑定来源</span></div>
+                                                    <div class="validation-item pending"><i class="codicon codicon-circle-outline"></i><span>数字、禁用词、投资建议规则已配置</span></div>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div id="template-validation-list" class="template-validation-list">
-                                            <div class="validation-item pending"><i class="codicon codicon-circle-outline"></i><span>Word 占位符均有 section 映射</span></div>
-                                            <div class="validation-item pending"><i class="codicon codicon-circle-outline"></i><span>AI 文本 section 已配置 prompt</span></div>
-                                            <div class="validation-item pending"><i class="codicon codicon-circle-outline"></i><span>Excel 图表和表格已绑定来源</span></div>
-                                            <div class="validation-item pending"><i class="codicon codicon-circle-outline"></i><span>数字、禁用词、投资建议规则已配置</span></div>
-                                        </div>
-                                    </div>
-                                </div>
+                                    </details>
+                                </section>
 
-                                <div class="template-workbench-panel template-section-editor-panel" id="template-section-config-editor">
-                                    <div class="panel-title-row">
-                                        <h4>Section 配置源码</h4>
-                                        <span id="template-source-kind-label" class="text-muted">YAML / Markdown Prompt</span>
+                                <details class="template-advanced-maintenance" id="template-advanced-maintenance">
+                                    <summary>
+                                        <span><i class="codicon codicon-tools"></i> 高级维护：模板、占位符、Prompt、YAML</span>
+                                        <small>维护 Word 占位符、Section 配置、Prompt 模板和 Excel 映射</small>
+                                    </summary>
+                                    <div class="template-workbench-main-grid">
+                                        <div class="template-workbench-left">
+                                            <div class="template-workbench-panel">
+                                                <div class="panel-title-row">
+                                                    <h4>选择占位符</h4>
+                                                    <span id="template-placeholder-count" class="text-muted">0 个</span>
+                                                </div>
+                                                <div id="template-placeholder-map" class="template-placeholder-map">
+                                                    <div class="empty-state compact">选择模板后显示占位符映射</div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="template-workbench-panel template-section-editor-panel" id="template-section-config-editor">
+                                            <div class="panel-title-row">
+                                                <h4 id="template-selected-placeholder-title">占位符配置详情</h4>
+                                                <button id="btn-template-save-placeholder" class="btn-secondary" disabled><i class="codicon codicon-save"></i> 保存当前占位符</button>
+                                            </div>
+                                            <div id="template-placeholder-detail-form" class="template-placeholder-detail-form">
+                                                <div class="empty-state compact">从左侧选择一个 Word 占位符后编辑配置</div>
+                                            </div>
+                                            <div class="panel-title-row template-source-fragment-title" data-legacy-label="Section 配置源码">
+                                                <h4>当前片段源码</h4>
+                                                <span id="template-source-kind-label" class="text-muted">YAML / Markdown Prompt</span>
+                                            </div>
+                                            <div class="template-source-switcher">
+                                                <button id="btn-template-source-section" class="source-switch-btn active" type="button">当前 YAML</button>
+                                                <button id="btn-template-source-prompt" class="source-switch-btn" type="button">Prompt 模板</button>
+                                            </div>
+                                            <div class="template-workbench-actions template-source-actions">
+                                                <button id="btn-template-edit-source" class="btn-secondary"><i class="codicon codicon-edit"></i> 查看片段</button>
+                                                <button id="btn-template-save-source" class="btn-secondary" disabled><i class="codicon codicon-save"></i> 保存当前片段</button>
+                                            </div>
+                                            <textarea id="template-source-editor" class="template-source-editor" spellcheck="false" readonly>选择模板后生成配置草稿...</textarea>
+                                        </div>
                                     </div>
-                                    <div class="template-source-switcher">
-                                        <button id="btn-template-source-section" class="source-switch-btn active" type="button">占位符映射</button>
-                                        <button id="btn-template-source-prompt" class="source-switch-btn" type="button">Prompt 模板</button>
-                                    </div>
-                                    <textarea id="template-source-editor" class="template-source-editor" spellcheck="false" readonly>选择模板后生成配置草稿...</textarea>
-                                </div>
+                                </details>
                             </div>
                         </div>
 
