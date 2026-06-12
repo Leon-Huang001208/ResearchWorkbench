@@ -852,13 +852,6 @@ function renderReportGenerationCenter(template) {
     const placeholders = getTemplateWorkbenchPlaceholders(template);
     const sections = getTemplateWorkbenchSections(template);
     const readiness = buildGenerationReadiness(template, sections, placeholders);
-    [
-        'template-generation-center',
-        'template-generation-status-strip',
-        'template-recent-generation-panel',
-        'template-generation-readiness-panel',
-        'template-advanced-maintenance'
-    ].forEach(id => document.getElementById(id)?.classList.remove('hidden'));
 
     renderGenerationHero(template, readiness);
     renderGenerationStatusStrip(readiness);
@@ -999,7 +992,6 @@ function formatGeneratedAt(value) {
     return date.toLocaleString('zh-CN', { hour12: false });
 }
 
-// renderTemplateWorkbench is now the advanced maintenance section below.
 function renderAdvancedMaintenance(template) {
     const project = template.report_project || null;
     const placeholders = getTemplateWorkbenchPlaceholders(template);
@@ -2038,9 +2030,10 @@ async function renderReportFromTemplate() {
         }
 
         currentTemplateState.renderedReportId = result.report_id || result.file_name || null;
-        if (currentTemplateState.selectedReportProject) {
-            await loadReportProjectsList();
-            const refreshedProject = await findReportProjectForTemplate(currentSelectedTemplate);
+        const renderedProjectSlug = currentTemplateState.selectedReportProject?.slug;
+        if (renderedProjectSlug) {
+            const projects = await loadReportProjectsList();
+            const refreshedProject = (projects || []).find(project => project.slug === renderedProjectSlug);
             const selectedTemplate = getCurrentWorkbenchTemplate();
             if (selectedTemplate && refreshedProject) {
                 selectedTemplate.report_project = refreshedProject;

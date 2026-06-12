@@ -61,7 +61,8 @@ def test_template_detail_prioritizes_weekly_report_generation_center():
 def test_templates_js_populates_report_workbench():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
 
-    assert "renderTemplateWorkbench" in source
+    assert "renderReportGenerationCenter" in source
+    assert "renderAdvancedMaintenance" in source
     assert "loadReportProjectsList" in source
     assert "/api/report-projects/" in source
     assert "/api/report-projects/upload" in source
@@ -95,10 +96,6 @@ def test_templates_js_renders_generation_center_and_reuses_advanced_workbench():
     assert "renderAdvancedMaintenance" in source
     assert "template-generation-period" in source
     assert "template-generation-lookback" in source
-    assert "template-generation-status-strip" in source
-    assert "template-recent-generation-panel" in source
-    assert "template-generation-readiness-panel" in source
-    assert "template-advanced-maintenance" in source
     assert "最近生成" in source
     assert "尚未生成" in source
 
