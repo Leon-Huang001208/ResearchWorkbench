@@ -4119,6 +4119,7 @@ tr:hover td {
 .template-generation-center {
     display: grid;
     gap: 1rem;
+    padding: 1rem;
     margin-bottom: 1.5rem;
 }
 
@@ -4152,7 +4153,7 @@ tr:hover td {
     padding: 0.32rem 0.55rem;
     border: 1px solid var(--border);
     border-radius: 6px;
-    background: var(--bg-secondary);
+    background: var(--bg-input);
     color: var(--text-secondary);
     font-size: 0.78rem;
 }
@@ -4188,7 +4189,7 @@ tr:hover td {
     width: 28px;
     height: 28px;
     border-radius: 50%;
-    background: var(--bg-secondary);
+    background: var(--bg-input);
     color: var(--text-secondary);
     font-weight: 700;
 }
@@ -4213,7 +4214,7 @@ tr:hover td {
 }
 
 .template-generation-step.pending .step-index {
-    background: var(--bg-secondary);
+    background: var(--bg-input);
     color: var(--warning);
 }
 
@@ -4293,7 +4294,7 @@ tr:hover td {
     gap: 1rem;
     padding: 1.25rem 1.5rem;
     border-bottom: 1px solid var(--border);
-    background: var(--bg-secondary);
+    background: var(--bg-input);
 }
 
 .template-workbench-header h3 {
@@ -4493,7 +4494,7 @@ tr:hover td {
     margin-bottom: 8px;
     border: 1px solid var(--border);
     border-radius: 8px;
-    background: var(--bg-secondary);
+    background: var(--bg-input);
 }
 
 .source-switch-btn {
