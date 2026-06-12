@@ -1177,12 +1177,22 @@ class DashboardDataRepository:
         if source_type:
             base_query = base_query.filter(DocumentV1DB.source_type == source_type)
 
-        # Today's total count: prefer timeliness.publish_time, fall back to created_at
+        dialect_name = getattr(getattr(self.session, "bind", None), "dialect", None)
+        dialect_name = getattr(dialect_name, "name", "")
+
+        # Today's total count: prefer timeliness.publish_time, fall back to created_at.
+        # SQLite does not support PostgreSQL's json_extract_path_text.
         today_str = datetime.now().strftime("%Y-%m-%d")
-        publish_or_created_coalesce = func.coalesce(
-            func.json_extract_path_text(DocumentV1DB.timeliness, "publish_time"),
-            cast(DocumentV1DB.created_at, String),
-        )
+        if dialect_name == "sqlite":
+            publish_or_created_coalesce = func.coalesce(
+                func.json_extract(DocumentV1DB.timeliness, "$.publish_time"),
+                cast(DocumentV1DB.created_at, String),
+            )
+        else:
+            publish_or_created_coalesce = func.coalesce(
+                func.json_extract_path_text(DocumentV1DB.timeliness, "publish_time"),
+                cast(DocumentV1DB.created_at, String),
+            )
         total_today = base_query.filter(publish_or_created_coalesce.like(f"{today_str}%")).count()
 
         query = base_query
@@ -1193,10 +1203,16 @@ class DashboardDataRepository:
             except (ValueError, TypeError):
                 pass
 
-        publish_or_created = func.coalesce(
-            func.json_extract_path_text(DocumentV1DB.timeliness, "publish_time"),
-            cast(DocumentV1DB.created_at, String),
-        )
+        if dialect_name == "sqlite":
+            publish_or_created = func.coalesce(
+                func.json_extract(DocumentV1DB.timeliness, "$.publish_time"),
+                cast(DocumentV1DB.created_at, String),
+            )
+        else:
+            publish_or_created = func.coalesce(
+                func.json_extract_path_text(DocumentV1DB.timeliness, "publish_time"),
+                cast(DocumentV1DB.created_at, String),
+            )
         documents = query.order_by(desc(publish_or_created)).limit(limit).all()
 
         results = []

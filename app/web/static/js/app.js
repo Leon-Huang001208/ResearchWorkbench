@@ -11,7 +11,7 @@ import { switchSignalLabTab, loadSignalLab, initSignalLab } from './signal-lab.j
 import { loadMemoryPage, loadEpisodes, loadStrategies, loadFailures, loadEventSummary, initMemory } from './memory.js';
 import { loadSignals, createSignal, validateSignal, promoteSignal, loadOutcomes, initSignals } from './signals.js';
 import { loadReviewStats, loadReviewPending, approveItem, rejectItem, initReview } from './review.js';
-import { loadTemplatesPage, loadTemplates, loadTemplatesList, selectTemplate, deleteTemplate, uploadTemplate, downloadTemplateFile, renderReportFromTemplate, downloadRenderedReport, savePlaceholderConfig, exportYamlConfig, generateAiContent, generateAllAiFields, discoverPlaceholders, createYamlConfig, openUploadModal, closeUploadModal, openEditTemplateModal, closeEditTemplateModal, saveTemplateEdit, toggleEditMode, saveTemplatesOrder, handleTemplatePointerDown, handleDragStart, handleDragOver, handleDrop, switchTemplatesTab, goBackToTemplates, clearPlaceholderData, updatePlaceholderConfig, updatePlaceholderValue, initTemplateDropZone, handleTemplateFileSelect, clearFileSelection, handleTemplateNameKeydown, saveTemplateInlineName } from './templates.js?v=20250606e';
+import { loadTemplatesPage, loadTemplates, loadTemplatesList, selectTemplate, deleteTemplate, uploadTemplate, downloadTemplateFile, renderReportFromTemplate, downloadRenderedReport, savePlaceholderConfig, exportYamlConfig, generateAiContent, generateAllAiFields, discoverPlaceholders, createYamlConfig, openUploadModal, closeUploadModal, openEditTemplateModal, closeEditTemplateModal, saveTemplateEdit, toggleEditMode, saveTemplatesOrder, handleTemplatePointerDown, handleDragStart, handleDragOver, handleDrop, switchTemplatesTab, goBackToTemplates, clearPlaceholderData, updatePlaceholderConfig, updatePlaceholderValue, initTemplateDropZone, handleTemplateFileSelect, clearFileSelection, handleTemplateNameKeydown, saveTemplateInlineName } from './templates.js?v=20250612a';
 import { showSignalDetail, renderSignalDetail, renderAuditTrailTimeline, loadAuditTrail } from './signal-detail.js';
 import { generateScenarios, renderScenarioResult } from './scenario.js';
 import { generateEventSignal, loadEventSignals, renderEventSignalResult, renderTimingDecision } from './event-signal.js';
@@ -175,10 +175,12 @@ function navigateTo(section) {
     if (sectionEl) sectionEl.classList.add('active');
 
     if (section === 'dashboard') {
+        connectSSE();
         loadDashboard();
         startCrawlFeedPolling();
         startWorkersPolling();
     } else {
+        disconnectSSE();
         stopCrawlFeedPolling();
         stopWorkersPolling();
     }
@@ -237,6 +239,12 @@ function connectSSE() {
             } catch (_) {}
         });
     });
+}
+
+function disconnectSSE() {
+    if (!sseConnection) return;
+    sseConnection.close();
+    sseConnection = null;
 }
 
 // ─── Global Search Wrapper ───────────────────────────────────
@@ -319,10 +327,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-ingest')?.addEventListener('click', ingestText);
     initSignalLab();
 
-    connectSSE();
-    loadDashboard();
-    startCrawlFeedPolling();
-    startWorkersPolling();
+    navigateTo('templates');
     updateStatusBar();
     setInterval(updateStatusBar, 30000);
 });

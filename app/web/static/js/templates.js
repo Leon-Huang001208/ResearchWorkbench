@@ -210,27 +210,33 @@ async function loadTemplateDetails(templateName) {
             template.report_project = template.report_project || await findReportProjectForTemplate(templateName);
             currentTemplateState.selectedReportProject = template.report_project || null;
 
-            document.getElementById('detail-template-name').textContent = template.template_name || template.name;
-            document.getElementById('detail-template-title').textContent = template.template_name || template.name;
-            document.getElementById('detail-template-description').textContent = template.description || '';
-            document.getElementById('detail-template-version').textContent = `v${template.version || '1.0'}`;
+            const detailNameEl = document.getElementById('detail-template-name');
+            const detailTitleEl = document.getElementById('detail-template-title');
+            const detailDescriptionEl = document.getElementById('detail-template-description');
+            if (detailNameEl) detailNameEl.textContent = template.template_name || template.name;
+            if (detailTitleEl) detailTitleEl.textContent = template.template_name || template.name;
+            if (detailDescriptionEl) detailDescriptionEl.textContent = template.description || '';
 
-            document.getElementById('detail-has-docx').classList.toggle('hidden', !template.has_docx);
-            document.getElementById('detail-has-pptx').classList.toggle('hidden', !template.has_pptx);
-            document.getElementById('detail-has-excel').classList.toggle('hidden', !template.has_excel);
+            document.getElementById('detail-has-docx')?.classList.toggle('hidden', !template.has_docx);
+            document.getElementById('detail-has-pptx')?.classList.toggle('hidden', !template.has_pptx);
+            document.getElementById('detail-has-excel')?.classList.toggle('hidden', !template.has_excel);
 
             const iconEl = document.getElementById('detail-template-icon');
-            iconEl.className = 'template-icon-large';
-            if (template.has_docx) iconEl.classList.add('docx');
-            else if (template.has_pptx) iconEl.classList.add('pptx');
-            else if (template.has_excel) iconEl.classList.add('excel');
-            else iconEl.classList.add('default');
+            if (iconEl) {
+                iconEl.className = 'template-icon-large';
+                if (template.has_docx) iconEl.classList.add('docx');
+                else if (template.has_pptx) iconEl.classList.add('pptx');
+                else if (template.has_excel) iconEl.classList.add('excel');
+                else iconEl.classList.add('default');
+            }
 
-            document.getElementById('btn-download-template').onclick = () => {
+            const downloadTemplateBtn = document.getElementById('btn-download-template');
+            if (downloadTemplateBtn) downloadTemplateBtn.onclick = () => {
                 downloadTemplateFile(templateName, currentSelectedFileType);
             };
 
-            document.getElementById('btn-delete-template').onclick = () => {
+            const deleteTemplateBtn = document.getElementById('btn-delete-template');
+            if (deleteTemplateBtn) deleteTemplateBtn.onclick = () => {
                 deleteTemplate(templateName);
             };
 

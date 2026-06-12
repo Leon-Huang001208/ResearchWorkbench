@@ -4,10 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AlphaFoundry — 买方投研情报系统</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23d17a22'/%3E%3Cpath d='M20 18h18l8 8v20H20z' fill='none' stroke='white' stroke-width='4'/%3E%3Cpath d='M38 18v10h10' fill='none' stroke='white' stroke-width='4'/%3E%3C/svg%3E">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
-    <link rel="stylesheet" href="/static/style.css?v=20250606e">
+    <link rel="stylesheet" href="/static/style.css?v=20250612a">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@vscode/codicons@0.0.36/dist/codicon.min.css">
 </head>
 <body>
@@ -15,7 +16,7 @@
         <!-- VS Code Activity Bar (icon strip) -->
         <aside class="activity-bar">
             <div class="activity-bar-top">
-                <button class="activity-btn active" data-section="dashboard" title="仪表盘"><i class="codicon codicon-home"></i></button>
+                <button class="activity-btn" data-section="dashboard" title="仪表盘"><i class="codicon codicon-home"></i></button>
                 <button class="activity-btn" data-section="asset-analysis" title="资产分析"><i class="codicon codicon-graph"></i></button>
                 <button class="activity-btn" data-section="scenario" title="情景分析"><i class="codicon codicon-git-branch"></i></button>
                 <button class="activity-btn" data-section="event-signal" title="事件信号"><i class="codicon codicon-zap"></i></button>
@@ -27,7 +28,7 @@
                 <button class="activity-btn" data-section="signal-lab" title="Signal Lab"><i class="codicon codicon-beaker"></i></button>
                 <button class="activity-btn" data-section="ingest" title="文档摄入"><i class="codicon codicon-cloud-download"></i></button>
                 <button class="activity-btn" data-section="memory" title="记忆与学习"><i class="codicon codicon-lightbulb"></i></button>
-                <button class="activity-btn" data-section="templates" title="模板管理"><i class="codicon codicon-file-code"></i></button>
+                <button class="activity-btn active" data-section="templates" title="模板管理"><i class="codicon codicon-file-code"></i></button>
                 <button class="activity-btn" data-section="wind" title="Wind 数据"><i class="codicon codicon-database"></i></button>
             </div>
             <div class="activity-bar-bottom">
@@ -77,7 +78,7 @@
             </div>
 
             <!-- Dashboard Section (Tabbed) -->
-            <section id="section-dashboard" class="content-section active">
+            <section id="section-dashboard" class="content-section">
                 <div class="dash-header-row">
                     <h2 class="section-title" data-i18n="dashboard.title">研究控制台</h2>
                     <nav class="dash-tabs" id="dash-tabs">
@@ -927,35 +928,11 @@
 
                 <!-- Template Detail View (Hidden by default) -->
                 <div id="template-detail-view" class="hidden">
-                    <div class="section-header">
+                    <div class="section-header template-detail-nav">
                         <button id="btn-back-to-templates" class="btn-secondary" onclick="goBackToTemplates()"><i class="codicon codicon-arrow-left"></i> 返回模板列表</button>
-                        <h2 class="section-title" id="detail-template-name">模板详情</h2>
-                        <div class="section-actions">
-                            <span id="detail-template-version" class="badge">v1.0</span>
-                        </div>
                     </div>
 
                     <div class="template-detail-content">
-                        <!-- Template Info Card -->
-                        <div class="card template-info-card">
-                            <div class="template-icon-large" id="detail-template-icon">
-                                <i class="codicon codicon-file-code"></i>
-                            </div>
-                            <div class="template-meta">
-                                <h3 id="detail-template-title">模板名称</h3>
-                                <p id="detail-template-description" class="text-muted">模板描述</p>
-                                <div class="template-types">
-                                    <span id="detail-has-docx" class="template-type-badge docx hidden">DOCX</span>
-                                    <span id="detail-has-pptx" class="template-type-badge pptx hidden">PPTX</span>
-                                    <span id="detail-has-excel" class="template-type-badge excel hidden">Excel</span>
-                                </div>
-                            </div>
-                            <div class="template-actions hidden">
-                                <button id="btn-download-template" class="btn-secondary"><i class="codicon codicon-download"></i> 下载模板</button>
-                                <button id="btn-delete-template" class="btn-danger"><i class="codicon codicon-trash"></i> 删除</button>
-                            </div>
-                        </div>
-
                         <!-- Report Template Workbench -->
                         <div class="template-workbench" id="template-workbench-summary">
                             <!-- Weekly Report Generation Center -->
@@ -1268,7 +1245,7 @@
 
     <!-- Scripts: i18n must load before app.js -->
     <script src="/static/i18n.js?v=20250527"></script>
-    <script type="module" src="/static/js/app.js?v=20250606e"></script>
+    <script type="module" src="/static/js/app.js?v=20250612a"></script>
     <script type="module" src="/static/js/wind.js?v=20250601a"></script>
 </body>
 </html>

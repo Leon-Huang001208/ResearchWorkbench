@@ -5,6 +5,8 @@ ROOT = Path(__file__).resolve().parents[2]
 INDEX_HTML = ROOT / "app" / "web" / "templates" / "index.html"
 TEMPLATES_JS = ROOT / "app" / "web" / "static" / "js" / "templates.js"
 STYLE_CSS = ROOT / "app" / "web" / "static" / "style.css"
+APP_JS = ROOT / "app" / "web" / "static" / "js" / "app.js"
+DASHBOARD_REPO = ROOT / "data_layer" / "repositories" / "dashboard_data.py"
 
 
 def test_template_detail_has_report_workbench_regions():
@@ -54,8 +56,36 @@ def test_template_detail_prioritizes_weekly_report_generation_center():
     assert 'id="template-generation-readiness-panel"' in html
     assert 'id="template-advanced-maintenance"' in html
     assert "高级维护：模板、占位符、Prompt、YAML" in html
+    assert 'id="detail-template-name"' not in html
+    assert 'id="detail-template-version"' not in html
+    assert 'id="detail-template-title"' not in html
+    assert 'class="card template-info-card"' not in html
+    assert "v1.0" not in html
     assert "报告模板工作台" not in html
     assert "Word 占位符、Excel 底稿、Section 配置统一维护" not in html
+
+
+def test_app_boots_to_templates_without_dashboard_polling():
+    html = INDEX_HTML.read_text(encoding="utf-8")
+    source = APP_JS.read_text(encoding="utf-8")
+    init_block = source[source.index("document.addEventListener('DOMContentLoaded'") :]
+
+    assert 'data-section="templates" title="模板管理"' in html
+    assert 'id="section-dashboard" class="content-section"' in html
+    assert "navigateTo('templates')" in init_block
+    assert "loadDashboard();" not in init_block
+    assert "startCrawlFeedPolling();" not in init_block
+    assert "connectSSE();" not in init_block
+    assert "disconnectSSE" in source
+
+
+def test_crawl_feed_query_has_sqlite_json_fallback():
+    source = DASHBOARD_REPO.read_text(encoding="utf-8")
+    crawl_feed_block = source[source.index("def get_recent_crawled_documents") :]
+
+    assert 'dialect_name == "sqlite"' in crawl_feed_block
+    assert 'func.json_extract(DocumentV1DB.timeliness, "$.publish_time")' in crawl_feed_block
+    assert 'func.json_extract_path_text(DocumentV1DB.timeliness, "publish_time")' in crawl_feed_block
 
 
 def test_templates_js_populates_report_workbench():
