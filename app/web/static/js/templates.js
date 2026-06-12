@@ -1260,8 +1260,7 @@ function getStoredCommonDefaults(template) {
             keyword_candidates: 40,
             semantic_candidates: 80,
             keyword_weight: 0.7,
-            semantic_weight: 0.3,
-            keywords: ['CPO', '算力', '人工智能', '先进封装']
+            semantic_weight: 0.3
         },
         rerank: {
             enabled: true,
@@ -1302,9 +1301,6 @@ function renderCommonGenerationRules(template) {
         : '';
     const forbiddenEntityCategories = Array.isArray(hardConstraints.forbidden_entity_categories)
         ? hardConstraints.forbidden_entity_categories.join('\n')
-        : '';
-    const searchKeywords = Array.isArray(retrieval.keywords)
-        ? retrieval.keywords.join('\n')
         : '';
 
     container.innerHTML = `
@@ -1360,10 +1356,6 @@ function renderCommonGenerationRules(template) {
                     <span>Semantic 权重</span>
                     <input type="number" min="0" max="1" step="0.1" data-common-rule-field="retrieval.semantic_weight" value="${esc(retrieval.semantic_weight ?? 0.3)}">
                 </label>
-                <label class="template-common-field wide">
-                    <span>检索关键词（逗号或换行分隔）</span>
-                    <textarea data-common-rule-field="retrieval.keywords" rows="3">${esc(searchKeywords)}</textarea>
-                </label>
             </div>
         </div>
         <div class="template-common-rule-card">
@@ -1416,8 +1408,7 @@ function collectCommonDefaultsDraft(template) {
             value = input.checked;
         } else if (field === 'validators.forbidden_terms'
             || field === 'hard_constraints.forbidden_phrases'
-            || field === 'hard_constraints.forbidden_entity_categories'
-            || field === 'retrieval.keywords') {
+            || field === 'hard_constraints.forbidden_entity_categories') {
             value = String(input.value || '')
                 .split(/[\n,，]/)
                 .map(item => item.trim())
@@ -1567,6 +1558,7 @@ function renderSelectedPlaceholderDetail(template) {
     const promptParam = mapping.params?.param || inferPromptParam(name);
     const needsParam = type === 'prompt' && Boolean(promptParam);
     const usesQuerySource = type === 'prompt' && !usesEmbeddedPromptQueries(template.report_project);
+    const retrievalKeywords = getPlaceholderRetrievalKeywords(mapping, name).join('\n');
 
     formEl.innerHTML = `
         <label>
@@ -1610,6 +1602,10 @@ function renderSelectedPlaceholderDetail(template) {
                     <input type="text" data-placeholder-field="params.param" value="${esc(promptParam)}">
                 </label>
             ` : ''}
+            <label>
+                <span>检索关键词（当前占位符）</span>
+                <textarea data-placeholder-field="retrieval.keywords" rows="3">${esc(retrievalKeywords)}</textarea>
+            </label>
         ` : ''}
         ${(type === 'excel_cell' || type === 'excel_range') ? `
             <label>
@@ -1649,6 +1645,14 @@ function collectSelectedPlaceholderDraft(template) {
         const value = input.value?.trim?.() || '';
         if (field === 'params.param') {
             draft.params = value ? { ...(draft.params || {}), param: value } : {};
+        } else if (field === 'retrieval.keywords') {
+            const keywords = splitDelimitedList(value);
+            if (keywords.length) {
+                draft.retrieval = { ...(draft.retrieval || {}), keywords };
+            } else if (draft.retrieval) {
+                delete draft.retrieval.keywords;
+                if (!Object.keys(draft.retrieval).length) delete draft.retrieval;
+            }
         } else if (field) {
             draft[field] = value;
         }
@@ -1658,6 +1662,49 @@ function collectSelectedPlaceholderDraft(template) {
     currentTemplateState.placeholderMappingDrafts = currentTemplateState.placeholderMappingDrafts || {};
     currentTemplateState.placeholderMappingDrafts[name] = draft;
     return { name, draft };
+}
+
+function getPlaceholderRetrievalKeywords(mapping, placeholderName = '') {
+    const retrieval = mapping?.retrieval || {};
+    const queryTerms = retrieval.query_terms || {};
+    const keywords = retrieval.keywords || queryTerms.must_any || retrieval.must_any || [];
+    if (Array.isArray(keywords) && keywords.length) return keywords;
+    return inferPlaceholderKeywords(placeholderName);
+}
+
+function splitDelimitedList(value) {
+    return String(value || '')
+        .split(/[\n,，、；;]+/)
+        .map(item => item.trim())
+        .filter(Boolean);
+}
+
+function inferPlaceholderKeywords(name) {
+    const normalized = normalizePlaceholderName(name);
+    const keywordMap = {
+        'A股市场回顾': ['A股', '市场热点', '板块轮动', '成交额', '风格切换'],
+        '中国宏观': ['货币政策', '财政政策', '宏观经济', '产业政策', '就业'],
+        '人工智能': ['CPO', '算力', '人工智能', '大模型', '先进封装'],
+        '电子': ['半导体', '芯片', '集成电路', '消费电子', '汽车电子'],
+        '航天': ['商业航天', '卫星互联网', '火箭', '低空经济', '太空经济'],
+        '电力设备新能源': ['光伏', '风电', '储能', '新能源车', '锂电池'],
+        '消费': ['消费复苏', '促消费', '食品饮料', '服务消费', '零售'],
+        '金融地产': ['货币政策', '信贷', '资本市场', '房地产政策', '银行'],
+        '医药生物': ['创新药', '医疗器械', 'CRO', 'CDMO', '生物医药'],
+        '海外市场': ['美联储', '欧洲央行', '日本央行', '利率', '汇率'],
+        '美国': ['美联储', '美国经济', '美股', '美债', '美元'],
+        '欧洲': ['欧洲央行', '欧元区', '德国', '法国', '欧股'],
+        '日本': ['日本央行', '日元', '日本股市', '通胀', '利率'],
+        '美国新闻': ['美联储', '美债', '美元', '美股', '关税'],
+        '欧洲新闻': ['欧洲央行', '欧元', '欧债', '德国', '法国'],
+        '港股科技': ['港股科技', '互联网平台', '半导体', '生物医药', '南向资金'],
+        '港股央企红利': ['央企红利', '高股息', '港股通', '银行', '有色金属'],
+        '黄金': ['黄金', '美联储', '实际利率', '避险', '央行购金'],
+        '黄金市场回顾': ['黄金', '美联储', '实际利率', '避险', '央行购金'],
+        '原油': ['原油', 'OPEC', '供需', '地缘风险', '库存'],
+        '原油市场回顾': ['原油', 'OPEC', '供需', '地缘风险', '库存']
+    };
+    return keywordMap[normalized] || [];
 }
 
 function getEditablePlaceholderMappings(template) {
@@ -1966,9 +2013,6 @@ function buildDefaultsBlock(defaults) {
     const forbiddenEntityCategories = Array.isArray(hardConstraints.forbidden_entity_categories)
         ? hardConstraints.forbidden_entity_categories
         : ['指数名称', '公司名称', '证券机构'];
-    const searchKeywords = Array.isArray(retrieval.keywords)
-        ? retrieval.keywords
-        : ['CPO', '算力', '人工智能', '先进封装'];
     const lines = [
         'defaults:',
         `  generation_mode: ${defaults?.generation_mode || 'evidence_grounded_generation'}`,
@@ -1997,8 +2041,6 @@ function buildDefaultsBlock(defaults) {
     lines.push(`    semantic_candidates: ${retrieval.semantic_candidates ?? 80}`);
     lines.push(`    keyword_weight: ${retrieval.keyword_weight ?? 0.7}`);
     lines.push(`    semantic_weight: ${retrieval.semantic_weight ?? 0.3}`);
-    lines.push('    keywords:');
-    searchKeywords.forEach(keyword => lines.push(`      - ${keyword}`));
     lines.push('  rerank:');
     lines.push(`    enabled: ${rerank.enabled !== false}`);
     lines.push(`    provider: ${rerank.provider || 'deepseek'}`);
@@ -2048,6 +2090,16 @@ function buildPlaceholderYamlEntry(template, key, mapping) {
             lines.push('    query_mode: retrieval_query_embedded');
         }
         lines.push(`    max_words: ${mapping.max_words || mapping.target_words || inferDefaultMaxWords(key)}`);
+        const retrieval = mapping.retrieval || {};
+        const keywords = getPlaceholderRetrievalKeywords(mapping, key);
+        if (retrieval.keyword_profile || keywords.length) {
+            lines.push('    retrieval:');
+            if (retrieval.keyword_profile) lines.push(`      keyword_profile: ${retrieval.keyword_profile}`);
+            if (keywords.length) {
+                lines.push('      keywords:');
+                keywords.forEach(keyword => lines.push(`        - ${keyword}`));
+            }
+        }
         const param = mapping.params?.param || inferPromptParam(key);
         if (param) {
             lines.push('    params:');

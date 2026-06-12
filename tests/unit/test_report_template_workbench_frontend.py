@@ -259,11 +259,15 @@ def test_advanced_workbench_exposes_common_defaults_and_target_words():
     assert 'data-common-rule-field="retrieval.semantic_candidates"' in source
     assert 'data-common-rule-field="retrieval.keyword_weight"' in source
     assert 'data-common-rule-field="retrieval.semantic_weight"' in source
-    assert 'data-common-rule-field="retrieval.keywords"' in source
     assert 'data-common-rule-field="rerank.enabled"' in source
     assert 'data-common-rule-field="rerank.candidates"' in source
     assert 'data-common-rule-field="rerank.min_score"' in source
     assert 'data-placeholder-field="max_words"' in source
+    assert 'data-placeholder-field="retrieval.keywords"' in source
+    assert "getPlaceholderRetrievalKeywords" in source
+    assert "splitDelimitedList" in source
+    assert "inferPlaceholderKeywords" in source
+    assert "'人工智能': ['CPO', '算力', '人工智能', '大模型', '先进封装']" in source
     assert "buildDefaultsBlock" in source
     assert "insertTopLevelBlockBefore" in source
     assert "硬性生成约束 / 检索配置 / Rerank" in source
