@@ -276,6 +276,15 @@ class ReportProjectGenerationService:
                 generated[placeholder] = manual_placeholders[placeholder]
                 continue
 
+            placeholder_type = str(config.get("type") or "prompt")
+            if placeholder_type in {"static_text", "static", "value"}:
+                value = str(config.get("value") or "")
+                if value:
+                    generated[placeholder] = value
+                continue
+            if placeholder_type in {"excel_cell", "excel_range", "excel_chart", "chart"}:
+                continue
+
             title = str(config.get("title") or placeholder)
             template_name = str(config.get("prompt_template") or title)
             template = templates.get(template_name) or build_fallback_template(config, title)

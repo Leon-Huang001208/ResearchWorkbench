@@ -1439,8 +1439,23 @@ function updateTemplateSourceFromPlaceholderDraft(template) {
     if (currentTemplateState.activeSourceKind !== 'section_config') return;
     const sourceEditor = document.getElementById('template-source-editor');
     if (!sourceEditor) return;
-    sourceEditor.value = buildPlaceholderMappingConfigYaml(template, getEditablePlaceholderMappings(template));
+    sourceEditor.value = buildUpdatedSectionConfigSource(template, getEditablePlaceholderMappings(template));
     sourceEditor.dataset.sourceKind = 'section_config';
+}
+
+function buildUpdatedSectionConfigSource(template, mappings) {
+    const projectSource = template.report_project?.section_config_source || '';
+    const placeholdersBlock = buildPlaceholderMappingsBlock(template, mappings);
+    if (!projectSource.trim()) {
+        return buildPlaceholderMappingConfigYaml(template, mappings);
+    }
+    if (/(^|\n)placeholders:\n/.test(projectSource)) {
+        return projectSource.replace(
+            /(^|\n)placeholders:\n[\s\S]*?(?=\n\S|\s*$)/,
+            `$1${placeholdersBlock}`
+        );
+    }
+    return `${projectSource.trimEnd()}\n${placeholdersBlock}`;
 }
 
 function renderTemplateExcelMapping(template, templateName) {
@@ -1585,7 +1600,6 @@ function buildTemplateConfigYaml(template) {
 function buildPlaceholderMappingConfigYaml(template, mappingsOverride = null) {
     const name = template.template_name || template.name || currentSelectedTemplate || 'report_template';
     const project = template.report_project || null;
-    const placeholders = getTemplateWorkbenchPlaceholders(template);
     const existingMappings = mappingsOverride || getStoredPlaceholderMappings(template);
     const lines = [
         '# 填写方式：',
@@ -1604,8 +1618,17 @@ function buildPlaceholderMappingConfigYaml(template, mappingsOverride = null) {
         `  word_template: ${project?.word_template_filename || '待绑定'}`,
         `  excel_workbook: ${project?.excel_workbook_filename || '待绑定'}`,
         `  prompt_templates: ${project?.prompt_templates_filename || '未绑定'}`,
-        'placeholders:'
+        buildPlaceholderMappingsBlock(template, existingMappings)
     ];
+
+    return lines.join('\n');
+}
+
+function buildPlaceholderMappingsBlock(template, existingMappings) {
+    const project = template.report_project || null;
+    const placeholders = getTemplateWorkbenchPlaceholders(template)
+        .filter(placeholder => !isSystemDatePlaceholder(placeholder));
+    const lines = ['placeholders:'];
 
     placeholders.forEach(placeholder => {
         const key = normalizePlaceholderName(placeholder);
@@ -1639,10 +1662,16 @@ function buildPlaceholderMappingConfigYaml(template, mappingsOverride = null) {
 }
 
 function inferPlaceholderType(name) {
+    if (isSystemDatePlaceholder(name)) return 'static_text';
     if (/^(start_date|end_date|data\d+)$/i.test(name)) return 'excel_cell';
     if (/^(content\d+|phrase\d+|sector\d+)$/i.test(name)) return 'prompt';
     if (/[\u4e00-\u9fff]/.test(name)) return 'prompt';
     return 'static_text';
+}
+
+function isSystemDatePlaceholder(name) {
+    const normalized = normalizePlaceholderName(name);
+    return ['开始日期', '结束日期', 'start_date', 'end_date'].includes(normalized);
 }
 
 function inferPlaceholderTitle(name) {

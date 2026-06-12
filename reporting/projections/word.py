@@ -442,12 +442,16 @@ class WordProjection:
             paragraph: Word Paragraph object.
             placeholder_map: Mapping of placeholder to replacement text.
         """
-        for placeholder, replacement in placeholder_map.items():
-            # Support both {{placeholder}} and placeholder formats
+        for placeholder, replacement in sorted(
+            placeholder_map.items(),
+            key=lambda item: len(str(item[0])),
+            reverse=True,
+        ):
+            # Replace explicit Word placeholders only. Replacing bare text corrupts
+            # overlapping names such as {{美国}} and {{美国新闻}}.
             patterns = [
                 f"{{{{{placeholder}}}}}",
                 f"{{{placeholder}}}",
-                placeholder,
             ]
 
             for pattern in patterns:

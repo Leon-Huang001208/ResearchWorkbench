@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from core.contracts import SectionOutput, TableSpec
+from core.contracts.reporting import SectionOutput, TableSpec
 from reporting.projections.word import WordProjection
 
 
@@ -223,6 +223,33 @@ class TestWordProjectionFromTemplate:
         )
 
         assert output_path.exists()
+
+    @pytest.mark.skipif(not WordProjection()._check_docx(), reason="python-docx not installed")
+    def test_overlapping_placeholders_do_not_corrupt_longer_names(self, tmp_path):
+        """短占位符不能破坏包含它的长占位符。"""
+        import docx
+
+        template_path = tmp_path / "overlap_template.docx"
+        template = docx.Document()
+        template.add_paragraph("{{美国新闻}} / {{美国}}")
+        template.save(template_path)
+
+        output_path = tmp_path / "overlap_output.docx"
+        projection = WordProjection()
+        projection.save_from_template(
+            output_path,
+            template_path,
+            sections=[],
+            placeholders={
+                "美国": "美国市场正文",
+                "美国新闻": "美国新闻正文",
+            },
+        )
+
+        document = docx.Document(str(output_path))
+        text = "\n".join(paragraph.text for paragraph in document.paragraphs)
+        assert text == "美国新闻正文 / 美国市场正文"
+        assert "{{" not in text
 
     def test_save_from_template_raises_when_file_not_found(self, tmp_path):
         """测试模板文件不存在时抛出异常"""

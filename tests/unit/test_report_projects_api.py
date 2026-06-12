@@ -421,6 +421,72 @@ def test_generation_service_uses_prompt_query_evidence_and_reporting_model(tmp_p
     assert result.sections[0].evidence_count == 1
 
 
+def test_generation_service_skips_static_and_excel_placeholders(tmp_path: Path):
+    """日期、Excel 等非正文占位符不应进入 LLM 生成。"""
+    project_dir = tmp_path / "华安ETF周报"
+    (project_dir / "templates").mkdir(parents=True)
+    (project_dir / "data").mkdir()
+    (project_dir / "config").mkdir()
+    write_minimal_docx(project_dir / "templates" / "report_template.docx", "{{开始日期}}{{人工智能}}")
+    write_minimal_xlsx(project_dir / "data" / "data.xlsx")
+    (project_dir / "config" / "section_config.yaml").write_text("placeholders: {}\n", encoding="utf-8")
+    (project_dir / "project.yaml").write_text(
+        "\n".join(
+            [
+                "name: 华安ETF周报",
+                "active_word_template: templates/report_template.docx",
+                "active_excel_workbook: data/data.xlsx",
+                "section_config: config/section_config.yaml",
+                "output_dir: generated",
+                "run_log_dir: runs",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    project = ReportProjectManager(projects_root=tmp_path).get_project("华安ETF周报")
+
+    class FakeRetriever:
+        calls = []
+
+        def retrieve(self, query, *, title, params, lookback_days, limit):
+            self.calls.append(title)
+            return [
+                EvidenceSnippet(
+                    source="news",
+                    title="AI",
+                    content="人工智能行业本周有进展。",
+                )
+            ]
+
+    class FakeGateway:
+        def chat(self, **kwargs):
+            return ModelResponse(
+                content="人工智能行业本周延续活跃。",
+                model_name="deepseek-chat",
+                provider="deepseek",
+                tokens_used=10,
+                latency_ms=20,
+            )
+
+    retriever = FakeRetriever()
+    service = ReportProjectGenerationService(retriever=retriever, model_gateway=FakeGateway())
+    result = service.generate_placeholders(
+        project=project,
+        section_config={
+            "placeholders": {
+                "开始日期": {"title": "开始日期", "type": "static_text"},
+                "数据表": {"title": "数据表", "type": "excel_range", "source": "Sheet1!A1:B2"},
+                "人工智能": {"title": "人工智能", "type": "prompt", "prompt_template": "人工智能"},
+            }
+        },
+        prompt_templates_source="## 人工智能\n检索 Query：AI\n\n写作要求：周报口吻",
+    )
+
+    assert retriever.calls == ["人工智能"]
+    assert result.placeholders == {"人工智能": "人工智能行业本周延续活跃。"}
+    assert [section.placeholder for section in result.sections] == ["人工智能"]
+
+
 def test_render_report_project_generates_from_config_and_writes_generation_log(
     tmp_path: Path, monkeypatch
 ):
@@ -532,8 +598,10 @@ def test_render_report_project_generates_from_config_and_writes_generation_log(
 
     assert response.status_code == 200
     data = response.json()
-    assert captured["placeholders"] == {"人工智能": "AI 生成段落"}
-    assert data["generated_placeholder_count"] == 1
+    assert captured["placeholders"]["人工智能"] == "AI 生成段落"
+    assert captured["placeholders"]["开始日期"]
+    assert captured["placeholders"]["结束日期"]
+    assert data["generated_placeholder_count"] == 3
     assert data["evidence_count"] == 2
     assert "图表缓存数值全为 0" in data["warnings"][0]
     run_files = list((project_dir / "runs").glob("*.json"))

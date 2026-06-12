@@ -198,6 +198,10 @@ def test_advanced_placeholder_rows_are_clickable_and_styled():
     assert "renderSelectedPlaceholderDetail(template)" in source
     assert ".placeholder-map-row.active" in css
     assert ".template-placeholder-detail-form" in css
+    assert "buildUpdatedSectionConfigSource" in source
+    assert "buildPlaceholderMappingsBlock" in source
+    assert "isSystemDatePlaceholder" in source
+    assert ".filter(placeholder => !isSystemDatePlaceholder(placeholder))" in source
 
 
 def test_placeholder_mapping_connects_word_prompt_and_query_source():

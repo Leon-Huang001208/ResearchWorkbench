@@ -5,6 +5,7 @@ import re
 import xml.etree.ElementTree as ET
 import zipfile
 from datetime import datetime
+from datetime import timedelta
 from html import escape
 from pathlib import Path
 from typing import Any, Dict, List
@@ -301,6 +302,10 @@ async def render_report_project(slug: str, request: RenderReportProjectRequest):
             generation_warnings = []
 
         generated_at = datetime.now()
+        placeholder_map = {
+            **_default_report_period_placeholders(generated_at),
+            **placeholder_map,
+        }
         timestamp = generated_at.strftime("%Y-%m-%d_%H%M%S")
         safe_project_name = project.name.replace("/", "_").replace(":", "_")
         file_name = f"{timestamp}_{safe_project_name}.docx"
@@ -445,6 +450,15 @@ async def download_report_project_file(slug: str, file_name: str):
     except Exception as exc:
         logger.exception("Failed to download report project file", slug=slug, file_name=file_name)
         raise HTTPException(status_code=500, detail=f"Failed to download report: {exc}")
+
+
+def _default_report_period_placeholders(generated_at: datetime) -> Dict[str, str]:
+    """Return static date placeholders for weekly report Word templates."""
+    start_date = generated_at - timedelta(days=generated_at.weekday())
+    return {
+        "开始日期": start_date.strftime("%Y-%m-%d"),
+        "结束日期": generated_at.strftime("%Y-%m-%d"),
+    }
 
 
 def _to_project_info(project: ReportProject) -> ReportProjectInfo:
