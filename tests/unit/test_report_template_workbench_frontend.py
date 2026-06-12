@@ -245,8 +245,14 @@ def test_advanced_workbench_exposes_common_defaults_and_target_words():
     assert 'id="template-common-rules"' in left_panel
     assert 'id="template-common-rules"' not in right_panel
     assert "硬性生成约束" in source
-    assert "检索配置" in source
+    assert "检索策略" in source
     assert "Rerank" in source
+    assert "template-common-summary-card" in source
+    assert "template-common-summary-title" in source
+    assert "template-common-rule-editor" in source
+    assert "template-weight-meter" in source
+    assert "formatRulePercent" in source
+    assert "countLines" in source
     assert 'data-common-rule-field="hard_constraints.no_wind_data"' in source
     assert 'data-common-rule-field="hard_constraints.no_baidu_data"' in source
     assert 'data-common-rule-field="hard_constraints.require_number_source"' in source
@@ -276,6 +282,9 @@ def test_advanced_workbench_exposes_common_defaults_and_target_words():
     assert "rerank:" in source
     assert ".template-common-rules-grid" in css
     assert ".template-common-rule-card" in css
+    assert ".template-common-summary-card > summary" in css
+    assert ".template-common-rule-editor" in css
+    assert ".template-weight-meter" in css
 
 
 def test_placeholder_mapping_connects_word_prompt_and_query_source():

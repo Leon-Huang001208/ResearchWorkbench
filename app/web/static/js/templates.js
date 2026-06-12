@@ -1302,79 +1302,123 @@ function renderCommonGenerationRules(template) {
     const forbiddenEntityCategories = Array.isArray(hardConstraints.forbidden_entity_categories)
         ? hardConstraints.forbidden_entity_categories.join('\n')
         : '';
+    const hardConstraintPills = [
+        hardConstraints.no_wind_data !== false ? 'Wind 禁用' : 'Wind 可用',
+        hardConstraints.no_baidu_data !== false ? '百度禁用' : '百度可用',
+        hardConstraints.require_number_source !== false ? '数字带来源' : '数字来源不强制',
+        hardConstraints.single_paragraph !== false ? '单段输出' : '允许换行'
+    ];
+    const keywordWeightPercent = formatRulePercent(retrieval.keyword_weight ?? 0.7);
+    const semanticWeightPercent = formatRulePercent(retrieval.semantic_weight ?? 0.3);
 
     container.innerHTML = `
         <div class="panel-title-row">
             <h4>共用参数</h4>
             <span class="text-muted">所有 prompt 占位符默认继承</span>
         </div>
-        <div class="template-common-rule-card">
-            <h5>硬性生成约束</h5>
-            <div class="template-common-check-grid">
-                <label><input type="checkbox" data-common-rule-field="hard_constraints.no_wind_data" ${hardConstraints.no_wind_data !== false ? 'checked' : ''}><span>不使用 Wind 数据</span></label>
-                <label><input type="checkbox" data-common-rule-field="hard_constraints.no_baidu_data" ${hardConstraints.no_baidu_data !== false ? 'checked' : ''}><span>不使用百度数据</span></label>
-                <label><input type="checkbox" data-common-rule-field="hard_constraints.require_number_source" ${hardConstraints.require_number_source !== false ? 'checked' : ''}><span>数字必须说明来源</span></label>
-                <label><input type="checkbox" data-common-rule-field="hard_constraints.single_paragraph" ${hardConstraints.single_paragraph !== false ? 'checked' : ''}><span>只输出一段，不换行</span></label>
-            </div>
-            <label class="template-common-field wide">
-                <span>禁用短语（逗号或换行分隔）</span>
-                <textarea data-common-rule-field="hard_constraints.forbidden_phrases" rows="3">${esc(forbiddenPhrases)}</textarea>
-            </label>
-            <label class="template-common-field wide">
-                <span>禁用实体类别（逗号或换行分隔）</span>
-                <textarea data-common-rule-field="hard_constraints.forbidden_entity_categories" rows="3">${esc(forbiddenEntityCategories)}</textarea>
-            </label>
-        </div>
-        <div class="template-common-rule-card">
-            <h5>检索配置</h5>
-            <div class="template-common-rules-grid">
-                <label class="template-common-field">
-                    <span>模式</span>
-                    <select data-common-rule-field="retrieval.mode">
-                        ${['hybrid', 'keyword', 'semantic'].map(option => `
-                            <option value="${option}" ${(retrieval.mode || 'hybrid') === option ? 'selected' : ''}>${option}</option>
-                        `).join('')}
-                    </select>
+        <details class="template-common-rule-card template-common-summary-card">
+            <summary>
+                <span class="template-common-summary-title">
+                    <strong>硬性生成约束</strong>
+                    <small>${hardConstraintPills.join(' · ')}</small>
+                </span>
+                <span class="template-common-summary-meta">
+                    禁用短语 ${countLines(forbiddenPhrases)} · 实体 ${countLines(forbiddenEntityCategories)}
+                    <i class="codicon codicon-chevron-down"></i>
+                </span>
+            </summary>
+            <div class="template-common-rule-editor">
+                <div class="template-common-check-grid">
+                    <label><input type="checkbox" data-common-rule-field="hard_constraints.no_wind_data" ${hardConstraints.no_wind_data !== false ? 'checked' : ''}><span>不使用 Wind 数据</span></label>
+                    <label><input type="checkbox" data-common-rule-field="hard_constraints.no_baidu_data" ${hardConstraints.no_baidu_data !== false ? 'checked' : ''}><span>不使用百度数据</span></label>
+                    <label><input type="checkbox" data-common-rule-field="hard_constraints.require_number_source" ${hardConstraints.require_number_source !== false ? 'checked' : ''}><span>数字必须说明来源</span></label>
+                    <label><input type="checkbox" data-common-rule-field="hard_constraints.single_paragraph" ${hardConstraints.single_paragraph !== false ? 'checked' : ''}><span>只输出一段，不换行</span></label>
+                </div>
+                <label class="template-common-field wide">
+                    <span>禁用短语（逗号或换行分隔）</span>
+                    <textarea data-common-rule-field="hard_constraints.forbidden_phrases" rows="3">${esc(forbiddenPhrases)}</textarea>
                 </label>
-                <label class="template-common-field">
-                    <span>Top K</span>
-                    <input type="number" min="1" step="1" data-common-rule-field="retrieval.top_k" value="${esc(retrieval.top_k ?? 8)}">
-                </label>
-                <label class="template-common-field">
-                    <span>候选数</span>
-                    <input type="number" min="1" step="1" data-common-rule-field="retrieval.keyword_candidates" value="${esc(retrieval.keyword_candidates ?? 40)}">
-                </label>
-                <label class="template-common-field">
-                    <span>语义候选数</span>
-                    <input type="number" min="1" step="1" data-common-rule-field="retrieval.semantic_candidates" value="${esc(retrieval.semantic_candidates ?? 80)}">
-                </label>
-                <label class="template-common-field">
-                    <span>Keyword 权重</span>
-                    <input type="number" min="0" max="1" step="0.1" data-common-rule-field="retrieval.keyword_weight" value="${esc(retrieval.keyword_weight ?? 0.7)}">
-                </label>
-                <label class="template-common-field">
-                    <span>Semantic 权重</span>
-                    <input type="number" min="0" max="1" step="0.1" data-common-rule-field="retrieval.semantic_weight" value="${esc(retrieval.semantic_weight ?? 0.3)}">
+                <label class="template-common-field wide">
+                    <span>禁用实体类别（逗号或换行分隔）</span>
+                    <textarea data-common-rule-field="hard_constraints.forbidden_entity_categories" rows="3">${esc(forbiddenEntityCategories)}</textarea>
                 </label>
             </div>
-        </div>
-        <div class="template-common-rule-card">
-            <h5>Rerank</h5>
-            <div class="template-common-rules-grid">
-                <label class="template-common-rules-check">
-                    <input type="checkbox" data-common-rule-field="rerank.enabled" ${rerank.enabled !== false ? 'checked' : ''}>
-                    <span>启用 DeepSeek/LLM 重排</span>
-                </label>
-                <label class="template-common-field">
-                    <span>重排候选数</span>
-                    <input type="number" min="1" step="1" data-common-rule-field="rerank.candidates" value="${esc(rerank.candidates ?? 16)}">
-                </label>
-                <label class="template-common-field">
-                    <span>最低分</span>
-                    <input type="number" min="0" step="1" data-common-rule-field="rerank.min_score" value="${esc(rerank.min_score ?? 30)}">
-                </label>
+        </details>
+        <details class="template-common-rule-card template-common-summary-card">
+            <summary>
+                <span class="template-common-summary-title">
+                    <strong>检索策略</strong>
+                    <small>${esc(retrieval.mode || 'hybrid')} · Top K ${esc(retrieval.top_k ?? 8)} · 候选 ${esc(retrieval.keyword_candidates ?? 40)}/${esc(retrieval.semantic_candidates ?? 80)}</small>
+                </span>
+                <span class="template-common-summary-meta">
+                    权重 ${keywordWeightPercent}/${semanticWeightPercent}
+                    <i class="codicon codicon-chevron-down"></i>
+                </span>
+            </summary>
+            <div class="template-common-rule-editor">
+                <div class="template-common-rules-grid">
+                    <label class="template-common-field">
+                        <span>模式</span>
+                        <select data-common-rule-field="retrieval.mode">
+                            ${['hybrid', 'keyword', 'semantic'].map(option => `
+                                <option value="${option}" ${(retrieval.mode || 'hybrid') === option ? 'selected' : ''}>${option}</option>
+                            `).join('')}
+                        </select>
+                    </label>
+                    <label class="template-common-field">
+                        <span>Top K</span>
+                        <input type="number" min="1" step="1" data-common-rule-field="retrieval.top_k" value="${esc(retrieval.top_k ?? 8)}">
+                    </label>
+                    <label class="template-common-field">
+                        <span>关键词候选数</span>
+                        <input type="number" min="1" step="1" data-common-rule-field="retrieval.keyword_candidates" value="${esc(retrieval.keyword_candidates ?? 40)}">
+                    </label>
+                    <label class="template-common-field">
+                        <span>语义候选数</span>
+                        <input type="number" min="1" step="1" data-common-rule-field="retrieval.semantic_candidates" value="${esc(retrieval.semantic_candidates ?? 80)}">
+                    </label>
+                    <label class="template-common-field">
+                        <span>关键词权重</span>
+                        <input type="number" min="0" max="1" step="0.1" data-common-rule-field="retrieval.keyword_weight" value="${esc(retrieval.keyword_weight ?? 0.7)}">
+                    </label>
+                    <label class="template-common-field">
+                        <span>语义权重</span>
+                        <input type="number" min="0" max="1" step="0.1" data-common-rule-field="retrieval.semantic_weight" value="${esc(retrieval.semantic_weight ?? 0.3)}">
+                    </label>
+                </div>
+                <div class="template-weight-meter" aria-hidden="true">
+                    <span style="width: ${Math.max(0, Math.min(100, Number(retrieval.keyword_weight ?? 0.7) * 100))}%"></span>
+                </div>
             </div>
-        </div>
+        </details>
+        <details class="template-common-rule-card template-common-summary-card">
+            <summary>
+                <span class="template-common-summary-title">
+                    <strong>Rerank</strong>
+                    <small>${rerank.enabled !== false ? '已启用 DeepSeek/LLM 重排' : '未启用重排'}</small>
+                </span>
+                <span class="template-common-summary-meta">
+                    候选 ${esc(rerank.candidates ?? 16)} · 最低分 ${esc(rerank.min_score ?? 30)}
+                    <i class="codicon codicon-chevron-down"></i>
+                </span>
+            </summary>
+            <div class="template-common-rule-editor">
+                <div class="template-common-rules-grid">
+                    <label class="template-common-rules-check">
+                        <input type="checkbox" data-common-rule-field="rerank.enabled" ${rerank.enabled !== false ? 'checked' : ''}>
+                        <span>启用 DeepSeek/LLM 重排</span>
+                    </label>
+                    <label class="template-common-field">
+                        <span>重排候选数</span>
+                        <input type="number" min="1" step="1" data-common-rule-field="rerank.candidates" value="${esc(rerank.candidates ?? 16)}">
+                    </label>
+                    <label class="template-common-field">
+                        <span>最低分</span>
+                        <input type="number" min="0" step="1" data-common-rule-field="rerank.min_score" value="${esc(rerank.min_score ?? 30)}">
+                    </label>
+                </div>
+            </div>
+        </details>
     `;
 
     container.querySelectorAll('[data-common-rule-field]').forEach(input => {
@@ -1385,6 +1429,20 @@ function renderCommonGenerationRules(template) {
         input.addEventListener('input', update);
         input.addEventListener('change', update);
     });
+}
+
+function countLines(value) {
+    return String(value || '')
+        .split(/[\n,，]/)
+        .map(item => item.trim())
+        .filter(Boolean)
+        .length;
+}
+
+function formatRulePercent(value) {
+    const numberValue = Number(value);
+    if (!Number.isFinite(numberValue)) return '0%';
+    return `${Math.round(numberValue * 100)}%`;
 }
 
 function collectCommonDefaultsDraft(template) {

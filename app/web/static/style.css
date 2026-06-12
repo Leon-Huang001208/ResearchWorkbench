@@ -4530,10 +4530,10 @@ tr:hover td {
 
 .template-common-rule-card {
     margin-top: 0.85rem;
-    padding: 0.8rem;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     background: var(--bg-card);
+    overflow: hidden;
 }
 
 .template-common-rule-card h5 {
@@ -4541,6 +4541,75 @@ tr:hover td {
     color: var(--text-primary);
     font-size: 0.9rem;
     font-weight: 750;
+}
+
+.template-common-summary-card > summary {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.85rem;
+    cursor: pointer;
+    list-style: none;
+}
+
+.template-common-summary-card > summary::-webkit-details-marker {
+    display: none;
+}
+
+.template-common-summary-card > summary:hover {
+    background: var(--bg-hover);
+}
+
+.template-common-summary-title {
+    display: grid;
+    min-width: 0;
+    gap: 0.18rem;
+}
+
+.template-common-summary-title strong {
+    color: var(--text-primary);
+    font-size: 0.88rem;
+    font-weight: 750;
+}
+
+.template-common-summary-title small,
+.template-common-summary-meta {
+    color: var(--text-muted);
+    font-size: 0.74rem;
+    font-weight: 650;
+}
+
+.template-common-summary-title small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.template-common-summary-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    white-space: nowrap;
+}
+
+.template-common-summary-meta i {
+    transition: transform 0.16s ease;
+}
+
+.template-common-summary-card[open] > summary {
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-input);
+}
+
+.template-common-summary-card[open] .template-common-summary-meta i {
+    transform: rotate(180deg);
+}
+
+.template-common-rule-editor {
+    display: grid;
+    gap: 0.75rem;
+    padding: 0.85rem;
 }
 
 .template-common-rules-grid label,
@@ -4568,6 +4637,21 @@ tr:hover td {
     color: var(--text-primary);
     font: inherit;
     font-weight: 500;
+}
+
+.template-weight-meter {
+    width: 100%;
+    height: 6px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent) 18%, var(--bg-input));
+    overflow: hidden;
+}
+
+.template-weight-meter span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--accent);
 }
 
 .template-common-check-grid {
