@@ -236,19 +236,42 @@ def test_advanced_placeholder_selector_drives_single_placeholder_detail():
 def test_advanced_workbench_exposes_common_defaults_and_target_words():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
     css = STYLE_CSS.read_text(encoding="utf-8")
+    html = INDEX_HTML.read_text(encoding="utf-8")
 
     assert "renderCommonGenerationRules" in source
     assert "template-common-rules" in source
-    assert 'data-common-rule-field="generation_mode"' in source
-    assert 'data-common-rule-field="evidence_policy"' in source
-    assert 'data-common-rule-field="query_mode"' in source
-    assert 'data-common-rule-field="validators.require_evidence_from_uploaded_material"' in source
-    assert 'data-common-rule-field="validators.forbidden_terms"' in source
+    left_panel = html[html.index('<div class="template-workbench-left">') : html.index('<div class="template-workbench-panel template-section-editor-panel"')]
+    right_panel = html[html.index('<div class="template-workbench-panel template-section-editor-panel"') :]
+    assert 'id="template-common-rules"' in left_panel
+    assert 'id="template-common-rules"' not in right_panel
+    assert "硬性生成约束" in source
+    assert "检索配置" in source
+    assert "Rerank" in source
+    assert 'data-common-rule-field="hard_constraints.no_wind_data"' in source
+    assert 'data-common-rule-field="hard_constraints.no_baidu_data"' in source
+    assert 'data-common-rule-field="hard_constraints.require_number_source"' in source
+    assert 'data-common-rule-field="hard_constraints.single_paragraph"' in source
+    assert 'data-common-rule-field="hard_constraints.forbidden_phrases"' in source
+    assert 'data-common-rule-field="hard_constraints.forbidden_entity_categories"' in source
+    assert 'data-common-rule-field="retrieval.mode"' in source
+    assert 'data-common-rule-field="retrieval.top_k"' in source
+    assert 'data-common-rule-field="retrieval.keyword_candidates"' in source
+    assert 'data-common-rule-field="retrieval.semantic_candidates"' in source
+    assert 'data-common-rule-field="retrieval.keyword_weight"' in source
+    assert 'data-common-rule-field="retrieval.semantic_weight"' in source
+    assert 'data-common-rule-field="retrieval.keywords"' in source
+    assert 'data-common-rule-field="rerank.enabled"' in source
+    assert 'data-common-rule-field="rerank.candidates"' in source
+    assert 'data-common-rule-field="rerank.min_score"' in source
     assert 'data-placeholder-field="max_words"' in source
     assert "buildDefaultsBlock" in source
     assert "insertTopLevelBlockBefore" in source
-    assert "继承 defaults" in source
+    assert "硬性生成约束 / 检索配置 / Rerank" in source
+    assert "hard_constraints:" in source
+    assert "retrieval:" in source
+    assert "rerank:" in source
     assert ".template-common-rules-grid" in css
+    assert ".template-common-rule-card" in css
 
 
 def test_placeholder_mapping_connects_word_prompt_and_query_source():

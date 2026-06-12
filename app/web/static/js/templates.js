@@ -1236,8 +1236,7 @@ function renderMappingSummary(mapping, section, template = {}) {
 
 function getStoredCommonDefaults(template) {
     const defaults = template?.report_project?.section_config?.defaults;
-    if (defaults && typeof defaults === 'object') return defaults;
-    return {
+    const base = {
         generation_mode: 'evidence_grounded_generation',
         evidence_policy: 'strict',
         query_mode: usesEmbeddedPromptQueries(template?.report_project) ? 'retrieval_query_embedded' : 'query_source',
@@ -1246,7 +1245,39 @@ function getStoredCommonDefaults(template) {
             forbid_external_facts: true,
             forbid_direct_investment_advice: true,
             forbidden_terms: ['保本', '稳赚', '收益保证', '明确买入', '目标价']
+        },
+        hard_constraints: {
+            no_wind_data: true,
+            no_baidu_data: true,
+            require_number_source: true,
+            single_paragraph: true,
+            forbidden_phrases: ['根据文件', '据报道', '数据显示'],
+            forbidden_entity_categories: ['指数名称', '公司名称', '证券机构']
+        },
+        retrieval: {
+            mode: 'hybrid',
+            top_k: 8,
+            keyword_candidates: 40,
+            semantic_candidates: 80,
+            keyword_weight: 0.7,
+            semantic_weight: 0.3,
+            keywords: ['CPO', '算力', '人工智能', '先进封装']
+        },
+        rerank: {
+            enabled: true,
+            provider: 'deepseek',
+            candidates: 16,
+            min_score: 30
         }
+    };
+    if (!defaults || typeof defaults !== 'object') return base;
+    return {
+        ...base,
+        ...defaults,
+        validators: { ...base.validators, ...(defaults.validators || {}) },
+        hard_constraints: { ...base.hard_constraints, ...(defaults.hard_constraints || {}) },
+        retrieval: { ...base.retrieval, ...(defaults.retrieval || {}) },
+        rerank: { ...base.rerank, ...(defaults.rerank || {}) }
     };
 }
 
@@ -1260,52 +1291,97 @@ function renderCommonGenerationRules(template) {
 
     const defaults = getEditableCommonDefaults(template);
     const validators = defaults.validators || {};
+    const hardConstraints = defaults.hard_constraints || {};
+    const retrieval = defaults.retrieval || {};
+    const rerank = defaults.rerank || {};
     const forbiddenTerms = Array.isArray(validators.forbidden_terms)
         ? validators.forbidden_terms.join('\n')
+        : '';
+    const forbiddenPhrases = Array.isArray(hardConstraints.forbidden_phrases)
+        ? hardConstraints.forbidden_phrases.join('\n')
+        : '';
+    const forbiddenEntityCategories = Array.isArray(hardConstraints.forbidden_entity_categories)
+        ? hardConstraints.forbidden_entity_categories.join('\n')
+        : '';
+    const searchKeywords = Array.isArray(retrieval.keywords)
+        ? retrieval.keywords.join('\n')
         : '';
 
     container.innerHTML = `
         <div class="panel-title-row">
-            <h4>共用生成规则</h4>
+            <h4>共用参数</h4>
             <span class="text-muted">所有 prompt 占位符默认继承</span>
         </div>
-        <div class="template-common-rules-grid">
-            <label>
-                <span>生成模式</span>
-                <input type="text" data-common-rule-field="generation_mode" value="${esc(defaults.generation_mode || 'evidence_grounded_generation')}">
+        <div class="template-common-rule-card">
+            <h5>硬性生成约束</h5>
+            <div class="template-common-check-grid">
+                <label><input type="checkbox" data-common-rule-field="hard_constraints.no_wind_data" ${hardConstraints.no_wind_data !== false ? 'checked' : ''}><span>不使用 Wind 数据</span></label>
+                <label><input type="checkbox" data-common-rule-field="hard_constraints.no_baidu_data" ${hardConstraints.no_baidu_data !== false ? 'checked' : ''}><span>不使用百度数据</span></label>
+                <label><input type="checkbox" data-common-rule-field="hard_constraints.require_number_source" ${hardConstraints.require_number_source !== false ? 'checked' : ''}><span>数字必须说明来源</span></label>
+                <label><input type="checkbox" data-common-rule-field="hard_constraints.single_paragraph" ${hardConstraints.single_paragraph !== false ? 'checked' : ''}><span>只输出一段，不换行</span></label>
+            </div>
+            <label class="template-common-field wide">
+                <span>禁用短语（逗号或换行分隔）</span>
+                <textarea data-common-rule-field="hard_constraints.forbidden_phrases" rows="3">${esc(forbiddenPhrases)}</textarea>
             </label>
-            <label>
-                <span>证据策略</span>
-                <select data-common-rule-field="evidence_policy">
-                    ${['strict', 'balanced', 'loose'].map(option => `
-                        <option value="${option}" ${(defaults.evidence_policy || 'strict') === option ? 'selected' : ''}>${option}</option>
-                    `).join('')}
-                </select>
+            <label class="template-common-field wide">
+                <span>禁用实体类别（逗号或换行分隔）</span>
+                <textarea data-common-rule-field="hard_constraints.forbidden_entity_categories" rows="3">${esc(forbiddenEntityCategories)}</textarea>
             </label>
-            <label>
-                <span>默认检索模式</span>
-                <select data-common-rule-field="query_mode">
-                    ${['retrieval_query_embedded', 'query_source'].map(option => `
-                        <option value="${option}" ${(defaults.query_mode || 'retrieval_query_embedded') === option ? 'selected' : ''}>${option}</option>
-                    `).join('')}
-                </select>
-            </label>
-            <label class="template-common-rules-check">
-                <input type="checkbox" data-common-rule-field="validators.require_evidence_from_uploaded_material" ${validators.require_evidence_from_uploaded_material !== false ? 'checked' : ''}>
-                <span>必须引用上传材料证据</span>
-            </label>
-            <label class="template-common-rules-check">
-                <input type="checkbox" data-common-rule-field="validators.forbid_external_facts" ${validators.forbid_external_facts !== false ? 'checked' : ''}>
-                <span>禁止补充外部事实</span>
-            </label>
-            <label class="template-common-rules-check">
-                <input type="checkbox" data-common-rule-field="validators.forbid_direct_investment_advice" ${validators.forbid_direct_investment_advice !== false ? 'checked' : ''}>
-                <span>禁止直接投资建议</span>
-            </label>
-            <label class="template-common-rules-wide">
-                <span>禁用词</span>
-                <textarea data-common-rule-field="validators.forbidden_terms" rows="2">${esc(forbiddenTerms)}</textarea>
-            </label>
+        </div>
+        <div class="template-common-rule-card">
+            <h5>检索配置</h5>
+            <div class="template-common-rules-grid">
+                <label class="template-common-field">
+                    <span>模式</span>
+                    <select data-common-rule-field="retrieval.mode">
+                        ${['hybrid', 'keyword', 'semantic'].map(option => `
+                            <option value="${option}" ${(retrieval.mode || 'hybrid') === option ? 'selected' : ''}>${option}</option>
+                        `).join('')}
+                    </select>
+                </label>
+                <label class="template-common-field">
+                    <span>Top K</span>
+                    <input type="number" min="1" step="1" data-common-rule-field="retrieval.top_k" value="${esc(retrieval.top_k ?? 8)}">
+                </label>
+                <label class="template-common-field">
+                    <span>候选数</span>
+                    <input type="number" min="1" step="1" data-common-rule-field="retrieval.keyword_candidates" value="${esc(retrieval.keyword_candidates ?? 40)}">
+                </label>
+                <label class="template-common-field">
+                    <span>语义候选数</span>
+                    <input type="number" min="1" step="1" data-common-rule-field="retrieval.semantic_candidates" value="${esc(retrieval.semantic_candidates ?? 80)}">
+                </label>
+                <label class="template-common-field">
+                    <span>Keyword 权重</span>
+                    <input type="number" min="0" max="1" step="0.1" data-common-rule-field="retrieval.keyword_weight" value="${esc(retrieval.keyword_weight ?? 0.7)}">
+                </label>
+                <label class="template-common-field">
+                    <span>Semantic 权重</span>
+                    <input type="number" min="0" max="1" step="0.1" data-common-rule-field="retrieval.semantic_weight" value="${esc(retrieval.semantic_weight ?? 0.3)}">
+                </label>
+                <label class="template-common-field wide">
+                    <span>检索关键词（逗号或换行分隔）</span>
+                    <textarea data-common-rule-field="retrieval.keywords" rows="3">${esc(searchKeywords)}</textarea>
+                </label>
+            </div>
+        </div>
+        <div class="template-common-rule-card">
+            <h5>Rerank</h5>
+            <div class="template-common-rules-grid">
+                <label class="template-common-rules-check">
+                    <input type="checkbox" data-common-rule-field="rerank.enabled" ${rerank.enabled !== false ? 'checked' : ''}>
+                    <span>启用 DeepSeek/LLM 重排</span>
+                </label>
+                <label class="template-common-field">
+                    <span>重排候选数</span>
+                    <input type="number" min="1" step="1" data-common-rule-field="rerank.candidates" value="${esc(rerank.candidates ?? 16)}">
+                </label>
+                <label class="template-common-field">
+                    <span>最低分</span>
+                    <input type="number" min="0" step="1" data-common-rule-field="rerank.min_score" value="${esc(rerank.min_score ?? 30)}">
+                </label>
+            </div>
         </div>
     `;
 
@@ -1326,7 +1402,10 @@ function collectCommonDefaultsDraft(template) {
     const existing = getEditableCommonDefaults(template);
     const draft = {
         ...existing,
-        validators: { ...(existing.validators || {}) }
+        validators: { ...(existing.validators || {}) },
+        hard_constraints: { ...(existing.hard_constraints || {}) },
+        retrieval: { ...(existing.retrieval || {}) },
+        rerank: { ...(existing.rerank || {}) }
     };
 
     container.querySelectorAll('[data-common-rule-field]').forEach(input => {
@@ -1335,17 +1414,23 @@ function collectCommonDefaultsDraft(template) {
         let value;
         if (input.type === 'checkbox') {
             value = input.checked;
-        } else if (field === 'validators.forbidden_terms') {
+        } else if (field === 'validators.forbidden_terms'
+            || field === 'hard_constraints.forbidden_phrases'
+            || field === 'hard_constraints.forbidden_entity_categories'
+            || field === 'retrieval.keywords') {
             value = String(input.value || '')
                 .split(/[\n,，]/)
                 .map(item => item.trim())
                 .filter(Boolean);
+        } else if (input.type === 'number') {
+            value = input.value === '' ? null : Number(input.value);
         } else {
             value = input.value?.trim?.() || '';
         }
 
-        if (field.startsWith('validators.')) {
-            draft.validators[field.replace('validators.', '')] = value;
+        const path = field.split('.');
+        if (path.length === 2 && draft[path[0]] && typeof draft[path[0]] === 'object') {
+            draft[path[0]][path[1]] = value;
         } else {
             draft[field] = value;
         }
@@ -1869,9 +1954,21 @@ function buildPlaceholderMappingsBlock(template, existingMappings) {
 
 function buildDefaultsBlock(defaults) {
     const validators = defaults?.validators || {};
+    const hardConstraints = defaults?.hard_constraints || {};
+    const retrieval = defaults?.retrieval || {};
+    const rerank = defaults?.rerank || {};
     const forbiddenTerms = Array.isArray(validators.forbidden_terms)
         ? validators.forbidden_terms
         : ['保本', '稳赚', '收益保证', '明确买入', '目标价'];
+    const forbiddenPhrases = Array.isArray(hardConstraints.forbidden_phrases)
+        ? hardConstraints.forbidden_phrases
+        : ['根据文件', '据报道', '数据显示'];
+    const forbiddenEntityCategories = Array.isArray(hardConstraints.forbidden_entity_categories)
+        ? hardConstraints.forbidden_entity_categories
+        : ['指数名称', '公司名称', '证券机构'];
+    const searchKeywords = Array.isArray(retrieval.keywords)
+        ? retrieval.keywords
+        : ['CPO', '算力', '人工智能', '先进封装'];
     const lines = [
         'defaults:',
         `  generation_mode: ${defaults?.generation_mode || 'evidence_grounded_generation'}`,
@@ -1884,6 +1981,29 @@ function buildDefaultsBlock(defaults) {
         '    forbidden_terms:'
     ];
     forbiddenTerms.forEach(term => lines.push(`      - ${term}`));
+    lines.push('  hard_constraints:');
+    lines.push(`    no_wind_data: ${hardConstraints.no_wind_data !== false}`);
+    lines.push(`    no_baidu_data: ${hardConstraints.no_baidu_data !== false}`);
+    lines.push(`    require_number_source: ${hardConstraints.require_number_source !== false}`);
+    lines.push(`    single_paragraph: ${hardConstraints.single_paragraph !== false}`);
+    lines.push('    forbidden_phrases:');
+    forbiddenPhrases.forEach(term => lines.push(`      - ${term}`));
+    lines.push('    forbidden_entity_categories:');
+    forbiddenEntityCategories.forEach(term => lines.push(`      - ${term}`));
+    lines.push('  retrieval:');
+    lines.push(`    mode: ${retrieval.mode || 'hybrid'}`);
+    lines.push(`    top_k: ${retrieval.top_k ?? 8}`);
+    lines.push(`    keyword_candidates: ${retrieval.keyword_candidates ?? 40}`);
+    lines.push(`    semantic_candidates: ${retrieval.semantic_candidates ?? 80}`);
+    lines.push(`    keyword_weight: ${retrieval.keyword_weight ?? 0.7}`);
+    lines.push(`    semantic_weight: ${retrieval.semantic_weight ?? 0.3}`);
+    lines.push('    keywords:');
+    searchKeywords.forEach(keyword => lines.push(`      - ${keyword}`));
+    lines.push('  rerank:');
+    lines.push(`    enabled: ${rerank.enabled !== false}`);
+    lines.push(`    provider: ${rerank.provider || 'deepseek'}`);
+    lines.push(`    candidates: ${rerank.candidates ?? 16}`);
+    lines.push(`    min_score: ${rerank.min_score ?? 30}`);
     return lines.join('\n');
 }
 
@@ -1902,7 +2022,7 @@ function buildSelectedPlaceholderYamlFragment(template, existingMappings) {
     const mapping = existingMappings.get(key) || {};
     return [
         '# 当前占位符片段',
-        '# 继承 defaults: generation_mode / evidence_policy / query_mode / validators。',
+        '# 继承 defaults: 硬性生成约束 / 检索配置 / Rerank / validators。',
         '# 下方只写当前占位符自己的覆盖项，例如 prompt_template、max_words、params。',
         'placeholders:',
         ...buildPlaceholderYamlEntry(template, key, mapping)
