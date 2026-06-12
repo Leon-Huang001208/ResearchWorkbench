@@ -133,6 +133,13 @@ def test_templates_js_renders_generation_center_and_reuses_advanced_workbench():
     assert "renderGenerationHero" in source
     assert "renderGenerationStatusStrip" in source
     assert "renderRecentGenerationPanel" in source
+    assert "REPORT_GENERATION_STEPS" in source
+    assert "renderReportGenerationProgressCard" in source
+    assert "renderReportGenerationFailure" in source
+    assert "getReportGenerationErrorHint" in source
+    assert "btn-template-generation-open-config" in source
+    assert "btn-template-generation-retry" in source
+    assert "renderReportFromTemplate({ inlineProgress: true })" in source
     assert "renderAdvancedMaintenance" in source
     assert "template-generation-period" in source
     assert "template-generation-lookback" in source
@@ -385,6 +392,10 @@ def test_weekly_report_generation_center_styles_exist():
     assert ".template-generation-actions" in css
     assert ".template-generation-status-strip" in css
     assert ".template-generation-step" in css
+    assert ".template-generation-progress" in css
+    assert ".template-generation-progress-steps" in css
+    assert ".template-generation-error-card" in css
+    assert ".template-generation-error-actions" in css
     assert ".template-generation-panels" in css
     assert ".template-recent-generation-card" in css
     assert ".template-advanced-maintenance" in css

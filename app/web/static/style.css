@@ -4325,6 +4325,110 @@ tr:hover td {
     flex-wrap: wrap;
 }
 
+.template-generation-progress,
+.template-generation-error-card {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.template-generation-progress-header,
+.template-generation-error-header {
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr);
+    align-items: start;
+    gap: 0.65rem;
+}
+
+.template-generation-progress-header i {
+    color: var(--accent);
+    margin-top: 0.1rem;
+}
+
+.template-generation-error-header i {
+    color: var(--danger);
+    margin-top: 0.1rem;
+}
+
+.template-generation-progress-header strong,
+.template-generation-error-header strong {
+    display: block;
+    color: var(--text-primary);
+}
+
+.template-generation-progress-header small,
+.template-generation-error-header small {
+    display: block;
+    margin-top: 0.22rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+
+.template-generation-progress-steps {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.45rem;
+}
+
+.template-generation-progress-step {
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr);
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 38px;
+    padding: 0.45rem 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-muted);
+    background: var(--bg-input);
+    font-size: 0.78rem;
+    line-height: 1.25;
+}
+
+.template-generation-progress-step i {
+    color: var(--text-muted);
+}
+
+.template-generation-progress-step.done {
+    border-color: var(--success);
+    color: var(--text-secondary);
+    background: var(--success-light);
+}
+
+.template-generation-progress-step.done i {
+    color: var(--success);
+}
+
+.template-generation-progress-step.active {
+    border-color: var(--accent);
+    color: var(--text-primary);
+    background: var(--accent-light);
+}
+
+.template-generation-progress-step.active i {
+    color: var(--accent);
+}
+
+.template-generation-error-card pre {
+    max-height: 96px;
+    overflow: auto;
+    margin: 0;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-input);
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 0.78rem;
+    line-height: 1.45;
+}
+
+.template-generation-error-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+}
+
 .template-project-check-panel {
     padding: 0;
 }
@@ -5122,6 +5226,7 @@ tr:hover td {
     }
 
     .template-generation-status-strip,
+    .template-generation-progress-steps,
     .template-generation-panels,
     .template-workbench-grid,
     .template-workbench-main-grid,

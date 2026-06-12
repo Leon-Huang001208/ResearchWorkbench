@@ -29,6 +29,13 @@ let pointerDragState = null;
 let editingTemplateName = null;
 let originalTemplates = [];
 
+const REPORT_GENERATION_STEPS = [
+    { key: 'check', label: '检查资料与配置', icon: 'codicon-checklist' },
+    { key: 'generate', label: '检索证据与生成正文', icon: 'codicon-search' },
+    { key: 'write', label: '写入 Word 文档', icon: 'codicon-file-code' },
+    { key: 'refresh', label: '刷新预览与下载', icon: 'codicon-open-preview' }
+];
+
 // ─── Template Page / List ──────────────────────────────────────
 async function loadTemplatesPage() {
     try {
@@ -1017,6 +1024,111 @@ function renderRecentGenerationPanel(template) {
             ${downloadUrl ? `<a class="btn-secondary" href="${esc(downloadUrl)}" target="_blank">下载 Word</a>` : ''}
         </div>
     `;
+}
+
+function renderReportGenerationProgressCard({ status = 'running', activeKey = 'check', message = '' } = {}) {
+    const card = document.getElementById('template-recent-generation-card');
+    const statusEl = document.getElementById('template-recent-generation-status');
+    if (!card) return;
+
+    const activeIndex = Math.max(0, REPORT_GENERATION_STEPS.findIndex(step => step.key === activeKey));
+    const statusText = status === 'error' ? '生成失败' : '生成中';
+    if (statusEl) statusEl.textContent = statusText;
+
+    card.innerHTML = `
+        <div class="template-generation-progress" role="status" aria-live="polite">
+            <div class="template-generation-progress-header">
+                <i class="codicon codicon-loading spin"></i>
+                <span>
+                    <strong>${statusText}</strong>
+                    <small>${esc(message || '正在准备生成本周报告')}</small>
+                </span>
+            </div>
+            <div class="template-generation-progress-steps">
+                ${REPORT_GENERATION_STEPS.map((step, index) => {
+                    const stepState = index < activeIndex ? 'done' : (index === activeIndex ? 'active' : 'pending');
+                    const icon = stepState === 'done' ? 'codicon-pass' : step.icon;
+                    return `
+                        <div class="template-generation-progress-step ${stepState}">
+                            <i class="codicon ${icon}"></i>
+                            <span>${esc(step.label)}</span>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        </div>
+    `;
+}
+
+function renderReportGenerationFailure(error) {
+    const card = document.getElementById('template-recent-generation-card');
+    const statusEl = document.getElementById('template-recent-generation-status');
+    if (!card) return;
+
+    const message = error?.message || String(error || '未知错误');
+    const hint = getReportGenerationErrorHint(message);
+    if (statusEl) statusEl.textContent = '生成失败';
+
+    card.innerHTML = `
+        <div class="template-generation-error-card" role="alert">
+            <div class="template-generation-error-header">
+                <i class="codicon codicon-error"></i>
+                <span>
+                    <strong>生成失败</strong>
+                    <small>${esc(hint)}</small>
+                </span>
+            </div>
+            <pre>${esc(message)}</pre>
+            <div class="template-generation-error-actions">
+                <button type="button" class="btn-secondary" id="btn-template-generation-open-config">
+                    <i class="codicon codicon-tools"></i> 打开高级配置
+                </button>
+                <button type="button" class="btn-primary" id="btn-template-generation-retry">
+                    <i class="codicon codicon-refresh"></i> 重试生成
+                </button>
+            </div>
+        </div>
+    `;
+    bindReportGenerationFeedbackActions();
+}
+
+function getReportGenerationErrorHint(message) {
+    if (/No model provider|PROVIDER_PROFILES|model provider|api key|provider/i.test(message)) {
+        return '模型接口不可用，先检查 PROVIDER_PROFILES、API Key 或模型供应商配置。';
+    }
+    if (/template|Word|docx|placeholder/i.test(message)) {
+        return 'Word 模板或占位符可能不匹配，打开高级配置检查占位符映射。';
+    }
+    if (/Excel|workbook|sheet|range/i.test(message)) {
+        return 'Excel 底稿或数据区域可能不可读，检查工作簿、Sheet 和数据范围。';
+    }
+    if (/section|yaml|config/i.test(message)) {
+        return 'Section/YAML 配置可能有缺项或格式问题，打开高级配置检查当前片段。';
+    }
+    return '保留错误信息后重试；如果连续失败，优先检查接口、模板和数据文件。';
+}
+
+function bindReportGenerationFeedbackActions() {
+    const openConfigBtn = document.getElementById('btn-template-generation-open-config');
+    const retryBtn = document.getElementById('btn-template-generation-retry');
+    if (openConfigBtn && !openConfigBtn.dataset.bound) {
+        openConfigBtn.dataset.bound = 'true';
+        openConfigBtn.addEventListener('click', openAdvancedMaintenance);
+    }
+    if (retryBtn && !retryBtn.dataset.bound) {
+        retryBtn.dataset.bound = 'true';
+        retryBtn.addEventListener('click', () => {
+            const generateBtn = document.getElementById('btn-template-generate-report');
+            if (generateBtn && !generateBtn.disabled) generateBtn.click();
+        });
+    }
+}
+
+function openAdvancedMaintenance() {
+    const panel = document.getElementById('template-advanced-maintenance');
+    if (!panel) return;
+    panel.open = true;
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function formatGeneratedAt(value) {
@@ -2540,6 +2652,10 @@ function bindTemplateWorkbenchActions() {
     if (generateBtn && !generateBtn.dataset.bound) {
         generateBtn.dataset.bound = 'true';
         generateBtn.addEventListener('click', async () => {
+            renderReportGenerationProgressCard({
+                activeKey: 'check',
+                message: '正在检查当前模板、占位符和本地草稿'
+            });
             if (sourceEditor?.dataset.draftKey) {
                 const template = getCurrentWorkbenchTemplate() || {};
                 localStorage.setItem(
@@ -2552,7 +2668,11 @@ function bindTemplateWorkbenchActions() {
             const originalText = generateBtn.innerHTML;
             generateBtn.innerHTML = '<i class="codicon codicon-loading spin"></i> 生成中...';
             try {
-                await renderReportFromTemplate();
+                await renderReportFromTemplate({ inlineProgress: true });
+                toast('报告生成完成', 'success');
+            } catch (e) {
+                renderReportGenerationFailure(e);
+                toast('生成失败: ' + e.message, 'error');
             } finally {
                 generateBtn.disabled = false;
                 generateBtn.innerHTML = originalText;
@@ -2797,7 +2917,7 @@ async function createYamlConfig() {
 }
 
 // ─── Render Report ─────────────────────────────────────────────
-async function renderReportFromTemplate() {
+async function renderReportFromTemplate(options = {}) {
     const templateSelect = document.getElementById('render-template-select');
     const typeSelect = document.getElementById('render-type-select');
     const canonicalIdInput = document.getElementById('render-canonical-id');
@@ -2809,8 +2929,10 @@ async function renderReportFromTemplate() {
     const reportType = reportTypeSelect?.value || 'full';
 
     if (!templateName) {
-        toast('请先选择一个模板', 'error');
-        return;
+        const error = new Error('请先选择一个模板');
+        if (options.inlineProgress) throw error;
+        toast(error.message, 'error');
+        return null;
     }
 
     const loadingEl = document.getElementById('render-loading');
@@ -2821,6 +2943,12 @@ async function renderReportFromTemplate() {
 
     try {
         let result;
+        if (options.inlineProgress) {
+            renderReportGenerationProgressCard({
+                activeKey: 'generate',
+                message: '正在检索证据、调用模型并生成正文'
+            });
+        }
 
         if (!canonicalId && currentTemplateState.selectedReportProject) {
             result = await renderReportProject(currentTemplateState.selectedReportProject);
@@ -2843,6 +2971,12 @@ async function renderReportFromTemplate() {
         currentTemplateState.renderedReportId = result.report_id || result.file_name || null;
         const renderedProjectSlug = currentTemplateState.selectedReportProject?.slug;
         if (renderedProjectSlug) {
+            if (options.inlineProgress) {
+                renderReportGenerationProgressCard({
+                    activeKey: 'refresh',
+                    message: '报告已写入 Word，正在刷新最近版本和预览入口'
+                });
+            }
             const projects = await loadReportProjectsList();
             const refreshedProject = (projects || []).find(project => project.slug === renderedProjectSlug);
             const selectedTemplate = getCurrentWorkbenchTemplate();
@@ -2894,8 +3028,11 @@ async function renderReportFromTemplate() {
                 await loadRenderedReportPreview(previewUrl);
             }
         }
+        return result;
     } catch (e) {
+        if (options.inlineProgress) throw e;
         toast('渲染失败: ' + e.message, 'error');
+        return null;
     } finally {
         if (loadingEl) loadingEl.classList.add('hidden');
     }
