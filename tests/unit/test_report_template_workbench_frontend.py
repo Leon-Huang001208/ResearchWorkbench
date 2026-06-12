@@ -38,6 +38,26 @@ def test_template_detail_has_report_workbench_regions():
     assert "Excel 底稿映射" in html
 
 
+def test_template_detail_prioritizes_weekly_report_generation_center():
+    html = INDEX_HTML.read_text(encoding="utf-8")
+
+    assert 'id="template-generation-center"' in html
+    assert "周报生成中心" in html
+    assert "生成本周报告" in html
+    assert 'id="template-generation-period"' in html
+    assert 'id="template-generation-lookback"' in html
+    assert 'id="template-generation-status-strip"' in html
+    assert 'id="template-generation-step-data"' in html
+    assert 'id="template-generation-step-content"' in html
+    assert 'id="template-generation-step-output"' in html
+    assert 'id="template-recent-generation-panel"' in html
+    assert 'id="template-generation-readiness-panel"' in html
+    assert 'id="template-advanced-maintenance"' in html
+    assert "高级维护：模板、占位符、Prompt、YAML" in html
+    assert "报告模板工作台" not in html
+    assert "Word 占位符、Excel 底稿、Section 配置统一维护" not in html
+
+
 def test_templates_js_populates_report_workbench():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
 
@@ -62,6 +82,25 @@ def test_templates_js_populates_report_workbench():
     assert "template-source-editor" in source
     assert "btn-template-generate-report" in source
     assert "btn-template-download-report" in source
+
+
+def test_templates_js_renders_generation_center_and_reuses_advanced_workbench():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+
+    assert "renderReportGenerationCenter" in source
+    assert "buildGenerationReadiness" in source
+    assert "renderGenerationHero" in source
+    assert "renderGenerationStatusStrip" in source
+    assert "renderRecentGenerationPanel" in source
+    assert "renderAdvancedMaintenance" in source
+    assert "template-generation-period" in source
+    assert "template-generation-lookback" in source
+    assert "template-generation-status-strip" in source
+    assert "template-recent-generation-panel" in source
+    assert "template-generation-readiness-panel" in source
+    assert "template-advanced-maintenance" in source
+    assert "最近生成" in source
+    assert "尚未生成" in source
 
 
 def test_report_workbench_uses_report_project_real_asset_summary():
@@ -188,6 +227,20 @@ def test_report_template_workbench_styles_exist():
     assert ".iphone-template-wrapper.dragging" in css
     assert "position: fixed" in css
     assert ".iphone-template-name-input" in css
+
+
+def test_weekly_report_generation_center_styles_exist():
+    css = STYLE_CSS.read_text(encoding="utf-8")
+
+    assert ".template-generation-center" in css
+    assert ".template-generation-hero" in css
+    assert ".template-generation-actions" in css
+    assert ".template-generation-status-strip" in css
+    assert ".template-generation-step" in css
+    assert ".template-generation-panels" in css
+    assert ".template-recent-generation-card" in css
+    assert ".template-advanced-maintenance" in css
+    assert ".template-advanced-maintenance[open]" in css
 
 
 def test_template_detail_icon_follows_active_color_scheme():
