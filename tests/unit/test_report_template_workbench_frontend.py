@@ -113,6 +113,12 @@ def test_templates_js_populates_report_workbench():
     assert "template-source-editor" in source
     assert "btn-template-generate-report" in source
     assert "btn-template-download-report" in source
+    assert "selectTemplatePlaceholder" in source
+    assert "renderSelectedPlaceholderDetail" in source
+    assert "btn-template-save-placeholder" in source
+    assert "data-placeholder-name" in source
+    assert "data-placeholder-field" in source
+    assert "updateTemplateSourceFromPlaceholderDraft" in source
 
 
 def test_templates_js_renders_generation_center_and_reuses_advanced_workbench():
@@ -180,6 +186,18 @@ def test_placeholder_map_does_not_truncate_word_placeholders():
 
     assert "names.map(name =>" in source
     assert "names.slice(0, 8)" not in source
+
+
+def test_advanced_placeholder_rows_are_clickable_and_styled():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+    css = STYLE_CSS.read_text(encoding="utf-8")
+
+    assert '<button class="placeholder-map-row' in source
+    assert "bindPlaceholderMapRows" in source
+    assert "row.addEventListener('click'" in source
+    assert "renderSelectedPlaceholderDetail(template)" in source
+    assert ".placeholder-map-row.active" in css
+    assert ".template-placeholder-detail-form" in css
 
 
 def test_placeholder_mapping_connects_word_prompt_and_query_source():

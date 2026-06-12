@@ -7,7 +7,50 @@ from dotenv import load_dotenv
 from pydantic import BaseModel, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-load_dotenv()
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _linked_worktree_env_file(project_root: Path) -> Path | None:
+    """Return the main worktree .env when running from a linked git worktree."""
+    git_file = project_root / ".git"
+    if not git_file.is_file():
+        return None
+    try:
+        content = git_file.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    if not content.startswith("gitdir:"):
+        return None
+
+    git_dir = Path(content.split(":", 1)[1].strip()).expanduser()
+    if not git_dir.is_absolute():
+        git_dir = (project_root / git_dir).resolve()
+    main_worktree = git_dir.parent.parent.parent
+    candidate = main_worktree / ".env"
+    return candidate if candidate.exists() else None
+
+
+def _load_env_files() -> None:
+    """Load local environment files without overriding explicit process env."""
+    explicit_env_file = os.environ.get("ALPHAFOUNDRY_ENV_FILE")
+    candidates = [
+        Path(explicit_env_file).expanduser() if explicit_env_file else None,
+        PROJECT_ROOT / ".env",
+        _linked_worktree_env_file(PROJECT_ROOT),
+        Path.cwd() / ".env",
+    ]
+    seen: set[Path] = set()
+    for candidate in candidates:
+        if not candidate:
+            continue
+        path = candidate.resolve()
+        if path in seen or not path.exists():
+            continue
+        load_dotenv(path, override=False)
+        seen.add(path)
+
+
+_load_env_files()
 
 
 class ProviderProfile(BaseModel):
@@ -30,7 +73,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     # 项目根目录
-    PROJECT_ROOT: Path = Path(__file__).parent.parent.parent
+    PROJECT_ROOT: Path = PROJECT_ROOT
 
     # Runtime environment: dev/prod
     APP_ENV: Literal["dev", "prod"] = "dev"

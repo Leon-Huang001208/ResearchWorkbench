@@ -1004,10 +1004,21 @@ function renderAdvancedMaintenance(template) {
     const sections = getTemplateWorkbenchSections(template);
     const templateName = template.template_name || template.name || currentSelectedTemplate || '未命名模板';
     currentTemplateState.activeSourceKind = 'section_config';
+    const placeholderNames = placeholders.length
+        ? placeholders
+        : sections.map(section => section.placeholder || section.key).filter(Boolean);
+    const selectedName = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
+    const firstPlaceholder = normalizePlaceholderName(placeholderNames[0] || '');
+    currentTemplateState.selectedPlaceholderName = placeholderNames
+        .map(normalizePlaceholderName)
+        .includes(selectedName)
+            ? selectedName
+            : firstPlaceholder;
 
     renderTemplateAssetChecklist(template, sections);
     renderTemplatePlaceholderMap(placeholders, sections);
     renderTemplateExcelMapping(template, templateName);
+    renderSelectedPlaceholderDetail(template);
 
     const sourceEditor = document.getElementById('template-source-editor');
     if (sourceEditor) {
@@ -1194,14 +1205,19 @@ function renderTemplatePlaceholderMap(placeholders, sections) {
         const status = mapping
             ? (isPlaceholderMappingConfigured(mapping) ? '已配置' : '待补参数')
             : (section ? '旧配置映射' : '未映射');
+        const active = normalizedName === normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
         return `
-            <div class="placeholder-map-row ${mapped ? 'mapped' : 'unmapped'}">
+            <button class="placeholder-map-row ${mapped ? 'mapped' : 'unmapped'} ${active ? 'active' : ''}"
+                    type="button"
+                    data-placeholder-name="${esc(normalizedName)}">
                 <code>{{${esc(normalizedName)}}}</code>
                 <div class="mapping-summary">${renderMappingSummary(mapping, section, getCurrentWorkbenchTemplate() || {})}</div>
                 <strong>${status}</strong>
-            </div>
+            </button>
         `;
     }).join('');
+
+    bindPlaceholderMapRows();
 }
 
 function renderMappingSummary(mapping, section, template = {}) {
@@ -1287,6 +1303,144 @@ function isPlaceholderMappingConfigured(mapping) {
 
 function normalizePlaceholderName(name) {
     return String(name || '').replace(/^\{\{\s*/, '').replace(/\s*\}\}$/, '').trim();
+}
+
+function bindPlaceholderMapRows() {
+    document.querySelectorAll('#template-placeholder-map .placeholder-map-row').forEach(row => {
+        if (row.dataset.bound) return;
+        row.dataset.bound = 'true';
+        row.addEventListener('click', () => selectTemplatePlaceholder(row.dataset.placeholderName || ''));
+    });
+}
+
+function selectTemplatePlaceholder(name) {
+    const normalizedName = normalizePlaceholderName(name);
+    if (!normalizedName) return;
+    currentTemplateState.selectedPlaceholderName = normalizedName;
+    const template = getCurrentWorkbenchTemplate();
+    if (!template) return;
+    renderTemplatePlaceholderMap(
+        getTemplateWorkbenchPlaceholders(template),
+        getTemplateWorkbenchSections(template)
+    );
+    renderSelectedPlaceholderDetail(template);
+    updateTemplateSourceFromPlaceholderDraft(template);
+}
+
+function getSelectedPlaceholderMapping(template) {
+    const name = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
+    if (!name) return null;
+    const mappings = getCurrentPlaceholderMappings(template);
+    return mappings.get(name) || {
+        title: inferPlaceholderTitle(name),
+        type: inferPlaceholderType(name)
+    };
+}
+
+function renderSelectedPlaceholderDetail(template) {
+    const titleEl = document.getElementById('template-selected-placeholder-title');
+    const formEl = document.getElementById('template-placeholder-detail-form');
+    const saveBtn = document.getElementById('btn-template-save-placeholder');
+    if (!formEl) return;
+
+    const name = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
+    const mapping = getSelectedPlaceholderMapping(template);
+    if (!name || !mapping) {
+        if (titleEl) titleEl.textContent = '占位符配置详情';
+        formEl.innerHTML = '<div class="empty-state compact">从左侧选择一个 Word 占位符后编辑配置</div>';
+        if (saveBtn) saveBtn.disabled = true;
+        return;
+    }
+
+    if (titleEl) titleEl.textContent = `{{${name}}} 配置`;
+    if (saveBtn) saveBtn.disabled = false;
+
+    const type = mapping.type || inferPlaceholderType(name);
+    formEl.innerHTML = `
+        <label>
+            <span>标题</span>
+            <input type="text" data-placeholder-field="title" value="${esc(mapping.title || inferPlaceholderTitle(name))}">
+        </label>
+        <label>
+            <span>类型</span>
+            <select data-placeholder-field="type">
+                ${['prompt', 'excel_cell', 'excel_range', 'static_text'].map(option => `
+                    <option value="${option}" ${type === option ? 'selected' : ''}>${option}</option>
+                `).join('')}
+            </select>
+        </label>
+        <label>
+            <span>Prompt 模板</span>
+            <input type="text" data-placeholder-field="prompt_template" value="${esc(mapping.prompt_template || resolvePromptTemplateName(name, template.report_project))}">
+        </label>
+        <label>
+            <span>检索模式</span>
+            <select data-placeholder-field="query_mode">
+                ${['retrieval_query_embedded', 'query_source'].map(option => `
+                    <option value="${option}" ${(mapping.query_mode || 'retrieval_query_embedded') === option ? 'selected' : ''}>${option}</option>
+                `).join('')}
+            </select>
+        </label>
+        <label>
+            <span>Query 来源</span>
+            <input type="text" data-placeholder-field="query_source" value="${esc(mapping.query_source || inferQuerySource(name, template.report_project))}">
+        </label>
+        <label>
+            <span>Excel 来源 / 区域</span>
+            <input type="text" data-placeholder-field="source" value="${esc(mapping.source || '')}">
+        </label>
+        <label>
+            <span>静态文本</span>
+            <textarea data-placeholder-field="value" rows="3">${esc(mapping.value || '')}</textarea>
+        </label>
+        <label>
+            <span>参数 param</span>
+            <input type="text" data-placeholder-field="params.param" value="${esc(mapping.params?.param || inferPromptParam(name))}">
+        </label>
+    `;
+
+    formEl.querySelectorAll('[data-placeholder-field]').forEach(input => {
+        input.addEventListener('input', () => updateTemplateSourceFromPlaceholderDraft(template));
+        input.addEventListener('change', () => updateTemplateSourceFromPlaceholderDraft(template));
+    });
+}
+
+function collectSelectedPlaceholderDraft(template) {
+    const name = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
+    if (!name) return null;
+
+    const formEl = document.getElementById('template-placeholder-detail-form');
+    const existing = getSelectedPlaceholderMapping(template) || {};
+    const draft = { ...existing };
+    formEl?.querySelectorAll('[data-placeholder-field]').forEach(input => {
+        const field = input.dataset.placeholderField;
+        const value = input.value?.trim?.() || '';
+        if (field === 'params.param') {
+            draft.params = value ? { ...(draft.params || {}), param: value } : {};
+        } else if (field) {
+            draft[field] = value;
+        }
+    });
+    draft.title = draft.title || inferPlaceholderTitle(name);
+    draft.type = draft.type || inferPlaceholderType(name);
+    return { name, draft };
+}
+
+function getEditablePlaceholderMappings(template) {
+    const mappings = getCurrentPlaceholderMappings(template);
+    const selectedDraft = collectSelectedPlaceholderDraft(template);
+    if (selectedDraft) {
+        mappings.set(selectedDraft.name, selectedDraft.draft);
+    }
+    return mappings;
+}
+
+function updateTemplateSourceFromPlaceholderDraft(template) {
+    if (currentTemplateState.activeSourceKind !== 'section_config') return;
+    const sourceEditor = document.getElementById('template-source-editor');
+    if (!sourceEditor) return;
+    sourceEditor.value = buildPlaceholderMappingConfigYaml(template, getEditablePlaceholderMappings(template));
+    sourceEditor.dataset.sourceKind = 'section_config';
 }
 
 function renderTemplateExcelMapping(template, templateName) {
@@ -1428,11 +1582,11 @@ function buildTemplateConfigYaml(template) {
     return lines.join('\n');
 }
 
-function buildPlaceholderMappingConfigYaml(template) {
+function buildPlaceholderMappingConfigYaml(template, mappingsOverride = null) {
     const name = template.template_name || template.name || currentSelectedTemplate || 'report_template';
     const project = template.report_project || null;
     const placeholders = getTemplateWorkbenchPlaceholders(template);
-    const existingMappings = getStoredPlaceholderMappings(template);
+    const existingMappings = mappingsOverride || getStoredPlaceholderMappings(template);
     const lines = [
         '# 填写方式：',
         '# - placeholders 下每一项对应 Word 模板里的一个 {{占位符}}。',
@@ -1660,6 +1814,7 @@ function buildPromptTemplateLibraryMarkdown(template) {
 function bindTemplateWorkbenchActions() {
     const editBtn = document.getElementById('btn-template-edit-source');
     const saveBtn = document.getElementById('btn-template-save-source');
+    const savePlaceholderBtn = document.getElementById('btn-template-save-placeholder');
     const dryRunBtn = document.getElementById('btn-template-dry-run');
     const generateBtn = document.getElementById('btn-template-generate-report');
     const sourceEditor = document.getElementById('template-source-editor');
@@ -1720,6 +1875,52 @@ function bindTemplateWorkbenchActions() {
                 toast('保存配置失败: ' + e.message, 'error');
             } finally {
                 saveBtn.innerHTML = originalText;
+            }
+        });
+    }
+
+    if (savePlaceholderBtn && !savePlaceholderBtn.dataset.bound) {
+        savePlaceholderBtn.dataset.bound = 'true';
+        savePlaceholderBtn.addEventListener('click', async () => {
+            const template = getCurrentWorkbenchTemplate();
+            if (!template) {
+                toast('请先选择模板', 'error');
+                return;
+            }
+            updateTemplateSourceFromPlaceholderDraft(template);
+            const sourceEditor = document.getElementById('template-source-editor');
+            if (!sourceEditor) return;
+
+            savePlaceholderBtn.disabled = true;
+            const originalText = savePlaceholderBtn.innerHTML;
+            savePlaceholderBtn.innerHTML = '<i class="codicon codicon-loading spin"></i> 保存中...';
+            try {
+                if (currentTemplateState.selectedReportProject) {
+                    const project = currentTemplateState.selectedReportProject;
+                    const updatedProject = await apiCall(
+                        'PUT',
+                        `/api/report-projects/${encodeURIComponent(project.slug)}/source`,
+                        {
+                            source_kind: 'section_config',
+                            content: sourceEditor.value
+                        }
+                    );
+                    currentTemplateState.selectedReportProject = updatedProject;
+                    const selectedTemplate = (currentTemplateState.templates || []).find(item =>
+                        item.report_project?.slug === project.slug
+                    );
+                    if (selectedTemplate) selectedTemplate.report_project = updatedProject;
+                    renderAdvancedMaintenance(selectedTemplate || template);
+                    toast('占位符配置已保存', 'success');
+                } else {
+                    localStorage.setItem(sourceEditor.dataset.draftKey || 'report-template-source:draft', sourceEditor.value);
+                    toast('占位符配置草稿已保存到本地', 'success');
+                }
+            } catch (e) {
+                toast('保存占位符失败: ' + e.message, 'error');
+            } finally {
+                savePlaceholderBtn.innerHTML = originalText;
+                savePlaceholderBtn.disabled = false;
             }
         });
     }

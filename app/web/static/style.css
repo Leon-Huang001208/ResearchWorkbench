@@ -4403,8 +4403,27 @@ tr:hover td {
 
 .placeholder-map-row {
     grid-template-columns: minmax(130px, 0.9fr) minmax(0, 1fr) auto;
+    width: 100%;
     padding: 0.42rem 0;
     border-bottom: 1px solid var(--border);
+    border-top: 0;
+    border-right: 0;
+    border-left: 0;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.placeholder-map-row:hover,
+.placeholder-map-row.active {
+    background: var(--bg-hover);
+}
+
+.placeholder-map-row.active {
+    padding-right: 0.5rem;
+    padding-left: 0.5rem;
+    border-radius: var(--radius-sm);
 }
 
 .placeholder-map-row:last-child {
@@ -4449,6 +4468,41 @@ tr:hover td {
 
 .placeholder-map-row.unmapped strong {
     color: var(--warning);
+}
+
+.template-placeholder-detail-form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.template-placeholder-detail-form label {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 0.35rem;
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    font-weight: 650;
+}
+
+.template-placeholder-detail-form input,
+.template-placeholder-detail-form select,
+.template-placeholder-detail-form textarea {
+    width: 100%;
+    min-width: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font: inherit;
+    font-weight: 500;
+}
+
+.template-placeholder-detail-form textarea,
+.template-placeholder-detail-form label:has(textarea) {
+    grid-column: 1 / -1;
 }
 
 .template-mapping-table {
