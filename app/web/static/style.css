@@ -4656,6 +4656,17 @@ tr:hover td {
         grid-template-columns: 1fr;
     }
 
+    #template-detail-view .section-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+
+    #template-detail-view .section-title {
+        margin-bottom: 0;
+        line-height: 1.25;
+    }
+
     .template-info-card {
         flex-direction: column;
         text-align: center;
