@@ -234,7 +234,7 @@ async function loadTemplateDetails(templateName) {
                 deleteTemplate(templateName);
             };
 
-            renderTemplateWorkbench(template);
+            renderReportGenerationCenter(template);
         }
     } catch (e) {
         console.error('Failed to load template details:', e);
@@ -848,7 +848,159 @@ function renderRenderPlaceholders(placeholders, configs = {}) {
 }
 
 // ─── Report Template Workbench ────────────────────────────────
-function renderTemplateWorkbench(template) {
+function renderReportGenerationCenter(template) {
+    const placeholders = getTemplateWorkbenchPlaceholders(template);
+    const sections = getTemplateWorkbenchSections(template);
+    const readiness = buildGenerationReadiness(template, sections, placeholders);
+    [
+        'template-generation-center',
+        'template-generation-status-strip',
+        'template-recent-generation-panel',
+        'template-generation-readiness-panel',
+        'template-advanced-maintenance'
+    ].forEach(id => document.getElementById(id)?.classList.remove('hidden'));
+
+    renderGenerationHero(template, readiness);
+    renderGenerationStatusStrip(readiness);
+    renderRecentGenerationPanel(template);
+    renderAdvancedMaintenance(template);
+}
+
+function buildGenerationReadiness(template, sections, placeholders) {
+    const assetChecks = buildTemplateAssetChecks(template, sections);
+    const validationChecks = buildTemplateValidationChecks(template, sections, placeholders);
+    const excelRows = buildExcelMappingRows(template);
+    const generatedReports = Array.isArray(template.report_project?.generated_reports)
+        ? template.report_project.generated_reports
+        : [];
+
+    const readyAssets = assetChecks.filter(asset => asset.ok).length;
+    const passedChecks = validationChecks.filter(check => check.ok).length;
+    const dataOk = readyAssets === assetChecks.length && excelRows.length > 0;
+    const contentOk = passedChecks === validationChecks.length;
+    const outputOk = generatedReports.length > 0 || dataOk && contentOk;
+    const warningCount = validationChecks.length - passedChecks;
+
+    return {
+        assetChecks,
+        validationChecks,
+        excelRows,
+        generatedReports,
+        latestReport: generatedReports[0] || null,
+        dataOk,
+        contentOk,
+        outputOk,
+        warningCount,
+        readyAssets,
+        totalAssets: assetChecks.length,
+        passedChecks,
+        totalChecks: validationChecks.length,
+        placeholderCount: placeholders.length || sections.length
+    };
+}
+
+function renderGenerationHero(template, readiness) {
+    const templateName = template.template_name || template.name || currentSelectedTemplate || '周报';
+    const project = template.report_project || null;
+    const titleEl = document.getElementById('template-generation-title');
+    const periodEl = document.getElementById('template-generation-period');
+    const lookbackEl = document.getElementById('template-generation-lookback');
+    const placeholderTotalEl = document.getElementById('template-generation-placeholder-total');
+
+    if (titleEl) titleEl.textContent = `${templateName} · 生成本周报告`;
+    if (periodEl) periodEl.textContent = '报告周期：本周';
+    if (lookbackEl) lookbackEl.textContent = '证据检索 7 天';
+    if (placeholderTotalEl) placeholderTotalEl.textContent = `${readiness.placeholderCount} 个占位符`;
+
+    const previewBtn = document.getElementById('btn-template-preview-report');
+    const latestReport = readiness.latestReport;
+    if (previewBtn) {
+        const previewUrl = latestReport && project
+            ? `/api/report-projects/${encodeURIComponent(project.slug)}/preview/${encodeURIComponent(latestReport.file_name)}`
+            : '';
+        previewBtn.disabled = !previewUrl;
+        previewBtn.onclick = previewUrl ? () => window.open(previewUrl, '_blank') : null;
+    }
+}
+
+function renderGenerationStatusStrip(readiness) {
+    updateGenerationStep(
+        'template-generation-step-data',
+        'template-generation-data-summary',
+        readiness.dataOk,
+        `素材 ${readiness.readyAssets}/${readiness.totalAssets} · 数据范围 ${readiness.excelRows.length}`
+    );
+    updateGenerationStep(
+        'template-generation-step-content',
+        'template-generation-content-summary',
+        readiness.contentOk,
+        `预检 ${readiness.passedChecks}/${readiness.totalChecks} · 警告 ${readiness.warningCount}`
+    );
+    updateGenerationStep(
+        'template-generation-step-output',
+        'template-generation-output-summary',
+        readiness.outputOk,
+        readiness.latestReport ? '最近版本可预览和下载' : '生成后可预览和下载'
+    );
+}
+
+function updateGenerationStep(stepId, summaryId, ok, summary) {
+    const step = document.getElementById(stepId);
+    const summaryEl = document.getElementById(summaryId);
+    if (step) {
+        step.classList.toggle('ok', Boolean(ok));
+        step.classList.toggle('pending', !ok);
+    }
+    if (summaryEl) summaryEl.textContent = summary;
+}
+
+function renderRecentGenerationPanel(template) {
+    const project = template.report_project || null;
+    const statusEl = document.getElementById('template-recent-generation-status');
+    const card = document.getElementById('template-recent-generation-card');
+    const downloadLink = document.getElementById('btn-template-download-report');
+    if (!card) return;
+
+    const generatedReports = Array.isArray(project?.generated_reports) ? project.generated_reports : [];
+    const latest = generatedReports[0] || null;
+    const downloadUrl = latest && project
+        ? `/api/report-projects/${encodeURIComponent(project.slug)}/download/${encodeURIComponent(latest.file_name)}`
+        : '';
+    const previewUrl = latest && project
+        ? `/api/report-projects/${encodeURIComponent(project.slug)}/preview/${encodeURIComponent(latest.file_name)}`
+        : '';
+
+    if (statusEl) statusEl.textContent = latest ? '可下载' : '尚未生成';
+    if (downloadLink) {
+        downloadLink.href = downloadUrl || '#';
+        downloadLink.classList.toggle('disabled', !downloadUrl);
+        downloadLink.setAttribute('aria-disabled', downloadUrl ? 'false' : 'true');
+    }
+
+    if (!latest) {
+        card.innerHTML = '<div class="empty-state compact">尚未生成。点击“生成报告”后，这里会显示最近版本。</div>';
+        return;
+    }
+
+    card.innerHTML = `
+        <strong>${esc(latest.file_name || '最近生成文档')}</strong>
+        <small>${esc(formatGeneratedAt(latest.generated_at))}</small>
+        <div class="template-recent-generation-actions">
+            ${previewUrl ? `<a class="btn-secondary" href="${esc(previewUrl)}" target="_blank">打开预览</a>` : ''}
+            ${downloadUrl ? `<a class="btn-secondary" href="${esc(downloadUrl)}" target="_blank">下载 Word</a>` : ''}
+        </div>
+    `;
+}
+
+function formatGeneratedAt(value) {
+    if (!value) return '生成时间未知';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleString('zh-CN', { hour12: false });
+}
+
+// renderTemplateWorkbench is now the advanced maintenance section below.
+function renderAdvancedMaintenance(template) {
     const project = template.report_project || null;
     const placeholders = getTemplateWorkbenchPlaceholders(template);
     const sections = getTemplateWorkbenchSections(template);
@@ -858,13 +1010,6 @@ function renderTemplateWorkbench(template) {
     renderTemplateAssetChecklist(template, sections);
     renderTemplatePlaceholderMap(placeholders, sections);
     renderTemplateExcelMapping(template, templateName);
-
-    const primaryDownloadLink = document.getElementById('btn-template-download-report');
-    if (primaryDownloadLink) {
-        primaryDownloadLink.href = '#';
-        primaryDownloadLink.classList.add('disabled');
-        primaryDownloadLink.setAttribute('aria-disabled', 'true');
-    }
 
     const sourceEditor = document.getElementById('template-source-editor');
     if (sourceEditor) {
@@ -974,13 +1119,9 @@ function getTemplateWorkbenchPlaceholders(template) {
     return template.placeholders || [];
 }
 
-function renderTemplateAssetChecklist(template, sections) {
-    const statusEl = document.getElementById('template-asset-status');
-    const checklist = document.getElementById('template-asset-checklist');
-    if (!checklist) return;
-
+function buildTemplateAssetChecks(template, sections) {
     const project = template.report_project || null;
-    const assets = [
+    return [
         {
             icon: 'codicon-file-code',
             label: 'Word 模板',
@@ -1000,6 +1141,14 @@ function renderTemplateAssetChecklist(template, sections) {
             value: project?.section_config_filename || (sections.length ? `${sections.length} 段` : '待配置')
         }
     ];
+}
+
+function renderTemplateAssetChecklist(template, sections) {
+    const statusEl = document.getElementById('template-asset-status');
+    const checklist = document.getElementById('template-asset-checklist');
+    if (!checklist) return;
+
+    const assets = buildTemplateAssetChecks(template, sections);
 
     checklist.innerHTML = assets.map(asset => `
         <div class="asset-check-item ${asset.ok ? 'ok' : 'missing'}">
@@ -1183,11 +1332,7 @@ function buildExcelMappingRows(template) {
     ];
 }
 
-function renderTemplateValidationPreview(template, sections, placeholders) {
-    const statusEl = document.getElementById('template-validation-status');
-    const list = document.getElementById('template-validation-list');
-    if (!list) return;
-
+function buildTemplateValidationChecks(template, sections, placeholders) {
     const placeholderMappings = getCurrentPlaceholderMappings(template);
     const allPlaceholdersMapped = placeholders.length === 0
         || placeholders.every(placeholder => placeholderMappings.has(normalizePlaceholderName(placeholder)));
@@ -1197,12 +1342,21 @@ function renderTemplateValidationPreview(template, sections, placeholders) {
         || section.forbidden_terms?.length
         || section.investment_advice_policy
     ) || Boolean(template.report_project);
-    const checks = [
+
+    return [
         { label: 'Word 占位符均有 section 映射', ok: allPlaceholdersMapped },
         { label: 'AI 文本 section 已配置 prompt', ok: hasPromptMapping || sections.some(section => section.prompt_template || section.required_facets?.length) },
         { label: 'Excel 图表和表格已绑定来源', ok: template.has_excel || (template.template_name || '').includes('创业板50') },
         { label: '数字、禁用词、投资建议规则已配置', ok: hasRuleConfig }
     ];
+}
+
+function renderTemplateValidationPreview(template, sections, placeholders) {
+    const statusEl = document.getElementById('template-validation-status');
+    const list = document.getElementById('template-validation-list');
+    if (!list) return;
+
+    const checks = buildTemplateValidationChecks(template, sections, placeholders);
 
     list.innerHTML = checks.map(check => `
         <div class="validation-item ${check.ok ? 'ok' : 'pending'}">
@@ -1884,6 +2038,16 @@ async function renderReportFromTemplate() {
         }
 
         currentTemplateState.renderedReportId = result.report_id || result.file_name || null;
+        if (currentTemplateState.selectedReportProject) {
+            await loadReportProjectsList();
+            const refreshedProject = await findReportProjectForTemplate(currentSelectedTemplate);
+            const selectedTemplate = getCurrentWorkbenchTemplate();
+            if (selectedTemplate && refreshedProject) {
+                selectedTemplate.report_project = refreshedProject;
+                currentTemplateState.selectedReportProject = refreshedProject;
+                renderReportGenerationCenter(selectedTemplate);
+            }
+        }
 
         if (resultEl) {
             const downloadUrl = result.download_url
