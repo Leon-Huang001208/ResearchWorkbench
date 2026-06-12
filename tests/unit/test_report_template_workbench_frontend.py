@@ -14,6 +14,7 @@ def test_template_detail_has_report_workbench_regions():
 
     assert 'id="template-workbench-summary"' in html
     assert 'id="template-section-config-editor"' in html
+    assert 'id="template-common-rules"' in html
     assert 'id="template-source-editor"' in html
     assert 'id="btn-template-source-section"' in html
     assert 'id="btn-template-source-prompt"' in html
@@ -230,6 +231,24 @@ def test_advanced_placeholder_selector_drives_single_placeholder_detail():
     assert "buildPlaceholderMappingsBlock" in source
     assert "isSystemDatePlaceholder" in source
     assert ".filter(placeholder => !isSystemDatePlaceholder(placeholder))" in source
+
+
+def test_advanced_workbench_exposes_common_defaults_and_target_words():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+    css = STYLE_CSS.read_text(encoding="utf-8")
+
+    assert "renderCommonGenerationRules" in source
+    assert "template-common-rules" in source
+    assert 'data-common-rule-field="generation_mode"' in source
+    assert 'data-common-rule-field="evidence_policy"' in source
+    assert 'data-common-rule-field="query_mode"' in source
+    assert 'data-common-rule-field="validators.require_evidence_from_uploaded_material"' in source
+    assert 'data-common-rule-field="validators.forbidden_terms"' in source
+    assert 'data-placeholder-field="max_words"' in source
+    assert "buildDefaultsBlock" in source
+    assert "insertTopLevelBlockBefore" in source
+    assert "继承 defaults" in source
+    assert ".template-common-rules-grid" in css
 
 
 def test_placeholder_mapping_connects_word_prompt_and_query_source():

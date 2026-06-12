@@ -12,6 +12,7 @@ let currentTemplateState = {
     discoveredPlaceholders: [],
     placeholderValues: {},
     placeholderMappingDrafts: {},
+    commonDefaultsDraft: null,
     renderedReportId: null,
     templates: [],
     reportProjects: [],
@@ -183,6 +184,7 @@ async function selectTemplate(templateName, fileType) {
     currentTemplateState.discoveredPlaceholders = [];
     currentTemplateState.placeholderValues = {};
     currentTemplateState.placeholderMappingDrafts = {};
+    currentTemplateState.commonDefaultsDraft = null;
     currentTemplateState.renderedReportId = null;
     currentTemplateState.selectedReportProject = null;
 
@@ -1020,6 +1022,7 @@ function renderAdvancedMaintenance(template) {
     renderTemplateAssetChecklist(template, sections);
     renderTemplatePlaceholderMap(placeholders, sections);
     renderTemplateExcelMapping(template, templateName);
+    renderCommonGenerationRules(template);
     renderSelectedPlaceholderDetail(template);
 
     const sourceEditor = document.getElementById('template-source-editor');
@@ -1231,6 +1234,127 @@ function renderMappingSummary(mapping, section, template = {}) {
     `;
 }
 
+function getStoredCommonDefaults(template) {
+    const defaults = template?.report_project?.section_config?.defaults;
+    if (defaults && typeof defaults === 'object') return defaults;
+    return {
+        generation_mode: 'evidence_grounded_generation',
+        evidence_policy: 'strict',
+        query_mode: usesEmbeddedPromptQueries(template?.report_project) ? 'retrieval_query_embedded' : 'query_source',
+        validators: {
+            require_evidence_from_uploaded_material: true,
+            forbid_external_facts: true,
+            forbid_direct_investment_advice: true,
+            forbidden_terms: ['保本', '稳赚', '收益保证', '明确买入', '目标价']
+        }
+    };
+}
+
+function getEditableCommonDefaults(template) {
+    return currentTemplateState.commonDefaultsDraft || getStoredCommonDefaults(template);
+}
+
+function renderCommonGenerationRules(template) {
+    const container = document.getElementById('template-common-rules');
+    if (!container) return;
+
+    const defaults = getEditableCommonDefaults(template);
+    const validators = defaults.validators || {};
+    const forbiddenTerms = Array.isArray(validators.forbidden_terms)
+        ? validators.forbidden_terms.join('\n')
+        : '';
+
+    container.innerHTML = `
+        <div class="panel-title-row">
+            <h4>共用生成规则</h4>
+            <span class="text-muted">所有 prompt 占位符默认继承</span>
+        </div>
+        <div class="template-common-rules-grid">
+            <label>
+                <span>生成模式</span>
+                <input type="text" data-common-rule-field="generation_mode" value="${esc(defaults.generation_mode || 'evidence_grounded_generation')}">
+            </label>
+            <label>
+                <span>证据策略</span>
+                <select data-common-rule-field="evidence_policy">
+                    ${['strict', 'balanced', 'loose'].map(option => `
+                        <option value="${option}" ${(defaults.evidence_policy || 'strict') === option ? 'selected' : ''}>${option}</option>
+                    `).join('')}
+                </select>
+            </label>
+            <label>
+                <span>默认检索模式</span>
+                <select data-common-rule-field="query_mode">
+                    ${['retrieval_query_embedded', 'query_source'].map(option => `
+                        <option value="${option}" ${(defaults.query_mode || 'retrieval_query_embedded') === option ? 'selected' : ''}>${option}</option>
+                    `).join('')}
+                </select>
+            </label>
+            <label class="template-common-rules-check">
+                <input type="checkbox" data-common-rule-field="validators.require_evidence_from_uploaded_material" ${validators.require_evidence_from_uploaded_material !== false ? 'checked' : ''}>
+                <span>必须引用上传材料证据</span>
+            </label>
+            <label class="template-common-rules-check">
+                <input type="checkbox" data-common-rule-field="validators.forbid_external_facts" ${validators.forbid_external_facts !== false ? 'checked' : ''}>
+                <span>禁止补充外部事实</span>
+            </label>
+            <label class="template-common-rules-check">
+                <input type="checkbox" data-common-rule-field="validators.forbid_direct_investment_advice" ${validators.forbid_direct_investment_advice !== false ? 'checked' : ''}>
+                <span>禁止直接投资建议</span>
+            </label>
+            <label class="template-common-rules-wide">
+                <span>禁用词</span>
+                <textarea data-common-rule-field="validators.forbidden_terms" rows="2">${esc(forbiddenTerms)}</textarea>
+            </label>
+        </div>
+    `;
+
+    container.querySelectorAll('[data-common-rule-field]').forEach(input => {
+        const update = () => {
+            collectCommonDefaultsDraft(template);
+            renderSelectedSourceFragment(template);
+        };
+        input.addEventListener('input', update);
+        input.addEventListener('change', update);
+    });
+}
+
+function collectCommonDefaultsDraft(template) {
+    const container = document.getElementById('template-common-rules');
+    if (!container) return getEditableCommonDefaults(template);
+
+    const existing = getEditableCommonDefaults(template);
+    const draft = {
+        ...existing,
+        validators: { ...(existing.validators || {}) }
+    };
+
+    container.querySelectorAll('[data-common-rule-field]').forEach(input => {
+        const field = input.dataset.commonRuleField;
+        if (!field) return;
+        let value;
+        if (input.type === 'checkbox') {
+            value = input.checked;
+        } else if (field === 'validators.forbidden_terms') {
+            value = String(input.value || '')
+                .split(/[\n,，]/)
+                .map(item => item.trim())
+                .filter(Boolean);
+        } else {
+            value = input.value?.trim?.() || '';
+        }
+
+        if (field.startsWith('validators.')) {
+            draft.validators[field.replace('validators.', '')] = value;
+        } else {
+            draft[field] = value;
+        }
+    });
+
+    currentTemplateState.commonDefaultsDraft = draft;
+    return draft;
+}
+
 function getStoredPlaceholderMappings(template) {
     const raw = template?.report_project?.section_config?.placeholders;
     const mappings = new Map();
@@ -1385,6 +1509,10 @@ function renderSelectedPlaceholderDetail(template) {
                     `).join('')}
                 </select>
             </label>
+            <label>
+                <span>目标字数</span>
+                <input type="number" min="1" step="1" data-placeholder-field="max_words" value="${esc(mapping.max_words || mapping.target_words || inferDefaultMaxWords(name))}">
+            </label>
             ${usesQuerySource ? `
                 <label>
                     <span>Query 来源</span>
@@ -1497,17 +1625,38 @@ function renderSelectedSourceFragment(template) {
 
 function buildUpdatedSectionConfigSource(template, mappings) {
     const projectSource = template.report_project?.section_config_source || '';
+    const defaultsBlock = buildDefaultsBlock(collectCommonDefaultsDraft(template));
     const placeholdersBlock = buildPlaceholderMappingsBlock(template, mappings);
     if (!projectSource.trim()) {
         return buildPlaceholderMappingConfigYaml(template, mappings);
     }
-    if (/(^|\n)placeholders:\n/.test(projectSource)) {
-        return projectSource.replace(
+    let updatedSource = projectSource;
+    if (/(^|\n)defaults:\n/.test(updatedSource)) {
+        updatedSource = updatedSource.replace(
+            /(^|\n)defaults:\n[\s\S]*?(?=\n\S|\s*$)/,
+            `$1${defaultsBlock}`
+        );
+    } else {
+        updatedSource = insertTopLevelBlockBefore(updatedSource, defaultsBlock, ['charts:', 'placeholders:']);
+    }
+    if (/(^|\n)placeholders:\n/.test(updatedSource)) {
+        return updatedSource.replace(
             /(^|\n)placeholders:\n[\s\S]*?(?=\n\S|\s*$)/,
             `$1${placeholdersBlock}`
         );
     }
-    return `${projectSource.trimEnd()}\n${placeholdersBlock}`;
+    return `${updatedSource.trimEnd()}\n${placeholdersBlock}`;
+}
+
+function insertTopLevelBlockBefore(source, block, anchors) {
+    const lines = String(source || '').split('\n');
+    const anchorIndex = lines.findIndex(line => anchors.includes(line.trim()));
+    if (anchorIndex < 0) return `${source.trimEnd()}\n${block}`;
+    return [
+        ...lines.slice(0, anchorIndex),
+        block,
+        ...lines.slice(anchorIndex)
+    ].join('\n');
 }
 
 function buildSourceContentForSave(template, sourceKind, editorValue) {
@@ -1693,6 +1842,7 @@ function buildPlaceholderMappingConfigYaml(template, mappingsOverride = null) {
         `name: ${name}`,
         `version: ${template.version || '1.0'}`,
         'description: Word 占位符到 Excel / Prompt / 静态文本的映射',
+        buildDefaultsBlock(getEditableCommonDefaults(template)),
         'assets:',
         `  word_template: ${project?.word_template_filename || '待绑定'}`,
         `  excel_workbook: ${project?.excel_workbook_filename || '待绑定'}`,
@@ -1717,6 +1867,26 @@ function buildPlaceholderMappingsBlock(template, existingMappings) {
     return lines.join('\n');
 }
 
+function buildDefaultsBlock(defaults) {
+    const validators = defaults?.validators || {};
+    const forbiddenTerms = Array.isArray(validators.forbidden_terms)
+        ? validators.forbidden_terms
+        : ['保本', '稳赚', '收益保证', '明确买入', '目标价'];
+    const lines = [
+        'defaults:',
+        `  generation_mode: ${defaults?.generation_mode || 'evidence_grounded_generation'}`,
+        `  evidence_policy: ${defaults?.evidence_policy || 'strict'}`,
+        `  query_mode: ${defaults?.query_mode || 'retrieval_query_embedded'}`,
+        '  validators:',
+        `    require_evidence_from_uploaded_material: ${validators.require_evidence_from_uploaded_material !== false}`,
+        `    forbid_external_facts: ${validators.forbid_external_facts !== false}`,
+        `    forbid_direct_investment_advice: ${validators.forbid_direct_investment_advice !== false}`,
+        '    forbidden_terms:'
+    ];
+    forbiddenTerms.forEach(term => lines.push(`      - ${term}`));
+    return lines.join('\n');
+}
+
 function buildSelectedPlaceholderYamlFragment(template, existingMappings) {
     const key = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
     if (!key) return '# 从左侧选择一个 Word 占位符后显示对应 YAML 片段';
@@ -1730,7 +1900,13 @@ function buildSelectedPlaceholderYamlFragment(template, existingMappings) {
         ].join('\n');
     }
     const mapping = existingMappings.get(key) || {};
-    return ['placeholders:', ...buildPlaceholderYamlEntry(template, key, mapping)].join('\n');
+    return [
+        '# 当前占位符片段',
+        '# 继承 defaults: generation_mode / evidence_policy / query_mode / validators。',
+        '# 下方只写当前占位符自己的覆盖项，例如 prompt_template、max_words、params。',
+        'placeholders:',
+        ...buildPlaceholderYamlEntry(template, key, mapping)
+    ].join('\n');
 }
 
 function buildPlaceholderYamlEntry(template, key, mapping) {
@@ -1751,6 +1927,7 @@ function buildPlaceholderYamlEntry(template, key, mapping) {
         } else {
             lines.push('    query_mode: retrieval_query_embedded');
         }
+        lines.push(`    max_words: ${mapping.max_words || mapping.target_words || inferDefaultMaxWords(key)}`);
         const param = mapping.params?.param || inferPromptParam(key);
         if (param) {
             lines.push('    params:');
@@ -1884,6 +2061,16 @@ function inferPromptParam(name) {
     if (['原油', '原油市场回顾'].includes(normalized)) return '原油';
     if (normalized === '黄金') return '黄金';
     return '';
+}
+
+function inferDefaultMaxWords(name) {
+    const normalized = normalizePlaceholderName(name);
+    if (normalized === 'A股市场回顾') return 150;
+    if (['美国新闻', '欧洲新闻'].includes(normalized)) return 250;
+    if (['原油', '原油市场回顾', '黄金', '黄金市场回顾'].includes(normalized)) return 300;
+    if (['中国宏观', '美国', '欧洲', '日本', '海外市场', '港股科技', '港股央企红利'].includes(normalized)) return 350;
+    if (['人工智能', '医药生物', '消费', '金融地产', '电子', '航天', '电力设备新能源'].includes(normalized)) return 400;
+    return 300;
 }
 
 function shouldUsePromptTemplateLibraryDraft(template) {
