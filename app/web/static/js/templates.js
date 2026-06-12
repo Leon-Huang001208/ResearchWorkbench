@@ -11,6 +11,7 @@ let currentTemplateState = {
     selectedFileType: 'docx',
     discoveredPlaceholders: [],
     placeholderValues: {},
+    placeholderMappingDrafts: {},
     renderedReportId: null,
     templates: [],
     reportProjects: [],
@@ -181,6 +182,7 @@ async function selectTemplate(templateName, fileType) {
     currentTemplateState.selectedFileType = fileType;
     currentTemplateState.discoveredPlaceholders = [];
     currentTemplateState.placeholderValues = {};
+    currentTemplateState.placeholderMappingDrafts = {};
     currentTemplateState.renderedReportId = null;
     currentTemplateState.selectedReportProject = null;
 
@@ -1179,26 +1181,33 @@ function renderTemplatePlaceholderMap(placeholders, sections) {
         return;
     }
 
-    container.innerHTML = names.map(name => {
-        const normalizedName = normalizePlaceholderName(name);
-        const mapping = placeholderMappings.get(normalizedName);
-        const section = sectionByPlaceholder.get(normalizedName)
-            || sections.find(item => item.key === normalizedName);
-        const mapped = Boolean(mapping || section);
-        const status = mapping
-            ? (isPlaceholderMappingConfigured(mapping) ? '已配置' : '待补参数')
-            : (section ? '旧配置映射' : '未映射');
-        const active = normalizedName === normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
-        return `
-            <button class="placeholder-map-row ${mapped ? 'mapped' : 'unmapped'} ${active ? 'active' : ''}"
-                    type="button"
-                    data-placeholder-name="${esc(normalizedName)}">
-                <code>{{${esc(normalizedName)}}}</code>
-                <div class="mapping-summary">${renderMappingSummary(mapping, section, getCurrentWorkbenchTemplate() || {})}</div>
-                <strong>${status}</strong>
-            </button>
-        `;
-    }).join('');
+    const selectedName = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName)
+        || normalizePlaceholderName(names[0]);
+    const selectedMapping = placeholderMappings.get(selectedName);
+    const selectedSection = sectionByPlaceholder.get(selectedName)
+        || sections.find(item => item.key === selectedName);
+    const selectedStatus = selectedMapping
+        ? (isPlaceholderMappingConfigured(selectedMapping) ? '已配置' : '待补参数')
+        : (selectedSection ? '旧配置映射' : '未映射');
+
+    container.innerHTML = `
+        <label class="placeholder-select-label" for="template-placeholder-select">当前占位符</label>
+        <select id="template-placeholder-select" class="placeholder-select">
+            ${names.map(name => {
+                const normalizedName = normalizePlaceholderName(name);
+                return `
+                    <option value="${esc(normalizedName)}" ${normalizedName === selectedName ? 'selected' : ''}>
+                        {{${esc(normalizedName)}}}
+                    </option>
+                `;
+            }).join('')}
+        </select>
+        <div class="placeholder-selected-card ${selectedStatus === '未映射' ? 'unmapped' : 'mapped'}">
+            <code>{{${esc(selectedName)}}}</code>
+            <div class="mapping-summary">${renderMappingSummary(selectedMapping, selectedSection, getCurrentWorkbenchTemplate() || {})}</div>
+            <strong>${selectedStatus}</strong>
+        </div>
+    `;
 
     bindPlaceholderMapRows();
 }
@@ -1289,6 +1298,11 @@ function normalizePlaceholderName(name) {
 }
 
 function bindPlaceholderMapRows() {
+    const select = document.getElementById('template-placeholder-select');
+    if (select && !select.dataset.bound) {
+        select.dataset.bound = 'true';
+        select.addEventListener('change', () => selectTemplatePlaceholder(select.value || ''));
+    }
     document.querySelectorAll('#template-placeholder-map .placeholder-map-row').forEach(row => {
         if (row.dataset.bound) return;
         row.dataset.bound = 'true';
@@ -1313,6 +1327,8 @@ function selectTemplatePlaceholder(name) {
 function getSelectedPlaceholderMapping(template) {
     const name = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
     if (!name) return null;
+    const draft = currentTemplateState.placeholderMappingDrafts?.[name];
+    if (draft) return draft;
     const mappings = getCurrentPlaceholderMappings(template);
     return mappings.get(name) || {
         title: inferPlaceholderTitle(name),
@@ -1339,6 +1355,10 @@ function renderSelectedPlaceholderDetail(template) {
     if (saveBtn) saveBtn.disabled = false;
 
     const type = mapping.type || inferPlaceholderType(name);
+    const promptParam = mapping.params?.param || inferPromptParam(name);
+    const needsParam = type === 'prompt' && Boolean(promptParam);
+    const usesQuerySource = type === 'prompt' && !usesEmbeddedPromptQueries(template.report_project);
+
     formEl.innerHTML = `
         <label>
             <span>标题</span>
@@ -1352,39 +1372,55 @@ function renderSelectedPlaceholderDetail(template) {
                 `).join('')}
             </select>
         </label>
-        <label>
-            <span>Prompt 模板</span>
-            <input type="text" data-placeholder-field="prompt_template" value="${esc(mapping.prompt_template || resolvePromptTemplateName(name, template.report_project))}">
-        </label>
-        <label>
-            <span>检索模式</span>
-            <select data-placeholder-field="query_mode">
-                ${['retrieval_query_embedded', 'query_source'].map(option => `
-                    <option value="${option}" ${(mapping.query_mode || 'retrieval_query_embedded') === option ? 'selected' : ''}>${option}</option>
-                `).join('')}
-            </select>
-        </label>
-        <label>
-            <span>Query 来源</span>
-            <input type="text" data-placeholder-field="query_source" value="${esc(mapping.query_source || inferQuerySource(name, template.report_project))}">
-        </label>
-        <label>
-            <span>Excel 来源 / 区域</span>
-            <input type="text" data-placeholder-field="source" value="${esc(mapping.source || '')}">
-        </label>
-        <label>
-            <span>静态文本</span>
-            <textarea data-placeholder-field="value" rows="3">${esc(mapping.value || '')}</textarea>
-        </label>
-        <label>
-            <span>参数 param</span>
-            <input type="text" data-placeholder-field="params.param" value="${esc(mapping.params?.param || inferPromptParam(name))}">
-        </label>
+        ${type === 'prompt' ? `
+            <label>
+                <span>Prompt 模板</span>
+                <input type="text" data-placeholder-field="prompt_template" value="${esc(mapping.prompt_template || resolvePromptTemplateName(name, template.report_project))}">
+            </label>
+            <label>
+                <span>检索模式</span>
+                <select data-placeholder-field="query_mode">
+                    ${['retrieval_query_embedded', 'query_source'].map(option => `
+                        <option value="${option}" ${(mapping.query_mode || 'retrieval_query_embedded') === option ? 'selected' : ''}>${option}</option>
+                    `).join('')}
+                </select>
+            </label>
+            ${usesQuerySource ? `
+                <label>
+                    <span>Query 来源</span>
+                    <input type="text" data-placeholder-field="query_source" value="${esc(mapping.query_source || inferQuerySource(name, template.report_project))}">
+                </label>
+            ` : ''}
+            ${needsParam ? `
+                <label>
+                    <span>参数 param</span>
+                    <input type="text" data-placeholder-field="params.param" value="${esc(promptParam)}">
+                </label>
+            ` : ''}
+        ` : ''}
+        ${(type === 'excel_cell' || type === 'excel_range') ? `
+            <label>
+                <span>Excel 来源 / 区域</span>
+                <input type="text" data-placeholder-field="source" value="${esc(mapping.source || '')}">
+            </label>
+        ` : ''}
+        ${type === 'static_text' ? `
+            <label>
+                <span>静态文本</span>
+                <textarea data-placeholder-field="value" rows="3">${esc(mapping.value || '')}</textarea>
+            </label>
+        ` : ''}
     `;
 
     formEl.querySelectorAll('[data-placeholder-field]').forEach(input => {
         input.addEventListener('input', () => updateTemplateSourceFromPlaceholderDraft(template));
-        input.addEventListener('change', () => updateTemplateSourceFromPlaceholderDraft(template));
+        input.addEventListener('change', () => {
+            updateTemplateSourceFromPlaceholderDraft(template);
+            if (input.dataset.placeholderField === 'type') {
+                renderSelectedPlaceholderDetail(template);
+                renderSelectedSourceFragment(template);
+            }
+        });
     });
 }
 
@@ -1406,11 +1442,16 @@ function collectSelectedPlaceholderDraft(template) {
     });
     draft.title = draft.title || inferPlaceholderTitle(name);
     draft.type = draft.type || inferPlaceholderType(name);
+    currentTemplateState.placeholderMappingDrafts = currentTemplateState.placeholderMappingDrafts || {};
+    currentTemplateState.placeholderMappingDrafts[name] = draft;
     return { name, draft };
 }
 
 function getEditablePlaceholderMappings(template) {
     const mappings = getCurrentPlaceholderMappings(template);
+    Object.entries(currentTemplateState.placeholderMappingDrafts || {}).forEach(([name, draft]) => {
+        if (draft) mappings.set(name, draft);
+    });
     const selectedDraft = collectSelectedPlaceholderDraft(template);
     if (selectedDraft) {
         mappings.set(selectedDraft.name, selectedDraft.draft);

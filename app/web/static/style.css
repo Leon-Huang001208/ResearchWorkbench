@@ -4372,6 +4372,7 @@ tr:hover td {
 
 .asset-check-item,
 .placeholder-map-row,
+.placeholder-selected-card,
 .mapping-row,
 .validation-item {
     display: grid;
@@ -4467,6 +4468,51 @@ tr:hover td {
 }
 
 .placeholder-map-row.unmapped strong {
+    color: var(--warning);
+}
+
+.placeholder-select-label {
+    display: block;
+    margin-bottom: 0.35rem;
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    font-weight: 650;
+}
+
+.placeholder-select {
+    width: 100%;
+    min-width: 0;
+    margin-bottom: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font: inherit;
+    font-weight: 600;
+}
+
+.placeholder-selected-card {
+    grid-template-columns: minmax(120px, 0.8fr) minmax(0, 1fr) auto;
+    padding: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+}
+
+.placeholder-selected-card code {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.8rem;
+    color: var(--accent);
+}
+
+.placeholder-selected-card strong {
+    color: var(--success);
+    font-size: 0.78rem;
+}
+
+.placeholder-selected-card.unmapped strong {
     color: var(--warning);
 }
 

@@ -214,15 +214,17 @@ def test_placeholder_map_does_not_truncate_word_placeholders():
     assert "names.slice(0, 8)" not in source
 
 
-def test_advanced_placeholder_rows_are_clickable_and_styled():
+def test_advanced_placeholder_selector_drives_single_placeholder_detail():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
     css = STYLE_CSS.read_text(encoding="utf-8")
 
-    assert '<button class="placeholder-map-row' in source
+    assert 'id="template-placeholder-select"' in source
+    assert "placeholder-selected-card" in source
     assert "bindPlaceholderMapRows" in source
-    assert "row.addEventListener('click'" in source
+    assert "select.addEventListener('change'" in source
     assert "renderSelectedPlaceholderDetail(template)" in source
-    assert ".placeholder-map-row.active" in css
+    assert ".placeholder-select" in css
+    assert ".placeholder-selected-card" in css
     assert ".template-placeholder-detail-form" in css
     assert "buildUpdatedSectionConfigSource" in source
     assert "buildPlaceholderMappingsBlock" in source
