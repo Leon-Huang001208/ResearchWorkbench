@@ -34,7 +34,7 @@ def test_template_detail_has_report_workbench_regions():
     assert 'id="project-prompt-templates-input"' in html
     assert 'id="project-data-files-input"' in html
     assert 'class="tabs template-legacy-tabs hidden"' in html
-    assert "Section 配置源码" in html
+    assert "当前片段源码" in html
     assert "Excel 底稿映射" in html
 
 
