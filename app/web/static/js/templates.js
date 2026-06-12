@@ -886,6 +886,8 @@ function buildGenerationReadiness(template, sections, placeholders) {
 
     const readyAssets = assetChecks.filter(asset => asset.ok).length;
     const passedChecks = validationChecks.filter(check => check.ok).length;
+    const pendingIssueCount = assetChecks.filter(asset => !asset.ok).length
+        + validationChecks.filter(check => !check.ok).length;
     const dataOk = readyAssets === assetChecks.length && excelRows.length > 0;
     const contentOk = passedChecks === validationChecks.length;
     const outputOk = generatedReports.length > 0 || dataOk && contentOk;
@@ -901,10 +903,13 @@ function buildGenerationReadiness(template, sections, placeholders) {
         contentOk,
         outputOk,
         warningCount,
+        pendingIssueCount,
         readyAssets,
         totalAssets: assetChecks.length,
         passedChecks,
         totalChecks: validationChecks.length,
+        passedReadinessChecks: readyAssets + passedChecks,
+        totalReadinessChecks: assetChecks.length + validationChecks.length,
         placeholderCount: placeholders.length || sections.length
     };
 }
@@ -933,7 +938,7 @@ function renderGenerationHero(template, readiness) {
     if (actionHintEl) {
         actionHintEl.textContent = canGenerate
             ? '资料和内容已就绪，生成后可预览和下载 Word'
-            : '还有检查项未通过，请先展开生成前检查确认';
+            : `还有 ${readiness.pendingIssueCount || 1} 项需要处理，建议先打开生成前检查`;
     }
 
     const previewBtn = document.getElementById('btn-template-preview-report');
@@ -948,6 +953,7 @@ function renderGenerationHero(template, readiness) {
 }
 
 function renderGenerationStatusStrip(readiness) {
+    renderProjectCheckSummary(readiness);
     updateGenerationStep(
         'template-generation-step-data',
         'template-generation-data-summary',
@@ -966,6 +972,24 @@ function renderGenerationStatusStrip(readiness) {
         readiness.outputOk,
         readiness.latestReport ? '最近版本可预览和下载' : '生成后可预览和下载'
     );
+}
+
+function renderProjectCheckSummary(readiness) {
+    const summaryEl = document.getElementById('template-project-check-summary');
+    const statusEl = document.getElementById('template-project-check-status');
+    const pending = readiness.pendingIssueCount || 0;
+    const passed = readiness.passedReadinessChecks || 0;
+    const total = readiness.totalReadinessChecks || 0;
+
+    if (summaryEl) {
+        summaryEl.textContent = pending
+            ? `${passed}/${total} 通过 · 点击查看待处理项`
+            : `${total} 项通过 · 可直接生成`;
+    }
+    if (statusEl) {
+        statusEl.textContent = pending ? `${pending} 项待处理` : '检查通过';
+        statusEl.classList.toggle('warning', pending > 0);
+    }
 }
 
 function updateGenerationStep(stepId, summaryId, ok, summary) {
@@ -1067,6 +1091,7 @@ function renderReportGenerationFailure(error) {
 
     const message = error?.message || String(error || '未知错误');
     const hint = getReportGenerationErrorHint(message);
+    const target = getReportGenerationErrorTarget(message);
     if (statusEl) statusEl.textContent = '生成失败';
 
     card.innerHTML = `
@@ -1089,6 +1114,8 @@ function renderReportGenerationFailure(error) {
             </div>
         </div>
     `;
+    const openConfigBtn = card.querySelector('#btn-template-generation-open-config');
+    if (openConfigBtn) openConfigBtn.dataset.errorTarget = target;
     bindReportGenerationFeedbackActions();
 }
 
@@ -1108,12 +1135,19 @@ function getReportGenerationErrorHint(message) {
     return '保留错误信息后重试；如果连续失败，优先检查接口、模板和数据文件。';
 }
 
+function getReportGenerationErrorTarget(message) {
+    if (/template|Word|docx|placeholder/i.test(message)) return 'template-placeholder-map';
+    if (/Excel|workbook|sheet|range/i.test(message)) return 'template-excel-mapping';
+    if (/section|yaml|config|PROVIDER_PROFILES|model provider|api key|provider/i.test(message)) return 'template-common-rules';
+    return 'template-advanced-maintenance';
+}
+
 function bindReportGenerationFeedbackActions() {
     const openConfigBtn = document.getElementById('btn-template-generation-open-config');
     const retryBtn = document.getElementById('btn-template-generation-retry');
     if (openConfigBtn && !openConfigBtn.dataset.bound) {
         openConfigBtn.dataset.bound = 'true';
-        openConfigBtn.addEventListener('click', openAdvancedMaintenance);
+        openConfigBtn.addEventListener('click', () => openAdvancedMaintenance(openConfigBtn.dataset.errorTarget));
     }
     if (retryBtn && !retryBtn.dataset.bound) {
         retryBtn.dataset.bound = 'true';
@@ -1124,11 +1158,28 @@ function bindReportGenerationFeedbackActions() {
     }
 }
 
-function openAdvancedMaintenance() {
+function openAdvancedMaintenance(targetId = '') {
     const panel = document.getElementById('template-advanced-maintenance');
     if (!panel) return;
     panel.open = true;
-    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const target = targetId ? document.getElementById(targetId) : null;
+    highlightWorkbenchTarget(target || panel);
+}
+
+function openProjectCheckPanel(targetId = '') {
+    const panel = document.getElementById('template-project-check-details');
+    if (panel) panel.open = true;
+    const target = targetId ? document.getElementById(targetId) : null;
+    highlightWorkbenchTarget(target || panel);
+}
+
+function highlightWorkbenchTarget(element) {
+    if (!element) return;
+    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    element.classList.remove('template-focus-highlight');
+    void element.offsetWidth;
+    element.classList.add('template-focus-highlight');
+    window.setTimeout(() => element.classList.remove('template-focus-highlight'), 1800);
 }
 
 function formatGeneratedAt(value) {
@@ -1259,19 +1310,28 @@ function buildTemplateAssetChecks(template, sections) {
             icon: 'codicon-file-code',
             label: 'Word 模板',
             ok: Boolean(project?.word_template_filename || template.has_docx),
-            value: project?.word_template_filename || (template.has_docx ? '已绑定' : '缺失')
+            value: project?.word_template_filename || (template.has_docx ? '已绑定' : '缺失'),
+            action: 'upload',
+            actionTarget: 'project-word-template-input',
+            actionLabel: '上传模板'
         },
         {
             icon: 'codicon-table',
             label: 'Excel 底稿',
             ok: Boolean(project?.excel_workbook_filename || template.has_excel),
-            value: project?.excel_workbook_filename || (template.has_excel ? '已绑定' : '待绑定')
+            value: project?.excel_workbook_filename || (template.has_excel ? '已绑定' : '待绑定'),
+            action: 'upload',
+            actionTarget: 'project-excel-workbook-input',
+            actionLabel: '上传 Excel'
         },
         {
             icon: 'codicon-settings-gear',
             label: 'Section 配置',
             ok: Boolean(project?.section_config_filename || sections.length > 0),
-            value: project?.section_config_filename || (sections.length ? `${sections.length} 段` : '待配置')
+            value: project?.section_config_filename || (sections.length ? `${sections.length} 段` : '待配置'),
+            action: 'upload',
+            actionTarget: 'project-section-config-input',
+            actionLabel: '上传配置'
         }
     ];
 }
@@ -1288,6 +1348,14 @@ function renderTemplateAssetChecklist(template, sections) {
             <i class="codicon ${asset.icon}"></i>
             <span>${esc(asset.label)}</span>
             <strong>${esc(asset.value)}</strong>
+            ${asset.ok ? '' : `
+                <button type="button"
+                        class="template-check-action"
+                        data-template-check-action="${esc(asset.action)}"
+                        data-template-check-target="${esc(asset.actionTarget)}">
+                    ${esc(asset.actionLabel)}
+                </button>
+            `}
         </div>
     `).join('');
 
@@ -2061,9 +2129,13 @@ function buildExcelMappingRows(template) {
 
 function buildTemplateValidationChecks(template, sections, placeholders) {
     const placeholderMappings = getCurrentPlaceholderMappings(template);
+    const firstUnmappedPlaceholder = placeholders.find(placeholder =>
+        !placeholderMappings.has(normalizePlaceholderName(placeholder))
+    );
     const allPlaceholdersMapped = placeholders.length === 0
-        || placeholders.every(placeholder => placeholderMappings.has(normalizePlaceholderName(placeholder)));
+        || !firstUnmappedPlaceholder;
     const hasPromptMapping = [...placeholderMappings.values()].some(mapping => mapping.prompt_template);
+    const hasExcelMapping = buildExcelMappingRows(template).length > 0;
     const hasRuleConfig = sections.some(section =>
         section.evidence_policy
         || section.forbidden_terms?.length
@@ -2071,10 +2143,35 @@ function buildTemplateValidationChecks(template, sections, placeholders) {
     ) || Boolean(template.report_project);
 
     return [
-        { label: 'Word 占位符均有 section 映射', ok: allPlaceholdersMapped },
-        { label: 'AI 文本 section 已配置 prompt', ok: hasPromptMapping || sections.some(section => section.prompt_template || section.required_facets?.length) },
-        { label: 'Excel 图表和表格已绑定来源', ok: template.has_excel || (template.template_name || '').includes('创业板50') },
-        { label: '数字、禁用词、投资建议规则已配置', ok: hasRuleConfig }
+        {
+            label: 'Word 占位符均有 section 映射',
+            ok: allPlaceholdersMapped,
+            action: 'open-advanced',
+            actionTarget: 'template-placeholder-map',
+            actionLabel: '配置占位符',
+            placeholderName: firstUnmappedPlaceholder ? normalizePlaceholderName(firstUnmappedPlaceholder) : ''
+        },
+        {
+            label: 'AI 文本 section 已配置 prompt',
+            ok: hasPromptMapping || sections.some(section => section.prompt_template || section.required_facets?.length),
+            action: 'open-advanced',
+            actionTarget: 'template-placeholder-detail-form',
+            actionLabel: '编辑 Prompt'
+        },
+        {
+            label: 'Excel 图表和表格已绑定来源',
+            ok: hasExcelMapping,
+            action: 'focus-check',
+            actionTarget: 'template-excel-mapping',
+            actionLabel: '检查映射'
+        },
+        {
+            label: '数字、禁用词、投资建议规则已配置',
+            ok: hasRuleConfig,
+            action: 'open-advanced',
+            actionTarget: 'template-common-rules',
+            actionLabel: '编辑规则'
+        }
     ];
 }
 
@@ -2089,6 +2186,15 @@ function renderTemplateValidationPreview(template, sections, placeholders) {
         <div class="validation-item ${check.ok ? 'ok' : 'pending'}">
             <i class="codicon ${check.ok ? 'codicon-pass' : 'codicon-circle-outline'}"></i>
             <span>${esc(check.label)}</span>
+            ${check.ok ? '' : `
+                <button type="button"
+                        class="template-check-action"
+                        data-template-check-action="${esc(check.action)}"
+                        data-template-check-target="${esc(check.actionTarget)}"
+                        data-template-placeholder-name="${esc(check.placeholderName || '')}">
+                    ${esc(check.actionLabel)}
+                </button>
+            `}
         </div>
     `).join('');
 
@@ -2523,6 +2629,16 @@ function bindTemplateWorkbenchActions() {
     const dryRunBtn = document.getElementById('btn-template-dry-run');
     const generateBtn = document.getElementById('btn-template-generate-report');
     const sourceEditor = document.getElementById('template-source-editor');
+    const readinessPanel = document.getElementById('template-generation-readiness-panel');
+
+    if (readinessPanel && !readinessPanel.dataset.bound) {
+        readinessPanel.dataset.bound = 'true';
+        readinessPanel.addEventListener('click', event => {
+            const actionBtn = event.target.closest('[data-template-check-action]');
+            if (!actionBtn) return;
+            handleTemplateCheckAction(actionBtn);
+        });
+    }
 
     if (editBtn && sourceEditor && !editBtn.dataset.bound) {
         editBtn.dataset.bound = 'true';
@@ -2679,6 +2795,45 @@ function bindTemplateWorkbenchActions() {
             }
         });
     }
+}
+
+function handleTemplateCheckAction(actionBtn) {
+    const action = actionBtn.dataset.templateCheckAction;
+    const target = actionBtn.dataset.templateCheckTarget || '';
+    const placeholderName = normalizePlaceholderName(actionBtn.dataset.templatePlaceholderName || '');
+
+    if (action === 'upload') {
+        openUploadModalForField(target);
+        return;
+    }
+
+    if (action === 'focus-check') {
+        openProjectCheckPanel(target);
+        return;
+    }
+
+    if (action === 'open-advanced') {
+        if (placeholderName) {
+            const template = getCurrentWorkbenchTemplate();
+            if (template) {
+                currentTemplateState.selectedPlaceholderName = placeholderName;
+                renderAdvancedMaintenance(template);
+            }
+        }
+        openAdvancedMaintenance(target);
+    }
+}
+
+function openUploadModalForField(fieldId) {
+    openUploadModal();
+    const template = getCurrentWorkbenchTemplate();
+    const nameInput = document.getElementById('template-name-input');
+    if (nameInput && template) {
+        nameInput.value = template.report_project?.name || template.template_name || template.name || '';
+    }
+    const field = document.getElementById(fieldId);
+    if (field) highlightWorkbenchTarget(field.closest('.form-field') || field);
+    field?.focus();
 }
 
 function setTemplateSourceEditing(editing) {

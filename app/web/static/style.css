@@ -4625,7 +4625,7 @@ tr:hover td {
 }
 
 .asset-check-item {
-    grid-template-columns: 18px minmax(0, 1fr) auto;
+    grid-template-columns: 18px minmax(0, 1fr) auto auto;
     padding: 0.45rem 0;
     border-bottom: 1px solid var(--border);
 }
@@ -5092,8 +5092,44 @@ tr:hover td {
 }
 
 .validation-item {
-    grid-template-columns: 18px minmax(0, 1fr);
+    grid-template-columns: 18px minmax(0, 1fr) auto;
     padding: 0.35rem 0;
+}
+
+.template-check-action {
+    min-height: 28px;
+    padding: 0.25rem 0.55rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-input);
+    color: var(--accent);
+    font-size: 0.76rem;
+    font-weight: 650;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.template-check-action:hover {
+    border-color: var(--accent);
+    background: var(--accent-light);
+}
+
+.template-focus-highlight {
+    animation: template-focus-pulse 1.8s ease;
+}
+
+@keyframes template-focus-pulse {
+    0% {
+        box-shadow: 0 0 0 0 var(--accent-light);
+        border-color: var(--accent);
+    }
+    45% {
+        box-shadow: 0 0 0 4px var(--accent-light);
+        border-color: var(--accent);
+    }
+    100% {
+        box-shadow: none;
+    }
 }
 
 .badge.warning {
