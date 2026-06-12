@@ -168,6 +168,32 @@ def test_workbench_keeps_section_mapping_and_prompt_source_separate():
     assert "YAML 占位符映射" in source
 
 
+def test_workbench_source_panel_shows_selected_placeholder_fragment():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+
+    assert "renderSelectedSourceFragment" in source
+    assert "buildSelectedPlaceholderYamlFragment" in source
+    assert "buildPlaceholderYamlEntry" in source
+    assert "getPromptTemplateFragment" in source
+    assert "getSelectedPromptTemplateName" in source
+    assert "sourceEditor.dataset.placeholderName" in source
+    assert "sourceEditor.dataset.promptTemplateName" in source
+    assert "renderSelectedSourceFragment(template);" in source
+    assert "switchTemplateSourceKind(sourceKind)" in source
+    assert "sourceEditor.value = getPromptTemplateFragment(source.content, promptName);" in source
+    assert "sourceEditor.value = buildSelectedPlaceholderYamlFragment(" in source
+
+
+def test_workbench_source_save_merges_fragment_back_to_full_project_file():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+
+    assert "buildSourceContentForSave" in source
+    assert "buildUpdatedPromptTemplatesSource" in source
+    assert "buildUpdatedSectionConfigSource(template, getEditablePlaceholderMappings(template))" in source
+    assert "content: sourceEditor.value" not in source
+    assert "buildSourceContentForSave(template, sourceEditor.dataset.sourceKind || 'local_draft', sourceEditor.value)" in source
+
+
 def test_workbench_uses_current_placeholder_mapping_draft_for_status():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
 

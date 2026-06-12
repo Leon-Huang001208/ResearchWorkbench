@@ -1022,22 +1022,14 @@ function renderAdvancedMaintenance(template) {
 
     const sourceEditor = document.getElementById('template-source-editor');
     if (sourceEditor) {
-        const source = getTemplateWorkbenchSource(template, currentTemplateState.activeSourceKind);
         const draftKey = `report-template-source:${project?.slug || templateName}:project-v2`;
-        sourceEditor.value = source.content || localStorage.getItem(draftKey) || buildTemplateConfigYaml(template);
         sourceEditor.dataset.draftKey = draftKey;
-        sourceEditor.dataset.sourceKind = source.sourceKind;
         sourceEditor.readOnly = true;
         sourceEditor.classList.add('readonly');
     }
 
-    const sourceKindLabel = document.getElementById('template-source-kind-label');
-    if (sourceKindLabel) {
-        const source = getTemplateWorkbenchSource(template, currentTemplateState.activeSourceKind);
-        sourceKindLabel.textContent = source.label;
-    }
-
     updateTemplateSourceSwitcher(template);
+    renderSelectedSourceFragment(template);
     setTemplateSourceEditing(false);
 
     renderTemplateValidationPreview(template, sections, placeholders);
@@ -1088,17 +1080,8 @@ function switchTemplateSourceKind(sourceKind) {
     const template = getCurrentWorkbenchTemplate();
     if (!template) return;
     currentTemplateState.activeSourceKind = sourceKind;
-    const source = getTemplateWorkbenchSource(template, sourceKind);
-    const sourceEditor = document.getElementById('template-source-editor');
-    if (sourceEditor) {
-        sourceEditor.value = source.content;
-        sourceEditor.dataset.sourceKind = source.sourceKind;
-    }
-    const sourceKindLabel = document.getElementById('template-source-kind-label');
-    if (sourceKindLabel) {
-        sourceKindLabel.textContent = source.label;
-    }
     updateTemplateSourceSwitcher(template);
+    renderSelectedSourceFragment(template);
     setTemplateSourceEditing(false);
 }
 
@@ -1436,11 +1419,39 @@ function getEditablePlaceholderMappings(template) {
 }
 
 function updateTemplateSourceFromPlaceholderDraft(template) {
-    if (currentTemplateState.activeSourceKind !== 'section_config') return;
+    renderSelectedSourceFragment(template);
+}
+
+function renderSelectedSourceFragment(template) {
     const sourceEditor = document.getElementById('template-source-editor');
     if (!sourceEditor) return;
-    sourceEditor.value = buildUpdatedSectionConfigSource(template, getEditablePlaceholderMappings(template));
-    sourceEditor.dataset.sourceKind = 'section_config';
+
+    const source = getTemplateWorkbenchSource(template, currentTemplateState.activeSourceKind);
+    const selectedName = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
+    const sourceKindLabel = document.getElementById('template-source-kind-label');
+
+    sourceEditor.dataset.sourceKind = source.sourceKind;
+    sourceEditor.dataset.placeholderName = selectedName;
+
+    if (source.sourceKind === 'prompt_templates') {
+        const promptName = getSelectedPromptTemplateName(template);
+        sourceEditor.dataset.promptTemplateName = promptName;
+        sourceEditor.value = getPromptTemplateFragment(source.content, promptName);
+        if (sourceKindLabel) {
+            sourceKindLabel.textContent = promptName
+                ? `${source.label}：${promptName}`
+                : source.label;
+        }
+        return;
+    }
+
+    sourceEditor.dataset.promptTemplateName = '';
+    sourceEditor.value = buildSelectedPlaceholderYamlFragment(template, getEditablePlaceholderMappings(template));
+    if (sourceKindLabel) {
+        sourceKindLabel.textContent = selectedName
+            ? `${source.label}：{{${selectedName}}}`
+            : source.label;
+    }
 }
 
 function buildUpdatedSectionConfigSource(template, mappings) {
@@ -1456,6 +1467,33 @@ function buildUpdatedSectionConfigSource(template, mappings) {
         );
     }
     return `${projectSource.trimEnd()}\n${placeholdersBlock}`;
+}
+
+function buildSourceContentForSave(template, sourceKind, editorValue) {
+    if (sourceKind === 'prompt_templates') {
+        return buildUpdatedPromptTemplatesSource(template, editorValue);
+    }
+    if (sourceKind === 'section_config') {
+        return buildUpdatedSectionConfigSource(template, getEditablePlaceholderMappings(template));
+    }
+    return editorValue;
+}
+
+function buildUpdatedPromptTemplatesSource(template, promptFragment) {
+    const source = getTemplateWorkbenchSource(template, 'prompt_templates').content;
+    const promptName = document.getElementById('template-source-editor')?.dataset.promptTemplateName
+        || getSelectedPromptTemplateName(template);
+    const fragment = String(promptFragment || '').trimEnd();
+    if (!promptName || !fragment.trim()) return source;
+
+    const normalizedFragment = fragment.startsWith('## ')
+        ? fragment
+        : `## ${promptName}\n${fragment}`;
+    const blockPattern = new RegExp(`(^|\\n)##\\s+${escapeRegExp(promptName)}\\s*\\n[\\s\\S]*?(?=\\n##\\s+|$)`);
+    if (blockPattern.test(source)) {
+        return source.replace(blockPattern, `$1${normalizedFragment}\n`);
+    }
+    return `${source.trimEnd()}\n\n${normalizedFragment}\n`;
 }
 
 function renderTemplateExcelMapping(template, templateName) {
@@ -1625,7 +1663,6 @@ function buildPlaceholderMappingConfigYaml(template, mappingsOverride = null) {
 }
 
 function buildPlaceholderMappingsBlock(template, existingMappings) {
-    const project = template.report_project || null;
     const placeholders = getTemplateWorkbenchPlaceholders(template)
         .filter(placeholder => !isSystemDatePlaceholder(placeholder));
     const lines = ['placeholders:'];
@@ -1633,32 +1670,82 @@ function buildPlaceholderMappingsBlock(template, existingMappings) {
     placeholders.forEach(placeholder => {
         const key = normalizePlaceholderName(placeholder);
         const mapping = existingMappings.get(key) || {};
-        const type = mapping.type || inferPlaceholderType(key);
-        lines.push(`  ${key}:`);
-        lines.push(`    title: ${mapping.title || inferPlaceholderTitle(key)}`);
-        lines.push(`    type: ${type}`);
-        if (type === 'excel_cell' || type === 'excel_range') {
-            lines.push(`    source: ${mapping.source || ''}`);
-        } else if (type === 'prompt') {
-            lines.push(`    prompt_template: ${mapping.prompt_template || resolvePromptTemplateName(key, project)}`);
-            if (!usesEmbeddedPromptQueries(project)) {
-                lines.push(`    query_source: ${mapping.query_source || inferQuerySource(key, project)}`);
-            } else {
-                lines.push('    query_mode: retrieval_query_embedded');
-            }
-            const param = inferPromptParam(key);
-            if (param) {
-                lines.push('    params:');
-                lines.push(`      param: ${param}`);
-            } else {
-                lines.push('    params: {}');
-            }
-        } else {
-            lines.push(`    value: ${mapping.value || ''}`);
-        }
+        lines.push(...buildPlaceholderYamlEntry(template, key, mapping));
     });
 
     return lines.join('\n');
+}
+
+function buildSelectedPlaceholderYamlFragment(template, existingMappings) {
+    const key = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
+    if (!key) return '# 从左侧选择一个 Word 占位符后显示对应 YAML 片段';
+    if (isSystemDatePlaceholder(key)) {
+        return [
+            'placeholders:',
+            `  ${key}:`,
+            `    title: ${inferPlaceholderTitle(key)}`,
+            '    type: static_text',
+            '    value: 系统生成时自动填充'
+        ].join('\n');
+    }
+    const mapping = existingMappings.get(key) || {};
+    return ['placeholders:', ...buildPlaceholderYamlEntry(template, key, mapping)].join('\n');
+}
+
+function buildPlaceholderYamlEntry(template, key, mapping) {
+    const project = template.report_project || null;
+    const type = mapping.type || inferPlaceholderType(key);
+    const lines = [
+        `  ${key}:`,
+        `    title: ${mapping.title || inferPlaceholderTitle(key)}`,
+        `    type: ${type}`
+    ];
+
+    if (type === 'excel_cell' || type === 'excel_range') {
+        lines.push(`    source: ${mapping.source || ''}`);
+    } else if (type === 'prompt') {
+        lines.push(`    prompt_template: ${mapping.prompt_template || resolvePromptTemplateName(key, project)}`);
+        if (!usesEmbeddedPromptQueries(project)) {
+            lines.push(`    query_source: ${mapping.query_source || inferQuerySource(key, project)}`);
+        } else {
+            lines.push('    query_mode: retrieval_query_embedded');
+        }
+        const param = mapping.params?.param || inferPromptParam(key);
+        if (param) {
+            lines.push('    params:');
+            lines.push(`      param: ${param}`);
+        } else {
+            lines.push('    params: {}');
+        }
+    } else {
+        lines.push(`    value: ${mapping.value || ''}`);
+    }
+    return lines;
+}
+
+function getSelectedPromptTemplateName(template) {
+    const name = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
+    if (!name) return '';
+    const mapping = getSelectedPlaceholderMapping(template) || {};
+    return mapping.prompt_template || resolvePromptTemplateName(name, template.report_project);
+}
+
+function getPromptTemplateFragment(source, promptName) {
+    if (!promptName) return '从左侧选择一个占位符后显示对应 Prompt 模板';
+    const pattern = new RegExp(`(^|\\n)##\\s+${escapeRegExp(promptName)}\\s*\\n([\\s\\S]*?)(?=\\n##\\s+|$)`);
+    const match = String(source || '').match(pattern);
+    if (match) {
+        return `## ${promptName}\n${match[2].trimEnd()}`;
+    }
+    return [
+        `## ${promptName}`,
+        '',
+        '# 未在 Prompt 模板库中找到当前模板，可在这里补充后保存。'
+    ].join('\n');
+}
+
+function escapeRegExp(value) {
+    return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function inferPlaceholderType(name) {
@@ -1876,6 +1963,11 @@ function bindTemplateWorkbenchActions() {
             const originalText = saveBtn.innerHTML;
             saveBtn.innerHTML = '<i class="codicon codicon-loading spin"></i> 保存中...';
             try {
+                const content = buildSourceContentForSave(
+                    getCurrentWorkbenchTemplate() || {},
+                    sourceKind,
+                    sourceEditor.value
+                );
                 if (currentTemplateState.selectedReportProject && sourceKind !== 'local_draft') {
                     const project = currentTemplateState.selectedReportProject;
                     const updatedProject = await apiCall(
@@ -1883,7 +1975,7 @@ function bindTemplateWorkbenchActions() {
                         `/api/report-projects/${encodeURIComponent(project.slug)}/source`,
                         {
                             source_kind: sourceKind,
-                            content: sourceEditor.value
+                            content
                         }
                     );
                     currentTemplateState.selectedReportProject = updatedProject;
@@ -1895,10 +1987,11 @@ function bindTemplateWorkbenchActions() {
                     }
                     toast('配置已保存到项目文件', 'success');
                 } else {
-                    localStorage.setItem(key, sourceEditor.value);
+                    localStorage.setItem(key, content);
                     toast('配置草稿已保存到本地', 'success');
                 }
                 setTemplateSourceEditing(false);
+                renderSelectedSourceFragment(getCurrentWorkbenchTemplate() || {});
             } catch (e) {
                 saveBtn.disabled = false;
                 toast('保存配置失败: ' + e.message, 'error');
@@ -1919,6 +2012,7 @@ function bindTemplateWorkbenchActions() {
             updateTemplateSourceFromPlaceholderDraft(template);
             const sourceEditor = document.getElementById('template-source-editor');
             if (!sourceEditor) return;
+            const content = buildUpdatedSectionConfigSource(template, getEditablePlaceholderMappings(template));
 
             savePlaceholderBtn.disabled = true;
             const originalText = savePlaceholderBtn.innerHTML;
@@ -1931,7 +2025,7 @@ function bindTemplateWorkbenchActions() {
                         `/api/report-projects/${encodeURIComponent(project.slug)}/source`,
                         {
                             source_kind: 'section_config',
-                            content: sourceEditor.value
+                            content
                         }
                     );
                     currentTemplateState.selectedReportProject = updatedProject;
@@ -1942,7 +2036,7 @@ function bindTemplateWorkbenchActions() {
                     renderAdvancedMaintenance(selectedTemplate || template);
                     toast('占位符配置已保存', 'success');
                 } else {
-                    localStorage.setItem(sourceEditor.dataset.draftKey || 'report-template-source:draft', sourceEditor.value);
+                    localStorage.setItem(sourceEditor.dataset.draftKey || 'report-template-source:draft', content);
                     toast('占位符配置草稿已保存到本地', 'success');
                 }
             } catch (e) {
@@ -1970,7 +2064,11 @@ function bindTemplateWorkbenchActions() {
         generateBtn.dataset.bound = 'true';
         generateBtn.addEventListener('click', async () => {
             if (sourceEditor?.dataset.draftKey) {
-                localStorage.setItem(sourceEditor.dataset.draftKey, sourceEditor.value);
+                const template = getCurrentWorkbenchTemplate() || {};
+                localStorage.setItem(
+                    sourceEditor.dataset.draftKey,
+                    buildSourceContentForSave(template, sourceEditor.dataset.sourceKind || 'local_draft', sourceEditor.value)
+                );
             }
 
             generateBtn.disabled = true;
