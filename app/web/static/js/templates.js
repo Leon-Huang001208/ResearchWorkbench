@@ -11,13 +11,13 @@ let currentTemplateState = {
     selectedFileType: 'docx',
     discoveredPlaceholders: [],
     placeholderValues: {},
+    placeholderMappingDrafts: {},
+    commonDefaultsDraft: null,
     renderedReportId: null,
     templates: [],
     reportProjects: [],
     selectedReportProject: null,
-    activeSourceKind: 'section_config',
-    selectedPlaceholderName: null,
-    fullSectionConfigSource: ''
+    activeSourceKind: 'section_config'
 };
 
 let currentSelectedTemplate = null;
@@ -28,6 +28,14 @@ let draggedElement = null;
 let pointerDragState = null;
 let editingTemplateName = null;
 let originalTemplates = [];
+
+const REPORT_GENERATION_STEPS = [
+    { key: 'check', label: '检查资料与配置', icon: 'codicon-checklist' },
+    { key: 'generate', label: '检索证据与生成正文', icon: 'codicon-search' },
+    { key: 'write', label: '写入 Word 文档', icon: 'codicon-file-code' },
+    { key: 'refresh', label: '刷新预览与下载', icon: 'codicon-open-preview' }
+];
+const TEMPLATE_DETAIL_MODE_KEY = 'report-template-detail-mode';
 
 // ─── Template Page / List ──────────────────────────────────────
 async function loadTemplatesPage() {
@@ -80,28 +88,79 @@ function mergeTemplatesWithReportProjects(templates, projects) {
     projects.forEach(project => {
         const templateName = project.name || project.slug;
         const existing = byName.get(templateName) || byName.get(`${templateName}模板`);
+        const projectPlaceholders = buildPlaceholderNamesFromReportProject(project);
+        const projectSections = buildSectionsFromReportProject(project);
         if (existing) {
+            existing.template_name = templateName;
+            existing.name = templateName;
+            existing.description = project.description || existing.description || '报告项目包';
             existing.report_project = project;
             existing.has_docx = existing.has_docx || Boolean(project.word_template_filename);
             existing.has_excel = existing.has_excel || Boolean(project.excel_workbook_filename);
+            existing.placeholders = projectPlaceholders.length ? projectPlaceholders : (existing.placeholders || []);
+            existing.sections = projectSections.length ? projectSections : (existing.sections || []);
             return;
         }
 
         merged.push({
             template_name: templateName,
             name: templateName,
-            description: '报告项目包',
+            description: project.description || '报告项目包',
             version: '1.0',
             has_docx: Boolean(project.word_template_filename),
             has_excel: Boolean(project.excel_workbook_filename),
-            placeholders: [],
-            sections: [],
+            placeholders: projectPlaceholders,
+            sections: projectSections,
             report_project: project,
             is_report_project_only: true
         });
     });
 
     return merged;
+}
+
+function buildPlaceholderNamesFromReportProject(project) {
+    const wordPlaceholders = project?.word_placeholders;
+    if (Array.isArray(wordPlaceholders) && wordPlaceholders.length) {
+        return wordPlaceholders.map(normalizePlaceholderName).filter(Boolean);
+    }
+
+    const rawPlaceholders = project?.section_config?.placeholders;
+    if (Array.isArray(rawPlaceholders)) {
+        return rawPlaceholders
+            .map(item => normalizePlaceholderName(item?.name || item?.key || item?.placeholder))
+            .filter(Boolean);
+    }
+    if (rawPlaceholders && typeof rawPlaceholders === 'object') {
+        return Object.keys(rawPlaceholders).map(normalizePlaceholderName).filter(Boolean);
+    }
+    return [];
+}
+
+function buildSectionsFromReportProject(project) {
+    const projectSections = project?.section_config?.sections;
+    if (Array.isArray(projectSections) && projectSections.length) {
+        return projectSections;
+    }
+
+    const rawPlaceholders = project?.section_config?.placeholders;
+    if (Array.isArray(rawPlaceholders)) {
+        return rawPlaceholders
+            .map(item => ({
+                name: normalizePlaceholderName(item?.name || item?.key || item?.placeholder),
+                title: item?.title || item?.label || item?.name || item?.key || item?.placeholder,
+                ...item
+            }))
+            .filter(item => item.name);
+    }
+    if (rawPlaceholders && typeof rawPlaceholders === 'object') {
+        return Object.entries(rawPlaceholders).map(([name, config]) => ({
+            name: normalizePlaceholderName(name),
+            title: config?.title || name,
+            ...(config || {})
+        }));
+    }
+    return [];
 }
 
 async function findReportProjectForTemplate(templateName) {
@@ -183,6 +242,8 @@ async function selectTemplate(templateName, fileType) {
     currentTemplateState.selectedFileType = fileType;
     currentTemplateState.discoveredPlaceholders = [];
     currentTemplateState.placeholderValues = {};
+    currentTemplateState.placeholderMappingDrafts = {};
+    currentTemplateState.commonDefaultsDraft = null;
     currentTemplateState.renderedReportId = null;
     currentTemplateState.selectedReportProject = null;
 
@@ -212,21 +273,37 @@ async function loadTemplateDetails(templateName) {
             template.report_project = template.report_project || await findReportProjectForTemplate(templateName);
             currentTemplateState.selectedReportProject = template.report_project || null;
 
-            document.getElementById('detail-template-name').textContent = template.template_name || template.name;
-            const templateVersionBadge = document.getElementById('detail-template-version');
-            if (templateVersionBadge) templateVersionBadge.textContent = `v${template.version || '1.0'}`;
+            const detailNameEl = document.getElementById('detail-template-name');
+            const detailTitleEl = document.getElementById('detail-template-title');
+            const detailDescriptionEl = document.getElementById('detail-template-description');
+            if (detailNameEl) detailNameEl.textContent = template.template_name || template.name;
+            if (detailTitleEl) detailTitleEl.textContent = template.template_name || template.name;
+            if (detailDescriptionEl) detailDescriptionEl.textContent = template.description || '';
 
-            const downloadTemplateButton = document.getElementById('btn-download-template');
-            if (downloadTemplateButton) downloadTemplateButton.onclick = () => {
+            document.getElementById('detail-has-docx')?.classList.toggle('hidden', !template.has_docx);
+            document.getElementById('detail-has-pptx')?.classList.toggle('hidden', !template.has_pptx);
+            document.getElementById('detail-has-excel')?.classList.toggle('hidden', !template.has_excel);
+
+            const iconEl = document.getElementById('detail-template-icon');
+            if (iconEl) {
+                iconEl.className = 'template-icon-large';
+                if (template.has_docx) iconEl.classList.add('docx');
+                else if (template.has_pptx) iconEl.classList.add('pptx');
+                else if (template.has_excel) iconEl.classList.add('excel');
+                else iconEl.classList.add('default');
+            }
+
+            const downloadTemplateBtn = document.getElementById('btn-download-template');
+            if (downloadTemplateBtn) downloadTemplateBtn.onclick = () => {
                 downloadTemplateFile(templateName, currentSelectedFileType);
             };
 
-            const deleteTemplateButton = document.getElementById('btn-delete-template');
-            if (deleteTemplateButton) deleteTemplateButton.onclick = () => {
+            const deleteTemplateBtn = document.getElementById('btn-delete-template');
+            if (deleteTemplateBtn) deleteTemplateBtn.onclick = () => {
                 deleteTemplate(templateName);
             };
 
-            renderTemplateWorkbench(template);
+            renderReportGenerationCenter(template);
         }
     } catch (e) {
         console.error('Failed to load template details:', e);
@@ -840,73 +917,437 @@ function renderRenderPlaceholders(placeholders, configs = {}) {
 }
 
 // ─── Report Template Workbench ────────────────────────────────
-function renderTemplateWorkbench(template) {
+function renderReportGenerationCenter(template) {
+    const placeholders = getTemplateWorkbenchPlaceholders(template);
+    const sections = getTemplateWorkbenchSections(template);
+    const readiness = buildGenerationReadiness(template, sections, placeholders);
+
+    renderGenerationHero(template, readiness);
+    renderGenerationStatusStrip(readiness);
+    renderRecentGenerationPanel(template);
+    renderAdvancedMaintenance(template);
+    applyTemplateDetailMode(getStoredTemplateDetailMode());
+}
+
+function getStoredTemplateDetailMode() {
+    try {
+        const mode = localStorage.getItem(TEMPLATE_DETAIL_MODE_KEY);
+        return ['both', 'generation', 'config'].includes(mode) ? mode : 'both';
+    } catch (e) {
+        return 'both';
+    }
+}
+
+function setStoredTemplateDetailMode(mode) {
+    try {
+        localStorage.setItem(TEMPLATE_DETAIL_MODE_KEY, mode);
+    } catch (e) {
+        // Preference persistence is optional.
+    }
+}
+
+function applyTemplateDetailMode(mode = 'both') {
+    const normalizedMode = ['both', 'generation', 'config'].includes(mode) ? mode : 'both';
+    const generationPanel = document.getElementById('template-generation-overview');
+    const configPanel = document.getElementById('template-advanced-maintenance');
+    const showGeneration = normalizedMode === 'both' || normalizedMode === 'generation';
+    const showConfig = normalizedMode === 'both' || normalizedMode === 'config';
+
+    if (generationPanel) generationPanel.classList.toggle('hidden', !showGeneration);
+    if (configPanel) {
+        configPanel.classList.toggle('hidden', !showConfig);
+        if (showConfig) configPanel.open = true;
+    }
+
+    document.querySelectorAll('[data-template-detail-mode]').forEach(button => {
+        button.classList.toggle('active', button.dataset.templateDetailMode === normalizedMode);
+    });
+}
+
+function bindTemplateDetailModeTabs() {
+    document.querySelectorAll('[data-template-detail-mode]').forEach(button => {
+        if (button.dataset.bound) return;
+        button.dataset.bound = 'true';
+        button.addEventListener('click', () => {
+            const mode = button.dataset.templateDetailMode || 'both';
+            setStoredTemplateDetailMode(mode);
+            applyTemplateDetailMode(mode);
+        });
+    });
+}
+
+function buildGenerationReadiness(template, sections, placeholders) {
+    const assetChecks = buildTemplateAssetChecks(template, sections);
+    const validationChecks = buildTemplateValidationChecks(template, sections, placeholders);
+    const excelRows = buildExcelMappingRows(template);
+    const generatedReports = Array.isArray(template.report_project?.generated_reports)
+        ? template.report_project.generated_reports
+        : [];
+
+    const readyAssets = assetChecks.filter(asset => asset.ok).length;
+    const passedChecks = validationChecks.filter(check => check.ok).length;
+    const pendingIssueCount = assetChecks.filter(asset => !asset.ok).length
+        + validationChecks.filter(check => !check.ok).length;
+    const dataOk = readyAssets === assetChecks.length && excelRows.length > 0;
+    const contentOk = passedChecks === validationChecks.length;
+    const outputOk = generatedReports.length > 0 || dataOk && contentOk;
+    const warningCount = validationChecks.length - passedChecks;
+
+    return {
+        assetChecks,
+        validationChecks,
+        excelRows,
+        generatedReports,
+        latestReport: generatedReports[0] || null,
+        dataOk,
+        contentOk,
+        outputOk,
+        warningCount,
+        pendingIssueCount,
+        readyAssets,
+        totalAssets: assetChecks.length,
+        passedChecks,
+        totalChecks: validationChecks.length,
+        passedReadinessChecks: readyAssets + passedChecks,
+        totalReadinessChecks: assetChecks.length + validationChecks.length,
+        placeholderCount: placeholders.length || sections.length
+    };
+}
+
+function renderGenerationHero(template, readiness) {
+    const templateName = template.template_name || template.name || currentSelectedTemplate || '周报';
+    const project = template.report_project || null;
+    const titleEl = document.getElementById('template-generation-title');
+    const periodEl = document.getElementById('template-generation-period');
+    const lookbackEl = document.getElementById('template-generation-lookback');
+    const placeholderTotalEl = document.getElementById('template-generation-placeholder-total');
+    const healthEl = document.getElementById('template-generation-health');
+    const actionHintEl = document.getElementById('template-generation-action-hint');
+
+    const canGenerate = Boolean(readiness.dataOk && readiness.contentOk);
+
+    if (titleEl) titleEl.textContent = `${templateName} · 本周报告`;
+    if (periodEl) periodEl.textContent = '报告周期：本周';
+    if (lookbackEl) lookbackEl.textContent = '证据检索 7 天';
+    if (placeholderTotalEl) placeholderTotalEl.textContent = `${readiness.placeholderCount} 个占位符`;
+    if (healthEl) {
+        healthEl.textContent = canGenerate ? '可生成' : '需检查';
+        healthEl.classList.toggle('ok', canGenerate);
+        healthEl.classList.toggle('pending', !canGenerate);
+    }
+    if (actionHintEl) {
+        actionHintEl.textContent = canGenerate
+            ? '资料和内容已就绪，生成后可预览和下载 Word'
+            : `还有 ${readiness.pendingIssueCount || 1} 项需要处理，建议先打开生成前检查`;
+    }
+
+    const previewBtn = document.getElementById('btn-template-preview-report');
+    const latestReport = readiness.latestReport;
+    if (previewBtn) {
+        const previewUrl = latestReport && project
+            ? `/api/report-projects/${encodeURIComponent(project.slug)}/preview/${encodeURIComponent(latestReport.file_name)}`
+            : '';
+        previewBtn.disabled = !previewUrl;
+        previewBtn.onclick = previewUrl ? () => window.open(previewUrl, '_blank') : null;
+    }
+}
+
+function renderGenerationStatusStrip(readiness) {
+    renderProjectCheckSummary(readiness);
+    updateGenerationStep(
+        'template-generation-step-data',
+        'template-generation-data-summary',
+        readiness.dataOk,
+        `素材 ${readiness.readyAssets}/${readiness.totalAssets} · 数据范围 ${readiness.excelRows.length}`
+    );
+    updateGenerationStep(
+        'template-generation-step-content',
+        'template-generation-content-summary',
+        readiness.contentOk,
+        `预检 ${readiness.passedChecks}/${readiness.totalChecks} · 警告 ${readiness.warningCount}`
+    );
+    updateGenerationStep(
+        'template-generation-step-output',
+        'template-generation-output-summary',
+        readiness.outputOk,
+        readiness.latestReport ? '最近版本可预览和下载' : '生成后可预览和下载'
+    );
+}
+
+function renderProjectCheckSummary(readiness) {
+    const summaryEl = document.getElementById('template-project-check-summary');
+    const statusEl = document.getElementById('template-project-check-status');
+    const pending = readiness.pendingIssueCount || 0;
+    const passed = readiness.passedReadinessChecks || 0;
+    const total = readiness.totalReadinessChecks || 0;
+
+    if (summaryEl) {
+        summaryEl.textContent = pending
+            ? `${passed}/${total} 通过 · 点击查看待处理项`
+            : `${total} 项通过 · 可直接生成`;
+    }
+    if (statusEl) {
+        statusEl.textContent = pending ? `${pending} 项待处理` : '检查通过';
+        statusEl.classList.toggle('warning', pending > 0);
+    }
+}
+
+function updateGenerationStep(stepId, summaryId, ok, summary) {
+    const step = document.getElementById(stepId);
+    const summaryEl = document.getElementById(summaryId);
+    if (step) {
+        step.classList.toggle('ok', Boolean(ok));
+        step.classList.toggle('pending', !ok);
+    }
+    if (summaryEl) summaryEl.textContent = summary;
+}
+
+function renderRecentGenerationPanel(template) {
+    const project = template.report_project || null;
+    const statusEl = document.getElementById('template-recent-generation-status');
+    const card = document.getElementById('template-recent-generation-card');
+    const downloadLink = document.getElementById('btn-template-download-report');
+    if (!card) return;
+
+    const generatedReports = Array.isArray(project?.generated_reports) ? project.generated_reports : [];
+    const latest = generatedReports[0] || null;
+    const downloadUrl = latest && project
+        ? `/api/report-projects/${encodeURIComponent(project.slug)}/download/${encodeURIComponent(latest.file_name)}`
+        : '';
+    const previewUrl = latest && project
+        ? `/api/report-projects/${encodeURIComponent(project.slug)}/preview/${encodeURIComponent(latest.file_name)}`
+        : '';
+
+    if (statusEl) statusEl.textContent = latest ? '可下载' : '尚未生成';
+    if (downloadLink) {
+        downloadLink.href = downloadUrl || '#';
+        downloadLink.classList.toggle('disabled', !downloadUrl);
+        downloadLink.setAttribute('aria-disabled', downloadUrl ? 'false' : 'true');
+    }
+
+    if (!latest) {
+        card.innerHTML = `
+            <div class="template-result-empty">
+                <i class="codicon codicon-file"></i>
+                <span>尚未生成。点击“生成报告”后，这里会显示最近版本。</span>
+            </div>
+        `;
+        return;
+    }
+
+    card.innerHTML = `
+        <div class="template-result-main">
+            <i class="codicon codicon-file-text"></i>
+            <span>
+                <strong>${esc(latest.file_name || '最近生成文档')}</strong>
+                <small>${esc(formatGeneratedAt(latest.generated_at))}</small>
+            </span>
+        </div>
+        <div class="template-recent-generation-actions">
+            ${previewUrl ? `<a class="btn-secondary" href="${esc(previewUrl)}" target="_blank">打开预览</a>` : ''}
+            ${downloadUrl ? `<a class="btn-secondary" href="${esc(downloadUrl)}" target="_blank">下载 Word</a>` : ''}
+        </div>
+    `;
+}
+
+function renderReportGenerationProgressCard({ status = 'running', activeKey = 'check', message = '' } = {}) {
+    const card = document.getElementById('template-recent-generation-card');
+    const statusEl = document.getElementById('template-recent-generation-status');
+    if (!card) return;
+
+    const activeIndex = Math.max(0, REPORT_GENERATION_STEPS.findIndex(step => step.key === activeKey));
+    const statusText = status === 'error' ? '生成失败' : '生成中';
+    if (statusEl) statusEl.textContent = statusText;
+
+    card.innerHTML = `
+        <div class="template-generation-progress" role="status" aria-live="polite">
+            <div class="template-generation-progress-header">
+                <i class="codicon codicon-loading spin"></i>
+                <span>
+                    <strong>${statusText}</strong>
+                    <small>${esc(message || '正在准备生成本周报告')}</small>
+                </span>
+            </div>
+            <div class="template-generation-progress-steps">
+                ${REPORT_GENERATION_STEPS.map((step, index) => {
+                    const stepState = index < activeIndex ? 'done' : (index === activeIndex ? 'active' : 'pending');
+                    const icon = stepState === 'done' ? 'codicon-pass' : step.icon;
+                    return `
+                        <div class="template-generation-progress-step ${stepState}">
+                            <i class="codicon ${icon}"></i>
+                            <span>${esc(step.label)}</span>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        </div>
+    `;
+}
+
+function renderReportGenerationFailure(error) {
+    const card = document.getElementById('template-recent-generation-card');
+    const statusEl = document.getElementById('template-recent-generation-status');
+    if (!card) return;
+
+    const message = error?.message || String(error || '未知错误');
+    const hint = getReportGenerationErrorHint(message);
+    const target = getReportGenerationErrorTarget(message);
+    if (statusEl) statusEl.textContent = '生成失败';
+
+    card.innerHTML = `
+        <div class="template-generation-error-card" role="alert">
+            <div class="template-generation-error-header">
+                <i class="codicon codicon-error"></i>
+                <span>
+                    <strong>生成失败</strong>
+                    <small>${esc(hint)}</small>
+                </span>
+            </div>
+            <pre>${esc(message)}</pre>
+            <div class="template-generation-error-actions">
+                <button type="button" class="btn-secondary" id="btn-template-generation-open-config">
+                    <i class="codicon codicon-tools"></i> 打开高级配置
+                </button>
+                <button type="button" class="btn-primary" id="btn-template-generation-retry">
+                    <i class="codicon codicon-refresh"></i> 重试生成
+                </button>
+            </div>
+        </div>
+    `;
+    const openConfigBtn = card.querySelector('#btn-template-generation-open-config');
+    if (openConfigBtn) openConfigBtn.dataset.errorTarget = target;
+    bindReportGenerationFeedbackActions();
+}
+
+function getReportGenerationErrorHint(message) {
+    if (/No model provider|PROVIDER_PROFILES|model provider|api key|provider/i.test(message)) {
+        return '模型接口不可用，先检查 PROVIDER_PROFILES、API Key 或模型供应商配置。';
+    }
+    if (/template|Word|docx|placeholder/i.test(message)) {
+        return 'Word 模板或占位符可能不匹配，打开高级配置检查占位符映射。';
+    }
+    if (/Excel|workbook|sheet|range/i.test(message)) {
+        return 'Excel 底稿或数据区域可能不可读，检查工作簿、Sheet 和数据范围。';
+    }
+    if (/section|yaml|config/i.test(message)) {
+        return 'Section/YAML 配置可能有缺项或格式问题，打开高级配置检查当前片段。';
+    }
+    return '保留错误信息后重试；如果连续失败，优先检查接口、模板和数据文件。';
+}
+
+function getReportGenerationErrorTarget(message) {
+    if (/template|Word|docx|placeholder/i.test(message)) return 'template-placeholder-map';
+    if (/Excel|workbook|sheet|range/i.test(message)) return 'template-excel-mapping';
+    if (/section|yaml|config|PROVIDER_PROFILES|model provider|api key|provider/i.test(message)) return 'template-common-rules';
+    return 'template-advanced-maintenance';
+}
+
+function bindReportGenerationFeedbackActions() {
+    const openConfigBtn = document.getElementById('btn-template-generation-open-config');
+    const retryBtn = document.getElementById('btn-template-generation-retry');
+    if (openConfigBtn && !openConfigBtn.dataset.bound) {
+        openConfigBtn.dataset.bound = 'true';
+        openConfigBtn.addEventListener('click', () => openAdvancedMaintenance(openConfigBtn.dataset.errorTarget));
+    }
+    if (retryBtn && !retryBtn.dataset.bound) {
+        retryBtn.dataset.bound = 'true';
+        retryBtn.addEventListener('click', () => {
+            const generateBtn = document.getElementById('btn-template-generate-report');
+            if (generateBtn && !generateBtn.disabled) generateBtn.click();
+        });
+    }
+}
+
+function openAdvancedMaintenance(targetId = '') {
+    const panel = document.getElementById('template-advanced-maintenance');
+    if (!panel) return;
+    panel.open = true;
+    const target = targetId ? document.getElementById(targetId) : null;
+    highlightWorkbenchTarget(target || panel);
+}
+
+function openProjectCheckPanel(targetId = '') {
+    const panel = document.getElementById('template-project-check-details');
+    if (panel) panel.open = true;
+    const target = targetId ? document.getElementById(targetId) : null;
+    highlightWorkbenchTarget(target || panel);
+}
+
+function highlightWorkbenchTarget(element) {
+    if (!element) return;
+    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    element.classList.remove('template-focus-highlight');
+    void element.offsetWidth;
+    element.classList.add('template-focus-highlight');
+    window.setTimeout(() => element.classList.remove('template-focus-highlight'), 1800);
+}
+
+function formatGeneratedAt(value) {
+    if (!value) return '生成时间未知';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleString('zh-CN', { hour12: false });
+}
+
+function renderAdvancedMaintenance(template) {
     const project = template.report_project || null;
     const placeholders = getTemplateWorkbenchPlaceholders(template);
     const sections = getTemplateWorkbenchSections(template);
     const templateName = template.template_name || template.name || currentSelectedTemplate || '未命名模板';
     currentTemplateState.activeSourceKind = 'section_config';
-    currentTemplateState.fullSectionConfigSource = project?.section_config_source || buildPlaceholderMappingConfigYaml(template);
-    const currentSelected = currentTemplateState.selectedPlaceholderName;
-    const normalizedNames = placeholders.map(normalizePlaceholderName).filter(Boolean);
-    if (!currentSelected || !normalizedNames.includes(normalizePlaceholderName(currentSelected))) {
-        currentTemplateState.selectedPlaceholderName = normalizedNames[0] || null;
-    }
+    const placeholderNames = placeholders.length
+        ? placeholders
+        : sections.map(section => section.placeholder || section.key).filter(Boolean);
+    const selectedName = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
+    const firstPlaceholder = normalizePlaceholderName(placeholderNames[0] || '');
+    currentTemplateState.selectedPlaceholderName = placeholderNames
+        .map(normalizePlaceholderName)
+        .includes(selectedName)
+            ? selectedName
+            : firstPlaceholder;
 
     renderTemplateAssetChecklist(template, sections);
     renderTemplatePlaceholderMap(placeholders, sections);
-    renderSelectedPlaceholderEditor(template);
     renderTemplateExcelMapping(template, templateName);
-
-    const primaryDownloadLink = document.getElementById('btn-template-download-report');
-    if (primaryDownloadLink) {
-        primaryDownloadLink.href = '#';
-        primaryDownloadLink.classList.add('disabled');
-        primaryDownloadLink.setAttribute('aria-disabled', 'true');
-    }
+    renderCommonGenerationRules(template);
+    renderSelectedPlaceholderDetail(template);
 
     const sourceEditor = document.getElementById('template-source-editor');
     if (sourceEditor) {
-        const source = getTemplateWorkbenchSource(template, currentTemplateState.activeSourceKind);
         const draftKey = `report-template-source:${project?.slug || templateName}:project-v2`;
-        sourceEditor.value = source.content || localStorage.getItem(draftKey) || buildSelectedPlaceholderYaml(template);
         sourceEditor.dataset.draftKey = draftKey;
-        sourceEditor.dataset.sourceKind = source.sourceKind;
         sourceEditor.readOnly = true;
         sourceEditor.classList.add('readonly');
     }
 
-    const sourceKindLabel = document.getElementById('template-source-kind-label');
-    if (sourceKindLabel) {
-        const source = getTemplateWorkbenchSource(template, currentTemplateState.activeSourceKind);
-        sourceKindLabel.textContent = source.label;
-    }
-
     updateTemplateSourceSwitcher(template);
+    renderSelectedSourceFragment(template);
     setTemplateSourceEditing(false);
 
     renderTemplateValidationPreview(template, sections, placeholders);
-    updateTemplateProjectCheckStatus(template, sections, placeholders);
     bindTemplateWorkbenchActions();
 }
 
 function getTemplateWorkbenchSource(template, sourceKind = 'section_config') {
     const project = template.report_project || null;
     if (sourceKind === 'prompt_templates') {
-        const promptFragment = buildSelectedPromptTemplateMarkdown(template);
         const useLibraryDraft = shouldUsePromptTemplateLibraryDraft(template);
         return {
-            content: promptFragment || (useLibraryDraft
+            content: useLibraryDraft
                 ? buildPromptTemplateLibraryMarkdown(template)
-                : (project?.prompt_templates_source || buildPromptTemplateLibraryMarkdown(template))),
+                : (project?.prompt_templates_source || buildPromptTemplateLibraryMarkdown(template)),
             sourceKind: 'prompt_templates',
-            label: promptFragment ? 'Markdown Prompt（当前占位符）' : (useLibraryDraft ? 'Markdown Prompt（模板库草稿）' : 'Markdown Prompt')
+            label: useLibraryDraft ? 'Markdown Prompt（模板库草稿）' : 'Markdown Prompt'
         };
     }
     return {
-        content: buildSelectedPlaceholderYaml(template),
+        content: shouldUsePlaceholderMappingDraft(template)
+            ? buildPlaceholderMappingConfigYaml(template)
+            : (project?.section_config_source || buildPlaceholderMappingConfigYaml(template)),
         sourceKind: 'section_config',
-        label: 'YAML 当前占位符片段'
+        label: shouldUsePlaceholderMappingDraft(template)
+            ? 'YAML 占位符映射（草稿）'
+            : 'YAML 占位符映射'
     };
 }
 
@@ -931,31 +1372,8 @@ function switchTemplateSourceKind(sourceKind) {
     const template = getCurrentWorkbenchTemplate();
     if (!template) return;
     currentTemplateState.activeSourceKind = sourceKind;
-    const source = getTemplateWorkbenchSource(template, sourceKind);
-    const sourceEditor = document.getElementById('template-source-editor');
-    if (sourceEditor) {
-        sourceEditor.value = source.content;
-        sourceEditor.dataset.sourceKind = source.sourceKind;
-    }
-    const sourceKindLabel = document.getElementById('template-source-kind-label');
-    if (sourceKindLabel) {
-        sourceKindLabel.textContent = source.label;
-    }
     updateTemplateSourceSwitcher(template);
-    setTemplateSourceEditing(false);
-}
-
-function refreshSelectedPlaceholderSource(template = getCurrentWorkbenchTemplate()) {
-    if (!template) return;
-    const source = getTemplateWorkbenchSource(template, currentTemplateState.activeSourceKind);
-    const sourceEditor = document.getElementById('template-source-editor');
-    if (sourceEditor) {
-        sourceEditor.value = source.content;
-        sourceEditor.dataset.sourceKind = source.sourceKind;
-    }
-    const sourceKindLabel = document.getElementById('template-source-kind-label');
-    if (sourceKindLabel) sourceKindLabel.textContent = source.label;
-    updateTemplateSourceSwitcher(template);
+    renderSelectedSourceFragment(template);
     setTemplateSourceEditing(false);
 }
 
@@ -973,6 +1391,10 @@ function getTemplateWorkbenchSections(template) {
     if (Array.isArray(projectSections) && projectSections.length) {
         return projectSections;
     }
+    const placeholderSections = buildSectionsFromReportProject(project);
+    if (placeholderSections.length) {
+        return placeholderSections;
+    }
     return template.sections || [];
 }
 
@@ -982,7 +1404,44 @@ function getTemplateWorkbenchPlaceholders(template) {
     if (Array.isArray(projectPlaceholders) && projectPlaceholders.length) {
         return projectPlaceholders;
     }
+    const configPlaceholders = buildPlaceholderNamesFromReportProject(project);
+    if (configPlaceholders.length) {
+        return configPlaceholders;
+    }
     return template.placeholders || [];
+}
+
+function buildTemplateAssetChecks(template, sections) {
+    const project = template.report_project || null;
+    return [
+        {
+            icon: 'codicon-file-code',
+            label: 'Word 模板',
+            ok: Boolean(project?.word_template_filename || template.has_docx),
+            value: project?.word_template_filename || (template.has_docx ? '已绑定' : '缺失'),
+            action: 'upload',
+            actionTarget: 'project-word-template-input',
+            actionLabel: '上传模板'
+        },
+        {
+            icon: 'codicon-table',
+            label: 'Excel 底稿',
+            ok: Boolean(project?.excel_workbook_filename || template.has_excel),
+            value: project?.excel_workbook_filename || (template.has_excel ? '已绑定' : '待绑定'),
+            action: 'upload',
+            actionTarget: 'project-excel-workbook-input',
+            actionLabel: '上传 Excel'
+        },
+        {
+            icon: 'codicon-settings-gear',
+            label: 'Section 配置',
+            ok: Boolean(project?.section_config_filename || sections.length > 0),
+            value: project?.section_config_filename || (sections.length ? `${sections.length} 段` : '待配置'),
+            action: 'upload',
+            actionTarget: 'project-section-config-input',
+            actionLabel: '上传配置'
+        }
+    ];
 }
 
 function renderTemplateAssetChecklist(template, sections) {
@@ -997,7 +1456,14 @@ function renderTemplateAssetChecklist(template, sections) {
             <i class="codicon ${asset.icon}"></i>
             <span>${esc(asset.label)}</span>
             <strong>${esc(asset.value)}</strong>
-            ${asset.detail ? `<small>${esc(asset.detail)}</small>` : ''}
+            ${asset.ok ? '' : `
+                <button type="button"
+                        class="template-check-action"
+                        data-template-check-action="${esc(asset.action)}"
+                        data-template-check-target="${esc(asset.actionTarget)}">
+                    ${esc(asset.actionLabel)}
+                </button>
+            `}
         </div>
     `).join('');
 
@@ -1006,78 +1472,6 @@ function renderTemplateAssetChecklist(template, sections) {
         statusEl.textContent = `${readyCount}/${assets.length} 就绪`;
         statusEl.classList.toggle('warning', readyCount < assets.length);
     }
-}
-
-function buildTemplateAssetChecks(template, sections) {
-    const project = template.report_project || null;
-    const dataAssets = Array.isArray(project?.data_assets) ? project.data_assets : [];
-    const dataAssetSummary = dataAssets.length
-        ? summarizeDataAssets(dataAssets)
-        : (project?.data_source_files?.length ? project.data_source_files.join('、') : '未识别配套数据');
-    return [
-        {
-            icon: 'codicon-file-code',
-            label: 'Word 模板',
-            ok: Boolean(project?.word_template_filename || template.has_docx),
-            value: project?.word_template_filename || (template.has_docx ? '已绑定' : '缺失')
-        },
-        {
-            icon: 'codicon-table',
-            label: '主 Excel 底稿',
-            ok: Boolean(project?.excel_workbook_filename || template.has_excel),
-            value: project?.excel_workbook_filename || (template.has_excel ? '已绑定' : '待绑定')
-        },
-        {
-            icon: 'codicon-files',
-            label: '配套数据',
-            ok: dataAssets.length > 0 || Boolean(project?.data_source_files?.length),
-            value: dataAssets.length ? `${dataAssets.length} 个文件` : dataAssetSummary,
-            detail: dataAssetSummary
-        },
-        {
-            icon: 'codicon-settings-gear',
-            label: 'Section 配置',
-            ok: Boolean(project?.section_config_filename || sections.length > 0),
-            value: project?.section_config_filename || (sections.length ? `${sections.length} 段` : '待配置')
-        }
-    ];
-}
-
-function updateTemplateProjectCheckStatus(template, sections, placeholders) {
-    const details = document.getElementById('template-project-check-details');
-    const statusEl = document.getElementById('template-project-check-status');
-    const summaryEl = document.getElementById('template-project-check-summary');
-    if (!details || !statusEl || !summaryEl) return;
-
-    const assetChecks = buildTemplateAssetChecks(template, sections);
-    const validationChecks = buildTemplateValidationChecks(template, sections, placeholders);
-    const excelRows = buildExcelMappingRows(template);
-    const readyAssets = assetChecks.filter(asset => asset.ok).length;
-    const passedChecks = validationChecks.filter(check => check.ok).length;
-    const assetsOk = readyAssets === assetChecks.length;
-    const validationOk = passedChecks === validationChecks.length;
-    const excelOk = excelRows.length > 0;
-    const allOk = assetsOk && validationOk && excelOk;
-
-    statusEl.textContent = allOk ? '检查通过' : '需处理';
-    statusEl.classList.toggle('warning', !allOk);
-    summaryEl.textContent = allOk
-        ? `素材齐全 · ${excelRows.length} 个数据范围 · ${passedChecks}/${validationChecks.length} 预检`
-        : `素材 ${readyAssets}/${assetChecks.length} · 数据 ${excelOk ? '可读' : '待检查'} · 预检 ${passedChecks}/${validationChecks.length}`;
-    details.open = !allOk;
-}
-
-function summarizeDataAssets(dataAssets) {
-    const importantKinds = ['primary_excel', 'chart_workbook', 'table_workbook', 'workbook', 'query_json'];
-    const sortedAssets = [...dataAssets].sort((left, right) => {
-        const leftRank = importantKinds.indexOf(left.kind);
-        const rightRank = importantKinds.indexOf(right.kind);
-        return (leftRank === -1 ? 99 : leftRank) - (rightRank === -1 ? 99 : rightRank)
-            || String(left.file_name || '').localeCompare(String(right.file_name || ''), 'zh-CN');
-    });
-    const names = sortedAssets.slice(0, 6).map(asset => asset.file_name || asset.relative_path).filter(Boolean);
-    const extraCount = Math.max(0, sortedAssets.length - names.length);
-    return extraCount ? `${names.join('、')} 等 ${sortedAssets.length} 个` : names.join('、');
 }
 
 function renderTemplatePlaceholderMap(placeholders, sections) {
@@ -1102,75 +1496,42 @@ function renderTemplatePlaceholderMap(placeholders, sections) {
         return;
     }
 
-    const placeholderOptions = names.map(name => {
-        const normalizedName = normalizePlaceholderName(name);
-        const mapping = placeholderMappings.get(normalizedName);
-        const section = sectionByPlaceholder.get(normalizedName)
-            || sections.find(item => item.key === normalizedName);
-        const status = mapping
-            ? (isPlaceholderMappingConfigured(mapping) ? '已配置' : '待补参数')
-            : (section ? '旧配置映射' : '未映射');
-        return { normalizedName, mapping, section, status };
-    });
     const selectedName = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName)
-        || placeholderOptions[0]?.normalizedName
-        || '';
-    const selectedOption = placeholderOptions.find(item => item.normalizedName === selectedName)
-        || placeholderOptions[0];
-    const selectedMapped = Boolean(selectedOption?.mapping || selectedOption?.section);
+        || normalizePlaceholderName(names[0]);
+    const selectedMapping = placeholderMappings.get(selectedName);
+    const selectedSection = sectionByPlaceholder.get(selectedName)
+        || sections.find(item => item.key === selectedName);
+    const selectedStatus = selectedMapping
+        ? (isPlaceholderMappingConfigured(selectedMapping) ? '已配置' : '待补参数')
+        : (selectedSection ? '旧配置映射' : '未映射');
 
     container.innerHTML = `
-        <label class="placeholder-select-shell">
-            <span>当前占位符</span>
-            <select id="template-placeholder-select">
-                ${placeholderOptions.map(item => `
-                    <option value="${esc(item.normalizedName)}" ${item.normalizedName === selectedOption.normalizedName ? 'selected' : ''}>
-                        {{${esc(item.normalizedName)}}} · ${esc(item.status)}
+        <label class="placeholder-select-label" for="template-placeholder-select">当前占位符</label>
+        <select id="template-placeholder-select" class="placeholder-select">
+            ${names.map(name => {
+                const normalizedName = normalizePlaceholderName(name);
+                return `
+                    <option value="${esc(normalizedName)}" ${normalizedName === selectedName ? 'selected' : ''}>
+                        {{${esc(normalizedName)}}}
                     </option>
-                `).join('')}
-            </select>
-        </label>
-        <div class="placeholder-map-current ${selectedMapped ? 'mapped' : 'unmapped'}">
-            <code>{{${esc(selectedOption.normalizedName)}}}</code>
-            <div class="mapping-summary">${renderMappingSummary(selectedOption.mapping, selectedOption.section, getCurrentWorkbenchTemplate() || {})}</div>
-            <strong>${esc(selectedOption.status)}</strong>
+                `;
+            }).join('')}
+        </select>
+        <div class="placeholder-selected-card ${selectedStatus === '未映射' ? 'unmapped' : 'mapped'}">
+            <code>{{${esc(selectedName)}}}</code>
+            <div class="mapping-summary">${renderMappingSummary(selectedMapping, selectedSection, getCurrentWorkbenchTemplate() || {})}</div>
+            <strong>${selectedStatus}</strong>
         </div>
     `;
 
-    const selector = container.querySelector('#template-placeholder-select');
-    if (selector) {
-        selector.addEventListener('change', () => selectWorkbenchPlaceholder(selector.value));
-    }
-
-    if (selectedOption && selectedOption.normalizedName !== normalizePlaceholderName(currentTemplateState.selectedPlaceholderName)) {
-        currentTemplateState.selectedPlaceholderName = selectedOption.normalizedName;
-    }
-}
-
-function selectWorkbenchPlaceholder(name) {
-    const normalizedName = normalizePlaceholderName(name);
-    if (!normalizedName) return;
-    currentTemplateState.selectedPlaceholderName = normalizedName;
-    const template = getCurrentWorkbenchTemplate();
-    if (!template) return;
-    renderTemplatePlaceholderMap(
-        getTemplateWorkbenchPlaceholders(template),
-        getTemplateWorkbenchSections(template)
-    );
-    renderSelectedPlaceholderEditor(template);
-    refreshSelectedPlaceholderSource(template);
+    bindPlaceholderMapRows();
 }
 
 function renderMappingSummary(mapping, section, template = {}) {
     const project = template.report_project || null;
     const title = mapping?.title || section?.title || '待配置来源';
     const details = [];
-    if (mapping?.type === 'report_period') {
-        details.push(`报告周期: ${mapping.field === 'start_date' ? '本周周一' : '报告日'}`);
-    }
-    if (mapping?.type === 'composite_market_review') {
-        details.push('Excel 数据句 + Prompt 热点归纳');
-    }
+    if (mapping?.prompt_template) details.push(`Prompt: ${mapping.prompt_template}`);
     if (mapping?.query_source) {
         details.push(`Query: ${mapping.query_source}`);
     } else if (mapping?.prompt_template && usesEmbeddedPromptQueries(project)) {
@@ -1185,406 +1546,304 @@ function renderMappingSummary(mapping, section, template = {}) {
     `;
 }
 
-function renderSelectedPlaceholderEditor(template) {
-    const container = document.getElementById('template-placeholder-detail-form');
-    const titleEl = document.getElementById('template-selected-placeholder-title');
-    const saveBtn = document.getElementById('btn-template-save-placeholder');
+function getStoredCommonDefaults(template) {
+    const defaults = template?.report_project?.section_config?.defaults;
+    const base = {
+        generation_mode: 'evidence_grounded_generation',
+        evidence_policy: 'strict',
+        query_mode: usesEmbeddedPromptQueries(template?.report_project) ? 'retrieval_query_embedded' : 'query_source',
+        validators: {
+            require_evidence_from_uploaded_material: true,
+            forbid_external_facts: true,
+            forbid_direct_investment_advice: true,
+            forbidden_terms: ['保本', '稳赚', '收益保证', '明确买入', '目标价']
+        },
+        hard_constraints: {
+            no_wind_data: true,
+            no_baidu_data: true,
+            require_number_source: true,
+            single_paragraph: true,
+            forbidden_phrases: ['根据文件', '据报道', '数据显示'],
+            forbidden_entity_categories: ['指数名称', '公司名称', '证券机构'],
+            prompt_text: [
+                '仅基于上传素材、Excel 数据和检索证据撰写，不使用 Wind 数据、百度数据或外部事实补充。',
+                '涉及数字时必须说明来源，避免使用“根据文件”“据报道”“数据显示”等模板化表述。',
+                '不要输出指数名称、公司名称、证券机构等实体清单式堆砌，不输出投资收益保证或直接买卖建议。',
+                '除模板特别要求外，只输出一段正式周报正文，不换行。'
+            ].join('\n')
+        },
+        retrieval: {
+            mode: 'hybrid',
+            top_k: 8,
+            keyword_candidates: 40,
+            semantic_candidates: 80,
+            keyword_weight: 0.7,
+            semantic_weight: 0.3,
+            keywords: []
+        },
+        rerank: {
+            enabled: true,
+            provider: 'deepseek',
+            candidates: 16,
+            min_score: 30
+        }
+    };
+    if (!defaults || typeof defaults !== 'object') return base;
+    return {
+        ...base,
+        ...defaults,
+        validators: { ...base.validators, ...(defaults.validators || {}) },
+        hard_constraints: { ...base.hard_constraints, ...(defaults.hard_constraints || {}) },
+        retrieval: { ...base.retrieval, ...(defaults.retrieval || {}) },
+        rerank: { ...base.rerank, ...(defaults.rerank || {}) }
+    };
+}
+
+function getEditableCommonDefaults(template) {
+    return currentTemplateState.commonDefaultsDraft || getStoredCommonDefaults(template);
+}
+
+function renderCommonGenerationRules(template) {
+    const container = document.getElementById('template-common-rules');
     if (!container) return;
 
-    const selectedName = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
-    if (!selectedName) {
-        container.innerHTML = '<div class="empty-state compact">从左侧选择一个 Word 占位符后编辑配置</div>';
-        if (titleEl) titleEl.textContent = '占位符配置详情';
-        if (saveBtn) saveBtn.disabled = true;
-        return;
-    }
-
-    const mapping = getCurrentPlaceholderMappings(template).get(selectedName) || {};
-    const type = mapping.type || inferPlaceholderType(selectedName);
-    const retrieval = mapping.retrieval || {};
-    const validators = mapping.validators || {};
-    const queryTerms = retrieval.query_terms || {};
-    const keywords = retrieval.keywords || queryTerms.must_any || retrieval.must_any || [];
-
-    if (titleEl) titleEl.textContent = `{{${selectedName}}}`;
-    if (saveBtn) saveBtn.disabled = false;
+    const defaults = getEditableCommonDefaults(template);
+    const validators = defaults.validators || {};
+    const hardConstraints = defaults.hard_constraints || {};
+    const retrieval = defaults.retrieval || {};
+    const rerank = defaults.rerank || {};
+    const promptConstraintText = getHardConstraintPromptText(hardConstraints);
+    const forbiddenPhrases = Array.isArray(hardConstraints.forbidden_phrases)
+        ? hardConstraints.forbidden_phrases.join('\n')
+        : '';
+    const forbiddenEntityCategories = Array.isArray(hardConstraints.forbidden_entity_categories)
+        ? hardConstraints.forbidden_entity_categories.join('\n')
+        : '';
+    const searchKeywords = Array.isArray(retrieval.keywords)
+        ? retrieval.keywords.join('\n')
+        : '';
+    const keywordWeightPercent = formatRulePercent(retrieval.keyword_weight ?? 0.7);
+    const semanticWeightPercent = formatRulePercent(retrieval.semantic_weight ?? 0.3);
 
     container.innerHTML = `
-        <div class="placeholder-detail-grid">
-            <label class="placeholder-detail-field">
-                <span>类型</span>
-                <select id="placeholder-field-type">
-                    ${['prompt', 'composite_market_review', 'report_period', 'static_text', 'excel_cell', 'excel_range'].map(option => `
-                        <option value="${option}" ${type === option ? 'selected' : ''}>${option}</option>
-                    `).join('')}
-                </select>
-            </label>
-            <label class="placeholder-detail-field" data-visible-for="prompt composite_market_review">
-                <span>目标字数</span>
-                <input id="placeholder-field-target-words" type="number" min="20" step="10" value="${esc(String(mapping.target_words || ''))}" placeholder="例如 100">
-            </label>
-            <label class="placeholder-detail-field" data-visible-for="prompt composite_market_review">
-                <span>最大字数</span>
-                <input id="placeholder-field-max-words" type="number" min="20" step="10" value="${esc(String(mapping.max_words || mapping.target_words || '300'))}">
-            </label>
-            <label class="placeholder-detail-field" data-visible-for="prompt composite_market_review">
-                <span>最少新闻条数</span>
-                <input id="placeholder-field-min-news-count" type="number" min="0" step="1" value="${esc(String(mapping.min_news_count || validators.min_news_count || ''))}" placeholder="例如 5">
-            </label>
-            <label class="placeholder-detail-field" data-visible-for="report_period">
-                <span>报告周期字段</span>
-                <select id="placeholder-field-period-field">
-                    <option value="">不适用</option>
-                    <option value="start_date" ${mapping.field === 'start_date' ? 'selected' : ''}>开始日期</option>
-                    <option value="end_date" ${mapping.field === 'end_date' ? 'selected' : ''}>结束日期</option>
-                </select>
-            </label>
-            <label class="placeholder-detail-field" data-visible-for="static_text excel_cell excel_range">
-                <span>静态值 / Excel 来源</span>
-                <input id="placeholder-field-source" type="text" value="${esc(mapping.source || mapping.value || '')}" placeholder="Sheet!A1 或静态文本">
-            </label>
+        <div class="panel-title-row">
+            <h4>共用参数</h4>
+            <span class="text-muted">所有 prompt 占位符默认继承</span>
         </div>
-
-        <div class="placeholder-detail-section" data-visible-for="prompt composite_market_review">
-            <div class="placeholder-detail-section-title">检索关键词</div>
-            <label class="placeholder-detail-field wide">
-                <span>关键词 Profile</span>
-                <input id="placeholder-field-keyword-profile" type="text" value="${esc(retrieval.keyword_profile || '')}" placeholder="例如 电力设备新能源">
-            </label>
-            <label class="placeholder-detail-field wide">
-                <span>检索关键词（逗号或换行分隔）</span>
-                <textarea id="placeholder-field-keywords" rows="3">${esc(keywords.join('\n'))}</textarea>
-            </label>
-        </div>
+        <details class="template-common-rule-card template-common-summary-card" open>
+            <summary>
+                <span class="template-common-summary-title">
+                    <strong>共用 Prompt 约束</strong>
+                    <small>${esc(getFirstLine(promptConstraintText))}</small>
+                </span>
+                <span class="template-common-summary-meta">
+                    拼入每个占位符
+                    <i class="codicon codicon-chevron-down"></i>
+                </span>
+            </summary>
+            <div class="template-common-rule-editor">
+                <div class="template-common-check-grid">
+                    <label><input type="checkbox" data-common-rule-field="hard_constraints.no_wind_data" ${hardConstraints.no_wind_data !== false ? 'checked' : ''}><span>不使用 Wind 数据</span></label>
+                    <label><input type="checkbox" data-common-rule-field="hard_constraints.no_baidu_data" ${hardConstraints.no_baidu_data !== false ? 'checked' : ''}><span>不使用百度数据</span></label>
+                    <label><input type="checkbox" data-common-rule-field="hard_constraints.require_number_source" ${hardConstraints.require_number_source !== false ? 'checked' : ''}><span>数字必须说明来源</span></label>
+                    <label><input type="checkbox" data-common-rule-field="hard_constraints.single_paragraph" ${hardConstraints.single_paragraph !== false ? 'checked' : ''}><span>只输出一段，不换行</span></label>
+                </div>
+                <label class="template-common-field wide">
+                    <span>这段文字会和每个占位符的 Prompt 模板、RAG 证据一起传给大模型</span>
+                    <textarea data-common-rule-field="hard_constraints.prompt_text" rows="7">${esc(promptConstraintText)}</textarea>
+                </label>
+                <label class="template-common-field wide">
+                    <span>禁用短语（逗号或换行分隔）</span>
+                    <textarea data-common-rule-field="hard_constraints.forbidden_phrases" rows="3">${esc(forbiddenPhrases)}</textarea>
+                </label>
+                <label class="template-common-field wide">
+                    <span>禁用实体类别（逗号或换行分隔）</span>
+                    <textarea data-common-rule-field="hard_constraints.forbidden_entity_categories" rows="3">${esc(forbiddenEntityCategories)}</textarea>
+                </label>
+            </div>
+        </details>
+        <details class="template-common-rule-card template-common-summary-card">
+            <summary>
+                <span class="template-common-summary-title">
+                    <strong>检索策略</strong>
+                    <small>${esc(retrieval.mode || 'hybrid')} · Top K ${esc(retrieval.top_k ?? 8)} · 候选 ${esc(retrieval.keyword_candidates ?? 40)}/${esc(retrieval.semantic_candidates ?? 80)}</small>
+                </span>
+                <span class="template-common-summary-meta">
+                    权重 ${keywordWeightPercent}/${semanticWeightPercent}
+                    <i class="codicon codicon-chevron-down"></i>
+                </span>
+            </summary>
+            <div class="template-common-rule-editor">
+                <div class="template-common-rules-grid">
+                    <label class="template-common-field">
+                        <span>模式</span>
+                        <select data-common-rule-field="retrieval.mode">
+                            ${['hybrid', 'keyword', 'semantic'].map(option => `
+                                <option value="${option}" ${(retrieval.mode || 'hybrid') === option ? 'selected' : ''}>${option}</option>
+                            `).join('')}
+                        </select>
+                    </label>
+                    <label class="template-common-field">
+                        <span>Top K</span>
+                        <input type="number" min="1" step="1" data-common-rule-field="retrieval.top_k" value="${esc(retrieval.top_k ?? 8)}">
+                    </label>
+                    <label class="template-common-field">
+                        <span>关键词候选数</span>
+                        <input type="number" min="1" step="1" data-common-rule-field="retrieval.keyword_candidates" value="${esc(retrieval.keyword_candidates ?? 40)}">
+                    </label>
+                    <label class="template-common-field">
+                        <span>语义候选数</span>
+                        <input type="number" min="1" step="1" data-common-rule-field="retrieval.semantic_candidates" value="${esc(retrieval.semantic_candidates ?? 80)}">
+                    </label>
+                    <label class="template-common-field">
+                        <span>关键词权重</span>
+                        <input type="number" min="0" max="1" step="0.1" data-common-rule-field="retrieval.keyword_weight" value="${esc(retrieval.keyword_weight ?? 0.7)}">
+                    </label>
+                    <label class="template-common-field">
+                        <span>语义权重</span>
+                        <input type="number" min="0" max="1" step="0.1" data-common-rule-field="retrieval.semantic_weight" value="${esc(retrieval.semantic_weight ?? 0.3)}">
+                    </label>
+                    <label class="template-common-field wide">
+                        <span>全局检索关键词（逗号或换行分隔；每个占位符还可以单独覆盖）</span>
+                        <textarea data-common-rule-field="retrieval.keywords" rows="3">${esc(searchKeywords)}</textarea>
+                    </label>
+                </div>
+                <div class="template-weight-meter" aria-hidden="true">
+                    <span style="width: ${Math.max(0, Math.min(100, Number(retrieval.keyword_weight ?? 0.7) * 100))}%"></span>
+                </div>
+            </div>
+        </details>
+        <details class="template-common-rule-card template-common-summary-card">
+            <summary>
+                <span class="template-common-summary-title">
+                    <strong>证据重排</strong>
+                    <small>${rerank.enabled !== false ? '初筛后按当前 Prompt 相关性重新排序' : '按检索分数直接排序'}</small>
+                </span>
+                <span class="template-common-summary-meta">
+                    候选 ${esc(rerank.candidates ?? 16)} · 阈值 ${esc(rerank.min_score ?? 30)}
+                    <i class="codicon codicon-chevron-down"></i>
+                </span>
+            </summary>
+            <div class="template-common-rule-editor">
+                <div class="template-rerank-editor">
+                    <label class="template-common-rules-check template-rerank-toggle">
+                        <input type="checkbox" data-common-rule-field="rerank.enabled" ${rerank.enabled !== false ? 'checked' : ''}>
+                        <span>
+                            <strong>启用证据重排</strong>
+                            <small>先召回候选证据，再按当前占位符 Prompt 的相关性排序</small>
+                        </span>
+                    </label>
+                    <label class="template-common-field">
+                        <span>重排 Provider</span>
+                        <input type="text" data-common-rule-field="rerank.provider" value="${esc(rerank.provider || 'deepseek')}">
+                    </label>
+                    <label class="template-common-field">
+                        <span>参与重排的候选证据数</span>
+                        <input type="number" min="1" step="1" data-common-rule-field="rerank.candidates" value="${esc(rerank.candidates ?? 16)}">
+                    </label>
+                    <label class="template-common-field">
+                        <span>最低相关分</span>
+                        <input type="number" min="0" step="1" data-common-rule-field="rerank.min_score" value="${esc(rerank.min_score ?? 30)}">
+                    </label>
+                </div>
+            </div>
+        </details>
     `;
 
-    container.querySelectorAll('input, select, textarea').forEach(input => {
-        input.addEventListener('input', () => updateSelectedPlaceholderDraft());
-        input.addEventListener('change', () => updateSelectedPlaceholderDraft());
-    });
-    document.getElementById('placeholder-field-type')?.addEventListener('change', event => {
-        updatePlaceholderFieldVisibility(String(event.target.value || ''));
-    });
-    updatePlaceholderFieldVisibility(type);
-}
-
-function updatePlaceholderFieldVisibility(type) {
-    const normalizedType = String(type || '').trim();
-    document.querySelectorAll('#template-placeholder-detail-form [data-visible-for]').forEach(element => {
-        const visibleTypes = String(element.dataset.visibleFor || '').split(/\s+/).filter(Boolean);
-        const shouldShow = visibleTypes.includes(normalizedType);
-        element.classList.toggle('placeholder-detail-field-hidden', !shouldShow);
+    container.querySelectorAll('[data-common-rule-field]').forEach(input => {
+        const update = () => {
+            collectCommonDefaultsDraft(template);
+            renderSelectedSourceFragment(template);
+        };
+        input.addEventListener('input', update);
+        input.addEventListener('change', update);
     });
 }
 
-function updateSelectedPlaceholderDraft() {
-    const template = getCurrentWorkbenchTemplate();
-    if (!template) return;
-    refreshSelectedPlaceholderSource(template);
+function formatRulePercent(value) {
+    const numberValue = Number(value);
+    if (!Number.isFinite(numberValue)) return '0%';
+    return `${Math.round(numberValue * 100)}%`;
 }
 
-function collectSelectedPlaceholderConfig(template) {
-    const selectedName = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
-    if (!selectedName) return null;
-    const original = getCurrentPlaceholderMappings(template).get(selectedName) || {};
-    const type = readFieldValue('placeholder-field-type') || original.type || inferPlaceholderType(selectedName);
-    const config = {
-        ...original,
-        title: original.title || inferPlaceholderTitle(selectedName),
-        type
+function getFirstLine(value) {
+    return String(value || '').split('\n').map(line => line.trim()).find(Boolean) || '未填写共用约束';
+}
+
+function getHardConstraintPromptText(hardConstraints = {}) {
+    if (typeof hardConstraints.prompt_text === 'string' && hardConstraints.prompt_text.trim()) {
+        return hardConstraints.prompt_text;
+    }
+
+    const lines = [];
+    if (hardConstraints.no_wind_data !== false || hardConstraints.no_baidu_data !== false) {
+        const blocked = [
+            hardConstraints.no_wind_data !== false ? 'Wind 数据' : '',
+            hardConstraints.no_baidu_data !== false ? '百度数据' : ''
+        ].filter(Boolean).join('、');
+        lines.push(`不使用${blocked}，仅基于上传素材、Excel 数据和检索证据撰写。`);
+    }
+    if (hardConstraints.require_number_source !== false) {
+        lines.push('涉及数字时必须说明来源。');
+    }
+    if (Array.isArray(hardConstraints.forbidden_phrases) && hardConstraints.forbidden_phrases.length) {
+        lines.push(`避免使用这些模板化表述：${hardConstraints.forbidden_phrases.join('、')}。`);
+    }
+    if (Array.isArray(hardConstraints.forbidden_entity_categories) && hardConstraints.forbidden_entity_categories.length) {
+        lines.push(`不要输出这些实体类别的清单式堆砌：${hardConstraints.forbidden_entity_categories.join('、')}。`);
+    }
+    if (hardConstraints.single_paragraph !== false) {
+        lines.push('除模板特别要求外，只输出一段正式周报正文，不换行。');
+    }
+    return lines.join('\n') || [
+        '仅基于上传素材、Excel 数据和检索证据撰写，不使用外部事实补充。',
+        '语言客观审慎，不输出投资收益保证或直接买卖建议。'
+    ].join('\n');
+}
+
+function collectCommonDefaultsDraft(template) {
+    const container = document.getElementById('template-common-rules');
+    if (!container) return getEditableCommonDefaults(template);
+
+    const existing = getEditableCommonDefaults(template);
+    const draft = {
+        ...existing,
+        validators: { ...(existing.validators || {}) },
+        hard_constraints: { ...(existing.hard_constraints || {}) },
+        retrieval: { ...(existing.retrieval || {}) },
+        rerank: { ...(existing.rerank || {}) }
     };
 
-    const maxWords = readNumberFieldValue('placeholder-field-max-words');
-    if (maxWords && type !== 'report_period') config.max_words = maxWords;
-    else delete config.max_words;
-
-    const targetWords = readNumberFieldValue('placeholder-field-target-words');
-    if (targetWords && type !== 'report_period') config.target_words = targetWords;
-    else delete config.target_words;
-
-    const minNewsCount = readNumberFieldValue('placeholder-field-min-news-count');
-    if (minNewsCount && type !== 'report_period') config.min_news_count = minNewsCount;
-    else delete config.min_news_count;
-
-    const promptTemplate = original.prompt_template || resolvePromptTemplateName(selectedName, template.report_project || null);
-    if (['prompt', 'composite_market_review'].includes(type) && promptTemplate) {
-        config.prompt_template = promptTemplate;
-        if (hasReportDefaultQueryMode(template.report_project || null)) {
-            delete config.query_mode;
+    container.querySelectorAll('[data-common-rule-field]').forEach(input => {
+        const field = input.dataset.commonRuleField;
+        if (!field) return;
+        let value;
+        if (input.type === 'checkbox') {
+            value = input.checked;
+        } else if (field === 'validators.forbidden_terms'
+            || field === 'hard_constraints.forbidden_phrases'
+            || field === 'hard_constraints.forbidden_entity_categories'
+            || field === 'retrieval.keywords') {
+            value = String(input.value || '')
+                .split(/[\n,，]/)
+                .map(item => item.trim())
+                .filter(Boolean);
+        } else if (input.type === 'number') {
+            value = input.value === '' ? null : Number(input.value);
         } else {
-            config.query_mode = config.query_mode || 'retrieval_query_embedded';
+            value = input.value?.trim?.() || '';
         }
-    }
 
-    const periodField = readFieldValue('placeholder-field-period-field');
-    if (type === 'report_period') {
-        config.field = periodField || inferReportPeriodField(selectedName);
-        delete config.max_words;
-        delete config.target_words;
-        delete config.min_news_count;
-        delete config.prompt_template;
-        delete config.retrieval;
-        delete config.validators;
-    }
-
-    const sourceValue = readFieldValue('placeholder-field-source');
-    if (['excel_cell', 'excel_range'].includes(type)) {
-        config.source = sourceValue;
-    } else if (type === 'static_text') {
-        config.value = sourceValue;
-    }
-
-    if (['prompt', 'composite_market_review'].includes(type)) {
-        delete config.validators;
-        delete config.params;
-        const keywords = splitListInput(readFieldValue('placeholder-field-keywords'));
-        const keywordProfile = readFieldValue('placeholder-field-keyword-profile');
-        const retrieval = {};
-        if (keywordProfile) retrieval.keyword_profile = keywordProfile;
-        if (keywords.length) {
-            retrieval.keywords = keywords;
-        }
-        if (Object.keys(retrieval).length) config.retrieval = retrieval;
-        else delete config.retrieval;
-    }
-
-    return config;
-}
-
-function readFieldValue(id) {
-    const el = document.getElementById(id);
-    return el ? String(el.value || '').trim() : '';
-}
-
-function readNumberFieldValue(id) {
-    const value = readFieldValue(id);
-    if (!value) return null;
-    const parsed = Number.parseInt(value, 10);
-    return Number.isFinite(parsed) ? parsed : null;
-}
-
-function readFloatFieldValue(id) {
-    const value = readFieldValue(id);
-    if (!value) return null;
-    const parsed = Number.parseFloat(value);
-    return Number.isFinite(parsed) ? parsed : null;
-}
-
-function splitListInput(value) {
-    return String(value || '')
-        .split(/[\n,，、；;]+/)
-        .map(item => item.trim())
-        .filter(Boolean);
-}
-
-function inferPromptParamsObject(name) {
-    const param = inferPromptParam(name);
-    return param ? { param } : {};
-}
-
-function buildSelectedPlaceholderYaml(template) {
-    const selectedName = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
-    if (!selectedName) return '选择左侧占位符后显示当前 YAML 片段。';
-    const config = collectSelectedPlaceholderConfig(template)
-        || getCurrentPlaceholderMappings(template).get(selectedName)
-        || {};
-    return buildPlaceholderYamlBlock(selectedName, config).trimEnd();
-}
-
-function buildPlaceholderYamlBlock(key, config) {
-    const lines = [`  ${key}:`];
-    appendYamlValue(lines, 4, 'title', config.title || inferPlaceholderTitle(key));
-    appendYamlValue(lines, 4, 'type', config.type || inferPlaceholderType(key));
-    const orderedKeys = [
-        'prompt_template',
-        'query_mode',
-        'target_words',
-        'max_words',
-        'min_news_count',
-        'validators',
-        'field',
-        'source',
-        'value',
-        'retrieval',
-        'data_source',
-        'params'
-    ];
-    orderedKeys.forEach(name => {
-        if (config[name] !== undefined && config[name] !== null && config[name] !== '') {
-            appendYamlValue(lines, 4, name, config[name]);
+        const path = field.split('.');
+        if (path.length === 2 && draft[path[0]] && typeof draft[path[0]] === 'object') {
+            draft[path[0]][path[1]] = value;
+        } else {
+            draft[field] = value;
         }
     });
-    Object.keys(config).forEach(name => {
-        if (['title', 'type', ...orderedKeys].includes(name)) return;
-        if (config[name] !== undefined && config[name] !== null && config[name] !== '') {
-            appendYamlValue(lines, 4, name, config[name]);
-        }
-    });
-    return lines.join('\n') + '\n';
-}
 
-function appendYamlValue(lines, indent, key, value) {
-    const prefix = ' '.repeat(indent);
-    if (Array.isArray(value)) {
-        lines.push(`${prefix}${key}:`);
-        value.forEach(item => appendYamlListItem(lines, indent + 2, item));
-        return;
-    }
-    if (value && typeof value === 'object') {
-        lines.push(`${prefix}${key}:`);
-        Object.entries(value).forEach(([childKey, childValue]) => {
-            if (childValue === undefined || childValue === null || childValue === '') return;
-            appendYamlValue(lines, indent + 2, childKey, childValue);
-        });
-        return;
-    }
-    lines.push(`${prefix}${key}: ${formatYamlScalar(value)}`);
-}
-
-function appendYamlListItem(lines, indent, value) {
-    const prefix = ' '.repeat(indent);
-    if (value && typeof value === 'object') {
-        lines.push(`${prefix}-`);
-        Object.entries(value).forEach(([childKey, childValue]) => {
-            appendYamlValue(lines, indent + 2, childKey, childValue);
-        });
-    } else {
-        lines.push(`${prefix}- ${formatYamlScalar(value)}`);
-    }
-}
-
-function formatYamlScalar(value) {
-    if (typeof value === 'boolean') return value ? 'true' : 'false';
-    if (typeof value === 'number') return String(value);
-    const text = String(value);
-    if (!text) return "''";
-    if (/[:#\n\r]|^\s|\s$|^(true|false|null|\d)/i.test(text)) {
-        return JSON.stringify(text);
-    }
-    return text;
-}
-
-function replacePlaceholderYamlBlock(source, key, block) {
-    const lines = String(source || '').split('\n');
-    const placeholderIndex = lines.findIndex(line => /^placeholders:\s*$/.test(line));
-    if (placeholderIndex === -1) {
-        return `${String(source || '').trimEnd()}\n\nplaceholders:\n${block}`;
-    }
-    const keyPattern = new RegExp(`^  ${escapeRegExp(key)}:\\s*$`);
-    const start = lines.findIndex((line, index) => index > placeholderIndex && keyPattern.test(line));
-    if (start === -1) {
-        const insertIndex = findPlaceholderSectionEnd(lines, placeholderIndex);
-        lines.splice(insertIndex, 0, ...block.trimEnd().split('\n'));
-        return lines.join('\n');
-    }
-    let end = start + 1;
-    while (end < lines.length && !/^  [^ ].*:\s*$/.test(lines[end]) && !/^[A-Za-z_\u4e00-\u9fff][^:]*:\s*$/.test(lines[end])) {
-        end += 1;
-    }
-    lines.splice(start, end - start, ...block.trimEnd().split('\n'));
-    return lines.join('\n');
-}
-
-function findPlaceholderSectionEnd(lines, placeholderIndex) {
-    let index = placeholderIndex + 1;
-    while (index < lines.length) {
-        if (/^[A-Za-z_\u4e00-\u9fff][^:]*:\s*$/.test(lines[index])) return index;
-        index += 1;
-    }
-    return lines.length;
-}
-
-function escapeRegExp(text) {
-    return String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function getPromptTemplateBlock(template, promptTemplateName) {
-    const source = template.report_project?.prompt_templates_source || '';
-    if (!source || !promptTemplateName) return null;
-    const escaped = escapeRegExp(promptTemplateName);
-    const pattern = new RegExp(`(^|\\n)##\\s+${escaped}\\s*\\n([\\s\\S]*?)(?=\\n##\\s+|$)`);
-    const match = source.match(pattern);
-    if (!match) return null;
-    const body = stripPromptCodeFence(match[2].trim());
-    return {
-        title: promptTemplateName,
-        query: extractPromptLabel(body, '检索 Query'),
-        requirements: extractPromptLabel(body, '写作要求')
-            || extractPromptLabel(body, '写作格式')
-            || body.slice(0, 180),
-        raw: `## ${promptTemplateName}\n${body}`
-    };
-}
-
-function stripPromptCodeFence(text) {
-    return String(text || '')
-        .replace(/^```[A-Za-z0-9_-]*\s*/m, '')
-        .replace(/\s*```\s*$/m, '')
-        .trim();
-}
-
-function extractPromptLabel(text, label) {
-    const pattern = new RegExp(`${escapeRegExp(label)}\\s*[：:]\\s*([\\s\\S]*?)(?=\\n\\s*(?:检索 Query|写作要求|写作格式)\\s*[：:]|$)`);
-    const match = text.match(pattern);
-    return match ? match[1].trim() : '';
-}
-
-function buildSelectedPromptTemplateMarkdown(template) {
-    const selectedName = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
-    if (!selectedName) return '';
-    const mapping = getCurrentPlaceholderMappings(template).get(selectedName) || {};
-    const promptTemplate = mapping.prompt_template
-        || resolvePromptTemplateName(selectedName, template.report_project || null);
-    const block = getPromptTemplateBlock(template, promptTemplate);
-    return block?.raw || '';
-}
-
-async function saveSelectedPlaceholderConfig() {
-    const template = getCurrentWorkbenchTemplate();
-    const project = template?.report_project || currentTemplateState.selectedReportProject;
-    const selectedName = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
-    if (!template || !project || !selectedName) {
-        toast('请先选择报告项目和占位符', 'error');
-        return;
-    }
-    const config = collectSelectedPlaceholderConfig(template);
-    if (!config) return;
-    const block = buildPlaceholderYamlBlock(selectedName, config);
-    const source = currentTemplateState.fullSectionConfigSource
-        || project.section_config_source
-        || buildPlaceholderMappingConfigYaml(template);
-    const nextSource = replacePlaceholderYamlBlock(source, selectedName, block);
-    const saveBtn = document.getElementById('btn-template-save-placeholder');
-    const originalText = saveBtn?.innerHTML;
-    if (saveBtn) {
-        saveBtn.disabled = true;
-        saveBtn.innerHTML = '<i class="codicon codicon-loading spin"></i> 保存中...';
-    }
-    try {
-        const updatedProject = await apiCall(
-            'PUT',
-            `/api/report-projects/${encodeURIComponent(project.slug)}/source`,
-            {
-                source_kind: 'section_config',
-                content: nextSource
-            }
-        );
-        currentTemplateState.selectedReportProject = updatedProject;
-        currentTemplateState.fullSectionConfigSource = updatedProject.section_config_source || nextSource;
-        const selectedTemplate = (currentTemplateState.templates || []).find(item =>
-            item.report_project?.slug === project.slug
-        );
-        if (selectedTemplate) selectedTemplate.report_project = updatedProject;
-        toast(`已保存 {{${selectedName}}} 配置`, 'success');
-        renderTemplateWorkbench(selectedTemplate || template);
-    } catch (e) {
-        toast('保存当前占位符失败: ' + e.message, 'error');
-    } finally {
-        if (saveBtn) {
-            saveBtn.disabled = false;
-            saveBtn.innerHTML = originalText;
-        }
-    }
+    currentTemplateState.commonDefaultsDraft = draft;
+    return draft;
 }
 
 function getStoredPlaceholderMappings(template) {
@@ -1627,78 +1886,17 @@ function buildDraftPlaceholderMappings(template, storedMappings = new Map()) {
         const key = normalizePlaceholderName(placeholder);
         if (!key) return;
         const stored = storedMappings.get(key) || {};
-        const storedConfig = { ...stored };
-        if (hasReportDefaultQueryMode(project)) delete storedConfig.query_mode;
         const type = stored.type || inferPlaceholderType(key);
-        const usesPrompt = ['prompt', 'composite_market_review'].includes(type);
-        const promptTemplate = usesPrompt ? resolvePromptTemplateName(key, project) : undefined;
-        const keywordRetrieval = usesPrompt ? buildKeywordRetrievalDraft(key, project) : undefined;
         mappings.set(key, {
             title: inferPlaceholderTitle(key),
             type,
-            prompt_template: promptTemplate,
-            query_mode: usesPrompt && usesEmbeddedPromptQueries(project) && !hasReportDefaultQueryMode(project)
-                ? 'retrieval_query_embedded'
-                : undefined,
-            query_source: usesPrompt && !usesEmbeddedPromptQueries(project) ? inferQuerySource(key, project) : undefined,
-            retrieval: keywordRetrieval,
-            ...storedConfig
+            prompt_template: type === 'prompt' ? resolvePromptTemplateName(key, project) : undefined,
+            query_mode: type === 'prompt' && usesEmbeddedPromptQueries(project) ? 'retrieval_query_embedded' : undefined,
+            query_source: type === 'prompt' && !usesEmbeddedPromptQueries(project) ? inferQuerySource(key, project) : undefined,
+            ...stored
         });
     });
     return mappings;
-}
-
-function buildKeywordRetrievalDraft(placeholderName, project = null) {
-    const profile = resolveKeywordProfileForPlaceholder(placeholderName, project);
-    const keywords = profile?.keywords?.length
-        ? profile.keywords.slice(0, 24)
-        : suggestFallbackKeywords(placeholderName, project).slice(0, 24);
-    if (!keywords.length) return undefined;
-    return {
-        keyword_profile: profile?.name || undefined,
-        keywords
-    };
-}
-
-function resolveKeywordProfileForPlaceholder(placeholderName, project = null) {
-    const profiles = project?.keyword_profiles || {};
-    const normalized = normalizeKeywordProfileKey(placeholderName);
-    if (!normalized) return null;
-    const entries = Object.entries(profiles);
-    for (const [name, profile] of entries) {
-        const keys = [name, profile?.name, profile?.param].map(normalizeKeywordProfileKey).filter(Boolean);
-        if (keys.includes(normalized)) return { name, ...(profile || {}) };
-    }
-    for (const [name, profile] of entries) {
-        const keys = [name, profile?.name, profile?.param].map(normalizeKeywordProfileKey).filter(Boolean);
-        if (keys.some(key => key && (normalized.includes(key) || key.includes(normalized)))) {
-            return { name, ...(profile || {}) };
-        }
-    }
-    if (normalized === '原油') {
-        return resolveKeywordProfileForPlaceholder('石油', project);
-    }
-    if (normalized === '港股') {
-        return resolveKeywordProfileForPlaceholder('香港', project);
-    }
-    return null;
-}
-
-function suggestFallbackKeywords(placeholderName, project = null) {
-    const terms = [normalizePlaceholderName(placeholderName)];
-    const promptName = resolvePromptTemplateName(placeholderName, project);
-    const block = getPromptTemplateBlock({ report_project: project }, promptName);
-    if (block?.query) terms.push(...block.query.match(/[\u4e00-\u9fffA-Za-z0-9]{2,}/g) || []);
-    if (block?.requirements) terms.push(...block.requirements.match(/[\u4e00-\u9fffA-Za-z0-9]{2,}/g) || []);
-    return [...new Set(terms.map(item => String(item || '').trim()).filter(item =>
-        item && !['检索', 'Query', '写作', '要求', '格式', '本周', '最新', '动态'].includes(item)
-    ))];
-}
-
-function normalizeKeywordProfileKey(value) {
-    return normalizePlaceholderName(value)
-        .replace(/[\s_\-（）()【】[\]：:]+/g, '')
-        .toLowerCase();
 }
 
 function isPlaceholderMappingConfigured(mapping) {
@@ -1707,13 +1905,368 @@ function isPlaceholderMappingConfigured(mapping) {
         || mapping?.value
         || mapping?.prompt_template
         || mapping?.query_source
-        || mapping?.type === 'report_period'
-        || mapping?.type === 'composite_market_review'
     );
 }
 
 function normalizePlaceholderName(name) {
     return String(name || '').replace(/^\{\{\s*/, '').replace(/\s*\}\}$/, '').trim();
+}
+
+function bindPlaceholderMapRows() {
+    const select = document.getElementById('template-placeholder-select');
+    if (select && !select.dataset.bound) {
+        select.dataset.bound = 'true';
+        select.addEventListener('change', () => selectTemplatePlaceholder(select.value || ''));
+    }
+    document.querySelectorAll('#template-placeholder-map .placeholder-map-row').forEach(row => {
+        if (row.dataset.bound) return;
+        row.dataset.bound = 'true';
+        row.addEventListener('click', () => selectTemplatePlaceholder(row.dataset.placeholderName || ''));
+    });
+}
+
+function selectTemplatePlaceholder(name) {
+    const normalizedName = normalizePlaceholderName(name);
+    if (!normalizedName) return;
+    currentTemplateState.selectedPlaceholderName = normalizedName;
+    const template = getCurrentWorkbenchTemplate();
+    if (!template) return;
+    renderTemplatePlaceholderMap(
+        getTemplateWorkbenchPlaceholders(template),
+        getTemplateWorkbenchSections(template)
+    );
+    renderSelectedPlaceholderDetail(template);
+    updateTemplateSourceFromPlaceholderDraft(template);
+}
+
+function getSelectedPlaceholderMapping(template) {
+    const name = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
+    if (!name) return null;
+    const draft = currentTemplateState.placeholderMappingDrafts?.[name];
+    if (draft) return draft;
+    const mappings = getCurrentPlaceholderMappings(template);
+    return mappings.get(name) || {
+        title: inferPlaceholderTitle(name),
+        type: inferPlaceholderType(name)
+    };
+}
+
+function renderSelectedPlaceholderDetail(template) {
+    const titleEl = document.getElementById('template-selected-placeholder-title');
+    const formEl = document.getElementById('template-placeholder-detail-form');
+    const saveBtn = document.getElementById('btn-template-save-placeholder');
+    if (!formEl) return;
+
+    const name = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
+    const mapping = getSelectedPlaceholderMapping(template);
+    if (!name || !mapping) {
+        if (titleEl) titleEl.textContent = '占位符配置详情';
+        formEl.innerHTML = '<div class="empty-state compact">从左侧选择一个 Word 占位符后编辑配置</div>';
+        if (saveBtn) saveBtn.disabled = true;
+        return;
+    }
+
+    if (titleEl) titleEl.textContent = `{{${name}}} 配置`;
+    if (saveBtn) saveBtn.disabled = false;
+
+    const type = mapping.type || inferPlaceholderType(name);
+    const isPromptLike = isPromptPlaceholderType(type, mapping);
+    const promptParam = mapping.params?.param || inferPromptParam(name);
+    const needsParam = isPromptLike && Boolean(promptParam);
+    const usesQuerySource = isPromptLike && !usesEmbeddedPromptQueries(template.report_project);
+    const retrievalKeywords = getPlaceholderRetrievalKeywords(mapping, name).join('\n');
+    const typeOptions = Array.from(new Set([
+        type,
+        'prompt',
+        'composite_market_review',
+        'report_period',
+        'excel_cell',
+        'excel_range',
+        'static_text'
+    ].filter(Boolean)));
+
+    formEl.innerHTML = `
+        <label>
+            <span>标题</span>
+            <input type="text" data-placeholder-field="title" value="${esc(mapping.title || inferPlaceholderTitle(name))}">
+        </label>
+        <label>
+            <span>类型</span>
+            <select data-placeholder-field="type">
+                ${typeOptions.map(option => `
+                    <option value="${option}" ${type === option ? 'selected' : ''}>${option}</option>
+                `).join('')}
+            </select>
+        </label>
+        ${isPromptLike ? `
+            <label>
+                <span>Prompt 模板</span>
+                <input type="text" data-placeholder-field="prompt_template" value="${esc(mapping.prompt_template || resolvePromptTemplateName(name, template.report_project))}">
+            </label>
+            <label>
+                <span>检索模式</span>
+                <select data-placeholder-field="query_mode">
+                    ${['retrieval_query_embedded', 'query_source'].map(option => `
+                        <option value="${option}" ${(mapping.query_mode || 'retrieval_query_embedded') === option ? 'selected' : ''}>${option}</option>
+                    `).join('')}
+                </select>
+            </label>
+            <label>
+                <span>目标字数</span>
+                <input type="number" min="1" step="1" data-placeholder-field="target_words" value="${esc(mapping.target_words || inferDefaultTargetWords(name))}">
+            </label>
+            <label>
+                <span>最大字数</span>
+                <input type="number" min="1" step="1" data-placeholder-field="max_words" value="${esc(mapping.max_words || inferDefaultMaxWords(name))}">
+            </label>
+            ${usesQuerySource ? `
+                <label>
+                    <span>Query 来源</span>
+                    <input type="text" data-placeholder-field="query_source" value="${esc(mapping.query_source || inferQuerySource(name, template.report_project))}">
+                </label>
+            ` : ''}
+            ${needsParam ? `
+                <label>
+                    <span>参数 param</span>
+                    <input type="text" data-placeholder-field="params.param" value="${esc(promptParam)}">
+                </label>
+            ` : ''}
+            <label>
+                <span>关键词 Profile</span>
+                <input type="text" data-placeholder-field="retrieval.keyword_profile" value="${esc(mapping.retrieval?.keyword_profile || '')}">
+            </label>
+            <label>
+                <span>检索关键词（当前占位符）</span>
+                <textarea data-placeholder-field="retrieval.keywords" rows="3">${esc(retrievalKeywords)}</textarea>
+            </label>
+        ` : ''}
+        ${(type === 'excel_cell' || type === 'excel_range') ? `
+            <label>
+                <span>Excel 来源 / 区域</span>
+                <input type="text" data-placeholder-field="source" value="${esc(mapping.source || '')}">
+            </label>
+        ` : ''}
+        ${type === 'static_text' ? `
+            <label>
+                <span>静态文本</span>
+                <textarea data-placeholder-field="value" rows="3">${esc(mapping.value || '')}</textarea>
+            </label>
+        ` : ''}
+    `;
+
+    formEl.querySelectorAll('[data-placeholder-field]').forEach(input => {
+        input.addEventListener('input', () => updateTemplateSourceFromPlaceholderDraft(template));
+        input.addEventListener('change', () => {
+            updateTemplateSourceFromPlaceholderDraft(template);
+            if (input.dataset.placeholderField === 'type') {
+                renderSelectedPlaceholderDetail(template);
+                renderSelectedSourceFragment(template);
+            }
+        });
+    });
+}
+
+function collectSelectedPlaceholderDraft(template) {
+    const name = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
+    if (!name) return null;
+
+    const formEl = document.getElementById('template-placeholder-detail-form');
+    const existing = getSelectedPlaceholderMapping(template) || {};
+    const draft = { ...existing };
+    formEl?.querySelectorAll('[data-placeholder-field]').forEach(input => {
+        const field = input.dataset.placeholderField;
+        const value = input.value?.trim?.() || '';
+        if (field === 'params.param') {
+            draft.params = value ? { ...(draft.params || {}), param: value } : {};
+        } else if (field === 'retrieval.keyword_profile') {
+            if (value) {
+                draft.retrieval = { ...(draft.retrieval || {}), keyword_profile: value };
+            } else if (draft.retrieval) {
+                delete draft.retrieval.keyword_profile;
+                if (!Object.keys(draft.retrieval).length) delete draft.retrieval;
+            }
+        } else if (field === 'retrieval.keywords') {
+            const keywords = splitDelimitedList(value);
+            if (keywords.length) {
+                draft.retrieval = { ...(draft.retrieval || {}), keywords };
+            } else if (draft.retrieval) {
+                delete draft.retrieval.keywords;
+                if (!Object.keys(draft.retrieval).length) delete draft.retrieval;
+            }
+        } else if (field === 'target_words' || field === 'max_words') {
+            draft[field] = value === '' ? null : Number(value);
+        } else if (field) {
+            draft[field] = value;
+        }
+    });
+    draft.title = draft.title || inferPlaceholderTitle(name);
+    draft.type = draft.type || inferPlaceholderType(name);
+    currentTemplateState.placeholderMappingDrafts = currentTemplateState.placeholderMappingDrafts || {};
+    currentTemplateState.placeholderMappingDrafts[name] = draft;
+    return { name, draft };
+}
+
+function getPlaceholderRetrievalKeywords(mapping, placeholderName = '') {
+    const retrieval = mapping?.retrieval || {};
+    const queryTerms = retrieval.query_terms || {};
+    const keywords = retrieval.keywords || queryTerms.must_any || retrieval.must_any || [];
+    if (Array.isArray(keywords) && keywords.length) return keywords;
+    return inferPlaceholderKeywords(placeholderName);
+}
+
+function isPromptPlaceholderType(type, mapping = {}) {
+    return ['prompt', 'ai_text', 'composite_market_review'].includes(type)
+        || Boolean(mapping.prompt_template)
+        || Boolean(mapping.query_source)
+        || Boolean(mapping.retrieval)
+        || Boolean(mapping.target_words)
+        || Boolean(mapping.max_words);
+}
+
+function splitDelimitedList(value) {
+    return String(value || '')
+        .split(/[\n,，、；;]+/)
+        .map(item => item.trim())
+        .filter(Boolean);
+}
+
+function inferPlaceholderKeywords(name) {
+    const normalized = normalizePlaceholderName(name);
+    const keywordMap = {
+        'A股市场回顾': ['A股', '市场热点', '板块轮动', '成交额', '风格切换'],
+        '中国宏观': ['货币政策', '财政政策', '宏观经济', '产业政策', '就业'],
+        '人工智能': ['CPO', '算力', '人工智能', '大模型', '先进封装'],
+        '电子': ['半导体', '芯片', '集成电路', '消费电子', '汽车电子'],
+        '航天': ['商业航天', '卫星互联网', '火箭', '低空经济', '太空经济'],
+        '电力设备新能源': ['光伏', '风电', '储能', '新能源车', '锂电池'],
+        '消费': ['消费复苏', '促消费', '食品饮料', '服务消费', '零售'],
+        '金融地产': ['货币政策', '信贷', '资本市场', '房地产政策', '银行'],
+        '医药生物': ['创新药', '医疗器械', 'CRO', 'CDMO', '生物医药'],
+        '海外市场': ['美联储', '欧洲央行', '日本央行', '利率', '汇率'],
+        '美国': ['美联储', '美国经济', '美股', '美债', '美元'],
+        '欧洲': ['欧洲央行', '欧元区', '德国', '法国', '欧股'],
+        '日本': ['日本央行', '日元', '日本股市', '通胀', '利率'],
+        '美国新闻': ['美联储', '美债', '美元', '美股', '关税'],
+        '欧洲新闻': ['欧洲央行', '欧元', '欧债', '德国', '法国'],
+        '港股科技': ['港股科技', '互联网平台', '半导体', '生物医药', '南向资金'],
+        '港股央企红利': ['央企红利', '高股息', '港股通', '银行', '有色金属'],
+        '黄金': ['黄金', '美联储', '实际利率', '避险', '央行购金'],
+        '黄金市场回顾': ['黄金', '美联储', '实际利率', '避险', '央行购金'],
+        '原油': ['原油', 'OPEC', '供需', '地缘风险', '库存'],
+        '原油市场回顾': ['原油', 'OPEC', '供需', '地缘风险', '库存']
+    };
+    return keywordMap[normalized] || [];
+}
+
+function getEditablePlaceholderMappings(template) {
+    const mappings = getCurrentPlaceholderMappings(template);
+    Object.entries(currentTemplateState.placeholderMappingDrafts || {}).forEach(([name, draft]) => {
+        if (draft) mappings.set(name, draft);
+    });
+    const selectedDraft = collectSelectedPlaceholderDraft(template);
+    if (selectedDraft) {
+        mappings.set(selectedDraft.name, selectedDraft.draft);
+    }
+    return mappings;
+}
+
+function updateTemplateSourceFromPlaceholderDraft(template) {
+    renderSelectedSourceFragment(template);
+}
+
+function renderSelectedSourceFragment(template) {
+    const sourceEditor = document.getElementById('template-source-editor');
+    if (!sourceEditor) return;
+
+    const source = getTemplateWorkbenchSource(template, currentTemplateState.activeSourceKind);
+    const selectedName = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
+    const sourceKindLabel = document.getElementById('template-source-kind-label');
+
+    sourceEditor.dataset.sourceKind = source.sourceKind;
+    sourceEditor.dataset.placeholderName = selectedName;
+
+    if (source.sourceKind === 'prompt_templates') {
+        const promptName = getSelectedPromptTemplateName(template);
+        sourceEditor.dataset.promptTemplateName = promptName;
+        sourceEditor.value = getPromptTemplateFragment(source.content, promptName);
+        if (sourceKindLabel) {
+            sourceKindLabel.textContent = promptName
+                ? `${source.label}：${promptName}`
+                : source.label;
+        }
+        return;
+    }
+
+    sourceEditor.dataset.promptTemplateName = '';
+    sourceEditor.value = buildSelectedPlaceholderYamlFragment(template, getEditablePlaceholderMappings(template));
+    if (sourceKindLabel) {
+        sourceKindLabel.textContent = selectedName
+            ? `${source.label}：{{${selectedName}}}`
+            : source.label;
+    }
+}
+
+function buildUpdatedSectionConfigSource(template, mappings) {
+    const projectSource = template.report_project?.section_config_source || '';
+    const defaultsBlock = buildDefaultsBlock(collectCommonDefaultsDraft(template));
+    const placeholdersBlock = buildPlaceholderMappingsBlock(template, mappings);
+    if (!projectSource.trim()) {
+        return buildPlaceholderMappingConfigYaml(template, mappings);
+    }
+    let updatedSource = projectSource;
+    if (/(^|\n)defaults:\n/.test(updatedSource)) {
+        updatedSource = updatedSource.replace(
+            /(^|\n)defaults:\n[\s\S]*?(?=\n\S|\s*$)/,
+            `$1${defaultsBlock}`
+        );
+    } else {
+        updatedSource = insertTopLevelBlockBefore(updatedSource, defaultsBlock, ['charts:', 'placeholders:']);
+    }
+    if (/(^|\n)placeholders:\n/.test(updatedSource)) {
+        return updatedSource.replace(
+            /(^|\n)placeholders:\n[\s\S]*?(?=\n\S|\s*$)/,
+            `$1${placeholdersBlock}`
+        );
+    }
+    return `${updatedSource.trimEnd()}\n${placeholdersBlock}`;
+}
+
+function insertTopLevelBlockBefore(source, block, anchors) {
+    const lines = String(source || '').split('\n');
+    const anchorIndex = lines.findIndex(line => anchors.includes(line.trim()));
+    if (anchorIndex < 0) return `${source.trimEnd()}\n${block}`;
+    return [
+        ...lines.slice(0, anchorIndex),
+        block,
+        ...lines.slice(anchorIndex)
+    ].join('\n');
+}
+
+function buildSourceContentForSave(template, sourceKind, editorValue) {
+    if (sourceKind === 'prompt_templates') {
+        return buildUpdatedPromptTemplatesSource(template, editorValue);
+    }
+    if (sourceKind === 'section_config') {
+        return buildUpdatedSectionConfigSource(template, getEditablePlaceholderMappings(template));
+    }
+    return editorValue;
+}
+
+function buildUpdatedPromptTemplatesSource(template, promptFragment) {
+    const source = getTemplateWorkbenchSource(template, 'prompt_templates').content;
+    const promptName = document.getElementById('template-source-editor')?.dataset.promptTemplateName
+        || getSelectedPromptTemplateName(template);
+    const fragment = String(promptFragment || '').trimEnd();
+    if (!promptName || !fragment.trim()) return source;
+
+    const normalizedFragment = fragment.startsWith('## ')
+        ? fragment
+        : `## ${promptName}\n${fragment}`;
+    const blockPattern = new RegExp(`(^|\\n)##\\s+${escapeRegExp(promptName)}\\s*\\n[\\s\\S]*?(?=\\n##\\s+|$)`);
+    if (blockPattern.test(source)) {
+        return source.replace(blockPattern, `$1${normalizedFragment}\n`);
+    }
+    return `${source.trimEnd()}\n\n${normalizedFragment}\n`;
 }
 
 function renderTemplateExcelMapping(template, templateName) {
@@ -1757,6 +2310,54 @@ function buildExcelMappingRows(template) {
     ];
 }
 
+function buildTemplateValidationChecks(template, sections, placeholders) {
+    const placeholderMappings = getCurrentPlaceholderMappings(template);
+    const firstUnmappedPlaceholder = placeholders.find(placeholder =>
+        !placeholderMappings.has(normalizePlaceholderName(placeholder))
+    );
+    const allPlaceholdersMapped = placeholders.length === 0
+        || !firstUnmappedPlaceholder;
+    const hasPromptMapping = [...placeholderMappings.values()].some(mapping => mapping.prompt_template);
+    const hasExcelMapping = buildExcelMappingRows(template).length > 0;
+    const hasRuleConfig = sections.some(section =>
+        section.evidence_policy
+        || section.forbidden_terms?.length
+        || section.investment_advice_policy
+    ) || Boolean(template.report_project);
+
+    return [
+        {
+            label: 'Word 占位符均有 section 映射',
+            ok: allPlaceholdersMapped,
+            action: 'open-advanced',
+            actionTarget: 'template-placeholder-map',
+            actionLabel: '配置占位符',
+            placeholderName: firstUnmappedPlaceholder ? normalizePlaceholderName(firstUnmappedPlaceholder) : ''
+        },
+        {
+            label: 'AI 文本 section 已配置 prompt',
+            ok: hasPromptMapping || sections.some(section => section.prompt_template || section.required_facets?.length),
+            action: 'open-advanced',
+            actionTarget: 'template-placeholder-detail-form',
+            actionLabel: '编辑 Prompt'
+        },
+        {
+            label: 'Excel 图表和表格已绑定来源',
+            ok: hasExcelMapping,
+            action: 'focus-check',
+            actionTarget: 'template-excel-mapping',
+            actionLabel: '检查映射'
+        },
+        {
+            label: '数字、禁用词、投资建议规则已配置',
+            ok: hasRuleConfig,
+            action: 'open-advanced',
+            actionTarget: 'template-common-rules',
+            actionLabel: '编辑规则'
+        }
+    ];
+}
+
 function renderTemplateValidationPreview(template, sections, placeholders) {
     const statusEl = document.getElementById('template-validation-status');
     const list = document.getElementById('template-validation-list');
@@ -1768,6 +2369,15 @@ function renderTemplateValidationPreview(template, sections, placeholders) {
         <div class="validation-item ${check.ok ? 'ok' : 'pending'}">
             <i class="codicon ${check.ok ? 'codicon-pass' : 'codicon-circle-outline'}"></i>
             <span>${esc(check.label)}</span>
+            ${check.ok ? '' : `
+                <button type="button"
+                        class="template-check-action"
+                        data-template-check-action="${esc(check.action)}"
+                        data-template-check-target="${esc(check.actionTarget)}"
+                        data-template-placeholder-name="${esc(check.placeholderName || '')}">
+                    ${esc(check.actionLabel)}
+                </button>
+            `}
         </div>
     `).join('');
 
@@ -1776,25 +2386,6 @@ function renderTemplateValidationPreview(template, sections, placeholders) {
         statusEl.textContent = `${passed}/${checks.length}`;
         statusEl.classList.toggle('warning', passed < checks.length);
     }
-}
-
-function buildTemplateValidationChecks(template, sections, placeholders) {
-    const placeholderMappings = getCurrentPlaceholderMappings(template);
-    const allPlaceholdersMapped = placeholders.length === 0
-        || placeholders.every(placeholder => placeholderMappings.has(normalizePlaceholderName(placeholder)));
-    const hasPromptMapping = [...placeholderMappings.values()].some(mapping => mapping.prompt_template);
-    const hasRuleConfig = sections.some(section =>
-        section.evidence_policy
-        || section.forbidden_terms?.length
-        || section.investment_advice_policy
-    ) || Boolean(template.report_project);
-    const checks = [
-        { label: 'Word 占位符均有 section 映射', ok: allPlaceholdersMapped },
-        { label: 'AI 文本 section 已配置 prompt', ok: hasPromptMapping || sections.some(section => section.prompt_template || section.required_facets?.length) },
-        { label: 'Excel 图表和表格已绑定来源', ok: template.has_excel || (template.template_name || '').includes('创业板50') },
-        { label: '数字、禁用词、投资建议规则已配置', ok: hasRuleConfig }
-    ];
-    return checks;
 }
 
 function buildTemplateConfigYaml(template) {
@@ -1855,11 +2446,10 @@ function buildTemplateConfigYaml(template) {
     return lines.join('\n');
 }
 
-function buildPlaceholderMappingConfigYaml(template) {
+function buildPlaceholderMappingConfigYaml(template, mappingsOverride = null) {
     const name = template.template_name || template.name || currentSelectedTemplate || 'report_template';
     const project = template.report_project || null;
-    const placeholders = getTemplateWorkbenchPlaceholders(template);
-    const existingMappings = getStoredPlaceholderMappings(template);
+    const existingMappings = mappingsOverride || getStoredPlaceholderMappings(template);
     const lines = [
         '# 填写方式：',
         '# - placeholders 下每一项对应 Word 模板里的一个 {{占位符}}。',
@@ -1869,60 +2459,175 @@ function buildPlaceholderMappingConfigYaml(template) {
         usesEmbeddedPromptQueries(project)
             ? '# - prompt_template 写 Word 占位符对应的模板标题，例如：人工智能。'
             : '# - query_source 写法示例：data/industry.json#人工智能，表示取该 JSON 中“人工智能”的 QUERY。',
-        '# - retrieval.keyword_profile 表示复用哪组关键词画像；retrieval.keywords 是本段实际检索关键词。',
+        '# - params 用来传给 Prompt 模板中的 {{param}} 等变量。',
         `name: ${name}`,
         `version: ${template.version || '1.0'}`,
         'description: Word 占位符到 Excel / Prompt / 静态文本的映射',
+        buildDefaultsBlock(getEditableCommonDefaults(template)),
         'assets:',
         `  word_template: ${project?.word_template_filename || '待绑定'}`,
         `  excel_workbook: ${project?.excel_workbook_filename || '待绑定'}`,
         `  prompt_templates: ${project?.prompt_templates_filename || '未绑定'}`,
-        'placeholders:'
+        buildPlaceholderMappingsBlock(template, existingMappings)
     ];
+
+    return lines.join('\n');
+}
+
+function buildPlaceholderMappingsBlock(template, existingMappings) {
+    const placeholders = getTemplateWorkbenchPlaceholders(template)
+        .filter(placeholder => !isSystemDatePlaceholder(placeholder));
+    const lines = ['placeholders:'];
 
     placeholders.forEach(placeholder => {
         const key = normalizePlaceholderName(placeholder);
         const mapping = existingMappings.get(key) || {};
-        const type = mapping.type || inferPlaceholderType(key);
-        lines.push(`  ${key}:`);
-        lines.push(`    title: ${mapping.title || inferPlaceholderTitle(key)}`);
-        lines.push(`    type: ${type}`);
-        if (type === 'excel_cell' || type === 'excel_range') {
-            lines.push(`    source: ${mapping.source || ''}`);
-        } else if (type === 'report_period') {
-            lines.push(`    field: ${mapping.field || inferReportPeriodField(key)}`);
-        } else if (type === 'prompt') {
-            lines.push(`    prompt_template: ${mapping.prompt_template || resolvePromptTemplateName(key, project)}`);
-            if (!usesEmbeddedPromptQueries(project)) {
-                lines.push(`    query_source: ${mapping.query_source || inferQuerySource(key, project)}`);
-            } else if (!hasReportDefaultQueryMode(project)) {
-                lines.push('    query_mode: retrieval_query_embedded');
-            }
-            const retrieval = mapping.retrieval || buildKeywordRetrievalDraft(key, project);
-            if (retrieval?.keyword_profile || retrieval?.keywords?.length) {
-                lines.push('    retrieval:');
-                if (retrieval.keyword_profile) lines.push(`      keyword_profile: ${retrieval.keyword_profile}`);
-                if (retrieval.keywords?.length) {
-                    lines.push('      keywords:');
-                    retrieval.keywords.forEach(keyword => lines.push(`        - ${keyword}`));
-                }
-            }
-        } else {
-            lines.push(`    value: ${mapping.value || ''}`);
-        }
+        lines.push(...buildPlaceholderYamlEntry(template, key, mapping));
     });
 
     return lines.join('\n');
 }
 
-function inferPlaceholderType(name) {
-    if (/^(start_date|end_date)$/i.test(name) || ['开始日期', '结束日期'].includes(name)) {
-        return 'report_period';
+function buildDefaultsBlock(defaults) {
+    const validators = defaults?.validators || {};
+    const hardConstraints = defaults?.hard_constraints || {};
+    const retrieval = defaults?.retrieval || {};
+    const rerank = defaults?.rerank || {};
+    const forbiddenTerms = Array.isArray(validators.forbidden_terms)
+        ? validators.forbidden_terms
+        : ['保本', '稳赚', '收益保证', '明确买入', '目标价'];
+    const promptConstraintText = getHardConstraintPromptText(hardConstraints);
+    const lines = [
+        'defaults:',
+        `  generation_mode: ${defaults?.generation_mode || 'evidence_grounded_generation'}`,
+        `  evidence_policy: ${defaults?.evidence_policy || 'strict'}`,
+        `  query_mode: ${defaults?.query_mode || 'retrieval_query_embedded'}`,
+        '  validators:',
+        `    require_evidence_from_uploaded_material: ${validators.require_evidence_from_uploaded_material !== false}`,
+        `    forbid_external_facts: ${validators.forbid_external_facts !== false}`,
+        `    forbid_direct_investment_advice: ${validators.forbid_direct_investment_advice !== false}`,
+        '    forbidden_terms:'
+    ];
+    forbiddenTerms.forEach(term => lines.push(`      - ${term}`));
+    lines.push('  hard_constraints:');
+    lines.push('    prompt_text: |');
+    promptConstraintText.split('\n').forEach(line => lines.push(`      ${line}`));
+    lines.push('  retrieval:');
+    lines.push(`    mode: ${retrieval.mode || 'hybrid'}`);
+    lines.push(`    top_k: ${retrieval.top_k ?? 8}`);
+    lines.push(`    keyword_candidates: ${retrieval.keyword_candidates ?? 40}`);
+    lines.push(`    semantic_candidates: ${retrieval.semantic_candidates ?? 80}`);
+    lines.push(`    keyword_weight: ${retrieval.keyword_weight ?? 0.7}`);
+    lines.push(`    semantic_weight: ${retrieval.semantic_weight ?? 0.3}`);
+    lines.push('  rerank:');
+    lines.push(`    enabled: ${rerank.enabled !== false}`);
+    lines.push(`    provider: ${rerank.provider || 'deepseek'}`);
+    lines.push(`    candidates: ${rerank.candidates ?? 16}`);
+    lines.push(`    min_score: ${rerank.min_score ?? 30}`);
+    return lines.join('\n');
+}
+
+function buildSelectedPlaceholderYamlFragment(template, existingMappings) {
+    const key = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
+    if (!key) return '# 从左侧选择一个 Word 占位符后显示对应 YAML 片段';
+    if (isSystemDatePlaceholder(key)) {
+        return [
+            'placeholders:',
+            `  ${key}:`,
+            `    title: ${inferPlaceholderTitle(key)}`,
+            '    type: static_text',
+            '    value: 系统生成时自动填充'
+        ].join('\n');
     }
-    if (/^data\d+$/i.test(name)) return 'excel_cell';
+    const mapping = existingMappings.get(key) || {};
+    return [
+        '# 当前占位符片段',
+        '# 继承 defaults: 共用 Prompt 约束 / 检索配置 / Rerank / validators。',
+        '# 下方只写当前占位符自己的覆盖项，例如 prompt_template、target_words、max_words、params。',
+        'placeholders:',
+        ...buildPlaceholderYamlEntry(template, key, mapping)
+    ].join('\n');
+}
+
+function buildPlaceholderYamlEntry(template, key, mapping) {
+    const project = template.report_project || null;
+    const type = mapping.type || inferPlaceholderType(key);
+    const lines = [
+        `  ${key}:`,
+        `    title: ${mapping.title || inferPlaceholderTitle(key)}`,
+        `    type: ${type}`
+    ];
+
+    if (type === 'excel_cell' || type === 'excel_range') {
+        lines.push(`    source: ${mapping.source || ''}`);
+    } else if (isPromptPlaceholderType(type, mapping)) {
+        lines.push(`    prompt_template: ${mapping.prompt_template || resolvePromptTemplateName(key, project)}`);
+        if (!usesEmbeddedPromptQueries(project)) {
+            lines.push(`    query_source: ${mapping.query_source || inferQuerySource(key, project)}`);
+        } else {
+            lines.push('    query_mode: retrieval_query_embedded');
+        }
+        lines.push(`    target_words: ${mapping.target_words || inferDefaultTargetWords(key)}`);
+        lines.push(`    max_words: ${mapping.max_words || inferDefaultMaxWords(key)}`);
+        const retrieval = mapping.retrieval || {};
+        const keywords = getPlaceholderRetrievalKeywords(mapping, key);
+        if (retrieval.keyword_profile || keywords.length) {
+            lines.push('    retrieval:');
+            if (retrieval.keyword_profile) lines.push(`      keyword_profile: ${retrieval.keyword_profile}`);
+            if (keywords.length) {
+                lines.push('      keywords:');
+                keywords.forEach(keyword => lines.push(`        - ${keyword}`));
+            }
+        }
+        const param = mapping.params?.param || inferPromptParam(key);
+        if (param) {
+            lines.push('    params:');
+            lines.push(`      param: ${param}`);
+        } else {
+            lines.push('    params: {}');
+        }
+    } else {
+        lines.push(`    value: ${mapping.value || ''}`);
+    }
+    return lines;
+}
+
+function getSelectedPromptTemplateName(template) {
+    const name = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
+    if (!name) return '';
+    const mapping = getSelectedPlaceholderMapping(template) || {};
+    return mapping.prompt_template || resolvePromptTemplateName(name, template.report_project);
+}
+
+function getPromptTemplateFragment(source, promptName) {
+    if (!promptName) return '从左侧选择一个占位符后显示对应 Prompt 模板';
+    const pattern = new RegExp(`(^|\\n)##\\s+${escapeRegExp(promptName)}\\s*\\n([\\s\\S]*?)(?=\\n##\\s+|$)`);
+    const match = String(source || '').match(pattern);
+    if (match) {
+        return `## ${promptName}\n${match[2].trimEnd()}`;
+    }
+    return [
+        `## ${promptName}`,
+        '',
+        '# 未在 Prompt 模板库中找到当前模板，可在这里补充后保存。'
+    ].join('\n');
+}
+
+function escapeRegExp(value) {
+    return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function inferPlaceholderType(name) {
+    if (isSystemDatePlaceholder(name)) return 'static_text';
+    if (/^(start_date|end_date|data\d+)$/i.test(name)) return 'excel_cell';
     if (/^(content\d+|phrase\d+|sector\d+)$/i.test(name)) return 'prompt';
     if (/[\u4e00-\u9fff]/.test(name)) return 'prompt';
     return 'static_text';
+}
+
+function isSystemDatePlaceholder(name) {
+    const normalized = normalizePlaceholderName(name);
+    return ['开始日期', '结束日期', 'start_date', 'end_date'].includes(normalized);
 }
 
 function inferPlaceholderTitle(name) {
@@ -1932,12 +2637,6 @@ function inferPlaceholderTitle(name) {
         end_date: '结束日期'
     };
     return titles[name] || name;
-}
-
-function inferReportPeriodField(name) {
-    if (/^start_date$/i.test(name) || name === '开始日期') return 'start_date';
-    if (/^end_date$/i.test(name) || name === '结束日期') return 'end_date';
-    return 'end_date';
 }
 
 function resolvePromptTemplateName(name, project = null) {
@@ -1971,10 +2670,6 @@ function usesEmbeddedPromptQueries(project = null) {
     const promptName = project?.prompt_templates_filename || '';
     return projectName.includes('华安ETF周报')
         || (promptName && sourceFiles.length === 0);
-}
-
-function hasReportDefaultQueryMode(project = null) {
-    return Boolean(project?.section_config?.defaults?.query_mode);
 }
 
 function inferQuerySource(name, project = null) {
@@ -2017,6 +2712,23 @@ function inferPromptParam(name) {
     if (['原油', '原油市场回顾'].includes(normalized)) return '原油';
     if (normalized === '黄金') return '黄金';
     return '';
+}
+
+function inferDefaultMaxWords(name) {
+    const normalized = normalizePlaceholderName(name);
+    if (normalized === 'A股市场回顾') return 150;
+    if (['美国新闻', '欧洲新闻'].includes(normalized)) return 250;
+    if (['原油', '原油市场回顾', '黄金', '黄金市场回顾'].includes(normalized)) return 300;
+    if (['中国宏观', '美国', '欧洲', '日本', '海外市场', '港股科技', '港股央企红利'].includes(normalized)) return 350;
+    if (['人工智能', '医药生物', '消费', '金融地产', '电子', '航天', '电力设备新能源'].includes(normalized)) return 400;
+    return 300;
+}
+
+function inferDefaultTargetWords(name) {
+    const normalized = normalizePlaceholderName(name);
+    if (normalized === 'A股市场回顾') return 100;
+    const maxWords = inferDefaultMaxWords(normalized);
+    return Math.max(80, Math.round(maxWords * 0.7 / 10) * 10);
 }
 
 function shouldUsePromptTemplateLibraryDraft(template) {
@@ -2108,14 +2820,22 @@ function bindTemplateWorkbenchActions() {
     const dryRunBtn = document.getElementById('btn-template-dry-run');
     const generateBtn = document.getElementById('btn-template-generate-report');
     const sourceEditor = document.getElementById('template-source-editor');
+    const readinessPanel = document.getElementById('template-generation-readiness-panel');
+
+    bindTemplateDetailModeTabs();
+
+    if (readinessPanel && !readinessPanel.dataset.bound) {
+        readinessPanel.dataset.bound = 'true';
+        readinessPanel.addEventListener('click', event => {
+            const actionBtn = event.target.closest('[data-template-check-action]');
+            if (!actionBtn) return;
+            handleTemplateCheckAction(actionBtn);
+        });
+    }
 
     if (editBtn && sourceEditor && !editBtn.dataset.bound) {
         editBtn.dataset.bound = 'true';
         editBtn.addEventListener('click', () => {
-            if (sourceEditor.dataset.sourceKind === 'section_config') {
-                toast('当前 YAML 片段用于对照，请在上方表单修改并保存当前占位符', 'info');
-                return;
-            }
             setTemplateSourceEditing(true);
             sourceEditor.focus();
         });
@@ -2135,17 +2855,17 @@ function bindTemplateWorkbenchActions() {
     if (saveBtn && sourceEditor && !saveBtn.dataset.bound) {
         saveBtn.dataset.bound = 'true';
         saveBtn.addEventListener('click', async () => {
-            if (sourceEditor.dataset.sourceKind === 'section_config') {
-                await saveSelectedPlaceholderConfig();
-                setTemplateSourceEditing(false);
-                return;
-            }
             const key = sourceEditor.dataset.draftKey || 'report-template-source:draft';
             const sourceKind = sourceEditor.dataset.sourceKind || 'local_draft';
             saveBtn.disabled = true;
             const originalText = saveBtn.innerHTML;
             saveBtn.innerHTML = '<i class="codicon codicon-loading spin"></i> 保存中...';
             try {
+                const content = buildSourceContentForSave(
+                    getCurrentWorkbenchTemplate() || {},
+                    sourceKind,
+                    sourceEditor.value
+                );
                 if (currentTemplateState.selectedReportProject && sourceKind !== 'local_draft') {
                     const project = currentTemplateState.selectedReportProject;
                     const updatedProject = await apiCall(
@@ -2153,7 +2873,7 @@ function bindTemplateWorkbenchActions() {
                         `/api/report-projects/${encodeURIComponent(project.slug)}/source`,
                         {
                             source_kind: sourceKind,
-                            content: sourceEditor.value
+                            content
                         }
                     );
                     currentTemplateState.selectedReportProject = updatedProject;
@@ -2165,10 +2885,11 @@ function bindTemplateWorkbenchActions() {
                     }
                     toast('配置已保存到项目文件', 'success');
                 } else {
-                    localStorage.setItem(key, sourceEditor.value);
+                    localStorage.setItem(key, content);
                     toast('配置草稿已保存到本地', 'success');
                 }
                 setTemplateSourceEditing(false);
+                renderSelectedSourceFragment(getCurrentWorkbenchTemplate() || {});
             } catch (e) {
                 saveBtn.disabled = false;
                 toast('保存配置失败: ' + e.message, 'error');
@@ -2180,7 +2901,49 @@ function bindTemplateWorkbenchActions() {
 
     if (savePlaceholderBtn && !savePlaceholderBtn.dataset.bound) {
         savePlaceholderBtn.dataset.bound = 'true';
-        savePlaceholderBtn.addEventListener('click', saveSelectedPlaceholderConfig);
+        savePlaceholderBtn.addEventListener('click', async () => {
+            const template = getCurrentWorkbenchTemplate();
+            if (!template) {
+                toast('请先选择模板', 'error');
+                return;
+            }
+            updateTemplateSourceFromPlaceholderDraft(template);
+            const sourceEditor = document.getElementById('template-source-editor');
+            if (!sourceEditor) return;
+            const content = buildUpdatedSectionConfigSource(template, getEditablePlaceholderMappings(template));
+
+            savePlaceholderBtn.disabled = true;
+            const originalText = savePlaceholderBtn.innerHTML;
+            savePlaceholderBtn.innerHTML = '<i class="codicon codicon-loading spin"></i> 保存中...';
+            try {
+                if (currentTemplateState.selectedReportProject) {
+                    const project = currentTemplateState.selectedReportProject;
+                    const updatedProject = await apiCall(
+                        'PUT',
+                        `/api/report-projects/${encodeURIComponent(project.slug)}/source`,
+                        {
+                            source_kind: 'section_config',
+                            content
+                        }
+                    );
+                    currentTemplateState.selectedReportProject = updatedProject;
+                    const selectedTemplate = (currentTemplateState.templates || []).find(item =>
+                        item.report_project?.slug === project.slug
+                    );
+                    if (selectedTemplate) selectedTemplate.report_project = updatedProject;
+                    renderAdvancedMaintenance(selectedTemplate || template);
+                    toast('占位符配置已保存', 'success');
+                } else {
+                    localStorage.setItem(sourceEditor.dataset.draftKey || 'report-template-source:draft', content);
+                    toast('占位符配置草稿已保存到本地', 'success');
+                }
+            } catch (e) {
+                toast('保存占位符失败: ' + e.message, 'error');
+            } finally {
+                savePlaceholderBtn.innerHTML = originalText;
+                savePlaceholderBtn.disabled = false;
+            }
+        });
     }
 
     if (dryRunBtn && !dryRunBtn.dataset.bound) {
@@ -2198,21 +2961,72 @@ function bindTemplateWorkbenchActions() {
     if (generateBtn && !generateBtn.dataset.bound) {
         generateBtn.dataset.bound = 'true';
         generateBtn.addEventListener('click', async () => {
+            renderReportGenerationProgressCard({
+                activeKey: 'check',
+                message: '正在检查当前模板、占位符和本地草稿'
+            });
             if (sourceEditor?.dataset.draftKey) {
-                localStorage.setItem(sourceEditor.dataset.draftKey, sourceEditor.value);
+                const template = getCurrentWorkbenchTemplate() || {};
+                localStorage.setItem(
+                    sourceEditor.dataset.draftKey,
+                    buildSourceContentForSave(template, sourceEditor.dataset.sourceKind || 'local_draft', sourceEditor.value)
+                );
             }
 
             generateBtn.disabled = true;
             const originalText = generateBtn.innerHTML;
             generateBtn.innerHTML = '<i class="codicon codicon-loading spin"></i> 生成中...';
             try {
-                await renderReportFromTemplate();
+                await renderReportFromTemplate({ inlineProgress: true });
+                toast('报告生成完成', 'success');
+            } catch (e) {
+                renderReportGenerationFailure(e);
+                toast('生成失败: ' + e.message, 'error');
             } finally {
                 generateBtn.disabled = false;
                 generateBtn.innerHTML = originalText;
             }
         });
     }
+}
+
+function handleTemplateCheckAction(actionBtn) {
+    const action = actionBtn.dataset.templateCheckAction;
+    const target = actionBtn.dataset.templateCheckTarget || '';
+    const placeholderName = normalizePlaceholderName(actionBtn.dataset.templatePlaceholderName || '');
+
+    if (action === 'upload') {
+        openUploadModalForField(target);
+        return;
+    }
+
+    if (action === 'focus-check') {
+        openProjectCheckPanel(target);
+        return;
+    }
+
+    if (action === 'open-advanced') {
+        if (placeholderName) {
+            const template = getCurrentWorkbenchTemplate();
+            if (template) {
+                currentTemplateState.selectedPlaceholderName = placeholderName;
+                renderAdvancedMaintenance(template);
+            }
+        }
+        openAdvancedMaintenance(target);
+    }
+}
+
+function openUploadModalForField(fieldId) {
+    openUploadModal();
+    const template = getCurrentWorkbenchTemplate();
+    const nameInput = document.getElementById('template-name-input');
+    if (nameInput && template) {
+        nameInput.value = template.report_project?.name || template.template_name || template.name || '';
+    }
+    const field = document.getElementById(fieldId);
+    if (field) highlightWorkbenchTarget(field.closest('.form-field') || field);
+    field?.focus();
 }
 
 function setTemplateSourceEditing(editing) {
@@ -2451,7 +3265,7 @@ async function createYamlConfig() {
 }
 
 // ─── Render Report ─────────────────────────────────────────────
-async function renderReportFromTemplate() {
+async function renderReportFromTemplate(options = {}) {
     const templateSelect = document.getElementById('render-template-select');
     const typeSelect = document.getElementById('render-type-select');
     const canonicalIdInput = document.getElementById('render-canonical-id');
@@ -2463,8 +3277,10 @@ async function renderReportFromTemplate() {
     const reportType = reportTypeSelect?.value || 'full';
 
     if (!templateName) {
-        toast('请先选择一个模板', 'error');
-        return;
+        const error = new Error('请先选择一个模板');
+        if (options.inlineProgress) throw error;
+        toast(error.message, 'error');
+        return null;
     }
 
     const loadingEl = document.getElementById('render-loading');
@@ -2475,6 +3291,12 @@ async function renderReportFromTemplate() {
 
     try {
         let result;
+        if (options.inlineProgress) {
+            renderReportGenerationProgressCard({
+                activeKey: 'generate',
+                message: '正在检索证据、调用模型并生成正文'
+            });
+        }
 
         if (!canonicalId && currentTemplateState.selectedReportProject) {
             result = await renderReportProject(currentTemplateState.selectedReportProject);
@@ -2495,12 +3317,28 @@ async function renderReportFromTemplate() {
         }
 
         currentTemplateState.renderedReportId = result.report_id || result.file_name || null;
+        const renderedProjectSlug = currentTemplateState.selectedReportProject?.slug;
+        if (renderedProjectSlug) {
+            if (options.inlineProgress) {
+                renderReportGenerationProgressCard({
+                    activeKey: 'refresh',
+                    message: '报告已写入 Word，正在刷新最近版本和预览入口'
+                });
+            }
+            const projects = await loadReportProjectsList();
+            const refreshedProject = (projects || []).find(project => project.slug === renderedProjectSlug);
+            const selectedTemplate = getCurrentWorkbenchTemplate();
+            if (selectedTemplate && refreshedProject) {
+                selectedTemplate.report_project = refreshedProject;
+                currentTemplateState.selectedReportProject = refreshedProject;
+                renderReportGenerationCenter(selectedTemplate);
+            }
+        }
 
         if (resultEl) {
             const downloadUrl = result.download_url
                 || (result.report_id ? `/api/templates/download/${encodeURIComponent(result.report_id)}` : null);
             const previewUrl = result.preview_url || null;
-            const runLogUrl = result.run_log_url || null;
             const downloadLink = document.getElementById('render-download-link');
             if (downloadLink && downloadUrl) {
                 downloadLink.href = downloadUrl;
@@ -2532,104 +3370,19 @@ async function renderReportFromTemplate() {
                         </div>
                     </div>
                 ` : ''}
-                ${runLogUrl ? `
-                    <div class="report-preview-shell evidence-debug-shell">
-                        <div class="report-preview-header">
-                            <strong>Evidence 检索调试</strong>
-                            <span>Top K / 命中词 / 关键词分 / 语义分 / 融合分 / Rerank</span>
-                        </div>
-                        <div id="render-evidence-debug" class="report-preview-content">
-                            <div class="loading compact"><div class="spinner"></div><span>正在加载 evidence...</span></div>
-                        </div>
-                    </div>
-                ` : ''}
             `;
             resultEl.classList.remove('hidden');
             if (previewUrl) {
                 await loadRenderedReportPreview(previewUrl);
             }
-            if (runLogUrl) {
-                await loadRenderedReportEvidence(runLogUrl);
-            }
         }
+        return result;
     } catch (e) {
+        if (options.inlineProgress) throw e;
         toast('渲染失败: ' + e.message, 'error');
+        return null;
     } finally {
         if (loadingEl) loadingEl.classList.add('hidden');
-    }
-}
-
-async function loadRenderedReportEvidence(runLogUrl) {
-    const container = document.getElementById('render-evidence-debug');
-    if (!container) return;
-    try {
-        const runLog = await apiCall('GET', runLogUrl);
-        const sections = runLog?.generation?.sections || [];
-        if (!sections.length) {
-            container.innerHTML = '<div class="empty-state compact">暂无 generation 记录。</div>';
-            return;
-        }
-        container.innerHTML = sections.map(section => {
-            const evidence = section.evidence || [];
-            const topItems = evidence.slice(0, 3).map(item => {
-                const terms = item.matched_terms?.length
-                    ? `<span class="muted">命中：${esc(item.matched_terms.join(' / '))}</span>`
-                    : '<span class="muted">未记录命中词</span>';
-                const scoreParts = [];
-                if (item.retrieval_rank) scoreParts.push(`Rank ${item.retrieval_rank}`);
-                if (item.retrieval_method) scoreParts.push(item.retrieval_method);
-                if (item.keyword_score !== null && item.keyword_score !== undefined) {
-                    scoreParts.push(`关键词 ${item.keyword_score}`);
-                }
-                if (item.semantic_score !== null && item.semantic_score !== undefined) {
-                    scoreParts.push(`语义 ${Number(item.semantic_score).toFixed(3)}`);
-                }
-                if (item.retrieval_score !== null && item.retrieval_score !== undefined) {
-                    scoreParts.push(`融合 ${Number(item.retrieval_score).toFixed(4)}`);
-                }
-                if (item.rerank_rank) scoreParts.push(`Rerank ${item.rerank_rank}`);
-                if (item.rerank_score !== null && item.rerank_score !== undefined) {
-                    scoreParts.push(`重排 ${item.rerank_score}`);
-                }
-                const score = scoreParts.length
-                    ? `<span class="muted">${esc(scoreParts.join(' / '))}</span>`
-                    : '';
-                const reason = item.rerank_reason
-                    ? `<div class="muted">重排理由：${esc(item.rerank_reason)}</div>`
-                    : '';
-                return `
-                    <li>
-                        <strong>${esc(item.title || '未命名 evidence')}</strong>
-                        <div>${terms} ${score}</div>
-                        ${reason}
-                    </li>
-                `;
-            }).join('');
-            const retrieval = section.retrieval_config || {};
-            const mustAny = retrieval.must_any?.length
-                ? `<div class="muted">关键词：${esc(retrieval.must_any.join(' / '))}</div>`
-                : '';
-            const retrievalSummary = retrieval.mode
-                ? `<div class="muted">模式：${esc(retrieval.mode)} / ${esc(retrieval.fusion_method || 'keyword')} / keyword ${esc(String(retrieval.keyword_weight ?? '-'))} / semantic ${esc(String(retrieval.semantic_weight ?? '-'))}</div>`
-                : '';
-            const rerankSummary = retrieval.rerank_enabled
-                ? `<div class="muted">Rerank：${esc(retrieval.rerank_provider || 'llm')} / Top ${esc(String(retrieval.rerank_top_n || '-'))} / 阈值 ${esc(String(retrieval.min_rerank_score ?? 0))}</div>`
-                : '';
-            return `
-                <div class="evidence-debug-section">
-                    <div class="evidence-debug-title">
-                        <strong>${esc(section.placeholder || section.title || 'Section')}</strong>
-                        <span>${evidence.length} 条 evidence</span>
-                    </div>
-                    ${retrievalSummary}
-                    ${rerankSummary}
-                    ${mustAny}
-                    <ol>${topItems || '<li class="muted">没有进入最终 prompt 的 evidence</li>'}</ol>
-                </div>
-            `;
-        }).join('');
-    } catch (error) {
-        container.innerHTML = `<div class="empty-state compact">Evidence 加载失败：${esc(error.message)}</div>`;
     }
 }
 

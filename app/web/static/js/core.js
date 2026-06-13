@@ -5,10 +5,11 @@
 // ─── API ────────────────────────────────────────────────────
 const API_BASE = '';
 
-export async function apiCall(method, url, body = null) {
+export async function apiCall(method, url, body = null, options = {}) {
     const opts = {
         method,
         headers: { 'Content-Type': 'application/json' },
+        signal: options.signal,
     };
     if (body) opts.body = JSON.stringify(body);
     const resp = await fetch(`${API_BASE}${url}`, opts);

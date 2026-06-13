@@ -5,13 +5,13 @@
 
 import { apiCall, toast, esc, getChartColors, applyChartDefaults } from './core.js';
 import { loadDashboard, switchDashTab } from './dashboard.js';
-import { startCrawlFeedPolling, stopCrawlFeedPolling, startWorkersPolling, stopWorkersPolling, loadWorkersStatus } from './monitor.js?v=4';
+import { startCrawlFeedPolling, stopCrawlFeedPolling, startWorkersPolling, stopWorkersPolling, loadWorkersStatus } from './monitor.js?v=6';
 import { searchAssets, selectAsset, analyzeAssetByCode, analyzeAsset, handleAssetSearchKeydown, initAssetSearch, setKLineTimeRange, toggleMA, initKLineToolbar } from './asset.js?v=20250605a';
 import { switchSignalLabTab, loadSignalLab, initSignalLab } from './signal-lab.js';
 import { loadMemoryPage, loadEpisodes, loadStrategies, loadFailures, loadEventSummary, initMemory } from './memory.js';
 import { loadSignals, createSignal, validateSignal, promoteSignal, loadOutcomes, initSignals } from './signals.js';
 import { loadReviewStats, loadReviewPending, approveItem, rejectItem, initReview } from './review.js';
-import { loadTemplatesPage, loadTemplates, loadTemplatesList, selectTemplate, deleteTemplate, uploadTemplate, downloadTemplateFile, renderReportFromTemplate, downloadRenderedReport, savePlaceholderConfig, exportYamlConfig, generateAiContent, generateAllAiFields, discoverPlaceholders, createYamlConfig, openUploadModal, closeUploadModal, openEditTemplateModal, closeEditTemplateModal, saveTemplateEdit, toggleEditMode, saveTemplatesOrder, handleTemplatePointerDown, handleDragStart, handleDragOver, handleDrop, switchTemplatesTab, goBackToTemplates, clearPlaceholderData, updatePlaceholderConfig, updatePlaceholderValue, initTemplateDropZone, handleTemplateFileSelect, clearFileSelection, handleTemplateNameKeydown, saveTemplateInlineName } from './templates.js?v=20250611f';
+import { loadTemplatesPage, loadTemplates, loadTemplatesList, selectTemplate, deleteTemplate, uploadTemplate, downloadTemplateFile, renderReportFromTemplate, downloadRenderedReport, savePlaceholderConfig, exportYamlConfig, generateAiContent, generateAllAiFields, discoverPlaceholders, createYamlConfig, openUploadModal, closeUploadModal, openEditTemplateModal, closeEditTemplateModal, saveTemplateEdit, toggleEditMode, saveTemplatesOrder, handleTemplatePointerDown, handleDragStart, handleDragOver, handleDrop, switchTemplatesTab, goBackToTemplates, clearPlaceholderData, updatePlaceholderConfig, updatePlaceholderValue, initTemplateDropZone, handleTemplateFileSelect, clearFileSelection, handleTemplateNameKeydown, saveTemplateInlineName } from './templates.js?v=20250613e';
 import { showSignalDetail, renderSignalDetail, renderAuditTrailTimeline, loadAuditTrail } from './signal-detail.js';
 import { generateScenarios, renderScenarioResult } from './scenario.js';
 import { generateEventSignal, loadEventSignals, renderEventSignalResult, renderTimingDecision } from './event-signal.js';

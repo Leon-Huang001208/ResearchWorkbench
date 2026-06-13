@@ -28,6 +28,11 @@ ITEM_PROCESSING_TIMEOUT = float(os.environ.get("KNOWLEDGE_WORKER_ITEM_TIMEOUT", 
 STUCK_RECOVERY_MINUTES = int(os.environ.get("KNOWLEDGE_WORKER_STUCK_RECOVERY_MINUTES", "5"))
 MAX_RESTARTS = int(os.environ.get("KNOWLEDGE_WORKER_MAX_RESTARTS", "10"))
 RESTART_COOLDOWN = float(os.environ.get("KNOWLEDGE_WORKER_RESTART_COOLDOWN", "300"))
+DISABLED_EXTRACTION_SOURCES = {
+    source.strip()
+    for source in os.environ.get("KNOWLEDGE_WORKER_DISABLED_EXTRACTION_SOURCES", "cninfo").split(",")
+    if source.strip()
+}
 WORKER_NAME = "knowledge_worker"
 
 
@@ -260,6 +265,27 @@ async def _process_and_mark(
     async with semaphore:
         db = SessionLocal()
         try:
+            if item.source_type in DISABLED_EXTRACTION_SOURCES:
+                from datetime import datetime, timezone
+
+                from data_layer.repositories.models import IngestionQueueItemDB
+
+                db_item = db.query(IngestionQueueItemDB).filter_by(item_id=item.item_id).first()
+                if db_item is not None:
+                    db_item.retry_count = db_item.max_retries
+                    db_item.status = "failed"
+                    db_item.failure_reason = (
+                        f"Extraction disabled for source_type={item.source_type}"
+                    )
+                    db_item.processed_at = datetime.now(timezone.utc)
+                db.commit()
+                logger.info(
+                    "Item skipped because extraction is disabled",
+                    item_id=item.item_id,
+                    source_type=item.source_type,
+                )
+                return None
+
             result = await process_one(item, pipeline)
 
             # Persist source documents BEFORE events to satisfy source_document FK.

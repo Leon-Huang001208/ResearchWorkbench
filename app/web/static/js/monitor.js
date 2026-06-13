@@ -8,7 +8,6 @@ import { apiCall, esc } from './core.js';
 // ─── Live Crawl Feed Polling (分源独立轮询) ─────────────────
 const CRAWL_FEED_SOURCES = [
     { id: 'cls', label: 'CLS', limit: 200 },
-    { id: 'cninfo', label: '巨潮公告', limit: 200 },
     { id: 'cnstock', label: 'CNSTOCK', limit: 200 },
     { id: 'cnstock_flash', label: '快讯', limit: 200 },
     { id: 'zhiqiu_reports', label: 'ZQ研报', limit: 200 },
@@ -17,6 +16,7 @@ const CRAWL_FEED_SOURCES = [
 ];
 
 const crawlFeedStates = {};
+const crawlFeedControllers = {};
 
 function getFeedState(sourceType) {
     if (!crawlFeedStates[sourceType]) {
@@ -26,13 +26,19 @@ function getFeedState(sourceType) {
 }
 
 async function loadCrawlFeedForSource(sourceType, initial) {
+    if (crawlFeedControllers[sourceType]) {
+        crawlFeedControllers[sourceType].abort();
+    }
+    const controller = new AbortController();
+    crawlFeedControllers[sourceType] = controller;
+
     try {
         const state = getFeedState(sourceType);
         let url = `/api/dashboard/crawl-feed?limit=500&source_type=${encodeURIComponent(sourceType)}`;
         if (!initial && state.lastTs) {
             url += '&since=' + encodeURIComponent(state.lastTs);
         }
-        const data = await apiCall('GET', url);
+        const data = await apiCall('GET', url, null, { signal: controller.signal });
         if (!data || !Array.isArray(data.items)) return;
 
         const list = document.getElementById('feed-list-' + sourceType);
@@ -115,7 +121,12 @@ async function loadCrawlFeedForSource(sourceType, initial) {
             }, 3000);
         }
     } catch (e) {
+        if (e.name === 'AbortError') return;
         console.warn('[CrawlFeed:' + sourceType + '] Poll error:', e);
+    } finally {
+        if (crawlFeedControllers[sourceType] === controller) {
+            delete crawlFeedControllers[sourceType];
+        }
     }
 }
 
@@ -149,10 +160,15 @@ function stopCrawlFeedPolling() {
         clearInterval(crawlFeedIntervals[id]);
         delete crawlFeedIntervals[id];
     });
+    Object.keys(crawlFeedControllers).forEach(id => {
+        crawlFeedControllers[id].abort();
+        delete crawlFeedControllers[id];
+    });
 }
 
 // ─── Workers Status ─────────────────────────────────────────
 let _workersPollTimer = null;
+let _workersStatusController = null;
 
 function startWorkersPolling() {
     stopWorkersPolling();
@@ -165,14 +181,31 @@ function stopWorkersPolling() {
         clearInterval(_workersPollTimer);
         _workersPollTimer = null;
     }
+    if (_workersStatusController) {
+        _workersStatusController.abort();
+        _workersStatusController = null;
+    }
 }
 
 async function loadWorkersStatus() {
+    if (_workersStatusController) {
+        _workersStatusController.abort();
+    }
+    const controller = new AbortController();
+    _workersStatusController = controller;
+
     try {
-        const data = await apiCall('GET', '/api/system/workers/status');
+        const data = await apiCall('GET', '/api/system/workers/status', null, {
+            signal: controller.signal,
+        });
         renderWorkersPanel(data);
     } catch (e) {
+        if (e.name === 'AbortError') return;
         console.error('Failed to load workers status:', e);
+    } finally {
+        if (_workersStatusController === controller) {
+            _workersStatusController = null;
+        }
     }
 }
 
