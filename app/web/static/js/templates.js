@@ -1558,6 +1558,21 @@ function getStoredCommonDefaults(template) {
             forbid_direct_investment_advice: true,
             forbidden_terms: ['保本', '稳赚', '收益保证', '明确买入', '目标价']
         },
+        generation_constraints: [
+            '严格依据上传材料、Excel 数据和 evidence，不添加外部知识或虚构数据',
+            '不得使用 Wind 数据',
+            '不得使用日度数据；如需描述市场表现，应使用周度或区间汇总数据',
+            '使用数据或数值时必须说明来源；如数据来自已上传 Excel，可直接用于正文',
+            '生成一段正文，不输出换行符',
+            '不得输出标题、编号、项目符号或解释过程',
+            '不得输出直接投资建议、收益承诺、目标价或买卖指令',
+            '禁止出现这些词语：保本、稳赚、收益保证、明确买入、目标价',
+            '禁止出现这些短语：根据文件、据报道、数据显示',
+            '禁止提及与本段无关的指数名称、公司名称、证券机构、个股名称、ETF 名称',
+            '如写作参数、固定模板或 Excel 数据明确要求引用指数名称，可以用于客观描述，不得展开投资评价',
+            '如因说明数据出处必须引用机构名称，只能作为来源出现，不得展开评价',
+            '可基于事实做一句审慎趋势判断，但必须直接由前文事实或数据支撑'
+        ],
         hard_constraints: {
             no_wind_data: true,
             no_baidu_data: true,
@@ -1593,6 +1608,9 @@ function getStoredCommonDefaults(template) {
         ...base,
         ...defaults,
         validators: { ...base.validators, ...(defaults.validators || {}) },
+        generation_constraints: Array.isArray(defaults.generation_constraints)
+            ? defaults.generation_constraints
+            : base.generation_constraints,
         hard_constraints: { ...base.hard_constraints, ...(defaults.hard_constraints || {}) },
         retrieval: { ...base.retrieval, ...(defaults.retrieval || {}) },
         rerank: { ...base.rerank, ...(defaults.rerank || {}) }
@@ -1609,15 +1627,10 @@ function renderCommonGenerationRules(template) {
 
     const defaults = getEditableCommonDefaults(template);
     const validators = defaults.validators || {};
-    const hardConstraints = defaults.hard_constraints || {};
     const retrieval = defaults.retrieval || {};
     const rerank = defaults.rerank || {};
-    const promptConstraintText = getHardConstraintPromptText(hardConstraints);
-    const forbiddenPhrases = Array.isArray(hardConstraints.forbidden_phrases)
-        ? hardConstraints.forbidden_phrases.join('\n')
-        : '';
-    const forbiddenEntityCategories = Array.isArray(hardConstraints.forbidden_entity_categories)
-        ? hardConstraints.forbidden_entity_categories.join('\n')
+    const generationConstraints = Array.isArray(defaults.generation_constraints)
+        ? defaults.generation_constraints.join('\n')
         : '';
     const searchKeywords = Array.isArray(retrieval.keywords)
         ? retrieval.keywords.join('\n')
@@ -1634,7 +1647,7 @@ function renderCommonGenerationRules(template) {
             <summary>
                 <span class="template-common-summary-title">
                     <strong>共用 Prompt 约束</strong>
-                    <small>${esc(getFirstLine(promptConstraintText))}</small>
+                    <small>${esc(getFirstLine(generationConstraints))}</small>
                 </span>
                 <span class="template-common-summary-meta">
                     拼入每个占位符
@@ -1642,23 +1655,9 @@ function renderCommonGenerationRules(template) {
                 </span>
             </summary>
             <div class="template-common-rule-editor">
-                <div class="template-common-check-grid">
-                    <label><input type="checkbox" data-common-rule-field="hard_constraints.no_wind_data" ${hardConstraints.no_wind_data !== false ? 'checked' : ''}><span>不使用 Wind 数据</span></label>
-                    <label><input type="checkbox" data-common-rule-field="hard_constraints.no_baidu_data" ${hardConstraints.no_baidu_data !== false ? 'checked' : ''}><span>不使用百度数据</span></label>
-                    <label><input type="checkbox" data-common-rule-field="hard_constraints.require_number_source" ${hardConstraints.require_number_source !== false ? 'checked' : ''}><span>数字必须说明来源</span></label>
-                    <label><input type="checkbox" data-common-rule-field="hard_constraints.single_paragraph" ${hardConstraints.single_paragraph !== false ? 'checked' : ''}><span>只输出一段，不换行</span></label>
-                </div>
                 <label class="template-common-field wide">
-                    <span>这段文字会和每个占位符的 Prompt 模板、RAG 证据一起传给大模型</span>
-                    <textarea data-common-rule-field="hard_constraints.prompt_text" rows="7">${esc(promptConstraintText)}</textarea>
-                </label>
-                <label class="template-common-field wide">
-                    <span>禁用短语（逗号或换行分隔）</span>
-                    <textarea data-common-rule-field="hard_constraints.forbidden_phrases" rows="3">${esc(forbiddenPhrases)}</textarea>
-                </label>
-                <label class="template-common-field wide">
-                    <span>禁用实体类别（逗号或换行分隔）</span>
-                    <textarea data-common-rule-field="hard_constraints.forbidden_entity_categories" rows="3">${esc(forbiddenEntityCategories)}</textarea>
+                    <span>共用生成约束（一行一条，所有 prompt 占位符默认继承）</span>
+                    <textarea data-common-rule-field="generation_constraints" rows="12">${esc(generationConstraints)}</textarea>
                 </label>
             </div>
         </details>
@@ -1810,6 +1809,9 @@ function collectCommonDefaultsDraft(template) {
         ...existing,
         validators: { ...(existing.validators || {}) },
         hard_constraints: { ...(existing.hard_constraints || {}) },
+        generation_constraints: Array.isArray(existing.generation_constraints)
+            ? [...existing.generation_constraints]
+            : [],
         retrieval: { ...(existing.retrieval || {}) },
         rerank: { ...(existing.rerank || {}) }
     };
@@ -1821,6 +1823,7 @@ function collectCommonDefaultsDraft(template) {
         if (input.type === 'checkbox') {
             value = input.checked;
         } else if (field === 'validators.forbidden_terms'
+            || field === 'generation_constraints'
             || field === 'hard_constraints.forbidden_phrases'
             || field === 'hard_constraints.forbidden_entity_categories'
             || field === 'retrieval.keywords') {
@@ -1975,6 +1978,10 @@ function renderSelectedPlaceholderDetail(template) {
     const needsParam = isPromptLike && Boolean(promptParam);
     const usesQuerySource = isPromptLike && !usesEmbeddedPromptQueries(template.report_project);
     const retrievalKeywords = getPlaceholderRetrievalKeywords(mapping, name).join('\n');
+    const minNewsCount = mapping.min_news_count || '';
+    const dataTemplate = getDataTemplateComponent(mapping).template || inferDefaultDataTemplate(name);
+    const writingStructure = getLlmWritingComponent(mapping).writing_structure || mapping.writing_structure || inferDefaultWritingStructure(name);
+    const writingStructureText = Array.isArray(writingStructure) ? writingStructure.join('\n') : '';
     const typeOptions = Array.from(new Set([
         type,
         'prompt',
@@ -2019,6 +2026,20 @@ function renderSelectedPlaceholderDetail(template) {
                 <span>最大字数</span>
                 <input type="number" min="1" step="1" data-placeholder-field="max_words" value="${esc(mapping.max_words || inferDefaultMaxWords(name))}">
             </label>
+            <label>
+                <span>最少 evidence/news 条数</span>
+                <input type="number" min="1" step="1" data-placeholder-field="min_news_count" value="${esc(minNewsCount)}">
+            </label>
+            ${type === 'composite_market_review' ? `
+                <label>
+                    <span>固定开头模板（Excel 数据填充）</span>
+                    <textarea data-placeholder-field="components.data_template.template" rows="4">${esc(dataTemplate)}</textarea>
+                </label>
+            ` : ''}
+            <label>
+                <span>${type === 'composite_market_review' ? '后续写作结构（一行一步）' : '写作结构（一行一步，可选）'}</span>
+                <textarea data-placeholder-field="components.llm_writing.writing_structure" rows="5">${esc(writingStructureText)}</textarea>
+            </label>
             ${usesQuerySource ? `
                 <label>
                     <span>Query 来源</span>
@@ -2033,7 +2054,7 @@ function renderSelectedPlaceholderDetail(template) {
             ` : ''}
             <label>
                 <span>关键词 Profile</span>
-                <input type="text" data-placeholder-field="retrieval.keyword_profile" value="${esc(mapping.retrieval?.keyword_profile || '')}">
+                <input type="text" data-placeholder-field="retrieval.keyword_profile" value="${esc(mapping.retrieval?.keyword_profile || getLlmWritingComponent(mapping).retrieval?.keyword_profile || '')}">
             </label>
             <label>
                 <span>检索关键词（当前占位符）</span>
@@ -2079,7 +2100,9 @@ function collectSelectedPlaceholderDraft(template) {
         if (field === 'params.param') {
             draft.params = value ? { ...(draft.params || {}), param: value } : {};
         } else if (field === 'retrieval.keyword_profile') {
-            if (value) {
+            if ((draft.type || inferPlaceholderType(name)) === 'composite_market_review') {
+                setLlmWritingRetrievalDraftField(draft, 'keyword_profile', value || null);
+            } else if (value) {
                 draft.retrieval = { ...(draft.retrieval || {}), keyword_profile: value };
             } else if (draft.retrieval) {
                 delete draft.retrieval.keyword_profile;
@@ -2087,13 +2110,19 @@ function collectSelectedPlaceholderDraft(template) {
             }
         } else if (field === 'retrieval.keywords') {
             const keywords = splitDelimitedList(value);
-            if (keywords.length) {
+            if ((draft.type || inferPlaceholderType(name)) === 'composite_market_review') {
+                setLlmWritingRetrievalDraftField(draft, 'keywords', keywords);
+            } else if (keywords.length) {
                 draft.retrieval = { ...(draft.retrieval || {}), keywords };
             } else if (draft.retrieval) {
                 delete draft.retrieval.keywords;
                 if (!Object.keys(draft.retrieval).length) delete draft.retrieval;
             }
-        } else if (field === 'target_words' || field === 'max_words') {
+        } else if (field === 'components.data_template.template') {
+            setComponentDraftField(draft, 'data_template', 'template', value);
+        } else if (field === 'components.llm_writing.writing_structure') {
+            setComponentDraftField(draft, 'llm_writing', 'writing_structure', splitLines(value));
+        } else if (field === 'target_words' || field === 'max_words' || field === 'min_news_count') {
             draft[field] = value === '' ? null : Number(value);
         } else if (field) {
             draft[field] = value;
@@ -2106,12 +2135,81 @@ function collectSelectedPlaceholderDraft(template) {
     return { name, draft };
 }
 
+function getDataTemplateComponent(mapping = {}) {
+    return getPlaceholderComponent(mapping, 'data_template');
+}
+
+function getLlmWritingComponent(mapping = {}) {
+    return getPlaceholderComponent(mapping, 'llm_writing');
+}
+
+function getPlaceholderComponent(mapping = {}, componentType = '') {
+    const components = Array.isArray(mapping.components) ? mapping.components : [];
+    return components.find(component => component?.type === componentType) || {};
+}
+
+function setComponentDraftField(draft, componentType, field, value) {
+    const components = Array.isArray(draft.components) ? [...draft.components] : [];
+    let index = components.findIndex(component => component?.type === componentType);
+    if (index < 0) {
+        components.push({
+            name: componentType === 'data_template' ? '市场表现与交易面' : '市场热点与趋势判断',
+            type: componentType
+        });
+        index = components.length - 1;
+    }
+    const component = { ...(components[index] || {}), type: componentType };
+    if (Array.isArray(value) ? value.length : Boolean(value)) {
+        component[field] = value;
+    } else {
+        delete component[field];
+    }
+    components[index] = component;
+    draft.components = components;
+}
+
+function setLlmWritingRetrievalDraftField(draft, field, value) {
+    const components = Array.isArray(draft.components) ? [...draft.components] : [];
+    let index = components.findIndex(component => component?.type === 'llm_writing');
+    if (index < 0) {
+        components.push({ name: '市场热点与趋势判断', type: 'llm_writing' });
+        index = components.length - 1;
+    }
+    const component = { ...(components[index] || {}), type: 'llm_writing' };
+    const retrieval = { ...(component.retrieval || {}) };
+    if (Array.isArray(value) ? value.length : Boolean(value)) {
+        retrieval[field] = value;
+    } else {
+        delete retrieval[field];
+    }
+    component.retrieval = retrieval;
+    if (!Object.keys(retrieval).length) delete component.retrieval;
+    components[index] = component;
+    draft.components = components;
+    if (draft.retrieval) {
+        delete draft.retrieval[field];
+        if (!Object.keys(draft.retrieval).length) delete draft.retrieval;
+    }
+}
+
 function getPlaceholderRetrievalKeywords(mapping, placeholderName = '') {
     const retrieval = mapping?.retrieval || {};
+    const componentRetrieval = getLlmWritingComponent(mapping)?.retrieval || {};
     const queryTerms = retrieval.query_terms || {};
-    const keywords = retrieval.keywords || queryTerms.must_any || retrieval.must_any || [];
+    const keywords = retrieval.keywords
+        || queryTerms.must_any
+        || retrieval.must_any
+        || componentRetrieval.keywords
+        || [];
     if (Array.isArray(keywords) && keywords.length) return keywords;
     return inferPlaceholderKeywords(placeholderName);
+}
+
+function splitLines(value) {
+    return String(value || '')
+        .split(/\n+/)
+        .map(item => item.trim())
+        .filter(Boolean);
 }
 
 function isPromptPlaceholderType(type, mapping = {}) {
@@ -2119,6 +2217,7 @@ function isPromptPlaceholderType(type, mapping = {}) {
         || Boolean(mapping.prompt_template)
         || Boolean(mapping.query_source)
         || Boolean(mapping.retrieval)
+        || Boolean(mapping.components)
         || Boolean(mapping.target_words)
         || Boolean(mapping.max_words);
 }
@@ -2490,13 +2589,14 @@ function buildPlaceholderMappingsBlock(template, existingMappings) {
 
 function buildDefaultsBlock(defaults) {
     const validators = defaults?.validators || {};
-    const hardConstraints = defaults?.hard_constraints || {};
     const retrieval = defaults?.retrieval || {};
     const rerank = defaults?.rerank || {};
     const forbiddenTerms = Array.isArray(validators.forbidden_terms)
         ? validators.forbidden_terms
         : ['保本', '稳赚', '收益保证', '明确买入', '目标价'];
-    const promptConstraintText = getHardConstraintPromptText(hardConstraints);
+    const generationConstraints = Array.isArray(defaults?.generation_constraints)
+        ? defaults.generation_constraints
+        : getStoredCommonDefaults({}).generation_constraints;
     const lines = [
         'defaults:',
         `  generation_mode: ${defaults?.generation_mode || 'evidence_grounded_generation'}`,
@@ -2509,9 +2609,8 @@ function buildDefaultsBlock(defaults) {
         '    forbidden_terms:'
     ];
     forbiddenTerms.forEach(term => lines.push(`      - ${term}`));
-    lines.push('  hard_constraints:');
-    lines.push('    prompt_text: |');
-    promptConstraintText.split('\n').forEach(line => lines.push(`      ${line}`));
+    lines.push('  generation_constraints:');
+    generationConstraints.forEach(item => lines.push(`  - ${item}`));
     lines.push('  retrieval:');
     lines.push(`    mode: ${retrieval.mode || 'hybrid'}`);
     lines.push(`    top_k: ${retrieval.top_k ?? 8}`);
@@ -2569,14 +2668,19 @@ function buildPlaceholderYamlEntry(template, key, mapping) {
         }
         lines.push(`    target_words: ${mapping.target_words || inferDefaultTargetWords(key)}`);
         lines.push(`    max_words: ${mapping.max_words || inferDefaultMaxWords(key)}`);
-        const retrieval = mapping.retrieval || {};
-        const keywords = getPlaceholderRetrievalKeywords(mapping, key);
-        if (retrieval.keyword_profile || keywords.length) {
-            lines.push('    retrieval:');
-            if (retrieval.keyword_profile) lines.push(`      keyword_profile: ${retrieval.keyword_profile}`);
-            if (keywords.length) {
-                lines.push('      keywords:');
-                keywords.forEach(keyword => lines.push(`        - ${keyword}`));
+        if (mapping.min_news_count) lines.push(`    min_news_count: ${mapping.min_news_count}`);
+        if (type === 'composite_market_review') {
+            lines.push(...buildCompositeMarketReviewYamlLines(mapping, key));
+        } else {
+            const retrieval = mapping.retrieval || {};
+            const keywords = getPlaceholderRetrievalKeywords(mapping, key);
+            if (retrieval.keyword_profile || keywords.length) {
+                lines.push('    retrieval:');
+                if (retrieval.keyword_profile) lines.push(`      keyword_profile: ${retrieval.keyword_profile}`);
+                if (keywords.length) {
+                    lines.push('      keywords:');
+                    keywords.forEach(keyword => lines.push(`      - ${keyword}`));
+                }
             }
         }
         const param = mapping.params?.param || inferPromptParam(key);
@@ -2588,6 +2692,40 @@ function buildPlaceholderYamlEntry(template, key, mapping) {
         }
     } else {
         lines.push(`    value: ${mapping.value || ''}`);
+    }
+    return lines;
+}
+
+function buildCompositeMarketReviewYamlLines(mapping, key) {
+    const lines = [
+        '    data_source:',
+        '      workbook: 周报数据.xlsx',
+        '      domestic_sheet: 国内',
+        '      turnover_sheet: 市场成交',
+        '    components:'
+    ];
+    const dataTemplate = getDataTemplateComponent(mapping).template || inferDefaultDataTemplate(key);
+    lines.push('    - name: 市场表现与交易面');
+    lines.push('      type: data_template');
+    lines.push('      source: excel');
+    lines.push(`      template: ${dataTemplate}`);
+    lines.push('    - name: 市场热点与趋势判断');
+    lines.push('      type: llm_writing');
+    const llmComponent = getLlmWritingComponent(mapping);
+    const retrieval = llmComponent.retrieval || mapping.retrieval || {};
+    const keywords = getPlaceholderRetrievalKeywords(mapping, key);
+    if (retrieval.keyword_profile || keywords.length) {
+        lines.push('      retrieval:');
+        if (retrieval.keyword_profile) lines.push(`        keyword_profile: ${retrieval.keyword_profile}`);
+        if (keywords.length) {
+            lines.push('        keywords:');
+            keywords.forEach(keyword => lines.push(`        - ${keyword}`));
+        }
+    }
+    const writingStructure = llmComponent.writing_structure || mapping.writing_structure || inferDefaultWritingStructure(key);
+    if (Array.isArray(writingStructure) && writingStructure.length) {
+        lines.push('      writing_structure:');
+        writingStructure.forEach(item => lines.push(`      - ${item}`));
     }
     return lines;
 }
@@ -2716,7 +2854,7 @@ function inferPromptParam(name) {
 
 function inferDefaultMaxWords(name) {
     const normalized = normalizePlaceholderName(name);
-    if (normalized === 'A股市场回顾') return 150;
+    if (normalized === 'A股市场回顾') return 320;
     if (['美国新闻', '欧洲新闻'].includes(normalized)) return 250;
     if (['原油', '原油市场回顾', '黄金', '黄金市场回顾'].includes(normalized)) return 300;
     if (['中国宏观', '美国', '欧洲', '日本', '海外市场', '港股科技', '港股央企红利'].includes(normalized)) return 350;
@@ -2726,9 +2864,26 @@ function inferDefaultMaxWords(name) {
 
 function inferDefaultTargetWords(name) {
     const normalized = normalizePlaceholderName(name);
-    if (normalized === 'A股市场回顾') return 100;
+    if (normalized === 'A股市场回顾') return 250;
     const maxWords = inferDefaultMaxWords(normalized);
     return Math.max(80, Math.round(maxWords * 0.7 / 10) * 10);
+}
+
+function inferDefaultDataTemplate(name) {
+    const normalized = normalizePlaceholderName(name);
+    if (normalized !== 'A股市场回顾') return '';
+    return '本周A股市场整体呈现{market_trend}，主要指数表现不一：{index_performance}。交易面，A股市场本周日均成交额在{avg_turnover}左右，市场投资热情{turnover_trend}。';
+}
+
+function inferDefaultWritingStructure(name) {
+    const normalized = normalizePlaceholderName(name);
+    if (normalized !== 'A股市场回顾') return [];
+    return [
+        '接在固定开头之后，概括本周市场热点板块或概念，按材料中的重要性或出现频率排序',
+        '描述板块轮动特征，包括反复活跃方向、阶段性活跃方向和相对低迷方向',
+        '结合一个有明确 evidence 支撑的政策、产业或景气度变化，给出一句审慎趋势判断',
+        '最后如需表达关注方向，应使用“后续可关注”“值得跟踪”等克制表述，不得构成直接投资建议'
+    ];
 }
 
 function shouldUsePromptTemplateLibraryDraft(template) {

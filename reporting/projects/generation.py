@@ -975,6 +975,7 @@ class ReportProjectGenerationService:
         params: Dict[str, Any] = dict(raw_params) if isinstance(raw_params, dict) else {}
         max_words = int(config.get("max_words") or config.get("target_words") or 180)
         evidence_limit = int(config.get("evidence_limit") or 8)
+        config = apply_composite_component_overrides(config)
         config = apply_keyword_profile_to_config(
             placeholder,
             config,
@@ -1298,13 +1299,24 @@ def build_a_share_market_data_sentence(project: ReportProject, config: Dict[str,
         for name, value in domestic_rows[:5]
     )
     trend = _market_trend_word([value for _, value in domestic_rows[:5]])
+    fields = {
+        "market_trend": f"{trend}趋势",
+        "index_performance": index_sentence,
+        "avg_turnover": "",
+        "turnover_trend": "",
+    }
     turnover_sentence = ""
     if turnover:
         current, previous = turnover
+        fields["avg_turnover"] = f"{current:.2f}万亿"
+        fields["turnover_trend"] = _turnover_sentiment_word(current, previous)
         turnover_sentence = (
             f"交易面，A股市场本周日均成交额在{current:.2f}万亿左右，"
             f"较上周{_turnover_change_word(current, previous)}。"
         )
+    data_template = str(get_component_by_type(config, "data_template").get("template") or "").strip()
+    if data_template:
+        return data_template.format_map(_SafeFormatDict(fields))
     return f"本周A股市场整体呈现{trend}趋势，主要指数表现不一：{index_sentence}。{turnover_sentence}"
 
 
@@ -1371,6 +1383,24 @@ def _turnover_change_word(current: float, previous: float) -> str:
     return "基本持平"
 
 
+def _turnover_sentiment_word(current: float, previous: float) -> str:
+    if previous == 0:
+        return "变化"
+    change = (current - previous) / abs(previous)
+    if change > 0.03:
+        return "回升"
+    if change < -0.03:
+        return "回落"
+    return "维持平稳"
+
+
+class _SafeFormatDict(dict):
+    """Keep unknown data template placeholders visible instead of crashing generation."""
+
+    def __missing__(self, key: str) -> str:
+        return "{" + key + "}"
+
+
 def _coerce_report_date(value: str | date | datetime | None) -> date:
     if value is None:
         return date.today()
@@ -1435,6 +1465,13 @@ def apply_report_defaults_to_placeholder(
         merged["evidence_policy"] = defaults.get("evidence_policy")
     if defaults.get("query_mode") and not merged.get("query_mode"):
         merged["query_mode"] = defaults.get("query_mode")
+
+    default_constraints = _as_text_list(defaults.get("generation_constraints"))
+    placeholder_constraints = _as_text_list(merged.get("generation_constraints"))
+    if default_constraints or placeholder_constraints:
+        merged["generation_constraints"] = _dedupe_text_list(
+            default_constraints + placeholder_constraints
+        )
 
     default_validators = defaults.get("validators")
     if isinstance(default_validators, dict):
@@ -1509,23 +1546,17 @@ def build_fallback_template(config: Dict[str, Any], title: str) -> PromptTemplat
     )
 
 
-def render_generation_constraints(config: Dict[str, Any], *, max_words: int) -> str:
-    """Render hard generation constraints from section_config.yaml."""
+def render_generation_constraints(
+    config: Dict[str, Any],
+    *,
+    max_words: int | None = None,
+) -> str:
+    """Render shared generation constraints from section_config.yaml."""
     validators = config.get("validators")
     validators = validators if isinstance(validators, dict) else {}
-    lines: List[str] = []
-
-    target_words = _as_positive_int(config.get("target_words") or config.get("target_word_count"))
-    if target_words and target_words != max_words:
-        lines.append(f"- 目标字数：约 {target_words} 字，不超过 {max_words} 字")
-    else:
-        lines.append(f"- 目标字数：不超过 {max_words} 字")
-
-    min_news_count = _as_positive_int(
-        config.get("min_news_count") or validators.get("min_news_count")
-    )
-    if min_news_count:
-        lines.append(f"- 至少使用 {min_news_count} 条 evidence/news 信息")
+    lines: List[str] = _as_text_list(config.get("generation_constraints"))
+    if lines:
+        return "\n".join(f"- {line.lstrip('- ').strip()}" for line in _dedupe_text_list(lines))
 
     if validators.get("forbid_external_facts") or validators.get("require_evidence_from_uploaded_material"):
         lines.append("- 严格依据上传材料和 evidence，不添加外部知识或虚构数据")
@@ -1555,6 +1586,25 @@ def render_generation_constraints(config: Dict[str, Any], *, max_words: int) -> 
         lines.append(f"- 禁止提及这些实体类别：{'、'.join(_dedupe_text_list(forbid_entities))}")
 
     return "\n".join(lines)
+
+
+def render_writing_parameters(config: Dict[str, Any]) -> str:
+    """Render per-placeholder writing parameters separately from shared constraints."""
+    validators = config.get("validators")
+    validators = validators if isinstance(validators, dict) else {}
+    lines: List[str] = []
+    target_words = _as_positive_int(config.get("target_words") or config.get("target_word_count"))
+    max_words = _as_positive_int(config.get("max_words"))
+    if target_words:
+        lines.append(f"- 目标字数：约 {target_words} 字")
+    if max_words:
+        lines.append(f"- 最大字数：不超过 {max_words} 字")
+    min_news_count = _as_positive_int(
+        config.get("min_news_count") or validators.get("min_news_count")
+    )
+    if min_news_count:
+        lines.append(f"- 至少使用 {min_news_count} 条 evidence/news 信息")
+    return "\n".join(lines) or "- 无"
 
 
 def apply_output_constraints(content: str, config: Dict[str, Any]) -> str:
@@ -1595,6 +1645,66 @@ def _dedupe_text_list(items: List[str]) -> List[str]:
     return result
 
 
+def get_component_by_type(config: Dict[str, Any], component_type: str) -> Dict[str, Any]:
+    """Return the first component with the requested type from a placeholder config."""
+    components = config.get("components")
+    if not isinstance(components, list):
+        return {}
+    for component in components:
+        if not isinstance(component, dict):
+            continue
+        if str(component.get("type") or "").strip() == component_type:
+            return component
+    return {}
+
+
+def apply_composite_component_overrides(config: Dict[str, Any]) -> Dict[str, Any]:
+    """Lift llm_writing component retrieval into the effective placeholder config."""
+    llm_component = get_component_by_type(config, "llm_writing")
+    component_retrieval = llm_component.get("retrieval")
+    if not isinstance(component_retrieval, dict):
+        return dict(config)
+    merged = dict(config)
+    merged["retrieval"] = deep_merge_dict(
+        merged.get("retrieval") if isinstance(merged.get("retrieval"), dict) else {},
+        component_retrieval,
+    )
+    return merged
+
+
+def render_writing_requirements(
+    config: Dict[str, Any],
+    template: PromptTemplateBlock,
+) -> str:
+    """Render placeholder writing requirements from structured config or markdown template."""
+    structure = _as_text_list(config.get("writing_structure"))
+    if not structure:
+        structure = _as_text_list(get_component_by_type(config, "llm_writing").get("writing_structure"))
+    if structure:
+        return "\n".join(f"- {item}" for item in structure)
+    return template.writing_requirements.strip() or "请根据 evidence 生成正式周报正文。"
+
+
+def render_market_review_writing_structure(
+    config: Dict[str, Any],
+    template: PromptTemplateBlock,
+) -> str:
+    """Render continuation requirements for composite A-share market review."""
+    structure = _as_text_list(get_component_by_type(config, "llm_writing").get("writing_structure"))
+    if not structure:
+        structure = _as_text_list(config.get("writing_structure"))
+    if not structure and template.writing_requirements.strip():
+        structure = [template.writing_requirements.strip()]
+    if not structure:
+        structure = [
+            "接在固定开头之后，概括本周市场热点板块或概念，按材料中的重要性或出现频率排序",
+            "描述板块轮动特征，包括反复活跃方向、阶段性活跃方向和相对低迷方向",
+            "结合一个有明确 evidence 支撑的政策、产业或景气度变化，给出一句审慎趋势判断",
+            "最后如需表达关注方向，应使用“后续可关注”“值得跟踪”等克制表述，不得构成直接投资建议",
+        ]
+    return "\n".join(f"- {item}" for item in structure)
+
+
 def build_generation_messages(
     *,
     project: ReportProject,
@@ -1610,33 +1720,25 @@ def build_generation_messages(
     evidence_context = format_evidence_context(evidence)
     params_text = "\n".join(f"- {key}: {value}" for key, value in params.items()) or "无"
     constraints_text = render_generation_constraints(config, max_words=max_words)
-    system = (
-        "你是基金/ETF周报写作助手。必须只依据用户提供的 evidence 写作；"
-        "不得添加外部知识、不得虚构数字、不得输出直接投资建议、收益承诺、目标价或买卖指令。"
-        "如果 evidence 不足，直接说明材料不足，避免编造。"
-    )
-    user = f"""项目：{project.name}
-Word 占位符：{{{{{placeholder}}}}}
-段落标题：{title}
-
-硬性生成约束：
+    writing_parameters_text = render_writing_parameters(config)
+    writing_requirements = render_writing_requirements(config, template)
+    user = f"""生成约束：
 {constraints_text}
 
-检索 Query：
-{template.retrieval_query}
+写作参数：
+{writing_parameters_text}
 
 配置参数：
 {params_text}
 
 写作要求：
-{template.writing_requirements}
+{writing_requirements}
 
 Evidence：
 {evidence_context}
 
 请直接输出可替换进 Word 的正文段落，不要输出标题、编号、项目符号或解释过程。"""
     return [
-        {"role": "system", "content": system},
         {"role": "user", "content": user},
     ]
 
@@ -1655,37 +1757,30 @@ def build_market_hotspot_messages(
 ) -> List[Dict[str, str]]:
     """Build messages for the generated part of a composite market review."""
     evidence_context = format_evidence_context(evidence)
-    params_text = "\n".join(f"- {key}: {value}" for key, value in params.items()) or "无"
     constraints_text = render_generation_constraints(config, max_words=max_words)
-    system = (
-        "你是基金/ETF周报写作助手。必须只依据用户提供的 evidence 写作；"
-        "不得添加外部知识、不得虚构数字、不得输出直接投资建议、收益承诺、目标价或买卖指令。"
-    )
-    user = f"""项目：{project.name}
-Word 占位符：{{{{{placeholder}}}}}
-段落标题：{title}
-
-硬性生成约束：
+    writing_parameters_text = render_writing_parameters(config)
+    writing_structure_text = render_market_review_writing_structure(config, template)
+    user = f"""生成约束：
 {constraints_text}
 
-已由 Excel 真实数据生成的段落开头：
+写作参数：
+{writing_parameters_text}
+
+固定开头：
+以下内容已由系统根据 Excel 数据生成，必须作为正文开头，不得改写、删减或重复：
 {data_sentence}
 
-检索 Query：
-{template.retrieval_query}
-
-配置参数：
-{params_text}
-
-写作要求：
-{template.writing_requirements}
+续写要求：
+{writing_structure_text}
+- 只续写固定开头之后的内容，不要重复固定开头
+- 续写内容需要和固定开头自然衔接，最终形成一段完整正文
+- 不要输出标题、编号、项目符号、解释过程或换行符
 
 Evidence：
 {evidence_context}
 
-请只生成市场热点归纳部分，不要重复上面的指数涨跌和成交额数据；句式保持正式周报风格，直接从“本周市场热点...”开始。"""
+请只输出固定开头之后的续写正文。"""
     return [
-        {"role": "system", "content": system},
         {"role": "user", "content": user},
     ]
 

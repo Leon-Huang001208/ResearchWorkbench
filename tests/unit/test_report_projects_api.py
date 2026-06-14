@@ -15,13 +15,17 @@ from reporting.projects.chart_generation import GeneratedChartInfo
 from reporting.projects.generation import (
     EvidenceSnippet,
     GeneratedSectionInfo,
+    PromptTemplateBlock,
     RetrievalConfig,
     ReportGenerationResult,
     ReportProjectGenerationService,
     apply_report_defaults_to_placeholder,
+    build_market_hotspot_messages,
     build_retrieval_config,
     filter_and_rank_evidence,
     compute_report_period,
+    render_generation_constraints,
+    render_writing_parameters,
 )
 from reporting.projects.keyword_profiles import (
     apply_keyword_profile_to_config,
@@ -121,6 +125,101 @@ def test_report_defaults_are_merged_before_building_retrieval_config():
     assert retrieval_config.must_any == ["航天", "卫星"]
     assert retrieval_config.rerank_enabled is True
     assert retrieval_config.rerank_top_n == 16
+
+
+def test_generation_constraints_and_writing_parameters_are_rendered_separately():
+    """共用生成约束和单段写作参数应分层进入 prompt。"""
+    config = {
+        "generation_constraints": [
+            "严格依据上传材料和 evidence，不添加外部知识或虚构数据",
+            "生成一段正文，不输出换行符",
+        ],
+        "target_words": 250,
+        "max_words": 320,
+        "min_news_count": 5,
+    }
+
+    constraints = render_generation_constraints(config)
+    writing_parameters = render_writing_parameters(config)
+
+    assert "严格依据上传材料和 evidence" in constraints
+    assert "生成一段正文，不输出换行符" in constraints
+    assert "目标字数" not in constraints
+    assert "至少使用" not in constraints
+    assert "目标字数：约 250 字" in writing_parameters
+    assert "最大字数：不超过 320 字" in writing_parameters
+    assert "至少使用 5 条 evidence/news 信息" in writing_parameters
+
+
+def test_market_hotspot_prompt_uses_component_structure_without_metadata():
+    """A股市场回顾续写 prompt 应使用固定开头和后续结构，不暴露项目元信息。"""
+    project = ReportProjectManager(projects_root=Path("report_projects")).get_project(
+        "华安ETF周报"
+    )
+    template = build_market_template_for_test()
+    config = {
+        "generation_constraints": [
+            "严格依据上传材料和 evidence，不添加外部知识或虚构数据",
+            "生成一段正文，不输出换行符",
+        ],
+        "target_words": 250,
+        "max_words": 320,
+        "min_news_count": 5,
+        "components": [
+            {
+                "name": "市场热点与趋势判断",
+                "type": "llm_writing",
+                "writing_structure": [
+                    "接在固定开头之后，概括本周市场热点板块或概念",
+                    "描述板块轮动特征",
+                ],
+            }
+        ],
+    }
+
+    messages = build_market_hotspot_messages(
+        project=project,
+        placeholder="A股市场回顾",
+        title="A股市场回顾",
+        template=template,
+        data_sentence=(
+            "本周A股市场整体呈现分化趋势，主要指数表现不一：沪深300涨0.19%。"
+            "交易面，A股市场本周日均成交额在2.40万亿左右，市场投资热情回落。"
+        ),
+        params={},
+        max_words=320,
+        config=config,
+        evidence=[
+            EvidenceSnippet(
+                source="ingestion:news",
+                title="热点",
+                content="算力硬件、新能源和商业航天反复活跃。",
+                published_at="2026-06-05",
+            )
+        ],
+    )
+
+    assert len(messages) == 1
+    prompt = messages[0]["content"]
+    assert prompt.index("生成约束：") < prompt.index("写作参数：")
+    assert "固定开头：" in prompt
+    assert "续写要求：" in prompt
+    assert "接在固定开头之后，概括本周市场热点板块或概念" in prompt
+    assert "请只输出固定开头之后的续写正文" in prompt
+    assert "项目：" not in prompt
+    assert "Word 占位符" not in prompt
+    assert "段落标题" not in prompt
+    assert "检索 Query" not in prompt
+    assert "配置参数" not in prompt
+
+
+def build_market_template_for_test():
+    return PromptTemplateBlock(
+        title="A股市场回顾",
+        retrieval_query="请检索市场热点",
+        writing_requirements="旧写作要求",
+        raw_text="旧模板",
+    )
 
 
 def test_keyword_profiles_are_available_for_report_project_workbench():
@@ -678,8 +777,11 @@ def test_generation_service_renders_structured_generation_constraints(tmp_path: 
 
     class FakeGateway:
         def chat(self, messages, model=None, temperature=0.7, max_tokens=None, task=None, **kwargs):
-            message = messages[1]["content"]
-            assert "目标字数：约 100 字，不超过 150 字" in message
+            message = messages[-1]["content"]
+            assert "生成约束：" in message
+            assert "写作参数：" in message
+            assert "目标字数：约 100 字" in message
+            assert "最大字数：不超过 150 字" in message
             assert "至少使用 5 条 evidence/news 信息" in message
             assert "不得使用 Wind 数据" in message
             assert "不得使用日度数据" in message
@@ -847,8 +949,11 @@ def test_generation_service_builds_composite_market_review_from_excel_and_eviden
 
     class FakeGateway:
         def chat(self, messages, model=None, temperature=0.7, max_tokens=None, task=None, **kwargs):
-            assert "只生成市场热点归纳部分" in messages[1]["content"]
-            assert "沪深300" in messages[1]["content"]
+            prompt = messages[-1]["content"]
+            assert "固定开头：" in prompt
+            assert "续写要求：" in prompt
+            assert "请只输出固定开头之后的续写正文" in prompt
+            assert "沪深300" in prompt
             return ModelResponse(
                 content="本周市场热点依次为 CPO、算力租赁、先进封装，板块呈现快速轮动特征。",
                 model_name="deepseek-chat",
