@@ -1509,19 +1509,19 @@ function renderTemplatePlaceholderMap(placeholders, sections) {
         : (selectedSection ? '旧配置映射' : '未映射');
 
     container.innerHTML = `
-        <label class="placeholder-select-label" for="template-placeholder-select">当前占位符</label>
+        <label class="placeholder-select-label" for="template-placeholder-select">当前段落</label>
         <select id="template-placeholder-select" class="placeholder-select">
             ${names.map(name => {
                 const normalizedName = normalizePlaceholderName(name);
                 return `
                     <option value="${esc(normalizedName)}" ${normalizedName === selectedName ? 'selected' : ''}>
-                        {{${esc(normalizedName)}}}
+                        ${esc(normalizedName)}
                     </option>
                 `;
             }).join('')}
         </select>
         <div class="placeholder-selected-card ${selectedStatus === '未映射' ? 'unmapped' : 'mapped'}">
-            <code>{{${esc(selectedName)}}}</code>
+            <code>${esc(selectedName)}</code>
             <div class="mapping-summary">${renderMappingSummary(selectedMapping, selectedSection)}</div>
             <strong>${selectedStatus}</strong>
         </div>
