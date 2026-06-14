@@ -12,6 +12,7 @@ let currentTemplateState = {
     discoveredPlaceholders: [],
     placeholderValues: {},
     placeholderMappingDrafts: {},
+    keywordModeDrafts: {},
     commonDefaultsDraft: null,
     renderedReportId: null,
     templates: [],
@@ -243,6 +244,7 @@ async function selectTemplate(templateName, fileType) {
     currentTemplateState.discoveredPlaceholders = [];
     currentTemplateState.placeholderValues = {};
     currentTemplateState.placeholderMappingDrafts = {};
+    currentTemplateState.keywordModeDrafts = {};
     currentTemplateState.commonDefaultsDraft = null;
     currentTemplateState.renderedReportId = null;
     currentTemplateState.selectedReportProject = null;
@@ -317,6 +319,7 @@ function goBackToTemplates() {
     currentSelectedTemplate = null;
     currentSelectedFileType = null;
     currentTemplateState.selectedReportProject = null;
+    currentTemplateState.keywordModeDrafts = {};
     clearPlaceholderData();
 }
 
@@ -2290,7 +2293,10 @@ function collectSelectedPlaceholderDraft(template) {
         }
     }));
     if (keywordModeInput) {
+        currentTemplateState.keywordModeDrafts = currentTemplateState.keywordModeDrafts || {};
+        currentTemplateState.keywordModeDrafts[name] = keywordModeInput.value;
         applyKeywordModeDraft(
+            template,
             draft,
             name,
             keywordModeInput.value,
@@ -2362,7 +2368,7 @@ function setLlmWritingRetrievalDraftField(draft, field, value) {
     }
 }
 
-function applyKeywordModeDraft(draft, placeholderName, mode, profileName, customKeywordsText) {
+function applyKeywordModeDraft(template, draft, placeholderName, mode, profileName, customKeywordsText) {
     const isComposite = (draft.type || inferPlaceholderType(placeholderName)) === 'composite_market_review';
     const nextRetrieval = isComposite
         ? { ...(getLlmWritingComponent(draft).retrieval || {}) }
@@ -2383,7 +2389,15 @@ function applyKeywordModeDraft(draft, placeholderName, mode, profileName, custom
         if (keywords.length) {
             nextRetrieval.keywords = keywords;
         } else {
-            delete nextRetrieval.keywords;
+            const seedProfile = nextRetrieval.keyword_profile || profileName;
+            const profileKeywords = nextRetrieval.keyword_profile
+                ? getKeywordProfileKeywords(template, seedProfile)
+                : [];
+            if (profileKeywords.length) {
+                nextRetrieval.keywords = profileKeywords;
+            } else {
+                delete nextRetrieval.keywords;
+            }
         }
         delete nextRetrieval.keyword_profile;
         delete nextRetrieval.keyword_profile_source;
@@ -2442,6 +2456,10 @@ function getKeywordProfileKeywords(template, profileName = '') {
 }
 
 function inferKeywordMode(template, mapping = {}, placeholderName = '') {
+    const normalizedPlaceholder = normalizePlaceholderName(placeholderName);
+    const modeDraft = currentTemplateState.keywordModeDrafts?.[normalizedPlaceholder];
+    if (modeDraft === 'profile' || modeDraft === 'custom') return modeDraft;
+
     const selectedProfile = getSelectedKeywordProfileName(template, mapping, placeholderName);
     if (selectedProfile && getKeywordProfileCatalog(template)?.[selectedProfile]) {
         return 'profile';
@@ -2454,7 +2472,9 @@ function getKeywordEditorText(template, mapping = {}, placeholderName = '', keyw
         return getKeywordProfileKeywords(template, profileName).join('\n');
     }
     const explicitKeywords = getExplicitPlaceholderRetrievalKeywords(mapping);
-    return (explicitKeywords.length ? explicitKeywords : inferPlaceholderKeywords(placeholderName)).join('\n');
+    if (explicitKeywords.length) return explicitKeywords.join('\n');
+    const profileKeywords = getKeywordProfileKeywords(template, profileName);
+    return (profileKeywords.length ? profileKeywords : inferPlaceholderKeywords(placeholderName)).join('\n');
 }
 
 function buildKeywordProfileOptions(template, selectedProfile = '') {
