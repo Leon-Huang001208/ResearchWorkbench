@@ -3,6 +3,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 INDEX_HTML = ROOT / "app" / "web" / "templates" / "index.html"
+APP_JS = ROOT / "app" / "web" / "static" / "js" / "app.js"
 TEMPLATES_JS = ROOT / "app" / "web" / "static" / "js" / "templates.js"
 STYLE_CSS = ROOT / "app" / "web" / "static" / "style.css"
 
@@ -251,6 +252,16 @@ def test_common_generation_constraints_preserve_commas():
     assert "value = splitLines(input.value);" in source
     assert "value = splitDelimitedList(input.value);" in source
     assert "field === 'generation_constraints'\n            || field === 'hard_constraints.forbidden_phrases'" not in source
+
+
+def test_initial_load_uses_navigation_to_activate_content_section():
+    source = APP_JS.read_text(encoding="utf-8")
+
+    assert "function getInitialSection()" in source
+    assert "localStorage.getItem('af-active-section')" in source
+    assert "localStorage.setItem('af-active-section', section)" in source
+    assert "navigateTo(getInitialSection());" in source
+    assert "loadDashboard();\n    startCrawlFeedPolling();\n    startWorkersPolling();" not in source
 
 
 def test_template_cards_do_not_reference_module_state_inline():

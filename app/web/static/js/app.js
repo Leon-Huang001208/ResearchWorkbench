@@ -173,6 +173,7 @@ function navigateTo(section) {
     document.querySelectorAll(`.activity-btn[data-section="${section}"]`).forEach(b => b.classList.add('active'));
     const sectionEl = document.getElementById(`section-${section}`);
     if (sectionEl) sectionEl.classList.add('active');
+    localStorage.setItem('af-active-section', section);
 
     if (section === 'dashboard') {
         loadDashboard();
@@ -193,6 +194,18 @@ function navigateTo(section) {
     else stopPipelinePolling();
 }
 window.navigateTo = navigateTo;
+
+function getInitialSection() {
+    const savedSection = localStorage.getItem('af-active-section');
+    if (savedSection && document.getElementById(`section-${savedSection}`)) {
+        return savedSection;
+    }
+    const activeButtonSection = document.querySelector('.activity-btn.active[data-section]')?.dataset.section;
+    if (activeButtonSection && document.getElementById(`section-${activeButtonSection}`)) {
+        return activeButtonSection;
+    }
+    return 'dashboard';
+}
 
 // ─── SSE Real-time Stream ────────────────────────────────────
 let sseConnection = null;
@@ -320,9 +333,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initSignalLab();
 
     connectSSE();
-    loadDashboard();
-    startCrawlFeedPolling();
-    startWorkersPolling();
+    navigateTo(getInitialSection());
     updateStatusBar();
     setInterval(updateStatusBar, 30000);
 });
