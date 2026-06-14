@@ -2005,7 +2005,9 @@ function renderSelectedPlaceholderDetail(template) {
     const promptParam = mapping.params?.param || inferPromptParam(name);
     const needsParam = isPromptLike && Boolean(promptParam);
     const usesQuerySource = isPromptLike && !usesEmbeddedPromptQueries(template.report_project);
-    const retrievalKeywords = getPlaceholderRetrievalKeywords(mapping, name).join('\n');
+    const selectedKeywordProfile = getSelectedKeywordProfileName(template, mapping, name);
+    const keywordMode = inferKeywordMode(template, mapping, name);
+    const retrievalKeywords = getKeywordEditorText(template, mapping, name, keywordMode, selectedKeywordProfile);
     const minNewsCount = mapping.min_news_count || '';
     const dataTemplate = getDataTemplateComponent(mapping).template || inferDefaultDataTemplate(name);
     const writingStructure = getLlmWritingComponent(mapping).writing_structure || mapping.writing_structure || inferDefaultWritingStructure(name);
@@ -2026,9 +2028,12 @@ function renderSelectedPlaceholderDetail(template) {
         mapping,
         isPromptLike,
         retrievalKeywords,
+        selectedKeywordProfile,
+        keywordMode,
         minNewsCount,
         dataTemplate,
-        writingStructureText
+        writingStructureText,
+        template
     });
 
     if (advancedFormEl) {
@@ -2054,11 +2059,19 @@ function buildSimplePlaceholderFieldsHtml({
     mapping,
     isPromptLike,
     retrievalKeywords,
+    selectedKeywordProfile,
+    keywordMode,
     minNewsCount,
     dataTemplate,
-    writingStructureText
+    writingStructureText,
+    template
 }) {
     if (isPromptLike) {
+        const profileOptions = buildKeywordProfileOptions(template, selectedKeywordProfile);
+        const profileKeywords = getKeywordProfileKeywords(template, selectedKeywordProfile);
+        const profileHelp = selectedKeywordProfile && profileKeywords.length
+            ? `预设包 “${selectedKeywordProfile}” 已存在，包含 ${profileKeywords.length} 个关键词。`
+            : '当前没有匹配到已存在的预设包，可以切换为自定义关键词。';
         return `
             <div class="template-simple-mode-note">
                 <strong>简洁模式</strong>
@@ -2087,13 +2100,31 @@ function buildSimplePlaceholderFieldsHtml({
                 <textarea data-placeholder-field="components.llm_writing.writing_structure" rows="5">${esc(writingStructureText)}</textarea>
             </label>
             <label>
-                <span>关键词 Profile</span>
-                <input type="text" data-placeholder-field="retrieval.keyword_profile" value="${esc(mapping.retrieval?.keyword_profile || getLlmWritingComponent(mapping).retrieval?.keyword_profile || '')}">
+                <span>检索关键词来源</span>
+                <select data-placeholder-field="retrieval.keyword_mode">
+                    <option value="profile" ${keywordMode === 'profile' ? 'selected' : ''}>使用预设关键词包</option>
+                    <option value="custom" ${keywordMode === 'custom' ? 'selected' : ''}>自定义关键词</option>
+                </select>
             </label>
-            <label>
-                <span>检索关键词（当前占位符）</span>
-                <textarea data-placeholder-field="retrieval.keywords" rows="4">${esc(retrievalKeywords)}</textarea>
-            </label>
+            ${keywordMode === 'profile' ? `
+                <label>
+                    <span>预设关键词包</span>
+                    <select data-placeholder-field="retrieval.keyword_profile_select">
+                        ${profileOptions}
+                    </select>
+                </label>
+                <label>
+                    <span>预设包关键词预览</span>
+                    <textarea data-keyword-profile-preview rows="4" readonly>${esc(profileKeywords.join('\n'))}</textarea>
+                    <small class="template-keyword-mode-help">${esc(profileHelp)}</small>
+                </label>
+            ` : `
+                <label>
+                    <span>自定义检索关键词（一行一个）</span>
+                    <textarea data-placeholder-field="retrieval.custom_keywords" rows="4">${esc(retrievalKeywords)}</textarea>
+                    <small class="template-keyword-mode-help">自定义模式会保存这些关键词，并不再使用预设关键词包。</small>
+                </label>
+            `}
         `;
     }
 
@@ -2193,7 +2224,11 @@ function bindPlaceholderDetailInputs(template) {
         input.addEventListener('input', () => updateTemplateSourceFromPlaceholderDraft(template));
         input.addEventListener('change', () => {
             updateTemplateSourceFromPlaceholderDraft(template);
-            if (input.dataset.placeholderField === 'type') {
+            if ([
+                'type',
+                'retrieval.keyword_mode',
+                'retrieval.keyword_profile_select'
+            ].includes(input.dataset.placeholderField)) {
                 renderSelectedPlaceholderDetail(template);
                 renderSelectedSourceFragment(template);
             }
@@ -2211,11 +2246,20 @@ function collectSelectedPlaceholderDraft(template) {
     ].filter(Boolean);
     const existing = getSelectedPlaceholderMapping(template) || {};
     const draft = { ...existing };
+    const keywordModeInput = document.querySelector('[data-placeholder-field="retrieval.keyword_mode"]');
+    const keywordProfileInput = document.querySelector('[data-placeholder-field="retrieval.keyword_profile_select"]');
+    const customKeywordsInput = document.querySelector('[data-placeholder-field="retrieval.custom_keywords"]');
     forms.forEach(formEl => formEl.querySelectorAll('[data-placeholder-field]').forEach(input => {
         const field = input.dataset.placeholderField;
         const value = input.value?.trim?.() || '';
         if (field === 'params.param') {
             draft.params = value ? { ...(draft.params || {}), param: value } : {};
+        } else if (
+            field === 'retrieval.keyword_mode'
+            || field === 'retrieval.keyword_profile_select'
+            || field === 'retrieval.custom_keywords'
+        ) {
+            return;
         } else if (field === 'retrieval.keyword_profile') {
             if ((draft.type || inferPlaceholderType(name)) === 'composite_market_review') {
                 setLlmWritingRetrievalDraftField(draft, 'keyword_profile', value || null);
@@ -2245,6 +2289,15 @@ function collectSelectedPlaceholderDraft(template) {
             draft[field] = value;
         }
     }));
+    if (keywordModeInput) {
+        applyKeywordModeDraft(
+            draft,
+            name,
+            keywordModeInput.value,
+            keywordProfileInput?.value || '',
+            customKeywordsInput?.value || ''
+        );
+    }
     draft.title = draft.title || inferPlaceholderTitle(name);
     draft.type = draft.type || inferPlaceholderType(name);
     currentTemplateState.placeholderMappingDrafts = currentTemplateState.placeholderMappingDrafts || {};
@@ -2309,6 +2362,114 @@ function setLlmWritingRetrievalDraftField(draft, field, value) {
     }
 }
 
+function applyKeywordModeDraft(draft, placeholderName, mode, profileName, customKeywordsText) {
+    const isComposite = (draft.type || inferPlaceholderType(placeholderName)) === 'composite_market_review';
+    const nextRetrieval = isComposite
+        ? { ...(getLlmWritingComponent(draft).retrieval || {}) }
+        : { ...(draft.retrieval || {}) };
+
+    if (mode === 'profile') {
+        const selectedProfile = String(profileName || '').trim();
+        if (selectedProfile) {
+            nextRetrieval.keyword_profile = selectedProfile;
+        } else {
+            delete nextRetrieval.keyword_profile;
+        }
+        delete nextRetrieval.keywords;
+        delete nextRetrieval.must_any;
+        delete nextRetrieval.query_terms;
+    } else {
+        const keywords = splitLines(customKeywordsText);
+        if (keywords.length) {
+            nextRetrieval.keywords = keywords;
+        } else {
+            delete nextRetrieval.keywords;
+        }
+        delete nextRetrieval.keyword_profile;
+        delete nextRetrieval.keyword_profile_source;
+        delete nextRetrieval.keyword_profile_needs_review;
+    }
+
+    if (isComposite) {
+        setLlmWritingRetrievalDraft(draft, nextRetrieval);
+    } else if (Object.keys(nextRetrieval).length) {
+        draft.retrieval = nextRetrieval;
+    } else {
+        delete draft.retrieval;
+    }
+}
+
+function setLlmWritingRetrievalDraft(draft, retrieval) {
+    const components = Array.isArray(draft.components) ? [...draft.components] : [];
+    let index = components.findIndex(component => component?.type === 'llm_writing');
+    if (index < 0) {
+        components.push({ name: '市场热点与趋势判断', type: 'llm_writing' });
+        index = components.length - 1;
+    }
+    const component = { ...(components[index] || {}), type: 'llm_writing' };
+    if (retrieval && Object.keys(retrieval).length) {
+        component.retrieval = retrieval;
+    } else {
+        delete component.retrieval;
+    }
+    components[index] = component;
+    draft.components = components;
+    delete draft.retrieval;
+}
+
+function getKeywordProfileCatalog(template) {
+    const profiles = template?.report_project?.keyword_profiles || currentTemplateState.selectedReportProject?.keyword_profiles || {};
+    return profiles && typeof profiles === 'object' ? profiles : {};
+}
+
+function getKeywordProfileNames(template) {
+    return Object.keys(getKeywordProfileCatalog(template)).sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'));
+}
+
+function getSelectedKeywordProfileName(template, mapping = {}, placeholderName = '') {
+    const configured = mapping.retrieval?.keyword_profile
+        || getLlmWritingComponent(mapping).retrieval?.keyword_profile
+        || '';
+    if (configured) return configured;
+    const normalizedPlaceholder = normalizePlaceholderName(placeholderName);
+    const names = getKeywordProfileNames(template);
+    return names.includes(normalizedPlaceholder) ? normalizedPlaceholder : '';
+}
+
+function getKeywordProfileKeywords(template, profileName = '') {
+    const profile = getKeywordProfileCatalog(template)?.[profileName];
+    return Array.isArray(profile?.keywords) ? profile.keywords : [];
+}
+
+function inferKeywordMode(template, mapping = {}, placeholderName = '') {
+    const selectedProfile = getSelectedKeywordProfileName(template, mapping, placeholderName);
+    if (selectedProfile && getKeywordProfileCatalog(template)?.[selectedProfile]) {
+        return 'profile';
+    }
+    return getExplicitPlaceholderRetrievalKeywords(mapping).length ? 'custom' : 'profile';
+}
+
+function getKeywordEditorText(template, mapping = {}, placeholderName = '', keywordMode = 'profile', profileName = '') {
+    if (keywordMode === 'profile') {
+        return getKeywordProfileKeywords(template, profileName).join('\n');
+    }
+    const explicitKeywords = getExplicitPlaceholderRetrievalKeywords(mapping);
+    return (explicitKeywords.length ? explicitKeywords : inferPlaceholderKeywords(placeholderName)).join('\n');
+}
+
+function buildKeywordProfileOptions(template, selectedProfile = '') {
+    const names = getKeywordProfileNames(template);
+    const optionNames = selectedProfile && !names.includes(selectedProfile)
+        ? [selectedProfile, ...names]
+        : names;
+    if (!optionNames.length) {
+        return '<option value="">没有可用预设包</option>';
+    }
+    return optionNames.map(name => `
+        <option value="${esc(name)}" ${selectedProfile === name ? 'selected' : ''}>${esc(name)}</option>
+    `).join('');
+}
+
 function getPlaceholderRetrievalKeywords(mapping, placeholderName = '') {
     const retrieval = mapping?.retrieval || {};
     const componentRetrieval = getLlmWritingComponent(mapping)?.retrieval || {};
@@ -2320,6 +2481,19 @@ function getPlaceholderRetrievalKeywords(mapping, placeholderName = '') {
         || [];
     if (Array.isArray(keywords) && keywords.length) return keywords;
     return inferPlaceholderKeywords(placeholderName);
+}
+
+function getExplicitPlaceholderRetrievalKeywords(mapping = {}) {
+    const retrieval = mapping?.retrieval || {};
+    const componentRetrieval = getLlmWritingComponent(mapping)?.retrieval || {};
+    const queryTerms = retrieval.query_terms || componentRetrieval.query_terms || {};
+    const keywords = retrieval.keywords
+        || componentRetrieval.keywords
+        || queryTerms.must_any
+        || retrieval.must_any
+        || componentRetrieval.must_any
+        || [];
+    return Array.isArray(keywords) ? keywords : [];
 }
 
 function splitLines(value) {
@@ -2790,7 +2964,7 @@ function buildPlaceholderYamlEntry(template, key, mapping) {
             lines.push(...buildCompositeMarketReviewYamlLines(mapping, key));
         } else {
             const retrieval = mapping.retrieval || {};
-            const keywords = getPlaceholderRetrievalKeywords(mapping, key);
+            const keywords = getExplicitPlaceholderRetrievalKeywords(mapping);
             if (retrieval.keyword_profile || keywords.length) {
                 lines.push('    retrieval:');
                 if (retrieval.keyword_profile) lines.push(`      keyword_profile: ${retrieval.keyword_profile}`);
@@ -2830,7 +3004,7 @@ function buildCompositeMarketReviewYamlLines(mapping, key) {
     lines.push('      type: llm_writing');
     const llmComponent = getLlmWritingComponent(mapping);
     const retrieval = llmComponent.retrieval || mapping.retrieval || {};
-    const keywords = getPlaceholderRetrievalKeywords(mapping, key);
+    const keywords = getExplicitPlaceholderRetrievalKeywords({ retrieval, components: [] });
     if (retrieval.keyword_profile || keywords.length) {
         lines.push('      retrieval:');
         if (retrieval.keyword_profile) lines.push(`        keyword_profile: ${retrieval.keyword_profile}`);
