@@ -1522,7 +1522,7 @@ function renderTemplatePlaceholderMap(placeholders, sections) {
         </select>
         <div class="placeholder-selected-card ${selectedStatus === '未映射' ? 'unmapped' : 'mapped'}">
             <code>{{${esc(selectedName)}}}</code>
-            <div class="mapping-summary">${renderMappingSummary(selectedMapping, selectedSection, getCurrentWorkbenchTemplate() || {})}</div>
+            <div class="mapping-summary">${renderMappingSummary(selectedMapping, selectedSection)}</div>
             <strong>${selectedStatus}</strong>
         </div>
     `;
@@ -1530,23 +1530,25 @@ function renderTemplatePlaceholderMap(placeholders, sections) {
     bindPlaceholderMapRows();
 }
 
-function renderMappingSummary(mapping, section, template = {}) {
-    const project = template.report_project || null;
-    const title = mapping?.title || section?.title || '待配置来源';
+function renderMappingSummary(mapping, section) {
+    const title = getPlaceholderKindLabel(mapping, section);
     const details = [];
-    if (mapping?.prompt_template) details.push(`Prompt: ${mapping.prompt_template}`);
-    if (mapping?.query_source) {
-        details.push(`Query: ${mapping.query_source}`);
-    } else if (mapping?.prompt_template && usesEmbeddedPromptQueries(project)) {
-        details.push('检索 Query: 模板内置');
-    }
-    if (mapping?.source) details.push(`Excel: ${mapping.source}`);
+    if (isPromptPlaceholderType(mapping?.type || '', mapping || {})) details.push('生成规则已绑定');
+    if (mapping?.source) details.push('Excel 来源已绑定');
     if (mapping?.value) details.push('静态文本已填写');
-    const detailText = details.length ? details.join(' / ') : '需要补 prompt_template 或检索 Query';
+    const detailText = details.length ? details.join(' / ') : '等待配置';
     return `
         <span class="mapping-summary-title">${esc(title)}</span>
         <small>${esc(detailText)}</small>
     `;
+}
+
+function getPlaceholderKindLabel(mapping, section) {
+    const type = mapping?.type || section?.type || '';
+    if (isPromptPlaceholderType(type, mapping || {})) return 'AI 生成段落';
+    if (type === 'excel_cell' || type === 'excel_range' || mapping?.source) return 'Excel 数据';
+    if (type === 'static_text' || mapping?.value) return '固定文本';
+    return '配置项';
 }
 
 function getStoredCommonDefaults(template) {
@@ -1999,7 +2001,7 @@ function renderSelectedPlaceholderDetail(template) {
         return;
     }
 
-    if (titleEl) titleEl.textContent = `{{${name}}} 配置`;
+    if (titleEl) titleEl.textContent = `编辑：${name}`;
     if (saveBtn) saveBtn.disabled = false;
     if (advancedBtn) advancedBtn.disabled = false;
 
@@ -2073,7 +2075,7 @@ function buildSimplePlaceholderFieldsHtml({
         const profileOptions = buildKeywordProfileOptions(template, selectedKeywordProfile);
         const profileKeywords = getKeywordProfileKeywords(template, selectedKeywordProfile);
         const profileHelp = selectedKeywordProfile && profileKeywords.length
-            ? `预设包 “${selectedKeywordProfile}” 已存在，包含 ${profileKeywords.length} 个关键词。`
+            ? `当前预设包包含 ${profileKeywords.length} 个关键词。`
             : '当前没有匹配到已存在的预设包，可以切换为自定义关键词。';
         return `
             <div class="template-simple-mode-note">
@@ -2102,32 +2104,52 @@ function buildSimplePlaceholderFieldsHtml({
                 <span>${type === 'composite_market_review' ? '后续写作结构（一行一步）' : '写作结构（一行一步，可选）'}</span>
                 <textarea data-placeholder-field="components.llm_writing.writing_structure" rows="5">${esc(writingStructureText)}</textarea>
             </label>
-            <label>
-                <span>检索关键词来源</span>
-                <select data-placeholder-field="retrieval.keyword_mode">
-                    <option value="profile" ${keywordMode === 'profile' ? 'selected' : ''}>使用预设关键词包</option>
-                    <option value="custom" ${keywordMode === 'custom' ? 'selected' : ''}>自定义关键词</option>
-                </select>
-            </label>
-            ${keywordMode === 'profile' ? `
-                <label>
-                    <span>预设关键词包</span>
-                    <select data-placeholder-field="retrieval.keyword_profile_select">
-                        ${profileOptions}
-                    </select>
-                </label>
-                <label>
-                    <span>预设包关键词预览</span>
-                    <textarea data-keyword-profile-preview rows="4" readonly>${esc(profileKeywords.join('\n'))}</textarea>
-                    <small class="template-keyword-mode-help">${esc(profileHelp)}</small>
-                </label>
-            ` : `
-                <label>
-                    <span>自定义检索关键词（一行一个）</span>
-                    <textarea data-placeholder-field="retrieval.custom_keywords" rows="4">${esc(retrievalKeywords)}</textarea>
-                    <small class="template-keyword-mode-help">自定义模式会保存这些关键词，并不再使用预设关键词包。</small>
-                </label>
-            `}
+            <div class="template-keyword-panel">
+                <div class="template-keyword-source-row">
+                    <label>
+                        <span>关键词来源</span>
+                        <select data-placeholder-field="retrieval.keyword_mode">
+                            <option value="profile" ${keywordMode === 'profile' ? 'selected' : ''}>预设包</option>
+                            <option value="custom" ${keywordMode === 'custom' ? 'selected' : ''}>自定义</option>
+                        </select>
+                    </label>
+                    ${keywordMode === 'profile' ? `
+                        <div class="template-keyword-summary">
+                            <span>当前使用</span>
+                            <strong>${esc(selectedKeywordProfile || '未选择预设包')}</strong>
+                            <small>${profileKeywords.length} 个关键词</small>
+                        </div>
+                    ` : `
+                        <div class="template-keyword-summary">
+                            <span>当前使用</span>
+                            <strong>自定义关键词</strong>
+                            <small>${splitLines(retrievalKeywords).length} 个关键词</small>
+                        </div>
+                    `}
+                </div>
+                ${keywordMode === 'profile' ? `
+                    <details class="template-keyword-details">
+                        <summary>更换预设包 / 查看关键词</summary>
+                        <label>
+                            <span>选择预设包</span>
+                            <select data-placeholder-field="retrieval.keyword_profile_select">
+                                ${profileOptions}
+                            </select>
+                        </label>
+                        <label>
+                            <span>关键词预览</span>
+                            <textarea data-keyword-profile-preview rows="4" readonly>${esc(profileKeywords.join('\n'))}</textarea>
+                            <small class="template-keyword-mode-help">${esc(profileHelp)}</small>
+                        </label>
+                    </details>
+                ` : `
+                    <label class="template-custom-keywords">
+                        <span>自定义关键词（一行一个）</span>
+                        <textarea data-placeholder-field="retrieval.custom_keywords" rows="4">${esc(retrievalKeywords)}</textarea>
+                        <small class="template-keyword-mode-help">保存后将使用这组关键词，不再引用预设包。</small>
+                    </label>
+                `}
+            </div>
         `;
     }
 

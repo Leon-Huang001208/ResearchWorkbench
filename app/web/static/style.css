@@ -5060,6 +5060,69 @@ tr:hover td {
     color: var(--text-primary);
 }
 
+.template-keyword-panel {
+    grid-column: 1 / -1;
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.85rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.template-keyword-source-row {
+    display: grid;
+    align-items: end;
+    grid-template-columns: minmax(220px, 0.45fr) minmax(0, 1fr);
+    gap: 0.75rem;
+}
+
+.template-keyword-summary {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.72rem 0.8rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+}
+
+.template-keyword-summary strong {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text-primary);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.template-keyword-summary small {
+    margin-left: auto;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.template-keyword-details {
+    border-top: 1px solid var(--border);
+    padding-top: 0.7rem;
+}
+
+.template-keyword-details summary {
+    cursor: pointer;
+    color: var(--accent);
+    font-size: 0.8rem;
+    font-weight: 650;
+}
+
+.template-keyword-details label,
+.template-custom-keywords {
+    margin-top: 0.75rem;
+}
+
 .template-keyword-mode-help {
     color: var(--text-muted);
     font-size: 0.76rem;
@@ -5071,6 +5134,12 @@ tr:hover td {
     cursor: default;
     color: var(--text-secondary);
     background: var(--bg-card);
+}
+
+@media (max-width: 900px) {
+    .template-keyword-source-row {
+        grid-template-columns: 1fr;
+    }
 }
 
 .template-advanced-help {
