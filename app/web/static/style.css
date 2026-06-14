@@ -4804,6 +4804,20 @@ tr:hover td {
     border-top: 1px solid var(--border);
 }
 
+.template-common-title-actions {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+}
+
+.template-common-title-actions .btn-secondary {
+    padding: 0.48rem 0.65rem;
+    font-size: 0.76rem;
+}
+
 .template-common-rules-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));

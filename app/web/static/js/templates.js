@@ -1640,7 +1640,12 @@ function renderCommonGenerationRules(template) {
     container.innerHTML = `
         <div class="panel-title-row">
             <h4>共用参数</h4>
-            <span class="text-muted">所有 prompt 占位符默认继承</span>
+            <div class="template-common-title-actions">
+                <span class="text-muted">所有 prompt 占位符默认继承</span>
+                <button id="btn-template-save-common-rules" class="btn-secondary" type="button">
+                    <i class="codicon codicon-save"></i> 保存共用参数
+                </button>
+            </div>
         </div>
         <details class="template-common-rule-card template-common-summary-card" open>
             <summary>
@@ -1782,6 +1787,17 @@ function bindCommonRuleInputs(template) {
         input.addEventListener('input', update);
         input.addEventListener('change', update);
     });
+    const saveCommonRulesBtn = document.getElementById('btn-template-save-common-rules');
+    if (saveCommonRulesBtn && !saveCommonRulesBtn.dataset.bound) {
+        saveCommonRulesBtn.dataset.bound = 'true';
+        saveCommonRulesBtn.addEventListener('click', () => saveCurrentSectionConfig({
+            button: saveCommonRulesBtn,
+            savingHtml: '<i class="codicon codicon-loading spin"></i> 保存中...',
+            successMessage: '共用参数已保存',
+            localMessage: '共用参数草稿已保存到本地',
+            errorPrefix: '保存共用参数失败'
+        }));
+    }
 }
 
 function formatRulePercent(value) {
@@ -3419,49 +3435,13 @@ function bindTemplateWorkbenchActions() {
 
 	    if (savePlaceholderBtn && !savePlaceholderBtn.dataset.bound) {
 	        savePlaceholderBtn.dataset.bound = 'true';
-	        savePlaceholderBtn.addEventListener('click', async () => {
-	            const template = getCurrentWorkbenchTemplate();
-	            if (!template) {
-	                toast('请先选择模板', 'error');
-	                return;
-	            }
-	            updateTemplateSourceFromPlaceholderDraft(template);
-            const sourceEditor = document.getElementById('template-source-editor');
-            if (!sourceEditor) return;
-            const content = buildUpdatedSectionConfigSource(template, getEditablePlaceholderMappings(template));
-
-            savePlaceholderBtn.disabled = true;
-            const originalText = savePlaceholderBtn.innerHTML;
-            savePlaceholderBtn.innerHTML = '<i class="codicon codicon-loading spin"></i> 保存中...';
-            try {
-                if (currentTemplateState.selectedReportProject) {
-                    const project = currentTemplateState.selectedReportProject;
-                    const updatedProject = await apiCall(
-                        'PUT',
-                        `/api/report-projects/${encodeURIComponent(project.slug)}/source`,
-                        {
-                            source_kind: 'section_config',
-                            content
-                        }
-                    );
-                    currentTemplateState.selectedReportProject = updatedProject;
-                    const selectedTemplate = (currentTemplateState.templates || []).find(item =>
-                        item.report_project?.slug === project.slug
-                    );
-                    if (selectedTemplate) selectedTemplate.report_project = updatedProject;
-                    renderAdvancedMaintenance(selectedTemplate || template);
-                    toast('占位符配置已保存', 'success');
-                } else {
-                    localStorage.setItem(sourceEditor.dataset.draftKey || 'report-template-source:draft', content);
-                    toast('占位符配置草稿已保存到本地', 'success');
-                }
-            } catch (e) {
-                toast('保存占位符失败: ' + e.message, 'error');
-            } finally {
-                savePlaceholderBtn.innerHTML = originalText;
-                savePlaceholderBtn.disabled = false;
-            }
-        });
+	        savePlaceholderBtn.addEventListener('click', () => saveCurrentSectionConfig({
+            button: savePlaceholderBtn,
+            savingHtml: '<i class="codicon codicon-loading spin"></i> 保存中...',
+            successMessage: '占位符配置已保存',
+            localMessage: '占位符配置草稿已保存到本地',
+            errorPrefix: '保存占位符失败'
+        }));
     }
 
     if (dryRunBtn && !dryRunBtn.dataset.bound) {
@@ -3505,6 +3485,60 @@ function bindTemplateWorkbenchActions() {
                 generateBtn.innerHTML = originalText;
             }
         });
+    }
+}
+
+async function saveCurrentSectionConfig({
+    button,
+    savingHtml = '<i class="codicon codicon-loading spin"></i> 保存中...',
+    successMessage = '配置已保存',
+    localMessage = '配置草稿已保存到本地',
+    errorPrefix = '保存配置失败'
+} = {}) {
+    const template = getCurrentWorkbenchTemplate();
+    if (!template) {
+        toast('请先选择模板', 'error');
+        return;
+    }
+    updateTemplateSourceFromPlaceholderDraft(template);
+
+    const sourceEditor = document.getElementById('template-source-editor');
+    const content = buildUpdatedSectionConfigSource(template, getEditablePlaceholderMappings(template));
+    const originalText = button?.innerHTML;
+    if (button) {
+        button.disabled = true;
+        button.innerHTML = savingHtml;
+    }
+
+    try {
+        if (currentTemplateState.selectedReportProject) {
+            const project = currentTemplateState.selectedReportProject;
+            const updatedProject = await apiCall(
+                'PUT',
+                `/api/report-projects/${encodeURIComponent(project.slug)}/source`,
+                {
+                    source_kind: 'section_config',
+                    content
+                }
+            );
+            currentTemplateState.selectedReportProject = updatedProject;
+            const selectedTemplate = (currentTemplateState.templates || []).find(item =>
+                item.report_project?.slug === project.slug
+            );
+            if (selectedTemplate) selectedTemplate.report_project = updatedProject;
+            renderAdvancedMaintenance(selectedTemplate || template);
+            toast(successMessage, 'success');
+        } else {
+            localStorage.setItem(sourceEditor?.dataset.draftKey || 'report-template-source:draft', content);
+            toast(localMessage, 'success');
+        }
+    } catch (e) {
+        toast(`${errorPrefix}: ${e.message}`, 'error');
+    } finally {
+        if (button) {
+            button.innerHTML = originalText;
+            button.disabled = false;
+        }
     }
 }
 
