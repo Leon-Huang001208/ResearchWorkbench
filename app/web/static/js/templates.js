@@ -1626,17 +1626,11 @@ function renderCommonGenerationRules(template) {
     if (!container) return;
 
     const defaults = getEditableCommonDefaults(template);
-    const validators = defaults.validators || {};
     const retrieval = defaults.retrieval || {};
     const rerank = defaults.rerank || {};
     const generationConstraints = Array.isArray(defaults.generation_constraints)
         ? defaults.generation_constraints.join('\n')
         : '';
-    const searchKeywords = Array.isArray(retrieval.keywords)
-        ? retrieval.keywords.join('\n')
-        : '';
-    const keywordWeightPercent = formatRulePercent(retrieval.keyword_weight ?? 0.7);
-    const semanticWeightPercent = formatRulePercent(retrieval.semantic_weight ?? 0.3);
 
     container.innerHTML = `
         <div class="panel-title-row">
@@ -1661,6 +1655,28 @@ function renderCommonGenerationRules(template) {
                 </label>
             </div>
         </details>
+    `;
+
+    renderAdvancedCommonRules(template, retrieval, rerank);
+
+    bindCommonRuleInputs(template);
+}
+
+function renderAdvancedCommonRules(template, retrieval = {}, rerank = {}) {
+    const container = document.getElementById('template-advanced-common-rules');
+    if (!container) return;
+
+    const searchKeywords = Array.isArray(retrieval.keywords)
+        ? retrieval.keywords.join('\n')
+        : '';
+    const keywordWeightPercent = formatRulePercent(retrieval.keyword_weight ?? 0.7);
+    const semanticWeightPercent = formatRulePercent(retrieval.semantic_weight ?? 0.3);
+
+    container.innerHTML = `
+        <div class="panel-title-row">
+            <h4>检索与重排</h4>
+            <span class="text-muted">高级参数</span>
+        </div>
         <details class="template-common-rule-card template-common-summary-card">
             <summary>
                 <span class="template-common-summary-title">
@@ -1748,8 +1764,12 @@ function renderCommonGenerationRules(template) {
             </div>
         </details>
     `;
+}
 
-    container.querySelectorAll('[data-common-rule-field]').forEach(input => {
+function bindCommonRuleInputs(template) {
+    document.querySelectorAll('#template-common-rules [data-common-rule-field], #template-advanced-common-rules [data-common-rule-field]').forEach(input => {
+        if (input.dataset.boundCommonRule) return;
+        input.dataset.boundCommonRule = 'true';
         const update = () => {
             collectCommonDefaultsDraft(template);
             renderSelectedSourceFragment(template);
@@ -1801,8 +1821,11 @@ function getHardConstraintPromptText(hardConstraints = {}) {
 }
 
 function collectCommonDefaultsDraft(template) {
-    const container = document.getElementById('template-common-rules');
-    if (!container) return getEditableCommonDefaults(template);
+    const containers = [
+        document.getElementById('template-common-rules'),
+        document.getElementById('template-advanced-common-rules')
+    ].filter(Boolean);
+    if (!containers.length) return getEditableCommonDefaults(template);
 
     const existing = getEditableCommonDefaults(template);
     const draft = {
@@ -1816,7 +1839,7 @@ function collectCommonDefaultsDraft(template) {
         rerank: { ...(existing.rerank || {}) }
     };
 
-    container.querySelectorAll('[data-common-rule-field]').forEach(input => {
+    containers.forEach(container => container.querySelectorAll('[data-common-rule-field]').forEach(input => {
         const field = input.dataset.commonRuleField;
         if (!field) return;
         let value;
@@ -1843,7 +1866,7 @@ function collectCommonDefaultsDraft(template) {
         } else {
             draft[field] = value;
         }
-    });
+    }));
 
     currentTemplateState.commonDefaultsDraft = draft;
     return draft;
@@ -1957,7 +1980,9 @@ function getSelectedPlaceholderMapping(template) {
 function renderSelectedPlaceholderDetail(template) {
     const titleEl = document.getElementById('template-selected-placeholder-title');
     const formEl = document.getElementById('template-placeholder-detail-form');
+    const advancedFormEl = document.getElementById('template-advanced-placeholder-form');
     const saveBtn = document.getElementById('btn-template-save-placeholder');
+    const advancedBtn = document.getElementById('btn-template-advanced-config');
     if (!formEl) return;
 
     const name = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
@@ -1965,12 +1990,15 @@ function renderSelectedPlaceholderDetail(template) {
     if (!name || !mapping) {
         if (titleEl) titleEl.textContent = '占位符配置详情';
         formEl.innerHTML = '<div class="empty-state compact">从左侧选择一个 Word 占位符后编辑配置</div>';
+        if (advancedFormEl) advancedFormEl.innerHTML = '<div class="empty-state compact">从左侧选择一个 Word 占位符后显示高级字段</div>';
         if (saveBtn) saveBtn.disabled = true;
+        if (advancedBtn) advancedBtn.disabled = true;
         return;
     }
 
     if (titleEl) titleEl.textContent = `{{${name}}} 配置`;
     if (saveBtn) saveBtn.disabled = false;
+    if (advancedBtn) advancedBtn.disabled = false;
 
     const type = mapping.type || inferPlaceholderType(name);
     const isPromptLike = isPromptPlaceholderType(type, mapping);
@@ -1992,32 +2020,50 @@ function renderSelectedPlaceholderDetail(template) {
         'static_text'
     ].filter(Boolean)));
 
-    formEl.innerHTML = `
-        <label>
-            <span>标题</span>
-            <input type="text" data-placeholder-field="title" value="${esc(mapping.title || inferPlaceholderTitle(name))}">
-        </label>
-        <label>
-            <span>类型</span>
-            <select data-placeholder-field="type">
-                ${typeOptions.map(option => `
-                    <option value="${option}" ${type === option ? 'selected' : ''}>${option}</option>
-                `).join('')}
-            </select>
-        </label>
-        ${isPromptLike ? `
-            <label>
-                <span>Prompt 模板</span>
-                <input type="text" data-placeholder-field="prompt_template" value="${esc(mapping.prompt_template || resolvePromptTemplateName(name, template.report_project))}">
-            </label>
-            <label>
-                <span>检索模式</span>
-                <select data-placeholder-field="query_mode">
-                    ${['retrieval_query_embedded', 'query_source'].map(option => `
-                        <option value="${option}" ${(mapping.query_mode || 'retrieval_query_embedded') === option ? 'selected' : ''}>${option}</option>
-                    `).join('')}
-                </select>
-            </label>
+    formEl.innerHTML = buildSimplePlaceholderFieldsHtml({
+        name,
+        type,
+        mapping,
+        isPromptLike,
+        retrievalKeywords,
+        minNewsCount,
+        dataTemplate,
+        writingStructureText
+    });
+
+    if (advancedFormEl) {
+        advancedFormEl.innerHTML = buildAdvancedPlaceholderFieldsHtml({
+            name,
+            type,
+            mapping,
+            isPromptLike,
+            typeOptions,
+            needsParam,
+            usesQuerySource,
+            promptParam,
+            template
+        });
+    }
+
+    bindPlaceholderDetailInputs(template);
+}
+
+function buildSimplePlaceholderFieldsHtml({
+    name,
+    type,
+    mapping,
+    isPromptLike,
+    retrievalKeywords,
+    minNewsCount,
+    dataTemplate,
+    writingStructureText
+}) {
+    if (isPromptLike) {
+        return `
+            <div class="template-simple-mode-note">
+                <strong>简洁模式</strong>
+                <span>这里只保留会直接影响生成内容的字段；类型、Prompt 模板、检索策略和 YAML 在右上角高级配置里。</span>
+            </div>
             <label>
                 <span>目标字数</span>
                 <input type="number" min="1" step="1" data-placeholder-field="target_words" value="${esc(mapping.target_words || inferDefaultTargetWords(name))}">
@@ -2040,27 +2086,91 @@ function renderSelectedPlaceholderDetail(template) {
                 <span>${type === 'composite_market_review' ? '后续写作结构（一行一步）' : '写作结构（一行一步，可选）'}</span>
                 <textarea data-placeholder-field="components.llm_writing.writing_structure" rows="5">${esc(writingStructureText)}</textarea>
             </label>
-            ${usesQuerySource ? `
-                <label>
-                    <span>Query 来源</span>
-                    <input type="text" data-placeholder-field="query_source" value="${esc(mapping.query_source || inferQuerySource(name, template.report_project))}">
-                </label>
-            ` : ''}
-            ${needsParam ? `
-                <label>
-                    <span>参数 param</span>
-                    <input type="text" data-placeholder-field="params.param" value="${esc(promptParam)}">
-                </label>
-            ` : ''}
             <label>
                 <span>关键词 Profile</span>
                 <input type="text" data-placeholder-field="retrieval.keyword_profile" value="${esc(mapping.retrieval?.keyword_profile || getLlmWritingComponent(mapping).retrieval?.keyword_profile || '')}">
             </label>
             <label>
                 <span>检索关键词（当前占位符）</span>
-                <textarea data-placeholder-field="retrieval.keywords" rows="3">${esc(retrievalKeywords)}</textarea>
+                <textarea data-placeholder-field="retrieval.keywords" rows="4">${esc(retrievalKeywords)}</textarea>
             </label>
-        ` : ''}
+        `;
+    }
+
+    if (type === 'excel_cell' || type === 'excel_range') {
+        return `
+            <label>
+                <span>Excel 来源 / 区域</span>
+                <input type="text" data-placeholder-field="source" value="${esc(mapping.source || '')}">
+            </label>
+        `;
+    }
+
+    if (type === 'static_text') {
+        return `
+            <label>
+                <span>静态文本</span>
+                <textarea data-placeholder-field="value" rows="3">${esc(mapping.value || '')}</textarea>
+            </label>
+        `;
+    }
+
+    return '<div class="empty-state compact">当前占位符没有常用字段，可打开高级配置查看</div>';
+}
+
+function buildAdvancedPlaceholderFieldsHtml({
+    name,
+    type,
+    mapping,
+    isPromptLike,
+    typeOptions,
+    needsParam,
+    usesQuerySource,
+    promptParam,
+    template
+}) {
+    return `
+        <div class="template-advanced-help">
+            这些字段用于绑定底层模板和生成流程。日常调整文案时，优先使用主页面的简洁字段。
+        </div>
+        <label>
+            <span>标题</span>
+            <input type="text" data-placeholder-field="title" value="${esc(mapping.title || inferPlaceholderTitle(name))}">
+        </label>
+        <label>
+            <span>类型</span>
+            <select data-placeholder-field="type">
+                ${typeOptions.map(option => `
+                    <option value="${option}" ${type === option ? 'selected' : ''}>${option}</option>
+                `).join('')}
+            </select>
+        </label>
+        ${isPromptLike ? `
+            <label>
+                <span>Prompt 模板</span>
+                <input type="text" data-placeholder-field="prompt_template" value="${esc(mapping.prompt_template || resolvePromptTemplateName(name, template.report_project))}">
+            </label>
+	            <label>
+	                <span>检索模式</span>
+	                <select data-placeholder-field="query_mode">
+	                    ${['retrieval_query_embedded', 'query_source'].map(option => `
+	                        <option value="${option}" ${(mapping.query_mode || 'retrieval_query_embedded') === option ? 'selected' : ''}>${option}</option>
+	                    `).join('')}
+	                </select>
+	            </label>
+	            ${usesQuerySource ? `
+	                <label>
+	                    <span>Query 来源</span>
+	                    <input type="text" data-placeholder-field="query_source" value="${esc(mapping.query_source || inferQuerySource(name, template.report_project))}">
+                </label>
+            ` : ''}
+            ${needsParam ? `
+                <label>
+                    <span>参数 param</span>
+	                    <input type="text" data-placeholder-field="params.param" value="${esc(promptParam)}">
+	                </label>
+	            ` : ''}
+	        ` : ''}
         ${(type === 'excel_cell' || type === 'excel_range') ? `
             <label>
                 <span>Excel 来源 / 区域</span>
@@ -2074,8 +2184,12 @@ function renderSelectedPlaceholderDetail(template) {
             </label>
         ` : ''}
     `;
+}
 
-    formEl.querySelectorAll('[data-placeholder-field]').forEach(input => {
+function bindPlaceholderDetailInputs(template) {
+    document.querySelectorAll('#template-placeholder-detail-form [data-placeholder-field], #template-advanced-placeholder-form [data-placeholder-field]').forEach(input => {
+        if (input.dataset.boundPlaceholderField) return;
+        input.dataset.boundPlaceholderField = 'true';
         input.addEventListener('input', () => updateTemplateSourceFromPlaceholderDraft(template));
         input.addEventListener('change', () => {
             updateTemplateSourceFromPlaceholderDraft(template);
@@ -2091,10 +2205,13 @@ function collectSelectedPlaceholderDraft(template) {
     const name = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
     if (!name) return null;
 
-    const formEl = document.getElementById('template-placeholder-detail-form');
+    const forms = [
+        document.getElementById('template-placeholder-detail-form'),
+        document.getElementById('template-advanced-placeholder-form')
+    ].filter(Boolean);
     const existing = getSelectedPlaceholderMapping(template) || {};
     const draft = { ...existing };
-    formEl?.querySelectorAll('[data-placeholder-field]').forEach(input => {
+    forms.forEach(formEl => formEl.querySelectorAll('[data-placeholder-field]').forEach(input => {
         const field = input.dataset.placeholderField;
         const value = input.value?.trim?.() || '';
         if (field === 'params.param') {
@@ -2127,7 +2244,7 @@ function collectSelectedPlaceholderDraft(template) {
         } else if (field) {
             draft[field] = value;
         }
-    });
+    }));
     draft.title = draft.title || inferPlaceholderTitle(name);
     draft.type = draft.type || inferPlaceholderType(name);
     currentTemplateState.placeholderMappingDrafts = currentTemplateState.placeholderMappingDrafts || {};
@@ -2968,10 +3085,25 @@ function buildPromptTemplateLibraryMarkdown(template) {
     ].join('\n');
 }
 
+function setTemplateAdvancedDrawerOpen(open) {
+    const drawer = document.getElementById('template-advanced-drawer');
+    const backdrop = document.getElementById('template-advanced-drawer-backdrop');
+    if (!drawer || !backdrop) return;
+    drawer.classList.toggle('hidden', !open);
+    backdrop.classList.toggle('hidden', !open);
+    drawer.setAttribute('aria-hidden', open ? 'false' : 'true');
+    if (open) {
+        renderSelectedSourceFragment(getCurrentWorkbenchTemplate() || {});
+    }
+}
+
 function bindTemplateWorkbenchActions() {
     const editBtn = document.getElementById('btn-template-edit-source');
     const saveBtn = document.getElementById('btn-template-save-source');
     const savePlaceholderBtn = document.getElementById('btn-template-save-placeholder');
+    const advancedConfigBtn = document.getElementById('btn-template-advanced-config');
+    const closeAdvancedConfigBtn = document.getElementById('btn-template-close-advanced-config');
+    const advancedConfigBackdrop = document.getElementById('template-advanced-drawer-backdrop');
     const dryRunBtn = document.getElementById('btn-template-dry-run');
     const generateBtn = document.getElementById('btn-template-generate-report');
     const sourceEditor = document.getElementById('template-source-editor');
@@ -3007,7 +3139,7 @@ function bindTemplateWorkbenchActions() {
         sourcePromptBtn.addEventListener('click', () => switchTemplateSourceKind('prompt_templates'));
     }
 
-    if (saveBtn && sourceEditor && !saveBtn.dataset.bound) {
+	    if (saveBtn && sourceEditor && !saveBtn.dataset.bound) {
         saveBtn.dataset.bound = 'true';
         saveBtn.addEventListener('click', async () => {
             const key = sourceEditor.dataset.draftKey || 'report-template-source:draft';
@@ -3051,18 +3183,33 @@ function bindTemplateWorkbenchActions() {
             } finally {
                 saveBtn.innerHTML = originalText;
             }
-        });
+	        });
+	    }
+
+    if (advancedConfigBtn && !advancedConfigBtn.dataset.bound) {
+        advancedConfigBtn.dataset.bound = 'true';
+        advancedConfigBtn.addEventListener('click', () => setTemplateAdvancedDrawerOpen(true));
     }
 
-    if (savePlaceholderBtn && !savePlaceholderBtn.dataset.bound) {
-        savePlaceholderBtn.dataset.bound = 'true';
-        savePlaceholderBtn.addEventListener('click', async () => {
-            const template = getCurrentWorkbenchTemplate();
-            if (!template) {
-                toast('请先选择模板', 'error');
-                return;
-            }
-            updateTemplateSourceFromPlaceholderDraft(template);
+    if (closeAdvancedConfigBtn && !closeAdvancedConfigBtn.dataset.bound) {
+        closeAdvancedConfigBtn.dataset.bound = 'true';
+        closeAdvancedConfigBtn.addEventListener('click', () => setTemplateAdvancedDrawerOpen(false));
+    }
+
+    if (advancedConfigBackdrop && !advancedConfigBackdrop.dataset.bound) {
+        advancedConfigBackdrop.dataset.bound = 'true';
+        advancedConfigBackdrop.addEventListener('click', () => setTemplateAdvancedDrawerOpen(false));
+    }
+
+	    if (savePlaceholderBtn && !savePlaceholderBtn.dataset.bound) {
+	        savePlaceholderBtn.dataset.bound = 'true';
+	        savePlaceholderBtn.addEventListener('click', async () => {
+	            const template = getCurrentWorkbenchTemplate();
+	            if (!template) {
+	                toast('请先选择模板', 'error');
+	                return;
+	            }
+	            updateTemplateSourceFromPlaceholderDraft(template);
             const sourceEditor = document.getElementById('template-source-editor');
             if (!sourceEditor) return;
             const content = buildUpdatedSectionConfigSource(template, getEditablePlaceholderMappings(template));

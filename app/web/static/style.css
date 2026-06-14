@@ -5003,6 +5003,18 @@ tr:hover td {
     margin-bottom: 1rem;
 }
 
+.template-section-editor-panel .template-placeholder-detail-form {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.template-placeholder-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
 .template-placeholder-detail-form label {
     display: flex;
     min-width: 0;
@@ -5029,6 +5041,96 @@ tr:hover td {
 .template-placeholder-detail-form textarea,
 .template-placeholder-detail-form label:has(textarea) {
     grid-column: 1 / -1;
+}
+
+.template-simple-mode-note,
+.template-advanced-help {
+    grid-column: 1 / -1;
+    padding: 0.75rem 0.85rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    line-height: 1.5;
+}
+
+.template-simple-mode-note strong {
+    margin-right: 0.45rem;
+    color: var(--text-primary);
+}
+
+.template-advanced-help {
+    background: rgba(139, 124, 246, 0.08);
+}
+
+.template-advanced-drawer-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    background: rgba(0, 0, 0, 0.46);
+}
+
+.template-advanced-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    z-index: 81;
+    display: flex;
+    width: min(760px, calc(100vw - 32px));
+    height: 100vh;
+    flex-direction: column;
+    border-left: 1px solid var(--border);
+    background: var(--bg-primary);
+    box-shadow: -24px 0 48px rgba(0, 0, 0, 0.35);
+}
+
+.template-advanced-drawer.hidden,
+.template-advanced-drawer-backdrop.hidden {
+    display: none;
+}
+
+.template-advanced-drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.1rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.template-advanced-drawer-header h4 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1rem;
+}
+
+.template-advanced-drawer-header small {
+    display: block;
+    margin-top: 0.2rem;
+    color: var(--text-muted);
+}
+
+.template-advanced-drawer-body {
+    display: grid;
+    gap: 1rem;
+    overflow: auto;
+    padding: 1rem;
+}
+
+.template-advanced-section {
+    padding: 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+}
+
+.template-advanced-placeholder-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.template-advanced-section .template-source-editor {
+    min-height: 420px;
 }
 
 .template-mapping-table {

@@ -1053,30 +1053,59 @@
                                             </div>
                                         </div>
 
-                                        <div class="template-workbench-panel template-section-editor-panel" id="template-section-config-editor">
-                                            <div class="panel-title-row">
-                                                <h4 id="template-selected-placeholder-title">占位符配置详情</h4>
-                                                <button id="btn-template-save-placeholder" class="btn-secondary" disabled><i class="codicon codicon-save"></i> 保存当前占位符</button>
+	                                        <div class="template-workbench-panel template-section-editor-panel" id="template-section-config-editor">
+	                                            <div class="panel-title-row">
+	                                                <h4 id="template-selected-placeholder-title">占位符配置详情</h4>
+                                                    <div class="template-placeholder-actions">
+                                                        <button id="btn-template-advanced-config" class="btn-secondary" disabled><i class="codicon codicon-settings-gear"></i> 高级配置</button>
+	                                                    <button id="btn-template-save-placeholder" class="btn-secondary" disabled><i class="codicon codicon-save"></i> 保存当前占位符</button>
+                                                    </div>
+	                                            </div>
+	                                            <div id="template-placeholder-detail-form" class="template-placeholder-detail-form">
+	                                                <div class="empty-state compact">从左侧选择一个 Word 占位符后编辑配置</div>
+	                                            </div>
+	                                        </div>
+	                                    </div>
+                                        <div id="template-advanced-drawer-backdrop" class="template-advanced-drawer-backdrop hidden"></div>
+                                        <aside id="template-advanced-drawer" class="template-advanced-drawer hidden" aria-hidden="true">
+                                            <div class="template-advanced-drawer-header">
+                                                <div>
+                                                    <h4>高级配置</h4>
+                                                    <small>类型、Prompt 模板、检索策略、Rerank 和 YAML 片段</small>
+                                                </div>
+                                                <button id="btn-template-close-advanced-config" class="btn-secondary" type="button"><i class="codicon codicon-close"></i></button>
                                             </div>
-                                            <div id="template-placeholder-detail-form" class="template-placeholder-detail-form">
-                                                <div class="empty-state compact">从左侧选择一个 Word 占位符后编辑配置</div>
+                                            <div class="template-advanced-drawer-body">
+                                                <section class="template-advanced-section">
+                                                    <div class="panel-title-row">
+                                                        <h4>占位符高级字段</h4>
+                                                        <span class="text-muted">通常不需要修改</span>
+                                                    </div>
+                                                    <div id="template-advanced-placeholder-form" class="template-placeholder-detail-form template-advanced-placeholder-form">
+                                                        <div class="empty-state compact">从左侧选择一个 Word 占位符后显示高级字段</div>
+                                                    </div>
+                                                </section>
+                                                <section class="template-advanced-section">
+                                                    <div id="template-advanced-common-rules" class="template-common-rules"></div>
+                                                </section>
+                                                <section class="template-advanced-section">
+                                                    <div class="panel-title-row template-source-fragment-title">
+                                                        <h4>当前片段源码</h4>
+                                                        <span id="template-source-kind-label" class="text-muted">YAML / Markdown Prompt</span>
+                                                    </div>
+                                                    <div class="template-source-switcher">
+                                                        <button id="btn-template-source-section" class="source-switch-btn active" type="button">当前 YAML</button>
+                                                        <button id="btn-template-source-prompt" class="source-switch-btn" type="button">Prompt 模板</button>
+                                                    </div>
+                                                    <div class="template-workbench-actions template-source-actions">
+                                                        <button id="btn-template-edit-source" class="btn-secondary"><i class="codicon codicon-edit"></i> 查看片段</button>
+                                                        <button id="btn-template-save-source" class="btn-secondary" disabled><i class="codicon codicon-save"></i> 保存当前片段</button>
+                                                    </div>
+                                                    <textarea id="template-source-editor" class="template-source-editor" spellcheck="false" readonly>选择模板后生成配置草稿...</textarea>
+                                                </section>
                                             </div>
-                                            <div class="panel-title-row template-source-fragment-title">
-                                                <h4>当前片段源码</h4>
-                                                <span id="template-source-kind-label" class="text-muted">YAML / Markdown Prompt</span>
-                                            </div>
-                                            <div class="template-source-switcher">
-                                                <button id="btn-template-source-section" class="source-switch-btn active" type="button">当前 YAML</button>
-                                                <button id="btn-template-source-prompt" class="source-switch-btn" type="button">Prompt 模板</button>
-                                            </div>
-                                            <div class="template-workbench-actions template-source-actions">
-                                                <button id="btn-template-edit-source" class="btn-secondary"><i class="codicon codicon-edit"></i> 查看片段</button>
-                                                <button id="btn-template-save-source" class="btn-secondary" disabled><i class="codicon codicon-save"></i> 保存当前片段</button>
-                                            </div>
-                                            <textarea id="template-source-editor" class="template-source-editor" spellcheck="false" readonly>选择模板后生成配置草稿...</textarea>
-                                        </div>
-                                    </div>
-                                </details>
+                                        </aside>
+	                                </details>
                             </div>
                         </div>
 
@@ -1246,7 +1275,7 @@
 
     <!-- Scripts: i18n must load before app.js -->
     <script src="/static/i18n.js?v=20250527"></script>
-    <script type="module" src="/static/js/app.js?v=20250614a"></script>
+    <script type="module" src="/static/js/app.js?v=20250614b"></script>
     <script type="module" src="/static/js/wind.js?v=20250601a"></script>
 </body>
 </html>
