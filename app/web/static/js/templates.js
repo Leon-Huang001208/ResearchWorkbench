@@ -1866,15 +1866,13 @@ function collectCommonDefaultsDraft(template) {
         let value;
         if (input.type === 'checkbox') {
             value = input.checked;
+        } else if (field === 'generation_constraints') {
+            value = splitLines(input.value);
         } else if (field === 'validators.forbidden_terms'
-            || field === 'generation_constraints'
             || field === 'hard_constraints.forbidden_phrases'
             || field === 'hard_constraints.forbidden_entity_categories'
             || field === 'retrieval.keywords') {
-            value = String(input.value || '')
-                .split(/[\n,，]/)
-                .map(item => item.trim())
-                .filter(Boolean);
+            value = splitDelimitedList(input.value);
         } else if (input.type === 'number') {
             value = input.value === '' ? null : Number(input.value);
         } else {

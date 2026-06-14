@@ -244,6 +244,15 @@ def test_report_project_placeholders_skip_legacy_template_placeholder_api():
     assert "使用项目包解析出的 Word 占位符" in source
 
 
+def test_common_generation_constraints_preserve_commas():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+
+    assert "field === 'generation_constraints'" in source
+    assert "value = splitLines(input.value);" in source
+    assert "value = splitDelimitedList(input.value);" in source
+    assert "field === 'generation_constraints'\n            || field === 'hard_constraints.forbidden_phrases'" not in source
+
+
 def test_template_cards_do_not_reference_module_state_inline():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
 
