@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AlphaFoundry Desktop</title>
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+    <main class="desktop-boot">
+        <section class="boot-panel" aria-live="polite">
+            <div class="brand-mark">AF</div>
+            <h1>AlphaFoundry</h1>
+            <p id="boot-status">正在启动本地投研引擎...</p>
+            <div class="progress-track">
+                <div class="progress-fill"></div>
+            </div>
+            <button id="retry-button" type="button" hidden>重试连接</button>
+        </section>
+    </main>
+    <script type="module" src="./bootstrap.js"></script>
+</body>
+</html>
