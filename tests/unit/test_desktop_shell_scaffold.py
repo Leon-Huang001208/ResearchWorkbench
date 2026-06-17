@@ -130,6 +130,7 @@ def test_backend_launcher_allows_project_root_override(monkeypatch):
 def test_package_json_exposes_desktop_commands():
     package = json.loads(PACKAGE_JSON.read_text(encoding="utf-8"))
 
+    assert package["scripts"]["tauri"] == "tauri"
     assert package["scripts"]["desktop:dev"] == "tauri dev"
     assert package["scripts"]["desktop:build"] == "tauri build"
     assert package["scripts"]["desktop:sidecar"] == "python scripts/desktop/build_sidecar.py"
@@ -151,6 +152,7 @@ def test_desktop_release_workflow_builds_platform_matrix_and_draft_release():
     assert "ubuntu-22.04" in source
     assert "python scripts/desktop/build_sidecar.py" in source
     assert "python scripts/desktop/prepare_tauri_sidecar.py" in source
+    assert "Free Linux runner disk space" in source
     assert "tauri-apps/tauri-action@v0" in source
     assert "releaseDraft: true" in source
     assert "TAURI_UPDATER_PUBKEY" in source
