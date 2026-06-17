@@ -16,6 +16,11 @@ __pycache__/
 dist/
 build/
 
+# Node / desktop build artifacts
+node_modules/
+src-tauri/target/
+src-tauri/tauri.release.conf.json
+
 # Temporary files
 *.tmp
 *.bak

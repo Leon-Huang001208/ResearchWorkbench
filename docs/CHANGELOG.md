@@ -8,6 +8,17 @@
 
 ### Added
 
+- **Tauri 桌面壳 Phase 1**: 新增 AlphaFoundry 桌面化骨架，保留现有 FastAPI Web 工作台不变，通过 Tauri 外壳承载本地 `127.0.0.1:8765` 服务，并为后续 macOS/Windows/Linux 安装包、sidecar 后端和自动更新发布链路铺路。
+  - `scripts/desktop/backend_launcher.py` — 新增桌面后端启动器，负责以桌面端默认端口运行 `app.api.main:app` 并写入 `logs/desktop-backend.log`。
+  - `src-tauri/` / `package.json` — 新增 Tauri 2 配置、Rust shell、sidecar 进程管理骨架和桌面构建命令。
+  - `desktop/dist/` — 新增桌面启动页，轮询 `/health` 后跳转到现有工作台。
+  - `docs/desktop_packaging.md` / `docs/superpowers/plans/2026-06-16-desktop-shell-phase-1.md` / `tests/unit/test_desktop_shell_scaffold.py` — 记录桌面打包路线并补充静态 wiring 测试。
+
+- **Tauri 桌面发布流水线 Phase 2**: 新增 macOS/Windows/Linux GitHub Actions draft release 工作流，并将 Python sidecar 构建改为跨平台脚本。
+  - `.github/workflows/desktop-release.yml` — 新增手动触发 / `v*` tag 触发的桌面发布流水线，按 macOS ARM、Windows x64、Linux x64 矩阵构建并上传 Tauri bundle。
+  - `scripts/desktop/build_sidecar.py` / `prepare_tauri_sidecar.py` / `write_tauri_release_config.py` — 新增跨平台 sidecar 构建、Tauri externalBin 准备、updater release config 生成脚本；`build_sidecar.sh` 保留为本地 shell 入口。
+  - `package.json` / `docs/desktop_packaging.md` / `tests/unit/test_desktop_shell_scaffold.py` — 补充桌面 sidecar、release config、发布构建命令、CI Secrets 文档和静态回归测试。
+
 - **报告项目工作台配置驱动生成**: `report_projects` 工作台从静态占位符渲染升级为项目配置驱动生成，支持源码保存、evidence 检索、LLM 生成、图表嵌入、运行日志和 Word HTML 预览。
   - `app/api/routes/report_projects.py` — 新增 `PUT /api/report-projects/{slug}/source` 保存 `section_config.yaml` / `prompt_templates.md`；`POST /render` 默认执行 `section_config.yaml` + `prompt_templates.md` 的 evidence-grounded 生成；响应增加 `preview_url`、生成占位符数、evidence 数和 warnings；新增 `GET /preview/{file_name}` 轻量 DOCX HTML 预览；run log 记录本期报告周期。
   - `reporting/projects/generation.py` — 新增项目级报告生成服务，解析 Markdown Prompt 模板二级标题、提取 `检索 Query` / `写作要求`、从 `ingestion_queue_item` 和 `canonical_event` 检索证据，并通过 `ModelGatewayImpl` reporting/default task route 生成 Word 占位符正文；`type: report_period` 占位符由生成器统一计算，开始日期为报告日所在周周一，结束日期为报告日；`type: composite_market_review` 支持先从 `周报数据.xlsx` 生成确定性的 A 股指数涨跌和成交额句子，再只让模型基于 evidence 生成市场热点归纳；独立 section 默认使用 4 路有界并行生成，最终结果仍按配置顺序写入 run log 和 Word。

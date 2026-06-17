@@ -1,0 +1,44 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "AlphaFoundry",
+  "version": "0.1.0",
+  "identifier": "com.alphafoundry.desktop",
+  "build": {
+    "frontendDist": "../desktop/dist",
+    "devUrl": "http://127.0.0.1:8765",
+    "beforeDevCommand": "scripts/desktop/run_backend.sh --host 127.0.0.1 --port 8765 --reload"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "AlphaFoundry",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 1100,
+        "minHeight": 720,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; connect-src 'self' http://127.0.0.1:8765; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: http://127.0.0.1:8765"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "externalBin": [
+      "binaries/alphafoundry-backend"
+    ],
+    "macOS": {
+      "minimumSystemVersion": "12.0"
+    },
+    "windows": {
+      "wix": {
+        "language": "zh-CN"
+      }
+    }
+  }
+}

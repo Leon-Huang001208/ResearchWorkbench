@@ -1,0 +1,129 @@
+name: Desktop Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag. Empty uses desktop-<run number>."
+        required: false
+        type: string
+      release_name:
+        description: "Release title. Empty uses AlphaFoundry Desktop <tag>."
+        required: false
+        type: string
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  desktop:
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: macOS ARM
+            os: macos-latest
+          - label: Windows x64
+            os: windows-latest
+          - label: Linux x64
+            os: ubuntu-22.04
+
+    env:
+      TAURI_UPDATER_PUBKEY: ${{ secrets.TAURI_UPDATER_PUBKEY }}
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+      ALPHAFOUNDRY_UPDATER_ENDPOINT: ${{ vars.ALPHAFOUNDRY_UPDATER_ENDPOINT }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve release metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
+            release_tag="${GITHUB_REF_NAME}"
+          elif [[ -n "${{ inputs.tag }}" ]]; then
+            release_tag="${{ inputs.tag }}"
+          else
+            release_tag="desktop-${GITHUB_RUN_NUMBER}"
+          fi
+
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && -n "${{ inputs.release_name }}" ]]; then
+            release_name="${{ inputs.release_name }}"
+          else
+            release_name="AlphaFoundry Desktop ${release_tag}"
+          fi
+
+          echo "RELEASE_TAG=${release_tag}" >> "$GITHUB_ENV"
+          echo "RELEASE_NAME=${release_name}" >> "$GITHUB_ENV"
+
+      - name: Install Linux desktop dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e . pyinstaller
+
+      - name: Build backend sidecar
+        run: python scripts/desktop/build_sidecar.py
+
+      - name: Copy backend sidecar into Tauri
+        run: python scripts/desktop/prepare_tauri_sidecar.py
+
+      - name: Generate updater release config
+        if: env.TAURI_UPDATER_PUBKEY != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/desktop/write_tauri_release_config.py
+          echo "TAURI_BUILD_ARGS=--config src-tauri/tauri.release.conf.json" >> "$GITHUB_ENV"
+
+      - name: Disable updater artifacts without updater key
+        if: env.TAURI_UPDATER_PUBKEY == ''
+        shell: bash
+        run: echo "TAURI_BUILD_ARGS=" >> "$GITHUB_ENV"
+
+      - name: Build and upload Tauri bundles
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ env.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ env.RELEASE_TAG }}
+          releaseName: ${{ env.RELEASE_NAME }}
+          releaseDraft: true
+          prerelease: true
+          args: ${{ env.TAURI_BUILD_ARGS }}
