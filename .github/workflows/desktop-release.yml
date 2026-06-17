@@ -28,10 +28,6 @@ jobs:
         include:
           - label: macOS ARM
             os: macos-latest
-          - label: Windows x64
-            os: windows-latest
-          - label: Linux x64
-            os: ubuntu-22.04
 
     env:
       TAURI_UPDATER_PUBKEY: ${{ secrets.TAURI_UPDATER_PUBKEY }}
