@@ -280,6 +280,115 @@ Motion:
 - Fade and subtle hover brighten only.
 - No bounce, parallax, floating cards, glossy gradients, or decorative blobs.
 
+## Theme System
+
+The desktop visual system should preserve the current product capability for light mode, dark mode, and accent color selection, but the new implementation must constrain those options through a single token model.
+
+Theme controls:
+
+- Appearance: `System`, `Light`, `Dark`.
+- Accent color: `Amber`, `Blue`, `Green`, `Red`, `Purple`.
+- Default: `System` appearance with `Amber` accent.
+
+Theme choices should affect:
+
+- App background surfaces.
+- Panel and sidebar surfaces.
+- Text contrast tokens.
+- Accent tokens.
+- Focus rings.
+- Active source-list states.
+- Primary buttons.
+- Selected segmented-control state.
+- Chart emphasis lines.
+
+Theme choices must not affect:
+
+- China market up/down color convention.
+- Risk, warning, danger, and success semantics.
+- Numeric typography.
+- Workspace layout density.
+- Source-list hierarchy.
+- AI Inspector information architecture.
+
+### Dark Appearance
+
+Dark appearance remains the primary AlphaFoundry experience.
+
+It should use the graphite terminal palette defined in Visual Tokens:
+
+- Dark graphite page.
+- Dark source-list sidebar.
+- Dense panels.
+- Amber accent by default.
+- Muted grid and border lines.
+
+Dark mode is best for:
+
+- Market monitoring.
+- Signal review.
+- Backtests.
+- Real-time event triage.
+
+### Light Appearance
+
+Light appearance should be a macOS professional light theme, not a generic white web dashboard.
+
+Recommended light palette:
+
+- Page: `#F5F6F8`
+- Main workspace: `#FFFFFF`
+- Sidebar: `#E9EDF3`
+- Panel: `#FFFFFF`
+- Elevated panel: `#F8FAFC`
+- Border: `rgba(17,24,39,0.12)`
+- Soft border: `rgba(17,24,39,0.07)`
+- Primary text: `#111827`
+- Secondary text: `#4B5563`
+- Muted text: `#7B8493`
+
+Light mode is best for:
+
+- Report production.
+- Template configuration.
+- Long-form review.
+- Export and preview workflows.
+
+### Accent Color Presets
+
+Accent presets should map only to emphasis and interaction tokens.
+
+Recommended presets:
+
+- Amber: `#FF9F0A`
+- Blue: `#0A84FF`
+- Green: `#30D158`
+- Red: `#FF453A`
+- Purple: `#BF5AF2`
+
+Accent colors may be used for:
+
+- Active source-list swatch.
+- Active row highlight tint.
+- Primary button background.
+- Focus outline.
+- Segmented-control selected state.
+- Command center highlight.
+- Non-semantic chart emphasis.
+
+Accent colors must not be used to replace semantic status colors. A green accent does not make negative price movement use another color; a red accent does not change warning or danger semantics.
+
+### Persistence
+
+Theme preferences should be persisted independently from workspace state:
+
+- `appearance`
+- `accentColor`
+- `densityByWorkspace`
+- `inspectorCollapsed`
+
+If `appearance` is `System`, the app should follow the operating system color scheme and keep the selected accent color.
+
 ## Component Rules
 
 ### Source List Row
@@ -381,7 +490,7 @@ The redesign can be implemented incrementally.
 
 - Persist selected workspace, density, inspector collapsed state, and recently opened entities.
 - Add command center.
-- Remove old theme variants that no longer match the desktop visual system.
+- Replace old theme variants with the unified appearance and accent token system.
 
 ## Implementation Constraints
 
@@ -405,7 +514,7 @@ The redesign is successful when:
 ## Open Decisions Resolved
 
 - Use source-list workspaces instead of the current icon activity bar.
-- Keep dark graphite as the primary theme rather than making the 70% Apple option a light theme.
+- Keep dark graphite as the primary theme while supporting Light, Dark, System, and controlled accent presets.
 - Use `市场研究 / 资产观察 / 报告生产 / 信号实验室` as the first four primary workspaces.
 - Treat source-list counts as actionable workload counts.
 - Make the 50% Apple hybrid the design baseline.
