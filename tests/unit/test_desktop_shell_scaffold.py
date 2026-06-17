@@ -19,6 +19,7 @@ PREPARE_SIDECAR = ROOT / "scripts" / "desktop" / "prepare_tauri_sidecar.py"
 WRITE_RELEASE_CONFIG = ROOT / "scripts" / "desktop" / "write_tauri_release_config.py"
 DESKTOP_RELEASE_WORKFLOW = ROOT / ".github" / "workflows" / "desktop-release.yml"
 MACOS_ARM_SIDECAR = ROOT / "src-tauri" / "binaries" / "alphafoundry-backend-aarch64-apple-darwin"
+MACOS_ICON = ROOT / "src-tauri" / "icons" / "icon.icns"
 WINDOWS_ICON = ROOT / "src-tauri" / "icons" / "icon.ico"
 
 
@@ -46,8 +47,18 @@ def test_tauri_config_wraps_existing_fastapi_workbench():
     assert "scripts/desktop/run_backend.sh" in config["build"]["beforeDevCommand"]
     assert config["build"]["frontendDist"] == "../desktop/dist"
     assert config["bundle"]["targets"] == "all"
+    assert config["bundle"]["icon"] == [
+        "icons/icon.png",
+        "icons/icon.icns",
+        "icons/icon.ico",
+    ]
     assert "binaries/alphafoundry-backend" in config["bundle"]["externalBin"]
     assert "http://127.0.0.1:8765" in config["app"]["security"]["csp"]
+
+
+def test_macos_icon_is_available_for_tauri_resource_generation():
+    assert MACOS_ICON.exists()
+    assert MACOS_ICON.read_bytes().startswith(b"icns")
 
 
 def test_windows_icon_is_available_for_tauri_resource_generation():
