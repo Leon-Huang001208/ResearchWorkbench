@@ -99,6 +99,19 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Fetch Rust dependencies
+        shell: bash
+        working-directory: src-tauri
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if cargo fetch --locked; then
+              exit 0
+            fi
+            sleep "$((attempt * 20))"
+          done
+          cargo fetch --locked
+
       - name: Install Node dependencies
         run: npm ci
 

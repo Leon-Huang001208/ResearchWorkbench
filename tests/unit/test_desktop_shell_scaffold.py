@@ -19,6 +19,7 @@ PREPARE_SIDECAR = ROOT / "scripts" / "desktop" / "prepare_tauri_sidecar.py"
 WRITE_RELEASE_CONFIG = ROOT / "scripts" / "desktop" / "write_tauri_release_config.py"
 DESKTOP_RELEASE_WORKFLOW = ROOT / ".github" / "workflows" / "desktop-release.yml"
 MACOS_ARM_SIDECAR = ROOT / "src-tauri" / "binaries" / "alphafoundry-backend-aarch64-apple-darwin"
+WINDOWS_ICON = ROOT / "src-tauri" / "icons" / "icon.ico"
 
 
 def load_launcher_module():
@@ -47,6 +48,11 @@ def test_tauri_config_wraps_existing_fastapi_workbench():
     assert config["bundle"]["targets"] == "all"
     assert "binaries/alphafoundry-backend" in config["bundle"]["externalBin"]
     assert "http://127.0.0.1:8765" in config["app"]["security"]["csp"]
+
+
+def test_windows_icon_is_available_for_tauri_resource_generation():
+    assert WINDOWS_ICON.exists()
+    assert WINDOWS_ICON.read_bytes().startswith(b"\x00\x00\x01\x00")
 
 
 def test_tauri_rust_shell_starts_backend_sidecar():
@@ -153,6 +159,7 @@ def test_desktop_release_workflow_builds_platform_matrix_and_draft_release():
     assert "python scripts/desktop/build_sidecar.py" in source
     assert "python scripts/desktop/prepare_tauri_sidecar.py" in source
     assert "Free Linux runner disk space" in source
+    assert "cargo fetch --locked" in source
     assert "tauri-apps/tauri-action@v0" in source
     assert "releaseDraft: true" in source
     assert "TAURI_UPDATER_PUBKEY" in source
