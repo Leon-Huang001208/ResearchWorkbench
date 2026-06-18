@@ -16,4 +16,5 @@ else
     PYTHON_BIN="$(command -v python3)"
 fi
 
+cd "$REPO_ROOT"
 exec "$PYTHON_BIN" "$REPO_ROOT/scripts/desktop/backend_launcher.py" "$@"

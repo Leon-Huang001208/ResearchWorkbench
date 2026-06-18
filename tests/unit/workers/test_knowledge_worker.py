@@ -106,6 +106,38 @@ class TestProcessOne:
         assert result["events"] == 0
         assert result["entities"] == 0
 
+    def test_processed_item_log_fields_excludes_raw_document_content(self):
+        from workers.knowledge_worker import _create_document_v1, _processed_item_log_fields
+
+        mock_item = MagicMock()
+        mock_item.item_id = "i-log"
+        mock_item.source_id = None
+        mock_item.source_type = "zhiqiu_wechat"
+        mock_item.title = "Important title"
+        mock_item.raw_content = "Very long crawled article body that must not be logged"
+        mock_item.url = None
+
+        doc = _create_document_v1(mock_item)
+        fields = _processed_item_log_fields(
+            {
+                "item_id": "i-log",
+                "doc_id": doc.doc_id,
+                "doc": doc,
+                "events": 1,
+                "entities": 2,
+                "event_list": ["event"],
+                "entity_list": ["entity"],
+            }
+        )
+
+        assert "doc" not in fields
+        assert "event_list" not in fields
+        assert "entity_list" not in fields
+        assert "content" not in fields
+        assert fields["title"] == "Important title"
+        assert fields["content_hash"] == doc.content_hash
+        assert "Very long crawled article body" not in repr(fields)
+
 
 class TestStuckRecovery:
     """测试 processing 队列项恢复"""

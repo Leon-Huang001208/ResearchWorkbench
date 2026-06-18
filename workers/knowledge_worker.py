@@ -252,6 +252,20 @@ async def process_one(item: Any, pipeline: Any) -> Dict[str, Any]:
     }
 
 
+def _processed_item_log_fields(result: Dict[str, Any]) -> Dict[str, Any]:
+    """Return compact log fields without raw document content."""
+    doc = result.get("doc")
+    return {
+        "item_id": result.get("item_id"),
+        "doc_id": result.get("doc_id"),
+        "title": getattr(doc, "title", None),
+        "source_type": getattr(doc, "source_type", None),
+        "content_hash": getattr(doc, "content_hash", None),
+        "events": result.get("events"),
+        "entities": result.get("entities"),
+    }
+
+
 async def _process_and_mark(
     item: Any, semaphore: asyncio.Semaphore, pipeline: Any
 ) -> Dict[str, Any] | None:
@@ -312,7 +326,7 @@ async def _process_and_mark(
             db.commit()
             logger.info(
                 "Item processed",
-                **{k: v for k, v in result.items() if k not in ("event_list", "entity_list")},
+                **_processed_item_log_fields(result),
             )
             return result
         except Exception as e:

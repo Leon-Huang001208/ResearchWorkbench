@@ -82,6 +82,9 @@ def test_macos_arm_sidecar_shim_invokes_python_launcher():
     source = MACOS_ARM_SIDECAR.read_text(encoding="utf-8")
 
     assert source.startswith("#!/usr/bin/env bash")
+    assert "ALPHAFOUNDRY_PROJECT_ROOT" in source
+    assert "dev-project-root" in source
+    assert "resolve_project_root" in source
     assert "scripts/desktop/run_backend.sh" in source
     assert '"$@"' in source
 
@@ -93,6 +96,7 @@ def test_desktop_backend_shell_selects_python_runtime():
     assert "python3.11" in source
     assert "anaconda3/bin/python" in source
     assert "backend_launcher.py" in source
+    assert 'cd "$REPO_ROOT"' in source
 
 
 def test_sidecar_build_script_uses_pyinstaller_and_tauri_naming():
