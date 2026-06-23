@@ -1,7 +1,10 @@
 from datetime import UTC, datetime
 from pathlib import Path
+import subprocess
+import sys
 
 import pytest
+from openpyxl import load_workbook
 
 from services.wind_index_catalog import (
     WindIndexCatalogError,
@@ -12,10 +15,14 @@ from services.wind_index_catalog import (
 from services.wind_realtime_workbook import (
     DEFAULT_WORKBOOK_PATH,
     WorkbookSnapshotRow,
+    build_realtime_workbook,
     parse_snapshot_rows,
     resolve_workbook_path,
     split_snapshot_movers,
 )
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_wind_index_catalog_preserves_notes_column(tmp_path):
@@ -73,6 +80,21 @@ def test_wind_index_catalog_raises_when_code_header_is_missing(tmp_path):
 
     with pytest.raises(WindIndexCatalogError, match="missing required code header"):
         load_wind_index_catalog(path)
+
+
+def test_wind_index_catalog_accepts_wind_code_header(tmp_path):
+    path = tmp_path / "wind_index_catalog.csv"
+    path.write_text(
+        "wind_code,name,family,view_key,view_label\n"
+        "8841701.WI,GPU指数,wind_concept,wind_hot_concept,Wind热门概念\n",
+        encoding="utf-8",
+    )
+
+    entries = load_wind_index_catalog(path)
+
+    assert len(entries) == 1
+    assert entries[0].code == "8841701.WI"
+    assert entries[0].view_key == "wind_hot_concept"
 
 
 def test_wind_index_catalog_raises_when_file_encoding_is_invalid(tmp_path):
@@ -289,3 +311,79 @@ def test_split_snapshot_movers_sorts_up_and_down():
         "view_label": "Wind四级",
     }
     assert "pct_change" not in up[0]
+
+
+def test_build_realtime_workbook_creates_expected_sheets_and_formulas(tmp_path):
+    catalog_path = tmp_path / "wind_index_catalog.csv"
+    workbook_path = tmp_path / "AlphaFoundry_Wind_Realtime.xlsx"
+    save_wind_index_catalog(
+        [
+            WindIndexCatalogEntry(
+                code="8841701.WI",
+                name="GPU指数",
+                view_key="wind_hot_concept",
+                view_label="Wind热门概念",
+                is_concept=True,
+            )
+        ],
+        path=catalog_path,
+    )
+
+    result = build_realtime_workbook(
+        catalog_path=catalog_path,
+        workbook_path=workbook_path,
+    )
+
+    assert result == workbook_path
+    wb = load_workbook(workbook_path, data_only=False)
+    assert wb.sheetnames == [
+        "README",
+        "Config",
+        "IndexCatalog",
+        "RealtimeRaw",
+        "Snapshot",
+        "Health",
+        "FormulaLog",
+    ]
+    assert wb["RealtimeRaw"]["E2"].value == '=@s_info_name("8841701.WI")'
+    assert wb["RealtimeRaw"]["F2"].value == '=@wss("8841701.WI","rt_last")'
+    assert wb["RealtimeRaw"]["G2"].value == '=@wss("8841701.WI","rt_pct_chg")'
+    assert wb["RealtimeRaw"]["H2"].value == '=TEXT(NOW(),"yyyy-mm-ddThh:mm:ss")'
+    assert wb["Snapshot"]["A1"].value == "view_key"
+
+
+def test_build_realtime_workbook_rejects_empty_catalog(tmp_path):
+    catalog_path = tmp_path / "wind_index_catalog.csv"
+    workbook_path = tmp_path / "AlphaFoundry_Wind_Realtime.xlsx"
+    save_wind_index_catalog([], path=catalog_path)
+
+    with pytest.raises(RuntimeError, match="Wind index catalog is empty"):
+        build_realtime_workbook(
+            catalog_path=catalog_path,
+            workbook_path=workbook_path,
+        )
+
+    assert not workbook_path.exists()
+
+
+def test_build_wind_realtime_workbook_cli_uses_project_catalog_from_any_cwd(tmp_path):
+    script_path = PROJECT_ROOT / "scripts" / "build_wind_realtime_workbook.py"
+    workbook_path = tmp_path / "AlphaFoundry_Wind_Realtime.xlsx"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(script_path),
+            "--output",
+            str(workbook_path),
+        ],
+        cwd=tmp_path,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert str(workbook_path) in result.stdout
+    wb = load_workbook(workbook_path, data_only=False)
+    assert wb["Health"]["B3"].value == 272

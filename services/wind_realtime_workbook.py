@@ -9,7 +9,10 @@ from pathlib import Path
 from typing import Any, Iterable
 from zoneinfo import ZoneInfo
 
+from openpyxl import Workbook
+
 from core.observability import get_logger
+from services.wind_index_catalog import load_wind_index_catalog
 
 logger = get_logger(__name__)
 SHANGHAI_TZ = ZoneInfo("Asia/Shanghai")
@@ -35,6 +38,49 @@ SNAPSHOT_HEADERS = [
     "updated_at",
     "status",
 ]
+
+WORKBOOK_SHEETS = [
+    "README",
+    "Config",
+    "IndexCatalog",
+    "RealtimeRaw",
+    "Snapshot",
+    "Health",
+    "FormulaLog",
+]
+
+CATALOG_HEADERS = [
+    "row_id",
+    "view_key",
+    "view_label",
+    "wind_code",
+    "name",
+    "is_active",
+    "is_concept",
+    "priority",
+    "source_family",
+    "notes",
+]
+
+RAW_HEADERS = [
+    "row_id",
+    "view_key",
+    "view_label",
+    "wind_code",
+    "name_formula",
+    "last_formula",
+    "pct_change_formula",
+    "update_time_formula",
+    "name_value",
+    "last_value",
+    "pct_change_value",
+    "update_time_value",
+    "status",
+]
+
+HEALTH_HEADERS = ["metric", "value", "updated_at", "notes"]
+LOG_HEADERS = ["timestamp", "level", "component", "message", "details"]
+ISO_NOW_FORMULA = '=TEXT(NOW(),"yyyy-mm-ddThh:mm:ss")'
 
 
 @dataclass(frozen=True)
@@ -65,6 +111,126 @@ def resolve_workbook_path(path: str | Path | None = None) -> Path:
     if path is None or str(path).strip() == "":
         return DEFAULT_WORKBOOK_PATH
     return Path(path).expanduser()
+
+
+def build_realtime_workbook(
+    catalog_path: str | Path,
+    workbook_path: str | Path | None = None,
+) -> Path:
+    output_path = resolve_workbook_path(workbook_path)
+    generated_at = datetime.now(UTC).isoformat()
+
+    try:
+        entries = load_wind_index_catalog(catalog_path)
+        if not entries:
+            raise ValueError(f"Wind index catalog is empty: {catalog_path}")
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        workbook = Workbook()
+        workbook.remove(workbook.active)
+        sheets = {name: workbook.create_sheet(name) for name in WORKBOOK_SHEETS}
+
+        sheets["README"]["A1"] = "AlphaFoundry Wind Realtime Workbook"
+        sheets["README"][
+            "A2"
+        ] = "Open this workbook in Excel and log in to Wind before using Wind market views."
+
+        sheets["Config"].append(["key", "value", "description"])
+        sheets["Config"].append(["refresh_enabled", "true", "是否启用实时刷新"])
+        sheets["Config"].append(
+            ["expected_update_seconds", "60", "超过该秒数视为数据可能过期"]
+        )
+        sheets["Config"].append(["formula_version", "1", "公式模板版本"])
+        sheets["Config"].append(["last_generated_at", generated_at, "工作簿最后生成时间"])
+        sheets["Config"].append(["timezone", "Asia/Shanghai", "时间区域"])
+        sheets["Config"].append(["data_owner", "AlphaFoundry", "数据维护方"])
+
+        sheets["IndexCatalog"].append(CATALOG_HEADERS)
+        sheets["RealtimeRaw"].append(RAW_HEADERS)
+        sheets["Snapshot"].append(SNAPSHOT_HEADERS)
+        sheets["Health"].append(HEALTH_HEADERS)
+        sheets["FormulaLog"].append(LOG_HEADERS)
+
+        raw_row_number = 2
+        active_count = 0
+        for row_id, entry in enumerate(entries, start=1):
+            sheets["IndexCatalog"].append(
+                [
+                    row_id,
+                    entry.view_key,
+                    entry.view_label,
+                    entry.code,
+                    entry.name,
+                    str(entry.is_active).lower(),
+                    str(entry.is_concept).lower(),
+                    entry.priority,
+                    entry.family,
+                    entry.notes,
+                ]
+            )
+            if not entry.is_active:
+                continue
+
+            sheets["RealtimeRaw"].append(
+                [
+                    row_id,
+                    entry.view_key,
+                    entry.view_label,
+                    entry.code,
+                    f'=@s_info_name("{entry.code}")',
+                    f'=@wss("{entry.code}","rt_last")',
+                    f'=@wss("{entry.code}","rt_pct_chg")',
+                    ISO_NOW_FORMULA,
+                    f"=E{raw_row_number}",
+                    f"=F{raw_row_number}",
+                    f"=G{raw_row_number}",
+                    f"=H{raw_row_number}",
+                    (
+                        f'=IF(OR(ISERROR(F{raw_row_number}),'
+                        f'ISERROR(G{raw_row_number})),"formula_error","ok")'
+                    ),
+                ]
+            )
+            sheets["Snapshot"].append(
+                [
+                    f"=RealtimeRaw!B{raw_row_number}",
+                    f"=RealtimeRaw!C{raw_row_number}",
+                    f"=RealtimeRaw!D{raw_row_number}",
+                    f"=RealtimeRaw!I{raw_row_number}",
+                    f"=RealtimeRaw!J{raw_row_number}",
+                    f"=RealtimeRaw!K{raw_row_number}",
+                    str(entry.is_concept).lower(),
+                    "wind",
+                    f"=RealtimeRaw!L{raw_row_number}",
+                    f"=RealtimeRaw!M{raw_row_number}",
+                ]
+            )
+            active_count += 1
+            raw_row_number += 1
+
+        sheets["Health"].append(["workbook_open", "true", generated_at, "文件已生成"])
+        sheets["Health"].append(
+            ["active_index_count", active_count, generated_at, "active 指数数量"]
+        )
+        for sheet in sheets.values():
+            sheet.freeze_panes = "A2"
+
+        workbook.save(output_path)
+    except Exception as exc:
+        logger.error(
+            "Failed to build Wind realtime workbook from %s to %s: %s",
+            catalog_path,
+            output_path,
+            exc,
+        )
+        raise RuntimeError(f"Failed to build Wind realtime workbook: {exc}") from exc
+
+    logger.info(
+        "Built Wind realtime workbook: path=%s catalog=%s active_count=%s",
+        output_path,
+        catalog_path,
+        active_count,
+    )
+    return output_path
 
 
 def parse_snapshot_rows(

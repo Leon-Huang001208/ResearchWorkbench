@@ -12,6 +12,7 @@ from core.observability import get_logger
 logger = get_logger(__name__)
 
 DEFAULT_CATALOG_PATH = Path("data_sources") / "wind_index_catalog.csv"
+DEFAULT_WIND_INDEX_CATALOG_PATH = DEFAULT_CATALOG_PATH
 
 
 class WindIndexCatalogError(RuntimeError):
@@ -44,7 +45,9 @@ def load_wind_index_catalog(
     try:
         with catalog_path.open("r", encoding="utf-8-sig", newline="") as handle:
             reader = csv.DictReader(handle)
-            if not reader.fieldnames or "code" not in reader.fieldnames:
+            fieldnames = reader.fieldnames or []
+            code_column = "code" if "code" in fieldnames else "wind_code" if "wind_code" in fieldnames else ""
+            if not code_column:
                 message = (
                     f"Failed to load Wind index catalog {catalog_path}: "
                     "missing required code header"
@@ -53,7 +56,7 @@ def load_wind_index_catalog(
                 raise WindIndexCatalogError(message)
 
             for row in reader:
-                code = str(row.get("code") or "").strip()
+                code = str(row.get(code_column) or "").strip()
                 if not code:
                     logger.warning("Skipping Wind catalog row without code: %s", row)
                     continue
