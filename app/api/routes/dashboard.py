@@ -14,6 +14,30 @@ router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
 
 @router.get(
+    "/sector-movers",
+    responses={500: {"model": ErrorResponse}},
+)
+async def get_sector_movers(
+    view_key: str = Query("wind_hot_concept", description="Wind 市场视图 key"),
+    limit: int = Query(10, ge=1, le=50, description="每个方向返回数量上限"),
+):
+    """获取市场板块涨跌视图。"""
+    try:
+        db = SessionLocal()
+        try:
+            service = DashboardService(db)
+            return service.get_market_sector_view(view_key=view_key, limit=limit)
+        finally:
+            db.close()
+    except Exception as e:
+        logger.exception("Failed to get sector movers")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to load sector movers: {str(e)}",
+        )
+
+
+@router.get(
     "/crawl-feed",
     responses={500: {"model": ErrorResponse}},
 )

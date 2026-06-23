@@ -1,6 +1,6 @@
 """Dashboard 首页数据聚合服务"""
 from datetime import UTC, datetime, timedelta
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from sqlalchemy import desc
 
@@ -26,8 +26,18 @@ from core.contracts.dashboard import (
 )
 from core.observability import get_logger
 from data_layer.repositories.dashboard_data import DashboardDataRepository
+from services.wind_index_catalog import MARKET_VIEW_LABELS
+from services.wind_realtime_workbook import WindRealtimeWorkbookReader
 
 logger = get_logger(__name__)
+
+WIND_MARKET_VIEW_KEYS = {
+    "wind_hot_concept",
+    "wind_l1",
+    "wind_l2",
+    "wind_l3",
+    "wind_l4",
+}
 
 
 def _translate_failure_reason(reason: str) -> str:
@@ -68,7 +78,152 @@ class DashboardService:
     def __init__(self, session):
         self.session = session
         self.today_cutoff = datetime.now(UTC) - timedelta(days=1)
-        self.dashboard_repo = DashboardDataRepository(session)
+        self._dashboard_repo: Optional[DashboardDataRepository] = None
+
+    @property
+    def dashboard_repo(self) -> DashboardDataRepository:
+        """Create the dashboard repository only when a method actually needs it."""
+        if self._dashboard_repo is None:
+            self._dashboard_repo = DashboardDataRepository(self.session)
+        return self._dashboard_repo
+
+    def _empty_market_sector_payload(
+        self,
+        view_key: str,
+        *,
+        status: str,
+        message: str,
+        source: str = "wind_realtime_workbook",
+        cache_ttl_seconds: int = 60,
+        error_count: int = 0,
+    ) -> dict[str, Any]:
+        """Build a complete sector mover payload for error and empty states."""
+        return {
+            "view_key": view_key,
+            "view_label": MARKET_VIEW_LABELS.get(view_key, view_key),
+            "up": [],
+            "down": [],
+            "has_real_data": False,
+            "fetched_at": datetime.now(UTC).isoformat(),
+            "cache_hit": False,
+            "cache_ttl_seconds": cache_ttl_seconds,
+            "status": status,
+            "message": message,
+            "source": source,
+            "updated_at": None,
+            "error_count": error_count,
+        }
+
+    def _complete_market_sector_payload(
+        self, payload: dict[str, Any], view_key: str
+    ) -> dict[str, Any]:
+        """Ensure downstream callers always receive the dashboard sector contract."""
+        completed = self._empty_market_sector_payload(
+            view_key,
+            status=str(payload.get("status") or "snapshot_empty"),
+            message=str(payload.get("message") or ""),
+            source=str(payload.get("source") or "wind_realtime_workbook"),
+            cache_ttl_seconds=int(payload.get("cache_ttl_seconds") or 60),
+            error_count=int(payload.get("error_count") or 0),
+        )
+        completed.update(payload)
+        completed["view_key"] = view_key
+        completed["view_label"] = payload.get("view_label") or MARKET_VIEW_LABELS.get(
+            view_key, view_key
+        )
+        completed["up"] = payload.get("up") or []
+        completed["down"] = payload.get("down") or []
+        completed["has_real_data"] = bool(payload.get("has_real_data"))
+        completed["source"] = payload.get("source") or "wind_realtime_workbook"
+        return completed
+
+    def _repo_fetched_at_to_iso(self, fetched_at: object) -> Optional[str]:
+        """Convert repository fetch timestamps to API-friendly ISO strings."""
+        try:
+            if isinstance(fetched_at, datetime):
+                if fetched_at.tzinfo is None:
+                    return fetched_at.replace(tzinfo=UTC).isoformat()
+                return fetched_at.astimezone(UTC).isoformat()
+            if isinstance(fetched_at, (int, float)) and fetched_at > 0:
+                return datetime.fromtimestamp(fetched_at, UTC).isoformat()
+        except (OSError, OverflowError, TypeError, ValueError) as exc:
+            logger.warning("Invalid repo sector fetched_at value: %s (%s)", fetched_at, exc)
+        return None
+
+    def get_market_sector_view(self, view_key: str, limit: int = 10) -> dict[str, Any]:
+        """Get sector movers for a dashboard market view, preferring Wind workbook data."""
+        safe_limit = max(1, min(int(limit or 10), 50))
+        workbook_payload = self._empty_market_sector_payload(
+            view_key,
+            status="unsupported_view",
+            message=f"Unsupported sector view: {view_key}",
+            source="dashboard_service",
+        )
+
+        if view_key not in WIND_MARKET_VIEW_KEYS:
+            logger.warning("Unsupported market sector view requested: %s", view_key)
+            return workbook_payload
+
+        try:
+            workbook_payload = WindRealtimeWorkbookReader().get_view(
+                view_key, limit=safe_limit
+            )
+            workbook_payload = self._complete_market_sector_payload(
+                workbook_payload, view_key
+            )
+        except Exception as exc:
+            logger.exception("Failed to read Wind market sector view %s", view_key)
+            workbook_payload = self._empty_market_sector_payload(
+                view_key,
+                status="workbook_error",
+                message=f"Wind实时工作簿读取失败: {exc}",
+                error_count=1,
+            )
+
+        if workbook_payload.get("has_real_data"):
+            logger.info("Using Wind realtime workbook sector view: %s", view_key)
+            workbook_payload["source"] = "wind_realtime_workbook"
+            return workbook_payload
+
+        try:
+            up, down, has_real_data, fetched_at = (
+                self.dashboard_repo.get_sector_changes_from_signals(
+                    days=7, limit_per_direction=safe_limit
+                )
+            )
+        except Exception as exc:
+            logger.exception("Failed to fetch repo sector fallback for %s", view_key)
+            fallback_payload = self._complete_market_sector_payload(
+                workbook_payload, view_key
+            )
+            fallback_payload["message"] = fallback_payload.get("message") or str(exc)
+            return fallback_payload
+
+        if has_real_data and (up or down):
+            logger.info("Using repo sector fallback for market view: %s", view_key)
+            return {
+                "view_key": view_key,
+                "view_label": MARKET_VIEW_LABELS.get(view_key, view_key),
+                "up": up or [],
+                "down": down or [],
+                "has_real_data": True,
+                "fetched_at": datetime.now(UTC).isoformat(),
+                "cache_hit": False,
+                "cache_ttl_seconds": workbook_payload.get("cache_ttl_seconds", 60),
+                "status": "ok",
+                "message": "",
+                "source": "repo_sector_fallback",
+                "updated_at": self._repo_fetched_at_to_iso(fetched_at),
+                "error_count": int(workbook_payload.get("error_count") or 0),
+            }
+
+        logger.info("No real sector data available for market view: %s", view_key)
+        fallback_payload = self._complete_market_sector_payload(workbook_payload, view_key)
+        fallback_payload["up"] = []
+        fallback_payload["down"] = []
+        fallback_payload["has_real_data"] = False
+        fallback_payload["source"] = "wind_realtime_workbook"
+        return fallback_payload
 
     def _get_mock_global_news(self) -> List[GlobalNewsItem]:
         """获取模拟的全球新闻数据"""
