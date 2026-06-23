@@ -11,6 +11,8 @@ TAURI_LIB = ROOT / "src-tauri" / "src" / "lib.rs"
 PACKAGE_JSON = ROOT / "package.json"
 BOOTSTRAP_JS = ROOT / "desktop" / "dist" / "bootstrap.js"
 BOOTSTRAP_HTML = ROOT / "desktop" / "dist" / "index.html"
+APP_INDEX_HTML = ROOT / "app" / "web" / "templates" / "index.html"
+APP_JS = ROOT / "app" / "web" / "static" / "js" / "app.js"
 LAUNCHER = ROOT / "scripts" / "desktop" / "backend_launcher.py"
 RUN_BACKEND_SH = ROOT / "scripts" / "desktop" / "run_backend.sh"
 BUILD_SIDECAR_SH = ROOT / "scripts" / "desktop" / "build_sidecar.sh"
@@ -21,6 +23,7 @@ DESKTOP_RELEASE_WORKFLOW = ROOT / ".github" / "workflows" / "desktop-release.yml
 MACOS_ARM_SIDECAR = ROOT / "src-tauri" / "binaries" / "alphafoundry-backend-aarch64-apple-darwin"
 MACOS_ICON = ROOT / "src-tauri" / "icons" / "icon.icns"
 WINDOWS_ICON = ROOT / "src-tauri" / "icons" / "icon.ico"
+DASHBOARD_JS = ROOT / "app" / "web" / "static" / "js" / "dashboard.js"
 
 
 def load_launcher_module():
@@ -190,6 +193,34 @@ def test_desktop_bootstrap_waits_for_backend_health():
     assert "fetch(`${baseUrl}/health`" in source
     assert "window.location.replace(`${baseUrl}/`)" in source
     assert "retry-button" in source
+
+
+def test_dashboard_market_sector_silent_refresh_wiring():
+    source = DASHBOARD_JS.read_text(encoding="utf-8")
+    app_source = APP_JS.read_text(encoding="utf-8")
+    html = APP_INDEX_HTML.read_text(encoding="utf-8")
+
+    assert "MARKET_SECTOR_SILENT_REFRESH_MS = 60000" in source
+    assert "scheduleActiveMarketSectorRefresh" in source
+    assert "clearMarketSectorRefreshTimer" in source
+    assert "stopMarketSectorRefresh" in source
+    assert "ensureMarketSectorViewLoaded" in source
+    assert "renderMarketSectorStatus" in source
+    assert "Wind 数据可能未刷新" in source
+    assert "板块数据静默刷新失败，保留上次结果" in source
+    assert "/api/dashboard/sector-movers" in source
+    assert "marketSectorRequestSeq" in source
+    assert "dashboardRequestSeq" in source
+    assert "requestSeq !== marketSectorRequestSeq" in source
+    assert "requestSeq !== dashboardRequestSeq" in source
+    assert "scheduleActiveMarketSectorRefresh();" in source
+    assert "ensureMarketSectorViewLoaded(activeMarketSectorView, { silent: true });" in source
+    assert "force: true" not in source
+
+    assert "stopMarketSectorRefresh" in app_source
+    assert "if (isSectionActive('dashboard')) loadDashboard();" in app_source
+    assert "stopMarketSectorRefresh();" in app_source
+    assert "market-sector-status" in html
 
 
 def test_desktop_backend_launcher_defaults_and_logging(tmp_path):

@@ -4,7 +4,7 @@
    ============================================================ */
 
 import { apiCall, toast, esc, getChartColors, applyChartDefaults } from './core.js';
-import { loadDashboard, switchDashTab } from './dashboard.js';
+import { loadDashboard, switchDashTab, stopMarketSectorRefresh } from './dashboard.js';
 import { startCrawlFeedPolling, stopCrawlFeedPolling, startWorkersPolling, stopWorkersPolling, loadWorkersStatus } from './monitor.js?v=6';
 import { searchAssets, selectAsset, analyzeAssetByCode, analyzeAsset, handleAssetSearchKeydown, initAssetSearch, setKLineTimeRange, toggleMA, initKLineToolbar } from './asset.js?v=20250605a';
 import { switchSignalLabTab, loadSignalLab, initSignalLab } from './signal-lab.js';
@@ -31,6 +31,7 @@ window.applyChartDefaults = applyChartDefaults;
 
 window.loadDashboard = loadDashboard;
 window.switchDashTab = switchDashTab;
+window.stopMarketSectorRefresh = stopMarketSectorRefresh;
 
 window.searchAssets = searchAssets;
 window.selectAsset = selectAsset;
@@ -182,6 +183,7 @@ function navigateTo(section) {
     } else {
         stopCrawlFeedPolling();
         stopWorkersPolling();
+        stopMarketSectorRefresh();
     }
     if (section === 'signals') loadSignals();
     if (section === 'review') { loadReviewStats(); loadReviewPending(); }
@@ -194,6 +196,10 @@ function navigateTo(section) {
     else stopPipelinePolling();
 }
 window.navigateTo = navigateTo;
+
+function isSectionActive(section) {
+    return Boolean(document.getElementById(`section-${section}`)?.classList.contains('active'));
+}
 
 function getInitialSection() {
     const savedSection = localStorage.getItem('af-active-section');
@@ -217,20 +223,20 @@ function connectSSE() {
         try {
             const data = JSON.parse(e.data);
             toast('New document parsed', 'info');
-            loadDashboard();
+            if (isSectionActive('dashboard')) loadDashboard();
         } catch (_) {}
     });
     sseConnection.addEventListener('event_created', (e) => {
         try {
             const data = JSON.parse(e.data);
             toast('New event created', 'info');
-            loadDashboard();
+            if (isSectionActive('dashboard')) loadDashboard();
         } catch (_) {}
     });
     sseConnection.addEventListener('queue_update', (e) => {
         try {
             const data = JSON.parse(e.data);
-            if (data.processed > 0) loadDashboard();
+            if (data.processed > 0 && isSectionActive('dashboard')) loadDashboard();
         } catch (_) {}
     });
     // Pipeline events — forward to pipeline-monitor module
