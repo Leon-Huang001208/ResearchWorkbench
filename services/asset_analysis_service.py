@@ -431,9 +431,16 @@ class AssetAnalysisService:
             self._apply_price_bars(card, cjpy_bars, source="cjpy")
             price_source = "cjpy"
         else:
-            price_source = self._fill_price_bars_from_coordinator(
-                card, canonical_id, start_date, end_date
+            wind_bars = await self._fetch_wind_price_bars_with_timeout(
+                canonical_id, start_date, end_date
             )
+            if wind_bars:
+                self._apply_price_bars(card, wind_bars, source="wind_excel")
+                price_source = "wind_excel"
+            else:
+                price_source = self._fill_price_bars_from_coordinator(
+                    card, canonical_id, start_date, end_date
+                )
         fast_cache_mode = price_source == "cache"
 
         if not fast_cache_mode:
@@ -1140,9 +1147,9 @@ class AssetAnalysisService:
         canonical_id: str,
         start_date: date,
         end_date: date,
-        timeout_seconds: float = 3.0,
+        timeout_seconds: float = 2.0,
     ) -> list[PriceBar]:
-        """Wind Excel 常会阻塞，资产分析请求只给它一个短窗口，超时即降级。"""
+        """Wind Excel 可取实时行情，但资产页只给短窗口，超时即降级。"""
         try:
             return await asyncio.wait_for(
                 asyncio.to_thread(
@@ -1160,6 +1167,12 @@ class AssetAnalysisService:
                 timeout_seconds=timeout_seconds,
             )
             return []
+        except Exception:
+            logger.exception(
+                "Wind Excel price fetch failed",
+                extra={"canonical_id": canonical_id},
+            )
+            return []
 
     def _fetch_wind_price_bars(
         self,
@@ -1173,21 +1186,39 @@ class AssetAnalysisService:
             return []
 
         try:
-            df = adapter.fetch_daily_quotes(
-                [canonical_id],
-                start_date.isoformat(),
-                end_date.isoformat(),
-                adj_type=3,
-            )
+            df = adapter.fetch_realtime_quotes([canonical_id], timeout=2.0)
         except Exception as e:
             logger.warning("Wind price fetch failed, falling back to coordinator: %s", e)
             return []
 
         try:
-            return self._build_price_bars_from_dataframe(df)
+            realtime_bars = self._build_price_bars_from_dataframe(df)
+            if not realtime_bars:
+                return []
+            return self._merge_cached_history_with_realtime_bar(
+                canonical_id,
+                start_date,
+                end_date,
+                realtime_bars[-1],
+            )
         except Exception as e:
             logger.warning("Wind price data could not be normalized: %s", e)
             return []
+
+    def _merge_cached_history_with_realtime_bar(
+        self,
+        canonical_id: str,
+        start_date: date,
+        end_date: date,
+        realtime_bar: PriceBar,
+    ) -> list[PriceBar]:
+        """将 Wind 实时行情单点合并进缓存历史序列。"""
+        history_card = AssetAnalysisCard(canonical_id=canonical_id, as_of=datetime.utcnow())
+        self._fill_price_bars_from_coordinator(history_card, canonical_id, start_date, end_date)
+        bars = [bar for bar in history_card.price_bars if bar.date != realtime_bar.date]
+        bars.append(realtime_bar)
+        bars.sort(key=lambda bar: bar.date)
+        return self._build_price_bars_from_dataframe(pd.DataFrame([bar.model_dump() for bar in bars]))
 
     def _build_price_bars_from_dataframe(self, df: pd.DataFrame) -> list[PriceBar]:
         """把 Wind/表格行情转换为带 MA、BOLL、MACD 的 PriceBar 序列。"""

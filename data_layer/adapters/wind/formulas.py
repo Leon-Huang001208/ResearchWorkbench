@@ -282,6 +282,54 @@ def daily_amplitude(code: str, trade_date: str) -> str:
     return f'=@s_dq_swing("{code}","{trade_date}")'
 
 
+# ===== 实时行情数据 =====
+
+
+def rt_last(code: str) -> str:
+    """实时最新价。"""
+    return f'=@wss("{code}","rt_last")'
+
+
+def rt_pre_close(code: str) -> str:
+    """实时昨收价。"""
+    return f'=@wss("{code}","rt_pre_close")'
+
+
+def rt_open(code: str) -> str:
+    """实时开盘价。"""
+    return f'=@wss("{code}","rt_open")'
+
+
+def rt_high(code: str) -> str:
+    """实时最高价。"""
+    return f'=@wss("{code}","rt_high")'
+
+
+def rt_low(code: str) -> str:
+    """实时最低价。"""
+    return f'=@wss("{code}","rt_low")'
+
+
+def rt_volume(code: str) -> str:
+    """实时成交量。"""
+    return f'=@wss("{code}","rt_vol")'
+
+
+def rt_amount(code: str) -> str:
+    """实时成交额。"""
+    return f'=@wss("{code}","rt_amt")'
+
+
+def rt_turnover(code: str) -> str:
+    """实时换手率。"""
+    return f'=@wss("{code}","rt_turn")'
+
+
+def rt_pct_change(code: str) -> str:
+    """实时涨跌幅。"""
+    return f'=@wss("{code}","rt_pct_chg")'
+
+
 # ===== 财务报表数据 =====
 
 

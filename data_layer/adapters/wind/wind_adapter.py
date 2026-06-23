@@ -309,6 +309,52 @@ class WindAdapter(BaseDataAdapter):
 
         return pd.DataFrame(rows)
 
+    def fetch_realtime_quotes(self, codes: list[str], timeout: float | None = 2.0) -> pd.DataFrame:
+        """获取 Wind Excel 实时行情快照。
+
+        使用 WSS `rt_*` 字段，返回列与日 K 线转换逻辑兼容的一行实时价格数据。
+        """
+        client = self._get_client()
+        rows = []
+        trade_date = pd.Timestamp.now().date()
+
+        for code in codes:
+            logger.info(f"获取 Wind 实时行情: {code}")
+            formulas = [
+                wf.rt_open(code),
+                wf.rt_high(code),
+                wf.rt_low(code),
+                wf.rt_last(code),
+                wf.rt_volume(code),
+                wf.rt_amount(code),
+                wf.rt_turnover(code),
+                wf.rt_pct_change(code),
+            ]
+            raw = client.execute_batch(formulas, timeout=timeout)
+
+            def _val(idx: int):
+                r = raw[idx]
+                if isinstance(r, Exception):
+                    return None
+                return r
+
+            rows.append(
+                {
+                    "code": code,
+                    "date": trade_date,
+                    "open": _val(0),
+                    "high": _val(1),
+                    "low": _val(2),
+                    "close": _val(3),
+                    "volume": _val(4),
+                    "amount": _val(5),
+                    "turnover": _val(6),
+                    "pct_change": _val(7),
+                }
+            )
+
+        return pd.DataFrame(rows)
+
     def fetch_index_quotes(self, codes: list[str], trade_date: str | None = None) -> pd.DataFrame:
         """获取 Wind 指数名称、最新价和涨跌幅。
 
@@ -322,8 +368,8 @@ class WindAdapter(BaseDataAdapter):
             formulas.extend(
                 [
                     wf.s_info_name(code),
-                    wf.index_close(code, td),
-                    wf.index_pct_change(code, td),
+                    wf.index_rt_last(code),
+                    wf.index_rt_pct_change(code),
                 ]
             )
 

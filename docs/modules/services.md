@@ -207,7 +207,7 @@ Purpose:
 - Generates `AssetAnalysisSnapshot` and `AssetAnalysisCard` for a given asset.
 - Structured-first: queries `stock_daily_bar`, `stock_valuation`, `stock_financial_metric`, `stock_shareholder` tables.
 - `_has_enough_structured_data()` guards against empty tables — if no price/valuation/financial/shareholder data found, falls back to coordinator.
-- Price-bar enrichment first gives Cjpy/Tinysoft a short window for same-day bars, then falls back to `MultiSourceCoordinator`; coordinator may return recent cache immediately when only the latest calendar tail is missing, so asset pages are not blocked by live backfill.
+- Price-bar enrichment first gives Cjpy/Tinysoft a short window for same-day bars, then tries Wind Excel WSS realtime quotes, then falls back to `MultiSourceCoordinator`; coordinator may return recent cache immediately when only the latest calendar tail is missing, so asset pages are not blocked by live backfill.
 - `generate_analysis_card(..., time_range=...)` supports Wind-style K-line windows (`1M`/`3M`/`6M`/`1Y`/`2Y`/`3Y`/`5Y`/`ALL`) and passes the resolved date window into Cjpy/Wind/coordinator price-bar enrichment.
 
 Data source priority:

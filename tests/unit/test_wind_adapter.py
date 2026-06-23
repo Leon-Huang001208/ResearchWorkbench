@@ -694,6 +694,33 @@ class TestWindAdapterNewMethods:
         df = adapter.fetch_daily_quotes(["600519.SH"], "2025-01-06", "2025-01-06", adj_type=2)
         assert len(df) == 1
 
+    def test_fetch_realtime_quotes_with_mock(self):
+        from data_layer.adapters.wind import WindAdapter, WindExcelClient
+
+        mock_client = MagicMock(spec=WindExcelClient)
+        mock_client.execute_batch.return_value = [
+            100.0,
+            106.0,
+            99.0,
+            104.0,
+            10_000,
+            1_040_000.0,
+            2.1,
+            1.5,
+        ]
+        adapter = WindAdapter(client=mock_client)
+
+        df = adapter.fetch_realtime_quotes(["600519.SH"], timeout=1.5)
+
+        assert len(df) == 1
+        assert df.iloc[0]["code"] == "600519.SH"
+        assert df.iloc[0]["close"] == 104.0
+        assert df.iloc[0]["volume"] == 10_000
+        mock_client.execute_batch.assert_called_once()
+        formulas = mock_client.execute_batch.call_args.args[0]
+        assert any("rt_last" in formula for formula in formulas)
+        assert mock_client.execute_batch.call_args.kwargs["timeout"] == 1.5
+
     def test_fetch_financial_statements_with_mock(self):
         from data_layer.adapters.wind import WindAdapter, WindExcelClient
 

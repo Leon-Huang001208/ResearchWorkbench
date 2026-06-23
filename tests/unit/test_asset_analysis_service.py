@@ -237,9 +237,7 @@ class TestAssetAnalysisService:
 
         service = AssetAnalysisService(coordinator=coordinator, market_repo=market_repo)
         service._fetch_cjpy_price_bars_with_timeout = AsyncMock(return_value=[])
-        service._fetch_wind_price_bars_with_timeout = AsyncMock(
-            side_effect=AssertionError("Wind price should be skipped for cached K-lines")
-        )
+        service._fetch_wind_price_bars_with_timeout = AsyncMock(return_value=[])
         service._fill_wind_market_snapshot = Mock(
             side_effect=AssertionError("Wind snapshot should be skipped in fast cache mode")
         )
@@ -266,6 +264,7 @@ class TestAssetAnalysisService:
         assert card.industry.sw_level_1 == "电子"
         assert card.top_10_shareholders == []
         service._fetch_cjpy_price_bars_with_timeout.assert_awaited_once()
+        service._fetch_wind_price_bars_with_timeout.assert_awaited_once()
         service._fill_wind_market_snapshot.assert_not_called()
         service._compute_macro_sensitivity.assert_not_called()
 
@@ -306,6 +305,46 @@ class TestAssetAnalysisService:
 
         assert card.current_price == 105.0
         assert card.technical["provider"] == "cjpy"
+        service._fill_price_bars_from_coordinator.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_enrich_uses_wind_realtime_when_cjpy_unavailable(self):
+        """Wind Excel realtime bars should be tried before cache fallback."""
+        service = AssetAnalysisService(coordinator=Mock(), market_repo=None)
+        service._fetch_cjpy_price_bars_with_timeout = AsyncMock(return_value=[])
+        service._fetch_wind_price_bars_with_timeout = AsyncMock(
+            return_value=[
+                PriceBar(
+                    date=date(2026, 6, 23),
+                    open=100.0,
+                    high=106.0,
+                    low=99.0,
+                    close=104.0,
+                    volume=10_000,
+                )
+            ]
+        )
+        service._fill_price_bars_from_coordinator = Mock(
+            side_effect=AssertionError("Coordinator should not be used when Wind returns bars")
+        )
+        service._fill_wind_market_snapshot = Mock()
+        service._fill_industry_data = Mock(return_value=IndustryData())
+        service._fill_shareholder_data = AsyncMock(return_value=([], []))
+        service._fill_recent_events = Mock(return_value=[])
+        service._compute_macro_sensitivity = Mock(return_value=None)
+
+        card = await service._enrich_from_coordinator(
+            AssetAnalysisCard(
+                canonical_id="688981.SH",
+                as_of=datetime(2026, 6, 23, 12, 0, 0, tzinfo=UTC),
+            ),
+            "688981.SH",
+            datetime(2026, 6, 23, 12, 0, 0, tzinfo=UTC),
+            "1Y",
+        )
+
+        assert card.current_price == 104.0
+        assert card.technical["provider"] == "wind_local"
         service._fill_price_bars_from_coordinator.assert_not_called()
 
     def test_chip_distribution_profiles_all_supplied_price_volume(self):

@@ -308,7 +308,7 @@
 | `data_layer/adapters/cjpy_adapter.py` | 天软 Cjpy 适配器：获取股票/基金列表、交易日、日线/分钟行情、因子、表格和实时订阅；调用天软 HTTP 接口时临时绕开本机代理变量 |
 | `data_layer/adapters/cninfo_adapter.py` | 巨潮资讯网公告适配器：包装 CninfoCrawler，输出 DocumentEnvelope（source_type=filing） |
 | `data_layer/adapters/data_source_router.py` | 数据源路由器：iFinD → AKShare → ChinaStock 三级降级策略，统一管理所有数据适配器 |
-| `data_layer/adapters/wind/wind_adapter.py` | Wind Excel 适配器：8 个 fetch 方法（一致预期/两融/龙虎榜/日行情/财务/行业/资金流向/持有人） + parse() + fetch() dispatch |
+| `data_layer/adapters/wind/wind_adapter.py` | Wind Excel 适配器：8 个 fetch 方法（一致预期/两融/龙虎榜/日行情/财务/行业/资金流向/持有人）和 WSS 实时行情读取 + parse() + fetch() dispatch |
 | `data_layer/adapters/wind/client.py` | Wind Excel 客户端：xlwings 连接管理（遍历所有 Excel 实例检测 Wind 插件）、心跳检测（TTL 30s 缓存）、WSD 时间序列查询（3 次指数退避重试 + 动态超时）、批量公式执行、后台保活（30min 间隔防自动登出） |
 | `data_layer/adapters/wind/formulas.py` | Wind 公式生成器：78 个公式（43 个已验证），覆盖一致预期/融资融券/龙虎榜/日行情/财务TTM+MRQ/估值/行业/资金流向/北向/股东/指数 |
 | `data_layer/adapters/wind/exceptions.py` | Wind 自定义异常：会话过期、未连接、公式错误、超时 |
