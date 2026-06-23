@@ -112,7 +112,7 @@
 | `app/web/static/js/templates.js` | 模板工作台模块：报告项目选择、Word 占位符映射、YAML/Markdown Prompt 源码切换与保存、配置驱动生成、下载和 Word HTML 预览 |
 | `app/web/static/js/pipeline-monitor.js` | 管线监控模块：5 阶段流程可视化、实时活动日志（SSE + 15s 轮询）、累计统计、手动触发闭环 |
 | `app/web/static/js/monitor.js` | 系统监控模块：Worker 心跳、队列深度、服务状态 |
-| `app/web/static/js/asset.js` | 资产分析模块：Wind 风格 5 面板 K 线图（K 线+成交量/MACD/KDJ/RSI，支持日/周/月聚合与 MA120/MA250）、筹码分布图（筹码峰及上/下界标注）、资产搜索、分析卡渲染 |
+| `app/web/static/js/asset.js` | 资产分析模块：Wind 风格 5 面板 K 线图（K 线+成交量/MACD/KDJ/RSI，首次加载默认请求近一年数据，支持日/周/月聚合与 MA120/MA250）、筹码分布图（筹码峰及上/下界标注）、资产搜索、分析卡渲染 |
 
 ---
 
@@ -305,6 +305,7 @@
 | 文件 | 说明 |
 |---|---|
 | `data_layer/adapters/akshare_adapter.py` | AKShare 开源数据适配器：集成 crawler 模块，提供行情、财务、新闻、股东数据获取 |
+| `data_layer/adapters/cjpy_adapter.py` | 天软 Cjpy 适配器：获取股票/基金列表、交易日、日线/分钟行情、因子、表格和实时订阅；调用天软 HTTP 接口时临时绕开本机代理变量 |
 | `data_layer/adapters/cninfo_adapter.py` | 巨潮资讯网公告适配器：包装 CninfoCrawler，输出 DocumentEnvelope（source_type=filing） |
 | `data_layer/adapters/data_source_router.py` | 数据源路由器：iFinD → AKShare → ChinaStock 三级降级策略，统一管理所有数据适配器 |
 | `data_layer/adapters/wind/wind_adapter.py` | Wind Excel 适配器：8 个 fetch 方法（一致预期/两融/龙虎榜/日行情/财务/行业/资金流向/持有人） + parse() + fetch() dispatch |
@@ -377,6 +378,13 @@
 | `data_layer/normalizers/symbol.py` | A 股代码标准化：60/68/90→SH，00/30/20→SZ，43/83/87/88→BJ |
 | `data_layer/normalizers/akshare_market.py` | AKShare 行情数据 normalizer：MarketData / StockInfo → dict |
 | `data_layer/normalizers/akshare_financial.py` | AKShare 财务数据 normalizer：FinancialData → dict |
+
+### data_layer/coordinator/ - 多源行情协调
+
+| 文件 | 说明 |
+|---|---|
+| `data_layer/coordinator/cache_manager.py` | SQLite 行情缓存：保存 K 线、维护缓存元数据、计算请求区间缺口 |
+| `data_layer/coordinator/multi_source_coordinator.py` | 多源行情协调器：缓存优先，按 AKShare / BaoStock / Yahoo 降级补数；当缓存只缺当天少量尾部数据时优先返回缓存，避免资产观察页被实时补数阻塞 |
 
 ### data_layer/repositories/ - 仓储实现
 

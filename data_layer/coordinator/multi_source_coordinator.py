@@ -34,6 +34,8 @@ from data_layer.validation import (
 
 logger = get_logger("multi_source_coordinator")
 
+RECENT_CACHE_TAIL_GAP_DAYS = 4
+
 
 @dataclass
 class CoordinatorResult:
@@ -248,6 +250,40 @@ class MultiSourceCoordinator:
 
         return None
 
+    def _can_return_recent_cached_tail(
+        self,
+        cache_range: object,
+        missing_ranges: List[tuple[date, date]],
+        requested_start: date,
+        requested_end: date,
+        cached_data: List[MarketData],
+    ) -> bool:
+        """允许资产页在仅缺最新尾部少量日线时先返回缓存。"""
+        if not cached_data or not missing_ranges:
+            return False
+
+        if len(missing_ranges) != 1:
+            return False
+
+        missing_start, missing_end = missing_ranges[0]
+        cache_start = getattr(cache_range, "start_date", None)
+        cache_end = getattr(cache_range, "end_date", None)
+        if not isinstance(cache_start, date) or not isinstance(cache_end, date):
+            return False
+
+        if cache_start > requested_start:
+            return False
+
+        today = date.today()
+        if requested_end != today or missing_end != requested_end:
+            return False
+
+        if missing_start != cache_end + timedelta(days=1):
+            return False
+
+        tail_gap_days = (requested_end - cache_end).days
+        return 0 < tail_gap_days <= RECENT_CACHE_TAIL_GAP_DAYS
+
     def fetch_historical_data(
         self,
         symbol: str,
@@ -306,25 +342,8 @@ class MultiSourceCoordinator:
                             success=True,
                         )
 
-        # 获取可用的数据源
-        available_sources = self._get_available_sources()
-        if not available_sources:
-            return CoordinatorResult(
-                symbol=symbol,
-                data=[],
-                primary_source="none",
-                sources_used=[],
-                fetch_time=fetch_time,
-                success=False,
-                error_message="No data sources available",
-            )
-
-        self.logger.info(f"Available sources for {symbol}: {available_sources}")
-
-        # 获取拉取时应该使用的复权参数
-        adjust_flags = self.adjustment_normalizer.get_fetch_adjustment_flags(self.target_adjustment)
-
-        # 策略 2: 如果启用缓存，计算缺失范围
+        # 策略 2: 如果启用缓存，计算缺失范围。最近尾部缺口先返回缓存，
+        # 避免资产页被当日外部行情补数阻塞。
         missing_ranges = []
         if self.use_cache and not force_refresh:
             missing_ranges = self.cache.calculate_missing_ranges(symbol, start_date, end_date)
@@ -345,6 +364,46 @@ class MultiSourceCoordinator:
                 )
 
             self.logger.info(f"Cache missing ranges for {symbol}: {missing_ranges}")
+
+            cache_range = self.cache.get_cache_range(symbol)
+            cached_data = self.cache.get_cached_data(symbol, start_date, end_date)
+            if (
+                cache_range
+                and self._can_return_recent_cached_tail(
+                    cache_range, missing_ranges, start_date, end_date, cached_data
+                )
+            ):
+                self.logger.info(
+                    f"Recent cache tail gap for {symbol}; returning {len(cached_data)} "
+                    f"cached records before live backfill"
+                )
+                return CoordinatorResult(
+                    symbol=symbol,
+                    data=cached_data,
+                    primary_source="cache",
+                    from_cache=True,
+                    sources_used=["cache"],
+                    fetch_time=fetch_time,
+                    success=True,
+                )
+
+        # 获取可用的数据源
+        available_sources = self._get_available_sources()
+        if not available_sources:
+            return CoordinatorResult(
+                symbol=symbol,
+                data=[],
+                primary_source="none",
+                sources_used=[],
+                fetch_time=fetch_time,
+                success=False,
+                error_message="No data sources available",
+            )
+
+        self.logger.info(f"Available sources for {symbol}: {available_sources}")
+
+        # 获取拉取时应该使用的复权参数
+        adjust_flags = self.adjustment_normalizer.get_fetch_adjustment_flags(self.target_adjustment)
 
         # 策略 3: 从数据源获取缺失的数据
         data_by_source: Dict[str, List[MarketData]] = {}

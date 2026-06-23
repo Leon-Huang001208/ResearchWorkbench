@@ -4,35 +4,45 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AlphaFoundry — 买方投研情报系统</title>
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23d17a22'/%3E%3Cpath d='M20 18h18l8 8v20H20z' fill='none' stroke='white' stroke-width='4'/%3E%3Cpath d='M38 18v10h10' fill='none' stroke='white' stroke-width='4'/%3E%3C/svg%3E">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
-    <link rel="stylesheet" href="/static/style.css?v=20250613b">
+    <link rel="icon" type="image/png" href="/static/favicon.png?v=20260621a">
+    <link rel="apple-touch-icon" href="/static/favicon.png?v=20260621a">
+    <script async src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script async src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <script async src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <link rel="stylesheet" href="/static/style.css?v=20260621j">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@vscode/codicons@0.0.36/dist/codicon.min.css">
 </head>
 <body>
     <div class="app-container">
-        <!-- VS Code Activity Bar (icon strip) -->
+        <!-- Desktop source list -->
         <aside class="activity-bar">
+            <div class="desktop-brand">
+                <img class="desktop-brand-icon" src="/static/favicon.png?v=20260621a" alt="" aria-hidden="true">
+                <div class="desktop-brand-copy">
+                    <strong>AlphaFoundry</strong>
+                    <span>本地投研工作台</span>
+                </div>
+            </div>
             <div class="activity-bar-top">
-                <button class="activity-btn" data-section="dashboard" title="仪表盘"><i class="codicon codicon-home"></i></button>
-                <button class="activity-btn" data-section="asset-analysis" title="资产分析"><i class="codicon codicon-graph"></i></button>
-                <button class="activity-btn" data-section="scenario" title="情景分析"><i class="codicon codicon-git-branch"></i></button>
-                <button class="activity-btn" data-section="event-signal" title="事件信号"><i class="codicon codicon-zap"></i></button>
-                <button class="activity-btn" data-section="industry-chain" title="产业链"><i class="codicon codicon-symbol-class"></i></button>
-                <button class="activity-btn" data-section="review" title="审核队列"><i class="codicon codicon-checklist"></i></button>
-                <button class="activity-btn" data-section="signals" title="信号管理"><i class="codicon codicon-pulse"></i></button>
-                <button class="activity-btn" data-section="outcomes" title="回测结果"><i class="codicon codicon-checklist"></i></button>
-                <button class="activity-btn" data-section="pipeline-monitor" title="管线监控"><i class="codicon codicon-pulse"></i></button>
-                <button class="activity-btn" data-section="signal-lab" title="Signal Lab"><i class="codicon codicon-beaker"></i></button>
-                <button class="activity-btn" data-section="ingest" title="文档摄入"><i class="codicon codicon-cloud-download"></i></button>
-                <button class="activity-btn" data-section="memory" title="记忆与学习"><i class="codicon codicon-lightbulb"></i></button>
-                <button class="activity-btn active" data-section="templates" title="模板管理"><i class="codicon codicon-file-code"></i></button>
-                <button class="activity-btn" data-section="wind" title="Wind 数据"><i class="codicon codicon-database"></i></button>
+                <div class="activity-group-label">工作区</div>
+                <button class="activity-btn" data-section="dashboard" title="仪表盘"><i class="codicon codicon-home"></i><span>市场研究</span></button>
+                <button class="activity-btn" data-section="asset-analysis" title="资产分析"><i class="codicon codicon-graph"></i><span>资产观察</span></button>
+                <button class="activity-btn" data-section="signal-lab" title="Signal Lab"><i class="codicon codicon-beaker"></i><span>Signal Lab</span></button>
+                <button class="activity-btn active" data-section="templates" title="模板管理"><i class="codicon codicon-file-code"></i><span>报告生产</span></button>
+                <button class="activity-btn" data-section="pipeline-monitor" title="管线监控"><i class="codicon codicon-pulse"></i><span>运行监控</span></button>
+                <div class="activity-group-label">工具</div>
+                <button class="activity-btn" data-section="scenario" title="情景分析"><i class="codicon codicon-git-branch"></i><span>情景分析</span></button>
+                <button class="activity-btn" data-section="event-signal" title="事件信号"><i class="codicon codicon-zap"></i><span>事件信号</span></button>
+                <button class="activity-btn" data-section="industry-chain" title="产业链"><i class="codicon codicon-symbol-class"></i><span>产业链</span></button>
+                <button class="activity-btn" data-section="review" title="审核队列"><i class="codicon codicon-checklist"></i><span>审核队列</span></button>
+                <button class="activity-btn" data-section="signals" title="信号管理"><i class="codicon codicon-pulse"></i><span>信号管理</span></button>
+                <button class="activity-btn" data-section="outcomes" title="回测结果"><i class="codicon codicon-checklist"></i><span>回测结果</span></button>
+                <button class="activity-btn" data-section="ingest" title="文档摄入"><i class="codicon codicon-cloud-download"></i><span>文档摄入</span></button>
+                <button class="activity-btn" data-section="memory" title="记忆与学习"><i class="codicon codicon-lightbulb"></i><span>记忆学习</span></button>
+                <button class="activity-btn" data-section="wind" title="Wind 数据"><i class="codicon codicon-database"></i><span>Wind 数据</span></button>
             </div>
             <div class="activity-bar-bottom">
-                <button class="activity-btn" id="btn-settings" title="设置"><i class="codicon codicon-settings-gear"></i></button>
+                <button class="activity-btn" id="btn-settings" title="设置"><i class="codicon codicon-settings-gear"></i><span>设置</span></button>
             </div>
         </aside>
 
@@ -80,7 +90,6 @@
             <!-- Dashboard Section (Tabbed) -->
             <section id="section-dashboard" class="content-section">
                 <div class="dash-header-row">
-                    <h2 class="section-title" data-i18n="dashboard.title">研究控制台</h2>
                     <nav class="dash-tabs" id="dash-tabs">
                         <button class="dash-tab active" data-dash-tab="market" data-i18n="dash_tab.market">市场总览</button>
                         <button class="dash-tab" data-dash-tab="monitor" data-i18n="dash_tab.monitor">实时监控</button>
@@ -95,30 +104,119 @@
                         <div class="card-header">
                             <h3><i class="codicon codicon-globe"></i> 市场概览</h3>
                             <div class="card-header-actions">
-                                <span id="data-source-badge" class="badge-new">模拟数据</span>
+                                <span id="data-source-news-badge" class="badge-new">新闻加载中</span>
+                                <span id="data-source-sectors-badge" class="badge-new">板块加载中</span>
                             </div>
                         </div>
+
+                        <section class="market-pulse-board" aria-label="市场驾驶舱">
+                            <div class="market-scope-tabs" aria-label="市场范围">
+                                <button class="market-scope-tab active" type="button">A股</button>
+                                <button class="market-scope-tab" type="button">港股</button>
+                                <button class="market-scope-tab" type="button">美股</button>
+                                <button class="market-scope-tab" type="button">ETF</button>
+                                <button class="market-scope-tab" type="button">全球</button>
+                            </div>
+                            <div class="market-pulse-layout">
+                                <div class="market-index-panel">
+                                    <div class="market-index-panel-header">
+                                        <span>内地市场</span>
+                                        <small id="market-close-state">盘面快照</small>
+                                    </div>
+                                    <div id="market-index-grid" class="market-index-grid"></div>
+                                    <div class="market-breadth-card">
+                                        <div class="market-breadth-label">
+                                            <span>涨跌分布</span>
+                                            <strong id="market-breadth-ratio">-- : --</strong>
+                                        </div>
+                                        <div class="market-breadth-bar" aria-label="涨跌家数">
+                                            <span id="market-breadth-down" class="market-breadth-down" style="width: 50%"></span>
+                                            <span id="market-breadth-up" class="market-breadth-up" style="width: 50%"></span>
+                                        </div>
+                                        <div class="market-breadth-meta">
+                                            <span id="market-turnover">成交额 --</span>
+                                            <span id="market-turnover-delta">较昨日 --</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <aside class="market-ai-brief" aria-label="AI 盘面点评">
+                                    <div class="market-ai-brief-header">
+                                        <span>AI 盘面点评</span>
+                                        <small id="market-ai-brief-date">--</small>
+                                    </div>
+                                    <p id="market-ai-brief-text">等待市场数据加载...</p>
+                                    <div class="market-shortcuts" aria-label="市场快捷入口">
+                                        <button type="button">选股</button>
+                                        <button type="button">ETF</button>
+                                        <button type="button">热榜</button>
+                                        <button type="button">复盘</button>
+                                    </div>
+                                </aside>
+                            </div>
+                        </section>
+
+                        <section class="market-heatmap-card" aria-label="市场云图">
+                            <div class="market-heatmap-header">
+                                <div>
+                                    <h4>市场云图</h4>
+                                    <span>面积代表热度，颜色代表涨跌方向</span>
+                                </div>
+                                <div class="market-heatmap-modes">
+                                    <button class="active" type="button">A股全图</button>
+                                    <button type="button">板块</button>
+                                    <button type="button">概念</button>
+                                </div>
+                            </div>
+                            <div class="market-sector-view-control" aria-label="板块视图">
+                                <div class="market-sector-view-selector">
+                                    <button class="market-sector-select-button" type="button" aria-haspopup="listbox" aria-expanded="false" onclick="toggleMarketSectorMenu(this)">
+                                        <span>数据口径</span>
+                                        <strong>Wind热门概念</strong>
+                                        <i class="codicon codicon-chevron-down" aria-hidden="true"></i>
+                                    </button>
+                                    <div class="market-sector-select-menu" role="listbox" aria-label="选择板块口径">
+                                        <button type="button" class="active" data-sector-view="wind_hot_concept" onclick="switchMarketSectorView('wind_hot_concept')"><span>Wind热门概念</span><small>暂无</small></button>
+                                        <button type="button" data-sector-view="wind_l1" onclick="switchMarketSectorView('wind_l1')"><span>Wind一级</span><small>暂无</small></button>
+                                        <button type="button" data-sector-view="wind_l2" onclick="switchMarketSectorView('wind_l2')"><span>Wind二级</span><small>暂无</small></button>
+                                        <button type="button" data-sector-view="wind_l3" onclick="switchMarketSectorView('wind_l3')"><span>Wind三级</span><small>暂无</small></button>
+                                        <button type="button" data-sector-view="wind_l4" onclick="switchMarketSectorView('wind_l4')"><span>Wind四级</span><small>暂无</small></button>
+                                        <button type="button" data-sector-view="citic_l1" onclick="switchMarketSectorView('citic_l1')"><span>中信一级</span><small>暂无</small></button>
+                                        <button type="button" data-sector-view="citic_l2" onclick="switchMarketSectorView('citic_l2')"><span>中信二级</span><small>暂无</small></button>
+                                        <button type="button" data-sector-view="citic_l3" onclick="switchMarketSectorView('citic_l3')"><span>中信三级</span><small>暂无</small></button>
+                                        <button type="button" data-sector-view="sw_l1" onclick="switchMarketSectorView('sw_l1')"><span>申万一级</span><small>暂无</small></button>
+                                        <button type="button" data-sector-view="sw_l2" onclick="switchMarketSectorView('sw_l2')"><span>申万二级</span><small>暂无</small></button>
+                                        <button type="button" data-sector-view="sw_l3" onclick="switchMarketSectorView('sw_l3')"><span>申万三级</span><small>暂无</small></button>
+                                        <button type="button" data-sector-view="ths_industry" onclick="switchMarketSectorView('ths_industry')"><span>同花顺行业</span><small>暂无</small></button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="market-heatmap-grid" class="market-heatmap-grid">
+                                <div class="empty-state">等待板块数据...</div>
+                            </div>
+                        </section>
 
                         <div class="market-overview-grid">
                             <!-- Global News -->
                             <div class="market-section news-section">
-                                <h4>🌍 全球热点新闻 (Top 10)</h4>
+                                <h4>全球热点新闻</h4>
                                 <ul id="market-global-news" class="news-list">
                                     <li class="empty-state" data-i18n="dashboard.no_data">暂无新闻</li>
                                 </ul>
                             </div>
 
-                            <!-- Top Up Sectors -->
-                            <div class="market-section sectors-up-section">
-                                <h4>📈 今日上涨板块概念 (Top 10)</h4>
-                                <ul id="market-top-up-sectors" class="sector-list">
-                                    <li class="empty-state" data-i18n="dashboard.no_data">暂无数据</li>
-                                </ul>
-                            </div>
+	                            <!-- Top Up Sectors -->
+	                            <div class="market-section sectors-up-section">
+	                                <div class="market-sector-header">
+	                                    <h4>上涨板块概念</h4>
+	                                </div>
+	                                <ul id="market-top-up-sectors" class="sector-list">
+	                                    <li class="empty-state" data-i18n="dashboard.no_data">暂无数据</li>
+	                                </ul>
+	                            </div>
 
                             <!-- Top Down Sectors -->
                             <div class="market-section sectors-down-section">
-                                <h4>📉 今日下跌板块概念 (Top 10)</h4>
+                                <h4>下跌板块概念</h4>
                                 <ul id="market-top-down-sectors" class="sector-list">
                                     <li class="empty-state" data-i18n="dashboard.no_data">暂无数据</li>
                                 </ul>
@@ -131,109 +229,115 @@
 
                 <!-- Tab: Live Monitor -->
                 <div class="dash-tab-panel" id="dash-panel-monitor">
-                <div class="dashboard-grid">
-                    <!-- Live Crawl Feed -->
-                    <div class="crawl-feed-row" style="grid-column: 1 / -1;">
-                        <!-- CLS 财联社 -->
-                        <div class="dashboard-card crawl-feed-card" data-source="cls">
-                            <div class="card-header">
-                                <h3><i class="codicon codicon-rss"></i> 财联社电报</h3>
-                                <div class="card-header-actions">
-                                    <span class="feed-status badge-new" id="feed-status-cls">监听中</span>
-                                    <span class="feed-count text-muted" id="feed-count-cls" style="font-size: 12px;">0 条</span>
-                                    <span class="feed-last-fetch text-muted" id="feed-last-fetch-cls" style="font-size: 11px;"></span>
-                                </div>
-                            </div>
-                            <ul class="crawl-feed-list" id="feed-list-cls">
-                                <li class="empty-state">等待抓取数据...</li>
-                            </ul>
-                        </div>
-                        <!-- 中国证券网·快讯 -->
-                        <div class="dashboard-card crawl-feed-card" data-source="cnstock_flash">
-                            <div class="card-header">
-                                <h3><i class="codicon codicon-rss"></i> 中国证券网快讯</h3>
-                                <div class="card-header-actions">
-                                    <span class="feed-status badge-new" id="feed-status-cnstock_flash">监听中</span>
-                                    <span class="feed-count text-muted" id="feed-count-cnstock_flash" style="font-size: 12px;">0 条</span>
-                                    <span class="feed-last-fetch text-muted" id="feed-last-fetch-cnstock_flash" style="font-size: 11px;"></span>
-                                </div>
-                            </div>
-                            <ul class="crawl-feed-list" id="feed-list-cnstock_flash">
-                                <li class="empty-state">等待抓取数据...</li>
-                            </ul>
-                        </div>
-                        <!-- 中国证券网 -->
-                        <div class="dashboard-card crawl-feed-card" data-source="cnstock">
-                            <div class="card-header">
-                                <h3><i class="codicon codicon-rss"></i> 中国证券网</h3>
-                                <div class="card-header-actions">
-                                    <span class="feed-status badge-new" id="feed-status-cnstock">监听中</span>
-                                    <span class="feed-count text-muted" id="feed-count-cnstock" style="font-size: 12px;">0 条</span>
-                                    <span class="feed-last-fetch text-muted" id="feed-last-fetch-cnstock" style="font-size: 11px;"></span>
-                                </div>
-                            </div>
-                            <ul class="crawl-feed-list" id="feed-list-cnstock">
-                                <li class="empty-state">等待抓取数据...</li>
-                            </ul>
-                        </div>
-                        <!-- 知丘研报 ZQ Reports -->
-                        <div class="dashboard-card crawl-feed-card" data-source="zhiqiu_reports">
-                            <div class="card-header">
-                                <h3><i class="codicon codicon-rss"></i> 知丘研报</h3>
-                                <div class="card-header-actions">
-                                    <span class="feed-status badge-new" id="feed-status-zhiqiu_reports">监听中</span>
-                                    <span class="feed-count text-muted" id="feed-count-zhiqiu_reports" style="font-size: 12px;">0 条</span>
-                                    <span class="feed-last-fetch text-muted" id="feed-last-fetch-zhiqiu_reports" style="font-size: 11px;"></span>
-                                </div>
-                            </div>
-                            <ul class="crawl-feed-list" id="feed-list-zhiqiu_reports">
-                                <li class="empty-state">等待抓取数据...</li>
-                            </ul>
-                        </div>
-                        <!-- 知丘公众号 ZQ WeChat -->
-                        <div class="dashboard-card crawl-feed-card" data-source="zhiqiu_wechat">
-                            <div class="card-header">
-                                <h3><i class="codicon codicon-rss"></i> 知丘公众号</h3>
-                                <div class="card-header-actions">
-                                    <span class="feed-status badge-new" id="feed-status-zhiqiu_wechat">监听中</span>
-                                    <span class="feed-count text-muted" id="feed-count-zhiqiu_wechat" style="font-size: 12px;">0 条</span>
-                                    <span class="feed-last-fetch text-muted" id="feed-last-fetch-zhiqiu_wechat" style="font-size: 11px;"></span>
-                                </div>
-                            </div>
-                            <ul class="crawl-feed-list" id="feed-list-zhiqiu_wechat">
-                                <li class="empty-state">等待抓取数据...</li>
-                            </ul>
-                        </div>
-                        <!-- 知丘纪要 ZQ Transcript -->
-                        <div class="dashboard-card crawl-feed-card" data-source="zhiqiu_transcript">
-                            <div class="card-header">
-                                <h3><i class="codicon codicon-rss"></i> 知丘纪要</h3>
-                                <div class="card-header-actions">
-                                    <span class="feed-status badge-new" id="feed-status-zhiqiu_transcript">监听中</span>
-                                    <span class="feed-count text-muted" id="feed-count-zhiqiu_transcript" style="font-size: 12px;">0 条</span>
-                                    <span class="feed-last-fetch text-muted" id="feed-last-fetch-zhiqiu_transcript" style="font-size: 11px;"></span>
-                                </div>
-                            </div>
-                            <ul class="crawl-feed-list" id="feed-list-zhiqiu_transcript">
-                                <li class="empty-state">等待抓取数据...</li>
-                            </ul>
-                        </div>
+                <div class="live-monitor-board" id="live-monitor-board">
+                    <div class="monitor-status-strip" aria-label="实时监控摘要">
+                        <span class="monitor-status-item">
+                            <span>监听源</span>
+                            <strong class="ok" id="monitor-summary-sources">0 / 6</strong>
+                        </span>
+                        <span class="monitor-status-item">
+                            <span>今日新增</span>
+                            <strong id="monitor-summary-total">0</strong>
+                        </span>
+                        <span class="monitor-status-item">
+                            <span>最近抓取</span>
+                            <strong class="warn" id="monitor-summary-last">--</strong>
+                        </span>
+                        <span class="monitor-status-item">
+                            <span>来源</span>
+                            <strong id="monitor-summary-last-source">等待数据</strong>
+                        </span>
+                        <span class="monitor-status-item">
+                            <span>Worker</span>
+                            <strong class="ok" id="monitor-summary-workers">--</strong>
+                        </span>
+                        <span class="monitor-status-item">
+                            <span>失败</span>
+                            <strong class="bad" id="monitor-summary-failed">--</strong>
+                        </span>
                     </div>
 
-                    <!-- System Workers Section -->
-                    <div class="dashboard-card workers-card" style="grid-column: 1 / -1;">
-                        <div class="card-header">
-                            <h3><i class="codicon codicon-server"></i> 系统工作进程</h3>
-                            <span class="text-muted" style="font-size: 12px;" id="workers-last-updated"></span>
-                        </div>
-                        <div id="workers-panel" class="workers-panel">
-                            <div class="empty-state">正在加载...</div>
-                        </div>
-                        <div id="workers-queue-stats" class="workers-queue-stats"></div>
-                        <div class="proc-section-label">处理统计</div>
-                        <div id="workers-processing-stats" class="workers-queue-stats"></div>
+                    <div class="live-monitor-grid">
+                        <aside class="monitor-panel monitor-source-panel" aria-label="数据源列表">
+                            <div class="monitor-panel-header">
+                                <h3>数据源</h3>
+                            </div>
+                            <div class="monitor-source-list" id="monitor-source-list">
+                                <button class="monitor-source-row active" type="button" data-monitor-source="all">
+                                    <span class="monitor-status-dot"></span>
+                                    <span class="monitor-source-main"><strong>全部来源</strong><small>统一事件流</small></span>
+                                    <span class="monitor-source-count">0</span>
+                                </button>
+                            </div>
+                        </aside>
+
+                        <section class="monitor-panel monitor-feed-panel" aria-label="事件列表">
+                            <div class="monitor-panel-header">
+                                <h3 id="monitor-feed-title">全部来源</h3>
+                            </div>
+                            <div class="monitor-feed-list" id="monitor-feed-list">
+                                <div class="empty-state">等待抓取数据...</div>
+                            </div>
+                        </section>
+
+                        <aside class="monitor-panel monitor-health-panel monitor-detail-panel" id="monitor-health-panel" aria-label="详情和系统健康">
+                            <div class="monitor-panel-header">
+                                <h3>详情 / 系统</h3>
+                            </div>
+                            <div class="monitor-detail-body">
+                                <div class="monitor-detail-tabs" aria-label="详情视图">
+                                    <button class="active" type="button" data-monitor-detail-tab="event">事件详情</button>
+                                    <button type="button" data-monitor-detail-tab="system">系统健康</button>
+                                </div>
+                                <section class="monitor-detail-view" id="monitor-event-detail" aria-label="选中事件详情">
+                                    <div class="monitor-event-detail-card">
+                                        <h4 id="monitor-detail-title">选择一条事件查看详情</h4>
+                                        <p id="monitor-detail-content">中间列表只保留标题，完整内容会在这里展开。</p>
+                                    </div>
+                                </section>
+                                <section class="monitor-detail-view hidden" id="monitor-system-detail" aria-label="系统健康详情">
+                                    <div class="monitor-health-body">
+                                        <div id="workers-panel" class="workers-panel">
+                                            <div class="empty-state">正在加载...</div>
+                                        </div>
+                                        <div id="workers-queue-stats" class="workers-queue-stats"></div>
+                                        <div class="proc-section-label">处理统计</div>
+                                        <div id="workers-processing-stats" class="workers-queue-stats"></div>
+                                    </div>
+                                </section>
+                            </div>
+                        </aside>
                     </div>
                 </div>
+
+                <template id="legacy-live-monitor-template">
+                    <div class="crawl-feed-row legacy-live-monitor" style="grid-column: 1 / -1;">
+                        <div class="dashboard-card crawl-feed-card" data-source="cls">
+                            <div class="card-header"><h3><i class="codicon codicon-rss"></i> 财联社电报</h3></div>
+                            <ul class="crawl-feed-list"><li class="empty-state">等待抓取数据...</li></ul>
+                        </div>
+                        <div class="dashboard-card crawl-feed-card" data-source="cnstock_flash">
+                            <div class="card-header"><h3><i class="codicon codicon-rss"></i> 中国证券网快讯</h3></div>
+                            <ul class="crawl-feed-list"><li class="empty-state">等待抓取数据...</li></ul>
+                        </div>
+                        <div class="dashboard-card crawl-feed-card" data-source="cnstock">
+                            <div class="card-header"><h3><i class="codicon codicon-rss"></i> 中国证券网</h3></div>
+                            <ul class="crawl-feed-list"><li class="empty-state">等待抓取数据...</li></ul>
+                        </div>
+                        <div class="dashboard-card crawl-feed-card" data-source="zhiqiu_reports">
+                            <div class="card-header"><h3><i class="codicon codicon-rss"></i> 知丘研报</h3></div>
+                            <ul class="crawl-feed-list"><li class="empty-state">等待抓取数据...</li></ul>
+                        </div>
+                        <div class="dashboard-card crawl-feed-card" data-source="zhiqiu_wechat">
+                            <div class="card-header"><h3><i class="codicon codicon-rss"></i> 知丘公众号</h3></div>
+                            <ul class="crawl-feed-list"><li class="empty-state">等待抓取数据...</li></ul>
+                        </div>
+                        <div class="dashboard-card crawl-feed-card" data-source="zhiqiu_transcript">
+                            <div class="card-header"><h3><i class="codicon codicon-rss"></i> 知丘纪要</h3></div>
+                            <ul class="crawl-feed-list"><li class="empty-state">等待抓取数据...</li></ul>
+                        </div>
+                    </div>
+                </template>
                 </div>
                 <!-- /Tab: Live Monitor -->
 
@@ -924,9 +1028,9 @@
                             <!-- Weekly Report Generation Center -->
                             <div class="template-generation-center" id="template-generation-center">
                                 <div class="template-detail-mode-tabs" role="tablist" aria-label="模板详情视图">
-                                    <button class="template-detail-mode-btn active" type="button" data-template-detail-mode="both">全部</button>
-                                    <button class="template-detail-mode-btn" type="button" data-template-detail-mode="generation">周报生成</button>
-                                    <button class="template-detail-mode-btn" type="button" data-template-detail-mode="config">参数配置</button>
+                                    <button class="template-detail-mode-btn active" type="button" data-template-detail-mode="generation">生成</button>
+                                    <button class="template-detail-mode-btn" type="button" data-template-detail-mode="config">配置</button>
+                                    <button class="template-detail-mode-btn" type="button" data-template-detail-mode="preview">预览</button>
                                 </div>
 
                                 <div class="template-generation-overview template-detail-mode-panel" id="template-generation-overview" data-template-detail-panel="generation">
@@ -945,124 +1049,138 @@
                                         </div>
                                         <div class="template-generation-actions">
                                             <button id="btn-template-generate-report" class="btn-primary"><i class="codicon codicon-play"></i> 生成报告</button>
-                                            <button id="btn-template-preview-report" class="btn-secondary" disabled><i class="codicon codicon-open-preview"></i> 预览最近版本</button>
-                                            <a id="btn-template-download-report" class="btn-secondary disabled" href="#" aria-disabled="true"><i class="codicon codicon-cloud-download"></i> 下载文档</a>
-                                            <small id="template-generation-action-hint">先检查资料和内容状态，再生成 Word 报告</small>
+                                            <small id="template-generation-action-hint">生成报告后在生成记录中选择文件并操作</small>
                                         </div>
                                     </section>
 
-                                    <section class="template-generation-status-strip" id="template-generation-status-strip">
-                                        <div class="template-generation-step" id="template-generation-step-data">
-                                            <span class="step-index">1</span>
-                                            <div>
-                                                <strong>数据就绪</strong>
-                                                <small id="template-generation-data-summary">Word、Excel、配套数据待检查</small>
+                                    <section class="template-generation-workflow" id="template-generation-workflow">
+                                        <div class="template-generation-flow-panel">
+                                            <div class="panel-title-row">
+                                                <h4>实时流程</h4>
+                                                <span id="template-generation-progress-label" class="text-muted">等待生成</span>
+                                            </div>
+                                            <div class="template-generation-flow-list" id="template-generation-flow-list">
+                                                <div class="template-generation-flow-step" data-generation-flow-step="check">
+                                                    <span class="step-index">1</span>
+                                                    <div><strong>准备模板资产</strong><small>Word 模板、Excel 底稿、section 配置</small></div>
+                                                    <em>等待</em>
+                                                </div>
+                                                <div class="template-generation-flow-step" data-generation-flow-step="mapping">
+                                                    <span class="step-index">2</span>
+                                                    <div><strong>读取底稿映射</strong><small id="template-generation-data-summary">Word、Excel、配套数据待检查</small></div>
+                                                    <em>等待</em>
+                                                </div>
+                                                <div class="template-generation-flow-step" data-generation-flow-step="evidence">
+                                                    <span class="step-index">3</span>
+                                                    <div><strong>检索证据与新闻</strong><small id="template-generation-content-summary">段落和 Prompt 待检查</small></div>
+                                                    <em>等待</em>
+                                                </div>
+                                                <div class="template-generation-flow-step active" data-generation-flow-step="generate">
+                                                    <span class="step-index">4</span>
+                                                    <div><strong>生成段落内容</strong><small id="template-generation-current-step-summary">当前：等待启动</small></div>
+                                                    <em>当前</em>
+                                                </div>
+                                                <div class="template-generation-flow-step" data-generation-flow-step="write">
+                                                    <span class="step-index">5</span>
+                                                    <div><strong>渲染 Word 文档</strong><small>替换占位符、插入图表和表格</small></div>
+                                                    <em>等待</em>
+                                                </div>
+                                                <div class="template-generation-flow-step" data-generation-flow-step="refresh">
+                                                    <span class="step-index">6</span>
+                                                    <div><strong>完成输出</strong><small id="template-generation-output-summary">生成后可预览和下载</small></div>
+                                                    <em>等待</em>
+                                                </div>
                                             </div>
                                         </div>
-                                        <div class="template-generation-step" id="template-generation-step-content">
-                                            <span class="step-index">2</span>
-                                            <div>
-                                                <strong>内容就绪</strong>
-                                                <small id="template-generation-content-summary">段落和 Prompt 待检查</small>
-                                            </div>
-                                        </div>
-                                        <div class="template-generation-step" id="template-generation-step-output">
-                                            <span class="step-index">3</span>
-                                            <div>
-                                                <strong>输出就绪</strong>
-                                                <small id="template-generation-output-summary">生成后可预览和下载</small>
-                                            </div>
-                                        </div>
-                                    </section>
 
-                                    <section class="template-generation-panels">
                                         <div class="template-workbench-panel" id="template-recent-generation-panel">
                                             <div class="panel-title-row">
-                                                <h4>最近生成</h4>
+                                                <h4>生成记录</h4>
                                                 <span id="template-recent-generation-status" class="badge">尚未生成</span>
                                             </div>
+                                            <div class="template-generation-file-actions" aria-label="当前选中文件操作">
+                                                <button type="button" class="btn-secondary" data-template-report-action="preview" disabled><i class="codicon codicon-open-preview"></i> 预览</button>
+                                                <button type="button" class="btn-secondary" data-template-report-action="folder" disabled><i class="codicon codicon-folder-opened"></i> 打开文件夹</button>
+                                                <a class="btn-secondary disabled" href="#" target="_blank" aria-disabled="true" data-template-report-action="download"><i class="codicon codicon-cloud-download"></i> 下载</a>
+                                            </div>
                                             <div id="template-recent-generation-card" class="template-recent-generation-card">
-                                                <div class="empty-state compact">生成报告后显示预览和下载入口</div>
+                                                <div class="empty-state compact">生成报告后显示历史版本，选中文件后可预览、打开文件夹或下载。</div>
                                             </div>
                                         </div>
-
-                                        <details class="template-workbench-panel template-project-check-panel" id="template-project-check-details">
-                                            <summary>
-                                                <span><i class="codicon codicon-checklist"></i> 生成前检查</span>
-                                                <small id="template-project-check-summary">素材、数据和生成规则</small>
-                                                <strong id="template-project-check-status" class="badge">待加载</strong>
-                                            </summary>
-                                            <div class="template-project-check-body" id="template-generation-readiness-panel">
-                                                <div class="template-project-check-section">
-                                                    <div class="panel-title-row compact">
-                                                        <h4>模板资产</h4>
-                                                        <span id="template-asset-status" class="badge">待加载</span>
-                                                    </div>
-                                                    <div id="template-asset-checklist" class="template-asset-checklist">
-                                                        <div class="asset-check-item"><i class="codicon codicon-file-code"></i><span>Word 模板</span><strong>未确认</strong></div>
-                                                        <div class="asset-check-item"><i class="codicon codicon-table"></i><span>主 Excel 底稿</span><strong>未确认</strong></div>
-                                                        <div class="asset-check-item"><i class="codicon codicon-settings-gear"></i><span>Section 配置</span><strong>未确认</strong></div>
-                                                    </div>
-                                                </div>
-
-                                                <div class="template-project-check-section">
-                                                    <div class="panel-title-row compact">
-                                                        <h4>Excel 底稿映射</h4>
-                                                        <span class="text-muted">数据槽 / 图表 / 表格</span>
-                                                    </div>
-                                                    <div id="template-excel-mapping" class="template-mapping-table">
-                                                        <div class="empty-state compact">绑定 Excel 后显示数据来源</div>
-                                                    </div>
-                                                </div>
-
-                                                <div class="template-project-check-section" id="template-validation-preview">
-                                                    <div class="panel-title-row compact">
-                                                        <h4>生成预检</h4>
-                                                        <span id="template-validation-status" class="badge">未运行</span>
-                                                    </div>
-                                                    <div id="template-validation-list" class="template-validation-list">
-                                                        <div class="validation-item pending"><i class="codicon codicon-circle-outline"></i><span>Word 占位符均有 section 映射</span></div>
-                                                        <div class="validation-item pending"><i class="codicon codicon-circle-outline"></i><span>AI 文本 section 已配置 prompt</span></div>
-                                                        <div class="validation-item pending"><i class="codicon codicon-circle-outline"></i><span>Excel 图表和表格已绑定来源</span></div>
-                                                        <div class="validation-item pending"><i class="codicon codicon-circle-outline"></i><span>数字、禁用词、投资建议规则已配置</span></div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </details>
                                     </section>
                                 </div>
 
                                 <details class="template-advanced-maintenance template-detail-mode-panel" id="template-advanced-maintenance" data-template-detail-panel="config" open>
                                     <summary>
-                                        <span><i class="codicon codicon-tools"></i> 参数配置工作台</span>
-                                        <small>占位符、共用 Prompt 约束、检索策略和 YAML 片段</small>
+                                        <span><i class="codicon codicon-tools"></i> 参数配置</span>
+                                        <small>段落、共用约束和生成参数</small>
                                     </summary>
-                                    <div class="template-workbench-main-grid">
-                                        <div class="template-workbench-left">
-                                            <div class="template-workbench-panel">
-                                                <div class="panel-title-row">
-                                                    <h4>选择占位符</h4>
-                                                    <span id="template-placeholder-count" class="text-muted">0 个</span>
+                                        <div class="template-workbench-main-grid">
+                                            <div class="template-workbench-left">
+                                                <div class="template-workbench-panel">
+                                                    <div id="template-common-rules" class="template-common-rules">
+                                                        <div class="empty-state compact">选择模板后显示共用参数</div>
+                                                    </div>
                                                 </div>
-                                                <div id="template-placeholder-map" class="template-placeholder-map">
-                                                    <div class="empty-state compact">选择模板后显示占位符映射</div>
-                                                </div>
-                                                <div id="template-common-rules" class="template-common-rules">
-                                                    <div class="empty-state compact">选择模板后显示共用参数</div>
-                                                </div>
+                                                <details class="template-workbench-panel template-project-check-panel" id="template-project-check-details">
+                                                    <summary>
+                                                        <span><i class="codicon codicon-checklist"></i> 生成检查</span>
+                                                        <small id="template-project-check-summary">素材、数据和生成规则</small>
+                                                        <strong id="template-project-check-status" class="badge">待加载</strong>
+                                                    </summary>
+                                                    <div class="template-project-check-body" id="template-generation-readiness-panel">
+                                                        <div class="template-project-check-section">
+                                                            <div class="panel-title-row compact">
+                                                                <h4>模板资产</h4>
+                                                                <span id="template-asset-status" class="badge">待加载</span>
+                                                            </div>
+                                                            <div id="template-asset-checklist" class="template-asset-checklist">
+                                                                <div class="asset-check-item"><i class="codicon codicon-file-code"></i><span>Word 模板</span><strong>未确认</strong></div>
+                                                                <div class="asset-check-item"><i class="codicon codicon-table"></i><span>主 Excel 底稿</span><strong>未确认</strong></div>
+                                                                <div class="asset-check-item"><i class="codicon codicon-settings-gear"></i><span>Section 配置</span><strong>未确认</strong></div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="template-project-check-section">
+                                                            <div class="panel-title-row compact">
+                                                                <h4>Excel 底稿映射</h4>
+                                                                <span class="text-muted">数据槽 / 图表 / 表格</span>
+                                                            </div>
+                                                            <div id="template-excel-mapping" class="template-mapping-table">
+                                                                <div class="empty-state compact">绑定 Excel 后显示数据来源</div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="template-project-check-section" id="template-validation-preview">
+                                                            <div class="panel-title-row compact">
+                                                                <h4>生成预检</h4>
+                                                                <span id="template-validation-status" class="badge">未运行</span>
+                                                            </div>
+                                                            <div id="template-validation-list" class="template-validation-list">
+                                                                <div class="validation-item pending"><i class="codicon codicon-circle-outline"></i><span>Word 占位符均有 section 映射</span></div>
+                                                                <div class="validation-item pending"><i class="codicon codicon-circle-outline"></i><span>AI 文本 section 已配置 prompt</span></div>
+                                                                <div class="validation-item pending"><i class="codicon codicon-circle-outline"></i><span>Excel 图表和表格已绑定来源</span></div>
+                                                                <div class="validation-item pending"><i class="codicon codicon-circle-outline"></i><span>数字、禁用词、投资建议规则已配置</span></div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </details>
                                             </div>
-                                        </div>
 
 	                                        <div class="template-workbench-panel template-section-editor-panel" id="template-section-config-editor">
-	                                            <div class="panel-title-row">
-	                                                <h4 id="template-selected-placeholder-title">占位符配置详情</h4>
+	                                            <div class="template-placeholder-toolbar">
+	                                                <h4 id="template-selected-placeholder-title" class="template-hidden-title">占位符配置详情</h4>
+                                                    <div id="template-placeholder-map" class="template-placeholder-map">
+                                                        <div class="empty-state compact">选择模板后显示段落</div>
+                                                    </div>
+                                                    <span id="template-placeholder-count" class="template-hidden-title">0 个</span>
                                                     <div class="template-placeholder-actions">
                                                         <button id="btn-template-advanced-config" class="btn-secondary" disabled><i class="codicon codicon-settings-gear"></i> 高级配置</button>
 	                                                    <button id="btn-template-save-placeholder" class="btn-secondary" disabled><i class="codicon codicon-save"></i> 保存当前占位符</button>
                                                     </div>
 	                                            </div>
 	                                            <div id="template-placeholder-detail-form" class="template-placeholder-detail-form">
-	                                                <div class="empty-state compact">从左侧选择一个 Word 占位符后编辑配置</div>
+	                                                <div class="empty-state compact">选择一个段落后编辑配置</div>
 	                                            </div>
 	                                        </div>
 	                                    </div>
@@ -1070,23 +1188,20 @@
                                         <aside id="template-advanced-drawer" class="template-advanced-drawer hidden" aria-hidden="true">
                                             <div class="template-advanced-drawer-header">
                                                 <div>
-                                                    <h4>高级配置</h4>
-                                                    <small>类型、Prompt 模板、检索策略、Rerank 和 YAML 片段</small>
+                                                    <h4>底层配置</h4>
+                                                    <small>占位符映射、模板绑定和 YAML 片段</small>
                                                 </div>
                                                 <button id="btn-template-close-advanced-config" class="btn-secondary" type="button"><i class="codicon codicon-close"></i></button>
                                             </div>
                                             <div class="template-advanced-drawer-body">
                                                 <section class="template-advanced-section">
                                                     <div class="panel-title-row">
-                                                        <h4>占位符高级字段</h4>
-                                                        <span class="text-muted">通常不需要修改</span>
+                                                        <h4>占位符底层字段</h4>
+                                                        <span class="text-muted">模板结构变化时才需要</span>
                                                     </div>
                                                     <div id="template-advanced-placeholder-form" class="template-placeholder-detail-form template-advanced-placeholder-form">
-                                                        <div class="empty-state compact">从左侧选择一个 Word 占位符后显示高级字段</div>
+                                                        <div class="empty-state compact">选择段落后显示底层字段</div>
                                                     </div>
-                                                </section>
-                                                <section class="template-advanced-section">
-                                                    <div id="template-advanced-common-rules" class="template-common-rules"></div>
                                                 </section>
                                                 <section class="template-advanced-section">
                                                     <div class="panel-title-row template-source-fragment-title">
@@ -1100,12 +1215,46 @@
                                                     <div class="template-workbench-actions template-source-actions">
                                                         <button id="btn-template-edit-source" class="btn-secondary"><i class="codicon codicon-edit"></i> 查看片段</button>
                                                         <button id="btn-template-save-source" class="btn-secondary" disabled><i class="codicon codicon-save"></i> 保存当前片段</button>
+                                                        <button id="btn-template-show-run-log" class="btn-secondary" type="button"><i class="codicon codicon-output"></i> 运行记录</button>
                                                     </div>
                                                     <textarea id="template-source-editor" class="template-source-editor" spellcheck="false" readonly>选择模板后生成配置草稿...</textarea>
                                                 </section>
                                             </div>
                                         </aside>
-	                                </details>
+                                </details>
+                                <div class="template-detail-mode-panel template-generation-preview-panel hidden" id="template-generation-preview-panel" data-template-detail-panel="preview">
+                                    <section class="template-preview-reader word-preview-reader">
+                                        <div class="template-preview-frame word-preview-shell">
+                                            <div class="panel-title-row">
+                                                <h4>Word 预览</h4>
+                                                <span id="template-preview-document-label" class="text-muted">尚未生成</span>
+                                            </div>
+                                            <iframe id="template-report-preview-frame" title="报告预览"></iframe>
+                                        </div>
+                                    </section>
+                                </div>
+                                <div class="template-detail-mode-panel template-generation-log-panel hidden" id="template-generation-log-panel" data-template-detail-panel="logs">
+                                    <section class="template-log-workspace">
+                                        <div class="template-workbench-panel template-log-console">
+                                            <div class="panel-title-row">
+                                                <h4>生成日志</h4>
+                                                <span id="template-log-status" class="text-muted">最近一次生成</span>
+                                            </div>
+                                            <div id="template-generation-log-table" class="template-generation-log-table">
+                                                <div class="empty-state compact">生成报告后显示运行日志、警告和耗时。</div>
+                                            </div>
+                                        </div>
+                                        <aside class="template-workbench-panel template-log-context">
+                                            <div class="panel-title-row">
+                                                <h4>运行上下文</h4>
+                                                <span class="text-muted">本次任务</span>
+                                            </div>
+                                            <div id="template-generation-log-context">
+                                                <div class="empty-state compact">尚无运行上下文</div>
+                                            </div>
+                                        </aside>
+                                    </section>
+                                </div>
                             </div>
                         </div>
 
@@ -1275,7 +1424,7 @@
 
     <!-- Scripts: i18n must load before app.js -->
     <script src="/static/i18n.js?v=20250527"></script>
-    <script type="module" src="/static/js/app.js?v=20250614i"></script>
+    <script type="module" src="/static/js/app.js?v=20260623d"></script>
     <script type="module" src="/static/js/wind.js?v=20250601a"></script>
 </body>
 </html>

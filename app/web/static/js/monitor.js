@@ -7,20 +7,30 @@ import { apiCall, esc } from './core.js';
 
 // ─── Live Crawl Feed Polling (分源独立轮询) ─────────────────
 const CRAWL_FEED_SOURCES = [
-    { id: 'cls', label: 'CLS', limit: 200 },
-    { id: 'cnstock', label: 'CNSTOCK', limit: 200 },
-    { id: 'cnstock_flash', label: '快讯', limit: 200 },
-    { id: 'zhiqiu_reports', label: 'ZQ研报', limit: 200 },
-    { id: 'zhiqiu_wechat', label: 'ZQ公众号', limit: 200 },
-    { id: 'zhiqiu_transcript', label: 'ZQ纪要', limit: 200 },
+    { id: 'cls', label: '财联社电报', shortLabel: '财联社', limit: 250, tone: 'blue' },
+    { id: 'cnstock_flash', label: '中国证券网快讯', shortLabel: '快讯', limit: 250, tone: 'cyan' },
+    { id: 'cnstock', label: '中国证券网', shortLabel: '中国证券网', limit: 250, tone: 'cyan' },
+    { id: 'zhiqiu_reports', label: '知丘研报', shortLabel: '研报', limit: 250, tone: 'orange' },
+    { id: 'zhiqiu_wechat', label: '知丘公众号', shortLabel: '公众号', limit: 250, tone: 'orange' },
+    { id: 'zhiqiu_transcript', label: '知丘纪要', shortLabel: '纪要', limit: 250, tone: 'orange' },
 ];
 
 const crawlFeedStates = {};
 const crawlFeedControllers = {};
+let activeMonitorSource = 'all';
+let activeMonitorItemKey = null;
+let activeMonitorDetailTab = 'event';
+const MAX_UNIFIED_ITEMS = 250;
 
 function getFeedState(sourceType) {
     if (!crawlFeedStates[sourceType]) {
-        crawlFeedStates[sourceType] = { lastTs: null, seenIds: new Set() };
+        crawlFeedStates[sourceType] = {
+            items: [],
+            lastTs: null,
+            seenIds: new Set(),
+            totalToday: 0,
+            lastCrawledAt: null,
+        };
     }
     return crawlFeedStates[sourceType];
 }
@@ -41,70 +51,63 @@ async function loadCrawlFeedForSource(sourceType, initial) {
         const data = await apiCall('GET', url, null, { signal: controller.signal });
         if (!data || !Array.isArray(data.items)) return;
 
-        const list = document.getElementById('feed-list-' + sourceType);
-        const countEl = document.getElementById('feed-count-' + sourceType);
-        const statusEl = document.getElementById('feed-status-' + sourceType);
-        if (!list) return;
-
-        if (countEl && data.total_today !== undefined) {
-            countEl.textContent = data.total_today + ' 条';
-        }
-
-        // 更新最后获取时间
-        const lastFetchEl = document.getElementById('feed-last-fetch-' + sourceType);
-        if (lastFetchEl && data.last_crawled_at) {
-            const d = new Date(data.last_crawled_at);
-            const now = new Date();
-            const diffMs = now - d;
-            const diffMin = Math.floor(diffMs / 60000);
-            const diffHour = Math.floor(diffMs / 3600000);
-            const diffDay = Math.floor(diffMs / 86400000);
-            if (diffMin < 1) {
-                lastFetchEl.textContent = '刚刚抓取';
-            } else if (diffMin < 60) {
-                lastFetchEl.textContent = diffMin + ' 分钟前';
-            } else if (diffHour < 24 && d.toDateString() === now.toDateString()) {
-                lastFetchEl.textContent = '今天 ' + d.toLocaleTimeString();
-            } else if (diffDay < 2) {
-                lastFetchEl.textContent = diffHour + ' 小时前';
-            } else {
-                lastFetchEl.textContent = diffDay + ' 天前';
-            }
-        }
+        const sourceConfig = CRAWL_FEED_SOURCES.find(s => s.id === sourceType);
+        state.totalToday = Number(data.total_today || 0);
+        state.lastCrawledAt = data.last_crawled_at || state.lastCrawledAt;
 
         let newCount = 0;
 
         for (const item of [...data.items].reverse()) {
-            if (state.seenIds.has(item.doc_id)) continue;
-            state.seenIds.add(item.doc_id);
+            const itemKey = feedItemKey(sourceType, item);
+            if (state.seenIds.has(itemKey)) continue;
+            state.seenIds.add(itemKey);
             newCount++;
+            state.items.unshift({
+                ...item,
+                feed_key: itemKey,
+                source_type: sourceType,
+                source_label: sourceConfig ? sourceConfig.label : sourceType,
+            });
+        }
 
-            const li = document.createElement('li');
-            const timeStr = item.published_at || item.crawled_at;
-            let time = '';
-            if (timeStr) {
-                const d = new Date(timeStr);
-                const now = new Date();
-                const isToday = d.toDateString() === now.toDateString();
-                time = isToday ? d.toLocaleTimeString() : d.toLocaleString();
+        state.items = state.items
+            .sort((a, b) => eventTimestamp(b) - eventTimestamp(a))
+            .slice(0, MAX_UNIFIED_ITEMS);
+
+        const list = document.getElementById('feed-list-' + sourceType);
+        const countEl = document.getElementById('feed-count-' + sourceType);
+        const statusEl = document.getElementById('feed-status-' + sourceType);
+        const lastFetchEl = document.getElementById('feed-last-fetch-' + sourceType);
+
+        if (countEl) {
+            countEl.textContent = state.totalToday + ' 条';
+        }
+
+        if (lastFetchEl && state.lastCrawledAt) {
+            lastFetchEl.textContent = formatRelativeTime(state.lastCrawledAt);
+        }
+
+        if (list) {
+            for (const item of state.items.slice(0, sourceConfig ? sourceConfig.limit : 100).reverse()) {
+                if (list.querySelector(`[data-doc-id="${cssEscape(item.feed_key)}"]`)) continue;
+                const li = document.createElement('li');
+                li.dataset.docId = item.feed_key;
+                li.innerHTML = `
+                    <span class="feed-title" title="${esc(item.title)}">${esc(item.title || '(无标题)')}</span>
+                    <span class="feed-time">${formatEventTime(item.published_at || item.crawled_at)}</span>
+                `;
+                li.classList.add('feed-new');
+                setTimeout(() => li.classList.remove('feed-new'), 3000);
+                list.prepend(li);
             }
-            li.innerHTML = `
-                <span class="feed-title" title="${esc(item.title)}">${esc(item.title || '(无标题)')}</span>
-                <span class="feed-time">${time}</span>
-            `;
-            li.classList.add('feed-new');
-            setTimeout(() => li.classList.remove('feed-new'), 3000);
-            list.prepend(li);
-        }
 
-        const srcConfig = CRAWL_FEED_SOURCES.find(s => s.id === sourceType);
-        const maxItems = srcConfig ? srcConfig.limit : 100;
-        while (list.children.length > maxItems) {
-            list.removeChild(list.lastChild);
-        }
+            while (list.children.length > (sourceConfig ? sourceConfig.limit : 100)) {
+                list.removeChild(list.lastChild);
+            }
 
-        const empty = list.querySelector('.empty-state');
-        if (empty && list.children.length > 1) empty.remove();
+            const empty = list.querySelector('.empty-state');
+            if (empty && list.children.length > 1) empty.remove();
+        }
 
         const latest = data.items.reduce((best, item) => {
             const t = item.crawled_at || item.published_at;
@@ -120,6 +123,9 @@ async function loadCrawlFeedForSource(sourceType, initial) {
                 statusEl.classList.remove('badge-real');
             }, 3000);
         }
+        renderMonitorSourceList();
+        renderUnifiedMonitorFeed();
+        renderMonitorSummary();
     } catch (e) {
         if (e.name === 'AbortError') return;
         console.warn('[CrawlFeed:' + sourceType + '] Poll error:', e);
@@ -128,6 +134,276 @@ async function loadCrawlFeedForSource(sourceType, initial) {
             delete crawlFeedControllers[sourceType];
         }
     }
+}
+
+function initLiveMonitorBoard() {
+    bindMonitorDetailTabs();
+    renderMonitorSourceList();
+    renderUnifiedMonitorFeed();
+    renderMonitorSummary();
+}
+
+function bindMonitorDetailTabs() {
+    document.querySelectorAll('[data-monitor-detail-tab]').forEach(button => {
+        if (button.dataset.monitorTabBound === 'true') return;
+        button.dataset.monitorTabBound = 'true';
+        button.addEventListener('click', handleMonitorDetailTabClick);
+    });
+    applyMonitorDetailTab();
+}
+
+function renderMonitorSourceList() {
+    const list = document.getElementById('monitor-source-list');
+    if (!list) return;
+
+    const total = totalToday();
+    const rows = [
+        monitorSourceButton({
+            id: 'all',
+            label: '全部来源',
+            subtitle: '统一事件流',
+            count: total,
+            active: activeMonitorSource === 'all',
+        }),
+        ...CRAWL_FEED_SOURCES.map(source => {
+            const state = getFeedState(source.id);
+            return monitorSourceButton({
+                id: source.id,
+                label: source.label,
+                subtitle: state.lastCrawledAt ? formatRelativeTime(state.lastCrawledAt) : '等待抓取',
+                count: sourceTodayCount(state, source),
+                active: activeMonitorSource === source.id,
+            });
+        }),
+    ];
+
+    list.innerHTML = rows.join('');
+    list.querySelectorAll('[data-monitor-source]').forEach(button => {
+        button.addEventListener('click', handleMonitorSourceClick);
+    });
+}
+
+function monitorSourceButton({ id, label, subtitle, count, active }) {
+    return `
+        <button class="monitor-source-row ${active ? 'active' : ''}" type="button" data-monitor-source="${esc(id)}">
+            <span class="monitor-status-dot"></span>
+            <span class="monitor-source-main"><strong>${esc(label)}</strong><small>${esc(subtitle)}</small></span>
+            <span class="monitor-source-count">${esc(String(count || 0))}</span>
+        </button>
+    `;
+}
+
+function handleMonitorSourceClick(event) {
+    const source = event.currentTarget.dataset.monitorSource || 'all';
+    activeMonitorSource = source;
+    activeMonitorItemKey = null;
+    renderMonitorSourceList();
+    renderUnifiedMonitorFeed();
+    renderMonitorSummary();
+}
+
+function handleMonitorDetailTabClick(event) {
+    activeMonitorDetailTab = event.currentTarget.dataset.monitorDetailTab || 'event';
+    applyMonitorDetailTab();
+}
+
+function applyMonitorDetailTab() {
+    document.querySelectorAll('[data-monitor-detail-tab]').forEach(button => {
+        button.classList.toggle('active', button.dataset.monitorDetailTab === activeMonitorDetailTab);
+    });
+    document.querySelectorAll('.monitor-detail-view').forEach(view => {
+        const viewName = view.id === 'monitor-system-detail' ? 'system' : 'event';
+        view.classList.toggle('hidden', viewName !== activeMonitorDetailTab);
+    });
+}
+
+function renderUnifiedMonitorFeed() {
+    const list = document.getElementById('monitor-feed-list');
+    if (!list) return;
+
+    const items = monitorItemsForActiveSource();
+    const title = document.getElementById('monitor-feed-title');
+    if (title) title.textContent = activeSourceLabel();
+
+    if (!items.length) {
+        list.innerHTML = '<div class="empty-state">等待抓取数据...</div>';
+        renderMonitorEventDetail(null);
+        return;
+    }
+
+    if (!activeMonitorItemKey || !items.some(item => item.feed_key === activeMonitorItemKey)) {
+        activeMonitorItemKey = items[0].feed_key;
+    }
+
+    list.innerHTML = items.slice(0, MAX_UNIFIED_ITEMS).map(item => {
+        const sourceConfig = CRAWL_FEED_SOURCES.find(sourceItem => sourceItem.id === item.source_type);
+        const tone = sourceConfig ? sourceConfig.tone : 'blue';
+        const sourceLabel = sourceConfig ? sourceConfig.label : item.source_type;
+        const isSelected = item.feed_key === activeMonitorItemKey;
+        return `
+            <article class="monitor-event-item ${isSelected ? 'selected' : ''}" data-monitor-item-key="${esc(item.feed_key)}">
+                <span class="monitor-event-accent ${esc(tone)}"></span>
+                <div class="monitor-event-main">
+                    <strong title="${esc(item.title || '')}">${esc(item.title || '(无标题)')}</strong>
+                    <span>${esc(sourceLabel)}</span>
+                </div>
+                <time class="monitor-event-time">${esc(formatEventTime(item.published_at || item.crawled_at))}</time>
+            </article>
+        `;
+    }).join('');
+    list.querySelectorAll('[data-monitor-item-key]').forEach(item => {
+        item.addEventListener('click', handleMonitorEventClick);
+    });
+    renderMonitorEventDetail(items.find(item => item.feed_key === activeMonitorItemKey) || items[0]);
+}
+
+function handleMonitorEventClick(event) {
+    activeMonitorItemKey = event.currentTarget.dataset.monitorItemKey || null;
+    activeMonitorDetailTab = 'event';
+    renderUnifiedMonitorFeed();
+    applyMonitorDetailTab();
+}
+
+function renderMonitorEventDetail(item) {
+    const title = document.getElementById('monitor-detail-title');
+    const content = document.getElementById('monitor-detail-content');
+
+    if (!item) {
+        setText('monitor-detail-title', '选择一条事件查看详情');
+        setText('monitor-detail-content', '中间列表只保留标题，完整内容会在这里展开。');
+        return;
+    }
+
+    if (title) title.textContent = item.title || '(无标题)';
+    if (content) content.textContent = eventDetailText(item);
+}
+
+function monitorItemsForActiveSource() {
+    const items = activeMonitorSource === 'all'
+        ? CRAWL_FEED_SOURCES.flatMap(source => getFeedState(source.id).items)
+        : getFeedState(activeMonitorSource).items;
+    const sorted = items
+        .slice()
+        .sort((a, b) => eventTimestamp(b) - eventTimestamp(a));
+    return activeMonitorSource === 'all' ? sorted.slice(0, MAX_UNIFIED_ITEMS) : sorted;
+}
+
+function activeSourceLabel() {
+    const source = CRAWL_FEED_SOURCES.find(item => item.id === activeMonitorSource);
+    return activeMonitorSource === 'all' ? '全部来源' : (source ? source.label : activeMonitorSource);
+}
+
+function feedItemKey(sourceType, item) {
+    return [
+        sourceType,
+        item.doc_id || item.id || item.url || item.link || '',
+        item.published_at || item.crawled_at || '',
+        item.title || '',
+    ].join('|');
+}
+
+function renderMonitorSummary() {
+    setText('monitor-summary-sources', `${onlineSourceCount()} / ${CRAWL_FEED_SOURCES.length}`);
+    setText('monitor-summary-total', String(totalToday()));
+
+    const latest = latestCrawledAt('all');
+    const latestSource = latestSourceLabel();
+    setText('monitor-summary-last', latest ? formatRelativeTime(latest) : '--');
+    setText('monitor-summary-last-source', latestSource || '等待数据');
+}
+
+function setText(id, text) {
+    const element = document.getElementById(id);
+    if (element) element.textContent = text;
+}
+
+function onlineSourceCount() {
+    return CRAWL_FEED_SOURCES.filter(source => {
+        const state = getFeedState(source.id);
+        return state.lastCrawledAt || state.items.length || state.totalToday;
+    }).length;
+}
+
+function totalToday() {
+    return CRAWL_FEED_SOURCES.reduce((sum, source) => sum + Number(getFeedState(source.id).totalToday || 0), 0);
+}
+
+function sourceTodayCount(state, source) {
+    if (Number.isFinite(state.totalToday)) return state.totalToday;
+    return Math.min(state.items.length, source.limit || state.items.length);
+}
+
+function eventDetailText(item) {
+    const text = item.content || item.summary || item.description || '';
+    const compactText = String(text).replace(/\s+/g, ' ').trim();
+    const compactTitle = String(item.title || '').replace(/\s+/g, ' ').trim();
+    const compactRawTitle = String(item.raw_title || '').replace(/\s+/g, ' ').trim();
+    if (!compactText || compactText === compactTitle || compactText === compactRawTitle) {
+        return '当前来源暂未获取到独立正文，只能展示标题。';
+    }
+    return text;
+}
+
+function latestCrawledAt(sourceId) {
+    const states = sourceId === 'all'
+        ? CRAWL_FEED_SOURCES.map(source => getFeedState(source.id))
+        : [getFeedState(sourceId)];
+    const sorted = states
+        .map(state => state.lastCrawledAt)
+        .filter(Boolean)
+        .sort();
+    return sorted.length ? sorted[sorted.length - 1] : null;
+}
+
+function latestSourceLabel() {
+    let latest = null;
+    let label = '';
+    CRAWL_FEED_SOURCES.forEach(source => {
+        const state = getFeedState(source.id);
+        if (state.lastCrawledAt && (!latest || state.lastCrawledAt > latest)) {
+            latest = state.lastCrawledAt;
+            label = source.label;
+        }
+    });
+    return label;
+}
+
+function eventTimestamp(item) {
+    const value = item.crawled_at || item.published_at;
+    const date = value ? new Date(value) : new Date(0);
+    return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+}
+
+function formatEventTime(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const time = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    if (date.toDateString() === new Date().toDateString()) return time;
+    return `${date.toLocaleDateString()} ${time}`;
+}
+
+function formatRelativeTime(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '--';
+    const diffMs = Date.now() - date.getTime();
+    const diffMin = Math.max(0, Math.floor(diffMs / 60000));
+    const diffHour = Math.floor(diffMs / 3600000);
+    const diffDay = Math.floor(diffMs / 86400000);
+    if (diffMin < 1) return '刚刚';
+    if (diffMin < 60) return `${diffMin} 分钟前`;
+    if (diffHour < 24 && date.toDateString() === new Date().toDateString()) {
+        return `今天 ${date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+    }
+    if (diffDay < 2) return `${diffHour} 小时前`;
+    return `${diffDay} 天前`;
+}
+
+function cssEscape(value) {
+    if (typeof window !== 'undefined' && window.CSS && typeof window.CSS.escape === 'function') {
+        return window.CSS.escape(String(value));
+    }
+    return String(value).replace(/"/g, '\\"');
 }
 
 const crawlFeedIntervals = {};
@@ -147,6 +423,7 @@ async function triggerCrawlAllSources() {
 }
 
 function startCrawlFeedPolling() {
+    initLiveMonitorBoard();
     CRAWL_FEED_SOURCES.forEach(({ id }) => {
         if (crawlFeedIntervals[id]) return;
         loadCrawlFeedForSource(id, true);
@@ -212,11 +489,8 @@ async function loadWorkersStatus() {
 function renderWorkersPanel(data) {
     const panel = document.getElementById('workers-panel');
     const queueEl = document.getElementById('workers-queue-stats');
-    const lastUpdated = document.getElementById('workers-last-updated');
 
-    if (lastUpdated) {
-        lastUpdated.textContent = new Date().toLocaleTimeString();
-    }
+    updateMonitorWorkerSummary(data);
 
     let html = '';
 
@@ -263,10 +537,10 @@ function renderWorkersPanel(data) {
     if (queueEl && data.queue_stats) {
         var qs = data.queue_stats;
         queueEl.innerHTML =
-            '<span class="queue-stat"><span class="queue-stat-label">待处理</span><span class="queue-stat-value">' + (qs.pending || 0) + '</span></span>' +
-            '<span class="queue-stat"><span class="queue-stat-label">处理中</span><span class="queue-stat-value queue-processing">' + (qs.processing || 0) + '</span></span>' +
-            '<span class="queue-stat"><span class="queue-stat-label">已完成</span><span class="queue-stat-value queue-completed">' + (qs.completed || 0) + '</span></span>' +
-            '<span class="queue-stat"><span class="queue-stat-label">失败</span><span class="queue-stat-value queue-failed">' + (qs.failed || 0) + '</span></span>';
+            '<span class="queue-stat monitor-health-card"><span class="queue-stat-label">待处理</span><span class="queue-stat-value">' + (qs.pending || 0) + '</span></span>' +
+            '<span class="queue-stat monitor-health-card"><span class="queue-stat-label">处理中</span><span class="queue-stat-value queue-processing">' + (qs.processing || 0) + '</span></span>' +
+            '<span class="queue-stat monitor-health-card"><span class="queue-stat-label">已完成</span><span class="queue-stat-value queue-completed">' + (qs.completed || 0) + '</span></span>' +
+            '<span class="queue-stat monitor-health-card"><span class="queue-stat-label">失败</span><span class="queue-stat-value queue-failed">' + (qs.failed || 0) + '</span></span>';
     }
 
     // Processing stats (今日/近7天/近30天/总计 + 趋势对比)
@@ -289,22 +563,36 @@ function renderWorkersPanel(data) {
         }
 
         procEl.innerHTML =
-            '<span class="queue-stat">' +
+            '<span class="queue-stat monitor-health-card">' +
                 '<span class="queue-stat-label">今日' + trendHtml + '</span>' +
                 '<span class="queue-stat-value">' + (ps.today || 0) + '</span>' +
             '</span>' +
-            '<span class="queue-stat">' +
+            '<span class="queue-stat monitor-health-card">' +
                 '<span class="queue-stat-label">近7天 <span class="proc-avg">日均' + (ps.daily_avg_7d || 0).toFixed(0) + '</span></span>' +
                 '<span class="queue-stat-value">' + (ps.last_7_days || 0) + '</span>' +
             '</span>' +
-            '<span class="queue-stat">' +
+            '<span class="queue-stat monitor-health-card">' +
                 '<span class="queue-stat-label">近30天</span>' +
                 '<span class="queue-stat-value">' + (ps.last_30_days || 0) + '</span>' +
             '</span>' +
-            '<span class="queue-stat">' +
+            '<span class="queue-stat monitor-health-card">' +
                 '<span class="queue-stat-label">总计</span>' +
                 '<span class="queue-stat-value queue-completed">' + (ps.total || 0) + '</span>' +
             '</span>';
+    }
+}
+
+function updateMonitorWorkerSummary(data) {
+    const aliveWorkers = Array.isArray(data.workers)
+        ? data.workers.filter(worker => worker.alive).length
+        : 0;
+    const totalWorkers = Array.isArray(data.workers) ? data.workers.length : 0;
+    const schedulerAlive = data.scheduler && data.scheduler.alive ? 1 : 0;
+    const schedulerTotal = data.scheduler ? 1 : 0;
+    setText('monitor-summary-workers', `${aliveWorkers + schedulerAlive} / ${totalWorkers + schedulerTotal}`);
+
+    if (data.queue_stats) {
+        setText('monitor-summary-failed', String(data.queue_stats.failed || 0));
     }
 }
 

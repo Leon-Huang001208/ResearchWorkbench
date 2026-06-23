@@ -1,6 +1,7 @@
 # AlphaFoundry Desktop Visual System Design
 
 Date: 2026-06-17
+Updated: 2026-06-18
 
 ## Goal
 
@@ -15,6 +16,17 @@ The approved baseline is:
 
 This design is for the Tauri desktop experience first. The existing FastAPI-served web workbench can be migrated gradually without changing backend APIs up front.
 
+The current desktop baseline is local-first:
+
+- The installed macOS app at `/Applications/AlphaFoundry.app` is the primary daily entry point.
+- The app starts a local backend on `127.0.0.1:8765`.
+- The backend reads the active project root from `~/Library/Application Support/AlphaFoundry/dev-project-root`.
+- The active project root is `/Users/leon/Desktop/Projects/AlphaFoundry`.
+- Normal frontend/backend/template iteration should take effect after quitting and reopening the desktop app.
+- The browser remains a debugging fallback, not the default user experience.
+- The active database is local PostgreSQL: `postgresql://leon@localhost:5432/alphafoundry`.
+- Background workers continue to run locally for crawl scheduling and knowledge processing.
+
 ## Product Feel
 
 AlphaFoundry should feel like a buy-side research operating system:
@@ -23,6 +35,7 @@ AlphaFoundry should feel like a buy-side research operating system:
 - Dense enough for market monitoring and research throughput.
 - Native enough to feel at home as a desktop app.
 - Structured around evidence, assets, reports, and decisions.
+- Local and self-contained enough to feel dependable on a personal research machine.
 
 It should not feel like:
 
@@ -53,6 +66,8 @@ The shell keeps AlphaFoundry's terminal DNA where research velocity matters:
 - Amber accent.
 - Strong evidence and confidence displays.
 
+The shell must also make the local runtime legible without making it noisy. The user should be able to tell whether the local backend, database, crawler scheduler, and knowledge worker are healthy from compact status affordances, but those affordances must not dominate the research workspace.
+
 ## Global Layout
 
 The app uses a four-layer desktop frame:
@@ -69,6 +84,7 @@ The title bar should contain:
 - macOS traffic-light window affordances.
 - Center segmented control for top-level modes.
 - Right-side command center entry.
+- Compact local runtime status, when needed.
 
 Recommended segmented modes:
 
@@ -82,6 +98,16 @@ The command center is the primary global search affordance:
 - Label: `⌘K 搜索实体、事件、信号`
 - Scope: assets, entities, events, reports, templates, workflows.
 - Behavior: opens an overlay command palette, not a normal page search box.
+
+Local runtime status should use small indicators rather than banners:
+
+- Backend: local service healthy or unavailable.
+- Database: local PostgreSQL connected.
+- Scheduler: crawl scheduler running.
+- Worker: knowledge worker running.
+- Last crawl: latest successful ingest time.
+
+Only unhealthy states should expand into a visible warning.
 
 ### Source List
 
@@ -241,6 +267,15 @@ Default density: Compact.
 
 The desktop shell should refine the existing terminal tokens rather than replace them.
 
+The product brand mark is now red and gold:
+
+- App icon: rich A-share red rounded square.
+- Mark: gold abstract `A` with an integrated upward trend arrow.
+- Style: slightly dimensional macOS icon treatment with softened shadow.
+- Exclusions: no K-line background, no chip traces, no circuit pattern, no decorative data grid.
+
+The app icon is a brand asset, not a full UI palette. Red and gold may appear as brand moments, but the workbench should still use restrained graphite surfaces and semantic market colors.
+
 Recommended base palette:
 
 - Page: `#101116`
@@ -261,6 +296,27 @@ Status colors should follow China market convention:
 - Down / negative price movement: green.
 - Neutral: muted blue-gray.
 - Warning: amber.
+
+Brand colors:
+
+- Brand red: `#D71920`
+- Deep brand red: `#8F0909`
+- Brand gold: `#F5B544`
+- Deep gold: `#B77714`
+
+Brand colors are appropriate for:
+
+- App icon.
+- About/splash identity.
+- Small brand mark in the sidebar or title bar.
+- Selected workspace swatch only when it does not conflict with semantic status.
+
+Brand colors are not appropriate for:
+
+- Every panel background.
+- General table rows.
+- Non-positive semantic status.
+- Decorative gradients or large hero-like areas.
 
 Typography:
 
@@ -378,6 +434,8 @@ Accent colors may be used for:
 
 Accent colors must not be used to replace semantic status colors. A green accent does not make negative price movement use another color; a red accent does not change warning or danger semantics.
 
+The default desktop identity may use the red/gold app mark while keeping Amber as the default interaction accent. This avoids turning the whole product into a one-note red theme while preserving the A-share identity at the application level.
+
 ### Persistence
 
 Theme preferences should be persisted independently from workspace state:
@@ -456,9 +514,58 @@ Empty states should stay operational:
 - Good: `当前报告缺少 2 个数据源。`
 - Avoid: playful or marketing copy.
 
+### Runtime Status
+
+Runtime status is part of the desktop visual system because AlphaFoundry is now a local app with local services.
+
+Required states:
+
+- Backend service.
+- Local database.
+- Crawl scheduler worker.
+- Knowledge worker.
+- Last successful crawl or processing heartbeat.
+
+Display rules:
+
+- Healthy states should be compact and quiet.
+- Warning states should show a short actionable label.
+- Error states should link to diagnostics or logs.
+- Do not show raw logs in the primary workspace unless the user opens diagnostics.
+- Do not log or display full crawled article bodies in normal operational status.
+
+Recommended healthy copy:
+
+- `本地服务正常`
+- `PostgreSQL 已连接`
+- `爬取中`
+- `知识处理正常`
+
+Recommended warning copy:
+
+- `本地服务未连接`
+- `数据库不可用`
+- `爬虫未运行`
+- `知识处理暂停`
+
 ## Migration Strategy
 
 The redesign can be implemented incrementally.
+
+### Phase 0: Desktop Runtime Baseline
+
+Status: completed for macOS local development.
+
+- macOS Tauri shell exists and can be installed as `/Applications/AlphaFoundry.app`.
+- The app uses the red/gold AlphaFoundry icon.
+- The installed app starts the local backend from the active project root.
+- The active project root is configured through `~/Library/Application Support/AlphaFoundry/dev-project-root`.
+- The backend serves the existing workbench on `127.0.0.1:8765`.
+- The backend connects to local PostgreSQL.
+- `crawl_scheduler_worker` and `knowledge_worker` run locally under watchdog supervision.
+- Knowledge worker logs no longer emit full document content in normal `Item processed` lines.
+
+This phase is an operating baseline, not the final visual redesign. It lets daily iteration happen in the desktop app before the visual migration is complete.
 
 ### Phase 1: Shell And Navigation
 
@@ -466,6 +573,7 @@ The redesign can be implemented incrementally.
 - Add the desktop title bar treatment inside the Tauri-hosted app.
 - Keep existing sections mounted but route them through the four workspaces.
 - Add local state for selected workspace and source-list active row.
+- Add compact runtime status indicators for backend, database, scheduler, and knowledge worker.
 
 ### Phase 2: Market Research Workspace
 
@@ -499,6 +607,10 @@ The redesign can be implemented incrementally.
 - Keep changes scoped to static HTML/CSS/JS first if that is the fastest path.
 - Do not remove legacy sections until each replacement workflow is verified.
 - Do not use decorative gradients, oversized cards, or marketing-style hero layouts.
+- Keep the local desktop development path working: project changes should apply after quitting and reopening the installed app.
+- Do not require cloud services for the core local desktop workflow.
+- Do not treat crawler logs as data storage or deduplication state.
+- Do not print full crawled article bodies in normal logs or status panels.
 
 ## Success Criteria
 
@@ -510,6 +622,9 @@ The redesign is successful when:
 - Report and template work feels calmer and more native.
 - AI output reads like an analyst inspector, not a chat sidebar.
 - The desktop shell feels coherent with macOS without losing AlphaFoundry's institutional terminal identity.
+- The user can work from `AlphaFoundry.app` without opening the browser.
+- Local backend, local database, scheduler, and knowledge worker health are visible when needed.
+- Normal project iteration takes effect after quitting and reopening the installed app.
 
 ## Open Decisions Resolved
 
@@ -518,3 +633,6 @@ The redesign is successful when:
 - Use `市场研究 / 资产观察 / 报告生产 / 信号实验室` as the first four primary workspaces.
 - Treat source-list counts as actionable workload counts.
 - Make the 50% Apple hybrid the design baseline.
+- Use the red/gold A-share app icon as the brand mark.
+- Treat the desktop app as local-first: local backend, local PostgreSQL, and local workers are the default development and daily-use model.
+- Use the browser only as a debugging fallback for the desktop workflow.

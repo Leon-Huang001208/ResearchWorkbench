@@ -424,39 +424,56 @@ class AssetAnalysisService:
             end_date - timedelta(days=days) if days > 0 else end_date - timedelta(days=365 * 20)
         )
 
-        # 优先使用天软(Cjpy) — 实测 0.54s，比 Wind 快 84x
         cjpy_bars = await self._fetch_cjpy_price_bars_with_timeout(
             canonical_id, start_date, end_date
         )
         if cjpy_bars:
             self._apply_price_bars(card, cjpy_bars, source="cjpy")
+            price_source = "cjpy"
         else:
-            # Cjpy 不可用时降级到 Wind → MultiSourceCoordinator
-            wind_bars = await self._fetch_wind_price_bars_with_timeout(
-                canonical_id, start_date, end_date
+            price_source = self._fill_price_bars_from_coordinator(
+                card, canonical_id, start_date, end_date
             )
-            if wind_bars:
-                self._apply_price_bars(card, wind_bars, source="wind_excel")
-            else:
-                self._fill_price_bars_from_coordinator(card, canonical_id, start_date, end_date)
+        fast_cache_mode = price_source == "cache"
 
-        self._fill_wind_market_snapshot(card, canonical_id, as_of)
+        if not fast_cache_mode:
+            self._fill_wind_market_snapshot(card, canonical_id, as_of)
+        else:
+            logger.info(
+                "Skipping live market snapshot in fast cache mode",
+                extra={"canonical_id": canonical_id},
+            )
+
         card.basic_info = self._build_basic_info(canonical_id, card.valuation)
 
         # Phase 2: 从 StockMasterDB / Wind 填充行业数据
-        card.industry = self._fill_industry_data(canonical_id)
+        card.industry = self._fill_industry_data(
+            canonical_id, allow_wind_fallback=not fast_cache_mode
+        )
 
         # Phase 3: 从 StockShareholderDB / Wind / AKShare 填充股东数据
         (
             card.top_10_shareholders,
             card.top_10_float_shareholders,
-        ) = await self._fill_shareholder_data(canonical_id)
+        ) = await self._fill_shareholder_data(
+            canonical_id, allow_live_fallback=not fast_cache_mode
+        )
 
         # Phase 4: 从 DocumentEventV1DB 填充近期事件
-        card.recent_events = self._fill_recent_events(canonical_id)
+        card.recent_events = self._fill_recent_events(
+            canonical_id, allow_live_fallback=not fast_cache_mode
+        )
 
-        # 宏观敏感性：通过时间序列回归计算
-        card.macro_sensitivity = self._compute_macro_sensitivity(canonical_id, start_date, end_date)
+        if not fast_cache_mode:
+            # 宏观敏感性：通过时间序列回归计算
+            card.macro_sensitivity = self._compute_macro_sensitivity(
+                canonical_id, start_date, end_date
+            )
+        else:
+            logger.info(
+                "Skipping macro sensitivity in fast cache mode",
+                extra={"canonical_id": canonical_id},
+            )
 
         return card
 
@@ -622,7 +639,9 @@ class AssetAnalysisService:
             float_market_cap=self._optional_float(valuation.get("float_market_cap")),
         )
 
-    def _fill_industry_data(self, canonical_id: str) -> IndustryData:
+    def _fill_industry_data(
+        self, canonical_id: str, allow_wind_fallback: bool = True
+    ) -> IndustryData:
         """从 StockMasterDB 填充行业数据，无数据时尝试 Wind。
 
         StockMasterDB 已有 industry_level1/2/3 字段（来自 AKShare 股票行业分类）。
@@ -658,6 +677,9 @@ class AssetAnalysisService:
                 )
                 return stock_industry
 
+        if not allow_wind_fallback:
+            return stock_industry
+
         adapter = self._get_available_wind_adapter()
         if adapter:
             try:
@@ -682,7 +704,7 @@ class AssetAnalysisService:
         return stock_industry
 
     async def _fill_shareholder_data(
-        self, canonical_id: str
+        self, canonical_id: str, allow_live_fallback: bool = True
     ) -> tuple[list[Shareholder], list[Shareholder]]:
         """从结构化 DB / Wind 逐项 / Wind 聚合 / AKShare 填充前十大股东数据。
 
@@ -720,6 +742,9 @@ class AssetAnalysisService:
                 e,
                 extra={"canonical_id": canonical_id},
             )
+
+        if not allow_live_fallback:
+            return [], []
 
         report_date = self._latest_report_date().strftime("%Y/%m/%d")
         adapter = self._get_available_wind_adapter()
@@ -861,7 +886,9 @@ class AssetAnalysisService:
 
         return [], []
 
-    def _fill_recent_events(self, canonical_id: str) -> list[EventImpact]:
+    def _fill_recent_events(
+        self, canonical_id: str, allow_live_fallback: bool = True
+    ) -> list[EventImpact]:
         """从多个来源填充近期事件。
 
         优先级:
@@ -932,6 +959,9 @@ class AssetAnalysisService:
                 e,
                 extra={"canonical_id": canonical_id},
             )
+
+        if not allow_live_fallback:
+            return []
 
         # Path 3: AKShare stock announcements
         try:
@@ -1031,11 +1061,11 @@ class AssetAnalysisService:
         canonical_id: str,
         start_date: date,
         end_date: date,
-        timeout_seconds: float = 5.0,
+        timeout_seconds: float = 2.0,
     ) -> list[PriceBar]:
         """天软(Cjpy)行情拉取，带超时保护。
 
-        Cjpy 实测 0.54s，设 10s 超时足够应对网络波动。
+        Cjpy 实测通常较快；资产页只给短窗口，失败后立即使用缓存。
         """
         try:
             return await asyncio.wait_for(
@@ -1075,13 +1105,6 @@ class AssetAnalysisService:
             from data_layer.adapters.cjpy_adapter import CjpyAdapter
 
             adapter = CjpyAdapter()
-            if not adapter.is_available():
-                logger.info(
-                    "Cjpy unavailable, falling back",
-                    extra={"canonical_id": canonical_id},
-                )
-                return []
-
             df = adapter.fetch_daily_quotes(
                 codes=[canonical_id],
                 start_date=start_date.strftime("%Y%m%d"),
@@ -1549,8 +1572,8 @@ class AssetAnalysisService:
         canonical_id: str,
         start_date: date,
         end_date: date,
-    ) -> None:
-        """使用现有多源协调器补齐行情数据。"""
+    ) -> Optional[str]:
+        """使用现有多源协调器补齐行情数据，返回实际数据源。"""
 
         result = self.coordinator.fetch_historical_data(
             symbol=canonical_id,
@@ -1564,7 +1587,7 @@ class AssetAnalysisService:
                 canonical_id=canonical_id,
                 error=getattr(result, "error_message", None),
             )
-            return
+            return None
 
         price_bars = []
         for q in result.data:
@@ -1591,3 +1614,5 @@ class AssetAnalysisService:
             )
             self._apply_price_bars(card, enriched_bars or price_bars, source=result.primary_source)
             logger.info(f"Enriched from coordinator, source: {result.primary_source}")
+            return result.primary_source
+        return None

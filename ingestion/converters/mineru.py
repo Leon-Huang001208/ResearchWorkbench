@@ -5,9 +5,11 @@
 """
 import logging
 import os
+import shutil
 import subprocess
 import tempfile
-from typing import Any, Dict, Optional
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 from core.contracts.pdf_conversion import ConversionResult, StrategyType
 from ingestion.converters.base import PDFConversionStrategy
@@ -40,34 +42,55 @@ class MinerUStrategy(PDFConversionStrategy):
         """
         self._backend = backend
         self._method = method
+        self._last_error = ""
 
     def is_available(self) -> bool:
         if not HAS_MINERU:
             return False
         # 进一步检查 CLI 是否可用
         if self._backend in ("auto", "pipeline"):
-            return self._check_cli_available()
+            return self._check_cli_available() and self._model_cache_ready()
         return True
 
     @staticmethod
     def _check_cli_available() -> bool:
-        """检查 magic-pdf CLI 是否可用"""
+        """检查 MinerU CLI 是否可用，兼容新版 mineru 和旧版 magic-pdf。"""
+        if shutil.which("mineru") or shutil.which("magic-pdf"):
+            return True
         try:
-            result = subprocess.run(
-                ["magic-pdf", "--version"],
-                capture_output=True,
-                text=True,
-                timeout=5,
-            )
+            result = subprocess.run(["mineru", "--help"], capture_output=True, text=True, timeout=5)
             return result.returncode == 0
         except Exception:
-            # 尝试 import
             try:
                 import mineru  # noqa: F401
 
                 return True
             except ImportError:
                 return False
+
+    @staticmethod
+    def _model_cache_ready() -> bool:
+        """检查 MinerU 本地模型是否已准备好。
+
+        新版 MinerU pipeline 会从 HuggingFace 拉取 opendatalab/PDF-Extract-Kit-1.0。
+        如果没有本地缓存，自动队列里直接尝试会长时间阻塞后失败；只有显式允许
+        在线下载时才把它视为可用。
+        """
+        if os.environ.get("MINERU_ALLOW_MODEL_DOWNLOAD") == "1":
+            return True
+
+        cache_roots = [
+            Path(os.environ.get("HF_HOME", "")).expanduser() / "hub"
+            if os.environ.get("HF_HOME")
+            else None,
+            Path.home() / ".cache" / "huggingface" / "hub",
+        ]
+        for root in [p for p in cache_roots if p]:
+            repo_dir = root / "models--opendatalab--PDF-Extract-Kit-1.0"
+            snapshots = repo_dir / "snapshots"
+            if snapshots.exists() and any(snapshots.iterdir()):
+                return True
+        return False
 
     def convert(self, pdf_path: str) -> ConversionResult:
         if not HAS_MINERU:
@@ -87,6 +110,7 @@ class MinerUStrategy(PDFConversionStrategy):
         output_dir = tempfile.mkdtemp(prefix="mineru_output_")
 
         try:
+            self._last_error = ""
             result_path = self._run_mineru(pdf_path, output_dir)
 
             if result_path and os.path.exists(result_path):
@@ -112,7 +136,7 @@ class MinerUStrategy(PDFConversionStrategy):
             return ConversionResult(
                 success=False,
                 strategy_used=self.name,
-                error_message=f"mineru 输出为空: {output_dir}",
+                error_message=self._last_error or f"mineru 输出为空: {output_dir}",
             )
         except Exception as e:
             logger.warning(f"MinerU 转换失败: {e}")
@@ -125,31 +149,28 @@ class MinerUStrategy(PDFConversionStrategy):
     def _run_mineru(self, pdf_path: str, output_dir: str) -> Optional[str]:
         """执行 mineru 转换，返回输出 markdown 文件路径"""
         if self._backend in ("auto", "pipeline"):
-            # 尝试 CLI
+            # 尝试新版 mineru CLI 或旧版 magic-pdf CLI。
             try:
-                cmd = [
-                    "magic-pdf",
-                    "-p",
-                    pdf_path,
-                    "-o",
-                    output_dir,
-                    "-m",
-                    self._method,
-                ]
-                subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+                cmd = self._build_cli_command(pdf_path, output_dir)
+                if cmd:
+                    result = subprocess.run(
+                        cmd,
+                        capture_output=True,
+                        text=True,
+                        timeout=900,
+                        env=self._subprocess_env(),
+                    )
+                    if result.returncode != 0:
+                        self._last_error = self._format_cli_error(result, cmd)
+                        logger.warning(self._last_error)
+                        return None
 
-                # mineru 在 output_dir 下创建同名子目录
-                pdf_basename = os.path.splitext(os.path.basename(pdf_path))[0]
-                md_path = os.path.join(output_dir, pdf_basename, f"{pdf_basename}.md")
-                if os.path.exists(md_path):
-                    return md_path
-
-                # 尝试在 output_dir 直接查找
-                for f in os.listdir(output_dir):
-                    if f.endswith(".md"):
-                        return os.path.join(output_dir, f)
+                    md_path = self._find_markdown_output(output_dir, pdf_path)
+                    if md_path:
+                        return md_path
             except Exception as e:
-                logger.debug(f"MinerU CLI 失败，尝试 Python API: {e}")
+                self._last_error = f"MinerU CLI 失败: {e}"
+                logger.debug(f"{self._last_error}，尝试 Python API")
 
         # 尝试 Python API
         try:
@@ -163,19 +184,94 @@ class MinerUStrategy(PDFConversionStrategy):
             if isinstance(result, dict):
                 return result.get("markdown_path")
         except Exception:
-            pass
+            if not self._last_error:
+                self._last_error = "MinerU Python API 不可用或执行失败"
 
         # 最后尝试：查找 output_dir 下的任何 .md 文件
-        if os.path.exists(output_dir):
-            for f in os.listdir(output_dir):
-                if f.endswith(".md"):
-                    return os.path.join(output_dir, f)
-            # 递归查找
-            for root, _, files in os.walk(output_dir):
-                for f in files:
-                    if f.endswith(".md"):
-                        return os.path.join(root, f)
+        md_path = self._find_markdown_output(output_dir, pdf_path)
+        if md_path:
+            return md_path
 
+        return None
+
+    def _build_cli_command(self, pdf_path: str, output_dir: str) -> Optional[List[str]]:
+        mineru_cli = shutil.which("mineru")
+        if mineru_cli:
+            cmd = [
+                mineru_cli,
+                "-p",
+                pdf_path,
+                "-o",
+                output_dir,
+                "-m",
+                self._method,
+            ]
+            if self._backend != "auto":
+                cmd.extend(["-b", self._backend])
+            else:
+                cmd.extend(["-b", "pipeline"])
+            return cmd
+
+        magic_pdf_cli = shutil.which("magic-pdf")
+        if magic_pdf_cli:
+            return [
+                magic_pdf_cli,
+                "-p",
+                pdf_path,
+                "-o",
+                output_dir,
+                "-m",
+                self._method,
+            ]
+
+        return None
+
+    @staticmethod
+    def _subprocess_env() -> Dict[str, str]:
+        env = os.environ.copy()
+        for key in (
+            "http_proxy",
+            "https_proxy",
+            "HTTP_PROXY",
+            "HTTPS_PROXY",
+            "all_proxy",
+            "ALL_PROXY",
+        ):
+            env.pop(key, None)
+        env["NO_PROXY"] = "*"
+        env["no_proxy"] = "*"
+        return env
+
+    @staticmethod
+    def _format_cli_error(result: subprocess.CompletedProcess, cmd: List[str]) -> str:
+        stdout = (result.stdout or "").strip()
+        stderr = (result.stderr or "").strip()
+        combined = "\n".join(part for part in (stdout, stderr) if part)
+        if len(combined) > 4000:
+            combined = combined[-4000:]
+        return (
+            f"MinerU CLI 执行失败: exit={result.returncode}, cmd={' '.join(cmd)}"
+            + (f"\n{combined}" if combined else "")
+        )
+
+    @staticmethod
+    def _find_markdown_output(output_dir: str, pdf_path: str) -> Optional[str]:
+        if not os.path.exists(output_dir):
+            return None
+
+        pdf_basename = os.path.splitext(os.path.basename(pdf_path))[0]
+        likely_paths = [
+            os.path.join(output_dir, pdf_basename, f"{pdf_basename}.md"),
+            os.path.join(output_dir, f"{pdf_basename}.md"),
+        ]
+        for path in likely_paths:
+            if os.path.exists(path):
+                return path
+
+        for root, _, files in os.walk(output_dir):
+            for f in files:
+                if f.endswith(".md"):
+                    return os.path.join(root, f)
         return None
 
     @property

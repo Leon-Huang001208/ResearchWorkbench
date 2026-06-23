@@ -61,6 +61,9 @@ class TestWindFormulas:
         assert "s_info_industry" in f
         assert "600519.SH" in f
 
+    def test_index_rt_pct_change(self):
+        assert wf.index_rt_pct_change("8841089.WI") == '=@wss("8841089.WI","rt_pct_chg")'
+
     # === 一致预期 - 净利润 ===
     def test_cons_net_profit_fy1(self):
         f = wf.cons_net_profit("600519.SH")
@@ -326,6 +329,46 @@ class TestWindClientLogic:
 
         with pytest.raises(WindSessionExpiredError):
             client.execute_batch(['=@s_info_compname("600519.SH")'])
+
+    def test_execute_batch_tolerates_missing_calculation_api(self):
+        from data_layer.adapters.wind.client import WindExcelClient
+
+        class FakeCell:
+            def __init__(self):
+                self.value = "ready"
+
+        class FakeSheet:
+            def __init__(self):
+                self.cells = {}
+
+            def range(self, addr):
+                self.cells.setdefault(addr, FakeCell())
+                return self.cells[addr]
+
+        client = WindExcelClient()
+        client._ensure_session = MagicMock()
+        client._app = MagicMock()
+        client._app.api = object()
+        client._sheet = FakeSheet()
+        client._col = "Z"
+
+        result = client.execute_batch(["=@s_test()"], timeout=0.1)
+
+        assert result == ["=@s_test()"]
+
+    @patch("data_layer.adapters.wind.client.time.sleep")
+    def test_execute_waits_while_wind_returns_fetch(self, _sleep):
+        from data_layer.adapters.wind.client import WindExcelClient
+
+        cell = MagicMock()
+        type(cell).value = PropertyMock(side_effect=["Fetch...", "loading...", "done"])
+        sheet = MagicMock()
+        sheet.range.return_value = cell
+
+        client = self._setup_client_with_mock_sheet(sheet)
+        result = client._execute_raw("=@s_test()", timeout=2.0)
+
+        assert result == "done"
 
 
 # ===== Phase 1 新增公式测试 =====
@@ -699,6 +742,30 @@ class TestWindAdapterNewMethods:
         # PE/PB 已删除
         assert "industry_avg_pe" not in df.columns
         assert "industry_avg_pb" not in df.columns
+
+    def test_fetch_index_quotes_reads_each_code_independently(self):
+        from data_layer.adapters.wind import WindAdapter, WindExcelClient
+
+        mock_client = MagicMock(spec=WindExcelClient)
+        mock_client.execute_batch.return_value = [
+            "稀土指数",
+            4621.2686,
+            5.70331748,
+            "钨矿指数",
+            8039.1544,
+            7.00346382,
+        ]
+        adapter = WindAdapter(client=mock_client)
+
+        df = adapter.fetch_index_quotes(["8841089.WI", "884857.WI"], trade_date="2026-06-18")
+
+        mock_client.execute_batch.assert_called_once()
+        formulas = mock_client.execute_batch.call_args.args[0]
+        assert len(formulas) == 6
+        assert formulas[2] == '=@wss("8841089.WI","rt_pct_chg")'
+        assert list(df["name"]) == ["稀土指数", "钨矿指数"]
+        assert list(df["close"]) == [4621.2686, 8039.1544]
+        assert list(df["pct_change"]) == pytest.approx([5.70331748, 7.00346382])
 
     def test_fetch_fund_flow_with_mock(self):
         from data_layer.adapters.wind import WindAdapter, WindExcelClient

@@ -13,6 +13,7 @@ BOOTSTRAP_JS = ROOT / "desktop" / "dist" / "bootstrap.js"
 BOOTSTRAP_HTML = ROOT / "desktop" / "dist" / "index.html"
 LAUNCHER = ROOT / "scripts" / "desktop" / "backend_launcher.py"
 RUN_BACKEND_SH = ROOT / "scripts" / "desktop" / "run_backend.sh"
+RESTART_APP_SH = ROOT / "scripts" / "desktop" / "restart_app.sh"
 BUILD_SIDECAR_SH = ROOT / "scripts" / "desktop" / "build_sidecar.sh"
 BUILD_SIDECAR_PY = ROOT / "scripts" / "desktop" / "build_sidecar.py"
 PREPARE_SIDECAR = ROOT / "scripts" / "desktop" / "prepare_tauri_sidecar.py"
@@ -61,6 +62,24 @@ def test_macos_icon_is_available_for_tauri_resource_generation():
     assert MACOS_ICON.read_bytes().startswith(b"icns")
 
 
+def test_web_favicon_uses_current_black_gold_app_icon():
+    html = (ROOT / "app" / "web" / "templates" / "index.html").read_text(encoding="utf-8")
+    favicon = ROOT / "app" / "web" / "static" / "favicon.png"
+    app_icon = ROOT / "src-tauri" / "icons" / "icon.png"
+
+    assert favicon.exists()
+    assert favicon.read_bytes() == app_icon.read_bytes()
+    assert '<link rel="icon" type="image/png" href="/static/favicon.png?v=20260621a">' in html
+    assert '<link rel="apple-touch-icon" href="/static/favicon.png?v=20260621a">' in html
+    assert "data:image/svg+xml" not in html
+    assert "desktop-brand-icon" in html
+    assert "desktop-brand-mark\">A</div>" not in html
+
+    css = (ROOT / "app" / "web" / "static" / "style.css").read_text(encoding="utf-8")
+    assert ".desktop-brand-icon" in css
+    assert "object-fit: cover" in css
+
+
 def test_windows_icon_is_available_for_tauri_resource_generation():
     assert WINDOWS_ICON.exists()
     assert WINDOWS_ICON.read_bytes().startswith(b"\x00\x00\x01\x00")
@@ -97,6 +116,24 @@ def test_desktop_backend_shell_selects_python_runtime():
     assert "anaconda3/bin/python" in source
     assert "backend_launcher.py" in source
     assert 'cd "$REPO_ROOT"' in source
+
+
+def test_desktop_restart_script_reopens_installed_app_and_checks_health():
+    source = RESTART_APP_SH.read_text(encoding="utf-8")
+
+    assert source.startswith("#!/usr/bin/env bash")
+    assert "ALPHAFOUNDRY_APP_PATH" in source
+    assert "/Applications/AlphaFoundry.app" in source
+    assert "127.0.0.1:8765" in source
+    assert "desktop-restart.log" in source
+    assert "src-tauri/icons/icon.icns" in source
+    assert "cmp -s" in source
+    assert "lsregister" in source
+    assert "killall Dock" in source
+    assert "osascript" in source
+    assert 'open "$APP_PATH"' in source
+    assert "curl --silent --show-error --fail" in source
+    assert "http_proxy=" in source
 
 
 def test_sidecar_build_script_uses_pyinstaller_and_tauri_naming():
@@ -162,6 +199,7 @@ def test_package_json_exposes_desktop_commands():
     assert package["scripts"]["desktop:release-config"] == (
         "python scripts/desktop/write_tauri_release_config.py"
     )
+    assert package["scripts"]["desktop:restart"] == "bash scripts/desktop/restart_app.sh"
     assert "@tauri-apps/cli" in package["devDependencies"]
 
 
@@ -190,6 +228,254 @@ def test_desktop_bootstrap_waits_for_backend_health():
     assert "fetch(`${baseUrl}/health`" in source
     assert "window.location.replace(`${baseUrl}/`)" in source
     assert "retry-button" in source
+
+
+def test_desktop_workbench_uses_phase_one_visual_baseline():
+    html = (ROOT / "app" / "web" / "templates" / "index.html").read_text(encoding="utf-8")
+    css = (ROOT / "app" / "web" / "static" / "style.css").read_text(encoding="utf-8")
+    js = (ROOT / "app" / "web" / "static" / "js" / "app.js").read_text(encoding="utf-8")
+
+    assert "desktop-brand" in html
+    assert "本地投研工作台" in html
+    assert "市场研究" in html
+    assert "资产观察" in html
+    assert "报告生产" in html
+    assert "<h4>全球热点新闻</h4>" in html
+    assert "<h4>上涨板块概念</h4>" in html
+    assert "<h4>下跌板块概念</h4>" in html
+    assert "market-sector-view-selector" in html
+    assert html.count("market-sector-view-selector") == 1
+    assert "market-sector-select-menu" in html
+    assert "market-sector-view-tabs" not in html
+    assert "Wind热门概念" in html
+    assert "中信三级" in html
+    assert "申万三级" in html
+    assert "同花顺行业" in html
+    assert "market-pulse-board" in html
+    assert "market-scope-tabs" in html
+    assert "market-index-grid" in html
+    assert "market-breadth-bar" in html
+    assert "market-ai-brief" in html
+    assert "market-heatmap-card" in html
+    assert "market-heatmap-grid" in html
+    assert "market-shortcuts" in html
+    assert "🌍 全球热点新闻" not in html
+    assert "📈 上涨板块概念" not in html
+    assert "📉 下跌板块概念" not in html
+    assert "全球热点新闻 (Top 10)" not in html
+    assert "今日上涨板块概念 (Top 10)" not in html
+    assert "今日下跌板块概念 (Top 10)" not in html
+    assert "style.css?v=20260621j" in html
+    assert "app.js?v=20260622c" in html
+    assert "--desktop-sidebar-width: 220px" in css
+    assert "--brand-red: #d71920" in css
+    assert "Desktop Visual System Phase 1" in css
+    assert "Apple Desktop Market Dashboard Iteration" in css
+    assert "Apple Desktop Content Refinement" in css
+    assert "Apple Desktop Material Polish" in css
+    assert "Apple Desktop Full Surface Migration" in css
+    assert "Apple Desktop Light Theme Tokens" in css
+    assert "Apple Desktop Expanded Sector Lists" in css
+    assert "Apple Desktop Equal Height Market Sections" in css
+    assert "Apple Desktop Hide Legacy Status Bar" in css
+    assert "minmax(560px, 1.55fr)" in css
+    assert "--apple-blue: #0a84ff" in css
+    assert "--apple-control: rgba(118,118,128,0.28)" in css
+    assert "--market-up-red: #ff453a" in css
+    assert "--market-down-green: #30d158" in css
+    assert "#section-dashboard .news-summary" in css
+    assert ".content-section.active" in css
+    assert ".content-section:not(#section-dashboard) .section-title" in css
+    assert ".card, .summary-card, .dashboard-card, .panel-card" in css
+    assert ".data-table-wrap, table" in css
+    assert ".tabs, .dash-tabs" in css
+    assert "scrollbar-color: var(--apple-scroll-thumb) transparent" in css
+    assert '[data-theme="light"] {' in css
+    assert "--apple-bg: #f5f5f7" in css
+    assert "--apple-window: #fbfbfd" in css
+    assert "--apple-surface: #ffffff" in css
+    assert "[data-theme=\"light\"] body" in css
+    assert "[data-theme=\"dark\"] body" in css
+    assert "#section-dashboard .sectors-up-section .sector-list" in css
+    assert "max-height: none" in css
+    assert "overflow-y: visible" in css
+    assert "align-items: stretch" in css
+    assert "#section-dashboard .sectors-up-section," in css
+    assert "height: 100%" in css
+    assert "display: none" in css
+    assert "height: 100vh" in css
+    assert "Apple Desktop News Ranking Badges" in css
+    assert "Apple Market Home Command Center" in css
+    assert "#section-dashboard .market-pulse-board" in css
+    assert "#section-dashboard .market-heatmap-grid" in css
+    assert "#section-dashboard .market-breadth-bar" in css
+    assert "#section-dashboard .news-item:first-child .news-rank" in css
+    assert "--news-rank-first: #c9342f" in css
+    assert "--news-rank-default: var(--apple-accent)" in css
+    assert "20260618-desktop-phase1" in js
+    assert "dashboard.js?v=20260622c" in js
+    dashboard_js = (ROOT / "app" / "web" / "static" / "js" / "dashboard.js").read_text(encoding="utf-8")
+    assert '<span class="news-rank">${idx + 1}</span>' in dashboard_js
+    assert '<span class="news-rank">#${idx + 1}</span>' not in dashboard_js
+    assert "renderMarketCommandCenter(mo)" in dashboard_js
+    assert "function renderMarketCommandCenter" in dashboard_js
+    assert "renderMarketHeatmap" in dashboard_js
+    assert "market-index-grid" in dashboard_js
+    assert "4090.48" not in dashboard_js
+    assert "16030.70" not in dashboard_js
+    assert "2030" not in dashboard_js
+    assert "3400" not in dashboard_js
+    assert "3.33万亿" not in dashboard_js
+    assert "等待实时刷新" in dashboard_js
+    assert "toggleMarketSectorMenu" in dashboard_js
+    assert "market-sector-select-button" in dashboard_js
+    assert "return { up: [], down: [] }" in dashboard_js
+    assert "/api/dashboard/sector-movers?view_key=" in dashboard_js
+    assert "const savedTheme = localStorage.getItem('af-theme')" in js
+    assert "localStorage.setItem('af-theme', savedTheme || 'dark')" in js
+    assert "localStorage.setItem('af-theme', 'dark')" not in js
+    assert "applyTheme(document.documentElement.getAttribute('data-theme') || 'dark')" in js
+    assert "applyColorScheme(document.documentElement.getAttribute('data-color-scheme') || 'claude')" in js
+
+
+def test_dashboard_news_items_hide_source_badges_and_use_compact_today_time():
+    source = (ROOT / "app" / "web" / "static" / "js" / "dashboard.js").read_text(encoding="utf-8")
+
+    assert "formatNewsTimestamp(n.published_at)" in source
+    assert "function formatNewsTimestamp" in source
+    assert "isSameLocalDate" in source
+    assert "toLocaleTimeString" in source
+    assert "toLocaleDateString" in source
+    css = (ROOT / "app" / "web" / "static" / "style.css").read_text(encoding="utf-8")
+    assert "justify-content: flex-end" in css
+    assert "news-source-tag" not in source
+    assert "${esc(n.source)}" not in source
+    assert "news-symbols" not in source
+    assert "related_symbols" not in source
+
+
+def test_apple_desktop_theme_tokens_drive_light_mode_and_color_scheme():
+    css = (ROOT / "app" / "web" / "static" / "style.css").read_text(encoding="utf-8")
+
+    dark_tokens = css.split("/* ─── Apple Desktop Material Polish", 1)[1].split(
+        "/* ─── Apple Desktop Light Theme Tokens", 1
+    )[0]
+    light_tokens = css.split("/* ─── Apple Desktop Light Theme Tokens", 1)[1].split(
+        "[data-theme=\"dark\"] body", 1
+    )[0]
+    full_surface = css.split("/* ─── Apple Desktop Full Surface Migration", 1)[1].split(
+        "/* Apple Desktop Live Monitor Redesign */", 1
+    )[0]
+    live_monitor = css.split("/* Apple Desktop Live Monitor Redesign */", 1)[1]
+
+    assert "--apple-accent: var(--accent);" in dark_tokens
+    assert "--apple-accent-light: var(--accent-light);" in dark_tokens
+    assert "--apple-focus-ring: color-mix(in srgb, var(--accent) 18%, transparent);" in dark_tokens
+    assert "--apple-accent: var(--accent);" in light_tokens
+    assert "--apple-accent-light: var(--accent-light);" in light_tokens
+    assert "--apple-focus-ring: color-mix(in srgb, var(--accent) 16%, transparent);" in light_tokens
+
+    assert "background: var(--apple-accent);" in full_surface
+    assert "background: var(--apple-accent-light);" in full_surface
+    assert "color: var(--apple-accent-text);" in full_surface
+    assert "border-color: var(--apple-accent-ring);" in full_surface
+    assert "0 0 0 3px var(--apple-focus-ring)" in full_surface
+    assert "background: var(--apple-accent-light);" in live_monitor
+    assert "color: var(--apple-accent-text);" in live_monitor
+    assert "border-color: var(--apple-accent-ring);" in live_monitor
+    assert "background: var(--apple-accent);" in live_monitor
+
+
+def test_light_theme_overrides_monitor_and_shared_surfaces():
+    css = (ROOT / "app" / "web" / "static" / "style.css").read_text(encoding="utf-8")
+
+    assert "Apple Desktop Light Surface Overrides" in css
+    light_surface = css.split("/* ─── Apple Desktop Light Surface Overrides", 1)[1].split(
+        "/* Apple Desktop Live Monitor Redesign */", 1
+    )[0]
+
+    assert '[data-theme="light"] #section-dashboard .monitor-status-strip' in light_surface
+    assert '[data-theme="light"] #section-dashboard .monitor-panel' in light_surface
+    assert '[data-theme="light"] #section-dashboard .monitor-event-item' in light_surface
+    assert '[data-theme="light"] #section-dashboard .monitor-event-detail-card' in light_surface
+    assert '[data-theme="light"] #section-dashboard .monitor-health-card' in light_surface
+    assert '[data-theme="light"] #section-dashboard .monitor-health-panel .worker-row' in light_surface
+    assert '[data-theme="light"] .card' in light_surface
+    assert '[data-theme="light"] input' in light_surface
+
+    assert "--apple-panel-bg: #ffffff;" in light_surface
+    assert "--apple-panel-bg-soft: #f5f5f7;" in light_surface
+    assert "--apple-row-bg: #fbfbfd;" in light_surface
+    assert "--apple-row-hover: #f2f2f7;" in light_surface
+    assert "--apple-shadow-light" in light_surface
+    assert "rgba(28,28,30,0.72)" not in light_surface
+    assert "rgba(84,84,88" not in light_surface
+
+
+def test_light_theme_market_news_copy_is_readable():
+    css = (ROOT / "app" / "web" / "static" / "style.css").read_text(encoding="utf-8")
+
+    assert "--apple-readable-secondary: #4f5661;" in css
+    assert "--apple-readable-tertiary: #5f636b;" in css
+    assert '[data-theme="light"] #section-dashboard .news-summary' in css
+    assert '[data-theme="light"] #section-dashboard .news-meta' in css
+    assert '[data-theme="light"] #section-dashboard .news-time' in css
+
+    readable_news = css.split("/* ─── Apple Desktop Light News Readability", 1)[1].split(
+        "/* Apple Desktop Live Monitor Redesign */", 1
+    )[0]
+    assert "color: var(--apple-readable-secondary);" in readable_news
+    assert "color: var(--apple-readable-tertiary);" in readable_news
+    assert "font-weight: 650;" in readable_news
+    assert "font-weight: 700;" in readable_news
+    assert "color: #b4b4ba;" not in readable_news
+    assert "color: #7c7c82;" not in readable_news
+
+
+def test_live_monitor_uses_unified_feed_with_legacy_template_retained():
+    html = (ROOT / "app" / "web" / "templates" / "index.html").read_text(encoding="utf-8")
+    css = (ROOT / "app" / "web" / "static" / "style.css").read_text(encoding="utf-8")
+    app_js = (ROOT / "app" / "web" / "static" / "js" / "app.js").read_text(encoding="utf-8")
+    monitor_js = (ROOT / "app" / "web" / "static" / "js" / "monitor.js").read_text(encoding="utf-8")
+
+    assert 'id="live-monitor-board"' in html
+    assert 'id="monitor-source-list"' in html
+    assert 'data-monitor-source="all"' in html
+    assert 'id="monitor-feed-list"' in html
+    assert 'id="monitor-feed-title"' in html
+    assert 'id="monitor-health-panel"' in html
+    assert 'class="monitor-status-strip"' in html
+    assert 'class="live-monitor-summary"' not in html
+    assert 'id="monitor-event-detail"' in html
+    assert 'data-monitor-detail-tab="event"' in html
+    assert 'data-monitor-detail-tab="system"' in html
+    assert '<template id="legacy-live-monitor-template">' in html
+    assert 'class="crawl-feed-row legacy-live-monitor"' in html
+    assert "Apple Desktop Live Monitor Redesign" in css
+    assert "#section-dashboard .monitor-status-strip" in css
+    assert "#section-dashboard .live-monitor-board" in css
+    assert "height: clamp(520px, calc(100vh - 220px), 760px)" in css
+    assert "height: calc(100vh - 132px)" not in css
+    assert "#section-dashboard .monitor-feed-list" in css
+    assert "overscroll-behavior: contain" in css
+    assert "#section-dashboard .monitor-source-row.active" in css
+    assert "#section-dashboard .monitor-event-item" in css
+    assert "#section-dashboard .monitor-event-item.selected" in css
+    assert "#section-dashboard .monitor-detail-tabs" in css
+    assert "#section-dashboard .monitor-health-card" in css
+    assert "monitor.js?v=20260622a" in app_js
+    assert "activeMonitorSource" in monitor_js
+    assert "activeMonitorItemKey" in monitor_js
+    assert "renderUnifiedMonitorFeed" in monitor_js
+    assert "renderMonitorEventDetail" in monitor_js
+    assert "handleMonitorEventClick" in monitor_js
+    assert "handleMonitorSourceClick" in monitor_js
+    assert "data-monitor-source" in monitor_js
+    assert "data-monitor-item-key" in monitor_js
+    assert "<p>${esc(summaryText(item))}</p>" not in monitor_js
+    assert "function summaryText" not in monitor_js
+    assert "sourceTodayCount(state, source)" in monitor_js
+    assert "state.totalToday || state.items.length" not in monitor_js
 
 
 def test_desktop_backend_launcher_defaults_and_logging(tmp_path):

@@ -23,6 +23,35 @@ class TestMinerUStrategy:
         assert strategy._backend == "pipeline"
         assert strategy._method == "ocr"
 
+    @patch("ingestion.converters.mineru.shutil.which")
+    def test_builds_new_mineru_cli_command(self, mock_which):
+        mock_which.side_effect = lambda name: "/usr/local/bin/mineru" if name == "mineru" else None
+        strategy = MinerUStrategy(backend="pipeline", method="txt")
+
+        cmd = strategy._build_cli_command("input.pdf", "/tmp/out")
+
+        assert cmd == [
+            "/usr/local/bin/mineru",
+            "-p",
+            "input.pdf",
+            "-o",
+            "/tmp/out",
+            "-m",
+            "txt",
+            "-b",
+            "pipeline",
+        ]
+
+    def test_subprocess_env_strips_proxy(self, monkeypatch):
+        monkeypatch.setenv("http_proxy", "http://127.0.0.1:7890")
+        monkeypatch.setenv("HTTPS_PROXY", "http://127.0.0.1:7890")
+
+        env = MinerUStrategy._subprocess_env()
+
+        assert "http_proxy" not in env
+        assert "HTTPS_PROXY" not in env
+        assert env["NO_PROXY"] == "*"
+
     @patch("ingestion.converters.mineru.HAS_MINERU", True)
     def test_convert_file_not_found(self):
         strategy = MinerUStrategy()
@@ -36,6 +65,22 @@ class TestMinerUStrategy:
         result = strategy.convert("test.pdf")
         assert result.success is False
         assert "未安装" in result.error_message
+
+    @patch("ingestion.converters.mineru.HAS_MINERU", True)
+    @patch.object(MinerUStrategy, "_check_cli_available", return_value=True)
+    @patch.object(MinerUStrategy, "_model_cache_ready", return_value=False)
+    def test_is_unavailable_without_model_cache(self, mock_cache, mock_cli):
+        strategy = MinerUStrategy()
+
+        assert strategy.is_available() is False
+
+    @patch("ingestion.converters.mineru.HAS_MINERU", True)
+    @patch.object(MinerUStrategy, "_check_cli_available", return_value=True)
+    def test_model_cache_can_be_enabled_for_download(self, mock_cli, monkeypatch):
+        monkeypatch.setenv("MINERU_ALLOW_MODEL_DOWNLOAD", "1")
+        strategy = MinerUStrategy()
+
+        assert strategy.is_available() is True
 
     def test_count_pages_with_anchors(self):
         md = "<!-- page: 1 -->\nContent\n\n<!-- page: 2 -->\nMore\n\n<!-- page: 5 -->\nLast"

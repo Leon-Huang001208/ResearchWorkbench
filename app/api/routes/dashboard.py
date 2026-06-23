@@ -64,3 +64,28 @@ async def get_dashboard():
             status_code=500,
             detail=f"Failed to load dashboard: {str(e)}",
         )
+
+
+@router.get(
+    "/sector-movers",
+    responses={500: {"model": ErrorResponse}},
+)
+async def get_sector_movers(
+    view_key: str = Query("ths_industry", description="市场口径 key"),
+    view: Optional[str] = Query(None, description="兼容旧版市场口径参数"),
+    limit: int = Query(10, ge=1, le=30, description="每个方向返回数量上限"),
+):
+    """按需获取某一个市场口径的上涨/下跌列表。"""
+    try:
+        db = SessionLocal()
+        try:
+            service = DashboardService(db)
+            return service.get_market_sector_view(view_key=view or view_key, limit=limit)
+        finally:
+            db.close()
+    except Exception as e:
+        logger.exception("Failed to get market sector movers")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to load market sector movers: {str(e)}",
+        )

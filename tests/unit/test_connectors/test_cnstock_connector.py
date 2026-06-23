@@ -129,6 +129,27 @@ class TestCNStockFetch:
             assert "cnstock://news/" in raw.source_uri
             assert raw.metadata["item_count"] == 2
 
+    def test_fetch_news_requests_article_content_by_default(self, cnstock_connector):
+        with patch("data_layer.adapters.cnstock_adapter.CNStockAdapter") as mock_adapter_class:
+            mock_adapter = MagicMock()
+            mock_adapter.fetch.return_value = []
+            mock_adapter_class.return_value = mock_adapter
+
+            item = DiscoveryItem(
+                item_id="cnstock_证券_2026-01-01_2026-01-31",
+                item_type="news",
+                params={
+                    "start_date": "2026-01-01",
+                    "end_date": "2026-01-31",
+                    "channel": "证券",
+                },
+            )
+
+            cnstock_connector.fetch(dataset="news", item=item)
+
+            _, kwargs = mock_adapter.fetch.call_args
+            assert kwargs["fetch_content"] is True
+
 
 # ---------------------------------------------------------------------------
 # parse_document

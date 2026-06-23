@@ -14,11 +14,15 @@ let currentTemplateState = {
     placeholderMappingDrafts: {},
     keywordModeDrafts: {},
     commonDefaultsDraft: null,
+    commonRuleOpenState: {},
     renderedReportId: null,
     templates: [],
     reportProjects: [],
     selectedReportProject: null,
-    activeSourceKind: 'section_config'
+    selectedGeneratedReportFile: null,
+    activeSourceKind: 'section_config',
+    lastReportGenerationResult: null,
+    lastReportRunLog: null
 };
 
 let currentSelectedTemplate = null;
@@ -31,11 +35,14 @@ let editingTemplateName = null;
 let originalTemplates = [];
 
 const REPORT_GENERATION_STEPS = [
-    { key: 'check', label: '检查资料与配置', icon: 'codicon-checklist' },
-    { key: 'generate', label: '检索证据与生成正文', icon: 'codicon-search' },
-    { key: 'write', label: '写入 Word 文档', icon: 'codicon-file-code' },
-    { key: 'refresh', label: '刷新预览与下载', icon: 'codicon-open-preview' }
+    { key: 'check', label: '准备模板资产', icon: 'codicon-checklist' },
+    { key: 'mapping', label: '读取底稿映射', icon: 'codicon-table' },
+    { key: 'evidence', label: '检索证据与新闻', icon: 'codicon-search' },
+    { key: 'generate', label: '生成段落内容', icon: 'codicon-symbol-keyword' },
+    { key: 'write', label: '渲染 Word 文档', icon: 'codicon-file-code' },
+    { key: 'refresh', label: '完成输出', icon: 'codicon-open-preview' }
 ];
+const TEMPLATE_DETAIL_MODES = ['generation', 'config', 'preview', 'logs'];
 const TEMPLATE_DETAIL_MODE_KEY = 'report-template-detail-mode';
 
 // ─── Template Page / List ──────────────────────────────────────
@@ -51,18 +58,32 @@ async function loadTemplatesPage() {
 }
 
 async function loadTemplatesList() {
+    let templateData = { templates: [] };
+
     try {
         await loadReportProjectsList();
-        const data = await apiCall('GET', '/api/templates/');
+    } catch (e) {
+        console.warn('Failed to load report projects before templates:', e);
+    }
+
+    try {
+        templateData = await apiCall('GET', '/api/templates/');
+    } catch (e) {
+        console.warn('Failed to load legacy templates:', e);
+    }
+
+    try {
         currentTemplateState.templates = mergeTemplatesWithReportProjects(
-            data.templates || [],
+            templateData.templates || [],
             currentTemplateState.reportProjects || []
         );
         renderTemplatesList(currentTemplateState.templates);
     } catch (e) {
-        console.error('Failed to load templates:', e);
-        const container = document.getElementById('template-list');
-        if (container) container.innerHTML = '<p class="empty-state">加载失败</p>';
+        console.error('Failed to render templates:', e);
+        const container = document.getElementById('templates-grid');
+        if (container) {
+            container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 60px 20px; color: var(--text-secondary);">模板加载失败</div>';
+        }
     }
 }
 
@@ -927,7 +948,10 @@ function renderReportGenerationCenter(template) {
 
     renderGenerationHero(template, readiness);
     renderGenerationStatusStrip(readiness);
+    renderGenerationStepContext(template, readiness);
     renderRecentGenerationPanel(template);
+    renderTemplatePreviewPanel(template);
+    renderTemplateLogPanel(template);
     renderAdvancedMaintenance(template);
     applyTemplateDetailMode(getStoredTemplateDetailMode());
 }
@@ -935,9 +959,9 @@ function renderReportGenerationCenter(template) {
 function getStoredTemplateDetailMode() {
     try {
         const mode = localStorage.getItem(TEMPLATE_DETAIL_MODE_KEY);
-        return ['both', 'generation', 'config'].includes(mode) ? mode : 'both';
+        return TEMPLATE_DETAIL_MODES.includes(mode) ? mode : 'generation';
     } catch (e) {
-        return 'both';
+        return 'generation';
     }
 }
 
@@ -950,17 +974,21 @@ function setStoredTemplateDetailMode(mode) {
 }
 
 function applyTemplateDetailMode(mode = 'both') {
-    const normalizedMode = ['both', 'generation', 'config'].includes(mode) ? mode : 'both';
+    const normalizedMode = TEMPLATE_DETAIL_MODES.includes(mode) ? mode : 'generation';
     const generationPanel = document.getElementById('template-generation-overview');
     const configPanel = document.getElementById('template-advanced-maintenance');
-    const showGeneration = normalizedMode === 'both' || normalizedMode === 'generation';
-    const showConfig = normalizedMode === 'both' || normalizedMode === 'config';
+    const previewPanel = document.getElementById('template-generation-preview-panel');
+    const logPanel = document.getElementById('template-generation-log-panel');
+    const showGeneration = normalizedMode === 'generation';
+    const showConfig = normalizedMode === 'config';
 
     if (generationPanel) generationPanel.classList.toggle('hidden', !showGeneration);
     if (configPanel) {
         configPanel.classList.toggle('hidden', !showConfig);
         if (showConfig) configPanel.open = true;
     }
+    if (previewPanel) previewPanel.classList.toggle('hidden', normalizedMode !== 'preview');
+    if (logPanel) logPanel.classList.toggle('hidden', normalizedMode !== 'logs');
 
     document.querySelectorAll('[data-template-detail-mode]').forEach(button => {
         button.classList.toggle('active', button.dataset.templateDetailMode === normalizedMode);
@@ -1028,10 +1056,13 @@ function renderGenerationHero(template, readiness) {
     const actionHintEl = document.getElementById('template-generation-action-hint');
 
     const canGenerate = Boolean(readiness.dataOk && readiness.contentOk);
+    const generationOptions = getReportProjectGenerationOptions();
+    const reportDateText = generationOptions.report_date || getDefaultReportDate();
+    const rangeText = `${generationOptions.start_date} 至 ${generationOptions.end_date}`;
 
     if (titleEl) titleEl.textContent = `${templateName} · 本周报告`;
-    if (periodEl) periodEl.textContent = '报告周期：本周';
-    if (lookbackEl) lookbackEl.textContent = '证据检索 7 天';
+    if (periodEl) periodEl.textContent = `报告日期：${reportDateText}`;
+    if (lookbackEl) lookbackEl.textContent = `证据窗口：${rangeText}`;
     if (placeholderTotalEl) placeholderTotalEl.textContent = `${readiness.placeholderCount} 个占位符`;
     if (healthEl) {
         healthEl.textContent = canGenerate ? '可生成' : '需检查';
@@ -1044,37 +1075,18 @@ function renderGenerationHero(template, readiness) {
             : `还有 ${readiness.pendingIssueCount || 1} 项需要处理，建议先打开生成前检查`;
     }
 
-    const previewBtn = document.getElementById('btn-template-preview-report');
-    const latestReport = readiness.latestReport;
-    if (previewBtn) {
-        const previewUrl = latestReport && project
-            ? `/api/report-projects/${encodeURIComponent(project.slug)}/preview/${encodeURIComponent(latestReport.file_name)}`
-            : '';
-        previewBtn.disabled = !previewUrl;
-        previewBtn.onclick = previewUrl ? () => window.open(previewUrl, '_blank') : null;
-    }
+    if (project) ensureSelectedGeneratedReport(project);
 }
 
 function renderGenerationStatusStrip(readiness) {
     renderProjectCheckSummary(readiness);
-    updateGenerationStep(
-        'template-generation-step-data',
-        'template-generation-data-summary',
-        readiness.dataOk,
-        `素材 ${readiness.readyAssets}/${readiness.totalAssets} · 数据范围 ${readiness.excelRows.length}`
-    );
-    updateGenerationStep(
-        'template-generation-step-content',
-        'template-generation-content-summary',
-        readiness.contentOk,
-        `预检 ${readiness.passedChecks}/${readiness.totalChecks} · 警告 ${readiness.warningCount}`
-    );
-    updateGenerationStep(
-        'template-generation-step-output',
-        'template-generation-output-summary',
-        readiness.outputOk,
-        readiness.latestReport ? '最近版本可预览和下载' : '生成后可预览和下载'
-    );
+    const dataSummary = `素材 ${readiness.readyAssets}/${readiness.totalAssets} · 数据范围 ${readiness.excelRows.length}`;
+    const contentSummary = `预检 ${readiness.passedChecks}/${readiness.totalChecks} · 警告 ${readiness.warningCount}`;
+    const outputSummary = readiness.latestReport ? '最近版本可预览和下载' : '生成后可预览和下载';
+    updateGenerationStep('template-generation-step-data', 'template-generation-data-summary', readiness.dataOk, dataSummary);
+    updateGenerationStep('template-generation-step-content', 'template-generation-content-summary', readiness.contentOk, contentSummary);
+    updateGenerationStep('template-generation-step-output', 'template-generation-output-summary', readiness.outputOk, outputSummary);
+    setGenerationFlowState(readiness.latestReport ? 'refresh' : 'generate', readiness.latestReport ? '已完成' : '等待生成');
 }
 
 function renderProjectCheckSummary(readiness) {
@@ -1105,52 +1117,334 @@ function updateGenerationStep(stepId, summaryId, ok, summary) {
     if (summaryEl) summaryEl.textContent = summary;
 }
 
+function setGenerationFlowState(activeKey = 'generate', label = '') {
+    const activeIndex = Math.max(0, REPORT_GENERATION_STEPS.findIndex(step => step.key === activeKey));
+    document.querySelectorAll('[data-generation-flow-step]').forEach((stepEl) => {
+        const key = stepEl.dataset.generationFlowStep;
+        const index = REPORT_GENERATION_STEPS.findIndex(step => step.key === key);
+        const isDone = index >= 0 && index < activeIndex;
+        const isActive = key === activeKey;
+        stepEl.classList.toggle('done', isDone);
+        stepEl.classList.toggle('active', isActive);
+        stepEl.classList.toggle('pending', !isDone && !isActive);
+        const statusEl = stepEl.querySelector('em');
+        if (statusEl) {
+            statusEl.textContent = isDone ? '完成' : (isActive ? '当前' : '等待');
+        }
+    });
+    const progressLabel = document.getElementById('template-generation-progress-label');
+    if (progressLabel) progressLabel.textContent = label || '生成流程';
+}
+
+function renderGenerationStepContext(template, readiness) {
+    const placeholders = getTemplateWorkbenchPlaceholders(template);
+    const selectedName = getSelectedPlaceholderName(template, placeholders);
+    setText(
+        'template-generation-current-step-summary',
+        readiness.latestReport
+            ? '最近版本可预览和下载'
+            : (selectedName ? `下一步将生成：${inferPlaceholderTitle(selectedName)}` : '等待启动')
+    );
+}
+
+function setText(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value == null ? '' : String(value);
+}
+
+function getSelectedPlaceholderName(template, placeholders = []) {
+    if (currentTemplateState.selectedPlaceholderName) return currentTemplateState.selectedPlaceholderName;
+    if (placeholders.length) return placeholders[0];
+    const sections = getTemplateWorkbenchSections(template);
+    return sections[0]?.placeholder || '';
+}
+
+function buildGenerationPromptSummary(template, selectedName, mapping) {
+    if (!selectedName) return '选择占位符后展示当前段落使用的 Prompt、变量和写作约束。';
+    const project = template.report_project || null;
+    const promptTemplate = mapping.prompt_template || resolvePromptTemplateName(selectedName, project);
+    const querySource = mapping.query_source || inferQuerySource(selectedName, project);
+    const fixedPrefix = mapping.fixed_prefix || mapping.template || '';
+    if (fixedPrefix) return fixedPrefix;
+    return `${inferPlaceholderTitle(selectedName)} 使用 ${promptTemplate || '默认 Prompt'}，检索来源：${querySource || '模板内置'}。严格依据 evidence、Excel 变量和写作参数生成，不补充外部判断。`;
+}
+
+function renderGenerationLiveLog(readiness) {
+    const log = document.getElementById('template-generation-live-log');
+    if (!log) return;
+    const rows = [
+        ['准备', `模板资产 ${readiness.readyAssets}/${readiness.totalAssets}`, readiness.dataOk ? '完成' : '待检查'],
+        ['映射', `Excel 数据范围 ${readiness.excelRows.length}`, readiness.excelRows.length ? '完成' : '等待'],
+        ['预检', `内容检查 ${readiness.passedChecks}/${readiness.totalChecks}`, readiness.contentOk ? '完成' : '待处理'],
+        ['输出', readiness.latestReport ? readiness.latestReport.file_name : '尚未生成', readiness.latestReport ? '可用' : '等待']
+    ];
+    log.innerHTML = rows.map(([time, message, status]) => `
+        <div class="template-generation-live-log-row">
+            <span>${esc(time)}</span>
+            <strong>${esc(message)}</strong>
+            <em>${esc(status)}</em>
+        </div>
+    `).join('');
+}
+
+function getGeneratedReports(project) {
+    return Array.isArray(project?.generated_reports) ? project.generated_reports : [];
+}
+
+function ensureSelectedGeneratedReport(project) {
+    const reports = getGeneratedReports(project);
+    if (!reports.length) {
+        currentTemplateState.selectedGeneratedReportFile = null;
+        return null;
+    }
+    const selected = reports.find(report => report.file_name === currentTemplateState.selectedGeneratedReportFile);
+    if (selected) return selected;
+    currentTemplateState.selectedGeneratedReportFile = reports[0]?.file_name || null;
+    return reports[0] || null;
+}
+
+function getSelectedGeneratedReport(project) {
+    return ensureSelectedGeneratedReport(project);
+}
+
+function getGeneratedReportUrls(project, report) {
+    if (!project?.slug || !report?.file_name) {
+        return { previewUrl: '', downloadUrl: '' };
+    }
+    return {
+        previewUrl: `/api/report-projects/${encodeURIComponent(project.slug)}/preview/${encodeURIComponent(report.file_name)}`,
+        downloadUrl: `/api/report-projects/${encodeURIComponent(project.slug)}/download/${encodeURIComponent(report.file_name)}`
+    };
+}
+
+function selectGeneratedReport(fileName, { openPreview = false } = {}) {
+    currentTemplateState.selectedGeneratedReportFile = fileName || null;
+    const template = getCurrentWorkbenchTemplate();
+    if (!template) return;
+    renderRecentGenerationPanel(template);
+    renderTemplatePreviewPanel(template);
+    renderTemplateLogPanel(template);
+    if (openPreview) {
+        setStoredTemplateDetailMode('preview');
+        applyTemplateDetailMode('preview');
+    }
+}
+
 function renderRecentGenerationPanel(template) {
     const project = template.report_project || null;
     const statusEl = document.getElementById('template-recent-generation-status');
     const card = document.getElementById('template-recent-generation-card');
-    const downloadLink = document.getElementById('btn-template-download-report');
     if (!card) return;
 
-    const generatedReports = Array.isArray(project?.generated_reports) ? project.generated_reports : [];
-    const latest = generatedReports[0] || null;
-    const downloadUrl = latest && project
-        ? `/api/report-projects/${encodeURIComponent(project.slug)}/download/${encodeURIComponent(latest.file_name)}`
-        : '';
-    const previewUrl = latest && project
-        ? `/api/report-projects/${encodeURIComponent(project.slug)}/preview/${encodeURIComponent(latest.file_name)}`
-        : '';
+    const generatedReports = getGeneratedReports(project);
+    const selectedReport = getSelectedGeneratedReport(project);
+    const { previewUrl, downloadUrl } = getGeneratedReportUrls(project, selectedReport);
+    const previewAction = document.querySelector('[data-template-report-action="preview"]');
+    const folderAction = document.querySelector('[data-template-report-action="folder"]');
+    const downloadAction = document.querySelector('[data-template-report-action="download"]');
 
-    if (statusEl) statusEl.textContent = latest ? '可下载' : '尚未生成';
-    if (downloadLink) {
-        downloadLink.href = downloadUrl || '#';
-        downloadLink.classList.toggle('disabled', !downloadUrl);
-        downloadLink.setAttribute('aria-disabled', downloadUrl ? 'false' : 'true');
+    if (statusEl) {
+        statusEl.textContent = generatedReports.length ? `${generatedReports.length} 个版本` : '尚未生成';
+    }
+    if (previewAction) {
+        previewAction.disabled = !previewUrl;
+        previewAction.onclick = previewUrl ? () => selectGeneratedReport(selectedReport.file_name, { openPreview: true }) : null;
+    }
+    if (folderAction) {
+        folderAction.disabled = !project?.slug || !selectedReport;
+        folderAction.onclick = project?.slug && selectedReport
+            ? () => openReportProjectOutputFolder(project.slug, selectedReport.file_name)
+            : null;
+    }
+    if (downloadAction) {
+        downloadAction.href = downloadUrl || '#';
+        downloadAction.classList.toggle('disabled', !downloadUrl);
+        downloadAction.setAttribute('aria-disabled', downloadUrl ? 'false' : 'true');
     }
 
-    if (!latest) {
+    if (!generatedReports.length) {
         card.innerHTML = `
             <div class="template-result-empty">
                 <i class="codicon codicon-file"></i>
-                <span>尚未生成。点击“生成报告”后，这里会显示最近版本。</span>
+                <span>尚未生成。点击“生成报告”后，这里会显示历史版本。</span>
             </div>
         `;
         return;
     }
 
     card.innerHTML = `
-        <div class="template-result-main">
-            <i class="codicon codicon-file-text"></i>
-            <span>
-                <strong>${esc(latest.file_name || '最近生成文档')}</strong>
-                <small>${esc(formatGeneratedAt(latest.generated_at))}</small>
-            </span>
-        </div>
-        <div class="template-recent-generation-actions">
-            ${previewUrl ? `<a class="btn-secondary" href="${esc(previewUrl)}" target="_blank">打开预览</a>` : ''}
-            ${downloadUrl ? `<a class="btn-secondary" href="${esc(downloadUrl)}" target="_blank">下载 Word</a>` : ''}
+        <div class="template-generated-report-list" role="listbox" aria-label="生成报告历史">
+            ${generatedReports.map((report, index) => {
+                const selected = report.file_name === selectedReport?.file_name;
+                return `
+                    <button type="button"
+                            class="template-generated-report-item ${selected ? 'selected' : ''}"
+                            role="option"
+                            aria-selected="${selected ? 'true' : 'false'}"
+                            data-template-generated-report="${esc(report.file_name || '')}">
+                        <i class="codicon codicon-file-text"></i>
+                        <span>
+                            <strong>${esc(report.file_name || '生成文档')}</strong>
+                            <small>${esc(formatGeneratedAt(report.generated_at))}</small>
+                        </span>
+                        ${index === 0 ? '<em>最新</em>' : ''}
+                    </button>
+                `;
+            }).join('')}
         </div>
     `;
+    card.querySelectorAll('[data-template-generated-report]').forEach(button => {
+        button.addEventListener('click', () => selectGeneratedReport(button.dataset.templateGeneratedReport));
+    });
+}
+
+function renderTemplatePreviewPanel(template) {
+    const project = template.report_project || null;
+    const selectedReport = getSelectedGeneratedReport(project);
+    const frame = document.getElementById('template-report-preview-frame');
+    const label = document.getElementById('template-preview-document-label');
+    const status = document.getElementById('template-preview-file-status');
+    const card = document.getElementById('template-preview-file-card');
+    const { previewUrl } = getGeneratedReportUrls(project, selectedReport);
+
+    if (label) label.textContent = selectedReport?.file_name || '尚未生成';
+    if (status) status.textContent = selectedReport ? '已选择' : '尚未生成';
+    if (frame) {
+        if (previewUrl) {
+            frame.src = previewUrl;
+            frame.classList.remove('hidden');
+        } else {
+            frame.removeAttribute('src');
+            frame.classList.add('hidden');
+        }
+    }
+    if (!card) return;
+    if (!selectedReport) {
+        card.innerHTML = '<div class="empty-state compact">在生成记录中选择一个报告后预览。</div>';
+        return;
+    }
+    card.innerHTML = `
+        <div class="template-preview-file-row">
+            <i class="codicon codicon-file-text"></i>
+            <span>
+                <strong>${esc(selectedReport.file_name || '生成文档')}</strong>
+                <small>${esc(formatGeneratedAt(selectedReport.generated_at))}</small>
+            </span>
+        </div>
+    `;
+}
+
+function renderTemplateLogPanel(template) {
+    const project = template.report_project || null;
+    const latest = getLatestGeneratedReport(project);
+    const table = document.getElementById('template-generation-log-table');
+    const context = document.getElementById('template-generation-log-context');
+    const status = document.getElementById('template-log-status');
+    const runResult = currentTemplateState.lastReportGenerationResult;
+    const runLog = currentTemplateState.lastReportRunLog;
+    const runLogUrl = runResult?.run_log_url || getRunLogUrlForReport(project, latest);
+
+    if (status) status.textContent = runLogUrl ? '最近一次生成' : '暂无日志';
+    if (table) {
+        const rows = buildTemplateLogRows(runResult, runLog, latest);
+        table.innerHTML = rows.length ? rows.map(row => `
+            <div class="template-generation-log-row ${esc(row.level || 'info')}">
+                <span class="mono">${esc(row.time || '--')}</span>
+                <em>${esc(row.level || 'INFO')}</em>
+                <strong>${esc(row.scope || 'report')}</strong>
+                <span>${esc(row.message || '')}</span>
+                <small>${esc(row.duration || '')}</small>
+            </div>
+        `).join('') : '<div class="empty-state compact">生成报告后显示运行日志、警告和耗时。</div>';
+    }
+    if (context) {
+        context.innerHTML = `
+            <div class="template-log-context-list">
+                <div><span>项目</span><strong>${esc(project?.name || '未选择')}</strong></div>
+                <div><span>输出文件</span><strong>${esc(latest?.file_name || runResult?.file_name || '尚未生成')}</strong></div>
+                <div><span>日志地址</span><strong>${esc(runLogUrl || '暂无')}</strong></div>
+                <div><span>结果</span><strong>${esc(runResult?.success ? '成功' : (latest ? '已生成' : '等待生成'))}</strong></div>
+            </div>
+            <div class="template-log-actions">
+                ${runLogUrl ? `<a class="btn-secondary" href="${esc(runLogUrl)}" target="_blank">打开 JSON 日志</a>` : ''}
+                ${project?.slug ? `<button type="button" class="btn-primary" data-template-log-open-folder>打开所在文件夹</button>` : ''}
+            </div>
+        `;
+        const folderBtn = context.querySelector('[data-template-log-open-folder]');
+        if (folderBtn && project?.slug) {
+            folderBtn.addEventListener('click', () => openReportProjectOutputFolder(project.slug));
+        }
+    }
+}
+
+function getLatestGeneratedReport(project) {
+    return Array.isArray(project?.generated_reports) ? project.generated_reports[0] || null : null;
+}
+
+function getRunLogUrlForReport(project, report) {
+    if (!project?.slug || !report?.file_name) return '';
+    const match = String(report.file_name).match(/^(\d{4}-\d{2}-\d{2}_\d{6})/);
+    if (!match) return '';
+    return `/api/report-projects/${encodeURIComponent(project.slug)}/runs/${encodeURIComponent(match[1])}.json`;
+}
+
+function buildTemplateLogRows(runResult, runLog, latest) {
+    const rows = [];
+    if (runResult) {
+        rows.push(['DONE', 'output.save', `保存 ${runResult.file_name || '输出文档'}`, 'ok']);
+        if (runResult.generated_placeholder_count != null) {
+            rows.push(['INFO', 'placeholder', `生成占位符 ${runResult.generated_placeholder_count}`, '']);
+        }
+        if (runResult.evidence_count != null) {
+            rows.push(['INFO', 'evidence', `使用证据 ${runResult.evidence_count} 条`, '']);
+        }
+        (runResult.warnings || []).slice(0, 4).forEach(warning => {
+            rows.push(['WARN', 'guard', warning, '']);
+        });
+    } else if (runLog?.generation?.sections?.length) {
+        runLog.generation.sections.slice(0, 8).forEach(section => {
+            rows.push([
+                section.warnings?.length ? 'WARN' : 'INFO',
+                section.placeholder || 'section',
+                `${section.title || section.placeholder || '段落'} · evidence ${section.evidence_count || 0}`,
+                section.tokens_used ? `${section.tokens_used} tokens` : ''
+            ]);
+        });
+    } else if (latest) {
+        rows.push(['DONE', 'output.save', `最近生成 ${latest.file_name}`, '']);
+    }
+    return rows.map((row, index) => ({
+        time: index === 0 ? formatShortTime(runResult?.generated_at || latest?.generated_at) : '',
+        level: row[0],
+        scope: row[1],
+        message: row[2],
+        duration: row[3]
+    }));
+}
+
+function formatShortTime(value) {
+    if (!value) return '--';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '--';
+    return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+}
+
+async function openReportProjectOutputFolder(slug, fileName = '') {
+    if (!slug) {
+        toast('报告项目未绑定，无法打开所在文件夹', 'error');
+        return;
+    }
+    try {
+        const query = fileName ? `?file_name=${encodeURIComponent(fileName)}` : '';
+        await apiCall('POST', `/api/report-projects/${encodeURIComponent(slug)}/open-folder${query}`);
+        toast('已打开报告所在文件夹', 'success');
+    } catch (e) {
+        if (String(e.message || '').includes('Not Found')) {
+            toast('打开文件夹失败：当前后端还没加载新接口，请重启 AlphaFoundry', 'error');
+            return;
+        }
+        toast('打开文件夹失败: ' + e.message, 'error');
+    }
 }
 
 function renderReportGenerationProgressCard({ status = 'running', activeKey = 'check', message = '' } = {}) {
@@ -1161,6 +1455,18 @@ function renderReportGenerationProgressCard({ status = 'running', activeKey = 'c
     const activeIndex = Math.max(0, REPORT_GENERATION_STEPS.findIndex(step => step.key === activeKey));
     const statusText = status === 'error' ? '生成失败' : '生成中';
     if (statusEl) statusEl.textContent = statusText;
+    setGenerationFlowState(activeKey, statusText);
+    setText('template-generation-current-step-summary', message || '正在生成报告');
+    const liveLog = document.getElementById('template-generation-live-log');
+    if (liveLog) {
+        liveLog.innerHTML = `
+            <div class="template-generation-live-log-row">
+                <span>${esc(formatShortTime(new Date().toISOString()))}</span>
+                <strong>${esc(message || '正在生成报告')}</strong>
+                <em>${esc(statusText)}</em>
+            </div>
+        `;
+    }
 
     card.innerHTML = `
         <div class="template-generation-progress" role="status" aria-live="polite">
@@ -1366,18 +1672,31 @@ function updateTemplateSourceSwitcher(template) {
     const sectionBtn = document.getElementById('btn-template-source-section');
     const promptBtn = document.getElementById('btn-template-source-prompt');
     if (!sectionBtn || !promptBtn) return;
+    const isFixedExcel = isSelectedFixedExcelPlaceholder(template);
+    if (isFixedExcel && currentTemplateState.activeSourceKind === 'prompt_templates') {
+        currentTemplateState.activeSourceKind = 'section_config';
+    }
     sectionBtn.classList.toggle('active', currentTemplateState.activeSourceKind === 'section_config');
     promptBtn.classList.toggle('active', currentTemplateState.activeSourceKind === 'prompt_templates');
-    promptBtn.disabled = !template.report_project?.prompt_templates_source;
+    promptBtn.disabled = isFixedExcel || !template.report_project?.prompt_templates_source;
 }
 
 function switchTemplateSourceKind(sourceKind) {
     const template = getCurrentWorkbenchTemplate();
     if (!template) return;
+    if (sourceKind === 'prompt_templates' && isSelectedFixedExcelPlaceholder(template)) {
+        return;
+    }
     currentTemplateState.activeSourceKind = sourceKind;
     updateTemplateSourceSwitcher(template);
     renderSelectedSourceFragment(template);
     setTemplateSourceEditing(false);
+}
+
+function isSelectedFixedExcelPlaceholder(template) {
+    const mapping = getSelectedPlaceholderMapping(template) || {};
+    const type = String(mapping.type || '').toLowerCase();
+    return type === 'excel_commodity_market_review';
 }
 
 function getCurrentWorkbenchTemplate() {
@@ -1482,12 +1801,6 @@ function renderTemplatePlaceholderMap(placeholders, sections) {
     const container = document.getElementById('template-placeholder-map');
     if (!container) return;
 
-    const placeholderMappings = getCurrentPlaceholderMappings(getCurrentWorkbenchTemplate() || {});
-    const sectionByPlaceholder = new Map(
-        sections
-            .filter(section => section.placeholder)
-            .map(section => [normalizePlaceholderName(section.placeholder), section])
-    );
     const names = placeholders.length
         ? placeholders
         : sections.map(section => section.placeholder || section.key).filter(Boolean);
@@ -1501,16 +1814,9 @@ function renderTemplatePlaceholderMap(placeholders, sections) {
 
     const selectedName = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName)
         || normalizePlaceholderName(names[0]);
-    const selectedMapping = placeholderMappings.get(selectedName);
-    const selectedSection = sectionByPlaceholder.get(selectedName)
-        || sections.find(item => item.key === selectedName);
-    const selectedStatus = selectedMapping
-        ? (isPlaceholderMappingConfigured(selectedMapping) ? '已配置' : '待补参数')
-        : (selectedSection ? '旧配置映射' : '未映射');
 
     container.innerHTML = `
-        <label class="placeholder-select-label" for="template-placeholder-select">当前段落</label>
-        <select id="template-placeholder-select" class="placeholder-select">
+        <select id="template-placeholder-select" class="placeholder-select" aria-label="当前段落">
             ${names.map(name => {
                 const normalizedName = normalizePlaceholderName(name);
                 return `
@@ -1520,11 +1826,6 @@ function renderTemplatePlaceholderMap(placeholders, sections) {
                 `;
             }).join('')}
         </select>
-        <div class="placeholder-selected-card ${selectedStatus === '未映射' ? 'unmapped' : 'mapped'}">
-            <code>${esc(selectedName)}</code>
-            <div class="mapping-summary">${renderMappingSummary(selectedMapping, selectedSection)}</div>
-            <strong>${selectedStatus}</strong>
-        </div>
     `;
 
     bindPlaceholderMapRows();
@@ -1545,6 +1846,7 @@ function renderMappingSummary(mapping, section) {
 
 function getPlaceholderKindLabel(mapping, section) {
     const type = mapping?.type || section?.type || '';
+    if (type === 'excel_commodity_market_review') return 'Excel 固定市场回顾';
     if (isPromptPlaceholderType(type, mapping || {})) return 'AI 生成段落';
     if (type === 'excel_cell' || type === 'excel_range' || mapping?.source) return 'Excel 数据';
     if (type === 'static_text' || mapping?.value) return '固定文本';
@@ -1594,18 +1896,25 @@ function getStoredCommonDefaults(template) {
         },
         retrieval: {
             mode: 'hybrid',
-            top_k: 8,
-            keyword_candidates: 40,
-            semantic_candidates: 80,
-            keyword_weight: 0.7,
-            semantic_weight: 0.3,
-            keywords: []
+            top_k: 10,
+            candidate_k: 40,
+            semantic_candidate_k: 80,
+            keyword_weight: 0.6,
+            semantic_weight: 0.4,
+            embedding_model: '/Users/leon/Desktop/Projects/AlphaFoundry/data/models/embeddings/bge-large-zh-v1.5',
+            source_types: []
+        },
+        report_period: {
+            report_date: getDefaultReportDate(),
+            start_date: getDefaultEvidenceStartDate(),
+            end_date: getDefaultReportDate()
         },
         rerank: {
             enabled: true,
-            provider: 'deepseek',
-            candidates: 16,
-            min_score: 30
+            provider: 'bge-reranker',
+            model: '/Users/leon/Desktop/Projects/AlphaFoundry/data/models/rerankers/bge-reranker-large',
+            top_n: 30,
+            min_score: 0.35
         }
     };
     if (!defaults || typeof defaults !== 'object') return base;
@@ -1618,6 +1927,7 @@ function getStoredCommonDefaults(template) {
             : base.generation_constraints,
         hard_constraints: { ...base.hard_constraints, ...(defaults.hard_constraints || {}) },
         retrieval: { ...base.retrieval, ...(defaults.retrieval || {}) },
+        report_period: { ...base.report_period, ...(defaults.report_period || {}) },
         rerank: { ...base.rerank, ...(defaults.rerank || {}) }
     };
 }
@@ -1629,9 +1939,11 @@ function getEditableCommonDefaults(template) {
 function renderCommonGenerationRules(template) {
     const container = document.getElementById('template-common-rules');
     if (!container) return;
+    snapshotCommonRuleOpenState(container);
 
     const defaults = getEditableCommonDefaults(template);
     const retrieval = defaults.retrieval || {};
+    const reportPeriod = defaults.report_period || {};
     const rerank = defaults.rerank || {};
     const generationConstraints = Array.isArray(defaults.generation_constraints)
         ? defaults.generation_constraints.join('\n')
@@ -1641,57 +1953,152 @@ function renderCommonGenerationRules(template) {
         <div class="panel-title-row">
             <h4>共用参数</h4>
             <div class="template-common-title-actions">
-                <span class="text-muted">所有 prompt 占位符默认继承</span>
                 <button id="btn-template-save-common-rules" class="btn-secondary" type="button">
                     <i class="codicon codicon-save"></i> 保存共用参数
                 </button>
             </div>
         </div>
-        <details class="template-common-rule-card template-common-summary-card" open>
+        <details class="template-common-rule-card template-common-summary-card" data-common-section="generation_constraints" ${isCommonRuleSectionOpen('generation_constraints') ? 'open' : ''}>
             <summary>
                 <span class="template-common-summary-title">
                     <strong>共用 Prompt 约束</strong>
                     <small>${esc(getFirstLine(generationConstraints))}</small>
                 </span>
                 <span class="template-common-summary-meta">
-                    拼入每个占位符
                     <i class="codicon codicon-chevron-down"></i>
                 </span>
             </summary>
             <div class="template-common-rule-editor">
-                <label class="template-common-field wide">
-                    <span>共用生成约束（一行一条，所有 prompt 占位符默认继承）</span>
-                    <textarea data-common-rule-field="generation_constraints" rows="12">${esc(generationConstraints)}</textarea>
-                </label>
+                <textarea class="template-common-field wide" data-common-rule-field="generation_constraints" rows="12">${esc(generationConstraints)}</textarea>
             </div>
         </details>
+        <div id="template-common-evidence-rules"></div>
+        <div id="template-common-retrieval-rules"></div>
     `;
 
+    renderCommonEvidenceRules(reportPeriod, retrieval);
     renderAdvancedCommonRules(template, retrieval, rerank);
 
     bindCommonRuleInputs(template);
 }
 
+function renderCommonEvidenceRules(reportPeriod = {}, retrieval = {}) {
+    const container = document.getElementById('template-common-evidence-rules');
+    if (!container) return;
+    const sourceTypes = Array.isArray(retrieval.source_types) ? retrieval.source_types : [];
+    const reportDate = reportPeriod.report_date || getDefaultReportDate();
+    const startDate = reportPeriod.start_date || getDefaultEvidenceStartDate(reportDate);
+    const endDate = reportPeriod.end_date || reportDate;
+    container.innerHTML = `
+        <details class="template-common-rule-card template-common-summary-card" data-common-section="evidence_scope" ${isCommonRuleSectionOpen('evidence_scope') ? 'open' : ''}>
+            <summary>
+                <span class="template-common-summary-title">
+                    <strong>证据来源与时间</strong>
+                    <small>${esc(formatEvidenceScopeSummary(reportPeriod, retrieval))}</small>
+                </span>
+                <span class="template-common-summary-meta">
+                    检索前筛选
+                    <i class="codicon codicon-chevron-down"></i>
+                </span>
+            </summary>
+            <div class="template-common-rule-editor">
+                <div class="template-common-rules-grid template-retrieval-rules-grid">
+                    <label class="template-common-field">
+                        <span>报告日期</span>
+                        <input type="date" data-common-rule-field="report_period.report_date" value="${esc(reportDate)}">
+                    </label>
+                    <label class="template-common-field">
+                        <span>数据使用范围</span>
+                        <div class="template-date-range-grid">
+                            <input type="date" aria-label="数据开始日期" data-common-rule-field="report_period.start_date" value="${esc(startDate)}">
+                            <input type="date" aria-label="数据结束日期" data-common-rule-field="report_period.end_date" value="${esc(endDate)}">
+                        </div>
+                    </label>
+                    <label class="template-common-field wide">
+                        <span>数据源使用筛选</span>
+                        <div class="template-source-type-grid">
+                            ${renderSourceTypeCheckboxes(sourceTypes)}
+                        </div>
+                    </label>
+                </div>
+            </div>
+        </details>
+    `;
+}
+
+function formatEvidenceScopeSummary(reportPeriod = {}, retrieval = {}) {
+    const reportDate = reportPeriod.report_date || getDefaultReportDate();
+    const startDate = reportPeriod.start_date || getDefaultEvidenceStartDate(reportDate);
+    const endDate = reportPeriod.end_date || reportDate;
+    const sourceTypes = Array.isArray(retrieval.source_types) && retrieval.source_types.length
+        ? retrieval.source_types.join('、')
+        : '全部来源';
+    return `${startDate} 至 ${endDate} · ${sourceTypes}`;
+}
+
+function renderSourceTypeCheckboxes(selectedSourceTypes = []) {
+    const selected = new Set(selectedSourceTypes);
+    const allSelected = selected.size === 0;
+    const options = [
+        { value: '', label: '全部' },
+        { value: 'cls', label: '财联社' },
+        { value: 'cnstock', label: '中证网' },
+        { value: 'zq', label: '券商研报' },
+        { value: 'canonical_event', label: '结构化事件' }
+    ];
+    return options.map(option => `
+        <label class="template-source-type-option">
+            <input type="checkbox"
+                   data-common-source-type="${esc(option.value || '__all__')}"
+                   value="${esc(option.value)}"
+                   ${option.value ? (selected.has(option.value) ? 'checked' : '') : (allSelected ? 'checked' : '')}>
+            <span>${esc(option.label)}</span>
+        </label>
+    `).join('');
+}
+
+function getDefaultReportDate() {
+    const now = new Date();
+    const timezoneOffset = now.getTimezoneOffset() * 60000;
+    return new Date(now.getTime() - timezoneOffset).toISOString().slice(0, 10);
+}
+
+function getDefaultEvidenceStartDate(reportDate = getDefaultReportDate()) {
+    const end = parseDateInput(reportDate) || parseDateInput(getDefaultReportDate());
+    if (!end) return '';
+    const start = new Date(end);
+    start.setDate(start.getDate() - 6);
+    return formatDateInput(start);
+}
+
+function parseDateInput(value) {
+    if (!value) return null;
+    const date = new Date(`${value}T00:00:00`);
+    return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatDateInput(date) {
+    const timezoneOffset = date.getTimezoneOffset() * 60000;
+    return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 10);
+}
+
 function renderAdvancedCommonRules(template, retrieval = {}, rerank = {}) {
-    const container = document.getElementById('template-advanced-common-rules');
+    const container = document.getElementById('template-common-retrieval-rules');
     if (!container) return;
 
-    const searchKeywords = Array.isArray(retrieval.keywords)
-        ? retrieval.keywords.join('\n')
-        : '';
-    const keywordWeightPercent = formatRulePercent(retrieval.keyword_weight ?? 0.7);
-    const semanticWeightPercent = formatRulePercent(retrieval.semantic_weight ?? 0.3);
+    const candidateK = retrieval.candidate_k ?? retrieval.keyword_candidates ?? 40;
+    const semanticCandidateK = retrieval.semantic_candidate_k ?? retrieval.semantic_candidates ?? 80;
+    const rerankTopN = rerank.top_n ?? rerank.candidates ?? 30;
+    const rerankMinScore = rerank.min_score ?? 0.35;
+    const keywordWeightPercent = formatRulePercent(retrieval.keyword_weight ?? 0.6);
+    const semanticWeightPercent = formatRulePercent(retrieval.semantic_weight ?? 0.4);
 
     container.innerHTML = `
-        <div class="panel-title-row">
-            <h4>检索与重排</h4>
-            <span class="text-muted">高级参数</span>
-        </div>
-        <details class="template-common-rule-card template-common-summary-card">
+        <details class="template-common-rule-card template-common-summary-card" data-common-section="retrieval" ${isCommonRuleSectionOpen('retrieval') ? 'open' : ''}>
             <summary>
                 <span class="template-common-summary-title">
                     <strong>检索策略</strong>
-                    <small>${esc(retrieval.mode || 'hybrid')} · Top K ${esc(retrieval.top_k ?? 8)} · 候选 ${esc(retrieval.keyword_candidates ?? 40)}/${esc(retrieval.semantic_candidates ?? 80)}</small>
+                    <small>${esc(retrieval.mode || 'hybrid')} · Top K ${esc(retrieval.top_k ?? 10)} · 候选 ${esc(candidateK)}/${esc(semanticCandidateK)}</small>
                 </span>
                 <span class="template-common-summary-meta">
                     权重 ${keywordWeightPercent}/${semanticWeightPercent}
@@ -1699,7 +2106,7 @@ function renderAdvancedCommonRules(template, retrieval = {}, rerank = {}) {
                 </span>
             </summary>
             <div class="template-common-rule-editor">
-                <div class="template-common-rules-grid">
+                <div class="template-common-rules-grid template-retrieval-rules-grid">
                     <label class="template-common-field">
                         <span>模式</span>
                         <select data-common-rule-field="retrieval.mode">
@@ -1710,42 +2117,39 @@ function renderAdvancedCommonRules(template, retrieval = {}, rerank = {}) {
                     </label>
                     <label class="template-common-field">
                         <span>Top K</span>
-                        <input type="number" min="1" step="1" data-common-rule-field="retrieval.top_k" value="${esc(retrieval.top_k ?? 8)}">
+                        <input type="number" min="1" step="1" data-common-rule-field="retrieval.top_k" value="${esc(retrieval.top_k ?? 10)}">
                     </label>
                     <label class="template-common-field">
-                        <span>关键词候选数</span>
-                        <input type="number" min="1" step="1" data-common-rule-field="retrieval.keyword_candidates" value="${esc(retrieval.keyword_candidates ?? 40)}">
+                        <span>候选数</span>
+                        <input type="number" min="1" step="1" data-common-rule-field="retrieval.candidate_k" value="${esc(candidateK)}">
                     </label>
                     <label class="template-common-field">
                         <span>语义候选数</span>
-                        <input type="number" min="1" step="1" data-common-rule-field="retrieval.semantic_candidates" value="${esc(retrieval.semantic_candidates ?? 80)}">
+                        <input type="number" min="1" step="1" data-common-rule-field="retrieval.semantic_candidate_k" value="${esc(semanticCandidateK)}">
                     </label>
                     <label class="template-common-field">
                         <span>关键词权重</span>
-                        <input type="number" min="0" max="1" step="0.1" data-common-rule-field="retrieval.keyword_weight" value="${esc(retrieval.keyword_weight ?? 0.7)}">
+                        <input type="number" min="0" max="1" step="0.1" data-common-rule-field="retrieval.keyword_weight" value="${esc(retrieval.keyword_weight ?? 0.6)}">
                     </label>
                     <label class="template-common-field">
                         <span>语义权重</span>
-                        <input type="number" min="0" max="1" step="0.1" data-common-rule-field="retrieval.semantic_weight" value="${esc(retrieval.semantic_weight ?? 0.3)}">
+                        <input type="number" min="0" max="1" step="0.1" data-common-rule-field="retrieval.semantic_weight" value="${esc(retrieval.semantic_weight ?? 0.4)}">
                     </label>
-                    <label class="template-common-field wide">
-                        <span>全局检索关键词（逗号或换行分隔；每个占位符还可以单独覆盖）</span>
-                        <textarea data-common-rule-field="retrieval.keywords" rows="3">${esc(searchKeywords)}</textarea>
+                    <label class="template-common-field">
+                        <span>Embedding 模型</span>
+                        <input type="text" data-common-rule-field="retrieval.embedding_model" value="${esc(retrieval.embedding_model || '/Users/leon/Desktop/Projects/AlphaFoundry/data/models/embeddings/bge-large-zh-v1.5')}">
                     </label>
-                </div>
-                <div class="template-weight-meter" aria-hidden="true">
-                    <span style="width: ${Math.max(0, Math.min(100, Number(retrieval.keyword_weight ?? 0.7) * 100))}%"></span>
                 </div>
             </div>
         </details>
-        <details class="template-common-rule-card template-common-summary-card">
+        <details class="template-common-rule-card template-common-summary-card" data-common-section="rerank" ${isCommonRuleSectionOpen('rerank') ? 'open' : ''}>
             <summary>
                 <span class="template-common-summary-title">
                     <strong>证据重排</strong>
-                    <small>${rerank.enabled !== false ? '初筛后按当前 Prompt 相关性重新排序' : '按检索分数直接排序'}</small>
+                    <small>${rerank.enabled !== false ? '已启用' : '未启用'}</small>
                 </span>
                 <span class="template-common-summary-meta">
-                    候选 ${esc(rerank.candidates ?? 16)} · 阈值 ${esc(rerank.min_score ?? 30)}
+                    候选 ${esc(rerankTopN)} · 阈值 ${esc(rerankMinScore)}
                     <i class="codicon codicon-chevron-down"></i>
                 </span>
             </summary>
@@ -1755,20 +2159,24 @@ function renderAdvancedCommonRules(template, retrieval = {}, rerank = {}) {
                         <input type="checkbox" data-common-rule-field="rerank.enabled" ${rerank.enabled !== false ? 'checked' : ''}>
                         <span>
                             <strong>启用证据重排</strong>
-                            <small>先召回候选证据，再按当前占位符 Prompt 的相关性排序</small>
+                            <small>先召回候选证据，再用本地 reranker 按相关性排序</small>
                         </span>
                     </label>
                     <label class="template-common-field">
                         <span>重排 Provider</span>
-                        <input type="text" data-common-rule-field="rerank.provider" value="${esc(rerank.provider || 'deepseek')}">
+                        <input type="text" data-common-rule-field="rerank.provider" value="${esc(rerank.provider || 'bge-reranker')}">
+                    </label>
+                    <label class="template-common-field">
+                        <span>Reranker 模型</span>
+                        <input type="text" data-common-rule-field="rerank.model" value="${esc(rerank.model || '/Users/leon/Desktop/Projects/AlphaFoundry/data/models/rerankers/bge-reranker-large')}">
                     </label>
                     <label class="template-common-field">
                         <span>参与重排的候选证据数</span>
-                        <input type="number" min="1" step="1" data-common-rule-field="rerank.candidates" value="${esc(rerank.candidates ?? 16)}">
+                        <input type="number" min="1" step="1" data-common-rule-field="rerank.top_n" value="${esc(rerankTopN)}">
                     </label>
                     <label class="template-common-field">
                         <span>最低相关分</span>
-                        <input type="number" min="0" step="1" data-common-rule-field="rerank.min_score" value="${esc(rerank.min_score ?? 30)}">
+                        <input type="number" min="0" max="1" step="0.05" data-common-rule-field="rerank.min_score" value="${esc(rerankMinScore)}">
                     </label>
                 </div>
             </div>
@@ -1777,15 +2185,38 @@ function renderAdvancedCommonRules(template, retrieval = {}, rerank = {}) {
 }
 
 function bindCommonRuleInputs(template) {
-    document.querySelectorAll('#template-common-rules [data-common-rule-field], #template-advanced-common-rules [data-common-rule-field]').forEach(input => {
+    document.querySelectorAll('#template-common-rules details[data-common-section]').forEach(details => {
+        if (details.dataset.boundCommonOpenState) return;
+        details.dataset.boundCommonOpenState = 'true';
+        details.addEventListener('toggle', () => {
+            currentTemplateState.commonRuleOpenState = {
+                ...(currentTemplateState.commonRuleOpenState || {}),
+                [details.dataset.commonSection]: details.open
+            };
+        });
+    });
+
+    document.querySelectorAll('#template-common-rules [data-common-rule-field]').forEach(input => {
         if (input.dataset.boundCommonRule) return;
         input.dataset.boundCommonRule = 'true';
         const update = () => {
+            if (input.dataset.commonRuleField === 'report_period.report_date') {
+                syncEvidenceRangeFromReportDate(input.value);
+            }
             collectCommonDefaultsDraft(template);
             renderSelectedSourceFragment(template);
         };
         input.addEventListener('input', update);
         input.addEventListener('change', update);
+    });
+    document.querySelectorAll('#template-common-rules [data-common-source-type]').forEach(input => {
+        if (input.dataset.boundCommonSourceType) return;
+        input.dataset.boundCommonSourceType = 'true';
+        input.addEventListener('change', () => {
+            syncSourceTypeCheckboxes(input);
+            collectCommonDefaultsDraft(template);
+            renderSelectedSourceFragment(template);
+        });
     });
     const saveCommonRulesBtn = document.getElementById('btn-template-save-common-rules');
     if (saveCommonRulesBtn && !saveCommonRulesBtn.dataset.bound) {
@@ -1798,6 +2229,46 @@ function bindCommonRuleInputs(template) {
             errorPrefix: '保存共用参数失败'
         }));
     }
+}
+
+function syncSourceTypeCheckboxes(changedInput) {
+    const allInput = document.querySelector('#template-common-rules [data-common-source-type="__all__"]');
+    const sourceInputs = [...document.querySelectorAll('#template-common-rules [data-common-source-type]:not([data-common-source-type="__all__"])')];
+    if (changedInput.dataset.commonSourceType === '__all__' && changedInput.checked) {
+        sourceInputs.forEach(input => {
+            input.checked = false;
+        });
+        return;
+    }
+    if (changedInput.dataset.commonSourceType !== '__all__' && changedInput.checked && allInput) {
+        allInput.checked = false;
+    }
+    if (allInput && !sourceInputs.some(input => input.checked)) {
+        allInput.checked = true;
+    }
+}
+
+function syncEvidenceRangeFromReportDate(reportDate) {
+    const normalizedReportDate = reportDate || getDefaultReportDate();
+    const startInput = document.querySelector('#template-common-rules [data-common-rule-field="report_period.start_date"]');
+    const endInput = document.querySelector('#template-common-rules [data-common-rule-field="report_period.end_date"]');
+    if (startInput) startInput.value = getDefaultEvidenceStartDate(normalizedReportDate);
+    if (endInput) endInput.value = normalizedReportDate;
+}
+
+function snapshotCommonRuleOpenState(root = document) {
+    const detailsList = root.querySelectorAll?.('details[data-common-section]') || [];
+    if (!detailsList.length) return;
+    const nextState = { ...(currentTemplateState.commonRuleOpenState || {}) };
+    detailsList.forEach(details => {
+        nextState[details.dataset.commonSection] = details.open;
+    });
+    currentTemplateState.commonRuleOpenState = nextState;
+}
+
+function isCommonRuleSectionOpen(section, fallback = false) {
+    const state = currentTemplateState.commonRuleOpenState || {};
+    return Object.prototype.hasOwnProperty.call(state, section) ? Boolean(state[section]) : fallback;
 }
 
 function formatRulePercent(value) {
@@ -1843,8 +2314,7 @@ function getHardConstraintPromptText(hardConstraints = {}) {
 
 function collectCommonDefaultsDraft(template) {
     const containers = [
-        document.getElementById('template-common-rules'),
-        document.getElementById('template-advanced-common-rules')
+        document.getElementById('template-common-rules')
     ].filter(Boolean);
     if (!containers.length) return getEditableCommonDefaults(template);
 
@@ -1857,6 +2327,7 @@ function collectCommonDefaultsDraft(template) {
             ? [...existing.generation_constraints]
             : [],
         retrieval: { ...(existing.retrieval || {}) },
+        report_period: { ...(existing.report_period || {}) },
         rerank: { ...(existing.rerank || {}) }
     };
 
@@ -1871,7 +2342,7 @@ function collectCommonDefaultsDraft(template) {
         } else if (field === 'validators.forbidden_terms'
             || field === 'hard_constraints.forbidden_phrases'
             || field === 'hard_constraints.forbidden_entity_categories'
-            || field === 'retrieval.keywords') {
+            || field === 'retrieval.source_types') {
             value = splitDelimitedList(input.value);
         } else if (input.type === 'number') {
             value = input.value === '' ? null : Number(input.value);
@@ -1886,6 +2357,14 @@ function collectCommonDefaultsDraft(template) {
             draft[field] = value;
         }
     }));
+    const selectedSourceTypes = [
+        ...document.querySelectorAll('#template-common-rules [data-common-source-type]:checked')
+    ]
+        .map(input => input.value)
+        .filter(Boolean);
+    if (document.querySelector('#template-common-rules [data-common-source-type]')) {
+        draft.retrieval.source_types = selectedSourceTypes;
+    }
 
     currentTemplateState.commonDefaultsDraft = draft;
     return draft;
@@ -1981,6 +2460,7 @@ function selectTemplatePlaceholder(name) {
         getTemplateWorkbenchSections(template)
     );
     renderSelectedPlaceholderDetail(template);
+    updateTemplateSourceSwitcher(template);
     updateTemplateSourceFromPlaceholderDraft(template);
 }
 
@@ -2008,8 +2488,8 @@ function renderSelectedPlaceholderDetail(template) {
     const mapping = getSelectedPlaceholderMapping(template);
     if (!name || !mapping) {
         if (titleEl) titleEl.textContent = '占位符配置详情';
-        formEl.innerHTML = '<div class="empty-state compact">从左侧选择一个 Word 占位符后编辑配置</div>';
-        if (advancedFormEl) advancedFormEl.innerHTML = '<div class="empty-state compact">从左侧选择一个 Word 占位符后显示高级字段</div>';
+        formEl.innerHTML = '<div class="empty-state compact">选择一个段落后编辑配置</div>';
+        if (advancedFormEl) advancedFormEl.innerHTML = '<div class="empty-state compact">选择段落后显示高级字段</div>';
         if (saveBtn) saveBtn.disabled = true;
         if (advancedBtn) advancedBtn.disabled = true;
         return;
@@ -2029,17 +2509,10 @@ function renderSelectedPlaceholderDetail(template) {
     const retrievalKeywords = getKeywordEditorText(template, mapping, name, keywordMode, selectedKeywordProfile);
     const minNewsCount = mapping.min_news_count || '';
     const dataTemplate = getDataTemplateComponent(mapping).template || inferDefaultDataTemplate(name);
+    const dataTemplateFields = getDataTemplateFields(mapping);
     const writingStructure = getLlmWritingComponent(mapping).writing_structure || mapping.writing_structure || inferDefaultWritingStructure(name);
     const writingStructureText = Array.isArray(writingStructure) ? writingStructure.join('\n') : '';
-    const typeOptions = Array.from(new Set([
-        type,
-        'prompt',
-        'composite_market_review',
-        'report_period',
-        'excel_cell',
-        'excel_range',
-        'static_text'
-    ].filter(Boolean)));
+    const typeOptions = getEditablePlaceholderTypeOptions(type);
 
     formEl.innerHTML = buildSimplePlaceholderFieldsHtml({
         name,
@@ -2051,6 +2524,7 @@ function renderSelectedPlaceholderDetail(template) {
         keywordMode,
         minNewsCount,
         dataTemplate,
+        dataTemplateFields,
         writingStructureText,
         template
     });
@@ -2082,20 +2556,21 @@ function buildSimplePlaceholderFieldsHtml({
     keywordMode,
     minNewsCount,
     dataTemplate,
+    dataTemplateFields,
     writingStructureText,
     template
 }) {
     if (isPromptLike) {
         const profileOptions = buildKeywordProfileOptions(template, selectedKeywordProfile);
         const profileKeywords = getKeywordProfileKeywords(template, selectedKeywordProfile);
+        const semanticQuery = getSemanticRetrievalQueryForPlaceholder(template, mapping, name);
         const profileHelp = selectedKeywordProfile && profileKeywords.length
             ? `当前预设包包含 ${profileKeywords.length} 个关键词。`
             : '当前没有匹配到已存在的预设包，可以切换为自定义关键词。';
+        const keywordChipsHtml = profileKeywords.length
+            ? profileKeywords.map(keyword => `<span class="template-keyword-chip">${esc(keyword)}</span>`).join('')
+            : '<span class="template-keyword-empty">当前预设包没有关键词</span>';
         return `
-            <div class="template-simple-mode-note">
-                <strong>简洁模式</strong>
-                <span>这里只保留会直接影响生成内容的字段；类型、Prompt 模板、检索策略和 YAML 在右上角高级配置里。</span>
-            </div>
             <label>
                 <span>目标字数</span>
                 <input type="number" min="1" step="1" data-placeholder-field="target_words" value="${esc(mapping.target_words || inferDefaultTargetWords(name))}">
@@ -2113,11 +2588,23 @@ function buildSimplePlaceholderFieldsHtml({
                     <span>固定开头模板（Excel 数据填充）</span>
                     <textarea data-placeholder-field="components.data_template.template" rows="4">${esc(dataTemplate)}</textarea>
                 </label>
+                ${renderDataTemplateFieldsEditor(dataTemplateFields)}
             ` : ''}
             <label>
                 <span>${type === 'composite_market_review' ? '后续写作结构（一行一步）' : '写作结构（一行一步，可选）'}</span>
                 <textarea data-placeholder-field="components.llm_writing.writing_structure" rows="5">${esc(writingStructureText)}</textarea>
             </label>
+            <div class="template-retrieval-panel">
+                <div class="template-retrieval-header">
+                    <strong>检索设置</strong>
+                    <span>Hybrid = 语义 Query + 关键词</span>
+                </div>
+                <label class="template-semantic-query-field">
+                    <span>语义 Query（用于相关内容召回）</span>
+                    <textarea rows="3" data-placeholder-field="prompt.retrieval_query">${esc(semanticQuery)}</textarea>
+                    <small>保存当前占位符后，会同步写回 Prompt 模板中的“检索 Query”。</small>
+                </label>
+            </div>
             <div class="template-keyword-panel">
                 <div class="template-keyword-source-row">
                     <label>
@@ -2129,13 +2616,13 @@ function buildSimplePlaceholderFieldsHtml({
                     </label>
                     ${keywordMode === 'profile' ? `
                         <div class="template-keyword-summary">
-                            <span>当前使用</span>
+                            <span>当前预设包</span>
                             <strong>${esc(selectedKeywordProfile || '未选择预设包')}</strong>
                             <small>${profileKeywords.length} 个关键词</small>
                         </div>
                     ` : `
                         <div class="template-keyword-summary">
-                            <span>当前使用</span>
+                            <span>当前关键词</span>
                             <strong>自定义关键词</strong>
                             <small>${splitLines(retrievalKeywords).length} 个关键词</small>
                         </div>
@@ -2150,11 +2637,10 @@ function buildSimplePlaceholderFieldsHtml({
                                 ${profileOptions}
                             </select>
                         </label>
-                        <label>
-                            <span>关键词预览</span>
-                            <textarea data-keyword-profile-preview rows="4" readonly>${esc(profileKeywords.join('\n'))}</textarea>
-                            <small class="template-keyword-mode-help">${esc(profileHelp)}</small>
-                        </label>
+                        <div class="template-keyword-preview">
+                            ${keywordChipsHtml}
+                        </div>
+                        <small class="template-keyword-mode-help">${esc(profileHelp)}</small>
                     </details>
                 ` : `
                     <label class="template-custom-keywords">
@@ -2163,6 +2649,47 @@ function buildSimplePlaceholderFieldsHtml({
                         <small class="template-keyword-mode-help">保存后将使用这组关键词，不再引用预设包。</small>
                     </label>
                 `}
+            </div>
+        `;
+    }
+
+    if (type === 'excel_commodity_market_review') {
+        const dataSource = mapping.data_source || {};
+        const kind = dataSource.kind || (name.includes('原油') ? 'oil' : 'gold');
+        return `
+            <div class="template-fixed-excel-panel">
+                <div>
+                    <span>生成方式</span>
+                    <strong>读取 Excel 周报数据，直接生成固定市场回顾</strong>
+                </div>
+                <label>
+                    <span>Excel 文件</span>
+                    <input type="text" data-placeholder-field="data_source.workbook" value="${esc(dataSource.workbook || '周报数据.xlsx')}">
+                </label>
+                <label>
+                    <span>Sheet</span>
+                    <input type="text" data-placeholder-field="data_source.sheet" value="${esc(dataSource.sheet || (kind === 'oil' ? '石油' : '黄金'))}">
+                </label>
+                <input type="hidden" data-placeholder-field="data_source.kind" value="${esc(kind)}">
+            </div>
+        `;
+    }
+
+    if (type === 'report_period') {
+        const field = mapping.field || inferReportPeriodField(name);
+        return `
+            <div class="template-fixed-excel-panel template-report-period-panel">
+                <div>
+                    <span>生成方式</span>
+                    <strong>按共用参数里的报告日期/数据使用范围自动填充</strong>
+                </div>
+                <label>
+                    <span>日期字段</span>
+                    <select data-placeholder-field="field">
+                        <option value="start_date" ${field === 'start_date' ? 'selected' : ''}>开始日期</option>
+                        <option value="end_date" ${field === 'end_date' ? 'selected' : ''}>结束日期</option>
+                    </select>
+                </label>
             </div>
         `;
     }
@@ -2188,6 +2715,131 @@ function buildSimplePlaceholderFieldsHtml({
     return '<div class="empty-state compact">当前占位符没有常用字段，可打开高级配置查看</div>';
 }
 
+function getSemanticRetrievalQueryForPlaceholder(template, mapping = {}, placeholderName = '') {
+    if (String(mapping.prompt_retrieval_query || '').trim()) {
+        return String(mapping.prompt_retrieval_query).trim();
+    }
+    if (String(mapping.query_mode || '').trim() === 'query_source' && mapping.query_source) {
+        return `Query 来源：${mapping.query_source}`;
+    }
+    const promptName = mapping.prompt_template
+        || resolvePromptTemplateName(placeholderName, template?.report_project);
+    const promptSource = template?.report_project?.prompt_templates_source || '';
+    const query = extractPromptTemplateLabel(promptSource, promptName, '检索 Query');
+    if (query) return query;
+    if (mapping.query_source) return `Query 来源：${mapping.query_source}`;
+    return promptName || normalizePlaceholderName(placeholderName) || '未配置语义 Query';
+}
+
+function extractPromptTemplateLabel(source, promptName, label) {
+    if (!source || !promptName) return '';
+    const block = getPromptTemplateBlock(source, promptName);
+    if (!block) return '';
+    const stripped = stripMarkdownCodeFence(block);
+    const pattern = new RegExp(`${escapeRegExp(label)}\\s*[：:]\\s*([\\s\\S]*?)(?=\\n\\s*[^\\n：:]{1,24}\\s*[：:]|\\n\\s*##\\s+|$)`);
+    const match = stripped.match(pattern);
+    return match ? match[1].trim() : '';
+}
+
+function getPromptTemplateBlock(source, promptName) {
+    const pattern = new RegExp(`(^|\\n)##\\s+${escapeRegExp(promptName)}\\s*\\n([\\s\\S]*?)(?=\\n##\\s+|$)`);
+    const match = String(source || '').match(pattern);
+    return match ? match[2].trim() : '';
+}
+
+function stripMarkdownCodeFence(value) {
+    return String(value || '')
+        .replace(/^```[a-zA-Z0-9_-]*\s*\n/, '')
+        .replace(/\n```\s*$/, '')
+        .trim();
+}
+
+function getDataTemplateFields(mapping = {}) {
+    const componentFields = getDataTemplateComponent(mapping).fields;
+    const fields = componentFields && typeof componentFields === 'object'
+        ? componentFields
+        : {};
+    return {
+        ...getDefaultDataTemplateFields(mapping),
+        ...fields
+    };
+}
+
+function getDefaultDataTemplateFields(mapping = {}) {
+    const dataSource = mapping.data_source || {};
+    const workbook = dataSource.workbook || '周报数据.xlsx';
+    const domesticSheet = dataSource.domestic_sheet || '国内';
+    const turnoverSheet = dataSource.turnover_sheet || '市场成交';
+    return {
+        market_trend: {
+            label: 'market_trend',
+            workbook,
+            sheet: domesticSheet,
+            range: 'B2:C6',
+            rule: '读取主要指数周内涨跌幅，正负都有为“分化趋势”，全涨为“普涨趋势”，全跌为“调整趋势”'
+        },
+        index_performance: {
+            label: 'index_performance',
+            workbook,
+            sheet: domesticSheet,
+            range: 'B2:C6',
+            rule: '按顺序读取指数名称和周内涨跌幅，生成“沪深300涨0.86%”这类列表'
+        },
+        avg_turnover: {
+            label: 'avg_turnover',
+            workbook,
+            sheet: turnoverSheet,
+            cell: 'B2',
+            rule: '读取本周日均成交额，并格式化为“x.xx万亿”'
+        },
+        turnover_trend: {
+            label: 'turnover_trend',
+            workbook,
+            sheet: turnoverSheet,
+            range: 'B2:C2',
+            rule: '比较本周日均成交额和上周日均成交额，生成“回升/回落/持平”'
+        }
+    };
+}
+
+function renderDataTemplateFieldsEditor(fields = {}) {
+    const orderedFields = ['market_trend', 'index_performance', 'avg_turnover', 'turnover_trend'];
+    return `
+        <div class="template-data-fields-panel">
+            <div class="template-data-fields-header">
+                <strong>模板变量数据来源</strong>
+                <span>固定开头里的 {...} 从这里取数或计算</span>
+            </div>
+            <div class="template-data-fields-grid">
+                ${orderedFields.map(fieldKey => {
+                    const field = fields[fieldKey] || {};
+                    return `
+                        <div class="template-data-field-row">
+                            <code>{${esc(fieldKey)}}</code>
+                            <label>
+                                <span>Excel 文件</span>
+                                <input type="text" data-placeholder-field="components.data_template.fields.${esc(fieldKey)}.workbook" value="${esc(field.workbook || '')}">
+                            </label>
+                            <label>
+                                <span>Sheet</span>
+                                <input type="text" data-placeholder-field="components.data_template.fields.${esc(fieldKey)}.sheet" value="${esc(field.sheet || '')}">
+                            </label>
+                            <label>
+                                <span>单元格/区域</span>
+                                <input type="text" data-placeholder-field="components.data_template.fields.${esc(fieldKey)}.ref" value="${esc(field.cell || field.range || '')}">
+                            </label>
+                            <label class="template-data-field-rule">
+                                <span>取数/计算规则</span>
+                                <textarea data-placeholder-field="components.data_template.fields.${esc(fieldKey)}.rule" rows="2">${esc(field.rule || '')}</textarea>
+                            </label>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        </div>
+    `;
+}
+
 function buildAdvancedPlaceholderFieldsHtml({
     name,
     type,
@@ -2201,7 +2853,7 @@ function buildAdvancedPlaceholderFieldsHtml({
 }) {
     return `
         <div class="template-advanced-help">
-            这些字段用于绑定底层模板和生成流程。日常调整文案时，优先使用主页面的简洁字段。
+            这些字段决定当前 Word 占位符连接到哪种生成或取数流程。日常改周报文案时不用动，只有新增模板、改占位符类型或排查 YAML 映射时才需要。
         </div>
         <label>
             <span>标题</span>
@@ -2211,7 +2863,7 @@ function buildAdvancedPlaceholderFieldsHtml({
             <span>类型</span>
             <select data-placeholder-field="type">
                 ${typeOptions.map(option => `
-                    <option value="${option}" ${type === option ? 'selected' : ''}>${option}</option>
+                    <option value="${option.value}" ${type === option.value ? 'selected' : ''}>${esc(option.label)}</option>
                 `).join('')}
             </select>
         </label>
@@ -2256,6 +2908,38 @@ function buildAdvancedPlaceholderFieldsHtml({
     `;
 }
 
+function getEditablePlaceholderTypeOptions(currentType = '') {
+    const primaryOptions = [
+        { value: 'prompt', label: 'AI 生成段落' },
+        { value: 'composite_market_review', label: 'Excel 固定开头 + AI 续写' },
+        { value: 'report_period', label: '报告日期' }
+    ];
+    if (!currentType || primaryOptions.some(option => option.value === currentType)) {
+        return primaryOptions;
+    }
+    return [
+        {
+            value: currentType,
+            label: `当前旧类型：${getPlaceholderTypeLabel(currentType)}`
+        },
+        ...primaryOptions
+    ];
+}
+
+function getPlaceholderTypeLabel(type = '') {
+    const labels = {
+        prompt: 'AI 生成段落',
+        ai_text: 'AI 生成段落',
+        composite_market_review: 'Excel 固定开头 + AI 续写',
+        excel_commodity_market_review: 'Excel 固定市场回顾',
+        report_period: '报告日期',
+        excel_cell: 'Excel 单元格取值',
+        excel_range: 'Excel 区域取值',
+        static_text: '固定文本'
+    };
+    return labels[type] || type || '未设置';
+}
+
 function bindPlaceholderDetailInputs(template) {
     document.querySelectorAll('#template-placeholder-detail-form [data-placeholder-field], #template-advanced-placeholder-form [data-placeholder-field]').forEach(input => {
         if (input.dataset.boundPlaceholderField) return;
@@ -2293,12 +2977,17 @@ function collectSelectedPlaceholderDraft(template) {
         const value = input.value?.trim?.() || '';
         if (field === 'params.param') {
             draft.params = value ? { ...(draft.params || {}), param: value } : {};
+        } else if (field === 'field') {
+            if (value) draft.field = value;
+            else delete draft.field;
         } else if (
             field === 'retrieval.keyword_mode'
             || field === 'retrieval.keyword_profile_select'
             || field === 'retrieval.custom_keywords'
         ) {
             return;
+        } else if (field === 'prompt.retrieval_query') {
+            draft.prompt_retrieval_query = value;
         } else if (field === 'retrieval.keyword_profile') {
             if ((draft.type || inferPlaceholderType(name)) === 'composite_market_review') {
                 setLlmWritingRetrievalDraftField(draft, 'keyword_profile', value || null);
@@ -2318,10 +3007,22 @@ function collectSelectedPlaceholderDraft(template) {
                 delete draft.retrieval.keywords;
                 if (!Object.keys(draft.retrieval).length) delete draft.retrieval;
             }
+        } else if (field.startsWith('components.data_template.fields.')) {
+            setDataTemplateFieldDraft(draft, field, value);
         } else if (field === 'components.data_template.template') {
             setComponentDraftField(draft, 'data_template', 'template', value);
         } else if (field === 'components.llm_writing.writing_structure') {
-            setComponentDraftField(draft, 'llm_writing', 'writing_structure', splitLines(value));
+            const structure = splitLines(value);
+            if ((draft.type || inferPlaceholderType(name)) === 'composite_market_review') {
+                setComponentDraftField(draft, 'llm_writing', 'writing_structure', structure);
+            } else if (structure.length) {
+                draft.writing_structure = structure;
+            } else {
+                delete draft.writing_structure;
+            }
+        } else if (field.startsWith('data_source.')) {
+            const key = field.split('.')[1];
+            draft.data_source = { ...(draft.data_source || {}), [key]: value };
         } else if (field === 'target_words' || field === 'max_words' || field === 'min_news_count') {
             draft[field] = value === '' ? null : Number(value);
         } else if (field) {
@@ -2378,6 +3079,37 @@ function setComponentDraftField(draft, componentType, field, value) {
     }
     components[index] = component;
     draft.components = components;
+}
+
+function setDataTemplateFieldDraft(draft, path, value) {
+    const parts = path.split('.');
+    const fieldKey = parts[3];
+    const property = parts[4];
+    if (!fieldKey || !property) return;
+
+    const component = {
+        ...getDataTemplateComponent(draft),
+        fields: {
+            ...getDataTemplateFields(draft)
+        }
+    };
+    const field = { ...(component.fields[fieldKey] || {}) };
+    const nextValue = String(value || '').trim();
+    if (property === 'ref') {
+        delete field.cell;
+        delete field.range;
+        if (nextValue) {
+            if (nextValue.includes(':')) field.range = nextValue;
+            else field.cell = nextValue;
+        }
+    } else if (nextValue) {
+        field[property] = nextValue;
+    } else {
+        delete field[property];
+    }
+    field.label = field.label || fieldKey;
+    component.fields[fieldKey] = field;
+    setComponentDraftField(draft, 'data_template', 'fields', component.fields);
 }
 
 function setLlmWritingRetrievalDraftField(draft, field, value) {
@@ -2560,6 +3292,7 @@ function splitLines(value) {
 }
 
 function isPromptPlaceholderType(type, mapping = {}) {
+    if (type === 'excel_commodity_market_review') return false;
     return ['prompt', 'ai_text', 'composite_market_review'].includes(type)
         || Boolean(mapping.prompt_template)
         || Boolean(mapping.query_source)
@@ -2624,6 +3357,9 @@ function renderSelectedSourceFragment(template) {
     const sourceEditor = document.getElementById('template-source-editor');
     if (!sourceEditor) return;
 
+    if (isSelectedFixedExcelPlaceholder(template) && currentTemplateState.activeSourceKind === 'prompt_templates') {
+        currentTemplateState.activeSourceKind = 'section_config';
+    }
     const source = getTemplateWorkbenchSource(template, currentTemplateState.activeSourceKind);
     const selectedName = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
     const sourceKindLabel = document.getElementById('template-source-kind-label');
@@ -2713,6 +3449,47 @@ function buildUpdatedPromptTemplatesSource(template, promptFragment) {
         return source.replace(blockPattern, `$1${normalizedFragment}\n`);
     }
     return `${source.trimEnd()}\n\n${normalizedFragment}\n`;
+}
+
+function buildUpdatedPromptTemplatesSourceFromQuery(template, mapping, placeholderName) {
+    const query = String(mapping?.prompt_retrieval_query || '').trim();
+    if (!query) return null;
+    const promptName = mapping.prompt_template
+        || resolvePromptTemplateName(placeholderName, template?.report_project);
+    if (!promptName) return null;
+
+    const source = template?.report_project?.prompt_templates_source || buildPromptTemplateLibraryMarkdown(template);
+    const existingBlock = getPromptTemplateBlock(source, promptName);
+    if (!existingBlock) {
+        const fragment = [
+            `## ${promptName}`,
+            '',
+            '```text',
+            `检索 Query：${query}`,
+            '',
+            '写作要求：',
+            '```'
+        ].join('\n');
+        return `${source.trimEnd()}\n\n${fragment}\n`;
+    }
+
+    const nextBlock = replacePromptTemplateLabel(existingBlock, '检索 Query', query);
+    const blockPattern = new RegExp(`(^|\\n)##\\s+${escapeRegExp(promptName)}\\s*\\n[\\s\\S]*?(?=\\n##\\s+|$)`);
+    return source.replace(blockPattern, (match, prefix = '') => `${prefix}## ${promptName}\n\n${nextBlock.trim()}\n`);
+}
+
+function replacePromptTemplateLabel(block, label, value) {
+    const rawBlock = String(block || '').trim();
+    const hasFence = /^```[a-zA-Z0-9_-]*\s*\n/.test(rawBlock);
+    const body = stripMarkdownCodeFence(rawBlock);
+    const pattern = new RegExp(`(${escapeRegExp(label)}\\s*[：:]\\s*)([\\s\\S]*?)(?=\\n\\s*[^\\n：:]{1,24}\\s*[：:]|$)`);
+    const nextBody = pattern.test(body)
+        ? body.replace(pattern, (match, prefix = '') => `${prefix}${value}`)
+        : `${label}：${value}\n\n${body}`.trim();
+    if (!hasFence) return nextBody;
+    const fenceMatch = rawBlock.match(/^```([a-zA-Z0-9_-]*)/);
+    const fenceLang = fenceMatch?.[1] || 'text';
+    return `\`\`\`${fenceLang}\n${nextBody.trim()}\n\`\`\``;
 }
 
 function renderTemplateExcelMapping(template, templateName) {
@@ -2921,8 +3698,7 @@ function buildPlaceholderMappingConfigYaml(template, mappingsOverride = null) {
 }
 
 function buildPlaceholderMappingsBlock(template, existingMappings) {
-    const placeholders = getTemplateWorkbenchPlaceholders(template)
-        .filter(placeholder => !isSystemDatePlaceholder(placeholder));
+    const placeholders = getTemplateWorkbenchPlaceholders(template);
     const lines = ['placeholders:'];
 
     placeholders.forEach(placeholder => {
@@ -2937,6 +3713,7 @@ function buildPlaceholderMappingsBlock(template, existingMappings) {
 function buildDefaultsBlock(defaults) {
     const validators = defaults?.validators || {};
     const retrieval = defaults?.retrieval || {};
+    const reportPeriod = defaults?.report_period || {};
     const rerank = defaults?.rerank || {};
     const forbiddenTerms = Array.isArray(validators.forbidden_terms)
         ? validators.forbidden_terms
@@ -2958,18 +3735,30 @@ function buildDefaultsBlock(defaults) {
     forbiddenTerms.forEach(term => lines.push(`      - ${term}`));
     lines.push('  generation_constraints:');
     generationConstraints.forEach(item => lines.push(`  - ${item}`));
+    lines.push('  report_period:');
+    const reportDate = reportPeriod.report_date || getDefaultReportDate();
+    lines.push(`    report_date: ${reportDate}`);
+    lines.push(`    start_date: ${reportPeriod.start_date || getDefaultEvidenceStartDate(reportDate)}`);
+    lines.push(`    end_date: ${reportPeriod.end_date || reportDate}`);
     lines.push('  retrieval:');
     lines.push(`    mode: ${retrieval.mode || 'hybrid'}`);
-    lines.push(`    top_k: ${retrieval.top_k ?? 8}`);
-    lines.push(`    keyword_candidates: ${retrieval.keyword_candidates ?? 40}`);
-    lines.push(`    semantic_candidates: ${retrieval.semantic_candidates ?? 80}`);
-    lines.push(`    keyword_weight: ${retrieval.keyword_weight ?? 0.7}`);
-    lines.push(`    semantic_weight: ${retrieval.semantic_weight ?? 0.3}`);
+    lines.push(`    top_k: ${retrieval.top_k ?? 10}`);
+    lines.push(`    candidate_k: ${retrieval.candidate_k ?? retrieval.keyword_candidates ?? 40}`);
+    lines.push(`    semantic_candidate_k: ${retrieval.semantic_candidate_k ?? retrieval.semantic_candidates ?? 80}`);
+    lines.push(`    keyword_weight: ${retrieval.keyword_weight ?? 0.6}`);
+    lines.push(`    semantic_weight: ${retrieval.semantic_weight ?? 0.4}`);
+    lines.push(`    embedding_model: ${retrieval.embedding_model || '/Users/leon/Desktop/Projects/AlphaFoundry/data/models/embeddings/bge-large-zh-v1.5'}`);
+    const sourceTypes = Array.isArray(retrieval.source_types) ? retrieval.source_types : [];
+    if (sourceTypes.length) {
+        lines.push('    source_types:');
+        sourceTypes.forEach(sourceType => lines.push(`      - ${sourceType}`));
+    }
     lines.push('  rerank:');
     lines.push(`    enabled: ${rerank.enabled !== false}`);
-    lines.push(`    provider: ${rerank.provider || 'deepseek'}`);
-    lines.push(`    candidates: ${rerank.candidates ?? 16}`);
-    lines.push(`    min_score: ${rerank.min_score ?? 30}`);
+    lines.push(`    provider: ${rerank.provider || 'bge-reranker'}`);
+    lines.push(`    model: ${rerank.model || '/Users/leon/Desktop/Projects/AlphaFoundry/data/models/rerankers/bge-reranker-large'}`);
+    lines.push(`    top_n: ${rerank.top_n ?? rerank.candidates ?? 30}`);
+    lines.push(`    min_score: ${rerank.min_score ?? 0.35}`);
     return lines.join('\n');
 }
 
@@ -2977,15 +3766,25 @@ function buildSelectedPlaceholderYamlFragment(template, existingMappings) {
     const key = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
     if (!key) return '# 从左侧选择一个 Word 占位符后显示对应 YAML 片段';
     if (isSystemDatePlaceholder(key)) {
+        const field = inferReportPeriodField(key);
         return [
             'placeholders:',
             `  ${key}:`,
             `    title: ${inferPlaceholderTitle(key)}`,
-            '    type: static_text',
-            '    value: 系统生成时自动填充'
+            '    type: report_period',
+            `    field: ${field}`
         ].join('\n');
     }
     const mapping = existingMappings.get(key) || {};
+    const type = mapping.type || inferPlaceholderType(key);
+    if (type === 'excel_commodity_market_review') {
+        return [
+            '# 当前占位符片段',
+            '# 固定 Excel 字段：只配置数据来源，不使用 Prompt、检索或大模型写作。',
+            'placeholders:',
+            ...buildPlaceholderYamlEntry(template, key, mapping)
+        ].join('\n');
+    }
     return [
         '# 当前占位符片段',
         '# 继承 defaults: 共用 Prompt 约束 / 检索配置 / Rerank / validators。',
@@ -3006,6 +3805,21 @@ function buildPlaceholderYamlEntry(template, key, mapping) {
 
     if (type === 'excel_cell' || type === 'excel_range') {
         lines.push(`    source: ${mapping.source || ''}`);
+    } else if (type === 'report_period') {
+        lines.push(`    field: ${mapping.field || inferReportPeriodField(key)}`);
+    } else if (type === 'excel_commodity_market_review') {
+        const dataSource = mapping.data_source || {};
+        const kind = dataSource.kind || (key.includes('原油') ? 'oil' : 'gold');
+        lines.push('    data_source:');
+        lines.push(`      kind: ${kind}`);
+        lines.push(`      workbook: ${dataSource.workbook || '周报数据.xlsx'}`);
+        lines.push(`      sheet: ${dataSource.sheet || (kind === 'oil' ? '石油' : '黄金')}`);
+        if (mapping.params?.param) {
+            lines.push('    params:');
+            lines.push(`      param: ${mapping.params.param}`);
+        } else {
+            lines.push('    params: {}');
+        }
     } else if (isPromptPlaceholderType(type, mapping)) {
         lines.push(`    prompt_template: ${mapping.prompt_template || resolvePromptTemplateName(key, project)}`);
         if (!usesEmbeddedPromptQueries(project)) {
@@ -3028,6 +3842,11 @@ function buildPlaceholderYamlEntry(template, key, mapping) {
                     lines.push('      keywords:');
                     keywords.forEach(keyword => lines.push(`      - ${keyword}`));
                 }
+            }
+            const writingStructure = getLlmWritingComponent(mapping).writing_structure || mapping.writing_structure || [];
+            if (Array.isArray(writingStructure) && writingStructure.length) {
+                lines.push('    writing_structure:');
+                writingStructure.forEach(item => lines.push(`    - ${item}`));
             }
         }
         const param = mapping.params?.param || inferPromptParam(key);
@@ -3056,6 +3875,8 @@ function buildCompositeMarketReviewYamlLines(mapping, key) {
     lines.push('      type: data_template');
     lines.push('      source: excel');
     lines.push(`      template: ${dataTemplate}`);
+    lines.push('      fields:');
+    lines.push(...buildDataTemplateFieldsYamlLines(getDataTemplateFields(mapping), '        '));
     lines.push('    - name: 市场热点与趋势判断');
     lines.push('      type: llm_writing');
     const llmComponent = getLlmWritingComponent(mapping);
@@ -3077,10 +3898,26 @@ function buildCompositeMarketReviewYamlLines(mapping, key) {
     return lines;
 }
 
+function buildDataTemplateFieldsYamlLines(fields = {}, indent = '') {
+    const orderedFields = ['market_trend', 'index_performance', 'avg_turnover', 'turnover_trend'];
+    return orderedFields.flatMap(fieldKey => {
+        const field = fields[fieldKey] || {};
+        const lines = [`${indent}${fieldKey}:`];
+        if (field.label) lines.push(`${indent}  label: ${field.label}`);
+        if (field.workbook) lines.push(`${indent}  workbook: ${field.workbook}`);
+        if (field.sheet) lines.push(`${indent}  sheet: ${field.sheet}`);
+        if (field.cell) lines.push(`${indent}  cell: ${field.cell}`);
+        if (field.range) lines.push(`${indent}  range: ${field.range}`);
+        if (field.rule) lines.push(`${indent}  rule: ${field.rule}`);
+        return lines;
+    });
+}
+
 function getSelectedPromptTemplateName(template) {
     const name = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
     if (!name) return '';
     const mapping = getSelectedPlaceholderMapping(template) || {};
+    if (String(mapping.type || '').toLowerCase() === 'excel_commodity_market_review') return '';
     return mapping.prompt_template || resolvePromptTemplateName(name, template.report_project);
 }
 
@@ -3103,7 +3940,7 @@ function escapeRegExp(value) {
 }
 
 function inferPlaceholderType(name) {
-    if (isSystemDatePlaceholder(name)) return 'static_text';
+    if (isSystemDatePlaceholder(name)) return 'report_period';
     if (/^(start_date|end_date|data\d+)$/i.test(name)) return 'excel_cell';
     if (/^(content\d+|phrase\d+|sector\d+)$/i.test(name)) return 'prompt';
     if (/[\u4e00-\u9fff]/.test(name)) return 'prompt';
@@ -3113,6 +3950,11 @@ function inferPlaceholderType(name) {
 function isSystemDatePlaceholder(name) {
     const normalized = normalizePlaceholderName(name);
     return ['开始日期', '结束日期', 'start_date', 'end_date'].includes(normalized);
+}
+
+function inferReportPeriodField(name) {
+    const normalized = normalizePlaceholderName(name);
+    return ['开始日期', 'start_date'].includes(normalized) ? 'start_date' : 'end_date';
 }
 
 function inferPlaceholderTitle(name) {
@@ -3333,6 +4175,7 @@ function bindTemplateWorkbenchActions() {
     const savePlaceholderBtn = document.getElementById('btn-template-save-placeholder');
     const advancedConfigBtn = document.getElementById('btn-template-advanced-config');
     const closeAdvancedConfigBtn = document.getElementById('btn-template-close-advanced-config');
+    const showRunLogBtn = document.getElementById('btn-template-show-run-log');
     const advancedConfigBackdrop = document.getElementById('template-advanced-drawer-backdrop');
     const dryRunBtn = document.getElementById('btn-template-dry-run');
     const generateBtn = document.getElementById('btn-template-generate-report');
@@ -3426,6 +4269,15 @@ function bindTemplateWorkbenchActions() {
         closeAdvancedConfigBtn.addEventListener('click', () => setTemplateAdvancedDrawerOpen(false));
     }
 
+    if (showRunLogBtn && !showRunLogBtn.dataset.bound) {
+        showRunLogBtn.dataset.bound = 'true';
+        showRunLogBtn.addEventListener('click', () => {
+            setTemplateAdvancedDrawerOpen(false);
+            setStoredTemplateDetailMode('logs');
+            applyTemplateDetailMode('logs');
+        });
+    }
+
     if (advancedConfigBackdrop && !advancedConfigBackdrop.dataset.bound) {
         advancedConfigBackdrop.dataset.bound = 'true';
         advancedConfigBackdrop.addEventListener('click', () => setTemplateAdvancedDrawerOpen(false));
@@ -3501,7 +4353,10 @@ async function saveCurrentSectionConfig({
     updateTemplateSourceFromPlaceholderDraft(template);
 
     const sourceEditor = document.getElementById('template-source-editor');
-    const content = buildUpdatedSectionConfigSource(template, getEditablePlaceholderMappings(template));
+    const mappings = getEditablePlaceholderMappings(template);
+    const content = buildUpdatedSectionConfigSource(template, mappings);
+    const selectedName = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
+    const selectedMapping = selectedName ? mappings.get(selectedName) : null;
     const originalText = button?.innerHTML;
     if (button) {
         button.disabled = true;
@@ -3511,7 +4366,7 @@ async function saveCurrentSectionConfig({
     try {
         if (currentTemplateState.selectedReportProject) {
             const project = currentTemplateState.selectedReportProject;
-            const updatedProject = await apiCall(
+            let updatedProject = await apiCall(
                 'PUT',
                 `/api/report-projects/${encodeURIComponent(project.slug)}/source`,
                 {
@@ -3519,6 +4374,21 @@ async function saveCurrentSectionConfig({
                     content
                 }
             );
+            const promptTemplatesContent = buildUpdatedPromptTemplatesSourceFromQuery(
+                { ...template, report_project: updatedProject },
+                selectedMapping,
+                selectedName
+            );
+            if (promptTemplatesContent) {
+                updatedProject = await apiCall(
+                    'PUT',
+                    `/api/report-projects/${encodeURIComponent(project.slug)}/source`,
+                    {
+                        source_kind: 'prompt_templates',
+                        content: promptTemplatesContent
+                    }
+                );
+            }
             currentTemplateState.selectedReportProject = updatedProject;
             const selectedTemplate = (currentTemplateState.templates || []).find(item =>
                 item.report_project?.slug === project.slug
@@ -3867,6 +4737,18 @@ async function renderReportFromTemplate(options = {}) {
         }
 
         currentTemplateState.renderedReportId = result.report_id || result.file_name || null;
+        if (result?.file_name) {
+            currentTemplateState.selectedGeneratedReportFile = result.file_name;
+        }
+        if (result?.run_log_url) {
+            currentTemplateState.lastReportGenerationResult = result;
+            try {
+                currentTemplateState.lastReportRunLog = await apiCall('GET', result.run_log_url);
+            } catch (logError) {
+                console.warn('Failed to load report generation run log', logError);
+                currentTemplateState.lastReportRunLog = null;
+            }
+        }
         const renderedProjectSlug = currentTemplateState.selectedReportProject?.slug;
         if (renderedProjectSlug) {
             if (options.inlineProgress) {
@@ -3892,12 +4774,6 @@ async function renderReportFromTemplate(options = {}) {
             const downloadLink = document.getElementById('render-download-link');
             if (downloadLink && downloadUrl) {
                 downloadLink.href = downloadUrl;
-            }
-            const primaryDownloadLink = document.getElementById('btn-template-download-report');
-            if (primaryDownloadLink && downloadUrl) {
-                primaryDownloadLink.href = downloadUrl;
-                primaryDownloadLink.classList.remove('disabled');
-                primaryDownloadLink.removeAttribute('aria-disabled');
             }
             resultEl.innerHTML = `
                 <div class="success-message">
@@ -3954,12 +4830,31 @@ async function renderReportProject(project) {
     if (!project?.slug) {
         throw new Error('报告项目未绑定');
     }
+    const generationOptions = getReportProjectGenerationOptions();
 
     return apiCall(
         'POST',
         `/api/report-projects/${encodeURIComponent(project.slug)}/render`,
-        { placeholders: currentTemplateState.placeholderValues || {} }
+        {
+            placeholders: currentTemplateState.placeholderValues || {},
+            report_date: generationOptions.report_date || null,
+            start_date: generationOptions.start_date || null,
+            end_date: generationOptions.end_date || null
+        }
     );
+}
+
+function getReportProjectGenerationOptions() {
+    const defaults = getEditableCommonDefaults(getCurrentWorkbenchTemplate() || {});
+    const reportPeriod = defaults.report_period || {};
+    const reportDate = String(reportPeriod.report_date || getDefaultReportDate()).trim();
+    const startDate = String(reportPeriod.start_date || getDefaultEvidenceStartDate(reportDate)).trim();
+    const endDate = String(reportPeriod.end_date || reportDate).trim();
+    return {
+        report_date: reportDate,
+        start_date: startDate,
+        end_date: endDate
+    };
 }
 
 async function downloadRenderedReport(reportId) {

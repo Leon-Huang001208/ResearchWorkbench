@@ -123,6 +123,29 @@ class MarketDataCache:
         """字符串转日期"""
         return date.fromisoformat(s)
 
+    def _row_to_cache_range(self, symbol: str, row: tuple[Any, ...] | None) -> Optional[CacheRange]:
+        if not row:
+            return None
+        return CacheRange(
+            symbol=symbol,
+            start_date=self._str_to_date(row[0]),
+            end_date=self._str_to_date(row[1]),
+            last_updated=datetime.fromisoformat(row[2]),
+            data_source=row[3],
+        )
+
+    def _get_cache_range_with_cursor(
+        self, cursor: sqlite3.Cursor, symbol: str
+    ) -> Optional[CacheRange]:
+        cursor.execute(
+            """
+            SELECT earliest_date, latest_date, last_updated, data_source
+            FROM cache_metadata WHERE symbol = ?
+        """,
+            (symbol,),
+        )
+        return self._row_to_cache_range(symbol, cursor.fetchone())
+
     def get_cache_range(self, symbol: str) -> Optional[CacheRange]:
         """
         获取符号的缓存范围
@@ -135,22 +158,7 @@ class MarketDataCache:
         """
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute(
-                """
-                SELECT earliest_date, latest_date, last_updated, data_source
-                FROM cache_metadata WHERE symbol = ?
-            """,
-                (symbol,),
-            )
-            row = cursor.fetchone()
-            if row:
-                return CacheRange(
-                    symbol=symbol,
-                    start_date=self._str_to_date(row[0]),
-                    end_date=self._str_to_date(row[1]),
-                    last_updated=datetime.fromisoformat(row[2]),
-                    data_source=row[3],
-                )
+            return self._get_cache_range_with_cursor(cursor, symbol)
         return None
 
     def calculate_missing_ranges(
@@ -276,7 +284,7 @@ class MarketDataCache:
             new_end = max(dates)
 
             # 获取当前缓存范围
-            cache_range = self.get_cache_range(symbol)
+            cache_range = self._get_cache_range_with_cursor(cursor, symbol)
             if cache_range:
                 new_start = min(new_start, cache_range.start_date)
                 new_end = max(new_end, cache_range.end_date)

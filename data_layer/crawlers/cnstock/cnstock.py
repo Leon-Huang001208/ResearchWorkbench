@@ -262,6 +262,16 @@ class CnstockCrawler:
     LONG_BREAK_INTERVAL = 15
     MIN_LONG_BREAK_DELAY = 60.0
     MAX_LONG_BREAK_DELAY = 120.0
+    WAF_BLOCK_MARKERS = (
+        "renderData",
+        "aliyun_waf_aa",
+        "acw_sc__v2",
+        "waf_block",
+        "waf_challenge",
+        "访问验证",
+        "安全验证",
+        "访问过于频繁",
+    )
 
     def __init__(self, config: Optional[CnstockConfig] = None):
         self.config = config or CnstockConfig()
@@ -410,6 +420,67 @@ class CnstockCrawler:
             raise RuntimeError("Cnstock crawler session is not initialized")
         return self._session
 
+    def _looks_like_waf_block(self, html: str) -> bool:
+        """判断页面是否是真正的 WAF 拦截页。
+
+        cnstock 的正常页面也会加载 AWSC/WAF 相关脚本，不能只因为页面里
+        出现 waf 字样就放弃正文解析。
+        """
+        lower_text = (html or "").lower()
+        return any(marker.lower() in lower_text for marker in self.WAF_BLOCK_MARKERS)
+
+    def _extract_article_detail_from_html(self, html: str) -> Dict[str, str]:
+        next_data_match = re.search(
+            r'<script[^>]*id="__NEXT_DATA__"[^>]*>(.*?)</script>', html or "", re.DOTALL
+        )
+        if not next_data_match:
+            return {"source": "", "content_text": ""}
+
+        data = json.loads(next_data_match.group(1))
+        page_props = data.get("props", {}).get("pageProps", {})
+        article_data = page_props.get("data", {})
+
+        source = article_data.get("source", "")
+        text_info = article_data.get("textInfo", {})
+        content_html = text_info.get("content", "")
+        content_text = self._html_to_text(content_html)
+        return {"source": source, "content_text": content_text}
+
+    def _fetch_article_content_via_playwright(self, url: str) -> Dict[str, str]:
+        """用浏览器执行 WAF 校验后提取详情页正文。"""
+        if not HAS_PLAYWRIGHT:
+            return {"source": "", "content_text": ""}
+
+        playwright = None
+        browser = None
+        try:
+            playwright, browser = self._create_playwright_browser()
+            context = browser.new_context(
+                user_agent=random.choice(self.user_agents),
+                locale="zh-CN",
+            )
+            page = context.new_page()
+            page.goto(url, wait_until="networkidle", timeout=30000)
+            page.wait_for_timeout(2500)
+            detail = self._extract_article_detail_from_html(page.content())
+            context.close()
+            return detail
+        except Exception as e:
+            if self.config.verbose:
+                self.log.warning(f"[Playwright] 获取文章详情失败: {e}", exc_info=True)
+            return {"source": "", "content_text": ""}
+        finally:
+            if browser:
+                try:
+                    browser.close()
+                except Exception:
+                    pass
+            if playwright:
+                try:
+                    playwright.stop()
+                except Exception:
+                    pass
+
     def _resolve_channel(self, channel_or_node: str) -> str:
         """解析频道参数，支持频道名称和 node_id"""
         if not channel_or_node:
@@ -473,6 +544,9 @@ class CnstockCrawler:
         self._end_dt = self._end_dt.replace(hour=23, minute=59, second=59)
 
         self._session = requests.Session()
+        # 后台任务运行时可能继承本机代理环境变量。个人电脑上的代理端口
+        # 未必一直在线，正文抓取应直接访问目标站点，避免被坏代理阻断。
+        self._session.trust_env = False
         self._initialized = True
         self._waf_triggered = False
         self._consecutive_failures = 0
@@ -1391,11 +1465,13 @@ class CnstockCrawler:
                 response.encoding = "utf-8"
 
                 # 检测 WAF
-                if (
-                    "renderData" in response.text
-                    or "aliyun_waf_aa" in response.text
-                    or "waf" in response.text.lower()
-                ):
+                if self._looks_like_waf_block(response.text):
+                    browser_detail = self._fetch_article_content_via_playwright(url)
+                    if browser_detail.get("content_text"):
+                        self._consecutive_failures = 0
+                        self._success_count += 1
+                        return browser_detail
+
                     self._consecutive_failures += 1
                     if self._consecutive_failures >= 3:
                         cooldown_time = 120 + (self._consecutive_failures - 3) * 60
@@ -1410,11 +1486,8 @@ class CnstockCrawler:
                         continue
                     return {"source": "", "content_text": ""}
 
-                next_data_match = re.search(
-                    r'<script[^>]*id="__NEXT_DATA__"[^>]*>(.*?)</script>', response.text, re.DOTALL
-                )
-
-                if not next_data_match:
+                detail = self._extract_article_detail_from_html(response.text)
+                if not detail.get("content_text"):
                     if attempt < max_retries:
                         wait_time = (2**attempt) + random.uniform(2, 5)
                         if self.config.verbose:
@@ -1427,17 +1500,7 @@ class CnstockCrawler:
 
                 self._consecutive_failures = 0
                 self._success_count += 1
-
-                data = json.loads(next_data_match.group(1))
-                page_props = data.get("props", {}).get("pageProps", {})
-                article_data = page_props.get("data", {})
-
-                source = article_data.get("source", "")
-                text_info = article_data.get("textInfo", {})
-                content_html = text_info.get("content", "")
-                content_text = self._html_to_text(content_html)
-
-                return {"source": source, "content_text": content_text}
+                return detail
 
             except Exception as e:
                 self._consecutive_failures += 1

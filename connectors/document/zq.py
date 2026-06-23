@@ -16,6 +16,7 @@ Usage:
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime
 from typing import Any, Dict, List
 
@@ -45,6 +46,54 @@ DOC_TYPE_LABEL = {
     "ZQMEETING": "知丘纪要",
 }
 
+ZQ_REFERENCE_MARKER_RE = re.compile(r"##\d+\$\$")
+
+
+def _clean_zq_text(text: str) -> str:
+    """清理知丘正文里的引用标记，保留 Markdown 结构。"""
+    cleaned = ZQ_REFERENCE_MARKER_RE.sub("", text or "")
+    cleaned = re.sub(r"[ \t]+\n", "\n", cleaned)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    return cleaned.strip()
+
+
+def _decode_json_object(text: str) -> Dict[str, Any] | None:
+    stripped = (text or "").strip()
+    if not stripped.startswith("{"):
+        return None
+    try:
+        parsed = json.loads(stripped)
+    except json.JSONDecodeError:
+        return None
+    return parsed if isinstance(parsed, dict) else None
+
+
+def _meaningful_text_from_zq_envelope(env: Dict[str, Any]) -> str:
+    """从 DocumentEnvelope 中提取真正正文，避免把元数据 JSON 当作内容。"""
+    canonical_text = _clean_zq_text(str(env.get("canonical_text") or ""))
+    if canonical_text:
+        return canonical_text
+
+    raw_text = str(env.get("raw_text") or "")
+    raw_json = _decode_json_object(raw_text)
+    if raw_json is not None:
+        content_fields = (
+            "coreViewpoint",
+            "viewpoint",
+            "core",
+            "content",
+            "summary",
+            "abstract",
+        )
+        parts = [
+            _clean_zq_text(str(raw_json.get(field) or ""))
+            for field in content_fields
+            if raw_json.get(field)
+        ]
+        return "\n\n".join(part for part in parts if part)
+
+    return _clean_zq_text(raw_text)
+
 
 class ZQDocumentConnector(DocumentConnector):
     """知丘文档连接器.
@@ -67,6 +116,10 @@ class ZQDocumentConnector(DocumentConnector):
         self._output_dir = self.config.get("output_dir", "./data/crawlers/zq")
         self._max_pages = self.config.get("max_pages", 20)
         self._page_size = self.config.get("page_size", 100)
+        self._enable_pdf = self.config.get("enable_pdf", False)
+        self._enable_viewpoint = self.config.get("enable_viewpoint", False)
+        self._enable_core = self.config.get("enable_core", False)
+        self._enable_companies = self.config.get("enable_companies", False)
 
     # ------------------------------------------------------------------
     # 元信息
@@ -195,7 +248,10 @@ class ZQDocumentConnector(DocumentConnector):
         use_homepage_search = params.get(
             "use_homepage_search", self.config.get("use_homepage_search", True)
         )
-        enable_pdf = params.get("enable_pdf", self.config.get("enable_pdf", False))
+        enable_pdf = params.get("enable_pdf", self._enable_pdf)
+        enable_viewpoint = params.get("enable_viewpoint", self._enable_viewpoint)
+        enable_core = params.get("enable_core", self._enable_core)
+        enable_companies = params.get("enable_companies", self._enable_companies)
 
         envelopes = adapter.fetch(
             search=search,
@@ -209,6 +265,9 @@ class ZQDocumentConnector(DocumentConnector):
             verbose=params.get("verbose", False),
             use_homepage_search=use_homepage_search,
             enable_pdf=enable_pdf,
+            enable_viewpoint=enable_viewpoint,
+            enable_core=enable_core,
+            enable_companies=enable_companies,
         )
 
         serialized = json.dumps(
@@ -266,14 +325,17 @@ class ZQDocumentConnector(DocumentConnector):
 
         full_text_parts: List[str] = []
         titles: List[str] = []
+        dropped_empty_documents = 0
 
         for env in envelopes:
-            content = env.get("canonical_text") or env.get("raw_text", "")
+            content = _meaningful_text_from_zq_envelope(env)
             title = env.get("title", "")
             if title:
                 titles.append(title)
             if content:
                 full_text_parts.append(content)
+            else:
+                dropped_empty_documents += 1
 
         full_text = "\n\n---\n\n".join(full_text_parts)
 
@@ -290,6 +352,7 @@ class ZQDocumentConnector(DocumentConnector):
                 **raw.metadata,
                 "individual_titles": titles[:20],
                 "document_count": len(envelopes),
+                "dropped_empty_documents": dropped_empty_documents,
             },
         )
 

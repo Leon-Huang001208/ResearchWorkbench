@@ -94,6 +94,30 @@ class PDFConversionService:
 
         return None
 
+    def _ordered_strategies(
+        self, preferred: Optional[StrategyType] = None
+    ) -> List[PDFConversionStrategy]:
+        """按降级顺序返回可用策略。
+
+        AUTO 模式会按优先级逐个尝试；显式指定策略时只尝试指定策略。
+        """
+        if preferred and preferred != StrategyType.AUTO:
+            strategy_name = preferred.value if hasattr(preferred, "value") else str(preferred)
+            strategy = self._strategies.get(strategy_name)
+            if strategy and strategy.is_available():
+                return [strategy]
+            logger.warning(f"首选策略不可用: {strategy_name}")
+            return []
+
+        ordered: List[PDFConversionStrategy] = []
+        seen: set[str] = set()
+        for st in self.STRATEGY_PRIORITY:
+            strategy = self._strategies.get(st.value)
+            if strategy and strategy.name not in seen and strategy.is_available():
+                ordered.append(strategy)
+                seen.add(strategy.name)
+        return ordered
+
     def convert_pdf(
         self,
         pdf_id: str,
@@ -117,35 +141,53 @@ class PDFConversionService:
                 error_message=f"PDF artifact 不存在: {pdf_id}",
             )
 
-        # 2. 选择策略
-        strategy = self._select_strategy(preferred_strategy)
-        if not strategy:
+        # 2. 选择策略；AUTO 模式下按优先级降级尝试。
+        strategies = self._ordered_strategies(preferred_strategy)
+        if not strategies:
             return ConversionResult(
                 success=False,
                 strategy_used="",
                 error_message="没有可用的转换策略",
             )
 
-        # 3. 创建转换记录并标记为 running
-        conversion = PDFConversionV1DB(
-            conversion_id=f"conv_{uuid.uuid4().hex[:12]}",
-            pdf_id=pdf_id,
-            conversion_strategy=strategy.name,
-            status=ConversionStatus.RUNNING.value,
-            created_at=datetime.now(timezone.utc),
-        )
-        pdf_repo.add_conversion(self._db, conversion)
+        last_result: Optional[ConversionResult] = None
+        errors: list[str] = []
 
-        # 同步 PDF artifact 状态
-        artifact.parse_status = ConversionStatus.RUNNING.value
-        self._db.commit()
+        for strategy in strategies:
+            # 3. 创建转换记录并标记为 running
+            conversion = PDFConversionV1DB(
+                conversion_id=f"conv_{uuid.uuid4().hex[:12]}",
+                pdf_id=pdf_id,
+                conversion_strategy=strategy.name,
+                status=ConversionStatus.RUNNING.value,
+                created_at=datetime.now(timezone.utc),
+            )
+            pdf_repo.add_conversion(self._db, conversion)
 
-        # 4. 执行转换
-        start_time = time.time()
-        try:
-            result = strategy.convert(str(artifact.file_path))
+            # 同步 PDF artifact 状态
+            artifact.parse_status = ConversionStatus.RUNNING.value
+            self._db.commit()
+
+            # 4. 执行转换
+            start_time = time.time()
+            try:
+                result = strategy.convert(str(artifact.file_path))
+            except Exception as e:
+                result = ConversionResult(
+                    success=False,
+                    strategy_used=strategy.name,
+                    error_message=str(e),
+                )
 
             duration_ms = int((time.time() - start_time) * 1000)
+            has_content = bool((result.markdown or result.raw_text or "").strip())
+            if result.success and not has_content:
+                result = ConversionResult(
+                    success=False,
+                    strategy_used=strategy.name,
+                    error_message=f"{strategy.name} 输出为空",
+                )
+            last_result = result
 
             # 5. 持久化输出到磁盘
             if result.success:
@@ -158,7 +200,7 @@ class PDFConversionService:
                     if should_inline(result.raw_text):
                         conversion.raw_text_content = result.raw_text
 
-            # 6. 更新转换记录
+            # 更新为错误状态
             conversion.status = (
                 ConversionStatus.SUCCESS.value if result.success else ConversionStatus.ERROR.value
             )
@@ -188,8 +230,20 @@ class PDFConversionService:
                 f"(success={result.success}, duration={duration_ms}ms)"
             )
 
+            if not result.success:
+                errors.append(f"{strategy.name}: {result.error_message}")
+                logger.warning(
+                    "PDF 转换策略失败，尝试下一个可用策略",
+                    extra={
+                        "pdf_id": pdf_id,
+                        "strategy": strategy.name,
+                        "error": result.error_message,
+                    },
+                )
+                continue
+
             # 7. 转换成功后自动创建 DocumentV1 和分块
-            if result.success and self._create_document:
+            if self._create_document:
                 try:
                     self._create_document_from_conversion(artifact, conversion, result)
                 except Exception as e:
@@ -205,24 +259,15 @@ class PDFConversionService:
 
             return result
 
-        except Exception as e:
-            duration_ms = int((time.time() - start_time) * 1000)
+        if last_result:
+            last_result.error_message = "; ".join(errors) or last_result.error_message
+            return last_result
 
-            # 更新为错误状态
-            conversion.status = ConversionStatus.ERROR.value
-            conversion.error_log = str(e)
-            conversion.conversion_duration_ms = duration_ms
-            conversion.completed_at = datetime.now(timezone.utc)
-            artifact.parse_status = ConversionStatus.ERROR.value
-            self._db.commit()
-
-            logger.error(f"PDF 转换异常: {pdf_id}: {e}", exc_info=True)
-
-            return ConversionResult(
-                success=False,
-                strategy_used=strategy.name,
-                error_message=str(e),
-            )
+        return ConversionResult(
+            success=False,
+            strategy_used="",
+            error_message="没有可用的转换策略",
+        )
 
     def _create_document_from_conversion(
         self,

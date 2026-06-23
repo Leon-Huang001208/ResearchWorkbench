@@ -7,20 +7,21 @@ MONITOR_JS = ROOT / "app" / "web" / "static" / "js" / "monitor.js"
 DASHBOARD_JS = ROOT / "app" / "web" / "static" / "js" / "dashboard.js"
 
 
-def test_dashboard_monitor_has_cninfo_feed_card():
+def test_dashboard_monitor_excludes_cninfo_feed_card():
     html = INDEX_HTML.read_text(encoding="utf-8")
 
-    assert 'data-source="cninfo"' in html
-    assert 'id="feed-status-cninfo"' in html
-    assert 'id="feed-count-cninfo"' in html
-    assert 'id="feed-list-cninfo"' in html
-    assert "巨潮公告" in html
+    assert 'data-source="cninfo"' not in html
+    assert 'id="feed-status-cninfo"' not in html
+    assert 'id="feed-count-cninfo"' not in html
+    assert 'id="feed-list-cninfo"' not in html
+    assert "巨潮公告" not in html
 
 
-def test_monitor_polling_includes_cninfo_source():
+def test_monitor_polling_excludes_cninfo_source():
     source = MONITOR_JS.read_text(encoding="utf-8")
 
-    assert "{ id: 'cninfo', label: '巨潮公告', limit: 200 }" in source
+    assert "id: 'cninfo'" not in source
+    assert "巨潮公告" not in source
 
 
 def test_market_overview_has_separate_source_badges():

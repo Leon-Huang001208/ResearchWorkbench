@@ -13,12 +13,16 @@ import re
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime, time, timedelta
-from math import sqrt
+from math import exp, sqrt
 from typing import Any, Dict, Iterable, List, Optional, Protocol
 
 from sqlalchemy import or_
 
 from core.interfaces.model_gateway import ModelResponse
+from core.model_gateway.local_embedding_config import (
+    resolve_local_embedding_model,
+    sentence_transformer_kwargs,
+)
 from core.model_gateway.gateway import ModelGatewayImpl
 from core.observability import get_logger
 from core.settings import settings
@@ -34,6 +38,16 @@ class ReportPeriod:
 
     start_date: str
     end_date: str
+
+
+@dataclass(frozen=True)
+class ReportGenerationScope:
+    """Resolved report generation scope before evidence retrieval starts."""
+
+    report_period: ReportPeriod
+    lookback_days: int
+    data_scope: str
+    report_date: str | None = None
 
 
 @dataclass(frozen=True)
@@ -80,12 +94,18 @@ class RetrievalConfig:
     fusion_method: str = "rrf"
     keyword_weight: float = 0.7
     semantic_weight: float = 0.3
+    embedding_model: str = "BAAI/bge-large-zh-v1.5"
     rrf_k: int = 60
     semantic_candidate_k: int = 64
     rerank_enabled: bool = False
-    rerank_provider: str = "llm"
+    rerank_provider: str = "bge-reranker"
+    rerank_model: str = "BAAI/bge-reranker-large"
     rerank_top_n: int = 16
     min_rerank_score: float = 0.0
+
+
+_LOCAL_EMBEDDING_MODELS: Dict[str, Any] = {}
+_LOCAL_RERANKER_MODELS: Dict[str, Any] = {}
 
 
 @dataclass(frozen=True)
@@ -458,6 +478,11 @@ def build_retrieval_config(config: Dict[str, Any], *, default_top_k: int) -> Ret
         fusion.get("semantic_weight") or retrieval.get("semantic_weight"),
         0.3,
     )
+    embedding_model = str(
+        retrieval.get("embedding_model")
+        or fusion.get("embedding_model")
+        or "BAAI/bge-large-zh-v1.5"
+    )
     return RetrievalConfig(
         mode=str(retrieval.get("mode") or "keyword"),
         top_k=max(1, top_k),
@@ -469,10 +494,18 @@ def build_retrieval_config(config: Dict[str, Any], *, default_top_k: int) -> Ret
         fusion_method=str(fusion.get("method") or retrieval.get("fusion_method") or "rrf"),
         keyword_weight=max(0.0, keyword_weight),
         semantic_weight=max(0.0, semantic_weight),
+        embedding_model=embedding_model,
         rrf_k=max(1, _int_option(fusion.get("rrf_k") or retrieval.get("rrf_k"), 60)),
         semantic_candidate_k=max(top_k, semantic_candidate_k),
         rerank_enabled=_bool_option(rerank.get("enabled") or retrieval.get("rerank_enabled")),
-        rerank_provider=str(rerank.get("provider") or retrieval.get("rerank_provider") or "llm"),
+        rerank_provider=str(
+            rerank.get("provider") or retrieval.get("rerank_provider") or "bge-reranker"
+        ),
+        rerank_model=str(
+            rerank.get("model")
+            or retrieval.get("rerank_model")
+            or "BAAI/bge-reranker-large"
+        ),
         rerank_top_n=max(
             top_k,
             _int_option(rerank.get("top_n") or retrieval.get("rerank_top_n"), max(top_k * 2, 12)),
@@ -494,7 +527,7 @@ def filter_and_rank_evidence(
     if retrieval_config is None:
         return snippets
 
-    candidates: List[EvidenceSnippet] = []
+    filtered: List[tuple[EvidenceSnippet, str, List[str], float]] = []
     for snippet in snippets:
         haystack = f"{snippet.title}\n{snippet.content}"
         if _contains_any(haystack, retrieval_config.exclude):
@@ -513,11 +546,22 @@ def filter_and_rank_evidence(
             continue
         if score < retrieval_config.min_keyword_score:
             continue
-        semantic_score = (
-            _semantic_similarity(_semantic_query_text(query, retrieval_config), haystack)
-            if _uses_semantic_retrieval(retrieval_config)
-            else None
+        filtered.append((snippet, haystack, matched_terms, score))
+
+    semantic_scores: List[float | None]
+    if _uses_semantic_retrieval(retrieval_config):
+        semantic_scores = _semantic_similarity_scores(
+            _semantic_query_text(query, retrieval_config),
+            [item[1] for item in filtered],
+            retrieval_config,
         )
+    else:
+        semantic_scores = [None] * len(filtered)
+
+    candidates: List[EvidenceSnippet] = []
+    for (snippet, _haystack, matched_terms, score), semantic_score in zip(
+        filtered, semantic_scores
+    ):
         candidates.append(
             replace(
                 snippet,
@@ -650,6 +694,74 @@ def _rank_hybrid_evidence(
 def _semantic_query_text(query: str, retrieval_config: RetrievalConfig) -> str:
     parts = [query.strip(), " ".join(retrieval_config.must_any)]
     return " ".join(part for part in parts if part)
+
+
+def _semantic_similarity_scores(
+    query: str,
+    texts: List[str],
+    retrieval_config: RetrievalConfig,
+) -> List[float | None]:
+    if not texts:
+        return []
+    bge_scores = _local_embedding_similarity_scores(
+        query=query,
+        texts=texts,
+        model_name=retrieval_config.embedding_model,
+    )
+    if bge_scores is not None:
+        return bge_scores
+    return [_semantic_similarity(query, text) for text in texts]
+
+
+def _local_embedding_similarity_scores(
+    *,
+    query: str,
+    texts: List[str],
+    model_name: str,
+) -> List[float] | None:
+    model = _load_local_embedding_model(model_name)
+    if model is None:
+        return None
+    try:
+        vectors = model.encode([query, *texts], normalize_embeddings=True)
+        query_vector = vectors[0]
+        scores = []
+        for vector in vectors[1:]:
+            dot = float(sum(float(left) * float(right) for left, right in zip(query_vector, vector)))
+            scores.append(dot)
+        return scores
+    except Exception as exc:
+        logger.warning(
+            "Failed to score report evidence with local embedding model",
+            model=model_name,
+            error=str(exc),
+        )
+        return None
+
+
+def _load_local_embedding_model(model_name: str) -> Any | None:
+    resolved_model = resolve_local_embedding_model(model_name)
+    if resolved_model is None:
+        return None
+    if resolved_model in _LOCAL_EMBEDDING_MODELS:
+        return _LOCAL_EMBEDDING_MODELS[resolved_model]
+    try:
+        from sentence_transformers import SentenceTransformer
+
+        model = SentenceTransformer(
+            resolved_model,
+            **sentence_transformer_kwargs(resolved_model),
+        )
+        _LOCAL_EMBEDDING_MODELS[resolved_model] = model
+        logger.info("Loaded local report embedding model", model=resolved_model)
+        return model
+    except Exception as exc:
+        logger.warning(
+            "Failed to load local report embedding model",
+            model=resolved_model,
+            error=str(exc),
+        )
+        return None
 
 
 def _semantic_similarity(query: str, text: str) -> float:
@@ -868,6 +980,26 @@ class ReportProjectGenerationService:
         report_period: ReportPeriod,
     ) -> PlaceholderGenerationOutput:
         title = str(config.get("title") or placeholder)
+        if str(config.get("type") or "").lower() == "excel_commodity_market_review":
+            content = build_commodity_market_review_sentence(project, placeholder, config)
+            return PlaceholderGenerationOutput(
+                placeholder=placeholder,
+                content=content,
+                section_info=GeneratedSectionInfo(
+                    placeholder=placeholder,
+                    title=title,
+                    prompt_template=str(config.get("prompt_template") or title),
+                    retrieval_query="",
+                    evidence_count=0,
+                    model_name="excel",
+                    provider="excel",
+                    tokens_used=0,
+                    warnings=[],
+                    retrieval_config=None,
+                    evidence=[],
+                ),
+            )
+
         if str(config.get("type") or "").lower() == "composite_market_review":
             content, info = self._generate_composite_market_review(
                 project=project,
@@ -1078,54 +1210,46 @@ class ReportProjectGenerationService:
         evidence: List[EvidenceSnippet],
         final_limit: int,
     ) -> List[EvidenceSnippet]:
-        """Optionally rerank candidate evidence with an LLM before writing."""
+        """Optionally rerank candidate evidence with a local reranker before writing."""
         if not retrieval_config.rerank_enabled or len(evidence) <= 1:
             return evidence[:final_limit]
-        if retrieval_config.rerank_provider.lower() != "llm":
-            logger.warning(
-                "Unsupported report evidence reranker, falling back",
-                project=project.name,
-                placeholder=placeholder,
-                rerank_provider=retrieval_config.rerank_provider,
-            )
-            return evidence[:final_limit]
-
-        candidates = evidence[: retrieval_config.rerank_top_n]
-        try:
-            messages = build_rerank_messages(
+        if retrieval_config.rerank_provider.lower() in {
+            "bge-reranker",
+            "local-bge-reranker",
+            "local",
+        }:
+            reranked = rerank_evidence_with_local_model(
                 title=title,
                 query=query,
-                evidence=candidates,
-            )
-            task_name = "reporting" if "reporting" in settings.TASK_ROUTES else "default"
-            response = self.model_gateway.chat(
-                messages=messages,
-                task=task_name,
-                temperature=0.0,
-                max_tokens=max(300, min(1400, len(candidates) * 90)),
-            )
-            reranked = apply_llm_rerank_response(
-                candidates,
-                response.content,
+                evidence=evidence[: retrieval_config.rerank_top_n],
                 retrieval_config=retrieval_config,
                 final_limit=final_limit,
             )
             if reranked:
                 logger.info(
-                    "Reranked report evidence",
+                    "Reranked report evidence with local model",
                     project=project.name,
                     placeholder=placeholder,
-                    candidate_count=len(candidates),
+                    candidate_count=min(len(evidence), retrieval_config.rerank_top_n),
                     selected_count=len(reranked),
+                    model=retrieval_config.rerank_model,
                 )
                 return reranked
-        except Exception as exc:
             logger.warning(
-                "Failed to rerank report evidence",
+                "Local report evidence reranker unavailable, using retrieval order",
                 project=project.name,
                 placeholder=placeholder,
-                error=str(exc),
+                rerank_provider=retrieval_config.rerank_provider,
+                rerank_model=retrieval_config.rerank_model,
             )
+            return evidence[:final_limit]
+
+        logger.warning(
+            "External report evidence reranker is disabled; using retrieval order",
+            project=project.name,
+            placeholder=placeholder,
+            rerank_provider=retrieval_config.rerank_provider,
+        )
         return evidence[:final_limit]
 
     def _generate_market_hotspot_section(
@@ -1257,6 +1381,90 @@ def compute_report_period(report_date: str | date | datetime | None = None) -> R
     return ReportPeriod(start_date=start_date.isoformat(), end_date=end_date.isoformat())
 
 
+def resolve_report_generation_scope(
+    section_config: Dict[str, Any],
+    *,
+    report_date: str | date | datetime | None = None,
+    lookback_days: int | None = None,
+    data_scope: str | None = None,
+    start_date: str | date | datetime | None = None,
+    end_date: str | date | datetime | None = None,
+) -> ReportGenerationScope:
+    """Resolve the effective date window before retrieval and generation.
+
+    UI/API values override persisted YAML. The resolved period is then passed
+    into every retrieval path, so time filtering happens before hybrid recall.
+    """
+    defaults = section_config.get("defaults") if isinstance(section_config, dict) else {}
+    report_defaults = (
+        defaults.get("report_period")
+        if isinstance(defaults, dict) and isinstance(defaults.get("report_period"), dict)
+        else {}
+    )
+    configured_report_date = report_date
+    if configured_report_date in {"", None}:
+        configured_report_date = report_defaults.get("report_date") or None
+    configured_start_date = start_date
+    if configured_start_date in {"", None}:
+        configured_start_date = report_defaults.get("start_date") or None
+    configured_end_date = end_date
+    if configured_end_date in {"", None}:
+        configured_end_date = report_defaults.get("end_date") or None
+    configured_scope = str(data_scope or report_defaults.get("mode") or "current_week").strip()
+    configured_lookback_days = lookback_days
+    if configured_lookback_days is None:
+        configured_lookback_days = report_defaults.get("lookback_days")
+    if configured_lookback_days is None:
+        configured_lookback_days = 7
+    effective_lookback_days = max(1, min(90, _int_option(configured_lookback_days, 7)))
+    if configured_start_date or configured_end_date:
+        period = compute_explicit_report_period(
+            start_date=configured_start_date,
+            end_date=configured_end_date or configured_report_date,
+        )
+        configured_scope = "custom"
+    else:
+        period = compute_report_period_for_scope(
+            configured_report_date,
+            data_scope=configured_scope,
+            lookback_days=effective_lookback_days,
+        )
+    return ReportGenerationScope(
+        report_period=period,
+        lookback_days=effective_lookback_days,
+        data_scope=configured_scope,
+        report_date=period.end_date,
+    )
+
+
+def compute_report_period_for_scope(
+    report_date: str | date | datetime | None = None,
+    *,
+    data_scope: str = "current_week",
+    lookback_days: int = 7,
+) -> ReportPeriod:
+    """Compute the evidence window for a business-facing data scope."""
+    end_date = _coerce_report_date(report_date)
+    if data_scope == "last_7_days":
+        days = max(1, lookback_days)
+        start_date = end_date - timedelta(days=days - 1)
+        return ReportPeriod(start_date=start_date.isoformat(), end_date=end_date.isoformat())
+    return compute_report_period(end_date)
+
+
+def compute_explicit_report_period(
+    *,
+    start_date: str | date | datetime | None,
+    end_date: str | date | datetime | None,
+) -> ReportPeriod:
+    """Compute an evidence window from explicit user-selected dates."""
+    end = _coerce_report_date(end_date)
+    start = _coerce_report_date(start_date) if start_date else end
+    if start > end:
+        start, end = end, start
+    return ReportPeriod(start_date=start.isoformat(), end_date=end.isoformat())
+
+
 def resolve_report_period_value(config: Dict[str, Any], report_period: ReportPeriod) -> str:
     """Resolve a configured report-period placeholder value."""
     field = str(config.get("field") or "").strip()
@@ -1276,29 +1484,66 @@ def build_a_share_market_data_sentence(project: ReportProject, config: Dict[str,
     """Build the deterministic A-share market review sentence from workbook cache."""
     try:
         from openpyxl import load_workbook
+        from openpyxl.utils.cell import column_index_from_string, coordinate_to_tuple, range_boundaries
     except Exception as exc:  # pragma: no cover - dependency is available in project env.
         raise RuntimeError("openpyxl is required for composite market review") from exc
 
     data_source = config.get("data_source")
     data_config: Dict[str, Any] = data_source if isinstance(data_source, dict) else {}
-    workbook_name = str(data_config.get("workbook") or project.excel_workbook_path.name)
-    workbook_path = project.project_dir / "data" / workbook_name
-    if not workbook_path.exists():
-        workbook_path = project.excel_workbook_path
+    data_component = get_component_by_type(config, "data_template")
+    fields_config = data_component.get("fields") if isinstance(data_component, dict) else {}
+    fields: Dict[str, Any] = fields_config if isinstance(fields_config, dict) else {}
+    workbook_cache: Dict[str, Any] = {}
 
-    workbook = load_workbook(workbook_path, data_only=True, read_only=True)
+    def workbook_for(field: Dict[str, Any]) -> Any:
+        workbook_name = str(field.get("workbook") or data_config.get("workbook") or project.excel_workbook_path.name)
+        if workbook_name not in workbook_cache:
+            workbook_path = project.project_dir / "data" / workbook_name
+            if not workbook_path.exists():
+                workbook_path = project.excel_workbook_path
+            workbook_cache[workbook_name] = load_workbook(workbook_path, data_only=True, read_only=True)
+        return workbook_cache[workbook_name]
+
+    def sheet_name_for(field: Dict[str, Any], default: str) -> str:
+        return str(field.get("sheet") or default)
+
+    market_field = fields.get("market_trend") if isinstance(fields.get("market_trend"), dict) else {}
+    index_field = fields.get("index_performance") if isinstance(fields.get("index_performance"), dict) else {}
+    avg_turnover_field = fields.get("avg_turnover") if isinstance(fields.get("avg_turnover"), dict) else {}
+    turnover_trend_field = fields.get("turnover_trend") if isinstance(fields.get("turnover_trend"), dict) else {}
+
     domestic_sheet = str(data_config.get("domestic_sheet") or "国内")
     turnover_sheet = str(data_config.get("turnover_sheet") or "市场成交")
-    domestic_rows = _read_market_index_rows(workbook[domestic_sheet])
-    turnover = _read_turnover_row(workbook[turnover_sheet])
+    index_rows = _read_market_index_rows_from_field(
+        workbook_for(index_field)[sheet_name_for(index_field, domestic_sheet)],
+        index_field,
+        column_index_from_string,
+        range_boundaries,
+    )
+    trend_rows = _read_market_index_rows_from_field(
+        workbook_for(market_field)[sheet_name_for(market_field, domestic_sheet)],
+        market_field,
+        column_index_from_string,
+        range_boundaries,
+    )
+    turnover = _read_turnover_from_fields(
+        workbook_for(avg_turnover_field)[sheet_name_for(avg_turnover_field, turnover_sheet)],
+        avg_turnover_field,
+        turnover_trend_field,
+        coordinate_to_tuple,
+        column_index_from_string,
+        range_boundaries,
+    )
+    domestic_rows = index_rows
     if not domestic_rows:
-        raise ValueError(f"No domestic index data found in {workbook_path}")
+        raise ValueError("No domestic index data found for composite market review")
 
     index_sentence = "，".join(
         f"{name}{_direction_word(value)}{abs(value):.2f}%"
         for name, value in domestic_rows[:5]
     )
-    trend = _market_trend_word([value for _, value in domestic_rows[:5]])
+    trend_source_rows = trend_rows or domestic_rows
+    trend = _market_trend_word([value for _, value in trend_source_rows[:5]])
     fields = {
         "market_trend": f"{trend}趋势",
         "index_performance": index_sentence,
@@ -1314,10 +1559,126 @@ def build_a_share_market_data_sentence(project: ReportProject, config: Dict[str,
             f"交易面，A股市场本周日均成交额在{current:.2f}万亿左右，"
             f"较上周{_turnover_change_word(current, previous)}。"
         )
-    data_template = str(get_component_by_type(config, "data_template").get("template") or "").strip()
+    data_template = str(data_component.get("template") or "").strip()
     if data_template:
         return data_template.format_map(_SafeFormatDict(fields))
     return f"本周A股市场整体呈现{trend}趋势，主要指数表现不一：{index_sentence}。{turnover_sentence}"
+
+
+def build_commodity_market_review_sentence(
+    project: ReportProject,
+    placeholder: str,
+    config: Dict[str, Any],
+) -> str:
+    """Build deterministic gold/oil market review text from weekly Excel data."""
+    try:
+        from openpyxl import load_workbook
+    except Exception as exc:  # pragma: no cover - dependency is available in project env.
+        raise RuntimeError("openpyxl is required for commodity market review") from exc
+
+    data_source = config.get("data_source")
+    data_config: Dict[str, Any] = data_source if isinstance(data_source, dict) else {}
+    workbook_name = str(data_config.get("workbook") or project.excel_workbook_path.name)
+    workbook_path = project.project_dir / "data" / workbook_name
+    if not workbook_path.exists():
+        workbook_path = project.excel_workbook_path
+    workbook = load_workbook(workbook_path, data_only=True, read_only=True)
+
+    review_kind = str(data_config.get("kind") or "").strip().lower()
+    if not review_kind:
+        review_kind = "oil" if "原油" in placeholder or "石油" in placeholder else "gold"
+
+    if review_kind == "oil":
+        sheet_name = str(data_config.get("sheet") or "石油")
+        return _build_oil_market_review_sentence(workbook[sheet_name])
+
+    sheet_name = str(data_config.get("sheet") or "黄金")
+    return _build_gold_market_review_sentence(workbook[sheet_name])
+
+
+def _build_gold_market_review_sentence(worksheet: Any) -> str:
+    rows = _rows_by_name(worksheet)
+    london = _find_named_row(rows, ["伦敦金现", "伦敦现货黄金", "伦敦金"])
+    domestic = _find_named_row(rows, ["SGE黄金9999", "AU9999", "国内AU9999"])
+    if not london or not domestic:
+        raise ValueError("No gold market data found for fixed review")
+    london_close = _required_float(london.get("周收盘价"), "伦敦金现周收盘价")
+    london_change = _required_float(london.get("周涨跌幅"), "伦敦金现周涨跌幅")
+    domestic_close = _required_float(domestic.get("周收盘价"), "AU9999周收盘价")
+    domestic_change = _required_float(domestic.get("周涨跌幅"), "AU9999周涨跌幅")
+    return (
+        f"截止本周，伦敦现货黄金收于{london_close:.2f}美元/盎司"
+        f"（周环比{_signed_percent(london_change)}），"
+        f"国内AU9999黄金收于{domestic_close:.2f}元/克"
+        f"（周环比{_signed_percent(domestic_change)}）。"
+    )
+
+
+def _build_oil_market_review_sentence(worksheet: Any) -> str:
+    rows = _rows_by_name(worksheet)
+    brent = _find_named_row(rows, ["ICE布油", "布伦特原油", "布伦特"])
+    wti = _find_named_row(rows, ["NYMEX WTI原油", "WTI原油", "WTI"])
+    if not brent or not wti:
+        raise ValueError("No oil market data found for fixed review")
+    brent_close = _required_float(brent.get("周收盘价"), "布伦特周收盘价")
+    brent_delta = _required_float(brent.get("涨跌"), "布伦特涨跌")
+    brent_change = _required_float(brent.get("周涨跌幅"), "布伦特周涨跌幅")
+    wti_close = _required_float(wti.get("周收盘价"), "WTI周收盘价")
+    wti_delta = _required_float(wti.get("涨跌"), "WTI涨跌")
+    wti_change = _required_float(wti.get("周涨跌幅"), "WTI周涨跌幅")
+    return (
+        f"截至本周，布伦特原油期货周均价为{brent_close:.2f}美元/桶，"
+        f"较上周五{_delta_word(brent_delta)}{abs(brent_delta):.2f}美元/桶；"
+        f"WTI原油期货周均价为{wti_close:.1f}美元/桶，"
+        f"较上周五{_delta_word(wti_delta)}{abs(wti_delta):.1f}美元/桶。"
+        f"和周初相比主要油品涨跌幅分别为：布伦特原油（{brent_change:.2f}%）、"
+        f"WTI原油（{wti_change:.2f}%）。"
+    )
+
+
+def _rows_by_name(worksheet: Any) -> List[Dict[str, Any]]:
+    rows = list(worksheet.iter_rows(values_only=True))
+    if not rows:
+        return []
+    headers = [str(value).strip() if value is not None else "" for value in rows[0]]
+    result: List[Dict[str, Any]] = []
+    for row in rows[1:]:
+        item = {
+            headers[index]: value
+            for index, value in enumerate(row)
+            if index < len(headers) and headers[index]
+        }
+        if item:
+            result.append(item)
+    return result
+
+
+def _find_named_row(rows: List[Dict[str, Any]], names: List[str]) -> Dict[str, Any] | None:
+    for row in rows:
+        short_name = str(row.get("简称") or "").strip()
+        code = str(row.get("代码") or "").strip()
+        if any(name in short_name or name in code for name in names):
+            return row
+    return None
+
+
+def _required_float(value: Any, label: str) -> float:
+    number = _to_float(value)
+    if number is None:
+        raise ValueError(f"Missing numeric value for {label}")
+    return number
+
+
+def _signed_percent(value: float) -> str:
+    return f"{value:+.2f}%"
+
+
+def _delta_word(value: float) -> str:
+    if value > 0:
+        return "涨"
+    if value < 0:
+        return "跌"
+    return "持平"
 
 
 def _read_market_index_rows(worksheet: Any) -> List[tuple[str, float]]:
@@ -1332,6 +1693,39 @@ def _read_market_index_rows(worksheet: Any) -> List[tuple[str, float]]:
     return rows
 
 
+def _read_market_index_rows_from_field(
+    worksheet: Any,
+    field: Dict[str, Any],
+    column_index_from_string: Any,
+    range_boundaries: Any,
+) -> List[tuple[str, float]]:
+    rows: List[tuple[str, float]] = []
+    value_range = str(field.get("range") or "").strip()
+    if value_range:
+        min_col, min_row, max_col, max_row = range_boundaries(value_range)
+        name_col = min_col
+        value_col = min(max_col, min_col + 1)
+        for row_idx in range(min_row, max_row + 1):
+            name = worksheet.cell(row=row_idx, column=name_col).value
+            value = worksheet.cell(row=row_idx, column=value_col).value
+            number = _to_float(value)
+            if name and number is not None:
+                rows.append((str(name), number))
+        return rows
+
+    name_col = column_index_from_string(str(field.get("name_column") or "B"))
+    value_col = column_index_from_string(str(field.get("value_column") or "C"))
+    start_row = int(field.get("start_row") or 2)
+    max_rows = int(field.get("max_rows") or 5)
+    for row_idx in range(start_row, start_row + max_rows):
+        name = worksheet.cell(row=row_idx, column=name_col).value
+        value = worksheet.cell(row=row_idx, column=value_col).value
+        number = _to_float(value)
+        if name and number is not None:
+            rows.append((str(name), number))
+    return rows
+
+
 def _read_turnover_row(worksheet: Any) -> tuple[float, float] | None:
     for row in worksheet.iter_rows(min_row=2, values_only=True):
         current = _to_float(row[1] if len(row) > 1 else None)
@@ -1339,6 +1733,49 @@ def _read_turnover_row(worksheet: Any) -> tuple[float, float] | None:
         if current is not None and previous is not None:
             return current, previous
     return None
+
+
+def _read_turnover_from_fields(
+    worksheet: Any,
+    current_field: Dict[str, Any],
+    trend_field: Dict[str, Any],
+    coordinate_to_tuple: Any,
+    column_index_from_string: Any,
+    range_boundaries: Any,
+) -> tuple[float, float] | None:
+    current = _cell_value_from_field(worksheet, current_field, "B2", coordinate_to_tuple)
+    previous = _cell_value_from_field(worksheet, trend_field, "C2", coordinate_to_tuple, key="previous_cell")
+    trend_range = str(trend_field.get("range") or "").strip()
+    if trend_range:
+        min_col, min_row, max_col, _max_row = range_boundaries(trend_range)
+        current = _to_float(worksheet.cell(row=min_row, column=min_col).value)
+        previous = _to_float(worksheet.cell(row=min_row, column=max_col).value)
+    if current is None:
+        row_idx = int(current_field.get("row") or trend_field.get("row") or 2)
+        current_col = column_index_from_string(str(current_field.get("current_column") or "B"))
+        current = _to_float(worksheet.cell(row=row_idx, column=current_col).value)
+    if previous is None:
+        row_idx = int(trend_field.get("row") or current_field.get("row") or 2)
+        previous_col = column_index_from_string(str(trend_field.get("previous_column") or "C"))
+        previous = _to_float(worksheet.cell(row=row_idx, column=previous_col).value)
+    if current is not None and previous is not None:
+        return current, previous
+    return _read_turnover_row(worksheet)
+
+
+def _cell_value_from_field(
+    worksheet: Any,
+    field: Dict[str, Any],
+    default_cell: str,
+    coordinate_to_tuple: Any,
+    *,
+    key: str = "cell",
+) -> float | None:
+    cell_ref = str(field.get(key) or field.get("cell") or default_cell).strip()
+    if not cell_ref:
+        return None
+    row_idx, col_idx = coordinate_to_tuple(cell_ref)
+    return _to_float(worksheet.cell(row=row_idx, column=col_idx).value)
 
 
 def _to_float(value: Any) -> float | None:
@@ -1486,6 +1923,14 @@ def apply_report_defaults_to_placeholder(
             default_retrieval,
             merged.get("retrieval") if isinstance(merged.get("retrieval"), dict) else {},
         )
+    default_rerank = defaults.get("rerank")
+    if isinstance(default_rerank, dict):
+        retrieval = merged.get("retrieval") if isinstance(merged.get("retrieval"), dict) else {}
+        retrieval["rerank"] = deep_merge_dict(
+            default_rerank,
+            retrieval.get("rerank") if isinstance(retrieval.get("rerank"), dict) else {},
+        )
+        merged["retrieval"] = retrieval
     return merged
 
 
@@ -1783,6 +2228,113 @@ Evidence：
     return [
         {"role": "user", "content": user},
     ]
+
+
+def rerank_evidence_with_local_model(
+    *,
+    title: str,
+    query: str,
+    evidence: List[EvidenceSnippet],
+    retrieval_config: RetrievalConfig,
+    final_limit: int,
+) -> List[EvidenceSnippet]:
+    """Rerank evidence with a local cross-encoder reranker."""
+    if not evidence:
+        return []
+    model = _load_local_reranker_model(retrieval_config.rerank_model)
+    if model is None:
+        return []
+    prompt = "\n".join(part for part in [title.strip(), query.strip()] if part)
+    pairs = [
+        (
+            prompt,
+            re.sub(r"\s+", " ", f"{item.title}\n{item.content}").strip()[:1200],
+        )
+        for item in evidence
+    ]
+    try:
+        raw_scores = model.predict(pairs)
+    except Exception as exc:
+        logger.warning(
+            "Failed to score report evidence with local reranker",
+            model=retrieval_config.rerank_model,
+            error=str(exc),
+        )
+        return []
+
+    scored: List[tuple[float, int, EvidenceSnippet]] = []
+    for index, (item, raw_score) in enumerate(zip(evidence, raw_scores), start=1):
+        score = _normalize_rerank_score(raw_score)
+        if score < retrieval_config.min_rerank_score:
+            continue
+        scored.append((score, index, item))
+    scored.sort(
+        key=lambda pair: (
+            pair[0],
+            pair[2].retrieval_score or 0.0,
+            pair[2].published_at or "",
+        ),
+        reverse=True,
+    )
+    return [
+        replace(
+            item,
+            rerank_score=float(score),
+            rerank_rank=rank,
+            rerank_reason=f"local:{retrieval_config.rerank_model}",
+        )
+        for rank, (score, _index, item) in enumerate(scored[:final_limit], start=1)
+    ]
+
+
+def _load_local_reranker_model(model_name: str) -> Any | None:
+    resolved_model = resolve_local_embedding_model(model_name)
+    if resolved_model is None:
+        return None
+    if resolved_model in _LOCAL_RERANKER_MODELS:
+        return _LOCAL_RERANKER_MODELS[resolved_model]
+    try:
+        from sentence_transformers import CrossEncoder
+
+        kwargs = sentence_transformer_kwargs(resolved_model)
+        model = CrossEncoder(
+            resolved_model,
+            automodel_args=kwargs,
+            tokenizer_args=kwargs,
+        )
+        _LOCAL_RERANKER_MODELS[resolved_model] = model
+        logger.info("Loaded local report reranker model", model=resolved_model)
+        return model
+    except TypeError as exc:
+        logger.warning(
+            "Local report reranker does not support cache-only loading arguments",
+            model=resolved_model,
+            error=str(exc),
+        )
+        return None
+    except Exception as exc:
+        logger.warning(
+            "Failed to load local report reranker model",
+            model=resolved_model,
+            error=str(exc),
+        )
+        return None
+
+
+def _normalize_rerank_score(raw_score: Any) -> float:
+    try:
+        if hasattr(raw_score, "item"):
+            value = float(raw_score.item())
+        else:
+            value = float(raw_score)
+    except Exception:
+        return 0.0
+    if 0.0 <= value <= 1.0:
+        return value
+    try:
+        return float(1.0 / (1.0 + exp(-value)))
+    except OverflowError:
+        return 0.0 if value < 0 else 1.0
 
 
 def build_rerank_messages(

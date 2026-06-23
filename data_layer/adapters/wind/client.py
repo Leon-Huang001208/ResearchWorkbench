@@ -20,17 +20,24 @@ HEARTBEAT_RETRIES = 2
 HEARTBEAT_RETRY_DELAY = 2.0
 
 HELPER_SHEET_NAME = "_wind_helper_"
+HELPER_MAX_ROW = 10000
 
 EXCEL_ERRORS = frozenset({"#N/A", "#VALUE!", "#REF!", "#DIV/0!", "#NAME?", "#NUM!", "#NULL!"})
-WIND_LOADING = frozenset({"fetch...", "loading...", "calculating...", "connecting..."})
+WIND_LOADING = frozenset(
+    {"fetch...", "fetching...", "loading...", "calculating...", "connecting..."}
+)
 
 
 def _is_error_value(value: Any) -> bool:
     """检查返回值是否是 Excel 错误"""
     if value is None:
         return True
-    if isinstance(value, str) and value.strip().upper() in EXCEL_ERRORS:
-        return True
+    if isinstance(value, str):
+        stripped = value.strip()
+        if stripped.upper() in EXCEL_ERRORS:
+            return True
+        if stripped.lower() in WIND_LOADING:
+            return True
     return False
 
 
@@ -49,6 +56,8 @@ class WindExcelClient:
         self._keepalive_interval = 1800  # 默认 30 分钟
         self._last_heartbeat_time: float = 0.0
         self._heartbeat_ttl: float = 30.0  # 30s 内复用 heartbeat 结果
+        self._helper_row = 1000
+        self._helper_lock = threading.Lock()
 
     def _connect(self):
         """连接 Excel：优先连接已运行的实例，否则启动新实例"""
@@ -79,10 +88,40 @@ class WindExcelClient:
         else:
             self._wb = self._app.books[0]
 
-        # 使用第一个 sheet（与 AppleScript 测试一致），用 Z 列避免覆盖用户数据
-        self._sheet = self._wb.sheets[0]
-        logger.info(f"使用工作表: {self._sheet.name}")
-        self._col = "Z"  # 使用远离用户数据的列
+        # Wind Mac 插件在新建 helper sheet 上偶尔只返回 Fetching。
+        # 仍使用第一个 sheet，但落在很远的 ZZ 列和高行，避免覆盖用户可见区域和旧缓存。
+        self._sheet = self._get_formula_sheet()
+        self._helper_row = int(time.time() * 1000) % 5000 + 1000
+        try:
+            sheet_name = self._sheet.name
+        except Exception:
+            sheet_name = HELPER_SHEET_NAME
+        logger.info(f"使用工作表: {sheet_name}")
+        self._col = "ZZ"
+
+    def _get_or_create_helper_sheet(self):
+        sheets = self._wb.sheets
+        try:
+            for sheet in sheets:
+                if getattr(sheet, "name", None) == HELPER_SHEET_NAME:
+                    return sheet
+        except Exception:
+            pass
+        try:
+            return sheets.add(name=HELPER_SHEET_NAME)
+        except Exception as exc:
+            logger.debug("Unable to create Wind helper sheet: %s", exc)
+            return sheets[0]
+
+    def _get_formula_sheet(self):
+        sheets = self._wb.sheets
+        try:
+            for sheet in sheets:
+                if getattr(sheet, "name", None) != HELPER_SHEET_NAME:
+                    return sheet
+        except Exception:
+            pass
+        return sheets[0]
 
     def heartbeat(self) -> bool:
         """检测 Wind 会话是否有效（带重试，处理 Wind 加载中间态）"""
@@ -140,24 +179,41 @@ class WindExcelClient:
         self._ensure_connected()
 
         timeout = timeout or self._timeout
-        cell = self._sheet.range(f"{self._col}1")
+        start_row = self._allocate_helper_rows(1)
+        cell = self._sheet.range(f"{self._col}{start_row}")
+        cell.value = None
+        time.sleep(0.05)
         cell.value = formula
 
-        elapsed = 0.0
-        interval = 0.3
-        while elapsed < timeout:
-            time.sleep(interval)
-            elapsed += interval
-            result = cell.value
-            if not _is_error_value(result):
-                return result
-            if result is None:
-                continue
-            error_str = str(result).strip().upper()
-            if error_str in EXCEL_ERRORS:
-                return result
+        try:
+            elapsed = 0.0
+            interval = 0.3
+            while elapsed < timeout:
+                time.sleep(interval)
+                elapsed += interval
+                result = cell.value
+                if not _is_error_value(result):
+                    return result
+                if result is None:
+                    continue
+                error_str = str(result).strip().upper()
+                if error_str in EXCEL_ERRORS:
+                    return result
+        finally:
+            try:
+                cell.value = None
+            except Exception as exc:
+                logger.debug("Unable to clear Wind formula cell: %s", exc)
 
         raise WindTimeoutError(formula, timeout)
+
+    def _allocate_helper_rows(self, count: int) -> int:
+        with self._helper_lock:
+            if self._helper_row + count > HELPER_MAX_ROW:
+                self._helper_row = 1
+            start_row = self._helper_row
+            self._helper_row += max(count, 1)
+            return start_row
 
     def execute(self, formula: str, timeout: float | None = None) -> Any:
         """执行单条 Wind 公式并返回结果（自动检测会话）"""
@@ -181,58 +237,151 @@ class WindExcelClient:
         sheet = self._sheet
         col = self._col
         app = self._app
+        start_row = self._allocate_helper_rows(len(formulas))
 
         # 关闭自动计算，避免逐单元格触发 Wind 拉取
-        original_calculation = app.api.Calculation
-        app.api.Calculation = -4135  # xlCalculationManual
+        original_calculation = None
+        can_control_calculation = False
+        try:
+            original_calculation = app.api.Calculation
+            app.api.Calculation = -4135  # xlCalculationManual
+            can_control_calculation = True
+        except Exception as e:
+            logger.debug("Excel calculation mode control unavailable: %s", e)
 
         try:
-            # 列式写入所有公式
-            for i, formula in enumerate(formulas):
-                row = i + 1
-                sheet.range(f"{col}{row}").value = formula
+            self._write_formula_column(sheet, col, formulas, start_row)
         finally:
             # 恢复自动计算，Excel 开始批量拉取 Wind 数据
-            app.api.Calculation = original_calculation
+            if can_control_calculation:
+                app.api.Calculation = original_calculation
 
-        # 等待 Excel 完成所有计算
-        elapsed = 0.0
-        interval = 0.5
-        results: list[Any] = [None] * len(formulas)
+        try:
+            # 等待 Excel 完成所有计算
+            elapsed = 0.0
+            interval = 0.5
+            results: list[Any] = [None] * len(formulas)
 
-        while elapsed < timeout:
-            time.sleep(interval)
-            elapsed += interval
-            all_ready = True
+            while elapsed < timeout:
+                time.sleep(interval)
+                elapsed += interval
+                all_ready = True
+                values = self._read_formula_column(sheet, col, len(formulas), start_row)
+                for i, val in enumerate(values):
+                    if results[i] is None:
+                        if val is None:
+                            all_ready = False
+                        elif isinstance(val, str) and val.strip().lower() in WIND_LOADING:
+                            all_ready = False
+                        else:
+                            # Accept both valid results AND Excel errors as "done"
+                            # (an Excel error like #N/A is the final answer, not a loading state)
+                            results[i] = val
+                if all_ready:
+                    break
+
+            # 收集最终结果：None = timed out (unresolved), error string = Wind error, other = valid
+            final_values = self._read_formula_column(sheet, col, len(formulas), start_row)
+            final_results = []
             for i in range(len(formulas)):
                 if results[i] is None:
-                    val = sheet.range(f"{col}{i + 1}").value
-                    if val is None:
-                        all_ready = False
+                    val = final_values[i]
+                    if val is None or _is_error_value(val):
+                        final_results.append(
+                            WindFormulaError(formulas[i], str(val) if val else "timeout")
+                        )
                     else:
-                        # Accept both valid results AND Excel errors as "done"
-                        # (an Excel error like #N/A is the final answer, not a loading state)
-                        results[i] = val
-            if all_ready:
-                break
-
-        # 收集最终结果：None = timed out (unresolved), error string = Wind error, other = valid
-        final_results = []
-        for i in range(len(formulas)):
-            if results[i] is None:
-                val = sheet.range(f"{col}{i + 1}").value
-                if val is None or _is_error_value(val):
-                    final_results.append(
-                        WindFormulaError(formulas[i], str(val) if val else "timeout")
-                    )
+                        final_results.append(val)
+                elif _is_error_value(results[i]):
+                    final_results.append(WindFormulaError(formulas[i], str(results[i])))
                 else:
-                    final_results.append(val)
-            elif _is_error_value(results[i]):
-                final_results.append(WindFormulaError(formulas[i], str(results[i])))
-            else:
-                final_results.append(results[i])
+                    final_results.append(results[i])
 
-        return final_results
+            return final_results
+        finally:
+            self._clear_formula_column(sheet, col, len(formulas), start_row)
+
+    @staticmethod
+    def _write_formula_column(
+        sheet: Any,
+        col: str,
+        formulas: list[str],
+        start_row: int = 1,
+    ) -> None:
+        if len(formulas) == 1:
+            cell = sheet.range(f"{col}{start_row}")
+            cell.value = None
+            time.sleep(0.05)
+            cell.value = formulas[0]
+            return
+
+        end_row = start_row + len(formulas) - 1
+        address = f"{col}{start_row}:{col}{end_row}"
+        try:
+            sheet.range(address).value = [[None] for _ in formulas]
+            time.sleep(0.05)
+            sheet.range(address).value = [[formula] for formula in formulas]
+        except Exception as exc:
+            logger.debug("Excel range batch write unavailable: %s", exc)
+            for i, formula in enumerate(formulas):
+                cell = sheet.range(f"{col}{start_row + i}")
+                cell.value = None
+                time.sleep(0.05)
+                cell.value = formula
+
+    @staticmethod
+    def _read_formula_column(
+        sheet: Any,
+        col: str,
+        count: int,
+        start_row: int = 1,
+    ) -> list[Any]:
+        if count <= 0:
+            return []
+        if count == 1:
+            return [sheet.range(f"{col}{start_row}").value]
+
+        end_row = start_row + count - 1
+        address = f"{col}{start_row}:{col}{end_row}"
+        try:
+            values = sheet.range(address).value
+            normalized = WindExcelClient._normalize_column_values(values)
+            if len(normalized) < count:
+                normalized.extend([None] * (count - len(normalized)))
+            return normalized[:count]
+        except Exception as exc:
+            logger.debug("Excel range batch read unavailable: %s", exc)
+            return [sheet.range(f"{col}{start_row + i}").value for i in range(count)]
+
+    @staticmethod
+    def _clear_formula_column(
+        sheet: Any,
+        col: str,
+        count: int,
+        start_row: int = 1,
+    ) -> None:
+        if count <= 0:
+            return
+        try:
+            if count == 1:
+                sheet.range(f"{col}{start_row}").value = None
+                return
+            end_row = start_row + count - 1
+            sheet.range(f"{col}{start_row}:{col}{end_row}").value = [[None] for _ in range(count)]
+        except Exception as exc:
+            logger.debug("Unable to clear Wind formula range: %s", exc)
+
+    @staticmethod
+    def _normalize_column_values(values: Any) -> list[Any]:
+        if not isinstance(values, list):
+            return [values]
+        normalized: list[Any] = []
+        for item in values:
+            if isinstance(item, list):
+                normalized.append(item[0] if item else None)
+            else:
+                normalized.append(item)
+        return normalized
 
     def start_keepalive(
         self,

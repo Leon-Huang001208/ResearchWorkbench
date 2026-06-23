@@ -15,55 +15,39 @@ defaults:
     forbid_external_facts: true
     forbid_direct_investment_advice: true
     forbidden_terms:
-    - 保本
-    - 稳赚
-    - 收益保证
-    - 明确买入
-    - 目标价
-    forbid_wind_data: true
-    forbid_daily_data: true
-    require_source_for_numbers: true
-    no_newline: true
-    forbidden_phrases:
-    - 根据文件
-    - 据报道
-    - 数据显示
-    forbid_entities:
-    - 指数名称
-    - 公司名称
-    - 证券机构
-    - 个股名称
-    - ETF名称
+      - 保本
+      - 稳赚
+      - 收益保证
+      - 明确买入
+      - 目标价
   generation_constraints:
-  - 严格依据上传材料、Excel 数据和 evidence，不添加外部知识或虚构数据
-  - 不得使用 Wind 数据
-  - 不得使用日度数据；如需描述市场表现，应使用周度或区间汇总数据
-  - 使用数据或数值时必须说明来源；如数据来自已上传 Excel，可直接用于正文
-  - 生成一段正文，不输出换行符
-  - 不得输出标题、编号、项目符号或解释过程
-  - 不得输出直接投资建议、收益承诺、目标价或买卖指令
-  - 禁止出现这些词语：保本、稳赚、收益保证、明确买入、目标价
-  - 禁止出现这些短语：根据文件、据报道、数据显示
-  - 禁止提及与本段无关的指数名称、公司名称、证券机构、个股名称、ETF 名称
-  - 如写作参数、固定模板或 Excel 数据明确要求引用指数名称，可以用于客观描述，不得展开投资评价
-  - 如因说明数据出处必须引用机构名称，只能作为来源出现，不得展开评价
-  - 可基于事实做一句审慎趋势判断，但必须直接由前文事实或数据支撑
+  - 严格依据evidence 和写作参数生成内容，不得补充外部知识或虚构信息
+  - 所有事实、数据、观点和结论均须有明确依据；依据不足时仅陈述事实
+  - 使用数值时必须说明来源；Excel 数据可直接引用
+  - 不得编造任何数据、来源或观点
+  - 不得输出投资建议、收益承诺、目标价、仓位建议或交易指令
+  - 禁止出现：保本、稳赚、收益保证、明确买入、明确卖出、目标价
+  - 禁止出现：根据文件、据报道、数据显示
+  - 除明确要求外，不得新增任何实体名称
+  - 仅输出单段正文，不输出标题、列表或解释
+  report_period:
+    report_date: 2026-06-14
+    start_date: 2026-06-08
+    end_date: 2026-06-14
   retrieval:
     mode: hybrid
-    top_k: 8
-    candidate_k: 50
-    semantic_candidate_k: 100
-    min_keyword_score: 1
-    fusion:
-      method: rrf
-      keyword_weight: 0.65
-      semantic_weight: 0.35
-      rrf_k: 60
-    rerank:
-      enabled: true
-      provider: llm
-      top_n: 16
-      min_score: 30
+    top_k: 10
+    candidate_k: 40
+    semantic_candidate_k: 80
+    keyword_weight: 0.6
+    semantic_weight: 0.4
+    embedding_model: /Users/leon/Desktop/Projects/AlphaFoundry/data/models/embeddings/bge-large-zh-v1.5
+  rerank:
+    enabled: true
+    provider: bge-reranker
+    model: /Users/leon/Desktop/Projects/AlphaFoundry/data/models/rerankers/bge-reranker-large
+    top_n: 30
+    min_score: 0.35
 charts:
   industry_weekly_performance:
     title: 申万一级行业周涨跌幅
@@ -152,20 +136,13 @@ tables:
       column: 重要性
       equals: 重要
 placeholders:
-  开始日期:
-    title: 开始日期
-    type: report_period
-    field: start_date
-  结束日期:
-    title: 结束日期
-    type: report_period
-    field: end_date
   A股市场回顾:
     title: A股市场回顾
     type: composite_market_review
     prompt_template: A股市场回顾
-    target_words: 250
-    max_words: 320
+    query_mode: retrieval_query_embedded
+    target_words: 200
+    max_words: 200
     min_news_count: 5
     data_source:
       workbook: 周报数据.xlsx
@@ -178,200 +155,140 @@ placeholders:
       template: 本周A股市场整体呈现{market_trend}，主要指数表现不一：{index_performance}。交易面，A股市场本周日均成交额在{avg_turnover}左右，市场投资热情{turnover_trend}。
       fields:
         market_trend:
-          source: excel
-          description: 根据主要指数涨跌分布判断，例如“分化趋势”“震荡调整”“整体回暖”
+          label: market_trend
+          workbook: 周报数据.xlsx
+          sheet: 国内
+          range: B2:C6
+          rule: 读取主要指数周内涨跌幅，正负都有为“分化趋势”，全涨为“普涨趋势”，全跌为“调整趋势”
         index_performance:
-          source: excel
-          description: 提取主要指数本周涨跌幅，按配置顺序输出
-          indices:
-          - 沪深300
-          - 中证500
-          - 中证1000
-          - 创业板50
-          - 科创50
+          label: index_performance
+          workbook: 周报数据.xlsx
+          sheet: 国内
+          range: B2:C6
+          rule: 按顺序读取指数名称和周内涨跌幅，生成“沪深300涨0.86%”这类列表
         avg_turnover:
-          source: excel
-          description: A股市场本周日均成交额
+          label: avg_turnover
+          workbook: 周报数据.xlsx
+          sheet: 市场成交
+          cell: B2
+          rule: 读取本周日均成交额，并格式化为“x.xx万亿”
         turnover_trend:
-          source: excel
-          description: 根据成交额变化判断，例如“回落”“回升”“维持平稳”
+          label: turnover_trend
+          workbook: 周报数据.xlsx
+          sheet: 市场成交
+          range: B2:C2
+          rule: 比较本周日均成交额和上周日均成交额，生成“回升/回落/持平”
     - name: 市场热点与趋势判断
       type: llm_writing
       retrieval:
         keyword_profile: A股市场回顾
-        keywords:
-        - CPO
-        - 算力
-        - 人工智能
-        - 先进封装
-        - 半导体
-        - 光模块
-        - 机器人
-        - 新能源
-        - 消费
-        - 医药
-        - 黄金
-        - 原油
       writing_structure:
       - 接在固定开头之后，概括本周市场热点板块或概念，按材料中的重要性或出现频率排序
       - 描述板块轮动特征，包括反复活跃方向、阶段性活跃方向和相对低迷方向
       - 结合一个有明确 evidence 支撑的政策、产业或景气度变化，给出一句审慎趋势判断
       - 最后如需表达关注方向，应使用“后续可关注”“值得跟踪”等克制表述，不得构成直接投资建议
+    params: {}
   中国宏观:
     title: 中国宏观
     type: prompt
     prompt_template: 中国宏观
-    max_words: 350
+    query_mode: retrieval_query_embedded
+    target_words: 300
+    max_words: 300
+    min_news_count: 6
     retrieval:
       keyword_profile: 中国
-      keywords:
-      - 中国宏观
-      - 宏观经济
-      - 货币政策
-      - 财政政策
-      - 产业政策
-      - 就业
-      - 央行
-      - 国常会
-      - 发改委
-      - 经济数据
-      - 社融
-      - PMI
+    params: {}
   人工智能:
     title: 人工智能
     type: prompt
     prompt_template: 人工智能
-    max_words: 400
+    query_mode: retrieval_query_embedded
+    target_words: 300
+    max_words: 300
+    min_news_count: 6
     retrieval:
       keyword_profile: 人工智能
-      keywords:
-      - 人工智能
-      - AI
-      - 大模型
-      - 算力
-      - 光模块
-      - 英伟达
-      - OpenAI
-      - AI芯片
-      - 机器人
-      - 智能驾驶
-      - 生成式AI
+    params:
+      param: 人工智能
+  电子:
+    title: 电子
+    type: prompt
+    prompt_template: 电子
+    query_mode: retrieval_query_embedded
+    target_words: 300
+    max_words: 300
+    min_news_count: 6
+    retrieval:
+      keyword_profile: 电子
+    params:
+      param: 电子
+  航天:
+    title: 航天
+    type: prompt
+    prompt_template: 航天
+    query_mode: retrieval_query_embedded
+    target_words: 300
+    max_words: 300
+    min_news_count: 6
+    retrieval:
+      keyword_profile: 航天
+    params:
+      param: 航天
+  电力设备新能源:
+    title: 电力设备新能源
+    type: prompt
+    prompt_template: 电力设备新能源
+    query_mode: retrieval_query_embedded
+    target_words: 300
+    max_words: 300
+    min_news_count: 6
+    retrieval:
+      keyword_profile: 电力设备新能源
+    params:
+      param: 电力设备新能源
+  消费:
+    title: 消费
+    type: prompt
+    prompt_template: 消费
+    query_mode: retrieval_query_embedded
+    target_words: 300
+    max_words: 300
+    min_news_count: 6
+    retrieval:
+      keyword_profile: 消费
+    params:
+      param: 消费
+  金融地产:
+    title: 金融地产
+    type: prompt
+    prompt_template: 金融地产
+    query_mode: retrieval_query_embedded
+    target_words: 300
+    max_words: 300
+    min_news_count: 6
+    retrieval:
+      keyword_profile: 金融地产
+    params:
+      param: 金融地产
   医药生物:
     title: 医药生物
     type: prompt
     prompt_template: 医药生物
-    max_words: 400
+    query_mode: retrieval_query_embedded
+    target_words: 300
+    max_words: 300
+    min_news_count: 6
     retrieval:
       keyword_profile: 医药生物
-      keywords:
-      - 医药
-      - 医药生物
-      - 生物医药
-      - 创新药
-      - 医疗器械
-      - CRO
-      - CDMO
-      - 细胞治疗
-      - 基因治疗
-      - 药品
-      - 医保
-  原油:
-    title: 原油
-    type: prompt
-    prompt_template: 原油
-    max_words: 300
-    retrieval:
-      keyword_profile: 石油
-      keywords:
-      - 原油
-      - 石油
-      - OPEC
-      - OPEC+
-      - 供给
-      - 需求
-      - 库存
-      - WTI
-      - 布伦特
-      - 地缘
-      - 能源
-  原油市场回顾:
-    title: 原油市场回顾
-    type: prompt
-    prompt_template: 原油市场回顾
-    max_words: 300
-    retrieval:
-      keyword_profile: 石油
-      keywords:
-      - 原油
-      - 石油
-      - OPEC
-      - OPEC+
-      - 供给
-      - 需求
-      - 库存
-      - WTI
-      - 布伦特
-      - 地缘
-      - 能源
-  日本:
-    title: 日本
-    type: prompt
-    prompt_template: 日本
-    max_words: 350
-    retrieval:
-      keyword_profile: 日本
-      keywords:
-      - 日本
-      - 日本央行
-      - 日元
-      - 日股
-      - 日本股市
-      - 利率
-      - 通胀
-      - 国债
-      - 地缘
-      - 汇率
-  欧洲:
-    title: 欧洲
-    type: prompt
-    prompt_template: 欧洲
-    max_words: 350
-    retrieval:
-      keyword_profile: 欧洲
-      keywords:
-      - 欧洲
-      - 欧央行
-      - 欧洲央行
-      - 欧元
-      - 欧债
-      - 德国
-      - 法国
-      - 英国
-      - 通胀
-      - 利率
-      - 地缘
-  欧洲新闻:
-    title: 欧洲新闻
-    type: prompt
-    prompt_template: 欧洲新闻
-    max_words: 250
-    retrieval:
-      keyword_profile: 欧洲
-      keywords:
-      - 欧洲
-      - 欧元
-      - 欧债
-      - 德国
-      - 法国
-      - 英国
-      - 欧洲央行
-      - 通胀
-      - 利率
-      - 地缘
+    params:
+      param: 医药生物
   海外市场:
     title: 海外市场
     type: prompt
     prompt_template: 海外市场
+    query_mode: retrieval_query_embedded
+    target_words: 240
     max_words: 350
     retrieval:
       keywords:
@@ -386,206 +303,127 @@ placeholders:
       - 美元
       - 股市
       - 地缘
-  消费:
-    title: 消费
-    type: prompt
-    prompt_template: 消费
-    max_words: 400
-    retrieval:
-      keyword_profile: 消费
-      keywords:
-      - 消费
-      - 食品饮料
-      - 酒类
-      - 零售
-      - 服务消费
-      - 促消费
-      - 国货
-      - 电商
-      - 文旅
-      - 餐饮
-      - 消费复苏
-  港股央企红利:
-    title: 港股央企红利
-    type: prompt
-    prompt_template: 港股央企红利
-    max_words: 350
-    retrieval:
-      keyword_profile: 香港
-      keywords:
-      - 港股
-      - 央企
-      - 红利
-      - 高股息
-      - 港股通
-      - 银行
-      - 券商
-      - 有色
-      - 分红
-      - 中字头
+    params: {}
   港股科技:
     title: 港股科技
     type: prompt
     prompt_template: 港股科技
-    max_words: 350
+    query_mode: retrieval_query_embedded
+    target_words: 300
+    max_words: 300
+    min_news_count: 8
     retrieval:
       keyword_profile: 香港
-      keywords:
-      - 港股科技
-      - 港股
-      - 科技
-      - 半导体
-      - 生物医药
-      - 互联网
-      - 恒生科技
-      - AI
-      - 腾讯
-      - 阿里
-  电力设备新能源:
-    title: 电力设备新能源
+    params:
+      param: 港股科技
+  港股央企红利:
+    title: 港股央企红利
     type: prompt
-    prompt_template: 电力设备新能源
-    max_words: 400
+    prompt_template: 港股央企红利
+    query_mode: retrieval_query_embedded
+    target_words: 300
+    max_words: 300
+    min_news_count: 8
     retrieval:
-      keyword_profile: 电力设备新能源
-      keywords:
-      - 电力设备
-      - 新能源
-      - 光伏
-      - 风电
-      - 储能
-      - 新能源车
-      - 锂电池
-      - 钠电池
-      - 核电
-      - 充电桩
-      - 特高压
-  电子:
-    title: 电子
-    type: prompt
-    prompt_template: 电子
-    max_words: 400
-    retrieval:
-      keyword_profile: 电子
-      keywords:
-      - 电子
-      - 半导体
-      - 芯片
-      - 集成电路
-      - 消费电子
-      - 汽车电子
-      - 元器件
-      - 存储
-      - 晶圆
-      - 封测
+      keyword_profile: 香港
+    params:
+      param: 港股央企红利
   美国:
     title: 美国
     type: prompt
     prompt_template: 美国
-    max_words: 350
+    query_mode: retrieval_query_embedded
+    target_words: 300
+    max_words: 300
+    min_news_count: 5
     retrieval:
       keyword_profile: 美国
-      keywords:
-      - 美国
-      - 美联储
-      - 美债
-      - 美元
-      - 美股
-      - 关税
-      - 特朗普
-      - 通胀
-      - 就业
-      - 石油
-      - 地缘
+    params:
+      param: 美国
+  欧洲:
+    title: 欧洲
+    type: prompt
+    prompt_template: 欧洲
+    query_mode: retrieval_query_embedded
+    target_words: 300
+    max_words: 300
+    min_news_count: 5
+    retrieval:
+      keyword_profile: 欧洲
+    params:
+      param: 欧洲
+  日本:
+    title: 日本
+    type: prompt
+    prompt_template: 日本
+    query_mode: retrieval_query_embedded
+    target_words: 300
+    max_words: 300
+    min_news_count: 5
+    retrieval:
+      keyword_profile: 日本
+    params:
+      param: 日本
   美国新闻:
     title: 美国新闻
     type: prompt
     prompt_template: 美国新闻
-    max_words: 250
+    query_mode: retrieval_query_embedded
+    target_words: 100
+    max_words: 100
+    min_news_count: 2
     retrieval:
       keyword_profile: 美国
-      keywords:
-      - 美国
-      - 美联储
-      - 美债
-      - 美元
-      - 美股
-      - 关税
-      - 通胀
-      - 就业
-      - 财政
-      - 地缘
-  航天:
-    title: 航天
+    params: {}
+  欧洲新闻:
+    title: 欧洲新闻
     type: prompt
-    prompt_template: 航天
-    max_words: 400
+    prompt_template: 欧洲新闻
+    query_mode: retrieval_query_embedded
+    target_words: 100
+    max_words: 100
+    min_news_count: 2
     retrieval:
-      keyword_profile: 航天
-      keywords:
-      - 航天
-      - 商业航天
-      - 卫星
-      - 卫星互联网
-      - 火箭
-      - 运载火箭
-      - 空间站
-      - 太空经济
-      - 低空经济
-  金融地产:
-    title: 金融地产
-    type: prompt
-    prompt_template: 金融地产
-    max_words: 400
-    retrieval:
-      keyword_profile: 金融地产
-      keywords:
-      - 金融
-      - 地产
-      - 房地产
-      - 银行
-      - 保险
-      - 券商
-      - 信贷
-      - 融资
-      - 房企
-      - 不动产
-      - 利率
+      keyword_profile: 欧洲
+    params: {}
+  黄金市场回顾:
+    title: 黄金市场回顾
+    type: excel_commodity_market_review
+    data_source:
+      kind: gold
+      workbook: 周报数据.xlsx
+      sheet: 黄金
+    params: {}
   黄金:
     title: 黄金
     type: prompt
     prompt_template: 黄金
+    query_mode: retrieval_query_embedded
+    target_words: 300
     max_words: 300
+    min_news_count: 5
     retrieval:
       keyword_profile: 黄金
-      keywords:
-      - 黄金
-      - 金价
-      - 伦敦金
-      - Au9999
-      - 美联储
-      - 美债
-      - 美元
-      - 实际利率
-      - 央行购金
-      - 避险
-      - 通胀
-  黄金市场回顾:
-    title: 黄金市场回顾
+    params:
+      param: 黄金
+  原油市场回顾:
+    title: 原油市场回顾
+    type: excel_commodity_market_review
+    data_source:
+      kind: oil
+      workbook: 周报数据.xlsx
+      sheet: 石油
+    params:
+      param: 原油
+  原油:
+    title: 原油
     type: prompt
-    prompt_template: 黄金市场回顾
+    prompt_template: 原油
+    query_mode: retrieval_query_embedded
+    target_words: 300
     max_words: 300
+    min_news_count: 5
     retrieval:
-      keyword_profile: 黄金
-      keywords:
-      - 黄金
-      - 金价
-      - 伦敦金
-      - Au9999
-      - 美联储
-      - 美债
-      - 美元
-      - 实际利率
-      - 央行购金
-      - 避险
-      - 通胀
+      keyword_profile: 石油
+    params:
+      param: 原油

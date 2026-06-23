@@ -4,14 +4,14 @@
    ============================================================ */
 
 import { apiCall, toast, esc, getChartColors, applyChartDefaults } from './core.js';
-import { loadDashboard, switchDashTab } from './dashboard.js';
-import { startCrawlFeedPolling, stopCrawlFeedPolling, startWorkersPolling, stopWorkersPolling, loadWorkersStatus } from './monitor.js?v=6';
-import { searchAssets, selectAsset, analyzeAssetByCode, analyzeAsset, handleAssetSearchKeydown, initAssetSearch, setKLineTimeRange, toggleMA, initKLineToolbar } from './asset.js?v=20250605a';
+import { loadDashboard, switchDashTab, switchMarketSectorView, toggleMarketSectorMenu } from './dashboard.js?v=20260622c';
+import { startCrawlFeedPolling, stopCrawlFeedPolling, startWorkersPolling, stopWorkersPolling, loadWorkersStatus } from './monitor.js?v=20260623d';
+import { searchAssets, selectAsset, analyzeAssetByCode, analyzeAsset, handleAssetSearchKeydown, initAssetSearch, setKLineTimeRange, toggleMA, initKLineToolbar } from './asset.js?v=20260623a';
 import { switchSignalLabTab, loadSignalLab, initSignalLab } from './signal-lab.js';
 import { loadMemoryPage, loadEpisodes, loadStrategies, loadFailures, loadEventSummary, initMemory } from './memory.js';
 import { loadSignals, createSignal, validateSignal, promoteSignal, loadOutcomes, initSignals } from './signals.js';
 import { loadReviewStats, loadReviewPending, approveItem, rejectItem, initReview } from './review.js';
-import { loadTemplatesPage, loadTemplates, loadTemplatesList, selectTemplate, deleteTemplate, uploadTemplate, downloadTemplateFile, renderReportFromTemplate, downloadRenderedReport, savePlaceholderConfig, exportYamlConfig, generateAiContent, generateAllAiFields, discoverPlaceholders, createYamlConfig, openUploadModal, closeUploadModal, openEditTemplateModal, closeEditTemplateModal, saveTemplateEdit, toggleEditMode, saveTemplatesOrder, handleTemplatePointerDown, handleDragStart, handleDragOver, handleDrop, switchTemplatesTab, goBackToTemplates, clearPlaceholderData, updatePlaceholderConfig, updatePlaceholderValue, initTemplateDropZone, handleTemplateFileSelect, clearFileSelection, handleTemplateNameKeydown, saveTemplateInlineName } from './templates.js?v=20250614h';
+import { loadTemplatesPage, loadTemplates, loadTemplatesList, selectTemplate, deleteTemplate, uploadTemplate, downloadTemplateFile, renderReportFromTemplate, downloadRenderedReport, savePlaceholderConfig, exportYamlConfig, generateAiContent, generateAllAiFields, discoverPlaceholders, createYamlConfig, openUploadModal, closeUploadModal, closeEditTemplateModal, openEditTemplateModal, saveTemplateEdit, toggleEditMode, saveTemplatesOrder, handleTemplatePointerDown, handleDragStart, handleDragOver, handleDrop, switchTemplatesTab, goBackToTemplates, clearPlaceholderData, updatePlaceholderConfig, updatePlaceholderValue, initTemplateDropZone, handleTemplateFileSelect, clearFileSelection, handleTemplateNameKeydown, saveTemplateInlineName } from './templates.js?v=20260621i';
 import { showSignalDetail, renderSignalDetail, renderAuditTrailTimeline, loadAuditTrail } from './signal-detail.js';
 import { generateScenarios, renderScenarioResult } from './scenario.js';
 import { generateEventSignal, loadEventSignals, renderEventSignalResult, renderTimingDecision } from './event-signal.js';
@@ -31,6 +31,8 @@ window.applyChartDefaults = applyChartDefaults;
 
 window.loadDashboard = loadDashboard;
 window.switchDashTab = switchDashTab;
+window.switchMarketSectorView = switchMarketSectorView;
+window.toggleMarketSectorMenu = toggleMarketSectorMenu;
 
 window.searchAssets = searchAssets;
 window.selectAsset = selectAsset;
@@ -115,8 +117,14 @@ window.initWindPanel = initWindPanel;
 
 // ─── Theme & i18n Init ───────────────────────────────────────
 (function initTheme() {
-    const saved = localStorage.getItem('af-theme') || 'light';
-    document.documentElement.setAttribute('data-theme', saved);
+    const desktopVisualVersion = '20260618-desktop-phase1';
+    const savedTheme = localStorage.getItem('af-theme');
+    if (localStorage.getItem('af-desktop-visual-version') !== desktopVisualVersion) {
+        localStorage.setItem('af-theme', savedTheme || 'dark');
+        localStorage.setItem('af-color-scheme', 'claude');
+        localStorage.setItem('af-desktop-visual-version', desktopVisualVersion);
+    }
+    document.documentElement.setAttribute('data-theme', localStorage.getItem('af-theme') || 'dark');
 })();
 
 function applyTheme(theme) {
@@ -161,6 +169,8 @@ window.applyColorScheme = applyColorScheme;
 function switchColorScheme(scheme) { applyColorScheme(scheme); }
 window.switchColorScheme = switchColorScheme;
 
+applyTheme(document.documentElement.getAttribute('data-theme') || 'dark');
+applyColorScheme(document.documentElement.getAttribute('data-color-scheme') || 'claude');
 applyChartDefaults();
 
 // ─── Chart Instances (for cleanup) ───────────────────────────

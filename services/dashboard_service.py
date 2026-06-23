@@ -1,6 +1,10 @@
 """Dashboard 首页数据聚合服务"""
 from datetime import UTC, datetime, timedelta
-from typing import List, Optional
+import os
+import re
+from threading import Lock
+import time
+from typing import Any, List, Optional
 
 from sqlalchemy import desc
 
@@ -14,20 +18,58 @@ from core.contracts.dashboard import (
     HighPriorityThesis,
     LearningSection,
     MappingReviewItem,
+    MarketBreadthSnapshot,
+    MarketIndexItem,
     MarketOverviewSection,
     MissingEvidence,
     PendingAssertion,
     RecentFailure,
     ResearchQueueSection,
     SectorChangeItem,
+    SectorMoverView,
     TodayEvent,
     TodaySection,
     WeeklyLesson,
 )
 from core.observability import get_logger
 from data_layer.repositories.dashboard_data import DashboardDataRepository
+from services.wind_market_overview_provider import WindMarketOverviewProvider
 
 logger = get_logger(__name__)
+
+MARKET_SECTOR_VIEW_ORDER = (
+    "wind_hot_concept",
+    "wind_l1",
+    "wind_l2",
+    "wind_l3",
+    "wind_l4",
+    "citic_l1",
+    "citic_l2",
+    "citic_l3",
+    "sw_l1",
+    "sw_l2",
+    "sw_l3",
+    "ths_industry",
+)
+
+MARKET_SECTOR_CACHE_TTL_SECONDS = 60.0
+MARKET_COMMAND_CACHE_TTL_SECONDS = 60.0
+MARKET_BREADTH_EXACT_CACHE_TTL_SECONDS = 180.0
+ENABLE_WIND_REALTIME_WORKBOOK_ENV = "ALPHAFOUNDRY_ENABLE_WIND_WORKBOOK"
+
+_market_command_cache_lock = Lock()
+_market_index_cache: Optional[tuple[float, list[dict[str, Any]]]] = None
+_market_breadth_cache: Optional[tuple[float, dict[str, Any]]] = None
+_market_breadth_refreshing = False
+_market_sector_cache: dict[tuple[str, int], tuple[float, dict]] = {}
+_market_sector_cache_lock = Lock()
+
+
+def _env_flag(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _translate_failure_reason(reason: str) -> str:
@@ -287,6 +329,218 @@ class DashboardService:
 
         return top_up_sectors, top_down_sectors
 
+    def _get_market_indices(self) -> list[MarketIndexItem]:
+        """Fetch lightweight real-time index quotes for the command center."""
+        global _market_index_cache
+
+        now = time.time()
+        with _market_command_cache_lock:
+            if (
+                _market_index_cache is not None
+                and now - _market_index_cache[0] < MARKET_COMMAND_CACHE_TTL_SECONDS
+            ):
+                return [MarketIndexItem(**item) for item in _market_index_cache[1]]
+
+        target_indices = [
+            ("sh000001", "上证指数"),
+            ("sz399001", "深证成指"),
+            ("sz399006", "创业板指"),
+            ("sh000688", "科创50"),
+            ("sh000300", "沪深300"),
+        ]
+
+        try:
+            import requests
+            from data_layer.crawlers.akshare.board import _without_proxy_env
+
+            quote_codes = [f"s_{code}" for code, _ in target_indices]
+            url = f"https://hq.sinajs.cn/list={','.join(quote_codes)}"
+            headers = {
+                "Referer": "https://finance.sina.com.cn/",
+                "User-Agent": "Mozilla/5.0",
+            }
+            with _without_proxy_env():
+                response = requests.get(url, headers=headers, timeout=5)
+                response.raise_for_status()
+            response.encoding = response.apparent_encoding or "GB18030"
+            quote_rows = {
+                match.group(1): match.group(2).split(",")
+                for match in re.finditer(r'var hq_str_s_([^=]+)="([^"]*)";', response.text)
+            }
+
+            indices: list[dict[str, Any]] = []
+            for code, label in target_indices:
+                values = quote_rows.get(code)
+                if not values or len(values) < 4:
+                    continue
+                latest = self._optional_float(values[1])
+                change = self._optional_float(values[3])
+                if latest is None or change is None:
+                    continue
+                indices.append(
+                    {
+                        "code": code,
+                        "name": values[0] or label,
+                        "value": f"{latest:.2f}",
+                        "change": round(change, 2),
+                        "amount": self._optional_float(values[5]) if len(values) > 5 else None,
+                        "source": "sina",
+                    }
+                )
+
+            if indices:
+                with _market_command_cache_lock:
+                    _market_index_cache = (now, indices)
+                return [MarketIndexItem(**item) for item in indices]
+        except Exception as exc:
+            logger.warning("Failed to fetch direct Sina market indices: %s", exc)
+
+        try:
+            import akshare as ak
+            from data_layer.crawlers.akshare.board import _without_proxy_env
+
+            with _without_proxy_env():
+                df = ak.stock_zh_index_spot_sina()
+
+            rows_by_code = {
+                str(row.get("代码") or "").strip(): row for _, row in df.iterrows()
+            }
+            rows_by_name = {
+                str(row.get("名称") or "").strip(): row for _, row in df.iterrows()
+            }
+
+            indices: list[dict[str, Any]] = []
+            for code, label in target_indices:
+                row = rows_by_code.get(code)
+                if row is None:
+                    row = rows_by_name.get(label)
+                if row is None:
+                    continue
+                latest = self._optional_float(row.get("最新价"))
+                change = self._optional_float(row.get("涨跌幅"))
+                if latest is None or change is None:
+                    continue
+                indices.append(
+                    {
+                        "code": code,
+                        "name": label,
+                        "value": f"{latest:.2f}",
+                        "change": round(change, 2),
+                        "amount": self._optional_float(row.get("成交额")),
+                        "source": "sina",
+                    }
+                )
+
+            if indices:
+                with _market_command_cache_lock:
+                    _market_index_cache = (now, indices)
+                return [MarketIndexItem(**item) for item in indices]
+        except Exception as exc:
+            logger.warning("Failed to fetch real-time market indices: %s", exc)
+
+        with _market_command_cache_lock:
+            cached = _market_index_cache
+        if cached:
+            return [MarketIndexItem(**item) for item in cached[1]]
+        return []
+
+    def _get_market_breadth(self) -> Optional[MarketBreadthSnapshot]:
+        """Return fast market breadth without blocking the dashboard on all-A pagination."""
+        now = time.time()
+        with _market_command_cache_lock:
+            cached = _market_breadth_cache
+        if cached and now - cached[0] < MARKET_BREADTH_EXACT_CACHE_TTL_SECONDS:
+            return MarketBreadthSnapshot(**cached[1])
+
+        sector_breadth = self._get_sector_board_breadth()
+        if sector_breadth:
+            return sector_breadth
+        if cached:
+            return MarketBreadthSnapshot(**cached[1])
+        return None
+
+    def _schedule_market_breadth_refresh(self) -> None:
+        # Exact all-A breadth is intentionally not scheduled from the dashboard path:
+        # ak.stock_zh_a_spot paginates all A shares and can run for tens of seconds.
+        logger.info("Skipped dashboard-triggered exact all-A breadth refresh")
+
+    @staticmethod
+    def _refresh_market_breadth_exact() -> None:
+        global _market_breadth_cache, _market_breadth_refreshing
+
+        try:
+            import akshare as ak
+            from data_layer.crawlers.akshare.board import _without_proxy_env
+
+            with _without_proxy_env():
+                df = ak.stock_zh_a_spot()
+
+            changes = df["涨跌幅"].apply(DashboardService._optional_float)
+            up = int((changes > 0).sum())
+            down = int((changes < 0).sum())
+            flat = int((changes == 0).sum())
+            amount = sum(
+                value or 0.0 for value in df["成交额"].apply(DashboardService._optional_float)
+            )
+            total = max(1, up + down + flat)
+            payload = {
+                "up": up,
+                "down": down,
+                "flat": flat,
+                "upRatio": round(up / total * 100, 1),
+                "downRatio": round(down / total * 100, 1),
+                "turnover": DashboardService._format_turnover_yuan(amount),
+                "turnoverDelta": None,
+                "source": "sina_all_a",
+                "sourceLabel": "全A实时",
+                "fetchedAt": datetime.now(UTC),
+            }
+            with _market_command_cache_lock:
+                _market_breadth_cache = (time.time(), payload)
+            logger.info("Refreshed exact A-share breadth: up=%s down=%s", up, down)
+        except Exception as exc:
+            logger.warning("Failed to refresh exact A-share breadth: %s", exc)
+        finally:
+            with _market_command_cache_lock:
+                _market_breadth_refreshing = False
+
+    def _get_sector_board_breadth(self) -> Optional[MarketBreadthSnapshot]:
+        """Build a quick breadth fallback from the cached THS industry board snapshot."""
+        try:
+            from data_layer.crawlers.akshare.board import fetch_sector_board
+
+            snapshot = fetch_sector_board()
+            if not snapshot.sectors:
+                return None
+
+            up = sum(max(0, int(sector.up_count)) for sector in snapshot.sectors)
+            down = sum(max(0, int(sector.down_count)) for sector in snapshot.sectors)
+            total = max(1, up + down)
+            turnover_yuan = (
+                sum(max(0.0, float(sector.total_amount)) for sector in snapshot.sectors)
+                * 100_000_000
+            )
+            fetched_at = (
+                datetime.fromtimestamp(snapshot.fetched_at, UTC)
+                if snapshot.fetched_at
+                else datetime.now(UTC)
+            )
+            return MarketBreadthSnapshot(
+                up=up,
+                down=down,
+                flat=0,
+                upRatio=round(up / total * 100, 1),
+                downRatio=round(down / total * 100, 1),
+                turnover=self._format_turnover_yuan(turnover_yuan),
+                turnoverDelta=None,
+                source="ths_sector",
+                sourceLabel="同花顺行业汇总",
+                fetchedAt=fetched_at,
+            )
+        except Exception as exc:
+            logger.warning("Failed to build THS sector breadth: %s", exc)
+            return None
+
     def get_market_overview_section(self) -> MarketOverviewSection:
         """获取市场概览板块：全球热点新闻、上涨/下跌板块概念"""
         from datetime import UTC, datetime
@@ -294,6 +548,8 @@ class DashboardService:
         has_real_news = False
         has_real_sectors = False
         last_updated = None
+        indices = self._get_market_indices()
+        breadth = self._get_market_breadth()
 
         try:
             # 尝试获取真实数据
@@ -305,7 +561,23 @@ class DashboardService:
                 down_sectors_data,
                 has_real_sectors,
                 _,
-            ) = self.dashboard_repo.get_sector_changes_from_signals(days=7, limit_per_direction=10)
+            ) = self.dashboard_repo.get_sector_changes_from_signals(
+                days=7, limit_per_direction=10
+            )
+            sector_views = {}
+            if has_real_sectors:
+                sector_views = {
+                    "ths_industry": {
+                        "up": [
+                            self._decorate_market_sector_item(item, "ths_industry")
+                            for item in up_sectors_data
+                        ],
+                        "down": [
+                            self._decorate_market_sector_item(item, "ths_industry")
+                            for item in down_sectors_data
+                        ],
+                    }
+                }
 
             if has_real_news or has_real_sectors:
                 logger.info(
@@ -321,6 +593,15 @@ class DashboardService:
 
                 top_up_sectors = [SectorChangeItem(**s, is_mock=False) for s in up_sectors_data]
                 top_down_sectors = [SectorChangeItem(**s, is_mock=False) for s in down_sectors_data]
+                normalized_sector_views = {
+                    key: SectorMoverView(
+                        up=[SectorChangeItem(**s, is_mock=False) for s in view.get("up", [])],
+                        down=[
+                            SectorChangeItem(**s, is_mock=False) for s in view.get("down", [])
+                        ],
+                    )
+                    for key, view in sector_views.items()
+                }
 
                 # 只要有一个方向有板块数据就使用真实数据，另一个方向可以是空的
                 # 只有当两个方向都没有数据时才回退到模拟
@@ -353,6 +634,9 @@ class DashboardService:
                     global_news=global_news,
                     top_up_sectors=top_up_sectors,
                     top_down_sectors=top_down_sectors,
+                    sector_views=normalized_sector_views,
+                    indices=indices,
+                    breadth=breadth,
                     uses_real_news=has_real_news,
                     uses_real_sectors=has_real_sectors,
                     last_updated=last_updated,
@@ -370,10 +654,230 @@ class DashboardService:
             global_news=global_news,
             top_up_sectors=top_up_sectors,
             top_down_sectors=top_down_sectors,
+            indices=indices,
+            breadth=breadth,
             uses_real_news=False,
             uses_real_sectors=False,
             last_updated=None,
         )
+
+    def get_market_sector_view(self, view_key: str, limit: int = 10) -> dict:
+        """Fetch one market sector mover view on demand."""
+        from collections import Counter
+
+        normalized_view = self._normalize_market_view_key(view_key)
+        normalized_limit = max(1, min(int(limit or 10), 50))
+        cache_key = (normalized_view, normalized_limit)
+        cached_payload = self._get_cached_market_sector_payload(cache_key)
+        if cached_payload is not None:
+            logger.info("Market sector view cache hit: %s", normalized_view)
+            cached_payload["cache_hit"] = True
+            return cached_payload
+
+        if normalized_view == "ths_industry":
+            payload = self._get_ths_market_sector_payload(normalized_limit)
+            self._set_cached_market_sector_payload(cache_key, payload)
+            return self._copy_market_sector_payload(payload)
+
+        workbook_payload: dict | None = None
+        if _env_flag(ENABLE_WIND_REALTIME_WORKBOOK_ENV):
+            try:
+                from services.wind_realtime_workbook import WindRealtimeWorkbookReader
+
+                workbook_payload = WindRealtimeWorkbookReader(
+                    stale_after_seconds=int(MARKET_SECTOR_CACHE_TTL_SECONDS)
+                ).get_view(normalized_view, limit=normalized_limit)
+                if workbook_payload.get("has_real_data"):
+                    logger.info("Using Wind realtime workbook sector view: %s", normalized_view)
+                    self._set_cached_market_sector_payload(cache_key, workbook_payload)
+                    return self._copy_market_sector_payload(workbook_payload)
+            except Exception as exc:
+                logger.warning("Wind realtime workbook read failed: %s", exc)
+        else:
+            logger.info(
+                "Wind realtime workbook disabled; set %s=1 to enable",
+                ENABLE_WIND_REALTIME_WORKBOOK_ENV,
+            )
+
+        provider = WindMarketOverviewProvider()
+        logger.info(
+            "Preparing market sector view %s from Wind seeds: count=%s views=%s",
+            normalized_view,
+            len(provider.seeds),
+            dict(Counter(seed.view_key for seed in provider.seeds)),
+        )
+        grouped_movers = provider.get_grouped_movers(
+            limit=normalized_limit,
+            view_keys=(normalized_view,),
+        )
+        view = grouped_movers.get("views", {}).get(normalized_view, {"up": [], "down": []})
+        logger.info(
+            "Loaded market sector view %s: up=%s down=%s real=%s",
+            normalized_view,
+            len(view.get("up", [])),
+            len(view.get("down", [])),
+            bool(grouped_movers.get("has_real_data")),
+        )
+        payload = {
+            "view_key": normalized_view,
+            "view_label": self._market_view_label(normalized_view),
+            "up": view.get("up", []),
+            "down": view.get("down", []),
+            "has_real_data": bool(grouped_movers.get("has_real_data")),
+            "fetched_at": grouped_movers.get("fetched_at", 0.0),
+            "cache_hit": False,
+            "cache_ttl_seconds": MARKET_SECTOR_CACHE_TTL_SECONDS,
+        }
+        if not payload["has_real_data"]:
+            logger.info("No provider fallback data for market view: %s", normalized_view)
+            fallback_payload = workbook_payload or payload
+            self._set_cached_market_sector_payload(cache_key, fallback_payload)
+            return self._copy_market_sector_payload(fallback_payload)
+
+        self._set_cached_market_sector_payload(cache_key, payload)
+        return self._copy_market_sector_payload(payload)
+
+    def _get_ths_market_sector_payload(self, limit: int) -> dict:
+        up, down, has_real_data, fetched_at = self.dashboard_repo.get_sector_changes_from_signals(
+            days=7,
+            limit_per_direction=limit,
+        )
+        up = [self._decorate_market_sector_item(item, "ths_industry") for item in up]
+        down = [self._decorate_market_sector_item(item, "ths_industry") for item in down]
+        logger.info(
+            "Loaded market sector view ths_industry: up=%s down=%s real=%s",
+            len(up),
+            len(down),
+            has_real_data,
+        )
+        return {
+            "view_key": "ths_industry",
+            "view_label": self._market_view_label("ths_industry"),
+            "up": up,
+            "down": down,
+            "has_real_data": bool(has_real_data),
+            "fetched_at": fetched_at,
+            "cache_hit": False,
+            "cache_ttl_seconds": MARKET_SECTOR_CACHE_TTL_SECONDS,
+        }
+
+    @staticmethod
+    def _decorate_market_sector_item(item: dict, view_key: str) -> dict:
+        normalized_is_concept = False if view_key == "ths_industry" else bool(item.get("is_concept"))
+        return {
+            **item,
+            "source": item.get("source", "ths"),
+            "is_concept": normalized_is_concept,
+            "view_key": view_key,
+            "view_label": DashboardService._market_view_label(view_key),
+        }
+
+    @staticmethod
+    def _optional_float(value) -> Optional[float]:
+        try:
+            if value is None or value == "":
+                return None
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _format_turnover_yuan(amount: float) -> str:
+        if amount >= 1_000_000_000_000:
+            return f"{amount / 1_000_000_000_000:.2f}万亿"
+        if amount >= 100_000_000:
+            return f"{amount / 100_000_000:.0f}亿"
+        return f"{amount:.0f}"
+
+    @staticmethod
+    def _get_cached_market_sector_payload(cache_key: tuple[str, int]) -> Optional[dict]:
+        now = time.monotonic()
+        with _market_sector_cache_lock:
+            cached = _market_sector_cache.get(cache_key)
+            if not cached:
+                return None
+            cached_at, payload = cached
+            if now - cached_at > MARKET_SECTOR_CACHE_TTL_SECONDS:
+                _market_sector_cache.pop(cache_key, None)
+                return None
+            return DashboardService._copy_market_sector_payload(payload)
+
+    @staticmethod
+    def _set_cached_market_sector_payload(cache_key: tuple[str, int], payload: dict) -> None:
+        with _market_sector_cache_lock:
+            _market_sector_cache[cache_key] = (
+                time.monotonic(),
+                DashboardService._copy_market_sector_payload(payload),
+            )
+
+    @staticmethod
+    def _copy_market_sector_payload(payload: dict) -> dict:
+        return {
+            **payload,
+            "up": list(payload.get("up", [])),
+            "down": list(payload.get("down", [])),
+        }
+
+    @staticmethod
+    def _normalize_market_view_key(view_key: str) -> str:
+        if not view_key:
+            return "ths_industry"
+        if view_key == "theme":
+            return "wind_hot_concept"
+        if view_key == "industry":
+            return "wind_l1"
+        if view_key in MARKET_SECTOR_VIEW_ORDER:
+            return view_key
+        return "ths_industry"
+
+    @staticmethod
+    def _market_view_label(view_key: str) -> str:
+        labels = {
+            "wind_hot_concept": "Wind热门概念",
+            "wind_l1": "Wind一级",
+            "wind_l2": "Wind二级",
+            "wind_l3": "Wind三级",
+            "wind_l4": "Wind四级",
+            "citic_l1": "中信一级",
+            "citic_l2": "中信二级",
+            "citic_l3": "中信三级",
+            "sw_l1": "申万一级",
+            "sw_l2": "申万二级",
+            "sw_l3": "申万三级",
+            "ths_industry": "同花顺行业",
+        }
+        return labels.get(view_key, view_key)
+
+    @staticmethod
+    def _extract_market_sector_views(grouped_movers: dict) -> dict:
+        views = grouped_movers.get("views")
+        if isinstance(views, dict) and views:
+            return views
+
+        sector_views = {}
+        for key in MARKET_SECTOR_VIEW_ORDER:
+            view = grouped_movers.get(key)
+            if isinstance(view, dict):
+                sector_views[key] = view
+
+        if not sector_views:
+            sector_views = {
+                "wind_hot_concept": grouped_movers.get("theme", {"up": [], "down": []}),
+                "wind_l1": grouped_movers.get("industry", {"up": [], "down": []}),
+            }
+        return sector_views
+
+    @staticmethod
+    def _first_non_empty_sector_direction(sector_views: dict, direction: str) -> list:
+        for key in MARKET_SECTOR_VIEW_ORDER:
+            items = sector_views.get(key, {}).get(direction, [])
+            if items:
+                return items
+        for view in sector_views.values():
+            items = view.get(direction, [])
+            if items:
+                return items
+        return []
 
     def get_today_section(self) -> TodaySection:
         """获取 Today 板块数据：新事件、高优先级论题、异常流向"""

@@ -309,6 +309,59 @@ class WindAdapter(BaseDataAdapter):
 
         return pd.DataFrame(rows)
 
+    def fetch_index_quotes(self, codes: list[str], trade_date: str | None = None) -> pd.DataFrame:
+        """获取 Wind 指数名称、最新价和涨跌幅。
+
+        用于首页市场概览的核心指数、Wind 行业指数和热门概念指数。
+        """
+        client = self._get_client()
+        td = trade_date or wf._td(None)
+        formulas: list[str] = []
+        for code in codes:
+            logger.info(f"获取 Wind 指数行情: {code}, {td}")
+            formulas.extend(
+                [
+                    wf.s_info_name(code),
+                    wf.index_close(code, td),
+                    wf.index_pct_change(code, td),
+                ]
+            )
+
+        raw = client.execute_batch(formulas, timeout=20.0) if formulas else []
+        rows = []
+
+        def _safe(idx: int):
+            if idx >= len(raw):
+                return None
+            value = raw[idx]
+            if isinstance(value, Exception):
+                logger.warning("Wind index formula failed: %s", value)
+                return None
+            return value
+
+        def _number_value(value: Any):
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                return None
+
+        for offset, code in enumerate(codes):
+            base = offset * 3
+            name = _safe(base)
+            close = _number_value(_safe(base + 1))
+            pct_change = _number_value(_safe(base + 2))
+            rows.append(
+                {
+                    "code": code,
+                    "trade_date": td,
+                    "name": name,
+                    "close": close,
+                    "pct_change": pct_change,
+                }
+            )
+
+        return pd.DataFrame(rows)
+
     def fetch_financial_statements(
         self,
         codes: list[str],

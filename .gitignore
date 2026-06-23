@@ -73,6 +73,7 @@ output/
 server.log
 *.docx
 report_projects/*/runs/*.json
+report_projects/*/generated/.preview-cache/
 !reporting/templates/docx/*.docx
 !examples/**/*.docx
 initial-page-load.png

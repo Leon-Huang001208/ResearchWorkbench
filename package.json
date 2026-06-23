@@ -11,7 +11,8 @@
     "desktop:sidecar": "python scripts/desktop/build_sidecar.py",
     "desktop:prepare-sidecar": "python scripts/desktop/prepare_tauri_sidecar.py",
     "desktop:release-config": "python scripts/desktop/write_tauri_release_config.py",
-    "desktop:build:release": "tauri build --config src-tauri/tauri.release.conf.json"
+    "desktop:build:release": "tauri build --config src-tauri/tauri.release.conf.json",
+    "desktop:restart": "bash scripts/desktop/restart_app.sh"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.8.0"

@@ -24,6 +24,7 @@ from reporting.projects.generation import (
     build_retrieval_config,
     filter_and_rank_evidence,
     compute_report_period,
+    resolve_report_generation_scope,
     render_generation_constraints,
     render_writing_parameters,
 )
@@ -54,17 +55,34 @@ def test_huaan_prompt_placeholders_use_report_level_retrieval_defaults():
     defaults = config["defaults"]
     retrieval_defaults = defaults["retrieval"]
     assert retrieval_defaults["mode"] == "hybrid"
-    assert retrieval_defaults["top_k"] == 8
-    assert retrieval_defaults["candidate_k"] == 50
-    assert retrieval_defaults["semantic_candidate_k"] == 100
-    assert retrieval_defaults["fusion"]["method"] == "rrf"
-    assert retrieval_defaults["fusion"]["keyword_weight"] == 0.65
-    assert retrieval_defaults["fusion"]["semantic_weight"] == 0.35
-    assert retrieval_defaults["rerank"]["enabled"] is True
-    assert retrieval_defaults["rerank"]["provider"] == "llm"
-    assert retrieval_defaults["rerank"]["top_n"] == 16
-    assert defaults["validators"]["forbid_wind_data"] is True
-    assert defaults["validators"]["no_newline"] is True
+    assert retrieval_defaults["top_k"] == 10
+    assert retrieval_defaults["candidate_k"] == 40
+    assert retrieval_defaults["semantic_candidate_k"] == 80
+    assert retrieval_defaults["keyword_weight"] == 0.6
+    assert retrieval_defaults["semantic_weight"] == 0.4
+    expected_embedding_model = str(
+        Path(__file__).resolve().parents[2]
+        / "data"
+        / "models"
+        / "embeddings"
+        / "bge-large-zh-v1.5"
+    )
+    assert retrieval_defaults["embedding_model"] == expected_embedding_model
+    rerank_defaults = defaults["rerank"]
+    assert rerank_defaults["enabled"] is True
+    assert rerank_defaults["provider"] == "bge-reranker"
+    expected_rerank_model = str(
+        Path(__file__).resolve().parents[2]
+        / "data"
+        / "models"
+        / "rerankers"
+        / "bge-reranker-large"
+    )
+    assert rerank_defaults["model"] == expected_rerank_model
+    assert rerank_defaults["top_n"] == 30
+    assert rerank_defaults["min_score"] == 0.35
+    assert defaults["validators"]["forbid_external_facts"] is True
+    assert defaults["validators"]["forbid_direct_investment_advice"] is True
 
     prompt_placeholders = {
         name: item
@@ -76,7 +94,9 @@ def test_huaan_prompt_placeholders_use_report_level_retrieval_defaults():
     for name, item in prompt_placeholders.items():
         retrieval = item.get("retrieval")
         assert retrieval, f"{name} missing retrieval"
-        assert retrieval["keywords"], f"{name} missing retrieval keywords"
+        assert retrieval.get("keywords") or retrieval.get("keyword_profile"), (
+            f"{name} missing retrieval keywords/profile"
+        )
         assert "query_terms" not in retrieval
         assert "mode" not in retrieval
         assert "top_k" not in retrieval
@@ -96,14 +116,19 @@ def test_report_defaults_are_merged_before_building_retrieval_config():
             },
             "retrieval": {
                 "mode": "hybrid",
-                "top_k": 8,
-                "candidate_k": 50,
-                "fusion": {
-                    "method": "rrf",
-                    "keyword_weight": 0.65,
-                    "semantic_weight": 0.35,
-                },
-                "rerank": {"enabled": True, "provider": "llm", "top_n": 16},
+                "top_k": 10,
+                "candidate_k": 40,
+                "semantic_candidate_k": 80,
+                "keyword_weight": 0.6,
+                "semantic_weight": 0.4,
+                "embedding_model": "BAAI/bge-large-zh-v1.5",
+            },
+            "rerank": {
+                "enabled": True,
+                "provider": "bge-reranker",
+                "model": "BAAI/bge-reranker-large",
+                "top_n": 30,
+                "min_score": 0.35,
             },
         }
     }
@@ -120,11 +145,15 @@ def test_report_defaults_are_merged_before_building_retrieval_config():
     assert merged["validators"]["forbid_wind_data"] is True
     assert merged["validators"]["forbidden_phrases"] == ["根据文件"]
     assert retrieval_config.mode == "hybrid"
-    assert retrieval_config.top_k == 8
-    assert retrieval_config.candidate_k == 50
+    assert retrieval_config.top_k == 10
+    assert retrieval_config.candidate_k == 40
     assert retrieval_config.must_any == ["航天", "卫星"]
+    assert retrieval_config.embedding_model == "BAAI/bge-large-zh-v1.5"
     assert retrieval_config.rerank_enabled is True
-    assert retrieval_config.rerank_top_n == 16
+    assert retrieval_config.rerank_provider == "bge-reranker"
+    assert retrieval_config.rerank_model == "BAAI/bge-reranker-large"
+    assert retrieval_config.rerank_top_n == 30
+    assert retrieval_config.min_rerank_score == 0.35
 
 
 def test_generation_constraints_and_writing_parameters_are_rendered_separately():
@@ -281,6 +310,36 @@ def test_compute_report_period_uses_report_date_and_week_monday():
     assert period.end_date == "2026-06-05"
 
 
+def test_resolve_report_generation_scope_prefilters_before_retrieval():
+    """生成范围先统一解析，后续检索只接收已经确定的周期。"""
+    section_config = {
+        "defaults": {
+            "report_period": {
+                "report_date": "2026-06-05",
+                "start_date": "2026-05-30",
+                "end_date": "2026-06-05",
+            }
+        }
+    }
+
+    yaml_scope = resolve_report_generation_scope(section_config)
+
+    assert yaml_scope.report_period.start_date == "2026-05-30"
+    assert yaml_scope.report_period.end_date == "2026-06-05"
+    assert yaml_scope.data_scope == "custom"
+
+    override_scope = resolve_report_generation_scope(
+        section_config,
+        report_date="2026-06-10",
+        start_date="2026-06-03",
+        end_date="2026-06-10",
+    )
+
+    assert override_scope.report_period.start_date == "2026-06-03"
+    assert override_scope.report_period.end_date == "2026-06-10"
+    assert override_scope.data_scope == "custom"
+
+
 def write_minimal_docx(path: Path, text: str) -> None:
     """Write a tiny docx package with one document.xml body."""
     document_xml = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -344,6 +403,16 @@ def write_market_review_xlsx(path: Path) -> None:
     turnover = workbook.create_sheet("市场成交")
     turnover.append(["指数代码", "本周日均成交额", "上周日均成交额"])
     turnover.append(["000985.CSI", 2.55, 2.30])
+
+    gold = workbook.create_sheet("黄金")
+    gold.append(["代码", "简称", "周收盘价", "周涨跌幅"])
+    gold.append(["SPTAUUSDOZ.IDC", "伦敦金现", 4704.743, -2.744129703627285])
+    gold.append(["AU9999.SGE", "SGE黄金9999", 1033.25, -1.7486972728310162])
+
+    oil = workbook.create_sheet("石油")
+    oil.append(["代码", "简称", "周涨跌幅", "周收盘价", "上周收盘价", "涨跌"])
+    oil.append(["B.IPE", "ICE布油", 17.293649037397675, 106.01, 92.42, 13.59])
+    oil.append(["CL.NYM", "NYMEX WTI原油", 17.447632885337217, 97, 84, 13])
 
     workbook.save(path)
 
@@ -694,8 +763,7 @@ def test_generation_service_uses_prompt_query_evidence_and_reporting_model(tmp_p
             self.messages = messages
             self.task = task
             assert task in {"reporting", "default"}
-            assert "人工智能产业链本周出现多条政策和产品进展" in messages[1]["content"]
-            assert "请检索本周人工智能相关新闻" in messages[1]["content"]
+            assert "人工智能产业链本周出现多条政策和产品进展" in messages[-1]["content"]
             return ModelResponse(
                 content="我们根据提供的evidence撰写。可以写：人工智能板块本周围绕政策和产品进展延续活跃。",
                 model_name="deepseek-chat",
@@ -976,9 +1044,38 @@ def test_generation_service_builds_composite_market_review_from_excel_and_eviden
                     "prompt_template": "A股市场回顾",
                     "data_source": {
                         "workbook": "周报数据.xlsx",
-                        "domestic_sheet": "国内",
-                        "turnover_sheet": "市场成交",
+                        "domestic_sheet": "错误Sheet",
+                        "turnover_sheet": "错误Sheet",
                     },
+                    "components": [
+                        {
+                            "name": "市场表现与交易面",
+                            "type": "data_template",
+                            "source": "excel",
+                            "fields": {
+                                "market_trend": {
+                                    "workbook": "周报数据.xlsx",
+                                    "sheet": "国内",
+                                    "range": "B2:C6",
+                                },
+                                "index_performance": {
+                                    "workbook": "周报数据.xlsx",
+                                    "sheet": "国内",
+                                    "range": "B2:C6",
+                                },
+                                "avg_turnover": {
+                                    "workbook": "周报数据.xlsx",
+                                    "sheet": "市场成交",
+                                    "cell": "B2",
+                                },
+                                "turnover_trend": {
+                                    "workbook": "周报数据.xlsx",
+                                    "sheet": "市场成交",
+                                    "range": "B2:C2",
+                                },
+                            },
+                        }
+                    ],
                     "max_words": 180,
                 }
             }
@@ -1002,6 +1099,83 @@ def test_generation_service_builds_composite_market_review_from_excel_and_eviden
     assert "本周市场热点依次为 CPO、算力租赁、先进封装" in content
     assert result.sections[0].prompt_template == "A股市场回顾"
     assert result.sections[0].evidence_count == 1
+
+
+def test_generation_service_builds_gold_and_oil_reviews_from_excel(tmp_path: Path):
+    """黄金/原油市场回顾应直接读取周报数据 Excel 生成固定文本。"""
+    project_dir = tmp_path / "华安ETF周报"
+    (project_dir / "templates").mkdir(parents=True)
+    (project_dir / "data").mkdir()
+    (project_dir / "config").mkdir()
+    (project_dir / "generated").mkdir()
+    (project_dir / "runs").mkdir()
+    write_minimal_docx(project_dir / "templates" / "report_template.docx", "{{黄金市场回顾}}{{原油市场回顾}}")
+    write_market_review_xlsx(project_dir / "data" / "周报数据.xlsx")
+    (project_dir / "config" / "section_config.yaml").write_text("placeholders: {}\n", encoding="utf-8")
+    (project_dir / "project.yaml").write_text(
+        "\n".join(
+            [
+                "name: 华安ETF周报",
+                "active_word_template: templates/report_template.docx",
+                "active_excel_workbook: data/周报数据.xlsx",
+                "section_config: config/section_config.yaml",
+                "output_dir: generated",
+                "run_log_dir: runs",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    project = ReportProjectManager(projects_root=tmp_path).get_project("华安ETF周报")
+
+    class NoRetriever:
+        def retrieve(self, *args, **kwargs):
+            raise AssertionError("Excel fixed market reviews should not retrieve evidence")
+
+    class NoGateway:
+        def chat(self, *args, **kwargs):
+            raise AssertionError("Excel fixed market reviews should not call model")
+
+    service = ReportProjectGenerationService(retriever=NoRetriever(), model_gateway=NoGateway())
+
+    result = service.generate_placeholders(
+        project=project,
+        section_config={
+            "placeholders": {
+                "黄金市场回顾": {
+                    "title": "黄金市场回顾",
+                    "type": "excel_commodity_market_review",
+                    "prompt_template": "黄金市场回顾",
+                    "data_source": {
+                        "kind": "gold",
+                        "workbook": "周报数据.xlsx",
+                        "sheet": "黄金",
+                    },
+                },
+                "原油市场回顾": {
+                    "title": "原油市场回顾",
+                    "type": "excel_commodity_market_review",
+                    "prompt_template": "原油市场回顾",
+                    "data_source": {
+                        "kind": "oil",
+                        "workbook": "周报数据.xlsx",
+                        "sheet": "石油",
+                    },
+                },
+            }
+        },
+        prompt_templates_source="",
+    )
+
+    assert result.placeholders["黄金市场回顾"] == (
+        "截止本周，伦敦现货黄金收于4704.74美元/盎司（周环比-2.74%），"
+        "国内AU9999黄金收于1033.25元/克（周环比-1.75%）。"
+    )
+    assert result.placeholders["原油市场回顾"] == (
+        "截至本周，布伦特原油期货周均价为106.01美元/桶，较上周五涨13.59美元/桶；"
+        "WTI原油期货周均价为97.0美元/桶，较上周五涨13.0美元/桶。"
+        "和周初相比主要油品涨跌幅分别为：布伦特原油（17.29%）、WTI原油（17.45%）。"
+    )
+    assert [section.provider for section in result.sections] == ["excel", "excel"]
 
 
 def test_filter_and_rank_evidence_applies_must_any_exclude_and_scores():
@@ -1058,9 +1232,10 @@ def test_build_retrieval_config_reads_nested_query_terms():
             },
             "rerank": {
                 "enabled": True,
-                "provider": "llm",
+                "provider": "bge-reranker",
+                "model": "BAAI/bge-reranker-large",
                 "top_n": 12,
-                "min_score": 40,
+                "min_score": 0.4,
             },
             "query_terms": {
                 "must_any": ["航天", "商业航天", "卫星"],
@@ -1083,9 +1258,10 @@ def test_build_retrieval_config_reads_nested_query_terms():
     assert retrieval_config.rrf_k == 50
     assert retrieval_config.semantic_candidate_k == 80
     assert retrieval_config.rerank_enabled is True
-    assert retrieval_config.rerank_provider == "llm"
+    assert retrieval_config.rerank_provider == "bge-reranker"
+    assert retrieval_config.rerank_model == "BAAI/bge-reranker-large"
     assert retrieval_config.rerank_top_n == 12
-    assert retrieval_config.min_rerank_score == 40
+    assert retrieval_config.min_rerank_score == 0.4
 
 
 def test_build_retrieval_config_prefers_flat_keywords():
@@ -1147,8 +1323,8 @@ def test_hybrid_filter_and_rank_fuses_keyword_and_semantic_scores():
     assert ranked[0].retrieval_method == "hybrid_rrf"
 
 
-def test_generation_service_reranks_evidence_with_llm(tmp_path: Path):
-    """启用 rerank 后，应先取更多候选，再按模型返回顺序选入最终 prompt。"""
+def test_generation_service_reranks_evidence_with_local_bge(tmp_path: Path, monkeypatch):
+    """启用本地 rerank 后，应先取更多候选，再按本地模型分数选入最终 prompt。"""
     project_dir = tmp_path / "华安ETF周报"
     (project_dir / "templates").mkdir(parents=True)
     (project_dir / "data").mkdir()
@@ -1203,14 +1379,6 @@ def test_generation_service_reranks_evidence_with_llm(tmp_path: Path):
 
         def chat(self, messages, model=None, temperature=0.7, max_tokens=None, task=None, **kwargs):
             self.calls.append(messages)
-            if "证据候选" in messages[-1]["content"]:
-                return ModelResponse(
-                    content='[{"index":2,"score":96,"reason":"最贴合商业航天"}, {"index":3,"score":62,"reason":"产业政策相关"}]',
-                    model_name="deepseek-chat",
-                    provider="deepseek",
-                    tokens_used=30,
-                    latency_ms=1.0,
-                )
             return ModelResponse(
                 content="重排后生成正文",
                 model_name="deepseek-chat",
@@ -1223,6 +1391,25 @@ def test_generation_service_reranks_evidence_with_llm(tmp_path: Path):
     gateway = FakeGateway()
     service = ReportProjectGenerationService(retriever=retriever, model_gateway=gateway)
 
+    def fake_local_rerank(*, title, query, evidence, retrieval_config, final_limit):
+        assert retrieval_config.rerank_provider == "bge-reranker"
+        assert retrieval_config.rerank_model == "BAAI/bge-reranker-large"
+        return [
+            EvidenceSnippet(
+                source=evidence[1].source,
+                title=evidence[1].title,
+                content=evidence[1].content,
+                rerank_score=0.96,
+                rerank_rank=1,
+                rerank_reason="本地 reranker 相关",
+            )
+        ][:final_limit]
+
+    monkeypatch.setattr(
+        "reporting.projects.generation.rerank_evidence_with_local_model",
+        fake_local_rerank,
+    )
+
     result = service.generate_placeholders(
         project=project,
         section_config={
@@ -1234,7 +1421,13 @@ def test_generation_service_reranks_evidence_with_llm(tmp_path: Path):
                     "retrieval": {
                         "mode": "hybrid",
                         "top_k": 1,
-                        "rerank": {"enabled": True, "provider": "llm", "top_n": 3},
+                        "rerank": {
+                            "enabled": True,
+                            "provider": "bge-reranker",
+                            "model": "BAAI/bge-reranker-large",
+                            "top_n": 3,
+                            "min_score": 0.35,
+                        },
                     },
                 }
             }
@@ -1248,8 +1441,10 @@ def test_generation_service_reranks_evidence_with_llm(tmp_path: Path):
     assert result.sections[0].evidence_count == 1
     assert result.sections[0].evidence[0].title == "强相关"
     assert result.sections[0].evidence[0].rerank_rank == 1
-    assert result.sections[0].evidence[0].rerank_score == 96
-    assert result.sections[0].evidence[0].rerank_reason == "最贴合商业航天"
+    assert result.sections[0].evidence[0].rerank_score == 0.96
+    assert result.sections[0].evidence[0].rerank_reason == "本地 reranker 相关"
+    assert len(gateway.calls) == 1
+    assert "证据候选" not in gateway.calls[0][-1]["content"]
 
 
 def test_generation_service_generates_independent_prompt_sections_concurrently(tmp_path: Path):
@@ -1296,7 +1491,7 @@ def test_generation_service_generates_independent_prompt_sections_concurrently(t
                 self.max_active = max(self.max_active, self.active)
             try:
                 time.sleep(0.05)
-                title = messages[1]["content"].split("段落标题：", 1)[1].split("\n", 1)[0]
+                title = messages[-1]["content"].split("| ", 1)[1].split("\n", 1)[0]
                 return ModelResponse(
                     content=f"{title}正文",
                     model_name="deepseek-chat",
@@ -1411,7 +1606,8 @@ def test_render_report_project_generates_from_config_and_writes_generation_log(
             assert kwargs["project"].name == "华安ETF周报"
             assert kwargs["manual_placeholders"] == {}
             assert kwargs["lookback_days"] == 7
-            assert kwargs["report_date"] == "2026-06-05"
+            assert kwargs["report_period"].start_date == "2026-06-01"
+            assert kwargs["report_period"].end_date == "2026-06-05"
             return ReportGenerationResult(
                 placeholders={"人工智能": "AI 生成段落"},
                 sections=[
@@ -1540,8 +1736,7 @@ def test_render_report_project_generates_from_config_and_writes_generation_log(
     assert run_response.json()["generation"]["sections"][0]["evidence"][0]["title"] == "AI 新闻"
 
 
-def test_preview_report_project_file_returns_docx_html(tmp_path: Path, monkeypatch):
-    """生成后的 Word 文件应能在网页端转换为轻量 HTML 预览。"""
+def _write_preview_project(tmp_path: Path) -> Path:
     project_dir = tmp_path / "华安ETF周报"
     (project_dir / "templates").mkdir(parents=True)
     (project_dir / "data").mkdir()
@@ -1567,6 +1762,12 @@ def test_preview_report_project_file_returns_docx_html(tmp_path: Path, monkeypat
         ),
         encoding="utf-8",
     )
+    return project_dir
+
+
+def test_preview_report_project_file_prefers_word_pdf_preview(tmp_path: Path, monkeypatch):
+    """生成后的 Word 预览应优先使用 Word 导出的 PDF，保留页眉、配色和图表等原始视觉。"""
+    _write_preview_project(tmp_path)
 
     import app.api.routes.report_projects as report_projects_route
 
@@ -1575,14 +1776,515 @@ def test_preview_report_project_file_returns_docx_html(tmp_path: Path, monkeypat
         "report_project_manager",
         ReportProjectManager(projects_root=tmp_path),
     )
+    monkeypatch.setattr(
+        report_projects_route,
+        "_build_word_pdf_preview",
+        lambda path: b"%PDF-fake-bytes",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        report_projects_route,
+        "_render_pdf_preview_pages",
+        lambda pdf_bytes: [
+            {
+                "src": "data:image/png;base64,cGFnZTE=",
+                "width": 612,
+                "height": 792,
+                "label": "第 1 页",
+            },
+            {
+                "src": "data:image/png;base64,cGFnZTI=",
+                "width": 612,
+                "height": 792,
+                "label": "第 2 页",
+            },
+        ],
+        raising=False,
+    )
+    monkeypatch.setattr(
+        report_projects_route,
+        "_build_quicklook_preview_image",
+        lambda path: b"fake-png-bytes",
+        raising=False,
+    )
+
+    response = client.get("/api/report-projects/华安ETF周报/preview/preview.docx")
+
+    assert response.status_code == 200
+    assert "charset=utf-8" in response.headers["content-type"]
+    assert response.headers["cache-control"] == "no-store, max-age=0"
+    assert '<meta charset="utf-8">' in response.text
+    assert "docx-word-page-preview" in response.text
+    assert "docx-preview-stage" in response.text
+    assert "data-preview-zoom-in" in response.text
+    assert "data-preview-zoom-out" in response.text
+    assert "data-preview-zoom-input" in response.text
+    assert "docx-preview-tool-icon docx-preview-icon-sidebar" in response.text
+    assert "docx-preview-tool-icon docx-preview-icon-minus" in response.text
+    assert "docx-preview-tool-icon docx-preview-icon-plus" in response.text
+    assert "docx-preview-tool-icon docx-preview-icon-fit-width" in response.text
+    assert "docx-preview-tool-icon docx-preview-icon-fit-page" in response.text
+    assert ">▤</button>" not in response.text
+    assert ">-</button>" not in response.text
+    assert ">+</button>" not in response.text
+    assert ">↔</button>" not in response.text
+    assert ">⤢</button>" not in response.text
+    assert "data-preview-zoom-preset" not in response.text
+    assert ">50%</button>" not in response.text
+    assert ">75%</button>" not in response.text
+    assert ">100%</button>" not in response.text
+    assert ">125%</button>" not in response.text
+    assert "data-preview-fit-width" in response.text
+    assert "data-preview-fit-page" in response.text
+    assert "data-preview-page-input" in response.text
+    assert "data-preview-page-total" in response.text
+    assert "data-preview-thumbnails-toggle" in response.text
+    assert "data-preview-thumbnails" in response.text
+    assert ".docx-preview-stage{grid-row:2;grid-column:2;" in response.text
+    assert "localStorage.getItem('af-color-scheme')" in response.text
+    assert "parent.document.documentElement" in response.text
+    assert "MutationObserver" in response.text
+    assert "attributeFilter:['data-theme','data-color-scheme']" in response.text
+    assert "[data-color-scheme=\"obsidian\"]" in response.text
+    assert "--preview-accent:var(--accent)" in response.text
+    assert "--preview-control-bg:" in response.text
+    assert "--preview-control-active-bg:" in response.text
+    assert (
+        "data-preview-thumbnails-toggle][aria-pressed='true']{"
+        "background:var(--preview-accent)"
+    ) in response.text
+    assert "background:#f5f5f7" not in response.text
+    assert "background:#34343a" not in response.text
+    assert "#0a84ff" not in response.text
+    assert "rgba(10,132,255" not in response.text
+    assert "AccentColor" not in response.text
+    assert "function loadThumbnails()" in response.text
+    assert "localStorage" in response.text
+    assert "wheel" in response.text
+    assert "data-preview-loading" in response.text
+    assert "data-preview-error" in response.text
+    assert "data-preview-layout=\"double\"" in response.text
+    assert "data-preview-page-count=\"2\"" in response.text
+    assert "aria-disabled=\"true\" disabled data-preview-layout=\"double\"" not in response.text
+    assert "docx-preview-layout-switch" in response.text
+    assert "docx-preview-layout-icon docx-preview-layout-single" in response.text
+    assert "docx-preview-layout-icon docx-preview-layout-double" in response.text
+    assert ">▯</button>" not in response.text
+    assert ">▯▯</button>" not in response.text
+    assert "docx-preview-file" not in response.text
+    assert "data:image/png;base64,cGFnZTE=" in response.text
+    assert "data:image/png;base64,cGFnZTI=" in response.text
+    assert "Word 原版预览" not in response.text
+    assert "docx-native-preview-workspace" not in response.text
+
+
+def test_word_pdf_preview_render_failure_still_uses_owned_viewer(monkeypatch):
+    """PDF 渲染失败时也不能退回浏览器 PDF 插件或旧标题。"""
+    import app.api.routes.report_projects as report_projects_route
+
+    monkeypatch.setattr(
+        report_projects_route,
+        "_render_pdf_preview_pages",
+        lambda pdf_bytes: [],
+        raising=False,
+    )
+
+    html = report_projects_route._word_pdf_preview_html("preview.docx", b"%PDF-fake")
+
+    assert "docx-word-page-preview" in html
+    assert "data-preview-zoom-in" in html
+    assert "data-preview-zoom-input" in html
+    assert "aria-label=\"缩放百分比\"" in html
+    assert "data-preview-fit-width" in html
+    assert "data-preview-fit-page" in html
+    assert "data-preview-page-input" in html
+    assert "data-preview-thumbnails-toggle" in html
+    assert "docx-preview-tool-icon docx-preview-icon-sidebar" in html
+    assert "docx-preview-tool-icon docx-preview-icon-minus" in html
+    assert "docx-preview-tool-icon docx-preview-icon-plus" in html
+    assert "docx-preview-tool-icon docx-preview-icon-fit-width" in html
+    assert "docx-preview-tool-icon docx-preview-icon-fit-page" in html
+    assert ">▤</button>" not in html
+    assert ">-</button>" not in html
+    assert ">+</button>" not in html
+    assert ">↔</button>" not in html
+    assert ">⤢</button>" not in html
+    assert "data-preview-zoom-preset" not in html
+    assert ".docx-preview-stage{grid-row:2;grid-column:2;" in html
+    assert "function loadThumbnails()" in html
+    assert "data-preview-layout=\"double\"" in html
+    assert "docx-preview-layout-switch" in html
+    assert "docx-preview-layout-icon docx-preview-layout-single" in html
+    assert "docx-preview-layout-icon docx-preview-layout-double" in html
+    assert ">▯</button>" not in html
+    assert ">▯▯</button>" not in html
+    assert "docx-preview-file" not in html
+    assert "Word 原版预览" not in html
+    assert "application/pdf" not in html
+
+
+def test_word_page_preview_can_use_cached_page_asset_urls():
+    """性能优化下，预览 HTML 应引用缓存图片 URL，而不是把所有页面 base64 塞进 HTML。"""
+    import app.api.routes.report_projects as report_projects_route
+
+    html = report_projects_route._word_page_preview_html(
+        "preview.docx",
+        [
+            {
+                "src": "/api/report-projects/华安ETF周报/preview-assets/preview.docx/page-001.png",
+                "width": 612,
+                "height": 792,
+                "label": "第 1 页",
+            }
+        ],
+    )
+
+    assert "data-src=\"/api/report-projects/华安ETF周报/preview-assets/preview.docx/page-001.png\"" in html
+    assert "loading=\"lazy\"" in html
+    assert "data:image/png;base64" not in html
+
+
+def test_preview_report_project_file_prefers_cached_page_asset_urls(
+    tmp_path: Path, monkeypatch
+):
+    """真实预览接口应优先返回按需加载的页图片 URL，降低首屏 HTML 体积。"""
+    _write_preview_project(tmp_path)
+
+    import app.api.routes.report_projects as report_projects_route
+
+    monkeypatch.setattr(
+        report_projects_route,
+        "report_project_manager",
+        ReportProjectManager(projects_root=tmp_path),
+    )
+    monkeypatch.setattr(
+        report_projects_route,
+        "_build_word_pdf_preview",
+        lambda path: b"%PDF-fake-bytes",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        report_projects_route,
+        "_render_pdf_preview_page_assets",
+        lambda pdf_bytes, source_path, asset_base_url: [
+            {
+                "src": f"{asset_base_url}/page-001.png",
+                "width": 612,
+                "height": 792,
+                "label": "第 1 页",
+            },
+            {
+                "src": f"{asset_base_url}/page-002.png",
+                "width": 612,
+                "height": 792,
+                "label": "第 2 页",
+            },
+        ],
+        raising=False,
+    )
+
+    response = client.get("/api/report-projects/华安ETF周报/preview/preview.docx")
+
+    assert response.status_code == 200
+    assert "data-src=\"/api/report-projects/华安ETF周报/preview-assets/preview.docx/page-001.png\"" in response.text
+    assert "data-src=\"/api/report-projects/华安ETF周报/preview-assets/preview.docx/page-002.png\"" in response.text
+    assert "data:image/png;base64" not in response.text
+
+
+def test_build_word_pdf_preview_never_launches_microsoft_word(tmp_path: Path, monkeypatch):
+    """预览辅助函数也不能再启动 Word，避免 macOS 权限弹窗。"""
+    import app.api.routes.report_projects as report_projects_route
+
+    docx_path = tmp_path / "preview.docx"
+    docx_path.write_bytes(b"docx")
+
+    monkeypatch.setattr(report_projects_route.sys, "platform", "darwin")
+    monkeypatch.setattr(report_projects_route, "_find_soffice_command", lambda: None)
+
+    assert report_projects_route._build_word_pdf_preview(docx_path) is None
+
+
+def test_build_word_pdf_preview_uses_local_soffice_converter(tmp_path: Path, monkeypatch):
+    """有 LibreOffice/soffice 时，应本地离线生成 PDF 缓存，不触发 Word。"""
+    import app.api.routes.report_projects as report_projects_route
+
+    docx_path = tmp_path / "preview.docx"
+    docx_path.write_bytes(b"docx")
+    commands = []
+
+    def fake_run(command, check, capture_output, text, timeout):
+        commands.append(command)
+        outdir = Path(command[command.index("--outdir") + 1])
+        (outdir / "preview.pdf").write_bytes(b"%PDF-from-soffice")
+
+        class Result:
+            returncode = 0
+            stderr = ""
+
+        return Result()
+
+    monkeypatch.setattr(report_projects_route, "_find_soffice_command", lambda: "/usr/bin/soffice")
+    monkeypatch.setattr(report_projects_route.subprocess, "run", fake_run)
+
+    pdf_bytes = report_projects_route._build_word_pdf_preview(docx_path)
+
+    assert pdf_bytes == b"%PDF-from-soffice"
+    assert commands
+    assert commands[0][0] == "/usr/bin/soffice"
+    assert "--headless" in commands[0]
+    assert "--convert-to" in commands[0]
+    assert "pdf:writer_pdf_Export" in commands[0]
+    assert not any("Microsoft Word" in part for part in commands[0])
+    assert report_projects_route._word_pdf_preview_cache_path(docx_path).read_bytes() == b"%PDF-from-soffice"
+
+
+def test_preview_report_project_file_falls_back_to_system_quicklook_image(
+    tmp_path: Path, monkeypatch
+):
+    """Microsoft Word 不可用时，应退到系统 Quick Look 图。"""
+    _write_preview_project(tmp_path)
+
+    import app.api.routes.report_projects as report_projects_route
+
+    monkeypatch.setattr(
+        report_projects_route,
+        "report_project_manager",
+        ReportProjectManager(projects_root=tmp_path),
+    )
+    monkeypatch.setattr(
+        report_projects_route,
+        "_build_word_pdf_preview",
+        lambda path: None,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        report_projects_route,
+        "_build_quicklook_preview_image",
+        lambda path: b"fake-png-bytes",
+        raising=False,
+    )
 
     response = client.get("/api/report-projects/华安ETF周报/preview/preview.docx")
 
     assert response.status_code == 200
     assert "charset=utf-8" in response.headers["content-type"]
     assert '<meta charset="utf-8">' in response.text
+    assert "docx-word-page-preview" in response.text
+    assert "docx-preview-stage" in response.text
+    assert "docx-native-preview-fit-page" in response.text
+    assert "max-height:calc(100vh - 76px)" in response.text
+    assert "object-fit:contain" in response.text
+    assert "data-preview-zoom-in" in response.text
+    assert "data-preview-zoom-out" in response.text
+    assert "data-preview-layout=\"double\"" in response.text
+    assert "data-preview-page-count=\"1\"" in response.text
+    assert "aria-disabled=\"true\" disabled data-preview-layout=\"double\"" in response.text
+    assert "data:image/png;base64,ZmFrZS1wbmctYnl0ZXM=" in response.text
+    assert "系统缩略预览" in response.text
+
+
+def test_quicklook_preview_uses_actual_image_dimensions():
+    """缩略图适配应使用图片真实尺寸，避免一页看不完整。"""
+    import io
+
+    from PIL import Image
+    import app.api.routes.report_projects as report_projects_route
+
+    image_io = io.BytesIO()
+    Image.new("RGB", (640, 900), "white").save(image_io, format="PNG")
+
+    html = report_projects_route._quicklook_preview_html("preview.docx", image_io.getvalue())
+
+    assert 'data-page-width="640"' in html
+    assert 'data-page-height="900"' in html
+    assert "data-preview-fit" in html
+
+
+def test_preview_report_project_file_does_not_launch_word_export_without_cache(
+    tmp_path: Path, monkeypatch
+):
+    """打开预览不应主动启动 Word；无缓存时直接退到系统缩略预览。"""
+    _write_preview_project(tmp_path)
+
+    import app.api.routes.report_projects as report_projects_route
+
+    monkeypatch.setattr(
+        report_projects_route,
+        "report_project_manager",
+        ReportProjectManager(projects_root=tmp_path),
+    )
+    monkeypatch.setattr(
+        report_projects_route,
+        "_build_word_pdf_preview",
+        lambda path: None,
+        raising=False,
+    )
+
+    monkeypatch.setattr(
+        report_projects_route,
+        "_find_soffice_command",
+        lambda: None,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        report_projects_route,
+        "_build_quicklook_preview_image",
+        lambda path: b"fake-png-bytes",
+        raising=False,
+    )
+
+    response = client.get("/api/report-projects/华安ETF周报/preview/preview.docx")
+
+    assert response.status_code == 200
+    assert "系统缩略预览" in response.text
+
+
+def test_preview_report_project_file_falls_back_to_docx_html(tmp_path: Path, monkeypatch):
+    """Quick Look 不可用时，仍应能返回轻量 HTML 预览。"""
+    _write_preview_project(tmp_path)
+
+    import app.api.routes.report_projects as report_projects_route
+
+    monkeypatch.setattr(
+        report_projects_route,
+        "report_project_manager",
+        ReportProjectManager(projects_root=tmp_path),
+    )
+    monkeypatch.setattr(
+        report_projects_route,
+        "_build_word_pdf_preview",
+        lambda path: None,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        report_projects_route,
+        "_build_quicklook_preview_image",
+        lambda path: None,
+        raising=False,
+    )
+
+    response = client.get("/api/report-projects/华安ETF周报/preview/preview.docx")
+
+    assert response.status_code == 200
+    assert "docx-preview-workspace" in response.text
     assert "docx-preview-page" in response.text
+    assert "width: 210mm" in response.text
+    assert "min-height: 297mm" in response.text
+    assert "box-shadow" in response.text
     assert "{{人工智能}}" in response.text
+
+
+def test_open_report_project_generated_folder_uses_platform_file_manager(
+    tmp_path: Path, monkeypatch
+):
+    """桌面端应能从报告页面打开项目 generated 文件夹。"""
+    project_dir = tmp_path / "华安ETF周报"
+    (project_dir / "templates").mkdir(parents=True)
+    (project_dir / "data").mkdir()
+    (project_dir / "config").mkdir()
+    (project_dir / "generated").mkdir()
+    (project_dir / "runs").mkdir()
+    write_minimal_docx(project_dir / "templates" / "report_template.docx", "{{人工智能}}")
+    write_minimal_xlsx(project_dir / "data" / "data.xlsx")
+    (project_dir / "config" / "section_config.yaml").write_text("sections: []\n", encoding="utf-8")
+    (project_dir / "project.yaml").write_text(
+        "\n".join(
+            [
+                "name: 华安ETF周报",
+                "active_word_template: templates/report_template.docx",
+                "active_excel_workbook: data/data.xlsx",
+                "section_config: config/section_config.yaml",
+                "output_dir: generated",
+                "run_log_dir: runs",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    import app.api.routes.report_projects as report_projects_route
+
+    monkeypatch.setattr(
+        report_projects_route,
+        "report_project_manager",
+        ReportProjectManager(projects_root=tmp_path),
+    )
+    monkeypatch.setattr(report_projects_route.sys, "platform", "darwin")
+    opened = {}
+
+    def fake_popen(command):
+        opened["command"] = command
+
+    monkeypatch.setattr(report_projects_route.subprocess, "Popen", fake_popen)
+
+    response = client.post("/api/report-projects/华安ETF周报/open-folder")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "success": True,
+        "folder_path": str(project_dir / "generated"),
+    }
+    assert opened == {"command": ["open", str(project_dir / "generated")]}
+
+
+def test_open_report_project_generated_folder_reveals_selected_file_on_macos(
+    tmp_path: Path, monkeypatch
+):
+    """选中某个生成报告时，打开文件夹应在 Finder 中定位这个文件。"""
+    project_dir = tmp_path / "华安ETF周报"
+    (project_dir / "templates").mkdir(parents=True)
+    (project_dir / "data").mkdir()
+    (project_dir / "config").mkdir()
+    (project_dir / "generated").mkdir()
+    (project_dir / "runs").mkdir()
+    write_minimal_docx(project_dir / "templates" / "report_template.docx", "{{人工智能}}")
+    write_minimal_docx(project_dir / "generated" / "20260605_华安ETF周报.docx", "report")
+    write_minimal_xlsx(project_dir / "data" / "data.xlsx")
+    (project_dir / "config" / "section_config.yaml").write_text("sections: []\n", encoding="utf-8")
+    (project_dir / "project.yaml").write_text(
+        "\n".join(
+            [
+                "name: 华安ETF周报",
+                "active_word_template: templates/report_template.docx",
+                "active_excel_workbook: data/data.xlsx",
+                "section_config: config/section_config.yaml",
+                "output_dir: generated",
+                "run_log_dir: runs",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    import app.api.routes.report_projects as report_projects_route
+
+    monkeypatch.setattr(
+        report_projects_route,
+        "report_project_manager",
+        ReportProjectManager(projects_root=tmp_path),
+    )
+    monkeypatch.setattr(report_projects_route.sys, "platform", "darwin")
+    opened = {}
+
+    def fake_popen(command):
+        opened["command"] = command
+
+    monkeypatch.setattr(report_projects_route.subprocess, "Popen", fake_popen)
+
+    response = client.post(
+        "/api/report-projects/华安ETF周报/open-folder",
+        params={"file_name": "20260605_华安ETF周报.docx"},
+    )
+
+    selected_file = project_dir / "generated" / "20260605_华安ETF周报.docx"
+    assert response.status_code == 200
+    assert opened == {"command": ["open", "-R", str(selected_file)]}
+
+    missing_response = client.post(
+        "/api/report-projects/华安ETF周报/open-folder",
+        params={"file_name": "missing.docx"},
+    )
+
+    assert missing_response.status_code == 404
+    assert "Generated report not found" in missing_response.json()["detail"]
 
 
 def test_upload_report_project_package_creates_project_folder(tmp_path: Path, monkeypatch):

@@ -6,7 +6,7 @@ dashboard, including sections for today's events, research queue, candidate boar
 and learning insights.
 """
 from datetime import datetime
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -373,6 +373,46 @@ class SectorChangeItem(BaseModel):
     is_mock: bool = Field(
         default=False, description="Whether this is mock data (True) or real data (False)"
     )
+    source: Optional[str] = Field(default=None, description="Source vendor or repository")
+    view_key: Optional[str] = Field(default=None, description="Dashboard market view key")
+    view_label: Optional[str] = Field(default=None, description="Dashboard market view label")
+
+
+class SectorMoverView(BaseModel):
+    """A grouped sector mover view for one market classification lens."""
+
+    up: List[SectorChangeItem] = Field(
+        default_factory=list, description="Top gaining sectors/concepts for this view"
+    )
+    down: List[SectorChangeItem] = Field(
+        default_factory=list, description="Top losing sectors/concepts for this view"
+    )
+
+
+class MarketIndexItem(BaseModel):
+    """A real-time index quote used by the market command center."""
+
+    code: str = Field(description="Index code")
+    name: str = Field(description="Index display name")
+    value: str = Field(description="Formatted latest index value")
+    change: float = Field(description="Percentage change")
+    amount: Optional[float] = Field(default=None, description="Turnover amount in yuan")
+    source: str = Field(default="sina", description="Quote source")
+
+
+class MarketBreadthSnapshot(BaseModel):
+    """Market breadth snapshot for mainland market overview."""
+
+    up: int = Field(default=0, description="Number of rising names")
+    down: int = Field(default=0, description="Number of falling names")
+    flat: int = Field(default=0, description="Number of unchanged names")
+    upRatio: float = Field(default=50.0, description="Rising ratio for the breadth bar")
+    downRatio: float = Field(default=50.0, description="Falling ratio for the breadth bar")
+    turnover: str = Field(default="--", description="Formatted turnover")
+    turnoverDelta: Optional[str] = Field(default=None, description="Optional turnover comparison text")
+    source: str = Field(default="unknown", description="Underlying data source")
+    sourceLabel: str = Field(default="等待实时刷新", description="Human-readable source label")
+    fetchedAt: Optional[datetime] = Field(default=None, description="Snapshot fetch time")
 
 
 class MarketOverviewSection(BaseModel):
@@ -395,6 +435,16 @@ class MarketOverviewSection(BaseModel):
     )
     top_down_sectors: List[SectorChangeItem] = Field(
         default_factory=list, description="List of top losing sectors/concepts (top 5)"
+    )
+    sector_views: Dict[str, SectorMoverView] = Field(
+        default_factory=dict,
+        description="Grouped sector movers by classification lens, e.g. theme or industry",
+    )
+    indices: List[MarketIndexItem] = Field(
+        default_factory=list, description="Real-time market index quotes"
+    )
+    breadth: Optional[MarketBreadthSnapshot] = Field(
+        default=None, description="Real-time market breadth snapshot"
     )
     uses_real_news: bool = Field(
         default=False, description="Whether news data is from real sources"

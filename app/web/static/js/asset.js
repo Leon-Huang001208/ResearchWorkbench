@@ -8,7 +8,8 @@ import { apiCall, toast, esc, getChartColors, fmtVolume, fmtAmount, fmtMarketCap
 let chartKLine = null;
 let chartCapitalFlow = null;
 let chartChipDist = null;
-let currentTimeRange = 'ALL';
+const DEFAULT_TIME_RANGE = '1Y';
+let currentTimeRange = DEFAULT_TIME_RANGE;
 let currentCanonicalId = null;
 let currentAssetAnalysisData = null;
 let currentKLineBars = [];
@@ -617,7 +618,7 @@ function updateSelectedItem(items) {
 async function analyzeAssetByCode(code, timeRange = null) {
     if (!code) return toast('请输入资产代码', 'error');
     hideAssetSearchDropdown();
-    const range = timeRange || currentTimeRange || 'ALL';
+    const range = timeRange || currentTimeRange || DEFAULT_TIME_RANGE;
     currentCanonicalId = code;
     currentTimeRange = range;
     const loading = document.getElementById('asset-loading');
@@ -1033,6 +1034,7 @@ function renderKLineChart(priceBars) {
     // Guard: echarts CDN not loaded
     if (typeof echarts === 'undefined') {
         console.warn('ECharts not loaded, skipping K-line render');
+        container.innerHTML = '<p class="empty-state" style="padding:40px 12px;text-align:center;">图表资源仍在加载，基础数据已显示</p>';
         return;
     }
 

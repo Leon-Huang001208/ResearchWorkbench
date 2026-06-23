@@ -207,6 +207,107 @@ class TestAssetAnalysisService:
         assert AssetAnalysisService._days_from_time_range("all") == 0
         assert AssetAnalysisService._days_from_time_range("unknown") == 252
 
+    @pytest.mark.asyncio
+    async def test_enrich_uses_cjpy_then_fast_cache_path_without_slow_fallbacks(self):
+        """Asset cards should try Cjpy briefly, then render cached K-lines without slow probes."""
+        symbol = "688981.SH"
+        market_repo = Mock()
+        market_repo.db = None
+        stock = Mock()
+        stock.name = "中芯国际"
+        stock.market = "A-share"
+        stock.list_date = None
+        stock.industry_level1 = "电子"
+        stock.industry_level2 = None
+        stock.industry_level3 = None
+        market_repo.get_stock_master.return_value = stock
+        market_repo.get_latest_shareholders.return_value = []
+
+        result = Mock()
+        result.success = True
+        result.primary_source = "cache"
+        result.data = [
+            _make_quote(close=100.0, high=103.0, low=98.0),
+            _make_quote(close=102.0, high=104.0, low=99.0),
+        ]
+        result.data[0].timestamp = datetime(2026, 6, 22, 12, 0, 0, tzinfo=UTC)
+        result.data[1].timestamp = datetime(2026, 6, 23, 12, 0, 0, tzinfo=UTC)
+        coordinator = Mock()
+        coordinator.fetch_historical_data.return_value = result
+
+        service = AssetAnalysisService(coordinator=coordinator, market_repo=market_repo)
+        service._fetch_cjpy_price_bars_with_timeout = AsyncMock(return_value=[])
+        service._fetch_wind_price_bars_with_timeout = AsyncMock(
+            side_effect=AssertionError("Wind price should be skipped for cached K-lines")
+        )
+        service._fill_wind_market_snapshot = Mock(
+            side_effect=AssertionError("Wind snapshot should be skipped in fast cache mode")
+        )
+        service._get_available_wind_adapter = Mock(
+            side_effect=AssertionError("Wind adapter should not be probed")
+        )
+        service._compute_macro_sensitivity = Mock(
+            side_effect=AssertionError("Macro sensitivity should be skipped in fast cache mode")
+        )
+
+        card = await service._enrich_from_coordinator(
+            AssetAnalysisCard(
+                canonical_id=symbol,
+                as_of=datetime(2026, 6, 23, 12, 0, 0, tzinfo=UTC),
+            ),
+            symbol,
+            datetime(2026, 6, 23, 12, 0, 0, tzinfo=UTC),
+            "1Y",
+        )
+
+        assert card.current_price == 102.0
+        assert card.technical["provider"] == "cache"
+        assert card.basic_info.name == "中芯国际"
+        assert card.industry.sw_level_1 == "电子"
+        assert card.top_10_shareholders == []
+        service._fetch_cjpy_price_bars_with_timeout.assert_awaited_once()
+        service._fill_wind_market_snapshot.assert_not_called()
+        service._compute_macro_sensitivity.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_enrich_prefers_cjpy_bars_when_available(self):
+        """Cjpy bars should be used for today's asset card when available."""
+        service = AssetAnalysisService(coordinator=Mock(), market_repo=None)
+        service._fetch_cjpy_price_bars_with_timeout = AsyncMock(
+            return_value=[
+                PriceBar(
+                    date=date(2026, 6, 23),
+                    open=100.0,
+                    high=106.0,
+                    low=99.0,
+                    close=105.0,
+                    volume=10_000,
+                )
+            ]
+        )
+        service._fill_price_bars_from_coordinator = Mock(
+            side_effect=AssertionError("Coordinator should not be used when Cjpy returns bars")
+        )
+        service._fill_wind_market_snapshot = Mock()
+        service._fill_industry_data = Mock(return_value=IndustryData())
+        service._fill_shareholder_data = AsyncMock(return_value=([], []))
+        service._fill_recent_events = Mock(return_value=[])
+        service._compute_macro_sensitivity = Mock(return_value=None)
+
+        card = await service._enrich_from_coordinator(
+            AssetAnalysisCard(
+                canonical_id="688981.SH",
+                as_of=datetime(2026, 6, 23, 12, 0, 0, tzinfo=UTC),
+            ),
+            "688981.SH",
+            datetime(2026, 6, 23, 12, 0, 0, tzinfo=UTC),
+            "1Y",
+        )
+
+        assert card.current_price == 105.0
+        assert card.technical["provider"] == "cjpy"
+        service._fill_price_bars_from_coordinator.assert_not_called()
+
     def test_chip_distribution_profiles_all_supplied_price_volume(self):
         """Chip distribution should preserve volume across the supplied K-line range."""
         bars = [

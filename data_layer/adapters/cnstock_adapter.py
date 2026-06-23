@@ -11,6 +11,21 @@ from data_layer.crawlers.cnstock.cnstock import CnstockConfig, CnstockCrawler
 
 logger = get_logger(__name__)
 
+_NON_CONTENT_MARKERS = (
+    "权威、专业、价值 尽在上海证券报客户端",
+    "AI帮你提炼, 10秒 看完要点",
+    "AI帮你提炼，10秒 看完要点",
+)
+
+
+def _clean_content_body(text: Any) -> str:
+    body = str(text or "").strip()
+    if not body:
+        return ""
+    if any(marker in body for marker in _NON_CONTENT_MARKERS):
+        return ""
+    return body
+
 
 class CNStockAdapter(BaseDataAdapter):
     """中国证券网新闻适配器"""
@@ -45,7 +60,7 @@ class CNStockAdapter(BaseDataAdapter):
             state_path=kwargs.get("state_path"),
             skip_existing=kwargs.get("skip_existing", True),
             verbose=kwargs.get("verbose", True),
-            fetch_content=kwargs.get("fetch_content", False),
+            fetch_content=kwargs.get("fetch_content", True),
             max_pages=kwargs.get("max_pages", 10),
             stop_on_known=kwargs.get("stop_on_known", True),
         )
@@ -90,7 +105,7 @@ class CNStockAdapter(BaseDataAdapter):
             # Parse from dict
             article_id = source.get("article_id", "") or source.get("url", "").split("/")[-1]
             title = source.get("title", "")
-            content_body = (
+            content_body = _clean_content_body(
                 source.get("content_text", "")
                 or source.get("content", "")
                 or source.get("summary", "")

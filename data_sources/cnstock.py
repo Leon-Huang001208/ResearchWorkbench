@@ -11,6 +11,7 @@ register(
             "source_type": "cnstock",
             "default_channel": "证券",
             "all_channels": True,
+            "fetch_content": True,
         },
         connector_dataset="news",
         pipeline_kind="document",

@@ -58,13 +58,14 @@ class CNStockDocumentConnector(DocumentConnector):
                 - default_channel: 默认频道（默认 "证券"）
                 - all_channels: 是否抓取所有频道（默认 False）
                 - max_pages: 最大翻页数（默认 10）
-                - fetch_content: 是否抓取正文内容（默认 False）
+                - fetch_content: 是否抓取正文内容（默认 True）
         """
         super().__init__(config)
         self._output_dir = self.config.get("output_dir", "./data/crawlers/cnstock")
         self._default_channel = self.config.get("default_channel", "证券")
         self._all_channels = self.config.get("all_channels", False)
         self._max_pages = self.config.get("max_pages", 10)
+        self._fetch_content = self.config.get("fetch_content", True)
 
     # ------------------------------------------------------------------
     # 元信息
@@ -194,7 +195,7 @@ class CNStockDocumentConnector(DocumentConnector):
             max_pages=max_pages,
             skip_existing=params.get("skip_existing", True),
             verbose=params.get("verbose", False),
-            fetch_content=params.get("fetch_content", False),
+            fetch_content=params.get("fetch_content", self._fetch_content),
             stop_on_known=params.get("stop_on_known", True),
         )
 

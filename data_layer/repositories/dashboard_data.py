@@ -42,6 +42,194 @@ _IMPORTANCE_USER_PROMPT_TEMPLATE = """请评估以下新闻的重要性：
 
 返回JSON数组，按顺序对应每条新闻。"""
 
+_NON_CONTENT_MARKERS = (
+    "权威、专业、价值 尽在上海证券报客户端",
+    "AI帮你提炼, 10秒 看完要点",
+    "AI帮你提炼，10秒 看完要点",
+)
+_ZQ_REFERENCE_MARKER_RE = re.compile(r"##\d+\$\$")
+_PDF_PAGE_MARKER_RE = re.compile(r"<!--\s*page:\s*\d+\s*-->", flags=re.I)
+_PDF_TABLE_MARKER_RE = re.compile(r"\[/?Table[_A-Za-z0-9]*\]")
+_PDF_NOISE_MARKERS = (
+    "本报告仅供",
+    "请阅读最后评级说明",
+    "评级说明和重要声明",
+    "免责声明",
+    "证券研究报告",
+    "SAC执业证书",
+    "SFC CE",
+    "DOCID",
+    "OBJID",
+    "mailto:",
+    "邮箱",
+    "电话",
+    "报告告读",
+    "TT aabbll",
+    "T2a0b",
+)
+
+
+def _single_line_text(text: Any) -> str:
+    """Normalize UI titles without destroying meaningful Chinese punctuation."""
+    return re.sub(r"\s+", " ", str(text or "")).strip()
+
+
+def _clean_live_document_text(text: Any) -> str:
+    cleaned = _ZQ_REFERENCE_MARKER_RE.sub("", str(text or ""))
+    cleaned = re.sub(r"[ \t]+\n", "\n", cleaned)
+    return cleaned.strip()
+
+
+def _looks_like_pdf_noise_line(line: str) -> bool:
+    stripped = line.strip()
+    if not stripped:
+        return False
+    if _PDF_PAGE_MARKER_RE.search(stripped) or _PDF_TABLE_MARKER_RE.search(stripped):
+        return True
+    if any(marker in stripped for marker in _PDF_NOISE_MARKERS):
+        return True
+    if stripped.count("|") >= 4:
+        return True
+    if re.fullmatch(r"[\|\-—_\s:：,，.。;；/\\\[\]\(\)（）]+", stripped):
+        return True
+    return False
+
+
+def _clean_pdf_report_text_for_display(text: str) -> str:
+    """Turn noisy PDF extraction into a readable live-monitor detail excerpt."""
+    if not text:
+        return ""
+
+    cleaned_lines: list[str] = []
+    for raw_line in _PDF_PAGE_MARKER_RE.sub("\n", text).splitlines():
+        line = raw_line.strip()
+        if _looks_like_pdf_noise_line(line):
+            continue
+        line = _PDF_TABLE_MARKER_RE.sub("", line)
+        line = re.sub(r"\[[^\]]*(?:Table|T\s*a\s*b\s*l|T\s*abl|abl投e)[^\]]*\]", "", line, flags=re.I)
+        line = re.sub(r"\[\[[^\]]+\]\]", "", line)
+        line = re.sub(r"\bT\s*2?a\s*0?b\s*2?l\s*e[\w_.-]*\b", "", line, flags=re.I)
+        line = re.sub(r"\bTT\s+aabbll[\w\s_.（）()-]*", "", line, flags=re.I)
+        line = re.sub(r"[*`#]+", "", line)
+        line = re.sub(r"\s+", " ", line).strip()
+        if line:
+            cleaned_lines.append(line)
+
+    cleaned = "\n".join(cleaned_lines)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    return cleaned.strip()
+
+
+def _split_leading_bracket(text: str) -> Tuple[str, str]:
+    match = re.match(r"^【([^】]{2,120})】\s*(.*)$", text.strip(), flags=re.S)
+    if not match:
+        return "", text.strip()
+    return _single_line_text(match.group(1)), match.group(2).strip()
+
+
+def _remove_duplicate_prefix(title: str, content: str) -> str:
+    content = (content or "").strip()
+    title = (title or "").strip()
+    if not title or not content:
+        return content
+    if content == title:
+        return ""
+    if content.startswith(title):
+        return content[len(title) :].lstrip(" \t\r\n，。,.:：;；")
+    title_line = content.splitlines()[0].strip() if content.splitlines() else ""
+    if title_line == title:
+        return "\n".join(content.splitlines()[1:]).strip()
+    return content
+
+
+def _has_independent_content(text: str, title: str) -> bool:
+    compact = _single_line_text(text)
+    if not compact or compact == _single_line_text(title):
+        return False
+    return not any(marker in compact for marker in _NON_CONTENT_MARKERS)
+
+
+def _extract_json_document_text(text: str) -> Tuple[str, str, bool]:
+    stripped = (text or "").strip()
+    if not stripped.startswith("{"):
+        return "", text, False
+    try:
+        payload = json.loads(stripped)
+    except json.JSONDecodeError:
+        return "", text, False
+    if not isinstance(payload, dict):
+        return "", text, False
+
+    content_fields = (
+        "coreViewpoint",
+        "viewpoint",
+        "core",
+        "content",
+        "summary",
+        "abstract",
+    )
+    content_parts = [
+        str(payload.get(field) or "").strip()
+        for field in content_fields
+        if str(payload.get(field) or "").strip()
+    ]
+    return _single_line_text(payload.get("title")), "\n\n".join(content_parts), True
+
+
+def _normalize_crawl_document_text(doc: DocumentV1DB) -> Dict[str, str]:
+    raw_title = (doc.title or "").strip()
+    raw_summary = _clean_live_document_text(doc.summary)
+    raw_content = _clean_live_document_text(doc.content)
+    source_type_value = getattr(doc, "source_type", "")
+    source_type = source_type_value if isinstance(source_type_value, str) else ""
+    if source_type == "zhiqiu_reports" or _PDF_PAGE_MARKER_RE.search(raw_content):
+        raw_content = _clean_pdf_report_text_for_display(raw_content)
+    json_title, json_content, content_was_json = _extract_json_document_text(raw_content)
+    if content_was_json:
+        if not raw_title and json_title:
+            raw_title = json_title
+        raw_content = _clean_live_document_text(json_content)
+        if source_type == "zhiqiu_reports" or _PDF_PAGE_MARKER_RE.search(raw_content):
+            raw_content = _clean_pdf_report_text_for_display(raw_content)
+
+    bracket_title, title_tail = _split_leading_bracket(raw_title)
+    content_bracket_title, content_tail = _split_leading_bracket(raw_content)
+
+    display_title = bracket_title or content_bracket_title or _single_line_text(raw_title)
+    if not display_title:
+        display_title = _single_line_text(raw_content[:80]) or "(无标题)"
+
+    detail_content = raw_content
+    if content_bracket_title:
+        detail_content = content_tail
+    elif bracket_title and raw_content.startswith(raw_title):
+        detail_content = raw_content[len(raw_title) :].strip()
+    else:
+        detail_content = _remove_duplicate_prefix(raw_title, raw_content)
+
+    if not _has_independent_content(detail_content, display_title):
+        detail_content = ""
+
+    summary = raw_summary
+    if summary:
+        summary_bracket_title, summary_tail = _split_leading_bracket(summary)
+        if summary_bracket_title:
+            summary = summary_tail
+        summary = _remove_duplicate_prefix(display_title, summary)
+        if not _has_independent_content(summary, display_title):
+            summary = ""
+
+    if not summary and title_tail and _has_independent_content(title_tail, display_title):
+        summary = title_tail
+
+    return {
+        "title": display_title,
+        "raw_title": raw_title,
+        "summary": summary,
+        "content": detail_content,
+        "has_content": bool(detail_content or summary),
+    }
+
 
 class DashboardDataRepository:
     """仪表盘数据专用仓储"""
@@ -362,11 +550,7 @@ class DashboardDataRepository:
     # ── LLM batch importance scoring ─────────────────────────────────
 
     def _batch_score_importance(self, docs: list) -> Dict[str, float]:
-        """Score a batch of documents for global importance via LLM.
-
-        Only calls the LLM when >50% of docs are unscored.
-        Returns {doc_id: importance_score}.
-        """
+        """Return cached global importance scores without blocking the dashboard."""
         # Separate already-scored from unscored
         unscored: list = []
         cached: Dict[str, float] = {}
@@ -378,30 +562,13 @@ class DashboardDataRepository:
             else:
                 unscored.append((i, doc))
 
-        # Only invoke LLM if majority are unscored
-        if len(unscored) <= len(docs) * 0.5:
-            return cached
-
-        try:
-            from core.model_gateway.gateway import ModelGatewayImpl
-
-            gateway = ModelGatewayImpl()
-            scored = self._llm_score_batch(gateway, [d for _, d in unscored])
-
-            # Persist scores back to DB.
-            # NOTE: dict() copy required — SQLAlchemy JSON mutation tracking
-            # won't detect in-place dict[key] = value.
-            for _, doc in unscored:
-                score = scored.get(doc.doc_id)
-                if score is not None:
-                    quality = dict(doc.quality or {})
-                    quality["importance_score"] = score
-                    doc.quality = quality
-                    cached[doc.doc_id] = score
-            self.session.commit()
-        except Exception:
-            logger.warning("LLM importance scoring unavailable, using quality-only scores")
-
+        # 首页首屏不能被外部 LLM 调用阻塞；未缓存的新闻使用规则质量分排序。
+        if unscored:
+            logger.info(
+                "Skipping synchronous LLM importance scoring for dashboard",
+                cached=len(cached),
+                unscored=len(unscored),
+            )
         return cached
 
     def _llm_score_batch(self, gateway, docs: list) -> Dict[str, float]:
@@ -1176,6 +1343,8 @@ class DashboardDataRepository:
         base_query = self.session.query(DocumentV1DB)
         if source_type:
             base_query = base_query.filter(DocumentV1DB.source_type == source_type)
+        if source_type == "zhiqiu_reports":
+            base_query = base_query.filter(~DocumentV1DB.content.like('{"OBJID"%'))
 
         # Today's total count: prefer timeliness.publish_time, fall back to created_at
         today_str = datetime.now().strftime("%Y-%m-%d")
@@ -1197,10 +1366,14 @@ class DashboardDataRepository:
             func.json_extract_path_text(DocumentV1DB.timeliness, "publish_time"),
             cast(DocumentV1DB.created_at, String),
         )
-        documents = query.order_by(desc(publish_or_created)).limit(limit).all()
+        if source_type == "zhiqiu_reports":
+            documents = query.order_by(desc(DocumentV1DB.created_at)).limit(limit).all()
+        else:
+            documents = query.order_by(desc(publish_or_created)).limit(limit).all()
 
         results = []
         for doc in documents:
+            normalized_text = _normalize_crawl_document_text(doc)
             published_at = ""
             timeliness = doc.timeliness or {}
             publish_time = timeliness.get("publish_time") if isinstance(timeliness, dict) else None
@@ -1215,7 +1388,11 @@ class DashboardDataRepository:
             results.append(
                 {
                     "doc_id": doc.doc_id,
-                    "title": doc.title or "",
+                    "title": normalized_text["title"],
+                    "raw_title": normalized_text["raw_title"],
+                    "summary": normalized_text["summary"],
+                    "content": normalized_text["content"],
+                    "has_content": normalized_text["has_content"],
                     "source_type": doc.source_type or "",
                     "source_name": doc.source_name or "",
                     "doc_type": doc.doc_type or "",

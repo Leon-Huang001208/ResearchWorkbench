@@ -38,6 +38,11 @@ def s_info_windcode(code: str) -> str:
     return f'=@s_info_windcode("{code}")'
 
 
+def s_info_name(code: str) -> str:
+    """证券简称 / 指数名称"""
+    return f'=@s_info_name("{code}")'
+
+
 def s_info_industry(code: str) -> str:
     """Wind 行业分类"""
     return f'=@s_info_industry("{code}")'
@@ -504,6 +509,21 @@ def index_close(index_code: str, trade_date: str) -> str:
 def index_pct_change(index_code: str, trade_date: str) -> str:
     """指数涨跌幅（%） ✅ 已确认"""
     return f'=@i_dq_pctchange("{index_code}","{trade_date}")'
+
+
+def index_rt_last(index_code: str) -> str:
+    """指数实时最新价."""
+    return f'=@wss("{index_code}","rt_last")'
+
+
+def index_rt_pre_close(index_code: str) -> str:
+    """指数实时昨收价."""
+    return f'=@wss("{index_code}","rt_pre_close")'
+
+
+def index_rt_pct_change(index_code: str) -> str:
+    """指数实时涨跌幅（%）."""
+    return f'=@wss("{index_code}","rt_pct_chg")'
 
 
 def index_weight(code: str, trade_date: str | None = None, index_code: str = "000300.SH") -> str:

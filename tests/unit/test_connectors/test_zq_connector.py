@@ -144,6 +144,40 @@ class TestZQFetch:
             assert kwargs["enable_pdf"] is True
             assert kwargs["max_pages"] == 7
 
+    def test_fetch_report_forwards_content_extraction_flags(self, sample_report_envelopes):
+        zq_connector = ZQDocumentConnector(
+            {
+                "use_homepage_search": False,
+                "enable_pdf": True,
+                "enable_viewpoint": True,
+                "enable_core": True,
+            }
+        )
+
+        with patch("data_layer.adapters.zq_adapter.ZQAdapter") as mock_adapter_class:
+            mock_adapter = MagicMock()
+            mock_adapter.fetch.return_value = [
+                MagicMock(model_dump=lambda e=env: e) for env in sample_report_envelopes
+            ]
+            mock_adapter_class.return_value = mock_adapter
+
+            item = DiscoveryItem(
+                item_id="zq_report_2026-06-07_2026-06-09",
+                item_type="report",
+                params={
+                    "start_date": "2026-06-07",
+                    "end_date": "2026-06-09",
+                    "doc_type": "REPORT",
+                },
+            )
+
+            zq_connector.fetch(dataset="report", item=item)
+
+            _, kwargs = mock_adapter.fetch.call_args
+            assert kwargs["enable_pdf"] is True
+            assert kwargs["enable_viewpoint"] is True
+            assert kwargs["enable_core"] is True
+
     def test_fetch_report(self, zq_connector, sample_report_envelopes):
         with patch("data_layer.adapters.zq_adapter.ZQAdapter") as mock_adapter_class:
             mock_adapter = MagicMock()
@@ -208,6 +242,58 @@ class TestZQParseDocument:
         doc = zq_connector.parse_document(raw)
         assert doc.text == ""
         assert doc.pages is None
+
+    def test_parse_report_skips_metadata_json_without_content(self, zq_connector):
+        envelopes = [
+            {
+                "doc_id": "zq-rpt-json-only",
+                "source_type": "report",
+                "title": "量化择时和拥挤度预警周报",
+                "published_at": "2026-06-21T16:18:35",
+                "source_name": "国泰海通",
+                "language": "zh",
+                "metadata": {"obj_id": "43153409", "doc_type": "report"},
+                "raw_text": '{"OBJID":43153409,"DOCID":64351291,"title":"量化择时和拥挤度预警周报","viewpoint":""}',
+                "canonical_text": "",
+            }
+        ]
+        raw = RawObject(
+            data=json.dumps(envelopes, ensure_ascii=False),
+            content_type="application/json",
+            source_uri="zq://report/2026-06-21",
+            metadata={"item_type": "report", "doc_type": "REPORT"},
+        )
+
+        doc = zq_connector.parse_document(raw)
+
+        assert doc.text == ""
+        assert doc.metadata["dropped_empty_documents"] == 1
+
+    def test_parse_meeting_cleans_reference_markers(self, zq_connector):
+        envelopes = [
+            {
+                "doc_id": "zq-meeting-001",
+                "source_type": "report",
+                "title": "大化工中期策略报告20260618",
+                "published_at": "2026-06-21T15:55:00",
+                "source_name": "知丘纪要",
+                "language": "zh",
+                "metadata": {"obj_id": "m001", "doc_type": "meeting"},
+                "raw_text": "### 石油化工行业 - **油价判断**：未来油价中枢稳定##2$$##3$$。",
+                "canonical_text": "### 石油化工行业 - **油价判断**：未来油价中枢稳定##2$$##3$$。",
+            }
+        ]
+        raw = RawObject(
+            data=json.dumps(envelopes, ensure_ascii=False),
+            content_type="application/json",
+            source_uri="zq://meeting/2026-06-21",
+            metadata={"item_type": "meeting", "doc_type": "ZQMEETING"},
+        )
+
+        doc = zq_connector.parse_document(raw)
+
+        assert "##2$$" not in doc.text
+        assert "油价判断" in doc.text
 
 
 # ---------------------------------------------------------------------------

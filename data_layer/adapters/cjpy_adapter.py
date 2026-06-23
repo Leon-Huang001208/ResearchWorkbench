@@ -1,6 +1,7 @@
 """天软 (Tinysoft) 数据适配器 —— 通过 cjpy 包获取天软行情、因子、表格数据"""
 
 import os
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
@@ -33,10 +34,32 @@ _RATE_MAP = {
     "forward": "前复权",
     "backward": "后复权",
 }
-logger = None  # 延迟初始化，避免循环导入
-
 # Module-level Cjpy availability cache — cjpy.get_stocks() 网络调用较慢
 _cjpy_available_cache: Optional[bool] = None
+_PROXY_ENV_KEYS = (
+    "http_proxy",
+    "https_proxy",
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "all_proxy",
+    "ALL_PROXY",
+)
+
+
+@contextmanager
+def _without_proxy_env():
+    """cjpy 访问天软服务时绕开本机代理环境变量。"""
+    saved = {key: os.environ.get(key) for key in _PROXY_ENV_KEYS}
+    for key in _PROXY_ENV_KEYS:
+        os.environ.pop(key, None)
+    try:
+        yield
+    finally:
+        for key, value in saved.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
 
 
 class CjpyAdapter(BaseDataAdapter):
@@ -99,7 +122,8 @@ class CjpyAdapter(BaseDataAdapter):
             import cjpy
 
             self._ensure_token()
-            cjpy.get_stocks()
+            with _without_proxy_env():
+                cjpy.get_stocks()
             _cjpy_available_cache = True
             return True
         except Exception:
@@ -120,7 +144,8 @@ class CjpyAdapter(BaseDataAdapter):
         import cjpy
 
         self._ensure_token()
-        stocks = cjpy.get_stocks(date=date)
+        with _without_proxy_env():
+            stocks = cjpy.get_stocks(date=date)
         logger.info(f"获取股票列表: {len(stocks) if isinstance(stocks, list) else 'unknown'} 条")
         return stocks if isinstance(stocks, list) else []
 
@@ -129,7 +154,8 @@ class CjpyAdapter(BaseDataAdapter):
         import cjpy
 
         self._ensure_token()
-        funds = cjpy.get_funds()
+        with _without_proxy_env():
+            funds = cjpy.get_funds()
         logger.info(f"获取基金列表: {len(funds) if isinstance(funds, list) else 'unknown'} 条")
         return funds if isinstance(funds, list) else []
 
@@ -156,7 +182,8 @@ class CjpyAdapter(BaseDataAdapter):
         import cjpy
 
         self._ensure_token()
-        days = cjpy.get_trading_days(start=start, end=end, cycle=cycle, code=code)
+        with _without_proxy_env():
+            days = cjpy.get_trading_days(start=start, end=end, cycle=cycle, code=code)
         return days  # type: ignore[no-any-return]
 
     # ===== 行情数据 =====
@@ -190,13 +217,14 @@ class CjpyAdapter(BaseDataAdapter):
         frames: list[pd.DataFrame] = []
         for code in codes:
             try:
-                df = cjpy.get_market_data(
-                    code=code,
-                    start=start_date,
-                    end=end_date,
-                    cycle=cycle,
-                    rate=rate,
-                )
+                with _without_proxy_env():
+                    df = cjpy.get_market_data(
+                        code=code,
+                        start=start_date,
+                        end=end_date,
+                        cycle=cycle,
+                        rate=rate,
+                    )
                 if not df.empty:
                     df["code"] = code
                     frames.append(df)
@@ -237,7 +265,8 @@ class CjpyAdapter(BaseDataAdapter):
         import cjpy
 
         self._ensure_token()
-        df = cjpy.get_factor_data(code=codes, date=dates, factors=factors, repo=repo)
+        with _without_proxy_env():
+            df = cjpy.get_factor_data(code=codes, date=dates, factors=factors, repo=repo)
         if df is None:
             logger.warning(f"因子数据为空: {factors}, codes={len(codes)}")
             return pd.DataFrame()
@@ -260,7 +289,8 @@ class CjpyAdapter(BaseDataAdapter):
             return self._factor_repo_cache
 
         self._ensure_token()
-        repo_df = cjpy.get_factor_repo()
+        with _without_proxy_env():
+            repo_df = cjpy.get_factor_repo()
         if repo_df.empty:
             self._factor_repo_cache = {}
             return {}
@@ -290,7 +320,8 @@ class CjpyAdapter(BaseDataAdapter):
         import cjpy
 
         self._ensure_token()
-        df = cjpy.get_table_data(code=codes, table_name=table_name, fields=fields)
+        with _without_proxy_env():
+            df = cjpy.get_table_data(code=codes, table_name=table_name, fields=fields)
         logger.info(
             f"获取表格数据: table={table_name}, codes={len(codes) if isinstance(codes, list) else 1}, rows={len(df)}"
         )
@@ -308,7 +339,8 @@ class CjpyAdapter(BaseDataAdapter):
             return self._tables_cache
 
         self._ensure_token()
-        tables = cjpy.get_supported_tables()
+        with _without_proxy_env():
+            tables = cjpy.get_supported_tables()
         self._tables_cache = tables if isinstance(tables, list) else []
         logger.info(f"支持表格: {len(self._tables_cache)} 张")
         return self._tables_cache
@@ -339,7 +371,8 @@ class CjpyAdapter(BaseDataAdapter):
         import cjpy
 
         self._ensure_token()
-        sub = cjpy.subscribe(ids=ids, fields=fields, on_event=on_event)
+        with _without_proxy_env():
+            sub = cjpy.subscribe(ids=ids, fields=fields, on_event=on_event)
         logger.info(f"启动订阅: ids={ids}, fields={fields}")
         return sub
 
