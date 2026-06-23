@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo
 from openpyxl import Workbook
 
 from core.observability import get_logger
-from services.wind_index_catalog import load_wind_index_catalog
+from services.wind_index_catalog import MARKET_VIEW_LABELS, load_wind_index_catalog
 
 logger = get_logger(__name__)
 SHANGHAI_TZ = ZoneInfo("Asia/Shanghai")
@@ -105,6 +105,136 @@ class WorkbookSnapshot:
     updated_at: datetime | None
     error_count: int = 0
     message: str = ""
+
+
+class WindRealtimeWorkbookReader:
+    """Read Wind snapshot data from an already-open realtime workbook."""
+
+    def __init__(
+        self,
+        workbook_path: str | Path | None = None,
+        *,
+        stale_after_seconds: int = 60,
+    ) -> None:
+        self.workbook_path = resolve_workbook_path(workbook_path)
+        self.stale_after_seconds = stale_after_seconds
+
+    def get_view(self, view_key: str, limit: int = 10) -> dict[str, Any]:
+        view_label = MARKET_VIEW_LABELS.get(view_key, view_key)
+        if not self.workbook_path.exists():
+            logger.warning("Wind realtime workbook missing: %s", self.workbook_path)
+            return _status_payload(
+                view_key=view_key,
+                view_label=view_label,
+                limit=limit,
+                status="workbook_missing",
+                message=f"Wind实时工作簿不存在: {self.workbook_path}",
+                cache_ttl_seconds=self.stale_after_seconds,
+            )
+
+        snapshot = self.load_snapshot()
+        return payload_from_snapshot(
+            snapshot,
+            view_key=view_key,
+            limit=limit,
+            view_label=view_label,
+            cache_ttl_seconds=self.stale_after_seconds,
+        )
+
+    def load_snapshot(self) -> WorkbookSnapshot:
+        try:
+            import xlwings as xw
+        except ImportError:
+            logger.warning("xlwings is unavailable for Wind realtime workbook reads")
+            return WorkbookSnapshot(
+                rows=(),
+                status="xlwings_unavailable",
+                is_stale=False,
+                updated_at=None,
+                message="xlwings不可用，无法读取已打开的Wind实时工作簿",
+            )
+
+        try:
+            workbook = self._find_open_workbook(xw)
+            if workbook is None:
+                logger.warning("Wind realtime workbook is not open: %s", self.workbook_path)
+                return WorkbookSnapshot(
+                    rows=(),
+                    status="workbook_not_open",
+                    is_stale=False,
+                    updated_at=None,
+                    message="Wind实时工作簿未在Excel中打开",
+                )
+
+            values = workbook.sheets["Snapshot"].used_range.value
+            rows = self._rows_from_matrix(values)
+            return parse_snapshot_rows(
+                rows,
+                stale_after_seconds=self.stale_after_seconds,
+            )
+        except Exception as exc:
+            logger.error(
+                "Failed to read Wind realtime workbook snapshot %s: %s",
+                self.workbook_path,
+                exc,
+            )
+            return WorkbookSnapshot(
+                rows=(),
+                status="workbook_read_error",
+                is_stale=False,
+                updated_at=None,
+                error_count=1,
+                message=f"读取Wind实时工作簿失败: {exc}",
+            )
+
+    def _find_open_workbook(self, xw: Any) -> Any | None:
+        target = self.workbook_path.expanduser()
+        try:
+            target_resolved = target.resolve()
+        except OSError:
+            target_resolved = target
+
+        for app in xw.apps:
+            for book in app.books:
+                fullname = str(getattr(book, "fullname", "") or "")
+                if fullname:
+                    try:
+                        if Path(fullname).expanduser().resolve() == target_resolved:
+                            return book
+                    except OSError:
+                        if Path(fullname).expanduser() == target:
+                            return book
+        return None
+
+    def _rows_from_matrix(self, values: Any) -> list[dict[str, Any]]:
+        return _rows_from_matrix(values)
+
+
+def _rows_from_matrix(values: Any) -> list[dict[str, Any]]:
+    if values is None:
+        return []
+    matrix = values if isinstance(values, (list, tuple)) else [[values]]
+    if matrix and not isinstance(matrix[0], (list, tuple)):
+        matrix = [matrix]
+    if not matrix:
+        return []
+
+    headers = [str(value or "").strip() for value in matrix[0]]
+    rows: list[dict[str, Any]] = []
+    for raw_row in matrix[1:]:
+        if raw_row is None:
+            continue
+        cells = raw_row if isinstance(raw_row, (list, tuple)) else [raw_row]
+        if not any(cell not in (None, "") for cell in cells):
+            continue
+        row = {
+            header: cells[index] if index < len(cells) else None
+            for index, header in enumerate(headers)
+            if header
+        }
+        if row:
+            rows.append(row)
+    return rows
 
 
 def resolve_workbook_path(path: str | Path | None = None) -> Path:
@@ -233,6 +363,36 @@ def build_realtime_workbook(
     return output_path
 
 
+def payload_from_snapshot(
+    snapshot: WorkbookSnapshot,
+    *,
+    view_key: str,
+    limit: int,
+    view_label: str,
+    cache_ttl_seconds: int = 60,
+) -> dict[str, Any]:
+    rows = [row for row in snapshot.rows if row.view_key == view_key]
+    up, down = split_snapshot_movers(rows, limit=limit)
+    has_real_data = bool(rows)
+    cache_hit = has_real_data and snapshot.status in {"ok", "snapshot_stale"}
+
+    return {
+        "view_key": view_key,
+        "view_label": view_label,
+        "up": up,
+        "down": down,
+        "has_real_data": has_real_data,
+        "fetched_at": datetime.now(UTC).isoformat(),
+        "cache_hit": cache_hit,
+        "cache_ttl_seconds": cache_ttl_seconds,
+        "status": snapshot.status,
+        "message": snapshot.message,
+        "source": "wind_realtime_workbook",
+        "updated_at": snapshot.updated_at.isoformat() if snapshot.updated_at else None,
+        "error_count": snapshot.error_count,
+    }
+
+
 def parse_snapshot_rows(
     rows: Iterable[dict[str, Any]],
     *,
@@ -285,7 +445,10 @@ def parse_snapshot_rows(
     )
     status = "snapshot_stale" if is_stale else "ok"
     message = "Wind数据可能未刷新" if is_stale else ""
-    if not parsed_rows:
+    if not parsed_rows and error_count > 0:
+        status = "snapshot_invalid"
+        message = "Wind快照全部解析失败，请检查Excel公式或Wind刷新状态"
+    elif not parsed_rows:
         status = "snapshot_empty"
         message = "Wind快照暂无可用数据"
 
@@ -297,6 +460,33 @@ def parse_snapshot_rows(
         error_count=error_count,
         message=message,
     )
+
+
+def _status_payload(
+    *,
+    view_key: str,
+    view_label: str,
+    limit: int,
+    status: str,
+    message: str,
+    cache_ttl_seconds: int,
+) -> dict[str, Any]:
+    snapshot = WorkbookSnapshot(
+        rows=(),
+        status=status,
+        is_stale=False,
+        updated_at=None,
+        message=message,
+    )
+    payload = payload_from_snapshot(
+        snapshot,
+        view_key=view_key,
+        limit=limit,
+        view_label=view_label,
+        cache_ttl_seconds=cache_ttl_seconds,
+    )
+    payload["has_real_data"] = False
+    return payload
 
 
 def split_snapshot_movers(

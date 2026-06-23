@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 import subprocess
 import sys
+import types
 
 import pytest
 from openpyxl import load_workbook
@@ -14,8 +15,11 @@ from services.wind_index_catalog import (
 )
 from services.wind_realtime_workbook import (
     DEFAULT_WORKBOOK_PATH,
+    WindRealtimeWorkbookReader,
+    WorkbookSnapshot,
     WorkbookSnapshotRow,
     build_realtime_workbook,
+    payload_from_snapshot,
     parse_snapshot_rows,
     resolve_workbook_path,
     split_snapshot_movers,
@@ -179,7 +183,7 @@ def test_parse_snapshot_rows_filters_non_finite_pct_change_values():
 
     assert snapshot.rows == ()
     assert snapshot.error_count == 3
-    assert snapshot.status == "snapshot_empty"
+    assert snapshot.status == "snapshot_invalid"
 
 
 def test_parse_snapshot_rows_interprets_naive_datetime_as_shanghai_time():
@@ -206,6 +210,30 @@ def test_parse_snapshot_rows_interprets_naive_datetime_as_shanghai_time():
     assert snapshot.rows[0].updated_at.isoformat() == "2026-06-22T08:30:00+00:00"
 
 
+def test_parse_snapshot_rows_interprets_naive_iso_datetime_as_shanghai_time():
+    rows = [
+        {
+            "view_key": "wind_l4",
+            "view_label": "Wind四级",
+            "wind_code": "882408.WI",
+            "name": "工业气体",
+            "last": 1234.5,
+            "pct_change": "10.82",
+            "is_concept": "false",
+            "source": "wind",
+            "updated_at": "2026-06-22T16:30:00",
+            "status": "ok",
+        }
+    ]
+
+    snapshot = parse_snapshot_rows(
+        rows,
+        now=datetime(2026, 6, 22, 8, 30, tzinfo=UTC),
+    )
+
+    assert snapshot.rows[0].updated_at.isoformat() == "2026-06-22T08:30:00+00:00"
+
+
 def test_parse_snapshot_rows_reports_empty_snapshot_message():
     snapshot = parse_snapshot_rows([], now=datetime(2026, 6, 22, 8, 30, tzinfo=UTC))
 
@@ -213,6 +241,31 @@ def test_parse_snapshot_rows_reports_empty_snapshot_message():
     assert snapshot.status == "snapshot_empty"
     assert snapshot.message == "Wind快照暂无可用数据"
     assert snapshot.is_stale is False
+
+
+def test_parse_snapshot_rows_reports_invalid_when_all_rows_fail():
+    snapshot = parse_snapshot_rows(
+        [
+            {
+                "view_key": "wind_l4",
+                "view_label": "Wind四级",
+                "wind_code": "882408.WI",
+                "name": "工业气体",
+                "last": 1234.5,
+                "pct_change": "#N/A",
+                "is_concept": "false",
+                "source": "wind",
+                "updated_at": "2026-06-22T16:30:00",
+                "status": "formula_error",
+            }
+        ],
+        now=datetime(2026, 6, 22, 8, 30, tzinfo=UTC),
+    )
+
+    assert snapshot.rows == ()
+    assert snapshot.error_count == 1
+    assert snapshot.status == "snapshot_invalid"
+    assert "解析失败" in snapshot.message
 
 
 def test_resolve_workbook_path_uses_default_for_blank_path():
@@ -311,6 +364,237 @@ def test_split_snapshot_movers_sorts_up_and_down():
         "view_label": "Wind四级",
     }
     assert "pct_change" not in up[0]
+
+
+def test_rows_from_matrix_converts_headers_and_skips_empty_rows(tmp_path):
+    reader = WindRealtimeWorkbookReader(workbook_path=tmp_path / "live.xlsx")
+    values = [
+        ["view_key", "name", "pct_change"],
+        ["wind_l4", "工业气体", 10.82],
+        [None, None, None],
+        ["wind_l4", "特种化工", -3.25],
+    ]
+
+    rows = reader._rows_from_matrix(values)
+
+    assert rows == [
+        {"view_key": "wind_l4", "name": "工业气体", "pct_change": 10.82},
+        {"view_key": "wind_l4", "name": "特种化工", "pct_change": -3.25},
+    ]
+
+
+def test_rows_from_matrix_handles_scalar_one_dimensional_and_tuple_values(tmp_path):
+    reader = WindRealtimeWorkbookReader(workbook_path=tmp_path / "live.xlsx")
+
+    assert reader._rows_from_matrix("only") == []
+    assert reader._rows_from_matrix(["view_key", "name"]) == []
+    assert reader._rows_from_matrix(
+        (
+            ("view_key", "name"),
+            ("wind_l4", "工业气体"),
+        )
+    ) == [{"view_key": "wind_l4", "name": "工业气体"}]
+
+
+def test_payload_from_snapshot_filters_view_and_sorts_with_status_source_message():
+    snapshot = WorkbookSnapshot(
+        rows=(
+            WorkbookSnapshotRow(
+                "wind_l4",
+                "Wind四级",
+                "A.WI",
+                "A",
+                1.0,
+                3.0,
+                False,
+                "wind",
+                datetime(2026, 6, 22, 8, 29, tzinfo=UTC),
+            ),
+            WorkbookSnapshotRow(
+                "wind_l4",
+                "Wind四级",
+                "B.WI",
+                "B",
+                1.0,
+                -2.0,
+                False,
+                "wind",
+                datetime(2026, 6, 22, 8, 30, tzinfo=UTC),
+            ),
+            WorkbookSnapshotRow(
+                "wind_l4",
+                "Wind四级",
+                "C.WI",
+                "C",
+                1.0,
+                5.0,
+                False,
+                "wind",
+                datetime(2026, 6, 22, 8, 28, tzinfo=UTC),
+            ),
+            WorkbookSnapshotRow(
+                "wind_l3",
+                "Wind三级",
+                "D.WI",
+                "D",
+                1.0,
+                9.0,
+                False,
+                "wind",
+                datetime(2026, 6, 22, 8, 30, tzinfo=UTC),
+            ),
+        ),
+        status="snapshot_stale",
+        is_stale=True,
+        updated_at=datetime(2026, 6, 22, 8, 30, tzinfo=UTC),
+        error_count=2,
+        message="Wind数据可能未刷新",
+    )
+
+    payload = payload_from_snapshot(
+        snapshot,
+        view_key="wind_l4",
+        limit=2,
+        view_label="Wind四级",
+    )
+
+    assert payload["view_key"] == "wind_l4"
+    assert payload["view_label"] == "Wind四级"
+    assert [item["name"] for item in payload["up"]] == ["C", "A"]
+    assert [item["name"] for item in payload["down"]] == ["B"]
+    assert payload["has_real_data"] is True
+    assert payload["cache_hit"] is True
+    assert payload["cache_ttl_seconds"] == 60
+    assert payload["status"] == "snapshot_stale"
+    assert payload["message"] == "Wind数据可能未刷新"
+    assert payload["source"] == "wind_realtime_workbook"
+    assert payload["updated_at"] == "2026-06-22T08:30:00+00:00"
+    assert payload["error_count"] == 2
+
+
+def test_reader_get_view_returns_workbook_missing_payload(tmp_path):
+    reader = WindRealtimeWorkbookReader(workbook_path=tmp_path / "missing.xlsx")
+
+    payload = reader.get_view("wind_l4", limit=3)
+
+    assert payload["view_key"] == "wind_l4"
+    assert payload["view_label"] == "Wind四级"
+    assert payload["status"] == "workbook_missing"
+    assert payload["has_real_data"] is False
+    assert payload["up"] == []
+    assert payload["down"] == []
+    assert payload["message"]
+    assert payload["source"] == "wind_realtime_workbook"
+    assert payload["cache_hit"] is False
+
+
+def test_reader_load_snapshot_reports_workbook_not_open(tmp_path, monkeypatch):
+    workbook_path = tmp_path / "AlphaFoundry_Wind_Realtime.xlsx"
+    workbook_path.write_text("placeholder", encoding="utf-8")
+    monkeypatch.setitem(sys.modules, "xlwings", types.SimpleNamespace(apps=[]))
+
+    reader = WindRealtimeWorkbookReader(
+        workbook_path=workbook_path,
+        stale_after_seconds=100000,
+    )
+    snapshot = reader.load_snapshot()
+
+    assert snapshot.status == "workbook_not_open"
+    assert snapshot.message
+
+
+def test_reader_load_snapshot_reports_xlwings_unavailable(tmp_path, monkeypatch):
+    workbook_path = tmp_path / "AlphaFoundry_Wind_Realtime.xlsx"
+    workbook_path.write_text("placeholder", encoding="utf-8")
+    monkeypatch.setitem(sys.modules, "xlwings", None)
+
+    reader = WindRealtimeWorkbookReader(
+        workbook_path=workbook_path,
+        stale_after_seconds=100000,
+    )
+    snapshot = reader.load_snapshot()
+
+    assert snapshot.status == "xlwings_unavailable"
+    assert snapshot.message
+
+
+def test_reader_find_open_workbook_does_not_match_same_name_wrong_path(tmp_path):
+    target = tmp_path / "AlphaFoundry_Wind_Realtime.xlsx"
+    wrong_dir = tmp_path / "wrong"
+    wrong_dir.mkdir()
+    wrong_path = wrong_dir / "AlphaFoundry_Wind_Realtime.xlsx"
+    target.write_text("target", encoding="utf-8")
+    wrong_path.write_text("wrong", encoding="utf-8")
+    book = types.SimpleNamespace(fullname=str(wrong_path), name=target.name)
+    xw = types.SimpleNamespace(apps=[types.SimpleNamespace(books=[book])])
+
+    reader = WindRealtimeWorkbookReader(workbook_path=target)
+
+    assert reader._find_open_workbook(xw) is None
+
+
+def test_reader_find_open_workbook_does_not_match_name_without_fullname(tmp_path):
+    target = tmp_path / "AlphaFoundry_Wind_Realtime.xlsx"
+    target.write_text("target", encoding="utf-8")
+    book = types.SimpleNamespace(fullname="", name=target.name)
+    xw = types.SimpleNamespace(apps=[types.SimpleNamespace(books=[book])])
+
+    reader = WindRealtimeWorkbookReader(workbook_path=target)
+
+    assert reader._find_open_workbook(xw) is None
+
+
+def test_reader_load_snapshot_reads_matching_workbook(tmp_path, monkeypatch):
+    workbook_path = tmp_path / "AlphaFoundry_Wind_Realtime.xlsx"
+    workbook_path.write_text("placeholder", encoding="utf-8")
+    values = [
+        ["view_key", "view_label", "wind_code", "name", "last", "pct_change", "is_concept", "source", "updated_at", "status"],
+        ["wind_l4", "Wind四级", "882408.WI", "工业气体", 1234.5, 10.82, "false", "wind", "2026-06-22T16:30:00", "ok"],
+    ]
+    snapshot_sheet = types.SimpleNamespace(
+        used_range=types.SimpleNamespace(value=values)
+    )
+    book = types.SimpleNamespace(
+        fullname=str(workbook_path),
+        name=workbook_path.name,
+        sheets={"Snapshot": snapshot_sheet},
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "xlwings",
+        types.SimpleNamespace(apps=[types.SimpleNamespace(books=[book])]),
+    )
+
+    reader = WindRealtimeWorkbookReader(
+        workbook_path=workbook_path,
+        stale_after_seconds=100000,
+    )
+    snapshot = reader.load_snapshot()
+
+    assert snapshot.status == "ok"
+    assert snapshot.rows[0].name == "工业气体"
+    assert snapshot.rows[0].updated_at.isoformat() == "2026-06-22T08:30:00+00:00"
+
+
+def test_reader_load_snapshot_reports_read_error(tmp_path, monkeypatch):
+    workbook_path = tmp_path / "AlphaFoundry_Wind_Realtime.xlsx"
+    workbook_path.write_text("placeholder", encoding="utf-8")
+    book = types.SimpleNamespace(
+        fullname=str(workbook_path),
+        name=workbook_path.name,
+        sheets={},
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "xlwings",
+        types.SimpleNamespace(apps=[types.SimpleNamespace(books=[book])]),
+    )
+
+    reader = WindRealtimeWorkbookReader(workbook_path=workbook_path)
+    snapshot = reader.load_snapshot()
+
+    assert snapshot.status == "workbook_read_error"
+    assert snapshot.error_count == 1
 
 
 def test_build_realtime_workbook_creates_expected_sheets_and_formulas(tmp_path):

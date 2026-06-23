@@ -13,6 +13,13 @@ logger = get_logger(__name__)
 
 DEFAULT_CATALOG_PATH = Path("data_sources") / "wind_index_catalog.csv"
 DEFAULT_WIND_INDEX_CATALOG_PATH = DEFAULT_CATALOG_PATH
+MARKET_VIEW_LABELS = {
+    "wind_hot_concept": "Wind热门概念",
+    "wind_l1": "Wind一级",
+    "wind_l2": "Wind二级",
+    "wind_l3": "Wind三级",
+    "wind_l4": "Wind四级",
+}
 
 
 class WindIndexCatalogError(RuntimeError):
