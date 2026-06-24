@@ -287,10 +287,14 @@ async function ensureMarketSectorViewLoaded(viewKey, options = {}) {
     } else {
         renderMarketSectorTabs();
     }
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 24000);
     try {
         const data = await apiCall(
             'GET',
-            `/api/dashboard/sector-movers?view_key=${encodeURIComponent(viewKey)}&limit=10`
+            `/api/dashboard/sector-movers?view_key=${encodeURIComponent(viewKey)}&limit=10`,
+            null,
+            { signal: controller.signal }
         );
         latestMarketOverview.sector_views = latestMarketOverview.sector_views || {};
         latestMarketOverview.sector_views[viewKey] = {
@@ -299,8 +303,11 @@ async function ensureMarketSectorViewLoaded(viewKey, options = {}) {
         };
     } catch (error) {
         console.error('Failed to load market sector view:', error);
-        if (!silent) toast(`加载${getActiveMarketSectorView().label}失败`, 'error');
+        latestMarketOverview.sector_views = latestMarketOverview.sector_views || {};
+        latestMarketOverview.sector_views[viewKey] = { up: [], down: [] };
+        if (!silent) toast(`加载${getActiveMarketSectorView().label}失败或超时`, 'error');
     } finally {
+        clearTimeout(timeoutId);
         loadingMarketSectorViews.delete(viewKey);
         if (activeMarketSectorView === viewKey) {
             renderMarketSectorLists(latestMarketOverview);

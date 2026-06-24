@@ -789,7 +789,8 @@ class TestWindAdapterNewMethods:
         mock_client.execute_batch.assert_called_once()
         formulas = mock_client.execute_batch.call_args.args[0]
         assert len(formulas) == 6
-        assert formulas[2] == '=@wss("8841089.WI","rt_pct_chg")'
+        assert formulas[1] == '=@i_dq_close("8841089.WI","2026-06-18")'
+        assert formulas[2] == '=@i_dq_pctchange("8841089.WI","2026-06-18")'
         assert list(df["name"]) == ["稀土指数", "钨矿指数"]
         assert list(df["close"]) == [4621.2686, 8039.1544]
         assert list(df["pct_change"]) == pytest.approx([5.70331748, 7.00346382])

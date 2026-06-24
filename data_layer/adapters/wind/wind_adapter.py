@@ -368,12 +368,12 @@ class WindAdapter(BaseDataAdapter):
             formulas.extend(
                 [
                     wf.s_info_name(code),
-                    wf.index_rt_last(code),
-                    wf.index_rt_pct_change(code),
+                    wf.index_close(code, td),
+                    wf.index_pct_change(code, td),
                 ]
             )
 
-        raw = client.execute_batch(formulas, timeout=20.0) if formulas else []
+        raw = client.execute_batch(formulas, timeout=8.0) if formulas else []
         rows = []
 
         def _safe(idx: int):

@@ -4,7 +4,7 @@
    ============================================================ */
 
 import { apiCall, toast, esc, getChartColors, applyChartDefaults } from './core.js';
-import { loadDashboard, switchDashTab, switchMarketSectorView, toggleMarketSectorMenu } from './dashboard.js?v=20260622c';
+import { loadDashboard, switchDashTab, switchMarketSectorView, toggleMarketSectorMenu } from './dashboard.js?v=20260623a';
 import { startCrawlFeedPolling, stopCrawlFeedPolling, startWorkersPolling, stopWorkersPolling, loadWorkersStatus } from './monitor.js?v=20260623d';
 import { searchAssets, selectAsset, analyzeAssetByCode, analyzeAsset, handleAssetSearchKeydown, initAssetSearch, setKLineTimeRange, toggleMA, initKLineToolbar } from './asset.js?v=20260623a';
 import { switchSignalLabTab, loadSignalLab, initSignalLab } from './signal-lab.js';

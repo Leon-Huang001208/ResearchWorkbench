@@ -57,13 +57,26 @@ DEFAULT_MARKET_VIEW_KEYS: tuple[str, ...] = tuple(MARKET_VIEW_LABELS)
 MAX_ABS_DAILY_INDEX_CHANGE_PCT = 20.0
 
 
-def latest_weekday_trade_date(now: date | None = None) -> str:
+def _previous_weekday(current: date) -> date:
+    previous = current - timedelta(days=1)
+    while previous.weekday() >= 5:
+        previous -= timedelta(days=1)
+    return previous
+
+
+def latest_weekday_trade_date(now: date | datetime | None = None) -> str:
     """Return a nearby weekday for Wind daily market formulas."""
-    current = now or date.today()
+    current_dt = now or datetime.now()
+    current = current_dt.date() if isinstance(current_dt, datetime) else current_dt
     if current.weekday() == 5:
         current -= timedelta(days=1)
     elif current.weekday() == 6:
         current -= timedelta(days=2)
+    elif (
+        isinstance(current_dt, datetime)
+        and current_dt.time() < datetime.strptime("09:30", "%H:%M").time()
+    ):
+        current = _previous_weekday(current)
     return current.isoformat()
 
 
@@ -106,6 +119,20 @@ class WindMarketOverviewProvider:
             codes = [seed.code for seed in seeds]
             seed_map = {seed.code: seed for seed in seeds}
             df = self.adapter.fetch_index_quotes(codes, trade_date=trade_date)
+            if self._all_pct_changes_zero(df):
+                fallback_trade_date = _previous_weekday(
+                    datetime.fromisoformat(trade_date).date()
+                ).isoformat()
+                if fallback_trade_date != trade_date:
+                    logger.info(
+                        "Wind market overview all zero for %s, retrying %s",
+                        trade_date,
+                        fallback_trade_date,
+                    )
+                    df = self.adapter.fetch_index_quotes(
+                        codes,
+                        trade_date=fallback_trade_date,
+                    )
         except Exception as exc:
             logger.warning("Wind market overview fetch failed: %s", exc)
             return self._empty_grouped_movers()
@@ -169,6 +196,18 @@ class WindMarketOverviewProvider:
             return self.seeds
         allowed = set(view_keys)
         return tuple(seed for seed in self.seeds if seed.view_key in allowed)
+
+    @staticmethod
+    def _all_pct_changes_zero(df) -> bool:
+        if df is None or df.empty or "pct_change" not in df:
+            return False
+        values = []
+        for value in df["pct_change"].tolist():
+            try:
+                values.append(float(value))
+            except (TypeError, ValueError):
+                continue
+        return bool(values) and all(abs(value) < 0.000001 for value in values)
 
     @staticmethod
     def _seed_from_catalog_entry(entry: WindIndexCatalogEntry) -> WindIndexSeed:

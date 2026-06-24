@@ -1,5 +1,7 @@
 """Wind market overview provider tests."""
 
+from datetime import datetime
+
 import pandas as pd
 
 
@@ -186,4 +188,52 @@ def test_wind_market_overview_provider_filters_requested_market_view(tmp_path):
     grouped = provider.get_grouped_movers(limit=10, view_keys=("wind_l1",))
 
     assert grouped["wind_hot_concept"]["up"] == []
+    assert grouped["wind_l1"]["down"][0]["name"] == "房地产"
+
+
+def test_latest_weekday_trade_date_uses_previous_weekday_before_open():
+    from services.wind_market_overview_provider import latest_weekday_trade_date
+
+    assert latest_weekday_trade_date(datetime(2026, 6, 24, 8, 59)) == "2026-06-23"
+    assert latest_weekday_trade_date(datetime(2026, 6, 24, 9, 30)) == "2026-06-24"
+    assert latest_weekday_trade_date(datetime(2026, 6, 22, 8, 59)) == "2026-06-19"
+
+
+def test_wind_market_overview_provider_retries_previous_weekday_when_all_zero(tmp_path):
+    from services.wind_market_overview_provider import WindMarketOverviewProvider
+
+    catalog_path = tmp_path / "wind_index_catalog.csv"
+    catalog_path.write_text(
+        "wind_code,name,family,category,is_active,priority,is_concept,view_key,view_label\n"
+        "882011.WI,房地产,wind_l1,Wind一级行业,true,90,false,wind_l1,Wind一级\n",
+        encoding="utf-8",
+    )
+
+    class FakeWindAdapter:
+        def __init__(self):
+            self.trade_dates = []
+
+        def is_available(self):
+            return True
+
+        def fetch_index_quotes(self, codes, trade_date=None):
+            self.trade_dates.append(trade_date)
+            if trade_date == "2026-06-24":
+                return pd.DataFrame(
+                    [{"code": "882011.WI", "name": "房地产", "close": 1, "pct_change": 0.0}]
+                )
+            return pd.DataFrame(
+                [{"code": "882011.WI", "name": "房地产", "close": 1, "pct_change": -1.2}]
+            )
+
+    adapter = FakeWindAdapter()
+    provider = WindMarketOverviewProvider(
+        adapter=adapter,
+        trade_date_provider=lambda: "2026-06-24",
+        catalog_path=catalog_path,
+    )
+
+    grouped = provider.get_grouped_movers(limit=10, view_keys=("wind_l1",))
+
+    assert adapter.trade_dates == ["2026-06-24", "2026-06-23"]
     assert grouped["wind_l1"]["down"][0]["name"] == "房地产"

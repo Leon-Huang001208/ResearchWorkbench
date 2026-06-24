@@ -1,4 +1,5 @@
 """Dashboard 首页数据 API 路由"""
+import asyncio
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
@@ -11,6 +12,7 @@ from services.dashboard_service import DashboardService
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
+SECTOR_MOVERS_TIMEOUT_SECONDS = 20.0
 
 
 @router.get(
@@ -80,7 +82,29 @@ async def get_sector_movers(
         db = SessionLocal()
         try:
             service = DashboardService(db)
-            return service.get_market_sector_view(view_key=view or view_key, limit=limit)
+            selected_view = view or view_key
+            try:
+                return await asyncio.wait_for(
+                    asyncio.to_thread(
+                        service.get_market_sector_view,
+                        view_key=selected_view,
+                        limit=limit,
+                    ),
+                    timeout=SECTOR_MOVERS_TIMEOUT_SECONDS,
+                )
+            except TimeoutError:
+                logger.warning("Market sector movers timed out: %s", selected_view)
+                return {
+                    "view_key": selected_view,
+                    "view_label": service._market_view_label(selected_view),
+                    "up": [],
+                    "down": [],
+                    "has_real_data": False,
+                    "fetched_at": 0.0,
+                    "cache_hit": False,
+                    "cache_ttl_seconds": 60.0,
+                    "error": "wind_timeout",
+                }
         finally:
             db.close()
     except Exception as e:
