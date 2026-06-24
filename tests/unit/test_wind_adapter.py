@@ -770,7 +770,7 @@ class TestWindAdapterNewMethods:
         assert "industry_avg_pe" not in df.columns
         assert "industry_avg_pb" not in df.columns
 
-    def test_fetch_index_quotes_reads_each_code_independently(self):
+    def test_fetch_index_quotes_uses_realtime_wss_fields(self):
         from data_layer.adapters.wind import WindAdapter, WindExcelClient
 
         mock_client = MagicMock(spec=WindExcelClient)
@@ -789,8 +789,8 @@ class TestWindAdapterNewMethods:
         mock_client.execute_batch.assert_called_once()
         formulas = mock_client.execute_batch.call_args.args[0]
         assert len(formulas) == 6
-        assert formulas[1] == '=@i_dq_close("8841089.WI","2026-06-18")'
-        assert formulas[2] == '=@i_dq_pctchange("8841089.WI","2026-06-18")'
+        assert formulas[1] == '=@wss("8841089.WI","rt_last")'
+        assert formulas[2] == '=@wss("8841089.WI","rt_pct_chg")'
         assert list(df["name"]) == ["稀土指数", "钨矿指数"]
         assert list(df["close"]) == [4621.2686, 8039.1544]
         assert list(df["pct_change"]) == pytest.approx([5.70331748, 7.00346382])

@@ -13,6 +13,7 @@ from data_layer.adapters.wind.exceptions import (
 )
 
 logger = get_logger(__name__)
+_EXCEL_OPERATION_LOCK = threading.RLock()
 
 HEARTBEAT_FORMULA = '=@s_info_compname("600519.SH")'
 HEARTBEAT_EXPECTED = "贵州茅台酒股份有限公司"
@@ -125,35 +126,38 @@ class WindExcelClient:
 
     def heartbeat(self) -> bool:
         """检测 Wind 会话是否有效（带重试，处理 Wind 加载中间态）"""
-        for attempt in range(1, HEARTBEAT_RETRIES + 1):
-            try:
-                result = self._execute_raw(HEARTBEAT_FORMULA, timeout=5.0)
-                if result is None:
-                    logger.warning(f"Wind 心跳返回 None (第{attempt}次)")
-                    time.sleep(HEARTBEAT_RETRY_DELAY)
-                    continue
-                if isinstance(result, str):
-                    stripped = result.strip()
-                    if stripped == HEARTBEAT_EXPECTED:
-                        logger.info("Wind 会话心跳检测通过")
-                        return True
-                    if stripped.lower() in WIND_LOADING:
-                        logger.info(f"Wind 仍在加载中: {result!r} (第{attempt}次)")
+        with _EXCEL_OPERATION_LOCK:
+            for attempt in range(1, HEARTBEAT_RETRIES + 1):
+                try:
+                    result = self._execute_raw(HEARTBEAT_FORMULA, timeout=5.0)
+                    if result is None:
+                        logger.warning(f"Wind 心跳返回 None (第{attempt}次)")
                         time.sleep(HEARTBEAT_RETRY_DELAY)
                         continue
-                    if stripped.upper() in EXCEL_ERRORS:
-                        logger.warning(f"Wind 公式返回 Excel 错误: {result!r}")
-                        return False
-                    logger.warning(f"Wind 心跳异常返回值: {result!r}")
-                else:
-                    logger.warning(f"Wind 心跳异常类型: {type(result).__name__}={result!r} (第{attempt}次)")
+                    if isinstance(result, str):
+                        stripped = result.strip()
+                        if stripped == HEARTBEAT_EXPECTED:
+                            logger.info("Wind 会话心跳检测通过")
+                            return True
+                        if stripped.lower() in WIND_LOADING:
+                            logger.info(f"Wind 仍在加载中: {result!r} (第{attempt}次)")
+                            time.sleep(HEARTBEAT_RETRY_DELAY)
+                            continue
+                        if stripped.upper() in EXCEL_ERRORS:
+                            logger.warning(f"Wind 公式返回 Excel 错误: {result!r}")
+                            return False
+                        logger.warning(f"Wind 心跳异常返回值: {result!r}")
+                    else:
+                        logger.warning(
+                            f"Wind 心跳异常类型: {type(result).__name__}={result!r} (第{attempt}次)"
+                        )
+                        time.sleep(HEARTBEAT_RETRY_DELAY)
+                        continue
+                    return False
+                except WindTimeoutError:
+                    logger.warning(f"Wind 心跳超时 (第{attempt}次)")
                     time.sleep(HEARTBEAT_RETRY_DELAY)
-                    continue
-                return False
-            except WindTimeoutError:
-                logger.warning(f"Wind 心跳超时 (第{attempt}次)")
-                time.sleep(HEARTBEAT_RETRY_DELAY)
-        return False
+            return False
 
     def _ensure_connected(self):
         """确保已连接到 Excel"""
@@ -217,11 +221,12 @@ class WindExcelClient:
 
     def execute(self, formula: str, timeout: float | None = None) -> Any:
         """执行单条 Wind 公式并返回结果（自动检测会话）"""
-        self._ensure_session()
-        result = self._execute_raw(formula, timeout=timeout)
-        if _is_error_value(result):
-            raise WindFormulaError(formula, str(result) if result else "#N/A")
-        return result
+        with _EXCEL_OPERATION_LOCK:
+            self._ensure_session()
+            result = self._execute_raw(formula, timeout=timeout)
+            if _is_error_value(result):
+                raise WindFormulaError(formula, str(result) if result else "#N/A")
+            return result
 
     def execute_batch(self, formulas: list[str], timeout: float | None = None) -> list[Any]:
         """批量执行 Wind 公式 —— 列式写入，一次 recalc
@@ -231,6 +236,12 @@ class WindExcelClient:
 
         执行前自动做 heartbeat 检测会话有效性。
         """
+        with _EXCEL_OPERATION_LOCK:
+            return self._execute_batch_unlocked(formulas, timeout=timeout)
+
+    def _execute_batch_unlocked(
+        self, formulas: list[str], timeout: float | None = None
+    ) -> list[Any]:
         self._ensure_session()
 
         timeout = timeout or self._timeout

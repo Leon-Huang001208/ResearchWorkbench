@@ -14,7 +14,7 @@ def test_wind_market_overview_provider_sorts_wind_indices_into_movers():
 
         def fetch_index_quotes(self, codes, trade_date=None):
             assert "8841089.WI" in codes
-            assert "884785.WI" in codes
+            assert "884857.WI" in codes
             assert trade_date == "2026-06-18"
             return pd.DataFrame(
                 [
@@ -25,7 +25,7 @@ def test_wind_market_overview_provider_sorts_wind_indices_into_movers():
                         "pct_change": 5.70331748,
                     },
                     {
-                        "code": "884785.WI",
+                        "code": "884857.WI",
                         "name": "锂矿指数",
                         "close": 8039.1544,
                         "pct_change": 7.00346382,
@@ -42,13 +42,14 @@ def test_wind_market_overview_provider_sorts_wind_indices_into_movers():
     provider = WindMarketOverviewProvider(
         adapter=FakeWindAdapter(),
         trade_date_provider=lambda: "2026-06-18",
+        catalog_path=None,
     )
 
     up, down, has_real_data, _ = provider.get_top_movers(limit=2)
 
     assert has_real_data is True
     assert [item["name"] for item in up] == ["锂矿指数", "稀土指数"]
-    assert up[0]["sector_id"] == "wind-884785-WI"
+    assert up[0]["sector_id"] == "wind-884857-WI"
     assert up[0]["is_concept"] is True
     assert [item["name"] for item in down] == ["石油天然气指数"]
 
@@ -189,6 +190,105 @@ def test_wind_market_overview_provider_filters_requested_market_view(tmp_path):
 
     assert grouped["wind_hot_concept"]["up"] == []
     assert grouped["wind_l1"]["down"][0]["name"] == "房地产"
+
+
+def test_wind_market_overview_provider_chunks_requested_market_view(tmp_path):
+    from services.wind_market_overview_provider import WindMarketOverviewProvider
+
+    catalog_path = tmp_path / "wind_index_catalog.csv"
+    catalog_path.write_text(
+        "wind_code,name,family,category,is_active,priority,is_concept,view_key,view_label\n"
+        "CI005101.WI,石油开采II(中信),citic_l2,中信二级行业,true,100,false,citic_l2,中信二级\n"
+        "CI005102.WI,石油化工(中信),citic_l2,中信二级行业,true,99,false,citic_l2,中信二级\n"
+        "CI005104.WI,煤炭开采洗选(中信),citic_l2,中信二级行业,true,98,false,citic_l2,中信二级\n"
+        "CI005105.WI,煤炭化工(中信),citic_l2,中信二级行业,true,97,false,citic_l2,中信二级\n"
+        "CI005106.WI,贵金属(中信),citic_l2,中信二级行业,true,96,false,citic_l2,中信二级\n",
+        encoding="utf-8",
+    )
+
+    class FakeWindAdapter:
+        def __init__(self):
+            self.calls = []
+
+        def is_available(self):
+            return True
+
+        def fetch_index_quotes(self, codes, trade_date=None):
+            self.calls.append(list(codes))
+            return pd.DataFrame(
+                [
+                    {"code": code, "name": f"{code}样本", "close": 1, "pct_change": index + 1}
+                    for index, code in enumerate(codes)
+                ]
+            )
+
+    adapter = FakeWindAdapter()
+    provider = WindMarketOverviewProvider(
+        adapter=adapter,
+        trade_date_provider=lambda: "2026-06-24",
+        catalog_path=catalog_path,
+        max_batch_codes=2,
+    )
+
+    grouped = provider.get_grouped_movers(limit=10, view_keys=("citic_l2",))
+
+    assert adapter.calls == [
+        ["CI005101.WI", "CI005102.WI"],
+        ["CI005104.WI", "CI005105.WI"],
+        ["CI005106.WI"],
+    ]
+    assert grouped["has_real_data"] is True
+    assert len(grouped["citic_l2"]["up"]) == 5
+
+
+def test_wind_market_overview_provider_keeps_successful_chunks_when_one_fails(tmp_path):
+    from services.wind_market_overview_provider import WindMarketOverviewProvider
+
+    catalog_path = tmp_path / "wind_index_catalog.csv"
+    catalog_path.write_text(
+        "wind_code,name,family,category,is_active,priority,is_concept,view_key,view_label\n"
+        "CI005101.WI,石油开采II(中信),citic_l2,中信二级行业,true,100,false,citic_l2,中信二级\n"
+        "CI005102.WI,石油化工(中信),citic_l2,中信二级行业,true,99,false,citic_l2,中信二级\n"
+        "CI005104.WI,煤炭开采洗选(中信),citic_l2,中信二级行业,true,98,false,citic_l2,中信二级\n"
+        "CI005105.WI,煤炭化工(中信),citic_l2,中信二级行业,true,97,false,citic_l2,中信二级\n",
+        encoding="utf-8",
+    )
+
+    class FakeWindAdapter:
+        def __init__(self):
+            self.calls = []
+
+        def is_available(self):
+            return True
+
+        def fetch_index_quotes(self, codes, trade_date=None):
+            self.calls.append(list(codes))
+            if len(self.calls) == 1:
+                raise TimeoutError("Wind batch timed out")
+            return pd.DataFrame(
+                [
+                    {"code": codes[0], "name": "煤炭开采洗选(中信)", "close": 1, "pct_change": 1.8},
+                    {"code": codes[1], "name": "煤炭化工(中信)", "close": 1, "pct_change": -1.1},
+                ]
+            )
+
+    adapter = FakeWindAdapter()
+    provider = WindMarketOverviewProvider(
+        adapter=adapter,
+        trade_date_provider=lambda: "2026-06-24",
+        catalog_path=catalog_path,
+        max_batch_codes=2,
+    )
+
+    grouped = provider.get_grouped_movers(limit=10, view_keys=("citic_l2",))
+
+    assert adapter.calls == [
+        ["CI005101.WI", "CI005102.WI"],
+        ["CI005104.WI", "CI005105.WI"],
+    ]
+    assert grouped["has_real_data"] is True
+    assert grouped["citic_l2"]["up"][0]["name"] == "煤炭开采洗选(中信)"
+    assert grouped["citic_l2"]["down"][0]["name"] == "煤炭化工(中信)"
 
 
 def test_latest_weekday_trade_date_uses_previous_weekday_before_open():

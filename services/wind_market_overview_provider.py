@@ -7,6 +7,8 @@ from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Callable
 
+import pandas as pd
+
 from core.observability import get_logger
 from data_layer.adapters.wind import WindAdapter
 from services.wind_index_catalog import (
@@ -55,6 +57,7 @@ WIND_MARKET_INDEX_SEEDS: tuple[WindIndexSeed, ...] = (
 
 DEFAULT_MARKET_VIEW_KEYS: tuple[str, ...] = tuple(MARKET_VIEW_LABELS)
 MAX_ABS_DAILY_INDEX_CHANGE_PCT = 20.0
+DEFAULT_WIND_INDEX_BATCH_CODES = 24
 
 
 def _previous_weekday(current: date) -> date:
@@ -89,9 +92,11 @@ class WindMarketOverviewProvider:
         trade_date_provider: Callable[[], str] = latest_weekday_trade_date,
         seeds: tuple[WindIndexSeed, ...] = WIND_MARKET_INDEX_SEEDS,
         catalog_path: str | Path | None = DEFAULT_WIND_INDEX_CATALOG_PATH,
+        max_batch_codes: int = DEFAULT_WIND_INDEX_BATCH_CODES,
     ):
         self.adapter = adapter or WindAdapter()
         self.trade_date_provider = trade_date_provider
+        self.max_batch_codes = max(1, int(max_batch_codes or DEFAULT_WIND_INDEX_BATCH_CODES))
         catalog_entries = load_wind_index_catalog(catalog_path) if catalog_path else ()
         self.seeds = tuple(self._seed_from_catalog_entry(entry) for entry in catalog_entries) or seeds
 
@@ -118,7 +123,7 @@ class WindMarketOverviewProvider:
             trade_date = self.trade_date_provider()
             codes = [seed.code for seed in seeds]
             seed_map = {seed.code: seed for seed in seeds}
-            df = self.adapter.fetch_index_quotes(codes, trade_date=trade_date)
+            df = self._fetch_index_quotes(codes, trade_date=trade_date)
             if self._all_pct_changes_zero(df):
                 fallback_trade_date = _previous_weekday(
                     datetime.fromisoformat(trade_date).date()
@@ -129,7 +134,7 @@ class WindMarketOverviewProvider:
                         trade_date,
                         fallback_trade_date,
                     )
-                    df = self.adapter.fetch_index_quotes(
+                    df = self._fetch_index_quotes(
                         codes,
                         trade_date=fallback_trade_date,
                     )
@@ -196,6 +201,28 @@ class WindMarketOverviewProvider:
             return self.seeds
         allowed = set(view_keys)
         return tuple(seed for seed in self.seeds if seed.view_key in allowed)
+
+    def _fetch_index_quotes(self, codes: list[str], trade_date: str) -> pd.DataFrame:
+        frames: list[pd.DataFrame] = []
+        for offset in range(0, len(codes), self.max_batch_codes):
+            batch = codes[offset : offset + self.max_batch_codes]
+            try:
+                df = self.adapter.fetch_index_quotes(batch, trade_date=trade_date)
+            except Exception as exc:
+                logger.warning(
+                    "Wind market overview batch failed: trade_date=%s offset=%s size=%s error=%s",
+                    trade_date,
+                    offset,
+                    len(batch),
+                    exc,
+                )
+                continue
+            if df is not None and not df.empty:
+                frames.append(df)
+
+        if not frames:
+            return pd.DataFrame()
+        return pd.concat(frames, ignore_index=True)
 
     @staticmethod
     def _all_pct_changes_zero(df) -> bool:

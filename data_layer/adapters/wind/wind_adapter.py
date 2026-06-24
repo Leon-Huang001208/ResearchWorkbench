@@ -356,24 +356,25 @@ class WindAdapter(BaseDataAdapter):
         return pd.DataFrame(rows)
 
     def fetch_index_quotes(self, codes: list[str], trade_date: str | None = None) -> pd.DataFrame:
-        """获取 Wind 指数名称、最新价和涨跌幅。
+        """获取 Wind 指数名称、实时最新价和实时涨跌幅。
 
         用于首页市场概览的核心指数、Wind 行业指数和热门概念指数。
+        trade_date 保留用于兼容旧调用方；实时口径直接使用 WSS rt_* 字段。
         """
         client = self._get_client()
         td = trade_date or wf._td(None)
         formulas: list[str] = []
         for code in codes:
-            logger.info(f"获取 Wind 指数行情: {code}, {td}")
+            logger.info(f"获取 Wind 指数实时行情: {code}, {td}")
             formulas.extend(
                 [
                     wf.s_info_name(code),
-                    wf.index_close(code, td),
-                    wf.index_pct_change(code, td),
+                    wf.index_rt_last(code),
+                    wf.index_rt_pct_change(code),
                 ]
             )
 
-        raw = client.execute_batch(formulas, timeout=8.0) if formulas else []
+        raw = client.execute_batch(formulas, timeout=4.0) if formulas else []
         rows = []
 
         def _safe(idx: int):
