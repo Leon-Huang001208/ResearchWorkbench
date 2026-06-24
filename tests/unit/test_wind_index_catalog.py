@@ -102,3 +102,18 @@ def test_default_catalog_includes_shenwan_industry_levels():
     assert any(entry.code == "801010.SI" and entry.name == "农林牧渔" for entry in entries)
     assert any(entry.code == "801012.SI" and entry.name == "农产品加工" for entry in entries)
     assert any(entry.code == "850111.SI" and entry.name == "种子" for entry in entries)
+
+
+def test_default_catalog_includes_citic_industry_levels():
+    from services.wind_index_catalog import load_wind_index_catalog
+
+    entries = load_wind_index_catalog()
+    counts = {
+        key: sum(1 for entry in entries if entry.view_key == key)
+        for key in ("citic_l1", "citic_l2", "citic_l3")
+    }
+
+    assert counts == {"citic_l1": 30, "citic_l2": 108, "citic_l3": 276}
+    assert any(entry.code == "CI005001.WI" and entry.name == "石油石化" for entry in entries)
+    assert any(entry.code == "CI005101.WI" and entry.name == "石油开采Ⅱ" for entry in entries)
+    assert any(entry.code == "CI005201.WI" and entry.name == "石油开采Ⅲ" for entry in entries)
