@@ -87,3 +87,18 @@ def test_catalog_derives_view_key_for_known_families(tmp_path):
 
     assert [entry.view_key for entry in entries] == ["wind_l1", "citic_l3", "sw_l1"]
     assert [entry.view_label for entry in entries] == ["Wind一级", "中信三级", "申万一级"]
+
+
+def test_default_catalog_includes_shenwan_industry_levels():
+    from services.wind_index_catalog import load_wind_index_catalog
+
+    entries = load_wind_index_catalog()
+    counts = {
+        key: sum(1 for entry in entries if entry.view_key == key)
+        for key in ("sw_l1", "sw_l2", "sw_l3")
+    }
+
+    assert counts == {"sw_l1": 31, "sw_l2": 131, "sw_l3": 336}
+    assert any(entry.code == "801010.SI" and entry.name == "农林牧渔" for entry in entries)
+    assert any(entry.code == "801012.SI" and entry.name == "农产品加工" for entry in entries)
+    assert any(entry.code == "850111.SI" and entry.name == "种子" for entry in entries)
