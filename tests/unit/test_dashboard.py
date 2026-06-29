@@ -362,6 +362,91 @@ def test_get_market_sector_view_defaults_to_ths_without_wind(mock_wind_provider_
     mock_wind_provider_cls.assert_not_called()
 
 
+@patch("services.dashboard_service.WindMarketOverviewProvider")
+@patch("services.wind_realtime_workbook.WindRealtimeWorkbookReader")
+def test_get_market_sector_view_prefers_realtime_workbook_by_default(
+    mock_workbook_reader_cls,
+    mock_wind_provider_cls,
+    monkeypatch,
+):
+    """Wind/中信/申万口径默认走常驻工作簿，不再请求时写临时公式。"""
+    monkeypatch.delenv("ALPHAFOUNDRY_ENABLE_WIND_WORKBOOK", raising=False)
+    monkeypatch.delenv("ALPHAFOUNDRY_ALLOW_WIND_EXCEL_FALLBACK", raising=False)
+    _market_sector_cache.clear()
+    mock_reader = mock_workbook_reader_cls.return_value
+    mock_reader.get_view.return_value = {
+        "view_key": "citic_l1",
+        "view_label": "中信一级",
+        "up": [
+            {
+                "sector_id": "wind-CI005003-WI",
+                "name": "电子",
+                "change_pct": 3.2,
+                "leading_stocks": [],
+                "related_news_count": 0,
+                "is_concept": False,
+                "source": "wind",
+                "view_key": "citic_l1",
+                "view_label": "中信一级",
+            }
+        ],
+        "down": [],
+        "has_real_data": True,
+        "fetched_at": "2026-06-24T10:00:00+00:00",
+        "cache_hit": False,
+        "cache_ttl_seconds": 60.0,
+        "status": "ok",
+        "source": "wind_realtime_workbook",
+    }
+
+    result = DashboardService(Mock()).get_market_sector_view("citic_l1", limit=5)
+
+    mock_reader.get_view.assert_called_once_with("citic_l1", limit=5)
+    mock_wind_provider_cls.assert_not_called()
+    assert result["source"] == "wind_realtime_workbook"
+    assert result["up"][0]["name"] == "电子"
+
+
+@patch("services.dashboard_service.WindMarketOverviewProvider")
+@patch("services.wind_workbook_manager.get_wind_workbook_manager")
+@patch("services.wind_realtime_workbook.WindRealtimeWorkbookReader")
+def test_get_market_sector_view_returns_workbook_status_without_formula_fallback(
+    mock_workbook_reader_cls,
+    mock_manager_getter,
+    mock_wind_provider_cls,
+    monkeypatch,
+):
+    """工作簿没准备好时快速返回状态，不悄悄退回慢的 Wind 临时公式路径。"""
+    monkeypatch.delenv("ALPHAFOUNDRY_ENABLE_WIND_WORKBOOK", raising=False)
+    monkeypatch.delenv("ALPHAFOUNDRY_ALLOW_WIND_EXCEL_FALLBACK", raising=False)
+    _market_sector_cache.clear()
+    mock_reader = mock_workbook_reader_cls.return_value
+    mock_reader.get_view.return_value = {
+        "view_key": "sw_l3",
+        "view_label": "申万三级",
+        "up": [],
+        "down": [],
+        "has_real_data": False,
+        "fetched_at": "2026-06-24T10:00:00+00:00",
+        "cache_hit": False,
+        "cache_ttl_seconds": 60.0,
+        "status": "workbook_not_open",
+        "message": "Wind实时工作簿未在Excel中打开",
+        "source": "wind_realtime_workbook",
+    }
+
+    result = DashboardService(Mock()).get_market_sector_view("sw_l3", limit=5)
+
+    mock_reader.get_view.assert_called_once_with("sw_l3", limit=5)
+    mock_manager_getter.return_value.start_background_ensure.assert_called_once_with(
+        reason="workbook_not_open"
+    )
+    mock_wind_provider_cls.assert_not_called()
+    assert result["has_real_data"] is False
+    assert result["status"] == "workbook_not_open"
+    assert result["message"] == "Wind实时工作簿未在Excel中打开"
+
+
 def test_ths_market_sector_badges_are_always_industry_colored():
     """The 同花顺行业 view should not mix concept and industry badge colors."""
     item = {

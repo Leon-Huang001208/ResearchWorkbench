@@ -80,6 +80,25 @@ def test_web_favicon_uses_current_black_gold_app_icon():
     assert "object-fit: cover" in css
 
 
+def test_report_project_upload_modal_treats_non_word_assets_as_optional():
+    html = (ROOT / "app" / "web" / "templates" / "index.html").read_text(encoding="utf-8")
+    script = (ROOT / "app" / "web" / "static" / "js" / "templates.js").read_text(
+        encoding="utf-8"
+    )
+
+    assert "upload-required-card" in html
+    assert "upload-optional-grid" in html
+    assert "Word 模板" in html
+    assert "必需" in html
+    assert "可选材料" in html
+    assert "data-file-label=\"project-word-template-input\"" in html
+    assert "data-file-label=\"project-excel-workbook-input\"" in html
+    assert "请至少选择 Word 模板、Excel 底稿和 Section 配置" not in script
+    assert "if (!wordFile)" in script
+    assert "if (excelFile)" in script
+    assert "if (sectionFile)" in script
+
+
 def test_windows_icon_is_available_for_tauri_resource_generation():
     assert WINDOWS_ICON.exists()
     assert WINDOWS_ICON.read_bytes().startswith(b"\x00\x00\x01\x00")
@@ -254,6 +273,10 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "market-pulse-board" in html
     assert "market-scope-tabs" in html
     assert "market-index-grid" in html
+    assert "market-refresh-btn" not in html
+    assert "实时行情" not in html
+    assert "market-auto-refresh-indicator" not in html
+    assert "自动刷新" not in html
     assert "market-breadth-bar" in html
     assert "market-ai-brief" in html
     assert "market-heatmap-card" in html
@@ -266,7 +289,7 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "今日上涨板块概念 (Top 10)" not in html
     assert "今日下跌板块概念 (Top 10)" not in html
     assert "style.css?v=20260621j" in html
-    assert "app.js?v=20260622c" in html
+    assert "app.js?v=20260624m" in html
     assert "--desktop-sidebar-width: 220px" in css
     assert "--brand-red: #d71920" in css
     assert "Desktop Visual System Phase 1" in css
@@ -307,20 +330,77 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "Apple Desktop News Ranking Badges" in css
     assert "Apple Market Home Command Center" in css
     assert "#section-dashboard .market-pulse-board" in css
+    assert "#section-dashboard .market-pulse-main" in css
     assert "#section-dashboard .market-heatmap-grid" in css
     assert "#section-dashboard .market-breadth-bar" in css
     assert "#section-dashboard .news-item:first-child .news-rank" in css
     assert "--news-rank-first: #c9342f" in css
     assert "--news-rank-default: var(--apple-accent)" in css
     assert "20260618-desktop-phase1" in js
-    assert "dashboard.js?v=20260622c" in js
+    assert "dashboard.js?v=20260624m" in js
     dashboard_js = (ROOT / "app" / "web" / "static" / "js" / "dashboard.js").read_text(encoding="utf-8")
     assert '<span class="news-rank">${idx + 1}</span>' in dashboard_js
     assert '<span class="news-rank">#${idx + 1}</span>' not in dashboard_js
     assert "renderMarketCommandCenter(mo)" in dashboard_js
     assert "function renderMarketCommandCenter" in dashboard_js
+    assert "refreshMarketOverviewOnly" in dashboard_js
+    assert "/api/dashboard/market-overview?force_refresh=" in dashboard_js
+    assert "toast('行情刷新失败'" in dashboard_js
+    assert "loadDashboard({ silent: !options.manual })" not in dashboard_js
     assert "renderMarketHeatmap" in dashboard_js
+    assert "formatMarketMiniSignedValue" in dashboard_js
+    assert "renderCapCompareMarkup" in dashboard_js
+    assert "上一日成交额" in dashboard_js
+    assert "较上一日此时" not in dashboard_js
+    assert "今日实时成交额" in dashboard_js
+    assert "setMarketFlowValue" in dashboard_js
+    assert "market-flow-value is-up" in dashboard_js
+    assert "market-flow-value is-down" in dashboard_js
     assert "market-index-grid" in dashboard_js
+    assert "getPrimaryMarketIndices(indices)" in dashboard_js
+    assert "indices.slice(0, 3)" not in dashboard_js
+    assert "中证全指" not in dashboard_js
+    assert "深证100" not in dashboard_js
+    assert "中证红利" not in dashboard_js
+    assert "上证50" in dashboard_js
+    assert "创业板50" in dashboard_js
+    assert "科创50" in dashboard_js
+    assert "北证50" in dashboard_js
+    assert "'上证指数',\n        '深证成指',\n        '科创综指',\n        '创业板指',\n        '中证A500',\n        '北证50',\n        '上证50',\n        '沪深300',\n        '科创50',\n        '创业板50',\n        '中证500',\n        '中证1000'" in dashboard_js
+    assert "return preferred;" in dashboard_js
+    assert "中证2000" not in dashboard_js
+    assert "科创创业50" not in dashboard_js
+    service_py = (ROOT / "services" / "dashboard_service.py").read_text(encoding="utf-8")
+    assert '("sh000016", "上证50")' in service_py
+    assert '("sz399673", "创业板50")' in service_py
+    assert '("sh000688", "科创50")' in service_py
+    assert "中证2000" not in service_py
+    assert "科创创业50" not in service_py
+    assert "csindex_daily" not in service_py
+    assert "sz399330" not in service_py
+    assert "sh000015" not in service_py
+    assert "em000985" not in service_py
+    assert "stock_fund_flow_industry" in service_py
+    assert "previousTurnover" in service_py
+    assert "stock_zh_index_daily_tx" not in service_py
+    assert "万亿" not in service_py
+    assert "中证A500" in dashboard_js
+    assert "is-trading" in dashboard_js
+    assert "classList.toggle('is-trading'" in dashboard_js
+    assert ".market-index-card.is-down" in css
+    assert "repeat(6, minmax(148px, 1fr))" in css
+    assert ".market-index-card:nth-child(-n + 5)" not in css
+    assert "grid-column: span 6" not in css
+    assert "grid-column: span 5" not in css
+    assert "market-mini-value" in css
+    assert "market-mini-card strong .is-up" in css
+    assert "market-mini-card strong .is-down" in css
+    assert "market-flow-summary strong.is-up" in css
+    assert "market-flow-summary strong.is-down" in css
+    assert "data-market-mode" not in html
+    assert "market-mode-tabs" not in html
+    assert "handleMarketMode" not in dashboard_js
+    assert "rgba(48,209,88,0.16)" in css
     assert "4090.48" not in dashboard_js
     assert "16030.70" not in dashboard_js
     assert "2030" not in dashboard_js
@@ -463,7 +543,7 @@ def test_live_monitor_uses_unified_feed_with_legacy_template_retained():
     assert "#section-dashboard .monitor-event-item.selected" in css
     assert "#section-dashboard .monitor-detail-tabs" in css
     assert "#section-dashboard .monitor-health-card" in css
-    assert "monitor.js?v=20260622a" in app_js
+    assert "monitor.js?v=20260624b" in app_js
     assert "activeMonitorSource" in monitor_js
     assert "activeMonitorItemKey" in monitor_js
     assert "renderUnifiedMonitorFeed" in monitor_js

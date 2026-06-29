@@ -7,7 +7,7 @@ A股交易日历和时段检查
 - 获取下一个交易时段的开始时间
 - 支持午间休市
 """
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 from typing import Optional, Tuple
 
 from core.observability import get_logger
@@ -194,6 +194,47 @@ class TradingCalendar:
 
         next_start = self.get_next_session_start(dt)
         return next_start - dt
+
+    def get_latest_trading_days(
+        self,
+        n: int,
+        end: Optional[date] = None,
+    ) -> list[date]:
+        """获取最近 N 个交易日.
+
+        当前实现使用工作日近似，后续可替换为交易所节假日日历。
+        """
+        if n <= 0:
+            return []
+        current = end or datetime.now().date()
+        days: list[date] = []
+        while len(days) < n:
+            if self._is_weekday(current):
+                days.append(current)
+            current -= timedelta(days=1)
+        return list(reversed(days))
+
+    def get_missing_trading_days(
+        self,
+        existing_dates: set[date],
+        start: date,
+        end: date,
+    ) -> list[date]:
+        """返回日期范围内缺失的交易日.
+
+        当前实现使用工作日近似，跳过周末。
+        """
+        missing = []
+        current = start
+        while current <= end:
+            if self._is_weekday(current) and current not in existing_dates:
+                missing.append(current)
+            current += timedelta(days=1)
+        return missing
+
+    @staticmethod
+    def _is_weekday(value: date) -> bool:
+        return value.weekday() < 5
 
     def should_run_now(
         self,

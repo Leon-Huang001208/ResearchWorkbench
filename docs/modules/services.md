@@ -111,6 +111,30 @@ Update this section when:
 
 ---
 
+### `services/market_data_scheduler.py`
+
+Purpose:
+
+- Schedules structured market-data refresh through APScheduler.
+- Daily quote ingest runs after market close. Gap detection/backfill remains available on `MarketDataScheduler(enable_gap_check=True)`, but the standalone worker starts with it disabled so the older backfill connector chain cannot take down the scheduler process.
+- Official index structure ingest runs daily at 18:10, discovers CSI/CNI active index codes from official catalogs when no fixed code list is configured, and writes constituents through `services.official_index_structure_ingestion`.
+- `get_status()` reports daily ingest, gap check, and index-structure job statistics.
+
+Related files:
+
+- `workers/market_data_scheduler_worker.py`
+- `scripts/run_official_index_structure_ingestion.py`
+- `services/official_index_structure_ingestion.py`
+- `app/cli/commands/data.py`
+
+Update this section when:
+
+- Market data job scheduling intervals change.
+- Index structure provider universe, discovery cap, or default timing changes.
+- Scheduler status fields change.
+
+---
+
 ### `services/pdf_conversion_service.py`
 
 Purpose:
@@ -200,6 +224,30 @@ Update this section when:
 
 ---
 
+### `services/official_index_structure_ingestion.py`
+
+Purpose:
+
+- Orchestrates official CSI/CNI constituent ingestion into the index structure database.
+- `ingest_csi_index_components(repo, index_code)` calls AKShare's CSIndex official-download wrapper, normalizes full constituent weights, creates `CSI:{code}` master rows, and writes `csindex_official_akshare` snapshots.
+- `ingest_cni_index_components(repo, index_code)` calls AKShare's CNIndex official-download wrapper, looks up the CNI catalog name when available, and writes `cnindex_official_akshare` snapshots.
+- `discover_official_index_codes(provider, max_count=...)` reads CSI/CNI official catalogs for active index code batches.
+- Calls AKShare with proxy environment variables temporarily removed, matching the local market-data behavior where stale proxy settings can block official downloads.
+
+Related files:
+
+- `scripts/run_official_index_structure_ingestion.py`
+- `data_layer/repositories/market_data_repository.py`
+- `tests/unit/test_official_index_structure_ingestion.py`
+
+Update this section when:
+
+- CSI/CNI official source fields change.
+- Additional index providers are added to the official ingestion path.
+- Proxy/network handling changes.
+
+---
+
 ### `services/asset_analysis_service.py`
 
 Purpose:
@@ -226,6 +274,60 @@ Update this section when:
 - Data source priority changes.
 - Structured table query logic changes.
 - Fallback behavior changes.
+
+---
+
+### `services/fund_intelligence_service.py`
+
+Purpose:
+
+- Builds Fund Intelligence views from repository data.
+- `get_fund_detail(symbol)` assembles fund master data, latest NAV, managers, latest holdings, and calculated return/risk metrics.
+- `get_fund_exposure(symbol)` aggregates latest disclosed holdings into single-fund stock, industry, and theme exposure.
+- `calculate_portfolio_exposure(positions)` normalizes fund weights and calculates weighted portfolio exposure across funds.
+
+Related API:
+
+- `app/api/routes/funds.py`
+
+Related repository:
+
+- `data_layer/repositories/fund_repository.py`
+
+Related contracts:
+
+- `core/contracts/funds.py`
+
+Update this section when:
+
+- Fund performance metric formulas change.
+- Exposure aggregation dimensions change.
+- Fund portfolio weighting behavior changes.
+
+---
+
+### `services/fund_data_ingestion_service.py`
+
+Purpose:
+
+- Ingest local fund data rows or UTF-8 CSV files into the Fund Intelligence repository.
+- Supports `master`, `nav`, `holdings`, and `managers` datasets.
+- Normalizes ISO date strings and numeric fields into `core.contracts.funds` models before persistence.
+- Optionally records ETL lifecycle through `ETLRunRepository`-compatible `start` / `finish` / `fail` methods.
+
+Related repository:
+
+- `data_layer/repositories/fund_repository.py`
+
+Related contracts:
+
+- `core/contracts/funds.py`
+
+Update this section when:
+
+- Supported fund ingestion datasets change.
+- CSV column contracts change.
+- Wind/AKShare adapters begin feeding this service.
 
 ---
 
@@ -258,6 +360,50 @@ Update this section when:
 - Normalizer adapter changes.
 - New ingestion target is added.
 - Failure/retry behavior changes.
+
+---
+
+### `services/wind_index_structure_probe.py`
+
+Purpose:
+
+- Builds a fixed Wind Excel probe workbook for CSI/CNI/HSI/WIND index structure fields and ETF scale/flow fields.
+- Keeps candidate formulas in a versioned `FormulaCatalog` sheet and writes probe formulas into `ProbeResults`.
+- `prime_index_structure_probe_workbook()` opens Excel through xlwings in hidden mode by default, triggers calculation, saves cached values, and logs failures instead of blocking downstream storage work.
+- `read_index_structure_probe_snapshot()` reads saved workbook cache values and classifies successful formulas vs formula errors.
+
+Related scripts:
+
+- `scripts/run_wind_index_structure_probe.py`
+
+Update this section when:
+
+- Wind candidate formula keys change.
+- Probe workbook sheet contracts change.
+- Hidden Excel priming behavior changes.
+
+---
+
+### `services/wind_index_structure_ingestion.py`
+
+Purpose:
+
+- Converts successful Wind index structure probe rows into repository-ready rows.
+- Infers provider-prefixed index ids (`CSI:000300`, `CNI:399001`, `HSI:HSI`, `WIND:8841701`) from Wind codes.
+- Persists validated index names, ETF names, ETF tracking-index links, ETF NAV, ETF shares, and ETF AUM through `MarketDataRepository`.
+- Does not persist failed/unknown constituent formulas; full index constituents still require a verified Wind field or official-source fallback.
+
+Related files:
+
+- `services/wind_index_structure_probe.py`
+- `data_layer/repositories/market_data_repository.py`
+- `scripts/run_wind_index_structure_probe.py`
+
+Update this section when:
+
+- Probe formula keys mapped to database fields change.
+- Provider inference rules change.
+- ETF daily metric mapping changes.
 
 ---
 

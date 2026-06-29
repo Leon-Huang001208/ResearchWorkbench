@@ -5,14 +5,15 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 
 from app.api.models import ErrorResponse
-from core.contracts.dashboard import DashboardResponse
+from core.contracts.dashboard import DashboardResponse, MarketOverviewSection
 from core.observability import get_logger
 from data_layer.repositories.base import SessionLocal
+from services.crawl_feed_content_service import CrawlFeedContentService
 from services.dashboard_service import DashboardService
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
-SECTOR_MOVERS_TIMEOUT_SECONDS = 20.0
+SECTOR_MOVERS_TIMEOUT_SECONDS = 150.0
 
 
 @router.get(
@@ -43,6 +44,24 @@ async def get_crawl_feed(
         )
 
 
+@router.post("/crawl-feed/{doc_id}/content", responses={500: {"model": ErrorResponse}})
+async def refresh_crawl_feed_content(doc_id: str):
+    """按需补全实时事件流单条文档正文。"""
+    try:
+        db = SessionLocal()
+        try:
+            service = CrawlFeedContentService(db)
+            return await asyncio.to_thread(service.refresh_content, doc_id)
+        finally:
+            db.close()
+    except Exception as e:
+        logger.exception("Failed to refresh crawl feed content")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to refresh crawl feed content: {str(e)}",
+        )
+
+
 @router.get(
     "",
     response_model=DashboardResponse,
@@ -65,6 +84,30 @@ async def get_dashboard():
         raise HTTPException(
             status_code=500,
             detail=f"Failed to load dashboard: {str(e)}",
+        )
+
+
+@router.get(
+    "/market-overview",
+    response_model=MarketOverviewSection,
+    responses={500: {"model": ErrorResponse}},
+)
+async def get_market_overview(
+    force_refresh: bool = Query(False, description="是否绕过行情缓存强制刷新"),
+):
+    """获取市场总览独立快照，用于前端局部实时刷新。"""
+    try:
+        db = SessionLocal()
+        try:
+            service = DashboardService(db)
+            return service.get_market_overview_section(force_refresh=force_refresh)
+        finally:
+            db.close()
+    except Exception as e:
+        logger.exception("Failed to get market overview")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to load market overview: {str(e)}",
         )
 
 

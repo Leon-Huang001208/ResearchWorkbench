@@ -39,7 +39,6 @@ def test_document_sources_have_document_connector_datasets():
         "cls": "telegram",
         "cnstock": "news",
         "cnstock_flash": "flash",
-        "cninfo": "announcements",
         "zhiqiu_reports": "report",
         "zhiqiu_wechat": "news",
         "zhiqiu_transcript": "meeting",
@@ -47,6 +46,25 @@ def test_document_sources_have_document_connector_datasets():
     actual = {spec.source_type.value: spec.connector_dataset for spec in document_specs}
 
     assert actual == expected
+
+
+def test_cnstock_live_sources_keep_scheduler_light():
+    from core.contracts.documents_v1 import SourceType
+    from core.source_registry import get
+
+    cnstock = get(SourceType.CNSTOCK)
+    cnstock_flash = get(SourceType.CNSTOCK_FLASH)
+
+    assert cnstock is not None
+    assert cnstock.adapter_kwargs["fetch_content"] is False
+    assert cnstock.adapter_kwargs["all_channels"] is False
+    assert cnstock.adapter_kwargs["max_pages"] == 2
+    assert cnstock.deep_backfill_enabled is False
+
+    assert cnstock_flash is not None
+    assert cnstock_flash.adapter_kwargs["fetch_content"] is False
+    assert cnstock_flash.adapter_kwargs["max_pages"] == 2
+    assert cnstock_flash.deep_backfill_enabled is False
 
 
 def test_orchestrator_identifies_connector_sources_from_spec_metadata():

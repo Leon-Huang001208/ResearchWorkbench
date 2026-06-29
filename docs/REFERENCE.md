@@ -553,6 +553,54 @@ python scripts/seed_factor_data.py --skip-ingest
 
 ---
 
+### 基金智能 API
+
+#### POST /api/funds/ingest
+
+导入结构化基金 rows。当前支持 `master`、`nav`、`holdings`、`managers` 四类数据集。
+
+**请求示例**:
+
+```json
+{
+  "dataset": "master",
+  "source": "api",
+  "rows": [
+    {
+      "symbol": "000001.OF",
+      "name": "Alpha Growth",
+      "fund_type": "equity",
+      "latest_size": "12.5"
+    }
+  ]
+}
+```
+
+#### GET /api/funds/{symbol}
+
+获取基金详情，包含基金主数据、最新净值、收益风险指标、基金经理和最新披露持仓。
+
+#### GET /api/funds/{symbol}/exposure
+
+根据基金最新披露持仓返回单基金股票、行业和主题暴露。
+
+#### POST /api/funds/portfolio/exposure
+
+按基金组合权重计算底层股票、行业和主题穿透。
+
+**请求示例**:
+
+```json
+{
+  "positions": {
+    "000001.OF": 0.6,
+    "000002.OF": 0.4
+  }
+}
+```
+
+---
+
 ### 报告项目 API
 
 报告项目 API 管理 `report_projects/<项目名>/` 下的一组项目资产：Word 模板、Excel 底稿、`section_config.yaml`、可选 `prompt_templates.md`、生成目录和运行日志目录。

@@ -53,13 +53,16 @@ MARKET_SECTOR_VIEW_ORDER = (
 )
 
 MARKET_SECTOR_CACHE_TTL_SECONDS = 60.0
-MARKET_COMMAND_CACHE_TTL_SECONDS = 60.0
-MARKET_BREADTH_EXACT_CACHE_TTL_SECONDS = 180.0
+MARKET_COMMAND_CACHE_TTL_SECONDS = 15.0
+MARKET_BREADTH_EXACT_CACHE_TTL_SECONDS = 45.0
+MARKET_STATS_CACHE_TTL_SECONDS = 45.0
 ENABLE_WIND_REALTIME_WORKBOOK_ENV = "ALPHAFOUNDRY_ENABLE_WIND_WORKBOOK"
+ALLOW_WIND_EXCEL_FALLBACK_ENV = "ALPHAFOUNDRY_ALLOW_WIND_EXCEL_FALLBACK"
 
 _market_command_cache_lock = Lock()
 _market_index_cache: Optional[tuple[float, list[dict[str, Any]]]] = None
 _market_breadth_cache: Optional[tuple[float, dict[str, Any]]] = None
+_market_stats_cache: Optional[tuple[float, dict[str, Any]]] = None
 _market_breadth_refreshing = False
 _market_sector_cache: dict[tuple[str, int], tuple[float, dict]] = {}
 _market_sector_cache_lock = Lock()
@@ -329,13 +332,15 @@ class DashboardService:
 
         return top_up_sectors, top_down_sectors
 
-    def _get_market_indices(self) -> list[MarketIndexItem]:
+    def _get_market_indices(self, force_refresh: bool = False) -> list[MarketIndexItem]:
         """Fetch lightweight real-time index quotes for the command center."""
         global _market_index_cache
 
         now = time.time()
         with _market_command_cache_lock:
             if (
+                not force_refresh
+                and
                 _market_index_cache is not None
                 and now - _market_index_cache[0] < MARKET_COMMAND_CACHE_TTL_SECONDS
             ):
@@ -344,10 +349,18 @@ class DashboardService:
         target_indices = [
             ("sh000001", "上证指数"),
             ("sz399001", "深证成指"),
+            ("sh000016", "上证50"),
+            ("sh000680", "科创综指"),
             ("sz399006", "创业板指"),
+            ("sz399673", "创业板50"),
             ("sh000688", "科创50"),
+            ("bj899050", "北证50"),
             ("sh000300", "沪深300"),
+            ("sh000905", "中证500"),
+            ("sh000510", "中证A500"),
+            ("sh000852", "中证1000"),
         ]
+        direct_indices: list[dict[str, Any]] = []
 
         try:
             import requests
@@ -368,30 +381,31 @@ class DashboardService:
                 for match in re.finditer(r'var hq_str_s_([^=]+)="([^"]*)";', response.text)
             }
 
-            indices: list[dict[str, Any]] = []
             for code, label in target_indices:
                 values = quote_rows.get(code)
                 if not values or len(values) < 4:
                     continue
                 latest = self._optional_float(values[1])
+                point_change = self._optional_float(values[2])
                 change = self._optional_float(values[3])
-                if latest is None or change is None:
+                if latest is None or latest <= 0 or change is None:
                     continue
-                indices.append(
+                direct_indices.append(
                     {
                         "code": code,
-                        "name": values[0] or label,
+                        "name": label,
                         "value": f"{latest:.2f}",
                         "change": round(change, 2),
+                        "point_change": round(point_change, 2) if point_change is not None else None,
                         "amount": self._optional_float(values[5]) if len(values) > 5 else None,
                         "source": "sina",
                     }
                 )
 
-            if indices:
+            if len(direct_indices) == len(target_indices):
                 with _market_command_cache_lock:
-                    _market_index_cache = (now, indices)
-                return [MarketIndexItem(**item) for item in indices]
+                    _market_index_cache = (now, direct_indices)
+                return [MarketIndexItem(**item) for item in direct_indices]
         except Exception as exc:
             logger.warning("Failed to fetch direct Sina market indices: %s", exc)
 
@@ -409,8 +423,11 @@ class DashboardService:
                 str(row.get("名称") or "").strip(): row for _, row in df.iterrows()
             }
 
-            indices: list[dict[str, Any]] = []
+            indices: list[dict[str, Any]] = list(direct_indices)
+            existing_codes = {item["code"] for item in indices}
             for code, label in target_indices:
+                if code in existing_codes:
+                    continue
                 row = rows_by_code.get(code)
                 if row is None:
                     row = rows_by_name.get(label)
@@ -418,7 +435,8 @@ class DashboardService:
                     continue
                 latest = self._optional_float(row.get("最新价"))
                 change = self._optional_float(row.get("涨跌幅"))
-                if latest is None or change is None:
+                point_change = self._optional_float(row.get("涨跌额"))
+                if latest is None or latest <= 0 or change is None:
                     continue
                 indices.append(
                     {
@@ -426,6 +444,7 @@ class DashboardService:
                         "name": label,
                         "value": f"{latest:.2f}",
                         "change": round(change, 2),
+                        "point_change": round(point_change, 2) if point_change is not None else None,
                         "amount": self._optional_float(row.get("成交额")),
                         "source": "sina",
                     }
@@ -438,21 +457,31 @@ class DashboardService:
         except Exception as exc:
             logger.warning("Failed to fetch real-time market indices: %s", exc)
 
+        if direct_indices:
+            with _market_command_cache_lock:
+                _market_index_cache = (now, direct_indices)
+            return [MarketIndexItem(**item) for item in direct_indices]
+
         with _market_command_cache_lock:
             cached = _market_index_cache
         if cached:
             return [MarketIndexItem(**item) for item in cached[1]]
         return []
 
-    def _get_market_breadth(self) -> Optional[MarketBreadthSnapshot]:
+    def _get_market_breadth(self, force_refresh: bool = False) -> Optional[MarketBreadthSnapshot]:
         """Return fast market breadth without blocking the dashboard on all-A pagination."""
         now = time.time()
         with _market_command_cache_lock:
             cached = _market_breadth_cache
-        if cached and now - cached[0] < MARKET_BREADTH_EXACT_CACHE_TTL_SECONDS:
+        if cached and not force_refresh and now - cached[0] < MARKET_BREADTH_EXACT_CACHE_TTL_SECONDS:
             return MarketBreadthSnapshot(**cached[1])
 
-        sector_breadth = self._get_sector_board_breadth()
+        if force_refresh:
+            exact_breadth = self._get_eastmoney_market_breadth()
+            if exact_breadth:
+                return exact_breadth
+
+        sector_breadth = self._get_sector_board_breadth(force_refresh=force_refresh)
         if sector_breadth:
             return sector_breadth
         if cached:
@@ -463,6 +492,119 @@ class DashboardService:
         # Exact all-A breadth is intentionally not scheduled from the dashboard path:
         # ak.stock_zh_a_spot paginates all A shares and can run for tens of seconds.
         logger.info("Skipped dashboard-triggered exact all-A breadth refresh")
+
+    def _get_eastmoney_market_breadth(self) -> Optional[MarketBreadthSnapshot]:
+        """Build all-A breadth from Eastmoney's real-time quote list."""
+        global _market_breadth_cache
+
+        try:
+            import math
+            import requests
+            from data_layer.crawlers.akshare.board import _without_proxy_env
+
+            base_url = "https://push2.eastmoney.com/api/qt/clist/get"
+            fs = "m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23"
+            fields = "f3,f6,f12,f14"
+            headers = {
+                "Referer": "https://quote.eastmoney.com/",
+                "User-Agent": "Mozilla/5.0",
+                "Connection": "close",
+            }
+
+            def fetch_page(page: int, size: int) -> dict:
+                params = {
+                    "pn": page,
+                    "pz": size,
+                    "po": 1,
+                    "np": 1,
+                    "ut": "bd1d9ddb04089700cf9c27f6f7426281",
+                    "fltt": 2,
+                    "invt": 2,
+                    "fid": "f3",
+                    "fs": fs,
+                    "fields": fields,
+                }
+                last_error: Optional[Exception] = None
+                for attempt in range(3):
+                    try:
+                        with _without_proxy_env():
+                            response = requests.get(
+                                base_url,
+                                params=params,
+                                headers=headers,
+                                timeout=10,
+                            )
+                            response.raise_for_status()
+                        return response.json().get("data") or {}
+                    except Exception as exc:
+                        last_error = exc
+                        time.sleep(0.3 * (attempt + 1))
+                if last_error:
+                    raise last_error
+                return {}
+
+            first = fetch_page(1, 1)
+            total = int(first.get("total") or 0)
+            if total <= 0:
+                return None
+
+            # Eastmoney caps this endpoint at 100 rows per page even if pz is larger.
+            page_size = 100
+            pages = math.ceil(total / page_size)
+            up = down = flat = 0
+            turnover_yuan = 0.0
+            failed_pages = 0
+            for page in range(1, pages + 1):
+                try:
+                    data = fetch_page(page, page_size)
+                except Exception as exc:
+                    failed_pages += 1
+                    logger.warning("Eastmoney all-A page failed: page=%s error=%s", page, exc)
+                    continue
+                for row in data.get("diff") or []:
+                    change = self._optional_float(row.get("f3"))
+                    amount = self._optional_float(row.get("f6"))
+                    if change is None:
+                        continue
+                    if change > 0:
+                        up += 1
+                    elif change < 0:
+                        down += 1
+                    else:
+                        flat += 1
+                    turnover_yuan += max(0.0, amount or 0.0)
+
+            counted = max(1, up + down + flat)
+            if counted < 4000:
+                logger.warning(
+                    "Eastmoney all-A breadth incomplete: counted=%s total=%s failed_pages=%s",
+                    counted,
+                    total,
+                    failed_pages,
+                )
+                return None
+            payload = {
+                "up": up,
+                "down": down,
+                "flat": flat,
+                "upRatio": round(up / counted * 100, 1),
+                "downRatio": round(down / counted * 100, 1),
+                "turnover": self._format_turnover_yuan(turnover_yuan),
+                "turnoverDelta": None,
+                "previousTurnover": None,
+                "netInflow": None,
+                "source": "eastmoney_all_a",
+                "sourceLabel": "东方财富全A实时"
+                if failed_pages == 0
+                else f"东方财富全A实时（缺{failed_pages}页）",
+                "fetchedAt": datetime.now(UTC),
+            }
+            with _market_command_cache_lock:
+                _market_breadth_cache = (time.time(), payload)
+            return MarketBreadthSnapshot(**payload)
+        except Exception as exc:
+            logger.warning("Failed to fetch Eastmoney all-A breadth: %s", exc)
+            return None
 
     @staticmethod
     def _refresh_market_breadth_exact() -> None:
@@ -491,6 +633,7 @@ class DashboardService:
                 "downRatio": round(down / total * 100, 1),
                 "turnover": DashboardService._format_turnover_yuan(amount),
                 "turnoverDelta": None,
+                "previousTurnover": None,
                 "source": "sina_all_a",
                 "sourceLabel": "全A实时",
                 "fetchedAt": datetime.now(UTC),
@@ -504,12 +647,15 @@ class DashboardService:
             with _market_command_cache_lock:
                 _market_breadth_refreshing = False
 
-    def _get_sector_board_breadth(self) -> Optional[MarketBreadthSnapshot]:
+    def _get_sector_board_breadth(
+        self,
+        force_refresh: bool = False,
+    ) -> Optional[MarketBreadthSnapshot]:
         """Build a quick breadth fallback from the cached THS industry board snapshot."""
         try:
             from data_layer.crawlers.akshare.board import fetch_sector_board
 
-            snapshot = fetch_sector_board()
+            snapshot = fetch_sector_board(force_refresh=force_refresh)
             if not snapshot.sectors:
                 return None
 
@@ -533,6 +679,10 @@ class DashboardService:
                 downRatio=round(down / total * 100, 1),
                 turnover=self._format_turnover_yuan(turnover_yuan),
                 turnoverDelta=None,
+                previousTurnover=None,
+                netInflow=self._format_signed_yi(
+                    sum(float(sector.net_flow) for sector in snapshot.sectors)
+                ),
                 source="ths_sector",
                 sourceLabel="同花顺行业汇总",
                 fetchedAt=fetched_at,
@@ -541,15 +691,129 @@ class DashboardService:
             logger.warning("Failed to build THS sector breadth: %s", exc)
             return None
 
-    def get_market_overview_section(self) -> MarketOverviewSection:
+    def _get_market_stats(self, force_refresh: bool = False) -> dict[str, Any]:
+        """Return supplemental market stats without making the dashboard depend on them."""
+        global _market_stats_cache
+
+        now = time.time()
+        with _market_command_cache_lock:
+            cached = _market_stats_cache
+        if cached and not force_refresh and now - cached[0] < MARKET_STATS_CACHE_TTL_SECONDS:
+            return dict(cached[1])
+
+        stats: dict[str, Any] = {
+            "limit_up": None,
+            "limit_down": None,
+            "yesterday_limit_performance": None,
+            "capital_flow": None,
+            "source_status": {},
+            "fetched_at": datetime.now(UTC),
+        }
+
+        try:
+            capital_flow = self._fetch_market_capital_flow()
+            if capital_flow is not None:
+                stats["capital_flow"] = self._format_signed_yi(capital_flow)
+                stats["capital_flow_source"] = "同花顺即时资金流"
+                stats["source_status"]["capital_flow"] = "ok"
+            else:
+                stats["source_status"]["capital_flow"] = "empty"
+        except Exception as exc:
+            logger.warning("Failed to build market capital flow stat: %s", exc)
+            stats["source_status"]["capital_flow"] = "error"
+
+        try:
+            limit_stats = self._fetch_limit_pool_stats()
+            stats.update(limit_stats)
+            stats["source_status"]["limit_pool"] = "ok"
+        except Exception as exc:
+            logger.warning("Failed to fetch market limit pool stats: %s", exc)
+            stats["source_status"]["limit_pool"] = "error"
+
+        with _market_command_cache_lock:
+            _market_stats_cache = (time.time(), dict(stats))
+        return stats
+
+    @staticmethod
+    def _fetch_limit_pool_stats() -> dict[str, Any]:
+        import akshare as ak
+        from data_layer.crawlers.akshare.board import _without_proxy_env
+
+        today = datetime.now().strftime("%Y%m%d")
+
+        def fetch_pool(func_name: str):
+            func = getattr(ak, func_name, None)
+            if func is None:
+                return None
+            with _without_proxy_env():
+                try:
+                    return func(date=today)
+                except TypeError:
+                    return func()
+                except Exception:
+                    return func()
+
+        limit_up_df = fetch_pool("stock_zt_pool_em")
+        limit_down_df = fetch_pool("stock_zt_pool_dtgc_em")
+        previous_df = fetch_pool("stock_zt_pool_previous_em")
+
+        limit_up = int(len(limit_up_df)) if limit_up_df is not None else None
+        limit_down = int(len(limit_down_df)) if limit_down_df is not None else None
+        previous_perf = DashboardService._format_pool_average_change(previous_df)
+
+        return {
+            "limit_up": limit_up,
+            "limit_down": limit_down,
+            "yesterday_limit_performance": previous_perf,
+        }
+
+    @staticmethod
+    def _fetch_market_capital_flow() -> Optional[float]:
+        """Fetch immediate market capital flow in 100-million-yuan units."""
+        import akshare as ak
+        from data_layer.crawlers.akshare.board import _without_proxy_env
+
+        with _without_proxy_env():
+            df = ak.stock_fund_flow_industry(symbol="即时")
+        if df is None or getattr(df, "empty", True) or "净额" not in df.columns:
+            return None
+        values = [
+            value
+            for value in (DashboardService._optional_float(item) for item in df["净额"])
+            if value is not None
+        ]
+        if not values:
+            return None
+        return sum(values)
+
+    @staticmethod
+    def _format_pool_average_change(df) -> Optional[str]:
+        if df is None or getattr(df, "empty", True):
+            return None
+        for column in ("涨跌幅", "涨幅", "最新涨跌幅"):
+            if column not in df.columns:
+                continue
+            values = [
+                value
+                for value in (DashboardService._optional_float(item) for item in df[column])
+                if value is not None
+            ]
+            if not values:
+                return None
+            avg = sum(values) / len(values)
+            return f"{avg:+.2f}%"
+        return None
+
+    def get_market_overview_section(self, force_refresh: bool = False) -> MarketOverviewSection:
         """获取市场概览板块：全球热点新闻、上涨/下跌板块概念"""
         from datetime import UTC, datetime
 
         has_real_news = False
         has_real_sectors = False
         last_updated = None
-        indices = self._get_market_indices()
-        breadth = self._get_market_breadth()
+        breadth = self._get_market_breadth(force_refresh=force_refresh)
+        indices = self._get_market_indices(force_refresh=force_refresh)
+        market_stats = self._get_market_stats(force_refresh=force_refresh)
 
         try:
             # 尝试获取真实数据
@@ -637,6 +901,7 @@ class DashboardService:
                     sector_views=normalized_sector_views,
                     indices=indices,
                     breadth=breadth,
+                    market_stats=market_stats,
                     uses_real_news=has_real_news,
                     uses_real_sectors=has_real_sectors,
                     last_updated=last_updated,
@@ -656,6 +921,7 @@ class DashboardService:
             top_down_sectors=top_down_sectors,
             indices=indices,
             breadth=breadth,
+            market_stats=market_stats,
             uses_real_news=False,
             uses_real_sectors=False,
             last_updated=None,
@@ -680,24 +946,80 @@ class DashboardService:
             return self._copy_market_sector_payload(payload)
 
         workbook_payload: dict | None = None
-        if _env_flag(ENABLE_WIND_REALTIME_WORKBOOK_ENV):
+        workbook_enabled = _env_flag(ENABLE_WIND_REALTIME_WORKBOOK_ENV, default=True)
+        fallback_enabled = _env_flag(ALLOW_WIND_EXCEL_FALLBACK_ENV, default=False)
+        if workbook_enabled:
             try:
                 from services.wind_realtime_workbook import WindRealtimeWorkbookReader
 
                 workbook_payload = WindRealtimeWorkbookReader(
                     stale_after_seconds=int(MARKET_SECTOR_CACHE_TTL_SECONDS)
                 ).get_view(normalized_view, limit=normalized_limit)
-                if workbook_payload.get("has_real_data"):
-                    logger.info("Using Wind realtime workbook sector view: %s", normalized_view)
+                if not workbook_payload.get("has_real_data") and workbook_payload.get(
+                    "status"
+                ) in {
+                    "workbook_missing",
+                    "workbook_not_open",
+                    "workbook_read_error",
+                    "snapshot_empty",
+                    "snapshot_invalid",
+                }:
+                    self._trigger_wind_workbook_recovery(
+                        reason=str(workbook_payload.get("status") or "sector_view")
+                    )
+                if workbook_payload.get("has_real_data") or not fallback_enabled:
+                    logger.info(
+                        "Using Wind realtime workbook sector view: %s status=%s real=%s",
+                        normalized_view,
+                        workbook_payload.get("status"),
+                        workbook_payload.get("has_real_data"),
+                    )
                     self._set_cached_market_sector_payload(cache_key, workbook_payload)
                     return self._copy_market_sector_payload(workbook_payload)
             except Exception as exc:
                 logger.warning("Wind realtime workbook read failed: %s", exc)
+                self._trigger_wind_workbook_recovery(reason="sector_view_exception")
+                if not fallback_enabled:
+                    payload = {
+                        "view_key": normalized_view,
+                        "view_label": self._market_view_label(normalized_view),
+                        "up": [],
+                        "down": [],
+                        "has_real_data": False,
+                        "fetched_at": 0.0,
+                        "cache_hit": False,
+                        "cache_ttl_seconds": MARKET_SECTOR_CACHE_TTL_SECONDS,
+                        "status": "workbook_read_error",
+                        "message": f"读取Wind实时工作簿失败: {exc}",
+                        "source": "wind_realtime_workbook",
+                    }
+                    self._set_cached_market_sector_payload(cache_key, payload)
+                    return self._copy_market_sector_payload(payload)
         else:
             logger.info(
                 "Wind realtime workbook disabled; set %s=1 to enable",
                 ENABLE_WIND_REALTIME_WORKBOOK_ENV,
             )
+
+        if not fallback_enabled:
+            payload = workbook_payload or {
+                "view_key": normalized_view,
+                "view_label": self._market_view_label(normalized_view),
+                "up": [],
+                "down": [],
+                "has_real_data": False,
+                "fetched_at": 0.0,
+                "cache_hit": False,
+                "cache_ttl_seconds": MARKET_SECTOR_CACHE_TTL_SECONDS,
+                "status": "workbook_disabled",
+                "message": (
+                    f"Wind实时工作簿未启用；设置 {ENABLE_WIND_REALTIME_WORKBOOK_ENV}=1 "
+                    f"或 {ALLOW_WIND_EXCEL_FALLBACK_ENV}=1 后可使用旧的临时公式诊断路径"
+                ),
+                "source": "wind_realtime_workbook",
+            }
+            self._set_cached_market_sector_payload(cache_key, payload)
+            return self._copy_market_sector_payload(payload)
 
         provider = WindMarketOverviewProvider()
         logger.info(
@@ -736,6 +1058,14 @@ class DashboardService:
 
         self._set_cached_market_sector_payload(cache_key, payload)
         return self._copy_market_sector_payload(payload)
+
+    def _trigger_wind_workbook_recovery(self, *, reason: str) -> None:
+        try:
+            from services.wind_workbook_manager import get_wind_workbook_manager
+
+            get_wind_workbook_manager().start_background_ensure(reason=reason)
+        except Exception as exc:
+            logger.debug("Wind workbook recovery trigger failed: %s", exc)
 
     def _get_ths_market_sector_payload(self, limit: int) -> dict:
         up, down, has_real_data, fetched_at = self.dashboard_repo.get_sector_changes_from_signals(
@@ -783,11 +1113,13 @@ class DashboardService:
 
     @staticmethod
     def _format_turnover_yuan(amount: float) -> str:
-        if amount >= 1_000_000_000_000:
-            return f"{amount / 1_000_000_000_000:.2f}万亿"
         if amount >= 100_000_000:
             return f"{amount / 100_000_000:.0f}亿"
         return f"{amount:.0f}"
+
+    @staticmethod
+    def _format_signed_yi(value: float) -> str:
+        return f"{value:+.2f}亿"
 
     @staticmethod
     def _get_cached_market_sector_payload(cache_key: tuple[str, int]) -> Optional[dict]:

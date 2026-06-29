@@ -73,6 +73,7 @@
 | `app/api/models.py` | API 请求/响应模型（Pydantic） |
 | `app/api/routes/audit.py` | 审计 API：查询审计日志 |
 | `app/api/routes/dashboard.py` | 仪表盘 API：获取仪表盘汇总数据 |
+| `app/api/routes/funds.py` | 基金智能 API：基金详情、单基金暴露、基金组合穿透、结构化 rows 导入 |
 | `app/api/routes/governance.py` | 治理 API：版本控制、配置管理 |
 | `app/api/routes/ingest.py` | 数据摄入 API：上传文件、拉取实时源 |
 | `app/api/routes/market_data.py` | 市场数据 API：同步股票列表、同步日行情、查询日行情、查询 ETL 运行记录 |
@@ -109,6 +110,7 @@
 | `app/web/static/js/app.js` | 主入口模块：导航路由、SSE 连接、全局状态管理 |
 | `app/web/static/js/core.js` | 核心工具模块：apiCall、toast、esc 等公共函数 |
 | `app/web/static/js/dashboard.js` | 仪表盘模块：Market Overview + Live Monitor 标签页 |
+| `app/web/static/js/funds.js` | 基金情报模块：基金详情查询、经理/持仓/行业暴露渲染、基金组合穿透计算、结构化 rows 导入 |
 | `app/web/static/js/templates.js` | 模板工作台模块：报告项目选择、Word 占位符映射、YAML/Markdown Prompt 源码切换与保存、配置驱动生成、下载和 Word HTML 预览 |
 | `app/web/static/js/pipeline-monitor.js` | 管线监控模块：5 阶段流程可视化、实时活动日志（SSE + 15s 轮询）、累计统计、手动触发闭环 |
 | `app/web/static/js/monitor.js` | 系统监控模块：Worker 心跳、队列深度、服务状态 |
@@ -132,6 +134,7 @@
 | `core/contracts/decision_console.py` | 决策控制台结构：DailyCandidate、DecisionRecord |
 | `core/contracts/documents_v1.py` | 文档结构 v1：DocumentEnvelope、DocumentType、DocumentMetadata |
 | `core/contracts/events.py` | 事件结构：CanonicalEvent、EventType、DiffusionStage、MarketRegime |
+| `core/contracts/funds.py` | 基金智能结构：基金主数据、日净值、持仓、经理、收益风险指标和穿透暴露 |
 | `core/contracts/governance.py` | 治理结构：VersionRecord、ConfigRecord、AuditLog |
 | `core/contracts/industry_chain.py` | 产业链结构：IndustryNode、IndustryRelation、IndustryChain |
 | `core/contracts/ingestion.py` | 摄入结构：IngestionRequest、IngestionResult |
@@ -208,6 +211,8 @@
 | `services/__init__.py` | 导出所有服务 |
 | **资产分析** | |
 | `asset_analysis_service.py` | 资产分析服务：生成资产分析快照、K线技术指标计算（KDJ/RSI）、筹码分布计算、Wind 直连数据补齐 |
+| `fund_data_ingestion_service.py` | 基金数据接入服务：从本地 rows/CSV 规范化导入基金主数据、净值、持仓和基金经理任职 |
+| `fund_intelligence_service.py` | 基金智能服务：基金详情组装、收益风险指标计算、单基金/组合持仓穿透 |
 | `macro_sensitivity.py` | 宏观敏感性计算：通过时间序列回归计算个股对宏观因子的敏感度 |
 | **数据摄入与处理** | |
 | `ingest_service.py` | 摄入服务：处理文档摄入、提取断言和事件 |
@@ -270,6 +275,9 @@
 | `pipeline_service.py` | 管道服务：数据处理管道编排 |
 | **市场数据 ETL** | |
 | `market_data_ingestion_service.py` | 市场数据摄入服务：编排 ETL 流程（爬取 → normalizer → 结构化表 → ETL 运行记录） |
+| `official_index_structure_ingestion.py` | 中证/国证官方成分股摄入服务：通过 AKShare 包装的官网成分/权重下载接口，归一化写入指数主表和 `index_component_snapshot`，并支持 official catalog active 指数发现 |
+| `wind_index_structure_probe.py` | Wind 指数结构字段探针：生成固定 Excel 函数模板、后台静默触发计算、读取指数成分/ETF 规模等候选字段验证结果 |
+| `wind_index_structure_ingestion.py` | Wind 指数结构探针落库服务：将已验证探针结果归一化写入指数主表、ETF 主表、指数 ETF 关系和 ETF 日度指标 |
 
 ---
 
@@ -392,7 +400,8 @@
 |---|---|
 | `data_layer/repositories/base.py` | 仓储基类：BaseRepository，提供通用数据库操作方法 |
 | `data_layer/repositories/models.py` | SQLAlchemy ORM 模型：定义所有数据库表模型 |
-| `data_layer/repositories/market_data_repository.py` | 市场数据仓储：PostgreSQL upsert / SQLite fallback，管理股票主表、日行情、估值、财务、股东等结构化表 |
+| `data_layer/repositories/market_data_repository.py` | 市场数据仓储：PostgreSQL upsert / SQLite fallback，管理股票主表、日行情、估值、财务、股东、指数发布方、指数主表、成分权重快照、指数 ETF 关系和 ETF 日度规模/资金流表 |
+| `data_layer/repositories/fund_repository.py` | 基金智能仓储：管理基金主数据、日净值、股票持仓和基金经理任职 MVP 表 |
 | `data_layer/repositories/etl_run_repository.py` | ETL 运行记录仓储：记录 ETL 运行开始、成功、失败，查询运行历史 |
 
 ---
@@ -583,6 +592,9 @@
 | `scripts/stop_all.sh` | 一键停止脚本：读取 PID 文件，停止所有后台服务 |
 | `scripts/check_market_data_schema.py` | 结构化行情数据表 Schema 检查：验证 8 张市场数据表是否存在 |
 | `scripts/bootstrap_market_data.py` | 结构化行情数据初始化脚本：同步股票列表和核心股票日行情 |
+| `scripts/run_official_index_structure_ingestion.py` | 中证/国证官方指数成分摄入脚本：默认静默抓取核心指数，或用 `--discover-active --max-count` 从 official catalog 发现 active 指数并批量写入结构表 |
+| `scripts/run_wind_index_structure_probe.py` | Wind 指数结构探针脚本：生成 `AlphaFoundry_Wind_Index_Structure_Probe.xlsx`，可选隐藏 Excel prime、读取缓存结果并持久化到结构表 |
+| `workers/market_data_scheduler_worker.py` | 市场数据调度 Worker：后台运行日行情与 18:10 指数结构日更任务；默认关闭旧 gap check 回补链路 |
 | `scripts/view_db.py` | 数据库查看工具：方便查询统计、事件、文档等 |
 | `scripts/replace_huaan_word_charts_office.py` | 华安 ETF 周报图表替换脚本：通过 Excel/Word 原生复制粘贴生成可编辑 Word chart parts |
 | `scripts/merge_huaan_layout_with_native_charts.py` | 华安 ETF 周报模板修复脚本：以原 Word 模板为母版，仅移植原生 chart drawing 和 chart parts，保留页眉页脚与版式 |

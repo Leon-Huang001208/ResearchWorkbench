@@ -28,6 +28,7 @@ class WindIndexSeed:
     is_concept: bool = True
     view_key: str = "wind_hot_concept"
     view_label: str = "Wind热门概念"
+    name: str = ""
 
 
 WIND_MARKET_INDEX_SEEDS: tuple[WindIndexSeed, ...] = (
@@ -57,7 +58,7 @@ WIND_MARKET_INDEX_SEEDS: tuple[WindIndexSeed, ...] = (
 
 DEFAULT_MARKET_VIEW_KEYS: tuple[str, ...] = tuple(MARKET_VIEW_LABELS)
 MAX_ABS_DAILY_INDEX_CHANGE_PCT = 20.0
-DEFAULT_WIND_INDEX_BATCH_CODES = 24
+DEFAULT_WIND_INDEX_BATCH_CODES = 8
 
 
 def _previous_weekday(current: date) -> date:
@@ -123,7 +124,7 @@ class WindMarketOverviewProvider:
             trade_date = self.trade_date_provider()
             codes = [seed.code for seed in seeds]
             seed_map = {seed.code: seed for seed in seeds}
-            df = self._fetch_index_quotes(codes, trade_date=trade_date)
+            df = self._fetch_index_quotes(codes, trade_date=trade_date, seed_map=seed_map)
             if self._all_pct_changes_zero(df):
                 fallback_trade_date = _previous_weekday(
                     datetime.fromisoformat(trade_date).date()
@@ -137,6 +138,7 @@ class WindMarketOverviewProvider:
                     df = self._fetch_index_quotes(
                         codes,
                         trade_date=fallback_trade_date,
+                        seed_map=seed_map,
                     )
         except Exception as exc:
             logger.warning("Wind market overview fetch failed: %s", exc)
@@ -202,12 +204,32 @@ class WindMarketOverviewProvider:
         allowed = set(view_keys)
         return tuple(seed for seed in self.seeds if seed.view_key in allowed)
 
-    def _fetch_index_quotes(self, codes: list[str], trade_date: str) -> pd.DataFrame:
+    def _fetch_index_quotes(
+        self,
+        codes: list[str],
+        trade_date: str,
+        seed_map: dict[str, WindIndexSeed] | None = None,
+    ) -> pd.DataFrame:
         frames: list[pd.DataFrame] = []
         for offset in range(0, len(codes), self.max_batch_codes):
             batch = codes[offset : offset + self.max_batch_codes]
             try:
-                df = self.adapter.fetch_index_quotes(batch, trade_date=trade_date)
+                names_by_code = {
+                    code: seed.name
+                    for code in batch
+                    if seed_map and (seed := seed_map.get(code)) and seed.name
+                }
+                try:
+                    df = self.adapter.fetch_index_quotes(
+                        batch,
+                        trade_date=trade_date,
+                        names_by_code=names_by_code,
+                        include_close=False,
+                    )
+                except TypeError as exc:
+                    if "names_by_code" not in str(exc):
+                        raise
+                    df = self.adapter.fetch_index_quotes(batch, trade_date=trade_date)
             except Exception as exc:
                 logger.warning(
                     "Wind market overview batch failed: trade_date=%s offset=%s size=%s error=%s",
@@ -246,6 +268,7 @@ class WindMarketOverviewProvider:
             is_concept=entry.is_concept,
             view_key=view_key,
             view_label=entry.view_label or MARKET_VIEW_LABELS.get(view_key, entry.category),
+            name=entry.name,
         )
 
     def _build_views(self, items: list[dict], limit: int) -> dict[str, dict[str, list[dict]]]:

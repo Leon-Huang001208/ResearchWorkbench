@@ -1,7 +1,7 @@
 """Add temporal industry graph tables
 
 Revision ID: 003
-Revises: 002
+Revises: 002_pdf_crawl_state
 Create Date: 2026-05-07
 
 """
@@ -10,7 +10,7 @@ from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP
 
 revision = "003"
-down_revision = "002"
+down_revision = "002_pdf_crawl_state"
 branch_labels = None
 depends_on = None
 

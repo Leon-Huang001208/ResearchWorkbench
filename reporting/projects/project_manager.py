@@ -184,11 +184,14 @@ class ReportProjectManager:
 
         for label, path in [
             ("active_word_template", word_template_path),
-            ("active_excel_workbook", excel_workbook_path),
             ("section_config", section_config_path),
         ]:
             if not path.exists():
                 raise FileNotFoundError(f"Report project asset missing: {label} -> {path}")
+        if data.get("active_excel_workbook") and not excel_workbook_path.exists():
+            raise FileNotFoundError(
+                f"Report project asset missing: active_excel_workbook -> {excel_workbook_path}"
+            )
         if prompt_templates_path and not prompt_templates_path.exists():
             raise FileNotFoundError(
                 f"Report project asset missing: prompt_templates -> {prompt_templates_path}"

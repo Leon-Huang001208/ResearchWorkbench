@@ -21,6 +21,7 @@ let activeMonitorSource = 'all';
 let activeMonitorItemKey = null;
 let activeMonitorDetailTab = 'event';
 const MAX_UNIFIED_ITEMS = 250;
+const monitorContentRefreshes = new Map();
 
 function getFeedState(sourceType) {
     if (!crawlFeedStates[sourceType]) {
@@ -239,13 +240,17 @@ function renderUnifiedMonitorFeed() {
         const sourceConfig = CRAWL_FEED_SOURCES.find(sourceItem => sourceItem.id === item.source_type);
         const tone = sourceConfig ? sourceConfig.tone : 'blue';
         const sourceLabel = sourceConfig ? sourceConfig.label : item.source_type;
+        const sourceLabelMarkup = activeMonitorSource === 'all'
+            ? `<span>${esc(sourceLabel)}</span>`
+            : '';
+        const displayTitle = cleanMonitorDisplayTitle(item.title || '');
         const isSelected = item.feed_key === activeMonitorItemKey;
         return `
             <article class="monitor-event-item ${isSelected ? 'selected' : ''}" data-monitor-item-key="${esc(item.feed_key)}">
                 <span class="monitor-event-accent ${esc(tone)}"></span>
                 <div class="monitor-event-main">
-                    <strong title="${esc(item.title || '')}">${esc(item.title || '(无标题)')}</strong>
-                    <span>${esc(sourceLabel)}</span>
+                    <strong title="${esc(item.title || '')}">${esc(displayTitle || item.title || '(无标题)')}</strong>
+                    ${sourceLabelMarkup}
                 </div>
                 <time class="monitor-event-time">${esc(formatEventTime(item.published_at || item.crawled_at))}</time>
             </article>
@@ -275,7 +280,75 @@ function renderMonitorEventDetail(item) {
     }
 
     if (title) title.textContent = item.title || '(无标题)';
-    if (content) content.textContent = eventDetailText(item);
+    if (content) {
+        const refreshState = monitorContentRefreshes.get(item.doc_id || item.feed_key);
+        if (refreshState === 'loading') {
+            content.textContent = '正在获取正文...';
+        } else {
+            content.textContent = eventDetailText(item);
+        }
+    }
+    refreshMonitorEventContent(item);
+}
+
+function shouldRefreshMonitorContent(item) {
+    if (!item || !item.doc_id) return false;
+    if (!['cnstock', 'cnstock_flash'].includes(item.source_type)) return false;
+    if (eventHasReadableContent(item)) return false;
+    const state = monitorContentRefreshes.get(item.doc_id);
+    return state !== 'loading' && state !== 'done';
+}
+
+async function refreshMonitorEventContent(item) {
+    if (!shouldRefreshMonitorContent(item)) return;
+
+    const docId = item.doc_id;
+    monitorContentRefreshes.set(docId, 'loading');
+    setText('monitor-detail-content', '正在获取正文...');
+
+    try {
+        const data = await apiCall(
+            'POST',
+            `/api/dashboard/crawl-feed/${encodeURIComponent(item.doc_id)}/content`,
+            null,
+            { method: 'POST' }
+        );
+
+        if (data && data.success) {
+            applyMonitorContentRefresh(item, data);
+            monitorContentRefreshes.set(docId, 'done');
+        } else {
+            monitorContentRefreshes.set(docId, 'failed');
+            if (activeMonitorItemKey === item.feed_key) {
+                setText('monitor-detail-content', data && data.message ? data.message : eventDetailText(item));
+            }
+        }
+    } catch (error) {
+        console.warn('[CrawlFeed] Failed to refresh event content:', error);
+        monitorContentRefreshes.set(docId, 'failed');
+        if (activeMonitorItemKey === item.feed_key) {
+            setText('monitor-detail-content', '正文获取失败，稍后可再次点击重试。');
+        }
+    }
+}
+
+function applyMonitorContentRefresh(item, data) {
+    const patch = {
+        content: data.content || item.content || '',
+        summary: data.summary || item.summary || '',
+        has_content: Boolean(data.has_content),
+        source_name: data.source_name || item.source_name || '',
+    };
+    CRAWL_FEED_SOURCES.forEach(source => {
+        const state = getFeedState(source.id);
+        state.items = state.items.map(existing => (
+            existing.doc_id === item.doc_id ? { ...existing, ...patch } : existing
+        ));
+    });
+    Object.assign(item, patch);
+    if (activeMonitorItemKey === item.feed_key) {
+        setText('monitor-detail-content', eventDetailText(item));
+    }
 }
 
 function monitorItemsForActiveSource() {
@@ -291,6 +364,18 @@ function monitorItemsForActiveSource() {
 function activeSourceLabel() {
     const source = CRAWL_FEED_SOURCES.find(item => item.id === activeMonitorSource);
     return activeMonitorSource === 'all' ? '全部来源' : (source ? source.label : activeMonitorSource);
+}
+
+function cleanMonitorDisplayTitle(title) {
+    return String(title || '')
+        .replace(/\\.pdf$/i, '')
+        .replace(/[_＿]+/g, '：')
+        .replace(/[\\s\\-—_：:]*\\d{8}$/g, '')
+        .replace(/[\\s\\-—_：:]*\\d{6}$/g, '')
+        .replace(/\\s+/g, ' ')
+        .replace(/：{2,}/g, '：')
+        .replace(/\\s*：\\s*/g, '：')
+        .trim();
 }
 
 function feedItemKey(sourceType, item) {
@@ -342,6 +427,14 @@ function eventDetailText(item) {
         return '当前来源暂未获取到独立正文，只能展示标题。';
     }
     return text;
+}
+
+function eventHasReadableContent(item) {
+    const text = item.content || item.summary || item.description || '';
+    const compactText = String(text).replace(/\s+/g, ' ').trim();
+    const compactTitle = String(item.title || '').replace(/\s+/g, ' ').trim();
+    const compactRawTitle = String(item.raw_title || '').replace(/\s+/g, ' ').trim();
+    return Boolean(compactText && compactText !== compactTitle && compactText !== compactRawTitle);
 }
 
 function latestCrawledAt(sourceId) {

@@ -43,12 +43,15 @@ Update this section when:
 ### `data_layer/repositories/market_data_repository.py`
 
 Purpose:
-- Market data upsert operations (stock master, daily bars, quotes, financial metrics, valuations, shareholders, index components).
+- Market data upsert operations (stock master, daily bars, quotes, financial metrics, valuations, shareholders).
+- Index structure persistence for CSI/CNI/HSI/WIND providers: index master data, constituent snapshots, stock-to-index membership lookup, index ETF links, and ETF daily scale/flow metrics.
 - PostgreSQL `on_conflict_do_update` upsert; SQLite check-then-update-or-insert fallback.
-- Query methods for latest bars, latest financials, symbol listing.
+- Query methods for latest bars, latest financials, symbol listing, index constituents, stock index memberships, linked ETFs, and ETF daily metrics.
 
 Related service:
 - `services/market_data_ingestion_service.py`
+- `services/official_index_structure_ingestion.py`
+- `services/wind_index_structure_ingestion.py`
 
 Related contracts:
 - `data_layer/normalizers/` (normalized dict input)
@@ -57,6 +60,28 @@ Update this section when:
 - New upsert or query methods are added.
 - Database dialect handling changes.
 - Upsert conflict strategy changes.
+- Index/ETF table contracts or source precedence rules change.
+
+---
+
+### `data_layer/repositories/fund_repository.py`
+
+Purpose:
+- Fund Intelligence MVP persistence for `fund_master`, `fund_nav_daily`, `fund_holding_stock`, and `fund_manager_tenure`.
+- `ensure_schema()` creates the MVP fund tables for the active SQLAlchemy bind.
+- Upsert methods persist fund master data, NAV history, latest report holdings, and manager tenures.
+- Query methods return `core.contracts.funds` Pydantic contracts for fund detail and exposure services.
+
+Related service:
+- `services/fund_intelligence_service.py`
+
+Related contracts:
+- `core/contracts/funds.py`
+
+Update this section when:
+- Fund table schema changes.
+- Upsert or query methods are added.
+- The MVP table ownership moves into global ORM models or Alembic migrations.
 
 ---
 

@@ -1,5 +1,6 @@
 """资产分析服务"""
 import asyncio
+import os
 from datetime import date, datetime, timedelta
 from typing import Any, Optional
 
@@ -28,6 +29,25 @@ from data_layer.repositories.base import db_session
 from data_layer.repositories.market_data_repository import MarketDataRepository
 
 logger = get_logger(__name__)
+
+
+def _env_float(name: str, default: float) -> float:
+    """Parse a positive float from env, falling back safely on bad values."""
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        logger.warning("Invalid float env value, using default", env_name=name, value=raw)
+        return default
+    return value if value > 0 else default
+
+
+CJPY_PRICE_TIMEOUT_SECONDS = _env_float("ASSET_CJPY_PRICE_TIMEOUT_SECONDS", 25.0)
+WIND_PRICE_TIMEOUT_SECONDS = _env_float("ASSET_WIND_PRICE_TIMEOUT_SECONDS", 8.0)
+ASSET_ENRICHMENT_TIMEOUT_SECONDS = _env_float("ASSET_ENRICHMENT_TIMEOUT_SECONDS", 36.0)
+CJPY_RECENT_LOOKBACK_DAYS = 14
 
 # Module-level Wind availability cache — avoids repeated heartbeat checks across requests
 _wind_available_cache: Optional[bool] = None  # None=未检测, True=可用, False=不可用
@@ -337,13 +357,12 @@ class AssetAnalysisService:
         # 填充结构化数据
         card = self._fill_structured_data(card, snapshot)
 
-        # 从 Wind / 协调器补充更详细数据（带总超时保护）
-        # Wind xlwings COM 操作较慢（3-5s/次），多个操作串行可达 40-80s。
-        # 15s 超时确保 API 快速返回，Wind 数据未就绪时使用已有数据。
+        # 从实时源 / 协调器补充更详细数据（带总超时保护）。
+        # Cjpy 收盘后单日行情实测可能接近 20s；命中实时价格后会跳过慢补全。
         try:
             card = await asyncio.wait_for(
                 self._enrich_from_coordinator(card, canonical_id, as_of, time_range),
-                timeout=15.0,
+                timeout=ASSET_ENRICHMENT_TIMEOUT_SECONDS,
             )
         except asyncio.TimeoutError:
             logger.warning(
@@ -416,7 +435,7 @@ class AssetAnalysisService:
     ) -> AssetAnalysisCard:
         """从天软(Cjpy)优先、协调器兜底补充详细行情数据。
 
-        优先级：Cjpy (0.5s) → Wind (4s 超时) → MultiSourceCoordinator
+        优先级：Cjpy 单日实时补线 → Wind Excel 实时补线 → MultiSourceCoordinator
         """
         end_date = as_of.date()
         days = self._days_from_time_range(time_range)
@@ -441,21 +460,21 @@ class AssetAnalysisService:
                 price_source = self._fill_price_bars_from_coordinator(
                     card, canonical_id, start_date, end_date
                 )
-        fast_cache_mode = price_source == "cache"
+        fast_price_mode = price_source in {"cache", "cjpy", "wind_excel"}
 
-        if not fast_cache_mode:
+        if not fast_price_mode:
             self._fill_wind_market_snapshot(card, canonical_id, as_of)
         else:
             logger.info(
-                "Skipping live market snapshot in fast cache mode",
-                extra={"canonical_id": canonical_id},
+                "Skipping live market snapshot in fast price mode",
+                extra={"canonical_id": canonical_id, "price_source": price_source},
             )
 
         card.basic_info = self._build_basic_info(canonical_id, card.valuation)
 
         # Phase 2: 从 StockMasterDB / Wind 填充行业数据
         card.industry = self._fill_industry_data(
-            canonical_id, allow_wind_fallback=not fast_cache_mode
+            canonical_id, allow_wind_fallback=not fast_price_mode
         )
 
         # Phase 3: 从 StockShareholderDB / Wind / AKShare 填充股东数据
@@ -463,23 +482,23 @@ class AssetAnalysisService:
             card.top_10_shareholders,
             card.top_10_float_shareholders,
         ) = await self._fill_shareholder_data(
-            canonical_id, allow_live_fallback=not fast_cache_mode
+            canonical_id, allow_live_fallback=not fast_price_mode
         )
 
         # Phase 4: 从 DocumentEventV1DB 填充近期事件
         card.recent_events = self._fill_recent_events(
-            canonical_id, allow_live_fallback=not fast_cache_mode
+            canonical_id, allow_live_fallback=not fast_price_mode
         )
 
-        if not fast_cache_mode:
+        if not fast_price_mode:
             # 宏观敏感性：通过时间序列回归计算
             card.macro_sensitivity = self._compute_macro_sensitivity(
                 canonical_id, start_date, end_date
             )
         else:
             logger.info(
-                "Skipping macro sensitivity in fast cache mode",
-                extra={"canonical_id": canonical_id},
+                "Skipping macro sensitivity in fast price mode",
+                extra={"canonical_id": canonical_id, "price_source": price_source},
             )
 
         return card
@@ -1068,11 +1087,11 @@ class AssetAnalysisService:
         canonical_id: str,
         start_date: date,
         end_date: date,
-        timeout_seconds: float = 2.0,
+        timeout_seconds: float = CJPY_PRICE_TIMEOUT_SECONDS,
     ) -> list[PriceBar]:
-        """天软(Cjpy)行情拉取，带超时保护。
+        """天软(Cjpy)最新行情拉取，带超时保护。
 
-        Cjpy 实测通常较快；资产页只给短窗口，失败后立即使用缓存。
+        只拉最近一个小窗口，再与缓存历史合并；收盘后宁愿多等几秒拿最新日线。
         """
         try:
             return await asyncio.wait_for(
@@ -1103,18 +1122,23 @@ class AssetAnalysisService:
         start_date: date,
         end_date: date,
     ) -> list[PriceBar]:
-        """从天软(Cjpy)获取日线行情并补充技术指标。
+        """从天软(Cjpy)获取最新日线行情并补充技术指标。
 
-        Cjpy 返回 41 字段完整数据（含盘口），速度约 0.5s/批次。
+        Cjpy 返回 41 字段完整数据（含盘口）。
+        开盘前 end_date 可能还没有日线，因此拉最近小窗口并取源返回的最新交易日。
         列名映射：时间→date, vol→volume, preclose→pre_close。
         """
         try:
             from data_layer.adapters.cjpy_adapter import CjpyAdapter
 
+            recent_start_date = max(
+                start_date,
+                end_date - timedelta(days=CJPY_RECENT_LOOKBACK_DAYS),
+            )
             adapter = CjpyAdapter()
             df = adapter.fetch_daily_quotes(
                 codes=[canonical_id],
-                start_date=start_date.strftime("%Y%m%d"),
+                start_date=recent_start_date.strftime("%Y%m%d"),
                 end_date=end_date.strftime("%Y%m%d"),
             )
         except Exception as e:
@@ -1133,7 +1157,15 @@ class AssetAnalysisService:
                 "vol": "volume",
             }
             renamed = df.rename(columns=cjpy_column_map)
-            return self._build_price_bars_from_dataframe(renamed)
+            latest_bars = self._build_price_bars_from_dataframe(renamed)
+            if not latest_bars:
+                return []
+            return self._merge_cached_history_with_realtime_bar(
+                canonical_id,
+                start_date,
+                end_date,
+                latest_bars[-1],
+            )
         except Exception as e:
             logger.warning(
                 "Cjpy price data normalisation failed: %s",
@@ -1147,7 +1179,7 @@ class AssetAnalysisService:
         canonical_id: str,
         start_date: date,
         end_date: date,
-        timeout_seconds: float = 2.0,
+        timeout_seconds: float = WIND_PRICE_TIMEOUT_SECONDS,
     ) -> list[PriceBar]:
         """Wind Excel 可取实时行情，但资产页只给短窗口，超时即降级。"""
         try:
@@ -1157,6 +1189,7 @@ class AssetAnalysisService:
                     canonical_id,
                     start_date,
                     end_date,
+                    timeout_seconds,
                 ),
                 timeout=timeout_seconds,
             )
@@ -1179,6 +1212,7 @@ class AssetAnalysisService:
         canonical_id: str,
         start_date: date,
         end_date: date,
+        timeout_seconds: float = WIND_PRICE_TIMEOUT_SECONDS,
     ) -> list[PriceBar]:
         """优先从 Wind Excel 获取 K 线并补充技术指标，失败时返回空列表让上层降级。"""
         adapter = self._get_available_wind_adapter()
@@ -1186,7 +1220,7 @@ class AssetAnalysisService:
             return []
 
         try:
-            df = adapter.fetch_realtime_quotes([canonical_id], timeout=2.0)
+            df = adapter.fetch_realtime_quotes([canonical_id], timeout=timeout_seconds)
         except Exception as e:
             logger.warning("Wind price fetch failed, falling back to coordinator: %s", e)
             return []
@@ -1212,7 +1246,7 @@ class AssetAnalysisService:
         end_date: date,
         realtime_bar: PriceBar,
     ) -> list[PriceBar]:
-        """将 Wind 实时行情单点合并进缓存历史序列。"""
+        """将 Cjpy/Wind 实时行情单点合并进缓存历史序列。"""
         history_card = AssetAnalysisCard(canonical_id=canonical_id, as_of=datetime.utcnow())
         self._fill_price_bars_from_coordinator(history_card, canonical_id, start_date, end_date)
         bars = [bar for bar in history_card.price_bars if bar.date != realtime_bar.date]

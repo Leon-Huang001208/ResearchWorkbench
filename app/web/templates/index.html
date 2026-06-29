@@ -9,7 +9,7 @@
     <script async src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script async src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
     <script async src="https://cdn.jsdelivr.net/npm/d3@7"></script>
-    <link rel="stylesheet" href="/static/style.css?v=20260621j">
+    <link rel="stylesheet" href="/static/style.css?v=20260629variablealign1">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@vscode/codicons@0.0.36/dist/codicon.min.css">
 </head>
 <body>
@@ -27,7 +27,9 @@
                 <div class="activity-group-label">工作区</div>
                 <button class="activity-btn" data-section="dashboard" title="仪表盘"><i class="codicon codicon-home"></i><span>市场研究</span></button>
                 <button class="activity-btn" data-section="asset-analysis" title="资产分析"><i class="codicon codicon-graph"></i><span>资产观察</span></button>
+                <button class="activity-btn" data-section="funds" title="基金情报"><i class="codicon codicon-library"></i><span>基金情报</span></button>
                 <button class="activity-btn" data-section="signal-lab" title="Signal Lab"><i class="codicon codicon-beaker"></i><span>Signal Lab</span></button>
+                <button class="activity-btn" data-section="commentary" title="点评生产"><i class="codicon codicon-comment-discussion"></i><span>点评生产</span></button>
                 <button class="activity-btn active" data-section="templates" title="模板管理"><i class="codicon codicon-file-code"></i><span>报告生产</span></button>
                 <button class="activity-btn" data-section="pipeline-monitor" title="管线监控"><i class="codicon codicon-pulse"></i><span>运行监控</span></button>
                 <div class="activity-group-label">工具</div>
@@ -109,49 +111,79 @@
                             </div>
                         </div>
 
-                        <section class="market-pulse-board" aria-label="市场驾驶舱">
-                            <div class="market-scope-tabs" aria-label="市场范围">
-                                <button class="market-scope-tab active" type="button">A股</button>
-                                <button class="market-scope-tab" type="button">港股</button>
-                                <button class="market-scope-tab" type="button">美股</button>
-                                <button class="market-scope-tab" type="button">ETF</button>
-                                <button class="market-scope-tab" type="button">全球</button>
+                        <section class="market-pulse-board" aria-label="市场驾驶舱" data-market-overview-version="ths-inspired">
+                            <div class="market-scope-bar">
+                                <div class="market-scope-tabs" aria-label="市场范围">
+                                    <button class="market-scope-tab active" type="button">A股</button>
+                                    <button class="market-scope-tab" type="button" disabled title="港股行情接入中">港股</button>
+                                    <button class="market-scope-tab" type="button" disabled title="美股行情接入中">美股</button>
+                                    <button class="market-scope-tab" type="button" data-market-action="etf">ETF</button>
+                                    <button class="market-scope-tab" type="button" disabled title="全球行情接入中">全球</button>
+                                </div>
                             </div>
                             <div class="market-pulse-layout">
-                                <div class="market-index-panel">
-                                    <div class="market-index-panel-header">
-                                        <span>内地市场</span>
-                                        <small id="market-close-state">盘面快照</small>
+                                <div class="market-pulse-main">
+                                    <div class="market-session-strip">
+                                        <div class="market-session-state">
+                                            <i class="codicon codicon-primitive-square" aria-hidden="true"></i>
+                                            <span id="market-session-state">已收盘</span>
+                                            <small id="market-session-date">--</small>
+                                        </div>
+                                        <div class="market-flow-summary">
+                                            <strong id="market-flow-value">--</strong>
+                                            <span>大盘资金净流入</span>
+                                        </div>
                                     </div>
                                     <div id="market-index-grid" class="market-index-grid"></div>
                                     <div class="market-breadth-card">
-                                        <div class="market-breadth-label">
-                                            <span>涨跌分布</span>
-                                            <strong id="market-breadth-ratio">-- : --</strong>
+                                        <div class="market-breadth-ends">
+                                            <span id="market-breadth-down-label">跌 --</span>
+                                            <span id="market-breadth-up-label">涨 --</span>
                                         </div>
                                         <div class="market-breadth-bar" aria-label="涨跌家数">
                                             <span id="market-breadth-down" class="market-breadth-down" style="width: 50%"></span>
+                                            <i aria-hidden="true"></i>
                                             <span id="market-breadth-up" class="market-breadth-up" style="width: 50%"></span>
                                         </div>
                                         <div class="market-breadth-meta">
-                                            <span id="market-turnover">成交额 --</span>
-                                            <span id="market-turnover-delta">较昨日 --</span>
+                                            <span id="market-turnover">今日成交额总计 --</span>
+                                            <span id="market-turnover-delta">较上一日 --</span>
                                         </div>
                                     </div>
                                 </div>
-                                <aside class="market-ai-brief" aria-label="AI 盘面点评">
-                                    <div class="market-ai-brief-header">
-                                        <span>AI 盘面点评</span>
-                                        <small id="market-ai-brief-date">--</small>
+                                <div class="market-companion-row" aria-label="市场辅助信息">
+                                    <div class="market-ai-brief" aria-label="收盘点评">
+                                        <div class="market-ai-brief-header">
+                                            <span>收盘点评</span>
+                                            <small id="market-ai-brief-date">--</small>
+                                        </div>
+                                        <p id="market-ai-brief-text">等待市场数据加载...</p>
                                     </div>
-                                    <p id="market-ai-brief-text">等待市场数据加载...</p>
                                     <div class="market-shortcuts" aria-label="市场快捷入口">
-                                        <button type="button">选股</button>
-                                        <button type="button">ETF</button>
-                                        <button type="button">热榜</button>
-                                        <button type="button">复盘</button>
+                                        <button type="button" data-market-action="stock-picker"><i class="codicon codicon-search"></i><span>选股</span></button>
+                                        <button type="button" data-market-action="ipo-calendar"><i class="codicon codicon-calendar"></i><span>打新日历</span></button>
+                                        <button type="button" data-market-action="etf"><i class="codicon codicon-graph"></i><span>ETF基金</span></button>
+                                        <button type="button" data-market-action="hot-list"><i class="codicon codicon-flame"></i><span>热榜</span></button>
+                                        <button type="button" data-market-action="market-review"><i class="codicon codicon-history"></i><span>大盘回顾</span></button>
                                     </div>
-                                </aside>
+                                    <div class="market-mini-grid" aria-label="市场对比指标">
+                                        <article class="market-mini-card">
+                                            <span>涨跌停对比</span>
+                                            <strong id="market-mini-limit">-- : --</strong>
+                                            <small>涨停 / 跌停</small>
+                                        </article>
+                                        <article class="market-mini-card">
+                                            <span>昨日涨停表现</span>
+                                            <strong id="market-mini-yesterday">--</strong>
+                                            <small>短线情绪</small>
+                                        </article>
+                                        <article class="market-mini-card">
+                                            <span>大小盘对比</span>
+                                            <strong id="market-mini-cap-size">-- : --</strong>
+                                            <small>相对强弱</small>
+                                        </article>
+                                    </div>
+                                </div>
                             </div>
                         </section>
 
@@ -958,6 +990,135 @@
                 </div>
             </section>
 
+            <!-- Fund Intelligence Section -->
+            <section id="section-funds" class="content-section">
+                <h2 class="section-title">基金情报</h2>
+
+                <div class="card fund-command-card">
+                    <div class="card-header">
+                        <h3><i class="codicon codicon-library"></i> 基金穿透工作台</h3>
+                        <div class="card-header-actions">
+                            <span id="fund-status-badge" class="badge badge-warning">等待查询</span>
+                        </div>
+                    </div>
+                    <div class="input-row fund-query-row">
+                        <input type="text" id="fund-symbol" value="000001.OF" placeholder="基金代码，如 000001.OF">
+                        <button id="btn-load-fund" class="btn-primary"><i class="codicon codicon-search"></i> 查询</button>
+                    </div>
+                </div>
+
+                <div id="fund-loading" class="loading hidden">
+                    <div class="spinner"></div>
+                    <span>正在加载基金情报...</span>
+                </div>
+
+                <div id="fund-result" class="result-area hidden">
+                    <div class="card fund-identity-card">
+                        <div class="fund-identity-main">
+                            <div>
+                                <h3 id="fund-name">--</h3>
+                                <span id="fund-symbol-display" class="fund-symbol-chip">--</span>
+                            </div>
+                            <div class="fund-meta-line">
+                                <span id="fund-type">--</span>
+                                <span id="fund-company">--</span>
+                                <span id="fund-benchmark">--</span>
+                            </div>
+                        </div>
+                        <div class="fund-metrics-grid">
+                            <div class="metric-item">
+                                <span class="metric-label">最新净值</span>
+                                <span id="fund-unit-nav" class="metric-value">--</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">累计净值</span>
+                                <span id="fund-acc-nav" class="metric-value">--</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">总收益</span>
+                                <span id="fund-total-return" class="metric-value">--</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">最大回撤</span>
+                                <span id="fund-max-drawdown" class="metric-value">--</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">年化波动</span>
+                                <span id="fund-volatility" class="metric-value">--</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">胜率</span>
+                                <span id="fund-win-rate" class="metric-value">--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="fund-grid">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>基金经理</h3>
+                            </div>
+                            <div id="fund-managers" class="fund-list"></div>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>行业暴露</h3>
+                            </div>
+                            <div id="fund-industry-exposure" class="fund-exposure-list"></div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>最新披露持仓</h3>
+                        </div>
+                        <div id="fund-holdings-table" class="data-table-wrap"></div>
+                    </div>
+                </div>
+
+                <div class="fund-grid">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>组合穿透</h3>
+                        </div>
+                        <textarea id="fund-portfolio-input" rows="5" placeholder='{"000001.OF": 0.6, "000002.OF": 0.4}'></textarea>
+                        <div class="fund-action-row">
+                            <button id="btn-calc-fund-portfolio" class="btn-primary"><i class="codicon codicon-symbol-operator"></i> 计算</button>
+                        </div>
+                        <div id="fund-portfolio-result" class="fund-exposure-list"></div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>结构化导入</h3>
+                        </div>
+                        <div class="form-grid fund-ingest-grid">
+                            <div class="form-field">
+                                <label>数据集</label>
+                                <select id="fund-ingest-dataset">
+                                    <option value="master">主数据</option>
+                                    <option value="nav">净值</option>
+                                    <option value="holdings">持仓</option>
+                                    <option value="managers">经理</option>
+                                </select>
+                            </div>
+                            <div class="form-field">
+                                <label>来源</label>
+                                <input type="text" id="fund-ingest-source" value="web">
+                            </div>
+                            <div class="form-field fund-ingest-rows-field">
+                                <label>Rows JSON</label>
+                                <textarea id="fund-ingest-rows" rows="5" placeholder='[{"symbol":"000001.OF","name":"示例基金"}]'></textarea>
+                            </div>
+                        </div>
+                        <div class="fund-action-row">
+                            <button id="btn-ingest-fund-rows" class="btn-secondary"><i class="codicon codicon-cloud-upload"></i> 导入</button>
+                        </div>
+                        <div id="fund-ingest-result" class="fund-ingest-result"></div>
+                    </div>
+                </div>
+            </section>
+
             <!-- Wind Data Section -->
             <section id="section-wind" class="content-section">
                 <h2 class="section-title">Wind 专业数据</h2>
@@ -994,6 +1155,86 @@
                     </div>
                     <div id="wind-result" class="result-area hidden">
                         <div id="wind-table"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Commentary Production Section -->
+            <section id="section-commentary" class="content-section">
+                <div class="commentary-workbench">
+                    <div class="commentary-hero">
+                        <div>
+                            <span class="commentary-kicker">Commentary Studio</span>
+                            <h2>点评生产中心</h2>
+                            <p>独立承载收盘、行业、主题、海外扰动与产品配置点评。</p>
+                        </div>
+                        <div class="commentary-hero-actions">
+                            <span id="commentary-context-status" class="commentary-context-status">等待上下文</span>
+                            <button id="btn-commentary-refresh-context" class="btn-secondary" type="button">
+                                <i class="codicon codicon-refresh"></i> 刷新上下文
+                            </button>
+                            <button id="btn-commentary-generate-draft" class="btn-primary" type="button">
+                                <i class="codicon codicon-sparkle"></i> 生成草稿
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="commentary-confidence-grid" aria-label="证据置信分层">
+                        <span data-confidence="confirmed"><strong>已确认数据</strong><small>行情、成交、资金、估值</small></span>
+                        <span data-confidence="reported"><strong>媒体报道</strong><small>新闻、公告、研报</small></span>
+                        <span data-confidence="interpretation"><strong>市场解释</strong><small>归因、传导、分歧</small></span>
+                        <span data-confidence="judgement"><strong>主观判断</strong><small>核心矛盾、观察变量</small></span>
+                    </div>
+
+                    <section id="commentary-attribution-panel" class="commentary-attribution-panel" aria-label="归因排序">
+                        <div class="commentary-panel-header">
+                            <h3>归因排序</h3>
+                            <span id="commentary-attribution-count">--</span>
+                        </div>
+                        <div id="commentary-attribution-list" class="commentary-attribution-list">
+                            <p class="empty-state compact">等待上下文归因。</p>
+                        </div>
+                    </section>
+
+                    <div class="commentary-studio-grid">
+                        <aside class="commentary-template-panel" aria-label="点评模板库">
+                            <div class="commentary-panel-header">
+                                <h3>点评模板库</h3>
+                                <span id="commentary-template-count">--</span>
+                            </div>
+                            <div id="commentary-template-list" class="commentary-template-list"></div>
+                        </aside>
+
+                        <section class="commentary-input-panel" aria-label="点评生产输入">
+                            <div class="commentary-panel-header">
+                                <h3 id="commentary-active-title">每日收盘点评</h3>
+                                <span id="commentary-active-tag">市场点评</span>
+                            </div>
+                            <div class="commentary-form-grid">
+                                <label>
+                                    <span>数据快照</span>
+                                    <textarea id="commentary-data-snapshot" rows="6">宽基：上证指数 -2.1%，沪深300 -2.4%，创业板指 -3.8%；成交额放大至 1.8 万亿元；下跌行业集中在 AI 硬件、半导体、券商。</textarea>
+                                </label>
+                                <label>
+                                    <span>证据包</span>
+                                    <textarea id="commentary-evidence-pack" rows="6">新闻：海外 AI 链调整，软银、韩国半导体龙头大幅下跌；研报：部分机构提示 AI 资本开支预期进入验证期；资金：北向与两融风险偏好回落。</textarea>
+                                </label>
+                                <label class="commentary-wide-field">
+                                    <span>主观判断</span>
+                                    <textarea id="commentary-subjective-judgement" rows="4">今天的核心不是单一利空，而是高拥挤 AI 交易在估值、兑现和外部扰动共振下的集中降温。后续重点观察成交额能否稳定、AI 链调整是否扩散到非科技成长。</textarea>
+                                </label>
+                            </div>
+                        </section>
+
+                        <section class="commentary-output-panel" aria-label="点评草稿输出">
+                            <div class="commentary-panel-header">
+                                <h3>草稿输出</h3>
+                                <button id="btn-commentary-copy-draft" class="btn-secondary" type="button"><i class="codicon codicon-copy"></i> 复制</button>
+                            </div>
+                            <article id="commentary-draft-output" class="commentary-draft-output">
+                                <p class="empty-state compact">选择点评模板并生成草稿。</p>
+                            </article>
+                        </section>
                     </div>
                 </div>
             </section>
@@ -1115,14 +1356,31 @@
                                         <span><i class="codicon codicon-tools"></i> 参数配置</span>
                                         <small>段落、共用约束和生成参数</small>
                                     </summary>
-                                        <div class="template-workbench-main-grid">
-                                            <div class="template-workbench-left">
-                                                <div class="template-workbench-panel">
+                                        <section class="template-generation-hero template-config-hero">
+                                            <div class="template-generation-copy">
+                                                <div class="template-generation-title-row">
+                                                    <p class="eyebrow">周报生成</p>
+                                                    <span id="template-config-health" class="template-generation-health pending">待检查</span>
+                                                </div>
+                                                <h3 id="template-config-title">配置本周报告</h3>
+                                                <div class="template-generation-meta">
+                                                    <span id="template-config-period">报告周期待加载</span>
+                                                    <span id="template-config-lookback">证据检索 7 天</span>
+                                                    <span id="template-config-placeholder-total">0 个占位符</span>
+                                                </div>
+                                            </div>
+                                            <div class="template-generation-actions template-config-hero-actions">
+                                                <button id="btn-template-config-advanced" class="btn-secondary" type="button"><i class="codicon codicon-settings-gear"></i> 高级配置</button>
+                                            </div>
+                                        </section>
+                                        <div class="template-workbench-main-grid template-config-grid">
+                                            <div class="template-workbench-left template-config-rail">
+                                                <div class="template-workbench-panel template-config-common-panel">
                                                     <div id="template-common-rules" class="template-common-rules">
                                                         <div class="empty-state compact">选择模板后显示共用参数</div>
                                                     </div>
                                                 </div>
-                                                <details class="template-workbench-panel template-project-check-panel" id="template-project-check-details">
+                                                <details class="template-workbench-panel template-project-check-panel" id="template-project-check-details" open>
                                                     <summary>
                                                         <span><i class="codicon codicon-checklist"></i> 生成检查</span>
                                                         <small id="template-project-check-summary">素材、数据和生成规则</small>
@@ -1167,16 +1425,21 @@
                                                 </details>
                                             </div>
 
-	                                        <div class="template-workbench-panel template-section-editor-panel" id="template-section-config-editor">
-	                                            <div class="template-placeholder-toolbar">
+	                                        <div class="template-workbench-panel template-section-editor-panel template-config-editor-panel" id="template-section-config-editor">
+	                                            <div class="template-placeholder-toolbar template-config-editor-toolbar">
 	                                                <h4 id="template-selected-placeholder-title" class="template-hidden-title">占位符配置详情</h4>
                                                     <div id="template-placeholder-map" class="template-placeholder-map">
                                                         <div class="empty-state compact">选择模板后显示段落</div>
                                                     </div>
+                                                    <div class="template-config-toolbar-chips">
+                                                        <span id="template-config-placeholder-type" class="template-config-toolbar-meta">配置项</span>
+                                                        <span id="template-config-placeholder-source" class="template-config-toolbar-meta">等待配置</span>
+                                                        <span id="template-config-placeholder-health" class="template-config-toolbar-meta ok">可生成</span>
+                                                    </div>
                                                     <span id="template-placeholder-count" class="template-hidden-title">0 个</span>
                                                     <div class="template-placeholder-actions">
                                                         <button id="btn-template-advanced-config" class="btn-secondary" disabled><i class="codicon codicon-settings-gear"></i> 高级配置</button>
-	                                                    <button id="btn-template-save-placeholder" class="btn-secondary" disabled><i class="codicon codicon-save"></i> 保存当前占位符</button>
+	                                                    <button id="btn-template-save-placeholder" class="btn-primary" disabled><i class="codicon codicon-save"></i> 保存</button>
                                                     </div>
 	                                            </div>
 	                                            <div id="template-placeholder-detail-form" class="template-placeholder-detail-form">
@@ -1184,6 +1447,22 @@
 	                                            </div>
 	                                        </div>
 	                                    </div>
+                                        <div id="template-config-editor-modal" class="modal template-config-editor-modal hidden" aria-hidden="true">
+                                            <div class="modal-content template-config-editor-modal-content">
+                                                <div class="modal-header">
+                                                    <div>
+                                                        <h3 id="template-config-editor-modal-title">编辑配置</h3>
+                                                        <p id="template-config-editor-modal-subtitle" class="upload-modal-subtitle">调整当前配置项</p>
+                                                    </div>
+                                                    <button id="btn-template-config-editor-modal-close" class="modal-close" type="button"><i class="codicon codicon-close"></i></button>
+                                                </div>
+                                                <div id="template-config-editor-modal-body" class="modal-body template-config-editor-modal-body"></div>
+                                                <div class="modal-footer">
+                                                    <button id="btn-template-config-editor-modal-cancel" class="btn-secondary" type="button">取消</button>
+                                                    <button id="btn-template-config-editor-modal-save" class="btn-primary" type="button"><i class="codicon codicon-save"></i> 保存</button>
+                                                </div>
+                                            </div>
+                                        </div>
                                         <div id="template-advanced-drawer-backdrop" class="template-advanced-drawer-backdrop hidden"></div>
                                         <aside id="template-advanced-drawer" class="template-advanced-drawer hidden" aria-hidden="true">
                                             <div class="template-advanced-drawer-header">
@@ -1334,36 +1613,78 @@
 
                 <!-- Upload Report Project Modal -->
                 <div id="upload-template-modal" class="modal hidden">
-                    <div class="modal-content">
+                    <div class="modal-content upload-project-modal">
                         <div class="modal-header">
-                            <h3>上传报告项目</h3>
+                            <div>
+                                <h3>上传报告项目</h3>
+                                <p class="upload-modal-subtitle">Word 先行，其它材料后续补充</p>
+                            </div>
                             <button id="btn-close-upload-modal" class="modal-close" onclick="closeUploadModal()"><i class="codicon codicon-close"></i></button>
                         </div>
                         <div class="modal-body">
-                            <div class="form-field">
-                                <label>报告项目名称</label>
-                                <input type="text" id="template-name-input" placeholder="例如：华安ETF周报">
-                            </div>
-                            <div class="form-field">
-                                <label>Word 模板 (.docx)</label>
-                                <input type="file" id="project-word-template-input" accept=".docx">
-                            </div>
-                            <div class="form-field">
-                                <label>Excel 数据底稿 (.xlsx)</label>
-                                <input type="file" id="project-excel-workbook-input" accept=".xlsx">
-                            </div>
-                            <div class="form-field">
-                                <label>Section 配置 (.yaml/.yml)</label>
-                                <input type="file" id="project-section-config-input" accept=".yaml,.yml">
-                            </div>
-                            <div class="form-field">
-                                <label>Prompt 模板 (.md，可选)</label>
-                                <input type="file" id="project-prompt-templates-input" accept=".md">
-                            </div>
-                            <div class="form-field">
-                                <label>数据文件，可多选 (.json/.xlsx/.png)</label>
-                                <input type="file" id="project-data-files-input" accept=".json,.xlsx,.png" multiple>
-                            </div>
+                            <section class="upload-required-card">
+                                <div class="upload-section-heading">
+                                    <span>必需</span>
+                                    <strong>项目骨架</strong>
+                                </div>
+                                <div class="form-field upload-name-field">
+                                    <label>报告项目名称</label>
+                                    <input type="text" id="template-name-input" placeholder="例如：华安ETF周报">
+                                </div>
+                                <label class="upload-file-card upload-file-card-primary" for="project-word-template-input">
+                                    <input class="upload-file-input" type="file" id="project-word-template-input" accept=".docx">
+                                    <span class="upload-file-icon"><i class="codicon codicon-file-code"></i></span>
+                                    <span class="upload-file-copy">
+                                        <strong>Word 模板</strong>
+                                        <small>.docx</small>
+                                    </span>
+                                    <span class="upload-file-name" data-file-label="project-word-template-input">未选择</span>
+                                </label>
+                            </section>
+                            <section class="upload-optional-card">
+                                <div class="upload-section-heading">
+                                    <span>可选材料</span>
+                                    <strong>生成增强</strong>
+                                </div>
+                                <div class="upload-optional-grid">
+                                    <label class="upload-file-card" for="project-excel-workbook-input">
+                                        <input class="upload-file-input" type="file" id="project-excel-workbook-input" accept=".xlsx">
+                                        <span class="upload-file-icon"><i class="codicon codicon-table"></i></span>
+                                        <span class="upload-file-copy">
+                                            <strong>Excel 数据底稿</strong>
+                                            <small>.xlsx</small>
+                                        </span>
+                                        <span class="upload-file-name" data-file-label="project-excel-workbook-input">未选择</span>
+                                    </label>
+                                    <label class="upload-file-card" for="project-section-config-input">
+                                        <input class="upload-file-input" type="file" id="project-section-config-input" accept=".yaml,.yml">
+                                        <span class="upload-file-icon"><i class="codicon codicon-settings-gear"></i></span>
+                                        <span class="upload-file-copy">
+                                            <strong>Section 配置</strong>
+                                            <small>.yaml / .yml</small>
+                                        </span>
+                                        <span class="upload-file-name" data-file-label="project-section-config-input">自动生成</span>
+                                    </label>
+                                    <label class="upload-file-card" for="project-prompt-templates-input">
+                                        <input class="upload-file-input" type="file" id="project-prompt-templates-input" accept=".md">
+                                        <span class="upload-file-icon"><i class="codicon codicon-symbol-keyword"></i></span>
+                                        <span class="upload-file-copy">
+                                            <strong>Prompt 模板</strong>
+                                            <small>.md</small>
+                                        </span>
+                                        <span class="upload-file-name" data-file-label="project-prompt-templates-input">未选择</span>
+                                    </label>
+                                    <label class="upload-file-card" for="project-data-files-input">
+                                        <input class="upload-file-input" type="file" id="project-data-files-input" accept=".json,.xlsx,.png" multiple>
+                                        <span class="upload-file-icon"><i class="codicon codicon-database"></i></span>
+                                        <span class="upload-file-copy">
+                                            <strong>数据文件</strong>
+                                            <small>.json / .xlsx / .png</small>
+                                        </span>
+                                        <span class="upload-file-name" data-file-label="project-data-files-input">未选择</span>
+                                    </label>
+                                </div>
+                            </section>
                             <div id="template-upload-status" class="upload-status"></div>
                         </div>
                         <div class="modal-footer">
@@ -1424,7 +1745,7 @@
 
     <!-- Scripts: i18n must load before app.js -->
     <script src="/static/i18n.js?v=20250527"></script>
-    <script type="module" src="/static/js/app.js?v=20260623d"></script>
+    <script type="module" src="/static/js/app.js?v=20260629variablealign1"></script>
     <script type="module" src="/static/js/wind.js?v=20250601a"></script>
 </body>
 </html>

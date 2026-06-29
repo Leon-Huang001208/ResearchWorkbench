@@ -8,6 +8,34 @@
 
 ### Added
 
+- **Fund Intelligence MVP backend slice**: 新增基金智能研究后端最小闭环，支持基金主数据、净值、持仓、经理任职的仓储访问，以及基金详情、单基金暴露和基金组合穿透 API。
+  - `core/contracts/funds.py` — 新增基金主数据、净值、持仓、经理、收益风险指标、暴露项和组合穿透结果契约。
+  - `data_layer/repositories/fund_repository.py` — 新增 `fund_master`、`fund_nav_daily`、`fund_holding_stock`、`fund_manager_tenure` MVP 表的 schema ensure、upsert 和查询方法。
+  - `services/fund_intelligence_service.py` — 新增基金详情组装、NAV 收益风险指标计算、行业/股票/主题暴露聚合和组合加权穿透。
+  - `app/api/routes/funds.py` / `app/api/main.py` — 新增 `/api/funds/{symbol}`、`/api/funds/{symbol}/exposure`、`/api/funds/portfolio/exposure` 和 `POST /api/funds/ingest`。
+  - `app/web/templates/index.html` / `app/web/static/js/funds.js` / `app/web/static/style.css` — 新增基金情报前端入口、详情/持仓/暴露/组合穿透/结构化 rows 导入界面。
+  - `tests/unit/test_fund_contracts.py` / `tests/unit/data_layer/repositories/test_fund_repository.py` / `tests/unit/test_fund_intelligence_service.py` / `tests/unit/test_fund_data_ingestion_service.py` / `tests/unit/test_funds_api.py` / `tests/unit/test_funds_frontend_static.py` — 补充基金契约、仓储、服务、API 和前端 wiring 覆盖。
+
+- **指数结构数据库底座**: 新增中证、国证、恒生、Wind 发布指数的结构化存储基础，支持指数主数据、成分权重快照、个股所属指数反查、指数 ETF 产品和 ETF 日度规模/资金流指标落库。
+  - `data_layer/repositories/models.py` — 新增 `IndexProviderDB`、`IndexMasterDB`、`IndexComponentSnapshotDB`、`ETFMasterDB`、`IndexETFLinkDB`、`ETFDailyMetricDB`。
+  - `data_layer/repositories/market_data_repository.py` — 新增指数/ETF upsert 与查询方法；旧 `upsert_index_components()` 入参自动归一化后写入 `index_component_snapshot`。
+  - `storage/migrations/versions/011_add_index_structure_tables.py` — 新增结构表迁移，并将旧 `index_component` 数据复制为 legacy snapshot。
+  - `tests/unit/data_layer/repositories/test_market_data_repository.py` — 补充指数 provider/master、成分快照幂等、个股指数反查、ETF 链接和 ETF 指标 upsert 测试。
+
+- **Wind 指数结构字段探针**: 新增固定 Excel 函数模板，用于后台静默验证指数全成分、成分权重、ETF 跟踪指数、净值、份额和规模等候选 Wind 字段。
+  - `services/wind_index_structure_probe.py` — 生成 `AlphaFoundry_Wind_Index_Structure_Probe.xlsx`，维护 `FormulaCatalog`、`ProbeTargets`、`ProbeResults` 和 `Health`，支持隐藏 Excel 计算并读取缓存结果。
+  - `services/wind_index_structure_ingestion.py` — 将成功探针结果写入指数主表、ETF 主表、指数 ETF 关系和 ETF 日度指标；当前已验证 `fund_trackindexcode`、`nav`、`unit_total`、`netasset_total` / `fund_fundscale`。
+  - `scripts/run_wind_index_structure_probe.py` — 新增 CLI，可生成模板、可选 `--prime` 隐藏刷新、可选 `--read` 输出 JSON 结果、可选 `--persist` 写入结构表；`--skip-build` 用于读取/落库现有缓存，避免覆盖刚刷新的工作簿。
+  - `tests/unit/test_wind_index_structure_probe.py` / `tests/unit/test_wind_index_structure_ingestion.py` — 验证探针工作簿结构、候选公式、结果解析和落库映射。
+
+- **中证/国证官方成分股摄入**: 新增官方源成分股补数任务，通过 AKShare 包装的中证/国证官网下载接口写入 `index_component_snapshot`，并在调用时临时绕开不可用代理环境变量。
+  - `services/official_index_structure_ingestion.py` — 归一化中证 `index_stock_cons_weight_csindex` 和国证 `index_detail_hist_cni` 返回列，按权重生成 rank，写入指数主表与完整成分快照；新增 `discover_official_index_codes()` 从官方 catalog 发现 active 指数列表。
+  - `services/market_data_scheduler.py` — 新增每日 18:10 指数结构日更任务，默认从中证/国证 official catalog 发现 active 指数代码并限量批量写入，状态统计记录最近运行和错误数。
+  - `workers/market_data_scheduler_worker.py` — standalone worker 默认关闭旧 gap check 回补链路，保留日行情与指数结构定时任务，避免启动后立即进入不稳定回补流程。
+  - `scripts/run_official_index_structure_ingestion.py` — 新增后台脚本，默认静默摄入中证 `000300/000905/000852` 与国证 `399001/399006`，支持 `--provider`、重复 `--index-code`、`--discover-active` 和 `--max-count`。
+  - `tests/unit/test_official_index_structure_ingestion.py` — 覆盖中证权重快照、国证成分落库和个股指数反查。
+  - `tests/unit/test_market_data_scheduler_index_structure.py` / `tests/unit/test_official_index_structure_script.py` — 覆盖调度器批量 job 和脚本 active discovery 参数解析。
+
 - **Tauri 桌面壳 Phase 1**: 新增 AlphaFoundry 桌面化骨架，保留现有 FastAPI Web 工作台不变，通过 Tauri 外壳承载本地 `127.0.0.1:8765` 服务，并为后续 macOS/Windows/Linux 安装包、sidecar 后端和自动更新发布链路铺路。
   - `scripts/desktop/backend_launcher.py` — 新增桌面后端启动器，负责以桌面端默认端口运行 `app.api.main:app` 并写入 `logs/desktop-backend.log`。
   - `src-tauri/` / `package.json` — 新增 Tauri 2 配置、Rust shell、sidecar 进程管理骨架和桌面构建命令。

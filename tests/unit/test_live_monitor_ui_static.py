@@ -38,6 +38,42 @@ def test_live_monitor_feed_title_uses_selected_source_only():
     assert "title.textContent = activeSourceLabel();" in monitor_js
 
 
+def test_live_monitor_hides_source_label_in_single_source_mode():
+    monitor_js = (ROOT / "app/web/static/js/monitor.js").read_text()
+
+    assert "const sourceLabelMarkup = activeMonitorSource === 'all'" in monitor_js
+    assert "${sourceLabelMarkup}" in monitor_js
+    assert "? `<span>${esc(sourceLabel)}</span>`" in monitor_js
+    assert ": '';" in monitor_js
+
+
+def test_live_monitor_uses_clean_display_title_for_report_list():
+    monitor_js = (ROOT / "app/web/static/js/monitor.js").read_text()
+
+    assert "const displayTitle = cleanMonitorDisplayTitle(item.title || '');" in monitor_js
+    assert 'title="${esc(item.title || \'\')}"' in monitor_js
+    assert "${esc(displayTitle || item.title || '(无标题)')}" in monitor_js
+    assert "function cleanMonitorDisplayTitle(title)" in monitor_js
+    assert "[\\\\s\\\\-—_：:]*\\\\d{8}$" in monitor_js
+
+
+def test_live_monitor_refreshes_cnstock_detail_content_on_demand():
+    monitor_js = (ROOT / "app/web/static/js/monitor.js").read_text()
+
+    assert "function refreshMonitorEventContent(item)" in monitor_js
+    assert "shouldRefreshMonitorContent(item)" in monitor_js
+    assert "/api/dashboard/crawl-feed/${encodeURIComponent(item.doc_id)}/content" in monitor_js
+    assert "method: 'POST'" in monitor_js
+    assert "monitorContentRefreshes" in monitor_js
+
+
+def test_dashboard_exposes_crawl_feed_content_refresh_route():
+    route_source = (ROOT / "app/api/routes/dashboard.py").read_text()
+
+    assert '@router.post("/crawl-feed/{doc_id}/content"' in route_source
+    assert "CrawlFeedContentService" in route_source
+
+
 def test_live_monitor_keeps_250_items_per_source():
     monitor_js = (ROOT / "app/web/static/js/monitor.js").read_text()
 
@@ -50,5 +86,5 @@ def test_live_monitor_cache_versions_are_bumped():
     template = (ROOT / "app/web/templates/index.html").read_text()
     app_js = (ROOT / "app/web/static/js/app.js").read_text()
 
-    assert "/static/js/app.js?v=20260623d" in template
-    assert "./monitor.js?v=20260623d" in app_js
+    assert "/static/js/app.js?v=20260624b" in template
+    assert "./monitor.js?v=20260624b" in app_js

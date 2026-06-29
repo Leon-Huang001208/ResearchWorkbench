@@ -1658,22 +1658,162 @@ class StockShareholderDB(Base):
     __table_args__ = {"extend_existing": True}
 
 
-class IndexComponentDB(Base):
-    """指数成分表"""
+class IndexProviderDB(Base):
+    """指数发布方表"""
 
-    __tablename__ = "index_component"
+    __tablename__ = "index_provider"
+
+    provider_code = Column(Text, primary_key=True)
+    name = Column(Text, nullable=False)
+    official_site = Column(Text, nullable=True)
+    source_priority = Column(Integer, nullable=False, default=100)
+    raw_payload = Column(JSON, nullable=False, default=dict)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    __table_args__ = {"extend_existing": True}
+
+
+class IndexMasterDB(Base):
+    """指数主数据表"""
+
+    __tablename__ = "index_master"
+
+    index_id = Column(Text, primary_key=True)
+    provider_code = Column(Text, nullable=False, index=True)
+    official_code = Column(Text, nullable=False, index=True)
+    wind_code = Column(Text, nullable=True, index=True)
+    name_cn = Column(Text, nullable=False)
+    name_en = Column(Text, nullable=True)
+    market = Column(Text, nullable=True)
+    currency = Column(Text, nullable=True)
+    category = Column(Text, nullable=True)
+    launch_date = Column(DateTime(timezone=True), nullable=True)
+    base_date = Column(DateTime(timezone=True), nullable=True)
+    base_value = Column(Numeric, nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True)
+    raw_payload = Column(JSON, nullable=False, default=dict)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "provider_code",
+            "official_code",
+            name="uq_index_master_provider_official_code",
+        ),
+        {"extend_existing": True},
+    )
+
+
+class IndexComponentSnapshotDB(Base):
+    """指数成分权重快照表"""
+
+    __tablename__ = "index_component_snapshot"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    index_id = Column(Text, nullable=False, index=True)
     index_symbol = Column(Text, nullable=False, index=True)
+    provider_code = Column(Text, nullable=False, index=True)
     component_symbol = Column(Text, nullable=False, index=True)
     component_name = Column(Text, nullable=True)
+    market = Column(Text, nullable=True)
     weight = Column(Numeric, nullable=True)
+    weight_pct = Column(Numeric, nullable=True)
+    rank = Column(Integer, nullable=True)
     as_of = Column(DateTime(timezone=True), nullable=False, index=True)
+    trade_date = Column(DateTime(timezone=True), nullable=False, index=True)
+    source = Column(Text, nullable=False, default="unknown")
+    source_scope = Column(Text, nullable=False, default="full")
+    raw_payload = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "index_id",
+            "trade_date",
+            "component_symbol",
+            "source",
+            name="uq_index_component_snapshot_identity",
+        ),
+        {"extend_existing": True},
+    )
+
+
+class ETFMasterDB(Base):
+    """ETF 主数据表"""
+
+    __tablename__ = "etf_master"
+
+    etf_symbol = Column(Text, primary_key=True)
+    name = Column(Text, nullable=False)
+    exchange = Column(Text, nullable=True)
+    market = Column(Text, nullable=True)
+    fund_manager = Column(Text, nullable=True)
+    listed_date = Column(DateTime(timezone=True), nullable=True)
+    currency = Column(Text, nullable=True)
+    status = Column(Text, nullable=False, default="unknown")
+    raw_payload = Column(JSON, nullable=False, default=dict)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    __table_args__ = {"extend_existing": True}
+
+
+class IndexETFLinkDB(Base):
+    """指数与 ETF 跟踪关系表"""
+
+    __tablename__ = "index_etf_link"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    index_id = Column(Text, nullable=False, index=True)
+    etf_symbol = Column(Text, nullable=False, index=True)
+    tracking_role = Column(Text, nullable=False, default="tracking")
+    link_source = Column(Text, nullable=False, default="unknown")
+    confidence = Column(Numeric, nullable=True)
+    raw_payload = Column(JSON, nullable=False, default=dict)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "index_id",
+            "etf_symbol",
+            "link_source",
+            name="uq_index_etf_link_identity",
+        ),
+        {"extend_existing": True},
+    )
+
+
+class ETFDailyMetricDB(Base):
+    """ETF 日度规模与资金流指标表"""
+
+    __tablename__ = "etf_daily_metric"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    etf_symbol = Column(Text, nullable=False, index=True)
+    trade_date = Column(DateTime(timezone=True), nullable=False, index=True)
+    nav = Column(Numeric, nullable=True)
+    close = Column(Numeric, nullable=True)
+    shares_outstanding = Column(Numeric, nullable=True)
+    aum = Column(Numeric, nullable=True)
+    turnover = Column(Numeric, nullable=True)
+    premium_discount_pct = Column(Numeric, nullable=True)
+    net_flow_amount = Column(Numeric, nullable=True)
     source = Column(Text, nullable=False, default="unknown")
     raw_payload = Column(JSON, nullable=False, default=dict)
     created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
 
-    __table_args__ = {"extend_existing": True}
+    __table_args__ = (
+        UniqueConstraint(
+            "etf_symbol",
+            "trade_date",
+            "source",
+            name="uq_etf_daily_metric_symbol_date_source",
+        ),
+        {"extend_existing": True},
+    )
 
 
 class ETLRunDB(Base):

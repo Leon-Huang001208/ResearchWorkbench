@@ -1,7 +1,7 @@
 """PDF and Crawl State Schema
 
-Revision ID: 002
-Revises: 001
+Revision ID: 002_pdf_crawl_state
+Revises: 002
 Create Date: 2026-05-11
 
 """
@@ -9,8 +9,8 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP
 
-revision = "002"
-down_revision = "001"
+revision = "002_pdf_crawl_state"
+down_revision = "002"
 branch_labels = None
 depends_on = None
 

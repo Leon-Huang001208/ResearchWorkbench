@@ -42,6 +42,7 @@ Purpose:
 - Report template workbench logic keeps `section_config.yaml` and `prompt_templates.md` as separate editable sources. The editor opens read-only, requires an explicit edit action, saves project-backed sources through `PUT /api/report-projects/{slug}/source`, and falls back to local drafts for non-project templates.
 - Placeholder mapping shows every Word placeholder in first-seen order, builds draft mappings for missing entries, infers prompt/static/Excel placeholder types, supports embedded prompt retrieval queries for report projects such as `华安ETF周报`, and displays mapping status without truncating to the first eight placeholders.
 - Report rendering uses `/api/report-projects/{slug}/render`, shows download and preview actions, and loads the inline DOCX HTML preview from the returned `preview_url`.
+- Fund Intelligence panel logic lives in `app/web/static/js/funds.js` and calls `/api/funds/{symbol}`, `/api/funds/{symbol}/exposure`, `/api/funds/portfolio/exposure`, and `/api/funds/ingest` for fund detail, exposure, portfolio look-through, and structured row ingestion.
 
 Update this section when:
 - New JS modules are added
@@ -60,6 +61,7 @@ Update this section when:
 - Visual design changes
 - Layout styling changes
 - New components are styled
+- Fund Intelligence styles include compact metric cards, holdings tables, exposure bars, portfolio look-through output, and structured ingestion status.
 
 ### `app/web/main.py`
 
@@ -95,4 +97,5 @@ When files in this module change, check:
 
 ## Recent Changes
 
+- 2026-06-25: 新增基金情报前端面板，左侧导航接入 `section-funds`，通过 `app/web/static/js/funds.js` 调用 Fund Intelligence API 展示基金详情、经理、持仓、行业暴露、组合穿透和结构化 rows 导入结果。
 - 2026-06-08: 模板工作台拆分 YAML 占位符映射与 Markdown Prompt 模板源码，源码编辑默认只读并通过 `/api/report-projects/{slug}/source` 写回项目文件；生成成功后显示下载入口和 Word HTML 预览；上传按钮从固定 dock 移到顶部工具栏。

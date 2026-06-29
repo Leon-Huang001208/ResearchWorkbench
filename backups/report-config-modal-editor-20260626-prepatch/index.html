@@ -1,0 +1,1656 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlphaFoundry — 买方投研情报系统</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png?v=20260621a">
+    <link rel="apple-touch-icon" href="/static/favicon.png?v=20260621a">
+    <script async src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script async src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <script async src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <link rel="stylesheet" href="/static/style.css?v=20260626configworkbench2">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@vscode/codicons@0.0.36/dist/codicon.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Desktop source list -->
+        <aside class="activity-bar">
+            <div class="desktop-brand">
+                <img class="desktop-brand-icon" src="/static/favicon.png?v=20260621a" alt="" aria-hidden="true">
+                <div class="desktop-brand-copy">
+                    <strong>AlphaFoundry</strong>
+                    <span>本地投研工作台</span>
+                </div>
+            </div>
+            <div class="activity-bar-top">
+                <div class="activity-group-label">工作区</div>
+                <button class="activity-btn" data-section="dashboard" title="仪表盘"><i class="codicon codicon-home"></i><span>市场研究</span></button>
+                <button class="activity-btn" data-section="asset-analysis" title="资产分析"><i class="codicon codicon-graph"></i><span>资产观察</span></button>
+                <button class="activity-btn" data-section="funds" title="基金情报"><i class="codicon codicon-library"></i><span>基金情报</span></button>
+                <button class="activity-btn" data-section="signal-lab" title="Signal Lab"><i class="codicon codicon-beaker"></i><span>Signal Lab</span></button>
+                <button class="activity-btn active" data-section="templates" title="模板管理"><i class="codicon codicon-file-code"></i><span>报告生产</span></button>
+                <button class="activity-btn" data-section="pipeline-monitor" title="管线监控"><i class="codicon codicon-pulse"></i><span>运行监控</span></button>
+                <div class="activity-group-label">工具</div>
+                <button class="activity-btn" data-section="scenario" title="情景分析"><i class="codicon codicon-git-branch"></i><span>情景分析</span></button>
+                <button class="activity-btn" data-section="event-signal" title="事件信号"><i class="codicon codicon-zap"></i><span>事件信号</span></button>
+                <button class="activity-btn" data-section="industry-chain" title="产业链"><i class="codicon codicon-symbol-class"></i><span>产业链</span></button>
+                <button class="activity-btn" data-section="review" title="审核队列"><i class="codicon codicon-checklist"></i><span>审核队列</span></button>
+                <button class="activity-btn" data-section="signals" title="信号管理"><i class="codicon codicon-pulse"></i><span>信号管理</span></button>
+                <button class="activity-btn" data-section="outcomes" title="回测结果"><i class="codicon codicon-checklist"></i><span>回测结果</span></button>
+                <button class="activity-btn" data-section="ingest" title="文档摄入"><i class="codicon codicon-cloud-download"></i><span>文档摄入</span></button>
+                <button class="activity-btn" data-section="memory" title="记忆与学习"><i class="codicon codicon-lightbulb"></i><span>记忆学习</span></button>
+                <button class="activity-btn" data-section="wind" title="Wind 数据"><i class="codicon codicon-database"></i><span>Wind 数据</span></button>
+            </div>
+            <div class="activity-bar-bottom">
+                <button class="activity-btn" id="btn-settings" title="设置"><i class="codicon codicon-settings-gear"></i><span>设置</span></button>
+            </div>
+        </aside>
+
+        <!-- Settings Popover (VS Code style) -->
+        <div class="settings-popover hidden" id="settings-popover">
+            <div class="settings-nav">
+                <div class="settings-nav-item" data-settings-panel="theme">
+                    <span class="settings-nav-label" data-i18n="settings.theme">外观</span>
+                    <span class="settings-nav-arrow">›</span>
+                    <div class="settings-submenu" id="settings-panel-theme">
+                        <button class="settings-opt active" data-theme-val="light" data-i18n="theme.light" onclick="switchTheme('light')">亮色</button>
+                        <button class="settings-opt" data-theme-val="dark" data-i18n="theme.dark" onclick="switchTheme('dark')">暗色</button>
+                    </div>
+                </div>
+                <div class="settings-nav-item" data-settings-panel="language">
+                    <span class="settings-nav-label" data-i18n="settings.language">语言</span>
+                    <span class="settings-nav-arrow">›</span>
+                    <div class="settings-submenu" id="settings-panel-language">
+                        <button class="settings-opt active" data-lang="zh" onclick="switchLang('zh')">中文</button>
+                        <button class="settings-opt" data-lang="en" onclick="switchLang('en')">EN</button>
+                    </div>
+                </div>
+                <div class="settings-nav-item" data-settings-panel="color">
+                    <span class="settings-nav-label" data-i18n="settings.color_scheme">颜色</span>
+                    <span class="settings-nav-arrow">›</span>
+                    <div class="settings-submenu opens-up" id="settings-panel-color">
+                        <button class="settings-opt active" data-color-scheme="vscode" onclick="switchColorScheme('vscode')"><span class="color-dot" style="background:#007acc"></span></button>
+                        <button class="settings-opt" data-color-scheme="github" onclick="switchColorScheme('github')"><span class="color-dot" style="background:#1a7f37"></span></button>
+                        <button class="settings-opt" data-color-scheme="openclaw" onclick="switchColorScheme('openclaw')"><span class="color-dot" style="background:#cf222e"></span></button>
+                        <button class="settings-opt" data-color-scheme="claude" onclick="switchColorScheme('claude')"><span class="color-dot" style="background:#d97706"></span></button>
+                        <button class="settings-opt" data-color-scheme="obsidian" onclick="switchColorScheme('obsidian')"><span class="color-dot" style="background:#7c3aed"></span></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Content Area -->
+        <main class="main-content">
+            <!-- Global Search -->
+            <div class="search-bar">
+                <input type="text" id="global-search" data-i18n-placeholder="search.placeholder" placeholder="搜索实体、事件、信号...">
+                <div id="search-results-dropdown" class="search-dropdown hidden"></div>
+            </div>
+
+            <!-- Dashboard Section (Tabbed) -->
+            <section id="section-dashboard" class="content-section">
+                <div class="dash-header-row">
+                    <nav class="dash-tabs" id="dash-tabs">
+                        <button class="dash-tab active" data-dash-tab="market" data-i18n="dash_tab.market">市场总览</button>
+                        <button class="dash-tab" data-dash-tab="monitor" data-i18n="dash_tab.monitor">实时监控</button>
+                    </nav>
+                </div>
+
+                <!-- Tab: Market Overview -->
+                <div class="dash-tab-panel active" id="dash-panel-market">
+                <div class="dashboard-grid">
+                    <!-- Market Overview Section -->
+                    <div class="dashboard-card market-overview-card" style="grid-column: 1 / -1;">
+                        <div class="card-header">
+                            <h3><i class="codicon codicon-globe"></i> 市场概览</h3>
+                            <div class="card-header-actions">
+                                <span id="data-source-news-badge" class="badge-new">新闻加载中</span>
+                                <span id="data-source-sectors-badge" class="badge-new">板块加载中</span>
+                            </div>
+                        </div>
+
+                        <section class="market-pulse-board" aria-label="市场驾驶舱" data-market-overview-version="ths-inspired">
+                            <div class="market-scope-bar">
+                                <div class="market-scope-tabs" aria-label="市场范围">
+                                    <button class="market-scope-tab active" type="button">A股</button>
+                                    <button class="market-scope-tab" type="button" disabled title="港股行情接入中">港股</button>
+                                    <button class="market-scope-tab" type="button" disabled title="美股行情接入中">美股</button>
+                                    <button class="market-scope-tab" type="button" data-market-action="etf">ETF</button>
+                                    <button class="market-scope-tab" type="button" disabled title="全球行情接入中">全球</button>
+                                </div>
+                            </div>
+                            <div class="market-pulse-layout">
+                                <div class="market-pulse-main">
+                                    <div class="market-session-strip">
+                                        <div class="market-session-state">
+                                            <i class="codicon codicon-primitive-square" aria-hidden="true"></i>
+                                            <span id="market-session-state">已收盘</span>
+                                            <small id="market-session-date">--</small>
+                                        </div>
+                                        <div class="market-flow-summary">
+                                            <strong id="market-flow-value">--</strong>
+                                            <span>大盘资金净流入</span>
+                                        </div>
+                                    </div>
+                                    <div id="market-index-grid" class="market-index-grid"></div>
+                                    <div class="market-breadth-card">
+                                        <div class="market-breadth-ends">
+                                            <span id="market-breadth-down-label">跌 --</span>
+                                            <span id="market-breadth-up-label">涨 --</span>
+                                        </div>
+                                        <div class="market-breadth-bar" aria-label="涨跌家数">
+                                            <span id="market-breadth-down" class="market-breadth-down" style="width: 50%"></span>
+                                            <i aria-hidden="true"></i>
+                                            <span id="market-breadth-up" class="market-breadth-up" style="width: 50%"></span>
+                                        </div>
+                                        <div class="market-breadth-meta">
+                                            <span id="market-turnover">今日成交额总计 --</span>
+                                            <span id="market-turnover-delta">较上一日 --</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="market-companion-row" aria-label="市场辅助信息">
+                                    <div class="market-ai-brief" aria-label="收盘点评">
+                                        <div class="market-ai-brief-header">
+                                            <span>收盘点评</span>
+                                            <small id="market-ai-brief-date">--</small>
+                                        </div>
+                                        <p id="market-ai-brief-text">等待市场数据加载...</p>
+                                    </div>
+                                    <div class="market-shortcuts" aria-label="市场快捷入口">
+                                        <button type="button" data-market-action="stock-picker"><i class="codicon codicon-search"></i><span>选股</span></button>
+                                        <button type="button" data-market-action="ipo-calendar"><i class="codicon codicon-calendar"></i><span>打新日历</span></button>
+                                        <button type="button" data-market-action="etf"><i class="codicon codicon-graph"></i><span>ETF基金</span></button>
+                                        <button type="button" data-market-action="hot-list"><i class="codicon codicon-flame"></i><span>热榜</span></button>
+                                        <button type="button" data-market-action="market-review"><i class="codicon codicon-history"></i><span>大盘回顾</span></button>
+                                    </div>
+                                    <div class="market-mini-grid" aria-label="市场对比指标">
+                                        <article class="market-mini-card">
+                                            <span>涨跌停对比</span>
+                                            <strong id="market-mini-limit">-- : --</strong>
+                                            <small>涨停 / 跌停</small>
+                                        </article>
+                                        <article class="market-mini-card">
+                                            <span>昨日涨停表现</span>
+                                            <strong id="market-mini-yesterday">--</strong>
+                                            <small>短线情绪</small>
+                                        </article>
+                                        <article class="market-mini-card">
+                                            <span>大小盘对比</span>
+                                            <strong id="market-mini-cap-size">-- : --</strong>
+                                            <small>相对强弱</small>
+                                        </article>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="market-heatmap-card" aria-label="市场云图">
+                            <div class="market-heatmap-header">
+                                <div>
+                                    <h4>市场云图</h4>
+                                    <span>面积代表热度，颜色代表涨跌方向</span>
+                                </div>
+                                <div class="market-heatmap-modes">
+                                    <button class="active" type="button">A股全图</button>
+                                    <button type="button">板块</button>
+                                    <button type="button">概念</button>
+                                </div>
+                            </div>
+                            <div class="market-sector-view-control" aria-label="板块视图">
+                                <div class="market-sector-view-selector">
+                                    <button class="market-sector-select-button" type="button" aria-haspopup="listbox" aria-expanded="false" onclick="toggleMarketSectorMenu(this)">
+                                        <span>数据口径</span>
+                                        <strong>Wind热门概念</strong>
+                                        <i class="codicon codicon-chevron-down" aria-hidden="true"></i>
+                                    </button>
+                                    <div class="market-sector-select-menu" role="listbox" aria-label="选择板块口径">
+                                        <button type="button" class="active" data-sector-view="wind_hot_concept" onclick="switchMarketSectorView('wind_hot_concept')"><span>Wind热门概念</span><small>暂无</small></button>
+                                        <button type="button" data-sector-view="wind_l1" onclick="switchMarketSectorView('wind_l1')"><span>Wind一级</span><small>暂无</small></button>
+                                        <button type="button" data-sector-view="wind_l2" onclick="switchMarketSectorView('wind_l2')"><span>Wind二级</span><small>暂无</small></button>
+                                        <button type="button" data-sector-view="wind_l3" onclick="switchMarketSectorView('wind_l3')"><span>Wind三级</span><small>暂无</small></button>
+                                        <button type="button" data-sector-view="wind_l4" onclick="switchMarketSectorView('wind_l4')"><span>Wind四级</span><small>暂无</small></button>
+                                        <button type="button" data-sector-view="citic_l1" onclick="switchMarketSectorView('citic_l1')"><span>中信一级</span><small>暂无</small></button>
+                                        <button type="button" data-sector-view="citic_l2" onclick="switchMarketSectorView('citic_l2')"><span>中信二级</span><small>暂无</small></button>
+                                        <button type="button" data-sector-view="citic_l3" onclick="switchMarketSectorView('citic_l3')"><span>中信三级</span><small>暂无</small></button>
+                                        <button type="button" data-sector-view="sw_l1" onclick="switchMarketSectorView('sw_l1')"><span>申万一级</span><small>暂无</small></button>
+                                        <button type="button" data-sector-view="sw_l2" onclick="switchMarketSectorView('sw_l2')"><span>申万二级</span><small>暂无</small></button>
+                                        <button type="button" data-sector-view="sw_l3" onclick="switchMarketSectorView('sw_l3')"><span>申万三级</span><small>暂无</small></button>
+                                        <button type="button" data-sector-view="ths_industry" onclick="switchMarketSectorView('ths_industry')"><span>同花顺行业</span><small>暂无</small></button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="market-heatmap-grid" class="market-heatmap-grid">
+                                <div class="empty-state">等待板块数据...</div>
+                            </div>
+                        </section>
+
+                        <div class="market-overview-grid">
+                            <!-- Global News -->
+                            <div class="market-section news-section">
+                                <h4>全球热点新闻</h4>
+                                <ul id="market-global-news" class="news-list">
+                                    <li class="empty-state" data-i18n="dashboard.no_data">暂无新闻</li>
+                                </ul>
+                            </div>
+
+	                            <!-- Top Up Sectors -->
+	                            <div class="market-section sectors-up-section">
+	                                <div class="market-sector-header">
+	                                    <h4>上涨板块概念</h4>
+	                                </div>
+	                                <ul id="market-top-up-sectors" class="sector-list">
+	                                    <li class="empty-state" data-i18n="dashboard.no_data">暂无数据</li>
+	                                </ul>
+	                            </div>
+
+                            <!-- Top Down Sectors -->
+                            <div class="market-section sectors-down-section">
+                                <h4>下跌板块概念</h4>
+                                <ul id="market-top-down-sectors" class="sector-list">
+                                    <li class="empty-state" data-i18n="dashboard.no_data">暂无数据</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                </div>
+                <!-- /Tab: Market Overview -->
+
+                <!-- Tab: Live Monitor -->
+                <div class="dash-tab-panel" id="dash-panel-monitor">
+                <div class="live-monitor-board" id="live-monitor-board">
+                    <div class="monitor-status-strip" aria-label="实时监控摘要">
+                        <span class="monitor-status-item">
+                            <span>监听源</span>
+                            <strong class="ok" id="monitor-summary-sources">0 / 6</strong>
+                        </span>
+                        <span class="monitor-status-item">
+                            <span>今日新增</span>
+                            <strong id="monitor-summary-total">0</strong>
+                        </span>
+                        <span class="monitor-status-item">
+                            <span>最近抓取</span>
+                            <strong class="warn" id="monitor-summary-last">--</strong>
+                        </span>
+                        <span class="monitor-status-item">
+                            <span>来源</span>
+                            <strong id="monitor-summary-last-source">等待数据</strong>
+                        </span>
+                        <span class="monitor-status-item">
+                            <span>Worker</span>
+                            <strong class="ok" id="monitor-summary-workers">--</strong>
+                        </span>
+                        <span class="monitor-status-item">
+                            <span>失败</span>
+                            <strong class="bad" id="monitor-summary-failed">--</strong>
+                        </span>
+                    </div>
+
+                    <div class="live-monitor-grid">
+                        <aside class="monitor-panel monitor-source-panel" aria-label="数据源列表">
+                            <div class="monitor-panel-header">
+                                <h3>数据源</h3>
+                            </div>
+                            <div class="monitor-source-list" id="monitor-source-list">
+                                <button class="monitor-source-row active" type="button" data-monitor-source="all">
+                                    <span class="monitor-status-dot"></span>
+                                    <span class="monitor-source-main"><strong>全部来源</strong><small>统一事件流</small></span>
+                                    <span class="monitor-source-count">0</span>
+                                </button>
+                            </div>
+                        </aside>
+
+                        <section class="monitor-panel monitor-feed-panel" aria-label="事件列表">
+                            <div class="monitor-panel-header">
+                                <h3 id="monitor-feed-title">全部来源</h3>
+                            </div>
+                            <div class="monitor-feed-list" id="monitor-feed-list">
+                                <div class="empty-state">等待抓取数据...</div>
+                            </div>
+                        </section>
+
+                        <aside class="monitor-panel monitor-health-panel monitor-detail-panel" id="monitor-health-panel" aria-label="详情和系统健康">
+                            <div class="monitor-panel-header">
+                                <h3>详情 / 系统</h3>
+                            </div>
+                            <div class="monitor-detail-body">
+                                <div class="monitor-detail-tabs" aria-label="详情视图">
+                                    <button class="active" type="button" data-monitor-detail-tab="event">事件详情</button>
+                                    <button type="button" data-monitor-detail-tab="system">系统健康</button>
+                                </div>
+                                <section class="monitor-detail-view" id="monitor-event-detail" aria-label="选中事件详情">
+                                    <div class="monitor-event-detail-card">
+                                        <h4 id="monitor-detail-title">选择一条事件查看详情</h4>
+                                        <p id="monitor-detail-content">中间列表只保留标题，完整内容会在这里展开。</p>
+                                    </div>
+                                </section>
+                                <section class="monitor-detail-view hidden" id="monitor-system-detail" aria-label="系统健康详情">
+                                    <div class="monitor-health-body">
+                                        <div id="workers-panel" class="workers-panel">
+                                            <div class="empty-state">正在加载...</div>
+                                        </div>
+                                        <div id="workers-queue-stats" class="workers-queue-stats"></div>
+                                        <div class="proc-section-label">处理统计</div>
+                                        <div id="workers-processing-stats" class="workers-queue-stats"></div>
+                                    </div>
+                                </section>
+                            </div>
+                        </aside>
+                    </div>
+                </div>
+
+                <template id="legacy-live-monitor-template">
+                    <div class="crawl-feed-row legacy-live-monitor" style="grid-column: 1 / -1;">
+                        <div class="dashboard-card crawl-feed-card" data-source="cls">
+                            <div class="card-header"><h3><i class="codicon codicon-rss"></i> 财联社电报</h3></div>
+                            <ul class="crawl-feed-list"><li class="empty-state">等待抓取数据...</li></ul>
+                        </div>
+                        <div class="dashboard-card crawl-feed-card" data-source="cnstock_flash">
+                            <div class="card-header"><h3><i class="codicon codicon-rss"></i> 中国证券网快讯</h3></div>
+                            <ul class="crawl-feed-list"><li class="empty-state">等待抓取数据...</li></ul>
+                        </div>
+                        <div class="dashboard-card crawl-feed-card" data-source="cnstock">
+                            <div class="card-header"><h3><i class="codicon codicon-rss"></i> 中国证券网</h3></div>
+                            <ul class="crawl-feed-list"><li class="empty-state">等待抓取数据...</li></ul>
+                        </div>
+                        <div class="dashboard-card crawl-feed-card" data-source="zhiqiu_reports">
+                            <div class="card-header"><h3><i class="codicon codicon-rss"></i> 知丘研报</h3></div>
+                            <ul class="crawl-feed-list"><li class="empty-state">等待抓取数据...</li></ul>
+                        </div>
+                        <div class="dashboard-card crawl-feed-card" data-source="zhiqiu_wechat">
+                            <div class="card-header"><h3><i class="codicon codicon-rss"></i> 知丘公众号</h3></div>
+                            <ul class="crawl-feed-list"><li class="empty-state">等待抓取数据...</li></ul>
+                        </div>
+                        <div class="dashboard-card crawl-feed-card" data-source="zhiqiu_transcript">
+                            <div class="card-header"><h3><i class="codicon codicon-rss"></i> 知丘纪要</h3></div>
+                            <ul class="crawl-feed-list"><li class="empty-state">等待抓取数据...</li></ul>
+                        </div>
+                    </div>
+                </template>
+                </div>
+                <!-- /Tab: Live Monitor -->
+
+                <!-- Tab: Workbench -->
+            </section>
+
+            <!-- Asset Analysis Section -->
+            <section id="section-asset-analysis" class="content-section">
+                <h2 class="section-title" data-i18n="asset.title">资产分析</h2>
+                <div class="input-row asset-search-container">
+                    <div class="asset-search-wrapper">
+                        <input type="text" id="asset-code" data-i18n-placeholder="asset.code_placeholder" placeholder="代码/名称/简拼" autocomplete="off">
+                        <div id="asset-search-dropdown" class="search-dropdown hidden"></div>
+                    </div>
+                </div>
+                <div id="asset-loading" class="loading hidden">
+                    <div class="spinner"></div>
+                    <span data-i18n="asset.loading">正在分析资产...</span>
+                </div>
+                <div id="asset-result" class="result-area hidden">
+                    <!-- 基本信息卡片 -->
+                    <div class="card asset-basic-card">
+                        <div class="asset-header">
+                            <div class="asset-name-section">
+                                <h3 id="asset-name" class="asset-name">--</h3>
+                                <span id="asset-code-display" class="asset-code">--</span>
+                            </div>
+                            <div class="asset-price-section">
+                                <span id="asset-price" class="asset-price">--</span>
+                                <span id="asset-change" class="asset-change">--</span>
+                                <span id="asset-change-pct" class="asset-change-pct">--</span>
+                            </div>
+                        </div>
+                        <div class="asset-metrics-grid">
+                            <div class="metric-item">
+                                <span class="metric-label">成交量</span>
+                                <span id="asset-volume" class="metric-value">--</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">成交额</span>
+                                <span id="asset-amount" class="metric-value">--</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">换手率</span>
+                                <span id="asset-turnover" class="metric-value">--</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">市值</span>
+                                <span id="asset-market-cap" class="metric-value">--</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">52周最高</span>
+                                <span id="asset-high-52w" class="metric-value">--</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">52周最低</span>
+                                <span id="asset-low-52w" class="metric-value">--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Wind 风格 K线图 + 筹码分布 -->
+                    <div class="card kline-terminal-card">
+                        <div class="kline-terminal-toolbar">
+                            <div class="kline-period-group" aria-label="K线周期">
+                                <button class="kline-period-item" type="button" disabled>分时</button>
+                                <button class="kline-period-item" type="button" disabled>多日</button>
+                                <button class="kline-period-item active" type="button" data-period="D">日</button>
+                                <button class="kline-period-item" type="button" data-period="W">周</button>
+                                <button class="kline-period-item" type="button" data-period="M">月</button>
+                                <button class="kline-period-item" type="button" data-period="ALL">全部</button>
+                            </div>
+                            <div class="kline-ma-toggle-group" id="kline-ma-toggle-group" aria-label="均线开关">
+                                <button class="kline-btn active ma-mode" data-overlay="ma">MA均线</button>
+                                <button class="kline-btn boll" data-overlay="boll">BOLL布林带</button>
+                                <button class="kline-btn naked" data-overlay="none">裸K</button>
+                            </div>
+                        </div>
+                        <div class="kline-terminal-quote">
+                            <span><strong id="kline-quote-code">--</strong> <span id="kline-quote-name">--</span></span>
+                            <span id="kline-quote-date">--</span>
+                            <span>收 <strong id="kline-quote-close">--</strong></span>
+                            <span>幅 <strong id="kline-quote-change-pct">--</strong><strong id="kline-quote-change">(--)</strong></span>
+                            <span>开 <strong id="kline-quote-open">--</strong></span>
+                            <span>高 <strong id="kline-quote-high">--</strong></span>
+                            <span>低 <strong id="kline-quote-low">--</strong></span>
+                            <span>均 <strong id="kline-quote-avg">--</strong></span>
+                            <span>量 <strong id="kline-quote-volume">--</strong></span>
+                            <span>换 <strong id="kline-quote-turnover">--</strong></span>
+                            <span>振 <strong id="kline-quote-amplitude">--</strong></span>
+                            <span>额 <strong id="kline-quote-amount">--</strong></span>
+                        </div>
+                        <div class="kline-terminal-layout">
+                            <div class="kline-indicator-rail" aria-label="指标导航">
+                                <span class="active">K线图</span>
+                                <span>成交量</span>
+                                <span>MACD</span>
+                                <span>KDJ</span>
+                                <span>RSI</span>
+                            </div>
+                            <div id="chart-kline" class="kline-chart-area"></div>
+                            <div class="chip-distribution-sidebar">
+                                <div class="chip-sidebar-header">
+                                    <h4>普通筹码</h4>
+                                    <span class="chip-window-label">--</span>
+                                </div>
+                                <div id="chart-chip-distribution" class="chip-chart-area"></div>
+                                <div class="chip-sidebar-stats" id="chip-stats">
+                                    <div class="chip-stat-item chip-stat-peak">
+                                        <span class="chip-stat-label">筹码峰</span>
+                                        <span id="chip-peak-price" class="chip-stat-value">--</span>
+                                    </div>
+                                    <div class="chip-stat-item">
+                                        <span class="chip-stat-label">上边界</span>
+                                        <span id="chip-peak-upper" class="chip-stat-value">--</span>
+                                    </div>
+                                    <div class="chip-stat-item">
+                                        <span class="chip-stat-label">下边界</span>
+                                        <span id="chip-peak-lower" class="chip-stat-value">--</span>
+                                    </div>
+                                    <div class="chip-stat-item">
+                                        <span class="chip-stat-label">均本</span>
+                                        <span id="chip-avg-cost" class="chip-stat-value">--</span>
+                                    </div>
+                                    <div class="chip-stat-item">
+                                        <span class="chip-stat-label">获利</span>
+                                        <span id="chip-profit-ratio" class="chip-stat-value">--</span>
+                                    </div>
+                                    <div class="chip-stat-item">
+                                        <span class="chip-stat-label">套牢</span>
+                                        <span id="chip-loss-ratio" class="chip-stat-value">--</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 资金流向卡片 -->
+                    <div class="card capital-flow-card">
+                        <h3>资金流向</h3>
+                        <div class="capital-flow-layout">
+                            <div class="capital-flow-pie">
+                                <canvas id="chart-capital-flow"></canvas>
+                            </div>
+                            <div class="capital-flow-details" id="capital-flow-details">
+                                <!-- 资金流向详情 -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 多 Agent 委员会 -->
+                    <div class="card asset-agent-committee-card" id="asset-agent-committee-card">
+                        <div class="asset-agent-committee-header">
+                            <h3><i class="codicon codicon-comment-discussion"></i> 多 Agent 委员会</h3>
+                            <span id="asset-agent-committee-status" class="agent-committee-status">等待分析</span>
+                        </div>
+                        <div id="asset-agent-committee-summary" class="agent-committee-summary">
+                            <div class="empty-state">等待资产分析完成...</div>
+                        </div>
+                        <div id="asset-agent-committee-views" class="agent-committee-view-grid"></div>
+                    </div>
+
+                    <!-- 5面板核心数据卡片 -->
+                    <div class="asset-five-panels">
+                        <!-- 财务面板 -->
+                        <div class="card panel-card">
+                            <div class="panel-header">
+                                <h4>财务</h4>
+                            </div>
+                            <div id="financial-panel" class="panel-content">
+                                <div class="panel-grid">
+                                    <div class="panel-item">
+                                        <span class="panel-label">PE-TTM</span>
+                                        <span id="fin-pe" class="panel-value">--</span>
+                                    </div>
+                                    <div class="panel-item">
+                                        <span class="panel-label">PB-MRQ</span>
+                                        <span id="fin-pb" class="panel-value">--</span>
+                                    </div>
+                                    <div class="panel-item">
+                                        <span class="panel-label">ROE</span>
+                                        <span id="fin-roe" class="panel-value">--</span>
+                                    </div>
+                                    <div class="panel-item">
+                                        <span class="panel-label">营收</span>
+                                        <span id="fin-revenue" class="panel-value">--</span>
+                                    </div>
+                                    <div class="panel-item">
+                                        <span class="panel-label">净利润</span>
+                                        <span id="fin-net-profit" class="panel-value">--</span>
+                                    </div>
+                                    <div class="panel-item">
+                                        <span class="panel-label">毛利率</span>
+                                        <span id="fin-gross-margin" class="panel-value">--</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 股东面板 -->
+                        <div class="card panel-card">
+                            <div class="panel-header">
+                                <h4>前十大股东</h4>
+                            </div>
+                            <div id="shareholder-panel" class="panel-content">
+                                <div class="shareholder-list" id="shareholder-list">
+                                    <!-- 股东列表 -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 行业面板 -->
+                        <div class="card panel-card">
+                            <div class="panel-header">
+                                <h4>行业</h4>
+                            </div>
+                            <div id="industry-panel" class="panel-content">
+                                <div class="industry-info" id="industry-info-detail">
+                                    <!-- 行业信息 -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 事件面板 -->
+                        <div class="card panel-card">
+                            <div class="panel-header">
+                                <h4>相关事件</h4>
+                            </div>
+                            <div id="events-panel" class="panel-content">
+                                <div class="event-list-panel" id="event-list-panel">
+                                    <!-- 事件列表 -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 宏观面板 -->
+                        <div class="card panel-card">
+                            <div class="panel-header">
+                                <h4>宏观</h4>
+                            </div>
+                            <div id="macro-panel" class="panel-content">
+                                <div class="macro-sensitivity" id="macro-sensitivity-detail">
+                                    <!-- 宏观敏感性分析 -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Scenario Analysis Section -->
+            <section id="section-scenario" class="content-section">
+                <h2 class="section-title" data-i18n="scenario.title">情景分析</h2>
+                <div class="input-row">
+                    <input type="text" id="scenario-topic" data-i18n-placeholder="scenario.topic_placeholder" placeholder="输入研究主题，如 人工智能产业发展" style="flex:2">
+                    <input type="text" id="scenario-subjects" data-i18n-placeholder="scenario.subjects_placeholder" placeholder="关联标的（可选，逗号分隔）">
+                    <button id="btn-generate-scenarios" class="btn-primary" data-i18n="scenario.btn_generate">生成情景</button>
+                </div>
+                <div id="scenario-loading" class="loading hidden">
+                    <div class="spinner"></div>
+                    <span data-i18n="scenario.loading">正在生成情景分析...</span>
+                </div>
+                <div id="scenario-result" class="result-area hidden">
+                    <div class="card">
+                        <h3 data-i18n="scenario.prob_chart">情景概率分布</h3>
+                        <canvas id="chart-scenario-prob" style="max-height:300px"></canvas>
+                        <div id="normalization-check" class="check-indicator"></div>
+                    </div>
+                    <div id="scenario-cards" class="card-stack"></div>
+                    <div class="card">
+                        <h3 data-i18n="scenario.residual">残余不确定性</h3>
+                        <ul id="residual-list" class="event-list"></ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Event Signal Section -->
+            <section id="section-event-signal" class="content-section">
+                <h2 class="section-title" data-i18n="event.title">事件信号</h2>
+                <div class="card">
+                    <h3 data-i18n="event.trigger">触发事件信号</h3>
+                    <div class="form-grid">
+                        <div class="form-field">
+                            <label data-i18n="event.event_title">事件标题</label>
+                            <input type="text" id="event-title" data-i18n-placeholder="event.event_title_placeholder" placeholder="事件标题">
+                        </div>
+                        <div class="form-field">
+                            <label data-i18n="event.event_type">事件类型</label>
+                            <select id="event-type">
+                                <option value="earnings" data-i18n="event.type_earnings">财报</option>
+                                <option value="policy" data-i18n="event.type_policy">政策</option>
+                                <option value="product" data-i18n="event.type_product">产品</option>
+                                <option value="other" data-i18n="event.type_other">其他</option>
+                            </select>
+                        </div>
+                        <div class="form-field">
+                            <label data-i18n="event.event_date">时间</label>
+                            <input type="date" id="event-date">
+                        </div>
+                        <div class="form-field form-action">
+                            <button id="btn-generate-event-signal" class="btn-primary" data-i18n="event.btn_generate">生成信号</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="event-signal-list" class="card">
+                    <h3 data-i18n="event.signal_list">事件信号列表</h3>
+                    <div id="signal-cards" class="signal-card-list"></div>
+                </div>
+                <div id="timing-decision-container" class="card hidden">
+                    <h3 data-i18n="event.timing_decision">⏰ 择时决策</h3>
+                    <div id="timing-decision-card" class="timing-decision"></div>
+                </div>
+            </section>
+
+            <!-- Industry Chain Section -->
+            <section id="section-industry-chain" class="content-section">
+                <h2 class="section-title" data-i18n="industry.title">产业链图谱</h2>
+                <div class="input-row">
+                    <select id="industry-select">
+                        <option value="semiconductor" data-i18n="industry.semiconductor">半导体</option>
+                        <option value="new-energy" data-i18n="industry.new_energy">新能源</option>
+                        <option value="automotive" data-i18n="industry.automotive">汽车</option>
+                        <option value="consumption" data-i18n="industry.consumption">消费</option>
+                    </select>
+                    <button id="btn-load-industry" class="btn-primary" data-i18n="industry.btn_load">加载图谱</button>
+                </div>
+                <div id="industry-graph" class="card graph-container"></div>
+                <div class="card">
+                    <h3 data-i18n="industry.propagation">事件传播路径</h3>
+                    <input type="text" id="event-id" data-i18n-placeholder="industry.event_id_placeholder" placeholder="输入事件 ID">
+                    <button id="btn-load-propagation" class="btn-primary" data-i18n="industry.btn_propagation">查看传播路径</button>
+                    <div id="propagation-graph" class="graph-container"></div>
+                </div>
+            </section>
+
+            <!-- Review Section -->
+            <section id="section-review" class="content-section">
+                <h2 class="section-title" data-i18n="review.title">审核队列</h2>
+                <div id="review-stats" class="card-row"></div>
+                <div class="card">
+                    <div class="card-header">
+                        <h3 data-i18n="review.pending">待审核断言</h3>
+                        <button id="btn-refresh-review" class="btn-secondary" data-i18n="review.btn_refresh">刷新</button>
+                    </div>
+                    <div id="review-table" class="data-table-wrap"></div>
+                </div>
+            </section>
+
+            <!-- Signals Section -->
+            <section id="section-signals" class="content-section">
+                <h2 class="section-title" data-i18n="signals.title">信号管理</h2>
+                <div class="card">
+                    <div class="card-header">
+                        <h3 data-i18n="signals.create">创建新信号</h3>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-field">
+                            <label data-i18n="signals.subject_id">主体 ID</label>
+                            <input type="text" id="sig-subject-id" value="600000.SH" data-i18n-placeholder="signals.subject_id_placeholder" placeholder="如 600000.SH">
+                        </div>
+                        <div class="form-field">
+                            <label data-i18n="signals.thesis">论点</label>
+                            <input type="text" id="sig-thesis" data-i18n-placeholder="signals.thesis_placeholder" placeholder="如 短期看涨">
+                        </div>
+                        <div class="form-field">
+                            <label data-i18n="signals.score">分数 (0~1)</label>
+                            <input type="number" id="sig-score" value="0.5" min="0" max="1" step="0.1">
+                        </div>
+                        <div class="form-field">
+                            <label data-i18n="signals.confidence">置信度 (0~1)</label>
+                            <input type="number" id="sig-confidence" value="0.5" min="0" max="1" step="0.1">
+                        </div>
+                        <div class="form-field">
+                            <label data-i18n="signals.horizon">预测期</label>
+                            <select id="sig-horizon">
+                                <option value="1d" data-i18n="signals.horizon_1d">1天</option>
+                                <option value="5d" data-i18n="signals.horizon_5d">5天</option>
+                                <option value="20d" selected data-i18n="signals.horizon_20d">20天</option>
+                                <option value="60d" data-i18n="signals.horizon_60d">60天</option>
+                            </select>
+                        </div>
+                        <div class="form-field form-action">
+                            <button id="btn-create-signal" class="btn-primary" data-i18n="signals.btn_create">创建信号</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <h3 data-i18n="signals.list">信号列表</h3>
+                        <button id="btn-refresh-signals" class="btn-secondary" data-i18n="signals.btn_refresh">刷新</button>
+                    </div>
+                    <div id="signals-table" class="data-table-wrap"></div>
+                </div>
+            </section>
+
+            <!-- Outcomes Section -->
+            <section id="section-outcomes" class="content-section">
+                <h2 class="section-title">回测结果</h2>
+                <div class="card">
+                    <div class="card-header">
+                        <h3>回测结果列表</h3>
+                        <div class="filter-row">
+                            <select id="outcome-event-type-filter">
+                                <option value="">全部事件类型</option>
+                                <option value="earnings">财报</option>
+                                <option value="policy">政策</option>
+                                <option value="industry">行业</option>
+                            </select>
+                            <button id="btn-refresh-outcomes" class="btn-secondary">刷新</button>
+                        </div>
+                    </div>
+                    <div id="outcomes-table" class="data-table-wrap"></div>
+                </div>
+            </section>
+
+            <!-- Pipeline Monitor Section -->
+            <section id="section-pipeline-monitor" class="content-section">
+                <h2 class="section-title">管线监控</h2>
+                <div id="pipeline-monitor-content"></div>
+            </section>
+
+            <!-- Ingest Section -->
+            <section id="section-ingest" class="content-section">
+                <h2 class="section-title" data-i18n="ingest.title">文档摄入</h2>
+                <div class="card">
+                    <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+                        <div class="form-field" style="grid-column: 1 / -1;">
+                            <label data-i18n="ingest.text_label">文本内容</label>
+                            <textarea id="ingest-text" rows="8" data-i18n-placeholder="ingest.text_placeholder" placeholder="粘贴研报摘要、新闻内容等..."></textarea>
+                        </div>
+                        <div class="form-field">
+                            <label data-i18n="ingest.source_type">来源类型</label>
+                            <select id="ingest-source-type">
+                                <option value="report" data-i18n="ingest.source_report">研报</option>
+                                <option value="news" data-i18n="ingest.source_news">新闻</option>
+                                <option value="filing" data-i18n="ingest.source_filing">公告</option>
+                                <option value="other" data-i18n="ingest.source_other">其他</option>
+                            </select>
+                        </div>
+                        <div class="form-field">
+                            <label data-i18n="ingest.source_name">来源名称</label>
+                            <input type="text" id="ingest-source-name" data-i18n-placeholder="ingest.source_name_placeholder" placeholder="如 中金研报">
+                        </div>
+                        <div class="form-field" style="grid-column: 1 / -1;">
+                            <label data-i18n="ingest.doc_title">标题（可选）</label>
+                            <input type="text" id="ingest-title" data-i18n-placeholder="ingest.doc_title_placeholder" placeholder="文档标题">
+                        </div>
+                        <div class="form-field" style="grid-column: 1 / -1; text-align: right;">
+                            <button id="btn-ingest" class="btn-primary" data-i18n="ingest.btn_ingest">摄入</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="ingest-loading" class="loading hidden">
+                    <div class="spinner"></div>
+                    <span data-i18n="ingest.loading">正在摄入文档...</span>
+                </div>
+                <div id="ingest-result" class="result-area hidden"></div>
+            </section>
+
+            <!-- Signal Lab Section -->
+            <section id="section-signal-lab" class="content-section">
+                <h2 class="section-title">Signal Lab — 信号研究实验室</h2>
+
+                <!-- Summary Cards -->
+                <div class="card-row" id="signal-lab-summary">
+                    <div class="summary-card">
+                        <div class="summary-label">信号总数</div>
+                        <div class="summary-value" id="sl-signals-count">-</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-label">回测次数</div>
+                        <div class="summary-value" id="sl-backtests-count">-</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-label">特征数量</div>
+                        <div class="summary-value" id="sl-features-count">-</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-label">特征组数量</div>
+                        <div class="summary-value" id="sl-groups-count">-</div>
+                    </div>
+                </div>
+
+                <!-- Tabs -->
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="features">特征工程</button>
+                    <button class="tab-btn" data-tab="labels">标签生成</button>
+                    <button class="tab-btn" data-tab="scorers">信号评分</button>
+                    <button class="tab-btn" data-tab="backtests">回测分析</button>
+                </div>
+
+                <!-- Features Panel -->
+                <div id="tab-features" class="tab-panel active">
+                    <div class="card">
+                        <h3>特征组</h3>
+                        <div id="feature-groups-list" class="feature-groups-grid"></div>
+                    </div>
+                    <div class="card">
+                        <h3>计算特征</h3>
+                        <div class="input-row">
+                            <input type="text" id="sl-subject-id" value="600519.SH" placeholder="标的代码，如 600519.SH">
+                            <select id="sl-feature-group">
+                                <option value="">全部特征组</option>
+                            </select>
+                            <button id="btn-compute-features" class="btn-primary">计算特征</button>
+                        </div>
+                        <div id="sl-features-loading" class="loading hidden">
+                            <div class="spinner"></div>
+                            <span>正在计算特征...</span>
+                        </div>
+                        <div id="sl-features-result" class="result-area hidden">
+                            <h4>特征结果</h4>
+                            <div id="sl-features-table"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Labels Panel -->
+                <div id="tab-labels" class="tab-panel hidden">
+                    <div class="card">
+                        <h3>标签类型</h3>
+                        <div id="label-types-list" class="label-types-list"></div>
+                    </div>
+                    <div class="card">
+                        <h3>计算标签</h3>
+                        <div class="input-row">
+                            <input type="text" id="sl-label-subject" value="600519.SH" placeholder="标的代码">
+                            <select id="sl-label-type">
+                                <option value="relative_return">相对收益</option>
+                                <option value="event_driven">事件驱动</option>
+                            </select>
+                            <input type="number" id="sl-label-horizon" value="20" min="1" max="120" placeholder="预测周期">
+                            <button id="btn-compute-labels" class="btn-primary">计算标签</button>
+                        </div>
+                        <div id="sl-labels-loading" class="loading hidden">
+                            <div class="spinner"></div>
+                            <span>正在计算标签...</span>
+                        </div>
+                        <div id="sl-labels-result" class="result-area hidden">
+                            <h4>标签结果</h4>
+                            <div id="sl-labels-table"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Scorers Panel -->
+                <div id="tab-scorers" class="tab-panel hidden">
+                    <div class="card">
+                        <h3>评分器类型</h3>
+                        <div id="scorers-list" class="scorers-grid"></div>
+                    </div>
+                </div>
+
+                <!-- Backtests Panel -->
+                <div id="tab-backtests" class="tab-panel hidden">
+                    <div class="card">
+                        <h3>运行回测</h3>
+                        <div class="input-row">
+                            <input type="text" id="sl-backtest-signals" placeholder="信号ID，逗号分隔（留空则回测所有未回测信号）">
+                            <input type="number" id="sl-initial-capital" value="1000000" min="10000" placeholder="初始资金">
+                            <button id="btn-run-backtests" class="btn-primary">运行回测</button>
+                        </div>
+                        <div id="sl-backtests-loading" class="loading hidden">
+                            <div class="spinner"></div>
+                            <span>正在运行回测...</span>
+                        </div>
+                        <div id="sl-backtests-result" class="result-area hidden">
+                            <h4>回测结果</h4>
+                            <div id="sl-backtests-table"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Memory & Learning Section -->
+            <section id="section-memory" class="content-section">
+                <h2 class="section-title" data-i18n="memory.title">记忆与学习</h2>
+
+                <!-- Event Type Summary Cards -->
+                <div class="card">
+                    <h3 data-i18n="memory.event_type_summary">事件类型汇总</h3>
+                    <div class="input-row">
+                        <input type="text" id="event-type-summary" data-i18n-placeholder="memory.event_type_placeholder" placeholder="输入事件类型，比如 earnings">
+                        <button id="btn-event-summary" class="btn-primary" data-i18n="memory.btn_query">查询</button>
+                    </div>
+                    <div id="event-summary-cards" class="card-row"></div>
+                </div>
+
+                <!-- Strategy Performance Memory -->
+                <div class="card">
+                    <h3 data-i18n="memory.strategy_performance">策略表现记忆</h3>
+                    <div class="input-row">
+                        <input type="text" id="strategy-id" data-i18n-placeholder="memory.strategy_id_placeholder" placeholder="策略 ID">
+                        <button id="btn-load-strategy" class="btn-primary" data-i18n="memory.btn_load_strategy">加载策略表现</button>
+                    </div>
+                    <div id="strategy-memory-list" class="strategy-memory-list"></div>
+                </div>
+
+                <!-- Failure Memory -->
+                <div class="card">
+                    <h3 data-i18n="memory.failure_memory">失败记忆</h3>
+                    <div class="filter-row" style="margin-bottom: 1rem;">
+                        <select id="failure-type-filter">
+                            <option value="" data-i18n="memory.failure_all">全部</option>
+                            <option value="wrong_thesis" data-i18n="memory.failure_wrong_thesis">论点错误</option>
+                            <option value="timing_error" data-i18n="memory.failure_timing_error">择时错误</option>
+                            <option value="crowding_error" data-i18n="memory.failure_crowding_error">拥挤错误</option>
+                            <option value="regime_misread" data-i18n="memory.failure_regime_misread">环境误判</option>
+                            <option value="data_quality" data-i18n="memory.failure_data_quality">数据质量</option>
+                            <option value="execution_error" data-i18n="memory.failure_execution_error">执行错误</option>
+                            <option value="risk_error" data-i18n="memory.failure_risk_error">风控错误</option>
+                            <option value="unknown" data-i18n="memory.failure_unknown">未知</option>
+                        </select>
+                        <input type="text" id="failure-source-filter" data-i18n-placeholder="memory.failure_source_filter" placeholder="来源 ID 筛选">
+                        <button id="btn-load-failures" class="btn-secondary" data-i18n="review.btn_refresh">刷新</button>
+                    </div>
+                    <div id="failure-memory-list" class="failure-memory-list"></div>
+                </div>
+            </section>
+
+            <!-- Fund Intelligence Section -->
+            <section id="section-funds" class="content-section">
+                <h2 class="section-title">基金情报</h2>
+
+                <div class="card fund-command-card">
+                    <div class="card-header">
+                        <h3><i class="codicon codicon-library"></i> 基金穿透工作台</h3>
+                        <div class="card-header-actions">
+                            <span id="fund-status-badge" class="badge badge-warning">等待查询</span>
+                        </div>
+                    </div>
+                    <div class="input-row fund-query-row">
+                        <input type="text" id="fund-symbol" value="000001.OF" placeholder="基金代码，如 000001.OF">
+                        <button id="btn-load-fund" class="btn-primary"><i class="codicon codicon-search"></i> 查询</button>
+                    </div>
+                </div>
+
+                <div id="fund-loading" class="loading hidden">
+                    <div class="spinner"></div>
+                    <span>正在加载基金情报...</span>
+                </div>
+
+                <div id="fund-result" class="result-area hidden">
+                    <div class="card fund-identity-card">
+                        <div class="fund-identity-main">
+                            <div>
+                                <h3 id="fund-name">--</h3>
+                                <span id="fund-symbol-display" class="fund-symbol-chip">--</span>
+                            </div>
+                            <div class="fund-meta-line">
+                                <span id="fund-type">--</span>
+                                <span id="fund-company">--</span>
+                                <span id="fund-benchmark">--</span>
+                            </div>
+                        </div>
+                        <div class="fund-metrics-grid">
+                            <div class="metric-item">
+                                <span class="metric-label">最新净值</span>
+                                <span id="fund-unit-nav" class="metric-value">--</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">累计净值</span>
+                                <span id="fund-acc-nav" class="metric-value">--</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">总收益</span>
+                                <span id="fund-total-return" class="metric-value">--</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">最大回撤</span>
+                                <span id="fund-max-drawdown" class="metric-value">--</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">年化波动</span>
+                                <span id="fund-volatility" class="metric-value">--</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">胜率</span>
+                                <span id="fund-win-rate" class="metric-value">--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="fund-grid">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>基金经理</h3>
+                            </div>
+                            <div id="fund-managers" class="fund-list"></div>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>行业暴露</h3>
+                            </div>
+                            <div id="fund-industry-exposure" class="fund-exposure-list"></div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>最新披露持仓</h3>
+                        </div>
+                        <div id="fund-holdings-table" class="data-table-wrap"></div>
+                    </div>
+                </div>
+
+                <div class="fund-grid">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>组合穿透</h3>
+                        </div>
+                        <textarea id="fund-portfolio-input" rows="5" placeholder='{"000001.OF": 0.6, "000002.OF": 0.4}'></textarea>
+                        <div class="fund-action-row">
+                            <button id="btn-calc-fund-portfolio" class="btn-primary"><i class="codicon codicon-symbol-operator"></i> 计算</button>
+                        </div>
+                        <div id="fund-portfolio-result" class="fund-exposure-list"></div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>结构化导入</h3>
+                        </div>
+                        <div class="form-grid fund-ingest-grid">
+                            <div class="form-field">
+                                <label>数据集</label>
+                                <select id="fund-ingest-dataset">
+                                    <option value="master">主数据</option>
+                                    <option value="nav">净值</option>
+                                    <option value="holdings">持仓</option>
+                                    <option value="managers">经理</option>
+                                </select>
+                            </div>
+                            <div class="form-field">
+                                <label>来源</label>
+                                <input type="text" id="fund-ingest-source" value="web">
+                            </div>
+                            <div class="form-field fund-ingest-rows-field">
+                                <label>Rows JSON</label>
+                                <textarea id="fund-ingest-rows" rows="5" placeholder='[{"symbol":"000001.OF","name":"示例基金"}]'></textarea>
+                            </div>
+                        </div>
+                        <div class="fund-action-row">
+                            <button id="btn-ingest-fund-rows" class="btn-secondary"><i class="codicon codicon-cloud-upload"></i> 导入</button>
+                        </div>
+                        <div id="fund-ingest-result" class="fund-ingest-result"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Wind Data Section -->
+            <section id="section-wind" class="content-section">
+                <h2 class="section-title">Wind 专业数据</h2>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Wind Excel 数据查询</h3>
+                        <div class="card-header-actions">
+                            <span id="wind-health-badge" class="badge badge-warning">检查中...</span>
+                        </div>
+                    </div>
+
+                    <div class="input-row">
+                        <input type="text" id="wind-stock-code" value="600519.SH"
+                               placeholder="股票代码，多个用逗号分隔" style="flex:2">
+                        <select id="wind-data-type">
+                            <option value="consensus">一致预期</option>
+                            <option value="margin_trading">融资融券</option>
+                            <option value="block_trades">龙虎榜</option>
+                            <option value="prices">日行情</option>
+                            <option value="financials">财务数据</option>
+                            <option value="fund_flow">资金流向</option>
+                            <option value="industry">行业分类</option>
+                            <option value="holders">持有人结构</option>
+                        </select>
+                        <input type="date" id="wind-start-date" title="开始日期">
+                        <input type="date" id="wind-end-date" title="结束日期/报告期">
+                        <button id="btn-wind-fetch" class="btn-primary">查询</button>
+                    </div>
+
+                    <div id="wind-loading" class="loading hidden">
+                        <div class="spinner"></div>
+                        <span>正在通过 Excel Wind 插件获取数据...</span>
+                    </div>
+                    <div id="wind-result" class="result-area hidden">
+                        <div id="wind-table"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Templates Section -->
+            <section id="section-templates" class="content-section">
+                <!-- Templates List View (Default) - iPhone Style -->
+                <div id="templates-list-view">
+                    <!-- iPhone Style Top Bar -->
+                    <div class="iphone-top-bar">
+                        <h2 class="iphone-title">模板</h2>
+                        <div class="iphone-nav-buttons">
+                            <button id="btn-new-template" class="iphone-nav-btn iphone-upload-btn" onclick="openUploadModal()"><i class="codicon codicon-cloud-upload"></i> 上传</button>
+                            <button id="btn-edit-templates" class="iphone-nav-btn" onclick="toggleEditMode()">编辑</button>
+                            <button id="btn-save-templates-order" class="iphone-nav-btn hidden" onclick="saveTemplatesOrder()">完成</button>
+                        </div>
+                    </div>
+
+                    <!-- Templates Grid - iPhone App Style -->
+                    <div id="templates-grid" class="iphone-templates-grid"></div>
+                </div>
+
+                <!-- Template Detail View (Hidden by default) -->
+                <div id="template-detail-view" class="hidden">
+                    <div class="section-header template-detail-nav">
+                        <button id="btn-back-to-templates" class="btn-secondary" onclick="goBackToTemplates()"><i class="codicon codicon-arrow-left"></i> 返回模板列表</button>
+                    </div>
+
+                    <div class="template-detail-content">
+                        <!-- Report Template Workbench -->
+                        <div class="template-workbench" id="template-workbench-summary">
+                            <!-- Weekly Report Generation Center -->
+                            <div class="template-generation-center" id="template-generation-center">
+                                <div class="template-detail-mode-tabs" role="tablist" aria-label="模板详情视图">
+                                    <button class="template-detail-mode-btn active" type="button" data-template-detail-mode="generation">生成</button>
+                                    <button class="template-detail-mode-btn" type="button" data-template-detail-mode="config">配置</button>
+                                    <button class="template-detail-mode-btn" type="button" data-template-detail-mode="preview">预览</button>
+                                </div>
+
+                                <div class="template-generation-overview template-detail-mode-panel" id="template-generation-overview" data-template-detail-panel="generation">
+                                    <section class="template-generation-hero">
+                                        <div class="template-generation-copy">
+                                            <div class="template-generation-title-row">
+                                                <p class="eyebrow">周报生成</p>
+                                                <span id="template-generation-health" class="template-generation-health pending">待检查</span>
+                                            </div>
+                                            <h3 id="template-generation-title">生成本周报告</h3>
+                                            <div class="template-generation-meta">
+                                                <span id="template-generation-period">报告周期待加载</span>
+                                                <span id="template-generation-lookback">证据检索 7 天</span>
+                                                <span id="template-generation-placeholder-total">0 个占位符</span>
+                                            </div>
+                                        </div>
+                                        <div class="template-generation-actions">
+                                            <button id="btn-template-generate-report" class="btn-primary"><i class="codicon codicon-play"></i> 生成报告</button>
+                                            <small id="template-generation-action-hint">生成报告后在生成记录中选择文件并操作</small>
+                                        </div>
+                                    </section>
+
+                                    <section class="template-generation-workflow" id="template-generation-workflow">
+                                        <div class="template-generation-flow-panel">
+                                            <div class="panel-title-row">
+                                                <h4>实时流程</h4>
+                                                <span id="template-generation-progress-label" class="text-muted">等待生成</span>
+                                            </div>
+                                            <div class="template-generation-flow-list" id="template-generation-flow-list">
+                                                <div class="template-generation-flow-step" data-generation-flow-step="check">
+                                                    <span class="step-index">1</span>
+                                                    <div><strong>准备模板资产</strong><small>Word 模板、Excel 底稿、section 配置</small></div>
+                                                    <em>等待</em>
+                                                </div>
+                                                <div class="template-generation-flow-step" data-generation-flow-step="mapping">
+                                                    <span class="step-index">2</span>
+                                                    <div><strong>读取底稿映射</strong><small id="template-generation-data-summary">Word、Excel、配套数据待检查</small></div>
+                                                    <em>等待</em>
+                                                </div>
+                                                <div class="template-generation-flow-step" data-generation-flow-step="evidence">
+                                                    <span class="step-index">3</span>
+                                                    <div><strong>检索证据与新闻</strong><small id="template-generation-content-summary">段落和 Prompt 待检查</small></div>
+                                                    <em>等待</em>
+                                                </div>
+                                                <div class="template-generation-flow-step active" data-generation-flow-step="generate">
+                                                    <span class="step-index">4</span>
+                                                    <div><strong>生成段落内容</strong><small id="template-generation-current-step-summary">当前：等待启动</small></div>
+                                                    <em>当前</em>
+                                                </div>
+                                                <div class="template-generation-flow-step" data-generation-flow-step="write">
+                                                    <span class="step-index">5</span>
+                                                    <div><strong>渲染 Word 文档</strong><small>替换占位符、插入图表和表格</small></div>
+                                                    <em>等待</em>
+                                                </div>
+                                                <div class="template-generation-flow-step" data-generation-flow-step="refresh">
+                                                    <span class="step-index">6</span>
+                                                    <div><strong>完成输出</strong><small id="template-generation-output-summary">生成后可预览和下载</small></div>
+                                                    <em>等待</em>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="template-workbench-panel" id="template-recent-generation-panel">
+                                            <div class="panel-title-row">
+                                                <h4>生成记录</h4>
+                                                <span id="template-recent-generation-status" class="badge">尚未生成</span>
+                                            </div>
+                                            <div class="template-generation-file-actions" aria-label="当前选中文件操作">
+                                                <button type="button" class="btn-secondary" data-template-report-action="preview" disabled><i class="codicon codicon-open-preview"></i> 预览</button>
+                                                <button type="button" class="btn-secondary" data-template-report-action="folder" disabled><i class="codicon codicon-folder-opened"></i> 打开文件夹</button>
+                                                <a class="btn-secondary disabled" href="#" target="_blank" aria-disabled="true" data-template-report-action="download"><i class="codicon codicon-cloud-download"></i> 下载</a>
+                                            </div>
+                                            <div id="template-recent-generation-card" class="template-recent-generation-card">
+                                                <div class="empty-state compact">生成报告后显示历史版本，选中文件后可预览、打开文件夹或下载。</div>
+                                            </div>
+                                        </div>
+                                    </section>
+                                </div>
+
+                                <details class="template-advanced-maintenance template-detail-mode-panel" id="template-advanced-maintenance" data-template-detail-panel="config" open>
+                                    <summary>
+                                        <span><i class="codicon codicon-tools"></i> 参数配置</span>
+                                        <small>段落、共用约束和生成参数</small>
+                                    </summary>
+                                        <section class="template-generation-hero template-config-hero">
+                                            <div class="template-generation-copy">
+                                                <div class="template-generation-title-row">
+                                                    <p class="eyebrow">周报生成</p>
+                                                    <span id="template-config-health" class="template-generation-health pending">待检查</span>
+                                                </div>
+                                                <h3 id="template-config-title">配置本周报告</h3>
+                                                <div class="template-generation-meta">
+                                                    <span id="template-config-period">报告周期待加载</span>
+                                                    <span id="template-config-lookback">证据检索 7 天</span>
+                                                    <span id="template-config-placeholder-total">0 个占位符</span>
+                                                </div>
+                                            </div>
+                                            <div class="template-generation-actions template-config-hero-actions">
+                                                <button id="btn-template-config-save-placeholder" class="btn-secondary" type="button"><i class="codicon codicon-save"></i> 保存当前占位符</button>
+                                                <button id="btn-template-config-advanced" class="btn-secondary" type="button"><i class="codicon codicon-settings-gear"></i> 高级配置</button>
+                                                <button id="btn-template-config-save-common" class="btn-primary" type="button"><i class="codicon codicon-save"></i> 保存共用参数</button>
+                                            </div>
+                                        </section>
+                                        <div class="template-workbench-main-grid template-config-grid">
+                                            <div class="template-workbench-left template-config-rail">
+                                                <div class="template-workbench-panel template-config-common-panel">
+                                                    <div id="template-common-rules" class="template-common-rules">
+                                                        <div class="empty-state compact">选择模板后显示共用参数</div>
+                                                    </div>
+                                                </div>
+                                                <details class="template-workbench-panel template-project-check-panel" id="template-project-check-details" open>
+                                                    <summary>
+                                                        <span><i class="codicon codicon-checklist"></i> 生成检查</span>
+                                                        <small id="template-project-check-summary">素材、数据和生成规则</small>
+                                                        <strong id="template-project-check-status" class="badge">待加载</strong>
+                                                    </summary>
+                                                    <div class="template-project-check-body" id="template-generation-readiness-panel">
+                                                        <div class="template-project-check-section">
+                                                            <div class="panel-title-row compact">
+                                                                <h4>模板资产</h4>
+                                                                <span id="template-asset-status" class="badge">待加载</span>
+                                                            </div>
+                                                            <div id="template-asset-checklist" class="template-asset-checklist">
+                                                                <div class="asset-check-item"><i class="codicon codicon-file-code"></i><span>Word 模板</span><strong>未确认</strong></div>
+                                                                <div class="asset-check-item"><i class="codicon codicon-table"></i><span>主 Excel 底稿</span><strong>未确认</strong></div>
+                                                                <div class="asset-check-item"><i class="codicon codicon-settings-gear"></i><span>Section 配置</span><strong>未确认</strong></div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="template-project-check-section">
+                                                            <div class="panel-title-row compact">
+                                                                <h4>Excel 底稿映射</h4>
+                                                                <span class="text-muted">数据槽 / 图表 / 表格</span>
+                                                            </div>
+                                                            <div id="template-excel-mapping" class="template-mapping-table">
+                                                                <div class="empty-state compact">绑定 Excel 后显示数据来源</div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="template-project-check-section" id="template-validation-preview">
+                                                            <div class="panel-title-row compact">
+                                                                <h4>生成预检</h4>
+                                                                <span id="template-validation-status" class="badge">未运行</span>
+                                                            </div>
+                                                            <div id="template-validation-list" class="template-validation-list">
+                                                                <div class="validation-item pending"><i class="codicon codicon-circle-outline"></i><span>Word 占位符均有 section 映射</span></div>
+                                                                <div class="validation-item pending"><i class="codicon codicon-circle-outline"></i><span>AI 文本 section 已配置 prompt</span></div>
+                                                                <div class="validation-item pending"><i class="codicon codicon-circle-outline"></i><span>Excel 图表和表格已绑定来源</span></div>
+                                                                <div class="validation-item pending"><i class="codicon codicon-circle-outline"></i><span>数字、禁用词、投资建议规则已配置</span></div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </details>
+                                            </div>
+
+	                                        <div class="template-workbench-panel template-section-editor-panel template-config-editor-panel" id="template-section-config-editor">
+	                                            <div class="template-placeholder-toolbar template-config-editor-toolbar">
+	                                                <h4 id="template-selected-placeholder-title" class="template-hidden-title">占位符配置详情</h4>
+                                                    <div id="template-placeholder-map" class="template-placeholder-map">
+                                                        <div class="empty-state compact">选择模板后显示段落</div>
+                                                    </div>
+                                                    <div class="template-config-toolbar-chips">
+                                                        <span id="template-config-placeholder-type" class="template-config-toolbar-meta">配置项</span>
+                                                        <span id="template-config-placeholder-source" class="template-config-toolbar-meta">等待配置</span>
+                                                        <span id="template-config-placeholder-health" class="template-config-toolbar-meta ok">可生成</span>
+                                                    </div>
+                                                    <span id="template-placeholder-count" class="template-hidden-title">0 个</span>
+                                                    <div class="template-placeholder-actions">
+                                                        <button id="btn-template-advanced-config" class="btn-secondary" disabled><i class="codicon codicon-settings-gear"></i> 高级配置</button>
+	                                                    <button id="btn-template-save-placeholder" class="btn-primary" disabled><i class="codicon codicon-save"></i> 保存</button>
+                                                    </div>
+	                                            </div>
+	                                            <div id="template-placeholder-detail-form" class="template-placeholder-detail-form">
+	                                                <div class="empty-state compact">选择一个段落后编辑配置</div>
+	                                            </div>
+	                                        </div>
+	                                    </div>
+                                        <div id="template-advanced-drawer-backdrop" class="template-advanced-drawer-backdrop hidden"></div>
+                                        <aside id="template-advanced-drawer" class="template-advanced-drawer hidden" aria-hidden="true">
+                                            <div class="template-advanced-drawer-header">
+                                                <div>
+                                                    <h4>底层配置</h4>
+                                                    <small>占位符映射、模板绑定和 YAML 片段</small>
+                                                </div>
+                                                <button id="btn-template-close-advanced-config" class="btn-secondary" type="button"><i class="codicon codicon-close"></i></button>
+                                            </div>
+                                            <div class="template-advanced-drawer-body">
+                                                <section class="template-advanced-section">
+                                                    <div class="panel-title-row">
+                                                        <h4>占位符底层字段</h4>
+                                                        <span class="text-muted">模板结构变化时才需要</span>
+                                                    </div>
+                                                    <div id="template-advanced-placeholder-form" class="template-placeholder-detail-form template-advanced-placeholder-form">
+                                                        <div class="empty-state compact">选择段落后显示底层字段</div>
+                                                    </div>
+                                                </section>
+                                                <section class="template-advanced-section">
+                                                    <div class="panel-title-row template-source-fragment-title">
+                                                        <h4>当前片段源码</h4>
+                                                        <span id="template-source-kind-label" class="text-muted">YAML / Markdown Prompt</span>
+                                                    </div>
+                                                    <div class="template-source-switcher">
+                                                        <button id="btn-template-source-section" class="source-switch-btn active" type="button">当前 YAML</button>
+                                                        <button id="btn-template-source-prompt" class="source-switch-btn" type="button">Prompt 模板</button>
+                                                    </div>
+                                                    <div class="template-workbench-actions template-source-actions">
+                                                        <button id="btn-template-edit-source" class="btn-secondary"><i class="codicon codicon-edit"></i> 查看片段</button>
+                                                        <button id="btn-template-save-source" class="btn-secondary" disabled><i class="codicon codicon-save"></i> 保存当前片段</button>
+                                                        <button id="btn-template-show-run-log" class="btn-secondary" type="button"><i class="codicon codicon-output"></i> 运行记录</button>
+                                                    </div>
+                                                    <textarea id="template-source-editor" class="template-source-editor" spellcheck="false" readonly>选择模板后生成配置草稿...</textarea>
+                                                </section>
+                                            </div>
+                                        </aside>
+                                </details>
+                                <div class="template-detail-mode-panel template-generation-preview-panel hidden" id="template-generation-preview-panel" data-template-detail-panel="preview">
+                                    <section class="template-preview-reader word-preview-reader">
+                                        <div class="template-preview-frame word-preview-shell">
+                                            <div class="panel-title-row">
+                                                <h4>Word 预览</h4>
+                                                <span id="template-preview-document-label" class="text-muted">尚未生成</span>
+                                            </div>
+                                            <iframe id="template-report-preview-frame" title="报告预览"></iframe>
+                                        </div>
+                                    </section>
+                                </div>
+                                <div class="template-detail-mode-panel template-generation-log-panel hidden" id="template-generation-log-panel" data-template-detail-panel="logs">
+                                    <section class="template-log-workspace">
+                                        <div class="template-workbench-panel template-log-console">
+                                            <div class="panel-title-row">
+                                                <h4>生成日志</h4>
+                                                <span id="template-log-status" class="text-muted">最近一次生成</span>
+                                            </div>
+                                            <div id="template-generation-log-table" class="template-generation-log-table">
+                                                <div class="empty-state compact">生成报告后显示运行日志、警告和耗时。</div>
+                                            </div>
+                                        </div>
+                                        <aside class="template-workbench-panel template-log-context">
+                                            <div class="panel-title-row">
+                                                <h4>运行上下文</h4>
+                                                <span class="text-muted">本次任务</span>
+                                            </div>
+                                            <div id="template-generation-log-context">
+                                                <div class="empty-state compact">尚无运行上下文</div>
+                                            </div>
+                                        </aside>
+                                    </section>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Detail Tabs -->
+                        <div class="tabs template-legacy-tabs hidden">
+                            <button class="tab-btn active" data-tab="detail-configure">配置占位符</button>
+                            <button class="tab-btn" data-tab="detail-render">渲染报告</button>
+                        </div>
+
+                        <!-- Configure Tab -->
+                        <div id="tab-detail-configure" class="tab-panel hidden">
+                            <div class="card">
+                                <h3>占位符配置</h3>
+                                <div class="input-row">
+                                    <select id="configure-type-select">
+                                        <option value="docx">DOCX</option>
+                                        <option value="pptx">PPTX</option>
+                                    </select>
+                                    <button id="btn-discover-placeholders" class="btn-primary">发现占位符</button>
+                                </div>
+                                <div id="discover-loading" class="loading hidden">
+                                    <div class="spinner"></div>
+                                    <span>正在扫描模板...</span>
+                                </div>
+                                <div id="placeholder-list" class="placeholder-list"></div>
+                                <div id="no-placeholders" class="empty-state hidden">
+                                    <i class="codicon codicon-search"></i>
+                                    <p>尚未发现占位符</p>
+                                </div>
+                                <div class="input-row" style="margin-top: 1rem;">
+                                    <button id="btn-save-placeholder-config" class="btn-primary">保存配置</button>
+                                    <button id="btn-export-yaml" class="btn-secondary">导出YAML配置</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Render Tab -->
+                        <div id="tab-detail-render" class="tab-panel hidden">
+                            <div class="card">
+                                <h3>渲染报告</h3>
+                                <div class="input-row">
+                                    <select id="render-type-select">
+                                        <option value="docx">DOCX</option>
+                                        <option value="pptx">PPTX</option>
+                                    </select>
+                                    <select id="render-report-type">
+                                        <option value="full">完整报告</option>
+                                        <option value="summary">摘要报告</option>
+                                        <option value="valuation">估值报告</option>
+                                    </select>
+                                </div>
+                                <div class="input-row">
+                                    <input type="text" id="render-canonical-id" placeholder="标的代码 (可选)，如 600519.SH">
+                                </div>
+                                <h4 style="margin-top: 1.5rem;">占位符数据</h4>
+                                <div id="render-placeholders-container" class="render-placeholders-container"></div>
+                                <div class="input-row" style="margin-top: 1rem;">
+                                    <button id="btn-add-placeholder" class="btn-secondary"><i class="codicon codicon-add"></i> 添加占位符</button>
+                                    <button id="btn-generate-all-ai" class="btn-secondary"><i class="codicon codicon-hubot"></i> 生成所有AI字段</button>
+                                    <button id="btn-render-report" class="btn-primary">渲染报告</button>
+                                </div>
+                                <div id="render-loading" class="loading hidden">
+                                    <div class="spinner"></div>
+                                    <span>正在渲染报告...</span>
+                                </div>
+                                <div id="render-result" class="render-result hidden">
+                                    <div class="success-message">
+                                        <i class="codicon codicon-pass"></i>
+                                        <span>报告渲染成功！</span>
+                                    </div>
+                                    <a id="render-download-link" class="btn-primary" href="#" download>下载报告</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Upload Report Project Modal -->
+                <div id="upload-template-modal" class="modal hidden">
+                    <div class="modal-content upload-project-modal">
+                        <div class="modal-header">
+                            <div>
+                                <h3>上传报告项目</h3>
+                                <p class="upload-modal-subtitle">Word 先行，其它材料后续补充</p>
+                            </div>
+                            <button id="btn-close-upload-modal" class="modal-close" onclick="closeUploadModal()"><i class="codicon codicon-close"></i></button>
+                        </div>
+                        <div class="modal-body">
+                            <section class="upload-required-card">
+                                <div class="upload-section-heading">
+                                    <span>必需</span>
+                                    <strong>项目骨架</strong>
+                                </div>
+                                <div class="form-field upload-name-field">
+                                    <label>报告项目名称</label>
+                                    <input type="text" id="template-name-input" placeholder="例如：华安ETF周报">
+                                </div>
+                                <label class="upload-file-card upload-file-card-primary" for="project-word-template-input">
+                                    <input class="upload-file-input" type="file" id="project-word-template-input" accept=".docx">
+                                    <span class="upload-file-icon"><i class="codicon codicon-file-code"></i></span>
+                                    <span class="upload-file-copy">
+                                        <strong>Word 模板</strong>
+                                        <small>.docx</small>
+                                    </span>
+                                    <span class="upload-file-name" data-file-label="project-word-template-input">未选择</span>
+                                </label>
+                            </section>
+                            <section class="upload-optional-card">
+                                <div class="upload-section-heading">
+                                    <span>可选材料</span>
+                                    <strong>生成增强</strong>
+                                </div>
+                                <div class="upload-optional-grid">
+                                    <label class="upload-file-card" for="project-excel-workbook-input">
+                                        <input class="upload-file-input" type="file" id="project-excel-workbook-input" accept=".xlsx">
+                                        <span class="upload-file-icon"><i class="codicon codicon-table"></i></span>
+                                        <span class="upload-file-copy">
+                                            <strong>Excel 数据底稿</strong>
+                                            <small>.xlsx</small>
+                                        </span>
+                                        <span class="upload-file-name" data-file-label="project-excel-workbook-input">未选择</span>
+                                    </label>
+                                    <label class="upload-file-card" for="project-section-config-input">
+                                        <input class="upload-file-input" type="file" id="project-section-config-input" accept=".yaml,.yml">
+                                        <span class="upload-file-icon"><i class="codicon codicon-settings-gear"></i></span>
+                                        <span class="upload-file-copy">
+                                            <strong>Section 配置</strong>
+                                            <small>.yaml / .yml</small>
+                                        </span>
+                                        <span class="upload-file-name" data-file-label="project-section-config-input">自动生成</span>
+                                    </label>
+                                    <label class="upload-file-card" for="project-prompt-templates-input">
+                                        <input class="upload-file-input" type="file" id="project-prompt-templates-input" accept=".md">
+                                        <span class="upload-file-icon"><i class="codicon codicon-symbol-keyword"></i></span>
+                                        <span class="upload-file-copy">
+                                            <strong>Prompt 模板</strong>
+                                            <small>.md</small>
+                                        </span>
+                                        <span class="upload-file-name" data-file-label="project-prompt-templates-input">未选择</span>
+                                    </label>
+                                    <label class="upload-file-card" for="project-data-files-input">
+                                        <input class="upload-file-input" type="file" id="project-data-files-input" accept=".json,.xlsx,.png" multiple>
+                                        <span class="upload-file-icon"><i class="codicon codicon-database"></i></span>
+                                        <span class="upload-file-copy">
+                                            <strong>数据文件</strong>
+                                            <small>.json / .xlsx / .png</small>
+                                        </span>
+                                        <span class="upload-file-name" data-file-label="project-data-files-input">未选择</span>
+                                    </label>
+                                </div>
+                            </section>
+                            <div id="template-upload-status" class="upload-status"></div>
+                        </div>
+                        <div class="modal-footer">
+                            <button id="btn-cancel-upload" class="btn-secondary" onclick="closeUploadModal()">取消</button>
+                            <button id="btn-upload-template" class="btn-primary" onclick="uploadTemplate()">创建项目</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Edit Template Modal -->
+                <div id="edit-template-modal" class="modal hidden">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3>编辑模板</h3>
+                            <button id="btn-close-edit-modal" class="modal-close"><i class="codicon codicon-close"></i></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="form-field">
+                                <label>模板名称</label>
+                                <input type="text" id="edit-template-name" placeholder="模板名称">
+                            </div>
+                            <div class="form-field">
+                                <label>模板描述</label>
+                                <input type="text" id="edit-template-description" placeholder="模板描述">
+                            </div>
+                            <div class="form-field">
+                                <label>版本</label>
+                                <input type="text" id="edit-template-version" placeholder="版本">
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button id="btn-cancel-edit" class="btn-secondary">取消</button>
+                            <button id="btn-save-edit" class="btn-primary">保存</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- VS Code Status Bar -->
+    <footer class="status-bar">
+        <div class="status-bar-left">
+            <span class="status-item"><i class="codicon codicon-source-control"></i> <span id="status-branch">main</span></span>
+            <span class="status-item"><i class="codicon codicon-error"></i> <span id="status-errors">0</span></span>
+            <span class="status-item"><i class="codicon codicon-warning"></i> <span id="status-warnings">0</span></span>
+        </div>
+        <div class="status-bar-right">
+            <span class="status-item"><i class="codicon codicon-database"></i> <span id="status-db">PostgreSQL</span></span>
+            <span class="status-item"><i class="codicon codicon-hubot"></i> <span id="status-llm">Volcengine</span></span>
+            <span class="status-item"><i class="codicon codicon-file-text"></i> <span id="status-doc-count">0</span> docs</span>
+            <span class="status-item"><i class="codicon codicon-globe"></i> <span id="status-lang-label">中文</span></span>
+        </div>
+    </footer>
+
+    <!-- Toast -->
+    <div id="toast" class="toast hidden"></div>
+
+    <!-- Scripts: i18n must load before app.js -->
+    <script src="/static/i18n.js?v=20250527"></script>
+    <script type="module" src="/static/js/app.js?v=20260626configworkbench2"></script>
+    <script type="module" src="/static/js/wind.js?v=20250601a"></script>
+</body>
+</html>

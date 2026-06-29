@@ -52,7 +52,7 @@ async def _async_main() -> None:
     event_bus.record_worker_heartbeat("market_data_scheduler", "starting")
     _write_heartbeat("starting")
 
-    scheduler = MarketDataScheduler()
+    scheduler = MarketDataScheduler(enable_gap_check=False)
     scheduler.start()
     event_bus.record_worker_heartbeat("market_data_scheduler", "started, jobs scheduled")
     _write_heartbeat("started, jobs scheduled")

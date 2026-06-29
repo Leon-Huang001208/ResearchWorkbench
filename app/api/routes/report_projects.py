@@ -1,5 +1,6 @@
 """Report project API routes."""
 import base64
+import hashlib
 import io
 import json
 import os
@@ -10,6 +11,7 @@ import sys
 import tempfile
 import xml.etree.ElementTree as ET
 import zipfile
+from copy import deepcopy
 from datetime import datetime
 from html import escape
 from pathlib import Path
@@ -36,6 +38,11 @@ router = APIRouter(prefix="/api/report-projects", tags=["report-projects"])
 report_project_manager = ReportProjectManager()
 report_generation_service = ReportProjectGenerationService()
 report_chart_service = ReportProjectChartService()
+
+WORD_PREVIEW_LAYOUT_VERSION = "word-v1"
+WORD_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+WP_NS = "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
+DRAWING_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
 
 
 class GeneratedReportInfo(BaseModel):
@@ -163,8 +170,8 @@ async def list_report_projects():
 async def upload_report_project(
     project_name: str = Form(..., description="报告项目名称"),
     word_template: UploadFile = File(..., description="Word 模板 .docx"),
-    excel_workbook: UploadFile = File(..., description="Excel 数据底稿 .xlsx"),
-    section_config: UploadFile = File(..., description="Section 配置 .yaml/.yml"),
+    excel_workbook: UploadFile | None = File(None, description="Excel 数据底稿 .xlsx"),
+    section_config: UploadFile | None = File(None, description="Section 配置 .yaml/.yml"),
     prompt_templates: UploadFile | None = File(None, description="Prompt 模板 .md"),
     data_files: List[UploadFile] = File(default_factory=list, description="配套数据文件"),
 ):
@@ -184,19 +191,29 @@ async def upload_report_project(
             directory.mkdir(parents=True, exist_ok=True)
 
         _require_suffix(word_template.filename or "", [".docx"], "Word 模板")
-        _require_suffix(excel_workbook.filename or "", [".xlsx"], "Excel 数据底稿")
-        _require_suffix(section_config.filename or "", [".yaml", ".yml"], "Section 配置")
+        if excel_workbook and excel_workbook.filename:
+            _require_suffix(excel_workbook.filename, [".xlsx"], "Excel 数据底稿")
+        if section_config and section_config.filename:
+            _require_suffix(section_config.filename, [".yaml", ".yml"], "Section 配置")
         if prompt_templates:
             _require_suffix(prompt_templates.filename or "", [".md"], "Prompt 模板")
 
         word_path = templates_dir / "report_template.docx"
-        excel_filename = _safe_filename(excel_workbook.filename or "workbook.xlsx")
-        excel_path = data_dir / excel_filename
         section_path = config_dir / "section_config.yaml"
 
         word_path.write_bytes(await word_template.read())
-        excel_path.write_bytes(await excel_workbook.read())
-        section_path.write_bytes(await section_config.read())
+        excel_filename = ""
+        if excel_workbook and excel_workbook.filename:
+            excel_filename = _safe_filename(excel_workbook.filename)
+            excel_path = data_dir / excel_filename
+            excel_path.write_bytes(await excel_workbook.read())
+        if section_config and section_config.filename:
+            section_path.write_bytes(await section_config.read())
+        else:
+            section_path.write_text(
+                _build_default_section_config_source(word_path),
+                encoding="utf-8",
+            )
 
         prompt_path = None
         if prompt_templates:
@@ -216,11 +233,12 @@ async def upload_report_project(
         project_data = {
             "name": project_name,
             "active_word_template": "templates/report_template.docx",
-            "active_excel_workbook": f"data/{excel_filename}",
             "section_config": "config/section_config.yaml",
             "output_dir": "generated",
             "run_log_dir": "runs",
         }
+        if excel_filename:
+            project_data["active_excel_workbook"] = f"data/{excel_filename}"
         if prompt_path:
             project_data["prompt_templates"] = "config/prompt_templates.md"
         if data_source_paths:
@@ -631,14 +649,15 @@ def _open_folder_command(target_path: Path, *, folder_path: Path | None = None) 
 def _to_project_info(project: ReportProject) -> ReportProjectInfo:
     section_config, section_config_source = _read_section_config(project.section_config_path)
     prompt_templates_source = _read_prompt_templates(project.prompt_templates_path)
+    excel_exists = project.excel_workbook_path.is_file()
     return ReportProjectInfo(
         name=project.name,
         slug=project.slug,
         project_dir=str(project.project_dir),
         word_template_path=str(project.word_template_path),
         word_template_filename=project.word_template_path.name,
-        excel_workbook_path=str(project.excel_workbook_path),
-        excel_workbook_filename=project.excel_workbook_path.name,
+        excel_workbook_path=str(project.excel_workbook_path) if excel_exists else "",
+        excel_workbook_filename=project.excel_workbook_path.name if excel_exists else "",
         section_config_path=str(project.section_config_path),
         section_config_filename=project.section_config_path.name,
         prompt_templates_path=str(project.prompt_templates_path)
@@ -654,7 +673,9 @@ def _to_project_info(project: ReportProject) -> ReportProjectInfo:
         section_config_source=section_config_source,
         prompt_templates_source=prompt_templates_source,
         keyword_profiles=keyword_profiles_for_api(),
-        excel_sheets=_summarize_excel_workbook(project.excel_workbook_path),
+        excel_sheets=_summarize_excel_workbook(project.excel_workbook_path)
+        if excel_exists
+        else [],
         output_dir=str(project.output_dir),
         run_log_dir=str(project.run_log_dir),
         generated_reports=[_to_generated_report_info(path) for path in project.generated_reports],
@@ -740,6 +761,19 @@ def _data_asset_sort_key(asset: DataAssetInfo) -> int:
         "file": 6,
     }
     return order.get(asset.kind, 99)
+
+
+def _build_default_section_config_source(word_path: Path) -> str:
+    """Build a minimal section config when only a Word template is uploaded."""
+    placeholders = {
+        placeholder: ""
+        for placeholder in _extract_docx_placeholders(word_path)
+    }
+    return yaml.safe_dump(
+        {"placeholders": placeholders, "sections": []},
+        allow_unicode=True,
+        sort_keys=False,
+    )
 
 
 def _attach_prompt_templates(project_dir: Path, prompt_path: Path) -> None:
@@ -991,7 +1025,7 @@ def _docx_to_preview_html(path: Path, asset_base_url: str | None = None) -> str:
 
 def _read_cached_word_pdf_preview(path: Path) -> bytes | None:
     try:
-        cache_path = _word_pdf_preview_cache_path(path.resolve(strict=True))
+        cache_path = _word_pdf_preview_cache_path(path.resolve(strict=True), engine="word")
         if cache_path.exists():
             return cache_path.read_bytes()
     except Exception as exc:
@@ -1000,20 +1034,110 @@ def _read_cached_word_pdf_preview(path: Path) -> bytes | None:
 
 
 def _build_word_pdf_preview(path: Path) -> bytes | None:
-    """Build or read a local PDF preview without automating Microsoft Word."""
+    """Build or read a local PDF preview, preferring Microsoft Word fidelity on macOS."""
     try:
         source_path = path.resolve(strict=True)
-        cache_path = _word_pdf_preview_cache_path(source_path)
-        if cache_path.exists():
-            return cache_path.read_bytes()
+        word_cache_path = _word_pdf_preview_cache_path(source_path, engine="word")
+        if word_cache_path.exists():
+            return word_cache_path.read_bytes()
+
+        if _find_microsoft_word_app():
+            word_pdf = _export_docx_pdf_with_microsoft_word(source_path, word_cache_path)
+            if word_pdf:
+                return word_pdf
 
         soffice = _find_soffice_command()
         if not soffice:
             return None
-        return _export_docx_pdf_with_soffice(source_path, cache_path, soffice)
+        soffice_cache_path = _word_pdf_preview_cache_path(source_path, engine="soffice")
+        if soffice_cache_path.exists():
+            return soffice_cache_path.read_bytes()
+        return _export_docx_pdf_with_soffice(source_path, soffice_cache_path, soffice)
     except Exception as exc:
         logger.warning("Local PDF preview unavailable", path=str(path), error=str(exc))
         return None
+
+
+def _find_microsoft_word_app() -> Path | None:
+    if sys.platform != "darwin" or os.environ.get("ALPHAFOUNDRY_DISABLE_WORD_PREVIEW") == "1":
+        return None
+    app_path = Path("/Applications/Microsoft Word.app")
+    return app_path if app_path.exists() else None
+
+
+def _export_docx_pdf_with_microsoft_word(source_path: Path, cache_path: Path) -> bytes | None:
+    """Export a DOCX to PDF with Microsoft Word for faithful preview pagination."""
+    try:
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        if cache_path.exists():
+            cache_path.unlink()
+
+        script = f"""
+set inputPath to {_applescript_string(str(source_path))}
+set outputPath to {_applescript_string(str(cache_path))}
+set openedDoc to missing value
+set openedByPreview to false
+tell application id "com.microsoft.Word"
+    set oldAlerts to display alerts
+    try
+        set display alerts to alerts none
+        repeat with documentIndex from 1 to (count of documents)
+            try
+                set existingDoc to document documentIndex
+                if (full name of existingDoc as text) is inputPath then
+                    set openedDoc to existingDoc
+                    exit repeat
+                end if
+            end try
+        end repeat
+        if openedDoc is missing value then
+            open file name inputPath
+            set openedDoc to active document
+            set openedByPreview to true
+        end if
+        save as openedDoc file name outputPath file format format PDF
+        if openedByPreview then close openedDoc saving no
+        set display alerts to oldAlerts
+    on error errMsg number errNum
+        if openedByPreview and openedDoc is not missing value then
+            try
+                close openedDoc saving no
+            end try
+        end if
+        set display alerts to oldAlerts
+        error errMsg number errNum
+    end try
+end tell
+"""
+        result = subprocess.run(
+            ["osascript"],
+            input=script,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=90,
+        )
+        if result.returncode != 0:
+            logger.warning(
+                "Microsoft Word PDF preview failed",
+                path=str(source_path),
+                returncode=result.returncode,
+                stderr=result.stderr[-1000:],
+            )
+            return None
+        if not cache_path.exists():
+            logger.warning("Microsoft Word PDF preview produced no file", path=str(source_path))
+            return None
+        return cache_path.read_bytes()
+    except subprocess.TimeoutExpired as exc:
+        logger.warning("Microsoft Word PDF preview timed out", path=str(source_path), timeout=exc.timeout)
+    except Exception as exc:
+        logger.warning("Microsoft Word PDF preview unavailable", path=str(source_path), error=str(exc))
+    return None
+
+
+def _applescript_string(value: str) -> str:
+    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
 def _find_soffice_command() -> str | None:
@@ -1038,6 +1162,7 @@ def _export_docx_pdf_with_soffice(source_path: Path, cache_path: Path, soffice: 
             output_dir = tmp_path / "output"
             profile_dir.mkdir()
             output_dir.mkdir()
+            preview_source_path = _prepare_docx_for_soffice_preview(source_path, tmp_path)
             result = subprocess.run(
                 [
                     soffice,
@@ -1052,7 +1177,7 @@ def _export_docx_pdf_with_soffice(source_path: Path, cache_path: Path, soffice: 
                     "pdf:writer_pdf_Export",
                     "--outdir",
                     str(output_dir),
-                    str(source_path),
+                    str(preview_source_path),
                 ],
                 check=False,
                 capture_output=True,
@@ -1067,7 +1192,7 @@ def _export_docx_pdf_with_soffice(source_path: Path, cache_path: Path, soffice: 
                     stderr=result.stderr[-1000:],
                 )
                 return None
-            pdf_path = output_dir / f"{source_path.stem}.pdf"
+            pdf_path = output_dir / f"{preview_source_path.stem}.pdf"
             if not pdf_path.exists():
                 previews = sorted(output_dir.glob("*.pdf"))
                 if not previews:
@@ -1085,16 +1210,145 @@ def _export_docx_pdf_with_soffice(source_path: Path, cache_path: Path, soffice: 
     return None
 
 
-def _word_pdf_preview_cache_path(path: Path) -> Path:
+def _prepare_docx_for_soffice_preview(source_path: Path, tmp_path: Path) -> Path:
+    """Return a DOCX copy whose floating charts are stable for LibreOffice preview export."""
+    normalized_path = tmp_path / source_path.name
+    try:
+        changed = _write_docx_with_inline_preview_charts(source_path, normalized_path)
+        return normalized_path if changed else source_path
+    except Exception as exc:
+        logger.warning(
+            "Failed to normalize Word preview chart layout",
+            path=str(source_path),
+            error=str(exc),
+        )
+        return source_path
+
+
+def _write_docx_with_inline_preview_charts(source_path: Path, normalized_path: Path) -> bool:
+    """Write a preview-only docx copy with anchored chart drawings moved below captions."""
+    with zipfile.ZipFile(source_path, "r") as source:
+        entries = {name: source.read(name) for name in source.namelist()}
+
+    document_xml = entries.get("word/document.xml")
+    if not document_xml:
+        return False
+
+    root = ET.fromstring(document_xml)
+    if not _normalize_anchored_charts_for_preview(root):
+        return False
+
+    entries["word/document.xml"] = ET.tostring(root, encoding="utf-8", xml_declaration=True)
+    with zipfile.ZipFile(normalized_path, "w", compression=zipfile.ZIP_DEFLATED) as target:
+        for name, content in entries.items():
+            target.writestr(name, content)
+    return True
+
+
+def _normalize_anchored_charts_for_preview(root: ET.Element) -> bool:
+    """Move Word floating charts after nearby figure captions for LibreOffice preview fidelity."""
+    ns = {
+        "w": WORD_NS,
+        "wp": "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing",
+        "c": "http://schemas.openxmlformats.org/drawingml/2006/chart",
+    }
+    body = root.find("w:body", ns)
+    if body is None:
+        return False
+
+    children = list(body)
+    moved = False
+    for paragraph in list(children):
+        if not paragraph.tag.endswith("}p"):
+            continue
+        anchors = [
+            anchor
+            for anchor in paragraph.findall(".//wp:anchor", ns)
+            if anchor.find(".//c:chart", ns) is not None
+        ]
+        if not anchors:
+            continue
+        paragraph_index = children.index(paragraph)
+        paragraph_text = _word_paragraph_text(paragraph).replace(" ", "")
+        if re.match(r"^图[一二三四五六七八九十0-9]+[:：]", paragraph_text):
+            caption_index = paragraph_index
+        else:
+            caption_index = _find_next_figure_caption_index(children, paragraph_index + 1)
+        if caption_index is None:
+            continue
+        insert_at = caption_index + 1
+        for anchor in anchors:
+            chart_paragraph = _build_inline_chart_preview_paragraph(anchor)
+            if _remove_element(paragraph, anchor):
+                body.insert(insert_at, chart_paragraph)
+                children.insert(insert_at, chart_paragraph)
+                insert_at += 1
+                moved = True
+    return moved
+
+
+def _find_next_figure_caption_index(children: List[ET.Element], start: int) -> int | None:
+    for index in range(start, min(len(children), start + 8)):
+        child = children[index]
+        if not child.tag.endswith("}p"):
+            continue
+        text = _word_paragraph_text(child).replace(" ", "")
+        if re.match(r"^图[一二三四五六七八九十0-9]+[:：]", text):
+            return index
+    return None
+
+
+def _word_paragraph_text(paragraph: ET.Element) -> str:
+    text_tag = f"{{{WORD_NS}}}t"
+    return "".join(node.text or "" for node in paragraph.iter(text_tag)).strip()
+
+
+def _build_inline_chart_preview_paragraph(anchor: ET.Element) -> ET.Element:
+    inline = ET.Element(f"{{{WP_NS}}}inline")
+    for attr in ("distT", "distB", "distL", "distR"):
+        if attr in anchor.attrib:
+            inline.set(attr, anchor.attrib[attr])
+    for local_name in ("extent", "effectExtent", "docPr", "cNvGraphicFramePr"):
+        child = anchor.find(f"{{{WP_NS}}}{local_name}")
+        if child is not None:
+            inline.append(deepcopy(child))
+    graphic = anchor.find(f"{{{DRAWING_NS}}}graphic")
+    if graphic is not None:
+        inline.append(deepcopy(graphic))
+
+    paragraph = ET.Element(f"{{{WORD_NS}}}p")
+    paragraph_properties = ET.SubElement(paragraph, f"{{{WORD_NS}}}pPr")
+    ET.SubElement(
+        paragraph_properties,
+        f"{{{WORD_NS}}}jc",
+        {f"{{{WORD_NS}}}val": "center"},
+    )
+    run = ET.SubElement(paragraph, f"{{{WORD_NS}}}r")
+    drawing = ET.SubElement(run, f"{{{WORD_NS}}}drawing")
+    drawing.append(inline)
+    return paragraph
+
+
+def _remove_element(root: ET.Element, target: ET.Element) -> bool:
+    for parent in root.iter():
+        for child in list(parent):
+            if child is target:
+                parent.remove(child)
+                return True
+    return False
+
+
+def _word_pdf_preview_cache_path(path: Path, engine: str = "word") -> Path:
     stat = path.stat()
     safe_stem = re.sub(r"[^A-Za-z0-9_.-]+", "_", path.stem).strip("._") or "report"
     cache_dir = path.parent / ".preview-cache"
-    return cache_dir / f"{safe_stem}-{stat.st_mtime_ns}-{stat.st_size}.pdf"
+    safe_engine = re.sub(r"[^A-Za-z0-9_.-]+", "_", engine).strip("._") or "preview"
+    return cache_dir / f"{safe_stem}-{WORD_PREVIEW_LAYOUT_VERSION}-{safe_engine}-{stat.st_mtime_ns}-{stat.st_size}.pdf"
 
 
 def _word_preview_page_asset_dir(path: Path) -> Path:
     safe_stem = re.sub(r"[^A-Za-z0-9_.-]+", "_", path.stem).strip("._") or "report"
-    return path.parent / ".preview-cache" / f"{safe_stem}-pages"
+    return path.parent / ".preview-cache" / f"{safe_stem}-{WORD_PREVIEW_LAYOUT_VERSION}-pages"
 
 
 def _word_pdf_preview_html(
@@ -1150,15 +1404,17 @@ def _render_pdf_preview_page_assets(
         cache_signature = {
             "mtime_ns": stat.st_mtime_ns,
             "size": stat.st_size,
-            "version": 1,
+            "version": WORD_PREVIEW_LAYOUT_VERSION,
+            "pdf_sha256": hashlib.sha256(pdf_bytes).hexdigest(),
         }
+        asset_version = str(cache_signature["pdf_sha256"])[:16]
         if manifest_path.exists():
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
             pages = manifest.get("pages") if manifest.get("source") == cache_signature else None
             if isinstance(pages, list) and all((asset_dir / str(page.get("asset", ""))).exists() for page in pages):
                 return [
                     {
-                        "src": f"{asset_base_url}/{page['asset']}",
+                        "src": f"{asset_base_url}/{page['asset']}?v={asset_version}",
                         "width": int(page["width"]),
                         "height": int(page["height"]),
                         "label": str(page.get("label") or f"第 {index + 1} 页"),
@@ -1184,7 +1440,7 @@ def _render_pdf_preview_page_assets(
                     image.save(asset_dir / asset_name, format="PNG", optimize=True)
                     label = f"第 {index + 1} 页"
                     page_info = {
-                        "src": f"{asset_base_url}/{asset_name}",
+                        "src": f"{asset_base_url}/{asset_name}?v={asset_version}",
                         "width": image.width,
                         "height": image.height,
                         "label": label,
@@ -1304,6 +1560,7 @@ def _word_page_preview_html(
         " aria-disabled=\"true\" disabled" if double_button_disabled else ""
     )
     double_button_title = "双页（需要至少两页）" if double_button_disabled else "双页"
+    default_layout = "single" if double_button_disabled else "double"
     storage_key = json.dumps(f"alphafoundry.wordPreview.{file_name}", ensure_ascii=False)
     return (
         "<!doctype html><html><head><meta charset=\"utf-8\">"
@@ -1444,12 +1701,12 @@ def _word_page_preview_html(
         "--preview-layout-hover:rgba(255,255,255,.08);--preview-layout-active-bg:#f5f5f7;"
         "--preview-layout-active-fg:#1d1d1f;}}"
         "</style></head><body>"
-        f"<main class=\"docx-word-page-preview\" data-layout=\"single\" data-thumbnails=\"closed\" "
+        f"<main class=\"docx-word-page-preview\" data-layout=\"{default_layout}\" data-thumbnails=\"open\" "
         f"data-preview-page-count=\"{page_count}\" data-preview-storage-key='{storage_key}'>"
         "<div class=\"docx-preview-toolbar\">"
         "<div class=\"docx-preview-toolbar-left\">"
         "<button class=\"docx-preview-button docx-preview-tool-button\" type=\"button\" title=\"缩略图\" aria-label=\"缩略图\" "
-        "aria-pressed=\"false\" data-preview-thumbnails-toggle>"
+        "aria-pressed=\"true\" data-preview-thumbnails-toggle>"
         "<span class=\"docx-preview-tool-icon docx-preview-icon-sidebar\" aria-hidden=\"true\"></span>"
         "</button>"
         "<button class=\"docx-preview-button docx-preview-tool-button\" type=\"button\" title=\"缩小\" aria-label=\"缩小\" data-preview-zoom-out>"
@@ -1479,11 +1736,11 @@ def _word_page_preview_html(
         "<div class=\"docx-preview-toolbar-right\">"
         "<div class=\"docx-preview-layout-switch\" role=\"group\" aria-label=\"页面布局\">"
         "<button class=\"docx-preview-button docx-preview-layout-button\" type=\"button\" title=\"单页\" aria-label=\"单页\" "
-        "aria-pressed=\"true\" data-preview-layout=\"single\">"
+        f"aria-pressed=\"{str(default_layout == 'single').lower()}\" data-preview-layout=\"single\">"
         "<span class=\"docx-preview-layout-icon docx-preview-layout-single\" aria-hidden=\"true\"></span>"
         "</button>"
         f"<button class=\"docx-preview-button docx-preview-layout-button\" type=\"button\" title=\"{double_button_title}\" "
-        f"aria-label=\"双页\" aria-pressed=\"false\"{double_button_state} data-preview-layout=\"double\">"
+        f"aria-label=\"双页\" aria-pressed=\"{str(default_layout == 'double').lower()}\"{double_button_state} data-preview-layout=\"double\">"
         "<span class=\"docx-preview-layout-icon docx-preview-layout-double\" aria-hidden=\"true\"></span>"
         "</button>"
         "</div>"
@@ -1518,8 +1775,7 @@ def _word_page_preview_html(
         "function saveState(){try{localStorage.setItem(storageKey,JSON.stringify({zoom,layout:root.dataset.layout,thumbnails:root.dataset.thumbnails}));}catch(_){}}"
         "function restoreState(){try{const saved=JSON.parse(localStorage.getItem(storageKey)||'{}');"
         "if(Number.isFinite(saved.zoom))zoom=clamp(saved.zoom,.18,2.4);"
-        "if(saved.layout==='double'&&pages.length>1)root.dataset.layout='double';"
-        "if(saved.thumbnails==='open')root.dataset.thumbnails='open';}catch(_){}}"
+        "}catch(_){}}"
         "function applyZoom(){"
         "pages.forEach(page=>{const width=Number(page.dataset.pageWidth||1);page.style.width=Math.round(width*zoom)+'px';});"
         "if(zoomInput)zoomInput.value=Math.round(zoom*100)+'%';"

@@ -31,9 +31,9 @@ defaults:
   - 除明确要求外，不得新增任何实体名称
   - 仅输出单段正文，不输出标题、列表或解释
   report_period:
-    report_date: 2026-06-14
-    start_date: 2026-06-08
-    end_date: 2026-06-14
+    report_date: 2026-06-26
+    start_date: 2026-06-20
+    end_date: 2026-06-26
   retrieval:
     mode: hybrid
     top_k: 10
@@ -188,6 +188,14 @@ placeholders:
       - 结合一个有明确 evidence 支撑的政策、产业或景气度变化，给出一句审慎趋势判断
       - 最后如需表达关注方向，应使用“后续可关注”“值得跟踪”等克制表述，不得构成直接投资建议
     params: {}
+  开始日期:
+    title: 开始日期
+    type: report_period
+    field: start_date
+  结束日期:
+    title: 结束日期
+    type: report_period
+    field: end_date
   中国宏观:
     title: 中国宏观
     type: prompt
@@ -198,6 +206,9 @@ placeholders:
     min_news_count: 6
     retrieval:
       keyword_profile: 中国
+    writing_structure:
+    - 写点东西
+    - 写点东西
     params: {}
   人工智能:
     title: 人工智能

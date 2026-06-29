@@ -1,7 +1,10 @@
 """Tests for report project API routes."""
+import hashlib
 import json
+import re
 import threading
 import time
+import xml.etree.ElementTree as ET
 import zipfile
 from pathlib import Path
 from unittest.mock import patch
@@ -1865,6 +1868,9 @@ def test_preview_report_project_file_prefers_word_pdf_preview(tmp_path: Path, mo
     assert "data-preview-error" in response.text
     assert "data-preview-layout=\"double\"" in response.text
     assert "data-preview-page-count=\"2\"" in response.text
+    assert "data-layout=\"double\" data-thumbnails=\"open\"" in response.text
+    assert "aria-pressed=\"true\" data-preview-thumbnails-toggle" in response.text
+    assert "aria-pressed=\"true\" data-preview-layout=\"double\"" in response.text
     assert "aria-disabled=\"true\" disabled data-preview-layout=\"double\"" not in response.text
     assert "docx-preview-layout-switch" in response.text
     assert "docx-preview-layout-icon docx-preview-layout-single" in response.text
@@ -1944,6 +1950,48 @@ def test_word_page_preview_can_use_cached_page_asset_urls():
     assert "data:image/png;base64" not in html
 
 
+def test_rendered_word_page_asset_urls_include_pdf_cache_buster(tmp_path: Path):
+    """页图片 URL 应带 PDF hash，避免 WebView 复用旧 LibreOffice 图片缓存。"""
+    import app.api.routes.report_projects as report_projects_route
+
+    docx_path = tmp_path / "preview.docx"
+    docx_path.write_bytes(b"docx")
+    pdf_bytes = b"%PDF-word-preview"
+    pdf_hash = hashlib.sha256(pdf_bytes).hexdigest()
+    asset_dir = report_projects_route._word_preview_page_asset_dir(docx_path)
+    asset_dir.mkdir(parents=True)
+    (asset_dir / "page-001.png").write_bytes(b"png")
+    (asset_dir / "manifest.json").write_text(
+        json.dumps(
+            {
+                "source": {
+                    "mtime_ns": docx_path.stat().st_mtime_ns,
+                    "size": docx_path.stat().st_size,
+                    "version": report_projects_route.WORD_PREVIEW_LAYOUT_VERSION,
+                    "pdf_sha256": pdf_hash,
+                },
+                "pages": [
+                    {
+                        "asset": "page-001.png",
+                        "width": 1224,
+                        "height": 1584,
+                        "label": "第 1 页",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    pages = report_projects_route._render_pdf_preview_page_assets(
+        pdf_bytes,
+        docx_path,
+        "/api/report-projects/华安ETF周报/preview-assets/preview.docx",
+    )
+
+    assert pages[0]["src"].endswith(f"page-001.png?v={pdf_hash[:16]}")
+
+
 def test_preview_report_project_file_prefers_cached_page_asset_urls(
     tmp_path: Path, monkeypatch
 ):
@@ -1991,21 +2039,59 @@ def test_preview_report_project_file_prefers_cached_page_asset_urls(
     assert "data:image/png;base64" not in response.text
 
 
-def test_build_word_pdf_preview_never_launches_microsoft_word(tmp_path: Path, monkeypatch):
-    """预览辅助函数也不能再启动 Word，避免 macOS 权限弹窗。"""
+def test_build_word_pdf_preview_uses_cached_word_pdf_without_launching_converters(tmp_path: Path, monkeypatch):
+    """已有 Word PDF 缓存时，应直接读取，避免重复启动 Word 或 LibreOffice。"""
     import app.api.routes.report_projects as report_projects_route
 
     docx_path = tmp_path / "preview.docx"
     docx_path.write_bytes(b"docx")
+    cache_path = report_projects_route._word_pdf_preview_cache_path(docx_path, engine="word")
+    cache_path.parent.mkdir(parents=True)
+    cache_path.write_bytes(b"%PDF-cached-word")
 
-    monkeypatch.setattr(report_projects_route.sys, "platform", "darwin")
+    def fail_run(*args, **kwargs):
+        raise AssertionError("converter should not be launched for cached previews")
+
+    monkeypatch.setattr(report_projects_route.subprocess, "run", fail_run)
     monkeypatch.setattr(report_projects_route, "_find_soffice_command", lambda: None)
 
-    assert report_projects_route._build_word_pdf_preview(docx_path) is None
+    assert report_projects_route._build_word_pdf_preview(docx_path) == b"%PDF-cached-word"
+
+
+def test_build_word_pdf_preview_prefers_microsoft_word_export(tmp_path: Path, monkeypatch):
+    """macOS 有 Word 时，应优先用 Word 导出，保留原版分页和字体。"""
+    import app.api.routes.report_projects as report_projects_route
+
+    docx_path = tmp_path / "preview.docx"
+    docx_path.write_bytes(b"docx")
+    commands = []
+
+    def fake_run(command, input, check, capture_output, text, timeout):
+        commands.append((command, input))
+        output_path = Path(re.search(r'set outputPath to "([^"]+)"', input).group(1))
+        output_path.write_bytes(b"%PDF-from-word")
+
+        class Result:
+            returncode = 0
+            stderr = ""
+
+        return Result()
+
+    monkeypatch.setattr(report_projects_route, "_find_microsoft_word_app", lambda: Path("/Applications/Microsoft Word.app"))
+    monkeypatch.setattr(report_projects_route, "_find_soffice_command", lambda: "/usr/bin/soffice")
+    monkeypatch.setattr(report_projects_route.subprocess, "run", fake_run)
+
+    pdf_bytes = report_projects_route._build_word_pdf_preview(docx_path)
+
+    assert pdf_bytes == b"%PDF-from-word"
+    assert commands
+    assert commands[0][0] == ["osascript"]
+    assert "com.microsoft.Word" in commands[0][1]
+    assert report_projects_route._word_pdf_preview_cache_path(docx_path, engine="word").read_bytes() == b"%PDF-from-word"
 
 
 def test_build_word_pdf_preview_uses_local_soffice_converter(tmp_path: Path, monkeypatch):
-    """有 LibreOffice/soffice 时，应本地离线生成 PDF 缓存，不触发 Word。"""
+    """Word 不可用但有 LibreOffice/soffice 时，应本地离线生成 PDF 缓存。"""
     import app.api.routes.report_projects as report_projects_route
 
     docx_path = tmp_path / "preview.docx"
@@ -2023,6 +2109,7 @@ def test_build_word_pdf_preview_uses_local_soffice_converter(tmp_path: Path, mon
 
         return Result()
 
+    monkeypatch.setattr(report_projects_route, "_find_microsoft_word_app", lambda: None)
     monkeypatch.setattr(report_projects_route, "_find_soffice_command", lambda: "/usr/bin/soffice")
     monkeypatch.setattr(report_projects_route.subprocess, "run", fake_run)
 
@@ -2034,8 +2121,118 @@ def test_build_word_pdf_preview_uses_local_soffice_converter(tmp_path: Path, mon
     assert "--headless" in commands[0]
     assert "--convert-to" in commands[0]
     assert "pdf:writer_pdf_Export" in commands[0]
-    assert not any("Microsoft Word" in part for part in commands[0])
-    assert report_projects_route._word_pdf_preview_cache_path(docx_path).read_bytes() == b"%PDF-from-soffice"
+    assert report_projects_route._word_pdf_preview_cache_path(docx_path, engine="soffice").read_bytes() == b"%PDF-from-soffice"
+
+
+def test_word_preview_normalizes_anchored_chart_below_caption(tmp_path: Path):
+    """历史报告里的浮动图表应在预览副本中移到“图1”标题下方。"""
+    import app.api.routes.report_projects as report_projects_route
+
+    source = Path("report_projects/华安ETF周报/generated/20260417_华安ETF周报.docx")
+    normalized = tmp_path / source.name
+
+    assert report_projects_route._write_docx_with_inline_preview_charts(source, normalized)
+
+    ns = {
+        "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+        "wp": "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing",
+        "c": "http://schemas.openxmlformats.org/drawingml/2006/chart",
+    }
+    with zipfile.ZipFile(normalized) as archive:
+        root = ET.fromstring(archive.read("word/document.xml"))
+    body = root.find("w:body", ns)
+    assert body is not None
+    paragraphs = [child for child in list(body) if child.tag.endswith("}p")]
+
+    caption_index = None
+    chart_index = None
+    for index, paragraph in enumerate(paragraphs):
+        text = "".join(node.text or "" for node in paragraph.findall(".//w:t", ns)).strip()
+        if text == "图1：申万一级各板块表现":
+            caption_index = index
+        if paragraph.find(".//c:chart", ns) is not None:
+            chart_index = index
+            assert paragraph.find(".//wp:anchor", ns) is None
+            assert paragraph.find(".//wp:inline", ns) is not None
+            break
+
+    assert caption_index is not None
+    assert chart_index == caption_index + 1
+
+
+def test_word_preview_normalizes_chart_embedded_in_caption_paragraph(tmp_path: Path):
+    """标题段落自身携带浮动图时，也应拆成标题在前、图表在后。"""
+    import app.api.routes.report_projects as report_projects_route
+
+    source = Path("report_projects/华安ETF周报/generated/20260515_华安ETF周报.docx")
+    normalized = tmp_path / source.name
+
+    assert report_projects_route._write_docx_with_inline_preview_charts(source, normalized)
+
+    ns = {
+        "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+        "wp": "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing",
+        "c": "http://schemas.openxmlformats.org/drawingml/2006/chart",
+    }
+    with zipfile.ZipFile(normalized) as archive:
+        root = ET.fromstring(archive.read("word/document.xml"))
+    body = root.find("w:body", ns)
+    assert body is not None
+    paragraphs = [child for child in list(body) if child.tag.endswith("}p")]
+
+    caption_index = None
+    chart_index = None
+    for index, paragraph in enumerate(paragraphs):
+        text = "".join(node.text or "" for node in paragraph.findall(".//w:t", ns)).strip()
+        if text == "图1：申万一级各板块表现":
+            caption_index = index
+            assert paragraph.find(".//c:chart", ns) is None
+        if paragraph.find(".//c:chart", ns) is not None:
+            chart_index = index
+            assert paragraph.find(".//wp:anchor", ns) is None
+            assert paragraph.find(".//wp:inline", ns) is not None
+            break
+
+    assert caption_index is not None
+    assert chart_index == caption_index + 1
+
+
+def test_build_word_pdf_preview_uses_normalized_copy_for_soffice(tmp_path: Path, monkeypatch):
+    """LibreOffice 转换应读取预览规范化副本，避免直接解释 Word 浮动锚点。"""
+    import app.api.routes.report_projects as report_projects_route
+
+    source = Path("report_projects/华安ETF周报/generated/20260417_华安ETF周报.docx")
+    docx_path = tmp_path / source.name
+    docx_path.write_bytes(source.read_bytes())
+    commands = []
+
+    def fake_run(command, check, capture_output, text, timeout):
+        commands.append(command)
+        converted_docx = Path(command[-1])
+        outdir = Path(command[command.index("--outdir") + 1])
+        (outdir / f"{converted_docx.stem}.pdf").write_bytes(b"%PDF-from-normalized-copy")
+
+        class Result:
+            returncode = 0
+            stderr = ""
+
+        return Result()
+
+    monkeypatch.setattr(report_projects_route, "_find_microsoft_word_app", lambda: None)
+    monkeypatch.setattr(report_projects_route, "_find_soffice_command", lambda: "/usr/bin/soffice")
+    monkeypatch.setattr(report_projects_route.subprocess, "run", fake_run)
+
+    pdf_bytes = report_projects_route._build_word_pdf_preview(docx_path)
+
+    assert pdf_bytes == b"%PDF-from-normalized-copy"
+    assert commands
+    assert Path(commands[0][-1]).parent != docx_path.parent
+    assert report_projects_route.WORD_PREVIEW_LAYOUT_VERSION in str(
+        report_projects_route._word_pdf_preview_cache_path(docx_path)
+    )
+    assert report_projects_route.WORD_PREVIEW_LAYOUT_VERSION in str(
+        report_projects_route._word_preview_page_asset_dir(docx_path)
+    )
 
 
 def test_preview_report_project_file_falls_back_to_system_quicklook_image(
@@ -2335,6 +2532,50 @@ def test_upload_report_project_package_creates_project_folder(tmp_path: Path, mo
     assert "prompt_templates: config/prompt_templates.md" in (
         project_dir / "project.yaml"
     ).read_text(encoding="utf-8")
+
+
+def test_upload_report_project_allows_word_only_package(tmp_path: Path, monkeypatch):
+    """只上传 Word 模板也应创建项目，其它资产后续可补充。"""
+    import app.api.routes.report_projects as report_projects_route
+
+    monkeypatch.setattr(
+        report_projects_route,
+        "report_project_manager",
+        ReportProjectManager(projects_root=tmp_path),
+    )
+
+    response = client.post(
+        "/api/report-projects/upload",
+        data={"project_name": "仅Word周报"},
+        files=[
+            (
+                "word_template",
+                (
+                    "report_template.docx",
+                    b"docx",
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                ),
+            ),
+        ],
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "仅Word周报"
+    assert data["word_template_filename"] == "report_template.docx"
+    assert data["excel_workbook_filename"] == ""
+    assert data["section_config_filename"] == "section_config.yaml"
+
+    project_dir = tmp_path / "仅Word周报"
+    assert (project_dir / "templates" / "report_template.docx").read_bytes() == b"docx"
+    section_source = (project_dir / "config" / "section_config.yaml").read_text(encoding="utf-8")
+    assert "placeholders:" in section_source
+    assert "sections: []" in section_source
+
+    project_yaml = (project_dir / "project.yaml").read_text(encoding="utf-8")
+    assert "active_word_template: templates/report_template.docx" in project_yaml
+    assert "section_config: config/section_config.yaml" in project_yaml
+    assert "active_excel_workbook" not in project_yaml
 
 
 def test_rename_report_project_updates_folder_and_yaml(tmp_path: Path, monkeypatch):

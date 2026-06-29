@@ -37,6 +37,13 @@ def startup() -> None:
     check_database_connection()
     ensure_schema()
 
+    try:
+        from services.wind_workbook_manager import get_wind_workbook_manager
+
+        get_wind_workbook_manager().start_background_ensure(reason="api_startup")
+    except Exception as exc:
+        logger.warning("Wind realtime workbook background startup skipped: %s", exc)
+
 
 @app.on_event("shutdown")
 def shutdown() -> None:
@@ -57,9 +64,11 @@ app.add_middleware(
 from app.api.routes import (  # noqa: E402
     assets,
     audit,
+    commentary,
     dashboard,
     decision_console,
     event_ingestion,
+    funds,
     governance,
     graph,
     ingest,
@@ -97,6 +106,7 @@ from app.api.routes import (  # noqa: E402
 )
 
 app.include_router(assets.router)
+app.include_router(commentary.router)
 app.include_router(scenarios.router)
 app.include_router(review.router)
 app.include_router(signals.router)
@@ -119,6 +129,7 @@ app.include_router(governance.router)
 app.include_router(monitoring.router)
 app.include_router(decision_console.router)
 app.include_router(event_ingestion.router)
+app.include_router(funds.router)
 app.include_router(thesis_generator.router)
 app.include_router(thesis_review.router)
 app.include_router(timing_engine.router)
@@ -143,13 +154,14 @@ _templates_dir = _web_dir / "templates"
 
 
 class NoCacheStaticFiles(StaticFiles):
-    """开发期静态资源重新校验，避免前端模块缓存旧代码。"""
+    """让桌面 WebView 始终重新获取前端资源，避免缓存旧代码。"""
 
     async def get_response(self, path: str, scope: Scope) -> Response:
         response = await super().get_response(path, scope)
         if path.endswith((".js", ".css")):
-            response.headers["Cache-Control"] = "no-cache, max-age=0, must-revalidate"
+            response.headers["Cache-Control"] = "no-store, max-age=0"
             response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
         return response
 
 
@@ -165,7 +177,11 @@ async def index() -> HTMLResponse:
     index_path = _templates_dir / "index.html"
     return HTMLResponse(
         index_path.read_text(encoding="utf-8"),
-        headers={"Cache-Control": "no-cache, max-age=0, must-revalidate"},
+        headers={
+            "Cache-Control": "no-store, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
     )
 
 

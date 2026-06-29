@@ -38,7 +38,7 @@ def test_kline_static_module_versions_are_bumped():
     index_source = INDEX_HTML.read_text(encoding="utf-8")
 
     assert "./asset.js?v=20260623a" in app_source
-    assert "/static/js/app.js?v=20260623d" in index_source
+    assert "/static/js/app.js?v=20260624a" in index_source
 
 
 def test_asset_analysis_defaults_to_recent_history_for_first_paint():

@@ -901,6 +901,7 @@ def market_schedule_start_command() -> None:
         click.echo("✓ Market data scheduler started in background")
         click.echo("  Daily cron: 15:37 (after market close)")
         click.echo("  Gap check:  every 4 hours")
+        click.echo("  Index structure: 18:10 daily")
     except Exception as e:
         click.echo(f"✗ Failed to start market data scheduler: {e}", err=True)
         logger.error(
@@ -997,9 +998,20 @@ def market_schedule_status_command() -> None:
             stats = sched_status.get("stats", {})
             click.echo(f"\nDataset:        {sched_status.get('dataset', 'daily_quotes')}")
             click.echo(f"Daily cron:     {sched_status.get('daily_cron', 'N/A')}")
+            click.echo(
+                f"Index cron:     {sched_status.get('index_structure_cron', 'N/A')}"
+            )
             click.echo(f"Last daily run: {stats.get('last_daily_run', 'never')}")
             click.echo(f"Last gap check: {stats.get('last_gap_check', 'never')}")
             click.echo(f"Last gap count: {stats.get('last_gap_count', 0)}")
+            click.echo(
+                "Last index run: "
+                f"{stats.get('last_index_structure_run', 'never')}"
+            )
+            click.echo(
+                "Index errors:   "
+                f"{stats.get('last_index_structure_errors', 0)}"
+            )
             click.echo(f"Total ingested: {stats.get('total_ingested', 0)}")
             click.echo(f"Total failures: {stats.get('total_failures', 0)}")
     except Exception:

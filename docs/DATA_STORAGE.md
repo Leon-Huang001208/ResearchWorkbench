@@ -219,7 +219,63 @@ AlphaFoundry 使用 PostgreSQL + pgvector 作为主要数据存储，采用模�
 
 ---
 
-### 3. 市场结构化事实层 (AF-AUTO-007)
+### 3. 基金智能层（MVP）
+
+Fund Intelligence MVP 由 `data_layer/repositories/fund_repository.py` 管理，当前通过仓储 `ensure_schema()` 创建表；后续若进入正式迁移链，可迁入 Alembic 和全局 ORM 模型。
+
+#### fund_master（基金主数据表）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| symbol | TEXT PK | 基金代码 |
+| name | TEXT | 基金名称 |
+| fund_type | TEXT | 基金类型 |
+| management_company | TEXT | 管理人 |
+| inception_date | DATE | 成立日期 |
+| benchmark | TEXT | 业绩比较基准 |
+| latest_size | FLOAT | 最新规模 |
+| updated_at | TIMESTAMPTZ | 更新时间 |
+
+#### fund_nav_daily（日净值表）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| symbol | TEXT PK | 基金代码 |
+| trading_day | DATE PK | 交易日 |
+| unit_nav | FLOAT | 单位净值 |
+| accumulated_nav | FLOAT | 累计净值 |
+| daily_return | FLOAT | 日收益率 |
+| updated_at | TIMESTAMPTZ | 更新时间 |
+
+#### fund_holding_stock（基金股票持仓表）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| symbol | TEXT PK | 基金代码 |
+| report_date | DATE PK | 披露报告期 |
+| stock_symbol | TEXT PK | 股票代码 |
+| stock_name | TEXT | 股票名称 |
+| industry | TEXT | 行业标签 |
+| theme | TEXT | 主题标签 |
+| weight | FLOAT | 持仓权重 |
+| market_value | FLOAT | 持仓市值 |
+| updated_at | TIMESTAMPTZ | 更新时间 |
+
+#### fund_manager_tenure（基金经理任职表）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| symbol | TEXT PK | 基金代码 |
+| manager_id | TEXT PK | 基金经理 ID |
+| manager_name | TEXT | 基金经理名称 |
+| institution_name | TEXT | 所属机构 |
+| tenure_start | DATE | 任职开始日期 |
+| tenure_end | DATE | 任职结束日期 |
+| updated_at | TIMESTAMPTZ | 更新时间 |
+
+---
+
+### 4. 市场结构化事实层 (AF-AUTO-007)
 
 #### stock_master（股票基础信息表）
 
@@ -331,19 +387,117 @@ AlphaFoundry 使用 PostgreSQL + pgvector 作为主要数据存储，采用模�
 | raw_payload | JSONB | 原始数据 |
 | created_at | TIMESTAMPTZ | 创建时间 |
 
-#### index_component（指数成分表）
+#### index_provider（指数发布方表）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| provider_code | TEXT PK | 发布方代码 (CSI/CNI/HSI/WIND) |
+| name | TEXT | 发布方名称 |
+| official_site | TEXT | 官网 |
+| source_priority | INTEGER | 数据源优先级 |
+| raw_payload | JSONB | 原始数据 |
+| updated_at | TIMESTAMPTZ | 更新时间 |
+| created_at | TIMESTAMPTZ | 创建时间 |
+
+#### index_master（指数主数据表）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| index_id | TEXT PK | 规范指数 ID，如 CSI:000300 |
+| provider_code | TEXT | 发布方代码 |
+| official_code | TEXT | 官方代码 |
+| wind_code | TEXT | Wind 代码 |
+| name_cn | TEXT | 中文名称 |
+| name_en | TEXT | 英文名称 |
+| market | TEXT | 市场 |
+| currency | TEXT | 币种 |
+| category | TEXT | 指数类别 |
+| launch_date | TIMESTAMPTZ | 发布日期 |
+| base_date | TIMESTAMPTZ | 基日 |
+| base_value | NUMERIC | 基点 |
+| is_active | BOOLEAN | 是否启用 |
+| raw_payload | JSONB | 原始数据 |
+| updated_at | TIMESTAMPTZ | 更新时间 |
+| created_at | TIMESTAMPTZ | 创建时间 |
+
+**唯一约束**: (provider_code, official_code) → uq_index_master_provider_official_code
+
+#### index_component_snapshot（指数成分权重快照表）
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | id | INTEGER PK | 自增 ID |
+| index_id | TEXT | 规范指数 ID |
 | index_symbol | TEXT | 指数代码 |
+| provider_code | TEXT | 发布方代码 |
 | component_symbol | TEXT | 成分股代码 |
 | component_name | TEXT | 成分股名称 |
-| weight | NUMERIC | 权重 |
-| as_of | TIMESTAMPTZ | 日期 |
+| market | TEXT | 成分股市场 |
+| weight | NUMERIC | 兼容旧字段的权重 |
+| weight_pct | NUMERIC | 权重百分比 |
+| rank | INTEGER | 权重排名 |
+| as_of | TIMESTAMPTZ | 数据日期 |
+| trade_date | TIMESTAMPTZ | 交易日 |
+| source | TEXT | 数据来源 |
+| source_scope | TEXT | 数据范围 (full/top10/legacy) |
+| raw_payload | JSONB | 原始数据 |
+| created_at | TIMESTAMPTZ | 创建时间 |
+
+**唯一约束**: (index_id, trade_date, component_symbol, source) → uq_index_component_snapshot_identity
+
+#### etf_master（ETF 主数据表）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| etf_symbol | TEXT PK | ETF 代码 |
+| name | TEXT | ETF 名称 |
+| exchange | TEXT | 交易所 |
+| market | TEXT | 市场 |
+| fund_manager | TEXT | 基金管理人 |
+| listed_date | TIMESTAMPTZ | 上市日期 |
+| currency | TEXT | 币种 |
+| status | TEXT | 状态 |
+| raw_payload | JSONB | 原始数据 |
+| updated_at | TIMESTAMPTZ | 更新时间 |
+| created_at | TIMESTAMPTZ | 创建时间 |
+
+#### index_etf_link（指数 ETF 跟踪关系表）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INTEGER PK | 自增 ID |
+| index_id | TEXT | 规范指数 ID |
+| etf_symbol | TEXT | ETF 代码 |
+| tracking_role | TEXT | 跟踪关系 |
+| link_source | TEXT | 关系来源 |
+| confidence | NUMERIC | 置信度 |
+| raw_payload | JSONB | 原始数据 |
+| updated_at | TIMESTAMPTZ | 更新时间 |
+| created_at | TIMESTAMPTZ | 创建时间 |
+
+**唯一约束**: (index_id, etf_symbol, link_source) → uq_index_etf_link_identity
+
+#### etf_daily_metric（ETF 日度规模与资金流指标表）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INTEGER PK | 自增 ID |
+| etf_symbol | TEXT | ETF 代码 |
+| trade_date | TIMESTAMPTZ | 交易日 |
+| nav | NUMERIC | 单位净值 |
+| close | NUMERIC | 收盘价 |
+| shares_outstanding | NUMERIC | 份额 |
+| aum | NUMERIC | 规模 |
+| turnover | NUMERIC | 成交额/换手指标 |
+| premium_discount_pct | NUMERIC | 溢折价率 |
+| net_flow_amount | NUMERIC | 净流入/流出金额 |
 | source | TEXT | 数据来源 |
 | raw_payload | JSONB | 原始数据 |
 | created_at | TIMESTAMPTZ | 创建时间 |
+
+**唯一约束**: (etf_symbol, trade_date, source) → uq_etf_daily_metric_symbol_date_source
+
+指数成分、个股所属指数反查、指数 ETF 产品和 ETF 规模/流入流出均以数据库为长期事实表。Excel/Wind 工作簿只作为采集、快照和诊断入口；中证、国证、恒生等官网数据用于官方校验和补源，不直接覆盖主数据。当前已落地 `csindex_official_akshare`、`cnindex_official_akshare` 和 `wind_probe` 三类结构数据来源。
 
 #### etl_run（ETL 运行记录表）
 
@@ -1748,6 +1902,8 @@ class ExampleRepositoryImpl(BaseRepository):
 | 007 | 007_add_stock_price_table.py | 添加股票价格表 |
 | 008 | 008_add_event_type_column.py | 添加事件类型字段 |
 | 009 | 009_add_structured_market_data_tables.py | 添加结构化行情数据表 (stock_master, stock_daily_bar, stock_quote_snapshot, stock_financial_metric, stock_valuation, stock_shareholder, index_component, etl_run) |
+| 010 | 010_add_wind_data_tables.py | 添加 Wind 一致预期、两融、龙虎榜和日行情表 |
+| 011 | 011_add_index_structure_tables.py | 添加指数发布方、指数主表、成分权重快照、指数 ETF 关系和 ETF 日度规模/资金流表 |
 
 ### 常用命令
 

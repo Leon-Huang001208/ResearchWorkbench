@@ -134,26 +134,23 @@ sw_l3,申万三级
 
 ### RealtimeRaw
 
-Wind 公式区。每个 active 指数一行。
+Wind 公式常驻区。工作簿保存全量指数清单，但不再为每个指数单独铺实时公式；每个 `view_key` 的第一行放一条 Wind 批量 `wss` 公式，由 Excel/Wind 插件向下填出该口径所有指数的名称、最新价、涨跌幅。后端请求时只读取结果，不再写入 Excel 单元格。
 
 字段：
 
 ```text
-row_id,view_key,view_label,wind_code,
-name_formula,last_formula,pct_change_formula,update_time_formula,
-name_value,last_value,pct_change_value,update_time_value,status
+row_id,view_key,view_label,wind_code,catalog_name,
+wind_name_value,last_value,pct_change_value,update_time_value,
+is_concept,source,status
 ```
 
 公式示例：
 
 ```text
-=@s_info_name("8841701.WI")
-=@wss("8841701.WI","rt_last")
-=@wss("8841701.WI","rt_pct_chg")
+=wss("8841258.WI,8841089.WI,...","sec_name,rt_last,rt_pct_chg","cols=3;rows=19")
 ```
 
-`update_time_formula` 如果 Wind 对对应指数支持实时更新时间字段，则使用 Wind
-字段；如果不支持，则由 Excel/后端读取时写入本地读取时间。
+后端切换口径时不写 Excel。公式在打开工作簿后由 `scripts/prime_wind_realtime_workbook.py` 通过 Excel 写入一次，让 Wind 插件接管刷新；软件端只读取已刷好的结果。
 
 ### Snapshot
 
@@ -170,7 +167,23 @@ view_key,view_label,wind_code,name,last,pct_change,is_concept,source,updated_at,
 - 只读取 `status=ok` 且 `pct_change` 可转为数字的行。
 - 按 `view_key` 分组。
 - 每组按 `pct_change` 排序，生成上涨和下跌列表。
-- 如果 `updated_at` 超过 `expected_update_seconds`，返回 stale 状态给前端。
+- 读取到有效实时行时，后端以本次读取时间作为快照时间，避免 Excel `NOW()` 不重算导致误判 stale。
+
+### ViewRanges
+
+后端读取优化索引。工作簿生成时按 `view_key` 记录该口径在 `Snapshot` 里的起始行和行数。
+
+字段：
+
+```text
+view_key,view_label,snapshot_start_row,row_count,updated_at
+```
+
+读取规则：
+
+- `/api/dashboard/sector-movers?view_key=...` 会直接读取 `Snapshot` 中对应口径的行范围。
+- 如果旧工作簿仍是 `ActiveSnapshot` 活动槽位结构，后端保留兼容读取。
+- 重新生成工作簿后必须包含该 Sheet，避免每次切换口径都扫描全部指数。
 
 ### Health
 
@@ -216,7 +229,7 @@ timestamp,level,component,message,details
 新增一个 Wind 工作簿快照读取服务，职责只做三件事：
 
 1. 连接指定 Excel 工作簿。
-2. 读取 `Snapshot` 和 `Health`。
+2. 读取目标口径在 `Snapshot` 中的行范围和 `Health`。
 3. 转成后端市场口径 payload。
 
 读取服务不负责生成公式、不负责修改用户数据、不直接参与前端渲染。
@@ -323,4 +336,3 @@ Snapshot / Health
 - 使用 CSV 作为源头，Excel 作为运行时快照，兼顾版本管理和实时刷新。
 - 前端 60 秒静默刷新，后端 1-3 秒内存缓存，避免频繁跨进程读 Excel。
 - 默认不在首页首屏加载 Wind 全口径，避免启动慢和页面卡顿。
-

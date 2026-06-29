@@ -3,6 +3,7 @@
 为 stock_master, stock_daily_bar 等表提供幂等写入方法。
 PostgreSQL 使用 on_conflict_do_update，SQLite fallback 用 check-then-update-or-insert。
 """
+from datetime import date, datetime
 from typing import Any, Optional, cast
 
 from sqlalchemy import text
@@ -12,7 +13,12 @@ from sqlalchemy.orm import Session
 from core.observability import get_logger
 from data_layer.repositories.base import BaseRepository
 from data_layer.repositories.models import (
-    IndexComponentDB,
+    ETFDailyMetricDB,
+    ETFMasterDB,
+    IndexComponentSnapshotDB,
+    IndexETFLinkDB,
+    IndexMasterDB,
+    IndexProviderDB,
     StockDailyBarDB,
     StockFinancialMetricDB,
     StockMasterDB,
@@ -124,6 +130,30 @@ class MarketDataRepository(BaseRepository):
             .order_by(StockDailyBarDB.trade_date.desc())
             .first()
         )
+
+    def get_existing_trade_dates(
+        self,
+        symbol: str,
+        source: str,
+        start_date: str | date | datetime,
+        end_date: str | date | datetime,
+    ) -> set[date]:
+        """查询某证券在指定来源和日期范围内已有的交易日集合"""
+        start_dt = self._coerce_datetime(start_date)
+        end_dt = self._coerce_datetime(end_date)
+        rows = (
+            self.db.query(StockDailyBarDB.trade_date)
+            .filter(StockDailyBarDB.symbol == symbol)
+            .filter(StockDailyBarDB.source == source)
+            .filter(StockDailyBarDB.trade_date >= start_dt)
+            .filter(StockDailyBarDB.trade_date <= end_dt)
+            .all()
+        )
+        return {
+            value.date() if isinstance(value, datetime) else value
+            for (value,) in rows
+            if value is not None
+        }
 
     # ── StockQuoteSnapshot ───────────────────────────────────────
 
@@ -253,20 +283,288 @@ class MarketDataRepository(BaseRepository):
             .all()
         )
 
-    # ── IndexComponent ───────────────────────────────────────────
+    # ── Index structure ──────────────────────────────────────────
+
+    def upsert_index_providers(self, providers: list[dict]) -> int:
+        """批量插入或更新指数发布方"""
+        if not providers:
+            return 0
+
+        if _is_postgresql(self.db):
+            return self._upsert_postgres(
+                IndexProviderDB,
+                providers,
+                constraint="index_provider_pkey",
+                update_cols=["name", "official_site", "source_priority", "raw_payload", "updated_at"],
+            )
+        return self._upsert_sqlite(IndexProviderDB, providers, key_cols=["provider_code"])
+
+    def upsert_index_master_many(self, indices: list[dict]) -> int:
+        """批量插入或更新指数主数据"""
+        if not indices:
+            return 0
+
+        if _is_postgresql(self.db):
+            return self._upsert_postgres(
+                IndexMasterDB,
+                indices,
+                constraint="index_master_pkey",
+                update_cols=[
+                    "provider_code",
+                    "official_code",
+                    "wind_code",
+                    "name_cn",
+                    "name_en",
+                    "market",
+                    "currency",
+                    "category",
+                    "launch_date",
+                    "base_date",
+                    "base_value",
+                    "is_active",
+                    "raw_payload",
+                    "updated_at",
+                ],
+            )
+        return self._upsert_sqlite(IndexMasterDB, indices, key_cols=["index_id"])
 
     def upsert_index_components(self, components: list[dict]) -> int:
-        """批量插入或更新指数成分"""
+        """批量插入或更新指数成分权重快照"""
         if not components:
             return 0
 
+        normalized = [self._normalize_index_component(item) for item in components]
+
+        if _is_postgresql(self.db):
+            return self._upsert_postgres(
+                IndexComponentSnapshotDB,
+                normalized,
+                constraint="uq_index_component_snapshot_identity",
+                update_cols=[
+                    "index_symbol",
+                    "provider_code",
+                    "component_name",
+                    "market",
+                    "weight",
+                    "weight_pct",
+                    "rank",
+                    "as_of",
+                    "source_scope",
+                    "raw_payload",
+                ],
+            )
         return self._upsert_sqlite(
-            IndexComponentDB,
-            components,
-            key_cols=["index_symbol", "component_symbol", "as_of", "source"],
+            IndexComponentSnapshotDB,
+            normalized,
+            key_cols=["index_id", "trade_date", "component_symbol", "source"],
         )
 
+    def get_index_components(
+        self,
+        index_id: str,
+        trade_date=None,
+        source: str | None = None,
+        limit: int = 1000,
+    ) -> list[IndexComponentSnapshotDB]:
+        """按指数查询成分权重快照"""
+        q = (
+            self.db.query(IndexComponentSnapshotDB)
+            .filter(IndexComponentSnapshotDB.index_id == index_id)
+            .order_by(IndexComponentSnapshotDB.rank.asc(), IndexComponentSnapshotDB.weight_pct.desc())
+        )
+        if trade_date:
+            q = q.filter(IndexComponentSnapshotDB.trade_date == trade_date)
+        if source:
+            q = q.filter(IndexComponentSnapshotDB.source == source)
+        return q.limit(limit).all()
+
+    def get_stock_index_memberships(
+        self,
+        component_symbol: str,
+        trade_date=None,
+        source: str | None = None,
+        limit: int = 1000,
+    ) -> list[dict]:
+        """反查个股所属指数及权重"""
+        q = self.db.query(IndexComponentSnapshotDB).filter(
+            IndexComponentSnapshotDB.component_symbol == component_symbol
+        )
+        if trade_date:
+            q = q.filter(IndexComponentSnapshotDB.trade_date == trade_date)
+        if source:
+            q = q.filter(IndexComponentSnapshotDB.source == source)
+
+        rows = q.order_by(IndexComponentSnapshotDB.weight_pct.desc()).limit(limit).all()
+        index_ids = [row.index_id for row in rows]
+        masters = {}
+        if index_ids:
+            master_rows = self.db.query(IndexMasterDB).filter(IndexMasterDB.index_id.in_(index_ids)).all()
+            masters = {row.index_id: row for row in master_rows}
+
+        memberships = []
+        for row in rows:
+            master = masters.get(row.index_id)
+            memberships.append(
+                {
+                    "index_id": row.index_id,
+                    "index_symbol": row.index_symbol,
+                    "provider_code": row.provider_code,
+                    "index_name": master.name_cn if master else row.index_symbol,
+                    "component_symbol": row.component_symbol,
+                    "component_name": row.component_name,
+                    "trade_date": row.trade_date,
+                    "weight_pct": row.weight_pct,
+                    "source": row.source,
+                }
+            )
+        return memberships
+
+    # ── ETF structure ────────────────────────────────────────────
+
+    def upsert_etf_master_many(self, etfs: list[dict]) -> int:
+        """批量插入或更新 ETF 主数据"""
+        if not etfs:
+            return 0
+
+        if _is_postgresql(self.db):
+            return self._upsert_postgres(
+                ETFMasterDB,
+                etfs,
+                constraint="etf_master_pkey",
+                update_cols=[
+                    "name",
+                    "exchange",
+                    "market",
+                    "fund_manager",
+                    "listed_date",
+                    "currency",
+                    "status",
+                    "raw_payload",
+                    "updated_at",
+                ],
+            )
+        return self._upsert_sqlite(ETFMasterDB, etfs, key_cols=["etf_symbol"])
+
+    def upsert_index_etf_links(self, links: list[dict]) -> int:
+        """批量插入或更新指数与 ETF 跟踪关系"""
+        if not links:
+            return 0
+
+        if _is_postgresql(self.db):
+            return self._upsert_postgres(
+                IndexETFLinkDB,
+                links,
+                constraint="uq_index_etf_link_identity",
+                update_cols=["tracking_role", "confidence", "raw_payload", "updated_at"],
+            )
+        return self._upsert_sqlite(
+            IndexETFLinkDB,
+            links,
+            key_cols=["index_id", "etf_symbol", "link_source"],
+        )
+
+    def upsert_etf_daily_metrics(self, metrics: list[dict]) -> int:
+        """批量插入或更新 ETF 日度规模与资金流指标"""
+        if not metrics:
+            return 0
+
+        if _is_postgresql(self.db):
+            return self._upsert_postgres(
+                ETFDailyMetricDB,
+                metrics,
+                constraint="uq_etf_daily_metric_symbol_date_source",
+                update_cols=[
+                    "nav",
+                    "close",
+                    "shares_outstanding",
+                    "aum",
+                    "turnover",
+                    "premium_discount_pct",
+                    "net_flow_amount",
+                    "raw_payload",
+                ],
+            )
+        return self._upsert_sqlite(
+            ETFDailyMetricDB,
+            metrics,
+            key_cols=["etf_symbol", "trade_date", "source"],
+        )
+
+    def get_index_etfs(self, index_id: str, limit: int = 500) -> list[dict]:
+        """查询跟踪某指数的 ETF 产品"""
+        links = (
+            self.db.query(IndexETFLinkDB)
+            .filter(IndexETFLinkDB.index_id == index_id)
+            .order_by(IndexETFLinkDB.confidence.desc())
+            .limit(limit)
+            .all()
+        )
+        symbols = [link.etf_symbol for link in links]
+        etf_map = {}
+        if symbols:
+            etfs = self.db.query(ETFMasterDB).filter(ETFMasterDB.etf_symbol.in_(symbols)).all()
+            etf_map = {etf.etf_symbol: etf for etf in etfs}
+
+        results = []
+        for link in links:
+            etf = etf_map.get(link.etf_symbol)
+            results.append(
+                {
+                    "index_id": link.index_id,
+                    "etf_symbol": link.etf_symbol,
+                    "name": etf.name if etf else link.etf_symbol,
+                    "exchange": etf.exchange if etf else None,
+                    "tracking_role": link.tracking_role,
+                    "link_source": link.link_source,
+                    "confidence": link.confidence,
+                }
+            )
+        return results
+
+    def get_etf_daily_metrics(
+        self,
+        etf_symbol: str,
+        start_date=None,
+        end_date=None,
+        limit: int = 500,
+    ) -> list[ETFDailyMetricDB]:
+        """查询 ETF 日度规模与资金流指标"""
+        q = (
+            self.db.query(ETFDailyMetricDB)
+            .filter(ETFDailyMetricDB.etf_symbol == etf_symbol)
+            .order_by(ETFDailyMetricDB.trade_date.desc())
+        )
+        if start_date:
+            q = q.filter(ETFDailyMetricDB.trade_date >= start_date)
+        if end_date:
+            q = q.filter(ETFDailyMetricDB.trade_date <= end_date)
+        return q.limit(limit).all()
+
     # ── Internal helpers ─────────────────────────────────────────
+
+    @staticmethod
+    def _normalize_index_component(item: dict) -> dict:
+        """兼容旧 index_component 入参并补齐新快照字段"""
+        normalized = dict(item)
+        index_symbol = str(normalized.get("index_symbol") or normalized.get("index_id") or "")
+        provider_code = str(normalized.get("provider_code") or normalized.get("source") or "unknown")
+        normalized.setdefault("index_id", f"{provider_code}:{index_symbol}")
+        normalized.setdefault("index_symbol", index_symbol)
+        normalized.setdefault("provider_code", provider_code)
+        normalized.setdefault("trade_date", normalized.get("as_of"))
+        normalized.setdefault("weight_pct", normalized.get("weight"))
+        normalized.setdefault("weight", normalized.get("weight_pct"))
+        normalized.setdefault("source_scope", "full")
+        normalized.setdefault("raw_payload", {})
+        return normalized
+
+    @staticmethod
+    def _coerce_datetime(value: str | date | datetime) -> datetime:
+        if isinstance(value, datetime):
+            return value
+        if isinstance(value, date):
+            return datetime.combine(value, datetime.min.time())
+        return datetime.fromisoformat(str(value))
 
     def _upsert_postgres(
         self, model, items: list[dict], constraint: str, update_cols: list[str]

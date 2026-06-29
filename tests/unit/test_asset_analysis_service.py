@@ -307,6 +307,70 @@ class TestAssetAnalysisService:
         assert card.technical["provider"] == "cjpy"
         service._fill_price_bars_from_coordinator.assert_not_called()
 
+    def test_fetch_cjpy_price_bars_requests_recent_window_and_merges_latest_trade_day(self):
+        """Cjpy latest fetch should use a small window for pre-open/non-trading days."""
+        requested = {}
+        service = AssetAnalysisService(coordinator=Mock(), market_repo=None)
+        service._merge_cached_history_with_realtime_bar = Mock(
+            return_value=[
+                PriceBar(
+                    date=date(2026, 6, 22),
+                    open=14.2,
+                    high=14.6,
+                    low=14.1,
+                    close=14.4,
+                ),
+                PriceBar(
+                    date=date(2026, 6, 23),
+                    open=14.5,
+                    high=14.9,
+                    low=14.3,
+                    close=14.8,
+                ),
+            ]
+        )
+
+        class FakeCjpyAdapter:
+            def fetch_daily_quotes(self, codes, start_date, end_date):
+                requested["codes"] = codes
+                requested["start_date"] = start_date
+                requested["end_date"] = end_date
+                return pd.DataFrame(
+                    [
+                        {
+                            "时间": "2026-06-22",
+                            "open": 14.0,
+                            "high": 14.4,
+                            "low": 13.9,
+                            "close": 14.2,
+                            "vol": 900,
+                        },
+                        {
+                            "时间": "2026-06-23",
+                            "open": 14.5,
+                            "high": 14.9,
+                            "low": 14.3,
+                            "close": 14.8,
+                            "vol": 1000,
+                        }
+                    ]
+                )
+
+        with patch("data_layer.adapters.cjpy_adapter.CjpyAdapter", return_value=FakeCjpyAdapter()):
+            bars = service._fetch_cjpy_price_bars(
+                "688599.SH",
+                date(2025, 6, 23),
+                date(2026, 6, 24),
+            )
+
+        assert requested == {
+            "codes": ["688599.SH"],
+            "start_date": "20260610",
+            "end_date": "20260624",
+        }
+        assert bars[-1].date == date(2026, 6, 23)
+        assert bars[-1].close == 14.8
+
     @pytest.mark.asyncio
     async def test_enrich_uses_wind_realtime_when_cjpy_unavailable(self):
         """Wind Excel realtime bars should be tried before cache fallback."""

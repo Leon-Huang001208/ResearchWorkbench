@@ -11,7 +11,7 @@
     scheduler.stop()
 """
 from datetime import date, datetime, timedelta
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, Callable, Dict, List, Optional, cast
 
 from core.observability import get_logger
 from core.utils.trading_calendar import get_trading_calendar
@@ -48,11 +48,20 @@ class MarketDataScheduler:
     BATCH_SIZE = 50  # 每批处理的股票数
     LOOKBACK_DAYS = 5  # 每日拉取的交易日回溯天数
     GAP_LOOKBACK_DAYS = 365  # 缺口检测的最大回溯天数
+    INDEX_STRUCTURE_CRON_HOUR = 18
+    INDEX_STRUCTURE_CRON_MINUTE = 10
+    INDEX_STRUCTURE_MAX_PER_PROVIDER = 20
 
     def __init__(
         self,
         symbols: Optional[List[str]] = None,
         dataset: str = "daily_quotes",
+        enable_gap_check: bool = True,
+        index_structure_codes: Optional[Dict[str, List[str]]] = None,
+        index_structure_max_per_provider: int = INDEX_STRUCTURE_MAX_PER_PROVIDER,
+        index_structure_ingestor: Optional[Callable[..., Dict[str, int]]] = None,
+        index_structure_session_factory: Optional[Callable[[], Any]] = None,
+        index_structure_repo_factory: Optional[Callable[[Any], Any]] = None,
     ):
         """初始化市场数据调度器.
 
@@ -62,6 +71,12 @@ class MarketDataScheduler:
         """
         self._symbols = symbols
         self._dataset = dataset
+        self._enable_gap_check = enable_gap_check
+        self._index_structure_codes = index_structure_codes
+        self._index_structure_max_per_provider = index_structure_max_per_provider
+        self._index_structure_ingestor = index_structure_ingestor
+        self._index_structure_session_factory = index_structure_session_factory
+        self._index_structure_repo_factory = index_structure_repo_factory
         self.running = False
         self.scheduler: Optional[AsyncIOScheduler] = None
         self._calendar = get_trading_calendar()
@@ -69,8 +84,11 @@ class MarketDataScheduler:
             "last_daily_run": None,
             "last_gap_check": None,
             "last_gap_count": 0,
+            "last_index_structure_run": None,
+            "last_index_structure_errors": 0,
             "total_ingested": 0,
             "total_failures": 0,
+            "total_index_components": 0,
         }
 
     # ------------------------------------------------------------------
@@ -100,14 +118,25 @@ class MarketDataScheduler:
             name="Daily Market Data Ingest",
         )
 
-        # 2. 缺口检测与回补 — 启动后 2 分钟运行首次
+        # 2. 缺口检测与回补
+        if self._enable_gap_check:
+            self.scheduler.add_job(
+                self._gap_detect_job,
+                "interval",
+                hours=self.GAP_CHECK_INTERVAL_HOURS,
+                id="market_data_gap_check",
+                name="Market Data Gap Detection",
+                next_run_time=datetime.now() + timedelta(minutes=2),
+            )
+
+        # 3. 指数结构日更 — 官网成分股/权重，错开行情拉取与收盘高峰
         self.scheduler.add_job(
-            self._gap_detect_job,
-            "interval",
-            hours=self.GAP_CHECK_INTERVAL_HOURS,
-            id="market_data_gap_check",
-            name="Market Data Gap Detection",
-            next_run_time=datetime.now() + timedelta(minutes=2),
+            self._index_structure_ingest_job,
+            "cron",
+            hour=self.INDEX_STRUCTURE_CRON_HOUR,
+            minute=self.INDEX_STRUCTURE_CRON_MINUTE,
+            id="market_data_index_structure_ingest",
+            name="Official Index Structure Ingest",
         )
 
         self.scheduler.start()
@@ -117,6 +146,11 @@ class MarketDataScheduler:
             extra={
                 "daily_cron": f"{self.DAILY_CRON_HOUR}:{self.DAILY_CRON_MINUTE:02d}",
                 "gap_interval_hours": self.GAP_CHECK_INTERVAL_HOURS,
+                "gap_check_enabled": self._enable_gap_check,
+                "index_structure_cron": (
+                    f"{self.INDEX_STRUCTURE_CRON_HOUR}:"
+                    f"{self.INDEX_STRUCTURE_CRON_MINUTE:02d}"
+                ),
             },
         )
 
@@ -137,6 +171,11 @@ class MarketDataScheduler:
             "dataset": self._dataset,
             "daily_cron": f"{self.DAILY_CRON_HOUR}:{self.DAILY_CRON_MINUTE:02d}",
             "gap_interval_hours": self.GAP_CHECK_INTERVAL_HOURS,
+            "gap_check_enabled": self._enable_gap_check,
+            "index_structure_cron": (
+                f"{self.INDEX_STRUCTURE_CRON_HOUR}:"
+                f"{self.INDEX_STRUCTURE_CRON_MINUTE:02d}"
+            ),
             "stats": dict(self._stats),
         }
 
@@ -377,6 +416,109 @@ class MarketDataScheduler:
                     "market_data_backfill_symbol_failed",
                     extra={"symbol": symbol, "missing_days": len(missing_dates)},
                 )
+
+    # ------------------------------------------------------------------
+    # Job: Index Structure Ingest
+    # ------------------------------------------------------------------
+
+    async def _index_structure_ingest_job(self) -> None:
+        """指数结构批量更新（job 入口）."""
+        import asyncio
+
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, self._index_structure_ingest)
+
+    def _index_structure_ingest(self) -> Dict[str, Any]:
+        """Run official CSI/CNI constituent ingestion in scheduler context."""
+        from data_layer.repositories.base import db_session
+        from data_layer.repositories.market_data_repository import MarketDataRepository
+        from services.official_index_structure_ingestion import (
+            discover_official_index_codes,
+            ingest_official_index_components,
+        )
+
+        logger.info("market_data_index_structure_ingest_start")
+        provider_codes = self._get_index_structure_codes(discover_official_index_codes)
+        if not provider_codes:
+            logger.warning("market_data_index_structure_ingest_no_codes")
+            return {"status": "no_codes"}
+
+        session_factory = self._index_structure_session_factory or db_session
+        repo_factory = self._index_structure_repo_factory or MarketDataRepository
+        ingestor = self._index_structure_ingestor or ingest_official_index_components
+
+        totals = {
+            "index_master": 0,
+            "index_component_snapshot": 0,
+            "errors": 0,
+        }
+        with session_factory() as db:
+            repo = repo_factory(db)
+            for provider, index_codes in provider_codes.items():
+                if not index_codes:
+                    continue
+                result = ingestor(repo, provider=provider, index_codes=index_codes)
+                totals["index_master"] += int(result.get("index_master", 0))
+                totals["index_component_snapshot"] += int(
+                    result.get("index_component_snapshot", 0)
+                )
+                totals["errors"] += int(result.get("errors", 0))
+                logger.info(
+                    "market_data_index_structure_provider_done",
+                    extra={
+                        "provider": provider,
+                        "indices": len(index_codes),
+                        "index_master": result.get("index_master", 0),
+                        "index_component_snapshot": result.get(
+                            "index_component_snapshot", 0
+                        ),
+                        "errors": result.get("errors", 0),
+                    },
+                )
+
+        self._stats["last_index_structure_run"] = datetime.now().isoformat()
+        self._stats["last_index_structure_errors"] = totals["errors"]
+        self._stats["total_index_components"] += totals["index_component_snapshot"]
+
+        logger.info(
+            "market_data_index_structure_ingest_done",
+            extra={
+                "providers": len(provider_codes),
+                "index_master": totals["index_master"],
+                "index_component_snapshot": totals["index_component_snapshot"],
+                "errors": totals["errors"],
+            },
+        )
+        return {
+            "status": "completed",
+            "providers": len(provider_codes),
+            **totals,
+        }
+
+    def _get_index_structure_codes(
+        self,
+        discoverer: Callable[..., List[str]],
+    ) -> Dict[str, List[str]]:
+        if self._index_structure_codes is not None:
+            return {
+                provider.strip().upper(): list(index_codes)
+                for provider, index_codes in self._index_structure_codes.items()
+            }
+
+        provider_codes = {}
+        for provider in ("CSI", "CNI"):
+            try:
+                provider_codes[provider] = discoverer(
+                    provider,
+                    max_count=self._index_structure_max_per_provider,
+                )
+            except Exception:
+                logger.exception(
+                    "market_data_index_structure_discovery_failed",
+                    extra={"provider": provider},
+                )
+                provider_codes[provider] = []
+        return provider_codes
 
     # ------------------------------------------------------------------
     # Helpers

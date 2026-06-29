@@ -24,25 +24,36 @@ let activeMarketSectorView = 'ths_industry';
 let latestMarketOverview = null;
 const loadingMarketSectorViews = new Set();
 const MARKET_SECTOR_PREFETCH_VIEWS = [];
+const MARKET_REFRESH_INTERVAL_MS = 15000;
 let marketSectorPrefetchTimer = null;
+let marketRefreshTimer = null;
+let isMarketDashboardRefreshing = false;
 
 if (typeof document !== 'undefined') {
     document.addEventListener('click', event => {
         if (!event.target.closest('.market-sector-view-selector')) {
             closeMarketSectorMenus();
         }
+        const marketAction = event.target.closest('[data-market-action]');
+        if (marketAction) handleMarketAction(marketAction.dataset.marketAction);
     });
     document.addEventListener('keydown', event => {
         if (event.key === 'Escape') closeMarketSectorMenus();
     });
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) stopMarketAutoRefresh();
+        else scheduleMarketAutoRefresh();
+    });
 }
 
 // ─── Dashboard Loading ──────────────────────────────────────
-export async function loadDashboard() {
+export async function loadDashboard(options = {}) {
     const marketPanel = document.getElementById('dash-panel-market');
+    const silent = Boolean(options.silent);
 
     try {
-        showSectionLoading(marketPanel);
+        if (!silent) showSectionLoading(marketPanel);
+        setMarketRefreshState(true, silent ? '自动刷新中' : '刷新中');
 
         const data = await apiCall('GET', '/api/dashboard');
 
@@ -54,10 +65,15 @@ export async function loadDashboard() {
 
         // Refresh i18n
         if (typeof I18N !== 'undefined') I18N.applyAll();
+        scheduleMarketAutoRefresh();
     } catch (e) {
         console.error('Failed to load dashboard:', e);
-        showSectionError(marketPanel, e.message);
-        toast('仪表盘加载失败', 'error');
+        if (!silent) {
+            showSectionError(marketPanel, e.message);
+            toast('仪表盘加载失败', 'error');
+        }
+    } finally {
+        setMarketRefreshState(false);
     }
 }
 
@@ -85,7 +101,10 @@ function setSourceBadge(badge, label, isReal) {
 
 // ─── Market Overview Tab ────────────────────────────────────
 function renderMarketOverview(data) {
-    const mo = data.market_overview;
+    renderMarketOverviewPayload(data.market_overview || {});
+}
+
+function renderMarketOverviewPayload(mo = {}) {
     latestMarketOverview = mo;
 
     renderMarketCommandCenter(mo);
@@ -94,8 +113,9 @@ function renderMarketOverview(data) {
     const newsEl = document.getElementById('market-global-news');
     if (newsEl) {
         const scrollPos = newsEl.scrollTop;
-        if (mo.global_news.length) {
-            newsEl.innerHTML = mo.global_news.map((n, idx) => `
+        const globalNews = Array.isArray(mo.global_news) ? mo.global_news : [];
+        if (globalNews.length) {
+            newsEl.innerHTML = globalNews.map((n, idx) => `
                 <li class="news-item ${n.is_mock ? 'mock-data-item' : ''}">
                     <div class="news-header">
                         <span class="news-rank">${idx + 1}</span>
@@ -128,6 +148,109 @@ export function switchMarketSectorView(view) {
     renderMarketSectorTabs();
     if (latestMarketOverview) renderMarketSectorLists(latestMarketOverview);
     ensureMarketSectorViewLoaded(normalizedView);
+}
+
+export function refreshMarketDashboard(options = {}) {
+    return refreshMarketOverviewOnly({
+        forceRefresh: Boolean(options.manual),
+        silent: !options.manual,
+    });
+}
+
+async function refreshMarketOverviewOnly(options = {}) {
+    if (isMarketDashboardRefreshing) return Promise.resolve();
+    isMarketDashboardRefreshing = true;
+    const silent = Boolean(options.silent);
+    const forceRefresh = Boolean(options.forceRefresh);
+
+    try {
+        setMarketRefreshState(true, silent ? '自动刷新中' : '刷新中');
+        const overview = await apiCall(
+            'GET',
+            `/api/dashboard/market-overview?force_refresh=${forceRefresh ? 'true' : 'false'}&_=${Date.now()}`
+        );
+        updateDataSourceBadge({ market_overview: overview });
+        renderMarketOverviewPayload(overview);
+        if (typeof I18N !== 'undefined') I18N.applyAll();
+    } catch (e) {
+        console.error('Failed to refresh market overview:', e);
+        if (!silent) toast('行情刷新失败', 'error');
+    } finally {
+        isMarketDashboardRefreshing = false;
+        setMarketRefreshState(false);
+        scheduleMarketAutoRefresh();
+    }
+}
+
+function handleMarketAction(action) {
+    switch (action) {
+        case 'refresh':
+            refreshMarketDashboard({ manual: true });
+            break;
+        case 'stock-picker':
+            openAssetAnalysis();
+            break;
+        case 'ipo-calendar':
+            toast('打新日历数据源尚未接入，暂不展示空入口', 'info');
+            break;
+        case 'etf':
+            openAssetAnalysis('ETF');
+            break;
+        case 'hot-list':
+            scrollMarketTarget('.market-heatmap-card');
+            break;
+        case 'market-review':
+            scrollMarketTarget('.market-ai-brief');
+            break;
+        default:
+            break;
+    }
+}
+
+function openAssetAnalysis(query = '') {
+    if (typeof window.navigateTo === 'function') {
+        window.navigateTo('asset-analysis');
+    }
+    setTimeout(() => {
+        const input = document.getElementById('asset-code');
+        if (!input) return;
+        if (query) {
+            input.value = query;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        input.focus();
+    }, 80);
+}
+
+function scrollMarketTarget(selector) {
+    const target = document.querySelector(selector);
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function scheduleMarketAutoRefresh() {
+    stopMarketAutoRefresh();
+    if (!shouldAutoRefreshMarket()) return;
+    marketRefreshTimer = setTimeout(() => {
+        refreshMarketDashboard({ manual: false });
+    }, MARKET_REFRESH_INTERVAL_MS);
+}
+
+function stopMarketAutoRefresh() {
+    if (marketRefreshTimer) clearTimeout(marketRefreshTimer);
+    marketRefreshTimer = null;
+}
+
+function shouldAutoRefreshMarket() {
+    if (typeof document === 'undefined' || document.hidden) return false;
+    return Boolean(
+        document.getElementById('section-dashboard')?.classList.contains('active')
+        && document.getElementById('dash-panel-market')?.classList.contains('active')
+    );
+}
+
+function setMarketRefreshState(isRefreshing, label = '') {
+    // Auto refresh is intentionally silent; the market panel should not expose a manual refresh control.
 }
 
 export function toggleMarketSectorMenu(trigger) {
@@ -342,6 +465,8 @@ function renderMarketCommandCenter(mo = {}) {
 
     const breadth = mo.breadth || buildFallbackBreadth(mo);
     renderMarketBreadth(breadth);
+    renderMarketSessionStrip(mo, breadth);
+    renderMarketMiniCards(mo, indices, breadth);
 
     const heatmapItems = mo.heatmap || buildMarketHeatmapItems(mo);
     renderMarketHeatmap(heatmapItems);
@@ -395,37 +520,86 @@ function renderMarketIndices(indices = []) {
     const grid = document.getElementById('market-index-grid');
     if (!grid) return;
     if (!indices.length) {
-        grid.innerHTML = '<article class="market-index-card"><span>指数行情</span><strong>--</strong><small>等待实时刷新</small></article>';
+        grid.innerHTML = '<article class="market-index-card"><span>指数行情</span><strong>--</strong><small><em>等待实时刷新</em></small></article>';
         return;
     }
-    grid.innerHTML = indices.map(index => {
-        const change = Number(index.change || index.change_pct || 0);
+    grid.innerHTML = getPrimaryMarketIndices(indices).map(index => {
+        const change = readPercentChange(index);
+        const pointChange = readPointChange(index);
         const directionClass = change >= 0 ? 'is-up' : 'is-down';
-        const sign = change > 0 ? '+' : '';
+        const pointText = pointChange === null
+            ? ''
+            : `<b>${formatSignedNumber(pointChange)}</b>`;
         return `
             <article class="market-index-card ${directionClass}">
                 <span>${esc(index.name || '--')}</span>
                 <strong>${esc(String(index.value || '--'))}</strong>
-                <small>${sign}${change.toFixed(2)}%</small>
+                <small>${pointText}<em>${formatSignedPercent(change)}</em></small>
             </article>
         `;
     }).join('');
 }
 
+function getPrimaryMarketIndices(indices = []) {
+    const preferredNames = [
+        '上证指数',
+        '深证成指',
+        '科创综指',
+        '创业板指',
+        '中证A500',
+        '北证50',
+        '上证50',
+        '沪深300',
+        '科创50',
+        '创业板50',
+        '中证500',
+        '中证1000',
+    ];
+    const byName = new Map(indices.map(index => [index.name, index]));
+    const preferred = preferredNames
+        .map(name => byName.get(name))
+        .filter(Boolean);
+    return preferred;
+}
+
 function renderMarketBreadth(breadth = {}) {
     const up = Number(breadth.up || 0);
     const down = Number(breadth.down || 0);
-    const upRatio = Math.min(95, Math.max(5, Number(breadth.upRatio || 50)));
-    const downRatio = Math.max(5, 100 - upRatio);
-    const meta = breadth.turnoverDelta
-        ? `较昨日 ${breadth.turnoverDelta}`
-        : (breadth.sourceLabel || '等待实时刷新');
+    const ratios = normalizeBreadthRatios(breadth, up, down);
+    const meta = breadth.previousTurnover
+        ? `上一日成交额 ${breadth.previousTurnover}`
+        : '上一日成交额 --';
 
-    setText('market-breadth-ratio', `${up || '--'} : ${down || '--'}`);
-    setText('market-turnover', `成交额 ${breadth.turnover || '--'}`);
+    setText('market-breadth-ratio', `${down || '--'} : ${up || '--'}`);
+    setText('market-breadth-down-label', `跌 ${down || '--'}`);
+    setText('market-breadth-up-label', `涨 ${up || '--'}`);
+    setText('market-turnover', `今日实时成交额 ${breadth.turnover || '--'}`);
     setText('market-turnover-delta', meta);
-    setWidth('market-breadth-up', `${upRatio}%`);
-    setWidth('market-breadth-down', `${downRatio}%`);
+    setWidth('market-breadth-up', `${ratios.up}%`);
+    setWidth('market-breadth-down', `${ratios.down}%`);
+}
+
+function normalizeBreadthRatios(breadth = {}, up = 0, down = 0) {
+    const explicitUp = Number(breadth.upRatio);
+    const explicitDown = Number(breadth.downRatio);
+    if (Number.isFinite(explicitUp) && Number.isFinite(explicitDown) && explicitUp + explicitDown > 0) {
+        const total = explicitUp + explicitDown;
+        return {
+            up: clampRatio(explicitUp / total * 100),
+            down: clampRatio(explicitDown / total * 100),
+        };
+    }
+
+    const total = up + down;
+    if (total <= 0) return { up: 50, down: 50 };
+    return {
+        up: clampRatio(up / total * 100),
+        down: clampRatio(down / total * 100),
+    };
+}
+
+function clampRatio(value) {
+    return Math.round(Math.min(95, Math.max(5, value)) * 10) / 10;
 }
 
 function renderMarketHeatmap(items = []) {
@@ -452,22 +626,186 @@ function renderMarketHeatmap(items = []) {
 function renderMarketAiBrief(mo = {}, indices = [], breadth = {}) {
     const bestSector = (mo.top_up_sectors || [])[0];
     const weakSector = (mo.top_down_sectors || [])[0];
-    const leadIndex = indices.find(index => Number(index.change || 0) > 0) || indices[0] || {};
+    const leadIndex = indices.find(index => readPercentChange(index) > 0) || indices[0] || {};
     const brief = [
         `${leadIndex.name || 'A股'}盘面以结构性机会为主。`,
         bestSector ? `${bestSector.name}领涨，涨幅约 ${Number(bestSector.change_pct || 0).toFixed(2)}%。` : '热点板块等待实时数据确认。',
         weakSector ? `${weakSector.name}承压，注意资金轮动。` : '下跌板块暂未形成清晰主线。',
     ].join('');
 
-    const updated = mo.last_updated ? new Date(mo.last_updated).toLocaleString() : new Date().toLocaleDateString();
+    const updated = formatMarketDateTime(mo.last_updated);
     setText('market-ai-brief-text', brief);
     setText('market-ai-brief-date', updated);
-    setText('market-close-state', mo.uses_real_sectors ? '实时行情' : '本地推演');
+}
+
+function renderMarketSessionStrip(mo = {}, breadth = {}) {
+    const session = getMarketSessionInfo(mo);
+    const stats = mo.market_stats || {};
+    setText('market-session-state', session.state);
+    setText('market-session-date', session.date);
+    const sessionEl = document.querySelector('.market-session-state');
+    if (sessionEl) {
+        sessionEl.classList.toggle('is-trading', session.isTrading);
+        sessionEl.classList.toggle('is-closed', !session.isTrading);
+    }
+    setMarketFlowValue(pickFirstText(
+        stats.capital_flow,
+        breadth.netInflow,
+        breadth.capitalFlow,
+        breadth.capital_flow,
+        mo.capital_flow,
+        '--'
+    ));
+}
+
+function setMarketFlowValue(value) {
+    const text = String(value ?? '--');
+    const el = document.getElementById('market-flow-value');
+    if (!el) return;
+    const numeric = Number(text.replace(/[,%亿万]/g, ''));
+    el.textContent = text;
+    el.className = 'market-flow-value';
+    if (Number.isFinite(numeric)) {
+        el.className = numeric >= 0 ? 'market-flow-value is-up' : 'market-flow-value is-down';
+    }
+}
+
+function renderMarketMiniCards(mo = {}, indices = [], breadth = {}) {
+    const stats = mo.market_stats || {};
+    const limitUp = pickFirstText(stats.limit_up, mo.limit_up, breadth.limitUp, breadth.limit_up);
+    const limitDown = pickFirstText(stats.limit_down, mo.limit_down, breadth.limitDown, breadth.limit_down);
+    const yesterdayLimit = pickFirstText(
+        stats.yesterday_limit_performance,
+        mo.yesterday_limit_performance,
+        mo.yesterdayLimitPerformance
+    );
+    const capCompare = buildCapCompareParts(indices);
+
+    setMarkup('market-mini-limit', hasText(limitUp) && hasText(limitDown)
+        ? `${formatMarketMiniSignedValue(limitUp, 'is-up')}<i>:</i>${formatMarketMiniSignedValue(limitDown, 'is-down')}`
+        : '数据源不可用');
+    setMarkup('market-mini-yesterday', hasText(yesterdayLimit)
+        ? formatMarketMiniSignedValue(yesterdayLimit)
+        : '数据源不可用');
+    setMarkup('market-mini-cap-size', renderCapCompareMarkup(capCompare));
+}
+
+function getMarketSessionInfo(mo = {}) {
+    const date = new Date();
+    const minutes = date.getHours() * 60 + date.getMinutes();
+    const day = date.getDay();
+    const isWeekday = day >= 1 && day <= 5;
+    const isTradingMinute = isWeekday
+        && ((minutes >= 9 * 60 + 30 && minutes <= 11 * 60 + 30)
+            || (minutes >= 13 * 60 && minutes <= 15 * 60));
+    const isLunchBreak = isWeekday && minutes > 11 * 60 + 30 && minutes < 13 * 60;
+    const isBeforeOpen = isWeekday && minutes < 9 * 60 + 30;
+
+    return {
+        state: isTradingMinute
+            ? '开盘中'
+            : isLunchBreak
+                ? '午间休市'
+                : isBeforeOpen
+                    ? '未开盘'
+                    : '已收盘',
+        date: formatMarketDate(date),
+        isTrading: isTradingMinute,
+    };
+}
+
+function readPercentChange(index = {}) {
+    const value = Number(index.change ?? index.change_pct ?? index.changePercent ?? index.pct ?? 0);
+    return Number.isFinite(value) ? value : 0;
+}
+
+function readPointChange(index = {}) {
+    const value = Number(index.point_change ?? index.change_value ?? index.changeValue ?? index.price_change);
+    return Number.isFinite(value) ? value : null;
+}
+
+function formatSignedPercent(value) {
+    const numeric = Number.isFinite(value) ? value : 0;
+    return `${numeric > 0 ? '+' : ''}${numeric.toFixed(2)}%`;
+}
+
+function formatSignedNumber(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return '--';
+    return `${numeric > 0 ? '+' : ''}${numeric.toFixed(2)}`;
+}
+
+function buildCapCompareParts(indices = []) {
+    const large = indices.find(index => /沪深300|上证50|上证指数/.test(index.name || ''));
+    const growth = indices.find(index => /创业板|科创50|中证1000/.test(index.name || ''));
+    if (!large || !growth) return null;
+    return {
+        large: readPercentChange(large),
+        growth: readPercentChange(growth),
+    };
+}
+
+function renderCapCompareMarkup(compare) {
+    if (!compare) return '数据源不可用';
+    return `
+        <span class="market-mini-pair"><em>大盘</em>${formatMarketMiniSignedValue(formatSignedPercent(compare.large))}</span>
+        <span class="market-mini-pair"><em>小盘</em>${formatMarketMiniSignedValue(formatSignedPercent(compare.growth))}</span>
+    `;
+}
+
+function formatMarketMiniSignedValue(value, forcedClass = '') {
+    const text = String(value ?? '--').trim();
+    const numeric = Number(text.replace(/[,%亿万]/g, ''));
+    let directionClass = forcedClass;
+    if (!directionClass && Number.isFinite(numeric)) {
+        directionClass = numeric > 0 ? 'is-up' : numeric < 0 ? 'is-down' : 'is-neutral';
+    }
+    return `<span class="market-mini-value ${directionClass}">${esc(text)}</span>`;
+}
+
+function pickFirstText(...values) {
+    const value = values.find(item => item !== undefined && item !== null && String(item).trim() !== '');
+    return value === undefined ? '--' : String(value);
+}
+
+function hasText(value) {
+    return value !== undefined && value !== null && String(value).trim() !== '' && String(value) !== '--';
+}
+
+function readDate(value) {
+    const date = value ? new Date(value) : null;
+    if (!date || Number.isNaN(date.getTime())) return null;
+    return date;
+}
+
+function formatMarketDate(value) {
+    const date = value instanceof Date ? value : readDate(value);
+    if (!date) return '--';
+    const weekday = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'][date.getDay()];
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day} ${weekday}`;
+}
+
+function formatMarketDateTime(value) {
+    const date = readDate(value) || new Date();
+    return date.toLocaleString('zh-CN', {
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
 }
 
 function setText(id, value) {
     const el = document.getElementById(id);
     if (el) el.textContent = value;
+}
+
+function setMarkup(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = value;
 }
 
 function setWidth(id, value) {
@@ -483,6 +821,8 @@ export function switchDashTab(tabName) {
     const panel = document.getElementById(`dash-panel-${tabName}`);
     if (tabBtn) tabBtn.classList.add('active');
     if (panel) panel.classList.add('active');
+    if (tabName === 'market') scheduleMarketAutoRefresh();
+    else stopMarketAutoRefresh();
 }
 
 // ─── Loading / Error helpers ────────────────────────────────

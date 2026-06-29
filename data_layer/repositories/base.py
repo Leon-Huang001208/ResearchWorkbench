@@ -113,6 +113,11 @@ def get_db() -> Generator[Session, None, None]:
         db.close()
 
 
+def get_session() -> Session:
+    """Return a raw SQLAlchemy session for scheduler and script compatibility."""
+    return SessionLocal()
+
+
 class db_session:
     """Database session context manager for direct use.
 

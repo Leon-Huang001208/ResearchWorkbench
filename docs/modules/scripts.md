@@ -155,6 +155,40 @@ Update this section when:
 
 ---
 
+### `scripts/run_official_index_structure_ingestion.py`
+
+Purpose:
+
+- Runs CSI/CNI official constituent ingestion into `index_component_snapshot`.
+- Defaults to CSI `000300/000905/000852` and CNI `399001/399006`.
+- Supports `--provider CSI|CNI|all` and repeated `--index-code`.
+- Supports `--discover-active --max-count N` to read active index codes from official provider catalogs; `--max-count 0` removes the cap.
+- Uses `services.official_index_structure_ingestion`, which temporarily clears proxy environment variables around AKShare official downloads.
+
+Update this section when:
+
+- Default index universe changes.
+- Provider options change.
+- Official ingestion output or error handling changes.
+
+---
+
+### `scripts/run_wind_index_structure_probe.py`
+
+Purpose:
+
+- Builds and optionally primes the fixed Wind Excel probe workbook for index/ETF structure fields.
+- Supports hidden Excel calculation with `--prime`, cached result output with `--read`, and database persistence with `--persist`.
+- `--skip-build` reads an existing workbook cache without overwriting freshly calculated values.
+
+Update this section when:
+
+- Probe workbook sheets or formula catalog changes.
+- CLI options change.
+- Persistence mapping changes.
+
+---
+
 ### `scripts/switch_huaan_word_template_to_native_charts.py`
 
 Purpose:

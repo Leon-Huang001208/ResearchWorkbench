@@ -774,26 +774,51 @@ class TestWindAdapterNewMethods:
         from data_layer.adapters.wind import WindAdapter, WindExcelClient
 
         mock_client = MagicMock(spec=WindExcelClient)
-        mock_client.execute_batch.return_value = [
-            "稀土指数",
-            4621.2686,
-            5.70331748,
-            "钨矿指数",
-            8039.1544,
-            7.00346382,
+        mock_client.execute_batch.side_effect = [
+            [4621.2686, 5.70331748],
+            [8039.1544, 7.00346382],
         ]
         adapter = WindAdapter(client=mock_client)
 
-        df = adapter.fetch_index_quotes(["8841089.WI", "884857.WI"], trade_date="2026-06-18")
+        df = adapter.fetch_index_quotes(
+            ["8841089.WI", "884857.WI"],
+            trade_date="2026-06-18",
+            names_by_code={"8841089.WI": "稀土指数", "884857.WI": "钨矿指数"},
+        )
 
-        mock_client.execute_batch.assert_called_once()
-        formulas = mock_client.execute_batch.call_args.args[0]
-        assert len(formulas) == 6
-        assert formulas[1] == '=@wss("8841089.WI","rt_last")'
-        assert formulas[2] == '=@wss("8841089.WI","rt_pct_chg")'
+        assert mock_client.execute_batch.call_count == 2
+        first_formulas = mock_client.execute_batch.call_args_list[0].args[0]
+        assert first_formulas == [
+            '=@wss("8841089.WI","rt_last")',
+            '=@wss("8841089.WI","rt_pct_chg")',
+        ]
+        mock_client.execute.assert_not_called()
         assert list(df["name"]) == ["稀土指数", "钨矿指数"]
         assert list(df["close"]) == [4621.2686, 8039.1544]
         assert list(df["pct_change"]) == pytest.approx([5.70331748, 7.00346382])
+
+    def test_fetch_index_quotes_can_skip_realtime_close(self):
+        from data_layer.adapters.wind import WindAdapter, WindExcelClient
+
+        mock_client = MagicMock(spec=WindExcelClient)
+        mock_client.execute_batch.return_value = [5.70331748]
+        adapter = WindAdapter(client=mock_client)
+
+        df = adapter.fetch_index_quotes(
+            ["8841089.WI"],
+            trade_date="2026-06-18",
+            names_by_code={"8841089.WI": "稀土指数"},
+            include_close=False,
+        )
+
+        mock_client.execute_batch.assert_called_once_with(
+            ['=@wss("8841089.WI","rt_pct_chg")'],
+            timeout=10.0,
+        )
+        assert mock_client.execute.call_count == 0
+        assert df.iloc[0]["name"] == "稀土指数"
+        assert df.iloc[0]["close"] is None
+        assert df.iloc[0]["pct_change"] == pytest.approx(5.70331748)
 
     def test_fetch_fund_flow_with_mock(self):
         from data_layer.adapters.wind import WindAdapter, WindExcelClient

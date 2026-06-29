@@ -216,18 +216,26 @@ Module docstring:
 
 Imports:
 - `app.api.models`
+- `asyncio`
 - `core.contracts.dashboard`
 - `core.observability`
 - `data_layer.repositories.base`
 - `fastapi`
+- `services.crawl_feed_content_service`
 - `services.dashboard_service`
 - `typing`
 
 Functions:
 - `get_crawl_feed`
   - 获取实时抓取数据流（最近抓取的文档列表）
+- `refresh_crawl_feed_content`
+  - 按需补全实时事件流单条文档正文。
 - `get_dashboard`
   - 获取首页仪表盘完整聚合数据
+- `get_market_overview`
+  - 获取市场总览独立快照，用于前端局部实时刷新。
+- `get_sector_movers`
+  - 按需获取某一个市场口径的上涨/下跌列表。
 
 
 ## `app/api/routes/decision_console.py`
@@ -1142,18 +1150,28 @@ Module docstring:
 
 Imports:
 - `base64`
+- `copy`
 - `core.observability`
 - `datetime`
 - `fastapi`
 - `fastapi.responses`
+- `hashlib`
 - `html`
+- `io`
 - `json`
+- `os`
 - `pathlib`
 - `pydantic`
 - `re`
 - `reporting.projects.chart_generation`
 - `reporting.projects.generation`
+- `reporting.projects.keyword_profiles`
 - `reporting.projects.project_manager`
+- `reporting.projects.table_generation`
+- `shutil`
+- `subprocess`
+- `sys`
+- `tempfile`
 - `typing`
 - `xml.etree.ElementTree`
 - `yaml`
@@ -1164,6 +1182,8 @@ Classes:
   - Generated report metadata.
 - `ExcelSheetInfo`
   - Excel worksheet summary.
+- `DataAssetInfo`
+  - Project data-folder asset summary.
 - `ReportProjectInfo`
   - Report project summary for the frontend.
 - `ReportProjectsListResponse`
@@ -1176,6 +1196,8 @@ Classes:
   - Report project source update request.
 - `RenderReportProjectResponse`
   - Project report render response.
+- `OpenReportProjectFolderResponse`
+  - Result for opening a local report project folder.
 
 Functions:
 - `list_report_projects`
@@ -1192,11 +1214,31 @@ Functions:
   - Render a report project into its own generated directory.
 - `preview_report_project_file`
   - Render one generated docx as an inline HTML preview.
+- `get_report_project_preview_asset`
+  - Serve one cached rendered page image for the generated Word preview.
 - `download_report_project_file`
   - Download one generated project report.
+- `open_report_project_generated_folder`
+  - Open the report project's generated folder, revealing a selected report when possible.
+- `get_report_project_run_log`
+  - Return one report project run log JSON.
+- `_resolve_generated_report_open_target`
+  - Return the generated report to reveal, or the output directory when no file is selected.
+- `_open_folder_command`
 - `_to_project_info`
+- `_list_project_data_assets`
+  - Return every file in the project data directory with a user-facing role.
+- `_classify_data_asset`
+  - Classify a data-folder file for the template workbench.
+- `_data_asset_sort_key`
+- `_build_default_section_config_source`
+  - Build a minimal section config when only a Word template is uploaded.
 - `_attach_prompt_templates`
   - Attach a newly created prompt template file to project.yaml.
+- `_serialize_retrieval_config`
+  - Serialize retrieval controls into run logs.
+- `_serialize_evidence`
+  - Serialize one evidence snippet into run logs.
 - `_read_section_config`
   - Read raw and parsed section YAML for frontend inspection.
 - `_read_prompt_templates`
@@ -1213,6 +1255,38 @@ Functions:
 - `_xlsx_cell_sort_key`
 - `_to_generated_report_info`
 - `_docx_to_preview_html`
+  - Convert a generated docx into an inline preview page.
+- `_read_cached_word_pdf_preview`
+- `_build_word_pdf_preview`
+  - Build or read a local PDF preview, preferring Microsoft Word fidelity on macOS.
+- `_find_microsoft_word_app`
+- `_export_docx_pdf_with_microsoft_word`
+  - Export a DOCX to PDF with Microsoft Word for faithful preview pagination.
+- `_applescript_string`
+- `_find_soffice_command`
+- `_export_docx_pdf_with_soffice`
+- `_prepare_docx_for_soffice_preview`
+  - Return a DOCX copy whose floating charts are stable for LibreOffice preview export.
+- `_write_docx_with_inline_preview_charts`
+  - Write a preview-only docx copy with anchored chart drawings moved below captions.
+- `_normalize_anchored_charts_for_preview`
+  - Move Word floating charts after nearby figure captions for LibreOffice preview fidelity.
+- `_find_next_figure_caption_index`
+- `_word_paragraph_text`
+- `_build_inline_chart_preview_paragraph`
+- `_remove_element`
+- `_word_pdf_preview_cache_path`
+- `_word_preview_page_asset_dir`
+- `_word_pdf_preview_html`
+- `_render_pdf_preview_page_assets`
+  - Render PDF pages into cached PNG files and return lazy-loadable page URLs.
+- `_render_pdf_preview_pages`
+- `_word_page_preview_html`
+- `_build_quicklook_preview_image`
+  - Render the first Word preview page with macOS Quick Look when available.
+- `_quicklook_preview_html`
+- `_preview_image_dimensions`
+- `_docx_to_fallback_preview_html`
   - Convert a generated docx package into a lightweight HTML preview.
 - `_preview_paragraph_html`
 - `_preview_table_html`
@@ -2343,6 +2417,12 @@ Classes:
   - 全球热点新闻项.
 - `SectorChangeItem`
   - 板块涨跌项.
+- `SectorMoverView`
+  - A grouped sector mover view for one market classification lens.
+- `MarketIndexItem`
+  - A real-time index quote used by the market command center.
+- `MarketBreadthSnapshot`
+  - Market breadth snapshot for mainland market overview.
 - `MarketOverviewSection`
   - 市场概览板块数据.
 - `DashboardResponse`
@@ -3553,7 +3633,7 @@ Classes:
   - methods: __init__, contains
 - `TradingCalendar`
   - A股交易日历
-  - methods: __init__, is_trading_time, is_midday_break, is_before_trading, is_after_trading, get_current_period, get_next_session_start, get_time_until_next_session, should_run_now
+  - methods: __init__, is_trading_time, is_midday_break, is_before_trading, is_after_trading, get_current_period, get_next_session_start, get_time_until_next_session, get_latest_trading_days, get_missing_trading_days, _is_weekday, should_run_now
 
 Functions:
 - `get_trading_calendar`
@@ -3789,6 +3869,7 @@ Module docstring:
 > 天软 (Tinysoft) 数据适配器 —— 通过 cjpy 包获取天软行情、因子、表格数据
 
 Imports:
+- `contextlib`
 - `core.contracts`
 - `core.observability`
 - `data_layer.adapters.base`
@@ -3802,6 +3883,10 @@ Classes:
 - `CjpyAdapter`
   - 天软 (Tinysoft) 数据适配器
   - methods: __init__, _get_token, _ensure_token, is_available, fetch_stock_list, fetch_fund_list, fetch_trading_days, fetch_daily_quotes, fetch_factor_data, get_factor_repo, fetch_table_data, get_supported_tables, subscribe, fetch, parse, info
+
+Functions:
+- `_without_proxy_env`
+  - cjpy 访问天软服务时绕开本机代理环境变量。
 
 
 ## `data_layer/adapters/cls_adapter.py`
@@ -3868,6 +3953,9 @@ Classes:
 - `CNStockAdapter`
   - 中国证券网新闻适配器
   - methods: __init__, fetch, parse
+
+Functions:
+- `_clean_content_body`
 
 
 ## `data_layer/adapters/data_source_router.py`
@@ -4147,7 +4235,7 @@ Imports:
 Classes:
 - `WindExcelClient`
   - 通过 xlwings 操控 Excel 中的 Wind 插件执行公式
-  - methods: __init__, _connect, heartbeat, _ensure_connected, _ensure_session, _execute_raw, execute, execute_batch, start_keepalive, stop_keepalive, _keepalive_loop, close, __enter__, __exit__
+  - methods: __init__, _connect, _get_or_create_helper_sheet, _get_formula_sheet, heartbeat, _ensure_connected, _ensure_session, _execute_raw, _allocate_helper_rows, execute, execute_batch, _execute_batch_unlocked, _write_formula_column, _read_formula_column, _clear_formula_column, _normalize_column_values, start_keepalive, stop_keepalive, _keepalive_loop, close, __enter__, __exit__
 
 Functions:
 - `_is_error_value`
@@ -4192,6 +4280,8 @@ Functions:
   - 公司全称
 - `s_info_windcode`
   - Wind 代码
+- `s_info_name`
+  - 证券简称 / 指数名称
 - `s_info_industry`
   - Wind 行业分类
 - `s_info_listeddate`
@@ -4262,6 +4352,24 @@ Functions:
   - 涨跌幅（%） ✅ 已确认
 - `daily_amplitude`
   - 振幅（%） ✅ 已确认 (Wind 函数名: s_dq_swing)
+- `rt_last`
+  - 实时最新价。
+- `rt_pre_close`
+  - 实时昨收价。
+- `rt_open`
+  - 实时开盘价。
+- `rt_high`
+  - 实时最高价。
+- `rt_low`
+  - 实时最低价。
+- `rt_volume`
+  - 实时成交量。
+- `rt_amount`
+  - 实时成交额。
+- `rt_turnover`
+  - 实时换手率。
+- `rt_pct_change`
+  - 实时涨跌幅。
 - `fin_revenue`
   - 营业收入 TTM（元） ✅ 已确认
 - `fin_operating_cost`
@@ -4308,6 +4416,12 @@ Functions:
   - 指数收盘价 ✅ 已确认（i_dq_* 为指数专用前缀）
 - `index_pct_change`
   - 指数涨跌幅（%） ✅ 已确认
+- `index_rt_last`
+  - 指数实时最新价.
+- `index_rt_pre_close`
+  - 指数实时昨收价.
+- `index_rt_pct_change`
+  - 指数实时涨跌幅（%）.
 - `index_weight`
   - 所属指数权重（%） ✅ 已确认
 - `moneyflow_main_force`
@@ -4362,7 +4476,7 @@ Imports:
 Classes:
 - `WindAdapter`
   - Wind 数据适配器
-  - methods: __init__, _get_client, is_available, fetch_consensus_estimates, fetch_margin_trading, fetch_block_trades, fetch_daily_quotes, fetch_market_snapshot, fetch_financial_statements, fetch_industry_data, fetch_fund_flow, fetch_holder_data, fetch_top10_holder_details, fetch, parse
+  - methods: __init__, _get_client, is_available, fetch_consensus_estimates, fetch_margin_trading, fetch_block_trades, fetch_daily_quotes, fetch_market_snapshot, fetch_realtime_quotes, fetch_index_quotes, fetch_financial_statements, fetch_industry_data, fetch_fund_flow, fetch_holder_data, fetch_top10_holder_details, fetch, parse
 
 
 ## `data_layer/adapters/yahoo_adapter.py`
@@ -4434,7 +4548,7 @@ Classes:
   - 缓存查询结果
 - `MarketDataCache`
   - 市场数据缓存
-  - methods: __init__, _init_db, _date_to_str, _str_to_date, get_cache_range, calculate_missing_ranges, get_cached_data, save_data, clear_cache, get_cache_stats
+  - methods: __init__, _init_db, _date_to_str, _str_to_date, _row_to_cache_range, _get_cache_range_with_cursor, get_cache_range, calculate_missing_ranges, get_cached_data, save_data, clear_cache, get_cache_stats
 
 Functions:
 - `get_market_data_cache`
@@ -4464,7 +4578,7 @@ Classes:
   - methods: __post_init__
 - `MultiSourceCoordinator`
   - 多源协调器
-  - methods: __init__, _get_available_sources, _fetch_from_source, _fetch_from_available_sources, _perform_validation, fetch_historical_data, health_check, clear_cache
+  - methods: __init__, _get_available_sources, _fetch_from_source, _fetch_from_available_sources, _perform_validation, _can_return_recent_cached_tail, fetch_historical_data, health_check, clear_cache
 
 Functions:
 - `get_coordinator`
@@ -4529,8 +4643,10 @@ Module docstring:
 > AkShare 板块行情获取器
 
 Imports:
+- `contextlib`
 - `core.observability`
 - `dataclasses`
+- `os`
 - `time`
 - `typing`
 
@@ -4541,6 +4657,8 @@ Classes:
   - 板块行情快照
 
 Functions:
+- `_without_proxy_env`
+  - 临时绕过桌面代理，避免本地坏代理导致 AKShare 请求失败
 - `_is_cache_valid`
 - `_is_cache_stale`
   - 缓存是否过期但仍在可容忍范围内（用于刷新失败时兜底）
@@ -4940,7 +5058,7 @@ Classes:
   - methods: __init__, _load_state, _get_default_state, save, is_article_processed, add_processed_article, set_watermark, get_watermark, has_reached_watermark, clear_watermark, get_processed_articles, get_processed_count
 - `CnstockCrawler`
   - 中国证券网爬虫
-  - methods: __init__, _init_logger_and_state, _acquire_waf_cookies, _inject_waf_cookies, _require_session, _resolve_channel, _check_waf_cooldown, _trigger_waf_cooldown, _get_random_sec_ch_ua, _to_desktop_url, _build_url, initialize, _get_headers, _parse_date, _is_in_date_range, _matches_keywords, _get_channels_to_crawl, _merge_news_list, crawl_news_list, _should_include_news, _get_channel_url, _crawl_page, _crawl_page_via_requests, _create_playwright_browser, _crawl_channel_via_playwright, _extract_ssr_data, _parse_api_response, _parse_search_api_response, _parse_flash_api_response, _convert_flash_item_to_news_item, _parse_response_common, _convert_search_item_to_news_item, _normalize_search_time, _convert_to_news_item, _extract_publish_time, _generate_sample_news, _fetch_article_content, _html_to_text, save_to_json, execute, _calculate_fetch_delay
+  - methods: __init__, _init_logger_and_state, _acquire_waf_cookies, _inject_waf_cookies, _require_session, _looks_like_waf_block, _extract_article_detail_from_html, _fetch_article_content_via_playwright, _resolve_channel, _check_waf_cooldown, _trigger_waf_cooldown, _get_random_sec_ch_ua, _to_desktop_url, _build_url, initialize, _get_headers, _parse_date, _is_in_date_range, _matches_keywords, _get_channels_to_crawl, _merge_news_list, crawl_news_list, _should_include_news, _get_channel_url, _crawl_page, _crawl_page_via_requests, _create_playwright_browser, _crawl_channel_via_playwright, _extract_ssr_data, _parse_api_response, _parse_search_api_response, _parse_flash_api_response, _convert_flash_item_to_news_item, _parse_response_common, _convert_search_item_to_news_item, _normalize_search_time, _convert_to_news_item, _extract_publish_time, _generate_sample_news, _fetch_article_content, _html_to_text, save_to_json, execute, _calculate_fetch_delay
 
 Functions:
 - `parse_args`
@@ -5890,6 +6008,8 @@ Functions:
   - Ensure database schema matches ORM models.
 - `get_db`
   - Get database session for FastAPI dependency injection.
+- `get_session`
+  - Return a raw SQLAlchemy session for scheduler and script compatibility.
 
 
 ## `data_layer/repositories/crawl_state_repository.py`
@@ -5942,6 +6062,19 @@ Classes:
 - `DashboardDataRepository`
   - 仪表盘数据专用仓储
   - methods: __init__, get_global_news_from_events, get_global_news_from_documents, _compute_quality_scores, _batch_score_importance, _llm_score_batch, _get_related_symbols_for_doc, _strip_headline_from_summary, _extract_news_headline, get_combined_global_news, get_sector_changes_from_signals, _is_concept_sector, get_recent_crawled_documents, has_enough_data
+
+Functions:
+- `_single_line_text`
+  - Normalize UI titles without destroying meaningful Chinese punctuation.
+- `_clean_live_document_text`
+- `_looks_like_pdf_noise_line`
+- `_clean_pdf_report_text_for_display`
+  - Turn noisy PDF extraction into a readable live-monitor detail excerpt.
+- `_split_leading_bracket`
+- `_remove_duplicate_prefix`
+- `_has_independent_content`
+- `_extract_json_document_text`
+- `_normalize_crawl_document_text`
 
 
 ## `data_layer/repositories/decision_console_repository.py`
@@ -6123,7 +6256,7 @@ Imports:
 Classes:
 - `IngestionQueueRepository`
   - 统一摄取队列仓储
-  - methods: enqueue, dequeue, mark_completed, mark_failed, get_stats, get_processing_stats, find_by_dedup_hash, get_failed_items, get_recent, reset_failed_for_retry, _compute_dedup_hash, _to_domain
+  - methods: enqueue, dequeue, _dequeue_fair, mark_completed, mark_failed, get_stats, get_processing_stats, find_by_dedup_hash, get_failed_items, get_recent, reset_failed_for_retry, _compute_dedup_hash, _to_domain
 
 
 ## `data_layer/repositories/market_data_repository.py`
@@ -6135,6 +6268,7 @@ Imports:
 - `core.observability`
 - `data_layer.repositories.base`
 - `data_layer.repositories.models`
+- `datetime`
 - `sqlalchemy`
 - `sqlalchemy.dialects.postgresql`
 - `sqlalchemy.orm`
@@ -6143,7 +6277,7 @@ Imports:
 Classes:
 - `MarketDataRepository`
   - 市场数据仓储
-  - methods: upsert_stock_master, upsert_stock_master_many, get_stock_master, get_all_stock_symbols, upsert_daily_bars, get_daily_bars, get_latest_daily_bar, insert_quote_snapshots, upsert_financial_metrics, get_latest_financial, upsert_valuations, get_latest_valuation, upsert_shareholders, get_latest_shareholders, upsert_index_components, _upsert_postgres, _upsert_sqlite
+  - methods: upsert_stock_master, upsert_stock_master_many, get_stock_master, get_all_stock_symbols, upsert_daily_bars, get_daily_bars, get_latest_daily_bar, get_existing_trade_dates, insert_quote_snapshots, upsert_financial_metrics, get_latest_financial, upsert_valuations, get_latest_valuation, upsert_shareholders, get_latest_shareholders, upsert_index_providers, upsert_index_master_many, upsert_index_components, get_index_components, get_stock_index_memberships, upsert_etf_master_many, upsert_index_etf_links, upsert_etf_daily_metrics, get_index_etfs, get_etf_daily_metrics, _normalize_index_component, _coerce_datetime, _upsert_postgres, _upsert_sqlite
 
 Functions:
 - `_is_postgresql`
@@ -6310,8 +6444,18 @@ Classes:
   - 估值指标表
 - `StockShareholderDB`
   - 股东信息表
-- `IndexComponentDB`
-  - 指数成分表
+- `IndexProviderDB`
+  - 指数发布方表
+- `IndexMasterDB`
+  - 指数主数据表
+- `IndexComponentSnapshotDB`
+  - 指数成分权重快照表
+- `ETFMasterDB`
+  - ETF 主数据表
+- `IndexETFLinkDB`
+  - 指数与 ETF 跟踪关系表
+- `ETFDailyMetricDB`
+  - ETF 日度规模与资金流指标表
 - `ETLRunDB`
   - ETL 运行记录表
 - `WindConsensusEstimateDB`
@@ -9246,6 +9390,7 @@ Module docstring:
 > Word 文档投影 - 将报告输出为 Word 格式.
 
 Imports:
+- `copy`
 - `core.contracts`
 - `core.observability`
 - `datetime`
@@ -9255,7 +9400,7 @@ Imports:
 Classes:
 - `WordProjection`
   - Word 报告投影.
-  - methods: __init__, _check_docx, save, save_review_version, _count_words, save_from_template, _replace_placeholders_in_document, _replace_placeholders_in_paragraph, _add_tables_to_document, _insert_table_at_placeholder, _add_chart_images_to_document
+  - methods: __init__, _check_docx, save, save_review_version, _count_words, save_from_template, _replace_placeholders_in_document, _replace_placeholders_in_paragraph, _allows_bare_placeholder_match, _add_tables_to_document, _insert_table_at_placeholder, _replace_table_after_title, _create_word_table, _copy_table_format, _child_by_local_name, _replace_child_by_local_name, _add_chart_images_to_document
 
 
 ## `reporting/projects/__init__.py`
@@ -9352,49 +9497,196 @@ Module docstring:
 
 Imports:
 - `__future__`
+- `concurrent.futures`
 - `core.interfaces.model_gateway`
 - `core.model_gateway.gateway`
+- `core.model_gateway.local_embedding_config`
 - `core.observability`
 - `core.settings`
 - `dataclasses`
 - `datetime`
+- `json`
+- `math`
 - `re`
+- `reporting.projects.keyword_profiles`
 - `reporting.projects.project_manager`
 - `sqlalchemy`
 - `typing`
 
 Classes:
+- `ReportPeriod`
+  - Report date window shared by placeholders, retrieval, and run logs.
+- `ReportGenerationScope`
+  - Resolved report generation scope before evidence retrieval starts.
 - `PromptTemplateBlock`
   - Parsed Markdown prompt template block.
 - `EvidenceSnippet`
   - Retrieved evidence item passed to the LLM.
+- `RetrievalConfig`
+  - Phase-1 keyword retrieval controls for one report section.
 - `GeneratedSectionInfo`
   - Generation metadata for one placeholder.
 - `ReportGenerationResult`
   - Generated placeholder map plus run metadata.
+- `PlaceholderGenerationOutput`
+  - Generated value and optional metadata for one placeholder.
 - `EvidenceRetriever`
   - Retrieves factual evidence for a section query.
   - methods: retrieve
 - `DatabaseEvidenceRetriever`
   - Keyword evidence retriever over existing AlphaFoundry database tables.
-  - methods: retrieve, _retrieve_ingestion_items, _retrieve_events, _extract_terms, _compact_text
+  - methods: retrieve, _retrieve_ingestion_items, _retrieve_events, _retrieve_recent_ingestion_items, _retrieve_recent_events, _extract_terms, _compact_text
 - `ReportProjectGenerationService`
   - Generates Word placeholders from project config, evidence, and LLM.
-  - methods: __init__, generate_placeholders, _generate_section, _fallback_content, _clean_model_content
+  - methods: __init__, generate_placeholders, _generate_configured_placeholder, _generate_composite_market_review, _retrieve_evidence, _rerank_evidence_if_needed, _generate_market_hotspot_section, _generate_section, _fallback_content, _clean_model_content
+- `_SafeFormatDict`
+  - Keep unknown data template placeholders visible instead of crashing generation.
+  - methods: __missing__
 
 Functions:
+- `build_retrieval_config`
+  - Build retrieval config from a section config block.
+- `filter_and_rank_evidence`
+  - Apply retrieval filters and ranking to evidence.
+- `_candidate_limit`
+- `_semantic_candidate_limit`
+- `_rerank_candidate_limit`
+- `_uses_semantic_retrieval`
+- `_rank_keyword_evidence`
+- `_rank_hybrid_evidence`
+- `_semantic_query_text`
+- `_semantic_similarity_scores`
+- `_local_embedding_similarity_scores`
+- `_load_local_embedding_model`
+- `_semantic_similarity`
+  - Lightweight local semantic similarity based on character n-gram vectors.
+- `_ngram_vector`
+- `_dedupe_snippets`
+- `_keyword_match_score`
+- `_contains_any`
+- `_source_matches`
+- `_string_list`
+- `_int_option`
+- `_float_option`
+- `_bool_option`
+- `compute_report_period`
+  - Compute report week period from a report date.
+- `resolve_report_generation_scope`
+  - Resolve the effective date window before retrieval and generation.
+- `compute_report_period_for_scope`
+  - Compute the evidence window for a business-facing data scope.
+- `compute_explicit_report_period`
+  - Compute an evidence window from explicit user-selected dates.
+- `resolve_report_period_value`
+  - Resolve a configured report-period placeholder value.
+- `build_a_share_market_data_sentence`
+  - Build the deterministic A-share market review sentence from workbook cache.
+- `build_commodity_market_review_sentence`
+  - Build deterministic gold/oil market review text from weekly Excel data.
+- `_build_gold_market_review_sentence`
+- `_build_oil_market_review_sentence`
+- `_rows_by_name`
+- `_find_named_row`
+- `_required_float`
+- `_signed_percent`
+- `_delta_word`
+- `_read_market_index_rows`
+- `_read_market_index_rows_from_field`
+- `_read_turnover_row`
+- `_read_turnover_from_fields`
+- `_cell_value_from_field`
+- `_to_float`
+- `_direction_word`
+- `_market_trend_word`
+- `_turnover_change_word`
+- `_turnover_sentiment_word`
+- `_coerce_report_date`
+- `_period_datetime_bounds`
 - `iter_placeholder_configs`
   - Yield normalized placeholder configs from both new and legacy schemas.
+- `apply_report_defaults_to_placeholder`
+  - Merge report-level defaults into a placeholder config without mutating input.
+- `deep_merge_dict`
+  - Recursively merge dictionaries, with override values taking precedence.
 - `parse_prompt_templates`
   - Parse Markdown prompt templates keyed by second-level heading.
 - `build_fallback_template`
   - Build a prompt template from legacy section config.
+- `render_generation_constraints`
+  - Render shared generation constraints from section_config.yaml.
+- `render_writing_parameters`
+  - Render per-placeholder writing parameters separately from shared constraints.
+- `apply_output_constraints`
+  - Apply deterministic output cleanup for constraints that do not need LLM judgment.
+- `_as_positive_int`
+- `_as_text_list`
+- `_dedupe_text_list`
+- `get_component_by_type`
+  - Return the first component with the requested type from a placeholder config.
+- `apply_composite_component_overrides`
+  - Lift llm_writing component retrieval into the effective placeholder config.
+- `render_writing_requirements`
+  - Render placeholder writing requirements from structured config or markdown template.
+- `render_market_review_writing_structure`
+  - Render continuation requirements for composite A-share market review.
 - `build_generation_messages`
   - Build strict evidence-grounded LLM messages.
+- `build_market_hotspot_messages`
+  - Build messages for the generated part of a composite market review.
+- `rerank_evidence_with_local_model`
+  - Rerank evidence with a local cross-encoder reranker.
+- `_load_local_reranker_model`
+- `_normalize_rerank_score`
+- `build_rerank_messages`
+  - Build LLM messages for evidence reranking.
+- `apply_llm_rerank_response`
+  - Apply an LLM rerank JSON response to evidence candidates.
+- `_parse_rerank_records`
 - `format_evidence_context`
   - Format evidence snippets for an LLM prompt.
 - `_strip_code_fences`
 - `_extract_label_value`
+
+
+## `reporting/projects/keyword_profiles.py`
+
+Module docstring:
+> Keyword profile helpers for report project retrieval.
+
+Imports:
+- `__future__`
+- `collections.abc`
+- `core.observability`
+- `dataclasses`
+- `functools`
+- `json`
+- `pathlib`
+- `re`
+- `typing`
+
+Classes:
+- `KeywordProfile`
+  - Reusable retrieval keyword profile.
+  - methods: to_dict
+
+Functions:
+- `normalize_profile_key`
+  - Normalize placeholder/profile names for loose matching.
+- `load_keyword_profiles`
+  - Load built-in keyword profiles from JSON.
+- `keyword_profiles_for_api`
+  - Return a stable profile dictionary keyed by display name.
+- `resolve_keyword_profile`
+  - Resolve the best profile for a placeholder name.
+- `suggest_keywords_for_placeholder`
+  - Suggest retrieval keywords for a placeholder.
+- `apply_keyword_profile_to_config`
+  - Return a config copy with missing retrieval keywords filled from profile.
+- `_add_alias`
+- `_add_market_review_profile`
+- `_extract_terms`
+- `_dedupe_strings`
+- `_safe_float`
 
 
 ## `reporting/projects/project_manager.py`
@@ -9416,6 +9708,36 @@ Classes:
 - `ReportProjectManager`
   - Read and bootstrap report project folders.
   - methods: __init__, list_projects, get_project, rename_project, bootstrap_cyb50_project, _load_project, _resolve, _resolve_optional
+
+
+## `reporting/projects/table_generation.py`
+
+Module docstring:
+> Deterministic table generation for report projects.
+
+Imports:
+- `__future__`
+- `core.contracts`
+- `core.observability`
+- `dataclasses`
+- `datetime`
+- `pathlib`
+- `reporting.projects.project_manager`
+- `typing`
+
+Classes:
+- `GeneratedTableInfo`
+  - Run-log metadata for one deterministic project table.
+  - methods: to_dict
+
+Functions:
+- `build_project_tables`
+  - Build configured Word tables from project Excel assets.
+- `_build_one_table`
+- `_resolve_project_workbook`
+- `_read_excel_table`
+- `_require_column`
+- `_format_cell_value`
 
 
 ## `reporting/templates/__init__.py`
@@ -9624,6 +9946,22 @@ Functions:
 - `downgrade`
 
 
+## `storage/migrations/versions/011_add_index_structure_tables.py`
+
+Module docstring:
+> Add index structure and ETF metric tables
+
+Imports:
+- `alembic`
+- `sqlalchemy`
+- `typing`
+
+Functions:
+- `upgrade`
+- `downgrade`
+- `_copy_legacy_index_components`
+
+
 ## `ingestion/__init__.py`
 
 Module docstring:
@@ -9685,6 +10023,8 @@ Imports:
 - `ingestion.converters.base`
 - `logging`
 - `os`
+- `pathlib`
+- `shutil`
 - `subprocess`
 - `tempfile`
 - `typing`
@@ -9692,7 +10032,7 @@ Imports:
 Classes:
 - `MinerUStrategy`
   - 基于 opendatalab/mineru 的高质量 PDF 转换策略
-  - methods: __init__, is_available, _check_cli_available, convert, _run_mineru, strategy_type, name, _read_output, _count_pages, _detect_features, _compute_quality_score
+  - methods: __init__, is_available, _check_cli_available, _model_cache_ready, convert, _run_mineru, _build_cli_command, _subprocess_env, _format_cli_error, _find_markdown_output, strategy_type, name, _read_output, _count_pages, _detect_features, _compute_quality_score
 
 
 ## `ingestion/converters/persistence.py`
@@ -10020,6 +10360,46 @@ Functions:
 - `main`
 
 
+## `scripts/build_wind_index_catalog.py`
+
+Module docstring:
+> Build a local Wind index catalog through Wind Excel formulas.
+
+Imports:
+- `__future__`
+- `argparse`
+- `data_layer.adapters.wind`
+- `pathlib`
+- `services.wind_index_catalog`
+- `sys`
+
+Functions:
+- `_is_valid_name`
+- `_family_for_code`
+- `discover_entries`
+- `merge_entries`
+- `main`
+
+
+## `scripts/build_wind_realtime_workbook.py`
+
+Module docstring:
+> Build the local Wind realtime workbook from the versioned index catalog.
+
+Imports:
+- `__future__`
+- `argparse`
+- `core.observability`
+- `pathlib`
+- `services.wind_index_catalog`
+- `services.wind_realtime_workbook`
+- `sys`
+
+Functions:
+- `build_parser`
+- `main`
+
+
 ## `scripts/check_db_data.py`
 
 Module docstring:
@@ -10130,6 +10510,26 @@ Functions:
   - 主入口
 
 
+## `scripts/daemonize.py`
+
+Module docstring:
+> Start a command in a detached session and write its PID.
+
+Imports:
+- `__future__`
+- `argparse`
+- `os`
+- `pathlib`
+- `signal`
+- `subprocess`
+- `sys`
+
+Functions:
+- `parse_args`
+- `child_main`
+- `main`
+
+
 ## `scripts/debug_api.py`
 
 Module docstring:
@@ -10178,6 +10578,103 @@ Functions:
   - 查询新生成的数据
 - `main`
   - 主函数
+
+
+## `scripts/desktop/backend_launcher.py`
+
+Module docstring:
+> Desktop backend launcher for the AlphaFoundry Tauri shell.
+
+Imports:
+- `__future__`
+- `argparse`
+- `logging`
+- `os`
+- `pathlib`
+- `platform`
+- `sys`
+- `typing`
+
+Functions:
+- `build_parser`
+  - Build CLI parser for the packaged desktop backend.
+- `configure_launcher_logging`
+  - Configure file logging and return the log file path.
+- `is_frozen`
+  - Return whether this launcher is running from a PyInstaller executable.
+- `desktop_data_dir`
+  - Return the persistent per-user data directory for desktop builds.
+- `apply_frozen_desktop_defaults`
+  - Apply standalone desktop defaults before app settings are imported.
+- `run_backend`
+  - Run the FastAPI backend through uvicorn.
+- `main`
+  - Start the desktop backend and return a process exit code.
+
+
+## `scripts/desktop/build_sidecar.py`
+
+Module docstring:
+> Build the AlphaFoundry Python backend as a Tauri sidecar executable.
+
+Imports:
+- `__future__`
+- `os`
+- `pathlib`
+- `platform`
+- `subprocess`
+- `sys`
+
+Functions:
+- `target_triple`
+  - Return the Tauri sidecar target triple for the current runner.
+- `sidecar_name`
+  - Return the executable name PyInstaller should produce for Tauri.
+- `add_data_arg`
+  - Return a PyInstaller --add-data argument using the platform path separator.
+- `build_pyinstaller_args`
+  - Build PyInstaller argv for the current platform.
+- `main`
+  - Run PyInstaller and return its exit code.
+
+
+## `scripts/desktop/prepare_tauri_sidecar.py`
+
+Module docstring:
+> Copy the generated backend executable into Tauri's externalBin location.
+
+Imports:
+- `__future__`
+- `build_sidecar`
+- `pathlib`
+- `shutil`
+- `stat`
+
+Functions:
+- `prepare_sidecar`
+  - Copy the generated sidecar executable to src-tauri/binaries.
+- `main`
+  - Prepare the Tauri sidecar and print its path.
+
+
+## `scripts/desktop/write_tauri_release_config.py`
+
+Module docstring:
+> Generate a Tauri release config fragment for signed updater artifacts.
+
+Imports:
+- `__future__`
+- `json`
+- `os`
+- `pathlib`
+
+Functions:
+- `release_config`
+  - Return the Tauri config fragment merged during release builds.
+- `write_config`
+  - Write the release config using environment-provided updater settings.
+- `main`
+  - Generate the release config and print its path.
 
 
 ## `scripts/enrich_events.py`
@@ -10411,6 +10908,23 @@ Functions:
 - `main`
 
 
+## `scripts/prime_wind_realtime_workbook.py`
+
+Module docstring:
+> Prime Wind realtime workbook formulas through Excel.
+
+Imports:
+- `__future__`
+- `argparse`
+- `core.observability`
+- `pathlib`
+- `services.wind_realtime_workbook`
+
+Functions:
+- `_parse_args`
+- `main`
+
+
 ## `scripts/re_extract_with_llm.py`
 
 Module docstring:
@@ -10559,6 +11073,48 @@ Functions:
 - `restore_sqlite`
   - Restore a SQLite backup.
 - `main`
+
+
+## `scripts/run_official_index_structure_ingestion.py`
+
+Module docstring:
+> Run official CSI/CNI index constituent ingestion.
+
+Imports:
+- `__future__`
+- `argparse`
+- `core.observability`
+- `data_layer.repositories.base`
+- `data_layer.repositories.market_data_repository`
+- `json`
+- `pathlib`
+- `services.official_index_structure_ingestion`
+- `sys`
+
+Functions:
+- `_parse_args`
+- `main`
+- `_resolve_provider_index_codes`
+
+
+## `scripts/run_wind_index_structure_probe.py`
+
+Module docstring:
+> Build, prime, and read the Wind index structure probe workbook.
+
+Imports:
+- `__future__`
+- `argparse`
+- `core.observability`
+- `json`
+- `pathlib`
+- `services.wind_index_structure_probe`
+- `sys`
+
+Functions:
+- `_parse_args`
+- `main`
+- `_trade_date_for_persist`
 
 
 ## `scripts/seed_factor_data.py`

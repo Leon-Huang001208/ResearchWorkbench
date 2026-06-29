@@ -1,7 +1,7 @@
 """
 测试交易日历模块
 """
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 
 from core.utils.trading_calendar import (
     AFTERNOON_START,
@@ -173,6 +173,30 @@ class TestTradingCalendar:
         calendar = TradingCalendar(include_auction=False)
         dt = datetime(2024, 5, 11, 9, 20, 0)
         assert calendar.is_trading_time(dt) is False
+
+    def test_get_latest_trading_days_uses_weekdays(self):
+        """测试获取最近工作日交易日"""
+        calendar = TradingCalendar()
+
+        days = calendar.get_latest_trading_days(n=3, end=date(2024, 5, 13))
+
+        assert days == [
+            date(2024, 5, 9),
+            date(2024, 5, 10),
+            date(2024, 5, 13),
+        ]
+
+    def test_get_missing_trading_days(self):
+        """测试从已有日期中找缺失工作日"""
+        calendar = TradingCalendar()
+
+        missing = calendar.get_missing_trading_days(
+            existing_dates={date(2024, 5, 9), date(2024, 5, 13)},
+            start=date(2024, 5, 9),
+            end=date(2024, 5, 13),
+        )
+
+        assert missing == [date(2024, 5, 10)]
 
 
 class TestGlobalCalendar:
