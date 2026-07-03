@@ -39,7 +39,7 @@ def _request():
     return CommentaryDraftRequest(
         recipe_id="market-drawdown",
         data_snapshot_text="宽基指数：上证指数 -2.10%，创业板指 -3.80%。",
-        evidence_pack_text="已确认数据：上证指数 -2.10%。媒体报道：海外 AI 链调整。",
+        evidence_pack_text="消息面主线：海外 AI 链调整。行情验证：上证指数 -2.10%。",
         subjective_judgement="核心是高拥挤交易降温，而不是单一利空。",
         evidence_items=[
             CommentaryEvidenceItem(
@@ -121,6 +121,18 @@ def test_commentary_draft_service_includes_verification_matrix_in_prompt_and_cit
     assert response.citations[1]["confidence_score"] == 0.68
 
 
+def test_commentary_draft_prompt_prioritizes_news_thread_before_market_data():
+    gateway = FakeModelGateway()
+    service = CommentaryDraftService(model_gateway=gateway)
+
+    service.generate_draft(_request())
+
+    prompt = gateway.calls[0]["messages"][1]["content"]
+    assert prompt.index("【证据包】") < prompt.index("【数据快照】")
+    assert "先写消息面主线，再用行情数据验证" in prompt
+    assert "不要把正文写成指数和行业涨跌幅罗列" in prompt
+
+
 def test_commentary_draft_service_includes_attribution_ranking_in_prompt_and_response():
     gateway = FakeModelGateway()
     service = CommentaryDraftService(model_gateway=gateway)
@@ -133,6 +145,134 @@ def test_commentary_draft_service_includes_attribution_ranking_in_prompt_and_res
     assert "写作时按归因排序区分主因、次因和待核验因素" in prompt
     assert response.attribution_signals[0]["tag"] == "ai_crowding"
     assert response.attribution_signals[0]["strength"] == "primary"
+
+
+def test_commentary_draft_prompt_requires_specific_trigger_before_generic_attribution():
+    request = _request()
+    request.evidence_items.append(
+        CommentaryEvidenceItem(
+            kind="reported",
+            title="Meta 释放 AI 投入相关消息，美股科技股承压",
+            summary="市场关注 Meta 对 AI 基础设施投入和科技巨头资本开支预期的影响。",
+            source="海外新闻",
+            source_type="news",
+            verification_status="source_published",
+            confidence_score=0.74,
+            display_label="媒体报道/新闻",
+        )
+    )
+    gateway = FakeModelGateway()
+    service = CommentaryDraftService(model_gateway=gateway)
+
+    service.generate_draft(request)
+
+    prompt = gateway.calls[0]["messages"][1]["content"]
+    assert "优先写出最高相关的具体触发事件" in prompt
+    assert "不要只写“海外扰动”或“风险偏好回落”" in prompt
+    assert "Meta 释放 AI 投入相关消息" in prompt
+
+
+def test_commentary_draft_service_includes_writing_preferences_in_prompt():
+    request = _request()
+    request.writing_preferences = {
+        "audience": "client",
+        "length": "short",
+        "tone": "defensive",
+    }
+    gateway = FakeModelGateway()
+    service = CommentaryDraftService(model_gateway=gateway)
+
+    service.generate_draft(request)
+
+    prompt = gateway.calls[0]["messages"][1]["content"]
+    assert "【写作偏好】" in prompt
+    assert "受众：客户简版" in prompt
+    assert "长度：短评" in prompt
+    assert "风格：防御解释" in prompt
+
+
+def test_commentary_draft_service_rewrites_one_section_with_context():
+    gateway = FakeModelGateway(content="改写后的核心判断：风险偏好仍需观察，避免过度归因。")
+    service = CommentaryDraftService(model_gateway=gateway)
+
+    response = service.rewrite_section(
+        recipe_id="market-drawdown",
+        section_heading="核心判断",
+        section_content="市场必然继续调整，核心原因确定是海外冲击。",
+        action="soften",
+        context=_request(),
+    )
+
+    prompt = gateway.calls[0]["messages"][1]["content"]
+    assert response.section_heading == "核心判断"
+    assert response.rewritten_content == "改写后的核心判断：风险偏好仍需观察，避免过度归因。"
+    assert response.action == "soften"
+    assert "【原段落】" in prompt
+    assert "市场必然继续调整" in prompt
+    assert "改写动作：降低判断强度" in prompt
+    assert "【结构化证据与核验状态】" in prompt
+    assert gateway.calls[0]["max_tokens"] == 700
+
+
+def test_commentary_draft_service_quality_check_flags_publish_risks():
+    request = _request()
+    service = CommentaryDraftService(model_gateway=FakeModelGateway())
+
+    result = service.check_quality(
+        draft_markdown=(
+            "# 市场大跌归因\n\n"
+            "## 核心判断\n"
+            "海外 AI 链调整确定导致市场下跌，后续一定会修复。"
+        ),
+        context=request,
+    )
+
+    issue_codes = {issue.code for issue in result.issues}
+    assert result.status == "blocked"
+    assert result.summary["blocked"] >= 2
+    assert "unverified_evidence_as_fact" in issue_codes
+    assert "missing_risk_disclosure" in issue_codes
+    assert "promissory_language" in issue_codes
+    assert result.issues[0].severity in {"blocker", "warning"}
+
+
+def test_commentary_draft_service_applies_quality_guardrails_before_returning_model_draft():
+    gateway = FakeModelGateway(
+        content=(
+            "# 市场大跌归因\n\n"
+            "## 核心判断\n"
+            "海外 AI 链调整确定导致市场下跌，后续一定会修复。"
+        )
+    )
+    service = CommentaryDraftService(model_gateway=gateway)
+
+    response = service.generate_draft(_request())
+
+    assert "一定会" not in response.draft_markdown
+    assert "确定导致" not in response.draft_markdown
+    assert "需要观察修复条件" in response.draft_markdown
+    assert "## 风险提示" in response.draft_markdown
+    assert "quality_guardrail_softened_language" in response.warnings
+    assert "quality_guardrail_added_risk_disclosure" in response.warnings
+
+
+def test_commentary_draft_service_normalizes_inline_section_prefixes():
+    gateway = FakeModelGateway(
+        content=(
+            "# 市场大跌归因\n\n"
+            "核心判断：市场调整主要来自风险偏好回落。\n"
+            "后续观察：观察成交额和资金流能否企稳。"
+        )
+    )
+    service = CommentaryDraftService(model_gateway=gateway)
+
+    response = service.generate_draft(_request())
+
+    assert "## 核心判断\n市场调整主要来自风险偏好回落。" in response.draft_markdown
+    assert "## 后续观察\n观察成交额和资金流能否企稳。" in response.draft_markdown
+    assert response.sections[0]["heading"] == "核心判断"
+    assert response.sections[1]["heading"] == "后续观察"
+    assert "quality_guardrail_normalized_sections" in response.warnings
 
 
 def test_commentary_draft_service_balances_citations_between_market_data_and_news():

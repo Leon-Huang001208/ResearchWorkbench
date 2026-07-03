@@ -214,19 +214,21 @@ Update this section when:
 Purpose:
 
 - Report project workbench API for project folders under `report_projects/`.
-- `GET /api/report-projects/` — list report projects with Word placeholders, section config, prompt template source, Excel sheet summaries, generated reports, output directory, and run-log directory.
-- `GET /api/report-projects/{slug}` — load one project and preserve Word placeholder first-seen order from the DOCX body/header/footer XML.
+- `GET /api/report-projects/` — list report projects with `project_type`, template asset metadata, Word/PPT placeholders, section config, prompt template source, Excel sheet summaries, generated reports, output directory, and run-log directory.
+- `GET /api/report-projects/{slug}` — load one project and preserve placeholder first-seen order from the DOCX body/header/footer XML or PPT slide XML.
+- `POST /api/report-projects/upload` — create a Word project from `.docx` or a PPT project from `.pptx`, with optional Excel, section config, prompt templates, and data files.
 - `PUT /api/report-projects/{slug}` — rename a report project.
 - `PUT /api/report-projects/{slug}/source` — persist editable project source files. `source_kind=section_config` writes `config/section_config.yaml`; `source_kind=prompt_templates` writes or attaches `config/prompt_templates.md`.
-- `POST /api/report-projects/{slug}/render` — render a project DOCX. By default it reads `section_config.yaml` + `prompt_templates.md`, retrieves database evidence, generates placeholders through `ReportProjectGenerationService`, renders Word placeholders, embeds configured charts through `ReportProjectChartService`, and writes a JSON run log.
-- `GET /api/report-projects/{slug}/preview/{file_name}` — convert a generated DOCX into lightweight inline HTML for the web workbench.
-- `GET /api/report-projects/{slug}/download/{file_name}` — download one generated DOCX.
+- `POST /api/report-projects/{slug}/render` — render a Word project to DOCX or a static PPT project to PPTX. By default it reads `section_config.yaml` + `prompt_templates.md`, retrieves database evidence when configured, generates placeholders through `ReportProjectGenerationService`, projects into the active template, and writes a JSON run log.
+- `GET /api/report-projects/{slug}/preview/{file_name}` — convert a generated DOCX into lightweight inline HTML; PPTX currently returns a lightweight generated-file placeholder.
+- `GET /api/report-projects/{slug}/download/{file_name}` — download one generated DOCX or PPTX with the matching Office MIME type.
 
 Related services:
 
 - `reporting/projects/project_manager.py`
 - `reporting/projects/generation.py`
 - `reporting/projects/chart_generation.py`
+- `reporting/projections/ppt.py`
 - `reporting/projections/word.py`
 
 Update this section when:

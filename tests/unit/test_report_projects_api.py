@@ -385,6 +385,30 @@ def write_minimal_xlsx(path: Path) -> None:
         )
 
 
+def write_minimal_pptx(path: Path, text: str) -> None:
+    """Write a tiny pptx package with one slide text box."""
+    slide_xml = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"
+       xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+  <p:cSld>
+    <p:spTree>
+      <p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>
+      <p:grpSpPr/>
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="2" name="Title"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:txBody>
+          <a:bodyPr/><a:lstStyle/>
+          <a:p><a:r><a:t>{text}</a:t></a:r></a:p>
+        </p:txBody>
+      </p:sp>
+    </p:spTree>
+  </p:cSld>
+</p:sld>"""
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr("[Content_Types].xml", "<Types/>")
+        archive.writestr("ppt/slides/slide1.xml", slide_xml)
+
+
 def write_market_review_xlsx(path: Path) -> None:
     """Write cached market data used by composite market review generation."""
     from openpyxl import Workbook
@@ -562,6 +586,55 @@ def test_get_report_project_returns_real_template_asset_summary(tmp_path: Path, 
     assert "A1=日期" in project["excel_sheets"][0]["sample_cells"]
 
 
+def test_get_report_project_returns_ppt_template_placeholders(tmp_path: Path, monkeypatch):
+    """PPT 项目详情应返回 PPT 模板资产和占位符。"""
+    project_dir = tmp_path / "月度PPT"
+    (project_dir / "templates").mkdir(parents=True)
+    (project_dir / "config").mkdir()
+    (project_dir / "generated").mkdir()
+    (project_dir / "runs").mkdir()
+    write_minimal_pptx(
+        project_dir / "templates" / "report_template.pptx",
+        "标题 {{title}} 期间 {{period}}",
+    )
+    (project_dir / "config" / "section_config.yaml").write_text(
+        "placeholders:\n  title:\n    type: static\n    value: 月度PPT\n",
+        encoding="utf-8",
+    )
+    (project_dir / "project.yaml").write_text(
+        "\n".join(
+            [
+                "name: 月度PPT",
+                "project_type: ppt",
+                "active_ppt_template: templates/report_template.pptx",
+                "section_config: config/section_config.yaml",
+                "output_dir: generated",
+                "run_log_dir: runs",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    import app.api.routes.report_projects as report_projects_route
+
+    monkeypatch.setattr(
+        report_projects_route,
+        "report_project_manager",
+        ReportProjectManager(projects_root=tmp_path),
+    )
+
+    response = client.get("/api/report-projects/月度PPT")
+
+    assert response.status_code == 200
+    project = response.json()
+    assert project["project_type"] == "ppt"
+    assert project["template_filename"] == "report_template.pptx"
+    assert project["ppt_template_filename"] == "report_template.pptx"
+    assert project["word_template_filename"] == ""
+    assert project["ppt_placeholders"] == ["title", "period"]
+    assert project["word_placeholders"] == []
+
+
 def test_docx_placeholders_keep_word_first_seen_order(tmp_path: Path, monkeypatch):
     """占位符地图应按 Word 正文首次出现顺序展示，而不是按名称排序。"""
     project_dir = tmp_path / "排序周报"
@@ -705,6 +778,60 @@ def test_render_report_project_writes_to_project_generated_dir(tmp_path: Path, m
     assert output_path.read_bytes() == b"rendered"
     assert data["download_url"].startswith("/api/report-projects/创业板50周报/download/")
     assert data["preview_url"].startswith("/api/report-projects/创业板50周报/preview/")
+
+
+def test_render_ppt_report_project_writes_pptx_to_generated_dir(tmp_path: Path, monkeypatch):
+    """PPT 项目级生成应替换占位符并输出 pptx。"""
+    project_dir = tmp_path / "月度PPT"
+    (project_dir / "templates").mkdir(parents=True)
+    (project_dir / "config").mkdir()
+    (project_dir / "generated").mkdir()
+    (project_dir / "runs").mkdir()
+    write_minimal_pptx(project_dir / "templates" / "report_template.pptx", "{{title}} / {{period}}")
+    (project_dir / "config" / "section_config.yaml").write_text("placeholders: {}\n", encoding="utf-8")
+    (project_dir / "project.yaml").write_text(
+        "\n".join(
+            [
+                "name: 月度PPT",
+                "project_type: ppt",
+                "active_ppt_template: templates/report_template.pptx",
+                "section_config: config/section_config.yaml",
+                "output_dir: generated",
+                "run_log_dir: runs",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    import app.api.routes.report_projects as report_projects_route
+
+    monkeypatch.setattr(
+        report_projects_route,
+        "report_project_manager",
+        ReportProjectManager(projects_root=tmp_path),
+    )
+
+    response = client.post(
+        "/api/report-projects/月度PPT/render",
+        json={
+            "generate_from_config": False,
+            "placeholders": {"title": "华安ETF月报", "period": "2026年4月"},
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    output_path = Path(data["file_path"])
+    assert output_path.parent == project_dir / "generated"
+    assert output_path.name.endswith("_月度PPT.pptx")
+    assert data["download_url"].endswith(f"/download/{output_path.name}")
+    assert data["preview_url"].endswith(f"/preview/{output_path.name}")
+    assert data["generated_placeholder_count"] == 2
+    with zipfile.ZipFile(output_path) as archive:
+        slide_xml = archive.read("ppt/slides/slide1.xml").decode("utf-8")
+    assert "华安ETF月报" in slide_xml
+    assert "2026年4月" in slide_xml
+    assert "{{title}}" not in slide_xml
 
 
 def test_generation_service_uses_prompt_query_evidence_and_reporting_model(tmp_path: Path):
@@ -972,6 +1099,88 @@ def test_generation_service_fills_report_period_placeholders(tmp_path: Path):
         "开始日期": "2026-06-01",
         "结束日期": "2026-06-05",
     }
+
+
+def test_generation_service_handles_output_shape_placeholder_protocol(tmp_path: Path):
+    """通用占位符协议应让短字段/固定文案确定性填充，表格和图表不进入 LLM。"""
+    project_dir = tmp_path / "通用模板"
+    (project_dir / "templates").mkdir(parents=True)
+    (project_dir / "data").mkdir()
+    (project_dir / "config").mkdir()
+    (project_dir / "generated").mkdir()
+    (project_dir / "runs").mkdir()
+    write_minimal_docx(
+        project_dir / "templates" / "report_template.docx",
+        "{{开始日期}} {{免责声明}} {{chart_nav}} {{calendar_table}}",
+    )
+    write_minimal_xlsx(project_dir / "data" / "data.xlsx")
+    (project_dir / "config" / "section_config.yaml").write_text(
+        "placeholders: {}\n", encoding="utf-8"
+    )
+    (project_dir / "project.yaml").write_text(
+        "\n".join(
+            [
+                "name: 通用模板",
+                "active_word_template: templates/report_template.docx",
+                "active_excel_workbook: data/data.xlsx",
+                "section_config: config/section_config.yaml",
+                "output_dir: generated",
+                "run_log_dir: runs",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    project = ReportProjectManager(projects_root=tmp_path).get_project("通用模板")
+
+    class FailRetriever:
+        def retrieve(self, **kwargs):
+            raise AssertionError("deterministic placeholders should not retrieve evidence")
+
+    class FailGateway:
+        def chat(self, **kwargs):
+            raise AssertionError("deterministic placeholders should not call model")
+
+    service = ReportProjectGenerationService(
+        retriever=FailRetriever(), model_gateway=FailGateway()
+    )
+
+    result = service.generate_placeholders(
+        project=project,
+        section_config={
+            "placeholders": {
+                "开始日期": {
+                    "title": "开始日期",
+                    "type": "field",
+                    "format": "date",
+                    "source": {"kind": "report_period", "field": "start_date"},
+                },
+                "免责声明": {
+                    "title": "免责声明",
+                    "type": "static_text",
+                    "value": "本报告仅供参考。",
+                },
+                "chart_nav": {
+                    "title": "净值走势图",
+                    "type": "chart",
+                    "source": {"kind": "excel_chart", "workbook": "data.xlsx"},
+                },
+                "calendar_table": {
+                    "title": "全球投资日历",
+                    "type": "table",
+                    "source": {"kind": "excel_range", "workbook": "data.xlsx"},
+                },
+            }
+        },
+        prompt_templates_source="",
+        report_date="2026-06-05",
+    )
+
+    assert result.placeholders == {
+        "开始日期": "2026-06-01",
+        "免责声明": "本报告仅供参考。",
+    }
+    assert result.warnings == []
+    assert result.sections == []
 
 
 def test_generation_service_builds_composite_market_review_from_excel_and_evidence(
@@ -2576,6 +2785,49 @@ def test_upload_report_project_allows_word_only_package(tmp_path: Path, monkeypa
     assert "active_word_template: templates/report_template.docx" in project_yaml
     assert "section_config: config/section_config.yaml" in project_yaml
     assert "active_excel_workbook" not in project_yaml
+
+
+def test_upload_report_project_creates_ppt_project_package(tmp_path: Path, monkeypatch):
+    """上传 PPT 模板时应创建 PPT 项目而不是 Word 项目。"""
+    import app.api.routes.report_projects as report_projects_route
+
+    monkeypatch.setattr(
+        report_projects_route,
+        "report_project_manager",
+        ReportProjectManager(projects_root=tmp_path),
+    )
+
+    response = client.post(
+        "/api/report-projects/upload",
+        data={"project_name": "静态PPT", "project_type": "ppt"},
+        files=[
+            (
+                "ppt_template",
+                (
+                    "report_template.pptx",
+                    b"pptx",
+                    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                ),
+            ),
+        ],
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "静态PPT"
+    assert data["project_type"] == "ppt"
+    assert data["template_filename"] == "report_template.pptx"
+    assert data["ppt_template_filename"] == "report_template.pptx"
+    assert data["word_template_filename"] == ""
+
+    project_dir = tmp_path / "静态PPT"
+    assert (project_dir / "templates" / "report_template.pptx").read_bytes() == b"pptx"
+    section_source = (project_dir / "config" / "section_config.yaml").read_text(encoding="utf-8")
+    assert "placeholders:" in section_source
+    project_yaml = (project_dir / "project.yaml").read_text(encoding="utf-8")
+    assert "project_type: ppt" in project_yaml
+    assert "active_ppt_template: templates/report_template.pptx" in project_yaml
+    assert "active_word_template" not in project_yaml
 
 
 def test_rename_report_project_updates_folder_and_yaml(tmp_path: Path, monkeypatch):

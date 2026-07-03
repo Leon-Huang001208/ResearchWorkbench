@@ -369,7 +369,6 @@ class WindAdapter(BaseDataAdapter):
         """
         client = self._get_client()
         td = trade_date or wf._td(None)
-        rows = []
         names = names_by_code or {}
 
         def _number_value(value: Any):
@@ -378,38 +377,40 @@ class WindAdapter(BaseDataAdapter):
             except (TypeError, ValueError):
                 return None
 
-        def _execute_optional(formula: str, timeout: float = 10.0):
-            try:
-                return client.execute(formula, timeout=timeout)
-            except Exception as exc:
-                logger.warning("Wind index formula failed: %s", exc)
-                return None
-
+        formulas: list[str] = []
+        slots: dict[tuple[str, str], int] = {}
         for code in codes:
-            logger.info(f"获取 Wind 指数实时行情: {code}, {td}")
-            name = names.get(code) or _execute_optional(wf.s_info_name(code), timeout=8.0)
-            realtime_formulas = [wf.index_rt_pct_change(code)]
+            if not names.get(code):
+                slots[(code, "name")] = len(formulas)
+                formulas.append(wf.s_info_name(code))
             if include_close:
-                realtime_formulas.insert(0, wf.index_rt_last(code))
-            try:
-                raw_values = client.execute_batch(realtime_formulas, timeout=10.0)
-            except Exception as exc:
-                logger.warning("Wind index realtime batch failed for %s: %s", code, exc)
-                raw_values = [None] * len(realtime_formulas)
-            close_index = 0 if include_close else None
-            pct_index = 1 if include_close else 0
-            close = _number_value(raw_values[close_index]) if close_index is not None else None
-            pct_change = _number_value(raw_values[pct_index]) if len(raw_values) > pct_index else None
-            if (
-                close_index is not None
-                and len(raw_values) > close_index
-                and isinstance(raw_values[close_index], Exception)
-            ):
-                logger.warning("Wind index formula failed: %s", raw_values[close_index])
-                close = None
-            if len(raw_values) > pct_index and isinstance(raw_values[pct_index], Exception):
-                logger.warning("Wind index formula failed: %s", raw_values[pct_index])
-                pct_change = None
+                slots[(code, "close")] = len(formulas)
+                formulas.append(wf.index_rt_last(code))
+            slots[(code, "pct_change")] = len(formulas)
+            formulas.append(wf.index_rt_pct_change(code))
+
+        logger.info("获取 Wind 指数实时行情: count=%s, %s", len(codes), td)
+        try:
+            raw_values = client.execute_batch(formulas, timeout=10.0) if formulas else []
+        except Exception as exc:
+            logger.warning("Wind index realtime batch failed: %s", exc)
+            raw_values = [None] * len(formulas)
+
+        def _value(code: str, field: str):
+            index = slots.get((code, field))
+            if index is None or index >= len(raw_values):
+                return None
+            value = raw_values[index]
+            if isinstance(value, Exception):
+                logger.warning("Wind index formula failed: %s", value)
+                return None
+            return value
+
+        rows = []
+        for code in codes:
+            name = names.get(code) or _value(code, "name")
+            close = _number_value(_value(code, "close")) if include_close else None
+            pct_change = _number_value(_value(code, "pct_change"))
             rows.append(
                 {
                     "code": code,

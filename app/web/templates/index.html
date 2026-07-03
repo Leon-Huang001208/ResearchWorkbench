@@ -9,7 +9,7 @@
     <script async src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script async src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
     <script async src="https://cdn.jsdelivr.net/npm/d3@7"></script>
-    <link rel="stylesheet" href="/static/style.css?v=20260629variablealign1">
+    <link rel="stylesheet" href="/static/style.css?v=20260702briefinline1">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@vscode/codicons@0.0.36/dist/codicon.min.css">
 </head>
 <body>
@@ -127,12 +127,8 @@
                                         <div class="market-session-state">
                                             <i class="codicon codicon-primitive-square" aria-hidden="true"></i>
                                             <span id="market-session-state">已收盘</span>
-                                            <small id="market-session-date">--</small>
                                         </div>
-                                        <div class="market-flow-summary">
-                                            <strong id="market-flow-value">--</strong>
-                                            <span>大盘资金净流入</span>
-                                        </div>
+                                        <small id="market-session-date" class="market-session-date">--</small>
                                     </div>
                                     <div id="market-index-grid" class="market-index-grid"></div>
                                     <div class="market-breadth-card">
@@ -150,8 +146,6 @@
                                             <span id="market-turnover-delta">较上一日 --</span>
                                         </div>
                                     </div>
-                                </div>
-                                <div class="market-companion-row" aria-label="市场辅助信息">
                                     <div class="market-ai-brief" aria-label="收盘点评">
                                         <div class="market-ai-brief-header">
                                             <span>收盘点评</span>
@@ -159,44 +153,19 @@
                                         </div>
                                         <p id="market-ai-brief-text">等待市场数据加载...</p>
                                     </div>
-                                    <div class="market-shortcuts" aria-label="市场快捷入口">
-                                        <button type="button" data-market-action="stock-picker"><i class="codicon codicon-search"></i><span>选股</span></button>
-                                        <button type="button" data-market-action="ipo-calendar"><i class="codicon codicon-calendar"></i><span>打新日历</span></button>
-                                        <button type="button" data-market-action="etf"><i class="codicon codicon-graph"></i><span>ETF基金</span></button>
-                                        <button type="button" data-market-action="hot-list"><i class="codicon codicon-flame"></i><span>热榜</span></button>
-                                        <button type="button" data-market-action="market-review"><i class="codicon codicon-history"></i><span>大盘回顾</span></button>
-                                    </div>
-                                    <div class="market-mini-grid" aria-label="市场对比指标">
-                                        <article class="market-mini-card">
-                                            <span>涨跌停对比</span>
-                                            <strong id="market-mini-limit">-- : --</strong>
-                                            <small>涨停 / 跌停</small>
-                                        </article>
-                                        <article class="market-mini-card">
-                                            <span>昨日涨停表现</span>
-                                            <strong id="market-mini-yesterday">--</strong>
-                                            <small>短线情绪</small>
-                                        </article>
-                                        <article class="market-mini-card">
-                                            <span>大小盘对比</span>
-                                            <strong id="market-mini-cap-size">-- : --</strong>
-                                            <small>相对强弱</small>
-                                        </article>
-                                    </div>
                                 </div>
                             </div>
                         </section>
 
-                        <section class="market-heatmap-card" aria-label="市场云图">
+                        <section class="market-heatmap-card" aria-label="热点矩阵">
                             <div class="market-heatmap-header">
                                 <div>
-                                    <h4>市场云图</h4>
-                                    <span>面积代表热度，颜色代表涨跌方向</span>
+                                    <h4 id="market-heatmap-title">Wind热门概念矩阵</h4>
+                                    <span id="market-heatmap-subtitle">颜色表示涨跌方向，描边表示涨跌强度</span>
                                 </div>
                                 <div class="market-heatmap-modes">
-                                    <button class="active" type="button">A股全图</button>
-                                    <button type="button">板块</button>
-                                    <button type="button">概念</button>
+                                    <button class="active" type="button" onclick="switchMarketHeatmapScope('concept')">概念</button>
+                                    <button type="button" onclick="switchMarketHeatmapScope('sector')">板块</button>
                                 </div>
                             </div>
                             <div class="market-sector-view-control" aria-label="板块视图">
@@ -208,17 +177,6 @@
                                     </button>
                                     <div class="market-sector-select-menu" role="listbox" aria-label="选择板块口径">
                                         <button type="button" class="active" data-sector-view="wind_hot_concept" onclick="switchMarketSectorView('wind_hot_concept')"><span>Wind热门概念</span><small>暂无</small></button>
-                                        <button type="button" data-sector-view="wind_l1" onclick="switchMarketSectorView('wind_l1')"><span>Wind一级</span><small>暂无</small></button>
-                                        <button type="button" data-sector-view="wind_l2" onclick="switchMarketSectorView('wind_l2')"><span>Wind二级</span><small>暂无</small></button>
-                                        <button type="button" data-sector-view="wind_l3" onclick="switchMarketSectorView('wind_l3')"><span>Wind三级</span><small>暂无</small></button>
-                                        <button type="button" data-sector-view="wind_l4" onclick="switchMarketSectorView('wind_l4')"><span>Wind四级</span><small>暂无</small></button>
-                                        <button type="button" data-sector-view="citic_l1" onclick="switchMarketSectorView('citic_l1')"><span>中信一级</span><small>暂无</small></button>
-                                        <button type="button" data-sector-view="citic_l2" onclick="switchMarketSectorView('citic_l2')"><span>中信二级</span><small>暂无</small></button>
-                                        <button type="button" data-sector-view="citic_l3" onclick="switchMarketSectorView('citic_l3')"><span>中信三级</span><small>暂无</small></button>
-                                        <button type="button" data-sector-view="sw_l1" onclick="switchMarketSectorView('sw_l1')"><span>申万一级</span><small>暂无</small></button>
-                                        <button type="button" data-sector-view="sw_l2" onclick="switchMarketSectorView('sw_l2')"><span>申万二级</span><small>暂无</small></button>
-                                        <button type="button" data-sector-view="sw_l3" onclick="switchMarketSectorView('sw_l3')"><span>申万三级</span><small>暂无</small></button>
-                                        <button type="button" data-sector-view="ths_industry" onclick="switchMarketSectorView('ths_industry')"><span>同花顺行业</span><small>暂无</small></button>
                                     </div>
                                 </div>
                             </div>
@@ -1162,11 +1120,16 @@
             <!-- Commentary Production Section -->
             <section id="section-commentary" class="content-section">
                 <div class="commentary-workbench">
-                    <div class="commentary-hero">
-                        <div>
+                    <div id="commentary-workbench-toolbar" class="commentary-workbench-toolbar">
+                        <div class="commentary-workbench-title">
                             <span class="commentary-kicker">Commentary Studio</span>
                             <h2>点评生产中心</h2>
-                            <p>独立承载收盘、行业、主题、海外扰动与产品配置点评。</p>
+                            <div class="commentary-status-strip" aria-label="点评生产状态">
+                                <span><strong id="commentary-evidence-count">--</strong><small>证据</small></span>
+                                <span><strong id="commentary-selected-evidence-count">--</strong><small>纳入</small></span>
+                                <span><strong id="commentary-verified-count">--</strong><small>核验</small></span>
+                                <span><strong id="commentary-run-meta">未生成</strong><small>草稿</small></span>
+                            </div>
                         </div>
                         <div class="commentary-hero-actions">
                             <span id="commentary-context-status" class="commentary-context-status">等待上下文</span>
@@ -1179,61 +1142,133 @@
                         </div>
                     </div>
 
-                    <div class="commentary-confidence-grid" aria-label="证据置信分层">
-                        <span data-confidence="confirmed"><strong>已确认数据</strong><small>行情、成交、资金、估值</small></span>
-                        <span data-confidence="reported"><strong>媒体报道</strong><small>新闻、公告、研报</small></span>
-                        <span data-confidence="interpretation"><strong>市场解释</strong><small>归因、传导、分歧</small></span>
-                        <span data-confidence="judgement"><strong>主观判断</strong><small>核心矛盾、观察变量</small></span>
-                    </div>
-
-                    <section id="commentary-attribution-panel" class="commentary-attribution-panel" aria-label="归因排序">
-                        <div class="commentary-panel-header">
-                            <h3>归因排序</h3>
-                            <span id="commentary-attribution-count">--</span>
-                        </div>
-                        <div id="commentary-attribution-list" class="commentary-attribution-list">
-                            <p class="empty-state compact">等待上下文归因。</p>
-                        </div>
-                    </section>
-
-                    <div class="commentary-studio-grid">
-                        <aside class="commentary-template-panel" aria-label="点评模板库">
+                    <div class="commentary-command-center">
+                        <aside class="commentary-workflow-rail" aria-label="点评生产流程">
                             <div class="commentary-panel-header">
-                                <h3>点评模板库</h3>
+                                <h3>生产流程</h3>
                                 <span id="commentary-template-count">--</span>
                             </div>
-                            <div id="commentary-template-list" class="commentary-template-list"></div>
+                            <ol class="commentary-workflow-list">
+                                <li><strong>选择点评类型</strong><small>确定结构和口径</small></li>
+                                <li><strong>加载市场上下文</strong><small>刷新行情、板块、新闻</small></li>
+                                <li><strong>筛选消息与证据</strong><small>勾选进入生成请求</small></li>
+                                <li><strong>生成草稿</strong><small>形成可编辑初稿</small></li>
+                                <li><strong>质检与复制</strong><small>检查风险表述和引用</small></li>
+                            </ol>
+                            <section class="commentary-template-panel" aria-label="点评模板库">
+                                <div class="commentary-section-title-row">
+                                    <h3>点评模板库</h3>
+                                    <span>选择一种生产口径</span>
+                                </div>
+                                <div id="commentary-template-list" class="commentary-template-list"></div>
+                            </section>
+                            <div class="commentary-writing-controls" aria-label="写作设置">
+                                <div class="commentary-section-title-row">
+                                    <h3>写作设置</h3>
+                                    <span>用于生成提示词</span>
+                                </div>
+                                <div class="commentary-control-grid">
+                                    <label>
+                                        <span>受众</span>
+                                        <select id="commentary-audience-control">
+                                            <option value="internal">投研内部</option>
+                                            <option value="sales">销售话术</option>
+                                            <option value="client">客户简版</option>
+                                            <option value="product">产品材料</option>
+                                        </select>
+                                    </label>
+                                    <label>
+                                        <span>长度</span>
+                                        <select id="commentary-length-control">
+                                            <option value="medium">中评</option>
+                                            <option value="short">短评</option>
+                                            <option value="long">长评</option>
+                                        </select>
+                                    </label>
+                                    <label>
+                                        <span>风格</span>
+                                        <select id="commentary-tone-control">
+                                            <option value="balanced">克制归因</option>
+                                            <option value="defensive">防御解释</option>
+                                            <option value="decisive">观点明确</option>
+                                        </select>
+                                    </label>
+                                </div>
+                            </div>
                         </aside>
 
-                        <section class="commentary-input-panel" aria-label="点评生产输入">
+                        <main id="commentary-evidence-board" class="commentary-evidence-workspace" aria-label="证据工作区">
                             <div class="commentary-panel-header">
-                                <h3 id="commentary-active-title">每日收盘点评</h3>
+                                <h3>证据工作区</h3>
                                 <span id="commentary-active-tag">市场点评</span>
                             </div>
-                            <div class="commentary-form-grid">
-                                <label>
-                                    <span>数据快照</span>
-                                    <textarea id="commentary-data-snapshot" rows="6">宽基：上证指数 -2.1%，沪深300 -2.4%，创业板指 -3.8%；成交额放大至 1.8 万亿元；下跌行业集中在 AI 硬件、半导体、券商。</textarea>
-                                </label>
-                                <label>
-                                    <span>证据包</span>
-                                    <textarea id="commentary-evidence-pack" rows="6">新闻：海外 AI 链调整，软银、韩国半导体龙头大幅下跌；研报：部分机构提示 AI 资本开支预期进入验证期；资金：北向与两融风险偏好回落。</textarea>
-                                </label>
-                                <label class="commentary-wide-field">
-                                    <span>主观判断</span>
-                                    <textarea id="commentary-subjective-judgement" rows="4">今天的核心不是单一利空，而是高拥挤 AI 交易在估值、兑现和外部扰动共振下的集中降温。后续重点观察成交额能否稳定、AI 链调整是否扩散到非科技成长。</textarea>
-                                </label>
+                            <div class="commentary-confidence-grid" aria-label="证据置信分层">
+                                <span data-confidence="confirmed"><strong>已确认数据</strong><small>行情、成交、资金、估值</small></span>
+                                <span data-confidence="reported"><strong>媒体报道</strong><small>新闻、公告、研报</small></span>
+                                <span data-confidence="interpretation"><strong>市场解释</strong><small>归因、传导、分歧</small></span>
+                                <span data-confidence="judgement"><strong>主观判断</strong><small>核心矛盾、观察变量</small></span>
                             </div>
-                        </section>
 
-                        <section class="commentary-output-panel" aria-label="点评草稿输出">
+                            <section id="commentary-attribution-panel" class="commentary-attribution-panel" aria-label="归因排序">
+                                <div class="commentary-panel-header commentary-panel-header-compact">
+                                    <h3>归因排序</h3>
+                                    <span id="commentary-attribution-count">--</span>
+                                </div>
+                                <div id="commentary-attribution-list" class="commentary-attribution-list">
+                                    <p class="empty-state compact">等待上下文归因。</p>
+                                </div>
+                            </section>
+
+                            <div class="commentary-evidence-list-head">
+                                <h3>结构化证据</h3>
+                                <span>按消息、行情、研报和判断分组</span>
+                            </div>
+                            <div id="commentary-evidence-list" class="commentary-evidence-list">
+                                <p class="empty-state compact">等待上下文证据。</p>
+                            </div>
+
+                            <details class="commentary-request-preview">
+                                <summary>
+                                    <span>生成请求预览</span>
+                                    <small>数据、证据包和主观判断可编辑</small>
+                                </summary>
+                                <div class="commentary-form-grid">
+                                    <label>
+                                        <span>数据快照</span>
+                                        <textarea id="commentary-data-snapshot" rows="5">宽基：上证指数 -2.1%，沪深300 -2.4%，创业板指 -3.8%；成交额放大至 1.8 万亿元；下跌行业集中在 AI 硬件、半导体、券商。</textarea>
+                                    </label>
+                                    <label>
+                                        <span>证据包</span>
+                                        <textarea id="commentary-evidence-pack" rows="5">新闻：海外 AI 链调整，软银、韩国半导体龙头大幅下跌；研报：部分机构提示 AI 资本开支预期进入验证期；资金：北向与两融风险偏好回落。</textarea>
+                                    </label>
+                                    <label class="commentary-wide-field">
+                                        <span>主观判断</span>
+                                        <textarea id="commentary-subjective-judgement" rows="4">今天的核心不是单一利空，而是高拥挤 AI 交易在估值、兑现和外部扰动共振下的集中降温。后续重点观察成交额能否稳定、AI 链调整是否扩散到非科技成长。</textarea>
+                                    </label>
+                                </div>
+                            </details>
+                        </main>
+
+                        <section class="commentary-draft-workspace" aria-label="点评草稿输出">
                             <div class="commentary-panel-header">
-                                <h3>草稿输出</h3>
+                                <h3 id="commentary-active-title">每日收盘点评</h3>
                                 <button id="btn-commentary-copy-draft" class="btn-secondary" type="button"><i class="codicon codicon-copy"></i> 复制</button>
+                            </div>
+                            <div id="commentary-quality-panel" class="commentary-quality-panel">
+                                <span data-quality="ready">等待生成后质检</span>
                             </div>
                             <article id="commentary-draft-output" class="commentary-draft-output">
                                 <p class="empty-state compact">选择点评模板并生成草稿。</p>
                             </article>
+                            <section class="commentary-section-editor" aria-label="分段草稿">
+                                <div class="commentary-evidence-list-head">
+                                    <h3>分段草稿</h3>
+                                    <span>逐段编辑与复制</span>
+                                </div>
+                                <div id="commentary-draft-sections" class="commentary-draft-sections">
+                                    <p class="empty-state compact">生成后显示分段编辑器。</p>
+                                </div>
+                            </section>
                         </section>
                     </div>
                 </div>
@@ -1427,26 +1462,52 @@
 
 	                                        <div class="template-workbench-panel template-section-editor-panel template-config-editor-panel" id="template-section-config-editor">
 	                                            <div class="template-placeholder-toolbar template-config-editor-toolbar">
-	                                                <h4 id="template-selected-placeholder-title" class="template-hidden-title">占位符配置详情</h4>
-                                                    <div id="template-placeholder-map" class="template-placeholder-map">
-                                                        <div class="empty-state compact">选择模板后显示段落</div>
+	                                                <div class="template-config-editor-selector template-config-toolbar-zone">
+                                                        <h4 id="template-selected-placeholder-title">占位符配置详情</h4>
+                                                        <div id="template-placeholder-map" class="template-placeholder-map" aria-label="选择占位符">
+                                                            <div class="empty-state compact">选择模板后显示段落</div>
+                                                        </div>
                                                     </div>
-                                                    <div class="template-config-toolbar-chips">
+                                                    <div class="template-config-toolbar-chips template-config-toolbar-zone">
                                                         <span id="template-config-placeholder-type" class="template-config-toolbar-meta">配置项</span>
                                                         <span id="template-config-placeholder-source" class="template-config-toolbar-meta">等待配置</span>
                                                         <span id="template-config-placeholder-health" class="template-config-toolbar-meta ok">可生成</span>
                                                     </div>
                                                     <span id="template-placeholder-count" class="template-hidden-title">0 个</span>
-                                                    <div class="template-placeholder-actions">
+                                                    <div class="template-placeholder-actions template-config-toolbar-zone">
                                                         <button id="btn-template-advanced-config" class="btn-secondary" disabled><i class="codicon codicon-settings-gear"></i> 高级配置</button>
 	                                                    <button id="btn-template-save-placeholder" class="btn-primary" disabled><i class="codicon codicon-save"></i> 保存</button>
+	                                                    <button id="btn-template-save-next-placeholder" class="btn-secondary" disabled>保存并下一个</button>
                                                     </div>
 	                                            </div>
+                                                <div class="template-placeholder-status-strip">
+                                                    <div class="placeholder-wizard-progress-block">
+                                                        <span id="template-placeholder-wizard-progress" class="placeholder-wizard-progress">0 / 0 已完成</span>
+                                                        <div class="template-placeholder-progress-track">
+                                                            <span id="template-placeholder-progress-bar" class="template-placeholder-progress-bar" style="width: 0%"></span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="placeholder-wizard-controls">
+                                                        <button id="btn-template-prev-placeholder" class="btn-secondary" type="button" disabled>上一个</button>
+                                                        <button id="btn-template-next-incomplete-placeholder" class="btn-secondary" type="button" disabled>下一个未完成</button>
+                                                    </div>
+                                                </div>
+                                                <div class="placeholder-issue-queue placeholder-issue-queue-inline is-empty">
+                                                    <div class="placeholder-issue-queue-head">
+                                                        <h4>预检问题</h4>
+                                                        <span id="template-placeholder-issue-count" class="badge">0</span>
+                                                    </div>
+                                                    <p>以下占位符配置不完整，点击快速定位</p>
+                                                    <div id="template-placeholder-issue-list" class="placeholder-issue-queue-list">
+                                                        <div class="empty-state compact">暂无阻止生成的问题</div>
+                                                    </div>
+                                                </div>
 	                                            <div id="template-placeholder-detail-form" class="template-placeholder-detail-form">
 	                                                <div class="empty-state compact">选择一个段落后编辑配置</div>
 	                                            </div>
 	                                        </div>
 	                                    </div>
+                                        </div>
                                         <div id="template-config-editor-modal" class="modal template-config-editor-modal hidden" aria-hidden="true">
                                             <div class="modal-content template-config-editor-modal-content">
                                                 <div class="modal-header">
@@ -1617,7 +1678,7 @@
                         <div class="modal-header">
                             <div>
                                 <h3>上传报告项目</h3>
-                                <p class="upload-modal-subtitle">Word 先行，其它材料后续补充</p>
+                                <p class="upload-modal-subtitle">选择 Word 或 PPT 静态模板，数据材料可后续补充</p>
                             </div>
                             <button id="btn-close-upload-modal" class="modal-close" onclick="closeUploadModal()"><i class="codicon codicon-close"></i></button>
                         </div>
@@ -1631,7 +1692,21 @@
                                     <label>报告项目名称</label>
                                     <input type="text" id="template-name-input" placeholder="例如：华安ETF周报">
                                 </div>
-                                <label class="upload-file-card upload-file-card-primary" for="project-word-template-input">
+                                <div class="form-field upload-name-field">
+                                    <label>项目类型</label>
+                                    <input type="hidden" id="project-type-select" value="word">
+                                    <div class="upload-project-type-control" role="radiogroup" aria-label="项目类型">
+                                        <button type="button" class="upload-project-type-option active" data-project-type-option="word" role="radio" aria-checked="true">
+                                            <i class="codicon codicon-file-code"></i>
+                                            <span>Word 模板项目</span>
+                                        </button>
+                                        <button type="button" class="upload-project-type-option" data-project-type-option="ppt" role="radio" aria-checked="false">
+                                            <i class="codicon codicon-file-media"></i>
+                                            <span>PPT 模板项目</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <label class="upload-file-card upload-file-card-primary" for="project-word-template-input" data-upload-template-card="word">
                                     <input class="upload-file-input" type="file" id="project-word-template-input" accept=".docx">
                                     <span class="upload-file-icon"><i class="codicon codicon-file-code"></i></span>
                                     <span class="upload-file-copy">
@@ -1639,6 +1714,15 @@
                                         <small>.docx</small>
                                     </span>
                                     <span class="upload-file-name" data-file-label="project-word-template-input">未选择</span>
+                                </label>
+                                <label class="upload-file-card upload-file-card-primary hidden" for="project-ppt-template-input" data-upload-template-card="ppt">
+                                    <input class="upload-file-input" type="file" id="project-ppt-template-input" accept=".pptx">
+                                    <span class="upload-file-icon"><i class="codicon codicon-file-media"></i></span>
+                                    <span class="upload-file-copy">
+                                        <strong>PPT 模板</strong>
+                                        <small>.pptx</small>
+                                    </span>
+                                    <span class="upload-file-name" data-file-label="project-ppt-template-input">未选择</span>
                                 </label>
                             </section>
                             <section class="upload-optional-card">
@@ -1745,7 +1829,7 @@
 
     <!-- Scripts: i18n must load before app.js -->
     <script src="/static/i18n.js?v=20250527"></script>
-    <script type="module" src="/static/js/app.js?v=20260629variablealign1"></script>
+    <script type="module" src="/static/js/app.js?v=20260702commentaryrunlog1"></script>
     <script type="module" src="/static/js/wind.js?v=20250601a"></script>
 </body>
 </html>

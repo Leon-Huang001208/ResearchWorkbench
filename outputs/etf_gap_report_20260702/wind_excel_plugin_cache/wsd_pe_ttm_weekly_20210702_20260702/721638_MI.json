@@ -1,0 +1,8 @@
+{
+  "status": "timeout_or_empty",
+  "formula": "=@wsd(\"721638.MI\",\"pe_ttm\",\"2021-07-02\",\"2026-07-02\",\"Period=W\")",
+  "series": [],
+  "current_pe": null,
+  "pe_percentile_5y": null,
+  "sample_count": 0
+}

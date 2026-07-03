@@ -1,0 +1,23 @@
+{
+  "date": "2026-07-02",
+  "scope": "project",
+  "lockFile": "/Users/leon/Desktop/Projects/AlphaFoundry/skills-lock.json",
+  "lockFound": true,
+  "command": "npx skills add Wind-Information-Co-Ltd/wind-skills --skill wind-find-finance-skill -y",
+  "method": "add",
+  "sourceType": "github",
+  "updatedAt": "2026-07-02T03:15:47.374Z",
+  "status": "success",
+  "finishedAt": "2026-07-02T03:15:47.374Z",
+  "exitCode": 0,
+  "usedFallback": true,
+  "fallbackReason": "update failed",
+  "error": null,
+  "remoteHead": null,
+  "remoteChanged": false,
+  "lastAppliedRemoteHead": null,
+  "changed": true,
+  "beforeHash": "8c0cc0ec4fd1fbf68916e684878a20e2eb0204551f5edad879f782961380e078",
+  "afterHash": "c2346126c64dab3584cf00fd50faa982c13c395a410f546060fac66cfcec9f1e",
+  "output": "             │\n├─────────────────────────────────────────────────────────────────────────╯\n\u001b[?25l│\n\u001b[999D\u001b[J◇  Installation complete\n\u001b[?25h\n│\n◇  Installed 1 skill ──────────────────────────────────────────────────────────╮\n│                                                                              │\n│  ✓ wind-find-finance-skill (copied)                                          │\n│    → ~/Desktop/Projects/AlphaFoundry/.agents/skills/wind-find-finance-skill  │\n│    → ~/Desktop/Projects/AlphaFoundry/.agents/skills/wind-find-finance-skill  │\n│    → ~/Desktop/Projects/AlphaFoundry/.agents/skills/wind-find-finance-skill  │\n│    → ~/Desktop/Projects/AlphaFoundry/.agents/skills/wind-find-finance-skill  │\n│    → ~/Desktop/Projects/AlphaFoundry/.agents/skills/wind-find-finance-skill  │\n│    → ~/Desktop/Projects/AlphaFoundry/.agents/skills/wind-find-finance-skill  │\n│    → ~/Desktop/Projects/AlphaFoundry/.agents/skills/wind-find-finance-skill  │\n│    → ~/Desktop/Projects/AlphaFoundry/.agents/skills/wind-find-finance-skill  │\n│    → ~/Desktop/Projects/AlphaFoundry/.agents/skills/wind-find-finance-skill  │\n│    → ~/Desktop/Projects/AlphaFoundry/.agents/skills/wind-find-finance-skill  │\n│    → ~/Desktop/Projects/AlphaFoundry/.agents/skills/wind-find-finance-skill  │\n│    → ~/Desktop/Projects/AlphaFoundry/.agents/skills/wind-find-finance-skill  │\n│    → ~/Desktop/Projects/AlphaFoundry/.agents/skills/wind-find-finance-skill  │\n│    → ~/Desktop/Projects/AlphaFoundry/.agents/skills/wind-find-finance-skill  │\n│    → ~/Desktop/Projects/AlphaFoundry/.agents/skills/wind-find-finance-skill  │\n│    → ~/Desktop/Projects/AlphaFoundry/.agents/skills/wind-find-finance-skill  │\n│    → ~/Desktop/Projects/AlphaFoundry/.agents/skills/wind-find-finance-skill  │\n│                                                                              │\n├──────────────────────────────────────────────────────────────────────────────╯\n\n│\n└  Done!  Review skills before use; they run with full agent permissions."
+}

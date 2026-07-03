@@ -6,25 +6,36 @@
 import { apiCall, toast, esc } from './core.js';
 
 const MARKET_SECTOR_VIEWS = [
-    { key: 'wind_hot_concept', label: 'Wind热门概念' },
-    { key: 'wind_l1', label: 'Wind一级' },
-    { key: 'wind_l2', label: 'Wind二级' },
-    { key: 'wind_l3', label: 'Wind三级' },
-    { key: 'wind_l4', label: 'Wind四级' },
-    { key: 'citic_l1', label: '中信一级' },
-    { key: 'citic_l2', label: '中信二级' },
-    { key: 'citic_l3', label: '中信三级' },
-    { key: 'sw_l1', label: '申万一级' },
-    { key: 'sw_l2', label: '申万二级' },
-    { key: 'sw_l3', label: '申万三级' },
-    { key: 'ths_industry', label: '同花顺行业' },
+    { key: 'wind_hot_concept', label: 'Wind热门概念', scope: 'concept' },
+    { key: 'wind_l1', label: 'Wind一级', scope: 'sector' },
+    { key: 'wind_l2', label: 'Wind二级', scope: 'sector' },
+    { key: 'wind_l3', label: 'Wind三级', scope: 'sector' },
+    { key: 'wind_l4', label: 'Wind四级', scope: 'sector' },
+    { key: 'citic_l1', label: '中信一级', scope: 'sector' },
+    { key: 'citic_l2', label: '中信二级', scope: 'sector' },
+    { key: 'citic_l3', label: '中信三级', scope: 'sector' },
+    { key: 'sw_l1', label: '申万一级', scope: 'sector' },
+    { key: 'sw_l2', label: '申万二级', scope: 'sector' },
+    { key: 'sw_l3', label: '申万三级', scope: 'sector' },
+    { key: 'ths_industry', label: '同花顺行业', scope: 'sector' },
 ];
 
-let activeMarketSectorView = 'ths_industry';
+const MARKET_HEATMAP_SCOPES = [
+    { key: 'concept', label: '概念', viewKey: 'wind_hot_concept' },
+    { key: 'sector', label: '板块', viewKey: 'wind_l1' },
+];
+
+let activeMarketSectorView = 'wind_hot_concept';
+let activeMarketHeatmapScope = 'concept';
 let latestMarketOverview = null;
 const loadingMarketSectorViews = new Set();
+const marketSectorViewRequestCache = new Map();
 const MARKET_SECTOR_PREFETCH_VIEWS = [];
-const MARKET_REFRESH_INTERVAL_MS = 15000;
+const MARKET_REFRESH_INTERVAL_MS = 5000;
+const MARKET_SECTOR_REQUEST_TIMEOUT_MS = 90000;
+const MARKET_SECTOR_LIST_LIMIT = 10;
+const MARKET_HEATMAP_ITEM_LIMIT = 60;
+const MARKET_SECTOR_FETCH_LIMIT = 30;
 let marketSectorPrefetchTimer = null;
 let marketRefreshTimer = null;
 let isMarketDashboardRefreshing = false;
@@ -55,17 +66,36 @@ export async function loadDashboard(options = {}) {
         if (!silent) showSectionLoading(marketPanel);
         setMarketRefreshState(true, silent ? '自动刷新中' : '刷新中');
 
-        const data = await apiCall('GET', '/api/dashboard');
+        primeMarketSectorViewRequest(activeMarketSectorView);
+        let data = null;
+        try {
+            data = await apiCall('GET', '/api/dashboard');
+        } catch (e) {
+            console.error('dashboard_fetch_failed', e);
+            if (!silent) {
+                showSectionError(marketPanel, e.message);
+                toast('仪表盘加载失败', 'error');
+            }
+            return;
+        }
 
-        // Update data source badge
-        updateDataSourceBadge(data);
+        try {
+            // Update data source badge
+            updateDataSourceBadge(data);
 
-        // Render Market Overview
-        renderMarketOverview(data);
+            // Render Market Overview
+            renderMarketOverview(data);
 
-        // Refresh i18n
-        if (typeof I18N !== 'undefined') I18N.applyAll();
-        scheduleMarketAutoRefresh();
+            // Refresh i18n
+            if (typeof I18N !== 'undefined') I18N.applyAll();
+            scheduleMarketAutoRefresh();
+        } catch (e) {
+            console.error('dashboard_render_failed', e);
+            if (!silent) {
+                showSectionError(marketPanel, e.message);
+                toast('仪表盘渲染失败', 'error');
+            }
+        }
     } catch (e) {
         console.error('Failed to load dashboard:', e);
         if (!silent) {
@@ -105,6 +135,11 @@ function renderMarketOverview(data) {
 }
 
 function renderMarketOverviewPayload(mo = {}) {
+    const previousViews = latestMarketOverview?.sector_views || {};
+    mo.sector_views = {
+        ...previousViews,
+        ...(mo.sector_views || {}),
+    };
     latestMarketOverview = mo;
 
     renderMarketCommandCenter(mo);
@@ -135,16 +170,28 @@ function renderMarketOverviewPayload(mo = {}) {
     }
 
     renderMarketSectorLists(mo);
+    ensureMarketSectorViewLoaded(activeMarketSectorView, { silent: true });
     scheduleMarketSectorPrefetch();
 
     hideSectionLoading(document.getElementById('dash-panel-market'));
 }
 
-export function switchMarketSectorView(view) {
+export function switchMarketHeatmapScope(scopeKey) {
+    const scope = MARKET_HEATMAP_SCOPES.find(item => item.key === scopeKey);
+    if (!scope) return;
+    activeMarketHeatmapScope = scope.key;
+    switchMarketSectorView(scope.viewKey, { fromHeatmapScope: true });
+}
+
+export function switchMarketSectorView(view, options = {}) {
     const normalizedView = view === 'theme' ? 'wind_hot_concept' : view === 'industry' ? 'wind_l1' : view;
     if (!MARKET_SECTOR_VIEWS.some(item => item.key === normalizedView)) return;
     activeMarketSectorView = normalizedView;
+    if (!options.fromHeatmapScope) {
+        activeMarketHeatmapScope = inferMarketHeatmapScope(normalizedView);
+    }
     closeMarketSectorMenus();
+    renderMarketHeatmapScopes();
     renderMarketSectorTabs();
     if (latestMarketOverview) renderMarketSectorLists(latestMarketOverview);
     ensureMarketSectorViewLoaded(normalizedView);
@@ -171,6 +218,7 @@ async function refreshMarketOverviewOnly(options = {}) {
         );
         updateDataSourceBadge({ market_overview: overview });
         renderMarketOverviewPayload(overview);
+        await ensureMarketSectorViewLoaded(activeMarketSectorView, { force: true, silent: true });
         if (typeof I18N !== 'undefined') I18N.applyAll();
     } catch (e) {
         console.error('Failed to refresh market overview:', e);
@@ -187,20 +235,8 @@ function handleMarketAction(action) {
         case 'refresh':
             refreshMarketDashboard({ manual: true });
             break;
-        case 'stock-picker':
-            openAssetAnalysis();
-            break;
-        case 'ipo-calendar':
-            toast('打新日历数据源尚未接入，暂不展示空入口', 'info');
-            break;
         case 'etf':
             openAssetAnalysis('ETF');
-            break;
-        case 'hot-list':
-            scrollMarketTarget('.market-heatmap-card');
-            break;
-        case 'market-review':
-            scrollMarketTarget('.market-ai-brief');
             break;
         default:
             break;
@@ -246,6 +282,7 @@ function shouldAutoRefreshMarket() {
     return Boolean(
         document.getElementById('section-dashboard')?.classList.contains('active')
         && document.getElementById('dash-panel-market')?.classList.contains('active')
+        && getMarketSessionInfo().isTrading
     );
 }
 
@@ -271,7 +308,8 @@ function closeMarketSectorMenus() {
 
 function renderMarketSectorTabs() {
     const activeView = getActiveMarketSectorView();
-    const menu = MARKET_SECTOR_VIEWS.map(view => {
+    const visibleViews = getMarketSectorViewsForActiveScope();
+    const menu = visibleViews.map(view => {
         const counts = getMarketSectorViewCounts(view.key);
         const countText = counts.total ? `${counts.up}/${counts.down}` : '暂无';
         return `
@@ -296,6 +334,37 @@ function renderMarketSectorTabs() {
     document.querySelectorAll('.market-sector-view-control').forEach(container => {
         container.innerHTML = selectorMarkup;
     });
+    renderMarketHeatmapScopes();
+    updateMarketHeatmapCopy();
+}
+
+function renderMarketHeatmapScopes() {
+    const markup = MARKET_HEATMAP_SCOPES.map(scope => `
+        <button class="${scope.key === activeMarketHeatmapScope ? 'active' : ''}" type="button" onclick="switchMarketHeatmapScope('${scope.key}')">
+            ${esc(scope.label)}
+        </button>
+    `).join('');
+    document.querySelectorAll('.market-heatmap-modes').forEach(container => {
+        container.innerHTML = markup;
+    });
+}
+
+function inferMarketHeatmapScope(viewKey) {
+    if (viewKey === 'wind_hot_concept') return 'concept';
+    return 'sector';
+}
+
+function getMarketSectorViewsForActiveScope() {
+    return MARKET_SECTOR_VIEWS.filter(view => view.scope === activeMarketHeatmapScope);
+}
+
+function updateMarketHeatmapCopy() {
+    const activeView = getActiveMarketSectorView();
+    const title = activeView.key === 'wind_hot_concept'
+        ? 'Wind热门概念矩阵'
+        : `${activeView.label}行业矩阵`;
+    setText('market-heatmap-title', title);
+    setText('market-heatmap-subtitle', '颜色表示涨跌方向，描边表示涨跌强度');
 }
 
 function getActiveMarketSectorView() {
@@ -358,7 +427,7 @@ function renderSectorList(container, sectors, direction, isLoading = false) {
     if (isLoading) {
         container.innerHTML = `<li class="empty-state">${esc(getActiveMarketSectorView().label)}加载中...</li>`;
     } else if (sectors && sectors.length) {
-        container.innerHTML = sectors.map(s => {
+        container.innerHTML = sectors.slice(0, MARKET_SECTOR_LIST_LIMIT).map(s => {
             const change = Number(s.change_pct || 0);
             const changeText = `${change > 0 ? '+' : ''}${change.toFixed(2)}%`;
             return `
@@ -400,8 +469,9 @@ async function preloadMarketSectorViews(viewKeys = []) {
 async function ensureMarketSectorViewLoaded(viewKey, options = {}) {
     if (!latestMarketOverview) return;
     const silent = Boolean(options.silent);
+    const force = Boolean(options.force);
     const current = latestMarketOverview.sector_views?.[viewKey];
-    if ((current?.up?.length || 0) + (current?.down?.length || 0) > 0) return;
+    if (!force && (current?.up?.length || 0) + (current?.down?.length || 0) > 0) return;
     if (loadingMarketSectorViews.has(viewKey)) return;
 
     loadingMarketSectorViews.add(viewKey);
@@ -411,14 +481,9 @@ async function ensureMarketSectorViewLoaded(viewKey, options = {}) {
         renderMarketSectorTabs();
     }
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 24000);
+    const timeoutId = setTimeout(() => controller.abort(), MARKET_SECTOR_REQUEST_TIMEOUT_MS);
     try {
-        const data = await apiCall(
-            'GET',
-            `/api/dashboard/sector-movers?view_key=${encodeURIComponent(viewKey)}&limit=10`,
-            null,
-            { signal: controller.signal }
-        );
+        const data = await getMarketSectorViewPayload(viewKey, controller.signal);
         latestMarketOverview.sector_views = latestMarketOverview.sector_views || {};
         latestMarketOverview.sector_views[viewKey] = {
             up: data.up || [],
@@ -438,6 +503,33 @@ async function ensureMarketSectorViewLoaded(viewKey, options = {}) {
             renderMarketSectorTabs();
         }
     }
+}
+
+function primeMarketSectorViewRequest(viewKey) {
+    if (!MARKET_SECTOR_VIEWS.some(item => item.key === viewKey)) return;
+    if (marketSectorViewRequestCache.has(viewKey)) return;
+    marketSectorViewRequestCache.set(viewKey, fetchMarketSectorViewPayload(viewKey));
+}
+
+async function getMarketSectorViewPayload(viewKey, signal) {
+    const cachedRequest = marketSectorViewRequestCache.get(viewKey);
+    if (cachedRequest) {
+        try {
+            return await cachedRequest;
+        } finally {
+            marketSectorViewRequestCache.delete(viewKey);
+        }
+    }
+    return fetchMarketSectorViewPayload(viewKey, signal);
+}
+
+function fetchMarketSectorViewPayload(viewKey, signal) {
+    return apiCall(
+        'GET',
+        `/api/dashboard/sector-movers?view_key=${encodeURIComponent(viewKey)}&limit=${MARKET_SECTOR_FETCH_LIMIT}`,
+        null,
+        { signal }
+    );
 }
 
 function formatNewsTimestamp(value) {
@@ -466,7 +558,6 @@ function renderMarketCommandCenter(mo = {}) {
     const breadth = mo.breadth || buildFallbackBreadth(mo);
     renderMarketBreadth(breadth);
     renderMarketSessionStrip(mo, breadth);
-    renderMarketMiniCards(mo, indices, breadth);
 
     const heatmapItems = mo.heatmap || buildMarketHeatmapItems(mo);
     renderMarketHeatmap(heatmapItems);
@@ -495,7 +586,7 @@ function buildFallbackHeatmap(mo = {}) {
         ...(mo.top_up_sectors || []).map(item => ({ ...item, direction: 'up' })),
         ...(mo.top_down_sectors || []).map(item => ({ ...item, direction: 'down' })),
     ];
-    if (combined.length) return combined.slice(0, 18);
+    if (combined.length) return combined.slice(0, MARKET_HEATMAP_ITEM_LIMIT);
     return [
         { name: '半导体', change_pct: 2.08, direction: 'up', related_news_count: 9 },
         { name: '机器人链', change_pct: 1.69, direction: 'up', related_news_count: 7 },
@@ -511,7 +602,7 @@ function buildMarketHeatmapItems(mo = {}) {
         ...(view.up || []).map(item => ({ ...item, direction: 'up' })),
         ...(view.down || []).map(item => ({ ...item, direction: 'down' })),
     ];
-    if (combined.length) return combined.slice(0, 18);
+    if (combined.length) return combined.slice(0, MARKET_HEATMAP_ITEM_LIMIT);
     if (hasActiveSectorView(mo) || hasKnownSectorViews(mo)) return [];
     return buildFallbackHeatmap(mo);
 }
@@ -609,18 +700,25 @@ function renderMarketHeatmap(items = []) {
         grid.innerHTML = '<div class="empty-state">暂无板块数据</div>';
         return;
     }
-    grid.innerHTML = items.map((item, idx) => {
+    grid.innerHTML = items.map(item => {
         const change = Number(item.change_pct || 0);
         const directionClass = change >= 0 ? 'is-up' : 'is-down';
-        const sizeClass = idx < 2 ? 'is-large' : idx < 6 ? 'is-medium' : 'is-small';
+        const intensityClass = getMarketHeatmapIntensityClass(change);
         const sign = change > 0 ? '+' : '';
         return `
-            <button class="market-heatmap-tile ${directionClass} ${sizeClass}" type="button">
+            <button class="market-heatmap-tile ${directionClass} ${intensityClass}" type="button">
                 <span>${esc(item.name || '--')}</span>
                 <strong>${sign}${change.toFixed(2)}%</strong>
             </button>
         `;
     }).join('');
+}
+
+function getMarketHeatmapIntensityClass(change) {
+    const absoluteChange = Math.abs(Number(change) || 0);
+    if (absoluteChange >= 5) return 'is-strong';
+    if (absoluteChange >= 2) return 'is-medium';
+    return 'is-muted';
 }
 
 function renderMarketAiBrief(mo = {}, indices = [], breadth = {}) {
@@ -640,7 +738,6 @@ function renderMarketAiBrief(mo = {}, indices = [], breadth = {}) {
 
 function renderMarketSessionStrip(mo = {}, breadth = {}) {
     const session = getMarketSessionInfo(mo);
-    const stats = mo.market_stats || {};
     setText('market-session-state', session.state);
     setText('market-session-date', session.date);
     const sessionEl = document.querySelector('.market-session-state');
@@ -648,46 +745,6 @@ function renderMarketSessionStrip(mo = {}, breadth = {}) {
         sessionEl.classList.toggle('is-trading', session.isTrading);
         sessionEl.classList.toggle('is-closed', !session.isTrading);
     }
-    setMarketFlowValue(pickFirstText(
-        stats.capital_flow,
-        breadth.netInflow,
-        breadth.capitalFlow,
-        breadth.capital_flow,
-        mo.capital_flow,
-        '--'
-    ));
-}
-
-function setMarketFlowValue(value) {
-    const text = String(value ?? '--');
-    const el = document.getElementById('market-flow-value');
-    if (!el) return;
-    const numeric = Number(text.replace(/[,%亿万]/g, ''));
-    el.textContent = text;
-    el.className = 'market-flow-value';
-    if (Number.isFinite(numeric)) {
-        el.className = numeric >= 0 ? 'market-flow-value is-up' : 'market-flow-value is-down';
-    }
-}
-
-function renderMarketMiniCards(mo = {}, indices = [], breadth = {}) {
-    const stats = mo.market_stats || {};
-    const limitUp = pickFirstText(stats.limit_up, mo.limit_up, breadth.limitUp, breadth.limit_up);
-    const limitDown = pickFirstText(stats.limit_down, mo.limit_down, breadth.limitDown, breadth.limit_down);
-    const yesterdayLimit = pickFirstText(
-        stats.yesterday_limit_performance,
-        mo.yesterday_limit_performance,
-        mo.yesterdayLimitPerformance
-    );
-    const capCompare = buildCapCompareParts(indices);
-
-    setMarkup('market-mini-limit', hasText(limitUp) && hasText(limitDown)
-        ? `${formatMarketMiniSignedValue(limitUp, 'is-up')}<i>:</i>${formatMarketMiniSignedValue(limitDown, 'is-down')}`
-        : '数据源不可用');
-    setMarkup('market-mini-yesterday', hasText(yesterdayLimit)
-        ? formatMarketMiniSignedValue(yesterdayLimit)
-        : '数据源不可用');
-    setMarkup('market-mini-cap-size', renderCapCompareMarkup(capCompare));
 }
 
 function getMarketSessionInfo(mo = {}) {
@@ -733,34 +790,6 @@ function formatSignedNumber(value) {
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) return '--';
     return `${numeric > 0 ? '+' : ''}${numeric.toFixed(2)}`;
-}
-
-function buildCapCompareParts(indices = []) {
-    const large = indices.find(index => /沪深300|上证50|上证指数/.test(index.name || ''));
-    const growth = indices.find(index => /创业板|科创50|中证1000/.test(index.name || ''));
-    if (!large || !growth) return null;
-    return {
-        large: readPercentChange(large),
-        growth: readPercentChange(growth),
-    };
-}
-
-function renderCapCompareMarkup(compare) {
-    if (!compare) return '数据源不可用';
-    return `
-        <span class="market-mini-pair"><em>大盘</em>${formatMarketMiniSignedValue(formatSignedPercent(compare.large))}</span>
-        <span class="market-mini-pair"><em>小盘</em>${formatMarketMiniSignedValue(formatSignedPercent(compare.growth))}</span>
-    `;
-}
-
-function formatMarketMiniSignedValue(value, forcedClass = '') {
-    const text = String(value ?? '--').trim();
-    const numeric = Number(text.replace(/[,%亿万]/g, ''));
-    let directionClass = forcedClass;
-    if (!directionClass && Number.isFinite(numeric)) {
-        directionClass = numeric > 0 ? 'is-up' : numeric < 0 ? 'is-down' : 'is-neutral';
-    }
-    return `<span class="market-mini-value ${directionClass}">${esc(text)}</span>`;
 }
 
 function pickFirstText(...values) {

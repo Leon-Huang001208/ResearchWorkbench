@@ -1,0 +1,8 @@
+{
+  "status": "error:Command failed:\n\t\tOSERROR: -600\n\t\tMESSAGE: Application isn't running.\n\t\tCOMMAND: app(pid=4834).workbooks[1].worksheets[1].cells['ZX7009:ZY7298'].first_row_index.get()",
+  "formula": "=@wsd(\"SPNCSCHN.SPI\",\"pe_ttm\",\"2021-07-02\",\"2026-07-02\",\"Period=W\")",
+  "series": [],
+  "current_pe": null,
+  "pe_percentile_5y": null,
+  "sample_count": 0
+}

@@ -1,6 +1,11 @@
 """Unit tests for Dashboard Service"""
+import json
+import sys
+import time
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
+import pandas as pd
 import pytest
 
 from core.contracts.dashboard import DashboardResponse, MarketBreadthSnapshot, MarketIndexItem
@@ -9,10 +14,26 @@ from services.dashboard_service import DashboardService, _market_sector_cache
 
 
 @pytest.fixture(autouse=True)
-def _mock_market_command_snapshot(monkeypatch):
+def _mock_market_command_snapshot(monkeypatch, tmp_path):
     """Dashboard unit tests should not call live market quote providers."""
-    monkeypatch.setattr(DashboardService, "_get_market_indices", lambda self: [])
-    monkeypatch.setattr(DashboardService, "_get_market_breadth", lambda self: None)
+    from services import dashboard_service as module
+
+    _market_sector_cache.clear()
+    monkeypatch.setattr(
+        module,
+        "MARKET_SECTOR_DISK_CACHE_PATH",
+        tmp_path / "market_sector_movers.json",
+    )
+    monkeypatch.setattr(
+        DashboardService,
+        "_get_market_indices",
+        lambda self, force_refresh=False: [],
+    )
+    monkeypatch.setattr(
+        DashboardService,
+        "_get_market_breadth",
+        lambda self, force_refresh=False: None,
+    )
 
 
 def test_dashboard_service_initialization():
@@ -259,7 +280,7 @@ def test_market_overview_exposes_real_index_and_breadth_snapshots(
     monkeypatch.setattr(
         DashboardService,
         "_get_market_indices",
-        lambda self: [
+        lambda self, force_refresh=False: [
             MarketIndexItem(
                 code="sh000001",
                 name="上证指数",
@@ -272,7 +293,7 @@ def test_market_overview_exposes_real_index_and_breadth_snapshots(
     monkeypatch.setattr(
         DashboardService,
         "_get_market_breadth",
-        lambda self: MarketBreadthSnapshot(
+        lambda self, force_refresh=False: MarketBreadthSnapshot(
             up=3200,
             down=1800,
             upRatio=64.0,
@@ -297,8 +318,85 @@ def test_market_overview_exposes_real_index_and_breadth_snapshots(
     mock_wind_provider_cls.assert_not_called()
 
 
-def test_get_market_sector_view_returns_ths_board_movers():
+def test_sector_breadth_includes_previous_turnover(monkeypatch):
+    """Breadth fallbacks should populate the previous trading day turnover."""
+    from data_layer.crawlers.akshare.board import SectorBoardItem, SectorBoardSnapshot
+
+    monkeypatch.setattr(
+        DashboardService,
+        "_get_previous_market_turnover",
+        staticmethod(lambda force_refresh=False: {"formatted": "1.49万亿"}),
+    )
+
+    snapshot = SectorBoardSnapshot(
+        sectors=[
+            SectorBoardItem(
+                name="测试行业",
+                change_pct=1.2,
+                net_flow=3.4,
+                up_count=30,
+                down_count=10,
+                total_volume=100.0,
+                total_amount=2500.0,
+                avg_price=12.3,
+                leading_stock_name="测试股份",
+                leading_stock_price=10.0,
+                leading_stock_change_pct=5.0,
+            )
+        ],
+        fetched_at=time.time(),
+    )
+    monkeypatch.setattr(
+        "data_layer.crawlers.akshare.board.fetch_sector_board",
+        lambda force_refresh=False: snapshot,
+    )
+
+    breadth = DashboardService(Mock())._get_sector_board_breadth(force_refresh=True)
+
+    assert breadth is not None
+    assert breadth.previousTurnover == "1.49万亿"
+
+
+def test_previous_market_turnover_sums_exchange_a_share_amounts(monkeypatch):
+    """Previous turnover should use SSE/SZSE A-share rows and normalize units."""
+    fake_ak = SimpleNamespace(
+        stock_sse_deal_daily=lambda date: pd.DataFrame(
+            [
+                {
+                    "单日情况": "成交金额",
+                    "股票": 5676.60,
+                    "主板A": 4545.46,
+                    "主板B": 1.37,
+                    "科创板": 1129.77,
+                }
+            ]
+        ),
+        stock_szse_summary=lambda date: pd.DataFrame(
+            [
+                {"证券类别": "股票", "成交金额": 9.203914e11},
+                {"证券类别": "主板A股", "成交金额": 4.576296e11},
+                {"证券类别": "主板B股", "成交金额": 1.108354e8},
+                {"证券类别": "创业板A股", "成交金额": 4.626510e11},
+            ]
+        ),
+    )
+    monkeypatch.setitem(sys.modules, "akshare", fake_ak)
+
+    amount = DashboardService._fetch_previous_trading_day_turnover_yuan("20250630")
+
+    expected = (4545.46 + 1129.77) * 100_000_000 + 4.576296e11 + 4.626510e11
+    assert amount == pytest.approx(expected)
+
+
+def test_get_market_sector_view_returns_ths_board_movers(monkeypatch, tmp_path):
     """The 同花顺行业 option should use the original AKShare/THS board movers."""
+    from services import dashboard_service as module
+
+    monkeypatch.setattr(
+        module,
+        "MARKET_SECTOR_DISK_CACHE_PATH",
+        tmp_path / "market_sector_movers.json",
+    )
     _market_sector_cache.clear()
     service = DashboardService(Mock())
     service.dashboard_repo = Mock()
@@ -343,8 +441,19 @@ def test_get_market_sector_view_returns_ths_board_movers():
 
 
 @patch("services.dashboard_service.WindMarketOverviewProvider")
-def test_get_market_sector_view_defaults_to_ths_without_wind(mock_wind_provider_cls):
+def test_get_market_sector_view_defaults_to_ths_without_wind(
+    mock_wind_provider_cls,
+    monkeypatch,
+    tmp_path,
+):
     """Missing or unknown selector values should not fall back to a slow Wind request."""
+    from services import dashboard_service as module
+
+    monkeypatch.setattr(
+        module,
+        "MARKET_SECTOR_DISK_CACHE_PATH",
+        tmp_path / "market_sector_movers.json",
+    )
     _market_sector_cache.clear()
     service = DashboardService(Mock())
     service.dashboard_repo = Mock()
@@ -408,6 +517,376 @@ def test_get_market_sector_view_prefers_realtime_workbook_by_default(
 
 
 @patch("services.dashboard_service.WindMarketOverviewProvider")
+@patch("services.wind_realtime_workbook.WindRealtimeWorkbookReader")
+def test_get_market_sector_view_uses_persistent_cache_before_excel(
+    mock_workbook_reader_cls,
+    mock_wind_provider_cls,
+    monkeypatch,
+    tmp_path,
+):
+    """重启后优先使用本地快照，避免首屏请求阻塞在 Excel 自动化上。"""
+    from services import dashboard_service as module
+
+    monkeypatch.delenv("ALPHAFOUNDRY_ENABLE_WIND_WORKBOOK", raising=False)
+    monkeypatch.delenv("ALPHAFOUNDRY_ALLOW_WIND_EXCEL_FALLBACK", raising=False)
+    monkeypatch.setattr(
+        module,
+        "MARKET_SECTOR_DISK_CACHE_PATH",
+        tmp_path / "market_sector_movers.json",
+    )
+    _market_sector_cache.clear()
+    payload = {
+        "view_key": "wind_hot_concept",
+        "view_label": "Wind热门概念",
+        "up": [
+            {
+                "sector_id": "wind-8841924-WI",
+                "name": "光电路交换机(OCS)指数",
+                "change_pct": 7.41,
+                "leading_stocks": [],
+                "related_news_count": 0,
+                "is_concept": True,
+                "source": "wind",
+                "view_key": "wind_hot_concept",
+                "view_label": "Wind热门概念",
+            }
+        ],
+        "down": [],
+        "has_real_data": True,
+        "fetched_at": "2026-06-30T06:00:00+00:00",
+        "cache_hit": False,
+        "cache_ttl_seconds": 60.0,
+        "status": "ok",
+        "source": "wind_realtime_workbook",
+    }
+    module.MARKET_SECTOR_DISK_CACHE_PATH.write_text(
+        json.dumps(
+            {
+                "wind_hot_concept|30": {
+                    "cached_at": time.time(),
+                    "payload": payload,
+                }
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    result = DashboardService(Mock()).get_market_sector_view(
+        "wind_hot_concept",
+        limit=30,
+    )
+
+    mock_workbook_reader_cls.assert_not_called()
+    mock_wind_provider_cls.assert_not_called()
+    assert result["cache_hit"] is True
+    assert result["up"][0]["name"] == "光电路交换机(OCS)"
+
+
+@patch("services.dashboard_service.WindMarketOverviewProvider")
+@patch("services.wind_realtime_workbook.WindRealtimeWorkbookReader")
+def test_get_market_sector_view_ignores_ths_persistent_cache_for_wind_view(
+    mock_workbook_reader_cls,
+    mock_wind_provider_cls,
+    monkeypatch,
+    tmp_path,
+):
+    """Wind 口径不能复用 THS 行业兜底缓存，否则 UI 会显示错数据源。"""
+    from services import dashboard_service as module
+
+    monkeypatch.delenv("ALPHAFOUNDRY_ENABLE_WIND_WORKBOOK", raising=False)
+    monkeypatch.delenv("ALPHAFOUNDRY_ALLOW_WIND_EXCEL_FALLBACK", raising=False)
+    monkeypatch.setattr(
+        module,
+        "MARKET_SECTOR_DISK_CACHE_PATH",
+        tmp_path / "market_sector_movers.json",
+    )
+    _market_sector_cache.clear()
+    module.MARKET_SECTOR_DISK_CACHE_PATH.write_text(
+        json.dumps(
+            {
+                "wind_hot_concept|30": {
+                    "cached_at": time.time(),
+                    "payload": {
+                        "view_key": "wind_hot_concept",
+                        "view_label": "Wind热门概念",
+                        "up": [
+                            {
+                                "sector_id": "sector-ths-up",
+                                "name": "贵金属",
+                                "change_pct": 4.66,
+                                "source": "ths_board_fallback",
+                            }
+                        ],
+                        "down": [],
+                        "has_real_data": True,
+                        "status": "wind_unavailable_ths_fallback",
+                        "source": "ths_board_fallback",
+                    },
+                }
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    mock_workbook_reader_cls.return_value.get_view.return_value = {
+        "view_key": "wind_hot_concept",
+        "view_label": "Wind热门概念",
+        "up": [
+            {
+                "sector_id": "wind-8841924-WI",
+                "name": "光电路交换机(OCS)指数",
+                "change_pct": 7.41,
+                "source": "wind",
+            }
+        ],
+        "down": [],
+        "has_real_data": True,
+        "source": "wind_realtime_workbook",
+        "status": "ok",
+    }
+
+    result = DashboardService(Mock()).get_market_sector_view(
+        "wind_hot_concept",
+        limit=30,
+    )
+
+    mock_workbook_reader_cls.return_value.get_view.assert_called_once_with(
+        "wind_hot_concept",
+        limit=30,
+    )
+    mock_wind_provider_cls.assert_not_called()
+    assert result["source"] == "wind_realtime_workbook"
+    assert result["up"][0]["name"] == "光电路交换机(OCS)"
+
+
+@patch("services.dashboard_service.WindMarketOverviewProvider")
+@patch("services.wind_realtime_workbook.WindRealtimeWorkbookReader")
+def test_get_market_sector_view_ignores_stale_inactive_wind_cache(
+    mock_workbook_reader_cls,
+    mock_wind_provider_cls,
+    monkeypatch,
+    tmp_path,
+):
+    """Wind 缓存若包含已从 active catalog 移除的指数，应丢弃并重新读工作簿。"""
+    from services import dashboard_service as module
+
+    monkeypatch.delenv("ALPHAFOUNDRY_ENABLE_WIND_WORKBOOK", raising=False)
+    monkeypatch.delenv("ALPHAFOUNDRY_ALLOW_WIND_EXCEL_FALLBACK", raising=False)
+    monkeypatch.setattr(
+        module,
+        "MARKET_SECTOR_DISK_CACHE_PATH",
+        tmp_path / "market_sector_movers.json",
+    )
+    monkeypatch.setattr(
+        module,
+        "load_wind_index_catalog",
+        lambda: (
+            SimpleNamespace(
+                code="8841892.WI",
+                view_key="wind_hot_concept",
+                is_active=True,
+            ),
+        ),
+    )
+    _market_sector_cache.clear()
+    module.MARKET_SECTOR_DISK_CACHE_PATH.write_text(
+        json.dumps(
+            {
+                "wind_hot_concept|30": {
+                    "cached_at": time.time(),
+                    "payload": {
+                        "view_key": "wind_hot_concept",
+                        "view_label": "Wind热门概念",
+                        "up": [
+                            {
+                                "sector_id": "wind-884833-WI",
+                                "name": "折叠屏指数",
+                                "change_pct": 7.27,
+                                "source": "wind",
+                            }
+                        ],
+                        "down": [],
+                        "has_real_data": True,
+                    },
+                }
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    mock_workbook_reader_cls.return_value.get_view.return_value = {
+        "view_key": "wind_hot_concept",
+        "view_label": "Wind热门概念",
+        "up": [
+            {
+                "sector_id": "wind-8841892-WI",
+                "name": "光芯片指数",
+                "change_pct": 7.99,
+                "source": "wind",
+            }
+        ],
+        "down": [],
+        "has_real_data": True,
+        "source": "wind_realtime_workbook",
+    }
+
+    result = DashboardService(Mock()).get_market_sector_view(
+        "wind_hot_concept",
+        limit=30,
+    )
+
+    assert result["source"] == "wind_realtime_workbook"
+    assert result["up"][0]["name"] == "光芯片"
+    mock_workbook_reader_cls.return_value.get_view.assert_called_once_with(
+        "wind_hot_concept",
+        limit=30,
+    )
+    mock_wind_provider_cls.assert_not_called()
+
+
+@patch("services.dashboard_service.WindMarketOverviewProvider")
+@patch("services.wind_workbook_manager.get_wind_workbook_manager")
+@patch("services.wind_realtime_workbook.WindRealtimeWorkbookReader")
+def test_get_market_sector_view_falls_back_when_workbook_not_open(
+    mock_workbook_reader_cls,
+    mock_manager_getter,
+    mock_wind_provider_cls,
+    monkeypatch,
+):
+    """工作簿没打开时，默认回落到 Wind 指数公式兜底，避免前端空白。"""
+    monkeypatch.delenv("ALPHAFOUNDRY_ENABLE_WIND_WORKBOOK", raising=False)
+    monkeypatch.delenv("ALPHAFOUNDRY_ALLOW_WIND_EXCEL_FALLBACK", raising=False)
+    _market_sector_cache.clear()
+    mock_reader = mock_workbook_reader_cls.return_value
+    mock_reader.get_view.return_value = {
+        "view_key": "sw_l3",
+        "view_label": "申万三级",
+        "up": [],
+        "down": [],
+        "has_real_data": False,
+        "fetched_at": "2026-06-24T10:00:00+00:00",
+        "cache_hit": False,
+        "cache_ttl_seconds": 60.0,
+        "status": "workbook_not_open",
+        "message": "Wind实时工作簿未在Excel中打开",
+        "source": "wind_realtime_workbook",
+    }
+    mock_provider = mock_wind_provider_cls.return_value
+    mock_provider.seeds = []
+    mock_provider.get_grouped_movers.return_value = {
+        "views": {
+            "sw_l3": {
+                "up": [
+                    {
+                        "sector_id": "wind-801012-SI",
+                        "name": "半导体",
+                        "change_pct": 2.4,
+                        "leading_stocks": [],
+                        "related_news_count": 0,
+                        "is_concept": False,
+                        "source": "wind",
+                        "view_key": "sw_l3",
+                        "view_label": "申万三级",
+                    }
+                ],
+                "down": [],
+            }
+        },
+        "has_real_data": True,
+        "fetched_at": 123.0,
+    }
+
+    result = DashboardService(Mock()).get_market_sector_view("sw_l3", limit=5)
+
+    mock_reader.get_view.assert_called_once_with("sw_l3", limit=5)
+    mock_manager_getter.return_value.start_background_ensure.assert_called_once_with(
+        reason="workbook_not_open"
+    )
+    mock_provider.get_grouped_movers.assert_called_once_with(
+        limit=5,
+        view_keys=("sw_l3",),
+    )
+    assert result["has_real_data"] is True
+    assert result["up"][0]["name"] == "半导体"
+
+
+@patch("services.dashboard_service.WindMarketOverviewProvider")
+@patch("services.wind_workbook_manager.get_wind_workbook_manager")
+@patch("services.wind_realtime_workbook.WindRealtimeWorkbookReader")
+def test_get_market_sector_view_does_not_mask_wind_view_with_ths_fallback(
+    mock_workbook_reader_cls,
+    mock_manager_getter,
+    mock_wind_provider_cls,
+    monkeypatch,
+):
+    """Wind/Excel 都不可用时，Wind 口径不能伪装成 THS 行业数据。"""
+    monkeypatch.delenv("ALPHAFOUNDRY_ENABLE_WIND_WORKBOOK", raising=False)
+    monkeypatch.delenv("ALPHAFOUNDRY_ALLOW_WIND_EXCEL_FALLBACK", raising=False)
+    _market_sector_cache.clear()
+    mock_reader = mock_workbook_reader_cls.return_value
+    mock_reader.get_view.return_value = {
+        "view_key": "wind_hot_concept",
+        "view_label": "Wind热门概念",
+        "up": [],
+        "down": [],
+        "has_real_data": False,
+        "fetched_at": "2026-06-24T10:00:00+00:00",
+        "cache_hit": False,
+        "cache_ttl_seconds": 60.0,
+        "status": "workbook_read_error",
+        "message": "Excel 自动化权限被拒绝",
+        "source": "wind_realtime_workbook",
+    }
+    mock_provider = mock_wind_provider_cls.return_value
+    mock_provider.seeds = []
+    mock_provider.get_grouped_movers.return_value = {
+        "views": {"wind_hot_concept": {"up": [], "down": []}},
+        "has_real_data": False,
+        "fetched_at": 0.0,
+    }
+    service = DashboardService(Mock())
+    service.dashboard_repo = Mock()
+    service.dashboard_repo.get_sector_changes_from_signals.return_value = (
+        [
+            {
+                "sector_id": "sector-ths-up",
+                "name": "同花顺上涨板块",
+                "change_pct": 2.34,
+                "leading_stocks": [],
+                "related_news_count": 10,
+                "is_concept": True,
+            }
+        ],
+        [
+            {
+                "sector_id": "sector-ths-down",
+                "name": "同花顺下跌板块",
+                "change_pct": -1.23,
+                "leading_stocks": [],
+                "related_news_count": 8,
+                "is_concept": False,
+            }
+        ],
+        True,
+        123.0,
+    )
+
+    result = service.get_market_sector_view("wind_hot_concept", limit=5)
+
+    mock_manager_getter.return_value.start_background_ensure.assert_called_once_with(
+        reason="workbook_read_error"
+    )
+    service.dashboard_repo.get_sector_changes_from_signals.assert_not_called()
+    assert result["status"] == "workbook_read_error"
+    assert result["source"] == "wind_realtime_workbook"
+    assert result["view_label"] == "Wind热门概念"
+    assert result["up"] == []
+    assert result["down"] == []
+    assert result["has_real_data"] is False
+
+
+@patch("services.dashboard_service.WindMarketOverviewProvider")
 @patch("services.wind_workbook_manager.get_wind_workbook_manager")
 @patch("services.wind_realtime_workbook.WindRealtimeWorkbookReader")
 def test_get_market_sector_view_returns_workbook_status_without_formula_fallback(
@@ -416,9 +895,9 @@ def test_get_market_sector_view_returns_workbook_status_without_formula_fallback
     mock_wind_provider_cls,
     monkeypatch,
 ):
-    """工作簿没准备好时快速返回状态，不悄悄退回慢的 Wind 临时公式路径。"""
+    """显式关闭兜底时，工作簿没准备好会快速返回状态。"""
     monkeypatch.delenv("ALPHAFOUNDRY_ENABLE_WIND_WORKBOOK", raising=False)
-    monkeypatch.delenv("ALPHAFOUNDRY_ALLOW_WIND_EXCEL_FALLBACK", raising=False)
+    monkeypatch.setenv("ALPHAFOUNDRY_ALLOW_WIND_EXCEL_FALLBACK", "0")
     _market_sector_cache.clear()
     mock_reader = mock_workbook_reader_cls.return_value
     mock_reader.get_view.return_value = {

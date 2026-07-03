@@ -2,9 +2,9 @@
 
 ## Responsibility
 
-`reporting` provides report composition, templates, markdown/Word projections, and research outputs.
+`reporting` provides report composition, templates, markdown/Word/PPT projections, and research outputs.
 
-The project-level report workflow lives under `reporting/projects/` and connects report project folders to evidence retrieval, model generation, chart rendering, DOCX projection, and run logs.
+The project-level report workflow lives under `reporting/projects/` and connects report project folders to evidence retrieval, model generation, Word/PPT projection, chart rendering, and run logs.
 
 ---
 
@@ -26,6 +26,7 @@ Purpose:
 - Report generator implementations
 - Template management
 - Markdown and Word output
+- Static PPT template output
 - Report section composition
 
 Update this section when:
@@ -40,12 +41,26 @@ Update this section when:
 
 Purpose:
 - Load report project folders under `report_projects/`.
-- Resolve `project.yaml` assets: active Word template, active Excel workbook, section config, optional prompt template Markdown, optional data sources, generated output directory, and run-log directory.
+- Resolve `project.yaml` assets: project type (`word` or `ppt`), active Word/PPT template, active Excel workbook, section config, optional prompt template Markdown, optional data sources, generated output directory, and run-log directory.
 - Bootstrap the default `创业板50周报` project package.
 
 Update this section when:
 - `project.yaml` schema or project folder conventions change.
 - Project asset validation changes.
+
+---
+
+### `reporting/projections/ppt.py`
+
+Purpose:
+- Render static PPT projects without requiring `python-pptx`.
+- Scan `.pptx` slide XML for `{{placeholder}}` tokens in first-seen slide order.
+- Copy a PPT template package and replace configured text placeholders in slide XML.
+- Return replacement metadata and missing placeholder warnings for run logs.
+
+Update this section when:
+- PPT placeholder syntax changes.
+- PPT projection starts supporting image, chart, table, or slide insertion behavior.
 
 ---
 
@@ -106,7 +121,7 @@ Update this section when:
 ### `report_projects/*/config/section_config.yaml`
 
 Purpose:
-- Project-owned YAML mapping from Word placeholders to prompt templates, static values, Excel cells/ranges, retrieval controls, and chart replacement rules.
+- Project-owned YAML mapping from Word/PPT placeholders to prompt templates, static values, Excel cells/ranges, retrieval controls, and chart replacement rules.
 - Report-wide hard generation and retrieval defaults live under `defaults.validators` and `defaults.retrieval`. Text placeholders should only carry section-specific differences such as `target_words`, `max_words`, `min_news_count`, `retrieval.keyword_profile`, `retrieval.keywords`, and Excel/static sources.
 - Current `华安ETF周报` uses `placeholders:` plus embedded prompt retrieval queries, `type: report_period` for `开始日期` / `结束日期`, `type: composite_market_review` for `A股市场回顾`, and a `charts:` block for industry performance, gold, and crude-oil visuals.
 - `tables:` maps deterministic Word tables to refreshed project Excel files. `华安ETF周报` currently binds `下周全球投资日历` to `data/全球经济日历.xlsx` sheet `经济数据`, reading `日期`、`国家/地区`、`指标名称` rows where `重要性=重要`.
@@ -115,6 +130,7 @@ Purpose:
 
 Update this section when:
 - A report project changes placeholder mapping or chart config semantics.
+- `project_type: ppt` static template conventions change.
 - Prompt query mode changes between embedded query and external JSON query sources.
 - Report-period semantics change, such as using a manually selected end date or a non-Monday start date.
 
@@ -138,6 +154,7 @@ Update this section when:
 - Template rendering tests
 - Output format verification
 - API tests for source persistence, config-driven generation, run logs, chart metadata, and DOCX preview
+- PPT template projection tests for placeholder scanning and static replacement
 - Chart-generation tests for Excel chart cache reading, worksheet source reading, native Word chart syncing, and legacy DOCX image embedding
 - Frontend static tests for report template workbench behavior when UI surfaces change
 
@@ -157,6 +174,7 @@ When files in this module change, check:
 ## Recent Changes
 
 - 2026-06-08: 报告项目生成链路升级为配置驱动：`section_config.yaml` 的 `placeholders` 绑定 Word 占位符，`prompt_templates.md` 的二级标题提供内置检索 Query 和写作规则；`/api/report-projects/{slug}/render` 默认检索 evidence、调用 ModelGateway 生成正文、嵌入 Excel/worksheet 生成图表、写入 runs JSON，并返回下载和预览 URL。
+- 2026-06-29: 报告项目新增 `project_type: ppt` 静态 PPT 模板项目；上传 `.pptx` 后扫描 `{{placeholder}}`，生成时复制模板并替换文本占位符，输出 `.pptx`、写入 run log，并保留旧 Word 项目默认兼容。
 - 2026-06-08: 华安 ETF 周报模板图表从 PNG 占位切换为 Word 原生可编辑 chart：`scripts/replace_huaan_word_charts_office.py` 通过 Excel/Word 原生复制粘贴生成 chart parts，`scripts/merge_huaan_layout_with_native_charts.py` 将 chart parts 合并回原模板以保留页眉页脚和版式，`section_config.yaml` 使用 `replace.kind: native_chart`，生成时同步 Excel chart XML 而不再回写 PNG。
 - 2026-06-09: `A股市场回顾` 切换为复合生成：指数涨跌和成交额由 `周报数据.xlsx` 确定性计算，市场热点部分继续走 evidence retrieval + DeepSeek/model route，减少手动改“涨/跌”和成交额表述；独立 section 生成改为 4 路有界并行，`WordProjection` 修复短占位符破坏长占位符的问题。
 - 2026-06-09: 报告生成接入 Phase 1 关键词检索控制：section 配置可声明 `retrieval.must_any` / `exclude` / `top_k` 等参数，生成前对数据库 evidence 做过滤、评分和排序；run log 和前端预览新增 evidence 检索调试信息，方便定位某个占位符为什么没有内容或引用了错误材料。

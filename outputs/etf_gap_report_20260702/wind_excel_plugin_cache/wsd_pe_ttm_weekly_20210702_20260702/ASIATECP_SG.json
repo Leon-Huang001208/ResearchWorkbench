@@ -1,0 +1,8 @@
+{
+  "status": "error:Command failed:\n\t\tOSERROR: -609\n\t\tMESSAGE: Connection is invalid.\n\t\tCOMMAND: app(pid=4834).workbooks[1].worksheets[1].cells['ZX3505'].value.get()",
+  "formula": "=@wsd(\"ASIATECP.SG\",\"pe_ttm\",\"2021-07-02\",\"2026-07-02\",\"Period=W\")",
+  "series": [],
+  "current_pe": null,
+  "pe_percentile_5y": null,
+  "sample_count": 0
+}

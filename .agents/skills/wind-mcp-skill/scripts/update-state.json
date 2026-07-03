@@ -1,0 +1,23 @@
+{
+  "date": "2026-07-02",
+  "scope": "project",
+  "lockFile": "/Users/leon/Desktop/Projects/AlphaFoundry/skills-lock.json",
+  "lockFound": true,
+  "command": "npx skills add Wind-Information-Co-Ltd/wind-skills --skill wind-mcp-skill -y",
+  "method": "add",
+  "sourceType": "github",
+  "updatedAt": "2026-07-02T03:17:28.157Z",
+  "status": "success",
+  "finishedAt": "2026-07-02T03:17:28.155Z",
+  "exitCode": 0,
+  "usedFallback": true,
+  "fallbackReason": "update failed",
+  "error": null,
+  "remoteHead": null,
+  "remoteChanged": false,
+  "lastAppliedRemoteHead": null,
+  "changed": true,
+  "beforeHash": "83baa94260cf8b91aa02e0664b1ca9131793d4fe4357e525343cf31c3de4473c",
+  "afterHash": "4255959566d61839df6f339ed9e484f515e29c943b7c65860666b18bb8497bae",
+  "output": "                      │\n│  Details: https://skills.sh/Wind-Information-Co-Ltd/wind-skills  │\n│                                                                  │\n├──────────────────────────────────────────────────────────────────╯\n\u001b[?25l│\n\u001b[999D\u001b[J◒  Installing skills\u001b[999D\u001b[J◐  Installing skills\u001b[999D\u001b[J◇  Installation complete\n\u001b[?25h\n│\n◇  Installed 1 skill ─────────────────────────────────────────────────╮\n│                                                                     │\n│  ✓ wind-mcp-skill (copied)                                          │\n│    → ~/Desktop/Projects/AlphaFoundry/.agents/skills/wind-mcp-skill  │\n│    → ~/Desktop/Projects/AlphaFoundry/.agents/skills/wind-mcp-skill  │\n│    → ~/Desktop/Projects/AlphaFoundry/.agents/skills/wind-mcp-skill  │\n│    → ~/Desktop/Projects/AlphaFoundry/.agents/skills/wind-mcp-skill  │\n│    → ~/Desktop/Projects/AlphaFoundry/.agents/skills/wind-mcp-skill  │\n│    → ~/Desktop/Projects/AlphaFoundry/.agents/skills/wind-mcp-skill  │\n│    → ~/Desktop/Projects/AlphaFoundry/.agents/skills/wind-mcp-skill  │\n│    → ~/Desktop/Projects/AlphaFoundry/.agents/skills/wind-mcp-skill  │\n│    → ~/Desktop/Projects/AlphaFoundry/.agents/skills/wind-mcp-skill  │\n│    → ~/Desktop/Projects/AlphaFoundry/.agents/skills/wind-mcp-skill  │\n│    → ~/Desktop/Projects/AlphaFoundry/.agents/skills/wind-mcp-skill  │\n│    → ~/Desktop/Projects/AlphaFoundry/.agents/skills/wind-mcp-skill  │\n│    → ~/Desktop/Projects/AlphaFoundry/.agents/skills/wind-mcp-skill  │\n│    → ~/Desktop/Projects/AlphaFoundry/.agents/skills/wind-mcp-skill  │\n│    → ~/Desktop/Projects/AlphaFoundry/.agents/skills/wind-mcp-skill  │\n│    → ~/Desktop/Projects/AlphaFoundry/.agents/skills/wind-mcp-skill  │\n│    → ~/Desktop/Projects/AlphaFoundry/.agents/skills/wind-mcp-skill  │\n│                                                                     │\n├─────────────────────────────────────────────────────────────────────╯\n\n│\n└  Done!  Review skills before use; they run with full agent permissions."
+}

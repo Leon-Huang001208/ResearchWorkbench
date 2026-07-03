@@ -31,6 +31,9 @@ class ReportProject:
     data_source_paths: List[Path] = field(default_factory=list)
     generated_reports: List[Path] = field(default_factory=list)
     config: Dict[str, Any] = field(default_factory=dict)
+    project_type: str = "word"
+    ppt_template_path: Optional[Path] = None
+    template_path: Optional[Path] = None
 
 
 class ReportProjectManager:
@@ -170,7 +173,13 @@ class ReportProjectManager:
             raise ValueError(f"Invalid report project YAML: {project_yaml}") from exc
 
         name = data.get("name") or project_dir.name
+        project_type = str(data.get("project_type") or "word").strip().lower()
+        if project_type not in {"word", "ppt"}:
+            raise ValueError(f"Unsupported report project type: {project_type}")
+
         word_template_path = self._resolve(project_dir, data.get("active_word_template"))
+        ppt_template_path = self._resolve_optional(project_dir, data.get("active_ppt_template"))
+        template_path = ppt_template_path if project_type == "ppt" else word_template_path
         excel_workbook_path = self._resolve(project_dir, data.get("active_excel_workbook"))
         section_config_path = self._resolve(project_dir, data.get("section_config"))
         output_dir = self._resolve(project_dir, data.get("output_dir", "generated"))
@@ -182,10 +191,17 @@ class ReportProjectManager:
             if source_path
         ]
 
-        for label, path in [
-            ("active_word_template", word_template_path),
-            ("section_config", section_config_path),
-        ]:
+        required_assets = [("section_config", section_config_path)]
+        if project_type == "ppt":
+            if not ppt_template_path:
+                raise FileNotFoundError(
+                    f"Report project asset missing: active_ppt_template -> {project_dir}"
+                )
+            required_assets.append(("active_ppt_template", ppt_template_path))
+        else:
+            required_assets.append(("active_word_template", word_template_path))
+
+        for label, path in required_assets:
             if not path.exists():
                 raise FileNotFoundError(f"Report project asset missing: {label} -> {path}")
         if data.get("active_excel_workbook") and not excel_workbook_path.exists():
@@ -202,7 +218,8 @@ class ReportProjectManager:
 
         output_dir.mkdir(parents=True, exist_ok=True)
         run_log_dir.mkdir(parents=True, exist_ok=True)
-        generated_reports = sorted(output_dir.glob("*.docx"), reverse=True)
+        output_pattern = "*.pptx" if project_type == "ppt" else "*.docx"
+        generated_reports = sorted(output_dir.glob(output_pattern), reverse=True)
 
         return ReportProject(
             name=name,
@@ -217,6 +234,9 @@ class ReportProjectManager:
             data_source_paths=data_source_paths,
             generated_reports=generated_reports,
             config=data,
+            project_type=project_type,
+            ppt_template_path=ppt_template_path,
+            template_path=template_path,
         )
 
     @staticmethod

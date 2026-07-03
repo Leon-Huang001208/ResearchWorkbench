@@ -1,0 +1,20 @@
+placeholders:
+  year:
+    type: static
+    value: ''
+  month:
+    type: static
+    value: ''
+  科创芯片:
+    type: static
+    value: ''
+  科创芯片驱动因素二:
+    type: static
+    value: ''
+  科创芯片驱动因素一:
+    type: static
+    value: ''
+  科创芯片驱动因素三:
+    type: static
+    value: ''
+sections: []

@@ -90,6 +90,7 @@ VIEW_RANGE_HEADERS = [
 LOG_HEADERS = ["timestamp", "level", "component", "message", "details"]
 ISO_NOW_FORMULA = '=TEXT(NOW(),"yyyy-mm-ddThh:mm:ss")'
 MIN_ACTIVE_SLOT_COUNT = 360
+WIND_WSS_FORMULA_BATCH_SIZE = 25
 
 
 @dataclass(frozen=True)
@@ -470,7 +471,7 @@ def build_realtime_workbook(
         active_count = 0
         view_ranges: dict[str, dict[str, Any]] = {}
         view_counts: dict[str, int] = {}
-        active_entries_by_view: dict[str, list[Any]] = {}
+        active_rows_by_view: dict[str, list[tuple[Any, int]]] = {}
         for row_id, entry in enumerate(entries, start=1):
             sheets["IndexCatalog"].append(
                 [
@@ -490,7 +491,6 @@ def build_realtime_workbook(
                 continue
 
             active_count += 1
-            active_entries_by_view.setdefault(entry.view_key, []).append(entry)
             current_view_count = view_counts.get(entry.view_key, 0) + 1
             view_counts[entry.view_key] = current_view_count
             view_ranges.setdefault(
@@ -504,6 +504,7 @@ def build_realtime_workbook(
             )
             view_ranges[entry.view_key]["row_count"] = current_view_count
             row_number = active_count + 1
+            active_rows_by_view.setdefault(entry.view_key, []).append((entry, row_number))
             sheets["RealtimeRaw"].append(
                 [
                     active_count,
@@ -539,6 +540,7 @@ def build_realtime_workbook(
                 ]
             )
 
+        wind_formula_count = 0
         for view_range in view_ranges.values():
             sheets["ViewRanges"].append(
                 [
@@ -549,15 +551,19 @@ def build_realtime_workbook(
                     generated_at,
                 ]
             )
-            first_row = int(view_range["snapshot_start_row"])
-            view_entries = active_entries_by_view.get(str(view_range["view_key"]), [])
-            codes = ",".join(entry.code for entry in view_entries)
-            row_count = int(view_range["row_count"])
-            if codes and row_count > 0:
+            view_rows = active_rows_by_view.get(str(view_range["view_key"]), [])
+            for offset in range(0, len(view_rows), WIND_WSS_FORMULA_BATCH_SIZE):
+                batch = view_rows[offset : offset + WIND_WSS_FORMULA_BATCH_SIZE]
+                if not batch:
+                    continue
+                first_row = batch[0][1]
+                codes = ",".join(entry.code for entry, _row_number in batch)
+                row_count = len(batch)
                 sheets["RealtimeRaw"].cell(row=first_row, column=6).value = (
                     f'=wss("{codes}","sec_name,rt_last,rt_pct_chg",'
                     f'"cols=3;rows={row_count}")'
                 )
+                wind_formula_count += 1
 
         sheets["Health"].append(["workbook_open", "true", generated_at, "文件已生成"])
         sheets["Health"].append(
@@ -569,9 +575,9 @@ def build_realtime_workbook(
         sheets["Health"].append(
             [
                 "wind_formula_count",
-                len(view_ranges),
+                wind_formula_count,
                 generated_at,
-                "批量 Wind 公式数量，每个口径一条",
+                "批量 Wind 公式数量，每个口径可按代码数量拆分多条",
             ]
         )
         for sheet in sheets.values():
@@ -627,39 +633,70 @@ def prime_realtime_workbook_formulas(
     except Exception as exc:
         logger.debug("Unable to set Excel visibility to %s: %s", visible, exc)
 
-    book = _find_or_open_xlwings_book(xw, path, read_only=False)
+    expected_health_metrics = _load_workbook_health_metrics(path)
+    book = _find_or_open_xlwings_book(
+        xw,
+        path,
+        read_only=False,
+        expected_health_metrics=expected_health_metrics,
+    )
     raw = book.sheets["RealtimeRaw"]
+    primed_count = 0
     for index in range(0, len(formulas), chunk_size):
         batch = formulas[index : index + chunk_size]
         for row_number, formula in batch:
-            raw.range((row_number, 6)).formula = formula
+            try:
+                raw.range((row_number, 6)).formula = formula
+            except Exception as exc:
+                logger.warning(
+                    "Wind formula priming stopped because Excel is busy: primed=%s total=%s row=%s error=%s",
+                    primed_count,
+                    len(formulas),
+                    row_number,
+                    exc,
+                )
+                return primed_count
+            primed_count += 1
             logger.info("Primed Wind batch formula row %s", row_number)
         if pause_seconds:
             time.sleep(pause_seconds)
 
-    book.app.calculate()
+    try:
+        book.app.calculate()
+    except Exception as exc:
+        logger.warning("Unable to force Wind workbook calculation after priming: %s", exc)
     time.sleep(10)
     if save:
-        book.save()
+        try:
+            book.save()
+        except Exception as exc:
+            logger.warning("Unable to save Wind workbook after priming: %s", exc)
     logger.info("Primed Wind realtime workbook: %s", path)
-    return len(formulas)
+    return primed_count
 
 
 def _load_batch_formula_rows(path: Path) -> list[tuple[int, str]]:
     workbook = load_workbook(path, data_only=False, read_only=True)
     raw_data = workbook["RealtimeRaw"]
     formulas: list[tuple[int, str]] = []
-    for row in workbook["ViewRanges"].iter_rows(min_row=2, values_only=True):
-        view_key, _view_label, start_row, row_count, _updated_at = row
-        if not view_key or not start_row or not row_count:
+    for row in raw_data.iter_rows(min_row=2, min_col=6, max_col=6):
+        cell = row[0]
+        formula = cell.value
+        if not formula:
             continue
-        formula = raw_data.cell(row=int(start_row), column=6).value
-        if formula:
-            formulas.append((int(start_row), str(formula)))
+        formula_text = str(formula)
+        if formula_text.lower().startswith("=wss("):
+            formulas.append((int(cell.row), formula_text))
     return formulas
 
 
-def _find_or_open_xlwings_book(xw: Any, path: Path, *, read_only: bool) -> Any:
+def _find_or_open_xlwings_book(
+    xw: Any,
+    path: Path,
+    *,
+    read_only: bool,
+    expected_health_metrics: dict[str, str] | None = None,
+) -> Any:
     for app in xw.apps:
         for candidate in app.books:
             fullname = str(getattr(candidate, "fullname", "") or "")
@@ -667,13 +704,82 @@ def _find_or_open_xlwings_book(xw: Any, path: Path, *, read_only: bool) -> Any:
                 continue
             try:
                 if Path(fullname).expanduser().resolve() == path:
+                    if not _open_workbook_health_matches(
+                        candidate,
+                        expected_health_metrics,
+                    ):
+                        _close_stale_xlwings_book(candidate)
+                        continue
                     return candidate
             except OSError:
                 if Path(fullname).expanduser() == path:
+                    if not _open_workbook_health_matches(
+                        candidate,
+                        expected_health_metrics,
+                    ):
+                        _close_stale_xlwings_book(candidate)
+                        continue
                     return candidate
 
     app = xw.apps.active or xw.App(visible=False)
     return app.books.open(str(path), update_links=False, read_only=read_only)
+
+
+def _load_workbook_health_metrics(path: Path) -> dict[str, str]:
+    try:
+        workbook = load_workbook(path, data_only=False, read_only=True)
+        rows = _rows_from_matrix(list(workbook["Health"].iter_rows(values_only=True)))
+    except Exception as exc:
+        logger.debug("Unable to load Wind workbook health metrics from %s: %s", path, exc)
+        return {}
+    return _health_metrics_from_rows(rows)
+
+
+def _open_workbook_health_matches(
+    book: Any,
+    expected_health_metrics: dict[str, str] | None,
+) -> bool:
+    if not expected_health_metrics:
+        return True
+    try:
+        actual = _health_metrics_from_rows(
+            _rows_from_matrix(book.sheets["Health"].used_range.value)
+        )
+    except Exception as exc:
+        logger.debug("Unable to inspect open Wind workbook health: %s", exc)
+        return False
+
+    for key in ("active_index_count", "formula_row_count", "wind_formula_count"):
+        expected = expected_health_metrics.get(key)
+        if expected is not None and actual.get(key) != expected:
+            logger.info(
+                "Open Wind workbook health metric changed: metric=%s expected=%s actual=%s",
+                key,
+                expected,
+                actual.get(key),
+            )
+            return False
+    return True
+
+
+def _health_metrics_from_rows(rows: list[dict[str, Any]]) -> dict[str, str]:
+    metrics: dict[str, str] = {}
+    for row in rows:
+        metric = str(row.get("metric") or "").strip()
+        if not metric:
+            continue
+        value = row.get("value")
+        if isinstance(value, float) and value.is_integer():
+            value = int(value)
+        metrics[metric] = str(value)
+    return metrics
+
+
+def _close_stale_xlwings_book(book: Any) -> None:
+    try:
+        book.close()
+    except Exception as exc:
+        logger.debug("Unable to close stale open Wind workbook: %s", exc)
 
 
 def payload_from_snapshot(
@@ -685,11 +791,17 @@ def payload_from_snapshot(
     cache_ttl_seconds: int = 60,
 ) -> dict[str, Any]:
     rows = [row for row in snapshot.rows if row.view_key == view_key]
+    active_codes = _active_catalog_codes_for_view(view_key)
+    catalog_filtered_count = 0
+    if active_codes:
+        unfiltered_count = len(rows)
+        rows = [row for row in rows if row.wind_code.strip().upper() in active_codes]
+        catalog_filtered_count = unfiltered_count - len(rows)
     up, down = split_snapshot_movers(rows, limit=limit)
     has_real_data = bool(rows)
     cache_hit = has_real_data and snapshot.status in {"ok", "snapshot_stale"}
 
-    return {
+    payload = {
         "view_key": view_key,
         "view_label": view_label,
         "up": up,
@@ -704,6 +816,21 @@ def payload_from_snapshot(
         "updated_at": snapshot.updated_at.isoformat() if snapshot.updated_at else None,
         "error_count": snapshot.error_count,
     }
+    if catalog_filtered_count:
+        payload["catalog_filtered_count"] = catalog_filtered_count
+    return payload
+
+
+def _active_catalog_codes_for_view(view_key: str) -> set[str]:
+    try:
+        return {
+            entry.code.strip().upper()
+            for entry in load_wind_index_catalog()
+            if entry.view_key == view_key and entry.is_active
+        }
+    except Exception as exc:
+        logger.debug("Unable to load active Wind catalog codes for %s: %s", view_key, exc)
+        return set()
 
 
 def parse_snapshot_rows(
@@ -728,6 +855,10 @@ def parse_snapshot_rows(
 
             wind_code = str(row.get("wind_code") or "").strip()
             name = str(row.get("name") or "").strip()
+            if _is_wind_placeholder_text(name):
+                error_count += 1
+                logger.warning("Skipping Wind placeholder snapshot row: %s", row)
+                continue
             updated_at = (
                 reference_time
                 if use_read_time_for_ok_rows and status == "ok"
@@ -780,6 +911,19 @@ def parse_snapshot_rows(
     )
 
 
+def _is_wind_placeholder_text(value: str) -> bool:
+    normalized = str(value or "").strip().lower()
+    return normalized in {
+        "fetching",
+        "fetching...",
+        "loading",
+        "loading...",
+        "nan",
+        "#n/a",
+        "#value!",
+    }
+
+
 def _status_payload(
     *,
     view_key: str,
@@ -830,7 +974,7 @@ def split_snapshot_movers(
 def _row_to_mover(row: WorkbookSnapshotRow) -> dict[str, Any]:
     return {
         "sector_id": f"wind-{row.wind_code.replace('.', '-')}",
-        "name": row.name,
+        "name": _format_index_display_name(row.name),
         "change_pct": round(row.pct_change, 2),
         "leading_stocks": [],
         "related_news_count": 0,
@@ -839,6 +983,11 @@ def _row_to_mover(row: WorkbookSnapshotRow) -> dict[str, Any]:
         "view_key": row.view_key,
         "view_label": row.view_label,
     }
+
+
+def _format_index_display_name(name: str) -> str:
+    stripped = str(name or "").strip()
+    return stripped.removesuffix("指数")
 
 
 def _parse_float(value: object) -> float | None:

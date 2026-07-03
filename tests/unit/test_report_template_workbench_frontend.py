@@ -100,7 +100,7 @@ def test_report_config_tab_uses_redesigned_editor_shell():
     assert "setPlaceholderEditorVisibility" in source
     assert "setPlaceholderEditingSection('')" in source
     assert 'class="template-config-toolbar-meta"' in html
-    assert 'class="template-config-toolbar-chips"' in html
+    assert "template-config-toolbar-chips" in html
     assert "template-config-form-section" in source
     assert "template-config-data-source-row" in source
     data_fields_start = source.index("function renderDataTemplateFieldsEditor")
@@ -325,8 +325,8 @@ def test_report_period_placeholder_summary_does_not_show_generation_metrics():
     end = source.index("function getPlaceholderEditSectionLabels", start)
     summary_source = source[start:end]
 
-    assert "if (type === 'report_period')" in summary_source
-    report_period_branch = summary_source.split("if (type === 'report_period')", 1)[1].split("const facts = [\n        { label: '目标字数'", 1)[0]
+    assert "isReportPeriodFieldPlaceholder(mapping.type || type, mapping, name)" in summary_source
+    report_period_branch = summary_source.split("isReportPeriodFieldPlaceholder(mapping.type || type, mapping, name))", 1)[1].split("const facts = isParagraphPlaceholderType", 1)[0]
     assert "字段类型" in report_period_branch
     assert "映射字段" in report_period_branch
     assert "template-report-period-summary-grid" in report_period_branch
@@ -409,6 +409,64 @@ def test_placeholder_detail_syncs_from_picker_before_rendering():
     assert "renderTemplatePlaceholderMap(" not in select_source
 
 
+def test_placeholder_picker_only_shows_selected_placeholder_not_full_config_table():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+    css = STYLE_CSS.read_text(encoding="utf-8")
+    start = source.index("function renderTemplatePlaceholderMap")
+    end = source.index("function renderMappingSummary", start)
+    map_source = source[start:end]
+
+    assert 'class="placeholder-picker"' in map_source
+    assert 'class="placeholder-select placeholder-select-button"' in map_source
+    assert 'class="placeholder-select-option"' in map_source
+    assert 'class="placeholder-config-table"' not in map_source
+    assert 'class="placeholder-config-row placeholder-map-row' not in map_source
+    assert "getCurrentPlaceholderMappings(getCurrentWorkbenchTemplate() || {})" not in map_source
+    assert "placeholder-config-type" not in map_source
+    assert "placeholder-config-source" not in map_source
+    assert "placeholder-config-status" not in map_source
+    assert ".placeholder-config-table" not in css
+    assert ".placeholder-config-row" not in css
+    assert ".placeholder-config-type" not in css
+
+
+def test_placeholder_basic_panel_exposes_type_selector_and_type_specific_parameters():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+
+    assert "function renderPlaceholderOutputShapeSelect" in source
+    assert 'data-placeholder-output-shape-select="true"' in source
+    assert 'data-placeholder-field="type"' in source
+    assert "renderPlaceholderOutputShapeSelect(type, typeOptions)" in source
+    assert "renderFieldPlaceholderEditor" in source
+    assert "renderStaticTextPlaceholderEditor" in source
+    assert "renderTableOrChartPlaceholderEditor" in source
+    assert "来源类型" in source
+    assert "插入方式" in source
+    assert "固定文案" in source
+    assert "Excel 来源 / 区域" in source
+
+
+def test_placeholder_type_selector_uses_purpose_cards_not_dropdown():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+    css = STYLE_CSS.read_text(encoding="utf-8")
+    start = source.index("function renderPlaceholderOutputShapeSelect")
+    end = source.index("function renderFieldPlaceholderEditor", start)
+    selector_source = source[start:end]
+
+    assert "这个占位符要替换成什么？" in selector_source
+    assert 'class="placeholder-purpose-grid"' in selector_source
+    assert 'data-placeholder-output-shape-option="${esc(option.value)}"' in selector_source
+    assert 'type="hidden" data-placeholder-field="type" data-placeholder-output-shape-select="true"' in selector_source
+    assert "<select" not in selector_source
+    assert "写一段话" in selector_source
+    assert "日期、数字、单个值" in selector_source
+    assert "不生成，只替换文字" in selector_source
+    assert "插入 Excel 区域" in selector_source
+    assert "插入图表或图片" in selector_source
+    assert "bindPlaceholderPurposeCards(template);" in source
+    assert ".placeholder-purpose-card" in css
+
+
 def test_keyword_profile_change_keeps_config_modal_scoped_to_keywords():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
 
@@ -437,12 +495,46 @@ def test_config_modal_does_not_auto_select_first_number_input():
 def test_data_template_fields_only_render_for_composite_market_review_placeholders():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
 
-    assert "const supportsDataTemplate = type === 'composite_market_review';" in source
+    assert "const supportsDataTemplate = isDataTemplateParagraphMode(storedType, paragraphMode);" in source
     assert "includeDefaults: supportsDataTemplate" in source
     assert "function getDataTemplateFields(mapping = {}, { includeDefaults = true } = {})" in source
     assert "...(includeDefaults && !hasExplicitFields ? getDefaultDataTemplateFields(mapping) : {})" in source
     assert "const hasExplicitFields = Object.prototype.hasOwnProperty.call(component, 'fields');" in source
     assert "const dataTemplateFields = getDataTemplateFields(mapping);" not in source
+
+
+def test_paragraph_placeholder_uses_mode_instead_of_parallel_ai_types():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+
+    assert "function getParagraphMode" in source
+    assert "function isParagraphPlaceholderType" in source
+    assert "function isDataTemplateParagraphMode" in source
+    assert "data-placeholder-field=\"mode\"" in source
+    assert "数据说明段落" in source
+    assert "根据材料撰写" in source
+    assert "数据说明 + 材料续写" in source
+    assert "{ value: 'paragraph', label: '正文段落' }" in source
+    assert "{ value: 'field', label: '短字段' }" in source
+    assert "{ value: 'static_text', label: '固定文案' }" in source
+    assert "{ value: 'static_text', label: '固定文本' }" not in source
+
+
+def test_placeholder_types_are_output_shapes_with_separate_sources():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+
+    assert "{ value: 'paragraph', label: '正文段落' }" in source
+    assert "{ value: 'field', label: '短字段' }" in source
+    assert "{ value: 'static_text', label: '固定文案' }" in source
+    assert "{ value: 'table', label: '表格' }" in source
+    assert "{ value: 'chart', label: '图表 / 图片' }" in source
+    assert "{ value: 'config_text', label: '可配置文案' }" not in source
+    assert "{ value: 'report_period', label: '报告日期' }" not in source
+    assert "report_period: '短字段（旧：报告日期）'" in source
+    assert "excel_cell: '短字段（旧：Excel 单元格取值）'" in source
+    assert "excel_range: '短字段（旧：Excel 区域取值）'" in source
+    assert "config_text: '固定文案（旧：可配置文案）'" in source
+    assert "chart: '图表 / 图片'" in source
+    assert "table: '表格'" in source
 
 
 def test_prompt_placeholders_keep_writing_structure_entry_even_when_empty():
@@ -506,10 +598,10 @@ def test_placeholder_form_hides_fields_that_do_not_apply_to_selected_type():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
 
     assert "buildSimplePlaceholderFieldsHtml" in source
-    assert "if (isPromptLike)" in source
+    assert "if (isParagraphPlaceholderType(type, mapping))" in source
     assert "if (type === 'excel_commodity_market_review')" in source
-    assert "if (type === 'report_period')" in source
-    assert "if (type === 'excel_cell' || type === 'excel_range')" in source
+    assert "if (isReportPeriodFieldPlaceholder(mapping.type || type, mapping, name))" in source
+    assert "if (isExcelFieldPlaceholder(mapping.type || type, mapping, name))" in source
     assert "if (type === 'static_text')" in source
     assert 'data-visible-for="' not in source
     assert "placeholder-detail-field-hidden" not in source
@@ -524,6 +616,227 @@ def test_workbench_uses_current_placeholder_mapping_draft_for_status():
     assert "const mappings = getCurrentPlaceholderMappings(template);" in source
     assert "getEditablePlaceholderMappings(template)" in source
     assert "currentTemplateState.placeholderMappingDrafts" in source
+
+
+def test_generation_preflight_checks_each_placeholder_and_can_focus_it():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+    css = STYLE_CSS.read_text(encoding="utf-8")
+
+    assert "function buildPlaceholderReadinessItems(template, placeholders)" in source
+    assert "function getPlaceholderReadinessIssue(mapping, placeholderName)" in source
+    assert "缺少 Prompt 模板或语义 Query" in source
+    assert "缺少 Excel 来源" in source
+    assert "缺少固定文案" in source
+    assert "缺少表格来源" in source
+    assert "缺少图表来源" in source
+    assert "data-template-placeholder-name=\"${esc(item.placeholderName || '')}\"" in source
+    assert "data-template-check-action=\"focus-placeholder\"" in source
+    assert "selectTemplatePlaceholder(placeholderName);" in source
+    assert "openPlaceholderConfigEditorModal(template, item.editorSection || 'basic')" in source
+    assert ".validation-item.placeholder-issue" in css
+
+
+def test_placeholder_configuration_uses_three_state_readiness():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+    css = STYLE_CSS.read_text(encoding="utf-8")
+
+    assert "function getPlaceholderLifecycleStatus(template, mapping, placeholderName)" in source
+    assert "state: 'missing'" in source
+    assert "state: 'confirm'" in source
+    assert "state: 'ready'" in source
+    assert "缺配置" in source
+    assert "需确认" in source
+    assert "可生成" in source
+    assert "getPlaceholderReadinessIssue(mapping, placeholderName)" in source
+    assert "healthEl.classList.toggle('confirm'" in source
+    assert "healthEl.classList.toggle('missing'" in source
+    assert ".template-config-toolbar-meta.confirm" in css
+    assert ".template-config-toolbar-meta.missing" in css
+
+
+def test_placeholder_configuration_wizard_navigation_stays_single_placeholder():
+    html = INDEX_HTML.read_text(encoding="utf-8")
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+    css = STYLE_CSS.read_text(encoding="utf-8")
+
+    assert 'id="template-placeholder-wizard-progress"' in html
+    assert 'id="btn-template-prev-placeholder"' in html
+    assert 'id="btn-template-next-incomplete-placeholder"' in html
+    assert 'id="btn-template-save-next-placeholder"' in html
+    assert "function buildPlaceholderWizardState(template)" in source
+    assert "function selectAdjacentTemplatePlaceholder(direction, incompleteOnly = false)" in source
+    assert "function renderPlaceholderWizardControls(template)" in source
+    assert "上一个" in html
+    assert "下一个未完成" in html
+    assert "保存并下一个" in html
+    assert ".placeholder-wizard-controls" in css
+    assert 'class="placeholder-config-table"' not in source
+
+
+def test_placeholder_configurator_uses_original_embedded_grid_layout():
+    html = INDEX_HTML.read_text(encoding="utf-8")
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+    css = STYLE_CSS.read_text(encoding="utf-8")
+
+    assert 'class="template-workbench-main-grid template-config-grid"' in html
+    assert 'class="template-workbench-left template-config-rail"' in html
+    assert 'class="template-workbench-panel template-config-common-panel"' in html
+    assert 'id="template-common-rules"' in html
+    assert 'id="template-project-check-details"' in html
+    assert 'id="template-section-config-editor"' in html
+    config_start = html.index('class="template-workbench-main-grid template-config-grid"')
+    editor_start = html.index('id="template-section-config-editor"', config_start)
+    editor_end = html.index('id="template-config-editor-modal"', editor_start)
+    rail_html = html[config_start:editor_start]
+    editor_html = html[editor_start:editor_end]
+    assert 'class="template-workbench-panel placeholder-configurator-rail-panel"' not in rail_html
+    assert 'id="template-placeholder-map"' not in rail_html
+    assert 'id="template-placeholder-map"' in editor_html
+    assert 'class="template-placeholder-status-strip"' in editor_html
+    assert 'placeholder-issue-queue placeholder-issue-queue-inline' in editor_html
+    assert "选择占位符" in html
+    assert 'id="template-placeholder-progress-bar"' in html
+    assert "预检问题" in html
+    assert 'id="template-placeholder-issue-list"' in html
+    assert 'id="template-placeholder-issue-count"' in html
+    assert "function renderPlaceholderIssueQueue(template, placeholderReadiness)" in source
+    assert "renderPlaceholderIssueQueue(template, placeholderReadiness);" in source
+    assert 'data-template-check-action="focus-placeholder"' in source
+    assert ".placeholder-configurator-rail-panel" in css
+    assert ".template-placeholder-status-strip" in css
+    assert ".placeholder-issue-queue-inline" in css
+    assert ".placeholder-issue-queue.is-empty" in css
+    assert ".template-placeholder-progress-bar" in css
+    assert ".placeholder-issue-queue-item" in css
+    assert 'class="template-placeholder-wizard-shell"' not in html
+    assert ".template-placeholder-wizard-shell" not in css
+
+
+def test_placeholder_toolbar_has_three_zones_and_incomplete_only_next_actions():
+    html = INDEX_HTML.read_text(encoding="utf-8")
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+    css = STYLE_CSS.read_text(encoding="utf-8")
+
+    assert 'class="template-config-editor-selector template-config-toolbar-zone"' in html
+    assert 'class="template-config-toolbar-chips template-config-toolbar-zone"' in html
+    assert 'class="template-placeholder-actions template-config-toolbar-zone"' in html
+    assert ".template-config-toolbar-zone" in css
+    assert ".template-config-toolbar-zone + .template-config-toolbar-zone::before" in css
+    assert ".template-placeholder-actions.has-incomplete #btn-template-save-next-placeholder" in css
+    assert ".template-placeholder-actions.is-complete #btn-template-save-next-placeholder" in css
+    assert ".template-placeholder-status-strip.is-complete #btn-template-next-incomplete-placeholder" in css
+
+    assert "const hasIncomplete = state.incompleteItems.length > 0;" in source
+    assert "actionsEl.classList.toggle('has-incomplete', hasIncomplete);" in source
+    assert "actionsEl.classList.toggle('is-complete', !hasIncomplete);" in source
+    assert "statusStripEl.classList.toggle('has-incomplete', hasIncomplete);" in source
+    assert "statusStripEl.classList.toggle('is-complete', !hasIncomplete);" in source
+    assert "nextIncompleteBtn.hidden = !hasIncomplete;" in source
+    assert "saveNextBtn.hidden = !hasIncomplete;" in source
+    assert "saveNextBtn.disabled = !state.totalCount || !hasIncomplete;" in source
+
+
+def test_config_page_uses_compact_left_nav_and_lighter_detail_blocks():
+    css = STYLE_CSS.read_text(encoding="utf-8")
+
+    assert "/* Compact config navigation polish */" in css
+    compact_nav = css[css.index("/* Compact config navigation polish */"):]
+    assert ".template-config-common-panel .template-common-summary-card > summary" in compact_nav
+    assert "min-height: 54px;" in compact_nav
+    assert "grid-template-columns: 22px minmax(0, 1fr) minmax(44px, auto);" in compact_nav
+    assert ".template-config-common-panel .template-common-rules" in compact_nav
+    assert "gap: 7px;" in compact_nav
+
+    assert "/* Lighter placeholder detail blocks */" in css
+    detail_polish = css[css.index("/* Lighter placeholder detail blocks */"):]
+    assert ".template-config-editor-panel .template-placeholder-detail-form" in detail_polish
+    assert "gap: 10px;" in detail_polish
+    assert ".template-config-editor-panel .template-placeholder-detail-form > label" in detail_polish
+    assert "border-color: rgba(255,255,255,0.065);" in detail_polish
+    assert "background: rgba(255,255,255,0.030);" in detail_polish
+    assert ".template-config-editor-panel .template-keyword-summary" in detail_polish
+    assert "min-height: 44px;" in detail_polish
+
+
+def test_placeholder_wizard_visual_order_and_picker_menu_are_closed_by_default():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+    css = STYLE_CSS.read_text(encoding="utf-8")
+    start = source.index("formEl.innerHTML = `")
+    end = source.index("if (advancedFormEl)", start)
+    form_source = source[start:end]
+
+    assert form_source.index("${editorHtml}") < form_source.index("buildPlaceholderConfigSummaryHtml")
+    assert ".placeholder-configurator-rail-panel .placeholder-select-menu[hidden]" in css
+    assert "display: none !important;" in css
+    assert ".placeholder-configurator-rail-panel .placeholder-select-option" in css
+    assert ".placeholder-configurator-rail-panel .template-placeholder-map::after" in css
+    assert "placeholder-purpose-card .codicon" not in css
+
+
+def test_placeholder_config_keeps_common_and_advanced_config_in_main_page():
+    html = INDEX_HTML.read_text(encoding="utf-8")
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+    css = STYLE_CSS.read_text(encoding="utf-8")
+
+    config_start = html.index('class="template-workbench-main-grid template-config-grid"')
+    config_end = html.index('id="template-config-editor-modal"', config_start)
+    config_html = html[config_start:config_end]
+
+    assert 'id="btn-template-config-advanced"' in html
+    assert 'id="btn-template-advanced-config"' in config_html
+    assert 'id="template-common-rules"' in config_html
+    assert 'id="template-project-check-details"' in config_html
+    assert 'id="template-placeholder-detail-form"' in config_html
+    assert 'class="template-placeholder-wizard-shell"' not in html
+
+    assert 'class="placeholder-purpose-card-icon codicon' not in source
+    assert 'class="placeholder-field-source-tabs"' not in source
+    assert 'class="placeholder-field-preview-card"' not in source
+    assert 'class="placeholder-wizard-current-card"' not in source
+
+    assert ".template-placeholder-wizard-shell" not in css
+    assert ".placeholder-wizard-stage" not in css
+    assert ".placeholder-wizard-footer-actions" not in css
+    assert ".placeholder-purpose-card-icon" not in css
+    assert ".placeholder-field-source-tabs" not in css
+
+
+def test_save_placeholder_can_confirm_and_jump_to_next_incomplete():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+
+    assert "markSelectedPlaceholderConfirmed(template);" in source
+    assert "saveCurrentSectionConfig({" in source
+    assert "jumpToNextIncomplete = false" in source
+    assert "if (jumpToNextIncomplete) {" in source
+    assert "selectAdjacentTemplatePlaceholder(1, true);" in source
+    assert "savePlaceholderNextBtn.addEventListener('click'" in source
+    assert "successMessage: '占位符配置已保存，已跳到下一个未完成项'" in source
+
+
+def test_upload_enters_first_configuration_mode_for_new_template():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+
+    assert "function enterFirstPlaceholderConfigurationMode(project)" in source
+    assert "await enterFirstPlaceholderConfigurationMode(data);" in source
+    assert "setStoredTemplateDetailMode('config');" in source
+    assert "applyTemplateDetailMode('config');" in source
+    assert "selectFirstActionablePlaceholder(template);" in source
+    assert "首次配置：请逐个确认占位符用途和来源" in source
+
+
+def test_generate_report_blocks_when_placeholder_preflight_has_issues():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+
+    assert "function getTemplateGenerationPreflight(template = getCurrentWorkbenchTemplate())" in source
+    assert "function blockReportGenerationForPreflight(preflight)" in source
+    assert "const preflight = getTemplateGenerationPreflight(template);" in source
+    assert "if (!preflight.ok) {" in source
+    assert "blockReportGenerationForPreflight(preflight);" in source
+    assert "return;" in source
+    assert "请先处理生成预检中的占位符配置问题" in source
+    assert "renderTemplateValidationPreview(template, preflight.sections, preflight.placeholders);" in source
+    assert "placeholderReadiness: placeholderReadiness" in source
+    assert "contentOk = passedChecks === validationChecks.length && placeholderIssueCount === 0" in source
 
 
 def test_placeholder_map_does_not_truncate_word_placeholders():
@@ -544,8 +857,9 @@ def test_placeholder_mapping_connects_word_prompt_and_query_source():
     assert "keyword_profiles" in source
     assert "keyword_profile" in source
     assert "keywords" in source
-    assert "prompt_template: type === 'prompt' ? resolvePromptTemplateName(key, project) : undefined" in source
-    assert "query_source: type === 'prompt' && !usesEmbeddedPromptQueries(project) ? inferQuerySource(key, project) : undefined" in source
+    assert "const needsEvidenceDefaults = type === 'paragraph' && usesEvidenceParagraphMode(storedType, paragraphMode);" in source
+    assert "stored.prompt_template || resolvePromptTemplateName(key, project)" in source
+    assert "stored.query_source || inferQuerySource(key, project)" in source
     assert "renderMappingSummary" in source
     assert "prompt_template" in source
     assert "query_source" in source
@@ -573,7 +887,31 @@ def test_report_project_placeholders_skip_legacy_template_placeholder_api():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
 
     assert "currentTemplateState.selectedReportProject?.word_placeholders" in source
+    assert "project?.ppt_placeholders" in source
     assert "使用项目包解析出的 Word 占位符" in source
+
+
+def test_report_project_upload_supports_ppt_template_projects():
+    html = INDEX_HTML.read_text(encoding="utf-8")
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+    css = STYLE_CSS.read_text(encoding="utf-8")
+
+    assert 'id="project-type-select"' in html
+    assert '<select id="project-type-select"' not in html
+    assert 'type="hidden" id="project-type-select"' in html
+    assert 'data-project-type-option="word"' in html
+    assert 'data-project-type-option="ppt"' in html
+    assert 'id="project-ppt-template-input"' in html
+    assert 'accept=".pptx"' in html
+    assert "project-ppt-template-input" in source
+    assert "setReportProjectUploadType" in source
+    assert "data-project-type-option" in source
+    assert "project_type" in source
+    assert "formData.append('project_type', projectType);" in source
+    assert "formData.append('ppt_template', pptFile);" in source
+    assert "请选择 PPT 模板" in source
+    assert ".upload-project-type-control" in css
+    assert ".upload-project-type-option.active" in css
 
 
 def test_common_generation_constraints_preserve_commas():
@@ -611,7 +949,13 @@ def test_placeholder_yaml_preserves_prompt_writing_structure_and_period_fields()
     assert "draft.writing_structure = structure;" in source
     assert "lines.push('    writing_structure:');" in source
     assert "writingStructure.forEach(item => lines.push(`    - ${item}`));" in source
-    assert "if (isSystemDatePlaceholder(name)) return 'report_period';" in source
+    assert "if (isSystemDatePlaceholder(name)) return 'field';" in source
+    assert "lines.push(`    mode: ${paragraphMode}`);" in source
+    assert "lines.push('    format: date');" in source
+    assert "lines.push('    source:');" in source
+    assert "lines.push('      kind: report_period');" in source
+    assert "lines.push('    insert:');" in source
+    assert "replace_placeholder" in source
 
 
 def test_template_upload_action_lives_in_top_toolbar():

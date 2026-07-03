@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import re
 from typing import Any, Iterable
 
 from core.contracts.commentary import (
@@ -18,9 +19,29 @@ from core.contracts.dashboard import (
     SectorChangeItem,
 )
 from core.observability import get_logger
+from services.commentary_news_selector import CommentaryNewsSelector
 from services.dashboard_service import DashboardService
 
 logger = get_logger(__name__)
+
+
+SECTOR_DYNAMIC_KEYWORD_MAP: dict[str, tuple[str, ...]] = {
+    "贵金属": ("贵金属", "黄金", "金价", "白银", "避险", "美元"),
+    "黄金": ("贵金属", "黄金", "金价", "避险"),
+    "半导体": ("半导体", "芯片", "存储", "晶圆", "英伟达", "AI"),
+    "元件": ("PCB", "覆铜板", "电子元件", "AI硬件", "服务器"),
+    "通信设备": ("通信设备", "光模块", "CPO", "算力", "AI"),
+    "消费电子": ("消费电子", "苹果", "AI终端", "手机"),
+    "电子化学品": ("电子化学品", "半导体材料", "光刻胶", "晶圆"),
+    "证券": ("证券", "券商", "资本市场", "成交额", "风险偏好"),
+    "银行": ("银行", "息差", "高股息", "红利"),
+    "房地产": ("房地产", "地产", "销售", "政策"),
+    "中药": ("中药", "医药", "集采", "政策"),
+    "工程机械": ("工程机械", "基建", "出口", "设备更新"),
+    "纺织制造": ("纺织", "出口", "关税", "人民币"),
+    "美容护理": ("美容护理", "医美", "化妆品", "消费"),
+    "造纸": ("造纸", "纸浆", "涨价", "库存"),
+}
 
 
 class CommentaryContextService:
@@ -28,21 +49,40 @@ class CommentaryContextService:
 
     def __init__(self, dashboard_service: DashboardService):
         self.dashboard_service = dashboard_service
+        self.news_selector = CommentaryNewsSelector()
 
     def build_context(self, recipe_id: str = "daily-close") -> CommentaryContextPack:
         """Build textarea prefill text and structured evidence for one recipe."""
         try:
             overview = self.dashboard_service.get_market_overview_section()
+        except Exception as exc:
+            logger.exception("commentary_context_dashboard_fetch_failed")
+            return self._build_dashboard_fallback_context(recipe_id, exc)
+
+        try:
             sector_view = self.dashboard_service.get_market_sector_view(
                 "ths_industry", limit=8
             )
-        except Exception:
-            logger.exception("commentary_context_dashboard_fetch_failed")
-            raise
+        except Exception as exc:
+            logger.warning(
+                "commentary_context_sector_view_fetch_failed",
+                error=str(exc),
+            )
+            sector_view = {}
 
         data_lines = self._build_data_snapshot_lines(overview, sector_view)
         evidence_items = self._build_evidence_items(overview, sector_view)
-        evidence_lines = self._build_evidence_lines(evidence_items)
+        dynamic_terms = self._build_dynamic_retrieval_terms(overview, sector_view)
+        evidence_items = self._select_context_evidence(
+            evidence_items,
+            recipe_id,
+            dynamic_terms=dynamic_terms,
+        )
+        evidence_lines = self._build_evidence_lines(
+            evidence_items,
+            recipe_id=recipe_id,
+            dynamic_terms=dynamic_terms,
+        )
         attribution_signals = self._build_attribution_signals(
             overview,
             sector_view,
@@ -55,6 +95,36 @@ class CommentaryContextService:
             evidence_pack_text="\n".join(evidence_lines),
             evidence_items=evidence_items,
             attribution_signals=attribution_signals,
+            generated_at=datetime.utcnow(),
+        )
+
+    @staticmethod
+    def _build_dashboard_fallback_context(
+        recipe_id: str,
+        error: Exception,
+    ) -> CommentaryContextPack:
+        evidence_item = CommentaryEvidenceItem(
+            kind="interpretation",
+            title="仪表盘上下文加载失败",
+            summary="行情、板块和新闻聚合暂不可用；可以先手动补充数据快照和证据包后生成草稿。",
+            source="commentary_context",
+            source_type="system",
+            verification_status="unverified",
+            confidence_score=0.2,
+            display_label="系统提示",
+            metadata={"error": str(error)},
+        )
+        return CommentaryContextPack(
+            recipe_id=recipe_id or "daily-close",
+            data_snapshot_text=(
+                "市场数据：仪表盘数据暂不可用，请手动补充指数涨跌、成交额、"
+                "领涨/拖累方向和资金变化。"
+            ),
+            evidence_pack_text=(
+                "证据包：仪表盘上下文加载失败，请补充已核验新闻、公告、研报或人工判断。"
+            ),
+            evidence_items=[evidence_item],
+            attribution_signals=[],
             generated_at=datetime.utcnow(),
         )
 
@@ -71,10 +141,6 @@ class CommentaryContextService:
         breadth_line = self._format_breadth_line(overview.breadth)
         if breadth_line:
             lines.append(f"市场广度：{breadth_line}")
-
-        stats_line = self._format_market_stats_line(overview.market_stats)
-        if stats_line:
-            lines.append(f"资金与情绪：{stats_line}")
 
         up_line = self._format_sector_line(sector_view.get("up") or overview.top_up_sectors)
         if up_line:
@@ -121,7 +187,7 @@ class CommentaryContextService:
         for sector in self._iter_sector_items(down_sectors, limit=4):
             items.append(self._sector_evidence_item(sector, "confirmed", "拖累方向"))
 
-        for news in overview.global_news[:8]:
+        for news in overview.global_news[:20]:
             items.append(
                 CommentaryEvidenceItem(
                     kind="reported" if not news.is_mock else "interpretation",
@@ -164,35 +230,60 @@ class CommentaryContextService:
         return items
 
     @staticmethod
-    def _build_evidence_lines(items: list[CommentaryEvidenceItem]) -> list[str]:
+    def _build_evidence_lines(
+        items: list[CommentaryEvidenceItem],
+        recipe_id: str = "daily-close",
+        dynamic_terms: list[str] | None = None,
+    ) -> list[str]:
         label_by_kind = {
             "confirmed": "已确认数据",
             "reported": "媒体报道",
             "interpretation": "市场解释",
             "judgement": "主观判断",
         }
-        return [
-            f"{CommentaryContextService._evidence_line_label(item, label_by_kind)}：{item.title}"
-            + (f"。{item.summary}" if item.summary else "")
-            for item in CommentaryContextService._select_balanced_evidence(items, limit=12)
-        ]
+        selected = CommentaryContextService._select_balanced_evidence(
+            items,
+            limit=12,
+            recipe_id=recipe_id,
+            dynamic_terms=dynamic_terms,
+        )
+        lines: list[str] = []
+        for item in selected:
+            group = "行情验证" if item.source_type == "market_data" else "消息面主线"
+            if item.source_type not in {"market_data", "news", "research"}:
+                group = CommentaryContextService._evidence_line_label(item, label_by_kind)
+            summary = CommentaryContextService._format_evidence_summary(item)
+            lines.append(
+                f"{group}：{item.title}"
+                + (f"。{summary}" if summary else "")
+            )
+        return lines
 
     @staticmethod
     def _select_balanced_evidence(
         items: list[CommentaryEvidenceItem],
         limit: int,
+        recipe_id: str = "daily-close",
+        dynamic_terms: list[str] | None = None,
     ) -> list[CommentaryEvidenceItem]:
         market_items = [item for item in items if item.source_type == "market_data"]
-        reported_items = [
-            item for item in items if item.source_type in {"news", "research"}
-        ]
+        reported_items = CommentaryNewsSelector().select(
+            [
+                item
+                for item in items
+                if item.source_type in {"news", "research"}
+            ],
+            recipe_id=recipe_id,
+            limit=max(4, limit // 2),
+            extra_terms=dynamic_terms,
+        )
         interpretation_items = [
             item for item in items if item.source_type not in {"market_data", "news", "research"}
         ]
 
         selected: list[CommentaryEvidenceItem] = []
-        selected.extend(market_items[: max(4, limit // 2)])
-        selected.extend(reported_items[: max(4, limit - len(selected))])
+        selected.extend(reported_items[: max(4, limit // 2)])
+        selected.extend(market_items[: max(3, limit - len(selected))])
         if len(selected) < limit:
             selected.extend(interpretation_items[: limit - len(selected)])
 
@@ -206,29 +297,142 @@ class CommentaryContextService:
             deduped.append(item)
         return deduped[:limit]
 
+    def _select_context_evidence(
+        self,
+        items: list[CommentaryEvidenceItem],
+        recipe_id: str,
+        dynamic_terms: list[str],
+    ) -> list[CommentaryEvidenceItem]:
+        news_items = self.news_selector.select(
+            items,
+            recipe_id=recipe_id,
+            limit=8,
+            extra_terms=dynamic_terms,
+        )
+        news_keys = {(item.source_type, item.title, item.url) for item in news_items}
+        market_items = [item for item in items if item.source_type == "market_data"][:8]
+        other_items = [
+            item
+            for item in items
+            if item.source_type not in {"market_data", "news", "research"}
+        ][:2]
+        remaining_reported = [
+            item
+            for item in items
+            if item.source_type in {"news", "research"}
+            and (item.source_type, item.title, item.url) not in news_keys
+        ][:2]
+        return [*news_items, *market_items, *remaining_reported, *other_items]
+
+    @staticmethod
+    def _build_dynamic_retrieval_terms(
+        overview: MarketOverviewSection,
+        sector_view: dict[str, Any],
+    ) -> list[str]:
+        terms: list[str] = []
+        up_sectors = sector_view.get("up") or overview.top_up_sectors
+        down_sectors = sector_view.get("down") or overview.top_down_sectors
+
+        for sector in CommentaryContextService._iter_sector_items(up_sectors, limit=6):
+            name = CommentaryContextService._sector_name(sector)
+            if name:
+                terms.extend(CommentaryContextService._expand_sector_terms(name))
+                terms.extend(("领涨", "走强"))
+
+        for sector in CommentaryContextService._iter_sector_items(down_sectors, limit=6):
+            name = CommentaryContextService._sector_name(sector)
+            if name:
+                terms.extend(CommentaryContextService._expand_sector_terms(name))
+                terms.extend(("领跌", "承压", "大跌", "下挫"))
+
+        if overview.breadth and overview.breadth.down > max(overview.breadth.up * 2, 2000):
+            terms.extend(("普跌", "风险偏好", "资金流出", "避险"))
+
+        if any((index.change or 0) <= -3 for index in overview.indices):
+            terms.extend(("成长股", "科技股", "高估值", "拥挤交易"))
+
+        return CommentaryContextService._unique_terms(terms, limit=48)
+
+    @staticmethod
+    def _expand_sector_terms(name: str) -> list[str]:
+        normalized = str(name or "").strip()
+        terms = [normalized] if normalized else []
+        for key, mapped_terms in SECTOR_DYNAMIC_KEYWORD_MAP.items():
+            if key in normalized:
+                terms.extend(mapped_terms)
+        return CommentaryContextService._unique_terms(terms, limit=12)
+
+    @staticmethod
+    def _sector_name(item: SectorChangeItem | dict[str, Any]) -> str:
+        if isinstance(item, dict):
+            return str(item.get("name") or "").strip()
+        return str(getattr(item, "name", "") or "").strip()
+
+    @staticmethod
+    def _unique_terms(terms: Iterable[Any], limit: int) -> list[str]:
+        unique: list[str] = []
+        for raw_term in terms:
+            term = str(raw_term or "").strip()
+            if not term or term in unique:
+                continue
+            unique.append(term)
+            if len(unique) >= limit:
+                break
+        return unique
+
+    @staticmethod
+    def _event_priority_score(item: CommentaryEvidenceItem) -> int:
+        text = f"{item.title} {item.summary}".lower()
+        priority_terms = (
+            "meta",
+            "英伟达",
+            "nvidia",
+            "微软",
+            "microsoft",
+            "谷歌",
+            "google",
+            "alphabet",
+            "亚马逊",
+            "amazon",
+            "openai",
+            "美股科技",
+            "科技股",
+            "纳指",
+            "ai 基础设施",
+            "ai资本开支",
+            "资本开支",
+            "capex",
+            "模型",
+            "算力",
+        )
+        return sum(12 for term in priority_terms if term in text)
+
     def _build_crawl_feed_evidence_items(self) -> list[CommentaryEvidenceItem]:
         if not hasattr(self.dashboard_service, "get_crawl_feed"):
             return []
         try:
-            feed = self.dashboard_service.get_crawl_feed(limit=12)
+            feed = self.dashboard_service.get_crawl_feed(limit=200)
         except Exception as exc:
             logger.warning("commentary_context_crawl_feed_fetch_failed", error=str(exc))
             return []
 
         items: list[CommentaryEvidenceItem] = []
-        for raw_item in (feed or {}).get("items", [])[:12]:
+        for raw_item in (feed or {}).get("items", [])[:200]:
             if not isinstance(raw_item, dict):
                 continue
             title = str(raw_item.get("title") or raw_item.get("raw_title") or "").strip()
             if not title:
                 continue
             source_type = self._normalize_source_type(raw_item.get("source_type"))
-            summary = str(raw_item.get("summary") or raw_item.get("content") or "").strip()
+            summary = self._compact_summary(
+                str(raw_item.get("summary") or raw_item.get("content") or ""),
+                max_chars=180,
+            )
             items.append(
                 CommentaryEvidenceItem(
                     kind="reported",
                     title=title,
-                    summary=summary[:180],
+                    summary=summary,
                     source=str(
                         raw_item.get("source_name")
                         or raw_item.get("source")
@@ -260,6 +464,74 @@ class CommentaryContextService:
             return "news"
         return "news"
 
+    @staticmethod
+    def _compact_summary(text: Any, max_chars: int = 180) -> str:
+        compacted = re.sub(r"\s+", " ", str(text or "")).strip()
+        compacted = re.sub(r"#+\s*", "", compacted)
+        compacted = compacted.replace("**", "")
+        return compacted[:max_chars]
+
+    @staticmethod
+    def _format_evidence_summary(item: CommentaryEvidenceItem) -> str:
+        summary = CommentaryContextService._compact_summary(item.summary)
+        if item.source_type not in {"news", "research"}:
+            return summary
+
+        matched_terms = CommentaryContextService._matched_terms(item, limit=4)
+        if not matched_terms:
+            return summary
+
+        impact = CommentaryContextService._first_sentence(summary, max_chars=76)
+        if not impact:
+            return f"触发词：{'、'.join(matched_terms)}"
+        return f"触发词：{'、'.join(matched_terms)}；影响：{impact}"
+
+    @staticmethod
+    def _matched_terms(item: CommentaryEvidenceItem, limit: int) -> list[str]:
+        terms: list[str] = []
+        for raw_term in item.metadata.get("matched_terms") or []:
+            term = str(raw_term or "").strip()
+            if not term or term in terms:
+                continue
+            terms.append(term)
+        priority = {
+            term: rank
+            for rank, term in enumerate(
+                (
+                    "Meta",
+                    "OpenAI",
+                    "英伟达",
+                    "NVIDIA",
+                    "资本开支",
+                    "AI",
+                    "人工智能",
+                    "算力",
+                    "半导体",
+                    "科技股",
+                    "美股",
+                    "纳指",
+                    "大跌",
+                    "下跌",
+                    "暴跌",
+                    "调整",
+                )
+            )
+        }
+        return sorted(
+            terms,
+            key=lambda term: (priority.get(term, 999), terms.index(term)),
+        )[:limit]
+
+    @staticmethod
+    def _first_sentence(text: str, max_chars: int) -> str:
+        compacted = CommentaryContextService._compact_summary(text, max_chars=180)
+        if not compacted:
+            return ""
+        match = re.search(r"^(.{1,%d}?[。！？；])" % max_chars, compacted)
+        if match:
+            return match.group(1)
+        return compacted[:max_chars]
+
     def _build_attribution_signals(
         self,
         overview: MarketOverviewSection,
@@ -286,7 +558,20 @@ class CommentaryContextService:
         sector_view: dict[str, Any],
         evidence_items: list[CommentaryEvidenceItem],
     ) -> CommentaryAttributionSignal:
-        ai_terms = ("AI", "算力", "芯片", "半导体", "通信", "电池", "科技", "软银")
+        ai_terms = (
+            "AI",
+            "算力",
+            "芯片",
+            "半导体",
+            "通信",
+            "电池",
+            "科技",
+            "软银",
+            "Meta",
+            "OpenAI",
+            "英伟达",
+            "资本开支",
+        )
         down_titles = [
             (
                 f"{getattr(item, 'name', None) or item.get('name')} "
@@ -329,15 +614,7 @@ class CommentaryContextService:
     ) -> CommentaryAttributionSignal:
         score = 0
         evidence_titles: list[str] = []
-        net_flow = overview.market_stats.get("capital_flow_net") if overview.market_stats else None
-        try:
-            numeric_flow = float(net_flow)
-        except (TypeError, ValueError):
-            numeric_flow = None
-        if numeric_flow is not None and numeric_flow < 0:
-            score += 60 if numeric_flow <= -300 else 42
-            evidence_titles.append(f"大盘资金净流入 {numeric_flow:g} 亿元")
-        elif overview.breadth and overview.breadth.netInflow:
+        if overview.breadth and overview.breadth.netInflow:
             parsed_flow = CommentaryContextService._extract_signed_number(
                 overview.breadth.netInflow
             )
@@ -361,14 +638,33 @@ class CommentaryContextService:
     def _score_overseas_shock(
         evidence_items: list[CommentaryEvidenceItem],
     ) -> CommentaryAttributionSignal:
-        overseas_terms = ("日经", "软银", "韩国", "亚太", "美股", "OpenAI", "纳指", "科技股")
+        overseas_terms = (
+            "日经",
+            "软银",
+            "韩国",
+            "亚太",
+            "美股",
+            "OpenAI",
+            "Meta",
+            "英伟达",
+            "纳指",
+            "科技股",
+            "AI 基础设施",
+            "资本开支",
+            "capex",
+        )
         hits = [
             item.title
             for item in evidence_items
             if item.source_type in {"news", "research"}
             and any(term in f"{item.title} {item.summary}" for term in overseas_terms)
         ][:5]
-        score = 74 if len(hits) >= 2 else (58 if hits else 0)
+        high_priority_hit = any(
+            CommentaryContextService._event_priority_score(item) >= 25
+            for item in evidence_items
+            if item.title in hits
+        )
+        score = 82 if high_priority_hit else (74 if len(hits) >= 2 else (58 if hits else 0))
         return CommentaryAttributionSignal(
             tag="overseas_shock",
             label="海外科技链扰动",
@@ -457,23 +753,6 @@ class CommentaryContextService:
             parts.append(f"较前日 {breadth.turnoverDelta}")
         if breadth.netInflow:
             parts.append(f"资金净流入 {breadth.netInflow}")
-        return "，".join(parts)
-
-    @staticmethod
-    def _format_market_stats_line(stats: dict[str, Any]) -> str:
-        if not stats:
-            return ""
-        parts: list[str] = []
-        net_flow = stats.get("capital_flow_net")
-        if net_flow is not None:
-            parts.append(f"大盘资金净流入 {net_flow} 亿元")
-        limit_up = stats.get("limit_up_count")
-        limit_down = stats.get("limit_down_count")
-        if limit_up is not None or limit_down is not None:
-            parts.append(f"涨停 {limit_up or 0} 家 / 跌停 {limit_down or 0} 家")
-        yesterday = stats.get("yesterday_limit_up_performance")
-        if yesterday is not None:
-            parts.append(f"昨日涨停表现 {yesterday}")
         return "，".join(parts)
 
     @staticmethod

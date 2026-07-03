@@ -71,6 +71,23 @@ class CommentaryContextPack(BaseModel):
     generated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class CommentaryRecipe(BaseModel):
+    """A commentary writing recipe shared by frontend and backend generation."""
+
+    id: str = Field(description="Stable recipe id")
+    title: str = Field(description="Human-readable recipe title")
+    tag: str = Field(description="Short recipe category")
+    tone: str = Field(description="Default writing tone guidance")
+    sections: List[str] = Field(description="Suggested section headings")
+
+
+class CommentaryRecipeCatalog(BaseModel):
+    """Available commentary recipes and default selection."""
+
+    default_recipe_id: str = Field(default="daily-close")
+    recipes: List[CommentaryRecipe] = Field(default_factory=list)
+
+
 class CommentaryDraftRequest(BaseModel):
     """Request for generating an editable commentary draft."""
 
@@ -80,6 +97,10 @@ class CommentaryDraftRequest(BaseModel):
     subjective_judgement: str = Field(default="", description="User judgement to incorporate")
     evidence_items: List[CommentaryEvidenceItem] = Field(default_factory=list)
     attribution_signals: List[CommentaryAttributionSignal] = Field(default_factory=list)
+    writing_preferences: Dict[str, str] = Field(
+        default_factory=dict,
+        description="Audience, length, and tone controls selected in the workbench",
+    )
 
 
 class CommentaryDraftResponse(BaseModel):
@@ -95,3 +116,83 @@ class CommentaryDraftResponse(BaseModel):
     provider: str = Field(default="local")
     tokens_used: int = Field(default=0)
     generated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class CommentarySectionRewriteRequest(CommentaryDraftRequest):
+    """Request for rewriting one generated commentary section."""
+
+    section_heading: str = Field(description="Heading of the section being rewritten")
+    section_content: str = Field(description="Current editable section content")
+    action: str = Field(
+        default="rewrite",
+        description="Rewrite action: shorten/soften/risk/rewrite",
+    )
+
+
+class CommentarySectionRewriteResponse(BaseModel):
+    """Response for one rewritten commentary section."""
+
+    recipe_id: str = Field(description="Selected commentary recipe id")
+    section_heading: str = Field(description="Heading of the rewritten section")
+    rewritten_content: str = Field(description="Rewritten editable section content")
+    action: str = Field(description="Rewrite action that was applied")
+    warnings: List[str] = Field(default_factory=list)
+    model: str = Field(default="rule_based_fallback")
+    provider: str = Field(default="local")
+    tokens_used: int = Field(default=0)
+    generated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class CommentaryQualityIssue(BaseModel):
+    """One publish-gate issue found in a generated commentary draft."""
+
+    code: str = Field(description="Stable quality issue code")
+    severity: str = Field(description="blocker/warning/info")
+    title: str = Field(description="Short human-readable issue title")
+    detail: str = Field(description="Actionable issue detail")
+    excerpt: str = Field(default="", description="Optional draft excerpt related to the issue")
+
+
+class CommentaryQualityCheckRequest(CommentaryDraftRequest):
+    """Request for checking a generated commentary draft before publishing."""
+
+    draft_markdown: str = Field(description="Generated or edited commentary draft")
+
+
+class CommentaryQualityCheckResponse(BaseModel):
+    """Publish-gate quality check result for a commentary draft."""
+
+    status: str = Field(description="passed/warning/blocked")
+    summary: Dict[str, int] = Field(default_factory=dict)
+    issues: List[CommentaryQualityIssue] = Field(default_factory=list)
+    checked_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class CommentaryRunRecordRequest(BaseModel):
+    """Request to persist one commentary generation run."""
+
+    recipe_id: str = Field(description="Selected commentary recipe id")
+    recipe_title: str = Field(default="", description="Human-readable recipe title")
+    draft_markdown: str = Field(default="", description="Generated or edited draft markdown")
+    model: str = Field(default="", description="Generation model name")
+    provider: str = Field(default="", description="Generation provider")
+    warnings: List[str] = Field(default_factory=list)
+    evidence_count: int = Field(default=0, ge=0)
+    selected_evidence_count: int = Field(default=0, ge=0)
+    quality_status: str = Field(default="unknown")
+    quality_summary: Dict[str, int] = Field(default_factory=dict)
+
+
+class CommentaryRunRecord(CommentaryRunRecordRequest):
+    """Persisted commentary generation run."""
+
+    run_id: str = Field(description="Stable run id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class CommentaryRunRecordResponse(BaseModel):
+    """Response after writing a commentary run record."""
+
+    run_id: str = Field(description="Stable run id")
+    log_path: str = Field(description="Path to the JSONL log file")
+    record: CommentaryRunRecord

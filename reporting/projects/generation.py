@@ -920,11 +920,20 @@ class ReportProjectGenerationService:
                 continue
 
             title = str(config.get("title") or placeholder)
-            if str(config.get("type") or "").lower() == "report_period":
+            placeholder_type = normalize_placeholder_output_type(config)
+            if placeholder_type == "field":
                 results_by_placeholder[placeholder] = PlaceholderGenerationOutput(
                     placeholder=placeholder,
-                    content=resolve_report_period_value(config, active_period),
+                    content=resolve_field_placeholder_value(config, active_period),
                 )
+                continue
+            if placeholder_type == "static_text":
+                results_by_placeholder[placeholder] = PlaceholderGenerationOutput(
+                    placeholder=placeholder,
+                    content=str(config.get("value") or ""),
+                )
+                continue
+            if placeholder_type in {"table", "chart"}:
                 continue
             async_configs.append((placeholder, config))
 
@@ -1467,7 +1476,8 @@ def compute_explicit_report_period(
 
 def resolve_report_period_value(config: Dict[str, Any], report_period: ReportPeriod) -> str:
     """Resolve a configured report-period placeholder value."""
-    field = str(config.get("field") or "").strip()
+    source = config.get("source") if isinstance(config.get("source"), dict) else {}
+    field = str(config.get("field") or source.get("field") or "").strip()
     if field in {"start_date", "period_start", "开始日期"}:
         return report_period.start_date
     if field in {"end_date", "period_end", "结束日期"}:
@@ -1478,6 +1488,32 @@ def resolve_report_period_value(config: Dict[str, Any], report_period: ReportPer
     if title == "结束日期":
         return report_period.end_date
     return report_period.end_date
+
+
+def normalize_placeholder_output_type(config: Dict[str, Any]) -> str:
+    """Normalize legacy placeholder kinds into the generic output-shape protocol."""
+    placeholder_type = str(config.get("type") or "").strip().lower()
+    if placeholder_type in {"prompt", "ai_text", "composite_market_review"}:
+        return "paragraph"
+    if placeholder_type in {"report_period", "excel_cell", "excel_range"}:
+        return "field"
+    if placeholder_type == "config_text":
+        return "static_text"
+    if placeholder_type == "excel_chart":
+        return "chart"
+    return placeholder_type
+
+
+def resolve_field_placeholder_value(config: Dict[str, Any], report_period: ReportPeriod) -> str:
+    """Resolve deterministic short-field placeholders without invoking retrieval or LLM."""
+    source = config.get("source") if isinstance(config.get("source"), dict) else {}
+    source_kind = str(source.get("kind") or "").strip().lower()
+    legacy_type = str(config.get("type") or "").strip().lower()
+    if source_kind == "report_period" or legacy_type == "report_period":
+        return resolve_report_period_value(config, report_period)
+    if config.get("value") is not None:
+        return str(config.get("value") or "")
+    return ""
 
 
 def build_a_share_market_data_sentence(project: ReportProject, config: Dict[str, Any]) -> str:
@@ -1892,7 +1928,7 @@ def apply_report_defaults_to_placeholder(
     defaults = section_config.get("defaults")
     defaults = defaults if isinstance(defaults, dict) else {}
     placeholder_type = str(config.get("type") or "").lower()
-    if placeholder_type not in {"prompt", "composite_market_review"}:
+    if placeholder_type not in {"prompt", "paragraph", "composite_market_review"}:
         return dict(config)
 
     merged = dict(config)

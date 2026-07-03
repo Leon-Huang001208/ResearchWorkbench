@@ -13,10 +13,14 @@ import time
 from typing import Any
 
 from core.observability import get_logger
-from services.wind_index_catalog import DEFAULT_WIND_INDEX_CATALOG_PATH
+from services.wind_index_catalog import (
+    DEFAULT_WIND_INDEX_CATALOG_PATH,
+    load_wind_index_catalog,
+)
 from services.wind_realtime_workbook import (
     DEFAULT_WORKBOOK_PATH,
     SNAPSHOT_HEADERS,
+    _rows_from_matrix,
     build_realtime_workbook,
     prime_realtime_workbook_formulas,
 )
@@ -125,11 +129,26 @@ class WindWorkbookManager:
                 build_realtime_workbook(self.catalog_path, self.workbook_path)
                 built = True
 
+            expected_active_count = self._catalog_active_index_count()
+
             import xlwings as xw
 
             book = self._find_or_open_workbook(xw)
             opened = True
             self._hide_excel(book.app)
+
+            if not self._workbook_matches_catalog(book, expected_active_count):
+                logger.info(
+                    "Wind workbook catalog changed; rebuilding workbook: path=%s expected_active_count=%s",
+                    self.workbook_path,
+                    expected_active_count,
+                )
+                self._close_workbook(book)
+                build_realtime_workbook(self.catalog_path, self.workbook_path)
+                built = True
+                book = self._find_or_open_workbook(xw)
+                opened = True
+                self._hide_excel(book.app)
 
             if not force_prime and self._snapshot_has_data(book):
                 return self._set_status(
@@ -241,6 +260,37 @@ class WindWorkbookManager:
         except Exception as exc:
             logger.debug("Unable to inspect Wind workbook snapshot: %s", exc)
         return False
+
+    def _catalog_active_index_count(self) -> int | None:
+        try:
+            return sum(1 for entry in load_wind_index_catalog(self.catalog_path) if entry.is_active)
+        except Exception as exc:
+            logger.warning("Unable to inspect Wind index catalog %s: %s", self.catalog_path, exc)
+            return None
+
+    def _workbook_matches_catalog(self, book: Any, expected_active_count: int | None) -> bool:
+        if expected_active_count is None:
+            return True
+        active_count = self._workbook_active_index_count(book)
+        if active_count is None:
+            return False
+        return active_count == expected_active_count
+
+    def _workbook_active_index_count(self, book: Any) -> int | None:
+        try:
+            rows = _rows_from_matrix(book.sheets["Health"].used_range.value)
+            for row in rows:
+                if str(row.get("metric") or "") == "active_index_count":
+                    return int(float(row.get("value") or 0))
+        except Exception as exc:
+            logger.debug("Unable to inspect Wind workbook health: %s", exc)
+        return None
+
+    def _close_workbook(self, book: Any) -> None:
+        try:
+            book.close()
+        except Exception as exc:
+            logger.debug("Unable to close stale Wind workbook: %s", exc)
 
     def _set_status(
         self,

@@ -48,10 +48,10 @@ def test_wind_market_overview_provider_sorts_wind_indices_into_movers():
     up, down, has_real_data, _ = provider.get_top_movers(limit=2)
 
     assert has_real_data is True
-    assert [item["name"] for item in up] == ["锂矿指数", "稀土指数"]
+    assert [item["name"] for item in up] == ["锂矿", "稀土"]
     assert up[0]["sector_id"] == "wind-884857-WI"
     assert up[0]["is_concept"] is True
-    assert [item["name"] for item in down] == ["石油天然气指数"]
+    assert [item["name"] for item in down] == ["石油天然气"]
 
 
 def test_wind_market_overview_provider_groups_theme_and_industry_movers():
@@ -93,10 +93,10 @@ def test_wind_market_overview_provider_groups_theme_and_industry_movers():
 
     grouped = provider.get_grouped_movers(limit=10)
 
-    assert grouped["theme"]["up"][0]["name"] == "GPU指数"
+    assert grouped["theme"]["up"][0]["name"] == "GPU"
     assert grouped["theme"]["down"] == []
-    assert grouped["industry"]["up"][0]["name"] == "能源设备指数"
-    assert grouped["industry"]["down"][0]["name"] == "石油天然气指数"
+    assert grouped["industry"]["up"][0]["name"] == "能源设备"
+    assert grouped["industry"]["down"][0]["name"] == "石油天然气"
 
 
 def test_wind_market_overview_provider_groups_configured_market_views(tmp_path):
@@ -144,12 +144,12 @@ def test_wind_market_overview_provider_groups_configured_market_views(tmp_path):
 
     grouped = provider.get_grouped_movers(limit=10)
 
-    assert grouped["wind_hot_concept"]["up"][0]["name"] == "GPU指数"
+    assert grouped["wind_hot_concept"]["up"][0]["name"] == "GPU"
     assert grouped["wind_l1"]["up"][0]["name"] == "Wind一级样本"
     assert grouped["wind_l4"]["down"][0]["name"] == "Wind四级样本"
     assert grouped["citic_l3"]["up"][0]["name"] == "中信三级样本"
     assert grouped["sw_l1"]["down"][0]["name"] == "申万一级样本"
-    assert grouped["theme"]["up"][0]["name"] == "GPU指数"
+    assert grouped["theme"]["up"][0]["name"] == "GPU"
     assert grouped["industry"]["up"][0]["name"] == "Wind一级样本"
     assert all(
         item["name"] != "离谱指数"

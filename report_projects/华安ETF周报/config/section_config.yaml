@@ -31,9 +31,9 @@ defaults:
   - 除明确要求外，不得新增任何实体名称
   - 仅输出单段正文，不输出标题、列表或解释
   report_period:
-    report_date: 2026-06-26
-    start_date: 2026-06-20
-    end_date: 2026-06-26
+    report_date: 2026-06-29
+    start_date: 2026-06-23
+    end_date: 2026-06-29
   retrieval:
     mode: hybrid
     top_k: 10
@@ -138,7 +138,9 @@ tables:
 placeholders:
   A股市场回顾:
     title: A股市场回顾
-    type: composite_market_review
+    type: paragraph
+    confirmed: true
+    mode: data_template_plus_evidence_ai
     prompt_template: A股市场回顾
     query_mode: retrieval_query_embedded
     target_words: 200
@@ -190,15 +192,22 @@ placeholders:
     params: {}
   开始日期:
     title: 开始日期
-    type: report_period
-    field: start_date
+    type: field
+    format: date
+    source:
+      kind: report_period
+      field: start_date
   结束日期:
     title: 结束日期
-    type: report_period
-    field: end_date
+    type: field
+    format: date
+    source:
+      kind: report_period
+      field: end_date
   中国宏观:
     title: 中国宏观
-    type: prompt
+    type: paragraph
+    mode: evidence_ai
     prompt_template: 中国宏观
     query_mode: retrieval_query_embedded
     target_words: 300
@@ -212,7 +221,8 @@ placeholders:
     params: {}
   人工智能:
     title: 人工智能
-    type: prompt
+    type: paragraph
+    mode: evidence_ai
     prompt_template: 人工智能
     query_mode: retrieval_query_embedded
     target_words: 300
@@ -224,7 +234,8 @@ placeholders:
       param: 人工智能
   电子:
     title: 电子
-    type: prompt
+    type: paragraph
+    mode: evidence_ai
     prompt_template: 电子
     query_mode: retrieval_query_embedded
     target_words: 300
@@ -236,7 +247,8 @@ placeholders:
       param: 电子
   航天:
     title: 航天
-    type: prompt
+    type: paragraph
+    mode: evidence_ai
     prompt_template: 航天
     query_mode: retrieval_query_embedded
     target_words: 300
@@ -248,7 +260,8 @@ placeholders:
       param: 航天
   电力设备新能源:
     title: 电力设备新能源
-    type: prompt
+    type: paragraph
+    mode: evidence_ai
     prompt_template: 电力设备新能源
     query_mode: retrieval_query_embedded
     target_words: 300
@@ -260,7 +273,8 @@ placeholders:
       param: 电力设备新能源
   消费:
     title: 消费
-    type: prompt
+    type: paragraph
+    mode: evidence_ai
     prompt_template: 消费
     query_mode: retrieval_query_embedded
     target_words: 300
@@ -272,7 +286,8 @@ placeholders:
       param: 消费
   金融地产:
     title: 金融地产
-    type: prompt
+    type: paragraph
+    mode: evidence_ai
     prompt_template: 金融地产
     query_mode: retrieval_query_embedded
     target_words: 300
@@ -284,7 +299,8 @@ placeholders:
       param: 金融地产
   医药生物:
     title: 医药生物
-    type: prompt
+    type: paragraph
+    mode: evidence_ai
     prompt_template: 医药生物
     query_mode: retrieval_query_embedded
     target_words: 300
@@ -296,7 +312,8 @@ placeholders:
       param: 医药生物
   海外市场:
     title: 海外市场
-    type: prompt
+    type: paragraph
+    mode: evidence_ai
     prompt_template: 海外市场
     query_mode: retrieval_query_embedded
     target_words: 240
@@ -317,7 +334,8 @@ placeholders:
     params: {}
   港股科技:
     title: 港股科技
-    type: prompt
+    type: paragraph
+    mode: evidence_ai
     prompt_template: 港股科技
     query_mode: retrieval_query_embedded
     target_words: 300
@@ -329,7 +347,8 @@ placeholders:
       param: 港股科技
   港股央企红利:
     title: 港股央企红利
-    type: prompt
+    type: paragraph
+    mode: evidence_ai
     prompt_template: 港股央企红利
     query_mode: retrieval_query_embedded
     target_words: 300
@@ -341,7 +360,8 @@ placeholders:
       param: 港股央企红利
   美国:
     title: 美国
-    type: prompt
+    type: paragraph
+    mode: evidence_ai
     prompt_template: 美国
     query_mode: retrieval_query_embedded
     target_words: 300
@@ -353,7 +373,8 @@ placeholders:
       param: 美国
   欧洲:
     title: 欧洲
-    type: prompt
+    type: paragraph
+    mode: evidence_ai
     prompt_template: 欧洲
     query_mode: retrieval_query_embedded
     target_words: 300
@@ -365,7 +386,8 @@ placeholders:
       param: 欧洲
   日本:
     title: 日本
-    type: prompt
+    type: paragraph
+    mode: evidence_ai
     prompt_template: 日本
     query_mode: retrieval_query_embedded
     target_words: 300
@@ -377,7 +399,8 @@ placeholders:
       param: 日本
   美国新闻:
     title: 美国新闻
-    type: prompt
+    type: paragraph
+    mode: evidence_ai
     prompt_template: 美国新闻
     query_mode: retrieval_query_embedded
     target_words: 100
@@ -388,7 +411,8 @@ placeholders:
     params: {}
   欧洲新闻:
     title: 欧洲新闻
-    type: prompt
+    type: paragraph
+    mode: evidence_ai
     prompt_template: 欧洲新闻
     query_mode: retrieval_query_embedded
     target_words: 100
@@ -407,7 +431,8 @@ placeholders:
     params: {}
   黄金:
     title: 黄金
-    type: prompt
+    type: paragraph
+    mode: evidence_ai
     prompt_template: 黄金
     query_mode: retrieval_query_embedded
     target_words: 300
@@ -428,7 +453,8 @@ placeholders:
       param: 原油
   原油:
     title: 原油
-    type: prompt
+    type: paragraph
+    mode: evidence_ai
     prompt_template: 原油
     query_mode: retrieval_query_embedded
     target_words: 300

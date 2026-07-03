@@ -1,0 +1,38 @@
+[
+  {
+    "columns": [
+      {
+        "name": "Wind代码",
+        "type": "string"
+      },
+      {
+        "name": "证券简称",
+        "type": "string"
+      },
+      {
+        "name": "基金全称",
+        "type": "string"
+      },
+      {
+        "name": "基金管理人",
+        "type": "string"
+      },
+      {
+        "name": "跟踪指数名称",
+        "type": "string"
+      }
+    ],
+    "excelTotalCount": 3,
+    "resolved_question": "返回以下ETF基金的基金代码、基金名称、管理人、跟踪指数名称：159152.OF",
+    "rows": [
+      [
+        "159152.OF",
+        "平安恒生港股通科技主题ETF",
+        "平安恒生港股通科技主题交易型开放式指数证券投资基金",
+        "平安基金管理有限公司",
+        "恒生港股通科技主题"
+      ]
+    ],
+    "step": "Step1"
+  }
+]

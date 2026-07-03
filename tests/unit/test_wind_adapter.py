@@ -774,9 +774,11 @@ class TestWindAdapterNewMethods:
         from data_layer.adapters.wind import WindAdapter, WindExcelClient
 
         mock_client = MagicMock(spec=WindExcelClient)
-        mock_client.execute_batch.side_effect = [
-            [4621.2686, 5.70331748],
-            [8039.1544, 7.00346382],
+        mock_client.execute_batch.return_value = [
+            4621.2686,
+            5.70331748,
+            8039.1544,
+            7.00346382,
         ]
         adapter = WindAdapter(client=mock_client)
 
@@ -786,11 +788,13 @@ class TestWindAdapterNewMethods:
             names_by_code={"8841089.WI": "稀土指数", "884857.WI": "钨矿指数"},
         )
 
-        assert mock_client.execute_batch.call_count == 2
-        first_formulas = mock_client.execute_batch.call_args_list[0].args[0]
-        assert first_formulas == [
+        mock_client.execute_batch.assert_called_once()
+        formulas = mock_client.execute_batch.call_args.args[0]
+        assert formulas == [
             '=@wss("8841089.WI","rt_last")',
             '=@wss("8841089.WI","rt_pct_chg")',
+            '=@wss("884857.WI","rt_last")',
+            '=@wss("884857.WI","rt_pct_chg")',
         ]
         mock_client.execute.assert_not_called()
         assert list(df["name"]) == ["稀土指数", "钨矿指数"]

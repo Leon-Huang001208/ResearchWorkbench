@@ -117,3 +117,17 @@ def test_default_catalog_includes_citic_industry_levels():
     assert any(entry.code == "CI005001.WI" and entry.name == "石油石化" for entry in entries)
     assert any(entry.code == "CI005101.WI" and entry.name == "石油开采Ⅱ" for entry in entries)
     assert any(entry.code == "CI005201.WI" and entry.name == "石油开采Ⅲ" for entry in entries)
+
+
+def test_default_catalog_matches_active_wind_hot_concept_export():
+    from services.wind_index_catalog import load_wind_index_catalog
+
+    entries = load_wind_index_catalog()
+    hot = [entry for entry in entries if entry.view_key == "wind_hot_concept"]
+
+    assert len(hot) == 343
+    assert any(entry.code == "8841924.WI" and "光电路交换机" in entry.name for entry in hot)
+    assert any(entry.code == "8841936.WI" and entry.name == "玻璃基板指数" for entry in hot)
+    assert any(entry.code == "8841901.WI" and entry.name == "ASIC芯片指数" for entry in hot)
+    assert any(entry.code == "8841258.WI" and "光模块(CPO)" in entry.name for entry in hot)
+    assert not any(entry.code == "884001.WI" for entry in hot)

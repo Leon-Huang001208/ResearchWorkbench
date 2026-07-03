@@ -43,6 +43,36 @@ def write_project(root: Path, name: str = "创业板50周报") -> Path:
     return project_dir
 
 
+def write_ppt_project(root: Path, name: str = "静态PPT模板") -> Path:
+    """Create a minimal PPT report project folder for tests."""
+    project_dir = root / name
+    (project_dir / "templates").mkdir(parents=True)
+    (project_dir / "config").mkdir()
+    (project_dir / "generated").mkdir()
+    (project_dir / "runs").mkdir()
+
+    (project_dir / "templates" / "report_template.pptx").write_bytes(b"pptx")
+    (project_dir / "config" / "section_config.yaml").write_text(
+        "placeholders:\n  title:\n    type: static\n    value: 月度报告\n",
+        encoding="utf-8",
+    )
+    (project_dir / "generated" / "2026-06-05_静态PPT模板.pptx").write_bytes(b"deck")
+    (project_dir / "project.yaml").write_text(
+        "\n".join(
+            [
+                f"name: {name}",
+                "project_type: ppt",
+                "active_ppt_template: templates/report_template.pptx",
+                "section_config: config/section_config.yaml",
+                "output_dir: generated",
+                "run_log_dir: runs",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    return project_dir
+
+
 def test_list_projects_reads_project_folder_assets(tmp_path: Path):
     """项目清单应从每个子文件夹读取 Word、Excel、配置和历史报告。"""
     project_dir = write_project(tmp_path)
@@ -61,6 +91,23 @@ def test_list_projects_reads_project_folder_assets(tmp_path: Path):
     assert project.prompt_templates_path == project_dir / "config" / "prompt_templates.md"
     assert project.data_source_paths == [project_dir / "data" / "domestic.json"]
     assert project.generated_reports == [project_dir / "generated" / "2026-06-05_创业板50周报.docx"]
+    assert project.project_type == "word"
+    assert project.template_path == project.word_template_path
+
+
+def test_list_projects_reads_ppt_project_assets(tmp_path: Path):
+    """PPT 项目应解析 PPT 模板并只列出 pptx 生成产物。"""
+    project_dir = write_ppt_project(tmp_path)
+    manager = ReportProjectManager(projects_root=tmp_path)
+
+    project = manager.list_projects()[0]
+
+    assert project.name == "静态PPT模板"
+    assert project.project_type == "ppt"
+    assert project.ppt_template_path == project_dir / "templates" / "report_template.pptx"
+    assert project.template_path == project.ppt_template_path
+    assert project.word_template_path == project_dir
+    assert project.generated_reports == [project_dir / "generated" / "2026-06-05_静态PPT模板.pptx"]
 
 
 def test_get_project_raises_for_unknown_project(tmp_path: Path):

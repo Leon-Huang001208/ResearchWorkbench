@@ -4,14 +4,14 @@
    ============================================================ */
 
 import { apiCall, toast, esc, getChartColors, applyChartDefaults } from './core.js';
-import { loadDashboard, switchDashTab, switchMarketSectorView, toggleMarketSectorMenu } from './dashboard.js?v=20260624m';
+import { loadDashboard, switchDashTab, switchMarketHeatmapScope, switchMarketSectorView, toggleMarketSectorMenu } from './dashboard.js?v=20260702briefinline1';
 import { startCrawlFeedPolling, stopCrawlFeedPolling, startWorkersPolling, stopWorkersPolling, loadWorkersStatus } from './monitor.js?v=20260624b';
 import { searchAssets, selectAsset, analyzeAssetByCode, analyzeAsset, handleAssetSearchKeydown, initAssetSearch, setKLineTimeRange, toggleMA, initKLineToolbar } from './asset.js?v=20260623a';
 import { switchSignalLabTab, loadSignalLab, initSignalLab } from './signal-lab.js';
 import { loadMemoryPage, loadEpisodes, loadStrategies, loadFailures, loadEventSummary, initMemory } from './memory.js';
 import { loadSignals, createSignal, validateSignal, promoteSignal, loadOutcomes, initSignals } from './signals.js';
 import { loadReviewStats, loadReviewPending, approveItem, rejectItem, initReview } from './review.js';
-import { loadTemplatesPage, loadTemplates, loadTemplatesList, selectTemplate, deleteTemplate, uploadTemplate, downloadTemplateFile, renderReportFromTemplate, downloadRenderedReport, savePlaceholderConfig, exportYamlConfig, generateAiContent, generateAllAiFields, discoverPlaceholders, createYamlConfig, openUploadModal, closeUploadModal, closeEditTemplateModal, openEditTemplateModal, saveTemplateEdit, toggleEditMode, saveTemplatesOrder, handleTemplatePointerDown, handleDragStart, handleDragOver, handleDrop, switchTemplatesTab, goBackToTemplates, clearPlaceholderData, updatePlaceholderConfig, updatePlaceholderValue, initTemplateDropZone, handleTemplateFileSelect, clearFileSelection, handleTemplateNameKeydown, saveTemplateInlineName } from './templates.js?v=20260629variablealign1';
+import { loadTemplatesPage, loadTemplates, loadTemplatesList, selectTemplate, deleteTemplate, uploadTemplate, downloadTemplateFile, renderReportFromTemplate, downloadRenderedReport, savePlaceholderConfig, exportYamlConfig, generateAiContent, generateAllAiFields, discoverPlaceholders, createYamlConfig, openUploadModal, closeUploadModal, closeEditTemplateModal, openEditTemplateModal, saveTemplateEdit, toggleEditMode, saveTemplatesOrder, handleTemplatePointerDown, handleDragStart, handleDragOver, handleDrop, switchTemplatesTab, goBackToTemplates, clearPlaceholderData, updatePlaceholderConfig, updatePlaceholderValue, initTemplateDropZone, handleTemplateFileSelect, clearFileSelection, handleTemplateNameKeydown, saveTemplateInlineName } from './templates.js?v=20260629paragraphmodes1';
 import { showSignalDetail, renderSignalDetail, renderAuditTrailTimeline, loadAuditTrail } from './signal-detail.js';
 import { generateScenarios, renderScenarioResult } from './scenario.js';
 import { generateEventSignal, loadEventSignals, renderEventSignalResult, renderTimingDecision } from './event-signal.js';
@@ -22,7 +22,7 @@ import { globalSearch, renderSearchResults, navigateToSignalDetail } from './sea
 import { initNavigationCuration } from './navigation-curation.js';
 import { initWindPanel } from './wind.js';
 import { initFundsPanel } from './funds.js?v=20260625a';
-import { initCommentaryCenter, selectCommentaryTemplate, loadCommentaryContext, generateCommentaryDraft, copyCommentaryDraft } from './commentary.js?v=20260626h';
+import { initCommentaryCenter, selectCommentaryTemplate, loadCommentaryContext, generateCommentaryDraft, copyCommentaryDraft } from './commentary.js?v=20260702runlog1';
 
 // ─── Window Exports (for HTML onclick handlers) ────────────────
 window.apiCall = apiCall;
@@ -33,6 +33,7 @@ window.applyChartDefaults = applyChartDefaults;
 
 window.loadDashboard = loadDashboard;
 window.switchDashTab = switchDashTab;
+window.switchMarketHeatmapScope = switchMarketHeatmapScope;
 window.switchMarketSectorView = switchMarketSectorView;
 window.toggleMarketSectorMenu = toggleMarketSectorMenu;
 

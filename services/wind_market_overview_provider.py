@@ -165,7 +165,7 @@ class WindMarketOverviewProvider:
             items.append(
                 {
                     "sector_id": f"wind-{safe_code}",
-                    "name": name,
+                    "name": _format_index_display_name(name),
                     "change_pct": change_pct,
                     "leading_stocks": [],
                     "related_news_count": 0,
@@ -306,3 +306,8 @@ class WindMarketOverviewProvider:
     @staticmethod
     def _empty_views() -> dict[str, dict[str, list[dict]]]:
         return {key: {"up": [], "down": []} for key in DEFAULT_MARKET_VIEW_KEYS}
+
+
+def _format_index_display_name(name: str) -> str:
+    stripped = str(name or "").strip()
+    return stripped.removesuffix("指数")

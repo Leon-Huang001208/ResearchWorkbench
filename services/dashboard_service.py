@@ -1,6 +1,8 @@
 """Dashboard 首页数据聚合服务"""
 from datetime import UTC, datetime, timedelta
+import json
 import os
+from pathlib import Path
 import re
 from threading import Lock
 import time
@@ -33,6 +35,7 @@ from core.contracts.dashboard import (
 )
 from core.observability import get_logger
 from data_layer.repositories.dashboard_data import DashboardDataRepository
+from services.wind_index_catalog import load_wind_index_catalog
 from services.wind_market_overview_provider import WindMarketOverviewProvider
 
 logger = get_logger(__name__)
@@ -52,10 +55,20 @@ MARKET_SECTOR_VIEW_ORDER = (
     "ths_industry",
 )
 
-MARKET_SECTOR_CACHE_TTL_SECONDS = 60.0
+MARKET_SECTOR_CACHE_TTL_SECONDS = 5.0
+MARKET_SECTOR_DISK_CACHE_MAX_AGE_SECONDS = 60 * 60
+MARKET_SECTOR_DISK_CACHE_PATH = (
+    Path.home()
+    / "Library"
+    / "Application Support"
+    / "AlphaFoundry"
+    / "cache"
+    / "market_sector_movers.json"
+)
 MARKET_COMMAND_CACHE_TTL_SECONDS = 15.0
 MARKET_BREADTH_EXACT_CACHE_TTL_SECONDS = 45.0
 MARKET_STATS_CACHE_TTL_SECONDS = 45.0
+PREVIOUS_MARKET_TURNOVER_CACHE_TTL_SECONDS = 60 * 60
 ENABLE_WIND_REALTIME_WORKBOOK_ENV = "ALPHAFOUNDRY_ENABLE_WIND_WORKBOOK"
 ALLOW_WIND_EXCEL_FALLBACK_ENV = "ALPHAFOUNDRY_ALLOW_WIND_EXCEL_FALLBACK"
 
@@ -63,6 +76,7 @@ _market_command_cache_lock = Lock()
 _market_index_cache: Optional[tuple[float, list[dict[str, Any]]]] = None
 _market_breadth_cache: Optional[tuple[float, dict[str, Any]]] = None
 _market_stats_cache: Optional[tuple[float, dict[str, Any]]] = None
+_previous_turnover_cache: Optional[tuple[float, dict[str, Any]]] = None
 _market_breadth_refreshing = False
 _market_sector_cache: dict[tuple[str, int], tuple[float, dict]] = {}
 _market_sector_cache_lock = Lock()
@@ -583,6 +597,7 @@ class DashboardService:
                     failed_pages,
                 )
                 return None
+            previous_turnover = self._get_previous_market_turnover()
             payload = {
                 "up": up,
                 "down": down,
@@ -591,7 +606,7 @@ class DashboardService:
                 "downRatio": round(down / counted * 100, 1),
                 "turnover": self._format_turnover_yuan(turnover_yuan),
                 "turnoverDelta": None,
-                "previousTurnover": None,
+                "previousTurnover": (previous_turnover or {}).get("formatted"),
                 "netInflow": None,
                 "source": "eastmoney_all_a",
                 "sourceLabel": "东方财富全A实时"
@@ -625,6 +640,7 @@ class DashboardService:
                 value or 0.0 for value in df["成交额"].apply(DashboardService._optional_float)
             )
             total = max(1, up + down + flat)
+            previous_turnover = DashboardService._get_previous_market_turnover()
             payload = {
                 "up": up,
                 "down": down,
@@ -633,7 +649,7 @@ class DashboardService:
                 "downRatio": round(down / total * 100, 1),
                 "turnover": DashboardService._format_turnover_yuan(amount),
                 "turnoverDelta": None,
-                "previousTurnover": None,
+                "previousTurnover": (previous_turnover or {}).get("formatted"),
                 "source": "sina_all_a",
                 "sourceLabel": "全A实时",
                 "fetchedAt": datetime.now(UTC),
@@ -679,7 +695,9 @@ class DashboardService:
                 downRatio=round(down / total * 100, 1),
                 turnover=self._format_turnover_yuan(turnover_yuan),
                 turnoverDelta=None,
-                previousTurnover=None,
+                previousTurnover=(self._get_previous_market_turnover(force_refresh) or {}).get(
+                    "formatted"
+                ),
                 netInflow=self._format_signed_yi(
                     sum(float(sector.net_flow) for sector in snapshot.sectors)
                 ),
@@ -702,107 +720,13 @@ class DashboardService:
             return dict(cached[1])
 
         stats: dict[str, Any] = {
-            "limit_up": None,
-            "limit_down": None,
-            "yesterday_limit_performance": None,
-            "capital_flow": None,
             "source_status": {},
             "fetched_at": datetime.now(UTC),
         }
 
-        try:
-            capital_flow = self._fetch_market_capital_flow()
-            if capital_flow is not None:
-                stats["capital_flow"] = self._format_signed_yi(capital_flow)
-                stats["capital_flow_source"] = "同花顺即时资金流"
-                stats["source_status"]["capital_flow"] = "ok"
-            else:
-                stats["source_status"]["capital_flow"] = "empty"
-        except Exception as exc:
-            logger.warning("Failed to build market capital flow stat: %s", exc)
-            stats["source_status"]["capital_flow"] = "error"
-
-        try:
-            limit_stats = self._fetch_limit_pool_stats()
-            stats.update(limit_stats)
-            stats["source_status"]["limit_pool"] = "ok"
-        except Exception as exc:
-            logger.warning("Failed to fetch market limit pool stats: %s", exc)
-            stats["source_status"]["limit_pool"] = "error"
-
         with _market_command_cache_lock:
             _market_stats_cache = (time.time(), dict(stats))
         return stats
-
-    @staticmethod
-    def _fetch_limit_pool_stats() -> dict[str, Any]:
-        import akshare as ak
-        from data_layer.crawlers.akshare.board import _without_proxy_env
-
-        today = datetime.now().strftime("%Y%m%d")
-
-        def fetch_pool(func_name: str):
-            func = getattr(ak, func_name, None)
-            if func is None:
-                return None
-            with _without_proxy_env():
-                try:
-                    return func(date=today)
-                except TypeError:
-                    return func()
-                except Exception:
-                    return func()
-
-        limit_up_df = fetch_pool("stock_zt_pool_em")
-        limit_down_df = fetch_pool("stock_zt_pool_dtgc_em")
-        previous_df = fetch_pool("stock_zt_pool_previous_em")
-
-        limit_up = int(len(limit_up_df)) if limit_up_df is not None else None
-        limit_down = int(len(limit_down_df)) if limit_down_df is not None else None
-        previous_perf = DashboardService._format_pool_average_change(previous_df)
-
-        return {
-            "limit_up": limit_up,
-            "limit_down": limit_down,
-            "yesterday_limit_performance": previous_perf,
-        }
-
-    @staticmethod
-    def _fetch_market_capital_flow() -> Optional[float]:
-        """Fetch immediate market capital flow in 100-million-yuan units."""
-        import akshare as ak
-        from data_layer.crawlers.akshare.board import _without_proxy_env
-
-        with _without_proxy_env():
-            df = ak.stock_fund_flow_industry(symbol="即时")
-        if df is None or getattr(df, "empty", True) or "净额" not in df.columns:
-            return None
-        values = [
-            value
-            for value in (DashboardService._optional_float(item) for item in df["净额"])
-            if value is not None
-        ]
-        if not values:
-            return None
-        return sum(values)
-
-    @staticmethod
-    def _format_pool_average_change(df) -> Optional[str]:
-        if df is None or getattr(df, "empty", True):
-            return None
-        for column in ("涨跌幅", "涨幅", "最新涨跌幅"):
-            if column not in df.columns:
-                continue
-            values = [
-                value
-                for value in (DashboardService._optional_float(item) for item in df[column])
-                if value is not None
-            ]
-            if not values:
-                return None
-            avg = sum(values) / len(values)
-            return f"{avg:+.2f}%"
-        return None
 
     def get_market_overview_section(self, force_refresh: bool = False) -> MarketOverviewSection:
         """获取市场概览板块：全球热点新闻、上涨/下跌板块概念"""
@@ -936,9 +860,36 @@ class DashboardService:
         cache_key = (normalized_view, normalized_limit)
         cached_payload = self._get_cached_market_sector_payload(cache_key)
         if cached_payload is not None:
-            logger.info("Market sector view cache hit: %s", normalized_view)
-            cached_payload["cache_hit"] = True
-            return cached_payload
+            if not self._market_sector_payload_matches_active_catalog(
+                cached_payload,
+                normalized_view,
+            ):
+                logger.info("Ignored stale market sector cache with inactive catalog rows: %s", normalized_view)
+                self._drop_cached_market_sector_payload(cache_key)
+            else:
+                logger.info("Market sector view cache hit: %s", normalized_view)
+                cached_payload["cache_hit"] = True
+                return cached_payload
+
+        persistent_payload = self._get_persistent_market_sector_payload(cache_key)
+        if persistent_payload is not None:
+            if not self._market_sector_payload_matches_active_catalog(
+                persistent_payload,
+                normalized_view,
+            ):
+                logger.info(
+                    "Ignored stale market sector persistent cache with inactive catalog rows: %s",
+                    normalized_view,
+                )
+            else:
+                logger.info("Market sector persistent cache hit: %s", normalized_view)
+                persistent_payload["cache_hit"] = True
+                self._set_cached_market_sector_payload(
+                    cache_key,
+                    persistent_payload,
+                    persist=False,
+                )
+                return persistent_payload
 
         if normalized_view == "ths_industry":
             payload = self._get_ths_market_sector_payload(normalized_limit)
@@ -947,7 +898,7 @@ class DashboardService:
 
         workbook_payload: dict | None = None
         workbook_enabled = _env_flag(ENABLE_WIND_REALTIME_WORKBOOK_ENV, default=True)
-        fallback_enabled = _env_flag(ALLOW_WIND_EXCEL_FALLBACK_ENV, default=False)
+        fallback_enabled = _env_flag(ALLOW_WIND_EXCEL_FALLBACK_ENV, default=True)
         if workbook_enabled:
             try:
                 from services.wind_realtime_workbook import WindRealtimeWorkbookReader
@@ -1014,7 +965,8 @@ class DashboardService:
                 "status": "workbook_disabled",
                 "message": (
                     f"Wind实时工作簿未启用；设置 {ENABLE_WIND_REALTIME_WORKBOOK_ENV}=1 "
-                    f"或 {ALLOW_WIND_EXCEL_FALLBACK_ENV}=1 后可使用旧的临时公式诊断路径"
+                    f"可优先读取工作簿，设置 {ALLOW_WIND_EXCEL_FALLBACK_ENV}=0 "
+                    "可关闭 Wind 指数公式兜底"
                 ),
                 "source": "wind_realtime_workbook",
             }
@@ -1091,6 +1043,77 @@ class DashboardService:
             "cache_ttl_seconds": MARKET_SECTOR_CACHE_TTL_SECONDS,
         }
 
+    def _get_cross_source_market_sector_fallback_payload(
+        self,
+        view_key: str,
+        limit: int,
+        *,
+        upstream_payload: Optional[dict] = None,
+    ) -> dict:
+        """Use the THS board feed when Wind/Excel is unavailable for a selected view."""
+        try:
+            up, down, has_real_data, fetched_at = (
+                self.dashboard_repo.get_sector_changes_from_signals(
+                    days=7,
+                    limit_per_direction=limit,
+                )
+            )
+        except Exception as exc:
+            logger.warning(
+                "THS cross-source market sector fallback failed for %s: %s",
+                view_key,
+                exc,
+            )
+            return {
+                "view_key": view_key,
+                "view_label": self._market_view_label(view_key),
+                "up": [],
+                "down": [],
+                "has_real_data": False,
+                "fetched_at": 0.0,
+                "cache_hit": False,
+                "cache_ttl_seconds": MARKET_SECTOR_CACHE_TTL_SECONDS,
+                "status": "cross_source_fallback_failed",
+                "source": "ths_board_fallback",
+            }
+
+        decorated_up = [
+            {
+                **self._decorate_market_sector_item(item, view_key),
+                "source": item.get("source") or "ths_board_fallback",
+            }
+            for item in up
+        ]
+        decorated_down = [
+            {
+                **self._decorate_market_sector_item(item, view_key),
+                "source": item.get("source") or "ths_board_fallback",
+            }
+            for item in down
+        ]
+        logger.info(
+            "Using THS cross-source fallback for market view %s: up=%s down=%s real=%s upstream=%s",
+            view_key,
+            len(decorated_up),
+            len(decorated_down),
+            has_real_data,
+            (upstream_payload or {}).get("status"),
+        )
+        return {
+            "view_key": view_key,
+            "view_label": self._market_view_label(view_key),
+            "up": decorated_up,
+            "down": decorated_down,
+            "has_real_data": bool(has_real_data),
+            "fetched_at": fetched_at,
+            "cache_hit": False,
+            "cache_ttl_seconds": MARKET_SECTOR_CACHE_TTL_SECONDS,
+            "status": "wind_unavailable_ths_fallback",
+            "source": "ths_board_fallback",
+            "upstream_status": (upstream_payload or {}).get("status"),
+            "upstream_message": (upstream_payload or {}).get("message"),
+        }
+
     @staticmethod
     def _decorate_market_sector_item(item: dict, view_key: str) -> dict:
         normalized_is_concept = False if view_key == "ths_industry" else bool(item.get("is_concept"))
@@ -1103,6 +1126,121 @@ class DashboardService:
         }
 
     @staticmethod
+    def _get_previous_market_turnover(force_refresh: bool = False) -> Optional[dict[str, Any]]:
+        """Return previous trading day's A-share turnover with a date-aware cache."""
+        global _previous_turnover_cache
+
+        now = time.time()
+        local_date = datetime.now().date().isoformat()
+        with _market_command_cache_lock:
+            cached = _previous_turnover_cache
+        if cached and not force_refresh:
+            cached_at, payload = cached
+            if (
+                now - cached_at < PREVIOUS_MARKET_TURNOVER_CACHE_TTL_SECONDS
+                and payload.get("local_date") == local_date
+            ):
+                return dict(payload)
+
+        trade_date = DashboardService._previous_trading_date_yyyymmdd()
+        if not trade_date:
+            return None
+        amount_yuan = DashboardService._fetch_previous_trading_day_turnover_yuan(trade_date)
+        if amount_yuan is None or amount_yuan <= 0:
+            return None
+
+        payload = {
+            "local_date": local_date,
+            "trade_date": trade_date,
+            "amount_yuan": amount_yuan,
+            "formatted": DashboardService._format_turnover_yuan(amount_yuan),
+        }
+        with _market_command_cache_lock:
+            _previous_turnover_cache = (now, payload)
+        return dict(payload)
+
+    @staticmethod
+    def _previous_trading_date_yyyymmdd(today: Optional[datetime] = None) -> Optional[str]:
+        local_today = today.date() if isinstance(today, datetime) else datetime.now().date()
+        try:
+            import akshare as ak
+            from data_layer.crawlers.akshare.board import _without_proxy_env
+
+            with _without_proxy_env():
+                df = ak.tool_trade_date_hist_sina()
+            dates = []
+            for raw_date in df["trade_date"]:
+                try:
+                    parsed = datetime.fromisoformat(str(raw_date)[:10]).date()
+                except ValueError:
+                    continue
+                if parsed < local_today:
+                    dates.append(parsed)
+            if dates:
+                return max(dates).strftime("%Y%m%d")
+        except Exception as exc:
+            logger.warning("Failed to fetch trading calendar for previous turnover: %s", exc)
+
+        candidate = local_today - timedelta(days=1)
+        while candidate.weekday() >= 5:
+            candidate -= timedelta(days=1)
+        return candidate.strftime("%Y%m%d")
+
+    @staticmethod
+    def _fetch_previous_trading_day_turnover_yuan(trade_date: str) -> Optional[float]:
+        """Fetch prior trading day SSE/SZSE A-share turnover and normalize to yuan."""
+        try:
+            import akshare as ak
+            from data_layer.crawlers.akshare.board import _without_proxy_env
+
+            with _without_proxy_env():
+                sse_df = ak.stock_sse_deal_daily(date=trade_date)
+                szse_df = ak.stock_szse_summary(date=trade_date)
+
+            sse_amount_yi = DashboardService._extract_sse_a_share_turnover_yi(sse_df)
+            szse_amount_yuan = DashboardService._extract_szse_a_share_turnover_yuan(szse_df)
+            amount_yuan = sse_amount_yi * 100_000_000 + szse_amount_yuan
+            if amount_yuan <= 0:
+                return None
+            return amount_yuan
+        except Exception as exc:
+            logger.warning(
+                "Failed to fetch previous trading day turnover: date=%s error=%s",
+                trade_date,
+                exc,
+            )
+            return None
+
+    @staticmethod
+    def _extract_sse_a_share_turnover_yi(df) -> float:
+        rows = df[df["单日情况"].astype(str) == "成交金额"]
+        if rows.empty:
+            return 0.0
+        row = rows.iloc[0]
+        values = [
+            DashboardService._optional_float(row.get(column))
+            for column in ("主板A", "科创板")
+        ]
+        total = sum(value for value in values if value is not None)
+        if total > 0:
+            return total
+        return DashboardService._optional_float(row.get("股票")) or 0.0
+
+    @staticmethod
+    def _extract_szse_a_share_turnover_yuan(df) -> float:
+        rows = df[df["证券类别"].astype(str).isin({"主板A股", "创业板A股"})]
+        total = sum(
+            DashboardService._optional_float(row.get("成交金额")) or 0.0
+            for _, row in rows.iterrows()
+        )
+        if total > 0:
+            return total
+        stock_rows = df[df["证券类别"].astype(str) == "股票"]
+        if stock_rows.empty:
+            return 0.0
+        return DashboardService._optional_float(stock_rows.iloc[0].get("成交金额")) or 0.0
+
+    @staticmethod
     def _optional_float(value) -> Optional[float]:
         try:
             if value is None or value == "":
@@ -1113,6 +1251,8 @@ class DashboardService:
 
     @staticmethod
     def _format_turnover_yuan(amount: float) -> str:
+        if amount >= 1_000_000_000_000:
+            return f"{amount / 1_000_000_000_000:.2f}万亿"
         if amount >= 100_000_000:
             return f"{amount / 100_000_000:.0f}亿"
         return f"{amount:.0f}"
@@ -1132,23 +1272,181 @@ class DashboardService:
             if now - cached_at > MARKET_SECTOR_CACHE_TTL_SECONDS:
                 _market_sector_cache.pop(cache_key, None)
                 return None
+            if not DashboardService._market_sector_payload_is_valid_for_cache(
+                cache_key,
+                payload,
+                persistent=False,
+            ):
+                _market_sector_cache.pop(cache_key, None)
+                return None
             return DashboardService._copy_market_sector_payload(payload)
 
     @staticmethod
-    def _set_cached_market_sector_payload(cache_key: tuple[str, int], payload: dict) -> None:
+    def _drop_cached_market_sector_payload(cache_key: tuple[str, int]) -> None:
+        with _market_sector_cache_lock:
+            _market_sector_cache.pop(cache_key, None)
+
+    @staticmethod
+    def _set_cached_market_sector_payload(
+        cache_key: tuple[str, int],
+        payload: dict,
+        *,
+        persist: bool = True,
+    ) -> None:
         with _market_sector_cache_lock:
             _market_sector_cache[cache_key] = (
                 time.monotonic(),
                 DashboardService._copy_market_sector_payload(payload),
             )
+        if (
+            persist
+            and payload.get("has_real_data")
+            and DashboardService._market_sector_payload_is_valid_for_cache(
+                cache_key,
+                payload,
+                persistent=True,
+            )
+        ):
+            DashboardService._set_persistent_market_sector_payload(cache_key, payload)
+
+    @staticmethod
+    def _persistent_market_sector_cache_key(cache_key: tuple[str, int]) -> str:
+        view_key, limit = cache_key
+        return f"{view_key}|{limit}"
+
+    @staticmethod
+    def _get_persistent_market_sector_payload(cache_key: tuple[str, int]) -> Optional[dict]:
+        path = MARKET_SECTOR_DISK_CACHE_PATH
+        try:
+            if not path.exists():
+                return None
+            cache = json.loads(path.read_text(encoding="utf-8"))
+            entry = cache.get(DashboardService._persistent_market_sector_cache_key(cache_key))
+            if not isinstance(entry, dict):
+                return None
+            cached_at = float(entry.get("cached_at") or 0.0)
+            if time.time() - cached_at > MARKET_SECTOR_DISK_CACHE_MAX_AGE_SECONDS:
+                return None
+            payload = entry.get("payload")
+            if not isinstance(payload, dict) or not payload.get("has_real_data"):
+                return None
+            if not DashboardService._market_sector_payload_is_valid_for_cache(
+                cache_key,
+                payload,
+                persistent=True,
+            ):
+                return None
+            return DashboardService._copy_market_sector_payload(payload)
+        except Exception as exc:
+            logger.debug("Failed to read market sector persistent cache: %s", exc)
+            return None
+
+    @staticmethod
+    def _set_persistent_market_sector_payload(cache_key: tuple[str, int], payload: dict) -> None:
+        path = MARKET_SECTOR_DISK_CACHE_PATH
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            cache: dict[str, Any]
+            if path.exists():
+                cache = json.loads(path.read_text(encoding="utf-8"))
+                if not isinstance(cache, dict):
+                    cache = {}
+            else:
+                cache = {}
+            if not DashboardService._market_sector_payload_is_valid_for_cache(
+                cache_key,
+                payload,
+                persistent=True,
+            ):
+                cache.pop(DashboardService._persistent_market_sector_cache_key(cache_key), None)
+                return
+            cache[DashboardService._persistent_market_sector_cache_key(cache_key)] = {
+                "cached_at": time.time(),
+                "payload": DashboardService._copy_market_sector_payload(payload),
+            }
+            tmp_path = path.with_suffix(f"{path.suffix}.tmp")
+            tmp_path.write_text(
+                json.dumps(cache, ensure_ascii=False, separators=(",", ":")),
+                encoding="utf-8",
+            )
+            tmp_path.replace(path)
+        except Exception as exc:
+            logger.debug("Failed to write market sector persistent cache: %s", exc)
+
+    @staticmethod
+    def _market_sector_payload_matches_active_catalog(payload: dict, view_key: str) -> bool:
+        if view_key == "ths_industry":
+            return True
+        active_codes = DashboardService._active_market_sector_codes(view_key)
+        if not active_codes:
+            return True
+        for side in ("up", "down"):
+            for item in payload.get(side, []) or []:
+                code = DashboardService._wind_code_from_sector_item(item)
+                if code and code not in active_codes:
+                    return False
+        return True
+
+    @staticmethod
+    def _market_sector_payload_is_valid_for_cache(
+        cache_key: tuple[str, int],
+        payload: dict,
+        *,
+        persistent: bool,
+    ) -> bool:
+        view_key, _limit = cache_key
+        if view_key == "ths_industry":
+            return True
+        if str(payload.get("source") or "") == "ths_board_fallback":
+            return False
+        if str(payload.get("status") or "") == "wind_unavailable_ths_fallback":
+            return False
+        if persistent and str(payload.get("source") or "") != "wind_realtime_workbook":
+            return False
+        return DashboardService._market_sector_payload_matches_active_catalog(
+            payload,
+            view_key,
+        )
+
+    @staticmethod
+    def _active_market_sector_codes(view_key: str) -> set[str]:
+        try:
+            return {
+                entry.code.strip().upper()
+                for entry in load_wind_index_catalog()
+                if entry.view_key == view_key and entry.is_active
+            }
+        except Exception as exc:
+            logger.debug("Failed to load active market sector catalog for %s: %s", view_key, exc)
+            return set()
+
+    @staticmethod
+    def _wind_code_from_sector_item(item: dict) -> str:
+        sector_id = str(item.get("sector_id") or "").strip()
+        if not sector_id.startswith("wind-"):
+            return ""
+        return sector_id.removeprefix("wind-").replace("-", ".").upper()
 
     @staticmethod
     def _copy_market_sector_payload(payload: dict) -> dict:
         return {
             **payload,
-            "up": list(payload.get("up", [])),
-            "down": list(payload.get("down", [])),
+            "up": [
+                DashboardService._format_market_sector_display_item(item)
+                for item in payload.get("up", [])
+            ],
+            "down": [
+                DashboardService._format_market_sector_display_item(item)
+                for item in payload.get("down", [])
+            ],
         }
+
+    @staticmethod
+    def _format_market_sector_display_item(item: dict) -> dict:
+        formatted = dict(item)
+        if str(formatted.get("sector_id") or "").startswith("wind-"):
+            formatted["name"] = str(formatted.get("name") or "").strip().removesuffix("指数")
+        return formatted
 
     @staticmethod
     def _normalize_market_view_key(view_key: str) -> str:

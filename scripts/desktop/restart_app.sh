@@ -10,6 +10,7 @@ LOG_DIR="${ALPHAFOUNDRY_RESTART_LOG_DIR:-$REPO_ROOT/logs}"
 LOG_FILE="$LOG_DIR/desktop-restart.log"
 ICON_SOURCE="${ALPHAFOUNDRY_ICON_SOURCE:-$REPO_ROOT/src-tauri/icons/icon.icns}"
 ICON_DEST="$APP_PATH/Contents/Resources/icon.icns"
+PATCH_AUTOMATION_SCRIPT="$REPO_ROOT/scripts/desktop/patch_macos_automation_permissions.sh"
 
 mkdir -p "$LOG_DIR"
 
@@ -74,6 +75,15 @@ done < <(pgrep -f "$APP_PATH/Contents/MacOS/alphafoundry" 2>/dev/null || true)
 
 sleep 1
 kill_listeners_on_desktop_port
+
+if [[ -x "$PATCH_AUTOMATION_SCRIPT" ]]; then
+  log "Patching macOS automation permission metadata"
+  if ! "$PATCH_AUTOMATION_SCRIPT" | tee -a "$LOG_FILE"; then
+    log "macOS automation permission metadata patch failed; continuing restart"
+  fi
+else
+  log "macOS automation permission patch script is missing or not executable: $PATCH_AUTOMATION_SCRIPT"
+fi
 
 log "Opening AlphaFoundry"
 open "$APP_PATH"

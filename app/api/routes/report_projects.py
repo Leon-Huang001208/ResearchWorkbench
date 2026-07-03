@@ -31,6 +31,7 @@ from reporting.projects.generation import (
 from reporting.projects.keyword_profiles import keyword_profiles_for_api
 from reporting.projects.project_manager import ReportProject, ReportProjectManager
 from reporting.projects.table_generation import build_project_tables
+from reporting.projections.ppt import PPTTemplateProjection, extract_pptx_placeholders
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/report-projects", tags=["report-projects"])
@@ -77,9 +78,14 @@ class ReportProjectInfo(BaseModel):
 
     name: str
     slug: str
+    project_type: str = "word"
     project_dir: str
+    template_path: str = ""
+    template_filename: str = ""
     word_template_path: str
     word_template_filename: str
+    ppt_template_path: str = ""
+    ppt_template_filename: str = ""
     excel_workbook_path: str
     excel_workbook_filename: str
     section_config_path: str
@@ -89,6 +95,7 @@ class ReportProjectInfo(BaseModel):
     data_source_files: List[str] = Field(default_factory=list)
     data_assets: List[DataAssetInfo] = Field(default_factory=list)
     word_placeholders: List[str] = Field(default_factory=list)
+    ppt_placeholders: List[str] = Field(default_factory=list)
     section_config: Dict[str, Any] = Field(default_factory=dict)
     section_config_source: str = ""
     prompt_templates_source: str = ""
@@ -169,7 +176,9 @@ async def list_report_projects():
 @router.post("/upload", response_model=ReportProjectInfo, summary="上传报告项目包")
 async def upload_report_project(
     project_name: str = Form(..., description="报告项目名称"),
-    word_template: UploadFile = File(..., description="Word 模板 .docx"),
+    project_type: str = Form("word", description="项目类型：word 或 ppt"),
+    word_template: UploadFile | None = File(None, description="Word 模板 .docx"),
+    ppt_template: UploadFile | None = File(None, description="PPT 模板 .pptx"),
     excel_workbook: UploadFile | None = File(None, description="Excel 数据底稿 .xlsx"),
     section_config: UploadFile | None = File(None, description="Section 配置 .yaml/.yml"),
     prompt_templates: UploadFile | None = File(None, description="Prompt 模板 .md"),
@@ -182,6 +191,14 @@ async def upload_report_project(
         raise HTTPException(status_code=409, detail=f"Report project already exists: {slug}")
 
     try:
+        normalized_project_type = project_type.strip().lower()
+        if normalized_project_type not in {"word", "ppt"}:
+            raise HTTPException(status_code=400, detail="Unsupported report project type")
+        if normalized_project_type == "word" and not word_template:
+            raise HTTPException(status_code=422, detail="Word project requires a .docx template")
+        if normalized_project_type == "ppt" and not ppt_template:
+            raise HTTPException(status_code=422, detail="PPT project requires a .pptx template")
+
         templates_dir = project_dir / "templates"
         data_dir = project_dir / "data"
         config_dir = project_dir / "config"
@@ -190,7 +207,10 @@ async def upload_report_project(
         for directory in [templates_dir, data_dir, config_dir, generated_dir, runs_dir]:
             directory.mkdir(parents=True, exist_ok=True)
 
-        _require_suffix(word_template.filename or "", [".docx"], "Word 模板")
+        if word_template and word_template.filename:
+            _require_suffix(word_template.filename, [".docx"], "Word 模板")
+        if ppt_template and ppt_template.filename:
+            _require_suffix(ppt_template.filename, [".pptx"], "PPT 模板")
         if excel_workbook and excel_workbook.filename:
             _require_suffix(excel_workbook.filename, [".xlsx"], "Excel 数据底稿")
         if section_config and section_config.filename:
@@ -199,9 +219,14 @@ async def upload_report_project(
             _require_suffix(prompt_templates.filename or "", [".md"], "Prompt 模板")
 
         word_path = templates_dir / "report_template.docx"
+        ppt_path = templates_dir / "report_template.pptx"
         section_path = config_dir / "section_config.yaml"
 
-        word_path.write_bytes(await word_template.read())
+        if normalized_project_type == "ppt" and ppt_template:
+            ppt_path.write_bytes(await ppt_template.read())
+        elif word_template:
+            word_path.write_bytes(await word_template.read())
+
         excel_filename = ""
         if excel_workbook and excel_workbook.filename:
             excel_filename = _safe_filename(excel_workbook.filename)
@@ -210,10 +235,12 @@ async def upload_report_project(
         if section_config and section_config.filename:
             section_path.write_bytes(await section_config.read())
         else:
-            section_path.write_text(
-                _build_default_section_config_source(word_path),
-                encoding="utf-8",
+            default_source = (
+                _build_default_ppt_section_config_source(ppt_path)
+                if normalized_project_type == "ppt"
+                else _build_default_section_config_source(word_path)
             )
+            section_path.write_text(default_source, encoding="utf-8")
 
         prompt_path = None
         if prompt_templates:
@@ -232,11 +259,15 @@ async def upload_report_project(
 
         project_data = {
             "name": project_name,
-            "active_word_template": "templates/report_template.docx",
+            "project_type": normalized_project_type,
             "section_config": "config/section_config.yaml",
             "output_dir": "generated",
             "run_log_dir": "runs",
         }
+        if normalized_project_type == "ppt":
+            project_data["active_ppt_template"] = "templates/report_template.pptx"
+        else:
+            project_data["active_word_template"] = "templates/report_template.docx"
         if excel_filename:
             project_data["active_excel_workbook"] = f"data/{excel_filename}"
         if prompt_path:
@@ -331,8 +362,6 @@ async def update_report_project_source(slug: str, request: UpdateReportProjectSo
 async def render_report_project(slug: str, request: RenderReportProjectRequest):
     """Render a report project into its own generated directory."""
     try:
-        from reporting.projections.word import WordProjection
-
         project = report_project_manager.get_project(slug)
         section_config, _ = _read_section_config(project.section_config_path)
         prompt_templates_source = _read_prompt_templates(project.prompt_templates_path)
@@ -345,6 +374,17 @@ async def render_report_project(slug: str, request: RenderReportProjectRequest):
             end_date=request.end_date,
         )
         report_period = generation_scope.report_period
+
+        if project.project_type == "ppt":
+            return _render_ppt_report_project(
+                project=project,
+                request=request,
+                section_config=section_config,
+                prompt_templates_source=prompt_templates_source,
+                generation_scope=generation_scope,
+            )
+
+        from reporting.projections.word import WordProjection
 
         if request.generate_from_config:
             generation_result = report_generation_service.generate_placeholders(
@@ -485,6 +525,132 @@ async def render_report_project(slug: str, request: RenderReportProjectRequest):
         raise HTTPException(status_code=500, detail=f"Failed to render report project: {exc}")
 
 
+def _render_ppt_report_project(
+    *,
+    project: ReportProject,
+    request: RenderReportProjectRequest,
+    section_config: Dict[str, Any],
+    prompt_templates_source: str,
+    generation_scope: Any,
+) -> RenderReportProjectResponse:
+    """Render a static PPT project by replacing template placeholders."""
+    if not project.ppt_template_path or not project.ppt_template_path.exists():
+        raise FileNotFoundError(f"Report project PPT template not found: {project.slug}")
+
+    report_period = generation_scope.report_period
+    if request.generate_from_config:
+        generation_result = report_generation_service.generate_placeholders(
+            project=project,
+            section_config=section_config,
+            prompt_templates_source=prompt_templates_source,
+            manual_placeholders=request.placeholders,
+            lookback_days=generation_scope.lookback_days,
+            report_period=generation_scope.report_period,
+        )
+        placeholder_map = generation_result.placeholders
+        generated_sections = generation_result.sections
+        generation_warnings = generation_result.warnings
+    else:
+        placeholder_map = request.placeholders
+        generated_sections = []
+        generation_warnings = []
+
+    generated_at = datetime.now()
+    timestamp = generated_at.strftime("%Y-%m-%d_%H%M%S")
+    safe_project_name = project.name.replace("/", "_").replace(":", "_")
+    file_name = f"{timestamp}_{safe_project_name}.pptx"
+    output_path = project.output_dir / file_name
+
+    projection_result = PPTTemplateProjection().save_from_template(
+        output_path=output_path,
+        template_path=project.ppt_template_path,
+        placeholders=placeholder_map,
+    )
+    projection_warnings = [
+        f"PPT 占位符未配置：{placeholder}"
+        for placeholder in projection_result.missing_placeholders
+    ]
+
+    run_record = {
+        "project_name": project.name,
+        "slug": project.slug,
+        "project_type": project.project_type,
+        "ppt_template_path": str(project.ppt_template_path),
+        "section_config_path": str(project.section_config_path),
+        "prompt_templates_path": str(project.prompt_templates_path)
+        if project.prompt_templates_path
+        else None,
+        "data_source_paths": [str(path) for path in project.data_source_paths],
+        "output_path": str(output_path),
+        "generated_at": generated_at.isoformat(),
+        "placeholder_count": len(placeholder_map),
+        "manual_placeholder_count": len(request.placeholders),
+        "generate_from_config": request.generate_from_config,
+        "report_date": generation_scope.report_date,
+        "data_scope": generation_scope.data_scope,
+        "lookback_days": generation_scope.lookback_days,
+        "report_period": {
+            "start_date": report_period.start_date,
+            "end_date": report_period.end_date,
+        },
+        "projection": {
+            "kind": "ppt",
+            "replaced_count": projection_result.replaced_count,
+            "missing_placeholders": projection_result.missing_placeholders,
+        },
+        "generation": {
+            "sections": [
+                {
+                    "placeholder": section.placeholder,
+                    "title": section.title,
+                    "prompt_template": section.prompt_template,
+                    "retrieval_query": section.retrieval_query,
+                    "evidence_count": section.evidence_count,
+                    "model_name": section.model_name,
+                    "provider": section.provider,
+                    "tokens_used": section.tokens_used,
+                    "warnings": section.warnings,
+                    "retrieval_config": _serialize_retrieval_config(
+                        section.retrieval_config
+                    ),
+                    "evidence": [_serialize_evidence(item) for item in section.evidence],
+                }
+                for section in generated_sections
+            ],
+            "warnings": generation_warnings,
+        },
+    }
+    run_path = project.run_log_dir / f"{timestamp}.json"
+    run_path.write_text(
+        json.dumps(run_record, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+    logger.info(
+        "Rendered PPT report project",
+        slug=project.slug,
+        output_path=str(output_path),
+        run_path=str(run_path),
+    )
+
+    return RenderReportProjectResponse(
+        success=True,
+        project_name=project.name,
+        slug=project.slug,
+        file_name=file_name,
+        file_path=str(output_path),
+        download_url=f"/api/report-projects/{project.slug}/download/{file_name}",
+        preview_url=f"/api/report-projects/{project.slug}/preview/{file_name}",
+        run_log_url=f"/api/report-projects/{project.slug}/runs/{run_path.name}",
+        generated_at=generated_at,
+        generated_placeholder_count=len(placeholder_map),
+        evidence_count=sum(section.evidence_count for section in generated_sections),
+        warnings=generation_warnings
+        + [warning for section in generated_sections for warning in section.warnings]
+        + projection_warnings,
+    )
+
+
 @router.get("/{slug}/preview/{file_name}", response_class=HTMLResponse, summary="预览报告项目生成文档")
 async def preview_report_project_file(slug: str, file_name: str):
     """Render one generated docx as an inline HTML preview."""
@@ -495,6 +661,15 @@ async def preview_report_project_file(slug: str, file_name: str):
             raise HTTPException(status_code=400, detail="Invalid generated report file name")
         if not output_path.exists():
             raise HTTPException(status_code=404, detail=f"Generated report not found: {file_name}")
+        if project.project_type == "ppt" or output_path.suffix.lower() == ".pptx":
+            return HTMLResponse(
+                _pptx_preview_placeholder_html(output_path),
+                media_type="text/html; charset=utf-8",
+                headers={
+                    "Cache-Control": "no-store, max-age=0",
+                    "Pragma": "no-cache",
+                },
+            )
         asset_base_url = f"/api/report-projects/{project.slug}/preview-assets/{file_name}"
         return HTMLResponse(
             _docx_to_preview_html(output_path, asset_base_url=asset_base_url),
@@ -555,10 +730,15 @@ async def download_report_project_file(slug: str, file_name: str):
         if not output_path.exists():
             raise HTTPException(status_code=404, detail=f"Generated report not found: {file_name}")
 
+        media_type = (
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+            if output_path.suffix.lower() == ".pptx" or project.project_type == "ppt"
+            else "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
         return FileResponse(
             output_path,
             filename=file_name,
-            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            media_type=media_type,
         )
     except HTTPException:
         raise
@@ -650,12 +830,21 @@ def _to_project_info(project: ReportProject) -> ReportProjectInfo:
     section_config, section_config_source = _read_section_config(project.section_config_path)
     prompt_templates_source = _read_prompt_templates(project.prompt_templates_path)
     excel_exists = project.excel_workbook_path.is_file()
+    template_path = project.template_path or project.word_template_path
+    ppt_template_path = project.ppt_template_path if project.project_type == "ppt" else None
+    word_template_exists = project.project_type == "word" and project.word_template_path.is_file()
+    ppt_template_exists = bool(ppt_template_path and ppt_template_path.is_file())
     return ReportProjectInfo(
         name=project.name,
         slug=project.slug,
+        project_type=project.project_type,
         project_dir=str(project.project_dir),
-        word_template_path=str(project.word_template_path),
-        word_template_filename=project.word_template_path.name,
+        template_path=str(template_path) if template_path and template_path.is_file() else "",
+        template_filename=template_path.name if template_path and template_path.is_file() else "",
+        word_template_path=str(project.word_template_path) if word_template_exists else "",
+        word_template_filename=project.word_template_path.name if word_template_exists else "",
+        ppt_template_path=str(ppt_template_path) if ppt_template_exists else "",
+        ppt_template_filename=ppt_template_path.name if ppt_template_exists else "",
         excel_workbook_path=str(project.excel_workbook_path) if excel_exists else "",
         excel_workbook_filename=project.excel_workbook_path.name if excel_exists else "",
         section_config_path=str(project.section_config_path),
@@ -668,7 +857,12 @@ def _to_project_info(project: ReportProject) -> ReportProjectInfo:
         else None,
         data_source_files=[path.name for path in project.data_source_paths],
         data_assets=_list_project_data_assets(project, section_config),
-        word_placeholders=_extract_docx_placeholders(project.word_template_path),
+        word_placeholders=_extract_docx_placeholders(project.word_template_path)
+        if word_template_exists
+        else [],
+        ppt_placeholders=extract_pptx_placeholders(ppt_template_path)
+        if ppt_template_exists and ppt_template_path
+        else [],
         section_config=section_config,
         section_config_source=section_config_source,
         prompt_templates_source=prompt_templates_source,
@@ -768,6 +962,19 @@ def _build_default_section_config_source(word_path: Path) -> str:
     placeholders = {
         placeholder: ""
         for placeholder in _extract_docx_placeholders(word_path)
+    }
+    return yaml.safe_dump(
+        {"placeholders": placeholders, "sections": []},
+        allow_unicode=True,
+        sort_keys=False,
+    )
+
+
+def _build_default_ppt_section_config_source(ppt_path: Path) -> str:
+    """Build a minimal section config when only a PPT template is uploaded."""
+    placeholders = {
+        placeholder: {"type": "static", "value": ""}
+        for placeholder in extract_pptx_placeholders(ppt_path)
     }
     return yaml.safe_dump(
         {"placeholders": placeholders, "sections": []},
@@ -1021,6 +1228,43 @@ def _docx_to_preview_html(path: Path, asset_base_url: str | None = None) -> str:
     if quicklook_image:
         return _quicklook_preview_html(path.name, quicklook_image)
     return _docx_to_fallback_preview_html(path)
+
+
+def _pptx_preview_placeholder_html(path: Path) -> str:
+    """Return a lightweight placeholder preview for generated PPTX files."""
+    file_name = escape(path.name)
+    return f"""<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {{
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f5f5f7;
+      color: #1d1d1f;
+    }}
+    .ppt-preview-placeholder {{
+      min-height: 320px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      text-align: center;
+      padding: 48px;
+    }}
+    .ppt-preview-placeholder strong {{ font-size: 18px; }}
+    .ppt-preview-placeholder span {{ color: #6e6e73; }}
+  </style>
+</head>
+<body>
+  <main class="ppt-preview-placeholder">
+    <strong>{file_name}</strong>
+    <span>PPT 已生成，可下载后在 PowerPoint 中查看。页面缩略图预览将在后续版本支持。</span>
+  </main>
+</body>
+</html>"""
 
 
 def _read_cached_word_pdf_preview(path: Path) -> bytes | None:

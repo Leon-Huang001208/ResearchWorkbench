@@ -1,0 +1,43 @@
+[
+  {
+    "columns": [
+      {
+        "name": "Wind代码",
+        "type": "string"
+      },
+      {
+        "name": "证券简称",
+        "type": "string"
+      },
+      {
+        "name": "基金代码",
+        "type": "string"
+      },
+      {
+        "name": "基金全称",
+        "type": "string"
+      },
+      {
+        "name": "基金管理人",
+        "type": "string"
+      },
+      {
+        "name": "跟踪指数名称",
+        "type": "string"
+      }
+    ],
+    "excelTotalCount": 4,
+    "resolved_question": "返回以下ETF基金的基金代码、基金名称、管理人、跟踪指数名称：561420.OF",
+    "rows": [
+      [
+        "561420.OF",
+        "汇添富沪深300自由现金流ETF",
+        561420,
+        "汇添富沪深300自由现金流交易型开放式指数证券投资基金",
+        "汇添富基金管理股份有限公司",
+        "300现金流"
+      ]
+    ],
+    "step": "Step1"
+  }
+]

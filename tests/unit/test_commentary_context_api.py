@@ -6,12 +6,18 @@ from fastapi.testclient import TestClient
 from app.api.routes.commentary import (
     get_commentary_context_service,
     get_commentary_draft_service,
+    get_commentary_run_service,
     router,
 )
 from core.contracts.commentary import (
     CommentaryAttributionSignal,
     CommentaryContextPack,
     CommentaryDraftResponse,
+    CommentaryQualityCheckResponse,
+    CommentaryQualityIssue,
+    CommentaryRunRecord,
+    CommentaryRunRecordResponse,
+    CommentarySectionRewriteResponse,
 )
 
 
@@ -85,14 +91,70 @@ class FakeCommentaryDraftService:
             provider="fake",
         )
 
+    def rewrite_section(self, **kwargs):
+        return CommentarySectionRewriteResponse(
+            recipe_id=kwargs["recipe_id"],
+            section_heading=kwargs["section_heading"],
+            rewritten_content="改写后的核心判断：风险偏好仍需观察。",
+            action=kwargs["action"],
+            warnings=[],
+            model="fake-model",
+            provider="fake",
+        )
+
+    def check_quality(self, draft_markdown, context):
+        return CommentaryQualityCheckResponse(
+            status="blocked",
+            summary={"blocked": 1, "warning": 0, "info": 0},
+            issues=[
+                CommentaryQualityIssue(
+                    code="missing_risk_disclosure",
+                    severity="blocker",
+                    title="缺少风险提示",
+                    detail="草稿缺少后续观察或风险提示。",
+                )
+            ],
+        )
+
+
+class FakeCommentaryRunService:
+    def __init__(self):
+        self.records = []
+
+    def record_run(self, request):
+        record = CommentaryRunRecord(
+            run_id="commentary-test-run",
+            recipe_id=request.recipe_id,
+            recipe_title=request.recipe_title,
+            draft_markdown=request.draft_markdown,
+            model=request.model,
+            provider=request.provider,
+            warnings=request.warnings,
+            evidence_count=request.evidence_count,
+            selected_evidence_count=request.selected_evidence_count,
+            quality_status=request.quality_status,
+            quality_summary=request.quality_summary,
+        )
+        self.records.append(record)
+        return CommentaryRunRecordResponse(
+            run_id=record.run_id,
+            log_path="logs/commentary_runs.jsonl",
+            record=record,
+        )
+
+    def list_runs(self, limit=20):
+        return self.records[-limit:]
+
 
 def make_client():
     app = FastAPI()
+    fake_run_service = FakeCommentaryRunService()
     app.include_router(router)
     app.dependency_overrides[get_commentary_context_service] = (
         lambda: FakeCommentaryContextService()
     )
     app.dependency_overrides[get_commentary_draft_service] = lambda: FakeCommentaryDraftService()
+    app.dependency_overrides[get_commentary_run_service] = lambda: fake_run_service
     return TestClient(app)
 
 
@@ -112,6 +174,26 @@ def test_commentary_context_endpoint_returns_prefill_text_and_evidence_items():
     assert body["evidence_items"][1]["source_type"] == "news"
     assert body["attribution_signals"][0]["tag"] == "ai_crowding"
     assert body["attribution_signals"][0]["strength"] == "primary"
+
+
+def test_commentary_recipes_endpoint_returns_shared_template_contract():
+    client = make_client()
+
+    response = client.get("/api/commentary/recipes")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["default_recipe_id"] == "daily-close"
+    assert body["recipes"][0]["id"] == "daily-close"
+    assert body["recipes"][0]["title"] == "每日收盘点评"
+    assert body["recipes"][0]["sections"] == [
+        "今日市场表现",
+        "行业与风格变化",
+        "资金与情绪",
+        "核心归因",
+        "后续观察",
+    ]
+    assert any(recipe["id"] == "etf-allocation" for recipe in body["recipes"])
 
 
 def test_main_app_registers_commentary_context_route():
@@ -175,3 +257,87 @@ def test_commentary_draft_endpoint_returns_model_draft():
     assert body["sections"][0]["heading"] == "核心判断"
     assert body["citations"][0]["kind"] == "confirmed"
     assert body["attribution_signals"][0]["tag"] == "ai_crowding"
+
+
+def test_commentary_section_rewrite_endpoint_returns_single_section_result():
+    client = make_client()
+
+    response = client.post(
+        "/api/commentary/section-rewrite",
+        json={
+            "recipe_id": "market-drawdown",
+            "section_heading": "核心判断",
+            "section_content": "市场必然继续调整，核心原因确定是海外冲击。",
+            "action": "soften",
+            "data_snapshot_text": "宽基指数：上证指数 -2.10%。",
+            "evidence_pack_text": "已确认数据：上证指数 -2.10%。",
+            "subjective_judgement": "核心是风险偏好回落。",
+            "evidence_items": [],
+            "attribution_signals": [],
+            "writing_preferences": {"audience": "client", "length": "short"},
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["recipe_id"] == "market-drawdown"
+    assert body["section_heading"] == "核心判断"
+    assert body["action"] == "soften"
+    assert "风险偏好仍需观察" in body["rewritten_content"]
+    assert body["model"] == "fake-model"
+
+
+def test_commentary_quality_check_endpoint_returns_publish_gate_result():
+    client = make_client()
+
+    response = client.post(
+        "/api/commentary/quality-check",
+        json={
+            "recipe_id": "market-drawdown",
+            "draft_markdown": "# 市场大跌归因\n\n核心判断：海外 AI 链调整确定导致市场下跌。",
+            "data_snapshot_text": "宽基指数：上证指数 -2.10%。",
+            "evidence_pack_text": "媒体报道：海外 AI 链调整。",
+            "subjective_judgement": "核心是风险偏好回落。",
+            "evidence_items": [],
+            "attribution_signals": [],
+            "writing_preferences": {"audience": "client"},
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "blocked"
+    assert body["summary"]["blocked"] == 1
+    assert body["issues"][0]["code"] == "missing_risk_disclosure"
+
+
+def test_commentary_runs_endpoint_records_and_lists_generation_runs():
+    client = make_client()
+
+    response = client.post(
+        "/api/commentary/runs",
+        json={
+            "recipe_id": "market-drawdown",
+            "recipe_title": "市场大跌归因",
+            "draft_markdown": "# 市场大跌归因",
+            "model": "deepseek-test",
+            "provider": "fake-provider",
+            "warnings": ["llm_returned_empty"],
+            "evidence_count": 8,
+            "selected_evidence_count": 5,
+            "quality_status": "blocked",
+            "quality_summary": {"blocked": 1, "warning": 0, "info": 0},
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["run_id"] == "commentary-test-run"
+    assert body["record"]["recipe_title"] == "市场大跌归因"
+    assert body["record"]["selected_evidence_count"] == 5
+
+    list_response = client.get("/api/commentary/runs?limit=5")
+
+    assert list_response.status_code == 200
+    runs = list_response.json()
+    assert runs[0]["run_id"] == "commentary-test-run"
