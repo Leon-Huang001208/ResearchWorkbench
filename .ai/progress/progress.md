@@ -145,4 +145,21 @@
 
 ---
 
-**最后更新**: 2026-06-08（report_projects 文档同步 + full-gate 剩余风险清理）
+### report_project_run_module: 报告项目运行编排 seam 🔄
+
+- **目标**: 将 `/api/report-projects/{slug}/render` 的 Word/PPT 生成编排、run-log 写入和 warning 聚合从 FastAPI route 收拢到 reporting module。
+- **成果**: 新增 `ReportProjectRunService`；route 改为读取项目和配置后委托 service；补充 service 级测试、实施计划、模块文档、架构文档、文件指南、changelog 和 Python 文件索引。
+- **验证**: focused render tests 5/5 passed；`ruff`、`black --check`、`isort --check-only`、targeted `mypy` 通过。
+- **剩余**: broader report suite 78 passed / 1 failed，失败为现有华安 ETF 配置缺少测试期待的 `type: prompt` 占位符；full repository gate 未运行。
+
+---
+
+### report_project_compiled_plan: 报告项目生成预检计划 ✅
+
+- **目标**: 把报告项目生成前的 prompt / retrieval / deterministic 占位符就绪度抽成后端 `CompiledReportPlan`，并让前端生成中心优先使用该计划。
+- **成果**: 新增 `reporting/projects/plan.py`；report projects API 返回 `compiled_plan`；模板工作台 preflight 接入后端计划，并按 Prompt 覆盖、Evidence 覆盖、输出资产分组展示；新增“优先处理”任务队列、Evidence 抽样、本期设置条和交付检查卡；修正华安配置漂移测试；补充模块/API/架构/文件指南/changelog 和测试报告。
+- **验证**: backend plan tests、focused API test、focused frontend static test、ruff、black --check、isort --check-only、targeted mypy 通过；broader focused report-project suite 132 passed / 22 warnings；模板工作台静态回归 59 passed。
+
+---
+
+**最后更新**: 2026-07-07（report_project_compiled_plan 报告项目生成预检计划）

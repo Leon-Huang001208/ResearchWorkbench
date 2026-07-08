@@ -23,15 +23,13 @@ from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel, Field
 
 from core.observability import get_logger
+from reporting.projections.ppt import extract_pptx_placeholders
 from reporting.projects.chart_generation import ReportProjectChartService
-from reporting.projects.generation import (
-    ReportProjectGenerationService,
-    resolve_report_generation_scope,
-)
+from reporting.projects.generation import ReportProjectGenerationService
 from reporting.projects.keyword_profiles import keyword_profiles_for_api
+from reporting.projects.plan import compile_report_plan
 from reporting.projects.project_manager import ReportProject, ReportProjectManager
-from reporting.projects.table_generation import build_project_tables
-from reporting.projections.ppt import PPTTemplateProjection, extract_pptx_placeholders
+from reporting.projects.run import ReportProjectRunRequest, ReportProjectRunService
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/report-projects", tags=["report-projects"])
@@ -99,6 +97,7 @@ class ReportProjectInfo(BaseModel):
     section_config: Dict[str, Any] = Field(default_factory=dict)
     section_config_source: str = ""
     prompt_templates_source: str = ""
+    compiled_plan: Dict[str, Any] = Field(default_factory=dict)
     keyword_profiles: Dict[str, Any] = Field(default_factory=dict)
     excel_sheets: List[ExcelSheetInfo] = Field(default_factory=list)
     output_dir: str
@@ -365,290 +364,43 @@ async def render_report_project(slug: str, request: RenderReportProjectRequest):
         project = report_project_manager.get_project(slug)
         section_config, _ = _read_section_config(project.section_config_path)
         prompt_templates_source = _read_prompt_templates(project.prompt_templates_path)
-        generation_scope = resolve_report_generation_scope(
-            section_config,
-            report_date=request.report_date,
-            lookback_days=request.lookback_days,
-            data_scope=request.data_scope,
-            start_date=request.start_date,
-            end_date=request.end_date,
-        )
-        report_period = generation_scope.report_period
-
-        if project.project_type == "ppt":
-            return _render_ppt_report_project(
-                project=project,
-                request=request,
-                section_config=section_config,
-                prompt_templates_source=prompt_templates_source,
-                generation_scope=generation_scope,
-            )
-
-        from reporting.projections.word import WordProjection
-
-        if request.generate_from_config:
-            generation_result = report_generation_service.generate_placeholders(
-                project=project,
-                section_config=section_config,
-                prompt_templates_source=prompt_templates_source,
-                manual_placeholders=request.placeholders,
-                lookback_days=generation_scope.lookback_days,
-                report_period=generation_scope.report_period,
-            )
-            placeholder_map = generation_result.placeholders
-            generated_sections = generation_result.sections
-            generation_warnings = generation_result.warnings
-        else:
-            placeholder_map = request.placeholders
-            generated_sections = []
-            generation_warnings = []
-
-        generated_at = datetime.now()
-        timestamp = generated_at.strftime("%Y-%m-%d_%H%M%S")
-        safe_project_name = project.name.replace("/", "_").replace(":", "_")
-        file_name = f"{timestamp}_{safe_project_name}.docx"
-        output_path = project.output_dir / file_name
-
-        tables, table_infos = build_project_tables(
+        run_result = ReportProjectRunService(
+            generation_service=report_generation_service,
+            chart_service=report_chart_service,
+        ).execute(
             project=project,
             section_config=section_config,
+            prompt_templates_source=prompt_templates_source,
+            request=ReportProjectRunRequest(
+                placeholders=request.placeholders,
+                generate_from_config=request.generate_from_config,
+                lookback_days=request.lookback_days,
+                report_date=request.report_date,
+                data_scope=request.data_scope,
+                start_date=request.start_date,
+                end_date=request.end_date,
+            ),
         )
-
-        projection = WordProjection()
-        projection.save_from_template(
-            output_path=output_path,
-            template_path=project.word_template_path,
-            sections=[],
-            placeholders=placeholder_map,
-            tables=tables,
-        )
-        chart_infos = report_chart_service.generate_and_embed(
-            project=project,
-            section_config=section_config,
-            docx_path=output_path,
-        )
-
-        run_record = {
-            "project_name": project.name,
-            "slug": project.slug,
-            "word_template_path": str(project.word_template_path),
-            "excel_workbook_path": str(project.excel_workbook_path),
-            "section_config_path": str(project.section_config_path),
-            "prompt_templates_path": str(project.prompt_templates_path)
-            if project.prompt_templates_path
-            else None,
-            "data_source_paths": [str(path) for path in project.data_source_paths],
-            "output_path": str(output_path),
-            "generated_at": generated_at.isoformat(),
-            "placeholder_count": len(placeholder_map),
-            "manual_placeholder_count": len(request.placeholders),
-            "generate_from_config": request.generate_from_config,
-            "report_date": generation_scope.report_date,
-            "data_scope": generation_scope.data_scope,
-            "lookback_days": generation_scope.lookback_days,
-            "report_period": {
-                "start_date": report_period.start_date,
-                "end_date": report_period.end_date,
-            },
-            "generation": {
-                "sections": [
-                    {
-                        "placeholder": section.placeholder,
-                        "title": section.title,
-                        "prompt_template": section.prompt_template,
-                        "retrieval_query": section.retrieval_query,
-                        "evidence_count": section.evidence_count,
-                        "model_name": section.model_name,
-                        "provider": section.provider,
-                        "tokens_used": section.tokens_used,
-                        "warnings": section.warnings,
-                        "retrieval_config": _serialize_retrieval_config(
-                            section.retrieval_config
-                        ),
-                        "evidence": [_serialize_evidence(item) for item in section.evidence],
-                    }
-                    for section in generated_sections
-                ],
-                "warnings": generation_warnings,
-            },
-            "charts": [
-                {
-                    "chart_id": chart.chart_id,
-                    "title": chart.title,
-                    "workbook": chart.workbook,
-                    "source_chart": chart.source_chart,
-                    "replace_kind": chart.replace_kind,
-                    "point_count": chart.point_count,
-                    "warnings": chart.warnings,
-                }
-                for chart in chart_infos
-            ],
-            "tables": table_infos,
-        }
-        run_path = project.run_log_dir / f"{timestamp}.json"
-        run_path.write_text(
-            json.dumps(run_record, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
-
-        logger.info(
-            "Rendered report project",
-            slug=slug,
-            output_path=str(output_path),
-            run_path=str(run_path),
-        )
-
-        chart_warnings = [warning for chart in chart_infos for warning in chart.warnings]
-        table_warnings = [warning for table in table_infos for warning in table["warnings"]]
 
         return RenderReportProjectResponse(
             success=True,
-            project_name=project.name,
-            slug=project.slug,
-            file_name=file_name,
-            file_path=str(output_path),
-            download_url=f"/api/report-projects/{project.slug}/download/{file_name}",
-            preview_url=f"/api/report-projects/{project.slug}/preview/{file_name}",
-            run_log_url=f"/api/report-projects/{project.slug}/runs/{run_path.name}",
-            generated_at=generated_at,
-            generated_placeholder_count=len(placeholder_map),
-            evidence_count=sum(section.evidence_count for section in generated_sections),
-            warnings=generation_warnings
-            + [warning for section in generated_sections for warning in section.warnings]
-            + chart_warnings
-            + table_warnings,
+            project_name=run_result.project_name,
+            slug=run_result.slug,
+            file_name=run_result.file_name,
+            file_path=str(run_result.output_path),
+            download_url=f"/api/report-projects/{run_result.slug}/download/{run_result.file_name}",
+            preview_url=f"/api/report-projects/{run_result.slug}/preview/{run_result.file_name}",
+            run_log_url=f"/api/report-projects/{run_result.slug}/runs/{run_result.run_log_path.name}",
+            generated_at=run_result.generated_at,
+            generated_placeholder_count=run_result.generated_placeholder_count,
+            evidence_count=run_result.evidence_count,
+            warnings=run_result.warnings,
         )
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"Report project not found: {slug}")
     except Exception as exc:
         logger.exception("Failed to render report project", slug=slug)
         raise HTTPException(status_code=500, detail=f"Failed to render report project: {exc}")
-
-
-def _render_ppt_report_project(
-    *,
-    project: ReportProject,
-    request: RenderReportProjectRequest,
-    section_config: Dict[str, Any],
-    prompt_templates_source: str,
-    generation_scope: Any,
-) -> RenderReportProjectResponse:
-    """Render a static PPT project by replacing template placeholders."""
-    if not project.ppt_template_path or not project.ppt_template_path.exists():
-        raise FileNotFoundError(f"Report project PPT template not found: {project.slug}")
-
-    report_period = generation_scope.report_period
-    if request.generate_from_config:
-        generation_result = report_generation_service.generate_placeholders(
-            project=project,
-            section_config=section_config,
-            prompt_templates_source=prompt_templates_source,
-            manual_placeholders=request.placeholders,
-            lookback_days=generation_scope.lookback_days,
-            report_period=generation_scope.report_period,
-        )
-        placeholder_map = generation_result.placeholders
-        generated_sections = generation_result.sections
-        generation_warnings = generation_result.warnings
-    else:
-        placeholder_map = request.placeholders
-        generated_sections = []
-        generation_warnings = []
-
-    generated_at = datetime.now()
-    timestamp = generated_at.strftime("%Y-%m-%d_%H%M%S")
-    safe_project_name = project.name.replace("/", "_").replace(":", "_")
-    file_name = f"{timestamp}_{safe_project_name}.pptx"
-    output_path = project.output_dir / file_name
-
-    projection_result = PPTTemplateProjection().save_from_template(
-        output_path=output_path,
-        template_path=project.ppt_template_path,
-        placeholders=placeholder_map,
-    )
-    projection_warnings = [
-        f"PPT 占位符未配置：{placeholder}"
-        for placeholder in projection_result.missing_placeholders
-    ]
-
-    run_record = {
-        "project_name": project.name,
-        "slug": project.slug,
-        "project_type": project.project_type,
-        "ppt_template_path": str(project.ppt_template_path),
-        "section_config_path": str(project.section_config_path),
-        "prompt_templates_path": str(project.prompt_templates_path)
-        if project.prompt_templates_path
-        else None,
-        "data_source_paths": [str(path) for path in project.data_source_paths],
-        "output_path": str(output_path),
-        "generated_at": generated_at.isoformat(),
-        "placeholder_count": len(placeholder_map),
-        "manual_placeholder_count": len(request.placeholders),
-        "generate_from_config": request.generate_from_config,
-        "report_date": generation_scope.report_date,
-        "data_scope": generation_scope.data_scope,
-        "lookback_days": generation_scope.lookback_days,
-        "report_period": {
-            "start_date": report_period.start_date,
-            "end_date": report_period.end_date,
-        },
-        "projection": {
-            "kind": "ppt",
-            "replaced_count": projection_result.replaced_count,
-            "missing_placeholders": projection_result.missing_placeholders,
-        },
-        "generation": {
-            "sections": [
-                {
-                    "placeholder": section.placeholder,
-                    "title": section.title,
-                    "prompt_template": section.prompt_template,
-                    "retrieval_query": section.retrieval_query,
-                    "evidence_count": section.evidence_count,
-                    "model_name": section.model_name,
-                    "provider": section.provider,
-                    "tokens_used": section.tokens_used,
-                    "warnings": section.warnings,
-                    "retrieval_config": _serialize_retrieval_config(
-                        section.retrieval_config
-                    ),
-                    "evidence": [_serialize_evidence(item) for item in section.evidence],
-                }
-                for section in generated_sections
-            ],
-            "warnings": generation_warnings,
-        },
-    }
-    run_path = project.run_log_dir / f"{timestamp}.json"
-    run_path.write_text(
-        json.dumps(run_record, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
-
-    logger.info(
-        "Rendered PPT report project",
-        slug=project.slug,
-        output_path=str(output_path),
-        run_path=str(run_path),
-    )
-
-    return RenderReportProjectResponse(
-        success=True,
-        project_name=project.name,
-        slug=project.slug,
-        file_name=file_name,
-        file_path=str(output_path),
-        download_url=f"/api/report-projects/{project.slug}/download/{file_name}",
-        preview_url=f"/api/report-projects/{project.slug}/preview/{file_name}",
-        run_log_url=f"/api/report-projects/{project.slug}/runs/{run_path.name}",
-        generated_at=generated_at,
-        generated_placeholder_count=len(placeholder_map),
-        evidence_count=sum(section.evidence_count for section in generated_sections),
-        warnings=generation_warnings
-        + [warning for section in generated_sections for warning in section.warnings]
-        + projection_warnings,
-    )
 
 
 @router.get("/{slug}/preview/{file_name}", response_class=HTMLResponse, summary="预览报告项目生成文档")
@@ -715,7 +467,9 @@ async def get_report_project_preview_asset(slug: str, file_name: str, asset_name
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"Report project not found: {slug}")
     except Exception as exc:
-        logger.exception("Failed to read report project preview asset", slug=slug, file_name=file_name)
+        logger.exception(
+            "Failed to read report project preview asset", slug=slug, file_name=file_name
+        )
         raise HTTPException(status_code=500, detail=f"Failed to read preview asset: {exc}")
 
 
@@ -829,6 +583,7 @@ def _open_folder_command(target_path: Path, *, folder_path: Path | None = None) 
 def _to_project_info(project: ReportProject) -> ReportProjectInfo:
     section_config, section_config_source = _read_section_config(project.section_config_path)
     prompt_templates_source = _read_prompt_templates(project.prompt_templates_path)
+    compiled_plan = compile_report_plan(section_config, prompt_templates_source).to_dict()
     excel_exists = project.excel_workbook_path.is_file()
     template_path = project.template_path or project.word_template_path
     ppt_template_path = project.ppt_template_path if project.project_type == "ppt" else None
@@ -844,7 +599,9 @@ def _to_project_info(project: ReportProject) -> ReportProjectInfo:
         word_template_path=str(project.word_template_path) if word_template_exists else "",
         word_template_filename=project.word_template_path.name if word_template_exists else "",
         ppt_template_path=str(ppt_template_path) if ppt_template_exists else "",
-        ppt_template_filename=ppt_template_path.name if ppt_template_exists else "",
+        ppt_template_filename=(
+            ppt_template_path.name if ppt_template_path and ppt_template_exists else ""
+        ),
         excel_workbook_path=str(project.excel_workbook_path) if excel_exists else "",
         excel_workbook_filename=project.excel_workbook_path.name if excel_exists else "",
         section_config_path=str(project.section_config_path),
@@ -866,10 +623,9 @@ def _to_project_info(project: ReportProject) -> ReportProjectInfo:
         section_config=section_config,
         section_config_source=section_config_source,
         prompt_templates_source=prompt_templates_source,
+        compiled_plan=compiled_plan,
         keyword_profiles=keyword_profiles_for_api(),
-        excel_sheets=_summarize_excel_workbook(project.excel_workbook_path)
-        if excel_exists
-        else [],
+        excel_sheets=_summarize_excel_workbook(project.excel_workbook_path) if excel_exists else [],
         output_dir=str(project.output_dir),
         run_log_dir=str(project.run_log_dir),
         generated_reports=[_to_generated_report_info(path) for path in project.generated_reports],
@@ -959,10 +715,7 @@ def _data_asset_sort_key(asset: DataAssetInfo) -> int:
 
 def _build_default_section_config_source(word_path: Path) -> str:
     """Build a minimal section config when only a Word template is uploaded."""
-    placeholders = {
-        placeholder: ""
-        for placeholder in _extract_docx_placeholders(word_path)
-    }
+    placeholders = {placeholder: "" for placeholder in _extract_docx_placeholders(word_path)}
     return yaml.safe_dump(
         {"placeholders": placeholders, "sections": []},
         allow_unicode=True,
@@ -992,52 +745,6 @@ def _attach_prompt_templates(project_dir: Path, prompt_path: Path) -> None:
         yaml.safe_dump(data, allow_unicode=True, sort_keys=False),
         encoding="utf-8",
     )
-
-
-def _serialize_retrieval_config(config: Any) -> Dict[str, Any] | None:
-    """Serialize retrieval controls into run logs."""
-    if config is None:
-        return None
-    return {
-        "mode": config.mode,
-        "top_k": config.top_k,
-        "candidate_k": config.candidate_k,
-        "must_any": config.must_any,
-        "exclude": config.exclude,
-        "source_types": config.source_types,
-        "min_keyword_score": config.min_keyword_score,
-        "fusion_method": config.fusion_method,
-        "keyword_weight": config.keyword_weight,
-        "semantic_weight": config.semantic_weight,
-        "embedding_model": config.embedding_model,
-        "rrf_k": config.rrf_k,
-        "semantic_candidate_k": config.semantic_candidate_k,
-        "rerank_enabled": config.rerank_enabled,
-        "rerank_provider": config.rerank_provider,
-        "rerank_model": config.rerank_model,
-        "rerank_top_n": config.rerank_top_n,
-        "min_rerank_score": config.min_rerank_score,
-    }
-
-
-def _serialize_evidence(evidence: Any) -> Dict[str, Any]:
-    """Serialize one evidence snippet into run logs."""
-    return {
-        "source": evidence.source,
-        "title": evidence.title,
-        "content": evidence.content,
-        "published_at": evidence.published_at,
-        "url": evidence.url,
-        "keyword_score": evidence.keyword_score,
-        "semantic_score": evidence.semantic_score,
-        "retrieval_score": evidence.retrieval_score,
-        "retrieval_rank": evidence.retrieval_rank,
-        "retrieval_method": evidence.retrieval_method,
-        "rerank_score": evidence.rerank_score,
-        "rerank_rank": evidence.rerank_rank,
-        "rerank_reason": evidence.rerank_reason,
-        "matched_terms": evidence.matched_terms,
-    }
 
 
 def _read_section_config(path: Path) -> tuple[Dict[str, Any], str]:
@@ -1374,9 +1081,13 @@ end tell
             return None
         return cache_path.read_bytes()
     except subprocess.TimeoutExpired as exc:
-        logger.warning("Microsoft Word PDF preview timed out", path=str(source_path), timeout=exc.timeout)
+        logger.warning(
+            "Microsoft Word PDF preview timed out", path=str(source_path), timeout=exc.timeout
+        )
     except Exception as exc:
-        logger.warning("Microsoft Word PDF preview unavailable", path=str(source_path), error=str(exc))
+        logger.warning(
+            "Microsoft Word PDF preview unavailable", path=str(source_path), error=str(exc)
+        )
     return None
 
 
@@ -1398,7 +1109,9 @@ def _find_soffice_command() -> str | None:
     return None
 
 
-def _export_docx_pdf_with_soffice(source_path: Path, cache_path: Path, soffice: str) -> bytes | None:
+def _export_docx_pdf_with_soffice(
+    source_path: Path, cache_path: Path, soffice: str
+) -> bytes | None:
     try:
         with tempfile.TemporaryDirectory(prefix="alphafoundry-soffice-preview-") as tmp_dir:
             tmp_path = Path(tmp_dir)
@@ -1440,7 +1153,9 @@ def _export_docx_pdf_with_soffice(source_path: Path, cache_path: Path, soffice: 
             if not pdf_path.exists():
                 previews = sorted(output_dir.glob("*.pdf"))
                 if not previews:
-                    logger.warning("LibreOffice PDF preview produced no file", path=str(source_path))
+                    logger.warning(
+                        "LibreOffice PDF preview produced no file", path=str(source_path)
+                    )
                     return None
                 pdf_path = previews[0]
             pdf_bytes = pdf_path.read_bytes()
@@ -1448,7 +1163,9 @@ def _export_docx_pdf_with_soffice(source_path: Path, cache_path: Path, soffice: 
             cache_path.write_bytes(pdf_bytes)
             return pdf_bytes
     except subprocess.TimeoutExpired as exc:
-        logger.warning("LibreOffice PDF preview timed out", path=str(source_path), timeout=exc.timeout)
+        logger.warning(
+            "LibreOffice PDF preview timed out", path=str(source_path), timeout=exc.timeout
+        )
     except Exception as exc:
         logger.warning("LibreOffice PDF preview unavailable", path=str(source_path), error=str(exc))
     return None
@@ -1587,7 +1304,10 @@ def _word_pdf_preview_cache_path(path: Path, engine: str = "word") -> Path:
     safe_stem = re.sub(r"[^A-Za-z0-9_.-]+", "_", path.stem).strip("._") or "report"
     cache_dir = path.parent / ".preview-cache"
     safe_engine = re.sub(r"[^A-Za-z0-9_.-]+", "_", engine).strip("._") or "preview"
-    return cache_dir / f"{safe_stem}-{WORD_PREVIEW_LAYOUT_VERSION}-{safe_engine}-{stat.st_mtime_ns}-{stat.st_size}.pdf"
+    return (
+        cache_dir
+        / f"{safe_stem}-{WORD_PREVIEW_LAYOUT_VERSION}-{safe_engine}-{stat.st_mtime_ns}-{stat.st_size}.pdf"
+    )
 
 
 def _word_preview_page_asset_dir(path: Path) -> Path:
@@ -1612,12 +1332,12 @@ def _word_pdf_preview_html(
 
     escaped_name = escape(file_name)
     svg = (
-        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1224\" height=\"1584\" viewBox=\"0 0 1224 1584\">"
-        "<rect width=\"1224\" height=\"1584\" fill=\"#fff\"/>"
-        "<text x=\"612\" y=\"742\" text-anchor=\"middle\" font-family=\"-apple-system,BlinkMacSystemFont,Arial\" "
-        "font-size=\"38\" font-weight=\"700\" fill=\"#1d1d1f\">PDF 预览暂不可用</text>"
-        "<text x=\"612\" y=\"804\" text-anchor=\"middle\" font-family=\"-apple-system,BlinkMacSystemFont,Arial\" "
-        f"font-size=\"24\" fill=\"#6e6e73\">{escaped_name}</text>"
+        '<svg xmlns="http://www.w3.org/2000/svg" width="1224" height="1584" viewBox="0 0 1224 1584">'
+        '<rect width="1224" height="1584" fill="#fff"/>'
+        '<text x="612" y="742" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,Arial" '
+        'font-size="38" font-weight="700" fill="#1d1d1f">PDF 预览暂不可用</text>'
+        '<text x="612" y="804" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,Arial" '
+        f'font-size="24" fill="#6e6e73">{escaped_name}</text>'
         "</svg>"
     )
     encoded = base64.b64encode(svg.encode("utf-8")).decode("ascii")
@@ -1654,8 +1374,12 @@ def _render_pdf_preview_page_assets(
         asset_version = str(cache_signature["pdf_sha256"])[:16]
         if manifest_path.exists():
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-            pages = manifest.get("pages") if manifest.get("source") == cache_signature else None
-            if isinstance(pages, list) and all((asset_dir / str(page.get("asset", ""))).exists() for page in pages):
+            cached_pages = (
+                manifest.get("pages") if manifest.get("source") == cache_signature else None
+            )
+            if isinstance(cached_pages, list) and all(
+                (asset_dir / str(page.get("asset", ""))).exists() for page in cached_pages
+            ):
                 return [
                     {
                         "src": f"{asset_base_url}/{page['asset']}?v={asset_version}",
@@ -1663,7 +1387,7 @@ def _render_pdf_preview_page_assets(
                         "height": int(page["height"]),
                         "label": str(page.get("label") or f"第 {index + 1} 页"),
                     }
-                    for index, page in enumerate(pages)
+                    for index, page in enumerate(cached_pages)
                 ]
 
         import pypdfium2 as pdfium
@@ -1761,12 +1485,9 @@ def _word_page_preview_html(
     escaped_name = escape(file_name)
     page_items = []
     thumbnail_items = []
-    placeholder_svg = (
-        "data:image/svg+xml;base64,"
-        + base64.b64encode(
-            b"<svg xmlns='http://www.w3.org/2000/svg' width='24' height='32'></svg>"
-        ).decode("ascii")
-    )
+    placeholder_svg = "data:image/svg+xml;base64," + base64.b64encode(
+        b"<svg xmlns='http://www.w3.org/2000/svg' width='24' height='32'></svg>"
+    ).decode("ascii")
     for index, page in enumerate(pages, start=1):
         src = escape(str(page.get("src", "")), quote=True)
         width = int(page.get("width") or 1)
@@ -1774,40 +1495,38 @@ def _word_page_preview_html(
         label = escape(str(page.get("label") or f"第 {index} 页"))
         image_class = escape(str(page.get("image_class") or "docx-preview-page-image"))
         lazy_attrs = (
-            f"src=\"{placeholder_svg}\" data-src=\"{src}\""
+            f'src="{placeholder_svg}" data-src="{src}"'
             if not src.startswith("data:")
-            else f"src=\"{src}\""
+            else f'src="{src}"'
         )
         page_items.append(
-            "<figure class=\"docx-preview-page\" "
-            f"data-page-index=\"{index}\" data-page-width=\"{width}\" data-page-height=\"{height}\" aria-label=\"{label}\">"
-            f"<img class=\"{image_class}\" {lazy_attrs} width=\"{width}\" height=\"{height}\" "
-            f"alt=\"{label}\" loading=\"lazy\" decoding=\"async\">"
+            '<figure class="docx-preview-page" '
+            f'data-page-index="{index}" data-page-width="{width}" data-page-height="{height}" aria-label="{label}">'
+            f'<img class="{image_class}" {lazy_attrs} width="{width}" height="{height}" '
+            f'alt="{label}" loading="lazy" decoding="async">'
             "</figure>"
         )
         thumb_attrs = (
-            f"src=\"{placeholder_svg}\" data-src=\"{src}\""
+            f'src="{placeholder_svg}" data-src="{src}"'
             if not src.startswith("data:")
-            else f"src=\"{src}\""
+            else f'src="{src}"'
         )
         thumbnail_items.append(
-            "<button class=\"docx-preview-thumbnail\" type=\"button\" "
-            f"data-preview-thumbnail=\"{index}\" aria-label=\"跳转到第 {index} 页\">"
-            f"<img {thumb_attrs} width=\"{width}\" height=\"{height}\" alt=\"第 {index} 页缩略图\" "
-            "loading=\"lazy\" decoding=\"async\">"
+            '<button class="docx-preview-thumbnail" type="button" '
+            f'data-preview-thumbnail="{index}" aria-label="跳转到第 {index} 页">'
+            f'<img {thumb_attrs} width="{width}" height="{height}" alt="第 {index} 页缩略图" '
+            'loading="lazy" decoding="async">'
             f"<span>{index}</span>"
             "</button>"
         )
     page_count = len(pages)
     double_button_disabled = page_count < 2
-    double_button_state = (
-        " aria-disabled=\"true\" disabled" if double_button_disabled else ""
-    )
+    double_button_state = ' aria-disabled="true" disabled' if double_button_disabled else ""
     double_button_title = "双页（需要至少两页）" if double_button_disabled else "双页"
     default_layout = "single" if double_button_disabled else "double"
     storage_key = json.dumps(f"alphafoundry.wordPreview.{file_name}", ensure_ascii=False)
     return (
-        "<!doctype html><html><head><meta charset=\"utf-8\">"
+        '<!doctype html><html><head><meta charset="utf-8">'
         f"<title>{escaped_name}</title>"
         "<script>(function(){"
         "function apply(theme,scheme){document.documentElement.setAttribute('data-theme',theme||'dark');"
@@ -1841,16 +1560,16 @@ def _word_page_preview_html(
         "--preview-status-bg:rgba(255,255,255,.92);--preview-layout-bg:rgba(0,0,0,.055);"
         "--preview-layout-hover:rgba(255,255,255,.55);--preview-layout-active-bg:#fff;"
         "--preview-layout-active-fg:#1d1d1f;}"
-        "[data-color-scheme=\"vscode\"]{--accent:#007acc;--accent-hover:#0098ff;--accent-light:#ddf4ff;}"
-        "[data-color-scheme=\"github\"]{--accent:#1a7f37;--accent-hover:#2ea043;--accent-light:#dafbe1;}"
-        "[data-color-scheme=\"openclaw\"]{--accent:#cf222e;--accent-hover:#a40e26;--accent-light:#ffebe9;}"
-        "[data-color-scheme=\"claude\"]{--accent:#d97706;--accent-hover:#b45309;--accent-light:#fff8e1;}"
-        "[data-color-scheme=\"obsidian\"]{--accent:#7c3aed;--accent-hover:#6d28d9;--accent-light:#ede9fe;}"
-        "[data-theme=\"dark\"][data-color-scheme=\"vscode\"]{--accent:#007acc;--accent-hover:#0098ff;--accent-light:#1e3a5f;}"
-        "[data-theme=\"dark\"][data-color-scheme=\"github\"]{--accent:#3fb950;--accent-hover:#2ea043;--accent-light:#1a2e1a;}"
-        "[data-theme=\"dark\"][data-color-scheme=\"openclaw\"]{--accent:#f85149;--accent-hover:#ff6b6b;--accent-light:#2e1a1a;}"
-        "[data-theme=\"dark\"][data-color-scheme=\"claude\"]{--accent:#f59e0b;--accent-hover:#fbbf24;--accent-light:#2e2a1a;}"
-        "[data-theme=\"dark\"][data-color-scheme=\"obsidian\"]{--accent:#a78bfa;--accent-hover:#c4b5fd;--accent-light:#2e2a3a;}"
+        '[data-color-scheme="vscode"]{--accent:#007acc;--accent-hover:#0098ff;--accent-light:#ddf4ff;}'
+        '[data-color-scheme="github"]{--accent:#1a7f37;--accent-hover:#2ea043;--accent-light:#dafbe1;}'
+        '[data-color-scheme="openclaw"]{--accent:#cf222e;--accent-hover:#a40e26;--accent-light:#ffebe9;}'
+        '[data-color-scheme="claude"]{--accent:#d97706;--accent-hover:#b45309;--accent-light:#fff8e1;}'
+        '[data-color-scheme="obsidian"]{--accent:#7c3aed;--accent-hover:#6d28d9;--accent-light:#ede9fe;}'
+        '[data-theme="dark"][data-color-scheme="vscode"]{--accent:#007acc;--accent-hover:#0098ff;--accent-light:#1e3a5f;}'
+        '[data-theme="dark"][data-color-scheme="github"]{--accent:#3fb950;--accent-hover:#2ea043;--accent-light:#1a2e1a;}'
+        '[data-theme="dark"][data-color-scheme="openclaw"]{--accent:#f85149;--accent-hover:#ff6b6b;--accent-light:#2e1a1a;}'
+        '[data-theme="dark"][data-color-scheme="claude"]{--accent:#f59e0b;--accent-hover:#fbbf24;--accent-light:#2e2a1a;}'
+        '[data-theme="dark"][data-color-scheme="obsidian"]{--accent:#a78bfa;--accent-hover:#c4b5fd;--accent-light:#2e2a3a;}'
         "html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--preview-page-bg);color:var(--preview-text);"
         "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',Arial,sans-serif;}"
         ".docx-word-page-preview{height:100vh;display:grid;grid-template-columns:0 minmax(0,1fr);"
@@ -1945,58 +1664,58 @@ def _word_page_preview_html(
         "--preview-layout-hover:rgba(255,255,255,.08);--preview-layout-active-bg:#f5f5f7;"
         "--preview-layout-active-fg:#1d1d1f;}}"
         "</style></head><body>"
-        f"<main class=\"docx-word-page-preview\" data-layout=\"{default_layout}\" data-thumbnails=\"open\" "
+        f'<main class="docx-word-page-preview" data-layout="{default_layout}" data-thumbnails="open" '
         f"data-preview-page-count=\"{page_count}\" data-preview-storage-key='{storage_key}'>"
-        "<div class=\"docx-preview-toolbar\">"
-        "<div class=\"docx-preview-toolbar-left\">"
-        "<button class=\"docx-preview-button docx-preview-tool-button\" type=\"button\" title=\"缩略图\" aria-label=\"缩略图\" "
-        "aria-pressed=\"true\" data-preview-thumbnails-toggle>"
-        "<span class=\"docx-preview-tool-icon docx-preview-icon-sidebar\" aria-hidden=\"true\"></span>"
+        '<div class="docx-preview-toolbar">'
+        '<div class="docx-preview-toolbar-left">'
+        '<button class="docx-preview-button docx-preview-tool-button" type="button" title="缩略图" aria-label="缩略图" '
+        'aria-pressed="true" data-preview-thumbnails-toggle>'
+        '<span class="docx-preview-tool-icon docx-preview-icon-sidebar" aria-hidden="true"></span>'
         "</button>"
-        "<button class=\"docx-preview-button docx-preview-tool-button\" type=\"button\" title=\"缩小\" aria-label=\"缩小\" data-preview-zoom-out>"
-        "<span class=\"docx-preview-tool-icon docx-preview-icon-minus\" aria-hidden=\"true\"></span>"
+        '<button class="docx-preview-button docx-preview-tool-button" type="button" title="缩小" aria-label="缩小" data-preview-zoom-out>'
+        '<span class="docx-preview-tool-icon docx-preview-icon-minus" aria-hidden="true"></span>'
         "</button>"
-        "<input class=\"docx-preview-zoom-input\" type=\"text\" inputmode=\"numeric\" pattern=\"[0-9]*\" "
-        "value=\"48%\" title=\"缩放百分比\" aria-label=\"缩放百分比\" data-preview-zoom-input>"
-        "<button class=\"docx-preview-button docx-preview-tool-button\" type=\"button\" title=\"放大\" aria-label=\"放大\" data-preview-zoom-in>"
-        "<span class=\"docx-preview-tool-icon docx-preview-icon-plus\" aria-hidden=\"true\"></span>"
+        '<input class="docx-preview-zoom-input" type="text" inputmode="numeric" pattern="[0-9]*" '
+        'value="48%" title="缩放百分比" aria-label="缩放百分比" data-preview-zoom-input>'
+        '<button class="docx-preview-button docx-preview-tool-button" type="button" title="放大" aria-label="放大" data-preview-zoom-in>'
+        '<span class="docx-preview-tool-icon docx-preview-icon-plus" aria-hidden="true"></span>'
         "</button>"
-        "<button class=\"docx-preview-button docx-preview-tool-button\" type=\"button\" title=\"适合宽度\" aria-label=\"适合宽度\" data-preview-fit-width>"
-        "<span class=\"docx-preview-tool-icon docx-preview-icon-fit-width\" aria-hidden=\"true\"></span>"
+        '<button class="docx-preview-button docx-preview-tool-button" type="button" title="适合宽度" aria-label="适合宽度" data-preview-fit-width>'
+        '<span class="docx-preview-tool-icon docx-preview-icon-fit-width" aria-hidden="true"></span>'
         "</button>"
-        "<button class=\"docx-preview-button docx-preview-tool-button\" type=\"button\" title=\"适合整页\" aria-label=\"适合整页\" data-preview-fit-page>"
-        "<span class=\"docx-preview-tool-icon docx-preview-icon-fit-page\" aria-hidden=\"true\"></span>"
+        '<button class="docx-preview-button docx-preview-tool-button" type="button" title="适合整页" aria-label="适合整页" data-preview-fit-page>'
+        '<span class="docx-preview-tool-icon docx-preview-icon-fit-page" aria-hidden="true"></span>'
         "</button>"
         "</div>"
-        "<div class=\"docx-preview-toolbar-center\">"
-        "<div class=\"docx-preview-page-nav\">"
-        "<input class=\"docx-preview-page-input\" type=\"text\" inputmode=\"numeric\" aria-label=\"页码\" "
-        "value=\"1\" data-preview-page-input>"
+        '<div class="docx-preview-toolbar-center">'
+        '<div class="docx-preview-page-nav">'
+        '<input class="docx-preview-page-input" type="text" inputmode="numeric" aria-label="页码" '
+        'value="1" data-preview-page-input>'
         "<span>/</span>"
         f"<span data-preview-page-total>{page_count}</span>"
-        "<span class=\"docx-preview-page-range\" data-preview-page-range>1</span>"
+        '<span class="docx-preview-page-range" data-preview-page-range>1</span>'
         "</div>"
         "</div>"
-        "<div class=\"docx-preview-toolbar-right\">"
-        "<div class=\"docx-preview-layout-switch\" role=\"group\" aria-label=\"页面布局\">"
-        "<button class=\"docx-preview-button docx-preview-layout-button\" type=\"button\" title=\"单页\" aria-label=\"单页\" "
+        '<div class="docx-preview-toolbar-right">'
+        '<div class="docx-preview-layout-switch" role="group" aria-label="页面布局">'
+        '<button class="docx-preview-button docx-preview-layout-button" type="button" title="单页" aria-label="单页" '
         f"aria-pressed=\"{str(default_layout == 'single').lower()}\" data-preview-layout=\"single\">"
-        "<span class=\"docx-preview-layout-icon docx-preview-layout-single\" aria-hidden=\"true\"></span>"
+        '<span class="docx-preview-layout-icon docx-preview-layout-single" aria-hidden="true"></span>'
         "</button>"
-        f"<button class=\"docx-preview-button docx-preview-layout-button\" type=\"button\" title=\"{double_button_title}\" "
+        f'<button class="docx-preview-button docx-preview-layout-button" type="button" title="{double_button_title}" '
         f"aria-label=\"双页\" aria-pressed=\"{str(default_layout == 'double').lower()}\"{double_button_state} data-preview-layout=\"double\">"
-        "<span class=\"docx-preview-layout-icon docx-preview-layout-double\" aria-hidden=\"true\"></span>"
+        '<span class="docx-preview-layout-icon docx-preview-layout-double" aria-hidden="true"></span>'
         "</button>"
         "</div>"
         "</div>"
         "</div>"
-        "<aside class=\"docx-preview-thumbnails\" data-preview-thumbnails>"
+        '<aside class="docx-preview-thumbnails" data-preview-thumbnails>'
         f"{''.join(thumbnail_items)}"
         "</aside>"
-        "<section class=\"docx-preview-stage\" data-preview-stage>"
-        "<div class=\"docx-preview-status\" data-preview-loading>正在载入预览</div>"
-        "<div class=\"docx-preview-status\" data-preview-error hidden>部分页面载入失败</div>"
-        "<div class=\"docx-preview-pages\" data-preview-pages>"
+        '<section class="docx-preview-stage" data-preview-stage>'
+        '<div class="docx-preview-status" data-preview-loading>正在载入预览</div>'
+        '<div class="docx-preview-status" data-preview-error hidden>部分页面载入失败</div>'
+        '<div class="docx-preview-pages" data-preview-pages>'
         f"{''.join(page_items)}"
         "</div>"
         "</section>"
@@ -2188,7 +1907,7 @@ def _docx_to_fallback_preview_html(path: Path) -> str:
             if body is None:
                 return '<div class="docx-preview-empty">无法读取 Word 正文</div>'
             parts = [
-                "<!doctype html><html><head><meta charset=\"utf-8\">"
+                '<!doctype html><html><head><meta charset="utf-8">'
                 "<title>Word 预览</title>"
                 "<style>"
                 "html,body{margin:0;min-height:100%;background:#e9e9ee;color:#1d1d1f;"
@@ -2210,7 +1929,7 @@ def _docx_to_fallback_preview_html(path: Path) -> str:
                 "border-radius:14px;color:#6e6e73;}"
                 "@media(max-width:900px){.docx-preview-workspace{padding:16px;}"
                 ".docx-preview-page{width:100%;min-height:calc(100vh - 32px);padding:18mm 14mm;}}"
-                "</style></head><body><main class=\"docx-preview-workspace\"><article class=\"docx-preview-page\">"
+                '</style></head><body><main class="docx-preview-workspace"><article class="docx-preview-page">'
             ]
             for child in list(body):
                 tag = child.tag

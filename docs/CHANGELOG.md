@@ -8,6 +8,17 @@
 
 ### Added
 
+- **报告项目运行编排 seam**: 新增 `ReportProjectRunService`，把 `/api/report-projects/{slug}/render` 的 Word/PPT 生成编排从 FastAPI route 收拢到 reporting module，保持外部响应字段不变。
+  - `reporting/projects/run.py` — 新增单次报告项目运行 module，统一解析报告周期、调用占位符生成、Word/PPT 投影、Word 表格/图表嵌入、run-log 写入和 warning 聚合。
+  - `app/api/routes/report_projects.py` — `POST /render` 改为读取项目/config 后委托 `ReportProjectRunService`，route 只保留 HTTP 异常映射和响应模型转换。
+  - `tests/unit/test_report_projects_api.py` — 新增 service 级测试，覆盖 Word 项目运行的占位符、run log、evidence、图表/表格元数据和 warning 聚合。
+
+- **报告项目生成预检计划**: 新增 `CompiledReportPlan`，把 prompt / retrieval / deterministic 占位符就绪度从前端猜测升级为后端编译结果。
+  - `reporting/projects/plan.py` — 新增生成计划 module，复用 defaults 合并、composite `llm_writing` retrieval 覆盖、keyword profile、prompt 解析和 retrieval config 规范化，输出报告周期、lookback、warnings 和每个占位符的 readiness。
+  - `app/api/routes/report_projects.py` — `GET /api/report-projects/` 和 `GET /api/report-projects/{slug}` 响应新增 `compiled_plan`，供模板工作台生成前检查使用。
+  - `app/web/static/js/templates.js` / `app/web/static/style.css` — 生成中心预检优先使用后端 `compiled_plan`，并按 Prompt 覆盖、Evidence 覆盖、输出资产三组展示检查结果；新增“优先处理”任务队列，把阻断/警告/建议按使用者下一步动作排列；Evidence 覆盖区展示生成前检索配置抽样，生成后可从 run log 显示真实 evidence 标题与命中词；首屏新增“本期设置”条，可直接调整报告日期、开始/结束日期、证据窗口和查看输出格式/最近版本；最近生成区新增“交付检查”卡，汇总生成段落、缺失段落、Evidence 总数、Warnings、空占位符和图表/表格状态。
+  - `tests/unit/test_report_project_plan.py` / `tests/unit/test_report_template_workbench_frontend.py` — 覆盖 composite retrieval 继承、缺 prompt 预警、前端 preflight 接入、任务队列和 Evidence 抽样入口。
+
 - **Fund Intelligence MVP backend slice**: 新增基金智能研究后端最小闭环，支持基金主数据、净值、持仓、经理任职的仓储访问，以及基金详情、单基金暴露和基金组合穿透 API。
   - `core/contracts/funds.py` — 新增基金主数据、净值、持仓、经理、收益风险指标、暴露项和组合穿透结果契约。
   - `data_layer/repositories/fund_repository.py` — 新增 `fund_master`、`fund_nav_daily`、`fund_holding_stock`、`fund_manager_tenure` MVP 表的 schema ensure、upsert 和查询方法。

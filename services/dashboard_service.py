@@ -1,4 +1,5 @@
 """Dashboard 首页数据聚合服务"""
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from datetime import UTC, datetime, timedelta
 import json
 import os
@@ -56,6 +57,10 @@ MARKET_SECTOR_VIEW_ORDER = (
 )
 
 MARKET_SECTOR_CACHE_TTL_SECONDS = 5.0
+MARKET_SECTOR_WORKBOOK_READ_TIMEOUT_SECONDS = 24.0
+MARKET_SECTOR_WORKBOOK_READ_TIMEOUT_ENV = (
+    "ALPHAFOUNDRY_WIND_WORKBOOK_READ_TIMEOUT_SECONDS"
+)
 MARKET_SECTOR_DISK_CACHE_MAX_AGE_SECONDS = 60 * 60
 MARKET_SECTOR_DISK_CACHE_PATH = (
     Path.home()
@@ -80,6 +85,10 @@ _previous_turnover_cache: Optional[tuple[float, dict[str, Any]]] = None
 _market_breadth_refreshing = False
 _market_sector_cache: dict[tuple[str, int], tuple[float, dict]] = {}
 _market_sector_cache_lock = Lock()
+_wind_workbook_read_executor = ThreadPoolExecutor(
+    max_workers=1,
+    thread_name_prefix="wind-workbook-read",
+)
 
 
 def _env_flag(name: str, default: bool = False) -> bool:
@@ -87,6 +96,16 @@ def _env_flag(name: str, default: bool = False) -> bool:
     if value is None:
         return default
     return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _env_float(name: str, default: float) -> float:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
 
 
 def _translate_failure_reason(reason: str) -> str:
@@ -851,45 +870,54 @@ class DashboardService:
             last_updated=None,
         )
 
-    def get_market_sector_view(self, view_key: str, limit: int = 10) -> dict:
+    def get_market_sector_view(
+        self,
+        view_key: str,
+        limit: int = 10,
+        *,
+        force_refresh: bool = False,
+    ) -> dict:
         """Fetch one market sector mover view on demand."""
         from collections import Counter
 
         normalized_view = self._normalize_market_view_key(view_key)
         normalized_limit = max(1, min(int(limit or 10), 50))
         cache_key = (normalized_view, normalized_limit)
-        cached_payload = self._get_cached_market_sector_payload(cache_key)
-        if cached_payload is not None:
-            if not self._market_sector_payload_matches_active_catalog(
-                cached_payload,
-                normalized_view,
-            ):
-                logger.info("Ignored stale market sector cache with inactive catalog rows: %s", normalized_view)
-                self._drop_cached_market_sector_payload(cache_key)
-            else:
-                logger.info("Market sector view cache hit: %s", normalized_view)
-                cached_payload["cache_hit"] = True
-                return cached_payload
-
-        persistent_payload = self._get_persistent_market_sector_payload(cache_key)
-        if persistent_payload is not None:
-            if not self._market_sector_payload_matches_active_catalog(
-                persistent_payload,
-                normalized_view,
-            ):
-                logger.info(
-                    "Ignored stale market sector persistent cache with inactive catalog rows: %s",
+        if not force_refresh:
+            cached_payload = self._get_cached_market_sector_payload(cache_key)
+            if cached_payload is not None:
+                if not self._market_sector_payload_matches_active_catalog(
+                    cached_payload,
                     normalized_view,
-                )
-            else:
-                logger.info("Market sector persistent cache hit: %s", normalized_view)
-                persistent_payload["cache_hit"] = True
-                self._set_cached_market_sector_payload(
-                    cache_key,
+                ):
+                    logger.info("Ignored stale market sector cache with inactive catalog rows: %s", normalized_view)
+                    self._drop_cached_market_sector_payload(cache_key)
+                else:
+                    logger.info("Market sector view cache hit: %s", normalized_view)
+                    cached_payload["cache_hit"] = True
+                    return cached_payload
+
+            persistent_payload = self._get_persistent_market_sector_payload(cache_key)
+            if persistent_payload is not None:
+                if not self._market_sector_payload_matches_active_catalog(
                     persistent_payload,
-                    persist=False,
-                )
-                return persistent_payload
+                    normalized_view,
+                ):
+                    logger.info(
+                        "Ignored stale market sector persistent cache with inactive catalog rows: %s",
+                        normalized_view,
+                    )
+                else:
+                    logger.info("Market sector persistent cache hit: %s", normalized_view)
+                    persistent_payload["cache_hit"] = True
+                    self._set_cached_market_sector_payload(
+                        cache_key,
+                        persistent_payload,
+                        persist=False,
+                    )
+                    return persistent_payload
+        else:
+            logger.info("Bypassing market sector cache for force refresh: %s", normalized_view)
 
         if normalized_view == "ths_industry":
             payload = self._get_ths_market_sector_payload(normalized_limit)
@@ -901,17 +929,17 @@ class DashboardService:
         fallback_enabled = _env_flag(ALLOW_WIND_EXCEL_FALLBACK_ENV, default=True)
         if workbook_enabled:
             try:
-                from services.wind_realtime_workbook import WindRealtimeWorkbookReader
-
-                workbook_payload = WindRealtimeWorkbookReader(
-                    stale_after_seconds=int(MARKET_SECTOR_CACHE_TTL_SECONDS)
-                ).get_view(normalized_view, limit=normalized_limit)
+                workbook_payload = self._read_wind_workbook_sector_view(
+                    normalized_view,
+                    normalized_limit,
+                )
                 if not workbook_payload.get("has_real_data") and workbook_payload.get(
                     "status"
                 ) in {
                     "workbook_missing",
                     "workbook_not_open",
                     "workbook_read_error",
+                    "workbook_timeout",
                     "snapshot_empty",
                     "snapshot_invalid",
                 }:
@@ -924,6 +952,18 @@ class DashboardService:
                         normalized_view,
                         workbook_payload.get("status"),
                         workbook_payload.get("has_real_data"),
+                    )
+                    self._set_cached_market_sector_payload(cache_key, workbook_payload)
+                    return self._copy_market_sector_payload(workbook_payload)
+                if workbook_payload.get("status") in {
+                    "workbook_read_error",
+                    "workbook_timeout",
+                    "snapshot_invalid",
+                }:
+                    logger.info(
+                        "Skipping Wind formula fallback after unhealthy workbook read: %s status=%s",
+                        normalized_view,
+                        workbook_payload.get("status"),
                     )
                     self._set_cached_market_sector_payload(cache_key, workbook_payload)
                     return self._copy_market_sector_payload(workbook_payload)
@@ -1010,6 +1050,48 @@ class DashboardService:
 
         self._set_cached_market_sector_payload(cache_key, payload)
         return self._copy_market_sector_payload(payload)
+
+    def _read_wind_workbook_sector_view(self, view_key: str, limit: int) -> dict:
+        """Read the Excel-backed Wind view without letting xlwings hang the API."""
+        from services.wind_realtime_workbook import WindRealtimeWorkbookReader
+
+        timeout_seconds = max(
+            0.1,
+            _env_float(
+                MARKET_SECTOR_WORKBOOK_READ_TIMEOUT_ENV,
+                MARKET_SECTOR_WORKBOOK_READ_TIMEOUT_SECONDS,
+            ),
+        )
+
+        def read_payload() -> dict:
+            return WindRealtimeWorkbookReader(
+                stale_after_seconds=int(MARKET_SECTOR_CACHE_TTL_SECONDS)
+            ).get_view(view_key, limit=limit)
+
+        future = _wind_workbook_read_executor.submit(read_payload)
+        try:
+            return future.result(timeout=timeout_seconds)
+        except FuturesTimeoutError:
+            future.cancel()
+            logger.warning(
+                "Wind realtime workbook read timed out: view=%s limit=%s timeout=%s",
+                view_key,
+                limit,
+                timeout_seconds,
+            )
+            return {
+                "view_key": view_key,
+                "view_label": self._market_view_label(view_key),
+                "up": [],
+                "down": [],
+                "has_real_data": False,
+                "fetched_at": 0.0,
+                "cache_hit": False,
+                "cache_ttl_seconds": MARKET_SECTOR_CACHE_TTL_SECONDS,
+                "status": "workbook_timeout",
+                "message": f"读取Wind实时工作簿超过 {timeout_seconds:g} 秒，已跳过本次刷新",
+                "source": "wind_realtime_workbook",
+            }
 
     def _trigger_wind_workbook_recovery(self, *, reason: str) -> None:
         try:

@@ -118,6 +118,7 @@ async def get_sector_movers(
     view_key: str = Query("ths_industry", description="市场口径 key"),
     view: Optional[str] = Query(None, description="兼容旧版市场口径参数"),
     limit: int = Query(10, ge=1, le=30, description="每个方向返回数量上限"),
+    force_refresh: bool = Query(False, description="是否绕过缓存强制读取实时源"),
 ):
     """按需获取某一个市场口径的上涨/下跌列表。"""
     try:
@@ -128,6 +129,7 @@ async def get_sector_movers(
             return service.get_market_sector_view(
                 view_key=selected_view,
                 limit=limit,
+                force_refresh=force_refresh,
             )
         finally:
             db.close()

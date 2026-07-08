@@ -258,6 +258,23 @@ function openAssetAnalysis(query = '') {
     }, 80);
 }
 
+function openAssetThemeObservation(item = {}, rank = null) {
+    if (typeof window.navigateTo === 'function') {
+        window.navigateTo('asset-analysis');
+    }
+    setTimeout(() => {
+        if (typeof window.openThemeObservation === 'function') {
+            window.openThemeObservation({
+                ...item,
+                rank,
+                fetched_at: latestMarketOverview?.last_updated || new Date().toISOString(),
+            });
+        } else {
+            openAssetAnalysis(item.name || '');
+        }
+    }, 80);
+}
+
 function scrollMarketTarget(selector) {
     const target = document.querySelector(selector);
     if (!target) return;
@@ -483,7 +500,11 @@ async function ensureMarketSectorViewLoaded(viewKey, options = {}) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), MARKET_SECTOR_REQUEST_TIMEOUT_MS);
     try {
-        const data = await getMarketSectorViewPayload(viewKey, controller.signal);
+        const data = await getMarketSectorViewPayload(viewKey, controller.signal, force);
+        const hasFreshSectorData = Boolean(data.has_real_data)
+            || (Array.isArray(data.up) && data.up.length > 0)
+            || (Array.isArray(data.down) && data.down.length > 0);
+        if (force && !hasFreshSectorData && current) return;
         latestMarketOverview.sector_views = latestMarketOverview.sector_views || {};
         latestMarketOverview.sector_views[viewKey] = {
             up: data.up || [],
@@ -492,6 +513,7 @@ async function ensureMarketSectorViewLoaded(viewKey, options = {}) {
     } catch (error) {
         console.error('Failed to load market sector view:', error);
         latestMarketOverview.sector_views = latestMarketOverview.sector_views || {};
+        if (force && current) return;
         latestMarketOverview.sector_views[viewKey] = { up: [], down: [] };
         if (!silent) toast(`加载${getActiveMarketSectorView().label}失败或超时`, 'error');
     } finally {
@@ -511,7 +533,11 @@ function primeMarketSectorViewRequest(viewKey) {
     marketSectorViewRequestCache.set(viewKey, fetchMarketSectorViewPayload(viewKey));
 }
 
-async function getMarketSectorViewPayload(viewKey, signal) {
+async function getMarketSectorViewPayload(viewKey, signal, forceRefresh = false) {
+    if (forceRefresh) {
+        marketSectorViewRequestCache.delete(viewKey);
+        return fetchMarketSectorViewPayload(viewKey, signal, true);
+    }
     const cachedRequest = marketSectorViewRequestCache.get(viewKey);
     if (cachedRequest) {
         try {
@@ -523,10 +549,12 @@ async function getMarketSectorViewPayload(viewKey, signal) {
     return fetchMarketSectorViewPayload(viewKey, signal);
 }
 
-function fetchMarketSectorViewPayload(viewKey, signal) {
+function fetchMarketSectorViewPayload(viewKey, signal, forceRefresh = false) {
+    const forceParam = forceRefresh ? '&force_refresh=true' : '';
+    const cacheBuster = forceRefresh ? `&_=${Date.now()}` : '';
     return apiCall(
         'GET',
-        `/api/dashboard/sector-movers?view_key=${encodeURIComponent(viewKey)}&limit=${MARKET_SECTOR_FETCH_LIMIT}`,
+        `/api/dashboard/sector-movers?view_key=${encodeURIComponent(viewKey)}&limit=${MARKET_SECTOR_FETCH_LIMIT}${forceParam}${cacheBuster}`,
         null,
         { signal }
     );
@@ -700,18 +728,22 @@ function renderMarketHeatmap(items = []) {
         grid.innerHTML = '<div class="empty-state">暂无板块数据</div>';
         return;
     }
-    grid.innerHTML = items.map(item => {
+    grid.innerHTML = items.map((item, index) => {
         const change = Number(item.change_pct || 0);
         const directionClass = change >= 0 ? 'is-up' : 'is-down';
         const intensityClass = getMarketHeatmapIntensityClass(change);
         const sign = change > 0 ? '+' : '';
+        const rank = index + 1;
         return `
-            <button class="market-heatmap-tile ${directionClass} ${intensityClass}" type="button">
+            <button class="market-heatmap-tile ${directionClass} ${intensityClass}" type="button" data-heatmap-rank="${rank}">
                 <span>${esc(item.name || '--')}</span>
                 <strong>${sign}${change.toFixed(2)}%</strong>
             </button>
         `;
     }).join('');
+    grid.querySelectorAll('.market-heatmap-tile').forEach((button, index) => {
+        button.addEventListener('click', () => openAssetThemeObservation(items[index], index + 1));
+    });
 }
 
 function getMarketHeatmapIntensityClass(change) {

@@ -191,6 +191,23 @@ def test_commentary_draft_service_includes_writing_preferences_in_prompt():
     assert "风格：防御解释" in prompt
 
 
+def test_commentary_draft_service_includes_commentary_target_in_prompt():
+    request = _request()
+    request.recipe_id = "sector-review"
+    request.writing_preferences = {
+        "target_mode": "manual",
+        "target_name": "半导体",
+    }
+    gateway = FakeModelGateway()
+    service = CommentaryDraftService(model_gateway=gateway)
+
+    service.generate_draft(request)
+
+    prompt = gateway.calls[0]["messages"][1]["content"]
+    assert "点评对象：手动指定 - 半导体" in prompt
+    assert "行业板块或主题事件点评必须围绕点评对象展开" in prompt
+
+
 def test_commentary_draft_service_rewrites_one_section_with_context():
     gateway = FakeModelGateway(content="改写后的核心判断：风险偏好仍需观察，避免过度归因。")
     service = CommentaryDraftService(model_gateway=gateway)

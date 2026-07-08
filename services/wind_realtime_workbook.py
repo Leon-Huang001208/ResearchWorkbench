@@ -560,7 +560,7 @@ def build_realtime_workbook(
                 codes = ",".join(entry.code for entry, _row_number in batch)
                 row_count = len(batch)
                 sheets["RealtimeRaw"].cell(row=first_row, column=6).value = (
-                    f'=wss("{codes}","sec_name,rt_last,rt_pct_chg",'
+                    f'=@wss("{codes}","sec_name,rt_last,rt_pct_chg",'
                     f'"cols=3;rows={row_count}")'
                 )
                 wind_formula_count += 1
@@ -685,7 +685,8 @@ def _load_batch_formula_rows(path: Path) -> list[tuple[int, str]]:
         if not formula:
             continue
         formula_text = str(formula)
-        if formula_text.lower().startswith("=wss("):
+        normalized = formula_text.lower()
+        if normalized.startswith("=wss(") or normalized.startswith("=@wss("):
             formulas.append((int(cell.row), formula_text))
     return formulas
 

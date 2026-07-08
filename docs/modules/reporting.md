@@ -4,7 +4,7 @@
 
 `reporting` provides report composition, templates, markdown/Word/PPT projections, and research outputs.
 
-The project-level report workflow lives under `reporting/projects/` and connects report project folders to evidence retrieval, model generation, Word/PPT projection, chart rendering, and run logs.
+The project-level report workflow lives under `reporting/projects/` and connects report project folders to evidence retrieval, model generation, Word/PPT projection, chart rendering, readiness plans, and run logs. A single render is orchestrated by `reporting/projects/run.py`; API routes delegate to that module instead of assembling artifacts and run logs inline.
 
 ---
 
@@ -89,6 +89,37 @@ Update this section when:
 
 ---
 
+### `reporting/projects/run.py`
+
+Purpose:
+- Own one report-project render run across Word and PPT outputs.
+- Resolve the effective report period and lookback scope before generation.
+- Call `ReportProjectGenerationService` for configured placeholder content or accept manual placeholders for static rendering.
+- Project generated placeholders into Word/PPT templates, attach deterministic tables/charts for Word projects, write `runs/*.json`, and return artifact metadata plus aggregated warnings.
+- Keep `/api/report-projects/{slug}/render` thin: the route reads project/config files, delegates to `ReportProjectRunService`, and maps the result into the existing response model.
+
+Update this section when:
+- Run-log structure changes.
+- Word/PPT render orchestration changes.
+- Warning aggregation or artifact naming changes.
+
+---
+
+### `reporting/projects/plan.py`
+
+Purpose:
+- Compile report project `section_config.yaml` and `prompt_templates.md` into a pre-render readiness plan.
+- Reuse generation helpers for default merging, composite `llm_writing` retrieval overrides, keyword profile expansion, prompt parsing, and retrieval config normalization.
+- Mark each placeholder as deterministic or evidence-required, surface missing prompt templates / retrieval query issues, and expose the resolved report period and lookback scope.
+- Provide a JSON-friendly `compiled_plan` shape consumed by the report workbench preflight UI before `/render` is called.
+
+Update this section when:
+- Placeholder readiness semantics change.
+- API `compiled_plan` schema changes.
+- Frontend generation preflight starts relying on additional backend plan fields.
+
+---
+
 ### `reporting/projects/chart_generation.py`
 
 Purpose:
@@ -157,6 +188,7 @@ Update this section when:
 - PPT template projection tests for placeholder scanning and static replacement
 - Chart-generation tests for Excel chart cache reading, worksheet source reading, native Word chart syncing, and legacy DOCX image embedding
 - Frontend static tests for report template workbench behavior when UI surfaces change
+- Compiled report plan tests for placeholder readiness, prompt detection, and composite retrieval inheritance
 
 ---
 
@@ -184,3 +216,5 @@ When files in this module change, check:
 - 2026-06-10: 新增 `keyword_profiles`：将旧财联社筛选 `params.json` 升级为项目内置关键词 profile，新模板占位符会按占位符名自动继承检索关键词；未知占位符生成可后续维护的关键词草稿。前端将机器字段 `query_terms.must_any` 收敛为业务字段 `keyword_profile` + `keywords`，不再默认展示“排除词”。
 - 2026-06-10: 华安 ETF 周报配置收敛为报告级 defaults + 占位符差异项：`defaults.validators` / `defaults.retrieval` 统一承载禁用词、no-Wind/no-daily、hybrid、RRF、LLM rerank 等公共策略；每个占位符表单只维护类型、字数、关键词 Profile、检索关键词、报告周期或 Excel/static 来源。
 - 2026-06-04: 收敛 reporting composer/projection 的 mypy 历史债务，补齐模板缓存、fact card 列表、Excel worksheet/chart 数据的显式类型，输出格式保持不变。
+- 2026-07-07: 新增 `ReportProjectRunService`，将 `/api/report-projects/{slug}/render` 的 Word/PPT 生成编排、run-log 组装和 warning 聚合从 FastAPI route 收拢到 `reporting/projects/run.py`，保持外部响应不变。
+- 2026-07-07: 新增 `CompiledReportPlan`，`GET /api/report-projects/{slug}` 返回 `compiled_plan`，前端生成预检优先使用后端计划判断 prompt / retrieval / deterministic 占位符就绪度。

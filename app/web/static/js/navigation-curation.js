@@ -1,6 +1,6 @@
 /* ============================================================
    AlphaFoundry — Navigation Curation
-   Keeps the current WebUI focused without deleting legacy pages.
+   Keeps the current WebUI focused without deleting in-development pages.
    ============================================================ */
 
 const ARCHIVED_SECTIONS = [
@@ -37,7 +37,8 @@ function applyArchivedVisibility(visible = archivedSectionsVisible()) {
     const toggle = document.getElementById('btn-toggle-archived-sections');
     if (toggle) {
         toggle.classList.toggle('active', visible);
-        toggle.title = visible ? '隐藏归档页面' : '显示归档页面';
+        toggle.title = visible ? '隐藏待开发入口' : '显示待开发入口';
+        toggle.setAttribute('aria-label', visible ? '隐藏待开发入口' : '显示待开发入口');
         toggle.setAttribute('aria-pressed', visible ? 'true' : 'false');
     }
 }
@@ -50,17 +51,17 @@ function ensureArchivedToggle() {
     btn.className = 'activity-btn activity-btn-more';
     btn.id = 'btn-toggle-archived-sections';
     btn.type = 'button';
-    btn.title = '显示归档页面';
-    btn.setAttribute('aria-label', '显示归档页面');
+    btn.title = '显示待开发入口';
+    btn.setAttribute('aria-label', '显示待开发入口');
     btn.setAttribute('aria-pressed', 'false');
     btn.innerHTML = '<i class="codicon codicon-ellipsis"></i>';
     btn.addEventListener('click', () => {
         setArchivedSectionsVisible(!archivedSectionsVisible());
     });
 
-    const templatesBtn = barTop.querySelector('.activity-btn[data-section="templates"]');
-    if (templatesBtn) {
-        barTop.insertBefore(btn, templatesBtn);
+    const firstArchivedBtn = barTop.querySelector(`.activity-btn[data-section="${ARCHIVED_SECTIONS[0]}"]`);
+    if (firstArchivedBtn) {
+        barTop.insertBefore(btn, firstArchivedBtn);
     } else {
         barTop.appendChild(btn);
     }

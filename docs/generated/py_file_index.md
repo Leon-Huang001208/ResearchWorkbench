@@ -35,7 +35,7 @@ Imports:
 
 Classes:
 - `NoCacheStaticFiles`
-  - 开发期静态资源重新校验，避免前端模块缓存旧代码。
+  - 让桌面 WebView 始终重新获取前端资源，避免缓存旧代码。
   - methods: get_response
 
 Functions:
@@ -209,6 +209,46 @@ Functions:
   - 手动记录审计日志
 
 
+## `app/api/routes/commentary.py`
+
+Module docstring:
+> Commentary production API routes.
+
+Imports:
+- `core.contracts.commentary`
+- `core.model_gateway`
+- `core.observability`
+- `data_layer.repositories.base`
+- `fastapi`
+- `services.commentary_context_service`
+- `services.commentary_draft_service`
+- `services.commentary_run_service`
+- `services.dashboard_service`
+- `sqlalchemy.orm`
+
+Functions:
+- `get_commentary_context_service`
+  - Build a request-scoped commentary context service.
+- `get_commentary_draft_service`
+  - Build a request-scoped commentary draft service.
+- `get_commentary_run_service`
+  - Build a commentary run log service.
+- `get_commentary_recipes`
+  - Return shared commentary recipes used by the workbench and draft service.
+- `get_commentary_context`
+  - Return market data and evidence prefill content for commentary writing.
+- `generate_commentary_draft`
+  - Generate an editable commentary draft from prepared data and evidence.
+- `rewrite_commentary_section`
+  - Rewrite one editable commentary section with the current evidence context.
+- `check_commentary_quality`
+  - Run publish-gate quality checks for an editable commentary draft.
+- `record_commentary_run`
+  - Persist one commentary generation run.
+- `list_commentary_runs`
+  - Return recent commentary generation runs.
+
+
 ## `app/api/routes/dashboard.py`
 
 Module docstring:
@@ -368,6 +408,45 @@ Functions:
   - 审批事件，批准后自动生成候选信号
 - `trigger_auto_generate_signals`
   - 手动触发所有已批准事件的信号生成
+
+
+## `app/api/routes/funds.py`
+
+Module docstring:
+> Fund Intelligence API routes.
+
+Imports:
+- `core.contracts.funds`
+- `core.observability`
+- `data_layer.repositories.base`
+- `data_layer.repositories.etl_run_repository`
+- `data_layer.repositories.fund_repository`
+- `fastapi`
+- `pydantic`
+- `services.fund_data_ingestion_service`
+- `services.fund_intelligence_service`
+- `sqlalchemy.orm`
+- `typing`
+
+Classes:
+- `PortfolioExposureRequest`
+  - 基金组合穿透请求。
+- `FundIngestRowsRequest`
+  - 基金结构化 rows 导入请求。
+
+Functions:
+- `get_fund_service`
+  - Build a request-scoped fund intelligence service.
+- `get_fund_ingestion_service`
+  - Build a request-scoped fund data ingestion service.
+- `ingest_fund_rows`
+  - Ingest local structured fund rows through the Fund Intelligence repository.
+- `get_fund_detail`
+  - Return a fund detail view.
+- `get_fund_exposure`
+  - Return the latest disclosed exposure for one fund.
+- `calculate_portfolio_exposure`
+  - Return weighted exposure across a fund portfolio.
 
 
 ## `app/api/routes/governance.py`
@@ -1163,11 +1242,13 @@ Imports:
 - `pathlib`
 - `pydantic`
 - `re`
+- `reporting.projections.ppt`
 - `reporting.projects.chart_generation`
 - `reporting.projects.generation`
 - `reporting.projects.keyword_profiles`
+- `reporting.projects.plan`
 - `reporting.projects.project_manager`
-- `reporting.projects.table_generation`
+- `reporting.projects.run`
 - `shutil`
 - `subprocess`
 - `sys`
@@ -1233,12 +1314,10 @@ Functions:
 - `_data_asset_sort_key`
 - `_build_default_section_config_source`
   - Build a minimal section config when only a Word template is uploaded.
+- `_build_default_ppt_section_config_source`
+  - Build a minimal section config when only a PPT template is uploaded.
 - `_attach_prompt_templates`
   - Attach a newly created prompt template file to project.yaml.
-- `_serialize_retrieval_config`
-  - Serialize retrieval controls into run logs.
-- `_serialize_evidence`
-  - Serialize one evidence snippet into run logs.
 - `_read_section_config`
   - Read raw and parsed section YAML for frontend inspection.
 - `_read_prompt_templates`
@@ -1256,6 +1335,8 @@ Functions:
 - `_to_generated_report_info`
 - `_docx_to_preview_html`
   - Convert a generated docx into an inline preview page.
+- `_pptx_preview_placeholder_html`
+  - Return a lightweight placeholder preview for generated PPTX files.
 - `_read_cached_word_pdf_preview`
 - `_build_word_pdf_preview`
   - Build or read a local PDF preview, preferring Microsoft Word fidelity on macOS.
@@ -2374,6 +2455,49 @@ Classes:
   - methods: for_report, for_backtest
 
 
+## `core/contracts/commentary.py`
+
+Module docstring:
+> Contracts for commentary production context packs.
+
+Imports:
+- `datetime`
+- `pydantic`
+- `typing`
+
+Classes:
+- `CommentaryEvidenceItem`
+  - A source item used to prepare a market commentary draft.
+- `CommentaryAttributionSignal`
+  - A ranked explanation candidate for market commentary attribution.
+- `CommentaryContextPack`
+  - Prefill payload for the commentary production center.
+- `CommentaryRecipe`
+  - A commentary writing recipe shared by frontend and backend generation.
+- `CommentaryRecipeCatalog`
+  - Available commentary recipes and default selection.
+- `CommentaryDraftRequest`
+  - Request for generating an editable commentary draft.
+- `CommentaryDraftResponse`
+  - Generated commentary draft with audit-friendly metadata.
+- `CommentarySectionRewriteRequest`
+  - Request for rewriting one generated commentary section.
+- `CommentarySectionRewriteResponse`
+  - Response for one rewritten commentary section.
+- `CommentaryQualityIssue`
+  - One publish-gate issue found in a generated commentary draft.
+- `CommentaryQualityCheckRequest`
+  - Request for checking a generated commentary draft before publishing.
+- `CommentaryQualityCheckResponse`
+  - Publish-gate quality check result for a commentary draft.
+- `CommentaryRunRecordRequest`
+  - Request to persist one commentary generation run.
+- `CommentaryRunRecord`
+  - Persisted commentary generation run.
+- `CommentaryRunRecordResponse`
+  - Response after writing a commentary run record.
+
+
 ## `core/contracts/dashboard.py`
 
 Module docstring:
@@ -2572,6 +2696,36 @@ Classes:
 - `DynamicFactorWeights`
   - Signed dynamic weights learned from historical factor evaluations.
   - methods: absolute_weight_sum
+
+
+## `core/contracts/funds.py`
+
+Module docstring:
+> Fund intelligence domain contracts.
+
+Imports:
+- `datetime`
+- `pydantic`
+- `typing`
+
+Classes:
+- `FundMaster`
+  - 基金主数据。
+  - methods: _not_blank
+- `FundNavPoint`
+  - 基金日净值数据点。
+- `FundHolding`
+  - 基金股票持仓。
+- `FundManagerProfile`
+  - 基金经理画像。
+- `FundPerformanceMetrics`
+  - 基金收益风险指标。
+- `FundExposureBreakdown`
+  - 基金或组合穿透后的暴露项。
+- `FundDetail`
+  - 基金详情聚合对象。
+- `PortfolioFundExposure`
+  - 基金组合穿透结果。
 
 
 ## `core/contracts/governance.py`
@@ -6217,6 +6371,29 @@ Classes:
   - methods: _to_domain, _to_model, save, get, list, delete, get_by_entity, get_by_time_range, get_pending_review, list_by_status, list_by_event_type, list_by_impacted_symbol, list_approved_pending_signal, mark_signal_generated
 
 
+## `data_layer/repositories/fund_repository.py`
+
+Module docstring:
+> Fund intelligence persistence access.
+
+Imports:
+- `collections`
+- `core.contracts.funds`
+- `core.observability`
+- `data_layer.repositories.base`
+- `datetime`
+- `sqlalchemy`
+- `typing`
+
+Classes:
+- `FundRepository`
+  - Repository for fund master data, NAVs, holdings, and managers.
+  - methods: ensure_schema, upsert_fund_master, upsert_nav_points, upsert_holdings, upsert_manager_tenures, get_fund_master, get_nav_history, get_latest_holdings, get_manager_profiles
+
+Functions:
+- `_utc_now`
+
+
 ## `data_layer/repositories/governance_repository.py`
 
 Module docstring:
@@ -9384,6 +9561,38 @@ Classes:
   - methods: __init__, _check_pptx, save, save_from_template, _replace_placeholders_in_presentation, _replace_placeholders_in_text_frame, _replace_placeholders_in_paragraph, _replace_placeholders_in_table, _add_tables_to_presentation, _add_table_to_slide, _add_chart_images_to_presentation
 
 
+## `reporting/projections/ppt.py`
+
+Module docstring:
+> Static PPTX template projection for report projects.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `dataclasses`
+- `pathlib`
+- `re`
+- `typing`
+- `xml.etree.ElementTree`
+- `zipfile`
+
+Classes:
+- `PPTTemplateProjectionResult`
+  - Metadata returned after saving a PPTX template projection.
+- `PPTTemplateProjection`
+  - Render a static PPTX by replacing ``{{placeholder}}`` tokens in slide XML.
+  - methods: save_from_template, _replace_placeholders
+
+Functions:
+- `extract_pptx_placeholders`
+  - Extract ``{{placeholder}}`` tokens from PPT slide XML in first-seen order.
+- `_paragraph_text`
+  - Return visible paragraph text by joining all DrawingML text runs.
+- `_ordered_slide_xml_names`
+  - Return slide XML paths in user-facing slide order.
+- `_slide_sort_key`
+
+
 ## `reporting/projections/word.py`
 
 Module docstring:
@@ -9579,6 +9788,10 @@ Functions:
   - Compute an evidence window from explicit user-selected dates.
 - `resolve_report_period_value`
   - Resolve a configured report-period placeholder value.
+- `normalize_placeholder_output_type`
+  - Normalize legacy placeholder kinds into the generic output-shape protocol.
+- `resolve_field_placeholder_value`
+  - Resolve deterministic short-field placeholders without invoking retrieval or LLM.
 - `build_a_share_market_data_sentence`
   - Build the deterministic A-share market review sentence from workbook cache.
 - `build_commodity_market_review_sentence`
@@ -9689,6 +9902,35 @@ Functions:
 - `_safe_float`
 
 
+## `reporting/projects/plan.py`
+
+Module docstring:
+> Compiled report project generation readiness plans.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `dataclasses`
+- `reporting.projects.generation`
+- `reporting.projects.keyword_profiles`
+- `typing`
+
+Classes:
+- `CompiledPlaceholderPlan`
+  - Effective readiness for one report placeholder before generation starts.
+  - methods: to_dict
+- `CompiledReportPlan`
+  - Generation plan shared by the API and report workbench preflight UI.
+  - methods: to_dict
+
+Functions:
+- `compile_report_plan`
+  - Compile effective placeholder generation settings without rendering output.
+- `_compile_placeholder_plan`
+- `_requires_evidence`
+- `_has_prompt_template_or_inline_prompt`
+
+
 ## `reporting/projects/project_manager.py`
 
 Module docstring:
@@ -9708,6 +9950,42 @@ Classes:
 - `ReportProjectManager`
   - Read and bootstrap report project folders.
   - methods: __init__, list_projects, get_project, rename_project, bootstrap_cyb50_project, _load_project, _resolve, _resolve_optional
+
+
+## `reporting/projects/run.py`
+
+Module docstring:
+> Report project render orchestration.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `dataclasses`
+- `datetime`
+- `json`
+- `pathlib`
+- `reporting.projections.ppt`
+- `reporting.projections.word`
+- `reporting.projects.chart_generation`
+- `reporting.projects.generation`
+- `reporting.projects.project_manager`
+- `reporting.projects.table_generation`
+- `typing`
+
+Classes:
+- `ReportProjectRunRequest`
+  - Inputs required to render one report project artifact.
+- `ReportProjectRunResult`
+  - Rendered artifact metadata and aggregated warnings.
+- `ReportProjectRunService`
+  - Execute a project-level Word or PPT report render.
+  - methods: __init__, execute, _execute_word, _execute_ppt, _generate_placeholders, _write_word_run_log, _write_ppt_run_log, _write_run_record, _generation_record, _word_warnings, _artifact_file_name
+
+Functions:
+- `serialize_retrieval_config`
+  - Serialize retrieval config for project run logs.
+- `serialize_evidence`
+  - Serialize evidence snippets for project run logs.
 
 
 ## `reporting/projects/table_generation.py`
@@ -10360,6 +10638,51 @@ Functions:
 - `main`
 
 
+## `scripts/build_etf_gap_report_excel_wind.py`
+
+Module docstring:
+> Build Huaan ETF gap dataset through Excel Wind add-in.
+
+Imports:
+- `__future__`
+- `argparse`
+- `data_layer.adapters.wind.client`
+- `datetime`
+- `json`
+- `logging`
+- `math`
+- `openpyxl`
+- `pathlib`
+- `re`
+- `sys`
+- `time`
+- `typing`
+
+Functions:
+- `_setup_logging`
+- `_as_text`
+- `_as_float`
+- `_jsonable`
+- `_excel_serial_to_date`
+- `_five_year_start`
+- `_is_loading`
+- `_is_error`
+- `read_etf_rows`
+- `_wind_result_to_value`
+- `normalize_wind_index_code`
+  - Return a valid Wind index code and status.
+- `is_pe_fetch_eligible`
+  - Limit WSD PE pulls to A-share/China equity index namespaces.
+- `_cache_is_reusable`
+- `fetch_wss_batch`
+- `_get_formula_sheet`
+- `fetch_wsd_weekly_pe`
+- `summarize_pe`
+- `build_dataset`
+- `_parse_args`
+- `main`
+
+
 ## `scripts/build_wind_index_catalog.py`
 
 Module docstring:
@@ -11008,6 +11331,34 @@ Functions:
   - Phase 3: Rebuild outcomes where market data is available using production outcome service.
 - `phase4_regenerate_artifacts`
   - Phase 4: Regenerate replay, calibration, portfolio, and simulation state.
+- `main`
+
+
+## `scripts/refresh_etf_gap_wind_excel_report.py`
+
+Module docstring:
+> Refresh the Huaan ETF gap report through Excel + Wind add-in.
+
+Imports:
+- `__future__`
+- `argparse`
+- `core.observability`
+- `json`
+- `pathlib`
+- `sys`
+- `time`
+- `typing`
+
+Functions:
+- `_close_without_saving`
+- `_connect_excel`
+- `_open_or_get_workbook`
+- `_cell_value`
+- `_numeric`
+- `_status`
+- `_calculate`
+- `refresh_workbook`
+- `_parse_args`
 - `main`
 
 

@@ -312,7 +312,12 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "今日上涨板块概念 (Top 10)" not in html
     assert "今日下跌板块概念 (Top 10)" not in html
     assert "style.css?v=20260702briefinline1" in html
-    assert "app.js?v=20260702briefinline1" in html
+    assert "app.js?v=20260703theme1" in html
+    assert "asset-observe-mode-tabs" in html
+    assert "data-asset-mode=\"theme\"" in html
+    assert "asset-topic-result" in html
+    assert "概念指数走势" in html
+    assert "成分股 / 龙头贡献" in html
     assert "market-companion-row" not in html
     assert '<small id="market-session-date" class="market-session-date">--</small>' in html
     assert "market-flow-summary" not in html
@@ -365,7 +370,9 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "--news-rank-first: #c9342f" in css
     assert "--news-rank-default: var(--apple-accent)" in css
     assert "20260618-desktop-phase1" in js
-    assert "dashboard.js?v=20260702briefinline1" in js
+    assert "dashboard.js?v=20260703theme1" in js
+    assert "asset.js?v=20260703theme1" in js
+    assert "openThemeObservation" in js
     dashboard_js = (ROOT / "app" / "web" / "static" / "js" / "dashboard.js").read_text(encoding="utf-8")
     assert "中信三级" in dashboard_js
     assert "申万三级" in dashboard_js
@@ -387,6 +394,14 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "updateMarketHeatmapCopy" in dashboard_js
     assert "function getMarketHeatmapIntensityClass" in dashboard_js
     assert "Math.abs(Number(change) || 0)" in dashboard_js
+    assert "openAssetThemeObservation" in dashboard_js
+    assert "data-heatmap-rank" in dashboard_js
+    asset_js = (ROOT / "app" / "web" / "static" / "js" / "asset.js").read_text(encoding="utf-8")
+    assert "function openThemeObservation" in asset_js
+    assert "function switchAssetObserveMode" in asset_js
+    assert "THEME_OBSERVATION_PRESETS" in asset_js
+    assert "asset-topic-trend-chart" in asset_js
+    assert "机器人ETF南方" in asset_js
     assert "grid-row: span 2" not in css
     assert "renderMarketMiniCards" not in dashboard_js
     assert "formatMarketMiniSignedValue" not in dashboard_js
@@ -470,6 +485,10 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "...previousViews" in dashboard_js
     assert "sectors.slice(0, MARKET_SECTOR_LIST_LIMIT)" in dashboard_js
     assert "limit=${MARKET_SECTOR_FETCH_LIMIT}" in dashboard_js
+    assert "force_refresh=true" in dashboard_js
+    assert "hasFreshSectorData" in dashboard_js
+    assert "if (force && !hasFreshSectorData && current) return" in dashboard_js
+    assert "marketSectorViewRequestCache.delete(viewKey)" in dashboard_js
     assert "ensureMarketSectorViewLoaded(activeMarketSectorView, { force: true, silent: true })" in dashboard_js
     assert "combined.slice(0, MARKET_HEATMAP_ITEM_LIMIT)" in dashboard_js
     assert "return { up: [], down: [] }" in dashboard_js

@@ -82,7 +82,7 @@
 | `app/api/routes/outcome_journal.py` | 结果日志 API：记录结果、查询相似案例 |
 | `app/api/routes/pipeline.py` | 管道 API：运行数据处理管道 |
 | `app/api/routes/report.py` | 报告 API：生成各类报告 |
-| `app/api/routes/report_projects.py` | 报告项目 API：列出/重命名项目，保存 `section_config.yaml` / `prompt_templates.md` 源码，配置驱动生成 DOCX，返回下载和 HTML 预览入口 |
+| `app/api/routes/report_projects.py` | 报告项目 API：列出/重命名项目，保存 `section_config.yaml` / `prompt_templates.md` 源码，返回 `compiled_plan` 生成预检计划，委托 `ReportProjectRunService` 配置驱动生成 DOCX/PPTX，返回下载和 HTML 预览入口 |
 | `app/api/routes/scenarios.py` | 情景 API：生成多情景分析 |
 | `app/api/routes/search.py` | 搜索 API：全局跨对象搜索 |
 | `app/api/routes/signal_lab.py` | 信号实验室 API：特征、标签、评分、回测 |
@@ -111,7 +111,7 @@
 | `app/web/static/js/core.js` | 核心工具模块：apiCall、toast、esc 等公共函数 |
 | `app/web/static/js/dashboard.js` | 仪表盘模块：Market Overview + Live Monitor 标签页 |
 | `app/web/static/js/funds.js` | 基金情报模块：基金详情查询、经理/持仓/行业暴露渲染、基金组合穿透计算、结构化 rows 导入 |
-| `app/web/static/js/templates.js` | 模板工作台模块：报告项目选择、Word 占位符映射、YAML/Markdown Prompt 源码切换与保存、配置驱动生成、下载和 Word HTML 预览 |
+| `app/web/static/js/templates.js` | 模板工作台模块：报告项目选择、Word 占位符映射、YAML/Markdown Prompt 源码切换与保存、后端 `compiled_plan` 生成预检、配置驱动生成、下载和 Word HTML 预览 |
 | `app/web/static/js/pipeline-monitor.js` | 管线监控模块：5 阶段流程可视化、实时活动日志（SSE + 15s 轮询）、累计统计、手动触发闭环 |
 | `app/web/static/js/monitor.js` | 系统监控模块：Worker 心跳、队列深度、服务状态 |
 | `app/web/static/js/asset.js` | 资产分析模块：Wind 风格 5 面板 K 线图（K 线+成交量/MACD/KDJ/RSI，首次加载默认请求近一年数据，支持日/周/月聚合与 MA120/MA250）、筹码分布图（筹码峰及上/下界标注）、资产搜索、分析卡渲染 |
@@ -473,6 +473,8 @@
 | `reporting/composer/` | 报告合成：内容合成引擎 |
 | `reporting/projections/` | 格式投影：Markdown、Word、HTML 等格式输出 |
 | `reporting/projects/project_manager.py` | 报告项目管理：加载 `report_projects/<项目>/project.yaml`，解析 Word、Excel、section config、prompt templates、生成目录和 runs 目录 |
+| `reporting/projects/plan.py` | 报告项目生成计划：在渲染前编译 section config 与 prompt templates，输出占位符 prompt/retrieval/deterministic 就绪度和报告周期 |
+| `reporting/projects/run.py` | 报告项目运行编排：解析报告周期，调用占位符生成、Word/PPT 投影、表格/图表嵌入，写入 run log 并聚合 warnings |
 | `reporting/projects/generation.py` | 项目级报告生成：解析 Markdown Prompt 模板，检索 `ingestion_queue_item` / `canonical_event` evidence，通过 ModelGateway 生成 Word 占位符正文，并返回证据/模型/token 元数据 |
 | `reporting/projects/chart_generation.py` | 报告图表生成：读取 Excel chart cache 或 worksheet 缓存数据；旧模板可用 matplotlib 渲染图片并嵌入 DOCX，新模板可同步 Excel 原生 chart 到 Word chart parts |
 

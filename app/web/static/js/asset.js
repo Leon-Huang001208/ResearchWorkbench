@@ -8,10 +8,13 @@ import { apiCall, toast, esc, getChartColors, fmtVolume, fmtAmount, fmtMarketCap
 let chartKLine = null;
 let chartCapitalFlow = null;
 let chartChipDist = null;
+let chartTopicTrend = null;
 const DEFAULT_TIME_RANGE = '1Y';
 let currentTimeRange = DEFAULT_TIME_RANGE;
 let currentCanonicalId = null;
 let currentAssetAnalysisData = null;
+let currentAssetObserveMode = 'equity';
+let currentTopicObservation = null;
 let currentKLineBars = [];
 let currentDisplayKLineBars = [];
 let currentKLinePeriod = 'D';
@@ -56,6 +59,68 @@ const ASSET_SEARCH_SEEDS = [
         source: 'client_seed',
     },
 ];
+
+const THEME_OBSERVATION_PRESETS = {
+    robot: {
+        aliases: ['宇树机器人', '人形机器人', '机器人', '减速器', '工业母机'],
+        tags: ['机器人', '人形机器人', '智能制造', 'AI+硬件'],
+        index: { name: '宇树机器人指数', code: '8841946.WI', value: 1842.56 },
+        heat: 86.7,
+        attention: 234512,
+        summary: '机器人链由整机、执行器、减速器、传感器和控制系统共同驱动，适合从指数、ETF 与核心成分股三层拆解。',
+        relatedAssets: [
+            { name: '机器人ETF南方', code: '159258.SZ', type: 'ETF', price: 1.234, change_pct: 2.64, meta: '规模 65.21亿' },
+            { name: '机器人ETF', code: '562500.SH', type: 'ETF', price: 1.201, change_pct: 2.58, meta: '规模 38.47亿' },
+            { name: '中证机器人指数', code: 'H30590.CSI', type: '指数', price: 4123.45, change_pct: 7.32, meta: '主题基准' },
+            { name: '国证机器人产业指数', code: '980022.CNI', type: '指数', price: 3876.21, change_pct: 7.18, meta: '产业链映射' },
+        ],
+        components: [
+            { name: '机器人ETF南方', code: '159258.SZ', change_pct: 2.64, amount: '40.22亿', contribution: 1.23, segment: 'ETF' },
+            { name: '三花智控', code: '002050.SZ', change_pct: 4.18, amount: '28.76亿', contribution: 0.98, segment: '执行器' },
+            { name: '拓普集团', code: '601689.SH', change_pct: 3.35, amount: '25.13亿', contribution: 0.86, segment: '执行器' },
+            { name: '绿的谐波', code: '688017.SH', change_pct: 6.72, amount: '18.65亿', contribution: 0.74, segment: '减速器' },
+            { name: '中大力德', code: '002896.SZ', change_pct: 4.36, amount: '12.64亿', contribution: 0.56, segment: '减速器' },
+            { name: '鸣志电器', code: '603728.SH', change_pct: 2.81, amount: '11.23亿', contribution: 0.49, segment: '电机' },
+        ],
+        news: [
+            { title: '宇树科技发布第三代人形机器人 H3，运动能力与交互体验双升级', source: '财联社', time: '10:45' },
+            { title: '特斯拉 Optimus 量产计划提前至 2026Q4，供应链订单加速释放', source: '券商中国', time: '09:58' },
+            { title: '工信部：加快推动人形机器人创新发展，支持关键技术攻关', source: '工信部网站', time: '07-03 06:32' },
+        ],
+        notes: [
+            '板块今日强势上攻，受新品发布与量产预期共同驱动。',
+            '核心标的成交活跃，机器人ETF资金持续净流入。',
+            '关注减速器、执行器等核心零部件环节的业绩兑现节奏。',
+            '短期波动加大，留意高位回落风险与主题轮动节奏。',
+        ],
+    },
+    default: {
+        aliases: [],
+        tags: ['主题', 'Wind热门概念', '实时异动'],
+        index: { name: '主题指数', code: '--', value: 1000 },
+        heat: 72.4,
+        attention: 98620,
+        summary: '该主题来自 Wind 热门概念矩阵，适合继续拆解相关 ETF、指数、成分股贡献和新闻催化。',
+        relatedAssets: [
+            { name: '相关主题ETF', code: '--', type: 'ETF', price: 1.000, change_pct: 1.28, meta: '等待映射' },
+            { name: '相关概念指数', code: '--', type: '指数', price: 1000.00, change_pct: 1.12, meta: '等待映射' },
+        ],
+        components: [
+            { name: '核心成分一', code: '--', change_pct: 2.18, amount: '--', contribution: 0.72, segment: '核心资产' },
+            { name: '核心成分二', code: '--', change_pct: 1.67, amount: '--', contribution: 0.54, segment: '产业链' },
+            { name: '核心成分三', code: '--', change_pct: 1.12, amount: '--', contribution: 0.39, segment: '弹性标的' },
+        ],
+        news: [
+            { title: '主题热度上升，资金关注相关产业链方向', source: '市场监控', time: '实时' },
+            { title: '相关 ETF 与指数同步异动，等待进一步拆解成分贡献', source: 'AlphaFoundry', time: '实时' },
+        ],
+        notes: [
+            '该主题来自市场矩阵实时异动。',
+            '需要进一步确认成分股贡献和资金流向。',
+            '若进入观察池，可生成信号并跟踪后续催化。',
+        ],
+    },
+};
 
 const isFiniteNumber = (value) => typeof value === 'number' && Number.isFinite(value);
 const toFiniteNumber = (value) => {
@@ -385,6 +450,270 @@ function renderKLineQuoteForBar(bar, index, bars) {
     setClass('kline-quote-avg', getQuotePriceClass(avgPrice, priceReference));
 }
 
+function switchAssetObserveMode(mode = 'equity') {
+    const normalizedMode = ['equity', 'etf', 'index', 'theme'].includes(mode) ? mode : 'equity';
+    currentAssetObserveMode = normalizedMode;
+    document.querySelectorAll('[data-asset-mode]').forEach(button => {
+        button.classList.toggle('active', button.dataset.assetMode === normalizedMode);
+    });
+    const topicResult = document.getElementById('asset-topic-result');
+    const assetResult = document.getElementById('asset-result');
+    if (topicResult) topicResult.classList.toggle('hidden', normalizedMode !== 'theme');
+    if (assetResult) {
+        const hasAssetData = Boolean(currentAssetAnalysisData);
+        assetResult.classList.toggle('hidden', normalizedMode === 'theme' || !hasAssetData);
+    }
+    if (normalizedMode === 'theme' && currentTopicObservation) {
+        setTimeout(() => {
+            if (chartTopicTrend) chartTopicTrend.resize();
+        }, 40);
+    }
+}
+
+function openThemeObservation(topic = {}) {
+    const observation = buildThemeObservation(topic);
+    currentTopicObservation = observation;
+    const input = document.getElementById('asset-code');
+    if (input) {
+        input.value = observation.name;
+        delete input.dataset.selectedSymbol;
+    }
+    hideAssetSearchDropdown();
+    switchAssetObserveMode('theme');
+    renderThemeObservation(observation);
+}
+
+function findThemePreset(name = '') {
+    const normalizedName = normalizeSearchText(name);
+    return Object.values(THEME_OBSERVATION_PRESETS).find(preset =>
+        (preset.aliases || []).some(alias => normalizedName.includes(normalizeSearchText(alias)))
+    ) || THEME_OBSERVATION_PRESETS.default;
+}
+
+function buildThemeObservation(topic = {}) {
+    const name = topic.name || topic.theme_name || '主题观察';
+    const preset = findThemePreset(name);
+    const changePct = toFiniteNumber(topic.change_pct) ?? toFiniteNumber(topic.changePct) ?? 0;
+    const sign = changePct >= 0 ? 1 : -1;
+    const value = toFiniteNumber(preset.index?.value) || 1000;
+    const indexCode = topic.wind_code || windCodeFromSectorId(topic.sector_id) || preset.index?.code || '--';
+    return {
+        ...preset,
+        name,
+        change_pct: changePct,
+        view_label: topic.view_label || topic.viewLabel || 'Wind热门概念',
+        sector_id: topic.sector_id || '',
+        rank: topic.rank || '--',
+        updated_at: topic.updated_at || topic.fetched_at || new Date().toISOString(),
+        index: {
+            ...(preset.index || {}),
+            code: indexCode,
+            value: Number((value * (1 + Math.abs(changePct) / 900)).toFixed(2)),
+        },
+        intraday: buildThemeIntradaySeries(value, changePct || sign * 1.2),
+    };
+}
+
+function windCodeFromSectorId(sectorId = '') {
+    const text = String(sectorId || '');
+    if (!text.startsWith('wind-')) return '';
+    return text.slice('wind-'.length).replace(/-/g, '.');
+}
+
+function buildThemeIntradaySeries(baseValue, changePct) {
+    const points = [];
+    const start = baseValue / (1 + changePct / 100);
+    for (let i = 0; i < 36; i += 1) {
+        const progress = i / 35;
+        const wave = Math.sin(progress * Math.PI * 3) * 0.16 + Math.cos(progress * Math.PI * 7) * 0.07;
+        const drift = changePct * progress;
+        const value = start * (1 + (drift + wave) / 100);
+        points.push({
+            time: i < 24
+                ? `${String(9 + Math.floor((30 + i * 5) / 60)).padStart(2, '0')}:${String((30 + i * 5) % 60).padStart(2, '0')}`
+                : `${String(13 + Math.floor((i - 24) * 5 / 60)).padStart(2, '0')}:${String(((i - 24) * 5) % 60).padStart(2, '0')}`,
+            value: Number(value.toFixed(2)),
+            volume: Math.round(5 + Math.abs(Math.sin(i * 0.7)) * 16 + progress * 8),
+        });
+    }
+    return points;
+}
+
+function renderThemeObservation(topic) {
+    const setText = (id, text) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text;
+    };
+    const change = toFiniteNumber(topic.change_pct) || 0;
+    const changeClass = change >= 0 ? 'price-up' : 'price-down';
+    const sign = change > 0 ? '+' : '';
+    setText('asset-topic-name', topic.name);
+    setText('asset-topic-badge', topic.view_label);
+    setText('asset-topic-rank', topic.rank === '--' ? '--' : `#${topic.rank}`);
+    setText('asset-topic-updated', formatTopicUpdatedAt(topic.updated_at));
+    setText('asset-topic-heat', fmtFixed(toFiniteNumber(topic.heat), 1));
+    setText('asset-topic-attention', formatInteger(topic.attention));
+    setText('asset-topic-summary', topic.summary);
+    setText('asset-topic-index-label', `${topic.index?.name || '概念指数'} ${topic.index?.code || '--'}`);
+    setText('asset-topic-component-count', `${(topic.components || []).length} 个核心样本`);
+    const changeEl = document.getElementById('asset-topic-change');
+    if (changeEl) {
+        changeEl.className = `asset-topic-change ${changeClass}`;
+        changeEl.textContent = `${sign}${change.toFixed(2)}%`;
+    }
+    renderTopicTags(topic.tags || []);
+    renderTopicRelatedAssets(topic.relatedAssets || [], change);
+    renderTopicComponents(topic.components || []);
+    renderTopicNews(topic.news || []);
+    renderTopicNotes(topic.notes || []);
+    renderTopicTrendChart(topic);
+}
+
+function formatTopicUpdatedAt(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '--';
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+function formatInteger(value) {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return '--';
+    return Math.round(num).toLocaleString();
+}
+
+function renderTopicTags(tags) {
+    const container = document.getElementById('asset-topic-tags');
+    if (!container) return;
+    container.innerHTML = tags.map(tag => `<span>${esc(tag)}</span>`).join('');
+}
+
+function renderTopicRelatedAssets(items, themeChangePct) {
+    const container = document.getElementById('asset-topic-related-assets');
+    if (!container) return;
+    container.innerHTML = items.map(item => {
+        const change = toFiniteNumber(item.change_pct) ?? themeChangePct;
+        const changeClass = change >= 0 ? 'price-up' : 'price-down';
+        const sign = change > 0 ? '+' : '';
+        return `
+            <button type="button" class="asset-topic-related-item" onclick="analyzeAssetByCode('${esc(item.code || '')}')">
+                <span>
+                    <strong>${esc(item.name || '--')}</strong>
+                    <small>${esc(item.code || '--')} · ${esc(item.type || '资产')}</small>
+                    <em>${esc(item.meta || '')}</em>
+                </span>
+                <span class="asset-topic-related-price">
+                    <strong>${fmtFixed(toFiniteNumber(item.price))}</strong>
+                    <small class="${changeClass}">${sign}${change.toFixed(2)}%</small>
+                </span>
+            </button>
+        `;
+    }).join('');
+}
+
+function renderTopicComponents(items) {
+    const tbody = document.getElementById('asset-topic-components');
+    if (!tbody) return;
+    const maxContribution = Math.max(...items.map(item => toFiniteNumber(item.contribution) || 0), 1);
+    tbody.innerHTML = items.map((item, index) => {
+        const change = toFiniteNumber(item.change_pct) || 0;
+        const contribution = toFiniteNumber(item.contribution) || 0;
+        const sign = change > 0 ? '+' : '';
+        return `
+            <tr>
+                <td>${index + 1}</td>
+                <td><button type="button" onclick="analyzeAssetByCode('${esc(item.code || '')}')">${esc(item.name || '--')}</button></td>
+                <td>${esc(item.code || '--')}</td>
+                <td class="${change >= 0 ? 'price-up' : 'price-down'}">${sign}${change.toFixed(2)}%</td>
+                <td>${esc(item.amount || '--')}</td>
+                <td>
+                    <span class="asset-topic-contribution">
+                        <strong>${contribution.toFixed(2)}</strong>
+                        <i style="width:${Math.max(8, contribution / maxContribution * 100).toFixed(0)}%"></i>
+                    </span>
+                </td>
+                <td>${esc(item.segment || '--')}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function renderTopicNews(items) {
+    const container = document.getElementById('asset-topic-news');
+    if (!container) return;
+    container.innerHTML = items.map((item, index) => `
+        <article class="asset-topic-news-item">
+            <span>${index + 1}</span>
+            <div>
+                <strong>${esc(item.title || '--')}</strong>
+                <small>${esc(item.source || '新闻')} · ${esc(item.time || '--')}</small>
+            </div>
+        </article>
+    `).join('');
+}
+
+function renderTopicNotes(items) {
+    const container = document.getElementById('asset-topic-notes');
+    if (!container) return;
+    container.innerHTML = items.map(item => `<li>${esc(item)}</li>`).join('');
+}
+
+function renderTopicTrendChart(topic, attempt = 0) {
+    const container = document.getElementById('asset-topic-trend-chart');
+    if (!container) return;
+    if (typeof echarts === 'undefined') {
+        container.innerHTML = '<div class="empty-state compact">走势组件加载中...</div>';
+        if (attempt < 20) {
+            setTimeout(() => {
+                if (currentTopicObservation?.name === topic.name) {
+                    renderTopicTrendChart(topic, attempt + 1);
+                }
+            }, 250);
+        }
+        return;
+    }
+    container.innerHTML = '';
+    if (chartTopicTrend) {
+        chartTopicTrend.dispose();
+        chartTopicTrend = null;
+    }
+    const series = topic.intraday || [];
+    const change = toFiniteNumber(topic.change_pct) || 0;
+    const lineColor = change >= 0 ? '#ff453a' : '#30d158';
+    chartTopicTrend = echarts.init(container, null, { devicePixelRatio: window.devicePixelRatio || 1 });
+    chartTopicTrend.setOption({
+        backgroundColor: 'transparent',
+        grid: [{ left: 52, right: 44, top: 28, height: 190 }, { left: 52, right: 44, top: 235, height: 58 }],
+        xAxis: [
+            { type: 'category', data: series.map(item => item.time), axisLine: { lineStyle: { color: 'rgba(255,255,255,0.16)' } }, axisLabel: { color: '#8e8e93' } },
+            { type: 'category', gridIndex: 1, data: series.map(item => item.time), axisLabel: { show: false }, axisTick: { show: false }, axisLine: { lineStyle: { color: 'rgba(255,255,255,0.12)' } } },
+        ],
+        yAxis: [
+            { type: 'value', scale: true, axisLabel: { color: '#8e8e93' }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } } },
+            { type: 'value', gridIndex: 1, axisLabel: { color: '#8e8e93' }, splitLine: { show: false } },
+        ],
+        tooltip: { trigger: 'axis', backgroundColor: 'rgba(28,28,30,0.94)', borderColor: 'rgba(255,255,255,0.14)', textStyle: { color: '#f5f5f7' } },
+        series: [
+            {
+                type: 'line',
+                data: series.map(item => item.value),
+                symbol: 'none',
+                smooth: true,
+                lineStyle: { color: lineColor, width: 2 },
+                areaStyle: { color: `${lineColor}33` },
+            },
+            {
+                type: 'bar',
+                xAxisIndex: 1,
+                yAxisIndex: 1,
+                data: series.map(item => item.volume),
+                itemStyle: { color: lineColor },
+                barWidth: '58%',
+            },
+        ],
+    });
+    setTimeout(() => chartTopicTrend?.resize(), 50);
+}
+
 async function searchAssets(query) {
     if (!query || query.length < 1) {
         assetSearchRequestSeq++;
@@ -618,6 +947,8 @@ function updateSelectedItem(items) {
 async function analyzeAssetByCode(code, timeRange = null) {
     if (!code) return toast('请输入资产代码', 'error');
     hideAssetSearchDropdown();
+    if (String(code).trim() === '--') return toast('该资产暂未映射代码', 'error');
+    switchAssetObserveMode('equity');
     const range = timeRange || currentTimeRange || DEFAULT_TIME_RANGE;
     currentCanonicalId = code;
     currentTimeRange = range;
@@ -2026,4 +2357,16 @@ function initAssetSearch() {
     });
 }
 
-export { searchAssets, selectAsset, analyzeAssetByCode, analyzeAsset, handleAssetSearchKeydown, initAssetSearch, setKLineTimeRange, toggleMA, initKLineToolbar };
+export {
+    searchAssets,
+    selectAsset,
+    analyzeAssetByCode,
+    analyzeAsset,
+    handleAssetSearchKeydown,
+    initAssetSearch,
+    setKLineTimeRange,
+    toggleMA,
+    initKLineToolbar,
+    switchAssetObserveMode,
+    openThemeObservation,
+};

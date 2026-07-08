@@ -19,23 +19,24 @@ from reporting.projects.generation import (
     EvidenceSnippet,
     GeneratedSectionInfo,
     PromptTemplateBlock,
-    RetrievalConfig,
     ReportGenerationResult,
     ReportProjectGenerationService,
+    RetrievalConfig,
     apply_report_defaults_to_placeholder,
     build_market_hotspot_messages,
     build_retrieval_config,
-    filter_and_rank_evidence,
     compute_report_period,
-    resolve_report_generation_scope,
+    filter_and_rank_evidence,
     render_generation_constraints,
     render_writing_parameters,
+    resolve_report_generation_scope,
 )
 from reporting.projects.keyword_profiles import (
     apply_keyword_profile_to_config,
     keyword_profiles_for_api,
 )
 from reporting.projects.project_manager import ReportProjectManager
+from reporting.projects.run import ReportProjectRunRequest, ReportProjectRunService
 
 client = TestClient(app)
 
@@ -64,22 +65,14 @@ def test_huaan_prompt_placeholders_use_report_level_retrieval_defaults():
     assert retrieval_defaults["keyword_weight"] == 0.6
     assert retrieval_defaults["semantic_weight"] == 0.4
     expected_embedding_model = str(
-        Path(__file__).resolve().parents[2]
-        / "data"
-        / "models"
-        / "embeddings"
-        / "bge-large-zh-v1.5"
+        Path(__file__).resolve().parents[2] / "data" / "models" / "embeddings" / "bge-large-zh-v1.5"
     )
     assert retrieval_defaults["embedding_model"] == expected_embedding_model
     rerank_defaults = defaults["rerank"]
     assert rerank_defaults["enabled"] is True
     assert rerank_defaults["provider"] == "bge-reranker"
     expected_rerank_model = str(
-        Path(__file__).resolve().parents[2]
-        / "data"
-        / "models"
-        / "rerankers"
-        / "bge-reranker-large"
+        Path(__file__).resolve().parents[2] / "data" / "models" / "rerankers" / "bge-reranker-large"
     )
     assert rerank_defaults["model"] == expected_rerank_model
     assert rerank_defaults["top_n"] == 30
@@ -90,16 +83,25 @@ def test_huaan_prompt_placeholders_use_report_level_retrieval_defaults():
     prompt_placeholders = {
         name: item
         for name, item in config["placeholders"].items()
-        if item.get("type") == "prompt"
+        if item.get("prompt_template") and item.get("type") in {"paragraph", "prompt"}
     }
 
     assert prompt_placeholders
     for name, item in prompt_placeholders.items():
         retrieval = item.get("retrieval")
+        if not retrieval:
+            retrieval = next(
+                (
+                    component.get("retrieval")
+                    for component in item.get("components", [])
+                    if component.get("type") == "llm_writing"
+                ),
+                None,
+            )
         assert retrieval, f"{name} missing retrieval"
-        assert retrieval.get("keywords") or retrieval.get("keyword_profile"), (
-            f"{name} missing retrieval keywords/profile"
-        )
+        assert retrieval.get("keywords") or retrieval.get(
+            "keyword_profile"
+        ), f"{name} missing retrieval keywords/profile"
         assert "query_terms" not in retrieval
         assert "mode" not in retrieval
         assert "top_k" not in retrieval
@@ -185,9 +187,7 @@ def test_generation_constraints_and_writing_parameters_are_rendered_separately()
 
 def test_market_hotspot_prompt_uses_component_structure_without_metadata():
     """A股市场回顾续写 prompt 应使用固定开头和后续结构，不暴露项目元信息。"""
-    project = ReportProjectManager(projects_root=Path("report_projects")).get_project(
-        "华安ETF周报"
-    )
+    project = ReportProjectManager(projects_root=Path("report_projects")).get_project("华安ETF周报")
     template = build_market_template_for_test()
     config = {
         "generation_constraints": [
@@ -214,10 +214,7 @@ def test_market_hotspot_prompt_uses_component_structure_without_metadata():
         placeholder="A股市场回顾",
         title="A股市场回顾",
         template=template,
-        data_sentence=(
-            "本周A股市场整体呈现分化趋势，主要指数表现不一：沪深300涨0.19%。"
-            "交易面，A股市场本周日均成交额在2.40万亿左右，市场投资热情回落。"
-        ),
+        data_sentence=("本周A股市场整体呈现分化趋势，主要指数表现不一：沪深300涨0.19%。" "交易面，A股市场本周日均成交额在2.40万亿左右，市场投资热情回落。"),
         params={},
         max_words=320,
         config=config,
@@ -544,10 +541,15 @@ def test_get_report_project_returns_real_template_asset_summary(tmp_path: Path, 
             "- key: content1",
             "  title: 正文观点",
             "  placeholder: content1",
+            "  type: paragraph",
+            "  prompt_template: 正文观点",
+            "  retrieval:",
+            "    keywords:",
+            "    - 创业板50",
         ]
     )
     (project_dir / "config" / "section_config.yaml").write_text(section_yaml, encoding="utf-8")
-    prompt_source = "中国市场\n{{query}}\n\n要求如下：\n1. 严格依据上传文件"
+    prompt_source = "## 正文观点\n检索 Query：创业板50\n\n写作要求：严格依据上传文件"
     (project_dir / "config" / "prompt_templates.md").write_text(prompt_source, encoding="utf-8")
     (project_dir / "project.yaml").write_text(
         "\n".join(
@@ -584,6 +586,10 @@ def test_get_report_project_returns_real_template_asset_summary(tmp_path: Path, 
     assert project["excel_sheets"][0]["dimension"] == "A1:C3"
     assert project["excel_sheets"][0]["nonempty_count"] == 2
     assert "A1=日期" in project["excel_sheets"][0]["sample_cells"]
+    assert project["compiled_plan"]["ready"] is True
+    assert project["compiled_plan"]["placeholders"][0]["placeholder"] == "content1"
+    assert project["compiled_plan"]["placeholders"][0]["prompt_found"] is True
+    assert project["compiled_plan"]["placeholders"][0]["retrieval_ready"] is True
 
 
 def test_get_report_project_returns_ppt_template_placeholders(tmp_path: Path, monkeypatch):
@@ -780,6 +786,133 @@ def test_render_report_project_writes_to_project_generated_dir(tmp_path: Path, m
     assert data["preview_url"].startswith("/api/report-projects/创业板50周报/preview/")
 
 
+def test_report_project_run_service_renders_word_project(tmp_path: Path):
+    """项目运行 module 应独立完成 Word 投影、run log 和 warning 聚合。"""
+    project_dir = tmp_path / "华安ETF周报"
+    (project_dir / "templates").mkdir(parents=True)
+    (project_dir / "data").mkdir()
+    (project_dir / "config").mkdir()
+    (project_dir / "generated").mkdir()
+    (project_dir / "runs").mkdir()
+    (project_dir / "templates" / "report_template.docx").write_bytes(b"docx")
+    (project_dir / "data" / "data.xlsx").write_bytes(b"xlsx")
+    (project_dir / "config" / "section_config.yaml").write_text(
+        "placeholders:\n  人工智能:\n    title: 人工智能\n",
+        encoding="utf-8",
+    )
+    (project_dir / "config" / "prompt_templates.md").write_text(
+        "## 人工智能\n检索 Query：AI\n\n写作要求：短句",
+        encoding="utf-8",
+    )
+    (project_dir / "project.yaml").write_text(
+        "\n".join(
+            [
+                "name: 华安ETF周报",
+                "active_word_template: templates/report_template.docx",
+                "active_excel_workbook: data/data.xlsx",
+                "section_config: config/section_config.yaml",
+                "prompt_templates: config/prompt_templates.md",
+                "output_dir: generated",
+                "run_log_dir: runs",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    project = ReportProjectManager(projects_root=tmp_path).get_project("华安ETF周报")
+
+    class FakeGenerationService:
+        def generate_placeholders(self, **kwargs):
+            assert kwargs["project"] == project
+            assert kwargs["manual_placeholders"] == {"manual": "手工值"}
+            assert kwargs["report_period"].start_date == "2026-06-01"
+            return ReportGenerationResult(
+                placeholders={"人工智能": "AI 生成段落", "manual": "手工值"},
+                sections=[
+                    GeneratedSectionInfo(
+                        placeholder="人工智能",
+                        title="人工智能",
+                        prompt_template="人工智能",
+                        retrieval_query="AI",
+                        evidence_count=2,
+                        model_name="deepseek-chat",
+                        provider="deepseek",
+                        tokens_used=88,
+                        warnings=["段落 warning"],
+                        evidence=[
+                            EvidenceSnippet(
+                                source="ingestion:cls",
+                                title="AI 新闻",
+                                content="AI 产业链本周有新增证据。",
+                                published_at="2026-06-05",
+                            )
+                        ],
+                    )
+                ],
+                warnings=["生成 warning"],
+            )
+
+    class FakeChartService:
+        def generate_and_embed(self, **kwargs):
+            assert kwargs["project"] == project
+            assert kwargs["docx_path"].exists()
+            return [
+                GeneratedChartInfo(
+                    chart_id="chart1",
+                    title="图表",
+                    workbook="data.xlsx",
+                    source_chart="xl/charts/chart1.xml",
+                    replace_kind="chart_to_image",
+                    point_count=10,
+                    warnings=["图表 warning"],
+                )
+            ]
+
+    def fake_table_builder(**kwargs):
+        assert kwargs["project"] == project
+        return [], [{"table_id": "calendar", "title": "日历", "warnings": ["表格 warning"]}]
+
+    captured = {}
+
+    def fake_save_from_template(output_path, template_path, sections, placeholders, **kwargs):
+        captured["output_path"] = output_path
+        captured["placeholders"] = placeholders
+        output_path.write_bytes(b"rendered")
+
+    service = ReportProjectRunService(
+        generation_service=FakeGenerationService(),
+        chart_service=FakeChartService(),
+        table_builder=fake_table_builder,
+        word_projection_factory=lambda: type(
+            "FakeWordProjection",
+            (),
+            {"save_from_template": staticmethod(fake_save_from_template)},
+        )(),
+    )
+
+    result = service.execute(
+        project=project,
+        section_config={"placeholders": {"人工智能": {"title": "人工智能"}}},
+        prompt_templates_source="## 人工智能\n检索 Query：AI",
+        request=ReportProjectRunRequest(
+            placeholders={"manual": "手工值"},
+            generate_from_config=True,
+            report_date="2026-06-05",
+        ),
+    )
+
+    assert captured["placeholders"] == {"人工智能": "AI 生成段落", "manual": "手工值"}
+    assert result.output_path == captured["output_path"]
+    assert result.file_name.endswith("_华安ETF周报.docx")
+    assert result.generated_placeholder_count == 2
+    assert result.evidence_count == 2
+    assert result.warnings == ["生成 warning", "段落 warning", "图表 warning", "表格 warning"]
+    assert result.run_log_path.exists()
+    run_record = json.loads(result.run_log_path.read_text(encoding="utf-8"))
+    assert run_record["generation"]["sections"][0]["evidence"][0]["title"] == "AI 新闻"
+    assert run_record["charts"][0]["chart_id"] == "chart1"
+    assert run_record["tables"][0]["table_id"] == "calendar"
+
+
 def test_render_ppt_report_project_writes_pptx_to_generated_dir(tmp_path: Path, monkeypatch):
     """PPT 项目级生成应替换占位符并输出 pptx。"""
     project_dir = tmp_path / "月度PPT"
@@ -788,7 +921,9 @@ def test_render_ppt_report_project_writes_pptx_to_generated_dir(tmp_path: Path, 
     (project_dir / "generated").mkdir()
     (project_dir / "runs").mkdir()
     write_minimal_pptx(project_dir / "templates" / "report_template.pptx", "{{title}} / {{period}}")
-    (project_dir / "config" / "section_config.yaml").write_text("placeholders: {}\n", encoding="utf-8")
+    (project_dir / "config" / "section_config.yaml").write_text(
+        "placeholders: {}\n", encoding="utf-8"
+    )
     (project_dir / "project.yaml").write_text(
         "\n".join(
             [
@@ -996,9 +1131,7 @@ def test_generation_service_renders_structured_generation_constraints(tmp_path: 
                 latency_ms=120,
             )
 
-    service = ReportProjectGenerationService(
-        retriever=FakeRetriever(), model_gateway=FakeGateway()
-    )
+    service = ReportProjectGenerationService(retriever=FakeRetriever(), model_gateway=FakeGateway())
 
     result = service.generate_placeholders(
         project=project,
@@ -1079,9 +1212,7 @@ def test_generation_service_fills_report_period_placeholders(tmp_path: Path):
         def chat(self, **kwargs):
             raise AssertionError("report_period placeholders should not call model")
 
-    service = ReportProjectGenerationService(
-        retriever=FailRetriever(), model_gateway=FailGateway()
-    )
+    service = ReportProjectGenerationService(retriever=FailRetriever(), model_gateway=FailGateway())
 
     result = service.generate_placeholders(
         project=project,
@@ -1140,9 +1271,7 @@ def test_generation_service_handles_output_shape_placeholder_protocol(tmp_path: 
         def chat(self, **kwargs):
             raise AssertionError("deterministic placeholders should not call model")
 
-    service = ReportProjectGenerationService(
-        retriever=FailRetriever(), model_gateway=FailGateway()
-    )
+    service = ReportProjectGenerationService(retriever=FailRetriever(), model_gateway=FailGateway())
 
     result = service.generate_placeholders(
         project=project,
@@ -1242,9 +1371,7 @@ def test_generation_service_builds_composite_market_review_from_excel_and_eviden
                 latency_ms=100,
             )
 
-    service = ReportProjectGenerationService(
-        retriever=FakeRetriever(), model_gateway=FakeGateway()
-    )
+    service = ReportProjectGenerationService(retriever=FakeRetriever(), model_gateway=FakeGateway())
 
     result = service.generate_placeholders(
         project=project,
@@ -1323,7 +1450,9 @@ def test_generation_service_builds_gold_and_oil_reviews_from_excel(tmp_path: Pat
     (project_dir / "runs").mkdir()
     write_minimal_docx(project_dir / "templates" / "report_template.docx", "{{黄金市场回顾}}{{原油市场回顾}}")
     write_market_review_xlsx(project_dir / "data" / "周报数据.xlsx")
-    (project_dir / "config" / "section_config.yaml").write_text("placeholders: {}\n", encoding="utf-8")
+    (project_dir / "config" / "section_config.yaml").write_text(
+        "placeholders: {}\n", encoding="utf-8"
+    )
     (project_dir / "project.yaml").write_text(
         "\n".join(
             [
@@ -1379,8 +1508,7 @@ def test_generation_service_builds_gold_and_oil_reviews_from_excel(tmp_path: Pat
     )
 
     assert result.placeholders["黄金市场回顾"] == (
-        "截止本周，伦敦现货黄金收于4704.74美元/盎司（周环比-2.74%），"
-        "国内AU9999黄金收于1033.25元/克（周环比-1.75%）。"
+        "截止本周，伦敦现货黄金收于4704.74美元/盎司（周环比-2.74%），" "国内AU9999黄金收于1033.25元/克（周环比-1.75%）。"
     )
     assert result.placeholders["原油市场回顾"] == (
         "截至本周，布伦特原油期货周均价为106.01美元/桶，较上周五涨13.59美元/桶；"
@@ -2057,13 +2185,12 @@ def test_preview_report_project_file_prefers_word_pdf_preview(tmp_path: Path, mo
     assert "parent.document.documentElement" in response.text
     assert "MutationObserver" in response.text
     assert "attributeFilter:['data-theme','data-color-scheme']" in response.text
-    assert "[data-color-scheme=\"obsidian\"]" in response.text
+    assert '[data-color-scheme="obsidian"]' in response.text
     assert "--preview-accent:var(--accent)" in response.text
     assert "--preview-control-bg:" in response.text
     assert "--preview-control-active-bg:" in response.text
     assert (
-        "data-preview-thumbnails-toggle][aria-pressed='true']{"
-        "background:var(--preview-accent)"
+        "data-preview-thumbnails-toggle][aria-pressed='true']{" "background:var(--preview-accent)"
     ) in response.text
     assert "background:#f5f5f7" not in response.text
     assert "background:#34343a" not in response.text
@@ -2075,12 +2202,12 @@ def test_preview_report_project_file_prefers_word_pdf_preview(tmp_path: Path, mo
     assert "wheel" in response.text
     assert "data-preview-loading" in response.text
     assert "data-preview-error" in response.text
-    assert "data-preview-layout=\"double\"" in response.text
-    assert "data-preview-page-count=\"2\"" in response.text
-    assert "data-layout=\"double\" data-thumbnails=\"open\"" in response.text
-    assert "aria-pressed=\"true\" data-preview-thumbnails-toggle" in response.text
-    assert "aria-pressed=\"true\" data-preview-layout=\"double\"" in response.text
-    assert "aria-disabled=\"true\" disabled data-preview-layout=\"double\"" not in response.text
+    assert 'data-preview-layout="double"' in response.text
+    assert 'data-preview-page-count="2"' in response.text
+    assert 'data-layout="double" data-thumbnails="open"' in response.text
+    assert 'aria-pressed="true" data-preview-thumbnails-toggle' in response.text
+    assert 'aria-pressed="true" data-preview-layout="double"' in response.text
+    assert 'aria-disabled="true" disabled data-preview-layout="double"' not in response.text
     assert "docx-preview-layout-switch" in response.text
     assert "docx-preview-layout-icon docx-preview-layout-single" in response.text
     assert "docx-preview-layout-icon docx-preview-layout-double" in response.text
@@ -2109,7 +2236,7 @@ def test_word_pdf_preview_render_failure_still_uses_owned_viewer(monkeypatch):
     assert "docx-word-page-preview" in html
     assert "data-preview-zoom-in" in html
     assert "data-preview-zoom-input" in html
-    assert "aria-label=\"缩放百分比\"" in html
+    assert 'aria-label="缩放百分比"' in html
     assert "data-preview-fit-width" in html
     assert "data-preview-fit-page" in html
     assert "data-preview-page-input" in html
@@ -2127,7 +2254,7 @@ def test_word_pdf_preview_render_failure_still_uses_owned_viewer(monkeypatch):
     assert "data-preview-zoom-preset" not in html
     assert ".docx-preview-stage{grid-row:2;grid-column:2;" in html
     assert "function loadThumbnails()" in html
-    assert "data-preview-layout=\"double\"" in html
+    assert 'data-preview-layout="double"' in html
     assert "docx-preview-layout-switch" in html
     assert "docx-preview-layout-icon docx-preview-layout-single" in html
     assert "docx-preview-layout-icon docx-preview-layout-double" in html
@@ -2154,8 +2281,10 @@ def test_word_page_preview_can_use_cached_page_asset_urls():
         ],
     )
 
-    assert "data-src=\"/api/report-projects/华安ETF周报/preview-assets/preview.docx/page-001.png\"" in html
-    assert "loading=\"lazy\"" in html
+    assert (
+        'data-src="/api/report-projects/华安ETF周报/preview-assets/preview.docx/page-001.png"' in html
+    )
+    assert 'loading="lazy"' in html
     assert "data:image/png;base64" not in html
 
 
@@ -2201,9 +2330,7 @@ def test_rendered_word_page_asset_urls_include_pdf_cache_buster(tmp_path: Path):
     assert pages[0]["src"].endswith(f"page-001.png?v={pdf_hash[:16]}")
 
 
-def test_preview_report_project_file_prefers_cached_page_asset_urls(
-    tmp_path: Path, monkeypatch
-):
+def test_preview_report_project_file_prefers_cached_page_asset_urls(tmp_path: Path, monkeypatch):
     """真实预览接口应优先返回按需加载的页图片 URL，降低首屏 HTML 体积。"""
     _write_preview_project(tmp_path)
 
@@ -2243,12 +2370,20 @@ def test_preview_report_project_file_prefers_cached_page_asset_urls(
     response = client.get("/api/report-projects/华安ETF周报/preview/preview.docx")
 
     assert response.status_code == 200
-    assert "data-src=\"/api/report-projects/华安ETF周报/preview-assets/preview.docx/page-001.png\"" in response.text
-    assert "data-src=\"/api/report-projects/华安ETF周报/preview-assets/preview.docx/page-002.png\"" in response.text
+    assert (
+        'data-src="/api/report-projects/华安ETF周报/preview-assets/preview.docx/page-001.png"'
+        in response.text
+    )
+    assert (
+        'data-src="/api/report-projects/华安ETF周报/preview-assets/preview.docx/page-002.png"'
+        in response.text
+    )
     assert "data:image/png;base64" not in response.text
 
 
-def test_build_word_pdf_preview_uses_cached_word_pdf_without_launching_converters(tmp_path: Path, monkeypatch):
+def test_build_word_pdf_preview_uses_cached_word_pdf_without_launching_converters(
+    tmp_path: Path, monkeypatch
+):
     """已有 Word PDF 缓存时，应直接读取，避免重复启动 Word 或 LibreOffice。"""
     import app.api.routes.report_projects as report_projects_route
 
@@ -2286,7 +2421,11 @@ def test_build_word_pdf_preview_prefers_microsoft_word_export(tmp_path: Path, mo
 
         return Result()
 
-    monkeypatch.setattr(report_projects_route, "_find_microsoft_word_app", lambda: Path("/Applications/Microsoft Word.app"))
+    monkeypatch.setattr(
+        report_projects_route,
+        "_find_microsoft_word_app",
+        lambda: Path("/Applications/Microsoft Word.app"),
+    )
     monkeypatch.setattr(report_projects_route, "_find_soffice_command", lambda: "/usr/bin/soffice")
     monkeypatch.setattr(report_projects_route.subprocess, "run", fake_run)
 
@@ -2296,7 +2435,10 @@ def test_build_word_pdf_preview_prefers_microsoft_word_export(tmp_path: Path, mo
     assert commands
     assert commands[0][0] == ["osascript"]
     assert "com.microsoft.Word" in commands[0][1]
-    assert report_projects_route._word_pdf_preview_cache_path(docx_path, engine="word").read_bytes() == b"%PDF-from-word"
+    assert (
+        report_projects_route._word_pdf_preview_cache_path(docx_path, engine="word").read_bytes()
+        == b"%PDF-from-word"
+    )
 
 
 def test_build_word_pdf_preview_uses_local_soffice_converter(tmp_path: Path, monkeypatch):
@@ -2330,7 +2472,10 @@ def test_build_word_pdf_preview_uses_local_soffice_converter(tmp_path: Path, mon
     assert "--headless" in commands[0]
     assert "--convert-to" in commands[0]
     assert "pdf:writer_pdf_Export" in commands[0]
-    assert report_projects_route._word_pdf_preview_cache_path(docx_path, engine="soffice").read_bytes() == b"%PDF-from-soffice"
+    assert (
+        report_projects_route._word_pdf_preview_cache_path(docx_path, engine="soffice").read_bytes()
+        == b"%PDF-from-soffice"
+    )
 
 
 def test_word_preview_normalizes_anchored_chart_below_caption(tmp_path: Path):
@@ -2482,9 +2627,9 @@ def test_preview_report_project_file_falls_back_to_system_quicklook_image(
     assert "object-fit:contain" in response.text
     assert "data-preview-zoom-in" in response.text
     assert "data-preview-zoom-out" in response.text
-    assert "data-preview-layout=\"double\"" in response.text
-    assert "data-preview-page-count=\"1\"" in response.text
-    assert "aria-disabled=\"true\" disabled data-preview-layout=\"double\"" in response.text
+    assert 'data-preview-layout="double"' in response.text
+    assert 'data-preview-page-count="1"' in response.text
+    assert 'aria-disabled="true" disabled data-preview-layout="double"' in response.text
     assert "data:image/png;base64,ZmFrZS1wbmctYnl0ZXM=" in response.text
     assert "系统缩略预览" in response.text
 
@@ -2494,6 +2639,7 @@ def test_quicklook_preview_uses_actual_image_dimensions():
     import io
 
     from PIL import Image
+
     import app.api.routes.report_projects as report_projects_route
 
     image_io = io.BytesIO()

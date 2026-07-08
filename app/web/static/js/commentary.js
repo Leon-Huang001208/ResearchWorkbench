@@ -78,12 +78,22 @@ function bindCommentaryActions() {
         .getElementById('btn-commentary-copy-draft')
         ?.addEventListener('click', copyCommentaryDraft);
     document
+        .querySelector('.commentary-workspace-tabs')
+        ?.addEventListener('click', event => {
+            const tab = event.target?.closest?.('[data-commentary-workspace]');
+            if (!tab) return;
+            switchCommentaryWorkspace(tab.dataset.commentaryWorkspace);
+        });
+    document
         .getElementById('commentary-evidence-list')
         ?.addEventListener('change', event => {
             const checkbox = event.target?.closest?.('[data-commentary-evidence-key]');
             if (!checkbox) return;
             toggleCommentaryEvidence(checkbox.dataset.commentaryEvidenceKey, checkbox.checked);
         });
+    document
+        .getElementById('commentary-content-checklist')
+        ?.addEventListener('change', renderGenerationLogic);
     document
         .getElementById('commentary-draft-sections')
         ?.addEventListener('click', event => {
@@ -140,12 +150,14 @@ function renderActiveRecipe() {
     if (title) title.textContent = recipe.title;
     if (tag) tag.textContent = recipe.tag;
     renderTemplateList();
+    renderGenerationLogic();
 }
 
 export function selectCommentaryTemplate(recipeId) {
     const recipes = commentaryRecipes();
     activeRecipeId = recipes.some(recipe => recipe.id === recipeId) ? recipeId : recipes[0].id;
     renderActiveRecipe();
+    updateCommentaryWorkflow({ template: 'done', subject: 'active' });
     loadCommentaryContext({ force: true });
 }
 
@@ -185,6 +197,164 @@ function setTextareaValue(id, value) {
 function setText(id, value) {
     const el = document.getElementById(id);
     if (el) el.textContent = value;
+}
+
+function inferCommentaryTarget() {
+    const news = currentEvidenceItems.find(item => item.source_type === 'news' && item.title);
+    if (news?.title) return compactText(news.title, 28);
+    const attribution = latestContextPack?.attribution_signals?.find?.(item => item.label || item.tag);
+    if (attribution) return attribution.label || attribution.tag;
+    const market = currentEvidenceItems.find(item =>
+        item.source_type === 'market_data'
+        && /领涨方向|拖累方向|领跌方向/.test(item.title || '')
+    );
+    return market?.title?.replace(/^领涨方向：|^拖累方向：|^领跌方向：/, '') || '';
+}
+
+function renderCommentaryTargetCandidate() {
+    const candidate = inferCommentaryTarget();
+    const el = document.getElementById('commentary-target-candidate');
+    if (el) el.textContent = candidate ? `自动候选：${candidate}` : '自动候选：等待上下文';
+    return candidate;
+}
+
+function readSelectedContentSections() {
+    const selected = Array.from(
+        document.querySelectorAll('[data-commentary-content-section]:checked')
+    )
+        .map(input => input.dataset.commentaryContentSection || '')
+        .filter(Boolean);
+    return selected.join(' / ');
+}
+
+function renderLogicList(id, items = [], emptyText = '等待上下文。') {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const visibleItems = items.map(item => String(item || '').trim()).filter(Boolean);
+    if (!visibleItems.length) {
+        el.innerHTML = `<p class="empty-state compact">${esc(emptyText)}</p>`;
+        return;
+    }
+    el.innerHTML = visibleItems.map((item, index) => `
+        <article class="commentary-logic-row">
+            <span>${index + 1}</span>
+            <p>${esc(item)}</p>
+        </article>
+    `).join('');
+}
+
+function buildGenerationLogicSnapshot(recipe = activeRecipe()) {
+    const request = buildDraftRequest(recipe);
+    const selected = selectedEvidenceItems();
+    const preferences = request.writing_preferences || {};
+    const attribution = Array.isArray(request.attribution_signals)
+        ? request.attribution_signals
+        : [];
+    const verifiedCount = selected.filter(item => item.verification_status === 'verified').length;
+    const reportedCount = selected.filter(
+        item => item.source_type === 'news' || item.source_type === 'research'
+    ).length;
+    return {
+        recipe: [
+            `recipe_id=${recipe.id}；标题=${recipe.title}；口径=${recipe.tone}`,
+            `段落结构：${(recipe.sections || []).join(' / ') || '等待 recipe'}`,
+            `点评对象：${formatTargetMode(preferences.target_mode)} - ${preferences.target_name || '等待确认'}`,
+            `内容清单：${preferences.content_sections || '等待确认'}`,
+            `写作偏好：受众=${preferences.audience || 'internal'}；长度=${preferences.length || 'medium'}；风格=${preferences.tone || 'balanced'}`,
+        ],
+        evidence: [
+            `选中证据 ${selected.length} 条；已核验 ${verifiedCount} 条；新闻/研报 ${reportedCount} 条`,
+            ...selected.slice(0, 7).map(item => (
+                `${formatEvidenceLabel(item)}｜${item.source_type || item.kind || 'source'}｜${formatVerificationStatus(item.verification_status)}｜${item.title || '未命名证据'}`
+            )),
+        ],
+        attribution: attribution.length
+            ? attribution.slice(0, 6).map(item => (
+                `${item.rank || '-'}｜${formatAttributionStrength(item.strength)}｜${Math.round(Number(item.score || 0))}｜${item.label || item.tag || '归因项'}：${item.rationale || '等待归因说明'}`
+            ))
+            : ['暂无归因排序；生成时会退回数据快照和证据包做谨慎归因。'],
+        prompt: [
+            'prompt 顺序：证据包 -> 数据快照 -> 结构化证据与核验状态 -> 归因排序 -> 主观判断 -> 写作偏好',
+            `证据包摘要：${compactText(request.evidence_pack_text || '暂无证据包', 140)}`,
+            `数据快照摘要：${compactText(request.data_snapshot_text || '暂无数据快照', 140)}`,
+            `主观判断：${compactText(request.subjective_judgement || '暂无，请保持中性', 140)}`,
+            '模型约束：先写消息面主线，再用行情数据验证；未核验证据必须谨慎措辞。',
+        ],
+        quality: [
+            'quality gate: 未核验证据不能写成确定事实。',
+            'quality gate: 必须包含风险提示或后续观察变量。',
+            'quality gate: 禁止一定会、稳赚、无风险等承诺式表达。',
+            'guardrail: 返回前会尝试修正内联标题、软化确定性语言并补风险提示。',
+        ],
+        run: [
+            '1. GET /api/commentary/context：生成 data_snapshot、evidence_items、attribution_signals。',
+            '2. 前端勾选证据并读取写作设置，组装 CommentaryDraftRequest。',
+            '3. POST /api/commentary/draft：LLM 优先，本地规则兜底。',
+            '4. POST /api/commentary/quality-check：发布门禁检查事实边界和风险表达。',
+            '5. POST /api/commentary/runs：记录模型、证据数量、质检状态和草稿。',
+        ],
+    };
+}
+
+function renderGenerationLogic() {
+    const snapshot = buildGenerationLogicSnapshot(activeRecipe());
+    renderLogicList('commentary-logic-recipe', snapshot.recipe);
+    renderLogicList('commentary-logic-evidence', snapshot.evidence, '等待证据入选。');
+    renderLogicList('commentary-logic-attribution', snapshot.attribution, '等待归因排序。');
+    renderLogicList('commentary-logic-prompt', snapshot.prompt);
+    renderLogicList('commentary-logic-quality', snapshot.quality);
+    renderLogicList('commentary-logic-run', snapshot.run);
+}
+
+export function switchCommentaryWorkspace(mode = 'template') {
+    const targetMode = mode || 'template';
+    document.querySelectorAll('[data-commentary-workspace]').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.commentaryWorkspace === targetMode);
+    });
+    document.querySelectorAll('[data-commentary-workspace-panel]').forEach(panel => {
+        panel.classList.toggle('active', panel.dataset.commentaryWorkspacePanel === targetMode);
+    });
+    if (targetMode === 'content') renderGenerationLogic();
+}
+
+function updateCommentaryWorkflow(overrides = {}) {
+    const selectedCount = selectedEvidenceItems().length;
+    const hasContext = Boolean(latestContextPack && latestContextRecipeId === activeRecipe().id);
+    const hasEvidence = currentEvidenceItems.length > 0;
+    const draftText = document.getElementById('commentary-draft-output')?.innerText?.trim() || '';
+    const hasDraft = currentDraftSections.length > 0 || draftText.length > 20;
+    const qualityText = document.getElementById('commentary-quality-panel')?.innerText || '';
+    const hasQuality = hasDraft && !qualityText.includes('等待生成后质检');
+    const normalizedOverrides = { ...overrides };
+    if (normalizedOverrides.context) normalizedOverrides.content = normalizedOverrides.context;
+    if (normalizedOverrides.evidence) normalizedOverrides.content = normalizedOverrides.evidence;
+    if (normalizedOverrides.quality) normalizedOverrides.draft = normalizedOverrides.quality;
+    const states = {
+        template: hasContext ? 'done' : 'active',
+        subject: hasContext ? 'done' : (normalizedOverrides.template === 'done' ? 'active' : 'pending'),
+        content: hasEvidence && selectedCount > 0 ? 'done' : (hasContext ? 'active' : 'pending'),
+        draft: hasDraft ? 'done' : (hasEvidence ? 'active' : 'pending'),
+        ...normalizedOverrides,
+    };
+    if (hasQuality) states.draft = 'done';
+    const labels = {
+        done: '完成',
+        active: '当前',
+        pending: '等待',
+        error: '异常',
+    };
+    document.querySelectorAll('.commentary-workflow-step[data-commentary-step]').forEach(step => {
+        const state = states[step.dataset.commentaryStep] || 'pending';
+        step.setAttribute('data-step-state', state);
+        const badge = step.querySelector('em');
+        if (badge) badge.textContent = labels[state] || state;
+    });
+}
+
+function formatTargetMode(mode) {
+    if (mode === 'manual') return '手动指定';
+    if (mode === 'auto') return '自动补充';
+    return '模板默认';
 }
 
 function evidenceKey(item, index = 0) {
@@ -302,6 +472,46 @@ function renderEvidenceItem(item, index) {
     `;
 }
 
+function renderOverviewEvidence(items = []) {
+    const list = document.getElementById('commentary-overview-evidence-list');
+    if (!list) return;
+    const ranked = [...(Array.isArray(items) ? items : [])].sort((left, right) => {
+        const leftNews = left.source_type === 'news' ? 1 : 0;
+        const rightNews = right.source_type === 'news' ? 1 : 0;
+        return rightNews - leftNews || Number(right.confidence_score || 0) - Number(left.confidence_score || 0);
+    }).slice(0, 5);
+    if (!ranked.length) {
+        list.innerHTML = '<p class="empty-state compact">等待上下文证据。</p>';
+        return;
+    }
+    list.innerHTML = ranked.map((item, index) => `
+        <article class="commentary-overview-evidence-item">
+            <span>${index + 1}</span>
+            <div>
+                <strong>${esc(item.title || '未命名证据')}</strong>
+                <small>${esc(formatEvidenceLabel(item))} · ${esc(formatVerificationStatus(item.verification_status))}</small>
+            </div>
+        </article>
+    `).join('');
+}
+
+function renderOverviewAttribution(signals = []) {
+    const list = document.getElementById('commentary-overview-attribution-list');
+    if (!list) return;
+    const items = Array.isArray(signals) ? signals.slice(0, 3) : [];
+    if (!items.length) {
+        list.innerHTML = '<p class="empty-state compact">等待上下文归因。</p>';
+        return;
+    }
+    list.innerHTML = items.map(item => `
+        <article class="commentary-overview-attribution-item" data-strength="${esc(item.strength || 'watch')}">
+            <span>${esc(formatAttributionStrength(item.strength))}</span>
+            <strong>${esc(item.label || item.tag || '归因项')}</strong>
+            <small>${esc(item.rationale || '')}</small>
+        </article>
+    `).join('');
+}
+
 function updateProductionMetrics() {
     const selectedCount = selectedEvidenceItems().length;
     const verifiedCount = currentEvidenceItems.filter(
@@ -310,6 +520,7 @@ function updateProductionMetrics() {
     setText('commentary-evidence-count', currentEvidenceItems.length ? `${currentEvidenceItems.length}` : '--');
     setText('commentary-selected-evidence-count', currentEvidenceItems.length ? `${selectedCount}` : '--');
     setText('commentary-verified-count', currentEvidenceItems.length ? `${verifiedCount}` : '--');
+    updateCommentaryWorkflow();
 }
 
 function renderQualityPanel(response = null) {
@@ -317,6 +528,7 @@ function renderQualityPanel(response = null) {
     if (!panel) return;
     if (!response) {
         panel.innerHTML = '<span data-quality="ready">等待生成后质检</span>';
+        updateCommentaryWorkflow({ quality: 'pending' });
         return;
     }
     if (Array.isArray(response.issues)) {
@@ -331,6 +543,7 @@ function renderQualityPanel(response = null) {
         `<span data-quality="${unverified ? 'watch' : 'ready'}">待核验证据 ${unverified}</span>`,
         `<span data-quality="ready">引用 ${citations.length}</span>`,
     ].join('');
+    updateCommentaryWorkflow();
 }
 
 function renderQualityIssues(result = {}) {
@@ -340,6 +553,7 @@ function renderQualityIssues(result = {}) {
     const summary = result.summary || {};
     if (!issues.length) {
         panel.innerHTML = '<span data-quality="ready">质检通过</span>';
+        updateCommentaryWorkflow({ quality: 'done' });
         return;
     }
     const state = result.status === 'blocked' ? 'warn' : 'watch';
@@ -352,6 +566,7 @@ function renderQualityIssues(result = {}) {
             </span>
         `).join('')}
     `;
+    updateCommentaryWorkflow({ quality: 'done' });
 }
 
 function formatAttributionStrength(strength) {
@@ -367,6 +582,7 @@ function formatAttributionStrength(strength) {
 function renderAttributionSignals(signals = []) {
     const list = document.getElementById('commentary-attribution-list');
     const count = document.getElementById('commentary-attribution-count');
+    renderOverviewAttribution(signals);
     if (!list) return;
 
     const items = Array.isArray(signals) ? signals.slice(0, 6) : [];
@@ -400,6 +616,9 @@ function renderEvidenceItems(items = []) {
         currentEvidenceItems.map((item, index) => evidenceKey(item, index))
     );
     updateProductionMetrics();
+    renderOverviewEvidence(currentEvidenceItems);
+    renderCommentaryTargetCandidate();
+    renderGenerationLogic();
 
     if (!currentEvidenceItems.length) {
         list.innerHTML = '<p class="empty-state compact">等待上下文证据。</p>';
@@ -419,6 +638,7 @@ export function toggleCommentaryEvidence(key, checked) {
         selectedEvidenceKeys.delete(key);
     }
     updateProductionMetrics();
+    renderGenerationLogic();
 }
 
 function selectedEvidenceItems() {
@@ -434,6 +654,7 @@ export async function loadCommentaryContext(options = {}) {
 
     isLoadingContext = true;
     setContextStatus('加载上下文...', 'loading');
+    updateCommentaryWorkflow({ context: 'active', evidence: 'pending' });
     currentContextPromise = (async () => {
         let context = null;
         try {
@@ -444,6 +665,7 @@ export async function loadCommentaryContext(options = {}) {
         } catch (error) {
             console.error('commentary_context_fetch_failed', error);
             setContextStatus('上下文加载失败', 'error');
+            updateCommentaryWorkflow({ context: 'error' });
             if (options.force) toast(`点评上下文加载失败：${error.message || error}`, 'error');
             return null;
         }
@@ -455,13 +677,16 @@ export async function loadCommentaryContext(options = {}) {
             renderAttributionSignals(context.attribution_signals);
             renderEvidenceItems(context.evidence_items);
             renderQualityPanel();
+            renderGenerationLogic();
             latestContextRecipeId = recipe.id;
             setContextStatus('上下文已更新', 'ready');
+            updateCommentaryWorkflow();
             if (options.force) toast('点评上下文已更新', 'success');
             return context;
         } catch (error) {
             console.error('commentary_context_render_failed', error);
             setContextStatus('上下文渲染失败', 'error');
+            updateCommentaryWorkflow({ context: 'error' });
             if (options.force) toast(`点评上下文渲染失败：${error.message || error}`, 'error');
             return null;
         }
@@ -539,6 +764,9 @@ function renderDraft(draft) {
             };
         }),
     });
+    updateCommentaryWorkflow({ draft: 'done', quality: 'active' });
+    setText('commentary-overview-draft-state', '已生成');
+    switchCommentaryWorkspace('draft');
 }
 
 function markdownToHtml(markdown) {
@@ -626,6 +854,9 @@ function renderBackendDraft(response) {
         ` : ''}
     `;
     renderDraftSections(response);
+    updateCommentaryWorkflow({ draft: 'done', quality: 'active' });
+    setText('commentary-overview-draft-state', '已生成');
+    switchCommentaryWorkspace('draft');
 }
 
 async function runCommentaryQualityCheck(draftResponse) {
@@ -640,6 +871,7 @@ async function runCommentaryQualityCheck(draftResponse) {
             }
         );
         renderQualityPanel(result);
+        renderGenerationLogic();
         recordCommentaryRun(draftResponse, result);
         return result;
     } catch (error) {
@@ -648,6 +880,7 @@ async function runCommentaryQualityCheck(draftResponse) {
         if (panel) {
             panel.innerHTML = '<span data-quality="watch">质检暂不可用</span>';
         }
+        renderGenerationLogic();
         recordCommentaryRun(draftResponse, null);
         return null;
     }
@@ -774,10 +1007,19 @@ function applyLocalSectionAction(text, action) {
 }
 
 function readWritingPreferences() {
+    const targetMode = readField('commentary-target-mode-control') || 'template_default';
+    const manualTarget = readField('commentary-target-input');
+    const inferredTarget = renderCommentaryTargetCandidate();
+    const templateTarget = activeRecipe().title;
     return {
         audience: readField('commentary-audience-control') || 'internal',
         length: readField('commentary-length-control') || 'medium',
         tone: readField('commentary-tone-control') || 'balanced',
+        target_mode: targetMode,
+        target_name: targetMode === 'manual'
+            ? manualTarget
+            : (targetMode === 'auto' ? inferredTarget : templateTarget),
+        content_sections: readSelectedContentSections(),
     };
 }
 
@@ -796,6 +1038,8 @@ function buildDraftRequest(recipe) {
 export async function generateCommentaryDraft() {
     const recipe = activeRecipe();
     try {
+        updateCommentaryWorkflow({ draft: 'active', quality: 'pending' });
+        setText('commentary-overview-draft-state', '生成中');
         if (isLoadingContext) await currentContextPromise;
         if (!latestContextPack || latestContextRecipeId !== recipe.id) {
             await loadCommentaryContext();
@@ -810,6 +1054,7 @@ export async function generateCommentaryDraft() {
         toast('点评草稿已生成', 'success');
     } catch (error) {
         console.error('[commentary] failed to generate draft', error);
+        setText('commentary-overview-draft-state', '本地兜底');
         const draft = buildCommentaryDraft(
             recipe,
             readField('commentary-data-snapshot'),
@@ -842,5 +1087,6 @@ export function initCommentaryCenter() {
     initialized = true;
     bindCommentaryActions();
     renderActiveRecipe();
+    updateCommentaryWorkflow();
     loadCommentaryRecipes().finally(() => loadCommentaryContext());
 }

@@ -397,7 +397,7 @@ AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System�
 - `templates/`：各类报告模板（资产分析卡、专题备忘录、情景分析报告）
 - `composer/`：内容合成引擎，将碎片化结果组合为完整报告
 - `projections/`：格式投影，转换为 Markdown、Word、HTML 等格式输出
-- `projects/`：项目级报告生成链路，读取 `report_projects/<项目>/project.yaml`、Word 模板、Excel 底稿、`section_config.yaml` 和 `prompt_templates.md`，执行 evidence 检索、ModelGateway 生成、图表渲染、DOCX 填充、HTML 预览和 runs 日志记录
+- `projects/`：项目级报告生成链路，读取 `report_projects/<项目>/project.yaml`、Word/PPT 模板、Excel 底稿、`section_config.yaml` 和 `prompt_templates.md`；`CompiledReportPlan` 负责生成前 readiness 预检，`ReportProjectRunService` 统一编排 evidence 检索、ModelGateway 生成、Word/PPT 投影、图表/表格渲染和 runs 日志记录，API route 只负责 HTTP 映射与预览/下载入口
 
 **项目级报告数据流**：
 
@@ -405,6 +405,8 @@ AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System�
 Word 占位符
 → section_config.yaml placeholders/charts
 → prompt_templates.md 检索 Query + 写作要求
+→ CompiledReportPlan 生成前检查 prompt / retrieval / deterministic 占位符
+→ ReportProjectRunService 解析周期并编排单次运行
 → ingestion_queue_item / canonical_event evidence 检索
 → ModelGateway(reporting/default task route)
 → WordProjection 占位符替换

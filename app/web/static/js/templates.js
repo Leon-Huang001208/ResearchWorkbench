@@ -1081,7 +1081,9 @@ function bindTemplateDetailModeTabs() {
 function buildGenerationReadiness(template, sections, placeholders) {
     const assetChecks = buildTemplateAssetChecks(template, sections);
     const validationChecks = buildTemplateValidationChecks(template, sections, placeholders);
-    const placeholderReadiness = buildPlaceholderReadinessItems(template, placeholders);
+    const compiledPlan = getCompiledReportPlan(template);
+    const compiledPlanItems = buildCompiledPlanReadinessItems(compiledPlan);
+    const placeholderReadiness = compiledPlanItems.length ? compiledPlanItems : buildPlaceholderReadinessItems(template, placeholders);
     const excelRows = buildExcelMappingRows(template);
     const generatedReports = Array.isArray(template.report_project?.generated_reports)
         ? template.report_project.generated_reports
@@ -1102,6 +1104,7 @@ function buildGenerationReadiness(template, sections, placeholders) {
         assetChecks,
         validationChecks,
         placeholderReadiness: placeholderReadiness,
+        compiledPlan,
         excelRows,
         generatedReports,
         latestReport: generatedReports[0] || null,
@@ -1119,6 +1122,47 @@ function buildGenerationReadiness(template, sections, placeholders) {
         totalReadinessChecks: assetChecks.length + validationChecks.length + placeholderReadiness.length,
         placeholderCount: placeholders.length || sections.length
     };
+}
+
+function getCompiledReportPlan(template) {
+    const compiledPlan = template?.report_project?.compiled_plan;
+    return compiledPlan && typeof compiledPlan === 'object' ? compiledPlan : null;
+}
+
+function buildCompiledPlanReadinessItems(compiledPlan) {
+    const placeholders = Array.isArray(compiledPlan?.placeholders)
+        ? compiledPlan.placeholders
+        : [];
+    return placeholders.map(item => {
+        const warnings = Array.isArray(item.warnings) ? item.warnings : [];
+        const ok = Boolean(
+            item.deterministic
+            || (item.prompt_found && item.retrieval_ready && !warnings.length)
+        );
+        const message = warnings[0]
+            || (!item.prompt_found ? `缺少 Prompt 模板 ${item.prompt_template || item.title || ''}` : '')
+            || (!item.retrieval_ready ? '缺少检索关键词或 Query' : '')
+            || '后端计划检查未通过';
+        return {
+            placeholderName: normalizePlaceholderName(item.placeholder || item.title || ''),
+            mapping: {
+                type: item.output_type || 'paragraph',
+                prompt_template: item.prompt_template || ''
+            },
+            ok,
+            issue: ok ? null : {
+                message: `后端计划：${message}`,
+                editorSection: item.prompt_found ? 'query' : 'basic'
+            },
+            status: {
+                ok,
+                state: ok ? 'ready' : 'missing',
+                label: ok ? '可生成' : '缺配置',
+                detail: ok ? '后端计划检查通过' : message
+            },
+            editorSection: item.prompt_found ? 'query' : 'basic'
+        };
+    });
 }
 
 function getTemplateGenerationPreflight(template = getCurrentWorkbenchTemplate()) {
@@ -1208,6 +1252,7 @@ function renderGenerationHero(template, readiness) {
     }
 
     if (project) ensureSelectedGeneratedReport(project);
+    renderCurrentIssueSettingsBar(template, readiness);
 }
 
 function refreshGenerationHeroMeta(template = getCurrentWorkbenchTemplate()) {
@@ -1215,6 +1260,91 @@ function refreshGenerationHeroMeta(template = getCurrentWorkbenchTemplate()) {
     const placeholders = getTemplateWorkbenchPlaceholders(template);
     const sections = getTemplateWorkbenchSections(template);
     renderGenerationHero(template, buildGenerationReadiness(template, sections, placeholders));
+}
+
+function renderCurrentIssueSettingsBar(template, readiness) {
+    const overview = document.getElementById('template-generation-overview');
+    const hero = overview?.querySelector('.template-generation-hero');
+    if (!overview || !hero) return;
+    let bar = document.getElementById('template-current-issue-settings');
+    if (!bar) {
+        bar = document.createElement('section');
+        bar.id = 'template-current-issue-settings';
+        bar.className = 'template-current-issue-settings';
+        hero.insertAdjacentElement('afterend', bar);
+    }
+    const options = getReportProjectGenerationOptions();
+    const projectType = template?.report_project?.project_type || template?.file_type || 'word';
+    const latest = readiness.latestReport;
+    bar.innerHTML = `
+        <div class="template-current-issue-settings-title">
+            <span>本期设置</span>
+            <strong>${esc(readiness.dataOk && readiness.contentOk ? '可生成' : '待检查')}</strong>
+        </div>
+        <label>
+            <span>报告日期</span>
+            <input type="date" id="current-issue-report-date" value="${esc(options.report_date)}">
+        </label>
+        <label>
+            <span>开始日期</span>
+            <input type="date" id="current-issue-start-date" value="${esc(options.start_date)}">
+        </label>
+        <label>
+            <span>结束日期</span>
+            <input type="date" id="current-issue-end-date" value="${esc(options.end_date)}">
+        </label>
+        <label>
+            <span>证据窗口</span>
+            <input type="number" min="1" max="90" step="1" id="current-issue-lookback-days" value="${esc(options.lookback_days)}">
+        </label>
+        <label>
+            <span>输出格式</span>
+            <select id="current-issue-output-format">
+                <option value="docx" ${projectType === 'ppt' ? '' : 'selected'}>Word</option>
+                <option value="pptx" ${projectType === 'ppt' ? 'selected' : ''}>PPT</option>
+            </select>
+        </label>
+        <div class="template-current-issue-latest">
+            <span>最近版本</span>
+            <strong>${esc(latest?.file_name || '尚未生成')}</strong>
+        </div>
+    `;
+    bindCurrentIssueSettingsBar();
+}
+
+function bindCurrentIssueSettingsBar() {
+    const bar = document.getElementById('template-current-issue-settings');
+    if (!bar) return;
+    const sync = (changedField = '') => {
+        const template = getCurrentWorkbenchTemplate();
+        if (!template) return;
+        const defaults = getEditableCommonDefaults(template);
+        const reportDate = document.getElementById('current-issue-report-date')?.value || getDefaultReportDate();
+        const lookbackDays = Math.max(1, Math.min(90, Number(document.getElementById('current-issue-lookback-days')?.value || 7)));
+        let startDate = document.getElementById('current-issue-start-date')?.value || getDefaultEvidenceStartDate(reportDate);
+        const endDate = document.getElementById('current-issue-end-date')?.value || reportDate;
+        if (changedField === 'lookback' || changedField === 'report_date') {
+            startDate = getDefaultEvidenceStartDate(reportDate, lookbackDays);
+            const startInput = document.getElementById('current-issue-start-date');
+            if (startInput) startInput.value = startDate;
+        }
+        currentTemplateState.commonDefaultsDraft = {
+            ...defaults,
+            report_period: {
+                ...(defaults.report_period || {}),
+                report_date: reportDate,
+                start_date: startDate,
+                end_date: endDate,
+                lookback_days: lookbackDays
+            }
+        };
+        refreshCommonConfigSurfaces(template);
+        renderSelectedSourceFragment(template);
+    };
+    bar.querySelector('#current-issue-report-date')?.addEventListener('change', () => sync('report_date'));
+    bar.querySelector('#current-issue-lookback-days')?.addEventListener('change', () => sync('lookback'));
+    bar.querySelector('#current-issue-start-date')?.addEventListener('change', () => sync('start_date'));
+    bar.querySelector('#current-issue-end-date')?.addEventListener('change', () => sync('end_date'));
 }
 
 function renderGenerationStatusStrip(readiness) {
@@ -1356,6 +1486,84 @@ function getGeneratedReportUrls(project, report) {
     };
 }
 
+function buildDeliveryCheckRows(runResult, runLog, latestReport, readiness) {
+    const sections = Array.isArray(runLog?.generation?.sections)
+        ? runLog.generation.sections
+        : [];
+    const generatedCount = runResult?.generated_placeholder_count
+        ?? sections.length
+        ?? 0;
+    const hasGenerationMetrics = Boolean(runResult || sections.length);
+    const missingCount = hasGenerationMetrics
+        ? Math.max(0, (readiness?.placeholderCount || 0) - generatedCount)
+        : 0;
+    const evidenceTotal = runResult?.evidence_count
+        ?? sections.reduce((total, section) => total + Number(section.evidence_count || 0), 0);
+    const warnings = [
+        ...(runResult?.warnings || []),
+        ...(runLog?.generation?.warnings || []),
+        ...sections.flatMap(section => section.warnings || []),
+    ];
+    const emptyPlaceholderCount = runResult?.empty_placeholder_count
+        ?? runLog?.output?.empty_placeholder_count
+        ?? missingCount;
+    const chartTableWarnings = warnings.filter(warning => /图表|表格|chart|table/i.test(String(warning)));
+    return [
+        {
+            label: '生成段落',
+            value: generatedCount ? `${generatedCount} 段` : (latestReport ? '已生成' : '待生成'),
+            ok: Boolean(generatedCount || latestReport)
+        },
+        {
+            label: '缺失段落',
+            value: `${missingCount} 个`,
+            ok: missingCount === 0
+        },
+        {
+            label: 'Evidence 总数',
+            value: `${evidenceTotal || 0} 条`,
+            ok: evidenceTotal > 0 || !sections.length
+        },
+        {
+            label: 'Warnings',
+            value: `${warnings.length} 条`,
+            ok: warnings.length === 0
+        },
+        {
+            label: '空占位符',
+            value: `${emptyPlaceholderCount || 0} 个`,
+            ok: !emptyPlaceholderCount
+        },
+        {
+            label: '图表/表格',
+            value: chartTableWarnings.length ? `${chartTableWarnings.length} 条警告` : '未见阻断',
+            ok: chartTableWarnings.length === 0
+        }
+    ];
+}
+
+function renderDeliveryCheckCard(runResult, runLog, latestReport, readiness) {
+    if (!latestReport && !runResult) return '';
+    const rows = buildDeliveryCheckRows(runResult, runLog, latestReport, readiness);
+    const passed = rows.filter(row => row.ok).length;
+    return `
+        <div class="template-delivery-check-card">
+            <div class="template-delivery-check-title">
+                <span>交付检查</span>
+                <strong>${passed}/${rows.length} 通过</strong>
+            </div>
+            <div class="template-delivery-check-grid">
+                ${rows.map(row => `
+                    <div class="template-delivery-check-item ${row.ok ? 'ok' : 'pending'}">
+                        <span>${esc(row.label)}</span>
+                        <strong>${esc(row.value)}</strong>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+}
+
 function selectGeneratedReport(fileName, { openPreview = false } = {}) {
     currentTemplateState.selectedGeneratedReportFile = fileName || null;
     const template = getCurrentWorkbenchTemplate();
@@ -1371,6 +1579,9 @@ function selectGeneratedReport(fileName, { openPreview = false } = {}) {
 
 function renderRecentGenerationPanel(template) {
     const project = template.report_project || null;
+    const placeholders = getTemplateWorkbenchPlaceholders(template);
+    const sections = getTemplateWorkbenchSections(template);
+    const readiness = buildGenerationReadiness(template, sections, placeholders);
     const statusEl = document.getElementById('template-recent-generation-status');
     const card = document.getElementById('template-recent-generation-card');
     if (!card) return;
@@ -1411,7 +1622,15 @@ function renderRecentGenerationPanel(template) {
         return;
     }
 
+    const deliveryCheck = renderDeliveryCheckCard(
+        currentTemplateState.lastReportGenerationResult,
+        currentTemplateState.lastReportRunLog,
+        selectedReport,
+        readiness
+    );
+
     card.innerHTML = `
+        ${deliveryCheck}
         <div class="template-generated-report-list" role="listbox" aria-label="生成报告历史">
             ${generatedReports.map((report, index) => {
                 const selected = report.file_name === selectedReport?.file_name;
@@ -2502,11 +2721,11 @@ function getDefaultReportDate() {
     return new Date(now.getTime() - timezoneOffset).toISOString().slice(0, 10);
 }
 
-function getDefaultEvidenceStartDate(reportDate = getDefaultReportDate()) {
+function getDefaultEvidenceStartDate(reportDate = getDefaultReportDate(), lookbackDays = 7) {
     const end = parseDateInput(reportDate) || parseDateInput(getDefaultReportDate());
     if (!end) return '';
     const start = new Date(end);
-    start.setDate(start.getDate() - 6);
+    start.setDate(start.getDate() - Math.max(1, Number(lookbackDays) || 7) + 1);
     return formatDateInput(start);
 }
 
@@ -5042,70 +5261,337 @@ function getPlaceholderReadinessIssue(mapping, placeholderName) {
     return null;
 }
 
+function buildPreflightReviewGroups(readiness, checks, placeholderReadiness, context) {
+    const compiledPlan = readiness.compiledPlan || null;
+    const compiledPlaceholders = Array.isArray(compiledPlan?.placeholders)
+        ? compiledPlan.placeholders
+        : [];
+    const evidencePlaceholders = compiledPlaceholders.filter(item => item.evidence_required);
+    const deterministicPlaceholders = compiledPlaceholders.filter(item => item.deterministic === true);
+    const missingPromptItems = compiledPlaceholders.filter(item =>
+        item.evidence_required && item.prompt_found === false
+    );
+    const missingRetrievalItems = compiledPlaceholders.filter(item =>
+        item.evidence_required && item.retrieval_ready === false
+    );
+    const planWarnings = Array.isArray(readiness.compiledPlan?.warnings)
+        ? readiness.compiledPlan.warnings
+        : [];
+    const evidencePreviewRows = buildEvidencePreviewRows(readiness);
+    const assetRows = (readiness.assetChecks || []).map(item => ({
+        label: item.label || '模板资产',
+        value: item.ok ? '已就绪' : '待处理',
+        ok: Boolean(item.ok),
+        action: item.action,
+        actionTarget: item.actionTarget,
+        actionLabel: item.actionLabel
+    }));
+    const mappedPlaceholders = context.placeholders.length || context.sections.length;
+
+    return [
+        {
+            title: 'Prompt 覆盖',
+            meta: missingPromptItems.length
+                ? `${missingPromptItems.length} 个缺 Prompt`
+                : `${evidencePlaceholders.length || placeholderReadiness.length} 个可写作`,
+            rows: [
+                {
+                    label: 'Word 占位符映射',
+                    value: checks[0]?.ok ? `${mappedPlaceholders}/${mappedPlaceholders}` : '待处理',
+                    ok: Boolean(checks[0]?.ok),
+                    action: checks[0]?.action,
+                    actionTarget: checks[0]?.actionTarget,
+                    actionLabel: checks[0]?.actionLabel,
+                    placeholderName: checks[0]?.placeholderName
+                },
+                {
+                    label: 'AI 文本 Prompt',
+                    value: missingPromptItems.length ? `${missingPromptItems.length} 个待补` : '已覆盖',
+                    ok: missingPromptItems.length === 0 && Boolean(checks[1]?.ok),
+                    action: checks[1]?.action,
+                    actionTarget: checks[1]?.actionTarget,
+                    actionLabel: checks[1]?.actionLabel
+                },
+                {
+                    label: '禁用词 / 投资建议',
+                    value: checks[3]?.ok ? '已配置' : '待配置',
+                    ok: Boolean(checks[3]?.ok),
+                    action: checks[3]?.action,
+                    actionTarget: checks[3]?.actionTarget,
+                    actionLabel: checks[3]?.actionLabel
+                },
+                ...missingPromptItems.slice(0, 3).map(item => ({
+                    label: `{{${item.placeholder}}}`,
+                    value: `缺少 ${item.prompt_template || item.title || 'Prompt 模板'}`,
+                    ok: false,
+                    placeholderName: item.placeholder,
+                    editorSection: 'basic',
+                    action: 'focus-placeholder',
+                    actionLabel: '定位'
+                }))
+            ]
+        },
+        {
+            title: 'Evidence 覆盖',
+            meta: missingRetrievalItems.length || planWarnings.length
+                ? `${missingRetrievalItems.length + planWarnings.length} 项待处理`
+                : `${evidencePlaceholders.length} 个检索段落`,
+            rows: [
+                {
+                    label: '检索关键词 / Query',
+                    value: missingRetrievalItems.length ? `${missingRetrievalItems.length} 个待补` : '已覆盖',
+                    ok: missingRetrievalItems.length === 0,
+                    action: 'open-advanced',
+                    actionTarget: 'template-placeholder-detail-form',
+                    actionLabel: '编辑检索'
+                },
+                ...missingRetrievalItems.slice(0, 4).map(item => ({
+                    label: `{{${item.placeholder}}}`,
+                    value: '缺少检索关键词或 Query',
+                    ok: false,
+                    placeholderName: item.placeholder,
+                    editorSection: 'query',
+                    action: 'focus-placeholder',
+                    actionLabel: '定位'
+                })),
+                ...planWarnings.slice(0, 3).map(warning => ({
+                    label: '后端计划',
+                    value: warning,
+                    ok: false
+                })),
+                ...evidencePreviewRows.slice(0, 4).map(row => ({
+                    label: row.label,
+                    value: row.value,
+                    ok: row.ok,
+                    kind: row.kind,
+                    action: row.action,
+                    actionTarget: row.actionTarget,
+                    actionLabel: row.actionLabel,
+                    placeholderName: row.placeholderName,
+                    editorSection: row.editorSection,
+                    detail: row.detail
+                }))
+            ]
+        },
+        {
+            title: '输出资产',
+            meta: readiness.latestReport ? '最近版本可用' : `${readiness.readyAssets}/${readiness.totalAssets} 项资产`,
+            rows: [
+                ...assetRows,
+                {
+                    label: 'Excel 数据来源',
+                    value: context.excelRows.length ? `${context.excelRows.length} 个范围` : '待绑定',
+                    ok: context.excelRows.length > 0,
+                    action: checks[2]?.action,
+                    actionTarget: checks[2]?.actionTarget,
+                    actionLabel: checks[2]?.actionLabel
+                },
+                {
+                    label: '确定性占位符',
+                    value: deterministicPlaceholders.length ? `${deterministicPlaceholders.length} 个` : '无',
+                    ok: true
+                },
+                {
+                    label: '输出入口',
+                    value: readiness.latestReport ? '可预览 / 下载' : '生成后可用',
+                    ok: Boolean(readiness.outputOk)
+                }
+            ]
+        }
+    ];
+}
+
+function buildPreflightTaskQueue(readiness, checks, placeholderReadiness) {
+    const tasks = [];
+    (readiness.assetChecks || []).filter(item => !item.ok).forEach(item => {
+        tasks.push({
+            severity: '阻断',
+            label: item.label || '模板资产',
+            detail: item.description || '生成所需资产尚未就绪',
+            action: item.action,
+            actionTarget: item.actionTarget,
+            actionLabel: item.actionLabel || '处理'
+        });
+    });
+    (placeholderReadiness || []).filter(item => !item.ok).forEach(item => {
+        tasks.push({
+            severity: item.issue?.message?.includes('后端计划') ? '阻断' : '警告',
+            label: `{{${item.placeholderName}}}`,
+            detail: item.issue?.message || item.status?.detail || '占位符配置需要处理',
+            action: 'focus-placeholder',
+            placeholderName: item.placeholderName,
+            editorSection: item.editorSection || 'basic',
+            actionLabel: '定位'
+        });
+    });
+    (checks || []).filter(item => !item.ok).forEach(item => {
+        tasks.push({
+            severity: '警告',
+            label: item.label || '生成检查',
+            detail: item.actionLabel ? `建议：${item.actionLabel}` : '建议先处理该检查项',
+            action: item.action,
+            actionTarget: item.actionTarget,
+            placeholderName: item.placeholderName,
+            actionLabel: item.actionLabel || '处理'
+        });
+    });
+    if (!tasks.length && !readiness.latestReport) {
+        tasks.push({
+            severity: '建议',
+            label: '首次生成',
+            detail: '预检通过后可以生成本期报告',
+            action: '',
+            actionLabel: ''
+        });
+    }
+    return tasks.slice(0, 3);
+}
+
+function renderPreflightTaskQueue(tasks) {
+    const visibleTasks = Array.isArray(tasks) ? tasks.slice(0, 3) : [];
+    if (!visibleTasks.length) {
+        return `
+            <div class="template-preflight-task-queue ok">
+                <div class="template-preflight-task-title">
+                    <span>优先处理</span>
+                    <strong>暂无阻断</strong>
+                </div>
+            </div>
+        `;
+    }
+    return `
+        <div class="template-preflight-task-queue">
+            <div class="template-preflight-task-title">
+                <span>优先处理</span>
+                <strong>${visibleTasks.length} 项</strong>
+            </div>
+            ${visibleTasks.map(task => `
+                <div class="template-preflight-task-item ${task.severity === '阻断' ? 'blocker' : task.severity === '警告' ? 'warning' : 'suggestion'}">
+                    <em>${esc(task.severity || '建议')}</em>
+                    <span>
+                        <strong>${esc(task.label || '')}</strong>
+                        <small>${esc(task.detail || '')}</small>
+                    </span>
+                    ${task.action ? `
+                        <button
+                            type="button"
+                            class="template-check-action"
+                            data-template-check-action="${esc(task.action)}"
+                            data-template-check-target="${esc(task.actionTarget || '')}"
+                            data-template-placeholder-name="${esc(task.placeholderName || '')}"
+                            data-template-placeholder-editor-section="${esc(task.editorSection || 'basic')}"
+                        >
+                            ${esc(task.actionLabel || '处理')}
+                        </button>
+                    ` : ''}
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+function buildEvidencePreviewRows(readiness) {
+    const runLogSamples = getRunLogEvidenceSamples(currentTemplateState.lastReportRunLog);
+    if (runLogSamples.length) return runLogSamples;
+    const compiledPlaceholders = Array.isArray(readiness.compiledPlan?.placeholders)
+        ? readiness.compiledPlan.placeholders
+        : [];
+    return compiledPlaceholders
+        .filter(item => item.evidence_required)
+        .slice(0, 5)
+        .map(item => {
+            const keywords = item.retrieval_config?.must_any || [];
+            const topK = item.retrieval_config?.top_k || 0;
+            return {
+                label: `Evidence 抽样 · ${item.title || item.placeholder}`,
+                value: keywords.length
+                    ? `关键词 ${keywords.slice(0, 4).join('、')} · Top K ${topK || '-'}`
+                    : `检索 Query 来自 ${item.prompt_template || 'Prompt'}`,
+                ok: item.retrieval_ready !== false,
+                kind: 'template-evidence-sample',
+                action: 'focus-placeholder',
+                placeholderName: item.placeholder,
+                editorSection: 'query',
+                actionLabel: '调关键词'
+            };
+        });
+}
+
+function getRunLogEvidenceSamples(runLog) {
+    const sections = Array.isArray(runLog?.generation?.sections)
+        ? runLog.generation.sections
+        : [];
+    return sections.slice(0, 5).map(section => {
+        const evidence = Array.isArray(section.evidence) ? section.evidence : [];
+        const firstEvidence = evidence[0] || {};
+        const matchedTerms = Array.isArray(firstEvidence.matched_terms)
+            ? firstEvidence.matched_terms
+            : [];
+        return {
+            label: `Evidence 抽样 · ${section.title || section.placeholder || '段落'}`,
+            value: evidence.length
+                ? `${firstEvidence.title || '证据'} · 命中 ${matchedTerms.slice(0, 4).join('、') || 'matched_terms'}`
+                : '本段未检索到 evidence',
+            ok: evidence.length > 0,
+            kind: 'template-evidence-sample',
+            action: evidence.length ? 'open-logs' : 'focus-placeholder',
+            placeholderName: section.placeholder || '',
+            editorSection: 'query',
+            actionLabel: evidence.length ? '看日志' : '调关键词'
+        };
+    });
+}
+
+function renderPreflightReviewGroup(group) {
+    const rows = (group.rows || []).filter(Boolean);
+    return `
+        <div class="template-preflight-group">
+            <div class="template-preflight-group-title">
+                <span>${esc(group.title || '')}</span>
+                <strong>${esc(group.meta || '')}</strong>
+            </div>
+            ${rows.map(row => `
+                <div class="validation-item ${row.ok ? 'ok' : 'pending'} ${esc(row.kind || '')}">
+                    <span>
+                        ${esc(row.label || '')}
+                        ${row.value ? `<small>${esc(row.value)}</small>` : ''}
+                    </span>
+                    ${row.action ? `
+                        <button
+                            type="button"
+                            class="template-check-action"
+                            data-template-check-action="${esc(row.action)}"
+                            data-template-check-target="${esc(row.actionTarget || '')}"
+                            data-template-placeholder-name="${esc(row.placeholderName || '')}"
+                            data-template-placeholder-editor-section="${esc(row.editorSection || 'basic')}"
+                        >
+                            ${esc(row.actionLabel || '处理')}
+                        </button>
+                    ` : `<strong>${esc(row.value || '')}</strong>`}
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
 function renderTemplateValidationPreview(template, sections, placeholders) {
     const statusEl = document.getElementById('template-validation-status');
     const list = document.getElementById('template-validation-list');
     if (!list) return;
 
-    const checks = buildTemplateValidationChecks(template, sections, placeholders);
-    const placeholderReadiness = buildPlaceholderReadinessItems(template, placeholders);
+    const readiness = buildGenerationReadiness(template, sections, placeholders);
+    const checks = readiness.validationChecks;
+    const placeholderReadiness = readiness.placeholderReadiness;
     renderPlaceholderIssueQueue(template, placeholderReadiness);
-    const placeholderIssues = placeholderReadiness.filter(item => !item.ok);
-    const excelRows = buildExcelMappingRows(template);
-    const mappedPlaceholders = placeholders.length || sections.length;
-    const summaryRows = [
-        {
-            label: 'Word 占位符映射',
-            value: checks[0]?.ok ? `${mappedPlaceholders}/${mappedPlaceholders}` : '待处理',
-            ok: Boolean(checks[0]?.ok)
-        },
-        {
-            label: 'Excel 数据来源',
-            value: excelRows.length ? `${excelRows.length} 个` : '待绑定',
-            ok: excelRows.length > 0
-        },
-        {
-            label: 'Prompt 模板',
-            value: checks[1]?.ok ? '已绑定' : '待绑定',
-            ok: Boolean(checks[1]?.ok)
-        },
-        {
-            label: '禁用词 / 投资建议',
-            value: checks[3]?.ok ? '已配置' : '待配置',
-            ok: Boolean(checks[3]?.ok)
-        }
-    ];
+    const excelRows = readiness.excelRows;
+    const reviewGroups = buildPreflightReviewGroups(readiness, checks, placeholderReadiness, {
+        sections,
+        placeholders,
+        excelRows
+    });
+    const priorityTasks = buildPreflightTaskQueue(readiness, checks, placeholderReadiness);
 
-    const summaryHtml = summaryRows.map(row => `
-        <div class="validation-item ${row.ok ? 'ok' : 'pending'}">
-            <span>${esc(row.label)}</span>
-            <strong>${esc(row.value)}</strong>
-        </div>
-    `).join('');
-
-    const placeholderHtml = placeholderIssues.length
-        ? placeholderIssues.map(item => `
-            <div class="validation-item placeholder-issue pending">
-                <span>{{${esc(item.placeholderName)}}}：${esc(item.issue.message)}</span>
-                <button
-                    type="button"
-                    class="template-check-action"
-                    data-template-check-action="focus-placeholder"
-                    data-template-placeholder-name="${esc(item.placeholderName || '')}"
-                    data-template-placeholder-editor-section="${esc(item.editorSection || 'basic')}"
-                >
-                    定位
-                </button>
-            </div>
-        `).join('')
-        : `
-            <div class="validation-item placeholder-issue ok">
-                <span>占位符配置完整</span>
-                <strong>${placeholderReadiness.length}/${placeholderReadiness.length}</strong>
-            </div>
-        `;
-
-    list.innerHTML = `${summaryHtml}${placeholderHtml}`;
+    list.innerHTML = `${renderPreflightTaskQueue(priorityTasks)}${reviewGroups.map(group => renderPreflightReviewGroup(group)).join('')}`;
 
     if (statusEl) {
         const passed = checks.filter(check => check.ok).length + placeholderReadiness.filter(item => item.ok).length;
@@ -6008,12 +6494,13 @@ function bindTemplateWorkbenchActions() {
 
 	    if (savePlaceholderBtn && !savePlaceholderBtn.dataset.bound) {
 	        savePlaceholderBtn.dataset.bound = 'true';
-	        savePlaceholderBtn.addEventListener('click', () => saveCurrentSectionConfig({
+        savePlaceholderBtn.addEventListener('click', () => saveCurrentSectionConfig({
             button: savePlaceholderBtn,
             savingHtml: '<i class="codicon codicon-loading spin"></i> 保存中...',
             successMessage: '占位符配置已保存',
             localMessage: '占位符配置草稿已保存到本地',
-            errorPrefix: '保存占位符失败'
+            errorPrefix: '保存占位符失败',
+            returnToGenerationAfterSave: true
         }));
     }
 
@@ -6117,7 +6604,8 @@ async function saveCurrentSectionConfig({
     successMessage = '配置已保存',
     localMessage = '配置草稿已保存到本地',
     errorPrefix = '保存配置失败',
-    jumpToNextIncomplete = false
+    jumpToNextIncomplete = false,
+    returnToGenerationAfterSave = false
 } = {}) {
     const template = getCurrentWorkbenchTemplate();
     if (!template) {
@@ -6173,12 +6661,18 @@ async function saveCurrentSectionConfig({
             if (jumpToNextIncomplete) {
                 selectAdjacentTemplatePlaceholder(1, true);
             }
+            if (returnToGenerationAfterSave && !jumpToNextIncomplete) {
+                returnToGenerationAfterSaveView(selectedTemplate || template);
+            }
             toast(successMessage, 'success');
         } else {
             localStorage.setItem(sourceEditor?.dataset.draftKey || 'report-template-source:draft', content);
             renderSelectedPlaceholderDetail(template);
             if (jumpToNextIncomplete) {
                 selectAdjacentTemplatePlaceholder(1, true);
+            }
+            if (returnToGenerationAfterSave && !jumpToNextIncomplete) {
+                returnToGenerationAfterSaveView(template);
             }
             toast(localMessage, 'success');
         }
@@ -6190,6 +6684,15 @@ async function saveCurrentSectionConfig({
             button.disabled = false;
         }
     }
+}
+
+function returnToGenerationAfterSaveView(template = getCurrentWorkbenchTemplate()) {
+    if (template) {
+        renderReportGenerationCenter(template);
+    }
+    setStoredTemplateDetailMode('generation');
+    applyTemplateDetailMode('generation');
+    openProjectCheckPanel('template-validation-preview');
 }
 
 function handleTemplateCheckAction(actionBtn) {
@@ -6217,6 +6720,13 @@ function handleTemplateCheckAction(actionBtn) {
         applyTemplateDetailMode('config');
         selectTemplatePlaceholder(placeholderName);
         openPlaceholderConfigEditorModal(template, item.editorSection || 'basic');
+        return;
+    }
+
+    if (action === 'open-logs') {
+        setStoredTemplateDetailMode('logs');
+        applyTemplateDetailMode('logs');
+        highlightWorkbenchTarget(document.getElementById('template-generation-log-panel'));
         return;
     }
 
@@ -6676,13 +7186,17 @@ async function renderReportProject(project) {
 function getReportProjectGenerationOptions() {
     const defaults = getEditableCommonDefaults(getCurrentWorkbenchTemplate() || {});
     const reportPeriod = defaults.report_period || {};
+    const lookbackDays = Math.max(1, Math.min(90, Number(reportPeriod.lookback_days || 7)));
     const reportDate = String(reportPeriod.report_date || getDefaultReportDate()).trim();
-    const startDate = String(reportPeriod.start_date || getDefaultEvidenceStartDate(reportDate)).trim();
+    const startDate = String(reportPeriod.start_date || getDefaultEvidenceStartDate(reportDate, lookbackDays)).trim();
     const endDate = String(reportPeriod.end_date || reportDate).trim();
+    const project = getCurrentWorkbenchTemplate()?.report_project;
     return {
         report_date: reportDate,
         start_date: startDate,
-        end_date: endDate
+        end_date: endDate,
+        lookback_days: lookbackDays,
+        output_format: project?.project_type === 'ppt' ? 'pptx' : 'docx'
     };
 }
 

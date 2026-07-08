@@ -362,7 +362,17 @@ class CommentaryDraftService:
         audience = audience_labels.get(preferences.get("audience"), "投研内部")
         length = length_labels.get(preferences.get("length"), "中评")
         tone = tone_labels.get(preferences.get("tone"), "克制归因")
-        return f"受众：{audience}\n长度：{length}\n风格：{tone}"
+        target_mode = preferences.get("target_mode") or "auto"
+        target_name = (preferences.get("target_name") or "").strip()
+        target_mode_label = "手动指定" if target_mode == "manual" else "系统自动识别"
+        target_line = f"点评对象：{target_mode_label} - {target_name or '等待从当日热点板块和事件中识别'}"
+        return (
+            f"受众：{audience}\n"
+            f"长度：{length}\n"
+            f"风格：{tone}\n"
+            f"{target_line}\n"
+            "行业板块或主题事件点评必须围绕点评对象展开；若对象来自系统自动识别，需要说明其由当日涨跌幅、异动新闻和证据相关性共同推断。"
+        )
 
     @staticmethod
     def _format_attribution_ranking(request: CommentaryDraftRequest) -> str:

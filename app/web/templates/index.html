@@ -32,16 +32,16 @@
                 <button class="activity-btn" data-section="commentary" title="点评生产"><i class="codicon codicon-comment-discussion"></i><span>点评生产</span></button>
                 <button class="activity-btn active" data-section="templates" title="模板管理"><i class="codicon codicon-file-code"></i><span>报告生产</span></button>
                 <button class="activity-btn" data-section="pipeline-monitor" title="管线监控"><i class="codicon codicon-pulse"></i><span>运行监控</span></button>
-                <div class="activity-group-label">工具</div>
-                <button class="activity-btn" data-section="scenario" title="情景分析"><i class="codicon codicon-git-branch"></i><span>情景分析</span></button>
                 <button class="activity-btn" data-section="event-signal" title="事件信号"><i class="codicon codicon-zap"></i><span>事件信号</span></button>
-                <button class="activity-btn" data-section="industry-chain" title="产业链"><i class="codicon codicon-symbol-class"></i><span>产业链</span></button>
-                <button class="activity-btn" data-section="review" title="审核队列"><i class="codicon codicon-checklist"></i><span>审核队列</span></button>
                 <button class="activity-btn" data-section="signals" title="信号管理"><i class="codicon codicon-pulse"></i><span>信号管理</span></button>
-                <button class="activity-btn" data-section="outcomes" title="回测结果"><i class="codicon codicon-checklist"></i><span>回测结果</span></button>
-                <button class="activity-btn" data-section="ingest" title="文档摄入"><i class="codicon codicon-cloud-download"></i><span>文档摄入</span></button>
                 <button class="activity-btn" data-section="memory" title="记忆与学习"><i class="codicon codicon-lightbulb"></i><span>记忆学习</span></button>
                 <button class="activity-btn" data-section="wind" title="Wind 数据"><i class="codicon codicon-database"></i><span>Wind 数据</span></button>
+                <div class="activity-group-label">待开发</div>
+                <button class="activity-btn" data-section="scenario" title="情景分析"><i class="codicon codicon-git-branch"></i><span>情景分析</span></button>
+                <button class="activity-btn" data-section="industry-chain" title="产业链"><i class="codicon codicon-symbol-class"></i><span>产业链</span></button>
+                <button class="activity-btn" data-section="review" title="审核队列"><i class="codicon codicon-checklist"></i><span>审核队列</span></button>
+                <button class="activity-btn" data-section="outcomes" title="回测结果"><i class="codicon codicon-checklist"></i><span>回测结果</span></button>
+                <button class="activity-btn" data-section="ingest" title="文档摄入"><i class="codicon codicon-cloud-download"></i><span>文档摄入</span></button>
             </div>
             <div class="activity-bar-bottom">
                 <button class="activity-btn" id="btn-settings" title="设置"><i class="codicon codicon-settings-gear"></i><span>设置</span></button>
@@ -343,9 +343,104 @@
                         <div id="asset-search-dropdown" class="search-dropdown hidden"></div>
                     </div>
                 </div>
+                <div class="asset-observe-mode-tabs" role="tablist" aria-label="资产观察模式">
+                    <button class="active" type="button" data-asset-mode="equity" onclick="switchAssetObserveMode('equity')">个股</button>
+                    <button type="button" data-asset-mode="etf" onclick="switchAssetObserveMode('etf')">ETF</button>
+                    <button type="button" data-asset-mode="index" onclick="switchAssetObserveMode('index')">指数</button>
+                    <button type="button" data-asset-mode="theme" onclick="switchAssetObserveMode('theme')">主题</button>
+                </div>
                 <div id="asset-loading" class="loading hidden">
                     <div class="spinner"></div>
                     <span data-i18n="asset.loading">正在分析资产...</span>
+                </div>
+                <div id="asset-topic-result" class="asset-topic-result hidden">
+                    <section class="asset-topic-layout">
+                        <aside class="asset-topic-overview">
+                            <div class="asset-topic-kicker">主题概览</div>
+                            <div class="asset-topic-title-row">
+                                <h3 id="asset-topic-name">--</h3>
+                                <span id="asset-topic-badge" class="badge badge-concept">主题</span>
+                            </div>
+                            <div id="asset-topic-change" class="asset-topic-change">--</div>
+                            <div class="asset-topic-meta-grid">
+                                <div><span>排名</span><strong id="asset-topic-rank">--</strong></div>
+                                <div><span>最新刷新</span><strong id="asset-topic-updated">--</strong></div>
+                                <div><span>主题热度</span><strong id="asset-topic-heat">--</strong></div>
+                                <div><span>关注度(7日)</span><strong id="asset-topic-attention">--</strong></div>
+                            </div>
+                            <div class="asset-topic-actions">
+                                <button type="button" class="btn-primary"><i class="codicon codicon-add"></i> 加入观察</button>
+                                <button type="button" class="btn-secondary"><i class="codicon codicon-sparkle"></i> 生成信号</button>
+                            </div>
+                            <div class="asset-topic-tags" id="asset-topic-tags"></div>
+                            <p id="asset-topic-summary" class="asset-topic-summary">从市场矩阵选择一个主题后显示主题画像。</p>
+                        </aside>
+
+                        <main class="asset-topic-main">
+                            <section class="asset-topic-panel asset-topic-chart-panel">
+                                <div class="asset-topic-panel-head">
+                                    <div>
+                                        <h3>概念指数走势</h3>
+                                        <small id="asset-topic-index-label">--</small>
+                                    </div>
+                                    <div class="asset-topic-periods" aria-label="主题走势周期">
+                                        <button class="active" type="button">1D</button>
+                                        <button type="button">5D</button>
+                                        <button type="button">1M</button>
+                                        <button type="button">3M</button>
+                                    </div>
+                                </div>
+                                <div id="asset-topic-trend-chart" class="asset-topic-trend-chart"></div>
+                            </section>
+
+                            <section class="asset-topic-panel">
+                                <div class="asset-topic-panel-head">
+                                    <h3>成分股 / 龙头贡献</h3>
+                                    <span id="asset-topic-component-count" class="text-muted">--</span>
+                                </div>
+                                <div class="asset-topic-table-wrap">
+                                    <table class="asset-topic-table">
+                                        <thead>
+                                            <tr>
+                                                <th>#</th>
+                                                <th>名称</th>
+                                                <th>代码</th>
+                                                <th>涨跌幅</th>
+                                                <th>成交额</th>
+                                                <th>贡献度</th>
+                                                <th>所属细分</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="asset-topic-components"></tbody>
+                                    </table>
+                                </div>
+                            </section>
+                        </main>
+
+                        <aside class="asset-topic-side">
+                            <section class="asset-topic-panel">
+                                <div class="asset-topic-panel-head">
+                                    <h3>相关 ETF / 指数</h3>
+                                    <span class="text-muted">实时联动</span>
+                                </div>
+                                <div id="asset-topic-related-assets" class="asset-topic-related-list"></div>
+                            </section>
+                            <section class="asset-topic-panel">
+                                <div class="asset-topic-panel-head">
+                                    <h3>相关新闻 / 催化</h3>
+                                    <span class="text-muted">主题上下文</span>
+                                </div>
+                                <div id="asset-topic-news" class="asset-topic-news-list"></div>
+                            </section>
+                            <section class="asset-topic-panel">
+                                <div class="asset-topic-panel-head">
+                                    <h3>观察笔记</h3>
+                                    <button type="button" class="btn-secondary compact"><i class="codicon codicon-edit"></i> 记录</button>
+                                </div>
+                                <ul id="asset-topic-notes" class="asset-topic-notes"></ul>
+                            </section>
+                        </aside>
+                    </section>
                 </div>
                 <div id="asset-result" class="result-area hidden">
                     <!-- 基本信息卡片 -->
@@ -1124,12 +1219,12 @@
                         <div class="commentary-workbench-title">
                             <span class="commentary-kicker">Commentary Studio</span>
                             <h2>点评生产中心</h2>
-                            <div class="commentary-status-strip" aria-label="点评生产状态">
-                                <span><strong id="commentary-evidence-count">--</strong><small>证据</small></span>
-                                <span><strong id="commentary-selected-evidence-count">--</strong><small>纳入</small></span>
-                                <span><strong id="commentary-verified-count">--</strong><small>核验</small></span>
-                                <span><strong id="commentary-run-meta">未生成</strong><small>草稿</small></span>
-                            </div>
+                        </div>
+                        <div class="commentary-status-strip" aria-label="点评生产状态">
+                            <span><strong id="commentary-evidence-count">--</strong><small>证据</small></span>
+                            <span><strong id="commentary-selected-evidence-count">--</strong><small>纳入</small></span>
+                            <span><strong id="commentary-verified-count">--</strong><small>核验</small></span>
+                            <span><strong id="commentary-run-meta">未生成</strong><small>草稿</small></span>
                         </div>
                         <div class="commentary-hero-actions">
                             <span id="commentary-context-status" class="commentary-context-status">等待上下文</span>
@@ -1142,134 +1237,273 @@
                         </div>
                     </div>
 
+                    <div class="commentary-workspace-tabs" role="tablist" aria-label="点评生产工作区">
+                        <button class="commentary-workspace-tab active" type="button" data-commentary-workspace="template">选择模板</button>
+                        <button class="commentary-workspace-tab" type="button" data-commentary-workspace="subject">确认对象</button>
+                        <button class="commentary-workspace-tab" type="button" data-commentary-workspace="content">内容清单</button>
+                        <button class="commentary-workspace-tab" type="button" data-commentary-workspace="draft">草稿生成</button>
+                    </div>
+
                     <div class="commentary-command-center">
-                        <aside class="commentary-workflow-rail" aria-label="点评生产流程">
-                            <div class="commentary-panel-header">
-                                <h3>生产流程</h3>
-                                <span id="commentary-template-count">--</span>
-                            </div>
-                            <ol class="commentary-workflow-list">
-                                <li><strong>选择点评类型</strong><small>确定结构和口径</small></li>
-                                <li><strong>加载市场上下文</strong><small>刷新行情、板块、新闻</small></li>
-                                <li><strong>筛选消息与证据</strong><small>勾选进入生成请求</small></li>
-                                <li><strong>生成草稿</strong><small>形成可编辑初稿</small></li>
-                                <li><strong>质检与复制</strong><small>检查风险表述和引用</small></li>
-                            </ol>
-                            <section class="commentary-template-panel" aria-label="点评模板库">
-                                <div class="commentary-section-title-row">
-                                    <h3>点评模板库</h3>
-                                    <span>选择一种生产口径</span>
+                        <div class="commentary-production-shell">
+                            <aside class="commentary-workflow-rail" aria-label="点评生产流程">
+                                <div class="commentary-panel-header">
+                                    <h3>生产流程</h3>
+                                    <span>4 步</span>
                                 </div>
-                                <div id="commentary-template-list" class="commentary-template-list"></div>
-                            </section>
-                            <div class="commentary-writing-controls" aria-label="写作设置">
-                                <div class="commentary-section-title-row">
-                                    <h3>写作设置</h3>
-                                    <span>用于生成提示词</span>
-                                </div>
-                                <div class="commentary-control-grid">
-                                    <label>
-                                        <span>受众</span>
-                                        <select id="commentary-audience-control">
-                                            <option value="internal">投研内部</option>
-                                            <option value="sales">销售话术</option>
-                                            <option value="client">客户简版</option>
-                                            <option value="product">产品材料</option>
-                                        </select>
-                                    </label>
-                                    <label>
-                                        <span>长度</span>
-                                        <select id="commentary-length-control">
-                                            <option value="medium">中评</option>
-                                            <option value="short">短评</option>
-                                            <option value="long">长评</option>
-                                        </select>
-                                    </label>
-                                    <label>
-                                        <span>风格</span>
-                                        <select id="commentary-tone-control">
-                                            <option value="balanced">克制归因</option>
-                                            <option value="defensive">防御解释</option>
-                                            <option value="decisive">观点明确</option>
-                                        </select>
-                                    </label>
-                                </div>
-                            </div>
-                        </aside>
+                                <ol class="commentary-workflow-list">
+                                    <li class="commentary-workflow-step" data-commentary-step="template" data-step-state="active"><strong>选择模板</strong><small>确定点评类型</small><em>当前</em></li>
+                                    <li class="commentary-workflow-step" data-commentary-step="subject" data-step-state="pending"><strong>确认对象</strong><small>按模板决定是否补充对象</small><em>等待</em></li>
+                                    <li class="commentary-workflow-step" data-commentary-step="content" data-step-state="pending"><strong>内容清单</strong><small>确认必须包含什么</small><em>等待</em></li>
+                                    <li class="commentary-workflow-step" data-commentary-step="draft" data-step-state="pending"><strong>草稿生成</strong><small>生成、质检和编辑</small><em>等待</em></li>
+                                </ol>
+                            </aside>
 
-                        <main id="commentary-evidence-board" class="commentary-evidence-workspace" aria-label="证据工作区">
-                            <div class="commentary-panel-header">
-                                <h3>证据工作区</h3>
-                                <span id="commentary-active-tag">市场点评</span>
-                            </div>
-                            <div class="commentary-confidence-grid" aria-label="证据置信分层">
-                                <span data-confidence="confirmed"><strong>已确认数据</strong><small>行情、成交、资金、估值</small></span>
-                                <span data-confidence="reported"><strong>媒体报道</strong><small>新闻、公告、研报</small></span>
-                                <span data-confidence="interpretation"><strong>市场解释</strong><small>归因、传导、分歧</small></span>
-                                <span data-confidence="judgement"><strong>主观判断</strong><small>核心矛盾、观察变量</small></span>
-                            </div>
+                            <main class="commentary-stage" aria-label="点评生产工作区内容">
+                                <section class="commentary-workspace-panel active" data-commentary-workspace-panel="template">
+                                    <section class="commentary-step-hero">
+                                        <div>
+                                            <span class="commentary-kicker">Step 1</span>
+                                            <h3>先选择要写哪类点评</h3>
+                                            <p>模板决定点评边界、段落结构和写作口径。像每日收盘点评这样的模板，本身就已经限定了主题。</p>
+                                        </div>
+                                        <button class="btn-primary" type="button" onclick="window.switchCommentaryWorkspace?.('subject')">
+                                            <i class="codicon codicon-arrow-right"></i> 下一步
+                                        </button>
+                                    </section>
+                                    <section class="commentary-template-panel" aria-label="点评模板库">
+                                        <div class="commentary-section-title-row">
+                                            <h3>点评模板库</h3>
+                                            <span id="commentary-template-count">--</span>
+                                        </div>
+                                        <div id="commentary-template-list" class="commentary-template-list"></div>
+                                    </section>
+                                </section>
 
-                            <section id="commentary-attribution-panel" class="commentary-attribution-panel" aria-label="归因排序">
-                                <div class="commentary-panel-header commentary-panel-header-compact">
-                                    <h3>归因排序</h3>
-                                    <span id="commentary-attribution-count">--</span>
-                                </div>
-                                <div id="commentary-attribution-list" class="commentary-attribution-list">
-                                    <p class="empty-state compact">等待上下文归因。</p>
-                                </div>
-                            </section>
+                                <section id="commentary-subject-panel" class="commentary-workspace-panel" data-commentary-workspace-panel="subject">
+                                    <section class="commentary-step-hero commentary-subject-panel">
+                                        <div>
+                                            <span class="commentary-kicker">Step 2</span>
+                                            <h3>确认是否需要补充对象</h3>
+                                            <p>每日收盘点评可直接使用模板默认对象；行业、主题、事件类模板再补充具体板块、主题或事件。</p>
+                                        </div>
+                                        <div class="commentary-overview-actions">
+                                            <button class="btn-primary" type="button" onclick="window.switchCommentaryWorkspace?.('content')">
+                                                <i class="codicon codicon-arrow-right"></i> 下一步
+                                            </button>
+                                            <button class="btn-secondary" type="button" onclick="document.getElementById('btn-commentary-refresh-context')?.click()">
+                                                <i class="codicon codicon-refresh"></i> 刷新候选
+                                            </button>
+                                        </div>
+                                    </section>
+                                    <div class="commentary-subject-grid">
+                                        <section class="commentary-overview-card">
+                                            <div class="commentary-section-title-row">
+                                                <h3>对象候选</h3>
+                                                <span>需要具体对象时，系统根据热点证据和归因自动给出</span>
+                                            </div>
+                                            <div class="commentary-topic-candidate">
+                                                <strong id="commentary-target-candidate">自动候选：等待上下文</strong>
+                                                <small>每日收盘点评通常不需要填写；主题类点评可以采用候选或手动指定。</small>
+                                            </div>
+                                        </section>
+                                        <section class="commentary-overview-card">
+                                            <div class="commentary-section-title-row">
+                                                <h3>手动确认</h3>
+                                                <span>只有模板需要更具体对象时再填写</span>
+                                            </div>
+                                            <div class="commentary-control-grid">
+                                                <label>
+                                                    <span>对象模式</span>
+                                                    <select id="commentary-target-mode-control">
+                                                        <option value="template_default">沿用模板默认对象</option>
+                                                        <option value="auto">自动发现补充对象</option>
+                                                        <option value="manual">手动指定对象</option>
+                                                    </select>
+                                                </label>
+                                                <label class="commentary-target-field">
+                                                    <span>点评对象</span>
+                                                    <input id="commentary-target-input" type="text" placeholder="如：半导体调整、贵金属走强、Meta 卖算力">
+                                                </label>
+                                            </div>
+                                        </section>
+                                    </div>
+                                </section>
 
-                            <div class="commentary-evidence-list-head">
-                                <h3>结构化证据</h3>
-                                <span>按消息、行情、研报和判断分组</span>
-                            </div>
-                            <div id="commentary-evidence-list" class="commentary-evidence-list">
-                                <p class="empty-state compact">等待上下文证据。</p>
-                            </div>
+                                <section class="commentary-workspace-panel" data-commentary-workspace-panel="content">
+                                    <section class="commentary-step-hero">
+                                        <div>
+                                            <span class="commentary-kicker">Step 3</span>
+                                            <h3>确认这篇要包含什么</h3>
+                                            <p>默认只展示内容清单。证据、生成逻辑和配置放在高级区，需要时再展开。</p>
+                                        </div>
+                                        <button class="btn-primary" type="button" onclick="window.switchCommentaryWorkspace?.('draft')">
+                                            <i class="codicon codicon-arrow-right"></i> 下一步
+                                        </button>
+                                    </section>
+                                    <section class="commentary-content-workspace">
+                                        <div class="commentary-section-title-row">
+                                            <h3>内容清单</h3>
+                                            <span>勾选草稿必须覆盖的内容</span>
+                                        </div>
+                                        <div id="commentary-content-checklist" class="commentary-content-checklist">
+                                            <label><input type="checkbox" data-commentary-content-section="核心观点" checked><span><strong>核心观点</strong><small>先说结论和判断强度</small></span></label>
+                                            <label><input type="checkbox" data-commentary-content-section="行情事实" checked><span><strong>行情事实</strong><small>指数、板块、成交和资金</small></span></label>
+                                            <label><input type="checkbox" data-commentary-content-section="消息面证据" checked><span><strong>消息面证据</strong><small>新闻、公告、研报和纪要</small></span></label>
+                                            <label><input type="checkbox" data-commentary-content-section="归因解释" checked><span><strong>归因解释</strong><small>主因、次因和待核验因素</small></span></label>
+                                            <label><input type="checkbox" data-commentary-content-section="风险提示" checked><span><strong>风险提示</strong><small>边界条件和不确定性</small></span></label>
+                                            <label><input type="checkbox" data-commentary-content-section="后续观察" checked><span><strong>后续观察</strong><small>下一步跟踪变量</small></span></label>
+                                        </div>
+                                        <label class="commentary-subjective-card">
+                                            <span>主观判断</span>
+                                            <textarea id="commentary-subjective-judgement" rows="4">今天的核心不是单一利空，而是高拥挤 AI 交易在估值、兑现和外部扰动共振下的集中降温。后续重点观察成交额能否稳定、AI 链调整是否扩散到非科技成长。</textarea>
+                                        </label>
+                                        <details class="commentary-advanced-details">
+                                            <summary><span>证据明细</span><small>需要核对来源时展开</small></summary>
+                                            <main id="commentary-evidence-board" class="commentary-evidence-workspace" aria-label="证据工作区">
+                                                <div class="commentary-confidence-grid" aria-label="证据置信分层">
+                                                    <span data-confidence="confirmed"><strong>已确认数据</strong><small>行情、成交、资金、估值</small></span>
+                                                    <span data-confidence="reported"><strong>媒体报道</strong><small>新闻、公告、研报</small></span>
+                                                    <span data-confidence="interpretation"><strong>市场解释</strong><small>归因、传导、分歧</small></span>
+                                                    <span data-confidence="judgement"><strong>主观判断</strong><small>核心矛盾、观察变量</small></span>
+                                                </div>
+                                                <section id="commentary-attribution-panel" class="commentary-attribution-panel" aria-label="归因排序">
+                                                    <div class="commentary-panel-header commentary-panel-header-compact">
+                                                        <h3>归因排序</h3>
+                                                        <span id="commentary-attribution-count">--</span>
+                                                    </div>
+                                                    <div id="commentary-attribution-list" class="commentary-attribution-list">
+                                                        <p class="empty-state compact">等待上下文归因。</p>
+                                                    </div>
+                                                </section>
+                                                <div class="commentary-evidence-list-head">
+                                                    <h3>结构化证据</h3>
+                                                    <span>按消息、行情、研报和判断分组</span>
+                                                </div>
+                                                <div id="commentary-evidence-list" class="commentary-evidence-list">
+                                                    <p class="empty-state compact">等待上下文证据。</p>
+                                                </div>
+                                            </main>
+                                        </details>
+                                        <details class="commentary-advanced-details">
+                                            <summary><span>生成逻辑</span><small>调试和审计时展开</small></summary>
+                                            <section class="commentary-logic-workspace" aria-label="生成逻辑工作区">
+                                                <div class="commentary-logic-grid">
+                                                    <section class="commentary-logic-card">
+                                                        <div class="commentary-panel-header commentary-panel-header-compact"><h3>Recipe 与段落</h3><span>结构来源</span></div>
+                                                        <div id="commentary-logic-recipe" class="commentary-logic-list"></div>
+                                                    </section>
+                                                    <section class="commentary-logic-card">
+                                                        <div class="commentary-panel-header commentary-panel-header-compact"><h3>证据入选逻辑</h3><span>当前勾选</span></div>
+                                                        <div id="commentary-logic-evidence" class="commentary-logic-list"></div>
+                                                    </section>
+                                                    <section class="commentary-logic-card">
+                                                        <div class="commentary-panel-header commentary-panel-header-compact"><h3>归因排序</h3><span>主因优先</span></div>
+                                                        <div id="commentary-logic-attribution" class="commentary-logic-list"></div>
+                                                    </section>
+                                                    <section class="commentary-logic-card">
+                                                        <div class="commentary-panel-header commentary-panel-header-compact"><h3>Prompt 拼装</h3><span>最终请求摘要</span></div>
+                                                        <div id="commentary-logic-prompt" class="commentary-logic-list"></div>
+                                                    </section>
+                                                    <section class="commentary-logic-card">
+                                                        <div class="commentary-panel-header commentary-panel-header-compact"><h3>Quality Gate</h3><span>发布门禁</span></div>
+                                                        <div id="commentary-logic-quality" class="commentary-logic-list"></div>
+                                                    </section>
+                                                    <section class="commentary-logic-card">
+                                                        <div class="commentary-panel-header commentary-panel-header-compact"><h3>Run 链路</h3><span>执行顺序</span></div>
+                                                        <div id="commentary-logic-run" class="commentary-logic-chain"></div>
+                                                    </section>
+                                                </div>
+                                            </section>
+                                        </details>
+                                        <details class="commentary-advanced-details">
+                                            <summary><span>生成配置</span><small>受众、长度、风格和原始请求</small></summary>
+                                            <div class="commentary-writing-controls" aria-label="写作设置">
+                                                <div class="commentary-control-grid">
+                                                    <label>
+                                                        <span>受众</span>
+                                                        <select id="commentary-audience-control">
+                                                            <option value="internal">投研内部</option>
+                                                            <option value="sales">销售话术</option>
+                                                            <option value="client">客户简版</option>
+                                                            <option value="product">产品材料</option>
+                                                        </select>
+                                                    </label>
+                                                    <label>
+                                                        <span>长度</span>
+                                                        <select id="commentary-length-control">
+                                                            <option value="medium">中评</option>
+                                                            <option value="short">短评</option>
+                                                            <option value="long">长评</option>
+                                                        </select>
+                                                    </label>
+                                                    <label>
+                                                        <span>风格</span>
+                                                        <select id="commentary-tone-control">
+                                                            <option value="balanced">克制归因</option>
+                                                            <option value="defensive">防御解释</option>
+                                                            <option value="decisive">观点明确</option>
+                                                        </select>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="commentary-request-preview">
+                                                <div class="commentary-section-title-row">
+                                                    <h3>生成请求预览</h3>
+                                                    <span>数据、证据包和主观判断可编辑</span>
+                                                </div>
+                                                <div class="commentary-form-grid">
+                                                    <label>
+                                                        <span>数据快照</span>
+                                                        <textarea id="commentary-data-snapshot" rows="5">宽基：上证指数 -2.1%，沪深300 -2.4%，创业板指 -3.8%；成交额放大至 1.8 万亿元；下跌行业集中在 AI 硬件、半导体、券商。</textarea>
+                                                    </label>
+                                                    <label>
+                                                        <span>证据包</span>
+                                                        <textarea id="commentary-evidence-pack" rows="5">新闻：海外 AI 链调整，软银、韩国半导体龙头大幅下跌；研报：部分机构提示 AI 资本开支预期进入验证期；资金：北向与两融风险偏好回落。</textarea>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </details>
+                                    </section>
+                                </section>
 
-                            <details class="commentary-request-preview">
-                                <summary>
-                                    <span>生成请求预览</span>
-                                    <small>数据、证据包和主观判断可编辑</small>
-                                </summary>
-                                <div class="commentary-form-grid">
-                                    <label>
-                                        <span>数据快照</span>
-                                        <textarea id="commentary-data-snapshot" rows="5">宽基：上证指数 -2.1%，沪深300 -2.4%，创业板指 -3.8%；成交额放大至 1.8 万亿元；下跌行业集中在 AI 硬件、半导体、券商。</textarea>
-                                    </label>
-                                    <label>
-                                        <span>证据包</span>
-                                        <textarea id="commentary-evidence-pack" rows="5">新闻：海外 AI 链调整，软银、韩国半导体龙头大幅下跌；研报：部分机构提示 AI 资本开支预期进入验证期；资金：北向与两融风险偏好回落。</textarea>
-                                    </label>
-                                    <label class="commentary-wide-field">
-                                        <span>主观判断</span>
-                                        <textarea id="commentary-subjective-judgement" rows="4">今天的核心不是单一利空，而是高拥挤 AI 交易在估值、兑现和外部扰动共振下的集中降温。后续重点观察成交额能否稳定、AI 链调整是否扩散到非科技成长。</textarea>
-                                    </label>
-                                </div>
-                            </details>
-                        </main>
+                                <section class="commentary-workspace-panel" data-commentary-workspace-panel="draft">
+                                    <section class="commentary-draft-workspace" aria-label="点评草稿输出">
+                                        <div class="commentary-panel-header">
+                                            <div class="commentary-draft-title-block">
+                                                <h3 id="commentary-active-title">每日收盘点评</h3>
+                                                <span>生成后进入逐段编辑和质检</span>
+                                            </div>
+                                            <button id="btn-commentary-copy-draft" class="btn-secondary" type="button"><i class="codicon codicon-copy"></i> 复制</button>
+                                        </div>
+                                        <div id="commentary-quality-panel" class="commentary-quality-panel">
+                                            <span data-quality="ready">等待生成后质检</span>
+                                        </div>
+                                        <article id="commentary-draft-output" class="commentary-draft-output">
+                                            <div class="commentary-draft-empty-state">
+                                                <strong>等待生成草稿</strong>
+                                                <span>证据、归因和写作口径准备后输出。</span>
+                                                <div class="commentary-empty-checklist" aria-label="草稿生成准备状态">
+                                                    <small>上下文</small>
+                                                    <small>证据</small>
+                                                    <small>口径</small>
+                                                </div>
+                                            </div>
+                                        </article>
+                                        <section class="commentary-section-editor" aria-label="分段草稿">
+                                            <div class="commentary-evidence-list-head">
+                                                <h3>分段草稿</h3>
+                                                <span>逐段编辑与复制</span>
+                                            </div>
+                                            <div id="commentary-draft-sections" class="commentary-draft-sections">
+                                                <p class="empty-state compact">生成后显示分段编辑器。</p>
+                                            </div>
+                                        </section>
+                                    </section>
+                                </section>
 
-                        <section class="commentary-draft-workspace" aria-label="点评草稿输出">
-                            <div class="commentary-panel-header">
-                                <h3 id="commentary-active-title">每日收盘点评</h3>
-                                <button id="btn-commentary-copy-draft" class="btn-secondary" type="button"><i class="codicon codicon-copy"></i> 复制</button>
-                            </div>
-                            <div id="commentary-quality-panel" class="commentary-quality-panel">
-                                <span data-quality="ready">等待生成后质检</span>
-                            </div>
-                            <article id="commentary-draft-output" class="commentary-draft-output">
-                                <p class="empty-state compact">选择点评模板并生成草稿。</p>
-                            </article>
-                            <section class="commentary-section-editor" aria-label="分段草稿">
-                                <div class="commentary-evidence-list-head">
-                                    <h3>分段草稿</h3>
-                                    <span>逐段编辑与复制</span>
-                                </div>
-                                <div id="commentary-draft-sections" class="commentary-draft-sections">
-                                    <p class="empty-state compact">生成后显示分段编辑器。</p>
-                                </div>
-                            </section>
-                        </section>
+                            </main>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -1829,7 +2063,7 @@
 
     <!-- Scripts: i18n must load before app.js -->
     <script src="/static/i18n.js?v=20250527"></script>
-    <script type="module" src="/static/js/app.js?v=20260702commentaryrunlog1"></script>
+    <script type="module" src="/static/js/app.js?v=20260707commentarylogic1"></script>
     <script type="module" src="/static/js/wind.js?v=20250601a"></script>
 </body>
 </html>

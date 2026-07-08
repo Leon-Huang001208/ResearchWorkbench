@@ -839,6 +839,93 @@ def test_generate_report_blocks_when_placeholder_preflight_has_issues():
     assert "contentOk = passedChecks === validationChecks.length && placeholderIssueCount === 0" in source
 
 
+def test_generation_preflight_prefers_backend_compiled_plan():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+
+    assert "function getCompiledReportPlan(template)" in source
+    assert "function buildCompiledPlanReadinessItems(compiledPlan)" in source
+    assert "const compiledPlan = getCompiledReportPlan(template);" in source
+    assert "const compiledPlanItems = buildCompiledPlanReadinessItems(compiledPlan);" in source
+    assert "compiledPlanItems.length ? compiledPlanItems : buildPlaceholderReadinessItems(template, placeholders)" in source
+    assert "readiness.compiledPlan?.warnings" in source
+    assert "后端计划" in source
+
+
+def test_generation_preflight_groups_prompt_evidence_and_output_assets():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+    css = STYLE_CSS.read_text(encoding="utf-8")
+
+    assert "function buildPreflightReviewGroups(readiness, checks, placeholderReadiness, context)" in source
+    assert "function renderPreflightReviewGroup(group)" in source
+    assert "Prompt 覆盖" in source
+    assert "Evidence 覆盖" in source
+    assert "输出资产" in source
+    assert "compiledPlan?.placeholders" in source
+    assert "prompt_found === false" in source
+    assert "retrieval_ready === false" in source
+    assert "deterministic === true" in source
+    assert ".template-preflight-group" in css
+    assert ".template-preflight-group-title" in css
+
+
+def test_generation_preflight_surfaces_prioritized_task_queue_and_evidence_samples():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+    css = STYLE_CSS.read_text(encoding="utf-8")
+
+    assert "function buildPreflightTaskQueue(readiness, checks, placeholderReadiness)" in source
+    assert "function renderPreflightTaskQueue(tasks)" in source
+    assert "function buildEvidencePreviewRows(readiness)" in source
+    assert "function getRunLogEvidenceSamples(runLog)" in source
+    assert "优先处理" in source
+    assert "阻断" in source
+    assert "警告" in source
+    assert "建议" in source
+    assert "Evidence 抽样" in source
+    assert "matched_terms" in source
+    assert "retrieval_config?.must_any" in source
+    assert ".template-preflight-task-queue" in css
+    assert ".template-preflight-task-item" in css
+    assert ".template-evidence-sample" in css
+
+
+def test_report_generation_surfaces_current_issue_settings_bar():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+    css = STYLE_CSS.read_text(encoding="utf-8")
+
+    assert "function renderCurrentIssueSettingsBar(template, readiness)" in source
+    assert "function bindCurrentIssueSettingsBar()" in source
+    assert "本期设置" in source
+    assert "报告日期" in source
+    assert "开始日期" in source
+    assert "结束日期" in source
+    assert "证据窗口" in source
+    assert "输出格式" in source
+    assert "最近版本" in source
+    assert "current-issue-report-date" in source
+    assert "current-issue-start-date" in source
+    assert "current-issue-end-date" in source
+    assert "current-issue-lookback-days" in source
+    assert ".template-current-issue-settings" in css
+
+
+def test_report_generation_delivery_check_card_and_repair_return_path():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+    css = STYLE_CSS.read_text(encoding="utf-8")
+
+    assert "function buildDeliveryCheckRows(runResult, runLog, latestReport, readiness)" in source
+    assert "function renderDeliveryCheckCard(runResult, runLog, latestReport, readiness)" in source
+    assert "交付检查" in source
+    assert "生成段落" in source
+    assert "缺失段落" in source
+    assert "Evidence 总数" in source
+    assert "Warnings" in source
+    assert "空占位符" in source
+    assert "图表/表格" in source
+    assert "returnToGenerationAfterSave" in source
+    assert "setStoredTemplateDetailMode('generation')" in source
+    assert ".template-delivery-check-card" in css
+
+
 def test_placeholder_map_does_not_truncate_word_placeholders():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
 

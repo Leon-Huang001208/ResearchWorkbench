@@ -585,6 +585,86 @@ def test_get_market_sector_view_uses_persistent_cache_before_excel(
 
 @patch("services.dashboard_service.WindMarketOverviewProvider")
 @patch("services.wind_realtime_workbook.WindRealtimeWorkbookReader")
+def test_get_market_sector_view_force_refresh_bypasses_persistent_cache(
+    mock_workbook_reader_cls,
+    mock_wind_provider_cls,
+    monkeypatch,
+    tmp_path,
+):
+    """实时刷新必须绕过本地快照，直接读取 Excel Wind 工作簿。"""
+    from services import dashboard_service as module
+
+    monkeypatch.delenv("ALPHAFOUNDRY_ENABLE_WIND_WORKBOOK", raising=False)
+    monkeypatch.delenv("ALPHAFOUNDRY_ALLOW_WIND_EXCEL_FALLBACK", raising=False)
+    monkeypatch.setattr(
+        module,
+        "MARKET_SECTOR_DISK_CACHE_PATH",
+        tmp_path / "market_sector_movers.json",
+    )
+    _market_sector_cache.clear()
+    module.MARKET_SECTOR_DISK_CACHE_PATH.write_text(
+        json.dumps(
+            {
+                "wind_hot_concept|30": {
+                    "cached_at": time.time(),
+                    "payload": {
+                        "view_key": "wind_hot_concept",
+                        "view_label": "Wind热门概念",
+                        "up": [
+                            {
+                                "sector_id": "wind-8841924-WI",
+                                "name": "缓存概念",
+                                "change_pct": 7.41,
+                                "source": "wind",
+                            }
+                        ],
+                        "down": [],
+                        "has_real_data": True,
+                        "status": "ok",
+                        "source": "wind_realtime_workbook",
+                    },
+                }
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    mock_workbook_reader_cls.return_value.get_view.return_value = {
+        "view_key": "wind_hot_concept",
+        "view_label": "Wind热门概念",
+        "up": [
+            {
+                "sector_id": "wind-8841902-WI",
+                "name": "实时概念",
+                "change_pct": 8.18,
+                "source": "wind",
+            }
+        ],
+        "down": [],
+        "has_real_data": True,
+        "cache_hit": False,
+        "status": "ok",
+        "source": "wind_realtime_workbook",
+    }
+
+    result = DashboardService(Mock()).get_market_sector_view(
+        "wind_hot_concept",
+        limit=30,
+        force_refresh=True,
+    )
+
+    mock_workbook_reader_cls.return_value.get_view.assert_called_once_with(
+        "wind_hot_concept",
+        limit=30,
+    )
+    mock_wind_provider_cls.assert_not_called()
+    assert result["source"] == "wind_realtime_workbook"
+    assert result["cache_hit"] is False
+    assert result["up"][0]["name"] == "实时概念"
+
+
+@patch("services.dashboard_service.WindMarketOverviewProvider")
+@patch("services.wind_realtime_workbook.WindRealtimeWorkbookReader")
 def test_get_market_sector_view_ignores_ths_persistent_cache_for_wind_view(
     mock_workbook_reader_cls,
     mock_wind_provider_cls,
@@ -809,6 +889,49 @@ def test_get_market_sector_view_falls_back_when_workbook_not_open(
     )
     assert result["has_real_data"] is True
     assert result["up"][0]["name"] == "半导体"
+
+
+@patch("services.dashboard_service.WindMarketOverviewProvider")
+@patch("services.wind_workbook_manager.get_wind_workbook_manager")
+@patch("services.wind_realtime_workbook.WindRealtimeWorkbookReader")
+def test_get_market_sector_view_times_out_slow_workbook_read(
+    mock_workbook_reader_cls,
+    mock_manager_getter,
+    mock_wind_provider_cls,
+    monkeypatch,
+):
+    """Excel 自动化卡住时，Wind 口径请求要快速返回而不是拖死桌面后端。"""
+    monkeypatch.delenv("ALPHAFOUNDRY_ENABLE_WIND_WORKBOOK", raising=False)
+    monkeypatch.delenv("ALPHAFOUNDRY_ALLOW_WIND_EXCEL_FALLBACK", raising=False)
+    monkeypatch.setenv("ALPHAFOUNDRY_WIND_WORKBOOK_READ_TIMEOUT_SECONDS", "0.01")
+    _market_sector_cache.clear()
+    mock_reader = mock_workbook_reader_cls.return_value
+
+    def slow_get_view(*_args, **_kwargs):
+        time.sleep(0.2)
+        return {
+            "view_key": "sw_l3",
+            "view_label": "申万三级",
+            "up": [],
+            "down": [],
+            "has_real_data": False,
+            "status": "snapshot_invalid",
+            "source": "wind_realtime_workbook",
+        }
+
+    mock_reader.get_view.side_effect = slow_get_view
+
+    started = time.time()
+    result = DashboardService(Mock()).get_market_sector_view("sw_l3", limit=5)
+
+    assert time.time() - started < 0.5
+    mock_manager_getter.return_value.start_background_ensure.assert_called_once_with(
+        reason="workbook_timeout"
+    )
+    mock_wind_provider_cls.assert_not_called()
+    assert result["has_real_data"] is False
+    assert result["status"] == "workbook_timeout"
+    assert result["source"] == "wind_realtime_workbook"
 
 
 @patch("services.dashboard_service.WindMarketOverviewProvider")
