@@ -15,7 +15,7 @@ from copy import deepcopy
 from datetime import datetime
 from html import escape
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Callable, Dict, List
 
 import yaml
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
@@ -27,6 +27,7 @@ from reporting.projections.ppt import extract_pptx_placeholders
 from reporting.projects.chart_generation import ReportProjectChartService
 from reporting.projects.generation import ReportProjectGenerationService
 from reporting.projects.keyword_profiles import keyword_profiles_for_api
+from reporting.projects.jobs import ReportGenerationJob, ReportGenerationJobService
 from reporting.projects.plan import compile_report_plan
 from reporting.projects.project_manager import ReportProject, ReportProjectManager
 from reporting.projects.run import ReportProjectRunRequest, ReportProjectRunService
@@ -154,11 +155,52 @@ class RenderReportProjectResponse(BaseModel):
     warnings: List[str] = Field(default_factory=list)
 
 
+class RenderReportJobResponse(BaseModel):
+    """Current state of one background report render."""
+
+    job_id: str
+    project_slug: str
+    status: str
+    phase: str
+    message: str
+    created_at: datetime
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    completed_sections: int = 0
+    total_sections: int = 0
+    deduplicated: bool = False
+    status_url: str
+    result: RenderReportProjectResponse | None = None
+    error: str | None = None
+
+
 class OpenReportProjectFolderResponse(BaseModel):
     """Result for opening a local report project folder."""
 
     success: bool
     folder_path: str
+
+
+def _run_background_report(
+    project: ReportProject,
+    request: ReportProjectRunRequest,
+    progress_callback: Callable[[Dict[str, Any]], None],
+):
+    section_config, _ = _read_section_config(project.section_config_path)
+    prompt_templates_source = _read_prompt_templates(project.prompt_templates_path)
+    return ReportProjectRunService(
+        generation_service=report_generation_service,
+        chart_service=report_chart_service,
+    ).execute(
+        project=project,
+        section_config=section_config,
+        prompt_templates_source=prompt_templates_source,
+        request=request,
+        progress_callback=progress_callback,
+    )
+
+
+report_generation_job_service = ReportGenerationJobService(runner=_run_background_report)
 
 
 @router.get("/", response_model=ReportProjectsListResponse, summary="列出报告项目")
@@ -357,6 +399,97 @@ async def update_report_project_source(slug: str, request: UpdateReportProjectSo
         )
 
 
+def _to_run_request(request: RenderReportProjectRequest) -> ReportProjectRunRequest:
+    return ReportProjectRunRequest(
+        placeholders=request.placeholders,
+        generate_from_config=request.generate_from_config,
+        lookback_days=request.lookback_days,
+        report_date=request.report_date,
+        data_scope=request.data_scope,
+        start_date=request.start_date,
+        end_date=request.end_date,
+    )
+
+
+def _to_render_response(run_result: Any) -> RenderReportProjectResponse:
+    return RenderReportProjectResponse(
+        success=True,
+        project_name=run_result.project_name,
+        slug=run_result.slug,
+        file_name=run_result.file_name,
+        file_path=str(run_result.output_path),
+        download_url=f"/api/report-projects/{run_result.slug}/download/{run_result.file_name}",
+        preview_url=f"/api/report-projects/{run_result.slug}/preview/{run_result.file_name}",
+        run_log_url=f"/api/report-projects/{run_result.slug}/runs/{run_result.run_log_path.name}",
+        generated_at=run_result.generated_at,
+        generated_placeholder_count=run_result.generated_placeholder_count,
+        evidence_count=run_result.evidence_count,
+        warnings=run_result.warnings,
+    )
+
+
+def _to_render_job_response(job: ReportGenerationJob) -> RenderReportJobResponse:
+    return RenderReportJobResponse(
+        job_id=job.job_id,
+        project_slug=job.project_slug,
+        status=job.status,
+        phase=job.phase,
+        message=job.message,
+        created_at=job.created_at,
+        started_at=job.started_at,
+        completed_at=job.completed_at,
+        completed_sections=job.completed_sections,
+        total_sections=job.total_sections,
+        deduplicated=job.deduplicated,
+        status_url=(
+            f"/api/report-projects/{job.project_slug}/render-jobs/{job.job_id}"
+        ),
+        result=_to_render_response(job.result) if job.result else None,
+        error=job.error,
+    )
+
+
+@router.post(
+    "/{slug}/render-jobs",
+    response_model=RenderReportJobResponse,
+    status_code=202,
+    summary="提交后台报告生成任务",
+)
+async def submit_report_project_render_job(
+    slug: str,
+    request: RenderReportProjectRequest,
+):
+    """Queue a report render without tying it to the HTTP request lifetime."""
+    try:
+        project = report_project_manager.get_project(slug)
+        _read_section_config(project.section_config_path)
+        job = report_generation_job_service.submit(
+            project=project,
+            request=_to_run_request(request),
+        )
+        return _to_render_job_response(job)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Report project not found: {slug}")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Failed to submit report render job", slug=slug)
+        raise HTTPException(status_code=500, detail=f"Failed to submit report render job: {exc}")
+
+
+@router.get(
+    "/{slug}/render-jobs/{job_id}",
+    response_model=RenderReportJobResponse,
+    summary="读取后台报告生成任务",
+)
+async def get_report_project_render_job(slug: str, job_id: str):
+    """Return a report job only when it belongs to the requested project."""
+    job = report_generation_job_service.get(job_id, project_slug=slug)
+    if job is None:
+        raise HTTPException(status_code=404, detail=f"Report render job not found: {job_id}")
+    return _to_render_job_response(job)
+
+
 @router.post("/{slug}/render", response_model=RenderReportProjectResponse, summary="生成报告项目文档")
 async def render_report_project(slug: str, request: RenderReportProjectRequest):
     """Render a report project into its own generated directory."""
@@ -371,31 +504,10 @@ async def render_report_project(slug: str, request: RenderReportProjectRequest):
             project=project,
             section_config=section_config,
             prompt_templates_source=prompt_templates_source,
-            request=ReportProjectRunRequest(
-                placeholders=request.placeholders,
-                generate_from_config=request.generate_from_config,
-                lookback_days=request.lookback_days,
-                report_date=request.report_date,
-                data_scope=request.data_scope,
-                start_date=request.start_date,
-                end_date=request.end_date,
-            ),
+            request=_to_run_request(request),
         )
 
-        return RenderReportProjectResponse(
-            success=True,
-            project_name=run_result.project_name,
-            slug=run_result.slug,
-            file_name=run_result.file_name,
-            file_path=str(run_result.output_path),
-            download_url=f"/api/report-projects/{run_result.slug}/download/{run_result.file_name}",
-            preview_url=f"/api/report-projects/{run_result.slug}/preview/{run_result.file_name}",
-            run_log_url=f"/api/report-projects/{run_result.slug}/runs/{run_result.run_log_path.name}",
-            generated_at=run_result.generated_at,
-            generated_placeholder_count=run_result.generated_placeholder_count,
-            evidence_count=run_result.evidence_count,
-            warnings=run_result.warnings,
-        )
+        return _to_render_response(run_result)
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"Report project not found: {slug}")
     except Exception as exc:

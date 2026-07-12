@@ -10,11 +10,12 @@ from __future__ import annotations
 
 import json
 import re
-from concurrent.futures import ThreadPoolExecutor
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime, time, timedelta
 from math import exp, sqrt
-from typing import Any, Dict, Iterable, List, Optional, Protocol
+from typing import Any, Callable, Dict, Iterable, List, Optional, Protocol
 
 from sqlalchemy import or_
 
@@ -106,6 +107,11 @@ class RetrievalConfig:
 
 _LOCAL_EMBEDDING_MODELS: Dict[str, Any] = {}
 _LOCAL_RERANKER_MODELS: Dict[str, Any] = {}
+_LOCAL_EMBEDDING_LOAD_LOCK = threading.RLock()
+_LOCAL_EMBEDDING_INFERENCE_LOCK = threading.RLock()
+_LOCAL_RERANKER_LOAD_LOCK = threading.RLock()
+_LOCAL_RERANKER_INFERENCE_LOCK = threading.RLock()
+ProgressCallback = Callable[[Dict[str, Any]], None]
 
 
 @dataclass(frozen=True)
@@ -723,7 +729,8 @@ def _local_embedding_similarity_scores(
     if model is None:
         return None
     try:
-        vectors = model.encode([query, *texts], normalize_embeddings=True)
+        with _LOCAL_EMBEDDING_INFERENCE_LOCK:
+            vectors = model.encode([query, *texts], normalize_embeddings=True)
         query_vector = vectors[0]
         scores = []
         for vector in vectors[1:]:
@@ -743,25 +750,26 @@ def _load_local_embedding_model(model_name: str) -> Any | None:
     resolved_model = resolve_local_embedding_model(model_name)
     if resolved_model is None:
         return None
-    if resolved_model in _LOCAL_EMBEDDING_MODELS:
-        return _LOCAL_EMBEDDING_MODELS[resolved_model]
-    try:
-        from sentence_transformers import SentenceTransformer
+    with _LOCAL_EMBEDDING_LOAD_LOCK:
+        if resolved_model in _LOCAL_EMBEDDING_MODELS:
+            return _LOCAL_EMBEDDING_MODELS[resolved_model]
+        try:
+            from sentence_transformers import SentenceTransformer
 
-        model = SentenceTransformer(
-            resolved_model,
-            **sentence_transformer_kwargs(resolved_model),
-        )
-        _LOCAL_EMBEDDING_MODELS[resolved_model] = model
-        logger.info("Loaded local report embedding model", model=resolved_model)
-        return model
-    except Exception as exc:
-        logger.warning(
-            "Failed to load local report embedding model",
-            model=resolved_model,
-            error=str(exc),
-        )
-        return None
+            model = SentenceTransformer(
+                resolved_model,
+                **sentence_transformer_kwargs(resolved_model),
+            )
+            _LOCAL_EMBEDDING_MODELS[resolved_model] = model
+            logger.info("Loaded local report embedding model", model=resolved_model)
+            return model
+        except Exception as exc:
+            logger.warning(
+                "Failed to load local report embedding model",
+                model=resolved_model,
+                error=str(exc),
+            )
+            return None
 
 
 def _semantic_similarity(query: str, text: str) -> float:
@@ -897,6 +905,7 @@ class ReportProjectGenerationService:
         lookback_days: int = 7,
         report_date: str | date | datetime | None = None,
         report_period: ReportPeriod | None = None,
+        progress_callback: ProgressCallback | None = None,
     ) -> ReportGenerationResult:
         """Generate configured placeholders, with manual values as overrides."""
         manual_placeholders = manual_placeholders or {}
@@ -919,7 +928,6 @@ class ReportProjectGenerationService:
                 )
                 continue
 
-            title = str(config.get("title") or placeholder)
             placeholder_type = normalize_placeholder_output_type(config)
             if placeholder_type == "field":
                 results_by_placeholder[placeholder] = PlaceholderGenerationOutput(
@@ -938,6 +946,8 @@ class ReportProjectGenerationService:
             async_configs.append((placeholder, config))
 
         if async_configs:
+            total_sections = len(async_configs)
+            self._emit_progress(progress_callback, 0, total_sections)
             worker_count = min(self.max_parallel_sections, len(async_configs))
             with ThreadPoolExecutor(max_workers=worker_count) as executor:
                 futures = [
@@ -952,9 +962,14 @@ class ReportProjectGenerationService:
                     )
                     for placeholder, config in async_configs
                 ]
-                for future in futures:
+                for completed_sections, future in enumerate(as_completed(futures), start=1):
                     result = future.result()
                     results_by_placeholder[result.placeholder] = result
+                    self._emit_progress(
+                        progress_callback,
+                        completed_sections,
+                        total_sections,
+                    )
 
         for placeholder in ordered_placeholders:
             result = results_by_placeholder.get(placeholder)
@@ -977,6 +992,26 @@ class ReportProjectGenerationService:
             sections=section_infos,
             warnings=warnings,
         )
+
+    @staticmethod
+    def _emit_progress(
+        callback: ProgressCallback | None,
+        completed_sections: int,
+        total_sections: int,
+    ) -> None:
+        if callback is None:
+            return
+        try:
+            callback(
+                {
+                    "phase": "generate",
+                    "message": f"已生成 {completed_sections}/{total_sections} 个段落",
+                    "completed_sections": completed_sections,
+                    "total_sections": total_sections,
+                }
+            )
+        except Exception:
+            logger.exception("Report section progress callback failed")
 
     def _generate_configured_placeholder(
         self,
@@ -2289,7 +2324,8 @@ def rerank_evidence_with_local_model(
         for item in evidence
     ]
     try:
-        raw_scores = model.predict(pairs)
+        with _LOCAL_RERANKER_INFERENCE_LOCK:
+            raw_scores = model.predict(pairs)
     except Exception as exc:
         logger.warning(
             "Failed to score report evidence with local reranker",
@@ -2327,34 +2363,35 @@ def _load_local_reranker_model(model_name: str) -> Any | None:
     resolved_model = resolve_local_embedding_model(model_name)
     if resolved_model is None:
         return None
-    if resolved_model in _LOCAL_RERANKER_MODELS:
-        return _LOCAL_RERANKER_MODELS[resolved_model]
-    try:
-        from sentence_transformers import CrossEncoder
+    with _LOCAL_RERANKER_LOAD_LOCK:
+        if resolved_model in _LOCAL_RERANKER_MODELS:
+            return _LOCAL_RERANKER_MODELS[resolved_model]
+        try:
+            from sentence_transformers import CrossEncoder
 
-        kwargs = sentence_transformer_kwargs(resolved_model)
-        model = CrossEncoder(
-            resolved_model,
-            automodel_args=kwargs,
-            tokenizer_args=kwargs,
-        )
-        _LOCAL_RERANKER_MODELS[resolved_model] = model
-        logger.info("Loaded local report reranker model", model=resolved_model)
-        return model
-    except TypeError as exc:
-        logger.warning(
-            "Local report reranker does not support cache-only loading arguments",
-            model=resolved_model,
-            error=str(exc),
-        )
-        return None
-    except Exception as exc:
-        logger.warning(
-            "Failed to load local report reranker model",
-            model=resolved_model,
-            error=str(exc),
-        )
-        return None
+            kwargs = sentence_transformer_kwargs(resolved_model)
+            model = CrossEncoder(
+                resolved_model,
+                automodel_args=kwargs,
+                tokenizer_args=kwargs,
+            )
+            _LOCAL_RERANKER_MODELS[resolved_model] = model
+            logger.info("Loaded local report reranker model", model=resolved_model)
+            return model
+        except TypeError as exc:
+            logger.warning(
+                "Local report reranker does not support cache-only loading arguments",
+                model=resolved_model,
+                error=str(exc),
+            )
+            return None
+        except Exception as exc:
+            logger.warning(
+                "Failed to load local report reranker model",
+                model=resolved_model,
+                error=str(exc),
+            )
+            return None
 
 
 def _normalize_rerank_score(raw_score: Any) -> float:
