@@ -48,7 +48,7 @@ def test_account_manager_prefers_json_accounts_with_special_characters(monkeypat
     }
 
 
-def test_account_manager_falls_back_when_json_is_invalid(monkeypatch, tmp_path, caplog):
+def test_account_manager_invalid_json_never_falls_back(monkeypatch, tmp_path, caplog):
     config_path = tmp_path / "zq.yaml"
     config_path.write_text("accounts: {}\n", encoding="utf-8")
     monkeypatch.setenv("ZQ_ACCOUNTS_JSON", '{"password":"must-not-appear"')
@@ -56,8 +56,38 @@ def test_account_manager_falls_back_when_json_is_invalid(monkeypatch, tmp_path, 
 
     manager = AccountManager(str(config_path))
 
-    assert manager.config["accounts"]["legacy"]["password"] == "legacy-secret"
+    assert manager.config["accounts"] == {}
     assert "must-not-appear" not in caplog.text
+
+
+def test_account_manager_empty_json_list_does_not_resurrect_yaml(monkeypatch, tmp_path):
+    config_path = tmp_path / "zq.yaml"
+    config_path.write_text(
+        "accounts:\n  yaml-account:\n    username: yaml-user\n    password: yaml-secret\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("ZQ_ACCOUNTS_JSON", "[]")
+    monkeypatch.setenv("ZQ_ACCOUNTS", "legacy:legacy-secret")
+
+    manager = AccountManager(str(config_path))
+
+    assert manager.config["accounts"] == {}
+
+
+def test_account_manager_json_account_without_password_is_not_usable(monkeypatch, tmp_path):
+    config_path = tmp_path / "zq.yaml"
+    config_path.write_text(
+        "accounts:\n  yaml-account:\n    username: yaml-user\n    password: yaml-secret\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv(
+        "ZQ_ACCOUNTS_JSON", json.dumps([{"name": "pending", "username": "pending-user"}])
+    )
+
+    manager = AccountManager(str(config_path))
+
+    assert manager.config["accounts"] == {}
+    assert manager.get_available_accounts() == []
 
 
 def test_account_manager_uses_yaml_when_account_environment_is_absent(monkeypatch, tmp_path):

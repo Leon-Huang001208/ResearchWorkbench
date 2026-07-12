@@ -19,7 +19,8 @@ Changed test files:
 
 Commands run and results:
 
-- Focused pytest：20 passed，22 warnings。
+- 首轮 focused pytest：20 passed，22 warnings。
+- 规格复审后 focused + 关联回归：34 passed，22 warnings。
 - Focused ruff：passed。
 - Focused black check：passed。
 - Focused isort check：passed。
@@ -28,11 +29,11 @@ Commands run and results:
 Skipped checks:
 
 - 未运行全仓 pytest、全仓 mypy 和长期文档同步检查；本代理的委派范围要求只提交后端范围文件，且明确禁止修改长期文档。
-- 未执行真实外部服务连接；`POST /api/config/{section}/test` 首版实现为非破坏性结构/就绪校验，不写入配置。
+- 自动化测试通过注入探针避免访问公网；生产默认探针复用现有 LLM Provider、`ZhiQiuClient` 和 iFinD `BackendRouter`，执行短超时、非持久化真实连接验证。
 
 Remaining risk:
 
-- 真实 LLM、知秋和 iFinD 网络连通性仍需在拥有凭据的集成环境验证。
+- 真实 LLM、知秋和 iFinD 凭据仍需在目标集成环境执行连接验证。
 - 仓库级门禁由集成代理统一执行。
 
 Final test decision: focused backend scope passed.

@@ -175,6 +175,7 @@ class AccountManager:
         """加载配置，优先使用结构化环境账号并兼容旧格式。"""
         import os
 
+        structured_accounts_present = "ZQ_ACCOUNTS_JSON" in os.environ
         accounts = self._load_accounts_from_environment(
             os.environ.get("ZQ_ACCOUNTS_JSON"), os.environ.get("ZQ_ACCOUNTS")
         )
@@ -186,8 +187,8 @@ class AccountManager:
         except Exception:
             config = {}
 
-        # 如果环境变量有账号,优先使用环境变量的;否则用配置文件的
-        if accounts:
+        # JSON 环境变量只要存在就是权威来源；只有完全缺失时才允许兼容回退。
+        if structured_accounts_present or accounts:
             config["accounts"] = accounts
         elif "accounts" not in config:
             config["accounts"] = {}
@@ -198,8 +199,8 @@ class AccountManager:
     def _load_accounts_from_environment(
         structured_value: Optional[str], legacy_value: Optional[str]
     ) -> Dict[str, Dict[str, str]]:
-        """安全解析环境账号；任何 JSON 格式错误都会回退到旧格式。"""
-        if structured_value:
+        """安全解析环境账号；JSON 存在时不允许回退到旧账号源。"""
+        if structured_value is not None:
             try:
                 raw_accounts = json.loads(structured_value)
                 parsed_accounts: Dict[str, Dict[str, str]] = {}
@@ -218,7 +219,7 @@ class AccountManager:
 
                 for entry in entries:
                     if not isinstance(entry, dict):
-                        raise ValueError("invalid account entry")
+                        continue
                     username = entry.get("username")
                     password = entry.get("password")
                     name = entry.get("name") or username
@@ -230,13 +231,14 @@ class AccountManager:
                         and isinstance(password, str)
                         and password
                     ):
-                        raise ValueError("account fields must be non-empty strings")
+                        continue
                     if name in parsed_accounts:
-                        raise ValueError("duplicate account name")
+                        continue
                     parsed_accounts[name] = {"username": username, "password": password}
                 return parsed_accounts
             except (json.JSONDecodeError, TypeError, ValueError):
-                logger.warning("ZQ_ACCOUNTS_JSON 解析失败，回退兼容配置")
+                logger.warning("ZQ_ACCOUNTS_JSON 解析失败，账号池保持不可用")
+                return {}
 
         parsed_legacy: Dict[str, Dict[str, str]] = {}
         if legacy_value:

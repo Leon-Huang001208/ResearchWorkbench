@@ -3,7 +3,6 @@
 from typing import Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException
-from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 
 from app.api.configuration_models import (
@@ -29,11 +28,19 @@ def get_configuration_service() -> ConfigurationService:
     return ConfigurationService()
 
 
-def _validate_payload(section: str, payload: dict[str, Any]) -> dict[str, Any]:
+def _validate_payload(section: str, payload: Any) -> dict[str, Any]:
     try:
         model = SECTION_UPDATE_MODELS[section].model_validate(payload)
     except ValidationError as exc:
-        raise RequestValidationError(exc.errors()) from exc
+        safe_errors = [
+            {
+                "loc": list(error.get("loc", ())),
+                "type": str(error.get("type", "value_error")),
+                "msg": "输入值未通过校验",
+            }
+            for error in exc.errors()
+        ]
+        raise HTTPException(status_code=422, detail=safe_errors) from exc
     return model.model_dump(exclude_unset=True)
 
 
@@ -51,7 +58,7 @@ def get_configuration(
 @router.put("/{section}", response_model=ConfigurationUpdateResponse)
 def update_configuration(
     section: SectionName,
-    payload: dict[str, Any] = Body(...),
+    payload: Any = Body(...),
     service: ConfigurationService = Depends(get_configuration_service),
 ) -> dict[str, Any]:
     """校验、持久化并按分区应用配置。"""
@@ -68,7 +75,7 @@ def update_configuration(
 @router.post("/{section}/test", response_model=ConfigurationTestResponse)
 def test_configuration(
     section: SectionName,
-    payload: dict[str, Any] = Body(...),
+    payload: Any = Body(...),
     service: ConfigurationService = Depends(get_configuration_service),
 ) -> dict[str, Any]:
     """非破坏性验证尚未保存的分区配置。"""

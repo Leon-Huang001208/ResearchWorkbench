@@ -50,13 +50,18 @@ class ZhiQiuClient:
     PROMPT_SUMMARY = "提取该研报对{{search}}未来发展的核心预期与策略建议"
 
     def __init__(
-        self, username: str, password: str, anti_scrape_config: Optional[AntiScrapeConfig] = None
+        self,
+        username: str,
+        password: str,
+        anti_scrape_config: Optional[AntiScrapeConfig] = None,
+        request_timeout: float = DEFAULT_TIMEOUT,
     ):
         self.username = username
         self.password = password
         self.session = requests.Session()
         self.session.trust_env = False  # 禁用系统代理，避免 SSL EOF 错误
         self._logged_in = False
+        self.request_timeout = request_timeout
         self.logger = logging.getLogger(__name__)
         # 反爬管理器
         self.anti_scrape: AntiScrapeManager = get_manager(anti_scrape_config)
@@ -67,7 +72,7 @@ class ZhiQiuClient:
         self.anti_scrape.before_request(is_ai_request=False)
         headers = self.anti_scrape.get_headers({"user-agent": self.USER_AGENT})
         self.session.get(
-            f"{self.BASE_URL}/newreport/index.htm", headers=headers, timeout=DEFAULT_TIMEOUT
+            f"{self.BASE_URL}/newreport/index.htm", headers=headers, timeout=self.request_timeout
         )
         self.anti_scrape.after_success()
 
@@ -81,7 +86,7 @@ class ZhiQiuClient:
             }
         )
         pre_resp = self.session.post(
-            f"{self.BASE_URL}/user/loginPre.json", headers=headers, timeout=DEFAULT_TIMEOUT
+            f"{self.BASE_URL}/user/loginPre.json", headers=headers, timeout=self.request_timeout
         )
         if pre_resp.status_code != 200:
             self.logger.error(f"loginPre.json 请求失败，状态码: {pre_resp.status_code}")
@@ -121,7 +126,7 @@ class ZhiQiuClient:
             data=login_data,
             headers=headers,
             allow_redirects=True,
-            timeout=DEFAULT_TIMEOUT,
+            timeout=self.request_timeout,
         )
 
         if "REPORT_SESSION_COOKIE" in self.session.cookies:

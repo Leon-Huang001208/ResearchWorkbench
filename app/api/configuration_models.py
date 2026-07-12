@@ -17,6 +17,7 @@ class SecretState(StrictModel):
 
 
 class ProviderView(StrictModel):
+    original_name: str
     name: str
     protocol: Literal["openai_compatible", "anthropic", "local"]
     base_url: str
@@ -35,6 +36,7 @@ class LlmSectionView(StrictModel):
 
 
 class ZhiQiuAccountView(StrictModel):
+    original_name: str
     name: str
     username: str
     password: SecretState
@@ -88,6 +90,7 @@ class ConfigurationSnapshotResponse(StrictModel):
 
 
 class ProviderUpdate(StrictModel):
+    original_name: str | None = Field(default=None, min_length=1, max_length=128)
     name: str = Field(min_length=1, max_length=128)
     protocol: Literal["openai_compatible", "anthropic", "local"] = "openai_compatible"
     base_url: str = Field(default="", max_length=2048)
@@ -101,6 +104,7 @@ class LlmUpdateRequest(StrictModel):
 
 
 class ZhiQiuAccountUpdate(StrictModel):
+    original_name: str | None = Field(default=None, min_length=1, max_length=128)
     name: str = Field(min_length=1, max_length=128)
     username: str = Field(min_length=1, max_length=256)
     password: str | None = Field(default=None, max_length=8192)

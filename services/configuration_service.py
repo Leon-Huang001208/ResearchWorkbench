@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
+import platform
 import re
 import stat
 import tempfile
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 from urllib.parse import urlsplit
 
 from dotenv import dotenv_values
@@ -26,6 +28,7 @@ logger = get_logger(__name__)
 
 SUPPORTED_SECTIONS = {"llm", "zhiqiu", "ifind", "database", "advanced"}
 SECRET_SUFFIX_LENGTH = 4
+ConnectionProbe = Callable[[Mapping[str, str], float], bool]
 
 
 class ConfigurationError(RuntimeError):
@@ -43,9 +46,19 @@ class ConfigurationService:
         self,
         env_path: Path | str | None = None,
         runtime_settings: Settings | None = None,
+        connection_probes: Mapping[str, ConnectionProbe] | None = None,
+        connection_timeout: float = 5.0,
     ) -> None:
         self.env_path = Path(env_path) if env_path is not None else resolve_runtime_env_path()
         self.runtime_settings = runtime_settings or settings
+        self.connection_timeout = connection_timeout
+        self.connection_probes: dict[str, ConnectionProbe] = {
+            "llm": self._probe_llm,
+            "zhiqiu": self._probe_zhiqiu,
+            "ifind": self._probe_ifind,
+        }
+        if connection_probes:
+            self.connection_probes.update(connection_probes)
 
     def get_effective_values(self) -> dict[str, str]:
         """读取配置文件，并让当前进程环境覆盖同名文件值。"""
@@ -131,13 +144,129 @@ class ConfigurationService:
 
         if section == "llm" and not self._parse_providers(candidate):
             raise ConfigurationError("至少需要一个大模型 Provider")
-        if section == "zhiqiu" and not self._parse_zhiqiu_accounts(candidate):
+        if section == "zhiqiu" and not any(
+            account["password_value"] for account in self._parse_zhiqiu_accounts(candidate)
+        ):
             raise ConfigurationError("至少需要一个知秋账号")
         if section == "ifind" and not candidate.get("IFIND_USERNAME"):
             raise ConfigurationError("iFinD 用户名不能为空")
         if section == "database":
             self._validate_database_url(candidate.get("DATABASE_URL", ""))
-        return {"success": True, "message": "配置格式验证通过"}
+            return {"success": True, "message": "数据库地址格式验证通过"}
+
+        try:
+            success = self.connection_probes[section](candidate, self.connection_timeout)
+        except Exception as exc:
+            logger.warning(
+                "配置连接验证失败",
+                extra={"section": section, "error_type": type(exc).__name__},
+            )
+            success = False
+        return {
+            "success": success,
+            "message": "连接验证成功" if success else "连接验证失败",
+        }
+
+    def _probe_llm(self, candidate: Mapping[str, str], timeout: float) -> bool:
+        """复用模型 Provider 发送最小聊天请求。"""
+        from core.model_gateway.providers import AnthropicProvider, OpenAICompatibleProvider
+
+        providers = self._parse_providers(candidate)
+        models_by_provider: dict[str, str] = {}
+        for key, provider_name in candidate.items():
+            match = re.match(r"^TASK_(.+)_PROVIDER$", key)
+            if match:
+                model = candidate.get(f"TASK_{match.group(1)}_MODEL", "")
+                if model:
+                    models_by_provider.setdefault(provider_name, model)
+        for item in providers:
+            if not item["api_key_value"] and item["protocol"] != "local":
+                return False
+            profile = ProviderProfile(
+                name=item["name"],
+                protocol=item["protocol"],  # type: ignore[arg-type]
+                base_url=item["base_url"],
+                api_key=item["api_key_value"],
+            )
+            provider = (
+                AnthropicProvider(profile)
+                if item["protocol"] == "anthropic"
+                else OpenAICompatibleProvider(profile)
+            )
+            try:
+                client = getattr(provider, "_client", None)
+                if client is None:
+                    return False
+                model = models_by_provider.get(
+                    item["name"],
+                    "claude-sonnet-4-6" if item["protocol"] == "anthropic" else "gpt-4o-mini",
+                )
+                if item["protocol"] == "anthropic":
+                    client.messages.create(
+                        model=model,
+                        messages=[{"role": "user", "content": "ping"}],
+                        max_tokens=1,
+                        timeout=timeout,
+                    )
+                else:
+                    client.chat.completions.create(
+                        model=model,
+                        messages=[{"role": "user", "content": "ping"}],
+                        temperature=0.0,
+                        max_tokens=1,
+                        timeout=timeout,
+                    )
+            finally:
+                http_client = getattr(provider, "_http_client", None)
+                if http_client is not None:
+                    http_client.close()
+        return bool(providers)
+
+    @staticmethod
+    def _probe_zhiqiu(candidate: Mapping[str, str], timeout: float) -> bool:
+        """复用知秋客户端逐个验证当前可用账号。"""
+        from data_layer.crawlers.zq.zhiqiu.client import ZhiQiuClient
+
+        accounts = ConfigurationService._parse_zhiqiu_accounts(candidate)
+        usable = [item for item in accounts if item["username"] and item["password_value"]]
+        if not usable:
+            return False
+        return all(
+            ZhiQiuClient(item["username"], item["password_value"], request_timeout=timeout).login()
+            for item in usable
+        )
+
+    def _probe_ifind(self, candidate: Mapping[str, str], timeout: float) -> bool:
+        """复用 iFinD 后端路由器完成登录和健康检查。"""
+        from data_layer.adapters.ifind.router import IFIND_SDK_AVAILABLE, BackendRouter
+
+        backend = candidate.get("IFIND_BACKEND", "auto")
+        if backend == "auto":
+            backend = (
+                "python_sdk"
+                if platform.system() != "Darwin" and IFIND_SDK_AVAILABLE
+                else "http_api"
+            )
+
+        temporary_settings = self.runtime_settings.model_copy(
+            update={
+                "IFIND_USERNAME": candidate.get("IFIND_USERNAME", ""),
+                "IFIND_PASSWORD": candidate.get("IFIND_PASSWORD", ""),
+                "IFIND_BACKEND": backend,
+                "IFIND_HTTP_BASE_URL": candidate.get(
+                    "IFIND_HTTP_BASE_URL", "https://quantapi.10jqka.com.cn"
+                ),
+            }
+        )
+
+        async def run_probe() -> bool:
+            client = await BackendRouter(temporary_settings).get_client()
+            try:
+                return await client.is_alive()
+            finally:
+                await client.logout()
+
+        return asyncio.run(asyncio.wait_for(run_probe(), timeout=timeout))
 
     def _build_changes(
         self, section: str, payload: Mapping[str, Any], current: Mapping[str, str]
@@ -179,7 +308,8 @@ class ConfigurationService:
                 updates[f"{prefix}NAME"] = name
                 updates[f"{prefix}PROTOCOL"] = protocol
                 updates[f"{prefix}BASE_URL"] = str(provider.get("base_url", "")).strip()
-                old_secret = str(existing.get(name, {}).get("api_key_value", ""))
+                original_name = str(provider.get("original_name") or name)
+                old_secret = str(existing.get(original_name, {}).get("api_key_value", ""))
                 secret = self._merge_secret(
                     provider.get("api_key"), bool(provider.get("clear_api_key", False)), old_secret
                 )
@@ -228,7 +358,8 @@ class ConfigurationService:
                 if name in names:
                     raise ConfigurationError("知秋账号名称不能重复")
                 names.add(name)
-                old_secret = str(existing.get(name, {}).get("password_value", ""))
+                original_name = str(item.get("original_name") or name)
+                old_secret = str(existing.get(original_name, {}).get("password_value", ""))
                 password = self._merge_secret(
                     item.get("password"), bool(item.get("clear_password", False)), old_secret
                 )
@@ -449,6 +580,7 @@ class ConfigurationService:
                 )
         public_providers = [
             {
+                "original_name": item["name"],
                 "name": item["name"],
                 "protocol": item["protocol"],
                 "base_url": item["base_url"],
@@ -468,6 +600,7 @@ class ConfigurationService:
         accounts = self._parse_zhiqiu_accounts(values)
         public_accounts = [
             {
+                "original_name": item["name"],
                 "name": item["name"],
                 "username": item["username"],
                 "password": self._secret_view(item["password_value"]),
@@ -536,8 +669,8 @@ class ConfigurationService:
 
     @staticmethod
     def _parse_zhiqiu_accounts(values: Mapping[str, str]) -> list[dict[str, str]]:
-        structured = values.get("ZQ_ACCOUNTS_JSON", "")
-        if structured:
+        if "ZQ_ACCOUNTS_JSON" in values:
+            structured = values.get("ZQ_ACCOUNTS_JSON", "")
             try:
                 raw = json.loads(structured)
                 if isinstance(raw, list):
@@ -551,7 +684,8 @@ class ConfigurationService:
                         if isinstance(item, dict)
                     ]
             except (json.JSONDecodeError, TypeError):
-                logger.warning("读取知秋结构化账号失败，使用兼容格式")
+                logger.warning("读取知秋结构化账号失败，账号状态保持未配置")
+            return []
         legacy = values.get("ZQ_ACCOUNTS", "")
         accounts: list[dict[str, str]] = []
         for pair in legacy.split(",") if legacy else []:
