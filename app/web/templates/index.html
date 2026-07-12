@@ -1546,13 +1546,13 @@
                                 <div><span class="config-panel-kicker">01</span><h3>大模型</h3><p>配置 Provider 与不同任务使用的模型。</p></div>
                                 <span class="config-status" data-config-status="llm">未加载</span>
                             </div>
-                            <div class="config-subsection-header"><h4>Providers</h4><button type="button" class="secondary-btn" data-add-provider>新增 Provider</button></div>
+                            <div class="config-subsection-header"><h4>Providers</h4><button type="button" class="secondary-btn" data-add-provider disabled>新增 Provider</button></div>
                             <div id="config-provider-list" class="config-dynamic-list"></div>
-                            <div class="config-subsection-header"><h4>任务路由</h4><button type="button" class="secondary-btn" data-add-task-route>新增路由</button></div>
+                            <div class="config-subsection-header"><h4>任务路由</h4><button type="button" class="secondary-btn" data-add-task-route disabled>新增路由</button></div>
                             <div id="config-task-route-list" class="config-dynamic-list"></div>
                             <div class="config-actions">
-                                <button type="button" class="secondary-btn" data-config-test="llm">验证连接</button>
-                                <button type="submit" class="primary-btn" data-config-save="llm">保存大模型配置</button>
+                                <button type="button" class="secondary-btn" data-config-test="llm" disabled>验证连接</button>
+                                <button type="submit" class="primary-btn" data-config-save="llm" disabled>保存大模型配置</button>
                             </div>
                         </form>
 
@@ -1561,7 +1561,7 @@
                                 <div><span class="config-panel-kicker">02</span><h3>知秋</h3><p>维护账号池、轮询和失败恢复参数。</p></div>
                                 <span class="config-status" data-config-status="zhiqiu">未加载</span>
                             </div>
-                            <div class="config-subsection-header"><h4>账号池</h4><button type="button" class="secondary-btn" data-add-zhiqiu-account>新增账号</button></div>
+                            <div class="config-subsection-header"><h4>账号池</h4><button type="button" class="secondary-btn" data-add-zhiqiu-account disabled>新增账号</button></div>
                             <div id="config-zhiqiu-account-list" class="config-dynamic-list"></div>
                             <div class="config-field-grid">
                                 <label class="config-checkbox"><input type="checkbox" name="enabled">启用账号轮询</label>
@@ -1572,8 +1572,8 @@
                                 <label><span>连续失败阈值</span><input type="number" name="max_consecutive_failures" min="1" max="1000"></label>
                             </div>
                             <div class="config-actions">
-                                <button type="button" class="secondary-btn" data-config-test="zhiqiu">验证账号</button>
-                                <button type="submit" class="primary-btn" data-config-save="zhiqiu">保存知秋配置</button>
+                                <button type="button" class="secondary-btn" data-config-test="zhiqiu" disabled>验证账号</button>
+                                <button type="submit" class="primary-btn" data-config-save="zhiqiu" disabled>保存知秋配置</button>
                             </div>
                         </form>
 
@@ -1590,8 +1590,8 @@
                                 <label class="config-checkbox config-clear-secret"><input type="checkbox" name="clear_password">显式清除已保存密码</label>
                             </div>
                             <div class="config-actions">
-                                <button type="button" class="secondary-btn" data-config-test="ifind">验证连接</button>
-                                <button type="submit" class="primary-btn" data-config-save="ifind">保存 iFinD 配置</button>
+                                <button type="button" class="secondary-btn" data-config-test="ifind" disabled>验证连接</button>
+                                <button type="submit" class="primary-btn" data-config-save="ifind" disabled>保存 iFinD 配置</button>
                             </div>
                         </form>
 
@@ -1602,7 +1602,7 @@
                             </div>
                             <label class="config-field-wide"><span>数据库连接地址</span><input type="password" name="database_url" autocomplete="new-password" placeholder="输入完整连接地址以更新"><small data-secret-state="database-url">未配置</small></label>
                             <div class="config-restart-note"><i class="codicon codicon-debug-restart" aria-hidden="true"></i><span><strong>需要重启桌面后端</strong>保存仅持久化新地址，当前会话继续使用原连接。</span></div>
-                            <div class="config-actions"><button type="submit" class="primary-btn" data-config-save="database">保存数据库配置</button></div>
+                            <div class="config-actions"><button type="submit" class="primary-btn" data-config-save="database" disabled>保存数据库配置</button></div>
                         </form>
 
                         <details class="config-panel config-advanced-panel">
@@ -1617,7 +1617,7 @@
                                     <label><span>分块重叠</span><input type="number" name="chunk_overlap" min="0" max="50000"></label>
                                     <label><span>长文本阈值</span><input type="number" name="long_text_threshold" min="1" max="100000"></label>
                                 </div>
-                                <div class="config-actions"><button type="submit" class="primary-btn" data-config-save="advanced">保存高级配置</button></div>
+                                <div class="config-actions"><button type="submit" class="primary-btn" data-config-save="advanced" disabled>保存高级配置</button></div>
                             </form>
                         </details>
                     </div>
@@ -2183,7 +2183,7 @@
 
     <!-- Scripts: i18n must load before app.js -->
     <script src="/static/i18n.js?v=20250527"></script>
-    <script type="module" src="/static/js/app.js?v=20260712config4"></script>
+    <script type="module" src="/static/js/app.js?v=20260712config5"></script>
     <script type="module" src="/static/js/wind.js?v=20250601a"></script>
 </body>
 </html>

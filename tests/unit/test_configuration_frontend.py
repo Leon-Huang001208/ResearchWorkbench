@@ -16,7 +16,7 @@ STYLE_CSS = ROOT / "app" / "web" / "static" / "style.css"
 def test_configuration_navigation_and_five_sections_are_present():
     html = INDEX_HTML.read_text(encoding="utf-8")
 
-    assert "app.js?v=20260712config4" in html
+    assert "app.js?v=20260712config5" in html
     assert 'data-section="config"' in html
     assert 'id="section-config"' in html
     assert 'id="config-readiness-overview"' in html
@@ -32,6 +32,9 @@ def test_configuration_page_exposes_readiness_and_connection_test_controls():
         assert f'data-readiness="{category}"' in html
     for section in ("llm", "zhiqiu", "ifind"):
         assert f'data-config-test="{section}"' in html
+        assert f'data-config-test="{section}" disabled' in html
+    for section in ("llm", "zhiqiu", "ifind", "database", "advanced"):
+        assert f'data-config-save="{section}" disabled' in html
     assert "重启后生效" in html
 
 
@@ -40,7 +43,7 @@ def test_configuration_module_uses_expected_api_contract_and_is_initialized_by_n
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
 
     assert (
-        "import { initConfigurationPage } from './configuration.js?v=20260712config4'" in app_source
+        "import { initConfigurationPage } from './configuration.js?v=20260712config5'" in app_source
     )
     assert "import { apiCall } from './core.js?v=20260712config2'" in source
     assert "if (section === 'config') initConfigurationPage();" in app_source
@@ -235,11 +238,54 @@ def test_mutation_aborts_delayed_load_and_denies_refresh_in_node():
     }
 
 
+def test_readiness_gate_denies_mutation_until_successful_load_in_node():
+    script = f"""
+        import {{ createReadinessGate }} from {json.dumps(CONFIGURATION_JS.as_uri())};
+
+        const gate = createReadinessGate();
+        let collected = 0;
+        let networked = 0;
+        const mutation = () => {{ collected += 1; networked += 1; }};
+        const beforeReady = gate.run(mutation);
+        gate.markLoadFailed();
+        const afterFailedInitialLoad = gate.run(mutation);
+        gate.markReady();
+        const afterReady = gate.run(mutation);
+        console.log(JSON.stringify({{
+            beforeReady,
+            afterFailedInitialLoad,
+            afterReady,
+            collected,
+            networked,
+            ready: gate.isReady(),
+        }}));
+    """
+    result = subprocess.run(
+        ["node", "--input-type=module", "-e", script],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    payload = json.loads(result.stdout)
+
+    assert payload == {
+        "beforeReady": False,
+        "afterFailedInitialLoad": False,
+        "afterReady": True,
+        "collected": 1,
+        "networked": 1,
+        "ready": True,
+    }
+
+
 def test_configuration_initializes_once_and_save_does_not_reload_snapshot():
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
     save_start = source.index("async function saveSection(section)")
     save_end = source.index("async function testSection(section)", save_start)
     save_source = source[save_start:save_end]
+    test_end = source.index("function markSectionDirty", save_end)
+    test_source = source[save_end:test_end]
 
     assert "let configurationInitialized = false" in source
     assert "if (configurationInitialized) return;" in source
@@ -258,6 +304,10 @@ def test_configuration_initializes_once_and_save_does_not_reload_snapshot():
     assert "requestCoordinator.hasActive()" in source
     assert "setRefreshDisabled(true)" in source
     assert "setRefreshDisabled(false)" in source
+    assert "let configurationReady = false" in source
+    assert "if (!configurationReady)" in save_source
+    assert "if (!configurationReady)" in test_source
+    assert "loadConfiguration({ discardDirty: true })" in source
 
 
 def test_configuration_styles_cover_layout_states_and_accessible_focus():

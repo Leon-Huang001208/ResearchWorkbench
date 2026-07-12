@@ -23,7 +23,7 @@ import { initNavigationCuration } from './navigation-curation.js';
 import { initWindPanel } from './wind.js';
 import { initFundsPanel } from './funds.js?v=20260625a';
 import { initCommentaryCenter, selectCommentaryTemplate, loadCommentaryContext, generateCommentaryDraft, copyCommentaryDraft, switchCommentaryWorkspace } from './commentary.js?v=20260707logic1';
-import { initConfigurationPage } from './configuration.js?v=20260712config4';
+import { initConfigurationPage } from './configuration.js?v=20260712config5';
 
 // ─── Window Exports (for HTML onclick handlers) ────────────────
 window.apiCall = apiCall;

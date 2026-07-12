@@ -4,6 +4,7 @@ const rowOriginalNames = new WeakMap();
 const dirtySections = new Set();
 const sectionEditGenerations = new Map();
 let configurationInitialized = false;
+let configurationReady = false;
 let configurationSnapshot = null;
 let loadAbortController = null;
 
@@ -20,6 +21,26 @@ export function createGenerationTracker() {
         invalidate() {
             generation += 1;
             return generation;
+        },
+    };
+}
+
+export function createReadinessGate() {
+    let ready = false;
+    return {
+        run(action) {
+            if (!ready) return false;
+            action();
+            return true;
+        },
+        markReady() {
+            ready = true;
+        },
+        markLoadFailed() {
+            return ready;
+        },
+        isReady() {
+            return ready;
         },
     };
 }
@@ -93,8 +114,12 @@ const requestCoordinator = createRequestCoordinator({
         loadAbortController = null;
         loadGeneration.invalidate();
         setRefreshDisabled(true);
+        syncMutationControls();
     },
-    onLastFinish: () => setRefreshDisabled(false),
+    onLastFinish: () => {
+        setRefreshDisabled(false);
+        syncMutationControls();
+    },
 });
 
 function element(tag, className = '', text = '') {
@@ -134,6 +159,7 @@ function select(options, value, ariaLabel) {
 function removeButton(label) {
     const button = element('button', 'config-remove-row', '删除');
     button.type = 'button';
+    button.disabled = !configurationReady || requestCoordinator.hasActive();
     button.setAttribute('aria-label', label);
     button.addEventListener('click', () => {
         const row = button.closest('.config-dynamic-row');
@@ -411,7 +437,7 @@ function showPageError(error) {
     node.className = 'config-page-message error';
 }
 
-async function loadConfiguration() {
+async function loadConfiguration({ discardDirty = false } = {}) {
     if (requestCoordinator.hasActive()) {
         showPageMessage('配置保存或验证进行中，请稍后刷新', 'error');
         return false;
@@ -424,11 +450,18 @@ async function loadConfiguration() {
     try {
         const snapshot = await apiCall('GET', '/api/config', null, { signal: controller.signal });
         if (!loadGeneration.isLatest(token)) return;
+        if (discardDirty) dirtySections.clear();
         renderSnapshot(snapshot);
+        configurationReady = true;
+        syncMutationControls();
         showPageMessage('配置已刷新', 'ready');
         return true;
     } catch (error) {
         if (error?.name === 'AbortError' || !loadGeneration.isLatest(token)) return;
+        if (!configurationSnapshot) {
+            configurationReady = false;
+            syncMutationControls();
+        }
         showPageError(error);
     } finally {
         if (loadGeneration.isLatest(token)) loadAbortController = null;
@@ -539,7 +572,20 @@ function setRefreshDisabled(disabled) {
     if (button) button.disabled = disabled;
 }
 
+function syncMutationControls() {
+    const page = document.getElementById('section-config');
+    if (!page) return;
+    const disabled = !configurationReady || requestCoordinator.hasActive();
+    page.querySelectorAll(
+        '[data-config-save], [data-config-test], [data-add-provider], [data-add-task-route], [data-add-zhiqiu-account], .config-remove-row',
+    ).forEach(button => { button.disabled = disabled; });
+}
+
 async function saveSection(section) {
+    if (!configurationReady) {
+        showPageMessage('配置尚未加载完成，暂时无法保存或验证', 'error');
+        return;
+    }
     const token = requestCoordinator.begin(section);
     if (token === null) return;
     const submittedEditGeneration = sectionEditGenerations.get(section) || 0;
@@ -561,12 +607,17 @@ async function saveSection(section) {
         setSectionStatus(section, firstPath ? `字段校验失败：${firstPath}` : safe.message, 'error');
         showPageError(error);
     } finally {
-        if (requestCoordinator.isLatest(section, token)) setSectionBusy(section, false);
+        const latest = requestCoordinator.isLatest(section, token);
         requestCoordinator.finish(section, token);
+        if (latest) setSectionBusy(section, !configurationReady || requestCoordinator.hasActive());
     }
 }
 
 async function testSection(section) {
+    if (!configurationReady) {
+        showPageMessage('配置尚未加载完成，暂时无法保存或验证', 'error');
+        return;
+    }
     const token = requestCoordinator.begin(section);
     if (token === null) return;
     setSectionBusy(section, true);
@@ -584,8 +635,9 @@ async function testSection(section) {
         setSectionStatus(section, firstPath ? `字段校验失败：${firstPath}` : safe.message, 'error');
         showPageError(error);
     } finally {
-        if (requestCoordinator.isLatest(section, token)) setSectionBusy(section, false);
+        const latest = requestCoordinator.isLatest(section, token);
         requestCoordinator.finish(section, token);
+        if (latest) setSectionBusy(section, !configurationReady || requestCoordinator.hasActive());
     }
 }
 
@@ -603,8 +655,7 @@ async function refreshConfiguration() {
         return;
     }
     if (dirtySections.size && !window.confirm('刷新会丢弃尚未保存的修改，是否继续？')) return;
-    dirtySections.clear();
-    await loadConfiguration();
+    await loadConfiguration({ discardDirty: true });
 }
 
 function bindConfigurationEvents() {
@@ -638,6 +689,7 @@ function bindConfigurationEvents() {
             markSectionDirty(event.target);
         }
     });
+    syncMutationControls();
     document.getElementById('config-refresh')?.addEventListener('click', refreshConfiguration);
 }
 
