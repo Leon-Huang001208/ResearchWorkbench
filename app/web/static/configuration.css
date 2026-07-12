@@ -95,7 +95,9 @@
 }
 
 .config-zhiqiu-labels,
-.config-zhiqiu-row {
+.config-zhiqiu-row,
+.config-ifind-labels,
+.config-ifind-row {
     grid-template-columns: minmax(125px, 0.82fr) minmax(150px, 1fr) minmax(240px, 1.5fr) minmax(155px, 0.72fr);
 }
 
@@ -118,6 +120,7 @@
 
 .config-provider-row .config-dynamic-field > span:first-child,
 .config-zhiqiu-row .config-dynamic-field > span:first-child,
+.config-ifind-row .config-dynamic-field > span:first-child,
 .config-route-row .config-dynamic-field > span:first-child {
     display: none;
 }
@@ -215,12 +218,14 @@
 
     .config-provider-row,
     .config-zhiqiu-row,
+    .config-ifind-row,
     .config-route-row {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .config-provider-row .config-dynamic-field > span:first-child,
     .config-zhiqiu-row .config-dynamic-field > span:first-child,
+    .config-ifind-row .config-dynamic-field > span:first-child,
     .config-route-row .config-dynamic-field > span:first-child {
         display: block;
     }
@@ -241,6 +246,7 @@
     .config-field-grid,
     .config-provider-row,
     .config-zhiqiu-row,
+    .config-ifind-row,
     .config-route-row,
     .configuration-help {
         grid-template-columns: 1fr;
@@ -249,4 +255,39 @@
     .config-row-actions {
         justify-content: space-between;
     }
+}
+
+/* Keep the configuration page as a focused report-workbench form, not a status dashboard. */
+.configuration-header {
+    display: block;
+    margin: 0 0 18px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.configuration-header .section-title {
+    margin: 0;
+    font-size: 26px;
+}
+
+.config-panel {
+    padding: 20px 22px;
+    box-shadow: none;
+}
+
+.config-panel-header {
+    min-height: 0;
+    padding: 0 0 14px;
+}
+
+.config-panel-header h3 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.config-advanced-panel > summary strong {
+    margin-left: 0;
 }

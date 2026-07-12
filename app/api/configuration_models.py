@@ -57,10 +57,18 @@ class ZhiQiuSectionView(StrictModel):
 
 
 class IFindSectionView(StrictModel):
+    accounts: list["IFindAccountView"]
     username: str
     password: SecretState
     backend: Literal["auto", "python_sdk", "http_api"]
     http_base_url: str
+
+
+class IFindAccountView(StrictModel):
+    original_name: str
+    name: str
+    username: str
+    password: SecretState
 
 
 class DatabaseSectionView(StrictModel):
@@ -126,11 +134,20 @@ class ZhiQiuUpdateRequest(StrictModel):
 
 
 class IFindUpdateRequest(StrictModel):
+    accounts: list["IFindAccountUpdate"] | None = Field(default=None, max_length=100)
     username: str = Field(default="", max_length=256)
     password: str | None = Field(default=None, max_length=8192)
     clear_password: bool = False
     backend: Literal["auto", "python_sdk", "http_api"] | None = None
     http_base_url: str = Field(default="", max_length=2048)
+
+
+class IFindAccountUpdate(StrictModel):
+    original_name: str | None = Field(default=None, min_length=1, max_length=128)
+    name: str = Field(min_length=1, max_length=128)
+    username: str = Field(min_length=1, max_length=256)
+    password: str | None = Field(default=None, max_length=8192)
+    clear_password: bool = False
 
 
 class DatabaseUpdateRequest(StrictModel):

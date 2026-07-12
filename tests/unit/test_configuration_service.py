@@ -78,6 +78,36 @@ def test_update_ifind_replaces_and_explicitly_clears_password(monkeypatch, env_p
     assert "IFIND_PASSWORD" not in env_path.read_text(encoding="utf-8")
 
 
+def test_ifind_account_pool_persists_multiple_accounts_and_syncs_primary_runtime(
+    monkeypatch, tmp_path
+):
+    env_path = tmp_path / ".env"
+    monkeypatch.delenv("IFIND_ACCOUNTS_JSON", raising=False)
+    monkeypatch.delenv("IFIND_USERNAME", raising=False)
+    monkeypatch.delenv("IFIND_PASSWORD", raising=False)
+    service = ConfigurationService(env_path=env_path)
+
+    result = service.update_section(
+        "ifind",
+        {
+            "accounts": [
+                {"name": "primary", "username": "first-user", "password": "first-secret"},
+                {"name": "backup", "username": "second-user", "password": "second-secret"},
+            ]
+        },
+    )
+
+    assert [account["name"] for account in result["section"]["accounts"]] == [
+        "primary",
+        "backup",
+    ]
+    assert result["section"]["accounts"][1]["password"]["value"] == "second-secret"
+    effective = service.get_effective_values()
+    assert json.loads(effective["IFIND_ACCOUNTS_JSON"])[1]["username"] == "second-user"
+    assert effective["IFIND_USERNAME"] == "first-user"
+    assert effective["IFIND_PASSWORD"] == "first-secret"
+
+
 def test_update_zhiqiu_serializes_special_characters_as_json(monkeypatch, tmp_path):
     path = tmp_path / ".env"
     monkeypatch.delenv("ZQ_ACCOUNTS_JSON", raising=False)

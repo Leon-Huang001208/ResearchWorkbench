@@ -16,36 +16,35 @@ CONFIGURATION_CSS = ROOT / "app" / "web" / "static" / "configuration.css"
 def test_configuration_navigation_and_five_sections_are_present():
     html = INDEX_HTML.read_text(encoding="utf-8")
 
-    assert "app.js?v=20260712config6" in html
+    assert "app.js?v=20260712config8" in html
     assert 'data-section="config"' in html
     assert 'id="section-config"' in html
-    assert 'id="config-readiness-overview"' in html
+    assert 'id="config-readiness-overview"' not in html
+    assert 'id="config-refresh"' not in html
     for section in ("llm", "zhiqiu", "ifind", "database", "advanced"):
         assert f'id="config-{section}-form"' in html
         assert f'data-config-save="{section}"' in html
 
 
-def test_configuration_page_exposes_readiness_and_connection_test_controls():
+def test_configuration_page_keeps_only_configuration_actions():
     html = INDEX_HTML.read_text(encoding="utf-8")
 
-    for category in ("overall", "llm", "zhiqiu", "ifind", "database"):
-        assert f'data-readiness="{category}"' in html
-    for section in ("llm", "zhiqiu", "ifind"):
-        assert f'data-config-test="{section}"' in html
-        assert f'data-config-test="{section}" disabled' in html
     for section in ("llm", "zhiqiu", "ifind", "database", "advanced"):
         assert f'data-config-save="{section}" disabled' in html
-    assert "重启后生效" in html
+    assert "data-add-zhiqiu-account" in html
+    assert "data-add-ifind-account" in html
+    assert "data-config-test" not in html
+    assert "整体就绪" not in html
 
 
 def test_configuration_uses_a_dedicated_aligned_workspace_style_sheet():
     html = INDEX_HTML.read_text(encoding="utf-8")
 
-    assert 'href="/static/configuration.css?v=20260712config6"' in html
+    assert 'href="/static/configuration.css?v=20260712config7"' in html
     css = CONFIGURATION_CSS.read_text(encoding="utf-8")
     assert ".config-provider-labels" in css
     assert ".config-secret-control" in css
-    assert ".config-readiness-grid" in css
+    assert ".config-ifind-row" in css
 
 
 def test_configuration_module_uses_expected_api_contract_and_is_initialized_by_navigation():
@@ -53,7 +52,7 @@ def test_configuration_module_uses_expected_api_contract_and_is_initialized_by_n
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
 
     assert (
-        "import { initConfigurationPage } from './configuration.js?v=20260712config6'" in app_source
+        "import { initConfigurationPage } from './configuration.js?v=20260712config8'" in app_source
     )
     assert "import { apiCall } from './core.js?v=20260712config2'" in source
     assert "if (section === 'config') initConfigurationPage();" in app_source

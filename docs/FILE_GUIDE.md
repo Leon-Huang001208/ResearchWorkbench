@@ -34,7 +34,7 @@
 | `README.md` | 项目主文档，包含概述、快速开始、核心特性、使用指南 |
 | `pyproject.toml` | 项目配置文件，包含 black、isort、ruff、pytest、mypy error-code debt list 等工具配置 |
 | `pytest.ini` | Pytest 测试框架配置 |
-| `.env.example` | 无真实秘密的环境变量模板；包含运行时配置路径说明、多 Provider/任务路由、知秋 JSON 账号池、iFinD、数据库和高级参数示例 |
+| `.env.example` | 无真实秘密的环境变量模板；包含运行时配置路径说明、多 Provider/任务路由、知秋与 iFinD JSON 账号池、数据库和高级参数示例 |
 | `.gitignore` | Git 忽略文件配置 |
 | `.claude/` | Claude 配置目录，包含项目特定的 rules |
 | `app/` | 应用层，包含 API、CLI、Web 界面 |

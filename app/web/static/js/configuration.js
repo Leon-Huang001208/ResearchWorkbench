@@ -344,6 +344,34 @@ function createZhiqiuAccountRow(account = {}) {
     return row;
 }
 
+function createIfindAccountRow(account = {}) {
+    const row = element('div', 'config-dynamic-row config-ifind-row');
+    rowOriginalNames.set(row, account.original_name || '');
+    const name = input('text', account.name, 'iFinD 账号名称');
+    name.dataset.field = 'name';
+    const username = input('text', account.username, 'iFinD 用户名');
+    username.autocomplete = 'username';
+    username.dataset.field = 'username';
+    const password = input('password', account.password?.value || '', 'iFinD 密码');
+    password.autocomplete = 'new-password';
+    password.placeholder = '未配置';
+    password.dataset.field = 'password';
+    const clearLabel = element('label', 'config-checkbox config-clear-secret');
+    const clear = input('checkbox', '', '显式清除 iFinD 密码');
+    clear.dataset.field = 'clear_password';
+    bindSecretPair(password, clear);
+    clearLabel.append(clear, document.createTextNode('清除'));
+    const actions = element('div', 'config-row-actions');
+    actions.append(clearLabel, removeButton(`删除 iFinD 账号 ${account.name || '新行'}`));
+    row.append(
+        labeledControl('名称', name),
+        labeledControl('用户名', username),
+        labeledControl('密码', createSecretControl(password), secretHint(account.password)),
+        actions,
+    );
+    return row;
+}
+
 function renderProviders(providers) {
     const list = document.getElementById('config-provider-list');
     if (!list) return;
@@ -360,6 +388,12 @@ function renderZhiqiuAccounts(accounts) {
     const list = document.getElementById('config-zhiqiu-account-list');
     if (!list) return;
     list.replaceChildren(...accounts.map(createZhiqiuAccountRow));
+}
+
+function renderIfindAccounts(accounts) {
+    const list = document.getElementById('config-ifind-account-list');
+    if (!list) return;
+    list.replaceChildren(...accounts.map(createIfindAccountRow));
 }
 
 function setFormValues(form, values, fields) {
@@ -416,14 +450,8 @@ function renderSection(section, values) {
             'enabled', 'rotation_strategy', 'max_retries', 'retry_delay', 'lease_timeout', 'max_consecutive_failures',
         ]);
     } else if (section === 'ifind') {
-        setFormValues(document.getElementById('config-ifind-form'), values, ['username', 'backend', 'http_base_url']);
-        setSecretState('[data-secret-state="ifind-password"]', values.password);
-        const form = document.getElementById('config-ifind-form');
-        if (form) {
-            form.elements.password.value = values.password?.value || '';
-            form.elements.clear_password.checked = false;
-            applySecretState(form.elements.password, form.elements.clear_password, 'initial');
-        }
+        renderIfindAccounts(values.accounts || []);
+        setFormValues(document.getElementById('config-ifind-form'), values, ['backend', 'http_base_url']);
     } else if (section === 'database') {
         setSecretState('[data-secret-state="database-url"]', values.database_url);
         const form = document.getElementById('config-database-form');
@@ -439,7 +467,7 @@ function renderSection(section, values) {
 function deriveSectionReadiness(section, values) {
     if (section === 'llm') return (values.providers || []).some(item => item.protocol === 'local' || item.api_key?.configured);
     if (section === 'zhiqiu') return (values.accounts || []).some(item => item.password?.configured);
-    if (section === 'ifind') return Boolean(values.username && values.password?.configured);
+    if (section === 'ifind') return (values.accounts || []).some(item => item.username && item.password?.configured);
     if (section === 'database') return Boolean(values.database_url?.configured);
     return true;
 }
@@ -466,6 +494,11 @@ function updateOriginalNameMappings(section, values) {
         });
     } else if (section === 'zhiqiu') {
         document.querySelectorAll('.config-zhiqiu-row').forEach((row, index) => {
+            const account = values.accounts?.[index];
+            if (account) rowOriginalNames.set(row, account.original_name || account.name || '');
+        });
+    } else if (section === 'ifind') {
+        document.querySelectorAll('.config-ifind-row').forEach((row, index) => {
             const account = values.accounts?.[index];
             if (account) rowOriginalNames.set(row, account.original_name || account.name || '');
         });
@@ -516,7 +549,7 @@ async function loadConfiguration({ discardDirty = false } = {}) {
     loadAbortController?.abort();
     const controller = new AbortController();
     loadAbortController = controller;
-    showPageMessage('正在读取配置…');
+    showPageMessage('');
     try {
         const snapshot = await configurationApiCall('GET', '/api/config', null, { signal: controller.signal });
         if (!loadGeneration.isLatest(token)) return;
@@ -524,7 +557,7 @@ async function loadConfiguration({ discardDirty = false } = {}) {
         renderSnapshot(snapshot);
         configurationReady = true;
         syncMutationControls();
-        showPageMessage('配置已刷新', 'ready');
+        showPageMessage('');
         return true;
     } catch (error) {
         if (error?.name === 'AbortError' || !loadGeneration.isLatest(token)) return;
@@ -594,11 +627,21 @@ function collectZhiqiu() {
 
 function collectIfind() {
     const form = document.getElementById('config-ifind-form');
-    const secret = collectSecretPair(form.elements.password, form.elements.clear_password);
+    const accounts = [...document.querySelectorAll('.config-ifind-row')].map(row => {
+        const secret = collectSecretPair(
+            row.querySelector('[data-field="password"]'),
+            row.querySelector('[data-field="clear_password"]'),
+        );
+        return {
+            original_name: rowOriginalNames.get(row) || undefined,
+            name: rowValue(row, 'name'),
+            username: rowValue(row, 'username'),
+            password: secret.value,
+            clear_password: secret.clear,
+        };
+    });
     return {
-        username: form.elements.username.value.trim(),
-        password: secret.value,
-        clear_password: secret.clear,
+        accounts,
         backend: form.elements.backend.value,
         http_base_url: form.elements.http_base_url.value.trim(),
     };
@@ -647,7 +690,7 @@ function syncMutationControls() {
     if (!page) return;
     const disabled = !configurationReady || requestCoordinator.hasActive();
     page.querySelectorAll(
-        '[data-config-save], [data-config-test], [data-add-provider], [data-add-task-route], [data-add-zhiqiu-account], .config-remove-row',
+        '[data-config-save], [data-add-provider], [data-add-task-route], [data-add-zhiqiu-account], [data-add-ifind-account], .config-remove-row',
     ).forEach(button => { button.disabled = disabled; });
 }
 
@@ -741,6 +784,9 @@ function bindConfigurationEvents() {
     page.querySelector('[data-add-zhiqiu-account]')?.addEventListener('click', () => {
         document.getElementById('config-zhiqiu-account-list')?.append(createZhiqiuAccountRow());
     });
+    page.querySelector('[data-add-ifind-account]')?.addEventListener('click', () => {
+        document.getElementById('config-ifind-account-list')?.append(createIfindAccountRow());
+    });
     page.querySelectorAll('[data-config-form]').forEach(form => {
         form.addEventListener('submit', event => {
             event.preventDefault();
@@ -750,18 +796,15 @@ function bindConfigurationEvents() {
     page.querySelectorAll('[data-config-test]').forEach(button => {
         button.addEventListener('click', () => testSection(button.dataset.configTest));
     });
-    const ifindForm = document.getElementById('config-ifind-form');
-    bindSecretPair(ifindForm?.elements.password, ifindForm?.elements.clear_password);
     bindSecretActions(page);
     page.addEventListener('input', event => markSectionDirty(event.target));
     page.addEventListener('change', event => markSectionDirty(event.target));
     page.addEventListener('click', event => {
-        if (event.target.closest?.('[data-add-provider], [data-add-task-route], [data-add-zhiqiu-account], .config-remove-row')) {
+        if (event.target.closest?.('[data-add-provider], [data-add-task-route], [data-add-zhiqiu-account], [data-add-ifind-account], .config-remove-row')) {
             markSectionDirty(event.target);
         }
     });
     syncMutationControls();
-    document.getElementById('config-refresh')?.addEventListener('click', refreshConfiguration);
 }
 
 export async function initConfigurationPage() {
@@ -772,4 +815,4 @@ export async function initConfigurationPage() {
     await loadConfiguration();
 }
 
-export { renderProviders, renderTaskRoutes, renderZhiqiuAccounts };
+export { renderProviders, renderTaskRoutes, renderZhiqiuAccounts, renderIfindAccounts };

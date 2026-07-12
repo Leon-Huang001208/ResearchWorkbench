@@ -15,6 +15,7 @@
   - `data_layer/crawlers/zq/zhiqiu/account_manager.py` / `client.py` — 新增权威 `ZQ_ACCOUNTS_JSON`，兼容旧 `ZQ_ACCOUNTS` 和 YAML；JSON 存在但无效/为空时关闭回退，避免旧凭据复活，并支持运行时轮询参数覆盖。
   - LLM、知秋、iFinD 测试使用真实短超时临时连接且不持久化候选值；数据库仅做 URL 校验。LLM/iFinD/高级参数热更新，知秋配置供后续新建客户端读取，数据库保持当前连接池并在后端重启后生效。
   - 本地配置控制面新增 Trusted Host、Origin 与进程级 CSRF 三层边界；显式 CORS origin 必须与 Trusted Host 配置一致。LLM Provider 即使省略 `original_name` 也会按当前名称绑定已有秘密，端点变化时禁止把旧 Token 发送到连接探针。
+  - 系统配置页面移除就绪看板、说明侧栏、刷新和单独验证操作，只保留可编辑的配置表单与保存；知秋/iFinD 均以可增删的账号池呈现，iFinD 新增 `IFIND_ACCOUNTS_JSON` 并同步首个账号到现有后端运行字段。
   - 配置后端 focused/关联回归 `65 passed`；配置前端 focused `13 passed`；合并前端回归 `96/98`，2 项为本功能变更前已存在的基线失败。浏览器验证和全仓门禁尚未执行，因此任务状态保持 `doing`。
 
 - **报告项目运行编排 seam**: 新增 `ReportProjectRunService`，把 `/api/report-projects/{slug}/render` 的 Word/PPT 生成编排从 FastAPI route 收拢到 reporting module，保持外部响应字段不变。

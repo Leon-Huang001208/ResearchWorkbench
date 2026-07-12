@@ -502,6 +502,36 @@ class ConfigurationService:
         updates: dict[str, str] = {}
         removals: set[str] = set()
         changed: set[str] = set()
+        if "accounts" in payload:
+            existing = {item["name"]: item for item in self._parse_ifind_accounts(current)}
+            accounts: list[dict[str, str]] = []
+            names: set[str] = set()
+            for item in payload["accounts"] or []:
+                if not isinstance(item, Mapping):
+                    raise ConfigurationError("iFinD 账号格式无效")
+                name = self._required_string(item.get("name"), "iFinD 账号名称")
+                if name in names:
+                    raise ConfigurationError("iFinD 账号名称不能重复")
+                names.add(name)
+                username = self._required_string(item.get("username"), "iFinD 用户名")
+                original_name = str(item.get("original_name") or name)
+                old_secret = str(existing.get(original_name, {}).get("password_value", ""))
+                password = self._merge_secret(
+                    item.get("password"), bool(item.get("clear_password", False)), old_secret
+                )
+                accounts.append({"name": name, "username": username, "password": password})
+            updates["IFIND_ACCOUNTS_JSON"] = json.dumps(
+                accounts, ensure_ascii=False, separators=(",", ":")
+            )
+            if accounts:
+                updates["IFIND_USERNAME"] = accounts[0]["username"]
+                if accounts[0]["password"]:
+                    updates["IFIND_PASSWORD"] = accounts[0]["password"]
+                else:
+                    removals.add("IFIND_PASSWORD")
+            else:
+                removals.update({"IFIND_USERNAME", "IFIND_PASSWORD"})
+            changed.add("accounts")
         scalar_fields = {
             "username": "IFIND_USERNAME",
             "backend": "IFIND_BACKEND",
@@ -772,13 +802,23 @@ class ConfigurationService:
         }
 
     def _ifind_snapshot(self, values: Mapping[str, str]) -> dict[str, Any]:
+        accounts = self._parse_ifind_accounts(values)
         password = self._secret_view(values.get("IFIND_PASSWORD", ""))
         return {
+            "accounts": [
+                {
+                    "original_name": item["name"],
+                    "name": item["name"],
+                    "username": item["username"],
+                    "password": self._secret_view(item["password_value"]),
+                }
+                for item in accounts
+            ],
             "username": values.get("IFIND_USERNAME", ""),
             "password": password,
             "backend": values.get("IFIND_BACKEND", "auto"),
             "http_base_url": values.get("IFIND_HTTP_BASE_URL", "https://quantapi.10jqka.com.cn"),
-            "_ready": bool(values.get("IFIND_USERNAME") and password["configured"]),
+            "_ready": any(item["username"] and item["password_value"] for item in accounts),
         }
 
     def _database_snapshot(self, values: Mapping[str, str]) -> dict[str, Any]:
@@ -852,6 +892,31 @@ class ConfigurationService:
                     }
                 )
         return accounts
+
+    @staticmethod
+    def _parse_ifind_accounts(values: Mapping[str, str]) -> list[dict[str, str]]:
+        structured = values.get("IFIND_ACCOUNTS_JSON", "")
+        if structured:
+            try:
+                raw = json.loads(structured)
+                if isinstance(raw, list):
+                    return [
+                        {
+                            "name": str(item.get("name") or item.get("username", "")),
+                            "username": str(item.get("username", "")),
+                            "password_value": str(item.get("password", "")),
+                        }
+                        for item in raw
+                        if isinstance(item, dict)
+                    ]
+            except (json.JSONDecodeError, TypeError):
+                logger.warning("读取 iFinD 结构化账号失败，账号状态保持未配置")
+            return []
+        username = values.get("IFIND_USERNAME", "")
+        password = values.get("IFIND_PASSWORD", "")
+        if not username and not password:
+            return []
+        return [{"name": username or "primary", "username": username, "password_value": password}]
 
     @staticmethod
     def _secret_view(value: str) -> dict[str, Any]:
@@ -968,6 +1033,7 @@ class ConfigurationService:
             "ZQ_MAX_CONSECUTIVE_FAILURES",
             "IFIND_USERNAME",
             "IFIND_PASSWORD",
+            "IFIND_ACCOUNTS_JSON",
             "IFIND_BACKEND",
             "IFIND_HTTP_BASE_URL",
             "DATABASE_URL",

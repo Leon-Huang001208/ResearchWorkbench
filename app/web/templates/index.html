@@ -11,7 +11,7 @@
     <script async src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
     <script async src="https://cdn.jsdelivr.net/npm/d3@7"></script>
     <link rel="stylesheet" href="/static/style.css?v=20260702briefinline1">
-    <link rel="stylesheet" href="/static/configuration.css?v=20260712config6">
+    <link rel="stylesheet" href="/static/configuration.css?v=20260712config7">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@vscode/codicons@0.0.36/dist/codicon.min.css">
 </head>
 <body>
@@ -1513,40 +1513,13 @@
 
             <!-- Templates Section -->
             <section id="section-config" class="content-section configuration-page" aria-labelledby="config-page-title">
-                <div class="configuration-header">
-                    <div>
-                        <span class="configuration-eyebrow">运行环境</span>
-                        <h2 class="section-title" id="config-page-title">系统配置</h2>
-                        <p>集中管理外部服务、账号与运行参数。已保存的敏感值会回填，默认遮住，可按需显示或复制。</p>
-                    </div>
-                    <button class="secondary-btn" type="button" id="config-refresh">刷新配置</button>
-                </div>
+                <div class="configuration-header"><h2 class="section-title" id="config-page-title">系统配置</h2></div>
 
                 <div id="config-page-message" class="config-page-message" role="status" aria-live="polite"></div>
-                <div id="config-readiness-overview" class="config-readiness-grid" aria-label="配置就绪度">
-                    <article class="config-readiness-card" data-readiness="overall">
-                        <span>整体就绪</span><strong>-- / --</strong><small>正在读取</small>
-                    </article>
-                    <article class="config-readiness-card" data-readiness="llm">
-                        <span>大模型</span><strong>--</strong><small>Provider 与任务路由</small>
-                    </article>
-                    <article class="config-readiness-card" data-readiness="zhiqiu">
-                        <span>知秋</span><strong>--</strong><small>账号池</small>
-                    </article>
-                    <article class="config-readiness-card" data-readiness="ifind">
-                        <span>iFinD</span><strong>--</strong><small>数据终端</small>
-                    </article>
-                    <article class="config-readiness-card" data-readiness="database">
-                        <span>数据库</span><strong>--</strong><small>持久化连接</small>
-                    </article>
-                </div>
-
-                <div class="configuration-layout">
-                    <div class="configuration-main">
+                <div class="configuration-main">
                         <form id="config-llm-form" class="config-panel" data-config-form="llm">
                             <div class="config-panel-header">
-                                <div><span class="config-panel-kicker">01</span><h3>大模型</h3><p>配置 Provider 与不同任务使用的模型。</p></div>
-                                <span class="config-status" data-config-status="llm">未加载</span>
+                                <h3>大模型</h3>
                             </div>
                             <div class="config-subsection-header"><h4>Providers</h4><button type="button" class="secondary-btn" data-add-provider disabled>新增 Provider</button></div>
                             <div class="config-row-labels config-provider-labels" aria-hidden="true"><span>名称</span><span>协议</span><span>Base URL</span><span>API Token</span><span>操作</span></div>
@@ -1555,15 +1528,13 @@
                             <div class="config-row-labels config-route-labels" aria-hidden="true"><span>任务</span><span>Provider</span><span>模型</span><span>操作</span></div>
                             <div id="config-task-route-list" class="config-dynamic-list"></div>
                             <div class="config-actions">
-                                <button type="button" class="secondary-btn" data-config-test="llm" disabled>验证连接</button>
-                                <button type="submit" class="primary-btn" data-config-save="llm" disabled>保存大模型配置</button>
+                                <button type="submit" class="primary-btn" data-config-save="llm" disabled>保存</button>
                             </div>
                         </form>
 
                         <form id="config-zhiqiu-form" class="config-panel" data-config-form="zhiqiu">
                             <div class="config-panel-header">
-                                <div><span class="config-panel-kicker">02</span><h3>知秋</h3><p>维护账号池、轮询和失败恢复参数。</p></div>
-                                <span class="config-status" data-config-status="zhiqiu">未加载</span>
+                                <h3>知秋账号池</h3>
                             </div>
                             <div class="config-subsection-header"><h4>账号池</h4><button type="button" class="secondary-btn" data-add-zhiqiu-account disabled>新增账号</button></div>
                             <div class="config-row-labels config-zhiqiu-labels" aria-hidden="true"><span>名称</span><span>用户名</span><span>密码</span><span>操作</span></div>
@@ -1577,41 +1548,37 @@
                                 <label><span>连续失败阈值</span><input type="number" name="max_consecutive_failures" min="1" max="1000"></label>
                             </div>
                             <div class="config-actions">
-                                <button type="button" class="secondary-btn" data-config-test="zhiqiu" disabled>验证账号</button>
-                                <button type="submit" class="primary-btn" data-config-save="zhiqiu" disabled>保存知秋配置</button>
+                                <button type="submit" class="primary-btn" data-config-save="zhiqiu" disabled>保存</button>
                             </div>
                         </form>
 
                         <form id="config-ifind-form" class="config-panel" data-config-form="ifind">
                             <div class="config-panel-header">
-                                <div><span class="config-panel-kicker">03</span><h3>iFinD</h3><p>配置认证信息和运行后端。</p></div>
-                                <span class="config-status" data-config-status="ifind">未加载</span>
+                                <h3>iFinD 账号池</h3>
                             </div>
+                            <div class="config-subsection-header"><h4>账号</h4><button type="button" class="secondary-btn" data-add-ifind-account disabled>新增账号</button></div>
+                            <div class="config-row-labels config-ifind-labels" aria-hidden="true"><span>名称</span><span>用户名</span><span>密码</span><span>操作</span></div>
+                            <div id="config-ifind-account-list" class="config-dynamic-list"></div>
                             <div class="config-field-grid">
-                                <label><span>用户名</span><input type="text" name="username" autocomplete="username"></label>
-                                <label><span>密码</span><span class="config-secret-control"><input type="password" name="password" autocomplete="new-password" placeholder="未配置"><button type="button" class="config-secret-action" data-secret-toggle aria-label="显示密码">显示</button><button type="button" class="config-secret-action" data-secret-copy aria-label="复制密码">复制</button></span><small data-secret-state="ifind-password">未配置</small></label>
                                 <label><span>后端类型</span><select name="backend"><option value="auto">自动</option><option value="python_sdk">Python SDK</option><option value="http_api">HTTP API</option></select></label>
                                 <label><span>HTTP Base URL</span><input type="url" name="http_base_url" placeholder="https://quantapi.10jqka.com.cn"></label>
-                                <label class="config-checkbox config-clear-secret"><input type="checkbox" name="clear_password">显式清除已保存密码</label>
                             </div>
                             <div class="config-actions">
-                                <button type="button" class="secondary-btn" data-config-test="ifind" disabled>验证连接</button>
-                                <button type="submit" class="primary-btn" data-config-save="ifind" disabled>保存 iFinD 配置</button>
+                                <button type="submit" class="primary-btn" data-config-save="ifind" disabled>保存</button>
                             </div>
                         </form>
 
                         <form id="config-database-form" class="config-panel" data-config-form="database">
                             <div class="config-panel-header">
-                                <div><span class="config-panel-kicker">04</span><h3>数据库</h3><p>连接地址保存后不会替换当前连接池。</p></div>
-                                <span class="config-status restart" data-config-status="database">重启后生效</span>
+                                <h3>数据库</h3>
                             </div>
                             <label class="config-field-wide"><span>数据库连接地址</span><span class="config-secret-control"><input type="password" name="database_url" autocomplete="new-password" placeholder="未配置"><button type="button" class="config-secret-action" data-secret-toggle aria-label="显示数据库地址">显示</button><button type="button" class="config-secret-action" data-secret-copy aria-label="复制数据库地址">复制</button></span><small data-secret-state="database-url">未配置</small></label>
                             <div class="config-restart-note"><i class="codicon codicon-debug-restart" aria-hidden="true"></i><span><strong>需要重启桌面后端</strong>保存仅持久化新地址，当前会话继续使用原连接。</span></div>
-                            <div class="config-actions"><button type="submit" class="primary-btn" data-config-save="database" disabled>保存数据库配置</button></div>
+                            <div class="config-actions"><button type="submit" class="primary-btn" data-config-save="database" disabled>保存</button></div>
                         </form>
 
                         <details class="config-panel config-advanced-panel">
-                            <summary><span><span class="config-panel-kicker">05</span><strong>高级配置</strong><small>日志、并发、重试与分块参数</small></span><span class="config-status" data-config-status="advanced">未加载</span></summary>
+                            <summary><span><strong>高级配置</strong><small>日志、并发、重试与分块参数</small></span></summary>
                             <form id="config-advanced-form" data-config-form="advanced">
                                 <div class="config-field-grid">
                                     <label><span>日志级别</span><select name="log_level"><option>DEBUG</option><option>INFO</option><option>WARNING</option><option>ERROR</option><option>CRITICAL</option></select></label>
@@ -1622,15 +1589,9 @@
                                     <label><span>分块重叠</span><input type="number" name="chunk_overlap" min="0" max="50000"></label>
                                     <label><span>长文本阈值</span><input type="number" name="long_text_threshold" min="1" max="100000"></label>
                                 </div>
-                                <div class="config-actions"><button type="submit" class="primary-btn" data-config-save="advanced" disabled>保存高级配置</button></div>
+                                <div class="config-actions"><button type="submit" class="primary-btn" data-config-save="advanced" disabled>保存</button></div>
                             </form>
                         </details>
-                    </div>
-
-                    <aside class="configuration-help" aria-label="配置安全说明">
-                        <div class="config-help-card"><h3>本机查看</h3><ul><li>已保存的 Token、密码和数据库地址会回填到此页。</li><li>默认以密码框遮住；可使用“显示”或“复制”。</li><li>不要在共享屏幕时展开敏感字段。</li></ul></div>
-                        <div class="config-help-card"><h3>生效方式</h3><p>大模型、知秋、iFinD 和高级参数保存后立即用于新任务；数据库地址需重启后端。</p></div>
-                    </aside>
                 </div>
             </section>
 
@@ -2188,7 +2149,7 @@
 
     <!-- Scripts: i18n must load before app.js -->
     <script src="/static/i18n.js?v=20250527"></script>
-    <script type="module" src="/static/js/app.js?v=20260712config6"></script>
+    <script type="module" src="/static/js/app.js?v=20260712config8"></script>
     <script type="module" src="/static/js/wind.js?v=20250601a"></script>
 </body>
 </html>
