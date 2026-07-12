@@ -195,6 +195,16 @@ def test_templates_js_populates_report_workbench():
     assert "/api/report-projects/upload" in source
     assert "mergeTemplatesWithReportProjects" in source
     assert "renderReportProject" in source
+
+
+def test_templates_js_uses_background_report_generation_jobs():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+
+    assert "/render-jobs`" in source
+    assert "pollReportGenerationJob" in source
+    assert "job.status === 'completed'" in source
+    assert "job.status === 'failed'" in source
+    assert "completed_sections" in source
     assert "saveTemplateInlineName" in source
     assert "/api/report-projects/${encodeURIComponent(project.slug)}" in source
     assert "iphone-template-name-input" in source

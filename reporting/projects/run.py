@@ -27,6 +27,7 @@ from reporting.projects.table_generation import build_project_tables
 logger = get_logger(__name__)
 
 TableBuilder = Callable[..., tuple[Any, List[Dict[str, Any]]]]
+ProgressCallback = Callable[[Dict[str, Any]], None]
 
 
 @dataclass(frozen=True)
@@ -82,8 +83,10 @@ class ReportProjectRunService:
         section_config: Dict[str, Any],
         prompt_templates_source: str,
         request: ReportProjectRunRequest,
+        progress_callback: ProgressCallback | None = None,
     ) -> ReportProjectRunResult:
         """Render the configured report project and write its run log."""
+        self._emit_progress(progress_callback, "prepare", "正在读取报告配置与素材")
         generation_scope = resolve_report_generation_scope(
             section_config,
             report_date=request.report_date,
@@ -99,6 +102,7 @@ class ReportProjectRunService:
                 prompt_templates_source=prompt_templates_source,
                 request=request,
                 generation_scope=generation_scope,
+                progress_callback=progress_callback,
             )
         return self._execute_word(
             project=project,
@@ -106,6 +110,7 @@ class ReportProjectRunService:
             prompt_templates_source=prompt_templates_source,
             request=request,
             generation_scope=generation_scope,
+            progress_callback=progress_callback,
         )
 
     def _execute_word(
@@ -116,13 +121,16 @@ class ReportProjectRunService:
         prompt_templates_source: str,
         request: ReportProjectRunRequest,
         generation_scope: Any,
+        progress_callback: ProgressCallback | None,
     ) -> ReportProjectRunResult:
+        self._emit_progress(progress_callback, "generate", "正在检索证据并生成段落")
         generation_result = self._generate_placeholders(
             project=project,
             section_config=section_config,
             prompt_templates_source=prompt_templates_source,
             request=request,
             generation_scope=generation_scope,
+            progress_callback=progress_callback,
         )
         placeholder_map = generation_result.placeholders
         generated_sections = generation_result.sections
@@ -132,6 +140,7 @@ class ReportProjectRunService:
         file_name = self._artifact_file_name(project, generated_at, ".docx")
         output_path = project.output_dir / file_name
 
+        self._emit_progress(progress_callback, "render", "正在渲染 Word 文档")
         tables, table_infos = self.table_builder(
             project=project,
             section_config=section_config,
@@ -148,6 +157,7 @@ class ReportProjectRunService:
             section_config=section_config,
             docx_path=output_path,
         )
+        self._emit_progress(progress_callback, "save", "正在保存报告与运行日志")
         run_path = self._write_word_run_log(
             project=project,
             request=request,
@@ -193,16 +203,19 @@ class ReportProjectRunService:
         prompt_templates_source: str,
         request: ReportProjectRunRequest,
         generation_scope: Any,
+        progress_callback: ProgressCallback | None,
     ) -> ReportProjectRunResult:
         if not project.ppt_template_path or not project.ppt_template_path.exists():
             raise FileNotFoundError(f"Report project PPT template not found: {project.slug}")
 
+        self._emit_progress(progress_callback, "generate", "正在检索证据并生成段落")
         generation_result = self._generate_placeholders(
             project=project,
             section_config=section_config,
             prompt_templates_source=prompt_templates_source,
             request=request,
             generation_scope=generation_scope,
+            progress_callback=progress_callback,
         )
         placeholder_map = generation_result.placeholders
         generated_sections = generation_result.sections
@@ -212,6 +225,7 @@ class ReportProjectRunService:
         file_name = self._artifact_file_name(project, generated_at, ".pptx")
         output_path = project.output_dir / file_name
 
+        self._emit_progress(progress_callback, "render", "正在渲染 PPT 文档")
         projection_result = self.ppt_projection_factory().save_from_template(
             output_path=output_path,
             template_path=project.ppt_template_path,
@@ -220,6 +234,7 @@ class ReportProjectRunService:
         projection_warnings = [
             f"PPT 占位符未配置：{placeholder}" for placeholder in projection_result.missing_placeholders
         ]
+        self._emit_progress(progress_callback, "save", "正在保存报告与运行日志")
         run_path = self._write_ppt_run_log(
             project=project,
             request=request,
@@ -261,6 +276,7 @@ class ReportProjectRunService:
         prompt_templates_source: str,
         request: ReportProjectRunRequest,
         generation_scope: Any,
+        progress_callback: ProgressCallback | None,
     ) -> ReportGenerationResult:
         if request.generate_from_config:
             return self.generation_service.generate_placeholders(
@@ -270,8 +286,23 @@ class ReportProjectRunService:
                 manual_placeholders=request.placeholders,
                 lookback_days=generation_scope.lookback_days,
                 report_period=generation_scope.report_period,
+                progress_callback=progress_callback,
             )
         return ReportGenerationResult(placeholders=request.placeholders, sections=[], warnings=[])
+
+    @staticmethod
+    def _emit_progress(
+        callback: ProgressCallback | None,
+        phase: str,
+        message: str,
+        **details: Any,
+    ) -> None:
+        if callback is None:
+            return
+        try:
+            callback({"phase": phase, "message": message, **details})
+        except Exception:
+            logger.exception("Report progress callback failed", phase=phase)
 
     def _write_word_run_log(
         self,

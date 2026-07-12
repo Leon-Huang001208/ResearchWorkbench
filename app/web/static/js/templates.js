@@ -7171,9 +7171,9 @@ async function renderReportProject(project) {
     }
     const generationOptions = getReportProjectGenerationOptions();
 
-    return apiCall(
+    const job = await apiCall(
         'POST',
-        `/api/report-projects/${encodeURIComponent(project.slug)}/render`,
+        `/api/report-projects/${encodeURIComponent(project.slug)}/render-jobs`,
         {
             placeholders: currentTemplateState.placeholderValues || {},
             report_date: generationOptions.report_date || null,
@@ -7181,6 +7181,65 @@ async function renderReportProject(project) {
             end_date: generationOptions.end_date || null
         }
     );
+    return pollReportGenerationJob(job);
+}
+
+async function pollReportGenerationJob(initialJob) {
+    const deadline = Date.now() + (40 * 60 * 1000);
+    const jobId = initialJob?.job_id || 'unknown';
+    const statusUrl = initialJob?.status_url;
+    let job = initialJob;
+    let consecutiveNetworkFailures = 0;
+
+    if (!statusUrl) {
+        throw new Error('后台生成任务缺少状态地址');
+    }
+
+    while (Date.now() < deadline) {
+        updateReportGenerationJobProgress(job);
+        if (job.status === 'completed') {
+            if (!job.result) throw new Error('报告生成完成，但后端未返回文件信息');
+            return job.result;
+        }
+        if (job.status === 'failed') {
+            throw new Error(job.error || job.message || '报告生成失败');
+        }
+
+        await waitForReportGenerationPoll(1500);
+        try {
+            job = await apiCall('GET', statusUrl);
+            consecutiveNetworkFailures = 0;
+        } catch (error) {
+            consecutiveNetworkFailures += 1;
+            if (consecutiveNetworkFailures >= 3) {
+                throw new Error(`生成进度连接连续失败：${error.message}（任务 ${jobId} 可能仍在后台运行）`);
+            }
+            await waitForReportGenerationPoll(1000 * consecutiveNetworkFailures);
+        }
+    }
+
+    throw new Error(`等待生成结果超时（任务 ${jobId} 可能仍在后台运行）`);
+}
+
+function updateReportGenerationJobProgress(job) {
+    const phaseToStep = {
+        queued: 'check',
+        prepare: 'check',
+        generate: 'generate',
+        render: 'write',
+        save: 'refresh'
+    };
+    const completed = Number(job?.completed_sections || 0);
+    const total = Number(job?.total_sections || 0);
+    const sectionProgress = total > 0 ? `（${completed}/${total} 个段落）` : '';
+    renderReportGenerationProgressCard({
+        activeKey: phaseToStep[job?.phase] || 'generate',
+        message: `${job?.message || '正在后台生成报告'}${sectionProgress}`
+    });
+}
+
+function waitForReportGenerationPoll(milliseconds) {
+    return new Promise(resolve => window.setTimeout(resolve, milliseconds));
 }
 
 function getReportProjectGenerationOptions() {

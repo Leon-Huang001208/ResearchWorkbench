@@ -6,6 +6,7 @@ import threading
 import time
 import xml.etree.ElementTree as ET
 import zipfile
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 
@@ -35,10 +36,68 @@ from reporting.projects.keyword_profiles import (
     apply_keyword_profile_to_config,
     keyword_profiles_for_api,
 )
+from reporting.projects.jobs import ReportGenerationJob
 from reporting.projects.project_manager import ReportProjectManager
 from reporting.projects.run import ReportProjectRunRequest, ReportProjectRunService
 
 client = TestClient(app)
+
+
+def test_render_job_api_returns_accepted_status(tmp_path: Path, monkeypatch):
+    """后台生成提交应立即返回 202 和可轮询地址。"""
+    from app.api.routes import report_projects as routes
+
+    project_dir = tmp_path / "demo"
+    (project_dir / "config").mkdir(parents=True)
+    (project_dir / "generated").mkdir()
+    (project_dir / "runs").mkdir()
+    (project_dir / "config" / "section_config.yaml").write_text(
+        "placeholders: {}\n", encoding="utf-8"
+    )
+    (project_dir / "project.yaml").write_text(
+        "\n".join(
+            [
+                "name: demo",
+                "section_config: config/section_config.yaml",
+                "output_dir: generated",
+                "run_log_dir: runs",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    manager = ReportProjectManager(tmp_path)
+    job = ReportGenerationJob(
+        job_id="job-123",
+        project_slug="demo",
+        status="queued",
+        phase="queued",
+        message="报告已进入生成队列",
+        created_at=datetime(2026, 7, 12, 12, 0, 0),
+    )
+
+    class FakeJobService:
+        def submit(self, *, project, request):
+            assert project.slug == "demo"
+            assert isinstance(request, ReportProjectRunRequest)
+            return job
+
+        def get(self, job_id, *, project_slug=None):
+            if job_id == job.job_id and project_slug == job.project_slug:
+                return job
+            return None
+
+    monkeypatch.setattr(routes, "report_project_manager", manager)
+    monkeypatch.setattr(routes, "report_generation_job_service", FakeJobService())
+
+    response = client.post("/api/report-projects/demo/render-jobs", json={})
+
+    assert response.status_code == 202
+    payload = response.json()
+    assert payload["job_id"] == "job-123"
+    assert payload["status"] == "queued"
+    assert payload["status_url"].endswith("/demo/render-jobs/job-123")
+    assert client.get(payload["status_url"]).status_code == 200
+    assert client.get("/api/report-projects/demo/render-jobs/missing").status_code == 404
 
 
 def test_huaan_prompt_placeholders_use_report_level_retrieval_defaults():
@@ -889,6 +948,7 @@ def test_report_project_run_service_renders_word_project(tmp_path: Path):
         )(),
     )
 
+    progress_events = []
     result = service.execute(
         project=project,
         section_config={"placeholders": {"人工智能": {"title": "人工智能"}}},
@@ -898,6 +958,7 @@ def test_report_project_run_service_renders_word_project(tmp_path: Path):
             generate_from_config=True,
             report_date="2026-06-05",
         ),
+        progress_callback=progress_events.append,
     )
 
     assert captured["placeholders"] == {"人工智能": "AI 生成段落", "manual": "手工值"}
@@ -907,6 +968,12 @@ def test_report_project_run_service_renders_word_project(tmp_path: Path):
     assert result.evidence_count == 2
     assert result.warnings == ["生成 warning", "段落 warning", "图表 warning", "表格 warning"]
     assert result.run_log_path.exists()
+    assert [event["phase"] for event in progress_events] == [
+        "prepare",
+        "generate",
+        "render",
+        "save",
+    ]
     run_record = json.loads(result.run_log_path.read_text(encoding="utf-8"))
     assert run_record["generation"]["sections"][0]["evidence"][0]["title"] == "AI 新闻"
     assert run_record["charts"][0]["chart_id"] == "chart1"
@@ -1858,12 +1925,14 @@ def test_generation_service_generates_independent_prompt_sections_concurrently(t
         for i in range(1, 5)
     }
 
+    progress_events = []
     result = service.generate_placeholders(
         project=project,
         section_config={"placeholders": placeholders},
         prompt_templates_source="\n\n".join(
             f"## 段落{i}\n检索 Query：段落{i}\n\n写作要求：短句" for i in range(1, 5)
         ),
+        progress_callback=progress_events.append,
     )
 
     assert gateway.max_active > 1
@@ -1874,6 +1943,8 @@ def test_generation_service_generates_independent_prompt_sections_concurrently(t
         "段落3",
         "段落4",
     ]
+    assert [event["completed_sections"] for event in progress_events] == [0, 1, 2, 3, 4]
+    assert all(event["total_sections"] == 4 for event in progress_events)
 
 
 def test_render_report_project_generates_from_config_and_writes_generation_log(
