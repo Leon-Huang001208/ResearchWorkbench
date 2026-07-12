@@ -21,6 +21,7 @@ Commands run and results:
 
 - 首轮 focused pytest：20 passed，22 warnings。
 - 规格复审后 focused + 关联回归：34 passed，22 warnings。
+- 代码质量复审后配置 + iFinD + ZQ + 桌面关联回归：63 passed，22 warnings。
 - Focused ruff：passed。
 - Focused black check：passed。
 - Focused isort check：passed。

@@ -2,6 +2,9 @@
 
 import json
 import os
+import stat
+import threading
+import time
 from pathlib import Path
 
 import pytest
@@ -301,3 +304,144 @@ def test_atomic_write_failure_preserves_original_file(monkeypatch, env_path):
         service.update_section("advanced", {"log_level": "DEBUG"})
 
     assert env_path.read_text(encoding="utf-8") == before
+
+
+@pytest.mark.parametrize(
+    "broken_content",
+    ["IFIND_PASSWORD='unterminated\n", "this is not a valid dotenv line\n"],
+)
+def test_update_rejects_malformed_existing_env_without_overwrite(tmp_path, broken_content):
+    path = tmp_path / ".env"
+    path.write_text(broken_content, encoding="utf-8")
+    service = ConfigurationService(env_path=path)
+
+    with pytest.raises(ConfigurationError, match="配置文件格式无效"):
+        service.update_section("advanced", {"log_level": "DEBUG"})
+
+    assert path.read_text(encoding="utf-8") == broken_content
+
+
+def test_concurrent_section_updates_are_serialized_per_env_path(monkeypatch, tmp_path):
+    path = tmp_path / ".env"
+    path.write_text("# base\n", encoding="utf-8")
+    service_a = ConfigurationService(env_path=path)
+    service_b = ConfigurationService(env_path=path)
+    original_write = ConfigurationService._write_env_atomic
+    active_writers = 0
+    max_active_writers = 0
+    counter_lock = threading.Lock()
+
+    def observed_write(self, updates, removals):
+        nonlocal active_writers, max_active_writers
+        with counter_lock:
+            active_writers += 1
+            max_active_writers = max(max_active_writers, active_writers)
+        time.sleep(0.03)
+        try:
+            return original_write(self, updates, removals)
+        finally:
+            with counter_lock:
+                active_writers -= 1
+
+    monkeypatch.setattr(ConfigurationService, "_write_env_atomic", observed_write)
+    errors = []
+
+    def update_advanced():
+        try:
+            service_a.update_section("advanced", {"log_level": "DEBUG"})
+        except Exception as exc:
+            errors.append(exc)
+
+    def update_ifind():
+        try:
+            service_b.update_section("ifind", {"username": "concurrent-user"})
+        except Exception as exc:
+            errors.append(exc)
+
+    threads = [threading.Thread(target=update_advanced), threading.Thread(target=update_ifind)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=5)
+
+    effective = service_a.get_effective_values()
+    assert errors == []
+    assert max_active_writers == 1
+    assert effective["LOG_LEVEL"] == "DEBUG"
+    assert effective["IFIND_USERNAME"] == "concurrent-user"
+    lock_path = path.parent / f".{path.name}.lock"
+    assert lock_path.stat().st_size >= 1
+    assert lock_path.stat().st_mode & 0o077 == 0
+
+
+def test_atomic_replace_has_no_post_replace_chmod_failure(monkeypatch, tmp_path):
+    path = tmp_path / ".env"
+    path.write_text("LOG_LEVEL=INFO\n", encoding="utf-8")
+    service = ConfigurationService(env_path=path)
+
+    def fail_chmod(*args, **kwargs):
+        raise AssertionError("os.chmod must not run")
+
+    monkeypatch.setattr("services.configuration_service.os.chmod", fail_chmod)
+
+    service.update_section("advanced", {"log_level": "DEBUG"})
+
+    assert service.get_effective_values()["LOG_LEVEL"] == "DEBUG"
+
+
+def test_directory_fsync_is_attempted_without_post_replace_business_failure(monkeypatch, tmp_path):
+    path = tmp_path / ".env"
+    path.write_text("LOG_LEVEL=INFO\n", encoding="utf-8")
+    service = ConfigurationService(env_path=path)
+    original_fsync = os.fsync
+    directory_sync_attempted = False
+
+    def observed_fsync(descriptor):
+        nonlocal directory_sync_attempted
+        if stat.S_ISDIR(os.fstat(descriptor).st_mode):
+            directory_sync_attempted = True
+            raise OSError("simulated unsupported directory fsync")
+        return original_fsync(descriptor)
+
+    monkeypatch.setattr("services.configuration_service.os.fsync", observed_fsync)
+
+    service.update_section("advanced", {"log_level": "DEBUG"})
+
+    assert directory_sync_attempted is True
+    assert service.get_effective_values()["LOG_LEVEL"] == "DEBUG"
+
+
+@pytest.mark.parametrize("login_result", [True, False])
+def test_zhiqiu_probe_always_closes_client_and_disables_failure_dump(
+    monkeypatch, tmp_path, login_result
+):
+    monkeypatch.chdir(tmp_path)
+    created = []
+
+    class FakeClient:
+        def __init__(self, username, password, request_timeout, failure_dump_path):
+            self.failure_dump_path = failure_dump_path
+            self.closed = False
+            created.append(self)
+
+        def login(self):
+            if not login_result and self.failure_dump_path is not None:
+                Path(self.failure_dump_path).write_text("LEAKME", encoding="utf-8")
+            return login_result
+
+        def close(self):
+            self.closed = True
+
+    monkeypatch.setattr("data_layer.crawlers.zq.zhiqiu.client.ZhiQiuClient", FakeClient)
+    candidate = {
+        "ZQ_ACCOUNTS_JSON": json.dumps(
+            [{"name": "main", "username": "user", "password": "TOPSECRET"}]
+        )
+    }
+
+    result = ConfigurationService._probe_zhiqiu(candidate, 1.0)
+
+    assert result is login_result
+    assert created[0].failure_dump_path is None
+    assert created[0].closed is True
+    assert not (tmp_path / "login_failed.html").exists()

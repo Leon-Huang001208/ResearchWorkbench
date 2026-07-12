@@ -122,11 +122,11 @@ class ZhiQiuUpdateRequest(StrictModel):
 
 
 class IFindUpdateRequest(StrictModel):
-    username: str | None = Field(default=None, max_length=256)
+    username: str = Field(default="", max_length=256)
     password: str | None = Field(default=None, max_length=8192)
     clear_password: bool = False
     backend: Literal["auto", "python_sdk", "http_api"] | None = None
-    http_base_url: str | None = Field(default=None, max_length=2048)
+    http_base_url: str = Field(default="", max_length=2048)
 
 
 class DatabaseUpdateRequest(StrictModel):

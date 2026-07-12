@@ -3,17 +3,22 @@
 from __future__ import annotations
 
 import asyncio
+import importlib
 import json
 import os
 import platform
 import re
 import stat
 import tempfile
+import threading
+from contextlib import contextmanager
+from io import StringIO
 from pathlib import Path
-from typing import Any, Callable, Mapping
+from typing import IO, Any, Callable, Iterator, Mapping
 from urllib.parse import urlsplit
 
-from dotenv import dotenv_values
+from dotenv.main import resolve_variables
+from dotenv.parser import parse_stream
 
 from core.observability import get_logger
 from core.settings.config import (
@@ -39,8 +44,61 @@ class ConfigurationPersistenceError(ConfigurationError):
     """配置持久化或运行时刷新失败。"""
 
 
+class _CrossProcessFileLock:
+    """锁定预先存在的单字节，兼容 fcntl 和 Windows msvcrt。"""
+
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        self._handle: IO[bytes] | None = None
+        self._lock_module: Any = None
+
+    def __enter__(self) -> "_CrossProcessFileLock":
+        descriptor = os.open(self.path, os.O_RDWR | os.O_CREAT, 0o600)
+        handle = os.fdopen(descriptor, "r+b", buffering=0)
+        self._handle = handle
+        try:
+            handle.seek(0, os.SEEK_END)
+            if handle.tell() == 0:
+                handle.write(b"\0")
+                handle.flush()
+                os.fsync(handle.fileno())
+            handle.seek(0)
+            if os.name == "nt":
+                self._lock_module = importlib.import_module("msvcrt")
+                self._lock_module.locking(handle.fileno(), self._lock_module.LK_LOCK, 1)
+            else:
+                self._lock_module = importlib.import_module("fcntl")
+                self._lock_module.flock(handle.fileno(), self._lock_module.LOCK_EX)
+            return self
+        except Exception:
+            handle.close()
+            self._handle = None
+            raise
+
+    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
+        if self._handle is None:
+            return
+        try:
+            self._handle.seek(0)
+            if os.name == "nt":
+                self._lock_module.locking(self._handle.fileno(), self._lock_module.LK_UNLCK, 1)
+            else:
+                self._lock_module.flock(self._handle.fileno(), self._lock_module.LOCK_UN)
+        except Exception as exc:
+            logger.warning("配置文件锁释放失败", extra={"error_type": type(exc).__name__})
+        finally:
+            try:
+                self._handle.close()
+            except OSError as exc:
+                logger.warning("配置锁文件关闭失败", extra={"error_type": type(exc).__name__})
+            self._handle = None
+
+
 class ConfigurationService:
     """管理允许暴露给配置页面的五类运行参数。"""
+
+    _process_locks: dict[Path, threading.RLock] = {}
+    _process_locks_guard = threading.Lock()
 
     def __init__(
         self,
@@ -50,6 +108,8 @@ class ConfigurationService:
         connection_timeout: float = 5.0,
     ) -> None:
         self.env_path = Path(env_path) if env_path is not None else resolve_runtime_env_path()
+        self.env_path = self.env_path.expanduser().resolve()
+        self.lock_path = self.env_path.parent / f".{self.env_path.name}.lock"
         self.runtime_settings = runtime_settings or settings
         self.connection_timeout = connection_timeout
         self.connection_probes: dict[str, ConnectionProbe] = {
@@ -62,17 +122,27 @@ class ConfigurationService:
 
     def get_effective_values(self) -> dict[str, str]:
         """读取配置文件，并让当前进程环境覆盖同名文件值。"""
-        try:
-            file_values = dotenv_values(self.env_path) if self.env_path.exists() else {}
-        except (OSError, UnicodeError, ValueError) as exc:
-            logger.error("读取运行时配置文件失败", extra={"error_type": type(exc).__name__})
-            raise ConfigurationError("配置文件无法读取") from exc
-
-        values = {key: value for key, value in file_values.items() if value is not None}
+        _, values = self._read_env_file_strict()
         for key, value in os.environ.items():
             if self._is_supported_key(key):
                 values[key] = value
         return values
+
+    def _read_env_file_strict(self) -> tuple[str, dict[str, str]]:
+        """严格解析 dotenv；任何语法错误都阻止读取和后续写入。"""
+        try:
+            original = self.env_path.read_text(encoding="utf-8") if self.env_path.exists() else ""
+            bindings = list(parse_stream(StringIO(original)))
+        except (OSError, UnicodeError, ValueError) as exc:
+            logger.error("读取运行时配置文件失败", extra={"error_type": type(exc).__name__})
+            raise ConfigurationError("配置文件无法读取") from exc
+        if any(binding.error for binding in bindings):
+            raise ConfigurationError("配置文件格式无效，未执行写入")
+        raw_values = [
+            (binding.key, binding.value) for binding in bindings if binding.key is not None
+        ]
+        resolved = resolve_variables(raw_values, override=True)
+        return original, {key: value for key, value in resolved.items() if value is not None}
 
     def get_snapshot(self) -> dict[str, Any]:
         """返回五分区脱敏快照和就绪状态。"""
@@ -96,6 +166,12 @@ class ConfigurationService:
         """校验并原子保存单一分区，然后刷新可安全热更新的运行状态。"""
         if section not in SUPPORTED_SECTIONS:
             raise ConfigurationError("不支持的配置分区")
+
+        with self._transaction_lock():
+            return self._update_section_locked(section, payload)
+
+    def _update_section_locked(self, section: str, payload: Mapping[str, Any]) -> dict[str, Any]:
+        """在进程内和跨进程锁均持有时执行完整更新事务。"""
 
         current = self.get_effective_values()
         updates, removals, changed_fields = self._build_changes(section, payload, current)
@@ -131,6 +207,16 @@ class ConfigurationService:
             "restart_required": restart_required,
             "message": "重启后生效" if restart_required else "配置已生效",
         }
+
+    @contextmanager
+    def _transaction_lock(self) -> Iterator[None]:
+        """按配置路径串行化线程和进程间的读改写事务。"""
+        with self._process_locks_guard:
+            process_lock = self._process_locks.setdefault(self.env_path, threading.RLock())
+        self.env_path.parent.mkdir(parents=True, exist_ok=True)
+        with process_lock:
+            with _CrossProcessFileLock(self.lock_path):
+                yield
 
     def test_section(self, section: str, payload: Mapping[str, Any]) -> dict[str, Any]:
         """验证临时配置，不写文件也不改变进程环境。"""
@@ -231,10 +317,20 @@ class ConfigurationService:
         usable = [item for item in accounts if item["username"] and item["password_value"]]
         if not usable:
             return False
-        return all(
-            ZhiQiuClient(item["username"], item["password_value"], request_timeout=timeout).login()
-            for item in usable
-        )
+        all_succeeded = True
+        for item in usable:
+            client = ZhiQiuClient(
+                item["username"],
+                item["password_value"],
+                request_timeout=timeout,
+                failure_dump_path=None,
+            )
+            try:
+                if not client.login():
+                    all_succeeded = False
+            finally:
+                client.close()
+        return all_succeeded
 
     def _probe_ifind(self, candidate: Mapping[str, str], timeout: float) -> bool:
         """复用 iFinD 后端路由器完成登录和健康检查。"""
@@ -476,7 +572,7 @@ class ConfigurationService:
     def _write_env_atomic(self, updates: Mapping[str, str], removals: set[str]) -> None:
         """同目录临时写入并原子替换，保留注释和不相关行。"""
         try:
-            original = self.env_path.read_text(encoding="utf-8") if self.env_path.exists() else ""
+            original, _ = self._read_env_file_strict()
             lines = original.splitlines(keepends=True)
             remaining = dict(updates)
             output: list[str] = []
@@ -507,19 +603,43 @@ class ConfigurationService:
                 prefix=f".{self.env_path.name}.", dir=self.env_path.parent
             )
             try:
-                with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+                os.fchmod(descriptor, stat.S_IRUSR | stat.S_IWUSR)
+                handle = os.fdopen(descriptor, "w", encoding="utf-8")
+                descriptor = -1
+                with handle:
                     handle.writelines(output)
                     handle.flush()
                     os.fsync(handle.fileno())
-                os.chmod(temp_name, stat.S_IRUSR | stat.S_IWUSR)
                 os.replace(temp_name, self.env_path)
-                os.chmod(self.env_path, stat.S_IRUSR | stat.S_IWUSR)
+                temp_name = ""
+                self._fsync_parent_directory()
             finally:
-                if os.path.exists(temp_name):
-                    os.unlink(temp_name)
+                if descriptor >= 0:
+                    os.close(descriptor)
+                if temp_name:
+                    try:
+                        os.unlink(temp_name)
+                    except FileNotFoundError:
+                        pass
         except (OSError, UnicodeError) as exc:
             logger.error("配置原子持久化失败", extra={"error_type": type(exc).__name__})
             raise ConfigurationPersistenceError("配置持久化失败") from exc
+
+    def _fsync_parent_directory(self) -> None:
+        """尽力同步父目录元数据；replace 后不再抛出业务失败。"""
+        descriptor: int | None = None
+        try:
+            flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+            descriptor = os.open(self.env_path.parent, flags)
+            os.fsync(descriptor)
+        except Exception as exc:
+            logger.warning("配置目录同步失败", extra={"error_type": type(exc).__name__})
+        finally:
+            if descriptor is not None:
+                try:
+                    os.close(descriptor)
+                except OSError:
+                    pass
 
     def _refresh_runtime(self, section: str) -> None:
         values = self.get_effective_values()

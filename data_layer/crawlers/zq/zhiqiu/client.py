@@ -2,6 +2,8 @@ import json
 import logging
 import os
 import re
+from pathlib import Path
+from types import TracebackType
 from typing import Any, Dict, Optional, cast
 
 import requests
@@ -55,6 +57,7 @@ class ZhiQiuClient:
         password: str,
         anti_scrape_config: Optional[AntiScrapeConfig] = None,
         request_timeout: float = DEFAULT_TIMEOUT,
+        failure_dump_path: str | Path | None = "login_failed.html",
     ):
         self.username = username
         self.password = password
@@ -62,6 +65,7 @@ class ZhiQiuClient:
         self.session.trust_env = False  # 禁用系统代理，避免 SSL EOF 错误
         self._logged_in = False
         self.request_timeout = request_timeout
+        self.failure_dump_path = Path(failure_dump_path) if failure_dump_path is not None else None
         self.logger = logging.getLogger(__name__)
         # 反爬管理器
         self.anti_scrape: AntiScrapeManager = get_manager(anti_scrape_config)
@@ -135,11 +139,28 @@ class ZhiQiuClient:
             self.anti_scrape.after_success()
             return True
 
-        self.logger.error("登录失败，响应已保存到 login_failed.html")
-        with open("login_failed.html", "w", encoding="utf-8") as f:
-            f.write(resp.text)
+        if self.failure_dump_path is not None:
+            self.logger.error("登录失败，响应已保存到诊断文件")
+            self.failure_dump_path.write_text(resp.text, encoding="utf-8")
+        else:
+            self.logger.error("登录失败")
         self.anti_scrape.after_failure()
         return False
+
+    def close(self) -> None:
+        """关闭底层 HTTP 会话。"""
+        self.session.close()
+
+    def __enter__(self) -> "ZhiQiuClient":
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        self.close()
 
     def docqa(self, obj_id: str, query: str) -> str:
         """AI问答：提取研报核心观点"""

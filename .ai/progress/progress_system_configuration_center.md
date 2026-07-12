@@ -8,4 +8,6 @@
 - 测试：20 个 focused tests 通过；ruff、black、isort 和 targeted mypy 通过。
 - 规格复审修复：安全 422、知秋 JSON 权威空账号语义、真实非持久化连接探针、`original_name` 改名保密语义均已补充回归覆盖。
 - 复审验证：配置测试及关联 iFinD/桌面回归共 34 passed。
+- 代码质量复审修复：同路径线程/进程事务锁、严格 dotenv 拒写、replace/目录 fsync、iFinD null 拒绝、知秋探针资源关闭与禁用失败页面均已覆盖。
+- 代码质量复审验证：配置、iFinD、ZQ connector/adapter 和桌面路径回归共 63 passed。
 - 文档范围：按委派要求仅维护任务、进度和测试报告，不修改长期文档或前端资源。

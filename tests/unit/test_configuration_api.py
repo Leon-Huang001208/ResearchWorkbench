@@ -44,6 +44,21 @@ def test_put_configuration_rejects_unknown_fields_and_numeric_strings(tmp_path):
     app.dependency_overrides.clear()
 
 
+def test_ifind_explicit_null_fields_are_rejected_without_persisting(tmp_path):
+    env_path = tmp_path / ".env"
+    env_path.write_text("IFIND_USERNAME=existing\n", encoding="utf-8")
+    client = _client_for(env_path)
+
+    username_response = client.put("/api/config/ifind", json={"username": None})
+    url_response = client.put("/api/config/ifind", json={"http_base_url": None})
+
+    assert username_response.status_code == 422
+    assert url_response.status_code == 422
+    assert env_path.read_text(encoding="utf-8") == "IFIND_USERNAME=existing\n"
+    assert "None" not in env_path.read_text(encoding="utf-8")
+    app.dependency_overrides.clear()
+
+
 def test_validation_error_response_never_echoes_rejected_secret(tmp_path):
     client = _client_for(tmp_path / ".env")
     rejected_secret = "TOPSECRET" + ("x" * 9000) + "LEAKME"
