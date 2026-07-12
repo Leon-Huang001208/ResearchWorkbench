@@ -98,6 +98,7 @@
     --border-focus: #0969da;
     --accent: #0969da;
     --accent-hover: #0550ae;
+    --accent-foreground: #ffffff;
     --accent-light: #ddf4ff;
     --success: #cf222e;
     --success-light: #ffebe9;
@@ -131,6 +132,7 @@
     --border-focus: #F59E0B;
     --accent: #F59E0B;
     --accent-hover: #FBBF24;
+    --accent-foreground: #0D0F14;
     --accent-light: rgba(245, 158, 11, 0.15);
     --success: #FF6B6B;
     --success-light: rgba(255, 107, 107, 0.15);
@@ -157,58 +159,68 @@
 /* ─── Color Schemes ─────────────────────────────────────────── */
 [data-color-scheme="vscode"] {
     --accent: #007acc;
-    --accent-hover: #0098ff;
+    --accent-hover: #006bb3;
+    --accent-foreground: #ffffff;
     --accent-light: #ddf4ff;
     --status-bar-bg: #007acc;
 }
 [data-color-scheme="github"] {
     --accent: #1a7f37;
-    --accent-hover: #2ea043;
+    --accent-hover: #116329;
+    --accent-foreground: #ffffff;
     --accent-light: #dafbe1;
     --status-bar-bg: #1a7f37;
 }
 [data-color-scheme="openclaw"] {
     --accent: #cf222e;
     --accent-hover: #a40e26;
+    --accent-foreground: #ffffff;
     --accent-light: #ffebe9;
     --status-bar-bg: #cf222e;
 }
 [data-color-scheme="claude"] {
     --accent: #d97706;
-    --accent-hover: #b45309;
+    --accent-hover: #f59e0b;
+    --accent-foreground: #111827;
     --accent-light: #fff8e1;
     --status-bar-bg: #d97706;
 }
 [data-color-scheme="obsidian"] {
     --accent: #7c3aed;
     --accent-hover: #6d28d9;
+    --accent-foreground: #ffffff;
     --accent-light: #ede9fe;
     --status-bar-bg: #7c3aed;
 }
 /* Dark theme overrides for color schemes */
 [data-theme="dark"][data-color-scheme="vscode"] {
     --accent: #007acc;
-    --accent-hover: #0098ff;
+    --accent-hover: #006bb3;
+    --accent-foreground: #ffffff;
     --accent-light: #1e3a5f;
 }
 [data-theme="dark"][data-color-scheme="github"] {
     --accent: #3fb950;
     --accent-hover: #2ea043;
+    --accent-foreground: #0D0F14;
     --accent-light: #1a2e1a;
 }
 [data-theme="dark"][data-color-scheme="openclaw"] {
     --accent: #f85149;
     --accent-hover: #ff6b6b;
+    --accent-foreground: #0D0F14;
     --accent-light: #2e1a1a;
 }
 [data-theme="dark"][data-color-scheme="claude"] {
     --accent: #f59e0b;
     --accent-hover: #fbbf24;
+    --accent-foreground: #0D0F14;
     --accent-light: #2e2a1a;
 }
 [data-theme="dark"][data-color-scheme="obsidian"] {
     --accent: #a78bfa;
     --accent-hover: #c4b5fd;
+    --accent-foreground: #0D0F14;
     --accent-light: #2e2a3a;
 }
 
@@ -7724,7 +7736,7 @@ tr:hover td {
 
 .configuration-page .primary-btn {
     border-color: var(--accent);
-    color: #111827;
+    color: var(--accent-foreground);
     background: var(--accent);
 }
 
@@ -9637,6 +9649,9 @@ body {
     --bg-elevated: var(--apple-surface-raised);
     --bg-input: var(--apple-control);
     --border: var(--apple-separator);
+    --accent: #0a84ff;
+    --accent-hover: #409cff;
+    --accent-foreground: #0D0F14;
 }
 
 /* ─── Apple Desktop Light Theme Tokens ─────────────────────── */
@@ -9673,8 +9688,9 @@ body {
     --text-primary: var(--apple-text);
     --text-secondary: var(--apple-secondary);
     --text-muted: var(--apple-tertiary);
-    --accent: var(--apple-blue);
-    --accent-hover: #0071e3;
+    --accent: #0066cc;
+    --accent-hover: #005bb5;
+    --accent-foreground: #ffffff;
     --accent-light: rgba(0,113,227,0.12);
     --sidebar-bg: var(--apple-sidebar);
     --sidebar-text: var(--apple-text);
@@ -9684,57 +9700,67 @@ body {
 /* Re-apply color schemes after late desktop theme blocks so accents stay user-controlled. */
 [data-color-scheme="vscode"] {
     --accent: #007acc;
-    --accent-hover: #0098ff;
+    --accent-hover: #006bb3;
+    --accent-foreground: #ffffff;
     --accent-light: #ddf4ff;
     --status-bar-bg: #007acc;
 }
 [data-color-scheme="github"] {
     --accent: #1a7f37;
-    --accent-hover: #2ea043;
+    --accent-hover: #116329;
+    --accent-foreground: #ffffff;
     --accent-light: #dafbe1;
     --status-bar-bg: #1a7f37;
 }
 [data-color-scheme="openclaw"] {
     --accent: #cf222e;
     --accent-hover: #a40e26;
+    --accent-foreground: #ffffff;
     --accent-light: #ffebe9;
     --status-bar-bg: #cf222e;
 }
 [data-color-scheme="claude"] {
     --accent: #d97706;
-    --accent-hover: #b45309;
+    --accent-hover: #f59e0b;
+    --accent-foreground: #111827;
     --accent-light: #fff8e1;
     --status-bar-bg: #d97706;
 }
 [data-color-scheme="obsidian"] {
     --accent: #7c3aed;
     --accent-hover: #6d28d9;
+    --accent-foreground: #ffffff;
     --accent-light: #ede9fe;
     --status-bar-bg: #7c3aed;
 }
 [data-theme="dark"][data-color-scheme="vscode"] {
     --accent: #007acc;
-    --accent-hover: #0098ff;
+    --accent-hover: #006bb3;
+    --accent-foreground: #ffffff;
     --accent-light: rgba(0,122,204,0.20);
 }
 [data-theme="dark"][data-color-scheme="github"] {
     --accent: #3fb950;
     --accent-hover: #2ea043;
+    --accent-foreground: #0D0F14;
     --accent-light: rgba(63,185,80,0.18);
 }
 [data-theme="dark"][data-color-scheme="openclaw"] {
     --accent: #f85149;
     --accent-hover: #ff6b6b;
+    --accent-foreground: #0D0F14;
     --accent-light: rgba(248,81,73,0.18);
 }
 [data-theme="dark"][data-color-scheme="claude"] {
     --accent: #f59e0b;
     --accent-hover: #fbbf24;
+    --accent-foreground: #0D0F14;
     --accent-light: rgba(245,158,11,0.18);
 }
 [data-theme="dark"][data-color-scheme="obsidian"] {
     --accent: #a78bfa;
     --accent-hover: #c4b5fd;
+    --accent-foreground: #0D0F14;
     --accent-light: rgba(167,139,250,0.20);
 }
 

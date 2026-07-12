@@ -322,7 +322,7 @@ def test_configuration_styles_cover_layout_states_and_accessible_focus():
     assert ".config-field-errors" in css
     assert ".configuration-page .primary-btn" in css
     assert ".configuration-page .secondary-btn" in css
-    assert "color: #111827;" in css
+    assert "color: var(--accent-foreground);" in css
     assert ".configuration-page .primary-btn:not(:disabled):hover" in css
     assert ".configuration-page .secondary-btn:not(:disabled):hover" in css
     assert ".configuration-page .primary-btn:active" in css
@@ -342,3 +342,70 @@ def test_configuration_styles_cover_layout_states_and_accessible_focus():
     assert ".configuration-help" in wide_breakpoint
     assert "position: static;" in wide_breakpoint
     assert "@media (max-width: 900px)" in css
+
+
+def test_configuration_primary_tokens_meet_wcag_contrast_in_final_cascade():
+    css = STYLE_CSS.read_text(encoding="utf-8")
+    final_schemes = css.split(
+        "/* Re-apply color schemes after late desktop theme blocks so accents stay user-controlled. */",
+        1,
+    )[1]
+
+    def contrast(foreground: str, background: str) -> float:
+        def luminance(color: str) -> float:
+            channels = [int(color[index : index + 2], 16) / 255 for index in (1, 3, 5)]
+            linear = [
+                value / 12.92 if value <= 0.04045 else ((value + 0.055) / 1.055) ** 2.4
+                for value in channels
+            ]
+            return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+
+        lighter, darker = sorted((luminance(foreground), luminance(background)), reverse=True)
+        return (lighter + 0.05) / (darker + 0.05)
+
+    cases = {
+        "light-default": ("#0066cc", "#005bb5", "#ffffff"),
+        "light-vscode": ("#007acc", "#006bb3", "#ffffff"),
+        "light-github": ("#1a7f37", "#116329", "#ffffff"),
+        "light-openclaw": ("#cf222e", "#a40e26", "#ffffff"),
+        "light-claude": ("#d97706", "#f59e0b", "#111827"),
+        "light-obsidian": ("#7c3aed", "#6d28d9", "#ffffff"),
+        "dark-default": ("#0a84ff", "#409cff", "#0d0f14"),
+        "dark-vscode": ("#007acc", "#006bb3", "#ffffff"),
+        "dark-github": ("#3fb950", "#2ea043", "#0d0f14"),
+        "dark-openclaw": ("#f85149", "#ff6b6b", "#0d0f14"),
+        "dark-claude": ("#f59e0b", "#fbbf24", "#0d0f14"),
+        "dark-obsidian": ("#a78bfa", "#c4b5fd", "#0d0f14"),
+    }
+
+    def last_block(source: str, selector: str) -> str:
+        start = source.rindex(f"\n{selector} {{") + 1
+        return source[start:].split("}", 1)[0].lower()
+
+    before_schemes = css[: css.index("/* Re-apply color schemes after late desktop theme blocks")]
+    selectors = {
+        "light-default": (before_schemes, '[data-theme="light"]'),
+        "dark-default": (before_schemes, '[data-theme="dark"]'),
+    }
+    for scheme in ("vscode", "github", "openclaw", "claude", "obsidian"):
+        selectors[f"light-{scheme}"] = (final_schemes, f'[data-color-scheme="{scheme}"]')
+        selectors[f"dark-{scheme}"] = (
+            final_schemes,
+            f'[data-theme="dark"][data-color-scheme="{scheme}"]',
+        )
+
+    for name, (accent, hover, foreground) in cases.items():
+        assert contrast(foreground, accent) >= 4.5, name
+        assert contrast(foreground, hover) >= 4.5, name
+        source, selector = selectors[name]
+        block = last_block(source, selector)
+        assert f"--accent: {accent};" in block, name
+        assert f"--accent-hover: {hover};" in block, name
+        assert f"--accent-foreground: {foreground};" in block, name
+
+    assert "--accent-foreground: #ffffff;" in final_schemes
+    assert "--accent-foreground: #111827;" in final_schemes
+    assert "--accent-foreground: #0D0F14;" in final_schemes
+    assert "--accent-hover: #006bb3;" in final_schemes
+    assert "--accent-hover: #116329;" in final_schemes
+    assert "--accent-hover: #f59e0b;" in final_schemes
