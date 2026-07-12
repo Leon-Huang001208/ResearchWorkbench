@@ -7708,17 +7708,64 @@ tr:hover td {
 
 .config-checkbox input { width: 16px; min-height: 16px; }
 
-.config-remove-row {
-    min-height: 36px;
-    padding: 0 var(--space-3);
-    border: 1px solid var(--border-primary);
+.configuration-page .primary-btn,
+.configuration-page .secondary-btn,
+.configuration-page .config-remove-row {
+    min-height: 38px;
+    padding: 8px var(--space-4);
+    border: 1px solid transparent;
     border-radius: var(--radius-md);
-    color: var(--text-secondary);
-    background: transparent;
+    font: inherit;
+    font-weight: var(--font-medium);
+    line-height: 1.2;
     cursor: pointer;
+    transition: background var(--duration-fast), border-color var(--duration-fast), color var(--duration-fast), transform var(--duration-fast), opacity var(--duration-fast);
 }
 
-.config-remove-row:hover { border-color: var(--status-warning); color: var(--status-warning); }
+.configuration-page .primary-btn {
+    border-color: var(--accent);
+    color: var(--bg-body);
+    background: var(--accent);
+}
+
+.configuration-page .primary-btn:hover {
+    border-color: var(--accent-hover);
+    background: var(--accent-hover);
+}
+
+.configuration-page .secondary-btn,
+.configuration-page .config-remove-row {
+    border-color: var(--border);
+    color: var(--text-primary);
+    background: var(--bg-elevated);
+}
+
+.configuration-page .secondary-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-light);
+}
+
+.configuration-page .primary-btn:active,
+.configuration-page .secondary-btn:active,
+.configuration-page .config-remove-row:active {
+    transform: translateY(1px);
+}
+
+.configuration-page button:disabled {
+    opacity: 0.48;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.configuration-page .config-remove-row {
+    min-height: 36px;
+    padding: 0 var(--space-3);
+    color: var(--text-secondary);
+    background: transparent;
+}
+
+.configuration-page .config-remove-row:hover { border-color: var(--status-warning); color: var(--status-warning); }
 
 .config-field-grid {
     display: grid;

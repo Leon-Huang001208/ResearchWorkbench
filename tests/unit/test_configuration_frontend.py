@@ -320,5 +320,14 @@ def test_configuration_styles_cover_layout_states_and_accessible_focus():
     assert ".config-status.error" in css
     assert ".config-status.restart" in css
     assert ".config-field-errors" in css
+    assert ".configuration-page .primary-btn" in css
+    assert ".configuration-page .secondary-btn" in css
+    assert ".configuration-page .primary-btn:hover" in css
+    assert ".configuration-page .secondary-btn:hover" in css
+    assert ".configuration-page .primary-btn:active" in css
+    assert ".configuration-page .secondary-btn:active" in css
+    assert ".configuration-page button:disabled" in css
+    assert ".configuration-page .config-remove-row" in css
+    assert ".configuration-page .config-remove-row:hover" in css
     assert ".configuration-page :focus-visible" in css
     assert "@media (max-width: 900px)" in css
