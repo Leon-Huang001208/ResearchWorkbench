@@ -1,6 +1,80 @@
 import { apiCall } from './core.js?v=20260712config2';
 
 const rowOriginalNames = new WeakMap();
+const dirtySections = new Set();
+const sectionEditGenerations = new Map();
+let configurationInitialized = false;
+let configurationSnapshot = null;
+let loadAbortController = null;
+
+export function createGenerationTracker() {
+    let generation = 0;
+    return {
+        next() {
+            generation += 1;
+            return generation;
+        },
+        isLatest(token) {
+            return token === generation;
+        },
+    };
+}
+
+export function createRequestCoordinator() {
+    const active = new Map();
+    const generations = new Map();
+    return {
+        begin(section) {
+            if (active.has(section)) return null;
+            const token = (generations.get(section) || 0) + 1;
+            generations.set(section, token);
+            active.set(section, token);
+            return token;
+        },
+        isLatest(section, token) {
+            return active.get(section) === token && generations.get(section) === token;
+        },
+        finish(section, token) {
+            if (active.get(section) === token) active.delete(section);
+        },
+    };
+}
+
+export function normalizeSecretState(value, clear, changedControl) {
+    if (changedControl === 'input' && value) {
+        return { value, clear: false, disabled: false };
+    }
+    if (changedControl === 'clear' && clear) {
+        return { value: '', clear: true, disabled: true };
+    }
+    return { value, clear: Boolean(clear), disabled: Boolean(clear) };
+}
+
+export function safeConfigurationError(error) {
+    const statusMessages = {
+        400: '配置无效，请检查输入',
+        409: '操作冲突，请稍后重试',
+        422: '字段校验失败',
+        500: '配置保存失败',
+    };
+    if (error?.code === 'secret_conflict') {
+        return { message: '秘密值与清除选项不能同时提交', details: [] };
+    }
+    const status = Number(error?.status);
+    const details = status === 422 && Array.isArray(error?.details)
+        ? error.details.map(detail => ({
+            path: formatValidationPath(detail.loc),
+            msg: typeof detail.msg === 'string' ? detail.msg.slice(0, 240) : '输入值未通过校验',
+        }))
+        : [];
+    return {
+        message: statusMessages[status] || '请求失败，请稍后重试',
+        details,
+    };
+}
+
+const loadGeneration = createGenerationTracker();
+const requestCoordinator = createRequestCoordinator();
 
 function element(tag, className = '', text = '') {
     const node = document.createElement(tag);
@@ -40,13 +114,40 @@ function removeButton(label) {
     const button = element('button', 'config-remove-row', '删除');
     button.type = 'button';
     button.setAttribute('aria-label', label);
-    button.addEventListener('click', () => button.closest('.config-dynamic-row')?.remove());
+    button.addEventListener('click', () => {
+        const row = button.closest('.config-dynamic-row');
+        if (row) markSectionDirty(row);
+        row?.remove();
+    });
     return button;
 }
 
 function secretHint(secret) {
     if (!secret?.configured) return '未配置';
     return '已配置';
+}
+
+function applySecretState(secretInput, clearInput, changedControl) {
+    const state = normalizeSecretState(secretInput.value, clearInput.checked, changedControl);
+    secretInput.value = state.value;
+    secretInput.disabled = state.disabled;
+    clearInput.checked = state.clear;
+}
+
+function bindSecretPair(secretInput, clearInput) {
+    if (!secretInput || !clearInput) return;
+    secretInput.addEventListener('input', () => applySecretState(secretInput, clearInput, 'input'));
+    clearInput.addEventListener('change', () => applySecretState(secretInput, clearInput, 'clear'));
+    applySecretState(secretInput, clearInput, 'initial');
+}
+
+function collectSecretPair(secretInput, clearInput) {
+    if (secretInput.value && clearInput.checked) {
+        const error = new Error('secret conflict');
+        error.code = 'secret_conflict';
+        throw error;
+    }
+    return { value: secretInput.value, clear: clearInput.checked };
 }
 
 function createProviderRow(provider = {}) {
@@ -69,6 +170,7 @@ function createProviderRow(provider = {}) {
     const clearLabel = element('label', 'config-checkbox config-clear-secret');
     const clear = input('checkbox', '', '显式清除 Provider Token');
     clear.dataset.field = 'clear_api_key';
+    bindSecretPair(apiKey, clear);
     clearLabel.append(clear, document.createTextNode('显式清除 Token'));
     row.append(
         labeledControl('名称', name),
@@ -113,6 +215,7 @@ function createZhiqiuAccountRow(account = {}) {
     const clearLabel = element('label', 'config-checkbox config-clear-secret');
     const clear = input('checkbox', '', '显式清除知秋密码');
     clear.dataset.field = 'clear_password';
+    bindSecretPair(password, clear);
     clearLabel.append(clear, document.createTextNode('显式清除密码'));
     row.append(
         labeledControl('名称', name),
@@ -179,24 +282,77 @@ function renderReadiness(snapshot) {
 }
 
 function renderSnapshot(snapshot) {
+    configurationSnapshot = snapshot;
     renderReadiness(snapshot);
-    renderProviders(snapshot.sections.llm.providers || []);
-    renderTaskRoutes(snapshot.sections.llm.task_routes || []);
-    renderZhiqiuAccounts(snapshot.sections.zhiqiu.accounts || []);
+    Object.entries(snapshot.sections).forEach(([section, values]) => {
+        if (!dirtySections.has(section)) renderSection(section, values);
+    });
+}
 
-    setFormValues(document.getElementById('config-zhiqiu-form'), snapshot.sections.zhiqiu, [
-        'enabled', 'rotation_strategy', 'max_retries', 'retry_delay', 'lease_timeout', 'max_consecutive_failures',
-    ]);
-    setFormValues(document.getElementById('config-ifind-form'), snapshot.sections.ifind, [
-        'username', 'backend', 'http_base_url',
-    ]);
-    setFormValues(document.getElementById('config-advanced-form'), snapshot.sections.advanced, [
-        'log_level', 'log_dir', 'llm_max_workers', 'llm_max_retries', 'chunk_size', 'chunk_overlap', 'long_text_threshold',
-    ]);
-    document.querySelectorAll('.configuration-page input[type="password"]').forEach(control => { control.value = ''; });
-    document.querySelectorAll('.configuration-page .config-clear-secret input').forEach(control => { control.checked = false; });
-    setSecretState('[data-secret-state="ifind-password"]', snapshot.sections.ifind.password);
-    setSecretState('[data-secret-state="database-url"]', snapshot.sections.database.database_url);
+function renderSection(section, values) {
+    if (section === 'llm') {
+        renderProviders(values.providers || []);
+        renderTaskRoutes(values.task_routes || []);
+    } else if (section === 'zhiqiu') {
+        renderZhiqiuAccounts(values.accounts || []);
+        setFormValues(document.getElementById('config-zhiqiu-form'), values, [
+            'enabled', 'rotation_strategy', 'max_retries', 'retry_delay', 'lease_timeout', 'max_consecutive_failures',
+        ]);
+    } else if (section === 'ifind') {
+        setFormValues(document.getElementById('config-ifind-form'), values, ['username', 'backend', 'http_base_url']);
+        setSecretState('[data-secret-state="ifind-password"]', values.password);
+        const form = document.getElementById('config-ifind-form');
+        if (form) {
+            form.elements.password.value = '';
+            form.elements.clear_password.checked = false;
+            applySecretState(form.elements.password, form.elements.clear_password, 'initial');
+        }
+    } else if (section === 'database') {
+        setSecretState('[data-secret-state="database-url"]', values.database_url);
+        const form = document.getElementById('config-database-form');
+        if (form) form.elements.database_url.value = '';
+    } else if (section === 'advanced') {
+        setFormValues(document.getElementById('config-advanced-form'), values, [
+            'log_level', 'log_dir', 'llm_max_workers', 'llm_max_retries', 'chunk_size', 'chunk_overlap', 'long_text_threshold',
+        ]);
+    }
+    dirtySections.delete(section);
+}
+
+function deriveSectionReadiness(section, values) {
+    if (section === 'llm') return (values.providers || []).some(item => item.protocol === 'local' || item.api_key?.configured);
+    if (section === 'zhiqiu') return (values.accounts || []).some(item => item.password?.configured);
+    if (section === 'ifind') return Boolean(values.username && values.password?.configured);
+    if (section === 'database') return Boolean(values.database_url?.configured);
+    return true;
+}
+
+function applySectionResponse(section, values, renderValues = true) {
+    if (renderValues) {
+        renderSection(section, values);
+    } else {
+        updateOriginalNameMappings(section, values);
+    }
+    if (configurationSnapshot) {
+        configurationSnapshot.sections[section] = values;
+        configurationSnapshot.readiness[section] = deriveSectionReadiness(section, values);
+        configurationSnapshot.ready_count = Object.values(configurationSnapshot.readiness).filter(Boolean).length;
+        renderReadiness(configurationSnapshot);
+    }
+}
+
+function updateOriginalNameMappings(section, values) {
+    if (section === 'llm') {
+        document.querySelectorAll('.config-provider-row').forEach((row, index) => {
+            const provider = values.providers?.[index];
+            if (provider) rowOriginalNames.set(row, provider.original_name || provider.name || '');
+        });
+    } else if (section === 'zhiqiu') {
+        document.querySelectorAll('.config-zhiqiu-row').forEach((row, index) => {
+            const account = values.accounts?.[index];
+            if (account) rowOriginalNames.set(row, account.original_name || account.name || '');
+        });
+    }
 }
 
 function setSectionStatus(section, message, state = '') {
@@ -217,39 +373,39 @@ function formatValidationPath(loc) {
     return Array.isArray(loc) && loc.length ? loc.join('.') : 'section';
 }
 
-function showPageError(error, fallback) {
+function showPageError(error) {
     const node = document.getElementById('config-page-message');
     if (!node) return;
-    const details = Array.isArray(error?.details) ? error.details : [];
-    if (!details.length) {
-        showPageMessage(safeErrorMessage(error, fallback), 'error');
+    const safe = safeConfigurationError(error);
+    if (!safe.details.length) {
+        showPageMessage(safe.message, 'error');
         return;
     }
-    const title = element('strong', '', '字段校验失败');
+    const title = element('strong', '', safe.message);
     const list = element('ul', 'config-field-errors');
-    details.forEach(detail => {
-        const path = formatValidationPath(detail.loc);
-        list.append(element('li', '', `${path}: ${detail.msg || '输入值未通过校验'}`));
+    safe.details.forEach(detail => {
+        list.append(element('li', '', `${detail.path}: ${detail.msg}`));
     });
     node.replaceChildren(title, list);
     node.className = 'config-page-message error';
 }
 
-function safeErrorMessage(error, fallback) {
-    if (error instanceof Error && typeof error.message === 'string' && error.message.length <= 240 && !error.message.includes('[object Object]')) {
-        return error.message;
-    }
-    return fallback;
-}
-
 async function loadConfiguration() {
+    const token = loadGeneration.next();
+    loadAbortController?.abort();
+    const controller = new AbortController();
+    loadAbortController = controller;
     showPageMessage('正在读取配置…');
     try {
-        const snapshot = await apiCall('GET', '/api/config');
+        const snapshot = await apiCall('GET', '/api/config', null, { signal: controller.signal });
+        if (!loadGeneration.isLatest(token)) return;
         renderSnapshot(snapshot);
         showPageMessage('配置已刷新', 'ready');
     } catch (error) {
-        showPageError(error, '配置读取失败，请稍后重试');
+        if (error?.name === 'AbortError' || !loadGeneration.isLatest(token)) return;
+        showPageError(error);
+    } finally {
+        if (loadGeneration.isLatest(token)) loadAbortController = null;
     }
 }
 
@@ -259,14 +415,20 @@ function rowValue(row, field) {
 }
 
 function collectLlm() {
-    const providers = [...document.querySelectorAll('.config-provider-row')].map(row => ({
-        original_name: rowOriginalNames.get(row) || undefined,
-        name: rowValue(row, 'name'),
-        protocol: rowValue(row, 'protocol'),
-        base_url: rowValue(row, 'base_url'),
-        api_key: rowValue(row, 'api_key'),
-        clear_api_key: rowValue(row, 'clear_api_key'),
-    }));
+    const providers = [...document.querySelectorAll('.config-provider-row')].map(row => {
+        const secret = collectSecretPair(
+            row.querySelector('[data-field="api_key"]'),
+            row.querySelector('[data-field="clear_api_key"]'),
+        );
+        return {
+            original_name: rowOriginalNames.get(row) || undefined,
+            name: rowValue(row, 'name'),
+            protocol: rowValue(row, 'protocol'),
+            base_url: rowValue(row, 'base_url'),
+            api_key: secret.value,
+            clear_api_key: secret.clear,
+        };
+    });
     const task_routes = [...document.querySelectorAll('.config-route-row')].map(row => ({
         task: rowValue(row, 'task'),
         provider: rowValue(row, 'provider'),
@@ -277,13 +439,19 @@ function collectLlm() {
 
 function collectZhiqiu() {
     const form = document.getElementById('config-zhiqiu-form');
-    const accounts = [...document.querySelectorAll('.config-zhiqiu-row')].map(row => ({
-        original_name: rowOriginalNames.get(row) || undefined,
-        name: rowValue(row, 'name'),
-        username: rowValue(row, 'username'),
-        password: rowValue(row, 'password'),
-        clear_password: rowValue(row, 'clear_password'),
-    }));
+    const accounts = [...document.querySelectorAll('.config-zhiqiu-row')].map(row => {
+        const secret = collectSecretPair(
+            row.querySelector('[data-field="password"]'),
+            row.querySelector('[data-field="clear_password"]'),
+        );
+        return {
+            original_name: rowOriginalNames.get(row) || undefined,
+            name: rowValue(row, 'name'),
+            username: rowValue(row, 'username'),
+            password: secret.value,
+            clear_password: secret.clear,
+        };
+    });
     return {
         accounts,
         enabled: form.elements.enabled.checked,
@@ -297,10 +465,11 @@ function collectZhiqiu() {
 
 function collectIfind() {
     const form = document.getElementById('config-ifind-form');
+    const secret = collectSecretPair(form.elements.password, form.elements.clear_password);
     return {
         username: form.elements.username.value.trim(),
-        password: form.elements.password.value,
-        clear_password: form.elements.clear_password.checked,
+        password: secret.value,
+        clear_password: secret.clear,
         backend: form.elements.backend.value,
         http_base_url: form.elements.http_base_url.value.trim(),
     };
@@ -308,7 +477,11 @@ function collectIfind() {
 
 function collectDatabase() {
     const databaseUrl = document.getElementById('config-database-form').elements.database_url.value;
-    if (!databaseUrl) throw new Error('请输入新的数据库连接地址');
+    if (!databaseUrl) {
+        const error = new Error('invalid configuration');
+        error.status = 400;
+        throw error;
+    }
     return { database_url: databaseUrl };
 }
 
@@ -330,38 +503,73 @@ function collectSection(section) {
     return collectors[section]();
 }
 
+function setSectionBusy(section, busy) {
+    const form = document.querySelector(`[data-config-form="${section}"]`);
+    form?.querySelectorAll('button').forEach(button => { button.disabled = busy; });
+}
+
 async function saveSection(section) {
+    const token = requestCoordinator.begin(section);
+    if (token === null) return;
+    const submittedEditGeneration = sectionEditGenerations.get(section) || 0;
+    setSectionBusy(section, true);
     setSectionStatus(section, '保存中…');
     try {
         const payload = collectSection(section);
         const result = await apiCall('PUT', `/api/config/${section}`, payload);
-        await loadConfiguration();
-        setSectionStatus(section, result.message, result.restart_required ? 'restart' : 'ready');
-        showPageMessage(result.message, result.restart_required ? 'restart' : 'ready');
+        if (!requestCoordinator.isLatest(section, token)) return;
+        const editedWhileSaving = (sectionEditGenerations.get(section) || 0) !== submittedEditGeneration;
+        applySectionResponse(section, result.section, !editedWhileSaving);
+        const message = result.restart_required ? '重启后生效' : '配置已生效';
+        setSectionStatus(section, message, result.restart_required ? 'restart' : 'ready');
+        showPageMessage(message, result.restart_required ? 'restart' : 'ready');
     } catch (error) {
-        const message = safeErrorMessage(error, '保存失败，请检查输入字段');
-        const firstPath = Array.isArray(error?.details) && error.details.length
-            ? formatValidationPath(error.details[0].loc)
-            : '';
-        setSectionStatus(section, firstPath ? `字段校验失败：${firstPath}` : message, 'error');
-        showPageError(error, '保存失败，请检查输入字段');
+        if (!requestCoordinator.isLatest(section, token)) return;
+        const safe = safeConfigurationError(error);
+        const firstPath = safe.details[0]?.path || '';
+        setSectionStatus(section, firstPath ? `字段校验失败：${firstPath}` : safe.message, 'error');
+        showPageError(error);
+    } finally {
+        if (requestCoordinator.isLatest(section, token)) setSectionBusy(section, false);
+        requestCoordinator.finish(section, token);
     }
 }
 
 async function testSection(section) {
+    const token = requestCoordinator.begin(section);
+    if (token === null) return;
+    setSectionBusy(section, true);
     setSectionStatus(section, '验证中…');
     try {
         const result = await apiCall('POST', `/api/config/${section}/test`, collectSection(section));
-        setSectionStatus(section, result.message, result.success ? 'ready' : 'error');
-        showPageMessage(result.message, result.success ? 'ready' : 'error');
+        if (!requestCoordinator.isLatest(section, token)) return;
+        const message = result.success ? '连接验证成功' : '连接验证失败';
+        setSectionStatus(section, message, result.success ? 'ready' : 'error');
+        showPageMessage(message, result.success ? 'ready' : 'error');
     } catch (error) {
-        const message = safeErrorMessage(error, '连接验证失败，请检查配置');
-        const firstPath = Array.isArray(error?.details) && error.details.length
-            ? formatValidationPath(error.details[0].loc)
-            : '';
-        setSectionStatus(section, firstPath ? `字段校验失败：${firstPath}` : message, 'error');
-        showPageError(error, '连接验证失败，请检查配置');
+        if (!requestCoordinator.isLatest(section, token)) return;
+        const safe = safeConfigurationError(error);
+        const firstPath = safe.details[0]?.path || '';
+        setSectionStatus(section, firstPath ? `字段校验失败：${firstPath}` : safe.message, 'error');
+        showPageError(error);
+    } finally {
+        if (requestCoordinator.isLatest(section, token)) setSectionBusy(section, false);
+        requestCoordinator.finish(section, token);
     }
+}
+
+function markSectionDirty(target) {
+    const form = target.closest?.('[data-config-form]');
+    const section = form?.dataset.configForm;
+    if (!section) return;
+    dirtySections.add(section);
+    sectionEditGenerations.set(section, (sectionEditGenerations.get(section) || 0) + 1);
+}
+
+async function refreshConfiguration() {
+    if (dirtySections.size && !window.confirm('刷新会丢弃尚未保存的修改，是否继续？')) return;
+    dirtySections.clear();
+    await loadConfiguration();
 }
 
 function bindConfigurationEvents() {
@@ -386,12 +594,23 @@ function bindConfigurationEvents() {
     page.querySelectorAll('[data-config-test]').forEach(button => {
         button.addEventListener('click', () => testSection(button.dataset.configTest));
     });
-    document.getElementById('config-refresh')?.addEventListener('click', loadConfiguration);
+    const ifindForm = document.getElementById('config-ifind-form');
+    bindSecretPair(ifindForm?.elements.password, ifindForm?.elements.clear_password);
+    page.addEventListener('input', event => markSectionDirty(event.target));
+    page.addEventListener('change', event => markSectionDirty(event.target));
+    page.addEventListener('click', event => {
+        if (event.target.closest?.('[data-add-provider], [data-add-task-route], [data-add-zhiqiu-account], .config-remove-row')) {
+            markSectionDirty(event.target);
+        }
+    });
+    document.getElementById('config-refresh')?.addEventListener('click', refreshConfiguration);
 }
 
 export async function initConfigurationPage() {
     if (!document.getElementById('section-config')) return;
     bindConfigurationEvents();
+    if (configurationInitialized) return;
+    configurationInitialized = true;
     await loadConfiguration();
 }
 
