@@ -12,6 +12,7 @@ from app.api.configuration_models import (
     ConfigurationUpdateResponse,
     SectionName,
 )
+from app.api.configuration_security import require_configuration_csrf_token
 from core.observability import get_logger
 from services.configuration_service import (
     ConfigurationError,
@@ -20,7 +21,11 @@ from services.configuration_service import (
 )
 
 logger = get_logger(__name__)
-router = APIRouter(prefix="/api/config", tags=["configuration"])
+router = APIRouter(
+    prefix="/api/config",
+    tags=["configuration"],
+    dependencies=[Depends(require_configuration_csrf_token)],
+)
 
 
 def get_configuration_service() -> ConfigurationService:

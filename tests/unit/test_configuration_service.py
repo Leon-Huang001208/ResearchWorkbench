@@ -51,8 +51,6 @@ def test_update_ifind_keeps_blank_secret_and_preserves_unrelated_lines(monkeypat
         {
             "username": "new-user",
             "password": "",
-            "backend": "http_api",
-            "http_base_url": "https://example.test/api",
         },
     )
 
@@ -178,6 +176,115 @@ def test_provider_rename_with_blank_secret_preserves_original_secret(monkeypatch
     )
 
     assert "LLM_PROVIDER_1_API_KEY" not in service.get_effective_values()
+
+
+def test_provider_endpoint_change_never_reuses_saved_secret(monkeypatch, tmp_path):
+    path = tmp_path / ".env"
+    original = (
+        "LLM_PROVIDER_1_NAME=primary\n"
+        "LLM_PROVIDER_1_PROTOCOL=openai_compatible\n"
+        "LLM_PROVIDER_1_BASE_URL=https://old.example.test\n"
+        "LLM_PROVIDER_1_API_KEY=TOPSECRET\n"
+    )
+    path.write_text(original, encoding="utf-8")
+    for key in list(os.environ):
+        if key.startswith("LLM_PROVIDER_"):
+            monkeypatch.delenv(key, raising=False)
+    probe_calls = []
+    service = ConfigurationService(
+        env_path=path,
+        connection_probes={"llm": lambda candidate, timeout: probe_calls.append(candidate) or True},
+    )
+    payload = {
+        "providers": [
+            {
+                "original_name": "primary",
+                "name": "primary",
+                "protocol": "openai_compatible",
+                "base_url": "https://new.example.test",
+                "api_key": "",
+            }
+        ]
+    }
+
+    with pytest.raises(ConfigurationError, match="重新输入"):
+        service.test_section("llm", payload)
+    with pytest.raises(ConfigurationError, match="重新输入"):
+        service.update_section("llm", payload)
+
+    assert probe_calls == []
+    assert path.read_text(encoding="utf-8") == original
+
+    payload["providers"][0]["api_key"] = "NEWSECRET"
+    result = service.test_section("llm", payload)
+
+    assert result["success"] is True
+    assert probe_calls[0]["LLM_PROVIDER_1_BASE_URL"] == "https://new.example.test"
+    assert probe_calls[0]["LLM_PROVIDER_1_API_KEY"] == "NEWSECRET"
+    assert "TOPSECRET" not in probe_calls[0].values()
+
+
+@pytest.mark.parametrize(
+    "endpoint_change",
+    [
+        {"http_base_url": "https://new-ifind.example.test"},
+        {"backend": "python_sdk"},
+    ],
+)
+def test_ifind_endpoint_change_never_reuses_saved_password(monkeypatch, tmp_path, endpoint_change):
+    path = tmp_path / ".env"
+    original = (
+        "IFIND_USERNAME=user\n"
+        "IFIND_PASSWORD=TOPSECRET\n"
+        "IFIND_BACKEND=http_api\n"
+        "IFIND_HTTP_BASE_URL=https://old-ifind.example.test\n"
+    )
+    path.write_text(original, encoding="utf-8")
+    for key in ("IFIND_USERNAME", "IFIND_PASSWORD", "IFIND_BACKEND", "IFIND_HTTP_BASE_URL"):
+        monkeypatch.delenv(key, raising=False)
+    probe_calls = []
+    service = ConfigurationService(
+        env_path=path,
+        connection_probes={
+            "ifind": lambda candidate, timeout: probe_calls.append(candidate) or True
+        },
+    )
+
+    with pytest.raises(ConfigurationError, match="重新输入"):
+        service.test_section("ifind", endpoint_change)
+    with pytest.raises(ConfigurationError, match="重新输入"):
+        service.update_section("ifind", endpoint_change)
+
+    assert probe_calls == []
+    assert path.read_text(encoding="utf-8") == original
+
+
+def test_changed_endpoint_probe_uses_only_new_submitted_secret(monkeypatch, tmp_path):
+    path = tmp_path / ".env"
+    path.write_text(
+        "IFIND_USERNAME=user\nIFIND_PASSWORD=OLDSECRET\n"
+        "IFIND_BACKEND=http_api\nIFIND_HTTP_BASE_URL=https://old.example.test\n",
+        encoding="utf-8",
+    )
+    for key in ("IFIND_USERNAME", "IFIND_PASSWORD", "IFIND_BACKEND", "IFIND_HTTP_BASE_URL"):
+        monkeypatch.delenv(key, raising=False)
+    captured = []
+    service = ConfigurationService(
+        env_path=path,
+        connection_probes={
+            "ifind": lambda candidate, timeout: captured.append(dict(candidate)) or True
+        },
+    )
+
+    result = service.test_section(
+        "ifind",
+        {"http_base_url": "https://new.example.test", "password": "NEWSECRET"},
+    )
+
+    assert result["success"] is True
+    assert captured[0]["IFIND_HTTP_BASE_URL"] == "https://new.example.test"
+    assert captured[0]["IFIND_PASSWORD"] == "NEWSECRET"
+    assert "OLDSECRET" not in captured[0].values()
 
 
 def test_zhiqiu_account_rename_preserves_secret_until_explicit_clear(monkeypatch, tmp_path):

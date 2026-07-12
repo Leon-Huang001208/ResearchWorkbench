@@ -11,6 +11,7 @@ Changed source files:
 - `data_layer/crawlers/zq/zhiqiu/client.py`
 - `services/configuration_service.py`
 - `app/api/configuration_models.py`
+- `app/api/configuration_security.py`
 - `app/api/routes/configuration.py`
 - `app/api/main.py`
 - `app/web/templates/index.html`
@@ -18,6 +19,7 @@ Changed source files:
 - `app/web/static/js/app.js`
 - `app/web/static/js/core.js`
 - `app/web/static/style.css`
+- `scripts/desktop/backend_launcher.py`
 
 Changed test files:
 
@@ -30,6 +32,7 @@ Commands/results recorded by implementation and integration stages:
 
 - Fresh combined configuration/iFinD/ZQ suite: `78 passed, 22 warnings`.
 - Configuration frontend focused suite: `14 passed`, including three Node-backed behavior tests and a WCAG contrast matrix.
+- Final CSRF/CORS, endpoint-secret binding, runtime, frontend Node, and desktop launcher focused suite: `64 passed, 22 warnings`.
 - Combined frontend regression before final style-only changes: 2 failures, matching the pre-implementation baseline (`if (!wordFile)` legacy assertion and old `app.js?v=20260703theme1` cache-version assertion).
 - Focused ruff: passed.
 - Focused black check: passed.

@@ -47,9 +47,43 @@ def test_configuration_module_uses_expected_api_contract_and_is_initialized_by_n
     assert "import { apiCall } from './core.js?v=20260712config2'" in source
     assert "if (section === 'config') initConfigurationPage();" in app_source
     assert "export async function initConfigurationPage()" in source
-    assert "apiCall('GET', '/api/config', null, { signal: controller.signal })" in source
-    assert "apiCall('PUT', `/api/config/${section}`" in source
-    assert "apiCall('POST', `/api/config/${section}/test`" in source
+    assert (
+        "configurationApiCall('GET', '/api/config', null, { signal: controller.signal })" in source
+    )
+    assert "configurationApiCall('PUT', `/api/config/${section}`" in source
+    assert "configurationApiCall('POST', `/api/config/${section}/test`" in source
+
+
+def test_configuration_csrf_meta_and_request_header_contract_execute_in_node():
+    html = INDEX_HTML.read_text(encoding="utf-8")
+    core_source = CORE_JS.read_text(encoding="utf-8")
+    source = CONFIGURATION_JS.read_text(encoding="utf-8")
+
+    assert 'name="alphafoundry-config-token"' in html
+    assert 'content="__ALPHAFOUNDRY_CONFIG_TOKEN__"' in html
+    assert "...(options.headers || {})" in core_source
+    assert "X-AlphaFoundry-Config-Token" in source
+    assert "localStorage" not in source
+
+    script = f"""
+        import {{ configurationRequestOptions }} from {json.dumps(CONFIGURATION_JS.as_uri())};
+        globalThis.document = {{
+            querySelector: () => ({{ content: 'NODE_CSRF_TOKEN' }}),
+        }};
+        const options = configurationRequestOptions({{signal: 'signal-value'}});
+        console.log(JSON.stringify(options));
+    """
+    result = subprocess.run(
+        ["node", "--input-type=module", "-e", script],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert json.loads(result.stdout) == {
+        "signal": "signal-value",
+        "headers": {"X-AlphaFoundry-Config-Token": "NODE_CSRF_TOKEN"},
+    }
 
 
 def test_dynamic_configuration_rows_support_add_remove_and_original_names():

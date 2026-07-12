@@ -9,4 +9,6 @@
 - 文档：已同步 `.env.example`、API/Web/爬虫模块文档、架构、开发映射、文件指南、参考手册、更新日志和测试审计记录；Python 文件索引由脚本重新生成。
 - 测试记录：配置、API、iFinD、知秋 fresh focused suite `78 passed`；配置前端 `14 passed`；Playwright 已验证真实保存、脱敏回显、改名保密、清除互斥、数据库重启提示及 1440/820 响应式布局。
 - 全仓门禁：任务/文档检查和 Python 索引生成通过；ruff、black、isort、mypy 及全量 pytest 因仓库既有问题失败，详情见测试报告。因此不得标记 `done`。
+- 最终安全修复：默认关闭 CORS、配置 API 进程级 CSRF、防止旧秘密发送到变化后的 Provider/iFinD 端点，并让冻结桌面启动优先加载持久 `.env`；状态继续保持 `doing`。
+- 最终安全 focused：配置/API/runtime/frontend 与 desktop launcher 回归 `64 passed`。
 - 下一步：整合功能分支；后续单独清理仓库级格式、类型债和重复测试模块名后，再将任务状态改为 `done`。

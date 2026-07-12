@@ -4,7 +4,6 @@ import json
 import os
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 TAURI_CONFIG = ROOT / "src-tauri" / "tauri.conf.json"
 TAURI_LIB = ROOT / "src-tauri" / "src" / "lib.rs"
@@ -74,7 +73,7 @@ def test_web_favicon_uses_current_black_gold_app_icon():
     assert '<link rel="apple-touch-icon" href="/static/favicon.png?v=20260621a">' in html
     assert "data:image/svg+xml" not in html
     assert "desktop-brand-icon" in html
-    assert "desktop-brand-mark\">A</div>" not in html
+    assert 'desktop-brand-mark">A</div>' not in html
 
     css = (ROOT / "app" / "web" / "static" / "style.css").read_text(encoding="utf-8")
     assert ".desktop-brand-icon" in css
@@ -83,17 +82,15 @@ def test_web_favicon_uses_current_black_gold_app_icon():
 
 def test_report_project_upload_modal_treats_non_word_assets_as_optional():
     html = (ROOT / "app" / "web" / "templates" / "index.html").read_text(encoding="utf-8")
-    script = (ROOT / "app" / "web" / "static" / "js" / "templates.js").read_text(
-        encoding="utf-8"
-    )
+    script = (ROOT / "app" / "web" / "static" / "js" / "templates.js").read_text(encoding="utf-8")
 
     assert "upload-required-card" in html
     assert "upload-optional-grid" in html
     assert "Word 模板" in html
     assert "必需" in html
     assert "可选材料" in html
-    assert "data-file-label=\"project-word-template-input\"" in html
-    assert "data-file-label=\"project-excel-workbook-input\"" in html
+    assert 'data-file-label="project-word-template-input"' in html
+    assert 'data-file-label="project-excel-workbook-input"' in html
     assert "请至少选择 Word 模板、Excel 底稿和 Section 配置" not in script
     assert "if (!wordFile)" in script
     assert "if (excelFile)" in script
@@ -314,7 +311,7 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "style.css?v=20260702briefinline1" in html
     assert "app.js?v=20260703theme1" in html
     assert "asset-observe-mode-tabs" in html
-    assert "data-asset-mode=\"theme\"" in html
+    assert 'data-asset-mode="theme"' in html
     assert "asset-topic-result" in html
     assert "概念指数走势" in html
     assert "成分股 / 龙头贡献" in html
@@ -349,8 +346,8 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "--apple-bg: #f5f5f7" in css
     assert "--apple-window: #fbfbfd" in css
     assert "--apple-surface: #ffffff" in css
-    assert "[data-theme=\"light\"] body" in css
-    assert "[data-theme=\"dark\"] body" in css
+    assert '[data-theme="light"] body' in css
+    assert '[data-theme="dark"] body' in css
     assert "#section-dashboard .sectors-up-section .sector-list" in css
     assert "max-height: none" in css
     assert "overflow-y: visible" in css
@@ -373,7 +370,9 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "dashboard.js?v=20260703theme1" in js
     assert "asset.js?v=20260703theme1" in js
     assert "openThemeObservation" in js
-    dashboard_js = (ROOT / "app" / "web" / "static" / "js" / "dashboard.js").read_text(encoding="utf-8")
+    dashboard_js = (ROOT / "app" / "web" / "static" / "js" / "dashboard.js").read_text(
+        encoding="utf-8"
+    )
     assert "中信三级" in dashboard_js
     assert "申万三级" in dashboard_js
     assert "同花顺行业" in dashboard_js
@@ -428,7 +427,10 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "创业板50" in dashboard_js
     assert "科创50" in dashboard_js
     assert "北证50" in dashboard_js
-    assert "'上证指数',\n        '深证成指',\n        '科创综指',\n        '创业板指',\n        '中证A500',\n        '北证50',\n        '上证50',\n        '沪深300',\n        '科创50',\n        '创业板50',\n        '中证500',\n        '中证1000'" in dashboard_js
+    assert (
+        "'上证指数',\n        '深证成指',\n        '科创综指',\n        '创业板指',\n        '中证A500',\n        '北证50',\n        '上证50',\n        '沪深300',\n        '科创50',\n        '创业板50',\n        '中证500',\n        '中证1000'"
+        in dashboard_js
+    )
     assert "return preferred;" in dashboard_js
     assert "中证2000" not in dashboard_js
     assert "科创创业50" not in dashboard_js
@@ -489,7 +491,10 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "hasFreshSectorData" in dashboard_js
     assert "if (force && !hasFreshSectorData && current) return" in dashboard_js
     assert "marketSectorViewRequestCache.delete(viewKey)" in dashboard_js
-    assert "ensureMarketSectorViewLoaded(activeMarketSectorView, { force: true, silent: true })" in dashboard_js
+    assert (
+        "ensureMarketSectorViewLoaded(activeMarketSectorView, { force: true, silent: true })"
+        in dashboard_js
+    )
     assert "combined.slice(0, MARKET_HEATMAP_ITEM_LIMIT)" in dashboard_js
     assert "return { up: [], down: [] }" in dashboard_js
     assert "/api/dashboard/sector-movers?view_key=" in dashboard_js
@@ -497,7 +502,10 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "localStorage.setItem('af-theme', savedTheme || 'dark')" in js
     assert "localStorage.setItem('af-theme', 'dark')" not in js
     assert "applyTheme(document.documentElement.getAttribute('data-theme') || 'dark')" in js
-    assert "applyColorScheme(document.documentElement.getAttribute('data-color-scheme') || 'claude')" in js
+    assert (
+        "applyColorScheme(document.documentElement.getAttribute('data-color-scheme') || 'claude')"
+        in js
+    )
 
 
 def test_dashboard_news_items_hide_source_badges_and_use_compact_today_time():
@@ -523,7 +531,7 @@ def test_apple_desktop_theme_tokens_drive_light_mode_and_color_scheme():
         "/* ─── Apple Desktop Light Theme Tokens", 1
     )[0]
     light_tokens = css.split("/* ─── Apple Desktop Light Theme Tokens", 1)[1].split(
-        "[data-theme=\"dark\"] body", 1
+        '[data-theme="dark"] body', 1
     )[0]
     full_surface = css.split("/* ─── Apple Desktop Full Surface Migration", 1)[1].split(
         "/* Apple Desktop Live Monitor Redesign */", 1
@@ -561,7 +569,9 @@ def test_light_theme_overrides_monitor_and_shared_surfaces():
     assert '[data-theme="light"] #section-dashboard .monitor-event-item' in light_surface
     assert '[data-theme="light"] #section-dashboard .monitor-event-detail-card' in light_surface
     assert '[data-theme="light"] #section-dashboard .monitor-health-card' in light_surface
-    assert '[data-theme="light"] #section-dashboard .monitor-health-panel .worker-row' in light_surface
+    assert (
+        '[data-theme="light"] #section-dashboard .monitor-health-panel .worker-row' in light_surface
+    )
     assert '[data-theme="light"] .card' in light_surface
     assert '[data-theme="light"] input' in light_surface
 
@@ -661,10 +671,53 @@ def test_frozen_backend_launcher_defaults_to_user_sqlite(monkeypatch, tmp_path):
     monkeypatch.setenv("ALPHAFOUNDRY_DESKTOP_DATA_DIR", str(tmp_path))
     monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.delenv("LOG_DIR", raising=False)
+    monkeypatch.delenv("ALPHAFOUNDRY_CONFIG_PATH", raising=False)
 
     data_dir = launcher.apply_frozen_desktop_defaults()
 
     assert data_dir == tmp_path
     assert os.environ["DATABASE_URL"] == f"sqlite:///{tmp_path / 'alphafoundry.db'}"
     assert os.environ["LOG_DIR"] == str(tmp_path / "logs")
+    assert os.environ["ALPHAFOUNDRY_CONFIG_PATH"] == str(tmp_path / ".env")
     assert (tmp_path / "logs").is_dir()
+
+
+def test_frozen_backend_launcher_loads_persisted_configuration_before_defaults(
+    monkeypatch, tmp_path
+):
+    launcher = load_launcher_module()
+    configured_logs = tmp_path / "configured-logs"
+    (tmp_path / ".env").write_text(
+        f"DATABASE_URL=sqlite:///{tmp_path / 'persisted.db'}\nLOG_DIR={configured_logs}\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(launcher.sys, "frozen", True, raising=False)
+    monkeypatch.setenv("ALPHAFOUNDRY_DESKTOP_DATA_DIR", str(tmp_path))
+    for key in ("ALPHAFOUNDRY_CONFIG_PATH", "DATABASE_URL", "LOG_DIR"):
+        monkeypatch.delenv(key, raising=False)
+
+    launcher.apply_frozen_desktop_defaults()
+
+    assert os.environ["DATABASE_URL"] == f"sqlite:///{tmp_path / 'persisted.db'}"
+    assert os.environ["LOG_DIR"] == str(configured_logs)
+    assert configured_logs.is_dir()
+
+
+def test_frozen_backend_launcher_preserves_explicit_environment_over_config(monkeypatch, tmp_path):
+    launcher = load_launcher_module()
+    (tmp_path / ".env").write_text(
+        "DATABASE_URL=sqlite:////persisted.db\nLOG_DIR=/persisted/logs\n",
+        encoding="utf-8",
+    )
+    explicit_logs = tmp_path / "explicit-logs"
+    monkeypatch.setattr(launcher.sys, "frozen", True, raising=False)
+    monkeypatch.setenv("ALPHAFOUNDRY_DESKTOP_DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("ALPHAFOUNDRY_CONFIG_PATH", raising=False)
+    monkeypatch.setenv("DATABASE_URL", "sqlite:////explicit.db")
+    monkeypatch.setenv("LOG_DIR", str(explicit_logs))
+
+    launcher.apply_frozen_desktop_defaults()
+
+    assert os.environ["DATABASE_URL"] == "sqlite:////explicit.db"
+    assert os.environ["LOG_DIR"] == str(explicit_logs)
+    assert explicit_logs.is_dir()

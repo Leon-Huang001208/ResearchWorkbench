@@ -8,6 +8,23 @@ let configurationReady = false;
 let configurationSnapshot = null;
 let loadAbortController = null;
 
+export function configurationRequestOptions(options = {}) {
+    const csrfToken = globalThis.document
+        ?.querySelector('meta[name="alphafoundry-config-token"]')
+        ?.content || '';
+    return {
+        ...options,
+        headers: {
+            ...(options.headers || {}),
+            'X-AlphaFoundry-Config-Token': csrfToken,
+        },
+    };
+}
+
+async function configurationApiCall(method, url, body = null, options = {}) {
+    return apiCall(method, url, body, configurationRequestOptions(options));
+}
+
 export function createGenerationTracker() {
     let generation = 0;
     return {
@@ -448,7 +465,7 @@ async function loadConfiguration({ discardDirty = false } = {}) {
     loadAbortController = controller;
     showPageMessage('正在读取配置…');
     try {
-        const snapshot = await apiCall('GET', '/api/config', null, { signal: controller.signal });
+        const snapshot = await configurationApiCall('GET', '/api/config', null, { signal: controller.signal });
         if (!loadGeneration.isLatest(token)) return;
         if (discardDirty) dirtySections.clear();
         renderSnapshot(snapshot);
@@ -593,7 +610,7 @@ async function saveSection(section) {
     setSectionStatus(section, '保存中…');
     try {
         const payload = collectSection(section);
-        const result = await apiCall('PUT', `/api/config/${section}`, payload);
+        const result = await configurationApiCall('PUT', `/api/config/${section}`, payload);
         if (!requestCoordinator.isLatest(section, token)) return;
         const editedWhileSaving = (sectionEditGenerations.get(section) || 0) !== submittedEditGeneration;
         applySectionResponse(section, result.section, !editedWhileSaving);
@@ -623,7 +640,7 @@ async function testSection(section) {
     setSectionBusy(section, true);
     setSectionStatus(section, '验证中…');
     try {
-        const result = await apiCall('POST', `/api/config/${section}/test`, collectSection(section));
+        const result = await configurationApiCall('POST', `/api/config/${section}/test`, collectSection(section));
         if (!requestCoordinator.isLatest(section, token)) return;
         const message = result.success ? '连接验证成功' : '连接验证失败';
         setSectionStatus(section, message, result.success ? 'ready' : 'error');

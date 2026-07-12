@@ -403,11 +403,25 @@ class ConfigurationService:
                 prefix = f"LLM_PROVIDER_{index}_"
                 updates[f"{prefix}NAME"] = name
                 updates[f"{prefix}PROTOCOL"] = protocol
-                updates[f"{prefix}BASE_URL"] = str(provider.get("base_url", "")).strip()
+                base_url = str(provider.get("base_url", "")).strip()
+                updates[f"{prefix}BASE_URL"] = base_url
                 original_name = str(provider.get("original_name") or name)
-                old_secret = str(existing.get(original_name, {}).get("api_key_value", ""))
+                original_provider = existing.get(original_name, {})
+                old_secret = str(original_provider.get("api_key_value", ""))
+                submitted_secret = provider.get("api_key")
+                clear_secret = bool(provider.get("clear_api_key", False))
+                if (
+                    provider.get("original_name")
+                    and old_secret
+                    and base_url != str(original_provider.get("base_url", ""))
+                    and not clear_secret
+                    and (submitted_secret is None or str(submitted_secret) == "")
+                ):
+                    raise ConfigurationError("Provider 地址变更后必须重新输入 Token")
                 secret = self._merge_secret(
-                    provider.get("api_key"), bool(provider.get("clear_api_key", False)), old_secret
+                    submitted_secret,
+                    clear_secret,
+                    old_secret,
                 )
                 if secret:
                     updates[f"{prefix}API_KEY"] = secret
@@ -502,12 +516,26 @@ class ConfigurationService:
                 updates[key] = value
                 changed.add(field)
         submitted_password = payload.get("password")
+        clear_password = bool(payload.get("clear_password", False))
+        backend_changed = "backend" in payload and str(payload["backend"]).strip() != current.get(
+            "IFIND_BACKEND", "auto"
+        )
+        base_url_changed = "http_base_url" in payload and str(
+            payload["http_base_url"]
+        ).strip() != current.get("IFIND_HTTP_BASE_URL", "https://quantapi.10jqka.com.cn")
+        if (
+            current.get("IFIND_PASSWORD")
+            and (backend_changed or base_url_changed)
+            and not clear_password
+            and (submitted_password is None or str(submitted_password) == "")
+        ):
+            raise ConfigurationError("iFinD 连接端点变更后必须重新输入密码")
         if payload.get("clear_password") or (
             submitted_password is not None and str(submitted_password) != ""
         ):
             password = self._merge_secret(
                 submitted_password,
-                bool(payload.get("clear_password", False)),
+                clear_password,
                 current.get("IFIND_PASSWORD", ""),
             )
             if password:

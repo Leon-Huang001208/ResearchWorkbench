@@ -4,15 +4,94 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from app.api.main import app
+from app.api.configuration_security import CONFIGURATION_CSRF_TOKEN
+from app.api.main import app, parse_cors_origins
 from app.api.routes.configuration import get_configuration_service
 from services.configuration_service import ConfigurationService
 
+CONFIGURATION_SECURITY_SOURCE = (
+    Path(__file__).resolve().parents[2] / "app" / "api" / "configuration_security.py"
+)
 
-def _client_for(path: Path, connection_probes=None) -> TestClient:
+
+def _client_for(path: Path, connection_probes=None, authorized=True) -> TestClient:
     service = ConfigurationService(env_path=path, connection_probes=connection_probes)
     app.dependency_overrides[get_configuration_service] = lambda: service
-    return TestClient(app)
+    client = TestClient(app)
+    if authorized:
+        client.headers["X-AlphaFoundry-Config-Token"] = CONFIGURATION_CSRF_TOKEN
+    return client
+
+
+def test_configuration_api_requires_exact_csrf_token(tmp_path):
+    missing = _client_for(tmp_path / ".env", authorized=False)
+    missing_responses = [
+        missing.get("/api/config"),
+        missing.put("/api/config/advanced", json={"log_level": "DEBUG"}),
+        missing.post("/api/config/database/test", json={"database_url": "sqlite:////tmp/a.db"}),
+    ]
+    wrong_response = missing.get(
+        "/api/config", headers={"X-AlphaFoundry-Config-Token": "wrong-token"}
+    )
+    valid = missing.get(
+        "/api/config",
+        headers={"X-AlphaFoundry-Config-Token": CONFIGURATION_CSRF_TOKEN},
+    )
+
+    assert all(response.status_code == 403 for response in missing_responses)
+    assert wrong_response.status_code == 403
+    assert all(response.json() == {"detail": "Forbidden"} for response in missing_responses)
+    assert wrong_response.json() == {"detail": "Forbidden"}
+    assert CONFIGURATION_CSRF_TOKEN not in wrong_response.text
+    assert valid.status_code == 200
+    app.dependency_overrides.clear()
+
+
+def test_default_cors_is_disabled_and_index_injects_token_without_api_echo(tmp_path):
+    client = _client_for(tmp_path / ".env")
+
+    index_response = client.get("/", headers={"Origin": "https://attacker.example"})
+    second_index_response = client.get("/")
+    preflight_response = client.options(
+        "/api/config",
+        headers={
+            "Origin": "https://attacker.example",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    api_response = client.get("/api/config")
+
+    assert index_response.status_code == 200
+    assert index_response.headers.get("access-control-allow-origin") is None
+    assert preflight_response.headers.get("access-control-allow-origin") is None
+    assert f'content="{CONFIGURATION_CSRF_TOKEN}"' in index_response.text
+    assert f'content="{CONFIGURATION_CSRF_TOKEN}"' in second_index_response.text
+    assert CONFIGURATION_CSRF_TOKEN not in api_response.text
+    security_source = CONFIGURATION_SECURITY_SOURCE.read_text(encoding="utf-8")
+    assert "logger" not in security_source
+    assert "logging" not in security_source
+    app.dependency_overrides.clear()
+
+
+def test_cors_origins_require_explicit_strict_http_origins():
+    assert parse_cors_origins(None) == []
+    assert parse_cors_origins("https://one.example,http://127.0.0.1:3000") == [
+        "https://one.example",
+        "http://127.0.0.1:3000",
+    ]
+    for invalid in (
+        "*",
+        "javascript:alert(1)",
+        "https://user:password@example.test",
+        "https://example.test/path",
+        "https://example.test?token=secret",
+    ):
+        try:
+            parse_cors_origins(invalid)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"invalid CORS origin accepted: {invalid}")
 
 
 def test_get_configuration_never_returns_plaintext_secrets(tmp_path):

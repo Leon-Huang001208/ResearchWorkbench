@@ -1,7 +1,9 @@
 """AlphaFoundry API"""
+import os
 import sys
 from pathlib import Path
 from typing import Any, Dict
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,6 +17,10 @@ script_path = Path(__file__).resolve()
 project_root = script_path.parent.parent.parent  # app/api/main.py → project root
 sys.path.insert(0, str(project_root))
 
+from app.api.configuration_security import (
+    CONFIGURATION_CSRF_META_PLACEHOLDER,
+    CONFIGURATION_CSRF_TOKEN,
+)
 from core.observability import configure_logging, get_logger
 
 logger = get_logger(__name__)
@@ -51,14 +57,43 @@ def shutdown() -> None:
     logger.info("AlphaFoundry API shutting down...")
 
 
-# ─── CORS（开发模式允许所有来源）─────────────────────────
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+def parse_cors_origins(raw_origins: str | None) -> list[str]:
+    """解析显式 CORS origin 列表，拒绝通配符和非 origin URL。"""
+    if not raw_origins or not raw_origins.strip():
+        return []
+    origins: list[str] = []
+    for raw_origin in raw_origins.split(","):
+        origin = raw_origin.strip()
+        try:
+            parsed = urlsplit(origin)
+            _ = parsed.port
+        except ValueError as exc:
+            raise ValueError("ALPHAFOUNDRY_CORS_ORIGINS contains an invalid origin") from exc
+        if (
+            origin == "*"
+            or parsed.scheme not in {"http", "https"}
+            or not parsed.hostname
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.path
+            or parsed.query
+            or parsed.fragment
+        ):
+            raise ValueError("ALPHAFOUNDRY_CORS_ORIGINS contains an invalid origin")
+        if origin not in origins:
+            origins.append(origin)
+    return origins
+
+
+cors_origins = parse_cors_origins(os.environ.get("ALPHAFOUNDRY_CORS_ORIGINS"))
+if cors_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=cors_origins,
+        allow_credentials=True,
+        allow_methods=["GET", "PUT", "POST", "OPTIONS"],
+        allow_headers=["Content-Type", "X-AlphaFoundry-Config-Token"],
+    )
 
 # ─── 注册路由 ───────────────────────────────────────────
 from app.api.routes import (  # noqa: E402
@@ -177,8 +212,12 @@ app.mount("/static", NoCacheStaticFiles(directory=str(_static_dir)), name="stati
 async def index() -> HTMLResponse:
     """首页 - 交互式 Web 前端"""
     index_path = _templates_dir / "index.html"
+    html = index_path.read_text(encoding="utf-8").replace(
+        CONFIGURATION_CSRF_META_PLACEHOLDER,
+        CONFIGURATION_CSRF_TOKEN,
+    )
     return HTMLResponse(
-        index_path.read_text(encoding="utf-8"),
+        html,
         headers={
             "Cache-Control": "no-store, max-age=0",
             "Pragma": "no-cache",

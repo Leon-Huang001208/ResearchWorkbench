@@ -9,12 +9,15 @@ import sys
 from pathlib import Path
 from typing import Sequence
 
+from dotenv import load_dotenv
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
 DEFAULT_LOG_DIR = Path("logs")
 APP_IMPORT = "app.api.main:app"
-PROJECT_ROOT = Path(os.environ.get("ALPHAFOUNDRY_PROJECT_ROOT", Path(__file__).resolve().parents[2]))
+PROJECT_ROOT = Path(
+    os.environ.get("ALPHAFOUNDRY_PROJECT_ROOT", Path(__file__).resolve().parents[2])
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -71,17 +74,23 @@ def apply_frozen_desktop_defaults() -> Path | None:
 
     data_dir = desktop_data_dir()
     data_dir.mkdir(parents=True, exist_ok=True)
-    (data_dir / "logs").mkdir(parents=True, exist_ok=True)
-    (data_dir / "objects").mkdir(parents=True, exist_ok=True)
-    (data_dir / "markdown").mkdir(parents=True, exist_ok=True)
-    (data_dir / "raw_text").mkdir(parents=True, exist_ok=True)
-
     os.environ.setdefault("ALPHAFOUNDRY_DESKTOP_DATA_DIR", str(data_dir))
+    config_path = Path(os.environ.get("ALPHAFOUNDRY_CONFIG_PATH", data_dir / ".env")).expanduser()
+    os.environ.setdefault("ALPHAFOUNDRY_CONFIG_PATH", str(config_path))
+    load_dotenv(config_path, override=False)
+
     os.environ.setdefault("DATABASE_URL", f"sqlite:///{data_dir / 'alphafoundry.db'}")
     os.environ.setdefault("LOG_DIR", str(data_dir / "logs"))
     os.environ.setdefault("OBJECT_STORAGE_PATH", str(data_dir / "objects"))
     os.environ.setdefault("PDF_MARKDOWN_DIR", str(data_dir / "markdown"))
     os.environ.setdefault("PDF_RAW_TEXT_DIR", str(data_dir / "raw_text"))
+    for key in (
+        "LOG_DIR",
+        "OBJECT_STORAGE_PATH",
+        "PDF_MARKDOWN_DIR",
+        "PDF_RAW_TEXT_DIR",
+    ):
+        Path(os.environ[key]).expanduser().mkdir(parents=True, exist_ok=True)
     return data_dir
 
 
@@ -107,7 +116,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     data_dir = apply_frozen_desktop_defaults()
     if data_dir is not None and args.log_dir == DEFAULT_LOG_DIR:
-        args.log_dir = data_dir / "logs"
+        args.log_dir = Path(os.environ["LOG_DIR"])
     log_file = configure_launcher_logging(args.log_dir)
     logger = logging.getLogger("alphafoundry.desktop")
     os.environ.setdefault("ALPHAFOUNDRY_DESKTOP", "1")
