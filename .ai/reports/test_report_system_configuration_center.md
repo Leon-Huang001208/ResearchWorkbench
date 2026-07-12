@@ -2,7 +2,7 @@
 
 Task ID: `system-configuration-center`
 
-Status: `doing`（浏览器验证和全仓门禁尚未执行）
+Status: `doing`（功能与浏览器验证完成；仓库既有全仓门禁失败）
 
 Changed source files:
 
@@ -28,13 +28,15 @@ Changed test files:
 
 Commands/results recorded by implementation and integration stages:
 
-- Backend focused and related iFinD/ZQ/desktop regression: `65 passed, 22 warnings`.
-- Configuration frontend focused suite: `13 passed`.
-- Combined frontend regression: `96/98` passed; 2 failures are pre-existing baseline failures not introduced by the configuration center.
+- Fresh combined configuration/iFinD/ZQ suite: `78 passed, 22 warnings`.
+- Configuration frontend focused suite: `14 passed`, including three Node-backed behavior tests and a WCAG contrast matrix.
+- Combined frontend regression before final style-only changes: 2 failures, matching the pre-implementation baseline (`if (!wordFile)` legacy assertion and old `app.js?v=20260703theme1` cache-version assertion).
 - Focused ruff: passed.
 - Focused black check: passed.
-- Focused isort check: passed.
+- Focused isort check: passed after normalizing `tests/unit/test_configuration_frontend.py`.
 - Targeted mypy (`--follow-imports=skip`): passed, 5 source files checked.
+- Playwright CLI browser verification: passed at 1440×1000 and 820×1000.
+- Runtime `.env` persistence: passed with mode `0600`.
 
 Behavior covered:
 
@@ -46,10 +48,30 @@ Behavior covered:
 - Real short-timeout LLM/ZhiQiu/iFinD probes with no candidate persistence; database URL-only validation.
 - Frontend initial-load gate, stale-load cancellation, save/test serialization, dirty-form protection, safe DOM rendering, and blank secret controls.
 
+Browser verification:
+
+- Loaded the configuration page from the real FastAPI application using an isolated SQLite database and `/tmp` configuration path.
+- Added and saved an LLM Provider and task route; the readiness summary changed from `2 / 5` to `3 / 5`.
+- Reloaded the page and confirmed the Token field remained blank while displaying `已配置`.
+- Renamed the Provider with an empty Token field and verified the persisted API key remained present.
+- Verified entering a replacement Token then selecting explicit clear emptied and disabled the secret input.
+- Saved a database URL and confirmed the UI returned `重启后生效`.
+- Verified the 1440px single-column layout no longer overlaps the help cards and the 820px layout remains usable.
+- Browser console contained no JavaScript errors; Chromium emitted only password/autocomplete accessibility suggestions.
+
+Full repository gates:
+
+- `ruff check .`: failed with 5 pre-existing issues outside the feature files.
+- `black . --check`: failed because 56 pre-existing files would be reformatted.
+- `isort . --check-only`: failed on pre-existing files after the feature test import spacing was fixed.
+- `mypy core/ data_layer/ knowledge_layer/ reasoning/ reporting/ signal_lab/ app/`: failed with 40 errors in 10 pre-existing files; the changed Python files pass targeted mypy.
+- `python -m pytest tests/ -v`: collection stopped with the pre-existing duplicate basename conflict between `tests/unit/core/services/test_pdf_conversion_service.py` and `tests/unit/test_pdf_conversion_service.py` after collecting 2073 items.
+- `python scripts/check_task_completion.py`: passed.
+- `python scripts/check_doc_sync.py`: passed.
+- `python scripts/generate_py_file_index.py`: passed.
+
 Skipped checks:
 
-- Browser interaction and visual verification have not been run.
-- Full repository pytest, mypy, ruff, black, and isort gates have not been run for this task.
 - Real production credentials were not used by automated tests; connection-probe unit tests inject controlled probes, while production defaults use the existing real clients.
 
 Documentation checks:
@@ -60,8 +82,7 @@ Documentation checks:
 
 Remaining risk:
 
-- The five-section flow, secret non-disclosure, database restart notice, dark/light themes, and narrow layout still require browser verification.
-- Repository-wide regressions remain unknown until the full gate is run.
-- The two combined frontend baseline failures should be rechecked by the integration owner, but are recorded as pre-existing rather than configuration-center regressions.
+- The project-wide formatting, typing, and pytest collection debt prevents the mandatory repository completion gate from passing.
+- Real LLM、知秋和 iFinD connectivity still depends on valid user credentials and reachable vendor services.
 
-Final test decision: focused backend/frontend scopes are green; task remains `doing` pending browser and full-repository gates.
+Final test decision: feature-focused and browser verification are green; task remains `doing` because mandatory repository-wide gates are blocked by pre-existing failures.
