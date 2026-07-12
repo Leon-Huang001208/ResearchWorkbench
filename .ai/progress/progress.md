@@ -21,7 +21,7 @@
 | **AF-AUTO-010** | 🔄 进行中 | 2026-06-02 | - | [progress_af_auto_010.md](progress_af_auto_010.md) |
 | **AF-AUTO-013** | ✅ 已完成 | 2026-05-30 | 2026-06-03 | [progress_af_auto_013.md](progress_af_auto_013.md) |
 | **report-projects-doc-sync-2026-06-08** | ✅ 已完成 | 2026-06-08 | 2026-06-08 | [progress_report_projects_doc_sync.md](progress_report_projects_doc_sync.md) |
-| **system-configuration-center** | ✅ 已完成 | 2026-07-12 | 2026-07-12 | [progress_system_configuration_center.md](progress_system_configuration_center.md) |
+| **system-configuration-center** | 🔄 进行中 | 2026-07-12 | - | [progress_system_configuration_center.md](progress_system_configuration_center.md) |
 
 ---
 
@@ -163,4 +163,13 @@
 
 ---
 
-**最后更新**: 2026-07-07（report_project_compiled_plan 报告项目生成预检计划）
+### system-configuration-center: 系统配置中心 🔄
+
+- **目标**: 在桌面工作台集中、安全地管理 LLM、知秋、iFinD、数据库和高级运行参数。
+- **成果**: 五分区配置 API/Web 页面、秘密脱敏与显式清除、路径级线程/进程锁和原子 dotenv 写入、可安全字段热更新、数据库重启提示、真实非持久化连接探针，以及旧知秋账号兼容均已实现。
+- **验证**: 后端 `65 passed`；配置前端 `13 passed`；合并前端回归 `96/98`，2 项为既有基线失败。
+- **剩余**: 浏览器交互验证与全仓门禁未运行，任务和 metadata 保持 `doing`。
+
+---
+
+**最后更新**: 2026-07-12（system-configuration-center 文档与审计同步）

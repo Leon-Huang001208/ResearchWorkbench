@@ -1,15 +1,12 @@
-# 系统配置中心后端进度
+# 系统配置中心进度
 
 - 任务 ID：`system-configuration-center`
-- 状态：已完成
+- 状态：进行中（`doing`）
 - 开始日期：2026-07-12
-- 影响子系统：`core/settings`、`data_layer/crawlers/zq`、`services`、`app/api`
-- 完成内容：运行时 `.env` 路径兼容、知秋 JSON 账号与轮询环境配置、五分区脱敏配置服务、原子持久化和热更新、严格配置 API。
-- 测试：20 个 focused tests 通过；ruff、black、isort 和 targeted mypy 通过。
-- 规格复审修复：安全 422、知秋 JSON 权威空账号语义、真实非持久化连接探针、`original_name` 改名保密语义均已补充回归覆盖。
-- 复审验证：配置测试及关联 iFinD/桌面回归共 34 passed。
-- 代码质量复审修复：同路径线程/进程事务锁、严格 dotenv 拒写、replace/目录 fsync、iFinD null 拒绝、知秋探针资源关闭与禁用失败页面均已覆盖。
-- 代码质量复审验证：配置、iFinD、ZQ connector/adapter 和桌面路径回归共 63 passed。
-- Windows 权限兼容修复：`fchmod` 可选调用，缺失时仅在 replace 前使用可用的 `chmod`；权限设置失败保持原文件并清理临时文件。
-- 最终 focused 与关联回归：65 passed。
-- 文档范围：按委派要求仅维护任务、进度和测试报告，不修改长期文档或前端资源。
+- 影响子系统：`core/settings`、`services`、`app/api`、`app/web`、`data_layer/crawlers/zq`
+- 已实现：运行时 `.env` 路径兼容、知秋 JSON/旧格式账号与轮询配置、五分区脱敏配置服务、加锁原子持久化、运行时刷新、数据库重启语义、严格配置 API 和系统配置 Web 页面。
+- 安全与兼容：秘密三态、`original_name` 改名关联、安全 422、知秋 JSON 权威空账号语义、真实非持久化连接探针、线程/进程事务锁、严格 dotenv、Windows 权限兼容和客户端资源关闭均有回归覆盖。
+- 文档：已同步 `.env.example`、API/Web/爬虫模块文档、架构、开发映射、文件指南、参考手册、更新日志和测试审计记录；Python 文件索引由脚本重新生成。
+- 测试记录：后端 focused/关联回归 `65 passed`；配置前端 focused `13 passed`；合并前端回归 `96/98`，其中 2 项为本功能变更前已存在的基线失败。
+- 未完成门禁：尚未执行浏览器交互验证与全仓质量/测试门禁；因此不得标记 `done`。
+- 下一步：运行配置页面浏览器验证，再由集成代理执行全仓门禁并复核既有前端基线失败。

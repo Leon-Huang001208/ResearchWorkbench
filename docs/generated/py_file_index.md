@@ -15,6 +15,41 @@ Module docstring:
 > AlphaFoundry API Module
 
 
+## `app/api/configuration_models.py`
+
+Module docstring:
+> 系统配置中心 API 契约。
+
+Imports:
+- `pydantic`
+- `typing`
+
+Classes:
+- `StrictModel`
+  - 禁止额外字段和隐式类型转换的 API 基类。
+- `SecretState`
+- `ProviderView`
+- `TaskRouteModel`
+- `LlmSectionView`
+- `ZhiQiuAccountView`
+- `ZhiQiuSectionView`
+- `IFindSectionView`
+- `DatabaseSectionView`
+- `AdvancedSectionView`
+- `ConfigurationSections`
+- `ConfigurationSnapshotResponse`
+- `ProviderUpdate`
+- `LlmUpdateRequest`
+- `ZhiQiuAccountUpdate`
+- `ZhiQiuUpdateRequest`
+- `IFindUpdateRequest`
+- `DatabaseUpdateRequest`
+- `AdvancedUpdateRequest`
+  - methods: validate_chunk_boundaries
+- `ConfigurationUpdateResponse`
+- `ConfigurationTestResponse`
+
+
 ## `app/api/main.py`
 
 Module docstring:
@@ -247,6 +282,31 @@ Functions:
   - Persist one commentary generation run.
 - `list_commentary_runs`
   - Return recent commentary generation runs.
+
+
+## `app/api/routes/configuration.py`
+
+Module docstring:
+> 系统配置中心 API 路由。
+
+Imports:
+- `app.api.configuration_models`
+- `core.observability`
+- `fastapi`
+- `pydantic`
+- `services.configuration_service`
+- `typing`
+
+Functions:
+- `get_configuration_service`
+  - 提供配置服务，便于测试替换运行时路径。
+- `_validate_payload`
+- `get_configuration`
+  - 读取全部配置的脱敏快照。
+- `update_configuration`
+  - 校验、持久化并按分区应用配置。
+- `test_configuration`
+  - 非破坏性验证尚未保存的分区配置。
 
 
 ## `app/api/routes/dashboard.py`
@@ -1245,6 +1305,7 @@ Imports:
 - `reporting.projections.ppt`
 - `reporting.projects.chart_generation`
 - `reporting.projects.generation`
+- `reporting.projects.jobs`
 - `reporting.projects.keyword_profiles`
 - `reporting.projects.plan`
 - `reporting.projects.project_manager`
@@ -1277,10 +1338,13 @@ Classes:
   - Report project source update request.
 - `RenderReportProjectResponse`
   - Project report render response.
+- `RenderReportJobResponse`
+  - Current state of one background report render.
 - `OpenReportProjectFolderResponse`
   - Result for opening a local report project folder.
 
 Functions:
+- `_run_background_report`
 - `list_report_projects`
   - List report projects stored as project folders.
 - `upload_report_project`
@@ -1291,6 +1355,13 @@ Functions:
   - Rename a report project and update its project.yaml.
 - `update_report_project_source`
   - Persist editable report project source files.
+- `_to_run_request`
+- `_to_render_response`
+- `_to_render_job_response`
+- `submit_report_project_render_job`
+  - Queue a report render without tying it to the HTTP request lifetime.
+- `get_report_project_render_job`
+  - Return a report job only when it belongs to the requested project.
 - `render_report_project`
   - Render a report project into its own generated directory.
 - `preview_report_project_file`
@@ -3702,6 +3773,10 @@ Classes:
 - `Settings`
   - methods: _build_provider_configs, _parse_provider_profiles_from_env, _parse_task_routes_from_env, ensure_dirs
 
+Functions:
+- `resolve_runtime_env_path`
+  - 解析当前运行模式应使用的配置文件路径。
+
 
 ## `core/source_registry.py`
 
@@ -5527,7 +5602,7 @@ Classes:
   - methods: __init__, acquire, release, __enter__, __exit__
 - `AccountManager`
   - 并发安全的账号管理器
-  - methods: __init__, _load_config, _parse_rotation_config, _init_state, _init_new_state, _load_state, _save_state, _clean_expired_leases, _is_account_available, get_available_accounts, acquire_account, _lease_account, release_account, _round_robin_select, record_success, record_failure, get_account_credentials, get_account_stats, get_all_stats
+  - methods: __init__, _load_config, _load_accounts_from_environment, _parse_rotation_config, _init_state, _init_new_state, _load_state, _save_state, _clean_expired_leases, _is_account_available, get_available_accounts, acquire_account, _lease_account, release_account, _round_robin_select, record_success, record_failure, get_account_credentials, get_account_stats, get_all_stats
 - `AccountLease`
   - 账号租借上下文管理器
   - methods: __init__, __enter__, __exit__
@@ -5612,15 +5687,17 @@ Imports:
 - `json`
 - `logging`
 - `os`
+- `pathlib`
 - `re`
 - `requests`
+- `types`
 - `typing`
 - `utils`
 
 Classes:
 - `ZhiQiuClient`
   - 知丘客户端：登录、研报搜索、AI问答、PDF下载
-  - methods: __init__, login, docqa, search_reports, extract_core_viewpoint, extract_focus_companies, download_pdf, _sanitize_filename, check_login_status, search_homepage, _convert_new_format, search_homepage_all_pages, get_meeting_detail
+  - methods: __init__, login, close, __enter__, __exit__, docqa, search_reports, extract_core_viewpoint, extract_focus_companies, download_pdf, _sanitize_filename, check_login_status, search_homepage, _convert_new_format, search_homepage_all_pages, get_meeting_detail
 
 
 ## `data_layer/crawlers/zq/zhiqiu/ejection_detector.py`
@@ -9720,6 +9797,7 @@ Imports:
 - `reporting.projects.keyword_profiles`
 - `reporting.projects.project_manager`
 - `sqlalchemy`
+- `threading`
 - `typing`
 
 Classes:
@@ -9747,7 +9825,7 @@ Classes:
   - methods: retrieve, _retrieve_ingestion_items, _retrieve_events, _retrieve_recent_ingestion_items, _retrieve_recent_events, _extract_terms, _compact_text
 - `ReportProjectGenerationService`
   - Generates Word placeholders from project config, evidence, and LLM.
-  - methods: __init__, generate_placeholders, _generate_configured_placeholder, _generate_composite_market_review, _retrieve_evidence, _rerank_evidence_if_needed, _generate_market_hotspot_section, _generate_section, _fallback_content, _clean_model_content
+  - methods: __init__, generate_placeholders, _emit_progress, _generate_configured_placeholder, _generate_composite_market_review, _retrieve_evidence, _rerank_evidence_if_needed, _generate_market_hotspot_section, _generate_section, _fallback_content, _clean_model_content
 - `_SafeFormatDict`
   - Keep unknown data template placeholders visible instead of crashing generation.
   - methods: __missing__
@@ -9859,6 +9937,31 @@ Functions:
   - Format evidence snippets for an LLM prompt.
 - `_strip_code_fences`
 - `_extract_label_value`
+
+
+## `reporting/projects/jobs.py`
+
+Module docstring:
+> In-process background jobs for report-project generation.
+
+Imports:
+- `__future__`
+- `concurrent.futures`
+- `core.observability`
+- `dataclasses`
+- `datetime`
+- `reporting.projects.project_manager`
+- `reporting.projects.run`
+- `threading`
+- `typing`
+- `uuid`
+
+Classes:
+- `ReportGenerationJob`
+  - Serializable snapshot of one report-generation job.
+- `ReportGenerationJobService`
+  - Run report generation away from the request lifecycle.
+  - methods: __init__, submit, get, list_jobs, shutdown, _run_job, _update, _prune_terminal_jobs
 
 
 ## `reporting/projects/keyword_profiles.py`
@@ -9979,7 +10082,7 @@ Classes:
   - Rendered artifact metadata and aggregated warnings.
 - `ReportProjectRunService`
   - Execute a project-level Word or PPT report render.
-  - methods: __init__, execute, _execute_word, _execute_ppt, _generate_placeholders, _write_word_run_log, _write_ppt_run_log, _write_run_record, _generation_record, _word_warnings, _artifact_file_name
+  - methods: __init__, execute, _execute_word, _execute_ppt, _generate_placeholders, _emit_progress, _write_word_run_log, _write_ppt_run_log, _write_run_record, _generation_record, _word_warnings, _artifact_file_name
 
 Functions:
 - `serialize_retrieval_config`

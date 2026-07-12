@@ -49,6 +49,23 @@ Update this section when:
 
 ---
 
+### `app/api/configuration_models.py` and `app/api/routes/configuration.py`
+
+Purpose:
+
+- Define strict, extra-field-forbidden contracts for the five configuration sections: `llm`, `zhiqiu`, `ifind`, `database`, and `advanced`.
+- `GET /api/config` returns a five-section snapshot, readiness map, and ready/total counts. Secrets are represented only by `configured` and an optional irreversible `masked_value`; full tokens, passwords, and database credentials are never returned.
+- `PUT /api/config/{section}` validates and saves exactly one supported section. LLM, iFinD, advanced values, and environment-backed values used by newly created ZhiQiu clients apply to subsequent work; database updates return `applied=false` and `restart_required=true` because the active SQLAlchemy pool is not replaced.
+- `POST /api/config/{section}/test` merges unsaved form values with retained secrets without writing the file or mutating `os.environ`. LLM, ZhiQiu, and iFinD use real short-timeout probes; database performs URL structure validation; advanced does not support testing.
+- Sensitive fields use three-state semantics: missing/blank retains the saved value, a non-empty value replaces it, and the matching `clear_*` flag removes it. `original_name` identifies the previous Provider/account entry during rename so the retained secret follows the renamed row.
+- Validation responses omit rejected input values and validation context. Routes delegate parsing, persistence, runtime refresh, and safe logging to `ConfigurationService`.
+
+Update this section when:
+
+- Configuration section fields, validation limits, response masking, connection tests, or restart semantics change.
+
+---
+
 ### `app/api/routes/wind.py`
 
 Purpose:
@@ -338,4 +355,5 @@ When files in this module change, check:
 
 ## Recent Changes
 
+- 2026-07-12: 注册系统配置 API，提供五分区脱敏读取、严格分区更新和非持久化连接验证；422 响应不回显被拒绝的秘密值，数据库更新显式返回重启要求。
 - 2026-06-04: 收敛 API 路由层 mypy 历史债务，补齐上传流、监控响应、模板 section 拼装的显式类型，保持现有请求/响应行为不变。

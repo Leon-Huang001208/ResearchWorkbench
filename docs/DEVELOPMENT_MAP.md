@@ -915,3 +915,56 @@ Update triggers:
 - Base class lifecycle changes
 - Registry API changes
 - New concrete connector implementation
+
+---
+
+## 20. System Configuration Center
+
+Subsystem:
+
+```text
+core/settings
+services/configuration_service.py
+app/api/configuration_models.py
+app/api/routes/configuration.py
+app/web/static/js/configuration.js
+data_layer/crawlers/zq/zhiqiu
+```
+
+Responsibilities:
+
+- Resolve the runtime `.env` path for project and desktop modes.
+- Expose only the five allowlisted configuration sections through a strict, secret-safe API and Web workbench.
+- Serialize same-path read/modify/write transactions, preserve unrelated dotenv content, and replace the file atomically.
+- Refresh runtime-safe settings, keep database pool changes restart-only, and provide real non-persistent LLM/ZhiQiu/iFinD connection probes.
+- Preserve ZhiQiu JSON → legacy environment → YAML compatibility with fail-closed structured-account semantics.
+
+Required tests:
+
+- Runtime path and ZhiQiu compatibility tests
+- Configuration service atomicity, locking, masking, secret merge/clear, hot-update, restart, and probe tests
+- API request/response and safe-error tests
+- Frontend static/Node tests plus browser verification of the five-section workflow
+
+Required docs:
+
+```text
+.env.example
+docs/modules/app_api.md
+docs/modules/app_web.md
+docs/modules/data_layer_crawlers.md
+docs/ARCHITECTURE.md
+docs/DEVELOPMENT_MAP.md
+docs/FILE_GUIDE.md
+docs/REFERENCE.md
+docs/CHANGELOG.md
+docs/generated/py_file_index.md
+```
+
+Update triggers:
+
+- Configuration path precedence or effective-value precedence changes
+- Supported sections, environment keys, API schemas, masking, or secret three-state semantics change
+- Atomic persistence, locking, file permissions, runtime refresh, or database restart behavior changes
+- Connection probes or ZhiQiu compatibility precedence changes
+- Configuration navigation, forms, request coordination, or error rendering changes

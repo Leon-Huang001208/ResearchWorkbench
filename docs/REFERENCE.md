@@ -442,6 +442,73 @@ python scripts/seed_factor_data.py --skip-ingest
 
 ---
 
+### 系统配置 API
+
+系统配置中心仅管理 `llm`、`zhiqiu`、`ifind`、`database` 和 `advanced` 五个分区。配置文件路径依次取 `ALPHAFOUNDRY_CONFIG_PATH`、`ALPHAFOUNDRY_DESKTOP_DATA_DIR/.env`、项目根目录 `.env`；当前进程的受支持环境变量覆盖文件同名值。
+
+#### GET /api/config
+
+返回五分区脱敏快照及就绪度：
+
+```json
+{
+  "sections": {
+    "llm": {"providers": [], "task_routes": []},
+    "zhiqiu": {"accounts": [], "enabled": true, "rotation_strategy": "round_robin", "max_retries": 3, "retry_delay": 5, "lease_timeout": 300, "max_consecutive_failures": 10},
+    "ifind": {"username": "", "password": {"configured": false, "masked_value": null}, "backend": "auto", "http_base_url": "https://quantapi.10jqka.com.cn"},
+    "database": {"database_url": {"configured": true, "masked_value": "postgresql://***@localhost:5432/alphafoundry"}, "restart_required": true},
+    "advanced": {"log_level": "INFO", "log_dir": "./logs", "llm_max_workers": 8, "llm_max_retries": 2, "chunk_size": 3500, "chunk_overlap": 300, "long_text_threshold": 1000}
+  },
+  "readiness": {"llm": false, "zhiqiu": false, "ifind": false, "database": true, "advanced": true},
+  "ready_count": 2,
+  "total_count": 5
+}
+```
+
+Provider/知秋账号视图包含 `original_name`，供改名保存时关联旧秘密。Token 和密码只返回 `configured` 与末四位掩码；数据库不会返回用户、密码或查询参数。
+
+#### PUT /api/config/{section}
+
+一次只更新一个分区。请求使用严格类型且拒绝未知字段。LLM 示例：
+
+```json
+{
+  "providers": [
+    {
+      "original_name": "primary",
+      "name": "primary-renamed",
+      "protocol": "openai_compatible",
+      "base_url": "https://api.example.com/v1",
+      "api_key": "",
+      "clear_api_key": false
+    }
+  ],
+  "task_routes": [
+    {"task": "reporting", "provider": "primary-renamed", "model": "example-report-model"}
+  ]
+}
+```
+
+秘密字段语义：省略或 `""` 保留已有值；非空值替换；`clear_api_key=true` / `clear_password=true` 显式清除。`original_name` 在 Provider 或知秋账号改名时定位原秘密。数据库请求为 `{"database_url":"..."}`，不支持空值清除。
+
+成功响应包含更新后的脱敏 `section`、`applied`、`restart_required` 和 `message`。LLM、iFinD、高级值会刷新运行时设置；知秋环境配置供后续新建账号管理器/客户端读取。数据库只落盘，不替换活动 SQLAlchemy 连接池，因此返回 `applied=false`、`restart_required=true`。
+
+持久化会保留无关 dotenv 行和注释，并在路径级线程锁、跨进程锁内通过同目录临时文件原子替换。配置文件格式无效、字段冲突或数值越界返回安全错误，不回显被拒绝的秘密值。
+
+#### POST /api/config/{section}/test
+
+请求体与相同分区的 PUT 契约一致。候选值会和已保存秘密临时合并，但不会写文件或修改进程环境：
+
+- `llm`：向每个 Provider 发送最小聊天请求；
+- `zhiqiu`：逐个临时登录所有可用账号并关闭客户端；
+- `ifind`：通过临时 `BackendRouter` 登录、检查存活并登出；
+- `database`：仅校验 URL 协议/主机结构，不创建或切换连接池；
+- `advanced`：不支持连接测试。
+
+默认超时为 5 秒。探针异常统一返回 `{"success":false,"message":"连接验证失败"}`，响应和日志不包含候选秘密或底层异常文本。
+
+---
+
 ### 仪表盘 API
 
 #### GET /api/dashboard

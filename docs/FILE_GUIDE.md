@@ -34,7 +34,7 @@
 | `README.md` | 项目主文档，包含概述、快速开始、核心特性、使用指南 |
 | `pyproject.toml` | 项目配置文件，包含 black、isort、ruff、pytest、mypy error-code debt list 等工具配置 |
 | `pytest.ini` | Pytest 测试框架配置 |
-| `.env.example` | 环境变量模板，复制为 `.env` 后使用 |
+| `.env.example` | 无真实秘密的环境变量模板；包含运行时配置路径说明、多 Provider/任务路由、知秋 JSON 账号池、iFinD、数据库和高级参数示例 |
 | `.gitignore` | Git 忽略文件配置 |
 | `.claude/` | Claude 配置目录，包含项目特定的 rules |
 | `app/` | 应用层，包含 API、CLI、Web 界面 |
@@ -71,6 +71,8 @@
 |---|---|
 | `app/api/main.py` | API 入口点，初始化 FastAPI 应用，注册所有路由 |
 | `app/api/models.py` | API 请求/响应模型（Pydantic） |
+| `app/api/configuration_models.py` | 系统配置中心严格契约：五分区视图/更新/测试响应，禁止额外字段并定义秘密三态字段 |
+| `app/api/routes/configuration.py` | `/api/config` 路由：脱敏快照、分区原子保存、非持久化连接测试和安全错误映射 |
 | `app/api/routes/audit.py` | 审计 API：查询审计日志 |
 | `app/api/routes/dashboard.py` | 仪表盘 API：获取仪表盘汇总数据 |
 | `app/api/routes/funds.py` | 基金智能 API：基金详情、单基金暴露、基金组合穿透、结构化 rows 导入 |
@@ -109,6 +111,7 @@
 | `app/web/static/style.css` | 全局样式表，包含管线监控、仪表盘等所有页面样式 |
 | `app/web/static/js/app.js` | 主入口模块：导航路由、SSE 连接、全局状态管理 |
 | `app/web/static/js/core.js` | 核心工具模块：apiCall、toast、esc 等公共函数 |
+| `app/web/static/js/configuration.js` | 系统配置页面：五分区渲染/采集、秘密保留与显式清除、`original_name` 改名关联、保存/测试串行化、陈旧请求取消和安全错误展示 |
 | `app/web/static/js/dashboard.js` | 仪表盘模块：Market Overview + Live Monitor 标签页 |
 | `app/web/static/js/funds.js` | 基金情报模块：基金详情查询、经理/持仓/行业暴露渲染、基金组合穿透计算、结构化 rows 导入 |
 | `app/web/static/js/templates.js` | 模板工作台模块：报告项目选择、Word 占位符映射、YAML/Markdown Prompt 源码切换与保存、后端 `compiled_plan` 生成预检、配置驱动生成、下载和 Word HTML 预览 |
@@ -173,6 +176,12 @@
 |---|---|
 | `core/observability/__init__.py` | 可观测性模块初始化 |
 | `core/observability/metrics.py` | 指标定义和记录：counter、gauge、histogram |
+
+### core/settings/ - 运行时配置
+
+| 文件 | 说明 |
+|---|---|
+| `core/settings/config.py` | Pydantic Settings、运行时 `.env` 路径优先级、多 Provider/任务路由解析，以及配置中心可安全热更新的全局 `settings` 对象 |
 
 ### core/connectors/ - 统一数据源连接器抽象
 
@@ -269,6 +278,7 @@
 | **管线监控** | |
 | `pipeline_monitor.py` | 管线监控服务：内存单例追踪 9 个管线阶段（数据采集→知识提取→信号生成→择时回测→学习反馈），聚合 DB 统计，线程安全活动日志（最多 200 条），SSE 实时推送 |
 | **支持服务** | |
+| `configuration_service.py` | 系统配置服务：路径级线程/进程锁、严格 dotenv、`0600` 临时文件 + fsync + 原子替换、五分区脱敏/校验、热更新、数据库重启语义和真实非持久化连接探针 |
 | `data_tier_service.py` | 数据层服务：数据分层管理 |
 | `raw_storage_service.py` | 原始存储服务：原始文件存储和管理 |
 | `news_feature_service.py` | 新闻特征服务：从新闻提取特征 |
@@ -368,9 +378,11 @@
 
 #### data_layer/crawlers/zq/ - 知丘采集器
 
-| 目录 | 说明 |
+| 文件/目录 | 说明 |
 |---|---|
 | `data_layer/crawlers/zq/` | 知丘研报、公众号、会议纪要采集器 |
+| `data_layer/crawlers/zq/zhiqiu/account_manager.py` | 知秋账号池与轮询状态；账号优先级为权威 `ZQ_ACCOUNTS_JSON`、旧 `ZQ_ACCOUNTS`、最后 YAML，JSON 无效/空时不回退 |
+| `data_layer/crawlers/zq/zhiqiu/client.py` | 知秋 HTTP 客户端；提供可关闭 session 的登录/采集能力，供临时连接验证安全复用 |
 
 ### data_layer/parsers/ - 解析器
 

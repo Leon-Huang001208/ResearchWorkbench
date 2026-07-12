@@ -236,6 +236,34 @@ AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System�
 
 **关键契约**：所有核心领域对象都定义在 `contracts/` 中，所有跨层交互必须使用这些 Pydantic 模型，保证类型安全和数据验证。
 
+#### 系统配置中心
+
+系统配置中心是应用层、`core/settings`、`ConfigurationService` 与外部客户端之间的本地配置控制面。Web 页面只调用配置 API；路由使用严格 Pydantic 契约，服务负责读取、脱敏、校验、持久化、运行时刷新和安全日志。允许管理的五个分区是 `llm`、`zhiqiu`、`ifind`、`database` 和 `advanced`，不接受任意环境变量名。
+
+运行时配置文件按以下顺序选择，选中后不再合并其他文件：
+
+1. `ALPHAFOUNDRY_CONFIG_PATH` 指定的文件；
+2. `ALPHAFOUNDRY_DESKTOP_DATA_DIR/.env`；
+3. 项目根目录 `.env`。
+
+读取有效值时，当前进程中受支持的环境变量覆盖该文件的同名值。写入前严格解析 dotenv；语法错误时拒绝覆盖。完整读改写事务按配置路径使用进程内 `RLock` 和跨进程单字节文件锁串行化，再以同目录 `0600` 临时文件写入、文件 `fsync`、`os.replace` 原子替换并尽力同步父目录，保留无关配置与注释。
+
+```text
+section-config
+  → GET /api/config（五分区脱敏快照）
+  → PUT /api/config/{section}
+      → 严格校验 → 加锁读改写 → 原子替换 → 更新受支持的 os.environ
+      → LLM / iFinD / advanced 刷新 Settings
+      → ZhiQiu 后续新建 AccountManager/Client 读取新环境
+      → database 仅持久化，活动连接池不变，重启后生效
+  → POST /api/config/{section}/test
+      → 合并未保存表单与保留秘密 → 临时真实探针 → 不写文件/环境
+```
+
+秘密在 API 中只有 `configured` 和可选掩码：普通秘密只显示末四位，数据库 URL 只保留协议、主机、端口和库路径。秘密输入省略或空字符串表示保留，非空表示替换，`clear_api_key` / `clear_password` 表示显式清除；Provider/知秋条目的 `original_name` 使改名时仍能关联原秘密。日志只记录分区、非敏感字段名和错误类型。
+
+LLM、知秋、iFinD 连接测试会使用候选配置执行短超时真实请求，并在结束时关闭临时客户端；候选秘密不会落盘或写入进程环境。数据库测试只验证 URL 结构，不创建或切换连接池；高级配置没有测试端点。
+
 ---
 
 ### 3. 知识层 (knowledge_layer)

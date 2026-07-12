@@ -119,6 +119,23 @@ Update this section when:
 
 ---
 
+### `data_layer/crawlers/zq/zhiqiu/account_manager.py` and `client.py`
+
+Purpose:
+
+- Load ZhiQiu account credentials from runtime environment without exposing them through the configuration API.
+- Account source precedence is strict: when `ZQ_ACCOUNTS_JSON` exists it is authoritative (including valid `[]`); otherwise legacy `ZQ_ACCOUNTS=user:password,...` is used when present; only when both environment sources are absent may the existing YAML `accounts` map be used.
+- Invalid structured JSON, empty JSON, or entries missing a username/password do not fall through and resurrect legacy/YAML credentials. This fail-closed rule also avoids logging submitted secret content.
+- Structured JSON supports list or object input and preserves punctuation/non-ASCII credentials. The configuration center persists list form and removes legacy `ZQ_ACCOUNTS` when accounts are saved.
+- Rotation environment values (`ZQ_ROTATION_ENABLED`, strategy, retry delay/count, lease timeout, failure threshold) override compatible YAML values for newly created `AccountManager` instances.
+- `ZhiQiuClient.close()` releases the HTTP session; configuration connection tests create temporary clients, attempt login, and close every client without saving the candidate credentials.
+
+Update this section when:
+
+- ZhiQiu credential precedence, rotation overrides, account validation, or client resource lifecycle changes.
+
+---
+
 ### `data_layer/crawlers/cnstock/cnstock.py`
 
 Purpose:
