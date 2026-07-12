@@ -10,4 +10,6 @@
 - 复审验证：配置测试及关联 iFinD/桌面回归共 34 passed。
 - 代码质量复审修复：同路径线程/进程事务锁、严格 dotenv 拒写、replace/目录 fsync、iFinD null 拒绝、知秋探针资源关闭与禁用失败页面均已覆盖。
 - 代码质量复审验证：配置、iFinD、ZQ connector/adapter 和桌面路径回归共 63 passed。
+- Windows 权限兼容修复：`fchmod` 可选调用，缺失时仅在 replace 前使用可用的 `chmod`；权限设置失败保持原文件并清理临时文件。
+- 最终 focused 与关联回归：65 passed。
 - 文档范围：按委派要求仅维护任务、进度和测试报告，不修改长期文档或前端资源。

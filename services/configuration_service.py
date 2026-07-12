@@ -603,7 +603,13 @@ class ConfigurationService:
                 prefix=f".{self.env_path.name}.", dir=self.env_path.parent
             )
             try:
-                os.fchmod(descriptor, stat.S_IRUSR | stat.S_IWUSR)
+                fchmod = getattr(os, "fchmod", None)
+                if fchmod is not None:
+                    fchmod(descriptor, stat.S_IRUSR | stat.S_IWUSR)
+                else:
+                    chmod = getattr(os, "chmod", None)
+                    if chmod is not None:
+                        chmod(temp_name, stat.S_IRUSR | stat.S_IWUSR)
                 handle = os.fdopen(descriptor, "w", encoding="utf-8")
                 descriptor = -1
                 with handle:

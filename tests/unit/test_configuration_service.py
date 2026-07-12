@@ -389,6 +389,40 @@ def test_atomic_replace_has_no_post_replace_chmod_failure(monkeypatch, tmp_path)
     assert service.get_effective_values()["LOG_LEVEL"] == "DEBUG"
 
 
+def test_atomic_write_succeeds_when_os_fchmod_is_unavailable(monkeypatch, tmp_path):
+    path = tmp_path / ".env"
+    path.write_text("IFIND_PASSWORD=TOPSECRET\nLOG_LEVEL=INFO\n", encoding="utf-8")
+    service = ConfigurationService(env_path=path)
+    monkeypatch.delattr("services.configuration_service.os.fchmod")
+
+    result = service.update_section("advanced", {"log_level": "DEBUG"})
+
+    assert result["applied"] is True
+    assert service.get_effective_values()["LOG_LEVEL"] == "DEBUG"
+    assert "TOPSECRET" not in str(result)
+    assert path.stat().st_mode & 0o777 == 0o600
+
+
+def test_fchmod_failure_before_replace_cleans_temp_and_preserves_original(monkeypatch, tmp_path):
+    path = tmp_path / ".env"
+    original = "IFIND_PASSWORD=TOPSECRET\nLOG_LEVEL=INFO\n"
+    path.write_text(original, encoding="utf-8")
+    service = ConfigurationService(env_path=path)
+
+    def fail_fchmod(descriptor, mode):
+        raise OSError("simulated permission failure TOPSECRET")
+
+    monkeypatch.setattr("services.configuration_service.os.fchmod", fail_fchmod)
+
+    with pytest.raises(ConfigurationError, match="配置持久化失败") as captured:
+        service.update_section("advanced", {"log_level": "DEBUG"})
+
+    temporary_files = [item for item in tmp_path.glob("..env.*") if item != service.lock_path]
+    assert path.read_text(encoding="utf-8") == original
+    assert temporary_files == []
+    assert "TOPSECRET" not in str(captured.value)
+
+
 def test_directory_fsync_is_attempted_without_post_replace_business_failure(monkeypatch, tmp_path):
     path = tmp_path / ".env"
     path.write_text("LOG_LEVEL=INFO\n", encoding="utf-8")
