@@ -26,7 +26,9 @@ def env_path(tmp_path: Path) -> Path:
     return path
 
 
-def test_snapshot_masks_secrets_without_returning_original_values(monkeypatch, env_path):
+def test_snapshot_returns_saved_secrets_for_the_local_configuration_workspace(
+    monkeypatch, env_path
+):
     monkeypatch.delenv("IFIND_PASSWORD", raising=False)
     monkeypatch.delenv("DATABASE_URL", raising=False)
     service = ConfigurationService(env_path=env_path)
@@ -37,9 +39,10 @@ def test_snapshot_masks_secrets_without_returning_original_values(monkeypatch, e
     assert snapshot["sections"]["ifind"]["password"] == {
         "configured": True,
         "masked_value": "********alue",
+        "value": "super-secret-value",
     }
-    assert "super-secret-value" not in serialized
-    assert "db-secret" not in serialized
+    assert "super-secret-value" in serialized
+    assert "db-secret" in serialized
 
 
 def test_update_ifind_keeps_blank_secret_and_preserves_unrelated_lines(monkeypatch, env_path):

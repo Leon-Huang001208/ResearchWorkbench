@@ -71,7 +71,7 @@
 |---|---|
 | `app/api/main.py` | API 入口点，初始化 FastAPI 应用、注册路由，并配置 Tauri 本地 Origin、显式扩展 CORS 与本地 Trusted Host 边界 |
 | `app/api/models.py` | API 请求/响应模型（Pydantic） |
-| `app/api/configuration_models.py` | 系统配置中心严格契约：五分区视图/更新/测试响应，禁止额外字段并定义秘密三态字段 |
+| `app/api/configuration_models.py` | 系统配置中心严格契约：五分区视图/更新/测试响应，禁止额外字段并定义本机回填用的秘密状态字段 |
 | `app/api/configuration_security.py` | 配置控制面安全策略：Host/CORS 严格解析与一致性校验、本地/Tauri Origin 白名单和进程级 CSRF token |
 | `app/api/routes/configuration.py` | `/api/config` 路由：脱敏快照、分区原子保存、非持久化连接测试和安全错误映射 |
 | `app/api/routes/audit.py` | 审计 API：查询审计日志 |
@@ -112,7 +112,7 @@
 | `app/web/static/style.css` | 全局样式表，包含管线监控、仪表盘等所有页面样式 |
 | `app/web/static/js/app.js` | 主入口模块：导航路由、SSE 连接、全局状态管理 |
 | `app/web/static/js/core.js` | 核心工具模块：apiCall、toast、esc 等公共函数 |
-| `app/web/static/js/configuration.js` | 系统配置页面：五分区渲染/采集、秘密保留与显式清除、`original_name` 改名关联、保存/测试串行化、陈旧请求取消和安全错误展示 |
+| `app/web/static/js/configuration.js` / `app/web/static/configuration.css` | 系统配置工作台：统一列宽的五分区渲染/采集、已保存秘密的显示/复制与显式清除、`original_name` 改名关联、保存/测试串行化和陈旧请求取消 |
 | `app/web/static/js/dashboard.js` | 仪表盘模块：Market Overview + Live Monitor 标签页 |
 | `app/web/static/js/funds.js` | 基金情报模块：基金详情查询、经理/持仓/行业暴露渲染、基金组合穿透计算、结构化 rows 导入 |
 | `app/web/static/js/templates.js` | 模板工作台模块：报告项目选择、Word 占位符映射、YAML/Markdown Prompt 源码切换与保存、后端 `compiled_plan` 生成预检、配置驱动生成、下载和 Word HTML 预览 |
@@ -279,7 +279,7 @@
 | **管线监控** | |
 | `pipeline_monitor.py` | 管线监控服务：内存单例追踪 9 个管线阶段（数据采集→知识提取→信号生成→择时回测→学习反馈），聚合 DB 统计，线程安全活动日志（最多 200 条），SSE 实时推送 |
 | **支持服务** | |
-| `configuration_service.py` | 系统配置服务：路径级线程/进程锁、严格 dotenv、`0600` 临时文件 + fsync + 原子替换、五分区脱敏/校验、热更新、数据库重启语义和真实非持久化连接探针 |
+| `configuration_service.py` | 系统配置服务：路径级线程/进程锁、严格 dotenv、`0600` 临时文件 + fsync + 原子替换、五分区本机回填视图/校验、热更新、数据库重启语义和真实非持久化连接探针 |
 | `data_tier_service.py` | 数据层服务：数据分层管理 |
 | `raw_storage_service.py` | 原始存储服务：原始文件存储和管理 |
 | `news_feature_service.py` | 新闻特征服务：从新闻提取特征 |

@@ -10,12 +10,13 @@ APP_JS = ROOT / "app" / "web" / "static" / "js" / "app.js"
 CORE_JS = ROOT / "app" / "web" / "static" / "js" / "core.js"
 CONFIGURATION_JS = ROOT / "app" / "web" / "static" / "js" / "configuration.js"
 STYLE_CSS = ROOT / "app" / "web" / "static" / "style.css"
+CONFIGURATION_CSS = ROOT / "app" / "web" / "static" / "configuration.css"
 
 
 def test_configuration_navigation_and_five_sections_are_present():
     html = INDEX_HTML.read_text(encoding="utf-8")
 
-    assert "app.js?v=20260712config5" in html
+    assert "app.js?v=20260712config6" in html
     assert 'data-section="config"' in html
     assert 'id="section-config"' in html
     assert 'id="config-readiness-overview"' in html
@@ -37,12 +38,22 @@ def test_configuration_page_exposes_readiness_and_connection_test_controls():
     assert "重启后生效" in html
 
 
+def test_configuration_uses_a_dedicated_aligned_workspace_style_sheet():
+    html = INDEX_HTML.read_text(encoding="utf-8")
+
+    assert 'href="/static/configuration.css?v=20260712config6"' in html
+    css = CONFIGURATION_CSS.read_text(encoding="utf-8")
+    assert ".config-provider-labels" in css
+    assert ".config-secret-control" in css
+    assert ".config-readiness-grid" in css
+
+
 def test_configuration_module_uses_expected_api_contract_and_is_initialized_by_navigation():
     app_source = APP_JS.read_text(encoding="utf-8")
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
 
     assert (
-        "import { initConfigurationPage } from './configuration.js?v=20260712config5'" in app_source
+        "import { initConfigurationPage } from './configuration.js?v=20260712config6'" in app_source
     )
     assert "import { apiCall } from './core.js?v=20260712config2'" in source
     assert "if (section === 'config') initConfigurationPage();" in app_source
@@ -99,7 +110,7 @@ def test_dynamic_configuration_rows_support_add_remove_and_original_names():
     assert "aria-label" in source
 
 
-def test_configuration_secrets_are_blank_and_require_explicit_clear():
+def test_configuration_secrets_can_be_revealed_and_still_require_explicit_clear():
     html = INDEX_HTML.read_text(encoding="utf-8")
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
 
@@ -107,6 +118,9 @@ def test_configuration_secrets_are_blank_and_require_explicit_clear():
     assert "clear_api_key" in source
     assert "clear_password" in source
     assert "configured" in source
+    assert "secret.value" in source
+    assert "toggleSecretVisibility" in source
+    assert "复制" in source
     assert "masked_value" not in source
     assert "localStorage" not in source
     assert "dataset.secret" not in source

@@ -856,14 +856,14 @@ class ConfigurationService:
     @staticmethod
     def _secret_view(value: str) -> dict[str, Any]:
         if not value:
-            return {"configured": False, "masked_value": None}
+            return {"configured": False, "masked_value": None, "value": None}
         suffix = value[-SECRET_SUFFIX_LENGTH:]
-        return {"configured": True, "masked_value": f"********{suffix}"}
+        return {"configured": True, "masked_value": f"********{suffix}", "value": value}
 
     @staticmethod
     def _database_secret_view(value: str) -> dict[str, Any]:
         if not value:
-            return {"configured": False, "masked_value": None}
+            return {"configured": False, "masked_value": None, "value": None}
         try:
             parsed = urlsplit(value)
             host = parsed.hostname or "local"
@@ -872,7 +872,7 @@ class ConfigurationService:
             masked = f"{parsed.scheme}://***@{host}{port}{path}" if parsed.scheme else "********"
         except ValueError:
             masked = "********"
-        return {"configured": True, "masked_value": masked}
+        return {"configured": True, "masked_value": masked, "value": value}
 
     @staticmethod
     def _merge_secret(new_value: Any, clear: bool, existing: str) -> str:

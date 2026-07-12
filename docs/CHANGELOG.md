@@ -10,8 +10,8 @@
 
 - **系统配置中心**: Web 工作台新增“系统配置”入口，以五个独立分区管理 LLM、知秋、iFinD、数据库和高级运行参数。
   - `services/configuration_service.py` / `core/settings/config.py` — 新增显式配置路径 → 桌面数据目录 → 项目 `.env` 的运行时路径解析；有效值允许当前进程环境覆盖文件；保存事务使用同路径 `RLock` + 跨进程文件锁、严格 dotenv 解析、`0600` 同目录临时文件、fsync 和原子替换，并保留无关行/注释。
-  - `app/api/configuration_models.py` / `app/api/routes/configuration.py` — 新增 `GET /api/config`、`PUT /api/config/{section}`、`POST /api/config/{section}/test`；秘密只返回配置状态/掩码，422 不回显输入，空值保留、非空替换、`clear_*` 显式清除，`original_name` 支持改名后保留正确秘密。
-  - `app/web/templates/index.html` / `app/web/static/js/configuration.js` / `app/web/static/style.css` — 新增五分区配置页、就绪概览、动态 Provider/任务路由/知秋账号行和重启提示；首次读取成功前禁用修改，串行化保存/测试并取消陈旧刷新，不把秘密写入 DOM dataset 或 Local Storage。
+  - `app/api/configuration_models.py` / `app/api/routes/configuration.py` — 新增 `GET /api/config`、`PUT /api/config/{section}`、`POST /api/config/{section}/test`；本机系统配置读取会回填保存的 Token、密码和数据库地址，422 仍不回显被拒绝输入；空值保留、非空替换、`clear_*` 显式清除，`original_name` 支持改名后保留正确秘密。
+  - `app/web/templates/index.html` / `app/web/static/js/configuration.js` / `app/web/static/configuration.css` — 五分区配置页改为与报告生产工作台对齐的统一列布局、就绪概览、动态 Provider/任务路由/知秋账号行和重启提示；敏感值默认以密码框遮住，可按需显示或复制；首次读取成功前禁用修改，串行化保存/测试并取消陈旧刷新，不把秘密写入 DOM dataset 或 Local Storage。
   - `data_layer/crawlers/zq/zhiqiu/account_manager.py` / `client.py` — 新增权威 `ZQ_ACCOUNTS_JSON`，兼容旧 `ZQ_ACCOUNTS` 和 YAML；JSON 存在但无效/为空时关闭回退，避免旧凭据复活，并支持运行时轮询参数覆盖。
   - LLM、知秋、iFinD 测试使用真实短超时临时连接且不持久化候选值；数据库仅做 URL 校验。LLM/iFinD/高级参数热更新，知秋配置供后续新建客户端读取，数据库保持当前连接池并在后端重启后生效。
   - 本地配置控制面新增 Trusted Host、Origin 与进程级 CSRF 三层边界；显式 CORS origin 必须与 Trusted Host 配置一致。LLM Provider 即使省略 `original_name` 也会按当前名称绑定已有秘密，端点变化时禁止把旧 Token 发送到连接探针。

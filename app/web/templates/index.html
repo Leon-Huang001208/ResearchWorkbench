@@ -11,6 +11,7 @@
     <script async src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
     <script async src="https://cdn.jsdelivr.net/npm/d3@7"></script>
     <link rel="stylesheet" href="/static/style.css?v=20260702briefinline1">
+    <link rel="stylesheet" href="/static/configuration.css?v=20260712config6">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@vscode/codicons@0.0.36/dist/codicon.min.css">
 </head>
 <body>
@@ -1516,7 +1517,7 @@
                     <div>
                         <span class="configuration-eyebrow">运行环境</span>
                         <h2 class="section-title" id="config-page-title">系统配置</h2>
-                        <p>集中管理外部服务和运行参数。秘密值不会回显，留空表示保留原值。</p>
+                        <p>集中管理外部服务、账号与运行参数。已保存的敏感值会回填，默认遮住，可按需显示或复制。</p>
                     </div>
                     <button class="secondary-btn" type="button" id="config-refresh">刷新配置</button>
                 </div>
@@ -1548,8 +1549,10 @@
                                 <span class="config-status" data-config-status="llm">未加载</span>
                             </div>
                             <div class="config-subsection-header"><h4>Providers</h4><button type="button" class="secondary-btn" data-add-provider disabled>新增 Provider</button></div>
+                            <div class="config-row-labels config-provider-labels" aria-hidden="true"><span>名称</span><span>协议</span><span>Base URL</span><span>API Token</span><span>操作</span></div>
                             <div id="config-provider-list" class="config-dynamic-list"></div>
                             <div class="config-subsection-header"><h4>任务路由</h4><button type="button" class="secondary-btn" data-add-task-route disabled>新增路由</button></div>
+                            <div class="config-row-labels config-route-labels" aria-hidden="true"><span>任务</span><span>Provider</span><span>模型</span><span>操作</span></div>
                             <div id="config-task-route-list" class="config-dynamic-list"></div>
                             <div class="config-actions">
                                 <button type="button" class="secondary-btn" data-config-test="llm" disabled>验证连接</button>
@@ -1563,6 +1566,7 @@
                                 <span class="config-status" data-config-status="zhiqiu">未加载</span>
                             </div>
                             <div class="config-subsection-header"><h4>账号池</h4><button type="button" class="secondary-btn" data-add-zhiqiu-account disabled>新增账号</button></div>
+                            <div class="config-row-labels config-zhiqiu-labels" aria-hidden="true"><span>名称</span><span>用户名</span><span>密码</span><span>操作</span></div>
                             <div id="config-zhiqiu-account-list" class="config-dynamic-list"></div>
                             <div class="config-field-grid">
                                 <label class="config-checkbox"><input type="checkbox" name="enabled">启用账号轮询</label>
@@ -1585,7 +1589,7 @@
                             </div>
                             <div class="config-field-grid">
                                 <label><span>用户名</span><input type="text" name="username" autocomplete="username"></label>
-                                <label><span>密码</span><input type="password" name="password" autocomplete="new-password" placeholder="留空保留已配置密码"><small data-secret-state="ifind-password">未配置</small></label>
+                                <label><span>密码</span><span class="config-secret-control"><input type="password" name="password" autocomplete="new-password" placeholder="未配置"><button type="button" class="config-secret-action" data-secret-toggle aria-label="显示密码">显示</button><button type="button" class="config-secret-action" data-secret-copy aria-label="复制密码">复制</button></span><small data-secret-state="ifind-password">未配置</small></label>
                                 <label><span>后端类型</span><select name="backend"><option value="auto">自动</option><option value="python_sdk">Python SDK</option><option value="http_api">HTTP API</option></select></label>
                                 <label><span>HTTP Base URL</span><input type="url" name="http_base_url" placeholder="https://quantapi.10jqka.com.cn"></label>
                                 <label class="config-checkbox config-clear-secret"><input type="checkbox" name="clear_password">显式清除已保存密码</label>
@@ -1601,7 +1605,7 @@
                                 <div><span class="config-panel-kicker">04</span><h3>数据库</h3><p>连接地址保存后不会替换当前连接池。</p></div>
                                 <span class="config-status restart" data-config-status="database">重启后生效</span>
                             </div>
-                            <label class="config-field-wide"><span>数据库连接地址</span><input type="password" name="database_url" autocomplete="new-password" placeholder="输入完整连接地址以更新"><small data-secret-state="database-url">未配置</small></label>
+                            <label class="config-field-wide"><span>数据库连接地址</span><span class="config-secret-control"><input type="password" name="database_url" autocomplete="new-password" placeholder="未配置"><button type="button" class="config-secret-action" data-secret-toggle aria-label="显示数据库地址">显示</button><button type="button" class="config-secret-action" data-secret-copy aria-label="复制数据库地址">复制</button></span><small data-secret-state="database-url">未配置</small></label>
                             <div class="config-restart-note"><i class="codicon codicon-debug-restart" aria-hidden="true"></i><span><strong>需要重启桌面后端</strong>保存仅持久化新地址，当前会话继续使用原连接。</span></div>
                             <div class="config-actions"><button type="submit" class="primary-btn" data-config-save="database" disabled>保存数据库配置</button></div>
                         </form>
@@ -1624,7 +1628,7 @@
                     </div>
 
                     <aside class="configuration-help" aria-label="配置安全说明">
-                        <div class="config-help-card"><h3>安全约定</h3><ul><li>页面不会回显已保存的 Token、密码或数据库地址。</li><li>秘密输入框留空即保留原值。</li><li>只有勾选“显式清除”才会删除秘密。</li></ul></div>
+                        <div class="config-help-card"><h3>本机查看</h3><ul><li>已保存的 Token、密码和数据库地址会回填到此页。</li><li>默认以密码框遮住；可使用“显示”或“复制”。</li><li>不要在共享屏幕时展开敏感字段。</li></ul></div>
                         <div class="config-help-card"><h3>生效方式</h3><p>大模型、知秋、iFinD 和高级参数保存后立即用于新任务；数据库地址需重启后端。</p></div>
                     </aside>
                 </div>
@@ -2184,7 +2188,7 @@
 
     <!-- Scripts: i18n must load before app.js -->
     <script src="/static/i18n.js?v=20250527"></script>
-    <script type="module" src="/static/js/app.js?v=20260712config5"></script>
+    <script type="module" src="/static/js/app.js?v=20260712config6"></script>
     <script type="module" src="/static/js/wind.js?v=20250601a"></script>
 </body>
 </html>

@@ -13,7 +13,11 @@ class StrictModel(BaseModel):
 
 class SecretState(StrictModel):
     configured: bool = Field(description="是否已经配置秘密值")
-    masked_value: str | None = Field(default=None, description="不可逆的秘密掩码")
+    masked_value: str | None = Field(default=None, description="秘密值的掩码")
+    value: str | None = Field(
+        default=None,
+        description="仅供本机系统配置工作台回填密码框的已保存值",
+    )
 
 
 class ProviderView(StrictModel):

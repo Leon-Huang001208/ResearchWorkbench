@@ -457,8 +457,8 @@ python scripts/seed_factor_data.py --skip-ingest
   "sections": {
     "llm": {"providers": [], "task_routes": []},
     "zhiqiu": {"accounts": [], "enabled": true, "rotation_strategy": "round_robin", "max_retries": 3, "retry_delay": 5, "lease_timeout": 300, "max_consecutive_failures": 10},
-    "ifind": {"username": "", "password": {"configured": false, "masked_value": null}, "backend": "auto", "http_base_url": "https://quantapi.10jqka.com.cn"},
-    "database": {"database_url": {"configured": true, "masked_value": "postgresql://***@localhost:5432/alphafoundry"}, "restart_required": true},
+    "ifind": {"username": "", "password": {"configured": false, "masked_value": null, "value": null}, "backend": "auto", "http_base_url": "https://quantapi.10jqka.com.cn"},
+    "database": {"database_url": {"configured": true, "masked_value": "postgresql://***@localhost:5432/alphafoundry", "value": "postgresql://user:password@localhost:5432/alphafoundry"}, "restart_required": true},
     "advanced": {"log_level": "INFO", "log_dir": "./logs", "llm_max_workers": 8, "llm_max_retries": 2, "chunk_size": 3500, "chunk_overlap": 300, "long_text_threshold": 1000}
   },
   "readiness": {"llm": false, "zhiqiu": false, "ifind": false, "database": true, "advanced": true},
@@ -467,7 +467,7 @@ python scripts/seed_factor_data.py --skip-ingest
 }
 ```
 
-Provider/知秋账号视图包含 `original_name`，供改名保存时关联旧秘密。Token 和密码只返回 `configured` 与末四位掩码；数据库不会返回用户、密码或查询参数。
+Provider/知秋账号视图包含 `original_name`，供改名保存时关联旧秘密。Token、密码和数据库地址同时返回 `configured`、掩码 `masked_value` 与原始 `value`，以便本机系统配置页回填、显示或复制。该接口仅在 loopback Trusted Host、允许的本地 Origin 与进程级 CSRF token 三层边界内使用；不要在共享屏幕时显示敏感字段。
 
 #### PUT /api/config/{section}
 

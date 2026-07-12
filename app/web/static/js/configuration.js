@@ -161,6 +161,57 @@ function input(type, value, ariaLabel) {
     return control;
 }
 
+function toggleSecretVisibility(secretInput, button) {
+    const reveal = secretInput.type === 'password';
+    secretInput.type = reveal ? 'text' : 'password';
+    button.textContent = reveal ? '隐藏' : '显示';
+    button.setAttribute('aria-label', `${reveal ? '隐藏' : '显示'}${secretInput.getAttribute('aria-label') || '敏感值'}`);
+}
+
+async function copySecretValue(secretInput) {
+    if (!secretInput.value) {
+        showPageMessage('没有可复制的已保存值', 'error');
+        return;
+    }
+    try {
+        await navigator.clipboard.writeText(secretInput.value);
+        showPageMessage('已复制到剪贴板', 'ready');
+    } catch {
+        showPageMessage('复制失败，请手动选择复制', 'error');
+    }
+}
+
+function createSecretControl(secretInput) {
+    const control = element('span', 'config-secret-control');
+    const toggle = element('button', 'config-secret-action', '显示');
+    const copy = element('button', 'config-secret-action', '复制');
+    toggle.type = 'button';
+    copy.type = 'button';
+    toggle.setAttribute('data-secret-toggle', '');
+    copy.setAttribute('data-secret-copy', '');
+    toggle.setAttribute('aria-label', `显示${secretInput.getAttribute('aria-label') || '敏感值'}`);
+    copy.setAttribute('aria-label', `复制${secretInput.getAttribute('aria-label') || '敏感值'}`);
+    toggle.addEventListener('click', () => toggleSecretVisibility(secretInput, toggle));
+    copy.addEventListener('click', () => copySecretValue(secretInput));
+    control.append(secretInput, toggle, copy);
+    return control;
+}
+
+function bindSecretActions(scope) {
+    scope?.querySelectorAll?.('[data-secret-toggle]').forEach(button => {
+        if (button.dataset.bound === 'true') return;
+        button.dataset.bound = 'true';
+        const secretInput = button.closest('.config-secret-control')?.querySelector('input');
+        if (secretInput) button.addEventListener('click', () => toggleSecretVisibility(secretInput, button));
+    });
+    scope?.querySelectorAll?.('[data-secret-copy]').forEach(button => {
+        if (button.dataset.bound === 'true') return;
+        button.dataset.bound = 'true';
+        const secretInput = button.closest('.config-secret-control')?.querySelector('input');
+        if (secretInput) button.addEventListener('click', () => copySecretValue(secretInput));
+    });
+}
+
 function select(options, value, ariaLabel) {
     const control = document.createElement('select');
     control.setAttribute('aria-label', ariaLabel);
@@ -227,22 +278,23 @@ function createProviderRow(provider = {}) {
     protocol.dataset.field = 'protocol';
     const baseUrl = input('url', provider.base_url, 'Provider Base URL');
     baseUrl.dataset.field = 'base_url';
-    const apiKey = input('password', '', 'Provider API Token');
+    const apiKey = input('password', provider.api_key?.value || '', 'Provider API Token');
     apiKey.autocomplete = 'new-password';
-    apiKey.placeholder = '留空保留';
+    apiKey.placeholder = '未配置';
     apiKey.dataset.field = 'api_key';
     const clearLabel = element('label', 'config-checkbox config-clear-secret');
     const clear = input('checkbox', '', '显式清除 Provider Token');
     clear.dataset.field = 'clear_api_key';
     bindSecretPair(apiKey, clear);
-    clearLabel.append(clear, document.createTextNode('显式清除 Token'));
+    clearLabel.append(clear, document.createTextNode('清除'));
+    const actions = element('div', 'config-row-actions');
+    actions.append(clearLabel, removeButton(`删除 Provider ${provider.name || '新行'}`));
     row.append(
         labeledControl('名称', name),
         labeledControl('协议', protocol),
         labeledControl('Base URL', baseUrl),
-        labeledControl('API Token', apiKey, secretHint(provider.api_key)),
-        clearLabel,
-        removeButton(`删除 Provider ${provider.name || '新行'}`),
+        labeledControl('API Token', createSecretControl(apiKey), secretHint(provider.api_key)),
+        actions,
     );
     return row;
 }
@@ -272,21 +324,22 @@ function createZhiqiuAccountRow(account = {}) {
     const username = input('text', account.username, '知秋用户名');
     username.autocomplete = 'username';
     username.dataset.field = 'username';
-    const password = input('password', '', '知秋密码');
+    const password = input('password', account.password?.value || '', '知秋密码');
     password.autocomplete = 'new-password';
-    password.placeholder = '留空保留';
+    password.placeholder = '未配置';
     password.dataset.field = 'password';
     const clearLabel = element('label', 'config-checkbox config-clear-secret');
     const clear = input('checkbox', '', '显式清除知秋密码');
     clear.dataset.field = 'clear_password';
     bindSecretPair(password, clear);
-    clearLabel.append(clear, document.createTextNode('显式清除密码'));
+    clearLabel.append(clear, document.createTextNode('清除'));
+    const actions = element('div', 'config-row-actions');
+    actions.append(clearLabel, removeButton(`删除知秋账号 ${account.name || '新行'}`));
     row.append(
         labeledControl('名称', name),
         labeledControl('用户名', username),
-        labeledControl('密码', password, secretHint(account.password)),
-        clearLabel,
-        removeButton(`删除知秋账号 ${account.name || '新行'}`),
+        labeledControl('密码', createSecretControl(password), secretHint(account.password)),
+        actions,
     );
     return row;
 }
@@ -367,14 +420,14 @@ function renderSection(section, values) {
         setSecretState('[data-secret-state="ifind-password"]', values.password);
         const form = document.getElementById('config-ifind-form');
         if (form) {
-            form.elements.password.value = '';
+            form.elements.password.value = values.password?.value || '';
             form.elements.clear_password.checked = false;
             applySecretState(form.elements.password, form.elements.clear_password, 'initial');
         }
     } else if (section === 'database') {
         setSecretState('[data-secret-state="database-url"]', values.database_url);
         const form = document.getElementById('config-database-form');
-        if (form) form.elements.database_url.value = '';
+        if (form) form.elements.database_url.value = values.database_url?.value || '';
     } else if (section === 'advanced') {
         setFormValues(document.getElementById('config-advanced-form'), values, [
             'log_level', 'log_dir', 'llm_max_workers', 'llm_max_retries', 'chunk_size', 'chunk_overlap', 'long_text_threshold',
@@ -699,6 +752,7 @@ function bindConfigurationEvents() {
     });
     const ifindForm = document.getElementById('config-ifind-form');
     bindSecretPair(ifindForm?.elements.password, ifindForm?.elements.clear_password);
+    bindSecretActions(page);
     page.addEventListener('input', event => markSectionDirty(event.target));
     page.addEventListener('change', event => markSectionDirty(event.target));
     page.addEventListener('click', event => {

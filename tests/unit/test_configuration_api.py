@@ -222,21 +222,31 @@ def test_llm_endpoint_change_without_original_name_never_reaches_probe(monkeypat
     app.dependency_overrides.clear()
 
 
-def test_get_configuration_never_returns_plaintext_secrets(tmp_path):
+def test_get_configuration_returns_saved_secrets_to_the_local_configuration_page(
+    monkeypatch, tmp_path
+):
     env_path = tmp_path / ".env"
     env_path.write_text(
         "IFIND_USERNAME=tester\nIFIND_PASSWORD=api-hidden-secret\n"
         "DATABASE_URL=postgresql://user:db-hidden-secret@localhost:5432/alpha\n",
         encoding="utf-8",
     )
+    monkeypatch.delenv("IFIND_PASSWORD", raising=False)
+    monkeypatch.delenv("DATABASE_URL", raising=False)
     client = _client_for(env_path)
 
     response = client.get("/api/config")
 
     assert response.status_code == 200
-    assert "api-hidden-secret" not in response.text
-    assert "db-hidden-secret" not in response.text
-    assert response.json()["sections"]["ifind"]["password"]["configured"] is True
+    snapshot = response.json()
+    assert snapshot["sections"]["ifind"]["password"] == {
+        "configured": True,
+        "masked_value": "********cret",
+        "value": "api-hidden-secret",
+    }
+    assert snapshot["sections"]["database"]["database_url"]["value"] == (
+        "postgresql://user:db-hidden-secret@localhost:5432/alpha"
+    )
     app.dependency_overrides.clear()
 
 
@@ -292,7 +302,7 @@ def test_put_database_returns_restart_required(tmp_path):
     assert response.status_code == 200
     assert response.json()["applied"] is False
     assert response.json()["restart_required"] is True
-    assert "sqlite:////tmp/next.db" not in response.text
+    assert response.json()["section"]["database_url"]["value"] == "sqlite:////tmp/next.db"
     app.dependency_overrides.clear()
 
 

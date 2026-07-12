@@ -1,0 +1,252 @@
+/* System configuration workspace: aligns with the report-production workbench. */
+.configuration-page {
+    max-width: 1560px;
+    padding-bottom: 32px;
+}
+
+.configuration-header {
+    align-items: center;
+    margin-bottom: 18px;
+    padding: 22px 24px;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--bg-panel) 92%, var(--accent) 8%), var(--bg-panel));
+    box-shadow: var(--shadow-sm);
+}
+
+.configuration-header .section-title {
+    margin: 3px 0 6px;
+    font-size: clamp(24px, 2vw, 30px);
+}
+
+.configuration-header p {
+    max-width: 760px;
+}
+
+.config-page-message {
+    min-height: 0;
+    margin: 0 0 14px;
+    padding: 0 4px;
+}
+
+.config-readiness-grid {
+    grid-auto-rows: 1fr;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.config-readiness-card {
+    min-height: 112px;
+    padding: 16px;
+    border-top-width: 2px;
+}
+
+.config-readiness-card strong {
+    align-self: center;
+    font-size: 22px;
+}
+
+.configuration-layout {
+    grid-template-columns: minmax(0, 1fr) 292px;
+    gap: 18px;
+}
+
+.configuration-main {
+    gap: 18px;
+}
+
+.config-panel {
+    padding: 22px 24px;
+    border-radius: var(--radius-lg);
+}
+
+.config-panel-header {
+    min-height: 54px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.config-panel-header h3 {
+    font-size: 19px;
+}
+
+.config-subsection-header {
+    margin: 22px 0 10px;
+}
+
+.config-subsection-header h4 {
+    font-size: 15px;
+}
+
+.config-row-labels {
+    display: grid;
+    gap: 12px;
+    margin: 0 0 7px;
+    padding: 0 14px;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: var(--font-semibold);
+    letter-spacing: 0.04em;
+}
+
+.config-provider-labels,
+.config-provider-row {
+    grid-template-columns: minmax(110px, 0.75fr) minmax(136px, 0.9fr) minmax(205px, 1.35fr) minmax(235px, 1.5fr) minmax(155px, 0.7fr);
+}
+
+.config-zhiqiu-labels,
+.config-zhiqiu-row {
+    grid-template-columns: minmax(125px, 0.82fr) minmax(150px, 1fr) minmax(240px, 1.5fr) minmax(155px, 0.72fr);
+}
+
+.config-route-labels,
+.config-route-row {
+    grid-template-columns: minmax(150px, 0.9fr) minmax(190px, 1fr) minmax(210px, 1.15fr) minmax(84px, 0.38fr);
+}
+
+.config-dynamic-list {
+    gap: 8px;
+}
+
+.config-dynamic-row {
+    gap: 12px;
+    align-items: end;
+    padding: 12px 14px;
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--bg-elevated) 86%, var(--bg-panel));
+}
+
+.config-provider-row .config-dynamic-field > span:first-child,
+.config-zhiqiu-row .config-dynamic-field > span:first-child,
+.config-route-row .config-dynamic-field > span:first-child {
+    display: none;
+}
+
+.config-provider-row .config-dynamic-field,
+.config-zhiqiu-row .config-dynamic-field,
+.config-route-row .config-dynamic-field {
+    gap: 4px;
+}
+
+.config-row-actions {
+    display: flex;
+    min-height: 38px;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.config-row-actions .config-checkbox {
+    white-space: nowrap;
+}
+
+.config-secret-control {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 6px;
+    align-items: center;
+}
+
+.config-secret-action {
+    min-height: 38px;
+    padding: 0 9px;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    background: var(--bg-elevated);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.config-secret-action:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.config-secret-state,
+.config-field-wide small,
+.config-field-grid small {
+    min-height: 15px;
+}
+
+.config-field-grid {
+    gap: 16px;
+}
+
+.config-field-grid > label,
+.config-field-wide {
+    gap: 6px;
+}
+
+.configuration-help {
+    gap: 12px;
+}
+
+.config-help-card {
+    padding: 18px;
+    border-radius: var(--radius-lg);
+}
+
+.config-help-card h3 {
+    margin-bottom: 8px;
+    font-size: 16px;
+}
+
+.config-help-card li {
+    margin-bottom: 6px;
+}
+
+@media (max-width: 1320px) {
+    .configuration-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .configuration-help {
+        position: static;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 1040px) {
+    .config-row-labels {
+        display: none;
+    }
+
+    .config-provider-row,
+    .config-zhiqiu-row,
+    .config-route-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .config-provider-row .config-dynamic-field > span:first-child,
+    .config-zhiqiu-row .config-dynamic-field > span:first-child,
+    .config-route-row .config-dynamic-field > span:first-child {
+        display: block;
+    }
+}
+
+@media (max-width: 680px) {
+    .configuration-header,
+    .config-panel {
+        padding: 18px;
+    }
+
+    .configuration-header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .config-readiness-grid,
+    .config-field-grid,
+    .config-provider-row,
+    .config-zhiqiu-row,
+    .config-route-row,
+    .configuration-help {
+        grid-template-columns: 1fr;
+    }
+
+    .config-row-actions {
+        justify-content: space-between;
+    }
+}
