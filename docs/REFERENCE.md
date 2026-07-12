@@ -446,6 +446,8 @@ python scripts/seed_factor_data.py --skip-ingest
 
 系统配置中心仅管理 `llm`、`zhiqiu`、`ifind`、`database` 和 `advanced` 五个分区。配置文件路径依次取 `ALPHAFOUNDRY_CONFIG_PATH`、`ALPHAFOUNDRY_DESKTOP_DATA_DIR/.env`、项目根目录 `.env`；当前进程的受支持环境变量覆盖文件同名值。
 
+本地服务默认只接受 `Host: localhost`、`127.0.0.1` 和测试客户端使用的 `testserver`（可带正常端口）；`ALPHAFOUNDRY_TRUSTED_HOSTS` 可用逗号分隔的纯主机名或 IPv4 地址显式扩展，拒绝通配符、scheme、路径、凭据和端口。默认不启用 CORS；设置 `ALPHAFOUNDRY_CORS_ORIGINS` 时，每个 HTTP(S) origin 的主机还必须位于 Trusted Host 列表。所有配置 API 请求必须携带首页注入的 `X-AlphaFoundry-Config-Token`；存在 `Origin` 时仅允许 localhost/127 loopback、`tauri://localhost`、`http(s)://tauri.localhost`，或与 Trusted Host 一致的显式 CORS origin。
+
 #### GET /api/config
 
 返回五分区脱敏快照及就绪度：

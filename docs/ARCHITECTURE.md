@@ -260,7 +260,9 @@ section-config
       → 合并未保存表单与保留秘密 → 临时真实探针 → 不写文件/环境
 ```
 
-秘密在 API 中只有 `configured` 和可选掩码：普通秘密只显示末四位，数据库 URL 只保留协议、主机、端口和库路径。秘密输入省略或空字符串表示保留，非空表示替换，`clear_api_key` / `clear_password` 表示显式清除；Provider/知秋条目的 `original_name` 使改名时仍能关联原秘密。日志只记录分区、非敏感字段名和错误类型。
+秘密在 API 中只有 `configured` 和可选掩码：普通秘密只显示末四位，数据库 URL 只保留协议、主机、端口和库路径。秘密输入省略或空字符串表示保留，非空表示替换，`clear_api_key` / `clear_password` 表示显式清除；Provider/知秋条目的 `original_name` 使改名时仍能关联原秘密。即使调用方省略 `original_name`，LLM Provider 也会按当前名称关联已有秘密；此时若端点变化，必须重新提交 Token，旧秘密不会进入连接探针。日志只记录分区、非敏感字段名和错误类型。
+
+本地控制面默认通过 `TrustedHostMiddleware` 只接受 `localhost`、`127.0.0.1` 和测试主机 `testserver`；`ALPHAFOUNDRY_TRUSTED_HOSTS` 只能显式扩展纯主机名或 IPv4 地址。配置 API 还要求进程级 CSRF token；请求携带 `Origin` 时，只允许 loopback、受支持的 Tauri origin，或同时出现在显式 CORS 和 Trusted Host 配置中的 origin。默认不开启 CORS，避免 DNS rebinding 或外站来源读取和修改本地配置。
 
 LLM、知秋、iFinD 连接测试会使用候选配置执行短超时真实请求，并在结束时关闭临时客户端；候选秘密不会落盘或写入进程环境。数据库测试只验证 URL 结构，不创建或切换连接池；高级配置没有测试端点。
 

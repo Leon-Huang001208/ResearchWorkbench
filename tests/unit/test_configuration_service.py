@@ -178,7 +178,10 @@ def test_provider_rename_with_blank_secret_preserves_original_secret(monkeypatch
     assert "LLM_PROVIDER_1_API_KEY" not in service.get_effective_values()
 
 
-def test_provider_endpoint_change_never_reuses_saved_secret(monkeypatch, tmp_path):
+@pytest.mark.parametrize("include_original_name", [False, True])
+def test_provider_endpoint_change_never_reuses_saved_secret(
+    monkeypatch, tmp_path, include_original_name
+):
     path = tmp_path / ".env"
     original = (
         "LLM_PROVIDER_1_NAME=primary\n"
@@ -195,17 +198,15 @@ def test_provider_endpoint_change_never_reuses_saved_secret(monkeypatch, tmp_pat
         env_path=path,
         connection_probes={"llm": lambda candidate, timeout: probe_calls.append(candidate) or True},
     )
-    payload = {
-        "providers": [
-            {
-                "original_name": "primary",
-                "name": "primary",
-                "protocol": "openai_compatible",
-                "base_url": "https://new.example.test",
-                "api_key": "",
-            }
-        ]
+    provider = {
+        "name": "primary",
+        "protocol": "openai_compatible",
+        "base_url": "https://new.example.test",
+        "api_key": "",
     }
+    if include_original_name:
+        provider["original_name"] = "primary"
+    payload = {"providers": [provider]}
 
     with pytest.raises(ConfigurationError, match="重新输入"):
         service.test_section("llm", payload)

@@ -1,11 +1,17 @@
 """系统配置 API 契约与错误处理测试。"""
 
+import os
 from pathlib import Path
 
 from fastapi.testclient import TestClient
 
 from app.api.configuration_security import CONFIGURATION_CSRF_TOKEN
-from app.api.main import app, parse_cors_origins
+from app.api.main import (
+    app,
+    parse_cors_origins,
+    parse_trusted_hosts,
+    validate_cors_trusted_host_consistency,
+)
 from app.api.routes.configuration import get_configuration_service
 from services.configuration_service import ConfigurationService
 
@@ -92,6 +98,123 @@ def test_cors_origins_require_explicit_strict_http_origins():
             pass
         else:
             raise AssertionError(f"invalid CORS origin accepted: {invalid}")
+
+
+def test_trusted_hosts_default_to_loopback_and_accept_only_explicit_host_extensions():
+    assert parse_trusted_hosts(None) == ["localhost", "127.0.0.1", "testserver"]
+    assert parse_trusted_hosts("app.internal,192.168.10.2,app.internal") == [
+        "localhost",
+        "127.0.0.1",
+        "testserver",
+        "app.internal",
+        "192.168.10.2",
+    ]
+    for invalid in (
+        "*",
+        "https://app.internal",
+        "app.internal/path",
+        "user@app.internal",
+        "app.internal:8765",
+    ):
+        try:
+            parse_trusted_hosts(invalid)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"invalid trusted host accepted: {invalid}")
+
+
+def test_explicit_cors_origins_must_also_name_a_trusted_host():
+    validate_cors_trusted_host_consistency(
+        ["https://app.internal"],
+        ["localhost", "127.0.0.1", "testserver", "app.internal"],
+    )
+
+    try:
+        validate_cors_trusted_host_consistency(
+            ["https://attacker.example"],
+            ["localhost", "127.0.0.1", "testserver"],
+        )
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("CORS origin without a matching trusted host was accepted")
+
+
+def test_untrusted_host_cannot_read_index_token_or_configuration(tmp_path):
+    client = _client_for(tmp_path / ".env")
+
+    index_response = client.get("/", headers={"Host": "attacker.example"})
+    api_response = client.get("/api/config", headers={"Host": "attacker.example"})
+
+    assert index_response.status_code == 400
+    assert api_response.status_code == 400
+    assert CONFIGURATION_CSRF_TOKEN not in index_response.text
+    assert CONFIGURATION_CSRF_TOKEN not in api_response.text
+    for host in ("testserver", "localhost:8765", "127.0.0.1:8765"):
+        assert client.get("/", headers={"Host": host}).status_code == 200
+    app.dependency_overrides.clear()
+
+
+def test_configuration_api_rejects_foreign_origins_even_with_valid_token(tmp_path):
+    client = _client_for(tmp_path / ".env")
+
+    rejected = client.get(
+        "/api/config",
+        headers={"Origin": "https://attacker.example"},
+    )
+
+    assert rejected.status_code == 403
+    assert rejected.json() == {"detail": "Forbidden"}
+    assert client.get("/api/config").status_code == 200
+    for origin in (
+        "http://localhost:8765",
+        "https://127.0.0.1:8765",
+        "tauri://localhost",
+        "http://tauri.localhost",
+    ):
+        assert client.get("/api/config", headers={"Origin": origin}).status_code == 200
+    app.dependency_overrides.clear()
+
+
+def test_llm_endpoint_change_without_original_name_never_reaches_probe(monkeypatch, tmp_path):
+    env_path = tmp_path / ".env"
+    original = (
+        "LLM_PROVIDER_1_NAME=primary\n"
+        "LLM_PROVIDER_1_PROTOCOL=openai_compatible\n"
+        "LLM_PROVIDER_1_BASE_URL=https://old.example.test\n"
+        "LLM_PROVIDER_1_API_KEY=TOPSECRET\n"
+    )
+    env_path.write_text(original, encoding="utf-8")
+    for key in list(os.environ):
+        if key.startswith("LLM_PROVIDER_"):
+            monkeypatch.delenv(key, raising=False)
+    probe_calls = []
+    client = _client_for(
+        env_path,
+        connection_probes={"llm": lambda candidate, timeout: probe_calls.append(candidate) or True},
+    )
+    payload = {
+        "providers": [
+            {
+                "name": "primary",
+                "protocol": "openai_compatible",
+                "base_url": "https://attacker.example",
+                "api_key": "",
+            }
+        ]
+    }
+
+    update_response = client.put("/api/config/llm", json=payload)
+    test_response = client.post("/api/config/llm/test", json=payload)
+
+    assert update_response.status_code == 422
+    assert test_response.status_code == 422
+    assert probe_calls == []
+    assert env_path.read_text(encoding="utf-8") == original
+    assert "TOPSECRET" not in update_response.text
+    assert "TOPSECRET" not in test_response.text
+    app.dependency_overrides.clear()
 
 
 def test_get_configuration_never_returns_plaintext_secrets(tmp_path):

@@ -69,9 +69,10 @@
 
 | 文件/目录 | 说明 |
 |---|---|
-| `app/api/main.py` | API 入口点，初始化 FastAPI 应用，注册所有路由 |
+| `app/api/main.py` | API 入口点，初始化 FastAPI 应用、注册路由，并配置显式 CORS 与本地 Trusted Host 边界 |
 | `app/api/models.py` | API 请求/响应模型（Pydantic） |
 | `app/api/configuration_models.py` | 系统配置中心严格契约：五分区视图/更新/测试响应，禁止额外字段并定义秘密三态字段 |
+| `app/api/configuration_security.py` | 配置控制面安全策略：Host/CORS 严格解析与一致性校验、本地/Tauri Origin 白名单和进程级 CSRF token |
 | `app/api/routes/configuration.py` | `/api/config` 路由：脱敏快照、分区原子保存、非持久化连接测试和安全错误映射 |
 | `app/api/routes/audit.py` | 审计 API：查询审计日志 |
 | `app/api/routes/dashboard.py` | 仪表盘 API：获取仪表盘汇总数据 |

@@ -50,12 +50,40 @@ Classes:
 - `ConfigurationTestResponse`
 
 
+## `app/api/configuration_security.py`
+
+Module docstring:
+> 系统配置控制面的本地来源与进程内 CSRF 防护。
+
+Imports:
+- `fastapi`
+- `ipaddress`
+- `os`
+- `re`
+- `secrets`
+- `typing`
+- `urllib.parse`
+
+Functions:
+- `parse_cors_origins`
+  - 解析显式 CORS origin 列表，拒绝通配符和非 origin URL。
+- `_is_hostname_or_ipv4`
+- `parse_trusted_hosts`
+  - 解析 Host 白名单扩展；端口由 HTTP Host 头正常携带，不写入配置。
+- `validate_cors_trusted_host_consistency`
+  - 确保显式跨域调用方也属于明确扩展的 Host 信任边界。
+- `_configuration_origin_is_allowed`
+- `require_configuration_csrf_token`
+  - 拒绝非本地来源，并以常量时间比较进程级 CSRF token。
+
+
 ## `app/api/main.py`
 
 Module docstring:
 > AlphaFoundry API
 
 Imports:
+- `app.api.configuration_security`
 - `app.api.routes`
 - `core.observability`
 - `fastapi`
@@ -63,6 +91,7 @@ Imports:
 - `fastapi.responses`
 - `fastapi.staticfiles`
 - `pathlib`
+- `starlette.middleware.trustedhost`
 - `starlette.responses`
 - `starlette.types`
 - `sys`
@@ -291,6 +320,7 @@ Module docstring:
 
 Imports:
 - `app.api.configuration_models`
+- `app.api.configuration_security`
 - `core.observability`
 - `fastapi`
 - `pydantic`
@@ -11014,6 +11044,7 @@ Module docstring:
 Imports:
 - `__future__`
 - `argparse`
+- `dotenv`
 - `logging`
 - `os`
 - `pathlib`

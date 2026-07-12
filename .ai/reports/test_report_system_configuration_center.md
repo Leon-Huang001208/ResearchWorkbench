@@ -33,6 +33,7 @@ Commands/results recorded by implementation and integration stages:
 - Fresh combined configuration/iFinD/ZQ suite: `78 passed, 22 warnings`.
 - Configuration frontend focused suite: `14 passed`, including three Node-backed behavior tests and a WCAG contrast matrix.
 - Final CSRF/CORS, endpoint-secret binding, runtime, frontend Node, and desktop launcher focused suite: `64 passed, 22 warnings`.
+- Host/Origin and implicit provider-identity security regression suite: `92 passed, 22 warnings`.
 - Combined frontend regression before final style-only changes: 2 failures, matching the pre-implementation baseline (`if (!wordFile)` legacy assertion and old `app.js?v=20260703theme1` cache-version assertion).
 - Focused ruff: passed.
 - Focused black check: passed.
@@ -46,6 +47,8 @@ Behavior covered:
 - Runtime config path precedence and current-process environment override.
 - Five-section masking/readiness, strict schemas, safe 422 responses, and unsupported sections.
 - Secret retain/replace/explicit-clear semantics and `original_name` behavior across renames.
+- LLM endpoint-secret binding also resolves an existing provider by current `name` when `original_name` is omitted; endpoint changes with an empty token fail before any probe.
+- Trusted Host defaults restrict the local server to `localhost`, `127.0.0.1`, and `testserver`; explicit host extensions reject wildcards, URLs, credentials, paths, and ports. Configuration API origins are limited to loopback, supported Tauri origins, or explicit CORS origins whose host is also trusted.
 - Strict dotenv rejection, unrelated line/comment preservation, same-path thread/process serialization, `0600` temporary permissions, fsync, atomic replace, and failure cleanup.
 - Runtime-safe refresh, ZhiQiu new-client environment compatibility, and database restart-only behavior.
 - Real short-timeout LLM/ZhiQiu/iFinD probes with no candidate persistence; database URL-only validation.
@@ -87,5 +90,6 @@ Remaining risk:
 
 - The project-wide formatting, typing, and pytest collection debt prevents the mandatory repository completion gate from passing.
 - Real LLM、知秋和 iFinD connectivity still depends on valid user credentials and reachable vendor services.
+- IPv6 loopback is not enabled by the default Host allowlist; deployments that need non-default network binding require an explicitly reviewed host configuration and compatible server binding.
 
 Final test decision: feature-focused and browser verification are green; task remains `doing` because mandatory repository-wide gates are blocked by pre-existing failures.

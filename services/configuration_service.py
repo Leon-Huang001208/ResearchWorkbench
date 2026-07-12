@@ -411,8 +411,7 @@ class ConfigurationService:
                 submitted_secret = provider.get("api_key")
                 clear_secret = bool(provider.get("clear_api_key", False))
                 if (
-                    provider.get("original_name")
-                    and old_secret
+                    old_secret
                     and base_url != str(original_provider.get("base_url", ""))
                     and not clear_secret
                     and (submitted_secret is None or str(submitted_secret) == "")

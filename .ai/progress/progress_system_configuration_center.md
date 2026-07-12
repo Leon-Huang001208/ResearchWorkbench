@@ -11,4 +11,5 @@
 - 全仓门禁：任务/文档检查和 Python 索引生成通过；ruff、black、isort、mypy 及全量 pytest 因仓库既有问题失败，详情见测试报告。因此不得标记 `done`。
 - 最终安全修复：默认关闭 CORS、配置 API 进程级 CSRF、防止旧秘密发送到变化后的 Provider/iFinD 端点，并让冻结桌面启动优先加载持久 `.env`；状态继续保持 `doing`。
 - 最终安全 focused：配置/API/runtime/frontend 与 desktop launcher 回归 `64 passed`。
+- 安全复核加固：Provider 未提交 `original_name` 时仍按当前名称绑定旧秘密；默认 Trusted Host 仅允许本机地址和测试主机，配置 API 同时校验本地/Tauri/显式一致 Origin。关联 focused 回归 `92 passed`，状态继续保持 `doing`。
 - 下一步：整合功能分支；后续单独清理仓库级格式、类型债和重复测试模块名后，再将任务状态改为 `done`。
