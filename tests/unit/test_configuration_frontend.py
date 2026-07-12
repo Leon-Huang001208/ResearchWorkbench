@@ -6,6 +6,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 INDEX_HTML = ROOT / "app" / "web" / "templates" / "index.html"
 APP_JS = ROOT / "app" / "web" / "static" / "js" / "app.js"
+CORE_JS = ROOT / "app" / "web" / "static" / "js" / "core.js"
 CONFIGURATION_JS = ROOT / "app" / "web" / "static" / "js" / "configuration.js"
 STYLE_CSS = ROOT / "app" / "web" / "static" / "style.css"
 
@@ -13,7 +14,7 @@ STYLE_CSS = ROOT / "app" / "web" / "static" / "style.css"
 def test_configuration_navigation_and_five_sections_are_present():
     html = INDEX_HTML.read_text(encoding="utf-8")
 
-    assert 'app.js?v=20260712config1' in html
+    assert 'app.js?v=20260712config2' in html
     assert 'data-section="config"' in html
     assert 'id="section-config"' in html
     assert 'id="config-readiness-overview"' in html
@@ -36,7 +37,8 @@ def test_configuration_module_uses_expected_api_contract_and_is_initialized_by_n
     app_source = APP_JS.read_text(encoding="utf-8")
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
 
-    assert "import { initConfigurationPage } from './configuration.js'" in app_source
+    assert "import { initConfigurationPage } from './configuration.js?v=20260712config2'" in app_source
+    assert "import { apiCall } from './core.js?v=20260712config2'" in source
     assert "if (section === 'config') initConfigurationPage();" in app_source
     assert "export async function initConfigurationPage()" in source
     assert "apiCall('GET', '/api/config')" in source
@@ -79,6 +81,30 @@ def test_api_strings_are_rendered_without_inner_html():
     assert "innerHTML" not in source
 
 
+def test_api_call_exposes_only_safe_structured_validation_details():
+    source = CORE_JS.read_text(encoding="utf-8")
+
+    assert "apiError.details = safeDetails" in source
+    assert "detail.loc" in source
+    assert "detail.type" in source
+    assert "detail.msg" in source
+    assert "detail.input" not in source
+    assert "请求未通过字段校验" in source
+
+
+def test_configuration_errors_render_field_paths_without_api_values_in_dataset():
+    source = CONFIGURATION_JS.read_text(encoding="utf-8")
+
+    assert "const rowOriginalNames = new WeakMap()" in source
+    assert "rowOriginalNames.set(row" in source
+    assert "rowOriginalNames.get(row)" in source
+    assert "dataset.originalName" not in source
+    assert "formatValidationPath" in source
+    assert "error.details" in source
+    assert "replaceChildren" in source
+    assert "字段校验失败" in source
+
+
 def test_configuration_styles_cover_layout_states_and_accessible_focus():
     css = STYLE_CSS.read_text(encoding="utf-8")
 
@@ -88,5 +114,6 @@ def test_configuration_styles_cover_layout_states_and_accessible_focus():
     assert ".config-status.missing" in css
     assert ".config-status.error" in css
     assert ".config-status.restart" in css
+    assert ".config-field-errors" in css
     assert ".configuration-page :focus-visible" in css
     assert "@media (max-width: 900px)" in css

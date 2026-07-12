@@ -7569,6 +7569,14 @@ tr:hover td {
 .config-page-message.error { color: var(--status-warning); }
 .config-page-message.restart { color: var(--accent-primary); }
 
+.config-field-errors {
+    display: grid;
+    gap: var(--space-1);
+    margin: var(--space-2) 0 0;
+    padding-left: var(--space-5);
+    color: var(--status-warning);
+}
+
 .config-readiness-grid {
     display: grid;
     grid-template-columns: repeat(5, minmax(130px, 1fr));

@@ -14,8 +14,28 @@ export async function apiCall(method, url, body = null, options = {}) {
     if (body) opts.body = JSON.stringify(body);
     const resp = await fetch(`${API_BASE}${url}`, opts);
     if (!resp.ok) {
-        const err = await resp.json().catch(() => ({ detail: resp.statusText }));
-        throw new Error(err.error || err.detail || `HTTP ${resp.status}`);
+        const payload = await resp.json().catch(() => ({ detail: resp.statusText }));
+        const safeDetails = Array.isArray(payload.detail)
+            ? payload.detail.map(detail => ({
+                loc: Array.isArray(detail.loc)
+                    ? detail.loc.filter(part => (
+                        Number.isInteger(part)
+                        || (typeof part === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(part))
+                    ))
+                    : [],
+                type: typeof detail.type === 'string' ? detail.type.slice(0, 128) : 'value_error',
+                msg: typeof detail.msg === 'string' ? detail.msg.slice(0, 240) : '输入值未通过校验',
+            }))
+            : [];
+        const message = safeDetails.length
+            ? '请求未通过字段校验'
+            : (typeof payload.error === 'string' && payload.error)
+                || (typeof payload.detail === 'string' && payload.detail)
+                || `HTTP ${resp.status}`;
+        const apiError = new Error(message);
+        apiError.details = safeDetails;
+        apiError.status = resp.status;
+        throw apiError;
     }
     return resp.json();
 }

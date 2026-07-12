@@ -1,4 +1,6 @@
-import { apiCall } from './core.js';
+import { apiCall } from './core.js?v=20260712config2';
+
+const rowOriginalNames = new WeakMap();
 
 function element(tag, className = '', text = '') {
     const node = document.createElement(tag);
@@ -49,7 +51,7 @@ function secretHint(secret) {
 
 function createProviderRow(provider = {}) {
     const row = element('div', 'config-dynamic-row config-provider-row');
-    row.dataset.originalName = provider.original_name || '';
+    rowOriginalNames.set(row, provider.original_name || '');
     const name = input('text', provider.name, 'Provider 名称');
     name.dataset.field = 'name';
     const protocol = select([
@@ -98,7 +100,7 @@ function createTaskRouteRow(route = {}) {
 
 function createZhiqiuAccountRow(account = {}) {
     const row = element('div', 'config-dynamic-row config-zhiqiu-row');
-    row.dataset.originalName = account.original_name || '';
+    rowOriginalNames.set(row, account.original_name || '');
     const name = input('text', account.name, '知秋账号名称');
     name.dataset.field = 'name';
     const username = input('text', account.username, '知秋用户名');
@@ -207,8 +209,30 @@ function setSectionStatus(section, message, state = '') {
 function showPageMessage(message, state = '') {
     const node = document.getElementById('config-page-message');
     if (!node) return;
-    node.textContent = message;
+    node.replaceChildren(document.createTextNode(message));
     node.className = `config-page-message ${state}`.trim();
+}
+
+function formatValidationPath(loc) {
+    return Array.isArray(loc) && loc.length ? loc.join('.') : 'section';
+}
+
+function showPageError(error, fallback) {
+    const node = document.getElementById('config-page-message');
+    if (!node) return;
+    const details = Array.isArray(error?.details) ? error.details : [];
+    if (!details.length) {
+        showPageMessage(safeErrorMessage(error, fallback), 'error');
+        return;
+    }
+    const title = element('strong', '', '字段校验失败');
+    const list = element('ul', 'config-field-errors');
+    details.forEach(detail => {
+        const path = formatValidationPath(detail.loc);
+        list.append(element('li', '', `${path}: ${detail.msg || '输入值未通过校验'}`));
+    });
+    node.replaceChildren(title, list);
+    node.className = 'config-page-message error';
 }
 
 function safeErrorMessage(error, fallback) {
@@ -225,7 +249,7 @@ async function loadConfiguration() {
         renderSnapshot(snapshot);
         showPageMessage('配置已刷新', 'ready');
     } catch (error) {
-        showPageMessage(safeErrorMessage(error, '配置读取失败，请稍后重试'), 'error');
+        showPageError(error, '配置读取失败，请稍后重试');
     }
 }
 
@@ -236,7 +260,7 @@ function rowValue(row, field) {
 
 function collectLlm() {
     const providers = [...document.querySelectorAll('.config-provider-row')].map(row => ({
-        original_name: row.dataset.originalName || undefined,
+        original_name: rowOriginalNames.get(row) || undefined,
         name: rowValue(row, 'name'),
         protocol: rowValue(row, 'protocol'),
         base_url: rowValue(row, 'base_url'),
@@ -254,7 +278,7 @@ function collectLlm() {
 function collectZhiqiu() {
     const form = document.getElementById('config-zhiqiu-form');
     const accounts = [...document.querySelectorAll('.config-zhiqiu-row')].map(row => ({
-        original_name: row.dataset.originalName || undefined,
+        original_name: rowOriginalNames.get(row) || undefined,
         name: rowValue(row, 'name'),
         username: rowValue(row, 'username'),
         password: rowValue(row, 'password'),
@@ -316,8 +340,11 @@ async function saveSection(section) {
         showPageMessage(result.message, result.restart_required ? 'restart' : 'ready');
     } catch (error) {
         const message = safeErrorMessage(error, '保存失败，请检查输入字段');
-        setSectionStatus(section, message, 'error');
-        showPageMessage(message, 'error');
+        const firstPath = Array.isArray(error?.details) && error.details.length
+            ? formatValidationPath(error.details[0].loc)
+            : '';
+        setSectionStatus(section, firstPath ? `字段校验失败：${firstPath}` : message, 'error');
+        showPageError(error, '保存失败，请检查输入字段');
     }
 }
 
@@ -329,8 +356,11 @@ async function testSection(section) {
         showPageMessage(result.message, result.success ? 'ready' : 'error');
     } catch (error) {
         const message = safeErrorMessage(error, '连接验证失败，请检查配置');
-        setSectionStatus(section, message, 'error');
-        showPageMessage(message, 'error');
+        const firstPath = Array.isArray(error?.details) && error.details.length
+            ? formatValidationPath(error.details[0].loc)
+            : '';
+        setSectionStatus(section, firstPath ? `字段校验失败：${firstPath}` : message, 'error');
+        showPageError(error, '连接验证失败，请检查配置');
     }
 }
 
