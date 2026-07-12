@@ -69,7 +69,7 @@
 
 | 文件/目录 | 说明 |
 |---|---|
-| `app/api/main.py` | API 入口点，初始化 FastAPI 应用、注册路由，并配置显式 CORS 与本地 Trusted Host 边界 |
+| `app/api/main.py` | API 入口点，初始化 FastAPI 应用、注册路由，并配置 Tauri 本地 Origin、显式扩展 CORS 与本地 Trusted Host 边界 |
 | `app/api/models.py` | API 请求/响应模型（Pydantic） |
 | `app/api/configuration_models.py` | 系统配置中心严格契约：五分区视图/更新/测试响应，禁止额外字段并定义秘密三态字段 |
 | `app/api/configuration_security.py` | 配置控制面安全策略：Host/CORS 严格解析与一致性校验、本地/Tauri Origin 白名单和进程级 CSRF token |

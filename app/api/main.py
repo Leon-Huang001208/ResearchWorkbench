@@ -17,7 +17,7 @@ project_root = script_path.parent.parent.parent  # app/api/main.py → project r
 sys.path.insert(0, str(project_root))
 
 from app.api.configuration_security import (
-    CONFIGURATION_CORS_ORIGINS,
+    APPLICATION_CORS_ORIGINS,
     CONFIGURATION_CSRF_META_PLACEHOLDER,
     CONFIGURATION_CSRF_TOKEN,
     CONFIGURATION_TRUSTED_HOSTS,
@@ -68,14 +68,13 @@ def shutdown() -> None:
     logger.info("AlphaFoundry API shutting down...")
 
 
-if CONFIGURATION_CORS_ORIGINS:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=CONFIGURATION_CORS_ORIGINS,
-        allow_credentials=True,
-        allow_methods=["GET", "PUT", "POST", "OPTIONS"],
-        allow_headers=["Content-Type", "X-AlphaFoundry-Config-Token"],
-    )
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=APPLICATION_CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET", "PUT", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "X-AlphaFoundry-Config-Token"],
+)
 app.add_middleware(
     TrustedHostMiddleware,
     allowed_hosts=CONFIGURATION_TRUSTED_HOSTS,

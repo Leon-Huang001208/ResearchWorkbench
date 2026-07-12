@@ -53,11 +53,14 @@ def test_configuration_api_requires_exact_csrf_token(tmp_path):
     app.dependency_overrides.clear()
 
 
-def test_default_cors_is_disabled_and_index_injects_token_without_api_echo(tmp_path):
+def test_only_desktop_origins_receive_default_cors_and_index_injects_token_without_api_echo(
+    tmp_path,
+):
     client = _client_for(tmp_path / ".env")
 
     index_response = client.get("/", headers={"Origin": "https://attacker.example"})
     second_index_response = client.get("/")
+    desktop_health_response = client.get("/health", headers={"Origin": "tauri://localhost"})
     preflight_response = client.options(
         "/api/config",
         headers={
@@ -70,6 +73,8 @@ def test_default_cors_is_disabled_and_index_injects_token_without_api_echo(tmp_p
     assert index_response.status_code == 200
     assert index_response.headers.get("access-control-allow-origin") is None
     assert preflight_response.headers.get("access-control-allow-origin") is None
+    assert desktop_health_response.status_code == 200
+    assert desktop_health_response.headers["access-control-allow-origin"] == "tauri://localhost"
     assert f'content="{CONFIGURATION_CSRF_TOKEN}"' in index_response.text
     assert f'content="{CONFIGURATION_CSRF_TOKEN}"' in second_index_response.text
     assert CONFIGURATION_CSRF_TOKEN not in api_response.text

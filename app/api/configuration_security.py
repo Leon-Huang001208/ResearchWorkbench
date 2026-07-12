@@ -12,9 +12,12 @@ from fastapi import Header, HTTPException
 CONFIGURATION_CSRF_META_PLACEHOLDER = "__ALPHAFOUNDRY_CONFIG_TOKEN__"
 CONFIGURATION_CSRF_TOKEN = secrets.token_urlsafe(32)
 DEFAULT_TRUSTED_HOSTS = ("localhost", "127.0.0.1", "testserver")
-DESKTOP_CONFIGURATION_ORIGINS = frozenset(
-    {"tauri://localhost", "http://tauri.localhost", "https://tauri.localhost"}
+DESKTOP_CORS_ORIGINS = (
+    "tauri://localhost",
+    "http://tauri.localhost",
+    "https://tauri.localhost",
 )
+DESKTOP_CONFIGURATION_ORIGINS = frozenset(DESKTOP_CORS_ORIGINS)
 
 
 def parse_cors_origins(raw_origins: str | None) -> list[str]:
@@ -90,6 +93,7 @@ def validate_cors_trusted_host_consistency(
 CONFIGURATION_TRUSTED_HOSTS = parse_trusted_hosts(os.environ.get("ALPHAFOUNDRY_TRUSTED_HOSTS"))
 CONFIGURATION_CORS_ORIGINS = parse_cors_origins(os.environ.get("ALPHAFOUNDRY_CORS_ORIGINS"))
 validate_cors_trusted_host_consistency(CONFIGURATION_CORS_ORIGINS, CONFIGURATION_TRUSTED_HOSTS)
+APPLICATION_CORS_ORIGINS = list(dict.fromkeys((*DESKTOP_CORS_ORIGINS, *CONFIGURATION_CORS_ORIGINS)))
 
 
 def _configuration_origin_is_allowed(origin: str) -> bool:
