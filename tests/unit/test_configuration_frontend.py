@@ -322,12 +322,23 @@ def test_configuration_styles_cover_layout_states_and_accessible_focus():
     assert ".config-field-errors" in css
     assert ".configuration-page .primary-btn" in css
     assert ".configuration-page .secondary-btn" in css
-    assert ".configuration-page .primary-btn:hover" in css
-    assert ".configuration-page .secondary-btn:hover" in css
+    assert "color: #111827;" in css
+    assert ".configuration-page .primary-btn:not(:disabled):hover" in css
+    assert ".configuration-page .secondary-btn:not(:disabled):hover" in css
     assert ".configuration-page .primary-btn:active" in css
     assert ".configuration-page .secondary-btn:active" in css
     assert ".configuration-page button:disabled" in css
     assert ".configuration-page .config-remove-row" in css
-    assert ".configuration-page .config-remove-row:hover" in css
+    assert ".configuration-page .config-remove-row:not(:disabled):hover" in css
     assert ".configuration-page :focus-visible" in css
+    focus_block = css.split(".configuration-page :focus-visible {", 1)[1].split("}", 1)[0]
+    assert "outline: 2px solid var(--border-focus);" in focus_block
+    assert "@media (max-width: 1500px)" in css
+    wide_breakpoint = css.split("@media (max-width: 1500px)", 1)[1].split(
+        "@media (max-width: 1180px)", 1
+    )[0]
+    assert ".configuration-layout" in wide_breakpoint
+    assert "grid-template-columns: 1fr;" in wide_breakpoint
+    assert ".configuration-help" in wide_breakpoint
+    assert "position: static;" in wide_breakpoint
     assert "@media (max-width: 900px)" in css

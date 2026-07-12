@@ -7724,11 +7724,11 @@ tr:hover td {
 
 .configuration-page .primary-btn {
     border-color: var(--accent);
-    color: var(--bg-body);
+    color: #111827;
     background: var(--accent);
 }
 
-.configuration-page .primary-btn:hover {
+.configuration-page .primary-btn:not(:disabled):hover {
     border-color: var(--accent-hover);
     background: var(--accent-hover);
 }
@@ -7740,7 +7740,7 @@ tr:hover td {
     background: var(--bg-elevated);
 }
 
-.configuration-page .secondary-btn:hover {
+.configuration-page .secondary-btn:not(:disabled):hover {
     border-color: var(--accent);
     color: var(--accent);
     background: var(--accent-light);
@@ -7765,7 +7765,7 @@ tr:hover td {
     background: transparent;
 }
 
-.configuration-page .config-remove-row:hover { border-color: var(--status-warning); color: var(--status-warning); }
+.configuration-page .config-remove-row:not(:disabled):hover { border-color: var(--status-warning); color: var(--status-warning); }
 
 .config-field-grid {
     display: grid;
@@ -7812,8 +7812,16 @@ tr:hover td {
 .config-help-card ul { margin: 0; padding-left: 20px; color: var(--text-secondary); line-height: 1.7; }
 
 .configuration-page :focus-visible {
-    outline: 2px solid var(--accent-primary);
+    outline: 2px solid var(--border-focus);
     outline-offset: 2px;
+}
+
+@media (max-width: 1500px) {
+    .configuration-layout { grid-template-columns: 1fr; }
+    .configuration-help {
+        position: static;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 @media (max-width: 1180px) {
@@ -7824,7 +7832,10 @@ tr:hover td {
 
 @media (max-width: 900px) {
     .configuration-layout { grid-template-columns: 1fr; }
-    .configuration-help { position: static; }
+    .configuration-help {
+        position: static;
+        grid-template-columns: 1fr;
+    }
     .config-readiness-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
