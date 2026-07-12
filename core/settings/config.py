@@ -7,7 +7,24 @@ from dotenv import load_dotenv
 from pydantic import BaseModel, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-load_dotenv()
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+
+
+def resolve_runtime_env_path(project_root: Path | None = None) -> Path:
+    """解析当前运行模式应使用的配置文件路径。"""
+    explicit_path = os.environ.get("ALPHAFOUNDRY_CONFIG_PATH", "").strip()
+    if explicit_path:
+        return Path(explicit_path).expanduser()
+
+    desktop_data_dir = os.environ.get("ALPHAFOUNDRY_DESKTOP_DATA_DIR", "").strip()
+    if desktop_data_dir:
+        return Path(desktop_data_dir).expanduser() / ".env"
+
+    return (project_root or PROJECT_ROOT) / ".env"
+
+
+RUNTIME_ENV_PATH = resolve_runtime_env_path()
+load_dotenv(dotenv_path=RUNTIME_ENV_PATH)
 
 
 class ProviderProfile(BaseModel):
@@ -27,10 +44,14 @@ class TaskRoute(BaseModel):
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=RUNTIME_ENV_PATH,
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
     # 项目根目录
-    PROJECT_ROOT: Path = Path(__file__).parent.parent.parent
+    PROJECT_ROOT: Path = PROJECT_ROOT
 
     # Runtime environment: dev/prod
     APP_ENV: Literal["dev", "prod"] = "dev"

@@ -172,22 +172,12 @@ class AccountManager:
         self._init_state()
 
     def _load_config(self) -> dict:
-        """加载配置文件,优先从环境变量 ZQ_ACCOUNTS 读取账号"""
+        """加载配置，优先使用结构化环境账号并兼容旧格式。"""
         import os
 
-        # 尝试从环境变量加载账号
-        zq_accounts_env = os.environ.get("ZQ_ACCOUNTS")
-        accounts = {}
-        if zq_accounts_env:
-            # 解析 ZQ_ACCOUNTS: "user1:pass1,user2:pass2" -> {"user1": {"username": "user1", "password": "pass1"}, ...}
-            for account_pair in zq_accounts_env.split(","):
-                if ":" in account_pair:
-                    username, password = account_pair.split(":", 1)
-                    # 使用用户名作为账号 key
-                    accounts[username.strip()] = {
-                        "username": username.strip(),
-                        "password": password.strip(),
-                    }
+        accounts = self._load_accounts_from_environment(
+            os.environ.get("ZQ_ACCOUNTS_JSON"), os.environ.get("ZQ_ACCOUNTS")
+        )
 
         # 尝试从配置文件加载其他配置（账号轮换、进度追踪等）
         try:
@@ -204,16 +194,92 @@ class AccountManager:
 
         return config
 
+    @staticmethod
+    def _load_accounts_from_environment(
+        structured_value: Optional[str], legacy_value: Optional[str]
+    ) -> Dict[str, Dict[str, str]]:
+        """安全解析环境账号；任何 JSON 格式错误都会回退到旧格式。"""
+        if structured_value:
+            try:
+                raw_accounts = json.loads(structured_value)
+                parsed_accounts: Dict[str, Dict[str, str]] = {}
+                if isinstance(raw_accounts, list):
+                    entries = raw_accounts
+                elif isinstance(raw_accounts, dict):
+                    entries = [
+                        {"name": name, **details}
+                        for name, details in raw_accounts.items()
+                        if isinstance(details, dict)
+                    ]
+                    if len(entries) != len(raw_accounts):
+                        raise ValueError("invalid account entry")
+                else:
+                    raise ValueError("accounts JSON must be a list or object")
+
+                for entry in entries:
+                    if not isinstance(entry, dict):
+                        raise ValueError("invalid account entry")
+                    username = entry.get("username")
+                    password = entry.get("password")
+                    name = entry.get("name") or username
+                    if not (
+                        isinstance(name, str)
+                        and name
+                        and isinstance(username, str)
+                        and username
+                        and isinstance(password, str)
+                        and password
+                    ):
+                        raise ValueError("account fields must be non-empty strings")
+                    if name in parsed_accounts:
+                        raise ValueError("duplicate account name")
+                    parsed_accounts[name] = {"username": username, "password": password}
+                return parsed_accounts
+            except (json.JSONDecodeError, TypeError, ValueError):
+                logger.warning("ZQ_ACCOUNTS_JSON 解析失败，回退兼容配置")
+
+        parsed_legacy: Dict[str, Dict[str, str]] = {}
+        if legacy_value:
+            for account_pair in legacy_value.split(","):
+                if ":" not in account_pair:
+                    continue
+                username, password = account_pair.split(":", 1)
+                username = username.strip()
+                if username:
+                    parsed_legacy[username] = {
+                        "username": username,
+                        "password": password.strip(),
+                    }
+        return parsed_legacy
+
     def _parse_rotation_config(self) -> RotationConfig:
         """解析轮询配置"""
+        import os
+
         cfg = self.config.get("account_rotation", {})
+
+        def env_int(name: str, fallback: int) -> int:
+            raw_value = os.environ.get(name)
+            if raw_value is None:
+                return fallback
+            try:
+                return int(raw_value)
+            except ValueError:
+                logger.warning("知秋轮询数值环境配置无效，使用兼容值")
+                return fallback
+
         return RotationConfig(
-            enabled=cfg.get("enabled", True),
-            max_retries=cfg.get("max_retries", 3),
-            retry_delay=cfg.get("retry_delay", 5),
-            rotation_strategy=cfg.get("rotation_strategy", "round_robin"),
-            lease_timeout=cfg.get("lease_timeout", 300),
-            max_consecutive_failures=cfg.get("max_consecutive_failures", 10),
+            enabled=os.environ.get("ZQ_ROTATION_ENABLED", str(cfg.get("enabled", True))).lower()
+            in {"1", "true", "yes", "on"},
+            max_retries=env_int("ZQ_MAX_RETRIES", cfg.get("max_retries", 3)),
+            retry_delay=env_int("ZQ_RETRY_DELAY", cfg.get("retry_delay", 5)),
+            rotation_strategy=os.environ.get(
+                "ZQ_ROTATION_STRATEGY", cfg.get("rotation_strategy", "round_robin")
+            ),
+            lease_timeout=env_int("ZQ_LEASE_TIMEOUT", cfg.get("lease_timeout", 300)),
+            max_consecutive_failures=env_int(
+                "ZQ_MAX_CONSECUTIVE_FAILURES", cfg.get("max_consecutive_failures", 10)
+            ),
         )
 
     def _init_state(self) -> None:

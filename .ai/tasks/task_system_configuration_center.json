@@ -1,0 +1,25 @@
+{
+  "tasks": [
+    {
+      "id": "system-configuration-center",
+      "title": "Implement system configuration center backend",
+      "description": "Add runtime configuration path compatibility, structured ZhiQiu credentials, a secure configuration service, and validated configuration API endpoints.",
+      "priority": "high",
+      "dependencies": [],
+      "success_criteria": [
+        "Development and desktop runtimes resolve the correct .env path",
+        "ZhiQiu accounts support JSON with legacy fallbacks",
+        "Five configuration sections can be read and updated without leaking secrets",
+        "Configuration writes are atomic and preserve unrelated .env content",
+        "Runtime-safe values hot reload while database changes require restart",
+        "Focused unit and API tests pass"
+      ],
+      "verification_commands": [
+        "/Users/leon/opt/anaconda3/bin/python -m pytest tests/unit/test_runtime_configuration_compatibility.py tests/unit/test_configuration_service.py tests/unit/test_configuration_api.py -v"
+      ],
+      "required_skill": "tdd",
+      "research_required": false,
+      "status": "done"
+    }
+  ]
+}

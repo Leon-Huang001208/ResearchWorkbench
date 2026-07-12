@@ -21,6 +21,7 @@
 | **AF-AUTO-010** | 🔄 进行中 | 2026-06-02 | - | [progress_af_auto_010.md](progress_af_auto_010.md) |
 | **AF-AUTO-013** | ✅ 已完成 | 2026-05-30 | 2026-06-03 | [progress_af_auto_013.md](progress_af_auto_013.md) |
 | **report-projects-doc-sync-2026-06-08** | ✅ 已完成 | 2026-06-08 | 2026-06-08 | [progress_report_projects_doc_sync.md](progress_report_projects_doc_sync.md) |
+| **system-configuration-center** | ✅ 已完成 | 2026-07-12 | 2026-07-12 | [progress_system_configuration_center.md](progress_system_configuration_center.md) |
 
 ---
 

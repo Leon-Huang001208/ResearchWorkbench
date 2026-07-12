@@ -65,6 +65,7 @@ from app.api.routes import (  # noqa: E402
     assets,
     audit,
     commentary,
+    configuration,
     dashboard,
     decision_console,
     event_ingestion,
@@ -107,6 +108,7 @@ from app.api.routes import (  # noqa: E402
 
 app.include_router(assets.router)
 app.include_router(commentary.router)
+app.include_router(configuration.router)
 app.include_router(scenarios.router)
 app.include_router(review.router)
 app.include_router(signals.router)
