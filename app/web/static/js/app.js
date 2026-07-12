@@ -23,6 +23,7 @@ import { initNavigationCuration } from './navigation-curation.js';
 import { initWindPanel } from './wind.js';
 import { initFundsPanel } from './funds.js?v=20260625a';
 import { initCommentaryCenter, selectCommentaryTemplate, loadCommentaryContext, generateCommentaryDraft, copyCommentaryDraft, switchCommentaryWorkspace } from './commentary.js?v=20260707logic1';
+import { initConfigurationPage } from './configuration.js';
 
 // ─── Window Exports (for HTML onclick handlers) ────────────────
 window.apiCall = apiCall;
@@ -216,6 +217,7 @@ function navigateTo(section) {
     if (section === 'funds') initFundsPanel();
     if (section === 'pipeline-monitor') renderPipelineMonitor();
     else stopPipelinePolling();
+    if (section === 'config') initConfigurationPage();
 }
 window.navigateTo = navigateTo;
 
