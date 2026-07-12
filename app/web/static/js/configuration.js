@@ -17,25 +17,38 @@ export function createGenerationTracker() {
         isLatest(token) {
             return token === generation;
         },
+        invalidate() {
+            generation += 1;
+            return generation;
+        },
     };
 }
 
-export function createRequestCoordinator() {
+export function createRequestCoordinator({ onFirstBegin = () => {}, onLastFinish = () => {} } = {}) {
     const active = new Map();
     const generations = new Map();
+    let activeCount = 0;
     return {
         begin(section) {
             if (active.has(section)) return null;
             const token = (generations.get(section) || 0) + 1;
             generations.set(section, token);
             active.set(section, token);
+            activeCount += 1;
+            if (activeCount === 1) onFirstBegin();
             return token;
         },
         isLatest(section, token) {
             return active.get(section) === token && generations.get(section) === token;
         },
         finish(section, token) {
-            if (active.get(section) === token) active.delete(section);
+            if (active.get(section) !== token) return;
+            active.delete(section);
+            activeCount = Math.max(0, activeCount - 1);
+            if (activeCount === 0) onLastFinish();
+        },
+        hasActive() {
+            return activeCount > 0;
         },
     };
 }
@@ -74,7 +87,15 @@ export function safeConfigurationError(error) {
 }
 
 const loadGeneration = createGenerationTracker();
-const requestCoordinator = createRequestCoordinator();
+const requestCoordinator = createRequestCoordinator({
+    onFirstBegin: () => {
+        loadAbortController?.abort();
+        loadAbortController = null;
+        loadGeneration.invalidate();
+        setRefreshDisabled(true);
+    },
+    onLastFinish: () => setRefreshDisabled(false),
+});
 
 function element(tag, className = '', text = '') {
     const node = document.createElement(tag);
@@ -391,6 +412,10 @@ function showPageError(error) {
 }
 
 async function loadConfiguration() {
+    if (requestCoordinator.hasActive()) {
+        showPageMessage('配置保存或验证进行中，请稍后刷新', 'error');
+        return false;
+    }
     const token = loadGeneration.next();
     loadAbortController?.abort();
     const controller = new AbortController();
@@ -401,6 +426,7 @@ async function loadConfiguration() {
         if (!loadGeneration.isLatest(token)) return;
         renderSnapshot(snapshot);
         showPageMessage('配置已刷新', 'ready');
+        return true;
     } catch (error) {
         if (error?.name === 'AbortError' || !loadGeneration.isLatest(token)) return;
         showPageError(error);
@@ -508,6 +534,11 @@ function setSectionBusy(section, busy) {
     form?.querySelectorAll('button').forEach(button => { button.disabled = busy; });
 }
 
+function setRefreshDisabled(disabled) {
+    const button = document.getElementById('config-refresh');
+    if (button) button.disabled = disabled;
+}
+
 async function saveSection(section) {
     const token = requestCoordinator.begin(section);
     if (token === null) return;
@@ -567,6 +598,10 @@ function markSectionDirty(target) {
 }
 
 async function refreshConfiguration() {
+    if (requestCoordinator.hasActive()) {
+        showPageMessage('配置保存或验证进行中，请稍后刷新', 'error');
+        return;
+    }
     if (dirtySections.size && !window.confirm('刷新会丢弃尚未保存的修改，是否继续？')) return;
     dirtySections.clear();
     await loadConfiguration();

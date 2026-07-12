@@ -16,7 +16,7 @@ STYLE_CSS = ROOT / "app" / "web" / "static" / "style.css"
 def test_configuration_navigation_and_five_sections_are_present():
     html = INDEX_HTML.read_text(encoding="utf-8")
 
-    assert "app.js?v=20260712config3" in html
+    assert "app.js?v=20260712config4" in html
     assert 'data-section="config"' in html
     assert 'id="section-config"' in html
     assert 'id="config-readiness-overview"' in html
@@ -40,7 +40,7 @@ def test_configuration_module_uses_expected_api_contract_and_is_initialized_by_n
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
 
     assert (
-        "import { initConfigurationPage } from './configuration.js?v=20260712config3'" in app_source
+        "import { initConfigurationPage } from './configuration.js?v=20260712config4'" in app_source
     )
     assert "import { apiCall } from './core.js?v=20260712config2'" in source
     assert "if (section === 'config') initConfigurationPage();" in app_source
@@ -171,6 +171,70 @@ def test_configuration_request_state_and_secret_rules_execute_in_node():
     assert "TOP_SECRET" not in result.stdout
 
 
+def test_mutation_aborts_delayed_load_and_denies_refresh_in_node():
+    script = f"""
+        import {{ createGenerationTracker, createRequestCoordinator }}
+            from {json.dumps(CONFIGURATION_JS.as_uri())};
+
+        const applied = [];
+        const tracker = createGenerationTracker();
+        const controller = new AbortController();
+        let aborted = false;
+        let refreshRestored = false;
+        const coordinator = createRequestCoordinator({{
+            onFirstBegin: () => {{
+                controller.abort();
+                tracker.invalidate();
+            }},
+            onLastFinish: () => {{ refreshRestored = true; }},
+        }});
+        const loadToken = tracker.next();
+        const delayedGet = new Promise((resolve, reject) => {{
+            const timer = setTimeout(() => resolve({{source: 'GET'}}), 30);
+            controller.signal.addEventListener('abort', () => {{
+                clearTimeout(timer);
+                aborted = true;
+                const error = new Error('aborted');
+                error.name = 'AbortError';
+                reject(error);
+            }}, {{once: true}});
+        }}).then(value => {{
+            if (tracker.isLatest(loadToken)) applied.push(value.source);
+        }}).catch(error => {{
+            if (error.name !== 'AbortError') throw error;
+        }});
+
+        const putToken = coordinator.begin('llm');
+        const refreshDenied = coordinator.hasActive();
+        applied.push('PUT');
+        coordinator.finish('llm', putToken);
+        await delayedGet;
+        console.log(JSON.stringify({{
+            aborted,
+            refreshDenied,
+            refreshRestored,
+            oldLoadLatest: tracker.isLatest(loadToken),
+            applied,
+        }}));
+    """
+    result = subprocess.run(
+        ["node", "--input-type=module", "-e", script],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    payload = json.loads(result.stdout)
+
+    assert payload == {
+        "aborted": True,
+        "refreshDenied": True,
+        "refreshRestored": True,
+        "oldLoadLatest": False,
+        "applied": ["PUT"],
+    }
+
+
 def test_configuration_initializes_once_and_save_does_not_reload_snapshot():
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
     save_start = source.index("async function saveSection(section)")
@@ -189,6 +253,11 @@ def test_configuration_initializes_once_and_save_does_not_reload_snapshot():
     assert "finally" in save_source
     assert "editedWhileSaving" in save_source
     assert "applySectionResponse(section, result.section, !editedWhileSaving)" in save_source
+    assert "loadAbortController?.abort()" in source
+    assert "loadGeneration.invalidate()" in source
+    assert "requestCoordinator.hasActive()" in source
+    assert "setRefreshDisabled(true)" in source
+    assert "setRefreshDisabled(false)" in source
 
 
 def test_configuration_styles_cover_layout_states_and_accessible_focus():
