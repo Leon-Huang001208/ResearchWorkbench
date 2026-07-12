@@ -11,7 +11,14 @@ def test_fetch_sector_board_ignores_bad_proxy_env_and_restores_it(monkeypatch):
     from data_layer.crawlers.akshare import board
 
     board._cache = None
-    proxy_keys = ["http_proxy", "https_proxy", "HTTP_PROXY", "HTTPS_PROXY", "all_proxy", "ALL_PROXY"]
+    proxy_keys = [
+        "http_proxy",
+        "https_proxy",
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "all_proxy",
+        "ALL_PROXY",
+    ]
 
     for key in proxy_keys:
         monkeypatch.setenv(key, "http://127.0.0.1:7890")

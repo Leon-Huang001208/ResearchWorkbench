@@ -126,7 +126,9 @@ class FundRepository(BaseRepository):
                     fund_nav_daily_table.c.symbol == nav.symbol,
                     fund_nav_daily_table.c.trading_day == nav.trading_day,
                 )
-                existing = self.db.execute(select(fund_nav_daily_table.c.symbol).where(condition)).first()
+                existing = self.db.execute(
+                    select(fund_nav_daily_table.c.symbol).where(condition)
+                ).first()
                 if existing:
                     self.db.execute(update(fund_nav_daily_table).where(condition).values(**payload))
                 else:
@@ -164,9 +166,7 @@ class FundRepository(BaseRepository):
             logger.error("failed to upsert fund holdings", error=str(exc))
             raise
 
-    def upsert_manager_tenures(
-        self, symbol: str, managers: Iterable[FundManagerProfile]
-    ) -> None:
+    def upsert_manager_tenures(self, symbol: str, managers: Iterable[FundManagerProfile]) -> None:
         """Replace manager tenures for one fund."""
         managers_list = list(managers)
         try:
@@ -189,9 +189,13 @@ class FundRepository(BaseRepository):
     def get_fund_master(self, symbol: str) -> Optional[FundMaster]:
         """Return one fund master record."""
         try:
-            row = self.db.execute(
-                select(fund_master_table).where(fund_master_table.c.symbol == symbol)
-            ).mappings().first()
+            row = (
+                self.db.execute(
+                    select(fund_master_table).where(fund_master_table.c.symbol == symbol)
+                )
+                .mappings()
+                .first()
+            )
             if row is None:
                 return None
             return FundMaster(**{key: row[key] for key in FundMaster.model_fields})
@@ -212,8 +216,7 @@ class FundRepository(BaseRepository):
                 .all()
             )
             return [
-                FundNavPoint(**{key: row[key] for key in FundNavPoint.model_fields})
-                for row in rows
+                FundNavPoint(**{key: row[key] for key in FundNavPoint.model_fields}) for row in rows
             ]
         except Exception as exc:
             logger.error("failed to get nav history", symbol=symbol, error=str(exc))
@@ -245,8 +248,7 @@ class FundRepository(BaseRepository):
                 .all()
             )
             return [
-                FundHolding(**{key: row[key] for key in FundHolding.model_fields})
-                for row in rows
+                FundHolding(**{key: row[key] for key in FundHolding.model_fields}) for row in rows
             ]
         except Exception as exc:
             logger.error("failed to get latest holdings", symbol=symbol, error=str(exc))
@@ -265,9 +267,7 @@ class FundRepository(BaseRepository):
                 .all()
             )
             return [
-                FundManagerProfile(
-                    **{key: row[key] for key in FundManagerProfile.model_fields}
-                )
+                FundManagerProfile(**{key: row[key] for key in FundManagerProfile.model_fields})
                 for row in rows
             ]
         except Exception as exc:

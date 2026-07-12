@@ -125,7 +125,9 @@ def _resolve_project_workbook(project: ReportProject, workbook_name: str) -> Pat
     raise FileNotFoundError(f"Workbook not found: {workbook_name}")
 
 
-def _read_excel_table(workbook_path: Path, config: Dict[str, Any]) -> Tuple[List[str], List[List[Any]]]:
+def _read_excel_table(
+    workbook_path: Path, config: Dict[str, Any]
+) -> Tuple[List[str], List[List[Any]]]:
     try:
         from openpyxl import load_workbook
     except ImportError as exc:  # pragma: no cover - dependency exists in project env
@@ -141,7 +143,10 @@ def _read_excel_table(workbook_path: Path, config: Dict[str, Any]) -> Tuple[List
         raise ValueError(f"Worksheet not found: {sheet_name}")
 
     sheet = workbook[sheet_name]
-    header_row = [str(value).strip() if value is not None else "" for value in next(sheet.iter_rows(min_row=1, max_row=1, values_only=True))]
+    header_row = [
+        str(value).strip() if value is not None else ""
+        for value in next(sheet.iter_rows(min_row=1, max_row=1, values_only=True))
+    ]
     column_indexes = [_require_column(header_row, column) for column in columns]
     filter_config = config.get("filter") if isinstance(config.get("filter"), dict) else {}
     filter_index = None

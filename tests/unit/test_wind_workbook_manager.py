@@ -1,8 +1,8 @@
 """Wind realtime workbook lifecycle manager tests."""
 
+import sys
 from pathlib import Path
 from types import SimpleNamespace
-import sys
 
 
 def test_wind_workbook_manager_autostart_requires_desktop_mac(monkeypatch, tmp_path):
@@ -142,6 +142,7 @@ def test_wind_workbook_manager_rebuilds_stale_open_workbook(monkeypatch, tmp_pat
     fresh_book = FakeBook(workbook_path, active_count=2)
     fake_books = FakeBooks(stale_book, fresh_book)
     fake_app = SimpleNamespace(books=fake_books, visible=True)
+
     class FakeApps(list):
         @property
         def active(self):

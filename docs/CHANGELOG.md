@@ -871,3 +871,8 @@
 - **[FILE_GUIDE.md](FILE_GUIDE.md)** - 文件指南
 - **[backup_restore.md](backup_restore.md)** - 备份恢复文档
 - **[DATA_SOURCES.md](DATA_SOURCES.md)** - 数据源文档
+
+## 2026-07-12
+
+- 修复全仓质量门：pytest 模块收集、数据库测试隔离、报告项目资产、类型检查与格式检查均可在干净工作树复现。
+- 系统配置任务改用可迁移的模型标识，移除报告配置与工作台默认值中的本机绝对路径。

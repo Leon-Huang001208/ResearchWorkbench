@@ -15,7 +15,7 @@ script_path = Path(__file__).resolve()
 project_root = script_path.parent.parent.parent  # app/api/main.py → project root
 sys.path.insert(0, str(project_root))
 
-from core.observability import configure_logging, get_logger
+from core.observability import configure_logging, get_logger  # noqa: E402
 
 logger = get_logger(__name__)
 

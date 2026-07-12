@@ -81,7 +81,9 @@ class PPTTemplateProjection:
                 with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as target:
                     for item in source.infolist():
                         data = source.read(item.filename)
-                        if item.filename.startswith("ppt/slides/") and item.filename.endswith(".xml"):
+                        if item.filename.startswith("ppt/slides/") and item.filename.endswith(
+                            ".xml"
+                        ):
                             data, count = self._replace_placeholders(data, placeholder_map)
                             replaced_count += count
                         target.writestr(item, data)
@@ -143,9 +145,7 @@ def _paragraph_text(paragraph: ET.Element) -> str:
 def _ordered_slide_xml_names(names: List[str]) -> List[str]:
     """Return slide XML paths in user-facing slide order."""
     slide_names = [
-        name
-        for name in names
-        if name.startswith("ppt/slides/slide") and name.endswith(".xml")
+        name for name in names if name.startswith("ppt/slides/slide") and name.endswith(".xml")
     ]
     return sorted(slide_names, key=_slide_sort_key)
 

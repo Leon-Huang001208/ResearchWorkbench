@@ -481,9 +481,7 @@ class AssetAnalysisService:
         (
             card.top_10_shareholders,
             card.top_10_float_shareholders,
-        ) = await self._fill_shareholder_data(
-            canonical_id, allow_live_fallback=not fast_price_mode
-        )
+        ) = await self._fill_shareholder_data(canonical_id, allow_live_fallback=not fast_price_mode)
 
         # Phase 4: 从 DocumentEventV1DB 填充近期事件
         card.recent_events = self._fill_recent_events(
@@ -1252,7 +1250,9 @@ class AssetAnalysisService:
         bars = [bar for bar in history_card.price_bars if bar.date != realtime_bar.date]
         bars.append(realtime_bar)
         bars.sort(key=lambda bar: bar.date)
-        return self._build_price_bars_from_dataframe(pd.DataFrame([bar.model_dump() for bar in bars]))
+        return self._build_price_bars_from_dataframe(
+            pd.DataFrame([bar.model_dump() for bar in bars])
+        )
 
     def _build_price_bars_from_dataframe(self, df: pd.DataFrame) -> list[PriceBar]:
         """把 Wind/表格行情转换为带 MA、BOLL、MACD 的 PriceBar 序列。"""

@@ -7,7 +7,6 @@ from pathlib import Path
 
 from build_sidecar import DIST_DIR, REPO_ROOT, sidecar_name, target_triple
 
-
 TAURI_BINARIES = REPO_ROOT / "src-tauri" / "binaries"
 
 

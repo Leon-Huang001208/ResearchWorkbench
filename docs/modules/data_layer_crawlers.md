@@ -290,3 +290,7 @@ When files in this module change, check:
 
 - `connectors/` — 连接器实现通过 Wrapper-first 策略委托本模块的适配器（如 `CLSDocumentConnector` → `CLSAdapter`）。当前调度和 CLI 的统一入口是 Connector；`data_layer/adapters/` 只保留为连接器内部委托层和少量 legacy 调用层。
 - `core/connectors/` — 连接器抽象基类和注册表
+
+## 2026-07-12
+
+爬虫与市场数据测试在受控适配器和临时数据库中运行，默认回归不要求供应商 SDK、网络或 PostgreSQL。

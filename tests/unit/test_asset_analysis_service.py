@@ -352,7 +352,7 @@ class TestAssetAnalysisService:
                             "low": 14.3,
                             "close": 14.8,
                             "vol": 1000,
-                        }
+                        },
                     ]
                 )
 

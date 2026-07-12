@@ -69,9 +69,7 @@ RECIPE_SECTION_MAP: dict[str, list[str]] = {
     recipe.id: recipe.sections for recipe in COMMENTARY_RECIPES
 }
 
-RECIPE_TITLE_MAP: dict[str, str] = {
-    recipe.id: recipe.title for recipe in COMMENTARY_RECIPES
-}
+RECIPE_TITLE_MAP: dict[str, str] = {recipe.id: recipe.title for recipe in COMMENTARY_RECIPES}
 
 COMMENTARY_MODEL = "deepseek-v4-pro"
 
@@ -230,7 +228,9 @@ class CommentaryDraftService:
             "warning": sum(1 for issue in issues if issue.severity == "warning"),
             "info": sum(1 for issue in issues if issue.severity == "info"),
         }
-        status = "blocked" if summary["blocked"] else ("warning" if summary["warning"] else "passed")
+        status = (
+            "blocked" if summary["blocked"] else ("warning" if summary["warning"] else "passed")
+        )
         return CommentaryQualityCheckResponse(
             status=status,
             summary=summary,
@@ -295,11 +295,7 @@ class CommentaryDraftService:
     ) -> list[dict[str, str]]:
         title = RECIPE_TITLE_MAP.get(recipe_id, RECIPE_TITLE_MAP["daily-close"])
         action_label = self._section_action_label(action)
-        system = (
-            "你是买方基金投研团队的中文点评编辑。"
-            "只改写用户给出的单个段落，不输出标题，不扩写成整篇文章。"
-            "必须遵守证据核验边界，不编造未提供的数据。"
-        )
+        system = "你是买方基金投研团队的中文点评编辑。" "只改写用户给出的单个段落，不输出标题，不扩写成整篇文章。" "必须遵守证据核验边界，不编造未提供的数据。"
         user = "\n".join(
             [
                 f"点评类型：{title}",
@@ -359,9 +355,9 @@ class CommentaryDraftService:
             "defensive": "防御解释",
             "decisive": "观点明确",
         }
-        audience = audience_labels.get(preferences.get("audience"), "投研内部")
-        length = length_labels.get(preferences.get("length"), "中评")
-        tone = tone_labels.get(preferences.get("tone"), "克制归因")
+        audience = audience_labels.get(preferences.get("audience") or "", "投研内部")
+        length = length_labels.get(preferences.get("length") or "", "中评")
+        tone = tone_labels.get(preferences.get("tone") or "", "克制归因")
         target_mode = preferences.get("target_mode") or "auto"
         target_name = (preferences.get("target_name") or "").strip()
         target_mode_label = "手动指定" if target_mode == "manual" else "系统自动识别"
@@ -383,8 +379,7 @@ class CommentaryDraftService:
             evidence = "；".join(signal.evidence_titles[:3])
             lines.append(
                 f"[{signal.rank}][{signal.strength}][{signal.score:.0f}] "
-                f"{signal.label}｜{signal.rationale}"
-                + (f"｜证据：{evidence}" if evidence else "")
+                f"{signal.label}｜{signal.rationale}" + (f"｜证据：{evidence}" if evidence else "")
             )
         return "\n".join(lines)
 
@@ -409,9 +404,7 @@ class CommentaryDraftService:
     @staticmethod
     def _select_balanced_evidence(items, limit: int):
         market_items = [item for item in items if item.source_type == "market_data"]
-        reported_items = [
-            item for item in items if item.source_type in {"news", "research"}
-        ]
+        reported_items = [item for item in items if item.source_type in {"news", "research"}]
         other_items = [
             item for item in items if item.source_type not in {"market_data", "news", "research"}
         ]

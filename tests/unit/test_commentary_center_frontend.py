@@ -1,7 +1,6 @@
 """Static wiring tests for the commentary production center frontend."""
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 INDEX_HTML = ROOT / "app" / "web" / "templates" / "index.html"
 APP_JS = ROOT / "app" / "web" / "static" / "js" / "app.js"
@@ -50,10 +49,10 @@ def test_commentary_module_defines_recipes_and_local_draft_generation():
     assert "产品/ETF配置点评" in source
     assert "generateCommentaryDraft" in source
     assert "buildCommentaryDraft" in source
-    assert "data-confidence=\"confirmed\"" in source
-    assert "data-confidence=\"reported\"" in source
-    assert "data-confidence=\"interpretation\"" in source
-    assert "data-confidence=\"judgement\"" in source
+    assert 'data-confidence="confirmed"' in source
+    assert 'data-confidence="reported"' in source
+    assert 'data-confidence="interpretation"' in source
+    assert 'data-confidence="judgement"' in source
 
 
 def test_commentary_module_loads_recipe_contract_from_backend_with_fallback():
@@ -177,7 +176,9 @@ def test_commentary_center_uses_workspace_mode_layout():
     assert "确认对象" in html
     assert "内容清单" in html
     assert "草稿生成" in html
-    assert html.index('data-commentary-workspace="template"') < html.index('data-commentary-workspace="subject"')
+    assert html.index('data-commentary-workspace="template"') < html.index(
+        'data-commentary-workspace="subject"'
+    )
     assert 'data-commentary-workspace="template">选择模板</button>' in html
     assert "switchCommentaryWorkspace" in source
     assert "switchCommentaryWorkspace(mode = 'template')" in source
@@ -189,10 +190,15 @@ def test_commentary_center_first_screen_focuses_on_template_selection():
     html = INDEX_HTML.read_text(encoding="utf-8")
 
     assert 'data-commentary-workspace="template">选择模板</button>' in html
-    assert 'class="commentary-workspace-panel active" data-commentary-workspace-panel="template"' in html
+    assert (
+        'class="commentary-workspace-panel active" data-commentary-workspace-panel="template"'
+        in html
+    )
     assert "先选择要写哪类点评" in html
     assert "每日收盘点评" in html
-    assert html.index('data-commentary-workspace-panel="template"') < html.index('id="commentary-subject-panel"')
+    assert html.index('data-commentary-workspace-panel="template"') < html.index(
+        'id="commentary-subject-panel"'
+    )
 
 
 def test_commentary_center_treats_commentary_target_as_template_dependent():
@@ -217,8 +223,12 @@ def test_commentary_center_uses_template_then_target_then_content_checklist_befo
 
     assert 'id="commentary-template-list"' in html
     assert 'id="commentary-content-checklist"' in html
-    assert html.index('data-commentary-workspace-panel="template"') < html.index('id="commentary-subject-panel"')
-    assert html.index('id="commentary-subject-panel"') < html.index('id="commentary-content-checklist"')
+    assert html.index('data-commentary-workspace-panel="template"') < html.index(
+        'id="commentary-subject-panel"'
+    )
+    assert html.index('id="commentary-subject-panel"') < html.index(
+        'id="commentary-content-checklist"'
+    )
     for item in ("核心观点", "行情事实", "消息面证据", "归因解释", "风险提示", "后续观察"):
         assert item in html
     assert "readSelectedContentSections" in source
@@ -268,14 +278,16 @@ def test_commentary_center_workflow_steps_expose_live_state_hooks():
 
     for step in ("template", "subject", "content", "draft"):
         assert f'data-commentary-step="{step}"' in html
-    assert html.index('data-commentary-step="template"') < html.index('data-commentary-step="subject"')
+    assert html.index('data-commentary-step="template"') < html.index(
+        'data-commentary-step="subject"'
+    )
     assert 'data-commentary-step="template" data-step-state="active"' in html
 
     assert "updateCommentaryWorkflow" in source
     assert "commentary-workflow-step" in source
     assert "data-step-state" in source
-    assert ".commentary-workflow-list li[data-step-state=\"done\"]" in css
-    assert ".commentary-workflow-list li[data-step-state=\"active\"]" in css
+    assert '.commentary-workflow-list li[data-step-state="done"]' in css
+    assert '.commentary-workflow-list li[data-step-state="active"]' in css
 
 
 def test_commentary_center_polishes_toolbar_and_draft_empty_state():

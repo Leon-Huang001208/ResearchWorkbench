@@ -222,3 +222,4 @@ When files in this module change, check:
 - 2026-07-07: 新增 `ReportProjectRunService`，将 `/api/report-projects/{slug}/render` 的 Word/PPT 生成编排、run-log 组装和 warning 聚合从 FastAPI route 收拢到 `reporting/projects/run.py`，保持外部响应不变。
 - 2026-07-07: 新增 `CompiledReportPlan`，`GET /api/report-projects/{slug}` 返回 `compiled_plan`，前端生成预检优先使用后端计划判断 prompt / retrieval / deterministic 占位符就绪度。
 - 2026-07-12: 报告工作台改为后台任务生成：提交接口立即返回 job ID，前端轮询短状态请求并显示真实阶段/段落进度；同项目活动任务自动去重，本地 embedding/reranker 加载和推理加锁，避免 WebView 长请求 `Load failed` 与 MPS 并发重复加载。
+- 2026-07-12: 内置华安 ETF 周报所需 Word/Excel/历史预览资产纳入版本控制；报告配置及工作台默认的 embedding/reranker 使用 `BAAI/...` 模型标识，避免绑定开发机绝对路径。

@@ -1,12 +1,13 @@
 """Dashboard 首页数据聚合服务"""
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
-from datetime import UTC, datetime, timedelta
 import json
 import os
-from pathlib import Path
 import re
-from threading import Lock
 import time
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FuturesTimeoutError
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from threading import Lock
 from typing import Any, List, Optional
 
 from sqlalchemy import desc
@@ -58,9 +59,7 @@ MARKET_SECTOR_VIEW_ORDER = (
 
 MARKET_SECTOR_CACHE_TTL_SECONDS = 5.0
 MARKET_SECTOR_WORKBOOK_READ_TIMEOUT_SECONDS = 24.0
-MARKET_SECTOR_WORKBOOK_READ_TIMEOUT_ENV = (
-    "ALPHAFOUNDRY_WIND_WORKBOOK_READ_TIMEOUT_SECONDS"
-)
+MARKET_SECTOR_WORKBOOK_READ_TIMEOUT_ENV = "ALPHAFOUNDRY_WIND_WORKBOOK_READ_TIMEOUT_SECONDS"
 MARKET_SECTOR_DISK_CACHE_MAX_AGE_SECONDS = 60 * 60
 MARKET_SECTOR_DISK_CACHE_PATH = (
     Path.home()
@@ -373,8 +372,7 @@ class DashboardService:
         with _market_command_cache_lock:
             if (
                 not force_refresh
-                and
-                _market_index_cache is not None
+                and _market_index_cache is not None
                 and now - _market_index_cache[0] < MARKET_COMMAND_CACHE_TTL_SECONDS
             ):
                 return [MarketIndexItem(**item) for item in _market_index_cache[1]]
@@ -397,6 +395,7 @@ class DashboardService:
 
         try:
             import requests
+
             from data_layer.crawlers.akshare.board import _without_proxy_env
 
             quote_codes = [f"s_{code}" for code, _ in target_indices]
@@ -429,7 +428,9 @@ class DashboardService:
                         "name": label,
                         "value": f"{latest:.2f}",
                         "change": round(change, 2),
-                        "point_change": round(point_change, 2) if point_change is not None else None,
+                        "point_change": round(point_change, 2)
+                        if point_change is not None
+                        else None,
                         "amount": self._optional_float(values[5]) if len(values) > 5 else None,
                         "source": "sina",
                     }
@@ -444,17 +445,14 @@ class DashboardService:
 
         try:
             import akshare as ak
+
             from data_layer.crawlers.akshare.board import _without_proxy_env
 
             with _without_proxy_env():
                 df = ak.stock_zh_index_spot_sina()
 
-            rows_by_code = {
-                str(row.get("代码") or "").strip(): row for _, row in df.iterrows()
-            }
-            rows_by_name = {
-                str(row.get("名称") or "").strip(): row for _, row in df.iterrows()
-            }
+            rows_by_code = {str(row.get("代码") or "").strip(): row for _, row in df.iterrows()}
+            rows_by_name = {str(row.get("名称") or "").strip(): row for _, row in df.iterrows()}
 
             indices: list[dict[str, Any]] = list(direct_indices)
             existing_codes = {item["code"] for item in indices}
@@ -477,7 +475,9 @@ class DashboardService:
                         "name": label,
                         "value": f"{latest:.2f}",
                         "change": round(change, 2),
-                        "point_change": round(point_change, 2) if point_change is not None else None,
+                        "point_change": round(point_change, 2)
+                        if point_change is not None
+                        else None,
                         "amount": self._optional_float(row.get("成交额")),
                         "source": "sina",
                     }
@@ -506,7 +506,11 @@ class DashboardService:
         now = time.time()
         with _market_command_cache_lock:
             cached = _market_breadth_cache
-        if cached and not force_refresh and now - cached[0] < MARKET_BREADTH_EXACT_CACHE_TTL_SECONDS:
+        if (
+            cached
+            and not force_refresh
+            and now - cached[0] < MARKET_BREADTH_EXACT_CACHE_TTL_SECONDS
+        ):
             return MarketBreadthSnapshot(**cached[1])
 
         if force_refresh:
@@ -532,7 +536,9 @@ class DashboardService:
 
         try:
             import math
+
             import requests
+
             from data_layer.crawlers.akshare.board import _without_proxy_env
 
             base_url = "https://push2.eastmoney.com/api/qt/clist/get"
@@ -545,14 +551,14 @@ class DashboardService:
             }
 
             def fetch_page(page: int, size: int) -> dict:
-                params = {
-                    "pn": page,
-                    "pz": size,
-                    "po": 1,
-                    "np": 1,
+                params: dict[str, str] = {
+                    "pn": str(page),
+                    "pz": str(size),
+                    "po": "1",
+                    "np": "1",
                     "ut": "bd1d9ddb04089700cf9c27f6f7426281",
-                    "fltt": 2,
-                    "invt": 2,
+                    "fltt": "2",
+                    "invt": "2",
                     "fid": "f3",
                     "fs": fs,
                     "fields": fields,
@@ -628,9 +634,7 @@ class DashboardService:
                 "previousTurnover": (previous_turnover or {}).get("formatted"),
                 "netInflow": None,
                 "source": "eastmoney_all_a",
-                "sourceLabel": "东方财富全A实时"
-                if failed_pages == 0
-                else f"东方财富全A实时（缺{failed_pages}页）",
+                "sourceLabel": "东方财富全A实时" if failed_pages == 0 else f"东方财富全A实时（缺{failed_pages}页）",
                 "fetchedAt": datetime.now(UTC),
             }
             with _market_command_cache_lock:
@@ -646,6 +650,7 @@ class DashboardService:
 
         try:
             import akshare as ak
+
             from data_layer.crawlers.akshare.board import _without_proxy_env
 
             with _without_proxy_env():
@@ -768,9 +773,7 @@ class DashboardService:
                 down_sectors_data,
                 has_real_sectors,
                 _,
-            ) = self.dashboard_repo.get_sector_changes_from_signals(
-                days=7, limit_per_direction=10
-            )
+            ) = self.dashboard_repo.get_sector_changes_from_signals(days=7, limit_per_direction=10)
             sector_views = {}
             if has_real_sectors:
                 sector_views = {
@@ -803,9 +806,7 @@ class DashboardService:
                 normalized_sector_views = {
                     key: SectorMoverView(
                         up=[SectorChangeItem(**s, is_mock=False) for s in view.get("up", [])],
-                        down=[
-                            SectorChangeItem(**s, is_mock=False) for s in view.get("down", [])
-                        ],
+                        down=[SectorChangeItem(**s, is_mock=False) for s in view.get("down", [])],
                     )
                     for key, view in sector_views.items()
                 }
@@ -890,7 +891,10 @@ class DashboardService:
                     cached_payload,
                     normalized_view,
                 ):
-                    logger.info("Ignored stale market sector cache with inactive catalog rows: %s", normalized_view)
+                    logger.info(
+                        "Ignored stale market sector cache with inactive catalog rows: %s",
+                        normalized_view,
+                    )
                     self._drop_cached_market_sector_payload(cache_key)
                 else:
                     logger.info("Market sector view cache hit: %s", normalized_view)
@@ -933,9 +937,7 @@ class DashboardService:
                     normalized_view,
                     normalized_limit,
                 )
-                if not workbook_payload.get("has_real_data") and workbook_payload.get(
-                    "status"
-                ) in {
+                if not workbook_payload.get("has_real_data") and workbook_payload.get("status") in {
                     "workbook_missing",
                     "workbook_not_open",
                     "workbook_read_error",
@@ -1134,11 +1136,14 @@ class DashboardService:
     ) -> dict:
         """Use the THS board feed when Wind/Excel is unavailable for a selected view."""
         try:
-            up, down, has_real_data, fetched_at = (
-                self.dashboard_repo.get_sector_changes_from_signals(
-                    days=7,
-                    limit_per_direction=limit,
-                )
+            (
+                up,
+                down,
+                has_real_data,
+                fetched_at,
+            ) = self.dashboard_repo.get_sector_changes_from_signals(
+                days=7,
+                limit_per_direction=limit,
             )
         except Exception as exc:
             logger.warning(
@@ -1198,7 +1203,9 @@ class DashboardService:
 
     @staticmethod
     def _decorate_market_sector_item(item: dict, view_key: str) -> dict:
-        normalized_is_concept = False if view_key == "ths_industry" else bool(item.get("is_concept"))
+        normalized_is_concept = (
+            False if view_key == "ths_industry" else bool(item.get("is_concept"))
+        )
         return {
             **item,
             "source": item.get("source", "ths"),
@@ -1246,6 +1253,7 @@ class DashboardService:
         local_today = today.date() if isinstance(today, datetime) else datetime.now().date()
         try:
             import akshare as ak
+
             from data_layer.crawlers.akshare.board import _without_proxy_env
 
             with _without_proxy_env():
@@ -1273,6 +1281,7 @@ class DashboardService:
         """Fetch prior trading day SSE/SZSE A-share turnover and normalize to yuan."""
         try:
             import akshare as ak
+
             from data_layer.crawlers.akshare.board import _without_proxy_env
 
             with _without_proxy_env():
@@ -1299,10 +1308,7 @@ class DashboardService:
         if rows.empty:
             return 0.0
         row = rows.iloc[0]
-        values = [
-            DashboardService._optional_float(row.get(column))
-            for column in ("主板A", "科创板")
-        ]
+        values = [DashboardService._optional_float(row.get(column)) for column in ("主板A", "科创板")]
         total = sum(value for value in values if value is not None)
         if total > 0:
             return total
@@ -1312,8 +1318,7 @@ class DashboardService:
     def _extract_szse_a_share_turnover_yuan(df) -> float:
         rows = df[df["证券类别"].astype(str).isin({"主板A股", "创业板A股"})]
         total = sum(
-            DashboardService._optional_float(row.get("成交金额")) or 0.0
-            for _, row in rows.iterrows()
+            DashboardService._optional_float(row.get("成交金额")) or 0.0 for _, row in rows.iterrows()
         )
         if total > 0:
             return total

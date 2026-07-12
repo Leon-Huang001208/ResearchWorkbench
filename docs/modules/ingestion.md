@@ -79,3 +79,7 @@ When files in this module change, check:
 - `docs/FILE_GUIDE.md`
 - `docs/CHANGELOG.md`
 - `docs/generated/py_file_index.md`
+
+## 2026-07-12
+
+PDF 转换与摄入模块完成格式化和类型门禁维护；转换策略与运行时回退行为保持不变。

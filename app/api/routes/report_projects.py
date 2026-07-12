@@ -26,8 +26,8 @@ from core.observability import get_logger
 from reporting.projections.ppt import extract_pptx_placeholders
 from reporting.projects.chart_generation import ReportProjectChartService
 from reporting.projects.generation import ReportProjectGenerationService
-from reporting.projects.keyword_profiles import keyword_profiles_for_api
 from reporting.projects.jobs import ReportGenerationJob, ReportGenerationJobService
+from reporting.projects.keyword_profiles import keyword_profiles_for_api
 from reporting.projects.plan import compile_report_plan
 from reporting.projects.project_manager import ReportProject, ReportProjectManager
 from reporting.projects.run import ReportProjectRunRequest, ReportProjectRunService
@@ -441,9 +441,7 @@ def _to_render_job_response(job: ReportGenerationJob) -> RenderReportJobResponse
         completed_sections=job.completed_sections,
         total_sections=job.total_sections,
         deduplicated=job.deduplicated,
-        status_url=(
-            f"/api/report-projects/{job.project_slug}/render-jobs/{job.job_id}"
-        ),
+        status_url=(f"/api/report-projects/{job.project_slug}/render-jobs/{job.job_id}"),
         result=_to_render_response(job.result) if job.result else None,
         error=job.error,
     )

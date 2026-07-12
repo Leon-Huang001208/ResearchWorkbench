@@ -92,7 +92,7 @@ def test_report_project_upload_modal_treats_non_word_assets_as_optional():
     assert 'data-file-label="project-word-template-input"' in html
     assert 'data-file-label="project-excel-workbook-input"' in html
     assert "请至少选择 Word 模板、Excel 底稿和 Section 配置" not in script
-    assert "if (!wordFile)" in script
+    assert "projectType === 'word' && !wordFile" in script
     assert "if (excelFile)" in script
     assert "if (sectionFile)" in script
 
@@ -309,7 +309,7 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "今日上涨板块概念 (Top 10)" not in html
     assert "今日下跌板块概念 (Top 10)" not in html
     assert "style.css?v=20260702briefinline1" in html
-    assert "app.js?v=20260703theme1" in html
+    assert "app.js?v=20260712config5" in html
     assert "asset-observe-mode-tabs" in html
     assert 'data-asset-mode="theme"' in html
     assert "asset-topic-result" in html
@@ -401,7 +401,7 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "THEME_OBSERVATION_PRESETS" in asset_js
     assert "asset-topic-trend-chart" in asset_js
     assert "机器人ETF南方" in asset_js
-    assert "grid-row: span 2" not in css
+    assert "#section-dashboard .market-pulse-board {\n    grid-row: span 2;" not in css
     assert "renderMarketMiniCards" not in dashboard_js
     assert "formatMarketMiniSignedValue" not in dashboard_js
     assert "renderCapCompareMarkup" not in dashboard_js

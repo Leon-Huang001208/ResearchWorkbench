@@ -22,10 +22,7 @@ from core.observability import get_logger  # noqa: E402
 logger = get_logger(__name__)
 
 DEFAULT_WORKBOOK = (
-    PROJECT_ROOT
-    / "outputs"
-    / "etf_gap_report_20260702"
-    / "华安基金ETF缺口_Wind插件公式版_近五年PE分位.xlsx"
+    PROJECT_ROOT / "outputs" / "etf_gap_report_20260702" / "华安基金ETF缺口_Wind插件公式版_近五年PE分位.xlsx"
 )
 
 
@@ -65,7 +62,9 @@ def _open_or_get_workbook(app: Any, workbook_path: Path, *, reopen: bool):
         try:
             if Path(fullname).expanduser().resolve() == target:
                 if reopen:
-                    logger.info("Closing open workbook before reopening from disk", workbook=book.name)
+                    logger.info(
+                        "Closing open workbook before reopening from disk", workbook=book.name
+                    )
                     _close_without_saving(book)
                     break
                 logger.info("Using already open workbook", workbook=book.name)
@@ -73,7 +72,9 @@ def _open_or_get_workbook(app: Any, workbook_path: Path, *, reopen: bool):
         except Exception:
             if Path(fullname).expanduser() == target:
                 if reopen:
-                    logger.info("Closing open workbook before reopening from disk", workbook=book.name)
+                    logger.info(
+                        "Closing open workbook before reopening from disk", workbook=book.name
+                    )
                     _close_without_saving(book)
                     break
                 logger.info("Using already open workbook", workbook=book.name)
@@ -156,7 +157,10 @@ def refresh_workbook(
         last_status = _status(book)
         logger.info("Refresh status", elapsed_seconds=round(elapsed, 1), **last_status)
 
-        raw_ready = bool(last_status.get("raw_first_index_code")) and last_status.get("raw_first_status") == "ok"
+        raw_ready = (
+            bool(last_status.get("raw_first_index_code"))
+            and last_status.get("raw_first_status") == "ok"
+        )
         pe_ready = (_numeric(last_status.get("pe_available_count")) or 0) > 0
         candidate_ready = last_status.get("candidate_count") is not None
         if raw_ready and pe_ready and candidate_ready:
@@ -180,7 +184,9 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--max-wait", type=int, default=900, help="Maximum seconds to wait.")
     parser.add_argument("--poll", type=int, default=30, help="Polling interval in seconds.")
     parser.add_argument("--no-save", action="store_true", help="Do not save after refreshing.")
-    parser.add_argument("--reopen", action="store_true", help="Close an open copy and reopen from disk first.")
+    parser.add_argument(
+        "--reopen", action="store_true", help="Close an open copy and reopen from disk first."
+    )
     return parser.parse_args()
 
 

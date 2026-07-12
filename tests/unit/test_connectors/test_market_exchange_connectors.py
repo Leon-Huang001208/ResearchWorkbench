@@ -2,9 +2,9 @@ import json
 
 import requests
 
-from core.connectors.base import DiscoveryItem, RawObject
 from connectors.market.csindex import CsindexMarketConnector
 from connectors.market.szse import SzseMarketConnector
+from core.connectors.base import DiscoveryItem, RawObject
 
 
 def test_szse_session_ignores_environment_proxy_by_default():

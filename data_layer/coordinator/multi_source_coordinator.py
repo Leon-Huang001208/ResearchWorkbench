@@ -367,11 +367,8 @@ class MultiSourceCoordinator:
 
             cache_range = self.cache.get_cache_range(symbol)
             cached_data = self.cache.get_cached_data(symbol, start_date, end_date)
-            if (
-                cache_range
-                and self._can_return_recent_cached_tail(
-                    cache_range, missing_ranges, start_date, end_date, cached_data
-                )
+            if cache_range and self._can_return_recent_cached_tail(
+                cache_range, missing_ranges, start_date, end_date, cached_data
             ):
                 self.logger.info(
                     f"Recent cache tail gap for {symbol}; returning {len(cached_data)} "

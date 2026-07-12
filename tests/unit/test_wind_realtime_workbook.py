@@ -33,8 +33,7 @@ def test_build_realtime_workbook_writes_view_ranges(tmp_path):
     assert "RealtimeRaw" in workbook.sheetnames
     assert "Snapshot" in workbook.sheetnames
     assert workbook["RealtimeRaw"]["F2"].value == (
-        '=@wss("CI005001.WI,CI005002.WI","sec_name,rt_last,rt_pct_chg",'
-        '"cols=3;rows=2")'
+        '=@wss("CI005001.WI,CI005002.WI","sec_name,rt_last,rt_pct_chg",' '"cols=3;rows=2")'
     )
     assert workbook["RealtimeRaw"]["F4"].value == (
         '=@wss("801010.SI","sec_name,rt_last,rt_pct_chg","cols=3;rows=1")'
@@ -65,8 +64,7 @@ def test_build_realtime_workbook_splits_large_view_wss_formulas(tmp_path, monkey
     assert workbook["ViewRanges"]["C2"].value == 2
     assert workbook["ViewRanges"]["D2"].value == 3
     assert workbook["RealtimeRaw"]["F2"].value == (
-        '=@wss("884001.WI,884002.WI","sec_name,rt_last,rt_pct_chg",'
-        '"cols=3;rows=2")'
+        '=@wss("884001.WI,884002.WI","sec_name,rt_last,rt_pct_chg",' '"cols=3;rows=2")'
     )
     assert workbook["RealtimeRaw"]["F4"].value == (
         '=@wss("884003.WI","sec_name,rt_last,rt_pct_chg","cols=3;rows=1")'

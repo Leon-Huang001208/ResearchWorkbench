@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
 import os
-from pathlib import Path
 import platform
 import subprocess
-from threading import Lock, Thread
 import time
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
+from pathlib import Path
+from threading import Lock, Thread
 from typing import Any
 
 from core.observability import get_logger
@@ -113,7 +113,9 @@ class WindWorkbookManager:
             )
             return self._last_status
 
-    def ensure_ready(self, *, reason: str = "manual", force_prime: bool = False) -> WindWorkbookRuntimeStatus:
+    def ensure_ready(
+        self, *, reason: str = "manual", force_prime: bool = False
+    ) -> WindWorkbookRuntimeStatus:
         """Synchronously ensure the workbook exists and is usable."""
         if not self.autostart_enabled():
             return self._set_status(

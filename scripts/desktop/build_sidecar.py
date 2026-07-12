@@ -7,7 +7,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DIST_DIR = REPO_ROOT / "build" / "desktop-sidecar" / "dist"
 WORK_DIR = REPO_ROOT / "build" / "desktop-sidecar" / "work"

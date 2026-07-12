@@ -30,7 +30,9 @@ MAX_RESTARTS = int(os.environ.get("KNOWLEDGE_WORKER_MAX_RESTARTS", "10"))
 RESTART_COOLDOWN = float(os.environ.get("KNOWLEDGE_WORKER_RESTART_COOLDOWN", "300"))
 DISABLED_EXTRACTION_SOURCES = {
     source.strip()
-    for source in os.environ.get("KNOWLEDGE_WORKER_DISABLED_EXTRACTION_SOURCES", "cninfo").split(",")
+    for source in os.environ.get("KNOWLEDGE_WORKER_DISABLED_EXTRACTION_SOURCES", "cninfo").split(
+        ","
+    )
     if source.strip()
 }
 WORKER_NAME = "knowledge_worker"

@@ -248,3 +248,7 @@ When files in this module change, check:
 - `docs/FILE_GUIDE.md`
 - `docs/CHANGELOG.md`
 - `docs/generated/py_file_index.md`
+
+## 2026-07-12
+
+索引生成脚本明确记录其运行时模块覆盖范围；生成后的索引仍应由脚本维护，不手工编辑。

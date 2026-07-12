@@ -19,9 +19,7 @@ DEFAULT_CATALOG_FILE = project_root / DEFAULT_WIND_INDEX_CATALOG_PATH
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="Build AlphaFoundry Wind realtime workbook"
-    )
+    parser = argparse.ArgumentParser(description="Build AlphaFoundry Wind realtime workbook")
     parser.add_argument("--catalog", default=str(DEFAULT_CATALOG_FILE))
     parser.add_argument("--output", default=str(DEFAULT_WORKBOOK_PATH))
     return parser

@@ -12,7 +12,6 @@ from reporting.projects.generation import (
     filter_and_rank_evidence,
 )
 
-
 COMMENTARY_RETRIEVAL_TERMS: dict[str, list[str]] = {
     "daily-close": [
         "Meta",
@@ -120,9 +119,7 @@ class CommentaryNewsSelector:
         limit: int = 6,
         extra_terms: Iterable[str] | None = None,
     ) -> list[CommentaryEvidenceItem]:
-        reported_items = [
-            item for item in items if item.source_type in {"news", "research"}
-        ]
+        reported_items = [item for item in items if item.source_type in {"news", "research"}]
         if not reported_items:
             return []
 
@@ -169,8 +166,7 @@ class CommentaryNewsSelector:
         selected = self._dedupe_similar_events(selected)
         if len(selected) < limit:
             selected.extend(
-                item for item in self._fallback_rank(reported_items)
-                if item not in selected
+                item for item in self._fallback_rank(reported_items) if item not in selected
             )
             selected = self._dedupe_similar_events(selected)
         return selected[:limit]

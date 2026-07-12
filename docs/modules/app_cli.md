@@ -102,3 +102,7 @@ When files in this module change, check:
 - `docs/FILE_GUIDE.md`
 - `docs/CHANGELOG.md`
 - `docs/generated/py_file_index.md`
+
+## 2026-07-12
+
+CLI 相关类型和格式门禁已统一为仓库配置；维护性改动不改变既有命令参数或输出语义。

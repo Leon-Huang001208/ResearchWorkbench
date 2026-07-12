@@ -20,7 +20,9 @@ class FundDataIngestionService:
         self.fund_repo = fund_repository
         self.etl_repo = etl_repository
 
-    def ingest_csv(self, dataset: str, path: str | Path, source: str = "local_csv") -> dict[str, Any]:
+    def ingest_csv(
+        self, dataset: str, path: str | Path, source: str = "local_csv"
+    ) -> dict[str, Any]:
         """Read a UTF-8 CSV file and ingest rows for a supported fund dataset."""
         file_path = Path(path)
         try:
@@ -71,7 +73,12 @@ class FundDataIngestionService:
                 fetched=len(rows_list),
                 saved=saved,
             )
-            return {"run_id": run_id, "dataset": dataset_key, "fetched": len(rows_list), "saved": saved}
+            return {
+                "run_id": run_id,
+                "dataset": dataset_key,
+                "fetched": len(rows_list),
+                "saved": saved,
+            }
         except Exception as exc:
             self._fail_run(run_id, str(exc))
             logger.error(

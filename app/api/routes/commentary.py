@@ -20,8 +20,7 @@ from core.model_gateway import ModelGatewayImpl
 from core.observability import get_logger
 from data_layer.repositories.base import get_db
 from services.commentary_context_service import CommentaryContextService
-from services.commentary_draft_service import CommentaryDraftService
-from services.commentary_draft_service import get_commentary_recipe_catalog
+from services.commentary_draft_service import CommentaryDraftService, get_commentary_recipe_catalog
 from services.commentary_run_service import CommentaryRunService
 from services.dashboard_service import DashboardService
 

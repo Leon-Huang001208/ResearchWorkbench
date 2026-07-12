@@ -24,8 +24,12 @@ def upgrade() -> None:
         sa.Column("official_site", sa.Text(), nullable=True),
         sa.Column("source_priority", sa.Integer(), nullable=False, server_default="100"),
         sa.Column("raw_payload", sa.JSON(), nullable=False, server_default="{}"),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
         sa.PrimaryKeyConstraint("provider_code"),
     )
 
@@ -45,8 +49,12 @@ def upgrade() -> None:
         sa.Column("base_value", sa.Numeric(), nullable=True),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.true()),
         sa.Column("raw_payload", sa.JSON(), nullable=False, server_default="{}"),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
         sa.PrimaryKeyConstraint("index_id"),
         sa.UniqueConstraint(
             "provider_code",
@@ -75,7 +83,9 @@ def upgrade() -> None:
         sa.Column("source", sa.Text(), nullable=False, server_default="unknown"),
         sa.Column("source_scope", sa.Text(), nullable=False, server_default="full"),
         sa.Column("raw_payload", sa.JSON(), nullable=False, server_default="{}"),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint(
             "index_id",
@@ -85,7 +95,9 @@ def upgrade() -> None:
             name="uq_index_component_snapshot_identity",
         ),
     )
-    op.create_index("ix_index_component_snapshot_index_id", "index_component_snapshot", ["index_id"])
+    op.create_index(
+        "ix_index_component_snapshot_index_id", "index_component_snapshot", ["index_id"]
+    )
     op.create_index(
         "ix_index_component_snapshot_index_symbol",
         "index_component_snapshot",
@@ -121,8 +133,12 @@ def upgrade() -> None:
         sa.Column("currency", sa.Text(), nullable=True),
         sa.Column("status", sa.Text(), nullable=False, server_default="unknown"),
         sa.Column("raw_payload", sa.JSON(), nullable=False, server_default="{}"),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
         sa.PrimaryKeyConstraint("etf_symbol"),
     )
 
@@ -135,8 +151,12 @@ def upgrade() -> None:
         sa.Column("link_source", sa.Text(), nullable=False, server_default="unknown"),
         sa.Column("confidence", sa.Numeric(), nullable=True),
         sa.Column("raw_payload", sa.JSON(), nullable=False, server_default="{}"),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint(
             "index_id",
@@ -162,7 +182,9 @@ def upgrade() -> None:
         sa.Column("net_flow_amount", sa.Numeric(), nullable=True),
         sa.Column("source", sa.Text(), nullable=False, server_default="unknown"),
         sa.Column("raw_payload", sa.JSON(), nullable=False, server_default="{}"),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint(
             "etf_symbol",

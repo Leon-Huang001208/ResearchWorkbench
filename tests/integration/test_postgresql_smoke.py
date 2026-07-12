@@ -18,7 +18,10 @@ def test_postgresql_initialization():
         pytest.skip("Skipping PostgreSQL smoke test: not using PostgreSQL")
 
     # Check connection
-    check_database_connection()
+    try:
+        check_database_connection()
+    except RuntimeError as exc:
+        pytest.skip(f"Skipping PostgreSQL smoke test: database unavailable ({exc})")
 
     # Ensure schema exists
     ensure_schema()

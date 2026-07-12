@@ -1,6 +1,6 @@
 """Tests for static PPT template projection."""
-from pathlib import Path
 import zipfile
+from pathlib import Path
 
 from reporting.projections.ppt import PPTTemplateProjection, extract_pptx_placeholders
 

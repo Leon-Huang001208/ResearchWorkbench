@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -51,7 +50,7 @@ def test_live_monitor_uses_clean_display_title_for_report_list():
     monitor_js = (ROOT / "app/web/static/js/monitor.js").read_text()
 
     assert "const displayTitle = cleanMonitorDisplayTitle(item.title || '');" in monitor_js
-    assert 'title="${esc(item.title || \'\')}"' in monitor_js
+    assert "title=\"${esc(item.title || '')}\"" in monitor_js
     assert "${esc(displayTitle || item.title || '(无标题)')}" in monitor_js
     assert "function cleanMonitorDisplayTitle(title)" in monitor_js
     assert "[\\\\s\\\\-—_：:]*\\\\d{8}$" in monitor_js
@@ -86,5 +85,5 @@ def test_live_monitor_cache_versions_are_bumped():
     template = (ROOT / "app/web/templates/index.html").read_text()
     app_js = (ROOT / "app/web/static/js/app.js").read_text()
 
-    assert "/static/js/app.js?v=20260624b" in template
+    assert "/static/js/app.js?v=20260712config5" in template
     assert "./monitor.js?v=20260624b" in app_js

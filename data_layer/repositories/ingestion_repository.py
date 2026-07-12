@@ -91,15 +91,12 @@ class IngestionQueueRepository(BaseRepository):
         for priority in priorities:
             while len(selected) < limit:
                 oldest_created = func.min(IngestionQueueItemDB.created_at)
-                source_query = (
-                    self.db.query(
-                        IngestionQueueItemDB.source_type,
-                        oldest_created.label("oldest_created"),
-                    )
-                    .filter(
-                        IngestionQueueItemDB.status == "pending",
-                        IngestionQueueItemDB.priority == priority,
-                    )
+                source_query = self.db.query(
+                    IngestionQueueItemDB.source_type,
+                    oldest_created.label("oldest_created"),
+                ).filter(
+                    IngestionQueueItemDB.status == "pending",
+                    IngestionQueueItemDB.priority == priority,
                 )
                 if selected_ids:
                     source_query = source_query.filter(
@@ -141,7 +138,7 @@ class IngestionQueueRepository(BaseRepository):
                     db_item.status = "processing"
                     db_item.processed_at = processing_time
                     selected.append(db_item)
-                    selected_ids.add(db_item.item_id)
+                    selected_ids.add(str(db_item.item_id))
                     made_progress = True
 
                 if not made_progress:

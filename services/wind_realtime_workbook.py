@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import math
+import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-import time
-from typing import Any, Iterable
+from typing import Any, Iterable, cast
 from zoneinfo import ZoneInfo
 
 from openpyxl import Workbook, load_workbook
@@ -289,11 +289,7 @@ class WindRealtimeWorkbookReader:
         try:
             range_rows = _rows_from_matrix(workbook.sheets["ViewRanges"].used_range.value)
             view_range = next(
-                (
-                    row
-                    for row in range_rows
-                    if str(row.get("view_key") or "").strip() == view_key
-                ),
+                (row for row in range_rows if str(row.get("view_key") or "").strip() == view_key),
                 None,
             )
             if not view_range:
@@ -304,14 +300,22 @@ class WindRealtimeWorkbookReader:
             if start_row < 2 or row_count <= 0:
                 return []
 
-            headers = workbook.sheets["Snapshot"].range(
-                (1, 1),
-                (1, len(SNAPSHOT_HEADERS)),
-            ).value
-            raw_values = workbook.sheets["Snapshot"].range(
-                (start_row, 1),
-                (start_row + row_count - 1, len(SNAPSHOT_HEADERS)),
-            ).value
+            headers = (
+                workbook.sheets["Snapshot"]
+                .range(
+                    (1, 1),
+                    (1, len(SNAPSHOT_HEADERS)),
+                )
+                .value
+            )
+            raw_values = (
+                workbook.sheets["Snapshot"]
+                .range(
+                    (start_row, 1),
+                    (start_row + row_count - 1, len(SNAPSHOT_HEADERS)),
+                )
+                .value
+            )
             matrix = _matrix_rows(raw_values)
             return _rows_from_matrix([headers] + matrix)
         except Exception as exc:
@@ -325,14 +329,22 @@ class WindRealtimeWorkbookReader:
     def _read_active_view_rows(self, workbook: Any, view_key: str) -> list[dict[str, Any]]:
         slot_count = self._active_slot_count(workbook)
         self._activate_view(workbook, view_key, slot_count)
-        headers = workbook.sheets["ActiveSnapshot"].range(
-            (1, 1),
-            (1, len(SNAPSHOT_HEADERS)),
-        ).value
-        raw_values = workbook.sheets["ActiveSnapshot"].range(
-            (2, 1),
-            (slot_count + 1, len(SNAPSHOT_HEADERS)),
-        ).value
+        headers = (
+            workbook.sheets["ActiveSnapshot"]
+            .range(
+                (1, 1),
+                (1, len(SNAPSHOT_HEADERS)),
+            )
+            .value
+        )
+        raw_values = (
+            workbook.sheets["ActiveSnapshot"]
+            .range(
+                (2, 1),
+                (slot_count + 1, len(SNAPSHOT_HEADERS)),
+            )
+            .value
+        )
         return [
             row
             for row in _rows_from_matrix([headers] + _matrix_rows(raw_values))
@@ -369,12 +381,8 @@ class WindRealtimeWorkbookReader:
         ]
         rows.extend([["", "", "", "", "", ""] for _ in range(slot_count - len(rows))])
         config_sheet.range("B8").value = view_key
-        active_sheet.range((2, 2), (slot_count + 1, 5)).value = [
-            row[:4] for row in rows
-        ]
-        active_sheet.range((2, 12), (slot_count + 1, 13)).value = [
-            row[4:] for row in rows
-        ]
+        active_sheet.range((2, 2), (slot_count + 1, 5)).value = [row[:4] for row in rows]
+        active_sheet.range((2, 12), (slot_count + 1, 13)).value = [row[4:] for row in rows]
 
     @staticmethod
     def _active_slot_count(workbook: Any) -> int:
@@ -443,7 +451,9 @@ def build_realtime_workbook(
             raise ValueError(f"Wind index catalog is empty: {catalog_path}")
         output_path.parent.mkdir(parents=True, exist_ok=True)
         workbook = Workbook()
-        workbook.remove(workbook.active)
+        active_sheet = workbook.active
+        if active_sheet is not None:
+            workbook.remove(active_sheet)
         sheets = {name: workbook.create_sheet(name) for name in WORKBOOK_SHEETS}
 
         sheets["README"]["A1"] = "AlphaFoundry Wind Realtime Workbook"
@@ -453,9 +463,7 @@ def build_realtime_workbook(
 
         sheets["Config"].append(["key", "value", "description"])
         sheets["Config"].append(["refresh_enabled", "true", "是否启用实时刷新"])
-        sheets["Config"].append(
-            ["expected_update_seconds", "60", "超过该秒数视为数据可能过期"]
-        )
+        sheets["Config"].append(["expected_update_seconds", "60", "超过该秒数视为数据可能过期"])
         sheets["Config"].append(["formula_version", "1", "公式模板版本"])
         sheets["Config"].append(["last_generated_at", generated_at, "工作簿最后生成时间"])
         sheets["Config"].append(["timezone", "Asia/Shanghai", "时间区域"])
@@ -519,7 +527,7 @@ def build_realtime_workbook(
                     str(entry.is_concept).lower(),
                     "wind",
                     (
-                        f'=IF(OR(ISERROR(G{row_number}),'
+                        f"=IF(OR(ISERROR(G{row_number}),"
                         f'ISERROR(H{row_number}),G{row_number}="",'
                         f'H{row_number}=""),"formula_error","ok")'
                     ),
@@ -560,18 +568,13 @@ def build_realtime_workbook(
                 codes = ",".join(entry.code for entry, _row_number in batch)
                 row_count = len(batch)
                 sheets["RealtimeRaw"].cell(row=first_row, column=6).value = (
-                    f'=@wss("{codes}","sec_name,rt_last,rt_pct_chg",'
-                    f'"cols=3;rows={row_count}")'
+                    f'=@wss("{codes}","sec_name,rt_last,rt_pct_chg",' f'"cols=3;rows={row_count}")'
                 )
                 wind_formula_count += 1
 
         sheets["Health"].append(["workbook_open", "true", generated_at, "文件已生成"])
-        sheets["Health"].append(
-            ["active_index_count", active_count, generated_at, "active 指数数量"]
-        )
-        sheets["Health"].append(
-            ["formula_row_count", active_count, generated_at, "常驻公式行数"]
-        )
+        sheets["Health"].append(["active_index_count", active_count, generated_at, "active 指数数量"])
+        sheets["Health"].append(["formula_row_count", active_count, generated_at, "常驻公式行数"])
         sheets["Health"].append(
             [
                 "wind_formula_count",
@@ -995,7 +998,7 @@ def _parse_float(value: object) -> float | None:
     if value is None or value == "":
         return None
     try:
-        parsed = float(value)
+        parsed = float(cast(Any, value))
     except (TypeError, ValueError):
         return None
     return parsed if math.isfinite(parsed) else None

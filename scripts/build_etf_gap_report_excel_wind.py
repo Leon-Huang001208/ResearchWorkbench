@@ -43,7 +43,10 @@ def _setup_logging() -> Path:
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(message)s",
-        handlers=[logging.FileHandler(log_path, encoding="utf-8"), logging.StreamHandler(sys.stdout)],
+        handlers=[
+            logging.FileHandler(log_path, encoding="utf-8"),
+            logging.StreamHandler(sys.stdout),
+        ],
     )
     return log_path
 
@@ -129,7 +132,9 @@ def read_etf_rows(input_path: Path) -> list[dict[str, Any]]:
 
     out: list[dict[str, Any]] = []
     for row in rows[1:]:
-        record = {headers[i]: _jsonable(row[i] if i < len(row) else None) for i in range(len(headers))}
+        record = {
+            headers[i]: _jsonable(row[i] if i < len(row) else None) for i in range(len(headers))
+        }
         if record.get("基金代码") and record.get("基金名称"):
             out.append(record)
     workbook.close()
@@ -190,7 +195,7 @@ def fetch_wss_batch(
         logging.info("Fetching WSS batch %s-%s of %s", start + 1, start + len(chunk), len(formulas))
         try:
             values = client.execute_batch(chunk, timeout=timeout)
-        except Exception as exc:
+        except Exception:
             logging.exception("WSS batch failed; falling back to per-formula execution")
             values = []
             for formula in chunk:
@@ -402,7 +407,12 @@ def build_dataset(args: argparse.Namespace) -> dict[str, Any]:
         pe = pe_by_code.get(code, {})
         percentile = _as_float(pe.get("pe_percentile_5y"))
         sample_count = int(pe.get("sample_count") or 0)
-        is_candidate = bool(not huaan and percentile is not None and percentile < args.threshold and sample_count >= args.min_samples)
+        is_candidate = bool(
+            not huaan
+            and percentile is not None
+            and percentile < args.threshold
+            and sample_count >= args.min_samples
+        )
         coverage_rows.append(
             {
                 "跟踪指数代码": code,
@@ -413,9 +423,7 @@ def build_dataset(args: argparse.Namespace) -> dict[str, Any]:
                 "现有ETF数量": len(related),
                 "现有ETF总规模(亿)": round(total_scale, 4),
                 "竞品管理人": "；".join(managers),
-                "代表ETF产品": "；".join(
-                    f"{row.get('基金代码')} {row.get('基金名称')}" for row in largest[:5]
-                ),
+                "代表ETF产品": "；".join(f"{row.get('基金代码')} {row.get('基金名称')}" for row in largest[:5]),
                 "PE(TTM)": pe.get("current_pe"),
                 "近五年PE分位": percentile,
                 "近五年样本数": sample_count,
@@ -457,7 +465,9 @@ def build_dataset(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Build Huaan ETF gap dataset via Excel Wind add-in.")
+    parser = argparse.ArgumentParser(
+        description="Build Huaan ETF gap dataset via Excel Wind add-in."
+    )
     parser.add_argument("--input", type=Path, default=DEFAULT_INPUT)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--output-json", type=Path)
@@ -487,7 +497,9 @@ def main() -> None:
     logging.info("Log path: %s", log_path)
     logging.info("Starting Excel Wind ETF gap dataset build")
     dataset = build_dataset(args)
-    output_json.write_text(json.dumps(dataset, ensure_ascii=False, indent=2, default=_jsonable), encoding="utf-8")
+    output_json.write_text(
+        json.dumps(dataset, ensure_ascii=False, indent=2, default=_jsonable), encoding="utf-8"
+    )
     logging.info("Wrote dataset JSON: %s", output_json)
     print(json.dumps({"output_json": str(output_json), "log": str(log_path)}, ensure_ascii=False))
 

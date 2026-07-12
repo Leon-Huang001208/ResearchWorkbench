@@ -1,7 +1,7 @@
 import json
 
-from data_layer.crawlers.cnstock.cnstock import CnstockConfig, CnstockCrawler
 from data_layer.adapters.cnstock_adapter import CNStockAdapter
+from data_layer.crawlers.cnstock.cnstock import CnstockConfig, CnstockCrawler
 
 
 class _FakeResponse:

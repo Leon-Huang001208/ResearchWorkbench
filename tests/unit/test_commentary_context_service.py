@@ -6,7 +6,6 @@ from core.contracts.dashboard import (
     MarketBreadthSnapshot,
     MarketIndexItem,
     MarketOverviewSection,
-    SectorChangeItem,
 )
 from services.commentary_context_service import CommentaryContextService
 
@@ -54,9 +53,7 @@ class FakeDashboardService:
 
     def get_market_sector_view(self, view_key, limit=8):
         return {
-            "up": [
-                {"name": "贵金属", "change_pct": 1.8, "source": "wind", "view_label": "同花顺行业"}
-            ],
+            "up": [{"name": "贵金属", "change_pct": 1.8, "source": "wind", "view_label": "同花顺行业"}],
             "down": [
                 {"name": "半导体", "change_pct": -4.6, "source": "wind", "view_label": "同花顺行业"},
                 {"name": "证券", "change_pct": -3.2, "source": "wind", "view_label": "同花顺行业"},
@@ -212,12 +209,8 @@ class FakeDashboardServiceWithSectorSpecificNews(FakeDashboardService):
 
     def get_market_sector_view(self, view_key, limit=8):
         return {
-            "up": [
-                {"name": "贵金属", "change_pct": 3.9, "source": "ths", "view_label": "同花顺行业"}
-            ],
-            "down": [
-                {"name": "证券", "change_pct": -3.2, "source": "ths", "view_label": "同花顺行业"}
-            ],
+            "up": [{"name": "贵金属", "change_pct": 3.9, "source": "ths", "view_label": "同花顺行业"}],
+            "down": [{"name": "证券", "change_pct": -3.2, "source": "ths", "view_label": "同花顺行业"}],
         }
 
     def get_crawl_feed(self, limit=20, since=None, source_type=None):
@@ -370,8 +363,7 @@ def test_commentary_context_service_formats_ranked_news_as_event_impact_line():
             kind="reported",
             title="Meta 释放 AI 资本开支上修信号，美股科技股大跌",
             summary=(
-                "市场担忧 Meta AI 基础设施投入推升科技巨头资本开支，纳指和半导体链承压。"
-                "第二段继续展开大量背景材料和行业涨跌幅，容易让生成结果变成新闻原文摘抄。"
+                "市场担忧 Meta AI 基础设施投入推升科技巨头资本开支，纳指和半导体链承压。" "第二段继续展开大量背景材料和行业涨跌幅，容易让生成结果变成新闻原文摘抄。"
             ),
             source="海外新闻",
             source_type="news",
@@ -431,7 +423,9 @@ def test_commentary_context_service_prioritizes_meta_us_tech_shock_evidence():
     context = service.build_context(recipe_id="market-drawdown")
 
     assert "Meta 释放 AI 投入相关消息" in context.evidence_pack_text
-    overseas = next(signal for signal in context.attribution_signals if signal.tag == "overseas_shock")
+    overseas = next(
+        signal for signal in context.attribution_signals if signal.tag == "overseas_shock"
+    )
     assert overseas.score >= 74
     assert overseas.strength in {"primary", "secondary"}
     assert any("Meta" in title for title in overseas.evidence_titles)

@@ -75,9 +75,7 @@ class TestDocumentChunker:
         signal.alarm(1)
         try:
             text = "".join(("a" * 101 + "。" + "b" * 1898) for _ in range(5))
-            chunks = DocumentChunker(ChunkingOptions())._chunk_simple(
-                text, ChunkingOptions()
-            )
+            chunks = DocumentChunker(ChunkingOptions())._chunk_simple(text, ChunkingOptions())
         finally:
             signal.alarm(0)
             signal.signal(signal.SIGALRM, old_handler)

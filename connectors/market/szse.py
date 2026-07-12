@@ -244,7 +244,9 @@ class SzseMarketConnector(MarketDataConnector):
             stock_name = self._clean_html_text(
                 row.get("agjc", "") or row.get("zqjc", "") or row.get("name", "")
             )
-            listing_date = row.get("agssrq", "") or row.get("ssrq", "") or row.get("listingDate", "")
+            listing_date = (
+                row.get("agssrq", "") or row.get("ssrq", "") or row.get("listingDate", "")
+            )
             total_shares = row.get("agzgb", "") or row.get("zgb", "") or row.get("totalShares", "")
             industry = row.get("sshymc", "") or row.get("industry", "")
             board = row.get("bk", "") or row.get("board", "")

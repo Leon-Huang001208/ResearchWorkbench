@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-import time
 from typing import Any, Iterable
 from zoneinfo import ZoneInfo
 
@@ -259,9 +259,9 @@ def build_index_structure_probe_workbook(
         sheets = {name: workbook.create_sheet(name) for name in PROBE_SHEETS}
 
         sheets["README"]["A1"] = "AlphaFoundry Wind Index Structure Probe"
-        sheets["README"]["A2"] = (
-            "Open this workbook with Wind Excel logged in, or run the prime script in hidden mode."
-        )
+        sheets["README"][
+            "A2"
+        ] = "Open this workbook with Wind Excel logged in, or run the prime script in hidden mode."
 
         sheets["Config"].append(["key", "value", "description"])
         sheets["Config"].append(["trade_date", trade_date_value, "探针交易日"])

@@ -1,17 +1,37 @@
 """Test configuration and fixtures."""
 import os
+import tempfile
+from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from data_layer.repositories.base import Base
+# pytest loads this module before importing test modules.  Set the runtime
+# database before importing repository globals, otherwise their engine is
+# permanently bound to the development PostgreSQL URL for the entire test run.
+if os.getenv("ALPHAFOUNDRY_RUN_POSTGRES_TESTS") != "1":
+    _TEST_DATABASE_PATH = Path(tempfile.gettempdir()) / f"alphafoundry-pytest-{os.getpid()}.db"
+    os.environ["DATABASE_URL"] = f"sqlite:///{_TEST_DATABASE_PATH}"
+
+from data_layer.repositories import base
+from data_layer.repositories.base import Base, ensure_schema
 
 
 def pytest_configure(config):
     """Keep default test runs deterministic and offline."""
     os.environ.setdefault("ALPHAFOUNDRY_DISABLE_LOCAL_EMBEDDINGS", "1")
+
+
+@pytest.fixture
+def runtime_database():
+    """Provide a clean SQLite runtime schema for tests using repository globals."""
+    ensure_schema()
+    try:
+        yield
+    finally:
+        Base.metadata.drop_all(bind=base.engine)
 
 
 @pytest.fixture(scope="function")

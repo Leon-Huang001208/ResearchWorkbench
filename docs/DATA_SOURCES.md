@@ -234,3 +234,7 @@ pip install -e ".[pdf-full]"
 | POST | `/api/admin/pdf/retry` | 重试失败的转换 |
 
 详见 `docs/modules/pdf_conversion_pipeline.md`。
+
+## 2026-07-12 测试数据源隔离
+
+爬虫与数据接入相关测试使用临时 SQLite 和受控适配器；真实 PostgreSQL 或供应商服务不会成为默认全仓回归的前置条件。

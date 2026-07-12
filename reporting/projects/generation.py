@@ -20,11 +20,11 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Protocol
 from sqlalchemy import or_
 
 from core.interfaces.model_gateway import ModelResponse
+from core.model_gateway.gateway import ModelGatewayImpl
 from core.model_gateway.local_embedding_config import (
     resolve_local_embedding_model,
     sentence_transformer_kwargs,
 )
-from core.model_gateway.gateway import ModelGatewayImpl
 from core.observability import get_logger
 from core.settings import settings
 from reporting.projects.keyword_profiles import apply_keyword_profile_to_config
@@ -508,9 +508,7 @@ def build_retrieval_config(config: Dict[str, Any], *, default_top_k: int) -> Ret
             rerank.get("provider") or retrieval.get("rerank_provider") or "bge-reranker"
         ),
         rerank_model=str(
-            rerank.get("model")
-            or retrieval.get("rerank_model")
-            or "BAAI/bge-reranker-large"
+            rerank.get("model") or retrieval.get("rerank_model") or "BAAI/bge-reranker-large"
         ),
         rerank_top_n=max(
             top_k,
@@ -715,7 +713,9 @@ def _semantic_similarity_scores(
         model_name=retrieval_config.embedding_model,
     )
     if bge_scores is not None:
-        return bge_scores
+        semantic_scores: List[float | None] = []
+        semantic_scores.extend(bge_scores)
+        return semantic_scores
     return [_semantic_similarity(query, text) for text in texts]
 
 
@@ -734,7 +734,9 @@ def _local_embedding_similarity_scores(
         query_vector = vectors[0]
         scores = []
         for vector in vectors[1:]:
-            dot = float(sum(float(left) * float(right) for left, right in zip(query_vector, vector)))
+            dot = float(
+                sum(float(left) * float(right) for left, right in zip(query_vector, vector))
+            )
             scores.append(dot)
         return scores
     except Exception as exc:
@@ -845,8 +847,7 @@ def _contains_any(text: str, terms: List[str]) -> bool:
 def _source_matches(source: str, source_types: List[str]) -> bool:
     normalized = source.split(":", 1)[1] if source.startswith("ingestion:") else source
     allowed = {
-        item.split(":", 1)[1] if item.startswith("ingestion:") else item
-        for item in source_types
+        item.split(":", 1)[1] if item.startswith("ingestion:") else item for item in source_types
     }
     return normalized in allowed or source in source_types
 
@@ -1439,12 +1440,8 @@ def resolve_report_generation_scope(
     UI/API values override persisted YAML. The resolved period is then passed
     into every retrieval path, so time filtering happens before hybrid recall.
     """
-    defaults = section_config.get("defaults") if isinstance(section_config, dict) else {}
-    report_defaults = (
-        defaults.get("report_period")
-        if isinstance(defaults, dict) and isinstance(defaults.get("report_period"), dict)
-        else {}
-    )
+    defaults = _as_config_dict(section_config.get("defaults"))
+    report_defaults = _as_config_dict(defaults.get("report_period"))
     configured_report_date = report_date
     if configured_report_date in {"", None}:
         configured_report_date = report_defaults.get("report_date") or None
@@ -1511,7 +1508,7 @@ def compute_explicit_report_period(
 
 def resolve_report_period_value(config: Dict[str, Any], report_period: ReportPeriod) -> str:
     """Resolve a configured report-period placeholder value."""
-    source = config.get("source") if isinstance(config.get("source"), dict) else {}
+    source = _as_config_dict(config.get("source"))
     field = str(config.get("field") or source.get("field") or "").strip()
     if field in {"start_date", "period_start", "开始日期"}:
         return report_period.start_date
@@ -1541,7 +1538,7 @@ def normalize_placeholder_output_type(config: Dict[str, Any]) -> str:
 
 def resolve_field_placeholder_value(config: Dict[str, Any], report_period: ReportPeriod) -> str:
     """Resolve deterministic short-field placeholders without invoking retrieval or LLM."""
-    source = config.get("source") if isinstance(config.get("source"), dict) else {}
+    source = _as_config_dict(config.get("source"))
     source_kind = str(source.get("kind") or "").strip().lower()
     legacy_type = str(config.get("type") or "").strip().lower()
     if source_kind == "report_period" or legacy_type == "report_period":
@@ -1555,7 +1552,11 @@ def build_a_share_market_data_sentence(project: ReportProject, config: Dict[str,
     """Build the deterministic A-share market review sentence from workbook cache."""
     try:
         from openpyxl import load_workbook
-        from openpyxl.utils.cell import column_index_from_string, coordinate_to_tuple, range_boundaries
+        from openpyxl.utils.cell import (
+            column_index_from_string,
+            coordinate_to_tuple,
+            range_boundaries,
+        )
     except Exception as exc:  # pragma: no cover - dependency is available in project env.
         raise RuntimeError("openpyxl is required for composite market review") from exc
 
@@ -1567,21 +1568,25 @@ def build_a_share_market_data_sentence(project: ReportProject, config: Dict[str,
     workbook_cache: Dict[str, Any] = {}
 
     def workbook_for(field: Dict[str, Any]) -> Any:
-        workbook_name = str(field.get("workbook") or data_config.get("workbook") or project.excel_workbook_path.name)
+        workbook_name = str(
+            field.get("workbook") or data_config.get("workbook") or project.excel_workbook_path.name
+        )
         if workbook_name not in workbook_cache:
             workbook_path = project.project_dir / "data" / workbook_name
             if not workbook_path.exists():
                 workbook_path = project.excel_workbook_path
-            workbook_cache[workbook_name] = load_workbook(workbook_path, data_only=True, read_only=True)
+            workbook_cache[workbook_name] = load_workbook(
+                workbook_path, data_only=True, read_only=True
+            )
         return workbook_cache[workbook_name]
 
     def sheet_name_for(field: Dict[str, Any], default: str) -> str:
         return str(field.get("sheet") or default)
 
-    market_field = fields.get("market_trend") if isinstance(fields.get("market_trend"), dict) else {}
-    index_field = fields.get("index_performance") if isinstance(fields.get("index_performance"), dict) else {}
-    avg_turnover_field = fields.get("avg_turnover") if isinstance(fields.get("avg_turnover"), dict) else {}
-    turnover_trend_field = fields.get("turnover_trend") if isinstance(fields.get("turnover_trend"), dict) else {}
+    market_field = _as_config_dict(fields.get("market_trend"))
+    index_field = _as_config_dict(fields.get("index_performance"))
+    avg_turnover_field = _as_config_dict(fields.get("avg_turnover"))
+    turnover_trend_field = _as_config_dict(fields.get("turnover_trend"))
 
     domestic_sheet = str(data_config.get("domestic_sheet") or "国内")
     turnover_sheet = str(data_config.get("turnover_sheet") or "市场成交")
@@ -1610,8 +1615,7 @@ def build_a_share_market_data_sentence(project: ReportProject, config: Dict[str,
         raise ValueError("No domestic index data found for composite market review")
 
     index_sentence = "，".join(
-        f"{name}{_direction_word(value)}{abs(value):.2f}%"
-        for name, value in domestic_rows[:5]
+        f"{name}{_direction_word(value)}{abs(value):.2f}%" for name, value in domestic_rows[:5]
     )
     trend_source_rows = trend_rows or domestic_rows
     trend = _market_trend_word([value for _, value in trend_source_rows[:5]])
@@ -1627,8 +1631,7 @@ def build_a_share_market_data_sentence(project: ReportProject, config: Dict[str,
         fields["avg_turnover"] = f"{current:.2f}万亿"
         fields["turnover_trend"] = _turnover_sentiment_word(current, previous)
         turnover_sentence = (
-            f"交易面，A股市场本周日均成交额在{current:.2f}万亿左右，"
-            f"较上周{_turnover_change_word(current, previous)}。"
+            f"交易面，A股市场本周日均成交额在{current:.2f}万亿左右，" f"较上周{_turnover_change_word(current, previous)}。"
         )
     data_template = str(data_component.get("template") or "").strip()
     if data_template:
@@ -1815,7 +1818,9 @@ def _read_turnover_from_fields(
     range_boundaries: Any,
 ) -> tuple[float, float] | None:
     current = _cell_value_from_field(worksheet, current_field, "B2", coordinate_to_tuple)
-    previous = _cell_value_from_field(worksheet, trend_field, "C2", coordinate_to_tuple, key="previous_cell")
+    previous = _cell_value_from_field(
+        worksheet, trend_field, "C2", coordinate_to_tuple, key="previous_cell"
+    )
     trend_range = str(trend_field.get("range") or "").strip()
     if trend_range:
         min_col, min_row, max_col, _max_row = range_boundaries(trend_range)
@@ -1960,8 +1965,7 @@ def apply_report_defaults_to_placeholder(
     config: Dict[str, Any],
 ) -> Dict[str, Any]:
     """Merge report-level defaults into a placeholder config without mutating input."""
-    defaults = section_config.get("defaults")
-    defaults = defaults if isinstance(defaults, dict) else {}
+    defaults = _as_config_dict(section_config.get("defaults"))
     placeholder_type = str(config.get("type") or "").lower()
     if placeholder_type not in {"prompt", "paragraph", "composite_market_review"}:
         return dict(config)
@@ -1985,21 +1989,21 @@ def apply_report_defaults_to_placeholder(
     if isinstance(default_validators, dict):
         merged["validators"] = deep_merge_dict(
             default_validators,
-            merged.get("validators") if isinstance(merged.get("validators"), dict) else {},
+            _as_config_dict(merged.get("validators")),
         )
 
     default_retrieval = defaults.get("retrieval")
     if isinstance(default_retrieval, dict):
         merged["retrieval"] = deep_merge_dict(
             default_retrieval,
-            merged.get("retrieval") if isinstance(merged.get("retrieval"), dict) else {},
+            _as_config_dict(merged.get("retrieval")),
         )
     default_rerank = defaults.get("rerank")
     if isinstance(default_rerank, dict):
-        retrieval = merged.get("retrieval") if isinstance(merged.get("retrieval"), dict) else {}
+        retrieval = _as_config_dict(merged.get("retrieval"))
         retrieval["rerank"] = deep_merge_dict(
             default_rerank,
-            retrieval.get("rerank") if isinstance(retrieval.get("rerank"), dict) else {},
+            _as_config_dict(retrieval.get("rerank")),
         )
         merged["retrieval"] = retrieval
     return merged
@@ -2015,6 +2019,11 @@ def deep_merge_dict(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str,
         else:
             merged[key] = value
     return merged
+
+
+def _as_config_dict(value: Any) -> Dict[str, Any]:
+    """Return a configuration mapping, treating malformed nested values as empty."""
+    return value if isinstance(value, dict) else {}
 
 
 def parse_prompt_templates(source: str) -> Dict[str, PromptTemplateBlock]:
@@ -2074,7 +2083,9 @@ def render_generation_constraints(
     if lines:
         return "\n".join(f"- {line.lstrip('- ').strip()}" for line in _dedupe_text_list(lines))
 
-    if validators.get("forbid_external_facts") or validators.get("require_evidence_from_uploaded_material"):
+    if validators.get("forbid_external_facts") or validators.get(
+        "require_evidence_from_uploaded_material"
+    ):
         lines.append("- 严格依据上传材料和 evidence，不添加外部知识或虚构数据")
     if validators.get("forbid_wind_data"):
         lines.append("- 不得使用 Wind 数据")
@@ -2182,7 +2193,7 @@ def apply_composite_component_overrides(config: Dict[str, Any]) -> Dict[str, Any
         return dict(config)
     merged = dict(config)
     merged["retrieval"] = deep_merge_dict(
-        merged.get("retrieval") if isinstance(merged.get("retrieval"), dict) else {},
+        _as_config_dict(merged.get("retrieval")),
         component_retrieval,
     )
     return merged
@@ -2195,7 +2206,9 @@ def render_writing_requirements(
     """Render placeholder writing requirements from structured config or markdown template."""
     structure = _as_text_list(config.get("writing_structure"))
     if not structure:
-        structure = _as_text_list(get_component_by_type(config, "llm_writing").get("writing_structure"))
+        structure = _as_text_list(
+            get_component_by_type(config, "llm_writing").get("writing_structure")
+        )
     if structure:
         return "\n".join(f"- {item}" for item in structure)
     return template.writing_requirements.strip() or "请根据 evidence 生成正式周报正文。"
@@ -2424,10 +2437,7 @@ def build_rerank_messages(
             f"[{index}] source={item.source} date={item.published_at or ''}\n"
             f"title={item.title}\ncontent={text}"
         )
-    system = (
-        "你是金融周报 RAG rerank 模型。只根据检索 Query、段落标题和候选证据相关性排序。"
-        "不得生成正文，不得补充外部知识。"
-    )
+    system = "你是金融周报 RAG rerank 模型。只根据检索 Query、段落标题和候选证据相关性排序。" "不得生成正文，不得补充外部知识。"
     user = f"""段落标题：{title}
 检索 Query：{query}
 

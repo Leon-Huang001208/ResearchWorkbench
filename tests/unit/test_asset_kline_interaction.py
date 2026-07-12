@@ -37,8 +37,8 @@ def test_kline_static_module_versions_are_bumped():
     app_source = APP_JS.read_text(encoding="utf-8")
     index_source = INDEX_HTML.read_text(encoding="utf-8")
 
-    assert "./asset.js?v=20260623a" in app_source
-    assert "/static/js/app.js?v=20260624a" in index_source
+    assert "./asset.js?v=20260703theme1" in app_source
+    assert "/static/js/app.js?v=20260712config5" in index_source
 
 
 def test_asset_analysis_defaults_to_recent_history_for_first_paint():
@@ -52,8 +52,14 @@ def test_asset_analysis_defaults_to_recent_history_for_first_paint():
 def test_external_chart_scripts_do_not_block_workbench_startup():
     index_source = INDEX_HTML.read_text(encoding="utf-8")
 
-    assert '<script async src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>' in index_source
-    assert '<script async src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>' in index_source
+    assert (
+        '<script async src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>'
+        in index_source
+    )
+    assert (
+        '<script async src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>'
+        in index_source
+    )
     assert '<script async src="https://cdn.jsdelivr.net/npm/d3@7"></script>' in index_source
 
 

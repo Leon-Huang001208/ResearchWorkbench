@@ -594,7 +594,10 @@ class WordProjection:
                     self._copy_table_format(next_child, table._tbl)
                     body.replace(next_child, table._tbl)
                     return True
-                if next_child.tag.rsplit("}", 1)[-1] == "p" and "".join(next_child.itertext()).strip():
+                if (
+                    next_child.tag.rsplit("}", 1)[-1] == "p"
+                    and "".join(next_child.itertext()).strip()
+                ):
                     child.addnext(table._tbl)
                     return True
             child.addnext(table._tbl)
@@ -650,12 +653,8 @@ class WordProjection:
                 "trPr",
                 self._child_by_local_name(source_row, "trPr"),
             )
-            source_cells = [
-                child for child in source_row if child.tag.rsplit("}", 1)[-1] == "tc"
-            ]
-            target_cells = [
-                child for child in target_row if child.tag.rsplit("}", 1)[-1] == "tc"
-            ]
+            source_cells = [child for child in source_row if child.tag.rsplit("}", 1)[-1] == "tc"]
+            target_cells = [child for child in target_row if child.tag.rsplit("}", 1)[-1] == "tc"]
             for cell_index, target_cell in enumerate(target_cells):
                 if not source_cells:
                     break
@@ -674,7 +673,9 @@ class WordProjection:
         return None
 
     @staticmethod
-    def _replace_child_by_local_name(element: Any, local_name: str, replacement: Any | None) -> None:
+    def _replace_child_by_local_name(
+        element: Any, local_name: str, replacement: Any | None
+    ) -> None:
         if replacement is None:
             return
         for index, child in enumerate(list(element)):

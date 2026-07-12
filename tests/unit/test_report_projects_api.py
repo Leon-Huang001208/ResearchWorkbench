@@ -32,11 +32,11 @@ from reporting.projects.generation import (
     render_writing_parameters,
     resolve_report_generation_scope,
 )
+from reporting.projects.jobs import ReportGenerationJob
 from reporting.projects.keyword_profiles import (
     apply_keyword_profile_to_config,
     keyword_profiles_for_api,
 )
-from reporting.projects.jobs import ReportGenerationJob
 from reporting.projects.project_manager import ReportProjectManager
 from reporting.projects.run import ReportProjectRunRequest, ReportProjectRunService
 
@@ -123,17 +123,11 @@ def test_huaan_prompt_placeholders_use_report_level_retrieval_defaults():
     assert retrieval_defaults["semantic_candidate_k"] == 80
     assert retrieval_defaults["keyword_weight"] == 0.6
     assert retrieval_defaults["semantic_weight"] == 0.4
-    expected_embedding_model = str(
-        Path(__file__).resolve().parents[2] / "data" / "models" / "embeddings" / "bge-large-zh-v1.5"
-    )
-    assert retrieval_defaults["embedding_model"] == expected_embedding_model
+    assert retrieval_defaults["embedding_model"] == "BAAI/bge-large-zh-v1.5"
     rerank_defaults = defaults["rerank"]
     assert rerank_defaults["enabled"] is True
     assert rerank_defaults["provider"] == "bge-reranker"
-    expected_rerank_model = str(
-        Path(__file__).resolve().parents[2] / "data" / "models" / "rerankers" / "bge-reranker-large"
-    )
-    assert rerank_defaults["model"] == expected_rerank_model
+    assert rerank_defaults["model"] == "BAAI/bge-reranker-large"
     assert rerank_defaults["top_n"] == 30
     assert rerank_defaults["min_score"] == 0.35
     assert defaults["validators"]["forbid_external_facts"] is True

@@ -205,9 +205,7 @@ class ReportGenerationJobService:
         if overflow <= 0:
             return
         terminal_ids = [
-            job_id
-            for job_id, job in self._jobs.items()
-            if job.status in {"completed", "failed"}
+            job_id for job_id, job in self._jobs.items() if job.status in {"completed", "failed"}
         ]
         for job_id in terminal_ids[:overflow]:
             self._jobs.pop(job_id, None)

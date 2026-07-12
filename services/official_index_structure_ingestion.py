@@ -389,7 +389,7 @@ def _text(value: Any) -> str | None:
 
 
 def _jsonable(raw: dict[str, Any]) -> dict[str, Any]:
-    cleaned = {}
+    cleaned: dict[str, Any] = {}
     for key, value in raw.items():
         if value in (None, ""):
             cleaned[key] = None

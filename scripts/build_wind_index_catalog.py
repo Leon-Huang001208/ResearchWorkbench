@@ -27,7 +27,6 @@ from services.wind_index_catalog import (  # noqa: E402
     save_wind_index_catalog,
 )
 
-
 DEFAULT_RANGES = (
     "882001-882099",
     "882100-882199",

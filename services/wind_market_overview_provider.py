@@ -99,7 +99,9 @@ class WindMarketOverviewProvider:
         self.trade_date_provider = trade_date_provider
         self.max_batch_codes = max(1, int(max_batch_codes or DEFAULT_WIND_INDEX_BATCH_CODES))
         catalog_entries = load_wind_index_catalog(catalog_path) if catalog_path else ()
-        self.seeds = tuple(self._seed_from_catalog_entry(entry) for entry in catalog_entries) or seeds
+        self.seeds = (
+            tuple(self._seed_from_catalog_entry(entry) for entry in catalog_entries) or seeds
+        )
 
     def get_top_movers(self, limit: int = 10) -> tuple[list[dict], list[dict], bool, float]:
         grouped = self.get_grouped_movers(limit=limit)

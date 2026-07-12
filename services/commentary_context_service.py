@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 import re
+from datetime import datetime
 from typing import Any, Iterable
 
 from core.contracts.commentary import (
@@ -12,7 +12,6 @@ from core.contracts.commentary import (
     CommentaryEvidenceItem,
 )
 from core.contracts.dashboard import (
-    GlobalNewsItem,
     MarketBreadthSnapshot,
     MarketIndexItem,
     MarketOverviewSection,
@@ -60,9 +59,7 @@ class CommentaryContextService:
             return self._build_dashboard_fallback_context(recipe_id, exc)
 
         try:
-            sector_view = self.dashboard_service.get_market_sector_view(
-                "ths_industry", limit=8
-            )
+            sector_view = self.dashboard_service.get_market_sector_view("ths_industry", limit=8)
         except Exception as exc:
             logger.warning(
                 "commentary_context_sector_view_fetch_failed",
@@ -116,13 +113,8 @@ class CommentaryContextService:
         )
         return CommentaryContextPack(
             recipe_id=recipe_id or "daily-close",
-            data_snapshot_text=(
-                "市场数据：仪表盘数据暂不可用，请手动补充指数涨跌、成交额、"
-                "领涨/拖累方向和资金变化。"
-            ),
-            evidence_pack_text=(
-                "证据包：仪表盘上下文加载失败，请补充已核验新闻、公告、研报或人工判断。"
-            ),
+            data_snapshot_text=("市场数据：仪表盘数据暂不可用，请手动补充指数涨跌、成交额、" "领涨/拖累方向和资金变化。"),
+            evidence_pack_text=("证据包：仪表盘上下文加载失败，请补充已核验新闻、公告、研报或人工判断。"),
             evidence_items=[evidence_item],
             attribution_signals=[],
             generated_at=datetime.utcnow(),
@@ -146,9 +138,7 @@ class CommentaryContextService:
         if up_line:
             lines.append(f"领涨方向：{up_line}")
 
-        down_line = self._format_sector_line(
-            sector_view.get("down") or overview.top_down_sectors
-        )
+        down_line = self._format_sector_line(sector_view.get("down") or overview.top_down_sectors)
         if down_line:
             lines.append(f"拖累方向：{down_line}")
 
@@ -253,10 +243,7 @@ class CommentaryContextService:
             if item.source_type not in {"market_data", "news", "research"}:
                 group = CommentaryContextService._evidence_line_label(item, label_by_kind)
             summary = CommentaryContextService._format_evidence_summary(item)
-            lines.append(
-                f"{group}：{item.title}"
-                + (f"。{summary}" if summary else "")
-            )
+            lines.append(f"{group}：{item.title}" + (f"。{summary}" if summary else ""))
         return lines
 
     @staticmethod
@@ -268,11 +255,7 @@ class CommentaryContextService:
     ) -> list[CommentaryEvidenceItem]:
         market_items = [item for item in items if item.source_type == "market_data"]
         reported_items = CommentaryNewsSelector().select(
-            [
-                item
-                for item in items
-                if item.source_type in {"news", "research"}
-            ],
+            [item for item in items if item.source_type in {"news", "research"}],
             recipe_id=recipe_id,
             limit=max(4, limit // 2),
             extra_terms=dynamic_terms,
@@ -312,9 +295,7 @@ class CommentaryContextService:
         news_keys = {(item.source_type, item.title, item.url) for item in news_items}
         market_items = [item for item in items if item.source_type == "market_data"][:8]
         other_items = [
-            item
-            for item in items
-            if item.source_type not in {"market_data", "news", "research"}
+            item for item in items if item.source_type not in {"market_data", "news", "research"}
         ][:2]
         remaining_reported = [
             item
@@ -442,9 +423,7 @@ class CommentaryContextService:
                     source_type=source_type,
                     verification_status="source_published",
                     confidence_score=0.72 if source_type == "research" else 0.68,
-                    display_label=(
-                        "媒体报道/研报" if source_type == "research" else "媒体报道/新闻"
-                    ),
+                    display_label=("媒体报道/研报" if source_type == "research" else "媒体报道/新闻"),
                     url=raw_item.get("url") or raw_item.get("source_url"),
                     metadata={
                         "doc_id": raw_item.get("doc_id") or raw_item.get("id"),
@@ -545,7 +524,8 @@ class CommentaryContextService:
             self._score_broad_selloff(overview, evidence_items),
         ]
         ranked = [
-            item for item in sorted(candidates, key=lambda signal: signal.score, reverse=True)
+            item
+            for item in sorted(candidates, key=lambda signal: signal.score, reverse=True)
             if item.score > 0
         ]
         for index, signal in enumerate(ranked, start=1):
@@ -574,14 +554,14 @@ class CommentaryContextService:
         )
         down_titles = [
             (
-                f"{getattr(item, 'name', None) or item.get('name')} "
-                f"{CommentaryContextService._format_pct(getattr(item, 'change_pct', None) if not isinstance(item, dict) else item.get('change_pct'))}"
+                f"{CommentaryContextService._sector_value(item, 'name')} "
+                f"{CommentaryContextService._format_pct(CommentaryContextService._sector_value(item, 'change_pct'))}"
             )
             for item in CommentaryContextService._iter_sector_items(
                 sector_view.get("down"),
                 limit=8,
             )
-            if (getattr(item, "name", None) or item.get("name"))
+            if CommentaryContextService._sector_value(item, "name")
         ]
         down_hits = [title for title in down_titles if any(term in title for term in ai_terms)]
         evidence_hits = [
@@ -698,7 +678,9 @@ class CommentaryContextService:
             confidence_score=0.86 if score else 0.5,
             verification_status="verified",
             rationale="下跌家数显著多于上涨家数，说明调整已从局部板块扩散至市场广度。",
-            evidence_titles=[f"下跌 {down} 家 / 上涨 {up} 家"] if score else [item.title for item in evidence_items[:1]],
+            evidence_titles=[f"下跌 {down} 家 / 上涨 {up} 家"]
+            if score
+            else [item.title for item in evidence_items[:1]],
         )
 
     @staticmethod
@@ -756,13 +738,20 @@ class CommentaryContextService:
         return "，".join(parts)
 
     @staticmethod
+    def _sector_value(
+        item: SectorChangeItem | dict[str, Any],
+        field: str,
+    ) -> Any:
+        if isinstance(item, dict):
+            return item.get(field)
+        return getattr(item, field, None)
+
+    @staticmethod
     def _format_sector_line(sectors: Iterable[SectorChangeItem | dict[str, Any]]) -> str:
         parts = []
         for item in list(sectors)[:6]:
-            name = getattr(item, "name", None) or item.get("name")
-            change = getattr(item, "change_pct", None)
-            if change is None and isinstance(item, dict):
-                change = item.get("change_pct")
+            name = CommentaryContextService._sector_value(item, "name")
+            change = CommentaryContextService._sector_value(item, "change_pct")
             if not name:
                 continue
             parts.append(f"{name} {CommentaryContextService._format_pct(change)}")
@@ -783,16 +772,10 @@ class CommentaryContextService:
         kind: str,
         prefix: str,
     ) -> CommentaryEvidenceItem:
-        name = getattr(sector, "name", None) or sector.get("name")
-        change = getattr(sector, "change_pct", None)
-        if change is None and isinstance(sector, dict):
-            change = sector.get("change_pct")
-        source = getattr(sector, "source", None)
-        if source is None and isinstance(sector, dict):
-            source = sector.get("source")
-        view_label = getattr(sector, "view_label", None)
-        if view_label is None and isinstance(sector, dict):
-            view_label = sector.get("view_label")
+        name = CommentaryContextService._sector_value(sector, "name")
+        change = CommentaryContextService._sector_value(sector, "change_pct")
+        source = CommentaryContextService._sector_value(sector, "source")
+        view_label = CommentaryContextService._sector_value(sector, "view_label")
         return CommentaryEvidenceItem(
             kind=kind,
             title=f"{prefix}：{name} {CommentaryContextService._format_pct(change)}",

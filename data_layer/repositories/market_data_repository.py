@@ -295,7 +295,13 @@ class MarketDataRepository(BaseRepository):
                 IndexProviderDB,
                 providers,
                 constraint="index_provider_pkey",
-                update_cols=["name", "official_site", "source_priority", "raw_payload", "updated_at"],
+                update_cols=[
+                    "name",
+                    "official_site",
+                    "source_priority",
+                    "raw_payload",
+                    "updated_at",
+                ],
             )
         return self._upsert_sqlite(IndexProviderDB, providers, key_cols=["provider_code"])
 
@@ -370,7 +376,9 @@ class MarketDataRepository(BaseRepository):
         q = (
             self.db.query(IndexComponentSnapshotDB)
             .filter(IndexComponentSnapshotDB.index_id == index_id)
-            .order_by(IndexComponentSnapshotDB.rank.asc(), IndexComponentSnapshotDB.weight_pct.desc())
+            .order_by(
+                IndexComponentSnapshotDB.rank.asc(), IndexComponentSnapshotDB.weight_pct.desc()
+            )
         )
         if trade_date:
             q = q.filter(IndexComponentSnapshotDB.trade_date == trade_date)
@@ -398,7 +406,9 @@ class MarketDataRepository(BaseRepository):
         index_ids = [row.index_id for row in rows]
         masters = {}
         if index_ids:
-            master_rows = self.db.query(IndexMasterDB).filter(IndexMasterDB.index_id.in_(index_ids)).all()
+            master_rows = (
+                self.db.query(IndexMasterDB).filter(IndexMasterDB.index_id.in_(index_ids)).all()
+            )
             masters = {row.index_id: row for row in master_rows}
 
         memberships = []
@@ -547,7 +557,9 @@ class MarketDataRepository(BaseRepository):
         """兼容旧 index_component 入参并补齐新快照字段"""
         normalized = dict(item)
         index_symbol = str(normalized.get("index_symbol") or normalized.get("index_id") or "")
-        provider_code = str(normalized.get("provider_code") or normalized.get("source") or "unknown")
+        provider_code = str(
+            normalized.get("provider_code") or normalized.get("source") or "unknown"
+        )
         normalized.setdefault("index_id", f"{provider_code}:{index_symbol}")
         normalized.setdefault("index_symbol", index_symbol)
         normalized.setdefault("provider_code", provider_code)

@@ -79,14 +79,17 @@ def test_report_config_tab_uses_redesigned_editor_shell():
     assert 'class="template-workbench-main-grid template-config-grid"' in html
     assert 'class="template-workbench-left template-config-rail"' in html
     assert 'class="template-workbench-panel template-config-common-panel"' in html
-    assert 'class="template-workbench-panel template-section-editor-panel template-config-editor-panel"' in html
+    assert (
+        'class="template-workbench-panel template-section-editor-panel template-config-editor-panel"'
+        in html
+    )
     assert 'class="template-generation-hero template-config-hero"' in html
     assert 'id="btn-template-config-advanced"' in html
     assert 'id="btn-template-config-save-placeholder"' not in html
     assert 'id="btn-template-config-save-common"' not in html
     assert "configSavePlaceholderBtn" not in source
     assert "configSaveCommonBtn" not in source
-    assert 'btn-template-open-placeholder-config-modal' not in source
+    assert "btn-template-open-placeholder-config-modal" not in source
     assert 'data-placeholder-edit-section="basic"' in source
     assert 'data-placeholder-edit-section="query"' in source
     assert 'data-placeholder-edit-section="keywords"' in source
@@ -128,14 +131,29 @@ def test_report_config_tab_uses_redesigned_editor_shell():
     assert ".template-common-summary-card:hover" in css
     assert ".template-common-summary-card:focus-within" in css
     assert ".template-common-summary-card.is-editing" in css
-    assert 'details.template-common-summary-card[data-common-section="generation_constraints"]:hover' in css
-    assert 'details.template-common-summary-card[data-common-section="generation_constraints"]:focus-within' in css
-    assert 'details.template-common-summary-card.is-editing[data-common-section="generation_constraints"]' in css
-    assert '.template-common-summary-card[data-common-section="generation_constraints"] {\n    border-color: transparent;' in css
+    assert (
+        'details.template-common-summary-card[data-common-section="generation_constraints"]:hover'
+        in css
+    )
+    assert (
+        'details.template-common-summary-card[data-common-section="generation_constraints"]:focus-within'
+        in css
+    )
+    assert (
+        'details.template-common-summary-card.is-editing[data-common-section="generation_constraints"]'
+        in css
+    )
+    assert (
+        '.template-common-summary-card[data-common-section="generation_constraints"] {\n    border-color: transparent;'
+        in css
+    )
     assert "--template-config-rail-highlight-bg" in css
     assert "background: var(--template-config-rail-highlight-bg);" in css
     assert ".template-config-common-panel details.template-common-summary-card[open]:hover" in css
-    assert '[data-theme="light"] .template-config-common-panel details.template-common-summary-card[open]:hover' in css
+    assert (
+        '[data-theme="light"] .template-config-common-panel details.template-common-summary-card[open]:hover'
+        in css
+    )
     assert ".template-config-common-panel .template-common-summary-card > summary:hover" in css
     assert "background: transparent;" in css
     assert "var(--apple-accent)" in css
@@ -147,23 +165,41 @@ def test_report_config_tab_uses_redesigned_editor_shell():
     assert "-webkit-backdrop-filter: none;" in css
     assert ".template-config-editor-toolbar .placeholder-select-option" in css
     menu_css = css[
-        css.index(".template-config-editor-toolbar .placeholder-select-menu"):
-        css.index(".template-config-editor-toolbar .placeholder-select-menu[hidden]")
+        css.index(".template-config-editor-toolbar .placeholder-select-menu") : css.index(
+            ".template-config-editor-toolbar .placeholder-select-menu[hidden]"
+        )
     ]
     option_css = css[
-        css.index(".template-config-editor-toolbar .placeholder-select-option"):
-        css.index(".template-config-editor-toolbar .template-placeholder-actions")
+        css.index(".template-config-editor-toolbar .placeholder-select-option") : css.index(
+            ".template-config-editor-toolbar .template-placeholder-actions"
+        )
     ]
     assert "color-mix" not in menu_css.split("background:", 1)[1].split(";", 1)[0]
     assert "background: transparent;" not in option_css
-    final_open_reset = css.rfind(".template-config-common-panel .template-common-summary-card[open],\n.template-config-common-panel details.template-common-summary-card[data-common-section=\"generation_constraints\"],")
-    final_hover = css.rfind(".template-config-common-panel .template-common-summary-card:hover,\n.template-config-common-panel details.template-common-summary-card[data-common-section=\"generation_constraints\"]:hover,")
+    final_open_reset = css.rfind(
+        '.template-config-common-panel .template-common-summary-card[open],\n.template-config-common-panel details.template-common-summary-card[data-common-section="generation_constraints"],'
+    )
+    final_hover = css.rfind(
+        '.template-config-common-panel .template-common-summary-card:hover,\n.template-config-common-panel details.template-common-summary-card[data-common-section="generation_constraints"]:hover,'
+    )
     assert final_open_reset != -1
     assert final_hover > final_open_reset
-    final_highlight_rule = css[css.rfind(".template-config-common-panel .template-common-summary-card:hover"):css.rfind(".template-config-common-panel .template-common-summary-card:hover > summary::before")]
+    final_highlight_rule = css[
+        css.rfind(".template-config-common-panel .template-common-summary-card:hover") : css.rfind(
+            ".template-config-common-panel .template-common-summary-card:hover > summary::before"
+        )
+    ]
     assert "> summary:hover" not in final_highlight_rule
-    assert css.rfind('[data-theme="light"] .template-config-common-panel .template-common-summary-card:hover') > css.rfind('[data-theme="light"] .template-config-common-panel .template-common-summary-card,')
-    assert css.rfind('[data-theme="light"] .template-config-common-panel details.template-common-summary-card[open]:hover') > css.rfind('[data-theme="light"] .template-config-common-panel details.template-common-summary-card[open],')
+    assert css.rfind(
+        '[data-theme="light"] .template-config-common-panel .template-common-summary-card:hover'
+    ) > css.rfind(
+        '[data-theme="light"] .template-config-common-panel .template-common-summary-card,'
+    )
+    assert css.rfind(
+        '[data-theme="light"] .template-config-common-panel details.template-common-summary-card[open]:hover'
+    ) > css.rfind(
+        '[data-theme="light"] .template-config-common-panel details.template-common-summary-card[open],'
+    )
 
 
 def test_report_generation_page_is_reduced_to_progress_and_single_output():
@@ -176,12 +212,12 @@ def test_report_generation_page_is_reduced_to_progress_and_single_output():
     assert 'id="template-generation-flow-list"' in generation
     assert 'id="template-recent-generation-panel"' in generation
     assert generation.count('id="template-recent-generation-panel"') == 1
-    assert 'template-generation-step-panel' not in generation
+    assert "template-generation-step-panel" not in generation
     assert 'id="template-generation-param-grid"' not in generation
-    assert 'template-generation-prompt-summary' not in generation
-    assert 'template-generation-live-events' not in generation
+    assert "template-generation-prompt-summary" not in generation
+    assert "template-generation-live-events" not in generation
     assert 'id="template-project-check-details"' not in generation
-    assert '生成前检查' not in generation
+    assert "生成前检查" not in generation
 
 
 def test_templates_js_populates_report_workbench():
@@ -252,7 +288,7 @@ def test_templates_js_separates_report_generation_preview_logs_and_output_folder
     assert "/open-folder" in source
     assert "openReportProjectOutputFolder(project.slug, selectedReport.file_name)" in source
     assert "?file_name=${encodeURIComponent(fileName)}" in source
-    assert "data-template-report-action=\"folder\"" in INDEX_HTML.read_text(encoding="utf-8")
+    assert 'data-template-report-action="folder"' in INDEX_HTML.read_text(encoding="utf-8")
     assert "selectedGeneratedReportFile" in source
     assert "btn-template-show-run-log" in source
 
@@ -336,7 +372,9 @@ def test_report_period_placeholder_summary_does_not_show_generation_metrics():
     summary_source = source[start:end]
 
     assert "isReportPeriodFieldPlaceholder(mapping.type || type, mapping, name)" in summary_source
-    report_period_branch = summary_source.split("isReportPeriodFieldPlaceholder(mapping.type || type, mapping, name))", 1)[1].split("const facts = isParagraphPlaceholderType", 1)[0]
+    report_period_branch = summary_source.split(
+        "isReportPeriodFieldPlaceholder(mapping.type || type, mapping, name))", 1
+    )[1].split("const facts = isParagraphPlaceholderType", 1)[0]
     assert "字段类型" in report_period_branch
     assert "映射字段" in report_period_branch
     assert "template-report-period-summary-grid" in report_period_branch
@@ -348,7 +386,7 @@ def test_report_period_placeholder_summary_does_not_show_generation_metrics():
     assert "最大字数" not in report_period_branch
     assert "证据条数" not in report_period_branch
     assert 'data-common-rule-field="report_period.${esc(field)}"' in source
-    assert '这里修改后会同步到“证据来源与时间”的共用参数。' in source
+    assert "这里修改后会同步到“证据来源与时间”的共用参数。" in source
     assert "document.getElementById('template-placeholder-detail-form')" in source
     assert "boundPlaceholderCommonRule" in source
 
@@ -377,8 +415,14 @@ def test_placeholder_select_syncs_state_when_previous_selection_is_missing():
     end = source.index("function renderMappingSummary", start)
     map_source = source[start:end]
 
-    assert "const normalizedNames = names.map(name => normalizePlaceholderName(name)).filter(Boolean);" in map_source
-    assert "const currentName = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);" in map_source
+    assert (
+        "const normalizedNames = names.map(name => normalizePlaceholderName(name)).filter(Boolean);"
+        in map_source
+    )
+    assert (
+        "const currentName = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);"
+        in map_source
+    )
     assert "normalizedNames.includes(currentName)" in map_source
     assert "currentTemplateState.selectedPlaceholderName = selectedName;" in map_source
     assert "currentTemplateState.selectedPlaceholderName = '';" in map_source
@@ -466,7 +510,10 @@ def test_placeholder_type_selector_uses_purpose_cards_not_dropdown():
     assert "这个占位符要替换成什么？" in selector_source
     assert 'class="placeholder-purpose-grid"' in selector_source
     assert 'data-placeholder-output-shape-option="${esc(option.value)}"' in selector_source
-    assert 'type="hidden" data-placeholder-field="type" data-placeholder-output-shape-select="true"' in selector_source
+    assert (
+        'type="hidden" data-placeholder-field="type" data-placeholder-output-shape-select="true"'
+        in selector_source
+    )
     assert "<select" not in selector_source
     assert "写一段话" in selector_source
     assert "日期、数字、单个值" in selector_source
@@ -482,7 +529,10 @@ def test_keyword_profile_change_keeps_config_modal_scoped_to_keywords():
 
     assert "function isPlaceholderConfigEditorModalOpen()" in source
     assert "function refreshKeywordProfilePreview(input, template)" in source
-    assert "field === 'retrieval.keyword_profile_select' && isPlaceholderConfigEditorModalOpen()" in source
+    assert (
+        "field === 'retrieval.keyword_profile_select' && isPlaceholderConfigEditorModalOpen()"
+        in source
+    )
     assert "refreshKeywordProfilePreview(input, template);" in source
     assert "renderSelectedPlaceholderDetail(template);" in source
     assert "modalState.parentNode.isConnected" in source
@@ -497,19 +547,28 @@ def test_config_modal_does_not_auto_select_first_number_input():
     assert "closeBtn?.focus?.({ preventScroll: true })" in source
     assert "const firstField = body.querySelector('input, textarea, select, button');" not in source
     assert 'input[type="number"] {' in css
-    assert 'appearance: textfield;' in css
+    assert "appearance: textfield;" in css
     assert 'input[type="number"]::-webkit-inner-spin-button' in css
-    assert '-webkit-appearance: none;' in css
+    assert "-webkit-appearance: none;" in css
 
 
 def test_data_template_fields_only_render_for_composite_market_review_placeholders():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
 
-    assert "const supportsDataTemplate = isDataTemplateParagraphMode(storedType, paragraphMode);" in source
+    assert (
+        "const supportsDataTemplate = isDataTemplateParagraphMode(storedType, paragraphMode);"
+        in source
+    )
     assert "includeDefaults: supportsDataTemplate" in source
     assert "function getDataTemplateFields(mapping = {}, { includeDefaults = true } = {})" in source
-    assert "...(includeDefaults && !hasExplicitFields ? getDefaultDataTemplateFields(mapping) : {})" in source
-    assert "const hasExplicitFields = Object.prototype.hasOwnProperty.call(component, 'fields');" in source
+    assert (
+        "...(includeDefaults && !hasExplicitFields ? getDefaultDataTemplateFields(mapping) : {})"
+        in source
+    )
+    assert (
+        "const hasExplicitFields = Object.prototype.hasOwnProperty.call(component, 'fields');"
+        in source
+    )
     assert "const dataTemplateFields = getDataTemplateFields(mapping);" not in source
 
 
@@ -519,7 +578,7 @@ def test_paragraph_placeholder_uses_mode_instead_of_parallel_ai_types():
     assert "function getParagraphMode" in source
     assert "function isParagraphPlaceholderType" in source
     assert "function isDataTemplateParagraphMode" in source
-    assert "data-placeholder-field=\"mode\"" in source
+    assert 'data-placeholder-field="mode"' in source
     assert "数据说明段落" in source
     assert "根据材料撰写" in source
     assert "数据说明 + 材料续写" in source
@@ -552,7 +611,7 @@ def test_prompt_placeholders_keep_writing_structure_entry_even_when_empty():
     css = STYLE_CSS.read_text(encoding="utf-8")
 
     assert "const writingSteps = splitLines(writingStructureText);" in source
-    assert '${isPromptLike ? `' in source
+    assert "${isPromptLike ? `" in source
     assert 'data-placeholder-edit-section="writing"' in source
     assert "writingSteps.length ? `${writingSteps.length} 步` : '未配置'" in source
     assert "未单独配置写作步骤，点击这里添加生成正文的结构和表达边界。" in source
@@ -640,7 +699,7 @@ def test_generation_preflight_checks_each_placeholder_and_can_focus_it():
     assert "缺少表格来源" in source
     assert "缺少图表来源" in source
     assert "data-template-placeholder-name=\"${esc(item.placeholderName || '')}\"" in source
-    assert "data-template-check-action=\"focus-placeholder\"" in source
+    assert 'data-template-check-action="focus-placeholder"' in source
     assert "selectTemplatePlaceholder(placeholderName);" in source
     assert "openPlaceholderConfigEditorModal(template, item.editorSection || 'basic')" in source
     assert ".validation-item.placeholder-issue" in css
@@ -703,7 +762,7 @@ def test_placeholder_configurator_uses_original_embedded_grid_layout():
     assert 'id="template-placeholder-map"' not in rail_html
     assert 'id="template-placeholder-map"' in editor_html
     assert 'class="template-placeholder-status-strip"' in editor_html
-    assert 'placeholder-issue-queue placeholder-issue-queue-inline' in editor_html
+    assert "placeholder-issue-queue placeholder-issue-queue-inline" in editor_html
     assert "选择占位符" in html
     assert 'id="template-placeholder-progress-bar"' in html
     assert "预检问题" in html
@@ -734,7 +793,10 @@ def test_placeholder_toolbar_has_three_zones_and_incomplete_only_next_actions():
     assert ".template-config-toolbar-zone + .template-config-toolbar-zone::before" in css
     assert ".template-placeholder-actions.has-incomplete #btn-template-save-next-placeholder" in css
     assert ".template-placeholder-actions.is-complete #btn-template-save-next-placeholder" in css
-    assert ".template-placeholder-status-strip.is-complete #btn-template-next-incomplete-placeholder" in css
+    assert (
+        ".template-placeholder-status-strip.is-complete #btn-template-next-incomplete-placeholder"
+        in css
+    )
 
     assert "const hasIncomplete = state.incompleteItems.length > 0;" in source
     assert "actionsEl.classList.toggle('has-incomplete', hasIncomplete);" in source
@@ -750,7 +812,7 @@ def test_config_page_uses_compact_left_nav_and_lighter_detail_blocks():
     css = STYLE_CSS.read_text(encoding="utf-8")
 
     assert "/* Compact config navigation polish */" in css
-    compact_nav = css[css.index("/* Compact config navigation polish */"):]
+    compact_nav = css[css.index("/* Compact config navigation polish */") :]
     assert ".template-config-common-panel .template-common-summary-card > summary" in compact_nav
     assert "min-height: 54px;" in compact_nav
     assert "grid-template-columns: 22px minmax(0, 1fr) minmax(44px, auto);" in compact_nav
@@ -758,10 +820,12 @@ def test_config_page_uses_compact_left_nav_and_lighter_detail_blocks():
     assert "gap: 7px;" in compact_nav
 
     assert "/* Lighter placeholder detail blocks */" in css
-    detail_polish = css[css.index("/* Lighter placeholder detail blocks */"):]
+    detail_polish = css[css.index("/* Lighter placeholder detail blocks */") :]
     assert ".template-config-editor-panel .template-placeholder-detail-form" in detail_polish
     assert "gap: 10px;" in detail_polish
-    assert ".template-config-editor-panel .template-placeholder-detail-form > label" in detail_polish
+    assert (
+        ".template-config-editor-panel .template-placeholder-detail-form > label" in detail_polish
+    )
     assert "border-color: rgba(255,255,255,0.065);" in detail_polish
     assert "background: rgba(255,255,255,0.030);" in detail_polish
     assert ".template-config-editor-panel .template-keyword-summary" in detail_polish
@@ -775,7 +839,9 @@ def test_placeholder_wizard_visual_order_and_picker_menu_are_closed_by_default()
     end = source.index("if (advancedFormEl)", start)
     form_source = source[start:end]
 
-    assert form_source.index("${editorHtml}") < form_source.index("buildPlaceholderConfigSummaryHtml")
+    assert form_source.index("${editorHtml}") < form_source.index(
+        "buildPlaceholderConfigSummaryHtml"
+    )
     assert ".placeholder-configurator-rail-panel .placeholder-select-menu[hidden]" in css
     assert "display: none !important;" in css
     assert ".placeholder-configurator-rail-panel .placeholder-select-option" in css
@@ -837,16 +903,25 @@ def test_upload_enters_first_configuration_mode_for_new_template():
 def test_generate_report_blocks_when_placeholder_preflight_has_issues():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
 
-    assert "function getTemplateGenerationPreflight(template = getCurrentWorkbenchTemplate())" in source
+    assert (
+        "function getTemplateGenerationPreflight(template = getCurrentWorkbenchTemplate())"
+        in source
+    )
     assert "function blockReportGenerationForPreflight(preflight)" in source
     assert "const preflight = getTemplateGenerationPreflight(template);" in source
     assert "if (!preflight.ok) {" in source
     assert "blockReportGenerationForPreflight(preflight);" in source
     assert "return;" in source
     assert "请先处理生成预检中的占位符配置问题" in source
-    assert "renderTemplateValidationPreview(template, preflight.sections, preflight.placeholders);" in source
+    assert (
+        "renderTemplateValidationPreview(template, preflight.sections, preflight.placeholders);"
+        in source
+    )
     assert "placeholderReadiness: placeholderReadiness" in source
-    assert "contentOk = passedChecks === validationChecks.length && placeholderIssueCount === 0" in source
+    assert (
+        "contentOk = passedChecks === validationChecks.length && placeholderIssueCount === 0"
+        in source
+    )
 
 
 def test_generation_preflight_prefers_backend_compiled_plan():
@@ -856,7 +931,10 @@ def test_generation_preflight_prefers_backend_compiled_plan():
     assert "function buildCompiledPlanReadinessItems(compiledPlan)" in source
     assert "const compiledPlan = getCompiledReportPlan(template);" in source
     assert "const compiledPlanItems = buildCompiledPlanReadinessItems(compiledPlan);" in source
-    assert "compiledPlanItems.length ? compiledPlanItems : buildPlaceholderReadinessItems(template, placeholders)" in source
+    assert (
+        "compiledPlanItems.length ? compiledPlanItems : buildPlaceholderReadinessItems(template, placeholders)"
+        in source
+    )
     assert "readiness.compiledPlan?.warnings" in source
     assert "后端计划" in source
 
@@ -865,7 +943,10 @@ def test_generation_preflight_groups_prompt_evidence_and_output_assets():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
     css = STYLE_CSS.read_text(encoding="utf-8")
 
-    assert "function buildPreflightReviewGroups(readiness, checks, placeholderReadiness, context)" in source
+    assert (
+        "function buildPreflightReviewGroups(readiness, checks, placeholderReadiness, context)"
+        in source
+    )
     assert "function renderPreflightReviewGroup(group)" in source
     assert "Prompt 覆盖" in source
     assert "Evidence 覆盖" in source
@@ -954,7 +1035,10 @@ def test_placeholder_mapping_connects_word_prompt_and_query_source():
     assert "keyword_profiles" in source
     assert "keyword_profile" in source
     assert "keywords" in source
-    assert "const needsEvidenceDefaults = type === 'paragraph' && usesEvidenceParagraphMode(storedType, paragraphMode);" in source
+    assert (
+        "const needsEvidenceDefaults = type === 'paragraph' && usesEvidenceParagraphMode(storedType, paragraphMode);"
+        in source
+    )
     assert "stored.prompt_template || resolvePromptTemplateName(key, project)" in source
     assert "stored.query_source || inferQuerySource(key, project)" in source
     assert "renderMappingSummary" in source
@@ -1017,7 +1101,10 @@ def test_common_generation_constraints_preserve_commas():
     assert "field === 'generation_constraints'" in source
     assert "value = splitLines(input.value);" in source
     assert "value = splitDelimitedList(input.value);" in source
-    assert "field === 'generation_constraints'\n            || field === 'hard_constraints.forbidden_phrases'" not in source
+    assert (
+        "field === 'generation_constraints'\n            || field === 'hard_constraints.forbidden_phrases'"
+        not in source
+    )
 
 
 def test_initial_load_uses_navigation_to_activate_content_section():
@@ -1027,7 +1114,9 @@ def test_initial_load_uses_navigation_to_activate_content_section():
     assert "localStorage.getItem('af-active-section')" in source
     assert "localStorage.setItem('af-active-section', section)" in source
     assert "navigateTo(getInitialSection());" in source
-    assert "loadDashboard();\n    startCrawlFeedPolling();\n    startWorkersPolling();" not in source
+    assert (
+        "loadDashboard();\n    startCrawlFeedPolling();\n    startWorkersPolling();" not in source
+    )
 
 
 def test_template_cards_do_not_reference_module_state_inline():
@@ -1094,11 +1183,14 @@ def test_report_generation_page_uses_apple_refinement_instead_of_market_red_card
     assert "#template-workbench-summary" in css
     assert ".template-generation-flow-step.done .step-index" in css
     assert "var(--report-flow-complete)" in css
-    assert "background: var(--success);" not in css.split(
-        ".template-generation-flow-step.done .step-index", 1
-    )[1].split("}", 1)[0]
+    assert (
+        "background: var(--success);"
+        not in css.split(".template-generation-flow-step.done .step-index", 1)[1].split("}", 1)[0]
+    )
     assert "#template-workbench-summary {\n    border: 0;" in css
-    assert ".template-generation-flow-panel,\n.template-generation-step-panel {\n    border: 0;" in css
+    assert (
+        ".template-generation-flow-panel,\n.template-generation-step-panel {\n    border: 0;" in css
+    )
     assert ".template-generation-hero {\n    align-items: flex-start;" in css
     assert '[data-theme="light"] .template-generation-hero {\n    background: transparent;' in css
     assert ".template-generation-actions small {\n    display: none;" in css

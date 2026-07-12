@@ -47,7 +47,9 @@ def test_convert_pdf_falls_back_after_empty_mineru_output(monkeypatch):
 
     monkeypatch.setattr(service_module.pdf_repo, "get_pdf_by_id", lambda _db, _pdf_id: artifact)
     monkeypatch.setattr(service_module.pdf_repo, "add_conversion", lambda _db, _conversion: None)
-    monkeypatch.setattr(service_module, "persist_raw_text", lambda pdf_id, text: f"/tmp/{pdf_id}.txt")
+    monkeypatch.setattr(
+        service_module, "persist_raw_text", lambda pdf_id, text: f"/tmp/{pdf_id}.txt"
+    )
 
     mineru = _FakeStrategy(
         "mineru",

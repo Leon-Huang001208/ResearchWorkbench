@@ -2711,3 +2711,7 @@ python view_db.py query "SELECT * FROM canonical_event LIMIT 5"
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - 架构文档
 - **[FILE_GUIDE.md](FILE_GUIDE.md)** - 文件指南
 - **[CHANGELOG.md](CHANGELOG.md)** - 更新日志
+
+## 测试环境
+
+默认全仓测试不要求本机 PostgreSQL。若要执行真实 PostgreSQL 冒烟，请先提供可连接的数据库并设置 `ALPHAFOUNDRY_RUN_POSTGRES_TESTS=1`。

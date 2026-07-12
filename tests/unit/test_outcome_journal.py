@@ -2,10 +2,14 @@
 import uuid
 from datetime import datetime, timedelta, timezone
 
+import pytest
+
 from core.contracts.outcome_journal import FailureClassification, TradeOutcome
 from data_layer.repositories.base import db_session
 from data_layer.repositories.outcome_journal_repository import OutcomeJournalRepository
 from services.outcome_journal_service import OutcomeJournalService
+
+pytestmark = pytest.mark.usefixtures("runtime_database")
 
 
 def test_create_and_retrieve_outcome():

@@ -59,6 +59,18 @@ data/
 .data/
 backup/
 
+# Huaan report-project assets are required by the built-in project and its
+# integration tests. Keep this allowlist narrow so runtime caches and other
+# local data remain ignored.
+!report_projects/
+!report_projects/华安ETF周报/
+!report_projects/华安ETF周报/data/
+!report_projects/华安ETF周报/data/周报数据.xlsx
+!report_projects/华安ETF周报/data/周报图表.xlsx
+!data/
+!data/industry_graphs/
+!data/industry_graphs/*.json
+
 # Claude Code
 .claude/
 .ai/*
@@ -77,6 +89,9 @@ report_projects/*/runs/*.json
 report_projects/*/generated/.preview-cache/
 !reporting/templates/docx/*.docx
 !examples/**/*.docx
+!report_projects/华安ETF周报/templates/report_template.docx
+!report_projects/华安ETF周报/generated/20260417_华安ETF周报.docx
+!report_projects/华安ETF周报/generated/20260515_华安ETF周报.docx
 initial-page-load.png
 周报生成方案.md
 

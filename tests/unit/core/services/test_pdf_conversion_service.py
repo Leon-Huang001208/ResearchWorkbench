@@ -275,9 +275,9 @@ class TestConvertPdf:
         mock_mineru.return_value.is_available.return_value = True
         mock_mineru.return_value.convert.return_value = _make_error_result()
         mock_md.return_value.name = "markitdown"
-        mock_md.return_value.is_available.return_value = True
+        mock_md.return_value.is_available.return_value = False
         mock_raw.return_value.name = "raw_text"
-        mock_raw.return_value.is_available.return_value = True
+        mock_raw.return_value.is_available.return_value = False
 
         artifact = _make_artifact()
         mock_repo.get_pdf_by_id.return_value = artifact
@@ -287,7 +287,7 @@ class TestConvertPdf:
         result = service.convert_pdf("pdf_001")
 
         assert result.success is False
-        assert result.error_message == "Conversion failed"
+        assert result.error_message == "mineru: Conversion failed"
         assert artifact.parse_status == "error"
 
     @patch("services.pdf_conversion_service.MinerUStrategy")
@@ -302,9 +302,9 @@ class TestConvertPdf:
         mock_mineru.return_value.is_available.return_value = True
         mock_mineru.return_value.convert.side_effect = RuntimeError("Unexpected crash")
         mock_md.return_value.name = "markitdown"
-        mock_md.return_value.is_available.return_value = True
+        mock_md.return_value.is_available.return_value = False
         mock_raw.return_value.name = "raw_text"
-        mock_raw.return_value.is_available.return_value = True
+        mock_raw.return_value.is_available.return_value = False
 
         artifact = _make_artifact()
         mock_repo.get_pdf_by_id.return_value = artifact
@@ -456,9 +456,9 @@ class TestConvertPending:
             RuntimeError("Boom"),
         ]
         mock_md.return_value.name = "markitdown"
-        mock_md.return_value.is_available.return_value = True
+        mock_md.return_value.is_available.return_value = False
         mock_raw.return_value.name = "raw_text"
-        mock_raw.return_value.is_available.return_value = True
+        mock_raw.return_value.is_available.return_value = False
 
         artifact1 = _make_artifact("pdf_001")
         artifact2 = _make_artifact("pdf_002")
@@ -554,9 +554,9 @@ class TestRetryFailed:
         # convert_pdf 内部会抛异常（因为 artifact 重置后 get_pdf_by_id 又被调用）
         mock_mineru.return_value.convert.side_effect = RuntimeError("Retry failed")
         mock_md.return_value.name = "markitdown"
-        mock_md.return_value.is_available.return_value = True
+        mock_md.return_value.is_available.return_value = False
         mock_raw.return_value.name = "raw_text"
-        mock_raw.return_value.is_available.return_value = True
+        mock_raw.return_value.is_available.return_value = False
 
         artifact = _make_artifact("pdf_001", parse_status="error")
         mock_repo.get_pdf_by_id.return_value = artifact
@@ -740,9 +740,9 @@ class TestDocumentCreationFromConversion:
         mock_mineru.return_value.is_available.return_value = True
         mock_mineru.return_value.convert.return_value = _make_error_result()
         mock_md.return_value.name = "markitdown"
-        mock_md.return_value.is_available.return_value = True
+        mock_md.return_value.is_available.return_value = False
         mock_raw.return_value.name = "raw_text"
-        mock_raw.return_value.is_available.return_value = True
+        mock_raw.return_value.is_available.return_value = False
 
         mock_repo.get_pdf_by_id.return_value = _make_artifact()
 

@@ -956,3 +956,7 @@ class BaseProvider(ABC):
 - **[CHANGELOG.md](CHANGELOG.md)** - 更新日志
 - **[backup_restore.md](backup_restore.md)** - 备份恢复文档
 - **[DATA_SOURCES.md](DATA_SOURCES.md)** - 数据源文档
+
+## 2026-07-12 仓库门禁维护
+
+全仓测试默认使用每进程隔离 SQLite；真实 PostgreSQL 冒烟仅在显式启用时运行。内置报告项目和产业链基础图均随仓库提供，避免运行时依赖开发机私有资产。

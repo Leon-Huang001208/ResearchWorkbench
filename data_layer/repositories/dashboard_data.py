@@ -106,7 +106,9 @@ def _clean_pdf_report_text_for_display(text: str) -> str:
         if _looks_like_pdf_noise_line(line):
             continue
         line = _PDF_TABLE_MARKER_RE.sub("", line)
-        line = re.sub(r"\[[^\]]*(?:Table|T\s*a\s*b\s*l|T\s*abl|abl投e)[^\]]*\]", "", line, flags=re.I)
+        line = re.sub(
+            r"\[[^\]]*(?:Table|T\s*a\s*b\s*l|T\s*abl|abl投e)[^\]]*\]", "", line, flags=re.I
+        )
         line = re.sub(r"\[\[[^\]]+\]\]", "", line)
         line = re.sub(r"\bT\s*2?a\s*0?b\s*2?l\s*e[\w_.-]*\b", "", line, flags=re.I)
         line = re.sub(r"\bTT\s+aabbll[\w\s_.（）()-]*", "", line, flags=re.I)
@@ -176,7 +178,7 @@ def _extract_json_document_text(text: str) -> Tuple[str, str, bool]:
     return _single_line_text(payload.get("title")), "\n\n".join(content_parts), True
 
 
-def _normalize_crawl_document_text(doc: DocumentV1DB) -> Dict[str, str]:
+def _normalize_crawl_document_text(doc: DocumentV1DB) -> Dict[str, Any]:
     raw_title = (doc.title or "").strip()
     raw_summary = _clean_live_document_text(doc.summary)
     raw_content = _clean_live_document_text(doc.content)

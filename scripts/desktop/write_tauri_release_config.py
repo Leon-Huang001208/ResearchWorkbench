@@ -5,7 +5,6 @@ import json
 import os
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 OUTPUT = REPO_ROOT / "src-tauri" / "tauri.release.conf.json"
 DEFAULT_ENDPOINT = (

@@ -998,20 +998,12 @@ def market_schedule_status_command() -> None:
             stats = sched_status.get("stats", {})
             click.echo(f"\nDataset:        {sched_status.get('dataset', 'daily_quotes')}")
             click.echo(f"Daily cron:     {sched_status.get('daily_cron', 'N/A')}")
-            click.echo(
-                f"Index cron:     {sched_status.get('index_structure_cron', 'N/A')}"
-            )
+            click.echo(f"Index cron:     {sched_status.get('index_structure_cron', 'N/A')}")
             click.echo(f"Last daily run: {stats.get('last_daily_run', 'never')}")
             click.echo(f"Last gap check: {stats.get('last_gap_check', 'never')}")
             click.echo(f"Last gap count: {stats.get('last_gap_count', 0)}")
-            click.echo(
-                "Last index run: "
-                f"{stats.get('last_index_structure_run', 'never')}"
-            )
-            click.echo(
-                "Index errors:   "
-                f"{stats.get('last_index_structure_errors', 0)}"
-            )
+            click.echo("Last index run: " f"{stats.get('last_index_structure_run', 'never')}")
+            click.echo("Index errors:   " f"{stats.get('last_index_structure_errors', 0)}")
             click.echo(f"Total ingested: {stats.get('total_ingested', 0)}")
             click.echo(f"Total failures: {stats.get('total_failures', 0)}")
     except Exception:

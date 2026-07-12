@@ -123,8 +123,9 @@ def test_failed_job_keeps_real_error_and_enforces_project_ownership():
 
 
 def test_local_report_models_load_once_under_concurrency(monkeypatch):
-    from reporting.projects import generation
     import sentence_transformers
+
+    from reporting.projects import generation
 
     calls = {"embedding": 0, "reranker": 0}
 

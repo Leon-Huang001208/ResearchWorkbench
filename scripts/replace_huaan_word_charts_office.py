@@ -62,9 +62,7 @@ def _run_osascript(script: str, timeout: int = 60) -> str:
         check=False,
     )
     if result.returncode != 0:
-        raise RuntimeError(
-            f"osascript failed ({result.returncode}): {result.stderr.strip()}"
-        )
+        raise RuntimeError(f"osascript failed ({result.returncode}): {result.stderr.strip()}")
     return result.stdout.strip()
 
 
@@ -76,7 +74,7 @@ def _apple_quote(value: Path | str) -> str:
 def _wait_for_word_document(path: Path) -> None:
     """Grant file access when Word asks for macOS sandbox permission."""
     target = _apple_quote(path)
-    script = f'''
+    script = f"""
 tell application "System Events"
     if exists process "Microsoft Word" then
         tell process "Microsoft Word"
@@ -98,30 +96,30 @@ tell application "System Events"
         end tell
     end if
 end tell
-'''
+"""
     _run_osascript(script, timeout=20)
 
 
 def _open_word_document(path: Path) -> None:
-    script = f'''
+    script = f"""
 set docAlias to POSIX file "{_apple_quote(path)}" as alias
 tell application "Microsoft Word"
     activate
     open docAlias
     delay 4
 end tell
-'''
+"""
     _run_osascript(script, timeout=30)
     _wait_for_word_document(path)
     opened = _run_osascript(
-        '''
+        """
 tell application "Microsoft Word"
     if (count of documents) = 0 then
         return "documents=0"
     end if
     return "documents=" & (count of documents) & ", inline=" & (count of inline shapes of active document)
 end tell
-''',
+""",
         timeout=20,
     )
     if "documents=0" in opened:
@@ -130,13 +128,13 @@ end tell
 
 
 def _open_excel_workbook(path: Path) -> None:
-    script = f'''
+    script = f"""
 tell application "Microsoft Excel"
     activate
     open workbook workbook file name "{_apple_quote(path)}"
     delay 2
 end tell
-'''
+"""
     try:
         _run_osascript(script, timeout=20)
     except RuntimeError:
@@ -153,7 +151,7 @@ def _replace_one_chart(index: int, sheet: str, chart: str, label: str) -> None:
         chart=chart,
         inline_shape_index=index,
     )
-    script = f'''
+    script = f"""
 tell application "Microsoft Excel"
     activate
     set wb to active workbook
@@ -184,7 +182,7 @@ delay 2
 tell application "Microsoft Word"
     return "inline=" & (count of inline shapes of active document) & ", shapes=" & (count of shapes of active document)
 end tell
-'''
+"""
     status = _run_osascript(script, timeout=30)
     logger.info("Replaced chart", label=label, status=status)
 
@@ -223,14 +221,14 @@ def replace_charts_with_office(
             label=str(item["label"]),
         )
     _run_osascript(
-        '''
+        """
 tell application "Microsoft Word"
     save active document
     set docName to name of active document
     close active document saving no
     return docName
 end tell
-''',
+""",
         timeout=30,
     )
     time.sleep(1)

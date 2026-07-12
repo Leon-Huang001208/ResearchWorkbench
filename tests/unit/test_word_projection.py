@@ -259,10 +259,7 @@ class TestWordProjectionFromTemplate:
 
         result = docx.Document(output_path)
         all_cells = [
-            cell.text
-            for table in result.tables
-            for row in table.rows
-            for cell in row.cells
+            cell.text for table in result.tables for row in table.rows for cell in row.cells
         ]
         assert all_cells[3] == "美国"
         assert all_cells[4] == "美国新闻正文"

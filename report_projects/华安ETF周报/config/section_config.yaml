@@ -41,11 +41,11 @@ defaults:
     semantic_candidate_k: 80
     keyword_weight: 0.6
     semantic_weight: 0.4
-    embedding_model: /Users/leon/Desktop/Projects/AlphaFoundry/data/models/embeddings/bge-large-zh-v1.5
+    embedding_model: BAAI/bge-large-zh-v1.5
   rerank:
     enabled: true
     provider: bge-reranker
-    model: /Users/leon/Desktop/Projects/AlphaFoundry/data/models/rerankers/bge-reranker-large
+    model: BAAI/bge-reranker-large
     top_n: 30
     min_score: 0.35
 charts:

@@ -15,6 +15,8 @@ sys.path.insert(0, str(project_root))
 from data_layer.repositories.base import check_database_connection, db_session
 from data_layer.repositories.models import AlphaSignalDB, CanonicalEvent, SourceDocument
 
+pytestmark = pytest.mark.usefixtures("runtime_database")
+
 
 def test_bootstrap_sample_directory_exists():
     """Test that the bootstrap sample directory exists with sample data."""

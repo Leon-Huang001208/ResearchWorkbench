@@ -695,3 +695,7 @@ CLI 命令在 `app/cli/commands/`，文件名 = 功能 + `.py`，例如：
 - **[CHANGELOG.md](CHANGELOG.md)** - 更新日志
 - **[backup_restore.md](backup_restore.md)** - 备份恢复文档
 - **[DATA_SOURCES.md](DATA_SOURCES.md)** - 数据源文档
+
+## 2026-07-12 可复现资产
+
+内置华安 ETF 周报的 Word、Excel、历史预览文件位于 `report_projects/华安ETF周报/`，产业链基础图位于 `data/industry_graphs/`；二者均是测试和本地运行所需的受版本控制资产。

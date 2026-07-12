@@ -117,11 +117,13 @@ class CrawlFeedContentService:
         }
 
     def _article_id_for(self, doc: DocumentV1DB) -> str:
-        metadata = doc.source_metadata if isinstance(doc.source_metadata, dict) else {}
+        metadata: dict[str, Any] = (
+            doc.source_metadata if isinstance(doc.source_metadata, dict) else {}
+        )
         article_id = str(metadata.get("article_id") or "").strip()
         if article_id:
             return article_id
-        match = re.search(r"/commonDetail/(\d+)", doc.source_url or "")
+        match = re.search(r"/commonDetail/(\d+)", str(doc.source_url or ""))
         return match.group(1) if match else ""
 
     def _mark_refresh(self, doc: DocumentV1DB, status: str, error: str = "") -> None:

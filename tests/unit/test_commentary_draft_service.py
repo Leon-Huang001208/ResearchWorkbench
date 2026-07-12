@@ -26,8 +26,7 @@ class FakeModelGateway:
         if self.fail:
             raise RuntimeError("model unavailable")
         return ModelResponse(
-            content=self.content
-            or "# 市场大跌归因\n\n核心判断：市场调整来自风险偏好回落。\n\n后续观察成交额。",
+            content=self.content or "# 市场大跌归因\n\n核心判断：市场调整来自风险偏好回落。\n\n后续观察成交额。",
             model_name="deepseek-test",
             provider="fake-provider",
             tokens_used=321,
@@ -236,11 +235,7 @@ def test_commentary_draft_service_quality_check_flags_publish_risks():
     service = CommentaryDraftService(model_gateway=FakeModelGateway())
 
     result = service.check_quality(
-        draft_markdown=(
-            "# 市场大跌归因\n\n"
-            "## 核心判断\n"
-            "海外 AI 链调整确定导致市场下跌，后续一定会修复。"
-        ),
+        draft_markdown=("# 市场大跌归因\n\n" "## 核心判断\n" "海外 AI 链调整确定导致市场下跌，后续一定会修复。"),
         context=request,
     )
 
@@ -254,13 +249,7 @@ def test_commentary_draft_service_quality_check_flags_publish_risks():
 
 
 def test_commentary_draft_service_applies_quality_guardrails_before_returning_model_draft():
-    gateway = FakeModelGateway(
-        content=(
-            "# 市场大跌归因\n\n"
-            "## 核心判断\n"
-            "海外 AI 链调整确定导致市场下跌，后续一定会修复。"
-        )
-    )
+    gateway = FakeModelGateway(content=("# 市场大跌归因\n\n" "## 核心判断\n" "海外 AI 链调整确定导致市场下跌，后续一定会修复。"))
     service = CommentaryDraftService(model_gateway=gateway)
 
     response = service.generate_draft(_request())
@@ -275,11 +264,7 @@ def test_commentary_draft_service_applies_quality_guardrails_before_returning_mo
 
 def test_commentary_draft_service_normalizes_inline_section_prefixes():
     gateway = FakeModelGateway(
-        content=(
-            "# 市场大跌归因\n\n"
-            "核心判断：市场调整主要来自风险偏好回落。\n"
-            "后续观察：观察成交额和资金流能否企稳。"
-        )
+        content=("# 市场大跌归因\n\n" "核心判断：市场调整主要来自风险偏好回落。\n" "后续观察：观察成交额和资金流能否企稳。")
     )
     service = CommentaryDraftService(model_gateway=gateway)
 

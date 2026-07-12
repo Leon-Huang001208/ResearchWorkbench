@@ -249,9 +249,8 @@ class MinerUStrategy(PDFConversionStrategy):
         combined = "\n".join(part for part in (stdout, stderr) if part)
         if len(combined) > 4000:
             combined = combined[-4000:]
-        return (
-            f"MinerU CLI 执行失败: exit={result.returncode}, cmd={' '.join(cmd)}"
-            + (f"\n{combined}" if combined else "")
+        return f"MinerU CLI 执行失败: exit={result.returncode}, cmd={' '.join(cmd)}" + (
+            f"\n{combined}" if combined else ""
         )
 
     @staticmethod

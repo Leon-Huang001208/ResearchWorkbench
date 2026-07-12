@@ -187,14 +187,18 @@ def apply_keyword_profile_to_config(
     profile_name = str(retrieval.get("keyword_profile") or "").strip()
     if profile_name:
         profile = resolve_keyword_profile(profile_name)
-        suggestion = {
-            "profile": profile.name,
-            "keywords": profile.keywords,
-            "query": profile.query,
-            "threshold": profile.threshold,
-            "source": profile.source,
-            "needs_review": False,
-        } if profile else suggest_keywords_for_placeholder(placeholder, prompt_text=prompt_text)
+        suggestion = (
+            {
+                "profile": profile.name,
+                "keywords": profile.keywords,
+                "query": profile.query,
+                "threshold": profile.threshold,
+                "source": profile.source,
+                "needs_review": False,
+            }
+            if profile
+            else suggest_keywords_for_placeholder(placeholder, prompt_text=prompt_text)
+        )
     else:
         suggestion = suggest_keywords_for_placeholder(placeholder, prompt_text=prompt_text)
     keywords = _dedupe_strings(suggestion.get("keywords"))
@@ -210,7 +214,9 @@ def apply_keyword_profile_to_config(
         "fusion",
         {"method": "rrf", "keyword_weight": 0.65, "semantic_weight": 0.35, "rrf_k": 60},
     )
-    retrieval.setdefault("rerank", {"enabled": True, "provider": "llm", "top_n": 16, "min_score": 30})
+    retrieval.setdefault(
+        "rerank", {"enabled": True, "provider": "llm", "top_n": 16, "min_score": 30}
+    )
     retrieval["keywords"] = keywords
     if query_terms:
         query_terms.pop("must_any", None)
@@ -245,10 +251,7 @@ def _add_market_review_profile(profiles: Dict[str, KeywordProfile]) -> None:
         name="A股市场回顾",
         param="A股市场回顾",
         keywords=keywords,
-        query=(
-            "A股市场热点和板块轮动最新动态，涵盖政策、产业趋势、"
-            "成长板块、价值板块、主题概念和风险偏好变化"
-        ),
+        query=("A股市场热点和板块轮动最新动态，涵盖政策、产业趋势、" "成长板块、价值板块、主题概念和风险偏好变化"),
         threshold=0.5,
     )
     for alias in ["A股市场回顾", "A股", "A股市场", "市场热点"]:

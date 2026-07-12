@@ -2,9 +2,13 @@
 import uuid
 from datetime import datetime, timezone
 
+import pytest
+
 from core.contracts.outcome_journal import FailureClassification, TradeOutcome
 from services.failure_memory_service import FailureMemoryService
 from services.outcome_journal_service import OutcomeJournalService
+
+pytestmark = pytest.mark.usefixtures("runtime_database")
 
 
 def test_similarity_calculation():

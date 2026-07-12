@@ -5,8 +5,8 @@ import xml.etree.ElementTree as ET
 import zipfile
 from pathlib import Path
 
-from openpyxl.utils.cell import column_index_from_string
 import yaml
+from openpyxl.utils.cell import column_index_from_string
 
 from reporting.projects.chart_generation import (
     ReportProjectChartService,

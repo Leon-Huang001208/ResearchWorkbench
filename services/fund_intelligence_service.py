@@ -56,15 +56,12 @@ class FundIntelligenceService:
             logger.error("failed to build fund exposure", symbol=symbol, error=str(exc))
             raise
 
-    def calculate_portfolio_exposure(
-        self, positions: Mapping[str, float]
-    ) -> PortfolioFundExposure:
+    def calculate_portfolio_exposure(self, positions: Mapping[str, float]) -> PortfolioFundExposure:
         """Return weighted exposure across fund positions."""
         try:
             normalized = self._normalize_positions(positions)
             holdings_by_symbol = {
-                symbol: self._fund_repo.get_latest_holdings(symbol)
-                for symbol in normalized
+                symbol: self._fund_repo.get_latest_holdings(symbol) for symbol in normalized
             }
             exposure = self._build_exposure(normalized, holdings_by_symbol)
             logger.info("portfolio fund exposure built", fund_count=len(normalized))

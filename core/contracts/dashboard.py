@@ -410,8 +410,12 @@ class MarketBreadthSnapshot(BaseModel):
     upRatio: float = Field(default=50.0, description="Rising ratio for the breadth bar")
     downRatio: float = Field(default=50.0, description="Falling ratio for the breadth bar")
     turnover: str = Field(default="--", description="Formatted turnover")
-    turnoverDelta: Optional[str] = Field(default=None, description="Optional turnover comparison text")
-    previousTurnover: Optional[str] = Field(default=None, description="Previous trading day turnover")
+    turnoverDelta: Optional[str] = Field(
+        default=None, description="Optional turnover comparison text"
+    )
+    previousTurnover: Optional[str] = Field(
+        default=None, description="Previous trading day turnover"
+    )
     netInflow: Optional[str] = Field(default=None, description="Formatted net inflow")
     source: str = Field(default="unknown", description="Underlying data source")
     sourceLabel: str = Field(default="等待实时刷新", description="Human-readable source label")

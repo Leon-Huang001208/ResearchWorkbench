@@ -148,8 +148,7 @@ class MarketDataScheduler:
                 "gap_interval_hours": self.GAP_CHECK_INTERVAL_HOURS,
                 "gap_check_enabled": self._enable_gap_check,
                 "index_structure_cron": (
-                    f"{self.INDEX_STRUCTURE_CRON_HOUR}:"
-                    f"{self.INDEX_STRUCTURE_CRON_MINUTE:02d}"
+                    f"{self.INDEX_STRUCTURE_CRON_HOUR}:" f"{self.INDEX_STRUCTURE_CRON_MINUTE:02d}"
                 ),
             },
         )
@@ -173,8 +172,7 @@ class MarketDataScheduler:
             "gap_interval_hours": self.GAP_CHECK_INTERVAL_HOURS,
             "gap_check_enabled": self._enable_gap_check,
             "index_structure_cron": (
-                f"{self.INDEX_STRUCTURE_CRON_HOUR}:"
-                f"{self.INDEX_STRUCTURE_CRON_MINUTE:02d}"
+                f"{self.INDEX_STRUCTURE_CRON_HOUR}:" f"{self.INDEX_STRUCTURE_CRON_MINUTE:02d}"
             ),
             "stats": dict(self._stats),
         }
@@ -459,9 +457,7 @@ class MarketDataScheduler:
                     continue
                 result = ingestor(repo, provider=provider, index_codes=index_codes)
                 totals["index_master"] += int(result.get("index_master", 0))
-                totals["index_component_snapshot"] += int(
-                    result.get("index_component_snapshot", 0)
-                )
+                totals["index_component_snapshot"] += int(result.get("index_component_snapshot", 0))
                 totals["errors"] += int(result.get("errors", 0))
                 logger.info(
                     "market_data_index_structure_provider_done",
@@ -469,9 +465,7 @@ class MarketDataScheduler:
                         "provider": provider,
                         "indices": len(index_codes),
                         "index_master": result.get("index_master", 0),
-                        "index_component_snapshot": result.get(
-                            "index_component_snapshot", 0
-                        ),
+                        "index_component_snapshot": result.get("index_component_snapshot", 0),
                         "errors": result.get("errors", 0),
                     },
                 )

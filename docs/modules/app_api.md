@@ -358,3 +358,4 @@ When files in this module change, check:
 - 2026-07-12: 加固本地配置控制面：默认 Host 仅允许 loopback/testserver，显式 CORS 与 Trusted Host 必须一致，配置 API 校验本地/Tauri Origin 和进程级 CSRF token；LLM 端点变更不再因省略 `original_name` 而复用旧 Token。
 - 2026-07-12: 注册系统配置 API，提供五分区脱敏读取、严格分区更新和非持久化连接验证；422 响应不回显被拒绝的秘密值，数据库更新显式返回重启要求。
 - 2026-06-04: 收敛 API 路由层 mypy 历史债务，补齐上传流、监控响应、模板 section 拼装的显式类型，保持现有请求/响应行为不变。
+- 2026-07-12: 报告项目 API 的内置华安资产随仓库提供；报告级本地模型配置使用 Hugging Face 模型标识，避免把开发机路径返回给客户端。

@@ -67,3 +67,7 @@ When files in this module change, check:
 | `core/contracts/ingestion_record.py` | 摄入记录契约：`IngestionRecord`、`IngestionStats`、`IngestionRunResult`、`ValidationReport` |
 | `core/contracts/retrieval.py` | 检索配置和 Profile：`RetrievalProfile`、`RetrievalFilters`、`RetrievalQuery` |
 | `core/contracts/outcome_journal.py` | 结果日志：`SignalOutcomeDB` |
+
+## 2026-07-12
+
+契约模块完成全仓类型与格式校验；本次维护未改变公开数据契约。

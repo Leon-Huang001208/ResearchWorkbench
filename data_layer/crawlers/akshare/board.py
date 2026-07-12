@@ -3,8 +3,8 @@ AkShare 板块行情获取器
 
 从同花顺行业板块接口获取实时涨跌幅数据。
 """
-import time
 import os
+import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import List, Optional
@@ -17,7 +17,14 @@ CACHE_TTL_SECONDS = 300  # 5 分钟缓存
 STALE_CACHE_TTL_SECONDS = 1800  # 刷新失败时，旧缓存最多再用 30 分钟
 MAX_RETRIES = 3  # AKShare 接口重试次数
 RETRY_BACKOFF = 2.0  # 重试退避系数（秒）
-PROXY_ENV_KEYS = ("http_proxy", "https_proxy", "HTTP_PROXY", "HTTPS_PROXY", "all_proxy", "ALL_PROXY")
+PROXY_ENV_KEYS = (
+    "http_proxy",
+    "https_proxy",
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "all_proxy",
+    "ALL_PROXY",
+)
 
 
 @dataclass
@@ -158,10 +165,10 @@ def fetch_sector_board(force_refresh: bool = False) -> SectorBoardSnapshot:
     except Exception as e:
         logger.error(f"Failed to fetch sector board data after {MAX_RETRIES} retries: {e}")
         if _is_cache_stale():
-            logger.warning(
-                f"Returning stale cache (age={time.time() - _cache.fetched_at:.0f}s)"
-            )
+            # `_is_cache_stale` reads the module-level cache, so mypy cannot
+            # retain its Optional narrowing across that function call.
             assert _cache is not None
+            logger.warning(f"Returning stale cache (age={time.time() - _cache.fetched_at:.0f}s)")
             return _cache
         if _cache is not None:
             logger.warning("Cache too old, but returning as last resort")

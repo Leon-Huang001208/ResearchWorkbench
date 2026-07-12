@@ -13,7 +13,9 @@ class CommentaryEvidenceItem(BaseModel):
     title: str = Field(description="Short evidence title")
     summary: str = Field(default="", description="Readable evidence summary")
     source: str = Field(default="", description="Source label or upstream subsystem")
-    source_type: str = Field(default="other", description="Source type: market_data/news/research/interpretation")
+    source_type: str = Field(
+        default="other", description="Source type: market_data/news/research/interpretation"
+    )
     verification_status: str = Field(
         default="unverified",
         description="Verification state: verified/source_published/unverified/derived",
@@ -51,7 +53,9 @@ class CommentaryAttributionSignal(BaseModel):
         description="Verification state for the attribution: verified/source_published/derived/unverified",
     )
     rationale: str = Field(default="", description="Short rationale for the attribution score")
-    evidence_titles: List[str] = Field(default_factory=list, description="Evidence titles supporting this attribution")
+    evidence_titles: List[str] = Field(
+        default_factory=list, description="Evidence titles supporting this attribution"
+    )
 
 
 class CommentaryContextPack(BaseModel):

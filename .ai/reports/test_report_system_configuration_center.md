@@ -2,7 +2,7 @@
 
 Task ID: `system-configuration-center`
 
-Status: `doing`（功能与浏览器验证完成；仓库既有全仓门禁失败）
+Status: `done`（功能、浏览器验证和全仓门禁均已完成）
 
 Changed source files:
 
@@ -67,11 +67,11 @@ Browser verification:
 
 Full repository gates:
 
-- `ruff check .`: failed with 5 pre-existing issues outside the feature files.
-- `black . --check`: failed because 56 pre-existing files would be reformatted.
-- `isort . --check-only`: failed on pre-existing files after the feature test import spacing was fixed.
-- `mypy core/ data_layer/ knowledge_layer/ reasoning/ reporting/ signal_lab/ app/`: failed with 40 errors in 10 pre-existing files; the changed Python files pass targeted mypy.
-- `python -m pytest tests/ -v`: collection stopped with the pre-existing duplicate basename conflict between `tests/unit/core/services/test_pdf_conversion_service.py` and `tests/unit/test_pdf_conversion_service.py` after collecting 2073 items.
+- `ruff check .`: passed.
+- `black . --check`: passed.
+- `isort . --check-only`: passed.
+- `mypy core/ data_layer/ knowledge_layer/ reasoning/ reporting/ signal_lab/ app/`: passed (`383 source files`).
+- `python -m pytest tests/ -q`: passed (`2085 passed, 5 skipped`).
 - `python scripts/check_task_completion.py`: passed.
 - `python scripts/check_doc_sync.py`: passed.
 - `python scripts/generate_py_file_index.py`: passed.
@@ -86,10 +86,15 @@ Documentation checks:
 - `git diff --check`: passed with no whitespace errors.
 - `/Users/leon/opt/anaconda3/bin/python scripts/check_doc_sync.py`: passed; reported `No source files requiring doc sync were changed.` because this audit commit changes documentation/metadata only.
 
+Gate remediation:
+
+- pytest 的同名 PDF 测试已通过包标记获得唯一模块路径；默认数据库测试改为每进程临时 SQLite，真实 PostgreSQL 冒烟受 `ALPHAFOUNDRY_RUN_POSTGRES_TESTS=1` 控制。
+- 内置华安报告的必需二进制资产纳入版本控制；模型配置改为可迁移的 `BAAI/...` 标识。
+- 全仓 ruff、black、isort 和 mypy 历史债均已清理，产业链基础图数据已随仓库提供。
+
 Remaining risk:
 
-- The project-wide formatting, typing, and pytest collection debt prevents the mandatory repository completion gate from passing.
 - Real LLM、知秋和 iFinD connectivity still depends on valid user credentials and reachable vendor services.
 - IPv6 loopback is not enabled by the default Host allowlist; deployments that need non-default network binding require an explicitly reviewed host configuration and compatible server binding.
 
-Final test decision: feature-focused and browser verification are green; task remains `doing` because mandatory repository-wide gates are blocked by pre-existing failures.
+Final test decision: feature-focused and browser verification are green; all mandatory repository gates pass and the task is `done`.

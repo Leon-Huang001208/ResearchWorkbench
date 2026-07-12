@@ -33,9 +33,7 @@ class FakeCache:
     def get_cached_data(self, symbol: str, start_date: date, end_date: date):
         assert symbol == self.symbol
         return [
-            item
-            for item in self.cached_data
-            if start_date <= item.timestamp.date() <= end_date
+            item for item in self.cached_data if start_date <= item.timestamp.date() <= end_date
         ]
 
 
