@@ -257,13 +257,8 @@ function bindSecretPair(secretInput, clearInput) {
     applySecretState(secretInput, clearInput, 'initial');
 }
 
-function collectSecretPair(secretInput, clearInput) {
-    if (secretInput.value && clearInput.checked) {
-        const error = new Error('secret conflict');
-        error.code = 'secret_conflict';
-        throw error;
-    }
-    return { value: secretInput.value, clear: clearInput.checked };
+function collectSecretPair(secretInput) {
+    return { value: secretInput.value, clear: false };
 }
 
 function createProviderRow(provider = {}) {
@@ -283,13 +278,8 @@ function createProviderRow(provider = {}) {
     apiKey.autocomplete = 'new-password';
     apiKey.placeholder = '未配置';
     apiKey.dataset.field = 'api_key';
-    const clearLabel = element('label', 'config-checkbox config-clear-secret');
-    const clear = input('checkbox', '', '显式清除 Provider Token');
-    clear.dataset.field = 'clear_api_key';
-    bindSecretPair(apiKey, clear);
-    clearLabel.append(clear, document.createTextNode('清除'));
     const actions = element('div', 'config-row-actions');
-    actions.append(clearLabel, removeButton(`删除 Provider ${provider.name || '新行'}`));
+    actions.append(removeButton(`删除 Provider ${provider.name || '新行'}`));
     row.append(
         labeledControl('名称', name),
         labeledControl('协议', protocol),
@@ -329,13 +319,8 @@ function createZhiqiuAccountRow(account = {}) {
     password.autocomplete = 'new-password';
     password.placeholder = '未配置';
     password.dataset.field = 'password';
-    const clearLabel = element('label', 'config-checkbox config-clear-secret');
-    const clear = input('checkbox', '', '显式清除知丘密码');
-    clear.dataset.field = 'clear_password';
-    bindSecretPair(password, clear);
-    clearLabel.append(clear, document.createTextNode('清除'));
     const actions = element('div', 'config-row-actions');
-    actions.append(clearLabel, removeButton(`删除知丘账号 ${account.name || '新行'}`));
+    actions.append(removeButton(`删除知丘账号 ${account.name || '新行'}`));
     row.append(
         labeledControl('名称', name),
         labeledControl('用户名', username),
@@ -357,13 +342,8 @@ function createIfindAccountRow(account = {}) {
     password.autocomplete = 'new-password';
     password.placeholder = '未配置';
     password.dataset.field = 'password';
-    const clearLabel = element('label', 'config-checkbox config-clear-secret');
-    const clear = input('checkbox', '', '显式清除 iFinD 密码');
-    clear.dataset.field = 'clear_password';
-    bindSecretPair(password, clear);
-    clearLabel.append(clear, document.createTextNode('清除'));
     const actions = element('div', 'config-row-actions');
-    actions.append(clearLabel, removeButton(`删除 iFinD 账号 ${account.name || '新行'}`));
+    actions.append(removeButton(`删除 iFinD 账号 ${account.name || '新行'}`));
     row.append(
         labeledControl('名称', name),
         labeledControl('用户名', username),
@@ -586,17 +566,13 @@ function rowValue(row, field) {
 
 function collectLlm() {
     const providers = [...document.querySelectorAll('.config-provider-row')].map(row => {
-        const secret = collectSecretPair(
-            row.querySelector('[data-field="api_key"]'),
-            row.querySelector('[data-field="clear_api_key"]'),
-        );
+        const secret = collectSecretPair(row.querySelector('[data-field="api_key"]'));
         return {
             original_name: rowOriginalNames.get(row) || undefined,
             name: rowValue(row, 'name'),
             protocol: rowValue(row, 'protocol'),
             base_url: rowValue(row, 'base_url'),
             api_key: secret.value,
-            clear_api_key: secret.clear,
         };
     });
     const task_routes = [...document.querySelectorAll('.config-route-row')].map(row => ({
@@ -610,16 +586,12 @@ function collectLlm() {
 function collectZhiqiu() {
     const form = document.getElementById('config-zhiqiu-form');
     const accounts = [...document.querySelectorAll('.config-zhiqiu-row')].map(row => {
-        const secret = collectSecretPair(
-            row.querySelector('[data-field="password"]'),
-            row.querySelector('[data-field="clear_password"]'),
-        );
+        const secret = collectSecretPair(row.querySelector('[data-field="password"]'));
         return {
             original_name: rowOriginalNames.get(row) || undefined,
             name: rowValue(row, 'name'),
             username: rowValue(row, 'username'),
             password: secret.value,
-            clear_password: secret.clear,
         };
     });
     return {
@@ -636,16 +608,12 @@ function collectZhiqiu() {
 function collectIfind() {
     const form = document.getElementById('config-ifind-form');
     const accounts = [...document.querySelectorAll('.config-ifind-row')].map(row => {
-        const secret = collectSecretPair(
-            row.querySelector('[data-field="password"]'),
-            row.querySelector('[data-field="clear_password"]'),
-        );
+        const secret = collectSecretPair(row.querySelector('[data-field="password"]'));
         return {
             original_name: rowOriginalNames.get(row) || undefined,
             name: rowValue(row, 'name'),
             username: rowValue(row, 'username'),
             password: secret.value,
-            clear_password: secret.clear,
         };
     });
     return {
