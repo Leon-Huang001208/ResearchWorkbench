@@ -444,7 +444,7 @@ python scripts/seed_factor_data.py --skip-ingest
 
 ### 系统配置 API
 
-系统配置中心仅管理 `llm`、`zhiqiu`、`ifind`、`database` 和 `advanced` 五个分区。配置文件路径依次取 `ALPHAFOUNDRY_CONFIG_PATH`、`ALPHAFOUNDRY_DESKTOP_DATA_DIR/.env`、项目根目录 `.env`；当前进程的受支持环境变量覆盖文件同名值。
+系统配置中心仅管理 `llm`、`zhiqiu`、`ifind`、`database` 和 `advanced` 五个分区。配置文件路径依次取 `ALPHAFOUNDRY_CONFIG_PATH`、`ALPHAFOUNDRY_DESKTOP_DATA_DIR/.env`、项目根目录 `.env`；当前进程的受支持环境变量覆盖文件同名值。知秋账号池优先取 `ZQ_ACCOUNTS_JSON` / 旧 `ZQ_ACCOUNTS`，两者均缺失时读取爬虫已有的 `data_layer/crawlers/zq/config.yaml`，避免迁移前账号在系统配置页消失。
 
 本地服务默认只接受 `Host: localhost`、`127.0.0.1` 和测试客户端使用的 `testserver`（可带正常端口）；`ALPHAFOUNDRY_TRUSTED_HOSTS` 可用逗号分隔的纯主机名或 IPv4 地址显式扩展，拒绝通配符、scheme、路径、凭据和端口。CORS 固定允许 AlphaFoundry 桌面壳使用的 `tauri://localhost` 和 `http(s)://tauri.localhost`，确保本地启动页能读取后端健康检查；设置 `ALPHAFOUNDRY_CORS_ORIGINS` 时，可额外允许明确指定的 HTTP(S) origin，但每个主机还必须位于 Trusted Host 列表。所有配置 API 请求必须携带首页注入的 `X-AlphaFoundry-Config-Token`；存在 `Origin` 时仅允许 localhost/127 loopback、上述 Tauri Origin，或与 Trusted Host 一致的显式 CORS origin。
 

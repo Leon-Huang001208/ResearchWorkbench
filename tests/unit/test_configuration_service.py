@@ -122,6 +122,32 @@ def test_update_zhiqiu_serializes_special_characters_as_json(monkeypatch, tmp_pa
     )
 
 
+def test_snapshot_reads_existing_zhiqiu_yaml_accounts_when_env_pool_is_absent(
+    monkeypatch, tmp_path
+):
+    yaml_path = tmp_path / "zhiqiu-config.yaml"
+    yaml_path.write_text(
+        "accounts:\n"
+        "  one:\n"
+        "    username: one-user\n"
+        "    password: one-secret\n"
+        "  two:\n"
+        "    username: two-user\n"
+        "    password: two-secret\n",
+        encoding="utf-8",
+    )
+    monkeypatch.delenv("ZQ_ACCOUNTS_JSON", raising=False)
+    monkeypatch.delenv("ZQ_ACCOUNTS", raising=False)
+    monkeypatch.setattr("services.configuration_service.ZHIQIU_CONFIG_PATH", yaml_path)
+    service = ConfigurationService(env_path=tmp_path / ".env")
+
+    accounts = service.get_snapshot()["sections"]["zhiqiu"]["accounts"]
+
+    assert [account["name"] for account in accounts] == ["one", "two"]
+    assert accounts[1]["username"] == "two-user"
+    assert accounts[0]["password"]["value"] == "one-secret"
+
+
 def test_database_update_is_persisted_but_requires_restart(monkeypatch, env_path):
     monkeypatch.delenv("DATABASE_URL", raising=False)
     service = ConfigurationService(env_path=env_path)

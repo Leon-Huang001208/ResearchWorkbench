@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import IO, Any, Callable, Iterator, Mapping
 from urllib.parse import urlsplit
 
+import yaml
 from dotenv.main import resolve_variables
 from dotenv.parser import parse_stream
 
@@ -33,6 +34,9 @@ logger = get_logger(__name__)
 
 SUPPORTED_SECTIONS = {"llm", "zhiqiu", "ifind", "database", "advanced"}
 SECRET_SUFFIX_LENGTH = 4
+ZHIQIU_CONFIG_PATH = (
+    Path(__file__).resolve().parents[1] / "data_layer" / "crawlers" / "zq" / "config.yaml"
+)
 ConnectionProbe = Callable[[Mapping[str, str], float], bool]
 
 
@@ -891,7 +895,25 @@ class ConfigurationService:
                         "password_value": password.strip(),
                     }
                 )
-        return accounts
+        if accounts:
+            return accounts
+        try:
+            raw_config = yaml.safe_load(ZHIQIU_CONFIG_PATH.read_text(encoding="utf-8")) or {}
+            configured_accounts = raw_config.get("accounts", {})
+        except (OSError, UnicodeError, yaml.YAMLError, AttributeError) as exc:
+            logger.warning("读取知秋原有账号池失败", extra={"error_type": type(exc).__name__})
+            return []
+        if not isinstance(configured_accounts, dict):
+            return []
+        return [
+            {
+                "name": str(name),
+                "username": str(details.get("username", "")),
+                "password_value": str(details.get("password", "")),
+            }
+            for name, details in configured_accounts.items()
+            if isinstance(details, dict) and details.get("username") and details.get("password")
+        ]
 
     @staticmethod
     def _parse_ifind_accounts(values: Mapping[str, str]) -> list[dict[str, str]]:
