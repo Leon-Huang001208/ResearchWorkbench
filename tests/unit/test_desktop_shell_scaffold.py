@@ -319,7 +319,7 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "今日上涨板块概念 (Top 10)" not in html
     assert "今日下跌板块概念 (Top 10)" not in html
     assert "style.css?v=20260702briefinline1" in html
-    assert "app.js?v=20260712config5" in html
+    assert "app.js?v=20260713config16" in html
     assert "asset-observe-mode-tabs" in html
     assert 'data-asset-mode="theme"' in html
     assert "asset-topic-result" in html
