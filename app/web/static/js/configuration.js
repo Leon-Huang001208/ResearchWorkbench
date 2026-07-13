@@ -7,6 +7,7 @@ let configurationInitialized = false;
 let configurationReady = false;
 let configurationSnapshot = null;
 let loadAbortController = null;
+let initialLoadRetryCount = 0;
 
 export function configurationRequestOptions(options = {}) {
     const csrfToken = globalThis.document
@@ -556,6 +557,7 @@ async function loadConfiguration({ discardDirty = false } = {}) {
         if (discardDirty) dirtySections.clear();
         renderSnapshot(snapshot);
         configurationReady = true;
+        initialLoadRetryCount = 0;
         syncMutationControls();
         showPageMessage('');
         return true;
@@ -564,6 +566,12 @@ async function loadConfiguration({ discardDirty = false } = {}) {
         if (!configurationSnapshot) {
             configurationReady = false;
             syncMutationControls();
+            if (initialLoadRetryCount < 5) {
+                initialLoadRetryCount += 1;
+                window.setTimeout(() => {
+                    if (!configurationSnapshot && !requestCoordinator.hasActive()) loadConfiguration();
+                }, 1000);
+            }
         }
         showPageError(error);
     } finally {

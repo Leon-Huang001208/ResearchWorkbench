@@ -2,6 +2,7 @@
 .configuration-page {
     max-width: 1560px;
     padding-bottom: 32px;
+    --config-provider-columns: minmax(0, 1.05fr) minmax(0, 1.28fr) minmax(0, 1.92fr) minmax(0, 2.13fr) minmax(0, 0.9fr);
 }
 
 .configuration-header {
@@ -91,7 +92,7 @@
 
 .config-provider-labels,
 .config-provider-row {
-    grid-template-columns: minmax(110px, 0.75fr) minmax(136px, 0.9fr) minmax(205px, 1.35fr) minmax(235px, 1.5fr) minmax(155px, 0.7fr);
+    grid-template-columns: var(--config-provider-columns);
 }
 
 .config-zhiqiu-labels,
@@ -135,12 +136,47 @@
     display: flex;
     min-height: 38px;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: center;
     gap: 8px;
 }
 
 .config-row-actions .config-checkbox {
     white-space: nowrap;
+}
+
+.config-provider-labels > :last-child {
+    text-align: center;
+}
+
+.config-provider-row {
+    align-items: center;
+    min-height: 74px;
+    padding-top: 14px;
+    padding-bottom: 14px;
+}
+
+.config-provider-row .config-dynamic-field {
+    align-self: center;
+}
+
+.config-provider-row .config-secret-state {
+    display: none;
+}
+
+.config-provider-row input,
+.config-provider-row select,
+.config-provider-row .config-secret-action,
+.config-provider-row .config-remove-row {
+    min-height: 44px;
+}
+
+.config-provider-row .config-secret-control {
+    min-height: 44px;
+}
+
+.config-provider-row .config-row-actions {
+    align-self: center;
+    justify-content: center;
 }
 
 .config-secret-control {
