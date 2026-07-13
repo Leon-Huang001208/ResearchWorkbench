@@ -14,6 +14,7 @@ register(
         connector_dataset="news",
         pipeline_kind="document",
         interval_minutes=30,
+        enabled=False,
         deep_backfill_enabled=True,
         doc_type=DocType.NEWS,
         reliability=SourceReliabilityLevel.SPECIALIZED_MEDIA,

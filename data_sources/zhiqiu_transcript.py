@@ -14,6 +14,7 @@ register(
         connector_dataset="meeting",
         pipeline_kind="document",
         interval_minutes=60,
+        enabled=False,
         days_per_crawl=3,
         deep_backfill_enabled=True,
         doc_type=DocType.REPORT,
