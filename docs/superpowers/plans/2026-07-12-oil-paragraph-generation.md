@@ -51,7 +51,8 @@ def test_oil_prompt_is_causal_and_does_not_pollute_shared_constraints():
     assert "直接解释本周国际油价变动" in oil_prompt
 
     retrieval = oil["retrieval"]
-    assert retrieval["top_k"] == 6
+    assert "top_k" not in retrieval
+    assert config["defaults"]["retrieval"]["top_k"] == 10
     assert "EIA原油库存" in retrieval["keywords"]
     assert "OPEC+" in retrieval["keywords"]
     assert "2040年" in retrieval["exclude"]
@@ -87,7 +88,6 @@ Keep `defaults.generation_constraints` byte-for-byte unchanged. Set the oil-loca
     min_news_count: 3
     retrieval:
       keyword_profile: 石油
-      top_k: 6
       keywords:
       - 原油
       - 国际油价

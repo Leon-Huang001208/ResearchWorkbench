@@ -202,6 +202,65 @@ def test_report_config_tab_uses_redesigned_editor_shell():
     )
 
 
+def test_fixed_data_template_uses_readable_variable_chips_instead_of_braces():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+    css = STYLE_CSS.read_text(encoding="utf-8")
+
+    assert "function renderDataTemplatePreview(template, fields)" in source
+    assert "function getDataTemplateFieldDisplayLabel(fieldKey = '', field = {})" in source
+    assert "template-config-variable-chip" in source
+    assert "renderDataTemplatePreview(dataTemplate, dataTemplateFields)" in source
+    assert "<code>{${esc(fieldKey)}</code>" not in source
+    assert ".template-config-variable-chip" in css
+
+
+def test_data_template_variable_display_name_is_saved_and_falls_back_to_internal_name():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+
+    assert 'data-data-template-field-prop="display_name"' in source
+    assert "return displayName || key;" in source
+    assert "market_trend: '市场走势'" not in source
+    assert "if (field.display_name) lines.push(`${indent}  display_name: ${field.display_name}`);" in source
+
+
+def test_data_template_source_header_keeps_count_inline_and_manage_action_compact():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+    css = STYLE_CSS.read_text(encoding="utf-8")
+
+    assert 'class="template-config-readable-title template-config-data-overview-title"' in source
+    assert 'class="template-config-data-overview-heading"' in source
+    assert ".template-config-data-overview-title" in css
+    assert ".template-config-data-overview-heading" in css
+    assert "width: auto;" in css
+
+
+def test_advanced_placeholder_form_does_not_duplicate_type_or_writing_mode_controls():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+
+    start = source.index("function buildAdvancedPlaceholderFieldsHtml")
+    end = source.index("function getEditablePlaceholderTypeOptions", start)
+    advanced_source = source[start:end]
+    assert 'data-placeholder-field="type"' not in advanced_source
+    assert 'data-placeholder-field="mode"' not in advanced_source
+
+
+def test_empty_advanced_placeholder_fields_section_is_hidden():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+
+    assert "advancedFormEl?.closest('.template-advanced-section')" in source
+    assert "const hasAdvancedFields = Boolean(advancedFormEl.querySelector('[data-placeholder-field]'));" in source
+    assert "advancedSectionEl?.classList.toggle('hidden', !hasAdvancedFields);" in source
+
+
+def test_source_only_advanced_drawer_uses_available_height_for_source_editor():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+    css = STYLE_CSS.read_text(encoding="utf-8")
+
+    assert "advancedDrawerBodyEl?.classList.toggle('source-only', !hasAdvancedFields);" in source
+    assert ".template-advanced-drawer-body.source-only" in css
+    assert ".template-advanced-drawer-body.source-only .template-source-editor" in css
+
+
 def test_report_generation_page_is_reduced_to_progress_and_single_output():
     html = INDEX_HTML.read_text(encoding="utf-8")
 
@@ -618,7 +677,7 @@ def test_prompt_placeholders_keep_writing_structure_entry_even_when_empty():
     assert ".template-config-readable-section .template-config-empty-note" in css
 
 
-def test_placeholder_editor_keeps_derived_fields_in_advanced_drawer():
+def test_placeholder_editor_hides_automatically_derived_fields():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
     html = INDEX_HTML.read_text(encoding="utf-8")
 
@@ -627,8 +686,8 @@ def test_placeholder_editor_keeps_derived_fields_in_advanced_drawer():
     assert 'id="template-advanced-placeholder-form"' in html
     assert 'id="btn-template-advanced-config"' in html
     assert "draft.title = draft.title || inferPlaceholderTitle(name);" in source
-    assert 'data-placeholder-field="title"' in source
-    assert 'data-placeholder-field="prompt_template"' in source
+    assert 'data-placeholder-field="title"' not in source
+    assert 'data-placeholder-field="prompt_template"' not in source
     assert "resolvePromptTemplateName(name, template.report_project)" in source
 
 
@@ -889,6 +948,13 @@ def test_save_placeholder_can_confirm_and_jump_to_next_incomplete():
     assert "successMessage: '占位符配置已保存，已跳到下一个未完成项'" in source
 
 
+def test_save_placeholder_stays_in_configuration_mode():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+
+    assert "returnToGenerationAfterSave: true" not in source
+    assert "returnToGenerationAfterSaveView(" not in source
+
+
 def test_upload_enters_first_configuration_mode_for_new_template():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
 
@@ -959,6 +1025,18 @@ def test_generation_preflight_groups_prompt_evidence_and_output_assets():
     assert ".template-preflight-group-title" in css
 
 
+def test_project_check_body_does_not_clip_preflight_rows():
+    css = STYLE_CSS.read_text(encoding="utf-8")
+    selector = "#template-project-check-details .template-project-check-body"
+    rule_start = css.rfind(selector)
+    rule_end = css.index("}", rule_start)
+    final_rule = css[rule_start:rule_end]
+
+    assert "max-height: 314px" in final_rule
+    assert "overflow: auto" in final_rule
+    assert "overflow: hidden" not in final_rule
+
+
 def test_generation_preflight_surfaces_prioritized_task_queue_and_evidence_samples():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
     css = STYLE_CSS.read_text(encoding="utf-8")
@@ -990,7 +1068,7 @@ def test_report_generation_surfaces_current_issue_settings_bar():
     assert "开始日期" in source
     assert "结束日期" in source
     assert "证据窗口" in source
-    assert "输出格式" in source
+    assert "current-issue-output-format" not in source
     assert "最近版本" in source
     assert "current-issue-report-date" in source
     assert "current-issue-start-date" in source
@@ -999,7 +1077,18 @@ def test_report_generation_surfaces_current_issue_settings_bar():
     assert ".template-current-issue-settings" in css
 
 
-def test_report_generation_delivery_check_card_and_repair_return_path():
+def test_current_issue_report_date_defaults_to_today_instead_of_saved_period():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+    start = source.index("function getReportProjectGenerationOptions()")
+    end = source.index("async function downloadRenderedReport", start)
+    options_source = source[start:end]
+
+    assert "currentTemplateState.commonDefaultsDraft?.report_period" in options_source
+    assert "draftPeriod.report_date || getDefaultReportDate()" in options_source
+    assert "reportPeriod.report_date || getDefaultReportDate()" not in options_source
+
+
+def test_report_generation_delivery_check_card():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
     css = STYLE_CSS.read_text(encoding="utf-8")
 
@@ -1012,8 +1101,6 @@ def test_report_generation_delivery_check_card_and_repair_return_path():
     assert "Warnings" in source
     assert "空占位符" in source
     assert "图表/表格" in source
-    assert "returnToGenerationAfterSave" in source
-    assert "setStoredTemplateDetailMode('generation')" in source
     assert ".template-delivery-check-card" in css
 
 
@@ -1054,6 +1141,13 @@ def test_embedded_query_mode_uses_prompt_template_without_json_source():
     assert "检索来源：${querySource || '模板内置'}" in source
     assert "resolvePromptTemplateName(key, project)" in source
     assert "if (!usesEmbeddedPromptQueries(project)) {" in source
+
+
+def test_placeholder_editor_hides_query_mode_choice():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+
+    assert '<span>检索模式</span>' not in source
+    assert 'data-placeholder-field="query_mode"' not in source
 
 
 def test_prompt_template_view_uses_generated_library_when_reference_is_raw():

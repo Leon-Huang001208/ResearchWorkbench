@@ -140,7 +140,8 @@ class ModelGatewayImpl(ModelGatewayInterface):
             raise RuntimeError(
                 "No model provider available. " "Configure PROVIDER_PROFILES in settings."
             )
-        return provider, model or ""
+        default_route = self._task_routes.get("default")
+        return provider, model or (default_route.model if default_route else "")
 
     def chat(
         self,

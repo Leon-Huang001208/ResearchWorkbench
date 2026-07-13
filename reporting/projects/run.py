@@ -23,6 +23,7 @@ from reporting.projects.generation import (
 )
 from reporting.projects.project_manager import ReportProject
 from reporting.projects.table_generation import build_project_tables
+from services.report_workbook_refresh import ReportWorkbookRefreshService
 
 logger = get_logger(__name__)
 
@@ -67,12 +68,14 @@ class ReportProjectRunService:
         generation_service: Any | None = None,
         chart_service: Any | None = None,
         table_builder: TableBuilder | None = None,
+        workbook_refresh_service: Any | None = None,
         word_projection_factory: Callable[[], Any] | None = None,
         ppt_projection_factory: Callable[[], Any] | None = None,
     ) -> None:
         self.generation_service = generation_service or ReportProjectGenerationService()
         self.chart_service = chart_service or ReportProjectChartService()
         self.table_builder = table_builder or build_project_tables
+        self.workbook_refresh_service = workbook_refresh_service or ReportWorkbookRefreshService()
         self.word_projection_factory = word_projection_factory or WordProjection
         self.ppt_projection_factory = ppt_projection_factory or PPTTemplateProjection
 
@@ -95,6 +98,10 @@ class ReportProjectRunService:
             start_date=request.start_date,
             end_date=request.end_date,
         )
+        refresh_config = project.config.get("excel_refresh") or {}
+        if refresh_config.get("enabled") and self.workbook_refresh_service is not None:
+            self._emit_progress(progress_callback, "refresh", "正在刷新 Excel/Wind 数据")
+            self.workbook_refresh_service.refresh(project=project)
         if project.project_type == "ppt":
             return self._execute_ppt(
                 project=project,
@@ -137,7 +144,12 @@ class ReportProjectRunService:
         generation_warnings = generation_result.warnings
 
         generated_at = datetime.now()
-        file_name = self._artifact_file_name(project, generated_at, ".docx")
+        file_name = self._artifact_file_name(
+            project,
+            report_date=generation_scope.report_date,
+            generated_at=generated_at,
+            suffix=".docx",
+        )
         output_path = project.output_dir / file_name
 
         self._emit_progress(progress_callback, "render", "正在渲染 Word 文档")
@@ -222,7 +234,12 @@ class ReportProjectRunService:
         generation_warnings = generation_result.warnings
 
         generated_at = datetime.now()
-        file_name = self._artifact_file_name(project, generated_at, ".pptx")
+        file_name = self._artifact_file_name(
+            project,
+            report_date=generation_scope.report_date,
+            generated_at=generated_at,
+            suffix=".pptx",
+        )
         output_path = project.output_dir / file_name
 
         self._emit_progress(progress_callback, "render", "正在渲染 PPT 文档")
@@ -461,12 +478,15 @@ class ReportProjectRunService:
     @staticmethod
     def _artifact_file_name(
         project: ReportProject,
+        report_date: str | None,
         generated_at: datetime,
         suffix: str,
     ) -> str:
-        timestamp = generated_at.strftime("%Y-%m-%d_%H%M%S")
+        date_token = "".join(character for character in str(report_date or "") if character.isdigit())
+        if len(date_token) != 8:
+            date_token = generated_at.strftime("%Y%m%d")
         safe_project_name = project.name.replace("/", "_").replace(":", "_")
-        return f"{timestamp}_{safe_project_name}{suffix}"
+        return f"{date_token}_{safe_project_name}{suffix}"
 
 
 def serialize_retrieval_config(config: Any) -> Dict[str, Any] | None:

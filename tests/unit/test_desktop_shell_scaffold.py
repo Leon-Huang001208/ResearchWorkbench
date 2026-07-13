@@ -7,6 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 TAURI_CONFIG = ROOT / "src-tauri" / "tauri.conf.json"
 TAURI_LIB = ROOT / "src-tauri" / "src" / "lib.rs"
+TAURI_CARGO = ROOT / "src-tauri" / "Cargo.toml"
 PACKAGE_JSON = ROOT / "package.json"
 BOOTSTRAP_JS = ROOT / "desktop" / "dist" / "bootstrap.js"
 BOOTSTRAP_HTML = ROOT / "desktop" / "dist" / "index.html"
@@ -104,6 +105,7 @@ def test_windows_icon_is_available_for_tauri_resource_generation():
 
 def test_tauri_rust_shell_starts_backend_sidecar():
     source = TAURI_LIB.read_text(encoding="utf-8")
+    cargo = TAURI_CARGO.read_text(encoding="utf-8")
 
     assert 'const BACKEND_SIDECAR: &str = "alphafoundry-backend";' in source
     assert "cfg!(dev)" in source
@@ -112,6 +114,10 @@ def test_tauri_rust_shell_starts_backend_sidecar():
     assert "start_backend_sidecar" in source
     assert "stop_backend_sidecar" in source
     assert "tauri_plugin_shell::init()" in source
+    assert "backend_is_healthy" in source
+    assert "Reusing healthy AlphaFoundry backend" in source
+    assert "tauri_plugin_single_instance::init" in source
+    assert 'tauri-plugin-single-instance = "2"' in cargo
 
 
 def test_macos_arm_sidecar_shim_invokes_python_launcher():
@@ -256,6 +262,10 @@ def test_desktop_bootstrap_waits_for_backend_health():
     assert "AlphaFoundry" in html
     assert "DEFAULT_BACKEND_URL = 'http://127.0.0.1:8765'" in source
     assert "fetch(`${baseUrl}/health`" in source
+    assert "HEALTH_REQUEST_TIMEOUT_MS" in source
+    assert "new AbortController()" in source
+    assert "signal: controller.signal" in source
+    assert "clearTimeout(timeoutId)" in source
     assert "window.location.replace(`${baseUrl}/`)" in source
     assert "retry-button" in source
 

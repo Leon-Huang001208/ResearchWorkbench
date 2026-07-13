@@ -6264,6 +6264,27 @@ tr:hover td {
     min-height: 420px;
 }
 
+.template-advanced-drawer-body.source-only {
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.template-advanced-drawer-body.source-only .template-advanced-section {
+    display: flex;
+    min-height: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+}
+
+.template-advanced-drawer-body.source-only .template-source-editor {
+    height: 0;
+    min-height: 0;
+    flex: 1 1 auto;
+    resize: none;
+}
+
 .template-mapping-table {
     overflow: auto;
 }
@@ -13634,6 +13655,33 @@ tbody tr:hover {
 }
 
 /* Dynamic Excel variables for fixed opening templates. */
+.template-config-data-template-preview {
+    line-height: 2.15;
+}
+
+.template-config-variable-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 26px;
+    margin: 0 0.16em;
+    padding: 0.08rem 0.58rem;
+    border: 1px solid var(--apple-accent-ring);
+    border-radius: 999px;
+    background: var(--apple-accent-light);
+    color: var(--apple-accent-text);
+    font-size: 0.84em;
+    font-weight: 780;
+    line-height: 1.35;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.template-config-data-overview-row .template-config-variable-chip {
+    margin: 0;
+    justify-self: start;
+    font-size: 13px;
+}
+
 .template-data-fields-header {
     align-items: center;
 }
@@ -13681,9 +13729,43 @@ tbody tr:hover {
     background: color-mix(in srgb, var(--apple-accent) 12%, var(--apple-field));
 }
 
+.template-config-data-overview-title {
+    align-items: center;
+    justify-content: space-between;
+}
+
+.template-config-data-overview-heading {
+    display: inline-flex;
+    min-width: 0;
+    align-items: baseline;
+    gap: 12px;
+    white-space: nowrap;
+}
+
+.template-config-data-overview-title .template-config-inline-action {
+    flex: 0 0 auto;
+    width: auto;
+    margin-left: 16px;
+    white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+    .template-config-data-overview-title {
+        align-items: flex-start;
+    }
+
+    .template-config-data-overview-heading {
+        white-space: normal;
+    }
+
+    .template-config-data-overview-title .template-config-inline-action {
+        margin-left: 8px;
+    }
+}
+
 .template-config-editor-panel .template-config-data-source-row,
 .template-config-editor-modal-body .template-config-data-source-row {
-    grid-template-columns: minmax(180px, 0.8fr) repeat(3, minmax(132px, 1fr)) 84px;
+    grid-template-columns: minmax(150px, 0.72fr) minmax(150px, 0.72fr) repeat(3, minmax(132px, 1fr)) 84px;
     align-items: end;
     gap: 14px;
 }
@@ -16885,9 +16967,9 @@ button.template-config-data-overview-row {
 }
 
 #template-project-check-details .template-project-check-body {
-    max-height: 138px;
+    max-height: 314px;
     padding: 0 0 4px;
-    overflow: hidden;
+    overflow: auto;
 }
 
 #template-project-check-details .validation-item {

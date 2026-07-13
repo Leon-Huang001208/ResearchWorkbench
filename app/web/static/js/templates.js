@@ -1274,7 +1274,6 @@ function renderCurrentIssueSettingsBar(template, readiness) {
         hero.insertAdjacentElement('afterend', bar);
     }
     const options = getReportProjectGenerationOptions();
-    const projectType = template?.report_project?.project_type || template?.file_type || 'word';
     const latest = readiness.latestReport;
     bar.innerHTML = `
         <div class="template-current-issue-settings-title">
@@ -1296,13 +1295,6 @@ function renderCurrentIssueSettingsBar(template, readiness) {
         <label>
             <span>证据窗口</span>
             <input type="number" min="1" max="90" step="1" id="current-issue-lookback-days" value="${esc(options.lookback_days)}">
-        </label>
-        <label>
-            <span>输出格式</span>
-            <select id="current-issue-output-format">
-                <option value="docx" ${projectType === 'ppt' ? '' : 'selected'}>Word</option>
-                <option value="pptx" ${projectType === 'ppt' ? 'selected' : ''}>PPT</option>
-            </select>
         </label>
         <div class="template-current-issue-latest">
             <span>最近版本</span>
@@ -3350,6 +3342,8 @@ function renderSelectedPlaceholderDetail(template) {
     const titleEl = document.getElementById('template-selected-placeholder-title');
     const formEl = document.getElementById('template-placeholder-detail-form');
     const advancedFormEl = document.getElementById('template-advanced-placeholder-form');
+    const advancedSectionEl = advancedFormEl?.closest('.template-advanced-section');
+    const advancedDrawerBodyEl = advancedFormEl?.closest('.template-advanced-drawer-body');
     const saveBtn = document.getElementById('btn-template-save-placeholder');
     const advancedBtn = document.getElementById('btn-template-advanced-config');
     if (!formEl) return;
@@ -3360,6 +3354,8 @@ function renderSelectedPlaceholderDetail(template) {
         if (titleEl) titleEl.textContent = '占位符配置详情';
         formEl.innerHTML = '<div class="empty-state compact">选择一个段落后编辑配置</div>';
         if (advancedFormEl) advancedFormEl.innerHTML = '<div class="empty-state compact">选择段落后显示高级字段</div>';
+        advancedSectionEl?.classList.add('hidden');
+        advancedDrawerBodyEl?.classList.remove('source-only');
         if (saveBtn) saveBtn.disabled = true;
         if (advancedBtn) advancedBtn.disabled = true;
         return;
@@ -3444,6 +3440,9 @@ function renderSelectedPlaceholderDetail(template) {
             promptParam,
             template
         });
+        const hasAdvancedFields = Boolean(advancedFormEl.querySelector('[data-placeholder-field]'));
+        advancedSectionEl?.classList.toggle('hidden', !hasAdvancedFields);
+        advancedDrawerBodyEl?.classList.toggle('source-only', !hasAdvancedFields);
     }
 
     bindPlaceholderDetailInputs(template);
@@ -3591,20 +3590,22 @@ function buildPlaceholderConfigSummaryHtml({
                         <strong>固定开头模板</strong>
                         <span>Excel 数据填充</span>
                     </div>
-                    <p>${esc(dataTemplate)}</p>
+                    <p class="template-config-data-template-preview">${renderDataTemplatePreview(dataTemplate, dataTemplateFields)}</p>
                 </button>
             ` : ''}
             ${dataFieldEntries.length ? `
                 <div class="template-config-readable-section">
-                    <div class="template-config-readable-title">
-                        <strong>模板变量数据来源</strong>
-                        <span>${dataFieldEntries.length} 个变量</span>
+                    <div class="template-config-readable-title template-config-data-overview-title">
+                        <div class="template-config-data-overview-heading">
+                            <strong>模板变量数据来源</strong>
+                            <span>${dataFieldEntries.length} 个变量</span>
+                        </div>
                         <button class="template-config-inline-action template-config-edit-trigger" type="button" data-placeholder-edit-section="data_fields">管理变量</button>
                     </div>
                     <div class="template-config-data-overview">
                         ${dataFieldEntries.map(([fieldKey, field]) => `
                             <button class="template-config-data-overview-row template-config-edit-trigger" type="button" data-placeholder-edit-section="data_fields" data-placeholder-edit-field="${esc(fieldKey)}">
-                                <code>{${esc(fieldKey)}}</code>
+                                <span class="template-config-variable-chip" title="内部变量：${esc(fieldKey)}">${esc(getDataTemplateFieldDisplayLabel(fieldKey, field))}</span>
                                 <span>${esc(field.workbook || '未设置文件')}</span>
                                 <span>${esc(field.sheet || '未设置 Sheet')}</span>
                                 <span>${esc(field.cell || field.range || '未设置区域')}</span>
@@ -3639,7 +3640,7 @@ function getPlaceholderEditSectionLabels(section = '', fieldKey = '') {
         query: ['语义 Query', '修改用于召回相关内容的检索 Query'],
         keywords: ['关键词', '修改关键词来源、预设包或自定义关键词'],
         fixed_template: ['固定开头模板', '修改 Excel 数据填充的固定文案模板'],
-        data_fields: [fieldKey ? `变量：{${fieldKey}}` : '模板变量数据来源', '修改变量的 Excel 文件、Sheet、区域和计算规则'],
+        data_fields: [fieldKey ? `变量：${getDataTemplateFieldDisplayLabel(fieldKey)}` : '模板变量数据来源', '修改变量的 Excel 文件、Sheet、区域和计算规则'],
         writing: ['写作结构', '修改生成正文的步骤和表达边界'],
         all: ['编辑配置', '修改当前占位符的生成、检索、Excel 和关键词配置']
     };
@@ -4126,7 +4127,7 @@ function renderDataTemplateFieldsEditor(fields = {}) {
             <div class="template-data-fields-header">
                 <div>
                     <strong>模板变量数据来源</strong>
-                    <span>先添加 Excel 数据变量，再在固定开头模板里用 {变量名} 引用</span>
+                    <span>可填写显示名称；未填写时，固定开头直接显示变量名</span>
                 </div>
                 <button class="template-data-field-add btn btn-secondary" type="button" data-template-data-field-add>
                     <span>+</span> 添加变量
@@ -4140,6 +4141,10 @@ function renderDataTemplateFieldsEditor(fields = {}) {
                             <label class="template-data-field-key">
                                 <span>变量名</span>
                                 <input type="text" data-data-template-field-key value="${esc(fieldKey)}" spellcheck="false">
+                            </label>
+                            <label>
+                                <span>显示名称（可选）</span>
+                                <input type="text" data-data-template-field-prop="display_name" value="${esc(field.display_name || '')}" placeholder="例如：市场走势">
                             </label>
                             <label>
                                 <span>Excel 文件</span>
@@ -4172,60 +4177,40 @@ function renderDataTemplateFieldsEditor(fields = {}) {
     `;
 }
 
+function getDataTemplateFieldDisplayLabel(fieldKey = '', field = {}) {
+    const key = String(fieldKey || '').trim();
+    const displayName = String(field?.display_name || '').trim();
+    return displayName || key;
+}
+
+function renderDataTemplatePreview(template, fields) {
+    const source = String(template || '');
+    const dataFields = fields && typeof fields === 'object' ? fields : {};
+    return source.split(/(\{[A-Za-z_][A-Za-z0-9_-]*\})/g).map(part => {
+        const match = /^\{([A-Za-z_][A-Za-z0-9_-]*)\}$/.exec(part);
+        if (!match) return esc(part);
+        const fieldKey = match[1];
+        if (!Object.prototype.hasOwnProperty.call(dataFields, fieldKey)) return esc(part);
+        const label = getDataTemplateFieldDisplayLabel(fieldKey, dataFields[fieldKey]);
+        return `<span class="template-config-variable-chip" title="内部变量：${esc(fieldKey)}">${esc(label)}</span>`;
+    }).join('');
+}
+
 function buildAdvancedPlaceholderFieldsHtml({
     name,
     type,
-    paragraphMode = '',
     mapping,
     isPromptLike,
-    typeOptions,
     needsParam,
     usesQuerySource,
     promptParam,
     template
 }) {
-    const effectiveMode = isParagraphPlaceholderType(type, mapping)
-        ? (isParagraphMode(paragraphMode) ? paragraphMode : getParagraphMode(type, mapping, name))
-        : '';
     return `
         <div class="template-advanced-help">
-            这些字段决定当前 Word 占位符连接到哪种生成或取数流程。日常改周报文案时不用动，只有新增模板、改占位符类型或排查 YAML 映射时才需要。
+            这里仅保留少数底层来源与参数。占位符类型和段落写作方式请在“基础参数”中设置。
         </div>
-        <label>
-            <span>标题</span>
-            <input type="text" data-placeholder-field="title" value="${esc(mapping.title || inferPlaceholderTitle(name))}">
-        </label>
-        <label>
-            <span>类型</span>
-            <select data-placeholder-field="type">
-                ${typeOptions.map(option => `
-                    <option value="${option.value}" ${type === option.value ? 'selected' : ''}>${esc(option.label)}</option>
-                `).join('')}
-            </select>
-        </label>
-        ${isParagraphPlaceholderType(type, mapping) ? `
-            <label>
-                <span>段落写作方式</span>
-                <select data-placeholder-field="mode">
-                    <option value="data_template" ${effectiveMode === 'data_template' ? 'selected' : ''}>数据说明段落</option>
-                    <option value="evidence_ai" ${effectiveMode === 'evidence_ai' ? 'selected' : ''}>根据材料撰写</option>
-                    <option value="data_template_plus_evidence_ai" ${effectiveMode === 'data_template_plus_evidence_ai' ? 'selected' : ''}>数据说明 + 材料续写</option>
-                </select>
-            </label>
-        ` : ''}
         ${isPromptLike ? `
-            <label>
-                <span>Prompt 模板</span>
-                <input type="text" data-placeholder-field="prompt_template" value="${esc(mapping.prompt_template || resolvePromptTemplateName(name, template.report_project))}">
-            </label>
-            <label>
-                <span>检索模式</span>
-                <select data-placeholder-field="query_mode">
-                    ${['retrieval_query_embedded', 'query_source'].map(option => `
-                        <option value="${option}" ${(mapping.query_mode || 'retrieval_query_embedded') === option ? 'selected' : ''}>${option}</option>
-                    `).join('')}
-                </select>
-            </label>
             ${usesQuerySource ? `
                 <label>
                     <span>Query 来源</span>
@@ -5988,6 +5973,7 @@ function buildDataTemplateFieldsYamlLines(fields = {}, indent = '') {
     return Object.entries(fields || {}).flatMap(([fieldKey, field = {}]) => {
         const lines = [`${indent}${fieldKey}:`];
         lines.push(`${indent}  label: ${field.label || fieldKey}`);
+        if (field.display_name) lines.push(`${indent}  display_name: ${field.display_name}`);
         if (field.workbook) lines.push(`${indent}  workbook: ${field.workbook}`);
         if (field.sheet) lines.push(`${indent}  sheet: ${field.sheet}`);
         if (field.cell) lines.push(`${indent}  cell: ${field.cell}`);
@@ -6499,8 +6485,7 @@ function bindTemplateWorkbenchActions() {
             savingHtml: '<i class="codicon codicon-loading spin"></i> 保存中...',
             successMessage: '占位符配置已保存',
             localMessage: '占位符配置草稿已保存到本地',
-            errorPrefix: '保存占位符失败',
-            returnToGenerationAfterSave: true
+            errorPrefix: '保存占位符失败'
         }));
     }
 
@@ -6604,8 +6589,7 @@ async function saveCurrentSectionConfig({
     successMessage = '配置已保存',
     localMessage = '配置草稿已保存到本地',
     errorPrefix = '保存配置失败',
-    jumpToNextIncomplete = false,
-    returnToGenerationAfterSave = false
+    jumpToNextIncomplete = false
 } = {}) {
     const template = getCurrentWorkbenchTemplate();
     if (!template) {
@@ -6661,18 +6645,12 @@ async function saveCurrentSectionConfig({
             if (jumpToNextIncomplete) {
                 selectAdjacentTemplatePlaceholder(1, true);
             }
-            if (returnToGenerationAfterSave && !jumpToNextIncomplete) {
-                returnToGenerationAfterSaveView(selectedTemplate || template);
-            }
             toast(successMessage, 'success');
         } else {
             localStorage.setItem(sourceEditor?.dataset.draftKey || 'report-template-source:draft', content);
             renderSelectedPlaceholderDetail(template);
             if (jumpToNextIncomplete) {
                 selectAdjacentTemplatePlaceholder(1, true);
-            }
-            if (returnToGenerationAfterSave && !jumpToNextIncomplete) {
-                returnToGenerationAfterSaveView(template);
             }
             toast(localMessage, 'success');
         }
@@ -6684,15 +6662,6 @@ async function saveCurrentSectionConfig({
             button.disabled = false;
         }
     }
-}
-
-function returnToGenerationAfterSaveView(template = getCurrentWorkbenchTemplate()) {
-    if (template) {
-        renderReportGenerationCenter(template);
-    }
-    setStoredTemplateDetailMode('generation');
-    applyTemplateDetailMode('generation');
-    openProjectCheckPanel('template-validation-preview');
 }
 
 function handleTemplateCheckAction(actionBtn) {
@@ -7244,11 +7213,17 @@ function waitForReportGenerationPoll(milliseconds) {
 
 function getReportProjectGenerationOptions() {
     const defaults = getEditableCommonDefaults(getCurrentWorkbenchTemplate() || {});
-    const reportPeriod = defaults.report_period || {};
-    const lookbackDays = Math.max(1, Math.min(90, Number(reportPeriod.lookback_days || 7)));
-    const reportDate = String(reportPeriod.report_date || getDefaultReportDate()).trim();
-    const startDate = String(reportPeriod.start_date || getDefaultEvidenceStartDate(reportDate, lookbackDays)).trim();
-    const endDate = String(reportPeriod.end_date || reportDate).trim();
+    const savedPeriod = defaults.report_period || {};
+    const draftPeriod = currentTemplateState.commonDefaultsDraft?.report_period || {};
+    const lookbackDays = Math.max(
+        1,
+        Math.min(90, Number(draftPeriod.lookback_days || savedPeriod.lookback_days || 7))
+    );
+    const reportDate = String(draftPeriod.report_date || getDefaultReportDate()).trim();
+    const startDate = String(
+        draftPeriod.start_date || getDefaultEvidenceStartDate(reportDate, lookbackDays)
+    ).trim();
+    const endDate = String(draftPeriod.end_date || reportDate).trim();
     const project = getCurrentWorkbenchTemplate()?.report_project;
     return {
         report_date: reportDate,

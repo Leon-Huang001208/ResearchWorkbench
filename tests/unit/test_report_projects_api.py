@@ -10,6 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 import yaml
 from fastapi.testclient import TestClient
 
@@ -23,11 +24,14 @@ from reporting.projects.generation import (
     ReportGenerationResult,
     ReportProjectGenerationService,
     RetrievalConfig,
+    apply_output_constraints,
     apply_report_defaults_to_placeholder,
+    build_generation_messages,
     build_market_hotspot_messages,
     build_retrieval_config,
     compute_report_period,
     filter_and_rank_evidence,
+    rerank_evidence_with_local_model,
     render_generation_constraints,
     render_writing_parameters,
     resolve_report_generation_scope,
@@ -121,13 +125,18 @@ def test_huaan_prompt_placeholders_use_report_level_retrieval_defaults():
     assert retrieval_defaults["top_k"] == 10
     assert retrieval_defaults["candidate_k"] == 40
     assert retrieval_defaults["semantic_candidate_k"] == 80
+    assert retrieval_defaults["relevance_scan_limit"] == 400
+    assert "source_types" not in retrieval_defaults
     assert retrieval_defaults["keyword_weight"] == 0.6
     assert retrieval_defaults["semantic_weight"] == 0.4
-    assert retrieval_defaults["embedding_model"] == "BAAI/bge-large-zh-v1.5"
+    assert (
+        retrieval_defaults["embedding_model"]
+        == "data/models/embeddings/bge-large-zh-v1.5"
+    )
     rerank_defaults = defaults["rerank"]
     assert rerank_defaults["enabled"] is True
     assert rerank_defaults["provider"] == "bge-reranker"
-    assert rerank_defaults["model"] == "BAAI/bge-reranker-large"
+    assert rerank_defaults["model"] == "data/models/rerankers/bge-reranker-large"
     assert rerank_defaults["top_n"] == 30
     assert rerank_defaults["min_score"] == 0.35
     assert defaults["validators"]["forbid_external_facts"] is True
@@ -160,6 +169,8 @@ def test_huaan_prompt_placeholders_use_report_level_retrieval_defaults():
         assert "top_k" not in retrieval
         assert "fusion" not in retrieval
         assert "rerank" not in retrieval
+
+    assert "source_types" not in config["placeholders"]["医药生物"]["retrieval"]
 
 
 def test_report_defaults_are_merged_before_building_retrieval_config():
@@ -238,6 +249,19 @@ def test_generation_constraints_and_writing_parameters_are_rendered_separately()
     assert "至少使用 5 条 evidence/news 信息" in writing_parameters
 
 
+def test_parenthesis_cleanup_preserves_inner_text_when_enabled():
+    config = {"validators": {"forbid_parentheses": True}}
+
+    assert apply_output_constraints("黄斑变性（nAMD）", config) == "黄斑变性nAMD"
+    assert apply_output_constraints("增长(5%)", config) == "增长5%"
+
+
+def test_parenthesis_cleanup_is_disabled_by_default():
+    source = "黄斑变性（nAMD）增长(5%)"
+
+    assert apply_output_constraints(source, {}) == source
+
+
 def test_market_hotspot_prompt_uses_component_structure_without_metadata():
     """A股市场回顾续写 prompt 应使用固定开头和后续结构，不暴露项目元信息。"""
     project = ReportProjectManager(projects_root=Path("report_projects")).get_project("华安ETF周报")
@@ -293,6 +317,583 @@ def test_market_hotspot_prompt_uses_component_structure_without_metadata():
     assert "段落标题" not in prompt
     assert "检索 Query" not in prompt
     assert "配置参数" not in prompt
+
+
+def test_generation_messages_include_structure_and_template_requirements_once():
+    project = ReportProjectManager(projects_root=Path("report_projects")).get_project(
+        "华安ETF周报"
+    )
+    structure_markers = [
+        "普通段落结构标记A：先识别本周主线",
+        "普通段落结构标记B：再解释影响传导",
+    ]
+    template_marker = "普通段落模板标记：只选择证据最充分的核心变化"
+    template = PromptTemplateBlock(
+        title="测试段落",
+        retrieval_query="测试检索",
+        writing_requirements=template_marker,
+        raw_text=template_marker,
+    )
+
+    messages = build_generation_messages(
+        project=project,
+        placeholder="测试段落",
+        title="测试段落",
+        template=template,
+        params={},
+        max_words=300,
+        config={"writing_structure": structure_markers},
+        evidence=[],
+    )
+
+    prompt = messages[0]["content"]
+    for marker in [*structure_markers, template_marker]:
+        assert prompt.count(marker) == 1
+
+
+def test_market_hotspot_messages_include_component_structure_and_template_once():
+    project = ReportProjectManager(projects_root=Path("report_projects")).get_project(
+        "华安ETF周报"
+    )
+    structure_markers = [
+        "A股续写结构标记A：先概括热点主线",
+        "A股续写结构标记B：再说明轮动传导",
+    ]
+    template_marker = "A股模板标记：不重复前文指数和成交额数字"
+    template = PromptTemplateBlock(
+        title="A股市场回顾",
+        retrieval_query="测试检索",
+        writing_requirements=template_marker,
+        raw_text=template_marker,
+    )
+    config = {
+        "components": [
+            {
+                "name": "市场热点与趋势判断",
+                "type": "llm_writing",
+                "writing_structure": structure_markers,
+            }
+        ]
+    }
+
+    messages = build_market_hotspot_messages(
+        project=project,
+        placeholder="A股市场回顾",
+        title="A股市场回顾",
+        template=template,
+        data_sentence="固定数据开头。",
+        params={},
+        max_words=300,
+        config=config,
+        evidence=[],
+    )
+
+    prompt = messages[0]["content"]
+    for marker in [*structure_markers, template_marker]:
+        assert prompt.count(marker) == 1
+
+
+def test_generation_messages_without_structure_use_template_requirement_once():
+    project = ReportProjectManager(projects_root=Path("report_projects")).get_project(
+        "华安ETF周报"
+    )
+    template_marker = "无结构普通段落模板标记：保持因果链完整"
+    template = PromptTemplateBlock(
+        title="测试段落",
+        retrieval_query="测试检索",
+        writing_requirements=template_marker,
+        raw_text=template_marker,
+    )
+
+    messages = build_generation_messages(
+        project=project,
+        placeholder="测试段落",
+        title="测试段落",
+        template=template,
+        params={},
+        max_words=300,
+        config={},
+        evidence=[],
+    )
+
+    assert messages[0]["content"].count(template_marker) == 1
+
+
+def test_market_hotspot_without_structure_uses_template_requirement_once():
+    project = ReportProjectManager(projects_root=Path("report_projects")).get_project(
+        "华安ETF周报"
+    )
+    template_marker = "无结构A股模板标记：只续写热点分析"
+    template = PromptTemplateBlock(
+        title="A股市场回顾",
+        retrieval_query="测试检索",
+        writing_requirements=template_marker,
+        raw_text=template_marker,
+    )
+
+    messages = build_market_hotspot_messages(
+        project=project,
+        placeholder="A股市场回顾",
+        title="A股市场回顾",
+        template=template,
+        data_sentence="固定数据开头。",
+        params={},
+        max_words=300,
+        config={},
+        evidence=[],
+    )
+
+    assert messages[0]["content"].count(template_marker) == 1
+
+
+def test_chinese_character_limit_keeps_complete_first_and_summary_sentences():
+    import reporting.projects.generation as generation
+
+    enforce_limit = getattr(generation, "enforce_max_chinese_chars", None)
+    assert callable(enforce_limit), "generation.enforce_max_chinese_chars 尚未实现"
+    first_sentence = "首句明确概括本周市场方向与核心交易主线。"
+    middle_sentences = [
+        f"第{index}项材料用于解释供需政策资金与风险偏好的变化。"
+        for index in range(1, 20)
+    ]
+    summary_sentence = "末句总结行情性质并列出后续最值得关注的变量。"
+    original_sentences = [first_sentence, *middle_sentences, summary_sentence]
+    original = "".join(original_sentences)
+
+    limited = enforce_limit(original, 300)
+
+    assert 0 < len(re.sub(r"\s+", "", limited)) <= 300
+    assert limited.startswith(first_sentence)
+    assert limited.endswith(summary_sentence)
+    assert limited.endswith("。")
+    for fragment in [item for item in limited.split("。") if item]:
+        assert f"{fragment}。" in original_sentences
+
+
+def test_chinese_character_limit_leaves_short_text_unchanged():
+    import reporting.projects.generation as generation
+
+    enforce_limit = getattr(generation, "enforce_max_chinese_chars", None)
+    assert callable(enforce_limit), "generation.enforce_max_chinese_chars 尚未实现"
+    short_text = "短文本保持原样，不应被改写。"
+
+    assert enforce_limit(short_text, 300) == short_text
+
+
+def test_chinese_character_limit_does_not_append_an_orphaned_connector_sentence():
+    import reporting.projects.generation as generation
+
+    first_sentence = "中国宏观首句概括经济修复仍呈结构性分化。"
+    middle_sentence = "政策与数据共同显示内需正在边际改善。"
+    orphaned_last = "此外，财政政策与房地产政策仍需继续观察。"
+    content = first_sentence + middle_sentence * 8 + orphaned_last
+
+    limited = generation.enforce_max_chinese_chars(content, 80)
+
+    assert 0 < len(re.sub(r"\s+", "", limited)) <= 80
+    assert limited.startswith(first_sentence)
+    assert orphaned_last not in limited
+    assert limited.endswith("。")
+    for fragment in [item for item in limited.split("。") if item]:
+        assert f"{fragment}。" in {first_sentence, middle_sentence, orphaned_last}
+
+
+def test_chinese_character_limit_keeps_an_independent_summary_sentence():
+    import reporting.projects.generation as generation
+
+    first_sentence = "中国宏观首句概括经济修复仍呈结构性分化。"
+    middle_sentence = "政策与数据共同显示内需正在边际改善。"
+    summary_sentence = "总体来看，当前经济仍需关注需求修复与政策落地。"
+    content = first_sentence + middle_sentence * 8 + summary_sentence
+
+    limited = generation.enforce_max_chinese_chars(content, 80)
+
+    assert len(re.sub(r"\s+", "", limited)) <= 80
+    assert limited.startswith(first_sentence)
+    assert limited.endswith(summary_sentence)
+
+
+@pytest.mark.parametrize(
+    "configured_max, evidence_count, min_news_count, expected",
+    [(300, 8, 8, 300), (300, 3, 8, 112), (300, 3, 5, 180), (300, 3, 6, 150), (300, 0, 8, 100)],
+)
+def test_effective_max_words_scales_by_evidence_with_a_hundred_character_floor(
+    configured_max,
+    evidence_count,
+    min_news_count,
+    expected,
+):
+    import reporting.projects.generation as generation
+
+    helper = getattr(generation, "effective_max_words_for_evidence", None)
+    assert callable(helper), "generation.effective_max_words_for_evidence 尚未实现"
+
+    assert helper(configured_max, evidence_count, min_news_count) == expected
+
+
+def test_insufficient_evidence_message_states_actual_count_without_quantity_padding():
+    project = ReportProjectManager(projects_root=Path("report_projects")).get_project(
+        "华安ETF周报"
+    )
+    template = PromptTemplateBlock(
+        title="测试段落",
+        retrieval_query="测试检索",
+        writing_requirements="测试模板要求",
+        raw_text="测试模板要求",
+    )
+    messages = build_generation_messages(
+        project=project,
+        placeholder="测试段落",
+        title="测试段落",
+        template=template,
+        params={},
+        max_words=300,
+        config={"min_news_count": 3},
+        evidence=[EvidenceSnippet(source="test", title="材料1", content="一条事实。")],
+    )
+
+    prompt = messages[0]["content"]
+    assert "当前仅有 1 条 evidence，少于要求的 3 条；不得补造或为凑数量扩展" in prompt
+    assert "正文不得提及材料不足、Evidence数量或检索过程" in prompt
+    assert "至少使用 3 条 evidence/news 信息" not in prompt
+
+
+def test_sufficient_evidence_message_keeps_minimum_count_requirement():
+    project = ReportProjectManager(projects_root=Path("report_projects")).get_project(
+        "华安ETF周报"
+    )
+    template = PromptTemplateBlock(
+        title="测试段落",
+        retrieval_query="测试检索",
+        writing_requirements="测试模板要求",
+        raw_text="测试模板要求",
+    )
+    evidence = [
+        EvidenceSnippet(source="test", title=f"材料{index}", content=f"事实{index}。")
+        for index in range(1, 4)
+    ]
+    messages = build_generation_messages(
+        project=project,
+        placeholder="测试段落",
+        title="测试段落",
+        template=template,
+        params={},
+        max_words=300,
+        config={"min_news_count": 3},
+        evidence=evidence,
+    )
+
+    prompt = messages[0]["content"]
+    assert "至少使用 3 条 evidence/news 信息" in prompt
+    assert "正文不得提及材料不足、Evidence数量或检索过程" not in prompt
+
+
+def test_generation_service_reports_actual_and_required_evidence_counts():
+    project = ReportProjectManager(projects_root=Path("report_projects")).get_project(
+        "华安ETF周报"
+    )
+
+    class FakeRetriever:
+        def retrieve(self, query, **kwargs):
+            return [EvidenceSnippet(source="test", title="材料1", content="一条事实。")]
+
+    class FakeGateway:
+        def chat(self, messages, **kwargs):
+            return ModelResponse(
+                content="基于现有事实形成审慎结论。",
+                model_name="test-model",
+                provider="test",
+                tokens_used=10,
+                latency_ms=1,
+            )
+
+    service = ReportProjectGenerationService(
+        retriever=FakeRetriever(),
+        model_gateway=FakeGateway(),
+    )
+    result = service.generate_placeholders(
+        project=project,
+        section_config={
+            "placeholders": {
+                "测试段落": {
+                    "title": "测试段落",
+                    "type": "paragraph",
+                    "prompt_template": "测试段落",
+                    "min_news_count": 3,
+                    "retrieval": {"keywords": ["事实"]},
+                }
+            }
+        },
+        prompt_templates_source=(
+            "## 测试段落\n\n检索 Query：测试检索\n\n写作要求：测试模板要求"
+        ),
+    )
+    warning = "测试段落: evidence 数量不足（实际 1 条，要求 3 条）"
+
+    assert warning in result.warnings
+    assert warning in result.sections[0].warnings
+
+
+def test_generation_service_applies_max_words_to_final_content():
+    project = ReportProjectManager(projects_root=Path("report_projects")).get_project(
+        "华安ETF周报"
+    )
+    first_sentence = "首句概括本周核心方向。"
+    summary_sentence = "末句总结并提示后续变量。"
+    long_content = (
+        first_sentence
+        + "中间分析详细解释政策供需资金风险偏好以及产业链传导变化。" * 8
+        + summary_sentence
+    )
+
+    class FakeRetriever:
+        def retrieve(self, query, **kwargs):
+            return [
+                EvidenceSnippet(
+                    source="test",
+                    title=f"材料{index}",
+                    content=f"事实{index}。",
+                )
+                for index in range(1, 4)
+            ]
+
+    class FakeGateway:
+        def chat(self, messages, **kwargs):
+            prompt = messages[-1]["content"]
+            assert "最大字数：不超过 180 字" in prompt
+            assert "最大字数：不超过 300 字" not in prompt
+            return ModelResponse(
+                content=long_content,
+                model_name="test-model",
+                provider="test",
+                tokens_used=10,
+                latency_ms=1,
+            )
+
+    service = ReportProjectGenerationService(
+        retriever=FakeRetriever(),
+        model_gateway=FakeGateway(),
+    )
+    result = service.generate_placeholders(
+        project=project,
+        section_config={
+            "placeholders": {
+                "测试段落": {
+                    "title": "测试段落",
+                    "type": "paragraph",
+                    "prompt_template": "测试段落",
+                    "max_words": 300,
+                    "min_news_count": 5,
+                    "retrieval": {"keywords": ["事实"]},
+                }
+            }
+        },
+        prompt_templates_source=(
+            "## 测试段落\n\n检索 Query：测试检索\n\n写作要求：测试模板要求"
+        ),
+    )
+    content = result.placeholders["测试段落"]
+
+    assert len(re.sub(r"\s+", "", content)) <= 180
+    assert content.startswith(first_sentence)
+    assert content.endswith(summary_sentence)
+    assert content.endswith("。")
+
+
+def test_generation_service_applies_parenthesis_cleanup_to_final_content():
+    project = ReportProjectManager(projects_root=Path("report_projects")).get_project(
+        "华安ETF周报"
+    )
+
+    class FakeRetriever:
+        def retrieve(self, query, **kwargs):
+            return [EvidenceSnippet(source="test", title="材料", content="医药事实。")]
+
+    class FakeGateway:
+        def chat(self, messages, **kwargs):
+            return ModelResponse(
+                content="医药关注黄斑变性（nAMD），相关指标增长(5%)。",
+                model_name="test-model",
+                provider="test",
+                tokens_used=10,
+                latency_ms=1,
+            )
+
+    service = ReportProjectGenerationService(
+        retriever=FakeRetriever(),
+        model_gateway=FakeGateway(),
+    )
+    result = service.generate_placeholders(
+        project=project,
+        section_config={
+            "placeholders": {
+                "医药生物": {
+                    "title": "医药生物",
+                    "type": "paragraph",
+                    "prompt_template": "医药生物",
+                    "validators": {"forbid_parentheses": True},
+                    "retrieval": {"keywords": ["医药"]},
+                }
+            }
+        },
+        prompt_templates_source=(
+            "## 医药生物\n\n检索 Query：测试检索\n\n写作要求：测试模板要求"
+        ),
+    )
+
+    assert result.placeholders["医药生物"] == "医药关注黄斑变性nAMD，相关指标增长5%。"
+
+
+def test_a_share_service_applies_parenthesis_cleanup_to_hotspot_content(monkeypatch):
+    import reporting.projects.generation as generation
+
+    project = ReportProjectManager(projects_root=Path("report_projects")).get_project(
+        "华安ETF周报"
+    )
+    monkeypatch.setattr(
+        generation,
+        "build_a_share_market_data_sentence",
+        lambda project, config: "固定开头。",
+    )
+
+    class FakeRetriever:
+        def retrieve(self, query, **kwargs):
+            return [EvidenceSnippet(source="test", title="材料", content="市场事实。")]
+
+    class FakeGateway:
+        def chat(self, messages, **kwargs):
+            return ModelResponse(
+                content="热点增长(5%)且关注（算力）。",
+                model_name="test-model",
+                provider="test",
+                tokens_used=10,
+                latency_ms=1,
+            )
+
+    service = ReportProjectGenerationService(
+        retriever=FakeRetriever(),
+        model_gateway=FakeGateway(),
+    )
+    result = service.generate_placeholders(
+        project=project,
+        section_config={
+            "placeholders": {
+                "A股市场回顾": {
+                    "title": "A股市场回顾",
+                    "type": "paragraph",
+                    "mode": "data_template_plus_evidence_ai",
+                    "prompt_template": "A股市场回顾",
+                    "validators": {"forbid_parentheses": True},
+                    "components": [
+                        {
+                            "name": "市场热点与趋势判断",
+                            "type": "llm_writing",
+                            "retrieval": {"keywords": ["市场事实"]},
+                            "writing_structure": ["概括热点"],
+                        }
+                    ],
+                }
+            }
+        },
+        prompt_templates_source=(
+            "## A股市场回顾\n\n检索 Query：测试检索\n\n写作要求：测试模板要求"
+        ),
+    )
+
+    assert result.placeholders["A股市场回顾"] == "固定开头。热点增长5%且关注算力。"
+
+
+def test_a_share_service_uses_effective_evidence_budget_for_message_and_output(monkeypatch):
+    import reporting.projects.generation as generation
+
+    project = ReportProjectManager(projects_root=Path("report_projects")).get_project(
+        "华安ETF周报"
+    )
+    data_sentence = (
+        "固定Excel开头：本周A股市场呈现分化趋势，主要指数表现依次为"
+        + "、".join(f"指数{index}周内涨跌幅已由Excel确认" for index in range(1, 16))
+        + "。交易面，本周日均成交额及其环比变化均已由Excel固定生成，不得改写或删减。"
+    )
+    first_sentence = "首句概括A股热点主线。"
+    middle_sentence = "中间分析解释行业轮动景气变化以及资金风险偏好的传导。"
+    summary_sentence = "整体来看，后续关注政策与资金变量。"
+    long_hotspot = first_sentence + middle_sentence * 10 + summary_sentence
+    assert len(re.sub(r"\s+", "", data_sentence)) > 180
+    monkeypatch.setattr(
+        generation,
+        "build_a_share_market_data_sentence",
+        lambda project, config: data_sentence,
+    )
+
+    class FakeRetriever:
+        def retrieve(self, query, **kwargs):
+            return [
+                EvidenceSnippet(
+                    source="test",
+                    title=f"材料{index}",
+                    content=f"市场事实{index}。",
+                )
+                for index in range(1, 4)
+            ]
+
+    class FakeGateway:
+        def chat(self, messages, **kwargs):
+            prompt = messages[-1]["content"]
+            assert "最大字数：不超过 180 字" in prompt
+            assert "最大字数：不超过 300 字" not in prompt
+            return ModelResponse(
+                content=long_hotspot,
+                model_name="test-model",
+                provider="test",
+                tokens_used=10,
+                latency_ms=1,
+            )
+
+    service = ReportProjectGenerationService(
+        retriever=FakeRetriever(),
+        model_gateway=FakeGateway(),
+    )
+    result = service.generate_placeholders(
+        project=project,
+        section_config={
+            "placeholders": {
+                "A股市场回顾": {
+                    "title": "A股市场回顾",
+                    "type": "paragraph",
+                    "mode": "data_template_plus_evidence_ai",
+                    "prompt_template": "A股市场回顾",
+                    "max_words": 300,
+                    "min_news_count": 5,
+                    "components": [
+                        {
+                            "name": "市场热点与趋势判断",
+                            "type": "llm_writing",
+                            "retrieval": {"keywords": ["市场事实"]},
+                            "writing_structure": ["概括热点并解释轮动"],
+                        }
+                    ],
+                }
+            }
+        },
+        prompt_templates_source=(
+            "## A股市场回顾\n\n检索 Query：测试检索\n\n写作要求：测试模板要求"
+        ),
+    )
+    content = result.placeholders["A股市场回顾"]
+    hotspot = content.removeprefix(data_sentence)
+    data_chars = len(re.sub(r"\s+", "", data_sentence))
+    hotspot_chars = len(re.sub(r"\s+", "", hotspot))
+
+    assert content.startswith(data_sentence)
+    assert content[: len(data_sentence)] == data_sentence
+    assert content.count(data_sentence) == 1
+    assert 0 < hotspot_chars <= 180
+    assert len(re.sub(r"\s+", "", content)) <= data_chars + 180
+    assert hotspot.startswith(first_sentence)
+    assert hotspot.endswith(summary_sentence)
+    assert hotspot.endswith("。")
+    for fragment in [item for item in hotspot.split("。") if item]:
+        assert f"{fragment}。" in {first_sentence, middle_sentence, summary_sentence}
 
 
 def build_market_template_for_test():
@@ -865,6 +1466,8 @@ def test_report_project_run_service_renders_word_project(tmp_path: Path):
                 "active_excel_workbook: data/data.xlsx",
                 "section_config: config/section_config.yaml",
                 "prompt_templates: config/prompt_templates.md",
+                "excel_refresh:",
+                "  enabled: true",
                 "output_dir: generated",
                 "run_log_dir: runs",
             ]
@@ -926,6 +1529,11 @@ def test_report_project_run_service_renders_word_project(tmp_path: Path):
 
     captured = {}
 
+    class FakeWorkbookRefreshService:
+        def refresh(self, *, project):
+            assert project.slug == "华安ETF周报"
+            captured["workbook_refreshed"] = True
+
     def fake_save_from_template(output_path, template_path, sections, placeholders, **kwargs):
         captured["output_path"] = output_path
         captured["placeholders"] = placeholders
@@ -935,6 +1543,7 @@ def test_report_project_run_service_renders_word_project(tmp_path: Path):
         generation_service=FakeGenerationService(),
         chart_service=FakeChartService(),
         table_builder=fake_table_builder,
+        workbook_refresh_service=FakeWorkbookRefreshService(),
         word_projection_factory=lambda: type(
             "FakeWordProjection",
             (),
@@ -956,14 +1565,16 @@ def test_report_project_run_service_renders_word_project(tmp_path: Path):
     )
 
     assert captured["placeholders"] == {"人工智能": "AI 生成段落", "manual": "手工值"}
+    assert captured["workbook_refreshed"] is True
     assert result.output_path == captured["output_path"]
-    assert result.file_name.endswith("_华安ETF周报.docx")
+    assert result.file_name == "20260605_华安ETF周报.docx"
     assert result.generated_placeholder_count == 2
     assert result.evidence_count == 2
     assert result.warnings == ["生成 warning", "段落 warning", "图表 warning", "表格 warning"]
     assert result.run_log_path.exists()
     assert [event["phase"] for event in progress_events] == [
         "prepare",
+        "refresh",
         "generate",
         "render",
         "save",
@@ -1028,6 +1639,32 @@ def test_render_ppt_report_project_writes_pptx_to_generated_dir(tmp_path: Path, 
     assert "华安ETF月报" in slide_xml
     assert "2026年4月" in slide_xml
     assert "{{title}}" not in slide_xml
+
+
+def test_generation_service_rejects_model_reasoning_as_report_content():
+    reasoning = (
+        "我们要求生成一段正文，接在固定开头之后。"
+        "用户没有明确给出固定开头，因此需要先分析 Evidence 中的材料。"
+        "仔细看这些材料后再构造段落。输出示例：市场本周有所变化。"
+    )
+
+    cleaned = ReportProjectGenerationService._clean_model_content(
+        reasoning,
+        title="A股市场回顾",
+    )
+
+    assert cleaned == ""
+
+
+def test_generation_service_removes_internal_evidence_references():
+    content = "半导体设备关注度提升（evidence 1,6），低空经济阶段性活跃 (Evidence 3)。"
+
+    cleaned = ReportProjectGenerationService._clean_model_content(
+        content,
+        title="A股市场回顾",
+    )
+
+    assert cleaned == "半导体设备关注度提升，低空经济阶段性活跃。"
 
 
 def test_generation_service_uses_prompt_query_evidence_and_reporting_model(tmp_path: Path):
@@ -1176,7 +1813,8 @@ def test_generation_service_renders_structured_generation_constraints(tmp_path: 
             assert "写作参数：" in message
             assert "目标字数：约 100 字" in message
             assert "最大字数：不超过 150 字" in message
-            assert "至少使用 5 条 evidence/news 信息" in message
+            assert "当前仅有 1 条 evidence，少于要求的 5 条；不得补造或为凑数量扩展" in message
+            assert "至少使用 5 条 evidence/news 信息" not in message
             assert "不得使用 Wind 数据" in message
             assert "不得使用日度数据" in message
             assert "使用数据或数值时必须说明来源" in message
@@ -1440,7 +2078,8 @@ def test_generation_service_builds_composite_market_review_from_excel_and_eviden
             "placeholders": {
                 "A股市场回顾": {
                     "title": "A股市场回顾",
-                    "type": "composite_market_review",
+                    "type": "paragraph",
+                    "mode": "data_template_plus_evidence_ai",
                     "prompt_template": "A股市场回顾",
                     "data_source": {
                         "workbook": "周报数据.xlsx",
@@ -1616,6 +2255,46 @@ def test_filter_and_rank_evidence_applies_must_any_exclude_and_scores():
     assert ranked[0].matched_terms == ["商业航天", "卫星", "火箭"]
 
 
+def test_filter_and_rank_evidence_keeps_explicit_source_types_as_hard_filter():
+    """显式来源过滤是原有契约，不应受 relevance scan 候选选择影响。"""
+    retrieval_config = RetrievalConfig(
+        source_types=["cnstock"],
+        subject_any=["医药生物"],
+        must_any=["临床"],
+        min_keyword_score=1.0,
+    )
+    snippets = [
+        EvidenceSnippet(
+            source="ingestion:cnstock",
+            title="医药临床进展",
+            content="医药生物行业临床试验取得新进展。",
+            published_at="2026-07-10",
+        ),
+        EvidenceSnippet(
+            source="ingestion:zhiqiu_wechat",
+            title="医药临床动态",
+            content="医药生物行业临床试验取得新进展。",
+            published_at="2026-07-10",
+        ),
+        EvidenceSnippet(
+            source="canonical_event",
+            title="医药临床事件",
+            content="医药生物行业临床试验取得新进展。",
+            published_at="2026-07-10",
+        ),
+    ]
+
+    ranked = filter_and_rank_evidence(
+        snippets,
+        retrieval_config,
+        query="医药生物临床",
+    )
+
+    assert retrieval_config.source_types == ["cnstock"]
+    assert [snippet.source for snippet in ranked] == ["ingestion:cnstock"]
+    assert [snippet.title for snippet in ranked] == ["医药临床进展"]
+
+
 def test_build_retrieval_config_reads_nested_query_terms():
     """工作台生成的 retrieval.query_terms 配置应被生成器正确读取。"""
     config = {
@@ -1722,6 +2401,535 @@ def test_hybrid_filter_and_rank_fuses_keyword_and_semantic_scores():
     assert ranked[0].retrieval_score is not None
     assert ranked[0].semantic_score is not None
     assert ranked[0].retrieval_method == "hybrid_rrf"
+
+
+def test_hybrid_subject_backfill_scores_strict_and_backfill_candidates_once(
+    monkeypatch,
+):
+    """严格候选不足时，语义模型应一次覆盖严格与 backfill，再保持严格优先。"""
+    import reporting.projects.generation as generation
+
+    strict = EvidenceSnippet(
+        source="ingestion:cnstock",
+        title="港股科技大模型进展",
+        content="港股科技大模型获得南向资金关注。",
+        published_at="2026-07-10",
+    )
+    backfill = EvidenceSnippet(
+        source="ingestion:zhiqiu_wechat",
+        title="平台公司估值修复",
+        content="平台公司获得南向资金流入，估值修复。",
+        published_at="2026-07-10",
+    )
+    semantic_batches = []
+
+    def fake_semantic_similarity_scores(query, texts, retrieval_config):
+        del query, retrieval_config
+        semantic_batches.append(list(texts))
+        return [0.1 if "港股科技" in text else 0.99 for text in texts]
+
+    monkeypatch.setattr(
+        generation, "_semantic_similarity_scores", fake_semantic_similarity_scores
+    )
+
+    ranked = generation.filter_and_rank_evidence(
+        [strict, backfill],
+        RetrievalConfig(
+            mode="hybrid",
+            top_k=2,
+            subject_any=["港股科技"],
+            subject_match_mode="all_groups",
+            subject_keyword_groups=[["港股科技"], ["大模型"]],
+            must_any=["南向资金", "估值"],
+            subject_backfill_enabled=True,
+            min_backfill_keyword_matches=2,
+            keyword_weight=0.5,
+            semantic_weight=0.5,
+        ),
+        query="港股科技",
+    )
+
+    assert len(semantic_batches) == 1
+    assert len(semantic_batches[0]) == 2
+    assert {text.split("\n", 1)[0] for text in semantic_batches[0]} == {
+        "港股科技大模型进展",
+        "平台公司估值修复",
+    }
+    assert [snippet.title for snippet in ranked] == [
+        "港股科技大模型进展",
+        "平台公司估值修复",
+    ]
+
+
+def test_database_retriever_hybrid_ranks_full_candidate_pool_once_before_final_cut(
+    monkeypatch,
+):
+    """混合检索应对全候选池只做一次语义排序，再截取最终 evidence。"""
+    import reporting.projects.generation as generation
+
+    class FakeSession:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            return False
+
+    candidates = [
+        EvidenceSnippet(
+            source="ingestion:source_a",
+            title="候选A",
+            content="医药 医药 医药。",
+            published_at="2026-07-10",
+        ),
+        EvidenceSnippet(
+            source="ingestion:source_b",
+            title="候选B",
+            content="医药 医药。",
+            published_at="2026-07-10",
+        ),
+        EvidenceSnippet(
+            source="ingestion:source_c",
+            title="候选C",
+            content="医药。",
+            published_at="2026-07-10",
+        ),
+    ]
+    semantic_scores = {"候选A": 0.1, "候选B": 0.9, "候选C": 0.8}
+    semantic_batches = []
+
+    def fake_semantic_similarity_scores(query, texts, retrieval_config):
+        del query, retrieval_config
+        semantic_batches.append(list(texts))
+        return [
+            next(score for title, score in semantic_scores.items() if title in text)
+            for text in texts
+        ]
+
+    retriever = generation.DatabaseEvidenceRetriever()
+    monkeypatch.setattr("data_layer.repositories.base.SessionLocal", FakeSession)
+    monkeypatch.setattr(
+        retriever, "_retrieve_ingestion_items", lambda *args, **kwargs: candidates
+    )
+    monkeypatch.setattr(retriever, "_retrieve_events", lambda *args, **kwargs: [])
+    monkeypatch.setattr(
+        retriever, "_retrieve_recent_ingestion_items", lambda *args, **kwargs: []
+    )
+    monkeypatch.setattr(retriever, "_retrieve_recent_events", lambda *args, **kwargs: [])
+    monkeypatch.setattr(
+        generation, "_semantic_similarity_scores", fake_semantic_similarity_scores
+    )
+
+    ranked = retriever.retrieve(
+        "医药",
+        title="医药",
+        params={},
+        lookback_days=7,
+        limit=2,
+        retrieval_config=RetrievalConfig(
+            mode="hybrid",
+            top_k=2,
+            candidate_k=3,
+            relevance_scan_limit=3,
+            semantic_candidate_k=3,
+            must_any=["医药"],
+            keyword_weight=0.5,
+            semantic_weight=0.5,
+        ),
+    )
+
+    assert len(semantic_batches) == 1
+    assert len(semantic_batches[0]) == 3
+    assert [snippet.title for snippet in ranked] == ["候选B", "候选A"]
+
+
+@pytest.mark.parametrize(
+    ("configured_scan_limit", "expected_scan_limit"),
+    [(400, 400), (5000, 1000)],
+)
+def test_database_retriever_scans_canonical_candidates_with_global_relevance_limit(
+    monkeypatch,
+    configured_scan_limit,
+    expected_scan_limit,
+):
+    """Canonical 候选与 ingestion 共享全局扫描上限，避免 40 条新入库数据挤出旧事件。"""
+    import reporting.projects.generation as generation
+
+    class FakeSession:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            return False
+
+    captured_limits = {}
+    newer_generic = [
+        EvidenceSnippet(
+            source="ingestion:generic",
+            title=f"泛市场快讯{index}",
+            content="市场风险偏好出现变化。",
+            published_at="2026-07-12",
+        )
+        for index in range(40)
+    ]
+    older_canonical_event = EvidenceSnippet(
+        source="canonical_event",
+        title="医药临床事件",
+        content="医药生物行业临床试验取得进展。",
+        published_at="2026-07-01",
+    )
+
+    def fake_ingestion_items(*args, **kwargs):
+        captured_limits["ingestion"] = kwargs["limit"]
+        return newer_generic
+
+    def fake_events(*args, **kwargs):
+        captured_limits["events"] = kwargs["limit"]
+        return [older_canonical_event]
+
+    def fake_recent_ingestion_items(*args, **kwargs):
+        captured_limits["recent_ingestion"] = kwargs["limit"]
+        return []
+
+    def fake_recent_events(*args, **kwargs):
+        captured_limits["recent_events"] = kwargs["limit"]
+        return []
+
+    retriever = generation.DatabaseEvidenceRetriever()
+    monkeypatch.setattr("data_layer.repositories.base.SessionLocal", FakeSession)
+    monkeypatch.setattr(retriever, "_retrieve_ingestion_items", fake_ingestion_items)
+    monkeypatch.setattr(retriever, "_retrieve_events", fake_events)
+    monkeypatch.setattr(
+        retriever, "_retrieve_recent_ingestion_items", fake_recent_ingestion_items
+    )
+    monkeypatch.setattr(retriever, "_retrieve_recent_events", fake_recent_events)
+    monkeypatch.setattr(
+        generation,
+        "_semantic_similarity_scores",
+        lambda query, texts, retrieval_config: [0.0] * len(texts),
+    )
+
+    ranked = retriever.retrieve(
+        "医药生物",
+        title="医药生物",
+        params={},
+        lookback_days=7,
+        limit=1,
+        retrieval_config=RetrievalConfig(
+            mode="hybrid",
+            top_k=1,
+            candidate_k=40,
+            relevance_scan_limit=configured_scan_limit,
+            semantic_candidate_k=80,
+            must_any=["医药生物", "临床"],
+        ),
+    )
+
+    assert captured_limits == {
+        "ingestion": expected_scan_limit,
+        "events": expected_scan_limit,
+        "recent_ingestion": expected_scan_limit,
+        "recent_events": expected_scan_limit,
+    }
+    assert [snippet.source for snippet in ranked] == ["canonical_event"]
+
+
+@pytest.mark.parametrize(
+    "source,published_at,event_time,created_at,expected",
+    [
+        pytest.param(
+            "ingestion:cnstock",
+            datetime(2026, 7, 1),
+            None,
+            datetime(2026, 7, 10),
+            False,
+            id="ingestion-rejects-out-of-window-published-at",
+        ),
+        pytest.param(
+            "ingestion:cnstock",
+            datetime(2026, 7, 10),
+            None,
+            datetime(2026, 7, 20),
+            True,
+            id="ingestion-allows-late-ingested-in-window-publication",
+        ),
+        pytest.param(
+            "ingestion:cnstock",
+            None,
+            None,
+            datetime(2026, 7, 10),
+            True,
+            id="ingestion-falls-back-to-created-at",
+        ),
+        pytest.param(
+            "canonical_event",
+            None,
+            datetime(2026, 7, 1),
+            datetime(2026, 7, 10),
+            False,
+            id="canonical-rejects-out-of-window-event-time",
+        ),
+        pytest.param(
+            "canonical_event",
+            None,
+            datetime(2026, 7, 10),
+            datetime(2026, 7, 20),
+            True,
+            id="canonical-allows-late-created-in-window-event",
+        ),
+        pytest.param(
+            "canonical_event",
+            None,
+            None,
+            datetime(2026, 7, 10),
+            True,
+            id="canonical-falls-back-to-created-at",
+        ),
+    ],
+)
+def test_evidence_time_window_uses_source_effective_timestamp(
+    source,
+    published_at,
+    event_time,
+    created_at,
+    expected,
+):
+    """报告窗口按发布时间/事件时间过滤，而非把晚入库时间误作事实发生时间。"""
+    from reporting.projects.generation import (
+        ReportPeriod,
+        is_evidence_within_report_period,
+    )
+
+    assert (
+        is_evidence_within_report_period(
+            source=source,
+            published_at=published_at,
+            event_time=event_time,
+            created_at=created_at,
+            report_period=ReportPeriod(start_date="2026-07-07", end_date="2026-07-13"),
+        )
+        is expected
+    )
+
+
+def test_database_retriever_filters_ingestion_effective_time_before_scan_limit(
+    monkeypatch,
+):
+    """发布时间窗口须在 scan limit 前生效，不能让新入库的过期材料占满前 400 条。"""
+    from types import SimpleNamespace
+
+    from sqlalchemy import column
+
+    import reporting.projects.generation as generation
+
+    class FakeIngestionQueueItem:
+        title = column("title")
+        raw_content = column("raw_content")
+        created_at = column("created_at")
+        published_at = column("published_at")
+
+    class FakeQuery:
+        def __init__(self, rows, in_window_rows):
+            self.rows = rows
+            self.in_window_rows = in_window_rows
+            self.filters = []
+            self.limit_value = None
+
+        def filter(self, *clauses):
+            self.filters.extend(clauses)
+            return self
+
+        def order_by(self, *clauses):
+            del clauses
+            return self
+
+        def limit(self, value):
+            self.limit_value = value
+            return self
+
+        def all(self):
+            filter_text = " ".join(str(clause) for clause in self.filters)
+            if "published_at" in filter_text:
+                return self.in_window_rows[: self.limit_value]
+            return self.rows[: self.limit_value]
+
+    class FakeSession:
+        def __init__(self, query):
+            self.query_result = query
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            return False
+
+        def query(self, model):
+            assert model is FakeIngestionQueueItem
+            return self.query_result
+
+    newer_out_of_window_rows = [
+        SimpleNamespace(
+            source_type="generic",
+            title=f"过期泛市场材料{index}",
+            source_id=None,
+            item_id=f"generic-{index}",
+            raw_content="市场风险偏好出现变化。",
+            published_at="2026-07-01T00:00:00",
+            created_at=datetime(2026, 7, 12),
+            url=None,
+        )
+        for index in range(400)
+    ]
+    older_in_window_row = SimpleNamespace(
+        source_type="cnstock",
+        title="医药临床窗口内材料",
+        source_id=None,
+        item_id="cnstock-in-window",
+        raw_content="医药生物行业临床试验取得进展。",
+        published_at="2026-07-10T00:00:00",
+        created_at=datetime(2026, 7, 1),
+        url=None,
+    )
+    query = FakeQuery(
+        [*newer_out_of_window_rows, older_in_window_row],
+        [older_in_window_row],
+    )
+    retriever = generation.DatabaseEvidenceRetriever()
+    monkeypatch.setattr(
+        "data_layer.repositories.models.IngestionQueueItemDB", FakeIngestionQueueItem
+    )
+    monkeypatch.setattr(
+        "data_layer.repositories.base.SessionLocal", lambda: FakeSession(query)
+    )
+    monkeypatch.setattr(retriever, "_retrieve_events", lambda *args, **kwargs: [])
+
+    ranked = retriever.retrieve(
+        "医药生物 临床",
+        title="医药生物",
+        params={},
+        lookback_days=7,
+        limit=1,
+        report_period=generation.ReportPeriod(
+            start_date="2026-07-07", end_date="2026-07-13"
+        ),
+        retrieval_config=RetrievalConfig(
+            top_k=1,
+            candidate_k=40,
+            relevance_scan_limit=400,
+            must_any=["医药生物", "临床"],
+        ),
+    )
+
+    assert query.limit_value == 400
+    assert any("published_at" in str(clause) for clause in query.filters)
+    assert [snippet.title for snippet in ranked] == ["医药临床窗口内材料"]
+
+
+def test_database_retriever_filters_source_type_before_scan_limit(monkeypatch):
+    """显式 source_types 须在前 400 条截断前进入 ingestion SQL 查询。"""
+    from types import SimpleNamespace
+
+    from sqlalchemy import column
+
+    import reporting.projects.generation as generation
+
+    class FakeIngestionQueueItem:
+        title = column("title")
+        raw_content = column("raw_content")
+        created_at = column("created_at")
+        source_type = column("source_type")
+
+    class FakeQuery:
+        def __init__(self, rows, cnstock_rows):
+            self.rows = rows
+            self.cnstock_rows = cnstock_rows
+            self.filters = []
+            self.limit_value = None
+
+        def filter(self, *clauses):
+            self.filters.extend(clauses)
+            return self
+
+        def order_by(self, *clauses):
+            del clauses
+            return self
+
+        def limit(self, value):
+            self.limit_value = value
+            return self
+
+        def all(self):
+            filter_text = " ".join(str(clause) for clause in self.filters)
+            if "source_type" in filter_text:
+                return self.cnstock_rows[: self.limit_value]
+            return self.rows[: self.limit_value]
+
+    class FakeSession:
+        def __init__(self, query):
+            self.query_result = query
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            return False
+
+        def query(self, model):
+            assert model is FakeIngestionQueueItem
+            return self.query_result
+
+    newer_zhiqiu_rows = [
+        SimpleNamespace(
+            source_type="zhiqiu_wechat",
+            title=f"医药临床材料{index}",
+            source_id=None,
+            item_id=f"zhiqiu-{index}",
+            raw_content="医药生物临床进展。",
+            published_at=None,
+            created_at=datetime(2026, 7, 12),
+            url=None,
+        )
+        for index in range(400)
+    ]
+    older_cnstock_row = SimpleNamespace(
+        source_type="cnstock",
+        title="中国证券报医药临床材料",
+        source_id=None,
+        item_id="cnstock-older",
+        raw_content="医药生物临床进展。",
+        published_at=None,
+        created_at=datetime(2026, 7, 1),
+        url=None,
+    )
+    query = FakeQuery(
+        [*newer_zhiqiu_rows, older_cnstock_row], [older_cnstock_row]
+    )
+    retriever = generation.DatabaseEvidenceRetriever()
+    monkeypatch.setattr(
+        "data_layer.repositories.models.IngestionQueueItemDB", FakeIngestionQueueItem
+    )
+    monkeypatch.setattr(
+        "data_layer.repositories.base.SessionLocal", lambda: FakeSession(query)
+    )
+    monkeypatch.setattr(retriever, "_retrieve_events", lambda *args, **kwargs: [])
+
+    ranked = retriever.retrieve(
+        "医药生物 临床",
+        title="医药生物",
+        params={},
+        lookback_days=7,
+        limit=1,
+        retrieval_config=RetrievalConfig(
+            top_k=1,
+            candidate_k=40,
+            relevance_scan_limit=400,
+            source_types=["cnstock"],
+            must_any=["医药生物", "临床"],
+        ),
+    )
+
+    assert query.limit_value == 400
+    assert any("source_type" in str(clause) for clause in query.filters)
+    assert [snippet.source for snippet in ranked] == ["ingestion:cnstock"]
 
 
 def test_generation_service_reranks_evidence_with_local_bge(tmp_path: Path, monkeypatch):
@@ -1846,6 +3054,44 @@ def test_generation_service_reranks_evidence_with_local_bge(tmp_path: Path, monk
     assert result.sections[0].evidence[0].rerank_reason == "本地 reranker 相关"
     assert len(gateway.calls) == 1
     assert "证据候选" not in gateway.calls[0][-1]["content"]
+
+
+def test_local_reranker_backfills_below_threshold_to_requested_final_limit(monkeypatch):
+    """重排阈值用于优先级，不应把最终 Evidence 数量裁到 top_k 以下。"""
+
+    class FakeReranker:
+        def predict(self, pairs):
+            assert len(pairs) == 4
+            return [2.0, -0.8, -1.5, -2.5]
+
+    monkeypatch.setattr(
+        "reporting.projects.generation._load_local_reranker_model",
+        lambda _model_name: FakeReranker(),
+    )
+    evidence = [
+        EvidenceSnippet(source="test", title="high", content="原油库存显著下降"),
+        EvidenceSnippet(source="test", title="medium", content="OPEC+维持产量政策"),
+        EvidenceSnippet(source="test", title="low", content="国际油价周内震荡"),
+        EvidenceSnippet(source="test", title="extra", content="原油市场补充材料"),
+    ]
+
+    ranked = rerank_evidence_with_local_model(
+        title="原油",
+        query="原油供需、库存和OPEC+政策",
+        evidence=evidence,
+        retrieval_config=RetrievalConfig(
+            top_k=3,
+            rerank_enabled=True,
+            rerank_model="/fake",
+            min_rerank_score=0.35,
+        ),
+        final_limit=3,
+    )
+
+    assert [item.title for item in ranked] == ["high", "medium", "low"]
+    assert len(ranked) == 3
+    assert ranked[1].rerank_score is not None
+    assert ranked[1].rerank_score < 0.35
 
 
 def test_generation_service_generates_independent_prompt_sections_concurrently(tmp_path: Path):

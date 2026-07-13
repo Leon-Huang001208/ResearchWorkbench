@@ -3,5 +3,42 @@ active_word_template: templates/report_template.docx
 active_excel_workbook: data/周报数据.xlsx
 section_config: config/section_config.yaml
 prompt_templates: config/prompt_templates.md
+excel_refresh:
+  enabled: true
+  provider: wind_excel
+  timeout_seconds: 180
+  poll_seconds: 2
+  minimum_wait_seconds: 8
+  stable_polls: 3
+  date_cell: 日期!A2
+  required_cells:
+  - 国内!B2
+  - 国内!C2
+  - 国内!B3
+  - 国内!C3
+  - 国内!B4
+  - 国内!C4
+  - 国内!B5
+  - 国内!C5
+  - 国内!B6
+  - 国内!C6
+  - 市场成交!B2
+  - 市场成交!C2
+  - 黄金!B2
+  - 黄金!C2
+  - 黄金!D2
+  - 黄金!B3
+  - 黄金!C3
+  - 黄金!D3
+  - 石油!B2
+  - 石油!C2
+  - 石油!D2
+  - 石油!E2
+  - 石油!F2
+  - 石油!B3
+  - 石油!C3
+  - 石油!D3
+  - 石油!E3
+  - 石油!F3
 output_dir: generated
 run_log_dir: runs
