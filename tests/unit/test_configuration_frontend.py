@@ -40,12 +40,13 @@ def test_configuration_page_keeps_only_configuration_actions():
 def test_configuration_uses_a_dedicated_aligned_workspace_style_sheet():
     html = INDEX_HTML.read_text(encoding="utf-8")
 
-    assert 'href="/static/configuration.css?v=20260713config9"' in html
+    assert 'href="/static/configuration.css?v=20260713config12"' in html
     css = CONFIGURATION_CSS.read_text(encoding="utf-8")
     assert ".config-provider-labels" in css
     assert ".config-secret-control" in css
     assert ".config-ifind-row" in css
     assert "--config-provider-columns" in css
+    assert "--config-account-columns" in css
     assert "justify-content: center;" in css
 
 

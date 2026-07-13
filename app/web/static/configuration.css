@@ -3,6 +3,7 @@
     max-width: 1560px;
     padding-bottom: 32px;
     --config-provider-columns: minmax(0, 1.05fr) minmax(0, 1.28fr) minmax(0, 1.92fr) minmax(0, 2.13fr) minmax(0, 0.9fr);
+    --config-account-columns: minmax(0, 1.1fr) minmax(0, 1.35fr) minmax(0, 2.15fr) minmax(0, 0.95fr);
 }
 
 .configuration-header {
@@ -99,7 +100,7 @@
 .config-zhiqiu-row,
 .config-ifind-labels,
 .config-ifind-row {
-    grid-template-columns: minmax(125px, 0.82fr) minmax(150px, 1fr) minmax(240px, 1.5fr) minmax(155px, 0.72fr);
+    grid-template-columns: var(--config-account-columns);
 }
 
 .config-route-labels,
@@ -128,6 +129,7 @@
 
 .config-provider-row .config-dynamic-field,
 .config-zhiqiu-row .config-dynamic-field,
+.config-ifind-row .config-dynamic-field,
 .config-route-row .config-dynamic-field {
     gap: 4px;
 }
@@ -145,6 +147,11 @@
 }
 
 .config-provider-labels > :last-child {
+    text-align: center;
+}
+
+.config-zhiqiu-labels > :last-child,
+.config-ifind-labels > :last-child {
     text-align: center;
 }
 
@@ -175,6 +182,44 @@
 }
 
 .config-provider-row .config-row-actions {
+    align-self: center;
+    justify-content: center;
+}
+
+.config-zhiqiu-row,
+.config-ifind-row {
+    align-items: center;
+    min-height: 74px;
+    padding-top: 14px;
+    padding-bottom: 14px;
+}
+
+.config-zhiqiu-row .config-dynamic-field,
+.config-ifind-row .config-dynamic-field {
+    align-self: center;
+}
+
+.config-zhiqiu-row .config-secret-state,
+.config-ifind-row .config-secret-state {
+    display: none;
+}
+
+.config-zhiqiu-row input,
+.config-ifind-row input,
+.config-zhiqiu-row .config-secret-action,
+.config-ifind-row .config-secret-action,
+.config-zhiqiu-row .config-remove-row,
+.config-ifind-row .config-remove-row {
+    min-height: 44px;
+}
+
+.config-zhiqiu-row .config-secret-control,
+.config-ifind-row .config-secret-control {
+    min-height: 44px;
+}
+
+.config-zhiqiu-row .config-row-actions,
+.config-ifind-row .config-row-actions {
     align-self: center;
     justify-content: center;
 }
