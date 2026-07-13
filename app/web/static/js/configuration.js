@@ -298,11 +298,13 @@ function createTaskRouteRow(route = {}) {
     provider.dataset.field = 'provider';
     const model = input('text', route.model, '任务模型');
     model.dataset.field = 'model';
+    const actions = element('div', 'config-row-actions');
+    actions.append(removeButton(`删除任务路由 ${route.task || '新行'}`));
     row.append(
         labeledControl('任务', task),
         labeledControl('Provider', provider),
         labeledControl('模型', model),
-        removeButton(`删除任务路由 ${route.task || '新行'}`),
+        actions,
     );
     return row;
 }
