@@ -40,7 +40,7 @@ def test_configuration_page_keeps_only_configuration_actions():
 def test_configuration_uses_a_dedicated_aligned_workspace_style_sheet():
     html = INDEX_HTML.read_text(encoding="utf-8")
 
-    assert 'href="/static/configuration.css?v=20260713config14"' in html
+    assert 'href="/static/configuration.css?v=20260713config15"' in html
     css = CONFIGURATION_CSS.read_text(encoding="utf-8")
     assert ".config-provider-labels" in css
     assert ".config-secret-control" in css
@@ -51,6 +51,20 @@ def test_configuration_uses_a_dedicated_aligned_workspace_style_sheet():
     assert ".configuration-page select" in css
     assert "appearance: none;" in css
     assert "data:image/svg+xml" in css
+    assert ".config-settings-header" in css
+    assert ":focus-within" in css
+
+
+def test_configuration_uses_clear_chinese_service_and_route_labels():
+    html = INDEX_HTML.read_text(encoding="utf-8")
+
+    assert "<h3>大模型服务</h3>" in html
+    assert "<h4>模型服务</h4>" in html
+    assert "新增服务" in html
+    assert "任务模型路由" in html
+    assert "调度设置" in html
+    assert "连接设置" in html
+    assert ">Providers<" not in html
 
 
 def test_configuration_module_uses_expected_api_contract_and_is_initialized_by_navigation():

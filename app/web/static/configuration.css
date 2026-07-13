@@ -351,22 +351,120 @@
 
 .configuration-header .section-title {
     margin: 0;
-    font-size: 26px;
+    font-size: 28px;
+    letter-spacing: -0.03em;
 }
 
 .config-panel {
-    padding: 20px 22px;
+    padding: 22px 26px;
+    border-color: color-mix(in srgb, var(--border-primary) 88%, var(--accent) 12%);
+    background: linear-gradient(145deg, color-mix(in srgb, var(--bg-panel) 96%, #20212a), var(--bg-panel));
     box-shadow: none;
 }
 
 .config-panel-header {
     min-height: 0;
-    padding: 0 0 14px;
+    padding: 0 0 16px;
 }
 
 .config-panel-header h3 {
     margin: 0;
-    font-size: 18px;
+    font-size: 20px;
+    letter-spacing: -0.02em;
+}
+
+.config-subsection-header {
+    min-height: 44px;
+    margin: 20px 0 8px;
+    padding-top: 4px;
+}
+
+.config-subsection-header h4,
+.config-settings-header h4 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 15px;
+    font-weight: var(--font-semibold);
+}
+
+.configuration-page .secondary-btn,
+.configuration-page .config-remove-row {
+    min-height: 40px;
+    border-radius: 11px;
+}
+
+.config-row-labels {
+    margin-bottom: 6px;
+    padding: 0 12px;
+    color: color-mix(in srgb, var(--text-muted) 82%, var(--text-primary));
+    font-size: 12px;
+    letter-spacing: 0.02em;
+}
+
+.config-dynamic-list {
+    gap: 9px;
+}
+
+.config-dynamic-row {
+    padding: 12px;
+    border: 1px solid color-mix(in srgb, var(--border-primary) 82%, transparent);
+    background: color-mix(in srgb, var(--bg-elevated) 92%, #24242a);
+    transition: border-color var(--duration-fast), background var(--duration-fast);
+}
+
+.config-dynamic-row:focus-within {
+    border-color: color-mix(in srgb, var(--accent) 52%, var(--border-primary));
+    background: color-mix(in srgb, var(--bg-elevated) 82%, var(--accent) 4%);
+}
+
+.config-settings-header {
+    display: flex;
+    align-items: center;
+    min-height: 40px;
+    margin: 18px 0 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-soft);
+}
+
+.config-field-grid {
+    gap: 14px 18px;
+    padding: 16px;
+    border: 1px solid color-mix(in srgb, var(--border-primary) 80%, transparent);
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--bg-elevated) 52%, transparent);
+}
+
+.config-field-grid > label {
+    min-height: 70px;
+}
+
+.config-field-grid > label > span:first-child,
+.config-field-wide > span:first-child {
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: var(--font-semibold);
+}
+
+.config-checkbox {
+    min-height: 44px !important;
+    align-self: end;
+    padding: 0 12px;
+    border: 1px solid color-mix(in srgb, var(--border-primary) 80%, transparent);
+    border-radius: 12px;
+    background: var(--bg-elevated);
+}
+
+.config-actions {
+    min-height: 58px;
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-soft);
+}
+
+.configuration-page .primary-btn {
+    min-width: 96px;
+    min-height: 42px;
+    border-radius: 11px;
 }
 
 .configuration-page select {
@@ -399,4 +497,36 @@
 
 .config-advanced-panel > summary strong {
     margin-left: 0;
+}
+
+.config-advanced-panel {
+    padding: 0;
+    overflow: hidden;
+}
+
+.config-advanced-panel > summary {
+    min-height: 68px;
+    padding: 0 26px;
+}
+
+.config-advanced-panel > form {
+    padding: 0 26px 22px;
+}
+
+.config-advanced-panel .config-field-grid {
+    margin-top: 4px;
+}
+
+@media (max-width: 680px) {
+    .config-panel {
+        padding: 18px;
+    }
+
+    .config-advanced-panel > summary {
+        padding: 0 18px;
+    }
+
+    .config-advanced-panel > form {
+        padding: 0 18px 18px;
+    }
 }
