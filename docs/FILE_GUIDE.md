@@ -34,7 +34,7 @@
 | `README.md` | 项目主文档，包含概述、快速开始、核心特性、使用指南 |
 | `pyproject.toml` | 项目配置文件，包含 black、isort、ruff、pytest、mypy error-code debt list 等工具配置 |
 | `pytest.ini` | Pytest 测试框架配置 |
-| `.env.example` | 无真实秘密的环境变量模板；包含运行时配置路径说明、多 Provider/任务路由、知秋与 iFinD JSON 账号池、数据库和高级参数示例 |
+| `.env.example` | 无真实秘密的环境变量模板；包含运行时配置路径说明、多 Provider/任务路由、知丘与 iFinD JSON 账号池、数据库和高级参数示例 |
 | `.gitignore` | Git 忽略文件配置 |
 | `.claude/` | Claude 配置目录，包含项目特定的 rules |
 | `app/` | 应用层，包含 API、CLI、Web 界面 |
@@ -279,7 +279,7 @@
 | **管线监控** | |
 | `pipeline_monitor.py` | 管线监控服务：内存单例追踪 9 个管线阶段（数据采集→知识提取→信号生成→择时回测→学习反馈），聚合 DB 统计，线程安全活动日志（最多 200 条），SSE 实时推送 |
 | **支持服务** | |
-| `configuration_service.py` | 系统配置服务：路径级线程/进程锁、严格 dotenv、`0600` 临时文件 + fsync + 原子替换、五分区本机回填视图/校验、知秋旧 YAML 账号池兼容、热更新、数据库重启语义和真实非持久化连接探针 |
+| `configuration_service.py` | 系统配置服务：路径级线程/进程锁、严格 dotenv、`0600` 临时文件 + fsync + 原子替换、五分区本机回填视图/校验、知丘旧 YAML 账号池兼容、热更新、数据库重启语义和真实非持久化连接探针 |
 | `data_tier_service.py` | 数据层服务：数据分层管理 |
 | `raw_storage_service.py` | 原始存储服务：原始文件存储和管理 |
 | `news_feature_service.py` | 新闻特征服务：从新闻提取特征 |
@@ -382,8 +382,8 @@
 | 文件/目录 | 说明 |
 |---|---|
 | `data_layer/crawlers/zq/` | 知丘研报、公众号、会议纪要采集器 |
-| `data_layer/crawlers/zq/zhiqiu/account_manager.py` | 知秋账号池与轮询状态；账号优先级为权威 `ZQ_ACCOUNTS_JSON`、旧 `ZQ_ACCOUNTS`、最后 YAML，JSON 无效/空时不回退 |
-| `data_layer/crawlers/zq/zhiqiu/client.py` | 知秋 HTTP 客户端；提供可关闭 session 的登录/采集能力，供临时连接验证安全复用 |
+| `data_layer/crawlers/zq/zhiqiu/account_manager.py` | 知丘账号池与轮询状态；账号优先级为权威 `ZQ_ACCOUNTS_JSON`、旧 `ZQ_ACCOUNTS`、最后 YAML，JSON 无效/空时不回退 |
+| `data_layer/crawlers/zq/zhiqiu/client.py` | 知丘 HTTP 客户端；提供可关闭 session 的登录/采集能力，供临时连接验证安全复用 |
 
 ### data_layer/parsers/ - 解析器
 

@@ -320,22 +320,22 @@ function createTaskRouteRow(route = {}) {
 function createZhiqiuAccountRow(account = {}) {
     const row = element('div', 'config-dynamic-row config-zhiqiu-row');
     rowOriginalNames.set(row, account.original_name || '');
-    const name = input('text', account.name, '知秋账号名称');
+    const name = input('text', account.name, '知丘账号名称');
     name.dataset.field = 'name';
-    const username = input('text', account.username, '知秋用户名');
+    const username = input('text', account.username, '知丘用户名');
     username.autocomplete = 'username';
     username.dataset.field = 'username';
-    const password = input('password', account.password?.value || '', '知秋密码');
+    const password = input('password', account.password?.value || '', '知丘密码');
     password.autocomplete = 'new-password';
     password.placeholder = '未配置';
     password.dataset.field = 'password';
     const clearLabel = element('label', 'config-checkbox config-clear-secret');
-    const clear = input('checkbox', '', '显式清除知秋密码');
+    const clear = input('checkbox', '', '显式清除知丘密码');
     clear.dataset.field = 'clear_password';
     bindSecretPair(password, clear);
     clearLabel.append(clear, document.createTextNode('清除'));
     const actions = element('div', 'config-row-actions');
-    actions.append(clearLabel, removeButton(`删除知秋账号 ${account.name || '新行'}`));
+    actions.append(clearLabel, removeButton(`删除知丘账号 ${account.name || '新行'}`));
     row.append(
         labeledControl('名称', name),
         labeledControl('用户名', username),

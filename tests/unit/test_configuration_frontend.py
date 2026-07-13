@@ -16,7 +16,7 @@ CONFIGURATION_CSS = ROOT / "app" / "web" / "static" / "configuration.css"
 def test_configuration_navigation_and_five_sections_are_present():
     html = INDEX_HTML.read_text(encoding="utf-8")
 
-    assert "app.js?v=20260713config10" in html
+    assert "app.js?v=20260713config11" in html
     assert 'data-section="config"' in html
     assert 'id="section-config"' in html
     assert 'id="config-readiness-overview"' not in html
@@ -54,7 +54,7 @@ def test_configuration_module_uses_expected_api_contract_and_is_initialized_by_n
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
 
     assert (
-        "import { initConfigurationPage } from './configuration.js?v=20260713config10'" in app_source
+        "import { initConfigurationPage } from './configuration.js?v=20260713config11'" in app_source
     )
     assert "import { apiCall } from './core.js?v=20260712config2'" in source
     assert "if (section === 'config') initConfigurationPage();" in app_source

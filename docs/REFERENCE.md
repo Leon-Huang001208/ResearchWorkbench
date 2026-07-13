@@ -444,7 +444,7 @@ python scripts/seed_factor_data.py --skip-ingest
 
 ### 系统配置 API
 
-系统配置中心仅管理 `llm`、`zhiqiu`、`ifind`、`database` 和 `advanced` 五个分区。配置文件路径依次取 `ALPHAFOUNDRY_CONFIG_PATH`、`ALPHAFOUNDRY_DESKTOP_DATA_DIR/.env`、项目根目录 `.env`；当前进程的受支持环境变量覆盖文件同名值。知秋账号池优先取 `ZQ_ACCOUNTS_JSON` / 旧 `ZQ_ACCOUNTS`，两者均缺失时读取爬虫已有的 `data_layer/crawlers/zq/config.yaml`，避免迁移前账号在系统配置页消失。
+系统配置中心仅管理 `llm`、`zhiqiu`、`ifind`、`database` 和 `advanced` 五个分区。配置文件路径依次取 `ALPHAFOUNDRY_CONFIG_PATH`、`ALPHAFOUNDRY_DESKTOP_DATA_DIR/.env`、项目根目录 `.env`；当前进程的受支持环境变量覆盖文件同名值。知丘账号池优先取 `ZQ_ACCOUNTS_JSON` / 旧 `ZQ_ACCOUNTS`，两者均缺失时读取爬虫已有的 `data_layer/crawlers/zq/config.yaml`，避免迁移前账号在系统配置页消失。
 
 本地服务默认只接受 `Host: localhost`、`127.0.0.1` 和测试客户端使用的 `testserver`（可带正常端口）；`ALPHAFOUNDRY_TRUSTED_HOSTS` 可用逗号分隔的纯主机名或 IPv4 地址显式扩展，拒绝通配符、scheme、路径、凭据和端口。CORS 固定允许 AlphaFoundry 桌面壳使用的 `tauri://localhost` 和 `http(s)://tauri.localhost`，确保本地启动页能读取后端健康检查；设置 `ALPHAFOUNDRY_CORS_ORIGINS` 时，可额外允许明确指定的 HTTP(S) origin，但每个主机还必须位于 Trusted Host 列表。所有配置 API 请求必须携带首页注入的 `X-AlphaFoundry-Config-Token`；存在 `Origin` 时仅允许 localhost/127 loopback、上述 Tauri Origin，或与 Trusted Host 一致的显式 CORS origin。
 
@@ -467,7 +467,7 @@ python scripts/seed_factor_data.py --skip-ingest
 }
 ```
 
-Provider、知秋和 iFinD 账号视图包含 `original_name`，供改名保存时关联旧秘密。iFinD 账号池保存为 `IFIND_ACCOUNTS_JSON`，首个账号同步为旧版 `IFIND_USERNAME` / `IFIND_PASSWORD` 以立即供既有数据适配器使用。Token、密码和数据库地址同时返回 `configured`、掩码 `masked_value` 与原始 `value`，以便本机系统配置页回填、显示或复制。该接口仅在 loopback Trusted Host、允许的本地 Origin 与进程级 CSRF token 三层边界内使用；不要在共享屏幕时显示敏感字段。
+Provider、知丘和 iFinD 账号视图包含 `original_name`，供改名保存时关联旧秘密。iFinD 账号池保存为 `IFIND_ACCOUNTS_JSON`，首个账号同步为旧版 `IFIND_USERNAME` / `IFIND_PASSWORD` 以立即供既有数据适配器使用。Token、密码和数据库地址同时返回 `configured`、掩码 `masked_value` 与原始 `value`，以便本机系统配置页回填、显示或复制。该接口仅在 loopback Trusted Host、允许的本地 Origin 与进程级 CSRF token 三层边界内使用；不要在共享屏幕时显示敏感字段。
 
 #### PUT /api/config/{section}
 
@@ -491,9 +491,9 @@ Provider、知秋和 iFinD 账号视图包含 `original_name`，供改名保存�
 }
 ```
 
-秘密字段语义：省略或 `""` 保留已有值；非空值替换；`clear_api_key=true` / `clear_password=true` 显式清除。`original_name` 在 Provider 或知秋账号改名时定位原秘密。数据库请求为 `{"database_url":"..."}`，不支持空值清除。
+秘密字段语义：省略或 `""` 保留已有值；非空值替换；`clear_api_key=true` / `clear_password=true` 显式清除。`original_name` 在 Provider 或知丘账号改名时定位原秘密。数据库请求为 `{"database_url":"..."}`，不支持空值清除。
 
-成功响应包含更新后的脱敏 `section`、`applied`、`restart_required` 和 `message`。LLM、iFinD、高级值会刷新运行时设置；知秋环境配置供后续新建账号管理器/客户端读取。数据库只落盘，不替换活动 SQLAlchemy 连接池，因此返回 `applied=false`、`restart_required=true`。
+成功响应包含更新后的脱敏 `section`、`applied`、`restart_required` 和 `message`。LLM、iFinD、高级值会刷新运行时设置；知丘环境配置供后续新建账号管理器/客户端读取。数据库只落盘，不替换活动 SQLAlchemy 连接池，因此返回 `applied=false`、`restart_required=true`。
 
 持久化会保留无关 dotenv 行和注释，并在路径级线程锁、跨进程锁内通过同目录临时文件原子替换。配置文件格式无效、字段冲突或数值越界返回安全错误，不回显被拒绝的秘密值。
 
