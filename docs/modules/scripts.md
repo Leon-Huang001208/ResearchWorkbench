@@ -13,6 +13,7 @@
 - Make destructive operations explicit
 - Add dry-run mode when feasible
 - Add or update tests when script behavior changes
+- Node-executed `.js` scripts use ESM imports so they remain runnable under the root package's `"type": "module"` scope
 
 ---
 
