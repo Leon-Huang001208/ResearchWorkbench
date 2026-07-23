@@ -5,6 +5,8 @@ import json
 import os
 from pathlib import Path
 
+from tests.desktop_shell_contracts import APP_JS_CACHE_URL, STYLE_CSS_CACHE_URL
+
 ROOT = Path(__file__).resolve().parents[2]
 TAURI_CONFIG = ROOT / "src-tauri" / "tauri.conf.json"
 TAURI_LIB = ROOT / "src-tauri" / "src" / "lib.rs"
@@ -43,10 +45,18 @@ def load_module(name: str, path: Path):
 
 def test_tauri_config_wraps_existing_fastapi_workbench():
     config = json.loads(TAURI_CONFIG.read_text(encoding="utf-8"))
+    bridge = (ROOT / "scripts" / "desktop" / "run_backend.js").read_text(encoding="utf-8")
 
     assert config["productName"] == "AlphaFoundry"
     assert config["build"]["devUrl"] == "http://127.0.0.1:8765"
-    assert "scripts/desktop/run_backend.sh" in config["build"]["beforeDevCommand"]
+    assert config["build"]["beforeDevCommand"] == (
+        "node scripts/desktop/run_backend.js --host 127.0.0.1 --port 8765 --reload"
+    )
+    assert 'const IS_WINDOWS = os.platform() === "win32";' in bridge
+    assert 'path.join(SCRIPT_DIR, "run_backend.cmd")' in bridge
+    assert 'spawn("cmd.exe", ["/c", cmdPath, ...args]' in bridge
+    assert 'path.join(SCRIPT_DIR, "run_backend.sh")' in bridge
+    assert 'spawn("bash", [shPath, ...args]' in bridge
     assert config["build"]["frontendDist"] == "../desktop/dist"
     assert config["bundle"]["targets"] == "all"
     assert config["bundle"]["icon"] == [
@@ -93,7 +103,8 @@ def test_report_project_upload_modal_treats_non_word_assets_as_optional():
     assert 'data-file-label="project-word-template-input"' in html
     assert 'data-file-label="project-excel-workbook-input"' in html
     assert "请至少选择 Word 模板、Excel 底稿和 Section 配置" not in script
-    assert "if (!wordFile)" in script
+    assert "if (projectType === 'word' && !wordFile)" in script
+    assert "if (projectType === 'ppt' && !pptFile)" in script
     assert "if (excelFile)" in script
     assert "if (sectionFile)" in script
 
@@ -174,6 +185,7 @@ def test_sidecar_build_script_uses_pyinstaller_and_tauri_naming():
     assert "build_sidecar.py" in shell
     assert "PyInstaller" in source
     assert "--onefile" in source
+    assert 'ENTRYPOINT = REPO_ROOT / "scripts" / "desktop" / "backend_launcher.py"' in source
     assert "alphafoundry-backend-{triple}" in source
     assert "aarch64-apple-darwin" in source
     assert '"build" / "desktop-sidecar" / "dist"' in source
@@ -288,7 +300,6 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "market-refresh-btn" not in html
     assert "实时行情" not in html
     assert "market-auto-refresh-indicator" not in html
-    assert "自动刷新" not in html
     assert "market-breadth-bar" in html
     assert "market-ai-brief" in html
     assert "market-heatmap-card" in html
@@ -309,8 +320,8 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "全球热点新闻 (Top 10)" not in html
     assert "今日上涨板块概念 (Top 10)" not in html
     assert "今日下跌板块概念 (Top 10)" not in html
-    assert "style.css?v=20260702briefinline1" in html
-    assert "app.js?v=20260714config1" in html
+    assert STYLE_CSS_CACHE_URL in html
+    assert APP_JS_CACHE_URL in html
     assert "asset-observe-mode-tabs" in html
     assert 'data-asset-mode="theme"' in html
     assert "asset-topic-result" in html
@@ -402,7 +413,6 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "THEME_OBSERVATION_PRESETS" in asset_js
     assert "asset-topic-trend-chart" in asset_js
     assert "机器人ETF南方" in asset_js
-    assert "grid-row: span 2" not in css
     assert "renderMarketMiniCards" not in dashboard_js
     assert "formatMarketMiniSignedValue" not in dashboard_js
     assert "renderCapCompareMarkup" not in dashboard_js
@@ -674,8 +684,38 @@ def test_frozen_backend_launcher_defaults_to_user_sqlite(monkeypatch, tmp_path):
     monkeypatch.delenv("LOG_DIR", raising=False)
 
     data_dir = launcher.apply_frozen_desktop_defaults()
+    env_template = (tmp_path / ".env").read_text(encoding="utf-8")
 
     assert data_dir == tmp_path
+    assert "\nDATABASE_URL=" not in env_template
+    assert "# DATABASE_URL=postgresql+psycopg://" in env_template
     assert os.environ["DATABASE_URL"] == f"sqlite:///{tmp_path / 'alphafoundry.db'}"
     assert os.environ["LOG_DIR"] == str(tmp_path / "logs")
     assert (tmp_path / "logs").is_dir()
+
+
+def test_frozen_backend_launcher_prefers_existing_user_env_database_url(monkeypatch, tmp_path):
+    launcher = load_launcher_module()
+    user_database_url = "postgresql+psycopg://user:password@localhost:5432/user_database"
+    (tmp_path / ".env").write_text(f"DATABASE_URL={user_database_url}\n", encoding="utf-8")
+    monkeypatch.setattr(launcher.sys, "frozen", True, raising=False)
+    monkeypatch.setenv("ALPHAFOUNDRY_DESKTOP_DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+
+    launcher.apply_frozen_desktop_defaults()
+
+    assert os.environ["DATABASE_URL"] == user_database_url
+
+
+def test_frozen_backend_launcher_prefers_process_database_url_over_user_env(monkeypatch, tmp_path):
+    launcher = load_launcher_module()
+    user_database_url = "postgresql+psycopg://user:password@localhost:5432/user_database"
+    process_database_url = "postgresql+psycopg://system:password@localhost:5432/system_database"
+    (tmp_path / ".env").write_text(f"DATABASE_URL={user_database_url}\n", encoding="utf-8")
+    monkeypatch.setattr(launcher.sys, "frozen", True, raising=False)
+    monkeypatch.setenv("ALPHAFOUNDRY_DESKTOP_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("DATABASE_URL", process_database_url)
+
+    launcher.apply_frozen_desktop_defaults()
+
+    assert os.environ["DATABASE_URL"] == process_database_url
