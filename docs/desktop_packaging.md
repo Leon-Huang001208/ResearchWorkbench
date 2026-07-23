@@ -5,7 +5,7 @@ AlphaFoundry is moving toward a Tauri desktop shell while keeping the current Fa
 ## Current Shape
 
 - Existing UI remains served by `app.api.main:app`.
-- Desktop development uses `scripts/desktop/run_backend.sh` to select a Python runtime and start FastAPI on `127.0.0.1:8765`.
+- Desktop development uses `scripts/desktop/run_backend.js`, which selects `run_backend.cmd` on Windows and `run_backend.sh` on macOS/Linux before starting FastAPI on `127.0.0.1:8765`.
 - Tauri loads `http://127.0.0.1:8765` in dev mode.
 - Packaged builds include `desktop/dist/index.html`, which waits for `/health` and then opens the existing workbench.
 - The Tauri shell expects a sidecar named `alphafoundry-backend`. The current macOS ARM development shim is `src-tauri/binaries/alphafoundry-backend-aarch64-apple-darwin` and delegates to the Python launcher.
@@ -71,7 +71,9 @@ Build the desktop bundle:
 npm run desktop:build
 ```
 
-The generated sidecar is intentionally written under `build/desktop-sidecar/dist/`. The `src-tauri/binaries/` checked-in macOS ARM file remains a small development shim; release workflows copy the real generated sidecar into that directory only inside the build workspace.
+The generated sidecar is intentionally written under `build/desktop-sidecar/dist/`. It is a self-contained PyInstaller package of `backend_launcher.py`, including required backend modules, third-party package data, and web/report-project assets. The `src-tauri/binaries/` checked-in macOS ARM file remains a small development shim; release workflows copy the real generated sidecar into that directory only inside the build workspace.
+
+On the first frozen launch, the launcher creates an editable per-user `.env`. If `DATABASE_URL` is absent from both the process environment and that user file, the desktop app defaults to `data_dir/alphafoundry.db`; uncomment and configure the PostgreSQL `DATABASE_URL` template entry only when PostgreSQL is required.
 
 ## GitHub Release Workflow
 

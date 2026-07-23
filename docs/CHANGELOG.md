@@ -6,6 +6,11 @@
 
 ## [Unreleased]
 
+### Desktop baseline fixes
+
+- **桌面基线与打包契约恢复**：恢复根目录 `package.json` / `package-lock.json` 及 `build_sidecar.py` 的自包含 `backend_launcher.py` PyInstaller 打包输入；冻结桌面首次启动不再由自动生成 `.env` 强制 PostgreSQL，未配置时回退到用户数据目录下的 SQLite，同时保留进程环境变量和已有用户 `.env` 的优先级。
+- **桌面静态回归测试对齐**：测试改为覆盖 Node 跨平台启动桥接、当前 `20260722flowfix` 缓存版本、Word/PPT 必填模板分支及非 Word 资产可选行为。
+
 ### Added
 
 - **通用报告框架 Phase 1-4（通用内容模型 + 渲染引擎 + 统一流水线 + PPT/Word 增强）**: 将 `reporting/` 模块重构为通用文档生成框架，任何内容结构都通过统一的 `Document` 模型描述，并渲染为 Word/PPT/Markdown。
