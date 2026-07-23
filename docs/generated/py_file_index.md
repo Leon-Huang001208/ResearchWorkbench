@@ -12292,6 +12292,8 @@ Functions:
   - Configure file logging and return the log file path.
 - `is_frozen`
   - Return whether this launcher is running from a PyInstaller executable.
+- `resolve_project_root`
+  - Return the directory containing the backend resources for this process.
 - `desktop_data_dir`
   - Return the persistent per-user data directory for desktop builds.
 - `_ensure_default_env`
