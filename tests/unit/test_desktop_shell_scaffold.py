@@ -3,6 +3,7 @@
 import importlib.util
 import json
 import os
+import stat
 import subprocess
 from pathlib import Path
 
@@ -142,6 +143,7 @@ def test_macos_arm_sidecar_shim_invokes_python_launcher():
 def test_desktop_backend_shell_selects_python_runtime():
     source = RUN_BACKEND_SH.read_text(encoding="utf-8")
 
+    assert RUN_BACKEND_SH.stat().st_mode & stat.S_IXUSR
     assert "ALPHAFOUNDRY_PYTHON" in source
     assert "python3.11" in source
     assert "anaconda3/bin/python" in source
