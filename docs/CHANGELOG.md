@@ -100,6 +100,8 @@
 
 ### Fixed
 
+- **冻结版桌面 sidecar 资源根解析**: `scripts/desktop/backend_launcher.py` 现在优先使用 `ALPHAFOUNDRY_PROJECT_ROOT`，其次使用 PyInstaller `sys._MEIPASS`，缺失时才回退源码目录；后端、watchdog 和 worker 子进程统一使用该根目录作为 cwd/环境传递，避免 one-file bundle 从临时启动器路径错误推导项目根。
+
 - **knowledge_worker watchdog + Windows Job Object 自愈**: 解决 worker 崩溃后无自动恢复、以及 Windows 强杀导致 worker 孤儿残留两个遗留风险。
   - `workers/_process_tree.py` — 新增模块，通过 ctypes 实现 Windows Job Object（`KILL_ON_JOB_CLOSE`），`ensure_child_dies_with_parent(child_pid)` 把子进程绑定到 Job，Job handle 关闭/父进程退出时内核自动终止子进程，即使父进程被 `TerminateProcess` 强杀也不会孤儿残留。非 Windows 返回 None（靠 POSIX 进程组）。
   - `workers/watchdog.py` — `run_worker()` 调 `ensure_child_dies_with_parent(proc.pid)` 并持有 `_job_handle` 全局引用，确保 worker 随 watchdog 生命周期终止。

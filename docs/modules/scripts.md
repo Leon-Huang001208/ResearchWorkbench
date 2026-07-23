@@ -56,6 +56,19 @@ Update this section when:
 - Check logic changes
 - Required docs change
 
+### `scripts/desktop/backend_launcher.py`
+
+Purpose:
+- Starts the FastAPI desktop backend and its knowledge-worker and crawl-scheduler watchdogs.
+- Resolves the shared project/resource root with `ALPHAFOUNDRY_PROJECT_ROOT` first, then PyInstaller's `sys._MEIPASS` for frozen one-file sidecars, and finally the source-tree fallback.
+- Passes that resolved root as the backend cwd and to watchdog child environments, so frozen processes load bundled resources from the same self-contained directory.
+
+Update this section when:
+- Desktop root-resolution precedence changes.
+- Sidecar, watchdog, or worker startup behavior changes.
+
+---
+
 ### `scripts/backfill_missing_llm_extraction.py`
 
 Purpose:
