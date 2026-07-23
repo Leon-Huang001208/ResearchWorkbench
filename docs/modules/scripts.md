@@ -213,13 +213,13 @@ Update this section when:
 
 Purpose:
 
-- `run_backend.js` is the Tauri development bridge: it delegates to `run_backend.cmd` on Windows and `run_backend.sh` on macOS/Linux.
+- `run_backend.js` is the ESM Tauri development bridge: it derives its directory from `import.meta.url`, delegates to `run_backend.cmd` on Windows and `run_backend.sh` on macOS/Linux, and forwards process arguments and exit status.
 - `build_sidecar.py` packages `backend_launcher.py` as the self-contained PyInstaller sidecar, collecting backend submodules, third-party package data, and required project assets.
 - `backend_launcher.py` creates an editable per-user `.env` for frozen builds; without an explicit `DATABASE_URL`, it falls back to `data_dir/alphafoundry.db` and preserves process-environment and existing-user-`.env` precedence.
 
 Update this section when:
 
-- Desktop launch routing, sidecar packaging inputs, or frozen-build defaults change.
+- Desktop launch routing, ESM compatibility, sidecar packaging inputs, or frozen-build defaults change.
 
 ---
 

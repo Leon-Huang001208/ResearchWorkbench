@@ -10,6 +10,7 @@
 
 - **桌面基线与打包契约恢复**：恢复根目录 `package.json` / `package-lock.json` 及 `build_sidecar.py` 的自包含 `backend_launcher.py` PyInstaller 打包输入；冻结桌面首次启动不再由自动生成 `.env` 强制 PostgreSQL，未配置时回退到用户数据目录下的 SQLite，同时保留进程环境变量和已有用户 `.env` 的优先级。
 - **桌面静态回归测试对齐**：测试改为覆盖 Node 跨平台启动桥接、当前 `20260722flowfix` 缓存版本、Word/PPT 必填模板分支及非 Word 资产可选行为。
+- **ESM 桌面后端桥接**：将 `scripts/desktop/run_backend.js` 转为 ESM，使 Tauri `beforeDevCommand` 在桌面 `package.json` 声明 `"type": "module"` 时仍可执行，并保留平台启动器选择、参数转发和子进程退出状态传播。
 
 ### Added
 

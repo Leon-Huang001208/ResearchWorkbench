@@ -3,6 +3,7 @@
 import importlib.util
 import json
 import os
+import subprocess
 from pathlib import Path
 
 from tests.desktop_shell_contracts import APP_JS_CACHE_URL, STYLE_CSS_CACHE_URL
@@ -15,6 +16,7 @@ BOOTSTRAP_JS = ROOT / "desktop" / "dist" / "bootstrap.js"
 BOOTSTRAP_HTML = ROOT / "desktop" / "dist" / "index.html"
 LAUNCHER = ROOT / "scripts" / "desktop" / "backend_launcher.py"
 RUN_BACKEND_SH = ROOT / "scripts" / "desktop" / "run_backend.sh"
+RUN_BACKEND_JS = ROOT / "scripts" / "desktop" / "run_backend.js"
 RESTART_APP_SH = ROOT / "scripts" / "desktop" / "restart_app.sh"
 PATCH_MACOS_AUTOMATION_SH = ROOT / "scripts" / "desktop" / "patch_macos_automation_permissions.sh"
 BUILD_SIDECAR_SH = ROOT / "scripts" / "desktop" / "build_sidecar.sh"
@@ -52,7 +54,7 @@ def test_tauri_config_wraps_existing_fastapi_workbench():
     assert config["build"]["beforeDevCommand"] == (
         "node scripts/desktop/run_backend.js --host 127.0.0.1 --port 8765 --reload"
     )
-    assert 'const IS_WINDOWS = os.platform() === "win32";' in bridge
+    assert 'const IS_WINDOWS = process.platform === "win32";' in bridge
     assert 'path.join(SCRIPT_DIR, "run_backend.cmd")' in bridge
     assert 'spawn("cmd.exe", ["/c", cmdPath, ...args]' in bridge
     assert 'path.join(SCRIPT_DIR, "run_backend.sh")' in bridge
@@ -145,6 +147,23 @@ def test_desktop_backend_shell_selects_python_runtime():
     assert "anaconda3/bin/python" in source
     assert "backend_launcher.py" in source
     assert 'cd "$REPO_ROOT"' in source
+
+
+def test_desktop_backend_node_launcher_is_esm_and_passes_node_syntax_check():
+    source = RUN_BACKEND_JS.read_text(encoding="utf-8")
+    result = subprocess.run(
+        ["node", "--check", str(RUN_BACKEND_JS)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert 'import { spawn } from "node:child_process";' in source
+    assert 'import path from "node:path";' in source
+    assert 'import { fileURLToPath } from "node:url";' in source
+    assert "fileURLToPath(import.meta.url)" in source
+    assert "require(" not in source
+    assert result.returncode == 0, result.stderr
 
 
 def test_desktop_restart_script_reopens_installed_app_and_checks_health():
