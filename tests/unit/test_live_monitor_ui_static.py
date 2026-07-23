@@ -104,5 +104,5 @@ def test_live_monitor_cache_versions_are_bumped():
     template = (ROOT / "app/web/templates/index.html").read_text(encoding="utf-8")
     app_js = (ROOT / "app/web/static/js/app.js").read_text(encoding="utf-8")
 
-    assert "/static/js/app.js?v=20260714config1" in template
+    assert "/static/js/app.js?v=20260723refresh1" in template
     assert "./monitor.js?v=20260714a" in app_js

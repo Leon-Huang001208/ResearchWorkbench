@@ -17,6 +17,8 @@
 
 ### Changed
 
+- **Desktop Workbench refresh shortcuts**: `app/web/static/js/app.js` now captures `F5`, macOS `Cmd+R`, and Windows/Linux `Ctrl+R` during `DOMContentLoaded`; each prevents the browser default and performs only `window.location.reload()`, including from focused inputs. The app script cache token is `20260723refresh1`; no Tauri native shortcut, sidecar restart, or HMR behavior was added.
+
 - **桌面端启动加速（97s → 25s，-75%）**: 通过 PEP 562 `__getattr__` 懒加载和函数内延迟导入，消除启动时不必要的全量模块导入链。
   - **P0 修复（阻断启动的主链）**: 6 个路由文件（`app/api/routes/commentary.py`、`assets.py`、`ingest.py`、`ingestion_queue.py`、`pipeline.py`、`event_ingestion.py`）的重型依赖（`ModelGatewayImpl`、`KnowledgePipeline`、`ResearchPipeline`、`IngestService`、`StructuredEventIngestor`）从模块顶层移入 Dependency 函数体内，首次请求时才加载。
   - **P1 加固（防止后续回归）**: `core/model_gateway/gateway.py` 的 `LocalEmbeddingProvider` 导入从模块顶层移入 `_init_providers()` 方法内（`protocol == "local"` 分支）；`core/model_gateway/providers/__init__.py` 移除 `LocalEmbeddingProvider` 的模块级导出；`services/signal_validator_impl.py` 的 `signal_lab.*` 导入移入 `__init__` 方法内；`services/commentary_news_selector.py` 的 `reporting.*` 导入移入 `select()` 方法内。

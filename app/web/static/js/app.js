@@ -310,6 +310,17 @@ async function updateStatusBar() {
 
 // ─── DOM Content Loaded ──────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('keydown', (event) => {
+        const isRefreshShortcut = event.key === 'F5' || (
+            (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'r'
+        );
+
+        if (!isRefreshShortcut) return;
+
+        event.preventDefault();
+        window.location.reload();
+    });
+
     document.querySelectorAll('.activity-btn[data-section]').forEach(btn => {
         btn.addEventListener('click', () => navigateTo(btn.dataset.section));
     });
