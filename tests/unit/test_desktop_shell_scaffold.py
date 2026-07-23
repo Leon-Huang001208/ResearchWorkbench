@@ -242,11 +242,34 @@ def test_release_config_uses_updater_secret_and_latest_json_endpoint(monkeypatch
     assert config["plugins"]["updater"]["endpoints"] == [module.DEFAULT_ENDPOINT]
 
 
-def test_backend_launcher_allows_project_root_override(monkeypatch):
-    monkeypatch.setenv("ALPHAFOUNDRY_PROJECT_ROOT", "/tmp/alphafoundry")
+def test_backend_launcher_project_root_prefers_explicit_environment(monkeypatch, tmp_path):
     launcher = load_launcher_module()
+    bundle_root = tmp_path / "bundle"
+    override_root = tmp_path / "override"
+    monkeypatch.setattr(launcher.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(launcher.sys, "_MEIPASS", str(bundle_root), raising=False)
+    monkeypatch.setenv("ALPHAFOUNDRY_PROJECT_ROOT", str(override_root))
 
-    assert str(launcher.PROJECT_ROOT) == "/tmp/alphafoundry"
+    assert launcher.resolve_project_root() == override_root
+
+
+def test_backend_launcher_project_root_uses_frozen_bundle_root(monkeypatch, tmp_path):
+    launcher = load_launcher_module()
+    bundle_root = tmp_path / "bundle"
+    monkeypatch.delenv("ALPHAFOUNDRY_PROJECT_ROOT", raising=False)
+    monkeypatch.setattr(launcher.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(launcher.sys, "_MEIPASS", str(bundle_root), raising=False)
+
+    assert launcher.resolve_project_root() == bundle_root
+
+
+def test_backend_launcher_project_root_uses_repository_root_when_not_frozen(monkeypatch):
+    launcher = load_launcher_module()
+    monkeypatch.delenv("ALPHAFOUNDRY_PROJECT_ROOT", raising=False)
+    monkeypatch.setattr(launcher.sys, "frozen", False, raising=False)
+    monkeypatch.delattr(launcher.sys, "_MEIPASS", raising=False)
+
+    assert launcher.resolve_project_root() == ROOT
 
 
 def test_package_json_exposes_desktop_commands():
@@ -702,7 +725,7 @@ def test_desktop_backend_launcher_defaults_and_logging(tmp_path):
 
     assert args.host == "127.0.0.1"
     assert args.port == 8765
-    assert launcher.PROJECT_ROOT == ROOT
+    assert launcher.resolve_project_root() == ROOT
 
     log_file = launcher.configure_launcher_logging(tmp_path)
 

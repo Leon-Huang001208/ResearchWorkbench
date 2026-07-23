@@ -11,6 +11,7 @@ AlphaFoundry is moving toward a Tauri desktop shell while keeping the current Fa
 - The Tauri shell expects a sidecar named `alphafoundry-backend`. The current macOS ARM development shim is `src-tauri/binaries/alphafoundry-backend-aarch64-apple-darwin` and delegates to the Python launcher.
 - The Workbench page handles browser refresh locally: `F5`, macOS `Cmd+R`, and Windows/Linux `Ctrl+R` prevent the browser default and call `window.location.reload()`, including while an input has focus. This is page refresh only; it does not register a Tauri native shortcut, restart the sidecar, or enable HMR.
 - `tauri dev` lets `beforeDevCommand` start the backend. Packaged debug and release builds start the bundled sidecar.
+- The packaged sidecar resolves its resource root in this order: `ALPHAFOUNDRY_PROJECT_ROOT`, PyInstaller's `sys._MEIPASS` bundle directory, then the source-tree fallback. That resolved root is also passed to watchdog and worker processes as their cwd and `ALPHAFOUNDRY_PROJECT_ROOT`, so one-file bundles load self-contained resources instead of a temporary launcher-relative path.
 
 ## Why This Differs From cc-switch
 

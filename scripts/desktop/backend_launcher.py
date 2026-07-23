@@ -26,9 +26,6 @@ DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
 DEFAULT_LOG_DIR = Path("logs")
 APP_IMPORT = "app.api.main:app"
-PROJECT_ROOT = Path(
-    os.environ.get("ALPHAFOUNDRY_PROJECT_ROOT", Path(__file__).resolve().parents[2])
-)
 
 # 桌面版默认 .env 模板（首次安装时生成，用户可编辑）
 _DEFAULT_ENV_TEMPLATE = """\
@@ -99,6 +96,19 @@ def configure_launcher_logging(log_dir: Path) -> Path:
 def is_frozen() -> bool:
     """Return whether this launcher is running from a PyInstaller executable."""
     return bool(getattr(sys, "frozen", False))
+
+
+def resolve_project_root() -> Path:
+    """Return the directory containing the backend resources for this process."""
+    override = os.environ.get("ALPHAFOUNDRY_PROJECT_ROOT")
+    if override:
+        return Path(override).expanduser()
+
+    bundle_root = getattr(sys, "_MEIPASS", None) if is_frozen() else None
+    if bundle_root:
+        return Path(bundle_root)
+
+    return Path(__file__).resolve().parents[2]
 
 
 def desktop_data_dir() -> Path:
@@ -189,17 +199,22 @@ def _start_knowledge_worker(data_dir: Path | None, log_dir: Path) -> subprocess.
         log_dir.mkdir(parents=True, exist_ok=True)
         worker_log = log_dir / "knowledge_worker.log"
         worker_log_fh = open(worker_log, "a", encoding="utf-8")  # noqa: SIM115
+        project_root = resolve_project_root()
         if is_frozen():
             # frozen exe 通过环境变量区分运行模式
             cmd = [sys.executable]
-            child_env = {**os.environ, "ALPHAFOUNDRY_WATCHDOG_MODE": "1"}
+            child_env = {
+                **os.environ,
+                "ALPHAFOUNDRY_PROJECT_ROOT": str(project_root),
+                "ALPHAFOUNDRY_WATCHDOG_MODE": "1",
+            }
         else:
             # dev 模式：直接用 Python 模块运行 watchdog（sys.executable 已是 conda Python）
             cmd = [sys.executable, "-m", "workers.watchdog"]
-            child_env = dict(os.environ)
+            child_env = {**os.environ, "ALPHAFOUNDRY_PROJECT_ROOT": str(project_root)}
         proc = subprocess.Popen(
             cmd,
-            cwd=str(PROJECT_ROOT),
+            cwd=str(project_root),
             env=child_env,
             stdout=worker_log_fh,
             stderr=worker_log_fh,
@@ -227,9 +242,14 @@ def _start_crawl_scheduler(data_dir: Path | None, log_dir: Path) -> subprocess.P
         sched_log = log_dir / "crawl_scheduler_worker.log"
         sched_log_fh = open(sched_log, "a", encoding="utf-8")  # noqa: SIM115
         pid_file = str(log_dir / "scheduler_watchdog.pid")
+        project_root = resolve_project_root()
         if is_frozen():
             cmd = [sys.executable]
-            child_env = {**os.environ, "ALPHAFOUNDRY_SCHEDULER_WATCHDOG_MODE": "1"}
+            child_env = {
+                **os.environ,
+                "ALPHAFOUNDRY_PROJECT_ROOT": str(project_root),
+                "ALPHAFOUNDRY_SCHEDULER_WATCHDOG_MODE": "1",
+            }
         else:
             cmd = [
                 sys.executable,
@@ -242,10 +262,10 @@ def _start_crawl_scheduler(data_dir: Path | None, log_dir: Path) -> subprocess.P
                 "--pid-file",
                 pid_file,
             ]
-            child_env = dict(os.environ)
+            child_env = {**os.environ, "ALPHAFOUNDRY_PROJECT_ROOT": str(project_root)}
         proc = subprocess.Popen(
             cmd,
-            cwd=str(PROJECT_ROOT),
+            cwd=str(project_root),
             env=child_env,
             stdout=sched_log_fh,
             stderr=sched_log_fh,
@@ -407,9 +427,10 @@ def run_backend(host: str, port: int, reload: bool) -> None:
     """Run the FastAPI backend through uvicorn."""
     import uvicorn
 
-    os.chdir(PROJECT_ROOT)
-    if str(PROJECT_ROOT) not in sys.path:
-        sys.path.insert(0, str(PROJECT_ROOT))
+    project_root = resolve_project_root()
+    os.chdir(project_root)
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
 
     # reload_excludes 防止 watchfiles 检测 __pycache__/logs/data 等
     # 非源码目录的变更，避免 worker 进程在导入 C 扩展（psycopg/
