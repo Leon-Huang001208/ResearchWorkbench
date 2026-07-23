@@ -39,7 +39,7 @@
 - Workbench refreshes the current WebView page with `F5`, macOS `Cmd+R`, and Windows/Linux `Ctrl+R`.
 - The shortcut prevents the browser default and calls `window.location.reload()` even when an input has focus.
 - The refresh does not add a native Tauri command, restart the sidecar, or enable HMR.
-- Desktop build and launcher baseline contracts were restored: self-contained sidecar packaging, package manifests, frozen SQLite fallback, ESM-compatible Node scripts, and an executable shell launcher.
+- Desktop build and launcher baseline contracts were restored: self-contained sidecar packaging, package manifests, frozen SQLite fallback, frozen bundle resource-root resolution, ESM-compatible Node scripts, and an executable shell launcher.
 
 ## Commands Run
 
@@ -51,7 +51,9 @@
 | `isort --check-only tests/e2e/test_node_esm_scripts.py tests/unit/test_desktop_shell_scaffold.py tests/unit/test_live_monitor_ui_static.py tests/unit/test_asset_kline_interaction.py` | Passed |
 | `node --input-type=module --check < scripts/desktop/run_backend.js` | Passed |
 | `node --input-type=module --check < tests/e2e/asset_search_playwright_core.js` | Passed |
-| `node --input-type=module --check < tests/e2e/verify-placeholder-test.js` | Passed |
+| `python -m pytest tests/unit/test_desktop_shell_scaffold.py -k 'project_root or desktop_backend_shell_selects_python_runtime' -v` | Passed: 4 passed |
+| `ruff check scripts/desktop/backend_launcher.py tests/unit/test_desktop_shell_scaffold.py` | Passed |
+| `isort --check-only scripts/desktop/backend_launcher.py tests/unit/test_desktop_shell_scaffold.py` | Passed |
 | `rg --glob '*.js' --glob '!node_modules/**' --files-with-matches '\\brequire\\s*\\(' .` | Passed: no project JavaScript `require()` calls found |
 | `ruff check .` | Failed: 31 pre-existing errors in unrelated lazy-import annotations and unused test imports |
 | `black . --check` | Failed: 112 pre-existing files would be reformatted |

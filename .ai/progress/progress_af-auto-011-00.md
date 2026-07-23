@@ -4,7 +4,7 @@
 
 - Added Workbench page refresh shortcuts: `F5`, `Cmd+R`, and `Ctrl+R`.
 - Bumped the `app.js` cache URL to `20260723refresh1` and synchronized static-contract tests.
-- Restored desktop baseline contracts for Node bridge startup, sidecar packaging, package manifests, frozen database defaults, cache assertions, and script execute mode.
+- Restored desktop baseline contracts for Node bridge startup, sidecar packaging, frozen bundle resource-root resolution, package manifests, frozen database defaults, cache assertions, and script execute mode.
 - Converted executable Node scripts to ESM to remain compatible with root `"type": "module"`.
 - Updated desktop, web, scripts, file-guide, changelog, and generated-index documentation.
 - Targeted tests passed: 50 desktop/ESM regression tests.
