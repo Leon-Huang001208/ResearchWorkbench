@@ -6,6 +6,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- **Desktop backend bridge**: convert `scripts/desktop/run_backend.js` to ESM so Tauri's `beforeDevCommand` remains executable when the desktop `package.json` declares `"type": "module"`; retain platform launcher selection, argument forwarding, and child exit propagation.
+
 ### Added
 
 - **通用报告框架 Phase 1-4（通用内容模型 + 渲染引擎 + 统一流水线 + PPT/Word 增强）**: 将 `reporting/` 模块重构为通用文档生成框架，任何内容结构都通过统一的 `Document` 模型描述，并渲染为 Word/PPT/Markdown。

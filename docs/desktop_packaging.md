@@ -5,7 +5,7 @@ AlphaFoundry is moving toward a Tauri desktop shell while keeping the current Fa
 ## Current Shape
 
 - Existing UI remains served by `app.api.main:app`.
-- Desktop development uses `scripts/desktop/run_backend.sh` to select a Python runtime and start FastAPI on `127.0.0.1:8765`.
+- Desktop development uses the ESM `scripts/desktop/run_backend.js` bridge, which resolves its own directory from `import.meta.url`, selects `run_backend.cmd` on Windows and `run_backend.sh` on macOS/Linux, then starts FastAPI on `127.0.0.1:8765`.
 - Tauri loads `http://127.0.0.1:8765` in dev mode.
 - Packaged builds include `desktop/dist/index.html`, which waits for `/health` and then opens the existing workbench.
 - The Tauri shell expects a sidecar named `alphafoundry-backend`. The current macOS ARM development shim is `src-tauri/binaries/alphafoundry-backend-aarch64-apple-darwin` and delegates to the Python launcher.

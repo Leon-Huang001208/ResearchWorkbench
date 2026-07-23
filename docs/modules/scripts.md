@@ -209,6 +209,18 @@ Update this section when:
 
 ---
 
+### `scripts/desktop/run_backend.js`
+
+Purpose:
+
+- ESM Tauri development bridge that derives its directory from `import.meta.url`, delegates to `run_backend.cmd` on Windows and `run_backend.sh` on macOS/Linux, and forwards process arguments and exit status.
+
+Update this section when:
+
+- Desktop backend launch routing or ESM compatibility changes.
+
+---
+
 ### Other `scripts/*.py`
 
 Purpose:
