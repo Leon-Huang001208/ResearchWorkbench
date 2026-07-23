@@ -1,0 +1,30 @@
+{
+  "job_id": "231624db7b504c31bf2127ac69f08def",
+  "slug": "华安ETF周报",
+  "status": "completed",
+  "phase": "save",
+  "message": "报告生成完成",
+  "completed_sections": 19,
+  "total_sections": 19,
+  "result": {
+    "success": true,
+    "project_name": "华安ETF周报",
+    "slug": "华安ETF周报",
+    "file_name": "2026-07-17_133434_华安ETF周报.docx",
+    "file_path": "D:\\Projects\\AlphaFoundry\\report_projects\\华安ETF周报\\generated\\2026-07-17_133434_华安ETF周报.docx",
+    "download_url": "/api/report-projects/华安ETF周报/download/2026-07-17_133434_华安ETF周报.docx",
+    "preview_url": "/api/report-projects/华安ETF周报/preview/2026-07-17_133434_华安ETF周报.docx",
+    "run_log_url": "/api/report-projects/华安ETF周报/runs/2026-07-17_133434.json",
+    "generated_at": "2026-07-17T13:34:34.058643",
+    "generated_placeholder_count": 23,
+    "evidence_count": 205,
+    "warnings": [
+      "消费: 已从联网搜索获取 5 条补充",
+      "日本: 已从联网搜索获取 5 条补充",
+      "黄金: 已从联网搜索获取 5 条补充"
+    ]
+  },
+  "error": null,
+  "created_at": "2026-07-17T13:33:36.888497",
+  "updated_at": "2026-07-17T13:34:36.381619"
+}

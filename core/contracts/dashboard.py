@@ -5,6 +5,7 @@ This module defines Pydantic models that standardize the data for the AlphaFound
 dashboard, including sections for today's events, research queue, candidate board,
 and learning insights.
 """
+
 from datetime import datetime
 from typing import Dict, List, Optional
 

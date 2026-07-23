@@ -5,13 +5,13 @@
 
 import { apiCall, toast, esc, getChartColors, applyChartDefaults } from './core.js';
 import { loadDashboard, switchDashTab, switchMarketHeatmapScope, switchMarketSectorView, toggleMarketSectorMenu } from './dashboard.js?v=20260703theme1';
-import { startCrawlFeedPolling, stopCrawlFeedPolling, startWorkersPolling, stopWorkersPolling, loadWorkersStatus } from './monitor.js?v=20260624b';
+import { startCrawlFeedPolling, stopCrawlFeedPolling, startWorkersPolling, stopWorkersPolling, loadWorkersStatus } from './monitor.js?v=20260714a';
 import { searchAssets, selectAsset, analyzeAssetByCode, analyzeAsset, handleAssetSearchKeydown, initAssetSearch, setKLineTimeRange, toggleMA, initKLineToolbar, switchAssetObserveMode, openThemeObservation } from './asset.js?v=20260703theme1';
 import { switchSignalLabTab, loadSignalLab, initSignalLab } from './signal-lab.js';
 import { loadMemoryPage, loadEpisodes, loadStrategies, loadFailures, loadEventSummary, initMemory } from './memory.js';
 import { loadSignals, createSignal, validateSignal, promoteSignal, loadOutcomes, initSignals } from './signals.js';
 import { loadReviewStats, loadReviewPending, approveItem, rejectItem, initReview } from './review.js';
-import { loadTemplatesPage, loadTemplates, loadTemplatesList, selectTemplate, deleteTemplate, uploadTemplate, downloadTemplateFile, renderReportFromTemplate, downloadRenderedReport, savePlaceholderConfig, exportYamlConfig, generateAiContent, generateAllAiFields, discoverPlaceholders, createYamlConfig, openUploadModal, closeUploadModal, closeEditTemplateModal, openEditTemplateModal, saveTemplateEdit, toggleEditMode, saveTemplatesOrder, handleTemplatePointerDown, handleDragStart, handleDragOver, handleDrop, switchTemplatesTab, goBackToTemplates, clearPlaceholderData, updatePlaceholderConfig, updatePlaceholderValue, initTemplateDropZone, handleTemplateFileSelect, clearFileSelection, handleTemplateNameKeydown, saveTemplateInlineName } from './templates.js?v=20260629paragraphmodes1';
+import { loadTemplatesPage, loadTemplates, loadTemplatesList, selectTemplate, deleteTemplate, uploadTemplate, downloadTemplateFile, renderReportFromTemplate, downloadRenderedReport, savePlaceholderConfig, exportYamlConfig, generateAiContent, generateAllAiFields, discoverPlaceholders, createYamlConfig, openUploadModal, closeUploadModal, closeEditTemplateModal, openEditTemplateModal, saveTemplateEdit, toggleEditMode, saveTemplatesOrder, handleTemplatePointerDown, handleDragStart, handleDragOver, handleDrop, switchTemplatesTab, goBackToTemplates, clearPlaceholderData, updatePlaceholderConfig, updatePlaceholderValue, initTemplateDropZone, handleTemplateFileSelect, clearFileSelection, handleTemplateNameKeydown, saveTemplateInlineName } from './templates.js?v=20260722flow6step';
 import { showSignalDetail, renderSignalDetail, renderAuditTrailTimeline, loadAuditTrail } from './signal-detail.js';
 import { generateScenarios, renderScenarioResult } from './scenario.js';
 import { generateEventSignal, loadEventSignals, renderEventSignalResult, renderTimingDecision } from './event-signal.js';
@@ -22,8 +22,8 @@ import { globalSearch, renderSearchResults, navigateToSignalDetail } from './sea
 import { initNavigationCuration } from './navigation-curation.js';
 import { initWindPanel } from './wind.js';
 import { initFundsPanel } from './funds.js?v=20260625a';
-import { initCommentaryCenter, selectCommentaryTemplate, loadCommentaryContext, generateCommentaryDraft, copyCommentaryDraft, switchCommentaryWorkspace } from './commentary.js?v=20260707logic1';
-import { initConfigurationPage } from './configuration.js?v=20260713config16';
+import { initCommentaryCenter, selectCommentaryTemplate, loadCommentaryContext, generateCommentaryDraft, copyCommentaryDraft, exportCommentaryMarkdown, toggleAutoRefresh, switchCommentaryWorkspace } from './commentary.js?v=20260707logic1';
+import { initConfigurationPage } from './configuration.js?v=20260716fix1';
 
 // ─── Window Exports (for HTML onclick handlers) ────────────────
 window.apiCall = apiCall;
@@ -126,6 +126,8 @@ window.selectCommentaryTemplate = selectCommentaryTemplate;
 window.loadCommentaryContext = loadCommentaryContext;
 window.generateCommentaryDraft = generateCommentaryDraft;
 window.copyCommentaryDraft = copyCommentaryDraft;
+window.exportCommentaryMarkdown = exportCommentaryMarkdown;
+window.toggleAutoRefresh = toggleAutoRefresh;
 window.switchCommentaryWorkspace = switchCommentaryWorkspace;
 
 // ─── Theme & i18n Init ───────────────────────────────────────
@@ -216,8 +218,8 @@ function navigateTo(section) {
     if (section === 'wind') initWindPanel();
     if (section === 'funds') initFundsPanel();
     if (section === 'pipeline-monitor') renderPipelineMonitor();
-    else stopPipelinePolling();
     if (section === 'config') initConfigurationPage();
+    else stopPipelinePolling();
 }
 window.navigateTo = navigateTo;
 

@@ -1,4 +1,5 @@
 """iFinD 数据源自定义异常"""
+
 import logging
 
 logger = logging.getLogger(__name__)

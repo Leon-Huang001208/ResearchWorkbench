@@ -1,6 +1,7 @@
 """
 假设构建节点 - 生成情景
 """
+
 import uuid
 from typing import List, Optional
 

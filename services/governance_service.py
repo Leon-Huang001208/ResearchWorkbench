@@ -1,4 +1,5 @@
 """Governance 服务 — 策略版本管理、实验追踪、回滚、治理报告。"""
+
 import hashlib
 import json
 import uuid
@@ -465,9 +466,11 @@ class GovernanceService:
             experiment = self._gov_repo.get_experiment(experiment_id)
             if experiment:
                 return GovernanceMetadata(
-                    strategy_version_id=experiment.strategy_version_ids[0]
-                    if experiment.strategy_version_ids
-                    else None,
+                    strategy_version_id=(
+                        experiment.strategy_version_ids[0]
+                        if experiment.strategy_version_ids
+                        else None
+                    ),
                     experiment_id=experiment_id,
                     component_versions=component_versions or {},
                 )

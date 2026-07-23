@@ -1,4 +1,5 @@
 """Git utilities shared by CI and task-completion check scripts."""
+
 from __future__ import annotations
 
 import subprocess

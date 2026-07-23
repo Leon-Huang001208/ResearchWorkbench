@@ -9,6 +9,7 @@
 - 基准比较（等权基准、Top-K 信号基准）
 - 回放驱动模拟完整流程
 """
+
 from datetime import datetime, timedelta, timezone
 
 from core.contracts.paper_trading import (

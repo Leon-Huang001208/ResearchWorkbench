@@ -1,4 +1,5 @@
 """Static wiring tests for asset Agent committee frontend."""
+
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]

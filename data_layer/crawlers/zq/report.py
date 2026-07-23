@@ -8,6 +8,7 @@ report.py - 知丘研报爬取模块
 使用方法：
     python report.py --config config.yaml --search 建材
 """
+
 import argparse
 import os
 import sys
@@ -87,7 +88,9 @@ class ReportFetcher(BaseFetcher):
                     self.config.state_path, self.config.verbose
                 )
                 if self.config.verbose:
-                    print(f"[init] 状态管理器已初始化，已记录 {self._state_manager.get_processed_count()} 篇研报")
+                    print(
+                        f"[init] 状态管理器已初始化，已记录 {self._state_manager.get_processed_count()} 篇研报"
+                    )
             except Exception as e:
                 if self.config.verbose:
                     print(f"[warn] 初始化状态管理器失败: {e}，持久化去重将不可用")
@@ -109,7 +112,9 @@ class ReportFetcher(BaseFetcher):
         self._logger.info(f"  - PDF 下载: {'启用' if self.config.enable_pdf else '关闭'}")
         self._logger.info(f"  - AI 请求间隔: {self.config.ai_interval}秒")
         if self._state_manager:
-            self._logger.info(f"  - 持久化去重: 启用 (已记录 {self._state_manager.get_processed_count()} 篇)")
+            self._logger.info(
+                f"  - 持久化去重: 启用 (已记录 {self._state_manager.get_processed_count()} 篇)"
+            )
         else:
             self._logger.info("  - 持久化去重: 关闭")
         if self._account_manager:
@@ -224,16 +229,30 @@ def parse_args():
     parser.add_argument(
         "--hyperSearchField", type=str, default="title", choices=["title", "all"], help="搜索范围"
     )
-    parser.add_argument("--prompt", type=str, default="提取该研报对{search}未来发展的核心预期与策略建议", help="AI提问模板")
+    parser.add_argument(
+        "--prompt",
+        type=str,
+        default="提取该研报对{search}未来发展的核心预期与策略建议",
+        help="AI提问模板",
+    )
 
     parser.add_argument(
-        "--enable-core", action="store_true", default=False, help="启用原有核心摘要提取 (默认: 关闭)"
+        "--enable-core",
+        action="store_true",
+        default=False,
+        help="启用原有核心摘要提取 (默认: 关闭)",
     )
     parser.add_argument(
-        "--enable-viewpoint", action="store_true", default=False, help="启用核心观点提取 (默认: 关闭)"
+        "--enable-viewpoint",
+        action="store_true",
+        default=False,
+        help="启用核心观点提取 (默认: 关闭)",
     )
     parser.add_argument(
-        "--enable-companies", action="store_true", default=False, help="启用关注公司提取 (默认: 关闭)"
+        "--enable-companies",
+        action="store_true",
+        default=False,
+        help="启用关注公司提取 (默认: 关闭)",
     )
     parser.add_argument(
         "--enable-pdf", action="store_true", default=False, help="启用 PDF 下载 (默认: 关闭)"
@@ -241,16 +260,25 @@ def parse_args():
 
     parser.add_argument("--ai-interval", type=int, default=10, help="AI 请求间隔秒数 (默认: 10)")
     parser.add_argument("--pdf-dir", type=str, default="pdfs", help="PDF 保存子目录名 (默认: pdfs)")
-    parser.add_argument("--output-dir", type=str, default="./output", help="输出目录 (默认: ./output)")
-    parser.add_argument("--state-path", type=str, default=None, help="状态文件路径，用于持久化去重 (默认: None)")
+    parser.add_argument(
+        "--output-dir", type=str, default="./output", help="输出目录 (默认: ./output)"
+    )
+    parser.add_argument(
+        "--state-path", type=str, default=None, help="状态文件路径，用于持久化去重 (默认: None)"
+    )
     parser.add_argument(
         "--skip-existing", action="store_true", default=True, help="跳过已存在的研报 (默认: True)"
     )
 
     parser.add_argument(
-        "--use-homepage-search", action="store_true", default=False, help="使用首页搜索 (默认: False=看研报搜索)"
+        "--use-homepage-search",
+        action="store_true",
+        default=False,
+        help="使用首页搜索 (默认: False=看研报搜索)",
     )
-    parser.add_argument("--date-limit", type=str, default="", help="日期限制，如 DATE_LIMIT_WEEK (默认: 空)")
+    parser.add_argument(
+        "--date-limit", type=str, default="", help="日期限制，如 DATE_LIMIT_WEEK (默认: 空)"
+    )
     parser.add_argument("--page", type=int, default=1, help="页码 (默认: 1)")
     parser.add_argument("--page-size", type=int, default=50, help="每页数量 (默认: 50)")
     parser.add_argument(
@@ -259,12 +287,17 @@ def parse_args():
     parser.add_argument("--max-pages", type=int, default=20, help="最大页数限制 (默认: 20)")
 
     parser.add_argument(
-        "--rotate-account", action="store_true", default=True, help="每次请求按策略切换账号 (默认: True)"
+        "--rotate-account",
+        action="store_true",
+        default=True,
+        help="每次请求按策略切换账号 (默认: True)",
     )
     parser.add_argument("--no-rotate-account", action="store_true", help="不自动切换账号")
 
     parser.add_argument("--config", type=str, required=True, help="配置文件路径 (包含凭证)")
-    parser.add_argument("--verbose", action="store_true", default=True, help="显示详细输出 (默认: True)")
+    parser.add_argument(
+        "--verbose", action="store_true", default=True, help="显示详细输出 (默认: True)"
+    )
 
     return parser.parse_args()
 

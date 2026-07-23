@@ -2,6 +2,7 @@
 
 数据稀疏时返回 placeholder + 提示，不报错。
 """
+
 from __future__ import annotations
 
 from typing import Any, Dict, List, Literal, Optional
@@ -316,9 +317,9 @@ class GraphDataService:
             "edges": edges,
             "propagation_paths": propagation_paths,
             "outcome_paths": outcome_paths,
-            "data_source": "real"
-            if (nodes and nodes[0].get("real_entity", False))
-            else "placeholder",
+            "data_source": (
+                "real" if (nodes and nodes[0].get("real_entity", False)) else "placeholder"
+            ),
         }
 
         logger.info(

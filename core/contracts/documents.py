@@ -5,6 +5,7 @@ This module defines Pydantic models that standardize document representations
 across the AlphaFoundry system, including envelopes that wrap raw documents
 and their metadata.
 """
+
 from datetime import datetime
 
 from pydantic import BaseModel, Field

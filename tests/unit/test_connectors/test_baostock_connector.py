@@ -1,4 +1,5 @@
 """BaoStock MarketDataConnector 单元测试 — mock 验证完整生命周期."""
+
 import json
 from datetime import date, datetime
 from unittest.mock import MagicMock, patch

@@ -1,4 +1,5 @@
 """akshare financial normalizer 单元测试"""
+
 from datetime import date
 
 from data_layer.crawlers.akshare.base import FinancialData

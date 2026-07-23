@@ -16,7 +16,12 @@ from services.system_event_bus import event_bus
 
 logger = get_logger(__name__)
 
-PROJECT_DIR = Path(__file__).resolve().parent.parent
+# 优先使用环境变量，打包部署（Tauri sidecar）时 __file__ 指向 exe 内部路径失效
+PROJECT_DIR = (
+    Path(os.environ["ALPHAFOUNDRY_PROJECT_ROOT"])
+    if "ALPHAFOUNDRY_PROJECT_ROOT" in os.environ
+    else Path(__file__).resolve().parent.parent
+)
 PID_FILE = PROJECT_DIR / "logs" / "scheduler.pid"
 HEARTBEAT_FILE = PROJECT_DIR / "logs" / "scheduler.heartbeat.json"
 
@@ -97,8 +102,14 @@ async def _async_main() -> None:
             shutdown_timer.start()
 
     loop = asyncio.get_running_loop()
-    loop.add_signal_handler(signal.SIGTERM, _shutdown)
-    loop.add_signal_handler(signal.SIGINT, _shutdown)
+    try:
+        # add_signal_handler is Unix-only; not supported on Windows ProactorEventLoop
+        loop.add_signal_handler(signal.SIGTERM, _shutdown)
+        loop.add_signal_handler(signal.SIGINT, _shutdown)
+    except NotImplementedError:
+        # Windows fallback: use signal.signal() instead
+        signal.signal(signal.SIGTERM, lambda *_: _shutdown())
+        signal.signal(signal.SIGINT, lambda *_: _shutdown())
 
     logger.info("Crawl scheduler worker started, waiting for jobs")
 

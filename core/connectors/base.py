@@ -8,6 +8,7 @@
 - MarketDataConnector 负责结构化时间序列（行情、估值、成分股等）
 - connector 止于数据获取和基础解析，LLM 提取归 KnowledgePipeline
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -355,9 +356,9 @@ class BaseConnector(ABC):
                             content_hash=raw.content_hash,
                             content_type=raw.content_type,
                             fetched_at=raw.fetched_at,
-                            size_bytes=len(raw.data)
-                            if isinstance(raw.data, (bytes, str))
-                            else None,
+                            size_bytes=(
+                                len(raw.data) if isinstance(raw.data, (bytes, str)) else None
+                            ),
                         )
                     )
 

@@ -1,4 +1,5 @@
 """数据标准化器"""
+
 from data_layer.normalizers.akshare_financial import normalize_financial_data
 from data_layer.normalizers.akshare_market import normalize_market_data, normalize_stock_info
 from data_layer.normalizers.common import to_decimal

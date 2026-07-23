@@ -1,6 +1,7 @@
 """
 端到端集成测试 - 测试完整的从摄入到报告生成流程
 """
+
 import tempfile
 from pathlib import Path
 
@@ -129,12 +130,10 @@ class TestEndToEndPipeline:
 
         # 创建临时文件
         with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
-            f.write(
-                """
+            f.write("""
             腾讯控股2026年Q1业绩发布，游戏收入增长强劲。
             云业务持续向好，金融科技板块表现稳定。
-            """
-            )
+            """)
             temp_path = Path(f.name)
 
         try:

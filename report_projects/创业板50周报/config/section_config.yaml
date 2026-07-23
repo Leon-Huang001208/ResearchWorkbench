@@ -1,7 +1,6 @@
-name: 创业板50周报模板
+name: 创业板50周报
 description: ''
 version: '1.0'
-excel_template_path: /Users/leon/Desktop/Projects/AlphaFoundry/创业板50周报（iFind版）.xlsx
 default_retrieval_profile: weekly_report
 sections:
 - key: market_summary
@@ -54,4 +53,5 @@ sections:
   scenario_required: true
   evidence_policy: strict
   placeholder: outlook_placeholder
-sort_order: 2
+excel_template_path: /Users/leon/Desktop/Projects/AlphaFoundry/创业板50周报（iFind版）.xlsx
+sort_order: 1

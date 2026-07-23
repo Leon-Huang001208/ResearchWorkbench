@@ -1,4 +1,5 @@
 """Tests for deterministic report project table generation."""
+
 from pathlib import Path
 
 from openpyxl import Workbook

@@ -1,6 +1,7 @@
 """
 AkShare 配置模块
 """
+
 from dataclasses import dataclass, field
 from datetime import timedelta
 from typing import List, Optional

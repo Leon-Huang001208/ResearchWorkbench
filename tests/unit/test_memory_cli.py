@@ -1,4 +1,5 @@
 """Memory CLI 测试"""
+
 import pytest
 from click.testing import CliRunner
 

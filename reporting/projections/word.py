@@ -3,6 +3,8 @@
 Supports both simple Word generation and template-based generation
 with placeholder replacement.
 """
+
+import re
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
@@ -17,6 +19,13 @@ from core.contracts import SectionOutput, TableSpec
 from core.observability import get_logger
 
 logger = get_logger(__name__)
+
+# XML 1.0 / OOXML 非法字符（LLM 输出、DB 证据、Excel 数据可能引入）
+# XML 1.0 合法范围: #x9 | #xA | #xD | [#x20-#xD7FF] | [#xE000-#xFFFD] | [#x10000-#x10FFFF]
+# Word OOXML 解析器对 C1 控制字符 (0x7F-0x9F) 也比标准 XML 更严格
+_XML_INVALID_CONTROL = re.compile(
+    r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F\uD800-\uDFFF￾￿]"
+)
 
 
 class WordProjection:
@@ -243,9 +252,7 @@ class WordProjection:
                     status = (
                         "✅ 通过"
                         if result.passed
-                        else "❌ 失败"
-                        if result.severity == "error"
-                        else "⚠️ 警告"
+                        else "❌ 失败" if result.severity == "error" else "⚠️ 警告"
                     )
                     row.cells[1].text = status
                     row.cells[2].text = result.message
@@ -471,9 +478,10 @@ class WordProjection:
                         for run in paragraph.runs:
                             run.clear()
                         if paragraph.runs:
-                            paragraph.runs[0].text = replacement
+                            paragraph.runs[0].text = self._sanitize_xml_text(replacement)
                         else:
-                            paragraph.add_run(replacement)
+                            paragraph.add_run(self._sanitize_xml_text(replacement))
+                        self._remove_empty_runs(paragraph)
                     else:
                         # Replace within text
                         full_text = paragraph.text
@@ -490,9 +498,9 @@ class WordProjection:
 
                             # Add new text with saved formatting
                             if paragraph.runs:
-                                paragraph.runs[0].text = new_text
+                                paragraph.runs[0].text = self._sanitize_xml_text(new_text)
                             else:
-                                new_run = paragraph.add_run(new_text)
+                                new_run = paragraph.add_run(self._sanitize_xml_text(new_text))
                                 if first_run:
                                     new_run.bold = first_run.bold
                                     new_run.italic = first_run.italic
@@ -501,6 +509,30 @@ class WordProjection:
                                         new_run.font.size = first_run.font.size
                                     if first_run.font.color and first_run.font.color.rgb:
                                         new_run.font.color.rgb = first_run.font.color.rgb
+                            self._remove_empty_runs(paragraph)
+
+    @staticmethod
+    def _sanitize_xml_text(text: str) -> str:
+        """移除 XML 非法控制字符，防止写入 docx 后 OOXML 解析报错。"""
+        return _XML_INVALID_CONTROL.sub("", text)
+
+    @staticmethod
+    def _remove_empty_runs(paragraph: Any) -> None:
+        """Remove empty ``<w:r>`` elements leftover after placeholder replacement.
+
+        When ``run.clear()`` clears a run's text during placeholder replacement,
+        the ``<w:r>`` element remains in the paragraph XML as an empty shell.
+        Some office suites (notably WPS Office) may reject documents with empty
+        runs.  This helper scans the paragraph and removes any ``<w:r>`` that
+        carries no ``<w:t>`` child or whose ``<w:t>`` text is empty.
+        """
+        runs_to_remove: list[Any] = []
+        for run in paragraph.runs:
+            text = run.text
+            if not text or not text.strip():
+                runs_to_remove.append(run)
+        for run in runs_to_remove:
+            run._element.getparent().remove(run._element)
 
     @staticmethod
     def _allows_bare_placeholder_match(placeholder: str) -> bool:
@@ -618,12 +650,14 @@ class WordProjection:
         row_offset = 0
         if table_spec.headers:
             for idx, header in enumerate(table_spec.headers):
-                table.rows[0].cells[idx].text = str(header)
+                table.rows[0].cells[idx].text = self._sanitize_xml_text(str(header))
             row_offset = 1
 
         for row_idx, row_data in enumerate(table_spec.rows):
             for col_idx, cell_data in enumerate(row_data[:num_cols]):
-                table.rows[row_idx + row_offset].cells[col_idx].text = str(cell_data)
+                table.rows[row_idx + row_offset].cells[col_idx].text = self._sanitize_xml_text(
+                    str(cell_data)
+                )
         return table
 
     def _copy_table_format(self, source_tbl: Any, target_tbl: Any) -> None:

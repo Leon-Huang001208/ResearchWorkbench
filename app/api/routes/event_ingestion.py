@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import Any, Dict, Generator, List, TypedDict, cast
 
@@ -9,7 +11,7 @@ from core.observability import get_logger
 from data_layer.repositories.base import SessionLocal
 from data_layer.repositories.event_repository import EventRepositoryImpl
 from data_layer.repositories.signal_repository import SignalRepositoryImpl
-from ingestion.structured_event_ingestion import IngestionResult, StructuredEventIngestor
+from ingestion.structured_event_ingestion import IngestionResult
 
 logger = get_logger(__name__)
 
@@ -57,6 +59,8 @@ def get_db_session() -> Generator[Session, None, None]:
 
 def get_ingestor(db: Session = Depends(get_db_session)) -> StructuredEventIngestor:
     """Dependency injection for structured event ingestor."""
+    from ingestion.structured_event_ingestion import StructuredEventIngestor
+
     repo = EventRepositoryImpl(db)
     return StructuredEventIngestor(repo)
 

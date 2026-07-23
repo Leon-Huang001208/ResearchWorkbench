@@ -1,4 +1,5 @@
 """事件信号生成服务。"""
+
 import uuid
 
 from core.contracts import CanonicalEvent, EventAlphaSignal

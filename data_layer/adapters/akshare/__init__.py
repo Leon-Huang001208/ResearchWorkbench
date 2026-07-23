@@ -1,4 +1,5 @@
 """AkShare 适配器子模块"""
+
 from .akshare_client import AkShareClient
 from .akshare_mapper import AkShareMapper
 from .exceptions import (

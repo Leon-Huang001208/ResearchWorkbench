@@ -7,24 +7,7 @@ from dotenv import load_dotenv
 from pydantic import BaseModel, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-
-
-def resolve_runtime_env_path(project_root: Path | None = None) -> Path:
-    """解析当前运行模式应使用的配置文件路径。"""
-    explicit_path = os.environ.get("ALPHAFOUNDRY_CONFIG_PATH", "").strip()
-    if explicit_path:
-        return Path(explicit_path).expanduser()
-
-    desktop_data_dir = os.environ.get("ALPHAFOUNDRY_DESKTOP_DATA_DIR", "").strip()
-    if desktop_data_dir:
-        return Path(desktop_data_dir).expanduser() / ".env"
-
-    return (project_root or PROJECT_ROOT) / ".env"
-
-
-RUNTIME_ENV_PATH = resolve_runtime_env_path()
-load_dotenv(dotenv_path=RUNTIME_ENV_PATH)
+load_dotenv()
 
 
 class ProviderProfile(BaseModel):
@@ -44,20 +27,16 @@ class TaskRoute(BaseModel):
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_file=RUNTIME_ENV_PATH,
-        env_file_encoding="utf-8",
-        extra="ignore",
-    )
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     # 项目根目录
-    PROJECT_ROOT: Path = PROJECT_ROOT
+    PROJECT_ROOT: Path = Path(__file__).parent.parent.parent
 
     # Runtime environment: dev/prod
     APP_ENV: Literal["dev", "prod"] = "dev"
 
-    # 数据库
-    DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/alphafoundry"
+    # 数据库（postgresql+psycopg:// 显式指定 psycopg v3 驱动，避免 SQLAlchemy 回退到 psycopg2）
+    DATABASE_URL: str = "postgresql+psycopg://postgres:postgres@localhost:5432/alphafoundry"
 
     # ── 多 provider profiles + 任务路由 ──
     PROVIDER_PROFILES: dict[str, ProviderProfile] = Field(default_factory=dict)
@@ -75,6 +54,13 @@ class Settings(BaseSettings):
 
     # China Stock
     CHINA_STOCK_ENABLED: bool = True
+
+    # 爬虫夜间静默窗口（本地时间，整点小时）
+    # 在 [CRAWLER_QUIET_START, CRAWLER_QUIET_END) 时间段内，定时爬取任务全部跳过。
+    # 手动触发（API trigger_crawl）不受此限制。
+    # 设为相同值（如均为 0）表示禁用静默功能，全天爬取。
+    CRAWLER_QUIET_START: int = 20  # 默认 20:00 开始静默
+    CRAWLER_QUIET_END: int = 8  # 默认 08:00 结束静默（不含）
 
     # 对象存储
     OBJECT_STORAGE_PATH: Path = PROJECT_ROOT / "data" / "objects"
@@ -97,6 +83,38 @@ class Settings(BaseSettings):
     PDF_MARKDOWN_DIR: Path = PROJECT_ROOT / "data" / "markdown"
     PDF_RAW_TEXT_DIR: Path = PROJECT_ROOT / "data" / "raw_text"
     PDF_INLINE_THRESHOLD_BYTES: int = 256 * 1024  # 256 KB
+    # PDF 转换策略：auto(三级降级) / mineru / markitdown / raw_text
+    PDF_PREFERRED_STRATEGY: str = "auto"
+    # 低于此质量分的成功结果会触发降级到下一策略（0.0=禁用阈值过滤）
+    PDF_QUALITY_MIN_SCORE: float = 0.0
+    # MinerU：是否允许在线下载 HuggingFace 模型（opendatalab/PDF-Extract-Kit-1.0）
+    MINERU_ALLOW_MODEL_DOWNLOAD: str = "0"
+
+    # ── 联网搜索（提问优先联网查询）──
+    # 搜索后端：tavily / bing，可切换
+    WEB_SEARCH_PROVIDER: str = "tavily"
+    TAVILY_API_KEY: str = ""
+    BING_API_KEY: str = ""
+    # API key 池（JSON 数组，优先级高于单 key）：[{"name": "a", "key": "tvly-..."}, ...]
+    # 池为空时自动回退到单 key 模式
+    WEB_SEARCH_API_KEYS: str = ""
+    # key 池策略：round_robin | random | least_used
+    WEB_SEARCH_KEY_ROTATION: str = "round_robin"
+    # 连续失败 N 次后永久禁用该 key（冷却期满自动解禁）
+    WEB_SEARCH_KEY_MAX_FAILURES: int = 5
+    # 临时锁定秒数（单次失败后）
+    WEB_SEARCH_KEY_LOCK_SECONDS: int = 60
+    # 永久禁用冷却期秒数（0=不自动解禁）
+    WEB_SEARCH_KEY_COOLDOWN_SECONDS: float = 3600.0
+    # 每个 key 的月度积分上限（达到后自动停用，下月 1 号刷新）
+    WEB_SEARCH_KEY_QUOTA_LIMIT: int = 1000
+    WEB_SEARCH_MAX_RESULTS: int = 5
+    # 是否对搜索结果补抓网页正文（False 时只用 API 返回的摘要）
+    WEB_SEARCH_FETCH_CONTENT: bool = True
+    # 单条正文截断字符数上限
+    WEB_SEARCH_MAX_CHARS: int = 2000
+    # 请求超时（秒）
+    WEB_SEARCH_TIMEOUT: int = 15
 
     @model_validator(mode="before")
     @classmethod
@@ -167,6 +185,38 @@ class Settings(BaseSettings):
         self.OBJECT_STORAGE_PATH.mkdir(parents=True, exist_ok=True)
         self.PDF_MARKDOWN_DIR.mkdir(parents=True, exist_ok=True)
         self.PDF_RAW_TEXT_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def resolve_runtime_env_path() -> Path:
+    """返回当前运行时应使用的 .env 文件路径。
+
+    优先级：
+    1. ALPHAFOUNDRY_DESKTOP_DATA_DIR 环境变量（桌面版 data_dir）
+    2. 桌面版默认 data_dir（APPDATA/AlphaFoundry）
+    3. 项目根目录 .env（开发模式）
+    """
+    override = os.environ.get("ALPHAFOUNDRY_DESKTOP_DATA_DIR")
+    if override:
+        return Path(override).expanduser() / ".env"
+
+    # 桌面版：检测是否在 frozen 模式或 ALPHAFOUNDRY_DESKTOP 环境变量
+    if os.environ.get("ALPHAFOUNDRY_DESKTOP") or os.environ.get("ALPHAFOUNDRY_DESKTOP_DATA_DIR"):
+        import platform
+
+        system = platform.system()
+        if system == "Windows":
+            base = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
+            return base / "AlphaFoundry" / ".env"
+        if system == "Darwin":
+            return Path.home() / "Library" / "Application Support" / "AlphaFoundry" / ".env"
+        base = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
+        return base / "AlphaFoundry" / ".env"
+
+    # 开发模式：项目根目录下的 .env
+    project_root = Path(
+        os.environ.get("ALPHAFOUNDRY_PROJECT_ROOT", Path(__file__).parent.parent.parent)
+    )
+    return project_root / ".env"
 
 
 settings = Settings()

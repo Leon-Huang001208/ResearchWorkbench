@@ -1,4 +1,5 @@
 """Unit tests for Dashboard Service"""
+
 import json
 import sys
 import time
@@ -134,9 +135,14 @@ def test_crawl_feed_supports_cninfo_source_filter(mock_repo_cls):
 def test_normalize_crawl_document_splits_bracketed_telegram_text():
     """Live monitor should show a clean headline and move telegram body into details."""
     doc = Mock()
-    doc.title = "【美伊谈判代表均已抵达瑞士】财联社6月21日电，据多家媒体21日报道，美国副总统万斯已抵达瑞士"
+    doc.title = (
+        "【美伊谈判代表均已抵达瑞士】财联社6月21日电，据多家媒体21日报道，美国副总统万斯已抵达瑞士"
+    )
     doc.summary = None
-    doc.content = "【美伊谈判代表均已抵达瑞士】财联社6月21日电，据多家媒体21日报道，" "美国副总统万斯已抵达瑞士，他将参加定于当天在比尔根山举行的美伊谈判。"
+    doc.content = (
+        "【美伊谈判代表均已抵达瑞士】财联社6月21日电，据多家媒体21日报道，"
+        "美国副总统万斯已抵达瑞士，他将参加定于当天在比尔根山举行的美伊谈判。"
+    )
 
     normalized = _normalize_crawl_document_text(doc)
 
@@ -1044,6 +1050,43 @@ def test_get_market_sector_view_returns_workbook_status_without_formula_fallback
     assert result["has_real_data"] is False
     assert result["status"] == "workbook_not_open"
     assert result["message"] == "Wind实时工作簿未在Excel中打开"
+
+
+@patch("services.dashboard_service.WindMarketOverviewProvider")
+@patch("services.wind_workbook_manager.get_wind_workbook_manager")
+@patch("services.wind_realtime_workbook.WindRealtimeWorkbookReader")
+def test_get_market_sector_view_surfaces_snapshot_empty_wind_login_hint(
+    mock_workbook_reader_cls,
+    mock_manager_getter,
+    mock_wind_provider_cls,
+    monkeypatch,
+):
+    """工作簿已打开但 Snapshot 无数据时，应透传 snapshot_empty 状态及 Wind 登录提示。"""
+    monkeypatch.delenv("ALPHAFOUNDRY_ENABLE_WIND_WORKBOOK", raising=False)
+    monkeypatch.setenv("ALPHAFOUNDRY_ALLOW_WIND_EXCEL_FALLBACK", "0")
+    _market_sector_cache.clear()
+    mock_reader = mock_workbook_reader_cls.return_value
+    mock_reader.get_view.return_value = {
+        "view_key": "wind_hot_concept",
+        "view_label": "Wind热门概念",
+        "up": [],
+        "down": [],
+        "has_real_data": False,
+        "fetched_at": "2026-07-14T01:57:00+00:00",
+        "cache_hit": False,
+        "cache_ttl_seconds": 60.0,
+        "status": "snapshot_empty",
+        "message": "Wind快照暂无数据，请确认Wind插件已登录",
+        "source": "wind_realtime_workbook",
+    }
+
+    result = DashboardService(Mock()).get_market_sector_view("wind_hot_concept", limit=10)
+
+    assert result["has_real_data"] is False
+    assert result["status"] == "snapshot_empty"
+    assert "Wind插件已登录" in result["message"]
+    assert result["up"] == []
+    assert result["down"] == []
 
 
 def test_ths_market_sector_badges_are_always_industry_colored():

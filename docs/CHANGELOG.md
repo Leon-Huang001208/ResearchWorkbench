@@ -8,16 +8,133 @@
 
 ### Added
 
-- **系统配置中心**: Web 工作台新增“系统配置”入口，以五个独立分区管理 LLM、知丘、iFinD、数据库和高级运行参数。
-  - `services/configuration_service.py` / `core/settings/config.py` — 新增显式配置路径 → 桌面数据目录 → 项目 `.env` 的运行时路径解析；有效值允许当前进程环境覆盖文件；保存事务使用同路径 `RLock` + 跨进程文件锁、严格 dotenv 解析、`0600` 同目录临时文件、fsync 和原子替换，并保留无关行/注释。
-  - `app/api/configuration_models.py` / `app/api/routes/configuration.py` — 新增 `GET /api/config`、`PUT /api/config/{section}`、`POST /api/config/{section}/test`；本机系统配置读取会回填保存的 Token、密码和数据库地址，422 仍不回显被拒绝输入；空值保留、非空替换、`clear_*` 显式清除，`original_name` 支持改名后保留正确秘密。
-  - `app/web/templates/index.html` / `app/web/static/js/configuration.js` / `app/web/static/configuration.css` — 五分区配置页改为与报告生产工作台对齐的统一列布局、就绪概览、动态 Provider/任务路由/知丘账号行和重启提示；敏感值默认以密码框遮住，可按需显示或复制；首次读取成功前禁用修改，串行化保存/测试并取消陈旧刷新，不把秘密写入 DOM dataset 或 Local Storage。
-  - `data_layer/crawlers/zq/zhiqiu/account_manager.py` / `client.py` — 新增权威 `ZQ_ACCOUNTS_JSON`，兼容旧 `ZQ_ACCOUNTS` 和 YAML；JSON 存在但无效/为空时关闭回退，避免旧凭据复活，并支持运行时轮询参数覆盖。
-  - LLM、知丘、iFinD 测试使用真实短超时临时连接且不持久化候选值；数据库仅做 URL 校验。LLM/iFinD/高级参数热更新，知丘配置供后续新建客户端读取，数据库保持当前连接池并在后端重启后生效。
-  - 本地配置控制面新增 Trusted Host、Origin 与进程级 CSRF 三层边界；显式 CORS origin 必须与 Trusted Host 配置一致。LLM Provider 即使省略 `original_name` 也会按当前名称绑定已有秘密，端点变化时禁止把旧 Token 发送到连接探针。
-  - 系统配置页面移除就绪看板、说明侧栏、刷新和单独验证操作，只保留可编辑的配置表单与保存；知丘/iFinD 均以可增删的账号池呈现，iFinD 新增 `IFIND_ACCOUNTS_JSON` 并同步首个账号到现有后端运行字段。
-  - 系统配置读取知丘账号时新增对爬虫原有 `data_layer/crawlers/zq/config.yaml` 的兼容回退，`.env` 尚未迁移为 `ZQ_ACCOUNTS_JSON` 的已有账号池会直接显示在页面中。
-  - 配置后端 focused/关联回归 `65 passed`；配置前端 focused `13 passed`；合并前端回归 `96/98`，2 项为本功能变更前已存在的基线失败。浏览器验证和全仓门禁尚未执行，因此任务状态保持 `doing`。
+- **通用报告框架 Phase 1-4（通用内容模型 + 渲染引擎 + 统一流水线 + PPT/Word 增强）**: 将 `reporting/` 模块重构为通用文档生成框架，任何内容结构都通过统一的 `Document` 模型描述，并渲染为 Word/PPT/Markdown。
+  - **Phase 1 通用内容模型**: 新建 `core/contracts/content_element.py`（12 种 ContentElement 类型 + TextRun 富文本 + ContentBlock 容器）和 `core/contracts/document.py`（Section/Document/DesignTokens/TemplateSlot）。新建 `reporting/content/adapter.py`（SectionOutput→Section 向后兼容适配）。58 个测试。
+  - **Phase 2 渲染引擎抽象**: 新建 `reporting/rendering/` 子包（`base.py` DocumentRenderer 抽象基类 + RenderContext、`word_renderer.py`、`ppt_renderer.py`、`markdown_renderer.py`、`style_mapper.py` DesignTokens→格式样式映射）。66 个测试。
+  - **Phase 3 统一流水线 + 模板系统升级**: 新建 `reporting/builder/` 子包（`content_builder.py` 4种输入→Document、`pipeline.py` Build→Validate→Render 三阶段、`strategies/from_template.py` v1/v2 YAML 模板驱动、`strategies/from_research.py` CompiledReport→Document）。TemplateConfig 新增 `is_v2`/`get_design_tokens()`，TemplateManager 新增 `upgrade_to_v2()`。61 个测试。
+  - **Phase 4 PPT/Word 增强 + DesignTokens 扩展**: PPT 渲染器重写——智能 y 坐标分页、原生 ChartData 图表、表格单元格背景填充、自定义模板加载、幻灯片过渡效果、双栏布局。Word 渲染器增强——自动 TOC 域代码、页眉（文档标题）、页脚（PAGE 域代码）。DesignTokens 新增 `ppt_template_path`/`ppt_transition` 字段。修复 `ppt_renderer.py` 模块级常量在未安装 pptx 时的 NameError。26 个测试（18 个 PPT 测试待安装 python-pptx 后运行）。
+  - **测试**: 全量 211 passed, 19 skipped, 0 failed ✅。ruff/black/isort 全部通过。
+
+### Changed
+
+- **桌面端启动加速（97s → 25s，-75%）**: 通过 PEP 562 `__getattr__` 懒加载和函数内延迟导入，消除启动时不必要的全量模块导入链。
+  - **P0 修复（阻断启动的主链）**: 6 个路由文件（`app/api/routes/commentary.py`、`assets.py`、`ingest.py`、`ingestion_queue.py`、`pipeline.py`、`event_ingestion.py`）的重型依赖（`ModelGatewayImpl`、`KnowledgePipeline`、`ResearchPipeline`、`IngestService`、`StructuredEventIngestor`）从模块顶层移入 Dependency 函数体内，首次请求时才加载。
+  - **P1 加固（防止后续回归）**: `core/model_gateway/gateway.py` 的 `LocalEmbeddingProvider` 导入从模块顶层移入 `_init_providers()` 方法内（`protocol == "local"` 分支）；`core/model_gateway/providers/__init__.py` 移除 `LocalEmbeddingProvider` 的模块级导出；`services/signal_validator_impl.py` 的 `signal_lab.*` 导入移入 `__init__` 方法内；`services/commentary_news_selector.py` 的 `reporting.*` 导入移入 `select()` 方法内。
+  - **P2 优化（CLI 加速）**: `signal_lab/backtests/__init__.py` 的 `VectorBTBacktester` 改为 PEP 562 `__getattr__` 懒加载，CLI `af backtest` 首次运行前不再卡 ~10s。
+  - **包级懒加载**: `services/__init__.py` 和 `data_layer/__init__.py` 清空所有模块级 re-export，改为 `__getattr__` 按需导入。
+  - **关键导入链分析**: 三条主要瓶颈链——`sentence_transformers`（~52s，通过 `ModelGatewayImpl` → `LocalEmbeddingProvider`）、`ingestion` 全链（~77s 累积）、`vectorbt`（~10s，通过 `signal_lab.backtests.__init__`）。
+  - 剩余 25s 由 `anthropic`/`openai` SDK（~8s）、`akshare`（~3s）、基础设施（EventLog、MarketDataCache、timing models）构成，可进一步优化但不再阻塞桌面启动。
+
+### Added
+
+- **报告编译器第三阶段 3.3（评测体系）**: 新增 `reporting/compiler/evaluation/` 子包，建立从原子声明抽取到多维度评分再到 A/B 对比的完整评测闭环。
+  - **声明抽取器**: 新建 `claim_extractor.py`，从 `CompiledSection` 拆解 `AtomicClaim`。优先 LLM `structured_output`（`_ClaimExtractionResult` schema），失败或无 gateway 时规则回退（中英文句子拆分 + 数字检测 + fact 交叉验证）。与 `FactExtractor` 共用三层 schema 模式。
+  - **指标计算器**: 新建 `metrics.py`，`MetricsComputer` 五维度加权评分：检索质量（Tier A+B 占比+多样性）、事实质量（声明支撑率+虚构惩罚）、引用品质（覆盖率+孤儿率+集中度）、报告质量（结构+反证）、生产效率（耗时+token+修订轮数），加权聚合为 0-100 综合评分，映射 Grade(A≥85/B≥70/C≥55/D≥40/F)。支持自定义维度权重。
+  - **自动评分器**: 新建 `auto_grader.py`，`AutoGrader` 编排 ClaimExtractor → CitationVerifier → NumericChecker → MetricsComputer 完整管线，产出 `EvaluationReport`（含 `ReportMetrics`/`AtomicClaim[]`/`CritiqueIssue[]`）。支持复用预计算的 verifier issues。
+  - **基准测试框架**: 新建 `benchmark_dataset.py`，`BenchmarkSuite`（按类别/难度筛选与采样）+ `BenchmarkRunner`（编译+评测+聚合统计：mean/median/std/grade distribution/per-category averages）+ `create_sample_benchmark_tasks()`（12 个样本任务，覆盖 5 类别（公司研究/行业分析/竞品对比/市场格局/技术路线）×3 难度）。
+  - **A/B 对比平台**: 新建 `ab_platform.py`，`ABPlatform.compare()` 双报告逐维度对比（9 个可量化维度），判定综合胜者；支持盲评模式（随机交换标签，揭示后报告）。全规则驱动，不调用 LLM。
+  - **契约扩展**: `core/contracts/compiler.py` 新增 7 个 Pydantic 模型：`VerificationStatus`（verified/contradicted/unverifiable/irrelevant）、`AtomicClaim`（含 claim_type/fact_ids/verification/confidence）、`ReportMetrics`（五维度 19 个显式字段）、`EvaluationReport`（聚合 metrics+claims+issues）、`BenchmarkTask`（task_id/prompt/expected_sections/category/difficulty）、`ABDimensionDiff`（dimension/value_a/value_b/diff/pct_change/winner）、`ABComparison`（report_id_a/b/label_a/b/blind_mode/dimensions/overall_winner/win_count/summary）。
+  - **Compiler 集成**: `compiler.py` Step 10.5 可选集成 `auto_grader`（`__init__` 接受 `auto_grader` 参数），在 `CompiledReport` 组装后自动运行评测。非致命失败仅 log warning，不中断编译。
+  - **StubModelGateway 扩展**: `tests/unit/reporting/compiler/conftest.py` 新增 `_ClaimExtractionResult` 预设返回（3 条样本声明）。
+  - **测试**: 新增 51 个测试——`test_metrics.py`（10 个：维度填充/tier ratio/虚构计数/孤儿计数/等级阈值/空报告/自定义权重/效率透传/修订轮数/覆盖计算）、`test_claim_extractor.py`（12 个：LLM 抽取/规则回退/空内容/claim_type/多章节/置信度/数字标记/短句过滤/引用清理/LLM 故障回退/section_id 校验/交叉验证）、`test_auto_grader.py`（10 个：烟雾测试/critique 复用/无 critique/无 gateway/issues 聚合/precomputed 复用/metrics 填充/规则抽取/自定义权重/等级映射）、`test_benchmark.py`（11 个：工厂返回/字段完整/类别覆盖/难度覆盖/suite 构建/过采样/筛选/采样/add/空套件降级/完整集成）、`test_ab_platform.py`（8 个：返回类型/维度数量/A 胜出/盲评/tie/摘要/delta 计算/非盲评标签）。137 个编译器测试全通过。
+  - **质量门**: ruff/black/isort/mypy 全部通过（仅涉及变更文件）。`docs/modules/reporting.md` + `docs/CHANGELOG.md` 已更新。
+
+- **提问优先联网查询**: 新增「始终先联网再综合」的问答能力，覆盖 CLI 与 API 两个入口。无论内部是否有资料，每次提问都先上网搜索，把搜索结果（摘要+正文）注入 prompt，模型生成带 `[n]` 引用的答案。未配置搜索 API key 时降级为不联网直答，答案前标注 `[未联网]`，不报错。不引入 tool-calling 循环（用户要求"始终先联网"是确定性检索增强，不需要模型自主决定搜不搜）。
+  - **抽象接口**: `core/interfaces/web_search.py`——`WebSearchProvider` / `WebSearchResult`，统一搜索结果模型。
+  - **Provider 实现**: `data_layer/web_search/`——`TavilyProvider`（默认，专为 LLM 设计，直接返回正文）、`BingProvider`（返回摘要+URL，正文由 `page_fetcher` 补抓）、`page_fetcher`（httpx 抓 HTML + trafilatura 抽正文，抓取失败优雅降级）、`factory`（按 `WEB_SEARCH_PROVIDER` 切换）。
+  - **服务内核**: `services/web_search_service.py`（搜索+补抓+格式化）、`services/ask_service.py`（联网搜索→注入 prompt→`ModelGateway` 生成）、`services/ask_factory.py`（`build_ask_service()` 装配，单例 ModelGateway）。
+  - **入口**: CLI `af ask "问题"`（`-n/--max-results`、`--no-fetch-content`）；API `POST /api/llm/ask`（返回 `{answer, online, model, sources}`）。
+  - **配置**: `core/settings/config.py` 新增 `WEB_SEARCH_PROVIDER`/`TAVILY_API_KEY`/`BING_API_KEY`/`WEB_SEARCH_MAX_RESULTS`/`WEB_SEARCH_FETCH_CONTENT`/`WEB_SEARCH_MAX_CHARS`/`WEB_SEARCH_TIMEOUT`。
+  - **测试**: `tests/unit/test_web_search.py`——13 个测试覆盖 format 编号、正文补抓与降级、ask 注入与无 key 降级、provider 切换、kwargs 不泄漏。全通过。
+  - **认知代理接入（阶段 3）**: `cognitive_agents/workflow.py`——`AgentWorkflowRunner` 支持可选的 `web_search_service` 参数，在信息收集阶段（`news`/`financial_report`/`industry_data`/`social_media`）evidence 不足（< 2 条）时自动调 `_enrich_evidence_from_web()` 联网补充，搜索结果转为 `EvidenceItem`（新格式）和 legacy dict（旧格式），双注入 `context.evidence_bundle` 和 `context.evidence`，兼容四种信息 Agent 的 `_build_prompt` 直接引用 `context.evidence` 的风格。
+  - **报告生成接入（阶段 3）**: `reporting/projects/generation.py`——`ReportProjectGenerationService` 支持可选的 `web_search_service` 参数，在 `_generate_configured_placeholder()` 中 DB 检索无结果时，调 `_enrich_evidence_from_web()` 联网搜索补充，搜索结果转为 `EvidenceSnippet` 追加到 evidence 列表，走同一 `format_evidence_context` → `build_generation_messages` 路径。
+  - **测试（阶段 3）**: `tests/unit/test_web_search_phase3.py`——14 个测试覆盖 EvidenceItem/EvidenceSnippet 转换、`_enrich_evidence_from_web` 注入、角色过滤（信息触发/非信息跳过）、空结果降级、异常优雅处理。
+  - **文档**: `docs/modules/services.md` 新增 `web_search_service` / `ask_service` 段；`docs/modules/app_cli.md` 新增 `af ask` 段；`docs/DATA_SOURCES.md` 新增「联网搜索」小节；`docs/generated/py_file_index.md` 已更新。
+
+- **报告编译器第三阶段 3.2（Citation Verifier + Numeric Checker）**: 新增两个独立验证模块，提供比 critic 更细粒度的引用质量与数字真实性验证，全规则驱动不调用 LLM。
+  - **引用验证器**: 新建 `citation_verifier.py`，四维检查：引用精度（fact 所在句子的数值+文本重叠分数，<0.5 告警）、孤立引用（fact_ids 指向不存在的 fact → error）、来源多样性（单源 >80% 标记 info）、引用覆盖率（<80% 标记 info）。`_find_sentence_with_citation()` 按中英文分句点定位引用标记所在句子，`_compute_precision_score()` 值匹配 + 文本重叠双因子评分。
+  - **数字检查器**: 新建 `numeric_checker.py`，三维检查：虚构数字（±5% 容差无匹配 fact → error）、单位不一致（同义词感知匹配 → warning）、期间不一致（相对期间放过、绝对期间年/季/半年度比较 → info）。`_extract_numbers_from_content()` 过滤年份/序号/引用标记，`_extract_unit_near_number()` 按长度降序遍历已知单位，`_extract_period_near_number()` 返回距离数字最近的期间匹配。
+  - **契约扩展**: `CritiqueCategory` 枚举新增 6 个值：CITATION_PRECISION、ORPHAN_CITATION、SOURCE_DIVERSITY、FABRICATED_NUMBER、UNIT_MISMATCH、PERIOD_MISMATCH。两个 verifier 输出 `list[CritiqueIssue]`，无缝接入现有 `CritiqueReport`→`RevisionPass` 流程。
+  - **RevisionPass 扩展**: `revision_pass.py` 新增 6 个 `_fix_*` 方法：`_fix_citation_precision`（移除低精度引用标记）、`_fix_orphan_citation`（移除孤立引用）、`_fix_unit_mismatch`（替换单位文本）、`_fix_period_mismatch`（替换期间文本）。SOURCE_DIVERSITY/FABRICATED_NUMBER 不可自动修复，标记需人工审核。
+  - **Compiler 集成**: `compiler.py` Step 8.5 在 critic revision loop 之后运行两验证器，结果 merge 进 compile log。编译器版本保持 2.0（minor extension）。
+  - **边界问题修复**: 修复 4 个边界问题——`_find_sentence_with_citation` 的 `sent_start` 从 `idx`（错误偏移）改为 0、`_extract_unit_near_number` 按长度降序匹配单位并优先检查后区间、`_extract_period_near_number` 选择距离数字最近的期间匹配而非首次匹配、测试中 coverage issue 的 fact_id 出现在 `suggested_fix` 而非 `description`。
+  - **测试**: 新增 20 个测试——`test_citation_verifier.py`（10 个：精度/孤立/多样性/覆盖率/空章节/多章节）、`test_numeric_checker.py`（10 个：匹配/虚构/单位/期间/年份过滤/引用标记过滤/混合结果/空内容/无数字/多章节）。86 个编译器测试全通过。
+  - **质量门**: ruff/black/isort/mypy 全部通过（0 errors）。
+
+- **报告编译器第三阶段 3.1（Critic 升级 + Revision Pass）**: 将第一阶段简化批判器升级为完整六类批判器，新增自动修复引擎与 revision 循环。
+  - **完整批判器**: `critic.py` 从三检查（forbidden_terms/numeric_consistency/citation_coverage）升级为六类完整检查：CLAIM_SUPPORT（逐数字支撑验证，值容差±5%）、CONFLICT（数字矛盾检测，偏差>20%）、COUNTERPOINT（反证覆盖检查）、STRUCTURE（字数偏差/必答问题覆盖）、EVIDENCE_SUFFICIENCY（引用密度/事实密度）、FORBIDDEN_TERM（禁用词）。新增 `CritiqueReport`/`CritiqueIssue` 模型（Pydantic v2）替换旧 `ValidationResults`，输出 metrics 包含 claim_support_rate/conflict_count/citation_density 等。保持向后兼容 `review()` 接口。
+  - **中英文自适应 NLP**: `_text_overlap()` 方法英文用词重叠（≥2 公共非短词）、中文用字符二元组重叠（≥2 公共二元组）。`_CITATION_MARKER_PATTERN` 过滤 `[f1]`/`[1]` 防止引用标记误解析为内容数字。
+  - **自动修复引擎**: 新建 `revision_pass.py`，按 `CritiqueIssue.category` 自动修复：CONFLICT→替换矛盾数字为事实表值、CLAIM_SUPPORT→插入最佳匹配 fact 的引用标记（按值接近度×3+文本重叠×2 评分）、COUNTERPOINT→节尾追加反证提示句、FORBIDDEN_TERM→替换为"（已删除违规表述）"。STRUCTURE/EVIDENCE_SUFFICIENCY 不可自动修复，标记需人工审核。`RevisionResult` dataclass 追踪 fixed/unfixable/remaining/rounds/converged。
+  - **Revision 循环**: `compiler.py` 编译器版本升至 2.0，新增 `_critic_revision_loop()`：批判→修订→重新批判→重新绑定引用，最多 2 轮。severity∈{PASS,MINOR} 且所有 error 级别问题已修复后 converge 并 break。
+  - **契约扩展**: `core/contracts/compiler.py` 新增 `CritiqueSeverity`（PASS/MINOR/MAJOR/CRITICAL）、`CritiqueCategory`（六类枚举）、`CritiqueIssue`（含 location/conflicting_fact_id/suggested_fix）、`CritiqueReport`（含 overall_severity/issues/metrics/revision_suggestions）。
+  - **测试**: 新增 23 个测试——`test_critic_full.py`（14 个：覆盖六类检查、PASS/MINOR/MAJOR/CRITICAL 严重度判定、metrics、向后兼容）、`test_revision_pass.py`（9 个：覆盖四种修复、不可修复标记、max 2 轮限制、追踪计数、missing section_id 跳过）。修复旧 test_compiler.py 中 2 个因契约变更失败的测试（version 1.0→2.0、check names 灵活断言）。66 个编译器测试全通过。
+  - **质量门**: ruff/black/isort/mypy 全部通过（0 errors）。
+
+- **报告编译器骨架（第一阶段）**: 新增 outline-first + evidence-first 报告编译器 `reporting/compiler/`，把报告生成从"单次长文生成"重构为多阶段流水线（参考 STORM/RAPID/FoRAG/CRAG/LongCite）。本阶段为骨架 + 单元测试，未接入生产路由，后续通过 `engine: legacy|compiler|shadow` feature flag 迁移。
+  - **编译器流水线**: `ReportCompiler.compile(task)` 串联 9 步——任务分解 → 来源规划 → 证据检索 → 事实抽取与归一化 → 大纲规划 → 分节写作 → 引用绑定 → 批判 → 渲染。所有进入正文的数字与结论必须先落到 `FactRecord`（带 `Provenance`），实现 LongCite 式句级引用可验证。
+  - **编译器契约**: 新增 `core/contracts/compiler.py`——`SourceTier`（A/B/C/D 四级）、`ClaimType`（metric/event/spec/guidance/risk）、`FactRecord`、`Provenance`、`Citation`/`CitationAnchor`、`OutlineSection`/`ReportOutline`、`CompiledSection`/`CompiledReport`、`ResearchPlan`、`reliability_to_tier()`。向后兼容扩展 `core/contracts/reporting.py`：`FactCard` 增 `fact_records`/`provenance_summary`，`SectionOutput` 增 `compiled_section`/`citations`，`ReportRunLog` 增 `compiler_version`/`outline`。
+  - **structured_output 改造（关键前置）**: 新增 `core/model_gateway/structured_output_utils.py`——`pydantic_to_openai_json_schema`（展开 `$ref`、注入 `additionalProperties:false`，兼容 OpenAI strict mode）、`pydantic_to_anthropic_tool_schema`（转 tool use）、`retry_structured_parse`（重试 + 兜底 `model_construct`）。`openai_compatible.py` / `anthropic.py` 的 `structured_output` 改为三级回退：原生 response_format/tool_use → prompt 注入 + json.loads + 重试 → 空 construct。
+  - **编译器模块**: `task_decomposer`（ReportTask→ResearchPlan）、`source_planner`（按 tier+weight 排序来源）、`evidence_retriever`（`EvidenceRetrieverProtocol` + `PassthroughEvidenceRetriever`）、`fact_extractor`（LLM 抽取 + 规则兜底 + 去重）、`outline_planner`（facts→大纲）、`section_writer`（`[fact_id]` 标注引用）、`citation_binder`（`[fact_id]`→`[N]` + orphan/unsupported 检测）、`critic`（数字一致性+引用覆盖+禁用词）、`renderer`（CompiledReport→SectionOutput 适配器，不改 projections）。
+  - **测试**: `tests/unit/core/model_gateway/test_structured_output.py`（schema 转换/重试/兜底）、`tests/unit/reporting/compiler/`（fact_extractor/citation_binder/outline_planner/compiler 端到端，含 StubModelGateway + PassthroughEvidenceRetriever）。42 个测试全通过。
+  - **修复**: `fact_extractor` 的 `generate_id(prefix="fact")` 让 fact_id 形如 `fact_xxx`，与 section_writer 的 `[fact_xxx]` 正则、citation_binder 解析、stub 一致，打通引用链路。
+  - **文档**: `docs/modules/reporting.md` 新增 `reporting/compiler/` 段；`docs/generated/py_file_index.md` 已更新。
+
+- **报告编译器证据工程期（第二阶段）**: 打通 facts store、来源分级落地、PGVectorStore 实现、检索统一消费 chunk+assertion、表格/图表从 facts store 渲染。本阶段未接入生产路由，engine feature flag 迁移留待第三阶段后。
+  - **打通 facts store（2.1）**: `ingestion/knowledge_pipeline.py` 的 `PipelineResult` 新增 `assertions` 字段（不再丢弃），`process()` 把并发抽取的 assertions 挂回结果；`_enrich_assertion_spans` 用 `chunk_text` + `offset_start/offset_end` 精确化 `source_span`。`workers/knowledge_worker.py` 新增 `_persist_extraction_artifacts`：在 `source_document` 保存后持久化 chunks / entity_mentions / assertions（用 `DocumentChunkV1Repository.bulk_create` / `EntityMentionV1Repository.bulk_create` / `AssertionRepositoryImpl.save`，全部失败降级为 warning）。`process_one` 返回 dict 增 `assertions` / `chunks` 计数与 `assertion_list` / `chunk_list`。
+  - **来源分级落地（2.2）**: `core/contracts/documents_v1.py` 的 `DocumentQuality` 新增 `source_tier` / `trust_score`（0-1）/ `freshness_score`（0-1）（JSONB 列，无需迁移）。`core/source_registry.py` 新增 `reliability_to_tier`（OFFICIAL→tier_a、ESTABLISHED_MEDIA/RESEARCH_INSTITUTE→tier_b、SPECIALIZED_MEDIA/OPINION_LEADER→tier_c、SOCIAL_MEDIA/UNKNOWN→tier_d）。新建 `core/services/source_grader.py`：`SourceGrader.grade/grade_inplace` 计算 tier 基础分 ± is_fact_source/UNKNOWN 微调的 trust_score，与半衰期衰减的 freshness_score（无 publish_time 给 0.5）。`knowledge_worker._create_document_v1` 后调 `SourceGrader.grade_inplace` 回填 quality。
+  - **PGVectorStore 实现（2.3，两步走）**: `knowledge_layer/retrieval/vector_store.py` 的 `PGVectorStore` 第一步 DB-backed brute-force（embedding 以 JSON 存入 `document_chunk_v1.embedding` TEXT 列，search 加载到内存算余弦 top_k，<10 万文档可用）；第二步 pgvector 原生 `<=>` cosine distance 路径就绪，`_check_pgvector_once` 惰性检测扩展，当前环境 pgvector 系统级不可用则自动降级到第一步。`add_document` 仅 upsert 已存在 chunk 的 embedding（不自行 INSERT，避免 FK 冲突）。
+  - **检索统一（2.4）**: 新建 `knowledge_layer/retrieval/assertion_search.py`——`AssertionSearchService` 按 predicate / object_value 关键词匹配检索 assertion 表，关联 `document_v1.quality` 取来源分级，内存精排按命中数×0.5+confidence×0.5。`reporting/compiler/evidence_retriever.py` 新增 `AssertionRetriever`（实现 `EvidenceRetrieverProtocol`，assertion→EvidenceChunk→按 source_doc_id 聚合 EvidenceDocument）。`reporting/compiler/fact_extractor.py` 新增 `extract_from_assertions` 快速路径（assertion→FactRecord，跳过 LLM）。
+  - **表格/图表从 facts store 渲染（2.5）**: 新建 `reporting/compiler/table_renderer.py`（METRIC facts 按 entity×period 聚合为 `TableSpec`，cell 携带 fact_id 短码，event 类排除）与 `reporting/compiler/chart_renderer.py`（数值 facts→`ChartSpec`，单 entity line / 多 entity bar）。`renderer.py` 新增 `render_tables` / `render_charts` 并默认实例化两个 renderer。
+  - **端到端验证**: `scripts/e2e_phase2_facts_store.py` 用本地 PG 实跑 2.1+2.2（grader tier_b/trust=0.80/fresh=1.00，chunks=1/mentions=1/assertions=1 落库）；2.3 暴力破解 add/search/delete 语义匹配；2.4 search→retriever→fact 快速路径 value=100.0/tier_a；2.5 table cell 带 fact 短码 + event 排除 + chart=line。
+  - **测试**: 新增 5 个测试文件 38 个用例（`test_source_grader` / `test_assertion_search` / `test_pgvector_store` / `test_table_chart_renderer` / `test_fact_extractor_assertions`）；修复 `test_process_one_publishes_events` 回归（mock_result 补 `assertions=[]` / `chunks=[]`）。38 个新测试 + 170 个相关目录测试全通过。
+  - **文档**: `docs/modules/reporting.md` 补第二阶段模块描述；`docs/generated/py_file_index.md` 已更新。
+
+- **PDF 入库管线统一与配置补齐**: 收敛四类遗留问题——删除旧版死代码、统一 cninfo 旁路入口、补齐配置、验证策略可用性。
+  - **清理旧版死代码**: 删除 `data_layer/parsers/pdf_parser.py`（PDFParser）和 `data_layer/adapters/pdf_adapter.py`（PDFAdapter）——早期 pdfplumber 封装，已被 `ingestion/converters/` 三策略管线完全取代，全项目零业务引用。同步移除 `data_layer/parsers/__init__.py` 和 `data_layer/adapters/__init__.py` 的导出。
+  - **CNINFO 附件路径统一到路径 A**: `data_layer/adapters/cninfo_adapter.py` 的 `_append_attachment_text` 不再就地调 MarkItDown/RawText 转换，改为下载附件 PDF → 计算 SHA-256 → `get_pdf_by_hash` 去重 → 注册 `PDFArtifactV1DB(parse_status="pending")`，由 CrawlScheduler 异步走 `PDFConversionService` 三级降级。移除 `_convert_attachment_to_text` / `_candidate_converter_strategies` / `_conversion_to_dict`。行为变化：PDF 正文不再内联到公告 `raw_text`，延迟约 5 分钟通过独立 DocumentV1 入队。`metadata.attachment_text_status` 新增 `registered_pending` / `already_registered` 值。
+  - **配置补齐**: `core/settings/config.py` 新增 `PDF_PREFERRED_STRATEGY`（默认 `auto`）、`PDF_QUALITY_MIN_SCORE`（默认 `0.0`）、`MINERU_ALLOW_MODEL_DOWNLOAD`（默认 `0`）。`.env` / `.env.example` 新增 PDF 转换配置段。
+  - **策略选择增强**: `services/pdf_conversion_service.py` 的 `convert_pdf` 在调用方未传 `preferred_strategy` 时回退到 `settings.PDF_PREFERRED_STRATEGY`；新增质量分阈值过滤——成功但 `quality_score < PDF_QUALITY_MIN_SCORE` 的结果降级到下一策略。
+  - **MinerU 配置统一**: `ingestion/converters/mineru.py` 的 `_model_cache_ready` 改为优先读 `settings.MINERU_ALLOW_MODEL_DOWNLOAD`，环境变量作 fallback。
+  - **测试**: 重写 `tests/unit/test_cninfo_adapter_attachment_text.py` 覆盖新注册流程 + 哈希去重；`tests/unit/test_pdf_conversion_service.py` 新增 preferred_strategy 配置解析、质量分阈值降级、阈值禁用 3 个测试。
+  - **依赖**: 安装 `markitdown[pdf]>=0.1.0`（中质量策略现已可用）。MinerU 因本机无 GPU 暂不启用（`is_available()` 会自动降级）。
+
+### Fixed
+
+- **knowledge_worker watchdog + Windows Job Object 自愈**: 解决 worker 崩溃后无自动恢复、以及 Windows 强杀导致 worker 孤儿残留两个遗留风险。
+  - `workers/_process_tree.py` — 新增模块，通过 ctypes 实现 Windows Job Object（`KILL_ON_JOB_CLOSE`），`ensure_child_dies_with_parent(child_pid)` 把子进程绑定到 Job，Job handle 关闭/父进程退出时内核自动终止子进程，即使父进程被 `TerminateProcess` 强杀也不会孤儿残留。非 Windows 返回 None（靠 POSIX 进程组）。
+  - `workers/watchdog.py` — `run_worker()` 调 `ensure_child_dies_with_parent(proc.pid)` 并持有 `_job_handle` 全局引用，确保 worker 随 watchdog 生命周期终止。
+  - `workers/knowledge_worker.py` — `_parse_args()` 在 `--worker-id` 缺省时 fallback 读 `ALPHAFOUNDRY_WORKER_ID` 环境变量（frozen 子进程无法传 CLI 参数）。
+  - `scripts/desktop/backend_launcher.py` — `_start_knowledge_worker()` 改为启动 watchdog（frozen: `ALPHAFOUNDRY_WATCHDOG_MODE=1`；dev: `python -m workers.watchdog`），`__main__` 新增 watchdog 模式分支。
+  - `tests/unit/workers/test_process_tree.py` / `test_watchdog.py` / `test_knowledge_worker.py` — 覆盖 Job Object 端到端（`CloseHandle` 杀子进程）、frozen/dev 命令构造、PID 自愈、worker_id 透传。
+
+- **知丘账号配置链路断裂修复**：系统配置工作台保存 5 个知丘账号后，`.env` 只剩 2 个、且运行时 `AccountManager` 读不到任何账号（5 个账号被连续失败误杀到全部永久禁用）。
+  - 根因：`services/configuration_service.py::_build_zhiqiu_changes` 保存时写 `ZQ_ACCOUNTS_JSON` 并删除旧版 `ZQ_ACCOUNTS`，但 `data_layer/crawlers/zq/zhiqiu/account_manager.py::_load_config` 只读旧版 `ZQ_ACCOUNTS`、不认 JSON 格式 → 账号池为空 → 认证全失败 → 连续失败 10 次触发 `is_disabled`。
+  - `account_manager.py` — `_load_config` 重构为优先解析 `ZQ_ACCOUNTS_JSON`（新增 `_load_accounts_from_env` / `_parse_accounts_json`），回退到 `ZQ_ACCOUNTS`，最后兜底 `config.yaml`，与 `ConfigurationService._parse_zhiqiu_accounts` 优先级对齐。
+  - 恢复 `.env` 的 `ZQ_ACCOUNTS_JSON` 为完整 5 个账号（huangyongjia/zhanzhengkai/sunhaoxiang/majingyi/wanghao）。
+  - 解禁重置 `.config_account_state.json`：5 个账号 `is_disabled=false`、`consecutive_failures=0`，保留历史统计。
+  - `tests/unit/test_connectors/test_zq_account_manager.py` — 新增 14 个测试覆盖 JSON 解析、优先级、系统配置保存后往返闭环、解禁可租借。
+
+### Fixed
+
+- **全量 lint/mypy 债务清零**: 修复 44 个 mypy 类型错误、686 个 black 格式、27 个 isort 排序、11 个 ruff 错误。`mypy core/ data_layer/ knowledge_layer/ reasoning/ reporting/ signal_lab/ app/ services/` 现报 `Success: no issues found in 457 source files`。
+  - `reporting/projects/generation.py` — 24 个 mypy 错误：ternary `isinstance` 守卫无法让 mypy 缩窄类型，拆成两步赋值 + 显式 `Dict[str, Any]` 注解（`report_defaults`/`source`/`market_field` 等）；`_semantic_similarity_scores` 返回类型 `List[float | None]` → `List[float]`。
+  - `services/commentary_context_service.py` — 4 个 union-attr：`SectorChangeItem | dict` 联合类型上 `.get()` 调用加 `isinstance(item, dict)` 守卫。
+  - `services/dashboard_service.py` — `params` 加 `dict[str, str | int]` 注解；`_previous_trading_date_yyyymmdd` 补 `@staticmethod`。
+  - `services/crawl_feed_content_service.py` — `metadata` 加 `dict[str, Any]` 注解；`doc.source_url` 经 `str` 中间变量传入 `re.search`。
+  - `services/configuration_service.py` — 删除 `ZhiQiuClient` 已移除的 `request_timeout`/`failure_dump_path` 参数。
+  - `services/wind_realtime_workbook.py` — `_parse_float` 在 `float(value)` 前加 `isinstance` 守卫缩窄 `object` 类型。
+  - `services/official_index_structure_ingestion.py` — `cleaned` 加 `dict[str, Any]` 注解。
+  - `services/asset_search_index_service.py` — generator 函数 `return []` 改裸 `return`。
+  - `services/commentary_draft_service.py` — `preferences.get("audience")` 改 `preferences.get("audience", "")` 避免 `str | None` 传入 `dict.get` key。
+  - `data_layer/crawlers/akshare/board.py` — `assert _cache is not None` 移到 `_cache.fetched_at` 使用前。
+  - `data_layer/adapters/pdf_adapter.py` — `pdf_files` 经 `list[Path | str | bytes]` 中间变量传入 `fetch_batch`（`list` 不协变）。
+  - `data_layer/repositories/ingestion_repository.py` — `db_item.item_id` 经 `str()` 转换传入 `set.add`。
+  - `data_layer/repositories/dashboard_data.py` — `_normalize_crawl_document_text` 返回类型 `Dict[str, str]` → `Dict[str, Any]`（含 `has_content: bool`）。
+  - `pyproject.toml` — 新增 `black.extend-exclude`、`isort.extend_skip`、`ruff.extend-exclude` 排除 `backups/build/dist`。
+
+- **实时监控数据源状态区分**: 数据源列表的状态圆点按是否已启动抓取区分颜色。
+  - `app/web/static/js/monitor.js` — `monitorSourceButton` 新增 `running` 参数，依据 `lastCrawledAt` / `items` / `totalToday` 判定数据源是否已抓取到数据，未启动抓取的行圆点附加 `idle` class。
+  - `app/web/static/style.css` — 新增 `.monitor-status-dot.idle` 样式（红色 `#ff453a`），已启动抓取保持绿色 `#30d158`，"全部来源"聚合行始终为绿色。
 
 - **报告项目运行编排 seam**: 新增 `ReportProjectRunService`，把 `/api/report-projects/{slug}/render` 的 Word/PPT 生成编排从 FastAPI route 收拢到 reporting module，保持外部响应字段不变。
   - `reporting/projects/run.py` — 新增单次报告项目运行 module，统一解析报告周期、调用占位符生成、Word/PPT 投影、Word 表格/图表嵌入、run-log 写入和 warning 聚合。
@@ -88,7 +205,15 @@
 
 ### Fixed
 
-- **桌面端卡在“本地服务暂未就绪”启动页**: 后端虽可正常响应 `/health`，但此前默认关闭 CORS，导致 Tauri WebView 无法读取该响应。现固定允许 AlphaFoundry 的三个本地 Tauri Origin，同时仍拒绝未明确允许的外部 Origin。
+- **Worker 监控孤儿 PID 误计数**: 实时监控把残留的 `logs/knowledge_worker*.pid` 文件全部算作存活 worker，导致显示 3 个 `knowledge_worker` 而实际进程早已退出（强杀/未走 shutdown 路径时 `_remove_pid()` 不会执行）。
+  - `workers/knowledge_worker.py` — `get_all_worker_statuses()` 检测到 PID 文件存在但进程已死亡时，自动删除孤儿 PID 文件并跳过，不再返回死进程条目；所有调用方（CLI 启停、`/api/system/workers/status`）本就按 `alive=True` 过滤，行为不受影响。
+  - `tests/unit/workers/test_knowledge_worker.py` — 新增 `TestWorkerStatusSelfHealing`，覆盖孤儿文件清理、存活 worker 保留、混合场景。
+- **Knowledge Worker watchdog 自动启动**: desktop backend launcher 改为启动 watchdog 进程，由 watchdog 拉起并守护 `knowledge_worker`，worker 崩溃时按指数退避自动重启（上限 10 次/小时），避免队列消费因 worker 单次崩溃长时间中断。
+  - `workers/watchdog.py` — 重写：支持 frozen 模式（复用 exe + `ALPHAFOUNDRY_WORKER_MODE=1` 启动 worker 子进程，而非 `python -m`）、新增 `_build_worker_cmd`/`_build_worker_env`、`--worker-id` 透传、PID 文件管理、改用 `core.observability` 日志。
+  - `workers/knowledge_worker.py` — `_parse_args()` 在 `--worker-id` 缺省时 fallback 到 `ALPHAFOUNDRY_WORKER_ID` 环境变量，使 frozen 模式下 watchdog 注入的 worker_id 能被读取。
+  - `scripts/desktop/backend_launcher.py` — `_start_knowledge_worker()` 改为启动 watchdog（frozen: `ALPHAFOUNDRY_WATCHDOG_MODE=1`；dev: `python -m workers.watchdog`）；`__main__` 入口新增 watchdog 模式分支；终止逻辑更新为终止 watchdog（watchdog 信号 handler 负责终止 worker，孤儿残留由 PID 自愈兜底）。
+  - `tests/unit/workers/test_watchdog.py` — 新增 `TestWatchdogCmdBuild`，覆盖 frozen/dev 模式命令构造、`ALPHAFOUNDRY_WORKER_MODE`/`ALPHAFOUNDRY_WORKER_ID` 环境变量注入。
+  - `tests/unit/workers/test_knowledge_worker.py` — 新增 `TestParseArgsWorkerId`，覆盖 worker_id 从环境变量读取、CLI 优先、缺省、非法值忽略。
 - **资产观察首屏加载过慢**: 资产分析页首次请求从全历史改为近一年，并 bump `asset.js` 静态资源版本，保留 K 线“全部”按钮供用户主动查看全历史，避免首屏等待超大分析响应时看起来像页面打不开。
 - **资产观察搜索被 CDN 阻塞**: Chart.js、ECharts 和 D3 改为异步加载，避免 `cdn.jsdelivr.net` 超时阻塞本地工作台启动和资产搜索；ECharts 未就绪时 K 线区域显示“图表资源仍在加载，基础数据已显示”。
 - **资产观察搜索后卡住**: `MultiSourceCoordinator` 在本地行情缓存只缺当天少量尾部数据时直接返回最近缓存，避免 `688981.SH` 等资产进入外部行情实时补数链路后被代理、BaoStock 或 Wind 超时拖住。
@@ -874,8 +999,3 @@
 - **[FILE_GUIDE.md](FILE_GUIDE.md)** - 文件指南
 - **[backup_restore.md](backup_restore.md)** - 备份恢复文档
 - **[DATA_SOURCES.md](DATA_SOURCES.md)** - 数据源文档
-
-## 2026-07-12
-
-- 修复全仓质量门：pytest 模块收集、数据库测试隔离、报告项目资产、类型检查与格式检查均可在干净工作树复现。
-- 系统配置任务改用可迁移的模型标识，移除报告配置与工作台默认值中的本机绝对路径。

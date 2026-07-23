@@ -1,6 +1,7 @@
 """
 Unit tests for core.services.pipeline_service
 """
+
 from unittest.mock import Mock
 
 import pytest

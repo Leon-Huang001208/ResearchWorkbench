@@ -1,4 +1,5 @@
 """Alpha 验证 Agent。"""
+
 import uuid
 
 from cognitive_agents.agents.base import AgentContext, BaseCognitiveAgent

@@ -3,6 +3,7 @@
 
 提供信号排名功能。
 """
+
 from typing import Any, List, Optional, Tuple
 
 import pandas as pd

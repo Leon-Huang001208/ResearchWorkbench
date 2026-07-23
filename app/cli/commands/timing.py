@@ -1,6 +1,7 @@
 """
 Timing CLI 命令
 """
+
 import json
 from typing import Optional, cast
 

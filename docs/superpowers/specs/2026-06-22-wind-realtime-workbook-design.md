@@ -48,10 +48,18 @@ wind_code,name,family,category,is_active,priority,is_concept,view_key,view_label
 
 ### 运行时工作簿
 
-默认路径：
+默认路径（跨平台，由 `core/settings/paths.py` 解析）：
 
 ```text
-~/Library/Application Support/AlphaFoundry/wind/AlphaFoundry_Wind_Realtime.xlsx
+Windows: %LOCALAPPDATA%\AlphaFoundry\wind\AlphaFoundry_Wind_Realtime.xlsx
+macOS:   ~/Library/Application Support/AlphaFoundry/wind/AlphaFoundry_Wind_Realtime.xlsx
+Linux:   $XDG_DATA_HOME/AlphaFoundry/wind/AlphaFoundry_Wind_Realtime.xlsx
+```
+
+环境变量覆盖（优先级：显式参数 > 环境变量 > 平台默认）：
+
+```text
+ALPHAFOUNDRY_WIND_WORKBOOK_PATH=/path/to/custom.xlsx
 ```
 
 开发环境可选路径：
@@ -61,7 +69,17 @@ data/runtime/wind/AlphaFoundry_Wind_Realtime.xlsx
 ```
 
 这个文件只用于本机运行，不提交到 git。后端启动时按配置查找工作簿；如果找不到
-或未打开，应返回清晰的健康状态，而不是阻塞页面。
+或未打开，应返回清晰的健康状态，而不是阻塞页面。从旧 macOS 风格路径
+（`~/Library/Application Support/AlphaFoundry/wind/...`）升级时，
+`WindWorkbookManager` 会自动将旧工作簿迁移到新规范路径，避免重新 prime 公式。
+
+### Wind 插件登录检测
+
+工作簿打开且公式已 prime 后，若 `Snapshot` sheet 仍无数据，reader 返回
+`status=snapshot_empty`，消息提示"Wind快照暂无数据，请确认Wind插件已登录"。
+该状态经 `/api/dashboard/sector-movers` 透传到前端，首页在板块列表为空时
+显示登录提示，而非通用的"暂无数据"。Wind 插件登录为 GUI 人机交互
+（账号 + 验证码/证书），代码层只做检测与提示，不自动登录。
 
 ## 工作簿结构
 

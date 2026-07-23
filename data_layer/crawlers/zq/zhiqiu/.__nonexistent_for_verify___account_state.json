@@ -1,0 +1,77 @@
+{
+  "version": "1.0",
+  "current_index": 0,
+  "last_updated": "2026-07-15T15:02:36.793745",
+  "accounts": {
+    "huangyongjia": {
+      "name": "huangyongjia",
+      "use_count": 0,
+      "success_count": 0,
+      "failure_count": 0,
+      "consecutive_failures": 0,
+      "last_used": null,
+      "last_failure": null,
+      "is_locked": false,
+      "lock_until": null,
+      "is_disabled": false,
+      "leased_by": null,
+      "leased_at": null
+    },
+    "zhanzhengkai": {
+      "name": "zhanzhengkai",
+      "use_count": 0,
+      "success_count": 0,
+      "failure_count": 0,
+      "consecutive_failures": 0,
+      "last_used": null,
+      "last_failure": null,
+      "is_locked": false,
+      "lock_until": null,
+      "is_disabled": false,
+      "leased_by": null,
+      "leased_at": null
+    },
+    "sunhaoxiang": {
+      "name": "sunhaoxiang",
+      "use_count": 0,
+      "success_count": 0,
+      "failure_count": 0,
+      "consecutive_failures": 0,
+      "last_used": null,
+      "last_failure": null,
+      "is_locked": false,
+      "lock_until": null,
+      "is_disabled": false,
+      "leased_by": null,
+      "leased_at": null
+    },
+    "majingyi": {
+      "name": "majingyi",
+      "use_count": 0,
+      "success_count": 0,
+      "failure_count": 0,
+      "consecutive_failures": 0,
+      "last_used": null,
+      "last_failure": null,
+      "is_locked": false,
+      "lock_until": null,
+      "is_disabled": false,
+      "leased_by": null,
+      "leased_at": null
+    },
+    "wanghao": {
+      "name": "wanghao",
+      "use_count": 0,
+      "success_count": 0,
+      "failure_count": 0,
+      "consecutive_failures": 0,
+      "last_used": null,
+      "last_failure": null,
+      "is_locked": false,
+      "lock_until": null,
+      "is_disabled": false,
+      "leased_by": null,
+      "leased_at": null
+    }
+  }
+}

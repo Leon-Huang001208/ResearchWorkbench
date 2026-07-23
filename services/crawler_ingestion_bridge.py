@@ -6,6 +6,7 @@
     2. 封装为 EnqueueRequest
     3. 通过 IngestionQueueService 入队
 """
+
 import hashlib
 import uuid
 from typing import Any, Dict, List

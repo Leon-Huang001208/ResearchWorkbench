@@ -1,4 +1,5 @@
 """测试 PDF 转换策略基类和契约模型"""
+
 import pytest
 
 from core.contracts.pdf_conversion import (

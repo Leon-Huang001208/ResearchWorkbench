@@ -13,6 +13,7 @@ data = adapter.market.get_historical_data("AAPL", period="1y")
 
 info = adapter.fundamental.get_stock_info("AAPL")
 """
+
 from .base import (
     DEFAULT_CONFIG,
     YahooAdapter,

@@ -1,4 +1,5 @@
 """Web 工作台 API"""
+
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException

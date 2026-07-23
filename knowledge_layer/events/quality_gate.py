@@ -1,6 +1,7 @@
 """
 事件质量门
 """
+
 from datetime import datetime
 from typing import List, Tuple
 
@@ -45,7 +46,9 @@ class EventQualityGate:
         if not event.summary:
             issues.append("摘要为空")
         elif len(event.summary.strip()) < self._min_summary_length:
-            issues.append(f"摘要过短: {len(event.summary.strip())} 字符 (最小: {self._min_summary_length})")
+            issues.append(
+                f"摘要过短: {len(event.summary.strip())} 字符 (最小: {self._min_summary_length})"
+            )
 
         # 3. 检查时间
         if event.event_time and event.event_time > datetime.utcnow():

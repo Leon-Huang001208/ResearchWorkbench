@@ -2,6 +2,7 @@
 
 Agent 只产出结构化观点，协作通过 CognitiveBlackboard 完成。
 """
+
 from .agents import AgentContext, AgentFactory, AgentOrchestrator, BaseCognitiveAgent
 from .blackboard import CognitiveBlackboard
 from .committee import CommitteeSynthesisService

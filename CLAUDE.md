@@ -1,8 +1,88 @@
-# AlphaFoundry - Claude 入口规则
+# CLAUDE.md
 
-AlphaFoundry 是一个本地优先、企业级的买方投研情报系统。
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+AlphaFoundry 是一个本地优先、企业级的买方投研情报系统，核心定位是 **AI 驱动的事件型量化（Event-driven Quant）**：AI 负责发现事件和产业链传播路径，Timing Engine 判断市场是否认可该逻辑，Signal Lab 负责统计验证和回测。
 
 本文件是 Claude 的最高优先级入口，必须保持简短。详细的执行规则在 `.claude/rules/` 中。
+
+---
+
+## 开发命令
+
+**Python 解释器**：`C:\Users\H01402\AppData\Local\anaconda3\envs\alphafoundry\python.exe`（`conda activate alphafoundry`）
+
+CLI 入口通过 `af` 命令暴露（`pyproject.toml` 注册为 `app.cli.main:main`）。
+
+```bash
+# 启动 API 服务（开发模式，自动重载）
+uvicorn app.api.main:app --reload
+# 访问: http://127.0.0.1:8000 | Swagger: /docs | 健康: /health
+
+# 数据库初始化
+python scripts/bootstrap_db.py
+
+# 运行全部测试
+python -m pytest tests/ -v
+
+# 运行单个测试文件
+python -m pytest tests/test_<module>.py -v
+
+# 运行单个测试函数
+python -m pytest tests/test_<module>.py::test_<name> -v
+
+# 代码格式化检查（必须全部通过才能标记任务完成）
+ruff check .
+black . --check
+isort . --check-only
+
+# 类型检查
+mypy core/ data_layer/ knowledge_layer/ reasoning/ reporting/ signal_lab/ app/
+
+# 生成 py 文件索引（docs/generated/py_file_index.md）
+python scripts/generate_py_file_index.py
+
+# 完成检查脚本
+python scripts/check_task_completion.py
+python scripts/check_doc_sync.py
+
+# CLI 使用示例
+af analyze --asset 600000.SH
+af scenario --topic "人工智能产业发展"
+af ingest --file report.pdf
+af report --asset 600519.SH --type full
+af crawl scheduler-start
+af knowledge start
+```
+
+---
+
+## 架构速览
+
+模块化单体，PostgreSQL + pgvector 作为唯一事实源，各层之间通过 `core/contracts/`（Pydantic v2）交换数据。
+
+```text
+外部数据 → data_layer (adapters/crawlers/normalizers)
+         → ingestion_queue (PostgreSQL) → knowledge_worker (KnowledgePipeline)
+         → knowledge_layer (实体解析 → 断言 → Event DB → 向量检索)
+         → reasoning (证据链 → 情景 → 推理追踪)
+         → cognitive_agents (Blackboard: Bull/Bear/Skeptic/Fundamental/Macro…)
+         → timing_engine (Regime/Flow/Theme/Sentiment/Crowding)
+         → signal_lab (特征 → 标签 → 评分 → Event Study 回测)
+         → memory_learning (Episode/Failure/Strategy Memory)
+         → reporting (占位符 → Evidence 检索 → ModelGateway → Word/Markdown)
+         → app (CLI: Click | API: FastAPI | Web: 工作台)
+                         ↕
+               storage (PostgreSQL + Alembic 迁移)
+```
+
+**关键架构约定**：
+
+- 添加新数据源：在 `data_sources/` 新建 `.py` 文件并调用 `register(SourceSpec(...))`，`ConnectorRegistry` 自动发现
+- 所有模型调用必须经过 `core/model_gateway/`，不得在业务代码中直接调用模型 API
+- Agent 不直接互聊，所有观点写入 `CognitiveBlackboard`（`AgentView` schema）
+- 未通过 Signal Lab 验证的信号只能停留 `research_only`，不能升级为交易候选
+- `core/connectors/base.py` 定义 Connector 生命周期：`discover → fetch → save_raw → parse → normalize → validate → persist`
 
 ---
 
@@ -81,8 +161,8 @@ AlphaFoundry 不是简单的前端/后端项目，它包含以下子系统：
 
 ## 2.1 运行环境
 
-- Python 命令默认使用 `/Users/leon/opt/anaconda3/bin/python`
-- 不要使用或安装系统 Python 的包，除非用户明确要求
+- Python 命令默认使用 alphafoundry conda 环境的解释器：`C:\Users\H01402\AppData\Local\anaconda3\envs\alphafoundry\python.exe`（激活方式：`conda activate alphafoundry`）
+- 不要使用或安装系统 Python（`C:\Python314`）或 base 环境的包，除非用户明确要求
 
 ---
 
@@ -101,7 +181,7 @@ python scripts/check_task_completion.py
 python scripts/check_doc_sync.py
 ```
 
-如果 UI 变更了，Claude 还必须使用 Playwright MCP 在浏览器中验证变更的 UI。
+**所有代码变更后（无论是否涉及 UI）**，Claude 必须使用 Playwright MCP 打开本地 AlphaFoundry（`http://127.0.0.1:8765`），验证应用是否正常运行、变更已同步生效，并截图留证。
 
 如果任何命令失败，不要标记任务为完成。遵循 `.claude/rules/05-blocking-policy.md`。
 

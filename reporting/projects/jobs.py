@@ -1,4 +1,5 @@
 """In-process background jobs for report-project generation."""
+
 from __future__ import annotations
 
 import threading

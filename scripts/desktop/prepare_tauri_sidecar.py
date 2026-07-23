@@ -1,4 +1,5 @@
 """Copy the generated backend executable into Tauri's externalBin location."""
+
 from __future__ import annotations
 
 import shutil

@@ -1,4 +1,5 @@
 """Unit tests for entity resolution module."""
+
 from knowledge_layer.entity_resolution.canonicalizer import Canonicalizer
 from knowledge_layer.entity_resolution.resolver import EntityResolver
 from knowledge_layer.entity_resolution.types import EntityType

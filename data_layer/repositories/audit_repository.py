@@ -1,4 +1,5 @@
 """审计日志仓储实现"""
+
 import uuid
 from typing import Any, Dict, List, Optional
 

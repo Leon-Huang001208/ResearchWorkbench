@@ -1,4 +1,5 @@
 """数据源连接器 — BaseConnector + DocumentConnector + MarketDataConnector + ConnectorRegistry."""
+
 from core.connectors.base import (
     BaseConnector,
     DiscoveryItem,

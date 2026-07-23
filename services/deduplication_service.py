@@ -5,6 +5,7 @@
 2. content_hash 去重（内容哈希）
 3. 近似重复检测（语义相似度）
 """
+
 import hashlib
 import re
 from datetime import datetime, timedelta
@@ -32,12 +33,12 @@ class DeduplicationService:
 
     def __init__(self):
         # 内存缓存（用于快速去重）
-        self._seen_source_ids: Dict[
-            str, Tuple[str, datetime]
-        ] = {}  # source_id -> (doc_id, timestamp)
-        self._seen_content_hashes: Dict[
-            str, Tuple[str, datetime]
-        ] = {}  # hash -> (doc_id, timestamp)
+        self._seen_source_ids: Dict[str, Tuple[str, datetime]] = (
+            {}
+        )  # source_id -> (doc_id, timestamp)
+        self._seen_content_hashes: Dict[str, Tuple[str, datetime]] = (
+            {}
+        )  # hash -> (doc_id, timestamp)
         self._cache_ttl = timedelta(hours=24)
 
     def check_duplicate(

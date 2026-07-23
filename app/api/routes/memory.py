@@ -1,4 +1,5 @@
 """Memory & Learning API 路由"""
+
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query

@@ -1,4 +1,5 @@
 """iFinD 数据适配器"""
+
 import importlib
 from datetime import datetime
 from pathlib import Path

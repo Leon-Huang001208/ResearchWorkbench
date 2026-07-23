@@ -33,10 +33,10 @@ def test_build_realtime_workbook_writes_view_ranges(tmp_path):
     assert "RealtimeRaw" in workbook.sheetnames
     assert "Snapshot" in workbook.sheetnames
     assert workbook["RealtimeRaw"]["F2"].value == (
-        '=@wss("CI005001.WI,CI005002.WI","sec_name,rt_last,rt_pct_chg",' '"cols=3;rows=2")'
+        '=wss("CI005001.WI,CI005002.WI","sec_name,rt_last,rt_pct_chg",' '"cols=3;rows=2")'
     )
     assert workbook["RealtimeRaw"]["F4"].value == (
-        '=@wss("801010.SI","sec_name,rt_last,rt_pct_chg","cols=3;rows=1")'
+        '=wss("801010.SI","sec_name,rt_last,rt_pct_chg","cols=3;rows=1")'
     )
 
 
@@ -64,13 +64,13 @@ def test_build_realtime_workbook_splits_large_view_wss_formulas(tmp_path, monkey
     assert workbook["ViewRanges"]["C2"].value == 2
     assert workbook["ViewRanges"]["D2"].value == 3
     assert workbook["RealtimeRaw"]["F2"].value == (
-        '=@wss("884001.WI,884002.WI","sec_name,rt_last,rt_pct_chg",' '"cols=3;rows=2")'
+        '=wss("884001.WI,884002.WI","sec_name,rt_last,rt_pct_chg",' '"cols=3;rows=2")'
     )
     assert workbook["RealtimeRaw"]["F4"].value == (
-        '=@wss("884003.WI","sec_name,rt_last,rt_pct_chg","cols=3;rows=1")'
+        '=wss("884003.WI","sec_name,rt_last,rt_pct_chg","cols=3;rows=1")'
     )
     assert workbook["RealtimeRaw"]["F5"].value == (
-        '=@wss("801010.SI","sec_name,rt_last,rt_pct_chg","cols=3;rows=1")'
+        '=wss("801010.SI","sec_name,rt_last,rt_pct_chg","cols=3;rows=1")'
     )
 
     batch_rows = module._load_batch_formula_rows(workbook_path)
@@ -169,3 +169,31 @@ def test_parse_snapshot_rows_skips_wind_fetching_placeholders():
     )
 
     assert [row.name for row in snapshot.rows] == ["光芯片指数"]
+
+
+def test_resolve_workbook_path_explicit_overrides_env(monkeypatch, tmp_path):
+    """显式参数优先于环境变量。"""
+    from services import wind_realtime_workbook as module
+
+    explicit = tmp_path / "explicit.xlsx"
+    monkeypatch.setenv(module.WIND_WORKBOOK_PATH_ENV, str(tmp_path / "env.xlsx"))
+    assert module.resolve_workbook_path(explicit) == explicit.resolve()
+
+
+def test_resolve_workbook_path_env_override(monkeypatch, tmp_path):
+    """无显式参数时，环境变量覆盖默认路径。"""
+    from services import wind_realtime_workbook as module
+
+    env_path = tmp_path / "env.xlsx"
+    monkeypatch.setenv(module.WIND_WORKBOOK_PATH_ENV, str(env_path))
+    assert module.resolve_workbook_path(None) == env_path.resolve()
+
+
+def test_resolve_workbook_path_defaults_when_no_env(monkeypatch):
+    """无显式参数且无环境变量时，回退到平台默认路径。"""
+    from services import wind_realtime_workbook as module
+
+    monkeypatch.delenv(module.WIND_WORKBOOK_PATH_ENV, raising=False)
+    result = module.resolve_workbook_path(None)
+    assert result.name == "AlphaFoundry_Wind_Realtime.xlsx"
+    assert result == module.DEFAULT_WORKBOOK_PATH

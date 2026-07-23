@@ -1,4 +1,5 @@
 """CNStock DocumentConnector 集成测试 — 使用 mock 验证完整生命周期."""
+
 import json
 from datetime import datetime
 from unittest.mock import MagicMock, patch
@@ -246,11 +247,13 @@ class TestCNStockPersist:
             ).model_dump(),
         )
 
-        with patch("data_layer.repositories.base.db_session") as mock_db_session_class, patch(
-            "data_layer.repositories.ingestion_repository.IngestionQueueRepository"
-        ) as mock_repo_class, patch(
-            "services.ingestion_queue_service.IngestionQueueService"
-        ) as mock_service_class:
+        with (
+            patch("data_layer.repositories.base.db_session") as mock_db_session_class,
+            patch(
+                "data_layer.repositories.ingestion_repository.IngestionQueueRepository"
+            ) as mock_repo_class,
+            patch("services.ingestion_queue_service.IngestionQueueService") as mock_service_class,
+        ):
             mock_db = MagicMock()
             mock_db_session_class.return_value.__enter__.return_value = mock_db
 
@@ -278,9 +281,10 @@ class TestCNStockPersist:
 
 class TestCNStockRun:
     def test_run_news_full_lifecycle(self, cnstock_connector, sample_envelopes):
-        with patch(
-            "data_layer.adapters.cnstock_adapter.CNStockAdapter"
-        ) as mock_adapter_class, patch.object(cnstock_connector, "persist", return_value=1):
+        with (
+            patch("data_layer.adapters.cnstock_adapter.CNStockAdapter") as mock_adapter_class,
+            patch.object(cnstock_connector, "persist", return_value=1),
+        ):
             mock_adapter = MagicMock()
             mock_adapter.fetch.return_value = [
                 MagicMock(model_dump=lambda e=env: e) for env in sample_envelopes

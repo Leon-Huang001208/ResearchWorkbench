@@ -1,4 +1,5 @@
 """Generate a Tauri release config fragment for signed updater artifacts."""
+
 from __future__ import annotations
 
 import json

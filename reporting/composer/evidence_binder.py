@@ -1,4 +1,5 @@
 """证据绑定器"""
+
 from dataclasses import dataclass
 from typing import Any, Optional
 

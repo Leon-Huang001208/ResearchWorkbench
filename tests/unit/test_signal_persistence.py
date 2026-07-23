@@ -1,4 +1,5 @@
 """集成测试：SignalService 持久化——信号跨请求持久存续"""
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker

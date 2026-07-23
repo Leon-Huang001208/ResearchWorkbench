@@ -42,6 +42,22 @@ Update this section when:
 - Command arguments change
 - Command output format changes
 
+### `app/cli/commands/ask.py`
+
+Purpose:
+
+- 联网问答命令：`af ask`。
+- `af ask "问题"` — 始终先联网搜索，再综合生成带引用的答案。
+- `-n/--max-results N` — 联网搜索最大结果数（默认 5）。
+- `--no-fetch-content` — 不抓取网页正文，只用搜索 API 返回的摘要。
+- 无搜索 API key 时自动降级为不联网直答，并在答案前标注 `[未联网]`。
+
+Related service:
+
+- `services/ask_factory.py` — `build_ask_service()`
+- `services/ask_service.py` — `AskService`
+- `services/web_search_service.py`
+
 ### `app/cli/commands/data.py`
 
 Purpose:
@@ -102,7 +118,3 @@ When files in this module change, check:
 - `docs/FILE_GUIDE.md`
 - `docs/CHANGELOG.md`
 - `docs/generated/py_file_index.md`
-
-## 2026-07-12
-
-CLI 相关类型和格式门禁已统一为仓库配置；维护性改动不改变既有命令参数或输出语义。

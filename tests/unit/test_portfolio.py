@@ -8,6 +8,7 @@
 - 组合构建完整流程测试
 - 排除理由记录测试
 """
+
 from unittest.mock import MagicMock
 
 from core.contracts import EventAlphaSignal

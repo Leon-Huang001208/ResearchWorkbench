@@ -1,4 +1,5 @@
 """System Event Bus 单元测试"""
+
 import asyncio
 
 import pytest

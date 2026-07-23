@@ -115,7 +115,7 @@ class IndustryGraphStore:
 
     def add_chain(self, chain: IndustryChain) -> IndustryChain:
         self._chains[chain.chain_id] = chain
-        logger.debug("Added industry chain", chain_id=chain.chain_id, name=chain.name)
+        logger.debug("Added industry chain", chain_id=chain.chain_id, chain_name=chain.name)
         return chain
 
     def get_chain(self, chain_id: str) -> Optional[IndustryChain]:

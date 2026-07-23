@@ -168,12 +168,14 @@ function renderMonitorSourceList() {
         }),
         ...CRAWL_FEED_SOURCES.map(source => {
             const state = getFeedState(source.id);
+            const running = Boolean(state.lastCrawledAt || state.items.length || state.totalToday);
             return monitorSourceButton({
                 id: source.id,
                 label: source.label,
                 subtitle: state.lastCrawledAt ? formatRelativeTime(state.lastCrawledAt) : '等待抓取',
                 count: sourceTodayCount(state, source),
                 active: activeMonitorSource === source.id,
+                running,
             });
         }),
     ];
@@ -184,10 +186,11 @@ function renderMonitorSourceList() {
     });
 }
 
-function monitorSourceButton({ id, label, subtitle, count, active }) {
+function monitorSourceButton({ id, label, subtitle, count, active, running = true }) {
+    const dotClass = running ? 'monitor-status-dot' : 'monitor-status-dot idle';
     return `
         <button class="monitor-source-row ${active ? 'active' : ''}" type="button" data-monitor-source="${esc(id)}">
-            <span class="monitor-status-dot"></span>
+            <span class="${dotClass}"></span>
             <span class="monitor-source-main"><strong>${esc(label)}</strong><small>${esc(subtitle)}</small></span>
             <span class="monitor-source-count">${esc(String(count || 0))}</span>
         </button>

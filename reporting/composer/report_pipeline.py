@@ -10,6 +10,7 @@ Report pipeline orchestrates the complete end-to-end report generation:
 6. Validation
 7. Output rendering
 """
+
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -396,13 +397,17 @@ class ReportPipeline:
         prompt_parts.append(f"- 目标字数：约 {spec.target_words} 字，允许上下30%的浮动")
 
         if spec.forbidden_terms:
-            prompt_parts.append(f"- 禁用词汇：{', '.join(spec.forbidden_terms)}，报告中绝对不能出现这些词汇")
+            prompt_parts.append(
+                f"- 禁用词汇：{', '.join(spec.forbidden_terms)}，报告中绝对不能出现这些词汇"
+            )
 
         if spec.structure:
             prompt_parts.append(f"- 结构要求：\n{spec.structure}")
 
         if spec.evidence_policy == "strict":
-            prompt_parts.append("- 证据要求：必须严格基于提供的事实，不能编造任何信息，不能超出事实范围进行推断")
+            prompt_parts.append(
+                "- 证据要求：必须严格基于提供的事实，不能编造任何信息，不能超出事实范围进行推断"
+            )
 
         if spec.required_facets:
             prompt_parts.append("- 必须覆盖以下方面：")
@@ -414,7 +419,9 @@ class ReportPipeline:
         # Part 3: Paragraph task
         prompt_parts.append("# 段落任务")
         prompt_parts.append(f"- 段落主题：{spec.title}")
-        prompt_parts.append(f"- 段落目的：{context.get('section_purpose', '为报告提供该主题的专业分析')}")
+        prompt_parts.append(
+            f"- 段落目的：{context.get('section_purpose', '为报告提供该主题的专业分析')}"
+        )
         prompt_parts.append("")
 
         # Part 4: Reference facts
@@ -531,7 +538,9 @@ class ReportPipeline:
             metadata = {
                 "任务ID": task.task_id,
                 "模板": task.template_name,
-                "创建时间": task.created_at.strftime("%Y-%m-%d %H:%M:%S") if task.created_at else "",
+                "创建时间": (
+                    task.created_at.strftime("%Y-%m-%d %H:%M:%S") if task.created_at else ""
+                ),
             }
 
         if suffix == ".md":

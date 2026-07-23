@@ -15,6 +15,7 @@
 
     health = registry.get_health("cnstock")  # → HealthStatus.HEALTHY
 """
+
 from __future__ import annotations
 
 from typing import Any, Callable, Dict, List, Optional, Type, cast

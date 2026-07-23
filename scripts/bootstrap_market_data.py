@@ -6,6 +6,7 @@
     python scripts/bootstrap_market_data.py --dry-run    # 只检查不写入
     python scripts/bootstrap_market_data.py --limit 100  # 限制股票数量
 """
+
 from __future__ import annotations
 
 import sys

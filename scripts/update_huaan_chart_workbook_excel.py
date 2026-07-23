@@ -4,6 +4,7 @@ This script intentionally uses Excel/xlwings instead of editing the xlsx zip
 package directly. Excel is stricter than openpyxl about chart XML, so chart
 source changes should be saved by Excel itself.
 """
+
 from __future__ import annotations
 
 import shutil

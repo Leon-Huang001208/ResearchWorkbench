@@ -1,4 +1,5 @@
 """通用 normalizer 工具函数"""
+
 from decimal import Decimal
 from typing import Optional
 

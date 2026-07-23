@@ -1,4 +1,5 @@
 """中国证券网·快讯"""
+
 from core.contracts.documents_v1 import DocType, SourceReliabilityLevel, SourceType
 from core.source_registry import SourceSpec, register
 
@@ -16,7 +17,7 @@ register(
         connector_dataset="flash",
         pipeline_kind="document",
         interval_minutes=30,
-        deep_backfill_enabled=False,
+        deep_backfill_enabled=True,
         doc_type=DocType.NEWS,
         reliability=SourceReliabilityLevel.ESTABLISHED_MEDIA,
         backfill_family="cnstock",

@@ -4,6 +4,7 @@
 防爬处理：随机UA、随机请求间隔、失败重试、超时控制
 自动去重，避免重复入库
 """
+
 import asyncio
 import logging
 import os
@@ -134,7 +135,9 @@ async def ingest_stock_master():
             params={"limit": 5000},
         )
         result = resp.json()
-        logger.info(f"股票列表同步完成：fetched={result.get('fetched', 0)} saved={result.get('saved', 0)}")
+        logger.info(
+            f"股票列表同步完成：fetched={result.get('fetched', 0)} saved={result.get('saved', 0)}"
+        )
     except Exception as e:
         logger.error(f"股票列表同步失败：{e}")
 
@@ -156,7 +159,9 @@ async def ingest_daily_bars():
             },
         )
         result = resp.json()
-        logger.info(f"日行情同步完成：fetched={result.get('fetched', 0)} saved={result.get('saved', 0)}")
+        logger.info(
+            f"日行情同步完成：fetched={result.get('fetched', 0)} saved={result.get('saved', 0)}"
+        )
     except Exception as e:
         logger.error(f"日行情同步失败：{e}")
 

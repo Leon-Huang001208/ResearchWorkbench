@@ -1,4 +1,5 @@
 """Unit tests for the Bull/Bear/Skeptic review framework"""
+
 from datetime import datetime
 
 from core.contracts import (

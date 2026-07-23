@@ -2,6 +2,7 @@
 
 测试信号创建 -> 结果记录 -> summary 更新的端到端流程。
 """
+
 import uuid
 from datetime import datetime, timezone
 

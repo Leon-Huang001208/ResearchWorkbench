@@ -3,6 +3,7 @@ Yahoo Finance 基本面数据获取器
 
 提供股票信息、财务报表、分红拆股等数据。
 """
+
 from typing import Any, Dict, Optional
 
 from core.observability import get_logger

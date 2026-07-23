@@ -2,6 +2,7 @@
 
 记录信号结果、查询结果、更新教训，并同步更新 LearningJournal。
 """
+
 from datetime import datetime, timezone
 from typing import List, Optional
 

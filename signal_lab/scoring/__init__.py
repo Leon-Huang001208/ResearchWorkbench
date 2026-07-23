@@ -3,6 +3,7 @@
 
 提供信号评分和排名功能。
 """
+
 from .ranker import SignalRanker
 from .scorer import (
     CompositeScorer,

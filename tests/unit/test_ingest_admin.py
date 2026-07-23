@@ -1,18 +1,16 @@
 """
 测试 Ingest Admin API
 """
+
 from datetime import datetime, timedelta
 from unittest.mock import patch
 
-import pytest
 from fastapi.testclient import TestClient
 
 from app.api.main import app
 from data_layer.repositories.models import CrawlStateV1DB
 
 client = TestClient(app)
-
-pytestmark = pytest.mark.usefixtures("runtime_database")
 
 
 class TestIngestAdminAPI:

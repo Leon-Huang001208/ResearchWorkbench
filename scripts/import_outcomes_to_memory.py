@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Import existing outcomes to memory learning module."""
+
 import json
 import sys
 import uuid
@@ -48,12 +49,16 @@ try:
                 market_regime="unknown",
                 initial_reaction="unknown",
                 outcome_horizon=outcome.get("horizon", "20d"),
-                outcome_return=float(outcome["outcome_return"])
-                if outcome["outcome_return"] is not None
-                else 0.0,
-                outcome_excess_return=float(outcome["outcome_excess_return"])
-                if outcome["outcome_excess_return"] is not None
-                else 0.0,
+                outcome_return=(
+                    float(outcome["outcome_return"])
+                    if outcome["outcome_return"] is not None
+                    else 0.0
+                ),
+                outcome_excess_return=(
+                    float(outcome["outcome_excess_return"])
+                    if outcome["outcome_excess_return"] is not None
+                    else 0.0
+                ),
                 timing_action=outcome.get("timing_action", "enter"),
                 signal_id=outcome.get("signal_id"),
                 timing_decision_id=None,

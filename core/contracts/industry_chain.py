@@ -5,6 +5,7 @@ This module defines Pydantic models for industry chain graphs, nodes, edges,
 propagation paths, and thesis cards, standardizing the representation of
 industry chain relationships and impact propagation in AlphaFoundry.
 """
+
 from enum import Enum
 from typing import Dict, List, Optional
 

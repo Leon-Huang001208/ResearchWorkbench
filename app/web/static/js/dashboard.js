@@ -433,12 +433,12 @@ function renderMarketSectorLists(mo) {
     renderMarketSectorTabs();
     const view = getMarketSectorView(mo);
     const isLoading = loadingMarketSectorViews.has(activeMarketSectorView);
-    renderSectorList(document.getElementById('market-top-up-sectors'), view.up || [], 'up', isLoading);
-    renderSectorList(document.getElementById('market-top-down-sectors'), view.down || [], 'down', isLoading);
+    renderSectorList(document.getElementById('market-top-up-sectors'), view.up || [], 'up', isLoading, view);
+    renderSectorList(document.getElementById('market-top-down-sectors'), view.down || [], 'down', isLoading, view);
     renderMarketHeatmap(buildMarketHeatmapItems(mo));
 }
 
-function renderSectorList(container, sectors, direction, isLoading = false) {
+function renderSectorList(container, sectors, direction, isLoading = false, view = null) {
     if (!container) return;
     const scrollPos = container.scrollTop;
     if (isLoading) {
@@ -460,7 +460,18 @@ function renderSectorList(container, sectors, direction, isLoading = false) {
             `;
         }).join('');
     } else {
-        container.innerHTML = `<li class="empty-state">${esc(getActiveMarketSectorView().label)}暂无数据</li>`;
+        const label = esc(getActiveMarketSectorView().label);
+        const status = view && view.status ? String(view.status) : '';
+        const message = view && view.message ? String(view.message) : '';
+        let text;
+        if (message) {
+            text = `${label}：${esc(message)}`;
+        } else if (status === 'snapshot_empty' || status === 'snapshot_invalid' || status === 'no_snapshot_data') {
+            text = `${label}暂无数据（请确认Wind插件已登录）`;
+        } else {
+            text = `${label}暂无数据`;
+        }
+        container.innerHTML = `<li class="empty-state">${text}</li>`;
     }
     container.scrollTop = scrollPos;
 }
@@ -509,12 +520,23 @@ async function ensureMarketSectorViewLoaded(viewKey, options = {}) {
         latestMarketOverview.sector_views[viewKey] = {
             up: data.up || [],
             down: data.down || [],
+            status: data.status || '',
+            message: data.message || '',
         };
+        // 如果当前激活视图是 Wind 系视图（需要 Wind 终端），但返回数据为空，
+        // 自动 fallback 到同花顺行业视图（使用 AKShare，无需 Wind）
+        const isWindView = viewKey !== 'ths_industry';
+        const isEmpty = !data.up?.length && !data.down?.length;
+        if (isWindView && isEmpty && activeMarketSectorView === viewKey) {
+            toast('Wind未连接，已切换至同花顺行业数据', 'info');
+            switchMarketSectorView('ths_industry');
+            return;
+        }
     } catch (error) {
         console.error('Failed to load market sector view:', error);
         latestMarketOverview.sector_views = latestMarketOverview.sector_views || {};
         if (force && current) return;
-        latestMarketOverview.sector_views[viewKey] = { up: [], down: [] };
+        latestMarketOverview.sector_views[viewKey] = { up: [], down: [], status: '', message: '' };
         if (!silent) toast(`加载${getActiveMarketSectorView().label}失败或超时`, 'error');
     } finally {
         clearTimeout(timeoutId);

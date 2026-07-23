@@ -22,7 +22,10 @@ from core.observability import get_logger  # noqa: E402
 logger = get_logger(__name__)
 
 DEFAULT_WORKBOOK = (
-    PROJECT_ROOT / "outputs" / "etf_gap_report_20260702" / "华安基金ETF缺口_Wind插件公式版_近五年PE分位.xlsx"
+    PROJECT_ROOT
+    / "outputs"
+    / "etf_gap_report_20260702"
+    / "华安基金ETF缺口_Wind插件公式版_近五年PE分位.xlsx"
 )
 
 

@@ -1,4 +1,5 @@
 """Wind 特征组单元测试"""
+
 import pandas as pd
 
 from signal_lab.features.groups.wind_block import WindBlockFeatures

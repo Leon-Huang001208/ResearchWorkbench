@@ -1,0 +1,29 @@
+{
+  "job_id": "a3a6c4dbbe40427fb14f6959e0e6e5fc",
+  "slug": "创业板50周报",
+  "status": "completed",
+  "phase": "save",
+  "message": "报告生成完成",
+  "completed_sections": 0,
+  "total_sections": 1,
+  "result": {
+    "success": true,
+    "project_name": "创业板50周报",
+    "slug": "创业板50周报",
+    "file_name": "20260722_创业板50周报.docx",
+    "file_path": "D:\\Projects\\AlphaFoundry\\report_projects\\创业板50周报\\generated\\20260722_创业板50周报.docx",
+    "download_url": "/api/report-projects/创业板50周报/download/20260722_创业板50周报.docx",
+    "preview_url": "/api/report-projects/创业板50周报/preview/20260722_创业板50周报.docx",
+    "run_log_url": "/api/report-projects/创业板50周报/runs/2026-07-22_162956.json",
+    "generated_at": "2026-07-22T16:29:56.622850",
+    "generated_placeholder_count": 5,
+    "evidence_count": 64,
+    "warnings": [
+      "industry_performance_placeholder: 未检索到证据，生成将提示材料不足",
+      "notable_stocks_placeholder: 未检索到证据，生成将提示材料不足"
+    ]
+  },
+  "error": null,
+  "created_at": "2026-07-22T16:28:13.750417",
+  "updated_at": "2026-07-22T16:29:57.282839"
+}

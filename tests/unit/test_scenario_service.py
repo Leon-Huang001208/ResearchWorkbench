@@ -1,6 +1,7 @@
 """
 测试情景服务
 """
+
 from unittest.mock import Mock, patch
 
 from services.scenario_service import ScenarioService
@@ -38,7 +39,9 @@ class TestScenarioService:
         output_path = tmp_path / "report.md"
 
         service = ScenarioService()
-        report_content = service.generate_thesis_report(topic="美联储政策走向", output_path=output_path)
+        report_content = service.generate_thesis_report(
+            topic="美联储政策走向", output_path=output_path
+        )
 
         assert report_content
         assert "# 美联储政策走向" in report_content

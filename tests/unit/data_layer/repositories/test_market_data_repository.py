@@ -3,6 +3,7 @@
 测试 upsert 幂等性：insert → update → 不重复。
 使用 SQLite 内存数据库。
 """
+
 from datetime import datetime, timezone
 
 import pytest

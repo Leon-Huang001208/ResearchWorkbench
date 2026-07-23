@@ -1,4 +1,5 @@
 """Wind 龙虎榜特征组 —— 从 Wind Excel 插件获取龙虎榜数据作为异常交易/聪明钱因子"""
+
 from typing import Any
 
 import pandas as pd

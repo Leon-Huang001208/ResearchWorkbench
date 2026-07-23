@@ -2,6 +2,7 @@
 
 编排 fetcher → normalizer → repository → etl_run 全流程。
 """
+
 import uuid
 from datetime import date
 from typing import Any, Optional

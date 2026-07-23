@@ -50,6 +50,34 @@ PDFConversionService (services/pdf_conversion_service.py)
 - 指定 `preferred_strategy` 时优先使用指定策略
 - 指定策略不可用时按优先级自动降级
 - `StrategyType.AUTO` (默认) 自动选择最高可用策略
+- 调用方未传 `preferred_strategy` 时，回退到全局配置 `PDF_PREFERRED_STRATEGY`（默认 `auto`）
+- 质量分阈值过滤：成功但 `quality_score < PDF_QUALITY_MIN_SCORE`（默认 `0.0`=禁用）的结果会降级到下一策略
+
+## Configuration
+
+PDF 转换子系统通过 `core/settings/config.py` 的 Settings 类配置，可在 `.env` 覆写：
+
+| 配置项 | 默认值 | 说明 |
+|--------|--------|------|
+| `PDF_PREFERRED_STRATEGY` | `auto` | 全局默认策略：`auto`(三级降级) / `mineru` / `markitdown` / `raw_text` |
+| `PDF_QUALITY_MIN_SCORE` | `0.0` | 成功结果低于此分触发降级（`0.0`=禁用阈值过滤） |
+| `PDF_MARKDOWN_DIR` | `data/markdown` | Markdown 输出目录 |
+| `PDF_RAW_TEXT_DIR` | `data/raw_text` | 原始文本输出目录 |
+| `PDF_INLINE_THRESHOLD_BYTES` | `262144` (256KB) | 小于此值时文本内联存 DB |
+| `MINERU_ALLOW_MODEL_DOWNLOAD` | `0` | 是否允许 MinerU 在线拉 HuggingFace 模型 |
+| `HF_HOME` | (空) | HuggingFace 缓存根目录，Windows 开发机建议显式指定 |
+
+> MinerU 在无 GPU 且无本地模型缓存的环境下会被 `is_available()` 判为不可用并自动降级。本机若需启用，设 `MINERU_ALLOW_MODEL_DOWNLOAD=1` 并接受 CPU 推理的耗时，或切换 `api` 后端。
+
+## CNINFO 附件路径（已统一）
+
+巨潮资讯网公告附件 PDF 原有两套并行处理路径，现已统一为单一异步管线：
+
+- **旧路径 B（已移除）**：`CninfoAdapter._append_attachment_text` 在爬取时就地调 MarkItDown/RawText 转换，文本内联进 `DocumentEnvelope.raw_text`，不写 DB、不走 MinerU。
+- **新路径（统一到路径 A）**：下载附件 → 计算 SHA-256 → `get_pdf_by_hash` 去重 → 注册 `PDFArtifactV1DB(parse_status="pending")` → 由 CrawlScheduler 异步走 `PDFConversionService` 三级降级。
+- 行为变化：公告元数据先入队，PDF 全文延迟约 5 分钟通过独立 DocumentV1 入队（不再内联到公告 raw_text）。
+- `metadata` 标记：`attachment_text_status` 为 `registered_pending`（新注册）/ `already_registered`（哈希去重命中）/ `download_failed` / `non_pdf_attachment` / `no_attachment`；`attachment_pdf_id` 记录关联 artifact。
+- 受 `data_sources/cninfo.py` 的 `fetch_attachment_text` 开关控制（默认 `False`，开启时走新路径）。
 
 ## Key Files
 

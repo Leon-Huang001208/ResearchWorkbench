@@ -1,4 +1,5 @@
 """BaoStock — A股日线/分钟线行情数据源"""
+
 from core.contracts.documents_v1 import SourceType
 from core.source_registry import SourceSpec, register
 

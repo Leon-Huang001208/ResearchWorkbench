@@ -1,4 +1,5 @@
 """段落生成器"""
+
 from pathlib import Path
 from typing import Any
 

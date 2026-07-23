@@ -295,7 +295,11 @@ class CommentaryDraftService:
     ) -> list[dict[str, str]]:
         title = RECIPE_TITLE_MAP.get(recipe_id, RECIPE_TITLE_MAP["daily-close"])
         action_label = self._section_action_label(action)
-        system = "你是买方基金投研团队的中文点评编辑。" "只改写用户给出的单个段落，不输出标题，不扩写成整篇文章。" "必须遵守证据核验边界，不编造未提供的数据。"
+        system = (
+            "你是买方基金投研团队的中文点评编辑。"
+            "只改写用户给出的单个段落，不输出标题，不扩写成整篇文章。"
+            "必须遵守证据核验边界，不编造未提供的数据。"
+        )
         user = "\n".join(
             [
                 f"点评类型：{title}",
@@ -355,13 +359,15 @@ class CommentaryDraftService:
             "defensive": "防御解释",
             "decisive": "观点明确",
         }
-        audience = audience_labels.get(preferences.get("audience") or "", "投研内部")
-        length = length_labels.get(preferences.get("length") or "", "中评")
-        tone = tone_labels.get(preferences.get("tone") or "", "克制归因")
+        audience = audience_labels.get(preferences.get("audience", ""), "投研内部")
+        length = length_labels.get(preferences.get("length", ""), "中评")
+        tone = tone_labels.get(preferences.get("tone", ""), "克制归因")
         target_mode = preferences.get("target_mode") or "auto"
         target_name = (preferences.get("target_name") or "").strip()
         target_mode_label = "手动指定" if target_mode == "manual" else "系统自动识别"
-        target_line = f"点评对象：{target_mode_label} - {target_name or '等待从当日热点板块和事件中识别'}"
+        target_line = (
+            f"点评对象：{target_mode_label} - {target_name or '等待从当日热点板块和事件中识别'}"
+        )
         return (
             f"受众：{audience}\n"
             f"长度：{length}\n"
@@ -564,7 +570,9 @@ class CommentaryDraftService:
     def _apply_local_section_action(content: str, action: str) -> str:
         text = (content or "").strip()
         if action == "shorten":
-            sentences = [item.strip() for item in text.replace("；", "。").split("。") if item.strip()]
+            sentences = [
+                item.strip() for item in text.replace("；", "。").split("。") if item.strip()
+            ]
             return "。".join(sentences[:2]) + ("。" if sentences[:2] else "")
         if action == "soften":
             return (
@@ -574,7 +582,9 @@ class CommentaryDraftService:
                 .replace("不会", "短期不易")
             )
         if action == "risk":
-            risk_text = "需要提示的是，若后续成交额、资金流或新增证据不能验证当前判断，相关归因仍需下修。"
+            risk_text = (
+                "需要提示的是，若后续成交额、资金流或新增证据不能验证当前判断，相关归因仍需下修。"
+            )
             if risk_text in text:
                 return text
             suffix = "" if text.endswith("。") else "。"
@@ -627,7 +637,9 @@ class CommentaryDraftService:
         if "产品" in title or "ETF" in title:
             risk_text = "需要提示的是，产品映射不等于收益承诺，若后续资金流、成交额或基本面证据不能验证当前判断，相关配置结论仍需下修。"
         else:
-            risk_text = "需要提示的是，若后续成交额、资金流或新增证据不能验证当前判断，相关归因仍需下修。"
+            risk_text = (
+                "需要提示的是，若后续成交额、资金流或新增证据不能验证当前判断，相关归因仍需下修。"
+            )
         separator = "\n\n" if text else ""
         return f"{text}{separator}## 风险提示\n{risk_text}"
 

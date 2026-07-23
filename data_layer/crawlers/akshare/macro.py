@@ -1,6 +1,7 @@
 """
 AkShare 宏观数据获取器
 """
+
 from typing import List, Optional
 
 import pandas as pd
@@ -45,7 +46,9 @@ class AkShareMacroFetcher(BaseAkShareFetcher):
                     if not year:
                         continue
 
-                    value = self._safe_float(row, "国内生产总值-绝对值") or self._safe_float(row, "GDP")
+                    value = self._safe_float(row, "国内生产总值-绝对值") or self._safe_float(
+                        row, "GDP"
+                    )
 
                     if value is None:
                         continue
@@ -250,7 +253,9 @@ class AkShareMacroFetcher(BaseAkShareFetcher):
                         continue
 
                     # M2
-                    m2_value = self._safe_float(row, "货币和准货币(M2)") or self._safe_float(row, "M2")
+                    m2_value = self._safe_float(row, "货币和准货币(M2)") or self._safe_float(
+                        row, "M2"
+                    )
                     if m2_value is not None:
                         macro_data = MacroData(
                             indicator="M2",

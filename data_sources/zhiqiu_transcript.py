@@ -1,4 +1,5 @@
 """知丘 — 会议纪要"""
+
 from core.contracts.documents_v1 import DocType, SourceReliabilityLevel, SourceType
 from core.source_registry import SourceSpec, register
 
@@ -14,7 +15,6 @@ register(
         connector_dataset="meeting",
         pipeline_kind="document",
         interval_minutes=60,
-        enabled=False,
         days_per_crawl=3,
         deep_backfill_enabled=True,
         doc_type=DocType.REPORT,

@@ -6,6 +6,7 @@
 这个文件保持向后兼容性，内部使用新的处理器模块。
 所有旧的接口都保留，新代码应该直接使用 processors/ 目录下的模块。
 """
+
 import os
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -128,7 +129,9 @@ class _CompatibleProcessor:
             with open(output_file, "w", encoding="utf-8") as f:
                 json.dump(results, f, ensure_ascii=False, indent=2)
 
-        self.client.logger.info(f"已处理 {len(results)} 条研报（跳过 {skipped_count} 条），保存至 {output_file}")
+        self.client.logger.info(
+            f"已处理 {len(results)} 条研报（跳过 {skipped_count} 条），保存至 {output_file}"
+        )
 
         import pandas as pd
 
@@ -188,7 +191,9 @@ class _CompatibleProcessor:
             with open(output_file, "w", encoding="utf-8") as f:
                 json.dump(results, f, ensure_ascii=False, indent=2)
 
-        self.client.logger.info(f"已处理 {len(results)} 条记录（跳过 {skipped_count} 条），保存至 {output_file}")
+        self.client.logger.info(
+            f"已处理 {len(results)} 条记录（跳过 {skipped_count} 条），保存至 {output_file}"
+        )
 
         import pandas as pd
 

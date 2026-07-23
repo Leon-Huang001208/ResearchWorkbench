@@ -3,6 +3,7 @@
 
 记录所有校验结果，用于后续分析和回溯。
 """
+
 import json
 from dataclasses import dataclass, field
 from datetime import datetime

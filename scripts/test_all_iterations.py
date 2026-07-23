@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Final test of all iterations together."""
+
 import sys
 from pathlib import Path
 

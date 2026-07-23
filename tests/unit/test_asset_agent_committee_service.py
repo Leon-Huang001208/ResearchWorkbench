@@ -1,4 +1,5 @@
 """Tests for deterministic asset Agent committee service."""
+
 from datetime import UTC, date, datetime
 from unittest.mock import AsyncMock, Mock
 

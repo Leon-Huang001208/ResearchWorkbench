@@ -1,4 +1,5 @@
 """信号结果评估仓储实现"""
+
 from typing import Any, Dict, List, Optional
 
 from core.contracts.outcomes import SignalOutcome
@@ -133,9 +134,9 @@ class OutcomeRepositoryImpl(BaseRepository):
             benchmark=db_outcome.benchmark,
             outcome_return=float(db_outcome.outcome_return),
             outcome_excess_return=float(db_outcome.outcome_excess_return),
-            max_drawdown=float(db_outcome.max_drawdown)
-            if db_outcome.max_drawdown is not None
-            else None,
+            max_drawdown=(
+                float(db_outcome.max_drawdown) if db_outcome.max_drawdown is not None else None
+            ),
             decay=float(db_outcome.decay) if db_outcome.decay is not None else None,
             failure_reason=db_outcome.failure_reason,
             lesson=db_outcome.lesson,

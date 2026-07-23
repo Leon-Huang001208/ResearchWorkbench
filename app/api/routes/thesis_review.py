@@ -1,4 +1,5 @@
 """Thesis Review routes - Bull/Bear/Skeptic structured review endpoints"""
+
 from typing import Any, Dict
 
 from fastapi import APIRouter, Depends, HTTPException

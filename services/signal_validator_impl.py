@@ -3,6 +3,9 @@
 
 实现SignalValidator接口。
 """
+
+from __future__ import annotations
+
 import uuid
 from typing import Any, Dict, Optional
 
@@ -11,15 +14,6 @@ import pandas as pd
 from core.contracts import AlphaSignal, TradeCandidate
 from core.interfaces import SignalValidator
 from core.observability import get_logger
-from signal_lab.backtests import SimpleBacktester
-from signal_lab.features import FeatureBuilder
-from signal_lab.features.groups import (
-    FinancialFeatures,
-    FundFlowFeatures,
-    PriceVolumeFeatures,
-    ValuationFeatures,
-)
-from signal_lab.scoring import CompositeScorer
 
 logger = get_logger(__name__)
 
@@ -42,6 +36,14 @@ class SignalValidatorImpl(SignalValidator):
             scorer: 评分器
         """
         if feature_builder is None:
+            from signal_lab.features import FeatureBuilder
+            from signal_lab.features.groups import (
+                FinancialFeatures,
+                FundFlowFeatures,
+                PriceVolumeFeatures,
+                ValuationFeatures,
+            )
+
             feature_builder = FeatureBuilder()
             feature_builder.add_group(PriceVolumeFeatures())
             feature_builder.add_group(ValuationFeatures())
@@ -49,8 +51,18 @@ class SignalValidatorImpl(SignalValidator):
             feature_builder.add_group(FundFlowFeatures())
 
         self.feature_builder = feature_builder
-        self.backtester = backtester or SimpleBacktester()
-        self.scorer = scorer or CompositeScorer()
+
+        if backtester is None:
+            from signal_lab.backtests import SimpleBacktester
+
+            backtester = SimpleBacktester()
+        self.backtester = backtester
+
+        if scorer is None:
+            from signal_lab.scoring import CompositeScorer
+
+            scorer = CompositeScorer()
+        self.scorer = scorer
 
     def generate_features(self, subject_id: str, **kwargs: Any) -> Dict[str, float]:
         """

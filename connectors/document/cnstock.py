@@ -14,6 +14,7 @@ Usage:
     result = connector.run(dataset="flash", start_date="2026-01-01",
                            end_date="2026-01-31")
 """
+
 from __future__ import annotations
 
 import json
@@ -263,7 +264,8 @@ class CNStockDocumentConnector(DocumentConnector):
         channel_label = f" [{channel}]" if channel else ""
 
         doc_title = (
-            f"中国证券网{channel_label} {raw.metadata.get('start_date', '')} " f"({len(envelopes)} 条)"
+            f"中国证券网{channel_label} {raw.metadata.get('start_date', '')} "
+            f"({len(envelopes)} 条)"
         ).strip()
 
         return ParsedDocument(
@@ -304,7 +306,8 @@ class CNStockDocumentConnector(DocumentConnector):
             title=parsed.title,
             content=parsed.text,
             summary=(
-                f"中国证券网{channel}频道 {article_count} 条新闻，" f"标题: {'; '.join(individual_titles[:5])}"
+                f"中国证券网{channel}频道 {article_count} 条新闻，"
+                f"标题: {'; '.join(individual_titles[:5])}"
                 if individual_titles
                 else None
             ),

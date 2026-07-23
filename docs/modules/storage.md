@@ -76,7 +76,3 @@ When files in this module change, check:
 - `docs/FILE_GUIDE.md`
 - `docs/CHANGELOG.md`
 - `docs/generated/py_file_index.md`
-
-## 2026-07-12
-
-迁移与仓储回归使用隔离 SQLite schema 验证；真实 PostgreSQL 冒烟由显式环境开关控制。

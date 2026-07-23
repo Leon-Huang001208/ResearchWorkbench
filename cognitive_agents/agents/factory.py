@@ -1,4 +1,5 @@
 """Agent 工厂。"""
+
 from typing import Callable, Dict
 
 from cognitive_agents.agents.adversarial.bear_agent import BearAgent

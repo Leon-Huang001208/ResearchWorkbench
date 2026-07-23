@@ -4,6 +4,7 @@
 - 从 data/real/ 目录加载 JSON 文件
 - 保存到数据库
 """
+
 import hashlib
 import json
 import sys

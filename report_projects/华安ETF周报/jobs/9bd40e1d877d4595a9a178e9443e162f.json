@@ -1,0 +1,26 @@
+{
+  "job_id": "9bd40e1d877d4595a9a178e9443e162f",
+  "slug": "华安ETF周报",
+  "status": "completed",
+  "phase": "save",
+  "message": "报告生成完成",
+  "completed_sections": 19,
+  "total_sections": 19,
+  "result": {
+    "success": true,
+    "project_name": "华安ETF周报",
+    "slug": "华安ETF周报",
+    "file_name": "2026-07-17_133339_华安ETF周报.docx",
+    "file_path": "D:\\Projects\\AlphaFoundry\\report_projects\\华安ETF周报\\generated\\2026-07-17_133339_华安ETF周报.docx",
+    "download_url": "/api/report-projects/华安ETF周报/download/2026-07-17_133339_华安ETF周报.docx",
+    "preview_url": "/api/report-projects/华安ETF周报/preview/2026-07-17_133339_华安ETF周报.docx",
+    "run_log_url": "/api/report-projects/华安ETF周报/runs/2026-07-17_133339.json",
+    "generated_at": "2026-07-17T13:33:39.436488",
+    "generated_placeholder_count": 23,
+    "evidence_count": 190,
+    "warnings": []
+  },
+  "error": null,
+  "created_at": "2026-07-17T13:33:21.481128",
+  "updated_at": "2026-07-17T13:33:42.759946"
+}

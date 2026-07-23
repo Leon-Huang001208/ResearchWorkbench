@@ -6,7 +6,7 @@
 - 任务管理
 - 健康检查
 """
-import os
+
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -95,6 +95,32 @@ class CrawlScheduler:
         for cfg in DEFAULT_CRAWL_CONFIGS:
             self.configs[cfg.source_type] = cfg
             self.calendars[cfg.source_type] = get_trading_calendar()
+
+    # ── 夜间静默 ──────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _is_quiet_hours() -> bool:
+        """判断当前是否处于夜间静默窗口（本地时间）。
+
+        静默窗口由 settings.CRAWLER_QUIET_START / CRAWLER_QUIET_END 定义，
+        单位为整点小时（0–23）。窗口为左闭右开区间：[start, end)。
+        若 start == end，静默功能禁用，始终返回 False。
+        跨午夜窗口（如 22–6）自动支持：start > end 时，
+        满足 hour >= start OR hour < end 即视为静默。
+        """
+        from core.settings.config import settings
+
+        start = settings.CRAWLER_QUIET_START
+        end = settings.CRAWLER_QUIET_END
+        if start == end:
+            return False  # 静默功能已禁用
+
+        hour = datetime.now().hour
+        if start < end:
+            return start <= hour < end
+        else:
+            # 跨午夜，如 22–6
+            return hour >= start or hour < end
 
     def add_config(self, config: SourceCrawlConfig) -> None:
         """添加抓取配置"""
@@ -295,7 +321,7 @@ class CrawlScheduler:
             )
             return
 
-        # 常规抓取任务
+        # 常规抓取任务（首次触发延迟 30s，避免等满整个 interval）
         job_id = f"crawl_{config.source_type.value}"
         crawl_jitter = int(config.interval_minutes * 60 * 0.2)
         self.scheduler.add_job(
@@ -306,6 +332,7 @@ class CrawlScheduler:
             id=job_id,
             name=f"Crawl {config.source_name}",
             kwargs={"source_type": config.source_type},
+            next_run_time=datetime.now() + timedelta(seconds=30),
         )
         logger.info(
             f"[scheduler] Added crawl job: {job_id} interval={config.interval_minutes}m "
@@ -377,6 +404,10 @@ class CrawlScheduler:
         """执行抓取任务（在线程池中运行同步阻塞调用，避免阻塞 event loop）"""
         import asyncio as _asyncio
 
+        if self._is_quiet_hours():
+            logger.debug("[quiet] Skipping crawl for %s (quiet hours)", source_type.value)
+            return
+
         config = self.configs.get(source_type)
         if not config:
             logger.warning(f"[scheduler] No config for {source_type}, skipping crawl")
@@ -409,6 +440,10 @@ class CrawlScheduler:
         """执行补漏任务（在线程池中运行）"""
         import asyncio as _asyncio
 
+        if self._is_quiet_hours():
+            logger.debug("[quiet] Skipping backfill for %s (quiet hours)", source_type.value)
+            return
+
         config = self.configs.get(source_type)
         if not config:
             return
@@ -433,6 +468,10 @@ class CrawlScheduler:
         """执行深度历史回补任务（仅财联社 /detail/{id} 逐条扫描，在线程池中运行）"""
         import asyncio as _asyncio
 
+        if self._is_quiet_hours():
+            logger.debug("[quiet] Skipping deep backfill (quiet hours)")
+            return
+
         try:
             logger.info("Running scheduled deep backfill for CLS")
 
@@ -452,6 +491,12 @@ class CrawlScheduler:
     async def _run_cnstock_deep_backfill_job(self, source_type: SourceType) -> None:
         """执行 CNSTOCK 深度回补（max_pages=30，扩展历史覆盖，在线程池中运行）"""
         import asyncio as _asyncio
+
+        if self._is_quiet_hours():
+            logger.debug(
+                "[quiet] Skipping CN deep backfill for %s (quiet hours)", source_type.value
+            )
+            return
 
         config = self.configs.get(source_type)
         if not config:
@@ -485,6 +530,10 @@ class CrawlScheduler:
     async def _run_zq_deep_backfill_job(self) -> None:
         """执行 ZQ 滑动窗口深度历史回补（在线程池中运行以避免阻塞事件循环）"""
         import asyncio as _asyncio
+
+        if self._is_quiet_hours():
+            logger.debug("[quiet] Skipping ZQ deep backfill (quiet hours)")
+            return
 
         try:
             logger.info("Running scheduled ZQ deep backfill step")
@@ -735,7 +784,15 @@ def get_scheduler_process_status(pid_file: str | None = None) -> Dict[str, Any]:
         {"alive": bool, "pid": int|None, "pid_file": str}
     """
     if pid_file is None:
-        pid_file = str(Path(__file__).parent.parent / "logs" / "scheduler.pid")
+        # 优先使用环境变量，打包部署（Tauri sidecar）时 __file__ 指向 exe 内部路径失效
+        import os as _os
+
+        _project_root = (
+            Path(_os.environ["ALPHAFOUNDRY_PROJECT_ROOT"])
+            if "ALPHAFOUNDRY_PROJECT_ROOT" in _os.environ
+            else Path(__file__).parent.parent
+        )
+        pid_file = str(_project_root / "logs" / "scheduler.pid")
 
     result: Dict[str, Any] = {"alive": False, "pid": None, "pid_file": pid_file}
 
@@ -746,8 +803,9 @@ def get_scheduler_process_status(pid_file: str | None = None) -> Dict[str, Any]:
     try:
         pid = int(pid_path.read_text().strip())
         result["pid"] = pid
-        os.kill(pid, 0)
-        result["alive"] = True
+        import psutil
+
+        result["alive"] = psutil.pid_exists(pid)
     except (ValueError, OSError):
         pass
 

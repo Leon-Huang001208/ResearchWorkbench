@@ -16,7 +16,6 @@ from core.contracts.commentary import (
     CommentarySectionRewriteRequest,
     CommentarySectionRewriteResponse,
 )
-from core.model_gateway import ModelGatewayImpl
 from core.observability import get_logger
 from data_layer.repositories.base import get_db
 from services.commentary_context_service import CommentaryContextService
@@ -38,6 +37,8 @@ def get_commentary_context_service(
 
 def get_commentary_draft_service() -> CommentaryDraftService:
     """Build a request-scoped commentary draft service."""
+    from core.model_gateway import ModelGatewayImpl
+
     return CommentaryDraftService(ModelGatewayImpl())
 
 

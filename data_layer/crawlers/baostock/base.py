@@ -4,6 +4,7 @@ BaoStock 基础适配器模块
 定义统一的数据结构和适配器基类。
 遵循项目现有架构，与 AkShare 适配器保持一致。
 """
+
 from abc import ABC
 from contextlib import contextmanager
 from dataclasses import dataclass, field

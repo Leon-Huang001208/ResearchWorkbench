@@ -2,6 +2,7 @@
 事件自动生成信号服务
 已批准的事件自动生成候选信号，不需要手动触发流水线
 """
+
 from collections.abc import Sequence
 from types import TracebackType
 from typing import Optional, Protocol

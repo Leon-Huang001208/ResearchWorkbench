@@ -2,6 +2,7 @@
 
 仅使用 ModelGateway (LLM) 进行深度提取，LLM 不可用时返回空结果。
 """
+
 from __future__ import annotations
 
 import asyncio

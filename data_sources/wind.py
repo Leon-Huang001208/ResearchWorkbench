@@ -1,4 +1,5 @@
 """Wind — 万得终端行情/财务/一致预期数据源"""
+
 from core.contracts.documents_v1 import SourceType
 from core.source_registry import SourceSpec, register
 

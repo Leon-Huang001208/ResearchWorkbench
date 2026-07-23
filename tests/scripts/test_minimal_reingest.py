@@ -3,6 +3,7 @@ Smoke test for minimal re-ingestion bootstrap pipeline.
 
 Verifies that the recovery path can run with sample data and produce working state.
 """
+
 import sys
 from pathlib import Path
 
@@ -14,8 +15,6 @@ sys.path.insert(0, str(project_root))
 
 from data_layer.repositories.base import check_database_connection, db_session
 from data_layer.repositories.models import AlphaSignalDB, CanonicalEvent, SourceDocument
-
-pytestmark = pytest.mark.usefixtures("runtime_database")
 
 
 def test_bootstrap_sample_directory_exists():

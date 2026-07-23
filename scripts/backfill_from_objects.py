@@ -5,9 +5,10 @@ Backfill source documents and factual layers from object storage artifacts.
 Usage:
     python scripts/backfill_from_objects.py [--scan-only] [--force-reextract]
 
-This script is idempotent: repeated runs will not create duplicates; 
+This script is idempotent: repeated runs will not create duplicates;
 existing records with matching content hashes will be skipped or updated safely.
 """
+
 import hashlib
 import json
 import sys
@@ -127,9 +128,11 @@ def load_artifact(path: Path) -> Optional[Dict[str, Any]]:
                     "binary_content": content,
                     "source_type": "binary",
                     "source_name": path.name,
-                    "content_type": f"application/{path.suffix.lstrip('.')}"
-                    if path.suffix
-                    else "application/octet-stream",
+                    "content_type": (
+                        f"application/{path.suffix.lstrip('.')}"
+                        if path.suffix
+                        else "application/octet-stream"
+                    ),
                 }
     except Exception as e:
         logger.error(f"Failed to load artifact {path}: {str(e)}", exc_info=True)

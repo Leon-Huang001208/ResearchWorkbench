@@ -3,6 +3,7 @@
 AlphaFoundry 完整功能演示
 演示所有核心功能的使用方法
 """
+
 import sys
 from pathlib import Path
 from unittest.mock import Mock

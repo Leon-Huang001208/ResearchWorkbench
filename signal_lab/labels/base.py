@@ -3,6 +3,7 @@
 
 定义标签生成的基础接口。
 """
+
 from abc import ABC, abstractmethod
 from typing import Any
 

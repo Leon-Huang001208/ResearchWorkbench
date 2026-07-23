@@ -1,4 +1,5 @@
 """iFinD 数据映射器"""
+
 import hashlib
 import logging
 from datetime import datetime

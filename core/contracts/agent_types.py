@@ -4,6 +4,7 @@ These types define the structured input/output format for cognitive agents.
 Centralized here so both cognitive_agents/ and data_layer/ can depend on them
 without creating a data-layer → agent-layer dependency.
 """
+
 from datetime import datetime
 from typing import Any, Literal
 

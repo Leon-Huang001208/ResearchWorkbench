@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """测试AKShare连接性"""
+
 import sys
 from pathlib import Path
 

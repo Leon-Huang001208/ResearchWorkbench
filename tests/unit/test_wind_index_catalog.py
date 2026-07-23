@@ -59,7 +59,7 @@ def test_provider_prefers_catalog_entries_over_builtin_seeds(tmp_path):
     up, down, has_real_data, _ = provider.get_top_movers(limit=10)
 
     assert has_real_data is True
-    assert [item["name"] for item in up] == ["GPU"]
+    assert [item["name"] for item in up] == ["GPU指数"]
     assert down == []
 
 

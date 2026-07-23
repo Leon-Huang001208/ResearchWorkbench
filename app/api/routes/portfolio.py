@@ -1,4 +1,5 @@
 """Portfolio API — 组合构建与风险预算路由"""
+
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -26,7 +27,9 @@ class BuildRequest(BaseModel):
 
     name: Optional[str] = Field(None, description="提案名称")
     constraints: Optional[Dict[str, Any]] = Field(None, description="自定义约束")
-    signal_ids: Optional[List[str]] = Field(None, description="指定信号ID列表（为空则取所有活跃信号）")
+    signal_ids: Optional[List[str]] = Field(
+        None, description="指定信号ID列表（为空则取所有活跃信号）"
+    )
 
 
 class BuildWithConstraintsRequest(BaseModel):

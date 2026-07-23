@@ -28,7 +28,11 @@ def test_persist_probe_snapshot_writes_index_etf_link_and_daily_metric():
                 "index:000300.SH:index_name_wss", "index", "000300.SH", "index_name_wss", "沪深300"
             ),
             _probe(
-                "etf:510300.SH:etf_name_wss", "etf", "510300.SH", "etf_name_wss", "沪深300ETF华泰柏瑞"
+                "etf:510300.SH:etf_name_wss",
+                "etf",
+                "510300.SH",
+                "etf_name_wss",
+                "沪深300ETF华泰柏瑞",
             ),
             _probe(
                 "etf:510300.SH:etf_tracking_index_wss",

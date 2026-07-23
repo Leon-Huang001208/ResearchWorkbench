@@ -109,7 +109,11 @@ def akshare_stocks_command(limit: int, output: str | None):
 @click.option("--limit", "-n", type=int, default=20, help="返回新闻数量限制")
 @click.option("--keyword", "-k", multiple=True, help="关键词过滤 (可多次使用)")
 @click.option(
-    "--source", "-s", type=click.Choice(["sina", "eastmoney", "all"]), default="all", help="新闻来源"
+    "--source",
+    "-s",
+    type=click.Choice(["sina", "eastmoney", "all"]),
+    default="all",
+    help="新闻来源",
 )
 @click.option("--output", "-o", help="输出文件路径 (JSON)")
 def akshare_news_command(limit: int, keyword: tuple[str], source: str, output: str | None):

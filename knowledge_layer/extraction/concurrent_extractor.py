@@ -1,6 +1,7 @@
 """
 并发 LLM 抽取器 - 使用 ThreadPoolExecutor 对文本 chunk 并发调用 LLM 提取断言和事件
 """
+
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
@@ -23,8 +24,7 @@ class ModelGatewayLike(Protocol):
         temperature: float = ...,
         model: str | None = ...,
         **kwargs: Any,
-    ) -> ModelResponseLike:
-        ...
+    ) -> ModelResponseLike: ...
 
 
 BuildAssertionFn = Callable[[dict[str, Any], str, int | None], Any]

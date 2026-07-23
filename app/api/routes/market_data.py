@@ -2,6 +2,7 @@
 
 提供股票列表同步、日行情同步、日行情查询、ETL 运行记录查询。
 """
+
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query

@@ -109,7 +109,9 @@ class CjpyAdapter(BaseDataAdapter):
             cjpy.set_token(env_token, persist=True)
             return env_token
 
-        raise RuntimeError("cjpy token 未配置。请调用 cjpy.set_token('your-token') 或设置环境变量 CJ_KEY")
+        raise RuntimeError(
+            "cjpy token 未配置。请调用 cjpy.set_token('your-token') 或设置环境变量 CJ_KEY"
+        )
 
     def is_available(self) -> bool:
         """检查天软服务是否可用（模块级缓存，避免每次请求都做网络调用）"""

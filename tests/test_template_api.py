@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """测试模板管理API"""
+
 import sys
 from pathlib import Path
 

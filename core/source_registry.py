@@ -132,6 +132,32 @@ def is_registered(source_type: SourceType) -> bool:
     return source_type in _registry
 
 
+def reliability_to_tier(reliability: SourceReliabilityLevel) -> str:
+    """SourceReliabilityLevel → SourceTier 值（字符串）映射.
+
+    将 7 级可信度压缩到报告编译器使用的 4 级分层（tier_a/b/c/d）。
+    返回字符串而非 SourceTier 枚举，避免 source_registry 顶层模块
+    依赖 core.contracts.compiler（compiler 不依赖本模块，单向安全），
+    消费方（SourceGrader / DocumentQuality.source_tier）直接存字符串。
+    映射与 core.contracts.compiler.reliability_to_tier 保持一致。
+    """
+    mapping = {
+        SourceReliabilityLevel.OFFICIAL: "tier_a",
+        SourceReliabilityLevel.ESTABLISHED_MEDIA: "tier_b",
+        SourceReliabilityLevel.RESEARCH_INSTITUTE: "tier_b",
+        SourceReliabilityLevel.SPECIALIZED_MEDIA: "tier_c",
+        SourceReliabilityLevel.OPINION_LEADER: "tier_c",
+        SourceReliabilityLevel.SOCIAL_MEDIA: "tier_d",
+        SourceReliabilityLevel.UNKNOWN: "tier_d",
+    }
+    return mapping.get(reliability, "tier_d")
+
+
+def spec_to_tier(spec: "SourceSpec") -> str:
+    """从 SourceSpec.reliability 推导来源分级（tier_a/b/c/d 字符串）。"""
+    return reliability_to_tier(spec.reliability)
+
+
 def get_fallback_groups() -> Dict[str, List[SourceSpec]]:
     """获取按优先级排序的多源降级组。"""
     _ensure_discovered()

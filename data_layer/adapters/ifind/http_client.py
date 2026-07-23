@@ -1,4 +1,5 @@
 """iFinD HTTP API 客户端实现"""
+
 import logging
 from datetime import datetime, timedelta
 from typing import Any

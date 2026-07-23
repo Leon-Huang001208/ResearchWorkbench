@@ -1,6 +1,7 @@
 """
 别名管理器
 """
+
 from typing import Dict, List, Optional
 
 from core.interfaces import EntityRepository

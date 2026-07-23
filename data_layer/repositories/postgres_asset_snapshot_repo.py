@@ -1,4 +1,5 @@
 """PostgreSQL 资产分析快照仓库"""
+
 from typing import Optional
 
 from sqlalchemy.orm import Session

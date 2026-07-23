@@ -1,4 +1,5 @@
 """Wind MarketDataConnector 集成测试 — 使用 mock 验证完整生命周期."""
+
 import json
 from datetime import date
 from unittest.mock import MagicMock, patch
@@ -248,9 +249,11 @@ class TestWindRun:
             assert result.status == IngestionStatus.FAILED
 
     def test_run_full_lifecycle(self, wind_connector, mock_daily_quotes_df):
-        with patch.object(wind_connector, "health_check", return_value=HealthStatus.HEALTHY), patch(
-            "data_layer.adapters.wind.wind_adapter.WindAdapter"
-        ) as mock_adapter_class, patch.object(wind_connector, "persist", return_value=2):
+        with (
+            patch.object(wind_connector, "health_check", return_value=HealthStatus.HEALTHY),
+            patch("data_layer.adapters.wind.wind_adapter.WindAdapter") as mock_adapter_class,
+            patch.object(wind_connector, "persist", return_value=2),
+        ):
             mock_adapter = MagicMock()
             mock_adapter.fetch_daily_quotes.return_value = mock_daily_quotes_df
             mock_adapter_class.return_value = mock_adapter

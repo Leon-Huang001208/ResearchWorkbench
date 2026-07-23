@@ -1,6 +1,7 @@
 """System health endpoint — scheduler / queue / worker 状态"""
 
 import json
+import os
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -13,7 +14,12 @@ from services.system_event_bus import event_bus
 
 logger = get_logger(__name__)
 
-PROJECT_DIR = Path(__file__).resolve().parent.parent.parent.parent
+# 优先使用环境变量，打包部署（Tauri sidecar）时 __file__ 指向 exe 内部路径失效
+PROJECT_DIR = (
+    Path(os.environ["ALPHAFOUNDRY_PROJECT_ROOT"])
+    if "ALPHAFOUNDRY_PROJECT_ROOT" in os.environ
+    else Path(__file__).resolve().parent.parent.parent.parent
+)
 
 router = APIRouter(prefix="/api/system", tags=["system"])
 
@@ -232,9 +238,11 @@ async def get_workers_status():
         kw_statuses: List[Dict[str, Any]] = get_all_worker_statuses()
         for ws in kw_statuses:
             worker_info: Dict[str, Any] = {
-                "name": f"knowledge_worker_{ws.get('worker_id')}"
-                if ws.get("worker_id") is not None
-                else "knowledge_worker",
+                "name": (
+                    f"knowledge_worker_{ws.get('worker_id')}"
+                    if ws.get("worker_id") is not None
+                    else "knowledge_worker"
+                ),
                 "type": "knowledge",
                 "pid": ws.get("pid"),
                 "alive": ws.get("alive", False),

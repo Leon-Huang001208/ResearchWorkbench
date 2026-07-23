@@ -6,6 +6,7 @@ This repair script keeps the original template package as the base and only
 transplants the native chart drawings and chart parts from a known-good chart
 template.
 """
+
 from __future__ import annotations
 
 import logging

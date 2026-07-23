@@ -1,4 +1,5 @@
 """统一摄取队列仓储"""
+
 import hashlib
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Set

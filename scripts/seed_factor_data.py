@@ -28,6 +28,7 @@ Usage:
     # Specific symbols
     python scripts/seed_factor_data.py --symbols 600519.SH,000858.SZ --source wind
 """
+
 from __future__ import annotations
 
 import argparse

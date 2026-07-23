@@ -1,4 +1,5 @@
 """Governance 持久化仓储实现"""
+
 import hashlib
 import json
 from datetime import datetime

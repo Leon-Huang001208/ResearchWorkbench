@@ -1,4 +1,5 @@
 """全局搜索服务"""
+
 from typing import Dict, List, Optional
 
 from core.observability import get_logger

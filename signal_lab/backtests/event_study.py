@@ -3,6 +3,7 @@
 
 把事件数据库中的事件转化为事件窗收益统计，用来回答“这类事件过去是否真的赚钱”。
 """
+
 from __future__ import annotations
 
 from typing import Any, Optional

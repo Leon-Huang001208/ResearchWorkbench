@@ -3,6 +3,7 @@ PDF 转换服务 —— 核心编排逻辑.
 
 负责管理 PDF 到 Markdown/文本的转换流程，包括策略选择、状态流转和结果持久化。
 """
+
 import hashlib
 import time
 import uuid
@@ -20,6 +21,7 @@ from core.contracts.documents_v1 import (
 )
 from core.contracts.pdf_conversion import ConversionResult, ConversionStatus, StrategyType
 from core.observability import get_logger
+from core.settings.config import settings
 from data_layer.repositories import pdf_artifact_repository as pdf_repo
 from data_layer.repositories.documents_v1 import DocumentChunkV1Repository, DocumentV1Repository
 from data_layer.repositories.models import PDFArtifactV1DB, PDFConversionV1DB
@@ -72,6 +74,26 @@ class PDFConversionService:
     def get_available_strategies(self) -> list[str]:
         """获取当前可用的策略列表"""
         return [name for name, s in self._strategies.items() if s.is_available()]
+
+    def _resolve_preferred_strategy(
+        self, preferred: Optional[StrategyType]
+    ) -> Optional[StrategyType]:
+        """解析首选策略：调用方未指定时回退到全局配置 PDF_PREFERRED_STRATEGY。
+
+        配置值为 "auto" 或空时返回 None（交由 _ordered_strategies 走自动降级）。
+        无法识别的配置值同样回退到 None 并告警。
+        """
+        if preferred is not None:
+            return preferred
+
+        raw = (settings.PDF_PREFERRED_STRATEGY or "").strip().lower()
+        if not raw or raw == "auto":
+            return None
+        try:
+            return StrategyType(raw)
+        except ValueError:
+            logger.warning(f"PDF_PREFERRED_STRATEGY 配置值无效: {raw}，回退到 auto 降级")
+            return None
 
     def _select_strategy(
         self, preferred: Optional[StrategyType] = None
@@ -132,6 +154,9 @@ class PDFConversionService:
         Returns:
             ConversionResult: 转换结果
         """
+        # 0. 未显式指定策略时，回退到全局配置 PDF_PREFERRED_STRATEGY
+        preferred_strategy = self._resolve_preferred_strategy(preferred_strategy)
+
         # 1. 查找 PDF artifact
         artifact = pdf_repo.get_pdf_by_id(self._db, pdf_id)
         if not artifact:
@@ -238,6 +263,23 @@ class PDFConversionService:
                         "pdf_id": pdf_id,
                         "strategy": strategy.name,
                         "error": result.error_message,
+                    },
+                )
+                continue
+
+            # 6.5 质量分阈值过滤：成功但低于阈值则降级到下一策略
+            min_score = settings.PDF_QUALITY_MIN_SCORE
+            if min_score > 0 and (result.quality_score or 0.0) < min_score:
+                errors.append(
+                    f"{strategy.name}: 质量分 {result.quality_score} 低于阈值 {min_score}"
+                )
+                logger.warning(
+                    "PDF 转换质量分不达标，降级到下一策略",
+                    extra={
+                        "pdf_id": pdf_id,
+                        "strategy": strategy.name,
+                        "quality_score": result.quality_score,
+                        "min_score": min_score,
                     },
                 )
                 continue

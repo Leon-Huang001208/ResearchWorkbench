@@ -1,4 +1,5 @@
 """Test DB CanonicalEvent → Pydantic CanonicalEvent adapter."""
+
 from datetime import UTC, datetime
 from unittest.mock import MagicMock
 

@@ -1,4 +1,5 @@
 """Agent 观点仓储测试"""
+
 import uuid
 
 import pytest

@@ -1,4 +1,5 @@
 """产业链图谱 API"""
+
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query

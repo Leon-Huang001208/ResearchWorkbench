@@ -1,0 +1,13 @@
+{
+  "job_id": "78083965bacb49f78c49ee8b1a50b6e8",
+  "slug": "华安ETF周报",
+  "status": "running",
+  "phase": "prepare",
+  "message": "正在准备生成配置...",
+  "completed_sections": 0,
+  "total_sections": 0,
+  "result": null,
+  "error": null,
+  "created_at": "2026-07-22T09:52:01.433360",
+  "updated_at": "2026-07-22T09:52:01.445038"
+}

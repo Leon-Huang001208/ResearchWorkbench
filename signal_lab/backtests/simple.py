@@ -3,6 +3,7 @@
 
 提供基础的回测功能。
 """
+
 from typing import Any, List, Optional
 
 import numpy as np

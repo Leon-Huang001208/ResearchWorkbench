@@ -4,6 +4,7 @@ The first UI slice is intentionally read-only and deterministic. It uses the
 dynamic factor MVP components to generate an auditable demo payload until a
 durable Factor Store and production factor data are available.
 """
+
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone

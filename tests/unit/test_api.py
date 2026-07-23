@@ -1,4 +1,5 @@
 """API 端点测试"""
+
 from unittest.mock import AsyncMock, MagicMock
 
 from fastapi.testclient import TestClient

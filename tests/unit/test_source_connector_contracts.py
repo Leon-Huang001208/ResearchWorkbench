@@ -1,4 +1,5 @@
 """Source registry connector contract tests."""
+
 import importlib
 
 import data_sources  # noqa: F401
@@ -39,24 +40,13 @@ def test_document_sources_have_document_connector_datasets():
         "cls": "telegram",
         "cnstock": "news",
         "cnstock_flash": "flash",
+        "zhiqiu_reports": "report",
+        "zhiqiu_wechat": "news",
+        "zhiqiu_transcript": "meeting",
     }
     actual = {spec.source_type.value: spec.connector_dataset for spec in document_specs}
 
     assert actual == expected
-
-
-def test_zhiqiu_sources_are_registered_but_disabled():
-    from core.contracts.documents_v1 import SourceType
-    from core.source_registry import get
-
-    for source_type in (
-        SourceType.ZHIQIU_REPORTS,
-        SourceType.ZHIQIU_WECHAT,
-        SourceType.ZHIQIU_TRANSCRIPT,
-    ):
-        spec = get(source_type)
-        assert spec is not None
-        assert spec.enabled is False
 
 
 def test_cnstock_live_sources_keep_scheduler_light():

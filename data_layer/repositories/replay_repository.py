@@ -1,4 +1,5 @@
 """回放任务 & 结果仓储实现"""
+
 from datetime import datetime, timezone
 from typing import List, Optional
 
@@ -29,7 +30,7 @@ class ReplayRepositoryImpl(BaseRepository):
         )
         self.db.add(db_job)
         self.db.flush()
-        logger.info("replay job created", job_id=job.job_id, name=job.name)
+        logger.info("replay job created", job_id=job.job_id, job_name=job.name)
         return self._job_to_domain(db_job)
 
     def get_job(self, job_id: str) -> Optional[ReplayJob]:
@@ -128,22 +129,26 @@ class ReplayRepositoryImpl(BaseRepository):
             outcome_id=db_result.outcome_id,
             event_type=db_result.event_type,
             source_type=db_result.source_type,
-            signal_score=float(db_result.signal_score)
-            if db_result.signal_score is not None
-            else None,
-            signal_confidence=float(db_result.signal_confidence)
-            if db_result.signal_confidence is not None
-            else None,
+            signal_score=(
+                float(db_result.signal_score) if db_result.signal_score is not None else None
+            ),
+            signal_confidence=(
+                float(db_result.signal_confidence)
+                if db_result.signal_confidence is not None
+                else None
+            ),
             timing_action=db_result.timing_action,
-            outcome_return=float(db_result.outcome_return)
-            if db_result.outcome_return is not None
-            else None,
-            outcome_excess_return=float(db_result.outcome_excess_return)
-            if db_result.outcome_excess_return is not None
-            else None,
-            max_drawdown=float(db_result.max_drawdown)
-            if db_result.max_drawdown is not None
-            else None,
+            outcome_return=(
+                float(db_result.outcome_return) if db_result.outcome_return is not None else None
+            ),
+            outcome_excess_return=(
+                float(db_result.outcome_excess_return)
+                if db_result.outcome_excess_return is not None
+                else None
+            ),
+            max_drawdown=(
+                float(db_result.max_drawdown) if db_result.max_drawdown is not None else None
+            ),
             decay=float(db_result.decay) if db_result.decay is not None else None,
             error=db_result.error,
         )

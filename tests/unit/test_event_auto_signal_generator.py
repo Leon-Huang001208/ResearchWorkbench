@@ -1,4 +1,5 @@
 """事件自动信号生成测试。"""
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker

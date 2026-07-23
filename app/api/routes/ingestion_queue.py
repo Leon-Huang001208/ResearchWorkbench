@@ -1,4 +1,7 @@
 """统一摄取队列 API"""
+
+from __future__ import annotations
+
 from typing import List, cast
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -18,7 +21,6 @@ from data_layer.repositories.ingestion_repository import IngestionQueueRepositor
 from data_layer.repositories.signal_repository import SignalRepositoryImpl
 from data_layer.repositories.timing_repository import TimingRepositoryImpl as TimingRepository
 from services.ingestion_queue_service import IngestionQueueService
-from services.pipeline_service import ResearchPipeline
 from services.signal_service import SignalService
 
 logger = get_logger(__name__)
@@ -31,6 +33,8 @@ _pipeline: ResearchPipeline | None = None
 
 def _build_pipeline(db: Session) -> ResearchPipeline:
     """构建/更新 ResearchPipeline（带信号/择时持久化，模块级缓存）"""
+    from services.pipeline_service import ResearchPipeline
+
     global _pipeline
     if _pipeline is None:
         signal_repo = SignalRepositoryImpl(db)

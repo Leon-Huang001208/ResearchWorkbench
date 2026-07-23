@@ -1,4 +1,5 @@
 """AkShare 数据映射器 - AkShare 原始数据 → AssetAnalysisSnapshot"""
+
 import hashlib
 import json
 from datetime import datetime

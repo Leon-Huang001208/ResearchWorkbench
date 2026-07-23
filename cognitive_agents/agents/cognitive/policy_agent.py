@@ -1,4 +1,5 @@
 """政策分析 Agent。"""
+
 import uuid
 
 from cognitive_agents.agents.base import AgentContext, BaseCognitiveAgent

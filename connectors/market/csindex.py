@@ -15,6 +15,7 @@ Usage:
     result = connector.run(dataset="index_constituents", index_code="000300")
     result = connector.run(dataset="index_valuation", index_code="000300")
 """
+
 from __future__ import annotations
 
 import json

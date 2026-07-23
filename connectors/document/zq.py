@@ -13,6 +13,7 @@ Usage:
     result = connector.run(dataset="report", start_date="2026-01-01",
                            end_date="2026-01-31", search="新能源")
 """
+
 from __future__ import annotations
 
 import json

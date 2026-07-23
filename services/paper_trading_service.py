@@ -2,6 +2,7 @@
 
 模拟组合在时间序列上的运行，包括建仓/调仓/成本建模/绩效计算/基准比较。
 """
+
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
@@ -264,12 +265,18 @@ class PaperTradingService:
                     market_value=allocated,
                     unrealized_pnl=allocated - (old_pos.cost_basis if old_pos else allocated),
                     unrealized_pnl_pct=(
-                        allocated
-                        / (old_pos.cost_basis if old_pos and old_pos.cost_basis > 0 else allocated)
-                    )
-                    - 1.0
-                    if old_pos
-                    else 0.0,
+                        (
+                            allocated
+                            / (
+                                old_pos.cost_basis
+                                if old_pos and old_pos.cost_basis > 0
+                                else allocated
+                            )
+                        )
+                        - 1.0
+                        if old_pos
+                        else 0.0
+                    ),
                     cost_basis=allocated,
                 )
             )

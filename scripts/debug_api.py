@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """调试资产分析API"""
+
 import sys
 from pathlib import Path
 

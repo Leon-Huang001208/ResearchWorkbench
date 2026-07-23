@@ -4,6 +4,7 @@ AkShare 使用示例
 
 展示如何在 AlphaFoundry 中使用 AkShare 适配器
 """
+
 import logging
 import sys
 from datetime import date, datetime

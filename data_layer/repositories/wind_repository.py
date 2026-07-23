@@ -3,6 +3,7 @@
 为 Wind Excel 适配器提供数据持久化能力，支持一致预期、融资融券、
 龙虎榜和日行情数据的批量 upsert 和查询。
 """
+
 from typing import Optional
 
 from sqlalchemy.dialects.postgresql import insert as pg_insert

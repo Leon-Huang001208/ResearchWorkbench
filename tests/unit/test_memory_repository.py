@@ -1,4 +1,5 @@
 """Unit tests for MemoryRepository."""
+
 import pytest
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
@@ -21,9 +22,7 @@ def test_engine():
     # Create the memory tables manually since they use raw SQL not ORM models
     with engine.connect() as conn:
         # Create market_episode
-        conn.execute(
-            text(
-                """
+        conn.execute(text("""
             CREATE TABLE market_episode (
                 episode_id TEXT PRIMARY KEY,
                 event_id TEXT NOT NULL,
@@ -42,13 +41,9 @@ def test_engine():
                 metadata JSON NOT NULL DEFAULT '{}',
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
-        """
-            )
-        )
+        """))
         # Create strategy_memory
-        conn.execute(
-            text(
-                """
+        conn.execute(text("""
             CREATE TABLE strategy_memory (
                 strategy_id TEXT PRIMARY KEY,
                 signal_family TEXT NOT NULL,
@@ -60,13 +55,9 @@ def test_engine():
                 notes JSON NOT NULL DEFAULT '[]',
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
-        """
-            )
-        )
+        """))
         # Create agent_memory
-        conn.execute(
-            text(
-                """
+        conn.execute(text("""
             CREATE TABLE agent_memory (
                 memory_id TEXT PRIMARY KEY,
                 agent_name TEXT NOT NULL,
@@ -78,13 +69,9 @@ def test_engine():
                 last_updated_reason TEXT,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
-        """
-            )
-        )
+        """))
         # Create failure_memory
-        conn.execute(
-            text(
-                """
+        conn.execute(text("""
             CREATE TABLE failure_memory (
                 failure_id TEXT PRIMARY KEY,
                 source_id TEXT NOT NULL,
@@ -94,9 +81,7 @@ def test_engine():
                 evidence_refs JSON NOT NULL DEFAULT '[]',
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
-        """
-            )
-        )
+        """))
         conn.commit()
 
     Base.metadata.create_all(engine)

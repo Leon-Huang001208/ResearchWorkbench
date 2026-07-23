@@ -1,4 +1,5 @@
 """Unit tests for report_generator."""
+
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 

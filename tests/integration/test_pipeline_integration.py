@@ -1,6 +1,7 @@
 """
 全链路流水线集成测试 - 测试ResearchPipeline端到端流程
 """
+
 from datetime import datetime
 from unittest.mock import AsyncMock, Mock
 

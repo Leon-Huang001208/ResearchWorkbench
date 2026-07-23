@@ -1,4 +1,5 @@
 """Build the AlphaFoundry Python backend as a Tauri sidecar executable."""
+
 from __future__ import annotations
 
 import os
@@ -11,33 +12,15 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 DIST_DIR = REPO_ROOT / "build" / "desktop-sidecar" / "dist"
 WORK_DIR = REPO_ROOT / "build" / "desktop-sidecar" / "work"
 SPEC_DIR = REPO_ROOT / "build" / "desktop-sidecar" / "spec"
-ENTRYPOINT = REPO_ROOT / "scripts" / "desktop" / "backend_launcher.py"
 
-COLLECT_SUBMODULES = [
-    "app",
-    "cognitive_agents",
-    "connectors",
-    "core",
-    "data_layer",
-    "data_sources",
-    "ingestion",
-    "knowledge_layer",
-    "memory_learning",
-    "reasoning",
-    "reporting",
-    "services",
-    "signal_lab",
-    "storage",
-    "timing_engine",
-]
+# 新 sidecar：极简桥接器，只用标准库，永久稳定，约 300KB
+# 业务逻辑全在源码里（backend_launcher.py），改源码不需要重新打包 sidecar
+ENTRYPOINT = REPO_ROOT / "scripts" / "desktop" / "sidecar_launcher.py"
 
-COLLECT_DATA = ["akshare", "vectorbt"]
-
-PROJECT_DATA = [
-    (REPO_ROOT / "app" / "web", Path("app") / "web"),
-    (REPO_ROOT / "reporting" / "templates", Path("reporting") / "templates"),
-    (REPO_ROOT / "report_projects", Path("report_projects")),
-]
+# 只用标准库，不需要 collect-submodules 和 add-data
+COLLECT_SUBMODULES: list[str] = []
+COLLECT_DATA: list[str] = []
+PROJECT_DATA: list[tuple[Path, Path]] = []
 
 
 def target_triple() -> str:

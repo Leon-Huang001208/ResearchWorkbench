@@ -10,7 +10,7 @@
     <script async src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script async src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
     <script async src="https://cdn.jsdelivr.net/npm/d3@7"></script>
-    <link rel="stylesheet" href="/static/style.css?v=20260702briefinline1">
+    <link rel="stylesheet" href="/static/style.css?v=20260722flowfix">
     <link rel="stylesheet" href="/static/configuration.css?v=20260713config16">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@vscode/codicons@0.0.36/dist/codicon.min.css">
 </head>
@@ -1215,6 +1215,130 @@
                 </div>
             </section>
 
+            <!-- System Configuration Section -->
+            <section id="section-config" class="content-section configuration-page" aria-labelledby="config-page-title">
+                <div class="configuration-header">
+                    <h2 class="section-title" id="config-page-title">系统配置</h2>
+                    <button id="config-refresh" class="secondary-btn" aria-label="刷新配置"><i class="codicon codicon-refresh"></i> 刷新</button>
+                </div>
+
+                <div id="config-page-message" class="config-page-message" role="status" aria-live="polite"></div>
+
+                <div class="config-cards-grid">
+                    <article class="config-summary-card" data-config-card="llm" role="button" tabindex="0">
+                        <div class="config-card-surface">
+                            <div class="config-card-icon" aria-hidden="true"><i class="codicon codicon-robot"></i></div>
+                            <div class="config-card-body">
+                                <h4>大模型服务</h4>
+                                <p class="config-card-summary" data-card-summary="llm">--</p>
+                            </div>
+                        </div>
+                        <div class="config-card-footer">
+                            <span class="config-card-badge missing" data-card-badge="llm">待配置</span>
+                            <span class="config-card-chevron" aria-hidden="true"><i class="codicon codicon-chevron-right"></i></span>
+                        </div>
+                    </article>
+
+                    <article class="config-summary-card" data-config-card="zhiqiu" role="button" tabindex="0">
+                        <div class="config-card-surface">
+                            <div class="config-card-icon" aria-hidden="true"><i class="codicon codicon-account"></i></div>
+                            <div class="config-card-body">
+                                <h4>知丘账号池</h4>
+                                <p class="config-card-summary" data-card-summary="zhiqiu">--</p>
+                            </div>
+                        </div>
+                        <div class="config-card-footer">
+                            <span class="config-card-badge missing" data-card-badge="zhiqiu">待配置</span>
+                            <span class="config-card-chevron" aria-hidden="true"><i class="codicon codicon-chevron-right"></i></span>
+                        </div>
+                    </article>
+
+                    <article class="config-summary-card" data-config-card="ifind" role="button" tabindex="0">
+                        <div class="config-card-surface">
+                            <div class="config-card-icon" aria-hidden="true"><i class="codicon codicon-database"></i></div>
+                            <div class="config-card-body">
+                                <h4>iFinD 账号池</h4>
+                                <p class="config-card-summary" data-card-summary="ifind">--</p>
+                            </div>
+                        </div>
+                        <div class="config-card-footer">
+                            <span class="config-card-badge missing" data-card-badge="ifind">待配置</span>
+                            <span class="config-card-chevron" aria-hidden="true"><i class="codicon codicon-chevron-right"></i></span>
+                        </div>
+                    </article>
+
+                    <article class="config-summary-card" data-config-card="web_search" role="button" tabindex="0">
+                        <div class="config-card-surface">
+                            <div class="config-card-icon" aria-hidden="true"><i class="codicon codicon-search"></i></div>
+                            <div class="config-card-body">
+                                <h4>联网搜索 API Key 池</h4>
+                                <p class="config-card-summary" data-card-summary="web_search">--</p>
+                            </div>
+                        </div>
+                        <div class="config-card-footer">
+                            <span class="config-card-badge missing" data-card-badge="web_search">待配置</span>
+                            <span class="config-card-chevron" aria-hidden="true"><i class="codicon codicon-chevron-right"></i></span>
+                        </div>
+                    </article>
+
+                    <article class="config-summary-card" data-config-card="database" role="button" tabindex="0">
+                        <div class="config-card-surface">
+                            <div class="config-card-icon" aria-hidden="true"><i class="codicon codicon-server"></i></div>
+                            <div class="config-card-body">
+                                <h4>数据库</h4>
+                                <p class="config-card-summary" data-card-summary="database">--</p>
+                            </div>
+                        </div>
+                        <div class="config-card-footer">
+                            <span class="config-card-badge missing" data-card-badge="database">待配置</span>
+                            <span class="config-card-chevron" aria-hidden="true"><i class="codicon codicon-chevron-right"></i></span>
+                        </div>
+                    </article>
+
+                    <article class="config-summary-card" data-config-card="advanced" role="button" tabindex="0">
+                        <div class="config-card-surface">
+                            <div class="config-card-icon" aria-hidden="true"><i class="codicon codicon-settings-gear"></i></div>
+                            <div class="config-card-body">
+                                <h4>高级配置</h4>
+                                <p class="config-card-summary" data-card-summary="advanced">--</p>
+                            </div>
+                        </div>
+                        <div class="config-card-footer">
+                            <span class="config-card-badge ready" data-card-badge="advanced">已就绪</span>
+                            <span class="config-card-chevron" aria-hidden="true"><i class="codicon codicon-chevron-right"></i></span>
+                        </div>
+                    </article>
+                </div>
+
+                <!-- 配置编辑模态框 -->
+                <div id="config-edit-modal" class="modal config-edit-modal hidden" aria-hidden="true">
+                    <div class="modal-content config-edit-modal-content">
+                        <div class="modal-header">
+                            <span id="config-edit-modal-icon" class="config-modal-header-icon" aria-hidden="true"></span>
+                            <div>
+                                <h3 id="config-edit-modal-title">编辑配置</h3>
+                                <p id="config-edit-modal-subtitle" class="upload-modal-subtitle"></p>
+                            </div>
+                            <button id="btn-config-edit-modal-close" class="modal-close" type="button">
+                                <i class="codicon codicon-close"></i>
+                            </button>
+                        </div>
+                        <div id="config-edit-modal-body" class="modal-body config-edit-modal-body">
+                        </div>
+                        <div class="modal-footer">
+                            <span id="config-edit-modal-status" class="config-modal-status"></span>
+                            <button id="btn-config-edit-modal-cancel" class="btn-secondary" type="button">取消</button>
+                            <button id="btn-config-edit-modal-test" class="btn-secondary" type="button">
+                                <i class="codicon codicon-debug-start"></i> 测试连接
+                            </button>
+                            <button id="btn-config-edit-modal-save" class="btn-primary" type="button">
+                                <i class="codicon codicon-save"></i> 保存
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <!-- Commentary Production Section -->
             <section id="section-commentary" class="content-section">
                 <div class="commentary-workbench">
@@ -1228,11 +1352,15 @@
                             <span><strong id="commentary-selected-evidence-count">--</strong><small>纳入</small></span>
                             <span><strong id="commentary-verified-count">--</strong><small>核验</small></span>
                             <span><strong id="commentary-run-meta">未生成</strong><small>草稿</small></span>
+                            <span><strong id="commentary-context-time">--</strong><small>数据时间</small></span>
                         </div>
                         <div class="commentary-hero-actions">
                             <span id="commentary-context-status" class="commentary-context-status">等待上下文</span>
                             <button id="btn-commentary-refresh-context" class="btn-secondary" type="button">
                                 <i class="codicon codicon-refresh"></i> 刷新上下文
+                            </button>
+                            <button id="btn-commentary-auto-refresh" class="btn-secondary" type="button" title="每5分钟自动刷新上下文">
+                                <i class="codicon codicon-sync"></i> 自动刷新
                             </button>
                             <button id="btn-commentary-generate-draft" class="btn-primary" type="button">
                                 <i class="codicon codicon-sparkle"></i> 生成草稿
@@ -1245,6 +1373,7 @@
                         <button class="commentary-workspace-tab" type="button" data-commentary-workspace="subject">确认对象</button>
                         <button class="commentary-workspace-tab" type="button" data-commentary-workspace="content">内容清单</button>
                         <button class="commentary-workspace-tab" type="button" data-commentary-workspace="draft">草稿生成</button>
+                        <button class="commentary-workspace-tab" type="button" data-commentary-workspace="history">历史记录</button>
                     </div>
 
                     <div class="commentary-command-center">
@@ -1478,6 +1607,7 @@
                                                 <span>生成后进入逐段编辑和质检</span>
                                             </div>
                                             <button id="btn-commentary-copy-draft" class="btn-secondary" type="button"><i class="codicon codicon-copy"></i> 复制</button>
+                                            <button id="btn-commentary-export-md" class="btn-secondary" type="button"><i class="codicon codicon-arrow-down"></i> 导出 MD</button>
                                         </div>
                                         <div id="commentary-quality-panel" class="commentary-quality-panel">
                                             <span data-quality="ready">等待生成后质检</span>
@@ -1505,6 +1635,28 @@
                                     </section>
                                 </section>
 
+                                <section class="commentary-workspace-panel" data-commentary-workspace-panel="history">
+                                    <section class="commentary-step-hero">
+                                        <div>
+                                            <span class="commentary-kicker">History</span>
+                                            <h3>历史生成记录</h3>
+                                            <p>点击记录回看草稿内容，支持对比和恢复。</p>
+                                        </div>
+                                    </section>
+                                    <div id="commentary-history-list" class="commentary-history-list">
+                                        <p class="empty-state compact">暂无历史记录。</p>
+                                    </div>
+                                </section>
+
+                                <!-- Generation Loading Overlay -->
+                                <div id="commentary-generation-overlay" class="commentary-generation-overlay" hidden>
+                                    <div class="commentary-generation-spinner">
+                                        <i class="codicon codicon-loading codicon-modifier-spin"></i>
+                                        <strong id="commentary-generation-step">正在生成草稿...</strong>
+                                        <small>LLM 正在基于证据和归因撰写点评</small>
+                                    </div>
+                                </div>
+
                             </main>
                         </div>
                     </div>
@@ -1512,91 +1664,6 @@
             </section>
 
             <!-- Templates Section -->
-            <section id="section-config" class="content-section configuration-page" aria-labelledby="config-page-title">
-                <div class="configuration-header"><h2 class="section-title" id="config-page-title">系统配置</h2></div>
-
-                <div id="config-page-message" class="config-page-message" role="status" aria-live="polite"></div>
-                <div class="configuration-main">
-                        <form id="config-llm-form" class="config-panel" data-config-form="llm">
-                            <div class="config-panel-header">
-                                <h3>大模型服务</h3>
-                            </div>
-                            <div class="config-subsection-header"><h4>模型服务</h4><button type="button" class="secondary-btn" data-add-provider disabled>新增服务</button></div>
-                            <div class="config-row-labels config-provider-labels" aria-hidden="true"><span>服务名称</span><span>接口协议</span><span>服务地址</span><span>API 密钥</span><span>操作</span></div>
-                            <div id="config-provider-list" class="config-dynamic-list"></div>
-                            <div class="config-subsection-header"><h4>任务模型路由</h4><button type="button" class="secondary-btn" data-add-task-route disabled>新增路由</button></div>
-                            <div class="config-row-labels config-route-labels" aria-hidden="true"><span>任务类型</span><span>模型服务</span><span>模型名称</span><span>操作</span></div>
-                            <div id="config-task-route-list" class="config-dynamic-list"></div>
-                            <div class="config-actions">
-                                <button type="submit" class="primary-btn" data-config-save="llm" disabled>保存</button>
-                            </div>
-                        </form>
-
-                        <form id="config-zhiqiu-form" class="config-panel" data-config-form="zhiqiu">
-                            <div class="config-panel-header">
-                                <h3>知丘账号池</h3>
-                            </div>
-                            <div class="config-subsection-header"><h4>账号池</h4><button type="button" class="secondary-btn" data-add-zhiqiu-account disabled>新增账号</button></div>
-                            <div class="config-row-labels config-zhiqiu-labels" aria-hidden="true"><span>名称</span><span>用户名</span><span>密码</span><span>操作</span></div>
-                            <div id="config-zhiqiu-account-list" class="config-dynamic-list"></div>
-                            <div class="config-settings-header"><h4>调度设置</h4></div>
-                            <div class="config-field-grid">
-                                <label class="config-checkbox"><input type="checkbox" name="enabled">启用账号轮询</label>
-                                <label><span>轮询策略</span><select name="rotation_strategy"><option value="round_robin">轮询</option><option value="random">随机</option><option value="least_used">最少使用</option></select></label>
-                                <label><span>最大重试次数</span><input type="number" name="max_retries" min="0" max="20"></label>
-                                <label><span>重试间隔（秒）</span><input type="number" name="retry_delay" min="0" max="3600"></label>
-                                <label><span>租约超时（秒）</span><input type="number" name="lease_timeout" min="1" max="86400"></label>
-                                <label><span>连续失败阈值</span><input type="number" name="max_consecutive_failures" min="1" max="1000"></label>
-                            </div>
-                            <div class="config-actions">
-                                <button type="submit" class="primary-btn" data-config-save="zhiqiu" disabled>保存</button>
-                            </div>
-                        </form>
-
-                        <form id="config-ifind-form" class="config-panel" data-config-form="ifind">
-                            <div class="config-panel-header">
-                                <h3>iFinD 账号池</h3>
-                            </div>
-                            <div class="config-subsection-header"><h4>账号</h4><button type="button" class="secondary-btn" data-add-ifind-account disabled>新增账号</button></div>
-                            <div class="config-row-labels config-ifind-labels" aria-hidden="true"><span>名称</span><span>用户名</span><span>密码</span><span>操作</span></div>
-                            <div id="config-ifind-account-list" class="config-dynamic-list"></div>
-                            <div class="config-settings-header"><h4>连接设置</h4></div>
-                            <div class="config-field-grid">
-                                <label><span>后端类型</span><select name="backend"><option value="auto">自动</option><option value="python_sdk">Python SDK</option><option value="http_api">HTTP API</option></select></label>
-                                <label><span>HTTP Base URL</span><input type="url" name="http_base_url" placeholder="https://quantapi.10jqka.com.cn"></label>
-                            </div>
-                            <div class="config-actions">
-                                <button type="submit" class="primary-btn" data-config-save="ifind" disabled>保存</button>
-                            </div>
-                        </form>
-
-                        <form id="config-database-form" class="config-panel" data-config-form="database">
-                            <div class="config-panel-header">
-                                <h3>数据库</h3>
-                            </div>
-                            <label class="config-field-wide"><span>数据库连接地址</span><span class="config-secret-control"><input type="password" name="database_url" autocomplete="new-password" placeholder="未配置"><button type="button" class="config-secret-action" data-secret-toggle aria-label="显示数据库地址">显示</button><button type="button" class="config-secret-action" data-secret-copy aria-label="复制数据库地址">复制</button></span><small data-secret-state="database-url">未配置</small></label>
-                            <div class="config-restart-note"><i class="codicon codicon-debug-restart" aria-hidden="true"></i><span><strong>需要重启桌面后端</strong>保存仅持久化新地址，当前会话继续使用原连接。</span></div>
-                            <div class="config-actions"><button type="submit" class="primary-btn" data-config-save="database" disabled>保存</button></div>
-                        </form>
-
-                        <details class="config-panel config-advanced-panel">
-                            <summary><span><strong>高级配置</strong><small>日志、并发、重试与分块参数</small></span></summary>
-                            <form id="config-advanced-form" data-config-form="advanced">
-                                <div class="config-field-grid">
-                                    <label><span>日志级别</span><select name="log_level"><option>DEBUG</option><option>INFO</option><option>WARNING</option><option>ERROR</option><option>CRITICAL</option></select></label>
-                                    <label><span>日志目录</span><input type="text" name="log_dir"></label>
-                                    <label><span>LLM 并发数</span><input type="number" name="llm_max_workers" min="1" max="128"></label>
-                                    <label><span>LLM 重试次数</span><input type="number" name="llm_max_retries" min="0" max="20"></label>
-                                    <label><span>分块大小</span><input type="number" name="chunk_size" min="256" max="100000"></label>
-                                    <label><span>分块重叠</span><input type="number" name="chunk_overlap" min="0" max="50000"></label>
-                                    <label><span>长文本阈值</span><input type="number" name="long_text_threshold" min="1" max="100000"></label>
-                                </div>
-                                <div class="config-actions"><button type="submit" class="primary-btn" data-config-save="advanced" disabled>保存</button></div>
-                            </form>
-                        </details>
-                </div>
-            </section>
-
             <section id="section-templates" class="content-section">
                 <!-- Templates List View (Default) - iPhone Style -->
                 <div id="templates-list-view">
@@ -1634,14 +1701,17 @@
                                 <div class="template-generation-overview template-detail-mode-panel" id="template-generation-overview" data-template-detail-panel="generation">
                                     <section class="template-generation-hero">
                                         <div class="template-generation-copy">
-                                            <div class="template-generation-title-row">
-                                                <p class="eyebrow">周报生成</p>
-                                                <span id="template-generation-health" class="template-generation-health pending">待检查</span>
-                                            </div>
                                             <h3 id="template-generation-title">生成本周报告</h3>
+                                            <span id="template-generation-health" class="template-generation-health pending">待检查</span>
                                             <div class="template-generation-meta">
-                                                <span id="template-generation-period">报告周期待加载</span>
-                                                <span id="template-generation-lookback">证据检索 7 天</span>
+                                                <label id="template-generation-period" class="template-generation-meta-input">
+                                                    <span class="template-meta-input-label">报告日期</span>
+                                                    <input type="date" id="template-generation-period-input" aria-label="报告日期">
+                                                </label>
+                                                <label id="template-generation-lookback" class="template-generation-meta-input">
+                                                    <span class="template-meta-input-label">证据窗口</span>
+                                                    <input type="number" min="1" max="90" step="1" id="template-generation-lookback-input" value="7" aria-label="证据窗口（天）">
+                                                </label>
                                                 <span id="template-generation-placeholder-total">0 个占位符</span>
                                             </div>
                                         </div>
@@ -1660,27 +1730,27 @@
                                             <div class="template-generation-flow-list" id="template-generation-flow-list">
                                                 <div class="template-generation-flow-step" data-generation-flow-step="check">
                                                     <span class="step-index">1</span>
-                                                    <div><strong>准备模板资产</strong><small>Word 模板、Excel 底稿、section 配置</small></div>
+                                                    <div><strong>准备模板</strong><small>Word 模板、Excel 底稿、section 配置</small></div>
                                                     <em>等待</em>
                                                 </div>
                                                 <div class="template-generation-flow-step" data-generation-flow-step="mapping">
                                                     <span class="step-index">2</span>
-                                                    <div><strong>读取底稿映射</strong><small id="template-generation-data-summary">Word、Excel、配套数据待检查</small></div>
+                                                    <div><strong>读取底稿</strong><small id="template-generation-data-summary">Word、Excel、配套数据待检查</small></div>
                                                     <em>等待</em>
                                                 </div>
                                                 <div class="template-generation-flow-step" data-generation-flow-step="evidence">
                                                     <span class="step-index">3</span>
-                                                    <div><strong>检索证据与新闻</strong><small id="template-generation-content-summary">段落和 Prompt 待检查</small></div>
+                                                    <div><strong>检索证据</strong><small id="template-generation-content-summary">段落和 Prompt 待检查</small></div>
                                                     <em>等待</em>
                                                 </div>
                                                 <div class="template-generation-flow-step active" data-generation-flow-step="generate">
                                                     <span class="step-index">4</span>
-                                                    <div><strong>生成段落内容</strong><small id="template-generation-current-step-summary">当前：等待启动</small></div>
+                                                    <div><strong>生成内容</strong><small id="template-generation-current-step-summary">当前：等待启动</small></div>
                                                     <em>当前</em>
                                                 </div>
                                                 <div class="template-generation-flow-step" data-generation-flow-step="write">
                                                     <span class="step-index">5</span>
-                                                    <div><strong>渲染 Word 文档</strong><small>替换占位符、插入图表和表格</small></div>
+                                                    <div><strong>渲染文档</strong><small>替换占位符、插入图表和表格</small></div>
                                                     <em>等待</em>
                                                 </div>
                                                 <div class="template-generation-flow-step" data-generation-flow-step="refresh">
@@ -1689,17 +1759,22 @@
                                                     <em>等待</em>
                                                 </div>
                                             </div>
+                                            <div id="template-generation-flow-actions" class="template-generation-flow-actions hidden">
+                                                <button type="button" class="btn-secondary" id="btn-template-flow-open-config">
+                                                    <i class="codicon codicon-tools"></i> 打开高级配置
+                                                </button>
+                                            </div>
+                                            <div id="template-delivery-check-panel"></div>
                                         </div>
 
                                         <div class="template-workbench-panel" id="template-recent-generation-panel">
                                             <div class="panel-title-row">
                                                 <h4>生成记录</h4>
-                                                <span id="template-recent-generation-status" class="badge">尚未生成</span>
-                                            </div>
-                                            <div class="template-generation-file-actions" aria-label="当前选中文件操作">
-                                                <button type="button" class="btn-secondary" data-template-report-action="preview" disabled><i class="codicon codicon-open-preview"></i> 预览</button>
-                                                <button type="button" class="btn-secondary" data-template-report-action="folder" disabled><i class="codicon codicon-folder-opened"></i> 打开文件夹</button>
-                                                <a class="btn-secondary disabled" href="#" target="_blank" aria-disabled="true" data-template-report-action="download"><i class="codicon codicon-cloud-download"></i> 下载</a>
+                                                <div class="template-generation-file-actions" aria-label="当前选中文件操作">
+                                                    <button type="button" class="btn-secondary" data-template-report-action="preview" disabled><i class="codicon codicon-open-preview"></i> 预览</button>
+                                                    <button type="button" class="btn-secondary" data-template-report-action="folder" disabled><i class="codicon codicon-folder-opened"></i> 打开文件夹</button>
+                                                    <a class="btn-secondary disabled" href="#" target="_blank" aria-disabled="true" data-template-report-action="download"><i class="codicon codicon-cloud-download"></i> 下载</a>
+                                                </div>
                                             </div>
                                             <div id="template-recent-generation-card" class="template-recent-generation-card">
                                                 <div class="empty-state compact">生成报告后显示历史版本，选中文件后可预览、打开文件夹或下载。</div>
@@ -1715,14 +1790,17 @@
                                     </summary>
                                         <section class="template-generation-hero template-config-hero">
                                             <div class="template-generation-copy">
-                                                <div class="template-generation-title-row">
-                                                    <p class="eyebrow">周报生成</p>
-                                                    <span id="template-config-health" class="template-generation-health pending">待检查</span>
-                                                </div>
                                                 <h3 id="template-config-title">配置本周报告</h3>
+                                                <span id="template-config-health" class="template-generation-health pending">待检查</span>
                                                 <div class="template-generation-meta">
-                                                    <span id="template-config-period">报告周期待加载</span>
-                                                    <span id="template-config-lookback">证据检索 7 天</span>
+                                                    <label id="template-config-period" class="template-generation-meta-input">
+                                                        <span class="template-meta-input-label">报告日期</span>
+                                                        <input type="date" id="template-config-period-input" aria-label="报告日期">
+                                                    </label>
+                                                    <label id="template-config-lookback" class="template-generation-meta-input">
+                                                        <span class="template-meta-input-label">证据窗口</span>
+                                                        <input type="number" min="1" max="90" step="1" id="template-config-lookback-input" value="7" aria-label="证据窗口（天）">
+                                                    </label>
                                                     <span id="template-config-placeholder-total">0 个占位符</span>
                                                 </div>
                                             </div>
@@ -1740,32 +1818,10 @@
                                                 <details class="template-workbench-panel template-project-check-panel" id="template-project-check-details" open>
                                                     <summary>
                                                         <span><i class="codicon codicon-checklist"></i> 生成检查</span>
-                                                        <small id="template-project-check-summary">素材、数据和生成规则</small>
+
                                                         <strong id="template-project-check-status" class="badge">待加载</strong>
                                                     </summary>
                                                     <div class="template-project-check-body" id="template-generation-readiness-panel">
-                                                        <div class="template-project-check-section">
-                                                            <div class="panel-title-row compact">
-                                                                <h4>模板资产</h4>
-                                                                <span id="template-asset-status" class="badge">待加载</span>
-                                                            </div>
-                                                            <div id="template-asset-checklist" class="template-asset-checklist">
-                                                                <div class="asset-check-item"><i class="codicon codicon-file-code"></i><span>Word 模板</span><strong>未确认</strong></div>
-                                                                <div class="asset-check-item"><i class="codicon codicon-table"></i><span>主 Excel 底稿</span><strong>未确认</strong></div>
-                                                                <div class="asset-check-item"><i class="codicon codicon-settings-gear"></i><span>Section 配置</span><strong>未确认</strong></div>
-                                                            </div>
-                                                        </div>
-
-                                                        <div class="template-project-check-section">
-                                                            <div class="panel-title-row compact">
-                                                                <h4>Excel 底稿映射</h4>
-                                                                <span class="text-muted">数据槽 / 图表 / 表格</span>
-                                                            </div>
-                                                            <div id="template-excel-mapping" class="template-mapping-table">
-                                                                <div class="empty-state compact">绑定 Excel 后显示数据来源</div>
-                                                            </div>
-                                                        </div>
-
                                                         <div class="template-project-check-section" id="template-validation-preview">
                                                             <div class="panel-title-row compact">
                                                                 <h4>生成预检</h4>
@@ -1873,6 +1929,7 @@
                                                     <div class="template-source-switcher">
                                                         <button id="btn-template-source-section" class="source-switch-btn active" type="button">当前 YAML</button>
                                                         <button id="btn-template-source-prompt" class="source-switch-btn" type="button">Prompt 模板</button>
+                                                        <button id="btn-template-source-report-config" class="source-switch-btn hidden" type="button">配置 YAML</button>
                                                     </div>
                                                     <div class="template-workbench-actions template-source-actions">
                                                         <button id="btn-template-edit-source" class="btn-secondary"><i class="codicon codicon-edit"></i> 查看片段</button>
@@ -1885,13 +1942,43 @@
                                         </aside>
                                 </details>
                                 <div class="template-detail-mode-panel template-generation-preview-panel hidden" id="template-generation-preview-panel" data-template-detail-panel="preview">
-                                    <section class="template-preview-reader word-preview-reader">
-                                        <div class="template-preview-frame word-preview-shell">
-                                            <div class="panel-title-row">
-                                                <h4>Word 预览</h4>
-                                                <span id="template-preview-document-label" class="text-muted">尚未生成</span>
+                                    <section class="word-preview-panel" aria-label="Word 预览器">
+                                        <div class="word-preview-header">
+                                            <h1 data-preview-title>Word 预览</h1>
+                                            <div class="word-preview-file" data-preview-file>未选择报告</div>
+                                        </div>
+                                        <div class="word-preview-toolbar">
+                                            <div class="toolbar-group">
+                                                <button class="tool-button is-active" type="button" data-preview-thumbnails-toggle title="显示/隐藏缩略图" aria-label="显示或隐藏缩略图">
+                                                    <span aria-hidden="true">▤</span>
+                                                </button>
+                                                <button class="tool-button" type="button" data-preview-zoom-out title="缩小" aria-label="缩小">−</button>
+                                                <input class="zoom-input" type="text" inputmode="numeric" data-preview-zoom-input aria-label="缩放比例" value="44%" />
+                                                <button class="tool-button" type="button" data-preview-zoom-in title="放大" aria-label="放大">+</button>
+                                                <button class="tool-button" type="button" data-preview-fit-width title="适合宽度" aria-label="适合宽度">▭</button>
+                                                <button class="tool-button" type="button" data-preview-fit-page title="适合整页" aria-label="适合整页">▯</button>
                                             </div>
-                                            <iframe id="template-report-preview-frame" title="报告预览"></iframe>
+                                            <div class="page-controls" aria-label="页码">
+                                                <input class="page-input" type="text" inputmode="numeric" data-preview-page-input value="1" aria-label="当前页" />
+                                                <span>/</span>
+                                                <span data-preview-page-total>0</span>
+                                                <span class="page-range" data-preview-page-range>1</span>
+                                            </div>
+                                            <div class="toolbar-group">
+                                                <button class="tool-button" type="button" data-preview-layout="single" title="单页" aria-label="单页">▯</button>
+                                                <button class="tool-button is-active" type="button" data-preview-layout="double" title="双页" aria-label="双页">▯▯</button>
+                                            </div>
+                                        </div>
+                                        <div class="word-preview-body">
+                                            <aside class="thumbnail-rail" data-preview-thumbnail-rail aria-label="页面缩略图"></aside>
+                                            <div class="page-scroller" data-preview-scroller>
+                                                <div class="page-stage" data-preview-stage></div>
+                                            </div>
+                                        </div>
+                                        <div class="word-preview-empty" id="word-preview-empty-state">
+                                            <i class="codicon codicon-file-media"></i>
+                                            <strong>等待加载报告预览</strong>
+                                            <span>在生成记录中选择报告后，预览将在此处显示。</span>
                                         </div>
                                     </section>
                                 </div>
@@ -2151,7 +2238,40 @@
 
     <!-- Scripts: i18n must load before app.js -->
     <script src="/static/i18n.js?v=20250527"></script>
-    <script type="module" src="/static/js/app.js?v=20260713config16"></script>
+    <script type="module" src="/static/js/app.js?v=20260722flowfix"></script>
     <script type="module" src="/static/js/wind.js?v=20250601a"></script>
+
+    <!-- Dev 模式：后端重启时自动刷新页面（轮询 /_version） -->
+    <script>
+    (function() {
+        var DEV_POLL_MS = 2000;
+        var startupTs = null;
+
+        function checkVersion() {
+            fetch('/_version')
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (startupTs === null) {
+                        // 首次获取，记录当前时间戳
+                        startupTs = data.startup_ts;
+                    } else if (startupTs !== data.startup_ts) {
+                        // 后端已重启，刷新页面获取最新前端资源
+                        console.log('[AlphaFoundry] Backend restarted, auto-refreshing...');
+                        location.reload();
+                    }
+                })
+                .catch(function() {
+                    // /_version 不可用时静默跳过（生产环境可能未部署此端点）
+                });
+        }
+
+        // 页面加载后开始轮询
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() { setInterval(checkVersion, DEV_POLL_MS); });
+        } else {
+            setInterval(checkVersion, DEV_POLL_MS);
+        }
+    })();
+    </script>
 </body>
 </html>

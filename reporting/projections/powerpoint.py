@@ -3,6 +3,7 @@
 Supports both simple PowerPoint generation and template-based generation
 with placeholder replacement.
 """
+
 from io import BytesIO
 from pathlib import Path
 from typing import Any, Dict, List, Optional

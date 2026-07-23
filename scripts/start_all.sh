@@ -8,6 +8,9 @@ LOGS_DIR="$PROJECT_DIR/logs"
 mkdir -p "$LOGS_DIR"
 cd "$PROJECT_DIR"
 
+# Use the alphafoundry conda environment's Python interpreter
+PYTHON="C:/Users/H01402/AppData/Local/anaconda3/envs/alphafoundry/python.exe"
+
 # The desktop shell may export a local proxy (for example 127.0.0.1:7890).
 # If that proxy is not running, crawler requests fail before reaching sources.
 unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY all_proxy ALL_PROXY
@@ -110,7 +113,7 @@ start_with_watchdog() {
     shift 3
     local cmd=("$@")
 
-    python "$PROJECT_DIR/scripts/daemonize.py" \
+    "$PYTHON" "$PROJECT_DIR/scripts/daemonize.py" \
         --cwd "$PROJECT_DIR" \
         --pid-file "$pid_file.watchdog" \
         --stdout "$log_file" \
@@ -118,17 +121,32 @@ start_with_watchdog() {
         -- "$PROJECT_DIR/scripts/watchdog_worker.sh" "$name" "$pid_file" "$log_file" "${cmd[@]}"
 }
 
+# ── Load .env into the shell so daemonized processes inherit the values ──
+if [ -f "$PROJECT_DIR/.env" ]; then
+    while IFS= read -r line || [ -n "$line" ]; do
+        # skip blank lines and comments
+        [[ "$line" =~ ^[[:space:]]*$ ]] && continue
+        [[ "$line" =~ ^[[:space:]]*# ]] && continue
+        # only export lines that look like KEY=value (no leading spaces required)
+        if [[ "$line" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
+            key="${line%%=*}"
+            value="${line#*=}"
+            export "$key"="$value"
+        fi
+    done < "$PROJECT_DIR/.env"
+fi
+
 echo ""
 echo "[1/3] Starting API server..."
 if [ -f "$LOGS_DIR/api.pid" ] && kill -0 "$(cat "$LOGS_DIR/api.pid")" 2>/dev/null; then
     echo "  [WARN] API server already running (PID $(cat "$LOGS_DIR/api.pid"))"
 else
-    python "$PROJECT_DIR/scripts/daemonize.py" \
+    "$PYTHON" "$PROJECT_DIR/scripts/daemonize.py" \
         --cwd "$PROJECT_DIR" \
         --pid-file "$LOGS_DIR/api.pid" \
         --stdout "$LOGS_DIR/api.log" \
         --stderr "$LOGS_DIR/api.log" \
-        -- python -m uvicorn app.api.main:app --host 127.0.0.1 --port 8000
+        -- "$PYTHON" -m uvicorn app.api.main:app --host 127.0.0.1 --port 8000
     echo "  [OK] API server started (PID $(cat "$LOGS_DIR/api.pid"))"
 fi
 
@@ -136,7 +154,7 @@ fi
 echo "[2/3] Starting crawl scheduler (with auto-restart)..."
 if prepare_supervised_worker "Scheduler" "scheduler.pid" "workers.crawl_scheduler_worker" "$LOGS_DIR/scheduler.heartbeat.json" 180; then
     start_with_watchdog "scheduler" "scheduler.pid" "scheduler_stdout.log" \
-        python -m workers.crawl_scheduler_worker
+        "$PYTHON" -m workers.crawl_scheduler_worker
     echo "  [OK] Scheduler started with watchdog"
 fi
 
@@ -144,7 +162,7 @@ fi
 echo "[3/3] Starting knowledge worker (with auto-restart)..."
 if prepare_supervised_worker "Knowledge worker" "knowledge_worker.pid" "workers.knowledge_worker" "$LOGS_DIR/knowledge_worker.heartbeat.json" 180; then
     start_with_watchdog "knowledge" "knowledge_worker.pid" "knowledge_worker.log" \
-        python -m workers.knowledge_worker
+        "$PYTHON" -m workers.knowledge_worker
     echo "  [OK] Knowledge worker started with watchdog"
 fi
 

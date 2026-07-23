@@ -1,6 +1,7 @@
 """
 Memory & Learning CLI 命令
 """
+
 from typing import Optional
 
 import click

@@ -3,6 +3,7 @@ PDF 转换契约 —— 统一的转换结果模型和策略相关枚举.
 
 本模块定义了 PDF 转换管道的核心数据模型，包括策略类型、转换状态和统一的转换结果。
 """
+
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, Optional

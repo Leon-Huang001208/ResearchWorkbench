@@ -2,6 +2,7 @@
 """
 简单测试脚本 - 不依赖完整的项目配置
 """
+
 import sys
 from pathlib import Path
 

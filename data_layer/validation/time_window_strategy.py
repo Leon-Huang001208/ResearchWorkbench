@@ -5,6 +5,7 @@
 - 白天（09:00-21:00）：仅使用 AkShare（BaoStock 历史数据是 T+1）
 - 晚上（21:00-09:00）：双源完整校验
 """
+
 from dataclasses import dataclass
 from datetime import datetime, time, timedelta
 from enum import Enum

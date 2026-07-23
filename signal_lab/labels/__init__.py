@@ -3,6 +3,7 @@
 
 提供各类标签生成器用于监督学习。
 """
+
 from .base import Labeler
 from .event_driven import EventDrivenLabeler
 from .relative_return import RelativeReturnLabeler

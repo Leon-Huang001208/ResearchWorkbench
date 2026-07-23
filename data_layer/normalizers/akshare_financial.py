@@ -3,6 +3,7 @@
 将 crawler 输出的 FinancialData dataclass 转为标准化 dict，
 用于写入 stock_financial_metric 表。
 """
+
 from data_layer.crawlers.akshare.base import FinancialData
 from data_layer.normalizers.common import to_decimal
 

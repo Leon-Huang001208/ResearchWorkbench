@@ -1,4 +1,5 @@
 """AkShare board crawler tests."""
+
 import os
 import sys
 from types import SimpleNamespace

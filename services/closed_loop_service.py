@@ -2,6 +2,7 @@
 最小可行闭环服务 - 规则驱动
 真实事件 → 生成信号 → 回测验证 → 记录 Outcome
 """
+
 import asyncio
 import json
 import uuid
@@ -29,7 +30,13 @@ def _publish_event(event_type: str, payload: Dict[str, Any]) -> None:
     try:
         from services.system_event_bus import event_bus
 
-        asyncio.run(event_bus.publish(event_type, payload))
+        # 使用 new_event_loop 避免在已有循环的线程上下文中嵌套调用 asyncio.run()
+        # 导致 "coroutine was never awaited" RuntimeWarning
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(event_bus.publish(event_type, payload))
+        finally:
+            loop.close()
     except Exception:
         pass  # 事件发布失败不应影响管线执行
 
@@ -178,9 +185,9 @@ class ClosedLoopService:
                 confidence=confidence,
                 event_time=event.event_time,
                 impact_path=[],
-                industry_impacts=event.payload.get("impacted_industries", [])
-                if event.payload
-                else [],
+                industry_impacts=(
+                    event.payload.get("impacted_industries", []) if event.payload else []
+                ),
                 bullish_companies=subject_ids if event.impact_direction == "positive" else [],
                 bearish_companies=subject_ids if event.impact_direction == "negative" else [],
                 scenario_refs=[],
@@ -478,8 +485,7 @@ class ClosedLoopService:
             outcome_metadata.update(extra_metadata)
 
         db.execute(
-            text(
-                """
+            text("""
             INSERT INTO signal_outcome (
                 outcome_id, event_id, signal_id, subject_id, event_date,
                 timing_action, entry_rule, horizon, benchmark,
@@ -491,8 +497,7 @@ class ClosedLoopService:
                 :outcome_return, :outcome_excess_return, :max_drawdown,
                 :failure_reason, :lesson, :evaluated_at, :metadata, :created_at
             )
-        """
-            ),
+        """),
             {
                 "outcome_id": outcome_id,
                 "event_id": signal.event_id,
@@ -500,9 +505,11 @@ class ClosedLoopService:
                 "subject_id": signal.subject_id,
                 "event_date": event_time,
                 "timing_action": "enter",
-                "entry_rule": "event_study"
-                if extra_metadata and "decay_by_day" in extra_metadata
-                else "rule_based",
+                "entry_rule": (
+                    "event_study"
+                    if extra_metadata and "decay_by_day" in extra_metadata
+                    else "rule_based"
+                ),
                 "horizon": "20d",
                 "benchmark": self.benchmark_code,
                 "outcome_return": outcome_return,
@@ -536,19 +543,23 @@ class ClosedLoopService:
         """获取真实价格数据（优先在线，失败用本地缓存）"""
         import asyncio
 
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         try:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                quotes = loop.run_until_complete(
-                    self.price_adapter.fetch_stock_quotes(code, start_date, end_date)
-                )
-                return quotes
-            finally:
-                loop.close()
+            quotes = loop.run_until_complete(
+                self.price_adapter.fetch_stock_quotes(code, start_date, end_date)
+            )
+            return quotes
         except Exception as e:
             logger.error(f"Failed to get price data for {code}: {e}")
             return []
+        finally:
+            # drain 任何未完成的协程，避免 "coroutine was never awaited" RuntimeWarning
+            try:
+                loop.run_until_complete(asyncio.sleep(0))
+            except Exception:
+                pass
+            loop.close()
 
     def _calculate_returns(
         self, quotes: List[Dict], event_time: datetime, horizon_days: int
@@ -604,7 +615,9 @@ class ClosedLoopService:
         """生成学习教训"""
         if direction_correct and outcome_return > 0:
             if excess_return > 0.05:
-                return f"{signal.event_type} 事件信号表现优秀，超额收益 {excess_return:.1%}，值得复用"
+                return (
+                    f"{signal.event_type} 事件信号表现优秀，超额收益 {excess_return:.1%}，值得复用"
+                )
             else:
                 return f"{signal.event_type} 事件信号方向正确，但超额收益一般"
         elif direction_correct and outcome_return < 0:
@@ -788,9 +801,9 @@ class ClosedLoopService:
                         evidence_refs=[signal.event_id] if signal.event_id else [],
                         metadata={
                             "signal_score": float(signal.score) if signal.score else 0.5,
-                            "signal_confidence": float(signal.confidence)
-                            if signal.confidence
-                            else 0.5,
+                            "signal_confidence": (
+                                float(signal.confidence) if signal.confidence else 0.5
+                            ),
                         },
                     )
 

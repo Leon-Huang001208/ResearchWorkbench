@@ -1,6 +1,7 @@
 """
 LLM 相关 API 路由
 """
+
 from typing import Dict, Optional
 
 from fastapi import APIRouter, HTTPException
@@ -28,6 +29,34 @@ class LlmGenerateResponse(BaseModel):
     content: str
     model: str
     usage: Optional[Dict[str, int]] = None
+
+
+class LlmAskRequest(BaseModel):
+    """联网问答请求"""
+
+    question: str
+    max_results: int = Field(5, ge=1, le=10)
+    fetch_content: bool = True
+    temperature: float = Field(0.3, ge=0.0, le=1.0)
+
+
+class LlmAskSource(BaseModel):
+    """联网问答来源"""
+
+    title: str
+    url: str
+    snippet: str = ""
+    source: str = ""
+
+
+class LlmAskResponse(BaseModel):
+    """联网问答响应"""
+
+    success: bool
+    answer: str
+    online: bool
+    model: str = ""
+    sources: list[LlmAskSource] = []
 
 
 @router.post("/generate", response_model=LlmGenerateResponse, summary="LLM文本生成")
@@ -71,7 +100,10 @@ async def llm_generate(request: LlmGenerateRequest):
         response = client.chat.completions.create(
             model=request.model,
             messages=[
-                {"role": "system", "content": "你是一个专业的金融分析师，擅长撰写券商研究报告。输出内容要专业、严谨，符合A股市场的实际情况。"},
+                {
+                    "role": "system",
+                    "content": "你是一个专业的金融分析师，擅长撰写券商研究报告。输出内容要专业、严谨，符合A股市场的实际情况。",
+                },
                 {"role": "user", "content": request.prompt},
             ],
             temperature=request.temperature,
@@ -84,13 +116,15 @@ async def llm_generate(request: LlmGenerateRequest):
             success=True,
             content=content,
             model=response.model,
-            usage={
-                "prompt_tokens": response.usage.prompt_tokens,
-                "completion_tokens": response.usage.completion_tokens,
-                "total_tokens": response.usage.total_tokens,
-            }
-            if response.usage
-            else None,
+            usage=(
+                {
+                    "prompt_tokens": response.usage.prompt_tokens,
+                    "completion_tokens": response.usage.completion_tokens,
+                    "total_tokens": response.usage.total_tokens,
+                }
+                if response.usage
+                else None
+            ),
         )
 
     except ImportError:
@@ -101,3 +135,37 @@ async def llm_generate(request: LlmGenerateRequest):
     except Exception as e:
         logger.exception("Failed to generate LLM content")
         raise HTTPException(status_code=500, detail=f"Failed to generate content: {str(e)}")
+
+
+@router.post("/ask", response_model=LlmAskResponse, summary="联网查询后回答")
+async def llm_ask(request: LlmAskRequest):
+    """
+    联网查询后回答问题（始终先联网再综合）。
+
+    无论内部是否有资料，每次提问都先联网搜索，将结果注入 prompt 后生成带引用的答案。
+    未配置搜索 API key 时降级为不联网直答。
+    """
+    try:
+        from services.ask_factory import build_ask_service
+
+        service = build_ask_service()
+        result = service.ask(
+            request.question,
+            max_results=request.max_results,
+            fetch_content=request.fetch_content,
+            temperature=request.temperature,
+        )
+        sources = [
+            LlmAskSource(title=s.title, url=s.url, snippet=s.snippet, source=s.source)
+            for s in result.sources
+        ]
+        return LlmAskResponse(
+            success=True,
+            answer=result.answer,
+            online=result.online,
+            model=result.model,
+            sources=sources,
+        )
+    except Exception as e:
+        logger.exception("Failed to answer with web search")
+        raise HTTPException(status_code=500, detail=f"Failed to answer: {str(e)}")

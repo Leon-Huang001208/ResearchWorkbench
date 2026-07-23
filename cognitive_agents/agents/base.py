@@ -1,4 +1,5 @@
 """认知 Agent 基类与共享数据结构。"""
+
 from abc import ABC, abstractmethod
 
 from pydantic import BaseModel, Field

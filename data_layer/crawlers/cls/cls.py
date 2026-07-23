@@ -3,6 +3,7 @@ cls - 财联社电报爬取技能 (CLI 版本)
 
 仅支持 CLI 调用: python cls.py --args
 """
+
 import json
 import logging
 import random
@@ -69,7 +70,9 @@ class CLSConfig:
     max_empty_pages: int = 7
 
     # 增量抓取模式（使用 updateTelegraphList API — 返回全部电报的唯一可靠API）
-    use_incremental: bool = True  # True=增量模式(updateTelegraphList), False=全量历史模式(POST /api/sw)
+    use_incremental: bool = (
+        True  # True=增量模式(updateTelegraphList), False=全量历史模式(POST /api/sw)
+    )
 
     # 持久化去重
     state_path: Optional[str] = None  # 状态文件路径
@@ -415,7 +418,8 @@ class CLSTelegramCrawler:
         before_count = len(self.new_telegrams)
 
         self.logger.info(
-            f"[incremental] 使用历史 API 最新页补漏: " f"{self.config.start_date} 至 {self.config.end_date}"
+            f"[incremental] 使用历史 API 最新页补漏: "
+            f"{self.config.start_date} 至 {self.config.end_date}"
         )
 
         current_date = end_date
@@ -539,7 +543,9 @@ class CLSTelegramCrawler:
 
         start_date, end_date = self._parse_and_validate_dates()
 
-        self.logger.info(f"===== 开始爬取 {self.config.start_date} 至 {self.config.end_date} 的电报 =====")
+        self.logger.info(
+            f"===== 开始爬取 {self.config.start_date} 至 {self.config.end_date} 的电报 ====="
+        )
 
         current_date = end_date
         total_telegrams = 0
@@ -604,7 +610,9 @@ class CLSTelegramCrawler:
         )
         page_limit = min(total_pages, self.config.max_pages)
 
-        self.logger.info(f"[page] 从第1页(最新)往后抓取, " f"每页~{items_per_page}条, 最多{page_limit}页")
+        self.logger.info(
+            f"[page] 从第1页(最新)往后抓取, " f"每页~{items_per_page}条, 最多{page_limit}页"
+        )
 
         # Step 2: 从最新页往后迭代
         watermark_key = f"cls:{date_str}"
@@ -972,7 +980,8 @@ class CLSDeepBackfill:
         batch_start = self.state.total_scanned
 
         self.logger.info(
-            f"[deep_backfill] 开始批次: current_id={self.state.current_id}, " f"batch_size={batch_size}"
+            f"[deep_backfill] 开始批次: current_id={self.state.current_id}, "
+            f"batch_size={batch_size}"
         )
 
         for i in range(batch_size):
@@ -1076,7 +1085,9 @@ def parse_args():
 
     # 持久化去重
     parser.add_argument("--state_path", type=str, help="状态文件路径（用于持久化去重）")
-    parser.add_argument("--skip_existing", action="store_true", default=True, help="跳过已存在的电报（默认启用）")
+    parser.add_argument(
+        "--skip_existing", action="store_true", default=True, help="跳过已存在的电报（默认启用）"
+    )
 
     # 日志参数
     parser.add_argument("--verbose", action="store_true", default=True, help="显示详细日志")

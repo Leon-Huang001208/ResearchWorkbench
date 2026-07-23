@@ -1,4 +1,5 @@
 """Dashboard 首页数据 API 路由"""
+
 import asyncio
 from typing import Optional
 

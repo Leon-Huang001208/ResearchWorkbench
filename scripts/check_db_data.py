@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """检查数据库中的数据量"""
+
 import sys
 from pathlib import Path
 

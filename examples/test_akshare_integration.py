@@ -4,6 +4,7 @@ AkShare 集成测试脚本
 
 测试 AkShare 适配器的各项功能
 """
+
 import sys
 from pathlib import Path
 

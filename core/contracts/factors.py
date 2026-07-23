@@ -3,6 +3,7 @@
 These contracts describe point-in-time factor definitions, factor values,
 evaluation records, and dynamic factor weights.
 """
+
 from __future__ import annotations
 
 from datetime import date, datetime

@@ -1,4 +1,5 @@
 """中国证券网数据适配器"""
+
 import json
 from datetime import datetime
 from pathlib import Path

@@ -113,8 +113,13 @@ class CommentaryContextService:
         )
         return CommentaryContextPack(
             recipe_id=recipe_id or "daily-close",
-            data_snapshot_text=("市场数据：仪表盘数据暂不可用，请手动补充指数涨跌、成交额、" "领涨/拖累方向和资金变化。"),
-            evidence_pack_text=("证据包：仪表盘上下文加载失败，请补充已核验新闻、公告、研报或人工判断。"),
+            data_snapshot_text=(
+                "市场数据：仪表盘数据暂不可用，请手动补充指数涨跌、成交额、"
+                "领涨/拖累方向和资金变化。"
+            ),
+            evidence_pack_text=(
+                "证据包：仪表盘上下文加载失败，请补充已核验新闻、公告、研报或人工判断。"
+            ),
             evidence_items=[evidence_item],
             attribution_signals=[],
             generated_at=datetime.utcnow(),
@@ -423,7 +428,9 @@ class CommentaryContextService:
                     source_type=source_type,
                     verification_status="source_published",
                     confidence_score=0.72 if source_type == "research" else 0.68,
-                    display_label=("媒体报道/研报" if source_type == "research" else "媒体报道/新闻"),
+                    display_label=(
+                        "媒体报道/研报" if source_type == "research" else "媒体报道/新闻"
+                    ),
                     url=raw_item.get("url") or raw_item.get("source_url"),
                     metadata={
                         "doc_id": raw_item.get("doc_id") or raw_item.get("id"),
@@ -554,14 +561,17 @@ class CommentaryContextService:
         )
         down_titles = [
             (
-                f"{CommentaryContextService._sector_value(item, 'name')} "
-                f"{CommentaryContextService._format_pct(CommentaryContextService._sector_value(item, 'change_pct'))}"
+                f"{getattr(item, 'name', None) or (item.get('name') if isinstance(item, dict) else None)} "
+                f"{CommentaryContextService._format_pct(getattr(item, 'change_pct', None) if not isinstance(item, dict) else item.get('change_pct'))}"
             )
             for item in CommentaryContextService._iter_sector_items(
                 sector_view.get("down"),
                 limit=8,
             )
-            if CommentaryContextService._sector_value(item, "name")
+            if (
+                getattr(item, "name", None)
+                or (item.get("name") if isinstance(item, dict) else None)
+            )
         ]
         down_hits = [title for title in down_titles if any(term in title for term in ai_terms)]
         evidence_hits = [
@@ -603,7 +613,9 @@ class CommentaryContextService:
                 evidence_titles.append(f"资金净流入 {overview.breadth.netInflow}")
         if overview.breadth and overview.breadth.down > max(overview.breadth.up * 3, 1000):
             score += 18
-            evidence_titles.append(f"下跌 {overview.breadth.down} 家 / 上涨 {overview.breadth.up} 家")
+            evidence_titles.append(
+                f"下跌 {overview.breadth.down} 家 / 上涨 {overview.breadth.up} 家"
+            )
         return CommentaryAttributionSignal(
             tag="liquidity_outflow",
             label="资金净流出放大",
@@ -678,9 +690,11 @@ class CommentaryContextService:
             confidence_score=0.86 if score else 0.5,
             verification_status="verified",
             rationale="下跌家数显著多于上涨家数，说明调整已从局部板块扩散至市场广度。",
-            evidence_titles=[f"下跌 {down} 家 / 上涨 {up} 家"]
-            if score
-            else [item.title for item in evidence_items[:1]],
+            evidence_titles=(
+                [f"下跌 {down} 家 / 上涨 {up} 家"]
+                if score
+                else [item.title for item in evidence_items[:1]]
+            ),
         )
 
     @staticmethod
@@ -738,20 +752,15 @@ class CommentaryContextService:
         return "，".join(parts)
 
     @staticmethod
-    def _sector_value(
-        item: SectorChangeItem | dict[str, Any],
-        field: str,
-    ) -> Any:
-        if isinstance(item, dict):
-            return item.get(field)
-        return getattr(item, field, None)
-
-    @staticmethod
     def _format_sector_line(sectors: Iterable[SectorChangeItem | dict[str, Any]]) -> str:
         parts = []
         for item in list(sectors)[:6]:
-            name = CommentaryContextService._sector_value(item, "name")
-            change = CommentaryContextService._sector_value(item, "change_pct")
+            name = getattr(item, "name", None) or (
+                item.get("name") if isinstance(item, dict) else None
+            )
+            change = getattr(item, "change_pct", None)
+            if change is None and isinstance(item, dict):
+                change = item.get("change_pct")
             if not name:
                 continue
             parts.append(f"{name} {CommentaryContextService._format_pct(change)}")
@@ -772,10 +781,18 @@ class CommentaryContextService:
         kind: str,
         prefix: str,
     ) -> CommentaryEvidenceItem:
-        name = CommentaryContextService._sector_value(sector, "name")
-        change = CommentaryContextService._sector_value(sector, "change_pct")
-        source = CommentaryContextService._sector_value(sector, "source")
-        view_label = CommentaryContextService._sector_value(sector, "view_label")
+        name = getattr(sector, "name", None) or (
+            sector.get("name") if isinstance(sector, dict) else None
+        )
+        change = getattr(sector, "change_pct", None)
+        if change is None and isinstance(sector, dict):
+            change = sector.get("change_pct")
+        source = getattr(sector, "source", None)
+        if source is None and isinstance(sector, dict):
+            source = sector.get("source")
+        view_label = getattr(sector, "view_label", None)
+        if view_label is None and isinstance(sector, dict):
+            view_label = sector.get("view_label")
         return CommentaryEvidenceItem(
             kind=kind,
             title=f"{prefix}：{name} {CommentaryContextService._format_pct(change)}",

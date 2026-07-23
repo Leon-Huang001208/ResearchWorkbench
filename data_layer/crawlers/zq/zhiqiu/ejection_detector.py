@@ -1,6 +1,7 @@
 """
 账号顶出检测器 - 检测账号是否被顶出
 """
+
 import logging
 from dataclasses import dataclass, field
 from typing import Callable, List, Optional
@@ -117,7 +118,9 @@ class AccountEjectionDetector:
                 f"判定账号已被顶出"
             )
             return True
-        logger.warning(f"连续错误计数: {self.consecutive_errors}/{self.config.max_consecutive_errors}")
+        logger.warning(
+            f"连续错误计数: {self.consecutive_errors}/{self.config.max_consecutive_errors}"
+        )
         return False
 
     def should_try_recovery(self) -> bool:

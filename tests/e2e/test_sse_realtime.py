@@ -7,6 +7,7 @@ E2E 测试：SSE realtime event stream
 3. 通过 event_bus.publish() 发布测试事件
 4. SSE 正确推送事件到浏览器
 """
+
 import asyncio
 import multiprocessing
 import sys
@@ -60,16 +61,14 @@ async def test_sse_realtime():
                 print(f"==> SKIP: Cannot reach test server at :8765: {e}")
                 await browser.close()
                 return
-            await page.evaluate(
-                """
+            await page.evaluate("""
                 window.sseReceived = [];
                 const es = new EventSource('/api/realtime/stream');
                 es.addEventListener('test_sse_e2e', (e) => {
                     window.sseReceived.push(JSON.parse(e.data));
                 });
                 window._es = es;
-            """
-            )
+            """)
             await asyncio.sleep(1)
 
             print("✓ EventSource connected")
@@ -78,24 +77,20 @@ async def test_sse_realtime():
             print("Step 2: Publish events via HTTP API")
             print("=" * 60)
 
-            await page.evaluate(
-                """
+            await page.evaluate("""
                 fetch('/api/system/event', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({event_type: 'test_sse_e2e', payload: {message: 'hello from e2e'}})
                 });
-            """
-            )
-            await page.evaluate(
-                """
+            """)
+            await page.evaluate("""
                 fetch('/api/system/event', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({event_type: 'test_sse_e2e', payload: {message: 'second event'}})
                 });
-            """
-            )
+            """)
 
             await asyncio.sleep(2)  # 等待 SSE 推送
 

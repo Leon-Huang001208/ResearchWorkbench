@@ -1,4 +1,5 @@
 """统一摄取队列单元测试"""
+
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
@@ -367,7 +368,9 @@ class TestIngestionQueueService:
         # 1. 入队
         req1 = EnqueueRequest(source_type="cls", source_id="flow-001", raw_content="流程测试1")
         req2 = EnqueueRequest(source_type="zq", raw_content="流程测试2")
-        req3 = EnqueueRequest(source_type="cls", source_id="flow-001", raw_content="流程测试1重复")  # 重复
+        req3 = EnqueueRequest(
+            source_type="cls", source_id="flow-001", raw_content="流程测试1重复"
+        )  # 重复
 
         r1 = svc.enqueue(req1)
         r2 = svc.enqueue(req2)

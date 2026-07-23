@@ -1,4 +1,5 @@
 """iFinD 适配器单元测试"""
+
 import logging
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch

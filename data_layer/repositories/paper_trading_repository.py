@@ -1,4 +1,5 @@
 """Paper Trading 持久化仓储实现"""
+
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 

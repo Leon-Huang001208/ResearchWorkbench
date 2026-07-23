@@ -1,4 +1,5 @@
 """Wind 适配器单元测试 —— 所有公式名已通过 Wind Excel 实测验证"""
+
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
@@ -358,6 +359,7 @@ class TestWindClientLogic:
 
     @patch("data_layer.adapters.wind.client.time.sleep")
     def test_execute_waits_while_wind_returns_fetch(self, _sleep):
+
         cell = MagicMock()
         type(cell).value = PropertyMock(side_effect=["Fetch...", "loading...", "done"])
         sheet = MagicMock()

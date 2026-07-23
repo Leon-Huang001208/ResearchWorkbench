@@ -8,6 +8,7 @@ Issue #47: 消息面特征服务 - 计算新闻相关的特征
 4. 主题热度计算
 5. 来源加权信号
 """
+
 from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
@@ -137,9 +138,9 @@ class NewsFeatureService:
                     value=float(mention_count),
                     entity_id=entity_id,
                     industry_id=industry_id,
-                    source_breakdown=self._count_by_source(filtered_events)
-                    if include_source_breakdown
-                    else None,
+                    source_breakdown=(
+                        self._count_by_source(filtered_events) if include_source_breakdown else None
+                    ),
                 )
             )
 

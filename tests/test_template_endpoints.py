@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """测试所有模板相关的API端点"""
+
 import asyncio
 import os
 import sys

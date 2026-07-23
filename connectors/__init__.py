@@ -3,6 +3,7 @@
 每个 connector 包装现有 adapter/crawler，实现统一的 BaseConnector 接口。
 Wrapper-first 策略：内部委托给现有模块，不立即重写内部逻辑。
 """
+
 from connectors.document.cls import CLSDocumentConnector
 from connectors.document.cninfo import CninfoDocumentConnector
 from connectors.document.cnstock import CNStockDocumentConnector

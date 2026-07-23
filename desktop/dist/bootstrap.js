@@ -1,7 +1,6 @@
 const DEFAULT_BACKEND_URL = 'http://127.0.0.1:8765';
 const MAX_ATTEMPTS = 90;
 const RETRY_DELAY_MS = 1000;
-const HEALTH_REQUEST_TIMEOUT_MS = 1500;
 
 const statusEl = document.getElementById('boot-status');
 const retryButton = document.getElementById('retry-button');
@@ -15,19 +14,14 @@ function setStatus(message) {
 }
 
 async function isBackendReady(baseUrl) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), HEALTH_REQUEST_TIMEOUT_MS);
     try {
         const response = await fetch(`${baseUrl}/health`, {
             method: 'GET',
             cache: 'no-store',
-            signal: controller.signal,
         });
         return response.ok;
     } catch (_) {
         return false;
-    } finally {
-        clearTimeout(timeoutId);
     }
 }
 
@@ -45,7 +39,7 @@ async function waitForBackend() {
         await sleep(RETRY_DELAY_MS);
     }
 
-    setStatus('本地服务暂未就绪。请确认后端已启动，或点击重试。');
+    setStatus(`本地服务暂未就绪。请确认后端已启动，或点击重试。目标地址：${baseUrl}（请通过 http://127.0.0.1:8765/ 访问）`);
     if (retryButton) retryButton.hidden = false;
 }
 

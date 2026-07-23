@@ -557,6 +557,58 @@ Update this section when:
 
 ---
 
+### `services/web_search_service.py`
+
+Purpose:
+
+- 联网搜索内核：协调 `WebSearchProvider` 执行网页搜索，必要时补抓网页正文，并将结果格式化为带编号的参考资料文本。
+- `search(query, max_results, fetch_content)` — 调 provider 搜索，对缺正文的结果用 `data_layer/web_search/page_fetcher.py` 补抓（抓取失败优雅降级为 None，不阻塞）。
+- `format_for_prompt(results)` — 输出 `[1] 标题\nURL\n正文/摘要` 格式，供 LLM 标注引用。
+- 不引入 tool-calling 循环：用户要求"始终先联网"，是确定性检索增强，每次提问必搜。
+
+Related files:
+
+- `core/interfaces/web_search.py` — `WebSearchProvider` / `WebSearchResult` 抽象
+- `data_layer/web_search/` — Tavily / Bing provider + page_fetcher + factory
+- `services/ask_service.py` — 消费方
+
+Update this section when:
+
+- 搜索结果格式变化。
+- 补抓正文策略变化。
+- 新增 provider。
+
+---
+
+### `services/ask_service.py`
+
+Purpose:
+
+- 统一问答内核：联网搜索 → 注入 prompt → `ModelGateway` 生成带引用答案。
+- `ask(question, max_results, fetch_content, ...)` — 始终先调 `WebSearchService.search`，将参考资料注入 user message，system prompt 要求模型标注 `[n]` 引用、未查到时如实说明。
+- 降级路径：未配置搜索 API key 或搜索失败（`online=False`）时，不联网直答并在答案前标注 `[未联网]`，不报错。
+- `fetch_content` 是搜索参数，不透传给 `ModelGateway.chat`（避免污染底层 SDK）。
+
+Related files:
+
+- `services/ask_factory.py` — `build_ask_service()` 装配工厂（CLI / API 共用，单例 ModelGateway）
+- `services/web_search_service.py`
+- `core/model_gateway/gateway.py`
+
+Update this section when:
+
+- system prompt 变化。
+- 降级策略变化。
+- 新增问答入口接入。
+
+接入方：
+
+- CLI `af ask` / API `POST /api/llm/ask`（直接调 AskService）。
+- **认知代理**：`AgentWorkflowRunner`（`cognitive_agents/workflow.py`）在信息收集阶段 evidence 不足时自动调 `WebSearchService` 补充。
+- **报告生成**：`ReportProjectGenerationService`（`reporting/projects/generation.py`）库内检索无结果时调 `WebSearchService` 补充。
+
+---
+
 ## Common Pitfalls
 
 - Do not put API-specific response formatting inside services.

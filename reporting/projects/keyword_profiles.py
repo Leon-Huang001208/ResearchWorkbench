@@ -4,6 +4,7 @@ Profiles are reusable search presets derived from the old CLS filtering
 configuration. A report placeholder can inherit one by name, and unknown
 placeholders receive a small editable draft instead of an empty retrieval box.
 """
+
 from __future__ import annotations
 
 import json
@@ -251,7 +252,10 @@ def _add_market_review_profile(profiles: Dict[str, KeywordProfile]) -> None:
         name="A股市场回顾",
         param="A股市场回顾",
         keywords=keywords,
-        query=("A股市场热点和板块轮动最新动态，涵盖政策、产业趋势、" "成长板块、价值板块、主题概念和风险偏好变化"),
+        query=(
+            "A股市场热点和板块轮动最新动态，涵盖政策、产业趋势、"
+            "成长板块、价值板块、主题概念和风险偏好变化"
+        ),
         threshold=0.5,
     )
     for alias in ["A股市场回顾", "A股", "A股市场", "市场热点"]:

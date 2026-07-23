@@ -2,6 +2,7 @@
 
 当数据不可用时，所有方法都有 graceful fallback：返回空列表而非报错。
 """
+
 from __future__ import annotations
 
 from typing import Any, Dict, List, Literal, Optional

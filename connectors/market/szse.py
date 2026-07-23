@@ -12,6 +12,7 @@ Usage:
     connector = SzseMarketConnector()
     result = connector.run(dataset="listed_companies")
 """
+
 from __future__ import annotations
 
 import json

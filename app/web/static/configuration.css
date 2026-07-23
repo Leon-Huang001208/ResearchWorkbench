@@ -1,4 +1,12 @@
-/* System configuration workspace: aligns with the report-production workbench. */
+/* System configuration workspace: aligns with the report-production workbench.
+
+   迁移说明 (2026-07-16 card+modal redesign):
+   - 页面表单已迁移到 .config-edit-modal 模态框中
+   - .config-panel-header .primary-btn（内联保存按钮）不再使用（保存按钮在模态框 footer）
+   - .config-advanced-panel 作为 <details> 元素已移除（高级配置也使用卡片+模态框）
+   - 所有 .config-panel, .config-dynamic-row, .config-field-grid, .config-secret-control
+     样式保留，在模态框内复用
+   - 卡片网格和模态框样式见 style.css 末尾 */
 .configuration-page {
     max-width: 1560px;
     padding-bottom: 32px;
@@ -109,11 +117,17 @@
     grid-template-columns: minmax(150px, 0.9fr) minmax(190px, 1fr) minmax(210px, 1.15fr) var(--config-action-column);
 }
 
+.config-web_search-labels,
+.config-web_search-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.8fr) 90px var(--config-action-column);
+}
+
 .config-dynamic-list {
     gap: 8px;
 }
 
 .config-dynamic-row {
+    display: grid;
     gap: 12px;
     align-items: end;
     padding: 12px 14px;
@@ -124,8 +138,34 @@
 .config-provider-row .config-dynamic-field > span:first-child,
 .config-zhiqiu-row .config-dynamic-field > span:first-child,
 .config-ifind-row .config-dynamic-field > span:first-child,
-.config-route-row .config-dynamic-field > span:first-child {
-    display: none;
+.config-route-row .config-dynamic-field > span:first-child,
+.config-web_search-row .config-dynamic-field > span:first-child {
+    /* 桌面端也显示字段标签，替代纯靠列头的设计 */
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+}
+
+/* Accent dot prefix on field labels */
+.config-provider-row .config-dynamic-field > span:first-child::before,
+.config-zhiqiu-row .config-dynamic-field > span:first-child::before,
+.config-ifind-row .config-dynamic-field > span:first-child::before,
+.config-route-row .config-dynamic-field > span:first-child::before,
+.config-web_search-row .config-dynamic-field > span:first-child::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    flex-shrink: 0;
+    opacity: 0.72;
 }
 
 .config-provider-row .config-dynamic-field,
@@ -260,7 +300,36 @@
     color: var(--accent);
 }
 
-.config-secret-state,
+.config-secret-state {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 24px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    border: 1px solid var(--border-primary);
+}
+.config-secret-state.configured {
+    background: color-mix(in srgb, #22c55e 13%, transparent);
+    color: #22c55e;
+    border-color: color-mix(in srgb, #22c55e 28%, transparent);
+}
+.config-secret-state::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.55;
+    flex-shrink: 0;
+}
+
 .config-field-wide small,
 .config-field-grid small {
     min-height: 15px;
@@ -312,14 +381,16 @@
     .config-provider-row,
     .config-zhiqiu-row,
     .config-ifind-row,
-    .config-route-row {
+    .config-route-row,
+    .config-web_search-row {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .config-provider-row .config-dynamic-field > span:first-child,
     .config-zhiqiu-row .config-dynamic-field > span:first-child,
     .config-ifind-row .config-dynamic-field > span:first-child,
-    .config-route-row .config-dynamic-field > span:first-child {
+    .config-route-row .config-dynamic-field > span:first-child,
+    .config-web_search-row .config-dynamic-field > span:first-child {
         display: block;
     }
 }
@@ -341,6 +412,7 @@
     .config-zhiqiu-row,
     .config-ifind-row,
     .config-route-row,
+    .config-web_search-row,
     .configuration-help {
         grid-template-columns: 1fr;
     }
@@ -397,6 +469,17 @@
     color: var(--text-primary);
     font-size: 15px;
     font-weight: var(--font-semibold);
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+/* Codicon prefix inside subsection headers */
+.config-subsection-header h4 .codicon,
+.config-settings-header h4 .codicon {
+    font-size: 17px;
+    color: var(--accent);
+    flex-shrink: 0;
 }
 
 .configuration-page .secondary-btn,
@@ -451,8 +534,9 @@
 
 .config-field-grid {
     gap: 14px 18px;
-    padding: 16px;
+    padding: 16px 16px 16px 18px;
     border: 1px solid color-mix(in srgb, var(--border-primary) 80%, transparent);
+    border-left: 3px solid color-mix(in srgb, var(--accent) 48%, transparent);
     border-radius: 14px;
     background: color-mix(in srgb, var(--bg-elevated) 52%, transparent);
 }
@@ -551,5 +635,482 @@
 
     .config-advanced-panel > form {
         padding: 0 18px 18px;
+    }
+}
+
+/* ─── Visual-quality pass: depth, rhythm, interaction feedback ─────────────── */
+
+/* Panel card: subtle top highlight + floating shadow */
+.config-panel {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22), 0 4px 16px rgba(0, 0, 0, 0.14);
+    border-top-color: color-mix(in srgb, white 13%, transparent);
+}
+
+/* Panel heading: heavier weight, tighter tracking */
+.config-panel-header {
+    border-bottom-color: color-mix(in srgb, var(--border-soft) 60%, var(--accent) 6%);
+}
+
+.config-panel-header h3 {
+    font-weight: 700;
+    letter-spacing: -0.025em;
+}
+
+/* Section title outside panels */
+.configuration-header .section-title {
+    font-size: 28px;
+    letter-spacing: -0.035em;
+    font-weight: 700;
+}
+
+/* Subsection divider – accent-tinted separator */
+.config-subsection-header {
+    border-top: 1px solid color-mix(in srgb, var(--border-soft) 80%, var(--accent) 5%);
+    padding-top: 18px;
+}
+
+/* First subsection doesn't need a top rule (follows panel-header border) */
+.config-panel-header + .config-subsection-header {
+    border-top: none;
+    padding-top: 0;
+    margin-top: 14px;
+}
+
+/* Column-label row: accent left-bar + uppercase caps */
+.config-row-labels {
+    border-left: 2px solid color-mix(in srgb, var(--accent) 36%, transparent);
+    padding-left: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.055em;
+    font-size: 10.5px;
+}
+
+/* Data rows: card style with section-color left accent bar */
+.config-dynamic-row {
+    border-radius: 14px;
+    border-left: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
+    border-top-color: color-mix(in srgb, white 10%, transparent);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.20),
+                inset 0 1px 0 color-mix(in srgb, white 5%, transparent);
+    padding: 14px 16px;
+}
+
+/* Row hover: accent left bar intensifies, bg lifts */
+.config-dynamic-row:hover:not(:focus-within) {
+    border-left-color: color-mix(in srgb, var(--accent) 70%, transparent);
+    border-color: color-mix(in srgb, var(--border-primary) 115%, var(--accent) 6%);
+    background: color-mix(in srgb, var(--bg-elevated) 95%, white 3%);
+}
+
+/* Row focus-within: full accent glow ring + solid left bar */
+.config-dynamic-row:focus-within {
+    border-left-color: var(--accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 26%, transparent),
+                0 1px 3px rgba(0, 0, 0, 0.20);
+}
+
+/* Inputs: unified appearance with inset shadow */
+.configuration-page input[type="text"],
+.configuration-page input[type="url"],
+.configuration-page input[type="password"],
+.configuration-page input[type="number"] {
+    min-height: 42px;
+    padding: 0 14px;
+    border: 1px solid color-mix(in srgb, var(--text-muted) 36%, var(--border-primary));
+    border-radius: 11px;
+    color: var(--text-primary);
+    background: color-mix(in srgb, var(--bg-elevated) 74%, #1e1f2a);
+    font: inherit;
+    font-size: 13.5px;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.22);
+    transition: border-color var(--duration-fast), box-shadow var(--duration-fast);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.configuration-page input[type="text"]:hover,
+.configuration-page input[type="url"]:hover,
+.configuration-page input[type="password"]:hover,
+.configuration-page input[type="number"]:hover {
+    border-color: color-mix(in srgb, var(--text-primary) 36%, var(--border-primary));
+}
+
+.configuration-page input[type="text"]:focus,
+.configuration-page input[type="url"]:focus,
+.configuration-page input[type="password"]:focus,
+.configuration-page input[type="number"]:focus {
+    border-color: var(--accent);
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent),
+                inset 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.configuration-page input::placeholder {
+    color: var(--text-muted);
+    opacity: 0.65;
+}
+
+/* Secret action buttons: depth + accent hover */
+.config-secret-action {
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--bg-elevated) 78%, #2e2f3a);
+    box-shadow: inset 0 1px 0 color-mix(in srgb, white 6%, transparent);
+    font-weight: var(--font-medium);
+    letter-spacing: 0.01em;
+}
+
+.config-secret-action:hover {
+    background: color-mix(in srgb, var(--accent) 10%, var(--bg-elevated));
+}
+
+/* Delete button: restrained danger color */
+.config-remove-row {
+    border-color: color-mix(in srgb, #ef4444 28%, var(--border-primary));
+    color: color-mix(in srgb, #ef4444 68%, var(--text-secondary));
+    background: color-mix(in srgb, #ef4444 5%, var(--bg-elevated));
+    font-size: 13px;
+    font-weight: var(--font-medium);
+}
+
+.config-remove-row:hover {
+    border-color: color-mix(in srgb, #ef4444 58%, transparent);
+    color: color-mix(in srgb, #ef4444 88%, white);
+    background: color-mix(in srgb, #ef4444 13%, var(--bg-elevated));
+}
+
+/* Save button: state-feedback classes set by JS */
+.configuration-page .primary-btn[data-saving] {
+    opacity: 0.68;
+    cursor: not-allowed;
+}
+
+.configuration-page .primary-btn[data-save-success] {
+    background: color-mix(in srgb, #22c55e 72%, var(--accent));
+    border-color: color-mix(in srgb, #22c55e 55%, transparent);
+    transition: background var(--duration-normal), border-color var(--duration-normal);
+}
+
+.configuration-page .primary-btn[data-save-error] {
+    background: color-mix(in srgb, #ef4444 70%, var(--accent));
+    border-color: color-mix(in srgb, #ef4444 55%, transparent);
+    transition: background var(--duration-normal), border-color var(--duration-normal);
+}
+
+/* ─── Button system: primary / secondary / delete — dark + light themes ────── */
+
+/* Primary (保存) — amber in dark, blue in light */
+.configuration-page .primary-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 88px;
+    min-height: 40px;
+    padding: 0 20px;
+    border: 1px solid transparent;
+    border-radius: 11px;
+    background: var(--accent);
+    color: #111;
+    font: inherit;
+    font-size: 13.5px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    transition: background var(--duration-fast), transform var(--duration-fast),
+                box-shadow var(--duration-fast), opacity var(--duration-fast);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22),
+                inset 0 1px 0 color-mix(in srgb, white 22%, transparent);
+}
+
+.configuration-page .primary-btn:hover:not(:disabled):not([data-saving]) {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.30),
+                inset 0 1px 0 color-mix(in srgb, white 22%, transparent);
+}
+
+.configuration-page .primary-btn:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+.configuration-page .primary-btn:disabled {
+    opacity: 0.38;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
+
+/* Override state-feedback colors to ensure text stays readable */
+.configuration-page .primary-btn[data-saving] {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.configuration-page .primary-btn[data-save-success] {
+    background: #22c55e;
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 1px 4px rgba(34, 197, 94, 0.30);
+}
+
+.configuration-page .primary-btn[data-save-error] {
+    background: #ef4444;
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 1px 4px rgba(239, 68, 68, 0.30);
+}
+
+/* Secondary (新增服务 / 新增路由 / 新增账号) — ghost style with accent */
+.configuration-page .secondary-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    min-height: 36px;
+    padding: 0 14px;
+    border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--border-primary));
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--accent) 7%, transparent);
+    color: var(--accent);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    transition: background var(--duration-fast), border-color var(--duration-fast),
+                box-shadow var(--duration-fast), transform var(--duration-fast);
+}
+
+.configuration-page .secondary-btn:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 62%, var(--border-primary));
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.14);
+    transform: translateY(-1px);
+}
+
+.configuration-page .secondary-btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.configuration-page .secondary-btn:disabled {
+    opacity: 0.36;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Delete button: tighter, not full-width */
+.config-row-actions {
+    padding: 0 4px;
+}
+
+.config-row-actions .config-remove-row {
+    width: auto;
+    min-width: 60px;
+    min-height: 36px;
+    padding: 0 14px;
+    font-size: 12.5px;
+    font-weight: 600;
+    border-radius: 10px;
+}
+
+/* ─── Light theme overrides ─────────────────────────────────────────────────── */
+
+/* Primary: blue bg, white text */
+[data-theme="light"] .configuration-page .primary-btn {
+    color: #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14),
+                inset 0 1px 0 color-mix(in srgb, white 20%, transparent);
+}
+
+[data-theme="light"] .configuration-page .primary-btn:hover:not(:disabled):not([data-saving]) {
+    background: var(--accent-hover);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.16),
+                inset 0 1px 0 color-mix(in srgb, white 20%, transparent);
+}
+
+/* Secondary: white bg, accent border */
+[data-theme="light"] .configuration-page .secondary-btn {
+    background: color-mix(in srgb, var(--accent) 6%, white);
+    border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+[data-theme="light"] .configuration-page .secondary-btn:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--accent) 12%, white);
+    border-color: color-mix(in srgb, var(--accent) 65%, transparent);
+}
+
+/* Delete button: lighter red wash on white bg */
+[data-theme="light"] .config-remove-row {
+    background: color-mix(in srgb, #ef4444 8%, white);
+    border-color: color-mix(in srgb, #ef4444 35%, rgba(0, 0, 0, 0.10));
+}
+
+[data-theme="light"] .config-remove-row:hover {
+    background: color-mix(in srgb, #ef4444 16%, white);
+    border-color: color-mix(in srgb, #ef4444 55%, transparent);
+}
+
+/* ─── Layout restructure: save btn in header, tighter spacing ───────────────── */
+
+/* Panel header → flex row: title left, save button right */
+.config-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 0;
+    padding-bottom: 14px;
+}
+
+/* Save button in header: slightly smaller than standalone primary */
+.config-panel-header .primary-btn {
+    flex-shrink: 0;
+    min-height: 34px;
+    min-width: 72px;
+    padding: 0 16px;
+    font-size: 13px;
+}
+
+/* Tighter panel padding */
+.config-panel {
+    padding: 18px 22px;
+}
+
+/* Tighter gap between panels */
+.configuration-main {
+    gap: 14px;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Tighter subsection headers */
+.config-subsection-header {
+    min-height: 36px;
+    margin: 14px 0 6px;
+    padding-top: 0;
+}
+
+/* + icon prefix on all secondary-btn inside subsection headers */
+.config-subsection-header .secondary-btn::before {
+    content: '+';
+    display: inline-block;
+    margin-right: 4px;
+    font-size: 15px;
+    font-weight: 400;
+    line-height: 1;
+    vertical-align: middle;
+    opacity: 0.9;
+}
+
+/* config-actions for advanced panel (details): right-aligned, no separator */
+.config-advanced-panel .config-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 12px;
+    padding-top: 0;
+    border-top: none;
+    min-height: 0;
+}
+
+/* Tighter config-field-grid */
+.config-field-grid {
+    gap: 10px 16px;
+}
+
+.config-field-grid > label {
+    min-height: 62px;
+}
+
+/* config-settings-header: reduce top margin */
+.config-settings-header {
+    margin: 14px 0 6px;
+    padding-top: 10px;
+}
+
+/* Reduce dynamic list gap slightly */
+.config-dynamic-list {
+    gap: 6px;
+}
+
+/* Subsection border-top: first subsection after panel header has no top rule */
+.config-panel-header + .config-subsection-header {
+    border-top: none;
+    margin-top: 12px;
+}
+
+/* Advanced panel: tighter inner form padding */
+.config-advanced-panel > form {
+    padding: 0 22px 18px;
+}
+
+/* ─── Field error list ─────────────────────────────────────────────────────── */
+.config-field-errors {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 6px 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: 12px;
+    color: color-mix(in srgb, #ef4444 78%, var(--text-secondary));
+}
+
+.config-field-errors li {
+    display: flex;
+    align-items: flex-start;
+    gap: 5px;
+    line-height: 1.4;
+}
+
+.config-field-errors li::before {
+    content: '⚠';
+    flex-shrink: 0;
+    font-size: 12px;
+}
+
+/* ─── Restart note (database / critical config changes) ────────────────────── */
+.config-restart-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 14px 0 0;
+    padding: 12px 16px;
+    border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border-primary));
+    border-left: 3px solid var(--accent);
+    border-radius: 11px;
+    background: color-mix(in srgb, var(--accent) 5%, var(--bg-elevated));
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.config-restart-note .codicon {
+    font-size: 16px;
+    color: var(--accent);
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+/* Refine column-labels row: lighter weight, now that per-field labels are visible */
+.config-row-labels {
+    font-weight: var(--font-medium);
+    opacity: 0.78;
+    margin-bottom: 4px;
+}
+
+@media (max-width: 680px) {
+    .config-panel {
+        padding: 14px 16px;
+    }
+
+    .config-panel-header {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .config-panel-header .primary-btn {
+        width: 100%;
     }
 }

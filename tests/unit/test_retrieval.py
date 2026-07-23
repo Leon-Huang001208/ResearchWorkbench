@@ -1,4 +1,5 @@
 """Unit tests for retrieval module (vector store and hybrid search)."""
+
 from knowledge_layer.retrieval.hybrid_search import HybridSearcher
 from knowledge_layer.retrieval.vector_store import InMemoryVectorStore
 

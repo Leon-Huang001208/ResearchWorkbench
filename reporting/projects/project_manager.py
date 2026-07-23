@@ -3,6 +3,7 @@
 Each report project owns its Word template, Excel workbook, section config,
 generated documents, and run logs under one project directory.
 """
+
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path

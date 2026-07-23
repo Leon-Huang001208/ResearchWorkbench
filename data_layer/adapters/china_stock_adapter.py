@@ -1,4 +1,5 @@
 """China Stock 数据适配器 - 基于 openclaw-data-china-stock 插件"""
+
 import json
 import subprocess
 from datetime import datetime

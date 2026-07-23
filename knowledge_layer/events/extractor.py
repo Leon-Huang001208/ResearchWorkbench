@@ -1,6 +1,7 @@
 """
 事件提取器
 """
+
 import re
 import uuid
 from datetime import datetime

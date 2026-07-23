@@ -3,6 +3,7 @@
 
 Template manager handles loading, validation, and storage of report templates.
 """
+
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Set
 
@@ -370,6 +371,75 @@ class TemplateManager:
                 raise ValueError(f"Section {section.key} target_words must be positive")
 
         logger.debug(f"Template validation passed: {config.name}")
+
+    # ========================================================================
+    # v1 → v2 升级
+    # ========================================================================
+
+    def upgrade_to_v2(self, template_name: str) -> TemplateConfig:
+        """将 v1 模板升级为 v2 格式.
+
+        v1 → v2 变更：
+        - version: "1.x" → "2.0"
+        - metadata 中添加 "upgraded_from": "1.x"
+        - 保持 SectionSpec 列表不变（ContentBuilder.from_template 兼容 v1 section）
+
+        v2 模板额外支持（通过 metadata）：
+        - metadata.design_tokens: 设计令牌字典
+        - metadata.blocks: 每 section 的 blocks 定义
+
+        Args:
+            template_name: 模板名称.
+
+        Returns:
+            升级后的 TemplateConfig.
+
+        Raises:
+            FileNotFoundError: 如果模板不存在.
+        """
+        config = self.load_template(template_name)
+
+        if config.is_v2:
+            logger.info(
+                "Template already v2, no upgrade needed",
+                extra={"template": template_name, "version": config.version},
+            )
+            return config
+
+        old_version = config.version
+        config.version = "2.0"
+        config.metadata["upgraded_from"] = old_version
+
+        self.save_template(config, overwrite=True)
+        logger.info(
+            "Upgraded template to v2",
+            extra={"template": template_name, "from_version": old_version},
+        )
+        return config
+
+    def upgrade_all_to_v2(self) -> List[str]:
+        """批量升级所有 v1 模板到 v2.
+
+        Returns:
+            已升级的模板名称列表.
+        """
+        upgraded: List[str] = []
+        for name in self.list_templates():
+            try:
+                config = self.load_template(name)
+                if not config.is_v2:
+                    self.upgrade_to_v2(name)
+                    upgraded.append(name)
+            except Exception as e:
+                logger.error(
+                    "Failed to upgrade template",
+                    extra={"template": name, "error": str(e)},
+                )
+        logger.info(
+            "Batch upgrade complete",
+            extra={"upgraded_count": len(upgraded), "templates": upgraded},
+        )
+        return upgraded
 
     def create_weekly_report_template(self) -> TemplateConfig:
         """创建周报模板.

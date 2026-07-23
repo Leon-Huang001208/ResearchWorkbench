@@ -17,8 +17,7 @@ class GraphRepository(BaseRepository):
 
     def add_temporal_relation(self, relation: TemporalRelation) -> TemporalRelation:
         """Add temporal relation to database"""
-        query = text(
-            """
+        query = text("""
             INSERT INTO temporal_relation (
                 relation_id, from_entity_id, to_entity_id, relationship_type,
                 strength, valid_from, valid_to, chain_position, industry,
@@ -28,8 +27,7 @@ class GraphRepository(BaseRepository):
                 :strength, :valid_from, :valid_to, :chain_position, :industry,
                 :metadata, :evidence_refs, :created_at
             )
-        """
-        )
+        """)
 
         params = {
             "relation_id": relation.relation_id,
@@ -101,15 +99,13 @@ class GraphRepository(BaseRepository):
 
     def add_industry_chain(self, chain: IndustryChain) -> IndustryChain:
         """Add industry chain to database"""
-        query = text(
-            """
+        query = text("""
             INSERT INTO industry_chain (
                 chain_id, name, industry, nodes, relations, as_of, created_at
             ) VALUES (
                 :chain_id, :name, :industry, :nodes, :relations, :as_of, NOW()
             )
-        """
-        )
+        """)
 
         params = {
             "chain_id": chain.chain_id,

@@ -4,6 +4,7 @@ Yahoo Finance 基础适配器模块
 定义统一的数据结构和适配器基类。
 遵循项目现有架构，与 AkShare/BaoStock 适配器保持一致。
 """
+
 import importlib
 from abc import ABC
 from dataclasses import dataclass, field

@@ -1,4 +1,5 @@
 """审计轨迹 API 路由"""
+
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query

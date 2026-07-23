@@ -1,4 +1,5 @@
 """日志配置工具模块"""
+
 from typing import Optional
 
 from core.observability import get_logger

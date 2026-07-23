@@ -2,8 +2,6 @@ import json
 import logging
 import os
 import re
-from pathlib import Path
-from types import TracebackType
 from typing import Any, Dict, Optional, cast
 
 import requests
@@ -48,24 +46,19 @@ class ZhiQiuClient:
 
     # AI 提问模板预设
     PROMPT_CORE_VIEWPOINT = "提取该研报的核心观点，分点列出"
-    PROMPT_FOCUS_COMPANIES = "提取该研报中重点关注、推荐或分析的上市公司名称，列出股票代码和公司名称"
+    PROMPT_FOCUS_COMPANIES = (
+        "提取该研报中重点关注、推荐或分析的上市公司名称，列出股票代码和公司名称"
+    )
     PROMPT_SUMMARY = "提取该研报对{{search}}未来发展的核心预期与策略建议"
 
     def __init__(
-        self,
-        username: str,
-        password: str,
-        anti_scrape_config: Optional[AntiScrapeConfig] = None,
-        request_timeout: float = DEFAULT_TIMEOUT,
-        failure_dump_path: str | Path | None = "login_failed.html",
+        self, username: str, password: str, anti_scrape_config: Optional[AntiScrapeConfig] = None
     ):
         self.username = username
         self.password = password
         self.session = requests.Session()
         self.session.trust_env = False  # 禁用系统代理，避免 SSL EOF 错误
         self._logged_in = False
-        self.request_timeout = request_timeout
-        self.failure_dump_path = Path(failure_dump_path) if failure_dump_path is not None else None
         self.logger = logging.getLogger(__name__)
         # 反爬管理器
         self.anti_scrape: AntiScrapeManager = get_manager(anti_scrape_config)
@@ -76,7 +69,7 @@ class ZhiQiuClient:
         self.anti_scrape.before_request(is_ai_request=False)
         headers = self.anti_scrape.get_headers({"user-agent": self.USER_AGENT})
         self.session.get(
-            f"{self.BASE_URL}/newreport/index.htm", headers=headers, timeout=self.request_timeout
+            f"{self.BASE_URL}/newreport/index.htm", headers=headers, timeout=DEFAULT_TIMEOUT
         )
         self.anti_scrape.after_success()
 
@@ -90,7 +83,7 @@ class ZhiQiuClient:
             }
         )
         pre_resp = self.session.post(
-            f"{self.BASE_URL}/user/loginPre.json", headers=headers, timeout=self.request_timeout
+            f"{self.BASE_URL}/user/loginPre.json", headers=headers, timeout=DEFAULT_TIMEOUT
         )
         if pre_resp.status_code != 200:
             self.logger.error(f"loginPre.json 请求失败，状态码: {pre_resp.status_code}")
@@ -130,7 +123,7 @@ class ZhiQiuClient:
             data=login_data,
             headers=headers,
             allow_redirects=True,
-            timeout=self.request_timeout,
+            timeout=DEFAULT_TIMEOUT,
         )
 
         if "REPORT_SESSION_COOKIE" in self.session.cookies:
@@ -139,28 +132,11 @@ class ZhiQiuClient:
             self.anti_scrape.after_success()
             return True
 
-        if self.failure_dump_path is not None:
-            self.logger.error("登录失败，响应已保存到诊断文件")
-            self.failure_dump_path.write_text(resp.text, encoding="utf-8")
-        else:
-            self.logger.error("登录失败")
+        self.logger.error("登录失败，响应已保存到 login_failed.html")
+        with open("login_failed.html", "w", encoding="utf-8") as f:
+            f.write(resp.text)
         self.anti_scrape.after_failure()
         return False
-
-    def close(self) -> None:
-        """关闭底层 HTTP 会话。"""
-        self.session.close()
-
-    def __enter__(self) -> "ZhiQiuClient":
-        return self
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_value: BaseException | None,
-        traceback: TracebackType | None,
-    ) -> None:
-        self.close()
 
     def docqa(self, obj_id: str, query: str) -> str:
         """AI问答：提取研报核心观点"""
@@ -346,7 +322,9 @@ class ZhiQiuClient:
                             self.anti_scrape.after_success()
                             return True
                         else:
-                            self.logger.warning(f"URL {i} 返回内容不是 PDF，开始字节: {content_start!r}")
+                            self.logger.warning(
+                                f"URL {i} 返回内容不是 PDF，开始字节: {content_start!r}"
+                            )
                     else:
                         self.logger.warning(f"URL {i} 返回状态码: {resp.status_code}")
 

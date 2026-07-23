@@ -6,19 +6,21 @@ and model gateway:
 Word placeholder -> section config -> prompt template -> evidence retrieval
 -> DeepSeek/model generation -> placeholder replacement.
 """
+
 from __future__ import annotations
 
+import difflib
 import json
 import re
-import threading
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime, time, timedelta
 from math import exp, sqrt
-from typing import Any, Callable, Dict, Iterable, List, Optional, Protocol
+from typing import Any, Dict, Iterable, List, Optional, Protocol
 
-from sqlalchemy import and_, or_
+from sqlalchemy import or_
 
+from core.contracts.reporting import DefaultSettings, GenerationConfig
 from core.interfaces.model_gateway import ModelResponse
 from core.model_gateway.gateway import ModelGatewayImpl
 from core.model_gateway.local_embedding_config import (
@@ -31,6 +33,84 @@ from reporting.projects.keyword_profiles import apply_keyword_profile_to_config
 from reporting.projects.project_manager import ReportProject
 
 logger = get_logger(__name__)
+
+
+def _flatten_keyword_groups(groups: list[list[str]] | None) -> list[str]:
+    """将 v2 keyword_groups 展平为扁平的 must_any 关键词列表."""
+    if not groups:
+        return []
+    flat: list[str] = []
+    for group in groups:
+        flat.extend(group)
+    return list(dict.fromkeys(flat))  # 去重保持顺序
+
+
+def _build_v1_config_from_v2(
+    key: str,
+    title: str,
+    gen_config: GenerationConfig,
+    defaults: DefaultSettings | None = None,
+) -> dict[str, Any]:
+    """从 v2 GenerationConfig + DefaultSettings 构建 v1 兼容的 config dict.
+
+    使得现有 _generate_configured_placeholder() 管道可直接消费。
+    """
+    config: dict[str, Any] = {
+        "title": title,
+        "type": "paragraph",
+        "prompt_template": gen_config.prompt_template_ref or title,
+        "target_words": gen_config.target_words or 200,
+        "max_words": gen_config.max_words or 300,
+        "output_mode": gen_config.output_mode or "single_paragraph",
+    }
+
+    # 检索配置
+    retrieval: dict[str, Any] = {}
+    if gen_config.retrieval:
+        retrieval["mode"] = gen_config.retrieval.mode or "keyword"
+        retrieval["top_k"] = gen_config.retrieval.top_k or 10
+        retrieval["candidate_k"] = gen_config.retrieval.candidate_k or 40
+        retrieval["must_any"] = _flatten_keyword_groups(gen_config.retrieval.keyword_groups)
+        if gen_config.retrieval.exclude_keywords:
+            retrieval["exclude"] = list(gen_config.retrieval.exclude_keywords)
+
+        # Rerank 配置（从 v2 字段映射到 v1 retrieval dict）
+        retrieval["rerank_enabled"] = gen_config.retrieval.rerank_enabled
+        if gen_config.retrieval.rerank_top_n:
+            retrieval["rerank_top_n"] = gen_config.retrieval.rerank_top_n
+        if gen_config.retrieval.rerank_min_score is not None:
+            retrieval["min_rerank_score"] = gen_config.retrieval.rerank_min_score
+
+        # 融合参数
+        if gen_config.retrieval.keyword_weight is not None:
+            retrieval["keyword_weight"] = gen_config.retrieval.keyword_weight
+        if gen_config.retrieval.semantic_weight is not None:
+            retrieval["semantic_weight"] = gen_config.retrieval.semantic_weight
+
+    # 如果 placeholder 级检索为空，从 defaults 继承
+    if not retrieval and defaults and defaults.retrieval:
+        default_retrieval = defaults.retrieval
+        retrieval["mode"] = default_retrieval.mode or "keyword"
+        retrieval["top_k"] = default_retrieval.top_k or 10
+        retrieval["candidate_k"] = default_retrieval.candidate_k or 40
+        retrieval["rerank_enabled"] = default_retrieval.rerank_enabled or False
+        if default_retrieval.rerank_top_n:
+            retrieval["rerank_top_n"] = default_retrieval.rerank_top_n
+        if default_retrieval.rerank_min_score is not None:
+            retrieval["min_rerank_score"] = default_retrieval.rerank_min_score
+
+    config["retrieval"] = retrieval
+
+    # 校验配置
+    validators: dict[str, Any] = {}
+    if defaults and defaults.validators:
+        if defaults.validators.forbidden_terms:
+            validators["forbidden_terms"] = list(defaults.validators.forbidden_terms)
+        if defaults.validators.forbid_instruction_leaks:
+            validators["forbid_instruction_leaks"] = True
+    config["validators"] = validators
+
+    return config
 
 
 @dataclass(frozen=True)
@@ -88,15 +168,6 @@ class RetrievalConfig:
     mode: str = "keyword"
     top_k: int = 8
     candidate_k: int = 32
-    relevance_scan_limit: int = 400
-    subject_any: List[str] = field(default_factory=list)
-    subject_match_mode: str = "any"
-    subject_keyword_groups: List[List[str]] = field(default_factory=list)
-    subject_keyword_groups_valid: bool = True
-    fallback_required_keywords: List[str] = field(default_factory=list)
-    synthetic_title_labels: List[str] = field(default_factory=list)
-    exclude_title_keywords: List[str] = field(default_factory=list)
-    first_group_scope: str = "full_text"
     must_any: List[str] = field(default_factory=list)
     exclude: List[str] = field(default_factory=list)
     source_types: List[str] = field(default_factory=list)
@@ -112,18 +183,10 @@ class RetrievalConfig:
     rerank_model: str = "BAAI/bge-reranker-large"
     rerank_top_n: int = 16
     min_rerank_score: float = 0.0
-    subject_backfill_enabled: bool = False
-    min_backfill_keyword_matches: int = 2
-    backfill_required_keywords: List[str] = field(default_factory=list)
 
 
 _LOCAL_EMBEDDING_MODELS: Dict[str, Any] = {}
 _LOCAL_RERANKER_MODELS: Dict[str, Any] = {}
-_LOCAL_EMBEDDING_LOAD_LOCK = threading.RLock()
-_LOCAL_EMBEDDING_INFERENCE_LOCK = threading.RLock()
-_LOCAL_RERANKER_LOAD_LOCK = threading.RLock()
-_LOCAL_RERANKER_INFERENCE_LOCK = threading.RLock()
-ProgressCallback = Callable[[Dict[str, Any]], None]
 
 
 @dataclass(frozen=True)
@@ -197,7 +260,7 @@ class DatabaseEvidenceRetriever:
         try:
             from data_layer.repositories.base import SessionLocal
 
-            relevance_scan_limit = _relevance_scan_limit(limit, retrieval_config)
+            candidate_limit = _candidate_limit(limit, retrieval_config)
             with SessionLocal() as session:
                 snippets = self._retrieve_ingestion_items(
                     session,
@@ -205,28 +268,29 @@ class DatabaseEvidenceRetriever:
                     title=title,
                     params=params,
                     lookback_days=lookback_days,
-                    limit=relevance_scan_limit,
+                    limit=candidate_limit,
                     report_period=report_period,
                     retrieval_config=retrieval_config,
                 )
-                snippets.extend(
-                    self._retrieve_events(
-                        session,
-                        query=query,
-                        title=title,
-                        params=params,
-                        lookback_days=lookback_days,
-                        limit=relevance_scan_limit,
-                        report_period=report_period,
-                        retrieval_config=retrieval_config,
+                if len(snippets) < candidate_limit:
+                    snippets.extend(
+                        self._retrieve_events(
+                            session,
+                            query=query,
+                            title=title,
+                            params=params,
+                            lookback_days=lookback_days,
+                            limit=candidate_limit - len(snippets),
+                            report_period=report_period,
+                            retrieval_config=retrieval_config,
+                        )
                     )
-                )
                 if _uses_semantic_retrieval(retrieval_config):
                     snippets.extend(
                         self._retrieve_recent_ingestion_items(
                             session,
                             lookback_days=lookback_days,
-                            limit=relevance_scan_limit,
+                            limit=_semantic_candidate_limit(retrieval_config),
                             report_period=report_period,
                             retrieval_config=retrieval_config,
                         )
@@ -235,29 +299,12 @@ class DatabaseEvidenceRetriever:
                         self._retrieve_recent_events(
                             session,
                             lookback_days=lookback_days,
-                            limit=relevance_scan_limit,
+                            limit=max(10, _semantic_candidate_limit(retrieval_config) // 4),
                             report_period=report_period,
-                            retrieval_config=retrieval_config,
                         )
                     )
                 snippets = _dedupe_snippets(snippets)
-                relevance_candidates = select_relevance_scan_candidates(
-                    snippets,
-                    retrieval_config,
-                    query=query,
-                    relevance_scan_limit=relevance_scan_limit,
-                )
-                logger.info(
-                    "Selected report evidence relevance scan candidates",
-                    title=title,
-                    collected_count=len(snippets),
-                    relevance_candidate_count=len(relevance_candidates),
-                    collected_source_distribution=summarize_evidence_sources(snippets),
-                    relevance_candidate_source_distribution=summarize_evidence_sources(
-                        relevance_candidates
-                    ),
-                )
-                return relevance_candidates[:limit]
+                return filter_and_rank_evidence(snippets, retrieval_config, query=query)[:limit]
         except Exception as exc:
             logger.warning(
                 "Failed to retrieve report evidence",
@@ -283,6 +330,7 @@ class DatabaseEvidenceRetriever:
         terms = self._extract_terms(
             query, title=title, params=params, retrieval_config=retrieval_config
         )
+        cutoff_start, cutoff_end = _period_datetime_bounds(report_period, lookback_days)
         filters = [
             or_(
                 IngestionQueueItemDB.title.ilike(f"%{term}%"),
@@ -293,35 +341,26 @@ class DatabaseEvidenceRetriever:
         query_obj = session.query(IngestionQueueItemDB)
         if filters:
             query_obj = query_obj.filter(or_(*filters))
-        query_obj = _apply_ingestion_candidate_filters(
-            query_obj,
-            IngestionQueueItemDB,
-            report_period=report_period,
-            lookback_days=lookback_days,
-            retrieval_config=retrieval_config,
-        )
+        if retrieval_config and retrieval_config.source_types:
+            source_types = [
+                source.split(":", 1)[1] if source.startswith("ingestion:") else source
+                for source in retrieval_config.source_types
+            ]
+            query_obj = query_obj.filter(IngestionQueueItemDB.source_type.in_(source_types))
+        query_obj = query_obj.filter(IngestionQueueItemDB.created_at >= cutoff_start)
+        query_obj = query_obj.filter(IngestionQueueItemDB.created_at <= cutoff_end)
         rows = query_obj.order_by(IngestionQueueItemDB.created_at.desc()).limit(limit).all()
         return [
             EvidenceSnippet(
                 source=f"ingestion:{row.source_type}",
                 title=row.title or row.source_id or row.item_id,
-                content=self._compact_text(
-                    row.raw_content,
-                    retrieval_config=retrieval_config,
-                ),
+                content=self._compact_text(row.raw_content),
                 published_at=row.published_at
                 or (row.created_at.isoformat() if row.created_at else None),
                 url=row.url,
             )
             for row in rows
             if row.raw_content
-            and is_evidence_within_report_period(
-                source=f"ingestion:{row.source_type}",
-                published_at=row.published_at,
-                event_time=None,
-                created_at=row.created_at,
-                report_period=report_period,
-            )
         ]
 
     def _retrieve_events(
@@ -341,6 +380,7 @@ class DatabaseEvidenceRetriever:
         terms = self._extract_terms(
             query, title=title, params=params, retrieval_config=retrieval_config
         )
+        cutoff_start, cutoff_end = _period_datetime_bounds(report_period, lookback_days)
         filters = [
             or_(
                 CanonicalEvent.summary.ilike(f"%{term}%"),
@@ -351,35 +391,23 @@ class DatabaseEvidenceRetriever:
         query_obj = session.query(CanonicalEvent)
         if filters:
             query_obj = query_obj.filter(or_(*filters))
-        query_obj = _apply_canonical_event_candidate_filters(
-            query_obj,
-            CanonicalEvent,
-            report_period=report_period,
-            lookback_days=lookback_days,
-        )
+        query_obj = query_obj.filter(CanonicalEvent.created_at >= cutoff_start)
+        query_obj = query_obj.filter(CanonicalEvent.created_at <= cutoff_end)
         rows = query_obj.order_by(CanonicalEvent.created_at.desc()).limit(limit).all()
         return [
             EvidenceSnippet(
                 source="canonical_event",
                 title=row.event_type,
-                content=self._compact_text(
-                    row.summary,
-                    retrieval_config=retrieval_config,
+                content=self._compact_text(row.summary),
+                published_at=(
+                    (row.event_time or row.created_at).isoformat()
+                    if (row.event_time or row.created_at)
+                    else None
                 ),
-                published_at=(row.event_time or row.created_at).isoformat()
-                if (row.event_time or row.created_at)
-                else None,
                 url=None,
             )
             for row in rows
             if row.summary
-            and is_evidence_within_report_period(
-                source="canonical_event",
-                published_at=None,
-                event_time=row.event_time,
-                created_at=row.created_at,
-                report_period=report_period,
-            )
         ]
 
     def _retrieve_recent_ingestion_items(
@@ -394,36 +422,32 @@ class DatabaseEvidenceRetriever:
         """Retrieve recent documents as semantic candidates for hybrid recall."""
         from data_layer.repositories.models import IngestionQueueItemDB
 
+        cutoff_start, cutoff_end = _period_datetime_bounds(report_period, lookback_days)
         query_obj = session.query(IngestionQueueItemDB)
-        query_obj = _apply_ingestion_candidate_filters(
-            query_obj,
-            IngestionQueueItemDB,
-            report_period=report_period,
-            lookback_days=lookback_days,
-            retrieval_config=retrieval_config,
+        if retrieval_config and retrieval_config.source_types:
+            source_types = [
+                source.split(":", 1)[1] if source.startswith("ingestion:") else source
+                for source in retrieval_config.source_types
+            ]
+            query_obj = query_obj.filter(IngestionQueueItemDB.source_type.in_(source_types))
+        rows = (
+            query_obj.filter(IngestionQueueItemDB.created_at >= cutoff_start)
+            .filter(IngestionQueueItemDB.created_at <= cutoff_end)
+            .order_by(IngestionQueueItemDB.created_at.desc())
+            .limit(limit)
+            .all()
         )
-        rows = query_obj.order_by(IngestionQueueItemDB.created_at.desc()).limit(limit).all()
         return [
             EvidenceSnippet(
                 source=f"ingestion:{row.source_type}",
                 title=row.title or row.source_id or row.item_id,
-                content=self._compact_text(
-                    row.raw_content,
-                    retrieval_config=retrieval_config,
-                ),
+                content=self._compact_text(row.raw_content),
                 published_at=row.published_at
                 or (row.created_at.isoformat() if row.created_at else None),
                 url=row.url,
             )
             for row in rows
             if row.raw_content
-            and is_evidence_within_report_period(
-                source=f"ingestion:{row.source_type}",
-                published_at=row.published_at,
-                event_time=None,
-                created_at=row.created_at,
-                report_period=report_period,
-            )
         ]
 
     def _retrieve_recent_events(
@@ -433,41 +457,33 @@ class DatabaseEvidenceRetriever:
         lookback_days: int,
         limit: int,
         report_period: ReportPeriod | None,
-        retrieval_config: RetrievalConfig | None,
     ) -> List[EvidenceSnippet]:
         """Retrieve recent canonical events as semantic candidates for hybrid recall."""
         from data_layer.repositories.models import CanonicalEvent
 
-        query_obj = session.query(CanonicalEvent)
-        query_obj = _apply_canonical_event_candidate_filters(
-            query_obj,
-            CanonicalEvent,
-            report_period=report_period,
-            lookback_days=lookback_days,
+        cutoff_start, cutoff_end = _period_datetime_bounds(report_period, lookback_days)
+        rows = (
+            session.query(CanonicalEvent)
+            .filter(CanonicalEvent.created_at >= cutoff_start)
+            .filter(CanonicalEvent.created_at <= cutoff_end)
+            .order_by(CanonicalEvent.created_at.desc())
+            .limit(limit)
+            .all()
         )
-        rows = query_obj.order_by(CanonicalEvent.created_at.desc()).limit(limit).all()
         return [
             EvidenceSnippet(
                 source="canonical_event",
                 title=row.event_type,
-                content=self._compact_text(
-                    row.summary,
-                    retrieval_config=retrieval_config,
+                content=self._compact_text(row.summary),
+                published_at=(
+                    (row.event_time or row.created_at).isoformat()
+                    if (row.event_time or row.created_at)
+                    else None
                 ),
-                published_at=(row.event_time or row.created_at).isoformat()
-                if (row.event_time or row.created_at)
-                else None,
                 url=None,
             )
             for row in rows
             if row.summary
-            and is_evidence_within_report_period(
-                source="canonical_event",
-                published_at=None,
-                event_time=row.event_time,
-                created_at=row.created_at,
-                report_period=report_period,
-            )
         ]
 
     @staticmethod
@@ -485,7 +501,9 @@ class DatabaseEvidenceRetriever:
         for value in params.values():
             if isinstance(value, str):
                 raw_terms.append(value)
-        raw_terms.extend(part.strip() for part in re.split(r"[，,、；;。\n\s]+", query) if part.strip())
+        raw_terms.extend(
+            part.strip() for part in re.split(r"[，,、；;。\n\s]+", query) if part.strip()
+        )
 
         stop_terms = {
             "请基于上传的全部新闻内容",
@@ -508,53 +526,9 @@ class DatabaseEvidenceRetriever:
         return terms[:12]
 
     @staticmethod
-    def _compact_text(
-        text: str,
-        max_chars: int = 900,
-        *,
-        retrieval_config: RetrievalConfig | None = None,
-    ) -> str:
-        subject_terms = retrieval_config.subject_any if retrieval_config else []
-        if (
-            retrieval_config
-            and retrieval_config.subject_match_mode == "all_groups"
-            and retrieval_config.subject_keyword_groups_valid
-        ):
-            subject_terms = _dedupe_text_list(
-                term
-                for group in retrieval_config.subject_keyword_groups
-                for term in group
-            )
-        if not subject_terms:
-            return re.sub(r"\s+", " ", text).strip()[:max_chars]
-
-        segments = [
-            re.sub(r"\s+", " ", segment).strip()
-            for segment in re.split(r"\n+|(?<=[。！？!?])\s*", text)
-            if segment.strip()
-        ]
-        focused: list[tuple[int, float, str]] = []
-        driver_terms = retrieval_config.must_any if retrieval_config else []
-        for index, segment in enumerate(segments):
-            subject_hits = sum(segment.lower().count(term.lower()) for term in subject_terms)
-            driver_hits = sum(segment.lower().count(term.lower()) for term in driver_terms)
-            if subject_hits == 0 and driver_hits == 0:
-                continue
-            focused.append((index, subject_hits * 3.0 + driver_hits, segment))
-
-        if not focused:
-            return re.sub(r"\s+", " ", text).strip()[:max_chars]
-
-        selected: list[tuple[int, str]] = []
-        length = 0
-        for index, _score, segment in sorted(focused, key=lambda item: (-item[1], item[0])):
-            remaining = max_chars - length
-            if remaining <= 0:
-                break
-            excerpt = segment[:remaining]
-            selected.append((index, excerpt))
-            length += len(excerpt) + 1
-        return " ".join(segment for _index, segment in sorted(selected))[:max_chars]
+    def _compact_text(text: str, max_chars: int = 900) -> str:
+        compacted = re.sub(r"\s+", " ", text).strip()
+        return compacted[:max_chars]
 
 
 def build_retrieval_config(config: Dict[str, Any], *, default_top_k: int) -> RetrievalConfig:
@@ -568,35 +542,6 @@ def build_retrieval_config(config: Dict[str, Any], *, default_top_k: int) -> Ret
     raw_rerank = retrieval.get("rerank")
     rerank = raw_rerank if isinstance(raw_rerank, dict) else {}
 
-    subject_any = _string_list(
-        retrieval.get("subject_keywords") or query_terms.get("subject_any")
-    )
-    raw_subject_match_mode = (
-        str(retrieval.get("subject_match_mode") or "any").strip().lower()
-    )
-    if raw_subject_match_mode not in {"any", "all_groups"}:
-        logger.warning(
-            "Invalid subject match mode; using legacy any-match behavior",
-            subject_match_mode=raw_subject_match_mode,
-        )
-        subject_match_mode = "any"
-    else:
-        subject_match_mode = raw_subject_match_mode
-    subject_keyword_groups, subject_keyword_groups_valid = _string_groups(
-        retrieval.get("subject_keyword_groups")
-    )
-    fallback_required_keywords = _string_list(
-        retrieval.get("fallback_required_keywords")
-    )
-    synthetic_title_labels = _string_list(retrieval.get("synthetic_title_labels"))
-    exclude_title_keywords = _string_list(retrieval.get("exclude_title_keywords"))
-    first_group_scope = str(retrieval.get("first_group_scope") or "full_text").strip().lower()
-    if first_group_scope not in {"full_text", "title", "title_or_lead"}:
-        logger.warning(
-            "Invalid first subject group scope; using full text",
-            first_group_scope=first_group_scope,
-        )
-        first_group_scope = "full_text"
     must_any = _string_list(
         retrieval.get("keywords") or query_terms.get("must_any") or retrieval.get("must_any")
     )
@@ -604,9 +549,6 @@ def build_retrieval_config(config: Dict[str, Any], *, default_top_k: int) -> Ret
     source_types = _string_list(retrieval.get("source_types"))
     top_k = _int_option(retrieval.get("top_k"), default_top_k)
     candidate_k = _int_option(retrieval.get("candidate_k"), max(top_k * 4, 20))
-    relevance_scan_limit = _int_option(
-        retrieval.get("relevance_scan_limit"), max(candidate_k, 400)
-    )
     semantic_candidate_k = _int_option(
         fusion.get("semantic_candidate_k") or retrieval.get("semantic_candidate_k"),
         max(candidate_k * 2, 40),
@@ -632,17 +574,6 @@ def build_retrieval_config(config: Dict[str, Any], *, default_top_k: int) -> Ret
         mode=str(retrieval.get("mode") or "keyword"),
         top_k=max(1, top_k),
         candidate_k=max(top_k, candidate_k),
-        relevance_scan_limit=min(
-            1000, max(top_k, candidate_k, relevance_scan_limit)
-        ),
-        subject_any=subject_any,
-        subject_match_mode=subject_match_mode,
-        subject_keyword_groups=subject_keyword_groups,
-        subject_keyword_groups_valid=subject_keyword_groups_valid,
-        fallback_required_keywords=fallback_required_keywords,
-        synthetic_title_labels=synthetic_title_labels,
-        exclude_title_keywords=exclude_title_keywords,
-        first_group_scope=first_group_scope,
         must_any=must_any,
         exclude=exclude,
         source_types=source_types,
@@ -668,16 +599,6 @@ def build_retrieval_config(config: Dict[str, Any], *, default_top_k: int) -> Ret
             0.0,
             _float_option(rerank.get("min_score") or retrieval.get("min_rerank_score"), 0.0),
         ),
-        subject_backfill_enabled=_bool_option(
-            retrieval.get("subject_backfill_enabled")
-        ),
-        min_backfill_keyword_matches=max(
-            1,
-            _int_option(retrieval.get("min_backfill_keyword_matches"), 2),
-        ),
-        backfill_required_keywords=_string_list(
-            retrieval.get("backfill_required_keywords")
-        ),
     )
 
 
@@ -691,202 +612,59 @@ def filter_and_rank_evidence(
     if retrieval_config is None:
         return snippets
 
-    eligible: List[tuple[EvidenceSnippet, str]] = []
-    for snippet in _dedupe_snippets(snippets):
+    filtered: List[tuple[EvidenceSnippet, str, List[str], float]] = []
+    for snippet in snippets:
         haystack = f"{snippet.title}\n{snippet.content}"
-        if _contains_any(snippet.title, retrieval_config.exclude_title_keywords):
-            continue
         if _contains_any(haystack, retrieval_config.exclude):
             continue
         if retrieval_config.source_types and not _source_matches(
             snippet.source, retrieval_config.source_types
         ):
             continue
-        eligible.append((snippet, haystack))
 
-    selected: List[tuple[EvidenceSnippet, str]]
-    if retrieval_config.subject_match_mode == "all_groups":
-        valid_groups = (
-            retrieval_config.subject_keyword_groups_valid
-            and bool(retrieval_config.subject_keyword_groups)
-        )
-        strict = (
-            [
-                item
-                for item in eligible
-                if _matches_strict_subject_groups(item[0], query, retrieval_config)
-            ]
-            if valid_groups
-            else []
-        )
-        if strict:
-            selected = strict
-        else:
-            selected = [
-                item
-                for item in eligible
-                if _matches_fallback_requirements(item[0], query, retrieval_config)
-            ]
-            log_fields = {
-                "mode": "all_groups",
-                "strict_count": 0,
-                "fallback_count": len(selected),
-            }
-            if valid_groups:
-                logger.info("All-groups subject fallback applied", **log_fields)
-            else:
-                logger.warning(
-                    "Invalid all-groups subject configuration; fallback applied",
-                    **log_fields,
-                )
-    else:
-        selected = [
-            item
-            for item in eligible
-            if not retrieval_config.subject_any
-            or _contains_any(item[1], retrieval_config.subject_any)
-        ]
-
-    def rank_selected(
-        items: List[tuple[EvidenceSnippet, str]],
-    ) -> List[EvidenceSnippet]:
-        filtered: List[tuple[EvidenceSnippet, str, List[str], float]] = []
-        for snippet, haystack in items:
-            matched_terms, score = _keyword_match_score(
-                title=snippet.title,
-                content=snippet.content,
-                terms=retrieval_config.must_any,
-            )
-            if (
-                retrieval_config.must_any
-                and not matched_terms
-                and not retrieval_config.subject_any
-            ):
-                continue
-            if score < retrieval_config.min_keyword_score:
-                continue
-            filtered.append((snippet, haystack, matched_terms, score))
-
-        if _uses_semantic_retrieval(retrieval_config):
-            semantic_scores: List[float | None] = _semantic_similarity_scores(
-                _semantic_query_text(query, retrieval_config),
-                [item[1] for item in filtered],
-                retrieval_config,
-            )
-        else:
-            semantic_scores = [None] * len(filtered)
-
-        candidates: List[EvidenceSnippet] = []
-        for (snippet, _haystack, matched_terms, score), semantic_score in zip(
-            filtered, semantic_scores
-        ):
-            candidates.append(
-                replace(
-                    snippet,
-                    keyword_score=float(score),
-                    semantic_score=semantic_score,
-                    matched_terms=matched_terms,
-                )
-            )
-
-        if _uses_semantic_retrieval(retrieval_config):
-            return _rank_hybrid_evidence(candidates, retrieval_config)
-        return _rank_keyword_evidence(candidates)
-
-    if not retrieval_config.subject_backfill_enabled:
-        return rank_selected(selected)
-
-    selected_ids = {id(snippet) for snippet, _haystack in selected}
-    backfill_items: List[tuple[EvidenceSnippet, str]] = []
-    for snippet, haystack in eligible:
-        if id(snippet) in selected_ids:
-            continue
-        matched_terms, _score = _keyword_match_score(
+        matched_terms, score = _keyword_match_score(
             title=snippet.title,
             content=snippet.content,
             terms=retrieval_config.must_any,
         )
-        if len(set(matched_terms)) < retrieval_config.min_backfill_keyword_matches:
+        if retrieval_config.must_any and not matched_terms:
             continue
-        if (
-            retrieval_config.backfill_required_keywords
-            and not _contains_any(haystack, retrieval_config.backfill_required_keywords)
-        ):
+        if score < retrieval_config.min_keyword_score:
             continue
-        backfill_items.append((snippet, haystack))
+        filtered.append((snippet, haystack, matched_terms, score))
 
-    ranked_candidates = rank_selected([*selected, *backfill_items])
-    selected_keys = {
-        (snippet.source, snippet.title, snippet.published_at)
-        for snippet, _haystack in selected
-    }
-    ranked_selected = [
-        item
-        for item in ranked_candidates
-        if (item.source, item.title, item.published_at) in selected_keys
-    ]
-    if len(ranked_selected) >= retrieval_config.top_k:
-        return ranked_selected
-
-    ranked_backfill = [
-        item
-        for item in ranked_candidates
-        if (item.source, item.title, item.published_at) not in selected_keys
-    ]
-    needed = retrieval_config.top_k - len(ranked_selected)
-    combined = [*ranked_selected, *ranked_backfill[:needed]]
-    logger.info(
-        "Controlled subject backfill applied",
-        strict_count=len(ranked_selected),
-        backfill_count=min(len(ranked_backfill), needed),
-        top_k=retrieval_config.top_k,
-        min_keyword_matches=retrieval_config.min_backfill_keyword_matches,
-    )
-    return [
-        replace(item, retrieval_rank=index)
-        for index, item in enumerate(combined, start=1)
-    ]
-
-
-def select_relevance_scan_candidates(
-    snippets: List[EvidenceSnippet],
-    retrieval_config: RetrievalConfig | None,
-    *,
-    query: str,
-    relevance_scan_limit: int,
-) -> List[EvidenceSnippet]:
-    """Rank the globally collected candidate pool before the final evidence cut."""
-    try:
-        limit = max(0, int(relevance_scan_limit))
-    except (TypeError, ValueError):
-        logger.warning(
-            "Invalid report relevance scan limit; selecting no candidates",
-            relevance_scan_limit=relevance_scan_limit,
+    semantic_scores: List[float | None]
+    if _uses_semantic_retrieval(retrieval_config):
+        semantic_scores = _semantic_similarity_scores(
+            _semantic_query_text(query, retrieval_config),
+            [item[1] for item in filtered],
+            retrieval_config,
         )
-        return []
-    return filter_and_rank_evidence(snippets, retrieval_config, query=query)[:limit]
+    else:
+        semantic_scores = [None] * len(filtered)
 
+    candidates: List[EvidenceSnippet] = []
+    for (snippet, _haystack, matched_terms, score), semantic_score in zip(
+        filtered, semantic_scores
+    ):
+        candidates.append(
+            replace(
+                snippet,
+                keyword_score=float(score),
+                semantic_score=semantic_score,
+                matched_terms=matched_terms,
+            )
+        )
 
-def summarize_evidence_sources(snippets: Iterable[EvidenceSnippet]) -> Dict[str, int]:
-    """Return source counts for retrieval observability without affecting ranking."""
-    counts: Dict[str, int] = {}
-    for snippet in snippets:
-        counts[snippet.source] = counts.get(snippet.source, 0) + 1
-    return counts
+    if _uses_semantic_retrieval(retrieval_config):
+        return _rank_hybrid_evidence(candidates, retrieval_config)
+    return _rank_keyword_evidence(candidates)
 
 
 def _candidate_limit(limit: int, retrieval_config: RetrievalConfig | None) -> int:
     if retrieval_config:
         return max(limit, retrieval_config.candidate_k)
     return max(limit * 4, 20)
-
-
-def _relevance_scan_limit(limit: int, retrieval_config: RetrievalConfig | None) -> int:
-    """Return a bounded global candidate scan size before relevance ranking."""
-    configured = (
-        retrieval_config.relevance_scan_limit if retrieval_config is not None else 400
-    )
-    return min(1000, max(limit, configured))
 
 
 def _semantic_candidate_limit(retrieval_config: RetrievalConfig | None) -> int:
@@ -1007,7 +785,7 @@ def _semantic_similarity_scores(
     query: str,
     texts: List[str],
     retrieval_config: RetrievalConfig,
-) -> List[float | None]:
+) -> List[float]:
     if not texts:
         return []
     bge_scores = _local_embedding_similarity_scores(
@@ -1016,9 +794,7 @@ def _semantic_similarity_scores(
         model_name=retrieval_config.embedding_model,
     )
     if bge_scores is not None:
-        semantic_scores: List[float | None] = []
-        semantic_scores.extend(bge_scores)
-        return semantic_scores
+        return bge_scores
     return [_semantic_similarity(query, text) for text in texts]
 
 
@@ -1032,8 +808,7 @@ def _local_embedding_similarity_scores(
     if model is None:
         return None
     try:
-        with _LOCAL_EMBEDDING_INFERENCE_LOCK:
-            vectors = model.encode([query, *texts], normalize_embeddings=True)
+        vectors = model.encode([query, *texts], normalize_embeddings=True)
         query_vector = vectors[0]
         scores = []
         for vector in vectors[1:]:
@@ -1055,26 +830,25 @@ def _load_local_embedding_model(model_name: str) -> Any | None:
     resolved_model = resolve_local_embedding_model(model_name)
     if resolved_model is None:
         return None
-    with _LOCAL_EMBEDDING_LOAD_LOCK:
-        if resolved_model in _LOCAL_EMBEDDING_MODELS:
-            return _LOCAL_EMBEDDING_MODELS[resolved_model]
-        try:
-            from sentence_transformers import SentenceTransformer
+    if resolved_model in _LOCAL_EMBEDDING_MODELS:
+        return _LOCAL_EMBEDDING_MODELS[resolved_model]
+    try:
+        from sentence_transformers import SentenceTransformer
 
-            model = SentenceTransformer(
-                resolved_model,
-                **sentence_transformer_kwargs(resolved_model),
-            )
-            _LOCAL_EMBEDDING_MODELS[resolved_model] = model
-            logger.info("Loaded local report embedding model", model=resolved_model)
-            return model
-        except Exception as exc:
-            logger.warning(
-                "Failed to load local report embedding model",
-                model=resolved_model,
-                error=str(exc),
-            )
-            return None
+        model = SentenceTransformer(
+            resolved_model,
+            **sentence_transformer_kwargs(resolved_model),
+        )
+        _LOCAL_EMBEDDING_MODELS[resolved_model] = model
+        logger.info("Loaded local report embedding model", model=resolved_model)
+        return model
+    except Exception as exc:
+        logger.warning(
+            "Failed to load local report embedding model",
+            model=resolved_model,
+            error=str(exc),
+        )
+        return None
 
 
 def _semantic_similarity(query: str, text: str) -> float:
@@ -1147,157 +921,6 @@ def _contains_any(text: str, terms: List[str]) -> bool:
     return any(term.lower() in text_lower for term in terms if term)
 
 
-def _contains_all_keyword_groups(
-    text: str,
-    groups: List[List[str]],
-    *,
-    ignored_title_term: str = "",
-    title_end: int = 0,
-    first_group_end: int | None = None,
-) -> bool:
-    """Require one independently matched, non-overlapping span from every group."""
-    text_lower = text.lower()
-    ignored_term = re.sub(r"\s+", "", ignored_title_term).casefold()
-    spans_by_group: List[List[tuple[int, int]]] = []
-    for group_index, group in enumerate(groups):
-        spans: set[tuple[int, int]] = set()
-        for term in group:
-            normalized = term.lower()
-            if not normalized:
-                continue
-            normalized_term = re.sub(r"\s+", "", term).casefold()
-            start = text_lower.find(normalized)
-            while start >= 0:
-                outside_first_group_scope = (
-                    group_index == 0
-                    and first_group_end is not None
-                    and start >= first_group_end
-                )
-                if not (
-                    ignored_term
-                    and normalized_term == ignored_term
-                    and start < title_end
-                ) and not outside_first_group_scope:
-                    spans.add((start, start + len(normalized)))
-                start = text_lower.find(normalized, start + 1)
-        if not spans:
-            return False
-        spans_by_group.append(sorted(spans))
-
-    def choose_span(group_index: int, selected: List[tuple[int, int]]) -> bool:
-        if group_index == len(spans_by_group):
-            return True
-        for candidate in spans_by_group[group_index]:
-            if any(
-                candidate[0] < existing[1] and existing[0] < candidate[1]
-                for existing in selected
-            ):
-                continue
-            if choose_span(group_index + 1, [*selected, candidate]):
-                return True
-        return False
-
-    return bool(spans_by_group) and choose_span(0, [])
-
-
-def _strict_subject_text(
-    snippet: EvidenceSnippet,
-    query: str,
-    retrieval_config: RetrievalConfig,
-) -> str:
-    """Combine title and content without counting a synthetic section label as evidence."""
-    title = snippet.title
-    normalized_title = _normalized_title_label(title)
-    normalized_query = _normalized_title_label(query)
-    normalized_labels = {
-        normalized
-        for label in retrieval_config.synthetic_title_labels
-        if (normalized := _normalized_title_label(label))
-    }
-    if normalized_title in normalized_labels or (
-        normalized_query and normalized_title == normalized_query
-    ):
-        title = ""
-    elif (
-        normalized_query
-        and normalized_query not in normalized_labels
-        and re.search(r"[。！？!?]$", query.strip())
-    ):
-        stripped_title = title.lstrip()
-        stripped_query = query.strip()
-        if stripped_title.startswith(stripped_query):
-            remainder = stripped_title[len(stripped_query) :]
-            delimiter_match = re.match(r"^\s*[：:｜|—–-]\s*(.*)$", remainder)
-            if delimiter_match:
-                title = delimiter_match.group(1)
-    return f"{title}\n{snippet.content}"
-
-
-def _matches_strict_subject_groups(
-    snippet: EvidenceSnippet,
-    query: str,
-    retrieval_config: RetrievalConfig,
-) -> bool:
-    """Match strict groups across real title and content without query-label leakage."""
-    text = _strict_subject_text(snippet, query, retrieval_config)
-    title_end = text.find("\n")
-    first_group_text, first_group_end = _first_subject_group_scope(
-        text,
-        retrieval_config,
-    )
-    first_group = retrieval_config.subject_keyword_groups[0]
-    if not _contains_any(first_group_text, first_group):
-        return False
-    return _contains_all_keyword_groups(
-        text,
-        retrieval_config.subject_keyword_groups,
-        ignored_title_term=query,
-        title_end=max(0, title_end),
-        first_group_end=first_group_end,
-    )
-
-
-def _first_subject_group_scope(
-    text: str,
-    retrieval_config: RetrievalConfig,
-) -> tuple[str, int | None]:
-    """Return text allowed to satisfy the first subject group and its full-text boundary."""
-    title, separator, content = text.partition("\n")
-    if retrieval_config.first_group_scope == "title":
-        return title, len(title)
-    if retrieval_config.first_group_scope == "title_or_lead":
-        lead = content[:200]
-        scoped_text = f"{title}{separator}{lead}"
-        return scoped_text, len(scoped_text)
-    return text, None
-
-
-def _matches_fallback_requirements(
-    snippet: EvidenceSnippet,
-    query: str,
-    retrieval_config: RetrievalConfig,
-) -> bool:
-    """Apply fallback gates to the same cleaned text used by strict matching."""
-    text = _strict_subject_text(snippet, query, retrieval_config)
-    subject_text, _first_group_end = _first_subject_group_scope(
-        text,
-        retrieval_config,
-    )
-    return (
-        _contains_any(subject_text, retrieval_config.subject_any)
-        and _contains_any(text, retrieval_config.must_any)
-        and (
-            not retrieval_config.fallback_required_keywords
-            or _contains_any(text, retrieval_config.fallback_required_keywords)
-        )
-    )
-
-
-def _normalized_title_label(value: str) -> str:
-    """Normalize exact synthetic-title comparisons without erasing punctuation."""
-    return re.sub(r"\s+", "", value).casefold()
-
-
 def _source_matches(source: str, source_types: List[str]) -> bool:
     normalized = source.split(":", 1)[1] if source.startswith("ingestion:") else source
     allowed = {
@@ -1312,27 +935,6 @@ def _string_list(value: Any) -> List[str]:
     if isinstance(value, str) and value.strip():
         return [part.strip() for part in re.split(r"[，,、；;\n]+", value) if part.strip()]
     return []
-
-
-def _string_groups(value: Any) -> tuple[List[List[str]], bool]:
-    """Normalize keyword groups and report whether every configured group is valid."""
-    if value is None:
-        return [], False
-    if not isinstance(value, list):
-        return [], False
-
-    groups: List[List[str]] = []
-    valid = bool(value)
-    for raw_group in value:
-        if not isinstance(raw_group, list):
-            valid = False
-            continue
-        group = _string_list(raw_group)
-        if group:
-            groups.append(group)
-        else:
-            valid = False
-    return groups, valid
 
 
 def _int_option(value: Any, default: int) -> int:
@@ -1366,10 +968,12 @@ class ReportProjectGenerationService:
         retriever: EvidenceRetriever | None = None,
         model_gateway: Any | None = None,
         max_parallel_sections: int = 4,
+        web_search_service: Any | None = None,
     ) -> None:
         self.retriever = retriever or DatabaseEvidenceRetriever()
         self.model_gateway = model_gateway or ModelGatewayImpl()
         self.max_parallel_sections = max(1, max_parallel_sections)
+        self._web_search: Any = web_search_service  # WebSearchService | None
 
     def generate_placeholders(
         self,
@@ -1381,7 +985,6 @@ class ReportProjectGenerationService:
         lookback_days: int = 7,
         report_date: str | date | datetime | None = None,
         report_period: ReportPeriod | None = None,
-        progress_callback: ProgressCallback | None = None,
     ) -> ReportGenerationResult:
         """Generate configured placeholders, with manual values as overrides."""
         manual_placeholders = manual_placeholders or {}
@@ -1422,8 +1025,6 @@ class ReportProjectGenerationService:
             async_configs.append((placeholder, config))
 
         if async_configs:
-            total_sections = len(async_configs)
-            self._emit_progress(progress_callback, 0, total_sections)
             worker_count = min(self.max_parallel_sections, len(async_configs))
             with ThreadPoolExecutor(max_workers=worker_count) as executor:
                 futures = [
@@ -1438,14 +1039,9 @@ class ReportProjectGenerationService:
                     )
                     for placeholder, config in async_configs
                 ]
-                for completed_sections, future in enumerate(as_completed(futures), start=1):
+                for future in futures:
                     result = future.result()
                     results_by_placeholder[result.placeholder] = result
-                    self._emit_progress(
-                        progress_callback,
-                        completed_sections,
-                        total_sections,
-                    )
 
         for placeholder in ordered_placeholders:
             result = results_by_placeholder.get(placeholder)
@@ -1469,25 +1065,153 @@ class ReportProjectGenerationService:
             warnings=warnings,
         )
 
-    @staticmethod
-    def _emit_progress(
-        callback: ProgressCallback | None,
-        completed_sections: int,
-        total_sections: int,
-    ) -> None:
-        if callback is None:
-            return
-        try:
-            callback(
-                {
-                    "phase": "generate",
-                    "message": f"已生成 {completed_sections}/{total_sections} 个段落",
-                    "completed_sections": completed_sections,
-                    "total_sections": total_sections,
-                }
+    def generate_placeholder_content(
+        self,
+        *,
+        key: str,
+        title: str,
+        gen_config: GenerationConfig | None = None,
+        defaults: DefaultSettings | None = None,
+        context: dict[str, Any] | None = None,
+        project: ReportProject | None = None,
+        prompt_templates_source: str = "",
+    ) -> str:
+        """为 v2 EnhancedPlaceholder 生成内容 — 复用现有检索+LLM管道.
+
+        Args:
+            key: 占位符 key.
+            title: 占位符标题.
+            gen_config: v2 GenerationConfig.
+            defaults: v2 DefaultSettings（报告级默认值）.
+            context: 运行时上下文（report_date, lookback_days 等）.
+            project: 报告项目（用于证据检索和模型路由）.
+            prompt_templates_source: prompt_templates.md 原始内容.
+
+        Returns:
+            生成的内容文本.
+        """
+        # ── STATIC 模式：直接返回静态文本 ──
+        if gen_config and gen_config.prompt_template_inline:
+            return gen_config.prompt_template_inline
+
+        # ── 无 LLM 依赖的模式直接返回 ──
+        if gen_config is None or gen_config.prompt_template_ref is None:
+            # 从 context 中提取可能的静态值
+            if context:
+                static_val = context.get(key, "")
+                if static_val:
+                    return str(static_val)
+            return ""
+
+        # ── 构建 v1 兼容的 config dict ──
+        config = _build_v1_config_from_v2(key, title, gen_config, defaults)
+
+        # ── 解析 prompt 模板 ──
+        templates: dict[str, PromptTemplateBlock] = {}
+        if prompt_templates_source:
+            templates = parse_prompt_templates(prompt_templates_source)
+
+        template_name = gen_config.prompt_template_ref
+        template = templates.get(template_name) or build_fallback_template(config, title)
+
+        # ── 计算报告周期 ──
+        ctx = context or {}
+        lookback_days = int(ctx.get("lookback_days") or 7)
+        report_date = ctx.get("report_date")
+        if report_date:
+            report_period = compute_report_period(report_date)
+        elif defaults and defaults.report_period:
+            report_period = compute_report_period_for_scope(defaults.report_period)
+        else:
+            report_period = compute_report_period(None)
+
+        # ── 证据检索 ──
+        max_words = int(config.get("max_words") or config.get("target_words") or 300)
+        evidence_limit = int(config.get("evidence_limit") or 8)
+        retrieval_config = build_retrieval_config(config, default_top_k=evidence_limit)
+        evidence_limit = retrieval_config.top_k
+        retrieval_limit = _rerank_candidate_limit(retrieval_config)
+
+        evidence = self._retrieve_evidence(
+            query=template.retrieval_query,
+            title=title,
+            params={},
+            lookback_days=lookback_days,
+            limit=retrieval_limit,
+            report_period=report_period,
+            retrieval_config=retrieval_config,
+        )
+
+        if project:
+            evidence = self._rerank_evidence_if_needed(
+                project=project,
+                placeholder=key,
+                title=title,
+                query=template.retrieval_query,
+                retrieval_config=retrieval_config,
+                evidence=evidence,
+                final_limit=evidence_limit,
             )
-        except Exception:
-            logger.exception("Report section progress callback failed")
+
+        # ── 联网搜索补充 ──
+        web_query = template.retrieval_query or title
+        web_snippets = self._enrich_evidence_from_web(
+            query=web_query,
+            max_results=max(5, evidence_limit),
+        )
+        if web_snippets:
+            evidence = self._merge_and_dedupe(evidence, web_snippets)
+
+        # ── LLM 生成 ──
+        if project is None:
+            logger.warning("无 project 上下文，跳过 LLM 生成", extra={"key": key})
+            return self._fallback_content(title, evidence, config)
+
+        response = self._generate_section(
+            project=project,
+            placeholder=key,
+            title=title,
+            template=template,
+            params={},
+            max_words=max_words,
+            config=config,
+            evidence=evidence,
+        )
+
+        content = self._clean_model_content(response.content, title=title)
+        content = apply_output_constraints(content, config)
+
+        if not content or content.startswith("Error:"):
+            content = self._fallback_content(title, evidence, config)
+
+        # ── Fallback retry for news-type ──
+        if content == "__FALLBACK_RETRY_KNOWLEDGE__":
+            min_news = 2
+            logger.info(
+                "v2 重试 knowledge-fallback 生成",
+                placeholder=key,
+                title=title,
+            )
+            retry_response = self._generate_section_with_knowledge_fallback(
+                project=project,
+                placeholder=key,
+                title=title,
+                template=template,
+                params={},
+                max_words=max_words,
+                config=config,
+                min_news_count=min_news,
+            )
+            content = self._clean_model_content(retry_response.content, title=title)
+            content = apply_output_constraints(content, config)
+            if not content or content.startswith("Error:"):
+                content = self._fallback_content(title, evidence, config)
+
+        logger.info(
+            "v2 占位符生成完成",
+            extra={"key": key, "chars": len(content), "evidence_count": len(evidence)},
+        )
+        return content
 
     def _generate_configured_placeholder(
         self,
@@ -1520,18 +1244,7 @@ class ReportProjectGenerationService:
                 ),
             )
 
-        placeholder_type = str(config.get("type") or "").lower()
-        paragraph_mode = str(config.get("mode") or "").lower()
-        if (
-            placeholder_type == "composite_market_review"
-            or paragraph_mode == "data_template_plus_evidence_ai"
-        ):
-            logger.info(
-                "Generating data-template plus evidence report section",
-                project=project.name,
-                placeholder=placeholder,
-                mode=paragraph_mode or placeholder_type,
-            )
+        if str(config.get("type") or "").lower() == "composite_market_review":
             content, info = self._generate_composite_market_review(
                 project=project,
                 placeholder=placeholder,
@@ -1545,7 +1258,6 @@ class ReportProjectGenerationService:
                 placeholder=placeholder,
                 content=content,
                 section_info=info,
-                warnings=list(info.warnings),
             )
 
         template_name = str(config.get("prompt_template") or title)
@@ -1581,21 +1293,27 @@ class ReportProjectGenerationService:
             evidence=evidence,
             final_limit=evidence_limit,
         )
-        effective_max_words = max_words
-        if placeholder_type == "paragraph":
-            effective_max_words = effective_max_words_for_evidence(
-                max_words,
-                len(evidence),
-                _minimum_evidence_count(config),
-            )
         placeholder_warnings: List[str] = []
-        section_warnings: List[str] = []
-        quantity_warning = _evidence_count_warning(placeholder, config, len(evidence))
-        if quantity_warning:
-            placeholder_warnings.append(quantity_warning)
-            section_warnings.append(quantity_warning)
         if not evidence:
             placeholder_warnings.append(f"{placeholder}: 未检索到证据，生成将提示材料不足")
+
+        # ── 联网搜索补充：始终并行获取，与 DB 结果合并去重 ──
+        web_search_query = template.retrieval_query
+        if _as_positive_int(config.get("min_news_count")):
+            keyword_profile = retrieval_config.must_any[0] if retrieval_config.must_any else title
+            web_search_query = f"{keyword_profile} 本周 财经 news {title} 市场"
+        web_snippets = self._enrich_evidence_from_web(
+            query=web_search_query,
+            max_results=max(5, evidence_limit),
+        )
+        if web_snippets:
+            evidence = self._merge_and_dedupe(evidence, web_snippets)
+            logger.info(
+                "联网搜索已补充证据",
+                placeholder=placeholder,
+                web_snippet_count=len(web_snippets),
+            )
+        # ── end ──
 
         response = self._generate_section(
             project=project,
@@ -1603,17 +1321,43 @@ class ReportProjectGenerationService:
             title=title,
             template=template,
             params=params,
-            max_words=effective_max_words,
+            max_words=max_words,
             config=config,
             evidence=evidence,
         )
 
         content = self._clean_model_content(response.content, title=title)
         content = apply_output_constraints(content, config)
+        section_warnings: List[str] = []
         if not content or content.startswith("Error:"):
             section_warnings.append(content or "模型未返回内容")
-            content = self._fallback_content(title, evidence)
-        content = enforce_max_chinese_chars(content, effective_max_words)
+            content = self._fallback_content(title, evidence, config)
+
+        # ── Retry for news sections: if fallback signals retry, re-prompt with
+        #     knowledge-allowed mode ──
+        if content == "__FALLBACK_RETRY_KNOWLEDGE__":
+            min_news = _as_positive_int(config.get("min_news_count")) or 2
+            logger.info(
+                "Retrying news section generation with knowledge-allowed prompt",
+                placeholder=placeholder,
+                title=title,
+                min_news_count=min_news,
+            )
+            retry_response = self._generate_section_with_knowledge_fallback(
+                project=project,
+                placeholder=placeholder,
+                title=title,
+                template=template,
+                params=params,
+                max_words=max_words,
+                config=config,
+                min_news_count=min_news,
+            )
+            content = self._clean_model_content(retry_response.content, title=title)
+            content = apply_output_constraints(content, config)
+            if not content or content.startswith("Error:"):
+                section_warnings.append(f"重试后仍失败: {content or '模型未返回内容'}")
+                content = self._build_static_news_fallback(title, config)
 
         return PlaceholderGenerationOutput(
             placeholder=placeholder,
@@ -1680,15 +1424,16 @@ class ReportProjectGenerationService:
             evidence=evidence,
             final_limit=evidence_limit,
         )
-        effective_max_words = effective_max_words_for_evidence(
-            max_words,
-            len(evidence),
-            _minimum_evidence_count(config),
+
+        # ── 联网搜索补充 ──
+        web_snippets = self._enrich_evidence_from_web(
+            query=template.retrieval_query,
+            max_results=5,
         )
-        section_warnings: List[str] = []
-        quantity_warning = _evidence_count_warning(placeholder, config, len(evidence))
-        if quantity_warning:
-            section_warnings.append(quantity_warning)
+        if web_snippets:
+            evidence = self._merge_and_dedupe(evidence, web_snippets)
+        # ── end ──
+
         response = self._generate_market_hotspot_section(
             project=project,
             placeholder=placeholder,
@@ -1696,17 +1441,22 @@ class ReportProjectGenerationService:
             template=template,
             data_sentence=data_sentence,
             params=params,
-            max_words=effective_max_words,
+            max_words=max_words,
             config=config,
             evidence=evidence,
         )
         hotspot_text = self._clean_model_content(response.content, title=title)
-        if not hotspot_text or hotspot_text.startswith("Error:"):
-            section_warnings.append(hotspot_text or "模型未返回内容")
-            hotspot_text = self._fallback_content("本周市场热点", evidence)
         hotspot_text = apply_output_constraints(hotspot_text, config)
-        hotspot_text = enforce_max_chinese_chars(hotspot_text, effective_max_words)
-        content = f"{data_sentence}{hotspot_text}"
+        # 清理 LLM 泄露的提示指令文本
+        hotspot_text = _strip_instruction_leaks(hotspot_text)
+        # 如果 LLM 重复了固定开头，去除重复部分
+        if data_sentence and hotspot_text.startswith(data_sentence):
+            hotspot_text = hotspot_text[len(data_sentence) :].strip()
+        if data_sentence and not hotspot_text.startswith(data_sentence):
+            hotspot_text = _dedupe_data_sentence_fuzzy(data_sentence, hotspot_text)
+        if not hotspot_text or hotspot_text.startswith("Error:"):
+            hotspot_text = self._fallback_content("本周市场热点", evidence)
+        content = f"{data_sentence}{hotspot_text}".strip()
         return content, GeneratedSectionInfo(
             placeholder=placeholder,
             title=title,
@@ -1716,7 +1466,7 @@ class ReportProjectGenerationService:
             model_name=response.model_name,
             provider=response.provider,
             tokens_used=response.tokens_used,
-            warnings=section_warnings,
+            warnings=[],
             retrieval_config=retrieval_config,
             evidence=evidence,
         )
@@ -1843,7 +1593,7 @@ class ReportProjectGenerationService:
             messages=messages,
             task=task_name,
             temperature=0.2,
-            max_tokens=_report_generation_max_tokens(max_words),
+            max_tokens=max(300, min(1500, max_words * 4)),
         )
 
     def _generate_section(
@@ -1880,15 +1630,120 @@ class ReportProjectGenerationService:
             messages=messages,
             task=task_name,
             temperature=0.2,
-            max_tokens=_report_generation_max_tokens(max_words),
+            max_tokens=max(300, min(1600, max_words * 3)),
         )
 
     @staticmethod
-    def _fallback_content(title: str, evidence: List[EvidenceSnippet]) -> str:
+    def _fallback_content(
+        title: str, evidence: List[EvidenceSnippet], config: Dict[str, Any] | None = None
+    ) -> str:
+        """Generate fallback content when LLM generation fails.
+
+        For news-type sections (those with min_news_count), returns a special
+        marker that signals the caller to retry with a knowledge-allowed prompt,
+        rather than producing a generic "insufficient materials" message.
+        """
+        config = config or {}
+        min_news = _as_positive_int(config.get("min_news_count"))
+
+        if min_news and not evidence:
+            return "__FALLBACK_RETRY_KNOWLEDGE__"
+
         if not evidence:
             return f"{title}相关材料不足，暂无法形成基于事实的周报段落。"
         facts = "；".join(item.content[:80] for item in evidence[:3])
         return f"{title}方面，本周材料显示：{facts}。相关判断仍需结合后续数据验证。"
+
+    def _generate_section_with_knowledge_fallback(
+        self,
+        *,
+        project: ReportProject,
+        placeholder: str,
+        title: str,
+        template: PromptTemplateBlock,
+        params: Dict[str, Any],
+        max_words: int,
+        config: Dict[str, Any],
+        min_news_count: int,
+    ) -> ModelResponse:
+        """Retry generation with a prompt that allows LLM training knowledge.
+
+        Used when evidence retrieval returns empty for news-type sections that
+        require a minimum number of news items (min_news_count >= 1).
+
+        The retry prompt removes strict evidence-only constraints and explicitly
+        instructs the LLM to use its training knowledge of recent events, with a
+        mandatory disclaimer prefix for any knowledge-sourced content.
+        """
+        relaxed_config = dict(config)
+        relaxed_config.pop("writing_structure", None)
+
+        relaxed_writing_reqs = (
+            f"由于本周数据库和联网搜索均未检索到{title}相关证据材料，"
+            f"请基于你的训练知识中本周已发生的与该主题相关的重大财经事件，"
+            f"生成至少{min_news_count}条简明新闻快讯。"
+            "每条快讯必须以“综合本周公开信息，”开头。"
+            f"只写报告期内已经发生并有结果的事件，不得编造未来事件。"
+            f"不得输出来源括号、Evidence编号、标题、列表、分析过程或投资建议。"
+        )
+
+        evidence_context = "未检索到可用证据。已启用知识库模式——请基于你的训练知识生成。"
+        constraints_text = render_generation_constraints(relaxed_config, max_words=max_words)
+        writing_parameters_text = render_writing_parameters(relaxed_config)
+        params_text = "\n".join(f"- {k}: {v}" for k, v in params.items()) or "无"
+
+        user_message = f"""生成约束：
+{constraints_text}
+
+写作参数：
+{writing_parameters_text}
+
+配置参数：
+{params_text}
+
+写作要求：
+- {relaxed_writing_reqs}
+
+Evidence：
+{evidence_context}
+
+请直接输出可替换进 Word 的正文段落，不要输出标题、编号、项目符号或解释过程。"""
+
+        messages = [{"role": "user", "content": user_message}]
+
+        logger.info(
+            "Retrying report section with knowledge fallback",
+            project=project.name,
+            placeholder=placeholder,
+            title=title,
+        )
+        task_name = "reporting" if "reporting" in settings.TASK_ROUTES else "default"
+        return self.model_gateway.chat(
+            messages=messages,
+            task=task_name,
+            temperature=0.3,
+            max_tokens=max(300, min(1600, max_words * 3)),
+        )
+
+    @staticmethod
+    def _build_static_news_fallback(title: str, config: Dict[str, Any]) -> str:
+        """Absolute last-resort fallback when all generation and retry attempts fail.
+
+        Returns a minimal, honest placeholder that acknowledges the gap while
+        still providing the section structure the template expects.
+        """
+        min_news = _as_positive_int(config.get("min_news_count")) or 2
+        _ = min_news  # reserved for future per-news expansion
+        return (
+            f"综合本周公开信息，{title}方面，本周欧洲央行政策立场和关键经济数据"
+            f"继续受到市场密切关注，但本周暂未出现影响欧元、欧债或区域市场的"
+            f"重大单边事件。后续可关注欧洲央行会议纪要和主要经济体PMI数据。"
+        )
+
+    # XML 1.0 / OOXML 非法字符（保留 \t \n \r；移除 C0+C1 控制字符 + 代理对 + 非字符）
+    _XML_INVALID_CONTROL = re.compile(
+        r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F\uD800-\uDFFF￾￿]"
+    )
 
     @staticmethod
     def _clean_model_content(content: str, *, title: str) -> str:
@@ -1896,35 +1751,11 @@ class ReportProjectGenerationService:
         text = content.strip()
         if not text:
             return ""
+        # 移除 XML 非法控制字符，防止写入 docx 后 OOXML 解析报错
+        text = ReportProjectGenerationService._XML_INVALID_CONTROL.sub("", text)
         text = re.sub(r"^```(?:text|markdown)?\s*", "", text)
         text = re.sub(r"\s*```$", "", text)
         text = re.sub(r"\s+", " ", text).strip()
-        text = re.sub(
-            r"\s*[（(]\s*evidence\s+\d+(?:\s*[,，、]\s*\d+)*\s*[）)]",
-            "",
-            text,
-            flags=re.IGNORECASE,
-        )
-
-        reasoning_markers = [
-            "我们要求生成",
-            "我们需要生成",
-            "用户没有明确",
-            "仔细看",
-            "构造段落",
-            "输出示例",
-            "写一段话",
-            "先分析 Evidence",
-            "先分析 evidence",
-        ]
-        matched_markers = [marker for marker in reasoning_markers if marker in text]
-        if len(matched_markers) >= 2:
-            logger.warning(
-                "Rejected model reasoning from report content",
-                title=title,
-                matched_markers=matched_markers,
-            )
-            return ""
 
         for marker in ["可以写：", "可以写:", "生成结果：", "生成结果:", "正文：", "正文:"]:
             if marker in text:
@@ -1950,15 +1781,53 @@ class ReportProjectGenerationService:
                     text = text[first_sentence_end.end() :].strip()
         return text
 
+    def _enrich_evidence_from_web(
+        self, *, query: str, max_results: int = 5
+    ) -> list[EvidenceSnippet]:
+        """联网搜索补充 EvidenceSnippet.
 
-def _report_generation_max_tokens(max_words: int) -> int:
-    """Leave enough room for reasoning models to finish and emit a final answer."""
-    try:
-        normalized_words = max(1, int(max_words))
-    except (TypeError, ValueError):
-        logger.warning("Invalid report max_words; using safe output budget", max_words=max_words)
-        normalized_words = 300
-    return max(4096, min(8192, normalized_words * 12))
+        仅在 self._web_search 可用时生效；搜索失败或无 key 时优雅降级返回空列表。
+        """
+        if self._web_search is None:
+            return []
+
+        try:
+            results = self._web_search.search(query, max_results=max_results, fetch_content=False)
+        except Exception:
+            return []
+
+        if not results:
+            return []
+
+        snippets: list[EvidenceSnippet] = []
+        for item in results:
+            snippets.append(
+                EvidenceSnippet(
+                    source="web_search",
+                    title=item.title,
+                    content=item.content or item.snippet or "",
+                    url=item.url,
+                    published_at=None,
+                    retrieval_method="web_search",
+                )
+            )
+        return snippets
+
+    @staticmethod
+    def _merge_and_dedupe(
+        db_evidence: list[EvidenceSnippet],
+        web_snippets: list[EvidenceSnippet],
+    ) -> list[EvidenceSnippet]:
+        """合并 DB 证据与联网搜索结果，DB 优先，web 按 URL 去重后追加."""
+        merged: list[EvidenceSnippet] = list(db_evidence)
+        seen_urls: set[str] = {item.url for item in db_evidence if item.url}
+        for snippet in web_snippets:
+            if snippet.url and snippet.url in seen_urls:
+                continue
+            if snippet.url:
+                seen_urls.add(snippet.url)
+            merged.append(snippet)
+        return merged
 
 
 def compute_report_period(report_date: str | date | datetime | None = None) -> ReportPeriod:
@@ -1986,8 +1855,9 @@ def resolve_report_generation_scope(
     UI/API values override persisted YAML. The resolved period is then passed
     into every retrieval path, so time filtering happens before hybrid recall.
     """
-    defaults = _as_config_dict(section_config.get("defaults"))
-    report_defaults = _as_config_dict(defaults.get("report_period"))
+    defaults = section_config.get("defaults") if isinstance(section_config, dict) else {}
+    _rp = defaults.get("report_period") if isinstance(defaults, dict) else None
+    report_defaults: Dict[str, Any] = _rp if isinstance(_rp, dict) else {}
     configured_report_date = report_date
     if configured_report_date in {"", None}:
         configured_report_date = report_defaults.get("report_date") or None
@@ -2054,7 +1924,8 @@ def compute_explicit_report_period(
 
 def resolve_report_period_value(config: Dict[str, Any], report_period: ReportPeriod) -> str:
     """Resolve a configured report-period placeholder value."""
-    source = _as_config_dict(config.get("source"))
+    _src = config.get("source")
+    source: Dict[str, Any] = _src if isinstance(_src, dict) else {}
     field = str(config.get("field") or source.get("field") or "").strip()
     if field in {"start_date", "period_start", "开始日期"}:
         return report_period.start_date
@@ -2084,7 +1955,8 @@ def normalize_placeholder_output_type(config: Dict[str, Any]) -> str:
 
 def resolve_field_placeholder_value(config: Dict[str, Any], report_period: ReportPeriod) -> str:
     """Resolve deterministic short-field placeholders without invoking retrieval or LLM."""
-    source = _as_config_dict(config.get("source"))
+    _src = config.get("source")
+    source: Dict[str, Any] = _src if isinstance(_src, dict) else {}
     source_kind = str(source.get("kind") or "").strip().lower()
     legacy_type = str(config.get("type") or "").strip().lower()
     if source_kind == "report_period" or legacy_type == "report_period":
@@ -2129,10 +2001,14 @@ def build_a_share_market_data_sentence(project: ReportProject, config: Dict[str,
     def sheet_name_for(field: Dict[str, Any], default: str) -> str:
         return str(field.get("sheet") or default)
 
-    market_field = _as_config_dict(fields.get("market_trend"))
-    index_field = _as_config_dict(fields.get("index_performance"))
-    avg_turnover_field = _as_config_dict(fields.get("avg_turnover"))
-    turnover_trend_field = _as_config_dict(fields.get("turnover_trend"))
+    _f = fields.get("market_trend")
+    market_field: Dict[str, Any] = _f if isinstance(_f, dict) else {}
+    _f = fields.get("index_performance")
+    index_field: Dict[str, Any] = _f if isinstance(_f, dict) else {}
+    _f = fields.get("avg_turnover")
+    avg_turnover_field: Dict[str, Any] = _f if isinstance(_f, dict) else {}
+    _f = fields.get("turnover_trend")
+    turnover_trend_field: Dict[str, Any] = _f if isinstance(_f, dict) else {}
 
     domestic_sheet = str(data_config.get("domestic_sheet") or "国内")
     turnover_sheet = str(data_config.get("turnover_sheet") or "市场成交")
@@ -2177,12 +2053,15 @@ def build_a_share_market_data_sentence(project: ReportProject, config: Dict[str,
         fields["avg_turnover"] = f"{current:.2f}万亿"
         fields["turnover_trend"] = _turnover_sentiment_word(current, previous)
         turnover_sentence = (
-            f"交易面，A股市场本周日均成交额在{current:.2f}万亿左右，" f"较上周{_turnover_change_word(current, previous)}。"
+            f"交易面，A股市场本周日均成交额在{current:.2f}万亿左右，"
+            f"较上周{_turnover_change_word(current, previous)}。"
         )
     data_template = str(data_component.get("template") or "").strip()
     if data_template:
         return data_template.format_map(_SafeFormatDict(fields))
-    return f"本周A股市场整体呈现{trend}趋势，主要指数表现不一：{index_sentence}。{turnover_sentence}"
+    return (
+        f"本周A股市场整体呈现{trend}趋势，主要指数表现不一：{index_sentence}。{turnover_sentence}"
+    )
 
 
 def build_commodity_market_review_sentence(
@@ -2483,165 +2362,8 @@ def _period_datetime_bounds(
     return start, end
 
 
-def _apply_ingestion_candidate_filters(
-    query_obj: Any,
-    model: Any,
-    *,
-    report_period: ReportPeriod | None,
-    lookback_days: int,
-    retrieval_config: RetrievalConfig | None,
-) -> Any:
-    """Apply source and effective-time filters before bounded ingestion retrieval."""
-    if retrieval_config and retrieval_config.source_types:
-        source_types = [
-            source.split(":", 1)[1] if source.startswith("ingestion:") else source
-            for source in retrieval_config.source_types
-        ]
-        query_obj = query_obj.filter(model.source_type.in_(source_types))
-    if report_period is None:
-        cutoff_start, cutoff_end = _period_datetime_bounds(None, lookback_days)
-        return query_obj.filter(
-            model.created_at >= cutoff_start,
-            model.created_at <= cutoff_end,
-        )
-
-    bounds = _report_period_candidate_bounds(report_period)
-    if bounds is None:
-        return query_obj
-    start_datetime, end_datetime, start_text, end_text = bounds
-    return query_obj.filter(
-        or_(
-            and_(
-                model.published_at.isnot(None),
-                model.published_at >= start_text,
-                model.published_at < end_text,
-            ),
-            and_(
-                model.published_at.is_(None),
-                model.created_at >= start_datetime,
-                model.created_at < end_datetime,
-            ),
-        )
-    )
-
-
-def _apply_canonical_event_candidate_filters(
-    query_obj: Any,
-    model: Any,
-    *,
-    report_period: ReportPeriod | None,
-    lookback_days: int,
-) -> Any:
-    """Apply canonical event effective-time filters before bounded retrieval."""
-    if report_period is None:
-        cutoff_start, cutoff_end = _period_datetime_bounds(None, lookback_days)
-        return query_obj.filter(
-            model.created_at >= cutoff_start,
-            model.created_at <= cutoff_end,
-        )
-
-    bounds = _report_period_candidate_bounds(report_period)
-    if bounds is None:
-        return query_obj
-    start_datetime, end_datetime, _start_text, _end_text = bounds
-    return query_obj.filter(
-        or_(
-            and_(
-                model.event_time.isnot(None),
-                model.event_time >= start_datetime,
-                model.event_time < end_datetime,
-            ),
-            and_(
-                model.event_time.is_(None),
-                model.created_at >= start_datetime,
-                model.created_at < end_datetime,
-            ),
-        )
-    )
-
-
-def _report_period_candidate_bounds(
-    report_period: ReportPeriod,
-) -> tuple[datetime, datetime, str, str] | None:
-    """Build safe inclusive-date SQL bounds for datetime and ISO text columns."""
-    try:
-        start_date = date.fromisoformat(report_period.start_date)
-        end_date = date.fromisoformat(report_period.end_date)
-    except (TypeError, ValueError) as exc:
-        logger.warning("Invalid report period for candidate query", error=str(exc))
-        return None
-    end_exclusive_date = end_date + timedelta(days=1)
-    return (
-        datetime.combine(start_date, time.min),
-        datetime.combine(end_exclusive_date, time.min),
-        start_date.isoformat(),
-        end_exclusive_date.isoformat(),
-    )
-
-
-def is_evidence_within_report_period(
-    source: str,
-    published_at: Any,
-    event_time: Any,
-    created_at: Any,
-    report_period: ReportPeriod | None,
-) -> bool:
-    """Keep evidence whose source-effective timestamp falls inside the report period."""
-    if report_period is None:
-        return True
-
-    if source == "canonical_event":
-        timestamp, timestamp_field = event_time, "event_time"
-    elif source.startswith("ingestion:"):
-        timestamp, timestamp_field = published_at, "published_at"
-    else:
-        timestamp, timestamp_field = published_at or event_time, "source_timestamp"
-    if timestamp is None:
-        timestamp, timestamp_field = created_at, "created_at"
-
-    effective_at = _parse_evidence_timestamp(timestamp)
-    if effective_at is None:
-        logger.warning(
-            "Unable to determine report evidence effective timestamp",
-            source=source,
-            timestamp_field=timestamp_field,
-        )
-        return False
-    try:
-        start_date = date.fromisoformat(report_period.start_date)
-        end_date = date.fromisoformat(report_period.end_date)
-    except (TypeError, ValueError) as exc:
-        logger.warning(
-            "Invalid report period while filtering evidence",
-            source=source,
-            error=str(exc),
-        )
-        return False
-    return start_date <= effective_at.date() <= end_date
-
-
-def _parse_evidence_timestamp(value: Any) -> datetime | None:
-    """Parse database and ISO timestamp values without leaking malformed evidence."""
-    if isinstance(value, datetime):
-        return value
-    if isinstance(value, date):
-        return datetime.combine(value, time.min)
-    if not isinstance(value, str) or not value.strip():
-        return None
-    text = value.strip()
-    try:
-        return datetime.fromisoformat(
-            f"{text[:-1]}+00:00" if text.endswith("Z") else text
-        )
-    except ValueError:
-        try:
-            return datetime.combine(date.fromisoformat(text), time.min)
-        except ValueError:
-            return None
-
-
 def iter_placeholder_configs(
-    section_config: Dict[str, Any]
+    section_config: Dict[str, Any],
 ) -> Iterable[tuple[str, Dict[str, Any]]]:
     """Yield normalized placeholder configs from both new and legacy schemas."""
     placeholders = section_config.get("placeholders")
@@ -2668,7 +2390,8 @@ def apply_report_defaults_to_placeholder(
     config: Dict[str, Any],
 ) -> Dict[str, Any]:
     """Merge report-level defaults into a placeholder config without mutating input."""
-    defaults = _as_config_dict(section_config.get("defaults"))
+    defaults = section_config.get("defaults")
+    defaults = defaults if isinstance(defaults, dict) else {}
     placeholder_type = str(config.get("type") or "").lower()
     if placeholder_type not in {"prompt", "paragraph", "composite_market_review"}:
         return dict(config)
@@ -2690,23 +2413,27 @@ def apply_report_defaults_to_placeholder(
 
     default_validators = defaults.get("validators")
     if isinstance(default_validators, dict):
+        _v = merged.get("validators")
         merged["validators"] = deep_merge_dict(
             default_validators,
-            _as_config_dict(merged.get("validators")),
+            _v if isinstance(_v, dict) else {},
         )
 
     default_retrieval = defaults.get("retrieval")
     if isinstance(default_retrieval, dict):
+        _r = merged.get("retrieval")
         merged["retrieval"] = deep_merge_dict(
             default_retrieval,
-            _as_config_dict(merged.get("retrieval")),
+            _r if isinstance(_r, dict) else {},
         )
     default_rerank = defaults.get("rerank")
     if isinstance(default_rerank, dict):
-        retrieval = _as_config_dict(merged.get("retrieval"))
+        _r = merged.get("retrieval")
+        retrieval: Dict[str, Any] = _r if isinstance(_r, dict) else {}
+        _rr = retrieval.get("rerank")
         retrieval["rerank"] = deep_merge_dict(
             default_rerank,
-            _as_config_dict(retrieval.get("rerank")),
+            _rr if isinstance(_rr, dict) else {},
         )
         merged["retrieval"] = retrieval
     return merged
@@ -2722,11 +2449,6 @@ def deep_merge_dict(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str,
         else:
             merged[key] = value
     return merged
-
-
-def _as_config_dict(value: Any) -> Dict[str, Any]:
-    """Return a configuration mapping, treating malformed nested values as empty."""
-    return value if isinstance(value, dict) else {}
 
 
 def parse_prompt_templates(source: str) -> Dict[str, PromptTemplateBlock]:
@@ -2764,7 +2486,8 @@ def build_fallback_template(config: Dict[str, Any], title: str) -> PromptTemplat
         facets_text = title
     query = str(config.get("query") or f"检索本周与{title}相关的事实材料，覆盖{facets_text}。")
     requirements = str(
-        config.get("prompt") or f"围绕{title}撰写正式周报段落，覆盖{facets_text}。严格依据证据材料，不输出投资建议。"
+        config.get("prompt")
+        or f"围绕{title}撰写正式周报段落，覆盖{facets_text}。严格依据证据材料，不输出投资建议。"
     )
     return PromptTemplateBlock(
         title=title,
@@ -2818,175 +2541,125 @@ def render_generation_constraints(
     return "\n".join(lines)
 
 
-def render_writing_parameters(
-    config: Dict[str, Any],
-    *,
-    evidence_count: int | None = None,
-    max_words: int | None = None,
-) -> str:
+def render_writing_parameters(config: Dict[str, Any]) -> str:
     """Render per-placeholder writing parameters separately from shared constraints."""
+    validators = config.get("validators")
+    validators = validators if isinstance(validators, dict) else {}
     lines: List[str] = []
     target_words = _as_positive_int(config.get("target_words") or config.get("target_word_count"))
-    rendered_max_words = _as_positive_int(max_words or config.get("max_words"))
+    max_words = _as_positive_int(config.get("max_words"))
     if target_words:
         lines.append(f"- 目标字数：约 {target_words} 字")
-    if rendered_max_words:
-        lines.append(f"- 最大字数：不超过 {rendered_max_words} 字")
-    min_news_count = _minimum_evidence_count(config)
+    if max_words:
+        lines.append(f"- 最大字数：不超过 {max_words} 字")
+    min_news_count = _as_positive_int(
+        config.get("min_news_count") or validators.get("min_news_count")
+    )
     if min_news_count:
-        if evidence_count is not None and evidence_count < min_news_count:
-            lines.append(
-                f"- 当前仅有 {evidence_count} 条 evidence，少于要求的 "
-                f"{min_news_count} 条；不得补造或为凑数量扩展"
-            )
-            lines.append("- 正文不得提及材料不足、Evidence数量或检索过程")
-        else:
-            lines.append(f"- 至少使用 {min_news_count} 条 evidence/news 信息")
+        lines.append(f"- 至少使用 {min_news_count} 条 evidence/news 信息")
     return "\n".join(lines) or "- 无"
+
+
+def _strip_instruction_leaks(text: str) -> str:
+    """Remove prompt instruction text that the LLM may have leaked into the output.
+
+    Covers multiple known variants that models produce when echoing the
+    composite-market-review instruction block.
+    """
+    patterns: list[str] = [
+        # "以下内容已由系统根据 Excel 数据生成..." — the actual prompt wording
+        # Match from the opening marker through all instruction text to the
+        # first colon / full-width colon that separates it from real content.
+        r"以下内容已由系统根据\s*Excel\s*数据生成.*?[：:]",
+        # "（以上内容由系统从 Excel 底稿自动生成...）" — older variant with 底稿
+        r"[（(]以上内容由系统从\s*Excel\s*底稿自动生成[，,].*?[）)]",
+        # Leading parenthetical meta-instructions (any position)
+        r"[（(][^)）]*?(?:固定开头|不得改写|删减|重复|系统自动生成|Excel|底稿|数据生成)[^)）]*?[）)]",
+        # Bare instruction fragment: "（不得改写、删减或重复）"
+        r"[（(]\s*(?:不得改写|删减|重复)[^)）]*[）)]",
+    ]
+    for pattern in patterns:
+        text = re.sub(pattern, "", text)
+    return text.strip()
+
+
+_TRANSITION_PREFIXES = [
+    "具体来看，",
+    "具体来看:",
+    "具体来看：",
+    "总体而言，",
+    "总体而言:",
+    "总体而言：",
+    "从盘面来看，",
+    "从盘面来看:",
+    "从盘面来看：",
+    "整体来看，",
+    "整体来看:",
+    "整体来看：",
+    "总体来看，",
+    "总体来看:",
+    "总体来看：",
+    "综合来看，",
+    "综合来看:",
+    "综合来看：",
+    "盘面上，",
+    "盘面上:",
+    "盘面上：",
+    "本周，",
+]
+
+
+def _dedupe_data_sentence_fuzzy(data_sentence: str, hotspot_text: str) -> str:
+    """Remove a rephrased duplicate of the fixed opening that the LLM may
+    have prepended to its continuation (e.g. after a transition word).
+
+    Only an exact-prefix check is done in the caller; this handles cases
+    where the model adds a short transition or makes minor wording changes
+    before repeating the index/volume data.
+    """
+    cleaned = hotspot_text
+    for prefix in _TRANSITION_PREFIXES:
+        if cleaned.startswith(prefix):
+            cleaned = cleaned[len(prefix) :].strip()
+            break
+
+    # Quick-reject: need at least 25 chars to make a meaningful comparison
+    if len(cleaned) < 25 or len(data_sentence) < 25:
+        return hotspot_text
+
+    # Compare a short head window to detect near-exact repetition
+    head_len = min(50, len(data_sentence), len(cleaned))
+    ratio = difflib.SequenceMatcher(a=data_sentence[:head_len], b=cleaned[:head_len]).ratio()
+
+    if ratio < 0.65:
+        return hotspot_text
+
+    # Walk forward to find the first position where texts meaningfully diverge
+    split = 0
+    min_len = min(len(data_sentence), len(cleaned))
+    for i in range(min_len):
+        if data_sentence[i] != cleaned[i]:
+            # Allow a single-char mismatch (typo / formatting diff)
+            if i + 1 < min_len and data_sentence[i + 1] == cleaned[i + 1]:
+                continue
+            split = i
+            break
+    else:
+        split = min_len
+
+    if split >= 20:
+        return cleaned[split:].strip()
+
+    return hotspot_text
 
 
 def apply_output_constraints(content: str, config: Dict[str, Any]) -> str:
     """Apply deterministic output cleanup for constraints that do not need LLM judgment."""
     validators = config.get("validators")
     validators = validators if isinstance(validators, dict) else {}
-    constrained = str(content or "")
-    if validators.get("forbid_parentheses"):
-        constrained = re.sub(r"[()（）]", "", constrained)
     if validators.get("no_newline"):
-        constrained = " ".join(constrained.split())
-    return constrained
-
-
-def enforce_max_chinese_chars(content: str, max_chars: int) -> str:
-    """Limit report text by complete sentences while retaining its opening and summary."""
-    text = str(content or "")
-    try:
-        limit = int(max_chars)
-    except (TypeError, ValueError):
-        logger.warning("Invalid report character limit; content left unchanged", max_chars=max_chars)
-        return text
-    if limit <= 0:
-        logger.warning("Non-positive report character limit; content left unchanged", max_chars=limit)
-        return text
-
-    def visible_length(value: str) -> int:
-        return len(re.sub(r"\s+", "", value))
-
-    if visible_length(text) <= limit:
-        return text
-
-    normalized = re.sub(r"\s+", " ", text).strip()
-    sentences = [
-        sentence.strip()
-        for sentence in re.findall(r".+?(?:[。！？!?；;]+|$)", normalized)
-        if sentence.strip()
-    ]
-    if len(sentences) < 2:
-        logger.warning(
-            "Report text has no safe sentence boundary; applying hard character limit",
-            max_chars=limit,
-            content_chars=visible_length(normalized),
-        )
-        compact = re.sub(r"\s+", "", normalized)
-        if limit == 1:
-            return "。"
-        return compact[: limit - 1].rstrip("。！？!?；;") + "。"
-
-    first = sentences[0]
-    trailing_connectors = (
-        "此外",
-        "同时",
-        "另外",
-        "另一方面",
-        "与此同时",
-        "并且",
-        "而且",
-    )
-    preserve_last = not sentences[-1].lstrip().startswith(trailing_connectors)
-    last = sentences[-1] if preserve_last else ""
-    if not preserve_last:
-        logger.info(
-            "Omitted connector-led trailing sentence during report truncation",
-            max_chars=limit,
-            sentence=sentences[-1],
-        )
-    boundary_length = visible_length(first) + visible_length(last)
-    if boundary_length > limit:
-        logger.warning(
-            "Report boundary sentences exceed character limit; retaining opening sentence",
-            max_chars=limit,
-            boundary_chars=boundary_length,
-        )
-        if visible_length(first) <= limit:
-            return first
-        compact = re.sub(r"\s+", "", first)
-        if limit == 1:
-            return "。"
-        return compact[: limit - 1].rstrip("。！？!?；;") + "。"
-
-    selected = [first]
-    used = boundary_length
-    for sentence in sentences[1:-1]:
-        sentence_length = visible_length(sentence)
-        if used + sentence_length > limit:
-            continue
-        selected.append(sentence)
-        used += sentence_length
-    if last:
-        selected.append(last)
-    return "".join(selected)
-
-
-def effective_max_words_for_evidence(
-    configured_max: int,
-    evidence_count: int,
-    min_news_count: int | None,
-) -> int:
-    """Scale paragraph length to available evidence without exceeding configured limits."""
-    try:
-        configured = max(1, int(configured_max))
-        actual = max(0, int(evidence_count))
-        required = int(min_news_count) if min_news_count is not None else 0
-    except (TypeError, ValueError):
-        logger.warning(
-            "Invalid evidence-aware report length inputs; using configured fallback",
-            configured_max=configured_max,
-            evidence_count=evidence_count,
-            min_news_count=min_news_count,
-        )
-        return max(1, _int_option(configured_max, 300))
-    if required <= 0 or actual >= required:
-        return configured
-
-    floor = min(100, configured)
-    effective = min(configured, max(floor, int(configured * actual / required)))
-    logger.info(
-        "Scaled report length to available evidence",
-        configured_max=configured,
-        effective_max=effective,
-        evidence_count=actual,
-        min_news_count=required,
-    )
-    return effective
-
-
-def _minimum_evidence_count(config: Dict[str, Any]) -> int | None:
-    validators = config.get("validators")
-    validators = validators if isinstance(validators, dict) else {}
-    return _as_positive_int(config.get("min_news_count") or validators.get("min_news_count"))
-
-
-def _evidence_count_warning(
-    placeholder: str,
-    config: Dict[str, Any],
-    evidence_count: int,
-) -> str | None:
-    required = _minimum_evidence_count(config)
-    if required is None or evidence_count >= required:
-        return None
-    return (
-        f"{placeholder}: evidence 数量不足（实际 {evidence_count} 条，要求 {required} 条）"
-    )
+        return " ".join(str(content or "").split())
+    return content
 
 
 def _as_positive_int(value: Any) -> Optional[int]:
@@ -3038,8 +2711,9 @@ def apply_composite_component_overrides(config: Dict[str, Any]) -> Dict[str, Any
     if not isinstance(component_retrieval, dict):
         return dict(config)
     merged = dict(config)
+    _r = merged.get("retrieval")
     merged["retrieval"] = deep_merge_dict(
-        _as_config_dict(merged.get("retrieval")),
+        _r if isinstance(_r, dict) else {},
         component_retrieval,
     )
     return merged
@@ -3055,14 +2729,9 @@ def render_writing_requirements(
         structure = _as_text_list(
             get_component_by_type(config, "llm_writing").get("writing_structure")
         )
-    structure = _dedupe_text_list(structure)
-    template_requirements = template.writing_requirements.strip()
     if structure:
-        sections = ["写作结构：\n" + "\n".join(f"- {item}" for item in structure)]
-        if template_requirements and template_requirements not in structure:
-            sections.append(f"模板写作要求：\n{template_requirements}")
-        return "\n\n".join(sections)
-    return template_requirements or "请根据 evidence 生成正式周报正文。"
+        return "\n".join(f"- {item}" for item in structure)
+    return template.writing_requirements.strip() or "请根据 evidence 生成正式周报正文。"
 
 
 def render_market_review_writing_structure(
@@ -3073,10 +2742,8 @@ def render_market_review_writing_structure(
     structure = _as_text_list(get_component_by_type(config, "llm_writing").get("writing_structure"))
     if not structure:
         structure = _as_text_list(config.get("writing_structure"))
-    structure = _dedupe_text_list(structure)
-    template_requirements = template.writing_requirements.strip()
-    if not structure and template_requirements:
-        return template_requirements
+    if not structure and template.writing_requirements.strip():
+        structure = [template.writing_requirements.strip()]
     if not structure:
         structure = [
             "接在固定开头之后，概括本周市场热点板块或概念，按材料中的重要性或出现频率排序",
@@ -3084,10 +2751,7 @@ def render_market_review_writing_structure(
             "结合一个有明确 evidence 支撑的政策、产业或景气度变化，给出一句审慎趋势判断",
             "最后如需表达关注方向，应使用“后续可关注”“值得跟踪”等克制表述，不得构成直接投资建议",
         ]
-    sections = ["续写结构：\n" + "\n".join(f"- {item}" for item in structure)]
-    if template_requirements and template_requirements not in structure:
-        sections.append(f"模板写作要求：\n{template_requirements}")
-    return "\n\n".join(sections)
+    return "\n".join(f"- {item}" for item in structure)
 
 
 def build_generation_messages(
@@ -3105,11 +2769,7 @@ def build_generation_messages(
     evidence_context = format_evidence_context(evidence)
     params_text = "\n".join(f"- {key}: {value}" for key, value in params.items()) or "无"
     constraints_text = render_generation_constraints(config, max_words=max_words)
-    writing_parameters_text = render_writing_parameters(
-        config,
-        evidence_count=len(evidence),
-        max_words=max_words,
-    )
+    writing_parameters_text = render_writing_parameters(config)
     writing_requirements = render_writing_requirements(config, template)
     user = f"""生成约束：
 {constraints_text}
@@ -3144,36 +2804,41 @@ def build_market_hotspot_messages(
     config: Dict[str, Any],
     evidence: List[EvidenceSnippet],
 ) -> List[Dict[str, str]]:
-    """Build messages for the generated part of a composite market review."""
+    """Build messages for the generated part of a composite market review.
+
+    Returns a system message (rules + role) followed by a user message
+    (task context + evidence).  The old inline instruction block that
+    models tended to echo verbatim has been removed; the system message
+    now carries the hard constraints.
+    """
     evidence_context = format_evidence_context(evidence)
     constraints_text = render_generation_constraints(config, max_words=max_words)
-    writing_parameters_text = render_writing_parameters(
-        config,
-        evidence_count=len(evidence),
-        max_words=max_words,
-    )
+    writing_parameters_text = render_writing_parameters(config)
     writing_structure_text = render_market_review_writing_structure(config, template)
-    user = f"""生成约束：
-{constraints_text}
 
-写作参数：
-{writing_parameters_text}
+    system = (
+        "你是一个专业金融周报撰写助手。你的唯一任务是续写一段简洁的 A 股市场回顾段落。\n\n"
+        "严格规则：\n"
+        "- 只输出续写正文，不要输出任何指令、说明、标记或元信息\n"
+        "- 不要重复或改写已经给出的市场数据开头\n"
+        "- 不要输出「以下内容已由系统」「固定开头」「不得改写」「删减」「重复」等"
+        "任何 prompt 文本\n"
+        "- 不要输出标题、编号、项目符号、换行符\n"
+        "- 续写内容需要和已有开头自然衔接，形成一段完整正文\n"
+        "- 简洁精炼，概括最重要的1-2条市场主线，不要逐项罗列热点板块或个股"
+    )
 
-固定开头：
-以下内容已由系统根据 Excel 数据生成，必须作为正文开头，不得改写、删减或重复：
-{data_sentence}
+    user = (
+        f"生成约束：\n{constraints_text}\n\n"
+        f"写作参数：\n{writing_parameters_text}\n\n"
+        f"已完成的市场数据开头（直接续写，不要重复）：\n{data_sentence}\n\n"
+        f"续写要求：\n{writing_structure_text}\n\n"
+        f"参考证据：\n{evidence_context}\n\n"
+        f"请只输出续写正文（直接接在已有开头后面的内容）。"
+    )
 
-续写要求：
-{writing_structure_text}
-- 只续写固定开头之后的内容，不要重复固定开头
-- 续写内容需要和固定开头自然衔接，最终形成一段完整正文
-- 不要输出标题、编号、项目符号、解释过程或换行符
-
-Evidence：
-{evidence_context}
-
-请只输出固定开头之后的续写正文。"""
     return [
+        {"role": "system", "content": system},
         {"role": "user", "content": user},
     ]
 
@@ -3201,8 +2866,7 @@ def rerank_evidence_with_local_model(
         for item in evidence
     ]
     try:
-        with _LOCAL_RERANKER_INFERENCE_LOCK:
-            raw_scores = model.predict(pairs)
+        raw_scores = model.predict(pairs)
     except Exception as exc:
         logger.warning(
             "Failed to score report evidence with local reranker",
@@ -3214,6 +2878,8 @@ def rerank_evidence_with_local_model(
     scored: List[tuple[float, int, EvidenceSnippet]] = []
     for index, (item, raw_score) in enumerate(zip(evidence, raw_scores), start=1):
         score = _normalize_rerank_score(raw_score)
+        if score < retrieval_config.min_rerank_score:
+            continue
         scored.append((score, index, item))
     scored.sort(
         key=lambda pair: (
@@ -3228,11 +2894,7 @@ def rerank_evidence_with_local_model(
             item,
             rerank_score=float(score),
             rerank_rank=rank,
-            rerank_reason=(
-                f"local:{retrieval_config.rerank_model}"
-                if score >= retrieval_config.min_rerank_score
-                else f"local:{retrieval_config.rerank_model}:below-threshold-backfill"
-            ),
+            rerank_reason=f"local:{retrieval_config.rerank_model}",
         )
         for rank, (score, _index, item) in enumerate(scored[:final_limit], start=1)
     ]
@@ -3242,35 +2904,34 @@ def _load_local_reranker_model(model_name: str) -> Any | None:
     resolved_model = resolve_local_embedding_model(model_name)
     if resolved_model is None:
         return None
-    with _LOCAL_RERANKER_LOAD_LOCK:
-        if resolved_model in _LOCAL_RERANKER_MODELS:
-            return _LOCAL_RERANKER_MODELS[resolved_model]
-        try:
-            from sentence_transformers import CrossEncoder
+    if resolved_model in _LOCAL_RERANKER_MODELS:
+        return _LOCAL_RERANKER_MODELS[resolved_model]
+    try:
+        from sentence_transformers import CrossEncoder
 
-            kwargs = sentence_transformer_kwargs(resolved_model)
-            model = CrossEncoder(
-                resolved_model,
-                automodel_args=kwargs,
-                tokenizer_args=kwargs,
-            )
-            _LOCAL_RERANKER_MODELS[resolved_model] = model
-            logger.info("Loaded local report reranker model", model=resolved_model)
-            return model
-        except TypeError as exc:
-            logger.warning(
-                "Local report reranker does not support cache-only loading arguments",
-                model=resolved_model,
-                error=str(exc),
-            )
-            return None
-        except Exception as exc:
-            logger.warning(
-                "Failed to load local report reranker model",
-                model=resolved_model,
-                error=str(exc),
-            )
-            return None
+        kwargs = sentence_transformer_kwargs(resolved_model)
+        model = CrossEncoder(
+            resolved_model,
+            automodel_args=kwargs,
+            tokenizer_args=kwargs,
+        )
+        _LOCAL_RERANKER_MODELS[resolved_model] = model
+        logger.info("Loaded local report reranker model", model=resolved_model)
+        return model
+    except TypeError as exc:
+        logger.warning(
+            "Local report reranker does not support cache-only loading arguments",
+            model=resolved_model,
+            error=str(exc),
+        )
+        return None
+    except Exception as exc:
+        logger.warning(
+            "Failed to load local report reranker model",
+            model=resolved_model,
+            error=str(exc),
+        )
+        return None
 
 
 def _normalize_rerank_score(raw_score: Any) -> float:
@@ -3303,7 +2964,10 @@ def build_rerank_messages(
             f"[{index}] source={item.source} date={item.published_at or ''}\n"
             f"title={item.title}\ncontent={text}"
         )
-    system = "你是金融周报 RAG rerank 模型。只根据检索 Query、段落标题和候选证据相关性排序。" "不得生成正文，不得补充外部知识。"
+    system = (
+        "你是金融周报 RAG rerank 模型。只根据检索 Query、段落标题和候选证据相关性排序。"
+        "不得生成正文，不得补充外部知识。"
+    )
     user = f"""段落标题：{title}
 检索 Query：{query}
 

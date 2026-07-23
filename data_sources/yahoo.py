@@ -1,4 +1,5 @@
 """Yahoo Finance — 全球股票行情数据源"""
+
 from core.contracts.documents_v1 import SourceType
 from core.source_registry import SourceSpec, register
 

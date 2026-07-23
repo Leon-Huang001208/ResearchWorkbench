@@ -1,4 +1,5 @@
 """情景分析路由"""
+
 from typing import NoReturn, Optional
 
 from fastapi import APIRouter, Depends, HTTPException

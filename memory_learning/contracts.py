@@ -1,4 +1,5 @@
 """Memory & Learning 契约。"""
+
 from pydantic import BaseModel, Field
 
 from core.contracts.timing_types import FailureType, OutcomeHorizon, TimingAction

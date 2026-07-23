@@ -1,4 +1,5 @@
 """信号仓储测试"""
+
 import uuid
 from datetime import datetime, timezone
 

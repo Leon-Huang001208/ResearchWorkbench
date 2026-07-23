@@ -3,6 +3,7 @@ AkShare 板块行情获取器
 
 从同花顺行业板块接口获取实时涨跌幅数据。
 """
+
 import os
 import time
 from contextlib import contextmanager
@@ -87,6 +88,26 @@ def _without_proxy_env():
             os.environ["NO_PROXY"] = no_proxy
 
 
+@contextmanager
+def _without_tqdm_output():
+    """在非 TTY 环境（如 Tauri sidecar）禁用 tqdm 进度条输出。
+
+    tqdm 在 headless 环境下初始化时会调用 sys.stderr.flush()，
+    而 Tauri sidecar 的 stderr 不是标准 TTY，会触发
+    OSError: [Errno 22] Invalid argument，导致整个调用链崩溃。
+    TQDM_DISABLE=1 是 tqdm 官方支持的环境变量，可完全静默输出。
+    """
+    prev = os.environ.get("TQDM_DISABLE")
+    os.environ["TQDM_DISABLE"] = "1"
+    try:
+        yield
+    finally:
+        if prev is None:
+            os.environ.pop("TQDM_DISABLE", None)
+        else:
+            os.environ["TQDM_DISABLE"] = prev
+
+
 def _is_cache_valid() -> bool:
     return _cache is not None and (time.time() - _cache.fetched_at) < CACHE_TTL_SECONDS
 
@@ -104,16 +125,22 @@ def _fetch_with_retry():
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             with _without_proxy_env():
-                df = ak.stock_board_industry_summary_ths()
+                # TQDM_DISABLE 防止 tqdm 在非 TTY 环境（如 Tauri sidecar）写入 stderr
+                # 触发 OSError: [Errno 22] Invalid argument 导致整个调用链崩溃
+                with _without_tqdm_output():
+                    df = ak.stock_board_industry_summary_ths()
             return df
         except Exception as e:
             last_error = e
             if attempt < MAX_RETRIES:
                 wait = RETRY_BACKOFF * attempt
-                logger.warning(
-                    f"AKShare board fetch attempt {attempt}/{MAX_RETRIES} failed: {e}. "
-                    f"Retrying in {wait:.1f}s..."
-                )
+                try:
+                    logger.warning(
+                        f"AKShare board fetch attempt {attempt}/{MAX_RETRIES} failed: {e}. "
+                        f"Retrying in {wait:.1f}s..."
+                    )
+                except Exception:
+                    pass  # structlog stdout 损坏时静默跳过日志
                 time.sleep(wait)
     raise last_error  # type: ignore[misc]
 
@@ -163,15 +190,24 @@ def fetch_sector_board(force_refresh: bool = False) -> SectorBoardSnapshot:
         return _cache
 
     except Exception as e:
-        logger.error(f"Failed to fetch sector board data after {MAX_RETRIES} retries: {e}")
+        try:
+            logger.error(f"Failed to fetch sector board data after {MAX_RETRIES} retries: {e}")
+        except Exception:
+            pass  # stdout 损坏时静默跳过日志
         if _is_cache_stale():
-            # `_is_cache_stale` reads the module-level cache, so mypy cannot
-            # retain its Optional narrowing across that function call.
             assert _cache is not None
-            logger.warning(f"Returning stale cache (age={time.time() - _cache.fetched_at:.0f}s)")
+            try:
+                logger.warning(
+                    f"Returning stale cache (age={time.time() - _cache.fetched_at:.0f}s)"
+                )
+            except Exception:
+                pass
             return _cache
         if _cache is not None:
-            logger.warning("Cache too old, but returning as last resort")
+            try:
+                logger.warning("Cache too old, but returning as last resort")
+            except Exception:
+                pass
             return _cache
         return SectorBoardSnapshot()
 

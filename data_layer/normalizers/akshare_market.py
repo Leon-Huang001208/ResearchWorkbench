@@ -3,6 +3,7 @@
 将 crawler 输出的 MarketData / StockInfo dataclass 转为标准化 dict，
 用于写入 SQL 结构化表。
 """
+
 from data_layer.crawlers.akshare.base import MarketData, StockInfo
 from data_layer.normalizers.common import to_decimal
 

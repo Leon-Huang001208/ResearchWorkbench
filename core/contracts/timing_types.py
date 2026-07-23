@@ -3,6 +3,7 @@
 These types are used across timing_engine, memory_learning, and core/contracts.
 Centralizing them here eliminates duplicate definitions.
 """
+
 from typing import Literal
 
 TimingAction = Literal["enter", "wait", "reduce", "exit", "block"]

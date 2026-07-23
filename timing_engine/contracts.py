@@ -1,4 +1,5 @@
 """Timing Engine 契约。"""
+
 from typing import Literal
 
 from pydantic import BaseModel, Field

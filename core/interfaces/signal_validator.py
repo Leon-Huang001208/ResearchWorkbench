@@ -4,6 +4,7 @@ Abstract base class (interface) for signal validators.
 Defines the interface for signal validators, which generate features, score signals,
 backtest signals, and generate trade candidates in AlphaFoundry.
 """
+
 from abc import ABC, abstractmethod
 from typing import Any
 

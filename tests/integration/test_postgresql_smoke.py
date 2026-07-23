@@ -2,6 +2,7 @@
 Smoke test for PostgreSQL initialization and basic CRUD operations.
 Skips automatically if not running against PostgreSQL.
 """
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -18,10 +19,7 @@ def test_postgresql_initialization():
         pytest.skip("Skipping PostgreSQL smoke test: not using PostgreSQL")
 
     # Check connection
-    try:
-        check_database_connection()
-    except RuntimeError as exc:
-        pytest.skip(f"Skipping PostgreSQL smoke test: database unavailable ({exc})")
+    check_database_connection()
 
     # Ensure schema exists
     ensure_schema()

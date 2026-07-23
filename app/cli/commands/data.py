@@ -9,6 +9,7 @@
 - 与 MCP server 共享同一套 connector 注册表
 - 保持旧命令别名可用
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -158,9 +159,15 @@ def data_list_command() -> None:
 
 @data_group.command(name="ingest")
 @click.option(
-    "--source", "-s", type=str, required=True, help="数据源标识 (cls, akshare, wind, ... 或 'auto' 自动降级)"
+    "--source",
+    "-s",
+    type=str,
+    required=True,
+    help="数据源标识 (cls, akshare, wind, ... 或 'auto' 自动降级)",
 )
-@click.option("--dataset", "-d", type=str, required=True, help="数据集标识 (news, stock_daily, ...)")
+@click.option(
+    "--dataset", "-d", type=str, required=True, help="数据集标识 (news, stock_daily, ...)"
+)
 @click.option("--start-date", help="开始日期 YYYY-MM-DD")
 @click.option("--end-date", help="结束日期 YYYY-MM-DD")
 @click.option("--codes", help="证券代码，逗号分隔 (如 '600519.SH,000001.SZ')")
@@ -296,52 +303,132 @@ def data_ingest_command(
 
 
 @data_group.command(name="backfill")
-@click.option("--source", "-s", type=str, required=True, help="数据源标识")
+@click.option("--source", "-s", type=str, default=None, help="数据源标识 (与 --all 互斥)")
+@click.option("--all", "all_sources", is_flag=True, default=False, help="回补所有文档数据源")
 @click.option("--days", type=int, default=7, help="回溯天数 (默认 7)")
 @click.option("--max-items", type=int, help="最大抓取数量")
-def data_backfill_command(source: str, days: int, max_items: Optional[int]) -> None:
+@click.option("--max-pages", type=int, help="最大翻页数 (默认: cnstock 系列 30, 其他不限)")
+@click.option(
+    "--status", "show_status", is_flag=True, default=False, help="显示各文档源数据覆盖状态"
+)
+def data_backfill_command(
+    source: Optional[str],
+    all_sources: bool,
+    days: int,
+    max_items: Optional[int],
+    max_pages: Optional[int],
+    show_status: bool,
+) -> None:
     """历史数据回填
 
-    对指定数据源执行回溯抓取，补全历史数据。
+    对文档数据源执行回溯抓取，补全历史数据。
 
     \b
     示例:
         af data backfill -s cls --days 30
-        af data backfill -s akshare -d stock_daily --days 90
+        af data backfill --all --days 90
+        af data backfill --all --days 30 --max-pages 50
+        af data backfill --status
     """
-    try:
-        from core.contracts import SourceType
-        from services.crawl_orchestrator import CrawlOrchestrator
-
-        source_type = SourceType(source)
-    except ValueError:
-        # 尝试 connector 数据源（不在旧 SourceType 枚举中）
-        sources = _get_available_sources()
-        if source not in sources:
-            click.echo(f"✗ Unknown source: {source}", err=True)
-            click.echo(f"  Available: {', '.join(sorted(sources.keys()))}")
-            raise click.Abort()
-        click.echo(
-            f"⚠ Source '{source}' uses connector API; backfill via ingest with date range instead."
-        )
-        click.echo(f"  Try: af data ingest -s {source} --days {days}")
+    # ── --status: 显示各文档源数据覆盖状态 ──
+    if show_status:
+        _show_backfill_status()
         return
 
-    click.echo(f"Backfill: {source} (last {days} days)")
+    # ── 参数校验 ──
+    if all_sources and source:
+        click.echo("✗ --all 和 --source 互斥，请只指定其中一个", err=True)
+        raise click.Abort()
+    if not all_sources and not source:
+        click.echo("✗ 请指定 --source 或 --all", err=True)
+        raise click.Abort()
+
+    # ── --all: 回补所有文档源 ──
+    if all_sources:
+        _backfill_all_document_sources(days, max_items, max_pages)
+        return
+
+    # ── 单源回补 ──
+    _backfill_single_source(source, days, max_items, max_pages)
+
+
+# ---------------------------------------------------------------------------
+# 回补辅助函数
+# ---------------------------------------------------------------------------
+
+
+def _resolve_source_spec(source: str) -> Optional[Any]:
+    """将 source 字符串解析为 SourceSpec，支持 SourceType 枚举值和 connector 名称。"""
+    from core.contracts import SourceType
+    from core.source_registry import get as get_spec
+    from core.source_registry import get_enabled
+
+    # 先尝试 SourceType 枚举
+    try:
+        st = SourceType(source)
+        spec = get_spec(st)
+        if spec is not None:
+            return spec
+    except ValueError:
+        pass
+
+    # 再尝试按 source_type.value 匹配（如 zhiqiu_reports）
+    for spec in get_enabled():
+        if spec.source_type.value == source:
+            return spec
+
+    # 最后尝试按 source_name 模糊匹配
+    for spec in get_enabled():
+        if spec.source_name == source:
+            return spec
+
+    return None
+
+
+def _backfill_single_source(
+    source: str,
+    days: int,
+    max_items: Optional[int],
+    max_pages: Optional[int],
+) -> None:
+    """回补单个数据源。"""
+    from core.source_registry import get_enabled
+    from services.crawl_orchestrator import CrawlOrchestrator
+
+    spec = _resolve_source_spec(source)
+    if spec is None:
+        # 尝试 connector 注册表作为最后手段
+        sources = _get_available_sources()
+        if source in sources:
+            connector = _get_connector(source)
+            if connector and spec is None:
+                click.echo(f"⚠ Source '{source}' is connector-only; use af data ingest instead.")
+                click.echo(f"  Try: af data ingest -s {source} -d <dataset> --days {days}")
+                return
+        click.echo(f"✗ Unknown source: {source}", err=True)
+        enabled = [s.source_type.value for s in get_enabled()]
+        click.echo(f"  Available: {', '.join(sorted(enabled))}")
+        raise click.Abort()
+
+    click.echo(f"Backfill: {spec.source_name} ({spec.source_type.value}) — last {days} days")
 
     try:
-        orchestrator = CrawlOrchestrator()
-        result = orchestrator.backfill_source(
-            source_type=source_type,
-            lookback_days=days,
-            max_docs=max_items,
-        )
-
-        click.echo(f"\n  Success:  {result.success_count}")
-        click.echo(f"  Skipped:  {result.skipped_count}")
-        click.echo(f"  Failed:   {result.failure_count}")
-        click.echo("\n✓ Backfill completed")
-
+        # connector 源走 connector.run() 路径
+        if spec.connector_class.startswith("connectors.") and spec.connector_dataset:
+            _backfill_via_connector(spec, days, max_items, max_pages)
+        else:
+            # 旧式适配器源走 CrawlOrchestrator
+            orchestrator = CrawlOrchestrator()
+            result = orchestrator.backfill_source(
+                source_type=spec.source_type,
+                lookback_days=days,
+                max_docs=max_items,
+                max_pages=max_pages,
+            )
+            click.echo(f"\n  Success:  {result.success_count}")
+            click.echo(f"  Skipped:  {result.skipped_count}")
+            click.echo(f"  Failed:   {result.failure_count}")
+            click.echo("\n✓ Backfill completed")
     except Exception as e:
         click.echo(f"\n✗ Backfill failed: {e}", err=True)
         logger.error(
@@ -350,6 +437,219 @@ def data_backfill_command(source: str, days: int, max_items: Optional[int]) -> N
             exc_info=True,
         )
         raise click.Abort()
+
+
+def _backfill_via_connector(
+    spec: Any,
+    days: int,
+    max_items: Optional[int],
+    max_pages: Optional[int],
+) -> None:
+    """通过 connector.run() 回补文档源。"""
+    from datetime import datetime, timedelta
+
+    end_date = datetime.utcnow().strftime("%Y-%m-%d")
+    start_date = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+
+    module_path, class_name = spec.connector_class.rsplit(".", 1)
+    module = __import__(module_path, fromlist=[class_name])
+    connector_cls = getattr(module, class_name)
+    connector = connector_cls(config=spec.adapter_kwargs)
+
+    params: dict = {
+        "start_date": start_date,
+        "end_date": end_date,
+        "days": days,
+        "skip_existing": True,
+    }
+    if max_pages is not None:
+        params["max_pages"] = max_pages
+    elif spec.backfill_family == "cnstock":
+        params["max_pages"] = 30  # cnstock 系列默认深翻 30 页
+    if max_items is not None:
+        params["max_items"] = max_items
+
+    click.echo(f"  Dataset:   {spec.connector_dataset}")
+    click.echo(f"  Range:     {start_date} → {end_date}")
+    if "max_pages" in params:
+        click.echo(f"  Max pages: {params['max_pages']}")
+
+    result = connector.run(spec.connector_dataset, **params)
+
+    click.echo(f"\n  Status:    {result.status.value}")
+    click.echo(f"  Persisted: {result.stats.persisted}")
+    click.echo(f"  Skipped:   {result.stats.skipped}")
+    click.echo(f"  Failed:    {result.stats.failed}")
+
+    if result.error_message:
+        click.echo(f"  ⚠ {result.error_message}")
+
+    if result.status.value == "completed":
+        click.echo("\n✓ Backfill completed")
+    else:
+        click.echo(f"\n⚠ Backfill finished with status: {result.status.value}")
+
+
+def _backfill_all_document_sources(
+    days: int,
+    max_items: Optional[int],
+    max_pages: Optional[int],
+) -> None:
+    """回补所有启用的文档数据源。"""
+    from core.source_registry import get_enabled
+
+    doc_specs = [s for s in get_enabled() if s.pipeline_kind == "document"]
+    if not doc_specs:
+        click.echo("No enabled document sources found.")
+        return
+
+    click.echo(f"\nBackfill ALL document sources ({len(doc_specs)} sources)")
+    click.echo(f"Lookback: {days} days")
+    click.echo("=" * 60)
+
+    total_success = 0
+    total_skipped = 0
+    total_failed = 0
+    source_results: list = []
+
+    for i, spec in enumerate(doc_specs, 1):
+        click.echo(f"\n[{i}/{len(doc_specs)}] {spec.source_name} ({spec.source_type.value})")
+        click.echo("-" * 40)
+
+        try:
+            if spec.connector_class.startswith("connectors.") and spec.connector_dataset:
+                _backfill_via_connector(spec, days, max_items, max_pages)
+                # 注意: _backfill_via_connector 内部已打印统计信息
+                source_results.append({"name": spec.source_name, "status": "completed"})
+            else:
+                from services.crawl_orchestrator import CrawlOrchestrator
+
+                orchestrator = CrawlOrchestrator()
+                result = orchestrator.backfill_source(
+                    source_type=spec.source_type,
+                    lookback_days=days,
+                    max_docs=max_items,
+                    max_pages=max_pages,
+                )
+                total_success += result.success_count
+                total_skipped += result.skipped_count
+                total_failed += result.failure_count
+                click.echo(
+                    f"  Success: {result.success_count}, "
+                    f"Skipped: {result.skipped_count}, "
+                    f"Failed: {result.failure_count}"
+                )
+                source_results.append(
+                    {
+                        "name": spec.source_name,
+                        "status": "completed",
+                        "success": result.success_count,
+                        "skipped": result.skipped_count,
+                        "failed": result.failure_count,
+                    }
+                )
+        except Exception as e:
+            click.echo(f"  ✗ Failed: {e}")
+            source_results.append({"name": spec.source_name, "status": "failed", "error": str(e)})
+            logger.error(
+                "backfill_all_source_failed",
+                extra={"source": spec.source_type.value, "error": str(e)},
+                exc_info=True,
+            )
+
+    # 汇总
+    click.echo("\n" + "=" * 60)
+    click.echo("Backfill Summary")
+    click.echo("=" * 60)
+    for r in source_results:
+        status_icon = "✓" if r["status"] == "completed" else "✗"
+        extra = ""
+        if r["status"] == "completed" and "success" in r:
+            extra = f" — {r['success']} saved, {r['skipped']} skipped"
+        elif r["status"] == "failed":
+            extra = f" — {r.get('error', 'unknown')}"
+        click.echo(f"  {status_icon} {r['name']}{extra}")
+    click.echo("=" * 60)
+    click.echo("✓ All document source backfill completed")
+
+
+def _show_backfill_status() -> None:
+    """显示所有文档源的数据覆盖状态。"""
+    from datetime import datetime
+
+    from core.source_registry import get_enabled
+    from services.crawl_orchestrator import CrawlOrchestrator
+
+    doc_specs = [s for s in get_enabled() if s.pipeline_kind == "document"]
+    if not doc_specs:
+        click.echo("No enabled document sources found.")
+        return
+
+    orchestrator = CrawlOrchestrator()
+
+    click.echo("\nDocument Source Coverage Status")
+    click.echo("=" * 75)
+
+    now = datetime.utcnow()
+
+    for spec in doc_specs:
+        name = spec.source_name
+        st = spec.source_type
+
+        # 游标状态
+        cursor_info = ""
+        gap_info = ""
+        try:
+            status = orchestrator.get_crawl_status(st)
+            cursor = (status or {}).get("cursor") if status else None
+            if cursor:
+                last_crawl = cursor.get("last_successful_crawl_time")
+                if last_crawl:
+                    try:
+                        lc = datetime.fromisoformat(str(last_crawl))
+                        gap_hours = (now - lc.replace(tzinfo=None)).total_seconds() / 3600
+                        cursor_info = f"last_crawl={lc.strftime('%Y-%m-%d %H:%M')}"
+                        gap_info = f"gap={gap_hours:.1f}h"
+                    except (ValueError, TypeError):
+                        cursor_info = "last_crawl=N/A"
+                else:
+                    cursor_info = "never crawled"
+            else:
+                cursor_info = "no cursor"
+        except Exception:
+            cursor_info = "query failed"
+
+        # 数据库最近文档
+        db_info = ""
+        try:
+            latest_doc = orchestrator.get_latest_document_time(st)
+            if latest_doc:
+                db_gap_hours = (now - latest_doc.replace(tzinfo=None)).total_seconds() / 3600
+                db_info = (
+                    f"latest_doc={latest_doc.strftime('%Y-%m-%d %H:%M')} (gap={db_gap_hours:.1f}h)"
+                )
+            else:
+                db_info = "no documents in DB"
+        except Exception:
+            db_info = "query failed"
+
+        # 回补配置
+        bf_info = f"backfill_enabled={spec.backfill_enabled}"
+        if spec.deep_backfill_enabled:
+            bf_info += f", deep_enabled=True (family={spec.backfill_family})"
+        else:
+            bf_info += ", deep_enabled=False"
+
+        click.echo(f"\n  [{spec.source_type.value}] {name}")
+        click.echo(f"    Cursor:     {cursor_info}")
+        click.echo(f"    DB:         {db_info}")
+        click.echo(f"    Config:     {bf_info}")
+        if gap_info:
+            click.echo(f"    Effective:  {gap_info}")
+
+    click.echo("\n" + "=" * 75)
+    click.echo("Use: af data backfill --all --days <N>  to backfill all document sources")
+    click.echo()
 
 
 # ---------------------------------------------------------------------------

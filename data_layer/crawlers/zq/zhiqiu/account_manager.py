@@ -7,6 +7,7 @@
 3. 账号租借模式（acquire/release）
 4. 支持按模块分配不同账号
 """
+
 import importlib
 import json
 import logging
@@ -52,6 +53,7 @@ class AccountStats:
     is_locked: bool = False
     lock_until: Optional[str] = None  # ISO format string
     is_disabled: bool = False  # 永久禁用（连续失败过多）
+    disabled_at: Optional[str] = None  # 永久禁用的时间戳，用于冷却期自动解禁
     leased_by: Optional[str] = None  # 租借者标识（模块名或进程ID）
     leased_at: Optional[str] = None  # 租借时间
 
@@ -66,6 +68,7 @@ class RotationConfig:
     rotation_strategy: str = "round_robin"  # round_robin|random|least_used
     lease_timeout: int = 300  # 账号租借超时时间（秒）
     max_consecutive_failures: int = 10  # 连续失败 N 次后永久禁用账号
+    disable_cooldown_hours: float = 6.0  # 永久禁用 N 小时后自动解禁，给一次重试机会
 
 
 @dataclass
@@ -172,23 +175,32 @@ class AccountManager:
         self._init_state()
 
     def _load_config(self) -> dict:
-        """加载配置，优先使用结构化环境账号并兼容旧格式。"""
-        import os
+        """加载配置文件,按优先级从环境变量读取账号。
 
-        structured_accounts_present = "ZQ_ACCOUNTS_JSON" in os.environ
-        accounts = self._load_accounts_from_environment(
-            os.environ.get("ZQ_ACCOUNTS_JSON"), os.environ.get("ZQ_ACCOUNTS")
-        )
+        账号来源优先级（与 ConfigurationService._parse_zhiqiu_accounts 对齐）:
+        1. ``ZQ_ACCOUNTS_JSON`` —— 结构化 JSON 数组，系统配置工作台保存时写入此格式
+        2. ``ZQ_ACCOUNTS`` —— 旧版 ``user:pass,user:pass`` 逗号分隔格式
+        3. 配置文件（config.yaml）的 ``accounts`` 字段 —— 最后兜底
+
+        系统配置保存时会写入 ``ZQ_ACCOUNTS_JSON`` 并删除旧版 ``ZQ_ACCOUNTS``，
+        因此必须读取 JSON 格式，否则运行时账号池为空。
+        """
+        accounts = self._load_accounts_from_env()
 
         # 尝试从配置文件加载其他配置（账号轮换、进度追踪等）
         try:
             with open(self.config_path, "r", encoding="utf-8") as f:
                 config = yaml.safe_load(f) or {}
-        except Exception:
+        except Exception as e:
+            # except 块内的 logger 调用需防护，避免 structlog 二次异常
+            try:
+                logger.warning(f"加载配置文件失败，使用空配置: {e}")
+            except Exception:
+                pass
             config = {}
 
-        # JSON 环境变量只要存在就是权威来源；只有完全缺失时才允许兼容回退。
-        if structured_accounts_present or accounts:
+        # 如果环境变量有账号,优先使用环境变量的;否则用配置文件的
+        if accounts:
             config["accounts"] = accounts
         elif "accounts" not in config:
             config["accounts"] = {}
@@ -196,63 +208,93 @@ class AccountManager:
         return config
 
     @staticmethod
-    def _load_accounts_from_environment(
-        structured_value: Optional[str], legacy_value: Optional[str]
-    ) -> Dict[str, Dict[str, str]]:
-        """安全解析环境账号；JSON 存在时不允许回退到旧账号源。"""
-        if structured_value is not None:
+    def _load_accounts_from_env() -> Dict[str, Dict[str, str]]:
+        """从环境变量加载账号，优先 ZQ_ACCOUNTS_JSON，回退 ZQ_ACCOUNTS。
+
+        Returns:
+            以账号名为 key 的凭证字典，形如
+            ``{"huangyongjia": {"username": "...", "password": "..."}}``。
+        """
+        import os
+
+        # 优先解析结构化 JSON 格式（系统配置工作台保存时写入）
+        zq_accounts_json = os.environ.get("ZQ_ACCOUNTS_JSON", "")
+        if zq_accounts_json:
+            accounts = AccountManager._parse_accounts_json(zq_accounts_json)
+            if accounts:
+                try:
+                    logger.info(f"从 ZQ_ACCOUNTS_JSON 加载到 {len(accounts)} 个知丘账号")
+                except Exception:
+                    pass
+                return accounts
+            # JSON 解析失败或为空时，记录警告并回退到旧版格式
             try:
-                raw_accounts = json.loads(structured_value)
-                parsed_accounts: Dict[str, Dict[str, str]] = {}
-                if isinstance(raw_accounts, list):
-                    entries = raw_accounts
-                elif isinstance(raw_accounts, dict):
-                    entries = [
-                        {"name": name, **details}
-                        for name, details in raw_accounts.items()
-                        if isinstance(details, dict)
-                    ]
-                    if len(entries) != len(raw_accounts):
-                        raise ValueError("invalid account entry")
-                else:
-                    raise ValueError("accounts JSON must be a list or object")
+                logger.warning("ZQ_ACCOUNTS_JSON 解析失败或为空，回退到 ZQ_ACCOUNTS")
+            except Exception:
+                pass
 
-                for entry in entries:
-                    if not isinstance(entry, dict):
-                        continue
-                    username = entry.get("username")
-                    password = entry.get("password")
-                    name = entry.get("name") or username
-                    if not (
-                        isinstance(name, str)
-                        and name
-                        and isinstance(username, str)
-                        and username
-                        and isinstance(password, str)
-                        and password
-                    ):
-                        continue
-                    if name in parsed_accounts:
-                        continue
-                    parsed_accounts[name] = {"username": username, "password": password}
-                return parsed_accounts
-            except (json.JSONDecodeError, TypeError, ValueError):
-                logger.warning("ZQ_ACCOUNTS_JSON 解析失败，账号池保持不可用")
-                return {}
-
-        parsed_legacy: Dict[str, Dict[str, str]] = {}
-        if legacy_value:
-            for account_pair in legacy_value.split(","):
-                if ":" not in account_pair:
-                    continue
-                username, password = account_pair.split(":", 1)
-                username = username.strip()
-                if username:
-                    parsed_legacy[username] = {
-                        "username": username,
+        # 回退到旧版逗号分隔格式
+        zq_accounts_env = os.environ.get("ZQ_ACCOUNTS", "")
+        accounts = {}
+        if zq_accounts_env:
+            # 解析 ZQ_ACCOUNTS: "user1:pass1,user2:pass2" -> {"user1": {"username": "user1", "password": "pass1"}, ...}
+            for account_pair in zq_accounts_env.split(","):
+                if ":" in account_pair:
+                    username, password = account_pair.split(":", 1)
+                    # 使用用户名作为账号 key
+                    accounts[username.strip()] = {
+                        "username": username.strip(),
                         "password": password.strip(),
                     }
-        return parsed_legacy
+            if accounts:
+                try:
+                    logger.info(f"从 ZQ_ACCOUNTS 加载到 {len(accounts)} 个知丘账号")
+                except Exception:
+                    pass
+
+        return accounts
+
+    @staticmethod
+    def _parse_accounts_json(raw: str) -> Dict[str, Dict[str, str]]:
+        """解析 ZQ_ACCOUNTS_JSON 字符串为账号字典。
+
+        格式示例::
+
+            [{"name": "acc1", "username": "u1", "password": "p1"}, ...]
+
+        解析失败时返回空 dict（不抛异常），由调用方决定是否回退。
+        """
+        try:
+            data = json.loads(raw)
+        except (json.JSONDecodeError, TypeError) as e:
+            try:
+                logger.warning(f"解析 ZQ_ACCOUNTS_JSON 失败: {e}")
+            except Exception:
+                pass
+            return {}
+
+        if not isinstance(data, list):
+            try:
+                logger.warning("ZQ_ACCOUNTS_JSON 不是数组，已忽略")
+            except Exception:
+                pass
+            return {}
+
+        accounts: Dict[str, Dict[str, str]] = {}
+        for item in data:
+            if not isinstance(item, dict):
+                continue
+            username = str(item.get("username", "")).strip()
+            if not username:
+                # 没有 username 的条目无法登录，跳过
+                continue
+            # 优先用 name 作为账号 key（与系统配置一致），否则用 username
+            key = str(item.get("name") or username).strip()
+            accounts[key] = {
+                "username": username,
+                "password": str(item.get("password", "")),
+            }
+        return accounts
 
     def _parse_rotation_config(self) -> RotationConfig:
         """解析轮询配置"""
@@ -260,27 +302,45 @@ class AccountManager:
 
         cfg = self.config.get("account_rotation", {})
 
-        def env_int(name: str, fallback: int) -> int:
-            raw_value = os.environ.get(name)
-            if raw_value is None:
-                return fallback
+        def _env_int(key: str, default: int) -> int:
+            raw = os.environ.get(key, "")
+            if not raw:
+                return default
             try:
-                return int(raw_value)
-            except ValueError:
-                logger.warning("知秋轮询数值环境配置无效，使用兼容值")
-                return fallback
+                return int(raw)
+            except (TypeError, ValueError):
+                try:
+                    logger.warning(f"环境变量 {key} 值非法: {raw}，使用默认 {default}")
+                except Exception:
+                    pass
+                return default
+
+        def _env_float(key: str, default: float) -> float:
+            raw = os.environ.get(key, "")
+            if not raw:
+                return default
+            try:
+                return float(raw)
+            except (TypeError, ValueError):
+                try:
+                    logger.warning(f"环境变量 {key} 值非法: {raw}，使用默认 {default}")
+                except Exception:
+                    pass
+                return default
 
         return RotationConfig(
-            enabled=os.environ.get("ZQ_ROTATION_ENABLED", str(cfg.get("enabled", True))).lower()
-            in {"1", "true", "yes", "on"},
-            max_retries=env_int("ZQ_MAX_RETRIES", cfg.get("max_retries", 3)),
-            retry_delay=env_int("ZQ_RETRY_DELAY", cfg.get("retry_delay", 5)),
+            enabled=cfg.get("enabled", True),
+            max_retries=_env_int("ZQ_MAX_RETRIES", cfg.get("max_retries", 3)),
+            retry_delay=_env_int("ZQ_RETRY_DELAY", cfg.get("retry_delay", 5)),
             rotation_strategy=os.environ.get(
                 "ZQ_ROTATION_STRATEGY", cfg.get("rotation_strategy", "round_robin")
             ),
-            lease_timeout=env_int("ZQ_LEASE_TIMEOUT", cfg.get("lease_timeout", 300)),
-            max_consecutive_failures=env_int(
+            lease_timeout=_env_int("ZQ_LEASE_TIMEOUT", cfg.get("lease_timeout", 300)),
+            max_consecutive_failures=_env_int(
                 "ZQ_MAX_CONSECUTIVE_FAILURES", cfg.get("max_consecutive_failures", 10)
+            ),
+            disable_cooldown_hours=_env_float(
+                "ZQ_DISABLE_COOLDOWN_HOURS", cfg.get("disable_cooldown_hours", 6.0)
             ),
         )
 
@@ -355,9 +415,21 @@ class AccountManager:
         """检查账号是否可用"""
         now = datetime.now()
 
-        # 检查永久禁用
+        # 检查永久禁用 —— 超过冷却期则自动解禁，给一次重试机会
         if account.is_disabled:
-            return False
+            if self._should_auto_recover(account, now):
+                account.is_disabled = False
+                account.disabled_at = None
+                account.consecutive_failures = 0
+                try:
+                    logger.info(
+                        f"账号 {account.name} 永久禁用已超过冷却期 "
+                        f"{self.rotation_config.disable_cooldown_hours} 小时，自动解禁"
+                    )
+                except Exception:
+                    pass
+            else:
+                return False
 
         # 检查临时锁定
         if account.is_locked and account.lock_until:
@@ -374,6 +446,25 @@ class AccountManager:
 
         return True
 
+    def _should_auto_recover(self, account: AccountStats, now: datetime) -> bool:
+        """判断永久禁用的账号是否已过冷却期、可以自动解禁。
+
+        - ``disabled_at`` 缺失（旧状态文件）视为已达冷却期，给一次重试机会，
+          避免历史遗留的永久禁用账号永远卡死。
+        - 冷却期 <= 0 时不自动解禁（运维显式关闭自愈）。
+        """
+        cooldown = self.rotation_config.disable_cooldown_hours
+        if cooldown <= 0:
+            return False
+        if not account.disabled_at:
+            return True
+        try:
+            disabled_at = datetime.fromisoformat(account.disabled_at)
+        except (TypeError, ValueError):
+            # 时间戳损坏，给一次重试机会
+            return True
+        return now >= disabled_at + timedelta(hours=cooldown)
+
     def get_available_accounts(self) -> List[str]:
         """获取可用账号列表"""
         with FileLock(self.lock_path):
@@ -381,9 +472,17 @@ class AccountManager:
             state = self._clean_expired_leases(state)
 
             available = []
+            changed = False
             for name, account in state.accounts.items():
+                before = (account.is_disabled, account.is_locked)
                 if self._is_account_available(account):
                     available.append(name)
+                if (account.is_disabled, account.is_locked) != before:
+                    changed = True
+
+            # _is_account_available 可能自动解禁或清理过期锁,需落盘
+            if changed:
+                self._save_state(state)
 
             return available
 
@@ -408,11 +507,19 @@ class AccountManager:
                     return self._lease_account(state, preferred_account)
 
             # 按策略选择账号
-            available = [
-                name for name, acc in state.accounts.items() if self._is_account_available(acc)
-            ]
+            available = []
+            changed = False
+            for name, acc in state.accounts.items():
+                before = (acc.is_disabled, acc.is_locked)
+                if self._is_account_available(acc):
+                    available.append(name)
+                if (acc.is_disabled, acc.is_locked) != before:
+                    changed = True
 
             if not available:
+                # _is_account_available 可能已自动解禁,需落盘以便下次重试
+                if changed:
+                    self._save_state(state)
                 logger.warning("没有可用账号")
                 return None
 
@@ -501,11 +608,14 @@ class AccountManager:
                 # 连续失败超过阈值 → 永久禁用
                 if account.consecutive_failures >= self.rotation_config.max_consecutive_failures:
                     account.is_disabled = True
+                    account.disabled_at = datetime.now().isoformat()
                     account.is_locked = False
                     account.lock_until = None
                     account.leased_by = None
                     account.leased_at = None
-                    logger.error(f"账号 {account_name} 连续失败 {account.consecutive_failures} 次，已永久禁用")
+                    logger.error(
+                        f"账号 {account_name} 连续失败 {account.consecutive_failures} 次，已永久禁用"
+                    )
                 elif lock_seconds > 0:
                     account.is_locked = True
                     lock_until = datetime.now() + timedelta(seconds=lock_seconds)

@@ -10,6 +10,7 @@ providers and models.
 LLM 响应缓存：基于 (model, messages_hash, temperature) 的 TTL 缓存，
 默认 5 分钟有效期，减少重复 prompt 的 API 调用开销。
 """
+
 import hashlib
 import json
 import threading
@@ -24,7 +25,6 @@ from core.interfaces import ModelResponse
 from core.model_gateway.base import BaseProvider
 from core.model_gateway.providers import (
     AnthropicProvider,
-    LocalEmbeddingProvider,
     OpenAICompatibleProvider,
 )
 from core.observability import get_logger
@@ -54,19 +54,23 @@ class ModelGatewayImpl(ModelGatewayInterface):
                 if profile.protocol == "anthropic":
                     provider: BaseProvider = AnthropicProvider(profile)
                 elif profile.protocol == "local":
+                    from core.model_gateway.providers.local_embedding import (
+                        LocalEmbeddingProvider,
+                    )
+
                     provider = LocalEmbeddingProvider(profile)
                 else:
                     provider = OpenAICompatibleProvider(profile)
                 self._providers[name] = provider
                 logger.info(
                     "provider initialized",
-                    name=name,
+                    provider_name=name,
                     protocol=profile.protocol,
                 )
             except Exception as e:
                 logger.error(
                     "failed to initialize provider",
-                    name=name,
+                    provider_name=name,
                     error=str(e),
                 )
 
@@ -86,6 +90,30 @@ class ModelGatewayImpl(ModelGatewayInterface):
         """替换默认 provider（用于测试注入）."""
         self._default_provider = provider
         self._providers["_injected"] = provider
+
+    def refresh_providers(self) -> None:
+        """从 Settings 重新加载所有 Provider 和任务路由。
+
+        在系统配置工作台通过 API 修改 LLM provider 或 task route 后调用，
+        使运行中的 Gateway 实例能热切换到新配置而无需重启进程。
+        """
+        # 关闭旧 provider 的 HTTP 客户端（如有）
+        for _name, old in self._providers.items():
+            http_client = getattr(old, "_http_client", None)
+            if http_client is not None:
+                try:
+                    http_client.close()
+                except Exception:
+                    pass
+        self._providers.clear()
+        self._task_routes.clear()
+        self._default_provider = None
+        self._init_providers()
+        logger.info(
+            "gateway providers refreshed",
+            provider_count=len(self._providers),
+            route_count=len(self._task_routes),
+        )
 
     # ── LLM Response Cache ──────────────────────────────────────
 
@@ -140,8 +168,7 @@ class ModelGatewayImpl(ModelGatewayInterface):
             raise RuntimeError(
                 "No model provider available. " "Configure PROVIDER_PROFILES in settings."
             )
-        default_route = self._task_routes.get("default")
-        return provider, model or (default_route.model if default_route else "")
+        return provider, model or ""
 
     def chat(
         self,

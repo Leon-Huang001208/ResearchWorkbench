@@ -2,6 +2,7 @@
 
 将多个并发信号转为一致的投资组合，在显式约束下将评分信号转为排名配置。
 """
+
 import uuid
 from collections import defaultdict
 from datetime import datetime, timezone

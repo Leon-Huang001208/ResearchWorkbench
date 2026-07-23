@@ -2,6 +2,7 @@
 
 作为基线策略，始终可用（只要 pdfplumber 已安装），无需外部依赖。
 """
+
 import logging
 from typing import Any, Dict
 

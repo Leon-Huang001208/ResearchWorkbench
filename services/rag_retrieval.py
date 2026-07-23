@@ -9,6 +9,7 @@ RAG 检索服务 - Issue #45.
 - 证据包构建
 - 报告与回测视角分离
 """
+
 import math
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
@@ -579,9 +580,9 @@ class RAGRetrievalService:
         if query.profile_type:
             profile = get_profile(
                 query.profile_type,
-                available_time_cutoff=query.filters.available_time_before
-                if query.filters
-                else None,
+                available_time_cutoff=(
+                    query.filters.available_time_before if query.filters else None
+                ),
             )
 
         filters = query.filters or RetrievalFilters()

@@ -1,4 +1,5 @@
 """Point-in-time factor matrix construction."""
+
 from __future__ import annotations
 
 from datetime import date

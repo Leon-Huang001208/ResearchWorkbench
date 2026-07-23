@@ -1,4 +1,5 @@
 """Committee synthesis for blackboard Agent views."""
+
 from __future__ import annotations
 
 from collections import defaultdict

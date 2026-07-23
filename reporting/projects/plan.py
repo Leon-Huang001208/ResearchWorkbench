@@ -1,4 +1,5 @@
 """Compiled report project generation readiness plans."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

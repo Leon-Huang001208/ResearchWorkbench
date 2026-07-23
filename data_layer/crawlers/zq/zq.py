@@ -11,6 +11,7 @@ zq.py - 知丘爬取统一入口
 使用方法：
     python zq.py --config config.yaml --search 建材 --doc-types REPORT,NEWS
 """
+
 import argparse
 import importlib
 import sys
@@ -240,19 +241,31 @@ def parse_args() -> Namespace:
     )
     parser.add_argument("--prompt", type=str, default="", help="AI提问模板（仅REPORT）")
 
-    parser.add_argument("--enable-core", action="store_true", default=False, help="启用原有核心摘要提取")
-    parser.add_argument("--enable-viewpoint", action="store_true", default=False, help="启用核心观点提取")
-    parser.add_argument("--enable-companies", action="store_true", default=False, help="启用关注公司提取")
+    parser.add_argument(
+        "--enable-core", action="store_true", default=False, help="启用原有核心摘要提取"
+    )
+    parser.add_argument(
+        "--enable-viewpoint", action="store_true", default=False, help="启用核心观点提取"
+    )
+    parser.add_argument(
+        "--enable-companies", action="store_true", default=False, help="启用关注公司提取"
+    )
     parser.add_argument("--enable-pdf", action="store_true", default=False, help="启用 PDF 下载")
 
     parser.add_argument("--ai-interval", type=int, default=10, help="AI 请求间隔秒数（仅REPORT）")
     parser.add_argument("--pdf-dir", type=str, default="pdfs", help="PDF 保存子目录名（仅REPORT）")
     parser.add_argument("--output-dir", type=str, default="./output", help="输出根目录")
     parser.add_argument("--state-path", type=str, default=None, help="状态文件路径，用于持久化去重")
-    parser.add_argument("--allowed-accounts", type=str, default=None, help="公众号白名单配置文件路径（仅NEWS）")
-    parser.add_argument("--skip-existing", action="store_true", default=True, help="跳过已存在的内容")
+    parser.add_argument(
+        "--allowed-accounts", type=str, default=None, help="公众号白名单配置文件路径（仅NEWS）"
+    )
+    parser.add_argument(
+        "--skip-existing", action="store_true", default=True, help="跳过已存在的内容"
+    )
 
-    parser.add_argument("--use-homepage-search", action="store_true", default=False, help="使用首页搜索")
+    parser.add_argument(
+        "--use-homepage-search", action="store_true", default=False, help="使用首页搜索"
+    )
     parser.add_argument("--date-limit", type=str, default="", help="日期限制，如 DATE_LIMIT_WEEK")
     parser.add_argument(
         "--doc-types", type=str, default="REPORT", help="文档类型，逗号分隔：REPORT,NEWS,ZQMEETING"
@@ -262,7 +275,9 @@ def parse_args() -> Namespace:
     parser.add_argument("--fetch-all-pages", action="store_true", default=False, help="获取全部页")
     parser.add_argument("--max-pages", type=int, default=20, help="最大页数限制")
 
-    parser.add_argument("--rotate-account", action="store_true", default=True, help="每次请求按策略切换账号")
+    parser.add_argument(
+        "--rotate-account", action="store_true", default=True, help="每次请求按策略切换账号"
+    )
     parser.add_argument("--no-rotate-account", action="store_true", help="不自动切换账号")
 
     parser.add_argument("--config", type=str, required=True, help="配置文件路径（包含凭证）")

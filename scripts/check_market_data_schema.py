@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """验证结构化行情数据表是否存在"""
+
 import sys
 from pathlib import Path
 

@@ -5,6 +5,7 @@
 
 提供统一的基类，消除 report.py、news.py、meeting.py 之间的重复代码。
 """
+
 import json
 import logging
 import os
@@ -175,7 +176,9 @@ class BaseFetcher:
                     self.config.state_path, self.config.processed_key, self.config.verbose
                 )
                 if self.config.verbose:
-                    print(f"[init] 状态管理器已初始化，已记录 {self._state_manager.get_processed_count()} 条记录")
+                    print(
+                        f"[init] 状态管理器已初始化，已记录 {self._state_manager.get_processed_count()} 条记录"
+                    )
             except Exception as e:
                 if self.config.verbose:
                     print(f"[warn] 初始化状态管理器失败: {e}，持久化去重将不可用")
@@ -335,7 +338,9 @@ class BaseFetcher:
                 return None
 
             if self._logger:
-                self._logger.info(f"尝试切换到账号: {next_account} (尝试 {attempt + 1}/{max_attempts})")
+                self._logger.info(
+                    f"尝试切换到账号: {next_account} (尝试 {attempt + 1}/{max_attempts})"
+                )
 
             credentials = account_manager.get_account_credentials(next_account)
             if credentials is None or not self._login(credentials, next_account):
@@ -374,7 +379,9 @@ class BaseFetcher:
         self._logger.info(f"  - 日期限制: {self.config.date_limit or '未设置'}")
         self._logger.info(f"  - 文档类型: {self.config.doc_type}")
         if self._state_manager:
-            self._logger.info(f"  - 持久化去重: 启用 (已记录 {self._state_manager.get_processed_count()} 条)")
+            self._logger.info(
+                f"  - 持久化去重: 启用 (已记录 {self._state_manager.get_processed_count()} 条)"
+            )
         else:
             self._logger.info("  - 持久化去重: 关闭")
         if self._account_manager:
@@ -416,7 +423,11 @@ class BaseFetcher:
 
         account_manager = self._account_manager
         if not account_manager:
-            return {"success": False, "message": "账号管理器未初始化", "errors": ["需要配置文件以使用账号管理"]}
+            return {
+                "success": False,
+                "message": "账号管理器未初始化",
+                "errors": ["需要配置文件以使用账号管理"],
+            }
 
         return self._fetch_with_account_lease(account_manager)
 
@@ -456,7 +467,11 @@ class BaseFetcher:
                     break
 
             if not login_success:
-                return {"success": False, "message": "登录失败", "errors": ["无法登录知丘平台，请检查凭证"]}
+                return {
+                    "success": False,
+                    "message": "登录失败",
+                    "errors": ["无法登录知丘平台，请检查凭证"],
+                }
 
             self._log_feature_status()
 
@@ -542,12 +557,14 @@ class BaseFetcher:
                     self._save_processed_item(str(obj_id), title, item)
                 self._state_manager.save()
                 if self.config.verbose:
-                    print(f"[state] 状态文件已更新，共记录 {self._state_manager.get_processed_count()} 条记录")
+                    print(
+                        f"[state] 状态文件已更新，共记录 {self._state_manager.get_processed_count()} 条记录"
+                    )
 
             success_count = sum(1 for t in results["terms"] if t.get("status") == "success")
-            results[
-                "message"
-            ] = f'完成: 成功 {success_count}/{len(search_terms)}，共 {results["total"]} 条{self.config.module_label} (新: {results["new"]}，跳过: {results["skipped_existing"]})'
+            results["message"] = (
+                f'完成: 成功 {success_count}/{len(search_terms)}，共 {results["total"]} 条{self.config.module_label} (新: {results["new"]}，跳过: {results["skipped_existing"]})'
+            )
 
             if self.config.verbose:
                 print(f"[done] {results['message']}")

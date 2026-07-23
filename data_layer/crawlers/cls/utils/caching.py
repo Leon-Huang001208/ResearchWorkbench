@@ -1,4 +1,5 @@
 """缓存工具模块"""
+
 from functools import wraps
 from typing import Any, Callable, TypeVar, cast
 

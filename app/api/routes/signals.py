@@ -1,4 +1,5 @@
 """信号路由"""
+
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -263,9 +264,9 @@ async def get_signal_detail(
                     "outcome_excess_return": outcome.outcome_excess_return,
                     "max_drawdown": outcome.max_drawdown,
                     "lesson": outcome.lesson,
-                    "evaluated_at": outcome.evaluated_at.isoformat()
-                    if outcome.evaluated_at
-                    else None,
+                    "evaluated_at": (
+                        outcome.evaluated_at.isoformat() if outcome.evaluated_at else None
+                    ),
                 }
         finally:
             db.close()

@@ -1,4 +1,5 @@
 """Monitoring API — 健康指标、漂移检测、告警管理、事件记录路由"""
+
 from datetime import datetime
 from typing import Any, Dict, List, Optional, cast
 
@@ -253,9 +254,9 @@ def _drift_to_response(r: DriftReport) -> DriftReportResponse:
         report_id=r.report_id,
         dimension=r.dimension.value,
         timestamp=r.timestamp.isoformat() if r.timestamp else "",
-        baseline_window_start=r.baseline_window_start.isoformat()
-        if r.baseline_window_start
-        else "",
+        baseline_window_start=(
+            r.baseline_window_start.isoformat() if r.baseline_window_start else ""
+        ),
         baseline_window_end=r.baseline_window_end.isoformat() if r.baseline_window_end else "",
         current_window_start=r.current_window_start.isoformat() if r.current_window_start else "",
         current_window_end=r.current_window_end.isoformat() if r.current_window_end else "",
@@ -757,9 +758,9 @@ def _crawl_state_to_status(state: Any) -> IngestSourceStatus:
         is_paused=state.is_paused,
         pause_reason=state.pause_reason,
         watermark_id=state.watermark_id,
-        watermark_timestamp=state.watermark_timestamp.isoformat()
-        if state.watermark_timestamp
-        else None,
+        watermark_timestamp=(
+            state.watermark_timestamp.isoformat() if state.watermark_timestamp else None
+        ),
     )
 
 

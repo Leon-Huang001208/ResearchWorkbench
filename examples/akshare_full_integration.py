@@ -7,6 +7,7 @@ AkShare 完整集成示例
 2. 获取新闻并转为文档封包
 3. 获取财务数据并更新资产信息
 """
+
 import logging
 import sys
 from datetime import date, datetime, timedelta

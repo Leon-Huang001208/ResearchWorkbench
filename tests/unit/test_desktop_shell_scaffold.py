@@ -1,4 +1,5 @@
 """Static wiring tests for the AlphaFoundry desktop shell scaffold."""
+
 import importlib.util
 import json
 import os
@@ -7,7 +8,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 TAURI_CONFIG = ROOT / "src-tauri" / "tauri.conf.json"
 TAURI_LIB = ROOT / "src-tauri" / "src" / "lib.rs"
-TAURI_CARGO = ROOT / "src-tauri" / "Cargo.toml"
 PACKAGE_JSON = ROOT / "package.json"
 BOOTSTRAP_JS = ROOT / "desktop" / "dist" / "bootstrap.js"
 BOOTSTRAP_HTML = ROOT / "desktop" / "dist" / "index.html"
@@ -93,7 +93,7 @@ def test_report_project_upload_modal_treats_non_word_assets_as_optional():
     assert 'data-file-label="project-word-template-input"' in html
     assert 'data-file-label="project-excel-workbook-input"' in html
     assert "请至少选择 Word 模板、Excel 底稿和 Section 配置" not in script
-    assert "projectType === 'word' && !wordFile" in script
+    assert "if (!wordFile)" in script
     assert "if (excelFile)" in script
     assert "if (sectionFile)" in script
 
@@ -105,7 +105,6 @@ def test_windows_icon_is_available_for_tauri_resource_generation():
 
 def test_tauri_rust_shell_starts_backend_sidecar():
     source = TAURI_LIB.read_text(encoding="utf-8")
-    cargo = TAURI_CARGO.read_text(encoding="utf-8")
 
     assert 'const BACKEND_SIDECAR: &str = "alphafoundry-backend";' in source
     assert "cfg!(dev)" in source
@@ -114,10 +113,6 @@ def test_tauri_rust_shell_starts_backend_sidecar():
     assert "start_backend_sidecar" in source
     assert "stop_backend_sidecar" in source
     assert "tauri_plugin_shell::init()" in source
-    assert "backend_is_healthy" in source
-    assert "Reusing healthy AlphaFoundry backend" in source
-    assert "tauri_plugin_single_instance::init" in source
-    assert 'tauri-plugin-single-instance = "2"' in cargo
 
 
 def test_macos_arm_sidecar_shim_invokes_python_launcher():
@@ -262,10 +257,6 @@ def test_desktop_bootstrap_waits_for_backend_health():
     assert "AlphaFoundry" in html
     assert "DEFAULT_BACKEND_URL = 'http://127.0.0.1:8765'" in source
     assert "fetch(`${baseUrl}/health`" in source
-    assert "HEALTH_REQUEST_TIMEOUT_MS" in source
-    assert "new AbortController()" in source
-    assert "signal: controller.signal" in source
-    assert "clearTimeout(timeoutId)" in source
     assert "window.location.replace(`${baseUrl}/`)" in source
     assert "retry-button" in source
 
@@ -319,7 +310,7 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "今日上涨板块概念 (Top 10)" not in html
     assert "今日下跌板块概念 (Top 10)" not in html
     assert "style.css?v=20260702briefinline1" in html
-    assert "app.js?v=20260713config16" in html
+    assert "app.js?v=20260714config1" in html
     assert "asset-observe-mode-tabs" in html
     assert 'data-asset-mode="theme"' in html
     assert "asset-topic-result" in html
@@ -411,7 +402,7 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "THEME_OBSERVATION_PRESETS" in asset_js
     assert "asset-topic-trend-chart" in asset_js
     assert "机器人ETF南方" in asset_js
-    assert "#section-dashboard .market-pulse-board {\n    grid-row: span 2;" not in css
+    assert "grid-row: span 2" not in css
     assert "renderMarketMiniCards" not in dashboard_js
     assert "formatMarketMiniSignedValue" not in dashboard_js
     assert "renderCapCompareMarkup" not in dashboard_js
@@ -645,7 +636,7 @@ def test_live_monitor_uses_unified_feed_with_legacy_template_retained():
     assert "#section-dashboard .monitor-event-item.selected" in css
     assert "#section-dashboard .monitor-detail-tabs" in css
     assert "#section-dashboard .monitor-health-card" in css
-    assert "monitor.js?v=20260624b" in app_js
+    assert "monitor.js?v=20260714a" in app_js
     assert "activeMonitorSource" in monitor_js
     assert "activeMonitorItemKey" in monitor_js
     assert "renderUnifiedMonitorFeed" in monitor_js
@@ -681,53 +672,10 @@ def test_frozen_backend_launcher_defaults_to_user_sqlite(monkeypatch, tmp_path):
     monkeypatch.setenv("ALPHAFOUNDRY_DESKTOP_DATA_DIR", str(tmp_path))
     monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.delenv("LOG_DIR", raising=False)
-    monkeypatch.delenv("ALPHAFOUNDRY_CONFIG_PATH", raising=False)
 
     data_dir = launcher.apply_frozen_desktop_defaults()
 
     assert data_dir == tmp_path
     assert os.environ["DATABASE_URL"] == f"sqlite:///{tmp_path / 'alphafoundry.db'}"
     assert os.environ["LOG_DIR"] == str(tmp_path / "logs")
-    assert os.environ["ALPHAFOUNDRY_CONFIG_PATH"] == str(tmp_path / ".env")
     assert (tmp_path / "logs").is_dir()
-
-
-def test_frozen_backend_launcher_loads_persisted_configuration_before_defaults(
-    monkeypatch, tmp_path
-):
-    launcher = load_launcher_module()
-    configured_logs = tmp_path / "configured-logs"
-    (tmp_path / ".env").write_text(
-        f"DATABASE_URL=sqlite:///{tmp_path / 'persisted.db'}\nLOG_DIR={configured_logs}\n",
-        encoding="utf-8",
-    )
-    monkeypatch.setattr(launcher.sys, "frozen", True, raising=False)
-    monkeypatch.setenv("ALPHAFOUNDRY_DESKTOP_DATA_DIR", str(tmp_path))
-    for key in ("ALPHAFOUNDRY_CONFIG_PATH", "DATABASE_URL", "LOG_DIR"):
-        monkeypatch.delenv(key, raising=False)
-
-    launcher.apply_frozen_desktop_defaults()
-
-    assert os.environ["DATABASE_URL"] == f"sqlite:///{tmp_path / 'persisted.db'}"
-    assert os.environ["LOG_DIR"] == str(configured_logs)
-    assert configured_logs.is_dir()
-
-
-def test_frozen_backend_launcher_preserves_explicit_environment_over_config(monkeypatch, tmp_path):
-    launcher = load_launcher_module()
-    (tmp_path / ".env").write_text(
-        "DATABASE_URL=sqlite:////persisted.db\nLOG_DIR=/persisted/logs\n",
-        encoding="utf-8",
-    )
-    explicit_logs = tmp_path / "explicit-logs"
-    monkeypatch.setattr(launcher.sys, "frozen", True, raising=False)
-    monkeypatch.setenv("ALPHAFOUNDRY_DESKTOP_DATA_DIR", str(tmp_path))
-    monkeypatch.delenv("ALPHAFOUNDRY_CONFIG_PATH", raising=False)
-    monkeypatch.setenv("DATABASE_URL", "sqlite:////explicit.db")
-    monkeypatch.setenv("LOG_DIR", str(explicit_logs))
-
-    launcher.apply_frozen_desktop_defaults()
-
-    assert os.environ["DATABASE_URL"] == "sqlite:////explicit.db"
-    assert os.environ["LOG_DIR"] == str(explicit_logs)
-    assert explicit_logs.is_dir()

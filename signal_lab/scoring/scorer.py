@@ -3,6 +3,7 @@
 
 提供信号评分功能。
 """
+
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 

@@ -1,4 +1,5 @@
 """巨潮资讯网 — 上市公司公告"""
+
 from core.contracts.documents_v1 import DocType, SourceReliabilityLevel, SourceType
 from core.source_registry import SourceSpec, register
 

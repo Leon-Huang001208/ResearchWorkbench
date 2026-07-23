@@ -1,6 +1,7 @@
 """
 AkShare 适配器单元测试
 """
+
 from datetime import date, datetime
 from unittest.mock import Mock
 
@@ -170,7 +171,9 @@ class TestWithMockAkShare:
         # Mock 股票列表返回
         mock_df = Mock()
         mock_df.empty = False
-        mock_df.iterrows.return_value = iter([(0, {"代码": "600000", "名称": "浦发银行", "行业": "银行"})])
+        mock_df.iterrows.return_value = iter(
+            [(0, {"代码": "600000", "名称": "浦发银行", "行业": "银行"})]
+        )
         mock_ak.stock_zh_a_spot_em.return_value = mock_df
 
         result = adapter_with_mock.health_check()

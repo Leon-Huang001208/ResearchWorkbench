@@ -1,4 +1,5 @@
 """测试 RawTextStrategy"""
+
 import os
 from unittest.mock import MagicMock, patch
 

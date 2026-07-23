@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
-import time
 from typing import Any, Callable
 
 from core.observability import get_logger
@@ -121,28 +121,47 @@ class ReportWorkbookRefreshService:
             )
 
     def _open_workbook(self, workbook_path: Path) -> tuple[Any, Any, bool, bool]:
-        if self.excel_apps is None:
-            try:
-                import xlwings as xw
-            except ImportError as exc:
-                raise RuntimeError("缺少 xlwings，无法自动刷新 Excel/Wind 数据") from exc
-            apps = list(xw.apps)
-            if not apps:
-                app = xw.App(visible=False, add_book=False)
-                return app, app.books.open(str(workbook_path), update_links=False, read_only=False), True, True
-        else:
+        """打开工作簿用于刷新。
+
+        始终启动新的隐藏 Excel 实例，不复用用户已打开的 Excel，
+        避免共享冲突、COM apartment 问题和文件锁定。
+        参照做市项目 copy_excel() 的最佳实践。
+        """
+        if self.excel_apps is not None:
+            # 测试注入路径：仅在测试中使用，保持向后兼容
             apps = list(self.excel_apps())
+            for app in apps:
+                for book in app.books:
+                    if self._same_path(getattr(book, "fullname", ""), workbook_path):
+                        return app, book, False, False
+            if not apps:
+                raise RuntimeError("未找到可用的 Microsoft Excel 实例")
+            app = apps[0]
+            book = app.books.open(str(workbook_path), update_links=False, read_only=False)
+            return app, book, True, False
 
-        for app in apps:
-            for book in app.books:
-                if self._same_path(getattr(book, "fullname", ""), workbook_path):
-                    return app, book, False, False
+        # 生产路径：始终创建新的隐藏 Excel 实例
+        # 这样做的好处：
+        # 1. 不与用户正在编辑的 Excel 冲突
+        # 2. 不依赖 COM 跨线程 marshaling
+        # 3. Wind 插件在新实例中独立加载，不受用户 Excel 状态影响
+        try:
+            import pythoncom  # noqa: F401 — 确保 COM 运行时可用
+        except ImportError:
+            logger.warning(
+                "pywin32 (pythoncom) 未安装，xlwings COM 刷新可能不稳定。"
+                "建议: pip install pywin32"
+            )
+        try:
+            import xlwings as xw
+        except ImportError as exc:
+            raise RuntimeError("缺少 xlwings，无法自动刷新 Excel/Wind 数据") from exc
 
-        if not apps:
-            raise RuntimeError("未找到可用的 Microsoft Excel 实例")
-        app = apps[0]
+        app = xw.App(visible=False, add_book=False)
+        app.display_alerts = False
+        app.screen_updating = False
         book = app.books.open(str(workbook_path), update_links=False, read_only=False)
-        return app, book, True, False
+        return app, book, True, True
 
     @staticmethod
     def _same_path(candidate: Any, target: Path) -> bool:
@@ -156,11 +175,11 @@ class ReportWorkbookRefreshService:
         try:
             book.api.RefreshAll()
         except Exception as exc:
-            logger.debug("Excel RefreshAll unavailable", error=str(exc))
+            logger.warning("Excel RefreshAll failed, Wind data may be stale", error=str(exc))
         try:
             book.api.Application.CalculateFullRebuild()
         except Exception as exc:
-            logger.debug("Excel CalculateFullRebuild unavailable", error=str(exc))
+            logger.warning("Excel CalculateFullRebuild failed", error=str(exc))
         try:
             app.calculate()
         except Exception as exc:

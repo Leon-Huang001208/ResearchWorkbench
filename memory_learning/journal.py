@@ -1,4 +1,5 @@
 """内存版学习日志。"""
+
 from __future__ import annotations
 
 from core.observability import get_logger

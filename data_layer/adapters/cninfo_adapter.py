@@ -5,16 +5,21 @@
 
 import json
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
 from core.contracts import DocumentEnvelope
-from core.contracts.pdf_conversion import ConversionResult
 from core.observability import get_logger
 from data_layer.adapters.base import BaseDataAdapter
 from data_layer.crawlers.cninfo.cninfo import CninfoConfig, CninfoCrawler
+from data_layer.repositories.base import SessionLocal
+from data_layer.repositories.models import PDFArtifactV1DB
+from data_layer.repositories.pdf_artifact_repository import (
+    add_pdf_artifact,
+    get_pdf_by_hash,
+)
 
 logger = get_logger(__name__)
 
@@ -251,7 +256,15 @@ class CninfoAdapter(BaseDataAdapter):
         max_bytes: int,
         preferred_converter: str,
     ) -> str:
-        """Download CNINFO attachment and append extracted text when available."""
+        """Download CNINFO attachment and register it as a pending PDF artifact.
+
+        下载公告附件 PDF 后注册到 ``pdf_artifact_v1``（``parse_status="pending"``），
+        由 CrawlScheduler 异步调用 PDFConversionService 走 MinerU→MarkItDown→RawText
+        三级降级管线。本方法不再就地转换，PDF 正文由路径 A 异步填充到独立 DocumentV1。
+
+        Returns:
+            base_text 原样返回（PDF 正文不再内联）。注册结果写入 metadata 供下游追踪。
+        """
         attachment_url = self._absolute_attachment_url(adjunct_url)
         if not attachment_url:
             metadata["attachment_text_status"] = "no_attachment"
@@ -274,37 +287,101 @@ class CninfoAdapter(BaseDataAdapter):
                 return base_text
 
             metadata["attachment_local_path"] = str(pdf_path)
-            conversion = self._convert_attachment_to_text(
-                pdf_path,
-                preferred_converter=preferred_converter,
-            )
-            metadata["attachment_text_status"] = (
-                "success" if conversion.get("success") else "conversion_failed"
-            )
-            metadata["attachment_text_strategy"] = conversion.get("strategy", "")
-            if conversion.get("page_count") is not None:
-                metadata["attachment_page_count"] = conversion.get("page_count")
-            if conversion.get("quality_score") is not None:
-                metadata["attachment_quality_score"] = conversion.get("quality_score")
-            if conversion.get("error_message"):
-                metadata["attachment_text_error"] = conversion.get("error_message")
 
-            text = str(conversion.get("text") or "").strip()
-            if not conversion.get("success") or not text:
+            pdf_id = self._register_pdf_artifact(
+                pdf_path,
+                announcement_id=str(metadata.get("announcement_id") or ""),
+                sec_code=str(metadata.get("sec_code") or ""),
+                sec_name=str(metadata.get("sec_name") or ""),
+                attachment_url=attachment_url,
+            )
+            if pdf_id is None:
+                metadata["attachment_text_status"] = "already_registered"
                 return base_text
 
-            metadata["attachment_text_chars"] = len(text)
-            metadata["content_source"] = "metadata_plus_attachment_text"
-            return f"{base_text}\n\n# 公告附件正文\n\n{text}"
+            metadata["attachment_text_status"] = "registered_pending"
+            metadata["attachment_pdf_id"] = pdf_id
+            metadata["content_source"] = "metadata_plus_attachment_pending"
+            return base_text
         except Exception as exc:
             logger.error(
-                "cninfo_attachment_text_failed",
+                "cninfo_attachment_register_failed",
                 extra={"attachment_url": attachment_url, "error": str(exc)},
                 exc_info=True,
             )
             metadata["attachment_text_status"] = "error"
             metadata["attachment_text_error"] = str(exc)
             return base_text
+
+    @staticmethod
+    def _register_pdf_artifact(
+        pdf_path: Path,
+        *,
+        announcement_id: str,
+        sec_code: str,
+        sec_name: str,
+        attachment_url: str,
+    ) -> str | None:
+        """计算哈希、去重、注册 PDFArtifactV1DB(parse_status=pending)。
+
+        参照 ZQ 研报爬虫 ``report_processor.py`` 的做法。已存在同哈希记录时返回 None。
+
+        Returns:
+            新注册 artifact 的 pdf_id；已存在则返回 None。
+        """
+        import hashlib
+
+        file_bytes = pdf_path.read_bytes()
+        file_hash = hashlib.sha256(file_bytes).hexdigest()
+        file_size = len(file_bytes)
+        file_name = pdf_path.name
+
+        # 相对路径（\\→/），对齐 ZQ 约定，供 PDFConversionService 读取
+        try:
+            relative_path = str(pdf_path.resolve().relative_to(Path.cwd().resolve()))
+        except ValueError:
+            relative_path = str(pdf_path)
+        relative_path = relative_path.replace("\\", "/")
+
+        db = SessionLocal()
+        try:
+            existing = get_pdf_by_hash(db, file_hash)
+            if existing is not None:
+                logger.info(
+                    "cninfo_attachment_already_registered",
+                    extra={"file_hash": file_hash, "pdf_id": existing.pdf_id},
+                )
+                return None
+
+            import uuid
+
+            pdf_id = f"pdf_{uuid.uuid4().hex[:12]}"
+            artifact = PDFArtifactV1DB(
+                pdf_id=pdf_id,
+                source_obj_id=announcement_id or None,
+                file_path=relative_path,
+                file_name=file_name,
+                file_size_bytes=file_size,
+                file_hash_sha256=file_hash,
+                source_type="cninfo_filings",
+                source_name="巨潮资讯网",
+                source_url=attachment_url,
+                fetch_timestamp=datetime.now(timezone.utc),
+                parse_status="pending",
+                pdf_metadata={
+                    "sec_code": sec_code,
+                    "sec_name": sec_name,
+                    "announcement_id": announcement_id,
+                },
+            )
+            add_pdf_artifact(db, artifact)
+            logger.info(
+                "cninfo_attachment_registered",
+                extra={"pdf_id": pdf_id, "file_hash": file_hash, "path": relative_path},
+            )
+            return pdf_id
+        finally:
+            db.close()
 
     @staticmethod
     def _absolute_attachment_url(adjunct_url: str | None) -> str | None:
@@ -388,56 +465,3 @@ class CninfoAdapter(BaseDataAdapter):
             )
             target_path.unlink(missing_ok=True)
             return None
-
-    def _convert_attachment_to_text(
-        self,
-        path: Path,
-        *,
-        preferred_converter: str,
-    ) -> dict[str, Any]:
-        """Convert a downloaded PDF to text using the existing converter strategies."""
-        strategies = self._candidate_converter_strategies(preferred_converter)
-        last_error = ""
-        for strategy in strategies:
-            if not strategy.is_available():
-                continue
-            result = strategy.convert(str(path))
-            normalized = self._conversion_to_dict(result)
-            if normalized.get("success") and normalized.get("text"):
-                return normalized
-            last_error = str(normalized.get("error_message") or "empty conversion result")
-
-        return {
-            "success": False,
-            "text": "",
-            "strategy": preferred_converter,
-            "error_message": last_error or "no available converter",
-        }
-
-    @staticmethod
-    def _candidate_converter_strategies(preferred_converter: str) -> list[Any]:
-        """Build converter strategy list in preferred order."""
-        from ingestion.converters.markitdown import MarkItDownStrategy
-        from ingestion.converters.raw_text import RawTextStrategy
-
-        preferred = preferred_converter.lower()
-        strategy_by_name = {
-            "markitdown": MarkItDownStrategy,
-            "raw_text": RawTextStrategy,
-        }
-        if preferred in strategy_by_name:
-            return [strategy_by_name[preferred]()]
-        return [MarkItDownStrategy(), RawTextStrategy()]
-
-    @staticmethod
-    def _conversion_to_dict(result: ConversionResult) -> dict[str, Any]:
-        """Normalize ConversionResult into the metadata shape used by CNINFO."""
-        text = (result.markdown or result.raw_text or "").strip()
-        return {
-            "success": result.success,
-            "text": text,
-            "strategy": result.strategy_used,
-            "page_count": result.page_count,
-            "quality_score": result.quality_score,
-            "error_message": result.error_message,
-        }

@@ -1,6 +1,7 @@
 """
 断言提取器 - 从文本中提取事实断言
 """
+
 import json
 import uuid
 from datetime import datetime

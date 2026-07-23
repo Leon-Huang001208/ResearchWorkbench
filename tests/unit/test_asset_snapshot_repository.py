@@ -1,4 +1,5 @@
 """Tests for AssetSnapshotRepositoryImpl."""
+
 from datetime import UTC, datetime
 
 from core.contracts import AssetAnalysisSnapshot

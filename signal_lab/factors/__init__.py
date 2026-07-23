@@ -1,4 +1,5 @@
 """Dynamic multi-factor research layer."""
+
 from core.contracts.factors import (
     DynamicFactorWeights,
     FactorCategory,

@@ -5,6 +5,7 @@ Defines the generic Repository interface and specialized repositories for entiti
 documents, assertions, events, reasoning traces, and asset analysis snapshots in
 AlphaFoundry.
 """
+
 from abc import ABC, abstractmethod
 from typing import Generic, List, Optional, TypeVar
 

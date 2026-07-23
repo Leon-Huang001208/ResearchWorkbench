@@ -3,6 +3,7 @@
 
 提供宏观经济相关的特征。
 """
+
 from typing import Any
 
 import pandas as pd
@@ -32,7 +33,9 @@ class MacroMomentumFeature(Feature):
     """宏观动量特征"""
 
     def __init__(self, factor: str = "market", window: int = 60):
-        super().__init__(name=f"{factor}_momentum_{window}d", description=f"{factor}的{window}日动量")
+        super().__init__(
+            name=f"{factor}_momentum_{window}d", description=f"{factor}的{window}日动量"
+        )
         self.factor = factor
         self.window = window
 

@@ -32,7 +32,7 @@ from core.settings.config import (
 
 logger = get_logger(__name__)
 
-SUPPORTED_SECTIONS = {"llm", "zhiqiu", "ifind", "database", "advanced"}
+SUPPORTED_SECTIONS = {"llm", "zhiqiu", "ifind", "database", "advanced", "web_search"}
 SECRET_SUFFIX_LENGTH = 4
 ZHIQIU_CONFIG_PATH = (
     Path(__file__).resolve().parents[1] / "data_layer" / "crawlers" / "zq" / "config.yaml"
@@ -120,6 +120,7 @@ class ConfigurationService:
             "llm": self._probe_llm,
             "zhiqiu": self._probe_zhiqiu,
             "ifind": self._probe_ifind,
+            "web_search": self._probe_web_search,
         }
         if connection_probes:
             self.connection_probes.update(connection_probes)
@@ -157,6 +158,7 @@ class ConfigurationService:
             "ifind": self._ifind_snapshot(values),
             "database": self._database_snapshot(values),
             "advanced": self._advanced_snapshot(values),
+            "web_search": self._web_search_snapshot(values),
         }
         readiness = {name: bool(section.pop("_ready", False)) for name, section in sections.items()}
         return {
@@ -224,7 +226,7 @@ class ConfigurationService:
 
     def test_section(self, section: str, payload: Mapping[str, Any]) -> dict[str, Any]:
         """验证临时配置，不写文件也不改变进程环境。"""
-        if section not in {"llm", "zhiqiu", "ifind", "database"}:
+        if section not in {"llm", "zhiqiu", "ifind", "database", "web_search"}:
             raise ConfigurationError("该配置分区不支持连接测试")
         current = self.get_effective_values()
         updates, removals, _ = self._build_changes(section, payload, current)
@@ -240,6 +242,8 @@ class ConfigurationService:
             raise ConfigurationError("至少需要一个知秋账号")
         if section == "ifind" and not candidate.get("IFIND_USERNAME"):
             raise ConfigurationError("iFinD 用户名不能为空")
+        if section == "web_search" and not self._parse_web_search_keys(candidate):
+            raise ConfigurationError("至少需要一个联网搜索 API key")
         if section == "database":
             self._validate_database_url(candidate.get("DATABASE_URL", ""))
             return {"success": True, "message": "数据库地址格式验证通过"}
@@ -326,8 +330,6 @@ class ConfigurationService:
             client = ZhiQiuClient(
                 item["username"],
                 item["password_value"],
-                request_timeout=timeout,
-                failure_dump_path=None,
             )
             try:
                 if not client.login():
@@ -335,6 +337,22 @@ class ConfigurationService:
             finally:
                 client.close()
         return all_succeeded
+
+    @staticmethod
+    def _probe_web_search(candidate: Mapping[str, str], timeout: float) -> bool:
+        """验证至少一个 key 能成功完成一次搜索。"""
+        from data_layer.web_search import build_web_search_provider
+
+        keys = ConfigurationService._parse_web_search_keys(candidate)
+        usable = [item for item in keys if item["key_value"]]
+        if not usable:
+            return False
+        try:
+            provider = build_web_search_provider()
+            results = provider.search("ping", max_results=1)
+            return len(results) > 0
+        except Exception:
+            return False
 
     def _probe_ifind(self, candidate: Mapping[str, str], timeout: float) -> bool:
         """复用 iFinD 后端路由器完成登录和健康检查。"""
@@ -377,6 +395,7 @@ class ConfigurationService:
             "ifind": self._build_ifind_changes,
             "database": self._build_database_changes,
             "advanced": self._build_advanced_changes,
+            "web_search": self._build_web_search_changes,
         }
         return builders[section](payload, current)
 
@@ -446,7 +465,9 @@ class ConfigurationService:
                 updates[f"TASK_{task}_PROVIDER"] = self._required_string(
                     route.get("provider"), "任务 Provider"
                 )
-                updates[f"TASK_{task}_MODEL"] = self._required_string(route.get("model"), "任务模型")
+                updates[f"TASK_{task}_MODEL"] = self._required_string(
+                    route.get("model"), "任务模型"
+                )
             changed.add("task_routes")
         return updates, removals - updates.keys(), changed
 
@@ -497,6 +518,56 @@ class ConfigurationService:
         for field, (key, converter) in mapping.items():
             if field in payload:
                 updates[key] = converter(payload[field])
+                changed.add(field)
+        return updates, removals, changed
+
+    def _build_web_search_changes(
+        self, payload: Mapping[str, Any], current: Mapping[str, str]
+    ) -> tuple[dict[str, str], set[str], set[str]]:
+        updates: dict[str, str] = {}
+        removals: set[str] = set()
+        changed: set[str] = set()
+        existing = {item["name"]: item for item in self._parse_web_search_keys(current)}
+        if "accounts" in payload:
+            raw_accounts = payload.get("accounts")
+            if not isinstance(raw_accounts, list):
+                raise ConfigurationError("accounts 必须是列表")
+            accounts: list[dict[str, str]] = []
+            names: set[str] = set()
+            for item in raw_accounts:
+                if not isinstance(item, Mapping):
+                    raise ConfigurationError("API key 账号格式无效")
+                name = self._required_string(item.get("name"), "账号名称")
+                if name in names:
+                    raise ConfigurationError("API key 名称不能重复")
+                names.add(name)
+                original_name = str(item.get("original_name") or name)
+                old_key = str(existing.get(original_name, {}).get("key_value", ""))
+                key_value = self._merge_secret(
+                    item.get("key"), bool(item.get("clear_key", False)), old_key
+                )
+                accounts.append({"name": name, "key": key_value})
+            updates["WEB_SEARCH_API_KEYS"] = json.dumps(
+                accounts, ensure_ascii=False, separators=(",", ":")
+            )
+            changed.add("accounts")
+
+        scalar_mapping = {
+            "provider": ("WEB_SEARCH_PROVIDER", str),
+            "rotation_strategy": ("WEB_SEARCH_KEY_ROTATION", str),
+            "quota_limit": (
+                "WEB_SEARCH_KEY_QUOTA_LIMIT",
+                lambda v: self._bounded_int(v, 1, 100000),
+            ),
+            "max_results": (
+                "WEB_SEARCH_MAX_RESULTS",
+                lambda v: self._bounded_int(v, 1, 20),
+            ),
+            "timeout": ("WEB_SEARCH_TIMEOUT", lambda v: self._bounded_int(v, 1, 120)),
+        }
+        for field, (env_key, converter) in scalar_mapping.items():
+            if field in payload:
+                updates[env_key] = converter(payload[field])
                 changed.add(field)
         return updates, removals, changed
 
@@ -750,6 +821,18 @@ class ConfigurationService:
             for key, (attribute, converter) in mapping.items():
                 if key in values:
                     setattr(self.runtime_settings, attribute, converter(values[key]))
+        elif section == "web_search":
+            web_mapping = {
+                "WEB_SEARCH_PROVIDER": ("WEB_SEARCH_PROVIDER", str),
+                "WEB_SEARCH_API_KEYS": ("WEB_SEARCH_API_KEYS", str),
+                "WEB_SEARCH_KEY_ROTATION": ("WEB_SEARCH_KEY_ROTATION", str),
+                "WEB_SEARCH_KEY_QUOTA_LIMIT": ("WEB_SEARCH_KEY_QUOTA_LIMIT", int),
+                "WEB_SEARCH_MAX_RESULTS": ("WEB_SEARCH_MAX_RESULTS", int),
+                "WEB_SEARCH_TIMEOUT": ("WEB_SEARCH_TIMEOUT", int),
+            }
+            for key, (attribute, converter) in web_mapping.items():
+                if key in values:
+                    setattr(self.runtime_settings, attribute, converter(values[key]))
 
     def _llm_snapshot(self, values: Mapping[str, str]) -> dict[str, Any]:
         providers = self._parse_providers(values)
@@ -847,6 +930,26 @@ class ConfigurationService:
             "_ready": True,
         }
 
+    def _web_search_snapshot(self, values: Mapping[str, str]) -> dict[str, Any]:
+        keys = self._parse_web_search_keys(values)
+        public_keys = [
+            {
+                "original_name": item["name"],
+                "name": item["name"],
+                "key": self._secret_view(item["key_value"]),
+            }
+            for item in keys
+        ]
+        return {
+            "accounts": public_keys,
+            "provider": values.get("WEB_SEARCH_PROVIDER", "tavily"),
+            "rotation_strategy": values.get("WEB_SEARCH_KEY_ROTATION", "round_robin"),
+            "quota_limit": self._as_int(values.get("WEB_SEARCH_KEY_QUOTA_LIMIT"), 1000),
+            "max_results": self._as_int(values.get("WEB_SEARCH_MAX_RESULTS"), 5),
+            "timeout": self._as_int(values.get("WEB_SEARCH_TIMEOUT"), 15),
+            "_ready": any(bool(item["key_value"]) for item in keys),
+        }
+
     @staticmethod
     def _parse_providers(values: Mapping[str, str]) -> list[dict[str, str]]:
         groups: dict[int, dict[str, str]] = {}
@@ -939,6 +1042,30 @@ class ConfigurationService:
         if not username and not password:
             return []
         return [{"name": username or "primary", "username": username, "password_value": password}]
+
+    @staticmethod
+    def _parse_web_search_keys(values: Mapping[str, str]) -> list[dict[str, str]]:
+        """解析 WEB_SEARCH_API_KEYS JSON，回退到单 key TAVILY_API_KEY."""
+        structured = values.get("WEB_SEARCH_API_KEYS", "")
+        if structured:
+            try:
+                raw = json.loads(structured)
+                if isinstance(raw, list):
+                    return [
+                        {
+                            "name": str(item.get("name") or f"key_{idx}"),
+                            "key_value": str(item.get("key", "")),
+                        }
+                        for idx, item in enumerate(raw)
+                        if isinstance(item, dict) and item.get("key")
+                    ]
+            except (json.JSONDecodeError, TypeError):
+                logger.warning("解析 WEB_SEARCH_API_KEYS 失败，回退到单 key")
+        # 回退到单 key
+        single = values.get("TAVILY_API_KEY", "") or values.get("BING_API_KEY", "")
+        if single:
+            return [{"name": "default", "key_value": single}]
+        return []
 
     @staticmethod
     def _secret_view(value: str) -> dict[str, Any]:
@@ -1066,6 +1193,19 @@ class ConfigurationService:
             "LLM_EXTRACT_CHUNK_SIZE",
             "LLM_EXTRACT_CHUNK_OVERLAP",
             "LLM_EXTRACT_LONG_TEXT_THRESHOLD",
+            "WEB_SEARCH_PROVIDER",
+            "WEB_SEARCH_API_KEYS",
+            "TAVILY_API_KEY",
+            "BING_API_KEY",
+            "WEB_SEARCH_KEY_ROTATION",
+            "WEB_SEARCH_KEY_MAX_FAILURES",
+            "WEB_SEARCH_KEY_LOCK_SECONDS",
+            "WEB_SEARCH_KEY_COOLDOWN_SECONDS",
+            "WEB_SEARCH_KEY_QUOTA_LIMIT",
+            "WEB_SEARCH_MAX_RESULTS",
+            "WEB_SEARCH_FETCH_CONTENT",
+            "WEB_SEARCH_MAX_CHARS",
+            "WEB_SEARCH_TIMEOUT",
         }
         return key in static_keys or bool(
             re.match(r"^LLM_PROVIDER_\d+_", key) or re.match(r"^TASK_.+_(PROVIDER|MODEL)$", key)

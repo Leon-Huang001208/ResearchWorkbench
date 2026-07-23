@@ -1,4 +1,5 @@
 """测试 PDFConversionService"""
+
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
@@ -273,11 +274,13 @@ class TestConvertPdf:
         """策略返回失败结果时应更新为 error 状态"""
         mock_mineru.return_value.name = "mineru"
         mock_mineru.return_value.is_available.return_value = True
-        mock_mineru.return_value.convert.return_value = _make_error_result()
+        mock_mineru.return_value.convert.side_effect = lambda *a, **k: _make_error_result()
         mock_md.return_value.name = "markitdown"
-        mock_md.return_value.is_available.return_value = False
+        mock_md.return_value.is_available.return_value = True
+        mock_md.return_value.convert.side_effect = lambda *a, **k: _make_error_result()
         mock_raw.return_value.name = "raw_text"
-        mock_raw.return_value.is_available.return_value = False
+        mock_raw.return_value.is_available.return_value = True
+        mock_raw.return_value.convert.side_effect = lambda *a, **k: _make_error_result()
 
         artifact = _make_artifact()
         mock_repo.get_pdf_by_id.return_value = artifact
@@ -287,7 +290,7 @@ class TestConvertPdf:
         result = service.convert_pdf("pdf_001")
 
         assert result.success is False
-        assert result.error_message == "mineru: Conversion failed"
+        assert "Conversion failed" in result.error_message
         assert artifact.parse_status == "error"
 
     @patch("services.pdf_conversion_service.MinerUStrategy")
@@ -302,9 +305,11 @@ class TestConvertPdf:
         mock_mineru.return_value.is_available.return_value = True
         mock_mineru.return_value.convert.side_effect = RuntimeError("Unexpected crash")
         mock_md.return_value.name = "markitdown"
-        mock_md.return_value.is_available.return_value = False
+        mock_md.return_value.is_available.return_value = True
+        mock_md.return_value.convert.side_effect = lambda *a, **k: _make_error_result()
         mock_raw.return_value.name = "raw_text"
-        mock_raw.return_value.is_available.return_value = False
+        mock_raw.return_value.is_available.return_value = True
+        mock_raw.return_value.convert.side_effect = lambda *a, **k: _make_error_result()
 
         artifact = _make_artifact()
         mock_repo.get_pdf_by_id.return_value = artifact
@@ -456,9 +461,11 @@ class TestConvertPending:
             RuntimeError("Boom"),
         ]
         mock_md.return_value.name = "markitdown"
-        mock_md.return_value.is_available.return_value = False
+        mock_md.return_value.is_available.return_value = True
+        mock_md.return_value.convert.side_effect = lambda *a, **k: _make_error_result()
         mock_raw.return_value.name = "raw_text"
-        mock_raw.return_value.is_available.return_value = False
+        mock_raw.return_value.is_available.return_value = True
+        mock_raw.return_value.convert.side_effect = lambda *a, **k: _make_error_result()
 
         artifact1 = _make_artifact("pdf_001")
         artifact2 = _make_artifact("pdf_002")
@@ -554,9 +561,11 @@ class TestRetryFailed:
         # convert_pdf 内部会抛异常（因为 artifact 重置后 get_pdf_by_id 又被调用）
         mock_mineru.return_value.convert.side_effect = RuntimeError("Retry failed")
         mock_md.return_value.name = "markitdown"
-        mock_md.return_value.is_available.return_value = False
+        mock_md.return_value.is_available.return_value = True
+        mock_md.return_value.convert.side_effect = lambda *a, **k: _make_error_result()
         mock_raw.return_value.name = "raw_text"
-        mock_raw.return_value.is_available.return_value = False
+        mock_raw.return_value.is_available.return_value = True
+        mock_raw.return_value.convert.side_effect = lambda *a, **k: _make_error_result()
 
         artifact = _make_artifact("pdf_001", parse_status="error")
         mock_repo.get_pdf_by_id.return_value = artifact
@@ -738,11 +747,13 @@ class TestDocumentCreationFromConversion:
         """转换失败时不应创建 DocumentV1"""
         mock_mineru.return_value.name = "mineru"
         mock_mineru.return_value.is_available.return_value = True
-        mock_mineru.return_value.convert.return_value = _make_error_result()
+        mock_mineru.return_value.convert.side_effect = lambda *a, **k: _make_error_result()
         mock_md.return_value.name = "markitdown"
-        mock_md.return_value.is_available.return_value = False
+        mock_md.return_value.is_available.return_value = True
+        mock_md.return_value.convert.side_effect = lambda *a, **k: _make_error_result()
         mock_raw.return_value.name = "raw_text"
-        mock_raw.return_value.is_available.return_value = False
+        mock_raw.return_value.is_available.return_value = True
+        mock_raw.return_value.convert.side_effect = lambda *a, **k: _make_error_result()
 
         mock_repo.get_pdf_by_id.return_value = _make_artifact()
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Test the closed loop API"""
+
 import sys
 from pathlib import Path
 

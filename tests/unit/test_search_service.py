@@ -1,4 +1,5 @@
 """Unit tests for search_service."""
+
 from unittest.mock import MagicMock
 
 from services.search_service import GlobalSearchService

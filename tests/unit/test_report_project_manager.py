@@ -1,4 +1,5 @@
 """Tests for report project folder management."""
+
 from pathlib import Path
 
 import pytest

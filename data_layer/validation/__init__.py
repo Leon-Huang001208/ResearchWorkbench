@@ -3,6 +3,7 @@
 
 提供双源校验、复权对齐、时间窗口策略等功能。
 """
+
 from data_layer.validation.adjustment_normalizer import (
     AdjustmentInfo,
     AdjustmentNormalizer,

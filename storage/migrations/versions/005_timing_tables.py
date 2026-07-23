@@ -5,6 +5,7 @@ Revises: 004
 Create Date: 2026-05-07
 
 """
+
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP

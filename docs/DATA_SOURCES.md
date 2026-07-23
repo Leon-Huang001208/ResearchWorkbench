@@ -37,7 +37,7 @@ Wind 适配器通过 xlwings 操控 macOS Excel 中的 Wind 插件获取数据�
 
 > **知丘研报 PDF 说明**：`zhiqiu_reports` 的定时抓取默认只抓研报元数据并入队，不在调度路径同步下载 PDF。PDF 下载/转换应由后续文档处理链路承接，避免远端下载耗时拖住增量抓取。
 
-> **CNINFO 附件文本元数据**：`data_layer/adapters/cninfo_adapter.py` 在启用附件转换时，会把 `attachment_text_status`、`attachment_text_strategy`、`attachment_page_count` 等字段写入 `DocumentEnvelope.metadata`。这些字段用于判断公告 PDF/附件是否成功转为可检索文本，不改变 CNINFO 的 source type 或分页查询参数。
+> **CNINFO 附件 PDF 入库**：`data_layer/adapters/cninfo_adapter.py` 在启用附件转换（`fetch_attachment_text=True`）时，下载公告附件 PDF 后注册到 `pdf_artifact_v1`（`parse_status="pending"`），由 CrawlScheduler 异步走 `PDFConversionService` 三级降级管线（MinerU→MarkItDown→RawText）。`metadata` 写入 `attachment_text_status`（`registered_pending` / `already_registered` / `download_failed` / `non_pdf_attachment` / `no_attachment`）和 `attachment_pdf_id`。PDF 正文不再内联到公告 `raw_text`，而是延迟约 5 分钟通过独立 DocumentV1 入队。详见 [docs/modules/pdf_conversion_pipeline.md](modules/pdf_conversion_pipeline.md#cninfo-附件路径已统一)。
 
 ### 添加新数据源
 
@@ -235,6 +235,30 @@ pip install -e ".[pdf-full]"
 
 详见 `docs/modules/pdf_conversion_pipeline.md`。
 
-## 2026-07-12 测试数据源隔离
+---
 
-爬虫与数据接入相关测试使用临时 SQLite 和受控适配器；真实 PostgreSQL 或供应商服务不会成为默认全仓回归的前置条件。
+## 联网搜索（查询时实时联网）
+
+与上述批量采集数据源不同，联网搜索面向"用户提问时实时上网搜索"，用于「提问优先联网查询」能力（`af ask` / `POST /api/llm/ask`）。不进 Connector 生命周期，不持久化入库，仅作为 LLM 回答的临时参考资料。
+
+| Provider | 配置项 | 说明 |
+| --- | --- | --- |
+| Tavily（默认） | `WEB_SEARCH_PROVIDER=tavily` + `TAVILY_API_KEY` | 专为 LLM 设计，直接返回正文+摘要 |
+| Bing | `WEB_SEARCH_PROVIDER=bing` + `BING_API_KEY` | 返回摘要+URL，正文由 `page_fetcher` 补抓 |
+
+相关配置（`core/settings/config.py`）：
+
+- `WEB_SEARCH_PROVIDER` — `tavily` / `bing`，可切换
+- `WEB_SEARCH_MAX_RESULTS` — 每次搜索最大结果数（默认 5）
+- `WEB_SEARCH_FETCH_CONTENT` — 是否补抓网页正文（默认 true）
+- `WEB_SEARCH_MAX_CHARS` — 单条正文截断字符数（默认 2000）
+- `WEB_SEARCH_TIMEOUT` — 请求超时秒数（默认 15）
+
+未配置 API key 时降级为不联网直答，答案前标注 `[未联网]`，不报错。
+
+相关文件：
+
+- `core/interfaces/web_search.py` — `WebSearchProvider` / `WebSearchResult` 抽象
+- `data_layer/web_search/` — Tavily / Bing provider + `page_fetcher`（trafilatura 抽正文）+ factory
+- `services/web_search_service.py` — 搜索服务内核
+- `services/ask_service.py` + `services/ask_factory.py` — 统一问答内核与装配

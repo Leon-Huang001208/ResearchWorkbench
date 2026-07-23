@@ -2,6 +2,7 @@
 
 管理 etl_run 表的 CRUD 操作。
 """
+
 from datetime import datetime, timezone
 from typing import Optional
 

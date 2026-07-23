@@ -3,6 +3,7 @@ BaoStock 数据适配器 - A 股数据源
 
 提供 A 股市场数据，作为 AKShare 的补充或降级数据源。
 """
+
 from datetime import datetime
 from typing import List, Optional
 

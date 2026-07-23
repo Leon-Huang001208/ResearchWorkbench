@@ -7,6 +7,7 @@
 3. 判断是否通过校验
 4. 生成详细报告
 """
+
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum

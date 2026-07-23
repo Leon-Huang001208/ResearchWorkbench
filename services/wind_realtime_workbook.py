@@ -3,29 +3,33 @@
 from __future__ import annotations
 
 import math
+import os
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Iterable, cast
+from typing import Any, Iterable
 from zoneinfo import ZoneInfo
 
 from openpyxl import Workbook, load_workbook
 
 from core.observability import get_logger
+from core.settings.paths import default_wind_workbook_path
 from services.wind_index_catalog import MARKET_VIEW_LABELS, load_wind_index_catalog
 
 logger = get_logger(__name__)
 SHANGHAI_TZ = ZoneInfo("Asia/Shanghai")
 
-DEFAULT_WORKBOOK_PATH = (
-    Path.home()
-    / "Library"
-    / "Application Support"
-    / "AlphaFoundry"
-    / "wind"
-    / "AlphaFoundry_Wind_Realtime.xlsx"
-)
+DEFAULT_WORKBOOK_PATH = default_wind_workbook_path()
+"""Wind 实时工作簿默认路径（跨平台，导入时按当前平台解析）。
+
+可被环境变量 ``ALPHAFOUNDRY_WIND_WORKBOOK_PATH`` 覆盖，详见
+:func:`resolve_workbook_path`。保留为模块级常量以兼容历史导入
+（``wind_workbook_manager`` 与 ``scripts/prime_wind_realtime_workbook``）。
+"""
+
+# 工作簿路径环境变量覆盖
+WIND_WORKBOOK_PATH_ENV = "ALPHAFOUNDRY_WIND_WORKBOOK_PATH"
 
 SNAPSHOT_HEADERS = [
     "view_key",
@@ -433,9 +437,19 @@ def _matrix_rows(values: Any) -> list[list[Any]]:
 
 
 def resolve_workbook_path(path: str | Path | None = None) -> Path:
-    if path is None or str(path).strip() == "":
-        return DEFAULT_WORKBOOK_PATH
-    return Path(path).expanduser()
+    """解析 Wind 实时工作簿路径。
+
+    优先级：
+        1. 显式参数 ``path``（非空）
+        2. 环境变量 ``ALPHAFOUNDRY_WIND_WORKBOOK_PATH``
+        3. 当前平台规范默认路径（见 :func:`core.settings.paths.default_wind_workbook_path`）
+    """
+    if path is not None and str(path).strip() != "":
+        return Path(path).expanduser()
+    env_path = os.environ.get(WIND_WORKBOOK_PATH_ENV)
+    if env_path and env_path.strip():
+        return Path(env_path).expanduser()
+    return DEFAULT_WORKBOOK_PATH
 
 
 def build_realtime_workbook(
@@ -451,9 +465,7 @@ def build_realtime_workbook(
             raise ValueError(f"Wind index catalog is empty: {catalog_path}")
         output_path.parent.mkdir(parents=True, exist_ok=True)
         workbook = Workbook()
-        active_sheet = workbook.active
-        if active_sheet is not None:
-            workbook.remove(active_sheet)
+        workbook.remove(workbook.active)
         sheets = {name: workbook.create_sheet(name) for name in WORKBOOK_SHEETS}
 
         sheets["README"]["A1"] = "AlphaFoundry Wind Realtime Workbook"
@@ -567,13 +579,21 @@ def build_realtime_workbook(
                 first_row = batch[0][1]
                 codes = ",".join(entry.code for entry, _row_number in batch)
                 row_count = len(batch)
+                # Use =wss() without the @ dynamic-array prefix.
+                # The @-prefix triggers Excel's dynamic-array spill engine,
+                # which the Wind WDF.Addin blocks when Excel is driven via
+                # COM automation (raises 0x800A03EC).  The plain =wss() with
+                # cols/rows parameters writes into the pre-allocated slot range
+                # and works correctly in both interactive and COM sessions.
                 sheets["RealtimeRaw"].cell(row=first_row, column=6).value = (
-                    f'=@wss("{codes}","sec_name,rt_last,rt_pct_chg",' f'"cols=3;rows={row_count}")'
+                    f'=wss("{codes}","sec_name,rt_last,rt_pct_chg",' f'"cols=3;rows={row_count}")'
                 )
                 wind_formula_count += 1
 
         sheets["Health"].append(["workbook_open", "true", generated_at, "文件已生成"])
-        sheets["Health"].append(["active_index_count", active_count, generated_at, "active 指数数量"])
+        sheets["Health"].append(
+            ["active_index_count", active_count, generated_at, "active 指数数量"]
+        )
         sheets["Health"].append(["formula_row_count", active_count, generated_at, "常驻公式行数"])
         sheets["Health"].append(
             [
@@ -645,24 +665,89 @@ def prime_realtime_workbook_formulas(
     )
     raw = book.sheets["RealtimeRaw"]
     primed_count = 0
+    # Maximum seconds to poll for Wind to fill G-column (rt_last) after writing a formula.
+    # 500-code batches can take up to ~90s; we poll in 5s ticks and give up gracefully.
+    _POLL_INTERVAL = 5.0
+    _POLL_MAX_SECONDS = 120.0
+    # Retry budget for COM-busy errors when writing a formula.
+    _MAX_WRITE_RETRIES = 10
+    _RETRY_PAUSE = 10.0
+
     for index in range(0, len(formulas), chunk_size):
         batch = formulas[index : index + chunk_size]
         for row_number, formula in batch:
-            try:
-                raw.range((row_number, 6)).formula = formula
-            except Exception as exc:
-                logger.warning(
-                    "Wind formula priming stopped because Excel is busy: primed=%s total=%s row=%s error=%s",
-                    primed_count,
-                    len(formulas),
-                    row_number,
-                    exc,
-                )
-                return primed_count
+            # ── Write the formula (with COM-busy retries) ──────────────────────
+            wrote_ok = False
+            for attempt in range(_MAX_WRITE_RETRIES):
+                try:
+                    raw.range((row_number, 6)).formula = formula
+                    wrote_ok = True
+                    break
+                except Exception as exc:
+                    if attempt < _MAX_WRITE_RETRIES - 1:
+                        logger.info(
+                            "Wind formula write busy, retrying in %.0fs: row=%s attempt=%s/%s error=%s",
+                            _RETRY_PAUSE,
+                            row_number,
+                            attempt + 1,
+                            _MAX_WRITE_RETRIES,
+                            exc,
+                        )
+                        time.sleep(_RETRY_PAUSE)
+                    else:
+                        logger.warning(
+                            "Wind formula priming stopped because Excel is busy after %s retries: "
+                            "primed=%s total=%s row=%s error=%s",
+                            _MAX_WRITE_RETRIES,
+                            primed_count,
+                            len(formulas),
+                            row_number,
+                            exc,
+                        )
+                        return primed_count
+            if not wrote_ok:
+                continue
+
             primed_count += 1
             logger.info("Primed Wind batch formula row %s", row_number)
-        if pause_seconds:
-            time.sleep(pause_seconds)
+
+            # ── Poll until Wind fills the G-column (rt_last / col 7) ─────────
+            # The Wind WDF.Addin holds a COM re-entry lock while it fetches data
+            # for the current =wss() batch.  We must wait for it to finish before
+            # writing the next formula, otherwise the next write raises 0x800A03EC.
+            # Polling on G (rt_last) is more reliable than a fixed sleep because
+            # the actual fetch time depends on the number of codes in the batch
+            # and the Wind server's response time (typically 10–90 s for 500 codes).
+            t_write = time.monotonic()
+            got_data = False
+            while time.monotonic() - t_write < _POLL_MAX_SECONDS:
+                try:
+                    g_val = raw.range((row_number, 7)).value
+                    if g_val is not None and g_val != "":
+                        try:
+                            if float(g_val) > 0:
+                                got_data = True
+                                break
+                        except (TypeError, ValueError):
+                            pass
+                except Exception:
+                    pass
+                time.sleep(_POLL_INTERVAL)
+
+            elapsed = time.monotonic() - t_write
+            if got_data:
+                logger.info(
+                    "Wind batch formula computed: row=%s elapsed=%.0fs G=%s",
+                    row_number,
+                    elapsed,
+                    raw.range((row_number, 7)).value,
+                )
+            else:
+                logger.warning(
+                    "Wind batch formula did not fill G-column in %.0fs: row=%s — continuing anyway",
+                    _POLL_MAX_SECONDS,
+                    row_number,
+                )
 
     try:
         book.app.calculate()
@@ -726,7 +811,26 @@ def _find_or_open_xlwings_book(
                     return candidate
 
     app = xw.apps.active or xw.App(visible=False)
-    return app.books.open(str(path), update_links=False, read_only=read_only)
+    try:
+        app.display_alerts = False
+    except Exception as exc:
+        logger.debug("Unable to suppress Excel alerts: %s", exc)
+    # xlRepairFile=2 suppresses the Excel 16 "repair/Protected View" COM dialog
+    # that otherwise blocks Workbooks.Open in headless COM sessions (0x800A03EC).
+    XL_REPAIR_FILE = 2
+    try:
+        raw_wb = app.api.Workbooks.Open(
+            str(path),
+            UpdateLinks=0,
+            ReadOnly=read_only,
+            CorruptLoad=XL_REPAIR_FILE,
+        )
+        return xw.Book(raw_wb.FullName)
+    except Exception as exc:
+        logger.debug(
+            "COM open with CorruptLoad failed (%s); falling back to xlwings books.open", exc
+        )
+        return app.books.open(str(path), update_links=False, read_only=read_only)
 
 
 def _load_workbook_health_metrics(path: Path) -> dict[str, str]:
@@ -903,7 +1007,7 @@ def parse_snapshot_rows(
         message = "Wind快照全部解析失败，请检查Excel公式或Wind刷新状态"
     elif not parsed_rows:
         status = "snapshot_empty"
-        message = "Wind快照暂无可用数据"
+        message = "Wind快照暂无数据，请确认Wind插件已登录"
 
     return WorkbookSnapshot(
         rows=tuple(parsed_rows),
@@ -997,8 +1101,10 @@ def _format_index_display_name(name: str) -> str:
 def _parse_float(value: object) -> float | None:
     if value is None or value == "":
         return None
+    if not isinstance(value, (str, int, float, bytes)):
+        return None
     try:
-        parsed = float(cast(Any, value))
+        parsed = float(value)
     except (TypeError, ValueError):
         return None
     return parsed if math.isfinite(parsed) else None

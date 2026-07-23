@@ -1,4 +1,5 @@
 """Wind 仓储层单元测试"""
+
 from unittest.mock import MagicMock, patch
 
 import pytest

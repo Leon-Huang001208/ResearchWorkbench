@@ -1,4 +1,5 @@
 """资产候选搜索索引测试。"""
+
 from datetime import datetime, timezone
 from unittest.mock import patch
 

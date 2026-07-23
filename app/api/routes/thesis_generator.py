@@ -1,4 +1,5 @@
 """投资主题生成路由"""
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from core.contracts.events import CanonicalEvent

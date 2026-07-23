@@ -6,6 +6,7 @@
 - 主题关键词匹配
 - 实体识别辅助
 """
+
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Optional, Set
@@ -216,7 +217,16 @@ class TaxonomyService:
                 name="锂电池",
                 level=IndustryLevel.LEVEL_3,
                 parent_id="new_energy",
-                keywords=["锂电", "锂电池", "动力电池", "正极", "负极", "隔膜", "电解液", "宁德时代"],
+                keywords=[
+                    "锂电",
+                    "锂电池",
+                    "动力电池",
+                    "正极",
+                    "负极",
+                    "隔膜",
+                    "电解液",
+                    "宁德时代",
+                ],
             ),
         ]
 

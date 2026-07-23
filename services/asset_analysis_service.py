@@ -1,4 +1,5 @@
 """资产分析服务"""
+
 import asyncio
 import os
 from datetime import date, datetime, timedelta
@@ -170,46 +171,52 @@ class AssetAnalysisService:
         if latest_valuation:
             valuation = {
                 "pe_ttm": float(latest_valuation.pe_ttm) if latest_valuation.pe_ttm else None,
-                "pe_dynamic": float(latest_valuation.pe_dynamic)
-                if latest_valuation.pe_dynamic
-                else None,
+                "pe_dynamic": (
+                    float(latest_valuation.pe_dynamic) if latest_valuation.pe_dynamic else None
+                ),
                 "pb": float(latest_valuation.pb) if latest_valuation.pb else None,
                 "ps": float(latest_valuation.ps) if latest_valuation.ps else None,
-                "market_cap": float(latest_valuation.market_cap)
-                if latest_valuation.market_cap
-                else None,
-                "float_market_cap": float(latest_valuation.float_market_cap)
-                if latest_valuation.float_market_cap
-                else None,
+                "market_cap": (
+                    float(latest_valuation.market_cap) if latest_valuation.market_cap else None
+                ),
+                "float_market_cap": (
+                    float(latest_valuation.float_market_cap)
+                    if latest_valuation.float_market_cap
+                    else None
+                ),
             }
 
         financial = {}
         if latest_financial:
             financial = {
-                "report_date": latest_financial.report_date.isoformat()
-                if latest_financial.report_date
-                else None,
+                "report_date": (
+                    latest_financial.report_date.isoformat()
+                    if latest_financial.report_date
+                    else None
+                ),
                 "report_type": latest_financial.report_type,
-                "total_revenue": float(latest_financial.total_revenue)
-                if latest_financial.total_revenue
-                else None,
-                "net_profit": float(latest_financial.net_profit)
-                if latest_financial.net_profit
-                else None,
+                "total_revenue": (
+                    float(latest_financial.total_revenue)
+                    if latest_financial.total_revenue
+                    else None
+                ),
+                "net_profit": (
+                    float(latest_financial.net_profit) if latest_financial.net_profit else None
+                ),
                 "roe": float(latest_financial.roe) if latest_financial.roe else None,
                 "roa": float(latest_financial.roa) if latest_financial.roa else None,
-                "gross_margin": float(latest_financial.gross_margin)
-                if latest_financial.gross_margin
-                else None,
-                "net_margin": float(latest_financial.net_margin)
-                if latest_financial.net_margin
-                else None,
-                "debt_ratio": float(latest_financial.debt_ratio)
-                if latest_financial.debt_ratio
-                else None,
-                "total_assets": float(latest_financial.total_assets)
-                if latest_financial.total_assets
-                else None,
+                "gross_margin": (
+                    float(latest_financial.gross_margin) if latest_financial.gross_margin else None
+                ),
+                "net_margin": (
+                    float(latest_financial.net_margin) if latest_financial.net_margin else None
+                ),
+                "debt_ratio": (
+                    float(latest_financial.debt_ratio) if latest_financial.debt_ratio else None
+                ),
+                "total_assets": (
+                    float(latest_financial.total_assets) if latest_financial.total_assets else None
+                ),
             }
 
         shareholder = {}
@@ -397,12 +404,16 @@ class AssetAnalysisService:
         flow_dict = snapshot.fund_flow
         card.capital_flow = CapitalFlow(
             main_net=flow_dict.get("main_net_inflow", 0),
-            main_inflow=flow_dict.get("main_net_inflow", 0)
-            if flow_dict.get("main_net_inflow", 0) > 0
-            else 0,
-            main_outflow=abs(flow_dict.get("main_net_inflow", 0))
-            if flow_dict.get("main_net_inflow", 0) < 0
-            else 0,
+            main_inflow=(
+                flow_dict.get("main_net_inflow", 0)
+                if flow_dict.get("main_net_inflow", 0) > 0
+                else 0
+            ),
+            main_outflow=(
+                abs(flow_dict.get("main_net_inflow", 0))
+                if flow_dict.get("main_net_inflow", 0) < 0
+                else 0
+            ),
             northbound_flow=flow_dict.get("northbound_holding"),
         )
 

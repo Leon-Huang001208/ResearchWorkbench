@@ -1,4 +1,5 @@
 """Tests for official evidence retrieval from DocumentV1 records."""
+
 from datetime import UTC, datetime
 
 from core.contracts import DocType, DocumentV1, SourceType

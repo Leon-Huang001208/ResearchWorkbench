@@ -1,4 +1,5 @@
 """报告模板"""
+
 from pathlib import Path
 
 from reporting.templates.template_manager import TemplateManager

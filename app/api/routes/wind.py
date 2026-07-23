@@ -3,6 +3,7 @@
 通过 xlwings 操控 macOS Excel Wind 插件获取专业数据。
 提供一致预期、融资融券、龙虎榜、日行情、财务报表、行业分类、资金流向、持有人数据查询。
 """
+
 from datetime import date
 
 from fastapi import APIRouter, HTTPException

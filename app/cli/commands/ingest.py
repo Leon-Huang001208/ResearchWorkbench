@@ -1,6 +1,7 @@
 """
 数据摄入 CLI 命令
 """
+
 from pathlib import Path
 from typing import Optional
 

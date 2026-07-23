@@ -1,4 +1,7 @@
 """资产分析路由"""
+
+from __future__ import annotations
+
 from datetime import datetime
 from typing import cast
 
@@ -11,15 +14,9 @@ from cognitive_agents import AgentWorkflowResult
 from core.contracts import AssetAnalysisCard, AssetAnalysisSnapshot
 from core.interfaces.repository import AssetSnapshotRepository
 from core.observability import get_logger
-from data_layer.coordinator.multi_source_coordinator import get_coordinator
 from data_layer.repositories.base import get_db
 from data_layer.repositories.documents_v1 import DocumentV1Repository
 from data_layer.repositories.event_repository import EventRepositoryImpl
-from ingestion import KnowledgePipeline
-from services.asset_agent_committee_service import AssetAgentCommitteeService
-from services.asset_analysis_service import AssetAnalysisService
-from services.official_evidence_backfill_service import OfficialEvidenceBackfillService
-from services.official_evidence_service import OfficialEvidenceService
 
 router = APIRouter(prefix="/api/assets", tags=["assets"])
 logger = get_logger(__name__)
@@ -104,8 +101,10 @@ def _snapshot_to_response(snapshot: AssetAnalysisSnapshot) -> AnalyzeResponse:
 
 def get_asset_service(db: Session = Depends(get_db)) -> AssetAnalysisService:
     """获取资产分析服务实例"""
+    from data_layer.coordinator.multi_source_coordinator import get_coordinator
     from data_layer.repositories.market_data_repository import MarketDataRepository
     from data_layer.repositories.postgres_asset_snapshot_repo import PostgresAssetSnapshotRepository
+    from services.asset_analysis_service import AssetAnalysisService
 
     repo = PostgresAssetSnapshotRepository(db_session=db)
     coordinator = get_coordinator()
@@ -121,6 +120,9 @@ def get_asset_committee_service(
     db: Session = Depends(get_db),
 ) -> AssetAgentCommitteeService:
     """获取资产多 Agent 委员会服务实例"""
+    from services.asset_agent_committee_service import AssetAgentCommitteeService
+    from services.official_evidence_service import OfficialEvidenceService
+
     official_evidence = OfficialEvidenceService(DocumentV1Repository(db))
     return AssetAgentCommitteeService(service, official_evidence_provider=official_evidence)
 
@@ -129,6 +131,9 @@ def get_official_evidence_backfill_service(
     db: Session = Depends(get_db),
 ) -> OfficialEvidenceBackfillService:
     """获取巨潮官方证据回补服务实例"""
+    from ingestion import KnowledgePipeline
+    from services.official_evidence_backfill_service import OfficialEvidenceBackfillService
+
     document_repo = DocumentV1Repository(db)
     event_repo = EventRepositoryImpl(db)
     pipeline = KnowledgePipeline(event_repo=event_repo)

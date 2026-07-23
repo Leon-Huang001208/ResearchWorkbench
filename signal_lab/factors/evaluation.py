@@ -1,4 +1,5 @@
 """Factor evaluation metrics for dynamic multi-factor research."""
+
 from __future__ import annotations
 
 from datetime import date

@@ -14,6 +14,7 @@ Usage:
     result = connector.run(dataset="announcements", start_date="2026-01-01",
                            end_date="2026-06-02", plate="szse")
 """
+
 from __future__ import annotations
 
 import json

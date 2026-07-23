@@ -1,4 +1,5 @@
 """Knowledge Worker 单元测试"""
+
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -90,6 +91,8 @@ class TestProcessOne:
         mock_result = MagicMock()
         mock_result.events = []
         mock_result.entities = []
+        mock_result.assertions = []
+        mock_result.chunks = []
         mock_pipeline = MagicMock()
         mock_pipeline.process = AsyncMock(return_value=mock_result)
 
@@ -137,6 +140,118 @@ class TestProcessOne:
         assert fields["title"] == "Important title"
         assert fields["content_hash"] == doc.content_hash
         assert "Very long crawled article body" not in repr(fields)
+
+
+class TestWorkerStatusSelfHealing:
+    """测试 get_all_worker_statuses() 的孤儿 PID 文件自愈"""
+
+    def test_orphaned_pid_file_is_removed_and_excluded(self, tmp_path, monkeypatch):
+        """PID 文件存在但进程已死亡 → 删除文件，不返回该条目"""
+        from workers import knowledge_worker
+
+        # 准备 logs 目录，放入一个孤儿 PID 文件
+        logs_dir = tmp_path / "logs"
+        logs_dir.mkdir()
+        orphan_pid = logs_dir / "knowledge_worker_1.pid"
+        orphan_pid.write_text("99999")
+
+        monkeypatch.setattr(knowledge_worker, "PROJECT_DIR", tmp_path)
+
+        # 进程 99999 不存在 → get_process_status 返回 alive=False
+        statuses = knowledge_worker.get_all_worker_statuses()
+
+        assert statuses == []
+        assert not orphan_pid.exists()
+
+    def test_alive_worker_returned_and_file_kept(self, tmp_path, monkeypatch):
+        """存活的 worker → 返回条目且保留 PID 文件"""
+        import os
+
+        from workers import knowledge_worker
+
+        logs_dir = tmp_path / "logs"
+        logs_dir.mkdir()
+        current_pid = os.getpid()
+        alive_pid_file = logs_dir / "knowledge_worker.pid"
+        alive_pid_file.write_text(str(current_pid))
+
+        monkeypatch.setattr(knowledge_worker, "PROJECT_DIR", tmp_path)
+
+        statuses = knowledge_worker.get_all_worker_statuses()
+
+        assert len(statuses) == 1
+        assert statuses[0]["alive"] is True
+        assert statuses[0]["pid"] == current_pid
+        assert statuses[0]["worker_id"] is None
+        assert alive_pid_file.exists()
+
+    def test_mixed_alive_and_orphan(self, tmp_path, monkeypatch):
+        """混合场景：存活 worker 保留，孤儿文件清理，只返回存活的"""
+        import os
+
+        from workers import knowledge_worker
+
+        logs_dir = tmp_path / "logs"
+        logs_dir.mkdir()
+        current_pid = os.getpid()
+        alive_file = logs_dir / "knowledge_worker_1.pid"
+        alive_file.write_text(str(current_pid))
+        orphan_file = logs_dir / "knowledge_worker_2.pid"
+        orphan_file.write_text("99999")
+
+        monkeypatch.setattr(knowledge_worker, "PROJECT_DIR", tmp_path)
+
+        statuses = knowledge_worker.get_all_worker_statuses()
+
+        assert len(statuses) == 1
+        assert statuses[0]["worker_id"] == 1
+        assert statuses[0]["alive"] is True
+        assert alive_file.exists()
+        assert not orphan_file.exists()
+
+
+class TestParseArgsWorkerId:
+    """测试 _parse_args 从环境变量读取 worker_id（frozen 模式下由 watchdog 注入）"""
+
+    def test_worker_id_from_env_when_cli_absent(self, monkeypatch):
+        from workers.knowledge_worker import _parse_args
+
+        monkeypatch.setattr("sys.argv", ["knowledge_worker"])
+        monkeypatch.setenv("ALPHAFOUNDRY_WORKER_ID", "4")
+
+        args = _parse_args()
+
+        assert args.worker_id == 4
+
+    def test_cli_worker_id_takes_precedence(self, monkeypatch):
+        from workers.knowledge_worker import _parse_args
+
+        monkeypatch.setattr("sys.argv", ["knowledge_worker", "--worker-id", "2"])
+        monkeypatch.setenv("ALPHAFOUNDRY_WORKER_ID", "9")
+
+        args = _parse_args()
+
+        assert args.worker_id == 2
+
+    def test_no_worker_id_when_both_absent(self, monkeypatch):
+        from workers.knowledge_worker import _parse_args
+
+        monkeypatch.setattr("sys.argv", ["knowledge_worker"])
+        monkeypatch.delenv("ALPHAFOUNDRY_WORKER_ID", raising=False)
+
+        args = _parse_args()
+
+        assert args.worker_id is None
+
+    def test_invalid_env_worker_id_ignored(self, monkeypatch):
+        from workers.knowledge_worker import _parse_args
+
+        monkeypatch.setattr("sys.argv", ["knowledge_worker"])
+        monkeypatch.setenv("ALPHAFOUNDRY_WORKER_ID", "not-a-number")
+
+        args = _parse_args()
+
+        assert args.worker_id is None
 
 
 class TestStuckRecovery:

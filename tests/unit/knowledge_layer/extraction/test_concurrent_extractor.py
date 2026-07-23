@@ -1,4 +1,5 @@
 """测试并发 LLM 抽取器"""
+
 from unittest.mock import Mock
 
 from knowledge_layer.extraction.concurrent_extractor import (

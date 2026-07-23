@@ -1,4 +1,5 @@
 """AkShare API 封装层 - 直接调用 akshare Python 包"""
+
 import json
 import os
 import time
@@ -138,7 +139,9 @@ class AkShareClient:
             if not kline_data:
                 return pd.DataFrame()
             # 解析腾讯K线数据：[日期,开盘,收盘,最高,最低,成交量,...]
-            df = pd.DataFrame(kline_data, columns=["日期", "开盘", "收盘", "最高", "最低", "成交量"])
+            df = pd.DataFrame(
+                kline_data, columns=["日期", "开盘", "收盘", "最高", "最低", "成交量"]
+            )
             # 转换日期格式为 YYYYMMDD
             df["日期"] = df["日期"].str.replace("-", "")
             # 转换数值列为 float

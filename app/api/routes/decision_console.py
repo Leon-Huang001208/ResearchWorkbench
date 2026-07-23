@@ -1,4 +1,5 @@
 """Decision Console API — 分析师循环决策控制台路由"""
+
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -57,7 +58,8 @@ class RecordDecisionRequest(BaseModel):
     candidate_type: str = Field(..., description="候选类型: signal/portfolio_candidate/proposal")
     previous_status: str = Field(..., description="之前状态")
     action_type: str = Field(
-        ..., description="决策动作类型: approve/watch/reject/defer/revise_thesis/add_to_paper_portfolio"
+        ...,
+        description="决策动作类型: approve/watch/reject/defer/revise_thesis/add_to_paper_portfolio",
     )
     action_by: str = Field(..., description="决策人ID/名称")
     rationale: str = Field(..., description="决策理由")

@@ -1,4 +1,5 @@
 """Tests for CNINFO KnowledgePipeline backfill service."""
+
 from datetime import UTC, datetime
 
 import pytest

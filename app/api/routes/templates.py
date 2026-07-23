@@ -1,6 +1,7 @@
 """
 模板管理 API 路由 - 支持 DOCX/PPTX/Excel 模板上传、占位符发现、报告渲染
 """
+
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
@@ -12,10 +13,13 @@ from pydantic import BaseModel, Field
 
 from core.contracts import SectionOutput
 from core.observability import get_logger
-from reporting.templates.template_manager import TemplateManager
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/templates", tags=["templates"])
+
+_template_manager = None
+
+from reporting.templates.template_manager import TemplateManager
 
 template_manager = TemplateManager()
 
@@ -486,7 +490,9 @@ async def render_template_report(request: RenderReportRequest):
         raise HTTPException(status_code=500, detail=f"Failed to render report: {str(e)}")
 
 
-@router.post("/render-from-asset", response_model=RenderReportResponse, summary="从资产ID直接渲染报告")
+@router.post(
+    "/render-from-asset", response_model=RenderReportResponse, summary="从资产ID直接渲染报告"
+)
 async def render_report_from_asset(request: RenderReportFromAssetRequest):
     """
     简化版API：直接从资产ID渲染报告
@@ -667,7 +673,9 @@ async def download_template_file(template_name: str, file_type: TemplateFileType
         raise HTTPException(status_code=500, detail=f"Failed to download template: {str(e)}")
 
 
-@router.get("/{template_name}/config", response_model=TemplateConfigResponse, summary="获取模板配置")
+@router.get(
+    "/{template_name}/config", response_model=TemplateConfigResponse, summary="获取模板配置"
+)
 async def get_template_config(template_name: str, file_type: str = "docx"):
     """
     获取模板的占位符配置

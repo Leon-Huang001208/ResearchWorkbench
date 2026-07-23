@@ -3,6 +3,7 @@ Excel 文档投影 - 将报告输出为 Excel 格式.
 
 Supports data tables, chart generation, and template-based Excel.
 """
+
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path

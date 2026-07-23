@@ -3,6 +3,7 @@ BaoStock 行情数据获取器
 
 实现与 AkShare 相同的接口，返回统一的 MarketData 结构。
 """
+
 from datetime import date, datetime, timedelta
 from typing import List, Optional
 

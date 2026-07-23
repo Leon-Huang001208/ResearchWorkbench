@@ -4,6 +4,7 @@ Core contracts for the review framework (cognitive blackboard, review cards, con
 This module defines Pydantic models for the review framework, including review positions,
 evidence references, review cards, cognitive blackboard, and conflict detection summaries in AlphaFoundry.
 """
+
 from enum import Enum
 from typing import Dict, List, Optional
 

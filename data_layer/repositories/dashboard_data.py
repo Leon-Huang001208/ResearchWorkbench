@@ -1,4 +1,5 @@
 """Dashboard 专用数据仓储"""
+
 import json
 import re
 from datetime import UTC, datetime, timedelta

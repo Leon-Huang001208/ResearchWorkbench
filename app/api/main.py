@@ -1,7 +1,21 @@
 """AlphaFoundry API"""
+
 import sys
+import time
 from pathlib import Path
 from typing import Any, Dict
+
+# 把项目根目录加入path（必须在其他本地导入之前）
+script_path = Path(__file__).resolve()
+project_root = script_path.parent.parent.parent  # app/api/main.py → project root
+sys.path.insert(0, str(project_root))
+
+# 日志必须在所有其他模块导入前配置，否则模块级 get_logger(__name__)
+# 会在 structlog.configure() 之前创建 PrintLogger 实例，导致 Windows
+# 上 print() 抛 OSError: [Errno 22] Invalid argument。
+from core.observability import setup_logging
+
+setup_logging()
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,11 +24,6 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.responses import Response
 from starlette.types import Scope
-
-# 把项目根目录加入path
-script_path = Path(__file__).resolve()
-project_root = script_path.parent.parent.parent  # app/api/main.py → project root
-sys.path.insert(0, str(project_root))
 
 from app.api.configuration_security import (
     APPLICATION_CORS_ORIGINS,
@@ -25,7 +34,7 @@ from app.api.configuration_security import (
     parse_trusted_hosts,
     validate_cors_trusted_host_consistency,
 )
-from core.observability import configure_logging, get_logger
+from core.observability import get_logger
 
 __all__ = [
     "app",
@@ -36,6 +45,9 @@ __all__ = [
 
 logger = get_logger(__name__)
 
+# 后端启动时间戳，供前端轮询检测后端重启后自动刷新页面
+_STARTUP_TIMESTAMP: str = str(time.time())
+
 
 app = FastAPI(
     title="AlphaFoundry API",
@@ -44,9 +56,8 @@ app = FastAPI(
 
 
 @app.on_event("startup")
-def startup() -> None:
-    """Startup hook: configure logging and check database connection"""
-    configure_logging()
+async def startup() -> None:
+    """Startup hook: check database connection and init services"""
     logger.info("AlphaFoundry API starting up...")
     # Explicit database connection check on API startup + schema ensure
     from data_layer.repositories.base import check_database_connection, ensure_schema
@@ -61,13 +72,93 @@ def startup() -> None:
     except Exception as exc:
         logger.warning("Wind realtime workbook background startup skipped: %s", exc)
 
+    # 自动启动数据获取调度器（在 async 上下文中，AsyncIOScheduler 可正常拿到事件循环）
+    _start_data_acquisition_schedulers()
+
+
+def _start_data_acquisition_schedulers() -> None:
+    """自动启动数据获取调度器"""
+    logger = get_logger(__name__)
+
+    # 尝试启动市场数据调度器
+    try:
+        from services.market_data_scheduler import get_market_data_scheduler
+
+        scheduler = get_market_data_scheduler()
+        if not scheduler.running:
+            scheduler.start()
+            logger.info("市场数据调度器已启动")
+        else:
+            logger.info("市场数据调度器已在运行中")
+    except ImportError as e:
+        logger.warning("无法导入市场数据调度器: %s", e)
+    except Exception as e:
+        logger.error("启动市场数据调度器失败: %s", e, exc_info=True)
+
+    # 尝试启动爬虫调度器
+    try:
+        from services.crawl_scheduler import get_crawl_scheduler
+
+        scheduler = get_crawl_scheduler()
+        if not scheduler.running:
+            scheduler.start()
+            logger.info("爬虫调度器已启动")
+        else:
+            logger.info("爬虫调度器已在运行中")
+    except ImportError as e:
+        logger.warning("无法导入爬虫调度器: %s", e)
+    except Exception as e:
+        logger.error("启动爬虫调度器失败: %s", e, exc_info=True)
+
+    # 检查 APScheduler 可用性
+    try:
+        import apscheduler  # noqa: F401
+
+        logger.info("APScheduler 可用，数据获取调度器已配置")
+    except ImportError:
+        logger.warning("APScheduler 不可用，数据获取调度器将不会运行")
+
 
 @app.on_event("shutdown")
 def shutdown() -> None:
     """Shutdown hook"""
     logger.info("AlphaFoundry API shutting down...")
+    # 停止数据获取调度器
+    _stop_data_acquisition_schedulers()
 
 
+def _stop_data_acquisition_schedulers() -> None:
+    """停止数据获取调度器"""
+    logger = get_logger(__name__)
+
+    # 尝试停止市场数据调度器
+    try:
+        from services.market_data_scheduler import get_market_data_scheduler
+
+        scheduler = get_market_data_scheduler()
+        if scheduler.running:
+            scheduler.stop()
+            logger.info("市场数据调度器已停止")
+    except (ImportError, AttributeError):
+        pass
+    except Exception as e:
+        logger.error("停止市场数据调度器失败: %s", e, exc_info=True)
+
+    # 尝试停止爬虫调度器
+    try:
+        from services.crawl_scheduler import get_crawl_scheduler
+
+        scheduler = get_crawl_scheduler()
+        if scheduler.running:
+            scheduler.stop()
+            logger.info("爬虫调度器已停止")
+    except (ImportError, AttributeError):
+        pass
+    except Exception as e:
+        logger.error("停止爬虫调度器失败: %s", e, exc_info=True)
+
+
+# ─── CORS（收紧为配置驱动的域名白名单）──────────────────
 app.add_middleware(
     CORSMiddleware,
     allow_origins=APPLICATION_CORS_ORIGINS,
@@ -75,6 +166,8 @@ app.add_middleware(
     allow_methods=["GET", "PUT", "POST", "OPTIONS"],
     allow_headers=["Content-Type", "X-AlphaFoundry-Config-Token"],
 )
+
+# ─── TrustedHost（防止 Host header 注入）────────────────
 app.add_middleware(
     TrustedHostMiddleware,
     allowed_hosts=CONFIGURATION_TRUSTED_HOSTS,
@@ -210,6 +303,19 @@ async def index() -> HTMLResponse:
             "Expires": "0",
         },
     )
+
+
+@app.get("/_version")
+async def backend_version() -> Dict[str, Any]:
+    """后端版本/启动时间戳。
+
+    前端可定期轮询此端点，当 startup_ts 变化时自动刷新页面，
+    从而在后端重启（如 uvicorn --reload）后无需手动 Ctrl+R。
+    """
+    return {
+        "startup_ts": _STARTUP_TIMESTAMP,
+        "version": app.version,
+    }
 
 
 @app.get("/health")

@@ -1,4 +1,5 @@
 """Static PPTX template projection for report projects."""
+
 from __future__ import annotations
 
 import re

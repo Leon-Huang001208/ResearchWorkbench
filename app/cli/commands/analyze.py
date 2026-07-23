@@ -1,4 +1,5 @@
 """资产分析命令"""
+
 import asyncio
 from datetime import datetime
 from pathlib import Path

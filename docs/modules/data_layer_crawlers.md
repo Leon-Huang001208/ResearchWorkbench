@@ -103,6 +103,26 @@ Update this section when:
 
 ---
 
+### `data_layer/crawlers/zq/zhiqiu/account_manager.py`
+
+Purpose:
+
+- 并发安全的知丘账号管理器：文件锁协调多进程账号分配，账号状态持久化到 `.config_account_state.json`，支持租借（acquire/release）与轮换（round_robin/random/least_used）。
+- `AccountManager._load_config()` — 按优先级从环境变量加载账号：
+  1. `ZQ_ACCOUNTS_JSON`（结构化 JSON 数组，系统配置工作台保存时写入此格式）
+  2. `ZQ_ACCOUNTS`（旧版 `user:pass,user:pass` 逗号分隔格式）
+  3. `config.yaml` 的 `accounts` 字段（最后兜底）
+
+  > **链路对齐**：系统配置保存（`services/configuration_service.py::_build_zhiqiu_changes`）会写 `ZQ_ACCOUNTS_JSON` 并删除旧版 `ZQ_ACCOUNTS`，因此 `AccountManager` 必须读取 JSON 格式，否则运行时账号池为空。
+- `record_failure()` — 连续失败达到 `max_consecutive_failures`（默认 10）后 `is_disabled=true` 永久禁用账号。
+
+Update this section when:
+
+- 账号来源优先级或解析格式变化。
+- 账号轮换/租借/禁用策略变化。
+
+---
+
 ### `data_layer/crawlers/zq/zhiqiu/processors/report_processor.py`
 
 Purpose:
@@ -116,23 +136,6 @@ Update this section when:
 - PDF download/registration logic changes.
 - Report format detection changes.
 - PDF artifact metadata fields change.
-
----
-
-### `data_layer/crawlers/zq/zhiqiu/account_manager.py` and `client.py`
-
-Purpose:
-
-- Load ZhiQiu account credentials from runtime environment without exposing them through the configuration API.
-- Account source precedence is strict: when `ZQ_ACCOUNTS_JSON` exists it is authoritative (including valid `[]`); otherwise legacy `ZQ_ACCOUNTS=user:password,...` is used when present; only when both environment sources are absent may the existing YAML `accounts` map be used.
-- Invalid structured JSON, empty JSON, or entries missing a username/password do not fall through and resurrect legacy/YAML credentials. This fail-closed rule also avoids logging submitted secret content.
-- Structured JSON supports list or object input and preserves punctuation/non-ASCII credentials. The configuration center persists list form and removes legacy `ZQ_ACCOUNTS` when accounts are saved.
-- Rotation environment values (`ZQ_ROTATION_ENABLED`, strategy, retry delay/count, lease timeout, failure threshold) override compatible YAML values for newly created `AccountManager` instances.
-- `ZhiQiuClient.close()` releases the HTTP session; configuration connection tests create temporary clients, attempt login, and close every client without saving the candidate credentials.
-
-Update this section when:
-
-- ZhiQiu credential precedence, rotation overrides, account validation, or client resource lifecycle changes.
 
 ---
 
@@ -290,7 +293,3 @@ When files in this module change, check:
 
 - `connectors/` — 连接器实现通过 Wrapper-first 策略委托本模块的适配器（如 `CLSDocumentConnector` → `CLSAdapter`）。当前调度和 CLI 的统一入口是 Connector；`data_layer/adapters/` 只保留为连接器内部委托层和少量 legacy 调用层。
 - `core/connectors/` — 连接器抽象基类和注册表
-
-## 2026-07-12
-
-爬虫与市场数据测试在受控适配器和临时数据库中运行，默认回归不要求供应商 SDK、网络或 PostgreSQL。

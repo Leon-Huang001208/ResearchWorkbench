@@ -806,9 +806,9 @@ class DocumentV1DB(Base):
             source_metadata=contract.source_metadata,
             classification=contract.classification.model_dump() if contract.classification else {},
             quality=contract.quality.model_dump() if contract.quality else {},
-            evidence_profile=contract.evidence_profile.model_dump()
-            if contract.evidence_profile
-            else {},
+            evidence_profile=(
+                contract.evidence_profile.model_dump() if contract.evidence_profile else {}
+            ),
             timeliness=contract.timeliness.model_dump(mode="json") if contract.timeliness else {},
             processing=contract.processing.model_dump(mode="json") if contract.processing else {},
             review=contract.review.model_dump() if contract.review else {},
@@ -844,19 +844,25 @@ class DocumentV1DB(Base):
             content=self.content,
             doc_metadata=self.doc_metadata,
             source_metadata=self.source_metadata,
-            classification=DocumentClassification(**self.classification)
-            if self.classification
-            else DocumentClassification(),
+            classification=(
+                DocumentClassification(**self.classification)
+                if self.classification
+                else DocumentClassification()
+            ),
             quality=DocumentQuality(**self.quality) if self.quality else DocumentQuality(),
-            evidence_profile=DocumentEvidenceProfile(**self.evidence_profile)
-            if self.evidence_profile
-            else DocumentEvidenceProfile(),
-            timeliness=DocumentTimeliness(**self.timeliness)
-            if self.timeliness
-            else DocumentTimeliness(),
-            processing=DocumentProcessingMeta(**self.processing)
-            if self.processing
-            else DocumentProcessingMeta(),
+            evidence_profile=(
+                DocumentEvidenceProfile(**self.evidence_profile)
+                if self.evidence_profile
+                else DocumentEvidenceProfile()
+            ),
+            timeliness=(
+                DocumentTimeliness(**self.timeliness) if self.timeliness else DocumentTimeliness()
+            ),
+            processing=(
+                DocumentProcessingMeta(**self.processing)
+                if self.processing
+                else DocumentProcessingMeta()
+            ),
             review=DocumentReview(**self.review) if self.review else DocumentReview(),
             extra=self.extra,
             source_name=self.source_name,

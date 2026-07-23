@@ -4,6 +4,7 @@ Revision ID: 011
 Revises: 010
 Create Date: 2026-06-24
 """
+
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -212,9 +213,7 @@ def _copy_legacy_index_components() -> None:
     if "index_component" not in inspector.get_table_names():
         return
 
-    bind.execute(
-        sa.text(
-            """
+    bind.execute(sa.text("""
             INSERT INTO index_component_snapshot (
                 index_id,
                 index_symbol,
@@ -246,6 +245,4 @@ def _copy_legacy_index_components() -> None:
                 created_at
             FROM index_component
             ON CONFLICT DO NOTHING
-            """
-        )
-    )
+            """))

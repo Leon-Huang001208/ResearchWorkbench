@@ -4,6 +4,7 @@ Core contracts for alpha signals, event alpha signals, and trade candidates.
 This module defines Pydantic models for alpha signals, event-driven alpha signals,
 and trade candidates in AlphaFoundry.
 """
+
 from datetime import datetime
 from typing import Literal, Optional
 

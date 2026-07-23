@@ -3,6 +3,7 @@
 
 隐藏 SQLAlchemy session 依赖
 """
+
 from abc import ABC, abstractmethod
 from typing import Dict, List
 

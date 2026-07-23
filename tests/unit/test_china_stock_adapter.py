@@ -1,4 +1,5 @@
 """China Stock 适配器单元测试"""
+
 from datetime import datetime
 from unittest.mock import patch
 

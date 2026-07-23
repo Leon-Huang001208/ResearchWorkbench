@@ -4,6 +4,7 @@ RAG 检索层契约 - Issue #45.
 定义检索配置、过滤条件、证据包等数据结构，支持多种检索 profiles、
 时间衰减、结构化过滤，以及报告与回测视角分离。
 """
+
 from collections.abc import Callable
 from datetime import datetime
 from enum import Enum
@@ -103,7 +104,9 @@ class RetrievalProfile(BaseModel):
 
     # 质量过滤
     min_research_usability: float = Field(0.0, ge=0.0, le=1.0, description="最小研究可用性")
-    min_source_reliability: Optional[SourceReliabilityLevel] = Field(None, description="最小来源可信度")
+    min_source_reliability: Optional[SourceReliabilityLevel] = Field(
+        None, description="最小来源可信度"
+    )
     allow_opinion_sources: bool = Field(True, description="是否允许观点来源")
 
     # 检索参数
@@ -166,12 +169,18 @@ class RetrievalFilters(BaseModel):
     entity_types: Optional[List[str]] = Field(None, description="实体类型列表")
 
     # 质量过滤
-    min_research_usability: Optional[float] = Field(None, ge=0.0, le=1.0, description="最小研究可用性")
-    min_source_reliability: Optional[SourceReliabilityLevel] = Field(None, description="最小来源可信度")
+    min_research_usability: Optional[float] = Field(
+        None, ge=0.0, le=1.0, description="最小研究可用性"
+    )
+    min_source_reliability: Optional[SourceReliabilityLevel] = Field(
+        None, description="最小来源可信度"
+    )
     min_evidence_quality: Optional[float] = Field(None, ge=0.0, le=1.0, description="最小证据质量")
 
     # 主观性过滤
-    allowed_subjectivity: Optional[List[SubjectivityLevel]] = Field(None, description="允许的主观性层级")
+    allowed_subjectivity: Optional[List[SubjectivityLevel]] = Field(
+        None, description="允许的主观性层级"
+    )
     only_fact_sources: bool = Field(False, description="仅事实来源")
 
     # 证据特征过滤
@@ -245,7 +254,9 @@ class EvidenceDocument(BaseModel):
     source_reliability: SourceReliabilityLevel = Field(
         default=SourceReliabilityLevel.UNKNOWN, description="来源可信度"
     )
-    subjectivity: SubjectivityLevel = Field(default=SubjectivityLevel.MIXED, description="主观性层级")
+    subjectivity: SubjectivityLevel = Field(
+        default=SubjectivityLevel.MIXED, description="主观性层级"
+    )
     evidence_quality: float = Field(0.0, ge=0.0, le=1.0, description="证据质量")
 
     # 分块（如果包含）

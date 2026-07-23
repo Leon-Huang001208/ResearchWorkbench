@@ -12,6 +12,7 @@ AlphaFoundry v1 文档 Repository.
 - source_cursor_v1 表的 CRUD 操作
 - report_run_v1 表的 CRUD 操作
 """
+
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 

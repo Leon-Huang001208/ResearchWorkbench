@@ -1,6 +1,7 @@
 """
 研报生成和性能报告API路由
 """
+
 from datetime import datetime
 from io import BytesIO
 
@@ -95,24 +96,18 @@ async def get_performance_report():
         db = SessionLocal()
         try:
             # Get outcome stats
-            outcome_result = db.execute(
-                text(
-                    """
+            outcome_result = db.execute(text("""
                 SELECT
                     COUNT(*) as total_outcomes,
                     AVG(outcome_return) as avg_return,
                     AVG(outcome_excess_return) as avg_excess_return,
                     COUNT(CASE WHEN outcome_return > 0 THEN 1 END) as win_count
                 FROM signal_outcome
-            """
-                )
-            )
+            """))
             outcome_row = outcome_result.fetchone()
 
             # Get event type breakdown
-            event_type_result = db.execute(
-                text(
-                    """
+            event_type_result = db.execute(text("""
                 SELECT
                     event_type,
                     COUNT(*) as count,
@@ -122,9 +117,7 @@ async def get_performance_report():
                 WHERE event_type IS NOT NULL
                 GROUP BY event_type
                 ORDER BY count DESC
-            """
-                )
-            )
+            """))
             event_type_breakdown = []
             for row in event_type_result:
                 event_type_breakdown.append(
@@ -137,9 +130,7 @@ async def get_performance_report():
                 )
 
             # Get recent outcomes
-            recent_result = db.execute(
-                text(
-                    """
+            recent_result = db.execute(text("""
                 SELECT
                     outcome_id,
                     subject_id,
@@ -152,9 +143,7 @@ async def get_performance_report():
                 FROM signal_outcome
                 ORDER BY created_at DESC
                 LIMIT 50
-            """
-                )
-            )
+            """))
             recent_outcomes = []
             for row in recent_result:
                 recent_outcomes.append(
@@ -175,13 +164,15 @@ async def get_performance_report():
                 "summary": {
                     "total_outcomes": outcome_row[0] if outcome_row[0] is not None else 0,
                     "avg_return": float(outcome_row[1]) if outcome_row[1] is not None else 0.0,
-                    "avg_excess_return": float(outcome_row[2])
-                    if outcome_row[2] is not None
-                    else 0.0,
+                    "avg_excess_return": (
+                        float(outcome_row[2]) if outcome_row[2] is not None else 0.0
+                    ),
                     "win_count": outcome_row[3] if outcome_row[3] is not None else 0,
-                    "win_rate": (outcome_row[3] / outcome_row[0])
-                    if outcome_row[0] and outcome_row[3]
-                    else 0.0,
+                    "win_rate": (
+                        (outcome_row[3] / outcome_row[0])
+                        if outcome_row[0] and outcome_row[3]
+                        else 0.0
+                    ),
                 },
                 "event_type_breakdown": event_type_breakdown,
                 "recent_outcomes": recent_outcomes,

@@ -1,4 +1,5 @@
 """China Stock 适配器子模块"""
+
 from .exceptions import (
     ChinaStockAdapterError,
     ChinaStockDataError,

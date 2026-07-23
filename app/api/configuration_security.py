@@ -49,6 +49,9 @@ def parse_cors_origins(raw_origins: str | None) -> list[str]:
 
 
 def _is_hostname_or_ipv4(value: str) -> bool:
+    # 显式允许 IPv6 loopback，使 http://[::1]:8765/ 这类本地访问可配进信任边界。
+    if value == "::1":
+        return True
     try:
         return ipaddress.ip_address(value).version == 4
     except ValueError:
@@ -106,7 +109,7 @@ def _configuration_origin_is_allowed(origin: str) -> bool:
     if not parsed_origins:
         return False
     hostname = urlsplit(origin).hostname
-    if hostname in {"localhost", "127.0.0.1"}:
+    if hostname in {"localhost", "127.0.0.1", "::1"}:
         return True
     return origin in CONFIGURATION_CORS_ORIGINS and hostname in CONFIGURATION_TRUSTED_HOSTS
 
@@ -119,4 +122,16 @@ def require_configuration_csrf_token(
     origin_forbidden = origin is not None and not _configuration_origin_is_allowed(origin)
     token_invalid = not secrets.compare_digest(submitted_token or "", CONFIGURATION_CSRF_TOKEN)
     if origin_forbidden or token_invalid:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+
+def require_configuration_origin_only(
+    origin: Annotated[str | None, Header(alias="Origin")] = None,
+) -> None:
+    """仅校验 Origin/Host 来源合法性，不校验 CSRF token。
+
+    用于 token 分发端点本身——该端点的职责就是颁发 token，
+    因此不能要求调用方预先持有 token。
+    """
+    if origin is not None and not _configuration_origin_is_allowed(origin):
         raise HTTPException(status_code=403, detail="Forbidden")

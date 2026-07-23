@@ -1,4 +1,5 @@
 """Agent 观点仓储实现"""
+
 from typing import Any, List, Optional, cast
 
 from core.contracts.agent_types import AgentView, BlackboardConflict

@@ -1,4 +1,5 @@
 """Tests for CNINFO crawler reliability behavior."""
+
 from data_layer.crawlers.cninfo import cninfo as cninfo_module
 from data_layer.crawlers.cninfo.cninfo import CninfoConfig, CninfoCrawler
 

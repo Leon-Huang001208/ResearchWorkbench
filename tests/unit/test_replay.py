@@ -1,4 +1,5 @@
 """回放服务单元测试 — 历史事件批量回放 & 信号校准"""
+
 import uuid
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock

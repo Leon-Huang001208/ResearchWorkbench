@@ -1,4 +1,5 @@
 """测试 MarkItDownStrategy"""
+
 from unittest.mock import MagicMock, patch
 
 import pytest

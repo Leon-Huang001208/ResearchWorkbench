@@ -2,7 +2,6 @@
 Issue #44 Unit Tests: Document Chunking, Taxonomy, Classification, and Enrichment
 """
 
-
 from core.contracts import DocType, DocumentV1, SourceType
 from core.utils.id_gen import generate_id
 from services.document_chunker import ChunkingOptions, DocumentChunker

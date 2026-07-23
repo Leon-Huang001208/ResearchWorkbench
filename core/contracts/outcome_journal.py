@@ -5,6 +5,7 @@ This module defines Pydantic models for structured outcome recording, failure
 classification, similar case retrieval, and weekly review reports, supporting
 the failure-memory engine in AlphaFoundry.
 """
+
 from datetime import datetime
 from enum import Enum
 from typing import List, Optional

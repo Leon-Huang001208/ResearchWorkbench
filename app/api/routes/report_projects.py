@@ -1,4 +1,7 @@
 """Report project API routes."""
+
+from __future__ import annotations
+
 import base64
 import hashlib
 import io
@@ -9,13 +12,16 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
+import uuid
 import xml.etree.ElementTree as ET
 import zipfile
 from copy import deepcopy
-from datetime import datetime
+from datetime import datetime, timedelta
 from html import escape
 from pathlib import Path
-from typing import Any, Callable, Dict, List
+from typing import Any, Dict, List
+from urllib.parse import quote
 
 import yaml
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
@@ -23,21 +29,51 @@ from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel, Field
 
 from core.observability import get_logger
-from reporting.projections.ppt import extract_pptx_placeholders
-from reporting.projects.chart_generation import ReportProjectChartService
-from reporting.projects.generation import ReportProjectGenerationService
-from reporting.projects.jobs import ReportGenerationJob, ReportGenerationJobService
-from reporting.projects.keyword_profiles import keyword_profiles_for_api
-from reporting.projects.plan import compile_report_plan
 from reporting.projects.project_manager import ReportProject, ReportProjectManager
-from reporting.projects.run import ReportProjectRunRequest, ReportProjectRunService
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/report-projects", tags=["report-projects"])
 
+# ── Reporting 服务（模块加载时初始化）─────────────────
+# PEP 562 __getattr__ 懒加载在 Python 3.13+ uvicorn 下对模块内部
+# LOAD_GLOBAL 访问失效，改用显式初始化。
+
 report_project_manager = ReportProjectManager()
-report_generation_service = ReportProjectGenerationService()
-report_chart_service = ReportProjectChartService()
+
+_report_generation_service = None
+_report_chart_service = None
+
+# ── 异步报告生成 Job Store ─────────────────────────────
+_report_job_store: dict[str, dict] = {}
+_report_job_store_lock = threading.Lock()
+_REPORT_JOB_TTL = timedelta(hours=1)
+
+
+def _get_report_generation_service():
+    """Lazily initialize the report generation service."""
+    global _report_generation_service
+    if _report_generation_service is None:
+        from data_layer.web_search import build_web_search_provider
+        from reporting.projects.generation import ReportProjectGenerationService
+        from services.web_search_service import WebSearchService
+
+        provider = build_web_search_provider()
+        web_search = WebSearchService(provider=provider) if provider else None
+        _report_generation_service = ReportProjectGenerationService(
+            web_search_service=web_search,
+        )
+    return _report_generation_service
+
+
+def _get_report_chart_service():
+    """Lazily initialize the report chart service."""
+    global _report_chart_service
+    if _report_chart_service is None:
+        from reporting.projects.chart_generation import ReportProjectChartService
+
+        _report_chart_service = ReportProjectChartService()
+    return _report_chart_service
+
 
 WORD_PREVIEW_LAYOUT_VERSION = "word-v1"
 WORD_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
@@ -97,6 +133,8 @@ class ReportProjectInfo(BaseModel):
     ppt_placeholders: List[str] = Field(default_factory=list)
     section_config: Dict[str, Any] = Field(default_factory=dict)
     section_config_source: str = ""
+    report_config: Dict[str, Any] = Field(default_factory=dict)
+    report_config_source: str = ""
     prompt_templates_source: str = ""
     compiled_plan: Dict[str, Any] = Field(default_factory=dict)
     keyword_profiles: Dict[str, Any] = Field(default_factory=dict)
@@ -155,22 +193,22 @@ class RenderReportProjectResponse(BaseModel):
     warnings: List[str] = Field(default_factory=list)
 
 
-class RenderReportJobResponse(BaseModel):
-    """Current state of one background report render."""
+class RenderJobCreatedResponse(BaseModel):
+    """Response returned when a render job is submitted."""
 
     job_id: str
-    project_slug: str
+    status_url: str
+
+
+class RenderJobStatusResponse(BaseModel):
+    """Response returned when polling a render job's status."""
+
     status: str
     phase: str
     message: str
-    created_at: datetime
-    started_at: datetime | None = None
-    completed_at: datetime | None = None
     completed_sections: int = 0
     total_sections: int = 0
-    deduplicated: bool = False
-    status_url: str
-    result: RenderReportProjectResponse | None = None
+    result: dict | None = None
     error: str | None = None
 
 
@@ -181,33 +219,21 @@ class OpenReportProjectFolderResponse(BaseModel):
     folder_path: str
 
 
-def _run_background_report(
-    project: ReportProject,
-    request: ReportProjectRunRequest,
-    progress_callback: Callable[[Dict[str, Any]], None],
-):
-    section_config, _ = _read_section_config(project.section_config_path)
-    prompt_templates_source = _read_prompt_templates(project.prompt_templates_path)
-    return ReportProjectRunService(
-        generation_service=report_generation_service,
-        chart_service=report_chart_service,
-    ).execute(
-        project=project,
-        section_config=section_config,
-        prompt_templates_source=prompt_templates_source,
-        request=request,
-        progress_callback=progress_callback,
-    )
-
-
-report_generation_job_service = ReportGenerationJobService(runner=_run_background_report)
-
-
 @router.get("/", response_model=ReportProjectsListResponse, summary="列出报告项目")
 async def list_report_projects():
     """List report projects stored as project folders."""
     try:
-        projects = [_to_project_info(project) for project in report_project_manager.list_projects()]
+        projects = []
+        for project in report_project_manager.list_projects():
+            try:
+                projects.append(_to_project_info(project))
+            except Exception as exc:
+                logger.error(
+                    "Failed to serialize report project info",
+                    slug=project.slug,
+                    error=str(exc),
+                    exc_info=True,
+                )
         return ReportProjectsListResponse(projects=projects, total=len(projects))
     except Exception as exc:
         logger.exception("Failed to list report projects")
@@ -376,6 +402,8 @@ async def update_report_project_source(slug: str, request: UpdateReportProjectSo
                 _attach_prompt_templates(project.project_dir, target_path)
         elif request.source_kind == "section_config":
             target_path = project.section_config_path
+        elif request.source_kind == "report_config":
+            target_path = project.project_dir / "config" / "report_config.yaml"
         else:
             raise HTTPException(status_code=400, detail="Unsupported source kind")
 
@@ -399,113 +427,107 @@ async def update_report_project_source(slug: str, request: UpdateReportProjectSo
         )
 
 
-def _to_run_request(request: RenderReportProjectRequest) -> ReportProjectRunRequest:
-    return ReportProjectRunRequest(
-        placeholders=request.placeholders,
-        generate_from_config=request.generate_from_config,
-        lookback_days=request.lookback_days,
-        report_date=request.report_date,
-        data_scope=request.data_scope,
-        start_date=request.start_date,
-        end_date=request.end_date,
-    )
+def _run_refresh_in_com_thread(project: Any) -> Any:
+    """在 COM-initialized 线程中执行 Excel/Wind 刷新。
+
+    Windows COM 要求调用线程初始化 COM STA。xlwings 内部也会初始化，
+    但在 uvicorn asyncio 线程池中显式初始化更安全。
+    """
+    try:
+        import pythoncom
+
+        pythoncom.CoInitialize()
+    except ImportError:
+        pass
+
+    try:
+        from services.report_workbook_refresh import ReportWorkbookRefreshService
+
+        return ReportWorkbookRefreshService().refresh(project=project)
+    finally:
+        try:
+            import pythoncom
+
+            pythoncom.CoUninitialize()
+        except (ImportError, Exception):
+            pass
 
 
-def _to_render_response(run_result: Any) -> RenderReportProjectResponse:
-    return RenderReportProjectResponse(
-        success=True,
-        project_name=run_result.project_name,
-        slug=run_result.slug,
-        file_name=run_result.file_name,
-        file_path=str(run_result.output_path),
-        download_url=f"/api/report-projects/{run_result.slug}/download/{run_result.file_name}",
-        preview_url=f"/api/report-projects/{run_result.slug}/preview/{run_result.file_name}",
-        run_log_url=f"/api/report-projects/{run_result.slug}/runs/{run_result.run_log_path.name}",
-        generated_at=run_result.generated_at,
-        generated_placeholder_count=run_result.generated_placeholder_count,
-        evidence_count=run_result.evidence_count,
-        warnings=run_result.warnings,
-    )
+async def _refresh_report_workbook(project: Any, slug: str) -> None:
+    """Refresh the report project's Excel workbook via Wind/xlwings before generation.
 
+    在独立线程中运行 COM 刷新，避免阻塞 event loop 和 COM apartment 问题。
+    Failure is non-blocking: if the refresh fails (xlwings unavailable, Wind not
+    logged in, timeout, etc.), generation proceeds with the cached formula values.
+    """
+    excel_refresh_config = project.config.get("excel_refresh") or {}
+    if not excel_refresh_config.get("enabled"):
+        return
+    if project.excel_workbook_path.suffix.lower() not in {".xlsx", ".xlsm"}:
+        return
 
-def _to_render_job_response(job: ReportGenerationJob) -> RenderReportJobResponse:
-    return RenderReportJobResponse(
-        job_id=job.job_id,
-        project_slug=job.project_slug,
-        status=job.status,
-        phase=job.phase,
-        message=job.message,
-        created_at=job.created_at,
-        started_at=job.started_at,
-        completed_at=job.completed_at,
-        completed_sections=job.completed_sections,
-        total_sections=job.total_sections,
-        deduplicated=job.deduplicated,
-        status_url=(f"/api/report-projects/{job.project_slug}/render-jobs/{job.job_id}"),
-        result=_to_render_response(job.result) if job.result else None,
-        error=job.error,
-    )
+    try:
+        import asyncio
+
+        logger.info("Refreshing report workbook before generation", slug=slug)
+        refresh_result = await asyncio.to_thread(_run_refresh_in_com_thread, project)
+        logger.info(
+            "Report workbook refreshed",
+            slug=slug,
+            refreshed=refresh_result.refreshed,
+        )
+    except Exception as exc:
+        logger.warning(
+            "Report workbook refresh failed, continuing with cached data",
+            slug=slug,
+            error=str(exc),
+        )
 
 
 @router.post(
-    "/{slug}/render-jobs",
-    response_model=RenderReportJobResponse,
-    status_code=202,
-    summary="提交后台报告生成任务",
+    "/{slug}/render", response_model=RenderReportProjectResponse, summary="生成报告项目文档"
 )
-async def submit_report_project_render_job(
-    slug: str,
-    request: RenderReportProjectRequest,
-):
-    """Queue a report render without tying it to the HTTP request lifetime."""
-    try:
-        project = report_project_manager.get_project(slug)
-        _read_section_config(project.section_config_path)
-        job = report_generation_job_service.submit(
-            project=project,
-            request=_to_run_request(request),
-        )
-        return _to_render_job_response(job)
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"Report project not found: {slug}")
-    except HTTPException:
-        raise
-    except Exception as exc:
-        logger.exception("Failed to submit report render job", slug=slug)
-        raise HTTPException(status_code=500, detail=f"Failed to submit report render job: {exc}")
-
-
-@router.get(
-    "/{slug}/render-jobs/{job_id}",
-    response_model=RenderReportJobResponse,
-    summary="读取后台报告生成任务",
-)
-async def get_report_project_render_job(slug: str, job_id: str):
-    """Return a report job only when it belongs to the requested project."""
-    job = report_generation_job_service.get(job_id, project_slug=slug)
-    if job is None:
-        raise HTTPException(status_code=404, detail=f"Report render job not found: {job_id}")
-    return _to_render_job_response(job)
-
-
-@router.post("/{slug}/render", response_model=RenderReportProjectResponse, summary="生成报告项目文档")
 async def render_report_project(slug: str, request: RenderReportProjectRequest):
     """Render a report project into its own generated directory."""
+    from reporting.projects.run import ReportProjectRunRequest, ReportProjectRunService
+
     try:
         project = report_project_manager.get_project(slug)
+        await _refresh_report_workbook(project, slug)
         section_config, _ = _read_section_config(project.section_config_path)
         prompt_templates_source = _read_prompt_templates(project.prompt_templates_path)
         run_result = ReportProjectRunService(
-            generation_service=report_generation_service,
-            chart_service=report_chart_service,
+            generation_service=_get_report_generation_service(),
+            chart_service=_get_report_chart_service(),
         ).execute(
             project=project,
             section_config=section_config,
             prompt_templates_source=prompt_templates_source,
-            request=_to_run_request(request),
+            request=ReportProjectRunRequest(
+                placeholders=request.placeholders,
+                generate_from_config=request.generate_from_config,
+                lookback_days=request.lookback_days,
+                report_date=request.report_date,
+                data_scope=request.data_scope,
+                start_date=request.start_date,
+                end_date=request.end_date,
+            ),
         )
 
-        return _to_render_response(run_result)
+        return RenderReportProjectResponse(
+            success=True,
+            project_name=run_result.project_name,
+            slug=run_result.slug,
+            file_name=run_result.file_name,
+            file_path=str(run_result.output_path),
+            download_url=f"/api/report-projects/{run_result.slug}/download/{run_result.file_name}",
+            preview_url=f"/api/report-projects/{run_result.slug}/preview/{run_result.file_name}",
+            run_log_url=f"/api/report-projects/{run_result.slug}/runs/{run_result.run_log_path.name}",
+            generated_at=run_result.generated_at,
+            generated_placeholder_count=run_result.generated_placeholder_count,
+            evidence_count=run_result.evidence_count,
+            warnings=run_result.warnings,
+        )
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"Report project not found: {slug}")
     except Exception as exc:
@@ -513,7 +535,324 @@ async def render_report_project(slug: str, request: RenderReportProjectRequest):
         raise HTTPException(status_code=500, detail=f"Failed to render report project: {exc}")
 
 
-@router.get("/{slug}/preview/{file_name}", response_class=HTMLResponse, summary="预览报告项目生成文档")
+# ── 异步报告生成端点 ────────────────────────────────────
+
+
+# Job 文件持久化目录（服务重启后可从磁盘恢复 job 状态）
+def _job_files_dir(slug: str) -> Path:
+    """Return the directory where job state files are persisted."""
+    return report_project_manager.get_project(slug).project_dir / "jobs"
+
+
+def _job_file_path(job_id: str, slug: str | None = None) -> Path | None:
+    """Find a job file on disk by scanning all known project job dirs.
+
+    If *slug* is provided, looks only in that project's jobs dir;
+    otherwise scans all report projects.
+    """
+    if slug:
+        return _job_files_dir(slug) / f"{job_id}.json"
+    for proj in report_project_manager.list_projects():
+        candidate = _job_files_dir(proj.slug) / f"{job_id}.json"
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def _serialize_job(job: dict) -> dict:
+    """Convert datetime values to ISO strings for JSON serialization."""
+    out = dict(job)
+    for key in ("created_at", "updated_at"):
+        val = out.get(key)
+        if isinstance(val, datetime):
+            out[key] = val.isoformat()
+    return out
+
+
+def _deserialize_job(data: dict) -> dict:
+    """Convert ISO datetime strings back to datetime objects."""
+    out = dict(data)
+    for key in ("created_at", "updated_at"):
+        val = out.get(key)
+        if isinstance(val, str):
+            try:
+                out[key] = datetime.fromisoformat(val)
+            except ValueError:
+                pass
+    return out
+
+
+def _save_job_to_disk(job: dict) -> None:
+    """Persist a job record to disk so it survives server restarts."""
+    slug = job.get("slug")
+    if not slug:
+        return
+    try:
+        jobs_dir = _job_files_dir(slug)
+        jobs_dir.mkdir(parents=True, exist_ok=True)
+        path = jobs_dir / f"{job['job_id']}.json"
+        path.write_text(
+            json.dumps(_serialize_job(job), ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+    except Exception:
+        pass  # 文件写入失败不应阻塞主流程
+
+
+def _load_job_from_disk(job_id: str) -> dict | None:
+    """Try to load a job record from disk."""
+    path = _job_file_path(job_id)
+    if path is None or not path.exists():
+        return None
+    try:
+        return _deserialize_job(json.loads(path.read_text(encoding="utf-8")))
+    except Exception:
+        return None
+
+
+def _delete_job_from_disk(job_id: str, slug: str | None = None) -> None:
+    """Remove a job file from disk."""
+    path = _job_file_path(job_id, slug=slug)
+    if path and path.exists():
+        try:
+            path.unlink()
+        except Exception:
+            pass
+
+
+def _update_job(job_id: str, **kwargs: Any) -> None:
+    """Thread-safe partial update to a job record (memory + disk)."""
+    with _report_job_store_lock:
+        if job_id in _report_job_store:
+            _report_job_store[job_id].update(kwargs)
+            _report_job_store[job_id]["updated_at"] = datetime.now()
+            _save_job_to_disk(_report_job_store[job_id])
+
+
+def _cleanup_expired_jobs() -> None:
+    """Remove completed or failed jobs older than the TTL (memory + disk)."""
+    cutoff = datetime.now() - _REPORT_JOB_TTL
+    with _report_job_store_lock:
+        expired = [
+            jid
+            for jid, job in _report_job_store.items()
+            if job["status"] in ("completed", "failed") and job["updated_at"] < cutoff
+        ]
+        for jid in expired:
+            _delete_job_from_disk(jid, slug=_report_job_store[jid].get("slug"))
+            del _report_job_store[jid]
+
+
+def _run_report_render_job(
+    job_id: str, slug: str, project: Any, request: RenderReportProjectRequest
+) -> None:
+    """Background thread target: execute report generation and update job store."""
+    try:
+        # Phase: prepare
+        _update_job(
+            job_id,
+            status="running",
+            phase="prepare",
+            message="正在准备生成配置...",
+        )
+
+        # 在后台线程中直接调用 COM 刷新（线程已有独立上下文）
+        try:
+            _run_refresh_in_com_thread(project)
+        except Exception as exc:
+            logger.warning(
+                "Report workbook refresh failed in background job, continuing with cached data",
+                slug=slug,
+                error=str(exc),
+            )
+        section_config, _ = _read_section_config(project.section_config_path)
+        prompt_templates_source = _read_prompt_templates(project.prompt_templates_path)
+
+        total_placeholders = len(
+            [
+                k
+                for k, v in section_config.get("placeholders", {}).items()
+                if isinstance(v, dict) and v.get("prompt_template")
+            ]
+        )
+        _update_job(job_id, total_sections=max(total_placeholders, 1))
+
+        # Phase: generate
+        _update_job(
+            job_id,
+            phase="generate",
+            message=f"正在生成报告内容（共 {total_placeholders} 个段落）...",
+        )
+
+        from reporting.projects.run import ReportProjectRunRequest, ReportProjectRunService
+
+        run_result = ReportProjectRunService(
+            generation_service=_get_report_generation_service(),
+            chart_service=_get_report_chart_service(),
+        ).execute(
+            project=project,
+            section_config=section_config,
+            prompt_templates_source=prompt_templates_source,
+            request=ReportProjectRunRequest(
+                placeholders=request.placeholders,
+                generate_from_config=request.generate_from_config,
+                lookback_days=request.lookback_days,
+                report_date=request.report_date,
+                data_scope=request.data_scope,
+                start_date=request.start_date,
+                end_date=request.end_date,
+            ),
+        )
+
+        # Phase: render
+        _update_job(job_id, phase="render", message="正在渲染报告文档...")
+
+        # Phase: save
+        _update_job(job_id, phase="save", message="正在保存运行日志...")
+
+        # Completed
+        _update_job(
+            job_id,
+            status="completed",
+            phase="save",
+            message="报告生成完成",
+            completed_sections=total_placeholders,
+            result={
+                "success": True,
+                "project_name": run_result.project_name,
+                "slug": run_result.slug,
+                "file_name": run_result.file_name,
+                "file_path": str(run_result.output_path),
+                "download_url": (
+                    f"/api/report-projects/{run_result.slug}/download/{run_result.file_name}"
+                ),
+                "preview_url": (
+                    f"/api/report-projects/{run_result.slug}/preview/{run_result.file_name}"
+                ),
+                "run_log_url": (
+                    f"/api/report-projects/{run_result.slug}/runs/"
+                    f"{run_result.run_log_path.name}"
+                ),
+                "generated_at": run_result.generated_at.isoformat(),
+                "generated_placeholder_count": run_result.generated_placeholder_count,
+                "evidence_count": run_result.evidence_count,
+                "warnings": run_result.warnings,
+            },
+        )
+
+    except Exception as exc:
+        logger.exception("Report render job failed", job_id=job_id, slug=slug)
+        _update_job(
+            job_id,
+            status="failed",
+            phase="save",
+            message=f"生成失败: {exc}",
+            error=str(exc),
+        )
+
+
+@router.post(
+    "/{slug}/render-jobs",
+    response_model=RenderJobCreatedResponse,
+    summary="提交异步报告生成任务",
+)
+async def submit_report_render_job(slug: str, request: RenderReportProjectRequest):
+    """Submit a background report render job and return a polling URL."""
+    try:
+        project = report_project_manager.get_project(slug)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Report project not found: {slug}")
+
+    job_id = uuid.uuid4().hex
+    now = datetime.now()
+    job: dict[str, Any] = {
+        "job_id": job_id,
+        "slug": slug,
+        "status": "queued",
+        "phase": "queued",
+        "message": "任务已提交，等待执行",
+        "completed_sections": 0,
+        "total_sections": 0,
+        "result": None,
+        "error": None,
+        "created_at": now,
+        "updated_at": now,
+    }
+
+    with _report_job_store_lock:
+        _report_job_store[job_id] = job
+        _save_job_to_disk(job)
+
+    thread = threading.Thread(
+        target=_run_report_render_job,
+        args=(job_id, slug, project, request),
+        daemon=True,
+    )
+    thread.start()
+
+    status_url = f"/api/report-projects/{quote(slug, safe='')}/render-jobs/{job_id}"
+    logger.info("Submitted report render job", job_id=job_id, slug=slug)
+    return RenderJobCreatedResponse(job_id=job_id, status_url=status_url)
+
+
+@router.get(
+    "/{slug}/render-jobs/{job_id}",
+    response_model=RenderJobStatusResponse,
+    summary="查询异步报告生成任务状态",
+)
+async def get_report_render_job_status(slug: str, job_id: str):
+    """Poll the status of a background report render job.
+
+    Job state is stored in-memory for speed and mirrored to disk so it survives
+    server restarts.  On a cache miss the endpoint transparently recovers from disk.
+    """
+    _cleanup_expired_jobs()
+
+    with _report_job_store_lock:
+        job = _report_job_store.get(job_id)
+
+    # ── 磁盘回退：服务重启后内存为空，从磁盘恢复 ──
+    if job is None:
+        job = _load_job_from_disk(job_id)
+        if job is not None and job.get("slug") == slug:
+            # 恢复到内存供后续快速访问
+            with _report_job_store_lock:
+                _report_job_store[job_id] = job
+            # 已完成的任务仍返回结果；进行中的任务恢复为 queued（线程已丢失）
+            if job["status"] not in ("completed", "failed"):
+                _update_job(
+                    job_id,
+                    status="failed",
+                    phase="save",
+                    message="服务端重启导致任务丢失，请重新提交生成。",
+                    error="Server restarted — background thread was lost.",
+                )
+
+    if job is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Render job not found: {job_id}. It may have expired or never existed.",
+        )
+
+    if job["slug"] != slug:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Render job not found for project: {slug}",
+        )
+
+    return RenderJobStatusResponse(
+        status=job["status"],
+        phase=job["phase"],
+        message=job["message"],
+        completed_sections=job["completed_sections"],
+        total_sections=job["total_sections"],
+        result=job["result"],
+        error=job["error"],
+    )
+
+
+@router.get(
+    "/{slug}/preview/{file_name}", response_class=HTMLResponse, summary="预览报告项目生成文档"
+)
 async def preview_report_project_file(slug: str, file_name: str):
     """Render one generated docx as an inline HTML preview."""
     try:
@@ -581,6 +920,42 @@ async def get_report_project_preview_asset(slug: str, file_name: str, asset_name
             "Failed to read report project preview asset", slug=slug, file_name=file_name
         )
         raise HTTPException(status_code=500, detail=f"Failed to read preview asset: {exc}")
+
+
+@router.get("/{slug}/preview-manifest/{file_name}", summary="获取报告预览分页清单")
+async def get_report_project_preview_manifest(slug: str, file_name: str):
+    """Return page manifest (src URLs, dimensions, labels) for the page-image preview viewer."""
+    try:
+        project = report_project_manager.get_project(slug)
+        output_path = project.output_dir / file_name
+        if output_path.parent.resolve() != project.output_dir.resolve():
+            raise HTTPException(status_code=400, detail="Invalid generated report file name")
+        if not output_path.exists():
+            raise HTTPException(status_code=404, detail=f"Generated report not found: {file_name}")
+
+        if output_path.suffix.lower() != ".docx":
+            return {"fileName": file_name, "title": "预览", "pages": []}
+
+        asset_base_url = f"/api/report-projects/{project.slug}/preview-assets/{file_name}"
+        word_pdf = _build_word_pdf_preview(output_path)
+        pages: List[Dict[str, Any]] = []
+        if word_pdf:
+            pages = _render_pdf_preview_page_assets(word_pdf, output_path, asset_base_url)
+            if not pages:
+                pages = _render_pdf_preview_pages(word_pdf)
+
+        return {
+            "fileName": file_name,
+            "title": "Word 预览",
+            "pages": pages,
+        }
+    except HTTPException:
+        raise
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Report project not found: {slug}")
+    except Exception as exc:
+        logger.exception("Failed to build preview manifest", slug=slug, file_name=file_name)
+        raise HTTPException(status_code=500, detail=f"Failed to build preview manifest: {exc}")
 
 
 @router.get("/{slug}/download/{file_name}", summary="下载报告项目生成文档")
@@ -691,7 +1066,12 @@ def _open_folder_command(target_path: Path, *, folder_path: Path | None = None) 
 
 
 def _to_project_info(project: ReportProject) -> ReportProjectInfo:
+    from reporting.projections.ppt import extract_pptx_placeholders
+    from reporting.projects.keyword_profiles import keyword_profiles_for_api
+    from reporting.projects.plan import compile_report_plan
+
     section_config, section_config_source = _read_section_config(project.section_config_path)
+    report_config, report_config_source = _read_v2_config(project)
     prompt_templates_source = _read_prompt_templates(project.prompt_templates_path)
     compiled_plan = compile_report_plan(section_config, prompt_templates_source).to_dict()
     excel_exists = project.excel_workbook_path.is_file()
@@ -716,22 +1096,26 @@ def _to_project_info(project: ReportProject) -> ReportProjectInfo:
         excel_workbook_filename=project.excel_workbook_path.name if excel_exists else "",
         section_config_path=str(project.section_config_path),
         section_config_filename=project.section_config_path.name,
-        prompt_templates_path=str(project.prompt_templates_path)
-        if project.prompt_templates_path
-        else None,
-        prompt_templates_filename=project.prompt_templates_path.name
-        if project.prompt_templates_path
-        else None,
+        prompt_templates_path=(
+            str(project.prompt_templates_path) if project.prompt_templates_path else None
+        ),
+        prompt_templates_filename=(
+            project.prompt_templates_path.name if project.prompt_templates_path else None
+        ),
         data_source_files=[path.name for path in project.data_source_paths],
         data_assets=_list_project_data_assets(project, section_config),
-        word_placeholders=_extract_docx_placeholders(project.word_template_path)
-        if word_template_exists
-        else [],
-        ppt_placeholders=extract_pptx_placeholders(ppt_template_path)
-        if ppt_template_exists and ppt_template_path
-        else [],
+        word_placeholders=(
+            _extract_docx_placeholders(project.word_template_path) if word_template_exists else []
+        ),
+        ppt_placeholders=(
+            extract_pptx_placeholders(ppt_template_path)
+            if ppt_template_exists and ppt_template_path
+            else []
+        ),
         section_config=section_config,
         section_config_source=section_config_source,
+        report_config=report_config,
+        report_config_source=report_config_source,
         prompt_templates_source=prompt_templates_source,
         compiled_plan=compiled_plan,
         keyword_profiles=keyword_profiles_for_api(),
@@ -835,6 +1219,8 @@ def _build_default_section_config_source(word_path: Path) -> str:
 
 def _build_default_ppt_section_config_source(ppt_path: Path) -> str:
     """Build a minimal section config when only a PPT template is uploaded."""
+    from reporting.projections.ppt import extract_pptx_placeholders
+
     placeholders = {
         placeholder: {"type": "static", "value": ""}
         for placeholder in extract_pptx_placeholders(ppt_path)
@@ -879,6 +1265,20 @@ def _read_prompt_templates(path: Path | None) -> str:
     except Exception as exc:
         logger.warning("Failed to read prompt templates", path=str(path), error=str(exc))
         return ""
+
+
+def _read_v2_config(project: ReportProject) -> tuple[Dict[str, Any], str]:
+    """Read v2 report_config.yaml if it exists."""
+    v2_path = project.project_dir / "config" / "report_config.yaml"
+    if not v2_path.exists():
+        return {}, ""
+    try:
+        source = v2_path.read_text(encoding="utf-8")
+        config = yaml.safe_load(source) or {}
+        return config, source
+    except Exception as exc:
+        logger.warning("Failed to read v2 report config", path=str(v2_path), error=str(exc))
+        return {}, ""
 
 
 def _extract_docx_placeholders(path: Path) -> List[str]:

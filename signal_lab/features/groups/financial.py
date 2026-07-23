@@ -3,6 +3,7 @@
 
 提供财务指标相关的特征。
 """
+
 from typing import Any
 
 import numpy as np
@@ -58,7 +59,9 @@ class GrowthFeature(Feature):
     """营收/利润增长率特征"""
 
     def __init__(self, metric: str = "revenue", periods: int = 4):
-        super().__init__(name=f"{metric}_growth_{periods}q", description=f"{metric}{periods}季度增长率")
+        super().__init__(
+            name=f"{metric}_growth_{periods}q", description=f"{metric}{periods}季度增长率"
+        )
         self.metric = metric
         self.periods = periods
 

@@ -3,6 +3,7 @@
 
 Report validator checks quality and compliance of generated content.
 """
+
 from typing import List, Optional, Set
 
 from core.contracts import FactCard, SectionSpec, ValidationResult, ValidationResults
@@ -356,7 +357,9 @@ class ReportValidator:
             if fact_card.watch_points:
                 facts.extend([f"- 观察重点: {w}" for w in fact_card.watch_points])
 
-            evidence_parts = [f"证据{i+1}:\n{content}" for i, content in enumerate(evidence_content)]
+            evidence_parts = [
+                f"证据{i+1}:\n{content}" for i, content in enumerate(evidence_content)
+            ]
 
             facts_text = "\n".join(facts)
             evidence_text = "\n\n".join(evidence_parts)

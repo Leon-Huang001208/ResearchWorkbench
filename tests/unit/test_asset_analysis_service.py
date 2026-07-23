@@ -1,4 +1,5 @@
 """Tests for AssetAnalysisService."""
+
 from datetime import UTC, date, datetime
 from unittest.mock import AsyncMock, Mock, patch
 

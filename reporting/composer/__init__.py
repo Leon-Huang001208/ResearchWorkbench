@@ -1,4 +1,5 @@
 """报告合成器"""
+
 from reporting.composer.evidence_binder import BoundEvidence, EvidenceBinder
 from reporting.composer.fact_card_builder import FactCardBuilder
 from reporting.composer.report_composer import ReportComposer

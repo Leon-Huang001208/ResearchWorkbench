@@ -1,4 +1,5 @@
 """研究流水线服务"""
+
 import asyncio
 import uuid
 from typing import Any, List, Optional, cast
@@ -113,9 +114,9 @@ class ResearchPipeline:
                     {
                         "agent": v.agent_name,
                         "role": v.role.value if hasattr(v.role, "value") else str(v.role),
-                        "direction": v.direction.value
-                        if hasattr(v.direction, "value")
-                        else str(v.direction),
+                        "direction": (
+                            v.direction.value if hasattr(v.direction, "value") else str(v.direction)
+                        ),
                         "thesis": v.thesis,
                         "score": v.score,
                     }
@@ -415,9 +416,9 @@ class ResearchPipeline:
                 {
                     "agent": v.agent_name,
                     "role": v.role.value if hasattr(v.role, "value") else str(v.role),
-                    "direction": v.direction.value
-                    if hasattr(v.direction, "value")
-                    else str(v.direction),
+                    "direction": (
+                        v.direction.value if hasattr(v.direction, "value") else str(v.direction)
+                    ),
                     "thesis": v.thesis,
                     "score": v.score,
                 }

@@ -1,0 +1,35 @@
+{
+  "job_id": "64bf5f0a10134dd5a4bca53a82cf5001",
+  "slug": "华安ETF周报",
+  "status": "completed",
+  "phase": "save",
+  "message": "报告生成完成",
+  "completed_sections": 19,
+  "total_sections": 19,
+  "result": {
+    "success": true,
+    "project_name": "华安ETF周报",
+    "slug": "华安ETF周报",
+    "file_name": "2026-07-17_132943_华安ETF周报.docx",
+    "file_path": "D:\\Projects\\AlphaFoundry\\report_projects\\华安ETF周报\\generated\\2026-07-17_132943_华安ETF周报.docx",
+    "download_url": "/api/report-projects/华安ETF周报/download/2026-07-17_132943_华安ETF周报.docx",
+    "preview_url": "/api/report-projects/华安ETF周报/preview/2026-07-17_132943_华安ETF周报.docx",
+    "run_log_url": "/api/report-projects/华安ETF周报/runs/2026-07-17_132943.json",
+    "generated_at": "2026-07-17T13:29:43.230786",
+    "generated_placeholder_count": 23,
+    "evidence_count": 230,
+    "warnings": [
+      "A股市场回顾: 已从联网搜索获取 5 条补充",
+      "人工智能: 已从联网搜索获取 5 条补充",
+      "电子: 已从联网搜索获取 5 条补充",
+      "医药生物: 已从联网搜索获取 5 条补充",
+      "港股科技: 已从联网搜索获取 5 条补充",
+      "日本: 已从联网搜索获取 5 条补充",
+      "美国新闻: 已从联网搜索获取 5 条补充",
+      "原油: 已从联网搜索获取 5 条补充"
+    ]
+  },
+  "error": null,
+  "created_at": "2026-07-17T13:27:43.959481",
+  "updated_at": "2026-07-17T13:29:45.439704"
+}

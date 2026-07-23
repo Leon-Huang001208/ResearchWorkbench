@@ -1,4 +1,5 @@
 """内存资产快照仓储 — 无 DB 依赖，用于测试和 API 默认"""
+
 from datetime import datetime
 from typing import Dict, List, Optional
 

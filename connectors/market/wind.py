@@ -20,6 +20,7 @@ Usage:
     result = connector.run(dataset="daily_quotes", codes=["600519.SH"],
                            start_date="2026-01-01", end_date="2026-06-01")
 """
+
 from __future__ import annotations
 
 import json

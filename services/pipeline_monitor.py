@@ -3,6 +3,7 @@
 PipelineMonitor 是一个轻量级内存单例，记录管线事件的时间线，
 同时提供 DB 查询的聚合状态接口。
 """
+
 import threading
 import time
 from dataclasses import dataclass, field

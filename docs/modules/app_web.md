@@ -2,7 +2,7 @@
 
 ## Responsibility
 
-`app/web` provides the Web Workbench UI, including dashboard, research interface, candidate review, learning center, and the local system configuration center.
+`app/web` provides the Web Workbench UI, including dashboard, research interface, candidate review, and learning center.
 
 ---
 
@@ -43,10 +43,6 @@ Purpose:
 - Placeholder mapping shows every Word placeholder in first-seen order, builds draft mappings for missing entries, infers prompt/static/Excel placeholder types, supports embedded prompt retrieval queries for report projects such as `华安ETF周报`, and displays mapping status without truncating to the first eight placeholders.
 - Report rendering uses `/api/report-projects/{slug}/render`, shows download and preview actions, and loads the inline DOCX HTML preview from the returned `preview_url`.
 - Fund Intelligence panel logic lives in `app/web/static/js/funds.js` and calls `/api/funds/{symbol}`, `/api/funds/{symbol}/exposure`, `/api/funds/portfolio/exposure`, and `/api/funds/ingest` for fund detail, exposure, portfolio look-through, and structured row ingestion.
-- System configuration logic lives in `app/web/static/js/configuration.js`. Navigation initializes `section-config` once, loads `GET /api/config`, and keeps all mutation controls disabled until the first snapshot succeeds.
-- The page exposes five independently saved sections: LLM Providers/task routes, ZhiQiu accounts/rotation, iFinD, database, and advanced runtime parameters. It serializes per-section save/test requests, aborts stale refreshes, and does not overwrite dirty forms with late responses.
-- Secret controls are blank after reads. “留空” preserves an existing secret, while explicit clear checkboxes send `clear_api_key` or `clear_password`; Provider and ZhiQiu rows retain `original_name` in a `WeakMap` so renames preserve the correct saved secret without placing identity/secret state in DOM datasets.
-- API text is rendered with DOM `textContent`/`replaceChildren`; validation displays only sanitized field paths and messages. No secret is stored in Local Storage or rendered from `masked_value`.
 
 Update this section when:
 - New JS modules are added
@@ -85,7 +81,6 @@ Update this section when:
 - Page load verification
 - Main interaction flow testing
 - Frontend static regression tests for template workbench markup, source switching, placeholder mapping, upload button placement, and preview styles
-- Configuration static/Node regression tests for five-section wiring, blank-secret semantics, `original_name`, sanitized errors, request serialization, stale-load cancellation, and initial-read gating
 
 ---
 
@@ -102,6 +97,5 @@ When files in this module change, check:
 
 ## Recent Changes
 
-- 2026-07-12: 新增系统配置页面和 `configuration.js`，集中管理五个配置分区；秘密值只显示“已配置”状态，保存/测试请求串行化，首次读取成功前禁止修改，数据库保存明确提示重启生效。
 - 2026-06-25: 新增基金情报前端面板，左侧导航接入 `section-funds`，通过 `app/web/static/js/funds.js` 调用 Fund Intelligence API 展示基金详情、经理、持仓、行业暴露、组合穿透和结构化 rows 导入结果。
 - 2026-06-08: 模板工作台拆分 YAML 占位符映射与 Markdown Prompt 模板源码，源码编辑默认只读并通过 `/api/report-projects/{slug}/source` 写回项目文件；生成成功后显示下载入口和 Word HTML 预览；上传按钮从固定 dock 移到顶部工具栏。

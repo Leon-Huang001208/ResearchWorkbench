@@ -3,6 +3,7 @@ Yahoo Finance 新闻数据获取器
 
 注意：Yahoo 的新闻质量一般，适合作为辅助信息源。
 """
+
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional

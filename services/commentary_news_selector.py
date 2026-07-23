@@ -6,11 +6,6 @@ from datetime import datetime
 from typing import Iterable
 
 from core.contracts.commentary import CommentaryEvidenceItem
-from reporting.projects.generation import (
-    EvidenceSnippet,
-    RetrievalConfig,
-    filter_and_rank_evidence,
-)
 
 COMMENTARY_RETRIEVAL_TERMS: dict[str, list[str]] = {
     "daily-close": [
@@ -119,6 +114,12 @@ class CommentaryNewsSelector:
         limit: int = 6,
         extra_terms: Iterable[str] | None = None,
     ) -> list[CommentaryEvidenceItem]:
+        from reporting.projects.generation import (
+            EvidenceSnippet,
+            RetrievalConfig,
+            filter_and_rank_evidence,
+        )
+
         reported_items = [item for item in items if item.source_type in {"news", "research"}]
         if not reported_items:
             return []

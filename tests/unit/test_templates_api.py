@@ -1,6 +1,7 @@
 """
 测试模板管理 API
 """
+
 import io
 from pathlib import Path
 from unittest.mock import patch
@@ -11,6 +12,28 @@ from fastapi.testclient import TestClient
 from app.api.main import app
 
 client = TestClient(app)
+
+# 测试中会通过 API 在生产目录创建这些模板，测试完后必须清理
+_TEST_CLEANUP_NAMES = ["test_template", "api_test_template", "test_upload"]
+
+
+@pytest.fixture(autouse=True)
+def _cleanup_test_template_artifacts():
+    """每个测试后清理落入生产目录的测试模板产物。"""
+    yield
+    from reporting.templates.template_manager import TemplateManager
+
+    tm = TemplateManager()
+    for name in _TEST_CLEANUP_NAMES:
+        for file_type in ("docx", "pptx", "excel"):
+            try:
+                tm.delete_template_file(name, file_type)
+            except Exception:
+                pass
+        try:
+            tm.delete_template(name)
+        except Exception:
+            pass
 
 
 @pytest.fixture

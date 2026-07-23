@@ -1,4 +1,5 @@
 """Fusion of event alpha, dynamic factor alpha, timing, and risk penalties."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

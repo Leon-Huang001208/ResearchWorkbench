@@ -1,4 +1,5 @@
 """测试采集调度器"""
+
 from unittest.mock import Mock, patch
 
 from core.contracts import SourceType

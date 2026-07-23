@@ -37,9 +37,11 @@ def child_main(args: argparse.Namespace) -> None:
     Path(args.stdout).parent.mkdir(parents=True, exist_ok=True)
     Path(args.stderr).parent.mkdir(parents=True, exist_ok=True)
 
-    with open(os.devnull, "rb", buffering=0) as stdin, open(
-        args.stdout, "ab", buffering=0
-    ) as stdout, open(args.stderr, "ab", buffering=0) as stderr:
+    with (
+        open(os.devnull, "rb", buffering=0) as stdin,
+        open(args.stdout, "ab", buffering=0) as stdout,
+        open(args.stderr, "ab", buffering=0) as stderr,
+    ):
         try:
             proc = subprocess.Popen(
                 args.command,
@@ -60,6 +62,33 @@ def child_main(args: argparse.Namespace) -> None:
 
 def main() -> int:
     args = parse_args()
+
+    if not hasattr(os, "fork"):
+        # Windows: launch detached directly without fork
+        Path(args.pid_file).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.stdout).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.stderr).parent.mkdir(parents=True, exist_ok=True)
+        with (
+            open(args.stdout, "ab", buffering=0) as stdout,
+            open(args.stderr, "ab", buffering=0) as stderr,
+        ):
+            try:
+                proc = subprocess.Popen(
+                    args.command,
+                    cwd=args.cwd,
+                    stdin=subprocess.DEVNULL,
+                    stdout=stdout,
+                    stderr=stderr,
+                    close_fds=True,
+                    creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+                    | getattr(subprocess, "DETACHED_PROCESS", 0x00000008),
+                )
+                Path(args.pid_file).write_text(f"{proc.pid}\n", encoding="utf-8")
+            except Exception as exc:
+                print(f"daemonize failed to launch {args.command!r}: {exc}", file=sys.stderr)
+                return 1
+        return 0
+
     try:
         pid = os.fork()
     except OSError as exc:

@@ -31,9 +31,7 @@ logger = get_logger(__name__)
 
 def find_missing_docs(db):
     """查找 document_v1 中有但 canonical_event 中没有的文档"""
-    result = db.execute(
-        text(
-            """
+    result = db.execute(text("""
         SELECT d.doc_id, d.source_type, d.title, d.content,
                d.source_url, d.source_name, d.timeliness
         FROM document_v1 d
@@ -42,9 +40,7 @@ def find_missing_docs(db):
             WHERE ce.source_doc_id = d.doc_id
         )
         ORDER BY d.created_at
-    """
-        )
-    ).fetchall()
+    """)).fetchall()
     return result
 
 

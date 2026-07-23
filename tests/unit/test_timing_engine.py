@@ -1,4 +1,5 @@
 """Unit tests for the new unified timing engine and event study implementation"""
+
 import pytest
 
 from core.contracts.timing_engine import EventStudyMetrics, ReadinessScore, TimingFactors

@@ -1,4 +1,5 @@
 """Markdown 投影 - 将报告输出为 Markdown 格式"""
+
 from datetime import datetime
 from pathlib import Path
 from typing import Any

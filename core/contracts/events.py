@@ -5,6 +5,7 @@ This module defines Pydantic models that standardize event representations
 across the AlphaFoundry system, including canonical events extracted from
 documents with metadata, impact targeting, and scoring.
 """
+
 from datetime import datetime
 from typing import Literal, Optional
 

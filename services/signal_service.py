@@ -3,6 +3,7 @@
 
 提供信号生成和管理功能。
 """
+
 import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional

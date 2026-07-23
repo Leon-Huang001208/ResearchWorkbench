@@ -1,6 +1,7 @@
 """
 情景服务 - 专题研究报告生成
 """
+
 from pathlib import Path
 from typing import List, Optional
 

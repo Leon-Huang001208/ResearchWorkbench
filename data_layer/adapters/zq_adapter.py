@@ -1,4 +1,5 @@
 """知丘数据适配器"""
+
 import json
 import os
 from datetime import datetime

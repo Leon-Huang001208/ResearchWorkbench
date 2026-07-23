@@ -1,4 +1,5 @@
 """财联社 — 电报/快讯来源"""
+
 from core.contracts.documents_v1 import DocType, SourceReliabilityLevel, SourceType
 from core.source_registry import SourceSpec, register
 
@@ -18,6 +19,7 @@ register(
         doc_type=DocType.NEWS,
         reliability=SourceReliabilityLevel.ESTABLISHED_MEDIA,
         backfill_family="cls",
+        deep_backfill_enabled=True,
         retrieval_weight=1.0,
     )
 )

@@ -1,4 +1,5 @@
 """Dashboard wiring tests — 验证 /api/workbench/dashboard 返回真实聚合数据"""
+
 from unittest.mock import MagicMock
 
 from fastapi.testclient import TestClient

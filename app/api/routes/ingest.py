@@ -1,4 +1,7 @@
 """摄入路由"""
+
+from __future__ import annotations
+
 import shutil
 import tempfile
 from pathlib import Path
@@ -8,7 +11,6 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile
 
 from app.api.models import ErrorResponse, IngestResponse, IngestTextRequest
 from core.observability import get_logger
-from services.ingest_service import IngestService
 
 logger = get_logger(__name__)
 
@@ -35,6 +37,7 @@ def get_ingest_service() -> IngestService:
     from data_layer.repositories.base import SessionLocal
     from data_layer.repositories.document_repository import DocumentRepositoryImpl
     from data_layer.repositories.event_repository import EventRepositoryImpl
+    from services.ingest_service import IngestService
 
     session = SessionLocal()
     doc_repo = DocumentRepositoryImpl(session)

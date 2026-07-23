@@ -1,4 +1,5 @@
 """信号仓储实现"""
+
 from typing import List, Optional
 
 from core.contracts import AlphaSignal, EventAlphaSignal, TradeCandidate
@@ -41,9 +42,9 @@ class SignalRepositoryImpl(BaseRepository):
         else:
             db_signal = AlphaSignalDB(
                 signal_id=signal.signal_id,
-                discriminator="event_alpha_signal"
-                if isinstance(signal, EventAlphaSignal)
-                else "alpha_signal",
+                discriminator=(
+                    "event_alpha_signal" if isinstance(signal, EventAlphaSignal) else "alpha_signal"
+                ),
                 subject_id=signal.subject_id,
                 horizon=signal.horizon,
                 thesis=signal.thesis,

@@ -1,0 +1,35 @@
+{
+  "version": "1.0",
+  "current_index": 0,
+  "last_updated": "2026-07-15T14:57:41.751814",
+  "accounts": {
+    "acc1": {
+      "name": "acc1",
+      "use_count": 0,
+      "success_count": 0,
+      "failure_count": 0,
+      "consecutive_failures": 0,
+      "last_used": null,
+      "last_failure": null,
+      "is_locked": false,
+      "lock_until": null,
+      "is_disabled": false,
+      "leased_by": null,
+      "leased_at": null
+    },
+    "acc2": {
+      "name": "acc2",
+      "use_count": 0,
+      "success_count": 0,
+      "failure_count": 0,
+      "consecutive_failures": 0,
+      "last_used": null,
+      "last_failure": null,
+      "is_locked": false,
+      "lock_until": null,
+      "is_disabled": false,
+      "leased_by": null,
+      "leased_at": null
+    }
+  }
+}

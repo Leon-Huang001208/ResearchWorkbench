@@ -232,7 +232,3 @@ When files in this module change, check:
 
 - `core/connectors/` — 连接器通过 `DocumentConnector.persist()` 将 `IngestionRecord` 入队到 `IngestionQueueRepository`，最终由 `KnowledgeWorker` 消费
 - `connectors/` — 具体连接器在 `persist()` 中调用本模块的仓储进行数据库写入
-
-## 2026-07-12
-
-测试夹具在仓储全局引擎导入前设置临时 SQLite，并为 schema 依赖测试提供清理后的数据库，防止继承开发机默认 PostgreSQL 连接。

@@ -5,6 +5,7 @@ This module defines Pydantic models that standardize canonical identifiers
 for various asset types across the AlphaFoundry system, ensuring consistent
 asset referencing.
 """
+
 from typing import Literal
 
 from pydantic import BaseModel, Field

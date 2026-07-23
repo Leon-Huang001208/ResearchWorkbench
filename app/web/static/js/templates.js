@@ -15,6 +15,7 @@ let currentTemplateState = {
     keywordModeDrafts: {},
     commonDefaultsDraft: null,
     commonRuleOpenState: {},
+    v2PlaceholderConfigDrafts: {},
     renderedReportId: null,
     templates: [],
     reportProjects: [],
@@ -37,11 +38,11 @@ let editingTemplateName = null;
 let originalTemplates = [];
 
 const REPORT_GENERATION_STEPS = [
-    { key: 'check', label: '准备模板资产', icon: 'codicon-checklist' },
-    { key: 'mapping', label: '读取底稿映射', icon: 'codicon-table' },
-    { key: 'evidence', label: '检索证据与新闻', icon: 'codicon-search' },
-    { key: 'generate', label: '生成段落内容', icon: 'codicon-symbol-keyword' },
-    { key: 'write', label: '渲染 Word 文档', icon: 'codicon-file-code' },
+    { key: 'check', label: '准备模板', icon: 'codicon-checklist' },
+    { key: 'mapping', label: '读取底稿', icon: 'codicon-table' },
+    { key: 'evidence', label: '检索证据', icon: 'codicon-search' },
+    { key: 'generate', label: '生成内容', icon: 'codicon-symbol-keyword' },
+    { key: 'write', label: '渲染文档', icon: 'codicon-file-code' },
     { key: 'refresh', label: '完成输出', icon: 'codicon-open-preview' }
 ];
 const TEMPLATE_DETAIL_MODES = ['generation', 'config', 'preview', 'logs'];
@@ -62,6 +63,7 @@ async function loadTemplatesPage() {
         await loadTemplatesList();
         initTemplateDropZone();
         initReportProjectUploadInputs();
+        initFullPreviewViewer();
         await initTemplateSelects();
     } catch (e) {
         toast('加载模板页面失败: ' + e.message, 'error');
@@ -241,11 +243,11 @@ function renderTemplatesList(templates) {
 
         let iconHtml = '';
         if (fileType === 'pptx') {
-            iconHtml = '<i class="codicon codicon-file-media" style="font-size: 60px;"></i>';
+            iconHtml = '<span class="iphone-app-letter">P</span>';
         } else if (fileType === 'excel') {
-            iconHtml = '<i class="codicon codicon-table" style="font-size: 60px;"></i>';
+            iconHtml = '<span class="iphone-app-letter">X</span>';
         } else {
-            iconHtml = '<i class="codicon codicon-file-code" style="font-size: 60px;"></i>';
+            iconHtml = '<span class="iphone-app-letter">W</span>';
         }
 
         const wrapperClasses = ['iphone-template-wrapper'];
@@ -284,6 +286,7 @@ async function selectTemplate(templateName, fileType) {
     currentTemplateState.placeholderMappingDrafts = {};
     currentTemplateState.keywordModeDrafts = {};
     currentTemplateState.commonDefaultsDraft = null;
+    currentTemplateState.v2PlaceholderConfigDrafts = {};
     currentTemplateState.renderedReportId = null;
     currentTemplateState.selectedReportProject = null;
 
@@ -1021,7 +1024,7 @@ function renderReportGenerationCenter(template) {
     renderGenerationStatusStrip(readiness);
     renderGenerationStepContext(template, readiness);
     renderRecentGenerationPanel(template);
-    renderTemplatePreviewPanel(template);
+    loadPreviewManifest(template);
     renderTemplateLogPanel(template);
     renderAdvancedMaintenance(template);
     applyTemplateDetailMode(getStoredTemplateDetailMode());
@@ -1189,20 +1192,9 @@ function blockReportGenerationForPreflight(preflight) {
     const template = preflight?.template || getCurrentWorkbenchTemplate() || {};
     renderTemplateValidationPreview(template, preflight.sections, preflight.placeholders);
     openProjectCheckPanel('template-validation-preview');
-    setGenerationFlowState('check', '生成预检未通过');
+    setGenerationFlowState('check', '生成预检未通过', '请先处理占位符配置问题');
     setText('template-generation-current-step-summary', '请先处理生成预检中的占位符配置问题');
-    const statusEl = document.getElementById('template-recent-generation-status');
-    if (statusEl) statusEl.textContent = '预检未通过';
-    const liveLog = document.getElementById('template-generation-live-log');
-    if (liveLog) {
-        liveLog.innerHTML = `
-            <div class="template-generation-live-log-row">
-                <span>${esc(formatShortTime(new Date().toISOString()))}</span>
-                <strong>请先处理生成预检中的占位符配置问题</strong>
-                <em>已暂停</em>
-            </div>
-        `;
-    }
+    toggleFlowActions(false);
     toast('请先处理生成预检中的占位符配置问题', 'warning');
 }
 
@@ -1213,13 +1205,13 @@ function renderGenerationHero(template, readiness) {
         document.getElementById('template-generation-title'),
         document.getElementById('template-config-title')
     ].filter(Boolean);
-    const periodEls = [
-        document.getElementById('template-generation-period'),
-        document.getElementById('template-config-period')
+    const periodInputEls = [
+        document.getElementById('template-generation-period-input'),
+        document.getElementById('template-config-period-input')
     ].filter(Boolean);
-    const lookbackEls = [
-        document.getElementById('template-generation-lookback'),
-        document.getElementById('template-config-lookback')
+    const lookbackInputEls = [
+        document.getElementById('template-generation-lookback-input'),
+        document.getElementById('template-config-lookback-input')
     ].filter(Boolean);
     const placeholderTotalEls = [
         document.getElementById('template-generation-placeholder-total'),
@@ -1234,11 +1226,11 @@ function renderGenerationHero(template, readiness) {
     const canGenerate = Boolean(readiness.dataOk && readiness.contentOk);
     const generationOptions = getReportProjectGenerationOptions();
     const reportDateText = generationOptions.report_date || getDefaultReportDate();
-    const rangeText = `${generationOptions.start_date} 至 ${generationOptions.end_date}`;
+    const lookbackDays = generationOptions.lookback_days || 7;
 
-    titleEls.forEach(el => { el.textContent = `${templateName} · 本周报告`; });
-    periodEls.forEach(el => { el.textContent = `报告日期：${reportDateText}`; });
-    lookbackEls.forEach(el => { el.textContent = `证据窗口：${rangeText}`; });
+    titleEls.forEach(el => { el.textContent = templateName; });
+    periodInputEls.forEach(el => { el.value = reportDateText; });
+    lookbackInputEls.forEach(el => { el.value = lookbackDays; });
     placeholderTotalEls.forEach(el => { el.textContent = `${readiness.placeholderCount} 个占位符`; });
     healthEls.forEach(healthEl => {
         healthEl.textContent = canGenerate ? '可生成' : '需检查';
@@ -1252,74 +1244,48 @@ function renderGenerationHero(template, readiness) {
     }
 
     if (project) ensureSelectedGeneratedReport(project);
-    renderCurrentIssueSettingsBar(template, readiness);
+    bindHeroMetaInputs();
 }
 
-function refreshGenerationHeroMeta(template = getCurrentWorkbenchTemplate()) {
-    if (!template) return;
-    const placeholders = getTemplateWorkbenchPlaceholders(template);
-    const sections = getTemplateWorkbenchSections(template);
-    renderGenerationHero(template, buildGenerationReadiness(template, sections, placeholders));
-}
+let _heroMetaInputsBound = false;
 
-function renderCurrentIssueSettingsBar(template, readiness) {
-    const overview = document.getElementById('template-generation-overview');
-    const hero = overview?.querySelector('.template-generation-hero');
-    if (!overview || !hero) return;
-    let bar = document.getElementById('template-current-issue-settings');
-    if (!bar) {
-        bar = document.createElement('section');
-        bar.id = 'template-current-issue-settings';
-        bar.className = 'template-current-issue-settings';
-        hero.insertAdjacentElement('afterend', bar);
+function bindHeroMetaInputs() {
+    if (_heroMetaInputsBound) return;
+    _heroMetaInputsBound = true;
+
+    const dateInputs = [
+        document.getElementById('template-generation-period-input'),
+        document.getElementById('template-config-period-input')
+    ].filter(Boolean);
+    const lookbackInputs = [
+        document.getElementById('template-generation-lookback-input'),
+        document.getElementById('template-config-lookback-input')
+    ].filter(Boolean);
+
+    if (!dateInputs.length && !lookbackInputs.length) {
+        _heroMetaInputsBound = false;
+        return;
     }
-    const options = getReportProjectGenerationOptions();
-    const latest = readiness.latestReport;
-    bar.innerHTML = `
-        <div class="template-current-issue-settings-title">
-            <span>本期设置</span>
-            <strong>${esc(readiness.dataOk && readiness.contentOk ? '可生成' : '待检查')}</strong>
-        </div>
-        <label>
-            <span>报告日期</span>
-            <input type="date" id="current-issue-report-date" value="${esc(options.report_date)}">
-        </label>
-        <label>
-            <span>开始日期</span>
-            <input type="date" id="current-issue-start-date" value="${esc(options.start_date)}">
-        </label>
-        <label>
-            <span>结束日期</span>
-            <input type="date" id="current-issue-end-date" value="${esc(options.end_date)}">
-        </label>
-        <label>
-            <span>证据窗口</span>
-            <input type="number" min="1" max="90" step="1" id="current-issue-lookback-days" value="${esc(options.lookback_days)}">
-        </label>
-        <div class="template-current-issue-latest">
-            <span>最近版本</span>
-            <strong>${esc(latest?.file_name || '尚未生成')}</strong>
-        </div>
-    `;
-    bindCurrentIssueSettingsBar();
-}
 
-function bindCurrentIssueSettingsBar() {
-    const bar = document.getElementById('template-current-issue-settings');
-    if (!bar) return;
-    const sync = (changedField = '') => {
+    const sync = () => {
         const template = getCurrentWorkbenchTemplate();
         if (!template) return;
         const defaults = getEditableCommonDefaults(template);
-        const reportDate = document.getElementById('current-issue-report-date')?.value || getDefaultReportDate();
-        const lookbackDays = Math.max(1, Math.min(90, Number(document.getElementById('current-issue-lookback-days')?.value || 7)));
-        let startDate = document.getElementById('current-issue-start-date')?.value || getDefaultEvidenceStartDate(reportDate);
-        const endDate = document.getElementById('current-issue-end-date')?.value || reportDate;
-        if (changedField === 'lookback' || changedField === 'report_date') {
-            startDate = getDefaultEvidenceStartDate(reportDate, lookbackDays);
-            const startInput = document.getElementById('current-issue-start-date');
-            if (startInput) startInput.value = startDate;
-        }
+
+        const dateEl = dateInputs.find(el => document.contains(el));
+        const lookbackEl = lookbackInputs.find(el => document.contains(el));
+
+        const reportDate = dateEl?.value || getDefaultReportDate();
+        const lookbackDays = Math.max(1, Math.min(90,
+            Number(lookbackEl?.value) || 7
+        ));
+        const startDate = getDefaultEvidenceStartDate(reportDate, lookbackDays);
+        const endDate = reportDate;
+
+        // Sync values across both heroes
+        dateInputs.forEach(el => { el.value = reportDate; });
+        lookbackInputs.forEach(el => { el.value = lookbackDays; });
+
         currentTemplateState.commonDefaultsDraft = {
             ...defaults,
             report_period: {
@@ -1333,10 +1299,16 @@ function bindCurrentIssueSettingsBar() {
         refreshCommonConfigSurfaces(template);
         renderSelectedSourceFragment(template);
     };
-    bar.querySelector('#current-issue-report-date')?.addEventListener('change', () => sync('report_date'));
-    bar.querySelector('#current-issue-lookback-days')?.addEventListener('change', () => sync('lookback'));
-    bar.querySelector('#current-issue-start-date')?.addEventListener('change', () => sync('start_date'));
-    bar.querySelector('#current-issue-end-date')?.addEventListener('change', () => sync('end_date'));
+
+    dateInputs.forEach(el => el.addEventListener('change', sync));
+    lookbackInputs.forEach(el => el.addEventListener('change', sync));
+}
+
+function refreshGenerationHeroMeta(template = getCurrentWorkbenchTemplate()) {
+    if (!template) return;
+    const placeholders = getTemplateWorkbenchPlaceholders(template);
+    const sections = getTemplateWorkbenchSections(template);
+    renderGenerationHero(template, buildGenerationReadiness(template, sections, placeholders));
 }
 
 function renderGenerationStatusStrip(readiness) {
@@ -1347,7 +1319,7 @@ function renderGenerationStatusStrip(readiness) {
     updateGenerationStep('template-generation-step-data', 'template-generation-data-summary', readiness.dataOk, dataSummary);
     updateGenerationStep('template-generation-step-content', 'template-generation-content-summary', readiness.contentOk, contentSummary);
     updateGenerationStep('template-generation-step-output', 'template-generation-output-summary', readiness.outputOk, outputSummary);
-    setGenerationFlowState(readiness.latestReport ? 'refresh' : 'generate', readiness.latestReport ? '已完成' : '等待生成');
+    setGenerationFlowState(readiness.latestReport ? 'refresh' : 'check', readiness.latestReport ? '已完成' : '等待生成');
 }
 
 function renderProjectCheckSummary(readiness) {
@@ -1378,7 +1350,7 @@ function updateGenerationStep(stepId, summaryId, ok, summary) {
     if (summaryEl) summaryEl.textContent = summary;
 }
 
-function setGenerationFlowState(activeKey = 'generate', label = '') {
+function setGenerationFlowState(activeKey = 'generate', label = '', detail = '') {
     const activeIndex = Math.max(0, REPORT_GENERATION_STEPS.findIndex(step => step.key === activeKey));
     document.querySelectorAll('[data-generation-flow-step]').forEach((stepEl) => {
         const key = stepEl.dataset.generationFlowStep;
@@ -1388,13 +1360,31 @@ function setGenerationFlowState(activeKey = 'generate', label = '') {
         stepEl.classList.toggle('done', isDone);
         stepEl.classList.toggle('active', isActive);
         stepEl.classList.toggle('pending', !isDone && !isActive);
+        // 移除之前的错误状态
+        stepEl.classList.remove('error');
         const statusEl = stepEl.querySelector('em');
         if (statusEl) {
-            statusEl.textContent = isDone ? '完成' : (isActive ? '当前' : '等待');
+            if (isDone) {
+                statusEl.textContent = '完成';
+            } else if (isActive) {
+                statusEl.textContent = detail || '当前';
+            } else {
+                statusEl.textContent = '等待';
+            }
         }
     });
     const progressLabel = document.getElementById('template-generation-progress-label');
     if (progressLabel) progressLabel.textContent = label || '生成流程';
+    syncFlowStepDescription(activeKey);
+}
+
+function syncFlowStepDescription(activeKey) {
+    const msgEl = document.getElementById('template-generation-progress-message');
+    if (!msgEl) return;
+    const stepEl = document.querySelector(`[data-generation-flow-step="${activeKey}"]`);
+    if (!stepEl) { msgEl.textContent = ''; return; }
+    const smallEl = stepEl.querySelector('small');
+    msgEl.textContent = smallEl ? smallEl.textContent : '';
 }
 
 function renderGenerationStepContext(template, readiness) {
@@ -1491,10 +1481,10 @@ function buildDeliveryCheckRows(runResult, runLog, latestReport, readiness) {
         : 0;
     const evidenceTotal = runResult?.evidence_count
         ?? sections.reduce((total, section) => total + Number(section.evidence_count || 0), 0);
+    // runResult.warnings 后端已合并 generation + section + chart + table 四类 warning，
+    // 不再重复叠加 runLog.generation.warnings 和 sections[*].warnings 避免前端重复计数
     const warnings = [
         ...(runResult?.warnings || []),
-        ...(runLog?.generation?.warnings || []),
-        ...sections.flatMap(section => section.warnings || []),
     ];
     const emptyPlaceholderCount = runResult?.empty_placeholder_count
         ?? runLog?.output?.empty_placeholder_count
@@ -1561,7 +1551,7 @@ function selectGeneratedReport(fileName, { openPreview = false } = {}) {
     const template = getCurrentWorkbenchTemplate();
     if (!template) return;
     renderRecentGenerationPanel(template);
-    renderTemplatePreviewPanel(template);
+    loadPreviewManifest(template);
     renderTemplateLogPanel(template);
     if (openPreview) {
         setStoredTemplateDetailMode('preview');
@@ -1574,7 +1564,6 @@ function renderRecentGenerationPanel(template) {
     const placeholders = getTemplateWorkbenchPlaceholders(template);
     const sections = getTemplateWorkbenchSections(template);
     const readiness = buildGenerationReadiness(template, sections, placeholders);
-    const statusEl = document.getElementById('template-recent-generation-status');
     const card = document.getElementById('template-recent-generation-card');
     if (!card) return;
 
@@ -1584,10 +1573,6 @@ function renderRecentGenerationPanel(template) {
     const previewAction = document.querySelector('[data-template-report-action="preview"]');
     const folderAction = document.querySelector('[data-template-report-action="folder"]');
     const downloadAction = document.querySelector('[data-template-report-action="download"]');
-
-    if (statusEl) {
-        statusEl.textContent = generatedReports.length ? `${generatedReports.length} 个版本` : '尚未生成';
-    }
     if (previewAction) {
         previewAction.disabled = !previewUrl;
         previewAction.onclick = previewUrl ? () => selectGeneratedReport(selectedReport.file_name, { openPreview: true }) : null;
@@ -1606,12 +1591,11 @@ function renderRecentGenerationPanel(template) {
 
     if (!generatedReports.length) {
         card.innerHTML = `
-            <div class="template-result-empty">
-                <i class="codicon codicon-file"></i>
-                <span>尚未生成。点击“生成报告”后，这里会显示历史版本。</span>
+            <div class=”template-result-empty”>
+                <i class=”codicon codicon-file”></i>
+                <span>尚未生成。点击”生成报告”后，这里会显示历史版本。</span>
             </div>
         `;
-        return;
     }
 
     const deliveryCheck = renderDeliveryCheckCard(
@@ -1621,8 +1605,16 @@ function renderRecentGenerationPanel(template) {
         readiness
     );
 
+    const deliveryPanel = document.getElementById('template-delivery-check-panel');
+    if (deliveryPanel) {
+        deliveryPanel.innerHTML = deliveryCheck || '';
+    }
+
+    if (!generatedReports.length) {
+        return;
+    }
+
     card.innerHTML = `
-        ${deliveryCheck}
         <div class="template-generated-report-list" role="listbox" aria-label="生成报告历史">
             ${generatedReports.map((report, index) => {
                 const selected = report.file_name === selectedReport?.file_name;
@@ -1648,40 +1640,369 @@ function renderRecentGenerationPanel(template) {
     });
 }
 
-function renderTemplatePreviewPanel(template) {
+// ─── Full Preview Viewer (page-image based) ──────────────────
+
+const FULL_PREVIEW_STORAGE_KEY = 'alpha-foundry-full-word-preview';
+const FULL_PREVIEW_MIN_ZOOM = 0.18;
+const FULL_PREVIEW_MAX_ZOOM = 1.8;
+const FULL_PREVIEW_ZOOM_STEP = 0.08;
+
+function _fullPreviewDom() {
+    return {
+        panel: document.querySelector('.word-preview-panel'),
+        title: document.querySelector('[data-preview-title]'),
+        file: document.querySelector('[data-preview-file]'),
+        body: document.querySelector('.word-preview-body'),
+        scroller: document.querySelector('[data-preview-scroller]'),
+        stage: document.querySelector('[data-preview-stage]'),
+        rail: document.querySelector('[data-preview-thumbnail-rail]'),
+        empty: document.getElementById('word-preview-empty-state'),
+        thumbToggle: document.querySelector('[data-preview-thumbnails-toggle]'),
+        zoomOut: document.querySelector('[data-preview-zoom-out]'),
+        zoomIn: document.querySelector('[data-preview-zoom-in]'),
+        zoomInput: document.querySelector('[data-preview-zoom-input]'),
+        fitWidth: document.querySelector('[data-preview-fit-width]'),
+        fitPage: document.querySelector('[data-preview-fit-page]'),
+        pageInput: document.querySelector('[data-preview-page-input]'),
+        pageTotal: document.querySelector('[data-preview-page-total]'),
+        pageRange: document.querySelector('[data-preview-page-range]'),
+        layoutButtons: Array.from(document.querySelectorAll('[data-preview-layout]')),
+    };
+}
+
+function _fullPreviewReadStorage() {
+    try { return JSON.parse(localStorage.getItem(FULL_PREVIEW_STORAGE_KEY) || '{}'); } catch (e) { return {}; }
+}
+
+function _fullPreviewPersist(state) {
+    try {
+        localStorage.setItem(FULL_PREVIEW_STORAGE_KEY, JSON.stringify({
+            zoom: state.zoom, layout: state.layout, thumbnails: state.thumbnails
+        }));
+    } catch (e) { /* optional */ }
+}
+
+function _fullPreviewClamp(value, min, max) { return Math.min(max, Math.max(min, value)); }
+
+function _fullPreviewJoinUrl(base, src) {
+    if (!base || /^([a-z]+:)?\/\//i.test(src) || src.startsWith('data:') || src.startsWith('/')) return src;
+    return base.replace(/\/+$/, '') + '/' + src.replace(/^\.?\//, '');
+}
+
+function initFullPreviewViewer() {
+    const dom = _fullPreviewDom();
+    if (!dom.panel) return;
+
+    const state = currentTemplateState._previewViewer || {
+        manifest: null,
+        pages: [],
+        currentPage: 1,
+        zoom: _fullPreviewClamp(Number(_fullPreviewReadStorage().zoom) || 0.44, FULL_PREVIEW_MIN_ZOOM, FULL_PREVIEW_MAX_ZOOM),
+        layout: 'double',
+        thumbnails: true,
+        observer: null,
+        scrollTimer: 0,
+    };
+    currentTemplateState._previewViewer = state;
+
+    const saved = _fullPreviewReadStorage();
+    if (saved.layout === 'single') state.layout = 'single';
+    if (saved.thumbnails === false) state.thumbnails = false;
+
+    // ── event wiring (once) ──
+
+    dom.thumbToggle?.addEventListener('click', () => {
+        state.thumbnails = !state.thumbnails;
+        _fullPreviewApplyChrome(state, dom);
+        _fullPreviewPersist(state);
+        requestAnimationFrame(() => _fullPreviewFitMode(state, dom, 'width'));
+    });
+
+    dom.zoomOut?.addEventListener('click', () => _fullPreviewSetZoom(state, dom, state.zoom - FULL_PREVIEW_ZOOM_STEP));
+    dom.zoomIn?.addEventListener('click', () => _fullPreviewSetZoom(state, dom, state.zoom + FULL_PREVIEW_ZOOM_STEP));
+    dom.fitWidth?.addEventListener('click', () => _fullPreviewFitMode(state, dom, 'width'));
+    dom.fitPage?.addEventListener('click', () => _fullPreviewFitMode(state, dom, 'page'));
+
+    dom.zoomInput?.addEventListener('keydown', (e) => { if (e.key === 'Enter') _fullPreviewCommitZoom(state, dom); });
+    dom.zoomInput?.addEventListener('blur', () => _fullPreviewCommitZoom(state, dom));
+
+    dom.pageInput?.addEventListener('keydown', (e) => { if (e.key === 'Enter') _fullPreviewCommitPage(state, dom); });
+    dom.pageInput?.addEventListener('blur', () => _fullPreviewCommitPage(state, dom));
+
+    dom.layoutButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const next = btn.getAttribute('data-preview-layout');
+            if (next && next !== state.layout) {
+                state.layout = next;
+                _fullPreviewPersist(state);
+                _fullPreviewRender(state, dom);
+                requestAnimationFrame(() => _fullPreviewScrollToPage(state, dom, state.currentPage, false));
+            }
+        });
+    });
+
+    dom.scroller?.addEventListener('scroll', () => {
+        window.clearTimeout(state.scrollTimer);
+        state.scrollTimer = window.setTimeout(() => _fullPreviewSyncFromScroll(state, dom), 40);
+    }, { passive: true });
+
+    dom.scroller?.addEventListener('wheel', (e) => {
+        if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            _fullPreviewSetZoom(state, dom, state.zoom + (e.deltaY < 0 ? FULL_PREVIEW_ZOOM_STEP : -FULL_PREVIEW_ZOOM_STEP));
+        }
+    }, { passive: false });
+
+    window.addEventListener('resize', _fullPreviewDebounce(() => _fullPreviewFitMode(state, dom, 'width'), 160));
+
+    _fullPreviewApplyChrome(state, dom);
+}
+
+async function loadPreviewManifest(template) {
+    const dom = _fullPreviewDom();
+    const state = currentTemplateState._previewViewer;
+    if (!dom.panel || !state) return;
+
     const project = template.report_project || null;
     const selectedReport = getSelectedGeneratedReport(project);
-    const frame = document.getElementById('template-report-preview-frame');
-    const label = document.getElementById('template-preview-document-label');
-    const status = document.getElementById('template-preview-file-status');
-    const card = document.getElementById('template-preview-file-card');
-    const { previewUrl } = getGeneratedReportUrls(project, selectedReport);
 
-    if (label) label.textContent = selectedReport?.file_name || '尚未生成';
-    if (status) status.textContent = selectedReport ? '已选择' : '尚未生成';
-    if (frame) {
-        if (previewUrl) {
-            frame.src = previewUrl;
-            frame.classList.remove('hidden');
-        } else {
-            frame.removeAttribute('src');
-            frame.classList.add('hidden');
-        }
-    }
-    if (!card) return;
-    if (!selectedReport) {
-        card.innerHTML = '<div class="empty-state compact">在生成记录中选择一个报告后预览。</div>';
+    if (!project?.slug || !selectedReport?.file_name) {
+        dom.file.textContent = '未选择报告';
+        dom.title.textContent = 'Word 预览';
+        dom.stage.innerHTML = '<div class="empty-state">在生成记录中选择报告后，预览将在此处显示。</div>';
+        dom.rail.innerHTML = '';
+        dom.pageTotal.textContent = '0';
+        dom.panel.classList.remove('has-preview');
+        if (dom.empty) dom.empty.style.display = '';
         return;
     }
-    card.innerHTML = `
-        <div class="template-preview-file-row">
-            <i class="codicon codicon-file-text"></i>
-            <span>
-                <strong>${esc(selectedReport.file_name || '生成文档')}</strong>
-                <small>${esc(formatGeneratedAt(selectedReport.generated_at))}</small>
-            </span>
-        </div>
-    `;
+
+    const manifestUrl = `/api/report-projects/${encodeURIComponent(project.slug)}/preview-manifest/${encodeURIComponent(selectedReport.file_name)}`;
+
+    try {
+        const response = await fetch(manifestUrl, { cache: 'no-store' });
+        if (!response.ok) throw new Error('manifest http ' + response.status);
+        const manifest = await response.json();
+
+        state.manifest = manifest;
+        state.pages = (Array.isArray(manifest.pages) ? manifest.pages : []).map((page, index) => ({
+            pageNumber: index + 1,
+            label: page.label || '第 ' + (index + 1) + ' 页',
+            src: page.src || '',
+            width: Number(page.width) || 1224,
+            height: Number(page.height) || 1584,
+        }));
+
+        const first = state.pages[0];
+        if (first) {
+            document.documentElement.style.setProperty('--wpv-page-width', first.width + 'px');
+            document.documentElement.style.setProperty('--wpv-page-height', first.height + 'px');
+        }
+
+        dom.title.textContent = manifest.title || 'Word 预览';
+        dom.file.textContent = manifest.fileName || selectedReport.file_name;
+        dom.pageTotal.textContent = String(state.pages.length);
+
+        dom.panel.classList.add('has-preview');
+        if (dom.empty) dom.empty.style.display = 'none';
+
+        _fullPreviewRender(state, dom);
+        _fullPreviewFitMode(state, dom, 'width');
+        _fullPreviewUpdateCurrentPage(state, dom, 1);
+        dom.panel.classList.add('has-preview');
+        if (dom.empty) dom.empty.style.display = 'none';
+    } catch (error) {
+        console.error('[word-preview] failed to load manifest', error);
+        dom.stage.innerHTML = '<div class="error-state">预览资源加载失败，请检查报告是否已生成。</div>';
+        dom.file.textContent = '加载失败';
+        dom.rail.innerHTML = '';
+        dom.pageTotal.textContent = '0';
+        dom.panel.classList.add('has-preview');
+        if (dom.empty) dom.empty.style.display = 'none';
+    }
+}
+
+function _fullPreviewRender(state, dom) {
+    _fullPreviewApplyChrome(state, dom);
+    _fullPreviewRenderThumbnails(state, dom);
+    _fullPreviewRenderPages(state, dom);
+    _fullPreviewSetupLazyLoad(state, dom);
+    _fullPreviewUpdateCurrentPage(state, dom, state.currentPage);
+}
+
+function _fullPreviewRenderThumbnails(state, dom) {
+    if (!dom.rail) return;
+    dom.rail.textContent = '';
+    state.pages.forEach(page => {
+        const btn = document.createElement('button');
+        btn.className = 'thumbnail-card';
+        btn.type = 'button';
+        btn.dataset.thumbnailPage = String(page.pageNumber);
+        const img = document.createElement('img');
+        img.src = page.src;
+        img.alt = page.label;
+        img.loading = 'lazy';
+        const label = document.createElement('span');
+        label.textContent = String(page.pageNumber);
+        btn.append(img, label);
+        btn.addEventListener('click', () => _fullPreviewScrollToPage(state, dom, page.pageNumber, true));
+        dom.rail.append(btn);
+    });
+}
+
+function _fullPreviewRenderPages(state, dom) {
+    if (!dom.stage) return;
+    dom.stage.textContent = '';
+    if (!state.pages.length) {
+        dom.stage.innerHTML = '<div class="empty-state">暂无预览页</div>';
+        return;
+    }
+    _fullPreviewGetSpreads(state).forEach(spread => {
+        const row = document.createElement('div');
+        row.className = 'page-spread';
+        row.dataset.spreadStart = String(spread[0].pageNumber);
+        spread.forEach(page => {
+            const figure = document.createElement('figure');
+            figure.className = 'page-sheet is-loading';
+            figure.dataset.pageNumber = String(page.pageNumber);
+            figure.style.setProperty('--wpv-page-width', page.width + 'px');
+            figure.style.setProperty('--wpv-page-height', page.height + 'px');
+            const img = document.createElement('img');
+            img.dataset.src = page.src;
+            img.alt = page.label;
+            img.decoding = 'async';
+            img.addEventListener('load', () => figure.classList.remove('is-loading'));
+            img.addEventListener('error', () => { figure.classList.remove('is-loading'); figure.classList.add('is-error'); });
+            figure.append(img);
+            row.append(figure);
+        });
+        dom.stage.append(row);
+    });
+}
+
+function _fullPreviewGetSpreads(state) {
+    if (state.layout === 'single') return state.pages.map(p => [p]);
+    const spreads = [];
+    for (let i = 0; i < state.pages.length; i += 2) spreads.push(state.pages.slice(i, i + 2));
+    return spreads;
+}
+
+function _fullPreviewSetupLazyLoad(state, dom) {
+    if (state.observer) { state.observer.disconnect(); state.observer = null; }
+    const images = Array.from(dom.stage.querySelectorAll('img[data-src]'));
+    if (!('IntersectionObserver' in window)) { images.forEach(_fullPreviewLoadImage); return; }
+    state.observer = new IntersectionObserver(entries => {
+        entries.forEach(entry => { if (entry.isIntersecting) { _fullPreviewLoadImage(entry.target); state.observer.unobserve(entry.target); } });
+    }, { root: dom.scroller, rootMargin: '900px 0px' });
+    images.forEach(img => state.observer.observe(img));
+}
+
+function _fullPreviewLoadImage(img) {
+    if (img.dataset.src) { img.src = img.dataset.src; img.removeAttribute('data-src'); }
+}
+
+function _fullPreviewSetZoom(state, dom, next) {
+    state.zoom = _fullPreviewClamp(next, FULL_PREVIEW_MIN_ZOOM, FULL_PREVIEW_MAX_ZOOM);
+    if (dom.fitWidth) dom.fitWidth.classList.remove('is-active');
+    if (dom.fitPage) dom.fitPage.classList.remove('is-active');
+    _fullPreviewApplyZoom(state, dom);
+    _fullPreviewPersist(state);
+}
+
+function _fullPreviewApplyZoom(state, dom) {
+    document.documentElement.style.setProperty('--wpv-zoom', String(state.zoom));
+    if (dom.zoomInput) dom.zoomInput.value = Math.round(state.zoom * 100) + '%';
+}
+
+function _fullPreviewFitMode(state, dom, mode) {
+    if (!state.pages.length) return;
+    const first = state.pages[0];
+    const gap = state.layout === 'double' ? 24 : 0;
+    const pageCount = state.layout === 'double' ? 2 : 1;
+    const spreadWidth = first.width * pageCount + gap;
+    const spreadHeight = first.height;
+    const widthZoom = (dom.scroller.clientWidth - 90) / spreadWidth;
+    const heightZoom = (dom.scroller.clientHeight - 86) / spreadHeight;
+    state.zoom = _fullPreviewClamp(mode === 'page' ? Math.min(widthZoom, heightZoom) : widthZoom, FULL_PREVIEW_MIN_ZOOM, FULL_PREVIEW_MAX_ZOOM);
+    if (dom.fitWidth) dom.fitWidth.classList.toggle('is-active', mode === 'width');
+    if (dom.fitPage) dom.fitPage.classList.toggle('is-active', mode === 'page');
+    _fullPreviewApplyZoom(state, dom);
+    _fullPreviewPersist(state);
+}
+
+function _fullPreviewCommitZoom(state, dom) {
+    const raw = String(dom.zoomInput?.value || '').replace(/[^0-9.]/g, '');
+    const value = Number(raw);
+    if (Number.isFinite(value) && value > 0) {
+        _fullPreviewSetZoom(state, dom, value / 100);
+    } else {
+        _fullPreviewApplyZoom(state, dom);
+    }
+}
+
+function _fullPreviewCommitPage(state, dom) {
+    const value = parseInt(dom.pageInput?.value, 10);
+    if (Number.isFinite(value)) {
+        _fullPreviewScrollToPage(state, dom, value, true);
+    } else if (dom.pageInput) {
+        dom.pageInput.value = String(state.currentPage);
+    }
+}
+
+function _fullPreviewScrollToPage(state, dom, pageNumber, smooth) {
+    const next = _fullPreviewClamp(Math.round(pageNumber), 1, Math.max(state.pages.length, 1));
+    const target = dom.stage?.querySelector('[data-page-number="' + next + '"]');
+    if (target && dom.scroller) {
+        dom.scroller.scrollTo({
+            top: Math.max(0, target.offsetTop - 24),
+            left: Math.max(0, target.offsetLeft - 42),
+            behavior: smooth ? 'smooth' : 'auto',
+        });
+    }
+    _fullPreviewUpdateCurrentPage(state, dom, next);
+}
+
+function _fullPreviewSyncFromScroll(state, dom) {
+    const sheets = Array.from(dom.stage?.querySelectorAll('[data-page-number]') || []);
+    if (!sheets.length) return;
+    const scrollerRect = dom.scroller.getBoundingClientRect();
+    const targetY = scrollerRect.top + scrollerRect.height * 0.38;
+    let best = sheets[0], bestDist = Infinity;
+    sheets.forEach(sheet => {
+        const rect = sheet.getBoundingClientRect();
+        const dist = Math.abs(rect.top - targetY);
+        if (dist < bestDist) { bestDist = dist; best = sheet; }
+    });
+    _fullPreviewUpdateCurrentPage(state, dom, Number(best.dataset.pageNumber));
+}
+
+function _fullPreviewUpdateCurrentPage(state, dom, pageNumber) {
+    state.currentPage = _fullPreviewClamp(Math.round(pageNumber), 1, Math.max(state.pages.length, 1));
+    if (dom.pageInput) dom.pageInput.value = String(state.currentPage);
+    const rangeEnd = state.layout === 'double'
+        ? Math.min(state.currentPage + (state.currentPage % 2 === 1 ? 1 : 0), state.pages.length)
+        : state.currentPage;
+    const rangeStart = state.layout === 'double' && state.currentPage % 2 === 0
+        ? state.currentPage - 1
+        : state.currentPage;
+    if (dom.pageRange) dom.pageRange.textContent = rangeStart === rangeEnd ? String(rangeStart) : rangeStart + '-' + rangeEnd;
+    dom.rail?.querySelectorAll('.thumbnail-card').forEach(thumb => {
+        thumb.classList.toggle('is-current', Number(thumb.dataset.thumbnailPage) === state.currentPage);
+    });
+}
+
+function _fullPreviewApplyChrome(state, dom) {
+    if (dom.body) dom.body.classList.toggle('thumbnails-hidden', !state.thumbnails);
+    if (dom.thumbToggle) dom.thumbToggle.classList.toggle('is-active', state.thumbnails);
+    dom.layoutButtons.forEach(btn => {
+        btn.classList.toggle('is-active', btn.getAttribute('data-preview-layout') === state.layout);
+    });
+    _fullPreviewApplyZoom(state, dom);
+}
+
+function _fullPreviewDebounce(fn, wait) {
+    let timer = 0;
+    return function () { window.clearTimeout(timer); timer = window.setTimeout(fn, wait); };
 }
 
 function renderTemplateLogPanel(template) {
@@ -1798,84 +2119,68 @@ async function openReportProjectOutputFolder(slug, fileName = '') {
 }
 
 function renderReportGenerationProgressCard({ status = 'running', activeKey = 'check', message = '' } = {}) {
-    const card = document.getElementById('template-recent-generation-card');
-    const statusEl = document.getElementById('template-recent-generation-status');
-    if (!card) return;
-
-    const activeIndex = Math.max(0, REPORT_GENERATION_STEPS.findIndex(step => step.key === activeKey));
     const statusText = status === 'error' ? '生成失败' : '生成中';
-    if (statusEl) statusEl.textContent = statusText;
-    setGenerationFlowState(activeKey, statusText);
-    setText('template-generation-current-step-summary', message || '正在生成报告');
-    const liveLog = document.getElementById('template-generation-live-log');
-    if (liveLog) {
-        liveLog.innerHTML = `
-            <div class="template-generation-live-log-row">
-                <span>${esc(formatShortTime(new Date().toISOString()))}</span>
-                <strong>${esc(message || '正在生成报告')}</strong>
-                <em>${esc(statusText)}</em>
-            </div>
-        `;
-    }
-
-    card.innerHTML = `
-        <div class="template-generation-progress" role="status" aria-live="polite">
-            <div class="template-generation-progress-header">
-                <i class="codicon codicon-loading spin"></i>
-                <span>
-                    <strong>${statusText}</strong>
-                    <small>${esc(message || '正在准备生成本周报告')}</small>
-                </span>
-            </div>
-            <div class="template-generation-progress-steps">
-                ${REPORT_GENERATION_STEPS.map((step, index) => {
-                    const stepState = index < activeIndex ? 'done' : (index === activeIndex ? 'active' : 'pending');
-                    const icon = stepState === 'done' ? 'codicon-pass' : step.icon;
-                    return `
-                        <div class="template-generation-progress-step ${stepState}">
-                            <i class="codicon ${icon}"></i>
-                            <span>${esc(step.label)}</span>
-                        </div>
-                    `;
-                }).join('')}
-            </div>
-        </div>
-    `;
+    const detail = message || '正在准备生成报告';
+    setGenerationFlowState(activeKey, statusText, detail);
+    toggleFlowActions(false);
 }
 
 function renderReportGenerationFailure(error) {
-    const card = document.getElementById('template-recent-generation-card');
-    const statusEl = document.getElementById('template-recent-generation-status');
-    if (!card) return;
-
     const message = error?.message || String(error || '未知错误');
     const hint = getReportGenerationErrorHint(message);
     const target = getReportGenerationErrorTarget(message);
-    if (statusEl) statusEl.textContent = '生成失败';
 
-    card.innerHTML = `
-        <div class="template-generation-error-card" role="alert">
-            <div class="template-generation-error-header">
-                <i class="codicon codicon-error"></i>
-                <span>
-                    <strong>生成失败</strong>
-                    <small>${esc(hint)}</small>
-                </span>
-            </div>
-            <pre>${esc(message)}</pre>
-            <div class="template-generation-error-actions">
-                <button type="button" class="btn-secondary" id="btn-template-generation-open-config">
-                    <i class="codicon codicon-tools"></i> 打开高级配置
-                </button>
-                <button type="button" class="btn-primary" id="btn-template-generation-retry">
-                    <i class="codicon codicon-refresh"></i> 重试生成
-                </button>
-            </div>
-        </div>
-    `;
-    const openConfigBtn = card.querySelector('#btn-template-generation-open-config');
-    if (openConfigBtn) openConfigBtn.dataset.errorTarget = target;
-    bindReportGenerationFeedbackActions();
+    // 在活跃步骤上显示错误状态
+    const activeStepEl = document.querySelector('[data-generation-flow-step].active');
+    if (activeStepEl) {
+        activeStepEl.classList.add('error');
+        const emEl = activeStepEl.querySelector('em');
+        if (emEl) emEl.textContent = '失败';
+        const smallEl = activeStepEl.querySelector('small');
+        if (smallEl) smallEl.textContent = hint;
+    }
+
+    // 更新进度标签
+    const progressLabel = document.getElementById('template-generation-progress-label');
+    if (progressLabel) progressLabel.textContent = '生成失败';
+
+    // 显示流程操作按钮（只显示"打开高级配置"）
+    toggleFlowActions(true, 'error', target);
+
+    // 将"生成报告"按钮替换为"重试生成"
+    const generateBtn = document.getElementById('btn-template-generate-report');
+    if (generateBtn) {
+        generateBtn.disabled = false;
+        generateBtn.innerHTML = '<i class="codicon codicon-refresh"></i> 重试生成';
+    }
+}
+
+function bindReportGenerationFlowActions(errorTarget) {
+    const openConfigBtn = document.getElementById('btn-template-flow-open-config');
+
+    if (openConfigBtn) {
+        const newBtn = openConfigBtn.cloneNode(true);
+        openConfigBtn.parentNode.replaceChild(newBtn, openConfigBtn);
+        newBtn.addEventListener('click', () => {
+            openAdvancedMaintenance(errorTarget || '');
+        });
+    }
+}
+
+function toggleFlowActions(visible, mode, errorTarget) {
+    const container = document.getElementById('template-generation-flow-actions');
+    if (!container) return;
+
+    if (!visible) {
+        container.classList.add('hidden');
+        return;
+    }
+
+    // 只在出错时显示"打开高级配置"按钮；重试按钮已移到"生成报告"按钮位置
+    container.classList.remove('hidden');
+    if (mode === 'error') {
+        bindReportGenerationFlowActions(errorTarget);
+    }
 }
 
 function getReportGenerationErrorHint(message) {
@@ -1918,6 +2223,8 @@ function bindReportGenerationFeedbackActions() {
 }
 
 function openAdvancedMaintenance(targetId = '') {
+    setStoredTemplateDetailMode('config');
+    applyTemplateDetailMode('config');
     const panel = document.getElementById('template-advanced-maintenance');
     if (!panel) return;
     panel.open = true;
@@ -1953,7 +2260,8 @@ function renderAdvancedMaintenance(template) {
     const placeholders = getTemplateWorkbenchPlaceholders(template);
     const sections = getTemplateWorkbenchSections(template);
     const templateName = template.template_name || template.name || currentSelectedTemplate || '未命名模板';
-    currentTemplateState.activeSourceKind = 'section_config';
+    const hasV2Config = Boolean(project?.report_config_source);
+    currentTemplateState.activeSourceKind = hasV2Config ? 'report_config' : 'section_config';
     const placeholderNames = placeholders.length
         ? placeholders
         : sections.map(section => section.placeholder || section.key).filter(Boolean);
@@ -1999,6 +2307,16 @@ function getTemplateWorkbenchSource(template, sourceKind = 'section_config') {
             label: useLibraryDraft ? 'Markdown Prompt（模板库草稿）' : 'Markdown Prompt'
         };
     }
+    if (sourceKind === 'report_config') {
+        const hasV2 = Boolean(project?.report_config_source);
+        return {
+            content: hasV2
+                ? project.report_config_source
+                : buildPlaceholderMappingConfigYaml(template),
+            sourceKind: 'report_config',
+            label: hasV2 ? 'YAML 配置驱动 (v2)' : 'YAML 配置驱动 (v2 — 草稿)'
+        };
+    }
     return {
         content: shouldUsePlaceholderMappingDraft(template)
             ? buildPlaceholderMappingConfigYaml(template)
@@ -2021,14 +2339,26 @@ function shouldUsePlaceholderMappingDraft(template) {
 function updateTemplateSourceSwitcher(template) {
     const sectionBtn = document.getElementById('btn-template-source-section');
     const promptBtn = document.getElementById('btn-template-source-prompt');
+    const reportCfgBtn = document.getElementById('btn-template-source-report-config');
+    const project = template.report_project || null;
+    const hasV2Config = Boolean(project?.report_config_source);
     if (!sectionBtn || !promptBtn) return;
     const isFixedExcel = isSelectedFixedExcelPlaceholder(template);
     if (isFixedExcel && currentTemplateState.activeSourceKind === 'prompt_templates') {
-        currentTemplateState.activeSourceKind = 'section_config';
+        currentTemplateState.activeSourceKind = hasV2Config ? 'report_config' : 'section_config';
     }
+    // v2 存在时隐藏 v1 按钮，v2 是 v1 的增强替代
+    if (hasV2Config && currentTemplateState.activeSourceKind === 'section_config') {
+        currentTemplateState.activeSourceKind = 'report_config';
+    }
+    sectionBtn.classList.toggle('hidden', hasV2Config);
     sectionBtn.classList.toggle('active', currentTemplateState.activeSourceKind === 'section_config');
     promptBtn.classList.toggle('active', currentTemplateState.activeSourceKind === 'prompt_templates');
-    promptBtn.disabled = isFixedExcel || !template.report_project?.prompt_templates_source;
+    promptBtn.disabled = isFixedExcel || !project?.prompt_templates_source;
+    if (reportCfgBtn) {
+        reportCfgBtn.classList.toggle('active', currentTemplateState.activeSourceKind === 'report_config');
+        reportCfgBtn.classList.toggle('hidden', !hasV2Config);
+    }
 }
 
 function switchTemplateSourceKind(sourceKind) {
@@ -2502,11 +2832,17 @@ function isExcelFieldPlaceholder(type = '', mapping = {}, placeholderName = '') 
 }
 
 function getStoredCommonDefaults(template) {
-    const defaults = template?.report_project?.section_config?.defaults;
+    const project = template?.report_project;
+    const isV2 = currentTemplateState.activeSourceKind === 'report_config';
+    // v2 激活时优先从 report_config.defaults 读取共用参数
+    const v2Defaults = isV2 ? (project?.report_config?.defaults || null) : null;
+    const v1Defaults = project?.section_config?.defaults;
+    // v2 模式下合并 v2 defaults 与 v1 作为 fallback；v1 模式只读 v1
+    const defaults = isV2 && v2Defaults ? { ...v1Defaults, ...v2Defaults } : v1Defaults;
     const base = {
         generation_mode: 'evidence_grounded_generation',
         evidence_policy: 'strict',
-        query_mode: usesEmbeddedPromptQueries(template?.report_project) ? 'retrieval_query_embedded' : 'query_source',
+        query_mode: usesEmbeddedPromptQueries(project) ? 'retrieval_query_embedded' : 'query_source',
         validators: {
             require_evidence_from_uploaded_material: true,
             forbid_external_facts: true,
@@ -2601,7 +2937,6 @@ function renderCommonGenerationRules(template) {
         <div class="panel-title-row template-config-rail-header">
             <div>
                 <h4>配置导航</h4>
-                <small>共用规则与生成检查</small>
             </div>
             <div class="template-common-title-actions">
                 <button id="btn-template-save-common-rules" class="btn-secondary" type="button">
@@ -2613,7 +2948,6 @@ function renderCommonGenerationRules(template) {
             <summary>
                 <span class="template-common-summary-title">
                     <strong>共用 Prompt 约束</strong>
-                    <small>${esc(getFirstLine(generationConstraints))}</small>
                 </span>
                 <span class="template-common-summary-meta">
                     已保存
@@ -2645,7 +2979,6 @@ function renderCommonEvidenceRules(reportPeriod = {}, retrieval = {}) {
             <summary>
                 <span class="template-common-summary-title">
                     <strong>证据来源与时间</strong>
-                    <small>${esc(formatEvidenceScopeSummary(reportPeriod, retrieval))}</small>
                 </span>
                 <span class="template-common-summary-meta">
                     有效
@@ -2748,7 +3081,6 @@ function renderAdvancedCommonRules(template, retrieval = {}, rerank = {}) {
             <summary>
                 <span class="template-common-summary-title">
                     <strong>检索策略</strong>
-                    <small>${esc(retrieval.mode || 'hybrid')} · Top K ${esc(retrieval.top_k ?? 10)} · 候选 ${esc(candidateK)}/${esc(semanticCandidateK)}</small>
                 </span>
                 <span class="template-common-summary-meta">
                     ${keywordWeightPercent}/${semanticWeightPercent}
@@ -2795,7 +3127,6 @@ function renderAdvancedCommonRules(template, retrieval = {}, rerank = {}) {
             <summary>
                 <span class="template-common-summary-title">
                     <strong>证据重排</strong>
-                    <small>${rerank.enabled !== false ? '已启用' : '未启用'}</small>
                 </span>
                 <span class="template-common-summary-meta">
                     ${rerank.enabled !== false ? '启用' : '关闭'}
@@ -3294,11 +3625,173 @@ function getSelectedPlaceholderMapping(template) {
     if (!name) return null;
     const draft = currentTemplateState.placeholderMappingDrafts?.[name];
     if (draft) return draft;
+    // v2 配置激活时，从 report_config.placeholders 提取 EnhancedPlaceholder
+    if (currentTemplateState.activeSourceKind === 'report_config') {
+        const reportConfig = template.report_project?.report_config;
+        if (reportConfig && name) {
+            // 使用 getEditableV2Config 以合并 v2 草稿
+            const editableV2 = getEditableV2Config(template, name);
+            if (editableV2) {
+                return v2PlaceholderConfigToMapping(
+                    { ...reportConfig, placeholders: { ...reportConfig.placeholders, [name]: editableV2 } },
+                    name
+                );
+            }
+            return v2PlaceholderConfigToMapping(reportConfig, name);
+        }
+    }
     const mappings = getCurrentPlaceholderMappings(template);
     return mappings.get(name) || {
         title: inferPlaceholderTitle(name),
         type: inferPlaceholderType(name)
     };
+}
+
+/* ── v2 EnhancedPlaceholder → v1 mapping 映射 ── */
+function v2PlaceholderConfigToMapping(reportConfig, key) {
+    /* 从 report_config.placeholders[key] 读取 v2 EnhancedPlaceholder，
+     * 映射为 v1-compatible mapping 对象，同时保留原始 _v2 引用。
+     *
+     * 映射规则：
+     *   generation_config.prompt_template_ref → prompt_template
+     *   generation_config.target_words → target_words
+     *   generation_config.max_words → max_words
+     *   generation_config.retrieval.keyword_groups → flattened keywords array
+     *   type (rich_text→paragraph, text→field, ...) → v1 type
+     *   title → title
+     *   generation_mode → mode
+     */
+    const placeholders = reportConfig.placeholders || {};
+    const v2 = placeholders[key];
+    if (!v2) {
+        return {
+            title: inferPlaceholderTitle(key),
+            type: inferPlaceholderType(key),
+            _v2: null,
+            _isV2: true
+        };
+    }
+    const genConfig = v2.generation_config || {};
+    const retrieval = genConfig.retrieval || {};
+    // 展平 keyword_groups → 一维 keywords 数组
+    const flattenedKeywords = (retrieval.keyword_groups || [])
+        .reduce((acc, group) => acc.concat(Array.isArray(group) ? group : [group]), []);
+    // v2 type → v1 type
+    const v2Type = (v2.type || '').toLowerCase();
+    const v1Type = v2TypeToV1Type(v2Type, key);
+
+    // 从 rich_text_spec.runs 提取静态固定文本 → V1 components[data_template]
+    const richTextSpec = v2.rich_text_spec || {};
+    const runs = richTextSpec.runs || [];
+    const staticText = runs
+        .filter(r => r && r.is_dynamic === false && r.text)
+        .map(r => r.text)
+        .join('');
+    const components = staticText ? [{ type: 'data_template', template: staticText }] : undefined;
+
+    return {
+        title: v2.title || inferPlaceholderTitle(key),
+        type: v1Type,
+        mode: v2.generation_mode || v2.mode || reportConfig.defaults?.generation_mode || 'evidence_grounded',
+        prompt_template: genConfig.prompt_template_ref || '',
+        target_words: genConfig.target_words || '',
+        max_words: genConfig.max_words || '',
+        keywords: flattenedKeywords,
+        keyword_groups: retrieval.keyword_groups || [],
+        output_mode: genConfig.output_mode || 'single_paragraph',
+        min_chars: (v2.validation || {}).min_chars || '',
+        max_chars: (v2.validation || {}).max_chars || '',
+        require_numbers: (v2.validation || {}).require_numbers || false,
+        forbid_instruction_leaks: (v2.validation || {}).forbid_instruction_leaks || false,
+        forbidden_terms: (v2.validation || {}).forbidden_terms || [],
+        rich_text_spec: v2.rich_text_spec || null,
+        components: components,
+        data_source: v2.data_source || null,
+        chart_grid_spec: v2.chart_grid_spec || null,
+        visible: v2.visible !== false,
+        visible_if: v2.visible_if || '',
+        hide_strategy: v2.hide_strategy || 'remove_placeholder',
+        _v2: v2,
+        _isV2: true
+    };
+}
+
+function v2TypeToV1Type(v2Type, key) {
+    /* 将 v2 PlaceholderType 映射到 v1 类型标识 */
+    const map = {
+        'rich_text': 'paragraph',
+        'text': isSystemDatePlaceholder(key) ? 'field' : 'static_text',
+        'chart_grid': 'chart',
+        'chart': 'chart',
+        'image': 'image',
+        'table_data': 'table'
+    };
+    return map[v2Type] || 'paragraph';
+}
+
+/* ── v2 编辑草稿管理 ── */
+function getV2Draft(name) {
+    const drafts = currentTemplateState.v2PlaceholderConfigDrafts || {};
+    return drafts[name] || null;
+}
+
+function setV2Draft(name, pathStr, value) {
+    /* pathStr 如 'generation_config.target_words' 或 'rich_text_spec.default_font' */
+    const drafts = currentTemplateState.v2PlaceholderConfigDrafts || {};
+    currentTemplateState.v2PlaceholderConfigDrafts = drafts;
+    if (!drafts[name]) drafts[name] = {};
+    const parts = pathStr.split('.');
+    let target = drafts[name];
+    for (let i = 0; i < parts.length - 1; i++) {
+        if (!target[parts[i]] || typeof target[parts[i]] !== 'object') {
+            target[parts[i]] = {};
+        }
+        target = target[parts[i]];
+    }
+    target[parts[parts.length - 1]] = value;
+}
+
+function getEditableV2Config(template, name) {
+    /* 获取原始 report_config.placeholders[name]，深度合并 v2 草稿 */
+    const reportConfig = template?.report_project?.report_config;
+    const original = reportConfig?.placeholders?.[name] || null;
+    const draft = getV2Draft(name);
+    if (!draft) return original;
+    return deepMergeV2Config(original, draft);
+}
+
+function hasV2Drafts() {
+    const drafts = currentTemplateState.v2PlaceholderConfigDrafts || {};
+    return Object.keys(drafts).length > 0;
+}
+
+function clearV2Draft(name) {
+    const drafts = currentTemplateState.v2PlaceholderConfigDrafts || {};
+    if (name) {
+        delete drafts[name];
+    } else {
+        currentTemplateState.v2PlaceholderConfigDrafts = {};
+    }
+}
+
+function deepMergeV2Config(original, draft) {
+    /* 将 draft 深度合并到 original 上，返回新对象 */
+    if (!original) return draft ? JSON.parse(JSON.stringify(draft)) : null;
+    const result = JSON.parse(JSON.stringify(original));
+    if (!draft) return result;
+    _deepMerge(result, draft);
+    return result;
+}
+
+function _deepMerge(target, source) {
+    for (const key of Object.keys(source)) {
+        if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])
+            && target[key] && typeof target[key] === 'object' && !Array.isArray(target[key])) {
+            _deepMerge(target[key], source[key]);
+        } else {
+            target[key] = JSON.parse(JSON.stringify(source[key]));
+        }
+    }
 }
 
 function getRenderedPlaceholderSummaryName() {
@@ -3361,7 +3854,7 @@ function renderSelectedPlaceholderDetail(template) {
         return;
     }
 
-    if (titleEl) titleEl.textContent = `编辑：${name}`;
+    if (titleEl) titleEl.textContent = '';
     if (saveBtn) saveBtn.disabled = false;
     if (advancedBtn) advancedBtn.disabled = false;
 
@@ -3453,14 +3946,525 @@ function bindPlaceholderSummaryEditActions(template) {
     document.querySelectorAll('#template-placeholder-detail-form [data-placeholder-edit-section]').forEach(item => {
         if (item.dataset.boundPlaceholderEditSection) return;
         item.dataset.boundPlaceholderEditSection = 'true';
-        item.addEventListener('click', () => {
+        item.addEventListener('click', (e) => {
+            // 编辑模式下点击表单元素不做任何事（让用户正常输入）
+            if (item.classList.contains('is-editing')) {
+                const tag = e.target.tagName;
+                if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'LABEL' || tag === 'OPTION') {
+                    return;
+                }
+            }
+            const section = item.dataset.placeholderEditSection || 'all';
             openPlaceholderConfigEditorModal(
                 template,
-                item.dataset.placeholderEditSection || 'all',
+                section,
                 item.dataset.placeholderEditField || ''
             );
         });
     });
+}
+
+/* ── v2 占位符特有配置卡片（可编辑版本）── */
+function buildV2PlaceholderConfigCards(mapping, placeholderName) {
+    if (!mapping._isV2) return '';
+    const v2 = mapping._v2;
+    if (!v2) {
+        return `
+            <div class="template-config-readable-section">
+                <div class="template-config-readable-title">
+                    <strong>v2 占位符配置</strong>
+                    <span class="template-config-v2-badge">v2</span>
+                </div>
+                <p class="template-config-empty-note">该占位符尚未在 report_config.yaml 中定义 v2 配置。请在 YAML 编辑器中添加。</p>
+            </div>
+        `;
+    }
+
+    const parts = [];
+
+    // 1. RichTextSpec
+    const richTextHtml = buildV2RichTextSpecPreview(v2);
+    if (richTextHtml) {
+        parts.push(`
+            <button class="template-config-readable-section template-config-edit-trigger" type="button"
+                    data-placeholder-edit-section="v2_richtext" data-v2-card="richtext">
+                <div class="template-config-readable-title">
+                    <strong>格式化规格 (RichTextSpec)</strong>
+                    <span>${esc(v2.type || 'rich_text')} · 点击编辑</span>
+                </div>
+                <div class="template-config-rich-text-preview">
+                    ${richTextHtml}
+                </div>
+            </button>
+        `);
+    }
+
+    // 2. keyword_groups
+    const keywordGroupsHtml = buildV2KeywordGroupsPreview(v2);
+    if (keywordGroupsHtml) {
+        parts.push(`
+            <button class="template-config-readable-section template-config-edit-trigger" type="button"
+                    data-placeholder-edit-section="v2_keyword_groups" data-v2-card="keyword_groups">
+                <div class="template-config-readable-title">
+                    <strong>关键词组 (keyword_groups)</strong>
+                    <span>组内 OR · 组间 AND · 点击编辑</span>
+                </div>
+                ${keywordGroupsHtml}
+            </button>
+        `);
+    }
+
+    // 3. 校验规则
+    const validationHtml = buildV2ValidationPreview(v2);
+    if (validationHtml) {
+        parts.push(`
+            <button class="template-config-readable-section template-config-edit-trigger" type="button"
+                    data-placeholder-edit-section="v2_validation" data-v2-card="validation">
+                <div class="template-config-readable-title">
+                    <strong>校验规则 (ValidationSpec)</strong>
+                    <span>${v2.validation ? '已配置' : '未配置'} · 点击编辑</span>
+                </div>
+                ${validationHtml}
+            </button>
+        `);
+    }
+
+    // 4. 生成模式 & 数据来源概要
+    const genInfoHtml = buildV2GenerationInfoPreview(v2, mapping);
+    if (genInfoHtml) {
+        parts.push(genInfoHtml);
+    }
+
+    return parts.join('');
+}
+
+function buildV2RichTextSpecPreview(v2) {
+    const spec = v2.rich_text_spec;
+    if (!spec || !Array.isArray(spec.runs) || !spec.runs.length) {
+        if (v2.type === 'chart_grid' && v2.chart_grid_spec) {
+            const grid = v2.chart_grid_spec;
+            const cols = grid.columns || 1;
+            const chartCount = Array.isArray(grid.charts) ? grid.charts.length : 0;
+            return `<div class="template-config-chart-grid-preview">
+                <p>图表网格 · ${cols} 列 · ${chartCount} 个图表</p>
+                ${Array.isArray(grid.charts) ? grid.charts.map((ch, i) =>
+                    `<span class="template-config-chart-chip">图表 ${i + 1}: ${esc(ch.chart_ref || ch.title || '—')}</span>`
+                ).join('') : ''}
+            </div>`;
+        }
+        if (v2.type === 'image' && v2.data_source) {
+            return `<p>数据来源: ${esc(v2.data_source.source || v2.data_source.type || '—')}</p>`;
+        }
+        return '';
+    }
+    const defaultFont = spec.default_font || '默认字体';
+    const defaultSize = spec.default_size_pt || 12;
+    const headerHtml = `<p class="template-config-richtext-meta">默认字体: ${esc(defaultFont)} · ${defaultSize}pt · ${spec.runs.length} 个 Run</p>`;
+    const runsHtml = spec.runs.map((run, i) => {
+        const cls = run.is_dynamic ? 'rich-text-run dynamic' : 'rich-text-run static';
+        const label = run.is_dynamic
+            ? (run.placeholder_key ? `{{${run.placeholder_key}}}` : '动态内容')
+            : (run.text || '');
+        const styles = [];
+        if (run.bold) styles.push('font-weight:bold');
+        if (run.italic) styles.push('font-style:italic');
+        if (run.font_size_pt) styles.push(`font-size:${run.font_size_pt}pt`);
+        if (run.color_hex) styles.push(`color:${run.color_hex}`);
+        if (run.font_name) styles.push(`font-family:${run.font_name}`);
+        return `<span class="${cls}" style="${styles.join(';')}" title="Run ${i + 1}: ${esc(label)}">${esc(label)}</span>`;
+    }).join('');
+    return `${headerHtml}<div class="template-config-richtext-runs">${runsHtml}</div>`;
+}
+
+function buildV2KeywordGroupsPreview(v2) {
+    const groups = v2.keyword_groups || (v2.generation_config?.retrieval?.keyword_groups);
+    if (!Array.isArray(groups) || !groups.length) {
+        const kw = (v2.generation_config?.retrieval?.keywords) || [];
+        if (Array.isArray(kw) && kw.length) {
+            return `<div class="template-config-keyword-cloud">
+                ${kw.map(k => `<span>${esc(k)}</span>`).join('')}
+            </div>`;
+        }
+        return '<p class="template-config-empty-note">未配置关键词组</p>';
+    }
+    return `
+        <div class="template-config-keyword-groups">
+            ${groups.map((group, gi) => {
+                const items = Array.isArray(group) ? group : [group];
+                if (!items.length) return '';
+                return `<div class="template-config-keyword-group">
+                    <span class="template-config-group-label">G${gi + 1}</span>
+                    <div class="template-config-keyword-cloud">
+                        ${items.map(k => `<span>${esc(k)}</span>`).join('')}
+                    </div>
+                </div>`;
+            }).filter(Boolean).join('')}
+        </div>
+        <p class="template-config-groups-hint">组内关键词 OR 匹配，组间 AND 交集</p>
+    `;
+}
+
+function buildV2ValidationPreview(v2) {
+    const v = v2.validation;
+    if (!v) return '<p class="template-config-empty-note">未配置校验规则</p>';
+    const items = [];
+    if (v.min_chars) items.push(`<span class="template-config-rule-chip">最少 ${v.min_chars} 字符</span>`);
+    if (v.max_chars) items.push(`<span class="template-config-rule-chip">最多 ${v.max_chars} 字符</span>`);
+    if (v.require_numbers) items.push('<span class="template-config-rule-chip">必须包含数字</span>');
+    if (Array.isArray(v.forbidden_terms) && v.forbidden_terms.length) {
+        items.push(`<span class="template-config-rule-chip">禁用词: ${v.forbidden_terms.map(esc).join('、')}</span>`);
+    }
+    if (v.forbid_instruction_leaks) items.push('<span class="template-config-rule-chip">禁止指令泄露</span>');
+    if (!items.length) return '<p class="template-config-empty-note">校验规则为空</p>';
+    return `<div class="template-config-validation-rules">${items.join('')}</div>`;
+}
+
+function buildV2GenerationInfoPreview(v2, mapping) {
+    const gc = v2.generation_config || {};
+    const retrieval = gc.retrieval || {};
+    const items = [];
+    if (mapping.mode) items.push(`<span class="template-config-rule-chip">模式: ${esc(mapping.mode)}</span>`);
+    if (gc.target_words) items.push(`<span class="template-config-rule-chip">目标 ${gc.target_words} 字</span>`);
+
+    if (retrieval.mode) items.push(`<span class="template-config-rule-chip">检索: ${esc(retrieval.mode)}</span>`);
+    if (retrieval.top_k) items.push(`<span class="template-config-rule-chip">top_k: ${retrieval.top_k}</span>`);
+    if (!items.length) return '';
+    return `
+        <button class="template-config-readable-section template-config-edit-trigger" type="button"
+                data-placeholder-edit-section="v2_generation" data-v2-card="generation">
+            <div class="template-config-readable-title">
+                <strong>生成与检索参数</strong>
+                <span>GenerationConfig · 点击编辑</span>
+            </div>
+            <div class="template-config-validation-rules">${items.join('')}</div>
+        </button>
+    `;
+}
+
+/* ── v2 卡片内联编辑引擎 ── */
+function toggleV2CardEditMode(template, cardType, element) {
+    const name = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
+    if (!name) return;
+    const mapping = getSelectedPlaceholderMapping(template);
+    if (!mapping?._v2) return;
+
+    if (element.classList.contains('is-editing')) {
+        _cancelV2CardEdit(template, element, cardType, name);
+        return;
+    }
+
+    element.classList.add('is-editing');
+    const formHtml = buildV2CardEditForm(mapping._v2, mapping, cardType, name);
+    element.setAttribute('data-v2-card-original-html', element.innerHTML);
+    element.innerHTML = formHtml;
+    _bindV2CardEditActions(template, element, cardType, name);
+}
+
+function _cancelV2CardEdit(template, element, cardType, name) {
+    const originalHtml = element.getAttribute('data-v2-card-original-html');
+    if (originalHtml) {
+        element.innerHTML = originalHtml;
+        element.removeAttribute('data-v2-card-original-html');
+    } else {
+        // fallback: rebuild from current mapping
+        const mapping = getSelectedPlaceholderMapping(template);
+        element.innerHTML = _rebuildV2CardInnerHtml(mapping, cardType);
+    }
+    element.classList.remove('is-editing');
+}
+
+function _rebuildV2CardInnerHtml(mapping, cardType) {
+    const v2 = mapping?._v2;
+    if (!v2) return '';
+    switch (cardType) {
+        case 'richtext': {
+            const raw = buildV2RichTextSpecPreview(v2);
+            return `<div class="template-config-readable-title">
+                <strong>格式化规格 (RichTextSpec)</strong>
+                <span>${esc(v2.type || 'rich_text')} · 点击编辑</span>
+            </div><div class="template-config-rich-text-preview">${raw}</div>`;
+        }
+        case 'keyword_groups': {
+            const raw = buildV2KeywordGroupsPreview(v2);
+            return `<div class="template-config-readable-title">
+                <strong>关键词组 (keyword_groups)</strong>
+                <span>组内 OR · 组间 AND · 点击编辑</span>
+            </div>${raw}`;
+        }
+        case 'validation': {
+            const raw = buildV2ValidationPreview(v2);
+            return `<div class="template-config-readable-title">
+                <strong>校验规则 (ValidationSpec)</strong>
+                <span>${v2.validation ? '已配置' : '未配置'} · 点击编辑</span>
+            </div>${raw}`;
+        }
+        case 'generation': {
+            const gc = v2.generation_config || {};
+            const retrieval = gc.retrieval || {};
+            const items = [];
+            if (mapping.mode) items.push(`<span class="template-config-rule-chip">模式: ${esc(mapping.mode)}</span>`);
+            if (gc.target_words) items.push(`<span class="template-config-rule-chip">目标 ${gc.target_words} 字</span>`);
+        
+            if (retrieval.mode) items.push(`<span class="template-config-rule-chip">检索: ${esc(retrieval.mode)}</span>`);
+            if (retrieval.top_k) items.push(`<span class="template-config-rule-chip">top_k: ${retrieval.top_k}</span>`);
+            return `<div class="template-config-readable-title">
+                <strong>生成与检索参数</strong>
+                <span>GenerationConfig · 点击编辑</span>
+            </div><div class="template-config-validation-rules">${items.join('')}</div>`;
+        }
+        default: return '';
+    }
+}
+
+function buildV2CardEditForm(v2, mapping, cardType, name) {
+    switch (cardType) {
+        case 'richtext': return _buildRichTextEditForm(v2, name);
+        case 'keyword_groups': return _buildKeywordGroupsEditForm(v2, name);
+        case 'validation': return _buildValidationEditForm(v2, name);
+        case 'generation': return _buildGenerationEditForm(v2, mapping, name);
+        default: return '<p>未知编辑类型</p>';
+    }
+}
+
+function _buildRichTextEditForm(v2, name) {
+    const spec = v2.rich_text_spec || {};
+    const runs = spec.runs || [];
+    // 简化格式：每行一个 run，static|bold|fontSize|color|text 或 dynamic|placeholder_key
+    const lines = runs.map(r => {
+        if (r.is_dynamic) return `dynamic|${r.placeholder_key || ''}`;
+        return `static|${r.bold ? 'bold' : ''}|${r.font_size_pt || ''}|${r.color_hex || ''}|${r.text || ''}`;
+    });
+    return `<div class="template-config-edit-form">
+        <p class="template-config-edit-hint">每行一个 Run：<br><code>static|bold|fontSize|color|文本</code> 或 <code>dynamic|placeholder_key</code></p>
+        <textarea class="template-config-v2-textarea" data-v2-field="rich_text_spec.runs" rows="6">${esc(lines.join('\n'))}</textarea>
+        <label class="template-config-v2-field">默认字体 <input data-v2-field="rich_text_spec.default_font" value="${esc(spec.default_font || '')}" placeholder="如 微软雅黑"></label>
+        <label class="template-config-v2-field">默认字号(pt) <input type="number" data-v2-field="rich_text_spec.default_size_pt" value="${spec.default_size_pt || 12}" min="6" max="72"></label>
+        <div class="template-config-v2-actions">
+            <span class="btn-primary" role="button" tabindex="0" data-v2-action="save">确认</span>
+            <span class="btn-secondary" role="button" tabindex="0" data-v2-action="cancel">取消</span>
+        </div>
+    </div>`;
+}
+
+function _buildKeywordGroupsEditForm(v2, name) {
+    const groups = v2.keyword_groups || (v2.generation_config?.retrieval?.keyword_groups) || [];
+    const lines = groups.map(g => (Array.isArray(g) ? g : [g]).join(','));
+    return `<div class="template-config-edit-form">
+        <p class="template-config-edit-hint">每组一行，组内关键词用逗号分隔；组内 OR 匹配，组间 AND 交集</p>
+        <textarea class="template-config-v2-textarea" data-v2-field="generation_config.retrieval.keyword_groups" rows="6">${esc(lines.join('\n'))}</textarea>
+        <label class="template-config-v2-field">检索模式 <select data-v2-field="generation_config.retrieval.mode">
+            <option value="hybrid" ${(v2.generation_config?.retrieval?.mode || '') === 'hybrid' ? 'selected' : ''}>hybrid (混合)</option>
+            <option value="keyword" ${(v2.generation_config?.retrieval?.mode || '') === 'keyword' ? 'selected' : ''}>keyword (关键词)</option>
+            <option value="semantic" ${(v2.generation_config?.retrieval?.mode || '') === 'semantic' ? 'selected' : ''}>semantic (语义)</option>
+        </select></label>
+        <div class="template-config-v2-actions">
+            <span class="btn-primary" role="button" tabindex="0" data-v2-action="save">确认</span>
+            <span class="btn-secondary" role="button" tabindex="0" data-v2-action="cancel">取消</span>
+        </div>
+    </div>`;
+}
+
+function _buildValidationEditForm(v2, name) {
+    const v = v2.validation || {};
+    return `<div class="template-config-edit-form">
+        <div class="template-config-v2-field-row">
+            <label class="template-config-v2-field">最少字符 <input type="number" data-v2-field="validation.min_chars" value="${v.min_chars || ''}" min="0" placeholder="如 100"></label>
+            <label class="template-config-v2-field">最多字符 <input type="number" data-v2-field="validation.max_chars" value="${v.max_chars || ''}" min="0" placeholder="如 500"></label>
+        </div>
+        <label class="template-config-v2-field template-config-v2-checkbox">
+            <input type="checkbox" data-v2-field="validation.require_numbers" ${v.require_numbers ? 'checked' : ''}> 必须包含数字
+        </label>
+        <label class="template-config-v2-field template-config-v2-checkbox">
+            <input type="checkbox" data-v2-field="validation.forbid_instruction_leaks" ${v.forbid_instruction_leaks ? 'checked' : ''}> 禁止指令泄露
+        </label>
+        <label class="template-config-v2-field">禁用词（逗号分隔）
+            <textarea class="template-config-v2-textarea" data-v2-field="validation.forbidden_terms" rows="2" placeholder="如 保本,稳赚,收益保证">${esc((v.forbidden_terms || []).join(','))}</textarea>
+        </label>
+        <div class="template-config-v2-actions">
+            <span class="btn-primary" role="button" tabindex="0" data-v2-action="save">确认</span>
+            <span class="btn-secondary" role="button" tabindex="0" data-v2-action="cancel">取消</span>
+        </div>
+    </div>`;
+}
+
+function _buildGenerationEditForm(v2, mapping, name) {
+    const gc = v2.generation_config || {};
+    const retrieval = gc.retrieval || {};
+    return `<div class="template-config-edit-form">
+        <div class="template-config-v2-field-row">
+            <label class="template-config-v2-field">目标字数 <input type="number" data-v2-field="generation_config.target_words" value="${gc.target_words || ''}" min="10" placeholder="如 200"></label>
+        </div>
+        <div class="template-config-v2-field-row">
+            <label class="template-config-v2-field">检索 Top K <input type="number" data-v2-field="generation_config.retrieval.top_k" value="${retrieval.top_k || ''}" min="1" max="100"></label>
+            <label class="template-config-v2-field">候选数 <input type="number" data-v2-field="generation_config.retrieval.candidate_k" value="${retrieval.candidate_k || ''}" min="1" max="200"></label>
+        </div>
+        <label class="template-config-v2-field">生成模式 <select data-v2-field="generation_mode">
+            <option value="evidence_grounded" ${(v2.generation_mode || '') === 'evidence_grounded' ? 'selected' : ''}>evidence_grounded (证据驱动)</option>
+            <option value="llm_only" ${(v2.generation_mode || '') === 'llm_only' ? 'selected' : ''}>llm_only (纯 LLM)</option>
+            <option value="data_template" ${(v2.generation_mode || '') === 'data_template' ? 'selected' : ''}>data_template (数据模板)</option>
+        </select></label>
+        <div class="template-config-v2-actions">
+            <span class="btn-primary" role="button" tabindex="0" data-v2-action="save">确认</span>
+            <span class="btn-secondary" role="button" tabindex="0" data-v2-action="cancel">取消</span>
+        </div>
+    </div>`;
+}
+
+function _bindV2CardEditActions(template, element, cardType, name) {
+    element.querySelector('[data-v2-action="save"]')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        _applyV2CardEdit(template, element, cardType, name);
+    });
+    element.querySelector('[data-v2-action="cancel"]')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        _cancelV2CardEdit(template, element, cardType, name);
+    });
+}
+
+function _applyV2CardEdit(template, element, cardType, name) {
+    element.querySelectorAll('[data-v2-field]').forEach(input => {
+        let value;
+        if (input.type === 'checkbox') {
+            value = input.checked;
+        } else if (input.type === 'number') {
+            value = input.value === '' ? null : Number(input.value);
+        } else if (input.tagName === 'TEXTAREA') {
+            const field = input.dataset.v2Field;
+            if (field.includes('keyword_groups')) {
+                // keyword_groups: 每行一个 group，逗号分隔
+                value = input.value.split('\n')
+                    .map(line => line.trim())
+                    .filter(Boolean)
+                    .map(line => line.split(',').map(k => k.trim()).filter(Boolean));
+            } else if (field.includes('forbidden_terms')) {
+                value = input.value.split(',').map(t => t.trim()).filter(Boolean);
+            } else if (field.includes('runs')) {
+                // rich_text_spec.runs: 解析每行格式
+                value = input.value.split('\n')
+                    .map(line => line.trim())
+                    .filter(Boolean)
+                    .map(line => {
+                        if (line.startsWith('dynamic|')) {
+                            const pk = line.slice('dynamic|'.length).trim();
+                            return { placeholder_key: pk || undefined, is_dynamic: true };
+                        }
+                        // static|bold|fontSize|color|text
+                        const parts = line.split('|');
+                        return {
+                            text: parts[4] || '',
+                            bold: parts[1] === 'bold' || undefined,
+                            font_size_pt: parts[2] ? Number(parts[2]) : undefined,
+                            color_hex: parts[3] || undefined,
+                            is_dynamic: false
+                        };
+                    });
+            } else {
+                value = input.value;
+            }
+        } else if (input.tagName === 'SELECT') {
+            value = input.value;
+        } else {
+            value = input.value;
+        }
+        setV2Draft(name, input.dataset.v2Field, value);
+    });
+
+    // rebuild view from updated config
+    const mapping = getSelectedPlaceholderMapping(template);
+    element.innerHTML = _rebuildV2CardInnerHtml(mapping, cardType);
+    element.classList.remove('is-editing');
+    element.removeAttribute('data-v2-card-original-html');
+    // re-bind: the click handler needs re-attaching since innerHTML was replaced
+    if (!element.dataset.boundPlaceholderEditSection) {
+        element.dataset.boundPlaceholderEditSection = 'true';
+        element.addEventListener('click', (e) => {
+            const section = element.dataset.placeholderEditSection;
+            if (section && section.startsWith('v2_')) {
+                e.stopPropagation();
+                toggleV2CardEditMode(template, section.replace('v2_', ''), element);
+            }
+        });
+    }
+}
+
+/* ── 增强配置内联 badges（嵌入卡片内）── */
+function buildConfigEnhancementBadges(mapping, v2) {
+    const parts = [];
+    const spec = mapping.rich_text_spec;
+    if (spec && Array.isArray(spec.runs) && spec.runs.length > 0) {
+        const fontInfo = [spec.default_font, spec.default_size_pt ? `${spec.default_size_pt}pt` : ''].filter(Boolean).join(' ') || '默认';
+        const staticRuns = spec.runs.filter(r => r && !r.is_dynamic).length;
+        const dynamicRuns = spec.runs.filter(r => r && r.is_dynamic).length;
+        const runParts = [];
+        if (staticRuns > 0) runParts.push(`${staticRuns} 固定`);
+        if (dynamicRuns > 0) runParts.push(`${dynamicRuns} 动态`);
+        parts.push(`<span class="template-config-enhancement-badge">📝 ${esc(fontInfo)} · ${runParts.join(' + ')}</span>`);
+    }
+    if (!parts.length) return '';
+    return `<div class="template-config-enhancement-badges">${parts.join('')}</div>`;
+}
+
+function buildKeywordGroupsInlineBadges(groups) {
+    if (!Array.isArray(groups) || !groups.length) return '';
+    const badges = groups.slice(0, 3).map((g, i) => {
+        const text = Array.isArray(g) ? g.slice(0, 4).join(', ') : String(g);
+        const more = Array.isArray(g) && g.length > 4 ? ` +${g.length - 4}` : '';
+        return `<span class="template-config-enhancement-badge">G${i + 1}: ${esc(text)}${more}</span>`;
+    }).join('');
+    const more = groups.length > 3 ? `<span class="template-config-enhancement-badge">+${groups.length - 3} 组</span>` : '';
+    return `<div class="template-config-enhancement-badges">${badges}${more}</div>`;
+}
+
+/* ── 增强字段 textarea ↔ 结构化数据 互转 ── */
+function formatRunsForTextarea(runs) {
+    if (!Array.isArray(runs) || !runs.length) return '';
+    return runs.map(r => {
+        if (!r) return '';
+        if (r.is_dynamic) return 'dynamic';
+        const fields = ['static', r.bold ? 'bold' : '', r.font_size_pt || '', r.color_hex || '', r.text || ''];
+        return fields.join('|');
+    }).join('\n');
+}
+
+function formatKeywordGroupsForTextarea(groups) {
+    if (!Array.isArray(groups) || !groups.length) return '';
+    return groups.map(g => (Array.isArray(g) ? g.join(', ') : String(g))).join('\n');
+}
+
+function parseRunsTextarea(text) {
+    if (!text || !text.trim()) return [];
+    return text.split('\n').map(line => {
+        const trimmed = line.trim();
+        if (!trimmed) return null;
+        if (trimmed === 'dynamic' || trimmed.startsWith('dynamic')) {
+            return { is_dynamic: true };
+        }
+        const parts = trimmed.split('|');
+        const style = parts[0] === 'static' ? parts[1] : parts[0];
+        const isStatic = parts[0] === 'static';
+        const boldIdx = isStatic ? 1 : 0;
+        const fontSizeIdx = isStatic ? 2 : 1;
+        const colorIdx = isStatic ? 3 : 2;
+        const textIdx = isStatic ? 4 : 3;
+        return {
+            text: (parts[textIdx] || '').trim(),
+            bold: (parts[boldIdx] || '').trim() === 'bold' || undefined,
+            font_size_pt: parseFloat(parts[fontSizeIdx]) || undefined,
+            color_hex: (parts[colorIdx] || '').trim() || undefined,
+            is_dynamic: false
+        };
+    }).filter(Boolean);
+}
+
+function parseKeywordGroupsTextarea(text) {
+    if (!text || !text.trim()) return [];
+    return text.split('\n').map(line => {
+        const trimmed = line.trim();
+        if (!trimmed) return null;
+        return trimmed.split(',').map(s => s.trim()).filter(Boolean);
+    }).filter(Boolean);
 }
 
 function buildPlaceholderConfigSummaryHtml({
@@ -3505,7 +4509,6 @@ function buildPlaceholderConfigSummaryHtml({
             <section class="template-config-summary-card template-config-readable-card">
                 <div class="template-config-summary-head">
                     <div>
-                        <small>当前占位符</small>
                         <h4>${esc(name)}</h4>
                     </div>
                 </div>
@@ -3536,7 +4539,6 @@ function buildPlaceholderConfigSummaryHtml({
             { label: '段落方式', value: getParagraphModeLabel(effectiveMode) },
             ...(usesEvidence ? [
                 { label: '目标字数', value: mapping.target_words || inferDefaultTargetWords(name) },
-                { label: '最大字数', value: mapping.max_words || inferDefaultMaxWords(name) },
                 { label: '证据条数', value: minNewsCount || mapping.min_news_count || '默认' }
             ] : [
                 { label: '数据变量', value: dataFieldEntries.length ? `${dataFieldEntries.length} 个` : '未配置' },
@@ -3545,14 +4547,17 @@ function buildPlaceholderConfigSummaryHtml({
         ]
         : [
             { label: '目标字数', value: mapping.target_words || inferDefaultTargetWords(name) },
-            { label: '最大字数', value: mapping.max_words || inferDefaultMaxWords(name) },
             { label: '证据条数', value: minNewsCount || mapping.min_news_count || '默认' }
         ];
+    const v2 = mapping._v2;
+    const richTextSpec = mapping.rich_text_spec;
+    const hasRuns = richTextSpec && Array.isArray(richTextSpec.runs) && richTextSpec.runs.length > 0;
+    const keywordGroups = v2?.generation_config?.retrieval?.keyword_groups;
+    const hasKeywordGroups = Array.isArray(keywordGroups) && keywordGroups.length > 0;
     return `
         <section class="template-config-summary-card template-config-readable-card">
             <div class="template-config-summary-head">
                 <div>
-                    <small>当前占位符</small>
                     <h4>${esc(name)}</h4>
                 </div>
             </div>
@@ -3563,6 +4568,7 @@ function buildPlaceholderConfigSummaryHtml({
                         <strong>${esc(item.value)}</strong>
                     </div>
                 `).join('')}
+                ${hasRuns ? buildConfigEnhancementBadges(mapping, v2) : ''}
             </button>
             ${usesEvidence ? `
                 <button class="template-config-readable-section template-config-edit-trigger" type="button" data-placeholder-edit-section="query">
@@ -3582,6 +4588,7 @@ function buildPlaceholderConfigSummaryHtml({
                             ? keywordList.map(keyword => `<span>${esc(keyword)}</span>`).join('')
                             : '<em>暂无关键词</em>'}
                     </div>
+                    ${hasKeywordGroups ? buildKeywordGroupsInlineBadges(keywordGroups) : ''}
                 </button>
             ` : ''}
             ${supportsDataTemplate && dataTemplate ? `
@@ -3686,8 +4693,8 @@ function openPlaceholderConfigEditorModal(template, section = 'all', fieldKey = 
     setPlaceholderEditingSection(section, fieldKey);
     setPlaceholderEditorVisibility(editor, section, fieldKey);
     openTemplateConfigEditorModal({
-        title: `${labels.title} · ${name}`,
-        subtitle: labels.subtitle,
+        title: name,
+        subtitle: '',
         contentNode: editor,
         action: 'placeholder'
     });
@@ -3732,6 +4739,21 @@ function updateTemplateConfigPlaceholderChips(type, mapping = {}, template = get
         healthEl.classList.toggle('confirm', lifecycle.state === 'confirm');
         healthEl.classList.toggle('missing', lifecycle.state === 'missing');
     }
+}
+
+/* ── 模态增强字段 HTML 生成 ── */
+
+function buildEnhancedKeywordsSectionFields(mapping) {
+    const v2 = mapping._v2;
+    const groups = mapping.keyword_groups || v2?.generation_config?.retrieval?.keyword_groups;
+    return `
+        <hr class="template-config-modal-divider">
+        <div class="template-config-modal-group">
+            <h5>关键词组</h5>
+            <p class="template-config-edit-hint">每组一行，组内关键词逗号分隔。组内 OR 关系，组间 AND 关系。</p>
+            <textarea data-enhanced-field="generation_config.retrieval.keyword_groups" rows="6"
+                placeholder="台积电, 费城半导体, 英伟达, SK海力士&#10;光通信, 光模块, CPO, 中际旭创">${esc(formatKeywordGroupsForTextarea(groups))}</textarea>
+        </div>`;
 }
 
 function buildSimplePlaceholderFieldsHtml({
@@ -3790,10 +4812,6 @@ function buildSimplePlaceholderFieldsHtml({
                 <label>
                     <span>目标字数</span>
                     <input type="number" min="1" step="1" data-placeholder-field="target_words" value="${esc(mapping.target_words || inferDefaultTargetWords(name))}">
-                </label>
-                <label>
-                    <span>最大字数</span>
-                    <input type="number" min="1" step="1" data-placeholder-field="max_words" value="${esc(mapping.max_words || inferDefaultMaxWords(name))}">
                 </label>
                 <label>
                     <span>最少 evidence/news 条数</span>
@@ -3867,6 +4885,7 @@ function buildSimplePlaceholderFieldsHtml({
                         <small class="template-keyword-mode-help">保存后将使用这组关键词，不再引用预设包。</small>
                     </label>
                 `}
+                ${buildEnhancedKeywordsSectionFields(mapping)}
             </section>
             ` : ''}
         `;
@@ -4468,6 +5487,26 @@ function bindPlaceholderDetailInputs(template) {
                 window.requestAnimationFrame(() => openPlaceholderConfigEditorModal(template, activeSection, activeField));
                 return;
             }
+            if (field === 'type' && isPlaceholderConfigEditorModalOpen()) {
+                const activeSection = currentTemplateState.configEditModal?.contentNode?.dataset?.activeEditorSection || 'basic';
+                const activeField = currentTemplateState.configEditModal?.contentNode?.dataset?.activeEditorField || '';
+                closeTemplateConfigEditorModal();
+                window.requestAnimationFrame(() => openPlaceholderConfigEditorModal(template, activeSection, activeField));
+                return;
+            }
+            if (field === 'mode' && isPlaceholderConfigEditorModalOpen()) {
+                const draftName = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
+                if (draftName) {
+                    currentTemplateState.placeholderMappingDrafts = currentTemplateState.placeholderMappingDrafts || {};
+                    const prev = currentTemplateState.placeholderMappingDrafts[draftName] || getSelectedPlaceholderMapping(template) || {};
+                    currentTemplateState.placeholderMappingDrafts[draftName] = { ...prev, mode: input.value };
+                }
+                const activeSection = currentTemplateState.configEditModal?.contentNode?.dataset?.activeEditorSection || 'basic';
+                const activeField = currentTemplateState.configEditModal?.contentNode?.dataset?.activeEditorField || '';
+                closeTemplateConfigEditorModal();
+                window.requestAnimationFrame(() => openPlaceholderConfigEditorModal(template, activeSection, activeField));
+                return;
+            }
             if (field === 'type' || field === 'mode' || field === 'retrieval.keyword_mode' || field === 'retrieval.keyword_profile_select') {
                 renderSelectedPlaceholderDetail(template);
                 renderSelectedSourceFragment(template);
@@ -4487,9 +5526,26 @@ function bindPlaceholderPurposeCards(template) {
             const input = section?.querySelector('[data-placeholder-output-shape-select="true"]');
             const value = button.dataset.placeholderOutputShapeOption || '';
             if (!input || !value || input.value === value) return;
+            const oldCard = section.querySelector('[data-placeholder-output-shape-option].selected');
+            const oldLabel = oldCard?.querySelector('strong')?.textContent || '当前类型';
+            const newLabel = button.querySelector('strong')?.textContent || value;
+            if (!confirm(`确定要将占位符类型从"${oldLabel}"切换为"${newLabel}"吗？\n\n已配置的内容不会丢失，切换回来可以恢复。`)) return;
             input.value = value;
             input.dispatchEvent(new Event('input', { bubbles: true }));
-            input.dispatchEvent(new Event('change', { bubbles: true }));
+            const draftName = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
+            if (draftName) {
+                currentTemplateState.placeholderMappingDrafts = currentTemplateState.placeholderMappingDrafts || {};
+                const prev = currentTemplateState.placeholderMappingDrafts[draftName] || getSelectedPlaceholderMapping(template) || {};
+                currentTemplateState.placeholderMappingDrafts[draftName] = { ...prev, type: getCanonicalPlaceholderType(value, prev) || value };
+            }
+            if (isPlaceholderConfigEditorModalOpen()) {
+                const activeSection = currentTemplateState.configEditModal?.contentNode?.dataset?.activeEditorSection || 'basic';
+                const activeField = currentTemplateState.configEditModal?.contentNode?.dataset?.activeEditorField || '';
+                closeTemplateConfigEditorModal();
+                window.requestAnimationFrame(() => openPlaceholderConfigEditorModal(template, activeSection, activeField));
+            } else {
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+            }
             section.querySelectorAll('[data-placeholder-output-shape-option]').forEach(optionButton => {
                 const selected = optionButton === button;
                 optionButton.classList.toggle('selected', selected);
@@ -4615,6 +5671,33 @@ function collectSelectedPlaceholderDraft(template) {
             ? draft.mode
             : getParagraphMode(draft.type, draft, name);
     }
+
+    // 收集增强字段（RichTextSpec / Validation / keyword_groups）→ enhancedConfigDrafts
+    const modalBody = document.getElementById('template-config-editor-modal-body');
+    if (modalBody) {
+        modalBody.querySelectorAll('[data-enhanced-field]').forEach(input => {
+            const path = input.dataset.enhancedField;
+            let value;
+            if (input.type === 'checkbox') {
+                value = input.checked;
+            } else if (input.type === 'number') {
+                value = input.value === '' ? null : Number(input.value);
+            } else if (path === 'rich_text_spec.runs') {
+                value = parseRunsTextarea(input.value);
+            } else if (path === 'generation_config.retrieval.keyword_groups') {
+                value = parseKeywordGroupsTextarea(input.value);
+            } else if (path === 'validation.forbidden_terms') {
+                value = input.value ? input.value.split(',').map(s => s.trim()).filter(Boolean) : [];
+            } else {
+                value = input.value?.trim() || null;
+            }
+            if (value !== null && value !== '' && value !== undefined
+                && !(Array.isArray(value) && value.length === 0)) {
+                setV2Draft(name, path, value);
+            }
+        });
+    }
+
     currentTemplateState.placeholderMappingDrafts = currentTemplateState.placeholderMappingDrafts || {};
     currentTemplateState.placeholderMappingDrafts[name] = draft;
     return { name, draft };
@@ -4956,6 +6039,17 @@ function renderSelectedSourceFragment(template) {
         return;
     }
 
+    if (source.sourceKind === 'report_config') {
+        sourceEditor.dataset.promptTemplateName = '';
+        sourceEditor.value = buildSelectedPlaceholderV2YamlFragment(source.content, selectedName);
+        if (sourceKindLabel) {
+            sourceKindLabel.textContent = selectedName
+                ? `YAML 配置驱动 (v2)：{{${selectedName}}}`
+                : 'YAML 配置驱动 (v2)';
+        }
+        return;
+    }
+
     sourceEditor.dataset.promptTemplateName = '';
     sourceEditor.value = buildSelectedPlaceholderYamlFragment(template, getEditablePlaceholderMappings(template));
     if (sourceKindLabel) {
@@ -4963,6 +6057,91 @@ function renderSelectedSourceFragment(template) {
             ? `${source.label}：{{${selectedName}}}`
             : source.label;
     }
+}
+
+function buildSelectedPlaceholderV2YamlFragment(sourceYaml, key) {
+    /* 从完整的 v2 report_config.yaml 中提取单个占位符的 YAML 片段.
+     *
+     * v2 占位符在 placeholders: 下以 2 空格缩进定义，格式：
+     *   placeholders:
+     *     占位符key:
+     *       type: rich_text
+     *       title: "..."
+     *       ...
+     *     另一个key:
+     *       ...
+     *
+     * 本函数提取从 `  key:` 到下一个同缩进级别 key 之间的所有行，
+     * 保留原始格式（注释、空行、缩进）。
+     */
+    if (!key || !sourceYaml) return '# 从左侧选择一个 Word 占位符后显示对应 v2 YAML 片段';
+    if (isSystemDatePlaceholder(key)) {
+        const dateLabel = inferReportPeriodField(key);
+        return [
+            '# v2 占位符片段（系统日期）',
+            '# 此占位符由 report_period 自动填充，无需 LLM 生成。',
+            'placeholders:',
+            `  ${key}:`,
+            '    type: text',
+            '    generation_mode: static',
+            '    rich_text_spec:',
+            '      runs:',
+            `        - text: "<${dateLabel}>"`,
+            '          font_size_pt: 11'
+        ].join('\n');
+    }
+    const lines = sourceYaml.split('\n');
+    // 找到 placeholders: 之后的匹配行
+    let inPlaceholders = false;
+    let startLine = -1;
+    const keyPattern = new RegExp('^  ' + escapeRegExp(key) + '\\s*:');
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (/^placeholders\s*:/.test(line)) {
+            inPlaceholders = true;
+            continue;
+        }
+        if (inPlaceholders && keyPattern.test(line)) {
+            startLine = i;
+            break;
+        }
+    }
+    if (startLine < 0) {
+        return [
+            '# v2 占位符片段（草稿）',
+            '# 该占位符尚未在 report_config.yaml 中定义。',
+            '# 请参考已有占位符格式新增配置。',
+            'placeholders:',
+            `  ${key}:`,
+            '    type: rich_text',
+            `    title: "${inferPlaceholderTitle(key)}"`,
+            '    generation_mode: evidence_grounded',
+            '    generation_config:',
+            '      prompt_template_ref: ""',
+            '    rich_text_spec:',
+            '      runs:',
+            '        - is_dynamic: true'
+        ].join('\n');
+    }
+    // 提取从 startLine 开始的片段（到下一个同缩进级别的 key 或 placeholders 结束）
+    const fragmentLines = [];
+    for (let i = startLine; i < lines.length; i++) {
+        const line = lines[i];
+        // 遇到下一个 2 空格缩进的 key（且不是当前 key 的子属性），停止
+        // 子属性的缩进至少是 4 空格；中文字符不能用 \w，用 \S 匹配
+        if (i > startLine && /^  \S/.test(line) && !/^  #/.test(line)) {
+            break;
+        }
+        fragmentLines.push(line);
+    }
+    return [
+        '# v2 占位符片段 — 配置驱动模板渲染',
+        '# 当前显示一个 EnhancedPlaceholder 的完整定义。',
+        '# 修改后保存将更新 report_config.yaml 中的对应占位符。',
+        '# 注意：缩进和 YAML 结构必须保持有效。',
+        'placeholders:',
+        ...fragmentLines
+    ].join('\n');
 }
 
 function buildUpdatedSectionConfigSource(template, mappings) {
@@ -5001,12 +6180,129 @@ function insertTopLevelBlockBefore(source, block, anchors) {
     ].join('\n');
 }
 
+/* ── v2 配置 YAML 序列化 ── */
+function buildMergedV2Config(template) {
+    /* 深度克隆 report_config，然后合并所有 v2 草稿 */
+    const original = template?.report_project?.report_config;
+    if (!original) return null;
+    const config = JSON.parse(JSON.stringify(original));
+    const drafts = currentTemplateState.v2PlaceholderConfigDrafts || {};
+    const placeholders = config.placeholders || {};
+    for (const [name, draft] of Object.entries(drafts)) {
+        if (!draft) continue;
+        if (!placeholders[name]) {
+            placeholders[name] = {};
+        }
+        _deepMerge(placeholders[name], draft);
+    }
+    config.placeholders = placeholders;
+    return config;
+}
+
+function v2ConfigToYaml(config) {
+    /* 将 ReportTemplateConfig JS 对象序列化为 YAML 字符串。
+     * 针对报告配置的已知结构做了优化，keyword_groups 使用 flow style。
+     */
+    if (!config || typeof config !== 'object') return '';
+    const lines = [];
+    _yamlEmit(lines, config, 0);
+    return lines.join('\n') + '\n';
+}
+
+function _yamlEmit(lines, value, indent, key) {
+    if (value === null || value === undefined) {
+        if (key !== undefined) lines.push(`${_indent(indent)}${_yamlKey(key)} null`);
+        return;
+    }
+    if (Array.isArray(value)) {
+        if (value.length === 0) {
+            if (key !== undefined) lines.push(`${_indent(indent)}${_yamlKey(key)} []`);
+            return;
+        }
+        // keyword_groups 特殊处理：每个子数组使用 flow style
+        const isKeywordGroups = key === 'keyword_groups';
+        if (isKeywordGroups && value.every(v => Array.isArray(v))) {
+            lines.push(`${_indent(indent)}${_yamlKey(key)}`);
+            for (const group of value) {
+                const inner = group.map(g => _yamlScalar(g)).join(', ');
+                lines.push(`${_indent(indent + 2)}- [${inner}]`);
+            }
+            return;
+        }
+        // 简单字符串数组使用 flow style
+        if (value.every(v => typeof v === 'string' || typeof v === 'number')) {
+            const inner = value.map(v => _yamlScalar(v)).join(', ');
+            if (key !== undefined) {
+                lines.push(`${_indent(indent)}${_yamlKey(key)} [${inner}]`);
+            } else {
+                for (const item of value) {
+                    lines.push(`${_indent(indent)}- ${_yamlScalar(item)}`);
+                }
+            }
+            return;
+        }
+        // 对象数组
+        if (key !== undefined) lines.push(`${_indent(indent)}${_yamlKey(key)}`);
+        for (const item of value) {
+            if (typeof item === 'object' && !Array.isArray(item)) {
+                lines.push(`${_indent(indent)}-`);
+                _yamlEmitObj(lines, item, indent + 2);
+            } else {
+                lines.push(`${_indent(indent)}- ${_yamlScalar(item)}`);
+            }
+        }
+        return;
+    }
+    if (typeof value === 'object') {
+        if (key !== undefined) lines.push(`${_indent(indent)}${_yamlKey(key)}`);
+        _yamlEmitObj(lines, value, indent + (key !== undefined ? 2 : 0));
+        return;
+    }
+    // 标量
+    const txt = _yamlScalar(value);
+    if (key !== undefined) {
+        lines.push(`${_indent(indent)}${_yamlKey(key)} ${txt}`);
+    } else {
+        lines.push(`${_indent(indent)}${txt}`);
+    }
+}
+
+function _yamlEmitObj(lines, obj, indent) {
+    const keys = Object.keys(obj);
+    for (const k of keys) {
+        _yamlEmit(lines, obj[k], indent, k);
+    }
+}
+
+function _indent(n) { return ' '.repeat(n); }
+function _yamlKey(k) { return `${k}:`; }
+
+function _yamlScalar(value) {
+    if (typeof value === 'number') return String(value);
+    if (typeof value === 'boolean') return value ? 'true' : 'false';
+    const s = String(value);
+    // 需要引号的情况：空字符串、含特殊字符、纯数字串可能被误解
+    if (s === '' || /[:{}\[\],#&*?|>!%@`"'\n]/.test(s) || /^\d+(\.\d+)?$/.test(s)) {
+        return `"${s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n')}"`;
+    }
+    // 以特殊字符开头
+    if (/^[\[\]{}\"'&#]/.test(s)) return `"${s}"`;
+    return s;
+}
+
 function buildSourceContentForSave(template, sourceKind, editorValue) {
     if (sourceKind === 'prompt_templates') {
         return buildUpdatedPromptTemplatesSource(template, editorValue);
     }
     if (sourceKind === 'section_config') {
         return buildUpdatedSectionConfigSource(template, getEditablePlaceholderMappings(template));
+    }
+    if (sourceKind === 'report_config') {
+        if (hasV2Drafts()) {
+            const merged = buildMergedV2Config(template);
+            if (merged) return v2ConfigToYaml(merged);
+        }
+        return editorValue;
     }
     return editorValue;
 }
@@ -5386,95 +6682,6 @@ function buildPreflightReviewGroups(readiness, checks, placeholderReadiness, con
     ];
 }
 
-function buildPreflightTaskQueue(readiness, checks, placeholderReadiness) {
-    const tasks = [];
-    (readiness.assetChecks || []).filter(item => !item.ok).forEach(item => {
-        tasks.push({
-            severity: '阻断',
-            label: item.label || '模板资产',
-            detail: item.description || '生成所需资产尚未就绪',
-            action: item.action,
-            actionTarget: item.actionTarget,
-            actionLabel: item.actionLabel || '处理'
-        });
-    });
-    (placeholderReadiness || []).filter(item => !item.ok).forEach(item => {
-        tasks.push({
-            severity: item.issue?.message?.includes('后端计划') ? '阻断' : '警告',
-            label: `{{${item.placeholderName}}}`,
-            detail: item.issue?.message || item.status?.detail || '占位符配置需要处理',
-            action: 'focus-placeholder',
-            placeholderName: item.placeholderName,
-            editorSection: item.editorSection || 'basic',
-            actionLabel: '定位'
-        });
-    });
-    (checks || []).filter(item => !item.ok).forEach(item => {
-        tasks.push({
-            severity: '警告',
-            label: item.label || '生成检查',
-            detail: item.actionLabel ? `建议：${item.actionLabel}` : '建议先处理该检查项',
-            action: item.action,
-            actionTarget: item.actionTarget,
-            placeholderName: item.placeholderName,
-            actionLabel: item.actionLabel || '处理'
-        });
-    });
-    if (!tasks.length && !readiness.latestReport) {
-        tasks.push({
-            severity: '建议',
-            label: '首次生成',
-            detail: '预检通过后可以生成本期报告',
-            action: '',
-            actionLabel: ''
-        });
-    }
-    return tasks.slice(0, 3);
-}
-
-function renderPreflightTaskQueue(tasks) {
-    const visibleTasks = Array.isArray(tasks) ? tasks.slice(0, 3) : [];
-    if (!visibleTasks.length) {
-        return `
-            <div class="template-preflight-task-queue ok">
-                <div class="template-preflight-task-title">
-                    <span>优先处理</span>
-                    <strong>暂无阻断</strong>
-                </div>
-            </div>
-        `;
-    }
-    return `
-        <div class="template-preflight-task-queue">
-            <div class="template-preflight-task-title">
-                <span>优先处理</span>
-                <strong>${visibleTasks.length} 项</strong>
-            </div>
-            ${visibleTasks.map(task => `
-                <div class="template-preflight-task-item ${task.severity === '阻断' ? 'blocker' : task.severity === '警告' ? 'warning' : 'suggestion'}">
-                    <em>${esc(task.severity || '建议')}</em>
-                    <span>
-                        <strong>${esc(task.label || '')}</strong>
-                        <small>${esc(task.detail || '')}</small>
-                    </span>
-                    ${task.action ? `
-                        <button
-                            type="button"
-                            class="template-check-action"
-                            data-template-check-action="${esc(task.action)}"
-                            data-template-check-target="${esc(task.actionTarget || '')}"
-                            data-template-placeholder-name="${esc(task.placeholderName || '')}"
-                            data-template-placeholder-editor-section="${esc(task.editorSection || 'basic')}"
-                        >
-                            ${esc(task.actionLabel || '处理')}
-                        </button>
-                    ` : ''}
-                </div>
-            `).join('')}
-        </div>
-    `;
-}
-
 function buildEvidencePreviewRows(readiness) {
     const runLogSamples = getRunLogEvidenceSamples(currentTemplateState.lastReportRunLog);
     if (runLogSamples.length) return runLogSamples;
@@ -5574,9 +6781,8 @@ function renderTemplateValidationPreview(template, sections, placeholders) {
         placeholders,
         excelRows
     });
-    const priorityTasks = buildPreflightTaskQueue(readiness, checks, placeholderReadiness);
 
-    list.innerHTML = `${renderPreflightTaskQueue(priorityTasks)}${reviewGroups.map(group => renderPreflightReviewGroup(group)).join('')}`;
+    list.innerHTML = reviewGroups.map(group => renderPreflightReviewGroup(group)).join('');
 
     if (statusEl) {
         const passed = checks.filter(check => check.ok).length + placeholderReadiness.filter(item => item.ok).length;
@@ -6393,6 +7599,7 @@ function bindTemplateWorkbenchActions() {
 
     const sourceSectionBtn = document.getElementById('btn-template-source-section');
     const sourcePromptBtn = document.getElementById('btn-template-source-prompt');
+    const sourceReportCfgBtn = document.getElementById('btn-template-source-report-config');
     if (sourceSectionBtn && !sourceSectionBtn.dataset.bound) {
         sourceSectionBtn.dataset.bound = 'true';
         sourceSectionBtn.addEventListener('click', () => switchTemplateSourceKind('section_config'));
@@ -6400,6 +7607,10 @@ function bindTemplateWorkbenchActions() {
     if (sourcePromptBtn && !sourcePromptBtn.dataset.bound) {
         sourcePromptBtn.dataset.bound = 'true';
         sourcePromptBtn.addEventListener('click', () => switchTemplateSourceKind('prompt_templates'));
+    }
+    if (sourceReportCfgBtn && !sourceReportCfgBtn.dataset.bound) {
+        sourceReportCfgBtn.dataset.bound = 'true';
+        sourceReportCfgBtn.addEventListener('click', () => switchTemplateSourceKind('report_config'));
     }
 
 	    if (saveBtn && sourceEditor && !saveBtn.dataset.bound) {
@@ -6567,17 +7778,18 @@ function bindTemplateWorkbenchActions() {
             }
 
             generateBtn.disabled = true;
-            const originalText = generateBtn.innerHTML;
             generateBtn.innerHTML = '<i class="codicon codicon-loading spin"></i> 生成中...';
             try {
                 await renderReportFromTemplate({ inlineProgress: true });
+                setGenerationFlowState('refresh', '生成完成', '已完成');
+                toggleFlowActions(false);
+                generateBtn.innerHTML = '<i class="codicon codicon-play"></i> 生成报告';
                 toast('报告生成完成', 'success');
             } catch (e) {
                 renderReportGenerationFailure(e);
                 toast('生成失败: ' + e.message, 'error');
             } finally {
                 generateBtn.disabled = false;
-                generateBtn.innerHTML = originalText;
             }
         });
     }
@@ -6600,8 +7812,13 @@ async function saveCurrentSectionConfig({
     markSelectedPlaceholderConfirmed(template);
 
     const sourceEditor = document.getElementById('template-source-editor');
+    const sourceKind = currentTemplateState.activeSourceKind || 'section_config';
     const mappings = getEditablePlaceholderMappings(template);
-    const content = buildUpdatedSectionConfigSource(template, mappings);
+    const hasEnhanced = hasV2Drafts();
+    const saveKind = hasEnhanced ? 'report_config' : sourceKind;
+    const content = hasEnhanced
+        ? buildSourceContentForSave(template, 'report_config', sourceEditor?.value || '')
+        : buildUpdatedSectionConfigSource(template, mappings);
     const selectedName = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
     const selectedMapping = selectedName ? mappings.get(selectedName) : null;
     const originalText = button?.innerHTML;
@@ -6617,7 +7834,7 @@ async function saveCurrentSectionConfig({
                 'PUT',
                 `/api/report-projects/${encodeURIComponent(project.slug)}/source`,
                 {
-                    source_kind: 'section_config',
+                    source_kind: saveKind,
                     content
                 }
             );
@@ -6626,7 +7843,7 @@ async function saveCurrentSectionConfig({
                 selectedMapping,
                 selectedName
             );
-            if (promptTemplatesContent) {
+            if (promptTemplatesContent && !hasEnhanced) {
                 updatedProject = await apiCall(
                     'PUT',
                     `/api/report-projects/${encodeURIComponent(project.slug)}/source`,
@@ -7021,8 +8238,8 @@ async function renderReportFromTemplate(options = {}) {
         let result;
         if (options.inlineProgress) {
             renderReportGenerationProgressCard({
-                activeKey: 'generate',
-                message: '正在检索证据、调用模型并生成正文'
+                activeKey: 'check',
+                message: '已提交后台生成任务，等待后台调度引擎'
             });
         }
 
@@ -7065,13 +8282,17 @@ async function renderReportFromTemplate(options = {}) {
                     message: '报告已写入 Word，正在刷新最近版本和预览入口'
                 });
             }
-            const projects = await loadReportProjectsList();
-            const refreshedProject = (projects || []).find(project => project.slug === renderedProjectSlug);
-            const selectedTemplate = getCurrentWorkbenchTemplate();
-            if (selectedTemplate && refreshedProject) {
-                selectedTemplate.report_project = refreshedProject;
-                currentTemplateState.selectedReportProject = refreshedProject;
-                renderReportGenerationCenter(selectedTemplate);
+            try {
+                const projects = await loadReportProjectsList();
+                const refreshedProject = (projects || []).find(project => project.slug === renderedProjectSlug);
+                const selectedTemplate = getCurrentWorkbenchTemplate();
+                if (selectedTemplate && refreshedProject) {
+                    selectedTemplate.report_project = refreshedProject;
+                    currentTemplateState.selectedReportProject = refreshedProject;
+                    renderReportGenerationCenter(selectedTemplate);
+                }
+            } catch (refreshError) {
+                console.warn('生成后刷新项目列表失败，报告已成功生成', refreshError);
             }
         }
 
@@ -7112,7 +8333,12 @@ async function renderReportFromTemplate(options = {}) {
         }
         return result;
     } catch (e) {
-        if (options.inlineProgress) throw e;
+        if (options.inlineProgress) {
+            // 清除进度卡片，显示失败状态
+            renderReportGenerationFailure(e);
+            toast('渲染失败: ' + e.message, 'error');
+            throw e;
+        }
         toast('渲染失败: ' + e.message, 'error');
         return null;
     } finally {
@@ -7147,7 +8373,8 @@ async function renderReportProject(project) {
             placeholders: currentTemplateState.placeholderValues || {},
             report_date: generationOptions.report_date || null,
             start_date: generationOptions.start_date || null,
-            end_date: generationOptions.end_date || null
+            end_date: generationOptions.end_date || null,
+            lookback_days: generationOptions.lookback_days || 7
         }
     );
     return pollReportGenerationJob(job);
@@ -7190,19 +8417,40 @@ async function pollReportGenerationJob(initialJob) {
     throw new Error(`等待生成结果超时（任务 ${jobId} 可能仍在后台运行）`);
 }
 
+let _evidenceStepEnteredAt = null;
+
 function updateReportGenerationJobProgress(job) {
-    const phaseToStep = {
-        queued: 'check',
-        prepare: 'check',
-        generate: 'generate',
-        render: 'write',
-        save: 'refresh'
-    };
     const completed = Number(job?.completed_sections || 0);
     const total = Number(job?.total_sections || 0);
     const sectionProgress = total > 0 ? `（${completed}/${total} 个段落）` : '';
+    const phase = job?.phase || '';
+
+    let activeKey;
+    if (phase === 'queued') {
+        activeKey = 'check';
+        _evidenceStepEnteredAt = null;
+    } else if (phase === 'prepare') {
+        activeKey = 'mapping';
+        _evidenceStepEnteredAt = null;
+    } else if (phase === 'generate') {
+        if (_evidenceStepEnteredAt === null) {
+            _evidenceStepEnteredAt = Date.now();
+        }
+        activeKey = (Date.now() - _evidenceStepEnteredAt < 4000)
+            ? 'evidence'
+            : 'generate';
+    } else if (phase === 'render') {
+        activeKey = 'write';
+        _evidenceStepEnteredAt = null;
+    } else if (phase === 'save' || job?.status === 'completed') {
+        activeKey = 'refresh';
+        _evidenceStepEnteredAt = null;
+    } else {
+        activeKey = 'generate';
+    }
+
     renderReportGenerationProgressCard({
-        activeKey: phaseToStep[job?.phase] || 'generate',
+        activeKey,
         message: `${job?.message || '正在后台生成报告'}${sectionProgress}`
     });
 }
@@ -7220,10 +8468,8 @@ function getReportProjectGenerationOptions() {
         Math.min(90, Number(draftPeriod.lookback_days || savedPeriod.lookback_days || 7))
     );
     const reportDate = String(draftPeriod.report_date || getDefaultReportDate()).trim();
-    const startDate = String(
-        draftPeriod.start_date || getDefaultEvidenceStartDate(reportDate, lookbackDays)
-    ).trim();
-    const endDate = String(draftPeriod.end_date || reportDate).trim();
+    const startDate = getDefaultEvidenceStartDate(reportDate, lookbackDays);
+    const endDate = reportDate;
     const project = getCurrentWorkbenchTemplate()?.report_project;
     return {
         report_date: reportDate,

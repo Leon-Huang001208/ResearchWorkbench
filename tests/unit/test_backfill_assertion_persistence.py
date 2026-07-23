@@ -7,6 +7,7 @@ Tests cover:
 - Idempotency (repeated runs don't create duplicates)
 - Linkage between assertions and source documents
 """
+
 import json
 import tempfile
 from pathlib import Path

@@ -1,4 +1,5 @@
 """共享认知黑板。"""
+
 from __future__ import annotations
 
 from collections import defaultdict

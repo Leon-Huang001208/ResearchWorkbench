@@ -1,4 +1,5 @@
 """AKShare 开源数据适配器 - macOS 降级数据源"""
+
 from datetime import datetime
 from typing import List, Optional
 
@@ -102,7 +103,9 @@ class AKShareAdapter(BaseDataAdapter):
             }
 
             if financial_abstract:
-                result["eps"] = financial_abstract.get("基本每股收益") or financial_abstract.get("每股收益")
+                result["eps"] = financial_abstract.get("基本每股收益") or financial_abstract.get(
+                    "每股收益"
+                )
                 result["roe"] = financial_abstract.get("净资产收益率")
                 result["net_profit"] = financial_abstract.get("净利润")
                 result["revenue"] = financial_abstract.get("营业总收入")
@@ -146,16 +149,22 @@ class AKShareAdapter(BaseDataAdapter):
                 shareholders.append(
                     {
                         "name": str(row.get("股东名称", "")),
-                        "share_ratio": float(row.get("持股比例", 0))
-                        if row.get("持股比例") is not None and not pd.isna(row.get("持股比例"))
-                        else 0.0,
-                        "shares": float(row.get("持股数量", 0))
-                        if row.get("持股数量") is not None and not pd.isna(row.get("持股数量"))
-                        else 0.0,
+                        "share_ratio": (
+                            float(row.get("持股比例", 0))
+                            if row.get("持股比例") is not None and not pd.isna(row.get("持股比例"))
+                            else 0.0
+                        ),
+                        "shares": (
+                            float(row.get("持股数量", 0))
+                            if row.get("持股数量") is not None and not pd.isna(row.get("持股数量"))
+                            else 0.0
+                        ),
                         "holder_type": str(row.get("股东类型", "")),
-                        "rank": int(row.get("序号", 0))
-                        if row.get("序号") is not None and not pd.isna(row.get("序号"))
-                        else 0,
+                        "rank": (
+                            int(row.get("序号", 0))
+                            if row.get("序号") is not None and not pd.isna(row.get("序号"))
+                            else 0
+                        ),
                     }
                 )
 

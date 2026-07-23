@@ -1,4 +1,5 @@
 """市场数据连接器 — MarketDataConnector 实现."""
+
 from connectors.market.akshare import AkShareMarketConnector
 from connectors.market.baostock import BaostockMarketConnector
 from connectors.market.csindex import CsindexMarketConnector

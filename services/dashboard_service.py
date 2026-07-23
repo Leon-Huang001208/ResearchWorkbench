@@ -1,4 +1,5 @@
 """Dashboard 首页数据聚合服务"""
+
 import json
 import os
 import re
@@ -6,8 +7,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FuturesTimeoutError
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
-from threading import Lock
+from threading import Lock, Thread
 from typing import Any, List, Optional
 
 from sqlalchemy import desc
@@ -36,6 +36,7 @@ from core.contracts.dashboard import (
     WeeklyLesson,
 )
 from core.observability import get_logger
+from core.settings.paths import default_market_sector_cache_path
 from data_layer.repositories.dashboard_data import DashboardDataRepository
 from services.wind_index_catalog import load_wind_index_catalog
 from services.wind_market_overview_provider import WindMarketOverviewProvider
@@ -61,14 +62,7 @@ MARKET_SECTOR_CACHE_TTL_SECONDS = 5.0
 MARKET_SECTOR_WORKBOOK_READ_TIMEOUT_SECONDS = 24.0
 MARKET_SECTOR_WORKBOOK_READ_TIMEOUT_ENV = "ALPHAFOUNDRY_WIND_WORKBOOK_READ_TIMEOUT_SECONDS"
 MARKET_SECTOR_DISK_CACHE_MAX_AGE_SECONDS = 60 * 60
-MARKET_SECTOR_DISK_CACHE_PATH = (
-    Path.home()
-    / "Library"
-    / "Application Support"
-    / "AlphaFoundry"
-    / "cache"
-    / "market_sector_movers.json"
-)
+MARKET_SECTOR_DISK_CACHE_PATH = default_market_sector_cache_path()
 MARKET_COMMAND_CACHE_TTL_SECONDS = 15.0
 MARKET_BREADTH_EXACT_CACHE_TTL_SECONDS = 45.0
 MARKET_STATS_CACHE_TTL_SECONDS = 45.0
@@ -81,6 +75,7 @@ _market_index_cache: Optional[tuple[float, list[dict[str, Any]]]] = None
 _market_breadth_cache: Optional[tuple[float, dict[str, Any]]] = None
 _market_stats_cache: Optional[tuple[float, dict[str, Any]]] = None
 _previous_turnover_cache: Optional[tuple[float, dict[str, Any]]] = None
+_previous_turnover_refreshing = False
 _market_breadth_refreshing = False
 _market_sector_cache: dict[tuple[str, int], tuple[float, dict]] = {}
 _market_sector_cache_lock = Lock()
@@ -428,9 +423,9 @@ class DashboardService:
                         "name": label,
                         "value": f"{latest:.2f}",
                         "change": round(change, 2),
-                        "point_change": round(point_change, 2)
-                        if point_change is not None
-                        else None,
+                        "point_change": (
+                            round(point_change, 2) if point_change is not None else None
+                        ),
                         "amount": self._optional_float(values[5]) if len(values) > 5 else None,
                         "source": "sina",
                     }
@@ -475,9 +470,9 @@ class DashboardService:
                         "name": label,
                         "value": f"{latest:.2f}",
                         "change": round(change, 2),
-                        "point_change": round(point_change, 2)
-                        if point_change is not None
-                        else None,
+                        "point_change": (
+                            round(point_change, 2) if point_change is not None else None
+                        ),
                         "amount": self._optional_float(row.get("成交额")),
                         "source": "sina",
                     }
@@ -551,14 +546,14 @@ class DashboardService:
             }
 
             def fetch_page(page: int, size: int) -> dict:
-                params: dict[str, str] = {
-                    "pn": str(page),
-                    "pz": str(size),
-                    "po": "1",
-                    "np": "1",
+                params: dict[str, str | int] = {
+                    "pn": page,
+                    "pz": size,
+                    "po": 1,
+                    "np": 1,
                     "ut": "bd1d9ddb04089700cf9c27f6f7426281",
-                    "fltt": "2",
-                    "invt": "2",
+                    "fltt": 2,
+                    "invt": 2,
                     "fid": "f3",
                     "fs": fs,
                     "fields": fields,
@@ -634,7 +629,11 @@ class DashboardService:
                 "previousTurnover": (previous_turnover or {}).get("formatted"),
                 "netInflow": None,
                 "source": "eastmoney_all_a",
-                "sourceLabel": "东方财富全A实时" if failed_pages == 0 else f"东方财富全A实时（缺{failed_pages}页）",
+                "sourceLabel": (
+                    "东方财富全A实时"
+                    if failed_pages == 0
+                    else f"东方财富全A实时（缺{failed_pages}页）"
+                ),
                 "fetchedAt": datetime.now(UTC),
             }
             with _market_command_cache_lock:
@@ -730,7 +729,10 @@ class DashboardService:
                 fetchedAt=fetched_at,
             )
         except Exception as exc:
-            logger.warning("Failed to build THS sector breadth: %s", exc)
+            try:
+                logger.warning("Failed to build THS sector breadth: %s", exc)
+            except Exception:
+                pass
             return None
 
     def _get_market_stats(self, force_refresh: bool = False) -> dict[str, Any]:
@@ -759,7 +761,14 @@ class DashboardService:
         has_real_news = False
         has_real_sectors = False
         last_updated = None
-        breadth = self._get_market_breadth(force_refresh=force_refresh)
+        try:
+            breadth = self._get_market_breadth(force_refresh=force_refresh)
+        except Exception as exc:
+            try:
+                logger.warning("Failed to get market breadth, continuing without it: %s", exc)
+            except Exception:
+                pass
+            breadth = None
         indices = self._get_market_indices(force_refresh=force_refresh)
         market_stats = self._get_market_stats(force_refresh=force_refresh)
 
@@ -921,7 +930,10 @@ class DashboardService:
                     )
                     return persistent_payload
         else:
-            logger.info("Bypassing market sector cache for force refresh: %s", normalized_view)
+            try:
+                logger.info("Bypassing market sector cache for force refresh: %s", normalized_view)
+            except Exception:
+                pass
 
         if normalized_view == "ths_industry":
             payload = self._get_ths_market_sector_payload(normalized_limit)
@@ -949,12 +961,15 @@ class DashboardService:
                         reason=str(workbook_payload.get("status") or "sector_view")
                     )
                 if workbook_payload.get("has_real_data") or not fallback_enabled:
-                    logger.info(
-                        "Using Wind realtime workbook sector view: %s status=%s real=%s",
-                        normalized_view,
-                        workbook_payload.get("status"),
-                        workbook_payload.get("has_real_data"),
-                    )
+                    try:
+                        logger.info(
+                            "Using Wind realtime workbook sector view: %s status=%s real=%s",
+                            normalized_view,
+                            workbook_payload.get("status"),
+                            workbook_payload.get("has_real_data"),
+                        )
+                    except Exception:
+                        pass
                     self._set_cached_market_sector_payload(cache_key, workbook_payload)
                     return self._copy_market_sector_payload(workbook_payload)
                 if workbook_payload.get("status") in {
@@ -962,15 +977,21 @@ class DashboardService:
                     "workbook_timeout",
                     "snapshot_invalid",
                 }:
-                    logger.info(
-                        "Skipping Wind formula fallback after unhealthy workbook read: %s status=%s",
-                        normalized_view,
-                        workbook_payload.get("status"),
-                    )
+                    try:
+                        logger.info(
+                            "Skipping Wind formula fallback after unhealthy workbook read: %s status=%s",
+                            normalized_view,
+                            workbook_payload.get("status"),
+                        )
+                    except Exception:
+                        pass
                     self._set_cached_market_sector_payload(cache_key, workbook_payload)
                     return self._copy_market_sector_payload(workbook_payload)
             except Exception as exc:
-                logger.warning("Wind realtime workbook read failed: %s", exc)
+                try:
+                    logger.warning("Wind realtime workbook read failed: %s", exc)
+                except Exception:
+                    pass
                 self._trigger_wind_workbook_recovery(reason="sector_view_exception")
                 if not fallback_enabled:
                     payload = {
@@ -989,10 +1010,13 @@ class DashboardService:
                     self._set_cached_market_sector_payload(cache_key, payload)
                     return self._copy_market_sector_payload(payload)
         else:
-            logger.info(
-                "Wind realtime workbook disabled; set %s=1 to enable",
-                ENABLE_WIND_REALTIME_WORKBOOK_ENV,
-            )
+            try:
+                logger.info(
+                    "Wind realtime workbook disabled; set %s=1 to enable",
+                    ENABLE_WIND_REALTIME_WORKBOOK_ENV,
+                )
+            except Exception:
+                pass
 
         if not fallback_enabled:
             payload = workbook_payload or {
@@ -1016,24 +1040,30 @@ class DashboardService:
             return self._copy_market_sector_payload(payload)
 
         provider = WindMarketOverviewProvider()
-        logger.info(
-            "Preparing market sector view %s from Wind seeds: count=%s views=%s",
-            normalized_view,
-            len(provider.seeds),
-            dict(Counter(seed.view_key for seed in provider.seeds)),
-        )
+        try:
+            logger.info(
+                "Preparing market sector view %s from Wind seeds: count=%s views=%s",
+                normalized_view,
+                len(provider.seeds),
+                dict(Counter(seed.view_key for seed in provider.seeds)),
+            )
+        except Exception:
+            pass
         grouped_movers = provider.get_grouped_movers(
             limit=normalized_limit,
             view_keys=(normalized_view,),
         )
         view = grouped_movers.get("views", {}).get(normalized_view, {"up": [], "down": []})
-        logger.info(
-            "Loaded market sector view %s: up=%s down=%s real=%s",
-            normalized_view,
-            len(view.get("up", [])),
-            len(view.get("down", [])),
-            bool(grouped_movers.get("has_real_data")),
-        )
+        try:
+            logger.info(
+                "Loaded market sector view %s: up=%s down=%s real=%s",
+                normalized_view,
+                len(view.get("up", [])),
+                len(view.get("down", [])),
+                bool(grouped_movers.get("has_real_data")),
+            )
+        except Exception:
+            pass
         payload = {
             "view_key": normalized_view,
             "view_label": self._market_view_label(normalized_view),
@@ -1045,7 +1075,10 @@ class DashboardService:
             "cache_ttl_seconds": MARKET_SECTOR_CACHE_TTL_SECONDS,
         }
         if not payload["has_real_data"]:
-            logger.info("No provider fallback data for market view: %s", normalized_view)
+            try:
+                logger.info("No provider fallback data for market view: %s", normalized_view)
+            except Exception:
+                pass
             fallback_payload = workbook_payload or payload
             self._set_cached_market_sector_payload(cache_key, fallback_payload)
             return self._copy_market_sector_payload(fallback_payload)
@@ -1136,14 +1169,11 @@ class DashboardService:
     ) -> dict:
         """Use the THS board feed when Wind/Excel is unavailable for a selected view."""
         try:
-            (
-                up,
-                down,
-                has_real_data,
-                fetched_at,
-            ) = self.dashboard_repo.get_sector_changes_from_signals(
-                days=7,
-                limit_per_direction=limit,
+            up, down, has_real_data, fetched_at = (
+                self.dashboard_repo.get_sector_changes_from_signals(
+                    days=7,
+                    limit_per_direction=limit,
+                )
             )
         except Exception as exc:
             logger.warning(
@@ -1216,13 +1246,20 @@ class DashboardService:
 
     @staticmethod
     def _get_previous_market_turnover(force_refresh: bool = False) -> Optional[dict[str, Any]]:
-        """Return previous trading day's A-share turnover with a date-aware cache."""
-        global _previous_turnover_cache
+        """Return previous trading day's A-share turnover with a date-aware cache.
+
+        The underlying akshare calls can take 10-30 seconds, so this method never
+        blocks the request path.  If the cache is empty or stale it fires a background
+        fetch and returns None immediately; subsequent calls return the cached value.
+        """
+        global _previous_turnover_cache, _previous_turnover_refreshing
 
         now = time.time()
         local_date = datetime.now().date().isoformat()
         with _market_command_cache_lock:
             cached = _previous_turnover_cache
+
+        # Return cached value if still fresh for today.
         if cached and not force_refresh:
             cached_at, payload = cached
             if (
@@ -1231,22 +1268,54 @@ class DashboardService:
             ):
                 return dict(payload)
 
-        trade_date = DashboardService._previous_trading_date_yyyymmdd()
-        if not trade_date:
-            return None
-        amount_yuan = DashboardService._fetch_previous_trading_day_turnover_yuan(trade_date)
-        if amount_yuan is None or amount_yuan <= 0:
-            return None
-
-        payload = {
-            "local_date": local_date,
-            "trade_date": trade_date,
-            "amount_yuan": amount_yuan,
-            "formatted": DashboardService._format_turnover_yuan(amount_yuan),
-        }
+        # Cache miss / stale — trigger a background refresh and return None now.
         with _market_command_cache_lock:
-            _previous_turnover_cache = (now, payload)
-        return dict(payload)
+            already = _previous_turnover_refreshing
+        if not already:
+            with _market_command_cache_lock:
+                _previous_turnover_refreshing = True
+            Thread(
+                target=DashboardService._refresh_previous_market_turnover,
+                name="prev-turnover-refresh",
+                daemon=True,
+            ).start()
+
+        # Return stale value if we have one (better than nothing).
+        if cached:
+            return dict(cached[1])
+        return None
+
+    @staticmethod
+    def _refresh_previous_market_turnover() -> None:
+        """Background worker: fetch prior-day turnover and populate the cache."""
+        global _previous_turnover_cache, _previous_turnover_refreshing
+        try:
+            now = time.time()
+            local_date = datetime.now().date().isoformat()
+            trade_date = DashboardService._previous_trading_date_yyyymmdd()
+            if not trade_date:
+                return
+            amount_yuan = DashboardService._fetch_previous_trading_day_turnover_yuan(trade_date)
+            if amount_yuan is None or amount_yuan <= 0:
+                return
+            payload = {
+                "local_date": local_date,
+                "trade_date": trade_date,
+                "amount_yuan": amount_yuan,
+                "formatted": DashboardService._format_turnover_yuan(amount_yuan),
+            }
+            with _market_command_cache_lock:
+                _previous_turnover_cache = (now, payload)
+            logger.info(
+                "Previous trading day turnover refreshed: date=%s formatted=%s",
+                trade_date,
+                payload["formatted"],
+            )
+        except Exception as exc:
+            logger.warning("Failed to refresh previous trading day turnover: %s", exc)
+        finally:
+            with _market_command_cache_lock:
+                _previous_turnover_refreshing = False
 
     @staticmethod
     def _previous_trading_date_yyyymmdd(today: Optional[datetime] = None) -> Optional[str]:
@@ -1308,7 +1377,9 @@ class DashboardService:
         if rows.empty:
             return 0.0
         row = rows.iloc[0]
-        values = [DashboardService._optional_float(row.get(column)) for column in ("主板A", "科创板")]
+        values = [
+            DashboardService._optional_float(row.get(column)) for column in ("主板A", "科创板")
+        ]
         total = sum(value for value in values if value is not None)
         if total > 0:
             return total
@@ -1318,7 +1389,8 @@ class DashboardService:
     def _extract_szse_a_share_turnover_yuan(df) -> float:
         rows = df[df["证券类别"].astype(str).isin({"主板A股", "创业板A股"})]
         total = sum(
-            DashboardService._optional_float(row.get("成交金额")) or 0.0 for _, row in rows.iterrows()
+            DashboardService._optional_float(row.get("成交金额")) or 0.0
+            for _, row in rows.iterrows()
         )
         if total > 0:
             return total
@@ -1968,9 +2040,9 @@ class DashboardService:
                         outcome_id=f.outcome_id,
                         signal_id=f.signal_id,
                         subject_id=f.subject_id,
-                        failure_reason=_translate_failure_reason(f.failure_reason)
-                        if f.failure_reason
-                        else "",
+                        failure_reason=(
+                            _translate_failure_reason(f.failure_reason) if f.failure_reason else ""
+                        ),
                         lesson=f.lesson if f.lesson else "",
                         outcome_return=float(f.outcome_return) if f.outcome_return else None,
                         created_at=f.created_at.isoformat() if f.created_at else None,

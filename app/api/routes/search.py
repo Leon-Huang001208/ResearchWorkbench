@@ -1,4 +1,5 @@
 """全局搜索 API 路由"""
+
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query

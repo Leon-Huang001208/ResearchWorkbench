@@ -1,4 +1,5 @@
 """中证指数 — 指数成分股、权重、估值"""
+
 from core.contracts.documents_v1 import DocType, SourceReliabilityLevel, SourceType
 from core.source_registry import SourceSpec, register
 

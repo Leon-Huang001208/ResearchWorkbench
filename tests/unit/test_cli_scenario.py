@@ -1,6 +1,7 @@
 """
 测试 scenario CLI 命令
 """
+
 from unittest.mock import MagicMock, patch
 
 from click.testing import CliRunner

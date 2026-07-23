@@ -1,0 +1,13 @@
+{
+  "job_id": "ce1b748fe5124fa59d3556c9b54f0426",
+  "slug": "华安ETF周报",
+  "status": "failed",
+  "phase": "save",
+  "message": "生成失败: 2 validation errors for ReportTemplateConfig\nmeta\n  Field required [type=missing, input_value={'placeholders': {'A股...uction_leaks': False}}}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\ntemplate\n  Field required [type=missing, input_value={'placeholders': {'A股...uction_leaks': False}}}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing",
+  "completed_sections": 0,
+  "total_sections": 19,
+  "result": null,
+  "error": "2 validation errors for ReportTemplateConfig\nmeta\n  Field required [type=missing, input_value={'placeholders': {'A股...uction_leaks': False}}}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\ntemplate\n  Field required [type=missing, input_value={'placeholders': {'A股...uction_leaks': False}}}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing",
+  "created_at": "2026-07-22T16:16:08.262569",
+  "updated_at": "2026-07-22T16:16:31.765598"
+}

@@ -5,9 +5,11 @@ Excel workbook, renders chart images in memory, and writes the image bytes
 directly into the final ``.docx`` package. No intermediate PNG files are kept
 under the report project.
 """
+
 from __future__ import annotations
 
 import re
+import shutil
 import tempfile
 import xml.etree.ElementTree as ET
 import zipfile
@@ -413,7 +415,7 @@ def _worksheet_xml_path(archive: zipfile.ZipFile, sheet_name: str) -> str:
             break
         if target.startswith("/"):
             return target.lstrip("/")
-        return str(Path("xl") / target)
+        return f"xl/{target}"
     raise ValueError(f"worksheet not found: {sheet_name}")
 
 
@@ -541,10 +543,226 @@ def embed_chart_images_in_docx(docx_path: Path, images: List[GeneratedChartImage
         with zipfile.ZipFile(temp_path, "w", compression=zipfile.ZIP_DEFLATED) as target:
             for name, content in entries.items():
                 target.writestr(name, content)
-        temp_path.replace(docx_path)
+        shutil.copy2(temp_path, docx_path)
     finally:
         if temp_path.exists():
             temp_path.unlink()
+
+
+def _filter_chart_xml_zero_values(chart_xml_bytes: bytes) -> bytes:
+    """Remove data points whose values are zero in *any* series from native chart XML.
+
+    Scans all ``<c:ser>`` elements, collects the ``<c:val>`` cached values per
+    index, and marks every index where at least one series holds an (approximately)
+    zero value.  Those indices are then removed from every cache — both the
+    category cache (``numCache`` / ``strCache``) and the value cache — and the
+    remaining ``<c:pt>`` elements are renumbered sequentially.  ``ptCount`` is
+    updated to match.
+
+    Returns the original bytes unchanged when no zero values are detected (so the
+    common case of fully-populated data incurs no behavioural diff).
+    """
+    ns = {"c": CHART_NS}
+    root = ET.fromstring(chart_xml_bytes)
+
+    # ── collect {idx → value} from every series' value cache ─────────────────
+    series_value_indices: list[dict[int, float]] = []
+    for ser in root.findall(".//c:ser", ns):
+        val_indices: dict[int, float] = {}
+        for num_cache in ser.findall(".//c:val//c:numCache", ns):
+            for pt in num_cache.findall("c:pt", ns):
+                idx_str = pt.attrib.get("idx", "")
+                if idx_str == "":
+                    continue
+                idx = int(idx_str)
+                v_elem = pt.find("c:v", ns)
+                if v_elem is not None and v_elem.text:
+                    try:
+                        val_indices[idx] = float(v_elem.text)
+                    except (ValueError, TypeError):
+                        val_indices[idx] = 1.0  # treat unparseable as non-zero
+        if val_indices:
+            series_value_indices.append(val_indices)
+
+    if not series_value_indices:
+        return chart_xml_bytes
+
+    # ── identify indices where *any* series has a zero value ─────────────────
+    all_indices: set[int] = set()
+    for indices in series_value_indices:
+        all_indices.update(indices.keys())
+
+    zero_indices: set[int] = set()
+    for idx in sorted(all_indices):
+        for indices in series_value_indices:
+            val = indices.get(idx)
+            if val is not None and abs(val) < 1e-10:
+                zero_indices.add(idx)
+                break
+
+    if not zero_indices:
+        return chart_xml_bytes
+
+    logger.info(
+        "Filtering zero-value data points from native chart XML",
+        total_indices=len(all_indices),
+        zero_indices=len(zero_indices),
+    )
+
+    # ── purge zero-value <c:pt> elements from every series cache ─────────────
+    for ser in root.findall(".//c:ser", ns):
+        for cache_tag in ("c:numCache", "c:strCache"):
+            for cache_elem in ser.findall(f".//{cache_tag}", ns):
+                # Keep only non-zero data points
+                surviving: list[ET.Element] = []
+                for pt in cache_elem.findall("c:pt", ns):
+                    idx_str = pt.attrib.get("idx", "")
+                    if idx_str and int(idx_str) in zero_indices:
+                        continue
+                    surviving.append(pt)
+
+                # Clear removed elements (avoid keeping orphans)
+                for pt in cache_elem.findall("c:pt", ns):
+                    cache_elem.remove(pt)
+
+                # Re-add with sequential indices
+                for new_idx, pt in enumerate(surviving):
+                    pt.attrib["idx"] = str(new_idx)
+                    cache_elem.append(pt)
+
+                # Update cached point count
+                pt_count = cache_elem.find("c:ptCount", ns)
+                if pt_count is not None:
+                    pt_count.attrib["val"] = str(len(surviving))
+
+    return ET.tostring(root, encoding="utf-8", xml_declaration=True)
+
+
+def _extract_filtered_series_data(chart_xml_bytes: bytes) -> list[dict]:
+    """Extract series caches from chart XML, filtered of zero-value data points.
+
+    Uses the same zero-detection logic as ``_filter_chart_xml_zero_values``,
+    but returns structured data instead of modifying the XML in-place.  This
+    allows the filtered caches to be injected into a *different* XML tree
+    (e.g. the template chart XML in a Word document).
+
+    Returns a list where each element corresponds to a ``<c:ser>`` and holds
+    a ``"caches"`` list of ``{"tag": str, "pts": [str, ...]}`` dicts.
+    """
+    ns = {"c": CHART_NS}
+    root = ET.fromstring(chart_xml_bytes)
+
+    # ── collect {idx → value} from every series' value cache ─────────────────
+    series_value_indices: list[dict[int, float]] = []
+    for ser in root.findall(".//c:ser", ns):
+        val_indices: dict[int, float] = {}
+        for num_cache in ser.findall(".//c:val//c:numCache", ns):
+            for pt in num_cache.findall("c:pt", ns):
+                idx_str = pt.attrib.get("idx", "")
+                if not idx_str:
+                    continue
+                idx = int(idx_str)
+                v_elem = pt.find("c:v", ns)
+                if v_elem is not None and v_elem.text:
+                    try:
+                        val_indices[idx] = float(v_elem.text)
+                    except (ValueError, TypeError):
+                        val_indices[idx] = 1.0
+        if val_indices:
+            series_value_indices.append(val_indices)
+
+    if not series_value_indices:
+        return []
+
+    # ── identify indices where *any* series has a zero value ─────────────────
+    all_indices: set[int] = set()
+    for indices in series_value_indices:
+        all_indices.update(indices.keys())
+
+    zero_indices: set[int] = set()
+    for idx in sorted(all_indices):
+        for indices in series_value_indices:
+            val = indices.get(idx)
+            if val is not None and abs(val) < 1e-10:
+                zero_indices.add(idx)
+                break
+
+    # ── extract filtered caches for each series ──────────────────────────────
+    result: list[dict] = []
+    for ser in root.findall(".//c:ser", ns):
+        series_data: dict = {"caches": []}
+        for cache_tag in ("c:numCache", "c:strCache"):
+            for cache_elem in ser.findall(f".//{cache_tag}", ns):
+                cache_data: dict = {"tag": cache_tag, "pts": []}
+                for pt in cache_elem.findall("c:pt", ns):
+                    idx_str = pt.attrib.get("idx", "")
+                    if idx_str and int(idx_str) in zero_indices:
+                        continue
+                    v_elem = pt.find("c:v", ns)
+                    cache_data["pts"].append(
+                        v_elem.text if v_elem is not None else ""
+                    )
+                if cache_data["pts"]:
+                    series_data["caches"].append(cache_data)
+        result.append(series_data)
+
+    if zero_indices:
+        logger.info(
+            "Filtered zero-value data points from native chart XML (data extraction)",
+            total_indices=len(all_indices),
+            zero_indices=len(zero_indices),
+        )
+    return result
+
+
+def _replace_series_caches_in_template(
+    template_root: ET.Element,
+    filtered_data: list[dict],
+) -> None:
+    """Replace series caches in *template_root* with filtered data from Excel.
+
+    Series are matched by index (1:1 correspondence).  Within each series,
+    cache elements are matched by position: the Nth cache in the filtered data
+    replaces the Nth cache element (all tag types combined) in the template
+    series.  ``ptCount`` is updated to reflect the new point count.
+    """
+    ns = {"c": CHART_NS}
+    ser_elements = template_root.findall(".//c:ser", ns)
+
+    for ser_idx, ser in enumerate(ser_elements):
+        if ser_idx >= len(filtered_data):
+            break
+        fd = filtered_data[ser_idx]
+
+        # Build a flat list of ALL cache elements in this template series
+        # (numCache / strCache, including both category and value caches)
+        template_caches: list[ET.Element] = []
+        for cache_tag in ("c:numCache", "c:strCache"):
+            template_caches.extend(ser.findall(f".//{cache_tag}", ns))
+
+        # Apply each filtered cache to the corresponding template cache by position
+        for cache_idx, cache_data in enumerate(fd.get("caches", [])):
+            if cache_idx >= len(template_caches):
+                break
+            cache_elem = template_caches[cache_idx]
+            pts_values: list[str] = cache_data["pts"]
+
+            # Remove old <c:pt> elements
+            for pt in list(cache_elem.findall("c:pt", ns)):
+                cache_elem.remove(pt)
+
+            # Add new <c:pt> elements with sequential indices
+            for new_idx, value in enumerate(pts_values):
+                pt = ET.Element(f"{{{CHART_NS}}}pt")
+                pt.attrib["idx"] = str(new_idx)
+                v = ET.SubElement(pt, f"{{{CHART_NS}}}v")
+                v.text = value
+                cache_elem.append(pt)
+
+            # Update ptCount
+            pt_count = cache_elem.find("c:ptCount", ns)
+            if pt_count is not None:
+                pt_count.attrib["val"] = str(len(pts_values))
 
 
 def sync_native_chart_parts(
@@ -552,7 +770,20 @@ def sync_native_chart_parts(
     chart_configs: Dict[str, Any],
     docx_path: Path,
 ) -> None:
-    """Copy Excel native chart XML into matching Word chart parts when configured."""
+    """Sync chart data from Excel workbooks into the Word template's chart XML.
+
+    Instead of replacing the entire chart XML (which would pull in Excel-
+    specific structure like ``<c:printSettings>`` and language codes that are
+    incompatible with Word), we keep the Word template's chart XML as the base
+    and only replace the series data caches (``numCache`` / ``strCache``) with
+    filtered data from the Excel workbook.
+    """
+    # Read current docx entries upfront so we can use template chart XML as base
+    with zipfile.ZipFile(docx_path, "r") as source:
+        entries: Dict[str, bytes] = {
+            name: source.read(name) for name in source.namelist()
+        }
+
     updates: Dict[str, bytes] = {}
     for chart_id, config in chart_configs.items():
         if not isinstance(config, dict) or not config.get("enabled", True):
@@ -562,6 +793,15 @@ def sync_native_chart_parts(
         workbook = str(config.get("workbook") or "")
         if not native_chart_part or not source_chart or not workbook:
             continue
+
+        if native_chart_part not in entries:
+            logger.warning(
+                "Native chart part not found in document",
+                chart_id=str(chart_id),
+                chart_part=native_chart_part,
+            )
+            continue
+
         workbook_path = project.project_dir / "data" / workbook
         if not workbook_path.exists():
             logger.warning(
@@ -570,12 +810,28 @@ def sync_native_chart_parts(
                 workbook=str(workbook_path),
             )
             continue
+
         try:
+            # 1. Parse the template's chart XML (preserves Word-compatible structure)
+            template_root = ET.fromstring(entries[native_chart_part])
+
+            # 2. Extract filtered series caches from the Excel chart
             with zipfile.ZipFile(workbook_path) as workbook_archive:
-                updates[native_chart_part] = workbook_archive.read(source_chart)
+                excel_chart_bytes = workbook_archive.read(source_chart)
+            filtered_data = _extract_filtered_series_data(excel_chart_bytes)
+
+            if filtered_data:
+                # 3. Replace only the data caches in the template XML
+                _replace_series_caches_in_template(template_root, filtered_data)
+
+            # 4. Serialize back to bytes
+            result = ET.tostring(
+                template_root, encoding="utf-8", xml_declaration=True
+            )
+            updates[native_chart_part] = result
         except Exception as exc:
             logger.warning(
-                "Failed to read native chart source",
+                "Failed to sync native chart data",
                 chart_id=str(chart_id),
                 workbook=str(workbook_path),
                 source_chart=source_chart,
@@ -585,16 +841,16 @@ def sync_native_chart_parts(
     if not updates:
         return
 
-    with zipfile.ZipFile(docx_path, "r") as source:
-        entries = {name: source.read(name) for name in source.namelist()}
     entries.update(updates)
     with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp:
         temp_path = Path(tmp.name)
     try:
-        with zipfile.ZipFile(temp_path, "w", compression=zipfile.ZIP_DEFLATED) as target:
+        with zipfile.ZipFile(
+            temp_path, "w", compression=zipfile.ZIP_DEFLATED
+        ) as target:
             for name, content in entries.items():
                 target.writestr(name, content)
-        temp_path.replace(docx_path)
+        shutil.copy2(temp_path, docx_path)
     finally:
         if temp_path.exists():
             temp_path.unlink()

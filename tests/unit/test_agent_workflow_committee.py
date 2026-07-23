@@ -1,4 +1,5 @@
 """Agent workflow and committee synthesis tests."""
+
 from __future__ import annotations
 
 import pytest

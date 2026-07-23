@@ -56,6 +56,21 @@ class ZhiQiuSectionView(StrictModel):
     max_consecutive_failures: int
 
 
+class WebSearchKeyView(StrictModel):
+    original_name: str
+    name: str
+    key: SecretState
+
+
+class WebSearchSectionView(StrictModel):
+    accounts: list[WebSearchKeyView]
+    provider: str
+    rotation_strategy: str
+    quota_limit: int
+    max_results: int
+    timeout: int
+
+
 class IFindSectionView(StrictModel):
     accounts: list["IFindAccountView"]
     username: str
@@ -92,6 +107,7 @@ class ConfigurationSections(StrictModel):
     ifind: IFindSectionView
     database: DatabaseSectionView
     advanced: AdvancedSectionView
+    web_search: WebSearchSectionView
 
 
 class ConfigurationSnapshotResponse(StrictModel):
@@ -131,6 +147,22 @@ class ZhiQiuUpdateRequest(StrictModel):
     retry_delay: int | None = Field(default=None, ge=0, le=3600)
     lease_timeout: int | None = Field(default=None, ge=1, le=86400)
     max_consecutive_failures: int | None = Field(default=None, ge=1, le=1000)
+
+
+class WebSearchKeyUpdate(StrictModel):
+    original_name: str | None = Field(default=None, min_length=1, max_length=128)
+    name: str = Field(min_length=1, max_length=128)
+    key: str | None = Field(default=None, max_length=8192)
+    clear_key: bool = False
+
+
+class WebSearchUpdateRequest(StrictModel):
+    accounts: list[WebSearchKeyUpdate] | None = Field(default=None, max_length=100)
+    provider: Literal["tavily", "bing"] | None = None
+    rotation_strategy: Literal["round_robin", "random", "least_used"] | None = None
+    quota_limit: int | None = Field(default=None, ge=1, le=100000)
+    max_results: int | None = Field(default=None, ge=1, le=20)
+    timeout: int | None = Field(default=None, ge=1, le=120)
 
 
 class IFindUpdateRequest(StrictModel):
@@ -186,7 +218,7 @@ class ConfigurationTestResponse(StrictModel):
     message: str
 
 
-SectionName = Literal["llm", "zhiqiu", "ifind", "database", "advanced"]
+SectionName = Literal["llm", "zhiqiu", "ifind", "database", "advanced", "web_search"]
 
 SECTION_UPDATE_MODELS: dict[str, type[StrictModel]] = {
     "llm": LlmUpdateRequest,
@@ -194,4 +226,5 @@ SECTION_UPDATE_MODELS: dict[str, type[StrictModel]] = {
     "ifind": IFindUpdateRequest,
     "database": DatabaseUpdateRequest,
     "advanced": AdvancedUpdateRequest,
+    "web_search": WebSearchUpdateRequest,
 }

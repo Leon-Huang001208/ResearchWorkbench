@@ -3,6 +3,7 @@
 
 定义回测的基础接口和BacktestResult契约。
 """
+
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Literal, Optional
 

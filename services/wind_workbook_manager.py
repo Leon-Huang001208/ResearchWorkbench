@@ -13,6 +13,7 @@ from threading import Lock, Thread
 from typing import Any
 
 from core.observability import get_logger
+from core.settings.paths import migrate_legacy_wind_workbook
 from services.wind_index_catalog import (
     DEFAULT_WIND_INDEX_CATALOG_PATH,
     load_wind_index_catalog,
@@ -128,6 +129,9 @@ class WindWorkbookManager:
         primed = False
         try:
             if not self.workbook_path.exists():
+                # 迁移旧 macOS 风格路径下的工作簿（若有），避免重新 prime 公式
+                migrate_legacy_wind_workbook(self.workbook_path)
+            if not self.workbook_path.exists():
                 build_realtime_workbook(self.catalog_path, self.workbook_path)
                 built = True
 
@@ -165,7 +169,7 @@ class WindWorkbookManager:
             prime_realtime_workbook_formulas(
                 self.workbook_path,
                 chunk_size=1,
-                pause_seconds=1.0,
+                pause_seconds=0.0,  # polling replaces fixed sleep; kept for API compat
                 visible=not self.hide_excel_enabled(),
             )
             primed = True
@@ -218,8 +222,45 @@ class WindWorkbookManager:
                     if Path(fullname).expanduser() == self.workbook_path:
                         return candidate
 
-        app = xw.apps.active or xw.App(visible=not self.hide_excel_enabled())
-        return app.books.open(str(target), update_links=False, read_only=False)
+        hide = self.hide_excel_enabled()
+        app = xw.apps.active or xw.App(visible=not hide)
+        try:
+            app.display_alerts = False
+        except Exception as exc:
+            logger.debug("Unable to suppress Excel alerts: %s", exc)
+        try:
+            app.visible = not hide
+        except Exception as exc:
+            logger.debug("Unable to set Excel visibility: %s", exc)
+        return self._open_book_via_com(app, target)
+
+    def _open_book_via_com(self, app: Any, target: Path) -> Any:
+        """Open a workbook using the underlying COM object with CorruptLoad=2.
+
+        xlwings ``books.open`` does not expose the ``CorruptLoad`` parameter, and
+        Excel 16 raises com_error 0x800A03EC ("Invalid procedure call") when it
+        tries to show a security / repair / Protected-View dialog in a headless COM
+        session.  Passing ``CorruptLoad=2`` (xlRepairFile) suppresses that dialog
+        and lets Excel open the file without user interaction.
+        """
+        # xlRepairFile = 2
+        XL_REPAIR_FILE = 2
+        try:
+            raw_wb = app.api.Workbooks.Open(
+                str(target),
+                UpdateLinks=0,
+                ReadOnly=False,
+                CorruptLoad=XL_REPAIR_FILE,
+            )
+            # Wrap the win32com workbook back in an xlwings Book object
+            import xlwings as xw  # noqa: PLC0415
+
+            return xw.Book(raw_wb.FullName)
+        except Exception as exc:
+            logger.debug(
+                "COM open with CorruptLoad failed (%s); falling back to xlwings books.open", exc
+            )
+            return app.books.open(str(target), update_links=False, read_only=False)
 
     def _hide_excel(self, app: Any) -> None:
         if not self.hide_excel_enabled():

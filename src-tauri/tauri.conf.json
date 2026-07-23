@@ -6,7 +6,7 @@
   "build": {
     "frontendDist": "../desktop/dist",
     "devUrl": "http://127.0.0.1:8765",
-    "beforeDevCommand": "scripts/desktop/run_backend.sh --host 127.0.0.1 --port 8765 --reload"
+    "beforeDevCommand": "node scripts/desktop/run_backend.js --host 127.0.0.1 --port 8765 --reload"
   },
   "app": {
     "windows": [

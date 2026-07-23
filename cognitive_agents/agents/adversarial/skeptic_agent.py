@@ -1,4 +1,5 @@
 """怀疑论对抗 Agent。"""
+
 import uuid
 
 from cognitive_agents.agents.base import AgentContext, BaseCognitiveAgent

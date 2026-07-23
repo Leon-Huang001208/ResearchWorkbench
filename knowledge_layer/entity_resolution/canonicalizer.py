@@ -1,6 +1,7 @@
 """
 Canonical ID 生成器
 """
+
 import hashlib
 import re
 from enum import Enum

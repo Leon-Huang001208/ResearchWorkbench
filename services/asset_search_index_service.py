@@ -2,6 +2,7 @@
 
 为资产分析页提供代码、名称、中文简拼候选匹配，不依赖第三方拼音包。
 """
+
 from __future__ import annotations
 
 import time
@@ -360,7 +361,7 @@ class AssetSearchIndexService:
             funds = _build_fund_cache()
         except Exception as exc:
             logger.warning("fund ETF candidate source unavailable: %s", exc)
-            return []
+            return
 
         for fund in funds:
             yield AssetSearchCandidate(

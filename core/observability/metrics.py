@@ -1,11 +1,10 @@
+import logging
 import threading
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from core.observability import get_logger
-
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -42,14 +41,14 @@ class MetricsCollector:
         with self._lock:
             self._counters[name] += value
             self._metrics.append(Metric(name=name, value=value, tags=tags or {}))
-        logger.debug("metric increment", name=name, value=value, tags=tags)
+        logger.debug("metric increment", metric_name=name, value=value, tags=tags)
 
     def record(self, name: str, value: float, tags: dict[str, str] | None = None) -> None:
         """记录直方图值"""
         with self._lock:
             self._histograms[name].append(value)
             self._metrics.append(Metric(name=name, value=value, tags=tags or {}))
-        logger.debug("metric record", name=name, value=value, tags=tags)
+        logger.debug("metric record", metric_name=name, value=value, tags=tags)
 
     def get_counter(self, name: str) -> int:
         """获取计数器值"""

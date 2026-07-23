@@ -1,4 +1,5 @@
 """API routes for outcome journal and failure memory engine."""
+
 from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException

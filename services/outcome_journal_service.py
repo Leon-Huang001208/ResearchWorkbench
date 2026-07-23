@@ -1,4 +1,5 @@
 """Outcome journal service for recording and managing trade outcomes."""
+
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional

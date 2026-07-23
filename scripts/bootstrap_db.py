@@ -7,6 +7,7 @@ Usage:
 
 This script is idempotent and can be run multiple times safely.
 """
+
 import sys
 from pathlib import Path
 

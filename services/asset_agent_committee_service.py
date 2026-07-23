@@ -1,4 +1,5 @@
 """Asset-level Agent committee analysis service."""
+
 from __future__ import annotations
 
 import uuid

@@ -1,6 +1,7 @@
 """
 研报生成服务
 """
+
 from datetime import datetime
 from typing import Dict
 

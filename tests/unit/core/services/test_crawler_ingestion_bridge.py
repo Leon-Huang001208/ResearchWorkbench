@@ -1,4 +1,5 @@
 """CrawlerIngestionBridge 单元测试"""
+
 from unittest.mock import MagicMock
 
 from core.contracts.ingestion import EnqueueRequest

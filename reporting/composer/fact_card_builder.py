@@ -3,6 +3,7 @@ Fact Card 构建器 - 从证据中提取结构化事实.
 
 Fact Card builder extracts structured facts from evidence before paragraph generation.
 """
+
 from typing import Any, Dict, List, Optional
 
 from core.contracts import FactCard
@@ -91,7 +92,17 @@ class FactCardBuilder:
             content_lower = content.lower()
 
             # Extract key changes
-            change_keywords = ["上涨", "下跌", "增长", "下降", "提升", "降低", "发布", "推出", "政策"]
+            change_keywords = [
+                "上涨",
+                "下跌",
+                "增长",
+                "下降",
+                "提升",
+                "降低",
+                "发布",
+                "推出",
+                "政策",
+            ]
             for keyword in change_keywords:
                 if keyword in content_lower:
                     # Extract sentence with keyword

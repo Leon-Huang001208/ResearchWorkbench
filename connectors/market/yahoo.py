@@ -12,6 +12,7 @@ Usage:
     result = connector.run(dataset="stock_daily", symbols=["AAPL"],
                            start_date="2026-01-01", end_date="2026-06-01")
 """
+
 from __future__ import annotations
 
 import json

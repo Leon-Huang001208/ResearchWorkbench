@@ -1,4 +1,5 @@
 """Tests for static PPT template projection."""
+
 import zipfile
 from pathlib import Path
 

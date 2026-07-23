@@ -1,4 +1,5 @@
 """PDF Artifact Repository — PDF 制品仓储"""
+
 from datetime import datetime
 from typing import Optional
 

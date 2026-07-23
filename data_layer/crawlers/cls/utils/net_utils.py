@@ -1,4 +1,5 @@
 """网络请求工具模块"""
+
 import random
 import time
 from typing import Any, Optional

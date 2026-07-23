@@ -1,6 +1,7 @@
 """
 Yahoo Finance 基础模块测试
 """
+
 from datetime import date, datetime
 
 import pytest

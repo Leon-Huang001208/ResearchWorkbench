@@ -9,6 +9,7 @@ Extract entities from documents:
 - Region
 - Policy
 """
+
 import re
 from dataclasses import dataclass
 from enum import Enum

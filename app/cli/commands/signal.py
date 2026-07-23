@@ -1,6 +1,7 @@
 """
 信号 CLI 命令
 """
+
 from typing import Optional
 
 import click

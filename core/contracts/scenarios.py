@@ -3,6 +3,7 @@ Core contracts for scenarios (hypotheses and scenario sets).
 
 This module defines Pydantic models for scenario hypotheses and scenario sets in AlphaFoundry.
 """
+
 from typing import Literal
 
 from pydantic import BaseModel, Field

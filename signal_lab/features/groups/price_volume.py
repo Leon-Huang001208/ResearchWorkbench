@@ -3,6 +3,7 @@
 
 提供价格和成交量相关的技术指标。
 """
+
 from typing import Any, Optional
 
 import numpy as np

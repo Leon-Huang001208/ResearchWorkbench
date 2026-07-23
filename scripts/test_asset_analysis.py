@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """资产分析端到端测试脚本"""
+
 import sys
 from pathlib import Path
 

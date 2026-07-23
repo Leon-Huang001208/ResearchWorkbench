@@ -1,4 +1,5 @@
 """Unit tests for Global Search Service"""
+
 from unittest.mock import Mock
 
 from services.search_service import GlobalSearchService

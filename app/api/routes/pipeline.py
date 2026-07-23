@@ -1,4 +1,7 @@
 """研究流水线 API"""
+
+from __future__ import annotations
+
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -10,7 +13,6 @@ from core.observability import get_logger
 from data_layer.repositories.base import get_db
 from data_layer.repositories.signal_repository import SignalRepositoryImpl
 from data_layer.repositories.timing_repository import TimingRepositoryImpl as TimingRepository
-from services.pipeline_service import ResearchPipeline
 from services.signal_service import SignalService
 
 logger = get_logger(__name__)
@@ -36,6 +38,8 @@ _pipeline: ResearchPipeline | None = None
 
 def get_pipeline(db: Session = Depends(get_db)) -> ResearchPipeline:
     """获取流水线实例（带信号/择时持久化能力）"""
+    from services.pipeline_service import ResearchPipeline
+
     global _pipeline
     if _pipeline is None:
         signal_repo = SignalRepositoryImpl(db)

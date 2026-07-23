@@ -1,4 +1,5 @@
 """Paper Trading API — 模拟交易与组合仿真路由"""
+
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -55,7 +56,9 @@ class RunSimulationRequest(BaseModel):
 
     proposal_id: str = Field(..., description="组合提案ID")
     name: Optional[str] = Field(None, description="模拟名称")
-    price_history: Dict[str, List[float]] = Field(..., description="价格历史 {subject_id: [prices]}")
+    price_history: Dict[str, List[float]] = Field(
+        ..., description="价格历史 {subject_id: [prices]}"
+    )
     dates: List[str] = Field(..., description="日期序列 ISO格式")
     initial_capital: float = Field(1_000_000.0, ge=1000, description="初始资金")
     commission_rate: float = Field(0.0003, ge=0, le=0.01, description="佣金率")

@@ -18,6 +18,13 @@ AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System�
 8. **Timing 是市场认知时钟**：择时层不解释产业逻辑，也不做长期统计验证，只判断市场现在是否会认可该逻辑
 9. **Memory 让系统演化**：记录 Event → Return、失败原因、策略表现和 Agent 观点演化，避免系统永远只是即时推理机器人
 10. **架构复杂度必须小于 Alpha 验证速度**：未来模块进入路线图，但当前优先服务真实可重复 Alpha 的验证
+11. **按需懒加载**：模块级导入使用 PEP 562 `__getattr__` 或函数内延迟导入，避免启动时全量加载重型依赖（`sentence_transformers`/`vectorbt`/`torch` 等）。FastAPI 路由文件中的服务类导入放在 `Depends()` 工厂函数内，首次请求时才实例化。包级 `__init__.py` 不 eager re-export，改用 `__getattr__` 按需导入。
+
+**懒加载实现模式**：
+
+- **包级 `__init__.py`**：使用 `__getattr__` + `importlib.import_module`，支持 `from pkg import ClassName` 和 `from pkg import module` 两种用法（参见 `services/__init__.py`、`signal_lab/backtests/__init__.py`）。
+- **FastAPI 路由文件**：在 `Depends()` 工厂函数内 `from xxx import HeavyDependency`，不放在模块顶层（参见 `app/api/routes/commentary.py`、`assets.py`、`ingest.py` 等）。
+- **Provider 初始化**：仅在运行时调用 provider 相关方法时才导入重型 provider（参见 `core/model_gateway/gateway.py` 的 `LocalEmbeddingProvider`）。
 
 ---
 
@@ -235,36 +242,6 @@ AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System�
 - **core/settings/**：全局配置管理
 
 **关键契约**：所有核心领域对象都定义在 `contracts/` 中，所有跨层交互必须使用这些 Pydantic 模型，保证类型安全和数据验证。
-
-#### 系统配置中心
-
-系统配置中心是应用层、`core/settings`、`ConfigurationService` 与外部客户端之间的本地配置控制面。Web 页面只调用配置 API；路由使用严格 Pydantic 契约，服务负责读取、脱敏、校验、持久化、运行时刷新和安全日志。允许管理的五个分区是 `llm`、`zhiqiu`、`ifind`、`database` 和 `advanced`，不接受任意环境变量名。
-
-运行时配置文件按以下顺序选择，选中后不再合并其他文件：
-
-1. `ALPHAFOUNDRY_CONFIG_PATH` 指定的文件；
-2. `ALPHAFOUNDRY_DESKTOP_DATA_DIR/.env`；
-3. 项目根目录 `.env`。
-
-读取有效值时，当前进程中受支持的环境变量覆盖该文件的同名值。写入前严格解析 dotenv；语法错误时拒绝覆盖。完整读改写事务按配置路径使用进程内 `RLock` 和跨进程单字节文件锁串行化，再以同目录 `0600` 临时文件写入、文件 `fsync`、`os.replace` 原子替换并尽力同步父目录，保留无关配置与注释。
-
-```text
-section-config
-  → GET /api/config（五分区脱敏快照）
-  → PUT /api/config/{section}
-      → 严格校验 → 加锁读改写 → 原子替换 → 更新受支持的 os.environ
-      → LLM / iFinD / advanced 刷新 Settings
-      → ZhiQiu 后续新建 AccountManager/Client 读取新环境
-      → database 仅持久化，活动连接池不变，重启后生效
-  → POST /api/config/{section}/test
-      → 合并未保存表单与保留秘密 → 临时真实探针 → 不写文件/环境
-```
-
-秘密在 API 中只有 `configured` 和可选掩码：普通秘密只显示末四位，数据库 URL 只保留协议、主机、端口和库路径。秘密输入省略或空字符串表示保留，非空表示替换，`clear_api_key` / `clear_password` 表示显式清除；Provider/知秋条目的 `original_name` 使改名时仍能关联原秘密。即使调用方省略 `original_name`，LLM Provider 也会按当前名称关联已有秘密；此时若端点变化，必须重新提交 Token，旧秘密不会进入连接探针。日志只记录分区、非敏感字段名和错误类型。
-
-本地控制面默认通过 `TrustedHostMiddleware` 只接受 `localhost`、`127.0.0.1` 和测试主机 `testserver`；`ALPHAFOUNDRY_TRUSTED_HOSTS` 只能显式扩展纯主机名或 IPv4 地址。配置 API 还要求进程级 CSRF token；请求携带 `Origin` 时，只允许 loopback、受支持的 Tauri origin，或同时出现在显式 CORS 和 Trusted Host 配置中的 origin。默认不开启 CORS，避免 DNS rebinding 或外站来源读取和修改本地配置。
-
-LLM、知秋、iFinD 连接测试会使用候选配置执行短超时真实请求，并在结束时关闭临时客户端；候选秘密不会落盘或写入进程环境。数据库测试只验证 URL 结构，不创建或切换连接池；高级配置没有测试端点。
 
 ---
 
@@ -956,7 +933,3 @@ class BaseProvider(ABC):
 - **[CHANGELOG.md](CHANGELOG.md)** - 更新日志
 - **[backup_restore.md](backup_restore.md)** - 备份恢复文档
 - **[DATA_SOURCES.md](DATA_SOURCES.md)** - 数据源文档
-
-## 2026-07-12 仓库门禁维护
-
-全仓测试默认使用每进程隔离 SQLite；真实 PostgreSQL 冒烟仅在显式启用时运行。内置报告项目和产业链基础图均随仓库提供，避免运行时依赖开发机私有资产。

@@ -2,6 +2,7 @@
 
 使用 FakeAkShareAdapter 模拟数据源，验证 fetch → normalize → save → etl_run 全流程。
 """
+
 from datetime import date, datetime, timezone
 
 import pytest

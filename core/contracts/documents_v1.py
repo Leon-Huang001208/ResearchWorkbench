@@ -4,6 +4,7 @@ AlphaFoundry v1 统一文档契约.
 本模块定义了 Issue #42 要求的统一文档 schema，支持多种来源类型（电报、新闻、研报、公众号、会议纪要等）
 映射到同一个主模型，并提供完整的元数据、分类、质量评分和时效性字段。
 """
+
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
@@ -134,6 +135,21 @@ class DocumentQuality(BaseModel):
         default=None, ge=0.0, le=1.0, description="内容质量评分"
     )
     is_fact_source: bool = Field(default=True, description="是否为事实来源")
+    # ── 报告编译器第二阶段新增：来源分级与可信度/时效评分 ──
+    # 由 core/services/source_grader.py 在知识加工阶段计算填充，
+    # 供报告编译器做证据优先级排序（tier A > B > C > D）。
+    source_tier: Optional[str] = Field(
+        default=None, description="来源分级 tier_a/b/c/d（SourceTier 值，字符串避免循环依赖）"
+    )
+    trust_score: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="可信度评分（综合 tier+reliability+is_fact_source+交叉验证）",
+    )
+    freshness_score: Optional[float] = Field(
+        default=None, ge=0.0, le=1.0, description="时效性评分（基于 publish_time 衰减）"
+    )
 
 
 class DocumentTimeliness(BaseModel):
@@ -181,7 +197,9 @@ class DocumentProcessingMeta(BaseModel):
 class DocumentReview(BaseModel):
     """审核信息"""
 
-    status: DocumentReviewStatus = Field(default=DocumentReviewStatus.PENDING, description="审核状态")
+    status: DocumentReviewStatus = Field(
+        default=DocumentReviewStatus.PENDING, description="审核状态"
+    )
     reviewer: Optional[str] = Field(default=None, description="审核人")
     reviewed_at: Optional[datetime] = Field(default=None, description="审核时间")
     review_notes: Optional[str] = Field(default=None, description="审核备注")
@@ -223,7 +241,9 @@ class DocumentV1(BaseModel):
     )
 
     # 时效性
-    timeliness: DocumentTimeliness = Field(default_factory=DocumentTimeliness, description="时效性信息")
+    timeliness: DocumentTimeliness = Field(
+        default_factory=DocumentTimeliness, description="时效性信息"
+    )
 
     # 处理状态
     processing: DocumentProcessingMeta = Field(
@@ -472,7 +492,9 @@ class SourceCursorV1(BaseModel):
     cursor_id: str = Field(description="游标唯一标识符")
     source_type: SourceType = Field(description="来源类型")
     source_name: Optional[str] = Field(default=None, description="来源名称")
-    last_successful_crawl_time: Optional[datetime] = Field(default=None, description="上次成功抓取时间")
+    last_successful_crawl_time: Optional[datetime] = Field(
+        default=None, description="上次成功抓取时间"
+    )
     last_source_doc_id: Optional[str] = Field(default=None, description="上次抓取的文档ID")
     lookback_window_minutes: int = Field(default=60, description="回看窗口（分钟）")
     consecutive_failures: int = Field(default=0, description="连续失败次数")

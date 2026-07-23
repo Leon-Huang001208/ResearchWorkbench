@@ -7,6 +7,7 @@ Issue #47: 回测视角 - 核心契约
 - 消息面特征
 - 事件流与技术面联动
 """
+
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Dict, List, Literal, Optional
@@ -152,7 +153,9 @@ class NewsFeatureQuery(BaseModel):
     feature_types: Optional[List[NewsFeatureType]] = Field(default=None, description="特征类型")
     start_time: datetime = Field(description="开始时间")
     end_time: datetime = Field(description="结束时间")
-    time_bucket: Literal["1h", "4h", "1d", "1w", "1mo"] = Field(default="1d", description="时间粒度")
+    time_bucket: Literal["1h", "4h", "1d", "1w", "1mo"] = Field(
+        default="1d", description="时间粒度"
+    )
     include_source_breakdown: bool = Field(default=False, description="是否包含来源细分")
 
 

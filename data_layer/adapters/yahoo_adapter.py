@@ -3,6 +3,7 @@ Yahoo Finance 数据适配器
 
 提供全球市场数据，作为 AkShare/BaoStock 的补充数据源。
 """
+
 import importlib
 from datetime import datetime
 

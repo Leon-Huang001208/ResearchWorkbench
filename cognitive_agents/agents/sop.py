@@ -1,4 +1,5 @@
 """Role-specific SOP definitions for cognitive Agents."""
+
 from __future__ import annotations
 
 from cognitive_agents.contracts import AgentRole, AgentSOP

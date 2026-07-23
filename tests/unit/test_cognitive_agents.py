@@ -3,6 +3,7 @@
 
 Agent 不能互相自由聊天；它们通过统一 schema 向黑板写入观点。
 """
+
 import pytest
 from pydantic import ValidationError
 

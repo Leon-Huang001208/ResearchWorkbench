@@ -1,4 +1,5 @@
 """iFinD 数据源集成"""
+
 from data_layer.adapters.ifind.client import IFinDClient
 from data_layer.adapters.ifind.exceptions import (
     IFinDAuthError,

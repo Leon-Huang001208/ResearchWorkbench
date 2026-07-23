@@ -8,6 +8,7 @@ providers (Volcano, DeepSeek, OpenAI, local vLLM/Ollama, etc.).
 
 Volcano-specific multimodal embedding endpoint is auto-detected from the base_url.
 """
+
 import time
 from typing import Any
 
@@ -79,15 +80,11 @@ class OpenAICompatibleProvider(BaseProvider):
                     **kwargs,
                 )
                 content = response.choices[0].message.content or ""
+                # DeepSeek V4 may return reasoning_content when thinking mode is on
                 if not content:
                     reasoning = getattr(response.choices[0].message, "reasoning_content", None)
                     if reasoning:
-                        logger.warning(
-                            "Model returned reasoning without a final answer",
-                            provider=self._provider_name,
-                            model=model,
-                        )
-                        content = "Error: Model returned reasoning without final answer"
+                        content = reasoning
                 tokens_used = response.usage.total_tokens if response.usage else 0
             else:
                 content = (
@@ -118,38 +115,66 @@ class OpenAICompatibleProvider(BaseProvider):
         temperature: float = 0.1,
         **kwargs: Any,
     ) -> BaseModel:
+        """结构化输出 - 优先用 OpenAI 原生 response_format，回退 prompt 注入+重试.
+
+        三级策略（deep-research-report.md 第一阶段要求）：
+        1. 优先：response_format={"type":"json_schema",...,"strict":True} 原生结构化输出
+        2. 回退：provider 不支持时走 prompt 注入 + retry_structured_parse 重试
+        3. 兜底：重试仍失败返回 model_construct() 空对象
+        """
         model = model or "gpt-3.5-turbo"
+
+        # 优先路径：原生 response_format（直接调 SDK，绕过 self.chat 以保留结构化元数据）
+        if self._client is not None:
+            try:
+                from core.model_gateway.structured_output_utils import (
+                    pydantic_to_openai_json_schema,
+                )
+
+                strict_schema = pydantic_to_openai_json_schema(output_schema)
+                schema_name = output_schema.__name__
+                response = self._client.chat.completions.create(
+                    model=model,
+                    messages=messages,
+                    temperature=temperature,
+                    response_format={
+                        "type": "json_schema",
+                        "json_schema": {
+                            "name": schema_name,
+                            "schema": strict_schema,
+                            "strict": True,
+                        },
+                    },
+                )
+                content = response.choices[0].message.content or ""
+                from core.model_gateway.structured_output_utils import (
+                    parse_json_content,
+                )
+
+                data = parse_json_content(content)
+                return output_schema(**data)
+            except Exception as e:
+                # 原生路径不可用（端点不支持 strict / 解析失败），降级到 prompt 注入重试
+                logger.warning(
+                    f"{self._provider_name} native response_format unavailable, "
+                    "falling back to prompt injection + retry",
+                    error=str(e),
+                )
+
+        # 回退路径：prompt 注入 + 重试
+        from core.model_gateway.structured_output_utils import retry_structured_parse
 
         schema_str = output_schema.model_json_schema()
         system_msg = f"Please respond only JSON matching this schema: {schema_str}"
-
-        response = self.chat(
+        return retry_structured_parse(
+            chat_fn=self.chat,
             messages=messages + [{"role": "system", "content": system_msg}],
+            output_schema=output_schema,
+            max_retries=2,
             temperature=temperature,
             model=model,
             **kwargs,
         )
-
-        try:
-            import json
-
-            content = response.content.strip()
-            if content.startswith("```json"):
-                content = content[7:]
-            if content.startswith("```"):
-                content = content[3:]
-            if content.endswith("```"):
-                content = content[:-3]
-            content = content.strip()
-
-            data = json.loads(content)
-            return output_schema(**data)
-        except Exception as e:
-            logger.error(
-                f"{self._provider_name} structured output parse error",
-                error=str(e),
-            )
-            return output_schema.model_construct()
 
     def embed(self, text: str, model: str | None = None, **kwargs: Any) -> EmbeddingResponse:
         model = model or "text-embedding-3-small"

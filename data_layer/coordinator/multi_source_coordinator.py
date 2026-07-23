@@ -10,6 +10,7 @@
 6. 双源校验
 7. 告警和审计
 """
+
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Dict, List, Optional
@@ -539,9 +540,11 @@ class MultiSourceCoordinator:
             sources=list(data_by_source.keys()) or available_sources,
             final_data_count=len(final_data),
             selected_source=used_source or "cache",
-            validation_passed=(validation_result.status == ValidationStatus.PASSED)
-            if validation_result
-            else False,
+            validation_passed=(
+                (validation_result.status == ValidationStatus.PASSED)
+                if validation_result
+                else False
+            ),
         )
 
         self.logger.info(

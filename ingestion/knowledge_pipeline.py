@@ -4,10 +4,11 @@
 对外只暴露一个主要接口：process(doc)
 内部步骤是私有实现细节，不对外暴露
 """
+
 import json as _json
 import uuid
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, cast
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, cast
 
 from core.contracts import (
     Assertion,
@@ -56,7 +57,13 @@ class PipelineResult:
     tags: List[DocumentTagV1]
     entities: List[dict]
     events: List[CanonicalEvent]
+    assertions: List[Assertion] = None  # type: ignore[assignment]
     is_duplicate: bool = False
+
+    def __post_init__(self) -> None:
+        # dataclass 默认值不能用可变 list，用 None 哨兵在初始化后落成空列表
+        if self.assertions is None:
+            self.assertions = []
 
 
 class KnowledgePipeline:
@@ -104,6 +111,7 @@ class KnowledgePipeline:
         tags: List[DocumentTagV1] = []
         entities: List[dict] = []
         events: List[CanonicalEvent] = []
+        assertions: List[Assertion] = []
         is_duplicate = False
 
         # 步骤1: 文档分块
@@ -131,7 +139,7 @@ class KnowledgePipeline:
                 content_length=len(doc.content),
             )
             text_chunks = [c.content for c in chunks] if chunks else [doc.content]
-            events = self._extract_concurrent(text_chunks, doc.doc_id)
+            assertions, events = self._extract_concurrent(text_chunks, doc.doc_id, doc.content)
             # 并发提取已包含实体信息，跳过独立实体提取
             if self.config.enable_entity_extraction:
                 entity_mentions = self._entity_extractor.extract(doc)
@@ -174,12 +182,14 @@ class KnowledgePipeline:
             tags=tags,
             entities=entities,
             events=events,
+            assertions=assertions,
             is_duplicate=is_duplicate,
         )
 
         logger.info(
             f"Knowledge pipeline completed for {doc.doc_id}, "
             f"extracted {len(events)} events, "
+            f"{len(assertions)} assertions, "
             f"duplicate: {is_duplicate}"
         )
 
@@ -189,7 +199,8 @@ class KnowledgePipeline:
         self,
         text_chunks: List[str],
         doc_id: str,
-    ) -> List[CanonicalEvent]:
+        doc_content: str = "",
+    ) -> Tuple[List[Assertion], List[CanonicalEvent]]:
         """长文本并发提取：对 chunk 列表并发调用 LLM 提取事件"""
         from core.settings.config import settings
         from knowledge_layer.extraction import ConcurrentLLMExtractor, split_text
@@ -222,15 +233,62 @@ class KnowledgePipeline:
 
         _assertions, events, stats = extractor.extract_chunks(final_chunks, doc_id)
 
+        # 精确化 source_span：回填 chunk_text 与字符偏移，供报告编译器句级引用定位
+        assertions = self._enrich_assertion_spans(_assertions, final_chunks, doc_content)
+
         logger.info(
             "Concurrent extraction completed",
             doc_id=doc_id,
             chunk_count=len(final_chunks),
             event_count=len(events),
+            assertion_count=len(assertions),
             stats=stats,
         )
 
-        return events
+        return assertions, events
+
+    @staticmethod
+    def _enrich_assertion_spans(
+        assertions: List[Assertion],
+        chunks: List[str],
+        doc_content: str,
+    ) -> List[Assertion]:
+        """回填 assertion.source_span 的 chunk_text 与字符偏移.
+
+        并发抽取器构建 assertion 时只知道 chunk_index，不知道 chunk 文本与偏移。
+        此处按 source_span.chunk_index 回填 chunk_text，并尝试在 doc_content 中
+        定位 chunk 起止偏移，使报告编译器的句级引用能锚定到原文位置。
+        """
+        # 预计算每个 chunk 在 doc_content 中的偏移（首次出现位置）
+        offsets: List[Optional[tuple[int, int]]] = []
+        search_from = 0
+        for chunk_text in chunks:
+            if not chunk_text:
+                offsets.append(None)
+                continue
+            start = doc_content.find(chunk_text, search_from)
+            if start == -1:
+                # chunk 可能被裁剪过，回退到从头找
+                start = doc_content.find(chunk_text)
+            if start == -1:
+                offsets.append(None)
+            else:
+                end = start + len(chunk_text)
+                offsets.append((start, end))
+                search_from = end
+
+        enriched: List[Assertion] = []
+        for assertion in assertions:
+            span = dict(assertion.source_span or {})
+            chunk_index = span.get("chunk_index")
+            if isinstance(chunk_index, int) and 0 <= chunk_index < len(chunks):
+                span["chunk_text"] = chunks[chunk_index][:500]
+                off = offsets[chunk_index]
+                if off is not None:
+                    span["offset_start"] = off[0]
+                    span["offset_end"] = off[1]
+            enriched.append(assertion.model_copy(update={"source_span": span}))
+        return enriched
 
     # ── concurrent extraction helpers ──────────────────────────
 
@@ -308,9 +366,9 @@ class KnowledgePipeline:
             event_id=str(uuid.uuid4()),
             event_type=params.event_type,
             event_time=doc.timeliness.publish_time if doc.timeliness else None,
-            source_type=doc.source_type.value
-            if hasattr(doc.source_type, "value")
-            else str(doc.source_type),
+            source_type=(
+                doc.source_type.value if hasattr(doc.source_type, "value") else str(doc.source_type)
+            ),
             source_name=doc.source_name or "unknown",
             title=doc.title or "",
             raw_text=doc.content,

@@ -6,6 +6,7 @@
 3. 模拟评估：基于事件类型和信号特征生成模拟 outcome
 4. 保存结果，聚合分析，校准分析
 """
+
 from __future__ import annotations
 
 import json
@@ -124,7 +125,7 @@ class ReplayService:
         else:
             self._jobs[job.job_id] = job
 
-        logger.info("replay job created", job_id=job.job_id, name=job.name)
+        logger.info("replay job created", job_id=job.job_id, job_name=job.name)
         return job
 
     def get_job(self, job_id: str) -> Optional[ReplayJob]:

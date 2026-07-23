@@ -1,4 +1,5 @@
 """akshare market normalizer 单元测试"""
+
 from datetime import date, datetime
 
 from data_layer.crawlers.akshare.base import MarketData, StockInfo

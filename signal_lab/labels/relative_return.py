@@ -3,6 +3,7 @@
 
 生成基于相对收益率的标签。
 """
+
 from typing import Any, Optional
 
 import pandas as pd

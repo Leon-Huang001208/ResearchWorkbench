@@ -1,4 +1,5 @@
 """认知 Agent 实现测试。"""
+
 from unittest.mock import AsyncMock
 
 import pytest

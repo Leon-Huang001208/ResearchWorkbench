@@ -1,4 +1,5 @@
 """Switch Huaan ETF Word template chart placeholders from images to native charts."""
+
 from __future__ import annotations
 
 import shutil

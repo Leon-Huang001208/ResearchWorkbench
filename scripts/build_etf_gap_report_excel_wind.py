@@ -335,7 +335,9 @@ def build_dataset(args: argparse.Namespace) -> dict[str, Any]:
         row["跟踪指数代码状态"] = result["status"] if result["status"] != "ok" else code_status
         row["是否华安"] = "是" if "华安" in _as_text(row.get("管理人")) else "否"
 
-    index_codes = sorted({_as_text(row.get("跟踪指数代码")) for row in etfs if row.get("跟踪指数代码")})
+    index_codes = sorted(
+        {_as_text(row.get("跟踪指数代码")) for row in etfs if row.get("跟踪指数代码")}
+    )
     if args.index_limit:
         index_codes = index_codes[: args.index_limit]
     logging.info("Unique tracking indices to fetch: %s", len(index_codes))
@@ -402,7 +404,9 @@ def build_dataset(args: argparse.Namespace) -> dict[str, Any]:
         related = [row for row in etfs if row.get("跟踪指数代码") == code]
         huaan = [row for row in related if row.get("是否华安") == "是"]
         total_scale = sum(_as_float(row.get("规模(亿)")) or 0 for row in related)
-        largest = sorted(related, key=lambda item: _as_float(item.get("规模(亿)")) or 0, reverse=True)
+        largest = sorted(
+            related, key=lambda item: _as_float(item.get("规模(亿)")) or 0, reverse=True
+        )
         managers = sorted({_as_text(row.get("管理人")) for row in related if row.get("管理人")})
         pe = pe_by_code.get(code, {})
         percentile = _as_float(pe.get("pe_percentile_5y"))
@@ -419,11 +423,15 @@ def build_dataset(args: argparse.Namespace) -> dict[str, Any]:
                 "跟踪指数名称": index_name_by_code.get(code, ""),
                 "指数名称状态": index_name_status_by_code.get(code, ""),
                 "华安是否覆盖": "是" if huaan else "否",
-                "华安产品": "；".join(f"{row.get('基金代码')} {row.get('基金名称')}" for row in huaan),
+                "华安产品": "；".join(
+                    f"{row.get('基金代码')} {row.get('基金名称')}" for row in huaan
+                ),
                 "现有ETF数量": len(related),
                 "现有ETF总规模(亿)": round(total_scale, 4),
                 "竞品管理人": "；".join(managers),
-                "代表ETF产品": "；".join(f"{row.get('基金代码')} {row.get('基金名称')}" for row in largest[:5]),
+                "代表ETF产品": "；".join(
+                    f"{row.get('基金代码')} {row.get('基金名称')}" for row in largest[:5]
+                ),
                 "PE(TTM)": pe.get("current_pe"),
                 "近五年PE分位": percentile,
                 "近五年样本数": sample_count,

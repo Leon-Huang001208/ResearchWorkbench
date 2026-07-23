@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>中国资本市场与ETF制度演进关键节点</title>
+<style>
+/* ===== Palette ===== */
+:root {
+  --surface-1:      #fcfcfb;
+  --text-primary:   #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted:     #898781;
+  --baseline:       #c3c2b7;
+  --gridline:       #e1e0d9;
+
+  --blue:           #2a78d6;
+  --green:          #008300;
+  --orange:         #eb6834;
+  --blue-light:     #cde2fb;
+  --green-light:    #cce5cc;
+  --orange-light:   #fde4d4;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+  background: #ffffff;
+  -webkit-font-smoothing: antialiased;
+  width: 1700px;
+  height: 820px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chart {
+  width: 1640px;
+  height: 760px;
+  background: var(--surface-1);
+  border: 1px solid var(--gridline);
+  border-radius: 8px;
+  padding: 48px 56px 40px;
+  position: relative;
+}
+
+/* ===== Title ===== */
+.title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-align: center;
+  margin-bottom: 6px;
+  letter-spacing: 0.03em;
+}
+
+.subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+/* ===== Legend ===== */
+.legend {
+  display: flex;
+  justify-content: center;
+  gap: 36px;
+  margin-bottom: 24px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ===== SVG Timeline ===== */
+.timeline-svg {
+  display: block;
+  width: 100%;
+  height: 560px;
+}
+
+/* Axis line */
+.axis-line {
+  stroke: var(--baseline);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+/* Arrow head */
+.arrow-head {
+  fill: var(--baseline);
+}
+
+/* Connector from event dot to label */
+.connector {
+  stroke: var(--gridline);
+  stroke-width: 1;
+  stroke-dasharray: none;
+}
+
+/* Year tick */
+.tick {
+  stroke: var(--gridline);
+  stroke-width: 1;
+}
+
+/* Year label */
+.year-label {
+  font-size: 11px;
+  fill: var(--text-muted);
+  text-anchor: middle;
+  font-family: inherit;
+}
+
+g[data-cat="market"] .event-dot   { fill: var(--blue); }
+g[data-cat="opening"] .event-dot  { fill: var(--green); }
+g[data-cat="etf"] .event-dot      { fill: var(--orange); }
+
+/* Dot: 14px with 2px white ring */
+.event-dot {
+  stroke: var(--surface-1);
+  stroke-width: 2.5;
+}
+
+/* Event title text */
+.event-title {
+  font-size: 13px;
+  font-weight: 600;
+  fill: var(--text-primary);
+  font-family: inherit;
+}
+
+.event-desc {
+  font-size: 11px;
+  fill: var(--text-secondary);
+  font-family: inherit;
+}
+
+/* Category badge in SVG */
+.cat-badge-rect {
+  rx: 3;
+  ry: 3;
+}
+
+.cat-badge-text {
+  font-size: 9px;
+  font-weight: 600;
+  font-family: inherit;
+  text-anchor: middle;
+}
+
+/* Connector line from badge to dot */
+.badge-connector {
+  stroke: var(--gridline);
+  stroke-width: 1;
+}
+
+/* Phase label bands */
+.phase-label {
+  font-size: 10px;
+  fill: var(--text-muted);
+  font-family: inherit;
+  text-anchor: middle;
+  letter-spacing: 0.05em;
+}
+
+.phase-band {
+  fill: none;
+  stroke: var(--gridline);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+/* ===== Footer ===== */
+.footer {
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 12px;
+}
+</style>
+</head>
+<body>
+<div class="chart">
+
+  <div class="title">中国资本市场与ETF制度演进关键节点</div>
+  <div class="subtitle">1990 — 2025 · 从证券交易所设立到指数化投资时代</div>
+
+  <div class="legend">
+    <div class="legend-item"><span class="legend-dot" style="background:var(--blue)"></span> 市场制度建设</div>
+    <div class="legend-item"><span class="legend-dot" style="background:var(--green)"></span> 对外开放</div>
+    <div class="legend-item"><span class="legend-dot" style="background:var(--orange)"></span> ETF / 指数化投资</div>
+  </div>
+
+  <svg class="timeline-svg" viewBox="0 0 1528 560" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+        <feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="#000000" flood-opacity="0.08"/>
+      </filter>
+    </defs>
+
+    <!-- ===== Phase bands ===== -->
+    <!-- Phase 1: 起步 (1990–2003) -->
+    <rect class="phase-band" x="40" y="90" width="208" height="400" rx="4"/>
+    <text class="phase-label" x="144" y="500">起步探索期</text>
+
+    <!-- Phase 2: 发展 (2004–2013) -->
+    <rect class="phase-band" x="256" y="90" width="196" height="400" rx="4"/>
+    <text class="phase-label" x="354" y="500">制度建设期</text>
+
+    <!-- Phase 3: 开放 (2014–2019) -->
+    <rect class="phase-band" x="452" y="90" width="300" height="400" rx="4"/>
+    <text class="phase-label" x="602" y="500">互联互通与开放期</text>
+
+    <!-- Phase 4: 深化 (2020–2023) -->
+    <rect class="phase-band" x="752" y="90" width="268" height="400" rx="4"/>
+    <text class="phase-label" x="886" y="500">制度深化期</text>
+
+    <!-- Phase 5: ETF时代 (2024–2025) -->
+    <rect class="phase-band" x="1020" y="90" width="488" height="400" rx="4" stroke="var(--orange)" stroke-opacity="0.3" fill="var(--orange-light)" fill-opacity="0.15"/>
+    <text class="phase-label" x="1264" y="500" fill="var(--orange)">ETF / 指数化投资时代</text>
+
+    <!-- ===== Main axis ===== -->
+    <line class="axis-line" x1="52" y1="280" x2="1520" y2="280"/>
+    <polygon class="arrow-head" points="1520,280 1508,274 1508,286"/>
+
+    <!-- ===== Year tick marks ===== -->
+    <line class="tick" x1="52" y1="275" x2="52" y2="285"/>
+    <text class="year-label" x="52" y="302">1990</text>
+
+    <line class="tick" x1="150" y1="275" x2="150" y2="285"/>
+    <text class="year-label" x="150" y="302">1995</text>
+
+    <line class="tick" x1="248" y1="275" x2="248" y2="285"/>
+    <text class="year-label" x="248" y="302">2000</text>
+
+    <line class="tick" x1="346" y1="275" x2="346" y2="285"/>
+    <text class="year-label" x="346" y="302">2005</text>
+
+    <line class="tick" x1="444" y1="275" x2="444" y2="285"/>
+    <text class="year-label" x="444" y="302">2010</text>
+
+    <line class="tick" x1="542" y1="275" x2="542" y2="285"/>
+    <text class="year-label" x="542" y="302">2015</text>
+
+    <line class="tick" x1="640" y1="275" x2="640" y2="285"/>
+    <text class="year-label" x="640" y="302">2019</text>
+
+    <line class="tick" x1="738" y1="275" x2="738" y2="285"/>
+    <text class="year-label" x="738" y="302">2020</text>
+
+    <line class="tick" x1="836" y1="275" x2="836" y2="285"/>
+    <text class="year-label" x="836" y="302">2021</text>
+
+    <line class="tick" x1="934" y1="275" x2="934" y2="285"/>
+    <text class="year-label" x="934" y="302">2022</text>
+
+    <line class="tick" x1="1032" y1="275" x2="1032" y2="285"/>
+    <text class="year-label" x="1032" y="302">2023</text>
+
+    <line class="tick" x1="1130" y1="275" x2="1130" y2="285"/>
+    <text class="year-label" x="1130" y="302">2024</text>
+
+    <line class="tick" x1="1276" y1="275" x2="1276" y2="285"/>
+    <text class="year-label" x="1276" y="302">2025</text>
+
+    <!-- ===== EVENT 1: 1990 ===== BELOW -->
+    <g data-cat="market">
+      <circle class="event-dot" cx="52" cy="280" r="7"/>
+      <line class="badge-connector" x1="52" y1="287" x2="52" y2="330"/>
+      <rect class="cat-badge-rect" x="2" y="332" width="100" height="18" fill="var(--blue-light)"/>
+      <text class="cat-badge-text" x="52" y="345" fill="var(--blue)">市场制度</text>
+      <text class="event-title" x="52" y="368" text-anchor="middle">上交所成立并开业</text>
+      <text class="event-desc" x="52" y="386" text-anchor="middle">现代证券交易体系启动</text>
+    </g>
+
+    <!-- ===== EVENT 2: 2004 ===== ABOVE -->
+    <g data-cat="market">
+      <circle class="event-dot" cx="346" cy="280" r="7"/>
+      <line class="badge-connector" x1="346" y1="273" x2="346" y2="228"/>
+      <rect class="cat-badge-rect" x="296" y="196" width="100" height="18" fill="var(--blue-light)"/>
+      <text class="cat-badge-text" x="346" y="209" fill="var(--blue)">市场制度</text>
+      <text class="event-title" x="346" y="180" text-anchor="middle">国务院"国九条"</text>
+      <text class="event-desc" x="346" y="162" text-anchor="middle">确立改革开放与稳定发展主线</text>
+    </g>
+
+    <!-- ===== EVENT 3: 2014 新国九条 ===== BELOW -->
+    <g data-cat="market">
+      <circle class="event-dot" cx="542" cy="280" r="7"/>
+      <line class="badge-connector" x1="542" y1="287" x2="542" y2="330"/>
+      <rect class="cat-badge-rect" x="492" y="332" width="100" height="18" fill="var(--blue-light)"/>
+      <text class="cat-badge-text" x="542" y="345" fill="var(--blue)">市场制度</text>
+      <text class="event-title" x="542" y="368" text-anchor="middle">新"国九条"出台</text>
+      <text class="event-desc" x="542" y="386" text-anchor="middle">推动多层次资本市场建设</text>
+    </g>
+
+    <!-- ===== EVENT 4: 2014 沪港通 ===== ABOVE (slightly offset) -->
+    <g data-cat="opening">
+      <circle class="event-dot" cx="590" cy="280" r="7"/>
+      <line class="badge-connector" x1="590" y1="273" x2="590" y2="228"/>
+      <rect class="cat-badge-rect" x="540" y="196" width="100" height="18" fill="var(--green-light)"/>
+      <text class="cat-badge-text" x="590" y="209" fill="var(--green)">对外开放</text>
+      <text class="event-title" x="590" y="180" text-anchor="middle">沪港通启动</text>
+      <text class="event-desc" x="590" y="162" text-anchor="middle">内地与香港互联互通首条通道</text>
+    </g>
+
+    <!-- ===== EVENT 5: 2016 深港通 ===== BELOW -->
+    <g data-cat="opening">
+      <circle class="event-dot" cx="670" cy="280" r="7"/>
+      <line class="badge-connector" x1="670" y1="287" x2="670" y2="330"/>
+      <rect class="cat-badge-rect" x="620" y="332" width="100" height="18" fill="var(--green-light)"/>
+      <text class="cat-badge-text" x="670" y="345" fill="var(--green)">对外开放</text>
+      <text class="event-title" x="670" y="368" text-anchor="middle">深港通启动</text>
+      <text class="event-desc" x="670" y="386" text-anchor="middle">互联互通覆盖新经济标的</text>
+    </g>
+
+    <!-- ===== EVENT 6: 2019 科创板 ===== ABOVE -->
+    <g data-cat="market">
+      <circle class="event-dot" cx="738" cy="280" r="7"/>
+      <line class="badge-connector" x1="738" y1="273" x2="738" y2="228"/>
+      <rect class="cat-badge-rect" x="688" y="196" width="100" height="18" fill="var(--blue-light)"/>
+      <text class="cat-badge-text" x="738" y="209" fill="var(--blue)">市场制度</text>
+      <text class="event-title" x="738" y="180" text-anchor="middle">科创板开市并试点注册制</text>
+      <text class="event-desc" x="738" y="162" text-anchor="middle">信息披露为核心的发行制度落地</text>
+    </g>
+
+    <!-- ===== EVENT 7: 2019 QFII取消 ===== BELOW -->
+    <g data-cat="opening">
+      <circle class="event-dot" cx="786" cy="280" r="7"/>
+      <line class="badge-connector" x1="786" y1="287" x2="786" y2="330"/>
+      <rect class="cat-badge-rect" x="736" y="332" width="100" height="18" fill="var(--green-light)"/>
+      <text class="cat-badge-text" x="786" y="345" fill="var(--green)">对外开放</text>
+      <text class="event-title" x="786" y="368" text-anchor="middle">QFII / RQFII 额度限制取消</text>
+      <text class="event-desc" x="786" y="386" text-anchor="middle">外资参与A股额度上限全面取消</text>
+    </g>
+
+    <!-- ===== EVENT 8: 2020 QFII新规 ===== ABOVE -->
+    <g data-cat="opening">
+      <circle class="event-dot" cx="836" cy="280" r="7"/>
+      <line class="badge-connector" x1="836" y1="273" x2="836" y2="228"/>
+      <rect class="cat-badge-rect" x="786" y="196" width="100" height="18" fill="var(--green-light)"/>
+      <text class="cat-badge-text" x="836" y="209" fill="var(--green)">对外开放</text>
+      <text class="event-title" x="836" y="180" text-anchor="middle">新 QFII / RQFII 管理办法实施</text>
+      <text class="event-desc" x="836" y="162" text-anchor="middle">简化流程、扩大投资范围</text>
+    </g>
+
+    <!-- ===== EVENT 9: 2023 注册制 ===== BELOW -->
+    <g data-cat="market">
+      <circle class="event-dot" cx="1032" cy="280" r="7"/>
+      <line class="badge-connector" x1="1032" y1="287" x2="1032" y2="330"/>
+      <rect class="cat-badge-rect" x="965" y="332" width="134" height="18" fill="var(--blue-light)"/>
+      <text class="cat-badge-text" x="1032" y="345" fill="var(--blue)">市场制度</text>
+      <text class="event-title" x="1032" y="368" text-anchor="middle">股票发行注册制推广至全市场</text>
+      <text class="event-desc" x="1032" y="386" text-anchor="middle">注册制成为全市场基础制度</text>
+    </g>
+
+    <!-- ===== EVENT 10: 2024 ETF ===== ABOVE (emphasis) -->
+    <g data-cat="etf">
+      <circle class="event-dot" cx="1130" cy="280" r="9"/>
+      <line class="badge-connector" x1="1130" y1="271" x2="1130" y2="216"/>
+      <rect class="cat-badge-rect" x="1080" y="180" width="100" height="20" fill="var(--orange-light)" stroke="var(--orange)" stroke-width="1"/>
+      <text class="cat-badge-text" x="1130" y="194" fill="var(--orange)">ETF</text>
+      <text class="event-title" x="1130" y="162" text-anchor="middle" fill="var(--orange)">新"国九条"提出</text>
+      <text class="event-title" x="1130" y="144" text-anchor="middle" fill="var(--orange)">ETF 快速审批通道</text>
+      <text class="event-desc" x="1130" y="128" text-anchor="middle">指数产品发展进入快车道</text>
+    </g>
+
+    <!-- ===== EVENT 11: 2025 ETF行动方案 ===== BELOW (emphasis) -->
+    <g data-cat="etf">
+      <circle class="event-dot" cx="1276" cy="280" r="9" filter="url(#shadow)"/>
+      <line class="badge-connector" x1="1276" y1="289" x2="1276" y2="340"/>
+      <rect class="cat-badge-rect" x="1226" y="342" width="100" height="20" fill="var(--orange-light)" stroke="var(--orange)" stroke-width="1"/>
+      <text class="cat-badge-text" x="1276" y="356" fill="var(--orange)">ETF</text>
+      <text class="event-title" x="1276" y="378" text-anchor="middle" fill="var(--orange)">中长期资金入市实施方案</text>
+      <text class="event-title" x="1276" y="396" text-anchor="middle" fill="var(--orange)">+ 指数化投资行动方案落地</text>
+      <text class="event-desc" x="1276" y="414" text-anchor="middle">ETF生态进入全新阶段</text>
+    </g>
+
+    <!-- ===== Milestone flag for 2025 ===== -->
+    <polygon points="1276,275 1276,260 1281,260" fill="var(--orange)" opacity="0.4"/>
+
+  </svg>
+
+  <div class="footer">来源：公开信息整理 · 仅供参考</div>
+</div>
+</body>
+</html>

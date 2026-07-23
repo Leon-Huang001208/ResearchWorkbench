@@ -1,4 +1,5 @@
 """统一摄取队列服务 — 将实时源事件归一化后送入 Golden Path"""
+
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional

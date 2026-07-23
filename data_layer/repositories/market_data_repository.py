@@ -3,6 +3,7 @@
 为 stock_master, stock_daily_bar 等表提供幂等写入方法。
 PostgreSQL 使用 on_conflict_do_update，SQLite fallback 用 check-then-update-or-insert。
 """
+
 from datetime import date, datetime
 from typing import Any, Optional, cast
 

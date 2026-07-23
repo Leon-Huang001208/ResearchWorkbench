@@ -1,4 +1,5 @@
 """iFinD 客户端协议定义"""
+
 from typing import Protocol, runtime_checkable
 
 

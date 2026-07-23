@@ -26,7 +26,7 @@ Purpose:
 
 - Create FastAPI app.
 - Register routes.
-- Configure Tauri desktop plus explicit CORS origins, loopback-first Trusted Host middleware, and health checks.
+- Configure middleware and health checks.
 
 Update this section when:
 
@@ -46,23 +46,6 @@ Update this section when:
 
 - API schema changes.
 - Request/response models are added or modified.
-
----
-
-### `app/api/configuration_models.py` and `app/api/routes/configuration.py`
-
-Purpose:
-
-- Define strict, extra-field-forbidden contracts for the five configuration sections: `llm`, `zhiqiu`, `ifind`, `database`, and `advanced`.
-- `GET /api/config` returns a five-section snapshot, readiness map, and ready/total counts. Each secret includes `configured`, `masked_value`, and the saved `value` for the loopback-only system-configuration workspace to display, reveal, or copy locally; rejected request values are still never echoed in errors or logs.
-- `PUT /api/config/{section}` validates and saves exactly one supported section. LLM, iFinD, advanced values, and environment-backed values used by newly created ZhiQiu clients apply to subsequent work; database updates return `applied=false` and `restart_required=true` because the active SQLAlchemy pool is not replaced.
-- `POST /api/config/{section}/test` merges unsaved form values with retained secrets without writing the file or mutating `os.environ`. LLM, ZhiQiu, and iFinD use real short-timeout probes; database performs URL structure validation; advanced does not support testing. ZhiQiu reads `ZQ_ACCOUNTS_JSON` / legacy `ZQ_ACCOUNTS`, then falls back to the crawler's existing `data_layer/crawlers/zq/config.yaml` pool; iFinD persists `IFIND_ACCOUNTS_JSON` and mirrors the first account to legacy runtime fields.
-- Sensitive fields use three-state semantics: missing/blank retains the saved value, a non-empty value replaces it, and the matching `clear_*` flag removes it. `original_name` identifies the previous Provider/account entry during rename so the retained secret follows the renamed row.
-- Validation responses omit rejected input values and validation context. Routes delegate parsing, persistence, runtime refresh, and safe logging to `ConfigurationService`.
-
-Update this section when:
-
-- Configuration section fields, validation limits, response masking, connection tests, or restart semantics change.
 
 ---
 
@@ -355,8 +338,4 @@ When files in this module change, check:
 
 ## Recent Changes
 
-- 2026-07-12: 加固本地配置控制面：默认 Host 仅允许 loopback/testserver；桌面端固定允许 Tauri 本地 Origin，以便启动页可访问后端健康检查；显式扩展 CORS 与 Trusted Host 必须一致，配置 API 校验本地/Tauri Origin 和进程级 CSRF token；LLM 端点变更不再因省略 `original_name` 而复用旧 Token。
-- 2026-07-12: 系统配置工作台改为与报告生产一致的统一列布局；本机受 CSRF 保护的读取接口回填已保存的敏感值，页面默认遮住并支持按需显示/复制。
-- 2026-07-12: 注册系统配置 API，提供五分区脱敏读取、严格分区更新和非持久化连接验证；422 响应不回显被拒绝的秘密值，数据库更新显式返回重启要求。
 - 2026-06-04: 收敛 API 路由层 mypy 历史债务，补齐上传流、监控响应、模板 section 拼装的显式类型，保持现有请求/响应行为不变。
-- 2026-07-12: 报告项目 API 的内置华安资产随仓库提供；报告级本地模型配置使用 Hugging Face 模型标识，避免把开发机路径返回给客户端。

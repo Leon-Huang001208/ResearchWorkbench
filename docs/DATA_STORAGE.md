@@ -1967,7 +1967,3 @@ alembic history --verbose
 - **维度**: 1536 (OpenAI text-embedding-ada-002 兼容)
 - **存储格式**: PostgreSQL vector 类型
 - **索引**: HNSW 索引，使用 cosine 距离度量
-
-## 2026-07-12 测试数据库策略
-
-默认测试环境在导入仓储引擎前配置每进程临时 SQLite，并为需要 schema 的测试提供干净数据库；设置 `ALPHAFOUNDRY_RUN_POSTGRES_TESTS=1` 才执行真实 PostgreSQL 冒烟。

@@ -3,6 +3,7 @@ AkShare 基础适配器模块
 
 定义统一的数据结构和适配器基类。
 """
+
 from abc import ABC
 from dataclasses import dataclass, field
 from datetime import date, datetime

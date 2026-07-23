@@ -1,6 +1,7 @@
 """
 情景生成 CLI 命令
 """
+
 from pathlib import Path
 
 import click

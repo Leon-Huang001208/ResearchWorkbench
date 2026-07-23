@@ -1,4 +1,5 @@
 """Failure memory service for retrieving similar historical cases based on thesis similarity."""
+
 from typing import List, Optional
 
 from core.contracts.outcome_journal import FailureClassification, SimilarCase, TradeOutcome

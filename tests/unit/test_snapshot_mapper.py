@@ -1,6 +1,7 @@
 """
 SnapshotToPlaceholdersMapper 的单元测试
 """
+
 from datetime import datetime
 
 import pytest
@@ -55,7 +56,12 @@ class MockAssetAnalysisCard:
         self.capital_flow = {"main_net": 500_000_000.0}
 
         # 事件
-        self.recent_events = [{"title": "贵州茅台发布年报，业绩超预期", "content": "公司实现营收同比增长15%，净利润同比增长18%"}]
+        self.recent_events = [
+            {
+                "title": "贵州茅台发布年报，业绩超预期",
+                "content": "公司实现营收同比增长15%，净利润同比增长18%",
+            }
+        ]
 
         # 旧格式兼容
         self.price_volume = {

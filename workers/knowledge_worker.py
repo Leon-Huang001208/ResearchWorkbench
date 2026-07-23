@@ -17,7 +17,12 @@ from services.system_event_bus import event_bus
 
 logger = get_logger(__name__)
 
-PROJECT_DIR = Path(__file__).resolve().parent.parent
+# 优先使用环境变量，打包部署（Tauri sidecar）时 __file__ 指向 exe 内部路径失效
+PROJECT_DIR = (
+    Path(os.environ["ALPHAFOUNDRY_PROJECT_ROOT"])
+    if "ALPHAFOUNDRY_PROJECT_ROOT" in os.environ
+    else Path(__file__).resolve().parent.parent
+)
 
 POLL_INTERVAL = float(os.environ.get("KNOWLEDGE_WORKER_POLL_INTERVAL", "1"))
 BATCH_SIZE = int(os.environ.get("KNOWLEDGE_WORKER_BATCH_SIZE", "10"))
@@ -164,6 +169,25 @@ def _create_document_v1(item: Any) -> Any:
     )
 
 
+def _grade_document_quality(doc: Any) -> Any:
+    """用 SourceGrader 回填 doc.quality 的分级字段（source_tier/trust/freshness）.
+
+    报告编译器第二阶段：从 SourceSpec 推导 reliability 并计算来源分级，
+    使后续检索与引用绑定能按 tier 排序优先锚定高可信来源。
+    """
+    try:
+        from core.services.source_grader import SourceGrader
+
+        SourceGrader().grade_inplace(doc)
+    except Exception as e:
+        logger.warning(
+            "Source grading failed, leaving quality default",
+            doc_id=getattr(doc, "doc_id", None),
+            error=str(e),
+        )
+    return doc
+
+
 def _parse_published_at(value: Any) -> Any:
     """Parse queue published_at text into datetime when possible."""
     from datetime import datetime
@@ -210,6 +234,7 @@ def _create_source_document_envelope(item: Any, doc: Any) -> Any:
 async def process_one(item: Any, pipeline: Any) -> Dict[str, Any]:
     """处理单个队列项：DocumentV1 -> KnowledgePipeline -> 发布事件（带超时保护）"""
     doc = _create_document_v1(item)
+    _grade_document_quality(doc)
     result = await asyncio.wait_for(pipeline.process(doc), timeout=ITEM_PROCESSING_TIMEOUT)
 
     doc_payload = {
@@ -251,7 +276,93 @@ async def process_one(item: Any, pipeline: Any) -> Dict[str, Any]:
         "entities": len(result.entities),
         "event_list": result.events,
         "entity_list": result.entities,
+        "assertions": len(result.assertions),
+        "assertion_list": result.assertions,
+        "chunks": len(result.chunks),
+        "chunk_list": result.chunks,
     }
+
+
+def _persist_extraction_artifacts(db: Any, result: Dict[str, Any]) -> None:
+    """持久化 chunks / entity_mentions / assertions（facts store 打通）.
+
+    所有写入失败均降级为 warning，不阻断 item 完成标记——facts store 是报告编译器
+    的增量数据源，单条 item 的部分持久化失败不应让整条队列项回滚重试（会重复跑 LLM）。
+    """
+    from core.contracts import EntityMentionV1
+    from data_layer.repositories.assertion_repository import AssertionRepositoryImpl
+    from data_layer.repositories.documents_v1 import (
+        DocumentChunkV1Repository,
+        EntityMentionV1Repository,
+    )
+
+    # chunks
+    chunk_list = result.get("chunk_list") or []
+    if chunk_list:
+        try:
+            chunk_repo = DocumentChunkV1Repository(db)
+            chunk_repo.bulk_create(chunk_list)
+            logger.debug("Persisted chunks", doc_id=result.get("doc_id"), count=len(chunk_list))
+        except Exception as e:
+            logger.warning(
+                "Failed to persist chunks",
+                doc_id=result.get("doc_id"),
+                error=str(e),
+            )
+
+    # entity_mentions（pipeline 输出为 dict 列表，重建为 EntityMentionV1）
+    entity_list = result.get("entity_list") or []
+    if entity_list:
+        mentions: list[EntityMentionV1] = []
+        for ent in entity_list:
+            try:
+                if isinstance(ent, EntityMentionV1):
+                    mentions.append(ent)
+                elif isinstance(ent, dict):
+                    # entity_id 是原始名/代码，非规范化实体 FK，置 None 避免约束失败
+                    data = dict(ent)
+                    data["entity_id"] = None
+                    mentions.append(EntityMentionV1(**data))
+            except Exception:
+                continue
+        if mentions:
+            try:
+                mention_repo = EntityMentionV1Repository(db)
+                mention_repo.bulk_create(mentions)
+                logger.debug(
+                    "Persisted entity mentions",
+                    doc_id=result.get("doc_id"),
+                    count=len(mentions),
+                )
+            except Exception as e:
+                logger.warning(
+                    "Failed to persist entity mentions",
+                    doc_id=result.get("doc_id"),
+                    error=str(e),
+                )
+
+    # assertions（source_doc_id FK 已由 source_document 保存满足）
+    assertion_list = result.get("assertion_list") or []
+    if assertion_list:
+        assertion_repo = AssertionRepositoryImpl(db)
+        saved = 0
+        for assertion in assertion_list:
+            try:
+                assertion_repo.save(assertion)
+                saved += 1
+            except Exception as e:
+                logger.warning(
+                    "Failed to persist assertion",
+                    assertion_id=getattr(assertion, "assertion_id", None),
+                    error=str(e),
+                )
+        if saved:
+            logger.debug(
+                "Persisted assertions",
+                doc_id=result.get("doc_id"),
+                saved=saved,
+                total=len(assertion_list),
+            )
 
 
 def _processed_item_log_fields(result: Dict[str, Any]) -> Dict[str, Any]:
@@ -265,6 +376,8 @@ def _processed_item_log_fields(result: Dict[str, Any]) -> Dict[str, Any]:
         "content_hash": getattr(doc, "content_hash", None),
         "events": result.get("events"),
         "entities": result.get("entities"),
+        "assertions": result.get("assertions"),
+        "chunks": result.get("chunks"),
     }
 
 
@@ -310,6 +423,11 @@ async def _process_and_mark(
             source_doc_repo = DocumentRepositoryImpl(db)
             source_doc_repo.save(_create_source_document_envelope(item, result["doc"]))
 
+            # 持久化 chunks / entity_mentions / assertions（打通 facts store）。
+            # chunks.doc_id FK → document_v1；assertion.source_doc_id FK → source_document，
+            # 均已在上面保存，顺序安全。失败不阻断主流程，仅记录 warning。
+            _persist_extraction_artifacts(db, result)
+
             # Persist events to DB BEFORE marking item completed.
             if result["event_list"]:
                 event_repo = EventRepositoryImpl(db)
@@ -335,12 +453,15 @@ async def _process_and_mark(
             repo = IngestionQueueRepository(db)
             repo.mark_failed(item.item_id, str(e))
             db.commit()
-            logger.error(
-                "Item processing failed",
-                item_id=item.item_id,
-                error=str(e),
-                exc_info=True,
-            )
+            try:
+                logger.error(
+                    "Item processing failed",
+                    item_id=item.item_id,
+                    error=str(e),
+                    exc_info=True,
+                )
+            except Exception:
+                pass  # 日志编码失败（如 Windows GBK + 非 ASCII 字符）时不影响后续逻辑
             await event_bus.publish(
                 "error_alert",
                 {"item_id": item.item_id, "error": str(e), "worker": WORKER_NAME},
@@ -407,8 +528,14 @@ async def main(worker_id: Optional[int] = None) -> None:
         threading.Timer(SHUTDOWN_TIMEOUT, _force_exit).start()
 
     loop = asyncio.get_running_loop()
-    loop.add_signal_handler(signal.SIGTERM, _shutdown)
-    loop.add_signal_handler(signal.SIGINT, _shutdown)
+    try:
+        # add_signal_handler is Unix-only; not supported on Windows ProactorEventLoop
+        loop.add_signal_handler(signal.SIGTERM, _shutdown)
+        loop.add_signal_handler(signal.SIGINT, _shutdown)
+    except NotImplementedError:
+        # Windows fallback: use signal.signal() instead
+        signal.signal(signal.SIGTERM, lambda *_: _shutdown())
+        signal.signal(signal.SIGINT, lambda *_: _shutdown())
 
     event_bus.record_worker_heartbeat(worker_label, "started, consuming queue")
     _write_heartbeat(worker_label, "started, consuming queue")
@@ -487,8 +614,9 @@ def get_process_status(pid_file: Optional[str] = None) -> dict:
     try:
         pid = int(pid_path.read_text().strip())
         result["pid"] = pid
-        os.kill(pid, 0)
-        result["alive"] = True
+        import psutil
+
+        result["alive"] = psutil.pid_exists(pid)
     except (ValueError, OSError):
         pass
 
@@ -497,6 +625,10 @@ def get_process_status(pid_file: Optional[str] = None) -> dict:
 
 def get_all_worker_statuses() -> List[dict]:
     """检查所有 knowledge worker 进程状态
+
+    PID 文件自愈：检测到 PID 对应进程已死亡时，删除孤儿 PID 文件并跳过，
+    避免监控把残留文件误算成存活 worker。所有调用方均按 ``alive=True`` 过滤，
+    因此丢弃死进程条目不影响 CLI 启停逻辑。
 
     Returns:
         [{"alive": bool, "pid": int|None, "pid_file": str, "worker_id": int|None}, ...]
@@ -508,6 +640,23 @@ def get_all_worker_statuses() -> List[dict]:
     results: List[dict] = []
     for pid_path in sorted(pid_dir.glob("knowledge_worker*.pid")):
         status = get_process_status(str(pid_path))
+
+        # 自愈：PID 文件存在但进程已死亡 → 删除孤儿文件，不返回该条目
+        if not status.get("alive"):
+            try:
+                pid_path.unlink(missing_ok=True)
+                logger.info(
+                    "Removed orphaned worker PID file",
+                    pid_file=str(pid_path),
+                    pid=status.get("pid"),
+                )
+            except OSError as e:
+                logger.warning(
+                    "Failed to remove orphaned worker PID file",
+                    pid_file=str(pid_path),
+                    error=str(e),
+                )
+            continue
 
         worker_id = None
         stem = pid_path.stem
@@ -531,10 +680,29 @@ def _parse_args() -> argparse.Namespace:
         default=None,
         help="Worker instance ID for multi-process mode",
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+    # frozen 模式下由 watchdog 通过环境变量注入 worker_id（子进程无法传 CLI 参数）
+    if args.worker_id is None:
+        env_id = os.environ.get("ALPHAFOUNDRY_WORKER_ID")
+        if env_id:
+            try:
+                args.worker_id = int(env_id)
+            except ValueError:
+                pass
+    return args
 
 
 if __name__ == "__main__":
+    # 强制 UTF-8 I/O，防止 Windows GBK 控制台导致 structlog 崩溃
+    # （与 backend_launcher.py 第 14-21 行保持一致）
+    os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+    if hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
     args = _parse_args()
     restart_count = 0
     last_restart_at = 0.0
@@ -544,9 +712,15 @@ if __name__ == "__main__":
             asyncio.run(main(worker_id=args.worker_id))
             break
         except Exception:
-            logger.exception("Knowledge worker crashed with unhandled exception")
-            for handler in logging.getLogger().handlers:
-                handler.flush()
+            try:
+                logger.exception("Knowledge worker crashed with unhandled exception")
+            except Exception:
+                pass  # logger 本身崩溃（如编码问题）时静默，确保重启逻辑继续执行
+            try:
+                for handler in logging.getLogger().handlers:
+                    handler.flush()
+            except Exception:
+                pass
 
         restart_count += 1
         now = time.time()

@@ -3,6 +3,7 @@
 最小可行闭环演示脚本
 真实事件 → 生成信号 → 回测验证 → 记录 Outcome
 """
+
 import sys
 from pathlib import Path
 

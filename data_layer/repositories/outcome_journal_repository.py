@@ -1,4 +1,5 @@
 """Outcome journal repository implementation for persistent storage of trade outcomes."""
+
 from datetime import datetime
 from typing import List, Optional
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Test outcome API endpoint directly to see the full error."""
+
 import sys
 from pathlib import Path
 

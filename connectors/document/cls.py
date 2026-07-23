@@ -14,6 +14,7 @@ Usage:
     result = connector.run(dataset="telegram", start_date="2026-01-01",
                            end_date="2026-01-31", use_incremental=False, max_pages=50)
 """
+
 from __future__ import annotations
 
 import json
@@ -258,7 +259,9 @@ class CLSDocumentConnector(DocumentConnector):
                 hasher += content[:100]
 
         full_text = "\n\n---\n\n".join(full_text_parts)
-        doc_title = (f"财联社电报 {raw.metadata.get('start_date', '')} " f"({len(envelopes)} 条)").strip()
+        doc_title = (
+            f"财联社电报 {raw.metadata.get('start_date', '')} " f"({len(envelopes)} 条)"
+        ).strip()
 
         return ParsedDocument(
             title=doc_title,

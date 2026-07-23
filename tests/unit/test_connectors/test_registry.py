@@ -1,4 +1,5 @@
 """ConnectorRegistry 集成测试 — 验证注册、发现、查找、健康检查."""
+
 import pytest
 
 from core.connectors.base import DiscoveryItem, MarketDataConnector

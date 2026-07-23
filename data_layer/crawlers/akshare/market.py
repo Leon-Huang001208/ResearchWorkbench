@@ -1,6 +1,7 @@
 """
 AkShare 行情数据获取器
 """
+
 from datetime import date, datetime, timedelta
 from typing import List, Optional
 
@@ -160,18 +161,26 @@ class AkShareMarketFetcher(BaseAkShareFetcher):
                         low=float(row.get("最低", 0.0)) if pd.notna(row.get("最低")) else None,
                         close=float(row.get("收盘", 0.0)) if pd.notna(row.get("收盘")) else None,
                         volume=int(row.get("成交量", 0)) if pd.notna(row.get("成交量")) else None,
-                        amount=float(row.get("成交额", 0.0)) if pd.notna(row.get("成交额")) else None,
-                        turnover=float(row.get("换手率", 0.0)) if pd.notna(row.get("换手率")) else None,
+                        amount=(
+                            float(row.get("成交额", 0.0)) if pd.notna(row.get("成交额")) else None
+                        ),
+                        turnover=(
+                            float(row.get("换手率", 0.0)) if pd.notna(row.get("换手率")) else None
+                        ),
                         extra={
-                            "amplitude": float(row.get("振幅", 0.0))
-                            if pd.notna(row.get("振幅"))
-                            else None,
-                            "change_pct": float(row.get("涨跌幅", 0.0))
-                            if pd.notna(row.get("涨跌幅"))
-                            else None,
-                            "change_amount": float(row.get("涨跌额", 0.0))
-                            if pd.notna(row.get("涨跌额"))
-                            else None,
+                            "amplitude": (
+                                float(row.get("振幅", 0.0)) if pd.notna(row.get("振幅")) else None
+                            ),
+                            "change_pct": (
+                                float(row.get("涨跌幅", 0.0))
+                                if pd.notna(row.get("涨跌幅"))
+                                else None
+                            ),
+                            "change_amount": (
+                                float(row.get("涨跌额", 0.0))
+                                if pd.notna(row.get("涨跌额"))
+                                else None
+                            ),
                         },
                     )
                     result.append(market_data)
@@ -227,16 +236,28 @@ class AkShareMarketFetcher(BaseAkShareFetcher):
                         open=float(row.get("今开", 0.0)) if pd.notna(row.get("今开")) else None,
                         high=float(row.get("最高", 0.0)) if pd.notna(row.get("最高")) else None,
                         low=float(row.get("最低", 0.0)) if pd.notna(row.get("最低")) else None,
-                        close=float(row.get("最新价", 0.0)) if pd.notna(row.get("最新价")) else None,
+                        close=(
+                            float(row.get("最新价", 0.0)) if pd.notna(row.get("最新价")) else None
+                        ),
                         volume=int(row.get("成交量", 0)) if pd.notna(row.get("成交量")) else None,
-                        amount=float(row.get("成交额", 0.0)) if pd.notna(row.get("成交额")) else None,
-                        turnover=float(row.get("换手率", 0.0)) if pd.notna(row.get("换手率")) else None,
-                        pe=float(row.get("市盈率-动态", 0.0)) if pd.notna(row.get("市盈率-动态")) else None,
+                        amount=(
+                            float(row.get("成交额", 0.0)) if pd.notna(row.get("成交额")) else None
+                        ),
+                        turnover=(
+                            float(row.get("换手率", 0.0)) if pd.notna(row.get("换手率")) else None
+                        ),
+                        pe=(
+                            float(row.get("市盈率-动态", 0.0))
+                            if pd.notna(row.get("市盈率-动态"))
+                            else None
+                        ),
                         pb=float(row.get("市净率", 0.0)) if pd.notna(row.get("市净率")) else None,
                         extra={
-                            "change_pct": float(row.get("涨跌幅", 0.0))
-                            if pd.notna(row.get("涨跌幅"))
-                            else None,
+                            "change_pct": (
+                                float(row.get("涨跌幅", 0.0))
+                                if pd.notna(row.get("涨跌幅"))
+                                else None
+                            ),
                         },
                     )
                     result.append(market_data)
@@ -309,11 +330,15 @@ class AkShareMarketFetcher(BaseAkShareFetcher):
                         low=float(row.get("最低", 0.0)) if pd.notna(row.get("最低")) else None,
                         close=float(row.get("收盘", 0.0)) if pd.notna(row.get("收盘")) else None,
                         volume=int(row.get("成交量", 0)) if pd.notna(row.get("成交量")) else None,
-                        amount=float(row.get("成交额", 0.0)) if pd.notna(row.get("成交额")) else None,
+                        amount=(
+                            float(row.get("成交额", 0.0)) if pd.notna(row.get("成交额")) else None
+                        ),
                         extra={
-                            "change_pct": float(row.get("涨跌幅", 0.0))
-                            if pd.notna(row.get("涨跌幅"))
-                            else None,
+                            "change_pct": (
+                                float(row.get("涨跌幅", 0.0))
+                                if pd.notna(row.get("涨跌幅"))
+                                else None
+                            ),
                         },
                     )
                     result.append(market_data)

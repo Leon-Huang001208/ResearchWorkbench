@@ -1,4 +1,5 @@
 """Tests for compiled report project generation plans."""
+
 from __future__ import annotations
 
 from reporting.projects.plan import compile_report_plan

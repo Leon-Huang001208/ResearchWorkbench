@@ -9,6 +9,7 @@
     # ... 行情数据通过 event_bus 以 "market.quote.cjpy" 事件推送 ...
     bridge.stop()
 """
+
 import asyncio
 import threading
 import time

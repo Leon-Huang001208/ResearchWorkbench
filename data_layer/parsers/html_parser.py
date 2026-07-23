@@ -1,4 +1,5 @@
 """HTML 解析器"""
+
 import re
 from dataclasses import dataclass
 from pathlib import Path

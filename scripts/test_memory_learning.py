@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Test Memory & Learning module integration."""
+
 import sys
 from pathlib import Path
 

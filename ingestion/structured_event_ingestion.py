@@ -155,9 +155,9 @@ class StructuredEventIngestor:
             if "evidence_end" not in assertion:
                 assertion["evidence_end"] = len(raw_text) if raw_text else 0
             if "assertion_id" not in assertion:
-                assertion[
-                    "assertion_id"
-                ] = f"{self._generate_event_id(source_type, source_name, event_time or datetime.now(), title)}_assertion_{idx}"
+                assertion["assertion_id"] = (
+                    f"{self._generate_event_id(source_type, source_name, event_time or datetime.now(), title)}_assertion_{idx}"
+                )
 
         impacted_industries = raw_event.get("impacted_industries", [])
         impacted_symbols = raw_event.get("impacted_symbols", [])

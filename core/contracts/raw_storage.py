@@ -3,6 +3,7 @@
 
 定义原始数据的存储结构、文件格式和元数据
 """
+
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum

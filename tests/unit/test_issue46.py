@@ -8,6 +8,7 @@ Tests for:
 - Word/Excel output
 - Report pipeline
 """
+
 from pathlib import Path
 from tempfile import TemporaryDirectory
 

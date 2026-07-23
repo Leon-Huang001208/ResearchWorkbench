@@ -4,6 +4,7 @@ Abstract base class (interface) for report composers.
 Defines the interface for report composers, which generate reports by composing sections
 and exporting to Markdown or Word in AlphaFoundry.
 """
+
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any

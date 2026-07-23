@@ -3,6 +3,7 @@ Tests for Issue #42: AlphaFoundry v1 Document Schema.
 
 测试统一文档 schema 的核心功能。
 """
+
 import sys
 from datetime import datetime
 from pathlib import Path

@@ -9,6 +9,7 @@
 5. 事件提取
 6. 总结生成
 """
+
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Optional

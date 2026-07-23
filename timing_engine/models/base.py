@@ -1,4 +1,5 @@
 """择时模型基类和共享上下文。"""
+
 from abc import ABC, abstractmethod
 
 from pydantic import BaseModel, Field

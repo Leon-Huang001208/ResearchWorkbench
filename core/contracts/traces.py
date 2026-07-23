@@ -4,6 +4,7 @@ Core contracts for reasoning traces.
 This module defines the Pydantic model for reasoning traces, which record the complete
 reasoning process in AlphaFoundry.
 """
+
 from datetime import datetime
 
 from pydantic import BaseModel, Field

@@ -14,6 +14,7 @@ Phases:
 If no --phase is provided, runs all phases in order. Supports partial recovery by
 running only the selected phase; repeated runs are safe and idempotent.
 """
+
 import sys
 from argparse import ArgumentParser
 from pathlib import Path
@@ -511,9 +512,11 @@ def phase3_rebuild_outcomes(
             price_history = market_data_provider.get_price_history(subject_id, days=60)
             outcome_metrics = market_data_provider.calculate_outcome_metrics(
                 prices=price_history,
-                entry_time=decision.created_at
-                if hasattr(decision, "created_at")
-                else datetime.now(timezone.utc),
+                entry_time=(
+                    decision.created_at
+                    if hasattr(decision, "created_at")
+                    else datetime.now(timezone.utc)
+                ),
                 horizon_days=20,
             )
 

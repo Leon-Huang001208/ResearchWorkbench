@@ -1,6 +1,5 @@
 """Tests for MarkdownProjection."""
 
-
 from core.contracts import SectionOutput
 from reporting.projections.markdown import MarkdownProjection
 

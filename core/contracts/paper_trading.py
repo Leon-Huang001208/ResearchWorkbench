@@ -6,6 +6,7 @@ performance, including PaperPortfolio, RebalanceEvent, SimulationResult,
 PerformanceMetrics, and more, for tracking simulated portfolio performance
 over time in AlphaFoundry.
 """
+
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional

@@ -5,6 +5,7 @@ This module defines Pydantic models for converting multiple concurrent signals
 into a consistent investment portfolio, translating scored signals into ranked
 allocations under explicit constraints in AlphaFoundry.
 """
+
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 

@@ -1,4 +1,5 @@
 """Build official EvidenceItems from trusted DocumentV1 sources."""
+
 from __future__ import annotations
 
 import re
@@ -73,9 +74,9 @@ def _doc_to_evidence(doc: DocumentV1) -> EvidenceItem:
         ref_id=doc.doc_id,
         ref_type="source_document",
         evidence_kind="official",
-        source_type=doc.source_type.value
-        if hasattr(doc.source_type, "value")
-        else str(doc.source_type),
+        source_type=(
+            doc.source_type.value if hasattr(doc.source_type, "value") else str(doc.source_type)
+        ),
         source_name=doc.source_name or "巨潮资讯网",
         title=doc.title,
         summary=summary,

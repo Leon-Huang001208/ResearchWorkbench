@@ -1,4 +1,5 @@
 """按需补全实时事件流正文。"""
+
 from __future__ import annotations
 
 import hashlib
@@ -123,7 +124,8 @@ class CrawlFeedContentService:
         article_id = str(metadata.get("article_id") or "").strip()
         if article_id:
             return article_id
-        match = re.search(r"/commonDetail/(\d+)", str(doc.source_url or ""))
+        source_url: str = doc.source_url or ""
+        match = re.search(r"/commonDetail/(\d+)", source_url)
         return match.group(1) if match else ""
 
     def _mark_refresh(self, doc: DocumentV1DB, status: str, error: str = "") -> None:

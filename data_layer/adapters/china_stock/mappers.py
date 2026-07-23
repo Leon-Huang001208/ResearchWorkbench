@@ -1,4 +1,5 @@
 """China Stock 数据映射器"""
+
 import hashlib
 import json
 from datetime import datetime

@@ -1,4 +1,5 @@
 """Wind 一致预期特征组 —— 从 Wind Excel 插件获取分析师一致预期数据作为 Alpha 因子"""
+
 from typing import Any
 
 import pandas as pd

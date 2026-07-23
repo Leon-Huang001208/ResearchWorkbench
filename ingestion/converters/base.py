@@ -3,6 +3,7 @@ PDF 转换策略基类.
 
 提供所有 PDF 转换策略必须实现的抽象接口。
 """
+
 import logging
 from abc import ABC, abstractmethod
 

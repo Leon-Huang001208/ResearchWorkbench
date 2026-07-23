@@ -2,6 +2,7 @@
 初始化数据库
 创建所有表
 """
+
 import sys
 from pathlib import Path
 

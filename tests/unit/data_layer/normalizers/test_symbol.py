@@ -1,4 +1,5 @@
 """symbol normalizer 单元测试"""
+
 from data_layer.normalizers.symbol import normalize_a_share_symbol
 
 

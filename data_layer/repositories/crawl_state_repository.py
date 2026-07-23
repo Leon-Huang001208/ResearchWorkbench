@@ -1,4 +1,5 @@
 """Crawl State Repository — 爬虫状态仓储"""
+
 from datetime import datetime
 from typing import Optional
 

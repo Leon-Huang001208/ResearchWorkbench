@@ -2,6 +2,7 @@
 """
 定时任务：每小时自动从已批准事件生成候选信号
 """
+
 import sys
 
 from services.event_auto_signal_generator import EventAutoSignalGenerator

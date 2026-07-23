@@ -1,4 +1,5 @@
 """Backfill official CNINFO filings through the KnowledgePipeline."""
+
 from __future__ import annotations
 
 from typing import Any, Protocol
@@ -62,9 +63,11 @@ class OfficialEvidenceBackfillService:
                 logger.error(
                     "official_evidence_backfill_failed",
                     doc_id=doc.doc_id,
-                    source_type=doc.source_type.value
-                    if hasattr(doc.source_type, "value")
-                    else str(doc.source_type),
+                    source_type=(
+                        doc.source_type.value
+                        if hasattr(doc.source_type, "value")
+                        else str(doc.source_type)
+                    ),
                     error=str(exc),
                     exc_info=True,
                 )

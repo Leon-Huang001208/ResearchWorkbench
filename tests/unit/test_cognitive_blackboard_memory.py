@@ -1,4 +1,5 @@
 """CognitiveBlackboard 记忆应用测试"""
+
 from cognitive_agents.blackboard import CognitiveBlackboard
 from cognitive_agents.contracts import AgentView
 from memory_learning.contracts import AgentMemory

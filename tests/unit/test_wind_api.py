@@ -1,4 +1,5 @@
 """Wind API 路由测试"""
+
 from unittest.mock import MagicMock, patch
 
 import pytest

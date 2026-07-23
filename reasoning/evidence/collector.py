@@ -1,6 +1,7 @@
 """
 证据收集节点
 """
+
 from typing import Optional
 
 from core.interfaces import AssertionRepository, EventRepository

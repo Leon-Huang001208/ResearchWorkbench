@@ -1,6 +1,7 @@
 """
 AkShare 财务数据获取器
 """
+
 from datetime import date
 from typing import Any, Dict, List, Optional
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """测试 DashboardDataRepository 的功能"""
+
 import sys
 from pathlib import Path
 

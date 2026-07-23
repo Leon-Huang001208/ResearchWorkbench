@@ -7,6 +7,7 @@
 - 研报 PDF：按标题/小节/段落切分
 - 会议纪要：按发言轮次或主题切分
 """
+
 import re
 from dataclasses import dataclass
 from enum import Enum

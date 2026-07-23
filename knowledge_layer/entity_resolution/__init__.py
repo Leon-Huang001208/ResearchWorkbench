@@ -1,6 +1,7 @@
 """
 实体解析模块
 """
+
 from knowledge_layer.entity_resolution.alias_manager import (
     AliasManager,
     create_default_alias_manager,

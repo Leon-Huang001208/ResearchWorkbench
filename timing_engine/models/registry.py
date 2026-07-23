@@ -1,4 +1,5 @@
 """择时模型注册表。"""
+
 from core.observability import get_logger
 from timing_engine.contracts import TimingModelScore
 

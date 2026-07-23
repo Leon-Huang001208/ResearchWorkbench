@@ -5,6 +5,7 @@ Provides configure_logging (for CLI use), setup_logging (for full app use), and
 get_logger, plus _SimpleLoggerWrapper to emulate structlog's interface when
 structlog isn't installed.
 """
+
 import logging
 import sys
 from datetime import datetime
@@ -33,12 +34,20 @@ def configure_logging(level: str = "INFO", log_file: str | None = None) -> None:
         level: Log level (e.g., "DEBUG", "INFO", "WARNING", "ERROR").
         log_file: Optional path to a log file to write to.
     """
+    if getattr(configure_logging, "_configured", False):
+        return
+    configure_logging._configured = True  # type: ignore[attr-defined]
+
     log_dir = Path(settings.LOG_DIR)
     log_dir.mkdir(parents=True, exist_ok=True)
 
     formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
-    handler: logging.Handler = logging.StreamHandler(sys.stdout)
+    # Wrap stdout with UTF-8 to prevent UnicodeEncodeError on Windows GBK terminals
+    stdout_stream = open(
+        sys.stdout.fileno(), mode="w", encoding="utf-8", closefd=False, buffering=1
+    )
+    handler: logging.Handler = logging.StreamHandler(stdout_stream)
     handler.setFormatter(formatter)
 
     handlers: list[logging.Handler] = [handler]
@@ -88,6 +97,11 @@ def _setup_structlog(log_dir: Path) -> None:
     Args:
         log_dir: Directory to write the daily log file to.
     """
+    # Guard against duplicate handler registration when called multiple times
+    if getattr(_setup_structlog, "_configured", False):
+        return
+    _setup_structlog._configured = True  # type: ignore[attr-defined]
+
     # Configure timestamp format
     timestamper = structlog.processors.TimeStamper(fmt="iso")
 
@@ -115,16 +129,23 @@ def _setup_structlog(log_dir: Path) -> None:
     )
 
     # Configure standard library logging handlers
-    handler = logging.StreamHandler(sys.stdout)
+    # Wrap stdout with UTF-8 to prevent UnicodeEncodeError on Windows GBK terminals
+    # when log messages contain non-GBK characters (e.g. Japanese, emoji, etc.)
+    stdout_stream = open(
+        sys.stdout.fileno(), mode="w", encoding="utf-8", closefd=False, buffering=1
+    )
+    handler = logging.StreamHandler(stdout_stream)
     file_handler = logging.FileHandler(
         log_dir / f"alphafoundry_{datetime.now().strftime('%Y%m%d')}.log",
         encoding="utf-8",
     )
 
     formatter = structlog.stdlib.ProcessorFormatter(
-        processor=structlog.dev.ConsoleRenderer()
-        if sys.stdout.isatty()
-        else structlog.processors.JSONRenderer(),
+        processor=(
+            structlog.dev.ConsoleRenderer()
+            if sys.stdout.isatty()
+            else structlog.processors.JSONRenderer()
+        ),
         foreign_pre_chain=shared_processors,  # type: ignore[arg-type]
     )
 
@@ -147,9 +168,17 @@ def _setup_simple_logging(log_dir: Path) -> None:
     Args:
         log_dir: Directory to write the daily log file to.
     """
+    if getattr(_setup_simple_logging, "_configured", False):
+        return
+    _setup_simple_logging._configured = True  # type: ignore[attr-defined]
+
     formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
-    handler = logging.StreamHandler(sys.stdout)
+    # Wrap stdout with UTF-8 to prevent UnicodeEncodeError on Windows GBK terminals
+    stdout_stream = open(
+        sys.stdout.fileno(), mode="w", encoding="utf-8", closefd=False, buffering=1
+    )
+    handler = logging.StreamHandler(stdout_stream)
     handler.setFormatter(formatter)
 
     file_handler = logging.FileHandler(

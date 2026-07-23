@@ -1,4 +1,5 @@
 """决策控制台仓储实现"""
+
 from datetime import datetime
 from typing import List, Optional
 
@@ -328,7 +329,7 @@ class DecisionConsoleRepository(BaseRepository):
             learning_points=db.learning_points,
             created_at=db.created_at,
             updated_at=db.updated_at,
-            linked_signal_accuracy=float(db.linked_signal_accuracy)
-            if db.linked_signal_accuracy
-            else None,
+            linked_signal_accuracy=(
+                float(db.linked_signal_accuracy) if db.linked_signal_accuracy else None
+            ),
         )

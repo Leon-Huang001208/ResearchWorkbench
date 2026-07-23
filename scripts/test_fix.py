@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """测试 DashboardService 修复"""
+
 import sys
 from pathlib import Path
 

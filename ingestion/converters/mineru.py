@@ -3,6 +3,7 @@
 作为高质量选项，适用于复杂研报 PDF，保留表格结构和文档布局。
 不可用时优雅降级。
 """
+
 import logging
 import os
 import shutil
@@ -75,14 +76,28 @@ class MinerUStrategy(PDFConversionStrategy):
         新版 MinerU pipeline 会从 HuggingFace 拉取 opendatalab/PDF-Extract-Kit-1.0。
         如果没有本地缓存，自动队列里直接尝试会长时间阻塞后失败；只有显式允许
         在线下载时才把它视为可用。
+
+        优先读实时环境变量 ``MINERU_ALLOW_MODEL_DOWNLOAD``（支持运行时覆盖），
+        ``settings.MINERU_ALLOW_MODEL_DOWNLOAD`` 作 fallback（启动时快照）。
         """
-        if os.environ.get("MINERU_ALLOW_MODEL_DOWNLOAD") == "1":
+        allow_download = os.environ.get("MINERU_ALLOW_MODEL_DOWNLOAD") == "1"
+        if not allow_download:
+            try:
+                from core.settings.config import settings
+
+                allow_download = settings.MINERU_ALLOW_MODEL_DOWNLOAD == "1"
+            except Exception:
+                pass
+
+        if allow_download:
             return True
 
         cache_roots = [
-            Path(os.environ.get("HF_HOME", "")).expanduser() / "hub"
-            if os.environ.get("HF_HOME")
-            else None,
+            (
+                Path(os.environ.get("HF_HOME", "")).expanduser() / "hub"
+                if os.environ.get("HF_HOME")
+                else None
+            ),
             Path.home() / ".cache" / "huggingface" / "hub",
         ]
         for root in [p for p in cache_roots if p]:

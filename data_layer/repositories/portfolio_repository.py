@@ -1,4 +1,5 @@
 """组合提案仓储实现"""
+
 from typing import List, Optional
 
 from core.contracts.portfolio import PortfolioCandidate, PortfolioProposal

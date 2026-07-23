@@ -8,36 +8,33 @@ const API_BASE = '';
 export async function apiCall(method, url, body = null, options = {}) {
     const opts = {
         method,
-        headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+        headers: { 'Content-Type': 'application/json' },
         signal: options.signal,
     };
     if (body) opts.body = JSON.stringify(body);
-    const resp = await fetch(`${API_BASE}${url}`, opts);
-    if (!resp.ok) {
-        const payload = await resp.json().catch(() => ({ detail: resp.statusText }));
-        const safeDetails = Array.isArray(payload.detail)
-            ? payload.detail.map(detail => ({
-                loc: Array.isArray(detail.loc)
-                    ? detail.loc.filter(part => (
-                        Number.isInteger(part)
-                        || (typeof part === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(part))
-                    ))
-                    : [],
-                type: typeof detail.type === 'string' ? detail.type.slice(0, 128) : 'value_error',
-                msg: typeof detail.msg === 'string' ? detail.msg.slice(0, 240) : '输入值未通过校验',
-            }))
-            : [];
-        const message = safeDetails.length
-            ? '请求未通过字段校验'
-            : (typeof payload.error === 'string' && payload.error)
-                || (typeof payload.detail === 'string' && payload.detail)
-                || `HTTP ${resp.status}`;
-        const apiError = new Error(message);
-        apiError.details = safeDetails;
-        apiError.status = resp.status;
-        throw apiError;
+
+    const maxRetries = options.retries ?? 2;
+    let lastError = null;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+            const resp = await fetch(`${API_BASE}${url}`, opts);
+            if (!resp.ok) {
+                const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+                throw new Error(err.error || err.detail || `HTTP ${resp.status}`);
+            }
+            return resp.json();
+        } catch (e) {
+            lastError = e;
+            // Only retry on network errors (TypeError from fetch), not HTTP errors
+            if (e instanceof TypeError && attempt < maxRetries) {
+                await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+                continue;
+            }
+            throw e;
+        }
     }
-    return resp.json();
+    throw lastError || new Error('API call failed');
 }
 
 // ─── Toast ──────────────────────────────────────────────────

@@ -4,6 +4,7 @@ This module converts project-owned Excel workbooks into Word ``TableSpec``
 objects. It is intentionally separate from LLM section generation: tables such
 as economic calendars should be copied from refreshed workbooks, not generated.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
