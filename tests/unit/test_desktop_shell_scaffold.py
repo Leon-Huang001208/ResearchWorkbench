@@ -292,6 +292,19 @@ def test_desktop_bootstrap_waits_for_backend_health():
     assert "retry-button" in source
 
 
+def test_desktop_workbench_refresh_shortcuts_reload_page():
+    html = (ROOT / "app" / "web" / "templates" / "index.html").read_text(encoding="utf-8")
+    source = (ROOT / "app" / "web" / "static" / "js" / "app.js").read_text(encoding="utf-8")
+
+    assert "app.js?v=20260723refresh1" in html
+    assert "document.addEventListener('keydown', (event) => {" in source
+    assert "event.key === 'F5'" in source
+    assert "(event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'r'" in source
+    assert "if (!isRefreshShortcut) return;" in source
+    assert "event.preventDefault();" in source
+    assert "window.location.reload();" in source
+
+
 def test_desktop_workbench_uses_phase_one_visual_baseline():
     html = (ROOT / "app" / "web" / "templates" / "index.html").read_text(encoding="utf-8")
     css = (ROOT / "app" / "web" / "static" / "style.css").read_text(encoding="utf-8")

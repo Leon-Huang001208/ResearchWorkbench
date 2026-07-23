@@ -108,7 +108,7 @@
 |---|---|
 | `app/web/templates/index.html` | Web 工作台主页面，包含侧边栏导航和所有 section 面板 |
 | `app/web/static/style.css` | 全局样式表，包含管线监控、仪表盘等所有页面样式 |
-| `app/web/static/js/app.js` | 主入口模块：导航路由、SSE 连接、全局状态管理 |
+| `app/web/static/js/app.js` | 主入口模块：导航路由、SSE 连接、全局状态管理；在 DOMContentLoaded 内处理 F5、macOS Cmd+R、Windows/Linux Ctrl+R 的纯页面刷新（输入焦点中也生效），仅调用 `window.location.reload()` |
 | `app/web/static/js/core.js` | 核心工具模块：apiCall、toast、esc 等公共函数 |
 | `app/web/static/js/dashboard.js` | 仪表盘模块：Market Overview + Live Monitor 标签页 |
 | `app/web/static/js/funds.js` | 基金情报模块：基金详情查询、经理/持仓/行业暴露渲染、基金组合穿透计算、结构化 rows 导入 |

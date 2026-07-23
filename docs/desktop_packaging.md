@@ -9,6 +9,7 @@ AlphaFoundry is moving toward a Tauri desktop shell while keeping the current Fa
 - Tauri loads `http://127.0.0.1:8765` in dev mode.
 - Packaged builds include `desktop/dist/index.html`, which waits for `/health` and then opens the existing workbench.
 - The Tauri shell expects a sidecar named `alphafoundry-backend`. The current macOS ARM development shim is `src-tauri/binaries/alphafoundry-backend-aarch64-apple-darwin` and delegates to the Python launcher.
+- The Workbench page handles browser refresh locally: `F5`, macOS `Cmd+R`, and Windows/Linux `Ctrl+R` prevent the browser default and call `window.location.reload()`, including while an input has focus. This is page refresh only; it does not register a Tauri native shortcut, restart the sidecar, or enable HMR.
 - `tauri dev` lets `beforeDevCommand` start the backend. Packaged debug and release builds start the bundled sidecar.
 
 ## Why This Differs From cc-switch
