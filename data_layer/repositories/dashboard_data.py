@@ -1365,10 +1365,16 @@ class DashboardDataRepository:
             except (ValueError, TypeError):
                 pass
 
-        publish_or_created = func.coalesce(
-            func.json_extract_path_text(DocumentV1DB.timeliness, "publish_time"),
-            cast(DocumentV1DB.created_at, String),
-        )
+        if dialect_name == "sqlite":
+            publish_or_created = func.coalesce(
+                func.json_extract(DocumentV1DB.timeliness, "$.publish_time"),
+                cast(DocumentV1DB.created_at, String),
+            )
+        else:
+            publish_or_created = func.coalesce(
+                func.json_extract_path_text(DocumentV1DB.timeliness, "publish_time"),
+                cast(DocumentV1DB.created_at, String),
+            )
         if source_type == "zhiqiu_reports":
             documents = query.order_by(desc(DocumentV1DB.created_at)).limit(limit).all()
         else:
