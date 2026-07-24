@@ -4,6 +4,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import re
 
 ROOT = Path(__file__).resolve().parents[2]
 TAURI_CONFIG = ROOT / "src-tauri" / "tauri.conf.json"
@@ -40,6 +41,52 @@ def load_module(name: str, path: Path):
     assert spec.loader is not None
     spec.loader.exec_module(module)
     return module
+
+
+def workflow_job_source(source: str, job_name: str) -> str:
+    match = re.search(
+        rf"^  {re.escape(job_name)}:\n(?P<job>.*?)(?=^  [A-Za-z0-9_-]+:\n|\Z)",
+        source,
+        flags=re.MULTILINE | re.DOTALL,
+    )
+
+    assert match is not None, f"workflow does not define jobs.{job_name}"
+    return match.group("job")
+
+
+def assert_desktop_platform_matrix(job_source: str):
+    matrix = re.search(
+        r"^      matrix:\n(?P<entries>.*?)(?=^    (?:env|steps):|\Z)",
+        job_source,
+        flags=re.MULTILINE | re.DOTALL,
+    )
+
+    assert "runs-on: ${{ matrix.os }}" in job_source
+    assert matrix is not None, "desktop job must define a strategy matrix"
+    entries = matrix.group("entries")
+    assert re.search(
+        r"^          - [^\n]*\n(?:            [^\n]*\n)*?"
+        r"            os: macos-14\n(?:            [^\n]*\n)*?"
+        r"            target: aarch64-apple-darwin\n",
+        entries,
+        flags=re.MULTILINE,
+    )
+    assert re.search(
+        r"^          - [^\n]*\n(?:            [^\n]*\n)*?"
+        r"            os: windows-2022\n(?:            [^\n]*\n)*?"
+        r"            target: x86_64-pc-windows-msvc\n",
+        entries,
+        flags=re.MULTILINE,
+    )
+
+
+def assert_desktop_dependency_and_sidecar_steps(job_source: str):
+    assert "actions/setup-node@v4" in job_source
+    assert "npm ci" in job_source
+    assert "actions/setup-python@v5" in job_source
+    assert "python -m pip install -e . pyinstaller" in job_source
+    assert "python scripts/desktop/build_sidecar.py" in job_source
+    assert "python scripts/desktop/prepare_tauri_sidecar.py" in job_source
 
 
 def test_scaffold_paths_resolve_from_the_test_files_worktree():
@@ -236,28 +283,27 @@ def test_backend_launcher_allows_project_root_override(monkeypatch):
 
 def test_desktop_verify_workflow_builds_macos_and_windows():
     source = DESKTOP_VERIFY_WORKFLOW.read_text(encoding="utf-8")
+    verify_job = workflow_job_source(source, "verify")
 
-    assert "macos-14" in source
-    assert "windows-2022" in source
-    assert "aarch64-apple-darwin" in source
-    assert "x86_64-pc-windows-msvc" in source
-    assert "python scripts/desktop/build_sidecar.py" in source
-    assert "python scripts/desktop/prepare_tauri_sidecar.py" in source
-    assert "npm run desktop:build" in source
-    assert "actions/upload-artifact@v4" in source
+    assert_desktop_platform_matrix(verify_job)
+    assert_desktop_dependency_and_sidecar_steps(verify_job)
+    assert "npm run desktop:build" in verify_job
+    assert "actions/upload-artifact@v4" in verify_job
+    assert "src-tauri/target/release/bundle/**" in verify_job
 
 
 def test_desktop_release_workflow_builds_macos_and_windows():
     source = DESKTOP_RELEASE_WORKFLOW.read_text(encoding="utf-8")
+    desktop_job = workflow_job_source(source, "desktop")
 
-    assert "macos-14" in source
-    assert "windows-2022" in source
-    assert "aarch64-apple-darwin" in source
-    assert "x86_64-pc-windows-msvc" in source
-    assert "python scripts/desktop/build_sidecar.py" in source
-    assert "python scripts/desktop/prepare_tauri_sidecar.py" in source
-    assert "tauri-apps/tauri-action@v0" in source
-    assert "releaseDraft: true" in source
+    assert_desktop_platform_matrix(desktop_job)
+    assert_desktop_dependency_and_sidecar_steps(desktop_job)
+    assert "cargo fetch --locked" in desktop_job
+    assert "TAURI_UPDATER_PUBKEY" in desktop_job
+    assert "TAURI_SIGNING_PRIVATE_KEY" in desktop_job
+    assert "TAURI_SIGNING_PRIVATE_KEY_PASSWORD" in desktop_job
+    assert "tauri-apps/tauri-action@v0" in desktop_job
+    assert "releaseDraft: true" in desktop_job
 
 
 def test_desktop_bootstrap_waits_for_backend_health():
