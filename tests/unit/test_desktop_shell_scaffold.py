@@ -20,6 +20,7 @@ BUILD_SIDECAR_PY = ROOT / "scripts" / "desktop" / "build_sidecar.py"
 PREPARE_SIDECAR = ROOT / "scripts" / "desktop" / "prepare_tauri_sidecar.py"
 WRITE_RELEASE_CONFIG = ROOT / "scripts" / "desktop" / "write_tauri_release_config.py"
 DESKTOP_RELEASE_WORKFLOW = ROOT / ".github" / "workflows" / "desktop-release.yml"
+DESKTOP_VERIFY_WORKFLOW = ROOT / ".github" / "workflows" / "desktop-verify.yml"
 MACOS_ARM_SIDECAR = ROOT / "src-tauri" / "binaries" / "alphafoundry-backend-aarch64-apple-darwin"
 MACOS_ICON = ROOT / "src-tauri" / "icons" / "icon.icns"
 WINDOWS_ICON = ROOT / "src-tauri" / "icons" / "icon.ico"
@@ -233,20 +234,30 @@ def test_backend_launcher_allows_project_root_override(monkeypatch):
     assert str(launcher.PROJECT_ROOT) == "/tmp/alphafoundry"
 
 
-def test_desktop_release_workflow_builds_platform_matrix_and_draft_release():
-    source = DESKTOP_RELEASE_WORKFLOW.read_text(encoding="utf-8")
+def test_desktop_verify_workflow_builds_macos_and_windows():
+    source = DESKTOP_VERIFY_WORKFLOW.read_text(encoding="utf-8")
 
-    assert "macos-latest" in source
-    assert "windows-latest" not in source
-    assert "ubuntu-22.04" not in source
+    assert "macos-14" in source
+    assert "windows-2022" in source
+    assert "aarch64-apple-darwin" in source
+    assert "x86_64-pc-windows-msvc" in source
     assert "python scripts/desktop/build_sidecar.py" in source
     assert "python scripts/desktop/prepare_tauri_sidecar.py" in source
-    assert "Free Linux runner disk space" in source
-    assert "cargo fetch --locked" in source
+    assert "npm run desktop:build" in source
+    assert "actions/upload-artifact@v4" in source
+
+
+def test_desktop_release_workflow_builds_macos_and_windows():
+    source = DESKTOP_RELEASE_WORKFLOW.read_text(encoding="utf-8")
+
+    assert "macos-14" in source
+    assert "windows-2022" in source
+    assert "aarch64-apple-darwin" in source
+    assert "x86_64-pc-windows-msvc" in source
+    assert "python scripts/desktop/build_sidecar.py" in source
+    assert "python scripts/desktop/prepare_tauri_sidecar.py" in source
     assert "tauri-apps/tauri-action@v0" in source
     assert "releaseDraft: true" in source
-    assert "TAURI_UPDATER_PUBKEY" in source
-    assert "TAURI_SIGNING_PRIVATE_KEY" in source
 
 
 def test_desktop_bootstrap_waits_for_backend_health():
