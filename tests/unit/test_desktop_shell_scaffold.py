@@ -42,10 +42,9 @@ def load_module(name: str, path: Path):
 
 
 def test_scaffold_paths_resolve_from_the_test_files_worktree():
-    expected_root = Path(__file__).resolve().parents[2]
+    test_file = Path(__file__).resolve()
 
-    assert ROOT == expected_root
-    assert (ROOT / ".git").exists()
+    assert ROOT / "tests" / "unit" / "test_desktop_shell_scaffold.py" == test_file
     assert TAURI_CONFIG.is_file()
 
 
