@@ -1,0 +1,117 @@
+name: Desktop Verify
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "src-tauri/**"
+      - "desktop/**"
+      - "scripts/desktop/**"
+      - "core/settings/**"
+      - "package.json"
+      - "package-lock.json"
+      - "pyproject.toml"
+      - ".github/workflows/desktop-verify.yml"
+      - ".github/workflows/desktop-release.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "src-tauri/**"
+      - "desktop/**"
+      - "scripts/desktop/**"
+      - "core/settings/**"
+      - "package.json"
+      - "package-lock.json"
+      - "pyproject.toml"
+      - ".github/workflows/desktop-verify.yml"
+      - ".github/workflows/desktop-release.yml"
+
+jobs:
+  verify:
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: macOS Apple Silicon
+            os: macos-14
+            triple: aarch64-apple-darwin
+          - label: Windows x64
+            os: windows-2022
+            triple: x86_64-pc-windows-msvc
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Install Python dependencies (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install -e . pyinstaller
+
+      - name: Install Python dependencies (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m pip install --upgrade pip
+          python -m pip install -e . pyinstaller
+
+      - name: Run desktop shell scaffold tests
+        run: python -m pytest tests/unit/test_desktop_shell_scaffold.py -q
+
+      - name: Build backend sidecar
+        run: python scripts/desktop/build_sidecar.py
+
+      - name: Verify macOS sidecar
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f "build/desktop-sidecar/dist/alphafoundry-backend-${{ matrix.triple }}"
+
+      - name: Verify Windows sidecar
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $sidecar = "build/desktop-sidecar/dist/alphafoundry-backend-${{ matrix.triple }}.exe"
+          if (-not (Test-Path -LiteralPath $sidecar -PathType Leaf)) {
+            throw "Expected sidecar was not produced: $sidecar"
+          }
+
+      - name: Prepare Tauri sidecar
+        run: python scripts/desktop/prepare_tauri_sidecar.py
+
+      - name: Build desktop bundle
+        run: npm run desktop:build
+
+      - name: Upload desktop bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-bundle-${{ matrix.label }}
+          path: src-tauri/target/release/bundle/**
+          retention-days: 14
+          if-no-files-found: warn
