@@ -54,29 +54,79 @@ def workflow_job_source(source: str, job_name: str) -> str:
     return match.group("job")
 
 
+def matrix_entry_sources(matrix_source: str) -> list[str]:
+    include = re.search(
+        r"^[ \t]+include:\s*\n(?P<entries>.*)",
+        matrix_source,
+        flags=re.MULTILINE | re.DOTALL,
+    )
+
+    assert include is not None, "desktop matrix must define include entries"
+    entries = include.group("entries")
+    first_entry = re.search(r"^(?P<indent>[ \t]*)-[ \t]+", entries, flags=re.MULTILINE)
+    assert first_entry is not None, "desktop matrix include must contain platform entries"
+    indent = first_entry.group("indent")
+    return re.findall(
+        rf"^{re.escape(indent)}-[ \t]+(?P<entry>.*?)(?=^{re.escape(indent)}-[ \t]+|\Z)",
+        entries,
+        flags=re.MULTILINE | re.DOTALL,
+    )
+
+
+def matrix_field_matches(entry_source: str, field: str, expected: str) -> bool:
+    return bool(
+        re.search(
+            rf"^[ \t]*{re.escape(field)}:[ \t]*['\"]?{re.escape(expected)}['\"]?"
+            r"[ \t]*(?:#.*)?$",
+            entry_source,
+            flags=re.MULTILINE,
+        )
+    )
+
+
+def assert_matrix_entry(
+    entries: list[str], *, label: str, identifier: str, os_name: str, triple: str
+):
+    entry = next(
+        (candidate for candidate in entries if matrix_field_matches(candidate, "id", identifier)),
+        None,
+    )
+
+    assert entry is not None, f"desktop matrix must define the {label} entry with id: {identifier}"
+    assert matrix_field_matches(entry, "label", label), (
+        f"desktop matrix entry {identifier} must set label: {label}"
+    )
+    assert matrix_field_matches(entry, "os", os_name), (
+        f"desktop matrix entry {identifier} must set os: {os_name}"
+    )
+    assert matrix_field_matches(entry, "triple", triple) or matrix_field_matches(
+        entry, "target", triple
+    ), f"desktop matrix entry {identifier} must set triple or target: {triple}"
+
+
 def assert_desktop_platform_matrix(job_source: str):
     matrix = re.search(
-        r"^      matrix:\n(?P<entries>.*?)(?=^    (?:env|steps):|\Z)",
+        r"^[ \t]+matrix:\s*\n(?P<matrix>.*?)(?=^[ \t]+(?:env|steps):|\Z)",
         job_source,
         flags=re.MULTILINE | re.DOTALL,
     )
 
     assert "runs-on: ${{ matrix.os }}" in job_source
     assert matrix is not None, "desktop job must define a strategy matrix"
-    entries = matrix.group("entries")
-    assert re.search(
-        r"^          - [^\n]*\n(?:            [^\n]*\n)*?"
-        r"            os: macos-14\n(?:            [^\n]*\n)*?"
-        r"            target: aarch64-apple-darwin\n",
+    entries = matrix_entry_sources(matrix.group("matrix"))
+    assert_matrix_entry(
         entries,
-        flags=re.MULTILINE,
+        label="macOS ARM",
+        identifier="macos-arm",
+        os_name="macos-14",
+        triple="aarch64-apple-darwin",
     )
-    assert re.search(
-        r"^          - [^\n]*\n(?:            [^\n]*\n)*?"
-        r"            os: windows-2022\n(?:            [^\n]*\n)*?"
-        r"            target: x86_64-pc-windows-msvc\n",
+    assert_matrix_entry(
         entries,
-        flags=re.MULTILINE,
+        label="Windows x64",
+        identifier="windows-x64",
+        os_name="windows-2022",
+        triple="x86_64-pc-windows-msvc",
     )
 
 
