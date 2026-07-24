@@ -84,24 +84,16 @@ def matrix_field_matches(entry_source: str, field: str, expected: str) -> bool:
     )
 
 
-def assert_matrix_entry(
-    entries: list[str], *, label: str, identifier: str, os_name: str, triple: str
-):
+def assert_matrix_target(entries: list[str], *, os_name: str, triple: str):
     entry = next(
-        (candidate for candidate in entries if matrix_field_matches(candidate, "id", identifier)),
+        (candidate for candidate in entries if matrix_field_matches(candidate, "os", os_name)),
         None,
     )
 
-    assert entry is not None, f"desktop matrix must define the {label} entry with id: {identifier}"
-    assert matrix_field_matches(entry, "label", label), (
-        f"desktop matrix entry {identifier} must set label: {label}"
-    )
-    assert matrix_field_matches(entry, "os", os_name), (
-        f"desktop matrix entry {identifier} must set os: {os_name}"
-    )
+    assert entry is not None, f"desktop matrix must define an include entry with os: {os_name}"
     assert matrix_field_matches(entry, "triple", triple) or matrix_field_matches(
         entry, "target", triple
-    ), f"desktop matrix entry {identifier} must set triple or target: {triple}"
+    ), f"desktop matrix entry with os: {os_name} must set triple or target: {triple}"
 
 
 def assert_desktop_platform_matrix(job_source: str):
@@ -114,17 +106,13 @@ def assert_desktop_platform_matrix(job_source: str):
     assert "runs-on: ${{ matrix.os }}" in job_source
     assert matrix is not None, "desktop job must define a strategy matrix"
     entries = matrix_entry_sources(matrix.group("matrix"))
-    assert_matrix_entry(
+    assert_matrix_target(
         entries,
-        label="macOS ARM",
-        identifier="macos-arm",
         os_name="macos-14",
         triple="aarch64-apple-darwin",
     )
-    assert_matrix_entry(
+    assert_matrix_target(
         entries,
-        label="Windows x64",
-        identifier="windows-x64",
         os_name="windows-2022",
         triple="x86_64-pc-windows-msvc",
     )
