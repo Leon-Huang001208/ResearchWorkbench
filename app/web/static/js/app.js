@@ -21,6 +21,7 @@ import { ingestText, renderIngestResult } from './ingest.js';
 import { globalSearch, renderSearchResults, navigateToSignalDetail } from './search.js';
 import { initNavigationCuration } from './navigation-curation.js';
 import { initWindPanel } from './wind.js';
+import { initFundsPanel } from './funds.js?v=20260625a';
 
 // ─── Window Exports (for HTML onclick handlers) ────────────────
 window.apiCall = apiCall;
@@ -114,6 +115,7 @@ window.ingestText = ingestText;
 window.globalSearch = globalSearch;
 window.navigateToSignalDetail = navigateToSignalDetail;
 window.initWindPanel = initWindPanel;
+window.initFundsPanel = initFundsPanel;
 
 // ─── Theme & i18n Init ───────────────────────────────────────
 (function initTheme() {
@@ -200,6 +202,7 @@ function navigateTo(section) {
     if (section === 'signal-lab') loadSignalLab();
     if (section === 'templates') loadTemplatesPage();
     if (section === 'wind') initWindPanel();
+    if (section === 'funds') initFundsPanel();
     if (section === 'pipeline-monitor') renderPipelineMonitor();
     else stopPipelinePolling();
 }

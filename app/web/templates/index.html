@@ -27,6 +27,7 @@
                 <div class="activity-group-label">工作区</div>
                 <button class="activity-btn" data-section="dashboard" title="仪表盘"><i class="codicon codicon-home"></i><span>市场研究</span></button>
                 <button class="activity-btn" data-section="asset-analysis" title="资产分析"><i class="codicon codicon-graph"></i><span>资产观察</span></button>
+                <button class="activity-btn" data-section="funds" title="基金情报"><i class="codicon codicon-library"></i><span>基金情报</span></button>
                 <button class="activity-btn" data-section="signal-lab" title="Signal Lab"><i class="codicon codicon-beaker"></i><span>Signal Lab</span></button>
                 <button class="activity-btn active" data-section="templates" title="模板管理"><i class="codicon codicon-file-code"></i><span>报告生产</span></button>
                 <button class="activity-btn" data-section="pipeline-monitor" title="管线监控"><i class="codicon codicon-pulse"></i><span>运行监控</span></button>
@@ -955,6 +956,135 @@
                         <button id="btn-load-failures" class="btn-secondary" data-i18n="review.btn_refresh">刷新</button>
                     </div>
                     <div id="failure-memory-list" class="failure-memory-list"></div>
+                </div>
+            </section>
+
+            <!-- Fund Intelligence Section -->
+            <section id="section-funds" class="content-section">
+                <h2 class="section-title">基金情报</h2>
+
+                <div class="card fund-command-card">
+                    <div class="card-header">
+                        <h3><i class="codicon codicon-library"></i> 基金穿透工作台</h3>
+                        <div class="card-header-actions">
+                            <span id="fund-status-badge" class="badge badge-warning">等待查询</span>
+                        </div>
+                    </div>
+                    <div class="input-row fund-query-row">
+                        <input type="text" id="fund-symbol" value="000001.OF" placeholder="基金代码，如 000001.OF">
+                        <button id="btn-load-fund" class="btn-primary"><i class="codicon codicon-search"></i> 查询</button>
+                    </div>
+                </div>
+
+                <div id="fund-loading" class="loading hidden">
+                    <div class="spinner"></div>
+                    <span>正在加载基金情报...</span>
+                </div>
+
+                <div id="fund-result" class="result-area hidden">
+                    <div class="card fund-identity-card">
+                        <div class="fund-identity-main">
+                            <div>
+                                <h3 id="fund-name">--</h3>
+                                <span id="fund-symbol-display" class="fund-symbol-chip">--</span>
+                            </div>
+                            <div class="fund-meta-line">
+                                <span id="fund-type">--</span>
+                                <span id="fund-company">--</span>
+                                <span id="fund-benchmark">--</span>
+                            </div>
+                        </div>
+                        <div class="fund-metrics-grid">
+                            <div class="metric-item">
+                                <span class="metric-label">最新净值</span>
+                                <span id="fund-unit-nav" class="metric-value">--</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">累计净值</span>
+                                <span id="fund-acc-nav" class="metric-value">--</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">总收益</span>
+                                <span id="fund-total-return" class="metric-value">--</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">最大回撤</span>
+                                <span id="fund-max-drawdown" class="metric-value">--</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">年化波动</span>
+                                <span id="fund-volatility" class="metric-value">--</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">胜率</span>
+                                <span id="fund-win-rate" class="metric-value">--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="fund-grid">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>基金经理</h3>
+                            </div>
+                            <div id="fund-managers" class="fund-list"></div>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>行业暴露</h3>
+                            </div>
+                            <div id="fund-industry-exposure" class="fund-exposure-list"></div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>最新披露持仓</h3>
+                        </div>
+                        <div id="fund-holdings-table" class="data-table-wrap"></div>
+                    </div>
+                </div>
+
+                <div class="fund-grid">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>组合穿透</h3>
+                        </div>
+                        <textarea id="fund-portfolio-input" rows="5" placeholder='{"000001.OF": 0.6, "000002.OF": 0.4}'></textarea>
+                        <div class="fund-action-row">
+                            <button id="btn-calc-fund-portfolio" class="btn-primary"><i class="codicon codicon-symbol-operator"></i> 计算</button>
+                        </div>
+                        <div id="fund-portfolio-result" class="fund-exposure-list"></div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>结构化导入</h3>
+                        </div>
+                        <div class="form-grid fund-ingest-grid">
+                            <div class="form-field">
+                                <label>数据集</label>
+                                <select id="fund-ingest-dataset">
+                                    <option value="master">主数据</option>
+                                    <option value="nav">净值</option>
+                                    <option value="holdings">持仓</option>
+                                    <option value="managers">经理</option>
+                                </select>
+                            </div>
+                            <div class="form-field">
+                                <label>来源</label>
+                                <input type="text" id="fund-ingest-source" value="web">
+                            </div>
+                            <div class="form-field fund-ingest-rows-field">
+                                <label>Rows JSON</label>
+                                <textarea id="fund-ingest-rows" rows="5" placeholder='[{"symbol":"000001.OF","name":"示例基金"}]'></textarea>
+                            </div>
+                        </div>
+                        <div class="fund-action-row">
+                            <button id="btn-ingest-fund-rows" class="btn-secondary"><i class="codicon codicon-cloud-upload"></i> 导入</button>
+                        </div>
+                        <div id="fund-ingest-result" class="fund-ingest-result"></div>
+                    </div>
                 </div>
             </section>
 

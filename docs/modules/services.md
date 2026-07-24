@@ -229,6 +229,60 @@ Update this section when:
 
 ---
 
+### `services/fund_intelligence_service.py`
+
+Purpose:
+
+- Builds Fund Intelligence views from repository data.
+- `get_fund_detail(symbol)` assembles fund master data, latest NAV, managers, latest holdings, and calculated return/risk metrics.
+- `get_fund_exposure(symbol)` aggregates latest disclosed holdings into single-fund stock, industry, and theme exposure.
+- `calculate_portfolio_exposure(positions)` normalizes fund weights and calculates weighted portfolio exposure across funds.
+
+Related API:
+
+- `app/api/routes/funds.py`
+
+Related repository:
+
+- `data_layer/repositories/fund_repository.py`
+
+Related contracts:
+
+- `core/contracts/funds.py`
+
+Update this section when:
+
+- Fund performance metric formulas change.
+- Exposure aggregation dimensions change.
+- Fund portfolio weighting behavior changes.
+
+---
+
+### `services/fund_data_ingestion_service.py`
+
+Purpose:
+
+- Ingest local fund data rows or UTF-8 CSV files into the Fund Intelligence repository.
+- Supports `master`, `nav`, `holdings`, and `managers` datasets.
+- Normalizes ISO date strings and numeric fields into `core.contracts.funds` models before persistence.
+- Optionally records ETL lifecycle through `ETLRunRepository`-compatible `start` / `finish` / `fail` methods.
+
+Related repository:
+
+- `data_layer/repositories/fund_repository.py`
+
+Related contracts:
+
+- `core/contracts/funds.py`
+
+Update this section when:
+
+- Supported fund ingestion datasets change.
+- CSV column contracts change.
+- Wind/AKShare adapters begin feeding this service.
+
+---
+
 ### `services/market_data_ingestion_service.py`
 
 Purpose:

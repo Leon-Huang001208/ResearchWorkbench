@@ -60,6 +60,7 @@ from app.api.routes import (  # noqa: E402
     dashboard,
     decision_console,
     event_ingestion,
+    funds,
     governance,
     graph,
     ingest,
@@ -119,6 +120,7 @@ app.include_router(governance.router)
 app.include_router(monitoring.router)
 app.include_router(decision_console.router)
 app.include_router(event_ingestion.router)
+app.include_router(funds.router)
 app.include_router(thesis_generator.router)
 app.include_router(thesis_review.router)
 app.include_router(timing_engine.router)

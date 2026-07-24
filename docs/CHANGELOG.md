@@ -8,6 +8,22 @@
 
 ### Added
 
+- **Fund Intelligence MVP backend slice**: 新增基金智能研究后端最小闭环，支持基金主数据、净值、持仓、经理任职的仓储访问，以及基金详情、单基金暴露和基金组合穿透 API。
+  - `core/contracts/funds.py` — 新增基金主数据、净值、持仓、经理、收益风险指标、暴露项和组合穿透结果契约。
+  - `data_layer/repositories/fund_repository.py` — 新增 `fund_master`、`fund_nav_daily`、`fund_holding_stock`、`fund_manager_tenure` MVP 表的 schema ensure、upsert 和查询方法。
+  - `services/fund_intelligence_service.py` — 新增基金详情组装、NAV 收益风险指标计算、行业/股票/主题暴露聚合和组合加权穿透。
+  - `app/api/routes/funds.py` / `app/api/main.py` — 新增 `/api/funds/{symbol}`、`/api/funds/{symbol}/exposure`、`/api/funds/portfolio/exposure` 并注册到主应用。
+  - `tests/unit/test_fund_contracts.py` / `tests/unit/data_layer/repositories/test_fund_repository.py` / `tests/unit/test_fund_intelligence_service.py` / `tests/unit/test_funds_api.py` — 补充基金契约、仓储、服务和 API 的 TDD 覆盖。
+- **Fund data local ingestion MVP**: 新增基金数据本地接入服务，支持从结构化 rows 或 UTF-8 CSV 导入基金主数据、日净值、持仓和经理任职，作为后续 Wind/AKShare 适配输出的统一落点。
+  - `services/fund_data_ingestion_service.py` — 新增 `ingest_rows()` / `ingest_csv()`，规范化日期和数字字段，调用 `FundRepository` upsert，并可选记录 ETL start/finish/fail。
+  - `app/api/routes/funds.py` — 新增 `POST /api/funds/ingest`，允许通过 JSON rows 触发 `master` / `nav` / `holdings` / `managers` 四类基金数据导入。
+  - `tests/unit/test_fund_data_ingestion_service.py` — 覆盖四类数据集、CSV 读取和失败 ETL 记录。
+- **Fund Intelligence Web Panel**: 新增基金情报前端入口，融入现有 Web 工作台左侧导航，提供基金详情、经理、持仓、行业暴露、基金组合穿透和结构化 rows 导入界面。
+  - `app/web/templates/index.html` — 新增 `基金情报` 导航项和 `section-funds` 面板。
+  - `app/web/static/js/funds.js` / `app/web/static/js/app.js` — 新增基金前端模块并在导航切换到基金页时初始化。
+  - `app/web/static/style.css` — 新增基金指标、暴露条、持仓表格、组合穿透和导入状态样式。
+  - `tests/unit/test_funds_frontend_static.py` — 新增基金前端静态 wiring 回归测试。
+
 - **Tauri 桌面壳 Phase 1**: 新增 AlphaFoundry 桌面化骨架，保留现有 FastAPI Web 工作台不变，通过 Tauri 外壳承载本地 `127.0.0.1:8765` 服务，并为后续 macOS/Windows/Linux 安装包、sidecar 后端和自动更新发布链路铺路。
   - `scripts/desktop/backend_launcher.py` — 新增桌面后端启动器，负责以桌面端默认端口运行 `app.api.main:app` 并写入 `logs/desktop-backend.log`。
   - `src-tauri/` / `package.json` — 新增 Tauri 2 配置、Rust shell、sidecar 进程管理骨架和桌面构建命令。

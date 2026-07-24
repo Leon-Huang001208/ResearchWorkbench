@@ -178,6 +178,37 @@ Update this section when:
 
 ---
 
+### `app/api/routes/funds.py`
+
+Purpose:
+
+- Fund Intelligence API endpoints.
+- `POST /api/funds/ingest` — ingest structured fund rows for `master`, `nav`, `holdings`, or `managers` datasets through `FundDataIngestionService`.
+- `GET /api/funds/{symbol}` — return fund master data, latest NAV, calculated performance metrics, managers, and latest disclosed holdings.
+- `GET /api/funds/{symbol}/exposure` — return latest single-fund stock, industry, and theme exposure from disclosed holdings.
+- `POST /api/funds/portfolio/exposure` — calculate weighted stock, industry, and theme exposure for a fund portfolio.
+
+Related service:
+
+- `services/fund_intelligence_service.py`
+- `services/fund_data_ingestion_service.py`
+
+Related repository:
+
+- `data_layer/repositories/fund_repository.py`
+
+Related contracts:
+
+- `core/contracts/funds.py`
+
+Update this section when:
+
+- Fund Intelligence endpoint paths, request models, or response models change.
+- Fund service dependency injection changes.
+- Supported fund ingest datasets or row contracts change.
+
+---
+
 ### `app/api/routes/report_projects.py`
 
 Purpose:

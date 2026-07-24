@@ -219,7 +219,63 @@ AlphaFoundry 使用 PostgreSQL + pgvector 作为主要数据存储，采用模�
 
 ---
 
-### 3. 市场结构化事实层 (AF-AUTO-007)
+### 3. 基金智能层（MVP）
+
+Fund Intelligence MVP 由 `data_layer/repositories/fund_repository.py` 管理，当前通过仓储 `ensure_schema()` 创建表；后续若进入正式迁移链，可迁入 Alembic 和全局 ORM 模型。
+
+#### fund_master（基金主数据表）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| symbol | TEXT PK | 基金代码 |
+| name | TEXT | 基金名称 |
+| fund_type | TEXT | 基金类型 |
+| management_company | TEXT | 管理人 |
+| inception_date | DATE | 成立日期 |
+| benchmark | TEXT | 业绩比较基准 |
+| latest_size | FLOAT | 最新规模 |
+| updated_at | TIMESTAMPTZ | 更新时间 |
+
+#### fund_nav_daily（日净值表）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| symbol | TEXT PK | 基金代码 |
+| trading_day | DATE PK | 交易日 |
+| unit_nav | FLOAT | 单位净值 |
+| accumulated_nav | FLOAT | 累计净值 |
+| daily_return | FLOAT | 日收益率 |
+| updated_at | TIMESTAMPTZ | 更新时间 |
+
+#### fund_holding_stock（基金股票持仓表）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| symbol | TEXT PK | 基金代码 |
+| report_date | DATE PK | 披露报告期 |
+| stock_symbol | TEXT PK | 股票代码 |
+| stock_name | TEXT | 股票名称 |
+| industry | TEXT | 行业标签 |
+| theme | TEXT | 主题标签 |
+| weight | FLOAT | 持仓权重 |
+| market_value | FLOAT | 持仓市值 |
+| updated_at | TIMESTAMPTZ | 更新时间 |
+
+#### fund_manager_tenure（基金经理任职表）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| symbol | TEXT PK | 基金代码 |
+| manager_id | TEXT PK | 基金经理 ID |
+| manager_name | TEXT | 基金经理名称 |
+| institution_name | TEXT | 所属机构 |
+| tenure_start | DATE | 任职开始日期 |
+| tenure_end | DATE | 任职结束日期 |
+| updated_at | TIMESTAMPTZ | 更新时间 |
+
+---
+
+### 4. 市场结构化事实层 (AF-AUTO-007)
 
 #### stock_master（股票基础信息表）
 

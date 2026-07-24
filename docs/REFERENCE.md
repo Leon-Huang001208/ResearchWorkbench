@@ -553,6 +553,88 @@ python scripts/seed_factor_data.py --skip-ingest
 
 ---
 
+### 基金智能 API
+
+#### POST /api/funds/ingest
+
+导入结构化基金 rows。当前支持 `master`、`nav`、`holdings`、`managers` 四类数据集；CSV 文件导入由服务层 `FundDataIngestionService.ingest_csv()` 或后续脚本/管理页调用。
+
+**请求示例**:
+
+```json
+{
+  "dataset": "master",
+  "source": "api",
+  "rows": [
+    {
+      "symbol": "000001.OF",
+      "name": "Alpha Growth",
+      "fund_type": "equity",
+      "latest_size": "12.5"
+    }
+  ]
+}
+```
+
+**响应示例**:
+
+```json
+{
+  "run_id": "3db1f1a2-4cc4-4754-81bc-9b0d33f7f7ad",
+  "dataset": "master",
+  "fetched": 1,
+  "saved": 1
+}
+```
+
+#### GET /api/funds/{symbol}
+
+获取基金详情，包含基金主数据、最新净值、收益风险指标、基金经理和最新披露持仓。
+
+**响应示例**:
+
+```json
+{
+  "master": {
+    "symbol": "000001.OF",
+    "name": "Alpha Growth",
+    "fund_type": "equity"
+  },
+  "latest_nav": {
+    "symbol": "000001.OF",
+    "trading_day": "2026-06-24",
+    "unit_nav": 1.2,
+    "accumulated_nav": 1.5
+  },
+  "performance": {
+    "total_return": 0.2,
+    "max_drawdown": -0.05
+  },
+  "latest_holdings": []
+}
+```
+
+#### GET /api/funds/{symbol}/exposure
+
+根据基金最新披露持仓返回单基金股票、行业和主题暴露。
+
+#### POST /api/funds/portfolio/exposure
+
+按基金组合权重计算底层股票、行业和主题穿透。
+
+**请求示例**:
+
+```json
+{
+  "positions": {
+    "000001.OF": 0.6,
+    "000002.OF": 0.4
+  }
+}
+```
+
+---
+
 ### 报告项目 API
 
 报告项目 API 管理 `report_projects/<项目名>/` 下的一组项目资产：Word 模板、Excel 底稿、`section_config.yaml`、可选 `prompt_templates.md`、生成目录和运行日志目录。
