@@ -85,6 +85,27 @@ Update this section when:
 
 ---
 
+### `data_layer/repositories/fund_repository.py`
+
+Purpose:
+- Fund Intelligence MVP persistence for `fund_master`, `fund_nav_daily`, `fund_holding_stock`, and `fund_manager_tenure`.
+- `ensure_schema()` creates the MVP fund tables for the active SQLAlchemy bind.
+- Upsert methods persist fund master data, NAV history, latest report holdings, and manager tenures.
+- Query methods return `core.contracts.funds` Pydantic contracts for fund detail and exposure services.
+
+Related service:
+- `services/fund_intelligence_service.py`
+
+Related contracts:
+- `core/contracts/funds.py`
+
+Update this section when:
+- Fund table schema changes.
+- Upsert or query methods are added.
+- The MVP table ownership moves into global ORM models or Alembic migrations.
+
+---
+
 ### `data_layer/repositories/etl_run_repository.py`
 
 Purpose:
