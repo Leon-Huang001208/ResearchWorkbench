@@ -6,21 +6,22 @@
  * 运行前请先启动 Web 服务，例如：
  *   python -m uvicorn app.api.main:app --host 127.0.0.1 --port 8002
  */
-const fs = require('fs');
-const path = require('path');
+import fs from 'node:fs';
+import path from 'node:path';
 
-let chromium;
-try {
-  ({ chromium } = require('playwright-core'));
-} catch (error) {
-  console.error(
-    [
-      '缺少 playwright-core，无法运行资产搜索浏览器回归。',
-      '本脚本不依赖 @playwright/test，但需要 Node 能 resolve playwright-core。',
-      `原始错误: ${error.message}`,
-    ].join('\n')
-  );
-  process.exit(1);
+async function loadChromium() {
+  try {
+    return (await import('playwright-core')).chromium;
+  } catch (error) {
+    console.error(
+      [
+        '缺少 playwright-core，无法运行资产搜索浏览器回归。',
+        '本脚本不依赖 @playwright/test，但需要 Node 能 resolve playwright-core。',
+        `原始错误: ${error.message}`,
+      ].join('\n')
+    );
+    process.exit(1);
+  }
 }
 
 const BASE_URL = process.env.ALPHAFOUNDRY_WEB_URL || 'http://127.0.0.1:8002';
@@ -134,6 +135,7 @@ async function runSearchOutageFallback(browser) {
 }
 
 async function main() {
+  const chromium = await loadChromium();
   if (!fs.existsSync(CHROME_PATH)) {
     throw new Error(
       [

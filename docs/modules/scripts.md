@@ -13,6 +13,7 @@
 - Make destructive operations explicit
 - Add dry-run mode when feasible
 - Add or update tests when script behavior changes
+- Node-executed `.js` scripts use ESM imports so they remain runnable under the root package's `"type": "module"` scope
 
 ---
 
@@ -55,6 +56,19 @@ Update this section when:
 - DOC_RULES mapping changes
 - Check logic changes
 - Required docs change
+
+### `scripts/desktop/backend_launcher.py`
+
+Purpose:
+- Starts the FastAPI desktop backend and its knowledge-worker and crawl-scheduler watchdogs.
+- Resolves the shared project/resource root with `ALPHAFOUNDRY_PROJECT_ROOT` first, then PyInstaller's `sys._MEIPASS` for frozen one-file sidecars, and finally the source-tree fallback.
+- Passes that resolved root as the backend cwd and to watchdog child environments, so frozen processes load bundled resources from the same self-contained directory.
+
+Update this section when:
+- Desktop root-resolution precedence changes.
+- Sidecar, watchdog, or worker startup behavior changes.
+
+---
 
 ### `scripts/backfill_missing_llm_extraction.py`
 
@@ -206,6 +220,20 @@ Update this section when:
 
 - Huaan Word template media targets, chart relationship ids, chart XML parts, or backup behavior changes.
 - DOCX chart replacement semantics change.
+
+---
+
+### `scripts/desktop/`
+
+Purpose:
+
+- `run_backend.js` is the ESM Tauri development bridge: it derives its directory from `import.meta.url`, delegates to `run_backend.cmd` on Windows and `run_backend.sh` on macOS/Linux, and forwards process arguments and exit status.
+- `build_sidecar.py` packages `backend_launcher.py` as the self-contained PyInstaller sidecar, collecting backend submodules, third-party package data, and required project assets.
+- `backend_launcher.py` creates an editable per-user `.env` for frozen builds; without an explicit `DATABASE_URL`, it falls back to `data_dir/alphafoundry.db` and preserves process-environment and existing-user-`.env` precedence.
+
+Update this section when:
+
+- Desktop launch routing, ESM compatibility, sidecar packaging inputs, or frozen-build defaults change.
 
 ---
 

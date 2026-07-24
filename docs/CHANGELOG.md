@@ -6,6 +6,12 @@
 
 ## [Unreleased]
 
+### Desktop baseline fixes
+
+- **桌面基线与打包契约恢复**：恢复根目录 `package.json` / `package-lock.json` 及 `build_sidecar.py` 的自包含 `backend_launcher.py` PyInstaller 打包输入；冻结桌面首次启动不再由自动生成 `.env` 强制 PostgreSQL，未配置时回退到用户数据目录下的 SQLite，同时保留进程环境变量和已有用户 `.env` 的优先级。
+- **桌面静态回归测试对齐**：测试改为覆盖 Node 跨平台启动桥接、当前 `20260722flowfix` 缓存版本、Word/PPT 必填模板分支及非 Word 资产可选行为。
+- **ESM 桌面后端桥接**：将 `scripts/desktop/run_backend.js` 转为 ESM，使 Tauri `beforeDevCommand` 在桌面 `package.json` 声明 `"type": "module"` 时仍可执行，并保留平台启动器选择、参数转发和子进程退出状态传播。
+
 ### Added
 
 - **通用报告框架 Phase 1-4（通用内容模型 + 渲染引擎 + 统一流水线 + PPT/Word 增强）**: 将 `reporting/` 模块重构为通用文档生成框架，任何内容结构都通过统一的 `Document` 模型描述，并渲染为 Word/PPT/Markdown。
@@ -16,6 +22,8 @@
   - **测试**: 全量 211 passed, 19 skipped, 0 failed ✅。ruff/black/isort 全部通过。
 
 ### Changed
+
+- **Desktop Workbench refresh shortcuts**: `app/web/static/js/app.js` now captures `F5`, macOS `Cmd+R`, and Windows/Linux `Ctrl+R` during `DOMContentLoaded`; each prevents the browser default and performs only `window.location.reload()`, including from focused inputs. The app script cache token is `20260723refresh1`; no Tauri native shortcut, sidecar restart, or HMR behavior was added.
 
 - **桌面端启动加速（97s → 25s，-75%）**: 通过 PEP 562 `__getattr__` 懒加载和函数内延迟导入，消除启动时不必要的全量模块导入链。
   - **P0 修复（阻断启动的主链）**: 6 个路由文件（`app/api/routes/commentary.py`、`assets.py`、`ingest.py`、`ingestion_queue.py`、`pipeline.py`、`event_ingestion.py`）的重型依赖（`ModelGatewayImpl`、`KnowledgePipeline`、`ResearchPipeline`、`IngestService`、`StructuredEventIngestor`）从模块顶层移入 Dependency 函数体内，首次请求时才加载。
@@ -99,6 +107,9 @@
   - **依赖**: 安装 `markitdown[pdf]>=0.1.0`（中质量策略现已可用）。MinerU 因本机无 GPU 暂不启用（`is_available()` 会自动降级）。
 
 ### Fixed
+
+- **Node ESM executable scripts**: Converted the desktop backend launcher and the asset-search/placeholder Playwright E2E scripts from CommonJS `require` to ESM imports, keeping them executable under the root package's `"type": "module"` scope.
+- **冻结版桌面 sidecar 资源根解析**: `scripts/desktop/backend_launcher.py` 现在优先使用 `ALPHAFOUNDRY_PROJECT_ROOT`，其次使用 PyInstaller `sys._MEIPASS`，缺失时才回退源码目录；后端、watchdog 和 worker 子进程统一使用该根目录作为 cwd/环境传递，避免 one-file bundle 从临时启动器路径错误推导项目根。
 
 - **knowledge_worker watchdog + Windows Job Object 自愈**: 解决 worker 崩溃后无自动恢复、以及 Windows 强杀导致 worker 孤儿残留两个遗留风险。
   - `workers/_process_tree.py` — 新增模块，通过 ctypes 实现 Windows Job Object（`KILL_ON_JOB_CLOSE`），`ensure_child_dies_with_parent(child_pid)` 把子进程绑定到 Job，Job handle 关闭/父进程退出时内核自动终止子进程，即使父进程被 `TerminateProcess` 强杀也不会孤儿残留。非 Windows 返回 None（靠 POSIX 进程组）。

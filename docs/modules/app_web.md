@@ -35,6 +35,7 @@ Update this section when:
 
 Purpose:
 - Frontend JavaScript logic
+- The Workbench registers a page-level `keydown` handler during `DOMContentLoaded`: `F5`, macOS `Cmd+R`, and Windows/Linux `Ctrl+R` prevent their browser default and call `window.location.reload()`, even when an input has focus; no native Tauri shortcut, sidecar restart, or HMR behavior is involved.
 - API client interactions
 - User interface behavior
 - Asset analysis K-line chart uses ECharts for a Wind-style terminal panel with candlestick/volume/MACD/KDJ/RSI rendering, `dataZoom` drag/scroll zoom with visible-range y-axis recalculation, crosshair tooltip, cursor-following color-coded MA/BOLL value labels, cursor-following VOL/MACD/KDJ/RSI panel labels, daily/weekly/monthly aggregation, a one-year first-load request with an initial recent-120-bar viewport, mutually exclusive MA/BOLL/naked-candle overlay modes, and a right-side ordinary chip distribution chart that uses the current visible range start through the active K-line, shares the main price-axis range, and marks chip peak, peak upper/lower boundaries, current price, and average cost.

@@ -9,12 +9,12 @@
  *   node scripts/desktop/run_backend.js --host 127.0.0.1 --port 8765 --reload
  */
 
-const { spawn } = require("child_process");
-const path = require("path");
-const os = require("os");
+import { spawn } from "node:child_process";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const SCRIPT_DIR = __dirname;
-const IS_WINDOWS = os.platform() === "win32";
+const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
+const IS_WINDOWS = process.platform === "win32";
 
 // 解析命令行参数
 const args = process.argv.slice(2);

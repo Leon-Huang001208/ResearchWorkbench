@@ -1,6 +1,8 @@
 import re
 from pathlib import Path
 
+from tests.desktop_shell_contracts import APP_JS_CACHE_URL
+
 ASSET_JS = Path(__file__).resolve().parents[2] / "app" / "web" / "static" / "js" / "asset.js"
 APP_JS = Path(__file__).resolve().parents[2] / "app" / "web" / "static" / "js" / "app.js"
 INDEX_HTML = Path(__file__).resolve().parents[2] / "app" / "web" / "templates" / "index.html"
@@ -38,7 +40,7 @@ def test_kline_static_module_versions_are_bumped():
     index_source = INDEX_HTML.read_text(encoding="utf-8")
 
     assert "./asset.js?v=20260703theme1" in app_source
-    assert "/static/js/app.js?v=20260714config1" in index_source
+    assert APP_JS_CACHE_URL in index_source
 
 
 def test_asset_analysis_defaults_to_recent_history_for_first_paint():

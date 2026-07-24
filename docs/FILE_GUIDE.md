@@ -33,6 +33,7 @@
 |---|---|
 | `README.md` | 项目主文档，包含概述、快速开始、核心特性、使用指南 |
 | `pyproject.toml` | 项目配置文件，包含 black、isort、ruff、pytest、mypy error-code debt list 等工具配置 |
+| `package.json` / `package-lock.json` | Tauri 桌面开发、构建和 PyInstaller sidecar 命令的 Node 工具清单与锁定依赖 |
 | `pytest.ini` | Pytest 测试框架配置 |
 | `.env.example` | 环境变量模板，复制为 `.env` 后使用 |
 | `.gitignore` | Git 忽略文件配置 |
@@ -107,7 +108,7 @@
 |---|---|
 | `app/web/templates/index.html` | Web 工作台主页面，包含侧边栏导航和所有 section 面板 |
 | `app/web/static/style.css` | 全局样式表，包含管线监控、仪表盘等所有页面样式 |
-| `app/web/static/js/app.js` | 主入口模块：导航路由、SSE 连接、全局状态管理 |
+| `app/web/static/js/app.js` | 主入口模块：导航路由、SSE 连接、全局状态管理；在 DOMContentLoaded 内处理 F5、macOS Cmd+R、Windows/Linux Ctrl+R 的纯页面刷新（输入焦点中也生效），仅调用 `window.location.reload()` |
 | `app/web/static/js/core.js` | 核心工具模块：apiCall、toast、esc 等公共函数 |
 | `app/web/static/js/dashboard.js` | 仪表盘模块：Market Overview + Live Monitor 标签页 |
 | `app/web/static/js/funds.js` | 基金情报模块：基金详情查询、经理/持仓/行业暴露渲染、基金组合穿透计算、结构化 rows 导入 |
@@ -600,6 +601,9 @@
 | `scripts/view_db.py` | 数据库查看工具：方便查询统计、事件、文档等 |
 | `scripts/replace_huaan_word_charts_office.py` | 华安 ETF 周报图表替换脚本：通过 Excel/Word 原生复制粘贴生成可编辑 Word chart parts |
 | `scripts/merge_huaan_layout_with_native_charts.py` | 华安 ETF 周报模板修复脚本：以原 Word 模板为母版，仅移植原生 chart drawing 和 chart parts，保留页眉页脚与版式 |
+| `scripts/desktop/run_backend.js` | Tauri 开发后端桥接：Windows 委派 `run_backend.cmd`，macOS/Linux 委派 `run_backend.sh` |
+| `scripts/desktop/build_sidecar.py` | Tauri sidecar PyInstaller 打包：以 `backend_launcher.py` 为入口，收集后端模块、依赖数据与 Web/报告项目资产 |
+| `scripts/desktop/backend_launcher.py` | Frozen 桌面端启动器：加载进程/用户 `.env` 配置并在未配置数据库时回退至每用户数据目录的 SQLite |
 | `scripts/test_*.py` | 各种测试脚本：测试功能模块 |
 
 ---

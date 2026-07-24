@@ -1,0 +1,39 @@
+{
+  "tasks": [
+    {
+      "id": "af-auto-011-00",
+      "title": "Add desktop Workbench refresh shortcuts",
+      "description": "Add F5, Cmd+R, and Ctrl+R page refresh handling to the Tauri-hosted Web Workbench without restarting the desktop window or Python sidecar.",
+      "priority": "medium",
+      "dependencies": [],
+      "success_criteria": [
+        "F5 refreshes the Workbench on every platform",
+        "Cmd+R refreshes the Workbench on macOS",
+        "Ctrl+R refreshes the Workbench on Windows/Linux",
+        "Refresh does not restart the Tauri window or Python sidecar",
+        "Static regression coverage and browser verification pass",
+        "Documentation and completion evidence are synchronized"
+      ],
+      "verification_commands": [
+        "ruff check .",
+        "black . --check",
+        "isort . --check-only",
+        "mypy core/ data_layer/ knowledge_layer/ reasoning/ reporting/ signal_lab/ app/",
+        "python -m pytest tests/ -v",
+        "python scripts/generate_py_file_index.py",
+        "python scripts/check_task_completion.py",
+        "python scripts/check_doc_sync.py"
+      ],
+      "status": "blocked",
+      "started_at": "2026-07-23"
+    }
+  ],
+  "metadata": {
+    "project_name": "AlphaFoundry",
+    "task_set_id": "af-auto-011",
+    "task_set_description": "AF-AUTO-011: desktop Workbench refresh shortcuts and desktop baseline recovery",
+    "status": "blocked",
+    "started_at": "2026-07-23",
+    "total_tasks": 1
+  }
+}
