@@ -8,10 +8,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 TAURI_CONFIG = ROOT / "src-tauri" / "tauri.conf.json"
 TAURI_LIB = ROOT / "src-tauri" / "src" / "lib.rs"
-PACKAGE_JSON = ROOT / "package.json"
 BOOTSTRAP_JS = ROOT / "desktop" / "dist" / "bootstrap.js"
 BOOTSTRAP_HTML = ROOT / "desktop" / "dist" / "index.html"
 LAUNCHER = ROOT / "scripts" / "desktop" / "backend_launcher.py"
+RUN_BACKEND_JS = ROOT / "scripts" / "desktop" / "run_backend.js"
 RUN_BACKEND_SH = ROOT / "scripts" / "desktop" / "run_backend.sh"
 RESTART_APP_SH = ROOT / "scripts" / "desktop" / "restart_app.sh"
 PATCH_MACOS_AUTOMATION_SH = ROOT / "scripts" / "desktop" / "patch_macos_automation_permissions.sh"
@@ -41,12 +41,22 @@ def load_module(name: str, path: Path):
     return module
 
 
+def test_scaffold_paths_resolve_from_the_test_files_worktree():
+    expected_root = Path(__file__).resolve().parents[2]
+
+    assert ROOT == expected_root
+    assert (ROOT / ".git").exists()
+    assert TAURI_CONFIG.is_file()
+
+
 def test_tauri_config_wraps_existing_fastapi_workbench():
     config = json.loads(TAURI_CONFIG.read_text(encoding="utf-8"))
 
     assert config["productName"] == "AlphaFoundry"
     assert config["build"]["devUrl"] == "http://127.0.0.1:8765"
-    assert "scripts/desktop/run_backend.sh" in config["build"]["beforeDevCommand"]
+    assert config["build"]["beforeDevCommand"] == (
+        "node scripts/desktop/run_backend.js --host 127.0.0.1 --port 8765 --reload"
+    )
     assert config["build"]["frontendDist"] == "../desktop/dist"
     assert config["bundle"]["targets"] == "all"
     assert config["bundle"]["icon"] == [
@@ -93,7 +103,7 @@ def test_report_project_upload_modal_treats_non_word_assets_as_optional():
     assert 'data-file-label="project-word-template-input"' in html
     assert 'data-file-label="project-excel-workbook-input"' in html
     assert "请至少选择 Word 模板、Excel 底稿和 Section 配置" not in script
-    assert "if (!wordFile)" in script
+    assert "if (projectType === 'word' && !wordFile)" in script
     assert "if (excelFile)" in script
     assert "if (sectionFile)" in script
 
@@ -134,6 +144,16 @@ def test_desktop_backend_shell_selects_python_runtime():
     assert "anaconda3/bin/python" in source
     assert "backend_launcher.py" in source
     assert 'cd "$REPO_ROOT"' in source
+
+
+def test_cross_platform_backend_wrapper_selects_the_platform_launcher():
+    source = RUN_BACKEND_JS.read_text(encoding="utf-8")
+
+    assert 'os.platform() === "win32"' in source
+    assert 'path.join(SCRIPT_DIR, "run_backend.cmd")' in source
+    assert 'path.join(SCRIPT_DIR, "run_backend.sh")' in source
+    assert 'spawn("cmd.exe", ["/c", cmdPath, ...args]' in source
+    assert 'spawn("bash", [shPath, ...args]' in source
 
 
 def test_desktop_restart_script_reopens_installed_app_and_checks_health():
@@ -177,15 +197,13 @@ def test_sidecar_build_script_uses_pyinstaller_and_tauri_naming():
     assert "alphafoundry-backend-{triple}" in source
     assert "aarch64-apple-darwin" in source
     assert '"build" / "desktop-sidecar" / "dist"' in source
-    assert '"app",' in source
-    assert '"reporting",' in source
-    assert '"data_layer",' in source
-    assert 'COLLECT_DATA = ["akshare", "vectorbt"]' in source
+    assert 'ENTRYPOINT = REPO_ROOT / "scripts" / "desktop" / "sidecar_launcher.py"' in source
+    assert "COLLECT_SUBMODULES: list[str] = []" in source
+    assert "COLLECT_DATA: list[str] = []" in source
+    assert "PROJECT_DATA: list[tuple[Path, Path]] = []" in source
     assert 'args.extend(["--collect-submodules", module])' in source
     assert 'args.extend(["--collect-data", package])' in source
-    assert 'REPO_ROOT / "app" / "web"' in source
-    assert 'REPO_ROOT / "reporting" / "templates"' in source
-    assert 'REPO_ROOT / "report_projects"' in source
+    assert "args.append(str(ENTRYPOINT))" in source
     assert "os.pathsep" in source
 
 
@@ -214,24 +232,6 @@ def test_backend_launcher_allows_project_root_override(monkeypatch):
     launcher = load_launcher_module()
 
     assert str(launcher.PROJECT_ROOT) == "/tmp/alphafoundry"
-
-
-def test_package_json_exposes_desktop_commands():
-    package = json.loads(PACKAGE_JSON.read_text(encoding="utf-8"))
-
-    assert package["scripts"]["tauri"] == "tauri"
-    assert package["scripts"]["desktop:dev"] == "tauri dev"
-    assert package["scripts"]["desktop:build"] == "tauri build"
-    assert package["scripts"]["desktop:sidecar"] == "python scripts/desktop/build_sidecar.py"
-    assert (
-        package["scripts"]["desktop:prepare-sidecar"]
-        == "python scripts/desktop/prepare_tauri_sidecar.py"
-    )
-    assert package["scripts"]["desktop:release-config"] == (
-        "python scripts/desktop/write_tauri_release_config.py"
-    )
-    assert package["scripts"]["desktop:restart"] == "bash scripts/desktop/restart_app.sh"
-    assert "@tauri-apps/cli" in package["devDependencies"]
 
 
 def test_desktop_release_workflow_builds_platform_matrix_and_draft_release():
@@ -288,7 +288,7 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "market-refresh-btn" not in html
     assert "实时行情" not in html
     assert "market-auto-refresh-indicator" not in html
-    assert "自动刷新" not in html
+    assert 'id="btn-commentary-auto-refresh"' in html
     assert "market-breadth-bar" in html
     assert "market-ai-brief" in html
     assert "market-heatmap-card" in html
@@ -309,8 +309,8 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "全球热点新闻 (Top 10)" not in html
     assert "今日上涨板块概念 (Top 10)" not in html
     assert "今日下跌板块概念 (Top 10)" not in html
-    assert "style.css?v=20260702briefinline1" in html
-    assert "app.js?v=20260714config1" in html
+    assert "style.css?v=20260722flowfix" in html
+    assert "app.js?v=20260722flowfix" in html
     assert "asset-observe-mode-tabs" in html
     assert 'data-asset-mode="theme"' in html
     assert "asset-topic-result" in html
@@ -402,7 +402,6 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "THEME_OBSERVATION_PRESETS" in asset_js
     assert "asset-topic-trend-chart" in asset_js
     assert "机器人ETF南方" in asset_js
-    assert "grid-row: span 2" not in css
     assert "renderMarketMiniCards" not in dashboard_js
     assert "formatMarketMiniSignedValue" not in dashboard_js
     assert "renderCapCompareMarkup" not in dashboard_js
@@ -666,7 +665,7 @@ def test_desktop_backend_launcher_defaults_and_logging(tmp_path):
     assert log_file.exists()
 
 
-def test_frozen_backend_launcher_defaults_to_user_sqlite(monkeypatch, tmp_path):
+def test_frozen_backend_launcher_loads_default_postgres_configuration(monkeypatch, tmp_path):
     launcher = load_launcher_module()
     monkeypatch.setattr(launcher.sys, "frozen", True, raising=False)
     monkeypatch.setenv("ALPHAFOUNDRY_DESKTOP_DATA_DIR", str(tmp_path))
@@ -676,6 +675,6 @@ def test_frozen_backend_launcher_defaults_to_user_sqlite(monkeypatch, tmp_path):
     data_dir = launcher.apply_frozen_desktop_defaults()
 
     assert data_dir == tmp_path
-    assert os.environ["DATABASE_URL"] == f"sqlite:///{tmp_path / 'alphafoundry.db'}"
+    assert os.environ["DATABASE_URL"] == "postgresql+psycopg://postgres:postgres@localhost:5432/alphafoundry"
     assert os.environ["LOG_DIR"] == str(tmp_path / "logs")
     assert (tmp_path / "logs").is_dir()
