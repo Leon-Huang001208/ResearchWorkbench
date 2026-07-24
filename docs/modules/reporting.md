@@ -211,6 +211,9 @@ Purpose:
 - Call `ReportProjectGenerationService` for configured placeholder content or accept manual placeholders for static rendering.
 - Project generated placeholders into Word/PPT templates, attach deterministic tables/charts for Word projects, write `runs/*.json`, and return artifact metadata plus aggregated warnings.
 - Keep `/api/report-projects/{slug}/render` thin: the route reads project/config files, delegates to `ReportProjectRunService`, and maps the result into the existing response model.
+- Desktop workbench generation uses `POST /api/report-projects/{slug}/render-jobs` and polls the returned `status_url`; `reporting/projects/jobs.py` owns the in-process queue, same-project deduplication, bounded history, and terminal error/result snapshots.
+- The queue has one top-level worker to avoid competing report runs on local MPS resources. Section-level external model calls remain bounded-parallel, while local embedding/reranker model construction and inference are lock-protected.
+- Running jobs are process-local and do not resume after an AlphaFoundry restart. Generated artifacts and run logs remain persisted in their project directories.
 
 Update this section when:
 - Run-log structure changes.
@@ -379,3 +382,4 @@ When files in this module change, check:
 - 2026-06-04: 收敛 reporting composer/projection 的 mypy 历史债务，补齐模板缓存、fact card 列表、Excel worksheet/chart 数据的显式类型，输出格式保持不变。
 - 2026-07-07: 新增 `ReportProjectRunService`，将 `/api/report-projects/{slug}/render` 的 Word/PPT 生成编排、run-log 组装和 warning 聚合从 FastAPI route 收拢到 `reporting/projects/run.py`，保持外部响应不变。
 - 2026-07-07: 新增 `CompiledReportPlan`，`GET /api/report-projects/{slug}` 返回 `compiled_plan`，前端生成预检优先使用后端计划判断 prompt / retrieval / deterministic 占位符就绪度。
+- 2026-07-12: 报告工作台改为后台任务生成：提交接口立即返回 job ID，前端轮询短状态请求并显示真实阶段/段落进度；同项目活动任务自动去重，本地 embedding/reranker 加载和推理加锁，避免 WebView 长请求 `Load failed` 与 MPS 并发重复加载。

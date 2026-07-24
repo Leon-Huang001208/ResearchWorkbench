@@ -503,31 +503,10 @@ async def render_report_project(slug: str, request: RenderReportProjectRequest):
             project=project,
             section_config=section_config,
             prompt_templates_source=prompt_templates_source,
-            request=ReportProjectRunRequest(
-                placeholders=request.placeholders,
-                generate_from_config=request.generate_from_config,
-                lookback_days=request.lookback_days,
-                report_date=request.report_date,
-                data_scope=request.data_scope,
-                start_date=request.start_date,
-                end_date=request.end_date,
-            ),
+            request=_to_run_request(request),
         )
 
-        return RenderReportProjectResponse(
-            success=True,
-            project_name=run_result.project_name,
-            slug=run_result.slug,
-            file_name=run_result.file_name,
-            file_path=str(run_result.output_path),
-            download_url=f"/api/report-projects/{run_result.slug}/download/{run_result.file_name}",
-            preview_url=f"/api/report-projects/{run_result.slug}/preview/{run_result.file_name}",
-            run_log_url=f"/api/report-projects/{run_result.slug}/runs/{run_result.run_log_path.name}",
-            generated_at=run_result.generated_at,
-            generated_placeholder_count=run_result.generated_placeholder_count,
-            evidence_count=run_result.evidence_count,
-            warnings=run_result.warnings,
-        )
+        return _to_render_response(run_result)
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"Report project not found: {slug}")
     except Exception as exc:
