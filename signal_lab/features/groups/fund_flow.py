@@ -66,9 +66,7 @@ class MainForceNetInflowFeature(Feature):
     """主力净流入特征"""
 
     def __init__(self, window: int = 5):
-        super().__init__(
-            name=f"main_force_net_inflow_{window}d", description=f"{window}日主力净流入"
-        )
+        super().__init__(name=f"main_force_net_inflow_{window}d", description=f"{window}日主力净流入")
         self.window = window
 
     def compute(self, data: pd.DataFrame, **kwargs: Any) -> pd.Series:

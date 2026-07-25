@@ -124,11 +124,7 @@ class RevisionPass:
         summary = (
             f"第 {round_number} 轮修订：修复 {len(fixed_ids)} 个问题，"
             f"{len(unfixable_ids)} 个问题无法自动修复"
-            + (
-                f"（{len(unconverged_errors)} 个 error 级别）"
-                if unconverged_errors
-                else "，所有错误已修复"
-            )
+            + (f"（{len(unconverged_errors)} 个 error 级别）" if unconverged_errors else "，所有错误已修复")
         )
 
         logger.info(

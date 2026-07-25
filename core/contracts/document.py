@@ -101,12 +101,8 @@ class DesignTokens(BaseModel):
     # ── PPT 画布 ──
     ppt_slide_width: float = Field(default=13.333, description="PPT 幻灯片宽度（英寸）")
     ppt_slide_height: float = Field(default=7.5, description="PPT 幻灯片高度（英寸）")
-    ppt_template_path: Optional[str] = Field(
-        default=None, description="自定义 PPT 模板文件路径（.pptx）"
-    )
-    ppt_transition: Optional[str] = Field(
-        default=None, description="幻灯片过渡效果（none/fade/push/cut）"
-    )
+    ppt_template_path: Optional[str] = Field(default=None, description="自定义 PPT 模板文件路径（.pptx）")
+    ppt_transition: Optional[str] = Field(default=None, description="幻灯片过渡效果（none/fade/push/cut）")
 
 
 # ============================================================================
@@ -228,8 +224,6 @@ class TemplateSlot(BaseModel):
     """
 
     slot_id: str = Field(description="槽位唯一 ID")
-    slot_type: Literal["text", "table", "chart", "image", "section"] = Field(
-        description="接受的元素类型"
-    )
+    slot_type: Literal["text", "table", "chart", "image", "section"] = Field(description="接受的元素类型")
     placeholder_pattern: str = Field(default="", description="模板中的占位符标记")
     constraints: Dict[str, Any] = Field(default_factory=dict, description="附加约束")

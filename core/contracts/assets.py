@@ -218,21 +218,13 @@ class AssetAnalysisCard(BaseModel):
     macro_sensitivity: Optional[MacroSensitivity] = Field(None, description="宏观敏感性")
 
     # 其他兼容字段
-    financial_dict: dict[str, Any] = Field(
-        default_factory=dict, description="财务数据（兼容旧格式）"
-    )
+    financial_dict: dict[str, Any] = Field(default_factory=dict, description="财务数据（兼容旧格式）")
     fund_flow: dict[str, Any] = Field(default_factory=dict, description="资金流向（兼容旧格式）")
     price_volume: dict[str, Any] = Field(default_factory=dict, description="量价数据（兼容旧格式）")
     shareholder: dict[str, Any] = Field(default_factory=dict, description="股东信息（兼容旧格式）")
-    industry_dict: dict[str, Any] = Field(
-        default_factory=dict, description="行业信息（兼容旧格式）"
-    )
-    event_impact: list[str] = Field(
-        default_factory=list, description="事件影响ID列表（兼容旧格式）"
-    )
-    macro_exposure: dict[str, Any] = Field(
-        default_factory=dict, description="宏观暴露（兼容旧格式）"
-    )
+    industry_dict: dict[str, Any] = Field(default_factory=dict, description="行业信息（兼容旧格式）")
+    event_impact: list[str] = Field(default_factory=list, description="事件影响ID列表（兼容旧格式）")
+    macro_exposure: dict[str, Any] = Field(default_factory=dict, description="宏观暴露（兼容旧格式）")
     evidence_refs: list[str] = Field(default_factory=list, description="证据引用")
     technical: TechnicalIndicators | dict[str, Any] = Field(
         default_factory=lambda: {}, description="技术指标"

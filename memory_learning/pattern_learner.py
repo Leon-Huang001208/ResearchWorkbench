@@ -111,9 +111,9 @@ class PatternLearner:
         if event_performance and event_performance["win_rate"] > 0.5:
             recommendation["should_trade"] = True
             recommendation["confidence"] = event_performance["win_rate"]
-            recommendation["reason"] = (
-                f"Event type {event_type} has {event_performance['win_rate']:.1%} win rate with {event_performance['average_excess_return']:.1%} avg excess return"
-            )
+            recommendation[
+                "reason"
+            ] = f"Event type {event_type} has {event_performance['win_rate']:.1%} win rate with {event_performance['average_excess_return']:.1%} avg excess return"
 
         if regime_performance and event_type in regime_performance.get("best_event_types", []):
             confidence = float(recommendation["confidence"])

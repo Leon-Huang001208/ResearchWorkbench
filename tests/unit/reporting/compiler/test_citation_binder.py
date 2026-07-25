@@ -18,9 +18,7 @@ from core.contracts import (
 from reporting.compiler.citation_binder import CitationBinder
 
 
-def _make_fact(
-    fact_id: str, claim_text: str = "营收100亿元", value: float = 100.0, unit: str = "亿元"
-):
+def _make_fact(fact_id: str, claim_text: str = "营收100亿元", value: float = 100.0, unit: str = "亿元"):
     return FactRecord(
         fact_id=fact_id,
         claim_text=claim_text,

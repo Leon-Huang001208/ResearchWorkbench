@@ -629,11 +629,7 @@ class DashboardService:
                 "previousTurnover": (previous_turnover or {}).get("formatted"),
                 "netInflow": None,
                 "source": "eastmoney_all_a",
-                "sourceLabel": (
-                    "东方财富全A实时"
-                    if failed_pages == 0
-                    else f"东方财富全A实时（缺{failed_pages}页）"
-                ),
+                "sourceLabel": ("东方财富全A实时" if failed_pages == 0 else f"东方财富全A实时（缺{failed_pages}页）"),
                 "fetchedAt": datetime.now(UTC),
             }
             with _market_command_cache_lock:
@@ -1169,11 +1165,14 @@ class DashboardService:
     ) -> dict:
         """Use the THS board feed when Wind/Excel is unavailable for a selected view."""
         try:
-            up, down, has_real_data, fetched_at = (
-                self.dashboard_repo.get_sector_changes_from_signals(
-                    days=7,
-                    limit_per_direction=limit,
-                )
+            (
+                up,
+                down,
+                has_real_data,
+                fetched_at,
+            ) = self.dashboard_repo.get_sector_changes_from_signals(
+                days=7,
+                limit_per_direction=limit,
             )
         except Exception as exc:
             logger.warning(
@@ -1377,9 +1376,7 @@ class DashboardService:
         if rows.empty:
             return 0.0
         row = rows.iloc[0]
-        values = [
-            DashboardService._optional_float(row.get(column)) for column in ("主板A", "科创板")
-        ]
+        values = [DashboardService._optional_float(row.get(column)) for column in ("主板A", "科创板")]
         total = sum(value for value in values if value is not None)
         if total > 0:
             return total
@@ -1389,8 +1386,7 @@ class DashboardService:
     def _extract_szse_a_share_turnover_yuan(df) -> float:
         rows = df[df["证券类别"].astype(str).isin({"主板A股", "创业板A股"})]
         total = sum(
-            DashboardService._optional_float(row.get("成交金额")) or 0.0
-            for _, row in rows.iterrows()
+            DashboardService._optional_float(row.get("成交金额")) or 0.0 for _, row in rows.iterrows()
         )
         if total > 0:
             return total

@@ -18,7 +18,7 @@ register(
         connector_dataset="news",
         pipeline_kind="document",
         interval_minutes=30,
-        deep_backfill_enabled=True,
+        deep_backfill_enabled=False,
         doc_type=DocType.NEWS,
         reliability=SourceReliabilityLevel.OFFICIAL,
         backfill_family="cnstock",

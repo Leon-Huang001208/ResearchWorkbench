@@ -442,8 +442,7 @@ class CjpyMarketConnector(MarketDataConnector):
                 extra_fields = {
                     k: v
                     for k, v in row.items()
-                    if k not in ("code", "date", "trade_date", "time", "代码", "日期")
-                    and v is not None
+                    if k not in ("code", "date", "trade_date", "time", "代码", "日期") and v is not None
                 }
                 payload_dict = payload.model_dump()
                 payload_dict["_cjpy_fields"] = extra_fields

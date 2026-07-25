@@ -74,9 +74,7 @@ class FakeCommentaryDraftService:
             sections=[
                 {"heading": "核心判断", "content": "风险偏好回落是主要矛盾。"},
             ],
-            citations=[
-                {"title": "上证指数 -2.10%", "kind": "confirmed", "source": "market_overview"}
-            ],
+            citations=[{"title": "上证指数 -2.10%", "kind": "confirmed", "source": "market_overview"}],
             attribution_signals=[
                 {
                     "rank": 1,
@@ -150,9 +148,9 @@ def make_client():
     app = FastAPI()
     fake_run_service = FakeCommentaryRunService()
     app.include_router(router)
-    app.dependency_overrides[get_commentary_context_service] = (
-        lambda: FakeCommentaryContextService()
-    )
+    app.dependency_overrides[
+        get_commentary_context_service
+    ] = lambda: FakeCommentaryContextService()
     app.dependency_overrides[get_commentary_draft_service] = lambda: FakeCommentaryDraftService()
     app.dependency_overrides[get_commentary_run_service] = lambda: fake_run_service
     return TestClient(app)
@@ -199,9 +197,9 @@ def test_commentary_recipes_endpoint_returns_shared_template_contract():
 def test_main_app_registers_commentary_context_route():
     from app.api.main import app as main_app
 
-    main_app.dependency_overrides[get_commentary_context_service] = (
-        lambda: FakeCommentaryContextService()
-    )
+    main_app.dependency_overrides[
+        get_commentary_context_service
+    ] = lambda: FakeCommentaryContextService()
     client = TestClient(main_app)
 
     try:

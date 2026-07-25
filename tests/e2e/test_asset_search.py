@@ -139,7 +139,8 @@ async def test_asset_search():
             await asyncio.sleep(1.5)  # 等待防抖和网络请求
 
             # 检查 API 返回结果
-            symbols_count = await page.evaluate("""
+            symbols_count = await page.evaluate(
+                """
                 async () => {
                     try {
                         const response = await fetch('/api/search?q=600519&types=symbol');
@@ -150,34 +151,41 @@ async def test_asset_search():
                         return -1;
                     }
                 }
-            """)
+            """
+            )
             print(f"API 返回 {symbols_count} 个标的结果")
 
             # 检查下拉框状态
             dropdown_selector = "#asset-search-dropdown"
-            is_dropdown_visible = await page.evaluate("""
+            is_dropdown_visible = await page.evaluate(
+                """
                 () => {
                     const el = document.querySelector('#asset-search-dropdown');
                     return el && !el.classList.contains('hidden');
                 }
-            """)
+            """
+            )
 
-            html_content = await page.evaluate("""
+            html_content = await page.evaluate(
+                """
                 () => {
                     const el = document.querySelector('#asset-search-dropdown');
                     return el ? el.innerHTML.trim() : 'not found';
                 }
-            """)
+            """
+            )
             print(f"下拉框可见: {is_dropdown_visible}, HTML 长度: {len(html_content)}")
 
             # 根据代码逻辑，如果结果为空会保持 hidden，这是正确的
-            data = await page.evaluate("""
+            data = await page.evaluate(
+                """
                 async () => {
                     const response = await fetch('/api/search?q=6&types=symbol');
                     const data = await response.json();
                     return data.symbols.length;
                 }
-            """)
+            """
+            )
             print(f"测试：搜索 '6' 返回 {data} 个结果")
 
             # 如果没有数据，尝试更长的等待并确认前端逻辑正确

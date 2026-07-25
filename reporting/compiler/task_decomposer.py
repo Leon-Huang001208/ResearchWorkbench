@@ -24,15 +24,9 @@ logger = get_logger(__name__)
 class _ResearchPlanLLM(BaseModel):
     """LLM 任务分解的输出 schema（structured_output 约束）."""
 
-    research_questions: list[str] = Field(
-        default_factory=list, description="拆解出的研究子问题列表"
-    )
-    required_claim_types: list[ClaimType] = Field(
-        default_factory=list, description="需要的事实声明类型"
-    )
-    required_evidence_types: list[EvidenceType] = Field(
-        default_factory=list, description="需要的证据类型"
-    )
+    research_questions: list[str] = Field(default_factory=list, description="拆解出的研究子问题列表")
+    required_claim_types: list[ClaimType] = Field(default_factory=list, description="需要的事实声明类型")
+    required_evidence_types: list[EvidenceType] = Field(default_factory=list, description="需要的证据类型")
     max_documents: int = Field(default=50, description="检索文档预算")
     max_chunks: int = Field(default=200, description="检索 chunk 预算")
 
@@ -98,11 +92,7 @@ class TaskDecomposer:
             "需要的证据类型(fact/opinion/mixed/data/quote/analysis)、检索预算。"
             "不要输出正文段落。"
         )
-        user_msg = (
-            f"报告模板: {task.template_name}\n"
-            f"上下文: {context_str or '（无）'}\n"
-            "请拆解为研究计划。"
-        )
+        user_msg = f"报告模板: {task.template_name}\n" f"上下文: {context_str or '（无）'}\n" "请拆解为研究计划。"
         return [
             {"role": "system", "content": system_msg},
             {"role": "user", "content": user_msg},

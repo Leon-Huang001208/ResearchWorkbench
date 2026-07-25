@@ -46,9 +46,7 @@ class ZhiQiuClient:
 
     # AI 提问模板预设
     PROMPT_CORE_VIEWPOINT = "提取该研报的核心观点，分点列出"
-    PROMPT_FOCUS_COMPANIES = (
-        "提取该研报中重点关注、推荐或分析的上市公司名称，列出股票代码和公司名称"
-    )
+    PROMPT_FOCUS_COMPANIES = "提取该研报中重点关注、推荐或分析的上市公司名称，列出股票代码和公司名称"
     PROMPT_SUMMARY = "提取该研报对{{search}}未来发展的核心预期与策略建议"
 
     def __init__(
@@ -322,9 +320,7 @@ class ZhiQiuClient:
                             self.anti_scrape.after_success()
                             return True
                         else:
-                            self.logger.warning(
-                                f"URL {i} 返回内容不是 PDF，开始字节: {content_start!r}"
-                            )
+                            self.logger.warning(f"URL {i} 返回内容不是 PDF，开始字节: {content_start!r}")
                     else:
                         self.logger.warning(f"URL {i} 返回状态码: {resp.status_code}")
 

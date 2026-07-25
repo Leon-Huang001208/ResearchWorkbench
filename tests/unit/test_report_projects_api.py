@@ -7,7 +7,6 @@ import threading
 import time
 import xml.etree.ElementTree as ET
 import zipfile
-from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 
@@ -39,68 +38,10 @@ from reporting.projects.keyword_profiles import (
     apply_keyword_profile_to_config,
     keyword_profiles_for_api,
 )
-from reporting.projects.jobs import ReportGenerationJob
-from reporting.projects.project_manager import ReportProjectManager
+from reporting.projects.project_manager import ReportProject, ReportProjectManager
 from reporting.projects.run import ReportProjectRunRequest, ReportProjectRunService
 
 client = TestClient(app)
-
-
-def test_render_job_api_returns_accepted_status(tmp_path: Path, monkeypatch):
-    """后台生成提交应立即返回 202 和可轮询地址。"""
-    from app.api.routes import report_projects as routes
-
-    project_dir = tmp_path / "demo"
-    (project_dir / "config").mkdir(parents=True)
-    (project_dir / "generated").mkdir()
-    (project_dir / "runs").mkdir()
-    (project_dir / "config" / "section_config.yaml").write_text(
-        "placeholders: {}\n", encoding="utf-8"
-    )
-    (project_dir / "project.yaml").write_text(
-        "\n".join(
-            [
-                "name: demo",
-                "section_config: config/section_config.yaml",
-                "output_dir: generated",
-                "run_log_dir: runs",
-            ]
-        ),
-        encoding="utf-8",
-    )
-    manager = ReportProjectManager(tmp_path)
-    job = ReportGenerationJob(
-        job_id="job-123",
-        project_slug="demo",
-        status="queued",
-        phase="queued",
-        message="报告已进入生成队列",
-        created_at=datetime(2026, 7, 12, 12, 0, 0),
-    )
-
-    class FakeJobService:
-        def submit(self, *, project, request):
-            assert project.slug == "demo"
-            assert isinstance(request, ReportProjectRunRequest)
-            return job
-
-        def get(self, job_id, *, project_slug=None):
-            if job_id == job.job_id and project_slug == job.project_slug:
-                return job
-            return None
-
-    monkeypatch.setattr(routes, "report_project_manager", manager)
-    monkeypatch.setattr(routes, "report_generation_job_service", FakeJobService())
-
-    response = client.post("/api/report-projects/demo/render-jobs", json={})
-
-    assert response.status_code == 202
-    payload = response.json()
-    assert payload["job_id"] == "job-123"
-    assert payload["status"] == "queued"
-    assert payload["status_url"].endswith("/demo/render-jobs/job-123")
-    assert client.get(payload["status_url"]).status_code == 200
-    assert client.get("/api/report-projects/demo/render-jobs/missing").status_code == 404
 
 
 def test_huaan_prompt_placeholders_use_report_level_retrieval_defaults():
@@ -126,17 +67,11 @@ def test_huaan_prompt_placeholders_use_report_level_retrieval_defaults():
     assert retrieval_defaults["semantic_candidate_k"] == 80
     assert retrieval_defaults["keyword_weight"] == 0.6
     assert retrieval_defaults["semantic_weight"] == 0.4
-    expected_embedding_model = str(
-        Path(__file__).resolve().parents[2] / "data" / "models" / "embeddings" / "bge-large-zh-v1.5"
-    )
-    assert retrieval_defaults["embedding_model"] == expected_embedding_model
+    assert retrieval_defaults["embedding_model"] == "data/models/embeddings/bge-large-zh-v1.5"
     rerank_defaults = defaults["rerank"]
     assert rerank_defaults["enabled"] is True
     assert rerank_defaults["provider"] == "bge-reranker"
-    expected_rerank_model = str(
-        Path(__file__).resolve().parents[2] / "data" / "models" / "rerankers" / "bge-reranker-large"
-    )
-    assert rerank_defaults["model"] == expected_rerank_model
+    assert rerank_defaults["model"] == "data/models/rerankers/bge-reranker-large"
     assert rerank_defaults["top_n"] == 30
     assert rerank_defaults["min_score"] == 0.35
     assert defaults["validators"]["forbid_external_facts"] is True
@@ -247,9 +182,18 @@ def test_generation_constraints_and_writing_parameters_are_rendered_separately()
     assert "至少使用 5 条 evidence/news 信息" in writing_parameters
 
 
-def test_market_hotspot_prompt_uses_component_structure_without_metadata():
+def test_market_hotspot_prompt_uses_component_structure_without_metadata(tmp_path: Path):
     """A股市场回顾续写 prompt 应使用固定开头和后续结构，不暴露项目元信息。"""
-    project = ReportProjectManager(projects_root=Path("report_projects")).get_project("华安ETF周报")
+    project = ReportProject(
+        name="测试周报",
+        slug="test-weekly-report",
+        project_dir=tmp_path,
+        word_template_path=tmp_path / "report_template.docx",
+        excel_workbook_path=tmp_path / "report_data.xlsx",
+        section_config_path=tmp_path / "section_config.yaml",
+        output_dir=tmp_path / "generated",
+        run_log_dir=tmp_path / "runs",
+    )
     template = build_market_template_for_test()
     config = {
         "generation_constraints": [
@@ -655,72 +599,6 @@ def test_list_report_projects_returns_project_assets(tmp_path: Path, monkeypatch
     assert project["data_assets"][2]["kind"] == "query_json"
     assert project["data_assets"][3]["kind"] == "image"
     assert project["generated_reports"][0]["file_name"] == "20260605_创业板50周报.docx"
-    assert data["issues"] == []
-
-
-def test_list_report_projects_returns_scan_issues_without_hiding_valid_projects(
-    tmp_path: Path, monkeypatch
-):
-    """项目列表应公开扫描问题，同时保留可用项目。"""
-    valid_project_dir = tmp_path / "有效项目"
-    (valid_project_dir / "templates").mkdir(parents=True)
-    (valid_project_dir / "config").mkdir()
-    (valid_project_dir / "generated").mkdir()
-    (valid_project_dir / "runs").mkdir()
-    write_minimal_docx(valid_project_dir / "templates" / "report_template.docx", "{{ title }}")
-    (valid_project_dir / "config" / "section_config.yaml").write_text(
-        "sections: []\n", encoding="utf-8"
-    )
-    (valid_project_dir / "project.yaml").write_text(
-        "\n".join(
-            [
-                "name: 有效项目",
-                "active_word_template: templates/report_template.docx",
-                "section_config: config/section_config.yaml",
-                "output_dir: generated",
-                "run_log_dir: runs",
-            ]
-        ),
-        encoding="utf-8",
-    )
-
-    (tmp_path / "无清单项目").mkdir()
-    missing_template_dir = tmp_path / "缺模板项目"
-    (missing_template_dir / "config").mkdir(parents=True)
-    (missing_template_dir / "generated").mkdir()
-    (missing_template_dir / "runs").mkdir()
-    (missing_template_dir / "config" / "section_config.yaml").write_text(
-        "sections: []\n", encoding="utf-8"
-    )
-    (missing_template_dir / "project.yaml").write_text(
-        "\n".join(
-            [
-                "name: 缺模板项目",
-                "active_word_template: templates/report_template.docx",
-                "section_config: config/section_config.yaml",
-                "output_dir: generated",
-                "run_log_dir: runs",
-            ]
-        ),
-        encoding="utf-8",
-    )
-
-    import app.api.routes.report_projects as report_projects_route
-
-    monkeypatch.setattr(
-        report_projects_route,
-        "report_project_manager",
-        ReportProjectManager(projects_root=tmp_path),
-    )
-
-    response = client.get("/api/report-projects/")
-
-    assert response.status_code == 200
-    data = response.json()
-    assert data["total"] == 1
-    assert [project["slug"] for project in data["projects"]] == ["有效项目"]
-    issues = {(item["code"], item["project_slug"]) for item in data["issues"]}
-    assert ("missing_active_word_template", "缺模板项目") in issues
 
 
 def test_get_report_project_returns_real_template_asset_summary(tmp_path: Path, monkeypatch):
@@ -1091,7 +969,6 @@ def test_report_project_run_service_renders_word_project(tmp_path: Path):
         )(),
     )
 
-    progress_events = []
     result = service.execute(
         project=project,
         section_config={"placeholders": {"人工智能": {"title": "人工智能"}}},
@@ -1101,7 +978,6 @@ def test_report_project_run_service_renders_word_project(tmp_path: Path):
             generate_from_config=True,
             report_date="2026-06-05",
         ),
-        progress_callback=progress_events.append,
     )
 
     assert captured["placeholders"] == {"人工智能": "AI 生成段落", "manual": "手工值"}
@@ -1111,12 +987,6 @@ def test_report_project_run_service_renders_word_project(tmp_path: Path):
     assert result.evidence_count == 2
     assert result.warnings == ["生成 warning", "段落 warning", "图表 warning", "表格 warning"]
     assert result.run_log_path.exists()
-    assert [event["phase"] for event in progress_events] == [
-        "prepare",
-        "generate",
-        "render",
-        "save",
-    ]
     run_record = json.loads(result.run_log_path.read_text(encoding="utf-8"))
     assert run_record["generation"]["sections"][0]["evidence"][0]["title"] == "AI 新闻"
     assert run_record["charts"][0]["chart_id"] == "chart1"
@@ -2068,14 +1938,12 @@ def test_generation_service_generates_independent_prompt_sections_concurrently(t
         for i in range(1, 5)
     }
 
-    progress_events = []
     result = service.generate_placeholders(
         project=project,
         section_config={"placeholders": placeholders},
         prompt_templates_source="\n\n".join(
             f"## 段落{i}\n检索 Query：段落{i}\n\n写作要求：短句" for i in range(1, 5)
         ),
-        progress_callback=progress_events.append,
     )
 
     assert gateway.max_active > 1
@@ -2086,8 +1954,6 @@ def test_generation_service_generates_independent_prompt_sections_concurrently(t
         "段落3",
         "段落4",
     ]
-    assert [event["completed_sections"] for event in progress_events] == [0, 1, 2, 3, 4]
-    assert all(event["total_sections"] == 4 for event in progress_events)
 
 
 def test_render_report_project_generates_from_config_and_writes_generation_log(

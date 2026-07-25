@@ -699,9 +699,7 @@ def _extract_filtered_series_data(chart_xml_bytes: bytes) -> list[dict]:
                     if idx_str and int(idx_str) in zero_indices:
                         continue
                     v_elem = pt.find("c:v", ns)
-                    cache_data["pts"].append(
-                        v_elem.text if v_elem is not None else ""
-                    )
+                    cache_data["pts"].append(v_elem.text if v_elem is not None else "")
                 if cache_data["pts"]:
                     series_data["caches"].append(cache_data)
         result.append(series_data)
@@ -780,9 +778,7 @@ def sync_native_chart_parts(
     """
     # Read current docx entries upfront so we can use template chart XML as base
     with zipfile.ZipFile(docx_path, "r") as source:
-        entries: Dict[str, bytes] = {
-            name: source.read(name) for name in source.namelist()
-        }
+        entries: Dict[str, bytes] = {name: source.read(name) for name in source.namelist()}
 
     updates: Dict[str, bytes] = {}
     for chart_id, config in chart_configs.items():
@@ -825,9 +821,7 @@ def sync_native_chart_parts(
                 _replace_series_caches_in_template(template_root, filtered_data)
 
             # 4. Serialize back to bytes
-            result = ET.tostring(
-                template_root, encoding="utf-8", xml_declaration=True
-            )
+            result = ET.tostring(template_root, encoding="utf-8", xml_declaration=True)
             updates[native_chart_part] = result
         except Exception as exc:
             logger.warning(
@@ -845,9 +839,7 @@ def sync_native_chart_parts(
     with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp:
         temp_path = Path(tmp.name)
     try:
-        with zipfile.ZipFile(
-            temp_path, "w", compression=zipfile.ZIP_DEFLATED
-        ) as target:
+        with zipfile.ZipFile(temp_path, "w", compression=zipfile.ZIP_DEFLATED) as target:
             for name, content in entries.items():
                 target.writestr(name, content)
         shutil.copy2(temp_path, docx_path)

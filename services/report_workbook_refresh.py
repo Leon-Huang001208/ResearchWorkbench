@@ -148,10 +148,7 @@ class ReportWorkbookRefreshService:
         try:
             import pythoncom  # noqa: F401 — 确保 COM 运行时可用
         except ImportError:
-            logger.warning(
-                "pywin32 (pythoncom) 未安装，xlwings COM 刷新可能不稳定。"
-                "建议: pip install pywin32"
-            )
+            logger.warning("pywin32 (pythoncom) 未安装，xlwings COM 刷新可能不稳定。" "建议: pip install pywin32")
         try:
             import xlwings as xw
         except ImportError as exc:

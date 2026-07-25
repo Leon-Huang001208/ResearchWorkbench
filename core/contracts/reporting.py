@@ -441,17 +441,13 @@ class InlineRunSpec(BaseModel):
     """
 
     text: Optional[str] = Field(default=None, description="静态文本内容")
-    placeholder_key: Optional[str] = Field(
-        default=None, description="引用其他占位符的输出"
-    )
+    placeholder_key: Optional[str] = Field(default=None, description="引用其他占位符的输出")
     bold: Optional[bool] = Field(default=None, description="是否粗体")
     italic: Optional[bool] = Field(default=None, description="是否斜体")
     font_size_pt: Optional[float] = Field(default=None, description="字号（pt）")
     color_hex: Optional[str] = Field(default=None, description="文字颜色（hex）")
     font_name: Optional[str] = Field(default=None, description="字体名称")
-    is_dynamic: bool = Field(
-        default=False, description="是否为动态 Run（由 generation 填充 text）"
-    )
+    is_dynamic: bool = Field(default=False, description="是否为动态 Run（由 generation 填充 text）")
 
 
 class RichTextSpec(BaseModel):
@@ -468,9 +464,7 @@ class RichTextSpec(BaseModel):
         default_size_pt: 默认字号（用于动态 Run）.
     """
 
-    runs: List[InlineRunSpec] = Field(
-        default_factory=list, description="Run 序列（按顺序渲染）"
-    )
+    runs: List[InlineRunSpec] = Field(default_factory=list, description="Run 序列（按顺序渲染）")
     default_font: str = Field(default="Times New Roman", description="默认字体")
     default_size_pt: float = Field(default=11.0, description="默认字号（pt）")
 
@@ -571,17 +565,13 @@ class RetrievalConfig(BaseModel):
         rerank_min_score: 重排序最低分数阈值.
     """
 
-    mode: Literal["keyword", "semantic", "hybrid"] = Field(
-        default="hybrid", description="检索模式"
-    )
+    mode: Literal["keyword", "semantic", "hybrid"] = Field(default="hybrid", description="检索模式")
     top_k: int = Field(default=10, description="返回结果数")
     candidate_k: int = Field(default=40, description="候选池大小")
     keyword_weight: float = Field(default=0.6, description="关键词检索权重")
     semantic_weight: float = Field(default=0.4, description="语义检索权重")
     keywords: List[str] = Field(default_factory=list, description="关键词列表")
-    keyword_groups: List[List[str]] = Field(
-        default_factory=list, description="关键词组（组内 OR，组间 AND）"
-    )
+    keyword_groups: List[List[str]] = Field(default_factory=list, description="关键词组（组内 OR，组间 AND）")
     exclude_keywords: List[str] = Field(default_factory=list, description="排除关键词")
     rerank_enabled: bool = Field(default=True, description="是否启用重排序")
     rerank_top_n: int = Field(default=30, description="重排序后保留数")
@@ -607,17 +597,11 @@ class GenerationConfig(BaseModel):
     prompt_template_ref: Optional[str] = Field(
         default=None, description="引用 prompt_templates.md 中的 ## 标题"
     )
-    prompt_template_inline: Optional[str] = Field(
-        default=None, description="内联 prompt 模板"
-    )
-    retrieval: Optional[RetrievalConfig] = Field(
-        default=None, description="证据检索配置"
-    )
+    prompt_template_inline: Optional[str] = Field(default=None, description="内联 prompt 模板")
+    retrieval: Optional[RetrievalConfig] = Field(default=None, description="证据检索配置")
     target_words: int = Field(default=200, description="目标字数")
     max_words: int = Field(default=300, description="最大字数")
-    writing_structure: List[str] = Field(
-        default_factory=list, description="写作要点列表"
-    )
+    writing_structure: List[str] = Field(default_factory=list, description="写作要点列表")
     output_mode: Literal["single_paragraph", "multi_paragraph"] = Field(
         default="single_paragraph", description="输出模式"
     )
@@ -640,9 +624,7 @@ class ValidationSpec(BaseModel):
     min_chars: Optional[int] = Field(default=None, description="最小字符数")
     max_chars: Optional[int] = Field(default=None, description="最大字符数")
     require_numbers: bool = Field(default=False, description="是否必须包含数字")
-    forbid_instruction_leaks: bool = Field(
-        default=True, description="是否禁止 LLM 指令泄露"
-    )
+    forbid_instruction_leaks: bool = Field(default=True, description="是否禁止 LLM 指令泄露")
 
 
 class EnhancedPlaceholder(BaseModel):
@@ -675,45 +657,31 @@ class EnhancedPlaceholder(BaseModel):
     """
 
     key: str = Field(default="", description="对应模板中的 {{key}} 占位符名")
-    type: PlaceholderType = Field(
-        default=PlaceholderType.TEXT, description="占位符内容类型"
-    )
+    type: PlaceholderType = Field(default=PlaceholderType.TEXT, description="占位符内容类型")
     title: str = Field(default="", description="人类可读名称")
 
     # 内容生成
     generation_mode: GenerationMode = Field(
         default=GenerationMode.EVIDENCE_GROUNDED, description="内容生成模式"
     )
-    generation_config: Optional[GenerationConfig] = Field(
-        default=None, description="LLM 生成配置"
-    )
+    generation_config: Optional[GenerationConfig] = Field(default=None, description="LLM 生成配置")
 
     # 格式控制（TEXT / RICH_TEXT 类型）
-    rich_text_spec: Optional[RichTextSpec] = Field(
-        default=None, description="富文本 Run 结构"
-    )
-    use_template_paragraph_style: bool = Field(
-        default=True, description="是否继承模板段落样式"
-    )
+    rich_text_spec: Optional[RichTextSpec] = Field(default=None, description="富文本 Run 结构")
+    use_template_paragraph_style: bool = Field(default=True, description="是否继承模板段落样式")
 
     # 数据绑定（CHART / TABLE_DATA / IMAGE 类型）
-    data_source: Optional[DataSourceSpec] = Field(
-        default=None, description="数据来源"
-    )
+    data_source: Optional[DataSourceSpec] = Field(default=None, description="数据来源")
     chart_grid_spec: Optional[ChartGridSpec] = Field(
         default=None, description="图表网格布局（CHART_GRID 类型）"
     )
 
     # 内容校验
-    validation: Optional[ValidationSpec] = Field(
-        default=None, description="内容校验规则"
-    )
+    validation: Optional[ValidationSpec] = Field(default=None, description="内容校验规则")
 
     # 条件显示
     visible: bool = Field(default=True, description="是否可见")
-    visible_if: Optional[str] = Field(
-        default=None, description="条件可见性表达式（Jinja2）"
-    )
+    visible_if: Optional[str] = Field(default=None, description="条件可见性表达式（Jinja2）")
     hide_strategy: Literal["remove_placeholder", "remove_paragraph", "remove_section"] = Field(
         default="remove_placeholder", description="不可见时的处理策略"
     )
@@ -756,15 +724,9 @@ class DefaultSettings(BaseModel):
     evidence_policy: Literal["strict", "allow_synthesis"] = Field(
         default="strict", description="证据策略"
     )
-    retrieval: RetrievalConfig = Field(
-        default_factory=RetrievalConfig, description="默认检索配置"
-    )
-    validators: ValidationSpec = Field(
-        default_factory=ValidationSpec, description="默认校验规则"
-    )
-    report_period: ReportPeriod = Field(
-        default_factory=ReportPeriod, description="报告周期"
-    )
+    retrieval: RetrievalConfig = Field(default_factory=RetrievalConfig, description="默认检索配置")
+    validators: ValidationSpec = Field(default_factory=ValidationSpec, description="默认校验规则")
+    report_period: ReportPeriod = Field(default_factory=ReportPeriod, description="报告周期")
 
 
 class TemplateReference(BaseModel):
@@ -803,9 +765,7 @@ class ReportTemplateConfig(BaseModel):
     placeholders: Dict[str, EnhancedPlaceholder] = Field(
         default_factory=dict, description="增强占位符映射"
     )
-    defaults: DefaultSettings = Field(
-        default_factory=DefaultSettings, description="默认设置"
-    )
+    defaults: DefaultSettings = Field(default_factory=DefaultSettings, description="默认设置")
 
     @model_validator(mode="after")
     def _populate_placeholder_keys(self) -> "ReportTemplateConfig":
@@ -833,9 +793,7 @@ class ReportTemplateMeta(BaseModel):
     name: str = Field(description="模板名称")
     version: str = Field(default="2.0", description="模板版本")
     description: str = Field(default="", description="模板描述")
-    report_type: Literal["word", "ppt"] = Field(
-        default="word", description="报告类型"
-    )
+    report_type: Literal["word", "ppt"] = Field(default="word", description="报告类型")
 
 
 # Update forward references for self-referencing models.

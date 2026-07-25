@@ -6,6 +6,7 @@ import xml.etree.ElementTree as ET
 import zipfile
 from pathlib import Path
 
+import pytest
 import yaml
 from openpyxl.utils.cell import column_index_from_string
 
@@ -19,7 +20,17 @@ from reporting.projects.chart_generation import (
 from reporting.projects.project_manager import ReportProjectManager
 
 
-def test_reads_huaan_excel_chart_cache_series():
+@pytest.fixture
+def huaan_chart_assets() -> Path:
+    """Return the Huaan workbook when its unversioned integration fixture is available."""
+    workbook = Path("report_projects/华安ETF周报/data/周报图表.xlsx")
+    template = Path("report_projects/华安ETF周报/templates/report_template.docx")
+    if not workbook.is_file() or not template.is_file():
+        pytest.skip("requires unversioned Huaan report Excel and DOCX fixtures")
+    return workbook
+
+
+def test_reads_huaan_excel_chart_cache_series(huaan_chart_assets: Path):
     """华安周报图表应能直接从 Excel chart cache 读取黄金/原油序列。"""
     workbook = Path("report_projects/华安ETF周报/data/周报图表.xlsx")
 
@@ -32,7 +43,7 @@ def test_reads_huaan_excel_chart_cache_series():
     assert len(oil[0].values) > 1000
 
 
-def test_reads_gold_series_from_left_worksheet_and_drops_blank_rows():
+def test_reads_gold_series_from_left_worksheet_and_drops_blank_rows(huaan_chart_assets: Path):
     """黄金图应能读取左侧 Wind 数据区，并自动过滤节假日空值行。"""
     workbook = Path("report_projects/华安ETF周报/data/周报图表.xlsx")
 
@@ -55,7 +66,7 @@ def test_reads_gold_series_from_left_worksheet_and_drops_blank_rows():
     assert "2017-01-02" not in {str(value)[:10] for value in series[0].categories}
 
 
-def test_reads_oil_series_from_left_worksheet_and_drops_blank_rows():
+def test_reads_oil_series_from_left_worksheet_and_drops_blank_rows(huaan_chart_assets: Path):
     """原油图应能读取左侧 Wind 数据区，并自动过滤任一序列为空的日期。"""
     workbook = Path("report_projects/华安ETF周报/data/周报图表.xlsx")
 
@@ -80,7 +91,9 @@ def test_reads_oil_series_from_left_worksheet_and_drops_blank_rows():
     assert all(value is not None and value != "" for value in series[0].categories)
 
 
-def test_huaan_chart_workbook_uses_left_wind_data_without_duplicate_ranges():
+def test_huaan_chart_workbook_uses_left_wind_data_without_duplicate_ranges(
+    huaan_chart_assets: Path,
+):
     """黄金和原油 Excel 图表应直接引用左侧 Wind 数据区，不保留右侧复制区。"""
     workbook = Path("report_projects/华安ETF周报/data/周报图表.xlsx")
 
@@ -110,7 +123,7 @@ def test_huaan_chart_workbook_uses_left_wind_data_without_duplicate_ranges():
             assert copied_cells_with_values == []
 
 
-def test_huaan_native_chart_template_skips_png_embedding(tmp_path: Path):
+def test_huaan_native_chart_template_skips_png_embedding(huaan_chart_assets: Path, tmp_path: Path):
     """原生图表模板生成时应保留 Word chart，不再回退为 PNG。"""
     manager = ReportProjectManager()
     project = manager.get_project("华安ETF周报")
@@ -138,7 +151,7 @@ def test_huaan_native_chart_template_skips_png_embedding(tmp_path: Path):
     assert {info.replace_kind for info in infos} == {"native_chart"}
 
 
-def test_huaan_first_chart_is_below_figure_caption():
+def test_huaan_first_chart_is_below_figure_caption(huaan_chart_assets: Path):
     """第一张行业图应位于“图1”标题下方，而不是标题上方。"""
     manager = ReportProjectManager()
     project = manager.get_project("华安ETF周报")
@@ -171,7 +184,7 @@ def test_huaan_first_chart_is_below_figure_caption():
     assert caption_index < chart_index
 
 
-def test_sync_native_chart_parts_copies_excel_chart_xml(tmp_path: Path):
+def test_sync_native_chart_parts_copies_excel_chart_xml(huaan_chart_assets: Path, tmp_path: Path):
     """生成时应把 Excel 原生图表 XML 同步进 Word chart part（零值数据点已过滤）。"""
     manager = ReportProjectManager()
     project = manager.get_project("华安ETF周报")
@@ -328,7 +341,7 @@ def test_filter_chart_xml_returns_unchanged_when_no_zeros():
             assert len(cache_elem.findall("c:pt", ns)) == 4
 
 
-def test_filter_chart_xml_filters_gold_chart2_real_data():
+def test_filter_chart_xml_filters_gold_chart2_real_data(huaan_chart_assets: Path):
     """真实黄金 chart2 XML 的 Au9999 零值应被过滤。"""
     import zipfile
 
@@ -351,7 +364,7 @@ def test_filter_chart_xml_filters_gold_chart2_real_data():
     assert len(cache_sizes) == 1  # all caches have the same size
 
 
-def test_filter_chart_xml_filters_oil_chart3_real_data():
+def test_filter_chart_xml_filters_oil_chart3_real_data(huaan_chart_assets: Path):
     """真实原油 chart3 XML 的 WTI 零值应被过滤。"""
     import zipfile
 

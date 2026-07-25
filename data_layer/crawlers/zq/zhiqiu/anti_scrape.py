@@ -195,9 +195,9 @@ class HeaderRandomizer:
 
         # 随机添加 Sec-CH-UA 相关头（现代浏览器）
         if random.random() > 0.5:
-            headers["Sec-CH-UA"] = (
-                '"Chromium";v="129", "Not=A?Brand";v="24", "Google Chrome";v="129"'
-            )
+            headers[
+                "Sec-CH-UA"
+            ] = '"Chromium";v="129", "Not=A?Brand";v="24", "Google Chrome";v="129"'
             headers["Sec-CH-UA-Mobile"] = "?0"
             headers["Sec-CH-UA-Platform"] = '"Windows"'
 

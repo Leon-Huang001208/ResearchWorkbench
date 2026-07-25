@@ -210,7 +210,9 @@ class MonitoringService:
         )
         if self._repo:
             threshold = self._repo.save_alert_threshold(threshold)
-            logger.info("alert threshold created", threshold_id=threshold_id, alert_name=request.name)
+            logger.info(
+                "alert threshold created", threshold_id=threshold_id, alert_name=request.name
+            )
         return threshold
 
     def get_alert_threshold(self, threshold_id: str) -> Optional[AlertThreshold]:

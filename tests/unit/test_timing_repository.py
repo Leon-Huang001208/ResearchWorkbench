@@ -21,7 +21,9 @@ class TestTimingRepositorySQLite:
         engine = create_engine("sqlite:///:memory:")
         # Create tables manually for SQLite test
         with engine.connect() as conn:
-            conn.execute(text("""
+            conn.execute(
+                text(
+                    """
                 CREATE TABLE timing_decision (
                     decision_id TEXT PRIMARY KEY,
                     signal_id TEXT,
@@ -34,7 +36,9 @@ class TestTimingRepositorySQLite:
                     rationale JSON NOT NULL DEFAULT ('[]'),
                     created_at TIMESTAMP
                 )
-            """))
+            """
+                )
+            )
             conn.commit()
 
         Session = sessionmaker(bind=engine)

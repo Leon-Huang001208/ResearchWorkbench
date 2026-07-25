@@ -27,9 +27,7 @@ except Exception:  # pragma: no cover - repair script should run outside app env
     logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s:%(message)s")
     logger = logging.getLogger(__name__)
 
-WORD_TEMPLATE = (
-    PROJECT_ROOT / "report_projects" / "华安ETF周报" / "templates" / "report_template.docx"
-)
+WORD_TEMPLATE = PROJECT_ROOT / "report_projects" / "华安ETF周报" / "templates" / "report_template.docx"
 CHART_WORKBOOK = PROJECT_ROOT / "report_projects" / "华安ETF周报" / "data" / "周报图表.xlsx"
 BACKUP_DIR = PROJECT_ROOT / "report_projects" / "华安ETF周报" / "templates" / "backups"
 

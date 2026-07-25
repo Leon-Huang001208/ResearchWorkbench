@@ -197,9 +197,7 @@ class DocumentProcessingMeta(BaseModel):
 class DocumentReview(BaseModel):
     """审核信息"""
 
-    status: DocumentReviewStatus = Field(
-        default=DocumentReviewStatus.PENDING, description="审核状态"
-    )
+    status: DocumentReviewStatus = Field(default=DocumentReviewStatus.PENDING, description="审核状态")
     reviewer: Optional[str] = Field(default=None, description="审核人")
     reviewed_at: Optional[datetime] = Field(default=None, description="审核时间")
     review_notes: Optional[str] = Field(default=None, description="审核备注")
@@ -241,9 +239,7 @@ class DocumentV1(BaseModel):
     )
 
     # 时效性
-    timeliness: DocumentTimeliness = Field(
-        default_factory=DocumentTimeliness, description="时效性信息"
-    )
+    timeliness: DocumentTimeliness = Field(default_factory=DocumentTimeliness, description="时效性信息")
 
     # 处理状态
     processing: DocumentProcessingMeta = Field(
@@ -492,9 +488,7 @@ class SourceCursorV1(BaseModel):
     cursor_id: str = Field(description="游标唯一标识符")
     source_type: SourceType = Field(description="来源类型")
     source_name: Optional[str] = Field(default=None, description="来源名称")
-    last_successful_crawl_time: Optional[datetime] = Field(
-        default=None, description="上次成功抓取时间"
-    )
+    last_successful_crawl_time: Optional[datetime] = Field(default=None, description="上次成功抓取时间")
     last_source_doc_id: Optional[str] = Field(default=None, description="上次抓取的文档ID")
     lookback_window_minutes: int = Field(default=60, description="回看窗口（分钟）")
     consecutive_failures: int = Field(default=0, description="连续失败次数")

@@ -324,9 +324,7 @@ class CnstockCrawler:
                     self.config.state_path, self.config.verbose
                 )
                 if self.config.verbose:
-                    self.log.info(
-                        f"状态管理器已初始化，已记录 {self._state_manager.get_processed_count()} 篇文章"
-                    )
+                    self.log.info(f"状态管理器已初始化，已记录 {self._state_manager.get_processed_count()} 篇文章")
             except Exception as e:
                 if self.config.verbose:
                     self.log.warning(f"初始化状态管理器失败: {e}，持久化去重将不可用")
@@ -390,9 +388,7 @@ class CnstockCrawler:
 
             if self.config.verbose:
                 cookie_names = list(cookies_dict.keys())
-                self.log.info(
-                    f"WAF cookie 获取成功，获取到 {len(cookies_dict)} 个 cookie: {cookie_names}"
-                )
+                self.log.info(f"WAF cookie 获取成功，获取到 {len(cookies_dict)} 个 cookie: {cookie_names}")
 
             return cookies_dict
 
@@ -542,9 +538,7 @@ class CnstockCrawler:
         self._start_dt = self._parse_date(self.config.start_date)
         self._end_dt = self._parse_date(self.config.end_date)
         if not self._start_dt:
-            raise ValueError(
-                f"start_date 格式无效: {self.config.start_date}，请使用 YYYY-MM-DD 格式"
-            )
+            raise ValueError(f"start_date 格式无效: {self.config.start_date}，请使用 YYYY-MM-DD 格式")
         if not self._end_dt:
             raise ValueError(f"end_date 格式无效: {self.config.end_date}，请使用 YYYY-MM-DD 格式")
         # 设置结束时间为当天的最后一刻
@@ -815,9 +809,7 @@ class CnstockCrawler:
                 if self._state_manager and first_new_article_id:
                     self._state_manager.set_watermark(watermark_key, first_new_article_id)
                     if self.config.verbose:
-                        self.log.info(
-                            f"[水位线] 频道 {category} 水位线已设置为: {first_new_article_id}"
-                        )
+                        self.log.info(f"[水位线] 频道 {category} 水位线已设置为: {first_new_article_id}")
 
                 all_news.extend(channel_news)
 
@@ -1079,9 +1071,7 @@ class CnstockCrawler:
                         source = "SSR" if is_flash else "API"
                         self.log.info(f"[Playwright] {source} 第1页: {len(parsed)} 条")
             elif not is_flash:
-                self.log.warning(
-                    f"[Playwright] 未拦截到 channelNewsList 响应，频道 {category} 可能无数据"
-                )
+                self.log.warning(f"[Playwright] 未拦截到 channelNewsList 响应，频道 {category} 可能无数据")
 
             # ── 翻页：滚动页面触发懒加载 ──
             for page_num in range(2, self.config.max_pages + 1):
@@ -1665,9 +1655,7 @@ class CnstockCrawler:
                         )
                 self._state_manager.save()
                 if self.config.verbose:
-                    self.log.info(
-                        f"状态文件已更新，共记录 {self._state_manager.get_processed_count()} 篇文章"
-                    )
+                    self.log.info(f"状态文件已更新，共记录 {self._state_manager.get_processed_count()} 篇文章")
 
         return {
             "success": True,
@@ -1729,15 +1717,11 @@ def parse_args():
     parser.add_argument("--max-pages", type=int, default=5, help="最大爬取页数 (默认: 5)")
     parser.add_argument("--delay", type=float, default=1.0, help="请求间隔秒数 (默认: 1.0)")
     parser.add_argument("--node-id", default="10232", help="新闻频道节点ID (默认: 10232=证券)")
-    parser.add_argument(
-        "--channel", help="新闻频道名称，多个用逗号分隔 (快讯/时政/公司/产经/金融/证券)"
-    )
+    parser.add_argument("--channel", help="新闻频道名称，多个用逗号分隔 (快讯/时政/公司/产经/金融/证券)")
     parser.add_argument("--all-channels", action="store_true", help="爬取所有频道")
     parser.add_argument("--page-size", type=int, default=32, help="每页新闻数量 (默认: 32)")
     parser.add_argument("--fetch-content", action="store_true", help="是否获取文章正文内容")
-    parser.add_argument(
-        "--verbose", action="store_true", default=True, help="显示详细日志 (默认: 开启)"
-    )
+    parser.add_argument("--verbose", action="store_true", default=True, help="显示详细日志 (默认: 开启)")
     parser.add_argument("--quiet", action="store_true", help="关闭详细日志输出")
 
     # 日志相关
@@ -1751,12 +1735,8 @@ def parse_args():
 
     # 状态管理
     parser.add_argument("--state-path", help="状态文件路径，用于持久化去重")
-    parser.add_argument(
-        "--no-skip-existing", action="store_true", help="不跳过已存在的新闻 (默认会跳过)"
-    )
-    parser.add_argument(
-        "--no-stop-on-known", action="store_true", help="遇到已存在新闻时不停止 (默认会停止)"
-    )
+    parser.add_argument("--no-skip-existing", action="store_true", help="不跳过已存在的新闻 (默认会跳过)")
+    parser.add_argument("--no-stop-on-known", action="store_true", help="遇到已存在新闻时不停止 (默认会停止)")
 
     # 输出格式
     parser.add_argument("--print-json", action="store_true", help="将结果以 JSON 格式打印到 stdout")

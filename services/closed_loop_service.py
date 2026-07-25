@@ -485,7 +485,8 @@ class ClosedLoopService:
             outcome_metadata.update(extra_metadata)
 
         db.execute(
-            text("""
+            text(
+                """
             INSERT INTO signal_outcome (
                 outcome_id, event_id, signal_id, subject_id, event_date,
                 timing_action, entry_rule, horizon, benchmark,
@@ -497,7 +498,8 @@ class ClosedLoopService:
                 :outcome_return, :outcome_excess_return, :max_drawdown,
                 :failure_reason, :lesson, :evaluated_at, :metadata, :created_at
             )
-        """),
+        """
+            ),
             {
                 "outcome_id": outcome_id,
                 "event_id": signal.event_id,
@@ -615,9 +617,7 @@ class ClosedLoopService:
         """生成学习教训"""
         if direction_correct and outcome_return > 0:
             if excess_return > 0.05:
-                return (
-                    f"{signal.event_type} 事件信号表现优秀，超额收益 {excess_return:.1%}，值得复用"
-                )
+                return f"{signal.event_type} 事件信号表现优秀，超额收益 {excess_return:.1%}，值得复用"
             else:
                 return f"{signal.event_type} 事件信号方向正确，但超额收益一般"
         elif direction_correct and outcome_return < 0:

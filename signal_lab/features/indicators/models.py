@@ -10,15 +10,15 @@ class TechnicalIndicators:
     date: str  # 计算日期
 
     # 趋势指标
-    ma: Optional[Dict[str, Optional[float]]] = (
-        None  # {"ma5": 1393.83, "ma10": ..., "ma20": ..., "ma60": ...}
-    )
+    ma: Optional[
+        Dict[str, Optional[float]]
+    ] = None  # {"ma5": 1393.83, "ma10": ..., "ma20": ..., "ma60": ...}
     ema: Optional[Dict[str, Optional[float]]] = None  # {"ema12": ..., "ema26": ...}
     macd: Optional[Dict[str, Optional[float]]] = None  # {"dif": ..., "dea": ..., "macd_bar": ...}
     sar: Optional[float] = None
-    dmi: Optional[Dict[str, Optional[float]]] = (
-        None  # {"plus_di": ..., "minus_di": ..., "adx": ...}
-    )
+    dmi: Optional[
+        Dict[str, Optional[float]]
+    ] = None  # {"plus_di": ..., "minus_di": ..., "adx": ...}
     trix: Optional[float] = None
 
     # 动量指标

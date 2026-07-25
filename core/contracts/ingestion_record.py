@@ -316,9 +316,7 @@ class IngestionResult(BaseModel):
     error_message: Optional[str] = Field(default=None, description="失败时的错误信息")
 
     # Fallback 路由追踪
-    routed_source: Optional[str] = Field(
-        default=None, description="实际使用的数据源（fallback 路由后）"
-    )
+    routed_source: Optional[str] = Field(default=None, description="实际使用的数据源（fallback 路由后）")
     fallback_used: bool = Field(default=False, description="是否触发了降级（使用了备源而非主源）")
 
 
