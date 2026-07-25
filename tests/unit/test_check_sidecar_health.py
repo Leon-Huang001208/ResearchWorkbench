@@ -97,8 +97,8 @@ def test_sidecar_health_check_returns_zero_after_first_http_200(monkeypatch, tmp
 
     monkeypatch.setattr(helper.subprocess, "Popen", fake_popen)
     monkeypatch.setattr(helper, "is_windows", lambda: False, raising=False)
-    monkeypatch.setattr(helper.os, "getpgid", lambda pid: pid)
-    monkeypatch.setattr(helper.os, "killpg", lambda pgid, sig: None)
+    monkeypatch.setattr(helper.os, "getpgid", lambda pid: pid, raising=False)
+    monkeypatch.setattr(helper.os, "killpg", lambda pgid, sig: None, raising=False)
     monkeypatch.setattr(helper, "wait_for_port_release", lambda port, logger: True, raising=False)
     monkeypatch.setenv(
         "DATABASE_URL", "postgresql+psycopg://desktop_user:secret@127.0.0.1:55432/alphafoundry"
@@ -147,9 +147,9 @@ def test_sidecar_health_check_exits_nonzero_and_stops_only_its_child(monkeypatch
     log_file = tmp_path / "health-smoke.log"
     monkeypatch.setattr(helper.subprocess, "Popen", fake_popen)
     monkeypatch.setattr(helper, "is_windows", lambda: False, raising=False)
-    monkeypatch.setattr(helper.urllib.request, "urlopen", refused_request)
-    monkeypatch.setattr(helper.os, "getpgid", lambda pid: pid)
-    monkeypatch.setattr(helper.os, "killpg", lambda pgid, sig: None)
+    monkeypatch.setattr(helper.LOCAL_HTTP_OPENER, "open", refused_request)
+    monkeypatch.setattr(helper.os, "getpgid", lambda pid: pid, raising=False)
+    monkeypatch.setattr(helper.os, "killpg", lambda pgid, sig: None, raising=False)
     monkeypatch.setattr(helper, "wait_for_port_release", lambda port, logger: True, raising=False)
 
     with pytest.raises(SystemExit) as error:
@@ -178,8 +178,13 @@ def test_posix_cleanup_terminates_only_the_helper_process_group(monkeypatch):
     process.time_out_once = True
     signals: list[tuple[int, signal.Signals]] = []
     monkeypatch.setattr(helper, "is_windows", lambda: False, raising=False)
-    monkeypatch.setattr(helper.os, "getpgid", lambda pid: 9876)
-    monkeypatch.setattr(helper.os, "killpg", lambda pgid, sig: signals.append((pgid, sig)))
+    monkeypatch.setattr(helper.os, "getpgid", lambda pid: 9876, raising=False)
+    monkeypatch.setattr(
+        helper.os,
+        "killpg",
+        lambda pgid, sig: signals.append((pgid, sig)),
+        raising=False,
+    )
     monkeypatch.setattr(helper, "wait_for_port_release", lambda port, logger: True, raising=False)
 
     stopped = helper.stop_child(process, port=8765, logger=logging.getLogger("test.sidecar"))
@@ -235,7 +240,12 @@ def test_posix_process_lookup_still_fails_when_sidecar_port_remains_open(monkeyp
     helper = load_helper_module()
     process = FakeProcess(["sidecar-under-test"])
     checked_ports: list[int] = []
-    monkeypatch.setattr(helper.os, "killpg", lambda pgid, sig: (_ for _ in ()).throw(ProcessLookupError))
+    monkeypatch.setattr(
+        helper.os,
+        "killpg",
+        lambda pgid, sig: (_ for _ in ()).throw(ProcessLookupError),
+        raising=False,
+    )
     monkeypatch.setattr(
         helper,
         "wait_for_port_release",

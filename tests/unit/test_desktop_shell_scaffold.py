@@ -216,7 +216,7 @@ def test_backend_launcher_allows_project_root_override(monkeypatch):
     monkeypatch.setenv("ALPHAFOUNDRY_PROJECT_ROOT", "/tmp/alphafoundry")
     launcher = load_launcher_module()
 
-    assert str(launcher.PROJECT_ROOT) == "/tmp/alphafoundry"
+    assert launcher.PROJECT_ROOT == Path("/tmp/alphafoundry")
 
 
 def test_frozen_backend_launcher_resolves_project_root_from_pyinstaller_bundle(

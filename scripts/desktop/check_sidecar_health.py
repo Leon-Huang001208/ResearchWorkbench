@@ -21,6 +21,10 @@ HEALTH_HOST = "127.0.0.1"
 POLL_INTERVAL_SECONDS = 0.25
 CHILD_STOP_TIMEOUT_SECONDS = 5
 PORT_RELEASE_TIMEOUT_SECONDS = 5
+# Sidecar health checks always target the local loopback interface.  Do not
+# inherit a developer's HTTP proxy here, otherwise a stale proxy can make a
+# healthy local sidecar appear unavailable.
+LOCAL_HTTP_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 
 def is_windows() -> bool:
@@ -68,7 +72,7 @@ def sidecar_command(executable: str, port: int) -> list[str]:
 def endpoint_is_healthy(port: int) -> bool:
     """Return whether the local endpoint currently answers a successful health request."""
     endpoint = f"http://{HEALTH_HOST}:{port}/health"
-    with urllib.request.urlopen(endpoint, timeout=POLL_INTERVAL_SECONDS) as response:
+    with LOCAL_HTTP_OPENER.open(endpoint, timeout=POLL_INTERVAL_SECONDS) as response:
         return response.status == 200
 
 
