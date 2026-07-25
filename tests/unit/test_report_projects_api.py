@@ -2558,11 +2558,40 @@ def test_build_word_pdf_preview_uses_local_soffice_converter(tmp_path: Path, mon
     )
 
 
+def _write_preview_docx_with_anchored_chart(tmp_path: Path, *, chart_in_caption: bool) -> Path:
+    """构造最小 DOCX，避免预览规则测试依赖本机生成的历史报告。"""
+    anchor = """
+        <wp:anchor distT="0" distB="0" distL="0" distR="0">
+          <wp:extent cx="1000" cy="1000"/>
+          <wp:docPr id="1" name="Chart 1"/>
+          <a:graphic><a:graphicData><c:chart r:id="rId1"/></a:graphicData></a:graphic>
+        </wp:anchor>
+    """
+    drawing = f"<w:r><w:drawing>{anchor}</w:drawing></w:r>"
+    caption = "图1：申万一级各板块表现"
+    if chart_in_caption:
+        body = f"<w:p><w:r><w:t>{caption}</w:t></w:r>{drawing}</w:p>"
+    else:
+        body = f"<w:p>{drawing}</w:p><w:p><w:r><w:t>{caption}</w:t></w:r></w:p>"
+    document_xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+    <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+        xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
+        xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
+        xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart"
+        xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+      <w:body>{body}<w:sectPr/></w:body>
+    </w:document>"""
+    source = tmp_path / "anchored-chart.docx"
+    with zipfile.ZipFile(source, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("word/document.xml", document_xml)
+    return source
+
+
 def test_word_preview_normalizes_anchored_chart_below_caption(tmp_path: Path):
     """历史报告里的浮动图表应在预览副本中移到“图1”标题下方。"""
     import app.api.routes.report_projects as report_projects_route
 
-    source = Path("report_projects/华安ETF周报/generated/20260417_华安ETF周报.docx")
+    source = _write_preview_docx_with_anchored_chart(tmp_path, chart_in_caption=False)
     normalized = tmp_path / source.name
 
     assert report_projects_route._write_docx_with_inline_preview_charts(source, normalized)
@@ -2598,7 +2627,7 @@ def test_word_preview_normalizes_chart_embedded_in_caption_paragraph(tmp_path: P
     """标题段落自身携带浮动图时，也应拆成标题在前、图表在后。"""
     import app.api.routes.report_projects as report_projects_route
 
-    source = Path("report_projects/华安ETF周报/generated/20260515_华安ETF周报.docx")
+    source = _write_preview_docx_with_anchored_chart(tmp_path, chart_in_caption=True)
     normalized = tmp_path / source.name
 
     assert report_projects_route._write_docx_with_inline_preview_charts(source, normalized)
@@ -2635,7 +2664,7 @@ def test_build_word_pdf_preview_uses_normalized_copy_for_soffice(tmp_path: Path,
     """LibreOffice 转换应读取预览规范化副本，避免直接解释 Word 浮动锚点。"""
     import app.api.routes.report_projects as report_projects_route
 
-    source = Path("report_projects/华安ETF周报/generated/20260417_华安ETF周报.docx")
+    source = _write_preview_docx_with_anchored_chart(tmp_path, chart_in_caption=False)
     docx_path = tmp_path / source.name
     docx_path.write_bytes(source.read_bytes())
     commands = []

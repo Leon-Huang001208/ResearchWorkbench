@@ -679,13 +679,13 @@ class PPTRenderer(DocumentRenderer):
         # 检查是否已有 SolidFill
         solidFill = tcPr.find(qn("a:solidFill"))
         if solidFill is None:
-            from pptx.oxml.shared import OxmlElement
+            from pptx.oxml.xmlchemy import OxmlElement
 
             solidFill = OxmlElement("a:solidFill")
             tcPr.append(solidFill)
         srgbClr = solidFill.find(qn("a:srgbClr"))
         if srgbClr is None:
-            from pptx.oxml.shared import OxmlElement
+            from pptx.oxml.xmlchemy import OxmlElement
 
             srgbClr = OxmlElement("a:srgbClr")
             solidFill.append(srgbClr)
@@ -699,7 +699,7 @@ class PPTRenderer(DocumentRenderer):
 
         # 通过 XML 注入 p:transition 元素
         try:
-            from pptx.oxml.shared import OxmlElement
+            from pptx.oxml.xmlchemy import OxmlElement
 
             # 映射过渡名称到 OOXML 元素名
             transition_map = {
@@ -710,12 +710,13 @@ class PPTRenderer(DocumentRenderer):
                 "cover": "cover",
             }
             t_name = transition_map.get(transition, "fade")
-            transition_el = OxmlElement(f"p:{t_name}")
+            transition_el = OxmlElement("p:transition")
+            transition_el.append(OxmlElement(f"p:{t_name}"))
             slide._element.append(transition_el)
-        except Exception:
+        except Exception as exc:
             logger.debug(
                 "Failed to set slide transition",
-                extra={"transition": transition},
+                extra={"transition": transition, "error": str(exc)},
             )
 
     @staticmethod

@@ -7,8 +7,8 @@ import pytest
 from core.contracts.content_element import (
     BulletListElement,
     ChartElement,
+    ChartElementType,
     ContentBlock,
-    ContentElementType,
     DividerElement,
     HeadingElement,
     ListItem,
@@ -75,7 +75,7 @@ def chart_doc():
                         elements=[
                             ChartElement(
                                 chart_id="chart_1",
-                                chart_type=ContentElementType.CHART,
+                                chart_type=ChartElementType.BAR,
                                 title="月度涨跌幅",
                                 data_labels=["1月", "2月", "3月"],
                                 data_series=[[1.2, -0.5, 2.1], [0.8, 0.3, 1.5]],
@@ -160,7 +160,7 @@ class TestPPTNativeChart:
                             elements=[
                                 ChartElement(
                                     chart_id="pie_1",
-                                    chart_type=ContentElementType.CHART,
+                                    chart_type=ChartElementType.PIE,
                                     title="行业分布",
                                     data_labels=["科技", "金融", "消费"],
                                     data_series=[[40, 30, 30]],
@@ -188,7 +188,7 @@ class TestPPTNativeChart:
                             elements=[
                                 ChartElement(
                                     chart_id="empty_chart",
-                                    chart_type=ContentElementType.CHART,
+                                    chart_type=ChartElementType.BAR,
                                     title="无数据图表",
                                 )
                             ],
@@ -343,6 +343,8 @@ class TestPPTTransition:
         r = PPTRenderer(tokens)
         buf = r.render_to_buffer(doc)
         assert buf.getbuffer().nbytes > 0
+        presentation = pptx.Presentation(buf)
+        assert presentation.slides[0]._element.xpath("./p:transition/p:fade")
 
     def test_push_transition(self, renderer):
         """推入过渡."""
@@ -517,7 +519,8 @@ class TestPPTSpeakerNotes:
 
         from pptx import Presentation as PPTXPresentation
 
-        notes_text_frame = PPTXPresentation(buf).slides[0].notes_slide.notes_text_frame
+        # 第 0 张是文档标题页；第 1 张才是第一个 Section。
+        notes_text_frame = PPTXPresentation(buf).slides[1].notes_slide.notes_text_frame
         assert notes_text_frame is not None
         assert notes_text_frame.text == "元素级演讲者备注"
 

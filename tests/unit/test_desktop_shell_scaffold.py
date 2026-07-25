@@ -254,12 +254,14 @@ def test_package_json_exposes_desktop_commands():
 def test_desktop_release_workflow_builds_platform_matrix_and_draft_release():
     source = DESKTOP_RELEASE_WORKFLOW.read_text(encoding="utf-8")
 
-    assert "macos-latest" in source
-    assert "windows-latest" not in source
+    assert "macos-14" in source
+    assert "windows-2022" in source
     assert "ubuntu-22.04" not in source
+    assert "aarch64-apple-darwin" in source
+    assert "x86_64-pc-windows-msvc" in source
     assert "python scripts/desktop/build_sidecar.py" in source
     assert "python scripts/desktop/prepare_tauri_sidecar.py" in source
-    assert "Free Linux runner disk space" in source
+    assert "Verify Windows sidecar" in source
     assert "cargo fetch --locked" in source
     assert "tauri-apps/tauri-action@v0" in source
     assert "releaseDraft: true" in source
@@ -305,7 +307,8 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "market-refresh-btn" not in html
     assert "实时行情" not in html
     assert "market-auto-refresh-indicator" not in html
-    assert "自动刷新" not in html
+    assert 'id="btn-commentary-auto-refresh"' in html
+    assert "自动刷新" in html
     assert "market-breadth-bar" in html
     assert "market-ai-brief" in html
     assert "market-heatmap-card" in html
@@ -326,8 +329,8 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "全球热点新闻 (Top 10)" not in html
     assert "今日上涨板块概念 (Top 10)" not in html
     assert "今日下跌板块概念 (Top 10)" not in html
-    assert "style.css?v=20260702briefinline1" in html
-    assert "app.js?v=20260722flowfix" in html
+    assert "style.css?v=20260722flowfix" in html
+    assert "app.js?v=20260723refresh1" in html
     assert "asset-observe-mode-tabs" in html
     assert 'data-asset-mode="theme"' in html
     assert "asset-topic-result" in html
@@ -419,7 +422,8 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "THEME_OBSERVATION_PRESETS" in asset_js
     assert "asset-topic-trend-chart" in asset_js
     assert "机器人ETF南方" in asset_js
-    assert "grid-row: span 2" not in css
+    assert ".commentary-config-workspace > .commentary-request-preview" in css
+    assert "grid-row: span 2" in css
     assert "renderMarketMiniCards" not in dashboard_js
     assert "formatMarketMiniSignedValue" not in dashboard_js
     assert "renderCapCompareMarkup" not in dashboard_js
