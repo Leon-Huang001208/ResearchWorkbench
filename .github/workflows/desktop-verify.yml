@@ -1,0 +1,230 @@
+name: Desktop Verify
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "src-tauri/**"
+      - "desktop/**"
+      - "scripts/desktop/**"
+      - "core/settings/**"
+      - "services/desktop_platform/**"
+      - "services/wind_*/**"
+      - "services/wind_*.py"
+      - "data_layer/adapters/wind/**"
+      - "app/api/routes/wind.py"
+      - "app/api/routes/report_projects.py"
+      - "pyproject.toml"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/desktop-verify.yml"
+      - ".github/workflows/desktop-release.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "src-tauri/**"
+      - "desktop/**"
+      - "scripts/desktop/**"
+      - "core/settings/**"
+      - "services/desktop_platform/**"
+      - "services/wind_*/**"
+      - "services/wind_*.py"
+      - "data_layer/adapters/wind/**"
+      - "app/api/routes/wind.py"
+      - "app/api/routes/report_projects.py"
+      - "pyproject.toml"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/desktop-verify.yml"
+      - ".github/workflows/desktop-release.yml"
+
+jobs:
+  verify:
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: macOS Apple Silicon
+            os: macos-14
+            triple: aarch64-apple-darwin
+            executable_suffix: ""
+            postgres_container: alphafoundry-desktop-verify-macos
+          - label: Windows x64
+            os: windows-2022
+            triple: x86_64-pc-windows-msvc
+            executable_suffix: ".exe"
+            postgres_container: alphafoundry-desktop-verify-windows
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Install Python dependencies
+        run: python -m pip install -e '.[dev]' pyinstaller
+
+      - name: Run desktop contract tests
+        run: python -m pytest tests/unit/test_desktop_shell_scaffold.py tests/unit/test_check_sidecar_health.py -q
+
+      - name: Build backend sidecar
+        run: python scripts/desktop/build_sidecar.py
+
+      - name: Verify macOS sidecar
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sidecar="build/desktop-sidecar/dist/alphafoundry-backend-${{ matrix.triple }}${{ matrix.executable_suffix }}"
+          if [[ ! -f "$sidecar" ]]; then
+            echo "Expected sidecar was not produced: $sidecar" >&2
+            exit 1
+          fi
+
+      - name: Verify Windows sidecar
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $sidecar = "build/desktop-sidecar/dist/alphafoundry-backend-${{ matrix.triple }}${{ matrix.executable_suffix }}"
+          if (-not (Test-Path -LiteralPath $sidecar -PathType Leaf)) {
+            throw "Expected sidecar was not produced: $sidecar"
+          }
+
+      - name: Start pgvector on macOS
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          brew install postgresql@17 pgvector
+          PG_BIN="$(brew --prefix postgresql@17)/bin"
+          PGDATA="$RUNNER_TEMP/alphafoundry-pgdata"
+          rm -rf "$PGDATA"
+          "$PG_BIN/initdb" --pgdata "$PGDATA" --username postgres --auth trust
+          "$PG_BIN/pg_ctl" -D "$PGDATA" -o "-p 55432 -h 127.0.0.1" -w start
+          "$PG_BIN/createdb" --host 127.0.0.1 --port 55432 --username postgres alphafoundry
+          "$PG_BIN/psql" --host 127.0.0.1 --port 55432 --username postgres --dbname alphafoundry \
+            --command "CREATE EXTENSION IF NOT EXISTS vector;"
+
+      - name: Start pgvector on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $container = '${{ matrix.postgres_container }}'
+          docker rm --force $container *> $null
+          docker run --detach --name $container --publish 55432:5432 `
+            --env POSTGRES_DB=alphafoundry `
+            --env POSTGRES_USER=postgres `
+            --env POSTGRES_PASSWORD=postgres `
+            pgvector/pgvector:pg16 | Out-Null
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Unable to start the helper-owned pgvector container'
+          }
+          $ready = $false
+          for ($attempt = 1; $attempt -le 30; $attempt++) {
+            docker exec $container pg_isready --username postgres --dbname alphafoundry | Out-Null
+            if ($LASTEXITCODE -eq 0) {
+              $ready = $true
+              break
+            }
+            Start-Sleep -Seconds 2
+          }
+          if (-not $ready) {
+            throw 'pgvector did not become ready'
+          }
+          docker exec $container psql --username postgres --dbname alphafoundry `
+            --command 'CREATE EXTENSION IF NOT EXISTS vector;'
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Unable to enable the pgvector extension'
+          }
+
+      - name: Smoke test macOS sidecar /health
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:55432/alphafoundry
+          ALPHAFOUNDRY_DESKTOP: "1"
+          ALPHAFOUNDRY_RUN_MODE: desktop
+          ALPHAFOUNDRY_PROJECT_ROOT: ${{ github.workspace }}
+          ALPHAFOUNDRY_DESKTOP_DATA_DIR: ${{ runner.temp }}/alphafoundry-desktop-verify
+        run: |
+          set -euo pipefail
+          sidecar="build/desktop-sidecar/dist/alphafoundry-backend-${{ matrix.triple }}${{ matrix.executable_suffix }}"
+          python scripts/desktop/check_sidecar_health.py \
+            --executable "$sidecar" \
+            --port 8765 \
+            --timeout-seconds 60
+
+      - name: Smoke test Windows sidecar /health
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:55432/alphafoundry
+          ALPHAFOUNDRY_DESKTOP: "1"
+          ALPHAFOUNDRY_RUN_MODE: desktop
+          ALPHAFOUNDRY_PROJECT_ROOT: ${{ github.workspace }}
+          ALPHAFOUNDRY_DESKTOP_DATA_DIR: ${{ runner.temp }}/alphafoundry-desktop-verify
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $sidecar = "build/desktop-sidecar/dist/alphafoundry-backend-${{ matrix.triple }}${{ matrix.executable_suffix }}"
+          python scripts/desktop/check_sidecar_health.py `
+            --executable $sidecar `
+            --port 8765 `
+            --timeout-seconds 60
+
+      - name: Stop helper-owned PostgreSQL on macOS
+        if: always() && runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! brew list --versions postgresql@17 >/dev/null 2>&1; then
+            exit 0
+          fi
+          PG_BIN="$(brew --prefix postgresql@17)/bin"
+          PGDATA="$RUNNER_TEMP/alphafoundry-pgdata"
+          if [[ -x "$PG_BIN/pg_ctl" && -d "$PGDATA" ]]; then
+            "$PG_BIN/pg_ctl" -D "$PGDATA" -m fast -w stop || true
+          fi
+
+      - name: Stop helper-owned pgvector on Windows
+        if: always() && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          docker rm --force '${{ matrix.postgres_container }}' *> $null
+
+      - name: Copy backend sidecar into Tauri
+        run: python scripts/desktop/prepare_tauri_sidecar.py
+
+      - name: Build Tauri bundles
+        run: npm run desktop:build
+
+      - name: Upload desktop bundles
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: alphafoundry-desktop-${{ matrix.triple }}
+          path: |
+            src-tauri/target/release/bundle/**
+            build/desktop-sidecar/health-smoke.log
+          if-no-files-found: warn
+          retention-days: 14
