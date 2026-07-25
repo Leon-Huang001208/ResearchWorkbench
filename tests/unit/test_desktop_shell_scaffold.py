@@ -269,6 +269,14 @@ def test_desktop_release_workflow_builds_platform_matrix_and_draft_release():
     assert "TAURI_SIGNING_PRIVATE_KEY" in source
 
 
+def test_desktop_verify_workflow_runs_for_master_desktop_changes():
+    source = (ROOT / ".github" / "workflows" / "desktop-verify.yml").read_text(encoding="utf-8")
+
+    assert "  push:\n    branches:\n      - master" in source
+    assert "src-tauri/**" in source
+    assert "scripts/desktop/**" in source
+
+
 def test_desktop_bootstrap_waits_for_backend_health():
     html = BOOTSTRAP_HTML.read_text(encoding="utf-8")
     source = BOOTSTRAP_JS.read_text(encoding="utf-8")

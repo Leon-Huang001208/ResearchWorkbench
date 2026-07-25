@@ -21,7 +21,7 @@ on:
       - ".github/workflows/desktop-release.yml"
   push:
     branches:
-      - main
+      - master
     paths:
       - "src-tauri/**"
       - "desktop/**"

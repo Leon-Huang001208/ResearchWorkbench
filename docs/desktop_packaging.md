@@ -133,11 +133,12 @@ macOS 本地测试不等于 Windows 验证；Windows CI 未通过或尚未运行
 
 ## GitHub Release Workflow
 
-The workflow at `.github/workflows/desktop-release.yml` can be triggered manually from GitHub Actions or by pushing a `v*` tag. It builds a draft prerelease for:
+`.github/workflows/desktop-verify.yml` 会在桌面端相关文件的 PR，以及直接推送到 `master` 时运行。它在原生 macOS 和 Windows runner 上执行桌面契约测试、构建平台对应的 Python sidecar、启动 sidecar 并检查 `/health`，最后构建 Tauri 安装包。
 
-- macOS ARM on `macos-latest`
-- Windows x64 on `windows-latest`
-- Linux x64 on `ubuntu-22.04`
+The release workflow at `.github/workflows/desktop-release.yml` can be triggered manually from GitHub Actions or by pushing a `v*` tag. It builds a draft prerelease for:
+
+- macOS Apple Silicon on `macos-14` (`aarch64-apple-darwin`)
+- Windows x64 on `windows-2022` (`x86_64-pc-windows-msvc`)
 
 Each job installs Node, Python 3.11, Rust, project Python dependencies, builds the PyInstaller sidecar, copies it into `src-tauri/binaries/`, and lets `tauri-apps/tauri-action@v0` upload platform bundles to the same draft GitHub Release.
 
@@ -160,7 +161,6 @@ The next packaging pass should add:
 
 - macOS Developer ID signing and notarization
 - Windows MSI signing
-- Linux AppImage, deb, and rpm artifact review after the first CI run
 - Tauri updater runtime UI/check flow after signing keys are configured
 - sidecar dependency trimming so the Python executable does not bundle unused ML/notebook/GUI packages
 - data directory migration rules so user data survives app updates
