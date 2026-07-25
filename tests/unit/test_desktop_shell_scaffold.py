@@ -282,6 +282,12 @@ def test_desktop_verify_workflow_runs_for_master_desktop_changes():
     assert "scripts/desktop/**" in source
 
 
+def test_desktop_runtime_dependencies_include_fastapi_multipart_support():
+    source = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+
+    assert "python-multipart" in source
+
+
 def test_desktop_bootstrap_waits_for_backend_health():
     html = BOOTSTRAP_HTML.read_text(encoding="utf-8")
     source = BOOTSTRAP_JS.read_text(encoding="utf-8")

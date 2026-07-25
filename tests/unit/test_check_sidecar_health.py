@@ -264,3 +264,30 @@ def test_posix_process_lookup_still_fails_when_sidecar_port_remains_open(monkeyp
 
     assert stopped is False
     assert checked_ports == [8765]
+
+
+def test_posix_permission_error_checks_that_the_sidecar_port_is_released(monkeypatch):
+    helper = load_helper_module()
+    process = FakeProcess(["sidecar-under-test"])
+    checked_ports: list[int] = []
+    monkeypatch.setattr(
+        helper.os,
+        "killpg",
+        lambda pgid, sig: (_ for _ in ()).throw(PermissionError),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        helper,
+        "wait_for_port_release",
+        lambda port, logger: checked_ports.append(port) or True,
+    )
+
+    stopped = helper.stop_posix_process_group(
+        process,
+        port=8765,
+        logger=logging.getLogger("test.sidecar"),
+        process_group=9876,
+    )
+
+    assert stopped is True
+    assert checked_ports == [8765]

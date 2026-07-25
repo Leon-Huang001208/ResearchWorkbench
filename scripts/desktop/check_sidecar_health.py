@@ -136,8 +136,8 @@ def stop_posix_process_group(
         os.killpg(process_group, signal.SIGKILL)
         process.wait(timeout=CHILD_STOP_TIMEOUT_SECONDS)
         return wait_for_port_release(port, logger)
-    except ProcessLookupError:
-        logger.info("Helper-owned sidecar process group already exited")
+    except (ProcessLookupError, PermissionError):
+        logger.info("Helper-owned sidecar process group already exited or is inaccessible")
         return wait_for_port_release(port, logger)
     except (OSError, subprocess.TimeoutExpired):
         logger.exception("Unable to stop helper-owned sidecar process group")
