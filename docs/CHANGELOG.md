@@ -24,6 +24,7 @@
 ### Changed
 
 - **Desktop Workbench refresh shortcuts**: `app/web/static/js/app.js` now captures `F5`, macOS `Cmd+R`, and Windows/Linux `Ctrl+R` during `DOMContentLoaded`; each prevents the browser default and performs only `window.location.reload()`, including from focused inputs. The app script cache token is `20260723refresh1`; no Tauri native shortcut, sidecar restart, or HMR behavior was added.
+- **报告模板工作台占位符类型优先级**: 统一占位符输出类型解析为“显式 `type`（先兼容 legacy alias）→ 仅在 `type` 缺失时使用有效历史 paragraph `mode` → 名称推断”。`prompt`、`ai_text` 和 `composite_market_review` 分别归一为 `paragraph`，同时保留既有 field/static/chart alias 映射。配置为 table、chart、field 或 static_text 等非段落类型时，遗留 paragraph `mode` 不再改变当前输出类型，但会被保留；切回 `paragraph` 时可恢复该模式，避免旧草稿丢失。
 
 - **桌面端启动加速（97s → 25s，-75%）**: 通过 PEP 562 `__getattr__` 懒加载和函数内延迟导入，消除启动时不必要的全量模块导入链。
   - **P0 修复（阻断启动的主链）**: 6 个路由文件（`app/api/routes/commentary.py`、`assets.py`、`ingest.py`、`ingestion_queue.py`、`pipeline.py`、`event_ingestion.py`）的重型依赖（`ModelGatewayImpl`、`KnowledgePipeline`、`ResearchPipeline`、`IngestService`、`StructuredEventIngestor`）从模块顶层移入 Dependency 函数体内，首次请求时才加载。
