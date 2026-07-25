@@ -1,7 +1,9 @@
 """Wind Excel 客户端 —— 通过 xlwings 操控 Excel Wind 插件"""
 
+import math
 import threading
 import time
+from datetime import datetime
 from typing import Any, Callable
 
 from core.observability import get_logger
@@ -22,6 +24,12 @@ HEARTBEAT_RETRY_DELAY = 2.0
 
 HELPER_SHEET_NAME = "_wind_helper_"
 HELPER_MAX_ROW = 10000
+WSD_MAX_RETRIES = 3
+WSD_RETRY_BASE_DELAY = 3.0
+WSD_RETRY_MAX_DELAY = 30.0
+WSD_BASE_TIMEOUT = 15.0
+WSD_EXTRA_TIMEOUT_PER_DAYS = 250
+WSD_EXTRA_TIMEOUT_SECONDS = 5.0
 
 EXCEL_ERRORS = frozenset({"#N/A", "#VALUE!", "#REF!", "#DIV/0!", "#NAME?", "#NUM!", "#NULL!"})
 WIND_LOADING = frozenset(
@@ -40,6 +48,39 @@ def _is_error_value(value: Any) -> bool:
         if stripped.lower() in WIND_LOADING:
             return True
     return False
+
+
+def _offset_excel_column(column: str, offset: int) -> str:
+    """Return an Excel column name offset from ``column`` without Excel APIs."""
+    number = 0
+    for char in column.upper():
+        number = number * 26 + ord(char) - ord("A") + 1
+    number += offset
+    result = ""
+    while number:
+        number, remainder = divmod(number - 1, 26)
+        result = chr(ord("A") + remainder) + result
+    return result
+
+
+def _trim_wsd_matrix(raw_data: Any) -> list[list[Any]]:
+    """Trim a rectangular Excel spill range to its populated rows and columns."""
+    if raw_data is None:
+        return []
+    rows = raw_data if isinstance(raw_data, list) else [[raw_data]]
+    if rows and not isinstance(rows[0], list):
+        rows = [[value] for value in rows]
+    matrix = [list(row) if isinstance(row, list) else [row] for row in rows]
+    populated = [row for row in matrix if any(value is not None for value in row)]
+    if not populated:
+        return []
+    width = max(
+        index + 1
+        for row in populated
+        for index, value in enumerate(row)
+        if value is not None
+    )
+    return [row[:width] for row in populated]
 
 
 class WindExcelClient:
@@ -227,6 +268,86 @@ class WindExcelClient:
             if _is_error_value(result):
                 raise WindFormulaError(formula, str(result) if result else "#N/A")
             return result
+
+    def _wsd_timeout(self, start_date: str, end_date: str) -> float:
+        """Return a bounded timeout that grows with the requested date range."""
+        try:
+            days = max(
+                1,
+                (datetime.strptime(end_date, "%Y-%m-%d") - datetime.strptime(start_date, "%Y-%m-%d")).days,
+            )
+        except (TypeError, ValueError):
+            days = 365
+        return WSD_BASE_TIMEOUT + math.ceil(days / WSD_EXTRA_TIMEOUT_PER_DAYS) * WSD_EXTRA_TIMEOUT_SECONDS
+
+    def execute_wsd(
+        self,
+        code: str,
+        fields: str,
+        start_date: str,
+        end_date: str,
+        options: str = "",
+        timeout: float | None = None,
+    ) -> list[list[Any]]:
+        """Execute a Wind WSD time-series formula and return its spilled matrix.
+
+        The helper range is cleared both before and after every attempt so a failed
+        request cannot leak stale cells into a later request.
+        """
+        formula = f'=wsd("{code}","{fields}","{start_date}","{end_date}","{options}")'
+        calculated_timeout = timeout or self._wsd_timeout(start_date, end_date)
+        last_error: WindTimeoutError | WindSessionExpiredError | None = None
+        with _EXCEL_OPERATION_LOCK:
+            for attempt in range(1, WSD_MAX_RETRIES + 1):
+                try:
+                    self._ensure_session()
+                    result = self._execute_wsd_once(formula, calculated_timeout)
+                    if result:
+                        return result
+                except (WindTimeoutError, WindSessionExpiredError) as exc:
+                    last_error = exc
+                except WindFormulaError:
+                    raise
+                if attempt < WSD_MAX_RETRIES:
+                    delay = min(WSD_RETRY_BASE_DELAY * (2 ** (attempt - 1)), WSD_RETRY_MAX_DELAY)
+                    logger.warning("Wind WSD retry", extra={"code": code, "attempt": attempt, "delay": delay})
+                    time.sleep(delay)
+        if last_error is not None:
+            raise last_error
+        return []
+
+    WSD_MAX_ROWS = 1000
+    WSD_MAX_COLS = 20
+
+    def _execute_wsd_once(self, formula: str, timeout: float) -> list[list[Any]]:
+        """Write one WSD formula, wait for it, and read its complete spill range."""
+        start_row = self._allocate_helper_rows(self.WSD_MAX_ROWS)
+        end_row = start_row + self.WSD_MAX_ROWS - 1
+        start_col = self._col
+        end_col = _offset_excel_column(start_col, self.WSD_MAX_COLS - 1)
+        address = f"{start_col}{start_row}:{end_col}{end_row}"
+        anchor = self._sheet.range(f"{start_col}{start_row}")
+        try:
+            self._sheet.range(address).value = None
+            anchor.value = formula
+            elapsed = 0.0
+            interval = 0.5
+            while elapsed < timeout:
+                time.sleep(interval)
+                elapsed += interval
+                value = getattr(anchor, "raw_value", None)
+                if value is None:
+                    value = anchor.value
+                if isinstance(value, str) and value.strip().upper() in EXCEL_ERRORS:
+                    raise WindFormulaError(formula, value.strip())
+                if value is not None and not _is_error_value(value):
+                    return _trim_wsd_matrix(self._sheet.range(address).raw_value)
+            raise WindTimeoutError(formula, timeout)
+        finally:
+            try:
+                self._sheet.range(address).value = None
+            except Exception as exc:
+                logger.debug("Unable to clear Wind WSD helper range: %s", exc)
 
     def execute_batch(self, formulas: list[str], timeout: float | None = None) -> list[Any]:
         """批量执行 Wind 公式 —— 列式写入，一次 recalc

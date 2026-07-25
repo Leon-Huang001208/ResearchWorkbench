@@ -282,6 +282,53 @@ def daily_amplitude(code: str, trade_date: str) -> str:
     return f'=@s_dq_swing("{code}","{trade_date}")'
 
 
+# ===== 日行情数据 - 日期范围版（WSD 回退/兼容） =====
+
+
+def daily_open_range(code: str, start_date: str, end_date: str, adj_type: int = 1) -> str:
+    return f'=s_dq_open("{code}","{start_date}","{end_date}",{adj_type})'
+
+
+def daily_high_range(code: str, start_date: str, end_date: str, adj_type: int = 1) -> str:
+    return f'=s_dq_high("{code}","{start_date}","{end_date}",{adj_type})'
+
+
+def daily_low_range(code: str, start_date: str, end_date: str, adj_type: int = 1) -> str:
+    return f'=s_dq_low("{code}","{start_date}","{end_date}",{adj_type})'
+
+
+def daily_close_range(code: str, start_date: str, end_date: str, adj_type: int = 1) -> str:
+    return f'=s_dq_close("{code}","{start_date}","{end_date}",{adj_type})'
+
+
+def daily_volume_range(code: str, start_date: str, end_date: str) -> str:
+    return f'=s_dq_volume("{code}","{start_date}","{end_date}")'
+
+
+def daily_amount_range(code: str, start_date: str, end_date: str) -> str:
+    return f'=s_dq_amount("{code}","{start_date}","{end_date}")'
+
+
+def daily_turnover_range(code: str, start_date: str, end_date: str) -> str:
+    return f'=s_dq_turn("{code}","{start_date}","{end_date}")'
+
+
+def daily_adj_factor_range(code: str, start_date: str, end_date: str) -> str:
+    return f'=s_dq_adjfactor2("{code}","{start_date}","{end_date}")'
+
+
+def daily_vwap_range(code: str, start_date: str, end_date: str) -> str:
+    return f'=s_dq_avgprice("{code}","{start_date}","{end_date}")'
+
+
+def daily_pct_change_range(code: str, start_date: str, end_date: str) -> str:
+    return f'=s_dq_pctchange("{code}","{start_date}","{end_date}")'
+
+
+def daily_amplitude_range(code: str, start_date: str, end_date: str) -> str:
+    return f'=s_dq_swing("{code}","{start_date}","{end_date}")'
+
+
 # ===== 实时行情数据 =====
 
 

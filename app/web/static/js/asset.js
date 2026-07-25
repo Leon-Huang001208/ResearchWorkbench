@@ -814,12 +814,18 @@ function renderAssetSearchError(error) {
 function renderAssetSearchDropdown(results, query, status = {}) {
     const dropdown = document.getElementById('asset-search-dropdown');
     if (!dropdown) return;
-    const statusHtml = status.stock_master_empty
-        ? '<div class="asset-search-status is-warning">标的词典未同步，仅显示内置/已有实体候选；同步 stock_master 后可覆盖全量 A 股。</div>'
-        : '';
-    const errorHtml = status.search_error
-        ? `<div class="asset-search-status is-error">搜索服务异常，已启用本地候选：${esc(status.search_error)}</div>`
-        : '';
+
+    // 构建状态提示
+    let statusHtml = '';
+    if (status.search_error) {
+        statusHtml += `<div class="asset-search-status is-error">搜索服务异常，已启用本地候选：${esc(status.search_error)}</div>`;
+    } else if (status.stock_master_empty) {
+        if (status.using_live_fallback) {
+            statusHtml += '<div class="asset-search-status is-info">数据库未同步，已启用实时搜索（AKShare）。运行 <code>python scripts/bootstrap_market_data.py</code> 可导入全量 A 股数据。</div>';
+        } else {
+            statusHtml += '<div class="asset-search-status is-warning">标的词典未同步，仅显示内置候选。运行 <code>python scripts/bootstrap_market_data.py</code> 可导入全量 A 股数据。实时搜索暂不可用。</div>';
+        }
+    }
     if (!results || !results.length) {
         selectedAssetIndex = -1;
         dropdown.innerHTML = `

@@ -1,5 +1,6 @@
 """Wind 数据适配器 —— 通过 Excel 插件获取 Wind 数据"""
 
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -200,10 +201,42 @@ class WindAdapter(BaseDataAdapter):
 
     # ===== 二期接口 =====
 
+    # 日行情字段定义（_fetch_dq_recent_batch 和 fetch_daily_quotes 共享）
+    _DQ_FIELD_KEYS = [
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "amount",
+        "turnover",
+        "adj_factor",
+        "vwap",
+        "pct_change",
+        "amplitude",
+    ]
+    _DQ_FIELD_FNS = [
+        wf.daily_open,
+        wf.daily_high,
+        wf.daily_low,
+        wf.daily_close,
+        wf.daily_volume,
+        wf.daily_amount,
+        wf.daily_turnover,
+        wf.daily_adj_factor,
+        wf.daily_vwap,
+        wf.daily_pct_change,
+        wf.daily_amplitude,
+    ]
+    _DQ_ADJ_FIELDS = {0, 1, 2, 3}  # open, high, low, close 需要 adj_type 参数
+
     def fetch_daily_quotes(
         self, codes: list[str], start_date: str, end_date: str, adj_type: int = 1
     ) -> pd.DataFrame:
         """获取日行情数据
+
+        策略：WSD 获取交易日历日期（date + open 列可靠），
+        然后用 execute_batch 批量补齐其余字段。
 
         Args:
             codes: 证券代码列表
@@ -212,57 +245,165 @@ class WindAdapter(BaseDataAdapter):
             adj_type: 复权方式 1-不复权 2-后复权 3-前复权
 
         Returns:
-            DataFrame，列为: code, date, open, high, low, close, volume,
-            amount, turnover, adj_factor, vwap, pct_change, amplitude
+            DataFrame
         """
         client = self._get_client()
-        date_range = pd.date_range(start_date, end_date, freq="B")
-        rows = []
+        all_rows = []
 
         for code in codes:
             logger.info(f"获取日行情: {code}, {start_date}~{end_date}")
-            for dt in date_range:
-                date_str = dt.strftime("%Y-%m-%d")
-                formulas = [
-                    wf.daily_open(code, date_str, adj_type=adj_type),
-                    wf.daily_high(code, date_str, adj_type=adj_type),
-                    wf.daily_low(code, date_str, adj_type=adj_type),
-                    wf.daily_close(code, date_str, adj_type=adj_type),
-                    wf.daily_volume(code, date_str),
-                    wf.daily_amount(code, date_str),
-                    wf.daily_turnover(code, date_str),
-                    wf.daily_adj_factor(code, date_str),
-                    wf.daily_vwap(code, date_str),
-                    wf.daily_pct_change(code, date_str),
-                    wf.daily_amplitude(code, date_str),
-                ]
-                raw = client.execute_batch(formulas)
 
-                def _val(idx: int):
-                    r = raw[idx]
-                    if isinstance(r, Exception):
-                        return None
-                    return r
-
-                rows.append(
-                    {
-                        "code": code,
-                        "date": date_str,
-                        "open": _val(0),
-                        "high": _val(1),
-                        "low": _val(2),
-                        "close": _val(3),
-                        "volume": _val(4),
-                        "amount": _val(5),
-                        "turnover": _val(6),
-                        "adj_factor": _val(7),
-                        "vwap": _val(8),
-                        "pct_change": _val(9),
-                        "amplitude": _val(10),
-                    }
+            # Step 1: WSD 获取交易日历日期（用 open 字段，只取日期列可靠）
+            try:
+                wsd_raw = client.execute_wsd(
+                    code=code,
+                    fields="open",
+                    start_date=start_date,
+                    end_date=end_date,
+                    options="",
                 )
+            except Exception as exc:
+                logger.warning(f"WSD 获取交易日历失败: {code}: {exc}")
+                wsd_raw = []
 
-        return pd.DataFrame(rows)
+            if not wsd_raw or len(wsd_raw) < 2:
+                # 回退：生成 weekday 日期并批量获取
+                logger.info(f"WSD 返回空，使用批处理回退: {code}")
+                batch_raw = self._fetch_dq_recent_batch(
+                    client, code, start_date, end_date, adj_type
+                )
+                if batch_raw and len(batch_raw) > 1:
+                    for row in batch_raw[1:]:
+                        all_rows.append(self._dq_row_to_dict(code, row))
+                continue
+
+            # 从 WSD 提取日期列表（raw_value 返回无表头，直接是数据行）
+            # 注意：WSD 返回的矩阵可能有大量空行 padding（由 WSD_MAX_ROWS 导致），
+            # 需要在第一个空行处停止以避免处理大量无效行
+            trading_dates = []
+            for row in wsd_raw:
+                if not row or len(row) == 0:
+                    continue
+                date_val = row[0]
+                if date_val is None:
+                    # WSD 数据按时间顺序排列，遇到 None 说明后面都是空行
+                    break
+                if isinstance(date_val, str) and not date_val.strip():
+                    # 空字符串 → 已到达数据末尾
+                    break
+                if isinstance(date_val, (int, float)):
+                    # Excel serial number → date string
+                    try:
+                        excel_epoch = datetime(1899, 12, 30)
+                        dt_val = excel_epoch + timedelta(days=int(date_val))
+                        trading_dates.append(dt_val.strftime("%Y-%m-%d"))
+                    except (ValueError, OverflowError):
+                        continue
+                elif isinstance(date_val, datetime):
+                    trading_dates.append(date_val.strftime("%Y-%m-%d"))
+                else:
+                    # 字符串日期，尝试解析
+                    date_str = str(date_val).strip()
+                    if date_str:
+                        trading_dates.append(date_str[:10])
+
+            if not trading_dates:
+                logger.warning(f"WSD 返回空日期列表: {code}")
+                continue
+
+            # Step 2: 批量获取所有日期 × 所有字段的单值公式
+            n_dates = len(trading_dates)
+            n_fields = len(self._DQ_FIELD_KEYS)
+            total_formulas = n_dates * n_fields
+            logger.info(f"批量获取 {code}: {n_dates} 天 × {n_fields} 字段 = {total_formulas} 公式")
+
+            formulas = []
+            formula_dates = []
+            for date_str in trading_dates:
+                for f_idx, fn in enumerate(self._DQ_FIELD_FNS):
+                    formula_dates.append(date_str)
+                    if f_idx in self._DQ_ADJ_FIELDS:
+                        formulas.append(fn(code, date_str, adj_type))
+                    else:
+                        formulas.append(fn(code, date_str))
+
+            # 分批执行（每批最多 200 个公式，避免 Excel 过载）
+            BATCH_SIZE = 200
+            all_raw = []
+            for batch_start in range(0, len(formulas), BATCH_SIZE):
+                batch = formulas[batch_start : batch_start + BATCH_SIZE]
+                batch_results = client.execute_batch(batch)
+                all_raw.extend(batch_results)
+
+            # Step 3: 解析结果并组装为行
+            for day_idx, date_str in enumerate(trading_dates):
+                base = day_idx * n_fields
+                row_data = {"code": code, "date": date_str}
+                all_ok = True
+                for f_idx in range(n_fields):
+                    val = all_raw[base + f_idx]
+                    if isinstance(val, Exception):
+                        row_data[self._DQ_FIELD_KEYS[f_idx]] = None
+                        all_ok = False
+                    else:
+                        row_data[self._DQ_FIELD_KEYS[f_idx]] = _safe_float_wind(val)
+                if all_ok:
+                    all_rows.append(row_data)
+                else:
+                    # 即使部分字段缺失也保留（至少 date + open 会有）
+                    all_rows.append(row_data)
+
+        return pd.DataFrame(all_rows)
+
+    def _dq_row_to_dict(self, code: str, row: list) -> dict:
+        """将 _fetch_dq_recent_batch 的行转为字典"""
+        if len(row) < 2:
+            return {}
+        result = {"code": code, "date": str(row[0])[:10] if row[0] else None}
+        for i, key in enumerate(self._DQ_FIELD_KEYS):
+            result[key] = _safe_float_wind(row[i + 1] if len(row) > i + 1 else None)
+        return result
+
+    def _fetch_dq_recent_batch(
+        self, client, code: str, start_date: str, end_date: str, adj_type: int = 1
+    ) -> list[list]:
+        """回退方案：生成 weekday 日期列表并批量获取行情"""
+        date_range = pd.date_range(start=start_date, end=end_date, freq="B")
+        if len(date_range) > 60:
+            # 超过 60 个交易日则只取最近 60 天
+            date_range = date_range[-60:]
+        date_range = date_range.sort_values()
+
+        logger.info(f"批处理获取行情: {code}, {len(date_range)} 天")
+
+        formulas = []
+        dates = []
+        for dt in date_range:
+            date_str = dt.strftime("%Y-%m-%d")
+            for f_idx, fn in enumerate(self._DQ_FIELD_FNS):
+                dates.append(date_str)
+                if f_idx in self._DQ_ADJ_FIELDS:
+                    formulas.append(fn(code, date_str, adj_type))
+                else:
+                    formulas.append(fn(code, date_str))
+
+        raw = client.execute_batch(formulas)
+
+        def _val(idx):
+            r = raw[idx]
+            return None if isinstance(r, Exception) else r
+
+        header = ["DATE"] + self._DQ_FIELD_KEYS
+        result = [header]
+        n_fields = len(self._DQ_FIELD_KEYS)
+        for day_idx in range(len(date_range)):
+            base = day_idx * n_fields
+            data_row = [dates[base]]
+            for f_idx in range(n_fields):
+                data_row.append(_val(base + f_idx))
+            result.append(data_row)
+
+        return result
 
     def fetch_market_snapshot(
         self, codes: list[str], trade_date: str | None = None
@@ -546,6 +687,9 @@ class WindAdapter(BaseDataAdapter):
     def fetch_fund_flow(self, codes: list[str], start_date: str, end_date: str) -> pd.DataFrame:
         """获取资金流向 + 北向持股数据
 
+        优化：所有日期 × 5 字段一次性写入 Excel 批量执行（而非按日循环），
+        将 244 次 Excel 往返减少到 1 次。
+
         Args:
             codes: 证券代码列表
             start_date: 起始日期 "YYYY-MM-DD"
@@ -560,33 +704,51 @@ class WindAdapter(BaseDataAdapter):
         rows = []
 
         for code in codes:
-            logger.info(f"获取资金流向: {code}, {start_date}~{end_date}")
+            logger.info(f"获取资金流向: {code}, {start_date}~{end_date} ({len(date_range)} 个交易日)")
+            # 一次性构建所有日期 × 所有字段的公式列表
+            dates: list[str] = []
+            formulas: list[str] = []
+            field_keys = [
+                "main_force_inflow",
+                "main_force_open",
+                "main_force_close",
+                "north_bound_shares",
+                "north_bound_pct",
+            ]
+            field_fns = [
+                wf.moneyflow_main_force,
+                wf.moneyflow_main_force_open,
+                wf.moneyflow_main_force_close,
+                wf.north_bound_shares,
+                wf.north_bound_pct,
+            ]
+
             for dt in date_range:
                 date_str = dt.strftime("%Y-%m-%d")
-                formulas = [
-                    wf.moneyflow_main_force(code, date_str),
-                    wf.moneyflow_main_force_open(code, date_str),
-                    wf.moneyflow_main_force_close(code, date_str),
-                    wf.north_bound_shares(code, date_str),
-                    wf.north_bound_pct(code, date_str),
-                ]
-                raw = client.execute_batch(formulas)
+                for fn in field_fns:
+                    dates.append(date_str)
+                    formulas.append(fn(code, date_str))
 
-                def _val(idx: int):
-                    r = raw[idx]
-                    if isinstance(r, Exception):
-                        return None
-                    return r
+            # 一次性批量执行
+            raw = client.execute_batch(formulas)
 
+            def _val(idx: int):
+                r = raw[idx]
+                return None if isinstance(r, Exception) else r
+
+            # 按日期重新分组结果
+            n_fields = len(field_keys)
+            for day_idx in range(len(date_range)):
+                base = day_idx * n_fields
                 rows.append(
                     {
                         "code": code,
-                        "date": date_str,
-                        "main_force_inflow": _val(0),
-                        "main_force_open": _val(1),
-                        "main_force_close": _val(2),
-                        "north_bound_shares": _val(3),
-                        "north_bound_pct": _val(4),
+                        "date": dates[base],
+                        "main_force_inflow": _val(base),
+                        "main_force_open": _val(base + 1),
+                        "main_force_close": _val(base + 2),
+                        "north_bound_shares": _val(base + 3),
+                        "north_bound_pct": _val(base + 4),
                     }
                 )
 
@@ -795,3 +957,13 @@ class WindAdapter(BaseDataAdapter):
                 "source": "wind_excel",
             },
         )
+
+
+def _safe_float_wind(value) -> float | None:
+    """Wind 公式返回值转 float，None/非数字返回 None"""
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return None

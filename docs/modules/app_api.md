@@ -72,6 +72,30 @@ Update this section when:
 
 ---
 
+### `app/api/routes/factors.py`
+
+Purpose:
+- 动态多因子 REST API（10 个端点，`/api/factors` 前缀）
+- `GET /api/factors/definitions` - 列出已注册的因子定义
+- `POST /api/factors/definitions` - 注册或更新因子定义
+- `GET /api/factors/values` - 查询因子值（点日期/范围查询）
+- `POST /api/factors/values` - 批量存储因子值
+- `GET /api/factors/evaluations` - 查询因子评估记录
+- `POST /api/factors/evaluations` - 批量存储因子评估指标
+- `GET /api/factors/weights/latest` - 获取最新动态权重
+- `POST /api/factors/weights` - 保存动态权重快照
+- `GET /api/factors/weights/history` - 查询动态权重历史
+- `GET /api/factors/available-dates` - 获取有因子数据的日期列表
+- `GET /api/factors/categories` - 获取所有已注册的因子类别
+
+Related services:
+- `services/factor_store_service.py`
+- `services/factor_computation_service.py`
+
+Update this section when:
+- Factor API 端点增删或参数变更
+- 请求/响应模型变更
+
 ### `app/api/routes/dashboard.py`
 
 Purpose:
@@ -164,7 +188,9 @@ Endpoints:
 Dependency injection:
 
 - `get_asset_service()` creates `AssetAnalysisService` with `MarketDataRepository` injected via `market_repo` parameter.
-- Structured tables (stock_daily_bar, stock_valuation, etc.) queried first before falling back to `MultiSourceCoordinator`.
+- `get_wind_adapter()` creates `WindAdapter` (injected into `AssetAnalysisService`).
+- Data source priority: Wind Excel → structured tables (`stock_daily_bar`, `stock_valuation`, etc.) → `MultiSourceCoordinator` (AKShare/BaoStock/Yahoo).
+- Wind 不可用时静默降级到后续数据源。
 
 Related contracts:
 

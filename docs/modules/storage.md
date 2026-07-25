@@ -52,6 +52,7 @@ Key migrations:
 | 编号 | 文件 | 说明 |
 |------|------|------|
 | 010 | `010_add_wind_data_tables.py` | Wind 数据表：wind_consensus_estimate, wind_margin_trading, wind_block_trade, wind_daily_bar |
+| 011 | `011_add_factor_store_tables.py` | 动态多因子表：factor_definition, factor_value, factor_evaluation, dynamic_factor_weight（含索引和唯一约束） |
 
 Update this section when:
 - New migrations are added

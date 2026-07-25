@@ -180,6 +180,17 @@ class CrawlScheduler:
             next_run_time=datetime.now() + timedelta(minutes=2),
         )
 
+        # 因子计算任务 — 每日盘后自动运行 (因子矩阵构建 + 评估 + 权重拟合)
+        self.scheduler.add_job(
+            self._run_factor_computation_job,
+            "cron",
+            hour=16,
+            minute=27,
+            jitter=300,
+            id="factor_computation",
+            name="Factor Computation Pipeline",
+        )
+
         self.scheduler.start()
         self.running = True
         logger.info("Crawl scheduler started")
@@ -739,6 +750,42 @@ class CrawlScheduler:
             )
         except Exception as e:
             logger.error(f"Scheduled closed loop failed: {e}", exc_info=True)
+
+    async def _run_factor_computation_job(self) -> None:
+        """执行因子计算任务 — 构建因子矩阵 + 评估 + 动态权重拟合"""
+        import asyncio as _asyncio
+
+        try:
+            logger.info("Running scheduled factor computation")
+
+            def _sync():
+                from datetime import date
+
+                from services.factor_computation_service import FactorComputationService
+
+                service = FactorComputationService()
+                try:
+                    summary = service.run_daily_cycle(as_of_date=date.today())
+                    return summary
+                finally:
+                    service.close()
+
+            loop = _asyncio.get_running_loop()
+            summary = await loop.run_in_executor(None, _sync)
+
+            status = summary.get("status", "unknown")
+            steps = summary.get("steps", {})
+            logger.info(
+                "Scheduled factor computation completed",
+                status=status,
+                definitions_loaded=steps.get("definitions_loaded", 0),
+                values_loaded=steps.get("values_loaded", 0),
+                evaluations_stored=steps.get("evaluations_stored", 0),
+                weights_stored=steps.get("weights_stored", 0),
+                duration_seconds=summary.get("duration_seconds", 0),
+            )
+        except Exception as e:
+            logger.error(f"Scheduled factor computation failed: {e}", exc_info=True)
 
 
 def build_scheduler_status() -> Dict[str, Any]:

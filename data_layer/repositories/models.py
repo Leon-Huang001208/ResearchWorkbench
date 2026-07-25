@@ -4,7 +4,9 @@ from sqlalchemy import (
     JSON,
     Boolean,
     Column,
+    Date,
     DateTime,
+    Float,
     ForeignKey,
     Integer,
     Numeric,
@@ -1923,4 +1925,95 @@ class WindDailyBarDB(Base):
     amplitude = Column(Numeric, nullable=True)
     source = Column(Text, nullable=False, default="wind")
     raw_payload = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+# ─── Dynamic Factor Store ─────────────────────────────────
+
+
+class FactorDefinitionDB(Base):
+    """因子元数据定义"""
+
+    __tablename__ = "factor_definition"
+
+    factor_id = Column(Text, primary_key=True)
+    name = Column(Text, nullable=False)
+    category = Column(Text, nullable=False)
+    direction = Column(Text, nullable=False, default="positive")
+    description = Column(Text, nullable=False, default="")
+    version = Column(Text, nullable=False, default="v1")
+    horizon_days = Column(Integer, nullable=True)
+    refresh_frequency = Column(Text, nullable=False, default="1d")
+    meta = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class FactorValueDB(Base):
+    """点时因子观察值"""
+
+    __tablename__ = "factor_value"
+    __table_args__ = (
+        UniqueConstraint(
+            "factor_id",
+            "subject_id",
+            "as_of_date",
+            name="uq_factor_value_factor_subject_date",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    factor_id = Column(Text, nullable=False)
+    subject_id = Column(Text, nullable=False)
+    as_of_date = Column(Date, nullable=False)
+    value = Column(Numeric, nullable=True)
+    available_at = Column(DateTime(timezone=True), nullable=True)
+    source = Column(Text, nullable=True)
+    meta = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class FactorEvaluationDB(Base):
+    """因子评估指标"""
+
+    __tablename__ = "factor_evaluation"
+    __table_args__ = (
+        UniqueConstraint(
+            "factor_id",
+            "as_of_date",
+            "horizon_days",
+            name="uq_factor_eval_factor_date_horizon",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    factor_id = Column(Text, nullable=False)
+    as_of_date = Column(Date, nullable=True)
+    horizon_days = Column(Integer, nullable=False, default=20)
+    sample_size = Column(Integer, nullable=False, default=0)
+    coverage = Column(Float, nullable=False, default=0.0)
+    ic = Column(Float, nullable=False, default=0.0)
+    rank_ic = Column(Float, nullable=False, default=0.0)
+    decile_spread = Column(Float, nullable=False, default=0.0)
+    meta = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class DynamicFactorWeightDB(Base):
+    """动态因子权重快照"""
+
+    __tablename__ = "dynamic_factor_weight"
+    __table_args__ = (
+        UniqueConstraint(
+            "as_of_date",
+            "metric",
+            name="uq_dynamic_weight_date_metric",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    as_of_date = Column(Date, nullable=True)
+    lookback_periods = Column(Integer, nullable=False, default=12)
+    metric = Column(Text, nullable=False, default="rank_ic")
+    weights = Column(JSON, nullable=False, default=dict)
+    raw_scores = Column(JSON, nullable=False, default=dict)
     created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
