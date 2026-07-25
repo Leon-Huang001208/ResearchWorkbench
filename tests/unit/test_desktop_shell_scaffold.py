@@ -292,6 +292,7 @@ def test_windows_pgvector_smoke_builds_a_native_extension():
     source = DESKTOP_VERIFY_WORKFLOW.read_text(encoding="utf-8")
 
     assert "choco install postgresql16" in source
+    assert "--execution-timeout 1200" in source
     assert "nmake /F Makefile.win install" in source
     assert "CREATE EXTENSION IF NOT EXISTS vector;" in source
     assert "PGPASSWORD = 'postgres'" in source

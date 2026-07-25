@@ -135,7 +135,7 @@ jobs:
           $serviceName = 'postgresql-x64-16'
           $env:PGPASSWORD = 'postgres'
 
-          choco install postgresql16 --params "'/Password:postgres /Port:${{ matrix.postgres_port }}'" --yes --no-progress
+          choco install postgresql16 --params "'/Password:postgres /Port:${{ matrix.postgres_port }}'" --yes --no-progress --execution-timeout 1200
           if ($LASTEXITCODE -ne 0) {
             throw 'Unable to install the helper-owned PostgreSQL 16 service'
           }
