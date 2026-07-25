@@ -100,6 +100,8 @@
 
 ### Fixed
 
+- **Node ESM executable scripts**: Converted the desktop backend launcher and the asset-search/placeholder Playwright E2E scripts from CommonJS `require` to ESM imports, keeping them executable under the root package's `"type": "module"` scope.
+
 - **knowledge_worker watchdog + Windows Job Object 自愈**: 解决 worker 崩溃后无自动恢复、以及 Windows 强杀导致 worker 孤儿残留两个遗留风险。
   - `workers/_process_tree.py` — 新增模块，通过 ctypes 实现 Windows Job Object（`KILL_ON_JOB_CLOSE`），`ensure_child_dies_with_parent(child_pid)` 把子进程绑定到 Job，Job handle 关闭/父进程退出时内核自动终止子进程，即使父进程被 `TerminateProcess` 强杀也不会孤儿残留。非 Windows 返回 None（靠 POSIX 进程组）。
   - `workers/watchdog.py` — `run_worker()` 调 `ensure_child_dies_with_parent(proc.pid)` 并持有 `_job_handle` 全局引用，确保 worker 随 watchdog 生命周期终止。

@@ -1,5 +1,5 @@
 // Playwright test to verify the placeholder text "代码/名称/简拼"
-const { test, expect } = require('@playwright/test');
+import { expect, test } from '@playwright/test';
 
 test('Verify asset analysis placeholder text is "代码/名称/简拼"', async ({ page }) => {
   // 1. Navigate to homepage
