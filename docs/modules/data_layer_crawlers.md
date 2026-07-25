@@ -21,6 +21,11 @@ Main source families:
 - Field mappings must be documented.
 - Source-specific assumptions must be recorded in `docs/DATA_SOURCES.md`.
 - Retry, timeout, and rate-limit behavior must be explicit.
+- Real-time scheduler sources must not implicitly enable deep historical backfill.
+
+### Current scheduling boundary
+
+The CNStock source registrations retain `deep_backfill_enabled=False` for regular polling. Historical recovery is a separate, explicit operation so production-like scheduler tests remain bounded and do not depend on external crawl volume.
 
 ---
 

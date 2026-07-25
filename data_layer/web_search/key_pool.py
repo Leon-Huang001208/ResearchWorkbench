@@ -124,16 +124,15 @@ class ApiKeyPool:
     # ── 工厂方法 ──────────────────────────────────────
 
     @classmethod
-    def from_json_env(cls, env_var: str, config: PoolConfig | None = None) -> "ApiKeyPool":
-        """从环境变量 JSON 数组构建 key 池."""
-        raw = os.environ.get(env_var, "")
+    def from_json_value(cls, raw: str, config: PoolConfig | None = None) -> "ApiKeyPool":
+        """Build a key pool from a JSON string without reading process environment."""
         if not raw:
             return cls({}, config)
 
         try:
             data = json.loads(raw)
-        except (json.JSONDecodeError, TypeError) as e:
-            logger.warning("failed to parse api keys json", env_var=env_var, error=str(e))
+        except (json.JSONDecodeError, TypeError) as exc:
+            logger.warning("failed to parse api keys json", error_type=type(exc).__name__)
             return cls({}, config)
 
         keys: dict[str, str] = {}
@@ -145,9 +144,14 @@ class ApiKeyPool:
                 elif isinstance(item, str):
                     keys[f"key_{idx}"] = item
         elif isinstance(data, dict):
-            keys = {str(k): str(v) for k, v in data.items()}
+            keys = {str(key): str(value) for key, value in data.items()}
 
         return cls(keys, config)
+
+    @classmethod
+    def from_json_env(cls, env_var: str, config: PoolConfig | None = None) -> "ApiKeyPool":
+        """从环境变量 JSON 数组构建 key 池."""
+        return cls.from_json_value(os.environ.get(env_var, ""), config)
 
     @classmethod
     def from_single_key(cls, key: str, name: str = "default") -> "ApiKeyPool":

@@ -5,6 +5,8 @@ Test for database bootstrap script idempotency.
 import sys
 from pathlib import Path
 
+import pytest
+
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
@@ -15,6 +17,7 @@ from data_layer.repositories.models import AlertThresholdDB
 from scripts.bootstrap_db import DEFAULT_ALERT_THRESHOLDS, verify_schema
 
 
+@pytest.mark.postgresql
 def test_bootstrap_idempotent():
     """Test that bootstrap can be run multiple times safely (idempotency)."""
     # First run already done by app startup, but let's run bootstrap steps again
@@ -54,6 +57,7 @@ def test_bootstrap_idempotent():
             assert float(existing.value) == threshold["value"]
 
 
+@pytest.mark.postgresql
 def test_schema_verification_passes():
     """Test that schema verification passes when all tables exist."""
     # Should not raise exception

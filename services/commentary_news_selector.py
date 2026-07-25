@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Iterable
+from typing import TYPE_CHECKING, Iterable
 
 from core.contracts.commentary import CommentaryEvidenceItem
+
+if TYPE_CHECKING:
+    from reporting.projects.generation import EvidenceSnippet
 
 COMMENTARY_RETRIEVAL_TERMS: dict[str, list[str]] = {
     "daily-close": [

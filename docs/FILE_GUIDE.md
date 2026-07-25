@@ -108,6 +108,7 @@
 | `app/web/templates/index.html` | Web 工作台主页面，包含侧边栏导航和所有 section 面板 |
 | `app/web/static/style.css` | 全局样式表，包含管线监控、仪表盘等所有页面样式 |
 | `app/web/static/js/app.js` | 主入口模块：导航路由、SSE 连接、全局状态管理 |
+| `app/web/static/js/configuration.js` | 系统配置模块：加载并保存工作台配置、保护秘密字段、处理环境变量锁定和配置模态框事件绑定；该模块由主入口静态导入，必须保持可解析和可执行 |
 | `app/web/static/js/core.js` | 核心工具模块：apiCall、toast、esc 等公共函数 |
 | `app/web/static/js/dashboard.js` | 仪表盘模块：Market Overview + Live Monitor 标签页 |
 | `app/web/static/js/funds.js` | 基金情报模块：基金详情查询、经理/持仓/行业暴露渲染、基金组合穿透计算、结构化 rows 导入 |
@@ -259,6 +260,7 @@
 | `decision_console_service.py` | 决策控制台服务：每日候选、决策记录、复盘视图 |
 | **监控与治理** | |
 | `monitoring_service.py` | 监控服务：健康检查、指标采集、告警管理 |
+| `configuration_service.py` | 本地配置服务：跨平台文件锁与原子 `.env` 写入、配置分区验证、秘密掩码和受控热刷新；生产 Web 模式禁用控制面，数据库修改要求重启 |
 | `governance_service.py` | 治理服务：版本控制、配置管理、审计 |
 | `audit_service.py` | 审计服务：审计日志查询和管理 |
 | **回放与历史** | |
@@ -562,6 +564,17 @@
 |---|---|
 | `workers/crawl_scheduler_worker.py` | 爬虫调度 Worker：独立进程管理 APScheduler 定时抓取任务，启动时后台并行回填可调度数据源（每源 600s 超时，全局 900s 超时）；当前通过 `CrawlOrchestrator` 的 connector-first 路径分流，文档源入队给 KnowledgePipeline，市场源写入结构化表 |
 | `workers/knowledge_worker.py` | 知识处理 Worker：持续消费摄入队列，通过 KnowledgePipeline 处理文档（LLM 提取），发布 SSE 事件 |
+
+---
+
+## core/settings/ - 运行时配置
+
+| 文件 | 说明 |
+|---|---|
+| `core/settings/runtime.py` | 运行时配置唯一入口：解析 desktop / web-dev / web-prod、跨平台数据目录、`.env` 路径和 backend URL |
+| `core/settings/config.py` | Pydantic Settings：在 RuntimeContext 初始化后校验有效配置，并为桌面输出目录提供统一默认值 |
+| `core/settings/registry.py` | 桌面首启配置模板与字段元数据：集中 PostgreSQL、LLM 并发和爬虫静默配置 |
+| `core/settings/paths.py` | Windows/macOS/Linux 应用数据目录与 Wind 缓存路径 |
 
 ---
 

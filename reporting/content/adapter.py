@@ -309,16 +309,16 @@ class ContentAdapter:
 
             # 数字列表: 1. item
             if line.strip() and line.strip()[0].isdigit() and ". " in line.strip()[:4]:
-                list_items: List[ListItem] = []
+                ordered_list_items: List[ListItem] = []
                 while (
                     i < len(lines)
                     and lines[i].strip()
                     and (lines[i].strip()[0].isdigit() and ". " in lines[i].strip()[:4])
                 ):
                     item_text = lines[i].strip().split(". ", 1)[-1]
-                    list_items.append(ListItem(runs=[TextRun(text=item_text)]))
+                    ordered_list_items.append(ListItem(runs=[TextRun(text=item_text)]))
                     i += 1
-                elements.append(ContentAdapter._make_ordered_list(list_items))
+                elements.append(ContentAdapter._make_ordered_list(ordered_list_items))
                 continue
 
             # 普通段落：收集连续的非空行

@@ -342,8 +342,8 @@ class TestMacroSensitivityIntegration:
     """Integration tests for macro sensitivity inside AssetAnalysisService."""
 
     @pytest.mark.asyncio
-    async def test_enrich_sets_macro_sensitivity(self):
-        """_enrich_from_coordinator should populate macro_sensitivity."""
+    async def test_fast_price_mode_skips_macro_sensitivity(self):
+        """Fast cached or live price paths defer expensive macro regression."""
         from services.asset_analysis_service import AssetAnalysisService
 
         service = AssetAnalysisService()
@@ -387,10 +387,8 @@ class TestMacroSensitivityIntegration:
             as_of=datetime(2026, 6, 3, 12, 0, 0, tzinfo=UTC),
         )
 
-        assert card.macro_sensitivity is not None
-        assert card.macro_sensitivity.interest_rate_sensitivity == 0.35
-        assert card.macro_sensitivity.inflation_sensitivity == -0.12
-        assert card.macro_sensitivity.key_macro_factors == ["interest_rate"]
+        assert card.macro_sensitivity is None
+        service._compute_macro_sensitivity.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_compute_macro_sensitivity_returns_empty_on_failure(self):

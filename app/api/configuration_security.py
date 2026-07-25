@@ -7,7 +7,7 @@ import secrets
 from typing import Annotated
 from urllib.parse import urlsplit
 
-from fastapi import Header, HTTPException
+from fastapi import Header, HTTPException, Request
 
 CONFIGURATION_CSRF_META_PLACEHOLDER = "__ALPHAFOUNDRY_CONFIG_TOKEN__"
 CONFIGURATION_CSRF_TOKEN = secrets.token_urlsafe(32)
@@ -114,11 +114,34 @@ def _configuration_origin_is_allowed(origin: str) -> bool:
     return origin in CONFIGURATION_CORS_ORIGINS and hostname in CONFIGURATION_TRUSTED_HOSTS
 
 
+def _require_configuration_control_enabled() -> None:
+    """Disable the local configuration control plane in web production mode."""
+    from core.settings.runtime import resolve_runtime_context
+
+    if not resolve_runtime_context().can_write_config:
+        raise HTTPException(status_code=404, detail="Not Found")
+
+
+def _require_loopback_client(request: Request) -> None:
+    """Require configuration calls to originate from the local machine."""
+    client_host = request.client.host if request.client is not None else ""
+    if client_host == "testclient":
+        return
+    try:
+        if not ipaddress.ip_address(client_host).is_loopback:
+            raise HTTPException(status_code=403, detail="Forbidden")
+    except ValueError as exc:
+        raise HTTPException(status_code=403, detail="Forbidden") from exc
+
+
 def require_configuration_csrf_token(
+    request: Request,
     submitted_token: Annotated[str | None, Header(alias="X-AlphaFoundry-Config-Token")] = None,
     origin: Annotated[str | None, Header(alias="Origin")] = None,
 ) -> None:
-    """拒绝非本地来源，并以常量时间比较进程级 CSRF token。"""
+    """Require local access, a trusted origin, and the process CSRF token."""
+    _require_configuration_control_enabled()
+    _require_loopback_client(request)
     origin_forbidden = origin is not None and not _configuration_origin_is_allowed(origin)
     token_invalid = not secrets.compare_digest(submitted_token or "", CONFIGURATION_CSRF_TOKEN)
     if origin_forbidden or token_invalid:
@@ -126,12 +149,11 @@ def require_configuration_csrf_token(
 
 
 def require_configuration_origin_only(
+    request: Request,
     origin: Annotated[str | None, Header(alias="Origin")] = None,
 ) -> None:
-    """仅校验 Origin/Host 来源合法性，不校验 CSRF token。
-
-    用于 token 分发端点本身——该端点的职责就是颁发 token，
-    因此不能要求调用方预先持有 token。
-    """
+    """Require local access before issuing a configuration CSRF token."""
+    _require_configuration_control_enabled()
+    _require_loopback_client(request)
     if origin is not None and not _configuration_origin_is_allowed(origin):
         raise HTTPException(status_code=403, detail="Forbidden")

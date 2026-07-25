@@ -12,6 +12,10 @@ The WebUI visualizes this MVP inside the existing Signal Lab section by runtime
 DOM injection from `app/web/static/js/signal-lab.js`. Do not modify dashboard or
 template modules for this view.
 
+## Maintenance note
+
+The feature-group and indicator modules received formatting-baseline updates in this task. Feature calculations, labels, scoring, and backtest behavior are unchanged.
+
 ---
 
 ## Design Rules

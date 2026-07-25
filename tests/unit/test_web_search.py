@@ -84,6 +84,16 @@ class TestWebSearchService:
         assert out[0].content is None  # 抓取失败优雅降级，不报错
         assert out[0].snippet == "S"
 
+    def test_search_degrades_when_pool_provider_raises(self):
+        provider = MagicMock()
+        provider.search.side_effect = ConnectionError("offline")
+        service = WebSearchService(provider=provider, fetch_content_enabled=False)
+
+        assert service.search("query") == []
+        provider.search.assert_called_once_with(
+            "query", max_results=settings.WEB_SEARCH_MAX_RESULTS
+        )
+
     def test_search_empty_results_when_provider_returns_none(self):
         svc = WebSearchService(provider=FakeProvider([]))
         assert svc.search("q") == []
@@ -165,6 +175,26 @@ class TestAskService:
 
 
 class TestWebSearchFactory:
+    def test_pool_failure_marks_key_unavailable(self):
+        from data_layer.web_search.key_pool import ApiKeyPool, PoolConfig
+        from data_layer.web_search.tavily_provider import TavilyProvider
+
+        pool = ApiKeyPool({"failed": "bad-key"}, config=PoolConfig(lock_seconds=60))
+        provider = TavilyProvider(key_pool=pool)
+
+        with patch.object(provider, "_search_with_key", side_effect=ConnectionError("offline")):
+            try:
+                provider.search("query")
+            except ConnectionError:
+                pass
+            else:
+                raise AssertionError("Expected pool search to propagate the failed request")
+
+        stats = pool.get_stats("failed")
+        assert stats is not None
+        assert stats.is_locked
+        assert stats.consecutive_failures == 1
+
     def test_default_is_tavily(self):
         from data_layer.web_search.tavily_provider import TavilyProvider
 

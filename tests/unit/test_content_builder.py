@@ -196,7 +196,6 @@ class TestFromSections:
         assert any(isinstance(e, HeadingElement) for e in elements)
 
     def test_sections_content_elements_priority(self, builder):
-
         so = SectionOutput(
             key="test_pri",
             title="Priority Test",

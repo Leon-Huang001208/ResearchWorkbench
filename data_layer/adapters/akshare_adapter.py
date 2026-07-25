@@ -103,9 +103,7 @@ class AKShareAdapter(BaseDataAdapter):
             }
 
             if financial_abstract:
-                result["eps"] = financial_abstract.get("基本每股收益") or financial_abstract.get(
-                    "每股收益"
-                )
+                result["eps"] = financial_abstract.get("基本每股收益") or financial_abstract.get("每股收益")
                 result["roe"] = financial_abstract.get("净资产收益率")
                 result["net_profit"] = financial_abstract.get("净利润")
                 result["revenue"] = financial_abstract.get("营业总收入")

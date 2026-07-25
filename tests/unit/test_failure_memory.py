@@ -1,11 +1,26 @@
 """Unit tests for failure memory engine and similar case retrieval."""
 
 import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone
+
+import pytest
 
 from core.contracts.outcome_journal import FailureClassification, TradeOutcome
 from services.failure_memory_service import FailureMemoryService
 from services.outcome_journal_service import OutcomeJournalService
+
+
+@pytest.fixture
+def isolated_failure_memory_db(monkeypatch, db_session):
+    """Route outcome and failure-memory services through the in-memory database."""
+
+    @contextmanager
+    def session_context():
+        yield db_session
+
+    monkeypatch.setattr("services.failure_memory_service.db_session", session_context)
+    monkeypatch.setattr("services.outcome_journal_service.db_session", session_context)
 
 
 def test_similarity_calculation():
@@ -23,7 +38,7 @@ def test_similarity_calculation():
     assert sim1 > sim2
 
 
-def test_retrieve_similar_cases():
+def test_retrieve_similar_cases(isolated_failure_memory_db):
     """Test retrieving similar cases from failure memory."""
     service = FailureMemoryService()
 
@@ -60,7 +75,7 @@ def test_retrieve_similar_cases():
     assert any(case.outcome_id == outcome_id for case in similar)
 
 
-def test_retrieve_similar_failures():
+def test_retrieve_similar_failures(isolated_failure_memory_db):
     """Test retrieving only similar failures."""
     service = FailureMemoryService()
     similar = service.retrieve_similar_failures(
@@ -73,7 +88,7 @@ def test_retrieve_similar_failures():
         assert case.is_success is False
 
 
-def test_retrieve_similar_successes():
+def test_retrieve_similar_successes(isolated_failure_memory_db):
     """Test retrieving only similar successes."""
     service = FailureMemoryService()
     similar = service.retrieve_similar_successes(
@@ -86,7 +101,7 @@ def test_retrieve_similar_successes():
         assert case.is_success is True
 
 
-def test_get_all_categorized_failures():
+def test_get_all_categorized_failures(isolated_failure_memory_db):
     """Test getting all categorized failures from memory."""
     service = FailureMemoryService()
     failures = service.get_all_categorized_failures()

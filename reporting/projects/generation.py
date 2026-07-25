@@ -501,9 +501,7 @@ class DatabaseEvidenceRetriever:
         for value in params.values():
             if isinstance(value, str):
                 raw_terms.append(value)
-        raw_terms.extend(
-            part.strip() for part in re.split(r"[，,、；;。\n\s]+", query) if part.strip()
-        )
+        raw_terms.extend(part.strip() for part in re.split(r"[，,、；;。\n\s]+", query) if part.strip())
 
         stop_terms = {
             "请基于上传的全部新闻内容",
@@ -1121,7 +1119,7 @@ class ReportProjectGenerationService:
         if report_date:
             report_period = compute_report_period(report_date)
         elif defaults and defaults.report_period:
-            report_period = compute_report_period_for_scope(defaults.report_period)
+            report_period = defaults.report_period
         else:
             report_period = compute_report_period(None)
 
@@ -1741,9 +1739,7 @@ Evidence：
         )
 
     # XML 1.0 / OOXML 非法字符（保留 \t \n \r；移除 C0+C1 控制字符 + 代理对 + 非字符）
-    _XML_INVALID_CONTROL = re.compile(
-        r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F\uD800-\uDFFF￾￿]"
-    )
+    _XML_INVALID_CONTROL = re.compile(r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F\uD800-\uDFFF￾￿]")
 
     @staticmethod
     def _clean_model_content(content: str, *, title: str) -> str:
@@ -2053,15 +2049,12 @@ def build_a_share_market_data_sentence(project: ReportProject, config: Dict[str,
         fields["avg_turnover"] = f"{current:.2f}万亿"
         fields["turnover_trend"] = _turnover_sentiment_word(current, previous)
         turnover_sentence = (
-            f"交易面，A股市场本周日均成交额在{current:.2f}万亿左右，"
-            f"较上周{_turnover_change_word(current, previous)}。"
+            f"交易面，A股市场本周日均成交额在{current:.2f}万亿左右，" f"较上周{_turnover_change_word(current, previous)}。"
         )
     data_template = str(data_component.get("template") or "").strip()
     if data_template:
         return data_template.format_map(_SafeFormatDict(fields))
-    return (
-        f"本周A股市场整体呈现{trend}趋势，主要指数表现不一：{index_sentence}。{turnover_sentence}"
-    )
+    return f"本周A股市场整体呈现{trend}趋势，主要指数表现不一：{index_sentence}。{turnover_sentence}"
 
 
 def build_commodity_market_review_sentence(
@@ -2486,8 +2479,7 @@ def build_fallback_template(config: Dict[str, Any], title: str) -> PromptTemplat
         facets_text = title
     query = str(config.get("query") or f"检索本周与{title}相关的事实材料，覆盖{facets_text}。")
     requirements = str(
-        config.get("prompt")
-        or f"围绕{title}撰写正式周报段落，覆盖{facets_text}。严格依据证据材料，不输出投资建议。"
+        config.get("prompt") or f"围绕{title}撰写正式周报段落，覆盖{facets_text}。严格依据证据材料，不输出投资建议。"
     )
     return PromptTemplateBlock(
         title=title,
@@ -2964,10 +2956,7 @@ def build_rerank_messages(
             f"[{index}] source={item.source} date={item.published_at or ''}\n"
             f"title={item.title}\ncontent={text}"
         )
-    system = (
-        "你是金融周报 RAG rerank 模型。只根据检索 Query、段落标题和候选证据相关性排序。"
-        "不得生成正文，不得补充外部知识。"
-    )
+    system = "你是金融周报 RAG rerank 模型。只根据检索 Query、段落标题和候选证据相关性排序。" "不得生成正文，不得补充外部知识。"
     user = f"""段落标题：{title}
 检索 Query：{query}
 

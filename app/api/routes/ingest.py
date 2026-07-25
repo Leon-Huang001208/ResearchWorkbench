@@ -5,7 +5,7 @@ from __future__ import annotations
 import shutil
 import tempfile
 from pathlib import Path
-from typing import Any, BinaryIO, cast
+from typing import TYPE_CHECKING, Any, BinaryIO, cast
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 
@@ -13,6 +13,10 @@ from app.api.models import ErrorResponse, IngestResponse, IngestTextRequest
 from core.observability import get_logger
 
 logger = get_logger(__name__)
+
+if TYPE_CHECKING:
+    from services.ingest_service import IngestService
+
 
 router = APIRouter(prefix="/api/ingest", tags=["ingest"])
 

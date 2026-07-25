@@ -1,6 +1,5 @@
 """Phase 4 测试 — DesignTokens 扩展字段（ppt_template_path, ppt_transition）."""
 
-import pytest
 
 from core.contracts.document import (
     DesignTokens,

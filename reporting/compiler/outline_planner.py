@@ -32,12 +32,8 @@ class _OutlineSectionLLM(BaseModel):
     title: str = Field(description="节点标题")
     goal: str = Field(default="", description="本节目标")
     must_answer: list[str] = Field(default_factory=list, description="必须回答的子问题")
-    required_evidence_types: list[EvidenceType] = Field(
-        default_factory=list, description="需要的证据类型"
-    )
-    required_claim_types: list[ClaimType] = Field(
-        default_factory=list, description="需要的事实声明类型"
-    )
+    required_evidence_types: list[EvidenceType] = Field(default_factory=list, description="需要的证据类型")
+    required_claim_types: list[ClaimType] = Field(default_factory=list, description="需要的事实声明类型")
     counterpoints: list[str] = Field(default_factory=list, description="风险与反证")
     target_words: int = Field(default=500, description="目标字数")
 

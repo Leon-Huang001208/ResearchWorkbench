@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, Generator, List, TypedDict, cast
+from typing import TYPE_CHECKING, Any, Dict, Generator, List, TypedDict, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -14,6 +14,10 @@ from data_layer.repositories.signal_repository import SignalRepositoryImpl
 from ingestion.structured_event_ingestion import IngestionResult
 
 logger = get_logger(__name__)
+
+if TYPE_CHECKING:
+    from ingestion.structured_event_ingestion import StructuredEventIngestor
+
 
 router = APIRouter(prefix="/api/events", tags=["event_ingestion"])
 

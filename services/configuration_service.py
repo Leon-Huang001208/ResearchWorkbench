@@ -23,12 +23,14 @@ from dotenv.parser import parse_stream
 
 from core.observability import get_logger
 from core.settings.config import (
+    RUNTIME_CONTEXT,
     ProviderProfile,
     Settings,
     TaskRoute,
     resolve_runtime_env_path,
     settings,
 )
+from core.settings.runtime import RuntimeContext
 
 logger = get_logger(__name__)
 
@@ -108,11 +110,13 @@ class ConfigurationService:
         self,
         env_path: Path | str | None = None,
         runtime_settings: Settings | None = None,
+        runtime_context: RuntimeContext | None = None,
         connection_probes: Mapping[str, ConnectionProbe] | None = None,
         connection_timeout: float = 5.0,
     ) -> None:
         self.env_path = Path(env_path) if env_path is not None else resolve_runtime_env_path()
         self.env_path = self.env_path.expanduser().resolve()
+        self.runtime_context = runtime_context or RUNTIME_CONTEXT
         self.lock_path = self.env_path.parent / f".{self.env_path.name}.lock"
         self.runtime_settings = runtime_settings or settings
         self.connection_timeout = connection_timeout
@@ -133,6 +137,14 @@ class ConfigurationService:
                 values[key] = value
         return values
 
+    def _locked_fields(self) -> set[str]:
+        """Return supported configuration fields injected before runtime file loading."""
+        return {
+            key
+            for key in self.runtime_context.environment_override_keys
+            if self._is_supported_key(key)
+        }
+
     def _read_env_file_strict(self) -> tuple[str, dict[str, str]]:
         """严格解析 dotenv；任何语法错误都阻止读取和后续写入。"""
         try:
@@ -146,11 +158,13 @@ class ConfigurationService:
         raw_values = [
             (binding.key, binding.value) for binding in bindings if binding.key is not None
         ]
-        resolved = resolve_variables(raw_values, override=True)
+        resolved = resolve_variables(raw_values, override=False)
         return original, {key: value for key, value in resolved.items() if value is not None}
 
     def get_snapshot(self) -> dict[str, Any]:
         """返回五分区脱敏快照和就绪状态。"""
+        if not self.runtime_context.can_write_config:
+            raise ConfigurationError("生产 Web 模式禁用本地配置控制面")
         values = self.get_effective_values()
         sections = {
             "llm": self._llm_snapshot(values),
@@ -166,10 +180,13 @@ class ConfigurationService:
             "readiness": readiness,
             "ready_count": sum(readiness.values()),
             "total_count": len(readiness),
+            "environment_locked_fields": sorted(self._locked_fields()),
         }
 
     def update_section(self, section: str, payload: Mapping[str, Any]) -> dict[str, Any]:
         """校验并原子保存单一分区，然后刷新可安全热更新的运行状态。"""
+        if not self.runtime_context.can_write_config:
+            raise ConfigurationError("生产 Web 模式禁用本地配置控制面")
         if section not in SUPPORTED_SECTIONS:
             raise ConfigurationError("不支持的配置分区")
 
@@ -181,14 +198,17 @@ class ConfigurationService:
 
         current = self.get_effective_values()
         updates, removals, changed_fields = self._build_changes(section, payload, current)
+        locked_fields = self._locked_fields().intersection(set(updates).union(removals))
+        if locked_fields:
+            labels = "、".join(sorted(locked_fields))
+            raise ConfigurationError(f"以下配置由系统环境变量锁定，无法通过页面修改：{labels}")
         self._write_env_atomic(updates, removals)
 
-        for key in removals:
-            os.environ.pop(key, None)
-        os.environ.update(updates)
-
-        restart_required = section == "database"
+        restart_required = section in {"database", "advanced"}
         if not restart_required:
+            for key in removals:
+                os.environ.pop(key, None)
+            os.environ.update(updates)
             try:
                 self._refresh_runtime(section)
             except (TypeError, ValueError, AttributeError) as exc:
@@ -226,6 +246,8 @@ class ConfigurationService:
 
     def test_section(self, section: str, payload: Mapping[str, Any]) -> dict[str, Any]:
         """验证临时配置，不写文件也不改变进程环境。"""
+        if not self.runtime_context.can_write_config:
+            raise ConfigurationError("生产 Web 模式禁用本地配置控制面")
         if section not in {"llm", "zhiqiu", "ifind", "database", "web_search"}:
             raise ConfigurationError("该配置分区不支持连接测试")
         current = self.get_effective_values()
@@ -340,17 +362,33 @@ class ConfigurationService:
 
     @staticmethod
     def _probe_web_search(candidate: Mapping[str, str], timeout: float) -> bool:
-        """验证至少一个 key 能成功完成一次搜索。"""
-        from data_layer.web_search import build_web_search_provider
+        """Validate the submitted web-search configuration without global settings."""
+        from data_layer.web_search.factory import build_web_search_provider_from_values
 
         keys = ConfigurationService._parse_web_search_keys(candidate)
-        usable = [item for item in keys if item["key_value"]]
-        if not usable:
+        if not keys:
             return False
+        provider = build_web_search_provider_from_values(
+            provider_name=candidate.get("WEB_SEARCH_PROVIDER", "tavily"),
+            key_pool_json=candidate.get("WEB_SEARCH_API_KEYS"),
+            tavily_api_key=candidate.get("TAVILY_API_KEY", ""),
+            bing_api_key=candidate.get("BING_API_KEY", ""),
+            rotation_strategy=candidate.get("WEB_SEARCH_KEY_ROTATION", "round_robin"),
+            max_consecutive_failures=ConfigurationService._as_int(
+                candidate.get("WEB_SEARCH_KEY_MAX_FAILURES"), 5
+            ),
+            lock_seconds=ConfigurationService._as_int(
+                candidate.get("WEB_SEARCH_KEY_LOCK_SECONDS"), 60
+            ),
+            cooldown_seconds=ConfigurationService._as_int(
+                candidate.get("WEB_SEARCH_KEY_COOLDOWN_SECONDS"), 3600
+            ),
+            quota_limit=ConfigurationService._as_int(
+                candidate.get("WEB_SEARCH_KEY_QUOTA_LIMIT"), 1000
+            ),
+        )
         try:
-            provider = build_web_search_provider()
-            results = provider.search("ping", max_results=1)
-            return len(results) > 0
+            return len(provider.search("ping", max_results=1)) > 0
         except Exception:
             return False
 
@@ -465,9 +503,7 @@ class ConfigurationService:
                 updates[f"TASK_{task}_PROVIDER"] = self._required_string(
                     route.get("provider"), "任务 Provider"
                 )
-                updates[f"TASK_{task}_MODEL"] = self._required_string(
-                    route.get("model"), "任务模型"
-                )
+                updates[f"TASK_{task}_MODEL"] = self._required_string(route.get("model"), "任务模型")
             changed.add("task_routes")
         return updates, removals - updates.keys(), changed
 
@@ -552,7 +588,7 @@ class ConfigurationService:
             )
             changed.add("accounts")
 
-        scalar_mapping = {
+        scalar_mapping: dict[str, tuple[str, Callable[[Any], str]]] = {
             "provider": ("WEB_SEARCH_PROVIDER", str),
             "rotation_strategy": ("WEB_SEARCH_KEY_ROTATION", str),
             "quota_limit": (
@@ -1070,14 +1106,14 @@ class ConfigurationService:
     @staticmethod
     def _secret_view(value: str) -> dict[str, Any]:
         if not value:
-            return {"configured": False, "masked_value": None, "value": None}
+            return {"configured": False, "masked_value": None}
         suffix = value[-SECRET_SUFFIX_LENGTH:]
-        return {"configured": True, "masked_value": f"********{suffix}", "value": value}
+        return {"configured": True, "masked_value": f"********{suffix}"}
 
     @staticmethod
     def _database_secret_view(value: str) -> dict[str, Any]:
         if not value:
-            return {"configured": False, "masked_value": None, "value": None}
+            return {"configured": False, "masked_value": None}
         try:
             parsed = urlsplit(value)
             host = parsed.hostname or "local"
@@ -1086,7 +1122,7 @@ class ConfigurationService:
             masked = f"{parsed.scheme}://***@{host}{port}{path}" if parsed.scheme else "********"
         except ValueError:
             masked = "********"
-        return {"configured": True, "masked_value": masked, "value": value}
+        return {"configured": True, "masked_value": masked}
 
     @staticmethod
     def _merge_secret(new_value: Any, clear: bool, existing: str) -> str:
@@ -1145,7 +1181,7 @@ class ConfigurationService:
             raise ConfigurationError("数据库地址格式无效") from exc
         if parsed.scheme not in {
             "postgresql",
-            "postgresql+psycopg2",
+            "postgresql+psycopg",
             "sqlite",
             "mysql",
             "mysql+pymysql",

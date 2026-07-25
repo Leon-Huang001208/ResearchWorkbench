@@ -5,14 +5,55 @@ from unittest.mock import Mock
 
 import pytest
 from sqlalchemy import create_engine
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
-from data_layer.repositories.base import Base
+_POSTGRES_TEST_FLAG = "ALPHAFOUNDRY_RUN_POSTGRES_TESTS"
+_POSTGRES_TEST_URL = "ALPHAFOUNDRY_TEST_DATABASE_URL"
+
+if os.environ.get(_POSTGRES_TEST_FLAG) == "1":
+    configured_test_url = os.environ.get(_POSTGRES_TEST_URL)
+    if configured_test_url:
+        os.environ["DATABASE_URL"] = configured_test_url
 
 
 def pytest_configure(config):
     """Keep default test runs deterministic and offline."""
     os.environ.setdefault("ALPHAFOUNDRY_DISABLE_LOCAL_EMBEDDINGS", "1")
+    config.addinivalue_line(
+        "markers",
+        "postgresql: tests that require ALPHAFOUNDRY_RUN_POSTGRES_TESTS=1",
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    """Skip PostgreSQL checks until a dedicated test database is explicitly configured."""
+    test_database_url = os.environ.get(_POSTGRES_TEST_URL)
+    if os.environ.get(_POSTGRES_TEST_FLAG) == "1" and _is_safe_postgres_test_url(test_database_url):
+        return
+
+    reason = (
+        f"requires {_POSTGRES_TEST_FLAG}=1 and {_POSTGRES_TEST_URL} targeting a database "
+        "whose name contains 'test'"
+    )
+    skip_postgresql = pytest.mark.skip(reason=reason)
+    for item in items:
+        if "postgresql" in item.keywords:
+            item.add_marker(skip_postgresql)
+
+
+def _is_safe_postgres_test_url(database_url: str | None) -> bool:
+    """Require an isolated PostgreSQL database name before destructive test operations."""
+    if not database_url:
+        return False
+    try:
+        parsed = make_url(database_url)
+    except Exception:
+        return False
+    return parsed.drivername.startswith("postgresql") and "test" in (parsed.database or "").lower()
+
+
+from data_layer.repositories.base import Base
 
 
 @pytest.fixture(scope="function")

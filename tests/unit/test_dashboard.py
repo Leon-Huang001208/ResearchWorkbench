@@ -135,14 +135,9 @@ def test_crawl_feed_supports_cninfo_source_filter(mock_repo_cls):
 def test_normalize_crawl_document_splits_bracketed_telegram_text():
     """Live monitor should show a clean headline and move telegram body into details."""
     doc = Mock()
-    doc.title = (
-        "【美伊谈判代表均已抵达瑞士】财联社6月21日电，据多家媒体21日报道，美国副总统万斯已抵达瑞士"
-    )
+    doc.title = "【美伊谈判代表均已抵达瑞士】财联社6月21日电，据多家媒体21日报道，美国副总统万斯已抵达瑞士"
     doc.summary = None
-    doc.content = (
-        "【美伊谈判代表均已抵达瑞士】财联社6月21日电，据多家媒体21日报道，"
-        "美国副总统万斯已抵达瑞士，他将参加定于当天在比尔根山举行的美伊谈判。"
-    )
+    doc.content = "【美伊谈判代表均已抵达瑞士】财联社6月21日电，据多家媒体21日报道，" "美国副总统万斯已抵达瑞士，他将参加定于当天在比尔根山举行的美伊谈判。"
 
     normalized = _normalize_crawl_document_text(doc)
 

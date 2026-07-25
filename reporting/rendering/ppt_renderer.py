@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import io
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, cast
 
 from core.contracts.document import DesignTokens
 from core.observability import get_logger
@@ -274,7 +274,7 @@ class PPTRenderer(DocumentRenderer):
             ContentElementType.DIVIDER: self._render_divider,
             ContentElementType.SPEAKER_NOTES: self._render_speaker_notes,
         }
-        render_func = dispatch_map.get(etype)
+        render_func = cast(Callable[[Any], None] | None, dispatch_map.get(etype))
         if render_func:
             render_func(element)
         else:
@@ -329,7 +329,9 @@ class PPTRenderer(DocumentRenderer):
                 if tr.size:
                     run.font.size = Pt(tr.size)
                 else:
-                    run.font.size = Pt(body["font_size_pt"])
+                    font = run.font
+                    assert font is not None
+                    font.size = Pt(body["font_size_pt"])
                 if tr.font:
                     run.font.name = tr.font
                 else:
@@ -418,9 +420,11 @@ class PPTRenderer(DocumentRenderer):
                 for tr in header_cells:
                     run = p.add_run()
                     run.text = tr.text
-                    run.font.bold = True
-                    run.font.size = Pt(config["header_size_pt"])
-                    run.font.color.rgb = self._hex_to_rgb(config["header_fg_hex"])
+                    font = run.font
+                    assert font is not None
+                    font.bold = True
+                    font.size = Pt(config["header_size_pt"])
+                    font.color.rgb = self._hex_to_rgb(config["header_fg_hex"])
                 self._set_cell_fill(cell, config["header_bg_hex"])
 
         # 数据行
@@ -434,7 +438,9 @@ class PPTRenderer(DocumentRenderer):
                 for tr in cell_runs:
                     run = p.add_run()
                     run.text = tr.text
-                    run.font.size = Pt(body["font_size_pt"])
+                    font = run.font
+                    assert font is not None
+                    font.size = Pt(body["font_size_pt"])
                 # 交替行背景
                 if element.style == "striped" and row_idx % 2 == 1:
                     self._set_cell_fill(cell, "#F0F4F8")
@@ -480,9 +486,7 @@ class PPTRenderer(DocumentRenderer):
         """尝试创建原生 PPT 图表（可编辑的 ChartData）."""
         try:
             from pptx.chart.data import CategoryChartData
-            from pptx.enum.chart import (
-                XL_CHART_TYPE,
-            )
+            from pptx.enum.chart import XL_CHART_TYPE
 
             chart_data = CategoryChartData()
             labels = element.data_labels or []
@@ -511,7 +515,7 @@ class PPTRenderer(DocumentRenderer):
                 Inches(self._y_offset),
                 Inches(9.0),
                 Inches(4.5),
-                chart_data,
+                cast(Any, chart_data),
             )
             chart = chart_frame.chart
 
@@ -633,8 +637,10 @@ class PPTRenderer(DocumentRenderer):
         slide = self._current_slide
         assert slide is not None
 
+        from pptx.enum.shapes import MSO_SHAPE
+
         slide.shapes.add_shape(
-            1,  # MSO_SHAPE.RECTANGLE
+            MSO_SHAPE.RECTANGLE,
             Inches(1.0),
             Inches(self._y_offset),
             Inches(11.0),
@@ -646,9 +652,11 @@ class PPTRenderer(DocumentRenderer):
         assert slide is not None
 
         notes_slide = slide.notes_slide
-        existing = notes_slide.notes_text_frame.text
+        notes_text_frame = notes_slide.notes_text_frame
+        assert notes_text_frame is not None
+        existing = notes_text_frame.text
         new_text = f"{existing}\n{element.text}" if existing else element.text
-        notes_slide.notes_text_frame.text = new_text
+        notes_text_frame.text = new_text
 
     # ========================================================================
     # 辅助方法
@@ -679,13 +687,13 @@ class PPTRenderer(DocumentRenderer):
         # 检查是否已有 SolidFill
         solidFill = tcPr.find(qn("a:solidFill"))
         if solidFill is None:
-            from pptx.oxml.shared import OxmlElement
+            from pptx.oxml.xmlchemy import OxmlElement
 
             solidFill = OxmlElement("a:solidFill")
             tcPr.append(solidFill)
         srgbClr = solidFill.find(qn("a:srgbClr"))
         if srgbClr is None:
-            from pptx.oxml.shared import OxmlElement
+            from pptx.oxml.xmlchemy import OxmlElement
 
             srgbClr = OxmlElement("a:srgbClr")
             solidFill.append(srgbClr)
@@ -699,7 +707,7 @@ class PPTRenderer(DocumentRenderer):
 
         # 通过 XML 注入 p:transition 元素
         try:
-            from pptx.oxml.shared import OxmlElement
+            from pptx.oxml.xmlchemy import OxmlElement
 
             # 映射过渡名称到 OOXML 元素名
             transition_map = {

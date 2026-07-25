@@ -165,9 +165,7 @@ def data_list_command() -> None:
     required=True,
     help="数据源标识 (cls, akshare, wind, ... 或 'auto' 自动降级)",
 )
-@click.option(
-    "--dataset", "-d", type=str, required=True, help="数据集标识 (news, stock_daily, ...)"
-)
+@click.option("--dataset", "-d", type=str, required=True, help="数据集标识 (news, stock_daily, ...)")
 @click.option("--start-date", help="开始日期 YYYY-MM-DD")
 @click.option("--end-date", help="结束日期 YYYY-MM-DD")
 @click.option("--codes", help="证券代码，逗号分隔 (如 '600519.SH,000001.SZ')")
@@ -308,9 +306,7 @@ def data_ingest_command(
 @click.option("--days", type=int, default=7, help="回溯天数 (默认 7)")
 @click.option("--max-items", type=int, help="最大抓取数量")
 @click.option("--max-pages", type=int, help="最大翻页数 (默认: cnstock 系列 30, 其他不限)")
-@click.option(
-    "--status", "show_status", is_flag=True, default=False, help="显示各文档源数据覆盖状态"
-)
+@click.option("--status", "show_status", is_flag=True, default=False, help="显示各文档源数据覆盖状态")
 def data_backfill_command(
     source: Optional[str],
     all_sources: bool,
@@ -349,6 +345,8 @@ def data_backfill_command(
         return
 
     # ── 单源回补 ──
+    if source is None:
+        raise click.Abort()
     _backfill_single_source(source, days, max_items, max_pages)
 
 

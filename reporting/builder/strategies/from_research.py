@@ -365,19 +365,19 @@ class ResearchStrategy:
 
             # 数字列表
             if line.strip() and line.strip()[0].isdigit() and ". " in line.strip()[:4]:
-                items: List[ListItem] = []
+                ordered_items: List[ListItem] = []
                 while (
                     i < len(lines)
                     and lines[i].strip()
                     and (lines[i].strip()[0].isdigit() and ". " in lines[i].strip()[:4])
                 ):
                     item_text = lines[i].strip().split(". ", 1)[-1]
-                    items.append(ListItem.plain(item_text))
+                    ordered_items.append(ListItem.plain(item_text))
                     i += 1
                 # 使用 OrderedListElement 需要导入
                 from core.contracts.content_element import OrderedListElement
 
-                elements.append(OrderedListElement(items=items))
+                elements.append(OrderedListElement(items=ordered_items))
                 continue
 
             # 普通段落

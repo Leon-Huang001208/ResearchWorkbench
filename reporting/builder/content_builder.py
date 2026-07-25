@@ -217,6 +217,7 @@ class ContentBuilder:
         from core.contracts.content_element import (
             BulletListElement,
             ContentBlock,
+            ContentElement,
             HeadingElement,
             ListItem,
             ParagraphElement,
@@ -229,7 +230,7 @@ class ContentBuilder:
             blocks: List[ContentBlock] = []
 
             for blk_spec in sec_spec.get("blocks", []):
-                elements = []
+                elements: List[ContentElement] = []
 
                 for el_spec in blk_spec.get("elements", []):
                     el_type = el_spec.get("type", "paragraph")

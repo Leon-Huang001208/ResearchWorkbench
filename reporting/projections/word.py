@@ -23,9 +23,7 @@ logger = get_logger(__name__)
 # XML 1.0 / OOXML 非法字符（LLM 输出、DB 证据、Excel 数据可能引入）
 # XML 1.0 合法范围: #x9 | #xA | #xD | [#x20-#xD7FF] | [#xE000-#xFFFD] | [#x10000-#x10FFFF]
 # Word OOXML 解析器对 C1 控制字符 (0x7F-0x9F) 也比标准 XML 更严格
-_XML_INVALID_CONTROL = re.compile(
-    r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F\uD800-\uDFFF￾￿]"
-)
+_XML_INVALID_CONTROL = re.compile(r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F\uD800-\uDFFF￾￿]")
 
 
 class WordProjection:
@@ -252,7 +250,9 @@ class WordProjection:
                     status = (
                         "✅ 通过"
                         if result.passed
-                        else "❌ 失败" if result.severity == "error" else "⚠️ 警告"
+                        else "❌ 失败"
+                        if result.severity == "error"
+                        else "⚠️ 警告"
                     )
                     row.cells[1].text = status
                     row.cells[2].text = result.message

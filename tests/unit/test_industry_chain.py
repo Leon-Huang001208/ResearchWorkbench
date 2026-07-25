@@ -1,5 +1,7 @@
 """Test for industry chain mapping and thesis generation"""
 
+import pytest
+
 from core.contracts.events import CanonicalEvent
 from core.contracts.industry_chain import (
     IndustryGraph,
@@ -8,7 +10,14 @@ from core.contracts.industry_chain import (
     PropagationPath,
     ThesisCard,
 )
-from services.thesis_generator_service import ThesisGeneratorService
+from services.thesis_generator_service import DATA_DIR, ThesisGeneratorService
+
+
+@pytest.fixture
+def industry_graph_assets() -> None:
+    """Require the local industry graph dataset for data-backed service tests."""
+    if not DATA_DIR.is_dir():
+        pytest.skip("requires the unversioned data/industry_graphs dataset")
 
 
 def test_mapping_strength_values():
@@ -56,7 +65,7 @@ def test_propagation_path_calculate_overall_strength():
     assert 0.84 < overall < 0.85
 
 
-def test_service_loads_graphs():
+def test_service_loads_graphs(industry_graph_assets):
     """Test that service loads predefined graphs correctly"""
     service = ThesisGeneratorService()
     graphs = service.list_graphs()
@@ -72,7 +81,7 @@ def test_service_loads_graphs():
         assert g["node_count"] > 0
 
 
-def test_generate_theses_from_event():
+def test_generate_theses_from_event(industry_graph_assets):
     """Test generating theses from an event"""
     service = ThesisGeneratorService()
 
@@ -104,7 +113,7 @@ def test_generate_theses_from_event():
         assert len(thesis.propagation_path.steps) > 0
 
 
-def test_ai_chain_has_company_nodes():
+def test_ai_chain_has_company_nodes(industry_graph_assets):
     """Test that AI compute chain has expected companies"""
     service = ThesisGeneratorService()
     graph = service.get_graph("ai_compute_chain")

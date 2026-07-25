@@ -87,7 +87,9 @@ def _build_worker_cmd(worker_module: str, worker_id: int | None) -> list[str]:
     return [sys.executable, "-m", f"workers.{worker_module}"]
 
 
-def _build_worker_env(worker_id: int | None, worker_mode_env: str = "ALPHAFOUNDRY_WORKER_MODE") -> dict[str, str]:
+def _build_worker_env(
+    worker_id: int | None, worker_mode_env: str = "ALPHAFOUNDRY_WORKER_MODE"
+) -> dict[str, str]:
     """构造 worker 子进程环境变量。frozen 模式需注入运行模式标记。
 
     Args:
@@ -120,7 +122,11 @@ def _terminate_child() -> None:
         _current_child.wait()
 
 
-def run_worker(worker_module: str, worker_id: int | None = None, worker_mode_env: str = "ALPHAFOUNDRY_WORKER_MODE") -> int:
+def run_worker(
+    worker_module: str,
+    worker_id: int | None = None,
+    worker_mode_env: str = "ALPHAFOUNDRY_WORKER_MODE",
+) -> int:
     """启动 worker 子进程，返回 exit code"""
     global _current_child, _job_handle
     cmd = _build_worker_cmd(worker_module, worker_id)

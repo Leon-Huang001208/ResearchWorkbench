@@ -231,7 +231,7 @@ class GovernanceService:
             logger.info(
                 "experiment created",
                 experiment_id=experiment_id,
-                name=request.name,
+                experiment_name=request.name,
                 experiment_type=request.experiment_type,
             )
 

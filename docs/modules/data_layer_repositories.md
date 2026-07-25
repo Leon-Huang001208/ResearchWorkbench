@@ -22,6 +22,8 @@
 
 Purpose:
 - Base repository class providing common database access patterns.
+- Creates the process-wide SQLAlchemy engine only after `core.settings` has resolved its runtime configuration.
+- Reports PostgreSQL startup failures without returning connection credentials; desktop callers must install PostgreSQL + pgvector instead of receiving a SQLite fallback.
 
 Update this section when:
 - Base query methods change.

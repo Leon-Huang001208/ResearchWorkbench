@@ -127,8 +127,7 @@ class NumericChecker:
                             severity="error",
                             section_id=section.section_id,
                             description=(
-                                f"正文数字「{num_str}」{unit_text + ' ' if unit_text else ''}"
-                                f"无对应事实支撑"
+                                f"正文数字「{num_str}」{unit_text + ' ' if unit_text else ''}" f"无对应事实支撑"
                             ),
                             location=location,
                             suggested_fix="确认该数字是否可追溯至事实表，否则删除",
@@ -175,9 +174,7 @@ class NumericChecker:
                                 ),
                                 location=location,
                                 conflicting_fact_id=closest_fact.fact_id,
-                                suggested_fix=(
-                                    f"将正文期间从「{period_text}」改为「{closest_fact.period}」"
-                                ),
+                                suggested_fix=(f"将正文期间从「{period_text}」改为「{closest_fact.period}」"),
                             )
                         )
 

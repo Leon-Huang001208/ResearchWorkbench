@@ -270,9 +270,7 @@ class PDFConversionService:
             # 6.5 质量分阈值过滤：成功但低于阈值则降级到下一策略
             min_score = settings.PDF_QUALITY_MIN_SCORE
             if min_score > 0 and (result.quality_score or 0.0) < min_score:
-                errors.append(
-                    f"{strategy.name}: 质量分 {result.quality_score} 低于阈值 {min_score}"
-                )
+                errors.append(f"{strategy.name}: 质量分 {result.quality_score} 低于阈值 {min_score}")
                 logger.warning(
                     "PDF 转换质量分不达标，降级到下一策略",
                     extra={

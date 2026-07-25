@@ -1,7 +1,5 @@
 """AlphaFoundry CLI 主入口"""
 
-import sys
-
 import click
 
 from app.cli.commands.akshare import akshare
@@ -19,23 +17,6 @@ from app.cli.commands.scenario import scenario
 from app.cli.commands.signal import signal
 from app.cli.commands.timing import timing
 from core.observability import configure_logging
-
-# 强制 stdout/stderr 使用 UTF-8，防止 Windows GBK 终端上 UnicodeEncodeError
-# （特殊字符如 ✓ ✗ 及中日文内容会触发 GBK 编码失败）
-if hasattr(sys.stdout, "fileno"):
-    try:
-        sys.stdout = open(
-            sys.stdout.fileno(), mode="w", encoding="utf-8", closefd=False, buffering=1
-        )
-    except Exception:
-        pass
-if hasattr(sys.stderr, "fileno"):
-    try:
-        sys.stderr = open(
-            sys.stderr.fileno(), mode="w", encoding="utf-8", closefd=False, buffering=1
-        )
-    except Exception:
-        pass
 
 
 @click.group()

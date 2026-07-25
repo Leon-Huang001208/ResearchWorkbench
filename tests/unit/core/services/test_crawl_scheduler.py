@@ -1,5 +1,6 @@
 """测试采集调度器"""
 
+from datetime import datetime
 from unittest.mock import Mock, patch
 
 from core.contracts import SourceType
@@ -105,7 +106,7 @@ class TestCrawlScheduler:
 
         scheduler.scheduler.add_job.assert_not_called()
 
-    def test_add_jobs_waits_for_interval_instead_of_running_immediately(self):
+    def test_add_jobs_defers_first_run_by_30_seconds(self):
         scheduler = CrawlScheduler()
         scheduler.scheduler = Mock()
 
@@ -119,7 +120,9 @@ class TestCrawlScheduler:
         scheduler._add_jobs_for_source(config)
 
         _, kwargs = scheduler.scheduler.add_job.call_args
-        assert "next_run_time" not in kwargs
+        first_run = kwargs["next_run_time"]
+        delay_seconds = (first_run - datetime.now()).total_seconds()
+        assert 25 <= delay_seconds <= 30
 
     @patch("services.crawl_scheduler.CrawlOrchestrator")
     def test_trigger_crawl(self, mock_orch_cls):

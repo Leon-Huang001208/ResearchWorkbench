@@ -29,6 +29,7 @@ def test_bootstrap_sample_directory_exists():
         assert file.stat().st_size > 0, f"Empty sample file: {file}"
 
 
+@pytest.mark.postgresql
 def test_database_connectivity():
     """Test that database connection is available."""
     # Should not raise exception
@@ -78,6 +79,7 @@ def test_sample_data_has_required_fields():
             assert field in data, f"Missing required field {field} in {file.name}"
 
 
+@pytest.mark.postgresql
 def test_database_has_data_after_dry_run():
     """Test that after a dry run, we can still query the database (schema exists)."""
     from scripts.minimal_reingest_bootstrap import MinimalReingestReporter

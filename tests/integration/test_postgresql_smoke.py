@@ -13,6 +13,7 @@ from data_layer.repositories.models import Entity
 
 
 @pytest.mark.integration
+@pytest.mark.postgresql
 def test_postgresql_initialization():
     """Test that we can initialize schema and do basic CRUD on PostgreSQL."""
     if not settings.DATABASE_URL.startswith("postgresql"):

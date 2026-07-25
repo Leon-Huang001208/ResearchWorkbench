@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import List, cast
+from typing import TYPE_CHECKING, List, cast
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -22,6 +22,9 @@ from data_layer.repositories.signal_repository import SignalRepositoryImpl
 from data_layer.repositories.timing_repository import TimingRepositoryImpl as TimingRepository
 from services.ingestion_queue_service import IngestionQueueService
 from services.signal_service import SignalService
+
+if TYPE_CHECKING:
+    from services.pipeline_service import ResearchPipeline
 
 logger = get_logger(__name__)
 

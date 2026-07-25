@@ -24,7 +24,8 @@ class ModelGatewayLike(Protocol):
         temperature: float = ...,
         model: str | None = ...,
         **kwargs: Any,
-    ) -> ModelResponseLike: ...
+    ) -> ModelResponseLike:
+        ...
 
 
 BuildAssertionFn = Callable[[dict[str, Any], str, int | None], Any]

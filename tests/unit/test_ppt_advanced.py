@@ -8,8 +8,6 @@ from core.contracts.content_element import (
     BulletListElement,
     ChartElement,
     ContentBlock,
-    ContentElementType,
-    HeadingElement,
     ListItem,
     ParagraphElement,
     TableElement,
@@ -73,7 +71,7 @@ def chart_doc():
                         elements=[
                             ChartElement(
                                 chart_id="chart_1",
-                                chart_type=ContentElementType.CHART,
+                                chart_type="bar",
                                 title="月度涨跌幅",
                                 data_labels=["1月", "2月", "3月"],
                                 data_series=[[1.2, -0.5, 2.1], [0.8, 0.3, 1.5]],
@@ -158,7 +156,7 @@ class TestPPTNativeChart:
                             elements=[
                                 ChartElement(
                                     chart_id="pie_1",
-                                    chart_type=ContentElementType.CHART,
+                                    chart_type="bar",
                                     title="行业分布",
                                     data_labels=["科技", "金融", "消费"],
                                     data_series=[[40, 30, 30]],
@@ -186,7 +184,7 @@ class TestPPTNativeChart:
                             elements=[
                                 ChartElement(
                                     chart_id="empty_chart",
-                                    chart_type=ContentElementType.CHART,
+                                    chart_type="bar",
                                     title="无数据图表",
                                 )
                             ],

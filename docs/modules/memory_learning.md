@@ -4,6 +4,10 @@
 
 `memory_learning` provides outcome memory, failure memory, learning journal, and feedback loop capabilities.
 
+## Test isolation
+
+Outcome-journal and failure-memory unit tests use the shared in-memory SQLite session fixture. This keeps similarity and classification behavior deterministic without relying on the application-wide PostgreSQL runtime engine; PostgreSQL behavior is covered only by the explicit opt-in integration lane.
+
 ---
 
 ## Design Rules

@@ -53,9 +53,7 @@ class FakeDashboardService:
 
     def get_market_sector_view(self, view_key, limit=8):
         return {
-            "up": [
-                {"name": "贵金属", "change_pct": 1.8, "source": "wind", "view_label": "同花顺行业"}
-            ],
+            "up": [{"name": "贵金属", "change_pct": 1.8, "source": "wind", "view_label": "同花顺行业"}],
             "down": [
                 {
                     "name": "半导体",
@@ -216,12 +214,8 @@ class FakeDashboardServiceWithSectorSpecificNews(FakeDashboardService):
 
     def get_market_sector_view(self, view_key, limit=8):
         return {
-            "up": [
-                {"name": "贵金属", "change_pct": 3.9, "source": "ths", "view_label": "同花顺行业"}
-            ],
-            "down": [
-                {"name": "证券", "change_pct": -3.2, "source": "ths", "view_label": "同花顺行业"}
-            ],
+            "up": [{"name": "贵金属", "change_pct": 3.9, "source": "ths", "view_label": "同花顺行业"}],
+            "down": [{"name": "证券", "change_pct": -3.2, "source": "ths", "view_label": "同花顺行业"}],
         }
 
     def get_crawl_feed(self, limit=20, since=None, source_type=None):
@@ -374,8 +368,7 @@ def test_commentary_context_service_formats_ranked_news_as_event_impact_line():
             kind="reported",
             title="Meta 释放 AI 资本开支上修信号，美股科技股大跌",
             summary=(
-                "市场担忧 Meta AI 基础设施投入推升科技巨头资本开支，纳指和半导体链承压。"
-                "第二段继续展开大量背景材料和行业涨跌幅，容易让生成结果变成新闻原文摘抄。"
+                "市场担忧 Meta AI 基础设施投入推升科技巨头资本开支，纳指和半导体链承压。" "第二段继续展开大量背景材料和行业涨跌幅，容易让生成结果变成新闻原文摘抄。"
             ),
             source="海外新闻",
             source_type="news",
@@ -451,9 +444,7 @@ def test_commentary_context_service_uses_report_style_news_selection_before_mark
     first_line = context.evidence_pack_text.splitlines()[0]
     assert first_line.startswith("消息面主线：Meta 释放 AI 资本开支上修信号")
     assert "普通宏观新闻 0" not in context.evidence_pack_text
-    assert context.evidence_pack_text.index("消息面主线：") < context.evidence_pack_text.index(
-        "行情验证："
-    )
+    assert context.evidence_pack_text.index("消息面主线：") < context.evidence_pack_text.index("行情验证：")
     first_item = context.evidence_items[0]
     assert first_item.source_type == "news"
     assert first_item.metadata["retrieval_method"] == "keyword"

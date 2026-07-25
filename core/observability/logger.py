@@ -10,7 +10,7 @@ import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, TextIO
 
 from core.settings import settings
 
@@ -21,6 +21,16 @@ try:
     HAS_STRUCTLOG = True
 except ImportError:
     HAS_STRUCTLOG = False
+
+
+def _utf8_stdout() -> TextIO:
+    """Return a UTF-8 terminal stream without breaking capture-only streams."""
+    if not sys.stdout.isatty():
+        return sys.stdout
+    try:
+        return open(sys.stdout.fileno(), mode="w", encoding="utf-8", closefd=False, buffering=1)
+    except (OSError, ValueError):
+        return sys.stdout
 
 
 def configure_logging(level: str = "INFO", log_file: str | None = None) -> None:
@@ -43,10 +53,8 @@ def configure_logging(level: str = "INFO", log_file: str | None = None) -> None:
 
     formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
-    # Wrap stdout with UTF-8 to prevent UnicodeEncodeError on Windows GBK terminals
-    stdout_stream = open(
-        sys.stdout.fileno(), mode="w", encoding="utf-8", closefd=False, buffering=1
-    )
+    # Use UTF-8 only for interactive terminal streams; Click captures lack fileno().
+    stdout_stream = _utf8_stdout()
     handler: logging.Handler = logging.StreamHandler(stdout_stream)
     handler.setFormatter(formatter)
 
@@ -128,12 +136,8 @@ def _setup_structlog(log_dir: Path) -> None:
         cache_logger_on_first_use=True,
     )
 
-    # Configure standard library logging handlers
-    # Wrap stdout with UTF-8 to prevent UnicodeEncodeError on Windows GBK terminals
-    # when log messages contain non-GBK characters (e.g. Japanese, emoji, etc.)
-    stdout_stream = open(
-        sys.stdout.fileno(), mode="w", encoding="utf-8", closefd=False, buffering=1
-    )
+    # Configure standard library logging handlers.
+    stdout_stream = _utf8_stdout()
     handler = logging.StreamHandler(stdout_stream)
     file_handler = logging.FileHandler(
         log_dir / f"alphafoundry_{datetime.now().strftime('%Y%m%d')}.log",
@@ -174,10 +178,8 @@ def _setup_simple_logging(log_dir: Path) -> None:
 
     formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
-    # Wrap stdout with UTF-8 to prevent UnicodeEncodeError on Windows GBK terminals
-    stdout_stream = open(
-        sys.stdout.fileno(), mode="w", encoding="utf-8", closefd=False, buffering=1
-    )
+    # Use UTF-8 only for interactive terminal streams; Click captures lack fileno().
+    stdout_stream = _utf8_stdout()
     handler = logging.StreamHandler(stdout_stream)
     handler.setFormatter(formatter)
 

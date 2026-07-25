@@ -27,9 +27,15 @@ Purpose:
 - Sets up logging and configuration
 
 Update this section when:
+
 - New subcommands are added
+- CLI startup, logging, or terminal-output behavior changes
 - Global configuration changes
 - Logging setup changes
+
+### CLI stream compatibility
+
+`app/cli/main.py` leaves stream ownership to Click and the observability logger. UTF-8 stream wrapping is limited to interactive TTY output so `CliRunner` capture streams without `fileno()` remain supported. This preserves Windows terminal Unicode support without breaking tests or embedded CLI callers.
 
 ### `app/cli/commands/*.py`
 

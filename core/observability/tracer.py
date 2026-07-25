@@ -84,7 +84,10 @@ class Tracer:
         self._spans[span_id] = span
         self._push_span_id(span_id)
 
-        logger.debug("span started", span_name=name, trace_id=trace_id, span_id=span_id)
+        logger.debug(
+            "span started",
+            extra={"span_name": name, "trace_id": trace_id, "span_id": span_id},
+        )
         return span_id
 
     def end_span(self, span_id: str | None = None, status: str = "ok") -> None:
@@ -100,10 +103,12 @@ class Tracer:
             span.status = status
             logger.debug(
                 "span ended",
-                span_name=span.name,
-                trace_id=span.trace_id,
-                span_id=span_id,
-                duration=span.duration,
+                extra={
+                    "span_name": span.name,
+                    "trace_id": span.trace_id,
+                    "span_id": span_id,
+                    "duration": span.duration,
+                },
             )
 
     def set_attribute(self, key: str, value: Any, span_id: str | None = None) -> None:

@@ -10,6 +10,38 @@ AlphaFoundry is moving toward a Tauri desktop shell while keeping the current Fa
 - Packaged builds include `desktop/dist/index.html`, which waits for `/health` and then opens the existing workbench.
 - The Tauri shell expects a sidecar named `alphafoundry-backend`. The current macOS ARM development shim is `src-tauri/binaries/alphafoundry-backend-aarch64-apple-darwin` and delegates to the Python launcher.
 - `tauri dev` lets `beforeDevCommand` start the backend. Packaged debug and release builds start the bundled sidecar.
+- 桌面端运行时配置由 `core/settings/runtime.py` 统一解析：Windows 使用 `%LOCALAPPDATA%\AlphaFoundry`，macOS 使用 `~/Library/Application Support/AlphaFoundry`；可用 `ALPHAFOUNDRY_DESKTOP_DATA_DIR` 覆盖。
+- 桌面端必须连接用户自行安装的 PostgreSQL + pgvector；首次启动会生成用户 `.env` 模板，但不会静默降级 SQLite。
+- `ALPHAFOUNDRY_BACKEND_URL` 是 worker、scheduler 和本地 API 调用的唯一地址来源；桌面默认 `http://127.0.0.1:8765`，Web 开发默认 `http://127.0.0.1:8000`。
+
+## Desktop Runtime Configuration
+
+### PostgreSQL prerequisite
+
+Desktop builds do not bundle a database server. Before first launch, install PostgreSQL 15+ and pgvector, create the `alphafoundry` database, and enable the extension:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+```
+
+The first launch creates a per-user `.env` with owner-only permissions on macOS/Linux. Configure a PostgreSQL psycopg v3 URL, then restart the desktop app:
+
+```dotenv
+DATABASE_URL=postgresql+psycopg://user:password@127.0.0.1:5432/alphafoundry
+```
+
+### Location and migration
+
+- Windows: `%LOCALAPPDATA%\AlphaFoundry`
+- macOS: `~/Library/Application Support/AlphaFoundry`
+- Override: `ALPHAFOUNDRY_DESKTOP_DATA_DIR`
+- Explicit configuration file: `ALPHAFOUNDRY_CONFIG_FILE`
+
+Windows upgrades detect a legacy `%APPDATA%\AlphaFoundry\.env` and copy it only when the new local directory has no `.env`; an existing local configuration is never overwritten. To move to another computer, close AlphaFoundry, copy the application data directory, export/import PostgreSQL with `pg_dump` / `pg_restore`, update `DATABASE_URL` if needed, then run `python scripts/bootstrap_db.py`.
+
+### Local-only control plane
+
+The desktop backend accepts only `localhost` or `127.0.0.1` as its listener. If the selected port is occupied, the launcher stops without terminating the unknown owning process. Configuration endpoints are restricted to loopback clients, do not return persisted secrets, and are disabled in `web-prod` mode. Database and advanced logging configuration changes are persisted for the next restart rather than falsely claiming that the current SQLAlchemy engine or logging handlers have switched. Values injected through the process environment are shown as locked and cannot be overwritten by the configuration page. `ALPHAFOUNDRY_BACKEND_URL` is the single base URL used by workers and scheduled API calls.
 
 ## Why This Differs From cc-switch
 

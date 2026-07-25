@@ -1,15 +1,29 @@
 """Unit tests for outcome journal implementation."""
 
 import uuid
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 
+import pytest
+
 from core.contracts.outcome_journal import FailureClassification, TradeOutcome
-from data_layer.repositories.base import db_session
 from data_layer.repositories.outcome_journal_repository import OutcomeJournalRepository
 from services.outcome_journal_service import OutcomeJournalService
 
 
-def test_create_and_retrieve_outcome():
+@pytest.fixture
+def isolated_outcome_journal_db(monkeypatch, db_session):
+    """Route outcome journal service calls through the in-memory test database."""
+
+    @contextmanager
+    def session_context():
+        yield db_session
+
+    monkeypatch.setattr("services.outcome_journal_service.db_session", session_context)
+    return db_session
+
+
+def test_create_and_retrieve_outcome(isolated_outcome_journal_db):
     """Test creating a new outcome and retrieving it."""
     outcome_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc)
@@ -42,7 +56,7 @@ def test_create_and_retrieve_outcome():
     assert abs(retrieved.benchmark_excess_return - 0.02) < 0.0001
 
 
-def test_failed_outcome_with_classification():
+def test_failed_outcome_with_classification(isolated_outcome_journal_db):
     """Test saving a failed outcome with failure classification."""
     outcome_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc)
@@ -74,14 +88,14 @@ def test_failed_outcome_with_classification():
     assert retrieved.failure_notes == "Entered too early before earnings announcement"
 
 
-def test_list_by_failure_class():
+def test_list_by_failure_class(isolated_outcome_journal_db):
     """Test listing outcomes by failure classification."""
     service = OutcomeJournalService()
     failures = service.list_failures_by_class(FailureClassification.timing_error)
     assert isinstance(failures, list)
 
 
-def test_generate_weekly_review():
+def test_generate_weekly_review(isolated_outcome_journal_db):
     """Test generating a weekly review report."""
     service = OutcomeJournalService()
     report = service.generate_weekly_review(weeks_ago=0)
@@ -91,12 +105,11 @@ def test_generate_weekly_review():
     assert 0 <= report.success_rate <= 100
 
 
-def test_repository_count_by_failure_class():
+def test_repository_count_by_failure_class(isolated_outcome_journal_db):
     """Test that repository correctly counts failures by classification."""
-    with db_session() as db:
-        repo = OutcomeJournalRepository(db)
-        counts = repo.count_by_failure_class()
-        assert isinstance(counts, dict)
-        # All keys should be FailureClassification enum
-        for key in counts.keys():
-            assert isinstance(key, FailureClassification)
+    repo = OutcomeJournalRepository(isolated_outcome_journal_db)
+    counts = repo.count_by_failure_class()
+    assert isinstance(counts, dict)
+    # All keys should be FailureClassification enum
+    for key in counts.keys():
+        assert isinstance(key, FailureClassification)

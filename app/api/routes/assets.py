@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
@@ -17,6 +17,12 @@ from core.observability import get_logger
 from data_layer.repositories.base import get_db
 from data_layer.repositories.documents_v1 import DocumentV1Repository
 from data_layer.repositories.event_repository import EventRepositoryImpl
+
+if TYPE_CHECKING:
+    from services.asset_agent_committee_service import AssetAgentCommitteeService
+    from services.asset_analysis_service import AssetAnalysisService
+    from services.official_evidence_backfill_service import OfficialEvidenceBackfillService
+
 
 router = APIRouter(prefix="/api/assets", tags=["assets"])
 logger = get_logger(__name__)

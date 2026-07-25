@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import List
+from typing import TYPE_CHECKING, List
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -14,6 +14,9 @@ from data_layer.repositories.base import get_db
 from data_layer.repositories.signal_repository import SignalRepositoryImpl
 from data_layer.repositories.timing_repository import TimingRepositoryImpl as TimingRepository
 from services.signal_service import SignalService
+
+if TYPE_CHECKING:
+    from services.pipeline_service import ResearchPipeline
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/pipeline", tags=["pipeline"])

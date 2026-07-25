@@ -252,10 +252,7 @@ def _add_market_review_profile(profiles: Dict[str, KeywordProfile]) -> None:
         name="A股市场回顾",
         param="A股市场回顾",
         keywords=keywords,
-        query=(
-            "A股市场热点和板块轮动最新动态，涵盖政策、产业趋势、"
-            "成长板块、价值板块、主题概念和风险偏好变化"
-        ),
+        query=("A股市场热点和板块轮动最新动态，涵盖政策、产业趋势、" "成长板块、价值板块、主题概念和风险偏好变化"),
         threshold=0.5,
     )
     for alias in ["A股市场回顾", "A股", "A股市场", "市场热点"]:

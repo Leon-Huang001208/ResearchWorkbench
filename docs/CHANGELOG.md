@@ -8,6 +8,21 @@
 
 ### Added
 
+- **跨平台运行时配置内核**：新增 `core/settings/runtime.py`，在业务模块和 SQLAlchemy engine 初始化前统一解析桌面、Web 开发、Web 生产三种运行模式；统一 `ALPHAFOUNDRY_CONFIG_FILE`、`ALPHAFOUNDRY_DESKTOP_DATA_DIR` 和 `ALPHAFOUNDRY_BACKEND_URL` 的优先级。Windows 桌面用户数据统一进入 `%LOCALAPPDATA%\AlphaFoundry`，macOS 进入 `~/Library/Application Support/AlphaFoundry`。
+- **PostgreSQL 测试安全边界**：真实 PostgreSQL smoke、bootstrap 和 reingestion 测试需同时设置 `ALPHAFOUNDRY_RUN_POSTGRES_TESTS=1` 与名称包含 `test` 的 `ALPHAFOUNDRY_TEST_DATABASE_URL`，避免默认测试或显式测试误写运行时/生产数据库。
+
+### Changed
+
+- **全库质量门恢复**：同步 Black 基线，修复延迟导入类型标注、CLI 捕获流兼容性、结构化日志字段、PPTX typing 边界及确定性测试漂移；默认测试套件改为隔离 SQLite 单元测试和精确的本地资产跳过策略。
+
+- **桌面端 PostgreSQL 标准化**：桌面启动器不再在缺少数据库配置时静默创建 SQLite 文件；首次启动生成 PostgreSQL `.env` 模板，缺少有效 PostgreSQL URL 时给出可操作错误。桌面和网页端均以 PostgreSQL + pgvector 为权威存储。
+- **本地服务 URL 收敛**：auto-ingest 的所有 health/API 调用改由 `ALPHAFOUNDRY_BACKEND_URL` 构造，桌面端随 launcher 使用 8765，Web 开发默认使用 8000。
+- **配置秘密保护**：配置 API 和工作台不再回显或回填已保存的 API Key、密码、Token 或完整数据库 URL；保存数据库 URL 仅持久化并要求重启，保持当前 SQLAlchemy engine 不变。
+- **数据库诊断**：PostgreSQL 连接错误不再将底层异常或凭据返回给调用方，并补齐 `postgresql+psycopg` 配置校验支持；按实际 SQLAlchemy 方言提供脱敏连接诊断。
+- **发布与配置优先级加固**：PyInstaller 单文件 sidecar 在 frozen 模式从 `sys._MEIPASS` 定位捆绑资源；桌面监听器仅支持已完整验证的 `localhost`/`127.0.0.1`，端口冲突时不再终止未知进程；移除 `postgres:postgres` 默认凭据，并将进程环境变量注入的配置字段标记为只读，防止页面保存后在重启时被覆盖。联网搜索配置测试改为使用提交的候选 provider/key 池，并在池内请求失败、429 限流或 402 配额耗尽时正确隔离失效 key。
+
+### Added
+
 - **通用报告框架 Phase 1-4（通用内容模型 + 渲染引擎 + 统一流水线 + PPT/Word 增强）**: 将 `reporting/` 模块重构为通用文档生成框架，任何内容结构都通过统一的 `Document` 模型描述，并渲染为 Word/PPT/Markdown。
   - **Phase 1 通用内容模型**: 新建 `core/contracts/content_element.py`（12 种 ContentElement 类型 + TextRun 富文本 + ContentBlock 容器）和 `core/contracts/document.py`（Section/Document/DesignTokens/TemplateSlot）。新建 `reporting/content/adapter.py`（SectionOutput→Section 向后兼容适配）。58 个测试。
   - **Phase 2 渲染引擎抽象**: 新建 `reporting/rendering/` 子包（`base.py` DocumentRenderer 抽象基类 + RenderContext、`word_renderer.py`、`ppt_renderer.py`、`markdown_renderer.py`、`style_mapper.py` DesignTokens→格式样式映射）。66 个测试。
@@ -99,6 +114,8 @@
   - **依赖**: 安装 `markitdown[pdf]>=0.1.0`（中质量策略现已可用）。MinerU 因本机无 GPU 暂不启用（`is_available()` 会自动降级）。
 
 ### Fixed
+
+- **配置工作台交互恢复**：修复 `app/web/static/js/configuration.js` 在环境变量锁定逻辑后遗漏 `bindModalFormEvents(form, section)` 声明的问题。该模块由 Workbench 主入口静态导入，遗漏声明曾产生语法错误并阻止全局导航与点击事件注册；新增静态调用/声明契约及 Node 语法回归测试。
 
 - **knowledge_worker watchdog + Windows Job Object 自愈**: 解决 worker 崩溃后无自动恢复、以及 Windows 强杀导致 worker 孤儿残留两个遗留风险。
   - `workers/_process_tree.py` — 新增模块，通过 ctypes 实现 Windows Job Object（`KILL_ON_JOB_CLOSE`），`ensure_child_dies_with_parent(child_pid)` 把子进程绑定到 Job，Job handle 关闭/父进程退出时内核自动终止子进程，即使父进程被 `TerminateProcess` 强杀也不会孤儿残留。非 Windows 返回 None（靠 POSIX 进程组）。

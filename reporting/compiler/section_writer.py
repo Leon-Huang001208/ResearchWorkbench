@@ -134,9 +134,7 @@ class SectionWriter:
                 f"- [{f.fact_id}] {f.claim_text} {value_str}"
                 f"（{f.provenance.source_name}, {f.provenance.source_tier.value}）"
             )
-        facts_block = (
-            "\n".join(facts_lines) if facts_lines else "（本节无可用事实，请说明证据不足）"
-        )
+        facts_block = "\n".join(facts_lines) if facts_lines else "（本节无可用事实，请说明证据不足）"
         counterpoints = (
             "；".join(outline_section.counterpoints) if outline_section.counterpoints else "无"
         )

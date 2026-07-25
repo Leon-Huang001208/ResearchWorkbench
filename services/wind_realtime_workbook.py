@@ -591,9 +591,7 @@ def build_realtime_workbook(
                 wind_formula_count += 1
 
         sheets["Health"].append(["workbook_open", "true", generated_at, "文件已生成"])
-        sheets["Health"].append(
-            ["active_index_count", active_count, generated_at, "active 指数数量"]
-        )
+        sheets["Health"].append(["active_index_count", active_count, generated_at, "active 指数数量"])
         sheets["Health"].append(["formula_row_count", active_count, generated_at, "常驻公式行数"])
         sheets["Health"].append(
             [

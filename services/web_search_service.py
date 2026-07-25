@@ -54,7 +54,11 @@ class WebSearchService:
         if max_results is None:
             max_results = settings.WEB_SEARCH_MAX_RESULTS
 
-        results = self._provider.search(query, max_results=max_results)
+        try:
+            results = self._provider.search(query, max_results=max_results)
+        except Exception as exc:
+            logger.warning("web search provider failed", error_type=type(exc).__name__)
+            return []
         if not results:
             logger.info("web search returned no results", query=query)
             return []

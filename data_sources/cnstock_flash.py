@@ -17,7 +17,7 @@ register(
         connector_dataset="flash",
         pipeline_kind="document",
         interval_minutes=30,
-        deep_backfill_enabled=True,
+        deep_backfill_enabled=False,
         doc_type=DocType.NEWS,
         reliability=SourceReliabilityLevel.ESTABLISHED_MEDIA,
         backfill_family="cnstock",

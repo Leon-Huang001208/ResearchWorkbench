@@ -334,8 +334,11 @@ async def health_check() -> Dict[str, Any]:
             session.commit()
             db_connected = True
             persistence_status = "ready"
-    except Exception as e:
-        persistence_status = f"unavailable: {str(e)}"
+    except Exception as exc:
+        logger.warning(
+            "Health check database unavailable", extra={"error_type": type(exc).__name__}
+        )
+        persistence_status = "unavailable"
 
     return {
         "status": "ok",

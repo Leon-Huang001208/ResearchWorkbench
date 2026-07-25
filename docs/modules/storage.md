@@ -4,6 +4,10 @@
 
 `storage` provides database schema, Alembic migrations, and storage conventions.
 
+## PostgreSQL test safety
+
+Tests marked `postgresql` are excluded from the default offline suite. They require `ALPHAFOUNDRY_RUN_POSTGRES_TESTS=1` and `ALPHAFOUNDRY_TEST_DATABASE_URL`; the configured database name must contain `test`. This prevents bootstrap and CRUD smoke tests from using the runtime `DATABASE_URL` or a production database.
+
 ---
 
 ## Design Rules

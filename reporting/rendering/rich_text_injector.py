@@ -23,9 +23,7 @@ from core.observability import get_logger
 logger = get_logger(__name__)
 
 # XML 1.0 / OOXML 非法字符（C0+C1 控制字符 + 代理对 + 非字符）
-_XML_INVALID_CONTROL = re.compile(
-    r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F\uD800-\uDFFF￾￿]"
-)
+_XML_INVALID_CONTROL = re.compile(r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F\uD800-\uDFFF￾￿]")
 
 if TYPE_CHECKING:
     from docx.text.paragraph import Paragraph

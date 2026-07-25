@@ -4,6 +4,10 @@
 
 `ingestion` provides structured event ingestion, input normalization, and event conversion into internal representation.
 
+## Current maintenance note
+
+The structured-ingestion module received repository-wide formatting baseline updates only in this task. Its normalization and event-conversion behavior is unchanged.
+
 ---
 
 ## Design Rules

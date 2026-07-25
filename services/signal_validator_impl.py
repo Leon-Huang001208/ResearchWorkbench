@@ -7,13 +7,18 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 import pandas as pd
 
 from core.contracts import AlphaSignal, TradeCandidate
 from core.interfaces import SignalValidator
 from core.observability import get_logger
+
+if TYPE_CHECKING:
+    from signal_lab.backtests import SimpleBacktester
+    from signal_lab.features import FeatureBuilder
+    from signal_lab.scoring import CompositeScorer
 
 logger = get_logger(__name__)
 

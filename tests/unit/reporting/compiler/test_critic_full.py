@@ -107,9 +107,7 @@ class TestCriticFull:
     def test_review_full_detects_claim_support_gap(self):
         """有数字但无对应 fact → CLAIM_SUPPORT issue."""
         facts = [_make_fact("f1", "营收100亿元", 100.0)]
-        outline = _make_outline(
-            [OutlineSection(section_id="s1", title="营收分析", target_words=100)]
-        )
+        outline = _make_outline([OutlineSection(section_id="s1", title="营收分析", target_words=100)])
         # 含 200亿元 数字但 facts 里只有 100 亿元
         section = _make_section(
             content="公司投融资规模达200亿元，营收100亿元[f1]。",
@@ -123,9 +121,7 @@ class TestCriticFull:
     def test_review_full_detects_conflict(self):
         """正文数字与 fact 值明显矛盾 → CONFLICT issue."""
         facts = [_make_fact("f1", "营收100亿元", 100.0)]
-        outline = _make_outline(
-            [OutlineSection(section_id="s1", title="营收分析", target_words=100)]
-        )
+        outline = _make_outline([OutlineSection(section_id="s1", title="营收分析", target_words=100)])
         # 正文写 150 亿元，事实表是 100 亿元 → 偏差 50% > 20%
         section = _make_section(
             content="公司营收150亿元[f1]。",
@@ -139,9 +135,7 @@ class TestCriticFull:
     def test_review_full_no_conflict_when_values_close(self):
         """轻微差异（5% 以内）不标记冲突."""
         facts = [_make_fact("f1", "营收100亿元", 100.0)]
-        outline = _make_outline(
-            [OutlineSection(section_id="s1", title="营收分析", target_words=100)]
-        )
+        outline = _make_outline([OutlineSection(section_id="s1", title="营收分析", target_words=100)])
         # 正文写 101 亿元，事实表 100 → 偏差 1% < 20%
         section = _make_section(
             content="公司营收101亿元[f1]。",
@@ -202,9 +196,7 @@ class TestCriticFull:
     def test_review_full_detects_structure_word_count_deviation(self):
         """字数偏差过大 → STRUCTURE issue."""
         facts = [_make_fact("f1")]
-        outline = _make_outline(
-            [OutlineSection(section_id="s1", title="营收分析", target_words=500)]
-        )
+        outline = _make_outline([OutlineSection(section_id="s1", title="营收分析", target_words=500)])
         # 只有 30 字 vs 目标 500 → 偏差 94%
         section = _make_section(
             content="营收增长。[f1]",
@@ -222,15 +214,11 @@ class TestCriticFull:
             _make_fact("f1"),
             _make_fact("f2"),
         ]
-        outline = _make_outline(
-            [OutlineSection(section_id="s1", title="营收分析", target_words=100)]
-        )
+        outline = _make_outline([OutlineSection(section_id="s1", title="营收分析", target_words=100)])
         # 100 字只有 1 个引用 → 密度 1.0 < 0.5? No, 1.0 > 0.5. Need fewer citations.
         # Let's make a long section with few citations.
         long_content = (
-            "公司营收增长显著。行业景气度持续提升。下游需求旺盛。"
-            "公司在手订单充足。毛利率逐季改善。经营现金流健康。"
-            "研发投入持续加大。市场份额稳步扩张。[f1]"
+            "公司营收增长显著。行业景气度持续提升。下游需求旺盛。" "公司在手订单充足。毛利率逐季改善。经营现金流健康。" "研发投入持续加大。市场份额稳步扩张。[f1]"
         )
         section = _make_section(
             content=long_content,

@@ -129,9 +129,7 @@ class _CompatibleProcessor:
             with open(output_file, "w", encoding="utf-8") as f:
                 json.dump(results, f, ensure_ascii=False, indent=2)
 
-        self.client.logger.info(
-            f"已处理 {len(results)} 条研报（跳过 {skipped_count} 条），保存至 {output_file}"
-        )
+        self.client.logger.info(f"已处理 {len(results)} 条研报（跳过 {skipped_count} 条），保存至 {output_file}")
 
         import pandas as pd
 
@@ -191,9 +189,7 @@ class _CompatibleProcessor:
             with open(output_file, "w", encoding="utf-8") as f:
                 json.dump(results, f, ensure_ascii=False, indent=2)
 
-        self.client.logger.info(
-            f"已处理 {len(results)} 条记录（跳过 {skipped_count} 条），保存至 {output_file}"
-        )
+        self.client.logger.info(f"已处理 {len(results)} 条记录（跳过 {skipped_count} 条），保存至 {output_file}")
 
         import pandas as pd
 

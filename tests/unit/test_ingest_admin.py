@@ -3,14 +3,28 @@
 """
 
 from datetime import datetime, timedelta
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.api.main import app
+from data_layer.repositories import crawl_state_repository
+from data_layer.repositories.base import get_db
 from data_layer.repositories.models import CrawlStateV1DB
 
 client = TestClient(app)
+
+
+@pytest.fixture
+def ingest_admin_db():
+    """Provide a dependency-injected session without connecting to PostgreSQL."""
+    session = Mock()
+    app.dependency_overrides[get_db] = lambda: session
+    try:
+        yield session
+    finally:
+        app.dependency_overrides.pop(get_db, None)
 
 
 class TestIngestAdminAPI:
@@ -39,7 +53,8 @@ class TestIngestAdminAPI:
         assert data["triggered"] is True
         assert data["dry_run"] is False
 
-    def test_trigger_ingest_dry_run(self):
+    def test_trigger_ingest_dry_run(self, ingest_admin_db, monkeypatch):
+        monkeypatch.setattr(crawl_state_repository, "get_crawl_state", lambda db, source: None)
         """测试 dry_run 模式"""
         # Act
         resp = client.post(

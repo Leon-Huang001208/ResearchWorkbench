@@ -4,6 +4,10 @@
 
 `knowledge_layer` provides entity resolution, assertion management, event database, graph projection, and retrieval capabilities.
 
+## Local graph-test assets
+
+Industry-chain service tests depend on the optional local `data/industry_graphs` dataset. When the unversioned dataset is absent, only the data-backed graph tests skip with an explicit reason; contract-level industry-chain tests remain part of the default suite.
+
 ---
 
 ## Design Rules

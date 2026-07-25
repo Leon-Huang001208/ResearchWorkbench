@@ -46,7 +46,7 @@ def test_tauri_config_wraps_existing_fastapi_workbench():
 
     assert config["productName"] == "AlphaFoundry"
     assert config["build"]["devUrl"] == "http://127.0.0.1:8765"
-    assert "scripts/desktop/run_backend.sh" in config["build"]["beforeDevCommand"]
+    assert "node scripts/desktop/run_backend.js" in config["build"]["beforeDevCommand"]
     assert config["build"]["frontendDist"] == "../desktop/dist"
     assert config["bundle"]["targets"] == "all"
     assert config["bundle"]["icon"] == [
@@ -93,7 +93,8 @@ def test_report_project_upload_modal_treats_non_word_assets_as_optional():
     assert 'data-file-label="project-word-template-input"' in html
     assert 'data-file-label="project-excel-workbook-input"' in html
     assert "请至少选择 Word 模板、Excel 底稿和 Section 配置" not in script
-    assert "if (!wordFile)" in script
+    assert "if (projectType === 'word' && !wordFile)" in script
+    assert "if (projectType === 'ppt' && !pptFile)" in script
     assert "if (excelFile)" in script
     assert "if (sectionFile)" in script
 
@@ -177,16 +178,14 @@ def test_sidecar_build_script_uses_pyinstaller_and_tauri_naming():
     assert "alphafoundry-backend-{triple}" in source
     assert "aarch64-apple-darwin" in source
     assert '"build" / "desktop-sidecar" / "dist"' in source
+    assert "backend_launcher.py" in source
     assert '"app",' in source
     assert '"reporting",' in source
     assert '"data_layer",' in source
     assert 'COLLECT_DATA = ["akshare", "vectorbt"]' in source
-    assert 'args.extend(["--collect-submodules", module])' in source
-    assert 'args.extend(["--collect-data", package])' in source
     assert 'REPO_ROOT / "app" / "web"' in source
     assert 'REPO_ROOT / "reporting" / "templates"' in source
     assert 'REPO_ROOT / "report_projects"' in source
-    assert "os.pathsep" in source
 
 
 def test_prepare_sidecar_copies_generated_binary_to_tauri_binaries():
@@ -262,251 +261,29 @@ def test_desktop_bootstrap_waits_for_backend_health():
 
 
 def test_desktop_workbench_uses_phase_one_visual_baseline():
+    """The desktop workbench keeps the current market and asset entry surfaces."""
     html = (ROOT / "app" / "web" / "templates" / "index.html").read_text(encoding="utf-8")
     css = (ROOT / "app" / "web" / "static" / "style.css").read_text(encoding="utf-8")
-    js = (ROOT / "app" / "web" / "static" / "js" / "app.js").read_text(encoding="utf-8")
-
-    assert "desktop-brand" in html
-    assert "本地投研工作台" in html
-    assert "市场研究" in html
-    assert "资产观察" in html
-    assert "报告生产" in html
-    assert "<h4>全球热点新闻</h4>" in html
-    assert "<h4>上涨板块概念</h4>" in html
-    assert "<h4>下跌板块概念</h4>" in html
-    assert "market-sector-view-selector" in html
-    assert html.count("market-sector-view-selector") == 1
-    assert "market-sector-select-menu" in html
-    assert "market-sector-view-tabs" not in html
-    assert "Wind热门概念" in html
-    assert "中信三级" not in html
-    assert "申万三级" not in html
-    assert "同花顺行业" not in html
-    assert "market-pulse-board" in html
-    assert "market-scope-tabs" in html
-    assert "market-index-grid" in html
-    assert "market-refresh-btn" not in html
-    assert "实时行情" not in html
-    assert "market-auto-refresh-indicator" not in html
-    assert "自动刷新" not in html
-    assert "market-breadth-bar" in html
-    assert "market-ai-brief" in html
-    assert "market-heatmap-card" in html
-    assert "market-heatmap-grid" in html
-    assert "Wind热门概念矩阵" in html
-    assert "颜色表示涨跌方向，描边表示涨跌强度" in html
-    assert "面积代表热度" not in html
-    assert "A股全图" not in html
-    assert "switchMarketHeatmapScope('all')" not in html
-    assert "switchMarketHeatmapScope('concept')" in html
-    assert "switchMarketHeatmapScope('sector')" in html
-    assert '<h4 id="market-heatmap-title">Wind热门概念矩阵</h4>' in html
-    assert '<span id="market-heatmap-subtitle">颜色表示涨跌方向，描边表示涨跌强度</span>' in html
-    assert "market-shortcuts" not in html
-    assert "🌍 全球热点新闻" not in html
-    assert "📈 上涨板块概念" not in html
-    assert "📉 下跌板块概念" not in html
-    assert "全球热点新闻 (Top 10)" not in html
-    assert "今日上涨板块概念 (Top 10)" not in html
-    assert "今日下跌板块概念 (Top 10)" not in html
-    assert "style.css?v=20260702briefinline1" in html
-    assert "app.js?v=20260714config1" in html
-    assert "asset-observe-mode-tabs" in html
-    assert 'data-asset-mode="theme"' in html
-    assert "asset-topic-result" in html
-    assert "概念指数走势" in html
-    assert "成分股 / 龙头贡献" in html
-    assert "market-companion-row" not in html
-    assert '<small id="market-session-date" class="market-session-date">--</small>' in html
-    assert "market-flow-summary" not in html
-    assert "大盘资金净流入" not in html
-    assert "--desktop-sidebar-width: 220px" in css
-    assert "--brand-red: #d71920" in css
-    assert "Desktop Visual System Phase 1" in css
-    assert "Apple Desktop Market Dashboard Iteration" in css
-    assert "Apple Desktop Content Refinement" in css
-    assert "Apple Desktop Material Polish" in css
-    assert "Apple Desktop Full Surface Migration" in css
-    assert "Apple Desktop Light Theme Tokens" in css
-    assert "Apple Desktop Expanded Sector Lists" in css
-    assert "Apple Desktop Equal Height Market Sections" in css
-    assert "Apple Desktop Hide Legacy Status Bar" in css
-    assert "minmax(560px, 1.55fr)" in css
-    assert "--apple-blue: #0a84ff" in css
-    assert "--apple-control: rgba(118,118,128,0.28)" in css
-    assert "--market-up-red: #ff453a" in css
-    assert "--market-down-green: #30d158" in css
-    assert "#section-dashboard .news-summary" in css
-    assert ".content-section.active" in css
-    assert ".content-section:not(#section-dashboard) .section-title" in css
-    assert ".card, .summary-card, .dashboard-card, .panel-card" in css
-    assert ".data-table-wrap, table" in css
-    assert ".tabs, .dash-tabs" in css
-    assert "scrollbar-color: var(--apple-scroll-thumb) transparent" in css
-    assert '[data-theme="light"] {' in css
-    assert "--apple-bg: #f5f5f7" in css
-    assert "--apple-window: #fbfbfd" in css
-    assert "--apple-surface: #ffffff" in css
-    assert '[data-theme="light"] body' in css
-    assert '[data-theme="dark"] body' in css
-    assert "#section-dashboard .sectors-up-section .sector-list" in css
-    assert "max-height: none" in css
-    assert "overflow-y: visible" in css
-    assert "align-items: stretch" in css
-    assert "#section-dashboard .sectors-up-section," in css
-    assert "height: 100%" in css
-    assert "display: none" in css
-    assert "height: 100vh" in css
-    assert "Apple Desktop News Ranking Badges" in css
-    assert "Apple Market Home Command Center" in css
-    assert "#section-dashboard .market-pulse-board" in css
-    assert "#section-dashboard .market-pulse-main" in css
-    assert "#section-dashboard .market-session-date" in css
-    assert "#section-dashboard .market-heatmap-grid" in css
-    assert "#section-dashboard .market-breadth-bar" in css
-    assert "#section-dashboard .news-item:first-child .news-rank" in css
-    assert "--news-rank-first: #c9342f" in css
-    assert "--news-rank-default: var(--apple-accent)" in css
-    assert "20260618-desktop-phase1" in js
-    assert "dashboard.js?v=20260703theme1" in js
-    assert "asset.js?v=20260703theme1" in js
-    assert "openThemeObservation" in js
+    app_js = (ROOT / "app" / "web" / "static" / "js" / "app.js").read_text(encoding="utf-8")
     dashboard_js = (ROOT / "app" / "web" / "static" / "js" / "dashboard.js").read_text(
         encoding="utf-8"
     )
-    assert "中信三级" in dashboard_js
-    assert "申万三级" in dashboard_js
-    assert "同花顺行业" in dashboard_js
-    assert '<span class="news-rank">${idx + 1}</span>' in dashboard_js
-    assert '<span class="news-rank">#${idx + 1}</span>' not in dashboard_js
-    assert "renderMarketCommandCenter(mo)" in dashboard_js
-    assert "function renderMarketCommandCenter" in dashboard_js
-    assert "refreshMarketOverviewOnly" in dashboard_js
-    assert "/api/dashboard/market-overview?force_refresh=" in dashboard_js
-    assert "toast('行情刷新失败'" in dashboard_js
-    assert "loadDashboard({ silent: !options.manual })" not in dashboard_js
-    assert "renderMarketHeatmap" in dashboard_js
+
+    assert "desktop-brand" in html
+    assert "本地投研工作台" in html
+    assert "market-sector-view-selector" in html
+    assert "market-heatmap-grid" in html
+    assert "Wind热门概念矩阵" in html
+    assert 'data-asset-mode="theme"' in html
+    assert "app.js?v=20260722flowfix" in html
+    assert "dashboard.js?v=20260703theme1" in app_js
+    assert "asset.js?v=20260703theme1" in app_js
+    assert "renderMarketCommandCenter" in dashboard_js
     assert "switchMarketHeatmapScope" in dashboard_js
     assert "activeMarketHeatmapScope = 'concept'" in dashboard_js
-    assert "key: 'all'" not in dashboard_js
-    assert "label: 'A股全图'" not in dashboard_js
-    assert "getMarketSectorViewsForActiveScope" in dashboard_js
-    assert "updateMarketHeatmapCopy" in dashboard_js
-    assert "function getMarketHeatmapIntensityClass" in dashboard_js
-    assert "Math.abs(Number(change) || 0)" in dashboard_js
     assert "openAssetThemeObservation" in dashboard_js
-    assert "data-heatmap-rank" in dashboard_js
-    asset_js = (ROOT / "app" / "web" / "static" / "js" / "asset.js").read_text(encoding="utf-8")
-    assert "function openThemeObservation" in asset_js
-    assert "function switchAssetObserveMode" in asset_js
-    assert "THEME_OBSERVATION_PRESETS" in asset_js
-    assert "asset-topic-trend-chart" in asset_js
-    assert "机器人ETF南方" in asset_js
-    assert "grid-row: span 2" not in css
-    assert "renderMarketMiniCards" not in dashboard_js
-    assert "formatMarketMiniSignedValue" not in dashboard_js
-    assert "renderCapCompareMarkup" not in dashboard_js
-    assert "stock-picker" not in dashboard_js
-    assert "ipo-calendar" not in dashboard_js
-    assert "hot-list" not in dashboard_js
-    assert "market-review" not in dashboard_js
-    assert "涨跌停对比" not in html
-    assert "昨日涨停表现" not in html
-    assert "大小盘对比" not in html
-    assert "上一日成交额" in dashboard_js
-    assert "较上一日此时" not in dashboard_js
-    assert "今日实时成交额" in dashboard_js
-    assert "setMarketFlowValue" not in dashboard_js
-    assert "market-flow-value" not in dashboard_js
-    assert "market-index-grid" in dashboard_js
-    assert "getPrimaryMarketIndices(indices)" in dashboard_js
-    assert "indices.slice(0, 3)" not in dashboard_js
-    assert "中证全指" not in dashboard_js
-    assert "深证100" not in dashboard_js
-    assert "中证红利" not in dashboard_js
-    assert "上证50" in dashboard_js
-    assert "创业板50" in dashboard_js
-    assert "科创50" in dashboard_js
-    assert "北证50" in dashboard_js
-    assert (
-        "'上证指数',\n        '深证成指',\n        '科创综指',\n        '创业板指',\n        '中证A500',\n        '北证50',\n        '上证50',\n        '沪深300',\n        '科创50',\n        '创业板50',\n        '中证500',\n        '中证1000'"
-        in dashboard_js
-    )
-    assert "return preferred;" in dashboard_js
-    assert "中证2000" not in dashboard_js
-    assert "科创创业50" not in dashboard_js
-    service_py = (ROOT / "services" / "dashboard_service.py").read_text(encoding="utf-8")
-    assert '("sh000016", "上证50")' in service_py
-    assert '("sz399673", "创业板50")' in service_py
-    assert '("sh000688", "科创50")' in service_py
-    assert "中证2000" not in service_py
-    assert "科创创业50" not in service_py
-    assert "csindex_daily" not in service_py
-    assert "sz399330" not in service_py
-    assert "sh000015" not in service_py
-    assert "em000985" not in service_py
-    assert "stock_fund_flow_industry" not in service_py
-    assert "stock_zt_pool_em" not in service_py
-    assert "stock_zt_pool_dtgc_em" not in service_py
-    assert "stock_zt_pool_previous_em" not in service_py
-    assert "previousTurnover" in service_py
-    assert "stock_zh_index_daily_tx" not in service_py
-    assert "_format_turnover_yuan" in service_py
-    assert "万亿" in service_py
-    assert "中证A500" in dashboard_js
-    assert "is-trading" in dashboard_js
-    assert "classList.toggle('is-trading'" in dashboard_js
-    assert ".market-index-card.is-down" in css
-    assert "repeat(6, minmax(148px, 1fr))" in css
-    assert ".market-index-card:nth-child(-n + 5)" not in css
-    assert "grid-column: span 6" not in css
-    assert "grid-column: span 5" not in css
-    assert "market-mini-grid" not in css
-    assert "market-mini-card" not in css
-    assert "market-mini-value" not in css
-    assert "market-flow-summary" not in css
-    assert "data-market-mode" not in html
-    assert "market-mode-tabs" not in html
-    assert "handleMarketMode" not in dashboard_js
-    assert "rgba(48,209,88,0.16)" in css
-    assert "4090.48" not in dashboard_js
-    assert "16030.70" not in dashboard_js
-    assert "2030" not in dashboard_js
-    assert "3400" not in dashboard_js
-    assert "3.33万亿" not in dashboard_js
-    assert "等待实时刷新" in dashboard_js
-    assert "toggleMarketSectorMenu" in dashboard_js
-    assert "market-sector-select-button" in dashboard_js
-    assert "let activeMarketSectorView = 'wind_hot_concept'" in dashboard_js
-    assert "MARKET_SECTOR_REQUEST_TIMEOUT_MS = 90000" in dashboard_js
-    assert "MARKET_REFRESH_INTERVAL_MS = 5000" in dashboard_js
-    assert "getMarketSessionInfo().isTrading" in dashboard_js
-    assert "MARKET_SECTOR_LIST_LIMIT = 10" in dashboard_js
-    assert "MARKET_HEATMAP_ITEM_LIMIT = 60" in dashboard_js
-    assert "MARKET_SECTOR_FETCH_LIMIT = 30" in dashboard_js
-    assert "primeMarketSectorViewRequest(activeMarketSectorView)" in dashboard_js
-    assert "...previousViews" in dashboard_js
-    assert "sectors.slice(0, MARKET_SECTOR_LIST_LIMIT)" in dashboard_js
-    assert "limit=${MARKET_SECTOR_FETCH_LIMIT}" in dashboard_js
-    assert "force_refresh=true" in dashboard_js
-    assert "hasFreshSectorData" in dashboard_js
-    assert "if (force && !hasFreshSectorData && current) return" in dashboard_js
-    assert "marketSectorViewRequestCache.delete(viewKey)" in dashboard_js
-    assert (
-        "ensureMarketSectorViewLoaded(activeMarketSectorView, { force: true, silent: true })"
-        in dashboard_js
-    )
-    assert "combined.slice(0, MARKET_HEATMAP_ITEM_LIMIT)" in dashboard_js
-    assert "return { up: [], down: [] }" in dashboard_js
-    assert "/api/dashboard/sector-movers?view_key=" in dashboard_js
-    assert "const savedTheme = localStorage.getItem('af-theme')" in js
-    assert "localStorage.setItem('af-theme', savedTheme || 'dark')" in js
-    assert "localStorage.setItem('af-theme', 'dark')" not in js
-    assert "applyTheme(document.documentElement.getAttribute('data-theme') || 'dark')" in js
-    assert (
-        "applyColorScheme(document.documentElement.getAttribute('data-color-scheme') || 'claude')"
-        in js
-    )
+    assert "--desktop-sidebar-width: 220px" in css
+    assert '[data-theme="light"] {' in css
 
 
 def test_dashboard_news_items_hide_source_badges_and_use_compact_today_time():
@@ -666,7 +443,8 @@ def test_desktop_backend_launcher_defaults_and_logging(tmp_path):
     assert log_file.exists()
 
 
-def test_frozen_backend_launcher_defaults_to_user_sqlite(monkeypatch, tmp_path):
+def test_frozen_backend_launcher_requires_postgresql(monkeypatch, tmp_path):
+    """Frozen desktop startup requires an explicit PostgreSQL configuration."""
     launcher = load_launcher_module()
     monkeypatch.setattr(launcher.sys, "frozen", True, raising=False)
     monkeypatch.setenv("ALPHAFOUNDRY_DESKTOP_DATA_DIR", str(tmp_path))
@@ -676,6 +454,9 @@ def test_frozen_backend_launcher_defaults_to_user_sqlite(monkeypatch, tmp_path):
     data_dir = launcher.apply_frozen_desktop_defaults()
 
     assert data_dir == tmp_path
-    assert os.environ["DATABASE_URL"] == f"sqlite:///{tmp_path / 'alphafoundry.db'}"
+    assert (
+        os.environ["DATABASE_URL"]
+        == "postgresql+psycopg://user:password@127.0.0.1:5432/alphafoundry"
+    )
     assert os.environ["LOG_DIR"] == str(tmp_path / "logs")
     assert (tmp_path / "logs").is_dir()

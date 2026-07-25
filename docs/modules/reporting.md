@@ -6,6 +6,10 @@
 
 The project-level report workflow lives under `reporting/projects/` and connects report project folders to evidence retrieval, model generation, Word/PPT projection, chart rendering, readiness plans, and run logs. A single render is orchestrated by `reporting/projects/run.py`; API routes delegate to that module instead of assembling artifacts and run logs inline.
 
+## Rendering compatibility
+
+The reporting rendering and builder modules are formatted to the repository Black baseline and type-checked by mypy. PPT renderer typing is constrained at `python-pptx` boundaries while preserving fallback rendering when native chart construction cannot use a supplied dataset.
+
 ---
 
 ## Design Rules
