@@ -1,5 +1,7 @@
 """Static wiring tests for the report template workbench frontend."""
 
+import json
+import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -577,6 +579,111 @@ def test_paragraph_placeholder_uses_mode_instead_of_parallel_ai_types():
     assert "{ value: 'field', label: '短字段' }" in source
     assert "{ value: 'static_text', label: '固定文案' }" in source
     assert "{ value: 'static_text', label: '固定文本' }" not in source
+
+
+def test_placeholder_type_resolution_prefers_explicit_type_before_legacy_mode():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+    helper = source[
+        source.index("function getCanonicalPlaceholderType") : source.index(
+            "function isParagraphMode"
+        )
+    ]
+
+    assert "if (normalized) {" in helper
+    assert "if (isParagraphMode(mapping?.mode)) return 'paragraph';" in helper
+    assert helper.index("if (normalized) {") < helper.index(
+        "if (isParagraphMode(mapping?.mode)) return 'paragraph';"
+    )
+    assert "getCanonicalPlaceholderType(mapping.type || inferPlaceholderType" not in source
+    assert "getCanonicalPlaceholderType(draft.type || inferPlaceholderType" not in source
+    assert "const draftType = draft.type || inferPlaceholderType(name);" not in source
+    assert "const draftType = draft.type || inferPlaceholderType(placeholderName);" not in source
+    assert source.count("const rawDraftType = draft.type || '';") == 4
+    assert (
+        source.count(
+            "const draftType = getCanonicalPlaceholderType(rawDraftType, draft) || inferPlaceholderType(name);"
+        )
+        == 3
+    )
+    assert (
+        "const draftType = getCanonicalPlaceholderType(rawDraftType, draft) "
+        "|| inferPlaceholderType(placeholderName);"
+    ) in source
+    assert source.count("getParagraphMode(rawDraftType || draftType, draft, name);") == 3
+    assert "getParagraphMode(rawDraftType || draftType, draft, placeholderName);" in source
+    assert "const storedType = stored.type || '';" in source
+    assert source.count("const storedType = mapping.type || '';") >= 2
+
+
+def test_placeholder_type_helpers_execute_legacy_mode_resolution_rules():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+    helper_block = source[
+        source.index("function getCanonicalPlaceholderType") : source.index(
+            "function getPlaceholderSourceKind"
+        )
+    ]
+    cases = [
+        {"type": "field", "mapping": {"mode": "evidence_ai"}, "placeholderName": "标题"},
+        {
+            "type": "static_text",
+            "mapping": {"mode": "data_template"},
+            "placeholderName": "说明",
+        },
+        {"type": "prompt", "mapping": {}, "placeholderName": "正文"},
+        {"type": "composite_market_review", "mapping": {}, "placeholderName": "市场回顾"},
+        {"type": "", "mapping": {"mode": "evidence_ai"}, "placeholderName": "历史正文"},
+    ]
+    runner = "\n".join(
+        [
+            f"const cases = {json.dumps(cases)};",
+            "const results = (() => {",
+            helper_block,
+            "return cases.map(({ type, mapping, placeholderName }) => ({",
+            "  canonicalType: getCanonicalPlaceholderType(type, mapping),",
+            "  paragraphMode: getParagraphMode(type, mapping, placeholderName)",
+            "}));",
+            "})();",
+            "process.stdout.write(JSON.stringify(results));",
+        ]
+    )
+
+    result = subprocess.run(
+        ["node", "--input-type=commonjs", "--eval", runner],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert json.loads(result.stdout) == [
+        {"canonicalType": "field", "paragraphMode": ""},
+        {"canonicalType": "static_text", "paragraphMode": ""},
+        {"canonicalType": "paragraph", "paragraphMode": "evidence_ai"},
+        {"canonicalType": "paragraph", "paragraphMode": "data_template_plus_evidence_ai"},
+        {"canonicalType": "paragraph", "paragraphMode": "evidence_ai"},
+    ]
+
+
+def test_non_paragraph_types_ignore_preserved_legacy_paragraph_modes():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+    paragraph_mode_source = source[
+        source.index("function getParagraphMode") : source.index(
+            "function getParagraphModeLabel"
+        )
+    ]
+    detail_source = source[
+        source.index("function renderSelectedPlaceholderDetail") : source.index(
+            "function buildSimplePlaceholderFieldsHtml"
+        )
+    ]
+
+    assert "const canonicalType = getCanonicalPlaceholderType(type, mapping);" in paragraph_mode_source
+    assert "if (canonicalType !== 'paragraph') return '';" in paragraph_mode_source
+    assert paragraph_mode_source.index("if (canonicalType !== 'paragraph') return '';") < paragraph_mode_source.index(
+        "if (isParagraphMode(mapping?.mode)) return mapping.mode;"
+    )
+    assert "const paragraphMode = getParagraphMode(storedType, mapping, name);" in detail_source
+    assert "const isPromptLike = usesEvidenceParagraphMode(storedType, paragraphMode);" in detail_source
+    assert "const supportsDataTemplate = isDataTemplateParagraphMode(storedType, paragraphMode);" in detail_source
 
 
 def test_placeholder_types_are_output_shapes_with_separate_sources():

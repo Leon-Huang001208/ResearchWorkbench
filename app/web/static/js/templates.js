@@ -2562,7 +2562,7 @@ function renderMappingSummary(mapping, section) {
 }
 
 function getPlaceholderSourceSummary(mapping = {}, placeholderName = '') {
-    const type = getCanonicalPlaceholderType(mapping.type || inferPlaceholderType(placeholderName), mapping);
+    const type = getCanonicalPlaceholderType(mapping.type, mapping) || inferPlaceholderType(placeholderName);
     if (type === 'paragraph') {
         const mode = getParagraphMode(mapping.type || type, mapping, placeholderName);
         if (isDataTemplateParagraphMode(mapping.type || type, mode) && usesEvidenceParagraphMode(mapping.type || type, mode)) return 'Excel + Prompt';
@@ -2582,7 +2582,7 @@ function getPlaceholderSourceSummary(mapping = {}, placeholderName = '') {
 }
 
 function getPlaceholderConfigStatus(mapping = {}, placeholderName = '') {
-    const type = getCanonicalPlaceholderType(mapping.type || inferPlaceholderType(placeholderName), mapping);
+    const type = getCanonicalPlaceholderType(mapping.type, mapping) || inferPlaceholderType(placeholderName);
     if (type === 'paragraph') {
         const mode = getParagraphMode(mapping.type || type, mapping, placeholderName);
         if (usesEvidenceParagraphMode(mapping.type || type, mode)) {
@@ -2741,12 +2741,15 @@ function getPlaceholderKindLabel(mapping, section) {
 
 function getCanonicalPlaceholderType(type = '', mapping = {}) {
     const normalized = String(type || '').trim();
-    if (['prompt', 'ai_text', 'composite_market_review'].includes(normalized)) return 'paragraph';
-    if (['report_period', 'excel_cell', 'excel_range'].includes(normalized)) return 'field';
-    if (normalized === 'config_text') return 'static_text';
-    if (normalized === 'excel_chart') return 'chart';
-    if (mapping?.mode && isParagraphMode(mapping.mode)) return 'paragraph';
-    return normalized || '';
+    if (normalized) {
+        if (['prompt', 'ai_text', 'composite_market_review'].includes(normalized)) return 'paragraph';
+        if (['report_period', 'excel_cell', 'excel_range'].includes(normalized)) return 'field';
+        if (normalized === 'config_text') return 'static_text';
+        if (normalized === 'excel_chart') return 'chart';
+        return normalized;
+    }
+    if (isParagraphMode(mapping?.mode)) return 'paragraph';
+    return '';
 }
 
 function isParagraphMode(mode = '') {
@@ -2760,6 +2763,8 @@ function isParagraphMode(mode = '') {
 }
 
 function getParagraphMode(type = '', mapping = {}, placeholderName = '') {
+    const canonicalType = getCanonicalPlaceholderType(type, mapping);
+    if (canonicalType !== 'paragraph') return '';
     if (isParagraphMode(mapping?.mode)) return mapping.mode;
     const normalized = String(type || '').trim();
     if (normalized === 'composite_market_review') return 'data_template_plus_evidence_ai';
@@ -3494,8 +3499,8 @@ function buildDraftPlaceholderMappings(template, storedMappings = new Map()) {
         const key = normalizePlaceholderName(placeholder);
         if (!key) return;
         const stored = storedMappings.get(key) || {};
-        const storedType = stored.type || inferPlaceholderType(key);
-        const type = getCanonicalPlaceholderType(storedType, stored);
+        const storedType = stored.type || '';
+        const type = getCanonicalPlaceholderType(storedType, stored) || inferPlaceholderType(key);
         const paragraphMode = type === 'paragraph' ? getParagraphMode(storedType, stored, key) : undefined;
         const needsEvidenceDefaults = type === 'paragraph' && usesEvidenceParagraphMode(storedType, paragraphMode);
         mappings.set(key, {
@@ -3858,8 +3863,8 @@ function renderSelectedPlaceholderDetail(template) {
     if (saveBtn) saveBtn.disabled = false;
     if (advancedBtn) advancedBtn.disabled = false;
 
-    const storedType = mapping.type || inferPlaceholderType(name);
-    const type = getCanonicalPlaceholderType(storedType, mapping);
+    const storedType = mapping.type || '';
+    const type = getCanonicalPlaceholderType(storedType, mapping) || inferPlaceholderType(name);
     const paragraphMode = getParagraphMode(storedType, mapping, name);
     const isPromptLike = usesEvidenceParagraphMode(storedType, paragraphMode);
     const promptParam = mapping.params?.param || inferPromptParam(name);
@@ -5597,8 +5602,9 @@ function collectSelectedPlaceholderDraft(template) {
         } else if (field === 'prompt.retrieval_query') {
             draft.prompt_retrieval_query = value;
         } else if (field === 'retrieval.keyword_profile') {
-            const draftType = draft.type || inferPlaceholderType(name);
-            const draftMode = getParagraphMode(draftType, draft, name);
+            const rawDraftType = draft.type || '';
+            const draftType = getCanonicalPlaceholderType(rawDraftType, draft) || inferPlaceholderType(name);
+            const draftMode = getParagraphMode(rawDraftType || draftType, draft, name);
             if (shouldStoreParagraphRetrievalInLlmComponent(draftType, draftMode)) {
                 setLlmWritingRetrievalDraftField(draft, 'keyword_profile', value || null);
             } else if (value) {
@@ -5609,8 +5615,9 @@ function collectSelectedPlaceholderDraft(template) {
             }
         } else if (field === 'retrieval.keywords') {
             const keywords = splitDelimitedList(value);
-            const draftType = draft.type || inferPlaceholderType(name);
-            const draftMode = getParagraphMode(draftType, draft, name);
+            const rawDraftType = draft.type || '';
+            const draftType = getCanonicalPlaceholderType(rawDraftType, draft) || inferPlaceholderType(name);
+            const draftMode = getParagraphMode(rawDraftType || draftType, draft, name);
             if (shouldStoreParagraphRetrievalInLlmComponent(draftType, draftMode)) {
                 setLlmWritingRetrievalDraftField(draft, 'keywords', keywords);
             } else if (keywords.length) {
@@ -5625,8 +5632,9 @@ function collectSelectedPlaceholderDraft(template) {
             setComponentDraftField(draft, 'data_template', 'template', value);
         } else if (field === 'components.llm_writing.writing_structure') {
             const structure = splitLines(value);
-            const draftType = draft.type || inferPlaceholderType(name);
-            const draftMode = getParagraphMode(draftType, draft, name);
+            const rawDraftType = draft.type || '';
+            const draftType = getCanonicalPlaceholderType(rawDraftType, draft) || inferPlaceholderType(name);
+            const draftMode = getParagraphMode(rawDraftType || draftType, draft, name);
             if (shouldStoreParagraphRetrievalInLlmComponent(draftType, draftMode)) {
                 setComponentDraftField(draft, 'llm_writing', 'writing_structure', structure);
             } else if (structure.length) {
@@ -5665,7 +5673,7 @@ function collectSelectedPlaceholderDraft(template) {
         );
     }
     draft.title = draft.title || inferPlaceholderTitle(name);
-    draft.type = getCanonicalPlaceholderType(draft.type || inferPlaceholderType(name), draft) || inferPlaceholderType(name);
+    draft.type = getCanonicalPlaceholderType(draft.type, draft) || inferPlaceholderType(name);
     if (draft.type === 'paragraph') {
         draft.mode = isParagraphMode(draft.mode)
             ? draft.mode
@@ -5792,8 +5800,9 @@ function setLlmWritingRetrievalDraftField(draft, field, value) {
 }
 
 function applyKeywordModeDraft(template, draft, placeholderName, mode, profileName, customKeywordsText) {
-    const draftType = draft.type || inferPlaceholderType(placeholderName);
-    const paragraphMode = getParagraphMode(draftType, draft, placeholderName);
+    const rawDraftType = draft.type || '';
+    const draftType = getCanonicalPlaceholderType(rawDraftType, draft) || inferPlaceholderType(placeholderName);
+    const paragraphMode = getParagraphMode(rawDraftType || draftType, draft, placeholderName);
     const storeInLlmComponent = shouldStoreParagraphRetrievalInLlmComponent(draftType, paragraphMode);
     const nextRetrieval = storeInLlmComponent
         ? { ...(getLlmWritingComponent(draft).retrieval || {}) }
@@ -6483,7 +6492,7 @@ function buildPlaceholderReadinessItems(template, placeholders) {
 }
 
 function getPlaceholderReadinessIssue(mapping, placeholderName) {
-    const type = getCanonicalPlaceholderType(mapping.type || inferPlaceholderType(placeholderName), mapping);
+    const type = getCanonicalPlaceholderType(mapping.type, mapping) || inferPlaceholderType(placeholderName);
     if (type === 'paragraph') {
         const mode = getParagraphMode(mapping.type || type, mapping, placeholderName);
         if (usesEvidenceParagraphMode(mapping.type || type, mode)
@@ -7007,7 +7016,7 @@ function buildSelectedPlaceholderYamlFragment(template, existingMappings) {
         ].join('\n');
     }
     const mapping = existingMappings.get(key) || {};
-    const type = mapping.type || inferPlaceholderType(key);
+    const type = getCanonicalPlaceholderType(mapping.type, mapping) || inferPlaceholderType(key);
     if (type === 'excel_commodity_market_review') {
         return [
             '# 当前占位符片段',
@@ -7027,8 +7036,8 @@ function buildSelectedPlaceholderYamlFragment(template, existingMappings) {
 
 function buildPlaceholderYamlEntry(template, key, mapping) {
     const project = template.report_project || null;
-    const storedType = mapping.type || inferPlaceholderType(key);
-    const type = getCanonicalPlaceholderType(storedType, mapping);
+    const storedType = mapping.type || '';
+    const type = getCanonicalPlaceholderType(storedType, mapping) || inferPlaceholderType(key);
     const paragraphMode = getParagraphMode(storedType, mapping, key);
     const lines = [
         `  ${key}:`,
