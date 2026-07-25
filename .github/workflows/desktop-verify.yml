@@ -80,7 +80,7 @@ jobs:
         run: npm ci
 
       - name: Install Python dependencies
-        run: python -m pip install -e '.[dev]' pyinstaller
+        run: python -m pip install -e '.[dev]' pyinstaller "setuptools<81"
 
       - name: Run desktop contract tests
         run: python -m pytest tests/unit/test_desktop_shell_scaffold.py tests/unit/test_check_sidecar_health.py -q

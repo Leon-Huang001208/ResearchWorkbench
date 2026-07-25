@@ -138,14 +138,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python -m pip install -e . pyinstaller
+          python -m pip install -e . pyinstaller "setuptools<81"
 
       - name: Install Python dependencies on Windows
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          python -m pip install -e . pyinstaller
+          python -m pip install -e . pyinstaller "setuptools<81"
 
       - name: Build backend sidecar
         run: python scripts/desktop/build_sidecar.py
