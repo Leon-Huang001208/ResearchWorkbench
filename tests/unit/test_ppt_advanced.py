@@ -9,9 +9,11 @@ from core.contracts.content_element import (
     ChartElement,
     ContentBlock,
     ContentElementType,
+    DividerElement,
     HeadingElement,
     ListItem,
     ParagraphElement,
+    SpeakerNotesElement,
     TableElement,
     TextRun,
 )
@@ -489,6 +491,35 @@ class TestPPTSpeakerNotes:
         )
         buf = renderer.render_to_buffer(doc)
         assert buf.getbuffer().nbytes > 0
+
+    def test_speaker_notes_and_divider_elements_render(self, renderer):
+        """元素级备注和分隔线应通过 PPT 分发器渲染."""
+        doc = Document(
+            title="元素备注",
+            sections=[
+                Section(
+                    section_id="s1",
+                    title="带元素备注的章节",
+                    blocks=[
+                        ContentBlock(
+                            block_id="b1",
+                            elements=[
+                                DividerElement(),
+                                SpeakerNotesElement(text="元素级演讲者备注"),
+                            ],
+                        )
+                    ],
+                )
+            ],
+        )
+
+        buf = renderer.render_to_buffer(doc)
+
+        from pptx import Presentation as PPTXPresentation
+
+        notes_text_frame = PPTXPresentation(buf).slides[0].notes_slide.notes_text_frame
+        assert notes_text_frame is not None
+        assert notes_text_frame.text == "元素级演讲者备注"
 
 
 class TestPPTMultiSection:
