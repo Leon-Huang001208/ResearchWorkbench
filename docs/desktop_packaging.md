@@ -5,13 +5,43 @@ AlphaFoundry is moving toward a Tauri desktop shell while keeping the current Fa
 ## Current Shape
 
 - Existing UI remains served by `app.api.main:app`.
-- Desktop development uses the ESM `scripts/desktop/run_backend.js` bridge, which resolves its own directory from `import.meta.url`, selects `run_backend.cmd` on Windows and `run_backend.sh` on macOS/Linux, then starts FastAPI on `127.0.0.1:8765`.
+- Desktop development uses `scripts/desktop/run_backend.sh` to select a Python runtime and start FastAPI on `127.0.0.1:8765`.
 - Tauri loads `http://127.0.0.1:8765` in dev mode.
 - Packaged builds include `desktop/dist/index.html`, which waits for `/health` and then opens the existing workbench.
 - The Tauri shell expects a sidecar named `alphafoundry-backend`. The current macOS ARM development shim is `src-tauri/binaries/alphafoundry-backend-aarch64-apple-darwin` and delegates to the Python launcher.
-- The Workbench page handles browser refresh locally: `F5`, macOS `Cmd+R`, and Windows/Linux `Ctrl+R` prevent the browser default and call `window.location.reload()`, including while an input has focus. This is page refresh only; it does not register a Tauri native shortcut, restart the sidecar, or enable HMR.
 - `tauri dev` lets `beforeDevCommand` start the backend. Packaged debug and release builds start the bundled sidecar.
-- The packaged sidecar resolves its resource root in this order: `ALPHAFOUNDRY_PROJECT_ROOT`, PyInstaller's `sys._MEIPASS` bundle directory, then the source-tree fallback. That resolved root is also passed to watchdog and worker processes as their cwd and `ALPHAFOUNDRY_PROJECT_ROOT`, so one-file bundles load self-contained resources instead of a temporary launcher-relative path.
+- 桌面端运行时配置由 `core/settings/runtime.py` 统一解析：Windows 使用 `%LOCALAPPDATA%\AlphaFoundry`，macOS 使用 `~/Library/Application Support/AlphaFoundry`；可用 `ALPHAFOUNDRY_DESKTOP_DATA_DIR` 覆盖。
+- 桌面端必须连接用户自行安装的 PostgreSQL + pgvector；首次启动会生成用户 `.env` 模板，但不会静默降级 SQLite。
+- `ALPHAFOUNDRY_BACKEND_URL` 是 worker、scheduler 和本地 API 调用的唯一地址来源；桌面默认 `http://127.0.0.1:8765`，Web 开发默认 `http://127.0.0.1:8000`。
+
+## Desktop Runtime Configuration
+
+### PostgreSQL prerequisite
+
+Desktop builds do not bundle a database server. Before first launch, install PostgreSQL 15+ and pgvector, create the `alphafoundry` database, and enable the extension:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+```
+
+The first launch creates a per-user `.env` with owner-only permissions on macOS/Linux. Configure a PostgreSQL psycopg v3 URL, then restart the desktop app:
+
+```dotenv
+DATABASE_URL=postgresql+psycopg://user:password@127.0.0.1:5432/alphafoundry
+```
+
+### Location and migration
+
+- Windows: `%LOCALAPPDATA%\AlphaFoundry`
+- macOS: `~/Library/Application Support/AlphaFoundry`
+- Override: `ALPHAFOUNDRY_DESKTOP_DATA_DIR`
+- Explicit configuration file: `ALPHAFOUNDRY_CONFIG_FILE`
+
+Windows upgrades detect a legacy `%APPDATA%\AlphaFoundry\.env` and copy it only when the new local directory has no `.env`; an existing local configuration is never overwritten. To move to another computer, close AlphaFoundry, copy the application data directory, export/import PostgreSQL with `pg_dump` / `pg_restore`, update `DATABASE_URL` if needed, then run `python scripts/bootstrap_db.py`.
+
+### Local-only control plane
+
+The desktop backend accepts only `localhost` or `127.0.0.1` as its listener. If the selected port is occupied, the launcher stops without terminating the unknown owning process. Configuration endpoints are restricted to loopback clients, do not return persisted secrets, and are disabled in `web-prod` mode. Database and advanced logging configuration changes are persisted for the next restart rather than falsely claiming that the current SQLAlchemy engine or logging handlers have switched. Values injected through the process environment are shown as locked and cannot be overwritten by the configuration page. `ALPHAFOUNDRY_BACKEND_URL` is the single base URL used by workers and scheduled API calls.
 
 ## Why This Differs From cc-switch
 
@@ -73,17 +103,43 @@ Build the desktop bundle:
 npm run desktop:build
 ```
 
-The generated sidecar is intentionally written under `build/desktop-sidecar/dist/`. It is a self-contained PyInstaller package of `backend_launcher.py`, including required backend modules, third-party package data, and web/report-project assets. The `src-tauri/binaries/` checked-in macOS ARM file remains a small development shim; release workflows copy the real generated sidecar into that directory only inside the build workspace.
+The generated sidecar is intentionally written under `build/desktop-sidecar/dist/`. The `src-tauri/binaries/` checked-in macOS ARM file remains a small development shim; release workflows copy the real generated sidecar into that directory only inside the build workspace.
 
-On the first frozen launch, the launcher creates an editable per-user `.env`. If `DATABASE_URL` is absent from both the process environment and that user file, the desktop app defaults to `data_dir/alphafoundry.db`; uncomment and configure the PostgreSQL `DATABASE_URL` template entry only when PostgreSQL is required.
+## 跨平台开发与发布验证流程
 
-## Native CI and GitHub Releases
+AlphaFoundry 采用“一套源码、各目标平台原生构建”的策略：Tauri 壳和 Python 业务代码共用，但 Python sidecar 是平台相关的原生可执行文件，必须分别为 macOS 和 Windows 打包。macOS 产物不能用于 Windows，反之亦然。
 
-`.github/workflows/desktop-verify.yml` is the required native build gate for pull requests and pushes to `main` that affect desktop packaging. It builds the macOS Apple Silicon target (`macos-14` / `aarch64-apple-darwin`) and the Windows x64 target (`windows-2022` / `x86_64-pc-windows-msvc`) independently. Each job installs the locked Node dependencies, Python 3.11 development test dependencies, Rust and PyInstaller; then it builds the native sidecar, verifies its target-specific filename, prepares an isolated database with the `vector` extension, and starts only that freshly built sidecar for a loopback `/health` smoke check. macOS uses Homebrew PostgreSQL 17 with `pgvector` and a temporary `PGDATA`; Windows uses a named `pgvector/pgvector:pg16` Docker container. The helper always terminates only its own child process; macOS stops only that temporary PostgreSQL data directory, while Windows removes only its named container. The bundle and `build/desktop-sidecar/health-smoke.log` are retained for 14 days.
+### 日常开发
 
-The workflow at `.github/workflows/desktop-release.yml` can be triggered manually from GitHub Actions or by pushing a `v*` tag. It uses the same two native targets and publishes their bundles to one draft prerelease through `tauri-apps/tauri-action@v0`.
+开发者可在 macOS 上修改和运行代码，无需为每次本地验证都重打安装包：`tauri dev` 使用源码启动 FastAPI 后端。应先运行与平台无关的单元、接口和前端测试。
 
-Native build CI validates that clean macOS and Windows runners can build their own sidecars and Tauri bundles. It does not replace installation-level acceptance on real devices with licensed Microsoft Office, Excel and Wind installed and signed in. Before a release, run that real-device acceptance on both supported platforms, including the relevant Office/Wind, permissions, installer, upgrade and uninstall flows.
+### 每次桌面端相关改动
+
+凡影响 `src-tauri/`、`desktop/`、`scripts/desktop/`、sidecar、桌面路径/配置、安装包、更新机制或 Excel/Wind 集成的改动，必须经过以下验证：
+
+1. 在开发机运行相关的通用测试和本地桌面测试。
+2. 通过 GitHub Actions 的原生 Windows runner 完成依赖安装、Python sidecar (`.exe`) 构建、Tauri Windows 安装包构建，以及基础启动/`/health` 检查。
+3. 通过 macOS runner 完成对应的 sidecar 和桌面包构建。
+
+macOS 本地测试不等于 Windows 验证；Windows CI 未通过或尚未运行时，不得宣称 Windows 兼容。
+
+### 发布前冒烟测试
+
+在发布新版本前，必须在真实 Windows 环境安装 CI 生成的安装包，并至少验证：安装/卸载/升级、主窗口启动、sidecar 启动、`/health`、用户数据目录、日志和配置文件。涉及 Excel/Wind、系统权限、签名/杀毒软件兼容或自动更新的版本，必须在真实 Windows 上验证相应功能。macOS 发版也应在对应架构的真实设备上完成相同级别的安装验证。
+
+### 发布节奏
+
+日常代码修改只需开发模式验证；只有需要让用户获得变更时，才由 CI 为每个目标平台构建新的 sidecar 和安装包，并以该构建产物完成测试后发布。
+
+## GitHub Release Workflow
+
+The workflow at `.github/workflows/desktop-release.yml` can be triggered manually from GitHub Actions or by pushing a `v*` tag. It builds a draft prerelease for:
+
+- macOS ARM on `macos-latest`
+- Windows x64 on `windows-latest`
+- Linux x64 on `ubuntu-22.04`
+
+Each job installs Node, Python 3.11, Rust, project Python dependencies, builds the PyInstaller sidecar, copies it into `src-tauri/binaries/`, and lets `tauri-apps/tauri-action@v0` upload platform bundles to the same draft GitHub Release.
 
 Required repository permission:
 

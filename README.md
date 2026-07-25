@@ -202,7 +202,7 @@ python scripts/seed_factor_data.py --stock-count 200 --source auto --resume .ai/
 ### 前置要求
 
 - Python 3.11+
-- PostgreSQL 15+（推荐）或 SQLite（零配置）
+- PostgreSQL 15+ 与 pgvector 扩展（桌面端由用户自行安装；网页生产环境使用受管 PostgreSQL）
 
 ### 安装
 
@@ -219,32 +219,21 @@ pip install -e ".[pdf-full]"   # 完整支持 (含 MinerU, opendatalab/mineru)
 
 ### 配置数据库
 
-AlphaFoundry 默认使用 PostgreSQL，也支持 SQLite。
-
-#### 方式一：SQLite（零配置，快速开始）
-
-修改 `.env` 文件：
+1. 安装并启动本地 PostgreSQL 15+，安装 pgvector 扩展。
+1. 创建数据库 `alphafoundry`，在该库中执行 `CREATE EXTENSION IF NOT EXISTS vector;`。
+1. 复制 `.env.example` 为 `.env`，并配置：
 
 ```env
-DATABASE_URL=sqlite:///./data/alphafoundry.db
+DATABASE_URL=postgresql+psycopg://user:password@127.0.0.1:5432/alphafoundry
 ```
 
-然后初始化数据库：
+1. 初始化数据库：
 
 ```bash
 python scripts/bootstrap_db.py
 ```
 
-#### 方式二：PostgreSQL（推荐）
-
-1. 确保本地运行 PostgreSQL 15+
-2. 创建数据库 `alphafoundry`
-3. 修改 `.env` 文件中的 `DATABASE_URL`
-4. 初始化数据库：
-
-```bash
-python scripts/bootstrap_db.py
-```
+桌面端用户配置文件位于 `%LOCALAPPDATA%\AlphaFoundry\.env`（Windows）或 `~/Library/Application Support/AlphaFoundry/.env`（macOS）。迁移时复制该目录，并使用 `pg_dump` / `pg_restore` 迁移 PostgreSQL 数据库；详见 `docs/desktop_packaging.md`。
 
 ### 复制环境变量模板
 
@@ -510,7 +499,7 @@ AlphaFoundry/
 | 数据验证 | Pydantic v2 |
 | Web 框架 | FastAPI |
 | 命令行 | Click |
-| 数据库 | PostgreSQL 15+ / SQLite |
+| 数据库 | PostgreSQL 15+ + pgvector（核心事实存储；SQLite 仅保留非权威缓存兼容） |
 | 向量存储   | pgvector                |
 | ORM        | SQLAlchemy 2.0          |
 | 数据库迁移 | Alembic                 |

@@ -37,6 +37,23 @@ class ReportProject:
     template_path: Optional[Path] = None
 
 
+@dataclass(frozen=True)
+class ReportProjectScanIssue:
+    """A non-fatal problem found while scanning a report project folder."""
+
+    code: str
+    project_slug: str
+    relative_path: str
+
+
+@dataclass(frozen=True)
+class ReportProjectScanResult:
+    """Report projects and non-fatal scan issues."""
+
+    projects: List[ReportProject] = field(default_factory=list)
+    issues: List[ReportProjectScanIssue] = field(default_factory=list)
+
+
 class ReportProjectManager:
     """Read and bootstrap report project folders."""
 
@@ -49,30 +66,38 @@ class ReportProjectManager:
 
     def list_projects(self) -> List[ReportProject]:
         """List report projects with resolved asset paths."""
+        return self.scan_projects().projects
+
+    def scan_projects(self) -> ReportProjectScanResult:
+        """Scan report projects while preserving non-fatal asset diagnostics."""
         projects: List[ReportProject] = []
+        issues: List[ReportProjectScanIssue] = []
         try:
             for project_dir in sorted(self.projects_root.iterdir(), key=lambda p: p.name):
                 if not project_dir.is_dir():
                     continue
                 project_yaml = project_dir / "project.yaml"
                 if not project_yaml.exists():
-                    logger.warning(
-                        "Skipping report project without project.yaml", path=str(project_dir)
+                    logger.debug(
+                        "Ignoring report project directory without project.yaml",
+                        path=str(project_dir),
                     )
                     continue
                 try:
                     projects.append(self._load_project(project_dir))
                 except Exception as exc:
+                    issue = self._build_scan_issue(project_dir, exc)
+                    issues.append(issue)
                     logger.error(
                         "Failed to load report project",
                         project_dir=str(project_dir),
                         error=str(exc),
                         exc_info=True,
                     )
-            return projects
+            return ReportProjectScanResult(projects=projects, issues=issues)
         except Exception:
             logger.exception(
-                "Failed to list report projects", projects_root=str(self.projects_root)
+                "Failed to scan report projects", projects_root=str(self.projects_root)
             )
             raise
 
@@ -165,6 +190,73 @@ class ReportProjectManager:
             )
             raise
 
+    @staticmethod
+    def _validate_project_asset_paths(project_dir: Path, data: Dict[str, Any]) -> None:
+        """Reject project configuration paths that leave the project directory."""
+        path_values = [
+            data.get("active_word_template"),
+            data.get("active_ppt_template"),
+            data.get("active_excel_workbook"),
+            data.get("section_config"),
+            data.get("output_dir", "generated"),
+            data.get("run_log_dir", "runs"),
+            data.get("prompt_templates"),
+            *data.get("data_sources", []),
+        ]
+        root = project_dir.resolve()
+        for path_value in path_values:
+            if not path_value:
+                continue
+            path = Path(path_value)
+            candidate = path.resolve() if path.is_absolute() else (root / path).resolve()
+            try:
+                candidate.relative_to(root)
+            except ValueError as exc:
+                raise ValueError("Report project asset path is outside project directory") from exc
+
+    @staticmethod
+    def _build_scan_issue(project_dir: Path, exc: Exception) -> ReportProjectScanIssue:
+        """Convert a loading failure into a stable, frontend-safe diagnostic."""
+        if isinstance(exc, yaml.YAMLError) or "Invalid report project YAML" in str(exc):
+            return ReportProjectScanIssue(
+                code="invalid_project_yaml",
+                project_slug=project_dir.name,
+                relative_path="project.yaml",
+            )
+
+        message = str(exc)
+        if message == "Report project asset path is outside project directory":
+            return ReportProjectScanIssue(
+                code="external_asset",
+                project_slug=project_dir.name,
+                relative_path="external_asset",
+            )
+        asset_prefix = "Report project asset missing: "
+        if message.startswith(asset_prefix):
+            label_and_path = message[len(asset_prefix) :]
+            label, _, path_text = label_and_path.partition(" -> ")
+            path = Path(path_text)
+            try:
+                relative_path = str(path.relative_to(project_dir))
+            except ValueError:
+                relative_path = path.name
+            issue_code = {
+                "active_word_template": "missing_active_word_template",
+                "active_ppt_template": "missing_active_ppt_template",
+                "section_config": "missing_section_config",
+            }.get(label, "missing_project_asset")
+            return ReportProjectScanIssue(
+                code=issue_code,
+                project_slug=project_dir.name,
+                relative_path=relative_path,
+            )
+
+        return ReportProjectScanIssue(
+            code="unreadable_project",
+            project_slug=project_dir.name,
+            relative_path="project.yaml",
+        )
+
     def _load_project(self, project_dir: Path) -> ReportProject:
         project_yaml = project_dir / "project.yaml"
         try:
@@ -178,6 +270,7 @@ class ReportProjectManager:
         if project_type not in {"word", "ppt"}:
             raise ValueError(f"Unsupported report project type: {project_type}")
 
+        self._validate_project_asset_paths(project_dir, data)
         word_template_path = self._resolve(project_dir, data.get("active_word_template"))
         ppt_template_path = self._resolve_optional(project_dir, data.get("active_ppt_template"))
         template_path = ppt_template_path if project_type == "ppt" else word_template_path

@@ -79,10 +79,14 @@ Functions:
 - `validate_cors_trusted_host_consistency`
   - 确保显式跨域调用方也属于明确扩展的 Host 信任边界。
 - `_configuration_origin_is_allowed`
+- `_require_configuration_control_enabled`
+  - Disable the local configuration control plane in web production mode.
+- `_require_loopback_client`
+  - Require configuration calls to originate from the local machine.
 - `require_configuration_csrf_token`
-  - 拒绝非本地来源，并以常量时间比较进程级 CSRF token。
+  - Require local access, a trusted origin, and the process CSRF token.
 - `require_configuration_origin_only`
-  - 仅校验 Origin/Host 来源合法性，不校验 CSRF token。
+  - Require local access before issuing a configuration CSRF token.
 
 
 ## `app/api/main.py`
@@ -1375,6 +1379,8 @@ Classes:
   - Project data-folder asset summary.
 - `ReportProjectInfo`
   - Report project summary for the frontend.
+- `ReportProjectScanIssueInfo`
+  - Non-fatal report project scan diagnostic for the frontend.
 - `ReportProjectsListResponse`
   - Report projects list response.
 - `RenderReportProjectRequest`
@@ -4114,14 +4120,22 @@ Classes:
 
 ## `core/settings/__init__.py`
 
+Module docstring:
+> Core settings public exports with lazy initialization.
+
 Imports:
-- `config`
+- `__future__`
+- `typing`
+
+Functions:
+- `__getattr__`
+  - Load Settings only when a consumer explicitly requests the singleton.
 
 
 ## `core/settings/config.py`
 
 Imports:
-- `dotenv`
+- `core.settings.runtime`
 - `os`
 - `pathlib`
 - `pydantic`
@@ -4139,7 +4153,7 @@ Classes:
 
 Functions:
 - `resolve_runtime_env_path`
-  - 返回当前运行时应使用的 .env 文件路径。
+  - 返回由 RuntimeContext 统一解析的配置文件路径。
 
 
 ## `core/settings/paths.py`
@@ -4167,6 +4181,53 @@ Functions:
   - 旧的 macOS 风格工作簿路径（仅用于迁移检测）。
 - `migrate_legacy_wind_workbook`
   - 若旧 macOS 风格路径存在工作簿而目标路径不存在，则复制过去。
+
+
+## `core/settings/registry.py`
+
+Module docstring:
+> Configuration metadata shared by desktop bootstrap and documentation templates.
+
+Imports:
+- `__future__`
+- `dataclasses`
+
+Classes:
+- `ConfigurationField`
+  - Metadata for a user-configurable runtime environment field.
+
+Functions:
+- `desktop_env_template`
+  - Return the secure first-run desktop configuration template.
+
+
+## `core/settings/runtime.py`
+
+Module docstring:
+> Single runtime source for platform-aware configuration decisions.
+
+Imports:
+- `__future__`
+- `core.settings.paths`
+- `dataclasses`
+- `dotenv`
+- `os`
+- `pathlib`
+- `typing`
+
+Classes:
+- `RuntimeConfigurationError`
+  - Raised when runtime bootstrap configuration is invalid.
+- `RuntimeContext`
+  - Resolved runtime configuration before application services are imported.
+
+Functions:
+- `resolve_runtime_context`
+  - Resolve config location and service URL without mutating process state.
+- `initialize_runtime_environment`
+  - Load the selected config file once before settings and repositories initialize.
+- `_resolve_mode`
+- `_resolve_env_path`
 
 
 ## `core/source_registry.py`
@@ -6586,7 +6647,7 @@ Classes:
 
 Functions:
 - `check_database_connection`
-  - Check database connectivity on startup.
+  - Check database connectivity on startup without exposing connection details.
 - `ensure_schema`
   - Ensure database schema matches ORM models.
 - `get_db`
@@ -7562,12 +7623,13 @@ Imports:
 - `data_layer.web_search.bing_provider`
 - `data_layer.web_search.key_pool`
 - `data_layer.web_search.tavily_provider`
+- `os`
 
 Functions:
-- `_build_key_pool`
-  - 从 WEB_SEARCH_API_KEYS 环境变量构建 key 池.
 - `build_web_search_provider`
-  - 根据配置构建 web search provider.
+  - Build a provider from effective runtime settings.
+- `build_web_search_provider_from_values`
+  - Build a provider from explicit values without reading process environment.
 
 
 ## `data_layer/web_search/key_pool.py`
@@ -7593,7 +7655,7 @@ Classes:
   - 池配置.
 - `ApiKeyPool`
   - API key 池——多 key 轮询 + 健康追踪 + 月度额度.
-  - methods: __init__, from_json_env, from_single_key, key_count, get_key, get_stats, get_all_stats, available_keys, acquire, _round_robin_pick, release, report_success, report_failure, report_quota_used, report_quota_exhausted, _is_available, _lease, _refresh_states
+  - methods: __init__, from_json_value, from_json_env, from_single_key, key_count, get_key, get_stats, get_all_stats, available_keys, acquire, _round_robin_pick, release, report_success, report_failure, report_quota_used, report_quota_exhausted, _is_available, _lease, _refresh_states
 
 Functions:
 - `_next_month_reset`
@@ -11136,9 +11198,13 @@ Imports:
 Classes:
 - `ReportProject`
   - Resolved report project assets.
+- `ReportProjectScanIssue`
+  - A non-fatal problem found while scanning a report project folder.
+- `ReportProjectScanResult`
+  - Report projects and non-fatal scan issues.
 - `ReportProjectManager`
   - Read and bootstrap report project folders.
-  - methods: __init__, list_projects, get_project, rename_project, bootstrap_cyb50_project, _load_project, _resolve, _resolve_optional
+  - methods: __init__, list_projects, scan_projects, get_project, rename_project, bootstrap_cyb50_project, _validate_project_asset_paths, _build_scan_issue, _load_project, _resolve, _resolve_optional
 
 
 ## `reporting/projects/run.py`
@@ -11799,6 +11865,8 @@ Imports:
 - `sys`
 
 Functions:
+- `backend_endpoint`
+  - Return an AlphaFoundry API endpoint from the effective runtime URL.
 - `get_random_headers`
   - 生成随机请求头，防爬
 - `fetch_with_retry`
@@ -12276,26 +12344,31 @@ Module docstring:
 Imports:
 - `__future__`
 - `argparse`
+- `core.settings.paths`
+- `core.settings.registry`
 - `logging`
 - `os`
 - `pathlib`
 - `platform`
+- `shutil`
 - `socket`
 - `subprocess`
 - `sys`
 - `typing`
 
 Functions:
+- `resolve_project_root`
+  - Resolve the source root or PyInstaller bundle root for the launcher.
 - `build_parser`
   - Build CLI parser for the packaged desktop backend.
 - `configure_launcher_logging`
   - Configure file logging and return the log file path.
 - `is_frozen`
   - Return whether this launcher is running from a PyInstaller executable.
-- `resolve_project_root`
-  - Return the directory containing the backend resources for this process.
 - `desktop_data_dir`
   - Return the persistent per-user data directory for desktop builds.
+- `_migrate_legacy_roaming_env`
+  - Copy a legacy Windows roaming config once without overwriting local data.
 - `_ensure_default_env`
   - 如果 data_dir/.env 不存在，创建默认模板并返回路径。
 - `apply_frozen_desktop_defaults`
@@ -12305,9 +12378,11 @@ Functions:
 - `_start_crawl_scheduler`
   - 通过 watchdog 启动 crawl_scheduler_worker，watchdog 负责崩溃后自动重启。
 - `_kill_stale_process_on_port`
-  - 检测并清理占用指定端口的残留进程。
+  - Check whether the desktop listener port is available without touching other processes.
 - `run_backend`
   - Run the FastAPI backend through uvicorn.
+- `_require_loopback_host`
+  - Reject network exposure because the desktop configuration plane is local-only.
 - `main`
   - Start the desktop backend and return a process exit code.
 

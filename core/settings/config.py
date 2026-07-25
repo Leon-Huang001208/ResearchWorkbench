@@ -3,54 +3,22 @@ import re
 from pathlib import Path
 from typing import Any, Literal
 
-from dotenv import load_dotenv
 from pydantic import BaseModel, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+from core.settings.runtime import initialize_runtime_environment, resolve_runtime_context
 
-
-def _linked_worktree_env_file(project_root: Path) -> Path | None:
-    """Return the main worktree .env when running from a linked git worktree."""
-    git_file = project_root / ".git"
-    if not git_file.is_file():
-        return None
-    try:
-        content = git_file.read_text(encoding="utf-8").strip()
-    except OSError:
-        return None
-    if not content.startswith("gitdir:"):
-        return None
-
-    git_dir = Path(content.split(":", 1)[1].strip()).expanduser()
-    if not git_dir.is_absolute():
-        git_dir = (project_root / git_dir).resolve()
-    main_worktree = git_dir.parent.parent.parent
-    candidate = main_worktree / ".env"
-    return candidate if candidate.exists() else None
-
-
-def _load_env_files() -> None:
-    """Load local environment files without overriding explicit process env."""
-    explicit_env_file = os.environ.get("ALPHAFOUNDRY_ENV_FILE")
-    candidates = [
-        Path(explicit_env_file).expanduser() if explicit_env_file else None,
-        PROJECT_ROOT / ".env",
-        _linked_worktree_env_file(PROJECT_ROOT),
-        Path.cwd() / ".env",
-    ]
-    seen: set[Path] = set()
-    for candidate in candidates:
-        if not candidate:
-            continue
-        path = candidate.resolve()
-        if path in seen or not path.exists():
-            continue
-        load_dotenv(path, override=False)
-        seen.add(path)
-
-
-_load_env_files()
+RUNTIME_CONTEXT = initialize_runtime_environment()
+DEFAULT_LOG_DIR = (RUNTIME_CONTEXT.data_dir or RUNTIME_CONTEXT.project_root) / "logs"
+DEFAULT_OBJECT_STORAGE_PATH = (
+    RUNTIME_CONTEXT.data_dir or RUNTIME_CONTEXT.project_root / "data"
+) / "objects"
+DEFAULT_PDF_MARKDOWN_DIR = (
+    RUNTIME_CONTEXT.data_dir or RUNTIME_CONTEXT.project_root / "data"
+) / "markdown"
+DEFAULT_PDF_RAW_TEXT_DIR = (
+    RUNTIME_CONTEXT.data_dir or RUNTIME_CONTEXT.project_root / "data"
+) / "raw_text"
 
 
 class ProviderProfile(BaseModel):
@@ -70,16 +38,19 @@ class TaskRoute(BaseModel):
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(extra="ignore")
 
     # 项目根目录
-    PROJECT_ROOT: Path = PROJECT_ROOT
+    PROJECT_ROOT: Path = RUNTIME_CONTEXT.project_root
 
     # Runtime environment: dev/prod
     APP_ENV: Literal["dev", "prod"] = "dev"
 
-    # 数据库（postgresql+psycopg:// 显式指定 psycopg v3 驱动，避免 SQLAlchemy 回退到 psycopg2）
-    DATABASE_URL: str = "postgresql+psycopg://postgres:postgres@localhost:5432/alphafoundry"
+    # API 基础地址。桌面端由 RuntimeContext 在导入应用前设为 8765。
+    BACKEND_URL: str = RUNTIME_CONTEXT.backend_url
+
+    # 未配置时使用不可用占位符，避免意外连接到已知的默认数据库账户。
+    DATABASE_URL: str = "postgresql+psycopg://invalid:invalid@127.0.0.1:1/alphafoundry"
 
     # ── 多 provider profiles + 任务路由 ──
     PROVIDER_PROFILES: dict[str, ProviderProfile] = Field(default_factory=dict)
@@ -87,7 +58,7 @@ class Settings(BaseSettings):
 
     # 日志
     LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
-    LOG_DIR: Path = PROJECT_ROOT / "logs"
+    LOG_DIR: Path = Field(default_factory=lambda: DEFAULT_LOG_DIR)
 
     # iFinD 数据源
     IFIND_USERNAME: str = ""
@@ -106,7 +77,7 @@ class Settings(BaseSettings):
     CRAWLER_QUIET_END: int = 8  # 默认 08:00 结束静默（不含）
 
     # 对象存储
-    OBJECT_STORAGE_PATH: Path = PROJECT_ROOT / "data" / "objects"
+    OBJECT_STORAGE_PATH: Path = Field(default_factory=lambda: DEFAULT_OBJECT_STORAGE_PATH)
 
     # Knowledge Worker 配置
     KNOWLEDGE_WORKER_POLL_INTERVAL: float = 3.0
@@ -123,8 +94,8 @@ class Settings(BaseSettings):
     LLM_EXTRACT_LONG_TEXT_THRESHOLD: int = 1000
 
     # PDF 转换输出目录
-    PDF_MARKDOWN_DIR: Path = PROJECT_ROOT / "data" / "markdown"
-    PDF_RAW_TEXT_DIR: Path = PROJECT_ROOT / "data" / "raw_text"
+    PDF_MARKDOWN_DIR: Path = Field(default_factory=lambda: DEFAULT_PDF_MARKDOWN_DIR)
+    PDF_RAW_TEXT_DIR: Path = Field(default_factory=lambda: DEFAULT_PDF_RAW_TEXT_DIR)
     PDF_INLINE_THRESHOLD_BYTES: int = 256 * 1024  # 256 KB
     # PDF 转换策略：auto(三级降级) / mineru / markitdown / raw_text
     PDF_PREFERRED_STRATEGY: str = "auto"
@@ -230,36 +201,19 @@ class Settings(BaseSettings):
         self.PDF_RAW_TEXT_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def resolve_runtime_env_path() -> Path:
-    """返回当前运行时应使用的 .env 文件路径。
+def resolve_runtime_env_path(
+    *,
+    environ: dict[str, str] | None = None,
+    project_root: Path | None = None,
+) -> Path:
+    """返回由 RuntimeContext 统一解析的配置文件路径。
 
-    优先级：
-    1. ALPHAFOUNDRY_DESKTOP_DATA_DIR 环境变量（桌面版 data_dir）
-    2. 桌面版默认 data_dir（APPDATA/AlphaFoundry）
-    3. 项目根目录 .env（开发模式）
+    Web 生产模式默认不读取配置文件，因此调用方需要通过环境变量注入配置。
     """
-    override = os.environ.get("ALPHAFOUNDRY_DESKTOP_DATA_DIR")
-    if override:
-        return Path(override).expanduser() / ".env"
-
-    # 桌面版：检测是否在 frozen 模式或 ALPHAFOUNDRY_DESKTOP 环境变量
-    if os.environ.get("ALPHAFOUNDRY_DESKTOP") or os.environ.get("ALPHAFOUNDRY_DESKTOP_DATA_DIR"):
-        import platform
-
-        system = platform.system()
-        if system == "Windows":
-            base = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
-            return base / "AlphaFoundry" / ".env"
-        if system == "Darwin":
-            return Path.home() / "Library" / "Application Support" / "AlphaFoundry" / ".env"
-        base = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
-        return base / "AlphaFoundry" / ".env"
-
-    # 开发模式：项目根目录下的 .env
-    project_root = Path(
-        os.environ.get("ALPHAFOUNDRY_PROJECT_ROOT", Path(__file__).parent.parent.parent)
-    )
-    return project_root / ".env"
+    context = resolve_runtime_context(environ=environ, project_root=project_root)
+    if context.env_path is None:
+        raise RuntimeError("web-prod 模式未配置运行时 .env 文件")
+    return context.env_path
 
 
 settings = Settings()

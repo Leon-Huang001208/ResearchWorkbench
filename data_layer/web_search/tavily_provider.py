@@ -84,7 +84,7 @@ class TavilyProvider(WebSearchProvider):
         self._leased_key_name = key_name
         api_key = self._key_pool.get_key(key_name)
         try:
-            results = self._search_with_key(query, max_results, api_key)
+            results = self._search_with_key(query, max_results, api_key, raise_errors=True)
             self._key_pool.report_success(key_name)
             self._key_pool.report_quota_used(key_name)
             return results
@@ -101,7 +101,9 @@ class TavilyProvider(WebSearchProvider):
 
     # ── 单 key 模式 ─────────────────────────────────────
 
-    def _search_with_key(self, query: str, max_results: int, api_key: str) -> list[WebSearchResult]:
+    def _search_with_key(
+        self, query: str, max_results: int, api_key: str, *, raise_errors: bool = False
+    ) -> list[WebSearchResult]:
         if not api_key:
             logger.warning("TAVILY_API_KEY not configured, tavily search skipped")
             return []
@@ -120,8 +122,10 @@ class TavilyProvider(WebSearchProvider):
                 resp = client.post(_TAVILY_ENDPOINT, json=payload)
                 resp.raise_for_status()
                 data = resp.json()
-        except Exception as e:
-            logger.error("tavily search failed", query=query, error=str(e))
+        except Exception as exc:
+            logger.error("tavily search failed", query=query, error_type=type(exc).__name__)
+            if raise_errors:
+                raise
             return []
 
         results: list[WebSearchResult] = []

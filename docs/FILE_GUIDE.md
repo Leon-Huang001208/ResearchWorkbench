@@ -33,7 +33,6 @@
 |---|---|
 | `README.md` | 项目主文档，包含概述、快速开始、核心特性、使用指南 |
 | `pyproject.toml` | 项目配置文件，包含 black、isort、ruff、pytest、mypy error-code debt list 等工具配置 |
-| `package.json` / `package-lock.json` | Tauri 桌面开发、构建和 PyInstaller sidecar 命令的 Node 工具清单与锁定依赖 |
 | `pytest.ini` | Pytest 测试框架配置 |
 | `.env.example` | 环境变量模板，复制为 `.env` 后使用 |
 | `.gitignore` | Git 忽略文件配置 |
@@ -108,7 +107,8 @@
 |---|---|
 | `app/web/templates/index.html` | Web 工作台主页面，包含侧边栏导航和所有 section 面板 |
 | `app/web/static/style.css` | 全局样式表，包含管线监控、仪表盘等所有页面样式 |
-| `app/web/static/js/app.js` | 主入口模块：导航路由、SSE 连接、全局状态管理；在 DOMContentLoaded 内处理 F5、macOS Cmd+R、Windows/Linux Ctrl+R 的纯页面刷新（输入焦点中也生效），仅调用 `window.location.reload()` |
+| `app/web/static/js/app.js` | 主入口模块：导航路由、SSE 连接、全局状态管理 |
+| `app/web/static/js/configuration.js` | 系统配置模块：加载并保存工作台配置、保护秘密字段、处理环境变量锁定和配置模态框事件绑定；该模块由主入口静态导入，必须保持可解析和可执行 |
 | `app/web/static/js/core.js` | 核心工具模块：apiCall、toast、esc 等公共函数 |
 | `app/web/static/js/dashboard.js` | 仪表盘模块：Market Overview + Live Monitor 标签页 |
 | `app/web/static/js/funds.js` | 基金情报模块：基金详情查询、经理/持仓/行业暴露渲染、基金组合穿透计算、结构化 rows 导入 |
@@ -260,6 +260,7 @@
 | `decision_console_service.py` | 决策控制台服务：每日候选、决策记录、复盘视图 |
 | **监控与治理** | |
 | `monitoring_service.py` | 监控服务：健康检查、指标采集、告警管理 |
+| `configuration_service.py` | 本地配置服务：跨平台文件锁与原子 `.env` 写入、配置分区验证、秘密掩码和受控热刷新；生产 Web 模式禁用控制面，数据库修改要求重启 |
 | `governance_service.py` | 治理服务：版本控制、配置管理、审计 |
 | `audit_service.py` | 审计服务：审计日志查询和管理 |
 | **回放与历史** | |
@@ -473,7 +474,7 @@
 | `reporting/templates/` | 报告模板：资产分析卡、专题备忘录、情景分析报告等 |
 | `reporting/composer/` | 报告合成：内容合成引擎 |
 | `reporting/projections/` | 格式投影：Markdown、Word、HTML 等格式输出 |
-| `reporting/projects/project_manager.py` | 报告项目管理：加载 `report_projects/<项目>/project.yaml`，解析 Word、Excel、section config、prompt templates、生成目录和 runs 目录 |
+| `reporting/projects/project_manager.py` | 报告项目管理：加载 `report_projects/<项目>/project.yaml`，解析 Word、Excel、section config、prompt templates、生成目录和 runs 目录；`scan_projects()` 在保留可用项目的同时返回缺失资产诊断 |
 | `reporting/projects/plan.py` | 报告项目生成计划：在渲染前编译 section config 与 prompt templates，输出占位符 prompt/retrieval/deterministic 就绪度和报告周期 |
 | `reporting/projects/run.py` | 报告项目运行编排：解析报告周期，调用占位符生成、Word/PPT 投影、表格/图表嵌入，写入 run log 并聚合 warnings |
 | `reporting/projects/generation.py` | 项目级报告生成：解析 Markdown Prompt 模板，检索 `ingestion_queue_item` / `canonical_event` evidence，通过 ModelGateway 生成 Word 占位符正文，并返回证据/模型/token 元数据 |
@@ -566,6 +567,17 @@
 
 ---
 
+## core/settings/ - 运行时配置
+
+| 文件 | 说明 |
+|---|---|
+| `core/settings/runtime.py` | 运行时配置唯一入口：解析 desktop / web-dev / web-prod、跨平台数据目录、`.env` 路径和 backend URL |
+| `core/settings/config.py` | Pydantic Settings：在 RuntimeContext 初始化后校验有效配置，并为桌面输出目录提供统一默认值 |
+| `core/settings/registry.py` | 桌面首启配置模板与字段元数据：集中 PostgreSQL、LLM 并发和爬虫静默配置 |
+| `core/settings/paths.py` | Windows/macOS/Linux 应用数据目录与 Wind 缓存路径 |
+
+---
+
 ## cron_jobs/ - 定时任务
 
 | 文件 | 说明 |
@@ -601,9 +613,6 @@
 | `scripts/view_db.py` | 数据库查看工具：方便查询统计、事件、文档等 |
 | `scripts/replace_huaan_word_charts_office.py` | 华安 ETF 周报图表替换脚本：通过 Excel/Word 原生复制粘贴生成可编辑 Word chart parts |
 | `scripts/merge_huaan_layout_with_native_charts.py` | 华安 ETF 周报模板修复脚本：以原 Word 模板为母版，仅移植原生 chart drawing 和 chart parts，保留页眉页脚与版式 |
-| `scripts/desktop/run_backend.js` | Tauri 开发后端桥接：Windows 委派 `run_backend.cmd`，macOS/Linux 委派 `run_backend.sh` |
-| `scripts/desktop/build_sidecar.py` | Tauri sidecar PyInstaller 打包：以 `backend_launcher.py` 为入口，收集后端模块、依赖数据与 Web/报告项目资产 |
-| `scripts/desktop/backend_launcher.py` | Frozen 桌面端启动器：加载进程/用户 `.env` 配置并在未配置数据库时回退至每用户数据目录的 SQLite |
 | `scripts/test_*.py` | 各种测试脚本：测试功能模块 |
 
 ---

@@ -25,7 +25,9 @@ let currentTemplateState = {
     configEditModal: null,
     placeholderPickerSyncTimer: null,
     lastReportGenerationResult: null,
-    lastReportRunLog: null
+    lastReportRunLog: null,
+    templateListStatus: null,
+    reportProjectIssues: []
 };
 
 let currentSelectedTemplate = null;
@@ -59,7 +61,6 @@ const REPORT_UPLOAD_FILE_INPUTS = [
 // ─── Template Page / List ──────────────────────────────────────
 async function loadTemplatesPage() {
     try {
-        await loadReportProjectsList();
         await loadTemplatesList();
         initTemplateDropZone();
         initReportProjectUploadInputs();
@@ -71,26 +72,40 @@ async function loadTemplatesPage() {
 }
 
 async function loadTemplatesList() {
-    let templateData = { templates: [] };
+    const [legacyResult, reportProjectsResult] = await Promise.allSettled([
+        apiCall('GET', '/api/templates/'),
+        apiCall('GET', '/api/report-projects/')
+    ]);
+    const legacyLoaded = legacyResult.status === 'fulfilled';
+    const reportProjectsLoaded = reportProjectsResult.status === 'fulfilled';
+    const templateData = legacyLoaded ? legacyResult.value : { templates: [] };
+    const reportProjectsData = reportProjectsLoaded ? reportProjectsResult.value : { projects: [], issues: [] };
 
-    try {
-        await loadReportProjectsList();
-    } catch (e) {
-        console.warn('Failed to load report projects before templates:', e);
+    if (!legacyLoaded) {
+        console.warn('Failed to load legacy templates:', legacyResult.reason);
+    }
+    if (!reportProjectsLoaded) {
+        console.warn('Failed to load report projects:', reportProjectsResult.reason);
     }
 
     try {
-        templateData = await apiCall('GET', '/api/templates/');
-    } catch (e) {
-        console.warn('Failed to load legacy templates:', e);
-    }
-
-    try {
+        currentTemplateState.reportProjects = reportProjectsData.projects || [];
+        currentTemplateState.reportProjectIssues = reportProjectsData.issues || [];
         currentTemplateState.templates = mergeTemplatesWithReportProjects(
             templateData.templates || [],
-            currentTemplateState.reportProjects || []
+            currentTemplateState.reportProjects
         );
-        renderTemplatesList(currentTemplateState.templates);
+        currentTemplateState.templateListStatus = buildTemplateListStatus({
+            legacyLoaded,
+            reportProjectsLoaded,
+            reportProjectIssues: currentTemplateState.reportProjectIssues,
+            templateCount: currentTemplateState.templates.length
+        });
+        renderTemplateListStatus(currentTemplateState.templateListStatus);
+        renderTemplatesList(
+            currentTemplateState.templates,
+            currentTemplateState.templateListStatus.showEmptyState
+        );
     } catch (e) {
         console.error('Failed to render templates:', e);
         const container = document.getElementById('templates-grid');
@@ -100,20 +115,65 @@ async function loadTemplatesList() {
     }
 }
 
+function buildTemplateListStatus({ legacyLoaded, reportProjectsLoaded, reportProjectIssues, templateCount }) {
+    if (!legacyLoaded && !reportProjectsLoaded) {
+        return {
+            kind: 'error',
+            message: '两个模板来源均加载失败，请检查服务后重试。',
+            showEmptyState: false
+        };
+    }
+    if (!legacyLoaded) {
+        return {
+            kind: 'warning',
+            message: '模板库加载失败，正在显示可用报告项目。',
+            showEmptyState: false
+        };
+    }
+    if (!reportProjectsLoaded) {
+        return {
+            kind: 'warning',
+            message: '报告项目加载失败，正在显示可用模板库。',
+            showEmptyState: false
+        };
+    }
+    if (reportProjectIssues.length) {
+        return {
+            kind: 'warning',
+            message: `发现 ${reportProjectIssues.length} 个报告项目扫描问题，缺失资产的项目未显示。`,
+            showEmptyState: false
+        };
+    }
+    return {
+        kind: 'ready',
+        message: '',
+        showEmptyState: templateCount === 0
+    };
+}
+
+function renderTemplateListStatus(status) {
+    const container = document.getElementById('template-list-status');
+    if (!container) return;
+
+    if (!status || status.kind === 'ready') {
+        container.className = 'template-list-status hidden';
+        container.innerHTML = '';
+        return;
+    }
+
+    container.className = `template-list-status is-${status.kind}`;
+    container.innerHTML = `${esc(status.message)}<button type="button" onclick="loadTemplatesList()">重试</button>`;
+}
+
 async function loadTemplates() {
     return loadTemplatesList();
 }
 
 async function loadReportProjectsList() {
-    try {
-        const data = await apiCall('GET', '/api/report-projects/');
-        currentTemplateState.reportProjects = data.projects || [];
-        return currentTemplateState.reportProjects;
-    } catch (e) {
-        console.warn('Failed to load report projects:', e);
-        currentTemplateState.reportProjects = [];
-        return [];
-    }
+    const data = await apiCall('GET', '/api/report-projects/');
+    currentTemplateState.reportProjects = data.projects || [];
+    currentTemplateState.reportProjectIssues = data.issues || [];
+    return currentTemplateState.reportProjects;
 }
 
 function mergeTemplatesWithReportProjects(templates, projects) {
@@ -206,7 +266,12 @@ function buildSectionsFromReportProject(project) {
 
 async function findReportProjectForTemplate(templateName) {
     if (!currentTemplateState.reportProjects.length) {
-        await loadReportProjectsList();
+        try {
+            await loadReportProjectsList();
+        } catch (e) {
+            console.warn('Failed to load report projects for template details:', e);
+            return null;
+        }
     }
 
     const rawTemplateName = String(templateName || '');
@@ -220,12 +285,14 @@ async function findReportProjectForTemplate(templateName) {
     }) || null;
 }
 
-function renderTemplatesList(templates) {
+function renderTemplatesList(templates, showEmptyState = true) {
     const container = document.getElementById('templates-grid');
     if (!container) return;
 
     if (!templates.length) {
-        container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 60px 20px; color: var(--text-secondary);">暂无模板，点击下方"上传"按钮添加</div>';
+        container.innerHTML = showEmptyState
+            ? '<div style="grid-column: 1/-1; text-align: center; padding: 60px 20px; color: var(--text-secondary);">暂无模板，点击下方"上传"按钮添加</div>'
+            : '<div style="grid-column: 1/-1; text-align: center; padding: 60px 20px; color: var(--text-secondary);">模板来源暂时不可用，请重试。</div>';
         return;
     }
 
@@ -8128,11 +8195,16 @@ async function uploadTemplate() {
 
         const data = await response.json();
         toast('报告项目已创建', 'success');
-        await loadReportProjectsList();
-        await loadTemplatesList();
-        await initTemplateSelects();
+        try {
+            await loadReportProjectsList();
+            await loadTemplatesList();
+            await initTemplateSelects();
+            await enterFirstPlaceholderConfigurationMode(data);
+        } catch (e) {
+            console.warn('Failed to refresh templates after report project creation:', e);
+            toast('报告项目已创建，但模板列表刷新失败，请稍后重试。', 'warning');
+        }
         closeUploadModal();
-        await enterFirstPlaceholderConfigurationMode(data);
 
         if (nameInput) nameInput.value = '';
         [wordInput, pptInput, excelInput, sectionInput, promptInput, dataFilesInput].forEach(input => {

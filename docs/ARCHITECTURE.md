@@ -240,7 +240,7 @@ AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System�
   - `ThesisReviewService`：论点审查服务
   - `TimingEngineService`：择时引擎服务
 
-- **core/settings/**：全局配置管理
+- **core/settings/**：全局配置管理。`runtime.py` 在业务模块和数据库 engine 初始化前解析运行模式、跨平台用户数据目录、唯一 `.env` 位置及本地后端 URL；桌面端使用 `%LOCALAPPDATA%/AlphaFoundry`（Windows）或 `~/Library/Application Support/AlphaFoundry`（macOS），Web 生产仅接受部署环境变量或显式配置文件。
 
 **关键契约**：所有核心领域对象都定义在 `contracts/` 中，所有跨层交互必须使用这些 Pydantic 模型，保证类型安全和数据验证。
 
@@ -503,7 +503,7 @@ Word 占位符
 AKShare 数据源
   → MarketDataIngestionService (ETL 编排)
     → normalizer (纯函数, 确定性, 可单测)
-    → MarketDataRepository (PostgreSQL upsert / SQLite fallback)
+    → MarketDataRepository (PostgreSQL upsert；SQLite 仅保留非权威市场缓存兼容)
     → 结构化 SQL 表 (stock_master, stock_daily_bar, etl_run 等 8 张表)
   → ETLRunRepository (运行追踪, status/fetched/saved/error)
   → AssetAnalysisService (Wind 优先 → 结构化表 → MultiSourceCoordinator 降级)

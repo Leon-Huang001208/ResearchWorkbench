@@ -5,6 +5,8 @@ Web search provider 工厂.
 优先使用 WEB_SEARCH_API_KEYS 环境变量中的 key 池。
 """
 
+import os
+
 from core.interfaces import WebSearchProvider
 from core.observability import get_logger
 from core.settings import settings
@@ -15,43 +17,53 @@ from data_layer.web_search.tavily_provider import TavilyProvider
 logger = get_logger(__name__)
 
 
-def _build_key_pool() -> ApiKeyPool | None:
-    """从 WEB_SEARCH_API_KEYS 环境变量构建 key 池.
-
-    如果未配置（空或格式错误），返回 None——provider 会自动回退到单 key 模式。
-    """
-    from data_layer.web_search.key_pool import PoolConfig
-
-    config = PoolConfig(
+def build_web_search_provider() -> WebSearchProvider:
+    """Build a provider from effective runtime settings."""
+    return build_web_search_provider_from_values(
+        provider_name=settings.WEB_SEARCH_PROVIDER,
+        key_pool_json=os.environ.get("WEB_SEARCH_API_KEYS"),
+        tavily_api_key=settings.TAVILY_API_KEY,
+        bing_api_key=settings.BING_API_KEY,
         rotation_strategy=settings.WEB_SEARCH_KEY_ROTATION,
         max_consecutive_failures=settings.WEB_SEARCH_KEY_MAX_FAILURES,
         lock_seconds=settings.WEB_SEARCH_KEY_LOCK_SECONDS,
-        disable_cooldown_seconds=settings.WEB_SEARCH_KEY_COOLDOWN_SECONDS,
+        cooldown_seconds=settings.WEB_SEARCH_KEY_COOLDOWN_SECONDS,
         quota_limit=settings.WEB_SEARCH_KEY_QUOTA_LIMIT,
     )
-    pool = ApiKeyPool.from_json_env("WEB_SEARCH_API_KEYS", config=config)
-    if pool.key_count == 0:
-        return None
-    return pool
 
 
-def build_web_search_provider() -> WebSearchProvider:
-    """根据配置构建 web search provider.
+def build_web_search_provider_from_values(
+    *,
+    provider_name: str,
+    key_pool_json: str | None,
+    tavily_api_key: str,
+    bing_api_key: str,
+    rotation_strategy: str,
+    max_consecutive_failures: int,
+    lock_seconds: int,
+    cooldown_seconds: float,
+    quota_limit: int,
+) -> WebSearchProvider:
+    """Build a provider from explicit values without reading process environment."""
+    from data_layer.web_search.key_pool import PoolConfig
 
-    优先级：WEB_SEARCH_API_KEYS（池）> TAVILY_API_KEY / BING_API_KEY（单 key）.
+    pool_config = PoolConfig(
+        rotation_strategy=rotation_strategy,
+        max_consecutive_failures=max_consecutive_failures,
+        lock_seconds=lock_seconds,
+        disable_cooldown_seconds=cooldown_seconds,
+        quota_limit=quota_limit,
+    )
+    key_pool = ApiKeyPool.from_json_value(key_pool_json or "", config=pool_config)
+    if key_pool.key_count == 0:
+        key_pool = None
 
-    Returns:
-        WebSearchProvider 实例。key 全部未配置时 provider 的 search 方法返回空列表。
-    """
-    name = settings.WEB_SEARCH_PROVIDER.lower()
-    key_pool = _build_key_pool()
-
+    name = provider_name.lower()
     if name == "bing":
         logger.info("web search provider: bing" + (" (pool)" if key_pool else ""))
-        return BingProvider(key_pool=key_pool)
+        return BingProvider(api_key=bing_api_key, key_pool=key_pool)
     if name == "tavily":
         logger.info("web search provider: tavily" + (" (pool)" if key_pool else ""))
-        return TavilyProvider(key_pool=key_pool)
-    # 默认 tavily
+        return TavilyProvider(api_key=tavily_api_key, key_pool=key_pool)
     logger.info("web search provider: tavily (default, unknown=%s)", name)
-    return TavilyProvider(key_pool=key_pool)
+    return TavilyProvider(api_key=tavily_api_key, key_pool=key_pool)

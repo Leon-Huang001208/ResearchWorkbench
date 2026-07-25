@@ -339,7 +339,7 @@ function createProviderRow(provider = {}) {
     protocol.dataset.field = 'protocol';
     const baseUrl = input('url', provider.base_url, 'Provider Base URL');
     baseUrl.dataset.field = 'base_url';
-    const apiKey = input('password', provider.api_key?.value || '', 'Provider API Token');
+    const apiKey = input('password', '', 'Provider API Token');
     apiKey.autocomplete = 'new-password';
     apiKey.placeholder = '未配置';
     apiKey.dataset.field = 'api_key';
@@ -382,7 +382,7 @@ function createZhiqiuAccountRow(account = {}) {
     const username = input('text', account.username, '知丘用户名');
     username.autocomplete = 'username';
     username.dataset.field = 'username';
-    const password = input('password', account.password?.value || '', '知丘密码');
+    const password = input('password', '', '知丘密码');
     password.autocomplete = 'new-password';
     password.placeholder = '未配置';
     password.dataset.field = 'password';
@@ -405,7 +405,7 @@ function createIfindAccountRow(account = {}) {
     const username = input('text', account.username, 'iFinD 用户名');
     username.autocomplete = 'username';
     username.dataset.field = 'username';
-    const password = input('password', account.password?.value || '', 'iFinD 密码');
+    const password = input('password', '', 'iFinD 密码');
     password.autocomplete = 'new-password';
     password.placeholder = '未配置';
     password.dataset.field = 'password';
@@ -449,7 +449,7 @@ function createWebSearchKeyRow(account = {}) {
     rowOriginalNames.set(row, account.original_name || '');
     const name = input('text', account.name, 'Key 名称');
     name.dataset.field = 'name';
-    const key = input('password', account.key?.value || '', 'API Key');
+    const key = input('password', '', 'API Key');
     key.autocomplete = 'new-password';
     key.placeholder = 'tvly-... 或 bing-key...';
     key.dataset.field = 'key';
@@ -518,7 +518,23 @@ function renderSnapshot(snapshot) {
     Object.entries(snapshot.sections).forEach(([section, values]) => {
         if (!dirtySections.has(section)) renderSection(section, values);
     });
+    renderEnvironmentLockedFields(snapshot.environment_locked_fields || []);
     renderSummaryCards();
+}
+
+function renderEnvironmentLockedFields(lockedFields) {
+    const page = document.getElementById('section-config');
+    if (!page) return;
+    const locked = new Set(lockedFields);
+    page.querySelectorAll('[data-config-env-key]').forEach(control => {
+        const isLocked = locked.has(control.dataset.configEnvKey);
+        control.disabled = isLocked;
+        control.closest('.config-field')?.classList.toggle('environment-locked', isLocked);
+    });
+    const message = locked.size
+        ? `以下配置由启动环境变量锁定，页面不能覆盖：${[...locked].join('、')}`
+        : '';
+    page.querySelector('[data-config-environment-lock-notice]')?.replaceChildren(message);
 }
 
 function renderSection(section, values) {
@@ -536,7 +552,7 @@ function renderSection(section, values) {
     } else if (section === 'database') {
         setSecretState('[data-secret-state="database-url"]', values.database_url);
         const form = document.getElementById('config-database-form');
-        if (form) form.elements.database_url.value = values.database_url?.value || '';
+        if (form) form.elements.database_url.value = '';
     } else if (section === 'advanced') {
         setFormValues(document.getElementById('config-advanced-form'), values, [
             'log_level', 'log_dir', 'llm_max_workers', 'llm_max_retries', 'chunk_size', 'chunk_overlap', 'long_text_threshold',
@@ -1124,6 +1140,7 @@ function renderModalForm(section, values) {
     }
 
     body.appendChild(form);
+    applyEnvironmentLocks(form, section);
 
     // 用现有 render 函数填充数据
     if (section === 'llm') {
@@ -1140,7 +1157,7 @@ function renderModalForm(section, values) {
         setFormValues(form, values, ['provider', 'rotation_strategy', 'quota_limit', 'max_results', 'timeout']);
     } else if (section === 'database') {
         setSecretState('[data-secret-state="database-url"]', values.database_url);
-        if (form.elements.database_url) form.elements.database_url.value = values.database_url?.value || '';
+        if (form.elements.database_url) form.elements.database_url.value = '';
     } else if (section === 'advanced') {
         setFormValues(form, values, ['log_level', 'log_dir', 'llm_max_workers', 'llm_max_retries', 'chunk_size', 'chunk_overlap', 'long_text_threshold']);
     }
@@ -1149,6 +1166,33 @@ function renderModalForm(section, values) {
     bindModalFormEvents(form, section);
     // 延迟一帧确保 .config-secret-control 内部 input 已完成布局
     requestAnimationFrame(() => bindSecretActions(body));
+}
+
+function applyEnvironmentLocks(form, section) {
+    const locked = new Set(configurationSnapshot?.environment_locked_fields || []);
+    const fieldKeys = {
+        advanced: {
+            log_level: 'LOG_LEVEL',
+            log_dir: 'LOG_DIR',
+            llm_max_workers: 'LLM_EXTRACT_MAX_WORKERS',
+            llm_max_retries: 'LLM_EXTRACT_MAX_RETRIES',
+            chunk_size: 'LLM_EXTRACT_CHUNK_SIZE',
+            chunk_overlap: 'LLM_EXTRACT_CHUNK_OVERLAP',
+            long_text_threshold: 'LLM_EXTRACT_LONG_TEXT_THRESHOLD',
+        },
+        database: { database_url: 'DATABASE_URL' },
+        web_search: {
+            provider: 'WEB_SEARCH_PROVIDER',
+            rotation_strategy: 'WEB_SEARCH_KEY_ROTATION',
+            quota_limit: 'WEB_SEARCH_KEY_QUOTA_LIMIT',
+        },
+    };
+    Object.entries(fieldKeys[section] || {}).forEach(([field, key]) => {
+        const control = form.elements[field];
+        if (!control || !locked.has(key)) return;
+        control.disabled = true;
+        control.closest('label')?.classList.add('environment-locked');
+    });
 }
 
 function bindModalFormEvents(form, section) {

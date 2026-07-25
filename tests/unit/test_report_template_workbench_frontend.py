@@ -310,13 +310,35 @@ def test_report_generation_history_scrolls_inside_output_panel():
 def test_templates_list_keeps_report_projects_when_legacy_template_api_fails():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
 
-    assert "let templateData = { templates: [] };" in source
+    assert "Promise.allSettled" in source
     assert "Failed to load legacy templates" in source
     assert "mergeTemplatesWithReportProjects(" in source
-    assert "templateData.templates || []" in source
-    assert "currentTemplateState.reportProjects || []" in source
+    assert "legacyResult.status === 'fulfilled'" in source
+    assert "reportProjectsResult.status === 'fulfilled'" in source
+    assert "currentTemplateState.reportProjects" in source
     assert "document.getElementById('templates-grid')" in source
     assert "document.getElementById('template-list')" not in source
+
+
+def test_templates_list_exposes_source_failures_instead_of_empty_state():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+
+    assert "Promise.allSettled" in source
+    assert "templateListStatus" in source
+    assert "两个模板来源均加载失败" in source
+    assert "报告项目加载失败" in source
+    assert "模板库加载失败" in source
+    assert "renderTemplateListStatus" in source
+    assert "showEmptyState" in source
+
+
+def test_templates_keep_legacy_details_and_upload_success_when_project_refresh_fails():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+
+    assert "Failed to load report projects for template details" in source
+    assert "报告项目已创建，但模板列表刷新失败" in source
+    assert "await loadReportProjectsList();" in source
+    assert "closeUploadModal();" in source
 
 
 def test_report_workbench_uses_report_project_real_asset_summary():
@@ -735,7 +757,7 @@ def test_placeholder_editor_keeps_derived_fields_in_advanced_drawer():
     assert 'id="template-advanced-placeholder-form"' in html
     assert 'id="btn-template-advanced-config"' in html
     assert "draft.title = draft.title || inferPlaceholderTitle(name);" in source
-    assert 'data-placeholder-field=' in source
+    assert "data-placeholder-field=" in source
     assert "resolvePromptTemplateName(name, template.report_project)" in source
 
 
@@ -1286,12 +1308,8 @@ def test_report_generation_page_uses_apple_refinement_instead_of_market_red_card
         not in css.split(".template-generation-flow-step.done .step-index", 1)[1].split("}", 1)[0]
     )
     assert "#template-workbench-summary {\n    border: 0;" in css
-    assert (
-        ".template-generation-flow-panel {\n    border: 0;" in css
-    )
-    assert (
-        ".template-generation-step-panel {\n    border: 0;" in css
-    )
+    assert ".template-generation-flow-panel {\n    border: 0;" in css
+    assert ".template-generation-step-panel {\n    border: 0;" in css
     assert ".template-generation-hero {\n    align-items: flex-start;" in css
     assert '[data-theme="light"] .template-generation-hero {\n    background: transparent;' in css
     assert ".template-generation-actions small {\n    display: none;" in css

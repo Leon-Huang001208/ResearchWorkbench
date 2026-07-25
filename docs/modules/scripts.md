@@ -19,6 +19,35 @@
 
 ## Files
 
+## Desktop launch and packaging
+
+### `scripts/desktop/backend_launcher.py`
+
+Purpose:
+
+- Starts the desktop FastAPI backend, workers, and crawl scheduler on the loopback-only desktop listener (`127.0.0.1` or `localhost`).
+- Resolves the source root in development and `sys._MEIPASS` in a PyInstaller one-file bundle before starting the backend or child workers.
+- Creates or migrates the per-user desktop `.env`, requires PostgreSQL + pgvector rather than silently creating a SQLite database, keeps user secrets out of launcher diagnostics, and refuses to terminate an unknown process that already owns the selected port.
+
+### `scripts/desktop/build_sidecar.py`
+
+Purpose:
+
+- Packages `backend_launcher.py`, application modules, frontend assets, report templates, and report projects into the self-contained Tauri sidecar.
+- Produces platform-specific sidecar names for Tauri; the frozen launcher resolves its bundled project root from PyInstaller resources.
+
+### `scripts/desktop/sidecar_launcher.py`
+
+Purpose:
+
+- Provides a development shim that requires an explicit, existing project root instead of falling back to a developer-specific filesystem path.
+
+Update this section when:
+
+- Desktop launcher configuration, bundled resources, worker startup, or platform path behavior changes.
+
+---
+
 ### `scripts/generate_py_file_index.py`
 
 Purpose:

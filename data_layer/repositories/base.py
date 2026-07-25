@@ -24,33 +24,27 @@ class Base(DeclarativeBase):
 
 
 def check_database_connection() -> None:
-    """Check database connectivity on startup.
-
-    Raises:
-        RuntimeError: If connection fails with actionable error message.
-    """
+    """Check database connectivity on startup without exposing connection details."""
     try:
-        # Test connection
         with engine.connect():
-            logger.info(f"Successfully connected to database: {engine.dialect.name}")
-    except OperationalError as e:
-        if settings.DATABASE_URL.startswith("postgresql"):
-            error_msg = (
-                "Failed to connect to PostgreSQL database.\n"
-                "Please check: \n"
-                "1. Is PostgreSQL server running on localhost:5432?\n"
-                "2. Is the database 'alphafoundry' created? (CREATE DATABASE alphafoundry;)\n"
-                "3. Are the username/password correct in DATABASE_URL?\n"
-                "4. If you want to use SQLite for demo, set DATABASE_URL=sqlite:///./data/alphafoundry.db in your .env\n"
-                f"Original error: {str(e)}"
+            logger.info(
+                "Successfully connected to database", extra={"dialect": engine.dialect.name}
             )
+    except OperationalError as exc:
+        dialect = engine.dialect.name
+        logger.critical(
+            "Database connection failed",
+            extra={"dialect": dialect, "error_type": type(exc).__name__},
+        )
+        if dialect == "postgresql":
+            message = (
+                "无法连接 PostgreSQL。请确认服务已启动、DATABASE_URL 指向已创建的 " "alphafoundry 数据库，并已安装 pgvector 扩展。"
+            )
+        elif dialect == "sqlite":
+            message = "无法连接 SQLite。请确认 DATABASE_URL 指向可访问的数据库文件。"
         else:
-            error_msg = (
-                f"Failed to connect to database {engine.dialect.name}.\n"
-                f"Check your DATABASE_URL configuration. Original error: {str(e)}"
-            )
-        logger.critical(error_msg)
-        raise RuntimeError(error_msg) from e
+            message = f"无法连接 {dialect} 数据库。请确认 DATABASE_URL 和数据库服务配置。"
+        raise RuntimeError(message) from exc
 
 
 def ensure_schema() -> None:
@@ -105,8 +99,8 @@ def get_db() -> Generator[Session, None, None]:
     try:
         yield db
         db.commit()
-    except Exception as e:
-        logger.error("database error", error=str(e))
+    except Exception as exc:
+        logger.error("Database session failed", extra={"error_type": type(exc).__name__})
         db.rollback()
         raise
     finally:
@@ -139,7 +133,10 @@ class db_session:
         if exc_type is None:
             self.db.commit()
         else:
-            logger.error("database error", error=str(exc_val))
+            logger.error(
+                "Database session failed",
+                extra={"error_type": exc_type.__name__ if exc_type is not None else "UnknownError"},
+            )
             self.db.rollback()
         self.db.close()
 
