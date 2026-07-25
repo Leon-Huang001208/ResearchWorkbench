@@ -51,12 +51,12 @@ jobs:
             os: macos-14
             triple: aarch64-apple-darwin
             executable_suffix: ""
-            postgres_container: alphafoundry-desktop-verify-macos
+            postgres_port: 55432
           - label: Windows x64
             os: windows-2022
             triple: x86_64-pc-windows-msvc
             executable_suffix: ".exe"
-            postgres_container: alphafoundry-desktop-verify-windows
+            postgres_port: 55432
 
     steps:
       - name: Checkout
@@ -129,19 +129,27 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $container = '${{ matrix.postgres_container }}'
-          docker rm --force $container *> $null
-          docker run --detach --name $container --publish 55432:5432 `
-            --env POSTGRES_DB=alphafoundry `
-            --env POSTGRES_USER=postgres `
-            --env POSTGRES_PASSWORD=postgres `
-            pgvector/pgvector:pg16 | Out-Null
+          $postgresHome = 'C:\Program Files\PostgreSQL\16'
+          $pgBin = Join-Path $postgresHome 'bin'
+          $pgVectorSource = Join-Path $env:RUNNER_TEMP 'pgvector'
+          $serviceName = 'postgresql-x64-16'
+          $env:PGPASSWORD = 'postgres'
+
+          choco install postgresql16 --params "'/Password:postgres /Port:${{ matrix.postgres_port }}'" --yes --no-progress
           if ($LASTEXITCODE -ne 0) {
-            throw 'Unable to start the helper-owned pgvector container'
+            throw 'Unable to install the helper-owned PostgreSQL 16 service'
           }
+          if (-not (Test-Path -LiteralPath $pgBin -PathType Container)) {
+            throw "PostgreSQL installation directory was not found: $pgBin"
+          }
+          $service = Get-Service -Name $serviceName -ErrorAction Stop
+          if ($service.Status -ne 'Running') {
+            Start-Service -Name $serviceName -ErrorAction Stop
+          }
+
           $ready = $false
           for ($attempt = 1; $attempt -le 30; $attempt++) {
-            docker exec $container pg_isready --username postgres --dbname alphafoundry | Out-Null
+            & (Join-Path $pgBin 'pg_isready.exe') --host 127.0.0.1 --port ${{ matrix.postgres_port }} --username postgres --dbname postgres | Out-Null
             if ($LASTEXITCODE -eq 0) {
               $ready = $true
               break
@@ -149,10 +157,35 @@ jobs:
             Start-Sleep -Seconds 2
           }
           if (-not $ready) {
-            throw 'pgvector did not become ready'
+            throw 'Helper-owned PostgreSQL did not become ready'
           }
-          docker exec $container psql --username postgres --dbname alphafoundry `
-            --command 'CREATE EXTENSION IF NOT EXISTS vector;'
+
+          $databaseExists = & (Join-Path $pgBin 'psql.exe') --host 127.0.0.1 --port ${{ matrix.postgres_port }} --username postgres --dbname postgres --tuples-only --command "SELECT 1 FROM pg_database WHERE datname = 'alphafoundry';"
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Unable to query helper-owned PostgreSQL databases'
+          }
+          if (-not ($databaseExists -match '1')) {
+            & (Join-Path $pgBin 'createdb.exe') --host 127.0.0.1 --port ${{ matrix.postgres_port }} --username postgres alphafoundry
+            if ($LASTEXITCODE -ne 0) {
+              throw 'Unable to create the helper-owned alphafoundry database'
+            }
+          }
+
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          $vcvars = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -find 'VC\Auxiliary\Build\vcvars64.bat'
+          if ($LASTEXITCODE -ne 0 -or -not $vcvars) {
+            throw 'Visual Studio x64 C++ build tools were not found for pgvector'
+          }
+          git clone --depth 1 --branch v0.8.5 https://github.com/pgvector/pgvector.git $pgVectorSource
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Unable to fetch the pinned pgvector source'
+          }
+          $buildCommand = "call `"$vcvars`" && set `"PGROOT=$postgresHome`" && cd /d `"$pgVectorSource`" && nmake /F Makefile.win && nmake /F Makefile.win install"
+          cmd.exe /d /s /c $buildCommand
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Unable to build and install the native pgvector extension'
+          }
+          & (Join-Path $pgBin 'psql.exe') --host 127.0.0.1 --port ${{ matrix.postgres_port }} --username postgres --dbname alphafoundry --command 'CREATE EXTENSION IF NOT EXISTS vector;'
           if ($LASTEXITCODE -ne 0) {
             throw 'Unable to enable the pgvector extension'
           }
@@ -161,7 +194,7 @@ jobs:
         if: runner.os == 'macOS'
         shell: bash
         env:
-          DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:55432/alphafoundry
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:${{ matrix.postgres_port }}/alphafoundry
           ALPHAFOUNDRY_DESKTOP: "1"
           ALPHAFOUNDRY_RUN_MODE: desktop
           ALPHAFOUNDRY_PROJECT_ROOT: ${{ github.workspace }}
@@ -178,7 +211,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         env:
-          DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:55432/alphafoundry
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:${{ matrix.postgres_port }}/alphafoundry
           ALPHAFOUNDRY_DESKTOP: "1"
           ALPHAFOUNDRY_RUN_MODE: desktop
           ALPHAFOUNDRY_PROJECT_ROOT: ${{ github.workspace }}
@@ -210,10 +243,15 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          docker rm --force '${{ matrix.postgres_container }}' *> $null
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host 'No helper-owned pgvector container needed cleanup.'
+          $service = Get-Service -Name 'postgresql-x64-16' -ErrorAction SilentlyContinue
+          if ($null -eq $service) {
+            Write-Host 'No helper-owned PostgreSQL service needed cleanup.'
+            exit 0
           }
+          if ($service.Status -eq 'Running') {
+            Stop-Service -Name $service.Name -ErrorAction Stop
+          }
+          Write-Host "Stopped helper-owned PostgreSQL service: $($service.Name)"
           exit 0
 
       - name: Copy backend sidecar into Tauri

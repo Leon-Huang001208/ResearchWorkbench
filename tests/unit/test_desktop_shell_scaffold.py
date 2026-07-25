@@ -22,6 +22,7 @@ BUILD_SIDECAR_PY = ROOT / "scripts" / "desktop" / "build_sidecar.py"
 PREPARE_SIDECAR = ROOT / "scripts" / "desktop" / "prepare_tauri_sidecar.py"
 WRITE_RELEASE_CONFIG = ROOT / "scripts" / "desktop" / "write_tauri_release_config.py"
 DESKTOP_RELEASE_WORKFLOW = ROOT / ".github" / "workflows" / "desktop-release.yml"
+DESKTOP_VERIFY_WORKFLOW = ROOT / ".github" / "workflows" / "desktop-verify.yml"
 MACOS_ARM_SIDECAR = ROOT / "src-tauri" / "binaries" / "alphafoundry-backend-aarch64-apple-darwin"
 MACOS_ICON = ROOT / "src-tauri" / "icons" / "icon.icns"
 WINDOWS_ICON = ROOT / "src-tauri" / "icons" / "icon.ico"
@@ -275,11 +276,26 @@ def test_desktop_release_workflow_builds_platform_matrix_and_draft_release():
 
 
 def test_desktop_verify_workflow_runs_for_master_desktop_changes():
-    source = (ROOT / ".github" / "workflows" / "desktop-verify.yml").read_text(encoding="utf-8")
+    source = DESKTOP_VERIFY_WORKFLOW.read_text(encoding="utf-8")
 
     assert "  push:\n    branches:\n      - master" in source
     assert "src-tauri/**" in source
     assert "scripts/desktop/**" in source
+
+
+def test_windows_pgvector_smoke_builds_a_native_extension():
+    """Windows runners use a Windows-only Moby Docker engine.
+
+    The smoke test must therefore run PostgreSQL and pgvector natively instead
+    of attempting to run pgvector's Linux-only container image.
+    """
+    source = DESKTOP_VERIFY_WORKFLOW.read_text(encoding="utf-8")
+
+    assert "choco install postgresql16" in source
+    assert "nmake /F Makefile.win install" in source
+    assert "CREATE EXTENSION IF NOT EXISTS vector;" in source
+    assert "PGPASSWORD = 'postgres'" in source
+    assert "pgvector/pgvector:pg16" not in source
 
 
 def test_desktop_runtime_dependencies_include_fastapi_multipart_support():
