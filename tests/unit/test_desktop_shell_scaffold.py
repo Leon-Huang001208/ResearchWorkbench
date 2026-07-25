@@ -300,7 +300,7 @@ def test_desktop_release_workflow_builds_platform_matrix_and_draft_release():
     assert "ubuntu-22.04" not in source
     assert "python scripts/desktop/build_sidecar.py" in source
     assert "python scripts/desktop/prepare_tauri_sidecar.py" in source
-    assert "Free Linux runner disk space" in source
+    assert "Verify Windows sidecar" in source
     assert "cargo fetch --locked" in source
     assert "tauri-apps/tauri-action@v0" in source
     assert "releaseDraft: true" in source
