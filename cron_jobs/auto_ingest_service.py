@@ -30,6 +30,13 @@ REQUEST_TIMEOUT = 15  # 请求超时时间（秒）
 RETRY_TIMES = 3  # 失败重试次数
 MIN_REQUEST_INTERVAL = 1  # 最小请求间隔（秒）
 MAX_REQUEST_INTERVAL = 3  # 最大请求间隔（秒）
+DEFAULT_BACKEND_URL = "http://127.0.0.1:8000"
+
+
+def backend_endpoint(path: str) -> str:
+    """Return an AlphaFoundry API endpoint from the effective runtime URL."""
+    base_url = os.environ.get("ALPHAFOUNDRY_BACKEND_URL", DEFAULT_BACKEND_URL).rstrip("/")
+    return f"{base_url}/{path.lstrip('/')}"
 
 
 def get_random_headers() -> dict:
@@ -130,14 +137,12 @@ async def ingest_stock_master():
     logger.info("开始同步股票列表...")
     try:
         resp = await fetch_with_retry(
-            "http://127.0.0.1:8000/api/market-data/stocks/sync",
+            backend_endpoint("/api/market-data/stocks/sync"),
             method="POST",
             params={"limit": 5000},
         )
         result = resp.json()
-        logger.info(
-            f"股票列表同步完成：fetched={result.get('fetched', 0)} saved={result.get('saved', 0)}"
-        )
+        logger.info(f"股票列表同步完成：fetched={result.get('fetched', 0)} saved={result.get('saved', 0)}")
     except Exception as e:
         logger.error(f"股票列表同步失败：{e}")
 
@@ -150,7 +155,7 @@ async def ingest_daily_bars():
     today = date.today().isoformat()
     try:
         resp = await fetch_with_retry(
-            "http://127.0.0.1:8000/api/market-data/daily-bars/sync",
+            backend_endpoint("/api/market-data/daily-bars/sync"),
             method="POST",
             json={
                 "symbols": ["600519.SH", "002594.SZ", "601012.SH", "600036.SH", "000858.SZ"],
@@ -159,9 +164,7 @@ async def ingest_daily_bars():
             },
         )
         result = resp.json()
-        logger.info(
-            f"日行情同步完成：fetched={result.get('fetched', 0)} saved={result.get('saved', 0)}"
-        )
+        logger.info(f"日行情同步完成：fetched={result.get('fetched', 0)} saved={result.get('saved', 0)}")
     except Exception as e:
         logger.error(f"日行情同步失败：{e}")
 
@@ -174,7 +177,7 @@ async def ingest_stock_snapshots():
         for stock in stocks:
             try:
                 resp = await fetch_with_retry(
-                    "http://127.0.0.1:8000/api/assets/analyze",
+                    backend_endpoint("/api/assets/analyze"),
                     method="POST",
                     json={"canonical_id": stock, "source": "auto"},
                 )
@@ -192,7 +195,7 @@ async def ingest_stock_snapshots():
 async def health_check():
     """健康检查，确保服务正常运行"""
     try:
-        resp = await fetch_with_retry("http://127.0.0.1:8000/health")
+        resp = await fetch_with_retry(backend_endpoint("/health"))
         if resp.json().get("status") == "ok":
             logger.info("服务健康检查正常")
         else:

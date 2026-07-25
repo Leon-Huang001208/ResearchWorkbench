@@ -22,6 +22,13 @@ AlphaFoundry 使用 PostgreSQL + pgvector 作为主要数据存储，采用模�
 4. **时间戳**: 所有表包含 created_at 和 updated_at 字段
 5. **软索引**: 通过索引优化常用查询性能
 
+### 连接配置与运行时边界
+
+- 桌面端标准事实源为用户自行安装的 PostgreSQL + pgvector；`DATABASE_URL` 必须在启动前解析，桌面启动器不会回退至 SQLite。
+- SQLAlchemy `engine` 与 `SessionLocal` 在设置初始化后按进程创建；配置页保存新的 `DATABASE_URL` 只会原子写入配置并要求重启，不会在当前进程热切换数据库。
+- 启动连通性诊断按实际 SQLAlchemy 方言给出不含连接字符串、用户名、密码或主机名的修复提示；PostgreSQL 场景会提示确认 pgvector 扩展。
+- SQLite 兼容逻辑仍仅服务于现有测试或非权威缓存路径，不是桌面端的规范持久化方案。
+
 ---
 
 ## PostgreSQL 表结构

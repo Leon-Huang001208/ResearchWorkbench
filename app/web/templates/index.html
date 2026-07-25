@@ -1223,6 +1223,7 @@
                 </div>
 
                 <div id="config-page-message" class="config-page-message" role="status" aria-live="polite"></div>
+                <p class="config-page-message" data-config-environment-lock-notice role="status" aria-live="polite"></p>
 
                 <div class="config-cards-grid">
                     <article class="config-summary-card" data-config-card="llm" role="button" tabindex="0">
@@ -1676,6 +1677,8 @@
                             <button id="btn-save-templates-order" class="iphone-nav-btn hidden" onclick="saveTemplatesOrder()">完成</button>
                         </div>
                     </div>
+
+                    <div id="template-list-status" class="template-list-status hidden" role="status" aria-live="polite"></div>
 
                     <!-- Templates Grid - iPhone App Style -->
                     <div id="templates-grid" class="iphone-templates-grid"></div>

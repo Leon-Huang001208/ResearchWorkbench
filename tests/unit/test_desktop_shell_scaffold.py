@@ -2,8 +2,10 @@
 
 import importlib.util
 import json
-import os
+import sys
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 TAURI_CONFIG = ROOT / "src-tauri" / "tauri.conf.json"
@@ -214,6 +216,20 @@ def test_backend_launcher_allows_project_root_override(monkeypatch):
     launcher = load_launcher_module()
 
     assert str(launcher.PROJECT_ROOT) == "/tmp/alphafoundry"
+
+
+def test_frozen_backend_launcher_resolves_project_root_from_pyinstaller_bundle(
+    monkeypatch, tmp_path
+):
+    bundle_root = tmp_path / "_MEI12345"
+    bundle_root.mkdir()
+    monkeypatch.delenv("ALPHAFOUNDRY_PROJECT_ROOT", raising=False)
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "_MEIPASS", str(bundle_root), raising=False)
+
+    launcher = load_launcher_module()
+
+    assert launcher.PROJECT_ROOT == bundle_root
 
 
 def test_package_json_exposes_desktop_commands():
@@ -666,16 +682,68 @@ def test_desktop_backend_launcher_defaults_and_logging(tmp_path):
     assert log_file.exists()
 
 
-def test_frozen_backend_launcher_defaults_to_user_sqlite(monkeypatch, tmp_path):
+def test_legacy_roaming_env_migrates_without_overwriting(monkeypatch, tmp_path):
+    launcher = load_launcher_module()
+    legacy_env = tmp_path / "Roaming" / "AlphaFoundry" / ".env"
+    legacy_env.parent.mkdir(parents=True)
+    legacy_env.write_text("DATABASE_URL=postgresql+psycopg://legacy\n", encoding="utf-8")
+    data_dir = tmp_path / "Local" / "AlphaFoundry"
+
+    monkeypatch.setattr(launcher.platform, "system", lambda: "Windows")
+    monkeypatch.setenv("APPDATA", str(tmp_path / "Roaming"))
+    launcher._migrate_legacy_roaming_env(data_dir)
+
+    assert (data_dir / ".env").read_text(encoding="utf-8") == legacy_env.read_text(encoding="utf-8")
+
+    (data_dir / ".env").write_text("DATABASE_URL=postgresql+psycopg://new\n", encoding="utf-8")
+    launcher._migrate_legacy_roaming_env(data_dir)
+    assert "postgresql+psycopg://new" in (data_dir / ".env").read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("host", ["0.0.0.0", "::1"])
+def test_desktop_launcher_rejects_hosts_not_supported_by_ipv4_runtime(host):
+    launcher = load_launcher_module()
+
+    with pytest.raises(ValueError, match="仅允许监听"):
+        launcher._require_loopback_host(host)
+
+
+def test_desktop_launcher_refuses_to_kill_unknown_port_owner(monkeypatch):
+    launcher = load_launcher_module()
+
+    class OccupiedSocket:
+        def settimeout(self, _timeout):
+            pass
+
+        def connect_ex(self, _address):
+            return 0
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+    monkeypatch.setattr(launcher.socket, "socket", lambda *_args: OccupiedSocket())
+    calls = []
+    monkeypatch.setattr(launcher.subprocess, "run", lambda *args, **kwargs: calls.append(args))
+
+    assert launcher._kill_stale_process_on_port("127.0.0.1", 8765) is False
+    assert calls == []
+
+
+def test_frozen_backend_launcher_requires_postgresql(monkeypatch, tmp_path):
     launcher = load_launcher_module()
     monkeypatch.setattr(launcher.sys, "frozen", True, raising=False)
     monkeypatch.setenv("ALPHAFOUNDRY_DESKTOP_DATA_DIR", str(tmp_path))
-    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
     monkeypatch.delenv("LOG_DIR", raising=False)
 
-    data_dir = launcher.apply_frozen_desktop_defaults()
+    try:
+        launcher.apply_frozen_desktop_defaults()
+    except RuntimeError as exc:
+        assert "PostgreSQL + pgvector" in str(exc)
+    else:
+        raise AssertionError("Expected PostgreSQL configuration error")
 
-    assert data_dir == tmp_path
-    assert os.environ["DATABASE_URL"] == f"sqlite:///{tmp_path / 'alphafoundry.db'}"
-    assert os.environ["LOG_DIR"] == str(tmp_path / "logs")
-    assert (tmp_path / "logs").is_dir()
+    assert not (tmp_path / "alphafoundry.db").exists()

@@ -10,7 +10,11 @@ import socket
 import subprocess
 import sys
 from pathlib import Path
+from shutil import copy2
 from typing import Sequence
+
+from core.settings.paths import app_data_dir
+from core.settings.registry import desktop_env_template
 
 # 在任何其他 import 之前强制 UTF-8 I/O，避免 Windows GBK 编码导致 structlog 崩溃
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
@@ -26,48 +30,20 @@ DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
 DEFAULT_LOG_DIR = Path("logs")
 APP_IMPORT = "app.api.main:app"
-PROJECT_ROOT = Path(
-    os.environ.get("ALPHAFOUNDRY_PROJECT_ROOT", Path(__file__).resolve().parents[2])
-)
 
-# 桌面版默认 .env 模板（首次安装时生成，用户可编辑）
-_DEFAULT_ENV_TEMPLATE = """\
-# AlphaFoundry 桌面版配置
-# 本文件由桌面版首次启动时自动生成，可按需修改。
 
-# 数据库（PostgreSQL + pgvector）
-# 使用 postgresql+psycopg:// 显式指定 psycopg v3 驱动
-# 用户名/密码需与本地 PostgreSQL 安装时一致
-DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/alphafoundry
+def resolve_project_root() -> Path:
+    """Resolve the source root or PyInstaller bundle root for the launcher."""
+    configured_root = os.environ.get("ALPHAFOUNDRY_PROJECT_ROOT")
+    if configured_root:
+        return Path(configured_root).expanduser()
+    bundle_root = getattr(sys, "_MEIPASS", None) if getattr(sys, "frozen", False) else None
+    if bundle_root:
+        return Path(bundle_root).resolve()
+    return Path(__file__).resolve().parents[2]
 
-# 日志级别
-LOG_LEVEL=INFO
 
-# LLM 并发提取
-LLM_EXTRACT_MAX_WORKERS=8
-LLM_EXTRACT_CHUNK_SIZE=3500
-LLM_EXTRACT_CHUNK_OVERLAP=300
-LLM_EXTRACT_MAX_RETRIES=2
-LLM_EXTRACT_LONG_TEXT_THRESHOLD=1000
-
-# ── LLM Provider（按需填写）──
-# LLM_PROVIDER_1_NAME=deepseek
-# LLM_PROVIDER_1_PROTOCOL=openai_compatible
-# LLM_PROVIDER_1_BASE_URL=http://your-llm-gateway/v1
-# LLM_PROVIDER_1_API_KEY=your-api-key
-
-# ── 任务路由 ──
-# TASK_EXTRACT_PROVIDER=deepseek
-# TASK_EXTRACT_MODEL=deepseek
-# TASK_CLASSIFY_PROVIDER=deepseek
-# TASK_CLASSIFY_MODEL=deepseek
-# TASK_DEFAULT_PROVIDER=deepseek
-# TASK_DEFAULT_MODEL=deepseek
-
-# ── 爬虫夜间静默（本地时间整点，默认 00:00–06:00）──
-CRAWLER_QUIET_START=0
-CRAWLER_QUIET_END=6
-"""
+PROJECT_ROOT = resolve_project_root()
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -103,25 +79,32 @@ def is_frozen() -> bool:
 
 def desktop_data_dir() -> Path:
     """Return the persistent per-user data directory for desktop builds."""
-    override = os.environ.get("ALPHAFOUNDRY_DESKTOP_DATA_DIR")
-    if override:
-        return Path(override).expanduser()
+    return app_data_dir()
 
-    system = platform.system()
-    if system == "Darwin":
-        return Path.home() / "Library" / "Application Support" / "AlphaFoundry"
-    if system == "Windows":
-        base = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
-        return base / "AlphaFoundry"
-    base = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
-    return base / "AlphaFoundry"
+
+def _migrate_legacy_roaming_env(data_dir: Path) -> None:
+    """Copy a legacy Windows roaming config once without overwriting local data."""
+    if platform.system() != "Windows" or (data_dir / ".env").exists():
+        return
+    roaming_root = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
+    legacy_env = roaming_root / "AlphaFoundry" / ".env"
+    if legacy_env.is_file():
+        data_dir.mkdir(parents=True, exist_ok=True)
+        copy2(legacy_env, data_dir / ".env")
+        logging.getLogger("alphafoundry.desktop").info(
+            "Migrated desktop configuration from legacy roaming directory"
+        )
 
 
 def _ensure_default_env(data_dir: Path) -> Path:
     """如果 data_dir/.env 不存在，创建默认模板并返回路径。"""
     env_path = data_dir / ".env"
     if not env_path.exists():
-        env_path.write_text(_DEFAULT_ENV_TEMPLATE, encoding="utf-8")
+        descriptor = os.open(env_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            handle.write(desktop_env_template())
+        if os.name != "nt":
+            env_path.chmod(0o600)
         logging.getLogger("alphafoundry.desktop").info(
             "Created default .env at %s — edit DATABASE_URL and LLM settings as needed", env_path
         )
@@ -135,13 +118,15 @@ def apply_frozen_desktop_defaults() -> Path | None:
     1. 已有环境变量（Tauri/系统层注入）
     2. data_dir/.env 文件（用户可编辑）
     3. 内置路径默认值（LOG_DIR、OBJECT_STORAGE_PATH 等目录）
-    4. SQLite fallback（仅当 .env 里未设置 DATABASE_URL 时保留向下兼容）
+
+    桌面端必须连接 PostgreSQL + pgvector；缺少有效配置时由启动诊断阻止服务启动。
     """
-    if not is_frozen():
+    if not (is_frozen() or os.environ.get("ALPHAFOUNDRY_DESKTOP")):
         return None
 
     data_dir = desktop_data_dir()
     data_dir.mkdir(parents=True, exist_ok=True)
+    _migrate_legacy_roaming_env(data_dir)
     (data_dir / "logs").mkdir(parents=True, exist_ok=True)
     (data_dir / "objects").mkdir(parents=True, exist_ok=True)
     (data_dir / "markdown").mkdir(parents=True, exist_ok=True)
@@ -167,8 +152,12 @@ def apply_frozen_desktop_defaults() -> Path | None:
     os.environ.setdefault("PDF_MARKDOWN_DIR", str(data_dir / "markdown"))
     os.environ.setdefault("PDF_RAW_TEXT_DIR", str(data_dir / "raw_text"))
 
-    # ── DATABASE_URL fallback：仅当 .env 里也未配置时才用 SQLite（向下兼容）──
-    os.environ.setdefault("DATABASE_URL", f"sqlite:///{data_dir / 'alphafoundry.db'}")
+    # ── PostgreSQL 是桌面端唯一事实源，不再降级 SQLite。──
+    database_url = os.environ.get("DATABASE_URL", "")
+    if not database_url.startswith(("postgresql://", "postgresql+psycopg://")):
+        raise RuntimeError(
+            "桌面端需要 PostgreSQL + pgvector。请在 " f"{env_path} 中配置有效的 DATABASE_URL 后重新启动。"
+        )
 
     return data_dir
 
@@ -259,151 +248,18 @@ def _start_crawl_scheduler(data_dir: Path | None, log_dir: Path) -> subprocess.P
 
 
 def _kill_stale_process_on_port(host: str, port: int) -> bool:
-    """检测并清理占用指定端口的残留进程。
-
-    仅当端口确实被占用时才执行清理；空闲端口直接返回 True。
-    在 Windows 上通过 netstat + taskkill 定位并强杀占用进程；
-    在非 Windows 上通过 lsof + kill -9 实现。
-    排除自身 PID，避免自杀。
-    """
+    """Check whether the desktop listener port is available without touching other processes."""
     logger = logging.getLogger("alphafoundry.desktop")
-
-    # ── 快速检测：端口空闲直接跳过 ──
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.settimeout(1)
-        if s.connect_ex((host, port)) != 0:
-            logger.info("Port %s:%d is free, no cleanup needed.", host, port)
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.settimeout(1)
+        if sock.connect_ex((host, port)) != 0:
+            logger.info("Port %s:%d is free.", host, port)
             return True
 
-    logger.warning("Port %s:%d is occupied, attempting cleanup...", host, port)
-
-    my_pid = os.getpid()
-
-    try:
-        if platform.system() == "Windows":
-            # netstat -ano | findstr :8765.*LISTENING
-            result = subprocess.run(
-                ["netstat", "-ano"],
-                capture_output=True,
-                text=True,
-                timeout=10,
-            )
-            for line in result.stdout.splitlines():
-                if f":{port}" in line and "LISTENING" in line:
-                    parts = line.strip().split()
-                    pid_str = parts[-1]
-                    try:
-                        pid = int(pid_str)
-                    except ValueError:
-                        continue
-                    if pid == my_pid:
-                        logger.debug("Skipping own PID %d", my_pid)
-                        continue
-                    logger.info(
-                        "Killing stale process on port %s:%d (PID=%d)...",
-                        host,
-                        port,
-                        pid,
-                    )
-                    subprocess.run(
-                        ["taskkill", "/F", "/PID", str(pid)],
-                        capture_output=True,
-                        timeout=10,
-                    )
-        else:
-            # lsof -ti :PORT
-            result = subprocess.run(
-                ["lsof", "-ti", f":{port}"],
-                capture_output=True,
-                text=True,
-                timeout=10,
-            )
-            for line in result.stdout.strip().splitlines():
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    pid = int(line)
-                except ValueError:
-                    continue
-                if pid == my_pid:
-                    logger.debug("Skipping own PID %d", my_pid)
-                    continue
-                logger.info(
-                    "Killing stale process on port %s:%d (PID=%d)...",
-                    host,
-                    port,
-                    pid,
-                )
-                subprocess.run(
-                    ["kill", "-9", str(pid)],
-                    capture_output=True,
-                    timeout=10,
-                )
-
-        # ── 等待操作系统释放端口 ──
-        import time
-
-        for _ in range(30):  # 最多等 3 秒
-            time.sleep(0.1)
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.settimeout(1)
-                if s.connect_ex((host, port)) != 0:
-                    logger.info("Port %s:%d successfully freed.", host, port)
-                    return True
-
-        # ── 僵尸端口检测并兜底清理 ──
-        # Windows 上进程异常退出后，子进程可能继承 LISTENING socket 句柄，
-        # 导致 netstat 仍显示 LISTENING 但原 PID 已不存在。
-        # 尝试发送 HTTP 请求：有响应 → 端口确实被占用；无响应 → 僵尸端口。
-        try:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as test:
-                test.settimeout(2)
-                test.connect((host, port))
-                test.sendall(
-                    f"GET /health HTTP/1.1\r\nHost: {host}:{port}\r\n\r\n".encode()
-                )
-                test.recv(1)
-            # 收到响应 → 端口确实被占用
-            logger.error("Port %s:%d still occupied after killing stale process(es).", host, port)
-            return False
-        except (socket.timeout, ConnectionResetError, ConnectionAbortedError, OSError):
-            logger.warning(
-                "Port %s:%d has zombie listener (no application response), "
-                "falling back to kill-all-Python cleanup.",
-                host,
-                port,
-            )
-            if platform.system() == "Windows":
-                # 僵尸 socket 通常由已死进程的子进程（worker/scheduler）持有句柄，
-                # 直接杀所有 python.exe（排除自身），让内核回收端口。
-                import time
-                subprocess.run(
-                    ["taskkill", "/F", "/FI", f"PID ne {my_pid}", "/IM", "python.exe"],
-                    capture_output=True,
-                    timeout=15,
-                )
-                for _ in range(50):  # 最多等 5 秒确认释放
-                    time.sleep(0.1)
-                    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                        s.settimeout(1)
-                        if s.connect_ex((host, port)) != 0:
-                            logger.info("Port %s:%d freed after kill-all-Python.", host, port)
-                            return True
-                logger.error(
-                    "Port %s:%d still occupied even after kill-all-Python.", host, port
-                )
-                return False
-            logger.info(
-                "Port %s:%d has zombie listener — treating as free (non-Windows).",
-                host,
-                port,
-            )
-            return True
-
-    except Exception:
-        logger.exception("Failed to clean up port %s:%d", host, port)
-        return False
+    logger.error(
+        "Port %s:%d is already occupied; refusing to terminate an unknown process.", host, port
+    )
+    return False
 
 
 def run_backend(host: str, port: int, reload: bool) -> None:
@@ -455,9 +311,16 @@ def run_backend(host: str, port: int, reload: bool) -> None:
     )
 
 
+def _require_loopback_host(host: str) -> None:
+    """Reject network exposure because the desktop configuration plane is local-only."""
+    if host not in {"127.0.0.1", "localhost"}:
+        raise ValueError("桌面端仅允许监听 localhost 或 127.0.0.1")
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Start the desktop backend and return a process exit code."""
     args = build_parser().parse_args(argv)
+    _require_loopback_host(args.host)
 
     # ── 开发模式自动启用 reload ──────────────────────────────────
     # ALPHAFOUNDRY_DEV=1 时即使命令行没传 --reload 也自动启用，
@@ -467,6 +330,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         logging.getLogger("alphafoundry.desktop").info(
             "Auto-enabled uvicorn reload (ALPHAFOUNDRY_DEV=1)"
         )
+
+    os.environ["ALPHAFOUNDRY_DESKTOP"] = "1"
+    os.environ["ALPHAFOUNDRY_RUN_MODE"] = "desktop"
+    os.environ["ALPHAFOUNDRY_BACKEND_URL"] = f"http://{args.host}:{args.port}"
 
     data_dir = apply_frozen_desktop_defaults()
     if data_dir is not None and args.log_dir == DEFAULT_LOG_DIR:

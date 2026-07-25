@@ -24,14 +24,14 @@ API routes should be thin and delegate business logic to `services`.
 
 Purpose:
 
-- Create FastAPI app.
-- Register routes.
-- Configure middleware and health checks.
+- Creates and configures the FastAPI application lifecycle.
+- Performs startup health initialization and registers API routes.
+- Returns only the stable `ready` or `unavailable` persistence state from `/health`; underlying database exceptions remain in server-side structured logs rather than HTTP responses.
 
 Update this section when:
 
-- App initialization changes.
-- Middleware changes.
+- Application lifecycle behavior changes.
+- Health response or error-disclosure behavior changes.
 - Route registration changes.
 
 ---

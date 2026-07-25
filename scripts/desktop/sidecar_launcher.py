@@ -29,7 +29,10 @@ def _find_project_root() -> Path:
     """定位项目根目录。"""
     env_root = os.environ.get("ALPHAFOUNDRY_PROJECT_ROOT")
     if env_root:
-        return Path(env_root)
+        root = Path(env_root).expanduser()
+        if root.exists():
+            return root
+        raise RuntimeError(f"ALPHAFOUNDRY_PROJECT_ROOT 不存在: {root}")
 
     # exe 同级目录的 project_root.txt（安装时由 installer 写入）
     if getattr(sys, "frozen", False):
@@ -43,8 +46,10 @@ def _find_project_root() -> Path:
         if root.exists():
             return root
 
-    # 硬编码默认值
-    return Path("D:/Projects/AlphaFoundry")
+    raise RuntimeError(
+        "无法定位 AlphaFoundry 项目根目录。请设置 ALPHAFOUNDRY_PROJECT_ROOT "
+        "或在 sidecar 同级目录提供有效的 project_root.txt。"
+    )
 
 
 def _find_python() -> str:

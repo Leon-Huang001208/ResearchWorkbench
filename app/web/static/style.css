@@ -7179,6 +7179,32 @@ tr:hover td {
 }
 
 /* iPhone Templates Grid */
+.template-list-status {
+    max-width: 1560px;
+    margin: 0 auto;
+    padding: 12px 20px 0;
+    color: var(--text-secondary);
+}
+
+.template-list-status.is-warning,
+.template-list-status.is-error {
+    color: var(--warning, #d6a861);
+}
+
+.template-list-status.is-error {
+    color: var(--danger, #e06c75);
+}
+
+.template-list-status button {
+    margin-left: 12px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    text-decoration: underline;
+}
+
 .iphone-templates-grid {
     display: grid;
     grid-template-columns: repeat(6, 1fr);

@@ -217,10 +217,7 @@ def test_market_hotspot_prompt_uses_component_structure_without_metadata():
         placeholder="A股市场回顾",
         title="A股市场回顾",
         template=template,
-        data_sentence=(
-            "本周A股市场整体呈现分化趋势，主要指数表现不一：沪深300涨0.19%。"
-            "交易面，A股市场本周日均成交额在2.40万亿左右，市场投资热情回落。"
-        ),
+        data_sentence=("本周A股市场整体呈现分化趋势，主要指数表现不一：沪深300涨0.19%。" "交易面，A股市场本周日均成交额在2.40万亿左右，市场投资热情回落。"),
         params={},
         max_words=320,
         config=config,
@@ -258,10 +255,7 @@ def test_market_hotspot_prompt_uses_component_structure_without_metadata():
 
 def test_strip_instruction_leaks_removes_actual_prompt_wording():
     """应移除 LLM 输出的 '以下内容已由系统根据Excel数据生成...' 指令文本。"""
-    text = (
-        "以下内容已由系统根据Excel数据生成，必须作为正文开头，不得改写、删减或重复"
-        "：本周市场热点集中于避险与政策驱动方向，半导体板块遭遇集中抛售。"
-    )
+    text = "以下内容已由系统根据Excel数据生成，必须作为正文开头，不得改写、删减或重复" "：本周市场热点集中于避险与政策驱动方向，半导体板块遭遇集中抛售。"
     result = _strip_instruction_leaks(text)
     assert "以下内容已由系统" not in result
     assert "不得改写" not in result
@@ -271,9 +265,7 @@ def test_strip_instruction_leaks_removes_actual_prompt_wording():
 
 def test_strip_instruction_leaks_removes_parenthesized_variant():
     """应移除括号包裹的旧版指令文本变体。"""
-    text = (
-        "（以上内容由系统从 Excel 底稿自动生成，请以本段为固定开头）" "本周市场热点集中于医药板块。"
-    )
+    text = "（以上内容由系统从 Excel 底稿自动生成，请以本段为固定开头）" "本周市场热点集中于医药板块。"
     result = _strip_instruction_leaks(text)
     assert "以上内容由系统从" not in result
     assert "Excel 底稿" not in result
@@ -604,6 +596,72 @@ def test_list_report_projects_returns_project_assets(tmp_path: Path, monkeypatch
     assert project["data_assets"][2]["kind"] == "query_json"
     assert project["data_assets"][3]["kind"] == "image"
     assert project["generated_reports"][0]["file_name"] == "20260605_创业板50周报.docx"
+    assert data["issues"] == []
+
+
+def test_list_report_projects_returns_scan_issues_without_hiding_valid_projects(
+    tmp_path: Path, monkeypatch
+):
+    """项目列表应公开扫描问题，同时保留可用项目。"""
+    valid_project_dir = tmp_path / "有效项目"
+    (valid_project_dir / "templates").mkdir(parents=True)
+    (valid_project_dir / "config").mkdir()
+    (valid_project_dir / "generated").mkdir()
+    (valid_project_dir / "runs").mkdir()
+    write_minimal_docx(valid_project_dir / "templates" / "report_template.docx", "{{ title }}")
+    (valid_project_dir / "config" / "section_config.yaml").write_text(
+        "sections: []\n", encoding="utf-8"
+    )
+    (valid_project_dir / "project.yaml").write_text(
+        "\n".join(
+            [
+                "name: 有效项目",
+                "active_word_template: templates/report_template.docx",
+                "section_config: config/section_config.yaml",
+                "output_dir: generated",
+                "run_log_dir: runs",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    (tmp_path / "无清单项目").mkdir()
+    missing_template_dir = tmp_path / "缺模板项目"
+    (missing_template_dir / "config").mkdir(parents=True)
+    (missing_template_dir / "generated").mkdir()
+    (missing_template_dir / "runs").mkdir()
+    (missing_template_dir / "config" / "section_config.yaml").write_text(
+        "sections: []\n", encoding="utf-8"
+    )
+    (missing_template_dir / "project.yaml").write_text(
+        "\n".join(
+            [
+                "name: 缺模板项目",
+                "active_word_template: templates/report_template.docx",
+                "section_config: config/section_config.yaml",
+                "output_dir: generated",
+                "run_log_dir: runs",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    import app.api.routes.report_projects as report_projects_route
+
+    monkeypatch.setattr(
+        report_projects_route,
+        "report_project_manager",
+        ReportProjectManager(projects_root=tmp_path),
+    )
+
+    response = client.get("/api/report-projects/")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+    assert [project["slug"] for project in data["projects"]] == ["有效项目"]
+    issues = {(item["code"], item["project_slug"]) for item in data["issues"]}
+    assert ("missing_active_word_template", "缺模板项目") in issues
 
 
 def test_get_report_project_returns_real_template_asset_summary(tmp_path: Path, monkeypatch):
@@ -1206,9 +1264,7 @@ def test_generation_service_renders_structured_generation_constraints(tmp_path: 
             assert "使用数据或数值时必须说明来源" in message
             assert "生成一段正文，不输出换行符" in message
             assert "禁止出现这些短语：根据文件、据报道、数据显示" in message
-            assert (
-                "禁止提及这些实体类别：指数名称、公司名称、证券机构、个股名称、ETF名称" in message
-            )
+            assert "禁止提及这些实体类别：指数名称、公司名称、证券机构、个股名称、ETF名称" in message
             assert "控制在 100-150 字" not in message
             return ModelResponse(
                 content="本周市场热点依次为 CPO、算力、先进封装，板块呈现快速轮动特征。",
@@ -1535,9 +1591,7 @@ def test_generation_service_builds_gold_and_oil_reviews_from_excel(tmp_path: Pat
     (project_dir / "config").mkdir()
     (project_dir / "generated").mkdir()
     (project_dir / "runs").mkdir()
-    write_minimal_docx(
-        project_dir / "templates" / "report_template.docx", "{{黄金市场回顾}}{{原油市场回顾}}"
-    )
+    write_minimal_docx(project_dir / "templates" / "report_template.docx", "{{黄金市场回顾}}{{原油市场回顾}}")
     write_market_review_xlsx(project_dir / "data" / "周报数据.xlsx")
     (project_dir / "config" / "section_config.yaml").write_text(
         "placeholders: {}\n", encoding="utf-8"
@@ -1597,8 +1651,7 @@ def test_generation_service_builds_gold_and_oil_reviews_from_excel(tmp_path: Pat
     )
 
     assert result.placeholders["黄金市场回顾"] == (
-        "截止本周，伦敦现货黄金收于4704.74美元/盎司（周环比-2.74%），"
-        "国内AU9999黄金收于1033.25元/克（周环比-1.75%）。"
+        "截止本周，伦敦现货黄金收于4704.74美元/盎司（周环比-2.74%），" "国内AU9999黄金收于1033.25元/克（周环比-1.75%）。"
     )
     assert result.placeholders["原油市场回顾"] == (
         "截至本周，布伦特原油期货周均价为106.01美元/桶，较上周五涨13.59美元/桶；"
@@ -2372,8 +2425,7 @@ def test_word_page_preview_can_use_cached_page_asset_urls():
     )
 
     assert (
-        'data-src="/api/report-projects/华安ETF周报/preview-assets/preview.docx/page-001.png"'
-        in html
+        'data-src="/api/report-projects/华安ETF周报/preview-assets/preview.docx/page-001.png"' in html
     )
     assert 'loading="lazy"' in html
     assert "data:image/png;base64" not in html

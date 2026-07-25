@@ -111,6 +111,54 @@ def test_list_projects_reads_ppt_project_assets(tmp_path: Path):
     assert project.generated_reports == [project_dir / "generated" / "2026-06-05_静态PPT模板.pptx"]
 
 
+def test_scan_projects_keeps_valid_projects_and_reports_asset_issues(tmp_path: Path):
+    """扫描应保留可用项目，并返回不可用项目的稳定诊断。"""
+    write_project(tmp_path, "有效项目")
+    (tmp_path / "无清单项目").mkdir()
+
+    missing_template_dir = write_project(tmp_path, "缺模板项目")
+    (missing_template_dir / "templates" / "report_template.docx").unlink()
+
+    invalid_yaml_dir = write_project(tmp_path, "损坏清单项目")
+    (invalid_yaml_dir / "project.yaml").write_text("name: [", encoding="utf-8")
+
+    scan = ReportProjectManager(projects_root=tmp_path).scan_projects()
+
+    assert [project.slug for project in scan.projects] == ["有效项目"]
+    issues = {(issue.code, issue.project_slug, issue.relative_path) for issue in scan.issues}
+    assert (
+        "missing_active_word_template",
+        "缺模板项目",
+        "templates/report_template.docx",
+    ) in issues
+    assert ("invalid_project_yaml", "损坏清单项目", "project.yaml") in issues
+
+
+def test_scan_projects_rejects_asset_paths_outside_project_root(tmp_path: Path):
+    """扫描诊断不得将项目外的资产路径暴露给 API 调用方。"""
+    project_dir = write_project(tmp_path, "越界资产项目")
+    (project_dir / "project.yaml").write_text(
+        "\n".join(
+            [
+                "name: 越界资产项目",
+                "active_word_template: ../../private/report_template.docx",
+                "active_excel_workbook: data/cyb50.xlsx",
+                "section_config: config/section_config.yaml",
+                "output_dir: generated",
+                "run_log_dir: runs",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    scan = ReportProjectManager(projects_root=tmp_path).scan_projects()
+
+    assert scan.projects == []
+    assert [(issue.code, issue.project_slug, issue.relative_path) for issue in scan.issues] == [
+        ("external_asset", "越界资产项目", "external_asset")
+    ]
+
+
 def test_get_project_raises_for_unknown_project(tmp_path: Path):
     """未知项目应明确报错，避免前端显示半绑定状态。"""
     write_project(tmp_path)

@@ -10,6 +10,38 @@ AlphaFoundry is moving toward a Tauri desktop shell while keeping the current Fa
 - Packaged builds include `desktop/dist/index.html`, which waits for `/health` and then opens the existing workbench.
 - The Tauri shell expects a sidecar named `alphafoundry-backend`. The current macOS ARM development shim is `src-tauri/binaries/alphafoundry-backend-aarch64-apple-darwin` and delegates to the Python launcher.
 - `tauri dev` lets `beforeDevCommand` start the backend. Packaged debug and release builds start the bundled sidecar.
+- 桌面端运行时配置由 `core/settings/runtime.py` 统一解析：Windows 使用 `%LOCALAPPDATA%\AlphaFoundry`，macOS 使用 `~/Library/Application Support/AlphaFoundry`；可用 `ALPHAFOUNDRY_DESKTOP_DATA_DIR` 覆盖。
+- 桌面端必须连接用户自行安装的 PostgreSQL + pgvector；首次启动会生成用户 `.env` 模板，但不会静默降级 SQLite。
+- `ALPHAFOUNDRY_BACKEND_URL` 是 worker、scheduler 和本地 API 调用的唯一地址来源；桌面默认 `http://127.0.0.1:8765`，Web 开发默认 `http://127.0.0.1:8000`。
+
+## Desktop Runtime Configuration
+
+### PostgreSQL prerequisite
+
+Desktop builds do not bundle a database server. Before first launch, install PostgreSQL 15+ and pgvector, create the `alphafoundry` database, and enable the extension:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+```
+
+The first launch creates a per-user `.env` with owner-only permissions on macOS/Linux. Configure a PostgreSQL psycopg v3 URL, then restart the desktop app:
+
+```dotenv
+DATABASE_URL=postgresql+psycopg://user:password@127.0.0.1:5432/alphafoundry
+```
+
+### Location and migration
+
+- Windows: `%LOCALAPPDATA%\AlphaFoundry`
+- macOS: `~/Library/Application Support/AlphaFoundry`
+- Override: `ALPHAFOUNDRY_DESKTOP_DATA_DIR`
+- Explicit configuration file: `ALPHAFOUNDRY_CONFIG_FILE`
+
+Windows upgrades detect a legacy `%APPDATA%\AlphaFoundry\.env` and copy it only when the new local directory has no `.env`; an existing local configuration is never overwritten. To move to another computer, close AlphaFoundry, copy the application data directory, export/import PostgreSQL with `pg_dump` / `pg_restore`, update `DATABASE_URL` if needed, then run `python scripts/bootstrap_db.py`.
+
+### Local-only control plane
+
+The desktop backend accepts only `localhost` or `127.0.0.1` as its listener. If the selected port is occupied, the launcher stops without terminating the unknown owning process. Configuration endpoints are restricted to loopback clients, do not return persisted secrets, and are disabled in `web-prod` mode. Database and advanced logging configuration changes are persisted for the next restart rather than falsely claiming that the current SQLAlchemy engine or logging handlers have switched. Values injected through the process environment are shown as locked and cannot be overwritten by the configuration page. `ALPHAFOUNDRY_BACKEND_URL` is the single base URL used by workers and scheduled API calls.
 
 ## Why This Differs From cc-switch
 
@@ -72,6 +104,32 @@ npm run desktop:build
 ```
 
 The generated sidecar is intentionally written under `build/desktop-sidecar/dist/`. The `src-tauri/binaries/` checked-in macOS ARM file remains a small development shim; release workflows copy the real generated sidecar into that directory only inside the build workspace.
+
+## 跨平台开发与发布验证流程
+
+AlphaFoundry 采用“一套源码、各目标平台原生构建”的策略：Tauri 壳和 Python 业务代码共用，但 Python sidecar 是平台相关的原生可执行文件，必须分别为 macOS 和 Windows 打包。macOS 产物不能用于 Windows，反之亦然。
+
+### 日常开发
+
+开发者可在 macOS 上修改和运行代码，无需为每次本地验证都重打安装包：`tauri dev` 使用源码启动 FastAPI 后端。应先运行与平台无关的单元、接口和前端测试。
+
+### 每次桌面端相关改动
+
+凡影响 `src-tauri/`、`desktop/`、`scripts/desktop/`、sidecar、桌面路径/配置、安装包、更新机制或 Excel/Wind 集成的改动，必须经过以下验证：
+
+1. 在开发机运行相关的通用测试和本地桌面测试。
+2. 通过 GitHub Actions 的原生 Windows runner 完成依赖安装、Python sidecar (`.exe`) 构建、Tauri Windows 安装包构建，以及基础启动/`/health` 检查。
+3. 通过 macOS runner 完成对应的 sidecar 和桌面包构建。
+
+macOS 本地测试不等于 Windows 验证；Windows CI 未通过或尚未运行时，不得宣称 Windows 兼容。
+
+### 发布前冒烟测试
+
+在发布新版本前，必须在真实 Windows 环境安装 CI 生成的安装包，并至少验证：安装/卸载/升级、主窗口启动、sidecar 启动、`/health`、用户数据目录、日志和配置文件。涉及 Excel/Wind、系统权限、签名/杀毒软件兼容或自动更新的版本，必须在真实 Windows 上验证相应功能。macOS 发版也应在对应架构的真实设备上完成相同级别的安装验证。
+
+### 发布节奏
+
+日常代码修改只需开发模式验证；只有需要让用户获得变更时，才由 CI 为每个目标平台构建新的 sidecar 和安装包，并以该构建产物完成测试后发布。
 
 ## GitHub Release Workflow
 

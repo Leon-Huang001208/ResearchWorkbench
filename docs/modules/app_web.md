@@ -43,6 +43,7 @@ Purpose:
 - Placeholder mapping shows every Word placeholder in first-seen order, builds draft mappings for missing entries, infers prompt/static/Excel placeholder types, supports embedded prompt retrieval queries for report projects such as `华安ETF周报`, and displays mapping status without truncating to the first eight placeholders.
 - Report rendering uses `/api/report-projects/{slug}/render`, shows download and preview actions, and loads the inline DOCX HTML preview from the returned `preview_url`.
 - Fund Intelligence panel logic lives in `app/web/static/js/funds.js` and calls `/api/funds/{symbol}`, `/api/funds/{symbol}/exposure`, `/api/funds/portfolio/exposure`, and `/api/funds/ingest` for fund detail, exposure, portfolio look-through, and structured row ingestion.
+- System configuration logic in `app/web/static/js/configuration.js` is statically imported by the Workbench entry module; its configuration-modal event binder must remain declared so a modal interaction defect cannot prevent the full Workbench module graph from loading.
 
 Update this section when:
 - New JS modules are added

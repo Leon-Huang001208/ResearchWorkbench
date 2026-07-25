@@ -14,10 +14,6 @@ class StrictModel(BaseModel):
 class SecretState(StrictModel):
     configured: bool = Field(description="是否已经配置秘密值")
     masked_value: str | None = Field(default=None, description="秘密值的掩码")
-    value: str | None = Field(
-        default=None,
-        description="仅供本机系统配置工作台回填密码框的已保存值",
-    )
 
 
 class ProviderView(StrictModel):
@@ -115,6 +111,7 @@ class ConfigurationSnapshotResponse(StrictModel):
     readiness: dict[str, bool]
     ready_count: int
     total_count: int
+    environment_locked_fields: list[str] = Field(default_factory=list)
 
 
 class ProviderUpdate(StrictModel):

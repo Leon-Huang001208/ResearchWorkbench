@@ -144,11 +144,20 @@ class ReportProjectInfo(BaseModel):
     generated_reports: List[GeneratedReportInfo] = Field(default_factory=list)
 
 
+class ReportProjectScanIssueInfo(BaseModel):
+    """Non-fatal report project scan diagnostic for the frontend."""
+
+    code: str
+    project_slug: str
+    relative_path: str
+
+
 class ReportProjectsListResponse(BaseModel):
     """Report projects list response."""
 
     projects: List[ReportProjectInfo]
     total: int
+    issues: List[ReportProjectScanIssueInfo] = Field(default_factory=list)
 
 
 class RenderReportProjectRequest(BaseModel):
@@ -223,8 +232,9 @@ class OpenReportProjectFolderResponse(BaseModel):
 async def list_report_projects():
     """List report projects stored as project folders."""
     try:
+        scan = report_project_manager.scan_projects()
         projects = []
-        for project in report_project_manager.list_projects():
+        for project in scan.projects:
             try:
                 projects.append(_to_project_info(project))
             except Exception as exc:
@@ -234,7 +244,19 @@ async def list_report_projects():
                     error=str(exc),
                     exc_info=True,
                 )
-        return ReportProjectsListResponse(projects=projects, total=len(projects))
+        issues = [
+            ReportProjectScanIssueInfo(
+                code=issue.code,
+                project_slug=issue.project_slug,
+                relative_path=issue.relative_path,
+            )
+            for issue in scan.issues
+        ]
+        return ReportProjectsListResponse(
+            projects=projects,
+            total=len(projects),
+            issues=issues,
+        )
     except Exception as exc:
         logger.exception("Failed to list report projects")
         raise HTTPException(status_code=500, detail=f"Failed to list report projects: {exc}")
@@ -484,9 +506,7 @@ async def _refresh_report_workbook(project: Any, slug: str) -> None:
         )
 
 
-@router.post(
-    "/{slug}/render", response_model=RenderReportProjectResponse, summary="生成报告项目文档"
-)
+@router.post("/{slug}/render", response_model=RenderReportProjectResponse, summary="生成报告项目文档")
 async def render_report_project(slug: str, request: RenderReportProjectRequest):
     """Render a report project into its own generated directory."""
     from reporting.projects.run import ReportProjectRunRequest, ReportProjectRunService
@@ -850,9 +870,7 @@ async def get_report_render_job_status(slug: str, job_id: str):
     )
 
 
-@router.get(
-    "/{slug}/preview/{file_name}", response_class=HTMLResponse, summary="预览报告项目生成文档"
-)
+@router.get("/{slug}/preview/{file_name}", response_class=HTMLResponse, summary="预览报告项目生成文档")
 async def preview_report_project_file(slug: str, file_name: str):
     """Render one generated docx as an inline HTML preview."""
     try:
