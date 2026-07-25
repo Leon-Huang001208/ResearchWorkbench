@@ -110,9 +110,7 @@ class FactRecord(BaseModel):
     fact_id: str = Field(description="事实唯一 ID")
     claim_text: str = Field(description="事实声明文本")
     claim_type: ClaimType = Field(default=ClaimType.METRIC, description="声明类型")
-    entities: List[str] = Field(
-        default_factory=list, description="关联实体（公司名/股票代码/品牌）"
-    )
+    entities: List[str] = Field(default_factory=list, description="关联实体（公司名/股票代码/品牌）")
     period: Optional[str] = Field(default=None, description="期间，如 2024Q3 / 2024 年报")
     value: Optional[float] = Field(default=None, description="数值，对 metric 类型有效")
     unit: Optional[str] = Field(default=None, description="单位，如 亿元 / Gbps / %")
@@ -148,12 +146,8 @@ class OutlineSection(BaseModel):
     required_evidence_types: List[EvidenceType] = Field(
         default_factory=list, description="本节需要的证据类型"
     )
-    required_claim_types: List[ClaimType] = Field(
-        default_factory=list, description="本节需要的事实声明类型"
-    )
-    counterpoints: List[str] = Field(
-        default_factory=list, description="风险与反证，必须覆盖而非只写利多"
-    )
+    required_claim_types: List[ClaimType] = Field(default_factory=list, description="本节需要的事实声明类型")
+    counterpoints: List[str] = Field(default_factory=list, description="风险与反证，必须覆盖而非只写利多")
     subsections: List["OutlineSection"] = Field(default_factory=list, description="子节点")
     target_words: int = Field(default=500, description="目标字数")
     retrieval_profile: Optional[RetrievalProfileType] = Field(
@@ -185,9 +179,7 @@ class CompiledSection(BaseModel):
     content: str = Field(default="", description="章节正文（含格式化引用 [N]）")
     citations: List[Citation] = Field(default_factory=list, description="本章引用列表")
     fact_ids: List[str] = Field(default_factory=list, description="本章引用的事实 ID 列表")
-    validation_result: Optional["ValidationResult"] = Field(
-        default=None, description="本章校验结果"
-    )
+    validation_result: Optional["ValidationResult"] = Field(default=None, description="本章校验结果")
 
 
 class CompiledReport(BaseModel):
@@ -244,9 +236,7 @@ class CritiqueIssue(BaseModel):
     severity: Literal["error", "warning", "info"] = Field(default="warning", description="严重程度")
     section_id: str = Field(description="所属章节 ID")
     description: str = Field(description="问题描述")
-    location: str = Field(
-        default="", description="文本位置（段落序号或 span 片段），供 revision_pass 定位"
-    )
+    location: str = Field(default="", description="文本位置（段落序号或 span 片段），供 revision_pass 定位")
     conflicting_fact_id: Optional[str] = Field(
         default=None, description="冲突关联的事实 ID（CONFLICT 类别时有效）"
     )
@@ -260,9 +250,7 @@ class CritiqueReport(BaseModel):
     """
 
     report_id: str = Field(description="关联的报告 ID")
-    overall_severity: CritiqueSeverity = Field(
-        default=CritiqueSeverity.PASS, description="整体严重度"
-    )
+    overall_severity: CritiqueSeverity = Field(default=CritiqueSeverity.PASS, description="整体严重度")
     issues: List[CritiqueIssue] = Field(default_factory=list, description="问题列表")
     revision_suggestions: List[str] = Field(
         default_factory=list, description="高层修复建议（自然语言，供 revision_pass 参考）"
@@ -281,12 +269,8 @@ class ResearchPlan(BaseModel):
     """
 
     research_questions: List[str] = Field(default_factory=list, description="研究子问题列表")
-    required_claim_types: List[ClaimType] = Field(
-        default_factory=list, description="需要的事实声明类型"
-    )
-    required_evidence_types: List[EvidenceType] = Field(
-        default_factory=list, description="需要的证据类型"
-    )
+    required_claim_types: List[ClaimType] = Field(default_factory=list, description="需要的事实声明类型")
+    required_evidence_types: List[EvidenceType] = Field(default_factory=list, description="需要的证据类型")
     retrieval_budget: Dict[str, int] = Field(
         default_factory=lambda: {"max_documents": 50, "max_chunks": 200},
         description="检索预算",
@@ -336,15 +320,11 @@ class ReportMetrics(BaseModel):
     # ── 检索质量 ──
     source_tier_a_b_ratio: float = Field(default=0.0, ge=0.0, le=1.0, description="Tier A+B 占比")
     total_evidence_chunks: int = Field(default=0, description="证据 chunk 总数")
-    evidence_diversity: float = Field(
-        default=0.0, ge=0.0, le=1.0, description="去重来源数 / 总来源数"
-    )
+    evidence_diversity: float = Field(default=0.0, ge=0.0, le=1.0, description="去重来源数 / 总来源数")
 
     # ── 事实质量 ──
     total_facts: int = Field(default=0, description="事实总数")
-    claim_support_rate: float = Field(
-        default=0.0, ge=0.0, le=1.0, description="声明支撑率（来自 critic）"
-    )
+    claim_support_rate: float = Field(default=0.0, ge=0.0, le=1.0, description="声明支撑率（来自 critic）")
     fabricated_number_count: int = Field(default=0, description="虚构数字数（来自 NumericChecker）")
 
     # ── 引用品质 ──
@@ -359,9 +339,7 @@ class ReportMetrics(BaseModel):
     # ── 报告质量 ──
     total_words: int = Field(default=0, description="报告总字数")
     total_sections: int = Field(default=0, description="章节总数")
-    structure_score: float = Field(
-        default=1.0, ge=0.0, le=1.0, description="结构评分（来自 critic）"
-    )
+    structure_score: float = Field(default=1.0, ge=0.0, le=1.0, description="结构评分（来自 critic）")
     counterpoint_coverage: float = Field(
         default=1.0, ge=0.0, le=1.0, description="反证覆盖率（来自 critic）"
     )

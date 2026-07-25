@@ -11,6 +11,8 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
+from reporting.templates.template_manager import TemplateManager
+
 from core.contracts import SectionOutput
 from core.observability import get_logger
 
@@ -490,9 +492,7 @@ async def render_template_report(request: RenderReportRequest):
         raise HTTPException(status_code=500, detail=f"Failed to render report: {str(e)}")
 
 
-@router.post(
-    "/render-from-asset", response_model=RenderReportResponse, summary="从资产ID直接渲染报告"
-)
+@router.post("/render-from-asset", response_model=RenderReportResponse, summary="从资产ID直接渲染报告")
 async def render_report_from_asset(request: RenderReportFromAssetRequest):
     """
     简化版API：直接从资产ID渲染报告
@@ -673,9 +673,7 @@ async def download_template_file(template_name: str, file_type: TemplateFileType
         raise HTTPException(status_code=500, detail=f"Failed to download template: {str(e)}")
 
 
-@router.get(
-    "/{template_name}/config", response_model=TemplateConfigResponse, summary="获取模板配置"
-)
+@router.get("/{template_name}/config", response_model=TemplateConfigResponse, summary="获取模板配置")
 async def get_template_config(template_name: str, file_type: str = "docx"):
     """
     获取模板的占位符配置

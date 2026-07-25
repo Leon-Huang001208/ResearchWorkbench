@@ -205,7 +205,9 @@ class TestGraphRepositorySQLite:
         engine = create_engine("sqlite:///:memory:")
         # Create tables manually for SQLite test
         with engine.connect() as conn:
-            conn.execute(text("""
+            conn.execute(
+                text(
+                    """
                 CREATE TABLE temporal_relation (
                     relation_id TEXT PRIMARY KEY,
                     from_entity_id TEXT NOT NULL,
@@ -220,8 +222,12 @@ class TestGraphRepositorySQLite:
                     evidence_refs JSON DEFAULT ('[]'),
                     created_at TIMESTAMP
                 )
-            """))
-            conn.execute(text("""
+            """
+                )
+            )
+            conn.execute(
+                text(
+                    """
                 CREATE TABLE industry_chain (
                     chain_id TEXT PRIMARY KEY,
                     name TEXT NOT NULL,
@@ -232,7 +238,9 @@ class TestGraphRepositorySQLite:
                     created_at TIMESTAMP,
                     updated_at TIMESTAMP
                 )
-            """))
+            """
+                )
+            )
             conn.commit()
 
         Session = sessionmaker(bind=engine)

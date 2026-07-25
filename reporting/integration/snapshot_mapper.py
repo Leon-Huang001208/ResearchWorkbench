@@ -161,9 +161,9 @@ class SnapshotToPlaceholdersMapper:
 
         if price_change is not None and isinstance(price_change, (int, float)):
             sign = "+" if price_change >= 0 else ""
-            placeholders["price_change"] = (
-                f"{sign}{self.formatters['currency_cny_2dp'](price_change)[1:]}"
-            )
+            placeholders[
+                "price_change"
+            ] = f"{sign}{self.formatters['currency_cny_2dp'](price_change)[1:]}"
 
         if price_change_pct is not None and isinstance(price_change_pct, (int, float)):
             sign = "+" if price_change_pct >= 0 else ""

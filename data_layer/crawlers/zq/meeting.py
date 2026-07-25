@@ -67,9 +67,7 @@ class MeetingFetcher(BaseFetcher):
                     self.config.state_path, self.config.verbose
                 )
                 if self.config.verbose:
-                    print(
-                        f"[init] 状态管理器已初始化，已记录 {self._state_manager.get_processed_count()} 篇纪要"
-                    )
+                    print(f"[init] 状态管理器已初始化，已记录 {self._state_manager.get_processed_count()} 篇纪要")
             except Exception as e:
                 if self.config.verbose:
                     print(f"[warn] 初始化状态管理器失败: {e}，持久化去重将不可用")
@@ -117,19 +115,13 @@ def parse_args():
 
     parser.add_argument("--search", type=str, default="", help="搜索关键词，多个用逗号分隔")
 
-    parser.add_argument(
-        "--output-dir", type=str, default="./output", help="输出目录 (默认: ./output)"
-    )
-    parser.add_argument(
-        "--state-path", type=str, default=None, help="状态文件路径，用于持久化去重 (默认: None)"
-    )
+    parser.add_argument("--output-dir", type=str, default="./output", help="输出目录 (默认: ./output)")
+    parser.add_argument("--state-path", type=str, default=None, help="状态文件路径，用于持久化去重 (默认: None)")
     parser.add_argument(
         "--skip-existing", action="store_true", default=True, help="跳过已存在的纪要 (默认: True)"
     )
 
-    parser.add_argument(
-        "--date-limit", type=str, default="", help="日期限制，如 DATE_LIMIT_WEEK (默认: 空)"
-    )
+    parser.add_argument("--date-limit", type=str, default="", help="日期限制，如 DATE_LIMIT_WEEK (默认: 空)")
     parser.add_argument("--page", type=int, default=1, help="页码 (默认: 1)")
     parser.add_argument("--page-size", type=int, default=50, help="每页数量 (默认: 50)")
     parser.add_argument(
@@ -146,9 +138,7 @@ def parse_args():
     parser.add_argument("--no-rotate-account", action="store_true", help="不自动切换账号")
 
     parser.add_argument("--config", type=str, required=True, help="配置文件路径 (包含凭证)")
-    parser.add_argument(
-        "--verbose", action="store_true", default=True, help="显示详细输出 (默认: True)"
-    )
+    parser.add_argument("--verbose", action="store_true", default=True, help="显示详细输出 (默认: True)")
 
     return parser.parse_args()
 

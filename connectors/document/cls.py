@@ -259,9 +259,7 @@ class CLSDocumentConnector(DocumentConnector):
                 hasher += content[:100]
 
         full_text = "\n\n---\n\n".join(full_text_parts)
-        doc_title = (
-            f"财联社电报 {raw.metadata.get('start_date', '')} " f"({len(envelopes)} 条)"
-        ).strip()
+        doc_title = (f"财联社电报 {raw.metadata.get('start_date', '')} " f"({len(envelopes)} 条)").strip()
 
         return ParsedDocument(
             title=doc_title,

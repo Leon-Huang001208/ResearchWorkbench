@@ -20,7 +20,6 @@ def test_template_detail_has_report_workbench_regions():
     assert 'id="template-source-editor"' in html
     assert 'id="btn-template-source-section"' in html
     assert 'id="btn-template-source-prompt"' in html
-    assert 'id="template-excel-mapping"' in html
     assert 'id="template-validation-preview"' in html
     assert 'id="btn-template-save-source"' in html
     assert 'id="btn-template-edit-source"' in html
@@ -46,7 +45,7 @@ def test_template_detail_has_report_workbench_regions():
     assert 'class="tabs template-legacy-tabs hidden"' in html
     assert "占位符配置详情" in html
     assert "当前片段源码" in html
-    assert "Excel 底稿映射" in html
+    assert "Excel 底稿映射" not in html
 
 
 def test_report_workbench_uses_separate_generation_preview_log_tabs_without_changing_config():
@@ -333,7 +332,7 @@ def test_placeholder_editor_exposes_only_per_placeholder_generation_fields():
 
     assert 'data-placeholder-field="type"' in source
     assert 'data-placeholder-field="target_words"' in source
-    assert 'data-placeholder-field="max_words"' in source
+    assert 'data-placeholder-field="max_words"' not in source
     assert 'data-placeholder-field="min_news_count"' in source
     assert 'data-placeholder-field="retrieval.keyword_profile_select"' in source
     assert 'data-placeholder-field="retrieval.custom_keywords"' in source
@@ -618,7 +617,7 @@ def test_placeholder_editor_keeps_derived_fields_in_advanced_drawer():
     assert 'id="template-advanced-placeholder-form"' in html
     assert 'id="btn-template-advanced-config"' in html
     assert "draft.title = draft.title || inferPlaceholderTitle(name);" in source
-    assert 'data-placeholder-field=' in source
+    assert "data-placeholder-field=" in source
     assert "resolvePromptTemplateName(name, template.report_project)" in source
 
 
@@ -953,19 +952,13 @@ def test_generation_preflight_surfaces_prioritized_task_queue_and_evidence_sampl
     source = TEMPLATES_JS.read_text(encoding="utf-8")
     css = STYLE_CSS.read_text(encoding="utf-8")
 
-    assert "function buildPreflightTaskQueue(readiness, checks, placeholderReadiness)" in source
-    assert "function renderPreflightTaskQueue(tasks)" in source
     assert "function buildEvidencePreviewRows(readiness)" in source
     assert "function getRunLogEvidenceSamples(runLog)" in source
-    assert "优先处理" in source
-    assert "阻断" in source
-    assert "警告" in source
-    assert "建议" in source
+    assert "function buildPreflightTaskQueue" not in source
+    assert "function renderPreflightTaskQueue" not in source
     assert "Evidence 抽样" in source
     assert "matched_terms" in source
     assert "retrieval_config?.must_any" in source
-    assert ".template-preflight-task-queue" in css
-    assert ".template-preflight-task-item" in css
     assert ".template-evidence-sample" in css
 
 
@@ -1169,12 +1162,8 @@ def test_report_generation_page_uses_apple_refinement_instead_of_market_red_card
         not in css.split(".template-generation-flow-step.done .step-index", 1)[1].split("}", 1)[0]
     )
     assert "#template-workbench-summary {\n    border: 0;" in css
-    assert (
-        ".template-generation-flow-panel {\n    border: 0;" in css
-    )
-    assert (
-        ".template-generation-step-panel {\n    border: 0;" in css
-    )
+    assert ".template-generation-flow-panel {\n    border: 0;" in css
+    assert ".template-generation-step-panel {\n    border: 0;" in css
     assert ".template-generation-hero {\n    align-items: flex-start;" in css
     assert '[data-theme="light"] .template-generation-hero {\n    background: transparent;' in css
     assert ".template-generation-actions small {\n    display: none;" in css

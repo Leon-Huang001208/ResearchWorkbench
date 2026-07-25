@@ -46,7 +46,7 @@ def test_tauri_config_wraps_existing_fastapi_workbench():
 
     assert config["productName"] == "AlphaFoundry"
     assert config["build"]["devUrl"] == "http://127.0.0.1:8765"
-    assert "scripts/desktop/run_backend.sh" in config["build"]["beforeDevCommand"]
+    assert "node scripts/desktop/run_backend.js" in config["build"]["beforeDevCommand"]
     assert config["build"]["frontendDist"] == "../desktop/dist"
     assert config["bundle"]["targets"] == "all"
     assert config["bundle"]["icon"] == [
@@ -93,7 +93,8 @@ def test_report_project_upload_modal_treats_non_word_assets_as_optional():
     assert 'data-file-label="project-word-template-input"' in html
     assert 'data-file-label="project-excel-workbook-input"' in html
     assert "请至少选择 Word 模板、Excel 底稿和 Section 配置" not in script
-    assert "if (!wordFile)" in script
+    assert "if (projectType === 'word' && !wordFile)" in script
+    assert "if (projectType === 'ppt' && !pptFile)" in script
     assert "if (excelFile)" in script
     assert "if (sectionFile)" in script
 
@@ -310,7 +311,7 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "今日上涨板块概念 (Top 10)" not in html
     assert "今日下跌板块概念 (Top 10)" not in html
     assert "style.css?v=20260702briefinline1" in html
-    assert "app.js?v=20260714config1" in html
+    assert "app.js?v=20260722flowfix" in html
     assert "asset-observe-mode-tabs" in html
     assert 'data-asset-mode="theme"' in html
     assert "asset-topic-result" in html

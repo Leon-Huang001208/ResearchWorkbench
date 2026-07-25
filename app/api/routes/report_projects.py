@@ -484,9 +484,7 @@ async def _refresh_report_workbook(project: Any, slug: str) -> None:
         )
 
 
-@router.post(
-    "/{slug}/render", response_model=RenderReportProjectResponse, summary="生成报告项目文档"
-)
+@router.post("/{slug}/render", response_model=RenderReportProjectResponse, summary="生成报告项目文档")
 async def render_report_project(slug: str, request: RenderReportProjectRequest):
     """Render a report project into its own generated directory."""
     from reporting.projects.run import ReportProjectRunRequest, ReportProjectRunService
@@ -850,9 +848,7 @@ async def get_report_render_job_status(slug: str, job_id: str):
     )
 
 
-@router.get(
-    "/{slug}/preview/{file_name}", response_class=HTMLResponse, summary="预览报告项目生成文档"
-)
+@router.get("/{slug}/preview/{file_name}", response_class=HTMLResponse, summary="预览报告项目生成文档")
 async def preview_report_project_file(slug: str, file_name: str):
     """Render one generated docx as an inline HTML preview."""
     try:

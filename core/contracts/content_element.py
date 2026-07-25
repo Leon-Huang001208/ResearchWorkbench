@@ -236,14 +236,10 @@ class TableElement(ContentElement):
 
     element_type: Literal[ContentElementType.TABLE] = ContentElementType.TABLE
     headers: List[List[TextRun]] = Field(default_factory=list, description="表头行")
-    rows: List[List[List[TextRun]]] = Field(
-        default_factory=list, description="数据行（行→列→富文本）"
-    )
+    rows: List[List[List[TextRun]]] = Field(default_factory=list, description="数据行（行→列→富文本）")
     col_widths: Optional[List[float]] = Field(default=None, description="相对列宽比例")
     title: Optional[str] = Field(default=None, description="表格标题")
-    style: Literal["bordered", "minimal", "striped"] = Field(
-        default="bordered", description="表格样式"
-    )
+    style: Literal["bordered", "minimal", "striped"] = Field(default="bordered", description="表格样式")
 
 
 class ChartElement(ContentElement):

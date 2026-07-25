@@ -359,7 +359,6 @@ class TestWindClientLogic:
 
     @patch("data_layer.adapters.wind.client.time.sleep")
     def test_execute_waits_while_wind_returns_fetch(self, _sleep):
-
         cell = MagicMock()
         type(cell).value = PropertyMock(side_effect=["Fetch...", "loading...", "done"])
         sheet = MagicMock()

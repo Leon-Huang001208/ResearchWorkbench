@@ -270,9 +270,7 @@ class MetricsComputer:
         counterpoint_sections = 0
         for section in report.outline.sections:
             title_lower = section.title.lower()
-            if any(
-                kw in title_lower for kw in ("risk", "风险", "counterpoint", "反证", "bear", "空")
-            ):
+            if any(kw in title_lower for kw in ("risk", "风险", "counterpoint", "反证", "bear", "空")):
                 counterpoint_sections += 1
         total = max(len(report.outline.sections), 1)
         return min(1.0, counterpoint_sections / total + 0.3)  # base coverage

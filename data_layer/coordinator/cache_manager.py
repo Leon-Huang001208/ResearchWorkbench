@@ -71,7 +71,8 @@ class MarketDataCache:
             cursor = conn.cursor()
 
             # K线数据表
-            cursor.execute("""
+            cursor.execute(
+                """
                 CREATE TABLE IF NOT EXISTS market_data (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     symbol TEXT NOT NULL,
@@ -87,10 +88,12 @@ class MarketDataCache:
                     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE(symbol, timestamp)
                 )
-            """)
+            """
+            )
 
             # 缓存元数据表
-            cursor.execute("""
+            cursor.execute(
+                """
                 CREATE TABLE IF NOT EXISTS cache_metadata (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     symbol TEXT NOT NULL UNIQUE,
@@ -100,7 +103,8 @@ class MarketDataCache:
                     data_source TEXT,
                     total_records INTEGER DEFAULT 0
                 )
-            """)
+            """
+            )
 
             # 索引
             cursor.execute(

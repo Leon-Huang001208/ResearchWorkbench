@@ -38,7 +38,7 @@ from reporting.projects.keyword_profiles import (
     apply_keyword_profile_to_config,
     keyword_profiles_for_api,
 )
-from reporting.projects.project_manager import ReportProjectManager
+from reporting.projects.project_manager import ReportProject, ReportProjectManager
 from reporting.projects.run import ReportProjectRunRequest, ReportProjectRunService
 
 client = TestClient(app)
@@ -67,17 +67,11 @@ def test_huaan_prompt_placeholders_use_report_level_retrieval_defaults():
     assert retrieval_defaults["semantic_candidate_k"] == 80
     assert retrieval_defaults["keyword_weight"] == 0.6
     assert retrieval_defaults["semantic_weight"] == 0.4
-    expected_embedding_model = str(
-        Path(__file__).resolve().parents[2] / "data" / "models" / "embeddings" / "bge-large-zh-v1.5"
-    )
-    assert retrieval_defaults["embedding_model"] == expected_embedding_model
+    assert retrieval_defaults["embedding_model"] == "data/models/embeddings/bge-large-zh-v1.5"
     rerank_defaults = defaults["rerank"]
     assert rerank_defaults["enabled"] is True
     assert rerank_defaults["provider"] == "bge-reranker"
-    expected_rerank_model = str(
-        Path(__file__).resolve().parents[2] / "data" / "models" / "rerankers" / "bge-reranker-large"
-    )
-    assert rerank_defaults["model"] == expected_rerank_model
+    assert rerank_defaults["model"] == "data/models/rerankers/bge-reranker-large"
     assert rerank_defaults["top_n"] == 30
     assert rerank_defaults["min_score"] == 0.35
     assert defaults["validators"]["forbid_external_facts"] is True
@@ -188,9 +182,18 @@ def test_generation_constraints_and_writing_parameters_are_rendered_separately()
     assert "至少使用 5 条 evidence/news 信息" in writing_parameters
 
 
-def test_market_hotspot_prompt_uses_component_structure_without_metadata():
+def test_market_hotspot_prompt_uses_component_structure_without_metadata(tmp_path: Path):
     """A股市场回顾续写 prompt 应使用固定开头和后续结构，不暴露项目元信息。"""
-    project = ReportProjectManager(projects_root=Path("report_projects")).get_project("华安ETF周报")
+    project = ReportProject(
+        name="测试周报",
+        slug="test-weekly-report",
+        project_dir=tmp_path,
+        word_template_path=tmp_path / "report_template.docx",
+        excel_workbook_path=tmp_path / "report_data.xlsx",
+        section_config_path=tmp_path / "section_config.yaml",
+        output_dir=tmp_path / "generated",
+        run_log_dir=tmp_path / "runs",
+    )
     template = build_market_template_for_test()
     config = {
         "generation_constraints": [
@@ -217,10 +220,7 @@ def test_market_hotspot_prompt_uses_component_structure_without_metadata():
         placeholder="A股市场回顾",
         title="A股市场回顾",
         template=template,
-        data_sentence=(
-            "本周A股市场整体呈现分化趋势，主要指数表现不一：沪深300涨0.19%。"
-            "交易面，A股市场本周日均成交额在2.40万亿左右，市场投资热情回落。"
-        ),
+        data_sentence=("本周A股市场整体呈现分化趋势，主要指数表现不一：沪深300涨0.19%。" "交易面，A股市场本周日均成交额在2.40万亿左右，市场投资热情回落。"),
         params={},
         max_words=320,
         config=config,
@@ -258,10 +258,7 @@ def test_market_hotspot_prompt_uses_component_structure_without_metadata():
 
 def test_strip_instruction_leaks_removes_actual_prompt_wording():
     """应移除 LLM 输出的 '以下内容已由系统根据Excel数据生成...' 指令文本。"""
-    text = (
-        "以下内容已由系统根据Excel数据生成，必须作为正文开头，不得改写、删减或重复"
-        "：本周市场热点集中于避险与政策驱动方向，半导体板块遭遇集中抛售。"
-    )
+    text = "以下内容已由系统根据Excel数据生成，必须作为正文开头，不得改写、删减或重复" "：本周市场热点集中于避险与政策驱动方向，半导体板块遭遇集中抛售。"
     result = _strip_instruction_leaks(text)
     assert "以下内容已由系统" not in result
     assert "不得改写" not in result
@@ -271,9 +268,7 @@ def test_strip_instruction_leaks_removes_actual_prompt_wording():
 
 def test_strip_instruction_leaks_removes_parenthesized_variant():
     """应移除括号包裹的旧版指令文本变体。"""
-    text = (
-        "（以上内容由系统从 Excel 底稿自动生成，请以本段为固定开头）" "本周市场热点集中于医药板块。"
-    )
+    text = "（以上内容由系统从 Excel 底稿自动生成，请以本段为固定开头）" "本周市场热点集中于医药板块。"
     result = _strip_instruction_leaks(text)
     assert "以上内容由系统从" not in result
     assert "Excel 底稿" not in result
@@ -1206,9 +1201,7 @@ def test_generation_service_renders_structured_generation_constraints(tmp_path: 
             assert "使用数据或数值时必须说明来源" in message
             assert "生成一段正文，不输出换行符" in message
             assert "禁止出现这些短语：根据文件、据报道、数据显示" in message
-            assert (
-                "禁止提及这些实体类别：指数名称、公司名称、证券机构、个股名称、ETF名称" in message
-            )
+            assert "禁止提及这些实体类别：指数名称、公司名称、证券机构、个股名称、ETF名称" in message
             assert "控制在 100-150 字" not in message
             return ModelResponse(
                 content="本周市场热点依次为 CPO、算力、先进封装，板块呈现快速轮动特征。",
@@ -1535,9 +1528,7 @@ def test_generation_service_builds_gold_and_oil_reviews_from_excel(tmp_path: Pat
     (project_dir / "config").mkdir()
     (project_dir / "generated").mkdir()
     (project_dir / "runs").mkdir()
-    write_minimal_docx(
-        project_dir / "templates" / "report_template.docx", "{{黄金市场回顾}}{{原油市场回顾}}"
-    )
+    write_minimal_docx(project_dir / "templates" / "report_template.docx", "{{黄金市场回顾}}{{原油市场回顾}}")
     write_market_review_xlsx(project_dir / "data" / "周报数据.xlsx")
     (project_dir / "config" / "section_config.yaml").write_text(
         "placeholders: {}\n", encoding="utf-8"
@@ -1597,8 +1588,7 @@ def test_generation_service_builds_gold_and_oil_reviews_from_excel(tmp_path: Pat
     )
 
     assert result.placeholders["黄金市场回顾"] == (
-        "截止本周，伦敦现货黄金收于4704.74美元/盎司（周环比-2.74%），"
-        "国内AU9999黄金收于1033.25元/克（周环比-1.75%）。"
+        "截止本周，伦敦现货黄金收于4704.74美元/盎司（周环比-2.74%），" "国内AU9999黄金收于1033.25元/克（周环比-1.75%）。"
     )
     assert result.placeholders["原油市场回顾"] == (
         "截至本周，布伦特原油期货周均价为106.01美元/桶，较上周五涨13.59美元/桶；"
@@ -2372,8 +2362,7 @@ def test_word_page_preview_can_use_cached_page_asset_urls():
     )
 
     assert (
-        'data-src="/api/report-projects/华安ETF周报/preview-assets/preview.docx/page-001.png"'
-        in html
+        'data-src="/api/report-projects/华安ETF周报/preview-assets/preview.docx/page-001.png"' in html
     )
     assert 'loading="lazy"' in html
     assert "data:image/png;base64" not in html

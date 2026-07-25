@@ -329,9 +329,7 @@ class ReportProcessor(BaseProcessor):
             with open(output_file, "w", encoding="utf-8") as f:
                 json.dump(results, f, ensure_ascii=False, indent=2)
 
-        self.client.logger.info(
-            f"已处理 {len(results)} 条研报 (跳过 {skipped_count} 条)，保存至 {output_file}"
-        )
+        self.client.logger.info(f"已处理 {len(results)} 条研报 (跳过 {skipped_count} 条)，保存至 {output_file}")
         return pd.DataFrame(results), new_reports, skipped_count, stopped_by_watermark
 
     def _process_new_format(
@@ -410,9 +408,7 @@ class ReportProcessor(BaseProcessor):
             with open(output_file, "w", encoding="utf-8") as f:
                 json.dump(results, f, ensure_ascii=False, indent=2)
 
-        self.client.logger.info(
-            f"已处理 {len(results)} 条研报 (跳过 {skipped_count} 条)，保存至 {output_file}"
-        )
+        self.client.logger.info(f"已处理 {len(results)} 条研报 (跳过 {skipped_count} 条)，保存至 {output_file}")
         return pd.DataFrame(results), new_reports, skipped_count, stopped_by_watermark
 
     def _build_item_report(

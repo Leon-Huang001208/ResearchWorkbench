@@ -83,8 +83,7 @@ class AskService:
         else:
             # 降级：无 key 或搜索失败，不联网直答并标注
             user_content = (
-                "[未联网] 未能获取联网搜索结果（可能未配置搜索 API key 或搜索失败），"
-                f"以下基于模型自身知识回答，可能过时：\n\n【问题】\n{question}"
+                "[未联网] 未能获取联网搜索结果（可能未配置搜索 API key 或搜索失败），" f"以下基于模型自身知识回答，可能过时：\n\n【问题】\n{question}"
             )
 
         messages = [

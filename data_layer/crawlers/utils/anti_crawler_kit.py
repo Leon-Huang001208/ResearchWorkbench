@@ -280,9 +280,9 @@ class HeaderRandomizer:
             headers["Cache-Control"] = cache_control
 
         if random.random() > 0.5:
-            headers["Sec-CH-UA"] = (
-                '"Chromium";v="130", "Not=A?Brand";v="24", "Google Chrome";v="130"'
-            )
+            headers[
+                "Sec-CH-UA"
+            ] = '"Chromium";v="130", "Not=A?Brand";v="24", "Google Chrome";v="130"'
             headers["Sec-CH-UA-Mobile"] = "?0"
             headers["Sec-CH-UA-Platform"] = '"Windows"'
 

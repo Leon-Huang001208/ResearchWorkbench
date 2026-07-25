@@ -26,8 +26,7 @@ class FakeModelGateway:
         if self.fail:
             raise RuntimeError("model unavailable")
         return ModelResponse(
-            content=self.content
-            or "# 市场大跌归因\n\n核心判断：市场调整来自风险偏好回落。\n\n后续观察成交额。",
+            content=self.content or "# 市场大跌归因\n\n核心判断：市场调整来自风险偏好回落。\n\n后续观察成交额。",
             model_name="deepseek-test",
             provider="fake-provider",
             tokens_used=321,
@@ -116,10 +115,7 @@ def test_commentary_draft_service_includes_verification_matrix_in_prompt_and_cit
     assert "【结构化证据与核验状态】" in prompt
     assert "[已确认数据][market_data][verified][0.95] 上证指数 -2.10%" in prompt
     assert "[媒体报道/新闻][news][source_published][0.68] 海外 AI 链调整" in prompt
-    assert (
-        "对 verification_status 不是 verified 的证据，必须使用“据报道/显示/需要继续核验”等表述"
-        in prompt
-    )
+    assert "对 verification_status 不是 verified 的证据，必须使用“据报道/显示/需要继续核验”等表述" in prompt
     assert response.citations[0]["verification_status"] == "verified"
     assert response.citations[1]["confidence_score"] == 0.68
 
@@ -239,9 +235,7 @@ def test_commentary_draft_service_quality_check_flags_publish_risks():
     service = CommentaryDraftService(model_gateway=FakeModelGateway())
 
     result = service.check_quality(
-        draft_markdown=(
-            "# 市场大跌归因\n\n" "## 核心判断\n" "海外 AI 链调整确定导致市场下跌，后续一定会修复。"
-        ),
+        draft_markdown=("# 市场大跌归因\n\n" "## 核心判断\n" "海外 AI 链调整确定导致市场下跌，后续一定会修复。"),
         context=request,
     )
 
@@ -255,11 +249,7 @@ def test_commentary_draft_service_quality_check_flags_publish_risks():
 
 
 def test_commentary_draft_service_applies_quality_guardrails_before_returning_model_draft():
-    gateway = FakeModelGateway(
-        content=(
-            "# 市场大跌归因\n\n" "## 核心判断\n" "海外 AI 链调整确定导致市场下跌，后续一定会修复。"
-        )
-    )
+    gateway = FakeModelGateway(content=("# 市场大跌归因\n\n" "## 核心判断\n" "海外 AI 链调整确定导致市场下跌，后续一定会修复。"))
     service = CommentaryDraftService(model_gateway=gateway)
 
     response = service.generate_draft(_request())
@@ -274,11 +264,7 @@ def test_commentary_draft_service_applies_quality_guardrails_before_returning_mo
 
 def test_commentary_draft_service_normalizes_inline_section_prefixes():
     gateway = FakeModelGateway(
-        content=(
-            "# 市场大跌归因\n\n"
-            "核心判断：市场调整主要来自风险偏好回落。\n"
-            "后续观察：观察成交额和资金流能否企稳。"
-        )
+        content=("# 市场大跌归因\n\n" "核心判断：市场调整主要来自风险偏好回落。\n" "后续观察：观察成交额和资金流能否企稳。")
     )
     service = CommentaryDraftService(model_gateway=gateway)
 

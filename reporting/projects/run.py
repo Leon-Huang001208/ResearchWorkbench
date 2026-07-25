@@ -133,7 +133,11 @@ class ReportProjectRunService:
         if v2_config_path.exists():
             try:
                 config_data = yaml.safe_load(v2_config_path.read_text(encoding="utf-8"))
-                if isinstance(config_data, dict) and "meta" in config_data and "template" in config_data:
+                if (
+                    isinstance(config_data, dict)
+                    and "meta" in config_data
+                    and "template" in config_data
+                ):
                     logger.info(
                         "检测到 v2 配置，使用 ConfigDrivenTemplateRenderer",
                         path=str(v2_config_path),
@@ -456,8 +460,7 @@ class ReportProjectRunService:
             placeholders=placeholder_map,
         )
         projection_warnings = [
-            f"PPT 占位符未配置：{placeholder}"
-            for placeholder in projection_result.missing_placeholders
+            f"PPT 占位符未配置：{placeholder}" for placeholder in projection_result.missing_placeholders
         ]
         run_path = self._write_ppt_run_log(
             project=project,

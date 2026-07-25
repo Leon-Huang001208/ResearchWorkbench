@@ -301,9 +301,7 @@ class ChartGridInjector:
         """
         file_path = cell_spec.data_source.file_path
         if not file_path:
-            logger.warning(
-                "embedded_image 模式缺少 file_path", extra={"chart_id": cell_spec.chart_id}
-            )
+            logger.warning("embedded_image 模式缺少 file_path", extra={"chart_id": cell_spec.chart_id})
             return
 
         if project_dir:

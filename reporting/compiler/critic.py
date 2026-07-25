@@ -301,8 +301,7 @@ class Critic:
                             severity="error",
                             section_id=section.section_id,
                             description=(
-                                f"数字矛盾：正文 {n} {direction} "
-                                f"事实表 {best_val}（偏差 {abs(pct):.0f}%）"
+                                f"数字矛盾：正文 {n} {direction} " f"事实表 {best_val}（偏差 {abs(pct):.0f}%）"
                             ),
                             location=sent[:150],
                             conflicting_fact_id=best_fact.fact_id,
@@ -361,11 +360,7 @@ class Critic:
                             f"偏差 {deviation:.0%}）"
                         ),
                         location="",
-                        suggested_fix=(
-                            "压缩内容至目标字数内"
-                            if word_count > target
-                            else "补充内容达到目标字数"
-                        ),
+                        suggested_fix=("压缩内容至目标字数内" if word_count > target else "补充内容达到目标字数"),
                     )
                 )
 
@@ -407,8 +402,7 @@ class Critic:
                     severity="warning",
                     section_id=section.section_id,
                     description=(
-                        f"引用密度不足（{density:.1f} 条/百字 < "
-                        f"{self.MIN_CITATION_DENSITY} 条/百字）"
+                        f"引用密度不足（{density:.1f} 条/百字 < " f"{self.MIN_CITATION_DENSITY} 条/百字）"
                     ),
                     location="",
                     suggested_fix="为更多声明添加 [fact_id] 引用标记",
@@ -425,8 +419,7 @@ class Critic:
                     severity="info",
                     section_id=section.section_id,
                     description=(
-                        f"事实覆盖不足（{fact_density:.1f} 条/百字 < "
-                        f"{self.MIN_FACT_DENSITY} 条/百字）"
+                        f"事实覆盖不足（{fact_density:.1f} 条/百字 < " f"{self.MIN_FACT_DENSITY} 条/百字）"
                     ),
                     location="",
                     suggested_fix="增加事实记录以支撑本节内容",
@@ -512,9 +505,7 @@ class Critic:
         if metrics.get("conflict_count", 0) > 0:
             suggestions.append(f"{metrics['conflict_count']} 处数字矛盾需要修正")
         if metrics.get("claim_support_rate", 1.0) < 0.80:
-            suggestions.append(
-                f"声明支撑率 {metrics['claim_support_rate']:.0%} 偏低，" "需为更多声明添加引用"
-            )
+            suggestions.append(f"声明支撑率 {metrics['claim_support_rate']:.0%} 偏低，" "需为更多声明添加引用")
         if metrics.get("counterpoint_gaps", 0) > 0:
             suggestions.append(f"{metrics['counterpoint_gaps']} 个反证点未被覆盖，建议补充风险视角")
         if metrics.get("citation_density", 0) < self.MIN_CITATION_DENSITY:

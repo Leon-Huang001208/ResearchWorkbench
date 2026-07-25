@@ -42,9 +42,7 @@ def main():
     parser.add_argument("--sleep", type=float, default=0.3, help="每条文档间隔(秒)")
     parser.add_argument("--limit", type=int, default=50, help="限制处理数量(0=全部)")
     parser.add_argument("--dry-run", action="store_true", help="只统计不执行")
-    parser.add_argument(
-        "--model", type=str, default="doubao-seed-2-0-lite-260428", help="提取使用的模型"
-    )
+    parser.add_argument("--model", type=str, default="doubao-seed-2-0-lite-260428", help="提取使用的模型")
     args = parser.parse_args()
 
     # 1. 统计原始数据

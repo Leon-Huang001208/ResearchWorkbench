@@ -613,9 +613,7 @@ class AccountManager:
                     account.lock_until = None
                     account.leased_by = None
                     account.leased_at = None
-                    logger.error(
-                        f"账号 {account_name} 连续失败 {account.consecutive_failures} 次，已永久禁用"
-                    )
+                    logger.error(f"账号 {account_name} 连续失败 {account.consecutive_failures} 次，已永久禁用")
                 elif lock_seconds > 0:
                     account.is_locked = True
                     lock_until = datetime.now() + timedelta(seconds=lock_seconds)

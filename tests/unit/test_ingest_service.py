@@ -104,9 +104,7 @@ class TestIngestService:
         """测试断言和事件提取"""
         service = IngestService()
 
-        result = service.ingest_text(
-            text="贵州茅台发布财报，净利润同比增长28%。腾讯控股宣布收购计划。", source_type="report"
-        )
+        result = service.ingest_text(text="贵州茅台发布财报，净利润同比增长28%。腾讯控股宣布收购计划。", source_type="report")
 
         # 断言应该被提取（数量 >= 0）
         assert result["assertions_extracted"] >= 0

@@ -465,9 +465,7 @@ class ConfigurationService:
                 updates[f"TASK_{task}_PROVIDER"] = self._required_string(
                     route.get("provider"), "任务 Provider"
                 )
-                updates[f"TASK_{task}_MODEL"] = self._required_string(
-                    route.get("model"), "任务模型"
-                )
+                updates[f"TASK_{task}_MODEL"] = self._required_string(route.get("model"), "任务模型")
             changed.add("task_routes")
         return updates, removals - updates.keys(), changed
 

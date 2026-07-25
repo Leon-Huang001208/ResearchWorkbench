@@ -113,13 +113,8 @@ class CommentaryContextService:
         )
         return CommentaryContextPack(
             recipe_id=recipe_id or "daily-close",
-            data_snapshot_text=(
-                "市场数据：仪表盘数据暂不可用，请手动补充指数涨跌、成交额、"
-                "领涨/拖累方向和资金变化。"
-            ),
-            evidence_pack_text=(
-                "证据包：仪表盘上下文加载失败，请补充已核验新闻、公告、研报或人工判断。"
-            ),
+            data_snapshot_text=("市场数据：仪表盘数据暂不可用，请手动补充指数涨跌、成交额、" "领涨/拖累方向和资金变化。"),
+            evidence_pack_text=("证据包：仪表盘上下文加载失败，请补充已核验新闻、公告、研报或人工判断。"),
             evidence_items=[evidence_item],
             attribution_signals=[],
             generated_at=datetime.utcnow(),
@@ -428,9 +423,7 @@ class CommentaryContextService:
                     source_type=source_type,
                     verification_status="source_published",
                     confidence_score=0.72 if source_type == "research" else 0.68,
-                    display_label=(
-                        "媒体报道/研报" if source_type == "research" else "媒体报道/新闻"
-                    ),
+                    display_label=("媒体报道/研报" if source_type == "research" else "媒体报道/新闻"),
                     url=raw_item.get("url") or raw_item.get("source_url"),
                     metadata={
                         "doc_id": raw_item.get("doc_id") or raw_item.get("id"),
@@ -613,9 +606,7 @@ class CommentaryContextService:
                 evidence_titles.append(f"资金净流入 {overview.breadth.netInflow}")
         if overview.breadth and overview.breadth.down > max(overview.breadth.up * 3, 1000):
             score += 18
-            evidence_titles.append(
-                f"下跌 {overview.breadth.down} 家 / 上涨 {overview.breadth.up} 家"
-            )
+            evidence_titles.append(f"下跌 {overview.breadth.down} 家 / 上涨 {overview.breadth.up} 家")
         return CommentaryAttributionSignal(
             tag="liquidity_outflow",
             label="资金净流出放大",

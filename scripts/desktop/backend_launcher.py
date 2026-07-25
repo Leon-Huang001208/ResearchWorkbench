@@ -360,9 +360,7 @@ def _kill_stale_process_on_port(host: str, port: int) -> bool:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as test:
                 test.settimeout(2)
                 test.connect((host, port))
-                test.sendall(
-                    f"GET /health HTTP/1.1\r\nHost: {host}:{port}\r\n\r\n".encode()
-                )
+                test.sendall(f"GET /health HTTP/1.1\r\nHost: {host}:{port}\r\n\r\n".encode())
                 test.recv(1)
             # 收到响应 → 端口确实被占用
             logger.error("Port %s:%d still occupied after killing stale process(es).", host, port)
@@ -378,6 +376,7 @@ def _kill_stale_process_on_port(host: str, port: int) -> bool:
                 # 僵尸 socket 通常由已死进程的子进程（worker/scheduler）持有句柄，
                 # 直接杀所有 python.exe（排除自身），让内核回收端口。
                 import time
+
                 subprocess.run(
                     ["taskkill", "/F", "/FI", f"PID ne {my_pid}", "/IM", "python.exe"],
                     capture_output=True,
@@ -390,9 +389,7 @@ def _kill_stale_process_on_port(host: str, port: int) -> bool:
                         if s.connect_ex((host, port)) != 0:
                             logger.info("Port %s:%d freed after kill-all-Python.", host, port)
                             return True
-                logger.error(
-                    "Port %s:%d still occupied even after kill-all-Python.", host, port
-                )
+                logger.error("Port %s:%d still occupied even after kill-all-Python.", host, port)
                 return False
             logger.info(
                 "Port %s:%d has zombie listener — treating as free (non-Windows).",
