@@ -20,6 +20,7 @@ BUILD_SIDECAR_PY = ROOT / "scripts" / "desktop" / "build_sidecar.py"
 PREPARE_SIDECAR = ROOT / "scripts" / "desktop" / "prepare_tauri_sidecar.py"
 WRITE_RELEASE_CONFIG = ROOT / "scripts" / "desktop" / "write_tauri_release_config.py"
 DESKTOP_RELEASE_WORKFLOW = ROOT / ".github" / "workflows" / "desktop-release.yml"
+DESKTOP_VERIFY_WORKFLOW = ROOT / ".github" / "workflows" / "desktop-verify.yml"
 MACOS_ARM_SIDECAR = ROOT / "src-tauri" / "binaries" / "alphafoundry-backend-aarch64-apple-darwin"
 MACOS_ICON = ROOT / "src-tauri" / "icons" / "icon.icns"
 WINDOWS_ICON = ROOT / "src-tauri" / "icons" / "icon.ico"
@@ -46,7 +47,10 @@ def test_tauri_config_wraps_existing_fastapi_workbench():
 
     assert config["productName"] == "AlphaFoundry"
     assert config["build"]["devUrl"] == "http://127.0.0.1:8765"
-    assert "scripts/desktop/run_backend.sh" in config["build"]["beforeDevCommand"]
+    assert (
+        config["build"]["beforeDevCommand"]
+        == "node scripts/desktop/run_backend.js --host 127.0.0.1 --port 8765 --reload"
+    )
     assert config["build"]["frontendDist"] == "../desktop/dist"
     assert config["bundle"]["targets"] == "all"
     assert config["bundle"]["icon"] == [
@@ -93,7 +97,7 @@ def test_report_project_upload_modal_treats_non_word_assets_as_optional():
     assert 'data-file-label="project-word-template-input"' in html
     assert 'data-file-label="project-excel-workbook-input"' in html
     assert "请至少选择 Word 模板、Excel 底稿和 Section 配置" not in script
-    assert "if (!wordFile)" in script
+    assert "if (projectType === 'word' && !wordFile)" in script
     assert "if (excelFile)" in script
     assert "if (sectionFile)" in script
 
@@ -177,15 +181,13 @@ def test_sidecar_build_script_uses_pyinstaller_and_tauri_naming():
     assert "alphafoundry-backend-{triple}" in source
     assert "aarch64-apple-darwin" in source
     assert '"build" / "desktop-sidecar" / "dist"' in source
-    assert '"app",' in source
-    assert '"reporting",' in source
-    assert '"data_layer",' in source
-    assert 'COLLECT_DATA = ["akshare", "vectorbt"]' in source
+    assert 'ENTRYPOINT = REPO_ROOT / "scripts" / "desktop" / "sidecar_launcher.py"' in source
+    assert "COLLECT_SUBMODULES: list[str] = []" in source
+    assert "COLLECT_DATA: list[str] = []" in source
+    assert "PROJECT_DATA: list[tuple[Path, Path]] = []" in source
     assert 'args.extend(["--collect-submodules", module])' in source
     assert 'args.extend(["--collect-data", package])' in source
-    assert 'REPO_ROOT / "app" / "web"' in source
-    assert 'REPO_ROOT / "reporting" / "templates"' in source
-    assert 'REPO_ROOT / "report_projects"' in source
+    assert "args.append(str(ENTRYPOINT))" in source
     assert "os.pathsep" in source
 
 
@@ -222,27 +224,53 @@ def test_package_json_exposes_desktop_commands():
     assert package["scripts"]["tauri"] == "tauri"
     assert package["scripts"]["desktop:dev"] == "tauri dev"
     assert package["scripts"]["desktop:build"] == "tauri build"
+    assert package["scripts"]["desktop:build:debug"] == "tauri build --debug --bundles app"
     assert package["scripts"]["desktop:sidecar"] == "python scripts/desktop/build_sidecar.py"
     assert (
         package["scripts"]["desktop:prepare-sidecar"]
         == "python scripts/desktop/prepare_tauri_sidecar.py"
     )
-    assert package["scripts"]["desktop:release-config"] == (
-        "python scripts/desktop/write_tauri_release_config.py"
-    )
-    assert package["scripts"]["desktop:restart"] == "bash scripts/desktop/restart_app.sh"
-    assert "@tauri-apps/cli" in package["devDependencies"]
+    assert package["devDependencies"]["@tauri-apps/cli"] == "2.8.4"
 
 
-def test_desktop_release_workflow_builds_platform_matrix_and_draft_release():
-    source = DESKTOP_RELEASE_WORKFLOW.read_text(encoding="utf-8")
+def test_desktop_verify_workflow_builds_native_macos_and_windows():
+    source = DESKTOP_VERIFY_WORKFLOW.read_text(encoding="utf-8")
 
-    assert "macos-latest" in source
-    assert "windows-latest" not in source
-    assert "ubuntu-22.04" not in source
+    assert "macos-14" in source
+    assert "windows-2022" in source
+    assert "aarch64-apple-darwin" in source
+    assert "x86_64-pc-windows-msvc" in source
     assert "python scripts/desktop/build_sidecar.py" in source
     assert "python scripts/desktop/prepare_tauri_sidecar.py" in source
-    assert "Free Linux runner disk space" in source
+    assert "check_sidecar_health.py" in source
+    assert "/health" in source
+    assert "pgvector/pgvector:pg16" in source
+    assert ".[dev]" in source
+    assert "ALPHAFOUNDRY_PROJECT_ROOT: ${{ github.workspace }}" in source
+    macos_postgres = source.split("Start pgvector on macOS", 1)[1].split(
+        "Start pgvector on Windows", 1
+    )[0]
+    assert "brew install postgresql@17 pgvector" in macos_postgres
+    assert "initdb" in macos_postgres
+    assert "pg_ctl" in macos_postgres
+    assert "docker" not in macos_postgres
+    windows_postgres = source.split("Start pgvector on Windows", 1)[1].split(
+        "Smoke test macOS", 1
+    )[0]
+    assert "docker run" in windows_postgres
+    assert "npm run desktop:build" in source
+    assert "actions/upload-artifact@v4" in source
+
+
+def test_desktop_release_workflow_builds_macos_and_windows():
+    source = DESKTOP_RELEASE_WORKFLOW.read_text(encoding="utf-8")
+
+    assert "macos-14" in source
+    assert "windows-2022" in source
+    assert "aarch64-apple-darwin" in source
+    assert "x86_64-pc-windows-msvc" in source
+    assert "python scripts/desktop/build_sidecar.py" in source
+    assert "python scripts/desktop/prepare_tauri_sidecar.py" in source
     assert "cargo fetch --locked" in source
     assert "tauri-apps/tauri-action@v0" in source
     assert "releaseDraft: true" in source
@@ -288,7 +316,8 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "market-refresh-btn" not in html
     assert "实时行情" not in html
     assert "market-auto-refresh-indicator" not in html
-    assert "自动刷新" not in html
+    assert 'id="btn-commentary-auto-refresh"' in html
+    assert "自动刷新" in html
     assert "market-breadth-bar" in html
     assert "market-ai-brief" in html
     assert "market-heatmap-card" in html
@@ -309,8 +338,8 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "全球热点新闻 (Top 10)" not in html
     assert "今日上涨板块概念 (Top 10)" not in html
     assert "今日下跌板块概念 (Top 10)" not in html
-    assert "style.css?v=20260702briefinline1" in html
-    assert "app.js?v=20260714config1" in html
+    assert "style.css?v=20260722flowfix" in html
+    assert "app.js?v=20260722flowfix" in html
     assert "asset-observe-mode-tabs" in html
     assert 'data-asset-mode="theme"' in html
     assert "asset-topic-result" in html
@@ -402,7 +431,6 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "THEME_OBSERVATION_PRESETS" in asset_js
     assert "asset-topic-trend-chart" in asset_js
     assert "机器人ETF南方" in asset_js
-    assert "grid-row: span 2" not in css
     assert "renderMarketMiniCards" not in dashboard_js
     assert "formatMarketMiniSignedValue" not in dashboard_js
     assert "renderCapCompareMarkup" not in dashboard_js
@@ -666,8 +694,12 @@ def test_desktop_backend_launcher_defaults_and_logging(tmp_path):
     assert log_file.exists()
 
 
-def test_frozen_backend_launcher_defaults_to_user_sqlite(monkeypatch, tmp_path):
+def test_frozen_backend_launcher_uses_configured_postgresql_without_sqlite_fallback(
+    monkeypatch, tmp_path
+):
     launcher = load_launcher_module()
+    configured_database_url = "postgresql+psycopg://desktop_user:secret@localhost:5432/alphafoundry"
+    (tmp_path / ".env").write_text(f"DATABASE_URL={configured_database_url}\n", encoding="utf-8")
     monkeypatch.setattr(launcher.sys, "frozen", True, raising=False)
     monkeypatch.setenv("ALPHAFOUNDRY_DESKTOP_DATA_DIR", str(tmp_path))
     monkeypatch.delenv("DATABASE_URL", raising=False)
@@ -676,6 +708,9 @@ def test_frozen_backend_launcher_defaults_to_user_sqlite(monkeypatch, tmp_path):
     data_dir = launcher.apply_frozen_desktop_defaults()
 
     assert data_dir == tmp_path
-    assert os.environ["DATABASE_URL"] == f"sqlite:///{tmp_path / 'alphafoundry.db'}"
+    assert os.environ["DATABASE_URL"] == configured_database_url
+    assert os.environ["DATABASE_URL"].startswith("postgresql+psycopg://")
+    assert "sqlite" not in os.environ["DATABASE_URL"]
+    assert "postgres:postgres" not in os.environ["DATABASE_URL"]
     assert os.environ["LOG_DIR"] == str(tmp_path / "logs")
     assert (tmp_path / "logs").is_dir()

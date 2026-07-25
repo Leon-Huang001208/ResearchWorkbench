@@ -73,15 +73,13 @@ npm run desktop:build
 
 The generated sidecar is intentionally written under `build/desktop-sidecar/dist/`. The `src-tauri/binaries/` checked-in macOS ARM file remains a small development shim; release workflows copy the real generated sidecar into that directory only inside the build workspace.
 
-## GitHub Release Workflow
+## Native CI and GitHub Releases
 
-The workflow at `.github/workflows/desktop-release.yml` can be triggered manually from GitHub Actions or by pushing a `v*` tag. It builds a draft prerelease for:
+`.github/workflows/desktop-verify.yml` is the required native build gate for pull requests and pushes to `main` that affect desktop packaging. It builds the macOS Apple Silicon target (`macos-14` / `aarch64-apple-darwin`) and the Windows x64 target (`windows-2022` / `x86_64-pc-windows-msvc`) independently. Each job installs the locked Node dependencies, Python 3.11 development test dependencies, Rust and PyInstaller; then it builds the native sidecar, verifies its target-specific filename, prepares an isolated database with the `vector` extension, and starts only that freshly built sidecar for a loopback `/health` smoke check. macOS uses Homebrew PostgreSQL 17 with `pgvector` and a temporary `PGDATA`; Windows uses a named `pgvector/pgvector:pg16` Docker container. The helper always terminates only its own child process; macOS stops only that temporary PostgreSQL data directory, while Windows removes only its named container. The bundle and `build/desktop-sidecar/health-smoke.log` are retained for 14 days.
 
-- macOS ARM on `macos-latest`
-- Windows x64 on `windows-latest`
-- Linux x64 on `ubuntu-22.04`
+The workflow at `.github/workflows/desktop-release.yml` can be triggered manually from GitHub Actions or by pushing a `v*` tag. It uses the same two native targets and publishes their bundles to one draft prerelease through `tauri-apps/tauri-action@v0`.
 
-Each job installs Node, Python 3.11, Rust, project Python dependencies, builds the PyInstaller sidecar, copies it into `src-tauri/binaries/`, and lets `tauri-apps/tauri-action@v0` upload platform bundles to the same draft GitHub Release.
+Native build CI validates that clean macOS and Windows runners can build their own sidecars and Tauri bundles. It does not replace installation-level acceptance on real devices with licensed Microsoft Office, Excel and Wind installed and signed in. Before a release, run that real-device acceptance on both supported platforms, including the relevant Office/Wind, permissions, installer, upgrade and uninstall flows.
 
 Required repository permission:
 

@@ -1,0 +1,16 @@
+{
+  "name": "alphafoundry-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "tauri": "tauri",
+    "desktop:dev": "tauri dev",
+    "desktop:build": "tauri build",
+    "desktop:build:debug": "tauri build --debug --bundles app",
+    "desktop:sidecar": "python scripts/desktop/build_sidecar.py",
+    "desktop:prepare-sidecar": "python scripts/desktop/prepare_tauri_sidecar.py"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.8.4"
+  }
+}
