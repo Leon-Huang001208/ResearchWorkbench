@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import importlib.util
 import logging
-import signal
 import socket
 import subprocess
 import threading
@@ -176,8 +175,12 @@ def test_posix_cleanup_terminates_only_the_helper_process_group(monkeypatch):
     helper = load_helper_module()
     process = FakeProcess(["sidecar-under-test"])
     process.time_out_once = True
-    signals: list[tuple[int, signal.Signals]] = []
+    term_signal = object()
+    kill_signal = object()
+    signals: list[tuple[int, object]] = []
     monkeypatch.setattr(helper, "is_windows", lambda: False, raising=False)
+    monkeypatch.setattr(helper.signal, "SIGTERM", term_signal)
+    monkeypatch.setattr(helper.signal, "SIGKILL", kill_signal, raising=False)
     monkeypatch.setattr(helper.os, "getpgid", lambda pid: 9876, raising=False)
     monkeypatch.setattr(
         helper.os,
@@ -190,7 +193,7 @@ def test_posix_cleanup_terminates_only_the_helper_process_group(monkeypatch):
     stopped = helper.stop_child(process, port=8765, logger=logging.getLogger("test.sidecar"))
 
     assert stopped is True
-    assert signals == [(9876, signal.SIGTERM), (9876, signal.SIGKILL)]
+    assert signals == [(9876, term_signal), (9876, kill_signal)]
     assert process.wait_calls == [helper.CHILD_STOP_TIMEOUT_SECONDS] * 2
 
 

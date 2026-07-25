@@ -211,6 +211,10 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           docker rm --force '${{ matrix.postgres_container }}' *> $null
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host 'No helper-owned pgvector container needed cleanup.'
+          }
+          exit 0
 
       - name: Copy backend sidecar into Tauri
         run: python scripts/desktop/prepare_tauri_sidecar.py
