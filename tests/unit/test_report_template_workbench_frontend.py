@@ -704,6 +704,21 @@ def test_placeholder_select_syncs_state_when_previous_selection_is_missing():
     assert "window.setTimeout(reconcilePlaceholderPickerAndDetail, 50);" in map_source
 
 
+def test_placeholder_picker_groups_sections_by_existing_readiness():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+    css = STYLE_CSS.read_text(encoding="utf-8")
+    start = source.index("function renderTemplatePlaceholderMap")
+    end = source.index("function renderMappingSummary", start)
+    map_source = source[start:end]
+
+    assert 'class="template-placeholder-map-group"' in map_source
+    assert 'data-placeholder-readiness="${esc(group.readiness)}"' in map_source
+    assert "需要处理" in map_source
+    assert "已完成" in map_source
+    assert "getPlaceholderLifecycleStatus(template, mapping, normalizedName)" in map_source
+    assert ".template-config-editor-toolbar .template-placeholder-map-group" in css
+
+
 def test_placeholder_detail_syncs_from_picker_before_rendering():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
     start = source.index("function selectTemplatePlaceholder")

@@ -2341,7 +2341,7 @@ function renderAdvancedMaintenance(template) {
             : firstPlaceholder;
 
     renderTemplateAssetChecklist(template, sections);
-    renderTemplatePlaceholderMap(placeholders, sections);
+    renderTemplatePlaceholderMap(template, placeholders, sections);
     renderTemplateExcelMapping(template, templateName);
     renderCommonGenerationRules(template);
     renderSelectedPlaceholderDetail(template);
@@ -2550,7 +2550,7 @@ function renderTemplateAssetChecklist(template, sections) {
     }
 }
 
-function renderTemplatePlaceholderMap(placeholders, sections) {
+function renderTemplatePlaceholderMap(template, placeholders, sections) {
     const countEl = document.getElementById('template-placeholder-count');
     const container = document.getElementById('template-placeholder-map');
     if (!container) return;
@@ -2573,6 +2573,17 @@ function renderTemplatePlaceholderMap(placeholders, sections) {
         ? currentName
         : normalizedNames[0];
     currentTemplateState.selectedPlaceholderName = selectedName;
+    const mappings = getCurrentPlaceholderMappings(template);
+    const groups = [
+        { readiness: 'needs_attention', label: '需要处理', names: [] },
+        { readiness: 'ready', label: '已完成', names: [] }
+    ];
+    normalizedNames.forEach(normalizedName => {
+        const mapping = mappings.get(normalizedName) || { type: inferPlaceholderType(normalizedName) };
+        const lifecycle = getPlaceholderLifecycleStatus(template, mapping, normalizedName);
+        const group = lifecycle.state === 'ready' ? groups[1] : groups[0];
+        group.names.push(normalizedName);
+    });
 
     container.innerHTML = `
         <div class="placeholder-picker" data-open="false">
@@ -2589,16 +2600,26 @@ function renderTemplatePlaceholderMap(placeholders, sections) {
                 <span class="placeholder-select-text">${esc(selectedName)}</span>
             </button>
             <div class="placeholder-select-menu" role="listbox" hidden>
-                ${normalizedNames.map(normalizedName => `
-                    <button
-                        class="placeholder-select-option"
-                        type="button"
-                        role="option"
-                        data-placeholder-name="${esc(normalizedName)}"
-                        aria-selected="${normalizedName === selectedName ? 'true' : 'false'}"
+                ${groups.filter(group => group.names.length).map(group => `
+                    <div
+                        class="template-placeholder-map-group"
+                        data-placeholder-readiness="${esc(group.readiness)}"
+                        role="group"
+                        aria-label="${esc(group.label)}"
                     >
-                        ${esc(normalizedName)}
-                    </button>
+                        <div class="template-placeholder-map-group-label">${esc(group.label)}</div>
+                        ${group.names.map(normalizedName => `
+                            <button
+                                class="placeholder-select-option"
+                                type="button"
+                                role="option"
+                                data-placeholder-name="${esc(normalizedName)}"
+                                aria-selected="${normalizedName === selectedName ? 'true' : 'false'}"
+                            >
+                                ${esc(normalizedName)}
+                            </button>
+                        `).join('')}
+                    </div>
                 `).join('')}
             </div>
         </div>
