@@ -80,6 +80,7 @@ class UnifiedPlaceholderConfig:
     prompt_template: str | None
     retrieval: Mapping[str, Any]
     rendering: UnifiedRenderingConfig = field(default_factory=UnifiedRenderingConfig)
+    rendering_is_null: bool = False
     fields: Mapping[str, Any] = field(default_factory=lambda: MappingProxyType({}))
 
     @classmethod
@@ -89,6 +90,7 @@ class UnifiedPlaceholderConfig:
         """Parse one placeholder and retain every established V1 field."""
         prompt_template = _optional_string(raw.get("prompt_template"), f"placeholders.{key}.prompt_template")
         retrieval = _optional_mapping(raw.get("retrieval"), f"placeholders.{key}.retrieval") or {}
+        rendering_is_null = "rendering" in raw and raw["rendering"] is None
         rendering_raw = raw.get("rendering")
         rendering = (
             UnifiedRenderingConfig.from_mapping(
@@ -102,6 +104,7 @@ class UnifiedPlaceholderConfig:
             prompt_template=prompt_template,
             retrieval=_freeze(retrieval),
             rendering=rendering,
+            rendering_is_null=rendering_is_null,
             fields=_freeze(dict(raw)),
         )
 
@@ -112,7 +115,9 @@ class UnifiedPlaceholderConfig:
             result["prompt_template"] = self.prompt_template
         if "retrieval" in self.fields:
             result["retrieval"] = _thaw(self.retrieval)
-        if self.rendering.configured:
+        if self.rendering_is_null:
+            result["rendering"] = None
+        elif self.rendering.configured:
             result["rendering"] = self.rendering.to_mapping()
         else:
             result.pop("rendering", None)

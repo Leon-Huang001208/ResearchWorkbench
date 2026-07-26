@@ -86,7 +86,7 @@ def test_unified_config_isolates_input_and_serialized_output():
         config.defaults["retrieval"]["top_k"] = 1
 
 
-@pytest.mark.parametrize("rendering", [{}, {"paragraph_style": None}])
+@pytest.mark.parametrize("rendering", [{}, {"paragraph_style": None}, None])
 def test_unified_config_preserves_explicit_empty_rendering_blocks(rendering):
     """Present rendering blocks are retained even when all optional values are empty."""
     config = parse_unified_report_config(
