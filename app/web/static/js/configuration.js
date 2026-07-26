@@ -533,6 +533,32 @@ function renderWebSearchKeys(accounts) {
     list.replaceChildren(...accounts.map(createWebSearchKeyRow));
 }
 
+function createEmptyCollectionState(section) {
+    const messages = {
+        zhiqiu: '尚未添加账号。新增账号后，可在此管理轮询与重试策略。',
+        ifind: '尚未添加账号。新增账号后，可在此配置 iFinD 连接方式。',
+        web_search: '尚未添加 API Key。新增 Key 后，可在此配置搜索参数。',
+    };
+    const message = messages[section];
+    if (!message) return null;
+    return element('p', 'config-empty-collection', message);
+}
+
+function renderEmptyCollectionState(form, section, accounts) {
+    if ((accounts || []).length) return;
+    const addButton = form.querySelector({
+        zhiqiu: '[data-add-zhiqiu-account]',
+        ifind: '[data-add-ifind-account]',
+        web_search: '[data-add-web_search-key]',
+    }[section]);
+    const state = createEmptyCollectionState(section);
+    if (addButton && state) addButton.after(state);
+}
+
+function removeEmptyCollectionState(form) {
+    form.querySelector('.config-empty-collection')?.remove();
+}
+
 function addControlDescription(control, messageId) {
     if (!control || !messageId) return;
     const describedBy = new Set((control.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean));
@@ -1452,7 +1478,7 @@ function renderModalForm(section, values) {
                 <div class="config-row-labels config-zhiqiu-labels" aria-hidden="true"><span>名称</span><span>用户名</span><span>密码</span><span>操作</span></div>
                 <div id="config-zhiqiu-account-list" class="config-dynamic-list"></div>
                 <div class="config-settings-header"><h4><i class="codicon codicon-settings"></i>调度设置</h4></div>
-                <div class="config-field-grid">
+                <div class="config-field-grid config-field-grid--compact">
                     <label class="config-checkbox"><input type="checkbox" name="enabled">启用账号轮询</label>
                     <label><span>轮询策略</span><select name="rotation_strategy"><option value="round_robin">轮询</option><option value="random">随机</option><option value="least_used">最少使用</option></select></label>
                     <label><span>最大重试次数</span><input type="number" name="max_retries" min="0" max="20"></label>
@@ -1467,10 +1493,10 @@ function renderModalForm(section, values) {
                 <div class="config-row-labels config-ifind-labels" aria-hidden="true"><span>名称</span><span>用户名</span><span>密码</span><span>操作</span></div>
                 <div id="config-ifind-account-list" class="config-dynamic-list"></div>
                 <div class="config-settings-header"><h4><i class="codicon codicon-plug"></i>连接设置</h4></div>
-                <div class="config-field-grid">
+                <div class="config-field-grid config-field-grid--compact">
                     <label><span>后端类型</span><select name="backend"><option value="auto">自动</option><option value="python_sdk">Python SDK</option><option value="http_api">HTTP API</option></select></label>
-                    <label><span>HTTP Base URL</span><input type="url" name="http_base_url" placeholder="https://quantapi.10jqka.com.cn"></label>
-                </div>`;
+                </div>
+                <label class="config-field-wide"><span>HTTP Base URL</span><input type="url" name="http_base_url" placeholder="https://quantapi.10jqka.com.cn"></label>`;
             break;
         case 'web_search':
             form.innerHTML = `
@@ -1478,7 +1504,7 @@ function renderModalForm(section, values) {
                 <div class="config-row-labels config-web_search-labels" aria-hidden="true"><span>名称</span><span>API Key</span><span>状态</span><span>操作</span></div>
                 <div id="config-web_search-key-list" class="config-dynamic-list"></div>
                 <div class="config-settings-header"><h4><i class="codicon codicon-search"></i>搜索设置</h4></div>
-                <div class="config-field-grid">
+                <div class="config-field-grid config-field-grid--compact">
                     <label><span>搜索 Provider</span><select name="provider"><option value="tavily">Tavily</option><option value="bing">Bing</option></select></label>
                     <label><span>轮询策略</span><select name="rotation_strategy"><option value="round_robin">轮询</option><option value="random">随机</option><option value="least_used">最少使用</option></select></label>
                     <label><span>月度配额</span><input type="number" name="quota_limit" min="1" max="100000" placeholder="1000"></label>
@@ -1514,12 +1540,15 @@ function renderModalForm(section, values) {
         renderTaskRoutes(values.task_routes || []);
     } else if (section === 'zhiqiu') {
         renderZhiqiuAccounts(values.accounts || []);
+        renderEmptyCollectionState(form, section, values.accounts);
         setFormValues(form, values, ['enabled', 'rotation_strategy', 'max_retries', 'retry_delay', 'lease_timeout', 'max_consecutive_failures']);
     } else if (section === 'ifind') {
         renderIfindAccounts(values.accounts || []);
+        renderEmptyCollectionState(form, section, values.accounts);
         setFormValues(form, values, ['backend', 'http_base_url']);
     } else if (section === 'web_search') {
         renderWebSearchKeys(values.accounts || []);
+        renderEmptyCollectionState(form, section, values.accounts);
         setFormValues(form, values, ['provider', 'rotation_strategy', 'quota_limit', 'max_results', 'timeout']);
     } else if (section === 'database') {
         setSecretState('[data-secret-state="database-url"]', values.database_url);
@@ -1605,18 +1634,21 @@ function bindModalFormEvents(form, section) {
     });
     form.querySelector('[data-add-zhiqiu-account]')?.addEventListener('click', () => {
         document.getElementById('config-zhiqiu-account-list')?.append(createZhiqiuAccountRow());
+        removeEmptyCollectionState(form);
         applyCollectionLocks(form, section);
         markSectionDirty(form);
         modalDirty = true;
     });
     form.querySelector('[data-add-ifind-account]')?.addEventListener('click', () => {
         document.getElementById('config-ifind-account-list')?.append(createIfindAccountRow());
+        removeEmptyCollectionState(form);
         applyCollectionLocks(form, section);
         markSectionDirty(form);
         modalDirty = true;
     });
     form.querySelector('[data-add-web_search-key]')?.addEventListener('click', () => {
         document.getElementById('config-web_search-key-list')?.append(createWebSearchKeyRow());
+        removeEmptyCollectionState(form);
         applyCollectionLocks(form, section);
         markSectionDirty(form);
         modalDirty = true;
@@ -1661,8 +1693,10 @@ function openConfigModal(section) {
 
     renderModalForm(section, values);
 
+    const testable = Boolean(meta.testable);
     const testBtn = document.getElementById('btn-config-edit-modal-test');
-    testBtn.style.display = meta.testable ? '' : 'none';
+    testBtn.hidden = !testable;
+    document.querySelector('[data-config-test-help]').hidden = !testable;
 
     const statusEl = document.getElementById('config-edit-modal-status');
     statusEl.textContent = '';
