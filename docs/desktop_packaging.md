@@ -11,20 +11,22 @@ AlphaFoundry is moving toward a Tauri desktop shell while keeping the current Fa
 - The Tauri shell expects a sidecar named `alphafoundry-backend`. The current macOS ARM development shim is `src-tauri/binaries/alphafoundry-backend-aarch64-apple-darwin` and delegates to the Python launcher.
 - `tauri dev` lets `beforeDevCommand` start the backend. Packaged debug and release builds start the bundled sidecar.
 - 桌面端运行时配置由 `core/settings/runtime.py` 统一解析：Windows 使用 `%LOCALAPPDATA%\AlphaFoundry`，macOS 使用 `~/Library/Application Support/AlphaFoundry`；可用 `ALPHAFOUNDRY_DESKTOP_DATA_DIR` 覆盖。
-- 桌面端必须连接用户自行安装的 PostgreSQL + pgvector；首次启动会生成用户 `.env` 模板，但不会静默降级 SQLite。
+- 安装包不会下载、安装或管理 PostgreSQL/pgvector。首次启动找不到可用数据库时会进入数据库配置模式，而不会静默降级 SQLite。
 - `ALPHAFOUNDRY_BACKEND_URL` 是 worker、scheduler 和本地 API 调用的唯一地址来源；桌面默认 `http://127.0.0.1:8765`，Web 开发默认 `http://127.0.0.1:8000`。
 
 ## Desktop Runtime Configuration
 
 ### PostgreSQL prerequisite
 
-Desktop builds do not bundle a database server. Before first launch, install PostgreSQL 15+ and pgvector, create the `alphafoundry` database, and enable the extension:
+Desktop builds do not bundle, download, install, upgrade, uninstall, or manage a database server. If the first launch cannot reach a usable PostgreSQL + pgvector instance, the desktop app stays healthy in **database setup mode**: only System Configuration is available and all database-dependent workbench features remain blocked.
+
+Install PostgreSQL 15+ and pgvector yourself, create the `alphafoundry` database, and enable the extension:
 
 ```sql
 CREATE EXTENSION IF NOT EXISTS vector;
 ```
 
-The first launch creates a per-user `.env` with owner-only permissions on macOS/Linux. Configure a PostgreSQL psycopg v3 URL, then restart the desktop app:
+The first launch creates a per-user `.env` with owner-only permissions on macOS/Linux. Save a PostgreSQL psycopg v3 URL in System Configuration, then restart the desktop app before the full workbench can use the new connection:
 
 ```dotenv
 DATABASE_URL=postgresql+psycopg://user:password@127.0.0.1:5432/alphafoundry
@@ -118,14 +120,14 @@ AlphaFoundry 采用“一套源码、各目标平台原生构建”的策略：T
 凡影响 `src-tauri/`、`desktop/`、`scripts/desktop/`、sidecar、桌面路径/配置、安装包、更新机制或 Excel/Wind 集成的改动，必须经过以下验证：
 
 1. 在开发机运行相关的通用测试和本地桌面测试。
-2. 通过 GitHub Actions 的原生 Windows runner 完成依赖安装、Python sidecar (`.exe`) 构建、Tauri Windows 安装包构建，以及基础启动/`/health` 检查。
-3. 通过 macOS runner 完成对应的 sidecar 和桌面包构建。
+2. 通过 GitHub Actions 的原生 Windows runner 完成依赖安装、Python sidecar (`.exe`) 构建、Tauri Windows 安装包构建，以及真实 PostgreSQL + pgvector 的 `ready` 启动/`/health` 检查。
+3. 通过 macOS runner 完成对应的 sidecar 和桌面包构建，并在两个 runner 上用不可连接但格式正确的 PostgreSQL URL 验证 `setup_required` 配置模式。CI 的临时 PostgreSQL 仅用于 ready 测试；安装包和 setup-required 测试不会安装或管理用户数据库。
 
 macOS 本地测试不等于 Windows 验证；Windows CI 未通过或尚未运行时，不得宣称 Windows 兼容。
 
 ### 发布前冒烟测试
 
-在发布新版本前，必须在真实 Windows 环境安装 CI 生成的安装包，并至少验证：安装/卸载/升级、主窗口启动、sidecar 启动、`/health`、用户数据目录、日志和配置文件。涉及 Excel/Wind、系统权限、签名/杀毒软件兼容或自动更新的版本，必须在真实 Windows 上验证相应功能。macOS 发版也应在对应架构的真实设备上完成相同级别的安装验证。
+在发布新版本前，必须在真实 Windows x64 环境安装 CI 生成的安装包，并至少验证：安装/卸载/升级、主窗口启动、sidecar 启动、`/health`、用户数据目录、日志和配置文件。还必须验证没有 PostgreSQL 时能进入且仅能使用配置模式；保存可连接的 PostgreSQL + pgvector 配置后，重启可进入完整工作台。涉及 Excel/Wind、系统权限、签名/杀毒软件兼容或自动更新的版本，必须在真实 Windows 上验证相应功能。macOS 发版也应在对应架构的真实设备上完成相同级别的安装验证。
 
 ### 发布节奏
 
@@ -133,7 +135,7 @@ macOS 本地测试不等于 Windows 验证；Windows CI 未通过或尚未运行
 
 ## GitHub Release Workflow
 
-`.github/workflows/desktop-verify.yml` 会在桌面端相关文件的 PR，以及直接推送到 `master` 时运行。它在原生 macOS 和 Windows runner 上执行桌面契约测试、构建平台对应的 Python sidecar、启动 sidecar 并检查 `/health`，最后构建 Tauri 安装包。
+`.github/workflows/desktop-verify.yml` 会在桌面端及首次启动相关文件的 PR，以及直接推送到 `master` 时运行。它在原生 macOS Apple Silicon 和 Windows x64 runner 上执行桌面契约测试、构建平台对应的 Python sidecar，并验证两种 `/health` 契约：真实 PostgreSQL + pgvector 的 `ready`，以及独立数据目录和不可连接 PostgreSQL URL 下的 `setup_required`。两个 smoke 日志都会作为构建产物上传，最后才构建 Tauri 安装包。
 
 为确保该检查在两个原生 runner 上都使用真实的 PostgreSQL + pgvector，macOS runner 使用 Homebrew 安装 PostgreSQL 与 pgvector；Windows runner 安装 PostgreSQL 16，并用 Visual Studio x64 工具链从固定的 pgvector 源码版本构建扩展。不能在 Windows runner 上使用 Linux 版 pgvector Docker 镜像，因为该 runner 的 Docker 引擎仅支持 Windows 容器。
 

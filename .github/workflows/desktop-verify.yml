@@ -12,8 +12,15 @@ on:
       - "services/wind_*/**"
       - "services/wind_*.py"
       - "data_layer/adapters/wind/**"
+      - "app/api/main.py"
+      - "app/api/routes/setup.py"
+      - "app/api/configuration_models.py"
+      - "app/web/**"
       - "app/api/routes/wind.py"
       - "app/api/routes/report_projects.py"
+      - "services/database_readiness.py"
+      - "workers/watchdog.py"
+      - "docs/desktop_packaging.md"
       - "pyproject.toml"
       - "package.json"
       - "package-lock.json"
@@ -31,8 +38,15 @@ on:
       - "services/wind_*/**"
       - "services/wind_*.py"
       - "data_layer/adapters/wind/**"
+      - "app/api/main.py"
+      - "app/api/routes/setup.py"
+      - "app/api/configuration_models.py"
+      - "app/web/**"
       - "app/api/routes/wind.py"
       - "app/api/routes/report_projects.py"
+      - "services/database_readiness.py"
+      - "workers/watchdog.py"
+      - "docs/desktop_packaging.md"
       - "pyproject.toml"
       - "package.json"
       - "package-lock.json"
@@ -224,6 +238,44 @@ jobs:
             --port 8765 `
             --timeout-seconds 60
 
+      - name: Smoke test setup-required sidecar /health on macOS
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:1/alphafoundry
+          ALPHAFOUNDRY_DESKTOP: "1"
+          ALPHAFOUNDRY_RUN_MODE: desktop
+          ALPHAFOUNDRY_PROJECT_ROOT: ${{ github.workspace }}
+          ALPHAFOUNDRY_DESKTOP_DATA_DIR: ${{ runner.temp }}/alphafoundry-desktop-setup-smoke
+        run: |
+          set -euo pipefail
+          sidecar="build/desktop-sidecar/dist/alphafoundry-backend-${{ matrix.triple }}${{ matrix.executable_suffix }}"
+          python scripts/desktop/check_sidecar_health.py \
+            --executable "$sidecar" \
+            --port 8766 \
+            --timeout-seconds 60 \
+            --expected-persistence-status setup_required \
+            --log-file build/desktop-sidecar/setup-smoke.log
+
+      - name: Smoke test setup-required sidecar /health on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:1/alphafoundry
+          ALPHAFOUNDRY_DESKTOP: "1"
+          ALPHAFOUNDRY_RUN_MODE: desktop
+          ALPHAFOUNDRY_PROJECT_ROOT: ${{ github.workspace }}
+          ALPHAFOUNDRY_DESKTOP_DATA_DIR: ${{ runner.temp }}/alphafoundry-desktop-setup-smoke
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $sidecar = "build/desktop-sidecar/dist/alphafoundry-backend-${{ matrix.triple }}${{ matrix.executable_suffix }}"
+          python scripts/desktop/check_sidecar_health.py `
+            --executable $sidecar `
+            --port 8766 `
+            --timeout-seconds 60 `
+            --expected-persistence-status setup_required `
+            --log-file build/desktop-sidecar/setup-smoke.log
+
       - name: Stop helper-owned PostgreSQL on macOS
         if: always() && runner.os == 'macOS'
         shell: bash
@@ -268,5 +320,6 @@ jobs:
           path: |
             src-tauri/target/release/bundle/**
             build/desktop-sidecar/health-smoke.log
+            build/desktop-sidecar/setup-smoke.log
           if-no-files-found: warn
           retention-days: 14

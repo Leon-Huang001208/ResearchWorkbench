@@ -284,6 +284,27 @@ def test_desktop_verify_workflow_runs_for_master_desktop_changes():
     assert "scripts/desktop/**" in source
 
 
+def test_desktop_verify_smokes_setup_required_on_both_native_runners():
+    source = DESKTOP_VERIFY_WORKFLOW.read_text(encoding="utf-8")
+
+    assert source.count("Smoke test setup-required sidecar /health") == 2
+    assert source.count("--expected-persistence-status setup_required") == 2
+    assert source.count("--port 8766") == 2
+    assert "postgresql+psycopg://postgres:postgres@127.0.0.1:1/alphafoundry" in source
+    assert "alphafoundry-desktop-setup-smoke" in source
+    assert "build/desktop-sidecar/setup-smoke.log" in source
+    for path_filter in (
+        "app/api/main.py",
+        "app/api/routes/setup.py",
+        "app/api/configuration_models.py",
+        "app/web/**",
+        "services/database_readiness.py",
+        "workers/watchdog.py",
+        "docs/desktop_packaging.md",
+    ):
+        assert source.count(path_filter) == 2
+
+
 def test_windows_pgvector_smoke_builds_a_native_extension():
     """Windows runners use a Windows-only Moby Docker engine.
 

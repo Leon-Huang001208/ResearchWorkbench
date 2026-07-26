@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import logging
 import socket
 import subprocess
 import threading
 from contextlib import contextmanager
+from http.client import IncompleteRead
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Iterator
@@ -38,10 +40,42 @@ class HealthHandler(BaseHTTPRequestHandler):
         return
 
 
+class JsonHealthHandler(BaseHTTPRequestHandler):
+    """Serve a configurable JSON health response for persistence assertions."""
+
+    response_body = b"{}"
+
+    def do_GET(self) -> None:  # noqa: N802
+        self.send_response(200 if self.path == "/health" else 404)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(self.response_body)))
+        self.end_headers()
+        if self.path == "/health":
+            self.wfile.write(self.response_body)
+
+    def log_message(self, format: str, *args: object) -> None:
+        return
+
+
 @contextmanager
 def health_server() -> Iterator[int]:
     """Run a local HTTP health endpoint and yield its ephemeral port."""
     server = ThreadingHTTPServer(("127.0.0.1", 0), HealthHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield server.server_port
+    finally:
+        server.shutdown()
+        thread.join()
+        server.server_close()
+
+
+@contextmanager
+def json_health_server(response_body: bytes) -> Iterator[int]:
+    """Run a local JSON health endpoint and yield its ephemeral port."""
+    handler = type("ConfiguredJsonHealthHandler", (JsonHealthHandler,), {"response_body": response_body})
+    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
@@ -83,6 +117,76 @@ class FakeProcess:
 
     def kill(self) -> None:
         self.killed = True
+
+
+def test_health_check_accepts_expected_setup_required_persistence_status():
+    helper = load_helper_module()
+    payload = json.dumps({"persistence": {"status": "setup_required"}}).encode("utf-8")
+
+    with json_health_server(payload) as port:
+        healthy = helper.endpoint_is_healthy(
+            port,
+            expected_persistence_status="setup_required",
+        )
+
+    assert healthy is True
+
+
+def test_health_check_rejects_mismatched_expected_persistence_status():
+    helper = load_helper_module()
+    payload = json.dumps({"persistence": {"status": "ready"}}).encode("utf-8")
+
+    with json_health_server(payload) as port:
+        healthy = helper.endpoint_is_healthy(
+            port,
+            expected_persistence_status="setup_required",
+        )
+
+    assert healthy is False
+
+
+def test_health_check_safely_rejects_unparseable_expected_persistence_status_response():
+    helper = load_helper_module()
+
+    with json_health_server(b"not-json") as port:
+        healthy = helper.endpoint_is_healthy(
+            port,
+            expected_persistence_status="setup_required",
+        )
+
+    assert healthy is False
+
+
+def test_health_check_safely_rejects_truncated_expected_persistence_status_response(
+    monkeypatch,
+):
+    helper = load_helper_module()
+
+    class TruncatedResponse:
+        status = 200
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            return False
+
+        def read(self, amount: int | None = None) -> bytes:
+            raise IncompleteRead(b'{"persistence":', 32)
+
+    monkeypatch.setattr(
+        helper.LOCAL_HTTP_OPENER,
+        "open",
+        lambda *args, **kwargs: TruncatedResponse(),
+    )
+
+    assert (
+        helper.endpoint_is_healthy(
+            8765,
+            expected_persistence_status="setup_required",
+        )
+        is False
+    )
 
 
 def test_sidecar_health_check_returns_zero_after_first_http_200(monkeypatch, tmp_path):
