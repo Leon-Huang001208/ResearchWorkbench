@@ -20,6 +20,45 @@ CONFIGURATION_LOCK_SPEC = (
 )
 
 
+def _configuration_function(source: str, name: str) -> str:
+    """Return one named function, with an actionable failure if it is absent."""
+    declaration = re.compile(
+        rf"^(?:export\s+)?(?:async\s+)?function\s+{re.escape(name)}\s*\(",
+        re.MULTILINE,
+    )
+    match = declaration.search(source)
+    if not match:
+        raise AssertionError(f"configuration.js must declare {name}()")
+    following = re.compile(
+        r"^(?:export\s+)?(?:async\s+)?function\s+[A-Za-z_$][\w$]*\s*\(",
+        re.MULTILINE,
+    ).search(source, match.end())
+    return source[match.start():following.start() if following else len(source)]
+
+
+def _configuration_modal_markup(template: str) -> str:
+    """Return configuration-modal markup without relying on a fixed line layout."""
+    modal = re.search(r'<div\s+id="config-edit-modal"(?=[\s>])', template)
+    if not modal:
+        raise AssertionError('index.html must declare the config-edit-modal container')
+    section_end = re.search(r"^\s*</section>", template[modal.start():], re.MULTILINE)
+    if not section_end:
+        raise AssertionError('config-edit-modal must remain inside the configuration section')
+    return template[modal.start():modal.start() + section_end.start()]
+
+
+def _config_refresh_markup(template: str) -> str:
+    """Return the refresh button markup, or identify the missing UI control clearly."""
+    refresh = re.search(
+        r'<button\b(?=[^>]*\bid="config-refresh")[^>]*>.*?</button>',
+        template,
+        re.DOTALL,
+    )
+    if not refresh:
+        raise AssertionError('index.html must declare a #config-refresh button')
+    return refresh.group(0)
+
+
 def test_configuration_workbench_never_refills_saved_secrets():
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
 
@@ -192,62 +231,107 @@ def test_configuration_module_parses_with_node():
     assert result.returncode == 0, result.stderr
 
 
-def test_configuration_refinement_uses_compact_progress_and_explicit_refresh_semantics():
+def test_configuration_refinement_replaces_onboarding_with_compact_progress_overview():
     template = CONFIGURATION_TEMPLATE.read_text(encoding="utf-8")
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
-    refresh_start = source.index("async function refreshConfiguration()")
-    refresh_end = source.index("\nfunction bindConfigurationEvents()", refresh_start)
-    refresh_source = source[refresh_start:refresh_end]
-    load_start = source.index("async function loadConfiguration(")
-    load_end = source.index("\nfunction markSectionDirty", load_start)
-    load_source = source[load_start:load_end]
-    refresh_path = refresh_source + load_source
-    health_start = source.index("function renderConfigurationHealth(snapshot)")
-    health_end = source.index("\nfunction renderSnapshot(", health_start)
-    health_source = source[health_start:health_end]
-    events_start = source.index("function bindConfigurationEvents()")
-    events_end = source.index("\nexport async function initConfigurationPage()", events_start)
-    events_source = source[events_start:events_end]
+    health_source = _configuration_function(source, "renderConfigurationHealth")
 
     assert 'data-config-progress-completed' in template
     assert 'data-config-progress-missing' in template
     assert 'data-config-connection-summary' in template
     assert 'data-config-status-filter' in template
     assert 'data-config-onboarding' not in template
-    assert '刷新状态' in template
-    assert '不测试连接' in template
-    assert 'renderConfigurationCardVisibility' in source
+    assert 'data-config-onboarding' not in health_source
+
+
+def test_configuration_refinement_refresh_status_is_described_and_never_tests_connections():
+    template = CONFIGURATION_TEMPLATE.read_text(encoding="utf-8")
+    source = CONFIGURATION_JS.read_text(encoding="utf-8")
+    refresh_markup = _config_refresh_markup(template)
+    refresh_source = _configuration_function(source, "refreshConfiguration")
+    load_source = _configuration_function(source, "loadConfiguration")
+    refresh_path = refresh_source + load_source
+
+    assert '刷新状态' in refresh_markup
+    described_by = re.search(r'\baria-describedby="([^"]+)"', refresh_markup)
+    assert described_by, '#config-refresh must describe its non-testing refresh behavior'
+    help_ids = described_by.group(1).split()
+    help_text = ''
+    for help_id in help_ids:
+        help_node = re.search(
+            rf'<(?P<tag>[A-Za-z][\w-]*)\b(?=[^>]*\bid="{re.escape(help_id)}")[^>]*>'
+            rf'(?P<content>.*?)</(?P=tag)>',
+            template,
+            re.DOTALL,
+        )
+        if help_node:
+            help_text += help_node.group('content')
+    assert '不测试连接或保存配置' in help_text, (
+        '#config-refresh aria-describedby must reference help text stating “不测试连接或保存配置”'
+    )
     assert 'await loadConfiguration({ discardDirty: true });' in refresh_source
     assert 'connectionStateBySection.clear()' in refresh_path
     assert 'testSection' not in refresh_path
     assert '/test' not in refresh_path
     assert 'modalTestSection' not in refresh_path
-    assert 'data-config-onboarding' not in health_source
-    assert 'data-config-onboarding' not in events_source
-    assert 'openNextIncompleteConfiguration' not in events_source
 
 
-def test_configuration_refinement_keeps_modal_actions_and_empty_collection_hooks():
+def test_configuration_refinement_binds_status_filter_without_onboarding_events():
     template = CONFIGURATION_TEMPLATE.read_text(encoding="utf-8")
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
-    modal_start = template.index('<div id="config-edit-modal"')
-    modal_end = template.index("\n            </section>", modal_start)
-    modal_template = template[modal_start:modal_end]
-    lock_start = source.index("function setEnvironmentLockState(")
-    lock_end = source.index("\nfunction setModalLockNote", lock_start)
-    environment_lock_source = source[lock_start:lock_end]
-    apply_locks_start = source.index("function applyEnvironmentLocks(")
-    apply_locks_end = source.index("\nfunction bindModalFormEvents", apply_locks_start)
-    apply_locks_source = source[apply_locks_start:apply_locks_end]
+    events_source = _configuration_function(source, "bindConfigurationEvents")
 
-    assert 'data-config-test-help' in modal_template
+    assert 'data-config-status-filter' in template
+    assert 'data-config-onboarding' not in events_source
+    assert 'openNextIncompleteConfiguration' not in events_source
+    assert re.search(
+        r'\[data-config-status-filter\][\s\S]{0,200}?addEventListener\(\s*[\'\"]change[\'\"]'
+        r'[\s\S]{0,300}?renderConfigurationCardVisibility',
+        events_source,
+    ), 'bindConfigurationEvents must call renderConfigurationCardVisibility on filter changes'
+
+
+def test_configuration_refinement_modal_test_help_tracks_testable_sections_without_saving():
+    template = CONFIGURATION_TEMPLATE.read_text(encoding="utf-8")
+    source = CONFIGURATION_JS.read_text(encoding="utf-8")
+    modal_template = _configuration_modal_markup(template)
+    open_modal_source = _configuration_function(source, "openConfigModal")
+    test_help = re.search(
+        r'<(?P<tag>[A-Za-z][\w-]*)\b(?=[^>]*\bdata-config-test-help\b)[^>]*>'
+        r'(?P<content>.*?)</(?P=tag)>',
+        modal_template,
+        re.DOTALL,
+    )
+
+    assert test_help, 'config edit modal must include a data-config-test-help element'
+    assert '测试连接不会保存当前更改' in test_help.group('content')
+    assert 'const testable = Boolean(meta.testable);' in open_modal_source
+    assert re.search(r'testBtn\.hidden\s*=\s*!testable\s*;', open_modal_source)
+    assert re.search(
+        r'querySelector\(\s*[\'\"]\[data-config-test-help\][\'\"]\s*\)\.hidden\s*=\s*!testable\s*;',
+        open_modal_source,
+    ), 'openConfigModal must hide data-config-test-help with the test button for non-testable sections'
+
+
+def test_configuration_refinement_modal_save_action_and_collection_layout_hooks():
+    template = CONFIGURATION_TEMPLATE.read_text(encoding="utf-8")
+    source = CONFIGURATION_JS.read_text(encoding="utf-8")
+    modal_template = _configuration_modal_markup(template)
+
     assert re.search(
         r'<button id="btn-config-edit-modal-save"[^>]*>.*?保存更改',
         modal_template,
         re.DOTALL,
-    )
+    ), 'config edit modal must present its primary save action as “保存更改”'
     assert 'config-empty-collection' in source
     assert 'config-field-grid config-field-grid--compact' in source
+
+
+def test_configuration_refinement_modal_locks_keep_accessible_descriptions():
+    source = CONFIGURATION_JS.read_text(encoding="utf-8")
+    environment_lock_source = _configuration_function(source, "setEnvironmentLockState")
+    apply_locks_source = _configuration_function(source, "applyEnvironmentLocks")
+
     assert 'aria-describedby' in environment_lock_source
     assert 'setEnvironmentLockState(control' in apply_locks_source
     assert 'setModalLockNote(hasStaticLock)' in apply_locks_source
