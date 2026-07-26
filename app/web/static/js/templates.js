@@ -3903,6 +3903,14 @@ function startPlaceholderPickerSync() {
     }, 250);
 }
 
+function renderPlaceholderSaveFeedback(message, tone = 'success') {
+    const feedbackEl = document.getElementById('template-config-save-feedback');
+    if (!feedbackEl) return;
+    feedbackEl.textContent = message || '';
+    feedbackEl.hidden = !message;
+    feedbackEl.dataset.tone = tone;
+}
+
 function renderSelectedPlaceholderDetail(template) {
     const titleEl = document.getElementById('template-selected-placeholder-title');
     const formEl = document.getElementById('template-placeholder-detail-form');
@@ -3993,6 +4001,7 @@ function renderSelectedPlaceholderDetail(template) {
             writingStructureText,
             template
         })}
+        <p id="template-config-save-feedback" class="template-config-save-feedback" role="status" aria-live="polite" hidden></p>
     `;
 
     if (advancedFormEl) {
@@ -8125,6 +8134,9 @@ async function saveCurrentSectionConfig({
                 selectAdjacentTemplatePlaceholder(1, true);
             }
             toast(localMessage, 'success');
+        }
+        if (!jumpToNextIncomplete) {
+            renderPlaceholderSaveFeedback('已保存当前段落。');
         }
     } catch (e) {
         toast(`${errorPrefix}: ${e.message}`, 'error');

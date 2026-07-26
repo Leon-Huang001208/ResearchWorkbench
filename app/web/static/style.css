@@ -13611,6 +13611,18 @@ tbody tr:hover {
     text-align: left;
 }
 
+.template-config-save-feedback {
+    margin: 2px 2px 0;
+    color: var(--apple-success, #34c759);
+    font-size: 12px;
+    font-weight: 680;
+    line-height: 1.4;
+}
+
+.template-config-save-feedback[data-tone="success"]::before {
+    content: '✓ ';
+}
+
 [data-theme="light"] .template-config-collapsible-section {
     border-color: var(--apple-separator);
     background: color-mix(in srgb, var(--apple-panel-bg-soft) 78%, transparent);
@@ -13648,6 +13660,10 @@ tbody tr:hover {
 
     .template-config-next-action {
         align-items: flex-start;
+    }
+
+    .template-config-save-feedback {
+        margin-inline: 0;
     }
 }
 

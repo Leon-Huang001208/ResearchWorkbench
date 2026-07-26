@@ -269,6 +269,29 @@ def test_report_config_summary_prioritizes_missing_query_or_keywords_without_los
         assert f'data-placeholder-edit-section="{edit_section}"' in source
 
 
+def test_report_config_current_section_save_feedback_contract():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+    css = STYLE_CSS.read_text(encoding="utf-8")
+    detail_start = source.index("function renderSelectedPlaceholderDetail")
+    detail_end = source.index("function bindPlaceholderSummaryEditActions", detail_start)
+    detail_source = source[detail_start:detail_end]
+    feedback_start = source.index("function renderPlaceholderSaveFeedback")
+    feedback_end = source.index("function renderSelectedPlaceholderDetail", feedback_start)
+    feedback_source = source[feedback_start:feedback_end]
+    save_start = source.index("async function saveCurrentSectionConfig")
+    save_end = source.index("function handleTemplateCheckAction", save_start)
+    save_source = source[save_start:save_end]
+
+    assert 'id="template-config-save-feedback"' in detail_source
+    assert "function renderPlaceholderSaveFeedback(message, tone = 'success')" in source
+    assert "feedbackEl.textContent = message || '';" in feedback_source
+    assert "feedbackEl.hidden = !message;" in feedback_source
+    assert "feedbackEl.dataset.tone = tone;" in feedback_source
+    assert "renderPlaceholderSaveFeedback('已保存当前段落。');" in save_source
+    assert ".template-config-save-feedback {" in css
+    assert '.template-config-save-feedback[data-tone="success"]::before' in css
+
+
 def test_report_config_summary_next_actions_render_from_real_query_state():
     script = r"""
 const fs = require('fs');
