@@ -8,15 +8,14 @@ this boundary so callers must migrate them before a report run begins.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Mapping
 from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from core.observability import get_logger
-
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class UnifiedReportConfigError(ValueError):
@@ -139,7 +138,7 @@ class UnifiedReportConfig:
     @classmethod
     def from_mapping(cls, raw: Mapping[str, Any]) -> "UnifiedReportConfig":
         """Build a unified runtime model from a V1-shaped configuration mapping."""
-        if "meta" in raw or "template" in raw:
+        if {"meta", "template", "placeholders"}.issubset(raw):
             raise UnifiedReportConfigError("检测到旧 V2 配置，请先迁移为统一报告配置")
 
         source = deepcopy(dict(raw))
@@ -185,17 +184,10 @@ def parse_unified_report_config(
             raise UnifiedReportConfigError("报告配置根节点必须是对象")
         return UnifiedReportConfig.from_mapping(raw)
     except UnifiedReportConfigError as exc:
-        logger.error(
-            "Failed to parse unified report config",
-            source_path=source,
-            error=str(exc),
-        )
+        logger.error("Failed to parse unified report config source_path=%s error=%s", source, exc)
         raise
     except Exception as exc:
-        logger.exception(
-            "Unexpected unified report config parsing failure",
-            source_path=source,
-        )
+        logger.exception("Unexpected unified report config parsing failure source_path=%s", source)
         raise UnifiedReportConfigError(f"报告配置解析失败：{exc}") from exc
 
 
