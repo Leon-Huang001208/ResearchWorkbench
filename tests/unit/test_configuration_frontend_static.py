@@ -196,8 +196,54 @@ def test_configuration_console_keeps_health_overview_and_session_test_state():
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
 
     assert 'data-config-health-summary' in template
+    assert 'data-config-environment-diagnostics' in template
     assert 'data-config-onboarding' in template
+    assert template.index('data-config-health-summary') < template.index(
+        'data-config-environment-diagnostics'
+    ) < template.index('data-config-onboarding')
     assert 'data-config-card-action' in template
     assert 'connectionStateBySection' in source
     assert '已验证' in source
     assert '连接异常' in source
+    assert 'function renderEnvironmentDiagnostics(snapshot)' in source
+    assert 'snapshot.environment' in source
+    assert 'snapshot.catalog' in source
+    assert 'openConfigModal' in source
+
+
+def test_capability_presentation_covers_all_supported_statuses():
+    script = f"""
+import {{ getCapabilityPresentation }} from {CONFIGURATION_JS.as_uri()!r};
+
+const presentations = {{
+    available: getCapabilityPresentation({{ status: 'available' }}),
+    notDetected: getCapabilityPresentation({{ status: 'not_detected' }}),
+    notApplicable: getCapabilityPresentation({{ status: 'not_applicable' }}),
+    unknown: getCapabilityPresentation({{ status: 'unknown' }}),
+}};
+
+const expected = {{
+    available: ['ready', '可用'],
+    notDetected: ['missing', '未检测到'],
+    notApplicable: ['missing', '不适用'],
+    unknown: ['error', '未知'],
+}};
+
+for (const [key, [state, label]] of Object.entries(expected)) {{
+    const presentation = presentations[key];
+    if (presentation.state !== state || presentation.label !== label) {{
+        throw new Error(`unexpected ${{key}} presentation: ${{JSON.stringify(presentation)}}`);
+    }}
+    if (!presentation.detail || !presentation.remediation) {{
+        throw new Error(`missing Chinese fallback text for ${{key}}`);
+    }}
+}}
+"""
+    result = subprocess.run(
+        ["node", "--input-type=module", "--eval", script],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr

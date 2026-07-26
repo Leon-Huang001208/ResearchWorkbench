@@ -17651,6 +17651,133 @@ button.template-config-data-overview-row {
 .config-onboarding-steps li.missing { color: var(--text-muted); }
 .config-onboarding-action { white-space: nowrap; }
 
+.config-environment-diagnostics {
+    display: grid;
+    gap: 14px;
+    margin: 0 0 12px;
+    padding: 16px 18px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: rgba(255,255,255,0.018);
+}
+
+.config-environment-diagnostics .config-environment-diagnostics-summary {
+    display: grid;
+    gap: 4px;
+}
+
+.config-environment-diagnostics .config-environment-diagnostics-summary > span {
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 720;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.config-environment-diagnostics .config-environment-diagnostics-summary strong {
+    color: var(--text-primary);
+    font-size: 15px;
+}
+
+.config-environment-diagnostics .config-environment-diagnostics-summary p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.config-environment-diagnostics .config-environment-diagnostics-paths {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin: 0;
+}
+
+.config-environment-diagnostics .config-environment-diagnostics-paths > div,
+.config-environment-diagnostics .config-environment-diagnostics-capability {
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--border-soft, rgba(255,255,255,0.06));
+    border-radius: var(--radius-md);
+    background: rgba(255,255,255,0.035);
+}
+
+.config-environment-diagnostics .config-environment-diagnostics-paths dt {
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
+.config-environment-diagnostics .config-environment-diagnostics-paths dd {
+    margin: 5px 0 0;
+    overflow-wrap: anywhere;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.config-environment-diagnostics .config-environment-diagnostics-capabilities {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.config-environment-diagnostics .config-environment-diagnostics-capability {
+    display: grid;
+    gap: 7px;
+}
+
+.config-environment-diagnostics .config-environment-diagnostics-capability.ready {
+    border-color: rgba(16,185,129,0.42);
+    background: rgba(16,185,129,0.08);
+}
+
+.config-environment-diagnostics .config-environment-diagnostics-capability.missing {
+    border-color: var(--border-soft, rgba(255,255,255,0.06));
+}
+
+.config-environment-diagnostics .config-environment-diagnostics-capability.error {
+    border-color: rgba(239,68,68,0.48);
+    background: rgba(239,68,68,0.08);
+}
+
+.config-environment-diagnostics .config-environment-diagnostics-capability-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.config-environment-diagnostics .config-environment-diagnostics-capability-header strong {
+    color: var(--text-primary);
+    font-size: 13px;
+}
+
+.config-environment-diagnostics .config-environment-diagnostics-capability-status {
+    color: var(--text-secondary);
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.config-environment-diagnostics .config-environment-diagnostics-capability-detail,
+.config-environment-diagnostics .config-environment-diagnostics-capability-remediation {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.config-environment-diagnostics .config-environment-diagnostics-capability-remediation {
+    color: var(--text-muted);
+}
+
+.config-environment-diagnostics .config-environment-diagnostics-empty {
+    padding: 10px 12px;
+    border: 1px dashed var(--border-soft, rgba(255,255,255,0.12));
+    border-radius: var(--radius-md);
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
 @media (max-width: 860px) {
     .config-health-summary,
     .config-onboarding {
@@ -17664,6 +17791,10 @@ button.template-config-data-overview-row {
 
     .config-onboarding-action {
         width: 100%;
+    }
+
+    .config-environment-diagnostics .config-environment-diagnostics-paths {
+        grid-template-columns: 1fr;
     }
 }
 

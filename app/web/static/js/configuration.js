@@ -775,6 +775,150 @@ function getConfigurationHealth(snapshot) {
     };
 }
 
+const CAPABILITY_PRESENTATIONS = {
+    available: {
+        state: 'ready',
+        label: '可用',
+        detail: '当前环境已检测到此能力。',
+        remediation: '无需操作。',
+    },
+    not_detected: {
+        state: 'missing',
+        label: '未检测到',
+        detail: '当前环境未检测到此能力。',
+        remediation: '请安装或启动所需组件后重新检测。',
+    },
+    not_applicable: {
+        state: 'missing',
+        label: '不适用',
+        detail: '此能力不适用于当前运行环境。',
+        remediation: '无需配置此能力。',
+    },
+    unknown: {
+        state: 'error',
+        label: '未知',
+        detail: '暂时无法确定此能力的状态。',
+        remediation: '请刷新检测；若仍未知，请查看应用日志。',
+    },
+};
+
+export function getCapabilityPresentation(capability = {}) {
+    const status = typeof capability?.status === 'string' ? capability.status : 'unknown';
+    const presentation = CAPABILITY_PRESENTATIONS[status] || CAPABILITY_PRESENTATIONS.unknown;
+    const detail = typeof capability?.detail === 'string' && capability.detail.trim()
+        ? capability.detail.trim()
+        : presentation.detail;
+    const remediation = Array.isArray(capability?.remediation)
+        ? capability.remediation.filter(item => typeof item === 'string' && item.trim()).map(item => item.trim())
+        : [];
+    return {
+        ...presentation,
+        detail,
+        remediation: remediation.length ? remediation : [presentation.remediation],
+    };
+}
+
+function getEnvironmentCatalogLabel(catalog, capabilityKey) {
+    const sections = Array.isArray(catalog?.sections) ? catalog.sections : [];
+    const matchedSection = sections.find(section => section?.key === capabilityKey);
+    return typeof matchedSection?.label === 'string' && matchedSection.label.trim()
+        ? matchedSection.label.trim()
+        : '';
+}
+
+function getEnvironmentDisplayValue(value, labels = {}) {
+    if (typeof value !== 'string' || !value.trim()) return '未提供';
+    return labels[value] || value.trim();
+}
+
+function appendEnvironmentPath(paths, label, key) {
+    const item = document.createElement('div');
+    const name = document.createElement('dt');
+    const value = document.createElement('dd');
+    const path = paths && typeof paths[key] === 'string' ? paths[key].trim() : '';
+    name.textContent = label;
+    value.textContent = path || '后端未提供此路径';
+    item.append(name, value);
+    return item;
+}
+
+export function renderEnvironmentDiagnostics(snapshot) {
+    const diagnostics = document.querySelector('[data-config-environment-diagnostics]');
+    if (!diagnostics) return;
+
+    const environment = snapshot && snapshot.environment;
+    if (!environment || typeof environment !== 'object') {
+        diagnostics.hidden = true;
+        return;
+    }
+
+    const summaryTitle = diagnostics.querySelector('[data-config-environment-summary-title]');
+    const summaryDetail = diagnostics.querySelector('[data-config-environment-summary-detail]');
+    const pathsNode = diagnostics.querySelector('[data-config-environment-paths]');
+    const capabilitiesNode = diagnostics.querySelector('[data-config-environment-capabilities]');
+    const platform = getEnvironmentDisplayValue(environment.platform, {
+        macos: 'macOS',
+        windows: 'Windows',
+        linux: 'Linux',
+        unknown: '未知',
+    });
+    const architecture = getEnvironmentDisplayValue(environment.architecture);
+    const runtimeMode = getEnvironmentDisplayValue(environment.runtime_mode, {
+        desktop: '桌面端',
+        server: '服务端',
+        unknown: '未知',
+    });
+
+    summaryTitle?.replaceChildren(`当前环境：${platform} / ${architecture} / ${runtimeMode}`);
+    summaryDetail?.replaceChildren(`平台：${platform} · 架构：${architecture} · 运行模式：${runtimeMode}`);
+
+    if (pathsNode) {
+        pathsNode.replaceChildren(
+            appendEnvironmentPath(environment.paths, '配置路径', 'config'),
+            appendEnvironmentPath(environment.paths, '数据路径', 'data'),
+            appendEnvironmentPath(environment.paths, '日志路径', 'logs'),
+        );
+    }
+
+    if (capabilitiesNode) {
+        const capabilities = Array.isArray(environment.capabilities) ? environment.capabilities : [];
+        const capabilityItems = capabilities.map(capability => {
+            const presentation = getCapabilityPresentation(capability);
+            const item = document.createElement('li');
+            const header = document.createElement('div');
+            const name = document.createElement('strong');
+            const status = document.createElement('span');
+            const detail = document.createElement('p');
+            const remediation = document.createElement('p');
+            const label = typeof capability?.label === 'string' && capability.label.trim()
+                ? capability.label.trim()
+                : getEnvironmentCatalogLabel(snapshot.catalog, capability?.key) || '未命名能力';
+
+            item.classList.add('config-environment-diagnostics-capability', presentation.state);
+            header.className = 'config-environment-diagnostics-capability-header';
+            status.className = 'config-environment-diagnostics-capability-status';
+            detail.className = 'config-environment-diagnostics-capability-detail';
+            remediation.className = 'config-environment-diagnostics-capability-remediation';
+            name.textContent = label;
+            status.textContent = `状态：${presentation.label}`;
+            detail.textContent = presentation.detail;
+            remediation.textContent = `建议：${presentation.remediation.join('；')}`;
+            header.append(name, status);
+            item.append(header, detail, remediation);
+            return item;
+        });
+        if (!capabilityItems.length) {
+            const empty = document.createElement('li');
+            empty.className = 'config-environment-diagnostics-empty';
+            empty.textContent = '后端未提供本机能力检测结果。';
+            capabilityItems.push(empty);
+        }
+        capabilitiesNode.replaceChildren(...capabilityItems);
+    }
+
+    diagnostics.hidden = false;
+}
+
 function renderConfigurationHealth(snapshot) {
     const health = getConfigurationHealth(snapshot);
     const summary = document.querySelector('[data-config-health-summary]');
@@ -832,6 +976,7 @@ function renderSnapshot(snapshot) {
     });
     renderSummaryCards();
     renderConfigurationHealth(snapshot);
+    renderEnvironmentDiagnostics(snapshot);
 }
 
 function renderSection(section, values) {
