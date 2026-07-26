@@ -161,6 +161,29 @@ def _convert_v2(
     if name is not None:
         result["name"] = name
     metadata = {key: deepcopy(value) for key, value in meta.items() if key != "name"}
+    reserved_top_level_fields = {
+        "meta",
+        "template",
+        "placeholders",
+        "defaults",
+        "components",
+        "retrieval",
+        "charts",
+        "tables",
+        "validators",
+    }
+    top_level_extras = {
+        key: deepcopy(value)
+        for key, value in raw_config.items()
+        if key not in reserved_top_level_fields
+    }
+    if top_level_extras:
+        existing_extras = metadata.get("extras")
+        metadata["extras"] = (
+            {"meta": existing_extras, "top_level": top_level_extras}
+            if existing_extras is not None
+            else top_level_extras
+        )
     if metadata:
         result["metadata"] = metadata
     for field_name in ("defaults", "components", "retrieval", "charts", "tables", "validators"):

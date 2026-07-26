@@ -163,9 +163,11 @@ def test_migration_converts_true_v2_placeholders_and_template_reference(tmp_path
             "description": "保留的迁移元数据",
             "report_type": "word",
             "custom": {"owner": "research"},
+            "extras": {"source": "v2 meta"},
         },
         "template": {"word_template": "templates/weekly.docx", "prompt_templates": "prompts.md"},
         "defaults": {"retrieval": {"top_k": 8}},
+        "custom_top_level": {"retention": "metadata extras"},
         "placeholders": {
             "市场回顾": {
                 "title": "市场回顾",
@@ -197,6 +199,10 @@ def test_migration_converts_true_v2_placeholders_and_template_reference(tmp_path
         "description": "保留的迁移元数据",
         "report_type": "word",
         "custom": {"owner": "research"},
+        "extras": {
+            "meta": {"source": "v2 meta"},
+            "top_level": {"custom_top_level": {"retention": "metadata extras"}},
+        },
     }
     assert migrated["assets"]["word_template"] == "templates/weekly.docx"
     assert placeholder["prompt_template"] == "market_review"
@@ -287,3 +293,21 @@ def test_migration_validates_a_temporary_file_before_atomic_replace(tmp_path, mo
     assert "temporary" in observed
     assert not observed["temporary"].exists()
     assert destination != project_dir / "config" / "section_config.yaml"
+
+
+def test_migration_removes_temporary_file_when_atomic_replace_fails(tmp_path, monkeypatch):
+    """A failed replacement leaves neither a temporary file nor a changed destination."""
+    import reporting.projects.config_migration as migration
+
+    project_dir = tmp_path / "weekly"
+    config_dir = project_dir / "config"
+    config_dir.mkdir(parents=True)
+    destination = config_dir / "report_config.yaml"
+    destination.write_text("sentinel: preserve\n", encoding="utf-8")
+    monkeypatch.setattr(migration.os, "replace", lambda *_: (_ for _ in ()).throw(OSError("replace failed")))
+
+    with pytest.raises(MigrationError, match="replace failed"):
+        migrate_report_config(project_dir, {"placeholders": {"正文": {"prompt_template": "body"}}})
+
+    assert destination.read_text(encoding="utf-8") == "sentinel: preserve\n"
+    assert not list(config_dir.glob(".report_config.yaml.*.tmp"))
