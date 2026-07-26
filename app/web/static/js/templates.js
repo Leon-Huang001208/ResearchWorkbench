@@ -3950,6 +3950,8 @@ function renderSelectedPlaceholderDetail(template) {
     });
     const writingStructure = getLlmWritingComponent(mapping).writing_structure || mapping.writing_structure || inferDefaultWritingStructure(name);
     const writingStructureText = Array.isArray(writingStructure) ? writingStructure.join('\n') : '';
+    const rawSemanticQuery = getConfiguredSemanticRetrievalQueryForPlaceholder(template, mapping, name);
+    const semanticQueryDisplay = getSemanticRetrievalQueryForPlaceholder(template, mapping, name);
     const typeOptions = getEditablePlaceholderTypeOptions(type);
     updateTemplateConfigPlaceholderChips(type, mapping, template, name);
     renderPlaceholderWizardControls(template);
@@ -3985,7 +3987,8 @@ function renderSelectedPlaceholderDetail(template) {
             minNewsCount,
             dataTemplateFields,
             retrievalKeywords,
-            semanticQuery: getSemanticRetrievalQueryForPlaceholder(template, mapping, name),
+            rawSemanticQuery,
+            semanticQueryDisplay,
             dataTemplate,
             writingStructureText,
             template
@@ -4579,7 +4582,8 @@ function buildPlaceholderConfigSummaryHtml({
     minNewsCount,
     dataTemplateFields = {},
     retrievalKeywords = '',
-    semanticQuery = '',
+    rawSemanticQuery = '',
+    semanticQueryDisplay: providedSemanticQueryDisplay = '',
     dataTemplate = '',
     writingStructureText = '',
     template
@@ -4592,7 +4596,8 @@ function buildPlaceholderConfigSummaryHtml({
     const dataFieldEntries = dataTemplateFields && typeof dataTemplateFields === 'object'
         ? Object.entries(dataTemplateFields)
         : [];
-    semanticQuery = String(semanticQuery ?? '');
+    rawSemanticQuery = String(rawSemanticQuery ?? '');
+    const semanticQueryDisplay = String(providedSemanticQueryDisplay ?? '');
     const keywordList = splitLines(retrievalKeywords || '');
     const writingSteps = splitLines(writingStructureText);
     if (isReportPeriodFieldPlaceholder(mapping.type || type, mapping, name)) {
@@ -4656,7 +4661,7 @@ function buildPlaceholderConfigSummaryHtml({
     const hasRuns = richTextSpec && Array.isArray(richTextSpec.runs) && richTextSpec.runs.length > 0;
     const keywordGroups = v2?.generation_config?.retrieval?.keyword_groups;
     const hasKeywordGroups = Array.isArray(keywordGroups) && keywordGroups.length > 0;
-    const queryNeedsAttention = usesEvidence && !semanticQuery.trim();
+    const queryNeedsAttention = usesEvidence && !rawSemanticQuery.trim();
     const keywordsNeedAttention = usesEvidence && !queryNeedsAttention && keywordList.length === 0;
     return `
         <section class="template-config-summary-card template-config-readable-card">
@@ -4691,7 +4696,7 @@ function buildPlaceholderConfigSummaryHtml({
                     meta: queryNeedsAttention ? '待补充 · 用于相关内容召回' : '用于相关内容召回',
                     editSection: 'query',
                     open: queryNeedsAttention,
-                    body: `<p>${esc(semanticQuery.trim() || '未配置语义 Query')}</p>`
+                    body: `<p>${esc(semanticQueryDisplay.trim() || '未配置语义 Query')}</p>`
                 })}
                 ${buildConfigCollapsibleSection({
                     title: '关键词',
@@ -5160,6 +5165,18 @@ function renderTableOrChartPlaceholderEditor(type, mapping = {}) {
             </label>
         </section>
     `;
+}
+
+function getConfiguredSemanticRetrievalQueryForPlaceholder(template, mapping = {}, placeholderName = '') {
+    if (String(mapping.prompt_retrieval_query || '').trim()) {
+        return String(mapping.prompt_retrieval_query).trim();
+    }
+    const promptName = mapping.prompt_template
+        || resolvePromptTemplateName(placeholderName, template?.report_project);
+    const promptSource = template?.report_project?.prompt_templates_source || '';
+    const query = extractPromptTemplateLabel(promptSource, promptName, '检索 Query');
+    if (query) return query;
+    return '';
 }
 
 function getSemanticRetrievalQueryForPlaceholder(template, mapping = {}, placeholderName = '') {

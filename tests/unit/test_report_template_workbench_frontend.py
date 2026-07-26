@@ -232,15 +232,37 @@ def test_report_config_summary_dom_contract_collapses_low_frequency_sections_and
 
 def test_report_config_summary_prioritizes_missing_query_or_keywords_without_losing_edit_entries():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
+    caller_start = source.index("function renderSelectedPlaceholderDetail")
+    caller_end = source.index("function buildPlaceholderConfigSummaryHtml", caller_start)
+    caller_source = source[caller_start:caller_end]
     start = source.index("function buildPlaceholderConfigSummaryHtml")
     end = source.index("function getPlaceholderEditSectionLabels", start)
     summary_source = source[start:end]
+    raw_query_start = source.index("function getConfiguredSemanticRetrievalQueryForPlaceholder")
+    raw_query_end = source.index("function getSemanticRetrievalQueryForPlaceholder", raw_query_start)
+    raw_query_source = source[raw_query_start:raw_query_end]
+    display_query_end = source.index("function extractPromptTemplateLabel", raw_query_end)
+    display_query_source = source[raw_query_end:display_query_end]
 
-    assert "const queryNeedsAttention = usesEvidence && !semanticQuery.trim();" in summary_source
+    assert "const rawSemanticQuery = getConfiguredSemanticRetrievalQueryForPlaceholder(" in caller_source
+    assert "const semanticQueryDisplay = getSemanticRetrievalQueryForPlaceholder(" in caller_source
+    assert "rawSemanticQuery," in caller_source
+    assert "semanticQueryDisplay," in caller_source
+    assert "rawSemanticQuery = String(rawSemanticQuery ?? '');" in summary_source
+    assert "semanticQueryDisplay: providedSemanticQueryDisplay = ''," in summary_source
+    assert "const semanticQueryDisplay = String(providedSemanticQueryDisplay ?? '');" in summary_source
+    assert "const queryNeedsAttention = usesEvidence && !rawSemanticQuery.trim();" in summary_source
+    assert "const keywordsNeedAttention = usesEvidence && !queryNeedsAttention && keywordList.length === 0;" in summary_source
+    assert "return promptName ||" not in raw_query_source
+    assert "return '';" in raw_query_source
+    assert "return promptName || normalizePlaceholderName(placeholderName) || '未配置语义 Query';" in display_query_source
     assert "open: queryNeedsAttention" in summary_source
     assert "template-config-next-action" in summary_source
     assert "补充语义 Query，明确系统应召回哪些材料。" in summary_source
     assert "选择关键词预设包，或添加自定义关键词。" in summary_source
+    assert summary_source.index("${queryNeedsAttention ? `") < summary_source.index(
+        "` : keywordsNeedAttention ? `"
+    ) < summary_source.index("` : ''}")
 
     # Missing-config guidance must add an entry point instead of replacing existing editors.
     for edit_section in ("basic", "query", "keywords", "fixed_template", "data_fields", "writing"):
