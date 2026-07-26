@@ -2732,9 +2732,8 @@ function getTemplateWorkbenchPlaceholderNames(template) {
 
 function buildPlaceholderWizardState(template) {
     const names = getTemplateWorkbenchPlaceholderNames(template);
-    const mappings = getCurrentPlaceholderMappings(template);
     const items = names.map(name => {
-        const mapping = mappings.get(name) || { type: inferPlaceholderType(name) };
+        const mapping = getEffectivePlaceholderMapping(template, name);
         const status = getPlaceholderLifecycleStatus(template, mapping, name);
         return { name, mapping, status };
     });
@@ -6629,12 +6628,11 @@ function buildTemplateValidationChecks(template, sections, placeholders) {
 }
 
 function buildPlaceholderReadinessItems(template, placeholders) {
-    const mappings = getCurrentPlaceholderMappings(template);
     return (placeholders || [])
         .map(placeholderName => normalizePlaceholderName(placeholderName))
         .filter(Boolean)
         .map(placeholderName => {
-            const mapping = mappings.get(placeholderName) || { type: inferPlaceholderType(placeholderName) };
+            const mapping = getEffectivePlaceholderMapping(template, placeholderName);
             const readinessIssue = getPlaceholderReadinessIssue(mapping, placeholderName);
             const lifecycle = getPlaceholderLifecycleStatus(template, mapping, placeholderName);
             const issue = lifecycle.state === 'ready'

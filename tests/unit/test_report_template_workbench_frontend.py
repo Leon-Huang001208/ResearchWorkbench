@@ -754,6 +754,7 @@ const sandbox = {
     isSystemDatePlaceholder: () => false,
     getCurrentPlaceholderMappings: () => new Map(),
     getStoredPlaceholderMappings: () => new Map(),
+    getTemplateWorkbenchPlaceholderNames: () => ['已配置', '待配置'],
     getCanonicalPlaceholderType: (type) => type || 'paragraph',
     getParagraphMode: () => 'evidence_ai',
     usesEvidenceParagraphMode: () => true,
@@ -762,6 +763,9 @@ const sandbox = {
 };
 vm.createContext(sandbox);
 vm.runInContext(extract('function getPlaceholderLifecycleStatus', 'function buildPlaceholderWizardState'), sandbox);
+sandbox.getTemplateWorkbenchPlaceholderNames = () => ['已配置', '待配置'];
+vm.runInContext(extract('function buildPlaceholderWizardState', 'function renderPlaceholderWizardControls'), sandbox);
+vm.runInContext(extract('function buildPlaceholderReadinessItems', 'function getPlaceholderReadinessIssue'), sandbox);
 vm.runInContext(extract('function v2PlaceholderConfigToMapping', '/* ── v2 编辑草稿管理'), sandbox);
 vm.runInContext(extract('function getV2Draft', 'function hasV2Drafts'), sandbox);
 vm.runInContext(extract('function deepMergeV2Config', 'function getRenderedPlaceholderSummaryName'), sandbox);
@@ -782,10 +786,14 @@ const template = {
 };
 sandbox.renderTemplatePlaceholderMap(template, ['已配置', '待配置'], []);
 const html = elements['template-placeholder-map'].innerHTML;
+const wizard = sandbox.buildPlaceholderWizardState(template);
+const readiness = sandbox.buildPlaceholderReadinessItems(template, ['已配置', '待配置']);
 console.log(JSON.stringify({
     ready: /data-placeholder-readiness="ready"[\s\S]*?已配置/.test(html),
     needsAttention: /data-placeholder-readiness="needs_attention"[\s\S]*?待配置/.test(html),
-    names: [...html.matchAll(/data-placeholder-name="([^"]+)"/g)].map((match) => match[1])
+    names: [...html.matchAll(/data-placeholder-name="([^"]+)"/g)].map((match) => match[1]),
+    wizard: { completedCount: wizard.completedCount, incompleteNames: wizard.incompleteItems.map((item) => item.name) },
+    readiness: readiness.map((item) => ({ name: item.placeholderName, ok: item.ok, state: item.status.state }))
 }));
 """
 
@@ -801,6 +809,11 @@ console.log(JSON.stringify({
         "ready": True,
         "needsAttention": True,
         "names": ["待配置", "已配置"],
+        "wizard": {"completedCount": 1, "incompleteNames": ["待配置"]},
+        "readiness": [
+            {"name": "已配置", "ok": True, "state": "ready"},
+            {"name": "待配置", "ok": False, "state": "missing"},
+        ],
     }
 
 
