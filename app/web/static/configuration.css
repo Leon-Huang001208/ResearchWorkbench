@@ -357,6 +357,36 @@
     line-height: 1.35;
 }
 
+/* 动态行和账号集合的启动配置锁定说明同样不暴露内部环境变量名称。 */
+.config-dynamic-row-locked {
+    border-color: color-mix(in srgb, var(--border-primary) 82%, transparent);
+    background: color-mix(in srgb, var(--bg-elevated) 82%, var(--accent) 3%);
+}
+
+.config-dynamic-lock-message,
+.config-collection-lock-message {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.4;
+}
+
+.config-dynamic-lock-message {
+    grid-column: 1 / -1;
+    order: -1;
+}
+
+.config-subsection-header .config-collection-lock-message {
+    margin-top: 4px;
+}
+
+.config-dynamic-row-locked .config-remove-row:disabled,
+.config-subsection-header .secondary-btn:disabled {
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 .config-edit-modal-content .modal-footer .config-modal-lock-note {
     display: inline-flex;
     flex: 1 1 190px;
@@ -461,6 +491,15 @@
 
     .config-row-actions {
         justify-content: space-between;
+    }
+
+    .config-dynamic-lock-message {
+        grid-row: 1;
+        margin-bottom: 2px;
+    }
+
+    .config-subsection-header .config-collection-lock-message {
+        order: -1;
     }
 }
 

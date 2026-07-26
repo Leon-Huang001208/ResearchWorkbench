@@ -42,6 +42,16 @@ def test_configuration_locks_are_contextual_not_global():
     assert "由当前启动配置管理" in source
 
 
+def test_configuration_locks_dynamic_configuration_in_context():
+    source = CONFIGURATION_JS.read_text(encoding="utf-8")
+
+    assert "applyProviderRowLocks" in source
+    assert "applyTaskRouteLocks" in source
+    assert "setDynamicRowLocked" in source
+    assert "LLM_PROVIDER_${index}_" in source
+    assert "TASK_${task.toUpperCase()}_PROVIDER" in source
+
+
 def test_configuration_payload_filter_omits_static_environment_locks():
     script = f"""
 import {{ filterEnvironmentLockedPayload }} from {CONFIGURATION_JS.as_uri()!r};

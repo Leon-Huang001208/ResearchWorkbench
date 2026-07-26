@@ -44,6 +44,11 @@ const STATIC_LOCK_FIELD_KEYS = {
         timeout: 'WEB_SEARCH_TIMEOUT',
     },
 };
+const COLLECTION_LOCK_KEYS = {
+    zhiqiu: ['ZQ_ACCOUNTS_JSON', 'ZQ_ACCOUNTS'],
+    ifind: ['IFIND_ACCOUNTS_JSON', 'IFIND_USERNAME', 'IFIND_PASSWORD'],
+    web_search: ['WEB_SEARCH_API_KEYS', 'TAVILY_API_KEY', 'BING_API_KEY'],
+};
 
 export function isEnvironmentLocked(key, environmentLockedFields = configurationSnapshot?.environment_locked_fields || []) {
     return environmentLockedFields.includes(key);
@@ -462,12 +467,14 @@ function renderProviders(providers) {
     const list = document.getElementById('config-provider-list');
     if (!list) return;
     list.replaceChildren(...providers.map(createProviderRow));
+    applyProviderRowLocks();
 }
 
 function renderTaskRoutes(routes) {
     const list = document.getElementById('config-task-route-list');
     if (!list) return;
     list.replaceChildren(...routes.map(createTaskRouteRow));
+    applyTaskRouteLocks();
 }
 
 function renderZhiqiuAccounts(accounts) {
@@ -509,6 +516,125 @@ function renderWebSearchKeys(accounts) {
     const list = document.getElementById('config-web_search-key-list');
     if (!list) return;
     list.replaceChildren(...accounts.map(createWebSearchKeyRow));
+}
+
+function lockControl(control) {
+    if (!control || control.disabled) return false;
+    control.disabled = true;
+    control.closest('label')?.classList.add('environment-locked');
+    return true;
+}
+
+function setDynamicRowLocked(row, lockedControls) {
+    const businessControls = [...row.querySelectorAll('[data-field]')];
+    const lockedControlSet = new Set(lockedControls);
+    const fullyLocked = businessControls.length > 0
+        && businessControls.every(control => lockedControlSet.has(control) && control.disabled);
+    const existingMessage = row.querySelector('.config-dynamic-lock-message');
+
+    if (!fullyLocked) {
+        delete row.dataset.configLocked;
+        row.classList.remove('config-dynamic-row-locked');
+        existingMessage?.remove();
+        return false;
+    }
+
+    row.dataset.configLocked = 'true';
+    row.classList.add('config-dynamic-row-locked');
+    row.querySelectorAll('.config-remove-row').forEach(button => { button.disabled = true; });
+    if (!existingMessage) row.prepend(element('p', 'config-dynamic-lock-message', LOCKED_FIELD_MESSAGE));
+    return true;
+}
+
+function applyProviderRowLocks() {
+    const lockedFields = configurationSnapshot?.environment_locked_fields || [];
+    let hasProviderLock = false;
+    const providerFieldSuffixes = {
+        name: 'NAME',
+        protocol: 'PROTOCOL',
+        base_url: 'BASE_URL',
+        api_key: 'API_KEY',
+    };
+    document.querySelectorAll('.config-provider-row').forEach((row, rowIndex) => {
+        const index = rowIndex + 1;
+        const prefix = `LLM_PROVIDER_${index}_`;
+        const lockedControls = [];
+        Object.entries(providerFieldSuffixes).forEach(([field, suffix]) => {
+            const control = row.querySelector(`[data-field="${field}"]`);
+            const locked = isEnvironmentLocked(`${prefix}${suffix}`, lockedFields);
+            if (locked) {
+                hasProviderLock = true;
+                lockControl(control);
+                if (control?.disabled) lockedControls.push(control);
+            }
+        });
+        setDynamicRowLocked(row, lockedControls);
+    });
+    if (hasProviderLock || lockedFields.some(key => /^LLM_PROVIDER_\d+_/.test(key))) {
+        const addButton = document.querySelector('[data-add-provider]');
+        if (addButton) addButton.disabled = true;
+    }
+}
+
+function applyTaskRouteLocks() {
+    const lockedFields = configurationSnapshot?.environment_locked_fields || [];
+    let hasTaskRouteLock = false;
+    document.querySelectorAll('.config-route-row').forEach(row => {
+        const task = rowValue(row, 'task');
+        const providerControl = row.querySelector('[data-field="provider"]');
+        const modelControl = row.querySelector('[data-field="model"]');
+        const taskControl = row.querySelector('[data-field="task"]');
+        const providerLocked = task && isEnvironmentLocked(`TASK_${task.toUpperCase()}_PROVIDER`, lockedFields);
+        const modelLocked = task && isEnvironmentLocked(`TASK_${task.toUpperCase()}_MODEL`, lockedFields);
+        const lockedControls = [];
+
+        if (providerLocked) {
+            hasTaskRouteLock = true;
+            lockControl(providerControl);
+            if (providerControl?.disabled) lockedControls.push(providerControl);
+        }
+        if (modelLocked) {
+            hasTaskRouteLock = true;
+            lockControl(modelControl);
+            if (modelControl?.disabled) lockedControls.push(modelControl);
+        }
+        if (providerLocked || modelLocked) {
+            lockControl(taskControl);
+            if (taskControl?.disabled) lockedControls.push(taskControl);
+        }
+        setDynamicRowLocked(row, lockedControls);
+    });
+    if (hasTaskRouteLock || lockedFields.some(key => /^TASK_/.test(key))) {
+        const addButton = document.querySelector('[data-add-task-route]');
+        if (addButton) addButton.disabled = true;
+    }
+}
+
+function applyCollectionLock(form, section, { addButton, rowSelector }) {
+    const keys = COLLECTION_LOCK_KEYS[section] || [];
+    const locked = keys.some(key => isEnvironmentLocked(key));
+    if (!locked) return;
+
+    const button = form.querySelector(addButton);
+    if (button) button.disabled = true;
+    form.querySelectorAll(rowSelector).forEach(row => {
+        row.querySelectorAll('input[data-field], select[data-field], textarea[data-field]').forEach(lockControl);
+        row.querySelectorAll('.config-remove-row').forEach(removeButton => { removeButton.disabled = true; });
+    });
+
+    const header = button?.closest('.config-subsection-header');
+    if (!header || header.querySelector('.config-collection-lock-message')) return;
+    const message = element('p', 'config-collection-lock-message', LOCKED_FIELD_MESSAGE);
+    header.querySelector('h4')?.insertAdjacentElement('afterend', message);
+}
+
+function applyCollectionLocks(form, section) {
+    const configs = {
+        zhiqiu: { addButton: '[data-add-zhiqiu-account]', rowSelector: '.config-zhiqiu-row' },
+        ifind: { addButton: '[data-add-ifind-account]', rowSelector: '.config-ifind-row' },
+        web_search: { addButton: '[data-add-web_search-key]', rowSelector: '.config-web_search-row' },
+    };
+    if (configs[section]) applyCollectionLock(form, section, configs[section]);
 }
 
 function setFormValues(form, values, fields) {
@@ -1278,6 +1404,12 @@ function renderModalForm(section, values) {
         setFormValues(form, values, ['log_level', 'log_dir', 'llm_max_workers', 'llm_max_retries', 'chunk_size', 'chunk_overlap', 'long_text_threshold']);
     }
 
+    if (section === 'llm') {
+        applyProviderRowLocks();
+        applyTaskRouteLocks();
+    }
+    applyCollectionLocks(form, section);
+
     // 绑定事件
     bindModalFormEvents(form, section);
     // 延迟一帧确保 .config-secret-control 内部 input 已完成布局
@@ -1333,26 +1465,31 @@ function bindModalFormEvents(form, section) {
     // 新增加行按钮
     form.querySelector('[data-add-provider]')?.addEventListener('click', () => {
         document.getElementById('config-provider-list')?.append(createProviderRow());
+        applyProviderRowLocks();
         markSectionDirty(form);
         modalDirty = true;
     });
     form.querySelector('[data-add-task-route]')?.addEventListener('click', () => {
         document.getElementById('config-task-route-list')?.append(createTaskRouteRow());
+        applyTaskRouteLocks();
         markSectionDirty(form);
         modalDirty = true;
     });
     form.querySelector('[data-add-zhiqiu-account]')?.addEventListener('click', () => {
         document.getElementById('config-zhiqiu-account-list')?.append(createZhiqiuAccountRow());
+        applyCollectionLocks(form, section);
         markSectionDirty(form);
         modalDirty = true;
     });
     form.querySelector('[data-add-ifind-account]')?.addEventListener('click', () => {
         document.getElementById('config-ifind-account-list')?.append(createIfindAccountRow());
+        applyCollectionLocks(form, section);
         markSectionDirty(form);
         modalDirty = true;
     });
     form.querySelector('[data-add-web_search-key]')?.addEventListener('click', () => {
         document.getElementById('config-web_search-key-list')?.append(createWebSearchKeyRow());
+        applyCollectionLocks(form, section);
         markSectionDirty(form);
         modalDirty = true;
     });
