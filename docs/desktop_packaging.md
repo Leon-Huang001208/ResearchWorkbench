@@ -125,6 +125,12 @@ AlphaFoundry 采用“一套源码、各目标平台原生构建”的策略：T
 
 macOS 本地测试不等于 Windows 验证；Windows CI 未通过或尚未运行时，不得宣称 Windows 兼容。
 
+### 环境能力诊断的交付边界
+
+系统配置页保留现有健康总览、卡片和编辑机制；新增的环境能力诊断只读展示安全信息，绝不读取或导出秘密。其 catalog 只是元数据目录，当前不生成动态配置表单。`psql` 显示 available 仅表示本机可发现 PostgreSQL 客户端命令，既不表示 PostgreSQL server 可用，也不表示 pgvector 已就绪；数据库的实际健康状态仍以 `/api/setup/readiness` 和数据库连接测试为准。iFinD SDK 检测同样只是本机依赖提示。Wind 在非 Windows 平台不适用，Windows 上则必须以真实 Excel 集成验证为准。
+
+此类桌面相关改动仍必须在原生 macOS 和 Windows CI runner 上完成平台对应的构建与测试；CI 不会取代发布前在真实 Windows 环境中进行的安装级冒烟验证。
+
 ### 发布前冒烟测试
 
 在发布新版本前，必须在真实 Windows x64 环境安装 CI 生成的安装包，并至少验证：安装/卸载/升级、主窗口启动、sidecar 启动、`/health`、用户数据目录、日志和配置文件。还必须验证没有 PostgreSQL 时能进入且仅能使用配置模式；保存可连接的 PostgreSQL + pgvector 配置后，重启可进入完整工作台。涉及 Excel/Wind、系统权限、签名/杀毒软件兼容或自动更新的版本，必须在真实 Windows 上验证相应功能。macOS 发版也应在对应架构的真实设备上完成相同级别的安装验证。
