@@ -1367,8 +1367,11 @@ if (start === -1 || end === -1) throw new Error('Unable to extract template work
 const reviewButton = {
     dataset: {},
     handler: null,
+    clickHandlers: [],
     addEventListener: (eventName, handler) => {
-        if (eventName === 'click') reviewButton.handler = handler;
+        if (eventName !== 'click') return;
+        reviewButton.handler = handler;
+        reviewButton.clickHandlers.push(handler);
     }
 };
 let apiCalls = 0;
@@ -1385,9 +1388,15 @@ const sandbox = {
 vm.createContext(sandbox);
 vm.runInContext(source.slice(start, end), sandbox);
 sandbox.bindTemplateWorkbenchActions();
+sandbox.bindTemplateWorkbenchActions();
 if (!reviewButton.handler) throw new Error('Review action was not bound');
 reviewButton.handler();
-console.log(JSON.stringify({ openedTargets, apiCalls, bound: reviewButton.dataset.bound }));
+console.log(JSON.stringify({
+    openedTargets,
+    apiCalls,
+    bound: reviewButton.dataset.bound,
+    clickListenerCount: reviewButton.clickHandlers.length
+}));
 '''
     result = subprocess.run(
         ["node", "-e", script, str(TEMPLATES_JS)],
@@ -1401,6 +1410,7 @@ console.log(JSON.stringify({ openedTargets, apiCalls, bound: reviewButton.datase
         "openedTargets": ["template-validation-preview"],
         "apiCalls": 0,
         "bound": "true",
+        "clickListenerCount": 1,
     }
 
 
