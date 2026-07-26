@@ -1235,23 +1235,37 @@
                         <h2 class="section-title" id="config-page-title">系统配置</h2>
                         <p>集中管理模型、数据连接与运行参数。</p>
                     </div>
-                    <button id="config-refresh" class="secondary-btn" aria-label="重新检测配置"><i class="codicon codicon-refresh"></i> 重新检测</button>
+                    <button id="config-refresh" class="secondary-btn" aria-label="刷新配置状态" aria-describedby="config-refresh-help"><i class="codicon codicon-refresh"></i> 刷新状态</button>
                 </div>
+                <p id="config-refresh-help" class="config-visually-hidden">刷新状态只会重新读取当前配置，不测试连接或保存配置。</p>
 
                 <div id="config-page-message" class="config-page-message" role="status" aria-live="polite"></div>
 
                 <section class="config-health-summary" data-config-health-summary aria-label="系统健康总览" aria-live="polite">
-                    <div class="config-health-copy">
-                        <span>系统健康</span>
-                        <strong data-config-health-headline>正在检查配置…</strong>
-                        <p data-config-health-detail>读取本地配置和连接状态。</p>
+                    <div class="config-health-progress">
+                        <span class="config-health-label">配置进度</span>
+                        <strong><span data-config-progress-completed>--</span> 项已完成</strong>
+                        <span class="config-health-muted"><span data-config-progress-missing>--</span> 项待补齐</span>
+                        <div class="config-progress-track" role="progressbar" aria-label="配置完成进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                            <span data-config-progress-bar></span>
+                        </div>
                     </div>
-                    <div class="config-health-metrics" aria-label="配置状态统计">
-                        <span><strong data-config-health-ready>--</strong>已就绪</span>
-                        <span><strong data-config-health-missing>--</strong>待补齐</span>
-                        <span><strong data-config-health-verified>--</strong>本次已验证</span>
-                        <span><strong data-config-health-error>--</strong>连接异常</span>
+                    <div class="config-health-connection">
+                        <span class="config-health-label">连接状态</span>
+                        <button class="config-connection-summary" data-config-connection-summary type="button" aria-expanded="false" aria-controls="config-connection-detail">
+                            <strong data-config-connection-label>无异常</strong>
+                            <i class="codicon codicon-chevron-down" aria-hidden="true"></i>
+                        </button>
+                        <p id="config-connection-detail" data-config-health-detail hidden>读取本地配置和连接状态。</p>
                     </div>
+                    <label class="config-status-filter">
+                        <span class="config-health-label">显示配置</span>
+                        <select data-config-status-filter aria-label="按配置状态筛选">
+                            <option value="all">全部</option>
+                            <option value="attention">需处理</option>
+                            <option value="ready">已就绪</option>
+                        </select>
+                    </label>
                 </section>
 
                 <section class="config-environment-diagnostics" data-config-environment-diagnostics aria-label="当前环境与能力" hidden>
@@ -1262,22 +1276,6 @@
                     </div>
                     <dl class="config-environment-diagnostics-paths" data-config-environment-paths aria-label="运行路径"></dl>
                     <ul class="config-environment-diagnostics-capabilities" data-config-environment-capabilities aria-label="本机能力检测结果"></ul>
-                </section>
-
-                <section class="config-onboarding" data-config-onboarding aria-label="首次配置引导">
-                    <div class="config-onboarding-copy">
-                        <span>首次配置</span>
-                        <strong data-config-onboarding-title>正在检查配置步骤…</strong>
-                        <p data-config-onboarding-detail>完成核心服务后即可开始使用工作台。</p>
-                    </div>
-                    <ol class="config-onboarding-steps" aria-label="配置步骤">
-                        <li data-config-onboarding-step="llm">大模型服务</li>
-                        <li data-config-onboarding-step="database">数据库</li>
-                        <li data-config-onboarding-step="zhiqiu">知丘账号</li>
-                        <li data-config-onboarding-step="ifind">iFinD 账号</li>
-                        <li data-config-onboarding-step="web_search">联网搜索</li>
-                    </ol>
-                    <button class="btn-secondary config-onboarding-action" data-config-onboarding-action type="button">继续配置</button>
                 </section>
 
                 <div class="config-cards-grid">
@@ -1394,8 +1392,9 @@
                             <button id="btn-config-edit-modal-test" class="btn-secondary" type="button">
                                 <i class="codicon codicon-debug-start"></i> 测试连接
                             </button>
+                            <span id="config-edit-modal-test-help" data-config-test-help class="config-modal-test-help">测试连接不会保存当前更改</span>
                             <button id="btn-config-edit-modal-save" class="btn-primary" type="button">
-                                <i class="codicon codicon-save"></i> 保存
+                                <i class="codicon codicon-save"></i> 保存更改
                             </button>
                         </div>
                     </div>
@@ -1880,19 +1879,24 @@
                                                         <div class="empty-state compact">选择模板后显示共用参数</div>
                                                     </div>
                                                 </div>
-                                                <details class="template-workbench-panel template-project-check-panel" id="template-project-check-details" data-preflight-state="loading">
+                                                <details class="template-workbench-panel template-project-check-panel" id="template-project-check-details" open>
                                                     <summary>
                                                         <span><i class="codicon codicon-checklist"></i> 生成检查</span>
-                                                        <small id="template-project-check-summary">正在检查</small>
+
                                                         <strong id="template-project-check-status" class="badge">待加载</strong>
                                                     </summary>
                                                     <div class="template-project-check-body" id="template-generation-readiness-panel">
                                                         <div class="template-project-check-section" id="template-validation-preview">
-                                                            <div id="template-project-check-actions" class="template-project-check-actions" aria-live="polite"></div>
-                                                            <details id="template-validation-details" class="template-validation-details">
-                                                                <summary>查看检查详情</summary>
-                                                                <div id="template-validation-list" class="template-validation-list"></div>
-                                                            </details>
+                                                            <div class="panel-title-row compact">
+                                                                <h4>生成预检</h4>
+                                                                <span id="template-validation-status" class="badge">未运行</span>
+                                                            </div>
+                                                            <div id="template-validation-list" class="template-validation-list">
+                                                                <div class="validation-item pending"><i class="codicon codicon-circle-outline"></i><span>Word 占位符均有 section 映射</span></div>
+                                                                <div class="validation-item pending"><i class="codicon codicon-circle-outline"></i><span>AI 文本 section 已配置 prompt</span></div>
+                                                                <div class="validation-item pending"><i class="codicon codicon-circle-outline"></i><span>Excel 图表和表格已绑定来源</span></div>
+                                                                <div class="validation-item pending"><i class="codicon codicon-circle-outline"></i><span>数字、禁用词、投资建议规则已配置</span></div>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </details>

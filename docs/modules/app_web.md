@@ -44,8 +44,10 @@ Purpose:
 - Placeholder mapping shows every Word placeholder in first-seen order, builds draft mappings for missing entries, and resolves a placeholder's output type in this strict order: a recognized explicit `type` (after legacy aliases are normalized), a valid historical paragraph `mode` only when `type` is absent, then name-based inference. Legacy aliases normalize as `prompt`/`ai_text`/`composite_market_review` → `paragraph`, `report_period`/`excel_cell`/`excel_range` → `field`, `config_text` → `static_text`, and `excel_chart` → `chart`. A non-paragraph explicit type ignores any legacy paragraph `mode` for rendering without deleting it, so changing the type back to `paragraph` restores the prior valid mode. This prevents stale paragraph settings from changing explicitly configured table, chart, field, or static-text placeholders while preserving backward-compatible drafts.
 - Report rendering uses `/api/report-projects/{slug}/render`, shows download and preview actions, and loads the inline DOCX HTML preview from the returned `preview_url`.
 - Fund Intelligence panel logic lives in `app/web/static/js/funds.js` and calls `/api/funds/{symbol}`, `/api/funds/{symbol}/exposure`, `/api/funds/portfolio/exposure`, and `/api/funds/ingest` for fund detail, exposure, portfolio look-through, and structured row ingestion.
-- System configuration logic in `app/web/static/js/configuration.js` is statically imported by the Workbench entry module; its configuration-modal event binder must remain declared so a modal interaction defect cannot prevent the full Workbench module graph from loading. The configuration console derives its health overview and first-run guidance only from the existing desensitized snapshot; it reuses the edit modal for card actions. Connection-test results are in-memory session state and must be cleared on refresh rather than presented as persistent health data. The homepage never exposes the environment-managed key list: lock guidance appears only beside the affected field, row, or collection in the edit modal, using a user-friendly explanation. Provider、任务路由和账号/Key 池按原子集合锁定：任一受管键会使整个对应集合只读且不随保存提交，避免部分编辑被后端的整组替换协议拒绝；同分区未锁标量仍可保存。内部键名只用于前端锁定判断和 payload 过滤，不渲染为用户可见文本。
-- The configuration page's existing health overview, cards, and edit flow remain unchanged. Its environment capability diagnostics are read-only and show only safe information: they never read or export secrets. The capability catalog is a metadata directory, not a dynamic-form generator. In particular, `psql` marked available means only that the client command is discoverable; it does not mean a PostgreSQL server or pgvector is ready. Actual database health continues to come from `/api/setup/readiness` and database connection tests. An iFinD SDK result is only a local dependency hint; Wind is not applicable outside Windows, and Windows support still requires validation with real Excel.
+- 系统配置首页以紧凑进度和连接状态概览展示配置完成情况；可按状态筛选卡片，在窄屏下卡片会自适应排列。“刷新状态”只重新读取当前状态，并清除本次会话中临时的连接测试结果，不会测试连接或保存配置。
+- 配置卡片会打开对应的编辑弹窗。弹窗会清楚显示尚未添加的账号或 Key，并以更紧凑的字段布局呈现可编辑项；支持测试的配置会说明“测试连接不会保存当前更改”，主要操作为“保存更改”。
+- 由当前启动配置管理的字段仍会保持只读，并在受影响字段、行或集合附近给出说明；秘密值不会回填到界面。Provider、任务路由和账号/Key 池按原子集合锁定：任一受管项会使该集合只读且不随保存提交，未受管的同分区独立设置仍可保存。
+- 当前环境与能力诊断为只读信息：不读取或导出秘密，也不生成动态表单。`psql` 可用仅表示命令可被发现，不代表 PostgreSQL 或 pgvector 已就绪；iFinD SDK 仅是本机依赖提示，Wind 在非 Windows 平台不适用，Windows 仍须以真实 Excel 验证。
 
 Update this section when:
 - New JS modules are added
@@ -100,8 +102,9 @@ When files in this module change, check:
 
 ## Recent Changes
 
-- 2026-07-26: 系统配置页新增健康总览、首次配置引导和卡片动作文字；连接测试结果会在当前会话中显示为“连接已验证”或“连接异常”，重新检测配置后清除，避免把短暂检测结果误作持久运行状态。
-- 2026-07-26: 新增只读环境能力诊断和元数据 catalog；它不生成动态表单、不读取或导出秘密，并明确区分客户端命令/本机 SDK 提示与实际数据库、pgvector 及 Wind/Excel 就绪状态。
+- 2026-07-26: 完善系统配置界面：首页提供紧凑进度、连接状态概览和状态筛选，卡片在窄屏下自适应排列；“刷新状态”只重新读取状态，不测试连接或保存配置。编辑弹窗显示空账号/Key 状态、采用紧凑字段布局，并明确说明连接测试不会保存更改；“保存更改”为主要保存操作。环境管理的配置仍保持锁定，秘密值不回填。
+- 2026-07-26: 系统配置页新增健康总览和卡片操作说明；首次配置引导已在后续迭代中简化为紧凑进度。连接测试结果仅在当前会话中显示，重新检测配置后会清除，避免把短暂检测结果误作持久运行状态。
+- 2026-07-26: 增加只读环境能力诊断，展示安全的运行环境、路径与能力信息；其状态不替代真实数据库连接或 Windows Excel/Wind 验证。
 - 2026-07-26: 环境变量锁定提示迁移为配置弹窗内的字段、动态行或受管集合上下文说明；Provider、任务路由和账号/Key 池采用原子集合锁定，任一受管键均使整个集合只读且不提交，首页不展示受管名单，前端内部键名仅用于锁定判断。
 - 2026-07-24: 报告模板工作台占位符输出类型采用稳定优先级：已显式配置的 `type`（含 legacy alias 归一化）优先；仅当 `type` 缺失时才采用有效历史段落 `mode`；两者均无时才按占位符名称推断。显式非段落类型会忽略但保留遗留段落 `mode`，用户切回 `paragraph` 时可以恢复该模式。
 - 2026-06-25: 新增基金情报前端面板，左侧导航接入 `section-funds`，通过 `app/web/static/js/funds.js` 调用 Fund Intelligence API 展示基金详情、经理、持仓、行业暴露、组合穿透和结构化 rows 导入结果。

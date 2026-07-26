@@ -355,8 +355,11 @@ function removeButton(label) {
     button.setAttribute('aria-label', label);
     button.addEventListener('click', () => {
         const row = button.closest('.config-dynamic-row');
-        if (row) markSectionDirty(row);
+        const form = row?.closest('[data-config-form]');
+        const section = form?.dataset.configForm;
+        if (row) markSectionDirty(form || row);
         row?.remove();
+        restoreEmptyCollectionState(form, section);
     });
     return button;
 }
@@ -531,6 +534,54 @@ function renderWebSearchKeys(accounts) {
     const list = document.getElementById('config-web_search-key-list');
     if (!list) return;
     list.replaceChildren(...accounts.map(createWebSearchKeyRow));
+}
+
+function createEmptyCollectionState(section) {
+    const messages = {
+        zhiqiu: '尚未添加账号。新增账号后，可在此管理轮询与重试策略。',
+        ifind: '尚未添加账号。新增账号后，可在此配置 iFinD 连接方式。',
+        web_search: '尚未添加 API Key。新增 Key 后，可在此配置搜索参数。',
+    };
+    const message = messages[section];
+    if (!message) return null;
+    const state = element('p', 'config-empty-collection', message);
+    state.setAttribute('role', 'status');
+    return state;
+}
+
+function renderEmptyCollectionState(form, section, accounts) {
+    if ((accounts || []).length || form.querySelector('.config-empty-collection')) return;
+    const addButton = form.querySelector({
+        zhiqiu: '[data-add-zhiqiu-account]',
+        ifind: '[data-add-ifind-account]',
+        web_search: '[data-add-web_search-key]',
+    }[section]);
+    const state = createEmptyCollectionState(section);
+    if (addButton && state) addButton.after(state);
+}
+
+function removeEmptyCollectionState(form) {
+    form.querySelector('.config-empty-collection')?.remove();
+}
+
+function restoreEmptyCollectionState(form, section) {
+    if (!form || !section || form.querySelector('.config-empty-collection')) return;
+    const collection = {
+        zhiqiu: { listId: 'config-zhiqiu-account-list', rowSelector: '.config-zhiqiu-row' },
+        ifind: { listId: 'config-ifind-account-list', rowSelector: '.config-ifind-row' },
+        web_search: { listId: 'config-web_search-key-list', rowSelector: '.config-web_search-row' },
+    }[section];
+    const list = collection && form.querySelector(`#${collection.listId}`);
+    if (list && !list.querySelector(collection.rowSelector)) {
+        renderEmptyCollectionState(form, section, []);
+    }
+}
+
+function syncEmptyCollectionState(section, accounts) {
+    const form = document.getElementById(`config-${section}-form`);
+    if (!form) return;
+    removeEmptyCollectionState(form);
+    renderEmptyCollectionState(form, section, accounts);
 }
 
 function addControlDescription(control, messageId) {
@@ -736,6 +787,9 @@ async function refreshDatabaseRuntimeReadiness() {
     }
     renderDatabaseRuntimeReadiness();
     renderSummaryCards();
+    if (configurationSnapshot) {
+        renderConfigurationHealth(configurationSnapshot);
+    }
     return databaseRuntimeReadiness;
 }
 
@@ -765,7 +819,11 @@ function renderReadiness(snapshot) {
 function getConfigurationHealth(snapshot) {
     const readiness = snapshot?.readiness || {};
     const entries = Object.entries(readiness);
-    const readyCount = entries.filter(([, ready]) => Boolean(ready)).length;
+    const readyCount = entries.filter(([section, ready]) => (
+        section === 'database'
+            ? databaseReadinessPresentation().state === 'ready'
+            : Boolean(ready)
+    )).length;
     const connectionStates = [...connectionStateBySection.values()];
     return {
         readyCount,
@@ -940,50 +998,38 @@ export function renderEnvironmentDiagnostics(snapshot) {
 function renderConfigurationHealth(snapshot) {
     const health = getConfigurationHealth(snapshot);
     const summary = document.querySelector('[data-config-health-summary]');
-    if (summary) {
-        summary.classList.toggle('ready', health.missingCount === 0 && health.errorCount === 0);
-        summary.classList.toggle('has-error', health.errorCount > 0);
-        summary.querySelector('[data-config-health-headline]').textContent = health.errorCount
-            ? `发现 ${health.errorCount} 项连接异常`
-            : `系统状态：${health.readyCount} 项已就绪 · ${health.missingCount} 项待补齐`;
-        summary.querySelector('[data-config-health-detail]').textContent = health.verifiedCount
-            ? `${health.verifiedCount} 项已在本次会话中完成连接验证；刷新后将重新检测。`
-            : '配置就绪表示已填写必要信息；可在详情中执行连接测试。';
-        summary.querySelector('[data-config-health-ready]').textContent = health.readyCount;
-        summary.querySelector('[data-config-health-missing]').textContent = health.missingCount;
-        summary.querySelector('[data-config-health-verified]').textContent = health.verifiedCount;
-        summary.querySelector('[data-config-health-error]').textContent = health.errorCount;
-    }
-
     const readiness = snapshot?.readiness || {};
-    const completedCount = ONBOARDING_SECTIONS.filter(section => readiness[section]).length;
-    const nextSection = ONBOARDING_SECTIONS.find(section => !readiness[section]);
-    const onboarding = document.querySelector('[data-config-onboarding]');
-    if (!onboarding) return;
-    onboarding.querySelector('[data-config-onboarding-title]').textContent = nextSection
-        ? `已完成 ${completedCount} / ${ONBOARDING_SECTIONS.length} 个配置步骤`
-        : '首次配置已完成';
-    onboarding.querySelector('[data-config-onboarding-detail]').textContent = nextSection
-        ? `下一步：${SECTION_META[nextSection]?.title || '补齐待配置项'}。`
-        : '所有常用服务均已配置，可按需执行连接测试。';
-    onboarding.querySelector('[data-config-onboarding-action]').textContent = nextSection ? '继续配置' : '查看配置';
-    onboarding.querySelectorAll('[data-config-onboarding-step]').forEach(step => {
-        const ready = Boolean(readiness[step.dataset.configOnboardingStep]);
-        step.classList.toggle('ready', ready);
-        step.classList.toggle('missing', !ready);
-        step.setAttribute('aria-label', `${step.textContent}：${ready ? '已就绪' : '待配置'}`);
-    });
-}
+    const total = Object.keys(readiness).length || ONBOARDING_SECTIONS.length;
+    const completed = health.readyCount;
+    const missing = Math.max(0, total - completed);
+    const percent = total ? Math.round((completed / total) * 100) : 0;
+    const connectionLabel = health.errorCount
+        ? `发现 ${health.errorCount} 项连接异常`
+        : health.verifiedCount
+            ? `${health.verifiedCount} 项本次已验证`
+            : '暂无异常';
+    const connectionDetail = health.errorCount
+        ? `发现 ${health.errorCount} 项连接异常，请打开对应配置修复后再次测试。`
+        : health.verifiedCount
+            ? `${health.verifiedCount} 项连接已在本次会话验证；刷新状态会清除此会话结果。`
+            : '尚未发现连接异常；可在具体配置中按需测试连接。';
 
-function openNextIncompleteConfiguration() {
-    const readiness = configurationSnapshot?.readiness || {};
-    const section = ONBOARDING_SECTIONS.find(name => !readiness[name]) || ONBOARDING_SECTIONS[0];
-    if (!SECTION_META[section]) {
-        showPageMessage('配置状态尚未加载完成，请稍后重试', 'error');
-        return;
+    if (!summary) return;
+    summary.classList.toggle('ready', missing === 0 && health.errorCount === 0);
+    summary.classList.toggle('has-error', health.errorCount > 0);
+    const completedNode = summary.querySelector('[data-config-progress-completed]');
+    if (completedNode) completedNode.textContent = completed;
+    const missingNode = summary.querySelector('[data-config-progress-missing]');
+    if (missingNode) missingNode.textContent = missing;
+    const progressBar = summary.querySelector('[data-config-progress-bar]');
+    if (progressBar) {
+        progressBar.style.width = `${percent}%`;
+        progressBar.parentElement?.setAttribute('aria-valuenow', String(percent));
     }
-    console.info('[config] opening configuration entry point', { section });
-    openConfigModal(section);
+    const connectionLabelNode = summary.querySelector('[data-config-connection-label]');
+    if (connectionLabelNode) connectionLabelNode.textContent = connectionLabel;
+    const connectionDetailNode = summary.querySelector('[data-config-health-detail]');
+    if (connectionDetailNode) connectionDetailNode.textContent = connectionDetail;
 }
 
 function renderSnapshot(snapshot) {
@@ -1003,11 +1049,13 @@ function renderSection(section, values) {
         renderTaskRoutes(values.task_routes || []);
     } else if (section === 'zhiqiu') {
         renderZhiqiuAccounts(values.accounts || []);
+        syncEmptyCollectionState('zhiqiu', values.accounts || []);
         setFormValues(document.getElementById('config-zhiqiu-form'), values, [
             'enabled', 'rotation_strategy', 'max_retries', 'retry_delay', 'lease_timeout', 'max_consecutive_failures',
         ]);
     } else if (section === 'ifind') {
         renderIfindAccounts(values.accounts || []);
+        syncEmptyCollectionState('ifind', values.accounts || []);
         setFormValues(document.getElementById('config-ifind-form'), values, ['backend', 'http_base_url']);
     } else if (section === 'database') {
         setSecretState('[data-secret-state="database-url"]', values.database_url);
@@ -1019,6 +1067,7 @@ function renderSection(section, values) {
         ]);
     } else if (section === 'web_search') {
         renderWebSearchKeys(values.accounts || []);
+        syncEmptyCollectionState('web_search', values.accounts || []);
         setFormValues(document.getElementById('config-web_search-form'), values, [
             'provider', 'rotation_strategy', 'quota_limit', 'max_results', 'timeout',
         ]);
@@ -1415,7 +1464,30 @@ async function refreshConfiguration() {
         return;
     }
     if (dirtySections.size && !window.confirm('刷新会丢弃尚未保存的修改，是否继续？')) return;
+    connectionStateBySection.clear();
+    if (configurationSnapshot) {
+        renderSummaryCards();
+        renderConfigurationHealth(configurationSnapshot);
+    }
     await loadConfiguration({ discardDirty: true });
+}
+
+function configurationCardState(section) {
+    if (section === 'database') return databaseReadinessPresentation().state;
+    const connectionState = connectionStateBySection.get(section);
+    if (connectionState === 'error' || connectionState === 'verified') return connectionState;
+    return configurationSnapshot?.readiness?.[section] ? 'ready' : 'missing';
+}
+
+function renderConfigurationCardVisibility() {
+    const filter = document.querySelector('[data-config-status-filter]')?.value || 'all';
+    document.querySelectorAll('[data-config-card]').forEach(card => {
+        const state = configurationCardState(card.dataset.configCard);
+        const visible = filter === 'all'
+            || (filter === 'attention' && (state === 'missing' || state === 'error' || state === 'restart'))
+            || (filter === 'ready' && (state === 'ready' || state === 'verified'));
+        card.hidden = !visible;
+    });
 }
 
 function bindConfigurationEvents() {
@@ -1439,7 +1511,17 @@ function bindConfigurationEvents() {
 
     // 刷新按钮
     document.getElementById('config-refresh')?.addEventListener('click', refreshConfiguration);
-    page.querySelector('[data-config-onboarding-action]')?.addEventListener('click', openNextIncompleteConfiguration);
+    page.querySelector('[data-config-status-filter]')?.addEventListener('change', () => {
+        renderConfigurationCardVisibility();
+    });
+    page.querySelector('[data-config-connection-summary]')?.addEventListener('click', () => {
+        const detail = page.querySelector('[data-config-health-detail]');
+        const button = page.querySelector('[data-config-connection-summary]');
+        if (!detail || !button) return;
+        const expanded = button.getAttribute('aria-expanded') === 'true';
+        button.setAttribute('aria-expanded', String(!expanded));
+        detail.hidden = expanded;
+    });
 
     syncMutationControls();
 }
@@ -1565,6 +1647,8 @@ export function renderSummaryCards() {
         }
     });
 
+    renderConfigurationCardVisibility();
+
     // 移除加载骨架屏状态
     const grid = document.querySelector('.config-cards-grid');
     if (grid) grid.removeAttribute('data-loading');
@@ -1596,7 +1680,7 @@ function renderModalForm(section, values) {
                 <div class="config-row-labels config-zhiqiu-labels" aria-hidden="true"><span>名称</span><span>用户名</span><span>密码</span><span>操作</span></div>
                 <div id="config-zhiqiu-account-list" class="config-dynamic-list"></div>
                 <div class="config-settings-header"><h4><i class="codicon codicon-settings"></i>调度设置</h4></div>
-                <div class="config-field-grid">
+                <div class="config-field-grid config-field-grid--compact">
                     <label class="config-checkbox"><input type="checkbox" name="enabled">启用账号轮询</label>
                     <label><span>轮询策略</span><select name="rotation_strategy"><option value="round_robin">轮询</option><option value="random">随机</option><option value="least_used">最少使用</option></select></label>
                     <label><span>最大重试次数</span><input type="number" name="max_retries" min="0" max="20"></label>
@@ -1611,10 +1695,10 @@ function renderModalForm(section, values) {
                 <div class="config-row-labels config-ifind-labels" aria-hidden="true"><span>名称</span><span>用户名</span><span>密码</span><span>操作</span></div>
                 <div id="config-ifind-account-list" class="config-dynamic-list"></div>
                 <div class="config-settings-header"><h4><i class="codicon codicon-plug"></i>连接设置</h4></div>
-                <div class="config-field-grid">
+                <div class="config-field-grid config-field-grid--compact">
                     <label><span>后端类型</span><select name="backend"><option value="auto">自动</option><option value="python_sdk">Python SDK</option><option value="http_api">HTTP API</option></select></label>
-                    <label><span>HTTP Base URL</span><input type="url" name="http_base_url" placeholder="https://quantapi.10jqka.com.cn"></label>
-                </div>`;
+                </div>
+                <label class="config-field-wide"><span>HTTP Base URL</span><input type="url" name="http_base_url" placeholder="https://quantapi.10jqka.com.cn"></label>`;
             break;
         case 'web_search':
             form.innerHTML = `
@@ -1622,7 +1706,7 @@ function renderModalForm(section, values) {
                 <div class="config-row-labels config-web_search-labels" aria-hidden="true"><span>名称</span><span>API Key</span><span>状态</span><span>操作</span></div>
                 <div id="config-web_search-key-list" class="config-dynamic-list"></div>
                 <div class="config-settings-header"><h4><i class="codicon codicon-search"></i>搜索设置</h4></div>
-                <div class="config-field-grid">
+                <div class="config-field-grid config-field-grid--compact">
                     <label><span>搜索 Provider</span><select name="provider"><option value="tavily">Tavily</option><option value="bing">Bing</option></select></label>
                     <label><span>轮询策略</span><select name="rotation_strategy"><option value="round_robin">轮询</option><option value="random">随机</option><option value="least_used">最少使用</option></select></label>
                     <label><span>月度配额</span><input type="number" name="quota_limit" min="1" max="100000" placeholder="1000"></label>
@@ -1658,12 +1742,15 @@ function renderModalForm(section, values) {
         renderTaskRoutes(values.task_routes || []);
     } else if (section === 'zhiqiu') {
         renderZhiqiuAccounts(values.accounts || []);
+        renderEmptyCollectionState(form, section, values.accounts);
         setFormValues(form, values, ['enabled', 'rotation_strategy', 'max_retries', 'retry_delay', 'lease_timeout', 'max_consecutive_failures']);
     } else if (section === 'ifind') {
         renderIfindAccounts(values.accounts || []);
+        renderEmptyCollectionState(form, section, values.accounts);
         setFormValues(form, values, ['backend', 'http_base_url']);
     } else if (section === 'web_search') {
         renderWebSearchKeys(values.accounts || []);
+        renderEmptyCollectionState(form, section, values.accounts);
         setFormValues(form, values, ['provider', 'rotation_strategy', 'quota_limit', 'max_results', 'timeout']);
     } else if (section === 'database') {
         setSecretState('[data-secret-state="database-url"]', values.database_url);
@@ -1749,18 +1836,21 @@ function bindModalFormEvents(form, section) {
     });
     form.querySelector('[data-add-zhiqiu-account]')?.addEventListener('click', () => {
         document.getElementById('config-zhiqiu-account-list')?.append(createZhiqiuAccountRow());
+        removeEmptyCollectionState(form);
         applyCollectionLocks(form, section);
         markSectionDirty(form);
         modalDirty = true;
     });
     form.querySelector('[data-add-ifind-account]')?.addEventListener('click', () => {
         document.getElementById('config-ifind-account-list')?.append(createIfindAccountRow());
+        removeEmptyCollectionState(form);
         applyCollectionLocks(form, section);
         markSectionDirty(form);
         modalDirty = true;
     });
     form.querySelector('[data-add-web_search-key]')?.addEventListener('click', () => {
         document.getElementById('config-web_search-key-list')?.append(createWebSearchKeyRow());
+        removeEmptyCollectionState(form);
         applyCollectionLocks(form, section);
         markSectionDirty(form);
         modalDirty = true;
@@ -1786,6 +1876,7 @@ function openConfigModal(section) {
     currentModalSection = section;
     modalDirty = false;
     setModalLockNote(false);
+    const modal = document.getElementById('config-edit-modal');
 
     const values = configurationSnapshot.sections[section];
     const meta = SECTION_META[section];
@@ -1805,8 +1896,11 @@ function openConfigModal(section) {
 
     renderModalForm(section, values);
 
+    const testable = Boolean(meta.testable);
     const testBtn = document.getElementById('btn-config-edit-modal-test');
-    testBtn.style.display = meta.testable ? '' : 'none';
+    testBtn.hidden = !testable;
+    const testHelp = modal?.querySelector('[data-config-test-help]');
+    if (testHelp) testHelp.hidden = !testable;
 
     const statusEl = document.getElementById('config-edit-modal-status');
     statusEl.textContent = '';
