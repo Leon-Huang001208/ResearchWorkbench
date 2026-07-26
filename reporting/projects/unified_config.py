@@ -13,6 +13,7 @@ from collections.abc import Mapping
 from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -27,10 +28,12 @@ class UnifiedRenderingConfig:
     """Optional rendering settings attached to one unified placeholder."""
 
     paragraph_style: str | None = None
-    runs: list[dict[str, Any]] = field(default_factory=list)
+    runs: tuple[Mapping[str, Any], ...] = field(default_factory=tuple)
     visible_if: str | None = None
-    chart_grid: dict[str, Any] | None = None
-    extra: dict[str, Any] = field(default_factory=dict)
+    chart_grid: Mapping[str, Any] | None = None
+    extra: Mapping[str, Any] = field(default_factory=lambda: MappingProxyType({}))
+    present: bool = False
+    provided_fields: frozenset[str] = field(default_factory=frozenset)
 
     @classmethod
     def from_mapping(cls, raw: Mapping[str, Any]) -> "UnifiedRenderingConfig":
@@ -42,34 +45,30 @@ class UnifiedRenderingConfig:
         known_fields = {"paragraph_style", "runs", "visible_if", "chart_grid"}
         return cls(
             paragraph_style=paragraph_style,
-            runs=runs,
+            runs=tuple(_freeze(run) for run in runs),
             visible_if=visible_if,
-            chart_grid=chart_grid,
-            extra={key: deepcopy(value) for key, value in raw.items() if key not in known_fields},
+            chart_grid=_freeze(chart_grid) if chart_grid is not None else None,
+            extra=_freeze({key: value for key, value in raw.items() if key not in known_fields}),
+            present=True,
+            provided_fields=frozenset(key for key in raw if key in known_fields),
         )
 
     @property
     def configured(self) -> bool:
         """Whether the source placeholder contained a rendering block."""
-        return bool(
-            self.paragraph_style is not None
-            or self.runs
-            or self.visible_if is not None
-            or self.chart_grid is not None
-            or self.extra
-        )
+        return self.present
 
     def to_mapping(self) -> dict[str, Any]:
         """Return a lossless serializable rendering mapping."""
-        result = deepcopy(self.extra)
-        if self.paragraph_style is not None:
+        result = _thaw(self.extra)
+        if "paragraph_style" in self.provided_fields:
             result["paragraph_style"] = self.paragraph_style
-        if self.runs:
-            result["runs"] = deepcopy(self.runs)
-        if self.visible_if is not None:
+        if "runs" in self.provided_fields:
+            result["runs"] = [_thaw(run) for run in self.runs]
+        if "visible_if" in self.provided_fields:
             result["visible_if"] = self.visible_if
-        if self.chart_grid is not None:
-            result["chart_grid"] = deepcopy(self.chart_grid)
+        if "chart_grid" in self.provided_fields:
+            result["chart_grid"] = _thaw(self.chart_grid)
         return result
 
 
@@ -79,9 +78,9 @@ class UnifiedPlaceholderConfig:
 
     key: str
     prompt_template: str | None
-    retrieval: dict[str, Any]
+    retrieval: Mapping[str, Any]
     rendering: UnifiedRenderingConfig = field(default_factory=UnifiedRenderingConfig)
-    fields: dict[str, Any] = field(default_factory=dict)
+    fields: Mapping[str, Any] = field(default_factory=lambda: MappingProxyType({}))
 
     @classmethod
     def from_mapping(
@@ -101,18 +100,18 @@ class UnifiedPlaceholderConfig:
         return cls(
             key=key,
             prompt_template=prompt_template,
-            retrieval=retrieval,
+            retrieval=_freeze(retrieval),
             rendering=rendering,
-            fields=deepcopy(dict(raw)),
+            fields=_freeze(dict(raw)),
         )
 
     def to_mapping(self) -> dict[str, Any]:
         """Return V1 fields plus the normalized optional rendering block."""
-        result = deepcopy(self.fields)
-        if self.prompt_template is not None:
+        result = _thaw(self.fields)
+        if "prompt_template" in self.fields:
             result["prompt_template"] = self.prompt_template
-        if self.retrieval:
-            result["retrieval"] = deepcopy(self.retrieval)
+        if "retrieval" in self.fields:
+            result["retrieval"] = _thaw(self.retrieval)
         if self.rendering.configured:
             result["rendering"] = self.rendering.to_mapping()
         else:
@@ -125,15 +124,15 @@ class UnifiedReportConfig:
     """The only configuration shape accepted by report runtime code."""
 
     name: str | None
-    assets: dict[str, Any]
-    defaults: dict[str, Any]
-    components: dict[str, Any]
-    retrieval: dict[str, Any]
-    charts: dict[str, Any]
-    tables: dict[str, Any]
-    validators: dict[str, Any]
-    placeholders: dict[str, UnifiedPlaceholderConfig]
-    fields: dict[str, Any] = field(default_factory=dict)
+    assets: Mapping[str, Any]
+    defaults: Mapping[str, Any]
+    components: Mapping[str, Any]
+    retrieval: Mapping[str, Any]
+    charts: Mapping[str, Any]
+    tables: Mapping[str, Any]
+    validators: Mapping[str, Any]
+    placeholders: Mapping[str, UnifiedPlaceholderConfig]
+    fields: Mapping[str, Any] = field(default_factory=lambda: MappingProxyType({}))
 
     @classmethod
     def from_mapping(cls, raw: Mapping[str, Any]) -> "UnifiedReportConfig":
@@ -154,20 +153,32 @@ class UnifiedReportConfig:
 
         return cls(
             name=_optional_string(source.get("name"), "name"),
-            assets=_optional_mapping(source.get("assets"), "assets") or {},
-            defaults=_optional_mapping(source.get("defaults"), "defaults") or {},
-            components=_optional_mapping(source.get("components"), "components") or {},
-            retrieval=_optional_mapping(source.get("retrieval"), "retrieval") or {},
-            charts=_optional_mapping(source.get("charts"), "charts") or {},
-            tables=_optional_mapping(source.get("tables"), "tables") or {},
-            validators=_optional_mapping(source.get("validators"), "validators") or {},
-            placeholders=placeholders,
-            fields=source,
+            assets=_freeze(_optional_mapping(source.get("assets"), "assets") or {}),
+            defaults=_freeze(_optional_mapping(source.get("defaults"), "defaults") or {}),
+            components=_freeze(_optional_mapping(source.get("components"), "components") or {}),
+            retrieval=_freeze(_optional_mapping(source.get("retrieval"), "retrieval") or {}),
+            charts=_freeze(_optional_mapping(source.get("charts"), "charts") or {}),
+            tables=_freeze(_optional_mapping(source.get("tables"), "tables") or {}),
+            validators=_freeze(_optional_mapping(source.get("validators"), "validators") or {}),
+            placeholders=MappingProxyType(dict(placeholders)),
+            fields=_freeze(source),
         )
 
     def to_generation_dict(self) -> dict[str, Any]:
         """Serialize the normalized model for existing V1 generation services."""
-        result = deepcopy(self.fields)
+        result = _thaw(self.fields)
+        for field_name in (
+            "name",
+            "assets",
+            "defaults",
+            "components",
+            "retrieval",
+            "charts",
+            "tables",
+            "validators",
+        ):
+            if field_name in self.fields:
+                result[field_name] = _thaw(getattr(self, field_name))
         result["placeholders"] = {
             key: placeholder.to_mapping() for key, placeholder in self.placeholders.items()
         }
@@ -218,6 +229,30 @@ def _list_of_mappings(value: Any, field_name: str) -> list[dict[str, Any]]:
     for index, item in enumerate(value):
         result.append(deepcopy(dict(_required_mapping(item, f"{field_name}[{index}]"))))
     return result
+
+
+def _freeze(value: Any) -> Any:
+    """Recursively detach and make parsed configuration containers read-only."""
+    if isinstance(value, Mapping):
+        return MappingProxyType({key: _freeze(item) for key, item in value.items()})
+    if isinstance(value, list):
+        return tuple(_freeze(item) for item in value)
+    if isinstance(value, tuple):
+        return tuple(_freeze(item) for item in value)
+    if isinstance(value, set):
+        return frozenset(_freeze(item) for item in value)
+    return deepcopy(value)
+
+
+def _thaw(value: Any) -> Any:
+    """Return a fresh mutable mapping suitable for generation services."""
+    if isinstance(value, Mapping):
+        return {key: _thaw(item) for key, item in value.items()}
+    if isinstance(value, tuple):
+        return [_thaw(item) for item in value]
+    if isinstance(value, frozenset):
+        return {_thaw(item) for item in value}
+    return deepcopy(value)
 
 
 __all__ = [
