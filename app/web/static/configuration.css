@@ -335,6 +335,48 @@
     min-height: 15px;
 }
 
+/* 启动配置锁定：只在当前编辑字段旁提示，不暴露启动变量名称。 */
+.config-edit-modal-body label.environment-locked {
+    padding: 8px 10px;
+    border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border-primary));
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--accent) 4%, var(--bg-elevated));
+}
+
+.config-edit-modal-body label.environment-locked :is(input, select, textarea):disabled {
+    cursor: not-allowed;
+    opacity: 0.68;
+}
+
+.config-lock-message {
+    display: block;
+    margin-top: 2px;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 400;
+    line-height: 1.35;
+}
+
+.config-edit-modal-content .modal-footer .config-modal-lock-note {
+    display: inline-flex;
+    flex: 1 1 190px;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    margin-right: auto;
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.config-edit-modal-content .modal-footer .config-modal-lock-note[hidden] {
+    display: none;
+}
+
+.config-edit-modal-content .modal-footer .config-modal-status:empty {
+    display: none;
+}
+
 .config-field-grid {
     gap: 16px;
 }
@@ -635,6 +677,14 @@
 
     .config-advanced-panel > form {
         padding: 0 18px 18px;
+    }
+
+}
+
+@media (max-width: 720px) {
+    .config-edit-modal-content .modal-footer .config-modal-lock-note {
+        flex-basis: 100%;
+        margin-right: 0;
     }
 }
 
