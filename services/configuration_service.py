@@ -667,7 +667,9 @@ class ConfigurationService:
         submitted_password = payload.get("password")
         clear_password = bool(payload.get("clear_password", False))
         protected_credentials = bool(
-            self._locked_fields().intersection({"IFIND_USERNAME", "IFIND_PASSWORD"})
+            self._locked_fields().intersection(
+                {"IFIND_ACCOUNTS_JSON", "IFIND_USERNAME", "IFIND_PASSWORD"}
+            )
         )
         connection_only_update = bool(payload) and set(payload).issubset(
             {"backend", "http_base_url"}
