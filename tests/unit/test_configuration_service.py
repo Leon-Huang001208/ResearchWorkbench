@@ -209,3 +209,44 @@ def test_ifind_connection_updates_preserve_environment_managed_credentials(monke
 
     with pytest.raises(RuntimeError, match="IFIND_USERNAME"):
         service.update_section("ifind", {"username": "attempted-override"})
+
+
+@pytest.mark.parametrize(
+    "locked_key, environment_value",
+    [
+        ("WEB_SEARCH_API_KEYS", '[{"name":"environment","key":"secret"}]'),
+        ("TAVILY_API_KEY", "tavily-secret"),
+        ("BING_API_KEY", "bing-secret"),
+    ],
+)
+def test_web_search_account_pool_rejects_any_environment_managed_pool_key(
+    monkeypatch, tmp_path, locked_key, environment_value
+):
+    env_path = tmp_path / ".env"
+    env_path.write_text(f"{locked_key}=file-value\nWEB_SEARCH_TIMEOUT=15\n", encoding="utf-8")
+    monkeypatch.setenv(locked_key, environment_value)
+    runtime_context = RuntimeContext(
+        mode="desktop",
+        project_root=tmp_path,
+        data_dir=tmp_path,
+        env_path=env_path,
+        backend_url="http://127.0.0.1:8765",
+        can_write_config=True,
+        environment_override_keys=frozenset({locked_key}),
+    )
+    service = ConfigurationService(
+        env_path=env_path,
+        runtime_settings=Settings(),
+        runtime_context=runtime_context,
+    )
+    original = env_path.read_text(encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match=locked_key):
+        service.update_section(
+            "web_search",
+            {"accounts": [{"name": "attempted-override", "key": "replacement-secret"}]},
+        )
+
+    assert env_path.read_text(encoding="utf-8") == original
+    result = service.update_section("web_search", {"timeout": 20})
+    assert result["section"]["timeout"] == 20

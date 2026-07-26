@@ -36,6 +36,9 @@ logger = get_logger(__name__)
 
 SUPPORTED_SECTIONS = {"llm", "zhiqiu", "ifind", "database", "advanced", "web_search"}
 SECRET_SUFFIX_LENGTH = 4
+WEB_SEARCH_ACCOUNT_POOL_KEYS = frozenset(
+    {"WEB_SEARCH_API_KEYS", "TAVILY_API_KEY", "BING_API_KEY"}
+)
 ZHIQIU_CONFIG_PATH = (
     Path(__file__).resolve().parents[1] / "data_layer" / "crawlers" / "zq" / "config.yaml"
 )
@@ -195,6 +198,12 @@ class ConfigurationService:
 
     def _update_section_locked(self, section: str, payload: Mapping[str, Any]) -> dict[str, Any]:
         """在进程内和跨进程锁均持有时执行完整更新事务。"""
+
+        if section == "web_search" and "accounts" in payload:
+            locked_pool_keys = self._locked_fields().intersection(WEB_SEARCH_ACCOUNT_POOL_KEYS)
+            if locked_pool_keys:
+                labels = "、".join(sorted(locked_pool_keys))
+                raise ConfigurationError(f"以下配置由系统环境变量锁定，无法通过页面修改：{labels}")
 
         current = self.get_effective_values()
         updates, removals, changed_fields = self._build_changes(section, payload, current)
