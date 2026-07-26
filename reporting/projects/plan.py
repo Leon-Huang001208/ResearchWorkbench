@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Mapping
 
 from core.observability import get_logger
 from reporting.projects.generation import (
@@ -19,6 +19,7 @@ from reporting.projects.generation import (
     resolve_report_generation_scope,
 )
 from reporting.projects.keyword_profiles import apply_keyword_profile_to_config
+from reporting.projects.unified_config import UnifiedReportConfig, parse_unified_report_config
 
 logger = get_logger(__name__)
 
@@ -96,7 +97,7 @@ class CompiledReportPlan:
 
 
 def compile_report_plan(
-    section_config: Dict[str, Any],
+    section_config: UnifiedReportConfig | Mapping[str, Any],
     prompt_templates_source: str,
     *,
     report_date: str | None = None,
@@ -106,7 +107,12 @@ def compile_report_plan(
     end_date: str | None = None,
 ) -> CompiledReportPlan:
     """Compile effective placeholder generation settings without rendering output."""
-    safe_config = section_config if isinstance(section_config, dict) else {}
+    unified_config = (
+        section_config
+        if isinstance(section_config, UnifiedReportConfig)
+        else parse_unified_report_config(section_config)
+    )
+    safe_config = unified_config.to_generation_dict()
     scope = resolve_report_generation_scope(
         safe_config,
         report_date=report_date,

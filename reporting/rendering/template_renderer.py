@@ -18,12 +18,15 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from core.contracts.reporting import (
+    ChartGridSpec,
     EnhancedPlaceholder,
     GenerationMode,
     PlaceholderType,
     ReportTemplateConfig,
+    RichTextSpec,
 )
 from core.observability import get_logger
+from reporting.projects.unified_config import UnifiedReportConfig
 
 logger = get_logger(__name__)
 
@@ -36,6 +39,142 @@ try:
     DOCX_AVAILABLE = True
 except ImportError:
     DOCX_AVAILABLE = False
+
+
+class UnifiedTemplateRenderer:
+    """Apply optional unified rendering settings to an already projected Word file.
+
+    Text projection, table insertion and legacy chart replacement remain owned by
+    the existing project services.  This renderer is the one dispatch point for
+    the unified configuration's optional rich-text, conditional visibility and
+    chart-grid capabilities, so no report-format version branch is needed.
+    """
+
+    def __init__(
+        self,
+        *,
+        config: UnifiedReportConfig,
+        chart_service: Any = None,
+        project_dir: Path | None = None,
+    ) -> None:
+        if not DOCX_AVAILABLE:
+            raise ImportError("python-docx is required for unified Word rendering")
+        self._config = config
+        self._project_dir = project_dir or Path.cwd()
+        from reporting.rendering.chart_grid_injector import ChartGridInjector
+        from reporting.rendering.rich_text_injector import RichTextInjector
+
+        self._chart_grid_injector = ChartGridInjector(chart_service=chart_service)
+        self._rich_text_injector = RichTextInjector()
+
+    def rendering_placeholders(self) -> set[str]:
+        """Return placeholders withheld from flat projection for unified dispatch."""
+        return {
+            key
+            for key, placeholder in self._config.placeholders.items()
+            if placeholder.rendering.configured
+        }
+
+    def render(
+        self,
+        output_path: Path,
+        *,
+        generated_texts: Dict[str, str],
+        context: Dict[str, Any] | None = None,
+    ) -> Path:
+        """Dispatch each configured rendering capability against one output file."""
+        document = DocxDocument(str(output_path))
+        render_context = {**generated_texts, **(context or {})}
+        for key, placeholder in self._config.placeholders.items():
+            if not placeholder.rendering.configured:
+                continue
+            try:
+                self._dispatch_placeholder(
+                    document, key, placeholder, generated_texts, render_context
+                )
+            except Exception:
+                logger.exception("Unified placeholder rendering failed", extra={"key": key})
+        document.save(str(output_path))
+        logger.info(
+            "Unified template rendering complete",
+            extra={
+                "output": str(output_path),
+                "placeholder_count": len(self.rendering_placeholders()),
+            },
+        )
+        return output_path
+
+    def _dispatch_placeholder(
+        self,
+        document: Any,
+        key: str,
+        placeholder: Any,
+        generated_texts: Dict[str, str],
+        context: Dict[str, Any],
+    ) -> None:
+        rendering = placeholder.rendering
+        if not self._is_visible(rendering.visible_if, context):
+            self._remove_placeholder(document, key)
+            return
+        if rendering.chart_grid is not None:
+            self._chart_grid_injector.inject_at_placeholder(
+                doc=document,
+                placeholder_key=key,
+                spec=ChartGridSpec(**dict(rendering.chart_grid)),
+                project_dir=self._project_dir,
+            )
+            return
+
+        paragraph = self._find_placeholder(document, key)
+        if paragraph is None:
+            logger.warning("Unified rendering placeholder not found", extra={"key": key})
+            return
+        if rendering.paragraph_style:
+            try:
+                paragraph.style = rendering.paragraph_style
+            except Exception:
+                logger.warning(
+                    "Unified rendering paragraph style unavailable",
+                    extra={"key": key, "style": rendering.paragraph_style},
+                )
+        self._rich_text_injector.inject(
+            paragraph=paragraph,
+            placeholder_key=key,
+            spec=RichTextSpec(**rendering.to_mapping()),
+            generated_text=str(generated_texts.get(key) or ""),
+        )
+
+    @staticmethod
+    def _is_visible(expression: str | None, context: Dict[str, Any]) -> bool:
+        if not expression:
+            return True
+        try:
+            import jinja2
+
+            result = jinja2.Template(expression).render(**context).strip().lower()
+            return result in {"1", "true", "yes", "on", "是"}
+        except Exception:
+            logger.exception("Unified rendering visibility evaluation failed")
+            return True
+
+    def _remove_placeholder(self, document: Any, key: str) -> None:
+        paragraph = self._find_placeholder(document, key)
+        if paragraph is not None:
+            paragraph._element.getparent().remove(paragraph._element)
+
+    @staticmethod
+    def _find_placeholder(document: Any, key: str) -> Any:
+        patterns = (f"{{{{{key}}}}}", f"{{{key}}}")
+        for paragraph in document.paragraphs:
+            if any(pattern in (paragraph.text or "") for pattern in patterns):
+                return paragraph
+        for table in document.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for paragraph in cell.paragraphs:
+                        if any(pattern in (paragraph.text or "") for pattern in patterns):
+                            return paragraph
+        return None
 
 
 class ConfigDrivenTemplateRenderer:

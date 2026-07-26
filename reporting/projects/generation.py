@@ -2396,7 +2396,7 @@ def iter_placeholder_configs(
 ) -> Iterable[tuple[str, Dict[str, Any]]]:
     """Yield normalized placeholder configs from both new and legacy schemas."""
     placeholders = section_config.get("placeholders")
-    if isinstance(placeholders, dict):
+    if isinstance(placeholders, dict) and placeholders:
         for placeholder, config in placeholders.items():
             if isinstance(config, dict):
                 yield str(placeholder), config
