@@ -30,6 +30,18 @@ def test_configuration_modal_event_binder_remains_declared():
     assert "function bindModalFormEvents(form, section)" in source
 
 
+def test_configuration_locks_are_contextual_not_global():
+    template = CONFIGURATION_TEMPLATE.read_text(encoding="utf-8")
+    source = CONFIGURATION_JS.read_text(encoding="utf-8")
+
+    assert "data-config-environment-lock-notice" not in template
+    assert "renderEnvironmentLockedFields" not in source
+    assert "LOCKED_FIELD_MESSAGE" in source
+    assert "data-config-lock-message" in source
+    assert "aria-describedby" in source
+    assert "由当前启动配置管理" in source
+
+
 def test_configuration_module_parses_with_node():
     result = subprocess.run(
         ["node", "--check", str(CONFIGURATION_JS)],
