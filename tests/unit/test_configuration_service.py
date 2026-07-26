@@ -2,6 +2,8 @@
 
 import json
 
+import pytest
+
 from core.settings.config import Settings
 from core.settings.runtime import RuntimeContext
 from services.configuration_service import ConfigurationService
@@ -157,11 +159,8 @@ def test_environment_values_lock_configuration_fields(monkeypatch, tmp_path):
     assert snapshot["sections"]["advanced"]["log_level"] == "WARNING"
     assert snapshot["environment_locked_fields"] == ["LOG_LEVEL"]
 
-    try:
+    with pytest.raises(RuntimeError, match="系统环境变量锁定") as exc_info:
         service.update_section("advanced", {"log_level": "ERROR"})
-    except RuntimeError as exc:
-        assert "系统环境变量锁定" in str(exc)
-    else:
-        raise AssertionError("Expected environment-locked field rejection")
 
+    assert "WARNING" not in str(exc_info.value)
     assert env_path.read_text(encoding="utf-8") == "LOG_LEVEL=INFO\n"

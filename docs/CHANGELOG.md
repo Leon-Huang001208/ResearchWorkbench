@@ -18,6 +18,8 @@
 
 ### Changed
 
+- **配置锁定提示上下文化**：首页不再展示受系统环境变量管理的名单；配置弹窗仅在受影响字段、动态行或集合旁显示友好说明，内部环境键名仅用于前端判断。受管动态集合在保存和连接测试请求中不会提交，避免覆盖启动时注入的配置。
+
 - **桌面端 PostgreSQL 标准化**：桌面启动器不再在缺少数据库配置时静默创建 SQLite 文件；首次启动生成 PostgreSQL `.env` 模板，缺少有效 PostgreSQL URL 时给出可操作错误。桌面和网页端均以 PostgreSQL + pgvector 为权威存储。
 - **本地服务 URL 收敛**：auto-ingest 的所有 health/API 调用改由 `ALPHAFOUNDRY_BACKEND_URL` 构造，桌面端随 launcher 使用 8765，Web 开发默认使用 8000。
 - **配置秘密保护**：配置 API 和工作台不再回显或回填已保存的 API Key、密码、Token 或完整数据库 URL；保存数据库 URL 仅持久化并要求重启，保持当前 SQLAlchemy engine 不变。
