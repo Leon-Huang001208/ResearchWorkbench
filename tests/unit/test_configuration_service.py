@@ -4,6 +4,8 @@ import json
 import os
 from unittest.mock import Mock
 
+import pytest
+
 from core.settings.config import Settings
 from core.settings.runtime import RuntimeContext
 from services import configuration_service
@@ -229,11 +231,143 @@ def test_environment_values_lock_configuration_fields(monkeypatch, tmp_path):
     assert snapshot["sections"]["advanced"]["log_level"] == "WARNING"
     assert snapshot["environment_locked_fields"] == ["LOG_LEVEL"]
 
-    try:
+    with pytest.raises(RuntimeError, match="系统环境变量锁定") as exc_info:
         service.update_section("advanced", {"log_level": "ERROR"})
-    except RuntimeError as exc:
-        assert "系统环境变量锁定" in str(exc)
-    else:
-        raise AssertionError("Expected environment-locked field rejection")
 
+    assert "WARNING" not in str(exc_info.value)
     assert env_path.read_text(encoding="utf-8") == "LOG_LEVEL=INFO\n"
+
+
+def test_ifind_connection_updates_preserve_environment_managed_credentials(monkeypatch, tmp_path):
+    env_path = tmp_path / ".env"
+    env_path.write_text(
+        "IFIND_USERNAME=file-user\n"
+        "IFIND_PASSWORD=file-secret\n"
+        "IFIND_BACKEND=auto\n"
+        "IFIND_HTTP_BASE_URL=https://old.example.test\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("IFIND_USERNAME", "environment-user")
+    monkeypatch.setenv("IFIND_PASSWORD", "environment-secret")
+    runtime_context = RuntimeContext(
+        mode="desktop",
+        project_root=tmp_path,
+        data_dir=tmp_path,
+        env_path=env_path,
+        backend_url="http://127.0.0.1:8765",
+        can_write_config=True,
+        environment_override_keys=frozenset({"IFIND_USERNAME", "IFIND_PASSWORD"}),
+    )
+    service = ConfigurationService(
+        env_path=env_path,
+        runtime_settings=Settings(),
+        runtime_context=runtime_context,
+    )
+
+    result = service.update_section(
+        "ifind",
+        {"backend": "http_api", "http_base_url": "https://next.example.test"},
+    )
+
+    saved = env_path.read_text(encoding="utf-8")
+    assert result["applied"] is True
+    assert result["restart_required"] is False
+    assert result["section"]["backend"] == "http_api"
+    assert result["section"]["http_base_url"] == "https://next.example.test"
+    assert "IFIND_BACKEND='http_api'" in saved
+    assert "IFIND_HTTP_BASE_URL='https://next.example.test'" in saved
+    assert "IFIND_USERNAME=file-user" in saved
+    assert "IFIND_PASSWORD=file-secret" in saved
+
+    with pytest.raises(RuntimeError, match="IFIND_USERNAME"):
+        service.update_section("ifind", {"username": "attempted-override"})
+
+
+def test_ifind_connection_updates_preserve_environment_managed_account_pool(monkeypatch, tmp_path):
+    env_path = tmp_path / ".env"
+    env_path.write_text(
+        "IFIND_USERNAME=file-user\n"
+        "IFIND_PASSWORD=file-secret\n"
+        "IFIND_BACKEND=auto\n"
+        "IFIND_HTTP_BASE_URL=https://old.example.test\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv(
+        "IFIND_ACCOUNTS_JSON",
+        '[{"name":"environment","username":"environment-user","password":"environment-secret"}]',
+    )
+    runtime_context = RuntimeContext(
+        mode="desktop",
+        project_root=tmp_path,
+        data_dir=tmp_path,
+        env_path=env_path,
+        backend_url="http://127.0.0.1:8765",
+        can_write_config=True,
+        environment_override_keys=frozenset({"IFIND_ACCOUNTS_JSON"}),
+    )
+    service = ConfigurationService(
+        env_path=env_path,
+        runtime_settings=Settings(),
+        runtime_context=runtime_context,
+    )
+
+    result = service.update_section(
+        "ifind",
+        {"backend": "http_api", "http_base_url": "https://next.example.test"},
+    )
+
+    saved = env_path.read_text(encoding="utf-8")
+    assert result["section"]["backend"] == "http_api"
+    assert result["section"]["http_base_url"] == "https://next.example.test"
+    assert "IFIND_USERNAME=file-user" in saved
+    assert "IFIND_PASSWORD=file-secret" in saved
+    assert "IFIND_ACCOUNTS_JSON" not in saved
+
+    with pytest.raises(RuntimeError, match="IFIND_ACCOUNTS_JSON"):
+        service.update_section(
+            "ifind",
+            {"accounts": [{"name": "attempted", "username": "attempted-user", "password": "new-secret"}]},
+        )
+
+    assert env_path.read_text(encoding="utf-8") == saved
+
+
+@pytest.mark.parametrize(
+    "locked_key, environment_value",
+    [
+        ("WEB_SEARCH_API_KEYS", '[{"name":"environment","key":"secret"}]'),
+        ("TAVILY_API_KEY", "tavily-secret"),
+        ("BING_API_KEY", "bing-secret"),
+    ],
+)
+def test_web_search_account_pool_rejects_any_environment_managed_pool_key(
+    monkeypatch, tmp_path, locked_key, environment_value
+):
+    env_path = tmp_path / ".env"
+    env_path.write_text(f"{locked_key}=file-value\nWEB_SEARCH_TIMEOUT=15\n", encoding="utf-8")
+    monkeypatch.setenv(locked_key, environment_value)
+    runtime_context = RuntimeContext(
+        mode="desktop",
+        project_root=tmp_path,
+        data_dir=tmp_path,
+        env_path=env_path,
+        backend_url="http://127.0.0.1:8765",
+        can_write_config=True,
+        environment_override_keys=frozenset({locked_key}),
+    )
+    service = ConfigurationService(
+        env_path=env_path,
+        runtime_settings=Settings(),
+        runtime_context=runtime_context,
+    )
+    original = env_path.read_text(encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match=locked_key):
+        service.update_section(
+            "web_search",
+            {"accounts": [{"name": "attempted-override", "key": "replacement-secret"}]},
+        )
+
+    assert env_path.read_text(encoding="utf-8") == original
+    result = service.update_section("web_search", {"timeout": 20})
+    assert result["section"]["timeout"] == 20

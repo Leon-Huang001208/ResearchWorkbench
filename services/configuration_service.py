@@ -37,6 +37,9 @@ logger = get_logger(__name__)
 
 SUPPORTED_SECTIONS = {"llm", "zhiqiu", "ifind", "database", "advanced", "web_search"}
 SECRET_SUFFIX_LENGTH = 4
+WEB_SEARCH_ACCOUNT_POOL_KEYS = frozenset(
+    {"WEB_SEARCH_API_KEYS", "TAVILY_API_KEY", "BING_API_KEY"}
+)
 ZHIQIU_CONFIG_PATH = (
     Path(__file__).resolve().parents[1] / "data_layer" / "crawlers" / "zq" / "config.yaml"
 )
@@ -196,6 +199,12 @@ class ConfigurationService:
 
     def _update_section_locked(self, section: str, payload: Mapping[str, Any]) -> dict[str, Any]:
         """在进程内和跨进程锁均持有时执行完整更新事务。"""
+
+        if section == "web_search" and "accounts" in payload:
+            locked_pool_keys = self._locked_fields().intersection(WEB_SEARCH_ACCOUNT_POOL_KEYS)
+            if locked_pool_keys:
+                labels = "、".join(sorted(locked_pool_keys))
+                raise ConfigurationError(f"以下配置由系统环境变量锁定，无法通过页面修改：{labels}")
 
         current = self.get_effective_values()
         updates, removals, changed_fields = self._build_changes(section, payload, current)
@@ -675,6 +684,14 @@ class ConfigurationService:
                 changed.add(field)
         submitted_password = payload.get("password")
         clear_password = bool(payload.get("clear_password", False))
+        protected_credentials = bool(
+            self._locked_fields().intersection(
+                {"IFIND_ACCOUNTS_JSON", "IFIND_USERNAME", "IFIND_PASSWORD"}
+            )
+        )
+        connection_only_update = bool(payload) and set(payload).issubset(
+            {"backend", "http_base_url"}
+        )
         backend_changed = "backend" in payload and str(payload["backend"]).strip() != current.get(
             "IFIND_BACKEND", "auto"
         )
@@ -686,6 +703,7 @@ class ConfigurationService:
             and (backend_changed or base_url_changed)
             and not clear_password
             and (submitted_password is None or str(submitted_password) == "")
+            and not (protected_credentials and connection_only_update)
         ):
             raise ConfigurationError("iFinD 连接端点变更后必须重新输入密码")
         if payload.get("clear_password") or (

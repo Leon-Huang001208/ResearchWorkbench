@@ -1239,7 +1239,6 @@
                 </div>
 
                 <div id="config-page-message" class="config-page-message" role="status" aria-live="polite"></div>
-                <details class="config-environment-lock-notice" data-config-environment-lock-notice hidden></details>
 
                 <section class="config-health-summary" data-config-health-summary aria-label="系统健康总览" aria-live="polite">
                     <div class="config-health-copy">
@@ -1380,6 +1379,7 @@
                         </div>
                         <div class="modal-footer">
                             <span id="config-edit-modal-status" class="config-modal-status"></span>
+                            <span id="config-edit-modal-lock-note" class="config-modal-lock-note" hidden><i class="codicon codicon-lock" aria-hidden="true"></i><span>部分字段由当前启动方式固定。</span></span>
                             <button id="btn-config-edit-modal-cancel" class="btn-secondary" type="button">取消</button>
                             <button id="btn-config-edit-modal-test" class="btn-secondary" type="button">
                                 <i class="codicon codicon-debug-start"></i> 测试连接

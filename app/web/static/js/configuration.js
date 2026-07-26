@@ -22,10 +22,64 @@ let configurationReady = false;
 let configurationSnapshot = null;
 let loadAbortController = null;
 let initialLoadRetryCount = 0;
+let dynamicLockMessageSequence = 0;
 const connectionStateBySection = new Map();
 const ONBOARDING_SECTIONS = ['llm', 'database', 'zhiqiu', 'ifind', 'web_search'];
 let databaseRuntimeReadiness = null;
 let configurationInitializationPromise = null;
+const LOCKED_FIELD_MESSAGE = '此项由当前启动配置管理，不能在这里修改。';
+const LOCKED_COLLECTION_MESSAGE = '该组由当前启动配置管理，不能在这里修改。';
+const STATIC_LOCK_FIELD_KEYS = {
+    advanced: {
+        log_level: 'LOG_LEVEL',
+        log_dir: 'LOG_DIR',
+        llm_max_workers: 'LLM_EXTRACT_MAX_WORKERS',
+        llm_max_retries: 'LLM_EXTRACT_MAX_RETRIES',
+        chunk_size: 'LLM_EXTRACT_CHUNK_SIZE',
+        chunk_overlap: 'LLM_EXTRACT_CHUNK_OVERLAP',
+        long_text_threshold: 'LLM_EXTRACT_LONG_TEXT_THRESHOLD',
+    },
+    database: { database_url: 'DATABASE_URL' },
+    web_search: {
+        provider: 'WEB_SEARCH_PROVIDER',
+        rotation_strategy: 'WEB_SEARCH_KEY_ROTATION',
+        quota_limit: 'WEB_SEARCH_KEY_QUOTA_LIMIT',
+        max_results: 'WEB_SEARCH_MAX_RESULTS',
+        timeout: 'WEB_SEARCH_TIMEOUT',
+    },
+};
+const COLLECTION_LOCK_KEYS = {
+    zhiqiu: ['ZQ_ACCOUNTS_JSON', 'ZQ_ACCOUNTS'],
+    ifind: ['IFIND_ACCOUNTS_JSON', 'IFIND_USERNAME', 'IFIND_PASSWORD'],
+    web_search: ['WEB_SEARCH_API_KEYS', 'TAVILY_API_KEY', 'BING_API_KEY'],
+};
+
+export function isEnvironmentLocked(key, environmentLockedFields = configurationSnapshot?.environment_locked_fields || []) {
+    return environmentLockedFields.includes(key);
+}
+
+export function filterEnvironmentLockedPayload(
+    section,
+    payload,
+    environmentLockedFields = configurationSnapshot?.environment_locked_fields || [],
+) {
+    const filteredPayload = { ...payload };
+    Object.entries(STATIC_LOCK_FIELD_KEYS[section] || {}).forEach(([field, key]) => {
+        if (isEnvironmentLocked(key, environmentLockedFields)) delete filteredPayload[field];
+    });
+    if (section === 'llm') {
+        if (environmentLockedFields.some(key => /^LLM_PROVIDER_\d+_/.test(key))) {
+            delete filteredPayload.providers;
+        }
+        if (environmentLockedFields.some(key => /^TASK_.+_(PROVIDER|MODEL)$/.test(key))) {
+            delete filteredPayload.task_routes;
+        }
+    }
+    if (COLLECTION_LOCK_KEYS[section]?.some(key => isEnvironmentLocked(key, environmentLockedFields))) {
+        delete filteredPayload.accounts;
+    }
+    return filteredPayload;
+}
 
 export function configurationRequestOptions(options = {}) {
     const metaToken = globalThis.document
@@ -428,12 +482,14 @@ function renderProviders(providers) {
     const list = document.getElementById('config-provider-list');
     if (!list) return;
     list.replaceChildren(...providers.map(createProviderRow));
+    applyProviderRowLocks();
 }
 
 function renderTaskRoutes(routes) {
     const list = document.getElementById('config-task-route-list');
     if (!list) return;
     list.replaceChildren(...routes.map(createTaskRouteRow));
+    applyTaskRouteLocks();
 }
 
 function renderZhiqiuAccounts(accounts) {
@@ -475,6 +531,152 @@ function renderWebSearchKeys(accounts) {
     const list = document.getElementById('config-web_search-key-list');
     if (!list) return;
     list.replaceChildren(...accounts.map(createWebSearchKeyRow));
+}
+
+function addControlDescription(control, messageId) {
+    if (!control || !messageId) return;
+    const describedBy = new Set((control.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean));
+    describedBy.add(messageId);
+    control.setAttribute('aria-describedby', [...describedBy].join(' '));
+}
+
+function removeControlDescription(control, messageId) {
+    if (!control || !messageId) return;
+    const describedBy = new Set((control.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean));
+    describedBy.delete(messageId);
+    if (describedBy.size) control.setAttribute('aria-describedby', [...describedBy].join(' '));
+    else control.removeAttribute('aria-describedby');
+}
+
+function lockControl(control, message = null) {
+    if (!control) return false;
+    const changed = !control.disabled;
+    control.disabled = true;
+    control.closest('label')?.classList.add('environment-locked');
+    addControlDescription(control, message?.id);
+    return changed;
+}
+
+function createDynamicLockMessage(row) {
+    const existingMessage = row.querySelector('.config-dynamic-lock-message');
+    if (existingMessage) return existingMessage;
+    const message = element('p', 'config-dynamic-lock-message', LOCKED_COLLECTION_MESSAGE);
+    message.id = `config-dynamic-lock-message-${++dynamicLockMessageSequence}`;
+    row.prepend(message);
+    return message;
+}
+
+function setDynamicRowLocked(row, lockedControls) {
+    const businessControls = [...row.querySelectorAll('[data-field]')];
+    const lockedControlSet = new Set(lockedControls);
+    const fullyLocked = businessControls.length > 0
+        && businessControls.every(control => lockedControlSet.has(control) && control.disabled);
+    const existingMessage = row.querySelector('.config-dynamic-lock-message');
+
+    if (!fullyLocked) {
+        delete row.dataset.configLocked;
+        row.classList.remove('config-dynamic-row-locked');
+        businessControls.forEach(control => removeControlDescription(control, existingMessage?.id));
+        existingMessage?.remove();
+        return false;
+    }
+
+    row.dataset.configLocked = 'true';
+    row.classList.add('config-dynamic-row-locked');
+    row.querySelectorAll('.config-remove-row').forEach(button => { button.disabled = true; });
+    const message = createDynamicLockMessage(row);
+    businessControls.forEach(control => addControlDescription(control, message.id));
+    setModalLockNote(true);
+    return true;
+}
+
+function applyProviderRowLocks() {
+    const lockedFields = configurationSnapshot?.environment_locked_fields || [];
+    const providerCollectionLocked = lockedFields.some(key => /^LLM_PROVIDER_\d+_/.test(key));
+    const providerFieldSuffixes = {
+        name: 'NAME',
+        protocol: 'PROTOCOL',
+        base_url: 'BASE_URL',
+        api_key: 'API_KEY',
+    };
+    document.querySelectorAll('.config-provider-row').forEach((row, rowIndex) => {
+        const index = rowIndex + 1;
+        const prefix = `LLM_PROVIDER_${index}_`;
+        const lockedControls = [];
+        Object.entries(providerFieldSuffixes).forEach(([field, suffix]) => {
+            const control = row.querySelector(`[data-field="${field}"]`);
+            const locked = providerCollectionLocked || isEnvironmentLocked(`${prefix}${suffix}`, lockedFields);
+            if (locked) {
+                lockControl(control);
+                if (control?.disabled) lockedControls.push(control);
+            }
+        });
+        setDynamicRowLocked(row, lockedControls);
+    });
+    if (providerCollectionLocked) {
+        const addButton = document.querySelector('[data-add-provider]');
+        if (addButton) addButton.disabled = true;
+    }
+}
+
+function applyTaskRouteLocks() {
+    const lockedFields = configurationSnapshot?.environment_locked_fields || [];
+    const taskRouteCollectionLocked = lockedFields.some(key => /^TASK_.+_(PROVIDER|MODEL)$/.test(key));
+    document.querySelectorAll('.config-route-row').forEach(row => {
+        const task = rowValue(row, 'task');
+        const providerControl = row.querySelector('[data-field="provider"]');
+        const modelControl = row.querySelector('[data-field="model"]');
+        const taskControl = row.querySelector('[data-field="task"]');
+        const providerLocked = taskRouteCollectionLocked || (task && isEnvironmentLocked(`TASK_${task.toUpperCase()}_PROVIDER`, lockedFields));
+        const modelLocked = taskRouteCollectionLocked || (task && isEnvironmentLocked(`TASK_${task.toUpperCase()}_MODEL`, lockedFields));
+        const lockedControls = [];
+
+        if (providerLocked) {
+            lockControl(providerControl);
+            if (providerControl?.disabled) lockedControls.push(providerControl);
+        }
+        if (modelLocked) {
+            lockControl(modelControl);
+            if (modelControl?.disabled) lockedControls.push(modelControl);
+        }
+        if (providerLocked || modelLocked) {
+            lockControl(taskControl);
+            if (taskControl?.disabled) lockedControls.push(taskControl);
+        }
+        setDynamicRowLocked(row, lockedControls);
+    });
+    if (taskRouteCollectionLocked) {
+        const addButton = document.querySelector('[data-add-task-route]');
+        if (addButton) addButton.disabled = true;
+    }
+}
+
+function applyCollectionLock(form, section, { addButton, rowSelector }) {
+    const keys = COLLECTION_LOCK_KEYS[section] || [];
+    const locked = keys.some(key => isEnvironmentLocked(key));
+    if (!locked) return;
+
+    const button = form.querySelector(addButton);
+    const header = button?.closest('.config-subsection-header');
+    const existingMessage = header?.querySelector('.config-collection-lock-message');
+    const message = existingMessage || element('p', 'config-collection-lock-message', LOCKED_COLLECTION_MESSAGE);
+    if (!message.id) message.id = `config-collection-lock-message-${++dynamicLockMessageSequence}`;
+    if (!existingMessage) header?.querySelector('h4')?.insertAdjacentElement('afterend', message);
+    setModalLockNote(true);
+    if (button) button.disabled = true;
+    form.querySelectorAll(rowSelector).forEach(row => {
+        row.querySelectorAll('input[data-field], select[data-field], textarea[data-field]').forEach(control => lockControl(control, message));
+        row.querySelectorAll('.config-remove-row').forEach(removeButton => { removeButton.disabled = true; });
+    });
+}
+
+function applyCollectionLocks(form, section) {
+    const configs = {
+        zhiqiu: { addButton: '[data-add-zhiqiu-account]', rowSelector: '.config-zhiqiu-row' },
+        ifind: { addButton: '[data-add-ifind-account]', rowSelector: '.config-ifind-row' },
+        web_search: { addButton: '[data-add-web_search-key]', rowSelector: '.config-web_search-row' },
+    };
+    if (configs[section]) applyCollectionLock(form, section, configs[section]);
 }
 
 function setFormValues(form, values, fields) {
@@ -628,28 +830,8 @@ function renderSnapshot(snapshot) {
     Object.entries(snapshot.sections).forEach(([section, values]) => {
         if (!dirtySections.has(section)) renderSection(section, values);
     });
-    renderEnvironmentLockedFields(snapshot.environment_locked_fields || []);
     renderSummaryCards();
     renderConfigurationHealth(snapshot);
-}
-
-function renderEnvironmentLockedFields(lockedFields) {
-    const page = document.getElementById('section-config');
-    if (!page) return;
-    const locked = new Set(lockedFields);
-    page.querySelectorAll('[data-config-env-key]').forEach(control => {
-        const isLocked = locked.has(control.dataset.configEnvKey);
-        control.disabled = isLocked;
-        control.closest('.config-field')?.classList.toggle('environment-locked', isLocked);
-    });
-    const notice = page.querySelector('[data-config-environment-lock-notice]');
-    if (!notice) return;
-    notice.hidden = locked.size === 0;
-    notice.replaceChildren();
-    if (!locked.size) return;
-    const summary = element('summary', '', `${locked.size} 项配置由启动环境变量管理`);
-    const details = element('span', 'config-environment-lock-detail', `页面不能覆盖：${[...locked].join('、')}`);
-    notice.append(summary, details);
 }
 
 function renderSection(section, values) {
@@ -933,7 +1115,7 @@ function collectWebSearch() {
 
 function collectDatabase() {
     const databaseUrl = document.getElementById('config-database-form').elements.database_url.value;
-    if (!databaseUrl) {
+    if (!databaseUrl && !isEnvironmentLocked(STATIC_LOCK_FIELD_KEYS.database.database_url)) {
         const error = new Error('invalid configuration');
         error.status = 400;
         throw error;
@@ -956,7 +1138,7 @@ function collectAdvanced() {
 
 function collectSection(section) {
     const collectors = { llm: collectLlm, zhiqiu: collectZhiqiu, ifind: collectIfind, database: collectDatabase, advanced: collectAdvanced, web_search: collectWebSearch };
-    return collectors[section]();
+    return filterEnvironmentLockedPayload(section, collectors[section]());
 }
 
 function setSectionBusy(section, busy) {
@@ -1327,63 +1509,96 @@ function renderModalForm(section, values) {
         setFormValues(form, values, ['log_level', 'log_dir', 'llm_max_workers', 'llm_max_retries', 'chunk_size', 'chunk_overlap', 'long_text_threshold']);
     }
 
+    if (section === 'llm') {
+        applyProviderRowLocks();
+        applyTaskRouteLocks();
+    }
+    applyCollectionLocks(form, section);
+
     // 绑定事件
     bindModalFormEvents(form, section);
     // 延迟一帧确保 .config-secret-control 内部 input 已完成布局
     requestAnimationFrame(() => bindSecretActions(body));
 }
 
+function setEnvironmentLockState(control, { section, field, locked }) {
+    const label = control.closest('label');
+    if (!label) return false;
+
+    const messageId = `config-lock-message-${section}-${field}`;
+    const existingMessage = label.querySelector('[data-config-lock-message]');
+    const describedBy = new Set((control.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean));
+
+    control.disabled = locked;
+    label.classList.toggle('environment-locked', locked);
+
+    if (!locked) {
+        delete label.dataset.environmentLocked;
+        existingMessage?.remove();
+        describedBy.delete(messageId);
+        if (describedBy.size) control.setAttribute('aria-describedby', [...describedBy].join(' '));
+        else control.removeAttribute('aria-describedby');
+        return false;
+    }
+
+    label.dataset.environmentLocked = 'true';
+    const message = existingMessage || document.createElement('small');
+    message.className = 'config-lock-message';
+    message.dataset.configLockMessage = '';
+    message.id = messageId;
+    message.textContent = LOCKED_FIELD_MESSAGE;
+    if (!existingMessage) label.appendChild(message);
+    describedBy.add(messageId);
+    control.setAttribute('aria-describedby', [...describedBy].join(' '));
+    return true;
+}
+
+function setModalLockNote(visible) {
+    const note = document.getElementById('config-edit-modal-lock-note');
+    if (note) note.hidden = !visible;
+}
+
 function applyEnvironmentLocks(form, section) {
-    const locked = new Set(configurationSnapshot?.environment_locked_fields || []);
-    const fieldKeys = {
-        advanced: {
-            log_level: 'LOG_LEVEL',
-            log_dir: 'LOG_DIR',
-            llm_max_workers: 'LLM_EXTRACT_MAX_WORKERS',
-            llm_max_retries: 'LLM_EXTRACT_MAX_RETRIES',
-            chunk_size: 'LLM_EXTRACT_CHUNK_SIZE',
-            chunk_overlap: 'LLM_EXTRACT_CHUNK_OVERLAP',
-            long_text_threshold: 'LLM_EXTRACT_LONG_TEXT_THRESHOLD',
-        },
-        database: { database_url: 'DATABASE_URL' },
-        web_search: {
-            provider: 'WEB_SEARCH_PROVIDER',
-            rotation_strategy: 'WEB_SEARCH_KEY_ROTATION',
-            quota_limit: 'WEB_SEARCH_KEY_QUOTA_LIMIT',
-        },
-    };
-    Object.entries(fieldKeys[section] || {}).forEach(([field, key]) => {
+    const lockedFields = configurationSnapshot?.environment_locked_fields || [];
+    const fieldKeys = STATIC_LOCK_FIELD_KEYS[section] || {};
+    let hasStaticLock = false;
+    Object.entries(fieldKeys).forEach(([field, key]) => {
         const control = form.elements[field];
-        if (!control || !locked.has(key)) return;
-        control.disabled = true;
-        control.closest('label')?.classList.add('environment-locked');
+        if (!control) return;
+        hasStaticLock = setEnvironmentLockState(control, { section, field, locked: isEnvironmentLocked(key, lockedFields) }) || hasStaticLock;
     });
+    setModalLockNote(hasStaticLock);
 }
 
 function bindModalFormEvents(form, section) {
     // 新增加行按钮
     form.querySelector('[data-add-provider]')?.addEventListener('click', () => {
         document.getElementById('config-provider-list')?.append(createProviderRow());
+        applyProviderRowLocks();
         markSectionDirty(form);
         modalDirty = true;
     });
     form.querySelector('[data-add-task-route]')?.addEventListener('click', () => {
         document.getElementById('config-task-route-list')?.append(createTaskRouteRow());
+        applyTaskRouteLocks();
         markSectionDirty(form);
         modalDirty = true;
     });
     form.querySelector('[data-add-zhiqiu-account]')?.addEventListener('click', () => {
         document.getElementById('config-zhiqiu-account-list')?.append(createZhiqiuAccountRow());
+        applyCollectionLocks(form, section);
         markSectionDirty(form);
         modalDirty = true;
     });
     form.querySelector('[data-add-ifind-account]')?.addEventListener('click', () => {
         document.getElementById('config-ifind-account-list')?.append(createIfindAccountRow());
+        applyCollectionLocks(form, section);
         markSectionDirty(form);
         modalDirty = true;
     });
     form.querySelector('[data-add-web_search-key]')?.addEventListener('click', () => {
         document.getElementById('config-web_search-key-list')?.append(createWebSearchKeyRow());
+        applyCollectionLocks(form, section);
         markSectionDirty(form);
         modalDirty = true;
     });
@@ -1407,6 +1622,7 @@ function openConfigModal(section) {
     }
     currentModalSection = section;
     modalDirty = false;
+    setModalLockNote(false);
 
     const values = configurationSnapshot.sections[section];
     const meta = SECTION_META[section];
