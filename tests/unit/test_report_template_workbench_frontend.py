@@ -118,6 +118,7 @@ def test_report_config_tab_uses_redesigned_editor_shell():
     assert "template-config-inline-action" in source
     assert "collectDataTemplateFieldsFromForms" in source
     assert "normalizeDataTemplateFieldKey" in source
+
     assert "template-config-title" in source
     assert "template-config-placeholder-type" in source
     assert "template-config-grid" in css
@@ -202,6 +203,228 @@ def test_report_config_tab_uses_redesigned_editor_shell():
     ) > css.rfind(
         '[data-theme="light"] .template-config-common-panel details.template-common-summary-card[open],'
     )
+
+
+def test_report_config_summary_dom_contract_collapses_low_frequency_sections_and_keeps_edit_entries():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+    helper_start = source.index("function buildConfigCollapsibleSection")
+    helper_end = source.index("function buildPlaceholderConfigSummaryHtml", helper_start)
+    helper_source = source[helper_start:helper_end]
+    summary_start = helper_end
+    summary_end = source.index("function getPlaceholderEditSectionLabels", summary_start)
+    summary_source = source[summary_start:summary_end]
+
+    # Task 1 verifies only the DOM contract; Task 3 owns the visual styling.
+    assert '<details class="template-config-collapsible-section"' in helper_source
+    assert "<summary>" in helper_source
+    assert 'class="template-config-collapsible-body"' in helper_source
+    for edit_section in ("keywords", "fixed_template", "data_fields", "writing"):
+        section_marker = f"editSection: '{edit_section}'"
+        section_position = summary_source.index(section_marker)
+        helper_position = summary_source.rfind(
+            "buildConfigCollapsibleSection({", 0, section_position
+        )
+
+        assert helper_position != -1
+        assert section_marker in summary_source[helper_position:section_position + len(section_marker)]
+        assert f'data-placeholder-edit-section="{edit_section}"' in helper_source
+
+
+def test_report_config_summary_prioritizes_missing_query_or_keywords_without_losing_edit_entries():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+    caller_start = source.index("function renderSelectedPlaceholderDetail")
+    caller_end = source.index("function buildPlaceholderConfigSummaryHtml", caller_start)
+    caller_source = source[caller_start:caller_end]
+    start = source.index("function buildPlaceholderConfigSummaryHtml")
+    end = source.index("function getPlaceholderEditSectionLabels", start)
+    summary_source = source[start:end]
+    raw_query_start = source.index("function getConfiguredSemanticRetrievalQueryForPlaceholder")
+    raw_query_end = source.index("function getSemanticRetrievalQueryForPlaceholder", raw_query_start)
+    raw_query_source = source[raw_query_start:raw_query_end]
+    display_query_end = source.index("function extractPromptTemplateLabel", raw_query_end)
+    display_query_source = source[raw_query_end:display_query_end]
+
+    assert "const rawSemanticQuery = getConfiguredSemanticRetrievalQueryForPlaceholder(" in caller_source
+    assert "const semanticQueryDisplay = getSemanticRetrievalQueryForPlaceholder(" in caller_source
+    assert "rawSemanticQuery," in caller_source
+    assert "semanticQueryDisplay," in caller_source
+    assert "rawSemanticQuery = String(rawSemanticQuery ?? '');" in summary_source
+    assert "semanticQueryDisplay: providedSemanticQueryDisplay = ''," in summary_source
+    assert "const semanticQueryDisplay = String(providedSemanticQueryDisplay ?? '');" in summary_source
+    assert "const queryNeedsAttention = usesEvidence && !rawSemanticQuery.trim();" in summary_source
+    assert "const keywordsNeedAttention = usesEvidence && !queryNeedsAttention && keywordList.length === 0;" in summary_source
+    assert "return promptName ||" not in raw_query_source
+    assert "return '';" in raw_query_source
+    assert "return promptName || normalizePlaceholderName(placeholderName) || '未配置语义 Query';" in display_query_source
+    assert "open: queryNeedsAttention" in summary_source
+    assert "template-config-next-action" in summary_source
+    assert "补充语义 Query，明确系统应召回哪些材料。" in summary_source
+    assert "选择关键词预设包，或添加自定义关键词。" in summary_source
+    assert summary_source.index("${queryNeedsAttention ? `") < summary_source.index(
+        "` : keywordsNeedAttention ? `"
+    ) < summary_source.index("` : ''}")
+
+    # Missing-config guidance must add an entry point instead of replacing existing editors.
+    for edit_section in ("basic", "query", "keywords", "fixed_template", "data_fields", "writing"):
+        assert f'data-placeholder-edit-section="{edit_section}"' in source
+
+
+def test_report_config_summary_next_actions_render_from_real_query_state():
+    script = r"""
+const fs = require('fs');
+const vm = require('vm');
+const source = fs.readFileSync(process.argv[1], 'utf8');
+
+function extract(startMarker, endMarker) {
+    const start = source.indexOf(startMarker);
+    const end = source.indexOf(endMarker, start);
+    if (start === -1 || end === -1) throw new Error(`Unable to extract ${startMarker}`);
+    return source.slice(start, end);
+}
+
+const sandbox = {
+    esc: (value) => String(value ?? ''),
+    isParagraphPlaceholderType: () => true,
+    isParagraphMode: () => true,
+    getParagraphMode: () => 'evidence_grounded_generation',
+    getParagraphModeLabel: () => '正文段落',
+    isDataTemplateParagraphMode: () => false,
+    usesEvidenceParagraphMode: () => true,
+    isReportPeriodFieldPlaceholder: () => false,
+    splitLines: (value) => String(value ?? '').split('\n').map((item) => item.trim()).filter(Boolean),
+    inferDefaultTargetWords: () => 250,
+    buildConfigEnhancementBadges: () => '',
+    buildKeywordGroupsInlineBadges: () => '',
+    resolvePromptTemplateName: () => '',
+    extractPromptTemplateLabel: () => '',
+    normalizePlaceholderName: () => '占位符兜底'
+};
+vm.createContext(sandbox);
+vm.runInContext(extract('function buildConfigCollapsibleSection', 'function buildPlaceholderConfigSummaryHtml'), sandbox);
+vm.runInContext(extract('function buildPlaceholderConfigSummaryHtml', 'function getPlaceholderEditSectionLabels'), sandbox);
+vm.runInContext(extract('function getConfiguredSemanticRetrievalQueryForPlaceholder', 'function getSemanticRetrievalQueryForPlaceholder'), sandbox);
+vm.runInContext(extract('function getSemanticRetrievalQueryForPlaceholder', 'function extractPromptTemplateLabel'), sandbox);
+
+function render(rawSemanticQuery, semanticQueryDisplay, retrievalKeywords) {
+    return sandbox.buildPlaceholderConfigSummaryHtml({
+        name: '市场回顾',
+        type: 'paragraph',
+        paragraphMode: 'evidence_grounded_generation',
+        mapping: {},
+        minNewsCount: 7,
+        dataTemplateFields: {},
+        rawSemanticQuery,
+        semanticQueryDisplay,
+        retrievalKeywords,
+        template: {}
+    });
+}
+
+function actionSections(html) {
+    return [...html.matchAll(/class="template-config-next-action[^\"]*"[^>]*data-placeholder-edit-section="([^\"]+)"/g)]
+        .map((match) => match[1]);
+}
+
+function queryIsOpen(html) {
+    return /<details class="template-config-collapsible-section" open>[\s\S]*?<strong>语义 Query<\/strong>/.test(html);
+}
+
+const missingQuery = render('', '市场回顾', 'AI');
+const missingKeywords = render('召回市场热点', '召回市场热点', '');
+const complete = render('召回市场热点', '召回市场热点', 'AI\n消费');
+const sourceQuery = sandbox.getConfiguredSemanticRetrievalQueryForPlaceholder(
+    {},
+    { query_mode: 'query_source', query_source: '项目新闻索引' },
+    '市场回顾'
+);
+const querySourceOnly = render(sourceQuery, 'Query 来源：项目新闻索引', 'AI');
+const camelCaseMapping = { queryMode: 'query_source', querySource: '旧版项目新闻索引' };
+const camelCaseRawQuery = sandbox.getConfiguredSemanticRetrievalQueryForPlaceholder(
+    {},
+    camelCaseMapping,
+    '市场回顾'
+);
+const camelCaseDisplayQuery = sandbox.getSemanticRetrievalQueryForPlaceholder(
+    {},
+    camelCaseMapping,
+    '市场回顾'
+);
+const camelCaseQuerySource = render(camelCaseRawQuery, camelCaseDisplayQuery, 'AI');
+
+console.log(JSON.stringify({
+    missingQuery: { actions: actionSections(missingQuery), queryOpen: queryIsOpen(missingQuery) },
+    missingKeywords: { actions: actionSections(missingKeywords), queryOpen: queryIsOpen(missingKeywords) },
+    complete: { actions: actionSections(complete), queryOpen: queryIsOpen(complete) },
+    querySourceOnly: { rawQuery: sourceQuery, actions: actionSections(querySourceOnly), queryOpen: queryIsOpen(querySourceOnly) },
+    camelCaseQuerySource: {
+        rawQuery: camelCaseRawQuery,
+        displayQuery: camelCaseDisplayQuery,
+        actions: actionSections(camelCaseQuerySource),
+        queryOpen: queryIsOpen(camelCaseQuerySource),
+        rendersSource: camelCaseQuerySource.includes('旧版项目新闻索引')
+    }
+}));
+"""
+
+    result = subprocess.run(
+        ["node", "-e", script, str(TEMPLATES_JS)],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    rendered = json.loads(result.stdout)
+
+    assert rendered["missingQuery"] == {"actions": ["query"], "queryOpen": True}
+    assert rendered["missingKeywords"] == {"actions": ["keywords"], "queryOpen": False}
+    assert rendered["complete"] == {"actions": [], "queryOpen": False}
+    assert rendered["querySourceOnly"] == {
+        "rawQuery": "项目新闻索引",
+        "actions": [],
+        "queryOpen": False,
+    }
+    assert rendered["camelCaseQuerySource"] == {
+        "rawQuery": "旧版项目新闻索引",
+        "displayQuery": "Query 来源：旧版项目新闻索引",
+        "actions": [],
+        "queryOpen": False,
+        "rendersSource": True,
+    }
+
+
+def test_report_config_collapsible_summary_styles_prioritize_scanability_and_mobile_use():
+    css = STYLE_CSS.read_text(encoding="utf-8")
+
+    assert ".template-config-collapsible-section {" in css
+    assert ".template-config-collapsible-section > summary {" in css
+    assert "min-height: 52px;" in css
+    assert ".template-config-collapsible-section > summary::-webkit-details-marker" in css
+    assert ".template-config-collapsible-section > summary::after" in css
+    assert ".template-config-collapsible-section[open] > summary::after" in css
+    assert ".template-config-collapsible-body {" in css
+    assert ".template-config-collapsible-section .template-config-inline-action" in css
+    assert ".template-config-next-action {" in css
+    assert "border-left: 3px solid var(--apple-accent);" in css
+    assert ".template-config-next-action:focus-visible" in css
+    assert "[data-theme=\"light\"] .template-config-collapsible-section" in css
+    assert "[data-theme=\"light\"] .template-config-next-action" in css
+    assert "@media (max-width: 900px)" in css
+    assert ".template-config-collapsible-section > summary {\n        grid-template-columns: minmax(0, 1fr) auto;" in css
+    assert ".template-config-next-action {\n        align-items: flex-start;" in css
+
+
+def test_report_config_mobile_summary_keeps_a_visible_disclosure_cue():
+    css = STYLE_CSS.read_text(encoding="utf-8")
+    mobile_start = css.index(
+        "@media (max-width: 900px) {\n    .template-config-collapsible-section > summary {"
+    )
+    mobile_end = css.index("\n}\n\n/* Dynamic Excel variables", mobile_start)
+    mobile_css = css[mobile_start:mobile_end]
+
+    assert ".template-config-collapsible-section > summary::after {" in mobile_css
+    assert "display: none;" not in mobile_css
+    assert "width: 6px;" in mobile_css
+    assert ".template-config-collapsible-section[open] > summary::after" in css
 
 
 def test_report_generation_page_is_reduced_to_progress_and_single_output():
@@ -1099,6 +1322,32 @@ def test_generation_preflight_surfaces_prioritized_task_queue_and_evidence_sampl
     assert "matched_terms" in source
     assert "retrieval_config?.must_any" in source
     assert ".template-evidence-sample" in css
+
+
+def test_report_config_check_uses_collapsed_summary_and_on_demand_details():
+    html = INDEX_HTML.read_text(encoding="utf-8")
+
+    assert 'id="template-project-check-summary"' in html
+    assert 'id="template-project-check-status"' in html
+    assert 'id="template-project-check-actions"' in html
+    assert 'id="template-validation-details"' in html
+    start = html.index('id="template-project-check-details"')
+    assert ' open' not in html[start:html.index('>', start)]
+
+
+def test_generation_preflight_uses_ready_summary_and_blocker_actions():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+    css = STYLE_CSS.read_text(encoding="utf-8")
+
+    assert "function buildPreflightDisplayModel(" in source
+    assert "state: 'ready'" in source
+    assert "state: 'blocked'" in source
+    assert "function renderPreflightSummary(" in source
+    assert "function renderPreflightActions(" in source
+    assert "actions.slice(0, 3)" in source
+    assert "function buildPreflightReviewGroups(" in source
+    assert ".template-project-check-actions" in css
+    assert ".template-validation-details" in css
 
 
 def test_report_generation_surfaces_current_issue_settings_bar():

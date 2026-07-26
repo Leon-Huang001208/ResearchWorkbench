@@ -1870,24 +1870,19 @@
                                                         <div class="empty-state compact">选择模板后显示共用参数</div>
                                                     </div>
                                                 </div>
-                                                <details class="template-workbench-panel template-project-check-panel" id="template-project-check-details" open>
+                                                <details class="template-workbench-panel template-project-check-panel" id="template-project-check-details" data-preflight-state="loading">
                                                     <summary>
                                                         <span><i class="codicon codicon-checklist"></i> 生成检查</span>
-
+                                                        <small id="template-project-check-summary">正在检查</small>
                                                         <strong id="template-project-check-status" class="badge">待加载</strong>
                                                     </summary>
                                                     <div class="template-project-check-body" id="template-generation-readiness-panel">
                                                         <div class="template-project-check-section" id="template-validation-preview">
-                                                            <div class="panel-title-row compact">
-                                                                <h4>生成预检</h4>
-                                                                <span id="template-validation-status" class="badge">未运行</span>
-                                                            </div>
-                                                            <div id="template-validation-list" class="template-validation-list">
-                                                                <div class="validation-item pending"><i class="codicon codicon-circle-outline"></i><span>Word 占位符均有 section 映射</span></div>
-                                                                <div class="validation-item pending"><i class="codicon codicon-circle-outline"></i><span>AI 文本 section 已配置 prompt</span></div>
-                                                                <div class="validation-item pending"><i class="codicon codicon-circle-outline"></i><span>Excel 图表和表格已绑定来源</span></div>
-                                                                <div class="validation-item pending"><i class="codicon codicon-circle-outline"></i><span>数字、禁用词、投资建议规则已配置</span></div>
-                                                            </div>
+                                                            <div id="template-project-check-actions" class="template-project-check-actions" aria-live="polite"></div>
+                                                            <details id="template-validation-details" class="template-validation-details">
+                                                                <summary>查看检查详情</summary>
+                                                                <div id="template-validation-list" class="template-validation-list"></div>
+                                                            </details>
                                                         </div>
                                                     </div>
                                                 </details>

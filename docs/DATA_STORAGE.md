@@ -1981,7 +1981,8 @@ class ExampleRepositoryImpl(BaseRepository):
 | 008 | 008_add_event_type_column.py | 添加事件类型字段 |
 | 009 | 009_add_structured_market_data_tables.py | 添加结构化行情数据表 (stock_master, stock_daily_bar, stock_quote_snapshot, stock_financial_metric, stock_valuation, stock_shareholder, index_component, etl_run) |
 | 010 | 010_add_wind_data_tables.py | 添加 Wind 一致预期、两融、龙虎榜和日行情表 |
-| 011 | 011_add_index_structure_tables.py | 添加指数发布方、指数主表、成分权重快照、指数 ETF 关系和 ETF 日度规模/资金流表 |
+| 011 | 011_add_factor_store_tables.py | 添加动态多因子存储表 |
+| 012 | 012_add_index_structure_tables.py | 添加指数发布方、指数主表、成分权重快照、指数 ETF 关系和 ETF 日度规模/资金流表 |
 
 ### 常用命令
 

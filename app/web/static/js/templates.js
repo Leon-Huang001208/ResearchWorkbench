@@ -1258,7 +1258,7 @@ function getTemplateGenerationPreflight(template = getCurrentWorkbenchTemplate()
 function blockReportGenerationForPreflight(preflight) {
     const template = preflight?.template || getCurrentWorkbenchTemplate() || {};
     renderTemplateValidationPreview(template, preflight.sections, preflight.placeholders);
-    openProjectCheckPanel('template-validation-preview');
+    openProjectCheckPanel('template-project-check-actions');
     setGenerationFlowState('check', '生成预检未通过', '请先处理占位符配置问题');
     setText('template-generation-current-step-summary', '请先处理生成预检中的占位符配置问题');
     toggleFlowActions(false);
@@ -1398,11 +1398,11 @@ function renderProjectCheckSummary(readiness) {
 
     if (summaryEl) {
         summaryEl.textContent = pending
-            ? `${passed}/${total} 通过 · 点击查看待处理项`
+            ? `${passed}/${total} 项通过 · 点击查看待处理项`
             : `${total} 项通过 · 可直接生成`;
     }
     if (statusEl) {
-        statusEl.textContent = pending ? `${pending} 项待处理` : '检查通过';
+        statusEl.textContent = pending ? `${pending} 项待处理` : '可直接生成';
         statusEl.classList.toggle('warning', pending > 0);
     }
 }
@@ -3950,6 +3950,8 @@ function renderSelectedPlaceholderDetail(template) {
     });
     const writingStructure = getLlmWritingComponent(mapping).writing_structure || mapping.writing_structure || inferDefaultWritingStructure(name);
     const writingStructureText = Array.isArray(writingStructure) ? writingStructure.join('\n') : '';
+    const rawSemanticQuery = getConfiguredSemanticRetrievalQueryForPlaceholder(template, mapping, name);
+    const semanticQueryDisplay = getSemanticRetrievalQueryForPlaceholder(template, mapping, name);
     const typeOptions = getEditablePlaceholderTypeOptions(type);
     updateTemplateConfigPlaceholderChips(type, mapping, template, name);
     renderPlaceholderWizardControls(template);
@@ -3985,7 +3987,8 @@ function renderSelectedPlaceholderDetail(template) {
             minNewsCount,
             dataTemplateFields,
             retrievalKeywords,
-            semanticQuery: getSemanticRetrievalQueryForPlaceholder(template, mapping, name),
+            rawSemanticQuery,
+            semanticQueryDisplay,
             dataTemplate,
             writingStructureText,
             template
@@ -4539,6 +4542,35 @@ function parseKeywordGroupsTextarea(text) {
     }).filter(Boolean);
 }
 
+function buildConfigCollapsibleSection({
+    title,
+    meta = '',
+    editSection,
+    body,
+    open = false
+}) {
+    const editSectionAttribute = {
+        keywords: 'data-placeholder-edit-section="keywords"',
+        fixed_template: 'data-placeholder-edit-section="fixed_template"',
+        data_fields: 'data-placeholder-edit-section="data_fields"',
+        writing: 'data-placeholder-edit-section="writing"'
+    }[editSection] || `data-placeholder-edit-section="${esc(editSection)}"`;
+    return `
+        <details class="template-config-collapsible-section"${open ? ' open' : ''}>
+            <summary>
+                <div class="template-config-readable-title">
+                    <strong>${esc(title)}</strong>
+                    <span>${esc(meta)}</span>
+                </div>
+                <button class="template-config-inline-action template-config-edit-trigger" type="button" ${editSectionAttribute}>编辑</button>
+            </summary>
+            <div class="template-config-collapsible-body">
+                ${body || ''}
+            </div>
+        </details>
+    `;
+}
+
 function buildPlaceholderConfigSummaryHtml({
     name,
     type,
@@ -4550,7 +4582,8 @@ function buildPlaceholderConfigSummaryHtml({
     minNewsCount,
     dataTemplateFields = {},
     retrievalKeywords = '',
-    semanticQuery = '',
+    rawSemanticQuery = '',
+    semanticQueryDisplay: providedSemanticQueryDisplay = '',
     dataTemplate = '',
     writingStructureText = '',
     template
@@ -4563,7 +4596,9 @@ function buildPlaceholderConfigSummaryHtml({
     const dataFieldEntries = dataTemplateFields && typeof dataTemplateFields === 'object'
         ? Object.entries(dataTemplateFields)
         : [];
-    const keywordList = splitLines(retrievalKeywords);
+    rawSemanticQuery = String(rawSemanticQuery ?? '');
+    const semanticQueryDisplay = String(providedSemanticQueryDisplay ?? '');
+    const keywordList = splitLines(retrievalKeywords || '');
     const writingSteps = splitLines(writingStructureText);
     if (isReportPeriodFieldPlaceholder(mapping.type || type, mapping, name)) {
         const field = mapping.field || inferReportPeriodField(name);
@@ -4626,6 +4661,8 @@ function buildPlaceholderConfigSummaryHtml({
     const hasRuns = richTextSpec && Array.isArray(richTextSpec.runs) && richTextSpec.runs.length > 0;
     const keywordGroups = v2?.generation_config?.retrieval?.keyword_groups;
     const hasKeywordGroups = Array.isArray(keywordGroups) && keywordGroups.length > 0;
+    const queryNeedsAttention = usesEvidence && !rawSemanticQuery.trim();
+    const keywordsNeedAttention = usesEvidence && !queryNeedsAttention && keywordList.length === 0;
     return `
         <section class="template-config-summary-card template-config-readable-card">
             <div class="template-config-summary-head">
@@ -4643,44 +4680,52 @@ function buildPlaceholderConfigSummaryHtml({
                 ${hasRuns ? buildConfigEnhancementBadges(mapping, v2) : ''}
             </button>
             ${usesEvidence ? `
-                <button class="template-config-readable-section template-config-edit-trigger" type="button" data-placeholder-edit-section="query">
-                    <div class="template-config-readable-title">
-                        <strong>语义 Query</strong>
-                        <span>用于相关内容召回</span>
-                    </div>
-                    <p>${esc(semanticQuery || '未配置语义 Query')}</p>
-                </button>
-                <button class="template-config-readable-section template-config-edit-trigger" type="button" data-placeholder-edit-section="keywords">
-                    <div class="template-config-readable-title">
-                        <strong>关键词</strong>
-                        <span>${keywordMode === 'profile' ? `预设包：${esc(selectedKeywordProfile || '未选择')}` : '自定义'} · ${keywordList.length} 个</span>
-                    </div>
+                ${queryNeedsAttention ? `
+                    <button class="template-config-next-action template-config-edit-trigger" type="button" data-placeholder-edit-section="query">
+                        <span>下一步</span>
+                        <strong>补充语义 Query，明确系统应召回哪些材料。</strong>
+                    </button>
+                ` : keywordsNeedAttention ? `
+                    <button class="template-config-next-action template-config-edit-trigger" type="button" data-placeholder-edit-section="keywords">
+                        <span>下一步</span>
+                        <strong>选择关键词预设包，或添加自定义关键词。</strong>
+                    </button>
+                ` : ''}
+                ${buildConfigCollapsibleSection({
+                    title: '语义 Query',
+                    meta: queryNeedsAttention ? '待补充 · 用于相关内容召回' : '用于相关内容召回',
+                    editSection: 'query',
+                    open: queryNeedsAttention,
+                    body: `<p>${esc(semanticQueryDisplay.trim() || '未配置语义 Query')}</p>`
+                })}
+                ${buildConfigCollapsibleSection({
+                    title: '关键词',
+                    meta: `${keywordMode === 'profile' ? `预设包：${selectedKeywordProfile || '未选择'}` : '自定义'} · ${keywordList.length} 个`,
+                    editSection: 'keywords',
+                    body: `
                     <div class="template-config-keyword-cloud">
                         ${keywordList.length
                             ? keywordList.map(keyword => `<span>${esc(keyword)}</span>`).join('')
                             : '<em>暂无关键词</em>'}
                     </div>
                     ${hasKeywordGroups ? buildKeywordGroupsInlineBadges(keywordGroups) : ''}
-                </button>
+                    `
+                })}
             ` : ''}
             ${supportsDataTemplate && dataTemplate ? `
-                <button class="template-config-readable-section template-config-edit-trigger" type="button" data-placeholder-edit-section="fixed_template">
-                    <div class="template-config-readable-title">
-                        <strong>固定开头模板</strong>
-                        <span>Excel 数据填充</span>
-                    </div>
-                    <p class="template-config-data-template-preview">${renderDataTemplatePreview(dataTemplate, dataTemplateFields)}</p>
-                </button>
+                ${buildConfigCollapsibleSection({
+                    title: '固定开头模板',
+                    meta: 'Excel 数据填充',
+                    editSection: 'fixed_template',
+                    body: `<p class="template-config-data-template-preview">${renderDataTemplatePreview(dataTemplate, dataTemplateFields)}</p>`
+                })}
             ` : ''}
             ${dataFieldEntries.length ? `
-                <div class="template-config-readable-section">
-                    <div class="template-config-readable-title template-config-data-overview-title">
-                        <div class="template-config-data-overview-heading">
-                            <strong>模板变量数据来源</strong>
-                            <span>${dataFieldEntries.length} 个变量</span>
-                        </div>
-                        <button class="template-config-inline-action template-config-edit-trigger" type="button" data-placeholder-edit-section="data_fields">管理变量</button>
-                    </div>
+                ${buildConfigCollapsibleSection({
+                    title: '模板变量数据来源',
+                    meta: `${dataFieldEntries.length} 个变量`,
+                    editSection: 'data_fields',
+                    body: `
                     <div class="template-config-data-overview">
                         ${dataFieldEntries.map(([fieldKey, field]) => `
                             <button class="template-config-data-overview-row template-config-edit-trigger" type="button" data-placeholder-edit-section="data_fields" data-placeholder-edit-field="${esc(fieldKey)}">
@@ -4692,22 +4737,22 @@ function buildPlaceholderConfigSummaryHtml({
                             </button>
                         `).join('')}
                     </div>
-                </div>
+                    `
+                })}
             ` : ''}
             ${usesEvidence ? `
-                <button class="template-config-readable-section template-config-edit-trigger" type="button" data-placeholder-edit-section="writing">
-                    <div class="template-config-readable-title">
-                        <strong>写作结构</strong>
-                        <span>${writingSteps.length ? `${writingSteps.length} 步` : '未配置'}</span>
-                    </div>
-                    ${writingSteps.length ? `
+                ${buildConfigCollapsibleSection({
+                    title: '写作结构',
+                    meta: writingSteps.length ? `${writingSteps.length} 步` : '未配置',
+                    editSection: 'writing',
+                    body: writingSteps.length ? `
                         <ol class="template-config-writing-steps">
                             ${writingSteps.map(step => `<li>${esc(step)}</li>`).join('')}
                         </ol>
                     ` : `
                         <p class="template-config-empty-note">未单独配置写作步骤，点击这里添加生成正文的结构和表达边界。</p>
-                    `}
-                </button>
+                    `
+                })}
             ` : ''}
         </section>
     `;
@@ -5122,19 +5167,38 @@ function renderTableOrChartPlaceholderEditor(type, mapping = {}) {
     `;
 }
 
-function getSemanticRetrievalQueryForPlaceholder(template, mapping = {}, placeholderName = '') {
+function getConfiguredSemanticRetrievalQueryForPlaceholder(template, mapping = {}, placeholderName = '') {
     if (String(mapping.prompt_retrieval_query || '').trim()) {
         return String(mapping.prompt_retrieval_query).trim();
     }
-    if (String(mapping.query_mode || '').trim() === 'query_source' && mapping.query_source) {
-        return `Query 来源：${mapping.query_source}`;
+    const queryMode = String(mapping.query_mode || mapping.queryMode || '').trim();
+    const querySource = String(mapping.query_source || mapping.querySource || '').trim();
+    if (querySource && (!queryMode || queryMode === 'query_source')) {
+        return querySource;
     }
     const promptName = mapping.prompt_template
         || resolvePromptTemplateName(placeholderName, template?.report_project);
     const promptSource = template?.report_project?.prompt_templates_source || '';
     const query = extractPromptTemplateLabel(promptSource, promptName, '检索 Query');
     if (query) return query;
-    if (mapping.query_source) return `Query 来源：${mapping.query_source}`;
+    return '';
+}
+
+function getSemanticRetrievalQueryForPlaceholder(template, mapping = {}, placeholderName = '') {
+    if (String(mapping.prompt_retrieval_query || '').trim()) {
+        return String(mapping.prompt_retrieval_query).trim();
+    }
+    const queryMode = String(mapping.query_mode || mapping.queryMode || '').trim();
+    const querySource = String(mapping.query_source || mapping.querySource || '').trim();
+    if (queryMode === 'query_source' && querySource) {
+        return `Query 来源：${querySource}`;
+    }
+    const promptName = mapping.prompt_template
+        || resolvePromptTemplateName(placeholderName, template?.report_project);
+    const promptSource = template?.report_project?.prompt_templates_source || '';
+    const query = extractPromptTemplateLabel(promptSource, promptName, '检索 Query');
+    if (query) return query;
+    if (querySource) return `Query 来源：${querySource}`;
     return promptName || normalizePlaceholderName(placeholderName) || '未配置语义 Query';
 }
 
@@ -6618,6 +6682,82 @@ function getPlaceholderReadinessIssue(mapping, placeholderName) {
     return null;
 }
 
+function buildPreflightDisplayModel(readiness, checks, placeholderReadiness, context) {
+    const compiledPlaceholders = Array.isArray(readiness.compiledPlan?.placeholders)
+        ? readiness.compiledPlan.placeholders
+        : [];
+    const evidenceCount = compiledPlaceholders.length
+        ? compiledPlaceholders.filter(item => item.evidence_required).length
+        : placeholderReadiness.length;
+    const mappedCount = context.placeholders.length || context.sections.length;
+    const rawActions = [
+        ...readiness.assetChecks.filter(item => !item.ok),
+        ...checks.filter(item => !item.ok),
+        ...placeholderReadiness.filter(item => !item.ok)
+    ];
+    const actions = normalizeAndPrioritizePreflightActions(rawActions);
+    const detailGroups = buildPreflightReviewGroups(
+        readiness,
+        checks,
+        placeholderReadiness,
+        context
+    );
+
+    if (!actions.length) {
+        return {
+            state: 'ready',
+            summary: `${mappedCount} 个占位符已配置 · ${evidenceCount} 个正文段落可检索生成`,
+            actions: [],
+            detailGroups
+        };
+    }
+
+    return {
+        state: 'blocked',
+        summary: `${actions.length} 项待处理 · ${mappedCount} 个占位符已配置`,
+        actions,
+        detailGroups
+    };
+}
+
+function normalizeAndPrioritizePreflightActions(items) {
+    const actionsByKey = new Map();
+    items.forEach(item => {
+        const action = item.action || 'open-advanced';
+        const actionTarget = item.actionTarget || 'template-advanced-maintenance';
+        const placeholderName = normalizePlaceholderName(item.placeholderName || '');
+        const label = placeholderName ? `{{${placeholderName}}}` : (item.label || '生成配置');
+        const detail = item.issue?.message || item.status?.detail || item.value || '需要补充配置';
+        const normalized = {
+            label,
+            detail,
+            action,
+            actionTarget,
+            actionLabel: item.actionLabel || '去处理',
+            placeholderName,
+            editorSection: item.editorSection || item.issue?.editorSection || 'basic',
+            priority: getPreflightActionPriority(label, detail)
+        };
+        const key = `${placeholderName}|${action}|${actionTarget}|${label}`;
+        const existing = actionsByKey.get(key);
+        if (!existing || normalized.priority < existing.priority) {
+            actionsByKey.set(key, normalized);
+        }
+    });
+
+    return [...actionsByKey.values()].sort((left, right) =>
+        left.priority - right.priority || left.label.localeCompare(right.label, 'zh-CN')
+    );
+}
+
+function getPreflightActionPriority(label, detail) {
+    const text = `${label} ${detail}`.toLowerCase();
+    if (/prompt|query|检索关键词|占位符映射|word 占位符/.test(text)) return 10;
+    if (/word 模板|ppt 模板|section 配置|模板缺失/.test(text)) return 20;
+    if (/excel|表格|图表|数据来源/.test(text)) return 30;
+    return 40;
+}
+
 function buildPreflightReviewGroups(readiness, checks, placeholderReadiness, context) {
     const compiledPlan = readiness.compiledPlan || null;
     const compiledPlaceholders = Array.isArray(compiledPlan?.placeholders)
@@ -6842,8 +6982,53 @@ function renderPreflightReviewGroup(group) {
     `;
 }
 
+function renderPreflightSummary(model) {
+    const panel = document.getElementById('template-project-check-details');
+    const statusEl = document.getElementById('template-project-check-status');
+    setText('template-project-check-summary', model.summary);
+    if (statusEl) {
+        statusEl.textContent = model.state === 'ready'
+            ? '可直接生成'
+            : `${model.actions.length} 项待处理`;
+        statusEl.classList.toggle('warning', model.state === 'blocked');
+    }
+    if (panel) {
+        panel.dataset.preflightState = model.state;
+        if (model.state === 'blocked') panel.open = true;
+    }
+}
+
+function renderPreflightActions(model) {
+    const container = document.getElementById('template-project-check-actions');
+    if (!container) return;
+    if (model.state === 'ready') {
+        container.innerHTML = `
+            <div class="template-preflight-ready-summary">
+                全部检查通过。展开后可查看 Prompt、检索和输出详情。
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = model.actions.slice(0, 3).map(action => `
+        <div class="template-preflight-action">
+            <span>
+                <strong>${esc(action.label)}</strong>
+                <small class="template-preflight-action-detail">${esc(action.detail)}</small>
+            </span>
+            <button
+                type="button"
+                class="template-check-action"
+                data-template-check-action="${esc(action.action)}"
+                data-template-check-target="${esc(action.actionTarget)}"
+                data-template-placeholder-name="${esc(action.placeholderName)}"
+                data-template-placeholder-editor-section="${esc(action.editorSection)}"
+            >${esc(action.actionLabel)}</button>
+        </div>
+    `).join('');
+}
+
 function renderTemplateValidationPreview(template, sections, placeholders) {
-    const statusEl = document.getElementById('template-validation-status');
     const list = document.getElementById('template-validation-list');
     if (!list) return;
 
@@ -6852,20 +7037,14 @@ function renderTemplateValidationPreview(template, sections, placeholders) {
     const placeholderReadiness = readiness.placeholderReadiness;
     renderPlaceholderIssueQueue(template, placeholderReadiness);
     const excelRows = readiness.excelRows;
-    const reviewGroups = buildPreflightReviewGroups(readiness, checks, placeholderReadiness, {
+    const model = buildPreflightDisplayModel(readiness, checks, placeholderReadiness, {
         sections,
         placeholders,
         excelRows
     });
-
-    list.innerHTML = reviewGroups.map(group => renderPreflightReviewGroup(group)).join('');
-
-    if (statusEl) {
-        const passed = checks.filter(check => check.ok).length + placeholderReadiness.filter(item => item.ok).length;
-        const total = checks.length + placeholderReadiness.length;
-        statusEl.textContent = `${passed}/${total}`;
-        statusEl.classList.toggle('warning', passed < total);
-    }
+    renderPreflightSummary(model);
+    renderPreflightActions(model);
+    list.innerHTML = model.detailGroups.map(group => renderPreflightReviewGroup(group)).join('');
 }
 
 function renderPlaceholderIssueQueue(template, placeholderReadiness) {

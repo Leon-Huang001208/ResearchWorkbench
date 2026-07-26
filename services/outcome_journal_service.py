@@ -31,24 +31,36 @@ class OutcomeJournalService:
         if not outcome.outcome_id:
             outcome.outcome_id = str(uuid.uuid4())
 
+        if self._repository is not None:
+            return self._repository.save(outcome)
+
         with db_session() as db:
             repo = OutcomeJournalRepository(db)
             return repo.save(outcome)
 
     def get_outcome(self, outcome_id: str) -> Optional[TradeOutcome]:
         """Get an outcome by ID."""
+        if self._repository is not None:
+            return self._repository.get_by_id(outcome_id)
+
         with db_session() as db:
             repo = OutcomeJournalRepository(db)
             return repo.get_by_id(outcome_id)
 
     def list_outcomes_for_signal(self, signal_id: str) -> List[TradeOutcome]:
         """List all outcomes for a signal."""
+        if self._repository is not None:
+            return self._repository.list_by_signal_id(signal_id)
+
         with db_session() as db:
             repo = OutcomeJournalRepository(db)
             return repo.list_by_signal_id(signal_id)
 
     def list_failures_by_class(self, failure_class: FailureClassification) -> List[TradeOutcome]:
         """List all failures of a specific class."""
+        if self._repository is not None:
+            return self._repository.list_by_failure_class(failure_class)
+
         with db_session() as db:
             repo = OutcomeJournalRepository(db)
             return repo.list_by_failure_class(failure_class)
@@ -64,10 +76,14 @@ class OutcomeJournalService:
         start_datetime = datetime.combine(start_of_week, datetime.min.time(), tzinfo=timezone.utc)
         end_datetime = datetime.combine(end_of_week, datetime.max.time(), tzinfo=timezone.utc)
 
-        with db_session() as db:
-            repo = OutcomeJournalRepository(db)
-            outcomes = repo.list_weekly(start_datetime, end_datetime)
-            failure_counts = repo.count_by_failure_class()
+        if self._repository is not None:
+            outcomes = self._repository.list_weekly(start_datetime, end_datetime)
+            failure_counts = self._repository.count_by_failure_class()
+        else:
+            with db_session() as db:
+                repo = OutcomeJournalRepository(db)
+                outcomes = repo.list_weekly(start_datetime, end_datetime)
+                failure_counts = repo.count_by_failure_class()
 
         total = len(outcomes)
         successful = sum(1 for o in outcomes if o.thesis_success)
@@ -103,6 +119,9 @@ class OutcomeJournalService:
 
     def count_failure_distribution(self) -> Dict[FailureClassification, int]:
         """Get the current failure distribution across all outcomes."""
+        if self._repository is not None:
+            return self._repository.count_by_failure_class()
+
         with db_session() as db:
             repo = OutcomeJournalRepository(db)
             return repo.count_by_failure_class()

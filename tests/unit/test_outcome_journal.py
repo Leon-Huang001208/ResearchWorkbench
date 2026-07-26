@@ -4,12 +4,11 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from core.contracts.outcome_journal import FailureClassification, TradeOutcome
-from data_layer.repositories.base import db_session
 from data_layer.repositories.outcome_journal_repository import OutcomeJournalRepository
 from services.outcome_journal_service import OutcomeJournalService
 
 
-def test_create_and_retrieve_outcome():
+def test_create_and_retrieve_outcome(db_session):
     """Test creating a new outcome and retrieving it."""
     outcome_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc)
@@ -28,7 +27,7 @@ def test_create_and_retrieve_outcome():
         market_regime="bull",
     )
 
-    service = OutcomeJournalService()
+    service = OutcomeJournalService(repository=OutcomeJournalRepository(db_session))
     saved = service.record_outcome(outcome)
     assert saved is not None
     assert saved.outcome_id == outcome_id
@@ -42,7 +41,7 @@ def test_create_and_retrieve_outcome():
     assert abs(retrieved.benchmark_excess_return - 0.02) < 0.0001
 
 
-def test_failed_outcome_with_classification():
+def test_failed_outcome_with_classification(db_session):
     """Test saving a failed outcome with failure classification."""
     outcome_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc)
@@ -63,7 +62,7 @@ def test_failed_outcome_with_classification():
         market_regime="volatile",
     )
 
-    service = OutcomeJournalService()
+    service = OutcomeJournalService(repository=OutcomeJournalRepository(db_session))
     saved = service.record_outcome(outcome)
     assert saved.failure_classification == FailureClassification.timing_error
 
@@ -74,16 +73,16 @@ def test_failed_outcome_with_classification():
     assert retrieved.failure_notes == "Entered too early before earnings announcement"
 
 
-def test_list_by_failure_class():
+def test_list_by_failure_class(db_session):
     """Test listing outcomes by failure classification."""
-    service = OutcomeJournalService()
+    service = OutcomeJournalService(repository=OutcomeJournalRepository(db_session))
     failures = service.list_failures_by_class(FailureClassification.timing_error)
     assert isinstance(failures, list)
 
 
-def test_generate_weekly_review():
+def test_generate_weekly_review(db_session):
     """Test generating a weekly review report."""
-    service = OutcomeJournalService()
+    service = OutcomeJournalService(repository=OutcomeJournalRepository(db_session))
     report = service.generate_weekly_review(weeks_ago=0)
     assert report is not None
     assert report.report_id is not None
@@ -91,12 +90,11 @@ def test_generate_weekly_review():
     assert 0 <= report.success_rate <= 100
 
 
-def test_repository_count_by_failure_class():
+def test_repository_count_by_failure_class(db_session):
     """Test that repository correctly counts failures by classification."""
-    with db_session() as db:
-        repo = OutcomeJournalRepository(db)
-        counts = repo.count_by_failure_class()
-        assert isinstance(counts, dict)
-        # All keys should be FailureClassification enum
-        for key in counts.keys():
-            assert isinstance(key, FailureClassification)
+    repo = OutcomeJournalRepository(db_session)
+    counts = repo.count_by_failure_class()
+    assert isinstance(counts, dict)
+    # All keys should be FailureClassification enum
+    for key in counts.keys():
+        assert isinstance(key, FailureClassification)
