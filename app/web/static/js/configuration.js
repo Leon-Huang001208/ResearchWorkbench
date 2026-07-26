@@ -778,50 +778,28 @@ function getConfigurationHealth(snapshot) {
 function renderConfigurationHealth(snapshot) {
     const health = getConfigurationHealth(snapshot);
     const summary = document.querySelector('[data-config-health-summary]');
-    if (summary) {
-        summary.classList.toggle('ready', health.missingCount === 0 && health.errorCount === 0);
-        summary.classList.toggle('has-error', health.errorCount > 0);
-        summary.querySelector('[data-config-health-headline]').textContent = health.errorCount
-            ? `发现 ${health.errorCount} 项连接异常`
-            : `系统状态：${health.readyCount} 项已就绪 · ${health.missingCount} 项待补齐`;
-        summary.querySelector('[data-config-health-detail]').textContent = health.verifiedCount
-            ? `${health.verifiedCount} 项已在本次会话中完成连接验证；刷新后将重新检测。`
-            : '配置就绪表示已填写必要信息；可在详情中执行连接测试。';
-        summary.querySelector('[data-config-health-ready]').textContent = health.readyCount;
-        summary.querySelector('[data-config-health-missing]').textContent = health.missingCount;
-        summary.querySelector('[data-config-health-verified]').textContent = health.verifiedCount;
-        summary.querySelector('[data-config-health-error]').textContent = health.errorCount;
-    }
-
     const readiness = snapshot?.readiness || {};
-    const completedCount = ONBOARDING_SECTIONS.filter(section => readiness[section]).length;
-    const nextSection = ONBOARDING_SECTIONS.find(section => !readiness[section]);
-    const onboarding = document.querySelector('[data-config-onboarding]');
-    if (!onboarding) return;
-    onboarding.querySelector('[data-config-onboarding-title]').textContent = nextSection
-        ? `已完成 ${completedCount} / ${ONBOARDING_SECTIONS.length} 个配置步骤`
-        : '首次配置已完成';
-    onboarding.querySelector('[data-config-onboarding-detail]').textContent = nextSection
-        ? `下一步：${SECTION_META[nextSection]?.title || '补齐待配置项'}。`
-        : '所有常用服务均已配置，可按需执行连接测试。';
-    onboarding.querySelector('[data-config-onboarding-action]').textContent = nextSection ? '继续配置' : '查看配置';
-    onboarding.querySelectorAll('[data-config-onboarding-step]').forEach(step => {
-        const ready = Boolean(readiness[step.dataset.configOnboardingStep]);
-        step.classList.toggle('ready', ready);
-        step.classList.toggle('missing', !ready);
-        step.setAttribute('aria-label', `${step.textContent}：${ready ? '已就绪' : '待配置'}`);
-    });
-}
+    const total = Object.keys(readiness).length || ONBOARDING_SECTIONS.length;
+    const completed = health.readyCount;
+    const missing = Math.max(0, total - completed);
+    const percent = total ? Math.round((completed / total) * 100) : 0;
+    const connectionLabel = health.errorCount ? 'error' : health.verifiedCount ? 'verified' : '无异常';
+    const connectionDetail = health.errorCount
+        ? `发现 ${health.errorCount} 项连接异常，请打开对应配置修复后再次测试。`
+        : health.verifiedCount
+            ? `${health.verifiedCount} 项连接已在本次会话验证；刷新状态会清除此会话结果。`
+            : '尚未发现连接异常；可在具体配置中按需测试连接。';
 
-function openNextIncompleteConfiguration() {
-    const readiness = configurationSnapshot?.readiness || {};
-    const section = ONBOARDING_SECTIONS.find(name => !readiness[name]) || ONBOARDING_SECTIONS[0];
-    if (!SECTION_META[section]) {
-        showPageMessage('配置状态尚未加载完成，请稍后重试', 'error');
-        return;
-    }
-    console.info('[config] opening configuration entry point', { section });
-    openConfigModal(section);
+    if (!summary) return;
+    summary.classList.toggle('ready', missing === 0 && health.errorCount === 0);
+    summary.classList.toggle('has-error', health.errorCount > 0);
+    summary.querySelector('[data-config-progress-completed]').textContent = completed;
+    summary.querySelector('[data-config-progress-missing]').textContent = missing;
+    const progressBar = summary.querySelector('[data-config-progress-bar]');
+    progressBar.style.width = `${percent}%`;
+    progressBar.parentElement?.setAttribute('aria-valuenow', String(percent));
+    summary.querySelector('[data-config-connection-label]').textContent = connectionLabel;
+    summary.querySelector('[data-config-health-detail]').textContent = connectionDetail;
 }
 
 function renderSnapshot(snapshot) {
@@ -1252,7 +1230,30 @@ async function refreshConfiguration() {
         return;
     }
     if (dirtySections.size && !window.confirm('刷新会丢弃尚未保存的修改，是否继续？')) return;
+    connectionStateBySection.clear();
     await loadConfiguration({ discardDirty: true });
+}
+
+function configurationCardState(section) {
+    const connectionState = connectionStateBySection.get(section);
+    if (connectionState === 'error' || connectionState === 'verified') return connectionState;
+    if (section === 'database') {
+        const databaseReady = databaseReadinessPresentation().state === 'ready'
+            || Boolean(configurationSnapshot?.readiness?.database);
+        return databaseReady ? 'ready' : 'missing';
+    }
+    return configurationSnapshot?.readiness?.[section] ? 'ready' : 'missing';
+}
+
+function renderConfigurationCardVisibility() {
+    const filter = document.querySelector('[data-config-status-filter]')?.value || 'all';
+    document.querySelectorAll('[data-config-card]').forEach(card => {
+        const state = configurationCardState(card.dataset.configCard);
+        const visible = filter === 'all'
+            || (filter === 'attention' && (state === 'missing' || state === 'error'))
+            || (filter === 'ready' && (state === 'ready' || state === 'verified'));
+        card.hidden = !visible;
+    });
 }
 
 function bindConfigurationEvents() {
@@ -1276,7 +1277,17 @@ function bindConfigurationEvents() {
 
     // 刷新按钮
     document.getElementById('config-refresh')?.addEventListener('click', refreshConfiguration);
-    page.querySelector('[data-config-onboarding-action]')?.addEventListener('click', openNextIncompleteConfiguration);
+    page.querySelector('[data-config-status-filter]')?.addEventListener('change', () => {
+        renderConfigurationCardVisibility();
+    });
+    page.querySelector('[data-config-connection-summary]')?.addEventListener('click', () => {
+        const detail = page.querySelector('[data-config-health-detail]');
+        const button = page.querySelector('[data-config-connection-summary]');
+        if (!detail || !button) return;
+        const expanded = button.getAttribute('aria-expanded') === 'true';
+        button.setAttribute('aria-expanded', String(!expanded));
+        detail.hidden = expanded;
+    });
 
     syncMutationControls();
 }
@@ -1401,6 +1412,8 @@ export function renderSummaryCards() {
                 : configurationSnapshot.readiness?.[section] ? '管理配置' : '去配置';
         }
     });
+
+    renderConfigurationCardVisibility();
 
     // 移除加载骨架屏状态
     const grid = document.querySelector('.config-cards-grid');
