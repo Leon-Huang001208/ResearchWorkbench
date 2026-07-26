@@ -656,6 +656,7 @@ function applyCollectionLock(form, section, { addButton, rowSelector }) {
     const header = button?.closest('.config-subsection-header');
     const existingMessage = header?.querySelector('.config-collection-lock-message');
     const message = existingMessage || element('p', 'config-collection-lock-message', LOCKED_FIELD_MESSAGE);
+    if (!message.id) message.id = `config-collection-lock-message-${++dynamicLockMessageSequence}`;
     if (!existingMessage) header?.querySelector('h4')?.insertAdjacentElement('afterend', message);
     if (button) button.disabled = true;
     form.querySelectorAll(rowSelector).forEach(row => {
