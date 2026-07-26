@@ -6581,12 +6581,22 @@ function buildExcelMappingRows(template) {
 
 function buildTemplateValidationChecks(template, sections, placeholders) {
     const placeholderMappings = getCurrentPlaceholderMappings(template);
-    const firstUnmappedPlaceholder = placeholders.find(placeholder =>
-        !placeholderMappings.has(normalizePlaceholderName(placeholder))
-    );
+    const effectivePlaceholderMappings = (placeholders || [])
+        .map(placeholderName => normalizePlaceholderName(placeholderName))
+        .filter(Boolean)
+        .map(placeholderName => ({
+            placeholderName,
+            mapping: getEffectivePlaceholderMapping(template, placeholderName)
+        }));
+    const firstUnmappedPlaceholder = effectivePlaceholderMappings.find(({ placeholderName, mapping }) =>
+        mapping?._isV2 ? !mapping._v2 : !placeholderMappings.has(placeholderName)
+    )?.placeholderName;
     const allPlaceholdersMapped = placeholders.length === 0
         || !firstUnmappedPlaceholder;
-    const hasPromptMapping = [...placeholderMappings.values()].some(mapping => mapping.prompt_template);
+    const hasPromptMapping = [...placeholderMappings.values()].some(mapping => mapping.prompt_template)
+        || effectivePlaceholderMappings.some(({ mapping }) =>
+            mapping?._isV2 && (mapping.prompt_template || mapping.prompt_retrieval_query)
+        );
     const hasExcelMapping = buildExcelMappingRows(template).length > 0;
     const hasRuleConfig = sections.some(section =>
         section.evidence_policy

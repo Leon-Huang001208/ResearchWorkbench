@@ -755,6 +755,7 @@ const sandbox = {
     getCurrentPlaceholderMappings: () => new Map(),
     getStoredPlaceholderMappings: () => new Map(),
     getTemplateWorkbenchPlaceholderNames: () => ['已配置', '待配置'],
+    buildExcelMappingRows: () => [],
     getCanonicalPlaceholderType: (type) => type || 'paragraph',
     getParagraphMode: () => 'evidence_ai',
     usesEvidenceParagraphMode: () => true,
@@ -765,6 +766,7 @@ vm.createContext(sandbox);
 vm.runInContext(extract('function getPlaceholderLifecycleStatus', 'function buildPlaceholderWizardState'), sandbox);
 sandbox.getTemplateWorkbenchPlaceholderNames = () => ['已配置', '待配置'];
 vm.runInContext(extract('function buildPlaceholderWizardState', 'function renderPlaceholderWizardControls'), sandbox);
+vm.runInContext(extract('function buildTemplateValidationChecks', 'function buildPlaceholderReadinessItems'), sandbox);
 vm.runInContext(extract('function buildPlaceholderReadinessItems', 'function getPlaceholderReadinessIssue'), sandbox);
 vm.runInContext(extract('function v2PlaceholderConfigToMapping', '/* ── v2 编辑草稿管理'), sandbox);
 vm.runInContext(extract('function getV2Draft', 'function hasV2Drafts'), sandbox);
@@ -788,12 +790,14 @@ sandbox.renderTemplatePlaceholderMap(template, ['已配置', '待配置'], []);
 const html = elements['template-placeholder-map'].innerHTML;
 const wizard = sandbox.buildPlaceholderWizardState(template);
 const readiness = sandbox.buildPlaceholderReadinessItems(template, ['已配置', '待配置']);
+const validation = sandbox.buildTemplateValidationChecks(template, [], ['已配置', '待配置']);
 console.log(JSON.stringify({
     ready: /data-placeholder-readiness="ready"[\s\S]*?已配置/.test(html),
     needsAttention: /data-placeholder-readiness="needs_attention"[\s\S]*?待配置/.test(html),
     names: [...html.matchAll(/data-placeholder-name="([^"]+)"/g)].map((match) => match[1]),
     wizard: { completedCount: wizard.completedCount, incompleteNames: wizard.incompleteItems.map((item) => item.name) },
-    readiness: readiness.map((item) => ({ name: item.placeholderName, ok: item.ok, state: item.status.state }))
+    readiness: readiness.map((item) => ({ name: item.placeholderName, ok: item.ok, state: item.status.state })),
+    validation: { mappings: validation[0].ok, prompt: validation[1].ok }
 }));
 """
 
@@ -814,6 +818,7 @@ console.log(JSON.stringify({
             {"name": "已配置", "ok": True, "state": "ready"},
             {"name": "待配置", "ok": False, "state": "missing"},
         ],
+        "validation": {"mappings": True, "prompt": True},
     }
 
 
