@@ -719,6 +719,91 @@ def test_placeholder_picker_groups_sections_by_existing_readiness():
     assert ".template-config-editor-toolbar .template-placeholder-map-group" in css
 
 
+def test_placeholder_picker_groups_v2_sections_with_effective_drafts():
+    script = r"""
+const fs = require('fs');
+const vm = require('vm');
+const source = fs.readFileSync(process.argv[1], 'utf8');
+
+function extract(startMarker, endMarker) {
+    const start = source.indexOf(startMarker);
+    const end = source.indexOf(endMarker, start);
+    if (start === -1 || end === -1) throw new Error(`Unable to extract ${startMarker}`);
+    return source.slice(start, end);
+}
+
+const elements = {
+    'template-placeholder-count': { textContent: '' },
+    'template-placeholder-map': { innerHTML: '' }
+};
+const sandbox = {
+    currentTemplateState: {
+        selectedPlaceholderName: '',
+        activeSourceKind: 'report_config',
+        placeholderMappingDrafts: {},
+        v2PlaceholderConfigDrafts: {
+            '已配置': { generation_config: { prompt_template_ref: '市场回顾写作' } }
+        }
+    },
+    document: { getElementById: (id) => elements[id] || null },
+    window: {},
+    esc: (value) => String(value ?? ''),
+    normalizePlaceholderName: (value) => String(value || '').replace(/^\\{\\{\\s*/, '').replace(/\\s*\\}\\}$/, '').trim(),
+    inferPlaceholderType: () => 'paragraph',
+    inferPlaceholderTitle: (name) => name,
+    isSystemDatePlaceholder: () => false,
+    getCurrentPlaceholderMappings: () => new Map(),
+    getStoredPlaceholderMappings: () => new Map(),
+    getCanonicalPlaceholderType: (type) => type || 'paragraph',
+    getParagraphMode: () => 'evidence_ai',
+    usesEvidenceParagraphMode: () => true,
+    getPlaceholderReadinessIssue: (mapping) => mapping.prompt_template ? null : { message: '缺少 Prompt' },
+    bindPlaceholderMapRows: () => {}
+};
+vm.createContext(sandbox);
+vm.runInContext(extract('function getPlaceholderLifecycleStatus', 'function buildPlaceholderWizardState'), sandbox);
+vm.runInContext(extract('function v2PlaceholderConfigToMapping', '/* ── v2 编辑草稿管理'), sandbox);
+vm.runInContext(extract('function getV2Draft', 'function hasV2Drafts'), sandbox);
+vm.runInContext(extract('function deepMergeV2Config', 'function getRenderedPlaceholderSummaryName'), sandbox);
+if (source.includes('function getEffectivePlaceholderMapping')) {
+    vm.runInContext(extract('function getEffectivePlaceholderMapping', 'function getSelectedPlaceholderMapping'), sandbox);
+}
+vm.runInContext(extract('function renderTemplatePlaceholderMap', 'function renderMappingSummary'), sandbox);
+
+const template = {
+    report_project: {
+        report_config: {
+            placeholders: {
+                '已配置': { type: 'rich_text', title: '已配置', generation_config: {} },
+                '待配置': { type: 'rich_text', title: '待配置', generation_config: {} }
+            }
+        }
+    }
+};
+sandbox.renderTemplatePlaceholderMap(template, ['已配置', '待配置'], []);
+const html = elements['template-placeholder-map'].innerHTML;
+console.log(JSON.stringify({
+    ready: /data-placeholder-readiness="ready"[\s\S]*?已配置/.test(html),
+    needsAttention: /data-placeholder-readiness="needs_attention"[\s\S]*?待配置/.test(html),
+    names: [...html.matchAll(/data-placeholder-name="([^"]+)"/g)].map((match) => match[1])
+}));
+"""
+
+    result = subprocess.run(
+        ["node", "-e", script, str(TEMPLATES_JS)],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+    assert json.loads(result.stdout) == {
+        "ready": True,
+        "needsAttention": True,
+        "names": ["待配置", "已配置"],
+    }
+
+
 def test_placeholder_detail_syncs_from_picker_before_rendering():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
     start = source.index("function selectTemplatePlaceholder")

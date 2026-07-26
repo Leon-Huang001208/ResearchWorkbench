@@ -2573,13 +2573,12 @@ function renderTemplatePlaceholderMap(template, placeholders, sections) {
         ? currentName
         : normalizedNames[0];
     currentTemplateState.selectedPlaceholderName = selectedName;
-    const mappings = getCurrentPlaceholderMappings(template);
     const groups = [
         { readiness: 'needs_attention', label: '需要处理', names: [] },
         { readiness: 'ready', label: '已完成', names: [] }
     ];
     normalizedNames.forEach(normalizedName => {
-        const mapping = mappings.get(normalizedName) || { type: inferPlaceholderType(normalizedName) };
+        const mapping = getEffectivePlaceholderMapping(template, normalizedName);
         const lifecycle = getPlaceholderLifecycleStatus(template, mapping, normalizedName);
         const group = lifecycle.state === 'ready' ? groups[1] : groups[0];
         group.names.push(normalizedName);
@@ -2717,6 +2716,7 @@ function getPlaceholderLifecycleStatus(template, mapping, placeholderName) {
 
 function isPlaceholderConfirmed(template, mapping = {}, placeholderName = '') {
     if (mapping.confirmed === true || mapping.confirmed === 'true') return true;
+    if (mapping._isV2 && mapping._v2) return true;
     const storedMappings = getStoredPlaceholderMappings(template);
     return storedMappings.has(normalizePlaceholderName(placeholderName));
 }
@@ -3713,8 +3713,8 @@ function closePlaceholderPickerMenu() {
     menu.hidden = true;
 }
 
-function getSelectedPlaceholderMapping(template) {
-    const name = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
+function getEffectivePlaceholderMapping(template, placeholderName) {
+    const name = normalizePlaceholderName(placeholderName);
     if (!name) return null;
     const draft = currentTemplateState.placeholderMappingDrafts?.[name];
     if (draft) return draft;
@@ -3738,6 +3738,10 @@ function getSelectedPlaceholderMapping(template) {
         title: inferPlaceholderTitle(name),
         type: inferPlaceholderType(name)
     };
+}
+
+function getSelectedPlaceholderMapping(template) {
+    return getEffectivePlaceholderMapping(template, currentTemplateState.selectedPlaceholderName);
 }
 
 /* ── v2 EnhancedPlaceholder → v1 mapping 映射 ── */
