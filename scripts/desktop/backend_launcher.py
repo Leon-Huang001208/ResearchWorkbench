@@ -15,6 +15,7 @@ from typing import Sequence
 
 from core.settings.paths import app_data_dir
 from core.settings.registry import desktop_env_template
+from services.database_readiness import DatabaseReadinessCode, probe_postgresql
 
 # 在任何其他 import 之前强制 UTF-8 I/O，避免 Windows GBK 编码导致 structlog 崩溃
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
@@ -119,7 +120,7 @@ def apply_frozen_desktop_defaults() -> Path | None:
     2. data_dir/.env 文件（用户可编辑）
     3. 内置路径默认值（LOG_DIR、OBJECT_STORAGE_PATH 等目录）
 
-    桌面端必须连接 PostgreSQL + pgvector；缺少有效配置时由启动诊断阻止服务启动。
+    桌面端必须连接 PostgreSQL + pgvector；缺少有效配置时由 API 进入设置模式。
     """
     if not (is_frozen() or os.environ.get("ALPHAFOUNDRY_DESKTOP")):
         return None
@@ -151,13 +152,6 @@ def apply_frozen_desktop_defaults() -> Path | None:
     os.environ.setdefault("OBJECT_STORAGE_PATH", str(data_dir / "objects"))
     os.environ.setdefault("PDF_MARKDOWN_DIR", str(data_dir / "markdown"))
     os.environ.setdefault("PDF_RAW_TEXT_DIR", str(data_dir / "raw_text"))
-
-    # ── PostgreSQL 是桌面端唯一事实源，不再降级 SQLite。──
-    database_url = os.environ.get("DATABASE_URL", "")
-    if not database_url.startswith(("postgresql://", "postgresql+psycopg://")):
-        raise RuntimeError(
-            "桌面端需要 PostgreSQL + pgvector。请在 " f"{env_path} 中配置有效的 DATABASE_URL 后重新启动。"
-        )
 
     return data_dir
 
@@ -343,9 +337,24 @@ def main(argv: Sequence[str] | None = None) -> int:
     os.environ.setdefault("ALPHAFOUNDRY_DESKTOP", "1")
     os.environ.setdefault("ALPHAFOUNDRY_DESKTOP_URL", f"http://{args.host}:{args.port}")
 
-    # ── 启动 knowledge_worker 和 crawl_scheduler 子进程 ──
-    _worker_proc: subprocess.Popen | None = _start_knowledge_worker(data_dir, args.log_dir)
-    _sched_proc: subprocess.Popen | None = _start_crawl_scheduler(data_dir, args.log_dir)
+    _worker_proc: subprocess.Popen | None = None
+    _sched_proc: subprocess.Popen | None = None
+    try:
+        readiness = probe_postgresql(os.environ.get("DATABASE_URL", ""))
+    except Exception:
+        logger.warning(
+            "Desktop database readiness code=%s",
+            DatabaseReadinessCode.UNEXPECTED_ERROR.value,
+        )
+    else:
+        if readiness.ready:
+            _worker_proc = _start_knowledge_worker(data_dir, args.log_dir)
+            _sched_proc = _start_crawl_scheduler(data_dir, args.log_dir)
+        else:
+            logger.warning(
+                "Desktop database readiness code=%s",
+                readiness.code.value,
+            )
 
     try:
         logger.info(

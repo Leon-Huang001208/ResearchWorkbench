@@ -99,6 +99,10 @@ def _build_worker_env(
             应传 ALPHAFOUNDRY_SCHEDULER_MODE。
     """
     env = dict(os.environ)
+    # frozen watchdog 通过这些标记进入 launcher 的 watchdog 分支；worker 子进程
+    # 不能继承它们，否则会再次作为 watchdog 启动而递归。
+    env.pop("ALPHAFOUNDRY_WATCHDOG_MODE", None)
+    env.pop("ALPHAFOUNDRY_SCHEDULER_WATCHDOG_MODE", None)
     if _is_frozen():
         env[worker_mode_env] = "1"
     if worker_id is not None:
