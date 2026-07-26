@@ -22,6 +22,7 @@ let configurationReady = false;
 let configurationSnapshot = null;
 let loadAbortController = null;
 let initialLoadRetryCount = 0;
+let dynamicLockMessageSequence = 0;
 const connectionStateBySection = new Map();
 const ONBOARDING_SECTIONS = ['llm', 'database', 'zhiqiu', 'ifind', 'web_search'];
 const LOCKED_FIELD_MESSAGE = '此项由当前启动配置管理，不能在这里修改。';
@@ -63,6 +64,17 @@ export function filterEnvironmentLockedPayload(
     Object.entries(STATIC_LOCK_FIELD_KEYS[section] || {}).forEach(([field, key]) => {
         if (isEnvironmentLocked(key, environmentLockedFields)) delete filteredPayload[field];
     });
+    if (section === 'llm') {
+        if (environmentLockedFields.some(key => /^LLM_PROVIDER_\d+_/.test(key))) {
+            delete filteredPayload.providers;
+        }
+        if (environmentLockedFields.some(key => /^TASK_.+_(PROVIDER|MODEL)$/.test(key))) {
+            delete filteredPayload.task_routes;
+        }
+    }
+    if (COLLECTION_LOCK_KEYS[section]?.some(key => isEnvironmentLocked(key, environmentLockedFields))) {
+        delete filteredPayload.accounts;
+    }
     return filteredPayload;
 }
 
@@ -518,11 +530,37 @@ function renderWebSearchKeys(accounts) {
     list.replaceChildren(...accounts.map(createWebSearchKeyRow));
 }
 
-function lockControl(control) {
-    if (!control || control.disabled) return false;
+function addControlDescription(control, messageId) {
+    if (!control || !messageId) return;
+    const describedBy = new Set((control.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean));
+    describedBy.add(messageId);
+    control.setAttribute('aria-describedby', [...describedBy].join(' '));
+}
+
+function removeControlDescription(control, messageId) {
+    if (!control || !messageId) return;
+    const describedBy = new Set((control.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean));
+    describedBy.delete(messageId);
+    if (describedBy.size) control.setAttribute('aria-describedby', [...describedBy].join(' '));
+    else control.removeAttribute('aria-describedby');
+}
+
+function lockControl(control, message = null) {
+    if (!control) return false;
+    const changed = !control.disabled;
     control.disabled = true;
     control.closest('label')?.classList.add('environment-locked');
-    return true;
+    addControlDescription(control, message?.id);
+    return changed;
+}
+
+function createDynamicLockMessage(row) {
+    const existingMessage = row.querySelector('.config-dynamic-lock-message');
+    if (existingMessage) return existingMessage;
+    const message = element('p', 'config-dynamic-lock-message', LOCKED_FIELD_MESSAGE);
+    message.id = `config-dynamic-lock-message-${++dynamicLockMessageSequence}`;
+    row.prepend(message);
+    return message;
 }
 
 function setDynamicRowLocked(row, lockedControls) {
@@ -535,6 +573,7 @@ function setDynamicRowLocked(row, lockedControls) {
     if (!fullyLocked) {
         delete row.dataset.configLocked;
         row.classList.remove('config-dynamic-row-locked');
+        businessControls.forEach(control => removeControlDescription(control, existingMessage?.id));
         existingMessage?.remove();
         return false;
     }
@@ -542,13 +581,14 @@ function setDynamicRowLocked(row, lockedControls) {
     row.dataset.configLocked = 'true';
     row.classList.add('config-dynamic-row-locked');
     row.querySelectorAll('.config-remove-row').forEach(button => { button.disabled = true; });
-    if (!existingMessage) row.prepend(element('p', 'config-dynamic-lock-message', LOCKED_FIELD_MESSAGE));
+    const message = createDynamicLockMessage(row);
+    businessControls.forEach(control => addControlDescription(control, message.id));
     return true;
 }
 
 function applyProviderRowLocks() {
     const lockedFields = configurationSnapshot?.environment_locked_fields || [];
-    let hasProviderLock = false;
+    const providerCollectionLocked = lockedFields.some(key => /^LLM_PROVIDER_\d+_/.test(key));
     const providerFieldSuffixes = {
         name: 'NAME',
         protocol: 'PROTOCOL',
@@ -561,16 +601,15 @@ function applyProviderRowLocks() {
         const lockedControls = [];
         Object.entries(providerFieldSuffixes).forEach(([field, suffix]) => {
             const control = row.querySelector(`[data-field="${field}"]`);
-            const locked = isEnvironmentLocked(`${prefix}${suffix}`, lockedFields);
+            const locked = providerCollectionLocked || isEnvironmentLocked(`${prefix}${suffix}`, lockedFields);
             if (locked) {
-                hasProviderLock = true;
                 lockControl(control);
                 if (control?.disabled) lockedControls.push(control);
             }
         });
         setDynamicRowLocked(row, lockedControls);
     });
-    if (hasProviderLock || lockedFields.some(key => /^LLM_PROVIDER_\d+_/.test(key))) {
+    if (providerCollectionLocked) {
         const addButton = document.querySelector('[data-add-provider]');
         if (addButton) addButton.disabled = true;
     }
@@ -578,23 +617,21 @@ function applyProviderRowLocks() {
 
 function applyTaskRouteLocks() {
     const lockedFields = configurationSnapshot?.environment_locked_fields || [];
-    let hasTaskRouteLock = false;
+    const taskRouteCollectionLocked = lockedFields.some(key => /^TASK_.+_(PROVIDER|MODEL)$/.test(key));
     document.querySelectorAll('.config-route-row').forEach(row => {
         const task = rowValue(row, 'task');
         const providerControl = row.querySelector('[data-field="provider"]');
         const modelControl = row.querySelector('[data-field="model"]');
         const taskControl = row.querySelector('[data-field="task"]');
-        const providerLocked = task && isEnvironmentLocked(`TASK_${task.toUpperCase()}_PROVIDER`, lockedFields);
-        const modelLocked = task && isEnvironmentLocked(`TASK_${task.toUpperCase()}_MODEL`, lockedFields);
+        const providerLocked = taskRouteCollectionLocked || (task && isEnvironmentLocked(`TASK_${task.toUpperCase()}_PROVIDER`, lockedFields));
+        const modelLocked = taskRouteCollectionLocked || (task && isEnvironmentLocked(`TASK_${task.toUpperCase()}_MODEL`, lockedFields));
         const lockedControls = [];
 
         if (providerLocked) {
-            hasTaskRouteLock = true;
             lockControl(providerControl);
             if (providerControl?.disabled) lockedControls.push(providerControl);
         }
         if (modelLocked) {
-            hasTaskRouteLock = true;
             lockControl(modelControl);
             if (modelControl?.disabled) lockedControls.push(modelControl);
         }
@@ -604,7 +641,7 @@ function applyTaskRouteLocks() {
         }
         setDynamicRowLocked(row, lockedControls);
     });
-    if (hasTaskRouteLock || lockedFields.some(key => /^TASK_/.test(key))) {
+    if (taskRouteCollectionLocked) {
         const addButton = document.querySelector('[data-add-task-route]');
         if (addButton) addButton.disabled = true;
     }
@@ -616,16 +653,15 @@ function applyCollectionLock(form, section, { addButton, rowSelector }) {
     if (!locked) return;
 
     const button = form.querySelector(addButton);
+    const header = button?.closest('.config-subsection-header');
+    const existingMessage = header?.querySelector('.config-collection-lock-message');
+    const message = existingMessage || element('p', 'config-collection-lock-message', LOCKED_FIELD_MESSAGE);
+    if (!existingMessage) header?.querySelector('h4')?.insertAdjacentElement('afterend', message);
     if (button) button.disabled = true;
     form.querySelectorAll(rowSelector).forEach(row => {
-        row.querySelectorAll('input[data-field], select[data-field], textarea[data-field]').forEach(lockControl);
+        row.querySelectorAll('input[data-field], select[data-field], textarea[data-field]').forEach(control => lockControl(control, message));
         row.querySelectorAll('.config-remove-row').forEach(removeButton => { removeButton.disabled = true; });
     });
-
-    const header = button?.closest('.config-subsection-header');
-    if (!header || header.querySelector('.config-collection-lock-message')) return;
-    const message = element('p', 'config-collection-lock-message', LOCKED_FIELD_MESSAGE);
-    header.querySelector('h4')?.insertAdjacentElement('afterend', message);
 }
 
 function applyCollectionLocks(form, section) {

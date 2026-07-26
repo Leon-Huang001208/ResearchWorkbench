@@ -101,6 +101,54 @@ if (JSON.stringify(filtered) !== JSON.stringify({{
     assert result.returncode == 0, result.stderr
 
 
+def test_configuration_payload_filter_omits_locked_dynamic_collections_only():
+    script = f"""
+import {{ filterEnvironmentLockedPayload }} from {CONFIGURATION_JS.as_uri()!r};
+
+const providers = [{{ name: 'environment-provider' }}];
+const taskRoutes = [{{ task: 'chat', provider: 'environment-provider', model: 'gpt-test' }}];
+const accounts = [{{ name: 'environment-account' }}];
+
+const filtered = {{
+    providerLocked: filterEnvironmentLockedPayload(
+        'llm', {{ providers, task_routes: taskRoutes }}, ['LLM_PROVIDER_1_API_KEY'],
+    ),
+    routeLocked: filterEnvironmentLockedPayload(
+        'llm', {{ providers, task_routes: taskRoutes }}, ['TASK_CHAT_PROVIDER'],
+    ),
+    zhiqiu: filterEnvironmentLockedPayload(
+        'zhiqiu', {{ accounts, rotation_strategy: 'round_robin' }}, ['ZQ_ACCOUNTS_JSON'],
+    ),
+    ifind: filterEnvironmentLockedPayload(
+        'ifind', {{ accounts, backend: 'http_api', http_base_url: 'https://example.test' }}, ['IFIND_PASSWORD'],
+    ),
+    webSearch: filterEnvironmentLockedPayload(
+        'web_search', {{ accounts, provider: 'tavily', timeout: 15 }}, ['TAVILY_API_KEY'],
+    ),
+}};
+
+const expected = {{
+    providerLocked: {{ task_routes: taskRoutes }},
+    routeLocked: {{ providers }},
+    zhiqiu: {{ rotation_strategy: 'round_robin' }},
+    ifind: {{ backend: 'http_api', http_base_url: 'https://example.test' }},
+    webSearch: {{ provider: 'tavily', timeout: 15 }},
+}};
+
+if (JSON.stringify(filtered) !== JSON.stringify(expected)) {{
+    throw new Error(`unexpected filtered payload: ${{JSON.stringify(filtered)}}`);
+}}
+"""
+    result = subprocess.run(
+        ["node", "--input-type=module", "--eval", script],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
 def test_configuration_module_parses_with_node():
     result = subprocess.run(
         ["node", "--check", str(CONFIGURATION_JS)],
