@@ -213,7 +213,7 @@ def test_configuration_console_keeps_health_overview_and_session_test_state():
 
 def test_capability_presentation_covers_all_supported_statuses():
     script = f"""
-import {{ getCapabilityPresentation }} from {CONFIGURATION_JS.as_uri()!r};
+import {{ getCapabilityPresentation, getEnvironmentDisplayValue }} from {CONFIGURATION_JS.as_uri()!r};
 
 const presentations = {{
     available: getCapabilityPresentation({{ status: 'available' }}),
@@ -258,6 +258,19 @@ for (const capability of malformedCapabilities) {{
     const presentation = getCapabilityPresentation(capability);
     if (JSON.stringify(presentation) !== JSON.stringify(unknownPresentation)) {{
         throw new Error(`malformed capability escaped unknown fallback: ${{JSON.stringify(presentation)}}`);
+    }}
+}}
+
+const environmentLabels = {{ desktop: '桌面端', windows: 'Windows' }};
+const unexpectedLabelInputs = ['__proto__', 'constructor', 'toString'];
+for (const value of unexpectedLabelInputs) {{
+    if (getEnvironmentDisplayValue(value, environmentLabels) !== value) {{
+        throw new Error(`unsafe environment label mapping: ${{value}}`);
+    }}
+}}
+for (const value of [null, 42, {{ value: 'desktop' }}]) {{
+    if (getEnvironmentDisplayValue(value, environmentLabels) !== '未提供') {{
+        throw new Error(`non-string environment label was accepted: ${{JSON.stringify(value)}}`);
     }}
 }}
 """

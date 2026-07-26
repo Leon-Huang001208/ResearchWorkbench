@@ -841,9 +841,12 @@ function getEnvironmentCatalogLabel(catalog, capabilityKey) {
         : '';
 }
 
-function getEnvironmentDisplayValue(value, labels = {}) {
+export function getEnvironmentDisplayValue(value, labels = {}) {
     if (typeof value !== 'string' || !value.trim()) return '未提供';
-    return labels[value] || value.trim();
+    if (labels && typeof labels === 'object' && Object.hasOwn(labels, value)) {
+        return labels[value];
+    }
+    return value.trim();
 }
 
 function appendEnvironmentPath(paths, label, key) {
