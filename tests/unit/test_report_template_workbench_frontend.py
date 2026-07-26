@@ -205,14 +205,29 @@ def test_report_config_tab_uses_redesigned_editor_shell():
     )
 
 
-def test_report_config_summary_keeps_low_frequency_sections_collapsible_and_editable():
+def test_report_config_summary_dom_contract_collapses_low_frequency_sections_and_keeps_edit_entries():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
+    helper_start = source.index("function buildConfigCollapsibleSection")
+    helper_end = source.index("function buildPlaceholderConfigSummaryHtml", helper_start)
+    helper_source = source[helper_start:helper_end]
+    summary_start = helper_end
+    summary_end = source.index("function getPlaceholderEditSectionLabels", summary_start)
+    summary_source = source[summary_start:summary_end]
 
-    assert 'class="template-config-collapsible-section"' in source
-    assert 'data-placeholder-edit-section="keywords"' in source
-    assert 'data-placeholder-edit-section="fixed_template"' in source
-    assert 'data-placeholder-edit-section="data_fields"' in source
-    assert 'data-placeholder-edit-section="writing"' in source
+    # Task 1 verifies only the DOM contract; Task 3 owns the visual styling.
+    assert '<details class="template-config-collapsible-section"' in helper_source
+    assert "<summary>" in helper_source
+    assert 'class="template-config-collapsible-body"' in helper_source
+    for edit_section in ("keywords", "fixed_template", "data_fields", "writing"):
+        section_marker = f"editSection: '{edit_section}'"
+        section_position = summary_source.index(section_marker)
+        helper_position = summary_source.rfind(
+            "buildConfigCollapsibleSection({", 0, section_position
+        )
+
+        assert helper_position != -1
+        assert section_marker in summary_source[helper_position:section_position + len(section_marker)]
+        assert f'data-placeholder-edit-section="{edit_section}"' in helper_source
 
 
 def test_report_generation_page_is_reduced_to_progress_and_single_output():
