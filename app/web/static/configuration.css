@@ -1618,6 +1618,32 @@
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
+/* Keep modal rows neutral: section color belongs to the top rule and local focus only. */
+.config-edit-modal-content,
+.config-edit-modal-content[data-modal-section] {
+    background: var(--bg-card);
+}
+
+.config-edit-modal-content .modal-header,
+.config-edit-modal-content[data-modal-color] .modal-header {
+    background: var(--bg-card);
+}
+
+.config-edit-modal-body .config-row-labels {
+    padding-left: 0;
+    border-left: 0;
+}
+
+.config-edit-modal-body .config-dynamic-row,
+.config-edit-modal-body .config-dynamic-row:hover:not(:focus-within) {
+    border-left-width: 1px;
+    border-left-color: var(--border-primary);
+}
+
+.config-edit-modal-body .config-dynamic-row:focus-within {
+    border-left-width: 1px;
+}
+
 .config-empty-collection {
     display: inline-flex;
     align-items: center;
