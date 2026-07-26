@@ -1358,7 +1358,14 @@
 .config-summary-card:hover {
     border-color: color-mix(in srgb, var(--accent) 48%, var(--border-primary));
     background: color-mix(in srgb, var(--bg-panel) 95%, var(--accent) 5%);
+    box-shadow: none;
     transform: translateY(-1px);
+}
+
+.config-summary-card::after,
+.config-summary-card:hover::after {
+    display: none;
+    opacity: 0;
 }
 
 .config-card-surface {
@@ -1383,6 +1390,15 @@
 
 .config-card-icon .codicon {
     font-size: 17px;
+}
+
+.config-card-icon::after {
+    display: none;
+    content: none;
+}
+
+.config-summary-card:hover .config-card-icon {
+    box-shadow: none;
 }
 
 .config-card-body {

@@ -783,7 +783,11 @@ function renderConfigurationHealth(snapshot) {
     const completed = health.readyCount;
     const missing = Math.max(0, total - completed);
     const percent = total ? Math.round((completed / total) * 100) : 0;
-    const connectionLabel = health.errorCount ? 'error' : health.verifiedCount ? 'verified' : '无异常';
+    const connectionLabel = health.errorCount
+        ? `发现 ${health.errorCount} 项连接异常`
+        : health.verifiedCount
+            ? `${health.verifiedCount} 项本次已验证`
+            : '暂无异常';
     const connectionDetail = health.errorCount
         ? `发现 ${health.errorCount} 项连接异常，请打开对应配置修复后再次测试。`
         : health.verifiedCount
