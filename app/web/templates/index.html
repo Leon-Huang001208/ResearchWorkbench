@@ -10,11 +10,23 @@
     <script async src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script async src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
     <script async src="https://cdn.jsdelivr.net/npm/d3@7"></script>
-    <link rel="stylesheet" href="/static/style.css?v=20260722flowfix">
+    <link rel="stylesheet" href="/static/style.css?v=20260726setup1">
     <link rel="stylesheet" href="/static/configuration.css?v=20260713config16">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@vscode/codicons@0.0.36/dist/codicon.min.css">
 </head>
 <body>
+    <div id="setup-wizard" class="setup-wizard hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="setup-wizard-title" aria-describedby="setup-wizard-message">
+        <section class="setup-wizard-panel">
+            <i class="codicon codicon-server setup-wizard-icon" aria-hidden="true"></i>
+            <h2 id="setup-wizard-title">完成数据库设置</h2>
+            <p id="setup-wizard-message" aria-live="polite">正在检查数据库状态…</p>
+            <ul id="setup-wizard-remediation" class="setup-wizard-remediation" aria-live="polite"></ul>
+            <div class="setup-wizard-actions">
+                <button id="setup-wizard-open-database" class="btn-primary" type="button">打开数据库配置</button>
+                <button id="setup-wizard-skip" class="btn-secondary" type="button">暂时跳过</button>
+            </div>
+        </section>
+    </div>
     <div class="app-container">
         <!-- Desktop source list -->
         <aside class="activity-bar">
@@ -2241,7 +2253,7 @@
 
     <!-- Scripts: i18n must load before app.js -->
     <script src="/static/i18n.js?v=20250527"></script>
-    <script type="module" src="/static/js/app.js?v=20260723refresh1"></script>
+    <script type="module" src="/static/js/app.js?v=20260726setup1"></script>
     <script type="module" src="/static/js/wind.js?v=20250601a"></script>
 
     <!-- Dev 模式：后端重启时自动刷新页面（轮询 /_version） -->

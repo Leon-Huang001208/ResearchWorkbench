@@ -18128,6 +18128,105 @@ button.template-config-data-overview-row {
     margin-bottom: 8px;
 }
 .config-page-message.error   { color: #ef4444; }
+
+/* ═══════════════════════════════════════════════════════════
+   桌面端首次数据库设置引导
+   ═══════════════════════════════════════════════════════════ */
+
+.setup-wizard {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: rgba(5, 10, 18, 0.68);
+    backdrop-filter: blur(12px);
+}
+
+.setup-wizard.hidden {
+    display: none;
+}
+
+.setup-wizard-panel {
+    width: min(520px, 100%);
+    padding: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.13);
+    border-radius: 20px;
+    color: var(--text-primary);
+    background: var(--bg-card);
+    box-shadow: 0 28px 90px rgba(0, 0, 0, 0.52);
+}
+
+.setup-wizard-icon {
+    display: inline-grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    margin-bottom: 14px;
+    border-radius: 12px;
+    color: #fff;
+    background: linear-gradient(135deg, #059669, #34d399);
+    font-size: 22px;
+}
+
+.setup-wizard-panel h2 {
+    margin: 0 0 8px;
+    font-size: 22px;
+}
+
+.setup-wizard-panel p,
+.setup-wizard-remediation {
+    margin: 0;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+.setup-wizard-remediation {
+    display: grid;
+    gap: 6px;
+    margin-top: 12px;
+    padding-left: 22px;
+}
+
+.setup-wizard-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 24px;
+}
+
+.setup-wizard-actions button:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--accent) 70%, #fff);
+    outline-offset: 3px;
+}
+
+.config-card-badge.restart {
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    color: var(--accent);
+}
+
+@media (max-width: 520px) {
+    .setup-wizard {
+        align-items: end;
+        padding: 12px;
+    }
+
+    .setup-wizard-panel {
+        padding: 22px;
+        border-radius: 16px;
+    }
+
+    .setup-wizard-actions {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .setup-wizard-actions button {
+        width: 100%;
+        min-height: 42px;
+    }
+}
 .config-page-message.info    { color: var(--text-secondary); }
 .config-page-message.loading { color: var(--accent); }
 
