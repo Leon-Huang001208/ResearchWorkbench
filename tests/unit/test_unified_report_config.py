@@ -1,9 +1,17 @@
 """Tests for the unified report configuration runtime contract."""
 
 import logging
+from pathlib import Path
 
 import pytest
+import yaml
 
+from reporting.projects.config_migration import (
+    MigrationError,
+    discover_legacy_report_config,
+    migrate_project_config,
+    migrate_report_config,
+)
 from reporting.projects.unified_config import (
     UnifiedReportConfigError,
     parse_unified_report_config,
@@ -111,3 +119,139 @@ def test_unified_config_rejects_unmigrated_v2_shape():
     """The runtime parser never treats the legacy V2 schema as a fallback."""
     with pytest.raises(UnifiedReportConfigError, match="迁移"):
         parse_unified_report_config({"meta": {}, "template": {}, "placeholders": {}})
+
+
+def test_migration_copies_v1_config_without_changing_generation_settings(tmp_path):
+    """V1 defaults, retrieval and components stay byte-for-byte equivalent semantically."""
+    project_dir = tmp_path / "weekly"
+    source_path = project_dir / "config" / "section_config.yaml"
+    source_path.parent.mkdir(parents=True)
+    v1_config = {
+        "assets": {"prompt_templates": "prompts.md"},
+        "defaults": {"retrieval": {"top_k": 8}},
+        "components": {"footer": {"type": "static", "text": "免责声明"}},
+        "placeholders": {
+            "市场回顾": {
+                "prompt_template": "market_review",
+                "retrieval": {"keywords": ["A股"], "top_k": 5},
+            }
+        },
+    }
+    source_path.write_text(yaml.safe_dump(v1_config, allow_unicode=True), encoding="utf-8")
+
+    result = migrate_project_config(project_dir)
+    migrated = yaml.safe_load(result.destination.read_text(encoding="utf-8"))
+
+    assert result.source_format == "v1"
+    assert result.converted_placeholder_count == 0
+    assert migrated["defaults"] == v1_config["defaults"]
+    assert migrated["components"] == v1_config["components"]
+    assert migrated["placeholders"]["市场回顾"]["retrieval"] == v1_config["placeholders"]["市场回顾"]["retrieval"]
+    assert source_path.exists()
+    assert parse_unified_report_config(migrated).to_generation_dict() == migrated
+
+
+def test_migration_converts_true_v2_placeholders_and_template_reference(tmp_path, caplog):
+    """A true V2 report_config becomes the unified model and warns with project/key context."""
+    project_dir = tmp_path / "weekly"
+    source_path = project_dir / "config" / "report_config.yaml"
+    source_path.parent.mkdir(parents=True)
+    v2_config = {
+        "meta": {"name": "周报"},
+        "template": {"word_template": "templates/weekly.docx", "prompt_templates": "prompts.md"},
+        "defaults": {"retrieval": {"top_k": 8}},
+        "placeholders": {
+            "市场回顾": {
+                "title": "市场回顾",
+                "type": "rich_text",
+                "generation_config": {
+                    "prompt_template_ref": "market_review",
+                    "prompt_template_inline": "仅在没有引用模板时使用",
+                    "retrieval": {"keywords": ["A股"], "top_k": 5},
+                },
+                "rich_text_spec": {
+                    "runs": [{"text": "市场：", "bold": True}, {"is_dynamic": True}],
+                    "default_font": "微软雅黑",
+                },
+                "visible_if": "{{ include_market_review }}",
+            }
+        },
+    }
+    source_path.write_text(yaml.safe_dump(v2_config, allow_unicode=True), encoding="utf-8")
+    caplog.set_level(logging.WARNING, logger="reporting.projects.config_migration")
+
+    discovered = discover_legacy_report_config(project_dir)
+    assert discovered is not None
+    result = migrate_report_config(project_dir, discovered)
+    migrated = yaml.safe_load(result.destination.read_text(encoding="utf-8"))
+
+    placeholder = migrated["placeholders"]["市场回顾"]
+    assert result.source_format == "v2"
+    assert result.converted_placeholder_count == 1
+    assert migrated["name"] == "周报"
+    assert migrated["assets"]["word_template"] == "templates/weekly.docx"
+    assert placeholder["prompt_template"] == "market_review"
+    assert placeholder["retrieval"] == {"keywords": ["A股"], "top_k": 5}
+    assert placeholder["rendering"]["runs"] == v2_config["placeholders"]["市场回顾"]["rich_text_spec"]["runs"]
+    assert placeholder["rendering"]["visible_if"] == "{{ include_market_review }}"
+    assert str(project_dir) in caplog.text
+    assert "市场回顾" in caplog.text
+    assert source_path.exists()
+    assert parse_unified_report_config(migrated).to_generation_dict() == migrated
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        None,
+        {"meta": {}, "template": {}, "placeholders": {"坏配置": {"generation_config": []}}},
+        {"placeholders": {"坏配置": {"retrieval": []}}},
+    ],
+)
+def test_migration_never_creates_or_replaces_destination_when_source_is_invalid(tmp_path, source):
+    """Discovery and conversion failures leave report_config.yaml untouched."""
+    project_dir = tmp_path / "weekly"
+    config_dir = project_dir / "config"
+    config_dir.mkdir(parents=True)
+    destination = config_dir / "report_config.yaml"
+    destination.write_text("sentinel: preserve\n", encoding="utf-8")
+
+    if source is None:
+        with pytest.raises(MigrationError, match="未找到"):
+            migrate_project_config(project_dir)
+    else:
+        with pytest.raises(MigrationError):
+            migrate_report_config(project_dir, source)
+
+    assert destination.read_text(encoding="utf-8") == "sentinel: preserve\n"
+    assert not (config_dir / "section_config.yaml").exists()
+
+
+def test_migration_validates_a_temporary_file_before_atomic_replace(tmp_path, monkeypatch):
+    """The existing destination remains intact until a parseable temporary file is replaced."""
+    import reporting.projects.config_migration as migration
+
+    project_dir = tmp_path / "weekly"
+    config_dir = project_dir / "config"
+    config_dir.mkdir(parents=True)
+    destination = config_dir / "report_config.yaml"
+    destination.write_text("sentinel: preserve\n", encoding="utf-8")
+    source = {"placeholders": {"正文": {"prompt_template": "body"}}}
+    observed: dict[str, Path] = {}
+    original_replace = migration.os.replace
+
+    def assert_before_replace(temp_path, target_path):
+        observed["temporary"] = Path(temp_path)
+        assert Path(target_path) == destination
+        assert destination.read_text(encoding="utf-8") == "sentinel: preserve\n"
+        parse_unified_report_config(yaml.safe_load(Path(temp_path).read_text(encoding="utf-8")))
+        original_replace(temp_path, target_path)
+
+    monkeypatch.setattr(migration.os, "replace", assert_before_replace)
+
+    result = migrate_report_config(project_dir, source)
+
+    assert result.destination == destination
+    assert "temporary" in observed
+    assert not observed["temporary"].exists()
+    assert destination != project_dir / "config" / "section_config.yaml"
