@@ -2341,7 +2341,7 @@ function renderAdvancedMaintenance(template) {
             : firstPlaceholder;
 
     renderTemplateAssetChecklist(template, sections);
-    renderTemplatePlaceholderMap(placeholders, sections);
+    renderTemplatePlaceholderMap(template, placeholders, sections);
     renderTemplateExcelMapping(template, templateName);
     renderCommonGenerationRules(template);
     renderSelectedPlaceholderDetail(template);
@@ -2550,7 +2550,7 @@ function renderTemplateAssetChecklist(template, sections) {
     }
 }
 
-function renderTemplatePlaceholderMap(placeholders, sections) {
+function renderTemplatePlaceholderMap(template, placeholders, sections) {
     const countEl = document.getElementById('template-placeholder-count');
     const container = document.getElementById('template-placeholder-map');
     if (!container) return;
@@ -2573,6 +2573,16 @@ function renderTemplatePlaceholderMap(placeholders, sections) {
         ? currentName
         : normalizedNames[0];
     currentTemplateState.selectedPlaceholderName = selectedName;
+    const groups = [
+        { readiness: 'needs_attention', label: '需要处理', names: [] },
+        { readiness: 'ready', label: '已完成', names: [] }
+    ];
+    normalizedNames.forEach(normalizedName => {
+        const mapping = getEffectivePlaceholderMapping(template, normalizedName);
+        const lifecycle = getPlaceholderLifecycleStatus(template, mapping, normalizedName);
+        const group = lifecycle.state === 'ready' ? groups[1] : groups[0];
+        group.names.push(normalizedName);
+    });
 
     container.innerHTML = `
         <div class="placeholder-picker" data-open="false">
@@ -2589,16 +2599,26 @@ function renderTemplatePlaceholderMap(placeholders, sections) {
                 <span class="placeholder-select-text">${esc(selectedName)}</span>
             </button>
             <div class="placeholder-select-menu" role="listbox" hidden>
-                ${normalizedNames.map(normalizedName => `
-                    <button
-                        class="placeholder-select-option"
-                        type="button"
-                        role="option"
-                        data-placeholder-name="${esc(normalizedName)}"
-                        aria-selected="${normalizedName === selectedName ? 'true' : 'false'}"
+                ${groups.filter(group => group.names.length).map(group => `
+                    <div
+                        class="template-placeholder-map-group"
+                        data-placeholder-readiness="${esc(group.readiness)}"
+                        role="group"
+                        aria-label="${esc(group.label)}"
                     >
-                        ${esc(normalizedName)}
-                    </button>
+                        <div class="template-placeholder-map-group-label">${esc(group.label)}</div>
+                        ${group.names.map(normalizedName => `
+                            <button
+                                class="placeholder-select-option"
+                                type="button"
+                                role="option"
+                                data-placeholder-name="${esc(normalizedName)}"
+                                aria-selected="${normalizedName === selectedName ? 'true' : 'false'}"
+                            >
+                                ${esc(normalizedName)}
+                            </button>
+                        `).join('')}
+                    </div>
                 `).join('')}
             </div>
         </div>
@@ -2696,6 +2716,7 @@ function getPlaceholderLifecycleStatus(template, mapping, placeholderName) {
 
 function isPlaceholderConfirmed(template, mapping = {}, placeholderName = '') {
     if (mapping.confirmed === true || mapping.confirmed === 'true') return true;
+    if (mapping._isV2 && mapping._v2) return true;
     const storedMappings = getStoredPlaceholderMappings(template);
     return storedMappings.has(normalizePlaceholderName(placeholderName));
 }
@@ -2711,9 +2732,8 @@ function getTemplateWorkbenchPlaceholderNames(template) {
 
 function buildPlaceholderWizardState(template) {
     const names = getTemplateWorkbenchPlaceholderNames(template);
-    const mappings = getCurrentPlaceholderMappings(template);
     const items = names.map(name => {
-        const mapping = mappings.get(name) || { type: inferPlaceholderType(name) };
+        const mapping = getEffectivePlaceholderMapping(template, name);
         const status = getPlaceholderLifecycleStatus(template, mapping, name);
         return { name, mapping, status };
     });
@@ -2737,29 +2757,41 @@ function renderPlaceholderWizardControls(template) {
     const progressBar = document.getElementById('template-placeholder-progress-bar');
     const prevBtn = document.getElementById('btn-template-prev-placeholder');
     const nextIncompleteBtn = document.getElementById('btn-template-next-incomplete-placeholder');
+    const reviewPreflightBtn = document.getElementById('btn-template-review-preflight');
     const saveNextBtn = document.getElementById('btn-template-save-next-placeholder');
     const actionsEl = saveNextBtn?.closest('.template-placeholder-actions');
     const statusStripEl = document.querySelector('.template-placeholder-status-strip');
     if (!template) return;
     const state = buildPlaceholderWizardState(template);
     const hasIncomplete = state.incompleteItems.length > 0;
-    if (progressEl) progressEl.textContent = `${state.completedCount} / ${state.totalCount} 已完成`;
+    const isComplete = state.totalCount > 0 && !hasIncomplete;
+    if (progressEl) {
+        progressEl.textContent = !state.totalCount
+            ? '暂无待配置段落'
+            : hasIncomplete
+                ? `${state.completedCount} / ${state.totalCount} 已完成，还差 ${state.incompleteItems.length} 项`
+                : `${state.completedCount} / ${state.totalCount} 已完成 · 全部段落已配置，可查看生成前检查`;
+    }
     if (progressBar) {
         const percent = state.totalCount ? Math.round((state.completedCount / state.totalCount) * 100) : 0;
         progressBar.style.width = `${percent}%`;
     }
     if (actionsEl) {
         actionsEl.classList.toggle('has-incomplete', hasIncomplete);
-        actionsEl.classList.toggle('is-complete', !hasIncomplete);
+        actionsEl.classList.toggle('is-complete', isComplete);
     }
     if (statusStripEl) {
         statusStripEl.classList.toggle('has-incomplete', hasIncomplete);
-        statusStripEl.classList.toggle('is-complete', !hasIncomplete);
+        statusStripEl.classList.toggle('is-complete', isComplete);
     }
     if (prevBtn) prevBtn.disabled = state.totalCount <= 1;
     if (nextIncompleteBtn) {
         nextIncompleteBtn.disabled = !hasIncomplete;
         nextIncompleteBtn.hidden = !hasIncomplete;
+    }
+    if (reviewPreflightBtn) {
+        reviewPreflightBtn.hidden = !isComplete;
+        reviewPreflightBtn.disabled = !isComplete;
     }
     if (saveNextBtn) {
         saveNextBtn.disabled = !state.totalCount || !hasIncomplete;
@@ -3692,8 +3724,8 @@ function closePlaceholderPickerMenu() {
     menu.hidden = true;
 }
 
-function getSelectedPlaceholderMapping(template) {
-    const name = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
+function getEffectivePlaceholderMapping(template, placeholderName) {
+    const name = normalizePlaceholderName(placeholderName);
     if (!name) return null;
     const draft = currentTemplateState.placeholderMappingDrafts?.[name];
     if (draft) return draft;
@@ -3717,6 +3749,10 @@ function getSelectedPlaceholderMapping(template) {
         title: inferPlaceholderTitle(name),
         type: inferPlaceholderType(name)
     };
+}
+
+function getSelectedPlaceholderMapping(template) {
+    return getEffectivePlaceholderMapping(template, currentTemplateState.selectedPlaceholderName);
 }
 
 /* ── v2 EnhancedPlaceholder → v1 mapping 映射 ── */
@@ -3903,6 +3939,14 @@ function startPlaceholderPickerSync() {
     }, 250);
 }
 
+function renderPlaceholderSaveFeedback(message, tone = 'success') {
+    const feedbackEl = document.getElementById('template-config-save-feedback');
+    if (!feedbackEl) return;
+    feedbackEl.textContent = message || '';
+    feedbackEl.hidden = !message;
+    feedbackEl.dataset.tone = tone;
+}
+
 function renderSelectedPlaceholderDetail(template) {
     const titleEl = document.getElementById('template-selected-placeholder-title');
     const formEl = document.getElementById('template-placeholder-detail-form');
@@ -3993,6 +4037,7 @@ function renderSelectedPlaceholderDetail(template) {
             writingStructureText,
             template
         })}
+        <p id="template-config-save-feedback" class="template-config-save-feedback" role="status" aria-live="polite" hidden></p>
     `;
 
     if (advancedFormEl) {
@@ -6548,12 +6593,22 @@ function buildExcelMappingRows(template) {
 
 function buildTemplateValidationChecks(template, sections, placeholders) {
     const placeholderMappings = getCurrentPlaceholderMappings(template);
-    const firstUnmappedPlaceholder = placeholders.find(placeholder =>
-        !placeholderMappings.has(normalizePlaceholderName(placeholder))
-    );
+    const effectivePlaceholderMappings = (placeholders || [])
+        .map(placeholderName => normalizePlaceholderName(placeholderName))
+        .filter(Boolean)
+        .map(placeholderName => ({
+            placeholderName,
+            mapping: getEffectivePlaceholderMapping(template, placeholderName)
+        }));
+    const firstUnmappedPlaceholder = effectivePlaceholderMappings.find(({ placeholderName, mapping }) =>
+        mapping?._isV2 ? !mapping._v2 : !placeholderMappings.has(placeholderName)
+    )?.placeholderName;
     const allPlaceholdersMapped = placeholders.length === 0
         || !firstUnmappedPlaceholder;
-    const hasPromptMapping = [...placeholderMappings.values()].some(mapping => mapping.prompt_template);
+    const hasPromptMapping = [...placeholderMappings.values()].some(mapping => mapping.prompt_template)
+        || effectivePlaceholderMappings.some(({ mapping }) =>
+            mapping?._isV2 && (mapping.prompt_template || mapping.prompt_retrieval_query)
+        );
     const hasExcelMapping = buildExcelMappingRows(template).length > 0;
     const hasRuleConfig = sections.some(section =>
         section.evidence_policy
@@ -6595,12 +6650,11 @@ function buildTemplateValidationChecks(template, sections, placeholders) {
 }
 
 function buildPlaceholderReadinessItems(template, placeholders) {
-    const mappings = getCurrentPlaceholderMappings(template);
     return (placeholders || [])
         .map(placeholderName => normalizePlaceholderName(placeholderName))
         .filter(Boolean)
         .map(placeholderName => {
-            const mapping = mappings.get(placeholderName) || { type: inferPlaceholderType(placeholderName) };
+            const mapping = getEffectivePlaceholderMapping(template, placeholderName);
             const readinessIssue = getPlaceholderReadinessIssue(mapping, placeholderName);
             const lifecycle = getPlaceholderLifecycleStatus(template, mapping, placeholderName);
             const issue = lifecycle.state === 'ready'
@@ -7815,6 +7869,7 @@ function bindTemplateWorkbenchActions() {
     const configAdvancedBtn = document.getElementById('btn-template-config-advanced');
     const prevPlaceholderBtn = document.getElementById('btn-template-prev-placeholder');
     const nextIncompleteBtn = document.getElementById('btn-template-next-incomplete-placeholder');
+    const reviewPreflightBtn = document.getElementById('btn-template-review-preflight');
     const savePlaceholderNextBtn = document.getElementById('btn-template-save-next-placeholder');
     const configModal = document.getElementById('template-config-editor-modal');
     const closeConfigModalBtn = document.getElementById('btn-template-config-editor-modal-close');
@@ -7977,6 +8032,11 @@ function bindTemplateWorkbenchActions() {
         nextIncompleteBtn.addEventListener('click', () => selectAdjacentTemplatePlaceholder(1, true));
     }
 
+    if (reviewPreflightBtn && !reviewPreflightBtn.dataset.bound) {
+        reviewPreflightBtn.dataset.bound = 'true';
+        reviewPreflightBtn.addEventListener('click', () => openProjectCheckPanel('template-validation-preview'));
+    }
+
     if (closeConfigModalBtn && !closeConfigModalBtn.dataset.bound) {
         closeConfigModalBtn.dataset.bound = 'true';
         closeConfigModalBtn.addEventListener('click', closeTemplateConfigEditorModal);
@@ -8125,6 +8185,9 @@ async function saveCurrentSectionConfig({
                 selectAdjacentTemplatePlaceholder(1, true);
             }
             toast(localMessage, 'success');
+        }
+        if (!jumpToNextIncomplete) {
+            renderPlaceholderSaveFeedback('已保存当前段落。');
         }
     } catch (e) {
         toast(`${errorPrefix}: ${e.message}`, 'error');

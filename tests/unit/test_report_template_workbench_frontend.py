@@ -269,6 +269,29 @@ def test_report_config_summary_prioritizes_missing_query_or_keywords_without_los
         assert f'data-placeholder-edit-section="{edit_section}"' in source
 
 
+def test_report_config_current_section_save_feedback_contract():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+    css = STYLE_CSS.read_text(encoding="utf-8")
+    detail_start = source.index("function renderSelectedPlaceholderDetail")
+    detail_end = source.index("function bindPlaceholderSummaryEditActions", detail_start)
+    detail_source = source[detail_start:detail_end]
+    feedback_start = source.index("function renderPlaceholderSaveFeedback")
+    feedback_end = source.index("function renderSelectedPlaceholderDetail", feedback_start)
+    feedback_source = source[feedback_start:feedback_end]
+    save_start = source.index("async function saveCurrentSectionConfig")
+    save_end = source.index("function handleTemplateCheckAction", save_start)
+    save_source = source[save_start:save_end]
+
+    assert 'id="template-config-save-feedback"' in detail_source
+    assert "function renderPlaceholderSaveFeedback(message, tone = 'success')" in source
+    assert "feedbackEl.textContent = message || '';" in feedback_source
+    assert "feedbackEl.hidden = !message;" in feedback_source
+    assert "feedbackEl.dataset.tone = tone;" in feedback_source
+    assert "renderPlaceholderSaveFeedback('已保存当前段落。');" in save_source
+    assert ".template-config-save-feedback {" in css
+    assert '.template-config-save-feedback[data-tone="success"]::before' in css
+
+
 def test_report_config_summary_next_actions_render_from_real_query_state():
     script = r"""
 const fs = require('fs');
@@ -679,6 +702,124 @@ def test_placeholder_select_syncs_state_when_previous_selection_is_missing():
     assert "setPlaceholderPickerValue(selectedName);" in map_source
     assert "window.requestAnimationFrame(reconcilePlaceholderPickerAndDetail);" in map_source
     assert "window.setTimeout(reconcilePlaceholderPickerAndDetail, 50);" in map_source
+
+
+def test_placeholder_picker_groups_sections_by_existing_readiness():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+    css = STYLE_CSS.read_text(encoding="utf-8")
+    start = source.index("function renderTemplatePlaceholderMap")
+    end = source.index("function renderMappingSummary", start)
+    map_source = source[start:end]
+
+    assert 'class="template-placeholder-map-group"' in map_source
+    assert 'data-placeholder-readiness="${esc(group.readiness)}"' in map_source
+    assert "需要处理" in map_source
+    assert "已完成" in map_source
+    assert "getPlaceholderLifecycleStatus(template, mapping, normalizedName)" in map_source
+    assert ".template-config-editor-toolbar .template-placeholder-map-group" in css
+
+
+def test_placeholder_picker_groups_v2_sections_with_effective_drafts():
+    script = r"""
+const fs = require('fs');
+const vm = require('vm');
+const source = fs.readFileSync(process.argv[1], 'utf8');
+
+function extract(startMarker, endMarker) {
+    const start = source.indexOf(startMarker);
+    const end = source.indexOf(endMarker, start);
+    if (start === -1 || end === -1) throw new Error(`Unable to extract ${startMarker}`);
+    return source.slice(start, end);
+}
+
+const elements = {
+    'template-placeholder-count': { textContent: '' },
+    'template-placeholder-map': { innerHTML: '' }
+};
+const sandbox = {
+    currentTemplateState: {
+        selectedPlaceholderName: '',
+        activeSourceKind: 'report_config',
+        placeholderMappingDrafts: {},
+        v2PlaceholderConfigDrafts: {
+            '已配置': { generation_config: { prompt_template_ref: '市场回顾写作' } }
+        }
+    },
+    document: { getElementById: (id) => elements[id] || null },
+    window: {},
+    esc: (value) => String(value ?? ''),
+    normalizePlaceholderName: (value) => String(value || '').replace(/^\\{\\{\\s*/, '').replace(/\\s*\\}\\}$/, '').trim(),
+    inferPlaceholderType: () => 'paragraph',
+    inferPlaceholderTitle: (name) => name,
+    isSystemDatePlaceholder: () => false,
+    getCurrentPlaceholderMappings: () => new Map(),
+    getStoredPlaceholderMappings: () => new Map(),
+    getTemplateWorkbenchPlaceholderNames: () => ['已配置', '待配置'],
+    buildExcelMappingRows: () => [],
+    getCanonicalPlaceholderType: (type) => type || 'paragraph',
+    getParagraphMode: () => 'evidence_ai',
+    usesEvidenceParagraphMode: () => true,
+    getPlaceholderReadinessIssue: (mapping) => mapping.prompt_template ? null : { message: '缺少 Prompt' },
+    bindPlaceholderMapRows: () => {}
+};
+vm.createContext(sandbox);
+vm.runInContext(extract('function getPlaceholderLifecycleStatus', 'function buildPlaceholderWizardState'), sandbox);
+sandbox.getTemplateWorkbenchPlaceholderNames = () => ['已配置', '待配置'];
+vm.runInContext(extract('function buildPlaceholderWizardState', 'function renderPlaceholderWizardControls'), sandbox);
+vm.runInContext(extract('function buildTemplateValidationChecks', 'function buildPlaceholderReadinessItems'), sandbox);
+vm.runInContext(extract('function buildPlaceholderReadinessItems', 'function getPlaceholderReadinessIssue'), sandbox);
+vm.runInContext(extract('function v2PlaceholderConfigToMapping', '/* ── v2 编辑草稿管理'), sandbox);
+vm.runInContext(extract('function getV2Draft', 'function hasV2Drafts'), sandbox);
+vm.runInContext(extract('function deepMergeV2Config', 'function getRenderedPlaceholderSummaryName'), sandbox);
+if (source.includes('function getEffectivePlaceholderMapping')) {
+    vm.runInContext(extract('function getEffectivePlaceholderMapping', 'function getSelectedPlaceholderMapping'), sandbox);
+}
+vm.runInContext(extract('function renderTemplatePlaceholderMap', 'function renderMappingSummary'), sandbox);
+
+const template = {
+    report_project: {
+        report_config: {
+            placeholders: {
+                '已配置': { type: 'rich_text', title: '已配置', generation_config: {} },
+                '待配置': { type: 'rich_text', title: '待配置', generation_config: {} }
+            }
+        }
+    }
+};
+sandbox.renderTemplatePlaceholderMap(template, ['已配置', '待配置'], []);
+const html = elements['template-placeholder-map'].innerHTML;
+const wizard = sandbox.buildPlaceholderWizardState(template);
+const readiness = sandbox.buildPlaceholderReadinessItems(template, ['已配置', '待配置']);
+const validation = sandbox.buildTemplateValidationChecks(template, [], ['已配置', '待配置']);
+console.log(JSON.stringify({
+    ready: /data-placeholder-readiness="ready"[\s\S]*?已配置/.test(html),
+    needsAttention: /data-placeholder-readiness="needs_attention"[\s\S]*?待配置/.test(html),
+    names: [...html.matchAll(/data-placeholder-name="([^"]+)"/g)].map((match) => match[1]),
+    wizard: { completedCount: wizard.completedCount, incompleteNames: wizard.incompleteItems.map((item) => item.name) },
+    readiness: readiness.map((item) => ({ name: item.placeholderName, ok: item.ok, state: item.status.state })),
+    validation: { mappings: validation[0].ok, prompt: validation[1].ok }
+}));
+"""
+
+    result = subprocess.run(
+        ["node", "-e", script, str(TEMPLATES_JS)],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+    assert json.loads(result.stdout) == {
+        "ready": True,
+        "needsAttention": True,
+        "names": ["待配置", "已配置"],
+        "wizard": {"completedCount": 1, "incompleteNames": ["待配置"]},
+        "readiness": [
+            {"name": "已配置", "ok": True, "state": "ready"},
+            {"name": "待配置", "ok": False, "state": "missing"},
+        ],
+        "validation": {"mappings": True, "prompt": True},
+    }
 
 
 def test_placeholder_detail_syncs_from_picker_before_rendering():
@@ -1093,6 +1234,186 @@ def test_placeholder_configuration_wizard_navigation_stays_single_placeholder():
     assert 'class="placeholder-config-table"' not in source
 
 
+def test_completed_placeholder_configuration_guides_user_to_preflight():
+    html = INDEX_HTML.read_text(encoding="utf-8")
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+    css = STYLE_CSS.read_text(encoding="utf-8")
+
+    assert 'id="btn-template-review-preflight"' in html
+    assert 'id="btn-template-review-preflight"' in html[html.index('template-placeholder-status-strip'):]
+    assert 'hidden' in html[html.index('id="btn-template-review-preflight"') - 80:html.index('id="btn-template-review-preflight"') + 120]
+    assert "const reviewPreflightBtn = document.getElementById('btn-template-review-preflight');" in source
+    assert "const isComplete = state.totalCount > 0 && !hasIncomplete;" in source
+    assert "还差 ${state.incompleteItems.length} 项" in source
+    assert "全部段落已配置，可查看生成前检查" in source
+    assert "reviewPreflightBtn.hidden = !isComplete;" in source
+    assert "reviewPreflightBtn.disabled = !isComplete;" in source
+    assert "openProjectCheckPanel('template-validation-preview')" in source
+    assert "reviewPreflightBtn.addEventListener('click', () => openProjectCheckPanel('template-validation-preview'))" in source
+    assert ".template-placeholder-status-strip.is-complete #btn-template-review-preflight" in css
+
+    script = r'''
+const fs = require('fs');
+const vm = require('vm');
+const source = fs.readFileSync(process.argv[1], 'utf8');
+const start = source.indexOf('function renderPlaceholderWizardControls');
+const end = source.indexOf('function selectAdjacentTemplatePlaceholder', start);
+if (start === -1 || end === -1) throw new Error('Unable to extract wizard controls');
+
+function classList() {
+    const values = new Set();
+    return {
+        toggle: (name, enabled) => enabled ? values.add(name) : values.delete(name),
+        values: () => [...values].sort()
+    };
+}
+function button() {
+    return { disabled: true, hidden: true, closest: () => actions };
+}
+const actions = { classList: classList() };
+const status = { classList: classList() };
+const elements = {
+    'template-placeholder-wizard-progress': { textContent: '' },
+    'template-placeholder-progress-bar': { style: { width: '' } },
+    'btn-template-prev-placeholder': button(),
+    'btn-template-next-incomplete-placeholder': button(),
+    'btn-template-review-preflight': button(),
+    'btn-template-save-next-placeholder': button()
+};
+let currentState;
+const sandbox = {
+    document: {
+        getElementById: (id) => elements[id] || null,
+        querySelector: (selector) => selector === '.template-placeholder-status-strip' ? status : null
+    },
+    buildPlaceholderWizardState: () => currentState
+};
+vm.createContext(sandbox);
+vm.runInContext(source.slice(start, end), sandbox);
+
+currentState = { completedCount: 0, totalCount: 0, incompleteItems: [] };
+sandbox.renderPlaceholderWizardControls({});
+const empty = {
+    progress: elements['template-placeholder-wizard-progress'].textContent,
+    next: { hidden: elements['btn-template-next-incomplete-placeholder'].hidden, disabled: elements['btn-template-next-incomplete-placeholder'].disabled },
+    review: { hidden: elements['btn-template-review-preflight'].hidden, disabled: elements['btn-template-review-preflight'].disabled },
+    actionClasses: actions.classList.values(),
+    stripClasses: status.classList.values()
+};
+
+currentState = { completedCount: 2, totalCount: 3, incompleteItems: [{ name: '待配置' }] };
+sandbox.renderPlaceholderWizardControls({});
+const incomplete = {
+    progress: elements['template-placeholder-wizard-progress'].textContent,
+    next: { hidden: elements['btn-template-next-incomplete-placeholder'].hidden, disabled: elements['btn-template-next-incomplete-placeholder'].disabled },
+    review: { hidden: elements['btn-template-review-preflight'].hidden, disabled: elements['btn-template-review-preflight'].disabled },
+    actionClasses: actions.classList.values(),
+    stripClasses: status.classList.values()
+};
+
+currentState = { completedCount: 3, totalCount: 3, incompleteItems: [] };
+sandbox.renderPlaceholderWizardControls({});
+const complete = {
+    progress: elements['template-placeholder-wizard-progress'].textContent,
+    next: { hidden: elements['btn-template-next-incomplete-placeholder'].hidden, disabled: elements['btn-template-next-incomplete-placeholder'].disabled },
+    review: { hidden: elements['btn-template-review-preflight'].hidden, disabled: elements['btn-template-review-preflight'].disabled },
+    actionClasses: actions.classList.values(),
+    stripClasses: status.classList.values()
+};
+console.log(JSON.stringify({ empty, incomplete, complete }));
+'''
+    result = subprocess.run(
+        ["node", "-e", script, str(TEMPLATES_JS)],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+    assert json.loads(result.stdout) == {
+        "empty": {
+            "progress": "暂无待配置段落",
+            "next": {"hidden": True, "disabled": True},
+            "review": {"hidden": True, "disabled": True},
+            "actionClasses": [],
+            "stripClasses": [],
+        },
+        "incomplete": {
+            "progress": "2 / 3 已完成，还差 1 项",
+            "next": {"hidden": False, "disabled": False},
+            "review": {"hidden": True, "disabled": True},
+            "actionClasses": ["has-incomplete"],
+            "stripClasses": ["has-incomplete"],
+        },
+        "complete": {
+            "progress": "3 / 3 已完成 · 全部段落已配置，可查看生成前检查",
+            "next": {"hidden": True, "disabled": True},
+            "review": {"hidden": False, "disabled": False},
+            "actionClasses": ["is-complete"],
+            "stripClasses": ["is-complete"],
+        },
+    }
+
+
+def test_completed_placeholder_preflight_action_only_opens_preflight():
+    script = r'''
+const fs = require('fs');
+const vm = require('vm');
+const source = fs.readFileSync(process.argv[1], 'utf8');
+const start = source.indexOf('function bindTemplateWorkbenchActions()');
+const end = source.indexOf('function handleTemplateCheckAction', start);
+if (start === -1 || end === -1) throw new Error('Unable to extract template workbench bindings');
+
+const reviewButton = {
+    dataset: {},
+    handler: null,
+    clickHandlers: [],
+    addEventListener: (eventName, handler) => {
+        if (eventName !== 'click') return;
+        reviewButton.handler = handler;
+        reviewButton.clickHandlers.push(handler);
+    }
+};
+let apiCalls = 0;
+const openedTargets = [];
+const sandbox = {
+    document: {
+        getElementById: (id) => id === 'btn-template-review-preflight' ? reviewButton : null,
+        querySelectorAll: () => []
+    },
+    bindTemplateDetailModeTabs: () => {},
+    openProjectCheckPanel: (target) => openedTargets.push(target),
+    apiCall: () => { apiCalls += 1; }
+};
+vm.createContext(sandbox);
+vm.runInContext(source.slice(start, end), sandbox);
+sandbox.bindTemplateWorkbenchActions();
+sandbox.bindTemplateWorkbenchActions();
+if (!reviewButton.handler) throw new Error('Review action was not bound');
+reviewButton.handler();
+console.log(JSON.stringify({
+    openedTargets,
+    apiCalls,
+    bound: reviewButton.dataset.bound,
+    clickListenerCount: reviewButton.clickHandlers.length
+}));
+'''
+    result = subprocess.run(
+        ["node", "-e", script, str(TEMPLATES_JS)],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+    assert json.loads(result.stdout) == {
+        "openedTargets": ["template-validation-preview"],
+        "apiCalls": 0,
+        "bound": "true",
+        "clickListenerCount": 1,
+    }
+
+
 def test_placeholder_configurator_uses_original_embedded_grid_layout():
     html = INDEX_HTML.read_text(encoding="utf-8")
     source = TEMPLATES_JS.read_text(encoding="utf-8")
@@ -1150,10 +1471,11 @@ def test_placeholder_toolbar_has_three_zones_and_incomplete_only_next_actions():
     )
 
     assert "const hasIncomplete = state.incompleteItems.length > 0;" in source
+    assert "const isComplete = state.totalCount > 0 && !hasIncomplete;" in source
     assert "actionsEl.classList.toggle('has-incomplete', hasIncomplete);" in source
-    assert "actionsEl.classList.toggle('is-complete', !hasIncomplete);" in source
+    assert "actionsEl.classList.toggle('is-complete', isComplete);" in source
     assert "statusStripEl.classList.toggle('has-incomplete', hasIncomplete);" in source
-    assert "statusStripEl.classList.toggle('is-complete', !hasIncomplete);" in source
+    assert "statusStripEl.classList.toggle('is-complete', isComplete);" in source
     assert "nextIncompleteBtn.hidden = !hasIncomplete;" in source
     assert "saveNextBtn.hidden = !hasIncomplete;" in source
     assert "saveNextBtn.disabled = !state.totalCount || !hasIncomplete;" in source
