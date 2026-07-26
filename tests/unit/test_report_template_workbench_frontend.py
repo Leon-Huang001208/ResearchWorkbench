@@ -118,6 +118,7 @@ def test_report_config_tab_uses_redesigned_editor_shell():
     assert "template-config-inline-action" in source
     assert "collectDataTemplateFieldsFromForms" in source
     assert "normalizeDataTemplateFieldKey" in source
+
     assert "template-config-title" in source
     assert "template-config-placeholder-type" in source
     assert "template-config-grid" in css
@@ -202,6 +203,16 @@ def test_report_config_tab_uses_redesigned_editor_shell():
     ) > css.rfind(
         '[data-theme="light"] .template-config-common-panel details.template-common-summary-card[open],'
     )
+
+
+def test_report_config_summary_keeps_low_frequency_sections_collapsible_and_editable():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+
+    assert 'class="template-config-collapsible-section"' in source
+    assert 'data-placeholder-edit-section="keywords"' in source
+    assert 'data-placeholder-edit-section="fixed_template"' in source
+    assert 'data-placeholder-edit-section="data_fields"' in source
+    assert 'data-placeholder-edit-section="writing"' in source
 
 
 def test_report_generation_page_is_reduced_to_progress_and_single_output():

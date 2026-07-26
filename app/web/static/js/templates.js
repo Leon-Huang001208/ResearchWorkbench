@@ -4539,6 +4539,35 @@ function parseKeywordGroupsTextarea(text) {
     }).filter(Boolean);
 }
 
+function buildConfigCollapsibleSection({
+    title,
+    meta = '',
+    editSection,
+    body,
+    open = false
+}) {
+    const editSectionAttribute = {
+        keywords: 'data-placeholder-edit-section="keywords"',
+        fixed_template: 'data-placeholder-edit-section="fixed_template"',
+        data_fields: 'data-placeholder-edit-section="data_fields"',
+        writing: 'data-placeholder-edit-section="writing"'
+    }[editSection] || `data-placeholder-edit-section="${esc(editSection)}"`;
+    return `
+        <details class="template-config-collapsible-section"${open ? ' open' : ''}>
+            <summary>
+                <div class="template-config-readable-title">
+                    <strong>${esc(title)}</strong>
+                    <span>${esc(meta)}</span>
+                </div>
+                <button class="template-config-inline-action template-config-edit-trigger" type="button" ${editSectionAttribute}>编辑</button>
+            </summary>
+            <div class="template-config-collapsible-body">
+                ${body || ''}
+            </div>
+        </details>
+    `;
+}
+
 function buildPlaceholderConfigSummaryHtml({
     name,
     type,
@@ -4650,37 +4679,34 @@ function buildPlaceholderConfigSummaryHtml({
                     </div>
                     <p>${esc(semanticQuery || '未配置语义 Query')}</p>
                 </button>
-                <button class="template-config-readable-section template-config-edit-trigger" type="button" data-placeholder-edit-section="keywords">
-                    <div class="template-config-readable-title">
-                        <strong>关键词</strong>
-                        <span>${keywordMode === 'profile' ? `预设包：${esc(selectedKeywordProfile || '未选择')}` : '自定义'} · ${keywordList.length} 个</span>
-                    </div>
+                ${buildConfigCollapsibleSection({
+                    title: '关键词',
+                    meta: `${keywordMode === 'profile' ? `预设包：${selectedKeywordProfile || '未选择'}` : '自定义'} · ${keywordList.length} 个`,
+                    editSection: 'keywords',
+                    body: `
                     <div class="template-config-keyword-cloud">
                         ${keywordList.length
                             ? keywordList.map(keyword => `<span>${esc(keyword)}</span>`).join('')
                             : '<em>暂无关键词</em>'}
                     </div>
                     ${hasKeywordGroups ? buildKeywordGroupsInlineBadges(keywordGroups) : ''}
-                </button>
+                    `
+                })}
             ` : ''}
             ${supportsDataTemplate && dataTemplate ? `
-                <button class="template-config-readable-section template-config-edit-trigger" type="button" data-placeholder-edit-section="fixed_template">
-                    <div class="template-config-readable-title">
-                        <strong>固定开头模板</strong>
-                        <span>Excel 数据填充</span>
-                    </div>
-                    <p class="template-config-data-template-preview">${renderDataTemplatePreview(dataTemplate, dataTemplateFields)}</p>
-                </button>
+                ${buildConfigCollapsibleSection({
+                    title: '固定开头模板',
+                    meta: 'Excel 数据填充',
+                    editSection: 'fixed_template',
+                    body: `<p class="template-config-data-template-preview">${renderDataTemplatePreview(dataTemplate, dataTemplateFields)}</p>`
+                })}
             ` : ''}
             ${dataFieldEntries.length ? `
-                <div class="template-config-readable-section">
-                    <div class="template-config-readable-title template-config-data-overview-title">
-                        <div class="template-config-data-overview-heading">
-                            <strong>模板变量数据来源</strong>
-                            <span>${dataFieldEntries.length} 个变量</span>
-                        </div>
-                        <button class="template-config-inline-action template-config-edit-trigger" type="button" data-placeholder-edit-section="data_fields">管理变量</button>
-                    </div>
+                ${buildConfigCollapsibleSection({
+                    title: '模板变量数据来源',
+                    meta: `${dataFieldEntries.length} 个变量`,
+                    editSection: 'data_fields',
+                    body: `
                     <div class="template-config-data-overview">
                         ${dataFieldEntries.map(([fieldKey, field]) => `
                             <button class="template-config-data-overview-row template-config-edit-trigger" type="button" data-placeholder-edit-section="data_fields" data-placeholder-edit-field="${esc(fieldKey)}">
@@ -4692,22 +4718,22 @@ function buildPlaceholderConfigSummaryHtml({
                             </button>
                         `).join('')}
                     </div>
-                </div>
+                    `
+                })}
             ` : ''}
             ${usesEvidence ? `
-                <button class="template-config-readable-section template-config-edit-trigger" type="button" data-placeholder-edit-section="writing">
-                    <div class="template-config-readable-title">
-                        <strong>写作结构</strong>
-                        <span>${writingSteps.length ? `${writingSteps.length} 步` : '未配置'}</span>
-                    </div>
-                    ${writingSteps.length ? `
+                ${buildConfigCollapsibleSection({
+                    title: '写作结构',
+                    meta: writingSteps.length ? `${writingSteps.length} 步` : '未配置',
+                    editSection: 'writing',
+                    body: writingSteps.length ? `
                         <ol class="template-config-writing-steps">
                             ${writingSteps.map(step => `<li>${esc(step)}</li>`).join('')}
                         </ol>
                     ` : `
                         <p class="template-config-empty-note">未单独配置写作步骤，点击这里添加生成正文的结构和表达边界。</p>
-                    `}
-                </button>
+                    `
+                })}
             ` : ''}
         </section>
     `;
