@@ -797,13 +797,19 @@ function renderConfigurationHealth(snapshot) {
     if (!summary) return;
     summary.classList.toggle('ready', missing === 0 && health.errorCount === 0);
     summary.classList.toggle('has-error', health.errorCount > 0);
-    summary.querySelector('[data-config-progress-completed]').textContent = completed;
-    summary.querySelector('[data-config-progress-missing]').textContent = missing;
+    const completedNode = summary.querySelector('[data-config-progress-completed]');
+    if (completedNode) completedNode.textContent = completed;
+    const missingNode = summary.querySelector('[data-config-progress-missing]');
+    if (missingNode) missingNode.textContent = missing;
     const progressBar = summary.querySelector('[data-config-progress-bar]');
-    progressBar.style.width = `${percent}%`;
-    progressBar.parentElement?.setAttribute('aria-valuenow', String(percent));
-    summary.querySelector('[data-config-connection-label]').textContent = connectionLabel;
-    summary.querySelector('[data-config-health-detail]').textContent = connectionDetail;
+    if (progressBar) {
+        progressBar.style.width = `${percent}%`;
+        progressBar.parentElement?.setAttribute('aria-valuenow', String(percent));
+    }
+    const connectionLabelNode = summary.querySelector('[data-config-connection-label]');
+    if (connectionLabelNode) connectionLabelNode.textContent = connectionLabel;
+    const connectionDetailNode = summary.querySelector('[data-config-health-detail]');
+    if (connectionDetailNode) connectionDetailNode.textContent = connectionDetail;
 }
 
 function renderSnapshot(snapshot) {
@@ -1239,13 +1245,9 @@ async function refreshConfiguration() {
 }
 
 function configurationCardState(section) {
+    if (section === 'database') return databaseReadinessPresentation().state;
     const connectionState = connectionStateBySection.get(section);
     if (connectionState === 'error' || connectionState === 'verified') return connectionState;
-    if (section === 'database') {
-        const databaseReady = databaseReadinessPresentation().state === 'ready'
-            || Boolean(configurationSnapshot?.readiness?.database);
-        return databaseReady ? 'ready' : 'missing';
-    }
     return configurationSnapshot?.readiness?.[section] ? 'ready' : 'missing';
 }
 
@@ -1254,7 +1256,7 @@ function renderConfigurationCardVisibility() {
     document.querySelectorAll('[data-config-card]').forEach(card => {
         const state = configurationCardState(card.dataset.configCard);
         const visible = filter === 'all'
-            || (filter === 'attention' && (state === 'missing' || state === 'error'))
+            || (filter === 'attention' && (state === 'missing' || state === 'error' || state === 'restart'))
             || (filter === 'ready' && (state === 'ready' || state === 'verified'));
         card.hidden = !visible;
     });
