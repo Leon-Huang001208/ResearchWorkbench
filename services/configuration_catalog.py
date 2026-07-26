@@ -67,10 +67,10 @@ CONFIGURATION_CATALOG = _freeze_catalog(
                         "key": "accounts",
                         "label": "知秋账号",
                         "kind": "collection",
-                        "environment_keys": ["ZQ_ACCOUNTS_JSON"],
+                        "environment_keys": ["ZQ_ACCOUNTS_JSON", "ZQ_ACCOUNTS"],
                     },
                     {
-                        "key": "rotation_enabled",
+                        "key": "enabled",
                         "label": "启用账号轮换",
                         "kind": "boolean",
                         "environment_keys": ["ZQ_ROTATION_ENABLED"],
@@ -227,7 +227,11 @@ CONFIGURATION_CATALOG = _freeze_catalog(
                         "key": "accounts",
                         "label": "搜索 API 密钥",
                         "kind": "collection",
-                        "environment_keys": ["WEB_SEARCH_API_KEYS"],
+                        "environment_keys": [
+                            "WEB_SEARCH_API_KEYS",
+                            "TAVILY_API_KEY",
+                            "BING_API_KEY",
+                        ],
                     },
                     {
                         "key": "provider",
