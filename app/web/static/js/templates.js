@@ -2757,13 +2757,18 @@ function renderPlaceholderWizardControls(template) {
     const progressBar = document.getElementById('template-placeholder-progress-bar');
     const prevBtn = document.getElementById('btn-template-prev-placeholder');
     const nextIncompleteBtn = document.getElementById('btn-template-next-incomplete-placeholder');
+    const reviewPreflightBtn = document.getElementById('btn-template-review-preflight');
     const saveNextBtn = document.getElementById('btn-template-save-next-placeholder');
     const actionsEl = saveNextBtn?.closest('.template-placeholder-actions');
     const statusStripEl = document.querySelector('.template-placeholder-status-strip');
     if (!template) return;
     const state = buildPlaceholderWizardState(template);
     const hasIncomplete = state.incompleteItems.length > 0;
-    if (progressEl) progressEl.textContent = `${state.completedCount} / ${state.totalCount} 已完成`;
+    if (progressEl) {
+        progressEl.textContent = hasIncomplete
+            ? `${state.completedCount} / ${state.totalCount} 已完成，还差 ${state.incompleteItems.length} 项`
+            : `${state.completedCount} / ${state.totalCount} 已完成 · 全部段落已配置，可查看生成前检查`;
+    }
     if (progressBar) {
         const percent = state.totalCount ? Math.round((state.completedCount / state.totalCount) * 100) : 0;
         progressBar.style.width = `${percent}%`;
@@ -2780,6 +2785,10 @@ function renderPlaceholderWizardControls(template) {
     if (nextIncompleteBtn) {
         nextIncompleteBtn.disabled = !hasIncomplete;
         nextIncompleteBtn.hidden = !hasIncomplete;
+    }
+    if (reviewPreflightBtn) {
+        reviewPreflightBtn.hidden = hasIncomplete || !state.totalCount;
+        reviewPreflightBtn.disabled = hasIncomplete || !state.totalCount;
     }
     if (saveNextBtn) {
         saveNextBtn.disabled = !state.totalCount || !hasIncomplete;
@@ -7857,6 +7866,7 @@ function bindTemplateWorkbenchActions() {
     const configAdvancedBtn = document.getElementById('btn-template-config-advanced');
     const prevPlaceholderBtn = document.getElementById('btn-template-prev-placeholder');
     const nextIncompleteBtn = document.getElementById('btn-template-next-incomplete-placeholder');
+    const reviewPreflightBtn = document.getElementById('btn-template-review-preflight');
     const savePlaceholderNextBtn = document.getElementById('btn-template-save-next-placeholder');
     const configModal = document.getElementById('template-config-editor-modal');
     const closeConfigModalBtn = document.getElementById('btn-template-config-editor-modal-close');
@@ -8017,6 +8027,11 @@ function bindTemplateWorkbenchActions() {
     if (nextIncompleteBtn && !nextIncompleteBtn.dataset.bound) {
         nextIncompleteBtn.dataset.bound = 'true';
         nextIncompleteBtn.addEventListener('click', () => selectAdjacentTemplatePlaceholder(1, true));
+    }
+
+    if (reviewPreflightBtn && !reviewPreflightBtn.dataset.bound) {
+        reviewPreflightBtn.dataset.bound = 'true';
+        reviewPreflightBtn.addEventListener('click', () => openProjectCheckPanel('template-validation-preview'));
     }
 
     if (closeConfigModalBtn && !closeConfigModalBtn.dataset.bound) {

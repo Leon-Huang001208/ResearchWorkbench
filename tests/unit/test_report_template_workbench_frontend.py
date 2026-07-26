@@ -1234,6 +1234,109 @@ def test_placeholder_configuration_wizard_navigation_stays_single_placeholder():
     assert 'class="placeholder-config-table"' not in source
 
 
+def test_completed_placeholder_configuration_guides_user_to_preflight():
+    html = INDEX_HTML.read_text(encoding="utf-8")
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+    css = STYLE_CSS.read_text(encoding="utf-8")
+
+    assert 'id="btn-template-review-preflight"' in html
+    assert 'id="btn-template-review-preflight"' in html[html.index('template-placeholder-status-strip'):]
+    assert 'hidden' in html[html.index('id="btn-template-review-preflight"') - 80:html.index('id="btn-template-review-preflight"') + 120]
+    assert "const reviewPreflightBtn = document.getElementById('btn-template-review-preflight');" in source
+    assert "还差 ${state.incompleteItems.length} 项" in source
+    assert "全部段落已配置，可查看生成前检查" in source
+    assert "reviewPreflightBtn.hidden = hasIncomplete || !state.totalCount;" in source
+    assert "reviewPreflightBtn.disabled = hasIncomplete || !state.totalCount;" in source
+    assert "openProjectCheckPanel('template-validation-preview')" in source
+    assert "reviewPreflightBtn.addEventListener('click', () => openProjectCheckPanel('template-validation-preview'))" in source
+    assert ".template-placeholder-status-strip.is-complete #btn-template-review-preflight" in css
+
+    script = r'''
+const fs = require('fs');
+const vm = require('vm');
+const source = fs.readFileSync(process.argv[1], 'utf8');
+const start = source.indexOf('function renderPlaceholderWizardControls');
+const end = source.indexOf('function selectAdjacentTemplatePlaceholder', start);
+if (start === -1 || end === -1) throw new Error('Unable to extract wizard controls');
+
+function classList() {
+    const values = new Set();
+    return {
+        toggle: (name, enabled) => enabled ? values.add(name) : values.delete(name),
+        values: () => [...values].sort()
+    };
+}
+function button() {
+    return { disabled: true, hidden: true, closest: () => actions };
+}
+const actions = { classList: classList() };
+const status = { classList: classList() };
+const elements = {
+    'template-placeholder-wizard-progress': { textContent: '' },
+    'template-placeholder-progress-bar': { style: { width: '' } },
+    'btn-template-prev-placeholder': button(),
+    'btn-template-next-incomplete-placeholder': button(),
+    'btn-template-review-preflight': button(),
+    'btn-template-save-next-placeholder': button()
+};
+let currentState;
+const sandbox = {
+    document: {
+        getElementById: (id) => elements[id] || null,
+        querySelector: (selector) => selector === '.template-placeholder-status-strip' ? status : null
+    },
+    buildPlaceholderWizardState: () => currentState
+};
+vm.createContext(sandbox);
+vm.runInContext(source.slice(start, end), sandbox);
+
+currentState = { completedCount: 2, totalCount: 3, incompleteItems: [{ name: '待配置' }] };
+sandbox.renderPlaceholderWizardControls({});
+const incomplete = {
+    progress: elements['template-placeholder-wizard-progress'].textContent,
+    next: { hidden: elements['btn-template-next-incomplete-placeholder'].hidden, disabled: elements['btn-template-next-incomplete-placeholder'].disabled },
+    review: { hidden: elements['btn-template-review-preflight'].hidden, disabled: elements['btn-template-review-preflight'].disabled },
+    actionClasses: actions.classList.values(),
+    stripClasses: status.classList.values()
+};
+
+currentState = { completedCount: 3, totalCount: 3, incompleteItems: [] };
+sandbox.renderPlaceholderWizardControls({});
+const complete = {
+    progress: elements['template-placeholder-wizard-progress'].textContent,
+    next: { hidden: elements['btn-template-next-incomplete-placeholder'].hidden, disabled: elements['btn-template-next-incomplete-placeholder'].disabled },
+    review: { hidden: elements['btn-template-review-preflight'].hidden, disabled: elements['btn-template-review-preflight'].disabled },
+    actionClasses: actions.classList.values(),
+    stripClasses: status.classList.values()
+};
+console.log(JSON.stringify({ incomplete, complete }));
+'''
+    result = subprocess.run(
+        ["node", "-e", script, str(TEMPLATES_JS)],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+    assert json.loads(result.stdout) == {
+        "incomplete": {
+            "progress": "2 / 3 已完成，还差 1 项",
+            "next": {"hidden": False, "disabled": False},
+            "review": {"hidden": True, "disabled": True},
+            "actionClasses": ["has-incomplete"],
+            "stripClasses": ["has-incomplete"],
+        },
+        "complete": {
+            "progress": "3 / 3 已完成 · 全部段落已配置，可查看生成前检查",
+            "next": {"hidden": True, "disabled": True},
+            "review": {"hidden": False, "disabled": False},
+            "actionClasses": ["is-complete"],
+            "stripClasses": ["is-complete"],
+        },
+    }
+
+
 def test_placeholder_configurator_uses_original_embedded_grid_layout():
     html = INDEX_HTML.read_text(encoding="utf-8")
     source = TEMPLATES_JS.read_text(encoding="utf-8")
