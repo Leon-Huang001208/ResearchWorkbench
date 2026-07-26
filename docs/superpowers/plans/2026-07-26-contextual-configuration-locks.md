@@ -172,6 +172,8 @@ function setDynamicRowLocked(row, lockedControls) {
 
 `applyProviderRowLocks()` 遍历 `.config-provider-row`，以 `index + 1` 生成 `LLM_PROVIDER_${index}_NAME`、`_PROTOCOL`、`_BASE_URL`、`_API_KEY`，并按 `[data-field]` 调用 `lockControl`。`applyTaskRouteLocks()` 从 `task` 计算 `TASK_${task.toUpperCase()}_PROVIDER` 和 `_MODEL`；任一键受管时锁定相应控件及任务名称，最后调用 `setDynamicRowLocked`。
 
+Provider 和任务路由由后端整组替换持久化，因此任一键受管时采用原子集合锁定：整个对应集合只读并从保存 payload 省略，不承诺同组未受管字段仍可编辑；同分区未受管标量字段继续可保存。
+
 在 `renderModalForm` 的 `renderProviders/renderTaskRoutes` 之后、以及“新增服务 / 新增路由”事件后调用这两个函数。
 
 - [ ] **Step 4: 锁定无法逐行映射的集合操作**

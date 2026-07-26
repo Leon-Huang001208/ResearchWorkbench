@@ -657,6 +657,12 @@ class ConfigurationService:
                 changed.add(field)
         submitted_password = payload.get("password")
         clear_password = bool(payload.get("clear_password", False))
+        protected_credentials = bool(
+            self._locked_fields().intersection({"IFIND_USERNAME", "IFIND_PASSWORD"})
+        )
+        connection_only_update = bool(payload) and set(payload).issubset(
+            {"backend", "http_base_url"}
+        )
         backend_changed = "backend" in payload and str(payload["backend"]).strip() != current.get(
             "IFIND_BACKEND", "auto"
         )
@@ -668,6 +674,7 @@ class ConfigurationService:
             and (backend_changed or base_url_changed)
             and not clear_password
             and (submitted_password is None or str(submitted_password) == "")
+            and not (protected_credentials and connection_only_update)
         ):
             raise ConfigurationError("iFinD 连接端点变更后必须重新输入密码")
         if payload.get("clear_password") or (

@@ -26,6 +26,7 @@ let dynamicLockMessageSequence = 0;
 const connectionStateBySection = new Map();
 const ONBOARDING_SECTIONS = ['llm', 'database', 'zhiqiu', 'ifind', 'web_search'];
 const LOCKED_FIELD_MESSAGE = '此项由当前启动配置管理，不能在这里修改。';
+const LOCKED_COLLECTION_MESSAGE = '该组由当前启动配置管理，不能在这里修改。';
 const STATIC_LOCK_FIELD_KEYS = {
     advanced: {
         log_level: 'LOG_LEVEL',
@@ -557,7 +558,7 @@ function lockControl(control, message = null) {
 function createDynamicLockMessage(row) {
     const existingMessage = row.querySelector('.config-dynamic-lock-message');
     if (existingMessage) return existingMessage;
-    const message = element('p', 'config-dynamic-lock-message', LOCKED_FIELD_MESSAGE);
+    const message = element('p', 'config-dynamic-lock-message', LOCKED_COLLECTION_MESSAGE);
     message.id = `config-dynamic-lock-message-${++dynamicLockMessageSequence}`;
     row.prepend(message);
     return message;
@@ -583,6 +584,7 @@ function setDynamicRowLocked(row, lockedControls) {
     row.querySelectorAll('.config-remove-row').forEach(button => { button.disabled = true; });
     const message = createDynamicLockMessage(row);
     businessControls.forEach(control => addControlDescription(control, message.id));
+    setModalLockNote(true);
     return true;
 }
 
@@ -655,9 +657,10 @@ function applyCollectionLock(form, section, { addButton, rowSelector }) {
     const button = form.querySelector(addButton);
     const header = button?.closest('.config-subsection-header');
     const existingMessage = header?.querySelector('.config-collection-lock-message');
-    const message = existingMessage || element('p', 'config-collection-lock-message', LOCKED_FIELD_MESSAGE);
+    const message = existingMessage || element('p', 'config-collection-lock-message', LOCKED_COLLECTION_MESSAGE);
     if (!message.id) message.id = `config-collection-lock-message-${++dynamicLockMessageSequence}`;
     if (!existingMessage) header?.querySelector('h4')?.insertAdjacentElement('afterend', message);
+    setModalLockNote(true);
     if (button) button.disabled = true;
     form.querySelectorAll(rowSelector).forEach(row => {
         row.querySelectorAll('input[data-field], select[data-field], textarea[data-field]').forEach(control => lockControl(control, message));
@@ -1485,6 +1488,11 @@ function setEnvironmentLockState(control, { section, field, locked }) {
     return true;
 }
 
+function setModalLockNote(visible) {
+    const note = document.getElementById('config-edit-modal-lock-note');
+    if (note) note.hidden = !visible;
+}
+
 function applyEnvironmentLocks(form, section) {
     const lockedFields = configurationSnapshot?.environment_locked_fields || [];
     const fieldKeys = STATIC_LOCK_FIELD_KEYS[section] || {};
@@ -1494,8 +1502,7 @@ function applyEnvironmentLocks(form, section) {
         if (!control) return;
         hasStaticLock = setEnvironmentLockState(control, { section, field, locked: isEnvironmentLocked(key, lockedFields) }) || hasStaticLock;
     });
-    const note = document.getElementById('config-edit-modal-lock-note');
-    if (note) note.hidden = !hasStaticLock;
+    setModalLockNote(hasStaticLock);
 }
 
 function bindModalFormEvents(form, section) {
@@ -1550,8 +1557,7 @@ function openConfigModal(section) {
     }
     currentModalSection = section;
     modalDirty = false;
-    const lockNote = document.getElementById('config-edit-modal-lock-note');
-    if (lockNote) lockNote.hidden = true;
+    setModalLockNote(false);
 
     const values = configurationSnapshot.sections[section];
     const meta = SECTION_META[section];

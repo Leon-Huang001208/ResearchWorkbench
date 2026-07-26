@@ -164,3 +164,45 @@ def test_environment_values_lock_configuration_fields(monkeypatch, tmp_path):
 
     assert "WARNING" not in str(exc_info.value)
     assert env_path.read_text(encoding="utf-8") == "LOG_LEVEL=INFO\n"
+
+
+def test_ifind_connection_updates_preserve_environment_managed_credentials(monkeypatch, tmp_path):
+    env_path = tmp_path / ".env"
+    env_path.write_text(
+        "IFIND_USERNAME=file-user\n"
+        "IFIND_PASSWORD=file-secret\n"
+        "IFIND_BACKEND=auto\n"
+        "IFIND_HTTP_BASE_URL=https://old.example.test\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("IFIND_USERNAME", "environment-user")
+    monkeypatch.setenv("IFIND_PASSWORD", "environment-secret")
+    runtime_context = RuntimeContext(
+        mode="desktop",
+        project_root=tmp_path,
+        data_dir=tmp_path,
+        env_path=env_path,
+        backend_url="http://127.0.0.1:8765",
+        can_write_config=True,
+        environment_override_keys=frozenset({"IFIND_USERNAME", "IFIND_PASSWORD"}),
+    )
+    service = ConfigurationService(
+        env_path=env_path,
+        runtime_settings=Settings(),
+        runtime_context=runtime_context,
+    )
+
+    result = service.update_section(
+        "ifind",
+        {"backend": "http_api", "http_base_url": "https://next.example.test"},
+    )
+
+    saved = env_path.read_text(encoding="utf-8")
+    assert result["success"] is True
+    assert "IFIND_BACKEND='http_api'" in saved
+    assert "IFIND_HTTP_BASE_URL='https://next.example.test'" in saved
+    assert "IFIND_USERNAME=file-user" in saved
+    assert "IFIND_PASSWORD=file-secret" in saved
+
+    with pytest.raises(RuntimeError, match="IFIND_USERNAME"):
+        service.update_section("ifind", {"username": "attempted-override"})

@@ -9,6 +9,14 @@ CONFIGURATION_JS = (
 CONFIGURATION_TEMPLATE = (
     Path(__file__).resolve().parents[2] / "app" / "web" / "templates" / "index.html"
 )
+APP_WEB_DOC = Path(__file__).resolve().parents[2] / "docs" / "modules" / "app_web.md"
+CONFIGURATION_LOCK_SPEC = (
+    Path(__file__).resolve().parents[2]
+    / "docs"
+    / "superpowers"
+    / "specs"
+    / "2026-07-26-contextual-configuration-locks-design.md"
+)
 
 
 def test_configuration_workbench_never_refills_saved_secrets():
@@ -44,12 +52,18 @@ def test_configuration_locks_are_contextual_not_global():
 
 def test_configuration_locks_dynamic_configuration_in_context():
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
+    app_web_doc = APP_WEB_DOC.read_text(encoding="utf-8")
+    lock_spec = CONFIGURATION_LOCK_SPEC.read_text(encoding="utf-8")
 
     assert "applyProviderRowLocks" in source
     assert "applyTaskRouteLocks" in source
     assert "setDynamicRowLocked" in source
+    assert "setModalLockNote(true)" in source
     assert "LLM_PROVIDER_${index}_" in source
     assert "TASK_${task.toUpperCase()}_PROVIDER" in source
+    assert "该组由当前启动配置管理" in source
+    assert "原子集合锁定" in app_web_doc
+    assert "原子集合锁定" in lock_spec
 
 
 def test_configuration_collection_lock_message_has_an_accessible_id():
