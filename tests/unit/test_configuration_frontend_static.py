@@ -1,5 +1,6 @@
 """Static safety checks for the configuration workbench."""
 
+import re
 import subprocess
 from pathlib import Path
 
@@ -194,6 +195,19 @@ def test_configuration_module_parses_with_node():
 def test_configuration_refinement_uses_compact_progress_and_explicit_refresh_semantics():
     template = CONFIGURATION_TEMPLATE.read_text(encoding="utf-8")
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
+    refresh_start = source.index("async function refreshConfiguration()")
+    refresh_end = source.index("\nfunction bindConfigurationEvents()", refresh_start)
+    refresh_source = source[refresh_start:refresh_end]
+    load_start = source.index("async function loadConfiguration(")
+    load_end = source.index("\nfunction markSectionDirty", load_start)
+    load_source = source[load_start:load_end]
+    refresh_path = refresh_source + load_source
+    health_start = source.index("function renderConfigurationHealth(snapshot)")
+    health_end = source.index("\nfunction renderSnapshot(", health_start)
+    health_source = source[health_start:health_end]
+    events_start = source.index("function bindConfigurationEvents()")
+    events_end = source.index("\nexport async function initConfigurationPage()", events_start)
+    events_source = source[events_start:events_end]
 
     assert 'data-config-progress-completed' in template
     assert 'data-config-progress-missing' in template
@@ -203,16 +217,37 @@ def test_configuration_refinement_uses_compact_progress_and_explicit_refresh_sem
     assert '刷新状态' in template
     assert '不测试连接' in template
     assert 'renderConfigurationCardVisibility' in source
-    assert 'connectionStateBySection' in source
-    assert 'connectionStateBySection.clear()' in source
+    assert 'await loadConfiguration({ discardDirty: true });' in refresh_source
+    assert 'connectionStateBySection.clear()' in refresh_path
+    assert 'testSection' not in refresh_path
+    assert '/test' not in refresh_path
+    assert 'modalTestSection' not in refresh_path
+    assert 'data-config-onboarding' not in health_source
+    assert 'data-config-onboarding' not in events_source
+    assert 'openNextIncompleteConfiguration' not in events_source
 
 
 def test_configuration_refinement_keeps_modal_actions_and_empty_collection_hooks():
     template = CONFIGURATION_TEMPLATE.read_text(encoding="utf-8")
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
+    modal_start = template.index('<div id="config-edit-modal"')
+    modal_end = template.index("\n            </section>", modal_start)
+    modal_template = template[modal_start:modal_end]
+    lock_start = source.index("function setEnvironmentLockState(")
+    lock_end = source.index("\nfunction setModalLockNote", lock_start)
+    environment_lock_source = source[lock_start:lock_end]
+    apply_locks_start = source.index("function applyEnvironmentLocks(")
+    apply_locks_end = source.index("\nfunction bindModalFormEvents", apply_locks_start)
+    apply_locks_source = source[apply_locks_start:apply_locks_end]
 
-    assert 'data-config-test-help' in template
-    assert '保存更改' in template
+    assert 'data-config-test-help' in modal_template
+    assert re.search(
+        r'<button id="btn-config-edit-modal-save"[^>]*>.*?保存更改',
+        modal_template,
+        re.DOTALL,
+    )
     assert 'config-empty-collection' in source
     assert 'config-field-grid config-field-grid--compact' in source
-    assert 'aria-describedby' in source
+    assert 'aria-describedby' in environment_lock_source
+    assert 'setEnvironmentLockState(control' in apply_locks_source
+    assert 'setModalLockNote(hasStaticLock)' in apply_locks_source
