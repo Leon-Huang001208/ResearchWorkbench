@@ -23,6 +23,14 @@ except ImportError:
     HAS_STRUCTLOG = False
 
 
+def _utf8_stream(stream: Any) -> Any:
+    """Wrap a real terminal stream in UTF-8 while preserving in-memory test streams."""
+    try:
+        return open(stream.fileno(), mode="w", encoding="utf-8", closefd=False, buffering=1)
+    except (AttributeError, OSError, ValueError):
+        return stream
+
+
 def configure_logging(level: str = "INFO", log_file: str | None = None) -> None:
     """配置日志（简化版本，供 CLI 使用）.
 
@@ -44,9 +52,7 @@ def configure_logging(level: str = "INFO", log_file: str | None = None) -> None:
     formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
     # Wrap stdout with UTF-8 to prevent UnicodeEncodeError on Windows GBK terminals
-    stdout_stream = open(
-        sys.stdout.fileno(), mode="w", encoding="utf-8", closefd=False, buffering=1
-    )
+    stdout_stream = _utf8_stream(sys.stdout)
     handler: logging.Handler = logging.StreamHandler(stdout_stream)
     handler.setFormatter(formatter)
 
@@ -131,9 +137,7 @@ def _setup_structlog(log_dir: Path) -> None:
     # Configure standard library logging handlers
     # Wrap stdout with UTF-8 to prevent UnicodeEncodeError on Windows GBK terminals
     # when log messages contain non-GBK characters (e.g. Japanese, emoji, etc.)
-    stdout_stream = open(
-        sys.stdout.fileno(), mode="w", encoding="utf-8", closefd=False, buffering=1
-    )
+    stdout_stream = _utf8_stream(sys.stdout)
     handler = logging.StreamHandler(stdout_stream)
     file_handler = logging.FileHandler(
         log_dir / f"alphafoundry_{datetime.now().strftime('%Y%m%d')}.log",
@@ -175,9 +179,7 @@ def _setup_simple_logging(log_dir: Path) -> None:
     formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
     # Wrap stdout with UTF-8 to prevent UnicodeEncodeError on Windows GBK terminals
-    stdout_stream = open(
-        sys.stdout.fileno(), mode="w", encoding="utf-8", closefd=False, buffering=1
-    )
+    stdout_stream = _utf8_stream(sys.stdout)
     handler = logging.StreamHandler(stdout_stream)
     handler.setFormatter(formatter)
 

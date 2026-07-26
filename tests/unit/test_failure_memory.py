@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime, timezone
 
 from core.contracts.outcome_journal import FailureClassification, TradeOutcome
+from data_layer.repositories.outcome_journal_repository import OutcomeJournalRepository
 from services.failure_memory_service import FailureMemoryService
 from services.outcome_journal_service import OutcomeJournalService
 
@@ -23,12 +24,13 @@ def test_similarity_calculation():
     assert sim1 > sim2
 
 
-def test_retrieve_similar_cases():
+def test_retrieve_similar_cases(db_session):
     """Test retrieving similar cases from failure memory."""
-    service = FailureMemoryService()
+    repository = OutcomeJournalRepository(db_session)
+    service = FailureMemoryService(repository=repository)
 
     # Add a test failure to search for
-    outcome_service = OutcomeJournalService()
+    outcome_service = OutcomeJournalService(repository=repository)
     outcome_id = str(uuid.uuid4())
     test_unique_marker = f"unique_test_marker_{outcome_id}"
     now = datetime.now(timezone.utc)
@@ -60,9 +62,9 @@ def test_retrieve_similar_cases():
     assert any(case.outcome_id == outcome_id for case in similar)
 
 
-def test_retrieve_similar_failures():
+def test_retrieve_similar_failures(db_session):
     """Test retrieving only similar failures."""
-    service = FailureMemoryService()
+    service = FailureMemoryService(repository=OutcomeJournalRepository(db_session))
     similar = service.retrieve_similar_failures(
         "Interest rate increase will impact growth stock valuations",
         min_similarity=0.1,
@@ -73,9 +75,9 @@ def test_retrieve_similar_failures():
         assert case.is_success is False
 
 
-def test_retrieve_similar_successes():
+def test_retrieve_similar_successes(db_session):
     """Test retrieving only similar successes."""
-    service = FailureMemoryService()
+    service = FailureMemoryService(repository=OutcomeJournalRepository(db_session))
     similar = service.retrieve_similar_successes(
         "Company earnings beat will drive price increase",
         min_similarity=0.1,
@@ -86,9 +88,9 @@ def test_retrieve_similar_successes():
         assert case.is_success is True
 
 
-def test_get_all_categorized_failures():
+def test_get_all_categorized_failures(db_session):
     """Test getting all categorized failures from memory."""
-    service = FailureMemoryService()
+    service = FailureMemoryService(repository=OutcomeJournalRepository(db_session))
     failures = service.get_all_categorized_failures()
     assert isinstance(failures, list)
     for failure in failures:

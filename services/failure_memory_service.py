@@ -14,8 +14,8 @@ logger = get_logger(__name__)
 class FailureMemoryService:
     """Service for failure memory and similar case retrieval."""
 
-    def __init__(self):
-        pass
+    def __init__(self, repository: Optional[OutcomeJournalRepository] = None):
+        self._repository = repository
 
     def _calculate_similarity(self, current_thesis: str, historical_thesis: str) -> float:
         """
@@ -54,21 +54,11 @@ class FailureMemoryService:
         Returns:
             List of similar cases sorted by similarity descending
         """
-        with db_session() as db:
-            repo = OutcomeJournalRepository(db)
-
-            if filter_success is False:
-                all_outcomes = repo.list_all_failures()
-            elif filter_success is True:
-                # Get only successful outcomes
-                results = db.query(OutcomeRecordDB).filter_by(thesis_success=True).all()
-                all_outcomes = [repo._to_contract(r) for r in results]
-            else:
-                # Get all outcomes if filter is not just successes or failures
-                # TODO: Optimize this for larger datasets
-                # For now just get all outcomes - in production add pagination or embedding search
-                results = db.query(OutcomeRecordDB).all()
-                all_outcomes = [repo._to_contract(r) for r in results]
+        if self._repository is not None:
+            all_outcomes = self._list_outcomes(self._repository, filter_success)
+        else:
+            with db_session() as db:
+                all_outcomes = self._list_outcomes(OutcomeJournalRepository(db), filter_success)
 
         # Calculate similarities
         similar_cases: List[SimilarCase] = []
@@ -130,6 +120,25 @@ class FailureMemoryService:
 
     def get_all_categorized_failures(self) -> List[TradeOutcome]:
         """Get all categorized failures from memory."""
+        if self._repository is not None:
+            return self._repository.list_all_failures()
+
         with db_session() as db:
             repo = OutcomeJournalRepository(db)
             return repo.list_all_failures()
+
+    @staticmethod
+    def _list_outcomes(
+        repository: OutcomeJournalRepository, filter_success: Optional[bool]
+    ) -> List[TradeOutcome]:
+        """Return outcomes from the supplied repository without opening another session."""
+        if filter_success is False:
+            return repository.list_all_failures()
+
+        if filter_success is True:
+            results = repository.db.query(OutcomeRecordDB).filter_by(thesis_success=True).all()
+        else:
+            # TODO: Optimize this for larger datasets with pagination or embedding search.
+            results = repository.db.query(OutcomeRecordDB).all()
+
+        return [repository._to_contract(record) for record in results]

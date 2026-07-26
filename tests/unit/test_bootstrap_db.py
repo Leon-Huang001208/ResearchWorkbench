@@ -5,19 +5,37 @@ Test for database bootstrap script idempotency.
 import sys
 from pathlib import Path
 
+import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 
+from data_layer.repositories import base
 from data_layer.repositories.base import check_database_connection, db_session, ensure_schema
 from data_layer.repositories.models import AlertThresholdDB
 from scripts.bootstrap_db import DEFAULT_ALERT_THRESHOLDS, verify_schema
 
 
-def test_bootstrap_idempotent():
+@pytest.fixture
+def bootstrap_database(monkeypatch):
+    """Run bootstrap checks against an isolated in-memory SQLite database."""
+    engine = create_engine("sqlite:///:memory:")
+    session_factory = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    monkeypatch.setattr(base, "engine", engine)
+    monkeypatch.setattr(base, "SessionLocal", session_factory)
+    try:
+        yield
+    finally:
+        engine.dispose()
+
+
+def test_bootstrap_idempotent(bootstrap_database):
     """Test that bootstrap can be run multiple times safely (idempotency)."""
-    # First run already done by app startup, but let's run bootstrap steps again
+    # Run the bootstrap steps against the isolated test database.
     check_database_connection()
     ensure_schema()
     verify_schema()
@@ -54,7 +72,8 @@ def test_bootstrap_idempotent():
             assert float(existing.value) == threshold["value"]
 
 
-def test_schema_verification_passes():
+def test_schema_verification_passes(bootstrap_database):
     """Test that schema verification passes when all tables exist."""
+    ensure_schema()
     # Should not raise exception
     verify_schema()
