@@ -198,7 +198,10 @@ def test_ifind_connection_updates_preserve_environment_managed_credentials(monke
     )
 
     saved = env_path.read_text(encoding="utf-8")
-    assert result["success"] is True
+    assert result["applied"] is True
+    assert result["restart_required"] is False
+    assert result["section"]["backend"] == "http_api"
+    assert result["section"]["http_base_url"] == "https://next.example.test"
     assert "IFIND_BACKEND='http_api'" in saved
     assert "IFIND_HTTP_BASE_URL='https://next.example.test'" in saved
     assert "IFIND_USERNAME=file-user" in saved
