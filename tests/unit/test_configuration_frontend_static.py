@@ -2,6 +2,7 @@
 
 import re
 import subprocess
+from html.parser import HTMLParser
 from pathlib import Path
 
 CONFIGURATION_JS = (
@@ -20,8 +21,116 @@ CONFIGURATION_LOCK_SPEC = (
 )
 
 
+class _MarkupElement:
+    def __init__(self, tag: str, attrs: list[tuple[str, str]], parent=None):
+        self.tag = tag
+        self.attrs = dict(attrs)
+        self.parent = parent
+        self.content: list[str] = []
+
+    @property
+    def markup(self) -> str:
+        return "".join(self.content)
+
+    def is_descendant_of(self, ancestor) -> bool:
+        current = self.parent
+        while current:
+            if current is ancestor:
+                return True
+            current = current.parent
+        return False
+
+
+class _ConfigurationMarkupParser(HTMLParser):
+    """Keep parsed attributes plus serializable descendant markup for test queries."""
+
+    _VOID_ELEMENTS = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"}
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.elements: list[_MarkupElement] = []
+        self.elements_by_id: dict[str, _MarkupElement] = {}
+        self._open_elements: list[_MarkupElement] = []
+
+    def _append_to_open_elements(self, content: str) -> None:
+        for element in self._open_elements:
+            element.content.append(content)
+
+    def handle_starttag(self, tag, attrs):
+        self._append_to_open_elements(self.get_starttag_text())
+        element = _MarkupElement(tag, attrs, self._open_elements[-1] if self._open_elements else None)
+        self.elements.append(element)
+        element_id = element.attrs.get("id")
+        if element_id:
+            self.elements_by_id[element_id] = element
+        if tag not in self._VOID_ELEMENTS:
+            self._open_elements.append(element)
+
+    def handle_startendtag(self, tag, attrs):
+        self._append_to_open_elements(self.get_starttag_text())
+        element = _MarkupElement(tag, attrs, self._open_elements[-1] if self._open_elements else None)
+        self.elements.append(element)
+        element_id = element.attrs.get("id")
+        if element_id:
+            self.elements_by_id[element_id] = element
+
+    def handle_endtag(self, tag):
+        self._append_to_open_elements(f"</{tag}>")
+        if self._open_elements and self._open_elements[-1].tag == tag:
+            self._open_elements.pop()
+
+    def handle_data(self, data):
+        self._append_to_open_elements(data)
+
+
+def _balanced_javascript_end(source: str, opening: int, opener: str, closer: str, context: str) -> int:
+    """Locate a balanced JavaScript delimiter while ignoring strings and comments."""
+    depth = 0
+    index = opening
+    quote = None
+    line_comment = False
+    block_comment = False
+    while index < len(source):
+        character = source[index]
+        next_character = source[index + 1] if index + 1 < len(source) else ""
+        if line_comment:
+            if character == "\n":
+                line_comment = False
+        elif block_comment:
+            if character == "*" and next_character == "/":
+                block_comment = False
+                index += 1
+        elif quote:
+            if character == "\\":
+                index += 1
+            elif character == quote:
+                quote = None
+        elif character == "/" and next_character == "/":
+            line_comment = True
+            index += 1
+        elif character == "/" and next_character == "*":
+            block_comment = True
+            index += 1
+        elif character in {"'", '"', "`"}:
+            quote = character
+        elif character == opener:
+            depth += 1
+        elif character == closer:
+            depth -= 1
+            if depth == 0:
+                return index
+        index += 1
+    raise AssertionError(f"configuration.js has an unclosed {context}")
+
+
+def _balanced_javascript_region(source: str, opening: int, opener: str, closer: str, context: str) -> str:
+    """Extract a balanced JavaScript region while ignoring strings and comments."""
+    closing = _balanced_javascript_end(source, opening, opener, closer, context)
+    return source[opening + 1:closing]
+
+
 def _configuration_function(source: str, name: str) -> str:
-    """Return one named function, with an actionable failure if it is absent."""
+    """Return one balanced named function, with an actionable failure if it is absent."""
     declaration = re.compile(
         rf"^(?:export\s+)?(?:async\s+)?function\s+{re.escape(name)}\s*\(",
         re.MULTILINE,
@@ -29,34 +138,59 @@ def _configuration_function(source: str, name: str) -> str:
     match = declaration.search(source)
     if not match:
         raise AssertionError(f"configuration.js must declare {name}()")
-    following = re.compile(
-        r"^(?:export\s+)?(?:async\s+)?function\s+[A-Za-z_$][\w$]*\s*\(",
-        re.MULTILINE,
-    ).search(source, match.end())
-    return source[match.start():following.start() if following else len(source)]
+    parameters_opening = match.end() - 1
+    parameters_closing = _balanced_javascript_end(
+        source, parameters_opening, "(", ")", f"{name}() parameter list"
+    )
+    opening = source.find("{", parameters_closing + 1)
+    if opening < 0:
+        raise AssertionError(f"configuration.js must open the {name}() function body")
+    return source[match.start():opening + 1] + _balanced_javascript_region(
+        source, opening, "{", "}", f"{name}() function body"
+    ) + "}"
 
 
-def _configuration_modal_markup(template: str) -> str:
-    """Return configuration-modal markup without relying on a fixed line layout."""
-    modal = re.search(r'<div\s+id="config-edit-modal"(?=[\s>])', template)
+def _configuration_modal_markup(template: str) -> tuple[_ConfigurationMarkupParser, _MarkupElement]:
+    """Return the parsed config modal and all queryable descendants, independent of HTML layout."""
+    parser = _ConfigurationMarkupParser()
+    parser.feed(template)
+    parser.close()
+    modal = parser.elements_by_id.get("config-edit-modal")
     if not modal:
         raise AssertionError('index.html must declare the config-edit-modal container')
-    section_end = re.search(r"^\s*</section>", template[modal.start():], re.MULTILINE)
-    if not section_end:
-        raise AssertionError('config-edit-modal must remain inside the configuration section')
-    return template[modal.start():modal.start() + section_end.start()]
+    return parser, modal
 
 
-def _config_refresh_markup(template: str) -> str:
-    """Return the refresh button markup, or identify the missing UI control clearly."""
-    refresh = re.search(
-        r'<button\b(?=[^>]*\bid="config-refresh")[^>]*>.*?</button>',
-        template,
-        re.DOTALL,
-    )
+def _config_refresh_markup(template: str) -> tuple[_ConfigurationMarkupParser, _MarkupElement]:
+    """Return the parsed refresh button using its true id attribute."""
+    parser = _ConfigurationMarkupParser()
+    parser.feed(template)
+    parser.close()
+    refresh = parser.elements_by_id.get("config-refresh")
     if not refresh:
         raise AssertionError('index.html must declare a #config-refresh button')
-    return refresh.group(0)
+    return parser, refresh
+
+
+def _status_filter_change_callback(events_source: str) -> str:
+    """Extract the complete status-filter change callback from the event binder."""
+    listener = re.search(
+        r"querySelector\(\s*['\"]\[data-config-status-filter\]['\"]\s*\)\?\.addEventListener\s*\(",
+        events_source,
+    )
+    if not listener:
+        raise AssertionError('bindConfigurationEvents must bind [data-config-status-filter]')
+    arguments = _balanced_javascript_region(
+        events_source,
+        listener.end() - 1,
+        "(",
+        ")",
+        "status-filter addEventListener arguments",
+    )
+    callback = re.match(r"\s*['\"]change['\"]\s*,(?P<callback>[\s\S]+)\Z", arguments)
+    if not callback:
+        raise AssertionError('status-filter listener must register a change callback')
+    return callback.group("callback")
 
 
 def test_configuration_workbench_never_refills_saved_secrets():
@@ -247,25 +381,20 @@ def test_configuration_refinement_replaces_onboarding_with_compact_progress_over
 def test_configuration_refinement_refresh_status_is_described_and_never_tests_connections():
     template = CONFIGURATION_TEMPLATE.read_text(encoding="utf-8")
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
-    refresh_markup = _config_refresh_markup(template)
+    template_markup, refresh = _config_refresh_markup(template)
     refresh_source = _configuration_function(source, "refreshConfiguration")
     load_source = _configuration_function(source, "loadConfiguration")
     refresh_path = refresh_source + load_source
 
-    assert '刷新状态' in refresh_markup
-    described_by = re.search(r'\baria-describedby="([^"]+)"', refresh_markup)
+    assert '刷新状态' in refresh.markup
+    described_by = refresh.attrs.get("aria-describedby")
     assert described_by, '#config-refresh must describe its non-testing refresh behavior'
-    help_ids = described_by.group(1).split()
+    help_ids = described_by.split()
     help_text = ''
     for help_id in help_ids:
-        help_node = re.search(
-            rf'<(?P<tag>[A-Za-z][\w-]*)\b(?=[^>]*\bid="{re.escape(help_id)}")[^>]*>'
-            rf'(?P<content>.*?)</(?P=tag)>',
-            template,
-            re.DOTALL,
-        )
+        help_node = template_markup.elements_by_id.get(help_id)
         if help_node:
-            help_text += help_node.group('content')
+            help_text += help_node.markup
     assert '不测试连接或保存配置' in help_text, (
         '#config-refresh aria-describedby must reference help text stating “不测试连接或保存配置”'
     )
@@ -284,27 +413,28 @@ def test_configuration_refinement_binds_status_filter_without_onboarding_events(
     assert 'data-config-status-filter' in template
     assert 'data-config-onboarding' not in events_source
     assert 'openNextIncompleteConfiguration' not in events_source
-    assert re.search(
-        r'\[data-config-status-filter\][\s\S]{0,200}?addEventListener\(\s*[\'\"]change[\'\"]'
-        r'[\s\S]{0,300}?renderConfigurationCardVisibility',
-        events_source,
-    ), 'bindConfigurationEvents must call renderConfigurationCardVisibility on filter changes'
+    callback = _status_filter_change_callback(events_source)
+    assert re.search(r'\brenderConfigurationCardVisibility\s*\(', callback), (
+        'status-filter change callback must call renderConfigurationCardVisibility'
+    )
 
 
 def test_configuration_refinement_modal_test_help_tracks_testable_sections_without_saving():
     template = CONFIGURATION_TEMPLATE.read_text(encoding="utf-8")
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
-    modal_template = _configuration_modal_markup(template)
+    template_markup, modal = _configuration_modal_markup(template)
     open_modal_source = _configuration_function(source, "openConfigModal")
-    test_help = re.search(
-        r'<(?P<tag>[A-Za-z][\w-]*)\b(?=[^>]*\bdata-config-test-help\b)[^>]*>'
-        r'(?P<content>.*?)</(?P=tag)>',
-        modal_template,
-        re.DOTALL,
+    test_help = next(
+        (
+            element
+            for element in template_markup.elements
+            if "data-config-test-help" in element.attrs and element.is_descendant_of(modal)
+        ),
+        None,
     )
 
     assert test_help, 'config edit modal must include a data-config-test-help element'
-    assert '测试连接不会保存当前更改' in test_help.group('content')
+    assert '测试连接不会保存当前更改' in test_help.markup
     assert 'const testable = Boolean(meta.testable);' in open_modal_source
     assert re.search(r'testBtn\.hidden\s*=\s*!testable\s*;', open_modal_source)
     assert re.search(
@@ -316,13 +446,15 @@ def test_configuration_refinement_modal_test_help_tracks_testable_sections_witho
 def test_configuration_refinement_modal_save_action_and_collection_layout_hooks():
     template = CONFIGURATION_TEMPLATE.read_text(encoding="utf-8")
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
-    modal_template = _configuration_modal_markup(template)
+    template_markup, modal = _configuration_modal_markup(template)
+    save_button = template_markup.elements_by_id.get("btn-config-edit-modal-save")
 
-    assert re.search(
-        r'<button id="btn-config-edit-modal-save"[^>]*>.*?保存更改',
-        modal_template,
-        re.DOTALL,
-    ), 'config edit modal must present its primary save action as “保存更改”'
+    assert save_button and save_button.is_descendant_of(modal), (
+        'config edit modal must include #btn-config-edit-modal-save'
+    )
+    assert '保存更改' in save_button.markup, (
+        'config edit modal must present its primary save action as “保存更改”'
+    )
     assert 'config-empty-collection' in source
     assert 'config-field-grid config-field-grid--compact' in source
 
