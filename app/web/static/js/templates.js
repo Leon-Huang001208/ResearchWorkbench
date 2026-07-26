@@ -5171,6 +5171,11 @@ function getConfiguredSemanticRetrievalQueryForPlaceholder(template, mapping = {
     if (String(mapping.prompt_retrieval_query || '').trim()) {
         return String(mapping.prompt_retrieval_query).trim();
     }
+    const queryMode = String(mapping.query_mode || mapping.queryMode || '').trim();
+    const querySource = String(mapping.query_source || mapping.querySource || '').trim();
+    if (querySource && (!queryMode || queryMode === 'query_source')) {
+        return querySource;
+    }
     const promptName = mapping.prompt_template
         || resolvePromptTemplateName(placeholderName, template?.report_project);
     const promptSource = template?.report_project?.prompt_templates_source || '';

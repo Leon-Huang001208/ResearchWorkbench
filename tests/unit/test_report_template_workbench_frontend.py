@@ -269,6 +269,101 @@ def test_report_config_summary_prioritizes_missing_query_or_keywords_without_los
         assert f'data-placeholder-edit-section="{edit_section}"' in source
 
 
+def test_report_config_summary_next_actions_render_from_real_query_state():
+    script = r"""
+const fs = require('fs');
+const vm = require('vm');
+const source = fs.readFileSync(process.argv[1], 'utf8');
+
+function extract(startMarker, endMarker) {
+    const start = source.indexOf(startMarker);
+    const end = source.indexOf(endMarker, start);
+    if (start === -1 || end === -1) throw new Error(`Unable to extract ${startMarker}`);
+    return source.slice(start, end);
+}
+
+const sandbox = {
+    esc: (value) => String(value ?? ''),
+    isParagraphPlaceholderType: () => true,
+    isParagraphMode: () => true,
+    getParagraphMode: () => 'evidence_grounded_generation',
+    getParagraphModeLabel: () => '正文段落',
+    isDataTemplateParagraphMode: () => false,
+    usesEvidenceParagraphMode: () => true,
+    isReportPeriodFieldPlaceholder: () => false,
+    splitLines: (value) => String(value ?? '').split('\n').map((item) => item.trim()).filter(Boolean),
+    inferDefaultTargetWords: () => 250,
+    buildConfigEnhancementBadges: () => '',
+    buildKeywordGroupsInlineBadges: () => '',
+    resolvePromptTemplateName: () => '',
+    extractPromptTemplateLabel: () => ''
+};
+vm.createContext(sandbox);
+vm.runInContext(extract('function buildConfigCollapsibleSection', 'function buildPlaceholderConfigSummaryHtml'), sandbox);
+vm.runInContext(extract('function buildPlaceholderConfigSummaryHtml', 'function getPlaceholderEditSectionLabels'), sandbox);
+vm.runInContext(extract('function getConfiguredSemanticRetrievalQueryForPlaceholder', 'function getSemanticRetrievalQueryForPlaceholder'), sandbox);
+
+function render(rawSemanticQuery, semanticQueryDisplay, retrievalKeywords) {
+    return sandbox.buildPlaceholderConfigSummaryHtml({
+        name: '市场回顾',
+        type: 'paragraph',
+        paragraphMode: 'evidence_grounded_generation',
+        mapping: {},
+        minNewsCount: 7,
+        dataTemplateFields: {},
+        rawSemanticQuery,
+        semanticQueryDisplay,
+        retrievalKeywords,
+        template: {}
+    });
+}
+
+function actionSections(html) {
+    return [...html.matchAll(/class="template-config-next-action[^\"]*"[^>]*data-placeholder-edit-section="([^\"]+)"/g)]
+        .map((match) => match[1]);
+}
+
+function queryIsOpen(html) {
+    return /<details class="template-config-collapsible-section" open>[\s\S]*?<strong>语义 Query<\/strong>/.test(html);
+}
+
+const missingQuery = render('', '市场回顾', 'AI');
+const missingKeywords = render('召回市场热点', '召回市场热点', '');
+const complete = render('召回市场热点', '召回市场热点', 'AI\n消费');
+const sourceQuery = sandbox.getConfiguredSemanticRetrievalQueryForPlaceholder(
+    {},
+    { query_mode: 'query_source', query_source: '项目新闻索引' },
+    '市场回顾'
+);
+const querySourceOnly = render(sourceQuery, 'Query 来源：项目新闻索引', 'AI');
+
+console.log(JSON.stringify({
+    missingQuery: { actions: actionSections(missingQuery), queryOpen: queryIsOpen(missingQuery) },
+    missingKeywords: { actions: actionSections(missingKeywords), queryOpen: queryIsOpen(missingKeywords) },
+    complete: { actions: actionSections(complete), queryOpen: queryIsOpen(complete) },
+    querySourceOnly: { rawQuery: sourceQuery, actions: actionSections(querySourceOnly), queryOpen: queryIsOpen(querySourceOnly) }
+}));
+"""
+
+    result = subprocess.run(
+        ["node", "-e", script, str(TEMPLATES_JS)],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    rendered = json.loads(result.stdout)
+
+    assert rendered["missingQuery"] == {"actions": ["query"], "queryOpen": True}
+    assert rendered["missingKeywords"] == {"actions": ["keywords"], "queryOpen": False}
+    assert rendered["complete"] == {"actions": [], "queryOpen": False}
+    assert rendered["querySourceOnly"] == {
+        "rawQuery": "项目新闻索引",
+        "actions": [],
+        "queryOpen": False,
+    }
+
+
 def test_report_generation_page_is_reduced_to_progress_and_single_output():
     html = INDEX_HTML.read_text(encoding="utf-8")
 
