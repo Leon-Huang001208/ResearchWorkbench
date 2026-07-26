@@ -17222,6 +17222,134 @@ button.template-config-data-overview-row {
     overflow: hidden;
 }
 
+/* Compact report preflight: show a decision first, diagnostics only on demand. */
+#template-project-check-details > summary {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+#template-project-check-summary {
+    overflow: hidden;
+    color: var(--apple-secondary);
+    font-size: 12px;
+    font-weight: 650;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#template-project-check-details[data-preflight-state="ready"] #template-project-check-status {
+    color: #30d158;
+}
+
+#template-project-check-details .template-project-check-body {
+    max-height: none;
+    overflow: visible;
+}
+
+.template-project-check-actions {
+    display: grid;
+    gap: 8px;
+}
+
+.template-preflight-ready-summary {
+    padding: 8px 0;
+    color: var(--apple-secondary);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.5;
+}
+
+.template-preflight-action {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--apple-separator);
+}
+
+.template-preflight-action > span {
+    min-width: 0;
+}
+
+.template-preflight-action strong,
+.template-preflight-action-detail {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.template-preflight-action strong {
+    color: var(--apple-text);
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.template-preflight-action-detail {
+    margin-top: 3px;
+    color: var(--apple-secondary);
+    font-size: 12px;
+    font-weight: 650;
+}
+
+.template-validation-details {
+    margin-top: 8px;
+    border-top: 1px solid var(--apple-separator);
+}
+
+.template-validation-details > summary {
+    min-height: 40px;
+    padding: 10px 0;
+    color: var(--apple-secondary);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 760;
+    list-style: none;
+}
+
+.template-validation-details > summary::-webkit-details-marker {
+    display: none;
+}
+
+.template-validation-details > summary::after {
+    content: '⌄';
+    float: right;
+    color: var(--apple-tertiary);
+}
+
+.template-validation-details[open] > summary::after {
+    transform: rotate(180deg);
+}
+
+.template-validation-details[open] .template-validation-list {
+    max-height: 300px;
+    padding-bottom: 6px;
+    overflow: auto;
+}
+
+[data-theme="light"] .template-preflight-action {
+    border-color: var(--apple-separator);
+}
+
+@media (max-width: 1200px) {
+    #template-project-check-details > summary {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    #template-project-check-summary {
+        grid-column: 1 / -1;
+        grid-row: 2;
+    }
+
+    .template-preflight-action {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .template-preflight-action .template-check-action {
+        justify-self: start;
+    }
+}
+
 .template-config-editor-toolbar {
     display: grid;
     grid-template-columns: minmax(280px, 360px) minmax(0, 1fr) auto;
