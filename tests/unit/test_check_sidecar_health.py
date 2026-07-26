@@ -235,8 +235,21 @@ def test_port_release_timeout_is_not_treated_as_a_closed_port(monkeypatch):
 
     monkeypatch.setattr(helper, "PORT_RELEASE_TIMEOUT_SECONDS", 0)
     monkeypatch.setattr(helper.socket, "create_connection", timed_out_connection)
+    monkeypatch.setattr(helper, "is_windows", lambda: False)
 
     assert helper.wait_for_port_release(8765, logging.getLogger("test.sidecar")) is False
+
+
+def test_windows_port_release_timeout_is_treated_as_closed_after_taskkill(monkeypatch):
+    helper = load_helper_module()
+
+    def timed_out_connection(*args: object, **kwargs: object) -> None:
+        raise socket.timeout("connection timed out")
+
+    monkeypatch.setattr(helper.socket, "create_connection", timed_out_connection)
+    monkeypatch.setattr(helper, "is_windows", lambda: True)
+
+    assert helper.wait_for_port_release(8765, logging.getLogger("test.sidecar")) is True
 
 
 def test_posix_process_lookup_still_fails_when_sidecar_port_remains_open(monkeypatch):

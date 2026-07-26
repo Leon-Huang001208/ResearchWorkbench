@@ -105,6 +105,13 @@ def wait_for_port_release(port: int, logger: logging.Logger) -> bool:
             if isinstance(error, ConnectionRefusedError) or error.errno == errno.ECONNREFUSED:
                 logger.info("Helper-owned sidecar port %s is released", port)
                 return True
+            # After taskkill on Windows, a released loopback listener can report
+            # WSAETIMEDOUT instead of ECONNREFUSED. The helper already waited for
+            # its own child tree, so no successful connection means that child is
+            # no longer accepting requests.
+            if is_windows() and isinstance(error, TimeoutError):
+                logger.info("Helper-owned Windows sidecar port %s is no longer accepting", port)
+                return True
             logger.info("Port %s has not conclusively closed yet: %s", port, error)
 
         remaining = deadline - time.monotonic()
