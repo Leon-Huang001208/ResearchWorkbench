@@ -2,8 +2,10 @@
 
 The contract keeps the established V1 report-generation semantics intact while
 normalizing optional rich rendering settings under each placeholder's
-``rendering`` field.  Legacy V2 configurations are deliberately rejected at
-this boundary so callers must migrate them before a report run begins.
+``rendering`` field.  The optional top-level ``metadata`` mapping is a safe,
+lossless home for non-runtime report metadata.  Legacy V2 configurations are
+deliberately rejected at this boundary so callers must migrate them before a
+report run begins.
 """
 
 from __future__ import annotations
@@ -126,9 +128,14 @@ class UnifiedPlaceholderConfig:
 
 @dataclass(frozen=True)
 class UnifiedReportConfig:
-    """The only configuration shape accepted by report runtime code."""
+    """The only configuration shape accepted by report runtime code.
+
+    ``metadata`` safely carries non-runtime details (such as source format
+    version and description) without changing generation behavior.
+    """
 
     name: str | None
+    metadata: Mapping[str, Any]
     assets: Mapping[str, Any]
     defaults: Mapping[str, Any]
     components: Mapping[str, Any]
@@ -158,6 +165,7 @@ class UnifiedReportConfig:
 
         return cls(
             name=_optional_string(source.get("name"), "name"),
+            metadata=_freeze(_optional_mapping(source.get("metadata"), "metadata") or {}),
             assets=_freeze(_optional_mapping(source.get("assets"), "assets") or {}),
             defaults=_freeze(_optional_mapping(source.get("defaults"), "defaults") or {}),
             components=_freeze(_optional_mapping(source.get("components"), "components") or {}),
@@ -174,6 +182,7 @@ class UnifiedReportConfig:
         result = _thaw(self.fields)
         for field_name in (
             "name",
+            "metadata",
             "assets",
             "defaults",
             "components",

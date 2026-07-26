@@ -151,13 +151,19 @@ def test_migration_copies_v1_config_without_changing_generation_settings(tmp_pat
     assert parse_unified_report_config(migrated).to_generation_dict() == migrated
 
 
-def test_migration_converts_true_v2_placeholders_and_template_reference(tmp_path, caplog):
-    """A true V2 report_config becomes the unified model and warns with project/key context."""
+def test_migration_converts_true_v2_placeholders_and_template_reference(tmp_path):
+    """A true V2 report_config becomes the unified model without losing metadata."""
     project_dir = tmp_path / "weekly"
     source_path = project_dir / "config" / "report_config.yaml"
     source_path.parent.mkdir(parents=True)
     v2_config = {
-        "meta": {"name": "周报"},
+        "meta": {
+            "name": "周报",
+            "version": "2.0",
+            "description": "保留的迁移元数据",
+            "report_type": "word",
+            "custom": {"owner": "research"},
+        },
         "template": {"word_template": "templates/weekly.docx", "prompt_templates": "prompts.md"},
         "defaults": {"retrieval": {"top_k": 8}},
         "placeholders": {
@@ -166,7 +172,6 @@ def test_migration_converts_true_v2_placeholders_and_template_reference(tmp_path
                 "type": "rich_text",
                 "generation_config": {
                     "prompt_template_ref": "market_review",
-                    "prompt_template_inline": "仅在没有引用模板时使用",
                     "retrieval": {"keywords": ["A股"], "top_k": 5},
                 },
                 "rich_text_spec": {
@@ -178,8 +183,6 @@ def test_migration_converts_true_v2_placeholders_and_template_reference(tmp_path
         },
     }
     source_path.write_text(yaml.safe_dump(v2_config, allow_unicode=True), encoding="utf-8")
-    caplog.set_level(logging.WARNING, logger="reporting.projects.config_migration")
-
     discovered = discover_legacy_report_config(project_dir)
     assert discovered is not None
     result = migrate_report_config(project_dir, discovered)
@@ -189,15 +192,44 @@ def test_migration_converts_true_v2_placeholders_and_template_reference(tmp_path
     assert result.source_format == "v2"
     assert result.converted_placeholder_count == 1
     assert migrated["name"] == "周报"
+    assert migrated["metadata"] == {
+        "version": "2.0",
+        "description": "保留的迁移元数据",
+        "report_type": "word",
+        "custom": {"owner": "research"},
+    }
     assert migrated["assets"]["word_template"] == "templates/weekly.docx"
     assert placeholder["prompt_template"] == "market_review"
     assert placeholder["retrieval"] == {"keywords": ["A股"], "top_k": 5}
     assert placeholder["rendering"]["runs"] == v2_config["placeholders"]["市场回顾"]["rich_text_spec"]["runs"]
     assert placeholder["rendering"]["visible_if"] == "{{ include_market_review }}"
-    assert str(project_dir) in caplog.text
-    assert "市场回顾" in caplog.text
     assert source_path.exists()
-    assert parse_unified_report_config(migrated).to_generation_dict() == migrated
+    parsed = parse_unified_report_config(migrated)
+    assert parsed.metadata == migrated["metadata"]
+    assert parsed.to_generation_dict() == migrated
+
+
+def test_migration_rejects_nonempty_v2_inline_prompt_without_replacing_destination(tmp_path):
+    """Inline Markdown prompt bodies require an explicit external prompt template migration."""
+    project_dir = tmp_path / "weekly"
+    config_dir = project_dir / "config"
+    config_dir.mkdir(parents=True)
+    destination = config_dir / "report_config.yaml"
+    destination.write_text("sentinel: preserve\n", encoding="utf-8")
+    v2_config = {
+        "meta": {"name": "周报"},
+        "template": {"word_template": "templates/weekly.docx"},
+        "placeholders": {
+            "市场回顾": {
+                "generation_config": {"prompt_template_inline": "这是 Markdown Prompt 正文"}
+            }
+        },
+    }
+
+    with pytest.raises(MigrationError, match="prompt_template_inline.*prompt_templates.md"):
+        migrate_report_config(project_dir, v2_config)
+
+    assert destination.read_text(encoding="utf-8") == "sentinel: preserve\n"
 
 
 @pytest.mark.parametrize(

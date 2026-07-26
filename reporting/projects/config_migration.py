@@ -160,6 +160,9 @@ def _convert_v2(
     name = meta.get("name")
     if name is not None:
         result["name"] = name
+    metadata = {key: deepcopy(value) for key, value in meta.items() if key != "name"}
+    if metadata:
+        result["metadata"] = metadata
     for field_name in ("defaults", "components", "retrieval", "charts", "tables", "validators"):
         if field_name in raw_config:
             result[field_name] = deepcopy(raw_config[field_name])
@@ -194,13 +197,15 @@ def _convert_v2_placeholder(key: str, raw_placeholder: Any) -> tuple[dict[str, A
         generation_mapping = _required_mapping(generation, f"placeholders.{key}.generation_config")
         prompt_ref = generation_mapping.get("prompt_template_ref")
         prompt_inline = generation_mapping.get("prompt_template_inline")
+        if prompt_inline is not None and not isinstance(prompt_inline, str):
+            raise MigrationError(f"placeholders.{key}.generation_config.prompt_template_inline 必须是字符串")
+        if isinstance(prompt_inline, str) and prompt_inline.strip():
+            raise MigrationError(
+                f"placeholders.{key}.generation_config.prompt_template_inline 包含未迁移的 Markdown 正文；"
+                "请先将内容移至 prompt_templates.md，并改用 prompt_template_ref"
+            )
         if prompt_ref is not None:
             result["prompt_template"] = prompt_ref
-        elif prompt_inline is not None:
-            result["prompt_template"] = prompt_inline
-            warnings.append("prompt_template_inline 已映射为 prompt_template；请确认下游模板解析契约")
-        if prompt_ref is not None and prompt_inline is not None:
-            warnings.append("prompt_template_ref 优先于 prompt_template_inline")
         for field_name in ("retrieval", "target_words", "max_words", "writing_structure", "output_mode"):
             if field_name in generation_mapping:
                 result[field_name] = deepcopy(generation_mapping[field_name])
