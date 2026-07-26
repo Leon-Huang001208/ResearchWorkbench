@@ -2764,10 +2764,13 @@ function renderPlaceholderWizardControls(template) {
     if (!template) return;
     const state = buildPlaceholderWizardState(template);
     const hasIncomplete = state.incompleteItems.length > 0;
+    const isComplete = state.totalCount > 0 && !hasIncomplete;
     if (progressEl) {
-        progressEl.textContent = hasIncomplete
-            ? `${state.completedCount} / ${state.totalCount} 已完成，还差 ${state.incompleteItems.length} 项`
-            : `${state.completedCount} / ${state.totalCount} 已完成 · 全部段落已配置，可查看生成前检查`;
+        progressEl.textContent = !state.totalCount
+            ? '暂无待配置段落'
+            : hasIncomplete
+                ? `${state.completedCount} / ${state.totalCount} 已完成，还差 ${state.incompleteItems.length} 项`
+                : `${state.completedCount} / ${state.totalCount} 已完成 · 全部段落已配置，可查看生成前检查`;
     }
     if (progressBar) {
         const percent = state.totalCount ? Math.round((state.completedCount / state.totalCount) * 100) : 0;
@@ -2775,11 +2778,11 @@ function renderPlaceholderWizardControls(template) {
     }
     if (actionsEl) {
         actionsEl.classList.toggle('has-incomplete', hasIncomplete);
-        actionsEl.classList.toggle('is-complete', !hasIncomplete);
+        actionsEl.classList.toggle('is-complete', isComplete);
     }
     if (statusStripEl) {
         statusStripEl.classList.toggle('has-incomplete', hasIncomplete);
-        statusStripEl.classList.toggle('is-complete', !hasIncomplete);
+        statusStripEl.classList.toggle('is-complete', isComplete);
     }
     if (prevBtn) prevBtn.disabled = state.totalCount <= 1;
     if (nextIncompleteBtn) {
@@ -2787,8 +2790,8 @@ function renderPlaceholderWizardControls(template) {
         nextIncompleteBtn.hidden = !hasIncomplete;
     }
     if (reviewPreflightBtn) {
-        reviewPreflightBtn.hidden = hasIncomplete || !state.totalCount;
-        reviewPreflightBtn.disabled = hasIncomplete || !state.totalCount;
+        reviewPreflightBtn.hidden = !isComplete;
+        reviewPreflightBtn.disabled = !isComplete;
     }
     if (saveNextBtn) {
         saveNextBtn.disabled = !state.totalCount || !hasIncomplete;

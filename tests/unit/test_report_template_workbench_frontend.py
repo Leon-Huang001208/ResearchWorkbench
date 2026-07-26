@@ -1243,10 +1243,11 @@ def test_completed_placeholder_configuration_guides_user_to_preflight():
     assert 'id="btn-template-review-preflight"' in html[html.index('template-placeholder-status-strip'):]
     assert 'hidden' in html[html.index('id="btn-template-review-preflight"') - 80:html.index('id="btn-template-review-preflight"') + 120]
     assert "const reviewPreflightBtn = document.getElementById('btn-template-review-preflight');" in source
+    assert "const isComplete = state.totalCount > 0 && !hasIncomplete;" in source
     assert "还差 ${state.incompleteItems.length} 项" in source
     assert "全部段落已配置，可查看生成前检查" in source
-    assert "reviewPreflightBtn.hidden = hasIncomplete || !state.totalCount;" in source
-    assert "reviewPreflightBtn.disabled = hasIncomplete || !state.totalCount;" in source
+    assert "reviewPreflightBtn.hidden = !isComplete;" in source
+    assert "reviewPreflightBtn.disabled = !isComplete;" in source
     assert "openProjectCheckPanel('template-validation-preview')" in source
     assert "reviewPreflightBtn.addEventListener('click', () => openProjectCheckPanel('template-validation-preview'))" in source
     assert ".template-placeholder-status-strip.is-complete #btn-template-review-preflight" in css
@@ -1290,6 +1291,16 @@ const sandbox = {
 vm.createContext(sandbox);
 vm.runInContext(source.slice(start, end), sandbox);
 
+currentState = { completedCount: 0, totalCount: 0, incompleteItems: [] };
+sandbox.renderPlaceholderWizardControls({});
+const empty = {
+    progress: elements['template-placeholder-wizard-progress'].textContent,
+    next: { hidden: elements['btn-template-next-incomplete-placeholder'].hidden, disabled: elements['btn-template-next-incomplete-placeholder'].disabled },
+    review: { hidden: elements['btn-template-review-preflight'].hidden, disabled: elements['btn-template-review-preflight'].disabled },
+    actionClasses: actions.classList.values(),
+    stripClasses: status.classList.values()
+};
+
 currentState = { completedCount: 2, totalCount: 3, incompleteItems: [{ name: '待配置' }] };
 sandbox.renderPlaceholderWizardControls({});
 const incomplete = {
@@ -1309,7 +1320,7 @@ const complete = {
     actionClasses: actions.classList.values(),
     stripClasses: status.classList.values()
 };
-console.log(JSON.stringify({ incomplete, complete }));
+console.log(JSON.stringify({ empty, incomplete, complete }));
 '''
     result = subprocess.run(
         ["node", "-e", script, str(TEMPLATES_JS)],
@@ -1320,6 +1331,13 @@ console.log(JSON.stringify({ incomplete, complete }));
     )
 
     assert json.loads(result.stdout) == {
+        "empty": {
+            "progress": "暂无待配置段落",
+            "next": {"hidden": True, "disabled": True},
+            "review": {"hidden": True, "disabled": True},
+            "actionClasses": [],
+            "stripClasses": [],
+        },
         "incomplete": {
             "progress": "2 / 3 已完成，还差 1 项",
             "next": {"hidden": False, "disabled": False},
@@ -1334,6 +1352,55 @@ console.log(JSON.stringify({ incomplete, complete }));
             "actionClasses": ["is-complete"],
             "stripClasses": ["is-complete"],
         },
+    }
+
+
+def test_completed_placeholder_preflight_action_only_opens_preflight():
+    script = r'''
+const fs = require('fs');
+const vm = require('vm');
+const source = fs.readFileSync(process.argv[1], 'utf8');
+const start = source.indexOf('function bindTemplateWorkbenchActions()');
+const end = source.indexOf('function handleTemplateCheckAction', start);
+if (start === -1 || end === -1) throw new Error('Unable to extract template workbench bindings');
+
+const reviewButton = {
+    dataset: {},
+    handler: null,
+    addEventListener: (eventName, handler) => {
+        if (eventName === 'click') reviewButton.handler = handler;
+    }
+};
+let apiCalls = 0;
+const openedTargets = [];
+const sandbox = {
+    document: {
+        getElementById: (id) => id === 'btn-template-review-preflight' ? reviewButton : null,
+        querySelectorAll: () => []
+    },
+    bindTemplateDetailModeTabs: () => {},
+    openProjectCheckPanel: (target) => openedTargets.push(target),
+    apiCall: () => { apiCalls += 1; }
+};
+vm.createContext(sandbox);
+vm.runInContext(source.slice(start, end), sandbox);
+sandbox.bindTemplateWorkbenchActions();
+if (!reviewButton.handler) throw new Error('Review action was not bound');
+reviewButton.handler();
+console.log(JSON.stringify({ openedTargets, apiCalls, bound: reviewButton.dataset.bound }));
+'''
+    result = subprocess.run(
+        ["node", "-e", script, str(TEMPLATES_JS)],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+    assert json.loads(result.stdout) == {
+        "openedTargets": ["template-validation-preview"],
+        "apiCalls": 0,
+        "bound": "true",
     }
 
 
@@ -1394,10 +1461,11 @@ def test_placeholder_toolbar_has_three_zones_and_incomplete_only_next_actions():
     )
 
     assert "const hasIncomplete = state.incompleteItems.length > 0;" in source
+    assert "const isComplete = state.totalCount > 0 && !hasIncomplete;" in source
     assert "actionsEl.classList.toggle('has-incomplete', hasIncomplete);" in source
-    assert "actionsEl.classList.toggle('is-complete', !hasIncomplete);" in source
+    assert "actionsEl.classList.toggle('is-complete', isComplete);" in source
     assert "statusStripEl.classList.toggle('has-incomplete', hasIncomplete);" in source
-    assert "statusStripEl.classList.toggle('is-complete', !hasIncomplete);" in source
+    assert "statusStripEl.classList.toggle('is-complete', isComplete);" in source
     assert "nextIncompleteBtn.hidden = !hasIncomplete;" in source
     assert "saveNextBtn.hidden = !hasIncomplete;" in source
     assert "saveNextBtn.disabled = !state.totalCount || !hasIncomplete;" in source
