@@ -392,6 +392,27 @@ console.log(JSON.stringify({
     }
 
 
+def test_report_config_collapsible_summary_styles_prioritize_scanability_and_mobile_use():
+    css = STYLE_CSS.read_text(encoding="utf-8")
+
+    assert ".template-config-collapsible-section {" in css
+    assert ".template-config-collapsible-section > summary {" in css
+    assert "min-height: 52px;" in css
+    assert ".template-config-collapsible-section > summary::-webkit-details-marker" in css
+    assert ".template-config-collapsible-section > summary::after" in css
+    assert ".template-config-collapsible-section[open] > summary::after" in css
+    assert ".template-config-collapsible-body {" in css
+    assert ".template-config-collapsible-section .template-config-inline-action" in css
+    assert ".template-config-next-action {" in css
+    assert "border-left: 3px solid var(--apple-accent);" in css
+    assert ".template-config-next-action:focus-visible" in css
+    assert "[data-theme=\"light\"] .template-config-collapsible-section" in css
+    assert "[data-theme=\"light\"] .template-config-next-action" in css
+    assert "@media (max-width: 900px)" in css
+    assert ".template-config-collapsible-section > summary {\n        grid-template-columns: minmax(0, 1fr) auto;" in css
+    assert ".template-config-next-action {\n        align-items: flex-start;" in css
+
+
 def test_report_generation_page_is_reduced_to_progress_and_single_output():
     html = INDEX_HTML.read_text(encoding="utf-8")
 
