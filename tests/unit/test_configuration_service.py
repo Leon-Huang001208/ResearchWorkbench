@@ -431,6 +431,23 @@ def test_snapshot_reports_missing_psql_client(monkeypatch, tmp_path):
     assert capability["status"] == "not_detected"
 
 
+def test_snapshot_reports_not_detected_for_an_absent_ifind_sdk_without_mocking_finder(
+    monkeypatch, tmp_path
+):
+    service = _environment_service(tmp_path, data_dir=tmp_path / "data")
+    monkeypatch.setattr(shutil, "which", lambda command: None)
+    monkeypatch.setattr(
+        configuration_service,
+        "IFIND_SDK_MODULE",
+        "alphafoundry_missing_ifind_sdk_for_contract_test",
+    )
+
+    capability = service.get_snapshot()["environment"]["capabilities"][1]
+
+    assert capability["key"] == "ifind_python_sdk"
+    assert capability["status"] == "not_detected"
+
+
 def test_snapshot_marks_wind_excel_not_applicable_on_macos(monkeypatch, tmp_path):
     service = _environment_service(tmp_path, data_dir=tmp_path / "data")
     monkeypatch.setattr(configuration_service.platform, "system", lambda: "Darwin")
@@ -464,6 +481,28 @@ def test_snapshot_reports_none_data_path_when_runtime_context_has_no_data_dir(mo
     monkeypatch.setattr(configuration_service.importlib.util, "find_spec", lambda name: None)
 
     assert service.get_snapshot()["environment"]["paths"]["data"] is None
+
+
+def test_snapshot_degrades_one_unresolvable_path_without_leaking_it(monkeypatch, tmp_path):
+    service = _environment_service(tmp_path, data_dir=tmp_path / "data")
+    monkeypatch.setattr(shutil, "which", lambda command: None)
+    monkeypatch.setattr(configuration_service.importlib.util, "find_spec", lambda name: None)
+    original_resolve = Path.resolve
+    config_path = str(service.env_path)
+
+    def fail_only_config_path(path, *args, **kwargs):
+        if path == service.env_path:
+            raise OSError("sensitive configuration path cannot be resolved")
+        return original_resolve(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "resolve", fail_only_config_path)
+
+    snapshot = service.get_snapshot()
+
+    assert snapshot["environment"]["paths"]["config"] is None
+    assert snapshot["environment"]["paths"]["data"] == str((tmp_path / "data").resolve())
+    assert snapshot["environment"]["paths"]["logs"] == str((tmp_path / "logs").resolve())
+    assert config_path not in json.dumps(snapshot, ensure_ascii=False)
 
 
 def test_snapshot_includes_static_configuration_catalog(monkeypatch, tmp_path):

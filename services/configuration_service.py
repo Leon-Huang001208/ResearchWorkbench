@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import importlib
+import importlib.util
 import json
 import os
 import platform
@@ -39,6 +40,7 @@ logger = get_logger(__name__)
 
 SUPPORTED_SECTIONS = {"llm", "zhiqiu", "ifind", "database", "advanced", "web_search"}
 SECRET_SUFFIX_LENGTH = 4
+IFIND_SDK_MODULE = "iFinD"
 WEB_SEARCH_ACCOUNT_POOL_KEYS = frozenset(
     {"WEB_SEARCH_API_KEYS", "TAVILY_API_KEY", "BING_API_KEY"}
 )
@@ -199,13 +201,9 @@ class ConfigurationService:
             "architecture": self._diagnostic_architecture(),
             "runtime_mode": self.runtime_context.mode,
             "paths": {
-                "config": str(self.env_path.resolve()),
-                "data": (
-                    str(self.runtime_context.data_dir.expanduser().resolve())
-                    if self.runtime_context.data_dir is not None
-                    else None
-                ),
-                "logs": str(self.runtime_settings.LOG_DIR.expanduser().resolve()),
+                "config": self._safe_diagnostic_path(self.env_path, "config"),
+                "data": self._safe_diagnostic_path(self.runtime_context.data_dir, "data"),
+                "logs": self._safe_diagnostic_path(self.runtime_settings.LOG_DIR, "logs"),
             },
             "capabilities": [
                 self._postgresql_client_capability(platform_name),
@@ -232,6 +230,20 @@ class ConfigurationService:
         if architecture in {"arm64", "aarch64"}:
             return "arm64"
         return "unknown"
+
+    @staticmethod
+    def _safe_diagnostic_path(path: Path | None, path_kind: str) -> str | None:
+        """解析单一路径；失败时不暴露其值且不影响快照。"""
+        if path is None:
+            return None
+        try:
+            return str(path.expanduser().resolve())
+        except (OSError, RuntimeError) as exc:
+            logger.warning(
+                "运行环境路径解析失败",
+                extra={"path_kind": path_kind, "error_type": type(exc).__name__},
+            )
+            return None
 
     @staticmethod
     def _capability_warning(capability: str, platform_name: str, exc: Exception) -> None:
@@ -276,7 +288,7 @@ class ConfigurationService:
     def _ifind_python_sdk_capability(self, platform_name: str) -> dict[str, Any]:
         """无副作用地发现 iFinD Python SDK，不导入 SDK。"""
         try:
-            if importlib.util.find_spec("iFinD") is not None:
+            if importlib.util.find_spec(IFIND_SDK_MODULE) is not None:
                 return {
                     "key": "ifind_python_sdk",
                     "label": "iFinD Python SDK",
