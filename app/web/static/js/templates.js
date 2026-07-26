@@ -5188,15 +5188,17 @@ function getSemanticRetrievalQueryForPlaceholder(template, mapping = {}, placeho
     if (String(mapping.prompt_retrieval_query || '').trim()) {
         return String(mapping.prompt_retrieval_query).trim();
     }
-    if (String(mapping.query_mode || '').trim() === 'query_source' && mapping.query_source) {
-        return `Query 来源：${mapping.query_source}`;
+    const queryMode = String(mapping.query_mode || mapping.queryMode || '').trim();
+    const querySource = String(mapping.query_source || mapping.querySource || '').trim();
+    if (queryMode === 'query_source' && querySource) {
+        return `Query 来源：${querySource}`;
     }
     const promptName = mapping.prompt_template
         || resolvePromptTemplateName(placeholderName, template?.report_project);
     const promptSource = template?.report_project?.prompt_templates_source || '';
     const query = extractPromptTemplateLabel(promptSource, promptName, '检索 Query');
     if (query) return query;
-    if (mapping.query_source) return `Query 来源：${mapping.query_source}`;
+    if (querySource) return `Query 来源：${querySource}`;
     return promptName || normalizePlaceholderName(placeholderName) || '未配置语义 Query';
 }
 

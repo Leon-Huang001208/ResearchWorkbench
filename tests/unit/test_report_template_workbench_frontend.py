@@ -296,12 +296,14 @@ const sandbox = {
     buildConfigEnhancementBadges: () => '',
     buildKeywordGroupsInlineBadges: () => '',
     resolvePromptTemplateName: () => '',
-    extractPromptTemplateLabel: () => ''
+    extractPromptTemplateLabel: () => '',
+    normalizePlaceholderName: () => '占位符兜底'
 };
 vm.createContext(sandbox);
 vm.runInContext(extract('function buildConfigCollapsibleSection', 'function buildPlaceholderConfigSummaryHtml'), sandbox);
 vm.runInContext(extract('function buildPlaceholderConfigSummaryHtml', 'function getPlaceholderEditSectionLabels'), sandbox);
 vm.runInContext(extract('function getConfiguredSemanticRetrievalQueryForPlaceholder', 'function getSemanticRetrievalQueryForPlaceholder'), sandbox);
+vm.runInContext(extract('function getSemanticRetrievalQueryForPlaceholder', 'function extractPromptTemplateLabel'), sandbox);
 
 function render(rawSemanticQuery, semanticQueryDisplay, retrievalKeywords) {
     return sandbox.buildPlaceholderConfigSummaryHtml({
@@ -336,12 +338,31 @@ const sourceQuery = sandbox.getConfiguredSemanticRetrievalQueryForPlaceholder(
     '市场回顾'
 );
 const querySourceOnly = render(sourceQuery, 'Query 来源：项目新闻索引', 'AI');
+const camelCaseMapping = { queryMode: 'query_source', querySource: '旧版项目新闻索引' };
+const camelCaseRawQuery = sandbox.getConfiguredSemanticRetrievalQueryForPlaceholder(
+    {},
+    camelCaseMapping,
+    '市场回顾'
+);
+const camelCaseDisplayQuery = sandbox.getSemanticRetrievalQueryForPlaceholder(
+    {},
+    camelCaseMapping,
+    '市场回顾'
+);
+const camelCaseQuerySource = render(camelCaseRawQuery, camelCaseDisplayQuery, 'AI');
 
 console.log(JSON.stringify({
     missingQuery: { actions: actionSections(missingQuery), queryOpen: queryIsOpen(missingQuery) },
     missingKeywords: { actions: actionSections(missingKeywords), queryOpen: queryIsOpen(missingKeywords) },
     complete: { actions: actionSections(complete), queryOpen: queryIsOpen(complete) },
-    querySourceOnly: { rawQuery: sourceQuery, actions: actionSections(querySourceOnly), queryOpen: queryIsOpen(querySourceOnly) }
+    querySourceOnly: { rawQuery: sourceQuery, actions: actionSections(querySourceOnly), queryOpen: queryIsOpen(querySourceOnly) },
+    camelCaseQuerySource: {
+        rawQuery: camelCaseRawQuery,
+        displayQuery: camelCaseDisplayQuery,
+        actions: actionSections(camelCaseQuerySource),
+        queryOpen: queryIsOpen(camelCaseQuerySource),
+        rendersSource: camelCaseQuerySource.includes('旧版项目新闻索引')
+    }
 }));
 """
 
@@ -361,6 +382,13 @@ console.log(JSON.stringify({
         "rawQuery": "项目新闻索引",
         "actions": [],
         "queryOpen": False,
+    }
+    assert rendered["camelCaseQuerySource"] == {
+        "rawQuery": "旧版项目新闻索引",
+        "displayQuery": "Query 来源：旧版项目新闻索引",
+        "actions": [],
+        "queryOpen": False,
+        "rendersSource": True,
     }
 
 
