@@ -17502,6 +17502,182 @@ button.template-config-data-overview-row {
     margin-top: 8px;
 }
 
+.config-header-kicker,
+.config-health-copy > span,
+.config-onboarding-copy > span {
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 720;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.configuration-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.configuration-header .section-title {
+    margin-bottom: 4px;
+}
+
+.configuration-header p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.config-environment-lock-notice {
+    margin: 0 0 12px;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.config-environment-lock-notice summary {
+    width: fit-content;
+    cursor: pointer;
+    color: var(--text-muted);
+}
+
+.config-environment-lock-detail {
+    display: block;
+    max-width: 100%;
+    margin-top: 8px;
+    overflow-wrap: anywhere;
+}
+
+.config-health-summary,
+.config-onboarding {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin: 0 0 12px;
+    padding: 16px 18px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: linear-gradient(135deg, rgba(139,92,246,0.08), rgba(255,255,255,0.02));
+}
+
+.config-health-summary.ready {
+    border-color: rgba(16,185,129,0.42);
+    background: linear-gradient(135deg, rgba(16,185,129,0.11), rgba(255,255,255,0.02));
+}
+
+.config-health-summary.has-error {
+    border-color: rgba(239,68,68,0.48);
+    background: linear-gradient(135deg, rgba(239,68,68,0.10), rgba(255,255,255,0.02));
+}
+
+.config-health-copy,
+.config-onboarding-copy {
+    display: grid;
+    gap: 4px;
+    min-width: min(280px, 100%);
+}
+
+.config-health-copy strong,
+.config-onboarding-copy strong {
+    color: var(--text-primary);
+    font-size: 15px;
+}
+
+.config-health-copy p,
+.config-onboarding-copy p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.config-health-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(72px, 1fr));
+    flex: 1;
+    gap: 8px;
+}
+
+.config-health-metrics span {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+    padding: 8px 10px;
+    border-radius: var(--radius-md);
+    background: rgba(255,255,255,0.035);
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
+.config-health-metrics strong {
+    color: var(--text-primary);
+    font-size: 17px;
+    line-height: 1;
+}
+
+.config-onboarding {
+    background: rgba(255,255,255,0.018);
+}
+
+.config-onboarding-steps {
+    display: flex;
+    flex: 1;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.config-onboarding-step,
+.config-onboarding-steps li {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 9px;
+    border: 1px solid var(--border-soft, rgba(255,255,255,0.06));
+    border-radius: 999px;
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
+.config-onboarding-steps li::before {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    content: '';
+}
+
+.config-onboarding-steps li.ready { color: #34D399; }
+.config-onboarding-steps li.missing { color: var(--text-muted); }
+.config-onboarding-action { white-space: nowrap; }
+
+@media (max-width: 860px) {
+    .config-health-summary,
+    .config-onboarding {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .config-health-metrics {
+        width: 100%;
+    }
+
+    .config-onboarding-action {
+        width: 100%;
+    }
+}
+
+@media (max-width: 560px) {
+    .configuration-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .config-health-metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
 /* 加载骨架屏 */
 .config-cards-grid[data-loading] .config-summary-card {
     pointer-events: none;
@@ -17541,8 +17717,8 @@ button.template-config-data-overview-row {
     cursor: pointer;
     overflow: hidden;
     user-select: none;
-    transition: transform 0.28s cubic-bezier(0.2,0.9,0.4,1),
-                box-shadow 0.28s ease,
+    transition: background 0.22s ease,
+                box-shadow 0.22s ease,
                 border-color 0.28s ease;
 }
 
@@ -17720,6 +17896,13 @@ button.template-config-data-overview-row {
     transition: opacity 0.22s ease, transform 0.22s ease;
 }
 
+.config-card-action {
+    margin-left: auto;
+    color: var(--card-accent, var(--accent));
+    font-size: 11.5px;
+    font-weight: 680;
+}
+
 /* ── 状态徽章 ──────────────────────────────────────────── */
 
 .config-card-badge {
@@ -17751,18 +17934,33 @@ button.template-config-data-overview-row {
     background: rgba(107,114,128,0.12);
     color: var(--text-muted);
 }
+.config-card-badge.verified {
+    background: rgba(16,185,129,0.14);
+    color: #34D399;
+}
+.config-card-badge.verified::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 6px currentColor;
+}
+.config-card-badge.error {
+    background: rgba(239,68,68,0.13);
+    color: #f87171;
+}
 
 /* ── Hover 效果 ────────────────────────────────────────── */
 
 .config-summary-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 16px 48px rgba(0,0,0,0.35),
+    background: linear-gradient(180deg, rgba(255,255,255,0.045) 0%, var(--bg-card) 100%);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.24),
                 0 0 0 1px var(--card-accent);
     border-color: color-mix(in srgb, var(--card-accent) 50%, var(--border));
 }
 .config-summary-card:hover .config-card-icon {
-    transform: scale(1.07);
-    box-shadow: 0 12px 36px var(--card-glow),
+    box-shadow: 0 10px 32px var(--card-glow),
                 0 3px 12px rgba(0,0,0,0.4),
                 inset 0 1px 0 rgba(255,255,255,0.22);
 }
@@ -17778,8 +17976,8 @@ button.template-config-data-overview-row {
     outline-offset: 3px;
 }
 .config-summary-card:active {
-    transform: translateY(-1px) scale(0.985);
-    transition: transform 0.1s ease;
+    filter: brightness(0.96);
+    transition: filter 0.1s ease;
 }
 
 /* ═══════════════════════════════════════════════════════════

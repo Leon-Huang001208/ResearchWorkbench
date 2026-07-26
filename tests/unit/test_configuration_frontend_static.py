@@ -6,6 +6,9 @@ from pathlib import Path
 CONFIGURATION_JS = (
     Path(__file__).resolve().parents[2] / "app" / "web" / "static" / "js" / "configuration.js"
 )
+CONFIGURATION_TEMPLATE = (
+    Path(__file__).resolve().parents[2] / "app" / "web" / "templates" / "index.html"
+)
 
 
 def test_configuration_workbench_never_refills_saved_secrets():
@@ -36,3 +39,15 @@ def test_configuration_module_parses_with_node():
     )
 
     assert result.returncode == 0, result.stderr
+
+
+def test_configuration_console_keeps_health_overview_and_session_test_state():
+    template = CONFIGURATION_TEMPLATE.read_text(encoding="utf-8")
+    source = CONFIGURATION_JS.read_text(encoding="utf-8")
+
+    assert 'data-config-health-summary' in template
+    assert 'data-config-onboarding' in template
+    assert 'data-config-card-action' in template
+    assert 'connectionStateBySection' in source
+    assert '已验证' in source
+    assert '连接异常' in source

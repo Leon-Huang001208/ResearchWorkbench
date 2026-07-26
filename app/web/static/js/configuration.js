@@ -22,6 +22,8 @@ let configurationReady = false;
 let configurationSnapshot = null;
 let loadAbortController = null;
 let initialLoadRetryCount = 0;
+const connectionStateBySection = new Map();
+const ONBOARDING_SECTIONS = ['llm', 'database', 'zhiqiu', 'ifind', 'web_search'];
 
 export function configurationRequestOptions(options = {}) {
     const metaToken = globalThis.document
@@ -512,6 +514,68 @@ function renderReadiness(snapshot) {
     setSectionStatus('advanced', snapshot.readiness?.advanced ? '已就绪' : '待配置', snapshot.readiness?.advanced ? 'ready' : 'missing');
 }
 
+function getConfigurationHealth(snapshot) {
+    const readiness = snapshot?.readiness || {};
+    const entries = Object.entries(readiness);
+    const readyCount = entries.filter(([, ready]) => Boolean(ready)).length;
+    const connectionStates = [...connectionStateBySection.values()];
+    return {
+        readyCount,
+        missingCount: Math.max(0, entries.length - readyCount),
+        verifiedCount: connectionStates.filter(state => state === 'verified').length,
+        errorCount: connectionStates.filter(state => state === 'error').length,
+    };
+}
+
+function renderConfigurationHealth(snapshot) {
+    const health = getConfigurationHealth(snapshot);
+    const summary = document.querySelector('[data-config-health-summary]');
+    if (summary) {
+        summary.classList.toggle('ready', health.missingCount === 0 && health.errorCount === 0);
+        summary.classList.toggle('has-error', health.errorCount > 0);
+        summary.querySelector('[data-config-health-headline]').textContent = health.errorCount
+            ? `发现 ${health.errorCount} 项连接异常`
+            : `系统状态：${health.readyCount} 项已就绪 · ${health.missingCount} 项待补齐`;
+        summary.querySelector('[data-config-health-detail]').textContent = health.verifiedCount
+            ? `${health.verifiedCount} 项已在本次会话中完成连接验证；刷新后将重新检测。`
+            : '配置就绪表示已填写必要信息；可在详情中执行连接测试。';
+        summary.querySelector('[data-config-health-ready]').textContent = health.readyCount;
+        summary.querySelector('[data-config-health-missing]').textContent = health.missingCount;
+        summary.querySelector('[data-config-health-verified]').textContent = health.verifiedCount;
+        summary.querySelector('[data-config-health-error]').textContent = health.errorCount;
+    }
+
+    const readiness = snapshot?.readiness || {};
+    const completedCount = ONBOARDING_SECTIONS.filter(section => readiness[section]).length;
+    const nextSection = ONBOARDING_SECTIONS.find(section => !readiness[section]);
+    const onboarding = document.querySelector('[data-config-onboarding]');
+    if (!onboarding) return;
+    onboarding.querySelector('[data-config-onboarding-title]').textContent = nextSection
+        ? `已完成 ${completedCount} / ${ONBOARDING_SECTIONS.length} 个配置步骤`
+        : '首次配置已完成';
+    onboarding.querySelector('[data-config-onboarding-detail]').textContent = nextSection
+        ? `下一步：${SECTION_META[nextSection]?.title || '补齐待配置项'}。`
+        : '所有常用服务均已配置，可按需执行连接测试。';
+    onboarding.querySelector('[data-config-onboarding-action]').textContent = nextSection ? '继续配置' : '查看配置';
+    onboarding.querySelectorAll('[data-config-onboarding-step]').forEach(step => {
+        const ready = Boolean(readiness[step.dataset.configOnboardingStep]);
+        step.classList.toggle('ready', ready);
+        step.classList.toggle('missing', !ready);
+        step.setAttribute('aria-label', `${step.textContent}：${ready ? '已就绪' : '待配置'}`);
+    });
+}
+
+function openNextIncompleteConfiguration() {
+    const readiness = configurationSnapshot?.readiness || {};
+    const section = ONBOARDING_SECTIONS.find(name => !readiness[name]) || ONBOARDING_SECTIONS[0];
+    if (!SECTION_META[section]) {
+        showPageMessage('配置状态尚未加载完成，请稍后重试', 'error');
+        return;
+    }
+    console.info('[config] opening configuration entry point', { section });
+    openConfigModal(section);
+}
+
 function renderSnapshot(snapshot) {
     configurationSnapshot = snapshot;
     renderReadiness(snapshot);
@@ -520,6 +584,7 @@ function renderSnapshot(snapshot) {
     });
     renderEnvironmentLockedFields(snapshot.environment_locked_fields || []);
     renderSummaryCards();
+    renderConfigurationHealth(snapshot);
 }
 
 function renderEnvironmentLockedFields(lockedFields) {
@@ -531,10 +596,14 @@ function renderEnvironmentLockedFields(lockedFields) {
         control.disabled = isLocked;
         control.closest('.config-field')?.classList.toggle('environment-locked', isLocked);
     });
-    const message = locked.size
-        ? `以下配置由启动环境变量锁定，页面不能覆盖：${[...locked].join('、')}`
-        : '';
-    page.querySelector('[data-config-environment-lock-notice]')?.replaceChildren(message);
+    const notice = page.querySelector('[data-config-environment-lock-notice]');
+    if (!notice) return;
+    notice.hidden = locked.size === 0;
+    notice.replaceChildren();
+    if (!locked.size) return;
+    const summary = element('summary', '', `${locked.size} 项配置由启动环境变量管理`);
+    const details = element('span', 'config-environment-lock-detail', `页面不能覆盖：${[...locked].join('、')}`);
+    notice.append(summary, details);
 }
 
 function renderSection(section, values) {
@@ -585,9 +654,11 @@ function applySectionResponse(section, values, renderValues = true) {
         configurationSnapshot.sections[section] = values;
         configurationSnapshot.readiness[section] = deriveSectionReadiness(section, values);
         configurationSnapshot.ready_count = Object.values(configurationSnapshot.readiness).filter(Boolean).length;
+        connectionStateBySection.delete(section);
         renderReadiness(configurationSnapshot);
     }
     renderSummaryCards();
+    renderConfigurationHealth(configurationSnapshot);
 }
 
 function updateOriginalNameMappings(section, values) {
@@ -682,6 +753,7 @@ async function loadConfiguration({ discardDirty = false } = {}) {
         const snapshot = await configurationApiCall('GET', '/api/config', null, { signal: controller.signal });
         if (!loadGeneration.isLatest(token)) return;
         if (discardDirty) dirtySections.clear();
+        connectionStateBySection.clear();
         renderSnapshot(snapshot);
         configurationReady = true;
         initialLoadRetryCount = 0;
@@ -910,14 +982,22 @@ async function testSection(section) {
         const result = await configurationApiCall('POST', `/api/config/${section}/test`, collectSection(section));
         if (!requestCoordinator.isLatest(section, token)) return;
         const message = result.success ? '连接验证成功' : '连接验证失败';
+        connectionStateBySection.set(section, result.success ? 'verified' : 'error');
+        console.info('[config] connection test completed', { section, success: Boolean(result.success) });
         setSectionStatus(section, message, result.success ? 'ready' : 'error');
         showPageMessage(message, result.success ? 'ready' : 'error');
+        renderSummaryCards();
+        renderConfigurationHealth(configurationSnapshot);
     } catch (error) {
         if (!requestCoordinator.isLatest(section, token)) return;
+        connectionStateBySection.set(section, 'error');
+        console.warn('[config] connection test failed', { section, status: error?.status || 0 });
         const safe = safeConfigurationError(error);
         const firstPath = safe.details[0]?.path || '';
         setSectionStatus(section, firstPath ? `字段校验失败：${firstPath}` : safe.message, 'error');
         showPageError(error);
+        renderSummaryCards();
+        renderConfigurationHealth(configurationSnapshot);
     } finally {
         const latest = requestCoordinator.isLatest(section, token);
         requestCoordinator.finish(section, token);
@@ -963,6 +1043,7 @@ function bindConfigurationEvents() {
 
     // 刷新按钮
     document.getElementById('config-refresh')?.addEventListener('click', refreshConfiguration);
+    page.querySelector('[data-config-onboarding-action]')?.addEventListener('click', openNextIncompleteConfiguration);
 
     syncMutationControls();
 }
@@ -1050,8 +1131,27 @@ export function renderSummaryCards() {
         const badge = document.querySelector(`[data-card-badge="${section}"]`);
         if (badge) {
             const ready = configurationSnapshot.readiness?.[section];
-            badge.textContent = ready ? '已就绪' : '待配置';
-            badge.className = `config-card-badge ${ready ? 'ready' : 'missing'}`;
+            const connectionState = connectionStateBySection.get(section);
+            const label = connectionState === 'verified'
+                ? '连接已验证'
+                : connectionState === 'error'
+                    ? '连接异常'
+                    : ready ? '已就绪' : '待配置';
+            const state = connectionState === 'verified'
+                ? 'verified'
+                : connectionState === 'error'
+                    ? 'error'
+                    : ready ? 'ready' : 'missing';
+            badge.textContent = label;
+            badge.className = `config-card-badge ${state}`;
+        }
+
+        const action = document.querySelector(`[data-config-card-action="${section}"]`);
+        if (action) {
+            const connectionState = connectionStateBySection.get(section);
+            action.textContent = connectionState === 'error'
+                ? '修复配置'
+                : configurationSnapshot.readiness?.[section] ? '管理配置' : '去配置';
         }
     });
 

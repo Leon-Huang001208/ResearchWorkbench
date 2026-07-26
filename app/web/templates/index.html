@@ -1218,12 +1218,46 @@
             <!-- System Configuration Section -->
             <section id="section-config" class="content-section configuration-page" aria-labelledby="config-page-title">
                 <div class="configuration-header">
-                    <h2 class="section-title" id="config-page-title">系统配置</h2>
-                    <button id="config-refresh" class="secondary-btn" aria-label="刷新配置"><i class="codicon codicon-refresh"></i> 刷新</button>
+                    <div>
+                        <span class="config-header-kicker">控制台</span>
+                        <h2 class="section-title" id="config-page-title">系统配置</h2>
+                        <p>集中管理模型、数据连接与运行参数。</p>
+                    </div>
+                    <button id="config-refresh" class="secondary-btn" aria-label="重新检测配置"><i class="codicon codicon-refresh"></i> 重新检测</button>
                 </div>
 
                 <div id="config-page-message" class="config-page-message" role="status" aria-live="polite"></div>
-                <p class="config-page-message" data-config-environment-lock-notice role="status" aria-live="polite"></p>
+                <details class="config-environment-lock-notice" data-config-environment-lock-notice hidden></details>
+
+                <section class="config-health-summary" data-config-health-summary aria-label="系统健康总览" aria-live="polite">
+                    <div class="config-health-copy">
+                        <span>系统健康</span>
+                        <strong data-config-health-headline>正在检查配置…</strong>
+                        <p data-config-health-detail>读取本地配置和连接状态。</p>
+                    </div>
+                    <div class="config-health-metrics" aria-label="配置状态统计">
+                        <span><strong data-config-health-ready>--</strong>已就绪</span>
+                        <span><strong data-config-health-missing>--</strong>待补齐</span>
+                        <span><strong data-config-health-verified>--</strong>本次已验证</span>
+                        <span><strong data-config-health-error>--</strong>连接异常</span>
+                    </div>
+                </section>
+
+                <section class="config-onboarding" data-config-onboarding aria-label="首次配置引导">
+                    <div class="config-onboarding-copy">
+                        <span>首次配置</span>
+                        <strong data-config-onboarding-title>正在检查配置步骤…</strong>
+                        <p data-config-onboarding-detail>完成核心服务后即可开始使用工作台。</p>
+                    </div>
+                    <ol class="config-onboarding-steps" aria-label="配置步骤">
+                        <li data-config-onboarding-step="llm">大模型服务</li>
+                        <li data-config-onboarding-step="database">数据库</li>
+                        <li data-config-onboarding-step="zhiqiu">知丘账号</li>
+                        <li data-config-onboarding-step="ifind">iFinD 账号</li>
+                        <li data-config-onboarding-step="web_search">联网搜索</li>
+                    </ol>
+                    <button class="btn-secondary config-onboarding-action" data-config-onboarding-action type="button">继续配置</button>
+                </section>
 
                 <div class="config-cards-grid">
                     <article class="config-summary-card" data-config-card="llm" role="button" tabindex="0">
@@ -1236,6 +1270,7 @@
                         </div>
                         <div class="config-card-footer">
                             <span class="config-card-badge missing" data-card-badge="llm">待配置</span>
+                            <span class="config-card-action" data-config-card-action="llm">去配置</span>
                             <span class="config-card-chevron" aria-hidden="true"><i class="codicon codicon-chevron-right"></i></span>
                         </div>
                     </article>
@@ -1250,6 +1285,7 @@
                         </div>
                         <div class="config-card-footer">
                             <span class="config-card-badge missing" data-card-badge="zhiqiu">待配置</span>
+                            <span class="config-card-action" data-config-card-action="zhiqiu">去配置</span>
                             <span class="config-card-chevron" aria-hidden="true"><i class="codicon codicon-chevron-right"></i></span>
                         </div>
                     </article>
@@ -1264,6 +1300,7 @@
                         </div>
                         <div class="config-card-footer">
                             <span class="config-card-badge missing" data-card-badge="ifind">待配置</span>
+                            <span class="config-card-action" data-config-card-action="ifind">去配置</span>
                             <span class="config-card-chevron" aria-hidden="true"><i class="codicon codicon-chevron-right"></i></span>
                         </div>
                     </article>
@@ -1278,6 +1315,7 @@
                         </div>
                         <div class="config-card-footer">
                             <span class="config-card-badge missing" data-card-badge="web_search">待配置</span>
+                            <span class="config-card-action" data-config-card-action="web_search">去配置</span>
                             <span class="config-card-chevron" aria-hidden="true"><i class="codicon codicon-chevron-right"></i></span>
                         </div>
                     </article>
@@ -1292,6 +1330,7 @@
                         </div>
                         <div class="config-card-footer">
                             <span class="config-card-badge missing" data-card-badge="database">待配置</span>
+                            <span class="config-card-action" data-config-card-action="database">去配置</span>
                             <span class="config-card-chevron" aria-hidden="true"><i class="codicon codicon-chevron-right"></i></span>
                         </div>
                     </article>
@@ -1306,6 +1345,7 @@
                         </div>
                         <div class="config-card-footer">
                             <span class="config-card-badge ready" data-card-badge="advanced">已就绪</span>
+                            <span class="config-card-action" data-config-card-action="advanced">管理配置</span>
                             <span class="config-card-chevron" aria-hidden="true"><i class="codicon codicon-chevron-right"></i></span>
                         </div>
                     </article>
