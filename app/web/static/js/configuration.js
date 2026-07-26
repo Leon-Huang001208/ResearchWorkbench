@@ -45,6 +45,22 @@ const STATIC_LOCK_FIELD_KEYS = {
     },
 };
 
+export function isEnvironmentLocked(key, environmentLockedFields = configurationSnapshot?.environment_locked_fields || []) {
+    return environmentLockedFields.includes(key);
+}
+
+export function filterEnvironmentLockedPayload(
+    section,
+    payload,
+    environmentLockedFields = configurationSnapshot?.environment_locked_fields || [],
+) {
+    const filteredPayload = { ...payload };
+    Object.entries(STATIC_LOCK_FIELD_KEYS[section] || {}).forEach(([field, key]) => {
+        if (isEnvironmentLocked(key, environmentLockedFields)) delete filteredPayload[field];
+    });
+    return filteredPayload;
+}
+
 export function configurationRequestOptions(options = {}) {
     const metaToken = globalThis.document
         ?.querySelector('meta[name="alphafoundry-config-token"]')
@@ -884,7 +900,7 @@ function collectWebSearch() {
 
 function collectDatabase() {
     const databaseUrl = document.getElementById('config-database-form').elements.database_url.value;
-    if (!databaseUrl) {
+    if (!databaseUrl && !isEnvironmentLocked(STATIC_LOCK_FIELD_KEYS.database.database_url)) {
         const error = new Error('invalid configuration');
         error.status = 400;
         throw error;
@@ -907,7 +923,7 @@ function collectAdvanced() {
 
 function collectSection(section) {
     const collectors = { llm: collectLlm, zhiqiu: collectZhiqiu, ifind: collectIfind, database: collectDatabase, advanced: collectAdvanced, web_search: collectWebSearch };
-    return collectors[section]();
+    return filterEnvironmentLockedPayload(section, collectors[section]());
 }
 
 function setSectionBusy(section, busy) {
@@ -1301,13 +1317,13 @@ function setEnvironmentLockState(control, { section, field, locked }) {
 }
 
 function applyEnvironmentLocks(form, section) {
-    const lockedKeys = new Set(configurationSnapshot?.environment_locked_fields || []);
+    const lockedFields = configurationSnapshot?.environment_locked_fields || [];
     const fieldKeys = STATIC_LOCK_FIELD_KEYS[section] || {};
     let hasStaticLock = false;
     Object.entries(fieldKeys).forEach(([field, key]) => {
         const control = form.elements[field];
         if (!control) return;
-        hasStaticLock = setEnvironmentLockState(control, { section, field, locked: lockedKeys.has(key) }) || hasStaticLock;
+        hasStaticLock = setEnvironmentLockState(control, { section, field, locked: isEnvironmentLocked(key, lockedFields) }) || hasStaticLock;
     });
     const note = document.getElementById('config-edit-modal-lock-note');
     if (note) note.hidden = !hasStaticLock;

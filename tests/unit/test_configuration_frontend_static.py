@@ -42,6 +42,55 @@ def test_configuration_locks_are_contextual_not_global():
     assert "由当前启动配置管理" in source
 
 
+def test_configuration_payload_filter_omits_static_environment_locks():
+    script = f"""
+import {{ filterEnvironmentLockedPayload }} from {CONFIGURATION_JS.as_uri()!r};
+
+const accounts = [{{ name: 'primary' }}];
+const webSearchPayload = {{
+    accounts,
+    provider: 'tavily',
+    rotation_strategy: 'round_robin',
+    quota_limit: 1000,
+    max_results: 5,
+    timeout: 15,
+}};
+const lockedFields = [
+    'LOG_LEVEL', 'LOG_DIR', 'LLM_EXTRACT_MAX_WORKERS', 'LLM_EXTRACT_MAX_RETRIES',
+    'LLM_EXTRACT_CHUNK_SIZE', 'LLM_EXTRACT_CHUNK_OVERLAP', 'LLM_EXTRACT_LONG_TEXT_THRESHOLD',
+    'DATABASE_URL', 'WEB_SEARCH_PROVIDER', 'WEB_SEARCH_KEY_ROTATION',
+    'WEB_SEARCH_KEY_QUOTA_LIMIT', 'WEB_SEARCH_MAX_RESULTS', 'WEB_SEARCH_TIMEOUT',
+];
+const advancedPayload = {{
+    log_level: 'INFO', log_dir: '/tmp/logs', llm_max_workers: 4, llm_max_retries: 2,
+    chunk_size: 1000, chunk_overlap: 100, long_text_threshold: 5000,
+}};
+const databasePayload = {{ database_url: 'postgres://secret' }};
+
+const filtered = {{
+    advanced: filterEnvironmentLockedPayload('advanced', advancedPayload, lockedFields),
+    database: filterEnvironmentLockedPayload('database', databasePayload, lockedFields),
+    web_search: filterEnvironmentLockedPayload('web_search', webSearchPayload, lockedFields),
+}};
+
+if (JSON.stringify(filtered) !== JSON.stringify({{
+    advanced: {{}},
+    database: {{}},
+    web_search: {{ accounts }},
+}})) {{
+    throw new Error(`unexpected filtered payload: ${{JSON.stringify(filtered)}}`);
+}}
+"""
+    result = subprocess.run(
+        ["node", "--input-type=module", "--eval", script],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
 def test_configuration_module_parses_with_node():
     result = subprocess.run(
         ["node", "--check", str(CONFIGURATION_JS)],
