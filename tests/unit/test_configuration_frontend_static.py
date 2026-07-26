@@ -191,13 +191,28 @@ def test_configuration_module_parses_with_node():
     assert result.returncode == 0, result.stderr
 
 
-def test_configuration_console_keeps_health_overview_and_session_test_state():
+def test_configuration_refinement_uses_compact_progress_and_explicit_refresh_semantics():
     template = CONFIGURATION_TEMPLATE.read_text(encoding="utf-8")
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
 
-    assert 'data-config-health-summary' in template
-    assert 'data-config-onboarding' in template
-    assert 'data-config-card-action' in template
+    assert 'data-config-progress-completed' in template
+    assert 'data-config-progress-missing' in template
+    assert 'data-config-connection-summary' in template
+    assert 'data-config-status-filter' in template
+    assert 'data-config-onboarding' not in template
+    assert '刷新状态' in template
+    assert '不测试连接' in template
+    assert 'renderConfigurationCardVisibility' in source
     assert 'connectionStateBySection' in source
-    assert '已验证' in source
-    assert '连接异常' in source
+    assert 'connectionStateBySection.clear()' in source
+
+
+def test_configuration_refinement_keeps_modal_actions_and_empty_collection_hooks():
+    template = CONFIGURATION_TEMPLATE.read_text(encoding="utf-8")
+    source = CONFIGURATION_JS.read_text(encoding="utf-8")
+
+    assert 'data-config-test-help' in template
+    assert '保存更改' in template
+    assert 'config-empty-collection' in source
+    assert 'config-field-grid config-field-grid--compact' in source
+    assert 'aria-describedby' in source
