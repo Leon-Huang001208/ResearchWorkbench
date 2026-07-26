@@ -1258,7 +1258,7 @@ function getTemplateGenerationPreflight(template = getCurrentWorkbenchTemplate()
 function blockReportGenerationForPreflight(preflight) {
     const template = preflight?.template || getCurrentWorkbenchTemplate() || {};
     renderTemplateValidationPreview(template, preflight.sections, preflight.placeholders);
-    openProjectCheckPanel('template-validation-preview');
+    openProjectCheckPanel('template-project-check-actions');
     setGenerationFlowState('check', '生成预检未通过', '请先处理占位符配置问题');
     setText('template-generation-current-step-summary', '请先处理生成预检中的占位符配置问题');
     toggleFlowActions(false);
@@ -1398,11 +1398,11 @@ function renderProjectCheckSummary(readiness) {
 
     if (summaryEl) {
         summaryEl.textContent = pending
-            ? `${passed}/${total} 通过 · 点击查看待处理项`
+            ? `${passed}/${total} 项通过 · 点击查看待处理项`
             : `${total} 项通过 · 可直接生成`;
     }
     if (statusEl) {
-        statusEl.textContent = pending ? `${pending} 项待处理` : '检查通过';
+        statusEl.textContent = pending ? `${pending} 项待处理` : '可直接生成';
         statusEl.classList.toggle('warning', pending > 0);
     }
 }
@@ -6618,6 +6618,82 @@ function getPlaceholderReadinessIssue(mapping, placeholderName) {
     return null;
 }
 
+function buildPreflightDisplayModel(readiness, checks, placeholderReadiness, context) {
+    const compiledPlaceholders = Array.isArray(readiness.compiledPlan?.placeholders)
+        ? readiness.compiledPlan.placeholders
+        : [];
+    const evidenceCount = compiledPlaceholders.length
+        ? compiledPlaceholders.filter(item => item.evidence_required).length
+        : placeholderReadiness.length;
+    const mappedCount = context.placeholders.length || context.sections.length;
+    const rawActions = [
+        ...readiness.assetChecks.filter(item => !item.ok),
+        ...checks.filter(item => !item.ok),
+        ...placeholderReadiness.filter(item => !item.ok)
+    ];
+    const actions = normalizeAndPrioritizePreflightActions(rawActions);
+    const detailGroups = buildPreflightReviewGroups(
+        readiness,
+        checks,
+        placeholderReadiness,
+        context
+    );
+
+    if (!actions.length) {
+        return {
+            state: 'ready',
+            summary: `${mappedCount} 个占位符已配置 · ${evidenceCount} 个正文段落可检索生成`,
+            actions: [],
+            detailGroups
+        };
+    }
+
+    return {
+        state: 'blocked',
+        summary: `${actions.length} 项待处理 · ${mappedCount} 个占位符已配置`,
+        actions,
+        detailGroups
+    };
+}
+
+function normalizeAndPrioritizePreflightActions(items) {
+    const actionsByKey = new Map();
+    items.forEach(item => {
+        const action = item.action || 'open-advanced';
+        const actionTarget = item.actionTarget || 'template-advanced-maintenance';
+        const placeholderName = normalizePlaceholderName(item.placeholderName || '');
+        const label = placeholderName ? `{{${placeholderName}}}` : (item.label || '生成配置');
+        const detail = item.issue?.message || item.status?.detail || item.value || '需要补充配置';
+        const normalized = {
+            label,
+            detail,
+            action,
+            actionTarget,
+            actionLabel: item.actionLabel || '去处理',
+            placeholderName,
+            editorSection: item.editorSection || item.issue?.editorSection || 'basic',
+            priority: getPreflightActionPriority(label, detail)
+        };
+        const key = `${placeholderName}|${action}|${actionTarget}|${label}`;
+        const existing = actionsByKey.get(key);
+        if (!existing || normalized.priority < existing.priority) {
+            actionsByKey.set(key, normalized);
+        }
+    });
+
+    return [...actionsByKey.values()].sort((left, right) =>
+        left.priority - right.priority || left.label.localeCompare(right.label, 'zh-CN')
+    );
+}
+
+function getPreflightActionPriority(label, detail) {
+    const text = `${label} ${detail}`.toLowerCase();
+    if (/prompt|query|检索关键词|占位符映射|word 占位符/.test(text)) return 10;
+    if (/word 模板|ppt 模板|section 配置|模板缺失/.test(text)) return 20;
+    if (/excel|表格|图表|数据来源/.test(text)) return 30;
+    return 40;
+}
+
 function buildPreflightReviewGroups(readiness, checks, placeholderReadiness, context) {
     const compiledPlan = readiness.compiledPlan || null;
     const compiledPlaceholders = Array.isArray(compiledPlan?.placeholders)
@@ -6842,8 +6918,53 @@ function renderPreflightReviewGroup(group) {
     `;
 }
 
+function renderPreflightSummary(model) {
+    const panel = document.getElementById('template-project-check-details');
+    const statusEl = document.getElementById('template-project-check-status');
+    setText('template-project-check-summary', model.summary);
+    if (statusEl) {
+        statusEl.textContent = model.state === 'ready'
+            ? '可直接生成'
+            : `${model.actions.length} 项待处理`;
+        statusEl.classList.toggle('warning', model.state === 'blocked');
+    }
+    if (panel) {
+        panel.dataset.preflightState = model.state;
+        if (model.state === 'blocked') panel.open = true;
+    }
+}
+
+function renderPreflightActions(model) {
+    const container = document.getElementById('template-project-check-actions');
+    if (!container) return;
+    if (model.state === 'ready') {
+        container.innerHTML = `
+            <div class="template-preflight-ready-summary">
+                全部检查通过。展开后可查看 Prompt、检索和输出详情。
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = model.actions.slice(0, 3).map(action => `
+        <div class="template-preflight-action">
+            <span>
+                <strong>${esc(action.label)}</strong>
+                <small class="template-preflight-action-detail">${esc(action.detail)}</small>
+            </span>
+            <button
+                type="button"
+                class="template-check-action"
+                data-template-check-action="${esc(action.action)}"
+                data-template-check-target="${esc(action.actionTarget)}"
+                data-template-placeholder-name="${esc(action.placeholderName)}"
+                data-template-placeholder-editor-section="${esc(action.editorSection)}"
+            >${esc(action.actionLabel)}</button>
+        </div>
+    `).join('');
+}
+
 function renderTemplateValidationPreview(template, sections, placeholders) {
-    const statusEl = document.getElementById('template-validation-status');
     const list = document.getElementById('template-validation-list');
     if (!list) return;
 
@@ -6852,20 +6973,14 @@ function renderTemplateValidationPreview(template, sections, placeholders) {
     const placeholderReadiness = readiness.placeholderReadiness;
     renderPlaceholderIssueQueue(template, placeholderReadiness);
     const excelRows = readiness.excelRows;
-    const reviewGroups = buildPreflightReviewGroups(readiness, checks, placeholderReadiness, {
+    const model = buildPreflightDisplayModel(readiness, checks, placeholderReadiness, {
         sections,
         placeholders,
         excelRows
     });
-
-    list.innerHTML = reviewGroups.map(group => renderPreflightReviewGroup(group)).join('');
-
-    if (statusEl) {
-        const passed = checks.filter(check => check.ok).length + placeholderReadiness.filter(item => item.ok).length;
-        const total = checks.length + placeholderReadiness.length;
-        statusEl.textContent = `${passed}/${total}`;
-        statusEl.classList.toggle('warning', passed < total);
-    }
+    renderPreflightSummary(model);
+    renderPreflightActions(model);
+    list.innerHTML = model.detailGroups.map(group => renderPreflightReviewGroup(group)).join('');
 }
 
 function renderPlaceholderIssueQueue(template, placeholderReadiness) {
