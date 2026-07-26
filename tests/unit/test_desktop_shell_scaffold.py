@@ -4,6 +4,7 @@ import importlib.util
 import json
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -283,6 +284,27 @@ def test_desktop_verify_workflow_runs_for_master_desktop_changes():
     assert "scripts/desktop/**" in source
 
 
+def test_desktop_verify_smokes_setup_required_on_both_native_runners():
+    source = DESKTOP_VERIFY_WORKFLOW.read_text(encoding="utf-8")
+
+    assert source.count("Smoke test setup-required sidecar /health") == 2
+    assert source.count("--expected-persistence-status setup_required") == 2
+    assert source.count("--port 8766") == 2
+    assert "postgresql+psycopg://postgres:postgres@127.0.0.1:1/alphafoundry" in source
+    assert "alphafoundry-desktop-setup-smoke" in source
+    assert "build/desktop-sidecar/setup-smoke.log" in source
+    for path_filter in (
+        "app/api/main.py",
+        "app/api/routes/setup.py",
+        "app/api/configuration_models.py",
+        "app/web/**",
+        "services/database_readiness.py",
+        "workers/watchdog.py",
+        "docs/desktop_packaging.md",
+    ):
+        assert source.count(path_filter) == 2
+
+
 def test_windows_pgvector_smoke_builds_a_native_extension():
     """Windows runners use a Windows-only Moby Docker engine.
 
@@ -365,8 +387,8 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "全球热点新闻 (Top 10)" not in html
     assert "今日上涨板块概念 (Top 10)" not in html
     assert "今日下跌板块概念 (Top 10)" not in html
-    assert "style.css?v=20260722flowfix" in html
-    assert "app.js?v=20260723refresh1" in html
+    assert 'href="/static/style.css?v=' in html
+    assert '<script type="module" src="/static/js/app.js?v=' in html
     assert "asset-observe-mode-tabs" in html
     assert 'data-asset-mode="theme"' in html
     assert "asset-topic-result" in html
@@ -773,18 +795,159 @@ def test_desktop_launcher_refuses_to_kill_unknown_port_owner(monkeypatch):
     assert calls == []
 
 
-def test_frozen_backend_launcher_requires_postgresql(monkeypatch, tmp_path):
+def isolate_desktop_launcher_environment(monkeypatch, launcher):
+    """Register launcher-owned environment keys for pytest cleanup."""
+    launcher_keys = {
+        "ALPHAFOUNDRY_DESKTOP_DATA_DIR",
+        "ALPHAFOUNDRY_DESKTOP",
+        "ALPHAFOUNDRY_RUN_MODE",
+        "ALPHAFOUNDRY_BACKEND_URL",
+        "ALPHAFOUNDRY_DESKTOP_URL",
+        "LOG_DIR",
+        "OBJECT_STORAGE_PATH",
+        "PDF_MARKDOWN_DIR",
+        "PDF_RAW_TEXT_DIR",
+        "ALPHAFOUNDRY_DEV",
+    }
+    for line in launcher.desktop_env_template().splitlines():
+        key, separator, _value = line.partition("=")
+        if separator and not key.lstrip().startswith("#"):
+            launcher_keys.add(key.strip())
+    for key in launcher_keys:
+        monkeypatch.delenv(key, raising=False)
+
+
+@pytest.mark.parametrize("database_url", ["", "postgresql+psycopg://"])
+def test_frozen_backend_launcher_keeps_setup_mode_for_missing_or_invalid_postgresql_url(
+    monkeypatch, tmp_path, database_url
+):
     launcher = load_launcher_module()
+    isolate_desktop_launcher_environment(monkeypatch, launcher)
     monkeypatch.setattr(launcher.sys, "frozen", True, raising=False)
-    monkeypatch.setenv("ALPHAFOUNDRY_DESKTOP_DATA_DIR", str(tmp_path))
-    monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
-    monkeypatch.delenv("LOG_DIR", raising=False)
+    monkeypatch.setattr(launcher, "desktop_data_dir", lambda: tmp_path)
+    monkeypatch.setenv("DATABASE_URL", database_url)
 
-    try:
-        launcher.apply_frozen_desktop_defaults()
-    except RuntimeError as exc:
-        assert "PostgreSQL + pgvector" in str(exc)
-    else:
-        raise AssertionError("Expected PostgreSQL configuration error")
+    data_dir = launcher.apply_frozen_desktop_defaults()
 
+    assert data_dir == tmp_path
+    assert (tmp_path / ".env").exists()
     assert not (tmp_path / "alphafoundry.db").exists()
+    assert "sqlite" not in (tmp_path / ".env").read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("database_url", ["", "postgresql+psycopg://"])
+def test_desktop_launcher_skips_watchdogs_when_database_url_is_missing_or_invalid(
+    monkeypatch, tmp_path, database_url
+):
+    launcher = load_launcher_module()
+    calls = []
+    readiness_codes = []
+    isolate_desktop_launcher_environment(monkeypatch, launcher)
+    monkeypatch.setattr(launcher, "desktop_data_dir", lambda: tmp_path)
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    original_probe = launcher.probe_postgresql
+
+    def probe(database_url):
+        readiness = original_probe(database_url)
+        readiness_codes.append(readiness.code.value)
+        return readiness
+
+    monkeypatch.setattr(
+        launcher,
+        "probe_postgresql",
+        probe,
+    )
+    monkeypatch.setattr(
+        launcher,
+        "_start_knowledge_worker",
+        lambda *_args: calls.append("knowledge_worker"),
+    )
+    monkeypatch.setattr(
+        launcher,
+        "_start_crawl_scheduler",
+        lambda *_args: calls.append("crawl_scheduler"),
+    )
+    monkeypatch.setattr(
+        launcher,
+        "run_backend",
+        lambda host, port, reload: calls.append(("run_backend", host, port, reload)),
+    )
+
+    assert launcher.main(["--log-dir", str(tmp_path / "logs")]) == 0
+
+    assert readiness_codes == ["invalid_url"]
+    assert (tmp_path / ".env").exists()
+    assert not (tmp_path / "alphafoundry.db").exists()
+    assert calls == [("run_backend", "127.0.0.1", 8765, False)]
+
+
+def test_desktop_launcher_starts_watchdogs_when_database_is_ready(monkeypatch, tmp_path):
+    launcher = load_launcher_module()
+    calls = []
+    database_urls = []
+    isolate_desktop_launcher_environment(monkeypatch, launcher)
+    monkeypatch.setenv("DATABASE_URL", "postgresql+psycopg://user:password@127.0.0.1/db")
+    monkeypatch.setattr(launcher, "apply_frozen_desktop_defaults", lambda: tmp_path)
+    monkeypatch.setattr(
+        launcher,
+        "probe_postgresql",
+        lambda database_url: database_urls.append(database_url)
+        or SimpleNamespace(ready=True, code=SimpleNamespace(value="ready")),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        launcher,
+        "_start_knowledge_worker",
+        lambda *_args: calls.append("knowledge_worker"),
+    )
+    monkeypatch.setattr(
+        launcher,
+        "_start_crawl_scheduler",
+        lambda *_args: calls.append("crawl_scheduler"),
+    )
+    monkeypatch.setattr(
+        launcher,
+        "run_backend",
+        lambda host, port, reload: calls.append(("run_backend", host, port, reload)),
+    )
+
+    assert launcher.main(["--log-dir", str(tmp_path / "logs")]) == 0
+
+    assert database_urls == ["postgresql+psycopg://user:password@127.0.0.1/db"]
+    assert calls == [
+        "knowledge_worker",
+        "crawl_scheduler",
+        ("run_backend", "127.0.0.1", 8765, False),
+    ]
+
+
+def test_desktop_launcher_skips_watchdogs_when_probe_fails(monkeypatch, tmp_path):
+    launcher = load_launcher_module()
+    calls = []
+    isolate_desktop_launcher_environment(monkeypatch, launcher)
+    monkeypatch.setattr(launcher, "apply_frozen_desktop_defaults", lambda: tmp_path)
+    monkeypatch.setattr(
+        launcher,
+        "probe_postgresql",
+        lambda _database_url: (_ for _ in ()).throw(RuntimeError("database unavailable")),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        launcher,
+        "_start_knowledge_worker",
+        lambda *_args: calls.append("knowledge_worker"),
+    )
+    monkeypatch.setattr(
+        launcher,
+        "_start_crawl_scheduler",
+        lambda *_args: calls.append("crawl_scheduler"),
+    )
+    monkeypatch.setattr(
+        launcher,
+        "run_backend",
+        lambda host, port, reload: calls.append(("run_backend", host, port, reload)),
+    )
+
+    assert launcher.main(["--log-dir", str(tmp_path / "logs")]) == 0
+
+    assert calls == [("run_backend", "127.0.0.1", 8765, False)]

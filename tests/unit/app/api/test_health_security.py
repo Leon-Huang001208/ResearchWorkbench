@@ -1,25 +1,32 @@
 """Health endpoint persistence status tests."""
 
-from unittest.mock import MagicMock, patch
-
 from fastapi.testclient import TestClient
 
 from app.api.main import app
+from services.database_readiness import DatabaseReadiness, DatabaseReadinessCode
 
 
-def test_health_hides_database_exception_details():
-    session = MagicMock()
-    session.__enter__.return_value = session
-    session.__exit__.return_value = False
-    session.execute.side_effect = RuntimeError(
-        "postgresql://user:secret@db.internal:5432/alphafoundry"
+def test_health_reports_setup_required_without_rechecking_database():
+    """Configuration mode remains healthy without revealing or retrying the URL."""
+    previous = getattr(app.state, "database_readiness", None)
+    app.state.database_readiness = DatabaseReadiness(
+        ready=False,
+        code=DatabaseReadinessCode.CONNECTION_FAILED,
+        message="无法连接到数据库。",
+        remediation=("请确认数据库服务已启动且网络配置正确。",),
     )
-
-    with patch("data_layer.repositories.base.SessionLocal", return_value=session):
+    try:
         response = TestClient(app).get("/health")
+    finally:
+        if previous is None:
+            delattr(app.state, "database_readiness")
+        else:
+            app.state.database_readiness = previous
 
-    persistence = response.json()["persistence"]
-    assert persistence["database_connected"] is False
-    assert persistence["status"] == "unavailable"
+    assert response.status_code == 200
+    assert response.json()["persistence"] == {
+        "database_connected": False,
+        "status": "setup_required",
+    }
     assert "secret" not in response.text
     assert "db.internal" not in response.text

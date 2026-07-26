@@ -24,6 +24,8 @@ let loadAbortController = null;
 let initialLoadRetryCount = 0;
 const connectionStateBySection = new Map();
 const ONBOARDING_SECTIONS = ['llm', 'database', 'zhiqiu', 'ifind', 'web_search'];
+let databaseRuntimeReadiness = null;
+let configurationInitializationPromise = null;
 
 export function configurationRequestOptions(options = {}) {
     const metaToken = globalThis.document
@@ -492,6 +494,49 @@ function setSecretState(selector, secret) {
     node.classList.toggle('configured', hint === '已配置');
 }
 
+function databaseReadinessPresentation() {
+    const readiness = databaseRuntimeReadiness;
+    const databaseReady = readiness?.database?.ready === true;
+    if (databaseReady && readiness?.runtime_status === 'ready') {
+        return { label: '数据库已验证', state: 'ready' };
+    }
+    if (databaseReady && (readiness?.restart_required || readiness?.runtime_status === 'setup_required')) {
+        return { label: '数据库待重启', state: 'restart' };
+    }
+    return { label: '数据库未就绪', state: 'missing' };
+}
+
+function renderDatabaseRuntimeReadiness() {
+    const presentation = databaseReadinessPresentation();
+    setSectionStatus('database', presentation.label, presentation.state);
+    const card = document.querySelector('[data-config-card="database"]');
+    const badge = card?.querySelector('[data-card-badge="database"]');
+    const summary = card?.querySelector('[data-card-summary="database"]');
+    if (badge) {
+        badge.textContent = presentation.label;
+        badge.className = `config-card-badge ${presentation.state}`;
+    }
+    if (summary) summary.textContent = presentation.label;
+}
+
+async function refreshDatabaseRuntimeReadiness() {
+    try {
+        const readiness = await configurationApiCall('GET', '/api/setup/readiness');
+        if (!readiness || typeof readiness.runtime_status !== 'string') {
+            throw new ConfigurationApiError('invalid setup readiness response');
+        }
+        databaseRuntimeReadiness = readiness;
+    } catch (error) {
+        databaseRuntimeReadiness = null;
+        console.warn('[config] database readiness refresh failed', {
+            errorType: error?.name || 'UnknownError',
+        });
+    }
+    renderDatabaseRuntimeReadiness();
+    renderSummaryCards();
+    return databaseRuntimeReadiness;
+}
+
 function renderReadiness(snapshot) {
     const overall = document.querySelector('[data-readiness="overall"]');
     if (overall) {
@@ -501,7 +546,7 @@ function renderReadiness(snapshot) {
         overall.querySelector('strong').textContent = `${snapshot.ready_count} / ${snapshot.total_count}`;
         overall.querySelector('small').textContent = ready ? '全部配置就绪' : '仍有配置待补齐';
     }
-    ['llm', 'zhiqiu', 'ifind', 'database'].forEach(section => {
+    ['llm', 'zhiqiu', 'ifind'].forEach(section => {
         const ready = Boolean(snapshot.readiness?.[section]);
         const card = document.querySelector(`[data-readiness="${section}"]`);
         if (card) {
@@ -511,6 +556,7 @@ function renderReadiness(snapshot) {
         }
         setSectionStatus(section, ready ? '已就绪' : '待配置', ready ? 'ready' : 'missing');
     });
+    renderDatabaseRuntimeReadiness();
     setSectionStatus('advanced', snapshot.readiness?.advanced ? '已就绪' : '待配置', snapshot.readiness?.advanced ? 'ready' : 'missing');
 }
 
@@ -639,7 +685,8 @@ function deriveSectionReadiness(section, values) {
     if (section === 'llm') return (values.providers || []).some(item => item.protocol === 'local' || item.api_key?.configured);
     if (section === 'zhiqiu') return (values.accounts || []).some(item => item.password?.configured);
     if (section === 'ifind') return (values.accounts || []).some(item => item.username && item.password?.configured);
-    if (section === 'database') return Boolean(values.database_url?.configured);
+    if (section === 'database') return databaseRuntimeReadiness?.database?.ready === true
+        && databaseRuntimeReadiness.runtime_status === 'ready';
     if (section === 'web_search') return (values.accounts || []).some(item => item.key?.configured);
     return true;
 }
@@ -652,7 +699,9 @@ function applySectionResponse(section, values, renderValues = true) {
     }
     if (configurationSnapshot) {
         configurationSnapshot.sections[section] = values;
-        configurationSnapshot.readiness[section] = deriveSectionReadiness(section, values);
+        if (section !== 'database') {
+            configurationSnapshot.readiness[section] = deriveSectionReadiness(section, values);
+        }
         configurationSnapshot.ready_count = Object.values(configurationSnapshot.readiness).filter(Boolean).length;
         connectionStateBySection.delete(section);
         renderReadiness(configurationSnapshot);
@@ -947,6 +996,7 @@ async function saveSection(section) {
         if (!requestCoordinator.isLatest(section, token)) return;
         const editedWhileSaving = (sectionEditGenerations.get(section) || 0) !== submittedEditGeneration;
         applySectionResponse(section, result.section, !editedWhileSaving);
+        if (section === 'database') await refreshDatabaseRuntimeReadiness();
         const message = result.restart_required ? '重启后生效' : '配置已生效';
         setSectionStatus(section, message, result.restart_required ? 'restart' : 'ready');
         showPageMessage(message, result.restart_required ? 'restart' : 'ready');
@@ -981,6 +1031,7 @@ async function testSection(section) {
     try {
         const result = await configurationApiCall('POST', `/api/config/${section}/test`, collectSection(section));
         if (!requestCoordinator.isLatest(section, token)) return;
+        if (section === 'database') await refreshDatabaseRuntimeReadiness();
         const message = result.success ? '连接验证成功' : '连接验证失败';
         connectionStateBySection.set(section, result.success ? 'verified' : 'error');
         console.info('[config] connection test completed', { section, success: Boolean(result.success) });
@@ -1053,21 +1104,30 @@ export async function initConfigurationPage() {
     bindConfigurationEvents();
     initConfigModal();
     if (configurationInitialized && configurationSnapshot) return;
+    if (configurationInitializationPromise) return configurationInitializationPromise;
     if (configurationInitialized && !configurationSnapshot) {
         // 上次加载失败，重置重试计数以允许重新加载
         initialLoadRetryCount = 0;
     }
-    configurationInitialized = true;
+    configurationInitializationPromise = (async () => {
+        configurationInitialized = true;
 
-    // 显示加载骨架屏
-    const grid = document.querySelector('.config-cards-grid');
-    if (grid) grid.setAttribute('data-loading', '');
+        // 显示加载骨架屏
+        const grid = document.querySelector('.config-cards-grid');
+        if (grid) grid.setAttribute('data-loading', '');
 
-    await fetchConfigToken();
-    await loadConfiguration();
+        await fetchConfigToken();
+        await loadConfiguration();
+        await refreshDatabaseRuntimeReadiness();
 
-    // 加载完成后移除骨架屏（renderSnapshot -> renderSummaryCards 中也会处理）
-    if (grid) grid.removeAttribute('data-loading');
+        // 加载完成后移除骨架屏（renderSnapshot -> renderSummaryCards 中也会处理）
+        if (grid) grid.removeAttribute('data-loading');
+    })();
+    try {
+        await configurationInitializationPromise;
+    } finally {
+        configurationInitializationPromise = null;
+    }
 }
 
 // ── 模态框状态 ───────────────────────────────────────────
@@ -1108,8 +1168,7 @@ export function renderSummaryCards() {
             return `${count} 个 Key`;
         },
         database: () => {
-            const configured = configurationSnapshot.sections.database?.database_url?.configured;
-            return configured ? '已配置连接地址' : '未配置';
+            return databaseReadinessPresentation().label;
         },
         advanced: () => {
             const adv = configurationSnapshot.sections.advanced || {};
@@ -1130,20 +1189,26 @@ export function renderSummaryCards() {
 
         const badge = document.querySelector(`[data-card-badge="${section}"]`);
         if (badge) {
-            const ready = configurationSnapshot.readiness?.[section];
-            const connectionState = connectionStateBySection.get(section);
-            const label = connectionState === 'verified'
-                ? '连接已验证'
-                : connectionState === 'error'
-                    ? '连接异常'
-                    : ready ? '已就绪' : '待配置';
-            const state = connectionState === 'verified'
-                ? 'verified'
-                : connectionState === 'error'
-                    ? 'error'
-                    : ready ? 'ready' : 'missing';
-            badge.textContent = label;
-            badge.className = `config-card-badge ${state}`;
+            if (section === 'database') {
+                const presentation = databaseReadinessPresentation();
+                badge.textContent = presentation.label;
+                badge.className = `config-card-badge ${presentation.state}`;
+            } else {
+                const ready = configurationSnapshot.readiness?.[section];
+                const connectionState = connectionStateBySection.get(section);
+                const label = connectionState === 'verified'
+                    ? '连接已验证'
+                    : connectionState === 'error'
+                        ? '连接异常'
+                        : ready ? '已就绪' : '待配置';
+                const state = connectionState === 'verified'
+                    ? 'verified'
+                    : connectionState === 'error'
+                        ? 'error'
+                        : ready ? 'ready' : 'missing';
+                badge.textContent = label;
+                badge.className = `config-card-badge ${state}`;
+            }
         }
 
         const action = document.querySelector(`[data-config-card-action="${section}"]`);
@@ -1449,6 +1514,26 @@ function initConfigModal() {
             closeConfigModal();
         }
     });
+}
+
+export async function openDatabaseConfiguration() {
+    try {
+        document.dispatchEvent(new CustomEvent('alphafoundry:open-database-configuration'));
+        await initConfigurationPage();
+        openConfigModal('database');
+        const modal = document.getElementById('config-edit-modal');
+        const modalCloseButton = document.getElementById('btn-config-edit-modal-close');
+        if (!modal || !modalCloseButton || modal.classList.contains('hidden')) {
+            throw new Error('database configuration modal is unavailable');
+        }
+        modalCloseButton.focus();
+    } catch (error) {
+        console.error('[config] unable to open database configuration', {
+            errorType: error?.name || 'UnknownError',
+        });
+        showPageMessage('无法打开数据库配置，请稍后重试', 'error');
+        throw error;
+    }
 }
 
 export { initConfigModal, openConfigModal, closeConfigModal };

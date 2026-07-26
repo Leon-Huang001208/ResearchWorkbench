@@ -24,6 +24,7 @@ import { initWindPanel } from './wind.js';
 import { initFundsPanel } from './funds.js?v=20260625a';
 import { initCommentaryCenter, selectCommentaryTemplate, loadCommentaryContext, generateCommentaryDraft, copyCommentaryDraft, exportCommentaryMarkdown, toggleAutoRefresh, switchCommentaryWorkspace } from './commentary.js?v=20260707logic1';
 import { initConfigurationPage } from './configuration.js?v=20260716fix1';
+import { initSetupWizard } from './setup-wizard.js?v=20260726setup1';
 
 // ─── Window Exports (for HTML onclick handlers) ────────────────
 window.apiCall = apiCall;
@@ -192,7 +193,26 @@ applyChartDefaults();
 window.chartScenarioProb = null;
 
 // ─── Navigation ──────────────────────────────────────────────
+let setupRequiredNavigationGate = false;
+let setupReadinessResolved = false;
+
+function activateSetupRequiredNavigationGate() {
+    setupRequiredNavigationGate = true;
+}
+
+function showSetupNavigationBlockedMessage() {
+    const message = setupReadinessResolved
+        ? '数据库尚未就绪。请先在系统配置中完成数据库设置并重启应用。'
+        : '正在检查数据库启动状态，请稍候。';
+    toast(message, 'warning');
+    console.warn('[app] blocked navigation while database setup is required');
+}
+
 function navigateTo(section) {
+    if ((!setupReadinessResolved || setupRequiredNavigationGate) && section !== 'config') {
+        showSetupNavigationBlockedMessage();
+        return false;
+    }
     document.querySelectorAll('.activity-btn[data-section]').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.content-section').forEach(p => p.classList.remove('active'));
     document.querySelectorAll(`.activity-btn[data-section="${section}"]`).forEach(b => b.classList.add('active'));
@@ -220,6 +240,7 @@ function navigateTo(section) {
     if (section === 'pipeline-monitor') renderPipelineMonitor();
     if (section === 'config') initConfigurationPage();
     else stopPipelinePolling();
+    return true;
 }
 window.navigateTo = navigateTo;
 
@@ -309,7 +330,7 @@ async function updateStatusBar() {
 }
 
 // ─── DOM Content Loaded ──────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     document.addEventListener('keydown', (event) => {
         const isRefreshShortcut = event.key === 'F5' || (
             (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'r'
@@ -324,6 +345,26 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.activity-btn[data-section]').forEach(btn => {
         btn.addEventListener('click', () => navigateTo(btn.dataset.section));
     });
+
+    document.addEventListener('alphafoundry:open-database-configuration', () => {
+        navigateTo('config');
+    });
+
+    let setupMode = false;
+    try {
+        setupMode = await initSetupWizard();
+    } catch (error) {
+        console.error('[app] setup wizard initialization failed', {
+            errorType: error?.name || 'UnknownError',
+        });
+    }
+    setupReadinessResolved = true;
+    if (setupMode) {
+        activateSetupRequiredNavigationGate();
+        navigateTo('config');
+        return;
+    }
+
     initNavigationCuration();
 
     document.querySelectorAll('.dash-tab').forEach(tab => {

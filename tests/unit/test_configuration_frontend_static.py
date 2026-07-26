@@ -30,6 +30,17 @@ def test_configuration_modal_event_binder_remains_declared():
     assert "function bindModalFormEvents(form, section)" in source
 
 
+def test_database_summary_uses_runtime_readiness_not_saved_url_state():
+    source = CONFIGURATION_JS.read_text(encoding="utf-8")
+
+    assert "databaseRuntimeReadiness" in source
+    assert "/api/setup/readiness" in source
+    assert "数据库已验证" in source
+    assert "数据库待重启" in source
+    assert "数据库未就绪" in source
+    assert "已配置连接地址" not in source
+
+
 def test_configuration_module_parses_with_node():
     result = subprocess.run(
         ["node", "--check", str(CONFIGURATION_JS)],

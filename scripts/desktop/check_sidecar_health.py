@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 import errno
+import http.client
+import json
 import logging
 import os
 import signal
@@ -41,7 +43,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--timeout-seconds",
         required=True,
         type=float,
-        help="Maximum time to wait for GET /health to return HTTP 200",
+        help="Maximum time to wait for GET /health to satisfy the requested health contract",
+    )
+    parser.add_argument(
+        "--expected-persistence-status",
+        help="Require persistence.status in the HTTP 200 JSON health response to exactly match this value",
     )
     parser.add_argument(
         "--log-file",
@@ -69,21 +75,45 @@ def sidecar_command(executable: str, port: int) -> list[str]:
     return [executable, "--host", HEALTH_HOST, "--port", str(port)]
 
 
-def endpoint_is_healthy(port: int) -> bool:
+def endpoint_is_healthy(port: int, expected_persistence_status: str | None = None) -> bool:
     """Return whether the local endpoint currently answers a successful health request."""
     endpoint = f"http://{HEALTH_HOST}:{port}/health"
     with LOCAL_HTTP_OPENER.open(endpoint, timeout=POLL_INTERVAL_SECONDS) as response:
-        return response.status == 200
+        if response.status != 200:
+            return False
+        if expected_persistence_status is None:
+            return True
+        try:
+            payload = json.load(response)
+        except (http.client.HTTPException, json.JSONDecodeError, TypeError, UnicodeDecodeError):
+            return False
+        if not isinstance(payload, dict):
+            return False
+        persistence = payload.get("persistence")
+        return (
+            isinstance(persistence, dict)
+            and persistence.get("status") == expected_persistence_status
+        )
 
 
-def wait_for_health(port: int, timeout_seconds: float, logger: logging.Logger) -> bool:
+def wait_for_health(
+    port: int,
+    timeout_seconds: float,
+    logger: logging.Logger,
+    expected_persistence_status: str | None = None,
+) -> bool:
     """Poll the local sidecar health endpoint until it is ready or the deadline expires."""
     deadline = time.monotonic() + timeout_seconds
     while True:
         try:
-            if endpoint_is_healthy(port):
-                logger.info("Sidecar health endpoint returned HTTP 200")
+            if endpoint_is_healthy(port, expected_persistence_status):
+                logger.info("Sidecar health endpoint satisfied the requested health contract")
                 return True
+            if expected_persistence_status is not None:
+                logger.info(
+                    "Sidecar health endpoint did not match expected persistence.status=%s",
+                    expected_persistence_status,
+                )
         except (OSError, urllib.error.URLError, urllib.error.HTTPError) as error:
             logger.info("Sidecar health endpoint is not ready: %s", error)
 
@@ -189,6 +219,7 @@ def run_health_check(
     port: int,
     timeout_seconds: float,
     log_file: Path = DEFAULT_LOG_FILE,
+    expected_persistence_status: str | None = None,
 ) -> int:
     """Run the health check and return zero only after the sidecar becomes healthy."""
     logger, handler = configure_logger(log_file)
@@ -216,7 +247,11 @@ def run_health_check(
             process = subprocess.Popen(command, **popen_kwargs)
             if not is_windows():
                 process_group = os.getpgid(process.pid)
-            result = 0 if wait_for_health(port, timeout_seconds, logger) else 1
+            result = (
+                0
+                if wait_for_health(port, timeout_seconds, logger, expected_persistence_status)
+                else 1
+            )
     except OSError:
         logger.exception("Unable to start or inspect helper-owned sidecar")
     finally:
@@ -240,6 +275,7 @@ def main(argv: Sequence[str] | None = None) -> None:
             port=args.port,
             timeout_seconds=args.timeout_seconds,
             log_file=args.log_file,
+            expected_persistence_status=args.expected_persistence_status,
         )
     )
 

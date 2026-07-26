@@ -35,6 +35,9 @@ from app.api.configuration_security import (
     validate_cors_trusted_host_consistency,
 )
 from core.observability import get_logger
+from core.settings.config import RUNTIME_CONTEXT, settings
+from data_layer.repositories.base import ensure_schema
+from services.database_readiness import DatabaseReadiness, DatabaseReadinessCode, probe_postgresql
 
 __all__ = [
     "app",
@@ -44,6 +47,8 @@ __all__ = [
 ]
 
 logger = get_logger(__name__)
+
+_DATABASE_READINESS_STARTUP_ERROR = "无法连接 PostgreSQL；请检查数据库配置后重试。"
 
 # 后端启动时间戳，供前端轮询检测后端重启后自动刷新页面
 _STARTUP_TIMESTAMP: str = str(time.time())
@@ -57,23 +62,40 @@ app = FastAPI(
 
 @app.on_event("startup")
 async def startup() -> None:
-    """Startup hook: check database connection and init services"""
+    """Preflight persistence before initializing database-dependent services."""
     logger.info("AlphaFoundry API starting up...")
-    # Explicit database connection check on API startup + schema ensure
-    from data_layer.repositories.base import check_database_connection, ensure_schema
+    readiness = probe_postgresql(settings.DATABASE_URL)
+    app.state.database_readiness = readiness
+    if not readiness.ready:
+        if RUNTIME_CONTEXT.mode == "desktop":
+            logger.warning(
+                "Desktop started in setup-required mode",
+                extra={"code": readiness.code.value},
+            )
+            return
+        logger.error(
+            "Database readiness failed during startup",
+            extra={"code": readiness.code.value},
+        )
+        raise RuntimeError(_DATABASE_READINESS_STARTUP_ERROR)
 
-    check_database_connection()
     ensure_schema()
+    _start_wind_workbook_background()
+    # 自动启动数据获取调度器（在 async 上下文中，AsyncIOScheduler 可正常拿到事件循环）
+    _start_data_acquisition_schedulers()
 
+
+def _start_wind_workbook_background() -> None:
+    """Start the optional Wind workbook task only after persistence is ready."""
     try:
         from services.wind_workbook_manager import get_wind_workbook_manager
 
         get_wind_workbook_manager().start_background_ensure(reason="api_startup")
     except Exception as exc:
-        logger.warning("Wind realtime workbook background startup skipped: %s", exc)
-
-    # 自动启动数据获取调度器（在 async 上下文中，AsyncIOScheduler 可正常拿到事件循环）
-    _start_data_acquisition_schedulers()
+        logger.warning(
+            "Wind realtime workbook background startup skipped",
+            extra={"error_type": type(exc).__name__},
+        )
 
 
 def _start_data_acquisition_schedulers() -> None:
@@ -209,6 +231,7 @@ from app.api.routes import (  # noqa: E402
     scenarios,
     scheduler,
     search,
+    setup,
     signal_lab,
     signals,
     system,
@@ -224,6 +247,7 @@ from app.api.routes import (  # noqa: E402
 app.include_router(assets.router)
 app.include_router(commentary.router)
 app.include_router(configuration.router)
+app.include_router(setup.router)
 app.include_router(scenarios.router)
 app.include_router(review.router)
 app.include_router(signals.router)
@@ -322,30 +346,26 @@ async def backend_version() -> Dict[str, Any]:
 
 @app.get("/health")
 async def health_check() -> Dict[str, Any]:
-    """健康检查 - includes persistence status"""
-    from sqlalchemy import text
-
+    """健康检查 - report the startup persistence state without retrying the database."""
     from core.settings.config import settings
-    from data_layer.repositories.base import SessionLocal
 
-    persistence_status = "unknown"
-    db_connected = False
-    try:
-        with SessionLocal() as session:
-            session.execute(text("SELECT 1"))
-            session.commit()
-            db_connected = True
-            persistence_status = "ready"
-    except Exception as exc:
-        logger.warning(
-            "Health check database unavailable", extra={"error_type": type(exc).__name__}
+    readiness = getattr(app.state, "database_readiness", None)
+    if not isinstance(readiness, DatabaseReadiness):
+        readiness = DatabaseReadiness(
+            ready=False,
+            code=DatabaseReadinessCode.UNEXPECTED_ERROR,
+            message="数据库状态尚未完成初始化。",
+            remediation=("请重启应用后重试。",),
         )
-        persistence_status = "unavailable"
+    persistence_status = "ready" if readiness.ready else "setup_required"
 
     return {
         "status": "ok",
         "app_env": settings.APP_ENV,
-        "persistence": {"database_connected": db_connected, "status": persistence_status},
+        "persistence": {
+            "database_connected": readiness.ready,
+            "status": persistence_status,
+        },
     }
 
 
