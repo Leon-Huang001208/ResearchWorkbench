@@ -355,8 +355,11 @@ function removeButton(label) {
     button.setAttribute('aria-label', label);
     button.addEventListener('click', () => {
         const row = button.closest('.config-dynamic-row');
-        if (row) markSectionDirty(row);
+        const form = row?.closest('[data-config-form]');
+        const section = form?.dataset.configForm;
+        if (row) markSectionDirty(form || row);
         row?.remove();
+        restoreEmptyCollectionState(form, section);
     });
     return button;
 }
@@ -541,11 +544,13 @@ function createEmptyCollectionState(section) {
     };
     const message = messages[section];
     if (!message) return null;
-    return element('p', 'config-empty-collection', message);
+    const state = element('p', 'config-empty-collection', message);
+    state.setAttribute('role', 'status');
+    return state;
 }
 
 function renderEmptyCollectionState(form, section, accounts) {
-    if ((accounts || []).length) return;
+    if ((accounts || []).length || form.querySelector('.config-empty-collection')) return;
     const addButton = form.querySelector({
         zhiqiu: '[data-add-zhiqiu-account]',
         ifind: '[data-add-ifind-account]',
@@ -557,6 +562,19 @@ function renderEmptyCollectionState(form, section, accounts) {
 
 function removeEmptyCollectionState(form) {
     form.querySelector('.config-empty-collection')?.remove();
+}
+
+function restoreEmptyCollectionState(form, section) {
+    if (!form || !section || form.querySelector('.config-empty-collection')) return;
+    const collection = {
+        zhiqiu: { listId: 'config-zhiqiu-account-list', rowSelector: '.config-zhiqiu-row' },
+        ifind: { listId: 'config-ifind-account-list', rowSelector: '.config-ifind-row' },
+        web_search: { listId: 'config-web_search-key-list', rowSelector: '.config-web_search-row' },
+    }[section];
+    const list = collection && form.querySelector(`#${collection.listId}`);
+    if (list && !list.querySelector(collection.rowSelector)) {
+        renderEmptyCollectionState(form, section, []);
+    }
 }
 
 function addControlDescription(control, messageId) {
@@ -1674,6 +1692,7 @@ function openConfigModal(section) {
     currentModalSection = section;
     modalDirty = false;
     setModalLockNote(false);
+    const modal = document.getElementById('config-edit-modal');
 
     const values = configurationSnapshot.sections[section];
     const meta = SECTION_META[section];
@@ -1696,7 +1715,8 @@ function openConfigModal(section) {
     const testable = Boolean(meta.testable);
     const testBtn = document.getElementById('btn-config-edit-modal-test');
     testBtn.hidden = !testable;
-    document.querySelector('[data-config-test-help]').hidden = !testable;
+    const testHelp = modal?.querySelector('[data-config-test-help]');
+    if (testHelp) testHelp.hidden = !testable;
 
     const statusEl = document.getElementById('config-edit-modal-status');
     statusEl.textContent = '';

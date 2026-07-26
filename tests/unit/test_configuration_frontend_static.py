@@ -438,9 +438,11 @@ def test_configuration_refinement_modal_test_help_tracks_testable_sections_witho
     assert 'const testable = Boolean(meta.testable);' in open_modal_source
     assert re.search(r'testBtn\.hidden\s*=\s*!testable\s*;', open_modal_source)
     assert re.search(
-        r'querySelector\(\s*[\'\"]\[data-config-test-help\][\'\"]\s*\)\.hidden\s*=\s*!testable\s*;',
+        r'const\s+testHelp\s*=\s*modal\?\.querySelector\(\s*[\'\"]\[data-config-test-help\][\'\"]\s*\)\s*;',
         open_modal_source,
-    ), 'openConfigModal must hide data-config-test-help with the test button for non-testable sections'
+    ), 'openConfigModal must look up its test help inside the current modal'
+    assert re.search(r'if\s*\(testHelp\)\s*testHelp\.hidden\s*=\s*!testable\s*;', open_modal_source)
+    assert "document.querySelector('[data-config-test-help]')" not in open_modal_source
 
 
 def test_configuration_refinement_modal_save_action_and_collection_layout_hooks():
@@ -457,6 +459,27 @@ def test_configuration_refinement_modal_save_action_and_collection_layout_hooks(
     )
     assert 'config-empty-collection' in source
     assert 'config-field-grid config-field-grid--compact' in source
+
+
+def test_configuration_empty_collection_lifecycle_restores_all_account_collections():
+    source = CONFIGURATION_JS.read_text(encoding="utf-8")
+    remove_source = _configuration_function(source, "removeButton")
+    restore_source = _configuration_function(source, "restoreEmptyCollectionState")
+    empty_state_source = _configuration_function(source, "createEmptyCollectionState")
+
+    assert "const form = row?.closest('[data-config-form]');" in remove_source
+    assert 'const section = form?.dataset.configForm;' in remove_source
+    assert 'restoreEmptyCollectionState(form, section);' in remove_source
+    assert "form.querySelector('.config-empty-collection')" in restore_source
+    assert "state.setAttribute('role', 'status');" in empty_state_source
+    for section, list_id, row_class in (
+        ('zhiqiu', 'config-zhiqiu-account-list', 'config-zhiqiu-row'),
+        ('ifind', 'config-ifind-account-list', 'config-ifind-row'),
+        ('web_search', 'config-web_search-key-list', 'config-web_search-row'),
+    ):
+        assert section in restore_source
+        assert list_id in restore_source
+        assert row_class in restore_source
 
 
 def test_configuration_refinement_modal_locks_keep_accessible_descriptions():
