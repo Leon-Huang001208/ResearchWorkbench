@@ -230,6 +230,23 @@ def test_report_config_summary_dom_contract_collapses_low_frequency_sections_and
         assert f'data-placeholder-edit-section="{edit_section}"' in helper_source
 
 
+def test_report_config_summary_prioritizes_missing_query_or_keywords_without_losing_edit_entries():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+    start = source.index("function buildPlaceholderConfigSummaryHtml")
+    end = source.index("function getPlaceholderEditSectionLabels", start)
+    summary_source = source[start:end]
+
+    assert "const queryNeedsAttention = usesEvidence && !semanticQuery.trim();" in summary_source
+    assert "open: queryNeedsAttention" in summary_source
+    assert "template-config-next-action" in summary_source
+    assert "补充语义 Query，明确系统应召回哪些材料。" in summary_source
+    assert "选择关键词预设包，或添加自定义关键词。" in summary_source
+
+    # Missing-config guidance must add an entry point instead of replacing existing editors.
+    for edit_section in ("basic", "query", "keywords", "fixed_template", "data_fields", "writing"):
+        assert f'data-placeholder-edit-section="{edit_section}"' in source
+
+
 def test_report_generation_page_is_reduced_to_progress_and_single_output():
     html = INDEX_HTML.read_text(encoding="utf-8")
 

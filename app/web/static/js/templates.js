@@ -4592,7 +4592,8 @@ function buildPlaceholderConfigSummaryHtml({
     const dataFieldEntries = dataTemplateFields && typeof dataTemplateFields === 'object'
         ? Object.entries(dataTemplateFields)
         : [];
-    const keywordList = splitLines(retrievalKeywords);
+    semanticQuery = String(semanticQuery ?? '');
+    const keywordList = splitLines(retrievalKeywords || '');
     const writingSteps = splitLines(writingStructureText);
     if (isReportPeriodFieldPlaceholder(mapping.type || type, mapping, name)) {
         const field = mapping.field || inferReportPeriodField(name);
@@ -4655,6 +4656,8 @@ function buildPlaceholderConfigSummaryHtml({
     const hasRuns = richTextSpec && Array.isArray(richTextSpec.runs) && richTextSpec.runs.length > 0;
     const keywordGroups = v2?.generation_config?.retrieval?.keyword_groups;
     const hasKeywordGroups = Array.isArray(keywordGroups) && keywordGroups.length > 0;
+    const queryNeedsAttention = usesEvidence && !semanticQuery.trim();
+    const keywordsNeedAttention = usesEvidence && !queryNeedsAttention && keywordList.length === 0;
     return `
         <section class="template-config-summary-card template-config-readable-card">
             <div class="template-config-summary-head">
@@ -4672,13 +4675,24 @@ function buildPlaceholderConfigSummaryHtml({
                 ${hasRuns ? buildConfigEnhancementBadges(mapping, v2) : ''}
             </button>
             ${usesEvidence ? `
-                <button class="template-config-readable-section template-config-edit-trigger" type="button" data-placeholder-edit-section="query">
-                    <div class="template-config-readable-title">
-                        <strong>语义 Query</strong>
-                        <span>用于相关内容召回</span>
-                    </div>
-                    <p>${esc(semanticQuery || '未配置语义 Query')}</p>
-                </button>
+                ${queryNeedsAttention ? `
+                    <button class="template-config-next-action template-config-edit-trigger" type="button" data-placeholder-edit-section="query">
+                        <span>下一步</span>
+                        <strong>补充语义 Query，明确系统应召回哪些材料。</strong>
+                    </button>
+                ` : keywordsNeedAttention ? `
+                    <button class="template-config-next-action template-config-edit-trigger" type="button" data-placeholder-edit-section="keywords">
+                        <span>下一步</span>
+                        <strong>选择关键词预设包，或添加自定义关键词。</strong>
+                    </button>
+                ` : ''}
+                ${buildConfigCollapsibleSection({
+                    title: '语义 Query',
+                    meta: queryNeedsAttention ? '待补充 · 用于相关内容召回' : '用于相关内容召回',
+                    editSection: 'query',
+                    open: queryNeedsAttention,
+                    body: `<p>${esc(semanticQuery.trim() || '未配置语义 Query')}</p>`
+                })}
                 ${buildConfigCollapsibleSection({
                     title: '关键词',
                     meta: `${keywordMode === 'profile' ? `预设包：${selectedKeywordProfile || '未选择'}` : '自定义'} · ${keywordList.length} 个`,
