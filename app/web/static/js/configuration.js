@@ -787,6 +787,9 @@ async function refreshDatabaseRuntimeReadiness() {
     }
     renderDatabaseRuntimeReadiness();
     renderSummaryCards();
+    if (configurationSnapshot) {
+        renderConfigurationHealth(configurationSnapshot);
+    }
     return databaseRuntimeReadiness;
 }
 

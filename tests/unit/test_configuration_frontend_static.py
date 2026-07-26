@@ -514,6 +514,18 @@ def test_configuration_health_uses_runtime_database_readiness_and_compact_grids_
     )
 
 
+def test_database_runtime_refresh_updates_health_after_card_render_when_snapshot_exists():
+    source = CONFIGURATION_JS.read_text(encoding="utf-8")
+    refresh_source = _configuration_function(source, "refreshDatabaseRuntimeReadiness")
+
+    assert re.search(
+        r'if\s*\(configurationSnapshot\)\s*\{\s*renderConfigurationHealth\(configurationSnapshot\);\s*\}',
+        refresh_source,
+    )
+    assert refresh_source.index('renderDatabaseRuntimeReadiness();') < refresh_source.index('renderSummaryCards();')
+    assert refresh_source.index('renderSummaryCards();') < refresh_source.index('renderConfigurationHealth(configurationSnapshot);')
+
+
 def test_configuration_refinement_modal_locks_keep_accessible_descriptions():
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
     environment_lock_source = _configuration_function(source, "setEnvironmentLockState")
