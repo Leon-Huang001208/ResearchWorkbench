@@ -1101,6 +1101,32 @@ def test_generation_preflight_surfaces_prioritized_task_queue_and_evidence_sampl
     assert ".template-evidence-sample" in css
 
 
+def test_report_config_check_uses_collapsed_summary_and_on_demand_details():
+    html = INDEX_HTML.read_text(encoding="utf-8")
+
+    assert 'id="template-project-check-summary"' in html
+    assert 'id="template-project-check-status"' in html
+    assert 'id="template-project-check-actions"' in html
+    assert 'id="template-validation-details"' in html
+    start = html.index('id="template-project-check-details"')
+    assert ' open' not in html[start:html.index('>', start)]
+
+
+def test_generation_preflight_uses_ready_summary_and_blocker_actions():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+    css = STYLE_CSS.read_text(encoding="utf-8")
+
+    assert "function buildPreflightDisplayModel(" in source
+    assert "state: 'ready'" in source
+    assert "state: 'blocked'" in source
+    assert "function renderPreflightSummary(" in source
+    assert "function renderPreflightActions(" in source
+    assert "actions.slice(0, 3)" in source
+    assert "function buildPreflightReviewGroups(" in source
+    assert ".template-project-check-actions" in css
+    assert ".template-validation-details" in css
+
+
 def test_report_generation_surfaces_current_issue_settings_bar():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
     css = STYLE_CSS.read_text(encoding="utf-8")
