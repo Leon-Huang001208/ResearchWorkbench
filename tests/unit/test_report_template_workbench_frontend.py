@@ -413,6 +413,20 @@ def test_report_config_collapsible_summary_styles_prioritize_scanability_and_mob
     assert ".template-config-next-action {\n        align-items: flex-start;" in css
 
 
+def test_report_config_mobile_summary_keeps_a_visible_disclosure_cue():
+    css = STYLE_CSS.read_text(encoding="utf-8")
+    mobile_start = css.index(
+        "@media (max-width: 900px) {\n    .template-config-collapsible-section > summary {"
+    )
+    mobile_end = css.index("\n}\n\n/* Dynamic Excel variables", mobile_start)
+    mobile_css = css[mobile_start:mobile_end]
+
+    assert ".template-config-collapsible-section > summary::after {" in mobile_css
+    assert "display: none;" not in mobile_css
+    assert "width: 6px;" in mobile_css
+    assert ".template-config-collapsible-section[open] > summary::after" in css
+
+
 def test_report_generation_page_is_reduced_to_progress_and_single_output():
     html = INDEX_HTML.read_text(encoding="utf-8")
 

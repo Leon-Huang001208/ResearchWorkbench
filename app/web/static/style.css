@@ -13635,7 +13635,10 @@ tbody tr:hover {
     }
 
     .template-config-collapsible-section > summary::after {
-        display: none;
+        width: 6px;
+        height: 6px;
+        margin-top: 5px;
+        opacity: 0.82;
     }
 
     .template-config-collapsible-section .template-config-inline-action {
