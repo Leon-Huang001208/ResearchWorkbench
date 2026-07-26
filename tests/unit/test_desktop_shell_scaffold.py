@@ -387,8 +387,8 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "全球热点新闻 (Top 10)" not in html
     assert "今日上涨板块概念 (Top 10)" not in html
     assert "今日下跌板块概念 (Top 10)" not in html
-    assert "style.css?v=20260722flowfix" in html
-    assert "app.js?v=20260723refresh1" in html
+    assert 'href="/static/style.css?v=' in html
+    assert '<script type="module" src="/static/js/app.js?v=' in html
     assert "asset-observe-mode-tabs" in html
     assert 'data-asset-mode="theme"' in html
     assert "asset-topic-result" in html
