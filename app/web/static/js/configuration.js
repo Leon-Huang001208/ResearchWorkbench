@@ -577,6 +577,13 @@ function restoreEmptyCollectionState(form, section) {
     }
 }
 
+function syncEmptyCollectionState(section, accounts) {
+    const form = document.getElementById(`config-${section}-form`);
+    if (!form) return;
+    removeEmptyCollectionState(form);
+    renderEmptyCollectionState(form, section, accounts);
+}
+
 function addControlDescription(control, messageId) {
     if (!control || !messageId) return;
     const describedBy = new Set((control.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean));
@@ -809,7 +816,11 @@ function renderReadiness(snapshot) {
 function getConfigurationHealth(snapshot) {
     const readiness = snapshot?.readiness || {};
     const entries = Object.entries(readiness);
-    const readyCount = entries.filter(([, ready]) => Boolean(ready)).length;
+    const readyCount = entries.filter(([section, ready]) => (
+        section === 'database'
+            ? databaseReadinessPresentation().state === 'ready'
+            : Boolean(ready)
+    )).length;
     const connectionStates = [...connectionStateBySection.values()];
     return {
         readyCount,
@@ -872,11 +883,13 @@ function renderSection(section, values) {
         renderTaskRoutes(values.task_routes || []);
     } else if (section === 'zhiqiu') {
         renderZhiqiuAccounts(values.accounts || []);
+        syncEmptyCollectionState('zhiqiu', values.accounts || []);
         setFormValues(document.getElementById('config-zhiqiu-form'), values, [
             'enabled', 'rotation_strategy', 'max_retries', 'retry_delay', 'lease_timeout', 'max_consecutive_failures',
         ]);
     } else if (section === 'ifind') {
         renderIfindAccounts(values.accounts || []);
+        syncEmptyCollectionState('ifind', values.accounts || []);
         setFormValues(document.getElementById('config-ifind-form'), values, ['backend', 'http_base_url']);
     } else if (section === 'database') {
         setSecretState('[data-secret-state="database-url"]', values.database_url);
@@ -888,6 +901,7 @@ function renderSection(section, values) {
         ]);
     } else if (section === 'web_search') {
         renderWebSearchKeys(values.accounts || []);
+        syncEmptyCollectionState('web_search', values.accounts || []);
         setFormValues(document.getElementById('config-web_search-form'), values, [
             'provider', 'rotation_strategy', 'quota_limit', 'max_results', 'timeout',
         ]);
@@ -1285,6 +1299,10 @@ async function refreshConfiguration() {
     }
     if (dirtySections.size && !window.confirm('刷新会丢弃尚未保存的修改，是否继续？')) return;
     connectionStateBySection.clear();
+    if (configurationSnapshot) {
+        renderSummaryCards();
+        renderConfigurationHealth(configurationSnapshot);
+    }
     await loadConfiguration({ discardDirty: true });
 }
 

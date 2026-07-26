@@ -11,6 +11,9 @@ CONFIGURATION_JS = (
 CONFIGURATION_TEMPLATE = (
     Path(__file__).resolve().parents[2] / "app" / "web" / "templates" / "index.html"
 )
+CONFIGURATION_CSS = (
+    Path(__file__).resolve().parents[2] / "app" / "web" / "static" / "configuration.css"
+)
 APP_WEB_DOC = Path(__file__).resolve().parents[2] / "docs" / "modules" / "app_web.md"
 CONFIGURATION_LOCK_SPEC = (
     Path(__file__).resolve().parents[2]
@@ -400,6 +403,9 @@ def test_configuration_refinement_refresh_status_is_described_and_never_tests_co
     )
     assert 'await loadConfiguration({ discardDirty: true });' in refresh_source
     assert 'connectionStateBySection.clear()' in refresh_path
+    assert refresh_source.index('connectionStateBySection.clear()') < refresh_source.index('renderSummaryCards()')
+    assert refresh_source.index('renderSummaryCards()') < refresh_source.index('await loadConfiguration({ discardDirty: true });')
+    assert refresh_source.index('renderConfigurationHealth(configurationSnapshot)') < refresh_source.index('await loadConfiguration({ discardDirty: true });')
     assert 'testSection' not in refresh_path
     assert '/test' not in refresh_path
     assert 'modalTestSection' not in refresh_path
@@ -480,6 +486,32 @@ def test_configuration_empty_collection_lifecycle_restores_all_account_collectio
         assert section in restore_source
         assert list_id in restore_source
         assert row_class in restore_source
+
+
+def test_configuration_refresh_syncs_collection_empty_states_for_open_modals():
+    source = CONFIGURATION_JS.read_text(encoding="utf-8")
+    render_section_source = _configuration_function(source, "renderSection")
+    sync_source = _configuration_function(source, "syncEmptyCollectionState")
+
+    assert "document.getElementById(`config-${section}-form`)" in sync_source
+    assert 'removeEmptyCollectionState(form);' in sync_source
+    assert 'renderEmptyCollectionState(form, section, accounts);' in sync_source
+    for section in ('zhiqiu', 'ifind', 'web_search'):
+        assert f"syncEmptyCollectionState('{section}', values.accounts || []);" in render_section_source
+
+
+def test_configuration_health_uses_runtime_database_readiness_and_compact_grids_are_grids():
+    source = CONFIGURATION_JS.read_text(encoding="utf-8")
+    stylesheet = CONFIGURATION_CSS.read_text(encoding="utf-8")
+    health_source = _configuration_function(source, "getConfigurationHealth")
+
+    assert "section === 'database'" in health_source
+    assert "databaseReadinessPresentation().state === 'ready'" in health_source
+    assert re.search(
+        r'\.config-field-grid--compact\s*\{[^}]*display:\s*grid\s*;',
+        stylesheet,
+        re.DOTALL,
+    )
 
 
 def test_configuration_refinement_modal_locks_keep_accessible_descriptions():
