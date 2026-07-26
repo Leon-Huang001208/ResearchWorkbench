@@ -213,6 +213,8 @@ class ConfigurationUpdateResponse(StrictModel):
 class ConfigurationTestResponse(StrictModel):
     success: bool
     message: str
+    code: str | None = None
+    remediation: list[str] = Field(default_factory=list)
 
 
 SectionName = Literal["llm", "zhiqiu", "ifind", "database", "advanced", "web_search"]

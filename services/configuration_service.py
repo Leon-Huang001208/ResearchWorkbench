@@ -31,6 +31,7 @@ from core.settings.config import (
     settings,
 )
 from core.settings.runtime import RuntimeContext
+from services.database_readiness import DatabaseReadinessCode, probe_postgresql
 
 logger = get_logger(__name__)
 
@@ -267,8 +268,25 @@ class ConfigurationService:
         if section == "web_search" and not self._parse_web_search_keys(candidate):
             raise ConfigurationError("至少需要一个联网搜索 API key")
         if section == "database":
-            self._validate_database_url(candidate.get("DATABASE_URL", ""))
-            return {"success": True, "message": "数据库地址格式验证通过"}
+            try:
+                readiness = probe_postgresql(candidate["DATABASE_URL"], self.connection_timeout)
+            except Exception as exc:
+                logger.warning(
+                    "数据库配置预检失败",
+                    extra={"section": section, "error_type": type(exc).__name__},
+                )
+                return {
+                    "success": False,
+                    "message": "数据库预检发生未知错误。",
+                    "code": DatabaseReadinessCode.UNEXPECTED_ERROR.value,
+                    "remediation": ["请检查本地数据库配置后重试。"],
+                }
+            return {
+                "success": readiness.ready,
+                "message": readiness.message,
+                "code": readiness.code.value,
+                "remediation": list(readiness.remediation),
+            }
 
         try:
             success = self.connection_probes[section](candidate, self.connection_timeout)

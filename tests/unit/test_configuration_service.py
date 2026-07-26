@@ -1,9 +1,13 @@
 """Configuration service safety tests."""
 
 import json
+import os
+from unittest.mock import Mock
 
 from core.settings.config import Settings
 from core.settings.runtime import RuntimeContext
+from services import configuration_service
+from services.database_readiness import DatabaseReadiness, DatabaseReadinessCode
 from services.configuration_service import ConfigurationService
 
 SECRET_VALUES = {
@@ -80,15 +84,83 @@ def test_configuration_service_rejects_web_production_control_plane(tmp_path):
         raise AssertionError("Expected production control-plane rejection")
 
 
-def test_database_validation_accepts_psycopg_v3_url(tmp_path):
+def test_database_probe_reports_missing_pgvector_without_persistence(monkeypatch, tmp_path):
+    database_url = "postgresql+psycopg://user:db-secret@localhost:5432/alphafoundry"
+    env_path = tmp_path / ".env"
+    env_path.write_text("LOG_LEVEL=INFO\n", encoding="utf-8")
+    service = ConfigurationService(env_path=env_path, runtime_settings=Settings())
+    probe = Mock(
+        return_value=DatabaseReadiness(
+            ready=False,
+            code=DatabaseReadinessCode.PGVECTOR_MISSING,
+            message="数据库未启用 pgvector 扩展。",
+            remediation=("请在目标数据库中启用 vector 扩展后重试。",),
+        )
+    )
+    monkeypatch.setattr(configuration_service, "probe_postgresql", probe, raising=False)
+    original_content = env_path.read_text(encoding="utf-8")
+    original_environment = dict(os.environ)
+
+    result = service.test_section("database", {"database_url": database_url})
+
+    probe.assert_called_once_with(database_url, service.connection_timeout)
+    assert result == {
+        "success": False,
+        "message": "数据库未启用 pgvector 扩展。",
+        "code": "pgvector_missing",
+        "remediation": ["请在目标数据库中启用 vector 扩展后重试。"],
+    }
+    assert env_path.read_text(encoding="utf-8") == original_content
+    assert dict(os.environ) == original_environment
+    assert "db-secret" not in json.dumps(result, ensure_ascii=False)
+
+
+def test_database_probe_returns_ready_result_from_readiness_stub(monkeypatch, tmp_path):
+    database_url = "postgresql+psycopg://user:password@localhost:5432/alphafoundry"
+    service = ConfigurationService(env_path=tmp_path / ".env", runtime_settings=Settings())
+    probe = Mock(
+        return_value=DatabaseReadiness(
+            ready=True,
+            code=DatabaseReadinessCode.READY,
+            message="数据库连接正常，pgvector 已就绪。",
+            remediation=("无需处理。",),
+        )
+    )
+    monkeypatch.setattr(configuration_service, "probe_postgresql", probe, raising=False)
+
+    result = service.test_section("database", {"database_url": database_url})
+
+    probe.assert_called_once_with(database_url, service.connection_timeout)
+    assert result == {
+        "success": True,
+        "message": "数据库连接正常，pgvector 已就绪。",
+        "code": "ready",
+        "remediation": ["无需处理。"],
+    }
+
+
+def test_database_probe_exception_returns_safe_fallback(monkeypatch, tmp_path):
+    database_url = "postgresql+psycopg://alice:top-secret@db.internal:5432/private_db"
     service = ConfigurationService(env_path=tmp_path / ".env", runtime_settings=Settings())
 
-    result = service.test_section(
-        "database",
-        {"database_url": "postgresql+psycopg://user:password@localhost:5432/alphafoundry"},
+    def raise_sensitive_error(*_args, **_kwargs):
+        raise RuntimeError("alice top-secret db.internal:5432/private_db")
+
+    monkeypatch.setattr(
+        configuration_service, "probe_postgresql", raise_sensitive_error, raising=False
     )
 
-    assert result == {"success": True, "message": "数据库地址格式验证通过"}
+    result = service.test_section("database", {"database_url": database_url})
+
+    assert result == {
+        "success": False,
+        "message": "数据库预检发生未知错误。",
+        "code": "unexpected_error",
+        "remediation": ["请检查本地数据库配置后重试。"],
+    }
+    rendered = json.dumps(result, ensure_ascii=False)
+    for sensitive_text in ("alice", "top-secret", "db.internal", "5432", "private_db"):
+        assert sensitive_text not in rendered
 
 
 def test_web_search_probe_uses_submitted_candidate_values(monkeypatch, tmp_path):
