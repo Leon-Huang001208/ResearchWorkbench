@@ -196,8 +196,89 @@ def test_configuration_console_keeps_health_overview_and_session_test_state():
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
 
     assert 'data-config-health-summary' in template
+    assert 'data-config-environment-diagnostics' in template
     assert 'data-config-onboarding' in template
+    assert template.index('data-config-health-summary') < template.index(
+        'data-config-environment-diagnostics'
+    ) < template.index('data-config-onboarding')
     assert 'data-config-card-action' in template
     assert 'connectionStateBySection' in source
     assert '已验证' in source
     assert '连接异常' in source
+    assert 'function renderEnvironmentDiagnostics(snapshot)' in source
+    assert 'snapshot.environment' in source
+    assert 'snapshot.catalog' in source
+    assert 'openConfigModal' in source
+
+
+def test_capability_presentation_covers_all_supported_statuses():
+    script = f"""
+import {{ getCapabilityPresentation, getEnvironmentDisplayValue }} from {CONFIGURATION_JS.as_uri()!r};
+
+const presentations = {{
+    available: getCapabilityPresentation({{ status: 'available' }}),
+    notDetected: getCapabilityPresentation({{ status: 'not_detected' }}),
+    notApplicable: getCapabilityPresentation({{ status: 'not_applicable' }}),
+    unknown: getCapabilityPresentation({{ status: 'unknown' }}),
+}};
+
+const expected = {{
+    available: ['ready', '可用'],
+    notDetected: ['missing', '未检测到'],
+    notApplicable: ['missing', '不适用'],
+    unknown: ['error', '未知'],
+}};
+
+for (const [key, [state, label]] of Object.entries(expected)) {{
+    const presentation = presentations[key];
+    if (presentation.state !== state || presentation.label !== label) {{
+        throw new Error(`unexpected ${{key}} presentation: ${{JSON.stringify(presentation)}}`);
+    }}
+    if (!presentation.detail || !presentation.remediation) {{
+        throw new Error(`missing Chinese fallback text for ${{key}}`);
+    }}
+}}
+
+const malformedCapabilities = [
+    {{ status: '__proto__', detail: '不应采用', remediation: ['不应采用'] }},
+    {{ status: 'constructor', detail: '不应采用', remediation: ['不应采用'] }},
+    {{ status: 'toString', detail: '不应采用', remediation: ['不应采用'] }},
+    {{ status: {{ value: 'available' }}, detail: '不应采用', remediation: ['不应采用'] }},
+    null,
+    'malformed capability',
+];
+const unknownPresentation = {{
+    state: 'error',
+    label: '未知',
+    detail: '暂时无法确定此能力的状态。',
+    remediation: ['请刷新检测；若仍未知，请查看应用日志。'],
+}};
+
+for (const capability of malformedCapabilities) {{
+    const presentation = getCapabilityPresentation(capability);
+    if (JSON.stringify(presentation) !== JSON.stringify(unknownPresentation)) {{
+        throw new Error(`malformed capability escaped unknown fallback: ${{JSON.stringify(presentation)}}`);
+    }}
+}}
+
+const environmentLabels = {{ desktop: '桌面端', windows: 'Windows' }};
+const unexpectedLabelInputs = ['__proto__', 'constructor', 'toString'];
+for (const value of unexpectedLabelInputs) {{
+    if (getEnvironmentDisplayValue(value, environmentLabels) !== value) {{
+        throw new Error(`unsafe environment label mapping: ${{value}}`);
+    }}
+}}
+for (const value of [null, 42, {{ value: 'desktop' }}]) {{
+    if (getEnvironmentDisplayValue(value, environmentLabels) !== '未提供') {{
+        throw new Error(`non-string environment label was accepted: ${{JSON.stringify(value)}}`);
+    }}
+}}
+"""
+    result = subprocess.run(
+        ["node", "--input-type=module", "--eval", script],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr

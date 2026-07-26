@@ -106,12 +106,69 @@ class ConfigurationSections(StrictModel):
     web_search: WebSearchSectionView
 
 
+class ConfigurationFieldMetadata(StrictModel):
+    """配置字段的静态展示元数据。"""
+
+    key: str
+    label: str
+    kind: str
+    environment_keys: list[str]
+
+
+class ConfigurationSectionMetadata(StrictModel):
+    """配置分区的静态展示元数据。"""
+
+    key: str
+    label: str
+    scope: str
+    platforms: list[str]
+    restart_required: bool
+    testable: bool
+    fields: list[ConfigurationFieldMetadata]
+
+
+class ConfigurationCatalogResponse(StrictModel):
+    """配置中心可安全公开的静态目录。"""
+
+    sections: list[ConfigurationSectionMetadata]
+
+
+class ConfigurationPathsResponse(StrictModel):
+    """运行时诊断路径，无法安全解析时使用 null。"""
+
+    config: str | None
+    data: str | None
+    logs: str | None
+
+
+class ConfigurationCapabilityResponse(StrictModel):
+    """本机集成能力的无副作用检测结果。"""
+
+    key: str
+    label: str
+    status: Literal["available", "not_detected", "not_applicable", "unknown"]
+    detail: str
+    remediation: list[str] = Field(default_factory=list)
+
+
+class ConfigurationEnvironmentResponse(StrictModel):
+    """配置中心可安全公开的本机运行环境诊断。"""
+
+    platform: Literal["macos", "windows", "linux", "unknown"]
+    architecture: str
+    runtime_mode: str
+    paths: ConfigurationPathsResponse
+    capabilities: list[ConfigurationCapabilityResponse]
+
+
 class ConfigurationSnapshotResponse(StrictModel):
     sections: ConfigurationSections
     readiness: dict[str, bool]
     ready_count: int
     total_count: int
     environment_locked_fields: list[str] = Field(default_factory=list)
+    catalog: ConfigurationCatalogResponse
+    environment: ConfigurationEnvironmentResponse
 
 
 class ProviderUpdate(StrictModel):

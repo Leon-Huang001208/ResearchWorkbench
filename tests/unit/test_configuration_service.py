@@ -2,6 +2,8 @@
 
 import json
 import os
+import shutil
+from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
@@ -371,3 +373,143 @@ def test_web_search_account_pool_rejects_any_environment_managed_pool_key(
     assert env_path.read_text(encoding="utf-8") == original
     result = service.update_section("web_search", {"timeout": 20})
     assert result["section"]["timeout"] == 20
+
+
+def _environment_service(tmp_path, *, data_dir=Path("data")) -> ConfigurationService:
+    env_path = tmp_path / "config" / ".env"
+    runtime_context = RuntimeContext(
+        mode="desktop",
+        project_root=tmp_path,
+        data_dir=data_dir,
+        env_path=env_path,
+        backend_url="http://127.0.0.1:8765",
+        can_write_config=True,
+    )
+    return ConfigurationService(
+        env_path=env_path,
+        runtime_settings=Settings(LOG_DIR=tmp_path / "logs"),
+        runtime_context=runtime_context,
+    )
+
+
+def test_snapshot_reports_windows_x64_psql_without_exposing_its_path(monkeypatch, tmp_path):
+    service = _environment_service(tmp_path, data_dir=tmp_path / "data")
+    monkeypatch.setattr(configuration_service.platform, "system", lambda: "Windows")
+    monkeypatch.setattr(configuration_service.platform, "machine", lambda: "AMD64")
+    monkeypatch.setattr(shutil, "which", lambda command: r"C:\\Program Files\\PostgreSQL\\bin\\psql.exe")
+    monkeypatch.setattr(configuration_service.importlib.util, "find_spec", lambda name: None)
+
+    snapshot = service.get_snapshot()
+    environment = snapshot["environment"]
+    capabilities = environment["capabilities"]
+
+    assert environment["platform"] == "windows"
+    assert environment["architecture"] == "x64"
+    assert environment["runtime_mode"] == "desktop"
+    assert environment["paths"] == {
+        "config": str((tmp_path / "config" / ".env").resolve()),
+        "data": str((tmp_path / "data").resolve()),
+        "logs": str((tmp_path / "logs").resolve()),
+    }
+    assert [item["key"] for item in capabilities] == [
+        "postgresql_client",
+        "ifind_python_sdk",
+        "wind_excel",
+    ]
+    assert capabilities[0]["status"] == "available"
+    assert "psql.exe" not in json.dumps(snapshot, ensure_ascii=False)
+
+
+def test_snapshot_reports_missing_psql_client(monkeypatch, tmp_path):
+    service = _environment_service(tmp_path, data_dir=tmp_path / "data")
+    monkeypatch.setattr(shutil, "which", lambda command: None)
+    monkeypatch.setattr(configuration_service.importlib.util, "find_spec", lambda name: None)
+
+    capability = service.get_snapshot()["environment"]["capabilities"][0]
+
+    assert capability["key"] == "postgresql_client"
+    assert capability["status"] == "not_detected"
+
+
+def test_snapshot_reports_not_detected_for_an_absent_ifind_sdk_without_mocking_finder(
+    monkeypatch, tmp_path
+):
+    service = _environment_service(tmp_path, data_dir=tmp_path / "data")
+    monkeypatch.setattr(shutil, "which", lambda command: None)
+    monkeypatch.setattr(
+        configuration_service,
+        "IFIND_SDK_MODULE",
+        "alphafoundry_missing_ifind_sdk_for_contract_test",
+    )
+
+    capability = service.get_snapshot()["environment"]["capabilities"][1]
+
+    assert capability["key"] == "ifind_python_sdk"
+    assert capability["status"] == "not_detected"
+
+
+def test_snapshot_marks_wind_excel_not_applicable_on_macos(monkeypatch, tmp_path):
+    service = _environment_service(tmp_path, data_dir=tmp_path / "data")
+    monkeypatch.setattr(configuration_service.platform, "system", lambda: "Darwin")
+    monkeypatch.setattr(shutil, "which", lambda command: None)
+    monkeypatch.setattr(configuration_service.importlib.util, "find_spec", lambda name: None)
+
+    capability = service.get_snapshot()["environment"]["capabilities"][2]
+
+    assert capability["key"] == "wind_excel"
+    assert capability["status"] == "not_applicable"
+
+
+def test_snapshot_reports_unknown_when_ifind_sdk_discovery_raises(monkeypatch, tmp_path):
+    service = _environment_service(tmp_path, data_dir=tmp_path / "data")
+    monkeypatch.setattr(shutil, "which", lambda command: None)
+
+    def raise_discovery_error(_name):
+        raise RuntimeError("unexpected discovery failure")
+
+    monkeypatch.setattr(configuration_service.importlib.util, "find_spec", raise_discovery_error)
+
+    capability = service.get_snapshot()["environment"]["capabilities"][1]
+
+    assert capability["key"] == "ifind_python_sdk"
+    assert capability["status"] == "unknown"
+
+
+def test_snapshot_reports_none_data_path_when_runtime_context_has_no_data_dir(monkeypatch, tmp_path):
+    service = _environment_service(tmp_path, data_dir=None)
+    monkeypatch.setattr(shutil, "which", lambda command: None)
+    monkeypatch.setattr(configuration_service.importlib.util, "find_spec", lambda name: None)
+
+    assert service.get_snapshot()["environment"]["paths"]["data"] is None
+
+
+def test_snapshot_degrades_one_unresolvable_path_without_leaking_it(monkeypatch, tmp_path):
+    service = _environment_service(tmp_path, data_dir=tmp_path / "data")
+    monkeypatch.setattr(shutil, "which", lambda command: None)
+    monkeypatch.setattr(configuration_service.importlib.util, "find_spec", lambda name: None)
+    original_resolve = Path.resolve
+    config_path = str(service.env_path)
+
+    def fail_only_config_path(path, *args, **kwargs):
+        if path == service.env_path:
+            raise OSError("sensitive configuration path cannot be resolved")
+        return original_resolve(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "resolve", fail_only_config_path)
+
+    snapshot = service.get_snapshot()
+
+    assert snapshot["environment"]["paths"]["config"] is None
+    assert snapshot["environment"]["paths"]["data"] == str((tmp_path / "data").resolve())
+    assert snapshot["environment"]["paths"]["logs"] == str((tmp_path / "logs").resolve())
+    assert config_path not in json.dumps(snapshot, ensure_ascii=False)
+
+
+def test_snapshot_includes_static_configuration_catalog(monkeypatch, tmp_path):
+    service = _environment_service(tmp_path, data_dir=tmp_path / "data")
+    monkeypatch.setattr(shutil, "which", lambda command: None)
+    monkeypatch.setattr(configuration_service.importlib.util, "find_spec", lambda name: None)
+
+    snapshot = service.get_snapshot()
+
+    assert snapshot["catalog"]["sections"][0]["key"] == "llm"

@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import importlib
+import importlib.util
 import json
 import os
 import platform
 import re
+import shutil
 import stat
 import tempfile
 import threading
@@ -31,12 +33,14 @@ from core.settings.config import (
     settings,
 )
 from core.settings.runtime import RuntimeContext
+from services.configuration_catalog import get_configuration_catalog
 from services.database_readiness import DatabaseReadinessCode, probe_postgresql
 
 logger = get_logger(__name__)
 
 SUPPORTED_SECTIONS = {"llm", "zhiqiu", "ifind", "database", "advanced", "web_search"}
 SECRET_SUFFIX_LENGTH = 4
+IFIND_SDK_MODULE = "iFinD"
 WEB_SEARCH_ACCOUNT_POOL_KEYS = frozenset(
     {"WEB_SEARCH_API_KEYS", "TAVILY_API_KEY", "BING_API_KEY"}
 )
@@ -185,7 +189,157 @@ class ConfigurationService:
             "ready_count": sum(readiness.values()),
             "total_count": len(readiness),
             "environment_locked_fields": sorted(self._locked_fields()),
+            "catalog": get_configuration_catalog(),
+            "environment": self._environment_snapshot(),
         }
+
+    def _environment_snapshot(self) -> dict[str, Any]:
+        """返回不含配置值或机密的本地运行环境诊断。"""
+        platform_name = self._diagnostic_platform()
+        return {
+            "platform": platform_name,
+            "architecture": self._diagnostic_architecture(),
+            "runtime_mode": self.runtime_context.mode,
+            "paths": {
+                "config": self._safe_diagnostic_path(self.env_path, "config"),
+                "data": self._safe_diagnostic_path(self.runtime_context.data_dir, "data"),
+                "logs": self._safe_diagnostic_path(self.runtime_settings.LOG_DIR, "logs"),
+            },
+            "capabilities": [
+                self._postgresql_client_capability(platform_name),
+                self._ifind_python_sdk_capability(platform_name),
+                self._wind_excel_capability(platform_name),
+            ],
+        }
+
+    @staticmethod
+    def _diagnostic_platform() -> str:
+        """将系统名称规范为诊断 API 的稳定枚举值。"""
+        return {
+            "darwin": "macos",
+            "windows": "windows",
+            "linux": "linux",
+        }.get(platform.system().lower(), "unknown")
+
+    @staticmethod
+    def _diagnostic_architecture() -> str:
+        """将机器架构规范为诊断 API 的稳定枚举值。"""
+        architecture = platform.machine().lower()
+        if architecture in {"x86_64", "amd64", "x64"}:
+            return "x64"
+        if architecture in {"arm64", "aarch64"}:
+            return "arm64"
+        return "unknown"
+
+    @staticmethod
+    def _safe_diagnostic_path(path: Path | None, path_kind: str) -> str | None:
+        """解析单一路径；失败时不暴露其值且不影响快照。"""
+        if path is None:
+            return None
+        try:
+            return str(path.expanduser().resolve())
+        except (OSError, RuntimeError) as exc:
+            logger.warning(
+                "运行环境路径解析失败",
+                extra={"path_kind": path_kind, "error_type": type(exc).__name__},
+            )
+            return None
+
+    @staticmethod
+    def _capability_warning(capability: str, platform_name: str, exc: Exception) -> None:
+        """记录不含路径、配置或机密的能力检测异常。"""
+        logger.warning(
+            "运行环境能力检测失败",
+            extra={
+                "capability": capability,
+                "platform": platform_name,
+                "error_type": type(exc).__name__,
+            },
+        )
+
+    def _postgresql_client_capability(self, platform_name: str) -> dict[str, Any]:
+        """仅检测 psql 客户端是否可由 PATH 找到。"""
+        try:
+            if shutil.which("psql"):
+                return {
+                    "key": "postgresql_client",
+                    "label": "PostgreSQL 客户端",
+                    "status": "available",
+                    "detail": "已检测到 psql 客户端；这不表示数据库服务或 pgvector 已就绪。",
+                    "remediation": ["使用数据库预检验证服务连接和 pgvector。"],
+                }
+            return {
+                "key": "postgresql_client",
+                "label": "PostgreSQL 客户端",
+                "status": "not_detected",
+                "detail": "未检测到 psql 客户端。",
+                "remediation": ["安装 PostgreSQL 客户端，并确保 psql 位于 PATH 中。"],
+            }
+        except Exception as exc:
+            self._capability_warning("postgresql_client", platform_name, exc)
+            return {
+                "key": "postgresql_client",
+                "label": "PostgreSQL 客户端",
+                "status": "unknown",
+                "detail": "无法确认 psql 客户端是否可用。",
+                "remediation": ["检查本机 PATH 和 PostgreSQL 客户端安装后重试。"],
+            }
+
+    def _ifind_python_sdk_capability(self, platform_name: str) -> dict[str, Any]:
+        """无副作用地发现 iFinD Python SDK，不导入 SDK。"""
+        try:
+            if importlib.util.find_spec(IFIND_SDK_MODULE) is not None:
+                return {
+                    "key": "ifind_python_sdk",
+                    "label": "iFinD Python SDK",
+                    "status": "available",
+                    "detail": "已检测到 iFinD Python SDK。",
+                    "remediation": [],
+                }
+            return {
+                "key": "ifind_python_sdk",
+                "label": "iFinD Python SDK",
+                "status": "not_detected",
+                "detail": "未检测到 iFinD Python SDK。",
+                "remediation": ["安装 iFinD Python SDK 后重试。"],
+            }
+        except Exception as exc:
+            self._capability_warning("ifind_python_sdk", platform_name, exc)
+            return {
+                "key": "ifind_python_sdk",
+                "label": "iFinD Python SDK",
+                "status": "unknown",
+                "detail": "无法确认 iFinD Python SDK 是否可用。",
+                "remediation": ["检查 iFinD Python SDK 安装后重试。"],
+            }
+
+    def _wind_excel_capability(self, platform_name: str) -> dict[str, Any]:
+        """返回 Wind Excel 的平台限定诊断，避免触发任何系统探测。"""
+        try:
+            if platform_name != "windows":
+                return {
+                    "key": "wind_excel",
+                    "label": "Wind Excel",
+                    "status": "not_applicable",
+                    "detail": "Wind Excel 仅可在 Windows Excel 中单独验证。",
+                    "remediation": ["请在 Windows Excel 中验证 Wind 插件。"],
+                }
+            return {
+                "key": "wind_excel",
+                "label": "Wind Excel",
+                "status": "unknown",
+                "detail": "需要在 Windows Excel 中单独验证 Wind 插件。",
+                "remediation": ["请在 Windows Excel 中打开工作簿并验证 Wind 插件。"],
+            }
+        except Exception as exc:
+            self._capability_warning("wind_excel", platform_name, exc)
+            return {
+                "key": "wind_excel",
+                "label": "Wind Excel",
+                "status": "unknown",
+                "detail": "无法确认 Wind Excel 是否可用。",
+                "remediation": ["请在 Windows Excel 中单独验证 Wind 插件。"],
+            }
 
     def update_section(self, section: str, payload: Mapping[str, Any]) -> dict[str, Any]:
         """校验并原子保存单一分区，然后刷新可安全热更新的运行状态。"""
