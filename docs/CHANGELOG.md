@@ -180,7 +180,7 @@
 - **指数结构数据库底座**: 新增中证、国证、恒生、Wind 发布指数的结构化存储基础，支持指数主数据、成分权重快照、个股所属指数反查、指数 ETF 产品和 ETF 日度规模/资金流指标落库。
   - `data_layer/repositories/models.py` — 新增 `IndexProviderDB`、`IndexMasterDB`、`IndexComponentSnapshotDB`、`ETFMasterDB`、`IndexETFLinkDB`、`ETFDailyMetricDB`。
   - `data_layer/repositories/market_data_repository.py` — 新增指数/ETF upsert 与查询方法；旧 `upsert_index_components()` 入参自动归一化后写入 `index_component_snapshot`。
-  - `storage/migrations/versions/011_add_index_structure_tables.py` — 新增结构表迁移，并将旧 `index_component` 数据复制为 legacy snapshot。
+  - `storage/migrations/versions/012_add_index_structure_tables.py` — 新增结构表迁移，并将旧 `index_component` 数据复制为 legacy snapshot。
   - `tests/unit/data_layer/repositories/test_market_data_repository.py` — 补充指数 provider/master、成分快照幂等、个股指数反查、ETF 链接和 ETF 指标 upsert 测试。
 
 - **Wind 指数结构字段探针**: 新增固定 Excel 函数模板，用于后台静默验证指数全成分、成分权重、ETF 跟踪指数、净值、份额和规模等候选 Wind 字段。
