@@ -802,13 +802,28 @@ const CAPABILITY_PRESENTATIONS = {
     },
 };
 
+function getUnknownCapabilityPresentation() {
+    const presentation = CAPABILITY_PRESENTATIONS.unknown;
+    return {
+        ...presentation,
+        remediation: [presentation.remediation],
+    };
+}
+
 export function getCapabilityPresentation(capability = {}) {
-    const status = typeof capability?.status === 'string' ? capability.status : 'unknown';
-    const presentation = CAPABILITY_PRESENTATIONS[status] || CAPABILITY_PRESENTATIONS.unknown;
-    const detail = typeof capability?.detail === 'string' && capability.detail.trim()
+    if (!capability || typeof capability !== 'object' || Array.isArray(capability)) {
+        return getUnknownCapabilityPresentation();
+    }
+    const status = capability.status;
+    if (typeof status !== 'string' || !Object.hasOwn(CAPABILITY_PRESENTATIONS, status)) {
+        return getUnknownCapabilityPresentation();
+    }
+
+    const presentation = CAPABILITY_PRESENTATIONS[status];
+    const detail = typeof capability.detail === 'string' && capability.detail.trim()
         ? capability.detail.trim()
         : presentation.detail;
-    const remediation = Array.isArray(capability?.remediation)
+    const remediation = Array.isArray(capability.remediation)
         ? capability.remediation.filter(item => typeof item === 'string' && item.trim()).map(item => item.trim())
         : [];
     return {

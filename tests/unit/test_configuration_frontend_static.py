@@ -238,6 +238,28 @@ for (const [key, [state, label]] of Object.entries(expected)) {{
         throw new Error(`missing Chinese fallback text for ${{key}}`);
     }}
 }}
+
+const malformedCapabilities = [
+    {{ status: '__proto__', detail: '不应采用', remediation: ['不应采用'] }},
+    {{ status: 'constructor', detail: '不应采用', remediation: ['不应采用'] }},
+    {{ status: 'toString', detail: '不应采用', remediation: ['不应采用'] }},
+    {{ status: {{ value: 'available' }}, detail: '不应采用', remediation: ['不应采用'] }},
+    null,
+    'malformed capability',
+];
+const unknownPresentation = {{
+    state: 'error',
+    label: '未知',
+    detail: '暂时无法确定此能力的状态。',
+    remediation: ['请刷新检测；若仍未知，请查看应用日志。'],
+}};
+
+for (const capability of malformedCapabilities) {{
+    const presentation = getCapabilityPresentation(capability);
+    if (JSON.stringify(presentation) !== JSON.stringify(unknownPresentation)) {{
+        throw new Error(`malformed capability escaped unknown fallback: ${{JSON.stringify(presentation)}}`);
+    }}
+}}
 """
     result = subprocess.run(
         ["node", "--input-type=module", "--eval", script],
