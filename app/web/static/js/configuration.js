@@ -277,61 +277,43 @@ function input(type, value, ariaLabel) {
     return control;
 }
 
-function toggleSecretVisibility(secretInput, button) {
-    const reveal = secretInput.type === 'password';
-    secretInput.type = reveal ? 'text' : 'password';
-    button.textContent = reveal ? '隐藏' : '显示';
-    button.setAttribute('aria-label', `${reveal ? '隐藏' : '显示'}${secretInput.getAttribute('aria-label') || '敏感值'}`);
-}
-
-async function copySecretValue(secretInput) {
-    if (!secretInput.value) {
-        showPageMessage('没有可复制的已保存值', 'error');
-        return;
-    }
-    try {
-        await navigator.clipboard.writeText(secretInput.value);
-        showPageMessage('已复制到剪贴板', 'ready');
-    } catch {
-        showPageMessage('复制失败，请手动选择复制', 'error');
-    }
-}
-
-function createSecretControl(secretInput) {
+function createSecretControl(secretInput, secret = {}) {
     const control = element('span', 'config-secret-control');
-    const toggle = element('button', 'config-secret-action', '显示');
-    const copy = element('button', 'config-secret-action', '复制');
-    toggle.type = 'button';
-    copy.type = 'button';
-    toggle.setAttribute('data-secret-toggle', '');
-    copy.setAttribute('data-secret-copy', '');
-    toggle.dataset.bound = 'true';
-    copy.dataset.bound = 'true';
-    toggle.setAttribute('aria-label', `显示${secretInput.getAttribute('aria-label') || '敏感值'}`);
-    copy.setAttribute('aria-label', `复制${secretInput.getAttribute('aria-label') || '敏感值'}`);
-    toggle.addEventListener('click', () => toggleSecretVisibility(secretInput, toggle));
-    copy.addEventListener('click', () => copySecretValue(secretInput));
-    control.append(secretInput, toggle, copy);
-    return control;
-}
+    const configured = Boolean(secret?.configured);
+    const secretLabel = secretInput.getAttribute('aria-label') || '敏感值';
+    const replace = element('button', 'config-secret-action', configured ? '替换密钥' : '设置密钥');
+    const clear = element('button', 'config-secret-action', '清空密钥');
 
-function bindSecretActions(scope) {
-    scope?.querySelectorAll?.('[data-secret-toggle]').forEach(button => {
-        if (button.dataset.bound === 'true') return;
-        const secretInput = button.closest('.config-secret-control')?.querySelector('input');
-        if (secretInput) {
-            button.addEventListener('click', () => toggleSecretVisibility(secretInput, button));
-            button.dataset.bound = 'true';
-        }
+    secretInput.value = '';
+    secretInput.disabled = configured;
+    secretInput.dataset.secretClear = 'false';
+    secretInput.dataset.secretConfigured = String(configured);
+    replace.type = 'button';
+    clear.type = 'button';
+    clear.disabled = !configured;
+    replace.setAttribute('data-secret-replace', '');
+    clear.setAttribute('data-secret-clear', '');
+    replace.setAttribute('aria-label', `${configured ? '替换' : '设置'}${secretLabel}`);
+    clear.setAttribute('aria-label', `清空${secretLabel}`);
+    replace.addEventListener('click', () => {
+        secretInput.disabled = false;
+        secretInput.dataset.secretClear = 'false';
+        clear.disabled = false;
+        secretInput.focus();
     });
-    scope?.querySelectorAll?.('[data-secret-copy]').forEach(button => {
-        if (button.dataset.bound === 'true') return;
-        const secretInput = button.closest('.config-secret-control')?.querySelector('input');
-        if (secretInput) {
-            button.addEventListener('click', () => copySecretValue(secretInput));
-            button.dataset.bound = 'true';
-        }
+    clear.addEventListener('click', () => {
+        secretInput.value = '';
+        secretInput.disabled = true;
+        secretInput.dataset.secretClear = 'true';
+        clear.disabled = false;
     });
+    secretInput.addEventListener('input', () => {
+        if (!secretInput.value) return;
+        secretInput.dataset.secretClear = 'false';
+        clear.disabled = false;
+    });
+    control.append(secretInput, replace, clear);
+    return control;
 }
 
 function select(options, value, ariaLabel) {
@@ -347,7 +329,7 @@ function select(options, value, ariaLabel) {
 }
 
 function removeButton(label) {
-    const button = element('button', 'config-remove-row', '删除');
+    const button = element('button', 'config-remove-row', '移除');
     button.type = 'button';
     button.disabled = !configurationReady || requestCoordinator.hasActive();
     button.setAttribute('aria-label', label);
@@ -367,22 +349,11 @@ function secretHint(secret) {
     return '已配置';
 }
 
-function applySecretState(secretInput, clearInput, changedControl) {
-    const state = normalizeSecretState(secretInput.value, clearInput.checked, changedControl);
-    secretInput.value = state.value;
-    secretInput.disabled = state.disabled;
-    clearInput.checked = state.clear;
-}
-
-function bindSecretPair(secretInput, clearInput) {
-    if (!secretInput || !clearInput) return;
-    secretInput.addEventListener('input', () => applySecretState(secretInput, clearInput, 'input'));
-    clearInput.addEventListener('change', () => applySecretState(secretInput, clearInput, 'clear'));
-    applySecretState(secretInput, clearInput, 'initial');
-}
-
 function collectSecretPair(secretInput) {
-    return { value: secretInput.value, clear: false };
+    if (!secretInput) return { value: null, clear: false };
+    const value = secretInput.value.trim();
+    const clear = secretInput.dataset.secretClear === 'true';
+    return { value: clear || !value ? null : value, clear };
 }
 
 function createProviderRow(provider = {}) {
@@ -403,12 +374,12 @@ function createProviderRow(provider = {}) {
     apiKey.placeholder = '未配置';
     apiKey.dataset.field = 'api_key';
     const actions = element('div', 'config-row-actions');
-    actions.append(removeButton(`删除 Provider ${provider.name || '新行'}`));
+    actions.append(removeButton(`移除 Provider ${provider.name || '新行'}`));
     row.append(
         labeledControl('名称', name),
         labeledControl('协议', protocol),
         labeledControl('Base URL', baseUrl),
-        labeledControl('API Token', createSecretControl(apiKey), secretHint(provider.api_key)),
+        labeledControl('API Token', createSecretControl(apiKey, provider.api_key), secretHint(provider.api_key)),
         actions,
     );
     return row;
@@ -423,7 +394,7 @@ function createTaskRouteRow(route = {}) {
     const model = input('text', route.model, '任务模型');
     model.dataset.field = 'model';
     const actions = element('div', 'config-row-actions');
-    actions.append(removeButton(`删除任务路由 ${route.task || '新行'}`));
+    actions.append(removeButton(`移除任务路由 ${route.task || '新行'}`));
     row.append(
         labeledControl('任务', task),
         labeledControl('Provider', provider),
@@ -446,11 +417,11 @@ function createZhiqiuAccountRow(account = {}) {
     password.placeholder = '未配置';
     password.dataset.field = 'password';
     const actions = element('div', 'config-row-actions');
-    actions.append(removeButton(`删除知丘账号 ${account.name || '新行'}`));
+    actions.append(removeButton(`移除知丘账号 ${account.name || '新行'}`));
     row.append(
         labeledControl('名称', name),
         labeledControl('用户名', username),
-        labeledControl('密码', createSecretControl(password), secretHint(account.password)),
+        labeledControl('密码', createSecretControl(password, account.password), secretHint(account.password)),
         actions,
     );
     return row;
@@ -469,11 +440,11 @@ function createIfindAccountRow(account = {}) {
     password.placeholder = '未配置';
     password.dataset.field = 'password';
     const actions = element('div', 'config-row-actions');
-    actions.append(removeButton(`删除 iFinD 账号 ${account.name || '新行'}`));
+    actions.append(removeButton(`移除 iFinD 账号 ${account.name || '新行'}`));
     row.append(
         labeledControl('名称', name),
         labeledControl('用户名', username),
-        labeledControl('密码', createSecretControl(password), secretHint(account.password)),
+        labeledControl('密码', createSecretControl(password, account.password), secretHint(account.password)),
         actions,
     );
     return row;
@@ -518,10 +489,10 @@ function createWebSearchKeyRow(account = {}) {
     const stateBadge = element('span', 'config-secret-state' + (hint === '已配置' ? ' configured' : ''), hint);
     stateBadge.dataset.field = 'state';
     const actions = element('div', 'config-row-actions');
-    actions.append(removeButton(`删除 Key ${account.name || '新行'}`));
+    actions.append(removeButton(`移除 Key ${account.name || '新行'}`));
     row.append(
         labeledControl('名称', name),
-        labeledControl('Key', createSecretControl(key)),
+        labeledControl('Key', createSecretControl(key, account.key)),
         stateBadge,
         actions,
     );
@@ -714,7 +685,8 @@ function applyTaskRouteLocks() {
 
 function applyCollectionLock(form, section, { addButton, rowSelector }) {
     const keys = COLLECTION_LOCK_KEYS[section] || [];
-    const locked = keys.some(key => isEnvironmentLocked(key));
+    const lockedFields = configurationSnapshot?.environment_locked_fields || [];
+    const locked = keys.some(key => isEnvironmentLocked(key, lockedFields));
     if (!locked) return;
 
     const button = form.querySelector(addButton);
@@ -1253,6 +1225,10 @@ function rowValue(row, field) {
     return control?.type === 'checkbox' ? control.checked : (control?.value ?? '').trim();
 }
 
+function focusFirstCollectionField(row) {
+    row?.querySelector('input[data-field]:not(:disabled), select[data-field]:not(:disabled), textarea[data-field]:not(:disabled)')?.focus();
+}
+
 function collectLlm() {
     const providers = [...document.querySelectorAll('.config-provider-row')].map(row => {
         const secret = collectSecretPair(row.querySelector('[data-field="api_key"]'));
@@ -1262,6 +1238,7 @@ function collectLlm() {
             protocol: rowValue(row, 'protocol'),
             base_url: rowValue(row, 'base_url'),
             api_key: secret.value,
+            clear_api_key: secret.clear,
         };
     });
     const task_routes = [...document.querySelectorAll('.config-route-row')].map(row => ({
@@ -1281,6 +1258,7 @@ function collectZhiqiu() {
             name: rowValue(row, 'name'),
             username: rowValue(row, 'username'),
             password: secret.value,
+            clear_password: secret.clear,
         };
     });
     return {
@@ -1303,6 +1281,7 @@ function collectIfind() {
             name: rowValue(row, 'name'),
             username: rowValue(row, 'username'),
             password: secret.value,
+            clear_password: secret.clear,
         };
     });
     return {
@@ -1320,6 +1299,7 @@ function collectWebSearch() {
             original_name: rowOriginalNames.get(row) || undefined,
             name: rowValue(row, 'name'),
             key: secret.value,
+            clear_key: secret.clear,
         };
     });
     return {
@@ -1621,10 +1601,18 @@ function renderModalForm(section, values) {
     switch (section) {
         case 'llm':
             form.innerHTML = `
-                <div class="config-subsection-header"><h4><i class="codicon codicon-server"></i>模型服务</h4><button type="button" class="secondary-btn" data-add-provider>新增服务</button></div>
-                <div class="config-collection-table config-provider-table"><div class="config-row-labels config-provider-labels" aria-hidden="true"><span>服务名称</span><span>接口协议</span><span>服务地址</span><span>API 密钥</span><span>操作</span></div><div id="config-provider-list" class="config-dynamic-list"></div></div>
-                <div class="config-subsection-header"><h4><i class="codicon codicon-symbol-ruler"></i>任务模型路由</h4><button type="button" class="secondary-btn" data-add-task-route>新增路由</button></div>
-                <div class="config-collection-table config-route-table"><div class="config-row-labels config-route-labels" aria-hidden="true"><span>任务类型</span><span>模型服务</span><span>模型名称</span><span>操作</span></div><div id="config-task-route-list" class="config-dynamic-list"></div></div>`;
+                <div class="config-tab-list" role="tablist" aria-label="大模型配置">
+                    <button type="button" role="tab" data-config-tab="providers" id="config-tab-providers" aria-controls="config-tab-panel-providers" aria-selected="true" class="is-active">模型服务</button>
+                    <button type="button" role="tab" data-config-tab="routes" id="config-tab-routes" aria-controls="config-tab-panel-routes" aria-selected="false">任务模型路由</button>
+                </div>
+                <section role="tabpanel" data-config-tab-panel="providers" id="config-tab-panel-providers" aria-labelledby="config-tab-providers" class="is-active">
+                    <div class="config-subsection-header"><h4><i class="codicon codicon-server"></i>模型服务</h4><button type="button" class="secondary-btn" data-add-provider>新增服务</button></div>
+                    <div class="config-collection-table config-provider-table"><div class="config-row-labels config-provider-labels" aria-hidden="true"><span>服务名称</span><span>接口协议</span><span>服务地址</span><span>API 密钥</span><span>操作</span></div><div id="config-provider-list" class="config-dynamic-list"></div></div>
+                </section>
+                <section role="tabpanel" data-config-tab-panel="routes" id="config-tab-panel-routes" aria-labelledby="config-tab-routes" class="hidden" hidden>
+                    <div class="config-subsection-header"><h4><i class="codicon codicon-symbol-ruler"></i>任务模型路由</h4><button type="button" class="secondary-btn" data-add-task-route>新增路由</button></div>
+                    <div class="config-collection-table config-route-table"><div class="config-row-labels config-route-labels" aria-hidden="true"><span>任务类型</span><span>模型服务</span><span>模型名称</span><span>操作</span></div><div id="config-task-route-list" class="config-dynamic-list"></div></div>
+                </section>`;
             break;
         case 'zhiqiu':
             form.innerHTML = `
@@ -1726,8 +1714,6 @@ function renderModalForm(section, values) {
 
     // 绑定事件
     bindModalFormEvents(form, section);
-    // 延迟一帧确保 .config-secret-control 内部 input 已完成布局
-    requestAnimationFrame(() => bindSecretActions(body));
 }
 
 function setEnvironmentLockState(control, { section, field, locked, suppressInlineMessage = false }) {
@@ -1792,35 +1778,62 @@ function applyEnvironmentLocks(form, section) {
 }
 
 function bindModalFormEvents(form, section) {
+    form.querySelectorAll('[data-config-tab]').forEach(tab => {
+        tab.addEventListener('click', () => {
+            const selectedTab = tab.dataset.configTab;
+            form.querySelectorAll('[data-config-tab]').forEach(button => {
+                const selected = button.dataset.configTab === selectedTab;
+                button.setAttribute('aria-selected', String(selected));
+                button.classList.toggle('is-active', selected);
+            });
+            form.querySelectorAll('[data-config-tab-panel]').forEach(panel => {
+                const selected = panel.dataset.configTabPanel === selectedTab;
+                panel.classList.toggle('is-active', selected);
+                panel.classList.toggle('hidden', !selected);
+                panel.hidden = !selected;
+            });
+        });
+    });
+
     // 新增加行按钮
     form.querySelector('[data-add-provider]')?.addEventListener('click', () => {
-        document.getElementById('config-provider-list')?.append(createProviderRow());
+        const row = createProviderRow();
+        document.getElementById('config-provider-list')?.append(row);
+        focusFirstCollectionField(row);
         applyProviderRowLocks();
         markSectionDirty(form);
         modalDirty = true;
     });
     form.querySelector('[data-add-task-route]')?.addEventListener('click', () => {
-        document.getElementById('config-task-route-list')?.append(createTaskRouteRow());
+        const row = createTaskRouteRow();
+        document.getElementById('config-task-route-list')?.append(row);
+        focusFirstCollectionField(row);
         applyTaskRouteLocks();
         markSectionDirty(form);
         modalDirty = true;
     });
     form.querySelector('[data-add-zhiqiu-account]')?.addEventListener('click', () => {
-        document.getElementById('config-zhiqiu-account-list')?.append(createZhiqiuAccountRow());
+        const row = createZhiqiuAccountRow();
+        document.getElementById('config-zhiqiu-account-list')?.append(row);
+        focusFirstCollectionField(row);
         removeEmptyCollectionState(form);
         applyCollectionLocks(form, section);
         markSectionDirty(form);
         modalDirty = true;
     });
     form.querySelector('[data-add-ifind-account]')?.addEventListener('click', () => {
-        document.getElementById('config-ifind-account-list')?.append(createIfindAccountRow());
+        const row = createIfindAccountRow();
+        document.getElementById('config-ifind-account-list')?.append(row);
+        focusFirstCollectionField(row);
         removeEmptyCollectionState(form);
         applyCollectionLocks(form, section);
         markSectionDirty(form);
         modalDirty = true;
     });
     form.querySelector('[data-add-web_search-key]')?.addEventListener('click', () => {
-        document.getElementById('config-web_search-key-list')?.append(createWebSearchKeyRow());
+        const row = createWebSearchKeyRow();
+        document.getElementById('config-web_search-key-list')?.append(row);
+        focusFirstCollectionField(row);
         removeEmptyCollectionState(form);
         applyCollectionLocks(form, section);
         markSectionDirty(form);
