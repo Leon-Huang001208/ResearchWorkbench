@@ -7,7 +7,7 @@ import xml.etree.ElementTree as ET
 import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List
+from typing import BinaryIO, Dict, List
 
 from core.observability import get_logger
 
@@ -30,9 +30,9 @@ class PPTTemplateProjectionResult:
     missing_placeholders: List[str] = field(default_factory=list)
 
 
-def extract_pptx_placeholders(path: Path | str) -> List[str]:
+def extract_pptx_placeholders(path: Path | str | BinaryIO) -> List[str]:
     """Extract ``{{placeholder}}`` tokens from PPT slide XML in first-seen order."""
-    pptx_path = Path(path)
+    pptx_path = path if hasattr(path, "read") else Path(path)
     placeholders: List[str] = []
     seen: set[str] = set()
     try:

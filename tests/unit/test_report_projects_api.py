@@ -3025,8 +3025,8 @@ def test_upload_report_project_package_creates_project_folder(tmp_path: Path, mo
     ).read_text(encoding="utf-8")
 
 
-def test_upload_rejects_legacy_sections_config_before_writing_project(tmp_path: Path, monkeypatch):
-    """上传必须在落盘前拒绝退役的 sections 配置。"""
+def test_upload_rejects_legacy_sections_config_without_creating_project_assets(tmp_path: Path, monkeypatch):
+    """上传必须在落盘前拒绝退役配置，且不能遗留项目资产。"""
     import app.api.routes.report_projects as report_projects_route
 
     monkeypatch.setattr(
@@ -3054,7 +3054,7 @@ def test_upload_rejects_legacy_sections_config_before_writing_project(tmp_path: 
 
     assert response.status_code == 422
     assert "sections" in response.json()["detail"]
-    assert not (tmp_path / "旧配置周报" / "config" / "report_config.yaml").exists()
+    assert not (tmp_path / "旧配置周报").exists()
 
 
 def test_source_update_rejects_legacy_config_without_overwriting_existing_source(

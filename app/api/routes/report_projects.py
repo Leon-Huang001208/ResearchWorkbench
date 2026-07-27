@@ -286,14 +286,6 @@ async def upload_report_project(
         if normalized_project_type == "ppt" and not ppt_template:
             raise HTTPException(status_code=422, detail="PPT project requires a .pptx template")
 
-        templates_dir = project_dir / "templates"
-        data_dir = project_dir / "data"
-        config_dir = project_dir / "config"
-        generated_dir = project_dir / "generated"
-        runs_dir = project_dir / "runs"
-        for directory in [templates_dir, data_dir, config_dir, generated_dir, runs_dir]:
-            directory.mkdir(parents=True, exist_ok=True)
-
         if word_template and word_template.filename:
             _require_suffix(word_template.filename, [".docx"], "Word 模板")
         if ppt_template and ppt_template.filename:
@@ -305,6 +297,9 @@ async def upload_report_project(
         _require_suffix(prompt_templates.filename or "", [".md"], "Prompt 模板")
 
         try:
+            word_template_content = await word_template.read() if word_template else b""
+            ppt_template_content = await ppt_template.read() if ppt_template else b""
+            excel_workbook_content = await excel_workbook.read() if excel_workbook else b""
             prompt_templates_source = (await prompt_templates.read()).decode("utf-8")
             uploaded_report_config_source = (
                 (await report_config.read()).decode("utf-8")
@@ -314,27 +309,24 @@ async def upload_report_project(
         except UnicodeDecodeError as exc:
             raise HTTPException(status_code=422, detail=f"报告配置或 Prompt 模板必须是 UTF-8: {exc}")
 
-        word_path = templates_dir / "report_template.docx"
-        ppt_path = templates_dir / "report_template.pptx"
-        report_config_path = config_dir / "report_config.yaml"
-
-        if normalized_project_type == "ppt" and ppt_template:
-            ppt_path.write_bytes(await ppt_template.read())
-        elif word_template:
-            word_path.write_bytes(await word_template.read())
-
         excel_filename = ""
         if excel_workbook and excel_workbook.filename:
             excel_filename = _safe_filename(excel_workbook.filename)
-            excel_path = data_dir / excel_filename
-            excel_path.write_bytes(await excel_workbook.read())
+        uploaded_data_files: List[tuple[str, bytes]] = []
+        for upload in data_files or []:
+            filename = _safe_filename(upload.filename or "")
+            if not filename:
+                continue
+            _require_suffix(filename, [".json", ".xlsx", ".png"], "数据文件")
+            uploaded_data_files.append((filename, await upload.read()))
+
         if uploaded_report_config_source is not None:
             report_config_source = uploaded_report_config_source
         else:
             report_config_source = (
-                _build_default_ppt_report_config_source(ppt_path)
+                _build_default_ppt_report_config_source(ppt_template_content)
                 if normalized_project_type == "ppt"
-                else _build_default_report_config_source(word_path)
+                else _build_default_report_config_source(word_template_content)
             )
         try:
             _validate_report_project_sources(
@@ -343,19 +335,33 @@ async def upload_report_project(
             )
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc))
+
+        templates_dir = project_dir / "templates"
+        data_dir = project_dir / "data"
+        config_dir = project_dir / "config"
+        generated_dir = project_dir / "generated"
+        runs_dir = project_dir / "runs"
+        for directory in [templates_dir, data_dir, config_dir, generated_dir, runs_dir]:
+            directory.mkdir(parents=True, exist_ok=True)
+
+        word_path = templates_dir / "report_template.docx"
+        ppt_path = templates_dir / "report_template.pptx"
+        report_config_path = config_dir / "report_config.yaml"
+        if normalized_project_type == "ppt":
+            ppt_path.write_bytes(ppt_template_content)
+        else:
+            word_path.write_bytes(word_template_content)
+        if excel_filename:
+            (data_dir / excel_filename).write_bytes(excel_workbook_content)
         report_config_path.write_text(report_config_source, encoding="utf-8")
 
         prompt_path = config_dir / "prompt_templates.md"
         prompt_path.write_text(prompt_templates_source, encoding="utf-8")
 
         data_source_paths: List[Path] = []
-        for upload in data_files or []:
-            filename = _safe_filename(upload.filename or "")
-            if not filename:
-                continue
-            _require_suffix(filename, [".json", ".xlsx", ".png"], "数据文件")
+        for filename, content in uploaded_data_files:
             target_path = data_dir / filename
-            target_path.write_bytes(await upload.read())
+            target_path.write_bytes(content)
             data_source_paths.append(target_path)
 
         project_data = {
@@ -1242,11 +1248,11 @@ def _data_asset_sort_key(asset: DataAssetInfo) -> int:
     return order.get(asset.kind, 99)
 
 
-def _build_default_report_config_source(word_path: Path) -> str:
-    """Build a minimal report config when only a Word template is uploaded."""
+def _build_default_report_config_source(word_template_content: bytes) -> str:
+    """Build a minimal report config from an uploaded Word template in memory."""
     placeholders = {
         placeholder: {"type": "static", "value": ""}
-        for placeholder in _extract_docx_placeholders(word_path)
+        for placeholder in _extract_docx_placeholders(io.BytesIO(word_template_content))
     }
     return yaml.safe_dump(
         {"placeholders": placeholders},
@@ -1255,13 +1261,13 @@ def _build_default_report_config_source(word_path: Path) -> str:
     )
 
 
-def _build_default_ppt_report_config_source(ppt_path: Path) -> str:
-    """Build a minimal report config when only a PPT template is uploaded."""
+def _build_default_ppt_report_config_source(ppt_template_content: bytes) -> str:
+    """Build a minimal report config from an uploaded PPT template in memory."""
     from reporting.projections.ppt import extract_pptx_placeholders
 
     placeholders = {
         placeholder: {"type": "static", "value": ""}
-        for placeholder in extract_pptx_placeholders(ppt_path)
+        for placeholder in extract_pptx_placeholders(io.BytesIO(ppt_template_content))
     }
     return yaml.safe_dump(
         {"placeholders": placeholders},
@@ -1358,7 +1364,7 @@ def _read_prompt_templates(path: Path) -> str:
 
 
 
-def _extract_docx_placeholders(path: Path) -> List[str]:
+def _extract_docx_placeholders(path: Path | io.BytesIO) -> List[str]:
     """Extract {{placeholder}} tokens from Word text, including tokens split across runs."""
     word_ns = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
     placeholders: List[str] = []
