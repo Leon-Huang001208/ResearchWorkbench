@@ -459,12 +459,14 @@ def test_configuration_modal_hierarchy_uses_compact_collections_and_safe_databas
 
 def test_configuration_editor_visual_contract_has_tabs_editing_state_and_mobile_rows():
     """Editable modal keeps navigation, changes, labels, and mobile rows explicit."""
+    source = CONFIGURATION_JS.read_text(encoding="utf-8")
     stylesheet = CONFIGURATION_CSS.read_text(encoding="utf-8")
 
+    assert 'class="config-tab-list"' in source
     for selector in (
-        ".config-editor-tabs",
-        '.config-editor-tabs [role="tab"][aria-selected="true"]',
-        ".config-dynamic-row.is-new",
+        ".config-tab-list",
+        '.config-tab-list [role="tab"][aria-selected="true"]',
+        ".config-edit-modal-body .config-dynamic-row:focus-within",
         ".config-edit-modal-body .config-dynamic-field > span:first-child",
         "@media (max-width: 720px)",
     ):
