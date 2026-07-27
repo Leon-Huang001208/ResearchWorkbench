@@ -1848,3 +1848,168 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* ─── Editable modal: neutral workspace with local editing cues ───────────── */
+.config-edit-modal .config-edit-modal-content,
+.config-edit-modal .config-edit-modal-content[data-modal-section] {
+    width: min(900px, calc(100vw - 40px));
+    max-height: min(840px, calc(100vh - 32px));
+    border: 1px solid var(--border-primary);
+    border-radius: 14px;
+    background: var(--bg-card);
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
+}
+
+.config-edit-modal .config-editor-tabs {
+    display: flex;
+    gap: 18px;
+    margin: 0;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--border-primary);
+    background: var(--bg-card);
+}
+
+.config-edit-modal .config-editor-tabs [role="tab"] {
+    position: relative;
+    min-height: 42px;
+    padding: 0 2px;
+    border: 0;
+    border-radius: 0;
+    color: var(--text-muted);
+    background: transparent;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.config-edit-modal .config-editor-tabs [role="tab"]:hover,
+.config-edit-modal .config-editor-tabs [role="tab"]:focus-visible {
+    color: var(--text-primary);
+    background: transparent;
+}
+
+.config-edit-modal .config-editor-tabs [role="tab"][aria-selected="true"] {
+    color: var(--text-primary);
+}
+
+.config-edit-modal .config-editor-tabs [role="tab"][aria-selected="true"]::after {
+    position: absolute;
+    right: 0;
+    bottom: -1px;
+    left: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    background: var(--accent);
+    content: "";
+}
+
+.config-edit-modal .config-edit-modal-body .config-collection-table {
+    border-color: var(--border-primary);
+    border-radius: 10px;
+    background: var(--bg-elevated);
+}
+
+.config-edit-modal .config-edit-modal-body .config-collection-table .config-dynamic-row {
+    border-left: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.config-edit-modal .config-edit-modal-body .config-collection-table .config-dynamic-row:hover:not(:focus-within) {
+    border-color: transparent;
+    background: color-mix(in srgb, var(--bg-elevated) 96%, white 4%);
+}
+
+.config-edit-modal .config-edit-modal-body .config-collection-table .config-dynamic-row:focus-within {
+    border-left: 2px solid var(--accent);
+    background: color-mix(in srgb, var(--accent) 5%, var(--bg-elevated));
+    box-shadow: none;
+}
+
+.config-edit-modal .config-edit-modal-body .config-dynamic-row.is-new {
+    border-color: color-mix(in srgb, var(--accent) 34%, var(--border-primary));
+    background: color-mix(in srgb, var(--accent) 7%, var(--bg-elevated));
+}
+
+.config-edit-modal .config-edit-modal-body .config-dynamic-field > span:first-child {
+    display: flex;
+    align-items: center;
+    min-height: 18px;
+    margin-bottom: 3px;
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: none;
+}
+
+.config-edit-modal .config-edit-modal-content .modal-footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    align-items: center;
+    border-top: 1px solid var(--border-primary);
+    background: var(--bg-card);
+    box-shadow: 0 -8px 18px color-mix(in srgb, var(--bg-card) 86%, transparent);
+}
+
+.config-edit-modal .config-edit-modal-content .modal-footer .config-modal-status {
+    flex: 1 1 160px;
+    min-width: 0;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.config-edit-modal .config-edit-modal-content .modal-footer #btn-config-edit-modal-cancel {
+    border-color: var(--border-primary);
+    color: var(--text-secondary);
+    background: transparent;
+}
+
+.config-edit-modal .config-edit-modal-content .modal-footer #btn-config-edit-modal-test {
+    border-color: color-mix(in srgb, var(--accent) 46%, var(--border-primary));
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+
+.config-edit-modal .config-edit-modal-content .modal-footer #btn-config-edit-modal-save {
+    color: var(--button-primary-text, #fff);
+    background: var(--accent);
+}
+
+@media (max-width: 720px) {
+    .config-edit-modal .config-edit-modal-content,
+    .config-edit-modal .config-edit-modal-content[data-modal-section] {
+        width: calc(100vw - 24px);
+        max-height: calc(100vh - 24px);
+        border-radius: 12px;
+    }
+
+    .config-edit-modal .config-editor-tabs {
+        gap: 14px;
+        padding: 0 16px;
+    }
+
+    .config-edit-modal .config-row-labels {
+        display: none;
+    }
+
+    .config-edit-modal .config-edit-modal-body .config-collection-table .config-dynamic-row {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .config-edit-modal .config-edit-modal-body .config-collection-table .config-dynamic-field > span:first-child {
+        display: flex;
+    }
+
+    .config-edit-modal .config-edit-modal-content .modal-footer {
+        flex-wrap: wrap;
+    }
+
+    .config-edit-modal .config-edit-modal-content .modal-footer .config-modal-status,
+    .config-edit-modal .config-edit-modal-content .modal-footer .config-modal-lock-note,
+    .config-edit-modal .config-edit-modal-content .modal-footer .config-modal-test-help {
+        flex-basis: 100%;
+    }
+}

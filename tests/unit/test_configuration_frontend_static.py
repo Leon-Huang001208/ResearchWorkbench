@@ -457,6 +457,20 @@ def test_configuration_modal_hierarchy_uses_compact_collections_and_safe_databas
     )
 
 
+def test_configuration_editor_visual_contract_has_tabs_editing_state_and_mobile_rows():
+    """Editable modal keeps navigation, changes, labels, and mobile rows explicit."""
+    stylesheet = CONFIGURATION_CSS.read_text(encoding="utf-8")
+
+    for selector in (
+        ".config-editor-tabs",
+        '.config-editor-tabs [role="tab"][aria-selected="true"]',
+        ".config-dynamic-row.is-new",
+        ".config-edit-modal-body .config-dynamic-field > span:first-child",
+        "@media (max-width: 720px)",
+    ):
+        assert selector in stylesheet
+
+
 def test_configuration_empty_collection_lifecycle_restores_all_account_collections():
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
     remove_source = _configuration_function(source, "removeButton")
