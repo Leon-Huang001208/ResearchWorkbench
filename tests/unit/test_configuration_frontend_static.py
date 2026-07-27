@@ -471,6 +471,23 @@ def test_configuration_refinement_modal_save_action_and_collection_layout_hooks(
     assert 'config-field-grid config-field-grid--compact' in source
 
 
+def test_configuration_modal_layout_uses_compact_collections_and_advanced_groups():
+    source = CONFIGURATION_JS.read_text(encoding="utf-8")
+    render_source = _configuration_function(source, "renderModalForm")
+
+    for section in ("zhiqiu", "ifind", "web_search"):
+        assert f'config-collection config-collection--{section}' in render_source
+    assert 'config-collection-table' in render_source
+    assert 'config-empty-collection--inline' in source
+    assert 'data-advanced-group="runtime"' in render_source
+    assert 'data-advanced-group="llm"' in render_source
+    assert 'data-advanced-group="chunking"' in render_source
+    assert 'applyEnvironmentLocks(form, section);' in render_source
+    assert 'createSecretControl(password)' in source
+    assert "setAttribute('role', 'status')" in source
+    assert 'filterEnvironmentLockedPayload' in source
+
+
 def test_configuration_empty_collection_lifecycle_restores_all_account_collections():
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
     remove_source = _configuration_function(source, "removeButton")
