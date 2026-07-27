@@ -544,7 +544,7 @@ function createEmptyCollectionState(section) {
     };
     const message = messages[section];
     if (!message) return null;
-    const state = element('p', 'config-empty-collection', message);
+    const state = element('p', 'config-empty-collection config-empty-collection--inline', message);
     state.setAttribute('role', 'status');
     return state;
 }
@@ -1676,9 +1676,13 @@ function renderModalForm(section, values) {
             break;
         case 'zhiqiu':
             form.innerHTML = `
-                <div class="config-subsection-header"><h4><i class="codicon codicon-account"></i>账号池</h4><button type="button" class="secondary-btn" data-add-zhiqiu-account>新增账号</button></div>
-                <div class="config-row-labels config-zhiqiu-labels" aria-hidden="true"><span>名称</span><span>用户名</span><span>密码</span><span>操作</span></div>
-                <div id="config-zhiqiu-account-list" class="config-dynamic-list"></div>
+                <section class="config-collection config-collection--zhiqiu" aria-labelledby="config-zhiqiu-collection-title">
+                    <div class="config-subsection-header"><h4 id="config-zhiqiu-collection-title"><i class="codicon codicon-account"></i>账号池</h4><button type="button" class="secondary-btn" data-add-zhiqiu-account>新增账号</button></div>
+                    <div class="config-collection-table" role="group" aria-label="知丘账号池">
+                        <div class="config-row-labels config-zhiqiu-labels" aria-hidden="true"><span>名称</span><span>用户名</span><span>密码</span><span>操作</span></div>
+                        <div id="config-zhiqiu-account-list" class="config-dynamic-list"></div>
+                    </div>
+                </section>
                 <div class="config-settings-header"><h4><i class="codicon codicon-settings"></i>调度设置</h4></div>
                 <div class="config-field-grid config-field-grid--compact">
                     <label class="config-checkbox"><input type="checkbox" name="enabled">启用账号轮询</label>
@@ -1691,9 +1695,13 @@ function renderModalForm(section, values) {
             break;
         case 'ifind':
             form.innerHTML = `
-                <div class="config-subsection-header"><h4><i class="codicon codicon-organization"></i>账号</h4><button type="button" class="secondary-btn" data-add-ifind-account>新增账号</button></div>
-                <div class="config-row-labels config-ifind-labels" aria-hidden="true"><span>名称</span><span>用户名</span><span>密码</span><span>操作</span></div>
-                <div id="config-ifind-account-list" class="config-dynamic-list"></div>
+                <section class="config-collection config-collection--ifind" aria-labelledby="config-ifind-collection-title">
+                    <div class="config-subsection-header"><h4 id="config-ifind-collection-title"><i class="codicon codicon-organization"></i>账号</h4><button type="button" class="secondary-btn" data-add-ifind-account>新增账号</button></div>
+                    <div class="config-collection-table" role="group" aria-label="iFinD 账号">
+                        <div class="config-row-labels config-ifind-labels" aria-hidden="true"><span>名称</span><span>用户名</span><span>密码</span><span>操作</span></div>
+                        <div id="config-ifind-account-list" class="config-dynamic-list"></div>
+                    </div>
+                </section>
                 <div class="config-settings-header"><h4><i class="codicon codicon-plug"></i>连接设置</h4></div>
                 <div class="config-field-grid config-field-grid--compact">
                     <label><span>后端类型</span><select name="backend"><option value="auto">自动</option><option value="python_sdk">Python SDK</option><option value="http_api">HTTP API</option></select></label>
@@ -1702,9 +1710,13 @@ function renderModalForm(section, values) {
             break;
         case 'web_search':
             form.innerHTML = `
-                <div class="config-subsection-header"><h4><i class="codicon codicon-key"></i>Key 池</h4><button type="button" class="secondary-btn" data-add-web_search-key>新增 Key</button></div>
-                <div class="config-row-labels config-web_search-labels" aria-hidden="true"><span>名称</span><span>API Key</span><span>状态</span><span>操作</span></div>
-                <div id="config-web_search-key-list" class="config-dynamic-list"></div>
+                <section class="config-collection config-collection--web_search" aria-labelledby="config-web_search-collection-title">
+                    <div class="config-subsection-header"><h4 id="config-web_search-collection-title"><i class="codicon codicon-key"></i>Key 池</h4><button type="button" class="secondary-btn" data-add-web_search-key>新增 Key</button></div>
+                    <div class="config-collection-table" role="group" aria-label="Web 搜索 Key 池">
+                        <div class="config-row-labels config-web_search-labels" aria-hidden="true"><span>名称</span><span>API Key</span><span>状态</span><span>操作</span></div>
+                        <div id="config-web_search-key-list" class="config-dynamic-list"></div>
+                    </div>
+                </section>
                 <div class="config-settings-header"><h4><i class="codicon codicon-search"></i>搜索设置</h4></div>
                 <div class="config-field-grid config-field-grid--compact">
                     <label><span>搜索 Provider</span><select name="provider"><option value="tavily">Tavily</option><option value="bing">Bing</option></select></label>
@@ -1721,14 +1733,31 @@ function renderModalForm(section, values) {
             break;
         case 'advanced':
             form.innerHTML = `
-                <div class="config-field-grid">
-                    <label><span>日志级别</span><select name="log_level"><option>DEBUG</option><option>INFO</option><option>WARNING</option><option>ERROR</option><option>CRITICAL</option></select></label>
-                    <label><span>日志目录</span><input type="text" name="log_dir"></label>
-                    <label><span>LLM 并发数</span><input type="number" name="llm_max_workers" min="1" max="128"></label>
-                    <label><span>LLM 重试次数</span><input type="number" name="llm_max_retries" min="0" max="20"></label>
-                    <label><span>分块大小</span><input type="number" name="chunk_size" min="256" max="100000"></label>
-                    <label><span>分块重叠</span><input type="number" name="chunk_overlap" min="0" max="50000"></label>
-                    <label><span>长文本阈值</span><input type="number" name="long_text_threshold" min="1" max="100000"></label>
+                <div class="config-advanced-settings">
+                    <nav class="config-advanced-nav" aria-label="高级配置分类">
+                        <a href="#config-advanced-runtime">运行时</a>
+                        <a href="#config-advanced-llm">LLM</a>
+                        <a href="#config-advanced-chunking">文本分块</a>
+                    </nav>
+                    <section id="config-advanced-runtime" class="config-advanced-group" data-advanced-group="runtime">
+                        <div class="config-field-grid">
+                            <label><span>日志级别</span><select name="log_level"><option>DEBUG</option><option>INFO</option><option>WARNING</option><option>ERROR</option><option>CRITICAL</option></select></label>
+                            <label><span>日志目录</span><input type="text" name="log_dir"></label>
+                        </div>
+                    </section>
+                    <section id="config-advanced-llm" class="config-advanced-group" data-advanced-group="llm">
+                        <div class="config-field-grid">
+                            <label><span>LLM 并发数</span><input type="number" name="llm_max_workers" min="1" max="128"></label>
+                            <label><span>LLM 重试次数</span><input type="number" name="llm_max_retries" min="0" max="20"></label>
+                        </div>
+                    </section>
+                    <section id="config-advanced-chunking" class="config-advanced-group" data-advanced-group="chunking">
+                        <div class="config-field-grid">
+                            <label><span>分块大小</span><input type="number" name="chunk_size" min="256" max="100000"></label>
+                            <label><span>分块重叠</span><input type="number" name="chunk_overlap" min="0" max="50000"></label>
+                            <label><span>长文本阈值</span><input type="number" name="long_text_threshold" min="1" max="100000"></label>
+                        </div>
+                    </section>
                 </div>`;
             break;
     }
