@@ -641,3 +641,48 @@ for (const value of [null, 42, {{ value: 'desktop' }}]) {{
     )
 
     assert result.returncode == 0, result.stderr
+
+
+def test_configuration_secret_editor_never_offers_saved_secret_copy_or_reveal():
+    source = CONFIGURATION_JS.read_text(encoding="utf-8")
+    secret_control_source = _configuration_function(source, "createSecretControl")
+
+    assert "data-secret-replace" in secret_control_source
+    assert "data-secret-clear" in secret_control_source
+    assert "data-secret-copy" not in secret_control_source
+    assert "data-secret-toggle" not in secret_control_source
+
+
+def test_configuration_remove_action_is_explicit_and_does_not_persist_immediately():
+    source = CONFIGURATION_JS.read_text(encoding="utf-8")
+    remove_source = _configuration_function(source, "removeButton")
+
+    assert "移除" in remove_source
+    assert "markSectionDirty(form || row);" in remove_source
+    assert "configurationApiCall(" not in remove_source
+
+
+def test_llm_modal_uses_separate_service_and_route_tabs():
+    source = CONFIGURATION_JS.read_text(encoding="utf-8")
+    modal_source = _configuration_function(source, "renderModalForm")
+
+    assert 'data-config-tab="providers"' in modal_source
+    assert 'data-config-tab="routes"' in modal_source
+    assert 'data-config-tab-panel="providers"' in modal_source
+    assert 'data-config-tab-panel="routes"' in modal_source
+
+
+def test_collection_addition_marks_dirty_and_focuses_first_field():
+    source = CONFIGURATION_JS.read_text(encoding="utf-8")
+    events_source = _configuration_function(source, "bindModalFormEvents")
+
+    assert "focusFirstCollectionField" in events_source
+    assert "modalDirty = true;" in events_source
+
+
+def test_collection_lock_disables_only_environment_owned_collection():
+    source = CONFIGURATION_JS.read_text(encoding="utf-8")
+    collection_lock_source = _configuration_function(source, "applyCollectionLock")
+
+    assert "const locked = keys.some(key => isEnvironmentLocked(key, lockedFields));" in collection_lock_source
+    assert "if (!locked) return;" in collection_lock_source
