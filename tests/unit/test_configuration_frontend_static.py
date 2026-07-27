@@ -368,16 +368,31 @@ def test_configuration_module_parses_with_node():
     assert result.returncode == 0, result.stderr
 
 
-def test_configuration_refinement_replaces_onboarding_with_compact_progress_overview():
+def test_configuration_workbench_keeps_progress_and_hides_diagnostics_by_default():
     template = CONFIGURATION_TEMPLATE.read_text(encoding="utf-8")
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
     health_source = _configuration_function(source, "renderConfigurationHealth")
+    parser = _ConfigurationMarkupParser()
+    parser.feed(template)
+    parser.close()
+    environment_disclosure = next(
+        (
+            element
+            for element in parser.elements
+            if "config-environment-disclosure" in element.attrs.get("class", "").split()
+        ),
+        None,
+    )
 
     assert 'data-config-progress-completed' in template
     assert 'data-config-progress-missing' in template
-    assert 'data-config-connection-summary' in template
-    assert 'data-config-status-filter' in template
+    assert 'id="config-refresh"' not in template
+    assert 'data-config-connection-summary' not in template
+    assert 'data-config-status-filter' not in template
     assert 'data-config-environment-diagnostics' in template
+    assert environment_disclosure, 'index.html must contain a .config-environment-disclosure'
+    assert 'data-config-environment-diagnostics' in environment_disclosure.markup
+    assert '<summary>运行环境</summary>' in environment_disclosure.markup
     assert 'data-config-onboarding' not in template
     assert 'data-config-onboarding' not in health_source
     assert 'function renderEnvironmentDiagnostics(snapshot)' in source
@@ -385,48 +400,25 @@ def test_configuration_refinement_replaces_onboarding_with_compact_progress_over
     assert 'snapshot.catalog' in source
 
 
-def test_configuration_refinement_refresh_status_is_described_and_never_tests_connections():
-    template = CONFIGURATION_TEMPLATE.read_text(encoding="utf-8")
-    source = CONFIGURATION_JS.read_text(encoding="utf-8")
-    template_markup, refresh = _config_refresh_markup(template)
-    refresh_source = _configuration_function(source, "refreshConfiguration")
-    load_source = _configuration_function(source, "loadConfiguration")
-    refresh_path = refresh_source + load_source
-
-    assert '刷新状态' in refresh.markup
-    described_by = refresh.attrs.get("aria-describedby")
-    assert described_by, '#config-refresh must describe its non-testing refresh behavior'
-    help_ids = described_by.split()
-    help_text = ''
-    for help_id in help_ids:
-        help_node = template_markup.elements_by_id.get(help_id)
-        if help_node:
-            help_text += help_node.markup
-    assert '不测试连接或保存配置' in help_text, (
-        '#config-refresh aria-describedby must reference help text stating “不测试连接或保存配置”'
-    )
-    assert 'await loadConfiguration({ discardDirty: true });' in refresh_source
-    assert 'connectionStateBySection.clear()' in refresh_path
-    assert refresh_source.index('connectionStateBySection.clear()') < refresh_source.index('renderSummaryCards()')
-    assert refresh_source.index('renderSummaryCards()') < refresh_source.index('await loadConfiguration({ discardDirty: true });')
-    assert refresh_source.index('renderConfigurationHealth(configurationSnapshot)') < refresh_source.index('await loadConfiguration({ discardDirty: true });')
-    assert 'testSection' not in refresh_path
-    assert '/test' not in refresh_path
-    assert 'modalTestSection' not in refresh_path
-
-
-def test_configuration_refinement_binds_status_filter_without_onboarding_events():
-    template = CONFIGURATION_TEMPLATE.read_text(encoding="utf-8")
+def test_configuration_workbench_removes_unused_refresh_and_filter_behaviour():
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
     events_source = _configuration_function(source, "bindConfigurationEvents")
 
-    assert 'data-config-status-filter' in template
+    assert 'function refreshConfiguration()' not in source
+    assert 'function renderConfigurationCardVisibility()' not in source
+    assert 'config-refresh' not in events_source
+    assert 'data-config-status-filter' not in events_source
+
+
+def test_configuration_workbench_keeps_card_opening_events_without_filters():
+    source = CONFIGURATION_JS.read_text(encoding="utf-8")
+    events_source = _configuration_function(source, "bindConfigurationEvents")
+
     assert 'data-config-onboarding' not in events_source
-    assert 'openNextIncompleteConfiguration' not in events_source
-    callback = _status_filter_change_callback(events_source)
-    assert re.search(r'\brenderConfigurationCardVisibility\s*\(', callback), (
-        'status-filter change callback must call renderConfigurationCardVisibility'
-    )
+    assert 'data-config-card' in events_source
+    assert 'openConfigModal(section)' in events_source
+    assert 'config-refresh' not in events_source
+    assert 'data-config-status-filter' not in events_source
 
 
 def test_configuration_refinement_modal_test_help_tracks_testable_sections_without_saving():
