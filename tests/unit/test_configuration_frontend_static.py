@@ -553,6 +553,32 @@ def test_configuration_health_uses_runtime_database_readiness_and_compact_grids_
     )
 
 
+def test_configuration_modal_compact_layout_css_contract():
+    stylesheet = CONFIGURATION_CSS.read_text(encoding="utf-8")
+
+    assert re.search(
+        r"\.config-collection-table\s*\{[^}]*border:\s*1px\s+solid\s+var\(--border-primary\)\s*;",
+        stylesheet,
+        re.DOTALL,
+    )
+    assert re.search(
+        r"\.config-collection-table\s+\.config-dynamic-row[^{}]*\{[^}]*border-radius:\s*0\s*;",
+        stylesheet,
+        re.DOTALL,
+    )
+    assert re.search(
+        r"\.config-empty-collection--inline\s*\{[^}]*display:\s*flex\s*;",
+        stylesheet,
+        re.DOTALL,
+    )
+    assert re.search(
+        r"\.config-advanced-settings\s*\{[^}]*grid-template-columns:\s*164px\s+minmax\(0,\s*1fr\)\s*;",
+        stylesheet,
+        re.DOTALL,
+    )
+    assert "@media (max-width: 720px)" in stylesheet
+
+
 def test_database_runtime_refresh_updates_health_after_card_render_when_snapshot_exists():
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
     refresh_source = _configuration_function(source, "refreshDatabaseRuntimeReadiness")
