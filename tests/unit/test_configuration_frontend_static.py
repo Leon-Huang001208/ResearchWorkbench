@@ -474,18 +474,36 @@ def test_configuration_refinement_modal_save_action_and_collection_layout_hooks(
 def test_configuration_modal_layout_uses_compact_collections_and_advanced_groups():
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
     render_source = _configuration_function(source, "renderModalForm")
+    empty_state_source = _configuration_function(source, "createEmptyCollectionState")
+    zhiqiu_row_source = _configuration_function(source, "createZhiqiuAccountRow")
+    ifind_row_source = _configuration_function(source, "createIfindAccountRow")
+    collect_section_source = _configuration_function(source, "collectSection")
+
+    def section_case(section: str) -> str:
+        case = re.search(
+            rf"^\s*case\s+['\"]{re.escape(section)}['\"]\s*:",
+            render_source,
+            re.MULTILINE,
+        )
+        assert case, f"renderModalForm must define a {section!r} case"
+        case_end = re.search(r"^\s*break;", render_source[case.end():], re.MULTILINE)
+        assert case_end, f"renderModalForm {section!r} case must terminate with break"
+        return render_source[case.start():case.end() + case_end.start()]
 
     for section in ("zhiqiu", "ifind", "web_search"):
-        assert f'config-collection config-collection--{section}' in render_source
-    assert 'config-collection-table' in render_source
-    assert 'config-empty-collection--inline' in source
-    assert 'data-advanced-group="runtime"' in render_source
-    assert 'data-advanced-group="llm"' in render_source
-    assert 'data-advanced-group="chunking"' in render_source
+        collection_source = section_case(section)
+        assert f'config-collection config-collection--{section}' in collection_source
+        assert 'config-collection-table' in collection_source
+    advanced_source = section_case("advanced")
+    assert 'data-advanced-group="runtime"' in advanced_source
+    assert 'data-advanced-group="llm"' in advanced_source
+    assert 'data-advanced-group="chunking"' in advanced_source
     assert 'applyEnvironmentLocks(form, section);' in render_source
-    assert 'createSecretControl(password)' in source
-    assert "setAttribute('role', 'status')" in source
-    assert 'filterEnvironmentLockedPayload' in source
+    assert 'config-empty-collection--inline' in empty_state_source
+    assert "setAttribute('role', 'status')" in empty_state_source
+    assert 'createSecretControl(password)' in zhiqiu_row_source
+    assert 'createSecretControl(password)' in ifind_row_source
+    assert 'filterEnvironmentLockedPayload' in collect_section_source
 
 
 def test_configuration_empty_collection_lifecycle_restores_all_account_collections():
