@@ -651,6 +651,12 @@ def test_configuration_secret_editor_never_offers_saved_secret_copy_or_reveal():
     assert "data-secret-clear" in secret_control_source
     assert "data-secret-copy" not in secret_control_source
     assert "data-secret-toggle" not in secret_control_source
+    assert re.search(r"replace\.addEventListener\(\s*['\"]click['\"]", secret_control_source)
+    assert re.search(r"clear\.addEventListener\(\s*['\"]click['\"]", secret_control_source)
+    assert re.search(r"control\.append\([^)]*\breplace\b[^)]*\bclear\b[^)]*\)", secret_control_source)
+    assert "toggleSecretVisibility" not in secret_control_source
+    assert "copySecretValue" not in secret_control_source
+    assert "navigator.clipboard" not in secret_control_source
 
 
 def test_configuration_remove_action_is_explicit_and_does_not_persist_immediately():
@@ -660,29 +666,68 @@ def test_configuration_remove_action_is_explicit_and_does_not_persist_immediatel
     assert "移除" in remove_source
     assert "markSectionDirty(form || row);" in remove_source
     assert "configurationApiCall(" not in remove_source
+    assert "fetch(" not in remove_source
+    assert "saveSection(" not in remove_source
+    assert ".remove()" in remove_source
 
 
 def test_llm_modal_uses_separate_service_and_route_tabs():
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
     modal_source = _configuration_function(source, "renderModalForm")
+    events_source = _configuration_function(source, "bindModalFormEvents")
 
-    assert 'data-config-tab="providers"' in modal_source
-    assert 'data-config-tab="routes"' in modal_source
-    assert 'data-config-tab-panel="providers"' in modal_source
-    assert 'data-config-tab-panel="routes"' in modal_source
+    for tab in ("providers", "routes"):
+        assert re.search(
+            rf'<button\b(?=[^>]*\brole=["\']tab["\'])(?=[^>]*\bdata-config-tab=["\']{tab}["\'])[^>]*>',
+            modal_source,
+        ), f"{tab} must be a tab button"
+        assert re.search(
+            rf'<[a-z]+\b(?=[^>]*\brole=["\']tabpanel["\'])(?=[^>]*\bdata-config-tab-panel=["\']{tab}["\'])[^>]*>',
+            modal_source,
+        ), f"{tab} must have a tab panel"
+    assert re.search(
+        r'<[a-z]+\b(?=[^>]*\bdata-config-tab-panel=["\'](?:providers|routes)["\'])(?=[^>]*\bhidden\b)[^>]*>',
+        modal_source,
+    ), "one LLM tab panel must be initially hidden"
+    assert re.search(
+        r'\[data-config-tab\].*?addEventListener\(\s*["\']click["\'].*?aria-selected.*?data-config-tab-panel.*?\.hidden\s*=',
+        events_source,
+        re.DOTALL,
+    ), "tab clicks must update selection and the matching panel visibility"
 
 
 def test_collection_addition_marks_dirty_and_focuses_first_field():
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
     events_source = _configuration_function(source, "bindModalFormEvents")
 
-    assert "focusFirstCollectionField" in events_source
-    assert "modalDirty = true;" in events_source
+    for selector, row_factory in (
+        ("data-add-provider", "createProviderRow"),
+        ("data-add-task-route", "createTaskRouteRow"),
+        ("data-add-zhiqiu-account", "createZhiqiuAccountRow"),
+        ("data-add-ifind-account", "createIfindAccountRow"),
+        ("data-add-web_search-key", "createWebSearchKeyRow"),
+    ):
+        handler = re.search(
+            rf'form\.querySelector\(["\']\[{selector}\]["\']\)\?\.addEventListener\(\s*["\']click["\']\s*,\s*\(\)\s*=>\s*\{{(?P<body>.*?)\n\s*\}}\s*\);',
+            events_source,
+            re.DOTALL,
+        )
+        assert handler, f"{selector} must have a click handler"
+        body = handler.group("body")
+        assert row_factory in body, f"{selector} must create its collection row"
+        assert "append(" in body, f"{selector} must append its collection row"
+        assert "focusFirstCollectionField" in body, f"{selector} must focus its first field"
+        assert "markSectionDirty(form)" in body, f"{selector} must mark the form dirty"
+        assert "modalDirty = true;" in body, f"{selector} must mark the modal dirty"
 
 
 def test_collection_lock_disables_only_environment_owned_collection():
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
     collection_lock_source = _configuration_function(source, "applyCollectionLock")
 
-    assert "const locked = keys.some(key => isEnvironmentLocked(key, lockedFields));" in collection_lock_source
+    assert re.search(
+        r"const\s+lockedFields\s*=\s*configurationSnapshot\?\.environment_locked_fields\s*\|\|\s*\[\s*\]\s*;",
+        collection_lock_source,
+    )
+    assert "isEnvironmentLocked(key, lockedFields)" in collection_lock_source
     assert "if (!locked) return;" in collection_lock_source
