@@ -230,6 +230,22 @@ def test_report_config_summary_dom_contract_collapses_low_frequency_sections_and
         assert f'data-placeholder-edit-section="{edit_section}"' in helper_source
 
 
+def test_report_config_editor_keeps_selected_detail_in_document_flow():
+    """状态条不能占用详情编辑器的唯一弹性行。"""
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+    css = STYLE_CSS.read_text(encoding="utf-8")
+    rule_start = css.rfind(
+        "\n.template-advanced-maintenance .template-config-editor-panel {"
+    ) + 1
+    rule_end = css.index("}\n", rule_start) + 2
+    editor_rule = css[rule_start:rule_end]
+
+    assert "display: flex;" in editor_rule
+    assert "flex-direction: column;" in editor_rule
+    assert "grid-template-rows: auto minmax(0, 1fr);" not in editor_rule
+    assert "function buildPlaceholderConfigSummaryHtml" in source
+
+
 def test_report_config_summary_prioritizes_missing_query_or_keywords_without_losing_edit_entries():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
     caller_start = source.index("function renderSelectedPlaceholderDetail")
