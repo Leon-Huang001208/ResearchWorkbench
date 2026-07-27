@@ -41,7 +41,7 @@ def test_template_detail_has_report_workbench_regions():
     )
     assert 'id="project-word-template-input"' in html
     assert 'id="project-excel-workbook-input"' in html
-    assert 'id="project-section-config-input"' in html
+    assert 'id="project-report-config-input"' in html
     assert 'id="project-prompt-templates-input"' in html
     assert 'id="project-data-files-input"' in html
     assert 'class="tabs template-legacy-tabs hidden"' in html
@@ -515,7 +515,7 @@ def test_templates_js_uses_background_report_generation_jobs():
     assert "renderSelectedPlaceholderDetail" in source
     assert "renderSelectedSourceFragment" in source
     assert "buildSelectedPlaceholderYamlFragment" in source
-    assert "buildUpdatedSectionConfigSource" in source
+    assert "buildUpdatedReportConfigSource" in source
     assert "template-placeholder-detail-form" in source
     assert "btn-template-save-placeholder" in source
     assert "run_log_url" in source
@@ -592,8 +592,8 @@ def test_report_workbench_uses_report_project_real_asset_summary():
     assert "getTemplateWorkbenchSections" in source
     assert "getTemplateWorkbenchPlaceholders" in source
     assert "project?.word_placeholders" in source
-    assert "project?.section_config?.sections" in source
-    assert "project?.section_config_source" in source
+    assert "project?.report_config?.sections" in source
+    assert "project?.report_config_source" in source
     assert "project?.prompt_templates_source" in source
     assert "getTemplateWorkbenchSource" in source
     assert "buildPlaceholderMappingConfigYaml" in source
@@ -1049,7 +1049,8 @@ def test_workbench_emits_one_unified_report_config_without_v2_fields_or_state():
     assert "v2PlaceholderConfigDrafts" not in source
     assert "generation_config" not in source
     assert "rich_text_spec" not in source
-    assert "sourceKind: 'section_config'" in source
+    assert "sourceKind: 'report_config'" in source
+    assert "normalizeUnifiedReportConfigSource" in source
     assert "    rendering:" in source
 
 

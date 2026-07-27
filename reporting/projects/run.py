@@ -98,7 +98,7 @@ class ReportProjectRunService:
         self._emit_progress(progress_callback, "prepare", "正在读取报告配置与素材")
         unified_config = parse_unified_report_config(
             section_config,
-            source_path=project.section_config_path,
+            source_path=project.report_config_path,
         )
         generation_config = unified_config.to_generation_dict()
         generation_scope = resolve_report_generation_scope(
@@ -378,7 +378,7 @@ class ReportProjectRunService:
             "slug": project.slug,
             "word_template_path": str(project.word_template_path),
             "excel_workbook_path": str(project.excel_workbook_path),
-            "section_config_path": str(project.section_config_path),
+            "report_config_path": str(project.report_config_path),
             "prompt_templates_path": (
                 str(project.prompt_templates_path) if project.prompt_templates_path else None
             ),
@@ -431,7 +431,7 @@ class ReportProjectRunService:
             "slug": project.slug,
             "project_type": project.project_type,
             "ppt_template_path": str(project.ppt_template_path),
-            "section_config_path": str(project.section_config_path),
+            "report_config_path": str(project.report_config_path),
             "prompt_templates_path": (
                 str(project.prompt_templates_path) if project.prompt_templates_path else None
             ),

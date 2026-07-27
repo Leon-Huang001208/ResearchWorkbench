@@ -3126,3 +3126,69 @@ def test_rename_report_project_updates_folder_and_yaml(tmp_path: Path, monkeypat
     new_project_dir = tmp_path / "新周报"
     assert (new_project_dir / "templates" / "report_template.docx").exists()
     assert "name: 新周报" in (new_project_dir / "project.yaml").read_text(encoding="utf-8")
+
+
+def test_report_config_api_exposes_and_persists_only_the_unified_yaml(tmp_path: Path, monkeypatch):
+    """详情和保存接口只使用 config/report_config.yaml，且先校验统一契约。"""
+    project_dir = tmp_path / "统一周报"
+    (project_dir / "templates").mkdir(parents=True)
+    (project_dir / "config").mkdir()
+    (project_dir / "generated").mkdir()
+    (project_dir / "runs").mkdir()
+    write_minimal_docx(project_dir / "templates" / "report_template.docx", "{{摘要}}")
+    source = "name: 统一周报\nplaceholders:\n  摘要:\n    type: static_text\n    value: 已确认\n"
+    report_config_path = project_dir / "config" / "report_config.yaml"
+    report_config_path.write_text(source, encoding="utf-8")
+    (project_dir / "project.yaml").write_text(
+        "\n".join(
+            [
+                "name: 统一周报",
+                "active_word_template: templates/report_template.docx",
+                "report_config: config/report_config.yaml",
+                "output_dir: generated",
+                "run_log_dir: runs",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    import app.api.routes.report_projects as report_projects_route
+
+    monkeypatch.setattr(
+        report_projects_route,
+        "report_project_manager",
+        ReportProjectManager(projects_root=tmp_path),
+    )
+
+    response = client.get("/api/report-projects/统一周报")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["report_config_filename"] == "report_config.yaml"
+    assert payload["report_config_source"] == source
+    assert payload["report_config"]["placeholders"]["摘要"]["value"] == "已确认"
+    assert "report_config_path" not in payload
+    assert "section_config" not in payload
+
+    invalid = client.put(
+        "/api/report-projects/统一周报/source",
+        json={"source_kind": "report_config", "content": "sections: []\n"},
+    )
+    assert invalid.status_code == 400
+    assert report_config_path.read_text(encoding="utf-8") == source
+
+    saved = client.put(
+        "/api/report-projects/统一周报/source",
+        json={
+            "source_kind": "report_config",
+            "content": "placeholders:\n  摘要:\n    type: static_text\n    value: 已更新\n",
+        },
+    )
+    assert saved.status_code == 200
+    assert saved.json()["report_config"]["placeholders"]["摘要"]["value"] == "已更新"
+
+    rejected = client.put(
+        "/api/report-projects/统一周报/source",
+        json={"source_kind": "section_config", "content": source},
+    )
+    assert rejected.status_code == 400

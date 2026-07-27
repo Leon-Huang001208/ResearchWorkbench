@@ -51,7 +51,7 @@ const REPORT_UPLOAD_FILE_INPUTS = [
     'project-word-template-input',
     'project-ppt-template-input',
     'project-excel-workbook-input',
-    'project-section-config-input',
+    'project-report-config-input',
     'project-prompt-templates-input',
     'project-data-files-input'
 ];
@@ -224,7 +224,7 @@ function buildPlaceholderNamesFromReportProject(project) {
         return wordPlaceholders.map(normalizePlaceholderName).filter(Boolean);
     }
 
-    const rawPlaceholders = project?.section_config?.placeholders;
+    const rawPlaceholders = project?.report_config?.placeholders;
     if (Array.isArray(rawPlaceholders)) {
         return rawPlaceholders
             .map(item => normalizePlaceholderName(item?.name || item?.key || item?.placeholder))
@@ -237,12 +237,12 @@ function buildPlaceholderNamesFromReportProject(project) {
 }
 
 function buildSectionsFromReportProject(project) {
-    const projectSections = project?.section_config?.sections;
+    const projectSections = project?.report_config?.sections;
     if (Array.isArray(projectSections) && projectSections.length) {
         return projectSections;
     }
 
-    const rawPlaceholders = project?.section_config?.placeholders;
+    const rawPlaceholders = project?.report_config?.placeholders;
     if (Array.isArray(rawPlaceholders)) {
         return rawPlaceholders
             .map(item => ({
@@ -489,7 +489,7 @@ function updateReportProjectUploadFileLabel(inputId) {
     if (!label) return;
     const files = Array.from(input?.files || []);
     if (!files.length) {
-        label.textContent = inputId === 'project-section-config-input' ? '自动生成' : '未选择';
+        label.textContent = inputId === 'project-report-config-input' ? '自动生成' : '未选择';
         label.classList.remove('has-file');
         return;
     }
@@ -2362,8 +2362,8 @@ function getTemplateWorkbenchSource(template) {
     return {
         content: shouldUsePlaceholderMappingDraft(template)
             ? buildPlaceholderMappingConfigYaml(template)
-            : (project?.section_config_source || buildPlaceholderMappingConfigYaml(template)),
-        sourceKind: 'section_config',
+            : (project?.report_config_source || buildPlaceholderMappingConfigYaml(template)),
+        sourceKind: 'report_config',
         label: shouldUsePlaceholderMappingDraft(template)
             ? '统一报告配置（草稿）'
             : '统一报告配置'
@@ -2406,7 +2406,7 @@ function getCurrentWorkbenchTemplate() {
 
 function getTemplateWorkbenchSections(template) {
     const project = template.report_project || null;
-    const projectSections = project?.section_config?.sections;
+    const projectSections = project?.report_config?.sections;
     if (Array.isArray(projectSections) && projectSections.length) {
         return projectSections;
     }
@@ -2461,10 +2461,10 @@ function buildTemplateAssetChecks(template, sections) {
         {
             icon: 'codicon-settings-gear',
             label: 'Section 配置',
-            ok: Boolean(project?.section_config_filename || sections.length > 0),
-            value: project?.section_config_filename || (sections.length ? `${sections.length} 段` : '待配置'),
+            ok: Boolean(project?.report_config_filename || sections.length > 0),
+            value: project?.report_config_filename || (sections.length ? `${sections.length} 段` : '待配置'),
             action: 'upload',
-            actionTarget: 'project-section-config-input',
+            actionTarget: 'project-report-config-input',
             actionLabel: '上传配置'
         }
     ];
@@ -2886,7 +2886,7 @@ function isExcelFieldPlaceholder(type = '', mapping = {}, placeholderName = '') 
 
 function getStoredCommonDefaults(template) {
     const project = template?.report_project;
-    const defaults = project?.section_config?.defaults;
+    const defaults = project?.report_config?.defaults;
     const base = {
         generation_mode: 'evidence_grounded_generation',
         evidence_policy: 'strict',
@@ -3503,7 +3503,7 @@ function collectCommonDefaultsDraft(template) {
 }
 
 function getStoredPlaceholderMappings(template) {
-    const raw = template?.report_project?.section_config?.placeholders;
+    const raw = template?.report_project?.report_config?.placeholders;
     const mappings = new Map();
     if (Array.isArray(raw)) {
         raw.forEach(item => {
@@ -5526,8 +5526,10 @@ function renderSelectedSourceFragment(template) {
     }
 }
 
-function buildUpdatedSectionConfigSource(template, mappings) {
-    const projectSource = template.report_project?.section_config_source || '';
+function buildUpdatedReportConfigSource(template, mappings) {
+    const projectSource = normalizeUnifiedReportConfigSource(
+        template.report_project?.report_config_source || ''
+    );
     const defaultsBlock = buildDefaultsBlock(collectCommonDefaultsDraft(template));
     const placeholdersBlock = buildPlaceholderMappingsBlock(template, mappings);
     if (!projectSource.trim()) {
@@ -5551,6 +5553,15 @@ function buildUpdatedSectionConfigSource(template, mappings) {
     return `${updatedSource.trimEnd()}\n${placeholdersBlock}`;
 }
 
+function normalizeUnifiedReportConfigSource(source) {
+    return removeTopLevelYamlBlock(String(source || ''), 'sections').trimEnd();
+}
+
+function removeTopLevelYamlBlock(source, key) {
+    const pattern = new RegExp(`(^|\\n)${escapeRegExp(key)}:\\s*(?:\\n[\\s\\S]*?)?(?=\\n\\S|$)`, 'g');
+    return source.replace(pattern, '$1');
+}
+
 function insertTopLevelBlockBefore(source, block, anchors) {
     const lines = String(source || '').split('\n');
     const anchorIndex = lines.findIndex(line => anchors.includes(line.trim()));
@@ -5566,7 +5577,7 @@ function buildSourceContentForSave(template, sourceKind, editorValue) {
     if (sourceKind === 'prompt_templates') {
         return buildUpdatedPromptTemplatesSource(template, editorValue);
     }
-    return buildUpdatedSectionConfigSource(template, getEditablePlaceholderMappings(template));
+    return buildUpdatedReportConfigSource(template, getEditablePlaceholderMappings(template));
 }
 
 function buildUpdatedPromptTemplatesSource(template, promptFragment) {
@@ -6242,7 +6253,7 @@ function buildTemplateConfigYaml(template) {
         `  project: ${project?.name || '待绑定项目包'}`,
         `  ${templateAssetKey}: ${templateAssetValue}`,
         `  excel_workbook: ${project?.excel_workbook_filename || (template.has_excel ? '已绑定' : '待上传')}`,
-        `  section_config: ${project?.section_config_filename || '当前模板 YAML'}`,
+        `  report_config: ${project?.report_config_filename || '当前模板 YAML'}`,
         `  prompt_templates: ${project?.prompt_templates_filename || '未绑定'}`,
         `  output_dir: ${project?.output_dir || '待绑定 generated 目录'}`,
         '  data_sources:',
@@ -6784,7 +6795,7 @@ function buildPromptTemplateLibraryMarkdown(template) {
         '',
         `适用项目：${name}`,
         '',
-        '说明：这里是可复用写作模板，不是单个占位符的完整提示词。占位符在 section_config.yaml 里通过 prompt_template 选择下面的模板；检索 Query 用来先从数据库/新闻库取 evidence，再由写作规则生成正文。',
+        '说明：这里是可复用写作模板，不是单个占位符的完整提示词。占位符在 report_config.yaml 里通过 prompt_template 选择下面的模板；检索 Query 用来先从数据库/新闻库取 evidence，再由写作规则生成正文。',
         '',
         '## domestic_market',
         '用于：A股市场回顾',
@@ -7221,8 +7232,8 @@ async function saveCurrentSectionConfig({
 
     const sourceEditor = document.getElementById('template-source-editor');
     const mappings = getEditablePlaceholderMappings(template);
-    const saveKind = 'section_config';
-    const content = buildUpdatedSectionConfigSource(template, mappings);
+    const saveKind = 'report_config';
+    const content = buildUpdatedReportConfigSource(template, mappings);
     const selectedName = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
     const selectedMapping = selectedName ? mappings.get(selectedName) : null;
     const originalText = button?.innerHTML;
@@ -7461,7 +7472,7 @@ async function uploadTemplate() {
     const wordInput = document.getElementById('project-word-template-input');
     const pptInput = document.getElementById('project-ppt-template-input');
     const excelInput = document.getElementById('project-excel-workbook-input');
-    const sectionInput = document.getElementById('project-section-config-input');
+    const reportConfigInput = document.getElementById('project-report-config-input');
     const promptInput = document.getElementById('project-prompt-templates-input');
     const dataFilesInput = document.getElementById('project-data-files-input');
     const statusEl = document.getElementById('template-upload-status');
@@ -7471,7 +7482,7 @@ async function uploadTemplate() {
     const wordFile = wordInput?.files?.[0];
     const pptFile = pptInput?.files?.[0];
     const excelFile = excelInput?.files?.[0];
-    const sectionFile = sectionInput?.files?.[0];
+    const reportConfigFile = reportConfigInput?.files?.[0];
 
     if (!projectName) {
         toast('请输入报告项目名称', 'error');
@@ -7502,8 +7513,8 @@ async function uploadTemplate() {
     if (excelFile) {
         formData.append('excel_workbook', excelFile);
     }
-    if (sectionFile) {
-        formData.append('section_config', sectionFile);
+    if (reportConfigFile) {
+        formData.append('report_config', reportConfigFile);
     }
     if (promptInput?.files?.[0]) {
         formData.append('prompt_templates', promptInput.files[0]);

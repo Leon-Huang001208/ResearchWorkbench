@@ -115,7 +115,6 @@ class UnifiedPlaceholderConfig:
             "generation_mode",
             "rich_text_spec",
             "use_template_paragraph_style",
-            "data_source",
             "chart_grid_spec",
             "validation",
             "visible",
