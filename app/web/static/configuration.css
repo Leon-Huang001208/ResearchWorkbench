@@ -1665,6 +1665,27 @@
         max-height: calc(100vh - 24px);
     }
 
+    /* Collection headers no longer describe the stacked rows; retain row labels instead. */
+    .config-edit-modal-body .config-row-labels {
+        display: none;
+    }
+
+    .config-edit-modal-body .config-provider-row,
+    .config-edit-modal-body .config-zhiqiu-row,
+    .config-edit-modal-body .config-ifind-row,
+    .config-edit-modal-body .config-route-row,
+    .config-edit-modal-body .config-web_search-row {
+        grid-template-columns: 1fr;
+    }
+
+    .config-edit-modal-body .config-provider-row .config-dynamic-field > span:first-child,
+    .config-edit-modal-body .config-zhiqiu-row .config-dynamic-field > span:first-child,
+    .config-edit-modal-body .config-ifind-row .config-dynamic-field > span:first-child,
+    .config-edit-modal-body .config-route-row .config-dynamic-field > span:first-child,
+    .config-edit-modal-body .config-web_search-row .config-dynamic-field > span:first-child {
+        display: flex;
+    }
+
     .config-field-grid--compact {
         grid-template-columns: minmax(0, 1fr);
     }
