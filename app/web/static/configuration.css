@@ -1206,57 +1206,46 @@
 
 /* ─── Configuration overview: compact, scannable status surface ─────────── */
 .configuration-page {
-    width: min(100%, 1280px);
-    max-width: 1280px;
+    width: min(100%, 1240px);
+    max-width: 1240px;
     margin-right: auto;
     margin-left: auto;
 }
 
-.config-visually-hidden {
-    position: absolute;
-    width: 1px;
-    height: 1px;
+.configuration-header {
+    align-items: flex-start;
+    margin-bottom: 12px;
     padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
     border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
 }
 
 .config-health-summary {
-    display: grid;
-    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) minmax(160px, 0.62fr);
-    gap: 16px;
+    display: block;
     align-items: center;
-    margin-bottom: 18px;
-    padding: 14px 16px;
-    border: 1px solid color-mix(in srgb, var(--border-primary) 88%, var(--accent) 12%);
+    margin-bottom: 10px;
+    padding: 11px 14px;
+    border: 1px solid var(--border-primary);
     border-radius: 10px;
-    background: color-mix(in srgb, var(--bg-panel) 94%, var(--accent) 6%);
+    background: var(--bg-panel);
 }
 
-.config-health-summary > * {
-    min-width: 0;
+.config-health-progress {
+    display: grid;
+    grid-template-columns: auto auto minmax(160px, 1fr);
+    gap: 10px;
+    align-items: center;
 }
 
-.config-health-progress,
-.config-health-connection,
-.config-status-filter {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-}
-
-.config-health-label,
-.config-health-muted {
+.config-health-label {
     color: var(--text-muted);
     font-size: 12px;
     line-height: 1.35;
 }
 
-.config-health-progress strong,
-.config-connection-summary strong {
+.config-health-progress strong {
     color: var(--text-primary);
     font-size: 14px;
     line-height: 1.35;
@@ -1279,64 +1268,65 @@
     transition: width var(--duration-normal);
 }
 
-.config-connection-summary {
-    display: inline-flex;
-    align-items: center;
-    align-self: flex-start;
-    gap: 6px;
-    padding: 0;
-    border: 0;
-    color: var(--text-primary);
-    background: transparent;
-    font: inherit;
-    text-align: left;
-    cursor: pointer;
-}
-
-.config-connection-summary:hover strong {
-    color: var(--accent);
-}
-
-.config-connection-summary:focus-visible,
-.config-summary-card:focus-visible {
+.config-summary-card:focus-visible,
+.config-environment-disclosure > summary:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 3px;
 }
 
-.config-connection-summary[aria-expanded="true"] .codicon {
-    transform: rotate(180deg);
+.config-environment-disclosure {
+    margin-bottom: 14px;
+    overflow: hidden;
+    border: 1px solid var(--border-primary);
+    border-radius: 10px;
+    background: var(--bg-panel);
 }
 
-.config-connection-summary .codicon {
+.config-environment-disclosure > summary {
+    display: flex;
+    align-items: center;
+    min-height: 42px;
+    padding: 0 14px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    list-style: none;
+}
+
+.config-environment-disclosure > summary::-webkit-details-marker {
+    display: none;
+}
+
+.config-environment-disclosure > summary::after {
+    width: 16px;
+    margin-left: auto;
+    color: var(--text-muted);
+    content: '⌄';
+    font-size: 16px;
     transition: transform var(--duration-fast);
 }
 
-.config-health-connection [data-config-health-detail] {
-    max-width: 38ch;
+.config-environment-disclosure[open] > summary {
+    border-bottom: 1px solid var(--border-primary);
+    color: var(--text-primary);
+}
+
+.config-environment-disclosure[open] > summary::after {
+    transform: rotate(180deg);
+}
+
+.config-environment-disclosure .config-environment-diagnostics {
     margin: 0;
-    color: var(--text-secondary);
-    font-size: 12px;
-    line-height: 1.45;
-}
-
-.config-status-filter {
-    justify-self: end;
-    width: min(100%, 180px);
-}
-
-.configuration-page .config-status-filter select {
-    min-height: 36px;
-    padding-right: 34px;
-    border-radius: 8px;
-    font-size: 13px;
-    background-position: right 10px center;
-    background-size: 15px 15px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
 }
 
 .config-cards-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 14px;
+    gap: 12px;
     min-width: 0;
 }
 
@@ -1345,8 +1335,8 @@
     flex-direction: column;
     justify-content: space-between;
     min-width: 0;
-    min-height: 178px;
-    padding: 16px;
+    min-height: 148px;
+    padding: 14px;
     border: 1px solid var(--border-primary);
     border-radius: 10px;
     background: var(--bg-panel);
@@ -1425,7 +1415,7 @@
     align-items: center;
     gap: 8px;
     min-width: 0;
-    padding-top: 14px;
+    padding-top: 12px;
 }
 
 .config-card-badge {
@@ -1468,14 +1458,6 @@
 }
 
 @media (max-width: 980px) {
-    .config-health-summary {
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    }
-
-    .config-status-filter {
-        justify-self: start;
-    }
-
     .config-cards-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -1486,17 +1468,20 @@
         width: 100%;
     }
 
-    .config-health-summary,
     .config-cards-grid {
         grid-template-columns: minmax(0, 1fr);
     }
 
-    .config-status-filter {
-        width: 100%;
+    .config-health-progress {
+        grid-template-columns: auto 1fr;
+    }
+
+    .config-progress-track {
+        grid-column: 1 / -1;
     }
 
     .config-summary-card {
-        min-height: 164px;
+        min-height: 142px;
     }
 }
 

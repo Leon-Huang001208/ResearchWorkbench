@@ -164,38 +164,6 @@ def _configuration_modal_markup(template: str) -> tuple[_ConfigurationMarkupPars
     return parser, modal
 
 
-def _config_refresh_markup(template: str) -> tuple[_ConfigurationMarkupParser, _MarkupElement]:
-    """Return the parsed refresh button using its true id attribute."""
-    parser = _ConfigurationMarkupParser()
-    parser.feed(template)
-    parser.close()
-    refresh = parser.elements_by_id.get("config-refresh")
-    if not refresh:
-        raise AssertionError('index.html must declare a #config-refresh button')
-    return parser, refresh
-
-
-def _status_filter_change_callback(events_source: str) -> str:
-    """Extract the complete status-filter change callback from the event binder."""
-    listener = re.search(
-        r"querySelector\(\s*['\"]\[data-config-status-filter\]['\"]\s*\)\?\.addEventListener\s*\(",
-        events_source,
-    )
-    if not listener:
-        raise AssertionError('bindConfigurationEvents must bind [data-config-status-filter]')
-    arguments = _balanced_javascript_region(
-        events_source,
-        listener.end() - 1,
-        "(",
-        ")",
-        "status-filter addEventListener arguments",
-    )
-    callback = re.match(r"\s*['\"]change['\"]\s*,(?P<callback>[\s\S]+)\Z", arguments)
-    if not callback:
-        raise AssertionError('status-filter listener must register a change callback')
-    return callback.group("callback")
-
-
 def test_configuration_workbench_never_refills_saved_secrets():
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
 
@@ -385,7 +353,7 @@ def test_configuration_workbench_keeps_progress_and_hides_diagnostics_by_default
     )
 
     assert 'data-config-progress-completed' in template
-    assert 'data-config-progress-missing' in template
+    assert 'data-config-progress-total' in template
     assert 'id="config-refresh"' not in template
     assert 'data-config-connection-summary' not in template
     assert 'data-config-status-filter' not in template
