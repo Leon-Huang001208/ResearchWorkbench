@@ -551,13 +551,14 @@ function createEmptyCollectionState(section) {
 
 function renderEmptyCollectionState(form, section, accounts) {
     if ((accounts || []).length || form.querySelector('.config-empty-collection')) return;
-    const addButton = form.querySelector({
-        zhiqiu: '[data-add-zhiqiu-account]',
-        ifind: '[data-add-ifind-account]',
-        web_search: '[data-add-web_search-key]',
-    }[section]);
+    const collection = {
+        zhiqiu: { listId: 'config-zhiqiu-account-list' },
+        ifind: { listId: 'config-ifind-account-list' },
+        web_search: { listId: 'config-web_search-key-list' },
+    }[section];
+    const list = collection && form.querySelector(`#${collection.listId}`);
     const state = createEmptyCollectionState(section);
-    if (addButton && state) addButton.after(state);
+    if (list && state) list.append(state);
 }
 
 function removeEmptyCollectionState(form) {

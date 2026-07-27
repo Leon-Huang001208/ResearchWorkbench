@@ -527,6 +527,50 @@ def test_configuration_empty_collection_lifecycle_restores_all_account_collectio
         assert row_class in restore_source
 
 
+def test_configuration_collection_table_responsive_contract():
+    stylesheet = CONFIGURATION_CSS.read_text(encoding="utf-8")
+    tablet_rules = re.search(
+        r"@media\s*\(max-width:\s*1040px\)\s*\{(?P<rules>.*?)\n\}",
+        stylesheet,
+        re.DOTALL,
+    )
+
+    assert tablet_rules, "collection tables need a tablet breakpoint"
+    rules = tablet_rules.group("rules")
+    assert re.search(r"\.config-row-labels\s*\{\s*display:\s*none\s*;", rules)
+    assert re.search(
+        r"\.config-zhiqiu-row.*?\.config-web_search-row\s*\{\s*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)",
+        rules,
+        re.DOTALL,
+    )
+    breakpoint = stylesheet.rfind("@media (max-width: 720px)")
+
+    assert breakpoint >= 0, "collection tables need a 720px mobile breakpoint"
+    rules = stylesheet[breakpoint:]
+    assert re.search(r"\.config-row-labels\s*\{\s*display:\s*none\s*;", rules)
+    assert re.search(
+        r"\.config-zhiqiu-row.*?\.config-web_search-row\s*\{\s*grid-template-columns:\s*1fr\s*;",
+        rules,
+        re.DOTALL,
+    )
+    assert re.search(
+        r"\.config-zhiqiu-row\s+\.config-dynamic-field\s*>\s*span:first-child.*?display:\s*(?:flex|block)\s*;",
+        rules,
+        re.DOTALL,
+    )
+
+
+def test_configuration_empty_collection_state_is_rendered_inside_its_list():
+    source = CONFIGURATION_JS.read_text(encoding="utf-8")
+    render_source = _configuration_function(source, "renderEmptyCollectionState")
+
+    assert "const collection =" in render_source
+    assert "listId" in render_source
+    assert "form.querySelector(`#${collection.listId}`)" in render_source
+    assert "list.append(state);" in render_source
+    assert "addButton.after(state);" not in render_source
+
+
 def test_configuration_refresh_syncs_collection_empty_states_for_open_modals():
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
     render_section_source = _configuration_function(source, "renderSection")
