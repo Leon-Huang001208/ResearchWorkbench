@@ -351,9 +351,9 @@ function secretHint(secret) {
 
 function collectSecretPair(secretInput) {
     if (!secretInput) return { value: null, clear: false };
-    const value = secretInput.value.trim();
+    const value = secretInput.value;
     const clear = secretInput.dataset.secretClear === 'true';
-    return { value: clear || !value ? null : value, clear };
+    return { value: clear || value === '' ? null : value, clear };
 }
 
 function createProviderRow(provider = {}) {
@@ -573,6 +573,9 @@ function lockControl(control, message = null) {
     if (!control) return false;
     const changed = !control.disabled;
     control.disabled = true;
+    control.closest('.config-secret-control')?.querySelectorAll('[data-secret-replace], [data-secret-clear]').forEach(button => {
+        button.disabled = true;
+    });
     control.closest('label')?.classList.add('environment-locked');
     addControlDescription(control, message?.id);
     return changed;
@@ -1602,8 +1605,8 @@ function renderModalForm(section, values) {
         case 'llm':
             form.innerHTML = `
                 <div class="config-tab-list" role="tablist" aria-label="大模型配置">
-                    <button type="button" role="tab" data-config-tab="providers" id="config-tab-providers" aria-controls="config-tab-panel-providers" aria-selected="true" class="is-active">模型服务</button>
-                    <button type="button" role="tab" data-config-tab="routes" id="config-tab-routes" aria-controls="config-tab-panel-routes" aria-selected="false">任务模型路由</button>
+                    <button type="button" role="tab" data-config-tab="providers" id="config-tab-providers" aria-controls="config-tab-panel-providers" aria-selected="true" tabindex="0" class="is-active">模型服务</button>
+                    <button type="button" role="tab" data-config-tab="routes" id="config-tab-routes" aria-controls="config-tab-panel-routes" aria-selected="false" tabindex="-1">任务模型路由</button>
                 </div>
                 <section role="tabpanel" data-config-tab-panel="providers" id="config-tab-panel-providers" aria-labelledby="config-tab-providers" class="is-active">
                     <div class="config-subsection-header"><h4><i class="codicon codicon-server"></i>模型服务</h4><button type="button" class="secondary-btn" data-add-provider>新增服务</button></div>
@@ -1777,21 +1780,39 @@ function applyEnvironmentLocks(form, section) {
     setModalLockNote(hasStaticLock);
 }
 
+function selectConfigurationTab(form, selectedTab) {
+    const tabs = [...form.querySelectorAll('[data-config-tab]')];
+    tabs.forEach(button => {
+        const selected = button.dataset.configTab === selectedTab;
+        button.setAttribute('aria-selected', String(selected));
+        button.classList.toggle('is-active', selected);
+        button.tabIndex = selected ? 0 : -1;
+    });
+    form.querySelectorAll('[data-config-tab-panel]').forEach(panel => {
+        const selected = panel.dataset.configTabPanel === selectedTab;
+        panel.classList.toggle('is-active', selected);
+        panel.classList.toggle('hidden', !selected);
+        panel.hidden = !selected;
+    });
+}
+
 function bindModalFormEvents(form, section) {
-    form.querySelectorAll('[data-config-tab]').forEach(tab => {
+    const tabs = [...form.querySelectorAll('[data-config-tab]')];
+    tabs.forEach((tab, index) => {
+        tab.tabIndex = tab.getAttribute('aria-selected') === 'true' ? 0 : -1;
         tab.addEventListener('click', () => {
-            const selectedTab = tab.dataset.configTab;
-            form.querySelectorAll('[data-config-tab]').forEach(button => {
-                const selected = button.dataset.configTab === selectedTab;
-                button.setAttribute('aria-selected', String(selected));
-                button.classList.toggle('is-active', selected);
-            });
-            form.querySelectorAll('[data-config-tab-panel]').forEach(panel => {
-                const selected = panel.dataset.configTabPanel === selectedTab;
-                panel.classList.toggle('is-active', selected);
-                panel.classList.toggle('hidden', !selected);
-                panel.hidden = !selected;
-            });
+            selectConfigurationTab(form, tab.dataset.configTab);
+        });
+        tab.addEventListener('keydown', event => {
+            let nextIndex = index;
+            if (event.key === 'ArrowLeft') nextIndex = (index - 1 + tabs.length) % tabs.length;
+            else if (event.key === 'ArrowRight') nextIndex = (index + 1) % tabs.length;
+            else if (event.key === 'Home') nextIndex = 0;
+            else if (event.key === 'End') nextIndex = tabs.length - 1;
+            else return;
+            event.preventDefault();
+            selectConfigurationTab(form, tabs[nextIndex].dataset.configTab);
+            tabs[nextIndex].focus();
         });
     });
 

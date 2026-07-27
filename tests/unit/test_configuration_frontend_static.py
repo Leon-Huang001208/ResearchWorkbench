@@ -659,6 +659,16 @@ def test_configuration_secret_editor_never_offers_saved_secret_copy_or_reveal():
     assert "navigator.clipboard" not in secret_control_source
 
 
+def test_configuration_secret_collection_preserves_replacement_value_verbatim():
+    """collectSecretPair is private, so retain its exact-value contract statically."""
+    source = CONFIGURATION_JS.read_text(encoding="utf-8")
+    collector_source = _configuration_function(source, "collectSecretPair")
+
+    assert "const value = secretInput.value;" in collector_source
+    assert ".trim()" not in collector_source
+    assert "value === ''" in collector_source
+
+
 def test_configuration_remove_action_is_explicit_and_does_not_persist_immediately():
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
     remove_source = _configuration_function(source, "removeButton")
@@ -675,6 +685,7 @@ def test_llm_modal_uses_separate_service_and_route_tabs():
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
     modal_source = _configuration_function(source, "renderModalForm")
     events_source = _configuration_function(source, "bindModalFormEvents")
+    selection_source = _configuration_function(source, "selectConfigurationTab")
 
     for tab in ("providers", "routes"):
         assert re.search(
@@ -690,10 +701,22 @@ def test_llm_modal_uses_separate_service_and_route_tabs():
         modal_source,
     ), "one LLM tab panel must be initially hidden"
     assert re.search(
-        r'\[data-config-tab\].*?addEventListener\(\s*["\']click["\'].*?aria-selected.*?data-config-tab-panel.*?\.hidden\s*=',
-        events_source,
+        r'aria-selected.*?data-config-tab-panel.*?\.hidden\s*=',
+        selection_source,
         re.DOTALL,
-    ), "tab clicks must update selection and the matching panel visibility"
+    ), "tab selection must update selection and the matching panel visibility"
+    assert "selectConfigurationTab(form, tab.dataset.configTab)" in events_source
+
+
+def test_llm_modal_tabs_support_roving_keyboard_navigation():
+    source = CONFIGURATION_JS.read_text(encoding="utf-8")
+    events_source = _configuration_function(source, "bindModalFormEvents")
+
+    assert "addEventListener('keydown'" in events_source
+    for key in ("ArrowLeft", "ArrowRight", "Home", "End"):
+        assert key in events_source
+    assert "tabIndex" in events_source
+    assert ".focus()" in events_source
 
 
 def test_collection_addition_marks_dirty_and_focuses_first_field():
@@ -731,3 +754,12 @@ def test_collection_lock_disables_only_environment_owned_collection():
     )
     assert "isEnvironmentLocked(key, lockedFields)" in collection_lock_source
     assert "if (!locked) return;" in collection_lock_source
+
+
+def test_environment_lock_disables_secret_replacement_actions():
+    source = CONFIGURATION_JS.read_text(encoding="utf-8")
+    lock_source = _configuration_function(source, "lockControl")
+
+    assert "[data-secret-replace]" in lock_source
+    assert "[data-secret-clear]" in lock_source
+    assert "disabled = true" in lock_source
