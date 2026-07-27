@@ -557,7 +557,7 @@ def test_configuration_modal_compact_layout_css_contract():
     stylesheet = CONFIGURATION_CSS.read_text(encoding="utf-8")
 
     assert re.search(
-        r"\.config-collection-table\s*\{[^}]*border:\s*1px\s+solid\s+var\(--border-primary\)\s*;",
+        r"\.config-collection-table\s*\{[^}]*border:\s*1px\s+solid\s+var\(--border\)\s*;",
         stylesheet,
         re.DOTALL,
     )
@@ -566,6 +566,14 @@ def test_configuration_modal_compact_layout_css_contract():
         stylesheet,
         re.DOTALL,
     )
+    row_rule = re.search(
+        r"\.config-collection-table\s+\.config-dynamic-row[^{}]*\{(?P<body>[^}]*)\}",
+        stylesheet,
+        re.DOTALL,
+    )
+    assert row_rule
+    assert "border-top: 1px solid var(--border);" in row_rule.group("body")
+    assert "var(--border-primary)" not in row_rule.group("body")
     assert re.search(
         r"\.config-empty-collection--inline\s*\{[^}]*display:\s*flex\s*;",
         stylesheet,
@@ -576,6 +584,14 @@ def test_configuration_modal_compact_layout_css_contract():
         stylesheet,
         re.DOTALL,
     )
+    remove_rule = re.search(
+        r"\.config-collection-table\s+\.config-remove-row[^{}]*\{(?P<body>[^}]*)\}",
+        stylesheet,
+        re.DOTALL,
+    )
+    assert remove_rule
+    assert "color: #ef4444;" in remove_rule.group("body")
+    assert "var(--danger)" not in remove_rule.group("body")
     assert "@media (max-width: 720px)" in stylesheet
 
 

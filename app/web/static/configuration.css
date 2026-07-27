@@ -1687,7 +1687,7 @@
 /* ─── Configuration modal refinement: compact information layout ─────────── */
 .config-collection-table {
     overflow: hidden;
-    border: 1px solid var(--border-primary);
+    border: 1px solid var(--border);
     border-radius: 10px;
 }
 
@@ -1709,7 +1709,7 @@
     min-height: 48px;
     padding: 8px 12px;
     border: 0;
-    border-top: 1px solid var(--border-primary);
+    border-top: 1px solid var(--border);
     border-radius: 0;
     background: transparent;
     box-shadow: none;
@@ -1724,7 +1724,7 @@
 }
 
 .config-collection-table .config-dynamic-row-locked {
-    border-top-color: var(--border-primary);
+    border-top-color: var(--border);
     background: var(--bg-elevated);
 }
 
@@ -1739,8 +1739,12 @@
 .config-collection-table .config-remove-row,
 .config-collection-table .config-remove-row:hover {
     border-color: transparent;
-    color: var(--danger);
+    color: #ef4444;
     background: transparent;
+}
+
+[data-modal-color] .config-edit-modal-body .config-collection-table .config-dynamic-row:focus-within {
+    box-shadow: none;
 }
 
 .config-empty-collection--inline {
