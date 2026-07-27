@@ -15,13 +15,11 @@ let currentTemplateState = {
     keywordModeDrafts: {},
     commonDefaultsDraft: null,
     commonRuleOpenState: {},
-    v2PlaceholderConfigDrafts: {},
     renderedReportId: null,
     templates: [],
     reportProjects: [],
     selectedReportProject: null,
     selectedGeneratedReportFile: null,
-    activeSourceKind: 'section_config',
     configEditModal: null,
     placeholderPickerSyncTimer: null,
     lastReportGenerationResult: null,
@@ -353,7 +351,6 @@ async function selectTemplate(templateName, fileType) {
     currentTemplateState.placeholderMappingDrafts = {};
     currentTemplateState.keywordModeDrafts = {};
     currentTemplateState.commonDefaultsDraft = null;
-    currentTemplateState.v2PlaceholderConfigDrafts = {};
     currentTemplateState.renderedReportId = null;
     currentTemplateState.selectedReportProject = null;
 
@@ -2327,8 +2324,6 @@ function renderAdvancedMaintenance(template) {
     const placeholders = getTemplateWorkbenchPlaceholders(template);
     const sections = getTemplateWorkbenchSections(template);
     const templateName = template.template_name || template.name || currentSelectedTemplate || '未命名模板';
-    const hasV2Config = Boolean(project?.report_config_source);
-    currentTemplateState.activeSourceKind = hasV2Config ? 'report_config' : 'section_config';
     const placeholderNames = placeholders.length
         ? placeholders
         : sections.map(section => section.placeholder || section.key).filter(Boolean);
@@ -2348,7 +2343,7 @@ function renderAdvancedMaintenance(template) {
 
     const sourceEditor = document.getElementById('template-source-editor');
     if (sourceEditor) {
-        const draftKey = `report-template-source:${project?.slug || templateName}:project-v2`;
+        const draftKey = `report-template-source:${project?.slug || templateName}:unified`;
         sourceEditor.dataset.draftKey = draftKey;
         sourceEditor.readOnly = true;
         sourceEditor.classList.add('readonly');
@@ -2362,36 +2357,16 @@ function renderAdvancedMaintenance(template) {
     bindTemplateWorkbenchActions();
 }
 
-function getTemplateWorkbenchSource(template, sourceKind = 'section_config') {
+function getTemplateWorkbenchSource(template) {
     const project = template.report_project || null;
-    if (sourceKind === 'prompt_templates') {
-        const useLibraryDraft = shouldUsePromptTemplateLibraryDraft(template);
-        return {
-            content: useLibraryDraft
-                ? buildPromptTemplateLibraryMarkdown(template)
-                : (project?.prompt_templates_source || buildPromptTemplateLibraryMarkdown(template)),
-            sourceKind: 'prompt_templates',
-            label: useLibraryDraft ? 'Markdown Prompt（模板库草稿）' : 'Markdown Prompt'
-        };
-    }
-    if (sourceKind === 'report_config') {
-        const hasV2 = Boolean(project?.report_config_source);
-        return {
-            content: hasV2
-                ? project.report_config_source
-                : buildPlaceholderMappingConfigYaml(template),
-            sourceKind: 'report_config',
-            label: hasV2 ? 'YAML 配置驱动 (v2)' : 'YAML 配置驱动 (v2 — 草稿)'
-        };
-    }
     return {
         content: shouldUsePlaceholderMappingDraft(template)
             ? buildPlaceholderMappingConfigYaml(template)
             : (project?.section_config_source || buildPlaceholderMappingConfigYaml(template)),
         sourceKind: 'section_config',
         label: shouldUsePlaceholderMappingDraft(template)
-            ? 'YAML 占位符映射（草稿）'
-            : 'YAML 占位符映射'
+            ? '统一报告配置（草稿）'
+            : '统一报告配置'
     };
 }
 
@@ -2407,37 +2382,12 @@ function updateTemplateSourceSwitcher(template) {
     const sectionBtn = document.getElementById('btn-template-source-section');
     const promptBtn = document.getElementById('btn-template-source-prompt');
     const reportCfgBtn = document.getElementById('btn-template-source-report-config');
-    const project = template.report_project || null;
-    const hasV2Config = Boolean(project?.report_config_source);
-    if (!sectionBtn || !promptBtn) return;
-    const isFixedExcel = isSelectedFixedExcelPlaceholder(template);
-    if (isFixedExcel && currentTemplateState.activeSourceKind === 'prompt_templates') {
-        currentTemplateState.activeSourceKind = hasV2Config ? 'report_config' : 'section_config';
+    if (sectionBtn) {
+        sectionBtn.classList.remove('hidden');
+        sectionBtn.classList.add('active');
     }
-    // v2 存在时隐藏 v1 按钮，v2 是 v1 的增强替代
-    if (hasV2Config && currentTemplateState.activeSourceKind === 'section_config') {
-        currentTemplateState.activeSourceKind = 'report_config';
-    }
-    sectionBtn.classList.toggle('hidden', hasV2Config);
-    sectionBtn.classList.toggle('active', currentTemplateState.activeSourceKind === 'section_config');
-    promptBtn.classList.toggle('active', currentTemplateState.activeSourceKind === 'prompt_templates');
-    promptBtn.disabled = isFixedExcel || !project?.prompt_templates_source;
-    if (reportCfgBtn) {
-        reportCfgBtn.classList.toggle('active', currentTemplateState.activeSourceKind === 'report_config');
-        reportCfgBtn.classList.toggle('hidden', !hasV2Config);
-    }
-}
-
-function switchTemplateSourceKind(sourceKind) {
-    const template = getCurrentWorkbenchTemplate();
-    if (!template) return;
-    if (sourceKind === 'prompt_templates' && isSelectedFixedExcelPlaceholder(template)) {
-        return;
-    }
-    currentTemplateState.activeSourceKind = sourceKind;
-    updateTemplateSourceSwitcher(template);
-    renderSelectedSourceFragment(template);
-    setTemplateSourceEditing(false);
+    if (promptBtn) promptBtn.classList.add('hidden');
+    if (reportCfgBtn) reportCfgBtn.classList.add('hidden');
 }
 
 function isSelectedFixedExcelPlaceholder(template) {
@@ -2716,7 +2666,6 @@ function getPlaceholderLifecycleStatus(template, mapping, placeholderName) {
 
 function isPlaceholderConfirmed(template, mapping = {}, placeholderName = '') {
     if (mapping.confirmed === true || mapping.confirmed === 'true') return true;
-    if (mapping._isV2 && mapping._v2) return true;
     const storedMappings = getStoredPlaceholderMappings(template);
     return storedMappings.has(normalizePlaceholderName(placeholderName));
 }
@@ -2937,12 +2886,7 @@ function isExcelFieldPlaceholder(type = '', mapping = {}, placeholderName = '') 
 
 function getStoredCommonDefaults(template) {
     const project = template?.report_project;
-    const isV2 = currentTemplateState.activeSourceKind === 'report_config';
-    // v2 激活时优先从 report_config.defaults 读取共用参数
-    const v2Defaults = isV2 ? (project?.report_config?.defaults || null) : null;
-    const v1Defaults = project?.section_config?.defaults;
-    // v2 模式下合并 v2 defaults 与 v1 作为 fallback；v1 模式只读 v1
-    const defaults = isV2 && v2Defaults ? { ...v1Defaults, ...v2Defaults } : v1Defaults;
+    const defaults = project?.section_config?.defaults;
     const base = {
         generation_mode: 'evidence_grounded_generation',
         evidence_policy: 'strict',
@@ -3729,21 +3673,6 @@ function getEffectivePlaceholderMapping(template, placeholderName) {
     if (!name) return null;
     const draft = currentTemplateState.placeholderMappingDrafts?.[name];
     if (draft) return draft;
-    // v2 配置激活时，从 report_config.placeholders 提取 EnhancedPlaceholder
-    if (currentTemplateState.activeSourceKind === 'report_config') {
-        const reportConfig = template.report_project?.report_config;
-        if (reportConfig && name) {
-            // 使用 getEditableV2Config 以合并 v2 草稿
-            const editableV2 = getEditableV2Config(template, name);
-            if (editableV2) {
-                return v2PlaceholderConfigToMapping(
-                    { ...reportConfig, placeholders: { ...reportConfig.placeholders, [name]: editableV2 } },
-                    name
-                );
-            }
-            return v2PlaceholderConfigToMapping(reportConfig, name);
-        }
-    }
     const mappings = getCurrentPlaceholderMappings(template);
     return mappings.get(name) || {
         title: inferPlaceholderTitle(name),
@@ -3755,152 +3684,6 @@ function getSelectedPlaceholderMapping(template) {
     return getEffectivePlaceholderMapping(template, currentTemplateState.selectedPlaceholderName);
 }
 
-/* ── v2 EnhancedPlaceholder → v1 mapping 映射 ── */
-function v2PlaceholderConfigToMapping(reportConfig, key) {
-    /* 从 report_config.placeholders[key] 读取 v2 EnhancedPlaceholder，
-     * 映射为 v1-compatible mapping 对象，同时保留原始 _v2 引用。
-     *
-     * 映射规则：
-     *   generation_config.prompt_template_ref → prompt_template
-     *   generation_config.target_words → target_words
-     *   generation_config.max_words → max_words
-     *   generation_config.retrieval.keyword_groups → flattened keywords array
-     *   type (rich_text→paragraph, text→field, ...) → v1 type
-     *   title → title
-     *   generation_mode → mode
-     */
-    const placeholders = reportConfig.placeholders || {};
-    const v2 = placeholders[key];
-    if (!v2) {
-        return {
-            title: inferPlaceholderTitle(key),
-            type: inferPlaceholderType(key),
-            _v2: null,
-            _isV2: true
-        };
-    }
-    const genConfig = v2.generation_config || {};
-    const retrieval = genConfig.retrieval || {};
-    // 展平 keyword_groups → 一维 keywords 数组
-    const flattenedKeywords = (retrieval.keyword_groups || [])
-        .reduce((acc, group) => acc.concat(Array.isArray(group) ? group : [group]), []);
-    // v2 type → v1 type
-    const v2Type = (v2.type || '').toLowerCase();
-    const v1Type = v2TypeToV1Type(v2Type, key);
-
-    // 从 rich_text_spec.runs 提取静态固定文本 → V1 components[data_template]
-    const richTextSpec = v2.rich_text_spec || {};
-    const runs = richTextSpec.runs || [];
-    const staticText = runs
-        .filter(r => r && r.is_dynamic === false && r.text)
-        .map(r => r.text)
-        .join('');
-    const components = staticText ? [{ type: 'data_template', template: staticText }] : undefined;
-
-    return {
-        title: v2.title || inferPlaceholderTitle(key),
-        type: v1Type,
-        mode: v2.generation_mode || v2.mode || reportConfig.defaults?.generation_mode || 'evidence_grounded',
-        prompt_template: genConfig.prompt_template_ref || '',
-        target_words: genConfig.target_words || '',
-        max_words: genConfig.max_words || '',
-        keywords: flattenedKeywords,
-        keyword_groups: retrieval.keyword_groups || [],
-        output_mode: genConfig.output_mode || 'single_paragraph',
-        min_chars: (v2.validation || {}).min_chars || '',
-        max_chars: (v2.validation || {}).max_chars || '',
-        require_numbers: (v2.validation || {}).require_numbers || false,
-        forbid_instruction_leaks: (v2.validation || {}).forbid_instruction_leaks || false,
-        forbidden_terms: (v2.validation || {}).forbidden_terms || [],
-        rich_text_spec: v2.rich_text_spec || null,
-        components: components,
-        data_source: v2.data_source || null,
-        chart_grid_spec: v2.chart_grid_spec || null,
-        visible: v2.visible !== false,
-        visible_if: v2.visible_if || '',
-        hide_strategy: v2.hide_strategy || 'remove_placeholder',
-        _v2: v2,
-        _isV2: true
-    };
-}
-
-function v2TypeToV1Type(v2Type, key) {
-    /* 将 v2 PlaceholderType 映射到 v1 类型标识 */
-    const map = {
-        'rich_text': 'paragraph',
-        'text': isSystemDatePlaceholder(key) ? 'field' : 'static_text',
-        'chart_grid': 'chart',
-        'chart': 'chart',
-        'image': 'image',
-        'table_data': 'table'
-    };
-    return map[v2Type] || 'paragraph';
-}
-
-/* ── v2 编辑草稿管理 ── */
-function getV2Draft(name) {
-    const drafts = currentTemplateState.v2PlaceholderConfigDrafts || {};
-    return drafts[name] || null;
-}
-
-function setV2Draft(name, pathStr, value) {
-    /* pathStr 如 'generation_config.target_words' 或 'rich_text_spec.default_font' */
-    const drafts = currentTemplateState.v2PlaceholderConfigDrafts || {};
-    currentTemplateState.v2PlaceholderConfigDrafts = drafts;
-    if (!drafts[name]) drafts[name] = {};
-    const parts = pathStr.split('.');
-    let target = drafts[name];
-    for (let i = 0; i < parts.length - 1; i++) {
-        if (!target[parts[i]] || typeof target[parts[i]] !== 'object') {
-            target[parts[i]] = {};
-        }
-        target = target[parts[i]];
-    }
-    target[parts[parts.length - 1]] = value;
-}
-
-function getEditableV2Config(template, name) {
-    /* 获取原始 report_config.placeholders[name]，深度合并 v2 草稿 */
-    const reportConfig = template?.report_project?.report_config;
-    const original = reportConfig?.placeholders?.[name] || null;
-    const draft = getV2Draft(name);
-    if (!draft) return original;
-    return deepMergeV2Config(original, draft);
-}
-
-function hasV2Drafts() {
-    const drafts = currentTemplateState.v2PlaceholderConfigDrafts || {};
-    return Object.keys(drafts).length > 0;
-}
-
-function clearV2Draft(name) {
-    const drafts = currentTemplateState.v2PlaceholderConfigDrafts || {};
-    if (name) {
-        delete drafts[name];
-    } else {
-        currentTemplateState.v2PlaceholderConfigDrafts = {};
-    }
-}
-
-function deepMergeV2Config(original, draft) {
-    /* 将 draft 深度合并到 original 上，返回新对象 */
-    if (!original) return draft ? JSON.parse(JSON.stringify(draft)) : null;
-    const result = JSON.parse(JSON.stringify(original));
-    if (!draft) return result;
-    _deepMerge(result, draft);
-    return result;
-}
-
-function _deepMerge(target, source) {
-    for (const key of Object.keys(source)) {
-        if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])
-            && target[key] && typeof target[key] === 'object' && !Array.isArray(target[key])) {
-            _deepMerge(target[key], source[key]);
-        } else {
-            target[key] = JSON.parse(JSON.stringify(source[key]));
-        }
-    }
-}
 
 function getRenderedPlaceholderSummaryName() {
     return normalizePlaceholderName(
@@ -4084,443 +3867,14 @@ function bindPlaceholderSummaryEditActions(template) {
     });
 }
 
-/* ── v2 占位符特有配置卡片（可编辑版本）── */
-function buildV2PlaceholderConfigCards(mapping, placeholderName) {
-    if (!mapping._isV2) return '';
-    const v2 = mapping._v2;
-    if (!v2) {
-        return `
-            <div class="template-config-readable-section">
-                <div class="template-config-readable-title">
-                    <strong>v2 占位符配置</strong>
-                    <span class="template-config-v2-badge">v2</span>
-                </div>
-                <p class="template-config-empty-note">该占位符尚未在 report_config.yaml 中定义 v2 配置。请在 YAML 编辑器中添加。</p>
-            </div>
-        `;
-    }
 
+/* ── 统一 rendering 配置内联 badges（嵌入卡片内）── */
+function buildRenderingBadges(mapping) {
     const parts = [];
-
-    // 1. RichTextSpec
-    const richTextHtml = buildV2RichTextSpecPreview(v2);
-    if (richTextHtml) {
-        parts.push(`
-            <button class="template-config-readable-section template-config-edit-trigger" type="button"
-                    data-placeholder-edit-section="v2_richtext" data-v2-card="richtext">
-                <div class="template-config-readable-title">
-                    <strong>格式化规格 (RichTextSpec)</strong>
-                    <span>${esc(v2.type || 'rich_text')} · 点击编辑</span>
-                </div>
-                <div class="template-config-rich-text-preview">
-                    ${richTextHtml}
-                </div>
-            </button>
-        `);
-    }
-
-    // 2. keyword_groups
-    const keywordGroupsHtml = buildV2KeywordGroupsPreview(v2);
-    if (keywordGroupsHtml) {
-        parts.push(`
-            <button class="template-config-readable-section template-config-edit-trigger" type="button"
-                    data-placeholder-edit-section="v2_keyword_groups" data-v2-card="keyword_groups">
-                <div class="template-config-readable-title">
-                    <strong>关键词组 (keyword_groups)</strong>
-                    <span>组内 OR · 组间 AND · 点击编辑</span>
-                </div>
-                ${keywordGroupsHtml}
-            </button>
-        `);
-    }
-
-    // 3. 校验规则
-    const validationHtml = buildV2ValidationPreview(v2);
-    if (validationHtml) {
-        parts.push(`
-            <button class="template-config-readable-section template-config-edit-trigger" type="button"
-                    data-placeholder-edit-section="v2_validation" data-v2-card="validation">
-                <div class="template-config-readable-title">
-                    <strong>校验规则 (ValidationSpec)</strong>
-                    <span>${v2.validation ? '已配置' : '未配置'} · 点击编辑</span>
-                </div>
-                ${validationHtml}
-            </button>
-        `);
-    }
-
-    // 4. 生成模式 & 数据来源概要
-    const genInfoHtml = buildV2GenerationInfoPreview(v2, mapping);
-    if (genInfoHtml) {
-        parts.push(genInfoHtml);
-    }
-
-    return parts.join('');
-}
-
-function buildV2RichTextSpecPreview(v2) {
-    const spec = v2.rich_text_spec;
-    if (!spec || !Array.isArray(spec.runs) || !spec.runs.length) {
-        if (v2.type === 'chart_grid' && v2.chart_grid_spec) {
-            const grid = v2.chart_grid_spec;
-            const cols = grid.columns || 1;
-            const chartCount = Array.isArray(grid.charts) ? grid.charts.length : 0;
-            return `<div class="template-config-chart-grid-preview">
-                <p>图表网格 · ${cols} 列 · ${chartCount} 个图表</p>
-                ${Array.isArray(grid.charts) ? grid.charts.map((ch, i) =>
-                    `<span class="template-config-chart-chip">图表 ${i + 1}: ${esc(ch.chart_ref || ch.title || '—')}</span>`
-                ).join('') : ''}
-            </div>`;
-        }
-        if (v2.type === 'image' && v2.data_source) {
-            return `<p>数据来源: ${esc(v2.data_source.source || v2.data_source.type || '—')}</p>`;
-        }
-        return '';
-    }
-    const defaultFont = spec.default_font || '默认字体';
-    const defaultSize = spec.default_size_pt || 12;
-    const headerHtml = `<p class="template-config-richtext-meta">默认字体: ${esc(defaultFont)} · ${defaultSize}pt · ${spec.runs.length} 个 Run</p>`;
-    const runsHtml = spec.runs.map((run, i) => {
-        const cls = run.is_dynamic ? 'rich-text-run dynamic' : 'rich-text-run static';
-        const label = run.is_dynamic
-            ? (run.placeholder_key ? `{{${run.placeholder_key}}}` : '动态内容')
-            : (run.text || '');
-        const styles = [];
-        if (run.bold) styles.push('font-weight:bold');
-        if (run.italic) styles.push('font-style:italic');
-        if (run.font_size_pt) styles.push(`font-size:${run.font_size_pt}pt`);
-        if (run.color_hex) styles.push(`color:${run.color_hex}`);
-        if (run.font_name) styles.push(`font-family:${run.font_name}`);
-        return `<span class="${cls}" style="${styles.join(';')}" title="Run ${i + 1}: ${esc(label)}">${esc(label)}</span>`;
-    }).join('');
-    return `${headerHtml}<div class="template-config-richtext-runs">${runsHtml}</div>`;
-}
-
-function buildV2KeywordGroupsPreview(v2) {
-    const groups = v2.keyword_groups || (v2.generation_config?.retrieval?.keyword_groups);
-    if (!Array.isArray(groups) || !groups.length) {
-        const kw = (v2.generation_config?.retrieval?.keywords) || [];
-        if (Array.isArray(kw) && kw.length) {
-            return `<div class="template-config-keyword-cloud">
-                ${kw.map(k => `<span>${esc(k)}</span>`).join('')}
-            </div>`;
-        }
-        return '<p class="template-config-empty-note">未配置关键词组</p>';
-    }
-    return `
-        <div class="template-config-keyword-groups">
-            ${groups.map((group, gi) => {
-                const items = Array.isArray(group) ? group : [group];
-                if (!items.length) return '';
-                return `<div class="template-config-keyword-group">
-                    <span class="template-config-group-label">G${gi + 1}</span>
-                    <div class="template-config-keyword-cloud">
-                        ${items.map(k => `<span>${esc(k)}</span>`).join('')}
-                    </div>
-                </div>`;
-            }).filter(Boolean).join('')}
-        </div>
-        <p class="template-config-groups-hint">组内关键词 OR 匹配，组间 AND 交集</p>
-    `;
-}
-
-function buildV2ValidationPreview(v2) {
-    const v = v2.validation;
-    if (!v) return '<p class="template-config-empty-note">未配置校验规则</p>';
-    const items = [];
-    if (v.min_chars) items.push(`<span class="template-config-rule-chip">最少 ${v.min_chars} 字符</span>`);
-    if (v.max_chars) items.push(`<span class="template-config-rule-chip">最多 ${v.max_chars} 字符</span>`);
-    if (v.require_numbers) items.push('<span class="template-config-rule-chip">必须包含数字</span>');
-    if (Array.isArray(v.forbidden_terms) && v.forbidden_terms.length) {
-        items.push(`<span class="template-config-rule-chip">禁用词: ${v.forbidden_terms.map(esc).join('、')}</span>`);
-    }
-    if (v.forbid_instruction_leaks) items.push('<span class="template-config-rule-chip">禁止指令泄露</span>');
-    if (!items.length) return '<p class="template-config-empty-note">校验规则为空</p>';
-    return `<div class="template-config-validation-rules">${items.join('')}</div>`;
-}
-
-function buildV2GenerationInfoPreview(v2, mapping) {
-    const gc = v2.generation_config || {};
-    const retrieval = gc.retrieval || {};
-    const items = [];
-    if (mapping.mode) items.push(`<span class="template-config-rule-chip">模式: ${esc(mapping.mode)}</span>`);
-    if (gc.target_words) items.push(`<span class="template-config-rule-chip">目标 ${gc.target_words} 字</span>`);
-
-    if (retrieval.mode) items.push(`<span class="template-config-rule-chip">检索: ${esc(retrieval.mode)}</span>`);
-    if (retrieval.top_k) items.push(`<span class="template-config-rule-chip">top_k: ${retrieval.top_k}</span>`);
-    if (!items.length) return '';
-    return `
-        <button class="template-config-readable-section template-config-edit-trigger" type="button"
-                data-placeholder-edit-section="v2_generation" data-v2-card="generation">
-            <div class="template-config-readable-title">
-                <strong>生成与检索参数</strong>
-                <span>GenerationConfig · 点击编辑</span>
-            </div>
-            <div class="template-config-validation-rules">${items.join('')}</div>
-        </button>
-    `;
-}
-
-/* ── v2 卡片内联编辑引擎 ── */
-function toggleV2CardEditMode(template, cardType, element) {
-    const name = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
-    if (!name) return;
-    const mapping = getSelectedPlaceholderMapping(template);
-    if (!mapping?._v2) return;
-
-    if (element.classList.contains('is-editing')) {
-        _cancelV2CardEdit(template, element, cardType, name);
-        return;
-    }
-
-    element.classList.add('is-editing');
-    const formHtml = buildV2CardEditForm(mapping._v2, mapping, cardType, name);
-    element.setAttribute('data-v2-card-original-html', element.innerHTML);
-    element.innerHTML = formHtml;
-    _bindV2CardEditActions(template, element, cardType, name);
-}
-
-function _cancelV2CardEdit(template, element, cardType, name) {
-    const originalHtml = element.getAttribute('data-v2-card-original-html');
-    if (originalHtml) {
-        element.innerHTML = originalHtml;
-        element.removeAttribute('data-v2-card-original-html');
-    } else {
-        // fallback: rebuild from current mapping
-        const mapping = getSelectedPlaceholderMapping(template);
-        element.innerHTML = _rebuildV2CardInnerHtml(mapping, cardType);
-    }
-    element.classList.remove('is-editing');
-}
-
-function _rebuildV2CardInnerHtml(mapping, cardType) {
-    const v2 = mapping?._v2;
-    if (!v2) return '';
-    switch (cardType) {
-        case 'richtext': {
-            const raw = buildV2RichTextSpecPreview(v2);
-            return `<div class="template-config-readable-title">
-                <strong>格式化规格 (RichTextSpec)</strong>
-                <span>${esc(v2.type || 'rich_text')} · 点击编辑</span>
-            </div><div class="template-config-rich-text-preview">${raw}</div>`;
-        }
-        case 'keyword_groups': {
-            const raw = buildV2KeywordGroupsPreview(v2);
-            return `<div class="template-config-readable-title">
-                <strong>关键词组 (keyword_groups)</strong>
-                <span>组内 OR · 组间 AND · 点击编辑</span>
-            </div>${raw}`;
-        }
-        case 'validation': {
-            const raw = buildV2ValidationPreview(v2);
-            return `<div class="template-config-readable-title">
-                <strong>校验规则 (ValidationSpec)</strong>
-                <span>${v2.validation ? '已配置' : '未配置'} · 点击编辑</span>
-            </div>${raw}`;
-        }
-        case 'generation': {
-            const gc = v2.generation_config || {};
-            const retrieval = gc.retrieval || {};
-            const items = [];
-            if (mapping.mode) items.push(`<span class="template-config-rule-chip">模式: ${esc(mapping.mode)}</span>`);
-            if (gc.target_words) items.push(`<span class="template-config-rule-chip">目标 ${gc.target_words} 字</span>`);
-        
-            if (retrieval.mode) items.push(`<span class="template-config-rule-chip">检索: ${esc(retrieval.mode)}</span>`);
-            if (retrieval.top_k) items.push(`<span class="template-config-rule-chip">top_k: ${retrieval.top_k}</span>`);
-            return `<div class="template-config-readable-title">
-                <strong>生成与检索参数</strong>
-                <span>GenerationConfig · 点击编辑</span>
-            </div><div class="template-config-validation-rules">${items.join('')}</div>`;
-        }
-        default: return '';
-    }
-}
-
-function buildV2CardEditForm(v2, mapping, cardType, name) {
-    switch (cardType) {
-        case 'richtext': return _buildRichTextEditForm(v2, name);
-        case 'keyword_groups': return _buildKeywordGroupsEditForm(v2, name);
-        case 'validation': return _buildValidationEditForm(v2, name);
-        case 'generation': return _buildGenerationEditForm(v2, mapping, name);
-        default: return '<p>未知编辑类型</p>';
-    }
-}
-
-function _buildRichTextEditForm(v2, name) {
-    const spec = v2.rich_text_spec || {};
-    const runs = spec.runs || [];
-    // 简化格式：每行一个 run，static|bold|fontSize|color|text 或 dynamic|placeholder_key
-    const lines = runs.map(r => {
-        if (r.is_dynamic) return `dynamic|${r.placeholder_key || ''}`;
-        return `static|${r.bold ? 'bold' : ''}|${r.font_size_pt || ''}|${r.color_hex || ''}|${r.text || ''}`;
-    });
-    return `<div class="template-config-edit-form">
-        <p class="template-config-edit-hint">每行一个 Run：<br><code>static|bold|fontSize|color|文本</code> 或 <code>dynamic|placeholder_key</code></p>
-        <textarea class="template-config-v2-textarea" data-v2-field="rich_text_spec.runs" rows="6">${esc(lines.join('\n'))}</textarea>
-        <label class="template-config-v2-field">默认字体 <input data-v2-field="rich_text_spec.default_font" value="${esc(spec.default_font || '')}" placeholder="如 微软雅黑"></label>
-        <label class="template-config-v2-field">默认字号(pt) <input type="number" data-v2-field="rich_text_spec.default_size_pt" value="${spec.default_size_pt || 12}" min="6" max="72"></label>
-        <div class="template-config-v2-actions">
-            <span class="btn-primary" role="button" tabindex="0" data-v2-action="save">确认</span>
-            <span class="btn-secondary" role="button" tabindex="0" data-v2-action="cancel">取消</span>
-        </div>
-    </div>`;
-}
-
-function _buildKeywordGroupsEditForm(v2, name) {
-    const groups = v2.keyword_groups || (v2.generation_config?.retrieval?.keyword_groups) || [];
-    const lines = groups.map(g => (Array.isArray(g) ? g : [g]).join(','));
-    return `<div class="template-config-edit-form">
-        <p class="template-config-edit-hint">每组一行，组内关键词用逗号分隔；组内 OR 匹配，组间 AND 交集</p>
-        <textarea class="template-config-v2-textarea" data-v2-field="generation_config.retrieval.keyword_groups" rows="6">${esc(lines.join('\n'))}</textarea>
-        <label class="template-config-v2-field">检索模式 <select data-v2-field="generation_config.retrieval.mode">
-            <option value="hybrid" ${(v2.generation_config?.retrieval?.mode || '') === 'hybrid' ? 'selected' : ''}>hybrid (混合)</option>
-            <option value="keyword" ${(v2.generation_config?.retrieval?.mode || '') === 'keyword' ? 'selected' : ''}>keyword (关键词)</option>
-            <option value="semantic" ${(v2.generation_config?.retrieval?.mode || '') === 'semantic' ? 'selected' : ''}>semantic (语义)</option>
-        </select></label>
-        <div class="template-config-v2-actions">
-            <span class="btn-primary" role="button" tabindex="0" data-v2-action="save">确认</span>
-            <span class="btn-secondary" role="button" tabindex="0" data-v2-action="cancel">取消</span>
-        </div>
-    </div>`;
-}
-
-function _buildValidationEditForm(v2, name) {
-    const v = v2.validation || {};
-    return `<div class="template-config-edit-form">
-        <div class="template-config-v2-field-row">
-            <label class="template-config-v2-field">最少字符 <input type="number" data-v2-field="validation.min_chars" value="${v.min_chars || ''}" min="0" placeholder="如 100"></label>
-            <label class="template-config-v2-field">最多字符 <input type="number" data-v2-field="validation.max_chars" value="${v.max_chars || ''}" min="0" placeholder="如 500"></label>
-        </div>
-        <label class="template-config-v2-field template-config-v2-checkbox">
-            <input type="checkbox" data-v2-field="validation.require_numbers" ${v.require_numbers ? 'checked' : ''}> 必须包含数字
-        </label>
-        <label class="template-config-v2-field template-config-v2-checkbox">
-            <input type="checkbox" data-v2-field="validation.forbid_instruction_leaks" ${v.forbid_instruction_leaks ? 'checked' : ''}> 禁止指令泄露
-        </label>
-        <label class="template-config-v2-field">禁用词（逗号分隔）
-            <textarea class="template-config-v2-textarea" data-v2-field="validation.forbidden_terms" rows="2" placeholder="如 保本,稳赚,收益保证">${esc((v.forbidden_terms || []).join(','))}</textarea>
-        </label>
-        <div class="template-config-v2-actions">
-            <span class="btn-primary" role="button" tabindex="0" data-v2-action="save">确认</span>
-            <span class="btn-secondary" role="button" tabindex="0" data-v2-action="cancel">取消</span>
-        </div>
-    </div>`;
-}
-
-function _buildGenerationEditForm(v2, mapping, name) {
-    const gc = v2.generation_config || {};
-    const retrieval = gc.retrieval || {};
-    return `<div class="template-config-edit-form">
-        <div class="template-config-v2-field-row">
-            <label class="template-config-v2-field">目标字数 <input type="number" data-v2-field="generation_config.target_words" value="${gc.target_words || ''}" min="10" placeholder="如 200"></label>
-        </div>
-        <div class="template-config-v2-field-row">
-            <label class="template-config-v2-field">检索 Top K <input type="number" data-v2-field="generation_config.retrieval.top_k" value="${retrieval.top_k || ''}" min="1" max="100"></label>
-            <label class="template-config-v2-field">候选数 <input type="number" data-v2-field="generation_config.retrieval.candidate_k" value="${retrieval.candidate_k || ''}" min="1" max="200"></label>
-        </div>
-        <label class="template-config-v2-field">生成模式 <select data-v2-field="generation_mode">
-            <option value="evidence_grounded" ${(v2.generation_mode || '') === 'evidence_grounded' ? 'selected' : ''}>evidence_grounded (证据驱动)</option>
-            <option value="llm_only" ${(v2.generation_mode || '') === 'llm_only' ? 'selected' : ''}>llm_only (纯 LLM)</option>
-            <option value="data_template" ${(v2.generation_mode || '') === 'data_template' ? 'selected' : ''}>data_template (数据模板)</option>
-        </select></label>
-        <div class="template-config-v2-actions">
-            <span class="btn-primary" role="button" tabindex="0" data-v2-action="save">确认</span>
-            <span class="btn-secondary" role="button" tabindex="0" data-v2-action="cancel">取消</span>
-        </div>
-    </div>`;
-}
-
-function _bindV2CardEditActions(template, element, cardType, name) {
-    element.querySelector('[data-v2-action="save"]')?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        _applyV2CardEdit(template, element, cardType, name);
-    });
-    element.querySelector('[data-v2-action="cancel"]')?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        _cancelV2CardEdit(template, element, cardType, name);
-    });
-}
-
-function _applyV2CardEdit(template, element, cardType, name) {
-    element.querySelectorAll('[data-v2-field]').forEach(input => {
-        let value;
-        if (input.type === 'checkbox') {
-            value = input.checked;
-        } else if (input.type === 'number') {
-            value = input.value === '' ? null : Number(input.value);
-        } else if (input.tagName === 'TEXTAREA') {
-            const field = input.dataset.v2Field;
-            if (field.includes('keyword_groups')) {
-                // keyword_groups: 每行一个 group，逗号分隔
-                value = input.value.split('\n')
-                    .map(line => line.trim())
-                    .filter(Boolean)
-                    .map(line => line.split(',').map(k => k.trim()).filter(Boolean));
-            } else if (field.includes('forbidden_terms')) {
-                value = input.value.split(',').map(t => t.trim()).filter(Boolean);
-            } else if (field.includes('runs')) {
-                // rich_text_spec.runs: 解析每行格式
-                value = input.value.split('\n')
-                    .map(line => line.trim())
-                    .filter(Boolean)
-                    .map(line => {
-                        if (line.startsWith('dynamic|')) {
-                            const pk = line.slice('dynamic|'.length).trim();
-                            return { placeholder_key: pk || undefined, is_dynamic: true };
-                        }
-                        // static|bold|fontSize|color|text
-                        const parts = line.split('|');
-                        return {
-                            text: parts[4] || '',
-                            bold: parts[1] === 'bold' || undefined,
-                            font_size_pt: parts[2] ? Number(parts[2]) : undefined,
-                            color_hex: parts[3] || undefined,
-                            is_dynamic: false
-                        };
-                    });
-            } else {
-                value = input.value;
-            }
-        } else if (input.tagName === 'SELECT') {
-            value = input.value;
-        } else {
-            value = input.value;
-        }
-        setV2Draft(name, input.dataset.v2Field, value);
-    });
-
-    // rebuild view from updated config
-    const mapping = getSelectedPlaceholderMapping(template);
-    element.innerHTML = _rebuildV2CardInnerHtml(mapping, cardType);
-    element.classList.remove('is-editing');
-    element.removeAttribute('data-v2-card-original-html');
-    // re-bind: the click handler needs re-attaching since innerHTML was replaced
-    if (!element.dataset.boundPlaceholderEditSection) {
-        element.dataset.boundPlaceholderEditSection = 'true';
-        element.addEventListener('click', (e) => {
-            const section = element.dataset.placeholderEditSection;
-            if (section && section.startsWith('v2_')) {
-                e.stopPropagation();
-                toggleV2CardEditMode(template, section.replace('v2_', ''), element);
-            }
-        });
-    }
-}
-
-/* ── 增强配置内联 badges（嵌入卡片内）── */
-function buildConfigEnhancementBadges(mapping, v2) {
-    const parts = [];
-    const spec = mapping.rich_text_spec;
-    if (spec && Array.isArray(spec.runs) && spec.runs.length > 0) {
-        const fontInfo = [spec.default_font, spec.default_size_pt ? `${spec.default_size_pt}pt` : ''].filter(Boolean).join(' ') || '默认';
-        const staticRuns = spec.runs.filter(r => r && !r.is_dynamic).length;
-        const dynamicRuns = spec.runs.filter(r => r && r.is_dynamic).length;
-        const runParts = [];
-        if (staticRuns > 0) runParts.push(`${staticRuns} 固定`);
-        if (dynamicRuns > 0) runParts.push(`${dynamicRuns} 动态`);
-        parts.push(`<span class="template-config-enhancement-badge">📝 ${esc(fontInfo)} · ${runParts.join(' + ')}</span>`);
+    const rendering = mapping.rendering || {};
+    if (Array.isArray(rendering.runs) && rendering.runs.length > 0) {
+        const fontInfo = [rendering.default_font, rendering.default_size_pt ? `${rendering.default_size_pt}pt` : ''].filter(Boolean).join(' ') || '默认';
+        parts.push(`<span class="template-config-enhancement-badge">📝 ${esc(fontInfo)} · ${rendering.runs.length} 个文本片段</span>`);
     }
     if (!parts.length) return '';
     return `<div class="template-config-enhancement-badges">${parts.join('')}</div>`;
@@ -4701,11 +4055,8 @@ function buildPlaceholderConfigSummaryHtml({
             { label: '目标字数', value: mapping.target_words || inferDefaultTargetWords(name) },
             { label: '证据条数', value: minNewsCount || mapping.min_news_count || '默认' }
         ];
-    const v2 = mapping._v2;
-    const richTextSpec = mapping.rich_text_spec;
-    const hasRuns = richTextSpec && Array.isArray(richTextSpec.runs) && richTextSpec.runs.length > 0;
-    const keywordGroups = v2?.generation_config?.retrieval?.keyword_groups;
-    const hasKeywordGroups = Array.isArray(keywordGroups) && keywordGroups.length > 0;
+    const rendering = mapping.rendering || {};
+    const hasRuns = Array.isArray(rendering.runs) && rendering.runs.length > 0;
     const queryNeedsAttention = usesEvidence && !rawSemanticQuery.trim();
     const keywordsNeedAttention = usesEvidence && !queryNeedsAttention && keywordList.length === 0;
     return `
@@ -4722,7 +4073,7 @@ function buildPlaceholderConfigSummaryHtml({
                         <strong>${esc(item.value)}</strong>
                     </div>
                 `).join('')}
-                ${hasRuns ? buildConfigEnhancementBadges(mapping, v2) : ''}
+                ${hasRuns ? buildRenderingBadges(mapping) : ''}
             </button>
             ${usesEvidence ? `
                 ${queryNeedsAttention ? `
@@ -4753,7 +4104,6 @@ function buildPlaceholderConfigSummaryHtml({
                             ? keywordList.map(keyword => `<span>${esc(keyword)}</span>`).join('')
                             : '<em>暂无关键词</em>'}
                     </div>
-                    ${hasKeywordGroups ? buildKeywordGroupsInlineBadges(keywordGroups) : ''}
                     `
                 })}
             ` : ''}
@@ -4903,21 +4253,6 @@ function updateTemplateConfigPlaceholderChips(type, mapping = {}, template = get
     }
 }
 
-/* ── 模态增强字段 HTML 生成 ── */
-
-function buildEnhancedKeywordsSectionFields(mapping) {
-    const v2 = mapping._v2;
-    const groups = mapping.keyword_groups || v2?.generation_config?.retrieval?.keyword_groups;
-    return `
-        <hr class="template-config-modal-divider">
-        <div class="template-config-modal-group">
-            <h5>关键词组</h5>
-            <p class="template-config-edit-hint">每组一行，组内关键词逗号分隔。组内 OR 关系，组间 AND 关系。</p>
-            <textarea data-enhanced-field="generation_config.retrieval.keyword_groups" rows="6"
-                placeholder="台积电, 费城半导体, 英伟达, SK海力士&#10;光通信, 光模块, CPO, 中际旭创">${esc(formatKeywordGroupsForTextarea(groups))}</textarea>
-        </div>`;
-}
-
 function buildSimplePlaceholderFieldsHtml({
     name,
     type,
@@ -5047,7 +4382,6 @@ function buildSimplePlaceholderFieldsHtml({
                         <small class="template-keyword-mode-help">保存后将使用这组关键词，不再引用预设包。</small>
                     </label>
                 `}
-                ${buildEnhancedKeywordsSectionFields(mapping)}
             </section>
             ` : ''}
         `;
@@ -5856,32 +5190,6 @@ function collectSelectedPlaceholderDraft(template) {
             : getParagraphMode(draft.type, draft, name);
     }
 
-    // 收集增强字段（RichTextSpec / Validation / keyword_groups）→ enhancedConfigDrafts
-    const modalBody = document.getElementById('template-config-editor-modal-body');
-    if (modalBody) {
-        modalBody.querySelectorAll('[data-enhanced-field]').forEach(input => {
-            const path = input.dataset.enhancedField;
-            let value;
-            if (input.type === 'checkbox') {
-                value = input.checked;
-            } else if (input.type === 'number') {
-                value = input.value === '' ? null : Number(input.value);
-            } else if (path === 'rich_text_spec.runs') {
-                value = parseRunsTextarea(input.value);
-            } else if (path === 'generation_config.retrieval.keyword_groups') {
-                value = parseKeywordGroupsTextarea(input.value);
-            } else if (path === 'validation.forbidden_terms') {
-                value = input.value ? input.value.split(',').map(s => s.trim()).filter(Boolean) : [];
-            } else {
-                value = input.value?.trim() || null;
-            }
-            if (value !== null && value !== '' && value !== undefined
-                && !(Array.isArray(value) && value.length === 0)) {
-                setV2Draft(name, path, value);
-            }
-        });
-    }
-
     currentTemplateState.placeholderMappingDrafts = currentTemplateState.placeholderMappingDrafts || {};
     currentTemplateState.placeholderMappingDrafts[name] = draft;
     return { name, draft };
@@ -6202,38 +5510,12 @@ function renderSelectedSourceFragment(template) {
     const sourceEditor = document.getElementById('template-source-editor');
     if (!sourceEditor) return;
 
-    if (isSelectedFixedExcelPlaceholder(template) && currentTemplateState.activeSourceKind === 'prompt_templates') {
-        currentTemplateState.activeSourceKind = 'section_config';
-    }
-    const source = getTemplateWorkbenchSource(template, currentTemplateState.activeSourceKind);
+    const source = getTemplateWorkbenchSource(template);
     const selectedName = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
     const sourceKindLabel = document.getElementById('template-source-kind-label');
 
     sourceEditor.dataset.sourceKind = source.sourceKind;
     sourceEditor.dataset.placeholderName = selectedName;
-
-    if (source.sourceKind === 'prompt_templates') {
-        const promptName = getSelectedPromptTemplateName(template);
-        sourceEditor.dataset.promptTemplateName = promptName;
-        sourceEditor.value = getPromptTemplateFragment(source.content, promptName);
-        if (sourceKindLabel) {
-            sourceKindLabel.textContent = promptName
-                ? `${source.label}：${promptName}`
-                : source.label;
-        }
-        return;
-    }
-
-    if (source.sourceKind === 'report_config') {
-        sourceEditor.dataset.promptTemplateName = '';
-        sourceEditor.value = buildSelectedPlaceholderV2YamlFragment(source.content, selectedName);
-        if (sourceKindLabel) {
-            sourceKindLabel.textContent = selectedName
-                ? `YAML 配置驱动 (v2)：{{${selectedName}}}`
-                : 'YAML 配置驱动 (v2)';
-        }
-        return;
-    }
 
     sourceEditor.dataset.promptTemplateName = '';
     sourceEditor.value = buildSelectedPlaceholderYamlFragment(template, getEditablePlaceholderMappings(template));
@@ -6242,91 +5524,6 @@ function renderSelectedSourceFragment(template) {
             ? `${source.label}：{{${selectedName}}}`
             : source.label;
     }
-}
-
-function buildSelectedPlaceholderV2YamlFragment(sourceYaml, key) {
-    /* 从完整的 v2 report_config.yaml 中提取单个占位符的 YAML 片段.
-     *
-     * v2 占位符在 placeholders: 下以 2 空格缩进定义，格式：
-     *   placeholders:
-     *     占位符key:
-     *       type: rich_text
-     *       title: "..."
-     *       ...
-     *     另一个key:
-     *       ...
-     *
-     * 本函数提取从 `  key:` 到下一个同缩进级别 key 之间的所有行，
-     * 保留原始格式（注释、空行、缩进）。
-     */
-    if (!key || !sourceYaml) return '# 从左侧选择一个 Word 占位符后显示对应 v2 YAML 片段';
-    if (isSystemDatePlaceholder(key)) {
-        const dateLabel = inferReportPeriodField(key);
-        return [
-            '# v2 占位符片段（系统日期）',
-            '# 此占位符由 report_period 自动填充，无需 LLM 生成。',
-            'placeholders:',
-            `  ${key}:`,
-            '    type: text',
-            '    generation_mode: static',
-            '    rich_text_spec:',
-            '      runs:',
-            `        - text: "<${dateLabel}>"`,
-            '          font_size_pt: 11'
-        ].join('\n');
-    }
-    const lines = sourceYaml.split('\n');
-    // 找到 placeholders: 之后的匹配行
-    let inPlaceholders = false;
-    let startLine = -1;
-    const keyPattern = new RegExp('^  ' + escapeRegExp(key) + '\\s*:');
-    for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        if (/^placeholders\s*:/.test(line)) {
-            inPlaceholders = true;
-            continue;
-        }
-        if (inPlaceholders && keyPattern.test(line)) {
-            startLine = i;
-            break;
-        }
-    }
-    if (startLine < 0) {
-        return [
-            '# v2 占位符片段（草稿）',
-            '# 该占位符尚未在 report_config.yaml 中定义。',
-            '# 请参考已有占位符格式新增配置。',
-            'placeholders:',
-            `  ${key}:`,
-            '    type: rich_text',
-            `    title: "${inferPlaceholderTitle(key)}"`,
-            '    generation_mode: evidence_grounded',
-            '    generation_config:',
-            '      prompt_template_ref: ""',
-            '    rich_text_spec:',
-            '      runs:',
-            '        - is_dynamic: true'
-        ].join('\n');
-    }
-    // 提取从 startLine 开始的片段（到下一个同缩进级别的 key 或 placeholders 结束）
-    const fragmentLines = [];
-    for (let i = startLine; i < lines.length; i++) {
-        const line = lines[i];
-        // 遇到下一个 2 空格缩进的 key（且不是当前 key 的子属性），停止
-        // 子属性的缩进至少是 4 空格；中文字符不能用 \w，用 \S 匹配
-        if (i > startLine && /^  \S/.test(line) && !/^  #/.test(line)) {
-            break;
-        }
-        fragmentLines.push(line);
-    }
-    return [
-        '# v2 占位符片段 — 配置驱动模板渲染',
-        '# 当前显示一个 EnhancedPlaceholder 的完整定义。',
-        '# 修改后保存将更新 report_config.yaml 中的对应占位符。',
-        '# 注意：缩进和 YAML 结构必须保持有效。',
-        'placeholders:',
-        ...fragmentLines
-    ].join('\n');
 }
 
 function buildUpdatedSectionConfigSource(template, mappings) {
@@ -6365,135 +5562,17 @@ function insertTopLevelBlockBefore(source, block, anchors) {
     ].join('\n');
 }
 
-/* ── v2 配置 YAML 序列化 ── */
-function buildMergedV2Config(template) {
-    /* 深度克隆 report_config，然后合并所有 v2 草稿 */
-    const original = template?.report_project?.report_config;
-    if (!original) return null;
-    const config = JSON.parse(JSON.stringify(original));
-    const drafts = currentTemplateState.v2PlaceholderConfigDrafts || {};
-    const placeholders = config.placeholders || {};
-    for (const [name, draft] of Object.entries(drafts)) {
-        if (!draft) continue;
-        if (!placeholders[name]) {
-            placeholders[name] = {};
-        }
-        _deepMerge(placeholders[name], draft);
-    }
-    config.placeholders = placeholders;
-    return config;
-}
-
-function v2ConfigToYaml(config) {
-    /* 将 ReportTemplateConfig JS 对象序列化为 YAML 字符串。
-     * 针对报告配置的已知结构做了优化，keyword_groups 使用 flow style。
-     */
-    if (!config || typeof config !== 'object') return '';
-    const lines = [];
-    _yamlEmit(lines, config, 0);
-    return lines.join('\n') + '\n';
-}
-
-function _yamlEmit(lines, value, indent, key) {
-    if (value === null || value === undefined) {
-        if (key !== undefined) lines.push(`${_indent(indent)}${_yamlKey(key)} null`);
-        return;
-    }
-    if (Array.isArray(value)) {
-        if (value.length === 0) {
-            if (key !== undefined) lines.push(`${_indent(indent)}${_yamlKey(key)} []`);
-            return;
-        }
-        // keyword_groups 特殊处理：每个子数组使用 flow style
-        const isKeywordGroups = key === 'keyword_groups';
-        if (isKeywordGroups && value.every(v => Array.isArray(v))) {
-            lines.push(`${_indent(indent)}${_yamlKey(key)}`);
-            for (const group of value) {
-                const inner = group.map(g => _yamlScalar(g)).join(', ');
-                lines.push(`${_indent(indent + 2)}- [${inner}]`);
-            }
-            return;
-        }
-        // 简单字符串数组使用 flow style
-        if (value.every(v => typeof v === 'string' || typeof v === 'number')) {
-            const inner = value.map(v => _yamlScalar(v)).join(', ');
-            if (key !== undefined) {
-                lines.push(`${_indent(indent)}${_yamlKey(key)} [${inner}]`);
-            } else {
-                for (const item of value) {
-                    lines.push(`${_indent(indent)}- ${_yamlScalar(item)}`);
-                }
-            }
-            return;
-        }
-        // 对象数组
-        if (key !== undefined) lines.push(`${_indent(indent)}${_yamlKey(key)}`);
-        for (const item of value) {
-            if (typeof item === 'object' && !Array.isArray(item)) {
-                lines.push(`${_indent(indent)}-`);
-                _yamlEmitObj(lines, item, indent + 2);
-            } else {
-                lines.push(`${_indent(indent)}- ${_yamlScalar(item)}`);
-            }
-        }
-        return;
-    }
-    if (typeof value === 'object') {
-        if (key !== undefined) lines.push(`${_indent(indent)}${_yamlKey(key)}`);
-        _yamlEmitObj(lines, value, indent + (key !== undefined ? 2 : 0));
-        return;
-    }
-    // 标量
-    const txt = _yamlScalar(value);
-    if (key !== undefined) {
-        lines.push(`${_indent(indent)}${_yamlKey(key)} ${txt}`);
-    } else {
-        lines.push(`${_indent(indent)}${txt}`);
-    }
-}
-
-function _yamlEmitObj(lines, obj, indent) {
-    const keys = Object.keys(obj);
-    for (const k of keys) {
-        _yamlEmit(lines, obj[k], indent, k);
-    }
-}
-
-function _indent(n) { return ' '.repeat(n); }
-function _yamlKey(k) { return `${k}:`; }
-
-function _yamlScalar(value) {
-    if (typeof value === 'number') return String(value);
-    if (typeof value === 'boolean') return value ? 'true' : 'false';
-    const s = String(value);
-    // 需要引号的情况：空字符串、含特殊字符、纯数字串可能被误解
-    if (s === '' || /[:{}\[\],#&*?|>!%@`"'\n]/.test(s) || /^\d+(\.\d+)?$/.test(s)) {
-        return `"${s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n')}"`;
-    }
-    // 以特殊字符开头
-    if (/^[\[\]{}\"'&#]/.test(s)) return `"${s}"`;
-    return s;
-}
-
 function buildSourceContentForSave(template, sourceKind, editorValue) {
     if (sourceKind === 'prompt_templates') {
         return buildUpdatedPromptTemplatesSource(template, editorValue);
     }
-    if (sourceKind === 'section_config') {
-        return buildUpdatedSectionConfigSource(template, getEditablePlaceholderMappings(template));
-    }
-    if (sourceKind === 'report_config') {
-        if (hasV2Drafts()) {
-            const merged = buildMergedV2Config(template);
-            if (merged) return v2ConfigToYaml(merged);
-        }
-        return editorValue;
-    }
-    return editorValue;
+    return buildUpdatedSectionConfigSource(template, getEditablePlaceholderMappings(template));
 }
 
 function buildUpdatedPromptTemplatesSource(template, promptFragment) {
-    const source = getTemplateWorkbenchSource(template, 'prompt_templates').content;
+    const source = shouldUsePromptTemplateLibraryDraft(template)
+        ? buildPromptTemplateLibraryMarkdown(template)
+        : (template.report_project?.prompt_templates_source || buildPromptTemplateLibraryMarkdown(template));
     const promptName = document.getElementById('template-source-editor')?.dataset.promptTemplateName
         || getSelectedPromptTemplateName(template);
     const fragment = String(promptFragment || '').trimEnd();
@@ -6600,15 +5679,13 @@ function buildTemplateValidationChecks(template, sections, placeholders) {
             placeholderName,
             mapping: getEffectivePlaceholderMapping(template, placeholderName)
         }));
-    const firstUnmappedPlaceholder = effectivePlaceholderMappings.find(({ placeholderName, mapping }) =>
-        mapping?._isV2 ? !mapping._v2 : !placeholderMappings.has(placeholderName)
+    const firstUnmappedPlaceholder = effectivePlaceholderMappings.find(({ placeholderName }) =>
+        !placeholderMappings.has(placeholderName)
     )?.placeholderName;
     const allPlaceholdersMapped = placeholders.length === 0
         || !firstUnmappedPlaceholder;
     const hasPromptMapping = [...placeholderMappings.values()].some(mapping => mapping.prompt_template)
-        || effectivePlaceholderMappings.some(({ mapping }) =>
-            mapping?._isV2 && (mapping.prompt_template || mapping.prompt_retrieval_query)
-        );
+        || effectivePlaceholderMappings.some(({ mapping }) => mapping?.prompt_retrieval_query);
     const hasExcelMapping = buildExcelMappingRows(template).length > 0;
     const hasRuleConfig = sections.some(section =>
         section.evidence_policy
@@ -7438,7 +6515,39 @@ function buildPlaceholderYamlEntry(template, key, mapping) {
     } else {
         lines.push(`    value: ${mapping.value || ''}`);
     }
+    lines.push(...buildUnifiedRenderingYamlLines(mapping.rendering));
     return lines;
+}
+
+function buildUnifiedRenderingYamlLines(rendering) {
+    if (!rendering || typeof rendering !== 'object') return [];
+    const lines = ['    rendering:'];
+    if (rendering.paragraph_style) lines.push(`      paragraph_style: ${rendering.paragraph_style}`);
+    if (rendering.default_font) lines.push(`      default_font: ${rendering.default_font}`);
+    if (rendering.default_size_pt !== undefined && rendering.default_size_pt !== null) {
+        lines.push(`      default_size_pt: ${rendering.default_size_pt}`);
+    }
+    if (rendering.visible_if) lines.push(`      visible_if: ${rendering.visible_if}`);
+    if (Array.isArray(rendering.runs) && rendering.runs.length) {
+        lines.push('      runs:');
+        rendering.runs.forEach(run => {
+            lines.push('        -');
+            Object.entries(run || {}).forEach(([key, value]) => {
+                if (value !== undefined && value !== null && value !== '') {
+                    lines.push(`          ${key}: ${typeof value === 'string' ? JSON.stringify(value) : value}`);
+                }
+            });
+        });
+    }
+    if (rendering.chart_grid && typeof rendering.chart_grid === 'object') {
+        lines.push('      chart_grid:');
+        Object.entries(rendering.chart_grid).forEach(([key, value]) => {
+            if (value !== undefined && value !== null) {
+                lines.push(`        ${key}: ${typeof value === 'string' ? JSON.stringify(value) : JSON.stringify(value)}`);
+            }
+        });
+    }
+    return lines.length === 1 ? [] : lines;
 }
 
 function buildCompositeMarketReviewYamlLines(mapping, key, { includeLlmWriting = true } = {}) {
@@ -7907,22 +7016,6 @@ function bindTemplateWorkbenchActions() {
         });
     }
 
-    const sourceSectionBtn = document.getElementById('btn-template-source-section');
-    const sourcePromptBtn = document.getElementById('btn-template-source-prompt');
-    const sourceReportCfgBtn = document.getElementById('btn-template-source-report-config');
-    if (sourceSectionBtn && !sourceSectionBtn.dataset.bound) {
-        sourceSectionBtn.dataset.bound = 'true';
-        sourceSectionBtn.addEventListener('click', () => switchTemplateSourceKind('section_config'));
-    }
-    if (sourcePromptBtn && !sourcePromptBtn.dataset.bound) {
-        sourcePromptBtn.dataset.bound = 'true';
-        sourcePromptBtn.addEventListener('click', () => switchTemplateSourceKind('prompt_templates'));
-    }
-    if (sourceReportCfgBtn && !sourceReportCfgBtn.dataset.bound) {
-        sourceReportCfgBtn.dataset.bound = 'true';
-        sourceReportCfgBtn.addEventListener('click', () => switchTemplateSourceKind('report_config'));
-    }
-
 	    if (saveBtn && sourceEditor && !saveBtn.dataset.bound) {
         saveBtn.dataset.bound = 'true';
         saveBtn.addEventListener('click', async () => {
@@ -8127,13 +7220,9 @@ async function saveCurrentSectionConfig({
     markSelectedPlaceholderConfirmed(template);
 
     const sourceEditor = document.getElementById('template-source-editor');
-    const sourceKind = currentTemplateState.activeSourceKind || 'section_config';
     const mappings = getEditablePlaceholderMappings(template);
-    const hasEnhanced = hasV2Drafts();
-    const saveKind = hasEnhanced ? 'report_config' : sourceKind;
-    const content = hasEnhanced
-        ? buildSourceContentForSave(template, 'report_config', sourceEditor?.value || '')
-        : buildUpdatedSectionConfigSource(template, mappings);
+    const saveKind = 'section_config';
+    const content = buildUpdatedSectionConfigSource(template, mappings);
     const selectedName = normalizePlaceholderName(currentTemplateState.selectedPlaceholderName);
     const selectedMapping = selectedName ? mappings.get(selectedName) : null;
     const originalText = button?.innerHTML;
@@ -8158,7 +7247,7 @@ async function saveCurrentSectionConfig({
                 selectedMapping,
                 selectedName
             );
-            if (promptTemplatesContent && !hasEnhanced) {
+            if (promptTemplatesContent) {
                 updatedProject = await apiCall(
                     'PUT',
                     `/api/report-projects/${encodeURIComponent(project.slug)}/source`,

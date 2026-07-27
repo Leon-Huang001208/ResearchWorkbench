@@ -316,7 +316,7 @@ const sandbox = {
     isReportPeriodFieldPlaceholder: () => false,
     splitLines: (value) => String(value ?? '').split('\n').map((item) => item.trim()).filter(Boolean),
     inferDefaultTargetWords: () => 250,
-    buildConfigEnhancementBadges: () => '',
+    buildRenderingBadges: () => '',
     buildKeywordGroupsInlineBadges: () => '',
     resolvePromptTemplateName: () => '',
     extractPromptTemplateLabel: () => '',
@@ -719,107 +719,14 @@ def test_placeholder_picker_groups_sections_by_existing_readiness():
     assert ".template-config-editor-toolbar .template-placeholder-map-group" in css
 
 
-def test_placeholder_picker_groups_v2_sections_with_effective_drafts():
-    script = r"""
-const fs = require('fs');
-const vm = require('vm');
-const source = fs.readFileSync(process.argv[1], 'utf8');
+def test_placeholder_picker_groups_use_unified_placeholder_mappings():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
 
-function extract(startMarker, endMarker) {
-    const start = source.indexOf(startMarker);
-    const end = source.indexOf(endMarker, start);
-    if (start === -1 || end === -1) throw new Error(`Unable to extract ${startMarker}`);
-    return source.slice(start, end);
-}
+    assert "function getEffectivePlaceholderMapping" in source
+    assert "const mappings = getCurrentPlaceholderMappings(template);" in source
+    assert "function buildTemplateValidationChecks" in source
+    assert "!placeholderMappings.has(placeholderName)" in source
 
-const elements = {
-    'template-placeholder-count': { textContent: '' },
-    'template-placeholder-map': { innerHTML: '' }
-};
-const sandbox = {
-    currentTemplateState: {
-        selectedPlaceholderName: '',
-        activeSourceKind: 'report_config',
-        placeholderMappingDrafts: {},
-        v2PlaceholderConfigDrafts: {
-            '已配置': { generation_config: { prompt_template_ref: '市场回顾写作' } }
-        }
-    },
-    document: { getElementById: (id) => elements[id] || null },
-    window: {},
-    esc: (value) => String(value ?? ''),
-    normalizePlaceholderName: (value) => String(value || '').replace(/^\\{\\{\\s*/, '').replace(/\\s*\\}\\}$/, '').trim(),
-    inferPlaceholderType: () => 'paragraph',
-    inferPlaceholderTitle: (name) => name,
-    isSystemDatePlaceholder: () => false,
-    getCurrentPlaceholderMappings: () => new Map(),
-    getStoredPlaceholderMappings: () => new Map(),
-    getTemplateWorkbenchPlaceholderNames: () => ['已配置', '待配置'],
-    buildExcelMappingRows: () => [],
-    getCanonicalPlaceholderType: (type) => type || 'paragraph',
-    getParagraphMode: () => 'evidence_ai',
-    usesEvidenceParagraphMode: () => true,
-    getPlaceholderReadinessIssue: (mapping) => mapping.prompt_template ? null : { message: '缺少 Prompt' },
-    bindPlaceholderMapRows: () => {}
-};
-vm.createContext(sandbox);
-vm.runInContext(extract('function getPlaceholderLifecycleStatus', 'function buildPlaceholderWizardState'), sandbox);
-sandbox.getTemplateWorkbenchPlaceholderNames = () => ['已配置', '待配置'];
-vm.runInContext(extract('function buildPlaceholderWizardState', 'function renderPlaceholderWizardControls'), sandbox);
-vm.runInContext(extract('function buildTemplateValidationChecks', 'function buildPlaceholderReadinessItems'), sandbox);
-vm.runInContext(extract('function buildPlaceholderReadinessItems', 'function getPlaceholderReadinessIssue'), sandbox);
-vm.runInContext(extract('function v2PlaceholderConfigToMapping', '/* ── v2 编辑草稿管理'), sandbox);
-vm.runInContext(extract('function getV2Draft', 'function hasV2Drafts'), sandbox);
-vm.runInContext(extract('function deepMergeV2Config', 'function getRenderedPlaceholderSummaryName'), sandbox);
-if (source.includes('function getEffectivePlaceholderMapping')) {
-    vm.runInContext(extract('function getEffectivePlaceholderMapping', 'function getSelectedPlaceholderMapping'), sandbox);
-}
-vm.runInContext(extract('function renderTemplatePlaceholderMap', 'function renderMappingSummary'), sandbox);
-
-const template = {
-    report_project: {
-        report_config: {
-            placeholders: {
-                '已配置': { type: 'rich_text', title: '已配置', generation_config: {} },
-                '待配置': { type: 'rich_text', title: '待配置', generation_config: {} }
-            }
-        }
-    }
-};
-sandbox.renderTemplatePlaceholderMap(template, ['已配置', '待配置'], []);
-const html = elements['template-placeholder-map'].innerHTML;
-const wizard = sandbox.buildPlaceholderWizardState(template);
-const readiness = sandbox.buildPlaceholderReadinessItems(template, ['已配置', '待配置']);
-const validation = sandbox.buildTemplateValidationChecks(template, [], ['已配置', '待配置']);
-console.log(JSON.stringify({
-    ready: /data-placeholder-readiness="ready"[\s\S]*?已配置/.test(html),
-    needsAttention: /data-placeholder-readiness="needs_attention"[\s\S]*?待配置/.test(html),
-    names: [...html.matchAll(/data-placeholder-name="([^"]+)"/g)].map((match) => match[1]),
-    wizard: { completedCount: wizard.completedCount, incompleteNames: wizard.incompleteItems.map((item) => item.name) },
-    readiness: readiness.map((item) => ({ name: item.placeholderName, ok: item.ok, state: item.status.state })),
-    validation: { mappings: validation[0].ok, prompt: validation[1].ok }
-}));
-"""
-
-    result = subprocess.run(
-        ["node", "-e", script, str(TEMPLATES_JS)],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-
-    assert json.loads(result.stdout) == {
-        "ready": True,
-        "needsAttention": True,
-        "names": ["待配置", "已配置"],
-        "wizard": {"completedCount": 1, "incompleteNames": ["待配置"]},
-        "readiness": [
-            {"name": "已配置", "ok": True, "state": "ready"},
-            {"name": "待配置", "ok": False, "state": "missing"},
-        ],
-        "validation": {"mappings": True, "prompt": True},
-    }
 
 
 def test_placeholder_detail_syncs_from_picker_before_rendering():
@@ -1124,17 +1031,26 @@ def test_placeholder_editor_keeps_derived_fields_in_advanced_drawer():
     assert "resolvePromptTemplateName(name, template.report_project)" in source
 
 
-def test_workbench_keeps_section_mapping_and_prompt_source_separate():
+def test_workbench_uses_a_single_unified_config_source():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
 
     assert "btn-template-source-section" in source
     assert "btn-template-source-prompt" in source
-    assert "switchTemplateSourceKind" in source
-    assert "activeSourceKind" in source
-    assert "Markdown Prompt" in source
-    assert "YAML 占位符映射" in source
+    assert "switchTemplateSourceKind" not in source
+    assert "统一报告配置" in source
     assert "buildSelectedPlaceholderYamlFragment" in source
     assert "buildUpdatedPromptTemplatesSource" in source
+
+
+def test_workbench_emits_one_unified_report_config_without_v2_fields_or_state():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+
+    assert "activeSourceKind" not in source
+    assert "v2PlaceholderConfigDrafts" not in source
+    assert "generation_config" not in source
+    assert "rich_text_spec" not in source
+    assert "sourceKind: 'section_config'" in source
+    assert "    rendering:" in source
 
 
 def test_prompt_template_preview_supports_retrieval_query_and_strips_code_fences():
@@ -1745,7 +1661,7 @@ def test_prompt_template_view_uses_generated_library_when_reference_is_raw():
 
     assert "buildPromptTemplateLibraryMarkdown" in source
     assert "shouldUsePromptTemplateLibraryDraft" in source
-    assert "Markdown Prompt（模板库草稿）" in source
+    assert "template.report_project?.prompt_templates_source" in source
 
 
 def test_report_project_placeholders_skip_legacy_template_placeholder_api():
