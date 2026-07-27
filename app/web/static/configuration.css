@@ -1839,6 +1839,10 @@
 }
 
 @media (max-width: 720px) {
+    .config-collection-table .config-row-labels {
+        display: none;
+    }
+
     .config-collection-table .config-dynamic-row {
         grid-template-columns: minmax(0, 1fr);
     }

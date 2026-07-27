@@ -547,14 +547,13 @@ def test_configuration_collection_table_responsive_contract():
 
     assert breakpoint >= 0, "collection tables need a 720px mobile breakpoint"
     rules = stylesheet[breakpoint:]
-    assert re.search(r"\.config-row-labels\s*\{\s*display:\s*none\s*;", rules)
+    assert re.search(r"\.config-collection-table\s+\.config-row-labels\s*\{\s*display:\s*none\s*;", rules)
     assert re.search(
-        r"\.config-zhiqiu-row.*?\.config-web_search-row\s*\{\s*grid-template-columns:\s*1fr\s*;",
+        r"\.config-collection-table\s+\.config-dynamic-row\s*\{\s*grid-template-columns:\s*minmax\(0,\s*1fr\)",
         rules,
-        re.DOTALL,
     )
     assert re.search(
-        r"\.config-zhiqiu-row\s+\.config-dynamic-field\s*>\s*span:first-child.*?display:\s*(?:flex|block)\s*;",
+        r"\.config-collection-table\s+\.config-dynamic-field\s*>\s*span:first-child.*?display:\s*flex\s*;",
         rules,
         re.DOTALL,
     )
