@@ -431,6 +431,32 @@ def test_configuration_refinement_modal_save_action_and_collection_layout_hooks(
     assert 'config-field-grid config-field-grid--compact' in source
 
 
+def test_configuration_modal_hierarchy_uses_compact_collections_and_safe_database_state():
+    source = CONFIGURATION_JS.read_text(encoding="utf-8")
+    stylesheet = CONFIGURATION_CSS.read_text(encoding="utf-8")
+    modal_source = _configuration_function(source, "renderModalForm")
+    database_state_source = _configuration_function(source, "databaseSecretPresentation")
+
+    assert 'config-collection-table' in modal_source
+    assert 'config-collection-table config-provider-table' in modal_source
+    assert 'config-collection-table config-zhiqiu-table' in modal_source
+    assert 'config-collection-table config-ifind-table' in modal_source
+    assert 'placeholder="输入新的连接地址"' in modal_source
+    assert '当前连接' in modal_source
+    assert 'masked_value' in database_state_source
+    assert "form.elements.database_url.value = '';" in modal_source
+    assert re.search(
+        r'\.config-edit-modal-body\s+\.config-collection-table\s*\{[^}]*border:',
+        stylesheet,
+        re.DOTALL,
+    )
+    assert re.search(
+        r'\.config-edit-modal-body\s+\.config-collection-table\s+\.config-dynamic-row\s*\{[^}]*box-shadow:\s*none',
+        stylesheet,
+        re.DOTALL,
+    )
+
+
 def test_configuration_empty_collection_lifecycle_restores_all_account_collections():
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
     remove_source = _configuration_function(source, "removeButton")
@@ -474,12 +500,12 @@ def test_configuration_collection_table_responsive_contract():
     rules = stylesheet[breakpoint:]
     assert re.search(r"\.config-row-labels\s*\{\s*display:\s*none\s*;", rules)
     assert re.search(
-        r"\.config-zhiqiu-row.*?\.config-web_search-row\s*\{\s*grid-template-columns:\s*1fr\s*;",
+        r"\.config-collection-table\s+\.config-dynamic-row\s*\{\s*grid-template-columns:\s*1fr\s*;",
         rules,
         re.DOTALL,
     )
     assert re.search(
-        r"\.config-zhiqiu-row\s+\.config-dynamic-field\s*>\s*span:first-child.*?display:\s*(?:flex|block)\s*;",
+        r"\.config-collection-table\s+\.config-dynamic-field\s*>\s*span:first-child.*?display:\s*(?:flex|block)\s*;",
         rules,
         re.DOTALL,
     )

@@ -23,7 +23,7 @@ import { initNavigationCuration } from './navigation-curation.js';
 import { initWindPanel } from './wind.js';
 import { initFundsPanel } from './funds.js?v=20260625a';
 import { initCommentaryCenter, selectCommentaryTemplate, loadCommentaryContext, generateCommentaryDraft, copyCommentaryDraft, exportCommentaryMarkdown, toggleAutoRefresh, switchCommentaryWorkspace } from './commentary.js?v=20260707logic1';
-import { initConfigurationPage } from './configuration.js?v=20260716fix1';
+import { initConfigurationPage } from './configuration.js?v=20260727modalhierarchy1';
 import { initSetupWizard } from './setup-wizard.js?v=20260726setup1';
 
 // ─── Window Exports (for HTML onclick handlers) ────────────────

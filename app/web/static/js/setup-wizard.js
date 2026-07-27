@@ -1,6 +1,6 @@
 /* Desktop first-run database setup guidance. */
 
-import { configurationRequestOptions, openDatabaseConfiguration } from './configuration.js?v=20260716fix1';
+import { configurationRequestOptions, openDatabaseConfiguration } from './configuration.js?v=20260727modalhierarchy1';
 
 let setupWizardBound = false;
 let setupWizardRestoreFocus = null;

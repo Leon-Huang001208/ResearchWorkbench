@@ -640,6 +640,15 @@ function setDynamicRowLocked(row, lockedControls) {
     return true;
 }
 
+function showCollectionLockMessage(button) {
+    const header = button?.closest('.config-subsection-header');
+    if (!header) return;
+    const existingMessage = header.querySelector('.config-collection-lock-message');
+    const message = existingMessage || element('p', 'config-collection-lock-message', LOCKED_COLLECTION_MESSAGE);
+    if (!message.id) message.id = `config-collection-lock-message-${++dynamicLockMessageSequence}`;
+    if (!existingMessage) header.querySelector('h4')?.insertAdjacentElement('afterend', message);
+}
+
 function applyProviderRowLocks() {
     const lockedFields = configurationSnapshot?.environment_locked_fields || [];
     const providerCollectionLocked = lockedFields.some(key => /^LLM_PROVIDER_\d+_/.test(key));
@@ -666,6 +675,7 @@ function applyProviderRowLocks() {
     if (providerCollectionLocked) {
         const addButton = document.querySelector('[data-add-provider]');
         if (addButton) addButton.disabled = true;
+        showCollectionLockMessage(addButton);
     }
 }
 
@@ -698,6 +708,7 @@ function applyTaskRouteLocks() {
     if (taskRouteCollectionLocked) {
         const addButton = document.querySelector('[data-add-task-route]');
         if (addButton) addButton.disabled = true;
+        showCollectionLockMessage(addButton);
     }
 }
 
@@ -707,11 +718,9 @@ function applyCollectionLock(form, section, { addButton, rowSelector }) {
     if (!locked) return;
 
     const button = form.querySelector(addButton);
+    showCollectionLockMessage(button);
     const header = button?.closest('.config-subsection-header');
-    const existingMessage = header?.querySelector('.config-collection-lock-message');
-    const message = existingMessage || element('p', 'config-collection-lock-message', LOCKED_COLLECTION_MESSAGE);
-    if (!message.id) message.id = `config-collection-lock-message-${++dynamicLockMessageSequence}`;
-    if (!existingMessage) header?.querySelector('h4')?.insertAdjacentElement('afterend', message);
+    const message = header?.querySelector('.config-collection-lock-message');
     setModalLockNote(true);
     if (button) button.disabled = true;
     form.querySelectorAll(rowSelector).forEach(row => {
@@ -736,6 +745,19 @@ function setFormValues(form, values, fields) {
         if (control.type === 'checkbox') control.checked = Boolean(values[field]);
         else control.value = values[field] ?? '';
     });
+}
+
+function databaseSecretPresentation(secret, locked = false) {
+    if (!secret?.configured) {
+        return { state: 'missing', label: '未配置', summary: '尚未设置连接地址' };
+    }
+    return {
+        state: 'configured',
+        label: locked ? '由启动配置管理' : '已配置',
+        summary: typeof secret.masked_value === 'string' && secret.masked_value.trim()
+            ? secret.masked_value.trim()
+            : '连接地址已安全保存',
+    };
 }
 
 function setSecretState(selector, secret) {
@@ -1600,17 +1622,14 @@ function renderModalForm(section, values) {
         case 'llm':
             form.innerHTML = `
                 <div class="config-subsection-header"><h4><i class="codicon codicon-server"></i>模型服务</h4><button type="button" class="secondary-btn" data-add-provider>新增服务</button></div>
-                <div class="config-row-labels config-provider-labels" aria-hidden="true"><span>服务名称</span><span>接口协议</span><span>服务地址</span><span>API 密钥</span><span>操作</span></div>
-                <div id="config-provider-list" class="config-dynamic-list"></div>
+                <div class="config-collection-table config-provider-table"><div class="config-row-labels config-provider-labels" aria-hidden="true"><span>服务名称</span><span>接口协议</span><span>服务地址</span><span>API 密钥</span><span>操作</span></div><div id="config-provider-list" class="config-dynamic-list"></div></div>
                 <div class="config-subsection-header"><h4><i class="codicon codicon-symbol-ruler"></i>任务模型路由</h4><button type="button" class="secondary-btn" data-add-task-route>新增路由</button></div>
-                <div class="config-row-labels config-route-labels" aria-hidden="true"><span>任务类型</span><span>模型服务</span><span>模型名称</span><span>操作</span></div>
-                <div id="config-task-route-list" class="config-dynamic-list"></div>`;
+                <div class="config-collection-table config-route-table"><div class="config-row-labels config-route-labels" aria-hidden="true"><span>任务类型</span><span>模型服务</span><span>模型名称</span><span>操作</span></div><div id="config-task-route-list" class="config-dynamic-list"></div></div>`;
             break;
         case 'zhiqiu':
             form.innerHTML = `
                 <div class="config-subsection-header"><h4><i class="codicon codicon-account"></i>账号池</h4><button type="button" class="secondary-btn" data-add-zhiqiu-account>新增账号</button></div>
-                <div class="config-row-labels config-zhiqiu-labels" aria-hidden="true"><span>名称</span><span>用户名</span><span>密码</span><span>操作</span></div>
-                <div id="config-zhiqiu-account-list" class="config-dynamic-list"></div>
+                <div class="config-collection-table config-zhiqiu-table"><div class="config-row-labels config-zhiqiu-labels" aria-hidden="true"><span>名称</span><span>用户名</span><span>密码</span><span>操作</span></div><div id="config-zhiqiu-account-list" class="config-dynamic-list"></div></div>
                 <div class="config-settings-header"><h4><i class="codicon codicon-settings"></i>调度设置</h4></div>
                 <div class="config-field-grid config-field-grid--compact">
                     <label class="config-checkbox"><input type="checkbox" name="enabled">启用账号轮询</label>
@@ -1624,19 +1643,18 @@ function renderModalForm(section, values) {
         case 'ifind':
             form.innerHTML = `
                 <div class="config-subsection-header"><h4><i class="codicon codicon-organization"></i>账号</h4><button type="button" class="secondary-btn" data-add-ifind-account>新增账号</button></div>
-                <div class="config-row-labels config-ifind-labels" aria-hidden="true"><span>名称</span><span>用户名</span><span>密码</span><span>操作</span></div>
-                <div id="config-ifind-account-list" class="config-dynamic-list"></div>
+                <div class="config-collection-table config-ifind-table"><div class="config-row-labels config-ifind-labels" aria-hidden="true"><span>名称</span><span>用户名</span><span>密码</span><span>操作</span></div><div id="config-ifind-account-list" class="config-dynamic-list"></div></div>
                 <div class="config-settings-header"><h4><i class="codicon codicon-plug"></i>连接设置</h4></div>
-                <div class="config-field-grid config-field-grid--compact">
+                <div class="config-field-grid config-field-grid--compact config-settings-grid">
                     <label><span>后端类型</span><select name="backend"><option value="auto">自动</option><option value="python_sdk">Python SDK</option><option value="http_api">HTTP API</option></select></label>
+                    <label><span>HTTP Base URL</span><input type="url" name="http_base_url" placeholder="https://quantapi.10jqka.com.cn"></label>
                 </div>
-                <label class="config-field-wide"><span>HTTP Base URL</span><input type="url" name="http_base_url" placeholder="https://quantapi.10jqka.com.cn"></label>`;
+                `;
             break;
         case 'web_search':
             form.innerHTML = `
                 <div class="config-subsection-header"><h4><i class="codicon codicon-key"></i>Key 池</h4><button type="button" class="secondary-btn" data-add-web_search-key>新增 Key</button></div>
-                <div class="config-row-labels config-web_search-labels" aria-hidden="true"><span>名称</span><span>API Key</span><span>状态</span><span>操作</span></div>
-                <div id="config-web_search-key-list" class="config-dynamic-list"></div>
+                <div class="config-collection-table config-web-search-table"><div class="config-row-labels config-web_search-labels" aria-hidden="true"><span>名称</span><span>API Key</span><span>状态</span><span>操作</span></div><div id="config-web_search-key-list" class="config-dynamic-list"></div></div>
                 <div class="config-settings-header"><h4><i class="codicon codicon-search"></i>搜索设置</h4></div>
                 <div class="config-field-grid config-field-grid--compact">
                     <label><span>搜索 Provider</span><select name="provider"><option value="tavily">Tavily</option><option value="bing">Bing</option></select></label>
@@ -1648,8 +1666,8 @@ function renderModalForm(section, values) {
             break;
         case 'database':
             form.innerHTML = `
-                <label class="config-field-wide"><span>数据库连接地址</span><span class="config-secret-control"><input type="password" name="database_url" autocomplete="new-password" placeholder="未配置"><button type="button" class="config-secret-action" data-secret-toggle aria-label="显示数据库地址">显示</button><button type="button" class="config-secret-action" data-secret-copy aria-label="复制数据库地址">复制</button></span><small data-secret-state="database-url">未配置</small></label>
-                <div class="config-restart-note"><i class="codicon codicon-debug-restart" aria-hidden="true"></i><span><strong>需要重启桌面后端</strong>保存仅持久化新地址，当前会话继续使用原连接。</span></div>`;
+                <section class="config-database-current" data-database-current aria-label="当前数据库连接"><span>当前连接</span><strong data-database-summary>正在读取安全摘要…</strong><small data-secret-state="database-url">未配置</small></section>
+                <label class="config-field-wide config-database-replacement"><span>替换连接地址</span><input type="password" name="database_url" autocomplete="new-password" placeholder="输入新的连接地址"><small>保存后重启桌面端，新地址才会生效。</small></label>`;
             break;
         case 'advanced':
             form.innerHTML = `
@@ -1685,7 +1703,16 @@ function renderModalForm(section, values) {
         renderEmptyCollectionState(form, section, values.accounts);
         setFormValues(form, values, ['provider', 'rotation_strategy', 'quota_limit', 'max_results', 'timeout']);
     } else if (section === 'database') {
-        setSecretState('[data-secret-state="database-url"]', values.database_url);
+        const databaseInput = form.elements.database_url;
+        const locked = Boolean(databaseInput?.disabled);
+        const presentation = databaseSecretPresentation(values.database_url, locked);
+        const summary = form.querySelector('[data-database-summary]');
+        if (summary) summary.textContent = presentation.summary;
+        const state = form.querySelector('[data-secret-state="database-url"]');
+        if (state) {
+            state.textContent = presentation.label;
+            state.classList.toggle('configured', presentation.state === 'configured');
+        }
         if (form.elements.database_url) form.elements.database_url.value = '';
     } else if (section === 'advanced') {
         setFormValues(form, values, ['log_level', 'log_dir', 'llm_max_workers', 'llm_max_retries', 'chunk_size', 'chunk_overlap', 'long_text_threshold']);
@@ -1703,7 +1730,7 @@ function renderModalForm(section, values) {
     requestAnimationFrame(() => bindSecretActions(body));
 }
 
-function setEnvironmentLockState(control, { section, field, locked }) {
+function setEnvironmentLockState(control, { section, field, locked, suppressInlineMessage = false }) {
     const label = control.closest('label');
     if (!label) return false;
 
@@ -1724,6 +1751,13 @@ function setEnvironmentLockState(control, { section, field, locked }) {
     }
 
     label.dataset.environmentLocked = 'true';
+    if (suppressInlineMessage) {
+        existingMessage?.remove();
+        describedBy.delete(messageId);
+        if (describedBy.size) control.setAttribute('aria-describedby', [...describedBy].join(' '));
+        else control.removeAttribute('aria-describedby');
+        return true;
+    }
     const message = existingMessage || document.createElement('small');
     message.className = 'config-lock-message';
     message.dataset.configLockMessage = '';
@@ -1747,7 +1781,12 @@ function applyEnvironmentLocks(form, section) {
     Object.entries(fieldKeys).forEach(([field, key]) => {
         const control = form.elements[field];
         if (!control) return;
-        hasStaticLock = setEnvironmentLockState(control, { section, field, locked: isEnvironmentLocked(key, lockedFields) }) || hasStaticLock;
+        hasStaticLock = setEnvironmentLockState(control, {
+            section,
+            field,
+            locked: isEnvironmentLocked(key, lockedFields),
+            suppressInlineMessage: section === 'database' && field === 'database_url',
+        }) || hasStaticLock;
     });
     setModalLockNote(hasStaticLock);
 }

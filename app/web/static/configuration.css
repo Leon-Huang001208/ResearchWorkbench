@@ -1690,3 +1690,161 @@
         margin-left: 0;
     }
 }
+
+/* ─── Configuration modal hierarchy: calm collections, explicit current state ─── */
+.config-edit-modal-body .config-collection-table {
+    overflow: hidden;
+    margin: 0 0 18px;
+    border: 1px solid var(--border-primary);
+    border-radius: 10px;
+    background: var(--bg-elevated);
+}
+
+.config-edit-modal-body .config-collection-table .config-row-labels {
+    display: grid;
+    min-height: 38px;
+    padding: 0 12px;
+    border: 0;
+    border-bottom: 1px solid var(--border-primary);
+    color: var(--text-muted);
+    background: color-mix(in srgb, var(--bg-panel) 86%, transparent);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.config-edit-modal-body .config-collection-table .config-dynamic-list {
+    display: grid;
+    gap: 0;
+}
+
+.config-edit-modal-body .config-collection-table .config-dynamic-row {
+    min-height: 0;
+    padding: 10px 12px;
+    border: 0;
+    border-radius: 0;
+    border-left: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.config-edit-modal-body .config-collection-table .config-dynamic-row:hover:not(:focus-within) {
+    background: transparent;
+}
+
+.config-edit-modal-body .config-collection-table .config-dynamic-row + .config-dynamic-row {
+    border-top: 1px solid var(--border-primary);
+}
+
+.config-edit-modal-body .config-collection-table .config-dynamic-row:focus-within {
+    border-left: 0;
+    background: color-mix(in srgb, var(--accent) 5%, var(--bg-elevated));
+    box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.config-edit-modal-body .config-collection-table .config-dynamic-field > span:first-child {
+    display: none;
+}
+
+.config-edit-modal-body .config-collection-table input,
+.config-edit-modal-body .config-collection-table select,
+.config-edit-modal-body .config-collection-table .config-secret-control,
+.config-edit-modal-body .config-collection-table .config-secret-action,
+.config-edit-modal-body .config-collection-table .config-remove-row {
+    min-height: 36px;
+}
+
+.config-edit-modal-body .config-collection-table input,
+.config-edit-modal-body .config-collection-table select {
+    padding-right: 10px;
+    padding-left: 10px;
+    border-radius: 7px;
+    font-size: 13px;
+}
+
+.config-edit-modal-body .config-collection-table .config-row-actions {
+    min-height: 36px;
+    justify-content: flex-end;
+}
+
+.config-edit-modal-body .config-collection-table .config-dynamic-lock-message {
+    display: none;
+}
+
+.config-edit-modal-body .config-subsection-header {
+    flex-wrap: wrap;
+}
+
+.config-edit-modal-body .config-subsection-header .config-collection-lock-message {
+    flex-basis: 100%;
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.config-edit-modal-body .config-settings-header {
+    margin: 16px 0 8px;
+    padding-top: 0;
+    border-top: 0;
+}
+
+.config-edit-modal-body .config-settings-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.config-database-current {
+    display: grid;
+    gap: 5px;
+    margin-bottom: 16px;
+    padding: 14px 16px;
+    border: 1px solid var(--border-primary);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--bg-elevated) 90%, var(--accent) 4%);
+}
+
+.config-database-current > span {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.config-database-current strong {
+    overflow-wrap: anywhere;
+    color: var(--text-primary);
+    font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.config-database-current .config-secret-state {
+    justify-self: start;
+}
+
+.config-database-replacement {
+    padding: 0;
+    border: 0;
+    background: transparent;
+}
+
+.config-database-replacement.environment-locked {
+    opacity: 0.68;
+}
+
+@media (max-width: 720px) {
+    .config-edit-modal-body .config-collection-table .config-row-labels {
+        display: none;
+    }
+
+    .config-edit-modal-body .config-collection-table .config-dynamic-row {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .config-edit-modal-body .config-collection-table .config-dynamic-field > span:first-child {
+        display: flex;
+    }
+
+    .config-edit-modal-body .config-settings-grid {
+        grid-template-columns: 1fr;
+    }
+}
