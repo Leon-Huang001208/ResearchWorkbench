@@ -2512,7 +2512,7 @@ function getPlaceholderConfigStatus(mapping = {}, placeholderName = '') {
     if (type === 'paragraph') {
         const mode = getParagraphMode(mapping.type || type, mapping, placeholderName);
         if (usesEvidenceParagraphMode(mapping.type || type, mode)) {
-            return { ok: Boolean(mapping.prompt_template || mapping.prompt_retrieval_query), label: mapping.prompt_template || mapping.prompt_retrieval_query ? '已配置' : '待配置 Prompt' };
+            return { ok: Boolean(mapping.prompt_template), label: mapping.prompt_template ? '已配置' : '待配置 Prompt' };
         }
         return { ok: Boolean(getDataTemplateComponent(mapping).template), label: getDataTemplateComponent(mapping).template ? '已配置' : '待配置模板' };
     }
@@ -4113,7 +4113,6 @@ function buildSimplePlaceholderFieldsHtml({
         const usesEvidence = usesEvidenceParagraphMode(type, effectiveMode);
         const profileOptions = buildKeywordProfileOptions(template, selectedKeywordProfile);
         const profileKeywords = getKeywordProfileKeywords(template, selectedKeywordProfile);
-        const semanticQuery = getSemanticRetrievalQueryForPlaceholder(template, mapping, name);
         const profileHelp = selectedKeywordProfile && profileKeywords.length
             ? `当前预设包包含 ${profileKeywords.length} 个关键词。`
             : '当前没有匹配到已存在的预设包，可以切换为自定义关键词。';
@@ -4161,13 +4160,8 @@ function buildSimplePlaceholderFieldsHtml({
             <section class="template-retrieval-panel template-config-form-section" data-placeholder-editor-section="query">
                 <div class="template-retrieval-header">
                     <strong>检索设置</strong>
-                    <span>Hybrid = 语义 Query + 关键词</span>
+                    <span>语义 Query 仅来自 prompt_templates.md 的对应 ## 标题</span>
                 </div>
-                <label class="template-semantic-query-field">
-                    <span>语义 Query（用于相关内容召回）</span>
-                    <textarea rows="3" data-placeholder-field="prompt.retrieval_query">${esc(semanticQuery)}</textarea>
-                    <small>保存当前占位符后，会同步写回 Prompt 模板中的“检索 Query”。</small>
-                </label>
             </section>
             ` : ''}
             ${dataFieldsHtml}
@@ -4383,9 +4377,6 @@ function renderTableOrChartPlaceholderEditor(type, mapping = {}) {
 }
 
 function getConfiguredSemanticRetrievalQueryForPlaceholder(template, mapping = {}, placeholderName = '') {
-    if (String(mapping.prompt_retrieval_query || '').trim()) {
-        return String(mapping.prompt_retrieval_query).trim();
-    }
     const promptName = String(mapping.prompt_template || '').trim();
     const promptSource = template?.report_project?.prompt_templates_source || '';
     const query = extractPromptTemplateLabel(promptSource, promptName, '检索 Query');
@@ -4394,14 +4385,11 @@ function getConfiguredSemanticRetrievalQueryForPlaceholder(template, mapping = {
 }
 
 function getSemanticRetrievalQueryForPlaceholder(template, mapping = {}, placeholderName = '') {
-    if (String(mapping.prompt_retrieval_query || '').trim()) {
-        return String(mapping.prompt_retrieval_query).trim();
-    }
     const promptName = String(mapping.prompt_template || '').trim();
     const promptSource = template?.report_project?.prompt_templates_source || '';
     const query = extractPromptTemplateLabel(promptSource, promptName, '检索 Query');
     if (query) return query;
-    return promptName || normalizePlaceholderName(placeholderName) || '未配置语义 Query';
+    return '未配置语义 Query';
 }
 
 function extractPromptTemplateLabel(source, promptName, label) {
@@ -4929,8 +4917,6 @@ function collectSelectedPlaceholderDraft(template) {
             || field === 'retrieval.custom_keywords'
         ) {
             return;
-        } else if (field === 'prompt.retrieval_query') {
-            draft.prompt_retrieval_query = value;
         } else if (field === 'retrieval.keyword_profile') {
             const rawDraftType = draft.type || '';
             const draftType = getCanonicalPlaceholderType(rawDraftType, draft) || inferPlaceholderType(name);
@@ -5617,9 +5603,7 @@ function buildTemplateValidationChecks(template, sections, placeholders) {
     )?.placeholderName;
     const allPlaceholdersMapped = placeholders.length === 0
         || !firstUnmappedPlaceholder;
-    const hasPromptMapping = [...placeholderMappings.values()].some(mapping =>
-        mapping.prompt_template || mapping.prompt_retrieval_query
-    );
+    const hasPromptMapping = [...placeholderMappings.values()].some(mapping => mapping.prompt_template);
     const hasExcelMapping = buildExcelMappingRows(template).length > 0;
     const hasRuleConfig = sections.some(section =>
         section.evidence_policy
@@ -5692,10 +5676,9 @@ function getPlaceholderReadinessIssue(mapping, placeholderName) {
     if (type === 'paragraph') {
         const mode = getParagraphMode(mapping.type || type, mapping, placeholderName);
         if (usesEvidenceParagraphMode(mapping.type || type, mode)
-            && !mapping.prompt_template
-            && !mapping.prompt_retrieval_query) {
+            && !mapping.prompt_template) {
             return {
-                message: '缺少 Prompt 模板或语义 Query',
+                message: '缺少 Markdown Prompt 标题',
                 editorSection: 'query'
             };
         }

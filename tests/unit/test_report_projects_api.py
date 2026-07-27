@@ -3025,6 +3025,133 @@ def test_upload_report_project_package_creates_project_folder(tmp_path: Path, mo
     ).read_text(encoding="utf-8")
 
 
+def test_upload_rejects_legacy_sections_config_before_writing_project(tmp_path: Path, monkeypatch):
+    """上传必须在落盘前拒绝退役的 sections 配置。"""
+    import app.api.routes.report_projects as report_projects_route
+
+    monkeypatch.setattr(
+        report_projects_route,
+        "report_project_manager",
+        ReportProjectManager(projects_root=tmp_path),
+    )
+
+    response = client.post(
+        "/api/report-projects/upload",
+        data={"project_name": "旧配置周报"},
+        files=[
+            (
+                "word_template",
+                (
+                    "report_template.docx",
+                    b"docx",
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                ),
+            ),
+            ("report_config", ("report_config.yaml", b"sections: []\n", "text/yaml")),
+            ("prompt_templates", ("prompt_templates.md", b"## Default Prompt\n", "text/markdown")),
+        ],
+    )
+
+    assert response.status_code == 422
+    assert "sections" in response.json()["detail"]
+    assert not (tmp_path / "旧配置周报" / "config" / "report_config.yaml").exists()
+
+
+def test_source_update_rejects_legacy_config_without_overwriting_existing_source(
+    tmp_path: Path, monkeypatch
+):
+    """配置候选校验失败时，当前 report_config 文件必须保持不变。"""
+    project_dir = tmp_path / "严格周报"
+    (project_dir / "templates").mkdir(parents=True)
+    create_report_project_config_dir(project_dir)
+    (project_dir / "generated").mkdir()
+    (project_dir / "runs").mkdir()
+    (project_dir / "templates" / "report_template.docx").write_bytes(b"docx")
+    config_path = project_dir / "config" / "report_config.yaml"
+    config_path.write_text(
+        "placeholders:\n  content:\n    type: paragraph\n    mode: evidence_ai\n    prompt_template: 默认 Prompt\n",
+        encoding="utf-8",
+    )
+    (project_dir / "project.yaml").write_text(
+        "\n".join(
+            [
+                "name: 严格周报",
+                "active_word_template: templates/report_template.docx",
+                "report_config: config/report_config.yaml",
+                "prompt_templates: config/prompt_templates.md",
+                "output_dir: generated",
+                "run_log_dir: runs",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    original = config_path.read_text(encoding="utf-8")
+
+    import app.api.routes.report_projects as report_projects_route
+
+    monkeypatch.setattr(
+        report_projects_route,
+        "report_project_manager",
+        ReportProjectManager(projects_root=tmp_path),
+    )
+
+    response = client.put(
+        "/api/report-projects/严格周报/source",
+        json={"source_kind": "report_config", "content": "sections: []\n"},
+    )
+
+    assert response.status_code == 422
+    assert config_path.read_text(encoding="utf-8") == original
+
+    response = client.put(
+        "/api/report-projects/严格周报/source",
+        json={"source_kind": "report_config", "content": "section_config: {}\nplaceholders: {}\n"},
+    )
+
+    assert response.status_code == 422
+    assert config_path.read_text(encoding="utf-8") == original
+
+    response = client.put(
+        "/api/report-projects/严格周报/source",
+        json={
+            "source_kind": "report_config",
+            "content": (
+                "placeholders:\n  content:\n    type: paragraph\n"
+                "    mode: evidence_ai\n    prompt_template: 默认 Prompt\n"
+                "    query: 旧检索 Query\n"
+            ),
+        },
+    )
+
+    assert response.status_code == 422
+    assert config_path.read_text(encoding="utf-8") == original
+
+    response = client.put(
+        "/api/report-projects/严格周报/source",
+        json={
+            "source_kind": "report_config",
+            "content": (
+                "placeholders:\n  content:\n    type: paragraph\n"
+                "    mode: evidence_ai\n    prompt_template: 默认 Prompt\n"
+                "    prompt: 旧内联 Prompt\n"
+            ),
+        },
+    )
+
+    assert response.status_code == 422
+    assert config_path.read_text(encoding="utf-8") == original
+
+    prompt_path = project_dir / "config" / "prompt_templates.md"
+    original_prompt = prompt_path.read_text(encoding="utf-8")
+    response = client.put(
+        "/api/report-projects/严格周报/source",
+        json={"source_kind": "prompt_templates", "content": "## 另一个 Prompt\n"},
+    )
+
+    assert response.status_code == 422
+    assert prompt_path.read_text(encoding="utf-8") == original_prompt
+
+
 def test_upload_report_project_allows_word_only_package(tmp_path: Path, monkeypatch):
     """只上传 Word 模板也应创建项目，其它资产后续可补充。"""
     import app.api.routes.report_projects as report_projects_route
