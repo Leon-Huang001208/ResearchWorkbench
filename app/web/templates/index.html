@@ -11,7 +11,7 @@
     <script async src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
     <script async src="https://cdn.jsdelivr.net/npm/d3@7"></script>
     <link rel="stylesheet" href="/static/style.css?v=20260726setup1">
-    <link rel="stylesheet" href="/static/configuration.css?v=20260713config16">
+    <link rel="stylesheet" href="/static/configuration.css?v=20260727workbench1">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@vscode/codicons@0.0.36/dist/codicon.min.css">
 </head>
 <body>
@@ -1235,48 +1235,32 @@
                         <h2 class="section-title" id="config-page-title">系统配置</h2>
                         <p>集中管理模型、数据连接与运行参数。</p>
                     </div>
-                    <button id="config-refresh" class="secondary-btn" aria-label="刷新配置状态" aria-describedby="config-refresh-help"><i class="codicon codicon-refresh"></i> 刷新状态</button>
                 </div>
-                <p id="config-refresh-help" class="config-visually-hidden">刷新状态只会重新读取当前配置，不测试连接或保存配置。</p>
 
                 <div id="config-page-message" class="config-page-message" role="status" aria-live="polite"></div>
 
-                <section class="config-health-summary" data-config-health-summary aria-label="系统健康总览" aria-live="polite">
+                <section class="config-health-summary" data-config-health-summary aria-label="配置进度" aria-live="polite">
                     <div class="config-health-progress">
                         <span class="config-health-label">配置进度</span>
-                        <strong><span data-config-progress-completed>--</span> 项已完成</strong>
-                        <span class="config-health-muted"><span data-config-progress-missing>--</span> 项待补齐</span>
+                        <strong>已完成 <span data-config-progress-completed>--</span> / <span data-config-progress-total>--</span></strong>
                         <div class="config-progress-track" role="progressbar" aria-label="配置完成进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
                             <span data-config-progress-bar></span>
                         </div>
                     </div>
-                    <div class="config-health-connection">
-                        <span class="config-health-label">连接状态</span>
-                        <button class="config-connection-summary" data-config-connection-summary type="button" aria-expanded="false" aria-controls="config-connection-detail">
-                            <strong data-config-connection-label>无异常</strong>
-                            <i class="codicon codicon-chevron-down" aria-hidden="true"></i>
-                        </button>
-                        <p id="config-connection-detail" data-config-health-detail hidden>读取本地配置和连接状态。</p>
-                    </div>
-                    <label class="config-status-filter">
-                        <span class="config-health-label">显示配置</span>
-                        <select data-config-status-filter aria-label="按配置状态筛选">
-                            <option value="all">全部</option>
-                            <option value="attention">需处理</option>
-                            <option value="ready">已就绪</option>
-                        </select>
-                    </label>
                 </section>
 
-                <section class="config-environment-diagnostics" data-config-environment-diagnostics aria-label="当前环境与能力" hidden>
-                    <div class="config-environment-diagnostics-summary" data-config-environment-summary aria-live="polite">
-                        <span>当前环境与能力</span>
-                        <strong data-config-environment-summary-title>正在读取运行环境…</strong>
-                        <p data-config-environment-summary-detail>读取安全的本机运行信息。</p>
-                    </div>
-                    <dl class="config-environment-diagnostics-paths" data-config-environment-paths aria-label="运行路径"></dl>
-                    <ul class="config-environment-diagnostics-capabilities" data-config-environment-capabilities aria-label="本机能力检测结果"></ul>
-                </section>
+                <details class="config-environment-disclosure" data-config-environment-disclosure>
+                    <summary>运行环境</summary>
+                    <section class="config-environment-diagnostics" data-config-environment-diagnostics aria-label="当前环境与能力" hidden>
+                        <div class="config-environment-diagnostics-summary" data-config-environment-summary aria-live="polite">
+                            <span>当前环境与能力</span>
+                            <strong data-config-environment-summary-title>正在读取运行环境…</strong>
+                            <p data-config-environment-summary-detail>读取安全的本机运行信息。</p>
+                        </div>
+                        <dl class="config-environment-diagnostics-paths" data-config-environment-paths aria-label="运行路径"></dl>
+                        <ul class="config-environment-diagnostics-capabilities" data-config-environment-capabilities aria-label="本机能力检测结果"></ul>
+                    </section>
+                </details>
 
                 <div class="config-cards-grid">
                     <article class="config-summary-card" data-config-card="llm" role="button" tabindex="0">

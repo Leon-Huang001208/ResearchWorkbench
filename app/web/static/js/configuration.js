@@ -248,11 +248,9 @@ const requestCoordinator = createRequestCoordinator({
         loadAbortController?.abort();
         loadAbortController = null;
         loadGeneration.invalidate();
-        setRefreshDisabled(true);
         syncMutationControls();
     },
     onLastFinish: () => {
-        setRefreshDisabled(false);
         syncMutationControls();
     },
 });
@@ -1004,33 +1002,19 @@ function renderConfigurationHealth(snapshot) {
     const completed = health.readyCount;
     const missing = Math.max(0, total - completed);
     const percent = total ? Math.round((completed / total) * 100) : 0;
-    const connectionLabel = health.errorCount
-        ? `发现 ${health.errorCount} 项连接异常`
-        : health.verifiedCount
-            ? `${health.verifiedCount} 项本次已验证`
-            : '暂无异常';
-    const connectionDetail = health.errorCount
-        ? `发现 ${health.errorCount} 项连接异常，请打开对应配置修复后再次测试。`
-        : health.verifiedCount
-            ? `${health.verifiedCount} 项连接已在本次会话验证；刷新状态会清除此会话结果。`
-            : '尚未发现连接异常；可在具体配置中按需测试连接。';
 
     if (!summary) return;
     summary.classList.toggle('ready', missing === 0 && health.errorCount === 0);
     summary.classList.toggle('has-error', health.errorCount > 0);
     const completedNode = summary.querySelector('[data-config-progress-completed]');
     if (completedNode) completedNode.textContent = completed;
-    const missingNode = summary.querySelector('[data-config-progress-missing]');
-    if (missingNode) missingNode.textContent = missing;
+    const totalNode = summary.querySelector('[data-config-progress-total]');
+    if (totalNode) totalNode.textContent = total;
     const progressBar = summary.querySelector('[data-config-progress-bar]');
     if (progressBar) {
         progressBar.style.width = `${percent}%`;
         progressBar.parentElement?.setAttribute('aria-valuenow', String(percent));
     }
-    const connectionLabelNode = summary.querySelector('[data-config-connection-label]');
-    if (connectionLabelNode) connectionLabelNode.textContent = connectionLabel;
-    const connectionDetailNode = summary.querySelector('[data-config-health-detail]');
-    if (connectionDetailNode) connectionDetailNode.textContent = connectionDetail;
 }
 
 function renderSnapshot(snapshot) {
@@ -1359,11 +1343,6 @@ function setSectionBusy(section, busy) {
     form?.querySelectorAll('button').forEach(button => { button.disabled = busy; });
 }
 
-function setRefreshDisabled(disabled) {
-    const button = document.getElementById('config-refresh');
-    if (button) button.disabled = disabled;
-}
-
 function syncMutationControls() {
     const page = document.getElementById('section-config');
     if (!page) return;
@@ -1459,38 +1438,6 @@ function markSectionDirty(target) {
     sectionEditGenerations.set(section, (sectionEditGenerations.get(section) || 0) + 1);
 }
 
-async function refreshConfiguration() {
-    if (requestCoordinator.hasActive()) {
-        showPageMessage('配置保存或验证进行中，请稍后刷新', 'error');
-        return;
-    }
-    if (dirtySections.size && !window.confirm('刷新会丢弃尚未保存的修改，是否继续？')) return;
-    connectionStateBySection.clear();
-    if (configurationSnapshot) {
-        renderSummaryCards();
-        renderConfigurationHealth(configurationSnapshot);
-    }
-    await loadConfiguration({ discardDirty: true });
-}
-
-function configurationCardState(section) {
-    if (section === 'database') return databaseReadinessPresentation().state;
-    const connectionState = connectionStateBySection.get(section);
-    if (connectionState === 'error' || connectionState === 'verified') return connectionState;
-    return configurationSnapshot?.readiness?.[section] ? 'ready' : 'missing';
-}
-
-function renderConfigurationCardVisibility() {
-    const filter = document.querySelector('[data-config-status-filter]')?.value || 'all';
-    document.querySelectorAll('[data-config-card]').forEach(card => {
-        const state = configurationCardState(card.dataset.configCard);
-        const visible = filter === 'all'
-            || (filter === 'attention' && (state === 'missing' || state === 'error' || state === 'restart'))
-            || (filter === 'ready' && (state === 'ready' || state === 'verified'));
-        card.hidden = !visible;
-    });
-}
-
 function bindConfigurationEvents() {
     const page = document.getElementById('section-config');
     if (!page || page.dataset.bound === 'true') return;
@@ -1508,20 +1455,6 @@ function bindConfigurationEvents() {
                 openConfigModal(card.dataset.configCard);
             }
         });
-    });
-
-    // 刷新按钮
-    document.getElementById('config-refresh')?.addEventListener('click', refreshConfiguration);
-    page.querySelector('[data-config-status-filter]')?.addEventListener('change', () => {
-        renderConfigurationCardVisibility();
-    });
-    page.querySelector('[data-config-connection-summary]')?.addEventListener('click', () => {
-        const detail = page.querySelector('[data-config-health-detail]');
-        const button = page.querySelector('[data-config-connection-summary]');
-        if (!detail || !button) return;
-        const expanded = button.getAttribute('aria-expanded') === 'true';
-        button.setAttribute('aria-expanded', String(!expanded));
-        detail.hidden = expanded;
     });
 
     syncMutationControls();
@@ -1647,8 +1580,6 @@ export function renderSummaryCards() {
                 : configurationSnapshot.readiness?.[section] ? '管理配置' : '去配置';
         }
     });
-
-    renderConfigurationCardVisibility();
 
     // 移除加载骨架屏状态
     const grid = document.querySelector('.config-cards-grid');
