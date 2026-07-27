@@ -14,6 +14,7 @@ defaults:
     require_evidence_from_uploaded_material: true
     forbid_external_facts: true
     forbid_direct_investment_advice: true
+    forbid_parentheses: true
     forbidden_terms:
       - 保本
       - 稳赚
@@ -35,17 +36,22 @@ defaults:
   - 核心分析仅使用报告期内已发生的事实，未来安排只可作为后续关注变量
   - 正文不使用括号补充说明
   report_period:
-    report_date: 2026-07-22
-    start_date: 2026-07-16
-    end_date: 2026-07-22
+    mode: current_week
+    lookback_days: 7
   retrieval:
     mode: hybrid
     top_k: 10
     candidate_k: 40
+    relevance_scan_limit: 400
     semantic_candidate_k: 80
     keyword_weight: 0.6
     semantic_weight: 0.4
     embedding_model: data/models/embeddings/bge-large-zh-v1.5
+    exclude_title_keywords:
+    - 下周
+    - 即将
+    - 将于
+    - 明日
   rerank:
     enabled: true
     provider: bge-reranker
@@ -142,13 +148,14 @@ tables:
 placeholders:
   A股市场回顾:
     title: A股市场回顾
-    type: paragraph
+    type: composite_market_review
     confirmed: true
     mode: data_template_plus_evidence_ai
     prompt_template: A股市场回顾
     query_mode: retrieval_query_embedded
-    target_words: 250
-    max_words: 320
+    target_words: 220
+    max_words: 260
+    min_news_count: 5
     data_source:
       workbook: 周报数据.xlsx
       domestic_sheet: 国内
@@ -161,24 +168,28 @@ placeholders:
       fields:
         market_trend:
           label: market_trend
+          display_name: 市场走势
           workbook: 周报数据.xlsx
           sheet: 国内
           range: B2:C6
           rule: 读取主要指数周内涨跌幅，正负都有为“分化趋势”，全涨为“普涨趋势”，全跌为“调整趋势”
         index_performance:
           label: index_performance
+          display_name: 指数表现
           workbook: 周报数据.xlsx
           sheet: 国内
           range: B2:C6
           rule: 按顺序读取指数名称和周内涨跌幅，生成“沪深300涨0.86%”这类列表
         avg_turnover:
           label: avg_turnover
+          display_name: 日均成交
           workbook: 周报数据.xlsx
           sheet: 市场成交
           cell: B2
           rule: 读取本周日均成交额，并格式化为“x.xx万亿”
         turnover_trend:
           label: turnover_trend
+          display_name: 成交热度
           workbook: 周报数据.xlsx
           sheet: 市场成交
           range: B2:C2
@@ -187,11 +198,22 @@ placeholders:
       type: llm_writing
       retrieval:
         keyword_profile: A股市场回顾
+        subject_keywords:
+        - A股
+        - 沪深股市
+        - 中国股市
+        keywords:
+        - 板块轮动
+        - 市场热点
+        - 资金
+        - 政策
+        - 景气度
+        - 风险偏好
       writing_structure:
-      - 接在固定开头之后，概括本周市场热点板块或概念，按材料中的重要性或出现频率排序
-      - 描述板块轮动特征，包括反复活跃方向、阶段性活跃方向和相对低迷方向
-      - 结合一个有明确 evidence 支撑的政策、产业或景气度变化，给出一句审慎趋势判断
-      - 最后如需表达关注方向，应使用“后续可关注”“值得跟踪”等克制表述，不得构成直接投资建议
+      - 接在固定开头之后，概括本周最重要的市场热点和板块轮动，不得写成新闻清单
+      - 选择一个有充分 Evidence 支撑的政策、产业、资金或景气变化作为核心驱动
+      - 说明核心驱动如何影响风险偏好和板块表现，不重复前文指数和成交额数字
+      - 末句给出审慎趋势判断和后续观察变量，不构成投资建议
     params: {}
   开始日期:
     title: 开始日期
@@ -219,6 +241,14 @@ placeholders:
     min_news_count: 6
     retrieval:
       keyword_profile: 中国
+      subject_keywords:
+      - 中国经济
+      - 国内宏观
+      - 中国宏观
+      - 中国人民银行
+      - 国家统计局
+      - 中国PMI
+      - 中国社融
       keywords:
       - PMI
       - CPI
@@ -246,6 +276,26 @@ placeholders:
     min_news_count: 6
     retrieval:
       keyword_profile: 人工智能
+      subject_keywords:
+      - 人工智能
+      - 生成式AI
+      - 大模型
+      - AI算力
+      subject_match_mode: all_groups
+      subject_keyword_groups:
+      - - 人工智能
+        - 生成式AI
+        - 大模型
+        - AI算力
+      - - 资本开支
+        - AI芯片
+        - 数据中心
+        - 模型
+        - 大模型
+        - 应用
+        - 监管
+        - 算力
+        - 算法
       keywords:
       - 资本开支
       - AI芯片
@@ -272,6 +322,28 @@ placeholders:
     min_news_count: 6
     retrieval:
       keyword_profile: 电子
+      subject_keywords:
+      - 半导体
+      - 消费电子
+      - 电子元器件
+      - PCB
+      - 存储芯片
+      subject_match_mode: all_groups
+      subject_keyword_groups:
+      - - 半导体
+        - 消费电子
+        - 电子元器件
+        - PCB
+        - 存储芯片
+      - - 库存
+        - 价格
+        - 终端需求
+        - 先进制程
+        - 国产替代
+        - 资本开支
+        - 产能
+        - 订单
+        - 销量
       keywords:
       - 库存
       - 价格
@@ -298,6 +370,23 @@ placeholders:
     min_news_count: 6
     retrieval:
       keyword_profile: 航天
+      subject_keywords:
+      - 商业航天
+      - 卫星
+      - 运载火箭
+      - 航天器
+      subject_match_mode: all_groups
+      subject_keyword_groups:
+      - - 商业航天
+        - 卫星
+        - 运载火箭
+        - 航天器
+      - - 发射
+        - 订单
+        - 产能
+        - 技术验证
+        - 政策
+        - 卫星应用
       keywords:
       - 发射
       - 订单
@@ -324,6 +413,31 @@ placeholders:
     min_news_count: 6
     retrieval:
       keyword_profile: 电力设备新能源
+      subject_keywords:
+      - 光伏
+      - 风电
+      - 储能
+      - 电网
+      - 锂电池
+      - 新能源车
+      subject_match_mode: all_groups
+      subject_keyword_groups:
+      - - 光伏
+        - 风电
+        - 储能
+        - 电网
+        - 锂电池
+        - 新能源车
+      - - 装机
+        - 招标
+        - 产能
+        - 价格
+        - 出口
+        - 技术迭代
+        - 电网投资
+        - 销量
+        - 订单
+        - 以旧换新
       keywords:
       - 装机
       - 招标
@@ -351,6 +465,30 @@ placeholders:
     min_news_count: 6
     retrieval:
       keyword_profile: 消费
+      subject_keywords:
+      - 社会消费
+      - 零售
+      - 食品饮料
+      - 家电
+      - 旅游消费
+      subject_match_mode: all_groups
+      subject_keyword_groups:
+      - - 社会消费
+        - 零售
+        - 食品饮料
+        - 家电
+        - 旅游消费
+      - - 居民
+        - 消费
+        - 以旧换新
+        - 客流
+        - 同店
+        - 渠道
+        - 库存
+        - 销量
+        - 价格
+        - 收入
+        - 促消费
       keywords:
       - 居民收入
       - 消费信心
@@ -377,6 +515,41 @@ placeholders:
     min_news_count: 6
     retrieval:
       keyword_profile: 金融地产
+      subject_keywords:
+      - 银行
+      - 保险
+      - 券商
+      - 房地产
+      - 房企
+      subject_match_mode: all_groups
+      subject_keyword_groups:
+      - - 银行
+        - 保险
+        - 券商
+        - 房地产
+        - 房企
+      - - 中国
+        - 国内
+        - A股
+        - 港股
+        - 沪深
+        - 上交所
+        - 深交所
+      - - 利率
+        - 息差
+        - 信贷
+        - 成交
+        - 销售
+        - 融资
+        - 房地产政策
+      fallback_required_keywords:
+      - 中国
+      - 国内
+      - A股
+      - 港股
+      - 沪深
+      - 上交所
+      - 深交所
       keywords:
       - 利率
       - 息差
@@ -404,6 +577,32 @@ placeholders:
     min_news_count: 6
     retrieval:
       keyword_profile: 医药生物
+      subject_keywords:
+      - 创新药
+      - 医疗器械
+      - 生物科技
+      - CXO
+      - 医疗服务
+      subject_match_mode: all_groups
+      first_group_scope: title
+      subject_keyword_groups:
+      - - 创新药
+        - 医疗器械
+        - 生物科技
+        - CXO
+        - 医疗服务
+        - 医药
+        - 新药
+        - 药物
+        - 制药
+        - 生物医药
+      - - 临床
+        - 审批
+        - 医保
+        - 授权交易
+        - 需求
+        - 研发
+        - 商业化
       keywords:
       - 临床
       - 审批
@@ -428,6 +627,12 @@ placeholders:
     target_words: 240
     max_words: 350
     retrieval:
+      subject_keywords:
+      - 美股
+      - 欧洲股市
+      - 日本股市
+      - 全球股市
+      - 海外市场
       keywords:
       - 美联储
       - 欧洲央行
@@ -454,6 +659,11 @@ placeholders:
     min_news_count: 8
     retrieval:
       keyword_profile: 香港
+      subject_keywords:
+      - 恒生科技
+      - 港股科技
+      - 港股互联网
+      - 港股半导体
       keywords:
       - 南向资金
       - 海外流动性
@@ -461,6 +671,13 @@ placeholders:
       - 业绩
       - 估值
       - 风险偏好
+      subject_backfill_enabled: true
+      min_backfill_keyword_matches: 2
+      backfill_required_keywords:
+      - 港股
+      - 香港
+      - 恒生
+      - 中概
     writing_structure:
     - 首句概括本周港股科技板块的整体方向和节奏
     - 选择宏观、政策、资金或业绩中证据最充分的因素作为核心驱动
@@ -481,6 +698,11 @@ placeholders:
     min_news_count: 8
     retrieval:
       keyword_profile: 香港
+      subject_keywords:
+      - 港股央企红利
+      - 港股高股息
+      - 央企红利
+      - 恒生央企
       keywords:
       - 南向资金
       - 股息率
@@ -509,6 +731,13 @@ placeholders:
     min_news_count: 5
     retrieval:
       keyword_profile: 美国
+      subject_keywords:
+      - 美国经济
+      - 美国宏观
+      - 美国通胀
+      - 美国就业
+      - 美国消费
+      - 美国GDP
       keywords:
       - 非农
       - CPI
@@ -537,6 +766,12 @@ placeholders:
     min_news_count: 5
     retrieval:
       keyword_profile: 欧洲
+      subject_keywords:
+      - 欧元区
+      - 欧洲经济
+      - 欧洲央行
+      - 德国经济
+      - 法国经济
       keywords:
       - 通胀
       - 经济增长
@@ -564,6 +799,12 @@ placeholders:
     min_news_count: 5
     retrieval:
       keyword_profile: 日本
+      subject_keywords:
+      - 日本经济
+      - 日本央行
+      - 日本通胀
+      - 日本工资
+      - 日本国债
       keywords:
       - 工资
       - 通胀
@@ -590,6 +831,34 @@ placeholders:
     min_news_count: 2
     retrieval:
       keyword_profile: 美国
+      subject_keywords:
+      - 美国
+      - 美联储
+      - 美股
+      - 美元
+      - 美债
+      subject_match_mode: all_groups
+      synthetic_title_labels:
+      - 美国新闻
+      first_group_scope: title_or_lead
+      subject_keyword_groups:
+      - - 美国
+        - 美联储
+        - 美股
+        - 美元
+        - 美债
+      - - 非农
+        - 通胀
+        - CPI
+        - 就业
+        - 选举
+        - 央行决议
+        - 美联储决议
+        - 企业业绩
+        - 财报
+        - 关税
+        - 财政
+        - 地缘政治
       keywords:
       - 政策
       - 经济数据
@@ -614,6 +883,33 @@ placeholders:
     min_news_count: 2
     retrieval:
       keyword_profile: 欧洲
+      subject_keywords:
+      - 欧洲
+      - 欧元区
+      - 欧洲央行
+      - 欧元
+      - 欧债
+      subject_match_mode: all_groups
+      synthetic_title_labels:
+      - 欧洲新闻
+      first_group_scope: title_or_lead
+      subject_keyword_groups:
+      - - 欧洲
+        - 欧元区
+        - 欧洲央行
+        - 欧元
+        - 欧债
+      - - 通胀
+        - CPI
+        - 就业
+        - 选举
+        - 央行决议
+        - 欧洲央行决议
+        - 企业业绩
+        - 财报
+        - 财政
+        - 能源
+        - 地缘政治
       keywords:
       - 政策
       - 经济数据
@@ -648,6 +944,10 @@ placeholders:
     min_news_count: 5
     retrieval:
       keyword_profile: 黄金
+      subject_keywords:
+      - 黄金
+      - 金价
+      - 伦敦金
       keywords:
       - 美联储
       - 降息预期
@@ -691,6 +991,14 @@ placeholders:
     min_news_count: 3
     retrieval:
       keyword_profile: 石油
+      exclude:
+      - 2040年
+      - 航空煤油
+      - 航油长期预测
+      - 企业提价
+      - 金银铜锡
+      - 化工原料成本
+      - 泛能源转型
       keywords:
       - 原油
       - 国际油价

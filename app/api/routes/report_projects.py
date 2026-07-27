@@ -123,16 +123,14 @@ class ReportProjectInfo(BaseModel):
     ppt_template_filename: str = ""
     excel_workbook_path: str
     excel_workbook_filename: str
-    section_config_path: str
-    section_config_filename: str
+    report_config_path: str
+    report_config_filename: str
     prompt_templates_path: str | None = None
     prompt_templates_filename: str | None = None
     data_source_files: List[str] = Field(default_factory=list)
     data_assets: List[DataAssetInfo] = Field(default_factory=list)
     word_placeholders: List[str] = Field(default_factory=list)
     ppt_placeholders: List[str] = Field(default_factory=list)
-    section_config: Dict[str, Any] = Field(default_factory=dict)
-    section_config_source: str = ""
     report_config: Dict[str, Any] = Field(default_factory=dict)
     report_config_source: str = ""
     prompt_templates_source: str = ""
@@ -269,7 +267,7 @@ async def upload_report_project(
     word_template: UploadFile | None = File(None, description="Word 模板 .docx"),
     ppt_template: UploadFile | None = File(None, description="PPT 模板 .pptx"),
     excel_workbook: UploadFile | None = File(None, description="Excel 数据底稿 .xlsx"),
-    section_config: UploadFile | None = File(None, description="Section 配置 .yaml/.yml"),
+    report_config: UploadFile | None = File(None, description="报告配置 .yaml/.yml"),
     prompt_templates: UploadFile | None = File(None, description="Prompt 模板 .md"),
     data_files: List[UploadFile] = File(default_factory=list, description="配套数据文件"),
 ):
@@ -302,14 +300,14 @@ async def upload_report_project(
             _require_suffix(ppt_template.filename, [".pptx"], "PPT 模板")
         if excel_workbook and excel_workbook.filename:
             _require_suffix(excel_workbook.filename, [".xlsx"], "Excel 数据底稿")
-        if section_config and section_config.filename:
-            _require_suffix(section_config.filename, [".yaml", ".yml"], "Section 配置")
+        if report_config and report_config.filename:
+            _require_suffix(report_config.filename, [".yaml", ".yml"], "报告配置")
         if prompt_templates:
             _require_suffix(prompt_templates.filename or "", [".md"], "Prompt 模板")
 
         word_path = templates_dir / "report_template.docx"
         ppt_path = templates_dir / "report_template.pptx"
-        section_path = config_dir / "section_config.yaml"
+        report_config_path = config_dir / "report_config.yaml"
 
         if normalized_project_type == "ppt" and ppt_template:
             ppt_path.write_bytes(await ppt_template.read())
@@ -321,15 +319,15 @@ async def upload_report_project(
             excel_filename = _safe_filename(excel_workbook.filename)
             excel_path = data_dir / excel_filename
             excel_path.write_bytes(await excel_workbook.read())
-        if section_config and section_config.filename:
-            section_path.write_bytes(await section_config.read())
+        if report_config and report_config.filename:
+            report_config_path.write_bytes(await report_config.read())
         else:
             default_source = (
-                _build_default_ppt_section_config_source(ppt_path)
+                _build_default_ppt_report_config_source(ppt_path)
                 if normalized_project_type == "ppt"
-                else _build_default_section_config_source(word_path)
+                else _build_default_report_config_source(word_path)
             )
-            section_path.write_text(default_source, encoding="utf-8")
+            report_config_path.write_text(default_source, encoding="utf-8")
 
         prompt_path = None
         if prompt_templates:
@@ -349,7 +347,7 @@ async def upload_report_project(
         project_data = {
             "name": project_name,
             "project_type": normalized_project_type,
-            "section_config": "config/section_config.yaml",
+            "report_config": "config/report_config.yaml",
             "output_dir": "generated",
             "run_log_dir": "runs",
         }
@@ -422,10 +420,8 @@ async def update_report_project_source(slug: str, request: UpdateReportProjectSo
             if not target_path:
                 target_path = project.project_dir / "config" / "prompt_templates.md"
                 _attach_prompt_templates(project.project_dir, target_path)
-        elif request.source_kind == "section_config":
-            target_path = project.section_config_path
         elif request.source_kind == "report_config":
-            target_path = project.project_dir / "config" / "report_config.yaml"
+            target_path = project.report_config_path
         else:
             raise HTTPException(status_code=400, detail="Unsupported source kind")
 
@@ -514,14 +510,14 @@ async def render_report_project(slug: str, request: RenderReportProjectRequest):
     try:
         project = report_project_manager.get_project(slug)
         await _refresh_report_workbook(project, slug)
-        section_config, _ = _read_section_config(project.section_config_path)
+        report_config, _ = _read_report_config(project.report_config_path)
         prompt_templates_source = _read_prompt_templates(project.prompt_templates_path)
         run_result = ReportProjectRunService(
             generation_service=_get_report_generation_service(),
             chart_service=_get_report_chart_service(),
         ).execute(
             project=project,
-            section_config=section_config,
+            report_config=report_config,
             prompt_templates_source=prompt_templates_source,
             request=ReportProjectRunRequest(
                 placeholders=request.placeholders,
@@ -684,13 +680,13 @@ def _run_report_render_job(
                 slug=slug,
                 error=str(exc),
             )
-        section_config, _ = _read_section_config(project.section_config_path)
+        report_config, _ = _read_report_config(project.report_config_path)
         prompt_templates_source = _read_prompt_templates(project.prompt_templates_path)
 
         total_placeholders = len(
             [
                 k
-                for k, v in section_config.get("placeholders", {}).items()
+                for k, v in report_config.get("placeholders", {}).items()
                 if isinstance(v, dict) and v.get("prompt_template")
             ]
         )
@@ -710,7 +706,7 @@ def _run_report_render_job(
             chart_service=_get_report_chart_service(),
         ).execute(
             project=project,
-            section_config=section_config,
+            report_config=report_config,
             prompt_templates_source=prompt_templates_source,
             request=ReportProjectRunRequest(
                 placeholders=request.placeholders,
@@ -1088,10 +1084,9 @@ def _to_project_info(project: ReportProject) -> ReportProjectInfo:
     from reporting.projects.keyword_profiles import keyword_profiles_for_api
     from reporting.projects.plan import compile_report_plan
 
-    section_config, section_config_source = _read_section_config(project.section_config_path)
-    report_config, report_config_source = _read_v2_config(project)
+    report_config, report_config_source = _read_report_config(project.report_config_path)
     prompt_templates_source = _read_prompt_templates(project.prompt_templates_path)
-    compiled_plan = compile_report_plan(section_config, prompt_templates_source).to_dict()
+    compiled_plan = compile_report_plan(report_config, prompt_templates_source).to_dict()
     excel_exists = project.excel_workbook_path.is_file()
     template_path = project.template_path or project.word_template_path
     ppt_template_path = project.ppt_template_path if project.project_type == "ppt" else None
@@ -1112,8 +1107,8 @@ def _to_project_info(project: ReportProject) -> ReportProjectInfo:
         ),
         excel_workbook_path=str(project.excel_workbook_path) if excel_exists else "",
         excel_workbook_filename=project.excel_workbook_path.name if excel_exists else "",
-        section_config_path=str(project.section_config_path),
-        section_config_filename=project.section_config_path.name,
+        report_config_path=str(project.report_config_path),
+        report_config_filename=project.report_config_path.name,
         prompt_templates_path=(
             str(project.prompt_templates_path) if project.prompt_templates_path else None
         ),
@@ -1121,7 +1116,7 @@ def _to_project_info(project: ReportProject) -> ReportProjectInfo:
             project.prompt_templates_path.name if project.prompt_templates_path else None
         ),
         data_source_files=[path.name for path in project.data_source_paths],
-        data_assets=_list_project_data_assets(project, section_config),
+        data_assets=_list_project_data_assets(project, report_config),
         word_placeholders=(
             _extract_docx_placeholders(project.word_template_path) if word_template_exists else []
         ),
@@ -1130,8 +1125,6 @@ def _to_project_info(project: ReportProject) -> ReportProjectInfo:
             if ppt_template_exists and ppt_template_path
             else []
         ),
-        section_config=section_config,
-        section_config_source=section_config_source,
         report_config=report_config,
         report_config_source=report_config_source,
         prompt_templates_source=prompt_templates_source,
@@ -1145,22 +1138,22 @@ def _to_project_info(project: ReportProject) -> ReportProjectInfo:
 
 
 def _list_project_data_assets(
-    project: ReportProject, section_config: Dict[str, Any]
+    project: ReportProject, report_config: Dict[str, Any]
 ) -> List[DataAssetInfo]:
     """Return every file in the project data directory with a user-facing role."""
     data_dir = project.project_dir / "data"
     if not data_dir.exists():
         return []
 
-    config_assets = section_config.get("assets") or {}
+    config_assets = report_config.get("assets") or {}
     chart_workbooks = {
         str(chart.get("workbook") or "")
-        for chart in (section_config.get("charts") or {}).values()
+        for chart in (report_config.get("charts") or {}).values()
         if isinstance(chart, dict)
     }
     table_workbooks = {
         str(table.get("workbook") or "")
-        for table in (section_config.get("tables") or {}).values()
+        for table in (report_config.get("tables") or {}).values()
         if isinstance(table, dict)
     }
     configured_chart_workbook = str(config_assets.get("chart_workbook") or "")
@@ -1225,8 +1218,8 @@ def _data_asset_sort_key(asset: DataAssetInfo) -> int:
     return order.get(asset.kind, 99)
 
 
-def _build_default_section_config_source(word_path: Path) -> str:
-    """Build a minimal section config when only a Word template is uploaded."""
+def _build_default_report_config_source(word_path: Path) -> str:
+    """Build a minimal report config when only a Word template is uploaded."""
     placeholders = {placeholder: "" for placeholder in _extract_docx_placeholders(word_path)}
     return yaml.safe_dump(
         {"placeholders": placeholders, "sections": []},
@@ -1235,8 +1228,8 @@ def _build_default_section_config_source(word_path: Path) -> str:
     )
 
 
-def _build_default_ppt_section_config_source(ppt_path: Path) -> str:
-    """Build a minimal section config when only a PPT template is uploaded."""
+def _build_default_ppt_report_config_source(ppt_path: Path) -> str:
+    """Build a minimal report config when only a PPT template is uploaded."""
     from reporting.projections.ppt import extract_pptx_placeholders
 
     placeholders = {
@@ -1261,8 +1254,8 @@ def _attach_prompt_templates(project_dir: Path, prompt_path: Path) -> None:
     )
 
 
-def _read_section_config(path: Path) -> tuple[Dict[str, Any], str]:
-    """Read raw and parsed section YAML for frontend inspection."""
+def _read_report_config(path: Path) -> tuple[Dict[str, Any], str]:
+    """Read raw and parsed report YAML for frontend inspection."""
     try:
         source = path.read_text(encoding="utf-8")
         parsed = yaml.safe_load(source) or {}
@@ -1270,7 +1263,7 @@ def _read_section_config(path: Path) -> tuple[Dict[str, Any], str]:
             parsed = {}
         return parsed, source
     except Exception as exc:
-        logger.warning("Failed to read section config summary", path=str(path), error=str(exc))
+        logger.warning("Failed to read report config summary", path=str(path), error=str(exc))
         return {}, ""
 
 
@@ -1284,19 +1277,6 @@ def _read_prompt_templates(path: Path | None) -> str:
         logger.warning("Failed to read prompt templates", path=str(path), error=str(exc))
         return ""
 
-
-def _read_v2_config(project: ReportProject) -> tuple[Dict[str, Any], str]:
-    """Read v2 report_config.yaml if it exists."""
-    v2_path = project.project_dir / "config" / "report_config.yaml"
-    if not v2_path.exists():
-        return {}, ""
-    try:
-        source = v2_path.read_text(encoding="utf-8")
-        config = yaml.safe_load(source) or {}
-        return config, source
-    except Exception as exc:
-        logger.warning("Failed to read v2 report config", path=str(v2_path), error=str(exc))
-        return {}, ""
 
 
 def _extract_docx_placeholders(path: Path) -> List[str]:

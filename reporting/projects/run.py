@@ -3,10 +3,7 @@
 This module owns one report-project run: placeholder generation, template
 projection, deterministic tables/charts, and run-log assembly.
 
-v2 (config-driven): When config/report_config.yaml exists, uses
-ConfigDrivenTemplateRenderer for rich-text injection and chart grids.
-v1 (legacy): Falls back to WordProjection.save_from_template() with flat
-placeholder replacement.
+All Word and PowerPoint projects use the same report_config.yaml model.
 """
 
 from __future__ import annotations
@@ -16,8 +13,6 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List
-
-import yaml
 
 from core.observability import get_logger
 from reporting.projections.ppt import PPTTemplateProjection
@@ -88,7 +83,7 @@ class ReportProjectRunService:
         self,
         *,
         project: ReportProject,
-        section_config: Dict[str, Any],
+        report_config: Dict[str, Any],
         prompt_templates_source: str,
         request: ReportProjectRunRequest,
         progress_callback: ProgressCallback | None = None,
@@ -96,7 +91,7 @@ class ReportProjectRunService:
         """Render the configured report project and write its run log."""
         self._emit_progress(progress_callback, "prepare", "正在读取报告配置与素材")
         generation_scope = resolve_report_generation_scope(
-            section_config,
+            report_config,
             report_date=request.report_date,
             lookback_days=request.lookback_days,
             data_scope=request.data_scope,
@@ -106,7 +101,7 @@ class ReportProjectRunService:
         if project.project_type == "ppt":
             return self._execute_ppt(
                 project=project,
-                section_config=section_config,
+                report_config=report_config,
                 prompt_templates_source=prompt_templates_source,
                 request=request,
                 generation_scope=generation_scope,
@@ -114,7 +109,7 @@ class ReportProjectRunService:
             )
         return self._execute_word(
             project=project,
-            section_config=section_config,
+            report_config=report_config,
             prompt_templates_source=prompt_templates_source,
             request=request,
             generation_scope=generation_scope,
@@ -125,52 +120,16 @@ class ReportProjectRunService:
         self,
         *,
         project: ReportProject,
-        section_config: Dict[str, Any],
+        report_config: Dict[str, Any],
         prompt_templates_source: str,
         request: ReportProjectRunRequest,
         generation_scope: Any,
         progress_callback: ProgressCallback | None,
     ) -> ReportProjectRunResult:
-        # ── v2 配置检测 ──
-        # report_config.yaml 可能由前端配置编辑器生成，格式不一定是 v2。
-        # v2 格式的顶层必须包含 meta / template / placeholders 字段；
-        # 缺少这些字段说明是中间格式，应回退到 v1 路径。
-        v2_config_path = project.project_dir / "config" / "report_config.yaml"
-        if v2_config_path.exists():
-            try:
-                config_data = yaml.safe_load(v2_config_path.read_text(encoding="utf-8"))
-                if (
-                    isinstance(config_data, dict)
-                    and "meta" in config_data
-                    and "template" in config_data
-                ):
-                    logger.info(
-                        "检测到 v2 配置，使用 ConfigDrivenTemplateRenderer",
-                        path=str(v2_config_path),
-                    )
-                    return self._execute_word_v2(
-                        project=project,
-                        v2_config_path=v2_config_path,
-                        request=request,
-                        generation_scope=generation_scope,
-                    )
-                else:
-                    logger.info(
-                        "report_config.yaml 存在但不是 v2 格式（缺少 meta/template），使用 v1 路径",
-                        path=str(v2_config_path),
-                    )
-            except Exception:
-                logger.warning(
-                    "无法解析 report_config.yaml 为 v2 格式，回退到 v1 路径",
-                    path=str(v2_config_path),
-                    exc_info=True,
-                )
-
-        # ── v1 路径（原逻辑，完全不变）──
         self._emit_progress(progress_callback, "generate", "正在检索证据并生成段落")
         generation_result = self._generate_placeholders(
             project=project,
-            section_config=section_config,
+            report_config=report_config,
             prompt_templates_source=prompt_templates_source,
             request=request,
             generation_scope=generation_scope,
@@ -187,7 +146,7 @@ class ReportProjectRunService:
         self._emit_progress(progress_callback, "render", "正在渲染 Word 文档")
         tables, table_infos = self.table_builder(
             project=project,
-            section_config=section_config,
+            report_config=report_config,
         )
         self.word_projection_factory().save_from_template(
             output_path=output_path,
@@ -198,7 +157,7 @@ class ReportProjectRunService:
         )
         chart_infos = self.chart_service.generate_and_embed(
             project=project,
-            section_config=section_config,
+            report_config=report_config,
             docx_path=output_path,
         )
         self._emit_progress(progress_callback, "save", "正在保存报告与运行日志")
@@ -239,209 +198,11 @@ class ReportProjectRunService:
             ),
         )
 
-    def _execute_word_v2(
-        self,
-        *,
-        project: ReportProject,
-        v2_config_path: Path,
-        request: ReportProjectRunRequest,
-        generation_scope: Any,
-    ) -> ReportProjectRunResult:
-        """使用 v2 ConfigDrivenTemplateRenderer 执行 Word 报告渲染.
-
-        Args:
-            project: 报告项目.
-            v2_config_path: report_config.yaml 路径.
-            request: 渲染请求.
-            generation_scope: 生成范围.
-
-        Returns:
-            渲染结果.
-        """
-        from core.contracts.reporting import ReportTemplateConfig
-        from reporting.rendering.template_renderer import ConfigDrivenTemplateRenderer
-
-        # 加载 v2 配置
-        config_data = yaml.safe_load(v2_config_path.read_text(encoding="utf-8"))
-        v2_config = ReportTemplateConfig(**config_data)
-        logger.info("v2 配置已加载", config_name=v2_config.meta.name, version=v2_config.meta.version)
-
-        # 读取 prompt 模板（与 v1 共享）
-        prompt_templates_source = ""
-        if project.prompt_templates_path and project.prompt_templates_path.exists():
-            prompt_templates_source = project.prompt_templates_path.read_text(encoding="utf-8")
-
-        # 为 evidence_grounded 类型的占位符预生成内容
-        # 使用现有 generation_service（与 v1 共享）
-        generated_texts: Dict[str, str] = {}
-        generation_warnings: List[str] = []
-        generated_count = 0
-        evidence_total = 0
-
-        for key, placeholder in v2_config.placeholders.items():
-            if placeholder.generation_mode.value in ("evidence_grounded", "llm_direct"):
-                try:
-                    # 委托给现有 generation_service
-                    gen_scope = resolve_report_generation_scope(
-                        {
-                            "defaults": {
-                                "report_period": {"mode": "current_week", "lookback_days": 7}
-                            }
-                        },
-                        report_date=request.report_date,
-                        lookback_days=request.lookback_days,
-                    )
-                    # 通过 generation_service 的单占位符接口生成
-                    result_text = self._generate_single_placeholder(
-                        project=project,
-                        key=key,
-                        placeholder=placeholder,
-                        generation_scope=gen_scope,
-                        prompt_templates_source=prompt_templates_source,
-                        defaults=v2_config.defaults,
-                    )
-                    generated_texts[key] = result_text or ""
-                    if result_text:
-                        generated_count += 1
-                except Exception:
-                    logger.exception("v2 占位符生成失败", extra={"key": key})
-                    generation_warnings.append(f"{key}: 生成失败")
-                    generated_texts[key] = ""
-
-        # 使用 ConfigDrivenTemplateRenderer 渲染
-        renderer = ConfigDrivenTemplateRenderer(
-            config=v2_config,
-            generation_service=self.generation_service,
-            chart_service=self.chart_service,
-            project_dir=project.project_dir,
-        )
-
-        generated_at = datetime.now()
-        file_name = self._artifact_file_name(project, generated_at, ".docx")
-        output_path = project.output_dir / file_name
-
-        renderer.render(
-            output_path=output_path,
-            extra_context={
-                "generated_texts": generated_texts,
-                "generated_count": generated_count,
-                "evidence_count": evidence_total,
-                "report_date": request.report_date or generated_at.strftime("%Y%m%d"),
-                "report_period_start": (
-                    generation_scope.report_period.start_date
-                    if hasattr(generation_scope, "report_period")
-                    else None
-                ),
-                "report_period_end": (
-                    generation_scope.report_period.end_date
-                    if hasattr(generation_scope, "report_period")
-                    else None
-                ),
-            },
-        )
-
-        # 写入运行日志
-        run_record = {
-            "config_version": "2.0",
-            "project_name": project.name,
-            "slug": project.slug,
-            "v2_config_path": str(v2_config_path),
-            "output_path": str(output_path),
-            "generated_at": generated_at.isoformat(),
-            "placeholder_count": len(v2_config.placeholders),
-            "generated_count": generated_count,
-            "report_date": request.report_date,
-            "warnings": generation_warnings,
-        }
-        run_path = self._write_run_record(project, generated_at, run_record)
-
-        logger.info(
-            "Rendered v2 report project",
-            slug=project.slug,
-            output_path=str(output_path),
-            run_path=str(run_path),
-        )
-
-        return ReportProjectRunResult(
-            project_name=project.name,
-            slug=project.slug,
-            file_name=file_name,
-            output_path=output_path,
-            run_log_path=run_path,
-            generated_at=generated_at,
-            generated_placeholder_count=generated_count,
-            evidence_count=evidence_total,
-            warnings=generation_warnings,
-        )
-
-    def _generate_single_placeholder(
-        self,
-        *,
-        project: ReportProject,
-        key: str,
-        placeholder: Any,
-        generation_scope: Any,
-        prompt_templates_source: str = "",
-        defaults: Any = None,
-    ) -> str:
-        """为单个 v2 EnhancedPlaceholder 生成内容.
-
-        委托给 generation_service（复用现有 evidence retrieval + LLM 管道）。
-
-        Args:
-            project: 报告项目.
-            key: 占位符 key.
-            placeholder: EnhancedPlaceholder 实例.
-            generation_scope: 生成范围.
-            prompt_templates_source: prompt_templates.md 原始内容.
-            defaults: v2 DefaultSettings.
-
-        Returns:
-            生成的文本内容.
-        """
-        if self.generation_service is None:
-            return ""
-
-        try:
-            # 通过 generation_service 的通用接口生成
-            result = self.generation_service.generate_placeholder_content(  # type: ignore[union-attr]
-                key=key,
-                title=placeholder.title or key,
-                gen_config=placeholder.generation_config,
-                defaults=defaults,
-                context={
-                    "report_date": (
-                        generation_scope.report_date
-                        if hasattr(generation_scope, "report_date")
-                        else None
-                    ),
-                    "lookback_days": (
-                        generation_scope.lookback_days
-                        if hasattr(generation_scope, "lookback_days")
-                        else 7
-                    ),
-                },
-                project=project,
-                prompt_templates_source=prompt_templates_source,
-            )
-            return result or ""
-        except AttributeError:
-            # generation_service 可能还没有 generate_placeholder_content 方法
-            # fallback: 尝试通过 generate_placeholders 调用
-            logger.warning(
-                "generation_service 缺少 generate_placeholder_content，使用占位文本",
-                extra={"key": key},
-            )
-            return f"[{placeholder.title or key} — 待生成]"
-        except Exception:
-            logger.exception("单占位符生成失败", extra={"key": key})
-            return ""
-
     def _execute_ppt(
         self,
         *,
         project: ReportProject,
-        section_config: Dict[str, Any],
+        report_config: Dict[str, Any],
         prompt_templates_source: str,
         request: ReportProjectRunRequest,
         generation_scope: Any,
@@ -453,7 +214,7 @@ class ReportProjectRunService:
         self._emit_progress(progress_callback, "generate", "正在检索证据并生成段落")
         generation_result = self._generate_placeholders(
             project=project,
-            section_config=section_config,
+            report_config=report_config,
             prompt_templates_source=prompt_templates_source,
             request=request,
             generation_scope=generation_scope,
@@ -514,7 +275,7 @@ class ReportProjectRunService:
         self,
         *,
         project: ReportProject,
-        section_config: Dict[str, Any],
+        report_config: Dict[str, Any],
         prompt_templates_source: str,
         request: ReportProjectRunRequest,
         generation_scope: Any,
@@ -523,7 +284,7 @@ class ReportProjectRunService:
         if request.generate_from_config:
             return self.generation_service.generate_placeholders(
                 project=project,
-                section_config=section_config,
+                report_config=report_config,
                 prompt_templates_source=prompt_templates_source,
                 manual_placeholders=request.placeholders,
                 lookback_days=generation_scope.lookback_days,
@@ -566,7 +327,7 @@ class ReportProjectRunService:
             "slug": project.slug,
             "word_template_path": str(project.word_template_path),
             "excel_workbook_path": str(project.excel_workbook_path),
-            "section_config_path": str(project.section_config_path),
+            "report_config_path": str(project.report_config_path),
             "prompt_templates_path": (
                 str(project.prompt_templates_path) if project.prompt_templates_path else None
             ),
@@ -619,7 +380,7 @@ class ReportProjectRunService:
             "slug": project.slug,
             "project_type": project.project_type,
             "ppt_template_path": str(project.ppt_template_path),
-            "section_config_path": str(project.section_config_path),
+            "report_config_path": str(project.report_config_path),
             "prompt_templates_path": (
                 str(project.prompt_templates_path) if project.prompt_templates_path else None
             ),

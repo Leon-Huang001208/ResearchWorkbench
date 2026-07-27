@@ -108,7 +108,7 @@ Purpose:
 - `style_mapper.py` — `StyleMapper`，将 DesignTokens 映射为 Word 样式字典 / PPT 样式字典。
 - `rich_text_injector.py` — v2 富文本注入器，替代扁平 `{{key}}`→str 替换，支持多 Run 段落生成。每个 Run 可以是静态标签（如加粗 "A股方面："）或 LLM 动态生成内容。核心方法 `inject(paragraph, placeholder_key, spec, generated_text, preserve_paragraph_style)`，内部按 `RichTextSpec.runs` 顺序创建多个带格式 Run（bold/italic/font_name/font_size/color_hex）。
 - `chart_grid_injector.py` — v2 图表网格注入器，在占位符位置创建无边框 Word 表格实现图表矩阵布局（如 2×2）。支持三种渲染模式：`native_chart`（从 Excel 复制原生图表 XML）、`matplotlib_image`（程序化 matploblib 渲染）、`embedded_image`（直接嵌入图片文件）。表格结构：偶数行=标题行（粗体居中），奇数行=图表行。
-- `template_renderer.py` — v2 配置驱动模板渲染器（`ConfigDrivenTemplateRenderer`），协调 RichTextInjector 和 ChartGridInjector。核心流程：打开 .docx 模板 → 遍历 `EnhancedPlaceholder` → 按类型分发处理（TEXT/RICH_TEXT/CHART/CHART_GRID/IMAGE/TABLE_DATA）→ 后处理（清理空 Run）→ 保存。内容生成委托给 `_generate_content()` 支持四种模式：STATIC/LLM_DIRECT/EVIDENCE_GROUNDED/DATA_DRIVEN。条件可见性通过 `visible_if` Jinja2 表达式控制。
+- 报告项目渲染统一读取 `report_config.yaml`，使用 Word/PPT projection 及图表、表格服务完成输出。
 
 Update this section when:
 - 新增输出格式渲染器。
@@ -155,7 +155,7 @@ Update this section when:
 
 Purpose:
 - Load report project folders under `report_projects/`.
-- Resolve `project.yaml` assets: project type (`word` or `ppt`), active Word/PPT template, active Excel workbook, section config, optional prompt template Markdown, optional data sources, generated output directory, and run-log directory.
+- Resolve `project.yaml` assets: project type (`word` or `ppt`), active Word/PPT template, active Excel workbook, report config, optional prompt template Markdown, optional data sources, generated output directory, and run-log directory.
 - Expose `scan_projects()` alongside the compatible `list_projects()` API. The scan preserves usable projects while returning stable diagnostics for malformed manifests and missing active assets, so the workbench does not mistake unavailable projects for an empty template library.
 - Bootstrap the default `创业板50周报` project package.
 
@@ -183,10 +183,10 @@ Update this section when:
 
 Purpose:
 - Generate Word placeholder values from project config, Markdown prompt templates, database evidence, and `ModelGatewayImpl`.
-- Support both current `section_config.yaml` `placeholders` schema and legacy `sections` schema.
+- Support both current `report_config.yaml` `placeholders` schema and legacy `sections` schema.
 - Parse `prompt_templates.md` by second-level heading; `检索 Query` is used to retrieve factual evidence, while `写作要求` constrains final writing.
 - Merge report-level `defaults.validators` / `defaults.retrieval` into each text placeholder before generation, while allowing placeholder-specific overrides such as words, evidence count, and keywords.
-- Render hard generation constraints from merged `section_config.yaml` settings (`target_words`, `max_words`, `min_news_count`, `validators`) into the final model message so prompt templates do not duplicate字数、禁用词、数据来源等硬参数.
+- Render hard generation constraints from merged `report_config.yaml` settings (`target_words`, `max_words`, `min_news_count`, `validators`) into the final model message so prompt templates do not duplicate字数、禁用词、数据来源等硬参数.
 - Retrieve lightweight evidence from `ingestion_queue_item` and `canonical_event` within the requested lookback window.
 - Apply report-level retrieval controls from `defaults.retrieval`: keyword or hybrid mode, `top_k`, `candidate_k`, `source_types`, `min_keyword_score`, optional fusion weights, and optional LLM rerank. Placeholder-level `retrieval.keywords` remains the per-section topical keyword override. Legacy `retrieval.query_terms.must_any` / `exclude` is still parsed for compatibility, but the workbench no longer exposes it by default.
 - Fill missing placeholder `retrieval.keywords` from `reporting/projects/keyword_profiles.json`, either by placeholder name or explicit `retrieval.keyword_profile`.
@@ -226,7 +226,7 @@ Update this section when:
 ### `reporting/projects/plan.py`
 
 Purpose:
-- Compile report project `section_config.yaml` and `prompt_templates.md` into a pre-render readiness plan.
+- Compile report project `report_config.yaml` and `prompt_templates.md` into a pre-render readiness plan.
 - Reuse generation helpers for default merging, composite `llm_writing` retrieval overrides, keyword profile expansion, prompt parsing, and retrieval config normalization.
 - Mark each placeholder as deterministic or evidence-required, surface missing prompt templates / retrieval query issues, and expose the resolved report period and lookback scope.
 - Provide a JSON-friendly `compiled_plan` shape consumed by the report workbench preflight UI before `/render` is called.
@@ -267,7 +267,7 @@ Update this section when:
 
 ---
 
-### `report_projects/*/config/section_config.yaml`
+### `report_projects/*/config/report_config.yaml`
 
 Purpose:
 - Project-owned YAML mapping from Word/PPT placeholders to prompt templates, static values, Excel cells/ranges, retrieval controls, and chart replacement rules.
@@ -297,12 +297,10 @@ Purpose:
 - `RetrievalConfig` — 检索配置，含 `keyword_groups`（关键词组）、`exclude_keywords`、`mode`（hybrid/keyword/semantic）、`top_k` 等。
 - `GenerationConfig` — 生成配置，含 `prompt_template_ref`（引用 prompt_templates.md 中的模板名）、`target_words`、`max_words`、`output_mode`（single_paragraph/multi_paragraph）。
 - `ValidationSpec` — 内容校验规格：`forbidden_terms`（禁用词列表）、`forbid_instruction_leaks`（LLM 指令泄露检测）、`min_chars`、`require_numbers`。
-- `EnhancedPlaceholder` — 核心模型，替代扁平 `{{key}}`→str 映射。每个占位符是一个有类型的 `ContentRegion`，携带 `type`、`generation_mode`、`generation_config`、`rich_text_spec`、`chart_grid_spec`、`validation`、`visible`/`visible_if`（条件可见性）、`hide_strategy`（隐藏时处理策略）。
-- `ReportTemplateConfig` — v2 报告模板配置根模型，含 `meta`、`template`（引用模板文件路径）、`placeholders`（key→EnhancedPlaceholder 字典）、`defaults`（全局默认生成/检索/校验策略）。`@model_validator` 自动从 YAML dict key 填充 `placeholder.key`。
-- 向后兼容：v1 路径（现有 `section_config.yaml` + `WordProjection.save_from_template`）完全保留不变。v2 通过检测 `config/report_config.yaml` 自动启用。
+- `report_config.yaml` — 项目唯一的报告配置，包含 `defaults`、`assets`、`charts`、`tables` 与 `placeholders`。
+- 向后兼容：v1 路径（现有 `report_config.yaml` + `WordProjection.save_from_template`）完全保留不变。v2 通过检测 `config/report_config.yaml` 自动启用。
 
 Update this section when:
-- EnhancedPlaceholder 或 ReportTemplateConfig 字段增减。
 - 新增 PlaceholderType 或 GenerationMode 枚举值。
 - RichTextSpec / ChartGridSpec 结构变化。
 
@@ -311,7 +309,7 @@ Update this section when:
 ### `report_projects/*/config/report_config.yaml` (v2)
 
 Purpose:
-- v2 报告项目配置文件，与 `section_config.yaml`（v1）共存但服务于不同渲染路径。
+- v2 报告项目配置文件，与 `report_config.yaml`（v1）共存但服务于不同渲染路径。
 - 直接定义 `EnhancedPlaceholder` 字典，每个占位符 key 映射到完整的生成策略（类型、检索关键词、prompt 模板引用、输出格式、校验规则）。
 - `meta` — 项目元数据（name/version/description/report_type）。
 - `template` — 模板文件引用（word_template/excel_workbook/chart_workbook/prompt_templates）。
@@ -320,7 +318,6 @@ Purpose:
   - `type: rich_text` + `generation_mode: evidence_grounded` → 检索证据后 LLM 生成富文本。
   - `type: text` + `generation_mode: static` → 静态替换（如日期）。
   - `type: chart_grid` → 图表网格布局。
-  - `rich_text_spec.runs` — 定义段落内静态标签（bold 标题）+ 动态正文（`is_dynamic: true`）。
 
 Update this section when:
 - v2 配置 schema 变化。
@@ -333,7 +330,7 @@ Update this section when:
 Purpose:
 - Markdown prompt template library for project-level generation.
 - Each `##` heading is a reusable prompt template name. The template body may include `检索 Query：...`, `写作要求：...`, or `写作格式：...`.
-- Prompt templates describe retrieval intent and output structure. Hard constraints such as word limits, minimum evidence count, forbidden phrases, no-Wind/no-daily-data rules, and entity bans belong in `section_config.yaml`.
+- Prompt templates describe retrieval intent and output structure. Hard constraints such as word limits, minimum evidence count, forbidden phrases, no-Wind/no-daily-data rules, and entity bans belong in `report_config.yaml`.
 
 Update this section when:
 - Prompt template naming, parsing rules, or writing constraints change.
@@ -366,18 +363,18 @@ When files in this module change, check:
 
 ## Recent Changes
 
-- 2026-07-20: 新增 v2 配置驱动模板渲染框架（模板为主、配置增强）。新增 `core/contracts/reporting.py` 中的 EnhancedPlaceholder/ReportTemplateConfig 等 Pydantic v2 契约、`reporting/rendering/rich_text_injector.py`（多 Run 富文本注入器）、`reporting/rendering/chart_grid_injector.py`（图表网格注入器）、`reporting/rendering/template_renderer.py`（ConfigDrivenTemplateRenderer 主渲染器）。`reporting/projects/run.py` 通过检测 `config/report_config.yaml` 自动选择 v2 路径，v1 路径完全保留。新增华安ETF周报 v2 配置（9 个 EnhancedPlaceholder：7 个 RICH_TEXT + 2 个 TEXT），支持 evidence_grounded LLM 生成、多 Run 富文本格式、条件可见性、后处理清理。ClaimExtractor 从章节拆解 AtomicClaim（LLM structured_output + 规则回退），MetricsComputer 五维度加权评分（检索/事实/引用/报告/效率→0-100），AutoGrader 编排全管线产出 EvaluationReport，BenchmarkSuite+BenchmarkRunner 支持 12 个样本任务跨类别/难度基准测试，ABPlatform 逐维度对比双报告并判定胜者（支持盲评）。新增 7 个 Pydantic 契约（VerificationStatus/AtomicClaim/ReportMetrics/EvaluationReport/BenchmarkTask/ABDimensionDiff/ABComparison）。compiler.py Step 10.5 可选集成 auto_grader。新增 51 个测试，137 个编译器测试全通过。
+- 2026-07-27: 报告项目统一为 `report_config.yaml` 配置来源；删除双路径渲染和旧配置契约。
 - 2026-07-16: 报告编译器第三阶段 3.2：新增 CitationVerifier（引用验证器）与 NumericChecker（数字检查器），提供比 critic 更细粒度的引用质量与数字真实性验证。CitationVerifier 四维检查（引用精度/孤立引用/来源多样性/引用覆盖率），NumericChecker 三维检查（虚构数字/单位不一致/期间不一致），全部规则驱动不调用 LLM。扩展 `CritiqueCategory` 六个新枚举值，无缝接入现有 `CritiqueReport`→`RevisionPass` 流程。`revision_pass.py` 新增 6 个 `_fix_*` 方法（精度/孤立/单位/期间可自动修复，来源多样性/虚构数字标记人工）。`compiler.py` Step 8.5 在 critic revision loop 之后运行双验证器。修复 4 个边界问题（句子定位初始化偏移、单位提取长短匹配优先级、期间提取就近选择、引用标记后文本截断）。新增 20 个测试（citation_verifier 10 + numeric_checker 10），86 个编译器测试全通过。
 - 2026-07-16: 报告编译器第三阶段 3.1：critic 从简化版升级为完整六类批判器（CLAIM_SUPPORT/CONFLICT/COUNTERPOINT/STRUCTURE/EVIDENCE_SUFFICIENCY/FORBIDDEN_TERM），新增 `CritiqueReport`/`CritiqueIssue`/`CritiqueSeverity`/`CritiqueCategory` 契约，新增 `revision_pass.py` 自动修复引擎（CONFLICT→替换数字、CLAIM_SUPPORT→插入引用、COUNTERPOINT→追加反证、FORBIDDEN_TERM→删除），编译器版本升至 2.0，`_critic_revision_loop` 最多 2 轮批判→修订循环，PASS/MINOR 收敛后 break。中英文自适应文本重叠算法（中文字符二元组/英文词重叠），引用标记过滤防止误解析。新增 23 个测试（critic_full 14 + revision_pass 9），66 个编译器测试全通过。
 - 2026-07-15: 新增 `reporting/compiler/` outline-first + evidence-first 报告编译器骨架（第一阶段）。9 步流水线（任务分解→来源规划→检索→事实抽取→大纲→分节写作→引用绑定→批判→渲染），新增 `core/contracts/compiler.py` 契约（`SourceTier`/`FactRecord`/`Provenance`/`Citation`/`ReportOutline`/`CompiledReport`），改造 `core/model_gateway/structured_output_utils.py` 支持 OpenAI strict JSON Schema 与 Anthropic tool use 三级回退。42 个单元测试全通过，未接入生产路由，后续通过 `engine` flag 迁移。
-- 2026-06-08: 报告项目生成链路升级为配置驱动：`section_config.yaml` 的 `placeholders` 绑定 Word 占位符，`prompt_templates.md` 的二级标题提供内置检索 Query 和写作规则；`/api/report-projects/{slug}/render` 默认检索 evidence、调用 ModelGateway 生成正文、嵌入 Excel/worksheet 生成图表、写入 runs JSON，并返回下载和预览 URL。
+- 2026-06-08: 报告项目生成链路升级为配置驱动：`report_config.yaml` 的 `placeholders` 绑定 Word 占位符，`prompt_templates.md` 的二级标题提供内置检索 Query 和写作规则；`/api/report-projects/{slug}/render` 默认检索 evidence、调用 ModelGateway 生成正文、嵌入 Excel/worksheet 生成图表、写入 runs JSON，并返回下载和预览 URL。
 - 2026-06-29: 报告项目新增 `project_type: ppt` 静态 PPT 模板项目；上传 `.pptx` 后扫描 `{{placeholder}}`，生成时复制模板并替换文本占位符，输出 `.pptx`、写入 run log，并保留旧 Word 项目默认兼容。
-- 2026-06-08: 华安 ETF 周报模板图表从 PNG 占位切换为 Word 原生可编辑 chart：`scripts/replace_huaan_word_charts_office.py` 通过 Excel/Word 原生复制粘贴生成 chart parts，`scripts/merge_huaan_layout_with_native_charts.py` 将 chart parts 合并回原模板以保留页眉页脚和版式，`section_config.yaml` 使用 `replace.kind: native_chart`，生成时同步 Excel chart XML 而不再回写 PNG。
+- 2026-06-08: 华安 ETF 周报模板图表从 PNG 占位切换为 Word 原生可编辑 chart：`scripts/replace_huaan_word_charts_office.py` 通过 Excel/Word 原生复制粘贴生成 chart parts，`scripts/merge_huaan_layout_with_native_charts.py` 将 chart parts 合并回原模板以保留页眉页脚和版式，`report_config.yaml` 使用 `replace.kind: native_chart`，生成时同步 Excel chart XML 而不再回写 PNG。
 - 2026-06-09: `A股市场回顾` 切换为复合生成：指数涨跌和成交额由 `周报数据.xlsx` 确定性计算，市场热点部分继续走 evidence retrieval + DeepSeek/model route，减少手动改“涨/跌”和成交额表述；独立 section 生成改为 4 路有界并行，`WordProjection` 修复短占位符破坏长占位符的问题。
 - 2026-06-09: 报告生成接入 Phase 1 关键词检索控制：section 配置可声明 `retrieval.must_any` / `exclude` / `top_k` 等参数，生成前对数据库 evidence 做过滤、评分和排序；run log 和前端预览新增 evidence 检索调试信息，方便定位某个占位符为什么没有内容或引用了错误材料。
 - 2026-06-09: 报告生成接入 Phase 2 混合召回：`retrieval.mode: hybrid` 会在关键词候选外追加近期语义候选，使用本地 n-gram 语义相似度和 RRF 融合排序；run log / 前端 Evidence 调试显示 `semantic_score`、`retrieval_score`、`retrieval_rank` 和 `retrieval_method`。
 - 2026-06-09: 报告生成接入 Phase 3 LLM rerank：`retrieval.rerank.enabled: true` 时，生成器会先取 `rerank.top_n` 条候选，再调用 reporting/default 模型路由输出 JSON 排序，最终 evidence 记录 `rerank_score`、`rerank_rank` 和 `rerank_reason`；华安 ETF 周报的 `A股市场回顾`、`航天`、`电力设备新能源` 已启用。
-- 2026-06-10: 拆分 Prompt 模板与硬性生成参数：`section_config.yaml` 新增/使用 `target_words`、`min_news_count`、`validators`，生成器统一把这些参数渲染进最终模型消息；`prompt_templates.md` 去掉重复的“控制在 X 字”表述，只保留检索 Query 和写作格式。
+- 2026-06-10: 拆分 Prompt 模板与硬性生成参数：`report_config.yaml` 新增/使用 `target_words`、`min_news_count`、`validators`，生成器统一把这些参数渲染进最终模型消息；`prompt_templates.md` 去掉重复的“控制在 X 字”表述，只保留检索 Query 和写作格式。
 - 2026-06-10: 新增 `keyword_profiles`：将旧财联社筛选 `params.json` 升级为项目内置关键词 profile，新模板占位符会按占位符名自动继承检索关键词；未知占位符生成可后续维护的关键词草稿。前端将机器字段 `query_terms.must_any` 收敛为业务字段 `keyword_profile` + `keywords`，不再默认展示“排除词”。
 - 2026-06-10: 华安 ETF 周报配置收敛为报告级 defaults + 占位符差异项：`defaults.validators` / `defaults.retrieval` 统一承载禁用词、no-Wind/no-daily、hybrid、RRF、LLM rerank 等公共策略；每个占位符表单只维护类型、字数、关键词 Profile、检索关键词、报告周期或 Excel/static 来源。
 - 2026-06-04: 收敛 reporting composer/projection 的 mypy 历史债务，补齐模板缓存、fact card 列表、Excel worksheet/chart 数据的显式类型，输出格式保持不变。

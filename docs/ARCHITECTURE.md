@@ -405,13 +405,13 @@ AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System�
 - `templates/`：各类报告模板（资产分析卡、专题备忘录、情景分析报告）
 - `composer/`：内容合成引擎，将碎片化结果组合为完整报告
 - `projections/`：格式投影，转换为 Markdown、Word、HTML 等格式输出
-- `projects/`：项目级报告生成链路，读取 `report_projects/<项目>/project.yaml`、Word/PPT 模板、Excel 底稿、`section_config.yaml` 和 `prompt_templates.md`；`CompiledReportPlan` 负责生成前 readiness 预检，`ReportProjectRunService` 统一编排 evidence 检索、ModelGateway 生成、Word/PPT 投影、图表/表格渲染和 runs 日志记录，API route 只负责 HTTP 映射与预览/下载入口
+- `projects/`：项目级报告生成链路，读取 `report_projects/<项目>/project.yaml`、Word/PPT 模板、Excel 底稿、`report_config.yaml` 和 `prompt_templates.md`；`CompiledReportPlan` 负责生成前 readiness 预检，`ReportProjectRunService` 统一编排 evidence 检索、ModelGateway 生成、Word/PPT 投影、图表/表格渲染和 runs 日志记录，API route 只负责 HTTP 映射与预览/下载入口
 
 **项目级报告数据流**：
 
 ```text
 Word 占位符
-→ section_config.yaml placeholders/charts
+→ report_config.yaml placeholders/charts
 → prompt_templates.md 检索 Query + 写作要求
 → CompiledReportPlan 生成前检查 prompt / retrieval / deterministic 占位符
 → ReportProjectRunService 解析周期并编排单次运行
@@ -903,15 +903,15 @@ class BaseProvider(ABC):
 2. 在 `project.yaml` 中声明：
    - `active_word_template`
    - `active_excel_workbook`
-   - `section_config`
+   - `report_config`
    - 可选 `prompt_templates`
    - `output_dir`
    - `run_log_dir`
-3. 在 `config/section_config.yaml` 中用 `placeholders:` 绑定 Word 占位符；需要图表时用 `charts:` 声明 Excel/worksheet 数据源和 DOCX 替换目标。
+3. 在 `config/report_config.yaml` 中用 `placeholders:` 绑定 Word 占位符；需要图表时用 `charts:` 声明 Excel/worksheet 数据源和 DOCX 替换目标。
 4. 在 `config/prompt_templates.md` 中用 `## 模板名` 定义 Prompt 模板；`检索 Query` 负责找事实材料，`写作要求` 负责约束最终正文。
 5. 通过 Web 模板工作台或 `POST /api/report-projects/{slug}/render` 生成 DOCX，并检查 `runs/*.json` 中的 evidence、模型、token、图表和 warning 记录。
 
-**约定**：Word 模板只负责版式和占位符；`section_config.yaml` 负责映射；`prompt_templates.md` 负责检索和写作规则；业务事实必须来自 evidence 检索或显式手工占位符，不允许模型自由补事实。
+**约定**：Word 模板只负责版式和占位符；`report_config.yaml` 负责映射；`prompt_templates.md` 负责检索和写作规则；业务事实必须来自 evidence 检索或显式手工占位符，不允许模型自由补事实。
 
 ### 如何添加新信号评分算法
 

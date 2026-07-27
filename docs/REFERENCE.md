@@ -603,7 +603,7 @@ python scripts/seed_factor_data.py --skip-ingest
 
 ### 报告项目 API
 
-报告项目 API 管理 `report_projects/<项目名>/` 下的一组项目资产：Word 模板、Excel 底稿、`section_config.yaml`、可选 `prompt_templates.md`、生成目录和运行日志目录。
+报告项目 API 管理 `report_projects/<项目名>/` 下的一组项目资产：Word 模板、Excel 底稿、`report_config.yaml`、可选 `prompt_templates.md`、生成目录和运行日志目录。
 
 #### GET /api/report-projects/
 
@@ -614,8 +614,8 @@ python scripts/seed_factor_data.py --skip-ingest
 | 字段 | 说明 |
 | --- | --- |
 | `word_placeholders` | 从 Word 正文、页眉、页脚 XML 中按首次出现顺序提取的占位符 |
-| `section_config` | 解析后的 YAML 配置 |
-| `section_config_source` | 原始 YAML 文本，可在工作台编辑 |
+| `report_config` | 解析后的 YAML 配置 |
+| `report_config_source` | 原始 YAML 文本，可在工作台编辑 |
 | `prompt_templates_source` | 原始 Markdown Prompt 模板文本 |
 | `excel_sheets` | Excel 工作表维度和样例单元格摘要 |
 | `generated_reports` | 已生成 DOCX 列表 |
@@ -638,7 +638,7 @@ python scripts/seed_factor_data.py --skip-ingest
 
 | 值 | 写入文件 |
 | --- | --- |
-| `section_config` | 项目的 `section_config.yaml` |
+| `report_config` | 项目的 `report_config.yaml` |
 | `prompt_templates` | 项目的 `prompt_templates.md`；如果项目尚未绑定，会创建 `config/prompt_templates.md` 并写回 `project.yaml` |
 
 #### POST /api/report-projects/{slug}/render
@@ -648,7 +648,7 @@ python scripts/seed_factor_data.py --skip-ingest
 默认 `generate_from_config=true`，后端会按以下顺序执行：
 
 ```text
-section_config.yaml
+report_config.yaml
 → prompt_templates.md
 → evidence 检索
 → ModelGateway 生成占位符正文
@@ -1730,13 +1730,13 @@ from reporting.projects.project_manager import ReportProjectManager
 
 manager = ReportProjectManager(projects_root=Path("report_projects"))
 project = manager.get_project("华安ETF周报")
-section_config = yaml.safe_load(project.section_config_path.read_text(encoding="utf-8"))
+report_config = yaml.safe_load(project.report_config_path.read_text(encoding="utf-8"))
 prompt_templates = project.prompt_templates_path.read_text(encoding="utf-8")
 
 service = ReportProjectGenerationService()
 result = service.generate_placeholders(
     project=project,
-    section_config=section_config,
+    report_config=report_config,
     prompt_templates_source=prompt_templates,
     manual_placeholders={"title": "华安ETF周报"},
     lookback_days=7,
@@ -1748,7 +1748,7 @@ print(result.sections[0].evidence_count)
 
 配置口径：
 
-- `section_config.yaml` 的 `placeholders:` 绑定 Word 占位符、Prompt 模板、静态值或 Excel 来源。
+- `report_config.yaml` 的 `placeholders:` 绑定 Word 占位符、Prompt 模板、静态值或 Excel 来源。
 - `prompt_templates.md` 每个 `##` 标题是一个模板名；`检索 Query` 用于找事实材料，`写作要求` 用于约束最终正文。
 - 模型调用通过 `ModelGatewayImpl.chat(task="reporting")`，未配置 reporting task route 时回落到 default。
 - 运行日志由 `/api/report-projects/{slug}/render` 写入项目 `runs/` 目录，包含 evidence count、模型、token、图表和 warnings。

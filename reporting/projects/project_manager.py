@@ -25,7 +25,7 @@ class ReportProject:
     project_dir: Path
     word_template_path: Path
     excel_workbook_path: Path
-    section_config_path: Path
+    report_config_path: Path
     output_dir: Path
     run_log_dir: Path
     prompt_templates_path: Optional[Path] = None
@@ -155,7 +155,7 @@ class ReportProjectManager:
             source_dir / "创业板50周报模板.docx": templates_dir / "report_template.docx",
             source_dir / "创业板50周报（iFind版）.xlsx": data_dir / "创业板50周报（iFind版）.xlsx",
             source_dir / "创业板50周报（Wind版）.xlsx": data_dir / "创业板50周报（Wind版）.xlsx",
-            source_dir / "创业板50周报模板.yaml": config_dir / "section_config.yaml",
+            source_dir / "创业板50周报模板.yaml": config_dir / "report_config.yaml",
         }
 
         try:
@@ -173,7 +173,7 @@ class ReportProjectManager:
                 "name": "创业板50周报",
                 "active_word_template": "templates/report_template.docx",
                 "active_excel_workbook": "data/创业板50周报（iFind版）.xlsx",
-                "section_config": "config/section_config.yaml",
+                "report_config": "config/report_config.yaml",
                 "data_sources": [],
                 "output_dir": "generated",
                 "run_log_dir": "runs",
@@ -197,7 +197,7 @@ class ReportProjectManager:
             data.get("active_word_template"),
             data.get("active_ppt_template"),
             data.get("active_excel_workbook"),
-            data.get("section_config"),
+            data.get("report_config"),
             data.get("output_dir", "generated"),
             data.get("run_log_dir", "runs"),
             data.get("prompt_templates"),
@@ -243,7 +243,7 @@ class ReportProjectManager:
             issue_code = {
                 "active_word_template": "missing_active_word_template",
                 "active_ppt_template": "missing_active_ppt_template",
-                "section_config": "missing_section_config",
+                "report_config": "missing_report_config",
             }.get(label, "missing_project_asset")
             return ReportProjectScanIssue(
                 code=issue_code,
@@ -275,7 +275,7 @@ class ReportProjectManager:
         ppt_template_path = self._resolve_optional(project_dir, data.get("active_ppt_template"))
         template_path = ppt_template_path if project_type == "ppt" else word_template_path
         excel_workbook_path = self._resolve(project_dir, data.get("active_excel_workbook"))
-        section_config_path = self._resolve(project_dir, data.get("section_config"))
+        report_config_path = self._resolve(project_dir, data.get("report_config"))
         output_dir = self._resolve(project_dir, data.get("output_dir", "generated"))
         run_log_dir = self._resolve(project_dir, data.get("run_log_dir", "runs"))
         prompt_templates_path = self._resolve_optional(project_dir, data.get("prompt_templates"))
@@ -285,7 +285,7 @@ class ReportProjectManager:
             if source_path
         ]
 
-        required_assets = [("section_config", section_config_path)]
+        required_assets = [("report_config", report_config_path)]
         if project_type == "ppt":
             if not ppt_template_path:
                 raise FileNotFoundError(
@@ -321,7 +321,7 @@ class ReportProjectManager:
             project_dir=project_dir,
             word_template_path=word_template_path,
             excel_workbook_path=excel_workbook_path,
-            section_config_path=section_config_path,
+            report_config_path=report_config_path,
             output_dir=output_dir,
             run_log_dir=run_log_dir,
             prompt_templates_path=prompt_templates_path,

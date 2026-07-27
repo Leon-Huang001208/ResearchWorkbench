@@ -51,7 +51,7 @@ def test_huaan_prompt_placeholders_use_report_level_retrieval_defaults():
         / "report_projects"
         / "华安ETF周报"
         / "config"
-        / "section_config.yaml"
+        / "report_config.yaml"
     )
     source = config_path.read_text(encoding="utf-8")
     config = yaml.safe_load(source)
@@ -108,7 +108,7 @@ def test_huaan_prompt_placeholders_use_report_level_retrieval_defaults():
 
 def test_report_defaults_are_merged_before_building_retrieval_config():
     """生成侧应将 defaults.retrieval / defaults.validators 合并进单个占位符。"""
-    section_config = {
+    report_config = {
         "defaults": {
             "query_mode": "retrieval_query_embedded",
             "validators": {
@@ -140,7 +140,7 @@ def test_report_defaults_are_merged_before_building_retrieval_config():
         "retrieval": {"keywords": ["航天", "卫星"]},
     }
 
-    merged = apply_report_defaults_to_placeholder(section_config, placeholder_config)
+    merged = apply_report_defaults_to_placeholder(report_config, placeholder_config)
     retrieval_config = build_retrieval_config(merged, default_top_k=4)
 
     assert merged["query_mode"] == "retrieval_query_embedded"
@@ -190,7 +190,7 @@ def test_market_hotspot_prompt_uses_component_structure_without_metadata(tmp_pat
         project_dir=tmp_path,
         word_template_path=tmp_path / "report_template.docx",
         excel_workbook_path=tmp_path / "report_data.xlsx",
-        section_config_path=tmp_path / "section_config.yaml",
+        report_config_path=tmp_path / "report_config.yaml",
         output_dir=tmp_path / "generated",
         run_log_dir=tmp_path / "runs",
     )
@@ -392,7 +392,7 @@ def test_compute_report_period_uses_report_date_and_week_monday():
 
 def test_resolve_report_generation_scope_prefilters_before_retrieval():
     """生成范围先统一解析，后续检索只接收已经确定的周期。"""
-    section_config = {
+    report_config = {
         "defaults": {
             "report_period": {
                 "report_date": "2026-06-05",
@@ -402,14 +402,14 @@ def test_resolve_report_generation_scope_prefilters_before_retrieval():
         }
     }
 
-    yaml_scope = resolve_report_generation_scope(section_config)
+    yaml_scope = resolve_report_generation_scope(report_config)
 
     assert yaml_scope.report_period.start_date == "2026-05-30"
     assert yaml_scope.report_period.end_date == "2026-06-05"
     assert yaml_scope.data_scope == "custom"
 
     override_scope = resolve_report_generation_scope(
-        section_config,
+        report_config,
         report_date="2026-06-10",
         start_date="2026-06-03",
         end_date="2026-06-10",
@@ -548,7 +548,7 @@ def test_list_report_projects_returns_project_assets(tmp_path: Path, monkeypatch
     (project_dir / "data" / "domestic.json").write_text("{}", encoding="utf-8")
     (project_dir / "data" / "周报图表.xlsx").write_bytes(b"chart")
     (project_dir / "data" / "周报页眉.png").write_bytes(b"png")
-    (project_dir / "config" / "section_config.yaml").write_text("sections: []\n", encoding="utf-8")
+    (project_dir / "config" / "report_config.yaml").write_text("sections: []\n", encoding="utf-8")
     (project_dir / "config" / "prompt_templates.md").write_text("前缀提示词", encoding="utf-8")
     (project_dir / "generated" / "20260605_创业板50周报.docx").write_bytes(b"report")
     (project_dir / "project.yaml").write_text(
@@ -557,7 +557,7 @@ def test_list_report_projects_returns_project_assets(tmp_path: Path, monkeypatch
                 "name: 创业板50周报",
                 "active_word_template: templates/report_template.docx",
                 "active_excel_workbook: data/创业板50周报（iFind版）.xlsx",
-                "section_config: config/section_config.yaml",
+                "report_config: config/report_config.yaml",
                 "prompt_templates: config/prompt_templates.md",
                 "data_sources:",
                 "  - data/domestic.json",
@@ -585,7 +585,7 @@ def test_list_report_projects_returns_project_assets(tmp_path: Path, monkeypatch
     assert project["name"] == "创业板50周报"
     assert project["word_template_filename"] == "report_template.docx"
     assert project["excel_workbook_filename"] == "创业板50周报（iFind版）.xlsx"
-    assert project["section_config_filename"] == "section_config.yaml"
+    assert project["report_config_filename"] == "report_config.yaml"
     assert project["prompt_templates_filename"] == "prompt_templates.md"
     assert project["data_source_files"] == ["domestic.json"]
     assert [asset["file_name"] for asset in project["data_assets"]] == [
@@ -628,7 +628,7 @@ def test_get_report_project_returns_real_template_asset_summary(tmp_path: Path, 
             "    - 创业板50",
         ]
     )
-    (project_dir / "config" / "section_config.yaml").write_text(section_yaml, encoding="utf-8")
+    (project_dir / "config" / "report_config.yaml").write_text(section_yaml, encoding="utf-8")
     prompt_source = "## 正文观点\n检索 Query：创业板50\n\n写作要求：严格依据上传文件"
     (project_dir / "config" / "prompt_templates.md").write_text(prompt_source, encoding="utf-8")
     (project_dir / "project.yaml").write_text(
@@ -637,7 +637,7 @@ def test_get_report_project_returns_real_template_asset_summary(tmp_path: Path, 
                 "name: 创业板50周报",
                 "active_word_template: templates/report_template.docx",
                 "active_excel_workbook: data/cyb50.xlsx",
-                "section_config: config/section_config.yaml",
+                "report_config: config/report_config.yaml",
                 "prompt_templates: config/prompt_templates.md",
                 "output_dir: generated",
                 "run_log_dir: runs",
@@ -659,9 +659,9 @@ def test_get_report_project_returns_real_template_asset_summary(tmp_path: Path, 
     assert response.status_code == 200
     project = response.json()
     assert project["word_placeholders"] == ["title", "start_date", "content1"]
-    assert project["section_config_source"] == section_yaml
+    assert project["report_config_source"] == section_yaml
     assert project["prompt_templates_source"] == prompt_source
-    assert project["section_config"]["sections"][0]["placeholder"] == "content1"
+    assert project["report_config"]["sections"][0]["placeholder"] == "content1"
     assert project["excel_sheets"][0]["name"] == "基本信息"
     assert project["excel_sheets"][0]["dimension"] == "A1:C3"
     assert project["excel_sheets"][0]["nonempty_count"] == 2
@@ -683,7 +683,7 @@ def test_get_report_project_returns_ppt_template_placeholders(tmp_path: Path, mo
         project_dir / "templates" / "report_template.pptx",
         "标题 {{title}} 期间 {{period}}",
     )
-    (project_dir / "config" / "section_config.yaml").write_text(
+    (project_dir / "config" / "report_config.yaml").write_text(
         "placeholders:\n  title:\n    type: static\n    value: 月度PPT\n",
         encoding="utf-8",
     )
@@ -693,7 +693,7 @@ def test_get_report_project_returns_ppt_template_placeholders(tmp_path: Path, mo
                 "name: 月度PPT",
                 "project_type: ppt",
                 "active_ppt_template: templates/report_template.pptx",
-                "section_config: config/section_config.yaml",
+                "report_config: config/report_config.yaml",
                 "output_dir: generated",
                 "run_log_dir: runs",
             ]
@@ -734,14 +734,14 @@ def test_docx_placeholders_keep_word_first_seen_order(tmp_path: Path, monkeypatc
         "{{z_last}} {{a_first}} {{middle}} {{a_first}}",
     )
     write_minimal_xlsx(project_dir / "data" / "data.xlsx")
-    (project_dir / "config" / "section_config.yaml").write_text("sections: []\n", encoding="utf-8")
+    (project_dir / "config" / "report_config.yaml").write_text("sections: []\n", encoding="utf-8")
     (project_dir / "project.yaml").write_text(
         "\n".join(
             [
                 "name: 排序周报",
                 "active_word_template: templates/report_template.docx",
                 "active_excel_workbook: data/data.xlsx",
-                "section_config: config/section_config.yaml",
+                "report_config: config/report_config.yaml",
                 "output_dir: generated",
                 "run_log_dir: runs",
             ]
@@ -773,7 +773,7 @@ def test_update_report_project_source_persists_prompt_templates(tmp_path: Path, 
     (project_dir / "runs").mkdir()
     write_minimal_docx(project_dir / "templates" / "report_template.docx", "{{ content1 }}")
     write_minimal_xlsx(project_dir / "data" / "data.xlsx")
-    (project_dir / "config" / "section_config.yaml").write_text("sections: []\n", encoding="utf-8")
+    (project_dir / "config" / "report_config.yaml").write_text("sections: []\n", encoding="utf-8")
     (project_dir / "config" / "prompt_templates.md").write_text("旧 prompt", encoding="utf-8")
     (project_dir / "project.yaml").write_text(
         "\n".join(
@@ -781,7 +781,7 @@ def test_update_report_project_source_persists_prompt_templates(tmp_path: Path, 
                 "name: 华安ETF周报",
                 "active_word_template: templates/report_template.docx",
                 "active_excel_workbook: data/data.xlsx",
-                "section_config: config/section_config.yaml",
+                "report_config: config/report_config.yaml",
                 "prompt_templates: config/prompt_templates.md",
                 "output_dir: generated",
                 "run_log_dir: runs",
@@ -821,14 +821,14 @@ def test_render_report_project_writes_to_project_generated_dir(tmp_path: Path, m
     (project_dir / "runs").mkdir()
     (project_dir / "templates" / "report_template.docx").write_bytes(b"docx")
     (project_dir / "data" / "创业板50周报（iFind版）.xlsx").write_bytes(b"xlsx")
-    (project_dir / "config" / "section_config.yaml").write_text("sections: []\n", encoding="utf-8")
+    (project_dir / "config" / "report_config.yaml").write_text("sections: []\n", encoding="utf-8")
     (project_dir / "project.yaml").write_text(
         "\n".join(
             [
                 "name: 创业板50周报",
                 "active_word_template: templates/report_template.docx",
                 "active_excel_workbook: data/创业板50周报（iFind版）.xlsx",
-                "section_config: config/section_config.yaml",
+                "report_config: config/report_config.yaml",
                 "output_dir: generated",
                 "run_log_dir: runs",
             ]
@@ -876,7 +876,7 @@ def test_report_project_run_service_renders_word_project(tmp_path: Path):
     (project_dir / "runs").mkdir()
     (project_dir / "templates" / "report_template.docx").write_bytes(b"docx")
     (project_dir / "data" / "data.xlsx").write_bytes(b"xlsx")
-    (project_dir / "config" / "section_config.yaml").write_text(
+    (project_dir / "config" / "report_config.yaml").write_text(
         "placeholders:\n  人工智能:\n    title: 人工智能\n",
         encoding="utf-8",
     )
@@ -890,7 +890,7 @@ def test_report_project_run_service_renders_word_project(tmp_path: Path):
                 "name: 华安ETF周报",
                 "active_word_template: templates/report_template.docx",
                 "active_excel_workbook: data/data.xlsx",
-                "section_config: config/section_config.yaml",
+                "report_config: config/report_config.yaml",
                 "prompt_templates: config/prompt_templates.md",
                 "output_dir: generated",
                 "run_log_dir: runs",
@@ -971,7 +971,7 @@ def test_report_project_run_service_renders_word_project(tmp_path: Path):
 
     result = service.execute(
         project=project,
-        section_config={"placeholders": {"人工智能": {"title": "人工智能"}}},
+        report_config={"placeholders": {"人工智能": {"title": "人工智能"}}},
         prompt_templates_source="## 人工智能\n检索 Query：AI",
         request=ReportProjectRunRequest(
             placeholders={"manual": "手工值"},
@@ -1001,7 +1001,7 @@ def test_render_ppt_report_project_writes_pptx_to_generated_dir(tmp_path: Path, 
     (project_dir / "generated").mkdir()
     (project_dir / "runs").mkdir()
     write_minimal_pptx(project_dir / "templates" / "report_template.pptx", "{{title}} / {{period}}")
-    (project_dir / "config" / "section_config.yaml").write_text(
+    (project_dir / "config" / "report_config.yaml").write_text(
         "placeholders: {}\n", encoding="utf-8"
     )
     (project_dir / "project.yaml").write_text(
@@ -1010,7 +1010,7 @@ def test_render_ppt_report_project_writes_pptx_to_generated_dir(tmp_path: Path, 
                 "name: 月度PPT",
                 "project_type: ppt",
                 "active_ppt_template: templates/report_template.pptx",
-                "section_config: config/section_config.yaml",
+                "report_config: config/report_config.yaml",
                 "output_dir: generated",
                 "run_log_dir: runs",
             ]
@@ -1059,7 +1059,7 @@ def test_generation_service_uses_prompt_query_evidence_and_reporting_model(tmp_p
     (project_dir / "runs").mkdir()
     write_minimal_docx(project_dir / "templates" / "report_template.docx", "{{人工智能}}")
     write_minimal_xlsx(project_dir / "data" / "data.xlsx")
-    (project_dir / "config" / "section_config.yaml").write_text(
+    (project_dir / "config" / "report_config.yaml").write_text(
         "placeholders: {}\n", encoding="utf-8"
     )
     (project_dir / "project.yaml").write_text(
@@ -1068,7 +1068,7 @@ def test_generation_service_uses_prompt_query_evidence_and_reporting_model(tmp_p
                 "name: 华安ETF周报",
                 "active_word_template: templates/report_template.docx",
                 "active_excel_workbook: data/data.xlsx",
-                "section_config: config/section_config.yaml",
+                "report_config: config/report_config.yaml",
                 "output_dir: generated",
                 "run_log_dir: runs",
             ]
@@ -1122,7 +1122,7 @@ def test_generation_service_uses_prompt_query_evidence_and_reporting_model(tmp_p
     service = ReportProjectGenerationService(retriever=retriever, model_gateway=gateway)
     result = service.generate_placeholders(
         project=project,
-        section_config={
+        report_config={
             "placeholders": {
                 "人工智能": {
                     "title": "人工智能",
@@ -1150,7 +1150,7 @@ def test_generation_service_uses_prompt_query_evidence_and_reporting_model(tmp_p
 
 
 def test_generation_service_renders_structured_generation_constraints(tmp_path: Path):
-    """字数、新闻条数和禁用规则应由 section_config 参数进入最终模型消息。"""
+    """字数、新闻条数和禁用规则应由 report_config 参数进入最终模型消息。"""
     project_dir = tmp_path / "华安ETF周报"
     (project_dir / "templates").mkdir(parents=True)
     (project_dir / "data").mkdir()
@@ -1159,7 +1159,7 @@ def test_generation_service_renders_structured_generation_constraints(tmp_path: 
     (project_dir / "runs").mkdir()
     write_minimal_docx(project_dir / "templates" / "report_template.docx", "{{A股市场回顾}}")
     write_minimal_xlsx(project_dir / "data" / "data.xlsx")
-    (project_dir / "config" / "section_config.yaml").write_text(
+    (project_dir / "config" / "report_config.yaml").write_text(
         "placeholders: {}\n", encoding="utf-8"
     )
     (project_dir / "project.yaml").write_text(
@@ -1168,7 +1168,7 @@ def test_generation_service_renders_structured_generation_constraints(tmp_path: 
                 "name: 华安ETF周报",
                 "active_word_template: templates/report_template.docx",
                 "active_excel_workbook: data/data.xlsx",
-                "section_config: config/section_config.yaml",
+                "report_config: config/report_config.yaml",
                 "output_dir: generated",
                 "run_log_dir: runs",
             ]
@@ -1215,7 +1215,7 @@ def test_generation_service_renders_structured_generation_constraints(tmp_path: 
 
     result = service.generate_placeholders(
         project=project,
-        section_config={
+        report_config={
             "placeholders": {
                 "A股市场回顾": {
                     "title": "A股市场回顾",
@@ -1266,7 +1266,7 @@ def test_generation_service_fills_report_period_placeholders(tmp_path: Path):
         "{{开始日期}} {{结束日期}}",
     )
     write_minimal_xlsx(project_dir / "data" / "data.xlsx")
-    (project_dir / "config" / "section_config.yaml").write_text(
+    (project_dir / "config" / "report_config.yaml").write_text(
         "placeholders: {}\n", encoding="utf-8"
     )
     (project_dir / "project.yaml").write_text(
@@ -1275,7 +1275,7 @@ def test_generation_service_fills_report_period_placeholders(tmp_path: Path):
                 "name: 华安ETF周报",
                 "active_word_template: templates/report_template.docx",
                 "active_excel_workbook: data/data.xlsx",
-                "section_config: config/section_config.yaml",
+                "report_config: config/report_config.yaml",
                 "output_dir: generated",
                 "run_log_dir: runs",
             ]
@@ -1296,7 +1296,7 @@ def test_generation_service_fills_report_period_placeholders(tmp_path: Path):
 
     result = service.generate_placeholders(
         project=project,
-        section_config={
+        report_config={
             "placeholders": {
                 "开始日期": {"title": "开始日期", "type": "report_period", "field": "start_date"},
                 "结束日期": {"title": "结束日期", "type": "report_period", "field": "end_date"},
@@ -1325,7 +1325,7 @@ def test_generation_service_handles_output_shape_placeholder_protocol(tmp_path: 
         "{{开始日期}} {{免责声明}} {{chart_nav}} {{calendar_table}}",
     )
     write_minimal_xlsx(project_dir / "data" / "data.xlsx")
-    (project_dir / "config" / "section_config.yaml").write_text(
+    (project_dir / "config" / "report_config.yaml").write_text(
         "placeholders: {}\n", encoding="utf-8"
     )
     (project_dir / "project.yaml").write_text(
@@ -1334,7 +1334,7 @@ def test_generation_service_handles_output_shape_placeholder_protocol(tmp_path: 
                 "name: 通用模板",
                 "active_word_template: templates/report_template.docx",
                 "active_excel_workbook: data/data.xlsx",
-                "section_config: config/section_config.yaml",
+                "report_config: config/report_config.yaml",
                 "output_dir: generated",
                 "run_log_dir: runs",
             ]
@@ -1355,7 +1355,7 @@ def test_generation_service_handles_output_shape_placeholder_protocol(tmp_path: 
 
     result = service.generate_placeholders(
         project=project,
-        section_config={
+        report_config={
             "placeholders": {
                 "开始日期": {
                     "title": "开始日期",
@@ -1404,7 +1404,7 @@ def test_generation_service_builds_composite_market_review_from_excel_and_eviden
     (project_dir / "runs").mkdir()
     write_minimal_docx(project_dir / "templates" / "report_template.docx", "{{A股市场回顾}}")
     write_market_review_xlsx(project_dir / "data" / "周报数据.xlsx")
-    (project_dir / "config" / "section_config.yaml").write_text(
+    (project_dir / "config" / "report_config.yaml").write_text(
         "placeholders: {}\n", encoding="utf-8"
     )
     (project_dir / "project.yaml").write_text(
@@ -1413,7 +1413,7 @@ def test_generation_service_builds_composite_market_review_from_excel_and_eviden
                 "name: 华安ETF周报",
                 "active_word_template: templates/report_template.docx",
                 "active_excel_workbook: data/周报数据.xlsx",
-                "section_config: config/section_config.yaml",
+                "report_config: config/report_config.yaml",
                 "output_dir: generated",
                 "run_log_dir: runs",
             ]
@@ -1455,7 +1455,7 @@ def test_generation_service_builds_composite_market_review_from_excel_and_eviden
 
     result = service.generate_placeholders(
         project=project,
-        section_config={
+        report_config={
             "placeholders": {
                 "A股市场回顾": {
                     "title": "A股市场回顾",
@@ -1530,7 +1530,7 @@ def test_generation_service_builds_gold_and_oil_reviews_from_excel(tmp_path: Pat
     (project_dir / "runs").mkdir()
     write_minimal_docx(project_dir / "templates" / "report_template.docx", "{{黄金市场回顾}}{{原油市场回顾}}")
     write_market_review_xlsx(project_dir / "data" / "周报数据.xlsx")
-    (project_dir / "config" / "section_config.yaml").write_text(
+    (project_dir / "config" / "report_config.yaml").write_text(
         "placeholders: {}\n", encoding="utf-8"
     )
     (project_dir / "project.yaml").write_text(
@@ -1539,7 +1539,7 @@ def test_generation_service_builds_gold_and_oil_reviews_from_excel(tmp_path: Pat
                 "name: 华安ETF周报",
                 "active_word_template: templates/report_template.docx",
                 "active_excel_workbook: data/周报数据.xlsx",
-                "section_config: config/section_config.yaml",
+                "report_config: config/report_config.yaml",
                 "output_dir: generated",
                 "run_log_dir: runs",
             ]
@@ -1560,7 +1560,7 @@ def test_generation_service_builds_gold_and_oil_reviews_from_excel(tmp_path: Pat
 
     result = service.generate_placeholders(
         project=project,
-        section_config={
+        report_config={
             "placeholders": {
                 "黄金市场回顾": {
                     "title": "黄金市场回顾",
@@ -1753,7 +1753,7 @@ def test_generation_service_reranks_evidence_with_local_bge(tmp_path: Path, monk
     (project_dir / "runs").mkdir()
     write_minimal_docx(project_dir / "templates" / "report_template.docx", "{{航天}}")
     write_minimal_xlsx(project_dir / "data" / "data.xlsx")
-    (project_dir / "config" / "section_config.yaml").write_text(
+    (project_dir / "config" / "report_config.yaml").write_text(
         "placeholders: {}\n", encoding="utf-8"
     )
     (project_dir / "project.yaml").write_text(
@@ -1762,7 +1762,7 @@ def test_generation_service_reranks_evidence_with_local_bge(tmp_path: Path, monk
                 "name: 华安ETF周报",
                 "active_word_template: templates/report_template.docx",
                 "active_excel_workbook: data/data.xlsx",
-                "section_config: config/section_config.yaml",
+                "report_config: config/report_config.yaml",
                 "output_dir: generated",
                 "run_log_dir: runs",
             ]
@@ -1832,7 +1832,7 @@ def test_generation_service_reranks_evidence_with_local_bge(tmp_path: Path, monk
 
     result = service.generate_placeholders(
         project=project,
-        section_config={
+        report_config={
             "placeholders": {
                 "航天": {
                     "title": "航天",
@@ -1877,7 +1877,7 @@ def test_generation_service_generates_independent_prompt_sections_concurrently(t
     (project_dir / "runs").mkdir()
     write_minimal_docx(project_dir / "templates" / "report_template.docx", "{{人工智能}}")
     write_minimal_xlsx(project_dir / "data" / "data.xlsx")
-    (project_dir / "config" / "section_config.yaml").write_text(
+    (project_dir / "config" / "report_config.yaml").write_text(
         "placeholders: {}\n", encoding="utf-8"
     )
     (project_dir / "project.yaml").write_text(
@@ -1886,7 +1886,7 @@ def test_generation_service_generates_independent_prompt_sections_concurrently(t
                 "name: 华安ETF周报",
                 "active_word_template: templates/report_template.docx",
                 "active_excel_workbook: data/data.xlsx",
-                "section_config: config/section_config.yaml",
+                "report_config: config/report_config.yaml",
                 "output_dir: generated",
                 "run_log_dir: runs",
             ]
@@ -1940,7 +1940,7 @@ def test_generation_service_generates_independent_prompt_sections_concurrently(t
 
     result = service.generate_placeholders(
         project=project,
-        section_config={"placeholders": placeholders},
+        report_config={"placeholders": placeholders},
         prompt_templates_source="\n\n".join(
             f"## 段落{i}\n检索 Query：段落{i}\n\n写作要求：短句" for i in range(1, 5)
         ),
@@ -1969,7 +1969,7 @@ def test_render_report_project_generates_from_config_and_writes_generation_log(
     (project_dir / "templates" / "report_template.docx").write_bytes(b"docx")
     (project_dir / "data" / "data.xlsx").write_bytes(b"xlsx")
     write_global_calendar_xlsx(project_dir / "data" / "全球经济日历.xlsx")
-    (project_dir / "config" / "section_config.yaml").write_text(
+    (project_dir / "config" / "report_config.yaml").write_text(
         "\n".join(
             [
                 "placeholders:",
@@ -2004,7 +2004,7 @@ def test_render_report_project_generates_from_config_and_writes_generation_log(
                 "name: 华安ETF周报",
                 "active_word_template: templates/report_template.docx",
                 "active_excel_workbook: data/data.xlsx",
-                "section_config: config/section_config.yaml",
+                "report_config: config/report_config.yaml",
                 "prompt_templates: config/prompt_templates.md",
                 "output_dir: generated",
                 "run_log_dir: runs",
@@ -2165,7 +2165,7 @@ def _write_preview_project(tmp_path: Path) -> Path:
     (project_dir / "runs").mkdir()
     write_minimal_docx(project_dir / "templates" / "report_template.docx", "{{人工智能}}")
     write_minimal_xlsx(project_dir / "data" / "data.xlsx")
-    (project_dir / "config" / "section_config.yaml").write_text("sections: []\n", encoding="utf-8")
+    (project_dir / "config" / "report_config.yaml").write_text("sections: []\n", encoding="utf-8")
     (project_dir / "generated" / "preview.docx").write_bytes(
         (project_dir / "templates" / "report_template.docx").read_bytes()
     )
@@ -2175,7 +2175,7 @@ def _write_preview_project(tmp_path: Path) -> Path:
                 "name: 华安ETF周报",
                 "active_word_template: templates/report_template.docx",
                 "active_excel_workbook: data/data.xlsx",
-                "section_config: config/section_config.yaml",
+                "report_config: config/report_config.yaml",
                 "output_dir: generated",
                 "run_log_dir: runs",
             ]
@@ -2847,14 +2847,14 @@ def test_open_report_project_generated_folder_uses_platform_file_manager(
     (project_dir / "runs").mkdir()
     write_minimal_docx(project_dir / "templates" / "report_template.docx", "{{人工智能}}")
     write_minimal_xlsx(project_dir / "data" / "data.xlsx")
-    (project_dir / "config" / "section_config.yaml").write_text("sections: []\n", encoding="utf-8")
+    (project_dir / "config" / "report_config.yaml").write_text("sections: []\n", encoding="utf-8")
     (project_dir / "project.yaml").write_text(
         "\n".join(
             [
                 "name: 华安ETF周报",
                 "active_word_template: templates/report_template.docx",
                 "active_excel_workbook: data/data.xlsx",
-                "section_config: config/section_config.yaml",
+                "report_config: config/report_config.yaml",
                 "output_dir: generated",
                 "run_log_dir: runs",
             ]
@@ -2900,14 +2900,14 @@ def test_open_report_project_generated_folder_reveals_selected_file_on_macos(
     write_minimal_docx(project_dir / "templates" / "report_template.docx", "{{人工智能}}")
     write_minimal_docx(project_dir / "generated" / "20260605_华安ETF周报.docx", "report")
     write_minimal_xlsx(project_dir / "data" / "data.xlsx")
-    (project_dir / "config" / "section_config.yaml").write_text("sections: []\n", encoding="utf-8")
+    (project_dir / "config" / "report_config.yaml").write_text("sections: []\n", encoding="utf-8")
     (project_dir / "project.yaml").write_text(
         "\n".join(
             [
                 "name: 华安ETF周报",
                 "active_word_template: templates/report_template.docx",
                 "active_excel_workbook: data/data.xlsx",
-                "section_config: config/section_config.yaml",
+                "report_config: config/report_config.yaml",
                 "output_dir: generated",
                 "run_log_dir: runs",
             ]
@@ -2978,7 +2978,7 @@ def test_upload_report_project_package_creates_project_folder(tmp_path: Path, mo
                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 ),
             ),
-            ("section_config", ("section_config.yaml", b"sections: []\n", "text/yaml")),
+            ("report_config", ("report_config.yaml", b"sections: []\n", "text/yaml")),
             ("prompt_templates", ("prompt_templates.md", b"prompt", "text/markdown")),
             ("data_files", ("domestic.json", b"{}", "application/json")),
         ],
@@ -2990,7 +2990,7 @@ def test_upload_report_project_package_creates_project_folder(tmp_path: Path, mo
     project_dir = tmp_path / "新周报"
     assert (project_dir / "templates" / "report_template.docx").read_bytes() == b"docx"
     assert (project_dir / "data" / "data.xlsx").read_bytes() == b"xlsx"
-    assert (project_dir / "config" / "section_config.yaml").read_text(encoding="utf-8")
+    assert (project_dir / "config" / "report_config.yaml").read_text(encoding="utf-8")
     assert (project_dir / "config" / "prompt_templates.md").read_bytes() == b"prompt"
     assert (project_dir / "data" / "domestic.json").read_bytes() == b"{}"
     assert "prompt_templates: config/prompt_templates.md" in (
@@ -3028,17 +3028,17 @@ def test_upload_report_project_allows_word_only_package(tmp_path: Path, monkeypa
     assert data["name"] == "仅Word周报"
     assert data["word_template_filename"] == "report_template.docx"
     assert data["excel_workbook_filename"] == ""
-    assert data["section_config_filename"] == "section_config.yaml"
+    assert data["report_config_filename"] == "report_config.yaml"
 
     project_dir = tmp_path / "仅Word周报"
     assert (project_dir / "templates" / "report_template.docx").read_bytes() == b"docx"
-    section_source = (project_dir / "config" / "section_config.yaml").read_text(encoding="utf-8")
+    section_source = (project_dir / "config" / "report_config.yaml").read_text(encoding="utf-8")
     assert "placeholders:" in section_source
     assert "sections: []" in section_source
 
     project_yaml = (project_dir / "project.yaml").read_text(encoding="utf-8")
     assert "active_word_template: templates/report_template.docx" in project_yaml
-    assert "section_config: config/section_config.yaml" in project_yaml
+    assert "report_config: config/report_config.yaml" in project_yaml
     assert "active_excel_workbook" not in project_yaml
 
 
@@ -3077,7 +3077,7 @@ def test_upload_report_project_creates_ppt_project_package(tmp_path: Path, monke
 
     project_dir = tmp_path / "静态PPT"
     assert (project_dir / "templates" / "report_template.pptx").read_bytes() == b"pptx"
-    section_source = (project_dir / "config" / "section_config.yaml").read_text(encoding="utf-8")
+    section_source = (project_dir / "config" / "report_config.yaml").read_text(encoding="utf-8")
     assert "placeholders:" in section_source
     project_yaml = (project_dir / "project.yaml").read_text(encoding="utf-8")
     assert "project_type: ppt" in project_yaml
@@ -3095,14 +3095,14 @@ def test_rename_report_project_updates_folder_and_yaml(tmp_path: Path, monkeypat
     (project_dir / "runs").mkdir()
     (project_dir / "templates" / "report_template.docx").write_bytes(b"docx")
     (project_dir / "data" / "data.xlsx").write_bytes(b"xlsx")
-    (project_dir / "config" / "section_config.yaml").write_text("sections: []\n", encoding="utf-8")
+    (project_dir / "config" / "report_config.yaml").write_text("sections: []\n", encoding="utf-8")
     (project_dir / "project.yaml").write_text(
         "\n".join(
             [
                 "name: 旧周报",
                 "active_word_template: templates/report_template.docx",
                 "active_excel_workbook: data/data.xlsx",
-                "section_config: config/section_config.yaml",
+                "report_config: config/report_config.yaml",
                 "output_dir: generated",
                 "run_log_dir: runs",
             ]

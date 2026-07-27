@@ -131,12 +131,12 @@ def test_huaan_native_chart_template_skips_png_embedding(huaan_chart_assets: Pat
     output = tmp_path / "report.docx"
     shutil.copy2(source, output)
 
-    section_config = yaml.safe_load(
-        (project.project_dir / "config" / "section_config.yaml").read_text(encoding="utf-8")
+    report_config = yaml.safe_load(
+        (project.project_dir / "config" / "report_config.yaml").read_text(encoding="utf-8")
     )
     infos = ReportProjectChartService().generate_and_embed(
         project=project,
-        section_config=section_config,
+        report_config=report_config,
         docx_path=output,
     )
 

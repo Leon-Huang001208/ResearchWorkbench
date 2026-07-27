@@ -45,10 +45,10 @@ class GeneratedTableInfo:
 def build_project_tables(
     *,
     project: ReportProject,
-    section_config: Dict[str, Any],
+    report_config: Dict[str, Any],
 ) -> Tuple[List[TableSpec], List[Dict[str, Any]]]:
     """Build configured Word tables from project Excel assets."""
-    table_configs = section_config.get("tables")
+    table_configs = report_config.get("tables")
     if not isinstance(table_configs, dict):
         return [], []
 

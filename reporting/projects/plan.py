@@ -96,7 +96,7 @@ class CompiledReportPlan:
 
 
 def compile_report_plan(
-    section_config: Dict[str, Any],
+    report_config: Dict[str, Any],
     prompt_templates_source: str,
     *,
     report_date: str | None = None,
@@ -106,7 +106,7 @@ def compile_report_plan(
     end_date: str | None = None,
 ) -> CompiledReportPlan:
     """Compile effective placeholder generation settings without rendering output."""
-    safe_config = section_config if isinstance(section_config, dict) else {}
+    safe_config = report_config if isinstance(report_config, dict) else {}
     scope = resolve_report_generation_scope(
         safe_config,
         report_date=report_date,
@@ -169,12 +169,12 @@ def compile_report_plan(
 
 
 def _compile_placeholder_plan(
-    section_config: Dict[str, Any],
+    report_config: Dict[str, Any],
     placeholder: str,
     raw_config: Dict[str, Any],
     templates: Dict[str, Any],
 ) -> CompiledPlaceholderPlan:
-    config = apply_report_defaults_to_placeholder(section_config, raw_config)
+    config = apply_report_defaults_to_placeholder(report_config, raw_config)
     if str(config.get("type") or "").strip().lower() == "composite_market_review":
         config = apply_composite_component_overrides(config)
     output_type = normalize_placeholder_output_type(config)

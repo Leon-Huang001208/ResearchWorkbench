@@ -102,11 +102,11 @@ class ReportProjectChartService:
         self,
         *,
         project: ReportProject,
-        section_config: Dict[str, Any],
+        report_config: Dict[str, Any],
         docx_path: Path,
     ) -> List[GeneratedChartInfo]:
         """Generate configured charts and embed them into ``docx_path``."""
-        chart_configs = section_config.get("charts")
+        chart_configs = report_config.get("charts")
         if not isinstance(chart_configs, dict) or not chart_configs:
             return []
 

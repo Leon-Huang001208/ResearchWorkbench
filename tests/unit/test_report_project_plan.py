@@ -7,7 +7,7 @@ from reporting.projects.plan import compile_report_plan
 
 def test_compile_report_plan_marks_composite_component_retrieval_ready():
     """Compiled plans should mirror effective generation config for composite sections."""
-    section_config = {
+    report_config = {
         "defaults": {
             "retrieval": {
                 "mode": "hybrid",
@@ -51,7 +51,7 @@ def test_compile_report_plan_marks_composite_component_retrieval_ready():
     )
 
     plan = compile_report_plan(
-        section_config,
+        report_config,
         prompt_source,
         report_date="2026-07-03",
         lookback_days=10,
@@ -76,7 +76,7 @@ def test_compile_report_plan_marks_composite_component_retrieval_ready():
 
 def test_compile_report_plan_warns_when_evidence_paragraph_lacks_prompt_template():
     """Missing prompt templates should surface before the user starts generation."""
-    section_config = {
+    report_config = {
         "placeholders": {
             "content": {
                 "type": "paragraph",
@@ -86,7 +86,7 @@ def test_compile_report_plan_warns_when_evidence_paragraph_lacks_prompt_template
         },
     }
 
-    plan = compile_report_plan(section_config, "", report_date="2026-07-03")
+    plan = compile_report_plan(report_config, "", report_date="2026-07-03")
 
     assert plan.ready is False
     assert len(plan.placeholders) == 1

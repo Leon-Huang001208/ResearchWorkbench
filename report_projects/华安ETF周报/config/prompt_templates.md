@@ -2,7 +2,7 @@
 
 适用项目：华安ETF周报
 
-说明：每个二级标题对应 Word 模板中的一个占位符，也是 `section_config.yaml` 里的 `prompt_template` 名称。每个模板已经内置检索 Query，不需要再配置额外 JSON 查询来源。
+说明：每个二级标题对应 Word 模板中的一个占位符，也是 `report_config.yaml` 里的 `prompt_template` 名称。每个模板已经内置检索 Query，不需要再配置额外 JSON 查询来源。
 
 通用规则：
 - 严格依据上传材料中的原始信息，不添加外部知识或虚构数据。

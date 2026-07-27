@@ -33,11 +33,11 @@ def test_build_project_tables_reads_global_calendar_from_excel(tmp_path: Path):
         project_dir=project_dir,
         word_template_path=project_dir / "templates" / "report_template.docx",
         excel_workbook_path=data_dir / "周报数据.xlsx",
-        section_config_path=project_dir / "config" / "section_config.yaml",
+        report_config_path=project_dir / "config" / "report_config.yaml",
         output_dir=project_dir / "generated",
         run_log_dir=project_dir / "runs",
     )
-    section_config = {
+    report_config = {
         "tables": {
             "global_investment_calendar": {
                 "title": "下周全球投资日历",
@@ -51,7 +51,7 @@ def test_build_project_tables_reads_global_calendar_from_excel(tmp_path: Path):
         }
     }
 
-    tables, infos = build_project_tables(project=project, section_config=section_config)
+    tables, infos = build_project_tables(project=project, report_config=report_config)
 
     assert len(tables) == 1
     table = tables[0]

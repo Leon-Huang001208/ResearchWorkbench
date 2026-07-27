@@ -3,7 +3,7 @@
 This module connects report project configuration to the existing database
 and model gateway:
 
-Word placeholder -> section config -> prompt template -> evidence retrieval
+Word placeholder -> report config -> prompt template -> evidence retrieval
 -> DeepSeek/model generation -> placeholder replacement.
 """
 
@@ -21,7 +21,6 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Protocol
 
 from sqlalchemy import or_
 
-from core.contracts.reporting import DefaultSettings, GenerationConfig
 from core.interfaces.model_gateway import ModelResponse
 from core.model_gateway.gateway import ModelGatewayImpl
 from core.model_gateway.local_embedding_config import (
@@ -34,84 +33,6 @@ from reporting.projects.keyword_profiles import apply_keyword_profile_to_config
 from reporting.projects.project_manager import ReportProject
 
 logger = get_logger(__name__)
-
-
-def _flatten_keyword_groups(groups: list[list[str]] | None) -> list[str]:
-    """将 v2 keyword_groups 展平为扁平的 must_any 关键词列表."""
-    if not groups:
-        return []
-    flat: list[str] = []
-    for group in groups:
-        flat.extend(group)
-    return list(dict.fromkeys(flat))  # 去重保持顺序
-
-
-def _build_v1_config_from_v2(
-    key: str,
-    title: str,
-    gen_config: GenerationConfig,
-    defaults: DefaultSettings | None = None,
-) -> dict[str, Any]:
-    """从 v2 GenerationConfig + DefaultSettings 构建 v1 兼容的 config dict.
-
-    使得现有 _generate_configured_placeholder() 管道可直接消费。
-    """
-    config: dict[str, Any] = {
-        "title": title,
-        "type": "paragraph",
-        "prompt_template": gen_config.prompt_template_ref or title,
-        "target_words": gen_config.target_words or 200,
-        "max_words": gen_config.max_words or 300,
-        "output_mode": gen_config.output_mode or "single_paragraph",
-    }
-
-    # 检索配置
-    retrieval: dict[str, Any] = {}
-    if gen_config.retrieval:
-        retrieval["mode"] = gen_config.retrieval.mode or "keyword"
-        retrieval["top_k"] = gen_config.retrieval.top_k or 10
-        retrieval["candidate_k"] = gen_config.retrieval.candidate_k or 40
-        retrieval["must_any"] = _flatten_keyword_groups(gen_config.retrieval.keyword_groups)
-        if gen_config.retrieval.exclude_keywords:
-            retrieval["exclude"] = list(gen_config.retrieval.exclude_keywords)
-
-        # Rerank 配置（从 v2 字段映射到 v1 retrieval dict）
-        retrieval["rerank_enabled"] = gen_config.retrieval.rerank_enabled
-        if gen_config.retrieval.rerank_top_n:
-            retrieval["rerank_top_n"] = gen_config.retrieval.rerank_top_n
-        if gen_config.retrieval.rerank_min_score is not None:
-            retrieval["min_rerank_score"] = gen_config.retrieval.rerank_min_score
-
-        # 融合参数
-        if gen_config.retrieval.keyword_weight is not None:
-            retrieval["keyword_weight"] = gen_config.retrieval.keyword_weight
-        if gen_config.retrieval.semantic_weight is not None:
-            retrieval["semantic_weight"] = gen_config.retrieval.semantic_weight
-
-    # 如果 placeholder 级检索为空，从 defaults 继承
-    if not retrieval and defaults and defaults.retrieval:
-        default_retrieval = defaults.retrieval
-        retrieval["mode"] = default_retrieval.mode or "keyword"
-        retrieval["top_k"] = default_retrieval.top_k or 10
-        retrieval["candidate_k"] = default_retrieval.candidate_k or 40
-        retrieval["rerank_enabled"] = default_retrieval.rerank_enabled or False
-        if default_retrieval.rerank_top_n:
-            retrieval["rerank_top_n"] = default_retrieval.rerank_top_n
-        if default_retrieval.rerank_min_score is not None:
-            retrieval["min_rerank_score"] = default_retrieval.rerank_min_score
-
-    config["retrieval"] = retrieval
-
-    # 校验配置
-    validators: dict[str, Any] = {}
-    if defaults and defaults.validators:
-        if defaults.validators.forbidden_terms:
-            validators["forbidden_terms"] = list(defaults.validators.forbidden_terms)
-        if defaults.validators.forbid_instruction_leaks:
-            validators["forbid_instruction_leaks"] = True
-    config["validators"] = validators
-
-    return config
 
 
 @dataclass(frozen=True)
@@ -985,7 +906,7 @@ class ReportProjectGenerationService:
         self,
         *,
         project: ReportProject,
-        section_config: Dict[str, Any],
+        report_config: Dict[str, Any],
         prompt_templates_source: str,
         manual_placeholders: Dict[str, str] | None = None,
         lookback_days: int = 7,
@@ -1004,8 +925,8 @@ class ReportProjectGenerationService:
         results_by_placeholder: Dict[str, PlaceholderGenerationOutput] = {}
         async_configs: List[tuple[str, Dict[str, Any]]] = []
 
-        for placeholder, config in iter_placeholder_configs(section_config):
-            config = apply_report_defaults_to_placeholder(section_config, config)
+        for placeholder, config in iter_placeholder_configs(report_config):
+            config = apply_report_defaults_to_placeholder(report_config, config)
             ordered_placeholders.append(placeholder)
             if placeholder in manual_placeholders and manual_placeholders[placeholder]:
                 results_by_placeholder[placeholder] = PlaceholderGenerationOutput(
@@ -1078,154 +999,6 @@ class ReportProjectGenerationService:
             sections=section_infos,
             warnings=warnings,
         )
-
-    def generate_placeholder_content(
-        self,
-        *,
-        key: str,
-        title: str,
-        gen_config: GenerationConfig | None = None,
-        defaults: DefaultSettings | None = None,
-        context: dict[str, Any] | None = None,
-        project: ReportProject | None = None,
-        prompt_templates_source: str = "",
-    ) -> str:
-        """为 v2 EnhancedPlaceholder 生成内容 — 复用现有检索+LLM管道.
-
-        Args:
-            key: 占位符 key.
-            title: 占位符标题.
-            gen_config: v2 GenerationConfig.
-            defaults: v2 DefaultSettings（报告级默认值）.
-            context: 运行时上下文（report_date, lookback_days 等）.
-            project: 报告项目（用于证据检索和模型路由）.
-            prompt_templates_source: prompt_templates.md 原始内容.
-
-        Returns:
-            生成的内容文本.
-        """
-        # ── STATIC 模式：直接返回静态文本 ──
-        if gen_config and gen_config.prompt_template_inline:
-            return gen_config.prompt_template_inline
-
-        # ── 无 LLM 依赖的模式直接返回 ──
-        if gen_config is None or gen_config.prompt_template_ref is None:
-            # 从 context 中提取可能的静态值
-            if context:
-                static_val = context.get(key, "")
-                if static_val:
-                    return str(static_val)
-            return ""
-
-        # ── 构建 v1 兼容的 config dict ──
-        config = _build_v1_config_from_v2(key, title, gen_config, defaults)
-
-        # ── 解析 prompt 模板 ──
-        templates: dict[str, PromptTemplateBlock] = {}
-        if prompt_templates_source:
-            templates = parse_prompt_templates(prompt_templates_source)
-
-        template_name = gen_config.prompt_template_ref
-        template = templates.get(template_name) or build_fallback_template(config, title)
-
-        # ── 计算报告周期 ──
-        ctx = context or {}
-        lookback_days = int(ctx.get("lookback_days") or 7)
-        report_date = ctx.get("report_date")
-        if report_date:
-            report_period = compute_report_period(report_date)
-        elif defaults and defaults.report_period:
-            report_period = compute_report_period_for_scope(defaults.report_period)
-        else:
-            report_period = compute_report_period(None)
-
-        # ── 证据检索 ──
-        max_words = int(config.get("max_words") or config.get("target_words") or 300)
-        evidence_limit = int(config.get("evidence_limit") or 8)
-        retrieval_config = build_retrieval_config(config, default_top_k=evidence_limit)
-        evidence_limit = retrieval_config.top_k
-        retrieval_limit = _rerank_candidate_limit(retrieval_config)
-
-        evidence = self._retrieve_evidence(
-            query=template.retrieval_query,
-            title=title,
-            params={},
-            lookback_days=lookback_days,
-            limit=retrieval_limit,
-            report_period=report_period,
-            retrieval_config=retrieval_config,
-        )
-
-        if project:
-            evidence = self._rerank_evidence_if_needed(
-                project=project,
-                placeholder=key,
-                title=title,
-                query=template.retrieval_query,
-                retrieval_config=retrieval_config,
-                evidence=evidence,
-                final_limit=evidence_limit,
-            )
-
-        # ── 联网搜索补充 ──
-        web_query = template.retrieval_query or title
-        web_snippets = self._enrich_evidence_from_web(
-            query=web_query,
-            max_results=max(5, evidence_limit),
-        )
-        if web_snippets:
-            evidence = self._merge_and_dedupe(evidence, web_snippets)
-
-        # ── LLM 生成 ──
-        if project is None:
-            logger.warning("无 project 上下文，跳过 LLM 生成", extra={"key": key})
-            return self._fallback_content(title, evidence, config)
-
-        response = self._generate_section(
-            project=project,
-            placeholder=key,
-            title=title,
-            template=template,
-            params={},
-            max_words=max_words,
-            config=config,
-            evidence=evidence,
-        )
-
-        content = self._clean_model_content(response.content, title=title)
-        content = apply_output_constraints(content, config)
-
-        if not content or content.startswith("Error:"):
-            content = self._fallback_content(title, evidence, config)
-
-        # ── Fallback retry for news-type ──
-        if content == "__FALLBACK_RETRY_KNOWLEDGE__":
-            min_news = 2
-            logger.info(
-                "v2 重试 knowledge-fallback 生成",
-                placeholder=key,
-                title=title,
-            )
-            retry_response = self._generate_section_with_knowledge_fallback(
-                project=project,
-                placeholder=key,
-                title=title,
-                template=template,
-                params={},
-                max_words=max_words,
-                config=config,
-                min_news_count=min_news,
-            )
-            content = self._clean_model_content(retry_response.content, title=title)
-            content = apply_output_constraints(content, config)
-            if not content or content.startswith("Error:"):
-                content = self._fallback_content(title, evidence, config)
-
-        logger.info(
-            "v2 占位符生成完成",
-            extra={"key": key, "chars": len(content), "evidence_count": len(evidence)},
-        )
-        return content
 
     @staticmethod
     def _emit_progress(
@@ -1874,7 +1647,7 @@ def compute_report_period(report_date: str | date | datetime | None = None) -> R
 
 
 def resolve_report_generation_scope(
-    section_config: Dict[str, Any],
+    report_config: Dict[str, Any],
     *,
     report_date: str | date | datetime | None = None,
     lookback_days: int | None = None,
@@ -1887,7 +1660,7 @@ def resolve_report_generation_scope(
     UI/API values override persisted YAML. The resolved period is then passed
     into every retrieval path, so time filtering happens before hybrid recall.
     """
-    defaults = section_config.get("defaults") if isinstance(section_config, dict) else {}
+    defaults = report_config.get("defaults") if isinstance(report_config, dict) else {}
     _rp = defaults.get("report_period") if isinstance(defaults, dict) else None
     report_defaults: Dict[str, Any] = _rp if isinstance(_rp, dict) else {}
     configured_report_date = report_date
@@ -2392,10 +2165,10 @@ def _period_datetime_bounds(
 
 
 def iter_placeholder_configs(
-    section_config: Dict[str, Any],
+    report_config: Dict[str, Any],
 ) -> Iterable[tuple[str, Dict[str, Any]]]:
     """Yield normalized placeholder configs from both new and legacy schemas."""
-    placeholders = section_config.get("placeholders")
+    placeholders = report_config.get("placeholders")
     if isinstance(placeholders, dict):
         for placeholder, config in placeholders.items():
             if isinstance(config, dict):
@@ -2404,7 +2177,7 @@ def iter_placeholder_configs(
                 yield str(placeholder), {"title": str(placeholder), "value": str(config)}
         return
 
-    sections = section_config.get("sections")
+    sections = report_config.get("sections")
     if isinstance(sections, list):
         for section in sections:
             if not isinstance(section, dict):
@@ -2415,11 +2188,11 @@ def iter_placeholder_configs(
 
 
 def apply_report_defaults_to_placeholder(
-    section_config: Dict[str, Any],
+    report_config: Dict[str, Any],
     config: Dict[str, Any],
 ) -> Dict[str, Any]:
     """Merge report-level defaults into a placeholder config without mutating input."""
-    defaults = section_config.get("defaults")
+    defaults = report_config.get("defaults")
     defaults = defaults if isinstance(defaults, dict) else {}
     placeholder_type = str(config.get("type") or "").lower()
     if placeholder_type not in {"prompt", "paragraph", "composite_market_review"}:
@@ -2530,7 +2303,7 @@ def render_generation_constraints(
     *,
     max_words: int | None = None,
 ) -> str:
-    """Render shared generation constraints from section_config.yaml."""
+    """Render shared generation constraints from report_config.yaml."""
     validators = config.get("validators")
     validators = validators if isinstance(validators, dict) else {}
     lines: List[str] = _as_text_list(config.get("generation_constraints"))
