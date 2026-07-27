@@ -115,10 +115,45 @@ def test_unified_config_logs_source_path_for_invalid_raw(caplog):
     assert source_path in caplog.text
 
 
-def test_unified_config_rejects_unmigrated_v2_shape():
-    """The runtime parser never treats the legacy V2 schema as a fallback."""
+@pytest.mark.parametrize(
+    "legacy_root",
+    [
+        {"meta": {}, "template": {}},
+        {"meta": {}, "template": {}, "placeholders": {}},
+    ],
+)
+def test_unified_config_rejects_unmigrated_v2_root_shape(legacy_root):
+    """The runtime rejects V2 roots even when their placeholders field is absent."""
     with pytest.raises(UnifiedReportConfigError, match="迁移"):
-        parse_unified_report_config({"meta": {}, "template": {}, "placeholders": {}})
+        parse_unified_report_config(legacy_root)
+
+
+@pytest.mark.parametrize(
+    "legacy_field",
+    [
+        "generation_config",
+        "rich_text_spec",
+        "generation_mode",
+        "visible_if",
+        "prompt_template_inline",
+    ],
+)
+def test_unified_config_rejects_v2_only_placeholder_fields(legacy_field):
+    """V2-only generation and rendering fields cannot round-trip through runtime config."""
+    with pytest.raises(UnifiedReportConfigError, match=legacy_field):
+        parse_unified_report_config(
+            {
+                "placeholders": {
+                    "正文": {legacy_field: {} if legacy_field.endswith("config") else "legacy-value"}
+                }
+            }
+        )
+
+
+def test_unified_config_requires_placeholder_mapping_instead_of_legacy_sections():
+    """The runtime model accepts only the unified placeholders collection."""
+    with pytest.raises(UnifiedReportConfigError, match="placeholders"):
+        parse_unified_report_config({"sections": []})
 
 
 def test_migration_copies_v1_config_without_changing_generation_settings(tmp_path):
@@ -146,7 +181,10 @@ def test_migration_copies_v1_config_without_changing_generation_settings(tmp_pat
     assert result.converted_placeholder_count == 0
     assert migrated["defaults"] == v1_config["defaults"]
     assert migrated["components"] == v1_config["components"]
-    assert migrated["placeholders"]["市场回顾"]["retrieval"] == v1_config["placeholders"]["市场回顾"]["retrieval"]
+    assert (
+        migrated["placeholders"]["市场回顾"]["retrieval"]
+        == v1_config["placeholders"]["市场回顾"]["retrieval"]
+    )
     assert source_path.exists()
     assert parse_unified_report_config(migrated).to_generation_dict() == migrated
 
@@ -207,7 +245,10 @@ def test_migration_converts_true_v2_placeholders_and_template_reference(tmp_path
     assert migrated["assets"]["word_template"] == "templates/weekly.docx"
     assert placeholder["prompt_template"] == "market_review"
     assert placeholder["retrieval"] == {"keywords": ["A股"], "top_k": 5}
-    assert placeholder["rendering"]["runs"] == v2_config["placeholders"]["市场回顾"]["rich_text_spec"]["runs"]
+    assert (
+        placeholder["rendering"]["runs"]
+        == v2_config["placeholders"]["市场回顾"]["rich_text_spec"]["runs"]
+    )
     assert placeholder["rendering"]["visible_if"] == "{{ include_market_review }}"
     assert source_path.exists()
     parsed = parse_unified_report_config(migrated)
@@ -226,9 +267,7 @@ def test_migration_rejects_nonempty_v2_inline_prompt_without_replacing_destinati
         "meta": {"name": "周报"},
         "template": {"word_template": "templates/weekly.docx"},
         "placeholders": {
-            "市场回顾": {
-                "generation_config": {"prompt_template_inline": "这是 Markdown Prompt 正文"}
-            }
+            "市场回顾": {"generation_config": {"prompt_template_inline": "这是 Markdown Prompt 正文"}}
         },
     }
 
@@ -304,7 +343,9 @@ def test_migration_removes_temporary_file_when_atomic_replace_fails(tmp_path, mo
     config_dir.mkdir(parents=True)
     destination = config_dir / "report_config.yaml"
     destination.write_text("sentinel: preserve\n", encoding="utf-8")
-    monkeypatch.setattr(migration.os, "replace", lambda *_: (_ for _ in ()).throw(OSError("replace failed")))
+    monkeypatch.setattr(
+        migration.os, "replace", lambda *_: (_ for _ in ()).throw(OSError("replace failed"))
+    )
 
     with pytest.raises(MigrationError, match="replace failed"):
         migrate_report_config(project_dir, {"placeholders": {"正文": {"prompt_template": "body"}}})

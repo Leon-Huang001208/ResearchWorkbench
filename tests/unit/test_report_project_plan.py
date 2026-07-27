@@ -15,22 +15,19 @@ def test_compile_report_plan_marks_composite_component_retrieval_ready():
                 "candidate_k": 24,
             },
         },
-        "sections": [
-            {
-                "placeholder": "summary",
+        "placeholders": {
+            "summary": {
                 "type": "paragraph",
                 "title": "人工智能",
                 "prompt_template": "AI",
                 "retrieval": {"keywords": ["人工智能"]},
             },
-            {
-                "placeholder": "period_end",
+            "period_end": {
                 "type": "report_period",
                 "title": "结束日期",
                 "source": {"kind": "report_period", "field": "end_date"},
             },
-            {
-                "placeholder": "market_review",
+            "market_review": {
                 "type": "composite_market_review",
                 "title": "A股市场回顾",
                 "prompt_template": "市场",
@@ -41,7 +38,7 @@ def test_compile_report_plan_marks_composite_component_retrieval_ready():
                     },
                 ],
             },
-        ],
+        },
     }
     prompt_source = "\n\n".join(
         [

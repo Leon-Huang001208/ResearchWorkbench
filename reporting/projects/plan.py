@@ -194,7 +194,7 @@ def _compile_placeholder_plan(
     item_warnings: List[str] = []
 
     if evidence_required:
-        prompt_found = _has_prompt_template_or_inline_prompt(config, prompt_template, templates)
+        prompt_found = _has_markdown_prompt_template(prompt_template, templates)
         if not prompt_found:
             item_warnings.append(f"{placeholder}: 缺少 Prompt 模板 {prompt_template}")
         prompt = templates.get(prompt_template) or build_fallback_template(config, title)
@@ -234,15 +234,9 @@ def _requires_evidence(config: Dict[str, Any], output_type: str) -> bool:
     return output_type == "paragraph"
 
 
-def _has_prompt_template_or_inline_prompt(
-    config: Dict[str, Any],
+def _has_markdown_prompt_template(
     prompt_template: str,
     templates: Dict[str, Any],
 ) -> bool:
-    if prompt_template and prompt_template in templates:
-        return True
-    return bool(
-        str(config.get("prompt") or "").strip()
-        or str(config.get("query") or "").strip()
-        or config.get("required_facets")
-    )
+    """Only a named Markdown heading may satisfy the Prompt preflight."""
+    return bool(prompt_template and prompt_template in templates)

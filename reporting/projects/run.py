@@ -26,7 +26,11 @@ from reporting.projects.generation import (
 )
 from reporting.projects.project_manager import ReportProject
 from reporting.projects.table_generation import build_project_tables
-from reporting.projects.unified_config import UnifiedReportConfig, parse_unified_report_config
+from reporting.projects.unified_config import (
+    UnifiedReportConfig,
+    UnifiedReportRenderingError,
+    parse_unified_report_config,
+)
 from reporting.rendering.template_renderer import UnifiedTemplateRenderer
 
 logger = get_logger(__name__)
@@ -109,6 +113,7 @@ class ReportProjectRunService:
             return self._execute_ppt(
                 project=project,
                 section_config=generation_config,
+                unified_config=unified_config,
                 prompt_templates_source=prompt_templates_source,
                 request=request,
                 generation_scope=generation_scope,
@@ -234,6 +239,7 @@ class ReportProjectRunService:
         *,
         project: ReportProject,
         section_config: Dict[str, Any],
+        unified_config: UnifiedReportConfig,
         prompt_templates_source: str,
         request: ReportProjectRunRequest,
         generation_scope: Any,
@@ -241,6 +247,7 @@ class ReportProjectRunService:
     ) -> ReportProjectRunResult:
         if not project.ppt_template_path or not project.ppt_template_path.exists():
             raise FileNotFoundError(f"Report project PPT template not found: {project.slug}")
+        self._validate_ppt_rendering(unified_config)
 
         self._emit_progress(progress_callback, "generate", "正在检索证据并生成段落")
         generation_result = self._generate_placeholders(
@@ -301,6 +308,19 @@ class ReportProjectRunService:
             + [warning for section in generated_sections for warning in section.warnings]
             + projection_warnings,
         )
+
+    @staticmethod
+    def _validate_ppt_rendering(config: UnifiedReportConfig) -> None:
+        """Reject Word-only unified rendering before PPT generation or projection."""
+        unsupported = [
+            key
+            for key, placeholder in config.placeholders.items()
+            if placeholder.rendering.to_mapping()
+        ]
+        if unsupported:
+            raise UnifiedReportRenderingError(
+                "PPT 当前不支持 unified rendering；请移除或迁移以下占位符的 rendering：" + ", ".join(unsupported)
+            )
 
     def _generate_placeholders(
         self,

@@ -25,32 +25,50 @@ class UnifiedReportConfigError(ValueError):
     """Raised when a report YAML mapping cannot be used as unified config."""
 
 
+class UnifiedReportRenderingError(UnifiedReportConfigError):
+    """Raised when a target format cannot render unified configuration settings."""
+
+
 @dataclass(frozen=True)
 class UnifiedRenderingConfig:
     """Optional rendering settings attached to one unified placeholder."""
 
     paragraph_style: str | None = None
     runs: tuple[Mapping[str, Any], ...] = field(default_factory=tuple)
+    default_font: str | None = None
+    default_size_pt: float | None = None
     visible_if: str | None = None
     chart_grid: Mapping[str, Any] | None = None
-    extra: Mapping[str, Any] = field(default_factory=lambda: MappingProxyType({}))
     present: bool = False
     provided_fields: frozenset[str] = field(default_factory=frozenset)
 
     @classmethod
     def from_mapping(cls, raw: Mapping[str, Any]) -> "UnifiedRenderingConfig":
-        """Parse rendering settings without discarding future rendering fields."""
+        """Parse the rendering fields supported by the unified runtime."""
         paragraph_style = _optional_string(raw.get("paragraph_style"), "rendering.paragraph_style")
         visible_if = _optional_string(raw.get("visible_if"), "rendering.visible_if")
         runs = _list_of_mappings(raw.get("runs", []), "rendering.runs")
         chart_grid = _optional_mapping(raw.get("chart_grid"), "rendering.chart_grid")
-        known_fields = {"paragraph_style", "runs", "visible_if", "chart_grid"}
+        default_font = _optional_string(raw.get("default_font"), "rendering.default_font")
+        default_size_pt = _optional_number(raw.get("default_size_pt"), "rendering.default_size_pt")
+        known_fields = {
+            "paragraph_style",
+            "runs",
+            "default_font",
+            "default_size_pt",
+            "visible_if",
+            "chart_grid",
+        }
+        unsupported_fields = sorted(set(raw) - known_fields)
+        if unsupported_fields:
+            raise UnifiedReportConfigError(f"rendering 包含不支持的字段：{', '.join(unsupported_fields)}")
         return cls(
             paragraph_style=paragraph_style,
             runs=tuple(_freeze(run) for run in runs),
+            default_font=default_font,
+            default_size_pt=default_size_pt,
             visible_if=visible_if,
             chart_grid=_freeze(chart_grid) if chart_grid is not None else None,
-            extra=_freeze({key: value for key, value in raw.items() if key not in known_fields}),
             present=True,
             provided_fields=frozenset(key for key in raw if key in known_fields),
         )
@@ -62,11 +80,15 @@ class UnifiedRenderingConfig:
 
     def to_mapping(self) -> dict[str, Any]:
         """Return a lossless serializable rendering mapping."""
-        result = _thaw(self.extra)
+        result: dict[str, Any] = {}
         if "paragraph_style" in self.provided_fields:
             result["paragraph_style"] = self.paragraph_style
         if "runs" in self.provided_fields:
             result["runs"] = [_thaw(run) for run in self.runs]
+        if "default_font" in self.provided_fields:
+            result["default_font"] = self.default_font
+        if "default_size_pt" in self.provided_fields:
+            result["default_size_pt"] = self.default_size_pt
         if "visible_if" in self.provided_fields:
             result["visible_if"] = self.visible_if
         if "chart_grid" in self.provided_fields:
@@ -86,11 +108,30 @@ class UnifiedPlaceholderConfig:
     fields: Mapping[str, Any] = field(default_factory=lambda: MappingProxyType({}))
 
     @classmethod
-    def from_mapping(
-        cls, key: str, raw: Mapping[str, Any]
-    ) -> "UnifiedPlaceholderConfig":
-        """Parse one placeholder and retain every established V1 field."""
-        prompt_template = _optional_string(raw.get("prompt_template"), f"placeholders.{key}.prompt_template")
+    def from_mapping(cls, key: str, raw: Mapping[str, Any]) -> "UnifiedPlaceholderConfig":
+        """Parse one placeholder under the single runtime contract."""
+        v2_only_fields = {
+            "generation_config",
+            "generation_mode",
+            "rich_text_spec",
+            "use_template_paragraph_style",
+            "data_source",
+            "chart_grid_spec",
+            "validation",
+            "visible",
+            "visible_if",
+            "hide_strategy",
+            "prompt_template_inline",
+            "prompt",
+        }
+        found_v2_fields = sorted(v2_only_fields.intersection(raw))
+        if found_v2_fields:
+            raise UnifiedReportConfigError(
+                f"placeholders.{key} 包含旧 V2 或内联 Prompt 字段：{', '.join(found_v2_fields)}"
+            )
+        prompt_template = _optional_string(
+            raw.get("prompt_template"), f"placeholders.{key}.prompt_template"
+        )
         retrieval = _optional_mapping(raw.get("retrieval"), f"placeholders.{key}.retrieval") or {}
         rendering_is_null = "rendering" in raw and raw["rendering"] is None
         rendering_raw = raw.get("rendering")
@@ -148,12 +189,16 @@ class UnifiedReportConfig:
 
     @classmethod
     def from_mapping(cls, raw: Mapping[str, Any]) -> "UnifiedReportConfig":
-        """Build a unified runtime model from a V1-shaped configuration mapping."""
-        if {"meta", "template", "placeholders"}.issubset(raw):
+        """Build the one report configuration shape accepted at runtime."""
+        if {"meta", "template"}.issubset(raw):
             raise UnifiedReportConfigError("检测到旧 V2 配置，请先迁移为统一报告配置")
+        if "sections" in raw:
+            raise UnifiedReportConfigError("统一报告配置只支持 placeholders，不支持旧 sections")
+        if "placeholders" not in raw:
+            raise UnifiedReportConfigError("统一报告配置必须包含 placeholders 对象")
 
         source = deepcopy(dict(raw))
-        placeholders_raw = _optional_mapping(source.get("placeholders"), "placeholders") or {}
+        placeholders_raw = _required_mapping(source["placeholders"], "placeholders")
         placeholders: dict[str, UnifiedPlaceholderConfig] = {}
         for key, value in placeholders_raw.items():
             if not isinstance(key, str) or not key.strip():
@@ -224,6 +269,14 @@ def _optional_string(value: Any, field_name: str) -> str | None:
     return value
 
 
+def _optional_number(value: Any, field_name: str) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise UnifiedReportConfigError(f"{field_name} 必须是数字")
+    return float(value)
+
+
 def _required_mapping(value: Any, field_name: str) -> Mapping[str, Any]:
     if not isinstance(value, Mapping):
         raise UnifiedReportConfigError(f"{field_name} 必须是对象")
@@ -274,5 +327,6 @@ __all__ = [
     "UnifiedRenderingConfig",
     "UnifiedReportConfig",
     "UnifiedReportConfigError",
+    "UnifiedReportRenderingError",
     "parse_unified_report_config",
 ]
