@@ -9,9 +9,10 @@ from core.observability import get_logger
 from reporting.projects.generation import (
     ReportPeriod,
     RetrievalConfig,
-    apply_composite_component_overrides,
+    apply_data_template_evidence_component_overrides,
     apply_report_defaults_to_placeholder,
     build_retrieval_config,
+    is_data_template_evidence_paragraph,
     iter_placeholder_configs,
     normalize_placeholder_output_type,
     parse_prompt_templates,
@@ -174,8 +175,8 @@ def _compile_placeholder_plan(
     templates: Dict[str, Any],
 ) -> CompiledPlaceholderPlan:
     config = apply_report_defaults_to_placeholder(report_config, raw_config)
-    if str(config.get("type") or "").strip().lower() == "composite_market_review":
-        config = apply_composite_component_overrides(config)
+    if is_data_template_evidence_paragraph(config):
+        config = apply_data_template_evidence_component_overrides(config)
     output_type = normalize_placeholder_output_type(config)
     title = str(config.get("title") or placeholder).strip() or placeholder
     prompt_template = str(config.get("prompt_template") or "").strip()
@@ -221,9 +222,6 @@ def _compile_placeholder_plan(
 
 
 def _requires_evidence(config: Dict[str, Any], output_type: str) -> bool:
-    legacy_type = str(config.get("type") or "").strip().lower()
-    if legacy_type in {"excel_commodity_market_review"}:
+    if output_type == "excel_commodity_market_review":
         return False
-    if legacy_type in {"prompt", "ai_text", "composite_market_review"}:
-        return True
     return output_type == "paragraph"

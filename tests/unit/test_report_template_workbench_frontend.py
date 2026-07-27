@@ -779,7 +779,7 @@ def test_config_modal_does_not_auto_select_first_number_input():
     assert "-webkit-appearance: none;" in css
 
 
-def test_data_template_fields_only_render_for_composite_market_review_placeholders():
+def test_data_template_fields_only_render_for_data_template_evidence_paragraphs():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
 
     assert (

@@ -91,10 +91,13 @@ def test_huaan_prompt_placeholders_use_report_level_retrieval_defaults():
     prompt_placeholders = {
         name: item
         for name, item in config["placeholders"].items()
-        if item.get("prompt_template") and item.get("type") in {"paragraph", "prompt"}
+        if item.get("prompt_template") and item.get("type") == "paragraph"
     }
 
     assert prompt_placeholders
+    a_share_review = config["placeholders"]["A股市场回顾"]
+    assert a_share_review["type"] == "paragraph"
+    assert a_share_review["mode"] == "data_template_plus_evidence_ai"
     for name, item in prompt_placeholders.items():
         retrieval = item.get("retrieval")
         if not retrieval:
@@ -146,7 +149,7 @@ def test_report_defaults_are_merged_before_building_retrieval_config():
         }
     }
     placeholder_config = {
-        "type": "prompt",
+        "type": "paragraph",
         "title": "航天",
         "retrieval": {"keywords": ["航天", "卫星"]},
     }
@@ -363,7 +366,7 @@ def test_missing_retrieval_keywords_are_filled_from_keyword_profile():
     """占位符未显式写关键词时，生成侧应从 keyword_profiles 继承检索关键词。"""
     config = {
         "title": "人工智能",
-        "type": "prompt",
+        "type": "paragraph",
         "prompt_template": "人工智能",
         "retrieval": {"mode": "hybrid"},
     }
@@ -382,7 +385,7 @@ def test_explicit_keyword_profile_fills_keywords_when_keywords_are_missing():
     """配置了 keyword_profile 但未写 keywords 时，应从指定 profile 展开关键词。"""
     config = {
         "title": "自定义标题",
-        "type": "prompt",
+        "type": "paragraph",
         "retrieval": {"keyword_profile": "航天"},
     }
 
@@ -499,7 +502,7 @@ def write_minimal_pptx(path: Path, text: str) -> None:
 
 
 def write_market_review_xlsx(path: Path) -> None:
-    """Write cached market data used by composite market review generation."""
+    """Write cached market data used by data-template market review generation."""
     from openpyxl import Workbook
 
     workbook = Workbook()
@@ -1143,7 +1146,7 @@ def test_generation_service_uses_prompt_query_evidence_and_reporting_model(tmp_p
             "placeholders": {
                 "人工智能": {
                     "title": "人工智能",
-                    "type": "prompt",
+                    "type": "paragraph",
                     "prompt_template": "人工智能",
                     "max_words": 120,
                     "params": {"param": "人工智能"},
@@ -1237,7 +1240,7 @@ def test_generation_service_renders_structured_generation_constraints(tmp_path: 
             "placeholders": {
                 "A股市场回顾": {
                     "title": "A股市场回顾",
-                    "type": "prompt",
+                    "type": "paragraph",
                     "prompt_template": "A股市场回顾",
                     "target_words": 100,
                     "max_words": 150,
@@ -1317,8 +1320,18 @@ def test_generation_service_fills_report_period_placeholders(tmp_path: Path):
         project=project,
         report_config={
             "placeholders": {
-                "开始日期": {"title": "开始日期", "type": "report_period", "field": "start_date"},
-                "结束日期": {"title": "结束日期", "type": "report_period", "field": "end_date"},
+                "开始日期": {
+                    "title": "开始日期",
+                    "type": "field",
+                    "source": {"kind": "report_period"},
+                    "field": "start_date",
+                },
+                "结束日期": {
+                    "title": "结束日期",
+                    "type": "field",
+                    "source": {"kind": "report_period"},
+                    "field": "end_date",
+                },
             }
         },
         prompt_templates_source="",
@@ -1412,7 +1425,7 @@ def test_generation_service_handles_output_shape_placeholder_protocol(tmp_path: 
     assert result.sections == []
 
 
-def test_generation_service_builds_composite_market_review_from_excel_and_evidence(
+def test_generation_service_builds_data_template_evidence_paragraph_from_excel_and_evidence(
     tmp_path: Path,
 ):
     """A股市场回顾应先用 Excel 真实数据生成固定句，再用 evidence 生成热点句。"""
@@ -1480,7 +1493,8 @@ def test_generation_service_builds_composite_market_review_from_excel_and_eviden
             "placeholders": {
                 "A股市场回顾": {
                     "title": "A股市场回顾",
-                    "type": "composite_market_review",
+                    "type": "paragraph",
+                    "mode": "data_template_plus_evidence_ai",
                     "prompt_template": "A股市场回顾",
                     "data_source": {
                         "workbook": "周报数据.xlsx",
@@ -1956,7 +1970,7 @@ def test_generation_service_generates_independent_prompt_sections_concurrently(t
     placeholders = {
         f"段落{i}": {
             "title": f"段落{i}",
-            "type": "prompt",
+            "type": "paragraph",
             "prompt_template": f"段落{i}",
         }
         for i in range(1, 5)

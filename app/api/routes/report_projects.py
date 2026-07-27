@@ -1291,6 +1291,11 @@ _RETIRED_PLACEHOLDER_KEYS = {
     "prompt_retrieval_query",
     "ai_prompt",
 }
+_RETIRED_PARAGRAPH_TYPES = {
+    "prompt",
+    "ai_text",
+    "composite_market_review",
+}
 
 
 def _validate_report_project_sources(
@@ -1328,6 +1333,11 @@ def _validate_report_project_sources(
                 + ", ".join(retired_keys)
             )
         placeholder_type = str(config.get("type") or "").strip().lower()
+        if placeholder_type in _RETIRED_PARAGRAPH_TYPES:
+            raise ValueError(
+                f"report_config.placeholders.{placeholder} 不允许旧正文类型: "
+                f"{placeholder_type}；请使用 type: paragraph 和明确的 mode"
+            )
         mode = str(config.get("mode") or "").strip().lower()
         evidence_required = placeholder_type == "paragraph" and mode != "data_template"
         if not evidence_required:

@@ -3,6 +3,7 @@
 import pytest
 
 from app.api.main import app
+from app.api.routes.report_projects import _validate_report_project_sources
 from reporting.projects.generation import (
     iter_placeholder_configs,
     parse_prompt_templates,
@@ -17,6 +18,15 @@ def test_sections_schema_is_rejected():
     """The retired section-list schema must not be translated at runtime."""
     with pytest.raises(ValueError, match="report_config.placeholders"):
         list(iter_placeholder_configs({"sections": [{"key": "legacy"}]}))
+
+
+def test_retired_paragraph_types_are_rejected_at_source_validation():
+    """Saving an obsolete paragraph alias must not recreate a parallel schema."""
+    with pytest.raises(ValueError, match="不允许旧正文类型"):
+        _validate_report_project_sources(
+            "placeholders:\n  市场回顾:\n    type: composite_market_review\n",
+            "## 市场回顾\n\n检索 Query：市场\n\n写作要求：输出正文。\n",
+        )
 
 
 def test_prompt_template_must_resolve_from_markdown_library():

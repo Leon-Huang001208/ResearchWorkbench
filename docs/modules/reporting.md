@@ -194,7 +194,7 @@ Purpose:
 - Optionally rerank retrieved evidence with the configured LLM (`retrieval.rerank.enabled: true`) before writing, preserving rerank score, rank, and reason in run logs.
 - Route model calls through the `reporting` task route when configured, otherwise through the default model route.
 - Generate independent configured sections with bounded parallelism while preserving placeholder and run-log order.
-- Build `type: composite_market_review` placeholders by combining deterministic Excel-derived market data text with an evidence-grounded model-generated hotspot paragraph.
+- Build `type: paragraph`, `mode: data_template_plus_evidence_ai` placeholders by combining deterministic Excel-derived market data text with an evidence-grounded model-generated hotspot paragraph.
 - Return generated placeholders plus per-section metadata: evidence count, keyword score, semantic score, fusion score/rank, LLM rerank score/rank/reason, matched terms, retrieval config, model/provider, token usage, retrieval query, and warnings.
 
 Update this section when:
@@ -272,7 +272,7 @@ Update this section when:
 Purpose:
 - Project-owned YAML mapping from Word/PPT placeholders to prompt templates, static values, Excel cells/ranges, retrieval controls, and chart replacement rules.
 - Report-wide hard generation and retrieval defaults live under `defaults.validators` and `defaults.retrieval`. Text placeholders should only carry section-specific differences such as `target_words`, `max_words`, `min_news_count`, `retrieval.keyword_profile`, `retrieval.keywords`, and Excel/static sources.
-- Current `华安ETF周报` uses `placeholders:` plus embedded prompt retrieval queries, `type: report_period` for `开始日期` / `结束日期`, `type: composite_market_review` for `A股市场回顾`, and a `charts:` block for industry performance, gold, and crude-oil visuals.
+- Current `华安ETF周报` uses `placeholders:` plus Markdown Prompt bindings, `type: field` with `source.kind: report_period` for `开始日期` / `结束日期`, `type: paragraph` with `mode: data_template_plus_evidence_ai` for `A股市场回顾`, and a `charts:` block for industry performance, gold, and crude-oil visuals.
 - `tables:` maps deterministic Word tables to refreshed project Excel files. `华安ETF周报` currently binds `下周全球投资日历` to `data/全球经济日历.xlsx` sheet `经济数据`, reading `日期`、`国家/地区`、`指标名称` rows where `重要性=重要`.
 - Text placeholders can set `retrieval.keyword_profile` to reuse a curated keyword profile and `retrieval.keywords` to constrain evidence selection before model generation. `keywords` is presented as “检索关键词” in the workbench and keeps evidence on-topic; shared `top_k` / hybrid fusion / rerank settings are inherited from `defaults.retrieval`.
 - The web template workbench presents this file by Word placeholder order: selecting a placeholder shows the matching config form, current YAML fragment, and linked prompt template so users can edit one placeholder at a time instead of scanning the full file. The placeholder form hides report-wide defaults and only exposes per-placeholder fields.

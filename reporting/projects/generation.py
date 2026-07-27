@@ -1051,8 +1051,8 @@ class ReportProjectGenerationService:
                 ),
             )
 
-        if str(config.get("type") or "").lower() == "composite_market_review":
-            content, info = self._generate_composite_market_review(
+        if is_data_template_evidence_paragraph(config):
+            content, info = self._generate_data_template_evidence_paragraph(
                 project=project,
                 placeholder=placeholder,
                 title=title,
@@ -1188,7 +1188,7 @@ class ReportProjectGenerationService:
             warnings=placeholder_warnings,
         )
 
-    def _generate_composite_market_review(
+    def _generate_data_template_evidence_paragraph(
         self,
         *,
         project: ReportProject,
@@ -1208,7 +1208,7 @@ class ReportProjectGenerationService:
         params: Dict[str, Any] = dict(raw_params) if isinstance(raw_params, dict) else {}
         max_words = int(config.get("max_words") or config.get("target_words") or 180)
         evidence_limit = int(config.get("evidence_limit") or 8)
-        config = apply_composite_component_overrides(config)
+        config = apply_data_template_evidence_component_overrides(config)
         config = apply_keyword_profile_to_config(
             placeholder,
             config,
@@ -1395,7 +1395,7 @@ class ReportProjectGenerationService:
             evidence=evidence,
         )
         logger.info(
-            "Generating composite market review hotspot section",
+            "Generating data-template evidence market review paragraph",
             project=project.name,
             placeholder=placeholder,
             title=title,
@@ -1751,17 +1751,17 @@ def resolve_report_period_value(config: Dict[str, Any], report_period: ReportPer
 
 
 def normalize_placeholder_output_type(config: Dict[str, Any]) -> str:
-    """Normalize legacy placeholder kinds into the generic output-shape protocol."""
-    placeholder_type = str(config.get("type") or "").strip().lower()
-    if placeholder_type in {"prompt", "ai_text", "composite_market_review"}:
-        return "paragraph"
-    if placeholder_type in {"report_period", "excel_cell", "excel_range"}:
-        return "field"
-    if placeholder_type == "config_text":
-        return "static_text"
-    if placeholder_type == "excel_chart":
-        return "chart"
-    return placeholder_type
+    """Return the explicit output shape from the unified report configuration."""
+    return str(config.get("type") or "").strip().lower()
+
+
+def is_data_template_evidence_paragraph(config: Dict[str, Any]) -> bool:
+    """Identify the explicit Excel-template plus evidence-writing paragraph mode."""
+    return (
+        normalize_placeholder_output_type(config) == "paragraph"
+        and str(config.get("mode") or "").strip().lower()
+        == "data_template_plus_evidence_ai"
+    )
 
 
 def resolve_field_placeholder_value(config: Dict[str, Any], report_period: ReportPeriod) -> str:
@@ -1769,8 +1769,7 @@ def resolve_field_placeholder_value(config: Dict[str, Any], report_period: Repor
     _src = config.get("source")
     source: Dict[str, Any] = _src if isinstance(_src, dict) else {}
     source_kind = str(source.get("kind") or "").strip().lower()
-    legacy_type = str(config.get("type") or "").strip().lower()
-    if source_kind == "report_period" or legacy_type == "report_period":
+    if source_kind == "report_period":
         return resolve_report_period_value(config, report_period)
     if config.get("value") is not None:
         return str(config.get("value") or "")
@@ -1787,7 +1786,7 @@ def build_a_share_market_data_sentence(project: ReportProject, config: Dict[str,
             range_boundaries,
         )
     except Exception as exc:  # pragma: no cover - dependency is available in project env.
-        raise RuntimeError("openpyxl is required for composite market review") from exc
+        raise RuntimeError("openpyxl is required for the data-template market review paragraph") from exc
 
     data_source = config.get("data_source")
     data_config: Dict[str, Any] = data_source if isinstance(data_source, dict) else {}
@@ -1845,7 +1844,7 @@ def build_a_share_market_data_sentence(project: ReportProject, config: Dict[str,
     )
     domestic_rows = index_rows
     if not domestic_rows:
-        raise ValueError("No domestic index data found for composite market review")
+        raise ValueError("No domestic index data found for the data-template market review paragraph")
 
     index_sentence = "，".join(
         f"{name}{_direction_word(value)}{abs(value):.2f}%" for name, value in domestic_rows[:5]
@@ -2191,7 +2190,7 @@ def apply_report_defaults_to_placeholder(
     defaults = report_config.get("defaults")
     defaults = defaults if isinstance(defaults, dict) else {}
     placeholder_type = str(config.get("type") or "").lower()
-    if placeholder_type not in {"prompt", "paragraph", "composite_market_review"}:
+    if placeholder_type != "paragraph":
         return dict(config)
 
     merged = dict(config)
@@ -2500,8 +2499,8 @@ def get_component_by_type(config: Dict[str, Any], component_type: str) -> Dict[s
     return {}
 
 
-def apply_composite_component_overrides(config: Dict[str, Any]) -> Dict[str, Any]:
-    """Lift llm_writing component retrieval into the effective placeholder config."""
+def apply_data_template_evidence_component_overrides(config: Dict[str, Any]) -> Dict[str, Any]:
+    """Lift writing-component retrieval into an explicit data-template paragraph."""
     llm_component = get_component_by_type(config, "llm_writing")
     component_retrieval = llm_component.get("retrieval")
     if not isinstance(component_retrieval, dict):
@@ -2534,7 +2533,7 @@ def render_market_review_writing_structure(
     config: Dict[str, Any],
     template: PromptTemplateBlock,
 ) -> str:
-    """Render continuation requirements for composite A-share market review."""
+    """Render continuation requirements for the A-share market review paragraph."""
     structure = _as_text_list(get_component_by_type(config, "llm_writing").get("writing_structure"))
     if not structure:
         structure = _as_text_list(config.get("writing_structure"))
@@ -2600,7 +2599,7 @@ def build_market_hotspot_messages(
     config: Dict[str, Any],
     evidence: List[EvidenceSnippet],
 ) -> List[Dict[str, str]]:
-    """Build messages for the generated part of a composite market review.
+    """Build messages for the evidence-written part of a market review paragraph.
 
     Returns a system message (rules + role) followed by a user message
     (task context + evidence).  The old inline instruction block that
