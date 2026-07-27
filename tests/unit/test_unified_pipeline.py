@@ -150,10 +150,8 @@ class TestPipelineInit:
         pipeline.register_renderer("mock", mock_renderer)
         assert "mock" in pipeline._renderers
 
-    def test_register_template(self, pipeline):
-        tpl = MagicMock()
-        pipeline.register_template("test_tpl", tpl)
-        assert "test_tpl" in pipeline._templates
+    def test_legacy_template_registration_is_removed(self, pipeline):
+        assert not hasattr(pipeline, "register_template")
 
 
 # ============================================================================
@@ -421,36 +419,18 @@ class TestExecute:
         )
         assert not result.success
         assert result.error is not None
-        assert "Unknown build strategy" in result.error
+        assert "Unsupported build strategy" in result.error
 
-    def test_execute_template_strategy(self, pipeline, sample_task, tmp_path):
+    def test_execute_rejects_retired_template_strategy(self, pipeline, sample_task, tmp_path):
         pipeline.register_renderer("markdown", pipeline._resolve_renderer("markdown"))
-        output_dir = tmp_path / "reports"
-        output_dir.mkdir()
-
-        # 注册模板
-        tpl = TemplateConfig(
-            name="weekly_report",
-            description="Weekly Report",
-            version="1.0",
-            sections=[
-                SectionSpec(
-                    key="market_summary",
-                    title="Market Summary",
-                    target_words=200,
-                ),
-            ],
-        )
-        pipeline.register_template("weekly_report", tpl)
-
         result = pipeline.execute(
             task=sample_task,
             output_formats=["markdown"],
-            output_dir=output_dir,
+            output_dir=tmp_path / "reports",
             strategy="template",
         )
-        assert result.success
-        assert "markdown" in result.outputs
+        assert not result.success
+        assert "Unsupported build strategy" in result.error
 
 
 # ============================================================================

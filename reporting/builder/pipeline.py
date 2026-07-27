@@ -9,7 +9,6 @@ UnifiedPipeline — 统一报告生成流水线.
 - Render:  通过 DocumentRenderer 将 Document 渲染为目标格式
 
 策略模式：Build 阶段通过 BuildStrategy 接口支持多种构建策略：
-- from_template: YAML 模板 + 上下文驱动
 - from_research: 10 步深度研究编译器驱动
 - from_sections: SectionOutput 列表驱动（向后兼容）
 - from_dict: 纯字典驱动（编程式生成）
@@ -124,7 +123,6 @@ class UnifiedPipeline:
         self.content_builder = content_builder or ContentBuilder()
         self.output_dir = output_dir or Path("output")
         self._renderers: Dict[str, "DocumentRenderer"] = {}
-        self._templates: Dict[str, Any] = {}
         logger.info("UnifiedPipeline initialized", extra={"output_dir": str(self.output_dir)})
 
     # ========================================================================
@@ -144,16 +142,6 @@ class UnifiedPipeline:
             extra={"format": format_name, "renderer": renderer.format_name},
         )
 
-    def register_template(self, name: str, template: Any) -> None:
-        """注册一个模板配置.
-
-        Args:
-            name: 模板名称.
-            template: TemplateConfig 实例.
-        """
-        self._templates[name] = template
-        logger.info("Template registered", extra={"template": name})
-
     # ========================================================================
     # 主执行入口
     # ========================================================================
@@ -163,7 +151,7 @@ class UnifiedPipeline:
         task: Any,
         output_formats: List[str],
         output_dir: Optional[Path] = None,
-        strategy: str = "template",
+        strategy: str = "sections",
         design_tokens: Optional[DesignTokens] = None,
     ) -> PipelineResult:
         """执行完整流水线：Build → Validate → Render.
@@ -172,7 +160,7 @@ class UnifiedPipeline:
             task: 报告任务（ReportTask 或兼容对象）.
             output_formats: 输出格式列表（如 ["word", "ppt", "markdown"]）.
             output_dir: 输出目录（覆盖构造函数中的默认值）.
-            strategy: 构建策略（"template", "research", "sections", "compiled"）.
+            strategy: 构建策略（"research", "sections", "compiled", "dict", "document"）.
             design_tokens: 设计令牌（覆盖模板中的设置）.
 
         Returns:
@@ -257,7 +245,7 @@ class UnifiedPipeline:
         self,
         task: Any,
         output_formats: List[str],
-        strategy: str = "template",
+        strategy: str = "sections",
         design_tokens: Optional[DesignTokens] = None,
     ) -> PipelineResult:
         """执行流水线并输出到内存缓冲区（而非文件）.
@@ -318,16 +306,13 @@ class UnifiedPipeline:
         """根据策略构建 Document.
 
         支持策略：
-        - "template":  从模板 + 上下文构建（委托 ContentBuilder.from_template）
         - "research":  从深度研究编译器构建
         - "sections":  从 SectionOutput 列表构建
         - "compiled":  从 CompiledReport 构建
         - "dict":      从字典/JSON spec 构建
         - "document":  任务本身就是 Document（直通模式）
         """
-        if strategy == "template":
-            return self._build_from_template(task, design_tokens)
-        elif strategy in ("sections", "section_outputs"):
+        if strategy in ("sections", "section_outputs"):
             return self._build_from_sections(task, design_tokens)
         elif strategy in ("compiled", "research"):
             return self._build_from_compiled(task, design_tokens)
@@ -345,30 +330,9 @@ class UnifiedPipeline:
             raise ValueError("strategy='document' requires task to be a Document instance")
         else:
             raise ValueError(
-                f"Unknown build strategy: {strategy!r}. "
-                "Supported: template, research, sections, compiled, dict, document"
+                f"Unsupported build strategy: {strategy!r}. "
+                "Supported: research, sections, compiled, dict, document"
             )
-
-    def _build_from_template(
-        self,
-        task: Any,
-        design_tokens: Optional[DesignTokens] = None,
-    ) -> Document:
-        """模板驱动策略：TemplateConfig + context → Document."""
-        # 尝试从注册的模板或任务中获取模板
-        template_name = getattr(task, "template_name", None)
-        if template_name and template_name in self._templates:
-            template = self._templates[template_name]
-        else:
-            # 尝试从 TemplateManager 加载
-            template = self._load_template(template_name or "")
-
-        context = getattr(task, "context", {})
-        return self.content_builder.from_template(
-            template=template,
-            context=context,
-            design_tokens=design_tokens,
-        )
 
     def _build_from_sections(
         self,
@@ -397,13 +361,6 @@ class UnifiedPipeline:
             compiled_report=compiled_report,
             design_tokens=design_tokens,
         )
-
-    def _load_template(self, template_name: str) -> Any:
-        """加载模板配置（委托 TemplateManager）."""
-        from reporting.templates.template_manager import TemplateManager
-
-        manager = TemplateManager()
-        return manager.load_template(template_name)
 
     # ========================================================================
     # 验证阶段

@@ -15,23 +15,22 @@ def test_compile_report_plan_marks_composite_component_retrieval_ready():
                 "candidate_k": 24,
             },
         },
-        "sections": [
-            {
-                "placeholder": "summary",
+        "placeholders": {
+            "summary": {
                 "type": "paragraph",
+                "mode": "evidence_ai",
                 "title": "人工智能",
                 "prompt_template": "AI",
                 "retrieval": {"keywords": ["人工智能"]},
             },
-            {
-                "placeholder": "period_end",
-                "type": "report_period",
+            "period_end": {
+                "type": "field",
                 "title": "结束日期",
                 "source": {"kind": "report_period", "field": "end_date"},
             },
-            {
-                "placeholder": "market_review",
-                "type": "composite_market_review",
+            "market_review": {
+                "type": "paragraph",
+                "mode": "data_template_plus_evidence_ai",
                 "title": "A股市场回顾",
                 "prompt_template": "市场",
                 "components": [
@@ -41,7 +40,7 @@ def test_compile_report_plan_marks_composite_component_retrieval_ready():
                     },
                 ],
             },
-        ],
+        },
     }
     prompt_source = "\n\n".join(
         [
@@ -70,7 +69,7 @@ def test_compile_report_plan_marks_composite_component_retrieval_ready():
     assert by_placeholder["market_review"].prompt_found is True
     assert by_placeholder["market_review"].retrieval_ready is True
     assert by_placeholder["market_review"].retrieval_config is not None
-    assert by_placeholder["market_review"].retrieval_config.must_any == ["上证指数", "成交额"]
+    assert "market_review" in by_placeholder["market_review"].retrieval_config.must_any
     assert plan.warnings == []
 
 
@@ -81,6 +80,7 @@ def test_compile_report_plan_warns_when_evidence_paragraph_lacks_prompt_template
             "content": {
                 "type": "paragraph",
                 "title": "缺失模板段落",
+                "prompt_template": "缺失模板段落",
                 "retrieval": {"keywords": ["ETF"]},
             },
         },
@@ -94,6 +94,9 @@ def test_compile_report_plan_warns_when_evidence_paragraph_lacks_prompt_template
     assert placeholder.placeholder == "content"
     assert placeholder.prompt_template == "缺失模板段落"
     assert placeholder.prompt_found is False
-    assert placeholder.retrieval_ready is True
-    assert placeholder.warnings == ["content: 缺少 Prompt 模板 缺失模板段落"]
-    assert plan.warnings == ["content: 缺少 Prompt 模板 缺失模板段落"]
+    assert placeholder.retrieval_ready is False
+    assert placeholder.warnings == [
+        "content: 缺少 Prompt 模板 缺失模板段落",
+        "content: 缺少检索关键词或 Query",
+    ]
+    assert plan.warnings == placeholder.warnings

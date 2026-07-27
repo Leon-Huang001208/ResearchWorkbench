@@ -160,22 +160,8 @@ function buildTemplatesFromReportProjects(projects) {
 }
 
 function buildPlaceholderNamesFromReportProject(project) {
-    const pptPlaceholders = project?.ppt_placeholders;
-    if (Array.isArray(pptPlaceholders) && pptPlaceholders.length) {
-        return pptPlaceholders.map(normalizePlaceholderName).filter(Boolean);
-    }
-    const wordPlaceholders = project?.word_placeholders;
-    if (Array.isArray(wordPlaceholders) && wordPlaceholders.length) {
-        return wordPlaceholders.map(normalizePlaceholderName).filter(Boolean);
-    }
-
     const rawPlaceholders = project?.report_config?.placeholders;
-    if (Array.isArray(rawPlaceholders)) {
-        return rawPlaceholders
-            .map(item => normalizePlaceholderName(item?.name || item?.key || item?.placeholder))
-            .filter(Boolean);
-    }
-    if (rawPlaceholders && typeof rawPlaceholders === 'object') {
+    if (rawPlaceholders && typeof rawPlaceholders === 'object' && !Array.isArray(rawPlaceholders)) {
         return Object.keys(rawPlaceholders).map(normalizePlaceholderName).filter(Boolean);
     }
     return [];
@@ -915,17 +901,10 @@ async function loadTemplatePlaceholdersForRender(templateName, fileType = 'docx'
     container.innerHTML = '<div class="loading"><div class="spinner"></div><span>正在加载占位符配置...</span></div>';
 
     try {
-        let placeholders = [];
-        const projectPlaceholders = currentTemplateState.selectedReportProject?.ppt_placeholders
-            || currentTemplateState.selectedReportProject?.word_placeholders;
-        if (Array.isArray(projectPlaceholders) && projectPlaceholders.length) {
-            // 使用项目包解析出的 Word 占位符；PPT 项目优先使用 PPT 占位符，避免报告项目走旧模板 API。
-            placeholders = projectPlaceholders;
-        } else {
-            legacyTemplatesApiRemoved();
-        }
-
         const config = currentTemplateState.selectedReportProject?.report_config || {};
+        const placeholders = buildPlaceholderNamesFromReportProject(
+            currentTemplateState.selectedReportProject
+        );
         currentTemplateState.placeholderConfigs = config.placeholders || {};
 
         renderRenderPlaceholders(placeholders, currentTemplateState.placeholderConfigs || {});
@@ -1379,12 +1358,11 @@ function getSelectedPlaceholderName(template, placeholders = []) {
 
 function buildGenerationPromptSummary(template, selectedName, mapping) {
     if (!selectedName) return '选择占位符后展示当前段落使用的 Prompt、变量和写作约束。';
-    const project = template.report_project || null;
-    const promptTemplate = mapping.prompt_template || resolvePromptTemplateName(selectedName, project);
-    const querySource = mapping.query_source || inferQuerySource(selectedName, project);
+    const promptTemplate = String(mapping.prompt_template || '').trim();
     const fixedPrefix = mapping.fixed_prefix || mapping.template || '';
     if (fixedPrefix) return fixedPrefix;
-    return `${inferPlaceholderTitle(selectedName)} 使用 ${promptTemplate || '默认 Prompt'}，检索来源：${querySource || '模板内置'}。严格依据 evidence、Excel 变量和写作参数生成，不补充外部判断。`;
+    if (!promptTemplate) return `${inferPlaceholderTitle(selectedName)} 尚未配置 Markdown Prompt 标题。`;
+    return `${inferPlaceholderTitle(selectedName)} 使用 Markdown Prompt：${promptTemplate}。严格依据 evidence、Excel 变量和写作参数生成，不补充外部判断。`;
 }
 
 function renderGenerationLiveLog(readiness) {
@@ -2338,14 +2316,6 @@ function getTemplateWorkbenchSections(template) {
 
 function getTemplateWorkbenchPlaceholders(template) {
     const project = template.report_project || null;
-    const pptPlaceholders = project?.ppt_placeholders;
-    if (Array.isArray(pptPlaceholders) && pptPlaceholders.length) {
-        return pptPlaceholders;
-    }
-    const projectPlaceholders = project?.word_placeholders;
-    if (Array.isArray(projectPlaceholders) && projectPlaceholders.length) {
-        return projectPlaceholders;
-    }
     const configPlaceholders = buildPlaceholderNamesFromReportProject(project);
     if (configPlaceholders.length) {
         return configPlaceholders;
@@ -2707,16 +2677,7 @@ function getPlaceholderKindLabel(mapping, section) {
 }
 
 function getCanonicalPlaceholderType(type = '', mapping = {}) {
-    const normalized = String(type || '').trim();
-    if (normalized) {
-        if (['prompt', 'ai_text', 'composite_market_review'].includes(normalized)) return 'paragraph';
-        if (['report_period', 'excel_cell', 'excel_range'].includes(normalized)) return 'field';
-        if (normalized === 'config_text') return 'static_text';
-        if (normalized === 'excel_chart') return 'chart';
-        return normalized;
-    }
-    if (isParagraphMode(mapping?.mode)) return 'paragraph';
-    return '';
+    return String(type || '').trim();
 }
 
 function isParagraphMode(mode = '') {
@@ -2732,20 +2693,7 @@ function isParagraphMode(mode = '') {
 function getParagraphMode(type = '', mapping = {}, placeholderName = '') {
     const canonicalType = getCanonicalPlaceholderType(type, mapping);
     if (canonicalType !== 'paragraph') return '';
-    if (isParagraphMode(mapping?.mode)) return mapping.mode;
-    const normalized = String(type || '').trim();
-    if (normalized === 'composite_market_review') return 'data_template_plus_evidence_ai';
-    if (normalized === 'prompt' || normalized === 'ai_text') return 'evidence_ai';
-    const hasDataTemplate = Boolean(getDataTemplateComponent(mapping).template)
-        || Object.keys(getDataTemplateFields(mapping, { includeDefaults: false }) || {}).length > 0;
-    const hasLlmWriting = Boolean(getLlmWritingComponent(mapping).writing_structure)
-        || Boolean(getLlmWritingComponent(mapping).retrieval)
-        || Boolean(mapping.prompt_template)
-        || Boolean(mapping.retrieval);
-    if (hasDataTemplate && hasLlmWriting) return 'data_template_plus_evidence_ai';
-    if (hasDataTemplate) return 'data_template';
-    if (/[\u4e00-\u9fff]/.test(normalizePlaceholderName(placeholderName))) return 'evidence_ai';
-    return 'evidence_ai';
+    return isParagraphMode(mapping?.mode) ? mapping.mode : '';
 }
 
 function getParagraphModeLabel(mode = '') {
@@ -2764,32 +2712,25 @@ function isParagraphPlaceholderType(type = '', mapping = {}) {
 }
 
 function isDataTemplateParagraphMode(type = '', mode = '') {
-    const normalizedType = String(type || '').trim();
-    const paragraphMode = isParagraphMode(mode) ? mode : getParagraphMode(normalizedType, { mode });
-    return normalizedType === 'composite_market_review'
-        || ['data_template', 'data_template_plus_evidence_ai'].includes(paragraphMode);
+    const paragraphMode = isParagraphMode(mode) ? mode : getParagraphMode(type, { mode });
+    return ['data_template', 'data_template_plus_evidence_ai'].includes(paragraphMode);
 }
 
 function usesEvidenceParagraphMode(type = '', mode = '') {
-    const normalizedType = String(type || '').trim();
-    const paragraphMode = isParagraphMode(mode) ? mode : getParagraphMode(normalizedType, { mode });
-    return ['prompt', 'ai_text', 'composite_market_review'].includes(normalizedType)
-        || ['evidence_ai', 'data_template_plus_evidence_ai', 'data_ai', 'rewrite'].includes(paragraphMode);
+    const paragraphMode = isParagraphMode(mode) ? mode : getParagraphMode(type, { mode });
+    return ['evidence_ai', 'data_template_plus_evidence_ai', 'data_ai', 'rewrite'].includes(paragraphMode);
 }
 
 function shouldStoreParagraphRetrievalInLlmComponent(type = '', mode = '') {
     const paragraphMode = isParagraphMode(mode) ? mode : getParagraphMode(type, { mode });
-    return String(type || '').trim() === 'composite_market_review'
-        || paragraphMode === 'data_template_plus_evidence_ai';
+    return paragraphMode === 'data_template_plus_evidence_ai';
 }
 
 function getPlaceholderSourceKind(type = '', mapping = {}, placeholderName = '') {
     const source = mapping?.source && typeof mapping.source === 'object' ? mapping.source : {};
     if (source.kind) return String(source.kind);
-    const normalizedType = String(type || '').trim();
-    if (normalizedType === 'report_period' || isSystemDatePlaceholder(placeholderName)) return 'report_period';
-    if (normalizedType === 'excel_range') return 'excel_range';
-    if (normalizedType === 'excel_cell' || mapping?.source) return 'excel_cell';
+    if (isSystemDatePlaceholder(placeholderName)) return 'report_period';
+    if (mapping?.source) return 'excel_cell';
     return mapping?.value ? 'manual' : '';
 }
 
@@ -2809,7 +2750,7 @@ function getStoredCommonDefaults(template) {
     const base = {
         generation_mode: 'evidence_grounded_generation',
         evidence_policy: 'strict',
-        query_mode: usesEmbeddedPromptQueries(project) ? 'retrieval_query_embedded' : 'query_source',
+        query_mode: 'retrieval_query_embedded',
         validators: {
             require_evidence_from_uploaded_material: true,
             forbid_external_facts: true,
@@ -3424,12 +3365,7 @@ function collectCommonDefaultsDraft(template) {
 function getStoredPlaceholderMappings(template) {
     const raw = template?.report_project?.report_config?.placeholders;
     const mappings = new Map();
-    if (Array.isArray(raw)) {
-        raw.forEach(item => {
-            const key = normalizePlaceholderName(item?.name || item?.key || item?.placeholder);
-            if (key) mappings.set(key, item);
-        });
-    } else if (raw && typeof raw === 'object') {
+    if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
         Object.entries(raw).forEach(([key, value]) => {
             mappings.set(normalizePlaceholderName(key), value || {});
         });
@@ -3442,46 +3378,7 @@ function getPlaceholderMappings(template) {
 }
 
 function getCurrentPlaceholderMappings(template) {
-    const storedMappings = getStoredPlaceholderMappings(template);
-    const placeholders = getTemplateWorkbenchPlaceholders(template);
-    if (!placeholders.length) return storedMappings;
-
-    const hasMissingPlaceholders = placeholders.some(placeholder =>
-        !storedMappings.has(normalizePlaceholderName(placeholder))
-    );
-    if (!hasMissingPlaceholders && storedMappings.size) return storedMappings;
-
-    return buildDraftPlaceholderMappings(template, storedMappings);
-}
-
-function buildDraftPlaceholderMappings(template, storedMappings = new Map()) {
-    const project = template.report_project || null;
-    const mappings = new Map(storedMappings);
-    getTemplateWorkbenchPlaceholders(template).forEach(placeholder => {
-        const key = normalizePlaceholderName(placeholder);
-        if (!key) return;
-        const stored = storedMappings.get(key) || {};
-        const storedType = stored.type || '';
-        const type = getCanonicalPlaceholderType(storedType, stored) || inferPlaceholderType(key);
-        const paragraphMode = type === 'paragraph' ? getParagraphMode(storedType, stored, key) : undefined;
-        const needsEvidenceDefaults = type === 'paragraph' && usesEvidenceParagraphMode(storedType, paragraphMode);
-        mappings.set(key, {
-            ...stored,
-            title: inferPlaceholderTitle(key),
-            type,
-            mode: paragraphMode,
-            prompt_template: needsEvidenceDefaults
-                ? (stored.prompt_template || resolvePromptTemplateName(key, project))
-                : undefined,
-            query_mode: needsEvidenceDefaults && usesEmbeddedPromptQueries(project)
-                ? (stored.query_mode || 'retrieval_query_embedded')
-                : undefined,
-            query_source: needsEvidenceDefaults && !usesEmbeddedPromptQueries(project)
-                ? (stored.query_source || inferQuerySource(key, project))
-                : undefined
-        });
-    });
-    return mappings;
+    return getStoredPlaceholderMappings(template);
 }
 
 function isPlaceholderMappingConfigured(mapping) {
@@ -3489,7 +3386,7 @@ function isPlaceholderMappingConfigured(mapping) {
         mapping?.source
         || mapping?.value
         || mapping?.prompt_template
-        || mapping?.query_source
+        || mapping?.prompt_template
     );
 }
 
@@ -3681,7 +3578,7 @@ function renderSelectedPlaceholderDetail(template) {
     const isPromptLike = usesEvidenceParagraphMode(storedType, paragraphMode);
     const promptParam = mapping.params?.param || inferPromptParam(name);
     const needsParam = isPromptLike && Boolean(promptParam);
-    const usesQuerySource = isPromptLike && !usesEmbeddedPromptQueries(template.report_project);
+    const usesQuerySource = false;
     const selectedKeywordProfile = getSelectedKeywordProfileName(template, mapping, name);
     const keywordMode = inferKeywordMode(template, mapping, name);
     const retrievalKeywords = getKeywordEditorText(template, mapping, name, keywordMode, selectedKeywordProfile);
@@ -4489,13 +4386,7 @@ function getConfiguredSemanticRetrievalQueryForPlaceholder(template, mapping = {
     if (String(mapping.prompt_retrieval_query || '').trim()) {
         return String(mapping.prompt_retrieval_query).trim();
     }
-    const queryMode = String(mapping.query_mode || mapping.queryMode || '').trim();
-    const querySource = String(mapping.query_source || mapping.querySource || '').trim();
-    if (querySource && (!queryMode || queryMode === 'query_source')) {
-        return querySource;
-    }
-    const promptName = mapping.prompt_template
-        || resolvePromptTemplateName(placeholderName, template?.report_project);
+    const promptName = String(mapping.prompt_template || '').trim();
     const promptSource = template?.report_project?.prompt_templates_source || '';
     const query = extractPromptTemplateLabel(promptSource, promptName, '检索 Query');
     if (query) return query;
@@ -4506,17 +4397,10 @@ function getSemanticRetrievalQueryForPlaceholder(template, mapping = {}, placeho
     if (String(mapping.prompt_retrieval_query || '').trim()) {
         return String(mapping.prompt_retrieval_query).trim();
     }
-    const queryMode = String(mapping.query_mode || mapping.queryMode || '').trim();
-    const querySource = String(mapping.query_source || mapping.querySource || '').trim();
-    if (queryMode === 'query_source' && querySource) {
-        return `Query 来源：${querySource}`;
-    }
-    const promptName = mapping.prompt_template
-        || resolvePromptTemplateName(placeholderName, template?.report_project);
+    const promptName = String(mapping.prompt_template || '').trim();
     const promptSource = template?.report_project?.prompt_templates_source || '';
     const query = extractPromptTemplateLabel(promptSource, promptName, '检索 Query');
     if (query) return query;
-    if (querySource) return `Query 来源：${querySource}`;
     return promptName || normalizePlaceholderName(placeholderName) || '未配置语义 Query';
 }
 
@@ -4684,10 +4568,10 @@ function buildAdvancedPlaceholderFieldsHtml({
             这里仅保留少数底层来源与参数。占位符类型和段落写作方式请在“基础参数”中设置。
         </div>
         ${isPromptLike ? `
-            ${usesQuerySource ? `
+            ${isPromptLike ? `
                 <label>
-                    <span>Query 来源</span>
-                    <input type="text" data-placeholder-field="query_source" value="${esc(mapping.query_source || inferQuerySource(name, template.report_project))}">
+                    <span>Markdown Prompt 标题</span>
+                    <input type="text" data-placeholder-field="prompt_template" value="${esc(mapping.prompt_template || '')}">
                 </label>
             ` : ''}
             ${needsParam ? `
@@ -4735,9 +4619,6 @@ function getEditablePlaceholderTypeOptions(currentType = '') {
 function getPlaceholderTypeLabel(type = '') {
     const labels = {
         paragraph: '正文段落',
-        prompt: '正文段落（旧：AI 生成段落）',
-        ai_text: '正文段落（旧：AI 生成段落）',
-        composite_market_review: '正文段落（旧：Excel 固定开头 + AI 续写）',
         excel_commodity_market_review: 'Excel 固定市场回顾',
         field: '短字段',
         report_period: '短字段（旧：报告日期）',
@@ -5416,9 +5297,7 @@ function isPromptPlaceholderType(type, mapping = {}) {
     if (isParagraphPlaceholderType(type, mapping)) {
         return usesEvidenceParagraphMode(type, getParagraphMode(type, mapping));
     }
-    return ['prompt', 'ai_text', 'composite_market_review'].includes(type)
-        || Boolean(mapping.prompt_template)
-        || Boolean(mapping.query_source)
+    return Boolean(mapping.prompt_template)
         || Boolean(mapping.retrieval)
         || Boolean(mapping.components)
         || Boolean(mapping.target_words)
@@ -5667,33 +5546,6 @@ function buildUpdatedPromptTemplatesSource(template, promptFragment) {
         return source.replace(blockPattern, `$1${normalizedFragment}\n`);
     }
     return `${source.trimEnd()}\n\n${normalizedFragment}\n`;
-}
-
-function buildUpdatedPromptTemplatesSourceFromQuery(template, mapping, placeholderName) {
-    const query = String(mapping?.prompt_retrieval_query || '').trim();
-    if (!query) return null;
-    const promptName = mapping.prompt_template
-        || resolvePromptTemplateName(placeholderName, template?.report_project);
-    if (!promptName) return null;
-
-    const source = template?.report_project?.prompt_templates_source || '';
-    const existingBlock = getPromptTemplateBlock(source, promptName);
-    if (!existingBlock) {
-        const fragment = [
-            `## ${promptName}`,
-            '',
-            '```text',
-            `检索 Query：${query}`,
-            '',
-            '写作要求：',
-            '```'
-        ].join('\n');
-        return `${source.trimEnd()}\n\n${fragment}\n`;
-    }
-
-    const nextBlock = replacePromptTemplateLabel(existingBlock, '检索 Query', query);
-    const blockPattern = new RegExp(`(^|\\n)##\\s+${escapeRegExp(promptName)}\\s*\\n[\\s\\S]*?(?=\\n##\\s+|$)`);
-    return source.replace(blockPattern, (match, prefix = '') => `${prefix}## ${promptName}\n\n${nextBlock.trim()}\n`);
 }
 
 function replacePromptTemplateLabel(block, label, value) {
@@ -6313,12 +6165,7 @@ function buildPlaceholderMappingConfigYaml(template, mappingsOverride = null) {
     const lines = [
         '# 填写方式：',
         `# - placeholders 下每一项对应 ${isPptProject ? 'PPT' : 'Word'} 模板里的一个 {{占位符}}。`,
-        usesEmbeddedPromptQueries(project)
-            ? '# - type=prompt 时，系统直接使用 prompt_template 中内置的检索 Query 和写作规则。'
-            : '# - type=prompt 时，系统会读取 query_source，再套用 prompt_template 生成正文。',
-        usesEmbeddedPromptQueries(project)
-            ? '# - prompt_template 写 Word 占位符对应的模板标题，例如：人工智能。'
-            : '# - query_source 写法示例：data/industry.json#人工智能，表示取该 JSON 中“人工智能”的 QUERY。',
+        '# - paragraph 的 prompt_template 必须是 prompt_templates.md 中的 ## 标题。',
         '# - params 用来传给 Prompt 模板中的 {{param}} 等变量。',
         `name: ${name}`,
         `version: ${template.version || '1.0'}`,
@@ -6480,12 +6327,8 @@ function buildPlaceholderYamlEntry(template, key, mapping) {
     } else if (type === 'paragraph') {
         lines.push(`    mode: ${paragraphMode}`);
         if (usesEvidenceParagraphMode(storedType, paragraphMode)) {
-            lines.push(`    prompt_template: ${mapping.prompt_template || resolvePromptTemplateName(key, project)}`);
-            if (!usesEmbeddedPromptQueries(project)) {
-                lines.push(`    query_source: ${mapping.query_source || inferQuerySource(key, project)}`);
-            } else {
-                lines.push('    query_mode: retrieval_query_embedded');
-            }
+            lines.push(`    prompt_template: ${mapping.prompt_template || ''}`);
+            lines.push('    query_mode: retrieval_query_embedded');
             lines.push(`    target_words: ${mapping.target_words || inferDefaultTargetWords(key)}`);
             lines.push(`    max_words: ${mapping.max_words || inferDefaultMaxWords(key)}`);
             if (mapping.min_news_count) lines.push(`    min_news_count: ${mapping.min_news_count}`);
@@ -6603,7 +6446,7 @@ function getSelectedPromptTemplateName(template) {
     if (!name) return '';
     const mapping = getSelectedPlaceholderMapping(template) || {};
     if (String(mapping.type || '').toLowerCase() === 'excel_commodity_market_review') return '';
-    return mapping.prompt_template || resolvePromptTemplateName(name, template.report_project);
+    return String(mapping.prompt_template || '').trim();
 }
 
 function getPromptTemplateFragment(source, promptName) {
@@ -6653,67 +6496,6 @@ function inferPlaceholderTitle(name) {
     return titles[name] || name;
 }
 
-function resolvePromptTemplateName(name, project = null) {
-    const normalized = normalizePlaceholderName(name);
-    if (usesEmbeddedPromptQueries(project) && /[\u4e00-\u9fff]/.test(normalized)) {
-        return normalized;
-    }
-    const directMap = {
-        'A股市场回顾': 'domestic_market',
-        '中国宏观': 'domestic_macro',
-        '港股科技': 'overseas_hk_tech',
-        '港股央企红利': 'overseas_hk_dividend',
-        '原油': 'commodity_market',
-        '原油市场回顾': 'commodity_market',
-        '黄金': 'commodity_market',
-        '美国新闻': 'overseas_news',
-        '欧洲新闻': 'overseas_news'
-    };
-    if (directMap[normalized]) return directMap[normalized];
-    if (['美国', '欧洲', '日本', '海外市场'].includes(normalized)) return 'overseas_market';
-    if (['人工智能', '医药生物', '消费', '金融地产', '电子', '航天', '电力设备新能源'].includes(normalized)) {
-        return 'industry_review';
-    }
-    if (/^(content\d+|phrase\d+|sector\d+)$/i.test(normalized)) return 'section_paragraph';
-    return 'section_paragraph';
-}
-
-function usesEmbeddedPromptQueries(project = null) {
-    const projectName = project?.name || project?.slug || '';
-    const sourceFiles = project?.data_source_files || [];
-    const promptName = project?.prompt_templates_filename || '';
-    return projectName.includes('华安ETF周报')
-        || (promptName && sourceFiles.length === 0);
-}
-
-function inferQuerySource(name, project = null) {
-    const normalized = normalizePlaceholderName(name);
-    const sourceMap = {
-        'A股市场回顾': 'data/domestic.json#市场',
-        '中国宏观': 'data/domestic.json#宏观',
-        '人工智能': 'data/industry.json#人工智能',
-        '电子': 'data/industry.json#电子',
-        '航天': 'data/industry.json#航天',
-        '电力设备新能源': 'data/industry.json#电力设备新能源',
-        '消费': 'data/industry.json#消费',
-        '金融地产': 'data/industry.json#金融地产',
-        '医药生物': 'data/industry.json#医药生物',
-        '港股科技': 'data/overseas.json#港股科技',
-        '港股央企红利': 'data/overseas.json#港股央企红利',
-        '美国': 'data/overseas.json#美国',
-        '欧洲': 'data/overseas.json#欧洲',
-        '日本': 'data/overseas.json#日本',
-        '美国新闻': 'data/overseas.json#美国新闻',
-        '欧洲新闻': 'data/overseas.json#欧洲新闻',
-        '海外市场': 'data/overseas.json#美国',
-        '原油': 'data/commodity.json#石油',
-        '原油市场回顾': 'data/commodity.json#石油',
-        '黄金': 'data/commodity.json#黄金'
-    };
-    if (sourceMap[normalized]) return sourceMap[normalized];
-    const firstDataSource = project?.data_source_files?.[0];
-    return firstDataSource ? `data/${firstDataSource}#${normalized}` : '';
-}
 
 function inferPromptParam(name) {
     const normalized = normalizePlaceholderName(name);
@@ -7168,21 +6950,6 @@ async function saveCurrentReportConfig({
                     content
                 }
             );
-            const promptTemplatesContent = buildUpdatedPromptTemplatesSourceFromQuery(
-                { ...template, report_project: updatedProject },
-                selectedMapping,
-                selectedName
-            );
-            if (promptTemplatesContent) {
-                updatedProject = await apiCall(
-                    'PUT',
-                    `/api/report-projects/${encodeURIComponent(project.slug)}/source`,
-                    {
-                        source_kind: 'prompt_templates',
-                        content: promptTemplatesContent
-                    }
-                );
-            }
             currentTemplateState.selectedReportProject = updatedProject;
             const selectedTemplate = (currentTemplateState.templates || []).find(item =>
                 item.report_project?.slug === project.slug

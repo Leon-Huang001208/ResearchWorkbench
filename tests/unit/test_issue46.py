@@ -18,37 +18,6 @@ from core.contracts import FactCard, ReportTask, SectionOutput, SectionSpec, Val
 from reporting.composer.fact_card_builder import FactCardBuilder
 from reporting.composer.report_pipeline import ReportPipeline
 from reporting.composer.validator import ReportValidator
-from reporting.templates.template_manager import TemplateManager
-
-
-class TestTemplateManager:
-    """测试模板管理器."""
-
-    def test_list_templates(self):
-        """测试列出模板."""
-        manager = TemplateManager()
-        templates = manager.list_templates()
-        # Should have at least the weekly report template
-        assert isinstance(templates, list)
-
-    def test_create_weekly_report_template(self):
-        """测试创建周报模板."""
-        manager = TemplateManager()
-
-        template = manager.create_weekly_report_template()
-        assert template.name == "weekly_report"
-        assert len(template.sections) == 5
-
-    def test_template_section_parsing(self):
-        """测试模板段落解析."""
-        manager = TemplateManager()
-        template = manager.create_weekly_report_template()
-
-        assert template.sections[0].key == "market_summary"
-        assert template.sections[0].title == "市场概览"
-        assert template.sections[0].target_words == 300
-
-
 class TestFactCardBuilder:
     """测试 Fact Card 构建器."""
 
@@ -252,19 +221,6 @@ class TestReportPipeline:
 
 class TestIntegration:
     """集成测试."""
-
-    def test_template_validation_workflow(self):
-        """测试模板验证工作流."""
-        manager = TemplateManager()
-
-        template = manager.create_weekly_report_template()
-        assert len(template.sections) > 0
-
-        # Check that sections have required fields
-        for section in template.sections:
-            assert section.key is not None
-            assert section.title is not None
-            assert section.target_words > 0
 
     def test_simple_fact_extraction_and_validation(self):
         """测试简单事实提取和校验."""

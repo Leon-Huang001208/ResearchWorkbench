@@ -378,17 +378,13 @@ console.log(JSON.stringify({
     assert rendered["missingQuery"] == {"actions": ["query"], "queryOpen": True}
     assert rendered["missingKeywords"] == {"actions": ["keywords"], "queryOpen": False}
     assert rendered["complete"] == {"actions": [], "queryOpen": False}
-    assert rendered["querySourceOnly"] == {
-        "rawQuery": "项目新闻索引",
-        "actions": [],
-        "queryOpen": False,
-    }
+    assert rendered["querySourceOnly"] == {"rawQuery": "", "actions": ["query"], "queryOpen": True}
     assert rendered["camelCaseQuerySource"] == {
-        "rawQuery": "旧版项目新闻索引",
-        "displayQuery": "Query 来源：旧版项目新闻索引",
-        "actions": [],
-        "queryOpen": False,
-        "rendersSource": True,
+        "rawQuery": "",
+        "displayQuery": "占位符兜底",
+        "actions": ["query"],
+        "queryOpen": True,
+        "rendersSource": False,
     }
 
 
@@ -520,7 +516,7 @@ def test_report_workbench_uses_report_project_real_asset_summary():
 
     assert "getTemplateWorkbenchSections" in source
     assert "getTemplateWorkbenchPlaceholders" in source
-    assert "project?.word_placeholders" in source
+    assert "report_config?.placeholders" in source
     assert "project?.report_config?.placeholders" in source
     assert "project?.report_config_source" in source
     assert "project?.prompt_templates_source" in source
@@ -802,7 +798,7 @@ def test_paragraph_placeholder_uses_mode_instead_of_parallel_ai_types():
     assert "{ value: 'static_text', label: '固定文本' }" not in source
 
 
-def test_placeholder_type_resolution_prefers_explicit_type_before_legacy_mode():
+def test_placeholder_type_resolution_uses_only_explicit_mapping_type():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
     helper = source[
         source.index("function getCanonicalPlaceholderType") : source.index(
@@ -810,33 +806,13 @@ def test_placeholder_type_resolution_prefers_explicit_type_before_legacy_mode():
         )
     ]
 
-    assert "if (normalized) {" in helper
-    assert "if (isParagraphMode(mapping?.mode)) return 'paragraph';" in helper
-    assert helper.index("if (normalized) {") < helper.index(
-        "if (isParagraphMode(mapping?.mode)) return 'paragraph';"
-    )
-    assert "getCanonicalPlaceholderType(mapping.type || inferPlaceholderType" not in source
-    assert "getCanonicalPlaceholderType(draft.type || inferPlaceholderType" not in source
-    assert "const draftType = draft.type || inferPlaceholderType(name);" not in source
-    assert "const draftType = draft.type || inferPlaceholderType(placeholderName);" not in source
-    assert source.count("const rawDraftType = draft.type || '';") == 4
-    assert (
-        source.count(
-            "const draftType = getCanonicalPlaceholderType(rawDraftType, draft) || inferPlaceholderType(name);"
-        )
-        == 3
-    )
-    assert (
-        "const draftType = getCanonicalPlaceholderType(rawDraftType, draft) "
-        "|| inferPlaceholderType(placeholderName);"
-    ) in source
-    assert source.count("getParagraphMode(rawDraftType || draftType, draft, name);") == 3
-    assert "getParagraphMode(rawDraftType || draftType, draft, placeholderName);" in source
-    assert "const storedType = stored.type || '';" in source
-    assert source.count("const storedType = mapping.type || '';") >= 2
+    assert "return String(type || '').trim();" in helper
+    assert "composite_market_review" not in helper
+    assert "ai_text" not in helper
+    assert "prompt" not in helper
 
 
-def test_placeholder_type_helpers_execute_legacy_mode_resolution_rules():
+def test_placeholder_type_helpers_do_not_normalize_retired_types():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
     helper_block = source[
         source.index("function getCanonicalPlaceholderType") : source.index(
@@ -850,8 +826,8 @@ def test_placeholder_type_helpers_execute_legacy_mode_resolution_rules():
             "mapping": {"mode": "data_template"},
             "placeholderName": "说明",
         },
-        {"type": "prompt", "mapping": {}, "placeholderName": "正文"},
-        {"type": "composite_market_review", "mapping": {}, "placeholderName": "市场回顾"},
+        {"type": "paragraph", "mapping": {"mode": "evidence_ai"}, "placeholderName": "正文"},
+        {"type": "paragraph", "mapping": {"mode": "data_template_plus_evidence_ai"}, "placeholderName": "市场回顾"},
         {"type": "", "mapping": {"mode": "evidence_ai"}, "placeholderName": "历史正文"},
     ]
     runner = "\n".join(
@@ -880,7 +856,7 @@ def test_placeholder_type_helpers_execute_legacy_mode_resolution_rules():
         {"canonicalType": "static_text", "paragraphMode": ""},
         {"canonicalType": "paragraph", "paragraphMode": "evidence_ai"},
         {"canonicalType": "paragraph", "paragraphMode": "data_template_plus_evidence_ai"},
-        {"canonicalType": "paragraph", "paragraphMode": "evidence_ai"},
+        {"canonicalType": "", "paragraphMode": ""},
     ]
 
 
@@ -899,9 +875,7 @@ def test_non_paragraph_types_ignore_preserved_legacy_paragraph_modes():
 
     assert "const canonicalType = getCanonicalPlaceholderType(type, mapping);" in paragraph_mode_source
     assert "if (canonicalType !== 'paragraph') return '';" in paragraph_mode_source
-    assert paragraph_mode_source.index("if (canonicalType !== 'paragraph') return '';") < paragraph_mode_source.index(
-        "if (isParagraphMode(mapping?.mode)) return mapping.mode;"
-    )
+    assert "return isParagraphMode(mapping?.mode) ? mapping.mode : '';" in paragraph_mode_source
     assert "const paragraphMode = getParagraphMode(storedType, mapping, name);" in detail_source
     assert "const isPromptLike = usesEvidenceParagraphMode(storedType, paragraphMode);" in detail_source
     assert "const supportsDataTemplate = isDataTemplateParagraphMode(storedType, paragraphMode);" in detail_source
@@ -947,7 +921,7 @@ def test_placeholder_editor_keeps_derived_fields_in_advanced_drawer():
     assert 'id="btn-template-advanced-config"' in html
     assert "draft.title = draft.title || inferPlaceholderTitle(name);" in source
     assert "data-placeholder-field=" in source
-    assert "resolvePromptTemplateName(name, template.report_project)" in source
+    assert "mapping.prompt_template || ''" in source
 
 
 def test_prompt_template_preview_supports_retrieval_query_and_strips_code_fences():
@@ -981,11 +955,11 @@ def test_placeholder_form_hides_fields_that_do_not_apply_to_selected_type():
     assert "placeholder-detail-field-hidden" not in source
 
 
-def test_workbench_uses_current_placeholder_mapping_draft_for_status():
+def test_workbench_uses_stored_placeholder_mapping_for_status():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
 
     assert "getStoredPlaceholderMappings" in source
-    assert "buildDraftPlaceholderMappings" in source
+    assert "buildDraftPlaceholderMappings" not in source
     assert "getCurrentPlaceholderMappings" in source
     assert "const mappings = getCurrentPlaceholderMappings(template);" in source
     assert "getEditablePlaceholderMappings(template)" in source
@@ -1498,36 +1472,28 @@ def test_placeholder_map_does_not_truncate_word_placeholders():
     assert "names.slice(0, 8)" not in source
 
 
-def test_placeholder_mapping_connects_word_prompt_and_query_source():
+def test_placeholder_mapping_uses_explicit_markdown_prompt_title_only():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
 
-    assert "resolvePromptTemplateName" in source
-    assert "inferQuerySource" in source
+    assert "resolvePromptTemplateName" not in source
+    assert "inferQuerySource" not in source
     assert "applyKeywordModeDraft" in source
     assert "getSelectedKeywordProfileName" in source
     assert "inferKeywordMode" in source
     assert "keyword_profiles" in source
     assert "keyword_profile" in source
     assert "keywords" in source
-    assert (
-        "const needsEvidenceDefaults = type === 'paragraph' && usesEvidenceParagraphMode(storedType, paragraphMode);"
-        in source
-    )
-    assert "stored.prompt_template || resolvePromptTemplateName(key, project)" in source
-    assert "stored.query_source || inferQuerySource(key, project)" in source
     assert "renderMappingSummary" in source
     assert "prompt_template" in source
-    assert "query_source" in source
+    assert "query_source" not in source
 
 
-def test_embedded_query_mode_uses_prompt_template_without_json_source():
+def test_prompt_template_is_resolved_from_bound_markdown_source():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
 
-    assert "usesEmbeddedPromptQueries" in source
+    assert "usesEmbeddedPromptQueries" not in source
     assert "query_mode: retrieval_query_embedded" in source
-    assert "检索来源：${querySource || '模板内置'}" in source
-    assert "resolvePromptTemplateName(key, project)" in source
-    assert "if (!usesEmbeddedPromptQueries(project)) {" in source
+    assert "Markdown Prompt：${promptTemplate}" in source
 
 
 def test_prompt_template_view_uses_only_bound_markdown_source():
@@ -1541,9 +1507,9 @@ def test_prompt_template_view_uses_only_bound_markdown_source():
 def test_report_project_placeholders_skip_legacy_template_placeholder_api():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
 
-    assert "currentTemplateState.selectedReportProject?.word_placeholders" in source
-    assert "project?.ppt_placeholders" in source
-    assert "使用项目包解析出的 Word 占位符" in source
+    assert "currentTemplateState.selectedReportProject?.word_placeholders" not in source
+    assert "project?.ppt_placeholders" not in source
+    assert "report_config?.placeholders" in source
 
 
 def test_report_project_upload_supports_ppt_template_projects():

@@ -9,6 +9,8 @@ from reporting.projects.generation import (
     resolve_markdown_prompt_template,
 )
 from reporting.projects.plan import compile_report_plan
+from reporting.templates.template_manager import TemplateManager
+from reporting.builder.pipeline import UnifiedPipeline
 
 
 def test_sections_schema_is_rejected():
@@ -54,3 +56,20 @@ def test_plan_marks_missing_markdown_prompt_as_not_ready():
 def test_legacy_templates_api_is_not_registered():
     """Report workbench must not expose the retired /api/templates surface."""
     assert not any(route.path.startswith("/api/templates") for route in app.routes)
+
+
+def test_legacy_yaml_template_manager_is_closed():
+    """Retired YAML template storage must not be scanned or executed."""
+    manager = TemplateManager()
+
+    assert manager.list_templates() == []
+    with pytest.raises(RuntimeError, match="retired"):
+        manager.load_template("weekly_report")
+
+
+def test_unified_pipeline_rejects_retired_template_strategy():
+    """The builder no longer accepts the old YAML-template strategy."""
+    pipeline = UnifiedPipeline()
+
+    with pytest.raises(ValueError, match="Unsupported build strategy"):
+        pipeline._build(object(), "template", None)
