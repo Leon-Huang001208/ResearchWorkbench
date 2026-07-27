@@ -19,7 +19,7 @@ def write_project(root: Path, name: str = "创业板50周报") -> Path:
     (project_dir / "templates" / "report_template.docx").write_bytes(b"docx")
     (project_dir / "data" / "cyb50.xlsx").write_bytes(b"xlsx")
     (project_dir / "data" / "domestic.json").write_text("{}", encoding="utf-8")
-    (project_dir / "config" / "section_config.yaml").write_text(
+    (project_dir / "config" / "report_config.yaml").write_text(
         "sections:\n- key: market_summary\n  title: 市场概览\n",
         encoding="utf-8",
     )
@@ -31,7 +31,7 @@ def write_project(root: Path, name: str = "创业板50周报") -> Path:
                 f"name: {name}",
                 "active_word_template: templates/report_template.docx",
                 "active_excel_workbook: data/cyb50.xlsx",
-                "section_config: config/section_config.yaml",
+                "report_config: config/report_config.yaml",
                 "prompt_templates: config/prompt_templates.md",
                 "data_sources:",
                 "  - data/domestic.json",
@@ -53,7 +53,7 @@ def write_ppt_project(root: Path, name: str = "静态PPT模板") -> Path:
     (project_dir / "runs").mkdir()
 
     (project_dir / "templates" / "report_template.pptx").write_bytes(b"pptx")
-    (project_dir / "config" / "section_config.yaml").write_text(
+    (project_dir / "config" / "report_config.yaml").write_text(
         "placeholders:\n  title:\n    type: static\n    value: 月度报告\n",
         encoding="utf-8",
     )
@@ -64,7 +64,7 @@ def write_ppt_project(root: Path, name: str = "静态PPT模板") -> Path:
                 f"name: {name}",
                 "project_type: ppt",
                 "active_ppt_template: templates/report_template.pptx",
-                "section_config: config/section_config.yaml",
+                "report_config: config/report_config.yaml",
                 "output_dir: generated",
                 "run_log_dir: runs",
             ]
@@ -88,7 +88,7 @@ def test_list_projects_reads_project_folder_assets(tmp_path: Path):
     assert project.project_dir == project_dir
     assert project.word_template_path == project_dir / "templates" / "report_template.docx"
     assert project.excel_workbook_path == project_dir / "data" / "cyb50.xlsx"
-    assert project.section_config_path == project_dir / "config" / "section_config.yaml"
+    assert project.report_config_path == project_dir / "config" / "report_config.yaml"
     assert project.prompt_templates_path == project_dir / "config" / "prompt_templates.md"
     assert project.data_source_paths == [project_dir / "data" / "domestic.json"]
     assert project.generated_reports == [project_dir / "generated" / "2026-06-05_创业板50周报.docx"]
@@ -143,7 +143,7 @@ def test_scan_projects_rejects_asset_paths_outside_project_root(tmp_path: Path):
                 "name: 越界资产项目",
                 "active_word_template: ../../private/report_template.docx",
                 "active_excel_workbook: data/cyb50.xlsx",
-                "section_config: config/section_config.yaml",
+                "report_config: config/report_config.yaml",
                 "output_dir: generated",
                 "run_log_dir: runs",
             ]
@@ -189,4 +189,20 @@ def test_bootstrap_cyb50_project_package_copies_confirmed_assets(tmp_path: Path)
     assert project.excel_workbook_path.name == "创业板50周报（iFind版）.xlsx"
     assert project.excel_workbook_path.read_bytes() == b"ifind"
     assert (project.project_dir / "data" / "创业板50周报（Wind版）.xlsx").read_bytes() == b"wind"
-    assert project.section_config_path.name == "section_config.yaml"
+    assert project.report_config_path.name == "report_config.yaml"
+
+
+def test_checked_in_projects_are_scanned_without_missing_report_config():
+    """所有检入项目都应被扫描到，并且不再引用旧的 section YAML。"""
+    project_root = Path(__file__).resolve().parents[2] / "report_projects"
+    expected_slugs = {path.parent.name for path in project_root.glob("*/project.yaml")}
+
+    scan = ReportProjectManager(projects_root=project_root).scan_projects()
+
+    observed_slugs = {project.slug for project in scan.projects}
+    observed_slugs.update(issue.project_slug for issue in scan.issues)
+    assert observed_slugs == expected_slugs
+    assert all(issue.code != "missing_report_config" for issue in scan.issues)
+    for project_yaml in project_root.glob("*/project.yaml"):
+        assert "report_config: config/report_config.yaml" in project_yaml.read_text(encoding="utf-8")
+        assert not (project_yaml.parent / "config" / "section_config.yaml").exists()

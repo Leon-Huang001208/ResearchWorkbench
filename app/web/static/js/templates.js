@@ -2460,7 +2460,7 @@ function buildTemplateAssetChecks(template, sections) {
         },
         {
             icon: 'codicon-settings-gear',
-            label: 'Section 配置',
+            label: '报告配置',
             ok: Boolean(project?.report_config_filename || sections.length > 0),
             value: project?.report_config_filename || (sections.length ? `${sections.length} 段` : '待配置'),
             action: 'upload',

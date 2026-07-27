@@ -50,6 +50,17 @@ def test_template_detail_has_report_workbench_regions():
     assert "Excel 底稿映射" not in html
 
 
+def test_report_config_upload_uses_the_unified_user_facing_label():
+    """上传入口不应再向用户显示旧的 Section 配置名称。"""
+    html = INDEX_HTML.read_text(encoding="utf-8")
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+
+    assert "报告配置" in html
+    assert "报告配置" in source
+    assert "Section 配置" not in html
+    assert "Section 配置" not in source
+
+
 def test_report_workbench_uses_separate_generation_preview_log_tabs_without_changing_config():
     html = INDEX_HTML.read_text(encoding="utf-8")
 
