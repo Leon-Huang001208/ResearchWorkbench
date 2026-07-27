@@ -41,7 +41,7 @@ def test_template_detail_has_report_workbench_regions():
     )
     assert 'id="project-word-template-input"' in html
     assert 'id="project-excel-workbook-input"' in html
-    assert 'id="project-section-config-input"' in html
+    assert 'id="project-report-config-input"' in html
     assert 'id="project-prompt-templates-input"' in html
     assert 'id="project-data-files-input"' in html
     assert 'class="tabs template-legacy-tabs hidden"' in html
@@ -454,7 +454,7 @@ def test_templates_js_populates_report_workbench():
     assert "loadReportProjectsList" in source
     assert "/api/report-projects/" in source
     assert "/api/report-projects/upload" in source
-    assert "mergeTemplatesWithReportProjects" in source
+    assert "buildTemplatesFromReportProjects" in source
     assert "renderReportProject" in source
 
 
@@ -486,27 +486,22 @@ def test_report_generation_history_scrolls_inside_output_panel():
     assert "scrollbar-gutter: stable" in css
 
 
-def test_templates_list_keeps_report_projects_when_legacy_template_api_fails():
+def test_templates_list_uses_report_projects_as_its_only_source():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
 
-    assert "Promise.allSettled" in source
-    assert "Failed to load legacy templates" in source
-    assert "mergeTemplatesWithReportProjects(" in source
-    assert "legacyResult.status === 'fulfilled'" in source
-    assert "reportProjectsResult.status === 'fulfilled'" in source
+    assert "buildTemplatesFromReportProjects(currentTemplateState.reportProjects)" in source
+    assert "apiCall('GET', '/api/report-projects/')" in source
+    assert "apiCall('GET', '/api/templates/')" not in source[:source.index('function buildTemplateListStatus')]
     assert "currentTemplateState.reportProjects" in source
     assert "document.getElementById('templates-grid')" in source
     assert "document.getElementById('template-list')" not in source
 
 
-def test_templates_list_exposes_source_failures_instead_of_empty_state():
+def test_templates_list_exposes_project_scan_failures_instead_of_empty_state():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
 
-    assert "Promise.allSettled" in source
     assert "templateListStatus" in source
-    assert "两个模板来源均加载失败" in source
-    assert "报告项目加载失败" in source
-    assert "模板库加载失败" in source
+    assert "报告项目扫描问题" in source
     assert "renderTemplateListStatus" in source
     assert "showEmptyState" in source
 
@@ -526,7 +521,7 @@ def test_report_workbench_uses_report_project_real_asset_summary():
     assert "getTemplateWorkbenchSections" in source
     assert "getTemplateWorkbenchPlaceholders" in source
     assert "project?.word_placeholders" in source
-    assert "project?.report_config?.sections" in source
+    assert "project?.report_config?.placeholders" in source
     assert "project?.report_config_source" in source
     assert "project?.prompt_templates_source" in source
     assert "getTemplateWorkbenchSource" in source
@@ -1535,12 +1530,12 @@ def test_embedded_query_mode_uses_prompt_template_without_json_source():
     assert "if (!usesEmbeddedPromptQueries(project)) {" in source
 
 
-def test_prompt_template_view_uses_generated_library_when_reference_is_raw():
+def test_prompt_template_view_uses_only_bound_markdown_source():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
 
-    assert "buildPromptTemplateLibraryMarkdown" in source
-    assert "shouldUsePromptTemplateLibraryDraft" in source
-    assert "Markdown Prompt（模板库草稿）" in source
+    assert "buildPromptTemplateLibraryMarkdown" not in source
+    assert "shouldUsePromptTemplateLibraryDraft" not in source
+    assert "content: project?.prompt_templates_source || ''" in source
 
 
 def test_report_project_placeholders_skip_legacy_template_placeholder_api():

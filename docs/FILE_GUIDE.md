@@ -82,7 +82,7 @@
 | `app/api/routes/outcome_journal.py` | 结果日志 API：记录结果、查询相似案例 |
 | `app/api/routes/pipeline.py` | 管道 API：运行数据处理管道 |
 | `app/api/routes/report.py` | 报告 API：生成各类报告 |
-| `app/api/routes/report_projects.py` | 报告项目 API：列出/重命名项目，保存 `section_config.yaml` / `prompt_templates.md` 源码，返回 `compiled_plan` 生成预检计划，委托 `ReportProjectRunService` 配置驱动生成 DOCX/PPTX，返回下载和 HTML 预览入口 |
+| `app/api/routes/report_projects.py` | 报告项目 API：列出/重命名项目，保存 `report_config.yaml` / `prompt_templates.md` 源码，返回 `compiled_plan` 生成预检计划，委托 `ReportProjectRunService` 配置驱动生成 DOCX/PPTX，返回下载和 HTML 预览入口 |
 | `app/api/routes/scenarios.py` | 情景 API：生成多情景分析 |
 | `app/api/routes/search.py` | 搜索 API：全局跨对象搜索 |
 | `app/api/routes/signal_lab.py` | 信号实验室 API：特征、标签、评分、回测 |
@@ -484,10 +484,10 @@
 
 | 文件/目录 | 说明 |
 |---|---|
-| `report_projects/<项目>/project.yaml` | 项目资产索引：声明 Word 模板、Excel 底稿、section config、prompt templates、输出目录和 run-log 目录 |
+| `report_projects/<项目>/project.yaml` | 项目资产索引：声明模板、Excel 底稿、统一 report config、必需的 Markdown prompt templates、输出目录和 run-log 目录 |
 | `report_projects/<项目>/templates/` | Word 模板目录，模板中的 `{{占位符}}` 由报告项目 API 提取和替换 |
 | `report_projects/<项目>/data/` | Excel 数据和图表底稿目录 |
-| `report_projects/<项目>/config/section_config.yaml` | Word 占位符、Prompt 模板、静态值、Excel 来源和图表替换规则 |
+| `report_projects/<项目>/config/report_config.yaml` | 统一占位符配置：静态值、Excel 来源、图表替换规则和 Markdown Prompt 模板引用 |
 | `report_projects/<项目>/config/prompt_templates.md` | Markdown Prompt 模板库；每个 `##` 标题是模板名，模板内的 `检索 Query` 用于 evidence 检索 |
 | `report_projects/<项目>/generated/` | 生成的 DOCX 输出 |
 | `report_projects/<项目>/runs/` | 生成运行日志，记录占位符、evidence、模型、token、图表和 warnings |

@@ -1,6 +1,6 @@
 """Report project folder manager.
 
-Each report project owns its Word template, Excel workbook, section config,
+Each report project owns its Word template, Excel workbook, report config,
 generated documents, and run logs under one project directory.
 """
 
@@ -28,7 +28,7 @@ class ReportProject:
     report_config_path: Path
     output_dir: Path
     run_log_dir: Path
-    prompt_templates_path: Optional[Path] = None
+    prompt_templates_path: Path
     data_source_paths: List[Path] = field(default_factory=list)
     generated_reports: List[Path] = field(default_factory=list)
     config: Dict[str, Any] = field(default_factory=dict)
@@ -155,7 +155,6 @@ class ReportProjectManager:
             source_dir / "创业板50周报模板.docx": templates_dir / "report_template.docx",
             source_dir / "创业板50周报（iFind版）.xlsx": data_dir / "创业板50周报（iFind版）.xlsx",
             source_dir / "创业板50周报（Wind版）.xlsx": data_dir / "创业板50周报（Wind版）.xlsx",
-            source_dir / "创业板50周报模板.yaml": config_dir / "report_config.yaml",
         }
 
         try:
@@ -168,18 +167,26 @@ class ReportProjectManager:
                 else:
                     logger.warning("Report project source asset missing", source=str(source))
 
+            report_config_path = config_dir / "report_config.yaml"
+            report_config_path.write_text("placeholders: {}\n", encoding="utf-8")
+
             project_yaml = project_dir / "project.yaml"
             project_data = {
                 "name": "创业板50周报",
                 "active_word_template": "templates/report_template.docx",
                 "active_excel_workbook": "data/创业板50周报（iFind版）.xlsx",
                 "report_config": "config/report_config.yaml",
+                "prompt_templates": "config/prompt_templates.md",
                 "data_sources": [],
                 "output_dir": "generated",
                 "run_log_dir": "runs",
             }
             project_yaml.write_text(
                 yaml.safe_dump(project_data, allow_unicode=True, sort_keys=False),
+                encoding="utf-8",
+            )
+            (config_dir / "prompt_templates.md").write_text(
+                "# Prompt 模板库\n",
                 encoding="utf-8",
             )
             logger.info("Bootstrapped report project", project_dir=str(project_dir))
@@ -269,6 +276,10 @@ class ReportProjectManager:
         project_type = str(data.get("project_type") or "word").strip().lower()
         if project_type not in {"word", "ppt"}:
             raise ValueError(f"Unsupported report project type: {project_type}")
+        if not data.get("report_config"):
+            raise ValueError("Report project requires report_config")
+        if not data.get("prompt_templates"):
+            raise ValueError("Report project requires prompt_templates")
 
         self._validate_project_asset_paths(project_dir, data)
         word_template_path = self._resolve(project_dir, data.get("active_word_template"))
@@ -278,14 +289,17 @@ class ReportProjectManager:
         report_config_path = self._resolve(project_dir, data.get("report_config"))
         output_dir = self._resolve(project_dir, data.get("output_dir", "generated"))
         run_log_dir = self._resolve(project_dir, data.get("run_log_dir", "runs"))
-        prompt_templates_path = self._resolve_optional(project_dir, data.get("prompt_templates"))
+        prompt_templates_path = self._resolve(project_dir, data.get("prompt_templates"))
         data_source_paths = [
             self._resolve(project_dir, source_path)
             for source_path in data.get("data_sources", [])
             if source_path
         ]
 
-        required_assets = [("report_config", report_config_path)]
+        required_assets = [
+            ("report_config", report_config_path),
+            ("prompt_templates", prompt_templates_path),
+        ]
         if project_type == "ppt":
             if not ppt_template_path:
                 raise FileNotFoundError(
@@ -301,10 +315,6 @@ class ReportProjectManager:
         if data.get("active_excel_workbook") and not excel_workbook_path.exists():
             raise FileNotFoundError(
                 f"Report project asset missing: active_excel_workbook -> {excel_workbook_path}"
-            )
-        if prompt_templates_path and not prompt_templates_path.exists():
-            raise FileNotFoundError(
-                f"Report project asset missing: prompt_templates -> {prompt_templates_path}"
             )
         for path in data_source_paths:
             if not path.exists():

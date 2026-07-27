@@ -8,7 +8,7 @@
 
 已有后端链路保持不变：
 
-- `section_config.yaml` 定义 Word 占位符与 section 规则。
+- `report_config.yaml` 定义统一占位符与生成规则。
 - `prompt_templates.md` 定义写作模板与检索 Query。
 - `/api/report-projects/{slug}/render` 执行配置解析、证据检索、逐段生成、Word 替换、图表/表格嵌入和 runs 日志落盘。
 
@@ -92,8 +92,8 @@
 本设计不要求新增后端接口。页面可继续使用现有字段：
 
 - `report_project.word_placeholders`
-- `report_project.section_config`
-- `report_project.section_config_source`
+- `report_project.report_config`
+- `report_project.report_config_source`
 - `report_project.prompt_templates_source`
 - `report_project.excel_sheets`
 - `report_project.data_assets`

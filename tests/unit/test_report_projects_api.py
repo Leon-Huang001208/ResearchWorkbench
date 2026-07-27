@@ -191,6 +191,7 @@ def test_market_hotspot_prompt_uses_component_structure_without_metadata(tmp_pat
         word_template_path=tmp_path / "report_template.docx",
         excel_workbook_path=tmp_path / "report_data.xlsx",
         report_config_path=tmp_path / "report_config.yaml",
+        prompt_templates_path=tmp_path / "prompt_templates.md",
         output_dir=tmp_path / "generated",
         run_log_dir=tmp_path / "runs",
     )

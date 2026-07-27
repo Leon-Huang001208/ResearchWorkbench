@@ -20,7 +20,7 @@ def write_project(root: Path, name: str = "创业板50周报") -> Path:
     (project_dir / "data" / "cyb50.xlsx").write_bytes(b"xlsx")
     (project_dir / "data" / "domestic.json").write_text("{}", encoding="utf-8")
     (project_dir / "config" / "report_config.yaml").write_text(
-        "sections:\n- key: market_summary\n  title: 市场概览\n",
+        "placeholders:\n  market_summary:\n    type: static\n    value: 市场概览\n",
         encoding="utf-8",
     )
     (project_dir / "config" / "prompt_templates.md").write_text("前缀提示词", encoding="utf-8")
@@ -32,6 +32,7 @@ def write_project(root: Path, name: str = "创业板50周报") -> Path:
                 "active_word_template: templates/report_template.docx",
                 "active_excel_workbook: data/cyb50.xlsx",
                 "report_config: config/report_config.yaml",
+                "prompt_templates: config/prompt_templates.md",
                 "prompt_templates: config/prompt_templates.md",
                 "data_sources:",
                 "  - data/domestic.json",
@@ -57,6 +58,10 @@ def write_ppt_project(root: Path, name: str = "静态PPT模板") -> Path:
         "placeholders:\n  title:\n    type: static\n    value: 月度报告\n",
         encoding="utf-8",
     )
+    (project_dir / "config" / "prompt_templates.md").write_text(
+        "# Prompt 模板库\n",
+        encoding="utf-8",
+    )
     (project_dir / "generated" / "2026-06-05_静态PPT模板.pptx").write_bytes(b"deck")
     (project_dir / "project.yaml").write_text(
         "\n".join(
@@ -65,6 +70,7 @@ def write_ppt_project(root: Path, name: str = "静态PPT模板") -> Path:
                 "project_type: ppt",
                 "active_ppt_template: templates/report_template.pptx",
                 "report_config: config/report_config.yaml",
+                "prompt_templates: config/prompt_templates.md",
                 "output_dir: generated",
                 "run_log_dir: runs",
             ]
@@ -144,6 +150,7 @@ def test_scan_projects_rejects_asset_paths_outside_project_root(tmp_path: Path):
                 "active_word_template: ../../private/report_template.docx",
                 "active_excel_workbook: data/cyb50.xlsx",
                 "report_config: config/report_config.yaml",
+                "prompt_templates: config/prompt_templates.md",
                 "output_dir: generated",
                 "run_log_dir: runs",
             ]
@@ -159,6 +166,17 @@ def test_scan_projects_rejects_asset_paths_outside_project_root(tmp_path: Path):
     ]
 
 
+def test_project_requires_markdown_prompt_library(tmp_path: Path):
+    """项目清单必须显式绑定存在的 Markdown Prompt 模板库。"""
+    project_dir = write_project(tmp_path)
+    (project_dir / "config" / "prompt_templates.md").unlink()
+
+    scan = ReportProjectManager(projects_root=tmp_path).scan_projects()
+
+    assert scan.projects == []
+    assert scan.issues[0].code == "missing_project_asset"
+
+
 def test_get_project_raises_for_unknown_project(tmp_path: Path):
     """未知项目应明确报错，避免前端显示半绑定状态。"""
     write_project(tmp_path)
@@ -168,17 +186,13 @@ def test_get_project_raises_for_unknown_project(tmp_path: Path):
         manager.get_project("不存在的项目")
 
 
-def test_bootstrap_cyb50_project_package_copies_confirmed_assets(tmp_path: Path):
+def test_bootstrap_cyb50_project_package_uses_unified_config(tmp_path: Path):
     """创业板50默认项目包使用 report_template.docx 和 Excel 数据底稿。"""
     source_dir = tmp_path / "source"
     source_dir.mkdir()
     (source_dir / "创业板50周报模板.docx").write_bytes(b"docx")
     (source_dir / "创业板50周报（iFind版）.xlsx").write_bytes(b"ifind")
     (source_dir / "创业板50周报（Wind版）.xlsx").write_bytes(b"wind")
-    (source_dir / "创业板50周报模板.yaml").write_text(
-        "name: 创业板50周报模板\nsections:\n- key: market_summary\n  title: 市场概览\n",
-        encoding="utf-8",
-    )
     manager = ReportProjectManager(projects_root=tmp_path / "report_projects")
 
     project = manager.bootstrap_cyb50_project(source_dir=source_dir)
@@ -190,3 +204,5 @@ def test_bootstrap_cyb50_project_package_copies_confirmed_assets(tmp_path: Path)
     assert project.excel_workbook_path.read_bytes() == b"ifind"
     assert (project.project_dir / "data" / "创业板50周报（Wind版）.xlsx").read_bytes() == b"wind"
     assert project.report_config_path.name == "report_config.yaml"
+    assert project.report_config_path.read_text(encoding="utf-8") == "placeholders: {}\n"
+    assert project.prompt_templates_path.name == "prompt_templates.md"

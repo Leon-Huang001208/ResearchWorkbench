@@ -38,6 +38,10 @@ let pointerDragState = null;
 let editingTemplateName = null;
 let originalTemplates = [];
 
+function legacyTemplatesApiRemoved() {
+    throw new Error('旧模板 API 已移除；请使用报告项目工作台');
+}
+
 const REPORT_GENERATION_STEPS = [
     { key: 'check', label: '准备模板', icon: 'codicon-checklist' },
     { key: 'mapping', label: '读取底稿', icon: 'codicon-table' },
@@ -52,7 +56,7 @@ const REPORT_UPLOAD_FILE_INPUTS = [
     'project-word-template-input',
     'project-ppt-template-input',
     'project-excel-workbook-input',
-    'project-section-config-input',
+    'project-report-config-input',
     'project-prompt-templates-input',
     'project-data-files-input'
 ];
@@ -71,32 +75,12 @@ async function loadTemplatesPage() {
 }
 
 async function loadTemplatesList() {
-    const [legacyResult, reportProjectsResult] = await Promise.allSettled([
-        apiCall('GET', '/api/templates/'),
-        apiCall('GET', '/api/report-projects/')
-    ]);
-    const legacyLoaded = legacyResult.status === 'fulfilled';
-    const reportProjectsLoaded = reportProjectsResult.status === 'fulfilled';
-    const templateData = legacyLoaded ? legacyResult.value : { templates: [] };
-    const reportProjectsData = reportProjectsLoaded ? reportProjectsResult.value : { projects: [], issues: [] };
-
-    if (!legacyLoaded) {
-        console.warn('Failed to load legacy templates:', legacyResult.reason);
-    }
-    if (!reportProjectsLoaded) {
-        console.warn('Failed to load report projects:', reportProjectsResult.reason);
-    }
-
     try {
+        const reportProjectsData = await apiCall('GET', '/api/report-projects/');
         currentTemplateState.reportProjects = reportProjectsData.projects || [];
         currentTemplateState.reportProjectIssues = reportProjectsData.issues || [];
-        currentTemplateState.templates = mergeTemplatesWithReportProjects(
-            templateData.templates || [],
-            currentTemplateState.reportProjects
-        );
+        currentTemplateState.templates = buildTemplatesFromReportProjects(currentTemplateState.reportProjects);
         currentTemplateState.templateListStatus = buildTemplateListStatus({
-            legacyLoaded,
-            reportProjectsLoaded,
             reportProjectIssues: currentTemplateState.reportProjectIssues,
             templateCount: currentTemplateState.templates.length
         });
@@ -114,28 +98,7 @@ async function loadTemplatesList() {
     }
 }
 
-function buildTemplateListStatus({ legacyLoaded, reportProjectsLoaded, reportProjectIssues, templateCount }) {
-    if (!legacyLoaded && !reportProjectsLoaded) {
-        return {
-            kind: 'error',
-            message: '两个模板来源均加载失败，请检查服务后重试。',
-            showEmptyState: false
-        };
-    }
-    if (!legacyLoaded) {
-        return {
-            kind: 'warning',
-            message: '模板库加载失败，正在显示可用报告项目。',
-            showEmptyState: false
-        };
-    }
-    if (!reportProjectsLoaded) {
-        return {
-            kind: 'warning',
-            message: '报告项目加载失败，正在显示可用模板库。',
-            showEmptyState: false
-        };
-    }
+function buildTemplateListStatus({ reportProjectIssues, templateCount }) {
     if (reportProjectIssues.length) {
         return {
             kind: 'warning',
@@ -175,29 +138,12 @@ async function loadReportProjectsList() {
     return currentTemplateState.reportProjects;
 }
 
-function mergeTemplatesWithReportProjects(templates, projects) {
-    const merged = [...templates];
-    const byName = new Map(merged.map(template => [template.template_name || template.name, template]));
-
-    projects.forEach(project => {
+function buildTemplatesFromReportProjects(projects) {
+    return projects.map(project => {
         const templateName = project.name || project.slug;
-        const existing = byName.get(templateName) || byName.get(`${templateName}模板`);
         const projectPlaceholders = buildPlaceholderNamesFromReportProject(project);
         const projectSections = buildSectionsFromReportProject(project);
-        if (existing) {
-            existing.template_name = templateName;
-            existing.name = templateName;
-            existing.description = project.description || existing.description || '报告项目包';
-            existing.report_project = project;
-            existing.has_docx = existing.has_docx || Boolean(project.word_template_filename);
-            existing.has_pptx = existing.has_pptx || Boolean(project.ppt_template_filename);
-            existing.has_excel = existing.has_excel || Boolean(project.excel_workbook_filename);
-            existing.placeholders = projectPlaceholders.length ? projectPlaceholders : (existing.placeholders || []);
-            existing.sections = projectSections.length ? projectSections : (existing.sections || []);
-            return;
-        }
-
-        merged.push({
+        return {
             template_name: templateName,
             name: templateName,
             description: project.description || '报告项目包',
@@ -208,11 +154,9 @@ function mergeTemplatesWithReportProjects(templates, projects) {
             placeholders: projectPlaceholders,
             sections: projectSections,
             report_project: project,
-            is_report_project_only: true
-        });
+            is_report_project: true
+        };
     });
-
-    return merged;
 }
 
 function buildPlaceholderNamesFromReportProject(project) {
@@ -238,21 +182,7 @@ function buildPlaceholderNamesFromReportProject(project) {
 }
 
 function buildSectionsFromReportProject(project) {
-    const projectSections = project?.report_config?.sections;
-    if (Array.isArray(projectSections) && projectSections.length) {
-        return projectSections;
-    }
-
     const rawPlaceholders = project?.report_config?.placeholders;
-    if (Array.isArray(rawPlaceholders)) {
-        return rawPlaceholders
-            .map(item => ({
-                name: normalizePlaceholderName(item?.name || item?.key || item?.placeholder),
-                title: item?.title || item?.label || item?.name || item?.key || item?.placeholder,
-                ...item
-            }))
-            .filter(item => item.name);
-    }
     if (rawPlaceholders && typeof rawPlaceholders === 'object') {
         return Object.entries(rawPlaceholders).map(([name, config]) => ({
             name: normalizePlaceholderName(name),
@@ -490,7 +420,7 @@ function updateReportProjectUploadFileLabel(inputId) {
     if (!label) return;
     const files = Array.from(input?.files || []);
     if (!files.length) {
-        label.textContent = inputId === 'project-section-config-input' ? '自动生成' : '未选择';
+        label.textContent = inputId === 'project-report-config-input' ? '自动生成' : '未选择';
         label.classList.remove('has-file');
         return;
     }
@@ -711,10 +641,7 @@ async function persistCurrentTemplateOrder(successMessage = '模板顺序已更�
     currentTemplateState.templates = newOrder.map(name => templateMap[name]);
 
     try {
-        const reorderableNames = getReorderableTemplateNames(newOrder);
-        if (reorderableNames.length) {
-            await apiCall('POST', '/api/templates/reorder', { template_names: reorderableNames });
-        }
+        if (getReorderableTemplateNames(newOrder).length) legacyTemplatesApiRemoved();
         toast(successMessage, 'success');
     } catch (e) {
         toast('更新顺序失败: ' + e.message, 'error');
@@ -752,17 +679,8 @@ async function saveTemplateInlineName(input) {
             await apiCall('PATCH', `/api/report-projects/${encodeURIComponent(projectSlug)}`, {
                 project_name: newName
             });
-            try {
-                await apiCall('PATCH', `/api/templates/${encodeURIComponent(originalName)}`, {
-                    template_name: newName
-                });
-            } catch (templateError) {
-                console.warn('Template metadata rename skipped:', templateError);
-            }
         } else {
-            await apiCall('PATCH', `/api/templates/${encodeURIComponent(originalName)}`, {
-                template_name: newName
-            });
+            legacyTemplatesApiRemoved();
         }
 
         toast('名称已更新', 'success');
@@ -804,11 +722,7 @@ async function saveTemplateEdit() {
     }
 
     try {
-        await apiCall('PATCH', `/api/templates/${encodeURIComponent(editingTemplateName)}`, {
-            template_name: newName,
-            description: newDescription,
-            version: newVersion
-        });
+        legacyTemplatesApiRemoved();
 
         toast('模板已更新', 'success');
         closeEditTemplateModal();
@@ -843,10 +757,7 @@ async function saveTemplatesOrder() {
     const newOrder = Array.from(cards).map(card => card.dataset.templateName);
 
     try {
-        const reorderableNames = getReorderableTemplateNames(newOrder);
-        if (reorderableNames.length) {
-            await apiCall('POST', '/api/templates/reorder', { template_names: reorderableNames });
-        }
+        if (getReorderableTemplateNames(newOrder).length) legacyTemplatesApiRemoved();
 
         toast('模板已保存', 'success');
         isEditMode = false;
@@ -867,7 +778,7 @@ function getReorderableTemplateNames(templateNames) {
             template
         ])
     );
-    return templateNames.filter(name => !templateByName.get(name)?.is_report_project_only);
+    return templateNames.filter(name => !templateByName.get(name)?.is_report_project);
 }
 
 // ─── Placeholder Management ────────────────────────────────────
@@ -880,8 +791,7 @@ function clearPlaceholderData() {
 
 async function initTemplateSelects() {
     try {
-        const data = await apiCall('GET', '/api/templates/');
-        const templates = data.templates || [];
+        const templates = currentTemplateState.templates || [];
 
         const configureSelect = document.getElementById('configure-template-select');
         const renderSelect = document.getElementById('render-template-select');
@@ -924,11 +834,14 @@ async function discoverPlaceholders() {
     if (noPlaceholders) noPlaceholders.classList.add('hidden');
 
     try {
-        const data = await apiCall('GET', `/api/templates/${encodeURIComponent(templateName)}/placeholders/${fileType}`);
-        currentTemplateState.discoveredPlaceholders = data.placeholders || [];
+        const template = (currentTemplateState.templates || []).find(item =>
+            (item.template_name || item.name) === templateName
+        );
+        const placeholders = getTemplateWorkbenchPlaceholders(template || {});
+        currentTemplateState.discoveredPlaceholders = placeholders;
         currentTemplateState.selectedTemplate = templateName;
         currentTemplateState.selectedFileType = fileType;
-        renderPlaceholders(data.placeholders || []);
+        renderPlaceholders(placeholders);
     } catch (e) {
         toast('发现占位符失败: ' + e.message, 'error');
     } finally {
@@ -1009,22 +922,11 @@ async function loadTemplatePlaceholdersForRender(templateName, fileType = 'docx'
             // 使用项目包解析出的 Word 占位符；PPT 项目优先使用 PPT 占位符，避免报告项目走旧模板 API。
             placeholders = projectPlaceholders;
         } else {
-            try {
-                const data = await apiCall('GET', `/api/templates/${encodeURIComponent(templateName)}/placeholders/${fileType}`);
-                placeholders = data.placeholders || [];
-            } catch (e) {
-                placeholders = [];
-            }
+            legacyTemplatesApiRemoved();
         }
 
-        let config = {};
-        try {
-            const configData = await apiCall('GET', `/api/templates/${encodeURIComponent(templateName)}/config`);
-            config = configData.config || {};
-            currentTemplateState.placeholderConfigs = config.placeholders || {};
-        } catch (e) {
-            // no config is fine
-        }
+        const config = currentTemplateState.selectedReportProject?.report_config || {};
+        currentTemplateState.placeholderConfigs = config.placeholders || {};
 
         renderRenderPlaceholders(placeholders, currentTemplateState.placeholderConfigs || {});
     } catch (e) {
@@ -2362,30 +2264,23 @@ function renderAdvancedMaintenance(template) {
 function getTemplateWorkbenchSource(template, sourceKind = 'report_config') {
     const project = template.report_project || null;
     if (sourceKind === 'prompt_templates') {
-        const useLibraryDraft = shouldUsePromptTemplateLibraryDraft(template);
         return {
-            content: useLibraryDraft
-                ? buildPromptTemplateLibraryMarkdown(template)
-                : (project?.prompt_templates_source || buildPromptTemplateLibraryMarkdown(template)),
+            content: project?.prompt_templates_source || '',
             sourceKind: 'prompt_templates',
-            label: useLibraryDraft ? 'Markdown Prompt（模板库草稿）' : 'Markdown Prompt'
+            label: 'Markdown Prompt'
         };
     }
     if (sourceKind === 'report_config') {
         return {
-            content: project?.report_config_source || buildPlaceholderMappingConfigYaml(template),
+            content: project?.report_config_source || '',
             sourceKind: 'report_config',
             label: '报告配置 YAML'
         };
     }
     return {
-        content: shouldUsePlaceholderMappingDraft(template)
-            ? buildPlaceholderMappingConfigYaml(template)
-            : (project?.report_config_source || buildPlaceholderMappingConfigYaml(template)),
+        content: project?.report_config_source || '',
         sourceKind: 'report_config',
-        label: shouldUsePlaceholderMappingDraft(template)
-            ? 'YAML 占位符映射（草稿）'
-            : 'YAML 占位符映射'
+        label: '报告配置 YAML'
     };
 }
 
@@ -2438,15 +2333,7 @@ function getCurrentWorkbenchTemplate() {
 
 function getTemplateWorkbenchSections(template) {
     const project = template.report_project || null;
-    const projectSections = project?.report_config?.sections;
-    if (Array.isArray(projectSections) && projectSections.length) {
-        return projectSections;
-    }
-    const placeholderSections = buildSectionsFromReportProject(project);
-    if (placeholderSections.length) {
-        return placeholderSections;
-    }
-    return template.sections || [];
+    return buildSectionsFromReportProject(project);
 }
 
 function getTemplateWorkbenchPlaceholders(template) {
@@ -2496,7 +2383,7 @@ function buildTemplateAssetChecks(template, sections) {
             ok: Boolean(project?.report_config_filename || sections.length > 0),
             value: project?.report_config_filename || (sections.length ? `${sections.length} 段` : '待配置'),
             action: 'upload',
-            actionTarget: 'project-section-config-input',
+            actionTarget: 'project-report-config-input',
             actionLabel: '上传配置'
         }
     ];
@@ -5789,7 +5676,7 @@ function buildUpdatedPromptTemplatesSourceFromQuery(template, mapping, placehold
         || resolvePromptTemplateName(placeholderName, template?.report_project);
     if (!promptName) return null;
 
-    const source = template?.report_project?.prompt_templates_source || buildPromptTemplateLibraryMarkdown(template);
+    const source = template?.report_project?.prompt_templates_source || '';
     const existingBlock = getPromptTemplateBlock(source, promptName);
     if (!existingBlock) {
         const fragment = [
@@ -6411,66 +6298,7 @@ function renderPlaceholderIssueQueue(template, placeholderReadiness) {
 }
 
 function buildTemplateConfigYaml(template) {
-    if (template.report_project) return buildPlaceholderMappingConfigYaml(template);
-    const name = template.template_name || template.name || currentSelectedTemplate || 'report_template';
-    const project = template.report_project || null;
-    const isPptProject = project?.project_type === 'ppt';
-    const templateAssetKey = isPptProject ? 'ppt_template' : 'word_template';
-    const templateAssetValue = project?.template_filename
-        || (isPptProject ? project?.ppt_template_filename : project?.word_template_filename)
-        || (template.has_docx ? '已绑定' : '待上传');
-    const sections = getTemplateWorkbenchSections(template).length ? getTemplateWorkbenchSections(template) : [
-        {
-            key: 'main_viewpoint',
-            title: '行情回顾及主要观点',
-            target_words: 350,
-            placeholder: 'main_viewpoint',
-            required_facets: ['主要指数表现', '成交额', '市场主线']
-        }
-    ];
-
-    const lines = [
-        `name: ${name}`,
-        `description: ${template.description || `${name} 模板配置`}`,
-        `version: ${template.version || '1.0'}`,
-        'assets:',
-        `  project: ${project?.name || '待绑定项目包'}`,
-        `  ${templateAssetKey}: ${templateAssetValue}`,
-        `  excel_workbook: ${project?.excel_workbook_filename || (template.has_excel ? '已绑定' : '待上传')}`,
-        `  report_config: ${project?.report_config_filename || '当前模板 YAML'}`,
-        `  prompt_templates: ${project?.prompt_templates_filename || '未绑定'}`,
-        `  output_dir: ${project?.output_dir || '待绑定 generated 目录'}`,
-        '  data_sources:',
-        ...(project?.data_source_files?.length
-            ? project.data_source_files.map(file => `    - ${file}`)
-            : ['    - 未绑定']),
-        'sections:'
-    ];
-
-    sections.forEach(section => {
-        lines.push(`  - id: ${section.key}`);
-        lines.push(`    title: ${section.title || section.key}`);
-        lines.push(`    placeholder: "{{${section.placeholder || section.key}}}"`);
-        lines.push(`    type: ${section.placeholder?.includes('chart') ? 'excel_chart' : 'ai_text'}`);
-        lines.push(`    max_words: ${section.target_words || 250}`);
-        lines.push('    data_slots:');
-        const facets = section.required_facets?.length ? section.required_facets : ['excel.range_or_rag_profile'];
-        facets.forEach(facet => lines.push(`      - ${facet}`));
-        lines.push('    prompt: |');
-        lines.push(`      请围绕“${section.title || section.key}”撰写正式周报段落。`);
-        lines.push('      使用给定数据，语言客观审慎，不输出投资收益保证。');
-        lines.push('    validators:');
-        lines.push(`      evidence_policy: ${section.evidence_policy || 'strict'}`);
-        lines.push('      require_numbers_from_data: true');
-        lines.push('      forbidden_terms:');
-        const forbiddenTerms = section.forbidden_terms?.length
-            ? section.forbidden_terms
-            : ['保本', '稳赚', '收益保证', '明确买入', '目标价'];
-        forbiddenTerms.forEach(term => lines.push(`        - ${term}`));
-        lines.push(`      investment_advice_policy: ${section.investment_advice_policy || 'no_direct_recommendation'}`);
-    });
-
-    return lines.join('\n');
+    return buildPlaceholderMappingConfigYaml(template);
 }
 
 function buildPlaceholderMappingConfigYaml(template, mappingsOverride = null) {
@@ -6932,88 +6760,6 @@ function inferDefaultWritingStructure(name) {
         '结合一个有明确 evidence 支撑的政策、产业或景气度变化，给出一句审慎趋势判断',
         '最后如需表达关注方向，应使用“后续可关注”“值得跟踪”等克制表述，不得构成直接投资建议'
     ];
-}
-
-function shouldUsePromptTemplateLibraryDraft(template) {
-    const source = template.report_project?.prompt_templates_source || '';
-    if (!source.trim()) return true;
-    return source.includes('要求如下：') && !source.includes('# Prompt 模板库');
-}
-
-function buildPromptTemplateLibraryMarkdown(template) {
-    const name = template.template_name || template.name || currentSelectedTemplate || 'report_template';
-    return [
-        '# Prompt 模板库',
-        '',
-        `适用项目：${name}`,
-        '',
-        '说明：这里是可复用写作模板，不是单个占位符的完整提示词。占位符在 report_config.yaml 里通过 prompt_template 选择下面的模板；检索 Query 用来先从数据库/新闻库取 evidence，再由写作规则生成正文。',
-        '',
-        '## domestic_market',
-        '用于：A股市场回顾',
-        '',
-        '```text',
-        '{{query}}',
-        '基于上传材料概括本周 A 股市场热点与风格变化。只使用材料内事实和数据，避免指数点位预测、个股推荐和收益承诺。输出一段正式周报文字，控制在 100-150 字。',
-        '```',
-        '',
-        '## domestic_macro',
-        '用于：中国宏观',
-        '',
-        '```text',
-        '{{query}}',
-        '围绕宏观数据、货币政策、财政政策和产业政策提炼本周变化。结论必须由材料事实支撑，语言客观审慎，不使用“根据文件/数据显示”等引导语。输出一段 250-350 字。',
-        '```',
-        '',
-        '## industry_review',
-        '用于：人工智能、电子、医药生物、消费、金融地产、航天、电力设备新能源等行业段落',
-        '',
-        '```text',
-        '{{query}}',
-        '请撰写 {{param}} 行业周度点评，覆盖政策、供需、技术、价格或景气度变化。优先使用材料中的新闻和数据，避免外部知识、个股推荐和投资收益保证。输出一段 250-400 字。',
-        '```',
-        '',
-        '## overseas_market',
-        '用于：美国、欧洲、日本、海外市场',
-        '',
-        '```text',
-        '{{query}}',
-        '请概括 {{param}} 市场相关宏观、政策、利率、汇率、地缘或权益市场信息。只陈述材料内事实，并给出由事实支撑的审慎总结。输出一段 250-350 字。',
-        '```',
-        '',
-        '## overseas_news',
-        '用于：美国新闻、欧洲新闻',
-        '',
-        '```text',
-        '{{query}}',
-        '提炼影响当地权益、债券、汇率或风险偏好的核心新闻。保留事实链条，避免无依据推断。输出一段 150-250 字。',
-        '```',
-        '',
-        '## overseas_hk_tech',
-        '用于：港股科技',
-        '',
-        '```text',
-        '{{query}}',
-        '概括港股科技相关板块、政策、产业和上市公司动态。若提及个股，仅作为事实示例，不构成投资建议。输出一段 250-350 字。',
-        '```',
-        '',
-        '## overseas_hk_dividend',
-        '用于：港股央企红利',
-        '',
-        '```text',
-        '{{query}}',
-        '概括港股央企红利相关行业、政策、资金偏好和高股息资产变化。不得直接推荐买入或承诺收益。输出一段 250-350 字。',
-        '```',
-        '',
-        '## commodity_market',
-        '用于：原油、黄金',
-        '',
-        '```text',
-        '{{query}}',
-        '围绕 {{param}} 的供需、政策、美元/利率、地缘风险和资金面变化撰写周度点评。只使用材料内信息，输出一段 200-300 字。',
-        '```',
-        ''
-    ].join('\n');
 }
 
 function setTemplateAdvancedDrawerOpen(open) {
@@ -7641,7 +7387,7 @@ async function uploadTemplate() {
     const wordInput = document.getElementById('project-word-template-input');
     const pptInput = document.getElementById('project-ppt-template-input');
     const excelInput = document.getElementById('project-excel-workbook-input');
-    const sectionInput = document.getElementById('project-section-config-input');
+    const reportConfigInput = document.getElementById('project-report-config-input');
     const promptInput = document.getElementById('project-prompt-templates-input');
     const dataFilesInput = document.getElementById('project-data-files-input');
     const statusEl = document.getElementById('template-upload-status');
@@ -7651,7 +7397,8 @@ async function uploadTemplate() {
     const wordFile = wordInput?.files?.[0];
     const pptFile = pptInput?.files?.[0];
     const excelFile = excelInput?.files?.[0];
-    const sectionFile = sectionInput?.files?.[0];
+    const reportConfigFile = reportConfigInput?.files?.[0];
+    const promptFile = promptInput?.files?.[0];
 
     if (!projectName) {
         toast('请输入报告项目名称', 'error');
@@ -7663,6 +7410,10 @@ async function uploadTemplate() {
     }
     if (projectType === 'ppt' && !pptFile) {
         toast('请选择 PPT 模板', 'error');
+        return;
+    }
+    if (!promptFile) {
+        toast('请选择 Markdown Prompt 模板', 'error');
         return;
     }
 
@@ -7682,12 +7433,10 @@ async function uploadTemplate() {
     if (excelFile) {
         formData.append('excel_workbook', excelFile);
     }
-    if (sectionFile) {
-        formData.append('report_config', sectionFile);
+    if (reportConfigFile) {
+        formData.append('report_config', reportConfigFile);
     }
-    if (promptInput?.files?.[0]) {
-        formData.append('prompt_templates', promptInput.files[0]);
-    }
+    formData.append('prompt_templates', promptFile);
     Array.from(dataFilesInput?.files || []).forEach(file => {
         formData.append('data_files', file);
     });
@@ -7718,7 +7467,7 @@ async function uploadTemplate() {
         closeUploadModal();
 
         if (nameInput) nameInput.value = '';
-        [wordInput, pptInput, excelInput, sectionInput, promptInput, dataFilesInput].forEach(input => {
+        [wordInput, pptInput, excelInput, reportConfigInput, promptInput, dataFilesInput].forEach(input => {
             if (input) input.value = '';
         });
         REPORT_UPLOAD_FILE_INPUTS.forEach(updateReportProjectUploadFileLabel);
@@ -7748,7 +7497,7 @@ async function enterFirstPlaceholderConfigurationMode(project) {
 
 async function downloadTemplateFile(name, type) {
     try {
-        window.open(`/api/templates/files/${encodeURIComponent(name)}/${type}`, '_blank');
+        legacyTemplatesApiRemoved();
     } catch (e) {
         toast('下载失败: ' + e.message, 'error');
     }
@@ -7758,14 +7507,7 @@ async function deleteTemplate(name) {
     if (!confirm(`确定要删除模板 "${name}" 吗？`)) return;
 
     try {
-        await apiCall('DELETE', `/api/templates/${encodeURIComponent(name)}`);
-        toast('模板已删除', 'success');
-        await loadTemplatesList();
-        await initTemplateSelects();
-
-        if (currentTemplateState.selectedTemplate === name) {
-            currentTemplateState.selectedTemplate = null;
-        }
+        legacyTemplatesApiRemoved();
     } catch (e) {
         toast('删除失败: ' + e.message, 'error');
     }
@@ -7788,14 +7530,7 @@ async function createYamlConfig() {
     }
 
     try {
-        await apiCall('POST', '/api/templates/create-yaml', {
-            name,
-            description,
-            yaml_content: yamlContent
-        });
-        toast('YAML配置创建成功', 'success');
-        await loadTemplatesList();
-        await initTemplateSelects();
+        legacyTemplatesApiRemoved();
     } catch (e) {
         toast('创建失败: ' + e.message, 'error');
     }
@@ -7837,20 +7572,8 @@ async function renderReportFromTemplate(options = {}) {
 
         if (!canonicalId && currentTemplateState.selectedReportProject) {
             result = await renderReportProject(currentTemplateState.selectedReportProject);
-        } else if (canonicalId) {
-            result = await apiCall('POST', '/api/templates/render-from-asset', {
-                template_name: templateName,
-                file_type: fileType,
-                canonical_id: canonicalId,
-                report_type: reportType,
-                additional_placeholders: currentTemplateState.placeholderValues
-            });
         } else {
-            result = await apiCall('POST', '/api/templates/render', {
-                template_name: templateName,
-                file_type: fileType,
-                placeholders: currentTemplateState.placeholderValues
-            });
+            legacyTemplatesApiRemoved();
         }
 
         currentTemplateState.renderedReportId = result.report_id || result.file_name || null;
@@ -7889,8 +7612,7 @@ async function renderReportFromTemplate(options = {}) {
         }
 
         if (resultEl) {
-            const downloadUrl = result.download_url
-                || (result.report_id ? `/api/templates/download/${encodeURIComponent(result.report_id)}` : null);
+            const downloadUrl = result.download_url || null;
             const previewUrl = result.preview_url || null;
             const downloadLink = document.getElementById('render-download-link');
             if (downloadLink && downloadUrl) {
@@ -8074,7 +7796,7 @@ function getReportProjectGenerationOptions() {
 
 async function downloadRenderedReport(reportId) {
     try {
-        window.open(`/api/templates/download/${encodeURIComponent(reportId)}`, '_blank');
+        legacyTemplatesApiRemoved();
     } catch (e) {
         toast('下载失败: ' + e.message, 'error');
     }
@@ -8097,8 +7819,7 @@ async function savePlaceholderConfig() {
     };
 
     try {
-        await apiCall('POST', '/api/templates/config', config);
-        toast('配置保存成功', 'success');
+        legacyTemplatesApiRemoved();
     } catch (e) {
         toast('保存配置失败: ' + e.message, 'error');
     }

@@ -1067,8 +1067,11 @@ class ReportProjectGenerationService:
                 section_info=info,
             )
 
-        template_name = str(config.get("prompt_template") or title)
-        template = templates.get(template_name) or build_fallback_template(config, title)
+        template_name, template = resolve_markdown_prompt_template(
+            placeholder=placeholder,
+            config=config,
+            templates=templates,
+        )
         raw_params = config.get("params")
         params: Dict[str, Any] = dict(raw_params) if isinstance(raw_params, dict) else {}
         max_words = int(config.get("max_words") or config.get("target_words") or 300)
@@ -1196,8 +1199,11 @@ class ReportProjectGenerationService:
         lookback_days: int,
         report_period: ReportPeriod,
     ) -> tuple[str, GeneratedSectionInfo]:
-        template_name = str(config.get("prompt_template") or title)
-        template = templates.get(template_name) or build_fallback_template(config, title)
+        template_name, template = resolve_markdown_prompt_template(
+            placeholder=placeholder,
+            config=config,
+            templates=templates,
+        )
         raw_params = config.get("params")
         params: Dict[str, Any] = dict(raw_params) if isinstance(raw_params, dict) else {}
         max_words = int(config.get("max_words") or config.get("target_words") or 180)
@@ -2167,24 +2173,14 @@ def _period_datetime_bounds(
 def iter_placeholder_configs(
     report_config: Dict[str, Any],
 ) -> Iterable[tuple[str, Dict[str, Any]]]:
-    """Yield normalized placeholder configs from both new and legacy schemas."""
+    """Yield placeholders from the unified report configuration schema."""
     placeholders = report_config.get("placeholders")
-    if isinstance(placeholders, dict):
-        for placeholder, config in placeholders.items():
-            if isinstance(config, dict):
-                yield str(placeholder), config
-            else:
-                yield str(placeholder), {"title": str(placeholder), "value": str(config)}
-        return
-
-    sections = report_config.get("sections")
-    if isinstance(sections, list):
-        for section in sections:
-            if not isinstance(section, dict):
-                continue
-            placeholder = section.get("placeholder") or section.get("key")
-            if placeholder:
-                yield str(placeholder), section
+    if not isinstance(placeholders, dict):
+        raise ValueError("report_config.placeholders must be a mapping")
+    for placeholder, config in placeholders.items():
+        if not isinstance(config, dict):
+            raise ValueError(f"report_config.placeholders.{placeholder} must be a mapping")
+        yield str(placeholder), config
 
 
 def apply_report_defaults_to_placeholder(
@@ -2279,23 +2275,22 @@ def parse_prompt_templates(source: str) -> Dict[str, PromptTemplateBlock]:
     return templates
 
 
-def build_fallback_template(config: Dict[str, Any], title: str) -> PromptTemplateBlock:
-    """Build a prompt template from legacy section config."""
-    required_facets = config.get("required_facets")
-    if isinstance(required_facets, list) and required_facets:
-        facets_text = "、".join(str(item) for item in required_facets)
-    else:
-        facets_text = title
-    query = str(config.get("query") or f"检索本周与{title}相关的事实材料，覆盖{facets_text}。")
-    requirements = str(
-        config.get("prompt") or f"围绕{title}撰写正式周报段落，覆盖{facets_text}。严格依据证据材料，不输出投资建议。"
-    )
-    return PromptTemplateBlock(
-        title=title,
-        retrieval_query=query,
-        writing_requirements=requirements,
-        raw_text=requirements,
-    )
+def resolve_markdown_prompt_template(
+    *,
+    placeholder: str,
+    config: Dict[str, Any],
+    templates: Dict[str, PromptTemplateBlock],
+) -> tuple[str, PromptTemplateBlock]:
+    """Resolve an evidence prompt exclusively from the project's Markdown library."""
+    template_name = str(config.get("prompt_template") or "").strip()
+    if not template_name:
+        raise ValueError(f"{placeholder}: prompt_template is required for evidence generation")
+    template = templates.get(template_name)
+    if not template:
+        raise ValueError(
+            f"{placeholder}: prompt_template '{template_name}' is missing from prompt_templates.md"
+        )
+    return template_name, template
 
 
 def render_generation_constraints(

@@ -21,6 +21,7 @@ def _project(slug: str = "weekly") -> ReportProject:
         word_template_path=root / "template.docx",
         excel_workbook_path=root / "data.xlsx",
         report_config_path=root / "sections.yaml",
+        prompt_templates_path=root / "prompt_templates.md",
         output_dir=root / "generated",
         run_log_dir=root / "runs",
     )

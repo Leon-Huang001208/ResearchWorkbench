@@ -235,7 +235,6 @@ from app.api.routes import (  # noqa: E402
     signal_lab,
     signals,
     system,
-    templates,
     thesis_generator,
     thesis_review,
     timing,
@@ -278,7 +277,6 @@ app.include_router(timing_engine.router)
 app.include_router(dashboard.router)
 app.include_router(report.router)
 app.include_router(report_projects.router)
-app.include_router(templates.router)
 app.include_router(signal_lab.router)
 app.include_router(llm.router)
 app.include_router(scheduler.router)

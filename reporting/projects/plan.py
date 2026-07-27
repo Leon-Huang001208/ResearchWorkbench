@@ -11,7 +11,6 @@ from reporting.projects.generation import (
     RetrievalConfig,
     apply_composite_component_overrides,
     apply_report_defaults_to_placeholder,
-    build_fallback_template,
     build_retrieval_config,
     iter_placeholder_configs,
     normalize_placeholder_output_type,
@@ -179,7 +178,7 @@ def _compile_placeholder_plan(
         config = apply_composite_component_overrides(config)
     output_type = normalize_placeholder_output_type(config)
     title = str(config.get("title") or placeholder).strip() or placeholder
-    prompt_template = str(config.get("prompt_template") or title).strip()
+    prompt_template = str(config.get("prompt_template") or "").strip()
     evidence_required = _requires_evidence(config, output_type)
     deterministic = not evidence_required
     retrieval_config = None
@@ -188,20 +187,22 @@ def _compile_placeholder_plan(
     item_warnings: List[str] = []
 
     if evidence_required:
-        prompt_found = _has_prompt_template_or_inline_prompt(config, prompt_template, templates)
+        prompt_found = bool(prompt_template and prompt_template in templates)
         if not prompt_found:
             item_warnings.append(f"{placeholder}: 缺少 Prompt 模板 {prompt_template}")
-        prompt = templates.get(prompt_template) or build_fallback_template(config, title)
+        prompt = templates.get(prompt_template)
         config = apply_keyword_profile_to_config(
             placeholder,
             config,
-            prompt_text=prompt.raw_text or prompt.retrieval_query,
+            prompt_text=(prompt.raw_text or prompt.retrieval_query) if prompt else "",
         )
         retrieval_config = build_retrieval_config(
             config,
             default_top_k=int(config.get("evidence_limit") or 8),
         )
-        retrieval_ready = bool(retrieval_config.must_any or prompt.retrieval_query.strip())
+        retrieval_ready = bool(
+            prompt and (retrieval_config.must_any or prompt.retrieval_query.strip())
+        )
         if not retrieval_ready:
             item_warnings.append(f"{placeholder}: 缺少检索关键词或 Query")
 
@@ -226,17 +227,3 @@ def _requires_evidence(config: Dict[str, Any], output_type: str) -> bool:
     if legacy_type in {"prompt", "ai_text", "composite_market_review"}:
         return True
     return output_type == "paragraph"
-
-
-def _has_prompt_template_or_inline_prompt(
-    config: Dict[str, Any],
-    prompt_template: str,
-    templates: Dict[str, Any],
-) -> bool:
-    if prompt_template and prompt_template in templates:
-        return True
-    return bool(
-        str(config.get("prompt") or "").strip()
-        or str(config.get("query") or "").strip()
-        or config.get("required_facets")
-    )

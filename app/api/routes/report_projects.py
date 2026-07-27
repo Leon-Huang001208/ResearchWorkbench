@@ -125,8 +125,8 @@ class ReportProjectInfo(BaseModel):
     excel_workbook_filename: str
     report_config_path: str
     report_config_filename: str
-    prompt_templates_path: str | None = None
-    prompt_templates_filename: str | None = None
+    prompt_templates_path: str
+    prompt_templates_filename: str
     data_source_files: List[str] = Field(default_factory=list)
     data_assets: List[DataAssetInfo] = Field(default_factory=list)
     word_placeholders: List[str] = Field(default_factory=list)
@@ -268,7 +268,7 @@ async def upload_report_project(
     ppt_template: UploadFile | None = File(None, description="PPT 模板 .pptx"),
     excel_workbook: UploadFile | None = File(None, description="Excel 数据底稿 .xlsx"),
     report_config: UploadFile | None = File(None, description="报告配置 .yaml/.yml"),
-    prompt_templates: UploadFile | None = File(None, description="Prompt 模板 .md"),
+    prompt_templates: UploadFile = File(..., description="Prompt 模板 .md"),
     data_files: List[UploadFile] = File(default_factory=list, description="配套数据文件"),
 ):
     """Create a report project folder from uploaded project package assets."""
@@ -302,8 +302,7 @@ async def upload_report_project(
             _require_suffix(excel_workbook.filename, [".xlsx"], "Excel 数据底稿")
         if report_config and report_config.filename:
             _require_suffix(report_config.filename, [".yaml", ".yml"], "报告配置")
-        if prompt_templates:
-            _require_suffix(prompt_templates.filename or "", [".md"], "Prompt 模板")
+        _require_suffix(prompt_templates.filename or "", [".md"], "Prompt 模板")
 
         word_path = templates_dir / "report_template.docx"
         ppt_path = templates_dir / "report_template.pptx"
@@ -329,10 +328,8 @@ async def upload_report_project(
             )
             report_config_path.write_text(default_source, encoding="utf-8")
 
-        prompt_path = None
-        if prompt_templates:
-            prompt_path = config_dir / "prompt_templates.md"
-            prompt_path.write_bytes(await prompt_templates.read())
+        prompt_path = config_dir / "prompt_templates.md"
+        prompt_path.write_bytes(await prompt_templates.read())
 
         data_source_paths: List[Path] = []
         for upload in data_files or []:
@@ -357,8 +354,7 @@ async def upload_report_project(
             project_data["active_word_template"] = "templates/report_template.docx"
         if excel_filename:
             project_data["active_excel_workbook"] = f"data/{excel_filename}"
-        if prompt_path:
-            project_data["prompt_templates"] = "config/prompt_templates.md"
+        project_data["prompt_templates"] = "config/prompt_templates.md"
         if data_source_paths:
             project_data["data_sources"] = [f"data/{path.name}" for path in data_source_paths]
 
@@ -417,9 +413,6 @@ async def update_report_project_source(slug: str, request: UpdateReportProjectSo
         project = report_project_manager.get_project(slug)
         if request.source_kind == "prompt_templates":
             target_path = project.prompt_templates_path
-            if not target_path:
-                target_path = project.project_dir / "config" / "prompt_templates.md"
-                _attach_prompt_templates(project.project_dir, target_path)
         elif request.source_kind == "report_config":
             target_path = project.report_config_path
         else:
@@ -1109,12 +1102,8 @@ def _to_project_info(project: ReportProject) -> ReportProjectInfo:
         excel_workbook_filename=project.excel_workbook_path.name if excel_exists else "",
         report_config_path=str(project.report_config_path),
         report_config_filename=project.report_config_path.name,
-        prompt_templates_path=(
-            str(project.prompt_templates_path) if project.prompt_templates_path else None
-        ),
-        prompt_templates_filename=(
-            project.prompt_templates_path.name if project.prompt_templates_path else None
-        ),
+        prompt_templates_path=str(project.prompt_templates_path),
+        prompt_templates_filename=project.prompt_templates_path.name,
         data_source_files=[path.name for path in project.data_source_paths],
         data_assets=_list_project_data_assets(project, report_config),
         word_placeholders=(
@@ -1220,9 +1209,12 @@ def _data_asset_sort_key(asset: DataAssetInfo) -> int:
 
 def _build_default_report_config_source(word_path: Path) -> str:
     """Build a minimal report config when only a Word template is uploaded."""
-    placeholders = {placeholder: "" for placeholder in _extract_docx_placeholders(word_path)}
+    placeholders = {
+        placeholder: {"type": "static", "value": ""}
+        for placeholder in _extract_docx_placeholders(word_path)
+    }
     return yaml.safe_dump(
-        {"placeholders": placeholders, "sections": []},
+        {"placeholders": placeholders},
         allow_unicode=True,
         sort_keys=False,
     )
@@ -1237,20 +1229,9 @@ def _build_default_ppt_report_config_source(ppt_path: Path) -> str:
         for placeholder in extract_pptx_placeholders(ppt_path)
     }
     return yaml.safe_dump(
-        {"placeholders": placeholders, "sections": []},
+        {"placeholders": placeholders},
         allow_unicode=True,
         sort_keys=False,
-    )
-
-
-def _attach_prompt_templates(project_dir: Path, prompt_path: Path) -> None:
-    """Attach a newly created prompt template file to project.yaml."""
-    project_yaml = project_dir / "project.yaml"
-    data = yaml.safe_load(project_yaml.read_text(encoding="utf-8")) or {}
-    data["prompt_templates"] = str(prompt_path.relative_to(project_dir))
-    project_yaml.write_text(
-        yaml.safe_dump(data, allow_unicode=True, sort_keys=False),
-        encoding="utf-8",
     )
 
 
@@ -1267,10 +1248,8 @@ def _read_report_config(path: Path) -> tuple[Dict[str, Any], str]:
         return {}, ""
 
 
-def _read_prompt_templates(path: Path | None) -> str:
-    """Read raw Markdown prompt templates when bound to the project."""
-    if not path:
-        return ""
+def _read_prompt_templates(path: Path) -> str:
+    """Read the required Markdown prompt template library."""
     try:
         return path.read_text(encoding="utf-8")
     except Exception as exc:

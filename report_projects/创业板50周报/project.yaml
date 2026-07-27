@@ -1,5 +1,6 @@
 name: 创业板50周报
 active_word_template: templates/report_template.docx
 report_config: config/report_config.yaml
+prompt_templates: config/prompt_templates.md
 output_dir: generated
 run_log_dir: runs

@@ -1,6 +1,7 @@
 name: 华安ETF投资风向标
 project_type: ppt
 report_config: config/report_config.yaml
+prompt_templates: config/prompt_templates.md
 output_dir: generated
 run_log_dir: runs
 active_ppt_template: templates/report_template.pptx

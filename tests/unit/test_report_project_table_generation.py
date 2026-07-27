@@ -34,6 +34,7 @@ def test_build_project_tables_reads_global_calendar_from_excel(tmp_path: Path):
         word_template_path=project_dir / "templates" / "report_template.docx",
         excel_workbook_path=data_dir / "周报数据.xlsx",
         report_config_path=project_dir / "config" / "report_config.yaml",
+        prompt_templates_path=project_dir / "config" / "prompt_templates.md",
         output_dir=project_dir / "generated",
         run_log_dir=project_dir / "runs",
     )

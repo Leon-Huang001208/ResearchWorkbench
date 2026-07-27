@@ -439,7 +439,7 @@ AlphaFoundry/
 │   ├── projects/             # 项目级报告生成（evidence 检索、LLM 生成、图表嵌入、run logs）
 │   ├── templates/            # 报告模板
 │   └── projections/          # 输出投影
-├── report_projects/          # 报告项目资产（project.yaml、Word 模板、Excel 底稿、section_config、prompt_templates）
+├── report_projects/          # 报告项目资产（project.yaml、模板、Excel 底稿、report_config、prompt_templates）
 ├── signal_lab/               # 信号实验室
 │   ├── features/             # 特征工程
 │   │   └── indicators/        # 技术指标引擎（TA-Lib, pandas-ta）
@@ -516,7 +516,7 @@ AlphaFoundry/
 - ✅ **第 4 个月**：Web Workbench v1、多源采集、知识加工、RAG 检索、模板报告、回测视角
 - ✅ **第 5 个月**：闭循环服务、失败记忆、结果反馈、每周回顾
 - 🔄 **进行中**：持续优化与迭代
-  - 报告项目工作台：支持 `section_config.yaml` / `prompt_templates.md` 源码保存、配置驱动生成、图表嵌入、Word HTML 预览和 runs 审计日志
+  - 报告项目工作台：以 `report_config.yaml` 和必需的 `prompt_templates.md` 作为唯一配置来源，支持源码保存、配置驱动生成、图表嵌入、Word HTML 预览和 runs 审计日志
   - Scheduler 稳定性改进：启动回填改为异步后台任务，支持 per-source 和全局超时保护
   - 数据管道修复：知丘公众号和会议纪要内容现已正确进入 LLM 提取管道
 

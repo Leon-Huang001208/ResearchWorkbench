@@ -328,9 +328,7 @@ class ReportProjectRunService:
             "word_template_path": str(project.word_template_path),
             "excel_workbook_path": str(project.excel_workbook_path),
             "report_config_path": str(project.report_config_path),
-            "prompt_templates_path": (
-                str(project.prompt_templates_path) if project.prompt_templates_path else None
-            ),
+            "prompt_templates_path": str(project.prompt_templates_path),
             "data_source_paths": [str(path) for path in project.data_source_paths],
             "output_path": str(output_path),
             "generated_at": generated_at.isoformat(),
@@ -381,9 +379,7 @@ class ReportProjectRunService:
             "project_type": project.project_type,
             "ppt_template_path": str(project.ppt_template_path),
             "report_config_path": str(project.report_config_path),
-            "prompt_templates_path": (
-                str(project.prompt_templates_path) if project.prompt_templates_path else None
-            ),
+            "prompt_templates_path": str(project.prompt_templates_path),
             "data_source_paths": [str(path) for path in project.data_source_paths],
             "output_path": str(output_path),
             "generated_at": generated_at.isoformat(),
