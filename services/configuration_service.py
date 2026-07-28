@@ -624,15 +624,28 @@ class ConfigurationService:
         updates: dict[str, str] = {}
         removals: set[str] = set()
         changed: set[str] = set()
-        existing = {item["name"]: item for item in self._parse_providers(current)}
+        locked_fields = self._locked_fields()
+        provider_suffixes = ("NAME", "PROTOCOL", "BASE_URL", "API_KEY")
+        provider_indices = sorted(
+            {
+                int(match.group(1))
+                for key in current
+                if (match := re.match(r"^LLM_PROVIDER_(\d+)_(NAME|PROTOCOL|BASE_URL|API_KEY)$", key))
+            }
+        )
+        provider_index_by_name = {
+            current.get(f"LLM_PROVIDER_{index}_NAME", f"provider_{index}"): index
+            for index in provider_indices
+        }
+        submitted_provider_indices: set[int] = set()
+        next_provider_index = max(provider_indices, default=0) + 1
 
         if "providers" in payload:
-            removals.update(key for key in current if re.match(r"^LLM_PROVIDER_\d+_", key))
             providers = payload.get("providers")
             if not isinstance(providers, list):
                 raise ConfigurationError("providers 必须是列表")
             names: set[str] = set()
-            for index, provider in enumerate(providers, start=1):
+            for provider in providers:
                 if not isinstance(provider, Mapping):
                     raise ConfigurationError("Provider 格式无效")
                 name = self._required_string(provider.get("name"), "Provider 名称")
@@ -642,34 +655,55 @@ class ConfigurationService:
                 protocol = str(provider.get("protocol", "openai_compatible"))
                 if protocol not in {"openai_compatible", "anthropic", "local"}:
                     raise ConfigurationError("Provider 协议无效")
-                prefix = f"LLM_PROVIDER_{index}_"
-                updates[f"{prefix}NAME"] = name
-                updates[f"{prefix}PROTOCOL"] = protocol
-                base_url = str(provider.get("base_url", "")).strip()
-                updates[f"{prefix}BASE_URL"] = base_url
                 original_name = str(provider.get("original_name") or name)
-                original_provider = existing.get(original_name, {})
-                old_secret = str(original_provider.get("api_key_value", ""))
+                index = provider_index_by_name.get(original_name)
+                if index is None:
+                    index = next_provider_index
+                    next_provider_index += 1
+                elif index in submitted_provider_indices:
+                    raise ConfigurationError("Provider 原始名称不能重复")
+                submitted_provider_indices.add(index)
+                prefix = f"LLM_PROVIDER_{index}_"
+                base_url = str(provider.get("base_url", "")).strip()
+                provider_values = {
+                    "NAME": name,
+                    "PROTOCOL": protocol,
+                    "BASE_URL": base_url,
+                }
+                for suffix, value in provider_values.items():
+                    key = f"{prefix}{suffix}"
+                    if key not in locked_fields:
+                        updates[key] = value
+
+                api_key = f"{prefix}API_KEY"
+                old_secret = current.get(api_key, "")
                 submitted_secret = provider.get("api_key")
                 clear_secret = bool(provider.get("clear_api_key", False))
                 if (
                     old_secret
-                    and base_url != str(original_provider.get("base_url", ""))
+                    and base_url != current.get(f"{prefix}BASE_URL", "")
                     and not clear_secret
                     and (submitted_secret is None or str(submitted_secret) == "")
                 ):
                     raise ConfigurationError("Provider 地址变更后必须重新输入 Token")
-                secret = self._merge_secret(
-                    submitted_secret,
-                    clear_secret,
-                    old_secret,
-                )
-                if secret:
-                    updates[f"{prefix}API_KEY"] = secret
+                if api_key not in locked_fields and (
+                    clear_secret or (submitted_secret is not None and str(submitted_secret) != "")
+                ):
+                    secret = self._merge_secret(submitted_secret, clear_secret, old_secret)
+                    if secret:
+                        updates[api_key] = secret
+                    else:
+                        removals.add(api_key)
                 changed.update({"providers", name})
 
+            for index in provider_indices:
+                if index in submitted_provider_indices:
+                    continue
+                provider_keys = {f"LLM_PROVIDER_{index}_{suffix}" for suffix in provider_suffixes}
+                if not provider_keys.intersection(locked_fields):
+                    removals.update(key for key in provider_keys if key in current)
+
         if "task_routes" in payload:
-            removals.update(key for key in current if re.match(r"^TASK_.+_(PROVIDER|MODEL)$", key))
             routes = payload.get("task_routes")
             if not isinstance(routes, list):
                 raise ConfigurationError("task_routes 必须是列表")
@@ -681,10 +715,23 @@ class ConfigurationService:
                 if not re.fullmatch(r"[A-Z0-9_]+", task) or task in tasks:
                     raise ConfigurationError("任务名称无效或重复")
                 tasks.add(task)
-                updates[f"TASK_{task}_PROVIDER"] = self._required_string(
-                    route.get("provider"), "任务 Provider"
-                )
-                updates[f"TASK_{task}_MODEL"] = self._required_string(route.get("model"), "任务模型")
+                route_values = {
+                    "PROVIDER": self._required_string(route.get("provider"), "任务 Provider"),
+                    "MODEL": self._required_string(route.get("model"), "任务模型"),
+                }
+                for suffix, value in route_values.items():
+                    key = f"TASK_{task}_{suffix}"
+                    if key not in locked_fields:
+                        updates[key] = value
+            existing_tasks = {
+                match.group(1)
+                for key in current
+                if (match := re.match(r"^TASK_(.+)_(PROVIDER|MODEL)$", key))
+            }
+            for task in existing_tasks - tasks:
+                route_keys = {f"TASK_{task}_PROVIDER", f"TASK_{task}_MODEL"}
+                if not route_keys.intersection(locked_fields):
+                    removals.update(key for key in route_keys if key in current)
             changed.add("task_routes")
         return updates, removals - updates.keys(), changed
 

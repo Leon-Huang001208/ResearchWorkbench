@@ -822,3 +822,18 @@ def test_modal_save_button_requires_unsaved_changes():
     assert "|| !modalDirty" in modal_buttons_source
     assert "saveBtn.disabled = saveDisabled" in modal_buttons_source
     assert "testBtn.disabled = disabled" in modal_buttons_source
+
+
+def test_modal_save_only_clears_dirty_state_after_a_successful_api_save():
+    source = CONFIGURATION_JS.read_text(encoding="utf-8")
+    save_source = _configuration_function(source, "saveSection")
+    modal_save_source = _configuration_function(source, "modalSaveSection")
+
+    assert "return !editedWhileSaving;" in save_source
+    assert "return false;" in save_source
+    assert re.search(
+        r"const\s+saved\s*=\s*await\s+saveSection\(currentModalSection\);\s*"
+        r"if\s*\(saved\)\s*\{\s*modalDirty\s*=\s*false;",
+        modal_save_source,
+        re.DOTALL,
+    )

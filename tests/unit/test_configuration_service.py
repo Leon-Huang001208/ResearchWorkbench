@@ -240,6 +240,80 @@ def test_environment_values_lock_configuration_fields(monkeypatch, tmp_path):
     assert env_path.read_text(encoding="utf-8") == "LOG_LEVEL=INFO\n"
 
 
+def test_llm_partial_updates_preserve_environment_locked_provider_and_route_keys(monkeypatch, tmp_path):
+    env_path = tmp_path / ".env"
+    env_path.write_text(
+        "LLM_PROVIDER_1_NAME=locked-provider\n"
+        "LLM_PROVIDER_1_PROTOCOL=openai_compatible\n"
+        "LLM_PROVIDER_1_BASE_URL=https://locked.example.test\n"
+        "LLM_PROVIDER_1_API_KEY=file-locked-secret\n"
+        "LLM_PROVIDER_2_NAME=editable-provider\n"
+        "LLM_PROVIDER_2_PROTOCOL=openai_compatible\n"
+        "LLM_PROVIDER_2_BASE_URL=https://editable.example.test\n"
+        "LLM_PROVIDER_2_API_KEY=file-editable-secret\n"
+        "TASK_CHAT_PROVIDER=file-chat-provider\n"
+        "TASK_CHAT_MODEL=old-model\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("LLM_PROVIDER_1_API_KEY", "environment-locked-secret")
+    monkeypatch.setenv("TASK_CHAT_PROVIDER", "environment-chat-provider")
+    runtime_context = RuntimeContext(
+        mode="desktop",
+        project_root=tmp_path,
+        data_dir=tmp_path,
+        env_path=env_path,
+        backend_url="http://127.0.0.1:8765",
+        can_write_config=True,
+        environment_override_keys=frozenset({"LLM_PROVIDER_1_API_KEY", "TASK_CHAT_PROVIDER"}),
+    )
+    service = ConfigurationService(
+        env_path=env_path,
+        runtime_settings=Settings(),
+        runtime_context=runtime_context,
+    )
+
+    result = service.update_section(
+        "llm",
+        {
+            "providers": [
+                {
+                    "original_name": "locked-provider",
+                    "name": "locked-provider",
+                    "protocol": "openai_compatible",
+                    "base_url": "https://locked.example.test",
+                    "api_key": None,
+                    "clear_api_key": False,
+                },
+                {
+                    "original_name": "editable-provider",
+                    "name": "editable-provider",
+                    "protocol": "anthropic",
+                    "base_url": "https://editable.example.test",
+                    "api_key": None,
+                    "clear_api_key": False,
+                },
+            ],
+            "task_routes": [
+                {
+                    "task": "chat",
+                    "provider": "environment-chat-provider",
+                    "model": "next-model",
+                },
+            ],
+        },
+    )
+
+    saved = env_path.read_text(encoding="utf-8")
+    assert result["section"]["providers"][1]["protocol"] == "anthropic"
+    assert result["section"]["task_routes"] == [
+        {"task": "chat", "provider": "environment-chat-provider", "model": "next-model"}
+    ]
+    assert "LLM_PROVIDER_1_API_KEY=file-locked-secret" in saved
+    assert "TASK_CHAT_PROVIDER=file-chat-provider" in saved
+    assert "LLM_PROVIDER_2_PROTOCOL='anthropic'" in saved
+    assert "TASK_CHAT_MODEL='next-model'" in saved
+
+
 def test_ifind_connection_updates_preserve_environment_managed_credentials(monkeypatch, tmp_path):
     env_path = tmp_path / ".env"
     env_path.write_text(

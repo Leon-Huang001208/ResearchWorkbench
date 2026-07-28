@@ -1345,10 +1345,10 @@ function syncMutationControls() {
 async function saveSection(section) {
     if (!configurationReady) {
         showPageMessage('配置尚未加载完成，暂时无法保存或验证', 'error');
-        return;
+        return false;
     }
     const token = requestCoordinator.begin(section);
-    if (token === null) return;
+    if (token === null) return false;
     const submittedEditGeneration = sectionEditGenerations.get(section) || 0;
     setSectionBusy(section, true);
     setSectionStatus(section, '保存中…');
@@ -1357,7 +1357,7 @@ async function saveSection(section) {
     try {
         const payload = collectSection(section);
         const result = await configurationApiCall('PUT', `/api/config/${section}`, payload);
-        if (!requestCoordinator.isLatest(section, token)) return;
+        if (!requestCoordinator.isLatest(section, token)) return false;
         const editedWhileSaving = (sectionEditGenerations.get(section) || 0) !== submittedEditGeneration;
         applySectionResponse(section, result.section, !editedWhileSaving);
         if (section === 'database') await refreshDatabaseRuntimeReadiness();
@@ -1367,8 +1367,9 @@ async function saveSection(section) {
         saveBtn?.removeAttribute('data-saving');
         saveBtn?.setAttribute('data-save-success', '');
         setTimeout(() => saveBtn?.removeAttribute('data-save-success'), 1800);
+        return !editedWhileSaving;
     } catch (error) {
-        if (!requestCoordinator.isLatest(section, token)) return;
+        if (!requestCoordinator.isLatest(section, token)) return false;
         const safe = safeConfigurationError(error);
         const firstPath = safe.details[0]?.path || '';
         setSectionStatus(section, firstPath ? `字段校验失败：${firstPath}` : safe.message, 'error');
@@ -1376,6 +1377,7 @@ async function saveSection(section) {
         saveBtn?.removeAttribute('data-saving');
         saveBtn?.setAttribute('data-save-error', '');
         setTimeout(() => saveBtn?.removeAttribute('data-save-error'), 2200);
+        return false;
     } finally {
         const latest = requestCoordinator.isLatest(section, token);
         requestCoordinator.finish(section, token);
@@ -1943,8 +1945,10 @@ async function modalSaveSection() {
     statusEl.textContent = '保存中…';
     statusEl.className = 'config-modal-status';
     try {
-        await saveSection(currentModalSection);
-        modalDirty = false;
+        const saved = await saveSection(currentModalSection);
+        if (saved) {
+            modalDirty = false;
+        }
         syncModalButtons();
         // saveSection 内部会调用 setSectionStatus，模态框版本会更新 statusEl
     } catch (e) {
