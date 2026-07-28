@@ -304,8 +304,8 @@ const filtered = {{
 }};
 
 const expected = {{
-    providerLocked: {{ task_routes: taskRoutes }},
-    routeLocked: {{ providers }},
+    providerLocked: {{ providers, task_routes: taskRoutes }},
+    routeLocked: {{ providers, task_routes: taskRoutes }},
     zhiqiu: {{ rotation_strategy: 'round_robin' }},
     ifind: {{ backend: 'http_api', http_base_url: 'https://example.test' }},
     webSearch: {{ provider: 'tavily', timeout: 15 }},
@@ -788,3 +788,37 @@ def test_environment_lock_disables_secret_replacement_actions():
     assert "[data-secret-replace]" in lock_source
     assert "[data-secret-clear]" in lock_source
     assert "disabled = true" in lock_source
+
+
+def test_secret_actions_mark_their_containing_modal_dirty_immediately():
+    source = CONFIGURATION_JS.read_text(encoding="utf-8")
+    secret_control_source = _configuration_function(source, "createSecretControl")
+    dirty_source = _configuration_function(source, "markSecretControlDirty")
+
+    assert secret_control_source.count("markSecretControlDirty(secretInput)") >= 2
+    assert "markSectionDirty(form);" in dirty_source
+    assert "modalDirty = true;" in dirty_source
+    assert "syncModalButtons();" in dirty_source
+
+
+def test_llm_locks_remain_scoped_to_the_matching_dynamic_row():
+    source = CONFIGURATION_JS.read_text(encoding="utf-8")
+    provider_locks = _configuration_function(source, "applyProviderRowLocks")
+    route_locks = _configuration_function(source, "applyTaskRouteLocks")
+    payload_filter = _configuration_function(source, "filterEnvironmentLockedPayload")
+
+    assert "lockedFields.some(key => /^LLM_PROVIDER_" not in provider_locks
+    assert "lockedFields.some(key => /^TASK_" not in route_locks
+    assert "isEnvironmentLocked(`${prefix}${suffix}`, lockedFields)" in provider_locks
+    assert "isEnvironmentLocked(`TASK_${task.toUpperCase()}_PROVIDER`, lockedFields)" in route_locks
+    assert "delete filteredPayload.providers" not in payload_filter
+    assert "delete filteredPayload.task_routes" not in payload_filter
+
+
+def test_modal_save_button_requires_unsaved_changes():
+    source = CONFIGURATION_JS.read_text(encoding="utf-8")
+    modal_buttons_source = _configuration_function(source, "syncModalButtons")
+
+    assert "|| !modalDirty" in modal_buttons_source
+    assert "saveBtn.disabled = saveDisabled" in modal_buttons_source
+    assert "testBtn.disabled = disabled" in modal_buttons_source

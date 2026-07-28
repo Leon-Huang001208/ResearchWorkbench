@@ -67,14 +67,6 @@ export function filterEnvironmentLockedPayload(
     Object.entries(STATIC_LOCK_FIELD_KEYS[section] || {}).forEach(([field, key]) => {
         if (isEnvironmentLocked(key, environmentLockedFields)) delete filteredPayload[field];
     });
-    if (section === 'llm') {
-        if (environmentLockedFields.some(key => /^LLM_PROVIDER_\d+_/.test(key))) {
-            delete filteredPayload.providers;
-        }
-        if (environmentLockedFields.some(key => /^TASK_.+_(PROVIDER|MODEL)$/.test(key))) {
-            delete filteredPayload.task_routes;
-        }
-    }
     if (COLLECTION_LOCK_KEYS[section]?.some(key => isEnvironmentLocked(key, environmentLockedFields))) {
         delete filteredPayload.accounts;
     }
@@ -299,6 +291,7 @@ function createSecretControl(secretInput, secret = {}) {
         secretInput.disabled = false;
         secretInput.dataset.secretClear = 'false';
         clear.disabled = false;
+        markSecretControlDirty(secretInput);
         secretInput.focus();
     });
     clear.addEventListener('click', () => {
@@ -306,6 +299,7 @@ function createSecretControl(secretInput, secret = {}) {
         secretInput.disabled = true;
         secretInput.dataset.secretClear = 'true';
         clear.disabled = false;
+        markSecretControlDirty(secretInput);
     });
     secretInput.addEventListener('input', () => {
         if (!secretInput.value) return;
@@ -354,6 +348,14 @@ function collectSecretPair(secretInput) {
     const value = secretInput.value;
     const clear = secretInput.dataset.secretClear === 'true';
     return { value: clear || value === '' ? null : value, clear };
+}
+
+function markSecretControlDirty(secretInput) {
+    const form = secretInput.closest('[data-config-form]');
+    if (!form) return;
+    markSectionDirty(form);
+    modalDirty = true;
+    syncModalButtons();
 }
 
 function createProviderRow(provider = {}) {
@@ -625,7 +627,6 @@ function showCollectionLockMessage(button) {
 
 function applyProviderRowLocks() {
     const lockedFields = configurationSnapshot?.environment_locked_fields || [];
-    const providerCollectionLocked = lockedFields.some(key => /^LLM_PROVIDER_\d+_/.test(key));
     const providerFieldSuffixes = {
         name: 'NAME',
         protocol: 'PROTOCOL',
@@ -638,7 +639,7 @@ function applyProviderRowLocks() {
         const lockedControls = [];
         Object.entries(providerFieldSuffixes).forEach(([field, suffix]) => {
             const control = row.querySelector(`[data-field="${field}"]`);
-            const locked = providerCollectionLocked || isEnvironmentLocked(`${prefix}${suffix}`, lockedFields);
+            const locked = isEnvironmentLocked(`${prefix}${suffix}`, lockedFields);
             if (locked) {
                 lockControl(control);
                 if (control?.disabled) lockedControls.push(control);
@@ -646,23 +647,16 @@ function applyProviderRowLocks() {
         });
         setDynamicRowLocked(row, lockedControls);
     });
-    if (providerCollectionLocked) {
-        const addButton = document.querySelector('[data-add-provider]');
-        if (addButton) addButton.disabled = true;
-        showCollectionLockMessage(addButton);
-    }
 }
 
 function applyTaskRouteLocks() {
     const lockedFields = configurationSnapshot?.environment_locked_fields || [];
-    const taskRouteCollectionLocked = lockedFields.some(key => /^TASK_.+_(PROVIDER|MODEL)$/.test(key));
     document.querySelectorAll('.config-route-row').forEach(row => {
         const task = rowValue(row, 'task');
         const providerControl = row.querySelector('[data-field="provider"]');
         const modelControl = row.querySelector('[data-field="model"]');
-        const taskControl = row.querySelector('[data-field="task"]');
-        const providerLocked = taskRouteCollectionLocked || (task && isEnvironmentLocked(`TASK_${task.toUpperCase()}_PROVIDER`, lockedFields));
-        const modelLocked = taskRouteCollectionLocked || (task && isEnvironmentLocked(`TASK_${task.toUpperCase()}_MODEL`, lockedFields));
+        const providerLocked = task && isEnvironmentLocked(`TASK_${task.toUpperCase()}_PROVIDER`, lockedFields);
+        const modelLocked = task && isEnvironmentLocked(`TASK_${task.toUpperCase()}_MODEL`, lockedFields);
         const lockedControls = [];
 
         if (providerLocked) {
@@ -673,17 +667,8 @@ function applyTaskRouteLocks() {
             lockControl(modelControl);
             if (modelControl?.disabled) lockedControls.push(modelControl);
         }
-        if (providerLocked || modelLocked) {
-            lockControl(taskControl);
-            if (taskControl?.disabled) lockedControls.push(taskControl);
-        }
         setDynamicRowLocked(row, lockedControls);
     });
-    if (taskRouteCollectionLocked) {
-        const addButton = document.querySelector('[data-add-task-route]');
-        if (addButton) addButton.disabled = true;
-        showCollectionLockMessage(addButton);
-    }
 }
 
 function applyCollectionLock(form, section, { addButton, rowSelector }) {
@@ -1824,6 +1809,7 @@ function bindModalFormEvents(form, section) {
         applyProviderRowLocks();
         markSectionDirty(form);
         modalDirty = true;
+        syncModalButtons();
     });
     form.querySelector('[data-add-task-route]')?.addEventListener('click', () => {
         const row = createTaskRouteRow();
@@ -1832,6 +1818,7 @@ function bindModalFormEvents(form, section) {
         applyTaskRouteLocks();
         markSectionDirty(form);
         modalDirty = true;
+        syncModalButtons();
     });
     form.querySelector('[data-add-zhiqiu-account]')?.addEventListener('click', () => {
         const row = createZhiqiuAccountRow();
@@ -1841,6 +1828,7 @@ function bindModalFormEvents(form, section) {
         applyCollectionLocks(form, section);
         markSectionDirty(form);
         modalDirty = true;
+        syncModalButtons();
     });
     form.querySelector('[data-add-ifind-account]')?.addEventListener('click', () => {
         const row = createIfindAccountRow();
@@ -1850,6 +1838,7 @@ function bindModalFormEvents(form, section) {
         applyCollectionLocks(form, section);
         markSectionDirty(form);
         modalDirty = true;
+        syncModalButtons();
     });
     form.querySelector('[data-add-web_search-key]')?.addEventListener('click', () => {
         const row = createWebSearchKeyRow();
@@ -1859,15 +1848,17 @@ function bindModalFormEvents(form, section) {
         applyCollectionLocks(form, section);
         markSectionDirty(form);
         modalDirty = true;
+        syncModalButtons();
     });
 
     // 脏数据追踪
-    form.addEventListener('input', () => { modalDirty = true; markSectionDirty(form); });
-    form.addEventListener('change', () => { modalDirty = true; markSectionDirty(form); });
+    form.addEventListener('input', () => { modalDirty = true; markSectionDirty(form); syncModalButtons(); });
+    form.addEventListener('change', () => { modalDirty = true; markSectionDirty(form); syncModalButtons(); });
     form.addEventListener('click', (e) => {
         if (e.target.closest('.config-remove-row')) {
             markSectionDirty(form);
             modalDirty = true;
+            syncModalButtons();
         }
     });
 }
@@ -1939,9 +1930,10 @@ function closeConfigModal() {
 
 function syncModalButtons() {
     const disabled = !configurationReady || requestCoordinator.hasActive();
+    const saveDisabled = disabled || !modalDirty;
     const saveBtn = document.getElementById('btn-config-edit-modal-save');
     const testBtn = document.getElementById('btn-config-edit-modal-test');
-    if (saveBtn) saveBtn.disabled = disabled;
+    if (saveBtn) saveBtn.disabled = saveDisabled;
     if (testBtn) testBtn.disabled = disabled;
 }
 
@@ -1953,6 +1945,7 @@ async function modalSaveSection() {
     try {
         await saveSection(currentModalSection);
         modalDirty = false;
+        syncModalButtons();
         // saveSection 内部会调用 setSectionStatus，模态框版本会更新 statusEl
     } catch (e) {
         // saveSection 已处理错误显示
