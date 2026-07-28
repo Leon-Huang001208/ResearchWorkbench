@@ -467,10 +467,19 @@ def test_configuration_editor_visual_contract_has_tabs_editing_state_and_mobile_
         ".config-tab-list",
         '.config-tab-list [role="tab"][aria-selected="true"]',
         ".config-edit-modal-body .config-dynamic-row:focus-within",
-        ".config-edit-modal-body .config-dynamic-field > span:first-child",
         "@media (max-width: 720px)",
     ):
         assert selector in stylesheet
+    assert ".config-edit-modal .config-edit-modal-body .config-dynamic-field > span:first-child" not in stylesheet
+    assert re.search(
+        r"\.config-edit-modal-body\s+\.config-collection-table\s+\.config-dynamic-field\s*>\s*span:first-child\s*\{\s*display:\s*none\s*;",
+        stylesheet,
+    )
+    mobile_rules = stylesheet[stylesheet.rfind("@media (max-width: 720px)"):]
+    assert re.search(
+        r"\.config-edit-modal\s+\.config-edit-modal-body\s+\.config-collection-table\s+\.config-dynamic-field\s*>\s*span:first-child\s*\{\s*display:\s*flex\s*;",
+        mobile_rules,
+    )
 
 
 def test_configuration_empty_collection_lifecycle_restores_all_account_collections():
