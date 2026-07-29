@@ -821,7 +821,7 @@ def test_modal_save_button_requires_unsaved_changes():
 
     assert "|| !modalDirty" in modal_buttons_source
     assert "saveBtn.disabled = saveDisabled" in modal_buttons_source
-    assert "testBtn.disabled = disabled" in modal_buttons_source
+    assert "testBtn.disabled = disabled || databaseLocked" in modal_buttons_source
 
 
 def test_modal_save_only_clears_dirty_state_after_a_successful_api_save():
@@ -849,3 +849,21 @@ def test_provider_row_locks_keep_their_snapshot_index_after_dom_changes():
     assert "createProviderRow(provider, index + 1)" in render_source
     assert "Number(row.dataset.providerIndex)" in locks_source
     assert "rowIndex + 1" not in locks_source
+
+
+def test_database_environment_lock_disables_modal_actions_and_skips_requests():
+    source = CONFIGURATION_JS.read_text(encoding="utf-8")
+    save_source = _configuration_function(source, "saveSection")
+    test_source = _configuration_function(source, "testSection")
+    modal_buttons_source = _configuration_function(source, "syncModalButtons")
+
+    assert "function isDatabaseEnvironmentLocked()" in source
+    assert re.search(
+        r"if\s*\(section\s*===\s*['\"]database['\"]\s*&&\s*isDatabaseEnvironmentLocked\(\)\)\s*\{\s*return false;",
+        save_source,
+    )
+    assert re.search(
+        r"if\s*\(section\s*===\s*['\"]database['\"]\s*&&\s*isDatabaseEnvironmentLocked\(\)\)\s*\{\s*return;",
+        test_source,
+    )
+    assert "const databaseLocked = currentModalSection === 'database' && isDatabaseEnvironmentLocked();" in modal_buttons_source

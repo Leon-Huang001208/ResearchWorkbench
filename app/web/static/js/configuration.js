@@ -58,6 +58,10 @@ export function isEnvironmentLocked(key, environmentLockedFields = configuration
     return environmentLockedFields.includes(key);
 }
 
+function isDatabaseEnvironmentLocked() {
+    return isEnvironmentLocked(STATIC_LOCK_FIELD_KEYS.database.database_url);
+}
+
 export function filterEnvironmentLockedPayload(
     section,
     payload,
@@ -1349,6 +1353,9 @@ async function saveSection(section) {
         showPageMessage('配置尚未加载完成，暂时无法保存或验证', 'error');
         return false;
     }
+    if (section === 'database' && isDatabaseEnvironmentLocked()) {
+        return false;
+    }
     const token = requestCoordinator.begin(section);
     if (token === null) return false;
     const submittedEditGeneration = sectionEditGenerations.get(section) || 0;
@@ -1390,6 +1397,9 @@ async function saveSection(section) {
 async function testSection(section) {
     if (!configurationReady) {
         showPageMessage('配置尚未加载完成，暂时无法保存或验证', 'error');
+        return;
+    }
+    if (section === 'database' && isDatabaseEnvironmentLocked()) {
         return;
     }
     const token = requestCoordinator.begin(section);
@@ -1934,11 +1944,12 @@ function closeConfigModal() {
 
 function syncModalButtons() {
     const disabled = !configurationReady || requestCoordinator.hasActive();
-    const saveDisabled = disabled || !modalDirty;
+    const databaseLocked = currentModalSection === 'database' && isDatabaseEnvironmentLocked();
+    const saveDisabled = disabled || !modalDirty || databaseLocked;
     const saveBtn = document.getElementById('btn-config-edit-modal-save');
     const testBtn = document.getElementById('btn-config-edit-modal-test');
     if (saveBtn) saveBtn.disabled = saveDisabled;
-    if (testBtn) testBtn.disabled = disabled;
+    if (testBtn) testBtn.disabled = disabled || databaseLocked;
 }
 
 async function modalSaveSection() {
