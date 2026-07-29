@@ -1197,7 +1197,13 @@ function focusFirstCollectionField(row) {
 
 function configureRowEditing(row, { editing, label }) {
     const editButton = element('button', 'config-edit-row');
+    const cancelButton = element('button', 'config-row-cancel', '取消');
+    const testButton = element('button', 'config-row-test', '测试连接');
+    const saveButton = element('button', 'config-row-save', '保存修改');
     editButton.type = 'button';
+    cancelButton.type = 'button';
+    testButton.type = 'button';
+    saveButton.type = 'button';
     editButton.title = `修改${label}`;
     editButton.setAttribute('aria-label', `修改${label}`);
     editButton.innerHTML = '<i class="codicon codicon-edit"></i>';
@@ -1210,10 +1216,26 @@ function configureRowEditing(row, { editing, label }) {
             control.tabIndex = enabled ? 0 : -1;
         });
         editButton.hidden = enabled;
+        cancelButton.hidden = !enabled;
+        testButton.hidden = !enabled;
+        saveButton.hidden = !enabled;
+        row.querySelector('.config-remove-row').hidden = !enabled;
         if (enabled) focusFirstCollectionField(row);
     };
     editButton.addEventListener('click', () => setEditing(true));
-    row.querySelector('.config-row-actions')?.prepend(editButton);
+    cancelButton.addEventListener('click', () => {
+        renderModalForm('llm', configurationSnapshot.sections.llm);
+        modalDirty = false;
+    });
+    testButton.addEventListener('click', () => testSection('llm'));
+    saveButton.addEventListener('click', async () => {
+        const saved = await saveSection('llm');
+        if (saved) {
+            modalDirty = false;
+            renderModalForm('llm', configurationSnapshot.sections.llm);
+        }
+    });
+    row.querySelector('.config-row-actions')?.prepend(editButton, cancelButton, testButton, saveButton);
     setEditing(editing);
 }
 
@@ -1893,6 +1915,8 @@ function openConfigModal(section) {
 
     const testable = Boolean(meta.testable);
     const testBtn = document.getElementById('btn-config-edit-modal-test');
+    const footer = modal?.querySelector('.modal-footer');
+    if (footer) footer.hidden = section === 'llm';
     testBtn.hidden = !testable;
     const testHelp = modal?.querySelector('[data-config-test-help]');
     if (testHelp) testHelp.hidden = !testable;

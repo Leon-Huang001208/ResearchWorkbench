@@ -2128,6 +2128,23 @@
     cursor: default;
 }
 
+.config-edit-modal .config-row-cancel,
+.config-edit-modal .config-row-test,
+.config-edit-modal .config-row-save {
+    min-height: 32px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 6px;
+    color: var(--text-secondary);
+    background: transparent;
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.config-edit-modal .config-row-test { color: var(--accent); }
+.config-edit-modal .config-row-save { color: #fff; background: var(--accent); }
+
 .config-edit-modal .config-edit-modal-content .modal-footer .codicon,
 .config-edit-modal .config-edit-modal-content .modal-footer .config-modal-test-help {
     display: none;
