@@ -672,29 +672,26 @@ def test_configuration_secret_editor_never_offers_saved_secret_copy_or_reveal():
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
     secret_control_source = _configuration_function(source, "createSecretControl")
 
-    assert "data-secret-replace" in secret_control_source
-    assert "data-secret-clear" in secret_control_source
+    assert "留空则不修改" in secret_control_source
+    assert "输入密钥" in secret_control_source
     assert "data-secret-copy" not in secret_control_source
     assert "data-secret-toggle" not in secret_control_source
-    assert re.search(r"replace\.addEventListener\(\s*['\"]click['\"]", secret_control_source)
-    assert re.search(r"clear\.addEventListener\(\s*['\"]click['\"]", secret_control_source)
-    assert re.search(r"actions\.append\([^)]*\breplace\b[^)]*\bclear\b[^)]*\)", secret_control_source)
+    assert "data-secret-replace" not in secret_control_source
+    assert "data-secret-clear" not in secret_control_source
     assert "toggleSecretVisibility" not in secret_control_source
     assert "copySecretValue" not in secret_control_source
     assert "navigator.clipboard" not in secret_control_source
 
 
-def test_minimal_editor_keeps_secret_actions_behind_one_management_entry():
+def test_minimal_editor_uses_plain_secret_input_without_secondary_actions():
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
     secret_control_source = _configuration_function(source, "createSecretControl")
 
-    assert "管理密钥" in secret_control_source
-    assert "config-secret-manage" in secret_control_source
-    assert "data-secret-actions" in secret_control_source
-    assert "aria-expanded" in secret_control_source
-    assert "manage.addEventListener('click'" in secret_control_source
-    assert "actions.hidden" in secret_control_source
-    assert re.search(r"control\.append\([^)]*\bmanage\b[^)]*\bactions\b[^)]*\)", secret_control_source)
+    assert "管理密钥" not in secret_control_source
+    assert "config-secret-manage" not in secret_control_source
+    assert "config-secret-actions" not in secret_control_source
+    assert "secretInput.addEventListener('input'" in secret_control_source
+    assert "control.append(secretInput);" in secret_control_source
 
 
 def test_minimal_editor_visual_contract_removes_modal_chrome_and_card_nesting():
@@ -829,24 +826,21 @@ def test_collection_lock_disables_only_environment_owned_collection():
     assert "if (!locked) return;" in collection_lock_source
 
 
-def test_environment_lock_disables_secret_replacement_actions():
+def test_environment_lock_disables_the_plain_secret_input():
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
     lock_source = _configuration_function(source, "lockControl")
 
-    assert "[data-secret-replace]" in lock_source
-    assert "[data-secret-clear]" in lock_source
     assert "disabled = true" in lock_source
 
 
-def test_secret_actions_mark_their_containing_modal_dirty_immediately():
+def test_secret_input_changes_use_the_form_dirty_tracker():
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
     secret_control_source = _configuration_function(source, "createSecretControl")
-    dirty_source = _configuration_function(source, "markSecretControlDirty")
+    events_source = _configuration_function(source, "bindModalFormEvents")
 
-    assert secret_control_source.count("markSecretControlDirty(secretInput)") >= 2
-    assert "markSectionDirty(form);" in dirty_source
-    assert "modalDirty = true;" in dirty_source
-    assert "syncModalButtons();" in dirty_source
+    assert "secretInput.addEventListener('input'" in secret_control_source
+    assert "form.addEventListener('input'" in events_source
+    assert "modalDirty = true;" in events_source
 
 
 def test_llm_locks_remain_scoped_to_the_matching_dynamic_row():

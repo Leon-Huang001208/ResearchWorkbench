@@ -276,57 +276,14 @@ function input(type, value, ariaLabel) {
 function createSecretControl(secretInput, secret = {}) {
     const control = element('span', 'config-secret-control');
     const configured = Boolean(secret?.configured);
-    const secretLabel = secretInput.getAttribute('aria-label') || '敏感值';
-    const replace = element('button', 'config-secret-action', configured ? '替换密钥' : '设置密钥');
-    const clear = element('button', 'config-secret-action', '清空密钥');
-    const manage = element('button', 'config-secret-manage', '管理密钥');
-    const actions = element('span', 'config-secret-actions');
-    const actionsId = `config-secret-actions-${++dynamicLockMessageSequence}`;
 
     secretInput.value = '';
     secretInput.disabled = true;
     secretInput.dataset.secretClear = 'false';
     secretInput.dataset.secretConfigured = String(configured);
-    replace.type = 'button';
-    clear.type = 'button';
-    manage.type = 'button';
-    actions.id = actionsId;
-    actions.setAttribute('data-secret-actions', '');
-    actions.hidden = true;
-    clear.disabled = !configured;
-    replace.setAttribute('data-secret-replace', '');
-    clear.setAttribute('data-secret-clear', '');
-    manage.setAttribute('data-secret-manage', '');
-    manage.setAttribute('aria-controls', actionsId);
-    manage.setAttribute('aria-expanded', 'false');
-    replace.setAttribute('aria-label', `${configured ? '替换' : '设置'}${secretLabel}`);
-    clear.setAttribute('aria-label', `清空${secretLabel}`);
-    manage.setAttribute('aria-label', `管理${secretLabel}`);
-    manage.addEventListener('click', () => {
-        actions.hidden = !actions.hidden;
-        manage.setAttribute('aria-expanded', String(!actions.hidden));
-    });
-    replace.addEventListener('click', () => {
-        secretInput.disabled = false;
-        secretInput.dataset.secretClear = 'false';
-        clear.disabled = false;
-        markSecretControlDirty(secretInput);
-        secretInput.focus();
-    });
-    clear.addEventListener('click', () => {
-        secretInput.value = '';
-        secretInput.disabled = true;
-        secretInput.dataset.secretClear = 'true';
-        clear.disabled = false;
-        markSecretControlDirty(secretInput);
-    });
-    secretInput.addEventListener('input', () => {
-        if (!secretInput.value) return;
-        secretInput.dataset.secretClear = 'false';
-        clear.disabled = false;
-    });
-    actions.append(replace, clear);
-    control.append(secretInput, manage, actions);
+    secretInput.placeholder = configured ? '留空则不修改' : '输入密钥';
+    secretInput.addEventListener('input', () => { secretInput.dataset.secretClear = 'false'; });
+    control.append(secretInput);
     return control;
 }
 
@@ -598,9 +555,6 @@ function lockControl(control, message = null) {
     if (!control) return false;
     const changed = !control.disabled;
     control.disabled = true;
-    control.closest('.config-secret-control')?.querySelectorAll('[data-secret-manage], [data-secret-replace], [data-secret-clear]').forEach(button => {
-        button.disabled = true;
-    });
     control.closest('label')?.classList.add('environment-locked');
     addControlDescription(control, message?.id);
     return changed;
@@ -1255,7 +1209,6 @@ function configureRowEditing(row, { editing, label }) {
             if ('readOnly' in control) control.readOnly = !enabled;
             control.tabIndex = enabled ? 0 : -1;
         });
-        row.querySelectorAll('[data-secret-manage]').forEach(button => { button.disabled = !enabled; });
         editButton.hidden = enabled;
         if (enabled) focusFirstCollectionField(row);
     };
