@@ -2145,6 +2145,20 @@
 .config-edit-modal .config-row-test { color: var(--accent); }
 .config-edit-modal .config-row-save { color: #fff; background: var(--accent); }
 
+/* 编辑态操作不挤占表格的窄“操作”列，统一置于当前行下方。 */
+.config-edit-modal .config-provider-row.is-editing .config-row-actions,
+.config-edit-modal .config-route-row.is-editing .config-row-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+    min-height: 36px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-soft);
+}
+
+.config-edit-modal .modal-footer[hidden] {
+    display: none !important;
+}
+
 .config-edit-modal .config-edit-modal-content .modal-footer .codicon,
 .config-edit-modal .config-edit-modal-content .modal-footer .config-modal-test-help {
     display: none;
