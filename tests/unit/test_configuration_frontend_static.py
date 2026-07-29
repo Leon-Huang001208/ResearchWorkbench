@@ -678,10 +678,58 @@ def test_configuration_secret_editor_never_offers_saved_secret_copy_or_reveal():
     assert "data-secret-toggle" not in secret_control_source
     assert re.search(r"replace\.addEventListener\(\s*['\"]click['\"]", secret_control_source)
     assert re.search(r"clear\.addEventListener\(\s*['\"]click['\"]", secret_control_source)
-    assert re.search(r"control\.append\([^)]*\breplace\b[^)]*\bclear\b[^)]*\)", secret_control_source)
+    assert re.search(r"actions\.append\([^)]*\breplace\b[^)]*\bclear\b[^)]*\)", secret_control_source)
     assert "toggleSecretVisibility" not in secret_control_source
     assert "copySecretValue" not in secret_control_source
     assert "navigator.clipboard" not in secret_control_source
+
+
+def test_minimal_editor_keeps_secret_actions_behind_one_management_entry():
+    source = CONFIGURATION_JS.read_text(encoding="utf-8")
+    secret_control_source = _configuration_function(source, "createSecretControl")
+
+    assert "管理密钥" in secret_control_source
+    assert "config-secret-manage" in secret_control_source
+    assert "data-secret-actions" in secret_control_source
+    assert "aria-expanded" in secret_control_source
+    assert "manage.addEventListener('click'" in secret_control_source
+    assert "actions.hidden" in secret_control_source
+    assert re.search(r"control\.append\([^)]*\bmanage\b[^)]*\bactions\b[^)]*\)", secret_control_source)
+
+
+def test_minimal_editor_visual_contract_removes_modal_chrome_and_card_nesting():
+    source = CONFIGURATION_JS.read_text(encoding="utf-8")
+    stylesheet = CONFIGURATION_CSS.read_text(encoding="utf-8")
+    modal_source = _configuration_function(source, "renderModalForm")
+
+    assert "codicon" not in modal_source
+    assert '<div class="config-settings-header"><h4>' not in modal_source
+    assert ".config-edit-modal-content .modal-header::before" in stylesheet
+    assert re.search(
+        r"\.config-edit-modal-content\s+\.modal-header::before\s*\{[^}]*display:\s*none",
+        stylesheet,
+        re.DOTALL,
+    )
+    assert re.search(
+        r"\.config-edit-modal-body\s+\.config-field-grid\s*\{[^}]*border:\s*0",
+        stylesheet,
+        re.DOTALL,
+    )
+    assert re.search(
+        r"\.config-edit-modal\s+\.config-edit-modal-body\s+\.config-collection-table\s*\{[^}]*border-radius:\s*0",
+        stylesheet,
+        re.DOTALL,
+    )
+
+
+def test_minimal_editor_makes_connection_test_a_low_weight_text_action():
+    stylesheet = CONFIGURATION_CSS.read_text(encoding="utf-8")
+
+    assert re.search(
+        r"#btn-config-edit-modal-test\s*\{[^}]*border:\s*0[^}]*background:\s*transparent",
+        stylesheet,
+        re.DOTALL,
+    )
 
 
 def test_configuration_secret_collection_preserves_replacement_value_verbatim():

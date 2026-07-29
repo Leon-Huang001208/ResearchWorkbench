@@ -279,18 +279,33 @@ function createSecretControl(secretInput, secret = {}) {
     const secretLabel = secretInput.getAttribute('aria-label') || '敏感值';
     const replace = element('button', 'config-secret-action', configured ? '替换密钥' : '设置密钥');
     const clear = element('button', 'config-secret-action', '清空密钥');
+    const manage = element('button', 'config-secret-manage', '管理密钥');
+    const actions = element('span', 'config-secret-actions');
+    const actionsId = `config-secret-actions-${++dynamicLockMessageSequence}`;
 
     secretInput.value = '';
-    secretInput.disabled = configured;
+    secretInput.disabled = true;
     secretInput.dataset.secretClear = 'false';
     secretInput.dataset.secretConfigured = String(configured);
     replace.type = 'button';
     clear.type = 'button';
+    manage.type = 'button';
+    actions.id = actionsId;
+    actions.setAttribute('data-secret-actions', '');
+    actions.hidden = true;
     clear.disabled = !configured;
     replace.setAttribute('data-secret-replace', '');
     clear.setAttribute('data-secret-clear', '');
+    manage.setAttribute('data-secret-manage', '');
+    manage.setAttribute('aria-controls', actionsId);
+    manage.setAttribute('aria-expanded', 'false');
     replace.setAttribute('aria-label', `${configured ? '替换' : '设置'}${secretLabel}`);
     clear.setAttribute('aria-label', `清空${secretLabel}`);
+    manage.setAttribute('aria-label', `管理${secretLabel}`);
+    manage.addEventListener('click', () => {
+        actions.hidden = !actions.hidden;
+        manage.setAttribute('aria-expanded', String(!actions.hidden));
+    });
     replace.addEventListener('click', () => {
         secretInput.disabled = false;
         secretInput.dataset.secretClear = 'false';
@@ -310,7 +325,8 @@ function createSecretControl(secretInput, secret = {}) {
         secretInput.dataset.secretClear = 'false';
         clear.disabled = false;
     });
-    control.append(secretInput, replace, clear);
+    actions.append(replace, clear);
+    control.append(secretInput, manage, actions);
     return control;
 }
 
@@ -580,7 +596,7 @@ function lockControl(control, message = null) {
     if (!control) return false;
     const changed = !control.disabled;
     control.disabled = true;
-    control.closest('.config-secret-control')?.querySelectorAll('[data-secret-replace], [data-secret-clear]').forEach(button => {
+    control.closest('.config-secret-control')?.querySelectorAll('[data-secret-manage], [data-secret-replace], [data-secret-clear]').forEach(button => {
         button.disabled = true;
     });
     control.closest('label')?.classList.add('environment-locked');
@@ -1608,19 +1624,18 @@ function renderModalForm(section, values) {
                     <button type="button" role="tab" data-config-tab="routes" id="config-tab-routes" aria-controls="config-tab-panel-routes" aria-selected="false" tabindex="-1">任务模型路由</button>
                 </div>
                 <section role="tabpanel" data-config-tab-panel="providers" id="config-tab-panel-providers" aria-labelledby="config-tab-providers" class="is-active">
-                    <div class="config-subsection-header"><h4><i class="codicon codicon-server"></i>模型服务</h4><button type="button" class="secondary-btn" data-add-provider>新增服务</button></div>
+                    <div class="config-subsection-header"><button type="button" class="secondary-btn" data-add-provider aria-label="新增模型服务">新增服务</button></div>
                     <div class="config-collection-table config-provider-table"><div class="config-row-labels config-provider-labels" aria-hidden="true"><span>服务名称</span><span>接口协议</span><span>服务地址</span><span>API 密钥</span><span>操作</span></div><div id="config-provider-list" class="config-dynamic-list"></div></div>
                 </section>
                 <section role="tabpanel" data-config-tab-panel="routes" id="config-tab-panel-routes" aria-labelledby="config-tab-routes" class="hidden" hidden>
-                    <div class="config-subsection-header"><h4><i class="codicon codicon-symbol-ruler"></i>任务模型路由</h4><button type="button" class="secondary-btn" data-add-task-route>新增路由</button></div>
+                    <div class="config-subsection-header"><button type="button" class="secondary-btn" data-add-task-route aria-label="新增任务模型路由">新增路由</button></div>
                     <div class="config-collection-table config-route-table"><div class="config-row-labels config-route-labels" aria-hidden="true"><span>任务类型</span><span>模型服务</span><span>模型名称</span><span>操作</span></div><div id="config-task-route-list" class="config-dynamic-list"></div></div>
                 </section>`;
             break;
         case 'zhiqiu':
             form.innerHTML = `
-                <div class="config-subsection-header"><h4><i class="codicon codicon-account"></i>账号池</h4><button type="button" class="secondary-btn" data-add-zhiqiu-account>新增账号</button></div>
+                <div class="config-subsection-header"><button type="button" class="secondary-btn" data-add-zhiqiu-account aria-label="新增知丘账号">新增账号</button></div>
                 <div class="config-collection-table config-zhiqiu-table"><div class="config-row-labels config-zhiqiu-labels" aria-hidden="true"><span>名称</span><span>用户名</span><span>密码</span><span>操作</span></div><div id="config-zhiqiu-account-list" class="config-dynamic-list"></div></div>
-                <div class="config-settings-header"><h4><i class="codicon codicon-settings"></i>调度设置</h4></div>
                 <div class="config-field-grid config-field-grid--compact">
                     <label class="config-checkbox"><input type="checkbox" name="enabled">启用账号轮询</label>
                     <label><span>轮询策略</span><select name="rotation_strategy"><option value="round_robin">轮询</option><option value="random">随机</option><option value="least_used">最少使用</option></select></label>
@@ -1632,9 +1647,8 @@ function renderModalForm(section, values) {
             break;
         case 'ifind':
             form.innerHTML = `
-                <div class="config-subsection-header"><h4><i class="codicon codicon-organization"></i>账号</h4><button type="button" class="secondary-btn" data-add-ifind-account>新增账号</button></div>
+                <div class="config-subsection-header"><button type="button" class="secondary-btn" data-add-ifind-account aria-label="新增 iFinD 账号">新增账号</button></div>
                 <div class="config-collection-table config-ifind-table"><div class="config-row-labels config-ifind-labels" aria-hidden="true"><span>名称</span><span>用户名</span><span>密码</span><span>操作</span></div><div id="config-ifind-account-list" class="config-dynamic-list"></div></div>
-                <div class="config-settings-header"><h4><i class="codicon codicon-plug"></i>连接设置</h4></div>
                 <div class="config-field-grid config-field-grid--compact config-settings-grid">
                     <label><span>后端类型</span><select name="backend"><option value="auto">自动</option><option value="python_sdk">Python SDK</option><option value="http_api">HTTP API</option></select></label>
                     <label><span>HTTP Base URL</span><input type="url" name="http_base_url" placeholder="https://quantapi.10jqka.com.cn"></label>
@@ -1643,9 +1657,8 @@ function renderModalForm(section, values) {
             break;
         case 'web_search':
             form.innerHTML = `
-                <div class="config-subsection-header"><h4><i class="codicon codicon-key"></i>Key 池</h4><button type="button" class="secondary-btn" data-add-web_search-key>新增 Key</button></div>
+                <div class="config-subsection-header"><button type="button" class="secondary-btn" data-add-web_search-key aria-label="新增搜索 Key">新增 Key</button></div>
                 <div class="config-collection-table config-web-search-table"><div class="config-row-labels config-web_search-labels" aria-hidden="true"><span>名称</span><span>API Key</span><span>状态</span><span>操作</span></div><div id="config-web_search-key-list" class="config-dynamic-list"></div></div>
-                <div class="config-settings-header"><h4><i class="codicon codicon-search"></i>搜索设置</h4></div>
                 <div class="config-field-grid config-field-grid--compact">
                     <label><span>搜索 Provider</span><select name="provider"><option value="tavily">Tavily</option><option value="bing">Bing</option></select></label>
                     <label><span>轮询策略</span><select name="rotation_strategy"><option value="round_robin">轮询</option><option value="random">随机</option><option value="least_used">最少使用</option></select></label>
@@ -1893,12 +1906,6 @@ function openConfigModal(section) {
 
     document.getElementById('config-edit-modal-title').textContent = meta.title;
     document.getElementById('config-edit-modal-subtitle').textContent = meta.subtitle;
-
-    // 渲染 section 专属图标
-    const iconEl = document.getElementById('config-edit-modal-icon');
-    if (iconEl && meta.icon) {
-        iconEl.innerHTML = `<i class="codicon codicon-${meta.icon}"></i>`;
-    }
 
     const content = document.querySelector('.config-edit-modal-content');
     content.setAttribute('data-modal-section', section);

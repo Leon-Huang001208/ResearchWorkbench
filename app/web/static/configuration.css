@@ -2001,3 +2001,124 @@
         flex-basis: 100%;
     }
 }
+
+/* Final modal overrides: keep the editor intentionally flat and low-chrome. */
+.config-edit-modal-content .modal-header::before {
+    display: none;
+}
+
+.config-edit-modal-content .config-modal-header-icon {
+    display: none;
+}
+
+.config-edit-modal-body .config-subsection-header {
+    justify-content: flex-end;
+    min-height: 36px;
+    margin: 10px 0 6px;
+    padding-top: 0;
+    border-top: 0;
+}
+
+.config-edit-modal-body .config-field-grid {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+}
+
+.config-edit-modal-body .config-checkbox,
+.config-edit-modal-body label.environment-locked {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+}
+
+.config-edit-modal .config-edit-modal-content .config-edit-modal-body :is(input, select, textarea) {
+    border: 1px solid var(--border-primary);
+    border-radius: 6px;
+    background: var(--bg-panel);
+    box-shadow: none;
+}
+
+.config-edit-modal .config-edit-modal-content .config-edit-modal-body :is(input, select, textarea):hover {
+    border-color: var(--border-primary);
+}
+
+.config-edit-modal .config-edit-modal-content .config-edit-modal-body :is(input, select, textarea):focus {
+    border-color: var(--accent);
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.config-edit-modal .config-edit-modal-body .config-collection-table {
+    border: 1px solid var(--border-primary);
+    border-radius: 0;
+    background: transparent;
+}
+
+.config-edit-modal .config-edit-modal-body .config-collection-table .config-row-labels {
+    background: transparent;
+}
+
+.config-edit-modal .config-edit-modal-body .config-collection-table .config-dynamic-row,
+.config-edit-modal .config-edit-modal-body .config-collection-table .config-dynamic-row:hover:not(:focus-within),
+.config-edit-modal .config-edit-modal-body .config-collection-table .config-dynamic-row:focus-within {
+    border-left: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.config-secret-control {
+    grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.config-secret-manage,
+.config-secret-action {
+    min-height: 34px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 0;
+    color: var(--text-secondary);
+    background: transparent;
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.config-secret-manage:hover,
+.config-secret-manage:focus-visible,
+.config-secret-action:hover,
+.config-secret-action:focus-visible {
+    color: var(--accent);
+    outline: none;
+}
+
+.config-secret-actions {
+    display: contents;
+}
+
+.config-secret-actions[hidden] {
+    display: none;
+}
+
+.config-edit-modal .config-edit-modal-content .modal-footer .codicon,
+.config-edit-modal .config-edit-modal-content .modal-footer .config-modal-test-help {
+    display: none;
+}
+
+.config-edit-modal .config-edit-modal-content .modal-footer #btn-config-edit-modal-test {
+    order: 3;
+    min-height: 32px;
+    padding: 0 4px;
+    border: 0;
+    color: var(--text-muted);
+    background: transparent;
+    font-size: 12px;
+    font-weight: 400;
+}
+
+.config-edit-modal .config-edit-modal-content .modal-footer #btn-config-edit-modal-save {
+    order: 4;
+}
