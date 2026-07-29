@@ -683,6 +683,7 @@ class ConfigurationService:
                     old_secret
                     and base_url != current.get(f"{prefix}BASE_URL", "")
                     and not clear_secret
+                    and api_key not in locked_fields
                     and (submitted_secret is None or str(submitted_secret) == "")
                 ):
                     raise ConfigurationError("Provider 地址变更后必须重新输入 Token")

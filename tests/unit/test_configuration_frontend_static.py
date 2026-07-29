@@ -837,3 +837,15 @@ def test_modal_save_only_clears_dirty_state_after_a_successful_api_save():
         modal_save_source,
         re.DOTALL,
     )
+
+
+def test_provider_row_locks_keep_their_snapshot_index_after_dom_changes():
+    source = CONFIGURATION_JS.read_text(encoding="utf-8")
+    row_source = _configuration_function(source, "createProviderRow")
+    render_source = _configuration_function(source, "renderProviders")
+    locks_source = _configuration_function(source, "applyProviderRowLocks")
+
+    assert "row.dataset.providerIndex" in row_source
+    assert "createProviderRow(provider, index + 1)" in render_source
+    assert "Number(row.dataset.providerIndex)" in locks_source
+    assert "rowIndex + 1" not in locks_source

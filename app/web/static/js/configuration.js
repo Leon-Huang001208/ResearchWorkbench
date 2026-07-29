@@ -358,9 +358,10 @@ function markSecretControlDirty(secretInput) {
     syncModalButtons();
 }
 
-function createProviderRow(provider = {}) {
+function createProviderRow(provider = {}, providerIndex = null) {
     const row = element('div', 'config-dynamic-row config-provider-row');
     rowOriginalNames.set(row, provider.original_name || '');
+    if (Number.isInteger(providerIndex)) row.dataset.providerIndex = String(providerIndex);
     const name = input('text', provider.name, 'Provider 名称');
     name.dataset.field = 'name';
     const protocol = select([
@@ -455,7 +456,7 @@ function createIfindAccountRow(account = {}) {
 function renderProviders(providers) {
     const list = document.getElementById('config-provider-list');
     if (!list) return;
-    list.replaceChildren(...providers.map(createProviderRow));
+    list.replaceChildren(...providers.map((provider, index) => createProviderRow(provider, index + 1)));
     applyProviderRowLocks();
 }
 
@@ -633,8 +634,9 @@ function applyProviderRowLocks() {
         base_url: 'BASE_URL',
         api_key: 'API_KEY',
     };
-    document.querySelectorAll('.config-provider-row').forEach((row, rowIndex) => {
-        const index = rowIndex + 1;
+    document.querySelectorAll('.config-provider-row').forEach(row => {
+        const index = Number(row.dataset.providerIndex);
+        if (!Number.isInteger(index) || index < 1) return;
         const prefix = `LLM_PROVIDER_${index}_`;
         const lockedControls = [];
         Object.entries(providerFieldSuffixes).forEach(([field, suffix]) => {

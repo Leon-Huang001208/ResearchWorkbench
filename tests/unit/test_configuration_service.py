@@ -280,7 +280,7 @@ def test_llm_partial_updates_preserve_environment_locked_provider_and_route_keys
                     "original_name": "locked-provider",
                     "name": "locked-provider",
                     "protocol": "openai_compatible",
-                    "base_url": "https://locked.example.test",
+                    "base_url": "https://locked-next.example.test",
                     "api_key": None,
                     "clear_api_key": False,
                 },
@@ -309,6 +309,7 @@ def test_llm_partial_updates_preserve_environment_locked_provider_and_route_keys
         {"task": "chat", "provider": "environment-chat-provider", "model": "next-model"}
     ]
     assert "LLM_PROVIDER_1_API_KEY=file-locked-secret" in saved
+    assert "LLM_PROVIDER_1_BASE_URL='https://locked-next.example.test'" in saved
     assert "TASK_CHAT_PROVIDER=file-chat-provider" in saved
     assert "LLM_PROVIDER_2_PROTOCOL='anthropic'" in saved
     assert "TASK_CHAT_MODEL='next-model'" in saved
