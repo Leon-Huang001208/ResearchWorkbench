@@ -1242,9 +1242,11 @@ function focusFirstCollectionField(row) {
 }
 
 function configureRowEditing(row, { editing, label }) {
-    const editButton = element('button', 'config-edit-row', '修改');
+    const editButton = element('button', 'config-edit-row');
     editButton.type = 'button';
+    editButton.title = `修改${label}`;
     editButton.setAttribute('aria-label', `修改${label}`);
+    editButton.innerHTML = '<i class="codicon codicon-edit"></i>';
     const setEditing = enabled => {
         row.classList.toggle('is-editing', enabled);
         row.querySelectorAll('input[data-field], select[data-field], textarea[data-field]').forEach(control => {

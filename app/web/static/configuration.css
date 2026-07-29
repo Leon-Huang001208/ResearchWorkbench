@@ -2103,6 +2103,26 @@
     display: none;
 }
 
+.config-edit-modal .config-edit-row {
+    display: inline-grid;
+    width: 32px;
+    height: 32px;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    color: var(--text-secondary);
+    background: transparent;
+    cursor: pointer;
+}
+
+.config-edit-modal .config-edit-row:hover,
+.config-edit-modal .config-edit-row:focus-visible {
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    outline: none;
+}
+
 .config-edit-modal .config-edit-modal-content .modal-footer .codicon,
 .config-edit-modal .config-edit-modal-content .modal-footer .config-modal-test-help {
     display: none;
