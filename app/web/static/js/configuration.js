@@ -405,6 +405,7 @@ function createProviderRow(provider = {}, providerIndex = null) {
         labeledControl('API Token', createSecretControl(apiKey, provider.api_key), secretHint(provider.api_key)),
         actions,
     );
+    configureRowEditing(row, { editing: !provider.name, label: `服务 ${provider.name || '新服务'}` });
     return row;
 }
 
@@ -424,6 +425,7 @@ function createTaskRouteRow(route = {}) {
         labeledControl('模型', model),
         actions,
     );
+    configureRowEditing(row, { editing: !route.task, label: `任务路由 ${route.task || '新路由'}` });
     return row;
 }
 
@@ -1237,6 +1239,24 @@ function rowValue(row, field) {
 
 function focusFirstCollectionField(row) {
     row?.querySelector('input[data-field]:not(:disabled), select[data-field]:not(:disabled), textarea[data-field]:not(:disabled)')?.focus();
+}
+
+function configureRowEditing(row, { editing, label }) {
+    const editButton = element('button', 'config-edit-row', '修改');
+    editButton.type = 'button';
+    editButton.setAttribute('aria-label', `修改${label}`);
+    const setEditing = enabled => {
+        row.classList.toggle('is-editing', enabled);
+        row.querySelectorAll('input[data-field], select[data-field], textarea[data-field]').forEach(control => {
+            if (!control.closest('label')?.classList.contains('environment-locked')) control.disabled = !enabled;
+        });
+        row.querySelectorAll('[data-secret-manage]').forEach(button => { button.disabled = !enabled; });
+        editButton.hidden = enabled;
+        if (enabled) focusFirstCollectionField(row);
+    };
+    editButton.addEventListener('click', () => setEditing(true));
+    row.querySelector('.config-row-actions')?.prepend(editButton);
+    setEditing(editing);
 }
 
 function collectLlm() {
