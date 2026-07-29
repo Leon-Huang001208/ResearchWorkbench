@@ -209,7 +209,7 @@ def test_advanced_configuration_persists_for_restart_without_mutating_runtime(tm
     assert "LOG_LEVEL='ERROR'" in (tmp_path / ".env").read_text(encoding="utf-8")
 
 
-def test_environment_values_lock_configuration_fields(monkeypatch, tmp_path):
+def test_environment_values_do_not_lock_desktop_configuration_fields(monkeypatch, tmp_path):
     env_path = tmp_path / ".env"
     env_path.write_text("LOG_LEVEL=INFO\n", encoding="utf-8")
     monkeypatch.setenv("LOG_LEVEL", "WARNING")
@@ -231,13 +231,12 @@ def test_environment_values_lock_configuration_fields(monkeypatch, tmp_path):
     snapshot = service.get_snapshot()
 
     assert snapshot["sections"]["advanced"]["log_level"] == "WARNING"
-    assert snapshot["environment_locked_fields"] == ["LOG_LEVEL"]
+    assert snapshot["environment_locked_fields"] == []
 
-    with pytest.raises(RuntimeError, match="系统环境变量锁定") as exc_info:
-        service.update_section("advanced", {"log_level": "ERROR"})
+    result = service.update_section("advanced", {"log_level": "ERROR"})
 
-    assert "WARNING" not in str(exc_info.value)
-    assert env_path.read_text(encoding="utf-8") == "LOG_LEVEL=INFO\n"
+    assert result["restart_required"] is True
+    assert "LOG_LEVEL='ERROR'" in env_path.read_text(encoding="utf-8")
 
 
 def test_llm_partial_updates_preserve_environment_locked_provider_and_route_keys(monkeypatch, tmp_path):

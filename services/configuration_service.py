@@ -146,12 +146,14 @@ class ConfigurationService:
         return values
 
     def _locked_fields(self) -> set[str]:
-        """Return supported configuration fields injected before runtime file loading."""
-        return {
-            key
-            for key in self.runtime_context.environment_override_keys
-            if self._is_supported_key(key)
-        }
+        """Desktop system configuration is always editable.
+
+        The runtime `.env` file is the authoritative persisted source and is loaded
+        with override enabled at startup.  Reporting process variables as locks here
+        made the system configuration page appear editable while rejecting every
+        saved change after restart.
+        """
+        return set()
 
     def _read_env_file_strict(self) -> tuple[str, dict[str, str]]:
         """严格解析 dotenv；任何语法错误都阻止读取和后续写入。"""

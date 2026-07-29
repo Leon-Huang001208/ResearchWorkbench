@@ -68,14 +68,14 @@ def resolve_runtime_context(
 
 
 def initialize_runtime_environment() -> RuntimeContext:
-    """Load the selected config file once before settings and repositories initialize."""
+    """Load the selected configuration as the desktop application's authoritative source."""
     context = resolve_runtime_context()
-    environment_override_keys = frozenset(os.environ)
     if context.data_dir is not None:
         os.environ.setdefault("ALPHAFOUNDRY_DESKTOP_DATA_DIR", str(context.data_dir))
     if context.env_path is not None and context.env_path.exists():
-        load_dotenv(context.env_path, override=False)
-    return replace(resolve_runtime_context(), environment_override_keys=environment_override_keys)
+        # 系统配置页写入该文件；重启后必须以其最新值覆盖启动器遗留的同名变量。
+        load_dotenv(context.env_path, override=True)
+    return replace(resolve_runtime_context(), environment_override_keys=frozenset())
 
 
 def _resolve_mode(values: Mapping[str, str]) -> RuntimeMode:

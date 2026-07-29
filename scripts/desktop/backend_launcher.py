@@ -15,7 +15,6 @@ from typing import Sequence
 
 from core.settings.paths import app_data_dir
 from core.settings.registry import desktop_env_template
-from services.database_readiness import DatabaseReadinessCode, probe_postgresql
 
 # 在任何其他 import 之前强制 UTF-8 I/O，避免 Windows GBK 编码导致 structlog 崩溃
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
@@ -143,7 +142,8 @@ def apply_frozen_desktop_defaults() -> Path | None:
     try:
         from dotenv import load_dotenv
 
-        load_dotenv(env_path, override=False)
+        # Persisted desktop settings must take precedence over stale launcher values.
+        load_dotenv(env_path, override=True)
     except ImportError:
         pass  # dotenv 不可用时静默跳过（frozen 包里应已捆绑）
 
@@ -340,11 +340,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     _worker_proc: subprocess.Popen | None = None
     _sched_proc: subprocess.Popen | None = None
     try:
+        # 数据库预检会间接加载运行时配置；必须在桌面环境变量和 .env
+        # 已就绪后再导入，否则会把运行模式错误冻结为 web-dev。
+        from services.database_readiness import probe_postgresql
+
         readiness = probe_postgresql(os.environ.get("DATABASE_URL", ""))
     except Exception:
         logger.warning(
             "Desktop database readiness code=%s",
-            DatabaseReadinessCode.UNEXPECTED_ERROR.value,
+            "unexpected_error",
         )
     else:
         if readiness.ready:
