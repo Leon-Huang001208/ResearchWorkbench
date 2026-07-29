@@ -1250,7 +1250,10 @@ function configureRowEditing(row, { editing, label }) {
     const setEditing = enabled => {
         row.classList.toggle('is-editing', enabled);
         row.querySelectorAll('input[data-field], select[data-field], textarea[data-field]').forEach(control => {
-            if (!control.closest('label')?.classList.contains('environment-locked')) control.disabled = !enabled;
+            if (control.closest('label')?.classList.contains('environment-locked')) return;
+            control.disabled = !enabled;
+            if ('readOnly' in control) control.readOnly = !enabled;
+            control.tabIndex = enabled ? 0 : -1;
         });
         row.querySelectorAll('[data-secret-manage]').forEach(button => { button.disabled = !enabled; });
         editButton.hidden = enabled;

@@ -2123,6 +2123,11 @@
     outline: none;
 }
 
+.config-edit-modal .config-dynamic-row:not(.is-editing) [data-field] {
+    pointer-events: none;
+    cursor: default;
+}
+
 .config-edit-modal .config-edit-modal-content .modal-footer .codicon,
 .config-edit-modal .config-edit-modal-content .modal-footer .config-modal-test-help {
     display: none;
