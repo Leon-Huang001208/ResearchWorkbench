@@ -17450,8 +17450,8 @@ button.template-config-data-overview-row {
 }
 
 .template-advanced-maintenance .template-config-editor-panel {
-    display: grid;
-    grid-template-rows: auto minmax(0, 1fr);
+    display: flex;
+    flex-direction: column;
     min-height: min(842px, calc(100vh - 300px));
     overflow: hidden;
 }
@@ -17620,7 +17620,9 @@ button.template-config-data-overview-row {
 .template-config-editor-panel .template-placeholder-detail-form {
     display: grid;
     gap: 14px;
-    height: 100%;
+    height: auto;
+    min-height: 0;
+    align-content: start;
     padding: 18px;
     overflow: auto;
 }

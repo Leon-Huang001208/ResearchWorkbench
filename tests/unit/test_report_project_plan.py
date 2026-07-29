@@ -5,8 +5,8 @@ from __future__ import annotations
 from reporting.projects.plan import compile_report_plan
 
 
-def test_compile_report_plan_marks_composite_component_retrieval_ready():
-    """Compiled plans should mirror effective generation config for composite sections."""
+def test_compile_report_plan_marks_data_template_evidence_retrieval_ready():
+    """Compiled plans should mirror the explicit data-template paragraph config."""
     report_config = {
         "defaults": {
             "retrieval": {
@@ -69,7 +69,7 @@ def test_compile_report_plan_marks_composite_component_retrieval_ready():
     assert by_placeholder["market_review"].prompt_found is True
     assert by_placeholder["market_review"].retrieval_ready is True
     assert by_placeholder["market_review"].retrieval_config is not None
-    assert "market_review" in by_placeholder["market_review"].retrieval_config.must_any
+    assert by_placeholder["market_review"].retrieval_config.must_any == ["上证指数", "成交额"]
     assert plan.warnings == []
 
 

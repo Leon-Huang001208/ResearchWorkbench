@@ -91,10 +91,13 @@ def test_huaan_prompt_placeholders_use_report_level_retrieval_defaults():
     prompt_placeholders = {
         name: item
         for name, item in config["placeholders"].items()
-        if item.get("prompt_template") and item.get("type") in {"paragraph", "prompt"}
+        if item.get("prompt_template") and item.get("type") == "paragraph"
     }
 
     assert prompt_placeholders
+    a_share_review = config["placeholders"]["A股市场回顾"]
+    assert a_share_review["type"] == "paragraph"
+    assert a_share_review["mode"] == "data_template_plus_evidence_ai"
     for name, item in prompt_placeholders.items():
         retrieval = item.get("retrieval")
         if not retrieval:
@@ -146,7 +149,7 @@ def test_report_defaults_are_merged_before_building_retrieval_config():
         }
     }
     placeholder_config = {
-        "type": "prompt",
+        "type": "paragraph",
         "title": "航天",
         "retrieval": {"keywords": ["航天", "卫星"]},
     }
@@ -363,7 +366,7 @@ def test_missing_retrieval_keywords_are_filled_from_keyword_profile():
     """占位符未显式写关键词时，生成侧应从 keyword_profiles 继承检索关键词。"""
     config = {
         "title": "人工智能",
-        "type": "prompt",
+        "type": "paragraph",
         "prompt_template": "人工智能",
         "retrieval": {"mode": "hybrid"},
     }
@@ -382,7 +385,7 @@ def test_explicit_keyword_profile_fills_keywords_when_keywords_are_missing():
     """配置了 keyword_profile 但未写 keywords 时，应从指定 profile 展开关键词。"""
     config = {
         "title": "自定义标题",
-        "type": "prompt",
+        "type": "paragraph",
         "retrieval": {"keyword_profile": "航天"},
     }
 
@@ -499,7 +502,7 @@ def write_minimal_pptx(path: Path, text: str) -> None:
 
 
 def write_market_review_xlsx(path: Path) -> None:
-    """Write cached market data used by composite market review generation."""
+    """Write cached market data used by data-template market review generation."""
     from openpyxl import Workbook
 
     workbook = Workbook()
@@ -1143,7 +1146,7 @@ def test_generation_service_uses_prompt_query_evidence_and_reporting_model(tmp_p
             "placeholders": {
                 "人工智能": {
                     "title": "人工智能",
-                    "type": "prompt",
+                    "type": "paragraph",
                     "prompt_template": "人工智能",
                     "max_words": 120,
                     "params": {"param": "人工智能"},
@@ -1237,7 +1240,7 @@ def test_generation_service_renders_structured_generation_constraints(tmp_path: 
             "placeholders": {
                 "A股市场回顾": {
                     "title": "A股市场回顾",
-                    "type": "prompt",
+                    "type": "paragraph",
                     "prompt_template": "A股市场回顾",
                     "target_words": 100,
                     "max_words": 150,
@@ -1317,8 +1320,18 @@ def test_generation_service_fills_report_period_placeholders(tmp_path: Path):
         project=project,
         report_config={
             "placeholders": {
-                "开始日期": {"title": "开始日期", "type": "report_period", "field": "start_date"},
-                "结束日期": {"title": "结束日期", "type": "report_period", "field": "end_date"},
+                "开始日期": {
+                    "title": "开始日期",
+                    "type": "field",
+                    "source": {"kind": "report_period"},
+                    "field": "start_date",
+                },
+                "结束日期": {
+                    "title": "结束日期",
+                    "type": "field",
+                    "source": {"kind": "report_period"},
+                    "field": "end_date",
+                },
             }
         },
         prompt_templates_source="",
@@ -1412,7 +1425,7 @@ def test_generation_service_handles_output_shape_placeholder_protocol(tmp_path: 
     assert result.sections == []
 
 
-def test_generation_service_builds_composite_market_review_from_excel_and_evidence(
+def test_generation_service_builds_data_template_evidence_paragraph_from_excel_and_evidence(
     tmp_path: Path,
 ):
     """A股市场回顾应先用 Excel 真实数据生成固定句，再用 evidence 生成热点句。"""
@@ -1480,7 +1493,8 @@ def test_generation_service_builds_composite_market_review_from_excel_and_eviden
             "placeholders": {
                 "A股市场回顾": {
                     "title": "A股市场回顾",
-                    "type": "composite_market_review",
+                    "type": "paragraph",
+                    "mode": "data_template_plus_evidence_ai",
                     "prompt_template": "A股市场回顾",
                     "data_source": {
                         "workbook": "周报数据.xlsx",
@@ -1956,7 +1970,7 @@ def test_generation_service_generates_independent_prompt_sections_concurrently(t
     placeholders = {
         f"段落{i}": {
             "title": f"段落{i}",
-            "type": "prompt",
+            "type": "paragraph",
             "prompt_template": f"段落{i}",
         }
         for i in range(1, 5)
@@ -3023,6 +3037,133 @@ def test_upload_report_project_package_creates_project_folder(tmp_path: Path, mo
     assert "prompt_templates: config/prompt_templates.md" in (
         project_dir / "project.yaml"
     ).read_text(encoding="utf-8")
+
+
+def test_upload_rejects_legacy_sections_config_without_creating_project_assets(tmp_path: Path, monkeypatch):
+    """上传必须在落盘前拒绝退役配置，且不能遗留项目资产。"""
+    import app.api.routes.report_projects as report_projects_route
+
+    monkeypatch.setattr(
+        report_projects_route,
+        "report_project_manager",
+        ReportProjectManager(projects_root=tmp_path),
+    )
+
+    response = client.post(
+        "/api/report-projects/upload",
+        data={"project_name": "旧配置周报"},
+        files=[
+            (
+                "word_template",
+                (
+                    "report_template.docx",
+                    b"docx",
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                ),
+            ),
+            ("report_config", ("report_config.yaml", b"sections: []\n", "text/yaml")),
+            ("prompt_templates", ("prompt_templates.md", b"## Default Prompt\n", "text/markdown")),
+        ],
+    )
+
+    assert response.status_code == 422
+    assert "sections" in response.json()["detail"]
+    assert not (tmp_path / "旧配置周报").exists()
+
+
+def test_source_update_rejects_legacy_config_without_overwriting_existing_source(
+    tmp_path: Path, monkeypatch
+):
+    """配置候选校验失败时，当前 report_config 文件必须保持不变。"""
+    project_dir = tmp_path / "严格周报"
+    (project_dir / "templates").mkdir(parents=True)
+    create_report_project_config_dir(project_dir)
+    (project_dir / "generated").mkdir()
+    (project_dir / "runs").mkdir()
+    (project_dir / "templates" / "report_template.docx").write_bytes(b"docx")
+    config_path = project_dir / "config" / "report_config.yaml"
+    config_path.write_text(
+        "placeholders:\n  content:\n    type: paragraph\n    mode: evidence_ai\n    prompt_template: 默认 Prompt\n",
+        encoding="utf-8",
+    )
+    (project_dir / "project.yaml").write_text(
+        "\n".join(
+            [
+                "name: 严格周报",
+                "active_word_template: templates/report_template.docx",
+                "report_config: config/report_config.yaml",
+                "prompt_templates: config/prompt_templates.md",
+                "output_dir: generated",
+                "run_log_dir: runs",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    original = config_path.read_text(encoding="utf-8")
+
+    import app.api.routes.report_projects as report_projects_route
+
+    monkeypatch.setattr(
+        report_projects_route,
+        "report_project_manager",
+        ReportProjectManager(projects_root=tmp_path),
+    )
+
+    response = client.put(
+        "/api/report-projects/严格周报/source",
+        json={"source_kind": "report_config", "content": "sections: []\n"},
+    )
+
+    assert response.status_code == 422
+    assert config_path.read_text(encoding="utf-8") == original
+
+    response = client.put(
+        "/api/report-projects/严格周报/source",
+        json={"source_kind": "report_config", "content": "section_config: {}\nplaceholders: {}\n"},
+    )
+
+    assert response.status_code == 422
+    assert config_path.read_text(encoding="utf-8") == original
+
+    response = client.put(
+        "/api/report-projects/严格周报/source",
+        json={
+            "source_kind": "report_config",
+            "content": (
+                "placeholders:\n  content:\n    type: paragraph\n"
+                "    mode: evidence_ai\n    prompt_template: 默认 Prompt\n"
+                "    query: 旧检索 Query\n"
+            ),
+        },
+    )
+
+    assert response.status_code == 422
+    assert config_path.read_text(encoding="utf-8") == original
+
+    response = client.put(
+        "/api/report-projects/严格周报/source",
+        json={
+            "source_kind": "report_config",
+            "content": (
+                "placeholders:\n  content:\n    type: paragraph\n"
+                "    mode: evidence_ai\n    prompt_template: 默认 Prompt\n"
+                "    prompt: 旧内联 Prompt\n"
+            ),
+        },
+    )
+
+    assert response.status_code == 422
+    assert config_path.read_text(encoding="utf-8") == original
+
+    prompt_path = project_dir / "config" / "prompt_templates.md"
+    original_prompt = prompt_path.read_text(encoding="utf-8")
+    response = client.put(
+        "/api/report-projects/严格周报/source",
+        json={"source_kind": "prompt_templates", "content": "## 另一个 Prompt\n"},
+    )
+
+    assert response.status_code == 422
+    assert prompt_path.read_text(encoding="utf-8") == original_prompt
 
 
 def test_upload_report_project_allows_word_only_package(tmp_path: Path, monkeypatch):

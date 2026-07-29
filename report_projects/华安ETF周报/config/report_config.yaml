@@ -148,7 +148,7 @@ tables:
 placeholders:
   A股市场回顾:
     title: A股市场回顾
-    type: composite_market_review
+    type: paragraph
     confirmed: true
     mode: data_template_plus_evidence_ai
     prompt_template: A股市场回顾

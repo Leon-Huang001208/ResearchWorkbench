@@ -230,6 +230,22 @@ def test_report_config_summary_dom_contract_collapses_low_frequency_sections_and
         assert f'data-placeholder-edit-section="{edit_section}"' in helper_source
 
 
+def test_report_config_editor_keeps_selected_detail_in_document_flow():
+    """状态条不能占用详情编辑器的唯一弹性行。"""
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+    css = STYLE_CSS.read_text(encoding="utf-8")
+    rule_start = css.rfind(
+        "\n.template-advanced-maintenance .template-config-editor-panel {"
+    ) + 1
+    rule_end = css.index("}\n", rule_start) + 2
+    editor_rule = css[rule_start:rule_end]
+
+    assert "display: flex;" in editor_rule
+    assert "flex-direction: column;" in editor_rule
+    assert "grid-template-rows: auto minmax(0, 1fr);" not in editor_rule
+    assert "function buildPlaceholderConfigSummaryHtml" in source
+
+
 def test_report_config_summary_prioritizes_missing_query_or_keywords_without_losing_edit_entries():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
     caller_start = source.index("function renderSelectedPlaceholderDetail")
@@ -255,7 +271,8 @@ def test_report_config_summary_prioritizes_missing_query_or_keywords_without_los
     assert "const keywordsNeedAttention = usesEvidence && !queryNeedsAttention && keywordList.length === 0;" in summary_source
     assert "return promptName ||" not in raw_query_source
     assert "return '';" in raw_query_source
-    assert "return promptName || normalizePlaceholderName(placeholderName) || '未配置语义 Query';" in display_query_source
+    assert "normalizePlaceholderName(placeholderName)" not in display_query_source
+    assert "return '未配置语义 Query';" in display_query_source
     assert "open: queryNeedsAttention" in summary_source
     assert "template-config-next-action" in summary_source
     assert "补充语义 Query，明确系统应召回哪些材料。" in summary_source
@@ -381,7 +398,7 @@ console.log(JSON.stringify({
     assert rendered["querySourceOnly"] == {"rawQuery": "", "actions": ["query"], "queryOpen": True}
     assert rendered["camelCaseQuerySource"] == {
         "rawQuery": "",
-        "displayQuery": "占位符兜底",
+        "displayQuery": "未配置语义 Query",
         "actions": ["query"],
         "queryOpen": True,
         "rendersSource": False,
@@ -762,7 +779,7 @@ def test_config_modal_does_not_auto_select_first_number_input():
     assert "-webkit-appearance: none;" in css
 
 
-def test_data_template_fields_only_render_for_composite_market_review_placeholders():
+def test_data_template_fields_only_render_for_data_template_evidence_paragraphs():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
 
     assert (
@@ -972,7 +989,7 @@ def test_generation_preflight_checks_each_placeholder_and_can_focus_it():
 
     assert "function buildPlaceholderReadinessItems(template, placeholders)" in source
     assert "function getPlaceholderReadinessIssue(mapping, placeholderName)" in source
-    assert "缺少 Prompt 模板或语义 Query" in source
+    assert "缺少 Markdown Prompt 标题" in source
     assert "缺少 Excel 来源" in source
     assert "缺少固定文案" in source
     assert "缺少表格来源" in source
@@ -1494,6 +1511,21 @@ def test_prompt_template_is_resolved_from_bound_markdown_source():
     assert "usesEmbeddedPromptQueries" not in source
     assert "query_mode: retrieval_query_embedded" in source
     assert "Markdown Prompt：${promptTemplate}" in source
+
+
+def test_semantic_query_uses_only_the_bound_markdown_prompt_block():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+    helper = source[
+        source.index("function getConfiguredSemanticRetrievalQueryForPlaceholder") : source.index(
+            "function extractPromptTemplateLabel"
+        )
+    ]
+
+    assert "prompt_retrieval_query" not in source
+    assert 'data-placeholder-field="prompt.retrieval_query"' not in source
+    assert "extractPromptTemplateLabel(promptSource, promptName, '检索 Query')" in helper
+    assert "normalizePlaceholderName(placeholderName)" not in helper
+    assert "return '未配置语义 Query';" in helper
 
 
 def test_prompt_template_view_uses_only_bound_markdown_source():

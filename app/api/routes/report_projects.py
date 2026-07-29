@@ -286,14 +286,6 @@ async def upload_report_project(
         if normalized_project_type == "ppt" and not ppt_template:
             raise HTTPException(status_code=422, detail="PPT project requires a .pptx template")
 
-        templates_dir = project_dir / "templates"
-        data_dir = project_dir / "data"
-        config_dir = project_dir / "config"
-        generated_dir = project_dir / "generated"
-        runs_dir = project_dir / "runs"
-        for directory in [templates_dir, data_dir, config_dir, generated_dir, runs_dir]:
-            directory.mkdir(parents=True, exist_ok=True)
-
         if word_template and word_template.filename:
             _require_suffix(word_template.filename, [".docx"], "Word 模板")
         if ppt_template and ppt_template.filename:
@@ -304,41 +296,72 @@ async def upload_report_project(
             _require_suffix(report_config.filename, [".yaml", ".yml"], "报告配置")
         _require_suffix(prompt_templates.filename or "", [".md"], "Prompt 模板")
 
-        word_path = templates_dir / "report_template.docx"
-        ppt_path = templates_dir / "report_template.pptx"
-        report_config_path = config_dir / "report_config.yaml"
-
-        if normalized_project_type == "ppt" and ppt_template:
-            ppt_path.write_bytes(await ppt_template.read())
-        elif word_template:
-            word_path.write_bytes(await word_template.read())
+        try:
+            word_template_content = await word_template.read() if word_template else b""
+            ppt_template_content = await ppt_template.read() if ppt_template else b""
+            excel_workbook_content = await excel_workbook.read() if excel_workbook else b""
+            prompt_templates_source = (await prompt_templates.read()).decode("utf-8")
+            uploaded_report_config_source = (
+                (await report_config.read()).decode("utf-8")
+                if report_config and report_config.filename
+                else None
+            )
+        except UnicodeDecodeError as exc:
+            raise HTTPException(status_code=422, detail=f"报告配置或 Prompt 模板必须是 UTF-8: {exc}")
 
         excel_filename = ""
         if excel_workbook and excel_workbook.filename:
             excel_filename = _safe_filename(excel_workbook.filename)
-            excel_path = data_dir / excel_filename
-            excel_path.write_bytes(await excel_workbook.read())
-        if report_config and report_config.filename:
-            report_config_path.write_bytes(await report_config.read())
-        else:
-            default_source = (
-                _build_default_ppt_report_config_source(ppt_path)
-                if normalized_project_type == "ppt"
-                else _build_default_report_config_source(word_path)
-            )
-            report_config_path.write_text(default_source, encoding="utf-8")
-
-        prompt_path = config_dir / "prompt_templates.md"
-        prompt_path.write_bytes(await prompt_templates.read())
-
-        data_source_paths: List[Path] = []
+        uploaded_data_files: List[tuple[str, bytes]] = []
         for upload in data_files or []:
             filename = _safe_filename(upload.filename or "")
             if not filename:
                 continue
             _require_suffix(filename, [".json", ".xlsx", ".png"], "数据文件")
+            uploaded_data_files.append((filename, await upload.read()))
+
+        if uploaded_report_config_source is not None:
+            report_config_source = uploaded_report_config_source
+        else:
+            report_config_source = (
+                _build_default_ppt_report_config_source(ppt_template_content)
+                if normalized_project_type == "ppt"
+                else _build_default_report_config_source(word_template_content)
+            )
+        try:
+            _validate_report_project_sources(
+                report_config_source,
+                prompt_templates_source,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc))
+
+        templates_dir = project_dir / "templates"
+        data_dir = project_dir / "data"
+        config_dir = project_dir / "config"
+        generated_dir = project_dir / "generated"
+        runs_dir = project_dir / "runs"
+        for directory in [templates_dir, data_dir, config_dir, generated_dir, runs_dir]:
+            directory.mkdir(parents=True, exist_ok=True)
+
+        word_path = templates_dir / "report_template.docx"
+        ppt_path = templates_dir / "report_template.pptx"
+        report_config_path = config_dir / "report_config.yaml"
+        if normalized_project_type == "ppt":
+            ppt_path.write_bytes(ppt_template_content)
+        else:
+            word_path.write_bytes(word_template_content)
+        if excel_filename:
+            (data_dir / excel_filename).write_bytes(excel_workbook_content)
+        report_config_path.write_text(report_config_source, encoding="utf-8")
+
+        prompt_path = config_dir / "prompt_templates.md"
+        prompt_path.write_text(prompt_templates_source, encoding="utf-8")
+
+        data_source_paths: List[Path] = []
+        for filename, content in uploaded_data_files:
             target_path = data_dir / filename
-            target_path.write_bytes(await upload.read())
+            target_path.write_bytes(content)
             data_source_paths.append(target_path)
 
         project_data = {
@@ -417,6 +440,24 @@ async def update_report_project_source(slug: str, request: UpdateReportProjectSo
             target_path = project.report_config_path
         else:
             raise HTTPException(status_code=400, detail="Unsupported source kind")
+
+        candidate_report_config_source = (
+            request.content
+            if request.source_kind == "report_config"
+            else project.report_config_path.read_text(encoding="utf-8")
+        )
+        candidate_prompt_templates_source = (
+            request.content
+            if request.source_kind == "prompt_templates"
+            else project.prompt_templates_path.read_text(encoding="utf-8")
+        )
+        try:
+            _validate_report_project_sources(
+                candidate_report_config_source,
+                candidate_prompt_templates_source,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc))
 
         target_path.parent.mkdir(parents=True, exist_ok=True)
         target_path.write_text(request.content, encoding="utf-8")
@@ -1207,11 +1248,11 @@ def _data_asset_sort_key(asset: DataAssetInfo) -> int:
     return order.get(asset.kind, 99)
 
 
-def _build_default_report_config_source(word_path: Path) -> str:
-    """Build a minimal report config when only a Word template is uploaded."""
+def _build_default_report_config_source(word_template_content: bytes) -> str:
+    """Build a minimal report config from an uploaded Word template in memory."""
     placeholders = {
         placeholder: {"type": "static", "value": ""}
-        for placeholder in _extract_docx_placeholders(word_path)
+        for placeholder in _extract_docx_placeholders(io.BytesIO(word_template_content))
     }
     return yaml.safe_dump(
         {"placeholders": placeholders},
@@ -1220,19 +1261,94 @@ def _build_default_report_config_source(word_path: Path) -> str:
     )
 
 
-def _build_default_ppt_report_config_source(ppt_path: Path) -> str:
-    """Build a minimal report config when only a PPT template is uploaded."""
+def _build_default_ppt_report_config_source(ppt_template_content: bytes) -> str:
+    """Build a minimal report config from an uploaded PPT template in memory."""
     from reporting.projections.ppt import extract_pptx_placeholders
 
     placeholders = {
         placeholder: {"type": "static", "value": ""}
-        for placeholder in extract_pptx_placeholders(ppt_path)
+        for placeholder in extract_pptx_placeholders(io.BytesIO(ppt_template_content))
     }
     return yaml.safe_dump(
         {"placeholders": placeholders},
         allow_unicode=True,
         sort_keys=False,
     )
+
+
+_RETIRED_REPORT_CONFIG_ROOT_KEYS = {
+    "sections",
+    "section_config",
+    "prompt",
+    "query",
+    "query_source",
+    "prompt_retrieval_query",
+}
+_RETIRED_PLACEHOLDER_KEYS = {
+    "prompt",
+    "query",
+    "query_source",
+    "prompt_retrieval_query",
+    "ai_prompt",
+}
+_RETIRED_PARAGRAPH_TYPES = {
+    "prompt",
+    "ai_text",
+    "composite_market_review",
+}
+
+
+def _validate_report_project_sources(
+    report_config_source: str,
+    prompt_templates_source: str,
+) -> Dict[str, Any]:
+    """Validate candidate report config and Markdown Prompt bindings before persistence."""
+    try:
+        report_config = yaml.safe_load(report_config_source) or {}
+    except yaml.YAMLError as exc:
+        logger.warning("Rejected invalid report config YAML", error=str(exc))
+        raise ValueError(f"report_config YAML 无法解析: {exc}") from exc
+    if not isinstance(report_config, dict):
+        raise ValueError("report_config 顶层必须是 mapping")
+
+    retired_roots = sorted(_RETIRED_REPORT_CONFIG_ROOT_KEYS & set(report_config))
+    if retired_roots:
+        raise ValueError(
+            "report_config 不允许旧字段: " + ", ".join(retired_roots)
+        )
+    placeholders = report_config.get("placeholders")
+    if not isinstance(placeholders, dict):
+        raise ValueError("report_config.placeholders 必须是 mapping")
+
+    from reporting.projects.generation import parse_prompt_templates
+
+    prompt_templates = parse_prompt_templates(prompt_templates_source)
+    for placeholder, config in placeholders.items():
+        if not isinstance(config, dict):
+            raise ValueError(f"report_config.placeholders.{placeholder} 必须是 mapping")
+        retired_keys = sorted(_RETIRED_PLACEHOLDER_KEYS & set(config))
+        if retired_keys:
+            raise ValueError(
+                f"report_config.placeholders.{placeholder} 不允许旧字段: "
+                + ", ".join(retired_keys)
+            )
+        placeholder_type = str(config.get("type") or "").strip().lower()
+        if placeholder_type in _RETIRED_PARAGRAPH_TYPES:
+            raise ValueError(
+                f"report_config.placeholders.{placeholder} 不允许旧正文类型: "
+                f"{placeholder_type}；请使用 type: paragraph 和明确的 mode"
+            )
+        mode = str(config.get("mode") or "").strip().lower()
+        evidence_required = placeholder_type == "paragraph" and mode != "data_template"
+        if not evidence_required:
+            continue
+        prompt_template = str(config.get("prompt_template") or "").strip()
+        if not prompt_template or prompt_template not in prompt_templates:
+            raise ValueError(
+                f"report_config.placeholders.{placeholder} 必须引用 "
+                "prompt_templates.md 中存在的 ## Markdown 标题"
+            )
+    return report_config
 
 
 def _read_report_config(path: Path) -> tuple[Dict[str, Any], str]:
@@ -1258,7 +1374,7 @@ def _read_prompt_templates(path: Path) -> str:
 
 
 
-def _extract_docx_placeholders(path: Path) -> List[str]:
+def _extract_docx_placeholders(path: Path | io.BytesIO) -> List[str]:
     """Extract {{placeholder}} tokens from Word text, including tokens split across runs."""
     word_ns = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
     placeholders: List[str] = []
