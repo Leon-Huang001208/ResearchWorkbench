@@ -2508,7 +2508,9 @@ AlphaFoundry/
 ├── data/                     # 数据目录
 ├── logs/                     # 日志目录
 ├── backups/                  # 备份目录
-├── .claude/                  # Claude 配置
+├── AGENTS.md                  # 跨工具 Agent 共享规则
+├── .agents/skills/            # 已跟踪的项目 skills
+├── .claude/                   # 本机可选 Claude 配置（Git 忽略）
 ├── .env.example              # 环境变量示例
 ├── .env                      # 环境变量（不提交到 git）
 ├── .gitignore                # Git 忽略

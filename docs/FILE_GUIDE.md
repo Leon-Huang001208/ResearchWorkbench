@@ -36,7 +36,9 @@
 | `pytest.ini` | Pytest 测试框架配置 |
 | `.env.example` | 环境变量模板，复制为 `.env` 后使用 |
 | `.gitignore` | Git 忽略文件配置 |
-| `.claude/` | Claude 配置目录，包含项目特定的 rules |
+| AGENTS.md | 已跟踪的跨工具 Agent 规则入口 |
+| .agents/skills/ | 已跟踪的项目工作流与金融数据 skills |
+| .claude/ | 本机 Claude 可选配置；被 Git 忽略，不作为共享规则来源 |
 | `app/` | 应用层，包含 API、CLI、Web 界面 |
 | `core/` | 核心层，包含契约、接口、服务等 |
 | `data_layer/` | 数据层，包含仓储实现和数据访问 |
@@ -641,6 +643,7 @@
 | 文件 | 说明 |
 |---|---|
 | `docs/REFERENCE.md` | 完整参考手册：CLI、API、信号实验室、项目结构详解 |
+| `docs/AGENT_WORKFLOW.md` | Agent 任务路由、隔离与交付证据规范 |
 | `docs/ARCHITECTURE.md` | 架构文档：系统总览、分层架构、数据流、设计理念 |
 | `docs/CHANGELOG.md` | 更新日志：记录所有 notable 项目变更 |
 | `docs/FILE_GUIDE.md` | 本文件：文件指南，详细说明每个主要文件的作用 |
