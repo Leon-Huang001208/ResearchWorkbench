@@ -28,7 +28,7 @@
 - Create: AGENTS.md
 - Reference: docs/ARCHITECTURE.md, docs/DEVELOPMENT_MAP.md, docs/desktop_packaging.md, docs/AGENT_WORKFLOW.md
 
-- [ ] **Step 1: Confirm the isolated branch has no tracked shared rule file**
+- [x] **Step 1: Confirm the isolated branch has no tracked shared rule file**
 
 Run:
 
@@ -39,7 +39,7 @@ git ls-tree -r --name-only HEAD | rg '^(AGENTS\.md|\.claude/)'
 
 Expected: the commands confirm that neither a tracked root AGENTS.md nor tracked .claude/ rules are available on a fresh branch.
 
-- [ ] **Step 2: Create the concise shared rule file**
+- [x] **Step 2: Create the concise shared rule file**
 
 Write AGENTS.md with these exact sections and requirements:
 
@@ -74,7 +74,7 @@ Write AGENTS.md with these exact sections and requirements:
 - Use .agents/skills/ship-check/ before declaring a task ready for review or handoff.
 ~~~
 
-- [ ] **Step 3: Verify the shared contract is portable and complete**
+- [x] **Step 3: Verify the shared contract is portable and complete**
 
 Run:
 
@@ -86,7 +86,7 @@ git diff --check -- AGENTS.md
 
 Expected: no machine-specific interpreter path or mandatory .claude/rules reference; the file contains the routing, Windows-CI, and skill references; whitespace validation passes.
 
-- [ ] **Step 4: Commit the shared contract**
+- [x] **Step 4: Commit the shared contract**
 
 ~~~bash
 git add AGENTS.md
@@ -99,11 +99,11 @@ git commit -m "docs: add shared agent contract"
 - Modify: CLAUDE.md
 - Reference: AGENTS.md, docs/ARCHITECTURE.md, docs/DEVELOPMENT_MAP.md
 
-- [ ] **Step 1: Preserve only Claude-specific architecture facts**
+- [x] **Step 1: Preserve only Claude-specific architecture facts**
 
 Read CLAUDE.md. Retain its architecture diagram and the model gateway, blackboard, Signal Lab, and connector lifecycle invariants. Remove requirements now owned by AGENTS.md.
 
-- [ ] **Step 2: Replace the non-portable entry-point content**
+- [x] **Step 2: Replace the non-portable entry-point content**
 
 Make CLAUDE.md start with:
 
@@ -134,7 +134,7 @@ Use the Python interpreter provided by the active operating system environment. 
 
 Retain the development command block, but replace literal Python invocations with python -m where appropriate. Remove repeated mandatory test, documentation, final-response, and task-report lists that AGENTS.md now owns.
 
-- [ ] **Step 3: Check import and optional-local behavior**
+- [x] **Step 3: Check import and optional-local behavior**
 
 Run:
 
@@ -145,7 +145,7 @@ git diff --check -- CLAUDE.md
 
 Expected: exactly one active AGENTS.md import; no hard-coded machine path; ignored local rules are explicitly optional; whitespace validation passes.
 
-- [ ] **Step 4: Commit the Claude entry-point revision**
+- [x] **Step 4: Commit the Claude entry-point revision**
 
 ~~~bash
 git add CLAUDE.md
@@ -160,7 +160,7 @@ git commit -m "docs: align Claude entry point with shared rules"
 - Modify: docs/REFERENCE.md
 - Reference: docs/desktop_packaging.md, .github/workflows/desktop-verify.yml
 
-- [ ] **Step 1: Create the routing guide**
+- [x] **Step 1: Create the routing guide**
 
 Add a Task routing table with these rows:
 
@@ -172,7 +172,7 @@ Add a Task routing table with these rows:
 
 Also include sections named Routing rules, Desktop exception, Evidence and handoff, and Examples. State that a worktree prevents file conflicts but never replaces native Windows CI or real-Windows release smoke testing for desktop work.
 
-- [ ] **Step 2: Update docs/FILE_GUIDE.md**
+- [x] **Step 2: Update docs/FILE_GUIDE.md**
 
 Replace the current .claude/ root description with these rows:
 
@@ -184,7 +184,7 @@ Replace the current .claude/ root description with these rows:
 
 Add docs/AGENT_WORKFLOW.md to the active-document list with the description Agent 任务路由、隔离与交付证据规范.
 
-- [ ] **Step 3: Correct docs/REFERENCE.md**
+- [x] **Step 3: Correct docs/REFERENCE.md**
 
 In the root-tree section, replace the shared .claude/ entry with:
 
@@ -194,7 +194,7 @@ In the root-tree section, replace the shared .claude/ entry with:
 ├── .claude/                   # 本机可选 Claude 配置（Git 忽略）
 ~~~
 
-- [ ] **Step 4: Verify all three documents agree**
+- [x] **Step 4: Verify all three documents agree**
 
 ~~~bash
 rg -n 'AGENT_WORKFLOW|跨工具 Agent|本机.*Claude|Windows CI|安装级' \
@@ -204,7 +204,7 @@ git diff --check -- docs/AGENT_WORKFLOW.md docs/FILE_GUIDE.md docs/REFERENCE.md
 
 Expected: each document labels .claude/ as optional/local and points to the tracked shared workflow; whitespace validation passes.
 
-- [ ] **Step 5: Commit workflow documentation**
+- [x] **Step 5: Commit workflow documentation**
 
 ~~~bash
 git add docs/AGENT_WORKFLOW.md docs/FILE_GUIDE.md docs/REFERENCE.md
@@ -223,7 +223,7 @@ git commit -m "docs: document agent task routing"
 - Create: .ai/reports/test_report_agent_workflow_foundation.md
 - Reference: AGENTS.md, docs/frontend/FRONTEND_WORKFLOW.md, docs/frontend/COMPONENT_RULES.md, docs/AGENT_WORKFLOW.md
 
-- [ ] **Step 1: Establish the skills' red tests before authoring them**
+- [x] **Step 1: Establish the skills' red tests before authoring them**
 
 **REQUIRED BACKGROUND:** Read test-driven-development and writing-skills before running this step.
 
@@ -237,7 +237,7 @@ Handoff scenario: “Prepare a task that changed a route, test, and documentatio
 
 Expected baseline failures: the UI response omits a state or browser evidence; the bug response proposes a broad refactor or lacks a reproduction; the handoff response claims validation without command evidence or omits risks.
 
-- [ ] **Step 2: Write the three minimal SKILL.md files**
+- [x] **Step 2: Write the three minimal SKILL.md files**
 
 Each file frontmatter follows:
 
@@ -254,15 +254,15 @@ The bugfix-minimal skill requires: reproduce before editing; identify the narrow
 
 The ship-check skill requires: inventory changed files; map each source change to test/document/evidence requirements; run only applicable checks; report commands and results exactly; label omitted checks and platform limitations; stop instead of claiming completion when a required check fails.
 
-- [ ] **Step 3: Write matching concise README.md files**
+- [x] **Step 3: Write matching concise README.md files**
 
 Each README has a title, 触发场景, 使用方式, and 交付物. It links to its sibling SKILL.md, refers to AGENTS.md for repository-wide rules, and does not repeat the full workflow.
 
-- [ ] **Step 4: Run the green pressure scenarios**
+- [x] **Step 4: Run the green pressure scenarios**
 
 Use a fresh agent for each scenario. Provide only the matching skill path and the same scenario text from Step 1. Confirm the output now includes the state/reproduction/evidence gates and does not invent validation. Save the before/after results in .ai/reports/test_report_agent_workflow_foundation.md.
 
-- [ ] **Step 5: Validate metadata and documentation pairs**
+- [x] **Step 5: Validate metadata and documentation pairs**
 
 ~~~bash
 for skill in ui-iterate bugfix-minimal ship-check; do
@@ -277,7 +277,7 @@ git diff --check -- .agents/skills .ai/reports/test_report_agent_workflow_founda
 
 Expected: all six skill files have discoverable metadata and matching human documentation; the report records the red/green evidence; whitespace validation passes.
 
-- [ ] **Step 6: Commit skills and evidence**
+- [x] **Step 6: Commit skills and evidence**
 
 ~~~bash
 git add .agents/skills/ui-iterate .agents/skills/bugfix-minimal .agents/skills/ship-check \
@@ -291,7 +291,7 @@ git commit -m "docs: add reusable agent workflow skills"
 - Verify: all files listed in the file map
 - Reference: docs/superpowers/specs/2026-07-30-agent-workflow-foundation-design.md
 
-- [ ] **Step 1: Check approved scope**
+- [x] **Step 1: Check approved scope**
 
 ~~~bash
 git diff --name-only f448f91bce27add14a4fb032412c1fb286442213..HEAD
@@ -300,7 +300,7 @@ git status --short
 
 Expected committed changes are limited to the approved design document, shared rules, Claude entry point, routing/docs indexes, three skills, and the skill evidence report; no application source, dependency manifest, CI workflow, or desktop packaging file changes.
 
-- [ ] **Step 2: Run documentation-oriented completion checks**
+- [x] **Step 2: Run documentation-oriented completion checks**
 
 ~~~bash
 python scripts/check_task_completion.py
@@ -310,7 +310,7 @@ git diff --check f448f91bce27add14a4fb032412c1fb286442213..HEAD
 
 Expected: both project scripts report no source files requiring additional test or documentation sync, and Git reports no whitespace errors.
 
-- [ ] **Step 3: Read final files as an agent would**
+- [x] **Step 3: Read final files as an agent would**
 
 ~~~bash
 sed -n '1,220p' AGENTS.md
@@ -323,7 +323,7 @@ done
 
 Expected: no shared requirement depends on an ignored .claude/ path; all reusable workflows direct agents to evidence-based, non-destructive execution.
 
-- [ ] **Step 4: Commit the plan record if it is not already committed with implementation**
+- [x] **Step 4: Commit the plan record if it is not already committed with implementation**
 
 ~~~bash
 git add docs/superpowers/plans/2026-07-30-agent-workflow-foundation.md
