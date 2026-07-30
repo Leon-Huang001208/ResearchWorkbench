@@ -64,7 +64,7 @@ Write AGENTS.md with these exact sections and requirements:
 - Desktop-related changes must follow docs/desktop_packaging.md: native Windows CI builds and health checks are required before claiming Windows support, and release work also requires a real Windows installation smoke test.
 
 ## Safety and delivery
-- Do not overwrite unrelated changes; use an isolated Git worktree for concurrent, risky, or long-running changes.
+- Do not overwrite unrelated changes. Treat background/remote as execution channels and an isolated Git worktree as local modification isolation. Concurrent or risky repository changes must use an isolated worktree. Long-running read-only research, CI-log analysis, or reviews use background/remote; a background/remote task that edits with concurrency or risk must use an isolated worktree or equivalent isolated remote workspace.
 - Do not perform destructive, release, secret, or external coordination actions without explicit user authorization.
 - Final handoff states changed files, commands actually run, evidence, unverified items, and remaining risks.
 

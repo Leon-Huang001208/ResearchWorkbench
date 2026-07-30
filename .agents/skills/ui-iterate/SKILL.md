@@ -13,6 +13,8 @@ description: Use when refining an existing app/web component's visual or interac
 2. 找到现有组件、调用点、selector 与状态样式的来源；先复用已有约定，不能凭猜测新增平行实现。
 3. 列出并冻结外部可见的输入与 DOM 表面：属性、参数、`data-*`、事件、ARIA、selector 和外部样式契约。除非获得明确授权，不得破坏这些契约。
 
+`app/web` 当前架构及现有原生 HTML/CSS/JS 源码是权威。`FRONTEND_WORKFLOW.md` 的 Recommended Stack 仅是未来方向，不授权且禁止据此框架迁移；没有用户明确授权，不得引入 Next.js、React、Vite、Storybook、shadcn 或 Tailwind，也不得重构原生 Web。
+
 ## 状态矩阵与最小实现
 
 在编辑前写出本次相关状态及优先级。Button 至少逐项考虑：default、hover、disabled、loading、danger，以及它们会相互覆盖的组合。说明每项的视觉、可交互性与语义预期。

@@ -5,7 +5,7 @@
 - 默认使用中文回答。
 - 修改已有文件前，先阅读该文件及其模块文档。
 - 修改源代码前，阅读 `docs/ARCHITECTURE.md` 和 `docs/DEVELOPMENT_MAP.md`。
-- 用 `docs/AGENT_WORKFLOW.md` 选择 local、worktree 或 background 工作方式。
+- 用 `docs/AGENT_WORKFLOW.md` 选择本地快环、后台/远程执行通道及所需的 worktree 隔离。
 
 ## Engineering requirements
 
@@ -24,7 +24,8 @@
 ## Safety and delivery
 
 - 不覆盖或回退无关改动。
-- 并行、高风险或长任务使用独立 Git worktree。
+- 并行或高风险的仓库改动必须使用独立 Git worktree；worktree 是本地修改隔离，不等同于后台/远程执行通道。
+- 长时但只读的研究、CI 日志分析或审查使用后台/远程；后台/远程任务若编辑仓库且存在并行或风险，必须使用独立 worktree 或等效隔离的远端 workspace。
 - 未获用户明确授权，不执行破坏性操作、发布、处理秘密或外部协调。
 - 交付时陈述变更、实际执行的命令、证据、未验证项和风险。
 
