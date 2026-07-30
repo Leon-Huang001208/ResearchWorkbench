@@ -2,7 +2,7 @@
 
 @AGENTS.md
 
-This file contains only Claude Code guidance that is not already shared through AGENTS.md.
+This file retains project context not covered by AGENTS.md and Claude-specific workflow guidance needed for Claude sessions.
 
 ## 架构速览
 
@@ -24,7 +24,7 @@ AlphaFoundry 是本地优先、模块化单体的 AI-native Investment Operating
 
 ## Runtime selection
 
-使用当前操作系统的开发解释器。Windows 上先激活文档说明的 `alphafoundry` 环境；macOS/Linux 上使用仓库配置的解释器。跨平台命令中绝不可复制特定机器或系统的绝对解释器路径。
+使用当前操作系统中满足 Python >=3.11 的项目环境。Windows 上先激活文档说明的 `alphafoundry` 环境；这是本机环境约定，不是跨平台硬路径。macOS/Linux 同样使用当前系统中满足版本要求的项目环境。跨平台命令中绝不可复制特定机器或系统的绝对解释器路径。
 
 ## 开发命令
 
@@ -57,8 +57,8 @@ python scripts/check_doc_sync.py
 # CLI 示例
 af analyze --asset 600000.SH
 af scenario --topic "人工智能产业发展"
-af ingest --file report.pdf
-af report --asset 600519.SH --type full
+af ingest file --file report.pdf
+af report --template asset_analysis --asset 600519.SH --output report.md
 af crawl scheduler-start
 af knowledge start
 ```
