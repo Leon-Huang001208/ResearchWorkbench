@@ -28,7 +28,7 @@ AlphaFoundry 是本地优先、模块化单体的 AI-native Investment Operating
 
 ## 开发命令
 
-CLI 入口为 `af`（定义在 `pyproject.toml`）。
+当前可验证的开发调用为 `python -m app.cli.main`。`pyproject.toml` 中的 `af` console-script 入口是既有问题，不在本次文档工作流改造范围，不能作为已验证命令示例。
 
 ```bash
 # 启动 FastAPI（自动重载）
@@ -55,12 +55,12 @@ python scripts/check_task_completion.py
 python scripts/check_doc_sync.py
 
 # CLI 示例
-af analyze --asset 600000.SH
-af scenario --topic "人工智能产业发展"
-af ingest file --file report.pdf
-af report --template asset_analysis --asset 600519.SH --output report.md
-af crawl scheduler-start
-af knowledge start
+python -m app.cli.main analyze --asset 600000.SH
+python -m app.cli.main scenario --topic "人工智能产业发展"
+python -m app.cli.main ingest file --file report.pdf
+python -m app.cli.main report --template asset_analysis --asset 600519.SH --output report.md
+python -m app.cli.main crawl scheduler-start
+python -m app.cli.main knowledge start
 ```
 
 ## Claude-specific workflow
