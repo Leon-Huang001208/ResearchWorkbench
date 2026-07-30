@@ -33,7 +33,7 @@ Purpose:
 
 Purpose:
 
-- Packages `backend_launcher.py`, application modules, frontend assets, report templates, and report projects into the self-contained Tauri sidecar.
+- Packages `backend_launcher.py`, application modules, frontend assets, built-in industry graphs, report templates, and report projects into the self-contained Tauri sidecar.
 - Produces platform-specific sidecar names for Tauri; the frozen launcher resolves its bundled project root from PyInstaller resources.
 
 ### `scripts/desktop/sidecar_launcher.py`
@@ -257,8 +257,8 @@ Update this section when:
 Purpose:
 
 - `run_backend.js` is the ESM Tauri development bridge: it derives its directory from `import.meta.url`, delegates to `run_backend.cmd` on Windows and `run_backend.sh` on macOS/Linux, and forwards process arguments and exit status.
-- `build_sidecar.py` packages `backend_launcher.py` as the self-contained PyInstaller sidecar, collecting backend submodules, third-party package data, and required project assets.
-- `backend_launcher.py` creates an editable per-user `.env` for frozen builds; without an explicit `DATABASE_URL`, it falls back to `data_dir/alphafoundry.db` and preserves process-environment and existing-user-`.env` precedence.
+- `build_sidecar.py` packages `backend_launcher.py` as the self-contained PyInstaller sidecar, collecting backend submodules, third-party package data, and required project assets, including `data/industry_graphs/`.
+- `backend_launcher.py` creates an editable per-user `.env` for frozen builds; an absent or unusable `DATABASE_URL` leaves the application in setup-required mode instead of creating a SQLite fallback.
 
 Update this section when:
 

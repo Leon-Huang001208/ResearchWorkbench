@@ -10,13 +10,20 @@ from sqlalchemy.orm import sessionmaker
 from core.settings import settings
 from data_layer.repositories.base import check_database_connection, ensure_schema
 from data_layer.repositories.models import Entity
+from services.database_readiness import probe_postgresql
+
+
+def _require_ready_postgresql() -> None:
+    """Skip integration coverage when the configured PostgreSQL is unavailable."""
+    readiness = probe_postgresql(settings.DATABASE_URL)
+    if not readiness.ready:
+        pytest.skip(f"PostgreSQL integration test requires a ready database: {readiness.code.value}")
 
 
 @pytest.mark.integration
 def test_postgresql_initialization():
     """Test that we can initialize schema and do basic CRUD on PostgreSQL."""
-    if not settings.DATABASE_URL.startswith("postgresql"):
-        pytest.skip("Skipping PostgreSQL smoke test: not using PostgreSQL")
+    _require_ready_postgresql()
 
     # Check connection
     check_database_connection()

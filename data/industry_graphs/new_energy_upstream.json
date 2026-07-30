@@ -1,0 +1,14 @@
+{
+  "graph_id": "new_energy_upstream",
+  "name": "新能源上游产业链",
+  "description": "新能源需求向锂电材料与上游资源公司的基础传播图。",
+  "nodes": [
+    {"node_id": "ev-demand", "name": "新能源车需求", "industry": "新能源"},
+    {"node_id": "battery-material", "name": "电池材料", "industry": "新能源"},
+    {"node_id": "gotion", "name": "国轩高科", "industry": "电池", "symbol": "002074", "is_company": true}
+  ],
+  "edges": [
+    {"from_node": "ev-demand", "to_node": "battery-material", "relationship_type": "drives", "strength": 0.9},
+    {"from_node": "battery-material", "to_node": "gotion", "relationship_type": "benefits", "strength": 0.7}
+  ]
+}

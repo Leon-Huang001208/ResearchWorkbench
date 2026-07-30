@@ -35,6 +35,7 @@ COLLECT_DATA = ["akshare", "vectorbt"]
 
 PROJECT_DATA = [
     (REPO_ROOT / "app" / "web", Path("app") / "web"),
+    (REPO_ROOT / "data" / "industry_graphs", Path("data") / "industry_graphs"),
     (REPO_ROOT / "reporting" / "templates", Path("reporting") / "templates"),
     (REPO_ROOT / "report_projects", Path("report_projects")),
 ]

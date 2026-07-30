@@ -8,6 +8,8 @@
 
 ### Added
 
+- **内置产业链图谱交付**：恢复 `data/industry_graphs/` 的 AI 算力、半导体国产化和新能源上游图谱，并将其纳入桌面 Python sidecar，离线桌面环境无需用户自行创建图谱文件。
+
 - **系统配置控制台**：配置页新增系统健康总览、首次配置步骤与“继续配置”入口；卡片明确显示“去配置 / 管理配置”，环境变量管理项收起为可展开说明。连接测试成功或失败会在当前会话同步显示“连接已验证 / 连接异常”，重新检测后清除，避免将瞬态结果误报为持久健康状态。
 
 - **桌面端跨平台交付规范**：新增 macOS 本地开发、Windows 原生 CI 构建验证，以及发布前真实设备安装冒烟测试的强制流程；明确 Python sidecar 必须按目标平台原生构建，不能用单一 macOS 或 Windows 二进制跨平台复用。
@@ -17,6 +19,8 @@
 - **跨平台运行时配置内核**：新增 `core/settings/runtime.py`，在业务模块和 SQLAlchemy engine 初始化前统一解析桌面、Web 开发、Web 生产三种运行模式；统一 `ALPHAFOUNDRY_CONFIG_FILE`、`ALPHAFOUNDRY_DESKTOP_DATA_DIR` 和 `ALPHAFOUNDRY_BACKEND_URL` 的优先级。Windows 桌面用户数据统一进入 `%LOCALAPPDATA%\AlphaFoundry`，macOS 进入 `~/Library/Application Support/AlphaFoundry`。
 
 ### Changed
+
+- **摄入 dry-run 与回归测试**：摄入管理的 dry-run 在数据库调用前返回，离线验证不再依赖 PostgreSQL；测试套件将不可用 PostgreSQL 的集成用例明确跳过，并修正桌面启动、配置、宏观敏感度和治理日志契约的陈旧断言。
 
 - **配置锁定提示上下文化**：首页不再展示受系统环境变量管理的名单；配置弹窗仅在受影响字段、动态行或集合旁显示友好说明，内部环境键名仅用于前端判断。Provider、任务路由和账号/Key 池采用原子集合锁定：任一受管键使整个集合只读且在保存和连接测试请求中不提交，避免覆盖启动时注入的配置或触发后端整组替换拒绝；同分区未锁标量仍可保存。
 

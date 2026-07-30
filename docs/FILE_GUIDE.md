@@ -57,7 +57,7 @@
 | `scripts/` | 脚本工具，包含数据初始化、备份、测试等脚本 |
 | `tests/` | 测试目录，包含单元测试、集成测试等 |
 | `docs/` | 文档目录，包含项目文档、架构设计、文件指南等 |
-| `data/` | 数据目录，存放 SQLite 数据库、原始数据等 |
+| `data/` | 运行时数据目录；其中受版本控制的 `data/industry_graphs/` 提供内置产业链图谱，其余缓存和原始数据通常不提交 |
 | `logs/` | 日志目录，存放应用日志、Web 服务日志等 |
 | `backups/` | 备份目录，存放数据库备份 |
 | `benchmarks/` | 基准数据目录，存放真实数据存档 |
@@ -78,6 +78,7 @@
 | `app/api/routes/funds.py` | 基金智能 API：基金详情、单基金暴露、基金组合穿透、结构化 rows 导入 |
 | `app/api/routes/governance.py` | 治理 API：版本控制、配置管理 |
 | `app/api/routes/ingest.py` | 数据摄入 API：上传文件、拉取实时源 |
+| `app/api/routes/ingest_admin.py` | 摄入管理 API：手动触发、暂停/恢复、重置和来源配置；`dry_run` 不访问数据库 |
 | `app/api/routes/market_data.py` | 市场数据 API：同步股票列表、同步日行情、查询日行情、查询 ETL 运行记录 |
 | `app/api/routes/memory.py` | 记忆 API：查询失败记忆、市场事件记忆 |
 | `app/api/routes/monitoring.py` | 监控 API：健康检查、指标、告警 |
@@ -594,6 +595,7 @@
 | 文件 | 说明 |
 |---|---|
 | `scripts/backup_db.py` | 数据库备份脚本：支持 PostgreSQL 完整备份、自动压缩、保留策略 |
+| `scripts/desktop/build_sidecar.py` | 桌面 sidecar 打包：纳入后端、前端、报告资源和 `data/industry_graphs/` 内置图谱 |
 | `scripts/restore_db.py` | 数据库恢复脚本：支持从备份恢复、时间点恢复；压缩恢复路径显式校验解压命令和管道句柄 |
 | `scripts/backfill_pdf_artifacts.py` | PDF 制品回补：扫描磁盘 PDF 并注册到 pdf_artifact_v1 以触发自动转换 |
 | `scripts/seed_factor_data.py` | 因子数据播种管线：双数据源（AKShare + Wind WSD）、限流重试（指数退避 + 关键词检测）、JSON 断点续传、3 Phase 流水线（市场数据摄入 → 技术因子 → 财务因子）；pandas/DB 标量先标准化再参与收益和财务因子计算 |

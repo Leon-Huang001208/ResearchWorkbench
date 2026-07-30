@@ -1,0 +1,14 @@
+{
+  "graph_id": "semiconductor_localization",
+  "name": "半导体国产化产业链",
+  "description": "半导体国产替代需求向设备、材料和设计公司的基础传播图。",
+  "nodes": [
+    {"node_id": "semi-demand", "name": "国产替代需求", "industry": "半导体"},
+    {"node_id": "semi-equipment", "name": "半导体设备", "industry": "半导体"},
+    {"node_id": "naura", "name": "北方华创", "industry": "半导体设备", "symbol": "002371", "is_company": true}
+  ],
+  "edges": [
+    {"from_node": "semi-demand", "to_node": "semi-equipment", "relationship_type": "drives", "strength": 0.9},
+    {"from_node": "semi-equipment", "to_node": "naura", "relationship_type": "benefits", "strength": 0.9}
+  ]
+}

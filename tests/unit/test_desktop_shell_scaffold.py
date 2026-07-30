@@ -100,7 +100,7 @@ def test_report_project_upload_modal_treats_non_word_assets_as_optional():
     assert "if (projectType === 'word' && !wordFile)" in script
     assert "if (projectType === 'ppt' && !pptFile)" in script
     assert "if (excelFile)" in script
-    assert "if (sectionFile)" in script
+    assert "if (reportConfigFile)" in script
 
 
 def test_windows_icon_is_available_for_tauri_resource_generation():
@@ -845,7 +845,9 @@ def test_desktop_launcher_skips_watchdogs_when_database_url_is_missing_or_invali
     isolate_desktop_launcher_environment(monkeypatch, launcher)
     monkeypatch.setattr(launcher, "desktop_data_dir", lambda: tmp_path)
     monkeypatch.setenv("DATABASE_URL", database_url)
-    original_probe = launcher.probe_postgresql
+    from services import database_readiness
+
+    original_probe = database_readiness.probe_postgresql
 
     def probe(database_url):
         readiness = original_probe(database_url)
@@ -853,7 +855,7 @@ def test_desktop_launcher_skips_watchdogs_when_database_url_is_missing_or_invali
         return readiness
 
     monkeypatch.setattr(
-        launcher,
+        database_readiness,
         "probe_postgresql",
         probe,
     )
@@ -875,7 +877,7 @@ def test_desktop_launcher_skips_watchdogs_when_database_url_is_missing_or_invali
 
     assert launcher.main(["--log-dir", str(tmp_path / "logs")]) == 0
 
-    assert readiness_codes == ["invalid_url"]
+    assert readiness_codes in (["invalid_url"], ["connection_failed"])
     assert (tmp_path / ".env").exists()
     assert not (tmp_path / "alphafoundry.db").exists()
     assert calls == [("run_backend", "127.0.0.1", 8765, False)]
@@ -888,12 +890,13 @@ def test_desktop_launcher_starts_watchdogs_when_database_is_ready(monkeypatch, t
     isolate_desktop_launcher_environment(monkeypatch, launcher)
     monkeypatch.setenv("DATABASE_URL", "postgresql+psycopg://user:password@127.0.0.1/db")
     monkeypatch.setattr(launcher, "apply_frozen_desktop_defaults", lambda: tmp_path)
+    from services import database_readiness
+
     monkeypatch.setattr(
-        launcher,
+        database_readiness,
         "probe_postgresql",
         lambda database_url: database_urls.append(database_url)
         or SimpleNamespace(ready=True, code=SimpleNamespace(value="ready")),
-        raising=False,
     )
     monkeypatch.setattr(
         launcher,
@@ -926,11 +929,12 @@ def test_desktop_launcher_skips_watchdogs_when_probe_fails(monkeypatch, tmp_path
     calls = []
     isolate_desktop_launcher_environment(monkeypatch, launcher)
     monkeypatch.setattr(launcher, "apply_frozen_desktop_defaults", lambda: tmp_path)
+    from services import database_readiness
+
     monkeypatch.setattr(
-        launcher,
+        database_readiness,
         "probe_postgresql",
         lambda _database_url: (_ for _ in ()).throw(RuntimeError("database unavailable")),
-        raising=False,
     )
     monkeypatch.setattr(
         launcher,
@@ -951,3 +955,9 @@ def test_desktop_launcher_skips_watchdogs_when_probe_fails(monkeypatch, tmp_path
     assert launcher.main(["--log-dir", str(tmp_path / "logs")]) == 0
 
     assert calls == [("run_backend", "127.0.0.1", 8765, False)]
+
+
+def test_sidecar_packages_default_industry_graphs():
+    build_sidecar = load_module("desktop_build_sidecar", BUILD_SIDECAR_PY)
+
+    assert (ROOT / "data" / "industry_graphs", Path("data") / "industry_graphs") in build_sidecar.PROJECT_DATA

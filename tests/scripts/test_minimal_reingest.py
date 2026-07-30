@@ -15,6 +15,15 @@ sys.path.insert(0, str(project_root))
 
 from data_layer.repositories.base import check_database_connection, db_session
 from data_layer.repositories.models import AlphaSignalDB, CanonicalEvent, SourceDocument
+from services.database_readiness import probe_postgresql
+from core.settings import settings
+
+
+def _require_ready_postgresql() -> None:
+    """Skip PostgreSQL-dependent smoke coverage when no ready database is configured."""
+    readiness = probe_postgresql(settings.DATABASE_URL)
+    if not readiness.ready:
+        pytest.skip(f"PostgreSQL smoke test requires a ready database: {readiness.code.value}")
 
 
 def test_bootstrap_sample_directory_exists():
@@ -31,6 +40,7 @@ def test_bootstrap_sample_directory_exists():
 
 def test_database_connectivity():
     """Test that database connection is available."""
+    _require_ready_postgresql()
     # Should not raise exception
     check_database_connection()
     assert True
@@ -80,6 +90,7 @@ def test_sample_data_has_required_fields():
 
 def test_database_has_data_after_dry_run():
     """Test that after a dry run, we can still query the database (schema exists)."""
+    _require_ready_postgresql()
     from scripts.minimal_reingest_bootstrap import MinimalReingestReporter
 
     MinimalReingestReporter()
