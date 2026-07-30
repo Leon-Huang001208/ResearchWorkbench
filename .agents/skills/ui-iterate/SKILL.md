@@ -11,7 +11,7 @@ description: Use when refining an existing app/web component's visual or interac
 
 1. 阅读根目录 `AGENTS.md`、`docs/frontend/FRONTEND_WORKFLOW.md` 与 `docs/frontend/COMPONENT_RULES.md`。
 2. 找到现有组件、调用点、selector 与状态样式的来源；先复用已有约定，不能凭猜测新增平行实现。
-3. 列出公开 props、事件、DOM/测试 selector 和外部样式契约。除非获得明确授权，不改变这些外部 API。
+3. 列出并冻结外部可见的输入与 DOM 表面：属性、参数、`data-*`、事件、ARIA、selector 和外部样式契约。除非获得明确授权，不得破坏这些契约。
 
 ## 状态矩阵与最小实现
 
@@ -23,7 +23,7 @@ description: Use when refining an existing app/web component's visual or interac
 
 - 运行与改动相符的已有测试；若有目标浏览器和可用环境，实际检查相关状态，而不是只描述应当如何检查。
 - 在交付中逐项列出状态：`已验证（证据）` 或 `未验证（原因）`。浏览器不可用、组合状态未覆盖或无视觉基线，都必须明确写为未验证。
-- 同时报告：修改文件、保留的外部 API、实际运行命令和结果、最小 diff 的边界与遗留风险。
+- 同时报告：修改文件、保留的外部可见契约、实际运行命令和结果、最小 diff 的边界与遗留风险。
 
 ## 防错检查
 
