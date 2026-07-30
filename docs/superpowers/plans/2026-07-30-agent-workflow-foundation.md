@@ -50,7 +50,7 @@ Write AGENTS.md with these exact sections and requirements:
 - Reply in Chinese unless the user requests another language.
 - Before modifying an existing file, read it and its relevant module documentation.
 - Read docs/ARCHITECTURE.md and docs/DEVELOPMENT_MAP.md before source-code changes.
-- Use docs/AGENT_WORKFLOW.md to choose local, worktree, or background execution.
+- Route work according to docs/AGENT_WORKFLOW.md: background/remote is an execution channel, and a worktree is local modification isolation that can be combined with it.
 
 ## Engineering requirements
 - New or changed code must include structured logging through the project logging facilities and explicit error handling.
@@ -167,8 +167,8 @@ Add a Task routing table with these rows:
 | Route | Select it when | Required evidence | Do not use it when |
 |---|---|---|---|
 | Local fast loop | The change is narrow, needs immediate judgment, and does not conflict with another active modification. | Targeted command or browser result and a concise diff review. | The task is long-running, modifies a shared area concurrently, or needs an alternative implementation explored. |
-| Isolated worktree | The task is concurrent, risky, spans multiple files, or needs a clean comparison branch. | Worktree path, branch, targeted validation, and an explicit integration plan. | The task only needs a trivial read-only inspection or a one-line local confirmation. |
-| Background or remote task | Acceptance criteria are stable and the work is deterministic but long-running: repository exploration, CI-log analysis, review, or a bounded implementation. | Task scope, diff or report, commands run, and unverified constraints. | It requires an interactive secret, destructive action, release decision, or continual human design judgment. |
+| Isolated worktree | The task has concurrent modifications, risks to public contracts, data migrations, installation/update, cross-platform behavior, or rapid rollback, or needs a clean comparison branch; multiple files alone are not a trigger. | Worktree path, branch, targeted validation, and an explicit integration plan. | The task only needs a trivial read-only inspection or a one-line local confirmation. |
+| Background or remote task | Acceptance criteria are stable and the work is deterministic but long-running: repository exploration, CI-log analysis, review, or a bounded implementation. Background/remote is an execution channel and can combine with a worktree; if it edits the repository with concurrency or risk, it must use an isolated worktree or equivalent isolated remote workspace. | Task scope, diff or report, commands run, and unverified constraints. | It requires an interactive secret, destructive action, release decision, or continual human design judgment. |
 
 Also include sections named Routing rules, Desktop exception, Evidence and handoff, and Examples. State that a worktree prevents file conflicts but never replaces native Windows CI or real-Windows release smoke testing for desktop work.
 
