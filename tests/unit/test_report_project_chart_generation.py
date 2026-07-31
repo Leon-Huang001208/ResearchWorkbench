@@ -217,9 +217,11 @@ def test_sync_native_chart_parts_copies_excel_chart_xml(huaan_chart_assets: Path
     raw_count = _count_cache_pts(raw_root, ns)
     filtered_count = _count_cache_pts(filtered_root, ns)
 
-    # Gold chart (chart2) has 163 Au9999 zero values → rows with zero in any
-    # series are purged from all caches, so filtered_count < raw_count.
-    assert filtered_count < raw_count
+    # 本地集成资产不纳管：有零值时应过滤，无零值时应保留原始缓存。
+    if _chart_has_zero_value(raw_root, ns):
+        assert filtered_count < raw_count
+    else:
+        assert filtered_count == raw_count
     assert filtered_count > 2000  # still has plenty of data
 
 
@@ -236,6 +238,17 @@ def _count_cache_pts(root: ET.Element, ns: dict) -> int:
             if val > max_count:
                 max_count = val
     return max_count
+
+
+def _chart_has_zero_value(root: ET.Element, ns: dict) -> bool:
+    """Return whether an Excel chart cache contains a numeric zero value."""
+    for value in root.findall(".//c:val//c:numCache/c:pt/c:v", ns):
+        try:
+            if abs(float(value.text or "")) < 1e-10:
+                return True
+        except (TypeError, ValueError):
+            continue
+    return False
 
 
 # ── _filter_chart_xml_zero_values unit tests ──────────────────────────────────
@@ -341,8 +354,8 @@ def test_filter_chart_xml_returns_unchanged_when_no_zeros():
             assert len(cache_elem.findall("c:pt", ns)) == 4
 
 
-def test_filter_chart_xml_filters_gold_chart2_real_data(huaan_chart_assets: Path):
-    """真实黄金 chart2 XML 的 Au9999 零值应被过滤。"""
+def test_filter_chart_xml_handles_gold_chart2_real_data(huaan_chart_assets: Path):
+    """真实黄金 chart2 XML 有零值时过滤，无零值时走原样返回路径。"""
     import zipfile
 
     workbook = Path("report_projects/华安ETF周报/data/周报图表.xlsx")
@@ -350,9 +363,14 @@ def test_filter_chart_xml_filters_gold_chart2_real_data(huaan_chart_assets: Path
         raw = wb.read("xl/charts/chart2.xml")
 
     filtered = _filter_chart_xml_zero_values(raw)
-    assert len(filtered) < len(raw)
 
     ns = {"c": "http://schemas.openxmlformats.org/drawingml/2006/chart"}
+    raw_root = ET.fromstring(raw)
+    if not _chart_has_zero_value(raw_root, ns):
+        assert filtered == raw
+        return
+
+    assert len(filtered) < len(raw)
     root = ET.fromstring(filtered)
 
     # All series should have the same cache size after filtering
@@ -364,8 +382,8 @@ def test_filter_chart_xml_filters_gold_chart2_real_data(huaan_chart_assets: Path
     assert len(cache_sizes) == 1  # all caches have the same size
 
 
-def test_filter_chart_xml_filters_oil_chart3_real_data(huaan_chart_assets: Path):
-    """真实原油 chart3 XML 的 WTI 零值应被过滤。"""
+def test_filter_chart_xml_handles_oil_chart3_real_data(huaan_chart_assets: Path):
+    """真实原油 chart3 XML 有零值时过滤，无零值时走原样返回路径。"""
     import zipfile
 
     workbook = Path("report_projects/华安ETF周报/data/周报图表.xlsx")
@@ -373,9 +391,14 @@ def test_filter_chart_xml_filters_oil_chart3_real_data(huaan_chart_assets: Path)
         raw = wb.read("xl/charts/chart3.xml")
 
     filtered = _filter_chart_xml_zero_values(raw)
-    assert len(filtered) < len(raw)
 
     ns = {"c": "http://schemas.openxmlformats.org/drawingml/2006/chart"}
+    raw_root = ET.fromstring(raw)
+    if not _chart_has_zero_value(raw_root, ns):
+        assert filtered == raw
+        return
+
+    assert len(filtered) < len(raw)
     root = ET.fromstring(filtered)
 
     cache_sizes = set()

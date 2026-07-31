@@ -31,8 +31,20 @@ async def trigger_ingest(
     body: IngestTriggerRequest,
     db: Session = Depends(get_db),
 ):
-    """手动触发摄入"""
+    """手动触发摄入；dry-run 不访问数据库。"""
     try:
+        if body.dry_run:
+            logger.info(
+                "Manual ingest dry run completed",
+                extra={"source_type": source_type},
+            )
+            return IngestTriggerResponse(
+                source_type=source_type,
+                triggered=False,
+                dry_run=True,
+                message="Dry run complete",
+            )
+
         # 检查是否暂停
         state = crawl_state_repository.get_crawl_state(db, source_type)
         if state and state.is_paused:

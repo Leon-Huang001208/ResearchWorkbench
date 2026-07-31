@@ -8,6 +8,7 @@ AlphaFoundry is moving toward a Tauri desktop shell while keeping the current Fa
 - Desktop development uses `scripts/desktop/run_backend.sh` to select a Python runtime and start FastAPI on `127.0.0.1:8765`.
 - Tauri loads `http://127.0.0.1:8765` in dev mode.
 - Packaged builds include `desktop/dist/index.html`, which waits for `/health` and then opens the existing workbench.
+- The Python sidecar bundles the built-in industry graph resources from `data/industry_graphs/` so thesis generation is available without user-created data files.
 - The Tauri shell expects a sidecar named `alphafoundry-backend`. The current macOS ARM development shim is `src-tauri/binaries/alphafoundry-backend-aarch64-apple-darwin` and delegates to the Python launcher.
 - `tauri dev` lets `beforeDevCommand` start the backend. Packaged debug and release builds start the bundled sidecar.
 - 桌面端运行时配置由 `core/settings/runtime.py` 统一解析：Windows 使用 `%LOCALAPPDATA%\AlphaFoundry`，macOS 使用 `~/Library/Application Support/AlphaFoundry`；可用 `ALPHAFOUNDRY_DESKTOP_DATA_DIR` 覆盖。
@@ -44,7 +45,7 @@ Windows upgrades detect a legacy `%APPDATA%\AlphaFoundry\.env` and copy it only 
 
 ### Local-only control plane
 
-The desktop backend accepts only `localhost` or `127.0.0.1` as its listener. If the selected port is occupied, the launcher stops without terminating the unknown owning process. Configuration endpoints are restricted to loopback clients, do not return persisted secrets, and are disabled in `web-prod` mode. Database and advanced logging configuration changes are persisted for the next restart rather than falsely claiming that the current SQLAlchemy engine or logging handlers have switched. Values injected through the process environment are shown as locked and cannot be overwritten by the configuration page. `ALPHAFOUNDRY_BACKEND_URL` is the single base URL used by workers and scheduled API calls.
+The desktop backend accepts only `localhost` or `127.0.0.1` as its listener. If the selected port is occupied, the launcher stops without terminating the unknown owning process. Configuration endpoints are restricted to loopback clients, do not return persisted secrets, and are disabled in `web-prod` mode. Database and advanced logging configuration changes are persisted for the next restart rather than falsely claiming that the current SQLAlchemy engine or logging handlers have switched. The runtime `.env` file is the authoritative persisted configuration; process variables do not lock fields in the desktop configuration page. `ALPHAFOUNDRY_BACKEND_URL` is the single base URL used by workers and scheduled API calls.
 
 ## Why This Differs From cc-switch
 

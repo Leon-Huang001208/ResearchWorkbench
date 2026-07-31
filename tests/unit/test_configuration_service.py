@@ -12,7 +12,7 @@ from core.settings.config import Settings
 from core.settings.runtime import RuntimeContext
 from services import configuration_service
 from services.database_readiness import DatabaseReadiness, DatabaseReadinessCode
-from services.configuration_service import ConfigurationService
+from services.configuration_service import ConfigurationError, ConfigurationService
 
 SECRET_VALUES = {
     "DATABASE_URL": "postgresql+psycopg://user:db-secret@localhost:5432/alphafoundry",
@@ -239,7 +239,13 @@ def test_environment_values_do_not_lock_desktop_configuration_fields(monkeypatch
     assert "LOG_LEVEL='ERROR'" in env_path.read_text(encoding="utf-8")
 
 
-def test_llm_partial_updates_preserve_environment_locked_provider_and_route_keys(monkeypatch, tmp_path):
+def test_llm_endpoint_change_requires_reentering_token(monkeypatch, tmp_path):
+    # The test owns its temporary .env; do not let the developer shell's LLM
+    # provider settings replace those values in get_effective_values().
+    for key in list(os.environ):
+        if key.startswith("LLM_PROVIDER_") or key.startswith("TASK_"):
+            monkeypatch.delenv(key, raising=False)
+
     env_path = tmp_path / ".env"
     env_path.write_text(
         "LLM_PROVIDER_1_NAME=locked-provider\n"
@@ -254,7 +260,6 @@ def test_llm_partial_updates_preserve_environment_locked_provider_and_route_keys
         "TASK_CHAT_MODEL=old-model\n",
         encoding="utf-8",
     )
-    monkeypatch.setenv("LLM_PROVIDER_1_API_KEY", "environment-locked-secret")
     monkeypatch.setenv("TASK_CHAT_PROVIDER", "environment-chat-provider")
     runtime_context = RuntimeContext(
         mode="desktop",
@@ -263,7 +268,7 @@ def test_llm_partial_updates_preserve_environment_locked_provider_and_route_keys
         env_path=env_path,
         backend_url="http://127.0.0.1:8765",
         can_write_config=True,
-        environment_override_keys=frozenset({"LLM_PROVIDER_1_API_KEY", "TASK_CHAT_PROVIDER"}),
+        environment_override_keys=frozenset({"TASK_CHAT_PROVIDER"}),
     )
     service = ConfigurationService(
         env_path=env_path,
@@ -271,50 +276,44 @@ def test_llm_partial_updates_preserve_environment_locked_provider_and_route_keys
         runtime_context=runtime_context,
     )
 
-    result = service.update_section(
-        "llm",
-        {
-            "providers": [
-                {
-                    "original_name": "locked-provider",
-                    "name": "locked-provider",
-                    "protocol": "openai_compatible",
-                    "base_url": "https://locked-next.example.test",
-                    "api_key": None,
-                    "clear_api_key": False,
-                },
-                {
-                    "original_name": "editable-provider",
-                    "name": "editable-provider",
-                    "protocol": "anthropic",
-                    "base_url": "https://editable.example.test",
-                    "api_key": None,
-                    "clear_api_key": False,
-                },
-            ],
-            "task_routes": [
-                {
-                    "task": "chat",
-                    "provider": "environment-chat-provider",
-                    "model": "next-model",
-                },
-            ],
-        },
-    )
+    original = env_path.read_text(encoding="utf-8")
 
-    saved = env_path.read_text(encoding="utf-8")
-    assert result["section"]["providers"][1]["protocol"] == "anthropic"
-    assert result["section"]["task_routes"] == [
-        {"task": "chat", "provider": "environment-chat-provider", "model": "next-model"}
-    ]
-    assert "LLM_PROVIDER_1_API_KEY=file-locked-secret" in saved
-    assert "LLM_PROVIDER_1_BASE_URL='https://locked-next.example.test'" in saved
-    assert "TASK_CHAT_PROVIDER=file-chat-provider" in saved
-    assert "LLM_PROVIDER_2_PROTOCOL='anthropic'" in saved
-    assert "TASK_CHAT_MODEL='next-model'" in saved
+    with pytest.raises(ConfigurationError, match="必须重新输入 Token"):
+        service.update_section(
+            "llm",
+            {
+                "providers": [
+                    {
+                        "original_name": "locked-provider",
+                        "name": "locked-provider",
+                        "protocol": "openai_compatible",
+                        "base_url": "https://locked-next.example.test",
+                        "api_key": None,
+                        "clear_api_key": False,
+                    },
+                    {
+                        "original_name": "editable-provider",
+                        "name": "editable-provider",
+                        "protocol": "anthropic",
+                        "base_url": "https://editable.example.test",
+                        "api_key": None,
+                        "clear_api_key": False,
+                    },
+                ],
+                "task_routes": [
+                    {
+                        "task": "chat",
+                        "provider": "environment-chat-provider",
+                        "model": "next-model",
+                    },
+                ],
+            },
+        )
+
+    assert env_path.read_text(encoding="utf-8") == original
 
 
-def test_ifind_connection_updates_preserve_environment_managed_credentials(monkeypatch, tmp_path):
+def test_ifind_connection_change_requires_reentering_password(monkeypatch, tmp_path):
     env_path = tmp_path / ".env"
     env_path.write_text(
         "IFIND_USERNAME=file-user\n"
@@ -340,26 +339,18 @@ def test_ifind_connection_updates_preserve_environment_managed_credentials(monke
         runtime_context=runtime_context,
     )
 
-    result = service.update_section(
-        "ifind",
-        {"backend": "http_api", "http_base_url": "https://next.example.test"},
-    )
+    original = env_path.read_text(encoding="utf-8")
 
-    saved = env_path.read_text(encoding="utf-8")
-    assert result["applied"] is True
-    assert result["restart_required"] is False
-    assert result["section"]["backend"] == "http_api"
-    assert result["section"]["http_base_url"] == "https://next.example.test"
-    assert "IFIND_BACKEND='http_api'" in saved
-    assert "IFIND_HTTP_BASE_URL='https://next.example.test'" in saved
-    assert "IFIND_USERNAME=file-user" in saved
-    assert "IFIND_PASSWORD=file-secret" in saved
+    with pytest.raises(ConfigurationError, match="必须重新输入密码"):
+        service.update_section(
+            "ifind",
+            {"backend": "http_api", "http_base_url": "https://next.example.test"},
+        )
 
-    with pytest.raises(RuntimeError, match="IFIND_USERNAME"):
-        service.update_section("ifind", {"username": "attempted-override"})
+    assert env_path.read_text(encoding="utf-8") == original
 
 
-def test_ifind_connection_updates_preserve_environment_managed_account_pool(monkeypatch, tmp_path):
+def test_ifind_connection_change_requires_reentering_account_pool_password(monkeypatch, tmp_path):
     env_path = tmp_path / ".env"
     env_path.write_text(
         "IFIND_USERNAME=file-user\n"
@@ -387,25 +378,15 @@ def test_ifind_connection_updates_preserve_environment_managed_account_pool(monk
         runtime_context=runtime_context,
     )
 
-    result = service.update_section(
-        "ifind",
-        {"backend": "http_api", "http_base_url": "https://next.example.test"},
-    )
+    original = env_path.read_text(encoding="utf-8")
 
-    saved = env_path.read_text(encoding="utf-8")
-    assert result["section"]["backend"] == "http_api"
-    assert result["section"]["http_base_url"] == "https://next.example.test"
-    assert "IFIND_USERNAME=file-user" in saved
-    assert "IFIND_PASSWORD=file-secret" in saved
-    assert "IFIND_ACCOUNTS_JSON" not in saved
-
-    with pytest.raises(RuntimeError, match="IFIND_ACCOUNTS_JSON"):
+    with pytest.raises(ConfigurationError, match="必须重新输入密码"):
         service.update_section(
             "ifind",
-            {"accounts": [{"name": "attempted", "username": "attempted-user", "password": "new-secret"}]},
+            {"backend": "http_api", "http_base_url": "https://next.example.test"},
         )
 
-    assert env_path.read_text(encoding="utf-8") == saved
+    assert env_path.read_text(encoding="utf-8") == original
 
 
 @pytest.mark.parametrize(
@@ -416,7 +397,7 @@ def test_ifind_connection_updates_preserve_environment_managed_account_pool(monk
         ("BING_API_KEY", "bing-secret"),
     ],
 )
-def test_web_search_account_pool_rejects_any_environment_managed_pool_key(
+def test_web_search_account_pool_is_persisted_despite_process_environment(
     monkeypatch, tmp_path, locked_key, environment_value
 ):
     env_path = tmp_path / ".env"
@@ -438,13 +419,15 @@ def test_web_search_account_pool_rejects_any_environment_managed_pool_key(
     )
     original = env_path.read_text(encoding="utf-8")
 
-    with pytest.raises(RuntimeError, match=locked_key):
-        service.update_section(
-            "web_search",
-            {"accounts": [{"name": "attempted-override", "key": "replacement-secret"}]},
-        )
+    result = service.update_section(
+        "web_search",
+        {"accounts": [{"name": "configured", "key": "replacement-secret"}]},
+    )
 
-    assert env_path.read_text(encoding="utf-8") == original
+    saved = env_path.read_text(encoding="utf-8")
+    assert saved != original
+    assert "WEB_SEARCH_API_KEYS='[{\"name\":\"configured\",\"key\":\"replacement-secret\"}]'" in saved
+    assert result["applied"] is True
     result = service.update_section("web_search", {"timeout": 20})
     assert result["section"]["timeout"] == 20
 

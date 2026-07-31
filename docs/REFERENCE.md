@@ -748,6 +748,21 @@ report_config.yaml
 }
 ```
 
+### 摄入管理 API
+
+#### POST /api/ingest/admin/{source_type}/trigger
+
+手动触发指定来源的摄入。`dry_run=true` 仅校验请求并返回 `triggered=false`，不会访问数据库或提交任务；`dry_run=false` 会先检查来源是否暂停，再进入排队流程。
+
+**请求体示例**:
+
+```json
+{
+  "mode": "incremental",
+  "dry_run": true
+}
+```
+
 ---
 
 ### 事件 API
@@ -2520,7 +2535,9 @@ AlphaFoundry/
 ├── data/                     # 数据目录
 ├── logs/                     # 日志目录
 ├── backups/                  # 备份目录
-├── .claude/                  # Claude 配置
+├── AGENTS.md                  # 跨工具 Agent 共享规则
+├── .agents/skills/            # 已跟踪的项目 skills
+├── .claude/                   # 本机可选 Claude 配置（Git 忽略）
 ├── .env.example              # 环境变量示例
 ├── .env                      # 环境变量（不提交到 git）
 ├── .gitignore                # Git 忽略
@@ -2569,7 +2586,7 @@ pytest --cov=core --cov=data_layer --cov-report=html
 
 - **默认模式**：需要 PostgreSQL + pgvector；桌面端由用户自行安装并在用户数据目录的 `.env` 中配置 `DATABASE_URL`。
 - **桌面配置位置**：Windows 为 `%LOCALAPPDATA%\\AlphaFoundry\\.env`，macOS 为 `~/Library/Application Support/AlphaFoundry/.env`；可通过 `ALPHAFOUNDRY_DESKTOP_DATA_DIR` 或 `ALPHAFOUNDRY_CONFIG_FILE` 覆盖。
-- **配置优先级**：启动参数 > 进程环境变量 > 显式配置文件 > 模式默认 `.env` > 代码默认值。若字段由进程环境变量注入，配置页会显示其为锁定状态且拒绝覆盖，避免“已保存但重启后失效”。桌面端默认服务地址为 `http://127.0.0.1:8765`，Web 开发默认 `http://127.0.0.1:8000`。
+- **配置优先级**：启动参数 > 进程环境变量 > 显式配置文件 > 模式默认 `.env` > 代码默认值。桌面端配置页以运行时 `.env` 为权威持久化来源，进程环境变量不会锁定字段；重启后仍按上述优先级解析。桌面端默认服务地址为 `http://127.0.0.1:8765`，Web 开发默认 `http://127.0.0.1:8000`。
 - **演示模式**：如果需要快速测试，可以使用模拟数据
 
 ### Q: 支持哪些输出格式？

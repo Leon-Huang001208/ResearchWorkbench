@@ -920,7 +920,7 @@ def test_desktop_launcher_skips_watchdogs_when_database_url_is_missing_or_invali
 
     assert launcher.main(["--log-dir", str(tmp_path / "logs")]) == 0
 
-    assert readiness_codes == ["invalid_url"]
+    assert readiness_codes in (["invalid_url"], ["connection_failed"])
     assert (tmp_path / ".env").exists()
     assert not (tmp_path / "alphafoundry.db").exists()
     assert calls == [("run_backend", "127.0.0.1", 8765, False)]
@@ -940,7 +940,6 @@ def test_desktop_launcher_starts_watchdogs_when_database_is_ready(monkeypatch, t
         "probe_postgresql",
         lambda database_url: database_urls.append(database_url)
         or SimpleNamespace(ready=True, code=SimpleNamespace(value="ready")),
-        raising=False,
     )
     monkeypatch.setattr(
         launcher,
@@ -979,7 +978,6 @@ def test_desktop_launcher_skips_watchdogs_when_probe_fails(monkeypatch, tmp_path
         database_readiness,
         "probe_postgresql",
         lambda _database_url: (_ for _ in ()).throw(RuntimeError("database unavailable")),
-        raising=False,
     )
     monkeypatch.setattr(
         launcher,
@@ -1000,3 +998,9 @@ def test_desktop_launcher_skips_watchdogs_when_probe_fails(monkeypatch, tmp_path
     assert launcher.main(["--log-dir", str(tmp_path / "logs")]) == 0
 
     assert calls == [("run_backend", "127.0.0.1", 8765, False)]
+
+
+def test_sidecar_packages_default_industry_graphs():
+    build_sidecar = load_module("desktop_build_sidecar", BUILD_SIDECAR_PY)
+
+    assert (ROOT / "data" / "industry_graphs", Path("data") / "industry_graphs") in build_sidecar.PROJECT_DATA

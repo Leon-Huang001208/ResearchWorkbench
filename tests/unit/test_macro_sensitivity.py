@@ -372,6 +372,9 @@ class TestMacroSensitivityIntegration:
         service._fill_industry_data = Mock(return_value=None)
         service._fill_shareholder_data = AsyncMock(return_value=([], []))
         service._fill_recent_events = Mock(return_value=[])
+        service._fetch_cjpy_price_bars_with_timeout = AsyncMock(return_value=[])
+        service._fetch_wind_price_bars_with_timeout = AsyncMock(return_value=[])
+        service._fill_price_bars_from_coordinator = Mock(return_value="coordinator")
 
         # Mock _compute_macro_sensitivity to return a known value
         service._compute_macro_sensitivity = Mock(

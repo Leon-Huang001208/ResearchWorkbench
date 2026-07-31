@@ -49,6 +49,20 @@ Update this section when:
 
 ---
 
+### `app/api/routes/ingest_admin.py`
+
+Purpose:
+
+- Expose manual ingestion administration under `/api/ingest/admin` for trigger, pause, resume, reset, and source configuration operations.
+- `POST /{source_type}/trigger` with `dry_run=true` validates the trigger request and returns a non-triggered response without reading or writing the database. A real trigger checks the source pause state before it can be queued.
+
+Update this section when:
+
+- Ingestion administration endpoints or dry-run semantics change.
+- Request/response schemas or database side effects change.
+
+---
+
 ### `app/api/routes/wind.py`
 
 Purpose:

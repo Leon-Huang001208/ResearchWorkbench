@@ -766,7 +766,7 @@ Imports:
 
 Functions:
 - `trigger_ingest`
-  - 手动触发摄入
+  - 手动触发摄入；dry-run 不访问数据库。
 - `pause_ingest`
   - 暂停摄入
 - `resume_ingest`
