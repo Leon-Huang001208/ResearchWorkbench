@@ -18972,7 +18972,7 @@ button.template-config-data-overview-row {
     --wpv-page-height: 1584px;
     --wpv-zoom: 0.44;
     min-height: 0;
-    height: 100%;
+    height: clamp(560px, calc(100vh - 220px), 820px);
     overflow: hidden;
 }
 

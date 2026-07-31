@@ -2,6 +2,9 @@
 
 import importlib.util
 import json
+import os
+import stat
+import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -100,7 +103,7 @@ def test_report_project_upload_modal_treats_non_word_assets_as_optional():
     assert "if (projectType === 'word' && !wordFile)" in script
     assert "if (projectType === 'ppt' && !pptFile)" in script
     assert "if (excelFile)" in script
-    assert "if (sectionFile)" in script
+    assert "if (reportConfigFile)" in script
 
 
 def test_windows_icon_is_available_for_tauri_resource_generation():
@@ -129,6 +132,7 @@ def test_macos_arm_sidecar_shim_invokes_python_launcher():
     assert "resolve_project_root" in source
     assert "scripts/desktop/run_backend.sh" in source
     assert '"$@"' in source
+    assert MACOS_ARM_SIDECAR.stat().st_mode & stat.S_IXUSR
 
 
 def test_desktop_backend_shell_selects_python_runtime():
@@ -745,6 +749,49 @@ def test_desktop_backend_launcher_defaults_and_logging(tmp_path):
     assert log_file.exists()
 
 
+def test_desktop_launcher_sets_runtime_mode_before_database_probe_import(tmp_path):
+    """An unavailable database must keep the desktop sidecar in setup mode."""
+    script = f'''
+import importlib.util
+from pathlib import Path
+
+launcher_path = Path({str(LAUNCHER)!r})
+spec = importlib.util.spec_from_file_location("desktop_backend_launcher_subprocess", launcher_path)
+launcher = importlib.util.module_from_spec(spec)
+assert spec.loader is not None
+spec.loader.exec_module(launcher)
+
+def capture_runtime_mode(_host, _port, _reload):
+    from app.api.main import RUNTIME_CONTEXT
+    print(f"runtime_mode={{RUNTIME_CONTEXT.mode}}")
+
+launcher.run_backend = capture_runtime_mode
+raise SystemExit(launcher.main(["--log-dir", {str(tmp_path / "logs")!r}]))
+'''
+    environment = os.environ.copy()
+    for key in (
+        "ALPHAFOUNDRY_DESKTOP",
+        "ALPHAFOUNDRY_RUN_MODE",
+        "ALPHAFOUNDRY_BACKEND_URL",
+        "ALPHAFOUNDRY_DESKTOP_URL",
+        "ALPHAFOUNDRY_DESKTOP_DATA_DIR",
+        "ALPHAFOUNDRY_CONFIG_FILE",
+    ):
+        environment.pop(key, None)
+
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "runtime_mode=desktop" in result.stdout
+
+
 def test_legacy_roaming_env_migrates_without_overwriting(monkeypatch, tmp_path):
     launcher = load_launcher_module()
     legacy_env = tmp_path / "Roaming" / "AlphaFoundry" / ".env"
@@ -839,24 +886,22 @@ def test_frozen_backend_launcher_keeps_setup_mode_for_missing_or_invalid_postgre
 def test_desktop_launcher_skips_watchdogs_when_database_url_is_missing_or_invalid(
     monkeypatch, tmp_path, database_url
 ):
+    from services import database_readiness
+
     launcher = load_launcher_module()
     calls = []
     readiness_codes = []
     isolate_desktop_launcher_environment(monkeypatch, launcher)
     monkeypatch.setattr(launcher, "desktop_data_dir", lambda: tmp_path)
     monkeypatch.setenv("DATABASE_URL", database_url)
-    original_probe = launcher.probe_postgresql
+    original_probe = database_readiness.probe_postgresql
 
     def probe(database_url):
         readiness = original_probe(database_url)
         readiness_codes.append(readiness.code.value)
         return readiness
 
-    monkeypatch.setattr(
-        launcher,
-        "probe_postgresql",
-        probe,
-    )
+    monkeypatch.setattr(database_readiness, "probe_postgresql", probe)
     monkeypatch.setattr(
         launcher,
         "_start_knowledge_worker",
@@ -882,6 +927,8 @@ def test_desktop_launcher_skips_watchdogs_when_database_url_is_missing_or_invali
 
 
 def test_desktop_launcher_starts_watchdogs_when_database_is_ready(monkeypatch, tmp_path):
+    from services import database_readiness
+
     launcher = load_launcher_module()
     calls = []
     database_urls = []
@@ -889,7 +936,7 @@ def test_desktop_launcher_starts_watchdogs_when_database_is_ready(monkeypatch, t
     monkeypatch.setenv("DATABASE_URL", "postgresql+psycopg://user:password@127.0.0.1/db")
     monkeypatch.setattr(launcher, "apply_frozen_desktop_defaults", lambda: tmp_path)
     monkeypatch.setattr(
-        launcher,
+        database_readiness,
         "probe_postgresql",
         lambda database_url: database_urls.append(database_url)
         or SimpleNamespace(ready=True, code=SimpleNamespace(value="ready")),
@@ -922,12 +969,14 @@ def test_desktop_launcher_starts_watchdogs_when_database_is_ready(monkeypatch, t
 
 
 def test_desktop_launcher_skips_watchdogs_when_probe_fails(monkeypatch, tmp_path):
+    from services import database_readiness
+
     launcher = load_launcher_module()
     calls = []
     isolate_desktop_launcher_environment(monkeypatch, launcher)
     monkeypatch.setattr(launcher, "apply_frozen_desktop_defaults", lambda: tmp_path)
     monkeypatch.setattr(
-        launcher,
+        database_readiness,
         "probe_postgresql",
         lambda _database_url: (_ for _ in ()).throw(RuntimeError("database unavailable")),
         raising=False,

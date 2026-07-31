@@ -242,6 +242,7 @@ Purpose:
 - Report project workbench API for project folders under `report_projects/`.
 - `GET /api/report-projects/` — list report projects with `project_type`, template asset metadata, Word/PPT placeholders, report config, prompt template source, compiled generation readiness plan, Excel sheet summaries, generated reports, output directory, and run-log directory.
 - `GET /api/report-projects/{slug}` — load one project, preserve placeholder first-seen order from the DOCX body/header/footer XML or PPT slide XML, and return `compiled_plan` for frontend preflight checks.
+- `POST /api/report-projects/order` — persist one complete report-project display order; every currently available project slug must appear exactly once.
 - `POST /api/report-projects/upload` — create a Word project from `.docx` or a PPT project from `.pptx`, with optional Excel, report config, prompt templates, and data files.
 - `PUT /api/report-projects/{slug}` — rename a report project.
 - `PUT /api/report-projects/{slug}/source` — persist editable project source files. `source_kind=report_config` writes `config/report_config.yaml`; `source_kind=prompt_templates` writes or attaches `config/prompt_templates.md`.

@@ -8,6 +8,8 @@
 
 ### Added
 
+- **报告项目排序**：模板工作台可保存完整项目卡片排序；排序写入各项目 `project.yaml` 的 `display_order`，重新打开仍保持一致。
+
 - **系统配置控制台**：配置页新增系统健康总览、首次配置步骤与“继续配置”入口；卡片明确显示“去配置 / 管理配置”，环境变量管理项收起为可展开说明。连接测试成功或失败会在当前会话同步显示“连接已验证 / 连接异常”，重新检测后清除，避免将瞬态结果误报为持久健康状态。
 
 - **桌面端跨平台交付规范**：新增 macOS 本地开发、Windows 原生 CI 构建验证，以及发布前真实设备安装冒烟测试的强制流程；明确 Python sidecar 必须按目标平台原生构建，不能用单一 macOS 或 Windows 二进制跨平台复用。
@@ -17,6 +19,8 @@
 - **跨平台运行时配置内核**：新增 `core/settings/runtime.py`，在业务模块和 SQLAlchemy engine 初始化前统一解析桌面、Web 开发、Web 生产三种运行模式；统一 `ALPHAFOUNDRY_CONFIG_FILE`、`ALPHAFOUNDRY_DESKTOP_DATA_DIR` 和 `ALPHAFOUNDRY_BACKEND_URL` 的优先级。Windows 桌面用户数据统一进入 `%LOCALAPPDATA%\AlphaFoundry`，macOS 进入 `~/Library/Application Support/AlphaFoundry`。
 
 ### Changed
+
+- **报告预览与桌面启动**：Word 预览缩放限定在预览面板内，并按视口高度滚动；桌面启动器在数据库预检前先建立桌面运行时配置，数据库不可用时保持配置模式。
 
 - **配置锁定提示上下文化**：首页不再展示受系统环境变量管理的名单；配置弹窗仅在受影响字段、动态行或集合旁显示友好说明，内部环境键名仅用于前端判断。Provider、任务路由和账号/Key 池采用原子集合锁定：任一受管键使整个集合只读且在保存和连接测试请求中不提交，避免覆盖启动时注入的配置或触发后端整组替换拒绝；同分区未锁标量仍可保存。
 

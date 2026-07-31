@@ -621,6 +621,18 @@ python scripts/seed_factor_data.py --skip-ingest
 | `generated_reports` | 已生成 DOCX 列表 |
 | `issues` | 非致命报告项目扫描诊断；项目缺少活动模板或配置时仍返回可用项目，并在此列出稳定的诊断代码、项目 slug 与相对资产路径 |
 
+#### POST /api/report-projects/order
+
+保存报告项目在模板工作台中的完整显示顺序。请求中的每个当前可用项目必须出现一次且只能出现一次；成功后返回按新顺序排列的项目列表，并把顺序写入各项目 `project.yaml` 的 `display_order`。
+
+**请求体示例**:
+
+```json
+{
+  "project_slugs": ["华安ETF周报", "创业板50周报", "华安ETF投资风向标"]
+}
+```
+
 #### PUT /api/report-projects/{slug}/source
 
 保存报告项目源码文件。

@@ -94,11 +94,42 @@ class ReportProjectManager:
                         error=str(exc),
                         exc_info=True,
                     )
+            projects.sort(key=self._project_display_sort_key)
             return ReportProjectScanResult(projects=projects, issues=issues)
         except Exception:
             logger.exception(
                 "Failed to scan report projects", projects_root=str(self.projects_root)
             )
+            raise
+
+    def set_project_order(self, project_slugs: List[str]) -> ReportProjectScanResult:
+        """Persist the complete display order for report projects."""
+        normalized_slugs = [str(slug).strip() for slug in project_slugs]
+        if not normalized_slugs or any(not slug for slug in normalized_slugs):
+            raise ValueError("Report project order must include non-empty project slugs")
+        if len(normalized_slugs) != len(set(normalized_slugs)):
+            raise ValueError("Report project order contains duplicate project slugs")
+
+        scan = self.scan_projects()
+        existing_slugs = {project.slug for project in scan.projects}
+        if set(normalized_slugs) != existing_slugs:
+            raise ValueError("Report project order must include every available report project")
+
+        try:
+            for display_order, slug in enumerate(normalized_slugs):
+                project_yaml = self.projects_root / slug / "project.yaml"
+                data = yaml.safe_load(project_yaml.read_text(encoding="utf-8")) or {}
+                if not isinstance(data, dict):
+                    raise ValueError(f"Invalid report project YAML: {project_yaml}")
+                data["display_order"] = display_order
+                project_yaml.write_text(
+                    yaml.safe_dump(data, allow_unicode=True, sort_keys=False),
+                    encoding="utf-8",
+                )
+            logger.info("Updated report project display order", project_slugs=normalized_slugs)
+            return self.scan_projects()
+        except Exception:
+            logger.exception("Failed to update report project display order")
             raise
 
     def get_project(self, slug: str) -> ReportProject:
@@ -137,6 +168,14 @@ class ReportProjectManager:
         except Exception:
             logger.exception("Failed to rename report project", slug=slug, new_name=new_name)
             raise
+
+    @staticmethod
+    def _project_display_sort_key(project: ReportProject) -> tuple[int, int, str]:
+        """Sort explicitly ordered projects first and retain a stable fallback."""
+        display_order = project.config.get("display_order")
+        if isinstance(display_order, int) and not isinstance(display_order, bool) and display_order >= 0:
+            return (0, display_order, project.slug.casefold())
+        return (1, 0, project.slug.casefold())
 
     def bootstrap_cyb50_project(self, source_dir: Optional[Path] = None) -> ReportProject:
         """Create or refresh the default 创业板50 report project package."""

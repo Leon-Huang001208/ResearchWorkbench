@@ -12,6 +12,7 @@ AlphaFoundry is moving toward a Tauri desktop shell while keeping the current Fa
 - `tauri dev` lets `beforeDevCommand` start the backend. Packaged debug and release builds start the bundled sidecar.
 - 桌面端运行时配置由 `core/settings/runtime.py` 统一解析：Windows 使用 `%LOCALAPPDATA%\AlphaFoundry`，macOS 使用 `~/Library/Application Support/AlphaFoundry`；可用 `ALPHAFOUNDRY_DESKTOP_DATA_DIR` 覆盖。
 - 安装包不会下载、安装或管理 PostgreSQL/pgvector。首次启动找不到可用数据库时会进入数据库配置模式，而不会静默降级 SQLite。
+- 启动器会先初始化桌面运行环境和用户配置目录，再加载数据库预检；因此数据库不可用时仍会保持桌面配置模式，而不会误按 Web 模式退出。
 - `ALPHAFOUNDRY_BACKEND_URL` 是 worker、scheduler 和本地 API 调用的唯一地址来源；桌面默认 `http://127.0.0.1:8765`，Web 开发默认 `http://127.0.0.1:8000`。
 
 ## Desktop Runtime Configuration
@@ -105,7 +106,7 @@ Build the desktop bundle:
 npm run desktop:build
 ```
 
-The generated sidecar is intentionally written under `build/desktop-sidecar/dist/`. The `src-tauri/binaries/` checked-in macOS ARM file remains a small development shim; release workflows copy the real generated sidecar into that directory only inside the build workspace.
+The generated sidecar is intentionally written under `build/desktop-sidecar/dist/`. The `src-tauri/binaries/` checked-in macOS ARM file remains a small, executable development shim; release workflows copy the real generated sidecar into that directory only inside the build workspace.
 
 ## 跨平台开发与发布验证流程
 

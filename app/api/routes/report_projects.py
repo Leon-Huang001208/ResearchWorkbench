@@ -176,6 +176,12 @@ class UpdateReportProjectRequest(BaseModel):
     project_name: str
 
 
+class UpdateReportProjectOrderRequest(BaseModel):
+    """Complete display order for available report projects."""
+
+    project_slugs: List[str] = Field(min_length=1)
+
+
 class UpdateReportProjectSourceRequest(BaseModel):
     """Report project source update request."""
 
@@ -258,6 +264,20 @@ async def list_report_projects():
     except Exception as exc:
         logger.exception("Failed to list report projects")
         raise HTTPException(status_code=500, detail=f"Failed to list report projects: {exc}")
+
+
+@router.post("/order", response_model=ReportProjectsListResponse, summary="保存报告项目排序")
+async def update_report_project_order(request: UpdateReportProjectOrderRequest):
+    """Persist the user-selected report project display order."""
+    try:
+        scan = report_project_manager.set_project_order(request.project_slugs)
+        projects = [_to_project_info(project) for project in scan.projects]
+        return ReportProjectsListResponse(projects=projects, total=len(projects))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        logger.exception("Failed to update report project display order")
+        raise HTTPException(status_code=500, detail=f"Failed to update report project order: {exc}")
 
 
 @router.post("/upload", response_model=ReportProjectInfo, summary="上传报告项目包")

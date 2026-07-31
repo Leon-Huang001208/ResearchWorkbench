@@ -157,6 +157,7 @@ Purpose:
 - Load report project folders under `report_projects/`.
 - Resolve `project.yaml` assets: project type (`word` or `ppt`), active Word/PPT template, active Excel workbook, report config, optional prompt template Markdown, optional data sources, generated output directory, and run-log directory.
 - Expose `scan_projects()` alongside the compatible `list_projects()` API. The scan preserves usable projects while returning stable diagnostics for malformed manifests and missing active assets, so the workbench does not mistake unavailable projects for an empty template library.
+- Persist a complete user-selected project order through `set_project_order()` as `display_order` in each project's `project.yaml`; unordered projects retain a stable slug fallback.
 - Bootstrap the default `创业板50周报` project package.
 
 Update this section when:

@@ -40,6 +40,18 @@ Classes:
 - `DatabaseSectionView`
 - `AdvancedSectionView`
 - `ConfigurationSections`
+- `ConfigurationFieldMetadata`
+  - 配置字段的静态展示元数据。
+- `ConfigurationSectionMetadata`
+  - 配置分区的静态展示元数据。
+- `ConfigurationCatalogResponse`
+  - 配置中心可安全公开的静态目录。
+- `ConfigurationPathsResponse`
+  - 运行时诊断路径，无法安全解析时使用 null。
+- `ConfigurationCapabilityResponse`
+  - 本机集成能力的无副作用检测结果。
+- `ConfigurationEnvironmentResponse`
+  - 配置中心可安全公开的本机运行环境诊断。
 - `ConfigurationSnapshotResponse`
 - `ProviderUpdate`
 - `LlmUpdateRequest`
@@ -98,11 +110,14 @@ Imports:
 - `app.api.configuration_security`
 - `app.api.routes`
 - `core.observability`
+- `core.settings.config`
+- `data_layer.repositories.base`
 - `fastapi`
 - `fastapi.middleware.cors`
 - `fastapi.responses`
 - `fastapi.staticfiles`
 - `pathlib`
+- `services.database_readiness`
 - `starlette.middleware.trustedhost`
 - `starlette.responses`
 - `starlette.types`
@@ -117,7 +132,9 @@ Classes:
 
 Functions:
 - `startup`
-  - Startup hook: check database connection and init services
+  - Preflight persistence before initializing database-dependent services.
+- `_start_wind_workbook_background`
+  - Start the optional Wind workbook task only after persistence is ready.
 - `_start_data_acquisition_schedulers`
   - 自动启动数据获取调度器
 - `shutdown`
@@ -129,7 +146,7 @@ Functions:
 - `backend_version`
   - 后端版本/启动时间戳。
 - `health_check`
-  - 健康检查 - includes persistence status
+  - 健康检查 - report the startup persistence state without retrying the database.
 
 
 ## `app/api/models.py`
@@ -371,6 +388,8 @@ Imports:
 - `typing`
 
 Functions:
+- `get_sector_movers`
+  - 获取市场板块涨跌视图。
 - `get_crawl_feed`
   - 获取实时抓取数据流（最近抓取的文档列表）
 - `refresh_crawl_feed_content`
@@ -514,6 +533,56 @@ Functions:
   - 审批事件，批准后自动生成候选信号
 - `trigger_auto_generate_signals`
   - 手动触发所有已批准事件的信号生成
+
+
+## `app/api/routes/factors.py`
+
+Module docstring:
+> 动态多因子 API 端点
+
+Imports:
+- `core.contracts.factors`
+- `core.observability`
+- `datetime`
+- `fastapi`
+- `pydantic`
+- `services.factor_store_service`
+- `typing`
+
+Classes:
+- `FactorDefinitionRequest`
+  - 因子定义创建/更新请求
+- `FactorValueRequest`
+  - 因子值批量提交请求
+- `FactorEvaluationRequest`
+  - 因子评估批量提交请求
+- `WeightsSnapshotRequest`
+  - 动态权重快照请求
+
+Functions:
+- `_get_store`
+- `list_definitions`
+  - 列出已注册的因子定义
+- `register_definitions`
+  - 注册或更新因子定义
+- `query_values`
+  - 查询因子值
+- `store_values`
+  - 批量存储因子值
+- `query_evaluations`
+  - 查询因子评估记录
+- `store_evaluations`
+  - 批量存储因子评估指标
+- `get_latest_weights`
+  - 获取最新的动态因子权重
+- `save_weights`
+  - 保存动态因子权重快照
+- `get_weights_history`
+  - 查询动态权重历史
+- `get_available_dates`
+  - 获取有因子数据的日期列表
+- `get_categories`
+  - 获取所有已注册的因子类别
 
 
 ## `app/api/routes/funds.py`
@@ -1387,6 +1456,8 @@ Classes:
   - Project report render request.
 - `UpdateReportProjectRequest`
   - Report project update request.
+- `UpdateReportProjectOrderRequest`
+  - Complete display order for available report projects.
 - `UpdateReportProjectSourceRequest`
   - Report project source update request.
 - `RenderReportProjectResponse`
@@ -1405,6 +1476,8 @@ Functions:
   - Lazily initialize the report chart service.
 - `list_report_projects`
   - List report projects stored as project folders.
+- `update_report_project_order`
+  - Persist the user-selected report project display order.
 - `upload_report_project`
   - Create a report project folder from uploaded project package assets.
 - `get_report_project`
@@ -1464,18 +1537,16 @@ Functions:
 - `_classify_data_asset`
   - Classify a data-folder file for the template workbench.
 - `_data_asset_sort_key`
-- `_build_default_section_config_source`
-  - Build a minimal section config when only a Word template is uploaded.
-- `_build_default_ppt_section_config_source`
-  - Build a minimal section config when only a PPT template is uploaded.
-- `_attach_prompt_templates`
-  - Attach a newly created prompt template file to project.yaml.
-- `_read_section_config`
-  - Read raw and parsed section YAML for frontend inspection.
+- `_build_default_report_config_source`
+  - Build a minimal report config from an uploaded Word template in memory.
+- `_build_default_ppt_report_config_source`
+  - Build a minimal report config from an uploaded PPT template in memory.
+- `_validate_report_project_sources`
+  - Validate candidate report config and Markdown Prompt bindings before persistence.
+- `_read_report_config`
+  - Read raw and parsed report YAML for frontend inspection.
 - `_read_prompt_templates`
-  - Read raw Markdown prompt templates when bound to the project.
-- `_read_v2_config`
-  - Read v2 report_config.yaml if it exists.
+  - Read the required Markdown prompt template library.
 - `_extract_docx_placeholders`
   - Extract {{placeholder}} tokens from Word text, including tokens split across runs.
 - `_ordered_docx_xml_names`
@@ -1633,6 +1704,30 @@ Functions:
   - 全局搜索
 
 
+## `app/api/routes/setup.py`
+
+Module docstring:
+> Desktop first-run database readiness status endpoint.
+
+Imports:
+- `app.api.configuration_security`
+- `core.observability`
+- `core.settings.config`
+- `fastapi`
+- `services.database_readiness`
+- `typing`
+
+Functions:
+- `_uninitialized_readiness`
+  - Return a safe fallback when tests or an interrupted startup lack state.
+- `_startup_readiness`
+  - Read only the readiness captured during startup, never an engine/session.
+- `_current_readiness`
+  - Re-probe the configured URL without altering the process-wide SQLAlchemy engine.
+- `get_setup_readiness`
+  - Expose the desktop-only, safe readiness state needed by first-run configuration.
+
+
 ## `app/api/routes/signal_lab.py`
 
 Module docstring:
@@ -1742,82 +1837,6 @@ Functions:
   - 扫描 logs/ 目录下的 .heartbeat.json 文件，返回 {worker_name: {timestamp, activity}}
 - `get_workers_status`
   - 聚合返回所有后台 worker 的实时状态和队列统计
-
-
-## `app/api/routes/templates.py`
-
-Module docstring:
-> 模板管理 API 路由 - 支持 DOCX/PPTX/Excel 模板上传、占位符发现、报告渲染
-
-Imports:
-- `core.contracts`
-- `core.observability`
-- `datetime`
-- `enum`
-- `fastapi`
-- `fastapi.responses`
-- `pathlib`
-- `pydantic`
-- `reporting.templates.template_manager`
-- `typing`
-
-Classes:
-- `TemplateFileType`
-  - 模板文件类型
-- `TemplateInfo`
-  - 模板基本信息
-- `TemplateListResponse`
-  - 模板列表响应
-- `PlaceholderDiscoveryResponse`
-  - 占位符发现响应
-- `RenderReportRequest`
-  - 报告渲染请求
-- `RenderReportFromAssetRequest`
-  - 从资产ID直接渲染报告请求
-- `RenderReportResponse`
-  - 报告渲染响应
-- `DeleteTemplateResponse`
-  - 删除模板响应
-- `PlaceholderConfig`
-  - 单个占位符配置
-- `TemplateConfigSaveRequest`
-  - 模板配置保存请求
-- `TemplateConfigResponse`
-  - 模板配置响应
-- `UpdateTemplateRequest`
-  - 更新模板请求.
-- `UpdateTemplatesOrderRequest`
-  - 批量更新模板排序请求.
-
-Functions:
-- `list_templates`
-  - 列出所有可用的模板，包括基本信息和占位符
-- `get_template`
-  - 获取指定模板的详细信息
-- `upload_template`
-  - 上传 DOCX/PPTX/Excel 模板文件
-- `discover_placeholders`
-  - 从 DOCX/PPTX 模板文件中扫描并发现占位符
-- `render_template_report`
-  - 从模板渲染报告，支持 DOCX/PPTX 格式
-- `render_report_from_asset`
-  - 简化版API：直接从资产ID渲染报告
-- `download_rendered_report`
-  - 下载渲染完成的报告文件
-- `delete_template`
-  - 删除指定的模板（包括配置和所有相关文件）
-- `download_template_file`
-  - 下载原始模板文件
-- `get_template_config`
-  - 获取模板的占位符配置
-- `save_template_config`
-  - 保存模板的占位符配置
-- `create_yaml_template`
-  - 创建一个新的 YAML 模板配置（不包含文件上传，仅创建基础配置）
-- `update_template`
-  - 更新模板的元数据（名称、描述、版本、排序等）.
-- `reorder_templates`
-  - 批量更新模板的排列顺序.
 
 
 ## `app/api/routes/thesis_generator.py`
@@ -3439,7 +3458,6 @@ Imports:
 - `core.contracts.content_element`
 - `core.contracts.retrieval`
 - `datetime`
-- `enum`
 - `pydantic`
 - `typing`
 
@@ -3456,7 +3474,7 @@ Classes:
   - 完整校验结果.
 - `TemplateConfig`
   - 报告模板配置.
-  - methods: is_v2, get_design_tokens
+  - methods: get_design_tokens
 - `ReportTask`
   - 报告生成任务.
 - `ReportRunLog`
@@ -3470,39 +3488,6 @@ Classes:
 - `TextPlaceholder`
   - 文本占位符规范.
   - methods: normalized_placeholder
-- `PlaceholderType`
-  - 占位符内容类型枚举.
-- `GenerationMode`
-  - 内容生成模式枚举.
-- `InlineRunSpec`
-  - 内联文本片段规格 — 定义单个 Run 的格式和内容来源.
-- `RichTextSpec`
-  - 富文本规格 — 描述一个段落的 Run 序列.
-- `DataSourceSpec`
-  - 统一数据来源定义.
-- `ChartCellSpec`
-  - 图表网格中的单个单元格.
-- `ChartGridSpec`
-  - 多图表网格布局规格.
-- `RetrievalConfig`
-  - 证据检索配置.
-- `GenerationConfig`
-  - LLM 内容生成配置.
-- `ValidationSpec`
-  - 内容校验规则.
-- `EnhancedPlaceholder`
-  - 增强的占位符定义 — v2 配置框架的核心.
-- `ReportPeriod`
-  - 报告周期配置.
-- `DefaultSettings`
-  - 报告模板默认设置.
-- `TemplateReference`
-  - 模板文件引用.
-- `ReportTemplateConfig`
-  - 报告模板配置 — v2 配置框架的顶层模型.
-  - methods: _populate_placeholder_keys
-- `ReportTemplateMeta`
-  - 报告模板元信息.
 
 
 ## `core/contracts/retrieval.py`
@@ -4025,6 +4010,8 @@ Classes:
   - methods: __init__, bind, _format_msg, debug, info, warning, warn, error, exception
 
 Functions:
+- `_utf8_stream`
+  - Wrap a real terminal stream in UTF-8 while preserving in-memory test streams.
 - `configure_logging`
   - 配置日志（简化版本，供 CLI 使用）.
 - `setup_logging`
@@ -4225,7 +4212,7 @@ Functions:
 - `resolve_runtime_context`
   - Resolve config location and service URL without mutating process state.
 - `initialize_runtime_environment`
-  - Load the selected config file once before settings and repositories initialize.
+  - Load the selected configuration as the desktop application's authoritative source.
 - `_resolve_mode`
 - `_resolve_env_path`
 
@@ -4892,6 +4879,8 @@ Module docstring:
 Imports:
 - `core.observability`
 - `data_layer.adapters.wind.exceptions`
+- `datetime`
+- `math`
 - `threading`
 - `time`
 - `typing`
@@ -4899,11 +4888,15 @@ Imports:
 Classes:
 - `WindExcelClient`
   - 通过 xlwings 操控 Excel 中的 Wind 插件执行公式
-  - methods: __init__, _connect, _get_or_create_helper_sheet, _get_formula_sheet, heartbeat, _ensure_connected, _ensure_session, _execute_raw, _allocate_helper_rows, execute, execute_batch, _execute_batch_unlocked, _write_formula_column, _read_formula_column, _clear_formula_column, _normalize_column_values, start_keepalive, stop_keepalive, _keepalive_loop, close, __enter__, __exit__
+  - methods: __init__, _connect, _get_or_create_helper_sheet, _get_formula_sheet, heartbeat, _ensure_connected, _ensure_session, _execute_raw, _allocate_helper_rows, execute, _wsd_timeout, execute_wsd, _execute_wsd_once, execute_batch, _execute_batch_unlocked, _write_formula_column, _read_formula_column, _clear_formula_column, _normalize_column_values, start_keepalive, stop_keepalive, _keepalive_loop, close, __enter__, __exit__
 
 Functions:
 - `_is_error_value`
   - 检查返回值是否是 Excel 错误
+- `_offset_excel_column`
+  - Return an Excel column name offset from ``column`` without Excel APIs.
+- `_trim_wsd_matrix`
+  - Trim a rectangular Excel spill range to its populated rows and columns.
 
 
 ## `data_layer/adapters/wind/exceptions.py`
@@ -5016,6 +5009,17 @@ Functions:
   - 涨跌幅（%） ✅ 已确认
 - `daily_amplitude`
   - 振幅（%） ✅ 已确认 (Wind 函数名: s_dq_swing)
+- `daily_open_range`
+- `daily_high_range`
+- `daily_low_range`
+- `daily_close_range`
+- `daily_volume_range`
+- `daily_amount_range`
+- `daily_turnover_range`
+- `daily_adj_factor_range`
+- `daily_vwap_range`
+- `daily_pct_change_range`
+- `daily_amplitude_range`
 - `rt_last`
   - 实时最新价。
 - `rt_pre_close`
@@ -5133,6 +5137,7 @@ Imports:
 - `data_layer.adapters.base`
 - `data_layer.adapters.wind`
 - `data_layer.adapters.wind.client`
+- `datetime`
 - `pandas`
 - `pathlib`
 - `typing`
@@ -5140,7 +5145,11 @@ Imports:
 Classes:
 - `WindAdapter`
   - Wind 数据适配器
-  - methods: __init__, _get_client, is_available, fetch_consensus_estimates, fetch_margin_trading, fetch_block_trades, fetch_daily_quotes, fetch_market_snapshot, fetch_realtime_quotes, fetch_index_quotes, fetch_financial_statements, fetch_industry_data, fetch_fund_flow, fetch_holder_data, fetch_top10_holder_details, fetch, parse
+  - methods: __init__, _get_client, is_available, fetch_consensus_estimates, fetch_margin_trading, fetch_block_trades, fetch_daily_quotes, _dq_row_to_dict, _fetch_dq_recent_batch, fetch_market_snapshot, fetch_realtime_quotes, fetch_index_quotes, fetch_financial_statements, fetch_industry_data, fetch_fund_flow, fetch_holder_data, fetch_top10_holder_details, fetch, parse
+
+Functions:
+- `_safe_float_wind`
+  - Wind 公式返回值转 float，None/非数字返回 None
 
 
 ## `data_layer/adapters/yahoo_adapter.py`
@@ -6861,6 +6870,25 @@ Classes:
   - methods: _to_domain, _to_model, save, get, list, delete, get_by_entity, get_by_time_range, get_pending_review, list_by_status, list_by_event_type, list_by_impacted_symbol, list_approved_pending_signal, mark_signal_generated
 
 
+## `data_layer/repositories/factor_repository.py`
+
+Module docstring:
+> FactorRepository — 动态因子持久化层
+
+Imports:
+- `core.observability`
+- `data_layer.repositories.base`
+- `data_layer.repositories.models`
+- `datetime`
+- `sqlalchemy.dialects.postgresql`
+- `typing`
+
+Classes:
+- `FactorRepository`
+  - 因子数据仓储 —— 基于 PostgreSQL upsert 的持久化层
+  - methods: __init__, db, _upsert, save_definitions, get_definitions, get_all_categories, save_values, get_values, get_values_for_date, get_available_dates, save_evaluations, get_evaluations, get_latest_evaluations, save_weights, get_latest_weights, get_weights_history, close
+
+
 ## `data_layer/repositories/fund_repository.py`
 
 Module docstring:
@@ -7133,6 +7161,14 @@ Classes:
   - Wind 龙虎榜数据
 - `WindDailyBarDB`
   - Wind 日行情数据（含 Wind 独家字段：adj_close, adj_factor, vwap）
+- `FactorDefinitionDB`
+  - 因子元数据定义
+- `FactorValueDB`
+  - 点时因子观察值
+- `FactorEvaluationDB`
+  - 因子评估指标
+- `DynamicFactorWeightDB`
+  - 动态因子权重快照
 
 Functions:
 - `utc_now`
@@ -10015,7 +10051,7 @@ Classes:
   - Document 验证结果.
 - `UnifiedPipeline`
   - 统一报告流水线 — 串联 Build → Validate → Render 三个阶段.
-  - methods: __init__, register_renderer, register_template, execute, execute_to_buffer, _build, _build_from_template, _build_from_sections, _build_from_compiled, _load_template, _validate, _resolve_renderer, _format_extension
+  - methods: __init__, register_renderer, execute, execute_to_buffer, _build, _build_from_sections, _build_from_compiled, _validate, _resolve_renderer, _format_extension
 
 Functions:
 - `quick_render`
@@ -10029,7 +10065,6 @@ Module docstring:
 
 Imports:
 - `reporting.builder.strategies.from_research`
-- `reporting.builder.strategies.from_template`
 
 
 ## `reporting/builder/strategies/from_research.py`
@@ -10048,24 +10083,6 @@ Classes:
 - `ResearchStrategy`
   - 深度研究策略 — 从编译器产出构建 Document.
   - methods: build, _build_section, _build_appendix, _build_citations_appendix, _build_facts_appendix, _parse_content, _build_citation_elements, _build_critic_callout, _build_evidence_element
-
-
-## `reporting/builder/strategies/from_template.py`
-
-Module docstring:
-> 模板驱动策略 — 从 YAML 模板 + 运行时上下文构建 Document.
-
-Imports:
-- `__future__`
-- `core.contracts.content_element`
-- `core.contracts.document`
-- `core.observability`
-- `typing`
-
-Classes:
-- `TemplateStrategy`
-  - 模板驱动策略 — 从 YAML 模板 + 上下文构建 Document.
-  - methods: build, _build_section, _build_default_block, _build_blocks, _build_elements_from_spec, _create_element_inline, _create_element_from_data, _create_placeholder_element, _interpolate, _resolve_context_path, _is_section_visible, _extract_tokens
 
 
 ## `reporting/compiler/__init__.py`
@@ -10923,7 +10940,6 @@ Module docstring:
 Imports:
 - `__future__`
 - `concurrent.futures`
-- `core.contracts.reporting`
 - `core.interfaces.model_gateway`
 - `core.model_gateway.gateway`
 - `core.model_gateway.local_embedding_config`
@@ -10938,6 +10954,7 @@ Imports:
 - `reporting.projects.keyword_profiles`
 - `reporting.projects.project_manager`
 - `sqlalchemy`
+- `threading`
 - `typing`
 
 Classes:
@@ -10965,16 +10982,12 @@ Classes:
   - methods: retrieve, _retrieve_ingestion_items, _retrieve_events, _retrieve_recent_ingestion_items, _retrieve_recent_events, _extract_terms, _compact_text
 - `ReportProjectGenerationService`
   - Generates Word placeholders from project config, evidence, and LLM.
-  - methods: __init__, generate_placeholders, generate_placeholder_content, _generate_configured_placeholder, _generate_composite_market_review, _retrieve_evidence, _rerank_evidence_if_needed, _generate_market_hotspot_section, _generate_section, _fallback_content, _generate_section_with_knowledge_fallback, _build_static_news_fallback, _clean_model_content, _enrich_evidence_from_web, _merge_and_dedupe
+  - methods: __init__, generate_placeholders, _emit_progress, _generate_configured_placeholder, _generate_data_template_evidence_paragraph, _retrieve_evidence, _rerank_evidence_if_needed, _generate_market_hotspot_section, _generate_section, _fallback_content, _generate_section_with_knowledge_fallback, _build_static_news_fallback, _clean_model_content, _enrich_evidence_from_web, _merge_and_dedupe
 - `_SafeFormatDict`
   - Keep unknown data template placeholders visible instead of crashing generation.
   - methods: __missing__
 
 Functions:
-- `_flatten_keyword_groups`
-  - 将 v2 keyword_groups 展平为扁平的 must_any 关键词列表.
-- `_build_v1_config_from_v2`
-  - 从 v2 GenerationConfig + DefaultSettings 构建 v1 兼容的 config dict.
 - `build_retrieval_config`
   - Build retrieval config from a section config block.
 - `filter_and_rank_evidence`
@@ -11011,7 +11024,9 @@ Functions:
 - `resolve_report_period_value`
   - Resolve a configured report-period placeholder value.
 - `normalize_placeholder_output_type`
-  - Normalize legacy placeholder kinds into the generic output-shape protocol.
+  - Return the explicit output shape from the unified report configuration.
+- `is_data_template_evidence_paragraph`
+  - Identify the explicit Excel-template plus evidence-writing paragraph mode.
 - `resolve_field_placeholder_value`
   - Resolve deterministic short-field placeholders without invoking retrieval or LLM.
 - `build_a_share_market_data_sentence`
@@ -11038,17 +11053,17 @@ Functions:
 - `_coerce_report_date`
 - `_period_datetime_bounds`
 - `iter_placeholder_configs`
-  - Yield normalized placeholder configs from both new and legacy schemas.
+  - Yield placeholders from the unified report configuration schema.
 - `apply_report_defaults_to_placeholder`
   - Merge report-level defaults into a placeholder config without mutating input.
 - `deep_merge_dict`
   - Recursively merge dictionaries, with override values taking precedence.
 - `parse_prompt_templates`
   - Parse Markdown prompt templates keyed by second-level heading.
-- `build_fallback_template`
-  - Build a prompt template from legacy section config.
+- `resolve_markdown_prompt_template`
+  - Resolve an evidence prompt exclusively from the project's Markdown library.
 - `render_generation_constraints`
-  - Render shared generation constraints from section_config.yaml.
+  - Render shared generation constraints from report_config.yaml.
 - `render_writing_parameters`
   - Render per-placeholder writing parameters separately from shared constraints.
 - `_strip_instruction_leaks`
@@ -11062,16 +11077,16 @@ Functions:
 - `_dedupe_text_list`
 - `get_component_by_type`
   - Return the first component with the requested type from a placeholder config.
-- `apply_composite_component_overrides`
-  - Lift llm_writing component retrieval into the effective placeholder config.
+- `apply_data_template_evidence_component_overrides`
+  - Lift writing-component retrieval into an explicit data-template paragraph.
 - `render_writing_requirements`
   - Render placeholder writing requirements from structured config or markdown template.
 - `render_market_review_writing_structure`
-  - Render continuation requirements for composite A-share market review.
+  - Render continuation requirements for the A-share market review paragraph.
 - `build_generation_messages`
   - Build strict evidence-grounded LLM messages.
 - `build_market_hotspot_messages`
-  - Build messages for the generated part of a composite market review.
+  - Build messages for the evidence-written part of a market review paragraph.
 - `rerank_evidence_with_local_model`
   - Rerank evidence with a local cross-encoder reranker.
 - `_load_local_reranker_model`
@@ -11179,7 +11194,6 @@ Functions:
   - Compile effective placeholder generation settings without rendering output.
 - `_compile_placeholder_plan`
 - `_requires_evidence`
-- `_has_prompt_template_or_inline_prompt`
 
 
 ## `reporting/projects/project_manager.py`
@@ -11204,7 +11218,7 @@ Classes:
   - Report projects and non-fatal scan issues.
 - `ReportProjectManager`
   - Read and bootstrap report project folders.
-  - methods: __init__, list_projects, scan_projects, get_project, rename_project, bootstrap_cyb50_project, _validate_project_asset_paths, _build_scan_issue, _load_project, _resolve, _resolve_optional
+  - methods: __init__, list_projects, scan_projects, set_project_order, get_project, rename_project, _project_display_sort_key, bootstrap_cyb50_project, _validate_project_asset_paths, _build_scan_issue, _load_project, _resolve, _resolve_optional
 
 
 ## `reporting/projects/run.py`
@@ -11226,7 +11240,6 @@ Imports:
 - `reporting.projects.project_manager`
 - `reporting.projects.table_generation`
 - `typing`
-- `yaml`
 
 Classes:
 - `ReportProjectRunRequest`
@@ -11235,7 +11248,7 @@ Classes:
   - Rendered artifact metadata and aggregated warnings.
 - `ReportProjectRunService`
   - Execute a project-level Word or PPT report render.
-  - methods: __init__, execute, _execute_word, _execute_word_v2, _generate_single_placeholder, _execute_ppt, _generate_placeholders, _write_word_run_log, _write_ppt_run_log, _write_run_record, _generation_record, _word_warnings, _artifact_file_name
+  - methods: __init__, execute, _execute_word, _execute_ppt, _generate_placeholders, _emit_progress, _write_word_run_log, _write_ppt_run_log, _write_run_record, _generation_record, _word_warnings, _artifact_file_name
 
 Functions:
 - `serialize_retrieval_config`
@@ -11311,25 +11324,6 @@ Functions:
   - 便捷函数 — 按格式名渲染 Document.
 
 
-## `reporting/rendering/chart_grid_injector.py`
-
-Module docstring:
-> 图表网格注入器 — 在 Word 模板中创建或替换图表网格布局.
-
-Imports:
-- `__future__`
-- `core.contracts.reporting`
-- `core.observability`
-- `io`
-- `pathlib`
-- `typing`
-
-Classes:
-- `ChartGridInjector`
-  - 在 Word 模板中创建图表网格布局.
-  - methods: __init__, inject_at_placeholder, _find_placeholder_paragraph, _create_borderless_table, _remove_table_borders, _set_cell_title, _set_cell_chart, _embed_image_file, _embed_matplotlib_chart
-
-
 ## `reporting/rendering/markdown_renderer.py`
 
 Module docstring:
@@ -11372,24 +11366,6 @@ Classes:
   - methods: __init__, format_name, _begin_document, _end_document, _finalize, render_to_buffer, _render_title_page, _begin_section, _end_section, _render_block, _render_block_two_col, _dispatch_element, _render_heading, _render_paragraph, _render_bullet_list, _render_ordered_list, _render_table, _render_chart, _try_native_chart, _render_image, _render_quote, _render_callout, _render_key_value, _render_divider, _render_speaker_notes, _add_continue_slide, _set_cell_fill, _apply_transition, _hex_to_rgb
 
 
-## `reporting/rendering/rich_text_injector.py`
-
-Module docstring:
-> 富文本注入器 — 将 RichTextSpec + 生成内容注入到 Word 模板段落中.
-
-Imports:
-- `__future__`
-- `core.contracts.reporting`
-- `core.observability`
-- `re`
-- `typing`
-
-Classes:
-- `RichTextInjector`
-  - 将 RichTextSpec 和生成内容注入 Word 段落.
-  - methods: inject, _clear_placeholder_runs, _inject_simple_text, _inject_rich_runs, _resolve_run_text, _apply_run_formatting, _remove_empty_runs
-
-
 ## `reporting/rendering/style_mapper.py`
 
 Module docstring:
@@ -11405,25 +11381,6 @@ Classes:
 - `StyleMapper`
   - DesignTokens → 格式特定样式映射器.
   - methods: __init__, word_heading_style, word_body_style, word_table_style, word_callout_style, ppt_title_style, ppt_subtitle_style, ppt_body_style, ppt_heading_style, ppt_table_style, ppt_slide_dimensions_inches, to_emu, hex_to_rgb, chart_colors, chart_color_at
-
-
-## `reporting/rendering/template_renderer.py`
-
-Module docstring:
-> 配置驱动的模板渲染器 — v2 报告生成引擎的核心.
-
-Imports:
-- `__future__`
-- `core.contracts.reporting`
-- `core.observability`
-- `pathlib`
-- `re`
-- `typing`
-
-Classes:
-- `ConfigDrivenTemplateRenderer`
-  - 配置驱动的模板渲染器.
-  - methods: __init__, render, _process_placeholder, _process_text_placeholder, _process_chart_grid_placeholder, _process_image_placeholder, _process_chart_placeholder, _process_table_placeholder, _generate_content, _generate_via_llm, _generate_from_data, _validate_content, _evaluate_visibility, _handle_hidden_placeholder, _resolve_template_path, _find_placeholder_in_doc, _simple_text_replace, _post_process
 
 
 ## `reporting/rendering/word_renderer.py`
@@ -11451,29 +11408,25 @@ Classes:
 ## `reporting/templates/__init__.py`
 
 Module docstring:
-> 报告模板
+> 报告项目资产根目录。
 
 Imports:
 - `pathlib`
-- `reporting.templates.template_manager`
 
 
 ## `reporting/templates/template_manager.py`
 
 Module docstring:
-> 模板管理器 - 管理报告模板的加载、验证和存储.
+> Retired legacy YAML report-template manager.
 
 Imports:
-- `core.contracts`
 - `core.observability`
-- `pathlib`
 - `typing`
-- `yaml`
 
 Classes:
 - `TemplateManager`
-  - 模板管理器.
-  - methods: __init__, _ensure_templates_dir, list_templates, update_template_metadata, update_templates_order, load_template, save_template, delete_template, clear_cache, _parse_template_config, _parse_section_spec, _template_config_to_dict, _validate_template, upgrade_to_v2, upgrade_all_to_v2, create_weekly_report_template, save_template_file, get_template_file_path, delete_template_file, discover_placeholders_from_docx, _extract_placeholders_from_text, discover_placeholders_from_pptx, list_all_template_files
+  - Closed compatibility boundary for the removed YAML template system.
+  - methods: __init__, _retired, list_templates, __getattr__
 
 
 ## `storage/migrations/env.py`
@@ -11654,7 +11607,22 @@ Functions:
 - `downgrade`
 
 
-## `storage/migrations/versions/011_add_index_structure_tables.py`
+## `storage/migrations/versions/011_add_factor_store_tables.py`
+
+Module docstring:
+> Add factor store tables (factor_definition, factor_value, factor_evaluation, dynamic_factor_weight)
+
+Imports:
+- `alembic`
+- `sqlalchemy`
+- `typing`
+
+Functions:
+- `upgrade`
+- `downgrade`
+
+
+## `storage/migrations/versions/012_add_index_structure_tables.py`
 
 Module docstring:
 > Add index structure and ETF metric tables
@@ -12307,6 +12275,22 @@ Functions:
   - 主函数
 
 
+## `scripts/debug_wind_formulas.py`
+
+Module docstring:
+> 测试 per-field range 公式 — 每字段独立列溢位
+
+Imports:
+- `data_layer.adapters.wind.client`
+- `datetime`
+- `string`
+- `time`
+
+Functions:
+- `to_num`
+- `col_name`
+
+
 ## `scripts/demo_closed_loop.py`
 
 Module docstring:
@@ -12411,6 +12395,55 @@ Functions:
   - Build PyInstaller argv for the current platform.
 - `main`
   - Run PyInstaller and return its exit code.
+
+
+## `scripts/desktop/check_sidecar_health.py`
+
+Module docstring:
+> Start one desktop sidecar, wait for its local health endpoint, then stop it.
+
+Imports:
+- `__future__`
+- `argparse`
+- `errno`
+- `http.client`
+- `json`
+- `logging`
+- `os`
+- `pathlib`
+- `signal`
+- `socket`
+- `subprocess`
+- `time`
+- `typing`
+- `urllib.error`
+- `urllib.request`
+
+Functions:
+- `is_windows`
+  - Return whether this helper is running on Windows.
+- `build_parser`
+  - Build the CLI parser for the isolated sidecar health check.
+- `configure_logger`
+  - Create a dedicated file logger without changing global logging configuration.
+- `sidecar_command`
+  - Return the exact command used to start the sidecar under test.
+- `endpoint_is_healthy`
+  - Return whether the local endpoint currently answers a successful health request.
+- `wait_for_health`
+  - Poll the local sidecar health endpoint until it is ready or the deadline expires.
+- `wait_for_port_release`
+  - Confirm that the sidecar port is no longer accepting local connections.
+- `stop_posix_process_group`
+  - Terminate and, if required, kill only the helper-created POSIX process group.
+- `stop_windows_process_tree`
+  - Use taskkill to stop only the helper-owned Windows parent PID and its tree.
+- `stop_child`
+  - Stop only this helper's sidecar and confirm its listening port was released.
+- `run_health_check`
+  - Run the health check and return zero only after the sidecar becomes healthy.
+- `main`
+  - Run the CLI and terminate with the health-check result code.
 
 
 ## `scripts/desktop/prepare_tauri_sidecar.py`
@@ -13073,6 +13106,21 @@ Functions:
 - `main`
 
 
+## `scripts/seed_stock_master_static.py`
+
+Module docstring:
+> 用静态预定义列表填充 stock_master 表。
+
+Imports:
+- `__future__`
+- `core.observability`
+- `pathlib`
+- `sys`
+
+Functions:
+- `main`
+
+
 ## `scripts/setup_price_cache.py`
 
 Module docstring:
@@ -13084,6 +13132,24 @@ Imports:
 - `data_layer.repositories.base`
 - `pathlib`
 - `sys`
+
+Functions:
+- `main`
+
+
+## `scripts/smiley_face.py`
+
+Module docstring:
+> Smiley Face macOS App - 用 tkinter 画一个笑脸
+
+Imports:
+- `math`
+- `tkinter`
+
+Classes:
+- `SmileyFace`
+  - 画笑脸的 Canvas
+  - methods: __init__, draw
 
 Functions:
 - `main`

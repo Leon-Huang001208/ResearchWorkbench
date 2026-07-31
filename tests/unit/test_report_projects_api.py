@@ -3301,3 +3301,57 @@ def test_rename_report_project_updates_folder_and_yaml(tmp_path: Path, monkeypat
     new_project_dir = tmp_path / "新周报"
     assert (new_project_dir / "templates" / "report_template.docx").exists()
     assert "name: 新周报" in (new_project_dir / "project.yaml").read_text(encoding="utf-8")
+
+
+def test_save_report_project_order_persists_across_project_listing(tmp_path: Path, monkeypatch):
+    """模板库排序保存后，应按提交的报告项目顺序返回。"""
+    for slug in ["AI周报", "创业板50周报", "华安ETF周报"]:
+        project_dir = tmp_path / slug
+        (project_dir / "templates").mkdir(parents=True)
+        (project_dir / "config").mkdir()
+        (project_dir / "templates" / "report_template.docx").write_bytes(b"docx")
+        (project_dir / "config" / "report_config.yaml").write_text(
+            "placeholders: {}\n", encoding="utf-8"
+        )
+        (project_dir / "config" / "prompt_templates.md").write_text(
+            "# Prompt 模板库\n", encoding="utf-8"
+        )
+        (project_dir / "project.yaml").write_text(
+            "\n".join(
+                [
+                    f"name: {slug}",
+                    "active_word_template: templates/report_template.docx",
+                    "report_config: config/report_config.yaml",
+                    "prompt_templates: config/prompt_templates.md",
+                    "output_dir: generated",
+                    "run_log_dir: runs",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+    import app.api.routes.report_projects as report_projects_route
+
+    monkeypatch.setattr(
+        report_projects_route,
+        "report_project_manager",
+        ReportProjectManager(projects_root=tmp_path),
+    )
+
+    response = client.post(
+        "/api/report-projects/order",
+        json={"project_slugs": ["华安ETF周报", "AI周报", "创业板50周报"]},
+    )
+
+    assert response.status_code == 200
+    assert [project["slug"] for project in response.json()["projects"]] == [
+        "华安ETF周报",
+        "AI周报",
+        "创业板50周报",
+    ]
+    listed = client.get("/api/report-projects/")
+    assert [project["slug"] for project in listed.json()["projects"]] == [
+        "华安ETF周报",
+        "AI周报",
+        "创业板50周报",
+    ]

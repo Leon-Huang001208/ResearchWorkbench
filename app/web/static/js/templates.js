@@ -237,7 +237,7 @@ function renderTemplatesList(templates, showEmptyState = true) {
         const clickAttr = isEditMode ? '' : `onclick="selectTemplate('${esc(templateName)}', '${fileType}')"`;
 
         return `
-        <div class="${wrapperClasses.join(' ')}" data-template-name="${esc(templateName)}" data-index="${index}" ${clickAttr} ${isEditMode ? 'onpointerdown="handleTemplatePointerDown(event)"' : ''}>
+        <div class="${wrapperClasses.join(' ')}" data-template-name="${esc(templateName)}" data-project-slug="${esc(project?.slug || '')}" data-index="${index}" ${clickAttr} ${isEditMode ? 'onpointerdown="handleTemplatePointerDown(event)"' : ''}>
             <button class="iphone-delete-btn" onclick="event.stopPropagation(); deleteTemplate('${esc(templateName)}')"></button>
             <div class="iphone-app-icon ${fileType}">
                 ${iconHtml}
@@ -609,29 +609,34 @@ async function handleDrop(event) {
 
 async function persistCurrentTemplateOrder(successMessage = '模板顺序已更新') {
     const container = document.getElementById('templates-grid');
+    if (!container) return false;
     const cards = Array.from(container.querySelectorAll('.iphone-template-wrapper'));
 
     cards.forEach(card => {
         card.classList.remove('dragging');
     });
 
-    if (!draggedTemplateName) return;
+    const templateKeys = cards.map(card => card.dataset.projectSlug || card.dataset.templateName);
+    const projectSlugs = cards.map(card => card.dataset.projectSlug).filter(Boolean);
 
-    const newOrder = cards.map(c => c.dataset.templateName);
-
-    const templateMap = {};
+    const templateMap = new Map();
     currentTemplateState.templates.forEach(t => {
-        const name = t.template_name || t.name;
-        templateMap[name] = t;
+        const key = t.report_project?.slug || t.template_name || t.name;
+        templateMap.set(key, t);
     });
-    currentTemplateState.templates = newOrder.map(name => templateMap[name]);
+    currentTemplateState.templates = templateKeys.map(key => templateMap.get(key)).filter(Boolean);
 
     try {
-        if (getReorderableTemplateNames(newOrder).length) legacyTemplatesApiRemoved();
+        if (projectSlugs.length) {
+            await apiCall('POST', '/api/report-projects/order', { project_slugs: projectSlugs });
+        }
+        if (projectSlugs.length !== cards.length) legacyTemplatesApiRemoved();
         toast(successMessage, 'success');
+        return true;
     } catch (e) {
         toast('更新顺序失败: ' + e.message, 'error');
         await loadTemplates();
+        return false;
     }
 }
 
@@ -739,22 +744,13 @@ function toggleEditMode() {
 }
 
 async function saveTemplatesOrder() {
-    const cards = document.querySelectorAll('.iphone-template-wrapper');
-    const newOrder = Array.from(cards).map(card => card.dataset.templateName);
+    const saved = await persistCurrentTemplateOrder('模板已保存');
+    if (!saved) return;
 
-    try {
-        if (getReorderableTemplateNames(newOrder).length) legacyTemplatesApiRemoved();
-
-        toast('模板已保存', 'success');
-        isEditMode = false;
-
-        document.getElementById('btn-edit-templates').classList.remove('hidden');
-        document.getElementById('btn-save-templates-order').classList.add('hidden');
-
-        await loadTemplates();
-    } catch (e) {
-        toast('保存失败: ' + e.message, 'error');
-    }
+    isEditMode = false;
+    document.getElementById('btn-edit-templates').classList.remove('hidden');
+    document.getElementById('btn-save-templates-order').classList.add('hidden');
+    await loadTemplates();
 }
 
 function getReorderableTemplateNames(templateNames) {
@@ -1855,7 +1851,7 @@ function _fullPreviewSetZoom(state, dom, next) {
 }
 
 function _fullPreviewApplyZoom(state, dom) {
-    document.documentElement.style.setProperty('--wpv-zoom', String(state.zoom));
+    dom.panel?.style.setProperty('--wpv-zoom', String(state.zoom));
     if (dom.zoomInput) dom.zoomInput.value = Math.round(state.zoom * 100) + '%';
 }
 
@@ -1867,7 +1863,7 @@ function _fullPreviewFitMode(state, dom, mode) {
     const spreadWidth = first.width * pageCount + gap;
     const spreadHeight = first.height;
     const widthZoom = (dom.scroller.clientWidth - 90) / spreadWidth;
-    const heightZoom = (dom.scroller.clientHeight - 86) / spreadHeight;
+    const heightZoom = (dom.scroller.clientHeight - 44) / spreadHeight;
     state.zoom = _fullPreviewClamp(mode === 'page' ? Math.min(widthZoom, heightZoom) : widthZoom, FULL_PREVIEW_MIN_ZOOM, FULL_PREVIEW_MAX_ZOOM);
     if (dom.fitWidth) dom.fitWidth.classList.toggle('is-active', mode === 'width');
     if (dom.fitPage) dom.fitPage.classList.toggle('is-active', mode === 'page');

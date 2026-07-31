@@ -499,6 +499,37 @@ def test_report_generation_history_scrolls_inside_output_panel():
     assert "scrollbar-gutter: stable" in css
 
 
+def test_word_preview_keeps_document_scrolling_inside_a_viewport_sized_panel():
+    css = STYLE_CSS.read_text(encoding="utf-8")
+
+    preview_start = css.index("#template-generation-preview-panel {")
+    preview_end = css.index("\n}\n\n.word-preview-panel", preview_start)
+    preview_css = css[preview_start:preview_end]
+
+    assert "height: clamp(560px, calc(100vh - 220px), 820px);" in preview_css
+    assert ".page-scroller {\n    overflow: auto;" in css
+
+
+def test_word_preview_applies_manual_zoom_on_the_panel_scope():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+
+    apply_zoom_start = source.index("function _fullPreviewApplyZoom")
+    apply_zoom_end = source.index("function _fullPreviewFitMode", apply_zoom_start)
+    apply_zoom_source = source[apply_zoom_start:apply_zoom_end]
+
+    assert "dom.panel?.style.setProperty('--wpv-zoom', String(state.zoom));" in apply_zoom_source
+
+
+def test_word_preview_fit_page_does_not_leave_room_for_the_next_page_header():
+    source = TEMPLATES_JS.read_text(encoding="utf-8")
+
+    fit_page_start = source.index("function _fullPreviewFitMode")
+    fit_page_end = source.index("function _fullPreviewCommitZoom", fit_page_start)
+    fit_page_source = source[fit_page_start:fit_page_end]
+
+    assert "const heightZoom = (dom.scroller.clientHeight - 44) / spreadHeight;" in fit_page_source
+
+
 def test_templates_list_uses_report_projects_as_its_only_source():
     source = TEMPLATES_JS.read_text(encoding="utf-8")
 

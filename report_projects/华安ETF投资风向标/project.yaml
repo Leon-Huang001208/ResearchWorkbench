@@ -5,3 +5,4 @@ prompt_templates: config/prompt_templates.md
 output_dir: generated
 run_log_dir: runs
 active_ppt_template: templates/report_template.pptx
+display_order: 3

@@ -4,3 +4,4 @@ report_config: config/report_config.yaml
 prompt_templates: config/prompt_templates.md
 output_dir: generated
 run_log_dir: runs
+display_order: 2
