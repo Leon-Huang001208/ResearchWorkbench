@@ -58,7 +58,7 @@ MARKET_SECTOR_VIEW_ORDER = (
     "ths_industry",
 )
 
-MARKET_SECTOR_CACHE_TTL_SECONDS = 5.0
+MARKET_SECTOR_CACHE_TTL_SECONDS = 30.0
 MARKET_SECTOR_WORKBOOK_READ_TIMEOUT_SECONDS = 24.0
 MARKET_SECTOR_WORKBOOK_READ_TIMEOUT_ENV = "ALPHAFOUNDRY_WIND_WORKBOOK_READ_TIMEOUT_SECONDS"
 MARKET_SECTOR_DISK_CACHE_MAX_AGE_SECONDS = 60 * 60
@@ -948,10 +948,6 @@ class DashboardService:
                 if not workbook_payload.get("has_real_data") and workbook_payload.get("status") in {
                     "workbook_missing",
                     "workbook_not_open",
-                    "workbook_read_error",
-                    "workbook_timeout",
-                    "snapshot_empty",
-                    "snapshot_invalid",
                 }:
                     self._trigger_wind_workbook_recovery(
                         reason=str(workbook_payload.get("status") or "sector_view")
@@ -988,7 +984,6 @@ class DashboardService:
                     logger.warning("Wind realtime workbook read failed: %s", exc)
                 except Exception:
                     pass
-                self._trigger_wind_workbook_recovery(reason="sector_view_exception")
                 if not fallback_enabled:
                     payload = {
                         "view_key": normalized_view,

@@ -156,15 +156,30 @@ class WindWorkbookManager:
                 opened = True
                 self._hide_excel(book.app)
 
-            if not force_prime and self._snapshot_has_data(book):
-                return self._set_status(
-                    status="ready",
-                    message=f"Wind实时工作簿已在后台运行: {reason}",
-                    ready=True,
-                    built=built,
-                    opened=opened,
-                    primed=False,
-                )
+            if not force_prime:
+                if self._snapshot_has_data(book):
+                    return self._set_status(
+                        status="ready",
+                        message=f"Wind实时工作簿已在后台运行: {reason}",
+                        ready=True,
+                        built=built,
+                        opened=opened,
+                        primed=False,
+                    )
+                if not built:
+                    logger.warning(
+                        "Wind workbook has no snapshot data; skipping automatic formula priming: "
+                        "path=%s reason=%s",
+                        self.workbook_path,
+                        reason,
+                    )
+                    return self._set_status(
+                        status="no_snapshot_data",
+                        message=("Wind实时工作簿已打开但暂无有效行情；" "为避免干扰Excel，未自动重写公式，请确认Wind插件已登录或手动修复"),
+                        built=built,
+                        opened=opened,
+                        primed=False,
+                    )
 
             prime_realtime_workbook_formulas(
                 self.workbook_path,

@@ -259,7 +259,9 @@
 | `report_generator.py` | 报告生成器：生成资产分析、估值、每周回顾等报告 |
 | `summary_generator.py` | 摘要生成器：生成文档、事件、信号的摘要 |
 | **仪表盘与控制台** | |
-| `dashboard_service.py` | 仪表盘服务：汇总和聚合仪表盘数据 |
+| `dashboard.js` / `dashboard_service.py` | 仪表盘市场刷新：前端轮询与 Wind 工作簿后端缓存均为 30 秒；Excel 超时/读取错误不会自动触发公式重写 |
+| `wind_realtime_workbook.py` | Wind 实时工作簿：生成批量 `=wss()` 公式、通过 xlwings 读取已打开工作簿的快照；实时值更新由 Wind 插件负责 |
+| `wind_workbook_manager.py` | Wind 工作簿生命周期：仅在新建、重建或显式手动修复时激活公式；已有工作簿快照为空时保留状态而不自动重写公式 |
 | `decision_console_service.py` | 决策控制台服务：每日候选、决策记录、复盘视图 |
 | **监控与治理** | |
 | `monitoring_service.py` | 监控服务：健康检查、指标采集、告警管理 |

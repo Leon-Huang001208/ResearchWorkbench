@@ -923,13 +923,67 @@ def test_get_market_sector_view_times_out_slow_workbook_read(
     result = DashboardService(Mock()).get_market_sector_view("sw_l3", limit=5)
 
     assert time.time() - started < 0.5
-    mock_manager_getter.return_value.start_background_ensure.assert_called_once_with(
-        reason="workbook_timeout"
-    )
+    mock_manager_getter.return_value.start_background_ensure.assert_not_called()
     mock_wind_provider_cls.assert_not_called()
     assert result["has_real_data"] is False
     assert result["status"] == "workbook_timeout"
     assert result["source"] == "wind_realtime_workbook"
+
+
+@patch("services.dashboard_service.WindMarketOverviewProvider")
+@patch("services.wind_realtime_workbook.WindRealtimeWorkbookReader")
+def test_get_market_sector_view_keeps_excel_reads_cached_for_thirty_seconds(
+    mock_workbook_reader_cls,
+    mock_wind_provider_cls,
+    monkeypatch,
+    tmp_path,
+):
+    """前端短轮询只能读取后端缓存，不能每五秒再次驱动 Excel。"""
+    from services import dashboard_service as module
+
+    now = 1_000.0
+    monkeypatch.setattr(module.time, "monotonic", lambda: now)
+    monkeypatch.setattr(
+        module,
+        "MARKET_SECTOR_DISK_CACHE_PATH",
+        tmp_path / "market_sector_movers.json",
+    )
+    monkeypatch.setattr(
+        DashboardService,
+        "_get_persistent_market_sector_payload",
+        staticmethod(lambda _cache_key: None),
+    )
+    _market_sector_cache.clear()
+    mock_workbook_reader_cls.return_value.get_view.return_value = {
+        "view_key": "wind_hot_concept",
+        "view_label": "Wind热门概念",
+        "up": [
+            {
+                "sector_id": "wind-8841892-WI",
+                "name": "光芯片指数",
+                "change_pct": 7.99,
+                "source": "wind",
+            }
+        ],
+        "down": [],
+        "has_real_data": True,
+        "cache_hit": False,
+        "status": "ok",
+        "source": "wind_realtime_workbook",
+    }
+    service = DashboardService(Mock())
+
+    first = service.get_market_sector_view("wind_hot_concept", limit=30)
+    now += 6.0
+    second = service.get_market_sector_view("wind_hot_concept", limit=30)
+
+    assert first["cache_hit"] is False
+    assert second["cache_hit"] is True
+    mock_workbook_reader_cls.return_value.get_view.assert_called_once_with(
+        "wind_hot_concept",
+        limit=30,
+    )
+    mock_wind_provider_cls.assert_not_called()
 
 
 @patch("services.dashboard_service.WindMarketOverviewProvider")
@@ -995,9 +1049,7 @@ def test_get_market_sector_view_does_not_mask_wind_view_with_ths_fallback(
 
     result = service.get_market_sector_view("wind_hot_concept", limit=5)
 
-    mock_manager_getter.return_value.start_background_ensure.assert_called_once_with(
-        reason="workbook_read_error"
-    )
+    mock_manager_getter.return_value.start_background_ensure.assert_not_called()
     service.dashboard_repo.get_sector_changes_from_signals.assert_not_called()
     assert result["status"] == "workbook_read_error"
     assert result["source"] == "wind_realtime_workbook"

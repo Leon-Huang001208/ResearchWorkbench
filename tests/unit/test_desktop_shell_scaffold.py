@@ -562,7 +562,7 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "market-sector-select-button" in dashboard_js
     assert "let activeMarketSectorView = 'wind_hot_concept'" in dashboard_js
     assert "MARKET_SECTOR_REQUEST_TIMEOUT_MS = 90000" in dashboard_js
-    assert "MARKET_REFRESH_INTERVAL_MS = 5000" in dashboard_js
+    assert "MARKET_REFRESH_INTERVAL_MS = 30000" in dashboard_js
     assert "getMarketSessionInfo().isTrading" in dashboard_js
     assert "MARKET_SECTOR_LIST_LIMIT = 10" in dashboard_js
     assert "MARKET_HEATMAP_ITEM_LIMIT = 60" in dashboard_js
@@ -751,7 +751,7 @@ def test_desktop_backend_launcher_defaults_and_logging(tmp_path):
 
 def test_desktop_launcher_sets_runtime_mode_before_database_probe_import(tmp_path):
     """An unavailable database must keep the desktop sidecar in setup mode."""
-    script = f'''
+    script = f"""
 import importlib.util
 from pathlib import Path
 
@@ -767,7 +767,7 @@ def capture_runtime_mode(_host, _port, _reload):
 
 launcher.run_backend = capture_runtime_mode
 raise SystemExit(launcher.main(["--log-dir", {str(tmp_path / "logs")!r}]))
-'''
+"""
     environment = os.environ.copy()
     for key in (
         "ALPHAFOUNDRY_DESKTOP",
@@ -1003,4 +1003,7 @@ def test_desktop_launcher_skips_watchdogs_when_probe_fails(monkeypatch, tmp_path
 def test_sidecar_packages_default_industry_graphs():
     build_sidecar = load_module("desktop_build_sidecar", BUILD_SIDECAR_PY)
 
-    assert (ROOT / "data" / "industry_graphs", Path("data") / "industry_graphs") in build_sidecar.PROJECT_DATA
+    assert (
+        ROOT / "data" / "industry_graphs",
+        Path("data") / "industry_graphs",
+    ) in build_sidecar.PROJECT_DATA
