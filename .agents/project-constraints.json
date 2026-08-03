@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "requiredFiles": [
+    "AGENTS.md",
+    "docs/ARCHITECTURE.md",
+    "docs/DEVELOPMENT_MAP.md",
+    "docs/AGENT_WORKFLOW.md",
+    "docs/desktop_packaging.md"
+  ],
+  "changeRules": [
+    {
+      "name": "核心源码改动需要工程文档联动",
+      "sourcePrefixes": [
+        "app/",
+        "core/",
+        "services/",
+        "data_layer/",
+        "cognitive_agents/",
+        "timing_engine/",
+        "signal_lab/",
+        "reporting/",
+        "storage/",
+        "connectors/"
+      ],
+      "requiredDocuments": [
+        "docs/CHANGELOG.md",
+        "docs/DEVELOPMENT_MAP.md",
+        "docs/ARCHITECTURE.md"
+      ]
+    },
+    {
+      "name": "桌面改动需要跨平台交付文档",
+      "sourcePrefixes": [
+        "src-tauri/",
+        "desktop/",
+        "scripts/desktop/",
+        "core/settings/",
+        "services/desktop_platform/",
+        "data_layer/adapters/wind/"
+      ],
+      "requiredDocuments": [
+        "docs/desktop_packaging.md"
+      ]
+    }
+  ],
+  "contentRules": [
+    {
+      "name": "服务层改动必须包含项目日志与显式错误处理",
+      "sourcePrefixes": [
+        "services/"
+      ],
+      "extensions": [
+        ".py"
+      ],
+      "requireAll": [
+        "get_logger",
+        "except "
+      ]
+    }
+  ],
+  "dependencyRules": [
+    {
+      "name": "核心层不得反向依赖应用或服务层",
+      "sourcePrefixes": [
+        "core/"
+      ],
+      "extensions": [
+        ".py"
+      ],
+      "forbiddenPatterns": [
+        "from services.",
+        "import services.",
+        "from app.",
+        "import app."
+      ]
+    },
+    {
+      "name": "数据层不得反向依赖应用或服务层",
+      "sourcePrefixes": [
+        "data_layer/"
+      ],
+      "extensions": [
+        ".py"
+      ],
+      "forbiddenPatterns": [
+        "from services.",
+        "import services.",
+        "from app.",
+        "import app."
+      ]
+    },
+    {
+      "name": "服务层不得反向依赖应用层",
+      "sourcePrefixes": [
+        "services/"
+      ],
+      "extensions": [
+        ".py"
+      ],
+      "forbiddenPatterns": [
+        "from app.",
+        "import app."
+      ]
+    }
+  ],
+  "ciRules": [
+    {
+      "name": "桌面验证必须包含原生 Windows 与健康检查",
+      "workflow": ".github/workflows/desktop-verify.yml",
+      "requireAll": [
+        "windows-2022",
+        "check_sidecar_health.py",
+        "setup_required"
+      ]
+    },
+    {
+      "name": "项目约束必须由轻量 CI 执行",
+      "workflow": ".github/workflows/project-constraints.yml",
+      "requireAll": [
+        "ubuntu-latest",
+        ".agents/project-constraints.mjs",
+        "--changed-file"
+      ]
+    }
+  ]
+}
