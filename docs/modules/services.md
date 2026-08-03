@@ -168,6 +168,17 @@ Purpose:
 
 - Aggregates dashboard data for the Web Workbench.
 - Provides market status, recent news, signal summary, and research queue summary.
+- Reads the Wind realtime workbook through a bounded backend cache. The market UI may poll
+  more frequently than the cache TTL, but cache hits must not drive another Excel/xlwings
+  request. Workbook read failures and timeouts are surfaced without automatically triggering
+  formula re-priming.
+
+Related files:
+
+- `services/wind_workbook_manager.py` — creates or opens the workbook; only newly built,
+  rebuilt, or explicitly manual repair flows prime Wind formulas.
+- `services/wind_realtime_workbook.py` — reads the already-open workbook snapshot through
+  xlwings; it does not own realtime formula refresh.
 
 Related API:
 
@@ -185,6 +196,7 @@ Update this section when:
 
 - Dashboard output changes.
 - Market summary logic changes.
+- Wind workbook cache, recovery, or Excel automation behavior changes.
 - New dashboard panel is added.
 - Dashboard API dependency changes.
 

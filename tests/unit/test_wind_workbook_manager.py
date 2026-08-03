@@ -187,3 +187,71 @@ def test_wind_workbook_manager_rebuilds_stale_open_workbook(monkeypatch, tmp_pat
     assert status.status == "ready"
     assert status.ready is True
     assert status.built is True
+
+
+def test_wind_workbook_manager_does_not_reprime_existing_workbook_without_manual_request(
+    monkeypatch, tmp_path
+):
+    """空快照可能只是 Wind 忙；后台恢复不能重写既有公式。"""
+    from services import wind_workbook_manager as module
+    from services.wind_workbook_manager import WindWorkbookManager
+
+    catalog_path = tmp_path / "wind_index_catalog.csv"
+    workbook_path = tmp_path / "book.xlsx"
+    workbook_path.write_text("existing workbook placeholder", encoding="utf-8")
+    catalog_path.write_text(
+        "wind_code,name,family,category,is_active,priority,is_concept,view_key,view_label\n"
+        "884001.WI,概念一,wind_concept,热门概念,true,100,true,wind_hot_concept,Wind热门概念\n",
+        encoding="utf-8",
+    )
+
+    class FakeRange:
+        def __init__(self, value, last_row=1):
+            self.value = value
+            self.last_cell = SimpleNamespace(row=last_row)
+
+    class FakeSheet:
+        def __init__(self, name):
+            self.name = name
+
+        @property
+        def used_range(self):
+            if self.name == "Health":
+                return FakeRange(
+                    [
+                        ["metric", "value", "updated_at", "notes"],
+                        ["active_index_count", 1, "", ""],
+                    ],
+                    last_row=2,
+                )
+            return FakeRange([], last_row=1)
+
+    fake_book = SimpleNamespace(
+        fullname=str(workbook_path),
+        app=SimpleNamespace(visible=True),
+        sheets={"Health": FakeSheet("Health"), "Snapshot": FakeSheet("Snapshot")},
+    )
+    fake_app = SimpleNamespace(books=[fake_book], visible=True)
+    fake_book.app = fake_app
+    fake_xlwings = SimpleNamespace(
+        apps=[fake_app],
+        App=lambda visible=False: fake_app,
+    )
+    primed: list[Path] = []
+
+    monkeypatch.setenv("ALPHAFOUNDRY_DESKTOP", "1")
+    monkeypatch.setattr(module.platform, "system", lambda: "Darwin")
+    monkeypatch.setitem(sys.modules, "xlwings", fake_xlwings)
+    monkeypatch.setattr(
+        module,
+        "prime_realtime_workbook_formulas",
+        lambda path, **_kwargs: primed.append(Path(path)),
+    )
+    monkeypatch.setattr(WindWorkbookManager, "_hide_excel", lambda *_args: None)
+
+    manager = WindWorkbookManager(workbook_path=workbook_path, catalog_path=catalog_path)
+    status = manager.ensure_ready(reason="workbook_timeout")
+
+    assert primed == []
+    assert status.status == "no_snapshot_data"
+    assert status.primed is False
