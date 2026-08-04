@@ -325,6 +325,9 @@ def test_windows_pgvector_smoke_builds_a_native_extension():
 
     assert "choco install postgresql16" in source
     assert "--execution-timeout 1200" in source
+    assert '$chocoParameters = "/Password:postgres /Port:${{ matrix.postgres_port }}"' in source
+    assert "--params $chocoParameters" in source
+    assert '--params "\'/Password:postgres' not in source
     assert "nmake /F Makefile.win install" in source
     assert "CREATE EXTENSION IF NOT EXISTS vector;" in source
     assert "PGPASSWORD = 'postgres'" in source
