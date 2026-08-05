@@ -71,7 +71,7 @@ Safety boundary:
 - 不枚举全系统进程；主机汇总仅调用 `psutil.cpu_percent(interval=None)`、`psutil.cpu_count(logical=True)` 和 `psutil.virtual_memory()`，不保存命令参数、请求内容或异常原文。
 - 首个非阻塞主机 CPU 样本仅用于预热；采集异常或无效主机字段使用 `host_field_unavailable` 降级为 `None`。
 - 未恢复事件不受历史查询窗口限制；原始实时资源样本仍仅保留在内存短窗口中。
-- 运行时只在持久化就绪且非 `ALPHAFOUNDRY_PREVIEW=1` 时启动；关闭 API 时先停止并等待资源采样线程，再停止其他调度器。
+- 运行时只在持久化就绪且非 `ALPHAFOUNDRY_PREVIEW=1` 时启动；关闭 API 时先以可配置的有限超时停止资源采样线程，再停止其他调度器。超时仅记录 `RuntimeStopTimeout` warning，不阻断关闭。
 
 Update this section when:
 

@@ -28,17 +28,21 @@ class ResourceMonitorRuntime:
         session_factory: Optional[Callable[[], AbstractContextManager[Any]]] = None,
         repository_factory: Optional[Callable[[Any], Any]] = None,
         interval_seconds: float = 60.0,
+        join_timeout_seconds: float = 5.0,
         state: ResourceAlertState | None = None,
         monotonic: Callable[[], float] = time.monotonic,
     ) -> None:
         if interval_seconds <= 0:
             raise ValueError("interval_seconds must be positive")
+        if join_timeout_seconds <= 0:
+            raise ValueError("join_timeout_seconds must be positive")
         self._monitor = monitor or self._create_monitor()
         self._history_factory = history_factory or self._create_history_service
         self._alert_factory = alert_factory or self._create_alert_service
         self._session_factory = session_factory or self._create_session
         self._repository_factory = repository_factory or self._create_repository
         self._interval_seconds = interval_seconds
+        self._join_timeout_seconds = join_timeout_seconds
         self._state = state if state is not None else self._create_alert_state()
         self._monotonic = monotonic
         self._stop_event = threading.Event()
@@ -88,8 +92,17 @@ class ResourceMonitorRuntime:
             if thread is None or not thread.is_alive():
                 return False
             self._stop_event.set()
-        if thread is not threading.current_thread():
-            thread.join()
+        if thread is threading.current_thread():
+            logger.info("resource monitor runtime stopped")
+            return True
+        thread.join(timeout=self._join_timeout_seconds)
+        if thread.is_alive():
+            logger.warning(
+                "resource monitor runtime shutdown timed out",
+                error_type="RuntimeStopTimeout",
+                thread_alive=True,
+            )
+            return False
         logger.info("resource monitor runtime stopped")
         return True
 

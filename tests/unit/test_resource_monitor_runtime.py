@@ -2,9 +2,15 @@
 
 from __future__ import annotations
 
+import threading
+import time
 from contextlib import contextmanager
+from unittest.mock import MagicMock
+
+import pytest
 
 from core.contracts.monitoring import AlertStatus
+from services import resource_monitor_runtime
 from services.resource_monitor_alert_service import ResourceAlertState
 from services.resource_monitor_runtime import ResourceMonitorRuntime
 
@@ -195,7 +201,7 @@ def test_start_is_idempotent_and_stop_joins_the_worker(monkeypatch) -> None:
         def is_alive(self) -> bool:
             return self.started and not self.joined
 
-        def join(self) -> None:
+        def join(self, timeout: float | None = None) -> None:
             self.joined = True
 
     monkeypatch.setattr("services.resource_monitor_runtime.threading.Thread", FakeThread)
@@ -207,3 +213,44 @@ def test_start_is_idempotent_and_stop_joins_the_worker(monkeypatch) -> None:
     assert runtime.stop() is True
     assert FakeThread.instances[0].joined is True
     assert runtime.stop() is False
+
+
+def test_stop_times_out_without_blocking_api_shutdown(monkeypatch) -> None:
+    entered = threading.Event()
+    release = threading.Event()
+    log = MagicMock()
+
+    class BlockingMonitor:
+        def collect_snapshot(self) -> dict[str, object]:
+            entered.set()
+            release.wait()
+            return {"host": {}, "summary": {}}
+
+    monkeypatch.setattr(resource_monitor_runtime, "logger", log)
+    runtime = ResourceMonitorRuntime(
+        monitor=BlockingMonitor(),
+        history_factory=lambda _: FakeHistory(),
+        alert_factory=lambda _, *, state: FakeAlerts(),
+        join_timeout_seconds=0.01,
+    )
+
+    assert runtime.start() is True
+    assert entered.wait(timeout=1.0)
+    started_at = time.monotonic()
+    assert runtime.stop() is False
+    assert time.monotonic() - started_at < 0.5
+    log.warning.assert_called_once_with(
+        "resource monitor runtime shutdown timed out",
+        error_type="RuntimeStopTimeout",
+        thread_alive=True,
+    )
+
+    release.set()
+    assert runtime._thread is not None
+    runtime._thread.join(timeout=1.0)
+    assert runtime._thread.is_alive() is False
+
+
+def test_join_timeout_must_be_positive() -> None:
+    with pytest.raises(ValueError, match="join_timeout_seconds must be positive"):
+        ResourceMonitorRuntime(monitor=FakeMonitor(), join_timeout_seconds=0)

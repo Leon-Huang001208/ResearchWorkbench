@@ -14,13 +14,13 @@
 
 - 采样、历史写入、告警评估和线程生命周期异常均只记录结构化 `error_type`，不将内部异常细节写入日志事件字段；告警评估降级为 warning。
 - 历史或告警阶段失败不会阻止同周期另一个阶段执行，且后续周期继续执行。
-- `start()` 幂等；`stop()` 发出停止信号并等待活动线程退出，避免 API 退出后遗留后台采样。
+- `start()` 幂等；`stop()` 发出停止信号并以可配置的有限超时等待活动线程退出。阻塞采样超时时记录 `RuntimeStopTimeout` warning 并返回受控失败值，使 API 继续关闭。
 
 ## 验证
 
 | 命令 | 实际结果 |
 | --- | --- |
-| `python -m pytest tests/unit/test_resource_monitor_runtime.py tests/unit/test_resource_monitor_alert_service.py tests/unit/test_resource_host_history_service.py tests/unit/app/api/routes/test_setup_readiness.py -q` | 32 passed；FastAPI 既有 `on_event` 弃用警告 4 条 |
+| `python -m pytest tests/unit/test_resource_monitor_runtime.py tests/unit/test_resource_monitor_alert_service.py tests/unit/test_resource_host_history_service.py tests/unit/app/api/routes/test_setup_readiness.py -q` | 34 passed；FastAPI 既有 `on_event` 弃用警告 4 条 |
 | `ruff check services/resource_monitor_runtime.py services/resource_monitor_alert_service.py app/api/main.py tests/unit/test_resource_monitor_runtime.py tests/unit/test_resource_monitor_alert_service.py tests/unit/app/api/routes/test_setup_readiness.py` | passed |
 | `black --check services/resource_monitor_runtime.py services/resource_monitor_alert_service.py app/api/main.py tests/unit/test_resource_monitor_runtime.py tests/unit/test_resource_monitor_alert_service.py tests/unit/app/api/routes/test_setup_readiness.py` | passed |
 | `isort --check-only services/resource_monitor_runtime.py services/resource_monitor_alert_service.py app/api/main.py tests/unit/test_resource_monitor_runtime.py tests/unit/test_resource_monitor_alert_service.py tests/unit/app/api/routes/test_setup_readiness.py` | passed |
