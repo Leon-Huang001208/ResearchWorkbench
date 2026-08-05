@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import threading
 import time
 from collections.abc import Callable
@@ -34,6 +35,8 @@ class ResourceMonitorRuntime:
     ) -> None:
         if interval_seconds <= 0:
             raise ValueError("interval_seconds must be positive")
+        if not math.isfinite(join_timeout_seconds):
+            raise ValueError("join_timeout_seconds must be finite and positive")
         if join_timeout_seconds <= 0:
             raise ValueError("join_timeout_seconds must be positive")
         self._monitor = monitor or self._create_monitor()

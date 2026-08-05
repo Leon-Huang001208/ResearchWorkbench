@@ -20,7 +20,7 @@
 
 | 命令 | 实际结果 |
 | --- | --- |
-| `python -m pytest tests/unit/test_resource_monitor_runtime.py tests/unit/test_resource_monitor_alert_service.py tests/unit/test_resource_host_history_service.py tests/unit/app/api/routes/test_setup_readiness.py -q` | 34 passed；FastAPI 既有 `on_event` 弃用警告 4 条 |
+| `python -m pytest tests/unit/test_resource_monitor_runtime.py tests/unit/test_resource_monitor_alert_service.py tests/unit/test_resource_host_history_service.py tests/unit/app/api/routes/test_setup_readiness.py -q` | 36 passed；FastAPI 既有 `on_event` 弃用警告 4 条 |
 | `ruff check services/resource_monitor_runtime.py services/resource_monitor_alert_service.py app/api/main.py tests/unit/test_resource_monitor_runtime.py tests/unit/test_resource_monitor_alert_service.py tests/unit/app/api/routes/test_setup_readiness.py` | passed |
 | `black --check services/resource_monitor_runtime.py services/resource_monitor_alert_service.py app/api/main.py tests/unit/test_resource_monitor_runtime.py tests/unit/test_resource_monitor_alert_service.py tests/unit/app/api/routes/test_setup_readiness.py` | passed |
 | `isort --check-only services/resource_monitor_runtime.py services/resource_monitor_alert_service.py app/api/main.py tests/unit/test_resource_monitor_runtime.py tests/unit/test_resource_monitor_alert_service.py tests/unit/app/api/routes/test_setup_readiness.py` | passed |

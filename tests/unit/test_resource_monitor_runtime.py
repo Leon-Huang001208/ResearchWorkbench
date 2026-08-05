@@ -254,3 +254,9 @@ def test_stop_times_out_without_blocking_api_shutdown(monkeypatch) -> None:
 def test_join_timeout_must_be_positive() -> None:
     with pytest.raises(ValueError, match="join_timeout_seconds must be positive"):
         ResourceMonitorRuntime(monitor=FakeMonitor(), join_timeout_seconds=0)
+
+
+@pytest.mark.parametrize("timeout", [float("inf"), float("nan")])
+def test_join_timeout_must_be_finite(timeout: float) -> None:
+    with pytest.raises(ValueError, match="join_timeout_seconds must be finite and positive"):
+        ResourceMonitorRuntime(monitor=FakeMonitor(), join_timeout_seconds=timeout)
