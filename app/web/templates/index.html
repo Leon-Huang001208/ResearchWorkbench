@@ -876,6 +876,7 @@
                     <article class="resource-summary-card"><span>进程</span><strong data-resource-summary="processes">--</strong></article>
                     <article class="resource-summary-card"><span>磁盘读/写</span><strong data-resource-summary="disk">--</strong></article>
                     <article class="resource-summary-card"><span>网络连接</span><strong data-resource-summary="connections">--</strong></article>
+                    <article class="resource-summary-card"><span>最近采样</span><strong data-resource-summary="sampled-at">--</strong></article>
                 </div>
 
                 <div class="resource-monitor-chart-grid">
@@ -897,9 +898,12 @@
                                 <tr>
                                     <th>进程</th>
                                     <th>PID</th>
+                                    <th>角色</th>
                                     <th><button type="button" data-resource-sort="cpu">CPU</button></th>
                                     <th><button type="button" data-resource-sort="memory">内存</button></th>
                                     <th><button type="button" data-resource-sort="disk">磁盘 I/O</button></th>
+                                    <th>线程</th>
+                                    <th>网络连接</th>
                                     <th>状态</th>
                                 </tr>
                             </thead>
@@ -908,7 +912,7 @@
                     </div>
                 </section>
 
-                <section id="resource-monitor-detail" class="resource-monitor-panel resource-monitor-detail" aria-live="polite">
+                <section id="resource-monitor-detail" class="resource-monitor-panel resource-monitor-detail hidden" aria-live="polite" aria-hidden="true">
                     <h3>进程详情</h3>
                     <p class="resource-monitor-empty">选择一个进程以查看详情。</p>
                 </section>

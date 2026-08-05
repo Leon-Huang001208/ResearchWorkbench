@@ -13518,7 +13518,7 @@ tbody tr:hover {
 
 #section-resource-monitor .resource-monitor-summary {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 10px;
     margin-bottom: 12px;
 }
@@ -13589,9 +13589,20 @@ tbody tr:hover {
     text-align: center;
 }
 
+#section-resource-monitor .resource-departure-notice {
+    margin: 0;
+    padding: 8px 12px;
+    color: var(--apple-secondary, var(--text-secondary));
+    font: 12px var(--font-mono);
+}
+
 #section-resource-monitor .resource-process-panel,
 #section-resource-monitor .resource-monitor-detail {
     margin-bottom: 12px;
+}
+
+#section-resource-monitor .resource-monitor-detail.hidden {
+    display: none;
 }
 
 #section-resource-monitor .resource-process-table-wrap {
@@ -13600,7 +13611,7 @@ tbody tr:hover {
 
 #section-resource-monitor .resource-process-table {
     width: 100%;
-    min-width: 760px;
+    min-width: 900px;
     border-collapse: collapse;
 }
 

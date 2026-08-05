@@ -15,12 +15,16 @@ let pollTimer = null;
 let snapshotController = null;
 let historyController = null;
 let failureCount = 0;
+let historyVersion = 0;
+let snapshotVersion = 0;
+let lastFailureAt = null;
+let retryDelay = null;
 let visibilityListenerAttached = false;
 let resizeListenerAttached = false;
 let cpuChart = null;
 let memoryChart = null;
 let points = [];
-let selectedPid = null;
+let selectedProcessPid = null;
 let sortKey = 'cpu';
 let sortDirection = -1;
 const processCache = new Map();
@@ -108,6 +112,8 @@ async function loadInitialHistory() {
     if (!canPoll()) return;
     historyController?.abort();
     const controller = new AbortController();
+    const requestedHistoryVersion = ++historyVersion;
+    const snapshotVersionAtRequest = snapshotVersion;
     historyController = controller;
     try {
         const history = await apiCall(
@@ -116,9 +122,14 @@ async function loadInitialHistory() {
             null,
             { signal: controller.signal, retries: 0 },
         );
-        if (controller.signal.aborted || !canPoll()) return;
+        if (
+            controller.signal.aborted
+            || !canPoll()
+            || requestedHistoryVersion !== historyVersion
+            || snapshotVersion > snapshotVersionAtRequest
+        ) return;
         const snapshots = Array.isArray(history?.points) ? history.points : [];
-        snapshots.forEach(snapshot => ingestSnapshot(snapshot));
+        snapshots.forEach(snapshot => ingestSnapshot(snapshot, 'history'));
         renderAll();
     } catch (error) {
         if (!isAbortError(error)) logRequestFailure('history', error);
@@ -141,16 +152,20 @@ async function pollSnapshot() {
             { signal: controller.signal, retries: 0 },
         );
         if (controller.signal.aborted || !canPoll()) return;
-        ingestSnapshot(snapshot);
+        ingestSnapshot(snapshot, 'snapshot');
         failureCount = 0;
+        lastFailureAt = null;
+        retryDelay = null;
         renderAll();
         schedulePoll(POLL_INTERVAL_MS);
     } catch (error) {
         if (isAbortError(error)) return;
         logRequestFailure('snapshot', error);
-        renderStatus('unavailable');
         const delay = BACKOFF_DELAYS[Math.min(failureCount, BACKOFF_DELAYS.length - 1)];
         failureCount += 1;
+        lastFailureAt = new Date();
+        retryDelay = delay;
+        renderStatus('unavailable');
         schedulePoll(delay);
     } finally {
         if (snapshotController === controller) snapshotController = null;
@@ -168,8 +183,9 @@ function logRequestFailure(operation, error) {
     });
 }
 
-function ingestSnapshot(snapshot) {
+function ingestSnapshot(snapshot, source) {
     if (!snapshot || typeof snapshot !== 'object') return;
+    if (source === 'snapshot') snapshotVersion += 1;
     const sampledAt = normalizeTimestamp(snapshot.sampled_at);
     const point = { ...snapshot, sampled_at: sampledAt };
     const matchingIndex = points.findIndex(existing => existing.sampled_at === sampledAt);
@@ -188,9 +204,11 @@ function ingestSnapshot(snapshot) {
         processCache.set(pid, current);
         appendProcessTrend(pid, sampledAt, current);
     });
-    processCache.forEach((process, pid) => {
-        if (!currentPids.has(pid)) processCache.set(pid, { ...process, departed: true });
-    });
+    if (source === 'snapshot') {
+        processCache.forEach((process, pid) => {
+            if (!currentPids.has(pid)) processCache.set(pid, { ...process, departed: true });
+        });
+    }
 }
 
 function appendProcessTrend(pid, sampledAt, process) {
@@ -222,6 +240,10 @@ function renderStatus(code) {
     const status = document.getElementById('resource-monitor-status');
     if (!status) return;
     status.dataset.status = publicStatus(code);
+    if (publicStatus(code) === 'unavailable' && lastFailureAt && retryDelay) {
+        status.textContent = `unavailable · 采样暂时不可用，保留上一帧数据 · 失败时间 ${formatTime(lastFailureAt)} · ${Math.ceil(retryDelay / 1000)} 秒后重试`;
+        return;
+    }
     status.textContent = publicStatus(code);
 }
 
@@ -235,6 +257,7 @@ function renderSummary(summary) {
         `${formatRate(values.disk_read_bytes_per_second)} / ${formatRate(values.disk_write_bytes_per_second)}`,
     );
     setSummary('connections', formatCount(values.network_connection_count));
+    setSummary('sampled-at', points.at(-1) ? formatTime(points.at(-1).sampled_at) : '--');
 }
 
 function setSummary(key, value) {
@@ -294,7 +317,7 @@ function renderProcessTable() {
     if (!processes.length) {
         const row = document.createElement('tr');
         const cell = document.createElement('td');
-        cell.colSpan = 6;
+        cell.colSpan = 9;
         cell.className = 'resource-monitor-empty';
         cell.textContent = '等待受限进程树采样…';
         row.append(cell);
@@ -322,7 +345,7 @@ function createProcessRow(process) {
     const row = document.createElement('tr');
     row.tabIndex = 0;
     row.dataset.pid = String(process.pid);
-    row.classList.toggle('selected', selectedPid === process.pid);
+    row.classList.toggle('selected', selectedProcessPid === process.pid);
     row.classList.toggle('departed', Boolean(process.departed));
     row.addEventListener('click', () => selectProcess(process.pid));
     row.addEventListener('keydown', event => {
@@ -333,9 +356,12 @@ function createProcessRow(process) {
     });
     appendCell(row, process.departed ? `${displayName(process)}（已退出）` : displayName(process));
     appendCell(row, String(process.pid));
+    appendCell(row, safeText(process.role, '未知'));
     appendCell(row, process.cpu_percent == null ? '采样中' : `${formatNumber(process.cpu_percent, 1)}%`);
     appendCell(row, formatBytes(process.memory_bytes));
     appendCell(row, `${formatRate(process.disk_read_bytes_per_second)} / ${formatRate(process.disk_write_bytes_per_second)}`);
+    appendCell(row, formatCount(process.thread_count));
+    appendCell(row, formatCount(process.network_connection_count));
     appendCell(row, process.departed ? '已退出' : safeText(process.status, '未知'));
     return row;
 }
@@ -347,7 +373,7 @@ function appendCell(row, value) {
 }
 
 function selectProcess(pid) {
-    selectedPid = pid;
+    selectedProcessPid = pid;
     renderProcessTable();
     renderDetail();
 }
@@ -355,13 +381,22 @@ function selectProcess(pid) {
 function renderDetail() {
     const detail = document.getElementById('resource-monitor-detail');
     if (!detail) return;
+    if (selectedProcessPid === null) {
+        detail.classList.add('hidden');
+        detail.setAttribute('aria-hidden', 'true');
+        return;
+    }
+    detail.classList.remove('hidden');
+    detail.setAttribute('aria-hidden', 'false');
     const title = document.createElement('h3');
     title.textContent = '进程详情';
-    const process = selectedPid === null ? null : processCache.get(selectedPid);
+    const process = processCache.get(selectedProcessPid);
     if (!process) {
         const empty = document.createElement('p');
         empty.className = 'resource-monitor-empty';
-        empty.textContent = '选择一个进程以查看详情。';
+        empty.textContent = selectedProcessPid === null
+            ? '选择一个进程以查看详情。'
+            : `PID ${selectedProcessPid} 已退出；保留最后一次采样信息`;
         detail.replaceChildren(title, empty);
         return;
     }
@@ -372,10 +407,15 @@ function renderDetail() {
         ['PID', process.pid],
         ['命令', safeText(process.command, '--')],
         ['父进程', process.parent_pid ?? '--'],
-        ['启动时间', formatDateTime(process.create_time)],
+        ['启动时间', process.create_time == null ? '—' : formatDateTime(process.create_time)],
         ['状态', process.departed ? '已退出' : safeText(process.status, '未知')],
     ].forEach(([label, value]) => grid.append(createDetailItem(label, value)));
-    detail.replaceChildren(title, grid, createTrend(process.pid));
+    const departureNotice = process.departed ? document.createElement('p') : null;
+    if (departureNotice) {
+        departureNotice.className = 'resource-departure-notice';
+        departureNotice.textContent = `PID ${process.pid} 已退出；保留最后一次采样信息`;
+    }
+    detail.replaceChildren(title, grid, ...(departureNotice ? [departureNotice] : []), createTrend(process.pid));
 }
 
 function createDetailItem(label, value) {
