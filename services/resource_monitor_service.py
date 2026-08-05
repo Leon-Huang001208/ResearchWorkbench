@@ -6,8 +6,9 @@ import os
 import threading
 import time
 from collections import deque
+from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Deque, Dict, Iterable, Optional, Tuple
+from typing import Any, Callable, Deque, Dict, Iterable, Optional, Tuple
 
 import psutil
 
@@ -20,10 +21,61 @@ _OPTIONAL_FIELD_EXCEPTIONS = (*_ROOT_UNAVAILABLE_EXCEPTIONS, NotImplementedError
 _HISTORY_SIZE = 150
 
 
-class ResourceMonitoringService:
-    """仅监控指定根进程及其递归后代的本机资源使用情况。"""
+@dataclass(frozen=True)
+class ManagedProcess:
+    """由 AlphaFoundry 显式登记、可在 API 树之外运行的进程。"""
 
-    def __init__(self, root_pid: Optional[int] = None) -> None:
+    pid: int
+    role: str
+    attribution_kind: str
+
+
+def _default_managed_processes() -> list[ManagedProcess]:
+    """仅从项目自身 PID 状态函数获取独立 Worker，不扫描系统进程。"""
+    managed: list[ManagedProcess] = []
+    try:
+        from workers.knowledge_worker import get_all_worker_statuses
+
+        for status in get_all_worker_statuses():
+            pid = status.get("pid")
+            if status.get("alive") and isinstance(pid, int) and pid > 0:
+                worker_id = status.get("worker_id")
+                role = (
+                    f"Knowledge Worker {worker_id}"
+                    if isinstance(worker_id, int)
+                    else "Knowledge Worker"
+                )
+                managed.append(ManagedProcess(pid=pid, role=role, attribution_kind="worker"))
+    except Exception as exc:
+        logger.warning("resource monitor could not read knowledge worker pids", error_type=type(exc).__name__)
+
+    try:
+        from services.crawl_scheduler import get_scheduler_process_status
+
+        status = get_scheduler_process_status()
+        pid = status.get("pid")
+        if status.get("alive") and isinstance(pid, int) and pid > 0:
+            managed.append(
+                ManagedProcess(
+                    pid=pid,
+                    role="Crawl Scheduler",
+                    attribution_kind="scheduler",
+                )
+            )
+    except Exception as exc:
+        logger.warning("resource monitor could not read scheduler pid", error_type=type(exc).__name__)
+    return managed
+
+
+class ResourceMonitoringService:
+    """仅监控 API 进程树及 AlphaFoundry 显式登记 Worker 的本机资源。"""
+
+    def __init__(
+        self,
+        root_pid: Optional[int] = None,
+        managed_process_provider: Optional[Callable[[], list[ManagedProcess]]] = None,
+        task_snapshot_reader: Optional[Callable[[int], Dict[str, Any]]] = None,
+    ) -> None:
         """初始化具有固定 150 点历史容量的服务。"""
         self._root_pid = root_pid if root_pid is not None else os.getpid()
         self._lock = threading.RLock()
@@ -32,6 +84,8 @@ class ResourceMonitoringService:
         self._process_cache: Dict[Tuple[int, float], psutil.Process] = {}
         self._cpu_warmed_processes: set[Tuple[int, float]] = set()
         self._has_warmed_up = False
+        self._managed_process_provider = managed_process_provider or _default_managed_processes
+        self._task_snapshot_reader = task_snapshot_reader or self._read_task_snapshot
 
     @property
     def root_pid(self) -> int:
@@ -39,7 +93,7 @@ class ResourceMonitoringService:
         return self._root_pid
 
     def collect_snapshot(self) -> Dict[str, Any]:
-        """采集一次资源快照，不访问根进程树之外的任何进程。"""
+        """采集一次资源快照，不访问受控 PID 范围之外的任何进程。"""
         with self._lock:
             return self._collect_snapshot_locked()
 
@@ -62,21 +116,59 @@ class ResourceMonitoringService:
             self._history.append(snapshot)
             return snapshot
 
+        roles_by_pid: Dict[int, ManagedProcess] = {
+            root.pid: ManagedProcess(pid=root.pid, role="API", attribution_kind="api")
+        }
+        for process in discovered_processes[1:]:
+            roles_by_pid.setdefault(
+                process.pid,
+                ManagedProcess(
+                    pid=process.pid,
+                    role="AlphaFoundry child process",
+                    attribution_kind="child_process",
+                ),
+            )
+
+        warnings: list[Dict[str, Any]] = []
+        for managed in self._managed_processes():
+            roles_by_pid[managed.pid] = managed
+            if managed.pid in {process.pid for process in discovered_processes}:
+                continue
+            try:
+                discovered_processes.append(psutil.Process(managed.pid))
+            except _ROOT_UNAVAILABLE_EXCEPTIONS as exc:
+                logger.warning(
+                    "resource monitor managed process unavailable",
+                    pid=managed.pid,
+                    role=managed.role,
+                    error_type=type(exc).__name__,
+                )
+                warnings.append({"code": "managed_process_unavailable", "pid": managed.pid})
+
         processes, active_keys = self._current_processes(discovered_processes)
         self._cleanup_process_state(active_keys)
         warming_up = not self._has_warmed_up
-        warnings = []
         process_samples = []
+        task_failures: list[Dict[str, Any]] = []
         for process in self._deduplicated_processes(processes):
             try:
+                managed = roles_by_pid.get(
+                    process.pid,
+                    ManagedProcess(
+                        pid=process.pid,
+                        role="AlphaFoundry child process",
+                        attribution_kind="child_process",
+                    ),
+                )
                 process_sample = self._collect_process_sample(
                     process=process,
-                    is_root=process.pid == self._root_pid,
+                    managed=managed,
                     sample_monotonic=sample_monotonic,
                     warming_up=warming_up,
                 )
                 process_samples.append(process_sample)
                 warnings.extend(self._field_warnings(process_sample))
+                task_failures.extend(process_sample.pop("recent_task_failures", []))
             except _ROOT_UNAVAILABLE_EXCEPTIONS as exc:
                 if process.pid == self._root_pid:
                     logger.error(
@@ -106,6 +198,7 @@ class ResourceMonitoringService:
             "warnings": warnings,
             "summary": self._build_summary(process_samples),
             "processes": process_samples,
+            "task_failures": task_failures,
         }
         self._history.append(snapshot)
         self._has_warmed_up = True
@@ -167,7 +260,7 @@ class ResourceMonitoringService:
         self,
         *,
         process: psutil.Process,
-        is_root: bool,
+        managed: ManagedProcess,
         sample_monotonic: float,
         warming_up: bool,
     ) -> Dict[str, Any]:
@@ -202,7 +295,8 @@ class ResourceMonitoringService:
                 lambda: process.status(),
                 unavailable_reasons,
             ),
-            "role": "API" if is_root else "AlphaFoundry child process",
+            "role": managed.role,
+            "attribution_kind": managed.attribution_kind,
         }
 
         command = self._read_optional_field(
@@ -265,6 +359,8 @@ class ResourceMonitoringService:
         if warming_up or not cpu_is_warmed:
             cpu_percent = None
 
+        task_snapshot = self._task_snapshot_for_pid(process.pid)
+        active_tasks = task_snapshot["active_tasks"]
         sample.update(
             {
                 "command": self._command_summary(command) if command is not None else None,
@@ -290,9 +386,51 @@ class ResourceMonitoringService:
                     unavailable_reasons,
                 ),
                 "unavailable_reason": "; ".join(unavailable_reasons) or None,
+                "active_tasks": active_tasks,
+                "confidence": (
+                    "shared_process_estimate"
+                    if managed.attribution_kind == "api" and active_tasks
+                    else "exact_process"
+                ),
+                "recent_task_failures": task_snapshot["recent_failures"],
             }
         )
         return sample
+
+    def _managed_processes(self) -> list[ManagedProcess]:
+        """读取并净化受控进程提供方结果。"""
+        try:
+            candidates = self._managed_process_provider()
+        except Exception as exc:
+            logger.warning("resource monitor managed process provider failed", error_type=type(exc).__name__)
+            return []
+        managed: list[ManagedProcess] = []
+        for candidate in candidates:
+            if isinstance(candidate, ManagedProcess) and candidate.pid > 0:
+                managed.append(candidate)
+        return managed
+
+    @staticmethod
+    def _read_task_snapshot(pid: int) -> Dict[str, Any]:
+        """延迟读取任务登记快照，避免服务模块在启动时引入额外依赖。"""
+        from services.resource_task_registry import get_resource_task_registry
+
+        return get_resource_task_registry().read_snapshot(pid)
+
+    def _task_snapshot_for_pid(self, pid: int) -> Dict[str, list[Dict[str, Any]]]:
+        """读取并最小化验证某受控进程的任务归因快照。"""
+        empty: Dict[str, list[Dict[str, Any]]] = {"active_tasks": [], "recent_failures": []}
+        try:
+            payload = self._task_snapshot_reader(pid)
+        except Exception as exc:
+            logger.warning("resource monitor task snapshot read failed", pid=pid, error_type=type(exc).__name__)
+            return empty
+        if not isinstance(payload, dict):
+            return empty
+        return {
+            "active_tasks": [item for item in payload.get("active_tasks", []) if isinstance(item, dict)],
+            "recent_failures": [item for item in payload.get("recent_failures", []) if isinstance(item, dict)],
+        }
 
     def _read_core_field(
         self,
@@ -439,4 +577,5 @@ class ResourceMonitoringService:
                 "network_connection_count": None,
             },
             "processes": [],
+            "task_failures": [],
         }

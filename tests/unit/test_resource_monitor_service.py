@@ -11,6 +11,7 @@ import psutil
 import pytest
 
 from services import resource_monitor_service
+from services.resource_monitor_service import ManagedProcess
 
 
 class FakeProcess:
@@ -214,6 +215,72 @@ def test_second_snapshot_calculates_cpu_io_rates_and_aggregates_summary(
     root_sample = next(item for item in snapshot["processes"] if item["pid"] == root.pid)
     assert root_sample["disk_read_bytes_per_second"] == 30.0
     assert root.cpu_intervals == [None, None]
+
+
+def test_known_worker_pid_is_collected_without_global_process_scan(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """仅注入的受控 Worker PID 可被采样，绝不调用全局进程迭代。"""
+    root = FakeProcess(101, None, name="api", cpu_samples=[1.0, 1.0])
+    worker = FakeProcess(202, 1, name="knowledge", cpu_samples=[2.0, 2.0])
+
+    def process_for_pid(pid: int) -> FakeProcess:
+        assert pid in {101, 202}
+        return root if pid == 101 else worker
+
+    monkeypatch.setattr(resource_monitor_service.psutil, "Process", process_for_pid)
+    monkeypatch.setattr(resource_monitor_service.time, "monotonic", iter([10.0, 12.0]).__next__)
+    service = resource_monitor_service.ResourceMonitoringService(
+        root_pid=101,
+        managed_process_provider=lambda: [
+            ManagedProcess(
+                pid=202,
+                role="Knowledge Worker",
+                attribution_kind="worker",
+            )
+        ],
+        task_snapshot_reader=lambda _: {"active_tasks": [], "recent_failures": []},
+    )
+
+    service.collect_snapshot()
+    snapshot = service.collect_snapshot()
+
+    assert {item["pid"] for item in snapshot["processes"]} == {101, 202}
+    worker_sample = next(item for item in snapshot["processes"] if item["pid"] == 202)
+    assert worker_sample["role"] == "Knowledge Worker"
+    assert worker_sample["attribution_kind"] == "worker"
+    assert worker_sample["confidence"] == "exact_process"
+
+
+def test_api_active_tasks_are_labeled_as_shared_process_estimate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """API 内任务只能显示共享估算，不能伪造任务级 CPU。"""
+    root = FakeProcess(101, None, name="api", cpu_samples=[1.0, 1.0])
+    monkeypatch.setattr(resource_monitor_service.psutil, "Process", lambda _: root)
+    monkeypatch.setattr(resource_monitor_service.time, "monotonic", iter([10.0, 12.0]).__next__)
+    service = resource_monitor_service.ResourceMonitoringService(
+        root_pid=101,
+        managed_process_provider=lambda: [],
+        task_snapshot_reader=lambda _: {
+            "active_tasks": [
+                {
+                    "task_id": "resource-task-1",
+                    "task_kind": "wind",
+                    "label": "Wind 工作簿读取",
+                    "source_key": None,
+                }
+            ],
+            "recent_failures": [],
+        },
+    )
+
+    service.collect_snapshot()
+    sample = service.collect_snapshot()["processes"][0]
+
+    assert sample["confidence"] == "shared_process_estimate"
+    assert sample["active_tasks"][0]["task_kind"] == "wind"
+    assert "cpu_percent" not in sample["active_tasks"][0]
 
 
 def test_root_process_unavailable_returns_controlled_response(

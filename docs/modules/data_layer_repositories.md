@@ -258,6 +258,20 @@ Update this section when:
 
 - Repository CRUD operation tests
 - Query behavior verification
+
+---
+
+### `data_layer/repositories/monitoring_repository.py`
+
+Resource monitoring usage:
+
+- 资源监控第二期复用 `alert_payload` 与 `incident_record`，通过 `Subsystem.RESOURCE_MONITORING` 过滤事件，不创建重复告警表。
+- 资源事件的任务/来源/PID/置信度归因存放在既有 JSON `metadata`；不得存储秘密、命令参数或异常原文。
+- 未解决的资源告警在 API 查询中始终返回，即使其早于默认 90 天历史窗口。
+
+Update this section when:
+
+- 资源事件的持久化、过滤、确认或解决逻辑改变。
 - Error handling tests
 
 ---
