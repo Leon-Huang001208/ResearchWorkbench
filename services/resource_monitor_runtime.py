@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import threading
 import time
-from collections.abc import Callable, MutableMapping
+from collections.abc import Callable
 from contextlib import AbstractContextManager
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from core.observability import get_logger
+
+if TYPE_CHECKING:
+    from services.resource_monitor_alert_service import ResourceAlertState
 
 logger = get_logger(__name__)
 
@@ -25,7 +28,7 @@ class ResourceMonitorRuntime:
         session_factory: Optional[Callable[[], AbstractContextManager[Any]]] = None,
         repository_factory: Optional[Callable[[Any], Any]] = None,
         interval_seconds: float = 60.0,
-        state: Optional[MutableMapping[str, Any]] = None,
+        state: ResourceAlertState | None = None,
         monotonic: Callable[[], float] = time.monotonic,
     ) -> None:
         if interval_seconds <= 0:
@@ -36,7 +39,7 @@ class ResourceMonitorRuntime:
         self._session_factory = session_factory or self._create_session
         self._repository_factory = repository_factory or self._create_repository
         self._interval_seconds = interval_seconds
-        self._state: MutableMapping[str, Any] = state if state is not None else {}
+        self._state = state if state is not None else self._create_alert_state()
         self._monotonic = monotonic
         self._stop_event = threading.Event()
         self._thread: Optional[threading.Thread] = None
@@ -44,7 +47,7 @@ class ResourceMonitorRuntime:
         self._last_error_type: Optional[str] = None
 
     @property
-    def state(self) -> MutableMapping[str, Any]:
+    def state(self) -> ResourceAlertState:
         """返回跨采样周期共享的告警状态容器。"""
         return self._state
 
@@ -145,13 +148,16 @@ class ResourceMonitorRuntime:
         return ResourceHostHistoryService(repository)
 
     @staticmethod
-    def _create_alert_service(repository: Any, *, state: MutableMapping[str, Any]) -> Any:
+    def _create_alert_service(repository: Any, *, state: ResourceAlertState) -> Any:
         from services.resource_monitor_alert_service import ResourceMonitorAlertService
 
-        try:
-            return ResourceMonitorAlertService(repository, state=state)
-        except TypeError:
-            return ResourceMonitorAlertService(repository)
+        return ResourceMonitorAlertService(repository, state=state)
+
+    @staticmethod
+    def _create_alert_state() -> ResourceAlertState:
+        from services.resource_monitor_alert_service import ResourceAlertState
+
+        return ResourceAlertState()
 
     @staticmethod
     def _create_session() -> AbstractContextManager[Any]:

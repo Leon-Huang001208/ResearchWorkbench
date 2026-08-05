@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Iterable, Optional
 
@@ -41,13 +42,20 @@ _SAFE_METADATA_KEYS = frozenset(
 )
 
 
+@dataclass
+class ResourceAlertState:
+    """跨资源采样周期保留的告警计数状态。"""
+
+    pressure_counts: Dict[str, int] = field(default_factory=dict)
+    recovery_counts: Dict[str, int] = field(default_factory=dict)
+
+
 class ResourceMonitorAlertService:
     """资源快照的异常去重、持久化、确认、恢复和历史查询。"""
 
-    def __init__(self, repo: Any) -> None:
+    def __init__(self, repo: Any, *, state: Optional[ResourceAlertState] = None) -> None:
         self._repo = repo
-        self._pressure_counts: Dict[str, int] = {}
-        self._recovery_counts: Dict[str, int] = {}
+        self._state = state if state is not None else ResourceAlertState()
 
     def evaluate(self, snapshot: Dict[str, Any]) -> list[AlertPayload]:
         """从一次受控快照创建或恢复资源异常，单项失败不得阻断采样。"""
@@ -58,7 +66,9 @@ class ResourceMonitorAlertService:
             events.extend(self._evaluate_managed_process_warnings(snapshot.get("warnings", [])))
             events.extend(self._evaluate_pressure(snapshot.get("processes", [])))
         except Exception as exc:
-            logger.error("resource monitor alert evaluation failed", error_type=type(exc).__name__)
+            logger.warning(
+                "resource monitor alert evaluation failed", error_type=type(exc).__name__
+            )
         return events
 
     def list_events(
@@ -192,9 +202,9 @@ class ResourceMonitorAlertService:
                 and memory >= _PRESSURE_MEMORY_BYTES
             )
             if is_pressure:
-                self._pressure_counts[key] = self._pressure_counts.get(key, 0) + 1
-                self._recovery_counts[key] = 0
-                if self._pressure_counts[key] >= _CONSECUTIVE_SAMPLES:
+                self._state.pressure_counts[key] = self._state.pressure_counts.get(key, 0) + 1
+                self._state.recovery_counts[key] = 0
+                if self._state.pressure_counts[key] >= _CONSECUTIVE_SAMPLES:
                     events.append(
                         self._open_event(
                             event_kind="resource_pressure",
@@ -204,15 +214,15 @@ class ResourceMonitorAlertService:
                         )
                     )
                 continue
-            self._pressure_counts[key] = 0
-            self._recovery_counts[key] = self._recovery_counts.get(key, 0) + 1
-            if self._recovery_counts[key] >= _CONSECUTIVE_SAMPLES:
+            self._state.pressure_counts[key] = 0
+            self._state.recovery_counts[key] = self._state.recovery_counts.get(key, 0) + 1
+            if self._state.recovery_counts[key] >= _CONSECUTIVE_SAMPLES:
                 events.extend(self._resolve_auto_event(key))
 
-        for key in list(self._pressure_counts):
+        for key in list(self._state.pressure_counts):
             if key not in seen_keys:
-                self._pressure_counts.pop(key, None)
-                self._recovery_counts.pop(key, None)
+                self._state.pressure_counts.pop(key, None)
+                self._state.recovery_counts.pop(key, None)
         return events
 
     def _open_event(

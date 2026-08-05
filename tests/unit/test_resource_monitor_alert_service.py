@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from unittest.mock import MagicMock
 
 from core.contracts.monitoring import AlertSeverity, AlertStatus, Subsystem
-from services.resource_monitor_alert_service import ResourceMonitorAlertService
+from services import resource_monitor_alert_service
+from services.resource_monitor_alert_service import ResourceAlertState, ResourceMonitorAlertService
 
 
 class FakeRepository:
@@ -78,6 +80,35 @@ def test_pressure_opens_once_then_resolves_after_three_recovered_samples() -> No
 
     assert alert.status == AlertStatus.RESOLVED
     assert alert.resolved_at is not None
+
+
+def test_shared_state_keeps_pressure_counts_across_service_instances() -> None:
+    repo = FakeRepository()
+    state = ResourceAlertState()
+
+    ResourceMonitorAlertService(repo, state=state).evaluate(_snapshot_with_process(cpu=95.0))
+    ResourceMonitorAlertService(repo, state=state).evaluate(_snapshot_with_process(cpu=95.0))
+    ResourceMonitorAlertService(repo, state=state).evaluate(_snapshot_with_process(cpu=95.0))
+
+    assert len(repo.alerts) == 1
+    assert state.pressure_counts["resource_pressure:101"] == 3
+
+
+def test_evaluate_logs_warning_when_an_alert_stage_fails(monkeypatch) -> None:
+    log = MagicMock()
+    monkeypatch.setattr(resource_monitor_alert_service, "logger", log)
+    service = ResourceMonitorAlertService(FakeRepository())
+    monkeypatch.setattr(
+        service,
+        "_evaluate_task_failures",
+        lambda _: (_ for _ in ()).throw(RuntimeError("repository unavailable")),
+    )
+
+    assert service.evaluate(_snapshot_with_process(cpu=1.0)) == []
+    log.warning.assert_called_once_with(
+        "resource monitor alert evaluation failed", error_type="RuntimeError"
+    )
+    log.error.assert_not_called()
 
 
 def test_failed_task_creates_deduplicated_critical_event() -> None:

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 
+from core.contracts.monitoring import AlertStatus
+from services.resource_monitor_alert_service import ResourceAlertState
 from services.resource_monitor_runtime import ResourceMonitorRuntime
 
 
@@ -32,6 +34,38 @@ class FakeAlerts:
     def evaluate(self, snapshot: object) -> list[object]:
         self.snapshots.append(snapshot)
         return []
+
+
+class PressureMonitor:
+    def collect_snapshot(self) -> dict[str, object]:
+        return {
+            "host": {},
+            "summary": {},
+            "status": "ok",
+            "warnings": [],
+            "task_failures": [],
+            "processes": [{"pid": 101, "cpu_percent": 95.0, "memory_bytes": 1}],
+        }
+
+
+class AlertRepository:
+    def __init__(self) -> None:
+        self.alerts: list[object] = []
+        self.incidents: list[object] = []
+
+    def list_alerts(self, **_: object) -> list[object]:
+        return list(self.alerts)
+
+    def save_alert(self, alert: object) -> object:
+        self.alerts.append(alert)
+        return alert
+
+    def save_incident(self, incident: object) -> object:
+        self.incidents.append(incident)
+        return incident
+
+    def list_incidents(self, **_: object) -> list[object]:
+        return list(self.incidents)
 
 
 def test_run_once_collects_persists_and_evaluates_with_one_shared_state() -> None:
@@ -118,6 +152,29 @@ def test_run_once_keeps_future_cycles_alive_after_history_or_alert_failure() -> 
     assert runtime.last_error_type == "RuntimeError"
     assert runtime.run_once() is True
     assert monitor.calls == 3
+
+
+def test_default_alert_factory_shares_pressure_state_across_runtime_cycles() -> None:
+    repository = AlertRepository()
+
+    @contextmanager
+    def session_factory():
+        yield repository
+
+    runtime = ResourceMonitorRuntime(
+        monitor=PressureMonitor(),
+        history_factory=lambda _: FakeHistory(),
+        session_factory=session_factory,
+        repository_factory=lambda session: session,
+    )
+
+    assert isinstance(runtime.state, ResourceAlertState)
+    assert runtime.run_once() is True
+    assert runtime.run_once() is True
+    assert runtime.state.pressure_counts["resource_pressure:101"] == 2
+    assert runtime.run_once() is True
+    assert len(repository.alerts) == 1
+    assert repository.alerts[0].status is AlertStatus.OPEN
 
 
 def test_start_is_idempotent_and_stop_joins_the_worker(monkeypatch) -> None:

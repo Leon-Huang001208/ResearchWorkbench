@@ -270,7 +270,7 @@
 | `resource_monitor_runtime.py` | 资源监控运行时：以单一可停止后台线程每分钟采集资源快照，并在一个数据库会话内写入主机容量历史和评估既有资源告警；异常只记录安全错误类型并继续下一周期 |
 | `resource_host_history_service.py` | 整机容量历史服务：把安全白名单后的 CPU/内存整机汇总写入既有健康指标 JSON，每 UTC 分钟至多一条，公开查询最多 1500 点并仅保留 24 小时 |
 | `resource_task_registry.py` | 资源任务登记器：为抓取、PDF、知识处理、Wind 与报告任务写入每 PID 原子安全快照，失败记录不含异常原文 |
-| `resource_monitor_alert_service.py` | 资源异常协调器：复用 Monitoring 告警/事件状态机，去重并处理任务失败、受控 PID 缺失、采样失败与持续资源压力；未恢复事件始终可查询 |
+| `resource_monitor_alert_service.py` | 资源异常协调器：复用 Monitoring 告警/事件状态机，去重并处理任务失败、受控 PID 缺失、采样失败与持续资源压力；通过共享 `ResourceAlertState` 保留跨周期压力计数，未恢复事件始终可查询 |
 | `configuration_service.py` | 本地配置服务：跨平台文件锁与原子 `.env` 写入、配置分区验证、秘密掩码和受控热刷新；生产 Web 模式禁用控制面，数据库修改要求重启 |
 | `governance_service.py` | 治理服务：版本控制、配置管理、审计 |
 | `audit_service.py` | 审计服务：审计日志查询和管理 |
