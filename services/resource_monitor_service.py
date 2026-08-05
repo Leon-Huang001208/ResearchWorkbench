@@ -15,17 +15,16 @@ from core.observability import get_logger
 logger = get_logger(__name__)
 
 _ROOT_UNAVAILABLE_EXCEPTIONS = (psutil.NoSuchProcess, psutil.AccessDenied, psutil.Error, OSError)
+_HISTORY_SIZE = 150
 
 
 class ResourceMonitoringService:
     """仅监控指定根进程及其递归后代的本机资源使用情况。"""
 
-    def __init__(self, root_pid: Optional[int] = None, history_size: int = 150) -> None:
-        if history_size <= 0:
-            raise ValueError("history_size must be positive")
-
+    def __init__(self, root_pid: Optional[int] = None, history_size: Optional[int] = None) -> None:
+        """初始化服务；保留 ``history_size`` 参数仅为调用方兼容性。"""
         self._root_pid = root_pid if root_pid is not None else os.getpid()
-        self._history: Deque[Dict[str, Any]] = deque(maxlen=history_size)
+        self._history: Deque[Dict[str, Any]] = deque(maxlen=_HISTORY_SIZE)
         self._io_baselines: Dict[Tuple[int, float], Tuple[float, int, int]] = {}
         self._has_warmed_up = False
 

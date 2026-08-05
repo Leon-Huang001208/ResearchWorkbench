@@ -220,12 +220,14 @@ def test_exited_child_is_skipped_without_failing_snapshot(monkeypatch: pytest.Mo
     assert snapshot["warnings"] == [{"code": "child_process_unavailable", "pid": 102}]
 
 
-def test_history_keeps_only_its_fixed_length_limit(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_history_keeps_fixed_150_point_limit_when_smaller_capacity_is_requested(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     root = FakeProcess(101, None, name="api")
     monkeypatch.setattr(resource_monitor_service.psutil, "Process", lambda pid: root)
     monotonic_values = iter(float(index) for index in range(200))
     monkeypatch.setattr(resource_monitor_service.time, "monotonic", monotonic_values.__next__)
-    service = resource_monitor_service.ResourceMonitoringService(root_pid=101)
+    service = resource_monitor_service.ResourceMonitoringService(root_pid=101, history_size=1)
 
     for _ in range(151):
         service.collect_snapshot()
