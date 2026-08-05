@@ -3,11 +3,12 @@
 import json
 import os
 import subprocess
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, Query
 
 from core.observability import get_logger
 from services.system_event_bus import event_bus
@@ -22,6 +23,39 @@ PROJECT_DIR = (
 )
 
 router = APIRouter(prefix="/api/system", tags=["system"])
+_resource_monitoring_service_lock = threading.Lock()
+
+
+def get_resource_monitoring_service() -> Any:
+    """延迟创建并复用进程资源监控服务。"""
+    with _resource_monitoring_service_lock:
+        service = getattr(get_resource_monitoring_service, "_instance", None)
+        if service is None:
+            from services.resource_monitor_service import ResourceMonitoringService
+
+            service = ResourceMonitoringService()
+            get_resource_monitoring_service._instance = service
+    return service
+
+
+@router.get("/resource-usage")
+async def get_resource_usage(
+    service: Any = Depends(get_resource_monitoring_service),
+) -> Dict[str, Any]:
+    """返回 AlphaFoundry 根进程及其后代的当前资源快照。"""
+    return service.collect_snapshot()
+
+
+@router.get("/resource-usage/history")
+async def get_resource_usage_history(
+    window_seconds: int = Query(..., ge=2, le=300),
+    service: Any = Depends(get_resource_monitoring_service),
+) -> Dict[str, Any]:
+    """返回指定时间窗口内已采集的资源快照。"""
+    return {
+        "window_seconds": window_seconds,
+        "points": service.history(window_seconds),
+    }
 
 
 def _get_git_branch() -> str:
