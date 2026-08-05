@@ -1,6 +1,7 @@
 """System health endpoint — scheduler / queue / worker 状态"""
 
 import json
+import math
 import os
 import subprocess
 import threading
@@ -25,6 +26,21 @@ PROJECT_DIR = (
 
 router = APIRouter(prefix="/api/system", tags=["system"])
 _resource_monitoring_service_lock = threading.Lock()
+_HOST_CAPACITY_FIELDS = (
+    "cpu_percent",
+    "cpu_idle_percent",
+    "logical_cpu_count",
+    "memory_total_bytes",
+    "memory_used_bytes",
+    "memory_available_bytes",
+    "memory_available_percent",
+)
+_ALPHA_CAPACITY_FIELDS = (
+    "cpu_percent",
+    "memory_bytes",
+    "cpu_host_percent",
+    "memory_host_percent",
+)
 
 
 def get_resource_monitoring_service() -> Any:
@@ -55,6 +71,63 @@ def _resource_event_service_call(callback: Any) -> Any:
         return callback(ResourceMonitorAlertService(MonitoringRepositoryImpl(session)))
 
 
+def _resource_host_history_call(callback: Any) -> Any:
+    """在独立数据库会话中执行主机容量历史查询。"""
+    from data_layer.repositories.base import db_session
+    from data_layer.repositories.monitoring_repository import MonitoringRepositoryImpl
+    from services.resource_host_history_service import ResourceHostHistoryService
+
+    with db_session() as session:
+        return callback(ResourceHostHistoryService(MonitoringRepositoryImpl(session)))
+
+
+def _number_or_none(value: Any) -> int | float | None:
+    """仅保留 JSON 安全的有限数值，布尔值不视为数值。"""
+    if type(value) is int:
+        return value
+    if type(value) is float and math.isfinite(value):
+        return value
+    return None
+
+
+def _sanitize_host_capacity(host: Any) -> Dict[str, int | float | None]:
+    """将主机容量汇总收敛为稳定、无进程信息的公开字段。"""
+    values = host if isinstance(host, dict) else {}
+    return {field: _number_or_none(values.get(field)) for field in _HOST_CAPACITY_FIELDS}
+
+
+def _sanitize_alpha_capacity(alpha: Any) -> Dict[str, int | float | None]:
+    """将 AlphaFoundry 对整机的占用汇总限制为公开数值字段。"""
+    values = alpha if isinstance(alpha, dict) else {}
+    return {field: _number_or_none(values.get(field)) for field in _ALPHA_CAPACITY_FIELDS}
+
+
+def _sanitize_host_history_point(point: Any) -> Dict[str, Any]:
+    """将持久化指标转换为最小的长期主机容量 API 点位。"""
+    values = point if isinstance(point, dict) else {}
+    sampled_at = values.get("timestamp", values.get("sampled_at"))
+    if isinstance(sampled_at, datetime):
+        sampled_at = sampled_at.isoformat()
+    elif not isinstance(sampled_at, str):
+        sampled_at = None
+    return {
+        "sampled_at": sampled_at,
+        "host": _sanitize_host_capacity(values.get("host")),
+        "alpha": _sanitize_alpha_capacity(values.get("alpha")),
+    }
+
+
+def _host_history_sort_key(point: Dict[str, Any]) -> tuple[bool, str]:
+    """将未知采样时间稳定排到末尾，避免坏记录影响有效历史。"""
+    sampled_at = point["sampled_at"]
+    return (sampled_at is None, sampled_at or "")
+
+
+def _is_safe_public_scalar(value: Any) -> bool:
+    """拒绝布尔值、容器与非有限浮点，避免内部结构泄露。"""
+    return value is None or isinstance(value, str) or _number_or_none(value) is not None
+
+
 def _sanitize_resource_warning(warning: Any) -> Dict[str, Any]:
     """将服务内部采集错误映射为稳定的公开警告码。"""
     if not isinstance(warning, dict):
@@ -83,6 +156,7 @@ def _sanitize_resource_warning(warning: Any) -> Dict[str, Any]:
 def _sanitize_resource_snapshot(snapshot: Dict[str, Any]) -> Dict[str, Any]:
     """移除资源采集实现细节，避免将内部异常类型暴露给 API 调用方。"""
     public_snapshot = dict(snapshot)
+    public_snapshot["host"] = _sanitize_host_capacity(snapshot.get("host"))
     warnings = snapshot.get("warnings", [])
     public_snapshot["warnings"] = (
         [_sanitize_resource_warning(warning) for warning in warnings]
@@ -116,7 +190,7 @@ def _sanitize_resource_task(task: Dict[str, Any]) -> Dict[str, Any]:
     return {
         key: value
         for key, value in task.items()
-        if key in allowed and isinstance(value, (str, int, float, type(None)))
+        if key in allowed and _is_safe_public_scalar(value)
     }
 
 
@@ -136,6 +210,10 @@ def _serialize_resource_event(event: Any) -> Dict[str, Any]:
         "error_type",
         "cpu_percent",
         "memory_bytes",
+        "source_scope",
+        "host_cpu_percent",
+        "host_memory_available_percent",
+        "threshold_percent",
     }
     return {
         "alert_id": event.alert_id,
@@ -149,7 +227,7 @@ def _serialize_resource_event(event: Any) -> Dict[str, Any]:
         "metadata": {
             key: value
             for key, value in metadata.items()
-            if key in allowed_metadata and isinstance(value, (str, int, float, type(None)))
+            if key in allowed_metadata and _is_safe_public_scalar(value)
         },
     }
 
@@ -158,14 +236,8 @@ def _serialize_resource_event(event: Any) -> Dict[str, Any]:
 def get_resource_usage(
     service: Any = Depends(get_resource_monitoring_service),
 ) -> Dict[str, Any]:
-    """返回 AlphaFoundry 受控进程的当前资源快照，并异步式落库异常。"""
+    """返回 AlphaFoundry 受控进程与主机容量的当前资源快照。"""
     snapshot = service.collect_snapshot()
-    try:
-        _resource_event_service_call(lambda event_service: event_service.evaluate(snapshot))
-    except Exception as exc:
-        logger.warning(
-            "resource monitor event persistence unavailable", error_type=type(exc).__name__
-        )
     return _sanitize_resource_snapshot(snapshot)
 
 
@@ -181,6 +253,22 @@ def get_resource_usage_history(
             _sanitize_resource_snapshot(snapshot) for snapshot in service.history(window_seconds)
         ],
     }
+
+
+@router.get("/resource-usage/host-history")
+def get_resource_host_history(
+    hours: int = Query(24, ge=1, le=24),
+) -> Dict[str, Any]:
+    """返回最多 24 小时的分钟级整机容量历史。"""
+    try:
+        points = _resource_host_history_call(lambda history_service: history_service.list_history())
+    except Exception as exc:
+        logger.error("resource host history query failed", error_type=type(exc).__name__)
+        raise HTTPException(status_code=503, detail="Host resource history unavailable") from exc
+    public_points = sorted(
+        (_sanitize_host_history_point(point) for point in points), key=_host_history_sort_key
+    )
+    return {"hours": hours, "points": public_points}
 
 
 @router.get("/resource-events")

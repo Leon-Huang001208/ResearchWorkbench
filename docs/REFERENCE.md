@@ -18,13 +18,14 @@
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
-| `GET` | `/api/system/resource-usage` | 当前资源快照、独立 Worker 精确归因和 API 内任务共享估算；资源告警写入失败不会阻断该响应。 |
+| `GET` | `/api/system/resource-usage` | 当前资源快照、独立 Worker 精确归因、API 内任务共享估算及安全的整机容量汇总；该请求不评估资源告警。 |
 | `GET` | `/api/system/resource-usage/history?window_seconds=300` | 内存中的实时资源序列，范围 2–300 秒，不作为长期错误历史。 |
+| `GET` | `/api/system/resource-usage/host-history?hours=24` | 持久化的分钟级整机容量历史，范围 1–24 小时；仅返回容量与 AlphaFoundry 汇总比例。 |
 | `GET` | `/api/system/resource-events?days=90&status=all` | 持久化异常历史；支持 `severity`、`task_kind`、`source_key`，未恢复事件不受时间窗口隐藏。 |
 | `POST` | `/api/system/resource-events/{alert_id}/acknowledge` | 将未恢复事件标记为已确认。 |
 | `POST` | `/api/system/resource-events/{alert_id}/resolve` | 人工解决事件，JSON 可含 `{"notes":"..."}`（最多 500 字）。 |
 
-资源事件元数据只包含任务类型、数据源键、PID、角色、置信度和安全资源值；不返回命令参数、请求内容、秘密或异常原文。
+资源事件元数据只包含任务类型、数据源键、PID、角色、置信度和安全资源值。整机事件还可包含来源范围、主机 CPU/可用内存百分比及阈值百分比；不返回命令参数、请求内容、秘密、异常原文或内部去重键。
 
 数据库就绪且非 `ALPHAFOUNDRY_PREVIEW=1` 的 API 实例会在启动后以单一后台线程每分钟采样、持久化主机容量历史并评估资源事件；桌面数据库配置模式和分支预览均不会启动该常驻任务。采样或后台生命周期错误只记录安全的错误类型，后续周期继续执行，API 关闭时会先等待该任务停止。
 
@@ -1194,6 +1195,15 @@ Wind Excel 适配器通过 xlwings → AppleScript → macOS Excel Wind 插件�
     "disk_write_bytes_per_second": 1024.0,
     "network_connection_count": 3
   },
+  "host": {
+    "cpu_percent": 24.0,
+    "cpu_idle_percent": 76.0,
+    "logical_cpu_count": 8,
+    "memory_total_bytes": 17179869184,
+    "memory_used_bytes": 4294967296,
+    "memory_available_bytes": 12884901888,
+    "memory_available_percent": 75.0
+  },
   "processes": [
     {
       "pid": 12345,
@@ -1232,6 +1242,38 @@ Wind Excel 适配器通过 xlwings → AppleScript → macOS Excel Wind 插件�
 ```
 
 每个 `points` 元素遵循 `GET /api/system/resource-usage` 的相同范围限制与脱敏降级契约。
+
+#### GET /api/system/resource-usage/host-history
+
+返回持久化的分钟级整机容量历史。查询参数 `hours` 可选，默认 `24`，可接受范围为 `1` 至 `24`（含边界）；超出范围返回 `422`。存储不可用时返回 `503` 和稳定详情 `Host resource history unavailable`。点位按 `sampled_at` 升序排列，且不包含主机进程、采集告警、原始 `extra` 或内部字段。
+
+**响应示例**:
+
+```json
+{
+  "hours": 24,
+  "points": [
+    {
+      "sampled_at": "2026-08-05T00:00:00+00:00",
+      "host": {
+        "cpu_percent": 24.0,
+        "cpu_idle_percent": 76.0,
+        "logical_cpu_count": 8,
+        "memory_total_bytes": 17179869184,
+        "memory_used_bytes": 4294967296,
+        "memory_available_bytes": 12884901888,
+        "memory_available_percent": 75.0
+      },
+      "alpha": {
+        "cpu_percent": 12.5,
+        "memory_bytes": 104857600,
+        "cpu_host_percent": 52.1,
+        "memory_host_percent": 0.6
+      }
+    }
+  ]
+}
+```
 
 #### GET /api/system/health
 

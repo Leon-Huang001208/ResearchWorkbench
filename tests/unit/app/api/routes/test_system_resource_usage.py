@@ -22,6 +22,7 @@ class StubResourceMonitoringService:
             "root_pid": 123,
             "status": "ok",
             "warnings": [],
+            "task_failures": [],
             "summary": {
                 "cpu_percent": 12.5,
                 "memory_bytes": 4096,
@@ -29,6 +30,15 @@ class StubResourceMonitoringService:
                 "disk_read_bytes_per_second": 10.0,
                 "disk_write_bytes_per_second": 5.0,
                 "network_connection_count": 2,
+            },
+            "host": {
+                "cpu_percent": 20.0,
+                "cpu_idle_percent": 80.0,
+                "logical_cpu_count": 8,
+                "memory_total_bytes": 16_000,
+                "memory_used_bytes": 4_000,
+                "memory_available_bytes": 12_000,
+                "memory_available_percent": 75.0,
             },
             "processes": [
                 {

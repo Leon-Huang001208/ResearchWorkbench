@@ -1817,6 +1817,7 @@ Imports:
 - `datetime`
 - `fastapi`
 - `json`
+- `math`
 - `os`
 - `pathlib`
 - `pydantic`
@@ -1834,6 +1835,20 @@ Functions:
   - 延迟创建并复用进程资源监控服务。
 - `_resource_event_service_call`
   - 在独立数据库会话中执行资源事件操作，避免跨请求复用 Session。
+- `_resource_host_history_call`
+  - 在独立数据库会话中执行主机容量历史查询。
+- `_number_or_none`
+  - 仅保留 JSON 安全的有限数值，布尔值不视为数值。
+- `_sanitize_host_capacity`
+  - 将主机容量汇总收敛为稳定、无进程信息的公开字段。
+- `_sanitize_alpha_capacity`
+  - 将 AlphaFoundry 对整机的占用汇总限制为公开数值字段。
+- `_sanitize_host_history_point`
+  - 将持久化指标转换为最小的长期主机容量 API 点位。
+- `_host_history_sort_key`
+  - 将未知采样时间稳定排到末尾，避免坏记录影响有效历史。
+- `_is_safe_public_scalar`
+  - 拒绝布尔值、容器与非有限浮点，避免内部结构泄露。
 - `_sanitize_resource_warning`
   - 将服务内部采集错误映射为稳定的公开警告码。
 - `_sanitize_resource_snapshot`
@@ -1843,9 +1858,11 @@ Functions:
 - `_serialize_resource_event`
   - 将 Pydantic 资源告警映射为仅含安全字段的 JSON 响应。
 - `get_resource_usage`
-  - 返回 AlphaFoundry 受控进程的当前资源快照，并异步式落库异常。
+  - 返回 AlphaFoundry 受控进程与主机容量的当前资源快照。
 - `get_resource_usage_history`
   - 返回指定时间窗口内已采集的资源快照。
+- `get_resource_host_history`
+  - 返回最多 24 小时的分钟级整机容量历史。
 - `list_resource_events`
   - 查询资源异常历史；未恢复事件不受指定时间窗口隐藏。
 - `acknowledge_resource_event`
