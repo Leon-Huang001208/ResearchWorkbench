@@ -47,8 +47,8 @@ def test_resource_monitor_module_cache_and_navigation_lifecycle_contract() -> No
     app_js = (ROOT / "app/web/static/js/app.js").read_text(encoding="utf-8")
     template = (ROOT / "app/web/templates/index.html").read_text(encoding="utf-8")
 
-    assert '/static/js/app.js?v=20260805resourcecapacity1' in template
-    assert '/static/js/app.js?v=20260727modalhierarchy1' not in template
+    assert "/static/js/app.js?v=20260805resourcecapacity1" in template
+    assert "/static/js/app.js?v=20260727modalhierarchy1" not in template
     assert "./resource-monitor.js?v=20260805d" in app_js
     assert "startResourceMonitoring" in app_js
     assert "stopResourceMonitoring" in app_js
@@ -125,8 +125,8 @@ def test_resource_monitor_styles_keep_dense_responsive_tables_and_charts() -> No
 
     assert "#section-resource-monitor" in style
     assert "grid-template-columns: repeat(2, minmax(0, 1fr))" in style
-    assert "resource-summary-card[data-resource-scope=\"alpha\"]" in style
-    assert "resource-summary-card[data-resource-scope=\"host\"]" in style
+    assert 'resource-summary-card[data-resource-scope="alpha"]' in style
+    assert 'resource-summary-card[data-resource-scope="host"]' in style
     assert "@media (max-width: 900px)" in style
     assert "min-width: 900px" in style
     assert "overflow-x: auto" in style
