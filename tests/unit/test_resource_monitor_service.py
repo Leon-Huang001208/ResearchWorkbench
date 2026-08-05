@@ -265,10 +265,19 @@ def test_snapshot_collects_host_capacity_without_global_process_scan(
             available=8 * gibibyte,
         ),
     )
+
+    def forbid_global_process_enumeration() -> None:
+        raise AssertionError("host capacity sampling must not enumerate system processes")
+
     monkeypatch.setattr(
         resource_monitor_service.psutil,
         "process_iter",
-        lambda: pytest.fail("host capacity sampling must not enumerate system processes"),
+        forbid_global_process_enumeration,
+    )
+    monkeypatch.setattr(
+        resource_monitor_service.psutil,
+        "pids",
+        forbid_global_process_enumeration,
     )
     monkeypatch.setattr(resource_monitor_service.time, "monotonic", iter([10.0, 12.0]).__next__)
     service = resource_monitor_service.ResourceMonitoringService(root_pid=101)
