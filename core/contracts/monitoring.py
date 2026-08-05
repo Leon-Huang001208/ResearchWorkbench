@@ -37,6 +37,7 @@ class Subsystem(str, Enum):
     TIMING = "timing"
     REPLAY = "replay"
     PORTFOLIO_SIMULATION = "portfolio_simulation"
+    RESOURCE_MONITORING = "resource_monitoring"
 
 
 class AlertSeverity(str, Enum):

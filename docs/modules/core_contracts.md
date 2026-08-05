@@ -67,3 +67,4 @@ When files in this module change, check:
 | `core/contracts/ingestion_record.py` | 摄入记录契约：`IngestionRecord`、`IngestionStats`、`IngestionRunResult`、`ValidationReport` |
 | `core/contracts/retrieval.py` | 检索配置和 Profile：`RetrievalProfile`、`RetrievalFilters`、`RetrievalQuery` |
 | `core/contracts/outcome_journal.py` | 结果日志：`SignalOutcomeDB` |
+| `core/contracts/monitoring.py` | 生产监控告警、事件和健康指标契约；`Subsystem.RESOURCE_MONITORING` 标识仅属于 AlphaFoundry 资源监控的持久化事件 |
