@@ -238,7 +238,7 @@ def test_exited_child_is_skipped_without_failing_snapshot(monkeypatch: pytest.Mo
 
     snapshot = service.collect_snapshot()
 
-    assert snapshot["status"] == "warming_up"
+    assert snapshot["status"] == "degraded"
     assert [process["pid"] for process in snapshot["processes"]] == [101]
     assert snapshot["warnings"] == [{"code": "child_process_unavailable", "pid": 102}]
 
@@ -278,6 +278,7 @@ def test_optional_field_errors_keep_root_and_child_with_none_values_and_structur
 
     snapshot = service.collect_snapshot()
 
+    assert snapshot["status"] == "degraded"
     samples = {sample["pid"]: sample for sample in snapshot["processes"]}
     assert set(samples) == {101, 102}
     assert samples[101]["thread_count"] is None
@@ -288,6 +289,32 @@ def test_optional_field_errors_keep_root_and_child_with_none_values_and_structur
     assert "io_counters:AccessDenied" in samples[102]["unavailable_reason"]
     assert "name:AccessDenied" in samples[102]["unavailable_reason"]
     assert "network_connection_count:NotImplementedError" in samples[102]["unavailable_reason"]
+    assert snapshot["warnings"] == [
+        {
+            "code": "process_field_unavailable",
+            "pid": 101,
+            "field": "thread_count",
+            "error_type": "AccessDenied",
+        },
+        {
+            "code": "process_field_unavailable",
+            "pid": 102,
+            "field": "name",
+            "error_type": "AccessDenied",
+        },
+        {
+            "code": "process_field_unavailable",
+            "pid": 102,
+            "field": "io_counters",
+            "error_type": "AccessDenied",
+        },
+        {
+            "code": "process_field_unavailable",
+            "pid": 102,
+            "field": "network_connection_count",
+            "error_type": "NotImplementedError",
+        },
+    ]
     assert logger.warnings == [
         (
             "resource monitor process field unavailable",
@@ -338,7 +365,7 @@ def test_root_identity_field_error_is_degraded_to_none(
 
     snapshot = service.collect_snapshot()
 
-    assert snapshot["status"] == "warming_up"
+    assert snapshot["status"] == "degraded"
     assert snapshot["processes"][0]["name"] is None
     assert "name:AccessDenied" in snapshot["processes"][0]["unavailable_reason"]
 

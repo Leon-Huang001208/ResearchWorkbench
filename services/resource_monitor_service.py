@@ -57,14 +57,14 @@ class ResourceMonitoringService:
         process_samples = []
         for process in self._deduplicated_processes(processes):
             try:
-                process_samples.append(
-                    self._collect_process_sample(
-                        process=process,
-                        is_root=process.pid == self._root_pid,
-                        sample_monotonic=sample_monotonic,
-                        warming_up=warming_up,
-                    )
+                process_sample = self._collect_process_sample(
+                    process=process,
+                    is_root=process.pid == self._root_pid,
+                    sample_monotonic=sample_monotonic,
+                    warming_up=warming_up,
                 )
+                process_samples.append(process_sample)
+                warnings.extend(self._field_warnings(process_sample))
             except _ROOT_UNAVAILABLE_EXCEPTIONS as exc:
                 if process.pid == self._root_pid:
                     logger.error(
@@ -85,7 +85,7 @@ class ResourceMonitoringService:
                 warnings.append({"code": "child_process_unavailable", "pid": process.pid})
 
         process_samples.sort(key=self._process_sort_key)
-        status = "warming_up" if warming_up else "ok"
+        status = "degraded" if warnings else ("warming_up" if warming_up else "ok")
         snapshot = {
             "sampled_at": sampled_at,
             "root_pid": self._root_pid,
@@ -321,6 +321,27 @@ class ResourceMonitoringService:
     def _process_sort_key(sample: Dict[str, Any]) -> Tuple[bool, float, int]:
         cpu_percent = sample["cpu_percent"]
         return (cpu_percent is None, -(cpu_percent or 0.0), sample["pid"])
+
+    @staticmethod
+    def _field_warnings(sample: Dict[str, Any]) -> list[Dict[str, Any]]:
+        reason = sample.get("unavailable_reason")
+        if not reason:
+            return []
+
+        warnings = []
+        for item in reason.split("; "):
+            field, separator, error_type = item.partition(":")
+            if not separator or error_type == "warming_up":
+                continue
+            warnings.append(
+                {
+                    "code": "process_field_unavailable",
+                    "pid": sample["pid"],
+                    "field": field,
+                    "error_type": error_type,
+                }
+            )
+        return warnings
 
     @staticmethod
     def _build_summary(process_samples: list[Dict[str, Any]]) -> Dict[str, Any]:
