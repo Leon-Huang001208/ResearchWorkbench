@@ -220,8 +220,17 @@ class ResourceMonitoringService:
             read_bytes = None
             write_bytes = None
         else:
-            read_bytes = io_counters.read_bytes
-            write_bytes = io_counters.write_bytes
+            io_bytes = self._read_optional_field(
+                process,
+                "io_counters",
+                lambda: (io_counters.read_bytes, io_counters.write_bytes),
+                unavailable_reasons,
+            )
+            if io_bytes is None:
+                read_bytes = None
+                write_bytes = None
+            else:
+                read_bytes, write_bytes = io_bytes
 
         if create_time is None:
             read_rate, write_rate = None, None
