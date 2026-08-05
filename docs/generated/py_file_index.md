@@ -1815,22 +1815,39 @@ Imports:
 - `json`
 - `os`
 - `pathlib`
+- `pydantic`
 - `services.system_event_bus`
 - `subprocess`
 - `threading`
 - `typing`
 
+Classes:
+- `ResourceEventResolveRequest`
+  - 人工解决资源异常时可选的处理说明。
+
 Functions:
 - `get_resource_monitoring_service`
   - 延迟创建并复用进程资源监控服务。
+- `_resource_event_service_call`
+  - 在独立数据库会话中执行资源事件操作，避免跨请求复用 Session。
 - `_sanitize_resource_warning`
   - 将服务内部采集错误映射为稳定的公开警告码。
 - `_sanitize_resource_snapshot`
   - 移除资源采集实现细节，避免将内部异常类型暴露给 API 调用方。
+- `_sanitize_resource_task`
+  - 仅公开任务归因字段，避免错误文本或其他运行时内容离开 API。
+- `_serialize_resource_event`
+  - 将 Pydantic 资源告警映射为仅含安全字段的 JSON 响应。
 - `get_resource_usage`
-  - 返回 AlphaFoundry 根进程及其后代的当前资源快照。
+  - 返回 AlphaFoundry 受控进程的当前资源快照，并异步式落库异常。
 - `get_resource_usage_history`
   - 返回指定时间窗口内已采集的资源快照。
+- `list_resource_events`
+  - 查询资源异常历史；未恢复事件不受指定时间窗口隐藏。
+- `acknowledge_resource_event`
+  - 确认一个未恢复资源异常。
+- `resolve_resource_event`
+  - 人工解决资源异常并保存简短说明。
 - `_get_git_branch`
   - 获取当前 git 分支名
 - `_get_db_type`

@@ -1335,9 +1335,7 @@ def _validate_report_project_sources(
 
     retired_roots = sorted(_RETIRED_REPORT_CONFIG_ROOT_KEYS & set(report_config))
     if retired_roots:
-        raise ValueError(
-            "report_config 不允许旧字段: " + ", ".join(retired_roots)
-        )
+        raise ValueError("report_config 不允许旧字段: " + ", ".join(retired_roots))
     placeholders = report_config.get("placeholders")
     if not isinstance(placeholders, dict):
         raise ValueError("report_config.placeholders 必须是 mapping")
@@ -1351,8 +1349,7 @@ def _validate_report_project_sources(
         retired_keys = sorted(_RETIRED_PLACEHOLDER_KEYS & set(config))
         if retired_keys:
             raise ValueError(
-                f"report_config.placeholders.{placeholder} 不允许旧字段: "
-                + ", ".join(retired_keys)
+                f"report_config.placeholders.{placeholder} 不允许旧字段: " + ", ".join(retired_keys)
             )
         placeholder_type = str(config.get("type") or "").strip().lower()
         if placeholder_type in _RETIRED_PARAGRAPH_TYPES:
@@ -1393,7 +1390,6 @@ def _read_prompt_templates(path: Path) -> str:
     except Exception as exc:
         logger.warning("Failed to read prompt templates", path=str(path), error=str(exc))
         return ""
-
 
 
 def _extract_docx_placeholders(path: Path | io.BytesIO) -> List[str]:

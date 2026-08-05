@@ -147,7 +147,10 @@ class ResourceMonitorAlertService:
         unavailable_pids: set[int] = set()
         if isinstance(warnings, list):
             for warning in warnings:
-                if not isinstance(warning, dict) or warning.get("code") != "managed_process_unavailable":
+                if (
+                    not isinstance(warning, dict)
+                    or warning.get("code") != "managed_process_unavailable"
+                ):
                     continue
                 pid = warning.get("pid")
                 if not isinstance(pid, int):
@@ -259,7 +262,7 @@ class ResourceMonitorAlertService:
         alert = self._find_open_by_dedupe_key(dedupe_key)
         if alert is None or alert.metadata.get("event_kind") not in _AUTO_RESOLVABLE_KINDS:
             return []
-        return [self._resolve_alert(alert, notes="监控连续采样恢复正常。")] 
+        return [self._resolve_alert(alert, notes="监控连续采样恢复正常。")]
 
     def _resolve_alert(self, alert: AlertPayload, *, notes: str) -> AlertPayload:
         if alert.status != AlertStatus.RESOLVED:
@@ -301,12 +304,17 @@ class ResourceMonitorAlertService:
 
     def _find_open_by_dedupe_key(self, dedupe_key: str) -> Optional[AlertPayload]:
         for alert in self._resource_alerts():
-            if alert.status != AlertStatus.RESOLVED and alert.metadata.get("dedupe_key") == dedupe_key:
+            if (
+                alert.status != AlertStatus.RESOLVED
+                and alert.metadata.get("dedupe_key") == dedupe_key
+            ):
                 return alert
         return None
 
     def _find_resource_alert(self, alert_id: str) -> Optional[AlertPayload]:
-        return next((alert for alert in self._resource_alerts() if alert.alert_id == alert_id), None)
+        return next(
+            (alert for alert in self._resource_alerts() if alert.alert_id == alert_id), None
+        )
 
     @staticmethod
     def _safe_metadata(metadata: Dict[str, Any]) -> Dict[str, Any]:
@@ -322,7 +330,9 @@ class ResourceMonitorAlertService:
             return f"任务失败：{metadata.get('label') or metadata.get('task_kind') or 'AlphaFoundry 任务'}"
         if event_kind == "resource_pressure":
             role = metadata.get("role")
-            process_label = role if isinstance(role, str) and role else f"PID {metadata.get('pid', '未知')}"
+            process_label = (
+                role if isinstance(role, str) and role else f"PID {metadata.get('pid', '未知')}"
+            )
             return f"资源压力：{process_label}"
         if event_kind == "managed_process_unavailable":
             return f"受控 Worker 不可用：PID {metadata.get('pid', '未知')}"

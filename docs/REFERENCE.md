@@ -12,6 +12,22 @@
 
 ---
 
+## 系统资源监控 API
+
+所有端点仅面向 AlphaFoundry 受控进程和任务，不枚举其他桌面应用。
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| `GET` | `/api/system/resource-usage` | 当前资源快照、独立 Worker 精确归因和 API 内任务共享估算；资源告警写入失败不会阻断该响应。 |
+| `GET` | `/api/system/resource-usage/history?window_seconds=300` | 内存中的实时资源序列，范围 2–300 秒，不作为长期错误历史。 |
+| `GET` | `/api/system/resource-events?days=90&status=all` | 持久化异常历史；支持 `severity`、`task_kind`、`source_key`，未恢复事件不受时间窗口隐藏。 |
+| `POST` | `/api/system/resource-events/{alert_id}/acknowledge` | 将未恢复事件标记为已确认。 |
+| `POST` | `/api/system/resource-events/{alert_id}/resolve` | 人工解决事件，JSON 可含 `{"notes":"..."}`（最多 500 字）。 |
+
+资源事件元数据只包含任务类型、数据源键、PID、角色、置信度和安全资源值；不返回命令参数、请求内容、秘密或异常原文。
+
+---
+
 ## CLI 命令
 
 ### 0. data - 统一数据命令组（推荐）

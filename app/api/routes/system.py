@@ -105,9 +105,7 @@ def _sanitize_resource_snapshot(snapshot: Dict[str, Any]) -> Dict[str, Any]:
         public_snapshot["processes"] = []
     task_failures = snapshot.get("task_failures", [])
     public_snapshot["task_failures"] = [
-        _sanitize_resource_task(task)
-        for task in task_failures
-        if isinstance(task, dict)
+        _sanitize_resource_task(task) for task in task_failures if isinstance(task, dict)
     ]
     return public_snapshot
 
@@ -165,7 +163,9 @@ def get_resource_usage(
     try:
         _resource_event_service_call(lambda event_service: event_service.evaluate(snapshot))
     except Exception as exc:
-        logger.warning("resource monitor event persistence unavailable", error_type=type(exc).__name__)
+        logger.warning(
+            "resource monitor event persistence unavailable", error_type=type(exc).__name__
+        )
     return _sanitize_resource_snapshot(snapshot)
 
 
@@ -214,10 +214,14 @@ def list_resource_events(
 def acknowledge_resource_event(alert_id: str) -> Dict[str, Any]:
     """确认一个未恢复资源异常。"""
     try:
-        event = _resource_event_service_call(lambda event_service: event_service.acknowledge(alert_id))
+        event = _resource_event_service_call(
+            lambda event_service: event_service.acknowledge(alert_id)
+        )
     except Exception as exc:
         logger.error("resource monitor event acknowledgement failed", error_type=type(exc).__name__)
-        raise HTTPException(status_code=503, detail="Resource event acknowledgement unavailable") from exc
+        raise HTTPException(
+            status_code=503, detail="Resource event acknowledgement unavailable"
+        ) from exc
     if event is None:
         raise HTTPException(status_code=404, detail="Resource event not found or already resolved")
     return _serialize_resource_event(event)
@@ -232,7 +236,9 @@ def resolve_resource_event(alert_id: str, request: ResourceEventResolveRequest) 
         )
     except Exception as exc:
         logger.error("resource monitor event resolution failed", error_type=type(exc).__name__)
-        raise HTTPException(status_code=503, detail="Resource event resolution unavailable") from exc
+        raise HTTPException(
+            status_code=503, detail="Resource event resolution unavailable"
+        ) from exc
     if event is None:
         raise HTTPException(status_code=404, detail="Resource event not found")
     return _serialize_resource_event(event)

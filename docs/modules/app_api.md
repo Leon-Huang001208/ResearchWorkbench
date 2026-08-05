@@ -388,6 +388,8 @@ When files in this module change, check:
 - `POST /api/system/resource-events/{alert_id}/acknowledge` and `POST /api/system/resource-events/{alert_id}/resolve` apply the existing alert lifecycle.
 
 Resource-event persistence errors must not make `/resource-usage` unavailable. API responses expose only whitelisted task attribution metadata and never exception text, commands, request bodies, or secrets.
+
+The route opens a database session only for the individual resource-event operation; no monitoring repository session is retained between HTTP requests.
 - `docs/generated/py_file_index.md`
 
 ---

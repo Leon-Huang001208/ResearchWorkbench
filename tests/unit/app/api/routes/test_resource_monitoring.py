@@ -60,6 +60,20 @@ def test_acknowledge_and_resolve_resource_event(monkeypatch) -> None:
     assert resolve.json()["status"] == "resolved"
 
 
+def test_managed_process_warning_exposes_only_stable_public_fields() -> None:
+    """受控 Worker 不可用时 API 只公开稳定警告码与 PID。"""
+    warning = system._sanitize_resource_warning(
+        {
+            "code": "managed_process_unavailable",
+            "pid": 123,
+            "error_type": "AccessDenied",
+            "internal_detail": "must not escape",
+        }
+    )
+
+    assert warning == {"code": "managed_process_unavailable", "pid": 123}
+
+
 class FakeEventService:
     """路由契约所需的轻量服务替身。"""
 

@@ -926,6 +926,19 @@ class BaseProvider(ABC):
 
 ---
 
+## 资源监控第二期数据流
+
+资源监控属于应用层的本地可观测性能力，边界是 AlphaFoundry 自身：API 进程树、项目写入 PID 文件的抓取调度器/知识 Worker，以及这些进程写入的受控任务快照。采样器不会全量枚举系统进程。
+
+`services/resource_task_registry.py` 为抓取、PDF、知识处理、Wind 和报告任务生成每 PID 原子快照；`ResourceMonitoringService` 读取这些快照，并将独立 Worker 标记为精确进程资源、API 内任务标记为共享进程估算。`ResourceMonitorAlertService` 将失败、受控 Worker 缺失、采样失败和持续资源压力映射到已有 Monitoring 告警/事件表，状态为 `open → acknowledged → resolved`。实时图只保留内存中的 5 分钟点位；异常事件持久化并默认查询 90 天，任何未恢复事件始终返回。
+
+```text
+受控任务/Worker → 每 PID 安全快照
+API 进程树 + 明确 PID → 资源采样/归因
+资源异常 → MonitoringRepository 的告警与事件
+/api/system/resource-events → 系统监控页置顶与历史
+```
+
 ## 相关文档
 
 - **[README.md](../README.md)** - 项目概述与快速开始

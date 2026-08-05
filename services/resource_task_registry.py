@@ -136,26 +136,38 @@ class ResourceTaskRegistry:
             return empty
 
         if not isinstance(data, dict):
-            logger.warning("resource task snapshot has invalid payload", snapshot_path=str(snapshot_path))
+            logger.warning(
+                "resource task snapshot has invalid payload", snapshot_path=str(snapshot_path)
+            )
             return empty
 
         active_tasks = data.get("active_tasks")
         recent_failures = data.get("recent_failures")
         if not isinstance(active_tasks, list) or not isinstance(recent_failures, list):
-            logger.warning("resource task snapshot has invalid collections", snapshot_path=str(snapshot_path))
+            logger.warning(
+                "resource task snapshot has invalid collections", snapshot_path=str(snapshot_path)
+            )
             return empty
 
         return {
             "pid": data.get("pid"),
             "updated_at": data.get("updated_at"),
             "active_tasks": [task for task in active_tasks if isinstance(task, dict)],
-            "recent_failures": [failure for failure in recent_failures if isinstance(failure, dict)],
+            "recent_failures": [
+                failure for failure in recent_failures if isinstance(failure, dict)
+            ],
         }
 
-    def _validate_task(self, *, task_kind: str, label: str, source_key: Optional[str]) -> Optional[str]:
+    def _validate_task(
+        self, *, task_kind: str, label: str, source_key: Optional[str]
+    ) -> Optional[str]:
         if task_kind not in ALLOWED_TASK_KINDS:
             raise ValueError(f"task_kind must be one of {sorted(ALLOWED_TASK_KINDS)}")
-        if not isinstance(label, str) or not label.strip() or len(label.strip()) > _MAX_LABEL_LENGTH:
+        if (
+            not isinstance(label, str)
+            or not label.strip()
+            or len(label.strip()) > _MAX_LABEL_LENGTH
+        ):
             raise ValueError("label must be a non-empty safe string up to 160 characters")
         if source_key is None:
             return None

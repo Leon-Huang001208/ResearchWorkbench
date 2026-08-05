@@ -47,7 +47,9 @@ def _default_managed_processes() -> list[ManagedProcess]:
                 )
                 managed.append(ManagedProcess(pid=pid, role=role, attribution_kind="worker"))
     except Exception as exc:
-        logger.warning("resource monitor could not read knowledge worker pids", error_type=type(exc).__name__)
+        logger.warning(
+            "resource monitor could not read knowledge worker pids", error_type=type(exc).__name__
+        )
 
     try:
         from services.crawl_scheduler import get_scheduler_process_status
@@ -63,7 +65,9 @@ def _default_managed_processes() -> list[ManagedProcess]:
                 )
             )
     except Exception as exc:
-        logger.warning("resource monitor could not read scheduler pid", error_type=type(exc).__name__)
+        logger.warning(
+            "resource monitor could not read scheduler pid", error_type=type(exc).__name__
+        )
     return managed
 
 
@@ -402,7 +406,9 @@ class ResourceMonitoringService:
         try:
             candidates = self._managed_process_provider()
         except Exception as exc:
-            logger.warning("resource monitor managed process provider failed", error_type=type(exc).__name__)
+            logger.warning(
+                "resource monitor managed process provider failed", error_type=type(exc).__name__
+            )
             return []
         managed: list[ManagedProcess] = []
         for candidate in candidates:
@@ -423,13 +429,19 @@ class ResourceMonitoringService:
         try:
             payload = self._task_snapshot_reader(pid)
         except Exception as exc:
-            logger.warning("resource monitor task snapshot read failed", pid=pid, error_type=type(exc).__name__)
+            logger.warning(
+                "resource monitor task snapshot read failed", pid=pid, error_type=type(exc).__name__
+            )
             return empty
         if not isinstance(payload, dict):
             return empty
         return {
-            "active_tasks": [item for item in payload.get("active_tasks", []) if isinstance(item, dict)],
-            "recent_failures": [item for item in payload.get("recent_failures", []) if isinstance(item, dict)],
+            "active_tasks": [
+                item for item in payload.get("active_tasks", []) if isinstance(item, dict)
+            ],
+            "recent_failures": [
+                item for item in payload.get("recent_failures", []) if isinstance(item, dict)
+            ],
         }
 
     def _read_core_field(
