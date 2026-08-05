@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import os
 import threading
 import time
@@ -87,6 +88,7 @@ class ResourceMonitoringService:
         self._io_baselines: Dict[Tuple[int, float], Tuple[float, int, int]] = {}
         self._process_cache: Dict[Tuple[int, float], psutil.Process] = {}
         self._cpu_warmed_processes: set[Tuple[int, float]] = set()
+        self._host_cpu_warmed_up = False
         self._has_warmed_up = False
         self._managed_process_provider = managed_process_provider or _default_managed_processes
         self._task_snapshot_reader = task_snapshot_reader or self._read_task_snapshot
@@ -105,6 +107,7 @@ class ResourceMonitoringService:
         """在锁保护下采集一次资源快照。"""
         sampled_at = datetime.now(timezone.utc).isoformat()
         sample_monotonic = time.monotonic()
+        host, host_warnings = self._collect_host_snapshot()
 
         try:
             root = psutil.Process(self._root_pid)
@@ -116,7 +119,7 @@ class ResourceMonitoringService:
                 error_type=type(exc).__name__,
             )
             self._cleanup_process_state(set())
-            snapshot = self._unavailable_snapshot(sampled_at)
+            snapshot = self._unavailable_snapshot(sampled_at, host, host_warnings)
             self._history.append(snapshot)
             return snapshot
 
@@ -133,7 +136,7 @@ class ResourceMonitoringService:
                 ),
             )
 
-        warnings: list[Dict[str, Any]] = []
+        warnings: list[Dict[str, Any]] = list(host_warnings)
         for managed in self._managed_processes():
             roles_by_pid[managed.pid] = managed
             if managed.pid in {process.pid for process in discovered_processes}:
@@ -181,7 +184,7 @@ class ResourceMonitoringService:
                         error_type=type(exc).__name__,
                     )
                     self._cleanup_process_state(set())
-                    snapshot = self._unavailable_snapshot(sampled_at)
+                    snapshot = self._unavailable_snapshot(sampled_at, host, warnings)
                     self._history.append(snapshot)
                     return snapshot
 
@@ -200,7 +203,8 @@ class ResourceMonitoringService:
             "root_pid": self._root_pid,
             "status": status,
             "warnings": warnings,
-            "summary": self._build_summary(process_samples),
+            "host": host,
+            "summary": self._build_summary(process_samples, host),
             "processes": process_samples,
             "task_failures": task_failures,
         }
@@ -488,6 +492,177 @@ class ResourceMonitoringService:
         )
         unavailable_reasons.append(f"{field}:{type(exc).__name__}")
 
+    def _collect_host_snapshot(self) -> Tuple[Dict[str, Any], list[Dict[str, Any]]]:
+        """采集整机容量，不枚举或访问受控范围外的任何进程。"""
+        host: Dict[str, Any] = {
+            "cpu_percent": None,
+            "cpu_idle_percent": None,
+            "logical_cpu_count": None,
+            "memory_total_bytes": None,
+            "memory_used_bytes": None,
+            "memory_available_bytes": None,
+            "memory_available_percent": None,
+        }
+        warnings: list[Dict[str, Any]] = []
+
+        try:
+            cpu_percent = psutil.cpu_percent(interval=None)
+        except _OPTIONAL_FIELD_EXCEPTIONS as exc:
+            self._record_unavailable_host_field(
+                field="cpu_percent",
+                error_type=type(exc).__name__,
+                warnings=warnings,
+            )
+        else:
+            if self._is_valid_percentage(cpu_percent):
+                if self._host_cpu_warmed_up:
+                    host["cpu_percent"] = float(cpu_percent)
+                    host["cpu_idle_percent"] = 100.0 - float(cpu_percent)
+                self._host_cpu_warmed_up = True
+            else:
+                self._record_unavailable_host_field(
+                    field="cpu_percent",
+                    error_type="invalid_value",
+                    warnings=warnings,
+                )
+
+        try:
+            logical_cpu_count = psutil.cpu_count(logical=True)
+        except _OPTIONAL_FIELD_EXCEPTIONS as exc:
+            self._record_unavailable_host_field(
+                field="logical_cpu_count",
+                error_type=type(exc).__name__,
+                warnings=warnings,
+            )
+        else:
+            if (
+                isinstance(logical_cpu_count, int)
+                and not isinstance(logical_cpu_count, bool)
+                and logical_cpu_count > 0
+            ):
+                host["logical_cpu_count"] = logical_cpu_count
+            else:
+                self._record_unavailable_host_field(
+                    field="logical_cpu_count",
+                    error_type="invalid_value",
+                    warnings=warnings,
+                )
+
+        try:
+            memory = psutil.virtual_memory()
+        except _OPTIONAL_FIELD_EXCEPTIONS as exc:
+            for field in (
+                "memory_total_bytes",
+                "memory_used_bytes",
+                "memory_available_bytes",
+                "memory_available_percent",
+            ):
+                self._record_unavailable_host_field(
+                    field=field,
+                    error_type=type(exc).__name__,
+                    warnings=warnings,
+                )
+        else:
+            total = self._read_host_memory_value(
+                memory,
+                "total",
+                "memory_total_bytes",
+                warnings,
+                minimum=1,
+            )
+            used = self._read_host_memory_value(
+                memory,
+                "used",
+                "memory_used_bytes",
+                warnings,
+                minimum=0,
+                maximum=total,
+            )
+            available = self._read_host_memory_value(
+                memory,
+                "available",
+                "memory_available_bytes",
+                warnings,
+                minimum=0,
+                maximum=total,
+            )
+            host["memory_total_bytes"] = total
+            host["memory_used_bytes"] = used
+            host["memory_available_bytes"] = available
+            if total is not None and available is not None:
+                host["memory_available_percent"] = available / total * 100.0
+            else:
+                self._record_unavailable_host_field(
+                    field="memory_available_percent",
+                    error_type="invalid_value",
+                    warnings=warnings,
+                )
+
+        return host, warnings
+
+    def _read_host_memory_value(
+        self,
+        memory: Any,
+        attribute: str,
+        field: str,
+        warnings: list[Dict[str, Any]],
+        *,
+        minimum: int,
+        maximum: Optional[int] = None,
+    ) -> Optional[int]:
+        """读取并校验主机内存字段，确保无效数据不会伪装为零。"""
+        try:
+            value = getattr(memory, attribute)
+        except _OPTIONAL_FIELD_EXCEPTIONS as exc:
+            self._record_unavailable_host_field(
+                field=field,
+                error_type=type(exc).__name__,
+                warnings=warnings,
+            )
+            return None
+
+        valid = isinstance(value, int) and not isinstance(value, bool) and value >= minimum
+        if maximum is not None:
+            valid = valid and value <= maximum
+        if not valid:
+            self._record_unavailable_host_field(
+                field=field,
+                error_type="invalid_value",
+                warnings=warnings,
+            )
+            return None
+        return value
+
+    @staticmethod
+    def _is_valid_percentage(value: Any) -> bool:
+        return (
+            isinstance(value, (int, float))
+            and not isinstance(value, bool)
+            and math.isfinite(value)
+            and 0.0 <= value <= 100.0
+        )
+
+    def _record_unavailable_host_field(
+        self,
+        *,
+        field: str,
+        error_type: str,
+        warnings: list[Dict[str, Any]],
+    ) -> None:
+        logger.warning(
+            "resource monitor host field unavailable",
+            root_pid=self._root_pid,
+            field=field,
+            error_type=error_type,
+        )
+        warnings.append(
+            {
+                "code": "host_field_unavailable",
+                "field": field,
+                "error_type": error_type,
+            }
+        )
+
     def _io_rates(
         self,
         *,
@@ -560,29 +735,54 @@ class ResourceMonitoringService:
         return warnings
 
     @staticmethod
-    def _build_summary(process_samples: list[Dict[str, Any]]) -> Dict[str, Any]:
+    def _build_summary(
+        process_samples: list[Dict[str, Any]], host: Dict[str, Any]
+    ) -> Dict[str, Any]:
         def aggregate(field: str) -> Optional[float]:
             values = [sample[field] for sample in process_samples if sample[field] is not None]
             return sum(values) if values else None
 
+        cpu_percent = aggregate("cpu_percent")
+        memory_bytes = aggregate("memory_bytes")
+        logical_cpu_count = host["logical_cpu_count"]
+        memory_total_bytes = host["memory_total_bytes"]
+
         return {
-            "cpu_percent": aggregate("cpu_percent"),
-            "memory_bytes": aggregate("memory_bytes"),
+            "cpu_percent": cpu_percent,
+            "memory_bytes": memory_bytes,
+            "cpu_host_percent": (
+                cpu_percent / logical_cpu_count
+                if cpu_percent is not None and logical_cpu_count is not None
+                else None
+            ),
+            "memory_host_percent": (
+                memory_bytes / memory_total_bytes * 100.0
+                if memory_bytes is not None and memory_total_bytes is not None
+                else None
+            ),
             "process_count": len(process_samples),
             "disk_read_bytes_per_second": aggregate("disk_read_bytes_per_second"),
             "disk_write_bytes_per_second": aggregate("disk_write_bytes_per_second"),
             "network_connection_count": aggregate("network_connection_count"),
         }
 
-    def _unavailable_snapshot(self, sampled_at: str) -> Dict[str, Any]:
+    def _unavailable_snapshot(
+        self,
+        sampled_at: str,
+        host: Dict[str, Any],
+        host_warnings: list[Dict[str, Any]],
+    ) -> Dict[str, Any]:
         return {
             "sampled_at": sampled_at,
             "root_pid": self._root_pid,
             "status": "unavailable",
-            "warnings": [{"code": "root_process_unavailable"}],
+            "warnings": [*host_warnings, {"code": "root_process_unavailable"}],
+            "host": host,
             "summary": {
                 "cpu_percent": None,
                 "memory_bytes": None,
+                "cpu_host_percent": None,
+                "memory_host_percent": None,
                 "process_count": 0,
                 "disk_read_bytes_per_second": None,
                 "disk_write_bytes_per_second": None,

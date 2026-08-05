@@ -204,7 +204,17 @@ def test_second_snapshot_calculates_cpu_io_rates_and_aggregates_summary(
     snapshot = service.collect_snapshot()
 
     assert snapshot["status"] == "ok"
-    assert snapshot["summary"] == {
+    assert {
+        key: snapshot["summary"][key]
+        for key in {
+            "cpu_percent",
+            "memory_bytes",
+            "process_count",
+            "disk_read_bytes_per_second",
+            "disk_write_bytes_per_second",
+            "network_connection_count",
+        }
+    } == {
         "cpu_percent": 18.5,
         "memory_bytes": 300,
         "process_count": 2,
@@ -212,9 +222,153 @@ def test_second_snapshot_calculates_cpu_io_rates_and_aggregates_summary(
         "disk_write_bytes_per_second": 50.0,
         "network_connection_count": 3,
     }
+    assert snapshot["summary"]["cpu_host_percent"] == (18.5 / snapshot["host"]["logical_cpu_count"])
+    assert snapshot["summary"]["memory_host_percent"] == (
+        300 / snapshot["host"]["memory_total_bytes"] * 100.0
+    )
     root_sample = next(item for item in snapshot["processes"] if item["pid"] == root.pid)
     assert root_sample["disk_read_bytes_per_second"] == 30.0
     assert root.cpu_intervals == [None, None]
+
+
+def test_snapshot_collects_host_capacity_without_global_process_scan(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """主机汇总只读取主机 API，绝不扩大受控 PID 的采集范围。"""
+    gibibyte = 1024**3
+    root = FakeProcess(
+        101,
+        None,
+        name="api",
+        cpu_samples=[0.0, 40.0],
+        memory_bytes=4 * gibibyte,
+    )
+    host_cpu_samples = iter([0.0, 40.0])
+
+    monkeypatch.setattr(resource_monitor_service.psutil, "Process", lambda _: root)
+    monkeypatch.setattr(
+        resource_monitor_service.psutil,
+        "cpu_percent",
+        lambda interval=None: next(host_cpu_samples),
+    )
+    monkeypatch.setattr(
+        resource_monitor_service.psutil,
+        "cpu_count",
+        lambda logical=True: 8,
+    )
+    monkeypatch.setattr(
+        resource_monitor_service.psutil,
+        "virtual_memory",
+        lambda: SimpleNamespace(
+            total=16 * gibibyte,
+            used=8 * gibibyte,
+            available=8 * gibibyte,
+        ),
+    )
+    monkeypatch.setattr(
+        resource_monitor_service.psutil,
+        "process_iter",
+        lambda: pytest.fail("host capacity sampling must not enumerate system processes"),
+    )
+    monkeypatch.setattr(resource_monitor_service.time, "monotonic", iter([10.0, 12.0]).__next__)
+    service = resource_monitor_service.ResourceMonitoringService(root_pid=101)
+
+    warming_up = service.collect_snapshot()
+    snapshot = service.collect_snapshot()
+
+    assert warming_up["host"]["cpu_percent"] is None
+    assert warming_up["host"]["cpu_idle_percent"] is None
+    assert snapshot["host"] == {
+        "cpu_percent": 40.0,
+        "cpu_idle_percent": 60.0,
+        "logical_cpu_count": 8,
+        "memory_total_bytes": 16 * gibibyte,
+        "memory_used_bytes": 8 * gibibyte,
+        "memory_available_bytes": 8 * gibibyte,
+        "memory_available_percent": 50.0,
+    }
+    assert snapshot["summary"]["cpu_host_percent"] == 5.0
+    assert snapshot["summary"]["memory_host_percent"] == 25.0
+
+
+def test_host_field_failures_and_invalid_values_are_degraded_with_warnings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """主机字段异常或无效值必须保持未知，并保留稳定警告码。"""
+
+    class CapturingLogger:
+        def __init__(self) -> None:
+            self.warnings: list[tuple[str, dict[str, object]]] = []
+
+        def warning(self, message: str, **kwargs: object) -> None:
+            self.warnings.append((message, kwargs))
+
+    root = FakeProcess(101, None, name="api")
+    logger = CapturingLogger()
+
+    def unavailable_cpu(interval: float | None = None) -> float:
+        raise psutil.Error("cpu unavailable")
+
+    def unavailable_memory() -> SimpleNamespace:
+        raise psutil.Error("memory unavailable")
+
+    monkeypatch.setattr(resource_monitor_service.psutil, "Process", lambda _: root)
+    monkeypatch.setattr(resource_monitor_service.psutil, "cpu_percent", unavailable_cpu)
+    monkeypatch.setattr(resource_monitor_service.psutil, "cpu_count", lambda logical=True: None)
+    monkeypatch.setattr(resource_monitor_service.psutil, "virtual_memory", unavailable_memory)
+    monkeypatch.setattr(resource_monitor_service, "logger", logger)
+    service = resource_monitor_service.ResourceMonitoringService(root_pid=101)
+
+    snapshot = service.collect_snapshot()
+
+    assert snapshot["host"] == {
+        "cpu_percent": None,
+        "cpu_idle_percent": None,
+        "logical_cpu_count": None,
+        "memory_total_bytes": None,
+        "memory_used_bytes": None,
+        "memory_available_bytes": None,
+        "memory_available_percent": None,
+    }
+    assert snapshot["summary"]["cpu_host_percent"] is None
+    assert snapshot["summary"]["memory_host_percent"] is None
+    assert snapshot["status"] == "degraded"
+    assert snapshot["warnings"] == [
+        {
+            "code": "host_field_unavailable",
+            "field": "cpu_percent",
+            "error_type": "Error",
+        },
+        {
+            "code": "host_field_unavailable",
+            "field": "logical_cpu_count",
+            "error_type": "invalid_value",
+        },
+        {
+            "code": "host_field_unavailable",
+            "field": "memory_total_bytes",
+            "error_type": "Error",
+        },
+        {
+            "code": "host_field_unavailable",
+            "field": "memory_used_bytes",
+            "error_type": "Error",
+        },
+        {
+            "code": "host_field_unavailable",
+            "field": "memory_available_bytes",
+            "error_type": "Error",
+        },
+        {
+            "code": "host_field_unavailable",
+            "field": "memory_available_percent",
+            "error_type": "Error",
+        },
+    ]
+    assert all(
+        message == "resource monitor host field unavailable" and "error_type" in details
+        for message, details in logger.warnings
+    )
 
 
 def test_known_worker_pid_is_collected_without_global_process_scan(

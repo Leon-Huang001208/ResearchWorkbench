@@ -61,12 +61,13 @@ app/api or app/cli
 Purpose:
 
 - `ResourceTaskRegistry` 为 AlphaFoundry 的抓取、PDF、知识处理、Wind 和报告任务记录受控运行上下文，并以每 PID 原子 JSON 快照供 API 进程读取。
-- `ResourceMonitoringService` 只合并 API 进程树、既有调度器/知识 Worker PID 和这些任务快照；API 内任务标记为共享资源估算，独立 Worker 标记为精确进程资源。
+- `ResourceMonitoringService` 只合并 API 进程树、既有调度器/知识 Worker PID 和这些任务快照；同时读取整机 CPU 容量与内存汇总。API 内任务标记为共享资源估算，独立 Worker 标记为精确进程资源。
 - `ResourceMonitorAlertService` 将任务失败、受控进程缺失、采样失败和持续资源压力保存为既有 Monitoring 告警/事件状态机中的 `resource_monitoring` 事件，并负责确认、恢复和历史查询。
 
 Safety boundary:
 
-- 不枚举全系统进程，不保存命令参数、请求内容或异常原文。
+- 不枚举全系统进程；主机汇总仅调用 `psutil.cpu_percent(interval=None)`、`psutil.cpu_count(logical=True)` 和 `psutil.virtual_memory()`，不保存命令参数、请求内容或异常原文。
+- 首个非阻塞主机 CPU 样本仅用于预热；采集异常或无效主机字段使用 `host_field_unavailable` 降级为 `None`。
 - 未恢复事件不受历史查询窗口限制；原始实时资源样本仍仅保留在内存短窗口中。
 
 Update this section when:
