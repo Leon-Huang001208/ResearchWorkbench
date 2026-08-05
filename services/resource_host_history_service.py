@@ -6,7 +6,6 @@ import math
 from collections.abc import Callable, Mapping
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
-from uuid import uuid4
 
 from core.contracts.monitoring import HealthMetrics, Subsystem
 from core.observability import get_logger
@@ -52,26 +51,30 @@ class ResourceHostHistoryService:
         """在当前 UTC 分钟尚未保存时持久化一条安全的容量摘要。"""
         try:
             extra = self._safe_extra(snapshot)
-            if extra is None:
-                return False
+        except Exception as exc:
+            logger.warning("resource host history snapshot rejected", error_type=type(exc).__name__)
+            return False
+        if extra is None:
+            return False
+
+        try:
             current_time = self._as_utc(self._now())
             minute = current_time.replace(second=0, microsecond=0)
-            if self._has_recorded_minute(minute):
-                return False
-
-            self._repository.save_health_metrics(
+            saved = self._repository.save_health_metrics_if_absent(
                 HealthMetrics(
-                    metric_id=f"resource-host-{minute.strftime('%Y%m%dT%H%M')}-{uuid4().hex}",
+                    metric_id=f"resource-host-{minute.strftime('%Y%m%d%H%M')}",
                     subsystem=Subsystem.RESOURCE_MONITORING,
                     timestamp=minute,
                     extra=extra,
                 )
             )
+            if saved is None:
+                return False
             self.purge_expired(current_time)
             return True
         except Exception as exc:
             logger.warning("resource host history record failed", error_type=type(exc).__name__)
-            return False
+            raise
 
     def list_history(self) -> list[dict[str, object]]:
         """返回最多 1500 条按时间升序排列的安全公开容量点位。"""
@@ -103,40 +106,31 @@ class ResourceHostHistoryService:
         try:
             current_time = self._as_utc(now or self._now())
             cutoff = current_time - _RETENTION
-            metrics = self._repository.list_metrics(
-                subsystem=Subsystem.RESOURCE_MONITORING,
-                until=cutoff,
-                limit=_MAX_HISTORY_POINTS,
-                metric_type="host_capacity",
-            )
-            expired_ids = [
-                metric.metric_id
-                for metric in metrics
-                if self._is_host_capacity(metric)
-                and self._as_utc(metric.timestamp) < cutoff
-                and isinstance(metric.metric_id, str)
-                and metric.metric_id
-            ]
-            if not expired_ids:
-                return 0
-            return self._repository.delete_health_metrics(expired_ids)
+            total_deleted = 0
+            while True:
+                metrics = self._repository.list_metrics(
+                    subsystem=Subsystem.RESOURCE_MONITORING,
+                    until=cutoff,
+                    limit=_MAX_HISTORY_POINTS,
+                    metric_type="host_capacity",
+                )
+                expired_ids = [
+                    metric.metric_id
+                    for metric in metrics
+                    if self._is_host_capacity(metric)
+                    and self._as_utc(metric.timestamp) < cutoff
+                    and isinstance(metric.metric_id, str)
+                    and metric.metric_id
+                ]
+                if not expired_ids:
+                    return total_deleted
+                deleted = self._repository.delete_health_metrics(expired_ids)
+                if deleted <= 0:
+                    raise RuntimeError("resource host history cleanup made no progress")
+                total_deleted += deleted
         except Exception as exc:
             logger.warning("resource host history purge failed", error_type=type(exc).__name__)
-            return 0
-
-    def _has_recorded_minute(self, minute: datetime) -> bool:
-        metrics = self._repository.list_metrics(
-            subsystem=Subsystem.RESOURCE_MONITORING,
-            since=minute,
-            until=minute + timedelta(minutes=1) - timedelta(microseconds=1),
-            limit=_MAX_HISTORY_POINTS,
-            metric_type="host_capacity",
-        )
-        return any(
-            self._is_host_capacity(metric)
-            and minute <= self._as_utc(metric.timestamp) < minute + timedelta(minutes=1)
-            for metric in metrics
-        )
+            raise
 
     @staticmethod
     def _is_host_capacity(metric: HealthMetrics) -> bool:

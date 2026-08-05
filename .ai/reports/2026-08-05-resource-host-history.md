@@ -6,8 +6,9 @@
 ## 范围
 
 - 新增 `ResourceHostHistoryService`，将整机容量的白名单字段保存到既有 `HealthMetrics.extra`。
-- 每个 UTC 分钟持久化最多一条 `host_capacity`，仓储会先按类型过滤再限制查询，公开查询最多返回 1500 个按时间升序的安全公开点。
-- 在写入时清理超过 24 小时的同类记录；资源事件及其他监控指标不会被删除。
+- 每个 UTC 分钟使用确定性主键保存最多一条 `host_capacity`，仓储会先按类型过滤再限制查询，公开查询最多返回 1500 个按时间升序的安全公开点。
+- 条件写入在 savepoint 内处理唯一冲突，不污染外层事务；其他持久化异常记录安全 warning 后交由调用方事务回滚。
+- 在写入时按 1500 条一批循环清理所有超过 24 小时的同类记录；资源事件及其他监控指标不会被删除。
 - 为 `MonitoringRepositoryImpl` 增加按非空 ID 精确删除指标的能力，不创建表或迁移。
 
 ## 隐私与失败处理
@@ -21,7 +22,7 @@
 
 | 命令 | 实际结果 |
 | --- | --- |
-| `python -m pytest tests/unit/test_resource_host_history_service.py tests/unit/test_monitoring.py -q` | 49 passed |
+| `python -m pytest tests/unit/test_resource_host_history_service.py tests/unit/test_monitoring.py -q` | 53 passed |
 | `ruff check services/resource_host_history_service.py data_layer/repositories/monitoring_repository.py tests/unit/test_resource_host_history_service.py` | passed |
 | `black --check services/resource_host_history_service.py data_layer/repositories/monitoring_repository.py tests/unit/test_resource_host_history_service.py` | passed |
 | `isort --check-only services/resource_host_history_service.py data_layer/repositories/monitoring_repository.py tests/unit/test_resource_host_history_service.py` | passed |

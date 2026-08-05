@@ -3,6 +3,8 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from sqlalchemy.exc import IntegrityError
+
 from core.contracts.monitoring import (
     AlertPayload,
     AlertSeverity,
@@ -42,6 +44,32 @@ class MonitoringRepositoryImpl(BaseRepository):
             "health metrics saved", metric_id=metrics.metric_id, subsystem=metrics.subsystem.value
         )
         return self._dict_to_metrics(self._db_metrics_to_dict(db_obj))
+
+    def save_health_metrics_if_absent(self, metrics: HealthMetrics) -> Optional[HealthMetrics]:
+        """通过 savepoint 保存指标；主键冲突时不污染外层事务。"""
+        data = self._metrics_to_dict(metrics)
+        try:
+            with self.db.begin_nested():
+                db_obj = HealthMetricsDB(**data)
+                self.db.add(db_obj)
+                self.db.flush()
+                saved = self._dict_to_metrics(self._db_metrics_to_dict(db_obj))
+        except IntegrityError:
+            logger.info(
+                "health metrics already exists",
+                metric_id=metrics.metric_id,
+                subsystem=metrics.subsystem.value,
+            )
+            return None
+        except Exception as exc:
+            logger.warning("health metrics conditional save failed", error_type=type(exc).__name__)
+            raise
+        logger.info(
+            "health metrics saved",
+            metric_id=metrics.metric_id,
+            subsystem=metrics.subsystem.value,
+        )
+        return saved
 
     def get_latest_metrics(self, subsystem: Subsystem) -> Optional[HealthMetrics]:
         """获取子系统最新指标"""
@@ -84,12 +112,13 @@ class MonitoringRepositoryImpl(BaseRepository):
         if not valid_ids:
             return 0
         try:
-            deleted = (
-                self.db.query(HealthMetricsDB)
-                .filter(HealthMetricsDB.metric_id.in_(valid_ids))
-                .delete(synchronize_session=False)
-            )
-            self.db.flush()
+            with self.db.begin_nested():
+                deleted = (
+                    self.db.query(HealthMetricsDB)
+                    .filter(HealthMetricsDB.metric_id.in_(valid_ids))
+                    .delete(synchronize_session=False)
+                )
+                self.db.flush()
             logger.info(
                 "health metrics deleted",
                 metric_count=len(valid_ids),
@@ -97,7 +126,7 @@ class MonitoringRepositoryImpl(BaseRepository):
             )
             return deleted
         except Exception as exc:
-            logger.error("health metrics deletion failed", error_type=type(exc).__name__)
+            logger.warning("health metrics deletion failed", error_type=type(exc).__name__)
             raise
 
     # ── DriftReport ──────────────────────────────────────
