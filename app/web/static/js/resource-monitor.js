@@ -389,7 +389,7 @@ function renderProcessTable() {
 }
 
 function compareProcesses(left, right) {
-    const value = processSortValue(right, sortKey) - processSortValue(left, sortKey);
+    const value = processSortValue(left, sortKey) - processSortValue(right, sortKey);
     if (value !== 0) return value * sortDirection;
     return left.pid - right.pid;
 }
