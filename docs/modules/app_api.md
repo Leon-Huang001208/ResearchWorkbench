@@ -286,17 +286,25 @@ Update this section when:
 
 Purpose:
 
-- System health check, worker status, status bar, and event publishing endpoints.
+- System health check, worker status, status bar, event publishing, and scoped process-resource endpoints.
 - `GET /api/system/health` — full health check with queue depth, pending/processing/completed/failed counts, and worker heartbeats.
 - `GET /api/system/health/minimal` — lightweight health check without database query.
 - `GET /api/system/workers/status` — aggregated worker/scheduler status + queue stats + processing stats (today, last_7_days, last_30_days, total, yesterday_same_time, daily_avg_7d).
 - `GET /api/system/status-bar` — dashboard status bar data (git branch, DB type, LLM provider, document count, error/warning counts).
 - `POST /api/system/event` — publish a system event to the event bus (for external integration/testing).
+- `GET /api/system/resource-usage` — current resource snapshot for the API root process and its recursive descendants only; it does not inspect machine-wide processes.
+- `GET /api/system/resource-usage/history?window_seconds=` — bounded in-memory snapshot history; `window_seconds` defaults to `300` and must be in the inclusive range `2`–`300`.
+
+Resource usage dependency:
+
+- `get_resource_monitoring_service()` lazy-imports and retains one `ResourceMonitoringService` instance on first request, avoiding an eager `psutil` import at API startup.
+- Responses redact command arguments and map collection failures to public warning codes only: `field_unavailable`, `root_process_unavailable`, or `partial_data`. Internal exception classes and details are not exposed; per-process `unavailable_reason` is the stable `field_unavailable` value when data is unavailable.
 
 Related service:
 
 - `services/system_event_bus.py`
 - `services/ingestion_queue_service.py`
+- `services/resource_monitor_service.py`
 
 Update this section when:
 

@@ -8,6 +8,8 @@
 
 ### Added
 
+- **进程资源监控 API**：新增 `GET /api/system/resource-usage` 与 `GET /api/system/resource-usage/history`。接口仅采集 API 根进程及递归子进程；历史窗口默认 300 秒、范围为 2–300 秒。响应对命令参数、内部异常类型和采集细节脱敏，并以稳定降级码返回不可用字段或部分数据。
+
 - **报告项目排序**：模板工作台可保存完整项目卡片排序；排序写入各项目 `project.yaml` 的 `display_order`，重新打开仍保持一致。
 
 - **内置产业链图谱交付**：恢复 `data/industry_graphs/` 的 AI 算力、半导体国产化和新能源上游图谱，并将其纳入桌面 Python sidecar，离线桌面环境无需用户自行创建图谱文件。

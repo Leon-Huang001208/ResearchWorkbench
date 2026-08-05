@@ -1156,6 +1156,65 @@ Wind Excel 适配器通过 xlwings → AppleScript → macOS Excel Wind 插件�
 
 ### 系统 API
 
+#### GET /api/system/resource-usage
+
+返回当前 API 根进程及其递归子进程的资源快照。该接口仅采集 AlphaFoundry 当前进程树，不会枚举或返回整台机器上的其他进程。
+
+**响应示例**:
+
+```json
+{
+  "sampled_at": "2026-08-05T00:00:00+00:00",
+  "root_pid": 12345,
+  "status": "ok",
+  "warnings": [],
+  "summary": {
+    "cpu_percent": 12.5,
+    "memory_bytes": 104857600,
+    "process_count": 2,
+    "disk_read_bytes_per_second": 2048.0,
+    "disk_write_bytes_per_second": 1024.0,
+    "network_connection_count": 3
+  },
+  "processes": [
+    {
+      "pid": 12345,
+      "role": "API",
+      "command": "python [redacted] [redacted]",
+      "cpu_percent": 12.5,
+      "memory_bytes": 104857600,
+      "unavailable_reason": null
+    }
+  ]
+}
+```
+
+`status` 可能为 `warming_up`、`ok`、`degraded` 或 `unavailable`。首次采样时 CPU 与磁盘速率可能尚未建立基线。命令参数始终脱敏；采集降级时，`warnings` 仅会使用 `field_unavailable`、`root_process_unavailable` 或 `partial_data`，且 `unavailable_reason` 仅返回稳定的 `field_unavailable`，不会暴露底层异常类型或详情。
+
+#### GET /api/system/resource-usage/history
+
+返回当前后端进程内保存的资源快照点。查询参数 `window_seconds` 为可选，默认 `300`，可接受范围为 `2` 至 `300`（含边界）；超出范围返回 `422`。历史容量最多保留 150 个点，进程重启后会清空。
+
+**响应示例**:
+
+```json
+{
+  "window_seconds": 300,
+  "points": [
+    {
+      "sampled_at": "2026-08-05T00:00:00+00:00",
+      "root_pid": 12345,
+      "status": "ok",
+      "warnings": [],
+      "summary": {"process_count": 2},
+      "processes": []
+    }
+  ]
+}
+```
+
+每个 `points` 元素遵循 `GET /api/system/resource-usage` 的相同范围限制与脱敏降级契约。
+
 #### GET /api/system/health
 
 获取系统健康状态，包含队列深度、Worker 心跳和数据库状态。

@@ -89,7 +89,7 @@
 | `app/api/routes/scenarios.py` | 情景 API：生成多情景分析 |
 | `app/api/routes/search.py` | 搜索 API：全局跨对象搜索 |
 | `app/api/routes/signal_lab.py` | 信号实验室 API：特征、标签、评分、回测 |
-| `app/api/routes/system.py` | 系统 API：健康检查、队列深度、Worker 心跳 |
+| `app/api/routes/system.py` | 系统 API：健康检查、队列深度、Worker 心跳，以及仅限 API 根进程树的资源快照与历史；资源服务按请求懒加载，异常降级仅返回稳定公开码 |
 | `app/api/routes/realtime.py` | 实时 API：SSE 事件推送、实时数据流 |
 
 ### app/cli/ - 命令行工具
