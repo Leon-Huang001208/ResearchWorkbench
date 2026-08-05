@@ -65,6 +65,18 @@ def test_resource_monitor_module_handles_lifecycle_bounds_and_safe_process_dom()
     assert "if (source === 'snapshot')" in source
     assert "publicStatus(snapshot.status) === 'unavailable'" in source
     assert "未发现 AlphaFoundry 进程" in source
+    assert "const DEPARTED_PROCESS_TTL_MS" in source
+    assert "const MAX_DEPARTED_PROCESSES" in source
+    assert "function pruneDepartedProcesses" in source
+    assert "processCache.delete(pid)" in source
+    assert "processTrends.delete(pid)" in source
+    assert "selectedProcessPid = null" in source
+    assert "resource-monitor-detail-close" in source
+    assert "Escape" in source
+    assert "function closeProcessDetail" in source
+    assert "focus()" in source
+    assert "function resizeResourceCharts" in source
+    assert "resizeResourceCharts();" in source
     assert "create_time == null ? '—'" in source
     assert "已退出" in source
     assert "window.echarts" in source
@@ -86,3 +98,5 @@ def test_resource_monitor_styles_keep_dense_responsive_tables_and_charts() -> No
     assert ".resource-process-table th:nth-child(2)," in style
     assert ".resource-process-table td:nth-child(2)," in style
     assert "nth-child(n + 2)" not in style
+    assert ".resource-process-table tbody tr:focus-visible" in style
+    assert ".resource-detail-close" in style

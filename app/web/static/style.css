@@ -13618,6 +13618,36 @@ tbody tr:hover {
     display: none;
 }
 
+#section-resource-monitor .resource-detail-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--apple-separator, var(--border));
+}
+
+#section-resource-monitor .resource-detail-header h3 {
+    flex: 1;
+    border-bottom: 0;
+}
+
+#section-resource-monitor .resource-detail-close {
+    margin-right: 10px;
+    padding: 5px 8px;
+    border: 1px solid var(--apple-separator, var(--border));
+    border-radius: 7px;
+    background: transparent;
+    color: var(--apple-secondary, var(--text-secondary));
+    cursor: pointer;
+    font: 700 11px var(--font-ui);
+}
+
+#section-resource-monitor .resource-detail-close:hover,
+#section-resource-monitor .resource-detail-close:focus-visible {
+    border-color: var(--apple-accent, var(--accent));
+    color: var(--apple-text, var(--text-primary));
+    outline: none;
+}
+
 #section-resource-monitor .resource-process-table-wrap {
     overflow-x: auto;
 }
@@ -13686,6 +13716,11 @@ tbody tr:hover {
 #section-resource-monitor .resource-process-table tbody tr:hover,
 #section-resource-monitor .resource-process-table tbody tr.selected {
     background: var(--apple-accent-light, rgba(245, 158, 11, .1));
+}
+
+#section-resource-monitor .resource-process-table tbody tr:focus-visible {
+    outline: 2px solid var(--apple-accent, var(--accent));
+    outline-offset: -2px;
 }
 
 #section-resource-monitor .resource-process-table tbody tr.departed td {

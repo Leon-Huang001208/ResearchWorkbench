@@ -8,6 +8,8 @@ import { apiCall, getChartColors } from './core.js';
 const MAX_POINTS = 150;
 const POLL_INTERVAL_MS = 2000;
 const BACKOFF_DELAYS = [4000, 6000, 8000, 10000];
+const DEPARTED_PROCESS_TTL_MS = 5 * 60 * 1000;
+const MAX_DEPARTED_PROCESSES = 50;
 const PUBLIC_STATUSES = new Set(['warming_up', 'ok', 'degraded', 'unavailable']);
 
 let isMonitoring = false;
@@ -21,6 +23,7 @@ let lastFailureAt = null;
 let retryDelay = null;
 let visibilityListenerAttached = false;
 let resizeListenerAttached = false;
+let keyboardListenerAttached = false;
 let cpuChart = null;
 let memoryChart = null;
 let points = [];
@@ -37,6 +40,8 @@ export function startResourceMonitoring() {
     bindControls();
     attachVisibilityListener();
     attachResizeListener();
+    attachKeyboardListener();
+    resizeResourceCharts();
     if (!canPoll()) {
         renderStatus('warming_up');
         return;
@@ -52,6 +57,10 @@ export function stopResourceMonitoring() {
     if (visibilityListenerAttached) {
         document.removeEventListener('visibilitychange', handleVisibilityChange);
         visibilityListenerAttached = false;
+    }
+    if (keyboardListenerAttached) {
+        document.removeEventListener('keydown', handleDrawerKeydown);
+        keyboardListenerAttached = false;
     }
 }
 
@@ -85,10 +94,24 @@ function attachResizeListener() {
     if (resizeListenerAttached) return;
     window.addEventListener('resize', () => {
         if (!isMonitoring) return;
-        cpuChart?.resize();
-        memoryChart?.resize();
+        resizeResourceCharts();
     });
     resizeListenerAttached = true;
+}
+
+function attachKeyboardListener() {
+    if (keyboardListenerAttached) return;
+    document.addEventListener('keydown', handleDrawerKeydown);
+    keyboardListenerAttached = true;
+}
+
+function handleDrawerKeydown(event) {
+    if (event.key === 'Escape' && selectedProcessPid !== null) closeProcessDetail();
+}
+
+function resizeResourceCharts() {
+    cpuChart?.resize();
+    memoryChart?.resize();
 }
 
 function handleVisibilityChange() {
@@ -98,6 +121,7 @@ function handleVisibilityChange() {
         return;
     }
     if (canPoll()) {
+        resizeResourceCharts();
         loadInitialHistory();
         pollSnapshot();
     }
@@ -217,9 +241,33 @@ function ingestSnapshot(snapshot, source) {
     });
     if (source === 'snapshot') {
         processCache.forEach((process, pid) => {
-            if (!currentPids.has(pid)) processCache.set(pid, { ...process, departed: true });
+            if (!currentPids.has(pid)) {
+                processCache.set(pid, {
+                    ...process,
+                    departed: true,
+                    departed_at: process.departed_at || sampledAt,
+                });
+            }
         });
+        pruneDepartedProcesses(sampledAt);
     }
+}
+
+function pruneDepartedProcesses(sampledAt) {
+    const now = new Date(sampledAt).getTime();
+    const cutoff = (Number.isFinite(now) ? now : Date.now()) - DEPARTED_PROCESS_TTL_MS;
+    const departed = [...processCache.entries()]
+        .filter(([, process]) => process.departed)
+        .sort(([, left], [, right]) => String(left.departed_at || '').localeCompare(String(right.departed_at || '')));
+    const expired = departed.filter(([, process]) => new Date(process.departed_at).getTime() < cutoff);
+    const overflow = departed.slice(0, Math.max(0, departed.length - MAX_DEPARTED_PROCESSES));
+    new Set([...expired, ...overflow].map(([pid]) => pid)).forEach(removeDepartedProcess);
+}
+
+function removeDepartedProcess(pid) {
+    processCache.delete(pid);
+    processTrends.delete(pid);
+    if (selectedProcessPid === pid) selectedProcessPid = null;
 }
 
 function appendProcessTrend(pid, sampledAt, process) {
@@ -291,6 +339,7 @@ function renderCharts() {
     const colors = getChartColors();
     cpuChart?.setOption(chartOption(labels, points.map(point => safeNumber(point.summary?.cpu_percent)), '%', colors.orange));
     memoryChart?.setOption(chartOption(labels, points.map(point => bytesToMiB(point.summary?.memory_bytes)), ' MiB', colors.blue));
+    resizeResourceCharts();
 }
 
 function renderChartNotice(element) {
@@ -391,6 +440,14 @@ function selectProcess(pid) {
     renderDetail();
 }
 
+function closeProcessDetail() {
+    const returnPid = selectedProcessPid;
+    selectedProcessPid = null;
+    renderProcessTable();
+    renderDetail();
+    document.querySelector(`#resource-monitor-processes tr[data-pid="${returnPid}"]`)?.focus();
+}
+
 function renderDetail() {
     const detail = document.getElementById('resource-monitor-detail');
     if (!detail) return;
@@ -401,8 +458,7 @@ function renderDetail() {
     }
     detail.classList.remove('hidden');
     detail.setAttribute('aria-hidden', 'false');
-    const title = document.createElement('h3');
-    title.textContent = '进程详情';
+    const header = createDetailHeader();
     const process = processCache.get(selectedProcessPid);
     if (!process) {
         const empty = document.createElement('p');
@@ -410,7 +466,7 @@ function renderDetail() {
         empty.textContent = selectedProcessPid === null
             ? '选择一个进程以查看详情。'
             : `PID ${selectedProcessPid} 已退出；保留最后一次采样信息`;
-        detail.replaceChildren(title, empty);
+        detail.replaceChildren(header, empty);
         return;
     }
     const grid = document.createElement('div');
@@ -428,7 +484,23 @@ function renderDetail() {
         departureNotice.className = 'resource-departure-notice';
         departureNotice.textContent = `PID ${process.pid} 已退出；保留最后一次采样信息`;
     }
-    detail.replaceChildren(title, grid, ...(departureNotice ? [departureNotice] : []), createTrend(process.pid));
+    detail.replaceChildren(header, grid, ...(departureNotice ? [departureNotice] : []), createTrend(process.pid));
+}
+
+function createDetailHeader() {
+    const header = document.createElement('div');
+    header.className = 'resource-detail-header';
+    const title = document.createElement('h3');
+    title.textContent = '进程详情';
+    const close = document.createElement('button');
+    close.id = 'resource-monitor-detail-close';
+    close.className = 'resource-detail-close';
+    close.type = 'button';
+    close.setAttribute('aria-label', '关闭进程详情');
+    close.textContent = '关闭';
+    close.addEventListener('click', closeProcessDetail);
+    header.append(title, close);
+    return header;
 }
 
 function createDetailItem(label, value) {
