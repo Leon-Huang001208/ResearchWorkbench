@@ -45,7 +45,10 @@ def test_resource_monitor_navigation_and_semantic_dom_contract() -> None:
 
 def test_resource_monitor_module_cache_and_navigation_lifecycle_contract() -> None:
     app_js = (ROOT / "app/web/static/js/app.js").read_text(encoding="utf-8")
+    template = (ROOT / "app/web/templates/index.html").read_text(encoding="utf-8")
 
+    assert '/static/js/app.js?v=20260805resourcecapacity1' in template
+    assert '/static/js/app.js?v=20260727modalhierarchy1' not in template
     assert "./resource-monitor.js?v=20260805d" in app_js
     assert "startResourceMonitoring" in app_js
     assert "stopResourceMonitoring" in app_js
