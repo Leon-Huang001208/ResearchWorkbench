@@ -17,7 +17,6 @@ logger = get_logger(__name__)
 _ROOT_UNAVAILABLE_EXCEPTIONS = (psutil.NoSuchProcess, psutil.AccessDenied, psutil.Error, OSError)
 _OPTIONAL_FIELD_EXCEPTIONS = (*_ROOT_UNAVAILABLE_EXCEPTIONS, NotImplementedError)
 _HISTORY_SIZE = 150
-_SENSITIVE_COMMAND_OPTIONS = {"token", "api-key", "password", "secret", "key"}
 
 
 class ResourceMonitoringService:
@@ -119,17 +118,37 @@ class ResourceMonitoringService:
         sample_monotonic: float,
         warming_up: bool,
     ) -> Dict[str, Any]:
-        """读取进程身份字段，并将可选字段的异常降级到单个字段。"""
-        create_time = process.create_time()
+        """逐字段读取进程数据，将单字段异常降级为 ``None``。"""
+        unavailable_reasons: list[str] = []
+        create_time = self._read_core_field(
+            process,
+            "create_time",
+            process.create_time,
+            unavailable_reasons,
+        )
         sample = {
             "pid": process.pid,
-            "parent_pid": process.ppid(),
-            "name": process.name(),
+            "parent_pid": self._read_core_field(
+                process,
+                "parent_pid",
+                process.ppid,
+                unavailable_reasons,
+            ),
+            "name": self._read_core_field(
+                process,
+                "name",
+                process.name,
+                unavailable_reasons,
+            ),
             "create_time": create_time,
-            "status": process.status(),
+            "status": self._read_core_field(
+                process,
+                "status",
+                process.status,
+                unavailable_reasons,
+            ),
             "role": "API" if is_root else "AlphaFoundry child process",
         }
-        unavailable_reasons: list[str] = []
 
         command = self._read_optional_field(
             process,
@@ -153,13 +172,16 @@ class ResourceMonitoringService:
             read_bytes = io_counters.read_bytes
             write_bytes = io_counters.write_bytes
 
-        read_rate, write_rate = self._io_rates(
-            pid=process.pid,
-            create_time=create_time,
-            sample_monotonic=sample_monotonic,
-            read_bytes=read_bytes,
-            write_bytes=write_bytes,
-        )
+        if create_time is None:
+            read_rate, write_rate = None, None
+        else:
+            read_rate, write_rate = self._io_rates(
+                pid=process.pid,
+                create_time=create_time,
+                sample_monotonic=sample_monotonic,
+                read_bytes=read_bytes,
+                write_bytes=write_bytes,
+            )
         if io_counters is not None and read_rate is None and write_rate is None:
             unavailable_reasons.extend(
                 [
@@ -206,6 +228,21 @@ class ResourceMonitoringService:
         )
         return sample
 
+    def _read_core_field(
+        self,
+        process: psutil.Process,
+        field: str,
+        reader: Any,
+        unavailable_reasons: list[str],
+    ) -> Any:
+        try:
+            return reader()
+        except psutil.NoSuchProcess:
+            raise
+        except _OPTIONAL_FIELD_EXCEPTIONS as exc:
+            self._record_unavailable_field(process, field, exc, unavailable_reasons)
+            return None
+
     def _read_optional_field(
         self,
         process: psutil.Process,
@@ -216,15 +253,24 @@ class ResourceMonitoringService:
         try:
             return reader()
         except _OPTIONAL_FIELD_EXCEPTIONS as exc:
-            logger.warning(
-                "resource monitor process field unavailable",
-                root_pid=self._root_pid,
-                pid=process.pid,
-                field=field,
-                error_type=type(exc).__name__,
-            )
-            unavailable_reasons.append(f"{field}:{type(exc).__name__}")
+            self._record_unavailable_field(process, field, exc, unavailable_reasons)
             return None
+
+    def _record_unavailable_field(
+        self,
+        process: psutil.Process,
+        field: str,
+        exc: Exception,
+        unavailable_reasons: list[str],
+    ) -> None:
+        logger.warning(
+            "resource monitor process field unavailable",
+            root_pid=self._root_pid,
+            pid=process.pid,
+            field=field,
+            error_type=type(exc).__name__,
+        )
+        unavailable_reasons.append(f"{field}:{type(exc).__name__}")
 
     def _io_rates(
         self,
@@ -259,29 +305,9 @@ class ResourceMonitoringService:
         if not command:
             return None
 
-        summary_parts = []
-        redact_next = False
-        for argument in command[:3]:
-            if redact_next:
-                summary_parts.append("***")
-                redact_next = False
-                continue
-
-            if "=" in argument:
-                option, _value = argument.split("=", 1)
-                if ResourceMonitoringService._is_sensitive_command_option(option):
-                    summary_parts.append(f"{option}=***")
-                    continue
-
-            summary_parts.append(argument)
-            redact_next = ResourceMonitoringService._is_sensitive_command_option(argument)
-
+        summary_parts = [command[0]]
+        summary_parts.extend("[redacted]" for _ in command[1:3])
         return " ".join(summary_parts)[:160]
-
-    @staticmethod
-    def _is_sensitive_command_option(argument: str) -> bool:
-        normalized = argument.lstrip("-").lower().replace("_", "-")
-        return normalized in _SENSITIVE_COMMAND_OPTIONS
 
     @staticmethod
     def _deduplicated_processes(processes: Iterable[psutil.Process]) -> Iterable[psutil.Process]:

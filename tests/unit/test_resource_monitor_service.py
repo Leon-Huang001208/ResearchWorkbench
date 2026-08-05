@@ -145,7 +145,7 @@ def test_snapshot_limits_collection_to_root_and_descendants_and_warms_up(
     assert unrelated.pid not in {process["pid"] for process in snapshot["processes"]}
     assert root.cpu_intervals == [None]
     assert snapshot["processes"][0]["role"] == "API"
-    assert snapshot["processes"][0]["command"] == "python --token ***"
+    assert snapshot["processes"][0]["command"] == "python [redacted] [redacted]"
     assert "topsecret" not in snapshot["processes"][0]["command"]
     assert snapshot["processes"][1]["role"] == "AlphaFoundry child process"
     assert {
@@ -170,14 +170,20 @@ def test_snapshot_limits_collection_to_root_and_descendants_and_warms_up(
     assert snapshot["summary"]["disk_read_bytes_per_second"] is None
 
 
-def test_command_summary_redacts_key_value_secrets() -> None:
+def test_command_summary_keeps_only_executable_and_redacts_all_arguments() -> None:
     summary = resource_monitor_service.ResourceMonitoringService._command_summary(
-        ["python", "API_KEY=topsecret", "--password=hunter2"]
+        ["python", "API_KEY=topsecret", "--client-secret=supersecret"]
     )
 
-    assert summary == "python API_KEY=*** --password=***"
+    assert summary == "python [redacted] [redacted]"
     assert "topsecret" not in summary
-    assert "hunter2" not in summary
+    assert "supersecret" not in summary
+
+    inline_code_summary = resource_monitor_service.ResourceMonitoringService._command_summary(
+        ["python", "-c", "token=embedded-secret"]
+    )
+    assert inline_code_summary == "python [redacted] [redacted]"
+    assert "embedded-secret" not in inline_code_summary
 
 
 def test_second_snapshot_calculates_cpu_io_rates_and_aggregates_summary(
@@ -252,6 +258,7 @@ def test_optional_field_errors_keep_root_and_child_with_none_values_and_structur
         101,
         name="worker",
         field_failures={
+            "name": psutil.AccessDenied(102),
             "io_counters": psutil.AccessDenied(102),
             "network_connection_count": NotImplementedError("unsupported"),
         },
@@ -276,8 +283,10 @@ def test_optional_field_errors_keep_root_and_child_with_none_values_and_structur
     assert samples[101]["thread_count"] is None
     assert "thread_count:AccessDenied" in samples[101]["unavailable_reason"]
     assert samples[102]["network_connection_count"] is None
+    assert samples[102]["name"] is None
     assert samples[102]["disk_read_bytes_per_second"] is None
     assert "io_counters:AccessDenied" in samples[102]["unavailable_reason"]
+    assert "name:AccessDenied" in samples[102]["unavailable_reason"]
     assert "network_connection_count:NotImplementedError" in samples[102]["unavailable_reason"]
     assert logger.warnings == [
         (
@@ -286,6 +295,15 @@ def test_optional_field_errors_keep_root_and_child_with_none_values_and_structur
                 "root_pid": 101,
                 "pid": 101,
                 "field": "thread_count",
+                "error_type": "AccessDenied",
+            },
+        ),
+        (
+            "resource monitor process field unavailable",
+            {
+                "root_pid": 101,
+                "pid": 102,
+                "field": "name",
                 "error_type": "AccessDenied",
             },
         ),
@@ -310,7 +328,7 @@ def test_optional_field_errors_keep_root_and_child_with_none_values_and_structur
     ]
 
 
-def test_root_core_identity_error_returns_unavailable_snapshot(
+def test_root_identity_field_error_is_degraded_to_none(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     root = FakeProcess(101, None, name="api", field_failures={"name": psutil.AccessDenied(101)})
@@ -320,8 +338,9 @@ def test_root_core_identity_error_returns_unavailable_snapshot(
 
     snapshot = service.collect_snapshot()
 
-    assert snapshot["status"] == "unavailable"
-    assert snapshot["processes"] == []
+    assert snapshot["status"] == "warming_up"
+    assert snapshot["processes"][0]["name"] is None
+    assert "name:AccessDenied" in snapshot["processes"][0]["unavailable_reason"]
 
 
 def test_processes_sort_by_cpu_then_pid_after_warm_up(monkeypatch: pytest.MonkeyPatch) -> None:
