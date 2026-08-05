@@ -25,6 +25,7 @@ let cpuChart = null;
 let memoryChart = null;
 let points = [];
 let selectedProcessPid = null;
+let processTreeUnavailable = false;
 let sortKey = 'cpu';
 let sortDirection = -1;
 const processCache = new Map();
@@ -194,6 +195,16 @@ function ingestSnapshot(snapshot, source) {
     points.sort((left, right) => left.sampled_at.localeCompare(right.sampled_at));
     points = points.slice(-MAX_POINTS);
 
+    if (source === 'snapshot' && publicStatus(snapshot.status) === 'unavailable') {
+        processTreeUnavailable = true;
+        processCache.clear();
+        processTrends.clear();
+        selectedProcessPid = null;
+        return;
+    }
+
+    if (source === 'snapshot') processTreeUnavailable = false;
+
     const currentPids = new Set();
     const processes = Array.isArray(snapshot.processes) ? snapshot.processes : [];
     processes.forEach(process => {
@@ -319,7 +330,9 @@ function renderProcessTable() {
         const cell = document.createElement('td');
         cell.colSpan = 9;
         cell.className = 'resource-monitor-empty';
-        cell.textContent = '等待受限进程树采样…';
+        cell.textContent = processTreeUnavailable
+            ? '未发现 AlphaFoundry 进程'
+            : '等待受限进程树采样…';
         row.append(cell);
         fragment.append(row);
     }

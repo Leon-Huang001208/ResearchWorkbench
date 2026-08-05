@@ -13601,6 +13601,19 @@ tbody tr:hover {
     margin-bottom: 12px;
 }
 
+#section-resource-monitor .resource-monitor-detail {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    width: min(440px, 92vw);
+    margin: 0;
+    border-radius: 0;
+    box-shadow: -18px 0 42px rgba(0, 0, 0, .28);
+    overflow-y: auto;
+}
+
 #section-resource-monitor .resource-monitor-detail.hidden {
     display: none;
 }
@@ -13632,14 +13645,28 @@ tbody tr:hover {
     text-align: left;
 }
 
-#section-resource-monitor .resource-process-table th:nth-child(n + 2),
-#section-resource-monitor .resource-process-table td:nth-child(n + 2) {
+#section-resource-monitor .resource-process-table th:nth-child(2),
+#section-resource-monitor .resource-process-table td:nth-child(2),
+#section-resource-monitor .resource-process-table th:nth-child(4),
+#section-resource-monitor .resource-process-table td:nth-child(4),
+#section-resource-monitor .resource-process-table th:nth-child(5),
+#section-resource-monitor .resource-process-table td:nth-child(5),
+#section-resource-monitor .resource-process-table th:nth-child(6),
+#section-resource-monitor .resource-process-table td:nth-child(6),
+#section-resource-monitor .resource-process-table th:nth-child(7),
+#section-resource-monitor .resource-process-table td:nth-child(7),
+#section-resource-monitor .resource-process-table th:nth-child(8),
+#section-resource-monitor .resource-process-table td:nth-child(8) {
     font-family: var(--font-mono);
     text-align: right;
 }
 
-#section-resource-monitor .resource-process-table th:last-child,
-#section-resource-monitor .resource-process-table td:last-child {
+#section-resource-monitor .resource-process-table th:nth-child(1),
+#section-resource-monitor .resource-process-table td:nth-child(1),
+#section-resource-monitor .resource-process-table th:nth-child(3),
+#section-resource-monitor .resource-process-table td:nth-child(3),
+#section-resource-monitor .resource-process-table th:nth-child(9),
+#section-resource-monitor .resource-process-table td:nth-child(9) {
     text-align: left;
 }
 

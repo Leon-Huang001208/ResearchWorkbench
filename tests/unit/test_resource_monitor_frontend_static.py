@@ -63,6 +63,8 @@ def test_resource_monitor_module_handles_lifecycle_bounds_and_safe_process_dom()
     assert "snapshotVersion > snapshotVersionAtRequest" in source
     assert "ingestSnapshot(snapshot, 'history')" in source
     assert "if (source === 'snapshot')" in source
+    assert "publicStatus(snapshot.status) === 'unavailable'" in source
+    assert "未发现 AlphaFoundry 进程" in source
     assert "create_time == null ? '—'" in source
     assert "已退出" in source
     assert "window.echarts" in source
@@ -79,3 +81,8 @@ def test_resource_monitor_styles_keep_dense_responsive_tables_and_charts() -> No
     assert "overflow-x: auto" in style
     assert "font-family: var(--font-mono)" in style
     assert ".resource-monitor-detail.hidden" in style
+    assert "position: fixed" in style
+    assert "right: 0" in style
+    assert ".resource-process-table th:nth-child(2)," in style
+    assert ".resource-process-table td:nth-child(2)," in style
+    assert "nth-child(n + 2)" not in style
