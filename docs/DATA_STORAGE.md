@@ -1891,7 +1891,7 @@ class AssetSnapshotRepository(Repository[AssetAnalysisSnapshot]):
 | DecisionConsoleRepository | decision_console_repository.py | 决策工作台仓储实现 |
 | AuditRepository | audit_repository.py | 审计仓储实现 |
 | GovernanceRepository | governance_repository.py | 治理仓储实现 |
-| MonitoringRepository | monitoring_repository.py | 监控仓储实现 |
+| MonitoringRepository | monitoring_repository.py | 监控仓储实现；可条件更新未解决告警的详情而不覆盖确认/解决状态 |
 | PaperTradingRepository | paper_trading_repository.py | 模拟交易仓储实现 |
 | PortfolioRepository | portfolio_repository.py | 组合仓储实现 |
 | ReplayRepository | replay_repository.py | 回测仓储实现 |

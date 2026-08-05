@@ -238,6 +238,37 @@ class MonitoringRepositoryImpl(BaseRepository):
             return None
         return self._dict_to_alert(self._db_alert_to_dict(db_obj))
 
+    def update_alert_details_if_unresolved(
+        self,
+        alert_id: str,
+        severity: AlertSeverity,
+        title: str,
+        description: str,
+        threshold_value: float,
+        metadata: Dict[str, Any],
+    ) -> Optional[AlertPayload]:
+        """原子更新未解决告警的详情，绝不覆盖确认或解决状态。"""
+        query = self.db.query(AlertPayloadDB).filter(AlertPayloadDB.alert_id == alert_id)
+        updated_count = query.filter(AlertPayloadDB.status != AlertStatus.RESOLVED.value).update(
+            {
+                AlertPayloadDB.severity: severity.value,
+                AlertPayloadDB.title: title,
+                AlertPayloadDB.description: description,
+                AlertPayloadDB.threshold_value: threshold_value,
+                AlertPayloadDB.alert_metadata: metadata,
+            },
+            synchronize_session=False,
+        )
+        self.db.flush()
+        self.db.expire_all()
+        db_obj = query.first()
+        if db_obj is None:
+            return None
+        saved = self._dict_to_alert(self._db_alert_to_dict(db_obj))
+        if updated_count:
+            logger.info("unresolved alert details updated", alert_id=alert_id)
+        return saved
+
     def list_alerts(
         self,
         status: Optional[AlertStatus] = None,

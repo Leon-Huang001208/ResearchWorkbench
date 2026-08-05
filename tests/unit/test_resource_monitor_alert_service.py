@@ -28,6 +28,28 @@ class FakeRepository:
         self.alerts.append(alert)
         return alert
 
+    def update_alert_details_if_unresolved(
+        self,
+        alert_id,
+        severity,
+        title,
+        description,
+        threshold_value,
+        metadata,
+    ):
+        for alert in self.alerts:
+            if alert.alert_id != alert_id:
+                continue
+            if alert.status == AlertStatus.RESOLVED:
+                return alert
+            alert.severity = severity
+            alert.title = title
+            alert.description = description
+            alert.threshold_value = threshold_value
+            alert.metadata = metadata
+            return alert
+        return None
+
     def save_incident(self, incident):
         for index, existing in enumerate(self.incidents):
             if existing.incident_id == incident.incident_id:
@@ -38,6 +60,44 @@ class FakeRepository:
 
     def list_incidents(self, **_: object):
         return list(self.incidents)
+
+
+class InterleavingFakeRepository(FakeRepository):
+    """在原子详情更新前模拟另一个数据库会话改变告警状态。"""
+
+    def __init__(self, transition: AlertStatus) -> None:
+        super().__init__()
+        self._transition = transition
+        self._transitioned = False
+
+    def update_alert_details_if_unresolved(
+        self,
+        alert_id,
+        severity,
+        title,
+        description,
+        threshold_value,
+        metadata,
+    ):
+        for alert in self.alerts:
+            if alert.alert_id != alert_id:
+                continue
+            if not self._transitioned:
+                alert.status = self._transition
+                if self._transition == AlertStatus.ACKNOWLEDGED:
+                    alert.acknowledged_at = datetime.now(timezone.utc)
+                else:
+                    alert.resolved_at = datetime.now(timezone.utc)
+                self._transitioned = True
+            break
+        return super().update_alert_details_if_unresolved(
+            alert_id,
+            severity,
+            title,
+            description,
+            threshold_value,
+            metadata,
+        )
 
 
 def _snapshot_with_process(*, cpu: float, memory_bytes: int = 1, pid: int = 101) -> dict:
@@ -200,7 +260,37 @@ def test_host_cpu_pressure_upgrades_existing_warning_after_three_critical_sample
     assert warning.severity == AlertSeverity.CRITICAL
     assert warning.status == AlertStatus.ACKNOWLEDGED
     assert warning.metadata["threshold_percent"] == 95.0
-    assert repo.incidents[0].severity == AlertSeverity.CRITICAL
+    assert repo.incidents[0].severity == AlertSeverity.WARNING
+
+
+def test_host_upgrade_preserves_acknowledgement_changed_by_another_session() -> None:
+    repo = InterleavingFakeRepository(AlertStatus.ACKNOWLEDGED)
+    service = ResourceMonitorAlertService(repo)
+
+    for _ in range(3):
+        service.evaluate(_snapshot_with_host(cpu=85.0))
+    for _ in range(3):
+        service.evaluate(_snapshot_with_host(cpu=95.0))
+
+    alert = repo.alerts[0]
+    assert alert.status == AlertStatus.ACKNOWLEDGED
+    assert alert.severity == AlertSeverity.CRITICAL
+    assert alert.resolved_at is None
+
+
+def test_host_upgrade_does_not_reopen_alert_resolved_by_another_session() -> None:
+    repo = InterleavingFakeRepository(AlertStatus.RESOLVED)
+    service = ResourceMonitorAlertService(repo)
+
+    for _ in range(3):
+        service.evaluate(_snapshot_with_host(cpu=85.0))
+    for _ in range(3):
+        service.evaluate(_snapshot_with_host(cpu=95.0))
+
+    alert = repo.alerts[0]
+    assert alert.status == AlertStatus.RESOLVED
+    assert alert.severity == AlertSeverity.WARNING
+    assert alert.resolved_at is not None
 
 
 def test_host_cpu_pressure_resolves_after_three_healthy_samples() -> None:
@@ -282,6 +372,33 @@ def test_nonfinite_or_out_of_range_host_capacity_does_not_open_or_resolve_event(
             no_event_service.evaluate(_snapshot_with_host(cpu=value))
 
     assert no_event_repo.alerts == []
+
+
+def test_invalid_host_sample_resets_pressure_streak() -> None:
+    repo = FakeRepository()
+    service = ResourceMonitorAlertService(repo)
+
+    for _ in range(2):
+        service.evaluate(_snapshot_with_host(cpu=85.0))
+    service.evaluate(_snapshot_with_host(cpu=None))
+    service.evaluate(_snapshot_with_host(cpu=85.0))
+
+    assert repo.alerts == []
+
+
+def test_invalid_host_sample_resets_recovery_streak() -> None:
+    repo = FakeRepository()
+    service = ResourceMonitorAlertService(repo)
+
+    for _ in range(3):
+        service.evaluate(_snapshot_with_host(cpu=85.0))
+    alert = repo.alerts[0]
+    for _ in range(2):
+        service.evaluate(_snapshot_with_host(cpu=20.0))
+    service.evaluate(_snapshot_with_host(cpu=None))
+    service.evaluate(_snapshot_with_host(cpu=20.0))
+
+    assert alert.status == AlertStatus.OPEN
 
 
 def test_host_event_metadata_drops_raw_collection_errors() -> None:

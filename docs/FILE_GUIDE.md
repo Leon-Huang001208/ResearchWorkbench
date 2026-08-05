@@ -414,6 +414,7 @@
 | `data_layer/repositories/base.py` | 仓储基类：BaseRepository，提供通用数据库操作方法 |
 | `data_layer/repositories/models.py` | SQLAlchemy ORM 模型：定义所有数据库表模型 |
 | `data_layer/repositories/market_data_repository.py` | 市场数据仓储：PostgreSQL upsert / SQLite fallback，管理股票主表、日行情、估值、财务、股东、指数发布方、指数主表、成分权重快照、指数 ETF 关系和 ETF 日度规模/资金流表 |
+| `data_layer/repositories/monitoring_repository.py` | 监控仓储：持久化健康指标、告警与事件；支持仅更新未解决告警详情的条件更新，保留确认和解决状态 |
 | `data_layer/repositories/fund_repository.py` | 基金智能仓储：管理基金主数据、日净值、股票持仓和基金经理任职 MVP 表 |
 | `data_layer/repositories/etl_run_repository.py` | ETL 运行记录仓储：记录 ETL 运行开始、成功、失败，查询运行历史 |
 
@@ -646,6 +647,7 @@
 | `tests/unit/test_resource_monitor_runtime.py` | 资源监控运行时测试：采样、历史/告警协调、共享状态、失败续跑与线程生命周期 |
 | `tests/unit/test_resource_task_registry.py` | 资源任务登记器测试：原子快照、并发、失败脱敏、任务类别与损坏文件降级 |
 | `tests/unit/test_resource_monitor_alert_service.py` | 资源事件协调器测试：AlphaFoundry 事件来源标记、持续进程压力去重/恢复、整机 CPU/可用内存三级阈值、原地升级、缺失字段安全降级及未恢复事件历史 |
+| `tests/unit/data_layer/repositories/test_monitoring_repository.py` | 监控仓储单元测试：未解决告警详情的条件更新保留确认状态，并不改写已解决告警 |
 | `tests/unit/app/api/routes/test_resource_monitoring.py` | 资源事件 API 测试：历史查询、确认和人工解决响应契约 |
 | `tests/unit/app/api/routes/test_system_resource_usage.py` | 系统资源 API 测试：只读快照/历史契约、窗口边界、脱敏降级和懒加载依赖 |
 | `tests/unit/test_resource_monitor_frontend_static.py` | 资源监控前端静态契约：导航生命周期、轮询取消、150 点限制、安全 DOM 渲染、详情抽屉和响应式样式 |

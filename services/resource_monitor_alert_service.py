@@ -240,6 +240,8 @@ class ResourceMonitorAlertService:
     def _evaluate_host_capacity(self, host: Any) -> list[AlertPayload]:
         """评估整机 CPU 与可用内存容量，不可用读数不能被当作恢复。"""
         if not isinstance(host, dict):
+            self._reset_host_metric_streak("host_cpu_pressure")
+            self._reset_host_metric_streak("host_memory_pressure")
             return []
         return [
             *self._evaluate_host_metric(
@@ -274,7 +276,10 @@ class ResourceMonitorAlertService:
         host: Dict[str, Any],
     ) -> list[AlertPayload]:
         """按 warning/critical 分别累计连续主机容量压力样本。"""
+        warning_key = f"{dedupe_key}:warning"
+        critical_key = f"{dedupe_key}:critical"
         if not self._is_valid_percent(value):
+            self._reset_host_metric_streak(dedupe_key)
             return []
 
         numeric_value = float(value)
@@ -285,8 +290,6 @@ class ResourceMonitorAlertService:
             is_warning = numeric_value <= warning_threshold
             is_critical = numeric_value <= critical_threshold
 
-        warning_key = f"{dedupe_key}:warning"
-        critical_key = f"{dedupe_key}:critical"
         if not is_warning:
             self._state.pressure_counts[warning_key] = 0
             self._state.pressure_counts[critical_key] = 0
@@ -329,6 +332,12 @@ class ResourceMonitorAlertService:
             )
         ]
 
+    def _reset_host_metric_streak(self, dedupe_key: str) -> None:
+        """无效主机读数中断该指标的压力与恢复连续计数。"""
+        self._state.pressure_counts[f"{dedupe_key}:warning"] = 0
+        self._state.pressure_counts[f"{dedupe_key}:critical"] = 0
+        self._state.recovery_counts[dedupe_key] = 0
+
     def _open_or_upgrade_host_event(
         self,
         *,
@@ -352,20 +361,34 @@ class ResourceMonitorAlertService:
                 dedupe_key=dedupe_key,
                 severity=severity,
                 metadata=metadata,
+                threshold_value=threshold_percent,
             )
         if severity == AlertSeverity.CRITICAL and existing.severity != AlertSeverity.CRITICAL:
-            existing.severity = severity
-            existing.title = self._title_for(event_kind, metadata)
-            existing.description = self._description_for(event_kind, metadata)
-            existing.metadata = metadata
-            saved = self._repo.save_alert(existing)
-            self._refresh_open_incidents(saved)
-            logger.warning(
-                "resource monitor host event upgraded",
-                alert_id=saved.alert_id,
-                event_kind=event_kind,
-                dedupe_key=dedupe_key,
+            update_details = getattr(self._repo, "update_alert_details_if_unresolved", None)
+            if not callable(update_details):
+                logger.warning(
+                    "resource monitor host event upgrade unavailable",
+                    alert_id=existing.alert_id,
+                    error_type="NotImplementedError",
+                )
+                return existing
+            saved = update_details(
+                alert_id=existing.alert_id,
+                severity=severity,
+                title=self._title_for(event_kind, metadata),
+                description=self._description_for(event_kind, metadata),
+                threshold_value=threshold_percent,
+                metadata=metadata,
             )
+            if saved is None:
+                return existing
+            if saved.status != AlertStatus.RESOLVED and saved.severity == AlertSeverity.CRITICAL:
+                logger.warning(
+                    "resource monitor host event upgraded",
+                    alert_id=saved.alert_id,
+                    event_kind=event_kind,
+                    dedupe_key=dedupe_key,
+                )
             return saved
         return existing
 
@@ -402,6 +425,7 @@ class ResourceMonitorAlertService:
         dedupe_key: str,
         severity: AlertSeverity,
         metadata: Dict[str, Any],
+        threshold_value: float = 0.0,
     ) -> AlertPayload:
         alert = AlertPayload(
             alert_id=f"resource-{uuid.uuid4().hex[:12]}",
@@ -410,6 +434,7 @@ class ResourceMonitorAlertService:
             severity=severity,
             title=self._title_for(event_kind, metadata),
             description=self._description_for(event_kind, metadata),
+            threshold_value=threshold_value,
             triggered_at=datetime.now(timezone.utc),
             metadata=metadata,
         )
@@ -432,26 +457,6 @@ class ResourceMonitorAlertService:
             dedupe_key=dedupe_key,
         )
         return saved
-
-    def _refresh_open_incidents(self, alert: AlertPayload) -> None:
-        """同步升级仍未解决的关联事件记录，且不更改告警确认状态。"""
-        try:
-            incidents: Iterable[IncidentRecord] = self._repo.list_incidents(
-                subsystem=Subsystem.RESOURCE_MONITORING,
-                resolved=False,
-                limit=5000,
-            )
-        except Exception as exc:
-            logger.warning("resource monitor incident lookup failed", error_type=type(exc).__name__)
-            return
-        for incident in incidents:
-            if incident.alert_id != alert.alert_id or incident.resolved_at is not None:
-                continue
-            incident.severity = alert.severity
-            incident.title = alert.title
-            incident.description = alert.description
-            incident.metadata = alert.metadata
-            self._repo.save_incident(incident)
 
     def _resolve_auto_event(self, dedupe_key: str) -> list[AlertPayload]:
         alert = self._find_open_by_dedupe_key(dedupe_key)
