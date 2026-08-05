@@ -119,7 +119,7 @@ class ResourceHostHistoryService:
             while True:
                 metrics = self._repository.list_metrics(
                     subsystem=Subsystem.RESOURCE_MONITORING,
-                    until=cutoff,
+                    until=cutoff - timedelta(microseconds=1),
                     limit=_MAX_HISTORY_POINTS,
                     metric_type="host_capacity",
                 )

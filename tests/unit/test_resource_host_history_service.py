@@ -293,6 +293,22 @@ def test_purge_expired_removes_all_capacity_points_across_multiple_batches() -> 
     assert len(repo.deleted_metric_ids) == 1501
 
 
+def test_purge_expired_skips_cutoff_boundary_before_limiting_results() -> None:
+    now = datetime(2026, 8, 6, 8, 30, tzinfo=timezone.utc)
+    cutoff = now - timedelta(hours=24)
+    expired = _host_capacity_metric("expired", cutoff - timedelta(microseconds=1))
+    boundary_points = [_host_capacity_metric(f"boundary-{index}", cutoff) for index in range(1500)]
+    repo = InMemoryMonitoringRepository([expired, *boundary_points])
+    service = ResourceHostHistoryService(repo, now=lambda: now)
+
+    assert service.purge_expired() == 1
+
+    assert repo.deleted_metric_ids == ["expired"]
+    assert [metric.metric_id for metric in repo.metrics] == [
+        f"boundary-{index}" for index in range(1500)
+    ]
+
+
 def test_record_if_due_finds_current_capacity_behind_newer_resource_events() -> None:
     now = datetime(2026, 8, 5, 8, 30, 5, tzinfo=timezone.utc)
     minute = now.replace(second=0, microsecond=0)
