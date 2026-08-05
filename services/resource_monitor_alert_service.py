@@ -20,9 +20,19 @@ logger = get_logger(__name__)
 
 _PRESSURE_CPU_PERCENT = 90.0
 _PRESSURE_MEMORY_BYTES = 1024 * 1024 * 1024
+_HOST_CPU_WARNING_PERCENT = 85.0
+_HOST_CPU_CRITICAL_PERCENT = 95.0
+_HOST_MEMORY_WARNING_PERCENT = 15.0
+_HOST_MEMORY_CRITICAL_PERCENT = 8.0
 _CONSECUTIVE_SAMPLES = 3
 _AUTO_RESOLVABLE_KINDS = frozenset(
-    {"managed_process_unavailable", "monitor_sampling_failed", "resource_pressure"}
+    {
+        "managed_process_unavailable",
+        "monitor_sampling_failed",
+        "resource_pressure",
+        "host_cpu_pressure",
+        "host_memory_pressure",
+    }
 )
 _SAFE_METADATA_KEYS = frozenset(
     {
@@ -65,6 +75,7 @@ class ResourceMonitorAlertService:
             events.extend(self._evaluate_sampling_status(snapshot))
             events.extend(self._evaluate_managed_process_warnings(snapshot.get("warnings", [])))
             events.extend(self._evaluate_pressure(snapshot.get("processes", [])))
+            events.extend(self._evaluate_host_capacity(snapshot.get("host")))
         except Exception as exc:
             logger.warning(
                 "resource monitor alert evaluation failed", error_type=type(exc).__name__
@@ -220,10 +231,142 @@ class ResourceMonitorAlertService:
                 events.extend(self._resolve_auto_event(key))
 
         for key in list(self._state.pressure_counts):
-            if key not in seen_keys:
+            if key.startswith("resource_pressure:") and key not in seen_keys:
                 self._state.pressure_counts.pop(key, None)
                 self._state.recovery_counts.pop(key, None)
         return events
+
+    def _evaluate_host_capacity(self, host: Any) -> list[AlertPayload]:
+        """评估整机 CPU 与可用内存容量，不可用读数不能被当作恢复。"""
+        if not isinstance(host, dict):
+            return []
+        return [
+            *self._evaluate_host_metric(
+                dedupe_key="host_cpu_pressure",
+                event_kind="host_cpu_pressure",
+                value=host.get("cpu_percent"),
+                warning_threshold=_HOST_CPU_WARNING_PERCENT,
+                critical_threshold=_HOST_CPU_CRITICAL_PERCENT,
+                pressure_when="above",
+                host=host,
+            ),
+            *self._evaluate_host_metric(
+                dedupe_key="host_memory_pressure",
+                event_kind="host_memory_pressure",
+                value=host.get("memory_available_percent"),
+                warning_threshold=_HOST_MEMORY_WARNING_PERCENT,
+                critical_threshold=_HOST_MEMORY_CRITICAL_PERCENT,
+                pressure_when="below",
+                host=host,
+            ),
+        ]
+
+    def _evaluate_host_metric(
+        self,
+        *,
+        dedupe_key: str,
+        event_kind: str,
+        value: Any,
+        warning_threshold: float,
+        critical_threshold: float,
+        pressure_when: str,
+        host: Dict[str, Any],
+    ) -> list[AlertPayload]:
+        """按 warning/critical 分别累计连续主机容量压力样本。"""
+        if not self._is_valid_percent(value):
+            return []
+
+        numeric_value = float(value)
+        if pressure_when == "above":
+            is_warning = numeric_value >= warning_threshold
+            is_critical = numeric_value >= critical_threshold
+        else:
+            is_warning = numeric_value <= warning_threshold
+            is_critical = numeric_value <= critical_threshold
+
+        warning_key = f"{dedupe_key}:warning"
+        critical_key = f"{dedupe_key}:critical"
+        if not is_warning:
+            self._state.pressure_counts[warning_key] = 0
+            self._state.pressure_counts[critical_key] = 0
+            self._state.recovery_counts[dedupe_key] = (
+                self._state.recovery_counts.get(dedupe_key, 0) + 1
+            )
+            if self._state.recovery_counts[dedupe_key] >= _CONSECUTIVE_SAMPLES:
+                return self._resolve_auto_event(dedupe_key)
+            return []
+
+        self._state.recovery_counts[dedupe_key] = 0
+        self._state.pressure_counts[warning_key] = (
+            self._state.pressure_counts.get(warning_key, 0) + 1
+        )
+        if is_critical:
+            self._state.pressure_counts[critical_key] = (
+                self._state.pressure_counts.get(critical_key, 0) + 1
+            )
+        else:
+            self._state.pressure_counts[critical_key] = 0
+
+        severity: Optional[AlertSeverity] = None
+        threshold: Optional[float] = None
+        if self._state.pressure_counts[critical_key] >= _CONSECUTIVE_SAMPLES:
+            severity = AlertSeverity.CRITICAL
+            threshold = critical_threshold
+        elif self._state.pressure_counts[warning_key] >= _CONSECUTIVE_SAMPLES:
+            severity = AlertSeverity.WARNING
+            threshold = warning_threshold
+        if severity is None or threshold is None:
+            return []
+
+        return [
+            self._open_or_upgrade_host_event(
+                event_kind=event_kind,
+                dedupe_key=dedupe_key,
+                severity=severity,
+                threshold_percent=threshold,
+                host=host,
+            )
+        ]
+
+    def _open_or_upgrade_host_event(
+        self,
+        *,
+        event_kind: str,
+        dedupe_key: str,
+        severity: AlertSeverity,
+        threshold_percent: float,
+        host: Dict[str, Any],
+    ) -> AlertPayload:
+        """创建主机容量事件，或仅向上更新同一未解决事件。"""
+        metadata = self._safe_host_metadata(
+            host,
+            event_kind=event_kind,
+            dedupe_key=dedupe_key,
+            threshold_percent=threshold_percent,
+        )
+        existing = self._find_open_by_dedupe_key(dedupe_key)
+        if existing is None:
+            return self._create_event(
+                event_kind=event_kind,
+                dedupe_key=dedupe_key,
+                severity=severity,
+                metadata=metadata,
+            )
+        if severity == AlertSeverity.CRITICAL and existing.severity != AlertSeverity.CRITICAL:
+            existing.severity = severity
+            existing.title = self._title_for(event_kind, metadata)
+            existing.description = self._description_for(event_kind, metadata)
+            existing.metadata = metadata
+            saved = self._repo.save_alert(existing)
+            self._refresh_open_incidents(saved)
+            logger.warning(
+                "resource monitor host event upgraded",
+                alert_id=saved.alert_id,
+                event_kind=event_kind,
+                dedupe_key=dedupe_key,
+            )
+            return saved
+        return existing
 
     def _open_event(
         self,
@@ -237,16 +380,37 @@ class ResourceMonitorAlertService:
         if existing is not None:
             return existing
         safe_metadata = self._safe_metadata(metadata)
-        safe_metadata.update({"event_kind": event_kind, "dedupe_key": dedupe_key})
+        safe_metadata.update(
+            {
+                "event_kind": event_kind,
+                "dedupe_key": dedupe_key,
+                "source_scope": "alphafoundry",
+            }
+        )
+        return self._create_event(
+            event_kind=event_kind,
+            dedupe_key=dedupe_key,
+            severity=severity,
+            metadata=safe_metadata,
+        )
+
+    def _create_event(
+        self,
+        *,
+        event_kind: str,
+        dedupe_key: str,
+        severity: AlertSeverity,
+        metadata: Dict[str, Any],
+    ) -> AlertPayload:
         alert = AlertPayload(
             alert_id=f"resource-{uuid.uuid4().hex[:12]}",
             threshold_id=f"resource-{event_kind}",
             subsystem=Subsystem.RESOURCE_MONITORING,
             severity=severity,
-            title=self._title_for(event_kind, safe_metadata),
-            description=self._description_for(event_kind, safe_metadata),
+            title=self._title_for(event_kind, metadata),
+            description=self._description_for(event_kind, metadata),
             triggered_at=datetime.now(timezone.utc),
-            metadata=safe_metadata,
+            metadata=metadata,
         )
         saved = self._repo.save_alert(alert)
         incident = IncidentRecord(
@@ -267,6 +431,26 @@ class ResourceMonitorAlertService:
             dedupe_key=dedupe_key,
         )
         return saved
+
+    def _refresh_open_incidents(self, alert: AlertPayload) -> None:
+        """同步升级仍未解决的关联事件记录，且不更改告警确认状态。"""
+        try:
+            incidents: Iterable[IncidentRecord] = self._repo.list_incidents(
+                subsystem=Subsystem.RESOURCE_MONITORING,
+                resolved=False,
+                limit=5000,
+            )
+        except Exception as exc:
+            logger.warning("resource monitor incident lookup failed", error_type=type(exc).__name__)
+            return
+        for incident in incidents:
+            if incident.alert_id != alert.alert_id or incident.resolved_at is not None:
+                continue
+            incident.severity = alert.severity
+            incident.title = alert.title
+            incident.description = alert.description
+            incident.metadata = alert.metadata
+            self._repo.save_incident(incident)
 
     def _resolve_auto_event(self, dedupe_key: str) -> list[AlertPayload]:
         alert = self._find_open_by_dedupe_key(dedupe_key)
@@ -335,6 +519,33 @@ class ResourceMonitorAlertService:
         }
 
     @staticmethod
+    def _safe_host_metadata(
+        host: Dict[str, Any],
+        *,
+        event_kind: str,
+        dedupe_key: str,
+        threshold_percent: float,
+    ) -> Dict[str, Any]:
+        """仅保留公开整机容量指标，避免持久化原始采集错误。"""
+        metadata: Dict[str, Any] = {
+            "event_kind": event_kind,
+            "source_scope": "host_capacity",
+            "threshold_percent": threshold_percent,
+            "dedupe_key": dedupe_key,
+        }
+        cpu_percent = host.get("cpu_percent")
+        if ResourceMonitorAlertService._is_valid_percent(cpu_percent):
+            metadata["host_cpu_percent"] = float(cpu_percent)
+        memory_available_percent = host.get("memory_available_percent")
+        if ResourceMonitorAlertService._is_valid_percent(memory_available_percent):
+            metadata["host_memory_available_percent"] = float(memory_available_percent)
+        return metadata
+
+    @staticmethod
+    def _is_valid_percent(value: Any) -> bool:
+        return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+    @staticmethod
     def _title_for(event_kind: str, metadata: Dict[str, Any]) -> str:
         if event_kind == "task_failed":
             return f"任务失败：{metadata.get('label') or metadata.get('task_kind') or 'AlphaFoundry 任务'}"
@@ -346,6 +557,10 @@ class ResourceMonitorAlertService:
             return f"资源压力：{process_label}"
         if event_kind == "managed_process_unavailable":
             return f"受控 Worker 不可用：PID {metadata.get('pid', '未知')}"
+        if event_kind == "host_cpu_pressure":
+            return "整机 CPU 容量压力"
+        if event_kind == "host_memory_pressure":
+            return "整机可用内存容量压力"
         return "资源监控采样不可用"
 
     @staticmethod
@@ -356,4 +571,8 @@ class ResourceMonitorAlertService:
             return "受控进程连续三个采样周期超出资源压力阈值。"
         if event_kind == "managed_process_unavailable":
             return "已登记的 AlphaFoundry Worker 在采样时不可用。"
+        if event_kind == "host_cpu_pressure":
+            return "整机 CPU 连续三个采样周期达到 " f"{metadata.get('threshold_percent')}% 容量压力阈值。"
+        if event_kind == "host_memory_pressure":
+            return "整机可用内存连续三个采样周期低于 " f"{metadata.get('threshold_percent')}% 容量压力阈值。"
         return "AlphaFoundry API 进程资源采样暂不可用。"

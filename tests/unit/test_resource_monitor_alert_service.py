@@ -59,6 +59,21 @@ def _snapshot_with_process(*, cpu: float, memory_bytes: int = 1, pid: int = 101)
     }
 
 
+def _snapshot_with_host(*, cpu: object = 10.0, memory_available: object = 50.0) -> dict:
+    """构造只包含整机容量读数的资源快照。"""
+    return {
+        "sampled_at": datetime.now(timezone.utc).isoformat(),
+        "status": "ok",
+        "warnings": [],
+        "task_failures": [],
+        "processes": [],
+        "host": {
+            "cpu_percent": cpu,
+            "memory_available_percent": memory_available,
+        },
+    }
+
+
 def test_pressure_opens_once_then_resolves_after_three_recovered_samples() -> None:
     """连续压力只创建一个事件，连续恢复后自动解决。"""
     repo = FakeRepository()
@@ -70,6 +85,7 @@ def test_pressure_opens_once_then_resolves_after_three_recovered_samples() -> No
     assert len(repo.alerts) == 1
     alert = repo.alerts[0]
     assert alert.metadata["event_kind"] == "resource_pressure"
+    assert alert.metadata["source_scope"] == "alphafoundry"
     assert alert.status == AlertStatus.OPEN
 
     service.evaluate(_snapshot_with_process(cpu=95.0))
@@ -136,7 +152,144 @@ def test_failed_task_creates_deduplicated_critical_event() -> None:
     assert alert.subsystem == Subsystem.RESOURCE_MONITORING
     assert alert.metadata["task_kind"] == "crawl"
     assert alert.metadata["source_key"] == "cls"
+    assert alert.metadata["source_scope"] == "alphafoundry"
     assert len(repo.incidents) == 1
+
+
+def test_host_cpu_pressure_opens_warning_after_three_samples_and_deduplicates() -> None:
+    repo = FakeRepository()
+    service = ResourceMonitorAlertService(repo)
+
+    for _ in range(3):
+        service.evaluate(_snapshot_with_host(cpu=85.0))
+
+    assert len(repo.alerts) == 1
+    alert = repo.alerts[0]
+    assert alert.severity == AlertSeverity.WARNING
+    assert alert.metadata["event_kind"] == "host_cpu_pressure"
+    assert alert.metadata["source_scope"] == "host_capacity"
+    assert alert.metadata["threshold_percent"] == 85.0
+    assert set(alert.metadata) <= {
+        "event_kind",
+        "source_scope",
+        "host_cpu_percent",
+        "host_memory_available_percent",
+        "threshold_percent",
+        "dedupe_key",
+    }
+
+    service.evaluate(_snapshot_with_host(cpu=90.0))
+
+    assert len(repo.alerts) == 1
+
+
+def test_host_cpu_pressure_upgrades_existing_warning_after_three_critical_samples() -> None:
+    repo = FakeRepository()
+    service = ResourceMonitorAlertService(repo)
+
+    for _ in range(3):
+        service.evaluate(_snapshot_with_host(cpu=85.0))
+    warning = repo.alerts[0]
+    assert service.acknowledge(warning.alert_id) is not None
+
+    for _ in range(3):
+        service.evaluate(_snapshot_with_host(cpu=95.0))
+
+    assert len(repo.alerts) == 1
+    assert repo.alerts[0].alert_id == warning.alert_id
+    assert warning.severity == AlertSeverity.CRITICAL
+    assert warning.status == AlertStatus.ACKNOWLEDGED
+    assert warning.metadata["threshold_percent"] == 95.0
+    assert repo.incidents[0].severity == AlertSeverity.CRITICAL
+
+
+def test_host_cpu_pressure_resolves_after_three_healthy_samples() -> None:
+    repo = FakeRepository()
+    service = ResourceMonitorAlertService(repo)
+
+    for _ in range(3):
+        service.evaluate(_snapshot_with_host(cpu=85.0))
+    alert = repo.alerts[0]
+
+    for _ in range(3):
+        service.evaluate(_snapshot_with_host(cpu=20.0))
+
+    assert alert.status == AlertStatus.RESOLVED
+    assert alert.resolved_at is not None
+
+
+def test_host_memory_pressure_opens_at_warning_and_upgrades_at_critical_threshold() -> None:
+    repo = FakeRepository()
+    service = ResourceMonitorAlertService(repo)
+
+    for _ in range(3):
+        service.evaluate(_snapshot_with_host(memory_available=15.0))
+    alert = repo.alerts[0]
+
+    assert alert.severity == AlertSeverity.WARNING
+    assert alert.metadata["event_kind"] == "host_memory_pressure"
+    assert alert.metadata["host_memory_available_percent"] == 15.0
+    assert alert.metadata["threshold_percent"] == 15.0
+
+    for _ in range(3):
+        service.evaluate(_snapshot_with_host(memory_available=8.0))
+
+    assert len(repo.alerts) == 1
+    assert alert.severity == AlertSeverity.CRITICAL
+    assert alert.metadata["threshold_percent"] == 8.0
+
+
+def test_invalid_or_missing_host_capacity_does_not_open_or_resolve_host_event() -> None:
+    repo = FakeRepository()
+    service = ResourceMonitorAlertService(repo)
+
+    for _ in range(3):
+        service.evaluate(_snapshot_with_host(cpu=85.0))
+    alert = repo.alerts[0]
+
+    for snapshot in (
+        {"status": "ok", "warnings": [], "task_failures": [], "processes": []},
+        _snapshot_with_host(cpu=None),
+        _snapshot_with_host(cpu="not-a-number"),
+    ):
+        for _ in range(3):
+            service.evaluate(snapshot)
+
+    assert len(repo.alerts) == 1
+    assert alert.status == AlertStatus.OPEN
+
+
+def test_host_event_metadata_drops_raw_collection_errors() -> None:
+    repo = FakeRepository()
+    service = ResourceMonitorAlertService(repo)
+    snapshot = _snapshot_with_host(cpu=85.0)
+    snapshot["host"]["error"] = "permission denied: /sensitive/path"
+
+    for _ in range(3):
+        service.evaluate(snapshot)
+
+    assert "error" not in repo.alerts[0].metadata
+    assert "permission denied" not in str(repo.alerts[0].metadata)
+
+
+def test_all_alphafoundry_event_categories_have_an_explicit_source_scope() -> None:
+    repo = FakeRepository()
+    service = ResourceMonitorAlertService(repo)
+    snapshot = _snapshot_with_process(cpu=95.0)
+    snapshot["status"] = "unavailable"
+    snapshot["warnings"] = [{"code": "managed_process_unavailable", "pid": 101}]
+    snapshot["task_failures"] = [{"task_id": "task-1", "task_kind": "crawl"}]
+
+    for _ in range(3):
+        service.evaluate(snapshot)
+
+    assert {alert.metadata["event_kind"] for alert in repo.alerts} == {
+        "task_failed",
+        "monitor_sampling_failed",
+        "managed_process_unavailable",
+        "resource_pressure",
+    }
+    assert {alert.metadata["source_scope"] for alert in repo.alerts} == {"alphafoundry"}
 
 
 def test_list_events_keeps_open_event_even_when_before_history_window() -> None:

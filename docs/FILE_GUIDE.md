@@ -270,7 +270,7 @@
 | `resource_monitor_runtime.py` | 资源监控运行时：以单一可停止后台线程每分钟采集资源快照，并在一个数据库会话内写入主机容量历史和评估既有资源告警；异常只记录安全错误类型并继续下一周期 |
 | `resource_host_history_service.py` | 整机容量历史服务：把安全白名单后的 CPU/内存整机汇总写入既有健康指标 JSON，每 UTC 分钟至多一条，公开查询最多 1500 点并仅保留 24 小时 |
 | `resource_task_registry.py` | 资源任务登记器：为抓取、PDF、知识处理、Wind 与报告任务写入每 PID 原子安全快照，失败记录不含异常原文 |
-| `resource_monitor_alert_service.py` | 资源异常协调器：复用 Monitoring 告警/事件状态机，去重并处理任务失败、受控 PID 缺失、采样失败与持续资源压力；通过共享 `ResourceAlertState` 保留跨周期压力计数，未恢复事件始终可查询 |
+| `resource_monitor_alert_service.py` | 资源异常协调器：复用 Monitoring 告警/事件状态机，去重并处理任务失败、受控 PID 缺失、采样失败、持续进程压力及整机 CPU/可用内存容量压力；通过共享 `ResourceAlertState` 保留跨周期压力/恢复计数，主机事件以稳定键原地升级，未恢复事件始终可查询 |
 | `configuration_service.py` | 本地配置服务：跨平台文件锁与原子 `.env` 写入、配置分区验证、秘密掩码和受控热刷新；生产 Web 模式禁用控制面，数据库修改要求重启 |
 | `governance_service.py` | 治理服务：版本控制、配置管理、审计 |
 | `audit_service.py` | 审计服务：审计日志查询和管理 |
@@ -645,7 +645,7 @@
 | `tests/unit/test_resource_host_history_service.py` | 整机容量历史测试：分钟去重、24 小时精确清理、类型隔离、安全字段白名单和受控坏快照处理 |
 | `tests/unit/test_resource_monitor_runtime.py` | 资源监控运行时测试：采样、历史/告警协调、共享状态、失败续跑与线程生命周期 |
 | `tests/unit/test_resource_task_registry.py` | 资源任务登记器测试：原子快照、并发、失败脱敏、任务类别与损坏文件降级 |
-| `tests/unit/test_resource_monitor_alert_service.py` | 资源事件协调器测试：失败任务 critical、持续压力去重、自动恢复和未恢复事件历史 |
+| `tests/unit/test_resource_monitor_alert_service.py` | 资源事件协调器测试：AlphaFoundry 事件来源标记、持续进程压力去重/恢复、整机 CPU/可用内存三级阈值、原地升级、缺失字段安全降级及未恢复事件历史 |
 | `tests/unit/app/api/routes/test_resource_monitoring.py` | 资源事件 API 测试：历史查询、确认和人工解决响应契约 |
 | `tests/unit/app/api/routes/test_system_resource_usage.py` | 系统资源 API 测试：只读快照/历史契约、窗口边界、脱敏降级和懒加载依赖 |
 | `tests/unit/test_resource_monitor_frontend_static.py` | 资源监控前端静态契约：导航生命周期、轮询取消、150 点限制、安全 DOM 渲染、详情抽屉和响应式样式 |
