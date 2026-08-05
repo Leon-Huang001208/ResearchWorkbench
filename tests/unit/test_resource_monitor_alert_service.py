@@ -50,6 +50,15 @@ class FakeRepository:
             return alert
         return None
 
+    def get_or_create_open_resource_alert(self, alert, dedupe_key):
+        for existing in self.alerts:
+            if (
+                existing.status != AlertStatus.RESOLVED
+                and existing.metadata.get("dedupe_key") == dedupe_key
+            ):
+                return existing, False
+        return self.save_alert(alert), True
+
     def save_incident(self, incident):
         for index, existing in enumerate(self.incidents):
             if existing.incident_id == incident.incident_id:

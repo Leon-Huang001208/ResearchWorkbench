@@ -362,6 +362,7 @@ class ResourceMonitorAlertService:
                 severity=severity,
                 metadata=metadata,
                 threshold_value=threshold_percent,
+                open_dedupe_key=dedupe_key,
             )
         if severity == AlertSeverity.CRITICAL and existing.severity != AlertSeverity.CRITICAL:
             update_details = getattr(self._repo, "update_alert_details_if_unresolved", None)
@@ -426,6 +427,7 @@ class ResourceMonitorAlertService:
         severity: AlertSeverity,
         metadata: Dict[str, Any],
         threshold_value: float = 0.0,
+        open_dedupe_key: Optional[str] = None,
     ) -> AlertPayload:
         alert = AlertPayload(
             alert_id=f"resource-{uuid.uuid4().hex[:12]}",
@@ -438,24 +440,30 @@ class ResourceMonitorAlertService:
             triggered_at=datetime.now(timezone.utc),
             metadata=metadata,
         )
-        saved = self._repo.save_alert(alert)
-        incident = IncidentRecord(
-            incident_id=f"resource-incident-{uuid.uuid4().hex[:12]}",
-            alert_id=saved.alert_id,
-            subsystem=Subsystem.RESOURCE_MONITORING,
-            severity=saved.severity,
-            title=saved.title,
-            description=saved.description,
-            detected_at=saved.triggered_at,
-            metadata=saved.metadata,
-        )
-        self._repo.save_incident(incident)
-        logger.warning(
-            "resource monitor event opened",
-            alert_id=saved.alert_id,
-            event_kind=event_kind,
-            dedupe_key=dedupe_key,
-        )
+        created = True
+        get_or_create = getattr(self._repo, "get_or_create_open_resource_alert", None)
+        if open_dedupe_key is not None and callable(get_or_create):
+            saved, created = get_or_create(alert, open_dedupe_key)
+        else:
+            saved = self._repo.save_alert(alert)
+        if created:
+            incident = IncidentRecord(
+                incident_id=f"resource-incident-{uuid.uuid4().hex[:12]}",
+                alert_id=saved.alert_id,
+                subsystem=Subsystem.RESOURCE_MONITORING,
+                severity=saved.severity,
+                title=saved.title,
+                description=saved.description,
+                detected_at=saved.triggered_at,
+                metadata=saved.metadata,
+            )
+            self._repo.save_incident(incident)
+            logger.warning(
+                "resource monitor event opened",
+                alert_id=saved.alert_id,
+                event_kind=event_kind,
+                dedupe_key=dedupe_key,
+            )
         return saved
 
     def _resolve_auto_event(self, dedupe_key: str) -> list[AlertPayload]:

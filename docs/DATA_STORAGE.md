@@ -1319,6 +1319,8 @@ PDF 制品由爬虫下载时自动注册（`ReportProcessor._download_and_record
 | tags | JSONB | 标签列表 |
 | metadata | JSONB | 元数据 |
 
+资源监控主机容量事件在 `metadata.dedupe_key` 记录稳定来源；同一键的每个已解决周期使用新的确定性 `alert_id`。未解决事件的升级仅条件更新 severity、标题、描述、阈值和 metadata，绝不改写 `status`、`acknowledged_at` 或 `resolved_at`。
+
 **索引**:
 - idx_experiment_record_entity_id: entity_id
 - idx_experiment_record_status: status

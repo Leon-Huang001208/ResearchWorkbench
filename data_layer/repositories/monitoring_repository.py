@@ -1,7 +1,8 @@
 """Monitoring 持久化仓储实现"""
 
+import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy.exc import IntegrityError
 
@@ -269,6 +270,47 @@ class MonitoringRepositoryImpl(BaseRepository):
             logger.info("unresolved alert details updated", alert_id=alert_id)
         return saved
 
+    def get_or_create_open_resource_alert(
+        self, alert: AlertPayload, dedupe_key: str
+    ) -> Tuple[AlertPayload, bool]:
+        """原子获取或创建未解决资源告警，并保留已解决事件历史。"""
+        if not isinstance(dedupe_key, str) or not dedupe_key:
+            raise ValueError("dedupe_key is required")
+        query = self.db.query(AlertPayloadDB).filter(
+            AlertPayloadDB.subsystem == Subsystem.RESOURCE_MONITORING.value,
+            AlertPayloadDB.alert_metadata["dedupe_key"].as_string() == dedupe_key,
+        )
+        for _ in range(3):
+            existing = (
+                query.filter(AlertPayloadDB.status != AlertStatus.RESOLVED.value)
+                .order_by(AlertPayloadDB.triggered_at.desc())
+                .first()
+            )
+            if existing is not None:
+                return self._dict_to_alert(self._db_alert_to_dict(existing)), False
+
+            cycle_index = query.count()
+            alert.alert_id = self._resource_alert_cycle_id(dedupe_key, cycle_index)
+            data = self._alert_to_dict(alert)
+            try:
+                with self.db.begin_nested():
+                    db_obj = AlertPayloadDB(**data)
+                    self.db.add(db_obj)
+                    self.db.flush()
+                    saved = self._dict_to_alert(self._db_alert_to_dict(db_obj))
+            except IntegrityError:
+                existing = (
+                    query.filter(AlertPayloadDB.status != AlertStatus.RESOLVED.value)
+                    .order_by(AlertPayloadDB.triggered_at.desc())
+                    .first()
+                )
+                if existing is not None:
+                    return self._dict_to_alert(self._db_alert_to_dict(existing)), False
+                continue
+            logger.info("resource alert created", alert_id=saved.alert_id, dedupe_key=dedupe_key)
+            return saved, True
+        raise RuntimeError("resource alert create conflict could not be resolved")
+
     def list_alerts(
         self,
         status: Optional[AlertStatus] = None,
@@ -326,6 +368,11 @@ class MonitoringRepositoryImpl(BaseRepository):
         if not db_obj:
             return None
         return self._dict_to_alert(self._db_alert_to_dict(db_obj))
+
+    @staticmethod
+    def _resource_alert_cycle_id(dedupe_key: str, cycle_index: int) -> str:
+        """为同一去重键的每个已解决周期生成稳定的新告警 ID。"""
+        return f"resource-{uuid.uuid5(uuid.NAMESPACE_URL, f'resource-alert:{dedupe_key}:{cycle_index}')}"
 
     # ── IncidentRecord ───────────────────────────────────
 
