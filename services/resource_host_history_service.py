@@ -88,11 +88,13 @@ class ResourceHostHistoryService:
             logger.warning("resource host history record failed", error_type=type(exc).__name__)
             return False
 
-    def list_history(self) -> list[dict[str, object]]:
-        """返回安全容量点位；仓储不可用时抛出受控失败信号。"""
+    def list_history(self, hours: int = 24) -> list[dict[str, object]]:
+        """返回指定窗口的安全容量点位；仓储不可用时抛出受控失败信号。"""
         try:
+            since = self._as_utc(self._now()) - timedelta(hours=hours)
             metrics = self._repository.list_metrics(
                 subsystem=Subsystem.RESOURCE_MONITORING,
+                since=since,
                 limit=_MAX_HISTORY_POINTS,
                 metric_type="host_capacity",
             )

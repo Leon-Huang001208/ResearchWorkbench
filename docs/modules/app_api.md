@@ -387,7 +387,7 @@ When files in this module change, check:
 
 - `GET /api/system/resource-usage` returns the API process tree plus explicitly registered scheduler and knowledge Worker PIDs, together with a seven-field host-capacity aggregate. API in-process tasks are marked as shared estimates; independent Worker processes are marked as exact process measurements.
 - `GET /api/system/resource-usage/history` remains the in-memory, five-minute diagnostic series.
-- `GET /api/system/resource-usage/host-history` returns the persisted, sorted minute-level host-capacity series for up to 24 hours. Each point is limited to `sampled_at`, safe `host` capacity fields, and safe AlphaFoundry CPU/memory proportion fields. A repository read failure is distinct from valid no-data: it returns the stable 503 contract rather than an empty 200 series.
+- `GET /api/system/resource-usage/host-history` returns the persisted, sorted minute-level host-capacity series for the requested 1–24 hour window. The route forwards `hours` as the repository `since` filter; each point is limited to `sampled_at`, safe `host` capacity fields, and safe AlphaFoundry CPU/memory proportion fields. A repository read failure is distinct from valid no-data: it returns the stable 503 contract rather than an empty 200 series.
 - `GET /api/system/resource-events` returns persisted resource events for the requested history window and always includes unresolved events.
 - `POST /api/system/resource-events/{alert_id}/acknowledge` and `POST /api/system/resource-events/{alert_id}/resolve` apply the existing alert lifecycle.
 

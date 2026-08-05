@@ -9,7 +9,13 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.api.routes import system
-from core.contracts.monitoring import AlertPayload, AlertSeverity, AlertStatus, Subsystem
+from core.contracts.monitoring import (
+    AlertPayload,
+    AlertSeverity,
+    AlertStatus,
+    HealthMetrics,
+    Subsystem,
+)
 from services.resource_host_history_service import ResourceHostHistoryService
 
 
@@ -154,7 +160,8 @@ def test_resource_host_history_returns_sorted_safe_points(monkeypatch) -> None:
     ]
 
     class HostHistoryService:
-        def list_history(self):
+        def list_history(self, hours: int = 24):
+            assert hours == 24
             return points
 
     monkeypatch.setattr(
@@ -256,6 +263,47 @@ def test_resource_host_history_returns_200_empty_for_real_service_without_points
 
     assert response.status_code == 200
     assert response.json() == {"hours": 24, "points": []}
+
+
+def test_resource_host_history_one_hour_excludes_older_real_service_points(monkeypatch) -> None:
+    """`hours` 必须传入历史服务，不能仅作为响应回显。"""
+    now = datetime(2026, 8, 5, 10, 0, tzinfo=timezone.utc)
+
+    def metric(metric_id: str, timestamp: datetime) -> HealthMetrics:
+        return HealthMetrics(
+            metric_id=metric_id,
+            subsystem=Subsystem.RESOURCE_MONITORING,
+            timestamp=timestamp,
+            extra={
+                "metric_type": "host_capacity",
+                "host": {"cpu_percent": 10.0},
+                "alpha": {"cpu_percent": 2.0},
+            },
+        )
+
+    class FilteringRepository:
+        def __init__(self) -> None:
+            self.metrics = [
+                metric("old", now.replace(hour=8, minute=59)),
+                metric("recent", now.replace(hour=9, minute=30)),
+            ]
+
+        def list_metrics(self, *, since=None, **_):
+            return [item for item in self.metrics if since is None or item.timestamp >= since]
+
+    service = ResourceHostHistoryService(FilteringRepository(), now=lambda: now)
+    monkeypatch.setattr(
+        system,
+        "_resource_host_history_call",
+        lambda callback: callback(service),
+    )
+
+    response = _client().get("/api/system/resource-usage/host-history?hours=1")
+
+    assert response.status_code == 200
+    assert [point["sampled_at"] for point in response.json()["points"]] == [
+        "2026-08-05T09:30:00+00:00"
+    ]
 
 
 def test_resource_event_metadata_exposes_safe_host_threshold_fields_only() -> None:

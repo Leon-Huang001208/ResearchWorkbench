@@ -39,9 +39,11 @@ The failures were the expected missing host sanitizer/history helper and existin
 | `python scripts/check_doc_sync.py` | passed |
 | `git diff --check` | passed |
 | Follow-up: `python -m pytest tests/unit/test_resource_host_history_service.py tests/unit/test_resource_monitor_runtime.py tests/unit/app/api/routes/test_resource_monitoring.py tests/unit/app/api/routes/test_system_resource_usage.py -q` | `45 passed in 0.99s` |
+| Follow-up: same host-history/runtime/API suite after window filtering | `47 passed in 0.89s` |
 
 ## Limits and risks
 
 - Follow-up correction: repository `list_metrics()` failures now become a controlled `ResourceHostHistoryUnavailable`, so the route returns the documented stable 503 instead of a false 200 empty history. A real history service wired to a failing fake repository reproduces this boundary; an empty repository remains 200 with an empty point list.
+- Follow-up correction: the `hours` query now flows into `ResourceHostHistoryService.list_history(hours=...)`, which applies the corresponding UTC `since` repository filter. A one-hour API request excludes the older point in a real service-backed test.
 - Verification uses route/service fakes for persistence failure and history ordering; no live PostgreSQL endpoint call was made.
 - The long-term service owns 24-hour retention. The API validates the requested range and returns its value, while relying on the service's bounded retained history.

@@ -367,6 +367,18 @@ def test_list_history_returns_only_safe_host_capacity_points_in_time_order() -> 
     }
 
 
+def test_list_history_limits_points_to_requested_hour_window() -> None:
+    now = datetime(2026, 8, 5, 10, 0, tzinfo=timezone.utc)
+    old = _host_capacity_metric("old", now - timedelta(hours=1, minutes=1))
+    recent = _host_capacity_metric("recent", now - timedelta(minutes=30))
+    repo = InMemoryMonitoringRepository([old, recent])
+    service = ResourceHostHistoryService(repo, now=lambda: now)
+
+    points = service.list_history(hours=1)
+
+    assert [point["timestamp"] for point in points] == [recent.timestamp]
+
+
 def test_record_if_due_discards_internal_snapshot_keys() -> None:
     repo = InMemoryMonitoringRepository()
     service = ResourceHostHistoryService(
