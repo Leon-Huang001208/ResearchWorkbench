@@ -1,11 +1,10 @@
 """整机容量分钟历史持久化测试。"""
 
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from threading import Barrier, Lock
 from unittest.mock import MagicMock
-
-import pytest
 
 from core.contracts.monitoring import HealthMetrics, Subsystem
 from data_layer.repositories.models import HealthMetricsDB
@@ -106,6 +105,13 @@ def _resource_event_metric(metric_id: str, timestamp: datetime) -> HealthMetrics
     )
 
 
+def _host_metric_id(minute: datetime) -> str:
+    return (
+        f"resource-host-{minute.strftime('%Y%m%d%H%M')}-"
+        f"{uuid.uuid5(uuid.NAMESPACE_URL, f'resource-host:{minute.isoformat()}').hex}"
+    )
+
+
 def test_record_if_due_saves_only_once_per_utc_minute() -> None:
     now = datetime(2026, 8, 5, 8, 30, 5, tzinfo=timezone.utc)
     repo = InMemoryMonitoringRepository()
@@ -115,7 +121,7 @@ def test_record_if_due_saves_only_once_per_utc_minute() -> None:
     assert service.record_if_due(_snapshot()) is False
 
     saved = repo.metrics[0]
-    assert saved.metric_id == "resource-host-202608050830"
+    assert saved.metric_id == _host_metric_id(saved.timestamp)
     assert saved.timestamp == datetime(2026, 8, 5, 8, 30, tzinfo=timezone.utc)
     assert saved.subsystem == Subsystem.RESOURCE_MONITORING
 
@@ -159,7 +165,9 @@ def test_two_instances_record_only_one_capacity_point_per_utc_minute() -> None:
         results = list(executor.map(record, services))
 
     assert sorted(results) == [False, True]
-    assert [metric.metric_id for metric in repo.metrics] == ["resource-host-202608050830"]
+    assert [metric.metric_id for metric in repo.metrics] == [
+        _host_metric_id(now.replace(second=0, microsecond=0))
+    ]
 
 
 def test_save_if_absent_recovers_after_sqlite_unique_flush_failure(db_session) -> None:
@@ -177,25 +185,72 @@ def test_save_if_absent_recovers_after_sqlite_unique_flush_failure(db_session) -
     assert db_session.query(HealthMetricsDB).count() == 2
 
 
-def test_delete_flush_failure_leaves_sqlite_session_usable(monkeypatch, db_session) -> None:
+def test_record_flush_failure_returns_false_and_leaves_sqlite_session_usable(
+    monkeypatch, db_session
+) -> None:
     repo = MonitoringRepositoryImpl(db_session)
-    existing = _host_capacity_metric(
-        "resource-host-202608050830",
-        datetime(2026, 8, 5, 8, 30, tzinfo=timezone.utc),
-    )
-    next_minute = _host_capacity_metric(
-        "resource-host-202608050831",
-        datetime(2026, 8, 5, 8, 31, tzinfo=timezone.utc),
-    )
-    assert repo.save_health_metrics_if_absent(existing) is not None
+    now = datetime(2026, 8, 5, 8, 30, tzinfo=timezone.utc)
+    service = ResourceHostHistoryService(repo, now=lambda: now)
     original_flush = db_session.flush
 
     def failing_flush() -> None:
         raise RuntimeError("flush failed")
 
     monkeypatch.setattr(db_session, "flush", failing_flush)
-    with pytest.raises(RuntimeError):
-        repo.delete_health_metrics([existing.metric_id])
+    assert service.record_if_due(_snapshot()) is False
+    monkeypatch.setattr(db_session, "flush", original_flush)
+
+    assert (
+        repo.save_health_metrics_if_absent(
+            _host_capacity_metric(
+                _host_metric_id(now + timedelta(minutes=1)), now + timedelta(minutes=1)
+            )
+        )
+        is not None
+    )
+    db_session.commit()
+    assert db_session.query(HealthMetricsDB).count() == 1
+
+
+def test_record_returns_false_when_followup_cleanup_delete_fails() -> None:
+    class FailingDeleteRepository(InMemoryMonitoringRepository):
+        def delete_health_metrics(self, metric_ids: list[str]) -> int:
+            raise RuntimeError("delete failed")
+
+    now = datetime(2026, 8, 6, 8, 31, tzinfo=timezone.utc)
+    repo = FailingDeleteRepository(
+        [
+            _host_capacity_metric(
+                _host_metric_id(now - timedelta(hours=24, minutes=1)),
+                now - timedelta(hours=24, minutes=1),
+            )
+        ]
+    )
+    service = ResourceHostHistoryService(repo, now=lambda: now)
+
+    assert service.record_if_due(_snapshot()) is False
+
+
+def test_delete_flush_failure_leaves_sqlite_session_usable(monkeypatch, db_session) -> None:
+    repo = MonitoringRepositoryImpl(db_session)
+    now = datetime(2026, 8, 6, 8, 31, tzinfo=timezone.utc)
+    existing = _host_capacity_metric(
+        _host_metric_id(now - timedelta(hours=24, minutes=1)),
+        now - timedelta(hours=24, minutes=1),
+    )
+    next_minute = _host_capacity_metric(
+        _host_metric_id(datetime(2026, 8, 5, 8, 31, tzinfo=timezone.utc)),
+        datetime(2026, 8, 5, 8, 31, tzinfo=timezone.utc),
+    )
+    assert repo.save_health_metrics_if_absent(existing) is not None
+    service = ResourceHostHistoryService(repo, now=lambda: now)
+    original_flush = db_session.flush
+
+    def failing_flush() -> None:
+        raise RuntimeError("flush failed")
+
+    monkeypatch.setattr(db_session, "flush", failing_flush)
+    assert service.purge_expired() == 0
     monkeypatch.setattr(db_session, "flush", original_flush)
 
     assert repo.save_health_metrics_if_absent(next_minute) is not None
@@ -243,7 +298,7 @@ def test_record_if_due_finds_current_capacity_behind_newer_resource_events() -> 
     minute = now.replace(second=0, microsecond=0)
     repo = InMemoryMonitoringRepository(
         [
-            _host_capacity_metric("resource-host-202608050830", minute),
+            _host_capacity_metric(_host_metric_id(minute), minute),
             *[_resource_event_metric(f"event-{index}", minute) for index in range(1500)],
         ]
     )
@@ -255,7 +310,7 @@ def test_record_if_due_finds_current_capacity_behind_newer_resource_events() -> 
         metric.metric_id
         for metric in repo.metrics
         if metric.extra["metric_type"] == "host_capacity"
-    ] == ["resource-host-202608050830"]
+    ] == [_host_metric_id(minute)]
 
 
 def test_list_history_returns_only_safe_host_capacity_points_in_time_order() -> None:

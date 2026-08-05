@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import uuid
 from collections.abc import Callable, Mapping
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
@@ -60,9 +61,13 @@ class ResourceHostHistoryService:
         try:
             current_time = self._as_utc(self._now())
             minute = current_time.replace(second=0, microsecond=0)
+            metric_id = (
+                f"resource-host-{minute.strftime('%Y%m%d%H%M')}-"
+                f"{uuid.uuid5(uuid.NAMESPACE_URL, f'resource-host:{minute.isoformat()}').hex}"
+            )
             saved = self._repository.save_health_metrics_if_absent(
                 HealthMetrics(
-                    metric_id=f"resource-host-{minute.strftime('%Y%m%d%H%M')}",
+                    metric_id=metric_id,
                     subsystem=Subsystem.RESOURCE_MONITORING,
                     timestamp=minute,
                     extra=extra,
@@ -70,11 +75,10 @@ class ResourceHostHistoryService:
             )
             if saved is None:
                 return False
-            self.purge_expired(current_time)
-            return True
+            return self._purge_expired(current_time) is not None
         except Exception as exc:
             logger.warning("resource host history record failed", error_type=type(exc).__name__)
-            raise
+            return False
 
     def list_history(self) -> list[dict[str, object]]:
         """返回最多 1500 条按时间升序排列的安全公开容量点位。"""
@@ -103,6 +107,11 @@ class ResourceHostHistoryService:
 
     def purge_expired(self, now: Optional[datetime] = None) -> int:
         """精确删除超过 24 小时的容量历史，不影响其他资源监控指标。"""
+        result = self._purge_expired(now)
+        return result if result is not None else 0
+
+    def _purge_expired(self, now: Optional[datetime] = None) -> Optional[int]:
+        """清理过期容量历史；出错时返回 ``None`` 供调用方区分。"""
         try:
             current_time = self._as_utc(now or self._now())
             cutoff = current_time - _RETENTION
@@ -130,7 +139,7 @@ class ResourceHostHistoryService:
                 total_deleted += deleted
         except Exception as exc:
             logger.warning("resource host history purge failed", error_type=type(exc).__name__)
-            raise
+            return None
 
     @staticmethod
     def _is_host_capacity(metric: HealthMetrics) -> bool:

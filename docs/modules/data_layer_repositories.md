@@ -268,7 +268,7 @@ Resource monitoring usage:
 - 资源监控第二期复用 `alert_payload` 与 `incident_record`，通过 `Subsystem.RESOURCE_MONITORING` 过滤事件，不创建重复告警表。
 - 资源事件的任务/来源/PID/置信度归因存放在既有 JSON `metadata`；不得存储秘密、命令参数或异常原文。
 - 未解决的资源告警在 API 查询中始终返回，即使其早于默认 90 天历史窗口。
-- 整机容量分钟历史复用 `health_metrics.extra`，且仅持久化 `metric_type=host_capacity` 的白名单 CPU/内存字段；仓储在排序和 `limit` 前按该类型过滤，以确定性分钟主键在 savepoint 内避免重复写入，并按调用方提供的非空 ID 精确删除。
+- 整机容量分钟历史复用 `health_metrics.extra`，且仅持久化 `metric_type=host_capacity` 的白名单 CPU/内存字段；仓储在排序和 `limit` 前按该类型过滤，以稳定 UUIDv5 后缀的分钟主键在 savepoint 内避免重复写入，并按调用方提供的非空 ID 精确删除。
 
 Update this section when:
 
