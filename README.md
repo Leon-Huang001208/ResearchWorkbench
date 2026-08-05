@@ -104,6 +104,16 @@ uvicorn app.api.main:app --reload
 nohup python -m uvicorn app.api.main:app --host 127.0.0.1 --port 8000 > logs/web_server.log 2>&1 &
 ```
 
+### 分支桌面端预览
+
+功能分支位于独立 Git worktree 时，可在该 worktree 中运行下面的命令进行桌面端验收，稳定版桌面端继续使用 `8765`：
+
+```bash
+npm run desktop:preview
+```
+
+预览实例默认使用 `8766` 和独立的临时运行数据；关闭预览窗口后会停止。需要在原有数据库配置下验收完整工作台时，显式传入 `-- --use-stable-data`；预览不会初始化数据库或启动重复的后台任务。详见 `docs/desktop_packaging.md`。
+
 ### 4. 验证服务
 
 检查健康状态：

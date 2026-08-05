@@ -6,6 +6,7 @@
   "scripts": {
     "tauri": "tauri",
     "desktop:dev": "tauri dev",
+    "desktop:preview": "node scripts/desktop/run_preview.js",
     "desktop:build": "tauri build",
     "desktop:build:debug": "tauri build --debug --bundles app",
     "desktop:sidecar": "python scripts/desktop/build_sidecar.py",

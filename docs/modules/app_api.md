@@ -27,6 +27,7 @@ Purpose:
 - Creates and configures the FastAPI application lifecycle.
 - Performs startup health initialization and registers API routes.
 - Returns only the stable `ready` or `unavailable` persistence state from `/health`; underlying database exceptions remain in server-side structured logs rather than HTTP responses.
+- In an explicit `ALPHAFOUNDRY_PREVIEW=1` desktop process, preserves the readiness contract but skips schema initialization and automatic Wind/market/crawl background services, so branch acceptance does not mutate the shared runtime.
 
 Update this section when:
 

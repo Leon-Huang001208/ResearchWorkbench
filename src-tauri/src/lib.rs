@@ -1,3 +1,4 @@
+use std::env;
 use std::net::TcpStream;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -19,7 +20,14 @@ struct BackendState {
 
 #[tauri::command]
 fn backend_url() -> String {
-    format!("http://{BACKEND_HOST}:{BACKEND_PORT}")
+    format!("http://{BACKEND_HOST}:{}", backend_port())
+}
+
+fn backend_port() -> String {
+    env::var("ALPHAFOUNDRY_DESKTOP_PORT")
+        .ok()
+        .filter(|port| port.parse::<u16>().is_ok_and(|value| value >= 1024))
+        .unwrap_or_else(|| BACKEND_PORT.to_string())
 }
 
 fn wait_for_backend(host: &str, port: &str, timeout: Duration) -> bool {
@@ -45,15 +53,13 @@ fn wait_for_backend(host: &str, port: &str, timeout: Duration) -> bool {
 
 fn start_backend_sidecar(app: &tauri::AppHandle) {
     if cfg!(dev) {
-        log::info!(
-            "Skipping backend sidecar in tauri dev; beforeDevCommand starts the backend"
-        );
+        log::info!("Skipping backend sidecar in tauri dev; beforeDevCommand starts the backend");
         return;
     }
 
     match app.shell().sidecar(BACKEND_SIDECAR) {
         Ok(command) => match command
-            .args(["--host", BACKEND_HOST, "--port", BACKEND_PORT])
+            .args(["--host", BACKEND_HOST, "--port", &backend_port()])
             .spawn()
         {
             Ok((mut rx, child)) => {
@@ -111,9 +117,10 @@ pub fn run() {
         .setup(|app| {
             start_backend_sidecar(&app.handle());
             // 等待后端就绪再显示窗口，避免用户看到白屏/连接错误
+            let port = backend_port();
             wait_for_backend(
                 BACKEND_HOST,
-                BACKEND_PORT,
+                &port,
                 Duration::from_secs(BACKEND_HEALTH_TIMEOUT_SECS),
             );
             Ok(())

@@ -28,6 +28,15 @@ Purpose:
 - Starts the desktop FastAPI backend, workers, and crawl scheduler on the loopback-only desktop listener (`127.0.0.1` or `localhost`).
 - Resolves the source root in development and `sys._MEIPASS` in a PyInstaller one-file bundle before starting the backend or child workers.
 - Creates or migrates the per-user desktop `.env`, requires PostgreSQL + pgvector rather than silently creating a SQLite database, keeps user secrets out of launcher diagnostics, and refuses to terminate an unknown process that already owns the selected port.
+- When `ALPHAFOUNDRY_PREVIEW=1` is set by the branch-preview launcher, verifies desktop readiness but does not start duplicate knowledge-worker or crawler watchdogs.
+
+### `scripts/desktop/run_preview.js`
+
+Purpose:
+
+- Starts the current Git worktree in a separate Tauri development instance, using a temporary Tauri configuration with a dedicated loopback port (default `8766`).
+- Reuses an available Tauri CLI from another AlphaFoundry worktree when the current worktree has no `node_modules`, so previewing does not require copying project dependencies.
+- Uses temporary runtime data by default; `--use-stable-data` explicitly reuses the user's desktop configuration for full-workbench acceptance while the preview environment disables startup mutation and background work.
 
 ### `scripts/desktop/build_sidecar.py`
 
@@ -44,7 +53,7 @@ Purpose:
 
 Update this section when:
 
-- Desktop launcher configuration, bundled resources, worker startup, or platform path behavior changes.
+- Desktop launcher configuration, branch-preview behavior, bundled resources, worker startup, or platform path behavior changes.
 
 ---
 

@@ -71,7 +71,7 @@
 
 | 文件/目录 | 说明 |
 |---|---|
-| `app/api/main.py` | API 入口点，初始化 FastAPI 应用，注册所有路由 |
+| `app/api/main.py` | API 入口点，初始化 FastAPI 应用，注册所有路由；显式分支预览模式只保留就绪检查，不执行数据库初始化或自动后台服务 |
 | `app/api/models.py` | API 请求/响应模型（Pydantic） |
 | `app/api/routes/audit.py` | 审计 API：查询审计日志 |
 | `app/api/routes/dashboard.py` | 仪表盘 API：获取仪表盘汇总数据 |

@@ -44,3 +44,30 @@
 
 - Focused backend/frontend tests, JavaScript syntax checks, live API boundary checks, and a browser smoke check have passed with the limits above.
 - Documentation now covers the frontend lifecycle and degradation contract. Platform/permission limitations remain explicitly open.
+
+---
+
+## Branch Preview Delivery — 2026-08-05
+
+### Scope
+
+- Added `npm run desktop:preview` through `scripts/desktop/run_preview.js` so a feature worktree can open a separate Tauri development shell without changing the stable desktop instance on port `8765`.
+- The preview creates a temporary Tauri configuration, uses `8766` by default, and finds an existing executable Tauri CLI in an AlphaFoundry worktree when the current worktree has no local `node_modules`.
+- `--use-stable-data` explicitly reuses the local desktop configuration for full-workbench acceptance. Preview mode skips database initialization, automatic Wind/market/crawl services, and launcher-owned watchdog workers.
+- The Rust shell now obtains a validated `ALPHAFOUNDRY_DESKTOP_PORT` override for both its readiness wait and `backend_url` command; its default remains `8765` for ordinary desktop runs.
+
+### Actual Commands and Results
+
+| Command | Result | Evidence |
+| --- | --- | --- |
+| `node --check scripts/desktop/run_preview.js` | passed | Preview launcher parsed as an ESM Node script. |
+| `python -m pytest tests/unit/test_desktop_shell_scaffold.py tests/unit/app/api/routes/test_setup_readiness.py tests/e2e/test_node_esm_scripts.py -q` | passed | 54 passed; preview worker/scheduler suppression and Tauri port override static contracts are covered. |
+| `cargo fmt --manifest-path src-tauri/Cargo.toml -- --check` | passed | Rust desktop shell formatting is clean. |
+| `cargo check --manifest-path src-tauri/Cargo.toml` | passed | Native macOS Tauri shell compiled successfully. |
+| `npm run desktop:preview -- --use-stable-data` | passed | Opened the feature-worktree Tauri shell with a backend on `127.0.0.1:8766`; the page fetched `resource-monitor.js` and polled the feature API every two seconds. |
+| `curl` health/resource/history checks against `127.0.0.1:8766` | passed | `/health` returned ready; resource snapshots were scoped to the preview API process and history accumulated 19 live points during acceptance. |
+
+### Limits and Risks
+
+- A native Windows runner and installer smoke test were not run in this local session. The desktop-port override therefore has macOS compile/runtime evidence only and must pass the existing native Windows CI before integration or release.
+- macOS psutil still degrades process I/O and connection-count fields on this host; the page displayed the existing stable `field_unavailable` behavior.

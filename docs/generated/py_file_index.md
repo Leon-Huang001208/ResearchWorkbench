@@ -116,6 +116,7 @@ Imports:
 - `fastapi.middleware.cors`
 - `fastapi.responses`
 - `fastapi.staticfiles`
+- `os`
 - `pathlib`
 - `services.database_readiness`
 - `starlette.middleware.trustedhost`
@@ -1816,9 +1817,20 @@ Imports:
 - `pathlib`
 - `services.system_event_bus`
 - `subprocess`
+- `threading`
 - `typing`
 
 Functions:
+- `get_resource_monitoring_service`
+  - 延迟创建并复用进程资源监控服务。
+- `_sanitize_resource_warning`
+  - 将服务内部采集错误映射为稳定的公开警告码。
+- `_sanitize_resource_snapshot`
+  - 移除资源采集实现细节，避免将内部异常类型暴露给 API 调用方。
+- `get_resource_usage`
+  - 返回 AlphaFoundry 根进程及其后代的当前资源快照。
+- `get_resource_usage_history`
+  - 返回指定时间窗口内已采集的资源快照。
 - `_get_git_branch`
   - 获取当前 git 分支名
 - `_get_db_type`

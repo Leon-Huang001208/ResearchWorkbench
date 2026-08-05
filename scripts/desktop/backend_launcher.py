@@ -351,7 +351,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             "unexpected_error",
         )
     else:
-        if readiness.ready:
+        if os.environ.get("ALPHAFOUNDRY_PREVIEW") == "1":
+            logger.info("Skipped background workers for isolated desktop preview")
+        elif readiness.ready:
             _worker_proc = _start_knowledge_worker(data_dir, args.log_dir)
             _sched_proc = _start_crawl_scheduler(data_dir, args.log_dir)
         else:

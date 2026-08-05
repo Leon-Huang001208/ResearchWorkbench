@@ -112,6 +112,29 @@ def test_desktop_startup_initializes_schema_and_automatic_services_when_ready(
     start_wind.assert_called_once_with()
 
 
+def test_desktop_preview_skips_database_initialization_and_automatic_services(
+    monkeypatch, preserve_database_readiness
+):
+    ensure_schema = MagicMock()
+    start_schedulers = MagicMock()
+    start_wind = MagicMock()
+    monkeypatch.setattr(
+        main, "probe_postgresql", lambda *_: _readiness(DatabaseReadinessCode.READY)
+    )
+    monkeypatch.setattr(main, "ensure_schema", ensure_schema)
+    monkeypatch.setattr(main, "_start_data_acquisition_schedulers", start_schedulers)
+    monkeypatch.setattr(main, "_start_wind_workbook_background", start_wind)
+    monkeypatch.setattr(main, "RUNTIME_CONTEXT", _context("desktop"))
+    monkeypatch.setenv("ALPHAFOUNDRY_PREVIEW", "1")
+
+    asyncio.run(main.startup())
+
+    assert main.app.state.database_readiness.ready is True
+    ensure_schema.assert_not_called()
+    start_schedulers.assert_not_called()
+    start_wind.assert_not_called()
+
+
 def test_setup_readiness_returns_safe_restart_required_status(
     monkeypatch, preserve_database_readiness
 ):

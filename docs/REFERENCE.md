@@ -2645,7 +2645,7 @@ pytest --cov=core --cov=data_layer --cov-report=html
 
 - **默认模式**：需要 PostgreSQL + pgvector；桌面端由用户自行安装并在用户数据目录的 `.env` 中配置 `DATABASE_URL`。
 - **桌面配置位置**：Windows 为 `%LOCALAPPDATA%\\AlphaFoundry\\.env`，macOS 为 `~/Library/Application Support/AlphaFoundry/.env`；可通过 `ALPHAFOUNDRY_DESKTOP_DATA_DIR` 或 `ALPHAFOUNDRY_CONFIG_FILE` 覆盖。
-- **配置优先级**：启动参数 > 进程环境变量 > 显式配置文件 > 模式默认 `.env` > 代码默认值。桌面端配置页以运行时 `.env` 为权威持久化来源，进程环境变量不会锁定字段；重启后仍按上述优先级解析。桌面端默认服务地址为 `http://127.0.0.1:8765`，Web 开发默认 `http://127.0.0.1:8000`。
+- **配置优先级**：启动参数 > 进程环境变量 > 显式配置文件 > 模式默认 `.env` > 代码默认值。桌面端配置页以运行时 `.env` 为权威持久化来源，进程环境变量不会锁定字段；重启后仍按上述优先级解析。桌面端默认服务地址为 `http://127.0.0.1:8765`，Web 开发默认 `http://127.0.0.1:8000`。在功能分支 worktree 中可执行 `npm run desktop:preview` 启动独立桌面验收实例（默认 `8766`）；需要沿用本地桌面配置时使用 `npm run desktop:preview -- --use-stable-data`，该预览实例不初始化数据库或启动自动任务。
 - **演示模式**：如果需要快速测试，可以使用模拟数据
 
 ### Q: 支持哪些输出格式？

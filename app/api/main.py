@@ -1,5 +1,6 @@
 """AlphaFoundry API"""
 
+import os
 import sys
 import time
 from pathlib import Path
@@ -78,6 +79,10 @@ async def startup() -> None:
             extra={"code": readiness.code.value},
         )
         raise RuntimeError(_DATABASE_READINESS_STARTUP_ERROR)
+
+    if os.environ.get("ALPHAFOUNDRY_PREVIEW") == "1":
+        logger.info("Skipped database initialization and background services for branch preview")
+        return
 
     ensure_schema()
     _start_wind_workbook_background()
