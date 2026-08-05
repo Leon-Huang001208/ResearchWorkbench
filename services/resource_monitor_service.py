@@ -15,7 +15,9 @@ from core.observability import get_logger
 logger = get_logger(__name__)
 
 _ROOT_UNAVAILABLE_EXCEPTIONS = (psutil.NoSuchProcess, psutil.AccessDenied, psutil.Error, OSError)
+_OPTIONAL_FIELD_EXCEPTIONS = (*_ROOT_UNAVAILABLE_EXCEPTIONS, NotImplementedError)
 _HISTORY_SIZE = 150
+_SENSITIVE_COMMAND_OPTIONS = {"token", "api-key", "password", "secret", "key"}
 
 
 class ResourceMonitoringService:
@@ -51,6 +53,7 @@ class ResourceMonitoringService:
             self._history.append(snapshot)
             return snapshot
 
+        warming_up = not self._has_warmed_up
         warnings = []
         process_samples = []
         for process in self._deduplicated_processes(processes):
@@ -60,6 +63,7 @@ class ResourceMonitoringService:
                         process=process,
                         is_root=process.pid == self._root_pid,
                         sample_monotonic=sample_monotonic,
+                        warming_up=warming_up,
                     )
                 )
             except _ROOT_UNAVAILABLE_EXCEPTIONS as exc:
@@ -81,7 +85,8 @@ class ResourceMonitoringService:
                 )
                 warnings.append({"code": "child_process_unavailable", "pid": process.pid})
 
-        status = "warming_up" if not self._has_warmed_up else "ok"
+        process_samples.sort(key=self._process_sort_key)
+        status = "warming_up" if warming_up else "ok"
         snapshot = {
             "sampled_at": sampled_at,
             "root_pid": self._root_pid,
@@ -112,17 +117,38 @@ class ResourceMonitoringService:
         process: psutil.Process,
         is_root: bool,
         sample_monotonic: float,
+        warming_up: bool,
     ) -> Dict[str, Any]:
+        """读取进程身份字段，并将可选字段的异常降级到单个字段。"""
         create_time = process.create_time()
-        io_counters = process.io_counters()
-        unavailable_reasons = []
+        sample = {
+            "pid": process.pid,
+            "parent_pid": process.ppid(),
+            "name": process.name(),
+            "create_time": create_time,
+            "status": process.status(),
+            "role": "API" if is_root else "AlphaFoundry child process",
+        }
+        unavailable_reasons: list[str] = []
+
+        command = self._read_optional_field(
+            process,
+            "command",
+            process.cmdline,
+            unavailable_reasons,
+        )
+        io_counters = self._read_optional_field(
+            process,
+            "io_counters",
+            process.io_counters,
+            unavailable_reasons,
+        )
         read_bytes: Optional[int]
         write_bytes: Optional[int]
 
         if io_counters is None:
             read_bytes = None
             write_bytes = None
-            unavailable_reasons.append("io_counters_unavailable")
         else:
             read_bytes = io_counters.read_bytes
             write_bytes = io_counters.write_bytes
@@ -134,27 +160,71 @@ class ResourceMonitoringService:
             read_bytes=read_bytes,
             write_bytes=write_bytes,
         )
+        if io_counters is not None and read_rate is None and write_rate is None:
+            unavailable_reasons.extend(
+                [
+                    "disk_read_bytes_per_second:warming_up",
+                    "disk_write_bytes_per_second:warming_up",
+                ]
+            )
 
-        if read_rate is None and write_rate is None and not unavailable_reasons:
-            unavailable_reasons.append("io_rate_warming_up")
+        cpu_percent = self._read_optional_field(
+            process,
+            "cpu_percent",
+            lambda: process.cpu_percent(interval=None),
+            unavailable_reasons,
+        )
+        if warming_up:
+            cpu_percent = None
 
-        command = self._command_summary(process.cmdline())
-        return {
-            "pid": process.pid,
-            "parent_pid": process.ppid(),
-            "name": process.name(),
-            "command": command,
-            "create_time": create_time,
-            "status": process.status(),
-            "role": "API" if is_root else "AlphaFoundry child process",
-            "cpu_percent": process.cpu_percent(interval=None),
-            "memory_bytes": process.memory_info().rss,
-            "thread_count": process.num_threads(),
-            "disk_read_bytes_per_second": read_rate,
-            "disk_write_bytes_per_second": write_rate,
-            "network_connection_count": len(process.net_connections()),
-            "unavailable_reason": "; ".join(unavailable_reasons) or None,
-        }
+        sample.update(
+            {
+                "command": self._command_summary(command) if command is not None else None,
+                "cpu_percent": cpu_percent,
+                "memory_bytes": self._read_optional_field(
+                    process,
+                    "memory_bytes",
+                    lambda: process.memory_info().rss,
+                    unavailable_reasons,
+                ),
+                "thread_count": self._read_optional_field(
+                    process,
+                    "thread_count",
+                    process.num_threads,
+                    unavailable_reasons,
+                ),
+                "disk_read_bytes_per_second": read_rate,
+                "disk_write_bytes_per_second": write_rate,
+                "network_connection_count": self._read_optional_field(
+                    process,
+                    "network_connection_count",
+                    lambda: len(process.net_connections()),
+                    unavailable_reasons,
+                ),
+                "unavailable_reason": "; ".join(unavailable_reasons) or None,
+            }
+        )
+        return sample
+
+    def _read_optional_field(
+        self,
+        process: psutil.Process,
+        field: str,
+        reader: Any,
+        unavailable_reasons: list[str],
+    ) -> Any:
+        try:
+            return reader()
+        except _OPTIONAL_FIELD_EXCEPTIONS as exc:
+            logger.warning(
+                "resource monitor process field unavailable",
+                root_pid=self._root_pid,
+                pid=process.pid,
+                field=field,
+                error_type=type(exc).__name__,
+            )
+            unavailable_reasons.append(f"{field}:{type(exc).__name__}")
+            return None
 
     def _io_rates(
         self,
@@ -188,7 +258,30 @@ class ResourceMonitoringService:
     def _command_summary(command: list[str]) -> Optional[str]:
         if not command:
             return None
-        return " ".join(command[:3])[:160]
+
+        summary_parts = []
+        redact_next = False
+        for argument in command[:3]:
+            if redact_next:
+                summary_parts.append("***")
+                redact_next = False
+                continue
+
+            if "=" in argument:
+                option, _value = argument.split("=", 1)
+                if ResourceMonitoringService._is_sensitive_command_option(option):
+                    summary_parts.append(f"{option}=***")
+                    continue
+
+            summary_parts.append(argument)
+            redact_next = ResourceMonitoringService._is_sensitive_command_option(argument)
+
+        return " ".join(summary_parts)[:160]
+
+    @staticmethod
+    def _is_sensitive_command_option(argument: str) -> bool:
+        normalized = argument.lstrip("-").lower().replace("_", "-")
+        return normalized in _SENSITIVE_COMMAND_OPTIONS
 
     @staticmethod
     def _deduplicated_processes(processes: Iterable[psutil.Process]) -> Iterable[psutil.Process]:
@@ -197,6 +290,11 @@ class ResourceMonitoringService:
             if process.pid not in seen_pids:
                 seen_pids.add(process.pid)
                 yield process
+
+    @staticmethod
+    def _process_sort_key(sample: Dict[str, Any]) -> Tuple[bool, float, int]:
+        cpu_percent = sample["cpu_percent"]
+        return (cpu_percent is None, -(cpu_percent or 0.0), sample["pid"])
 
     @staticmethod
     def _build_summary(process_samples: list[Dict[str, Any]]) -> Dict[str, Any]:

@@ -27,6 +27,7 @@ class FakeProcess:
         connections: int = 0,
         children: list["FakeProcess"] | None = None,
         failure: Exception | None = None,
+        field_failures: dict[str, Exception] | None = None,
     ) -> None:
         self.pid = pid
         self._parent_pid = parent_pid
@@ -39,55 +40,58 @@ class FakeProcess:
         self._connections = connections
         self._children = children or []
         self._failure = failure
+        self._field_failures = field_failures or {}
         self.cpu_intervals: list[float | None] = []
 
-    def _raise_if_failed(self) -> None:
+    def _raise_if_failed(self, field: str) -> None:
         if self._failure is not None:
             raise self._failure
+        if field in self._field_failures:
+            raise self._field_failures[field]
 
     def ppid(self) -> int:
-        self._raise_if_failed()
+        self._raise_if_failed("parent_pid")
         return self._parent_pid or 0
 
     def name(self) -> str:
-        self._raise_if_failed()
+        self._raise_if_failed("name")
         return self._name
 
     def cmdline(self) -> list[str]:
-        self._raise_if_failed()
+        self._raise_if_failed("command")
         return list(self._command)
 
     def create_time(self) -> float:
-        self._raise_if_failed()
+        self._raise_if_failed("create_time")
         return float(self.pid)
 
     def status(self) -> str:
-        self._raise_if_failed()
+        self._raise_if_failed("status")
         return "running"
 
     def cpu_percent(self, interval: float | None = None) -> float:
-        self._raise_if_failed()
+        self._raise_if_failed("cpu_percent")
         self.cpu_intervals.append(interval)
         return self._cpu_samples.pop(0) if self._cpu_samples else 0.0
 
     def memory_info(self) -> SimpleNamespace:
-        self._raise_if_failed()
+        self._raise_if_failed("memory_bytes")
         return SimpleNamespace(rss=self._memory_bytes)
 
     def num_threads(self) -> int:
-        self._raise_if_failed()
+        self._raise_if_failed("thread_count")
         return 4
 
     def io_counters(self) -> SimpleNamespace:
-        self._raise_if_failed()
+        self._raise_if_failed("io_counters")
         return SimpleNamespace(read_bytes=self._read_bytes, write_bytes=self._write_bytes)
 
     def net_connections(self) -> list[object]:
-        self._raise_if_failed()
+        self._raise_if_failed("network_connection_count")
         return [object() for _ in range(self._connections)]
 
     def children(self, recursive: bool = False) -> list["FakeProcess"]:
-        self._raise_if_failed()
+        self._raise_if_failed("children")
         assert recursive is True
         return list(self._children)
 
@@ -109,7 +113,7 @@ def scoped_process_tree(monkeypatch: pytest.MonkeyPatch) -> tuple[FakeProcess, F
         101,
         None,
         name="api",
-        command=["python", "-m", "server", "unreported"],
+        command=["python", "--token", "topsecret", "unreported"],
         cpu_samples=[10.0, 15.0],
         memory_bytes=100,
         read_bytes=100,
@@ -141,7 +145,8 @@ def test_snapshot_limits_collection_to_root_and_descendants_and_warms_up(
     assert unrelated.pid not in {process["pid"] for process in snapshot["processes"]}
     assert root.cpu_intervals == [None]
     assert snapshot["processes"][0]["role"] == "API"
-    assert snapshot["processes"][0]["command"] == "python -m server"
+    assert snapshot["processes"][0]["command"] == "python --token ***"
+    assert "topsecret" not in snapshot["processes"][0]["command"]
     assert snapshot["processes"][1]["role"] == "AlphaFoundry child process"
     assert {
         "pid",
@@ -160,7 +165,19 @@ def test_snapshot_limits_collection_to_root_and_descendants_and_warms_up(
         "unavailable_reason",
     } <= snapshot["processes"][0].keys()
     assert len(snapshot["processes"][1]["command"]) <= 160
+    assert all(process["cpu_percent"] is None for process in snapshot["processes"])
+    assert snapshot["summary"]["cpu_percent"] is None
     assert snapshot["summary"]["disk_read_bytes_per_second"] is None
+
+
+def test_command_summary_redacts_key_value_secrets() -> None:
+    summary = resource_monitor_service.ResourceMonitoringService._command_summary(
+        ["python", "API_KEY=topsecret", "--password=hunter2"]
+    )
+
+    assert summary == "python API_KEY=*** --password=***"
+    assert "topsecret" not in summary
+    assert "hunter2" not in summary
 
 
 def test_second_snapshot_calculates_cpu_io_rates_and_aggregates_summary(
@@ -218,6 +235,114 @@ def test_exited_child_is_skipped_without_failing_snapshot(monkeypatch: pytest.Mo
     assert snapshot["status"] == "warming_up"
     assert [process["pid"] for process in snapshot["processes"]] == [101]
     assert snapshot["warnings"] == [{"code": "child_process_unavailable", "pid": 102}]
+
+
+def test_optional_field_errors_keep_root_and_child_with_none_values_and_structured_logs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class CapturingLogger:
+        def __init__(self) -> None:
+            self.warnings: list[tuple[str, dict[str, object]]] = []
+
+        def warning(self, message: str, **kwargs: object) -> None:
+            self.warnings.append((message, kwargs))
+
+    child = FakeProcess(
+        102,
+        101,
+        name="worker",
+        field_failures={
+            "io_counters": psutil.AccessDenied(102),
+            "network_connection_count": NotImplementedError("unsupported"),
+        },
+    )
+    root = FakeProcess(
+        101,
+        None,
+        name="api",
+        field_failures={"thread_count": psutil.AccessDenied(101)},
+        children=[child],
+    )
+    logger = CapturingLogger()
+    monkeypatch.setattr(resource_monitor_service.psutil, "Process", lambda pid: root)
+    monkeypatch.setattr(resource_monitor_service.time, "monotonic", lambda: 10.0)
+    monkeypatch.setattr(resource_monitor_service, "logger", logger)
+    service = resource_monitor_service.ResourceMonitoringService(root_pid=101)
+
+    snapshot = service.collect_snapshot()
+
+    samples = {sample["pid"]: sample for sample in snapshot["processes"]}
+    assert set(samples) == {101, 102}
+    assert samples[101]["thread_count"] is None
+    assert "thread_count:AccessDenied" in samples[101]["unavailable_reason"]
+    assert samples[102]["network_connection_count"] is None
+    assert samples[102]["disk_read_bytes_per_second"] is None
+    assert "io_counters:AccessDenied" in samples[102]["unavailable_reason"]
+    assert "network_connection_count:NotImplementedError" in samples[102]["unavailable_reason"]
+    assert logger.warnings == [
+        (
+            "resource monitor process field unavailable",
+            {
+                "root_pid": 101,
+                "pid": 101,
+                "field": "thread_count",
+                "error_type": "AccessDenied",
+            },
+        ),
+        (
+            "resource monitor process field unavailable",
+            {
+                "root_pid": 101,
+                "pid": 102,
+                "field": "io_counters",
+                "error_type": "AccessDenied",
+            },
+        ),
+        (
+            "resource monitor process field unavailable",
+            {
+                "root_pid": 101,
+                "pid": 102,
+                "field": "network_connection_count",
+                "error_type": "NotImplementedError",
+            },
+        ),
+    ]
+
+
+def test_root_core_identity_error_returns_unavailable_snapshot(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = FakeProcess(101, None, name="api", field_failures={"name": psutil.AccessDenied(101)})
+    monkeypatch.setattr(resource_monitor_service.psutil, "Process", lambda pid: root)
+    monkeypatch.setattr(resource_monitor_service.time, "monotonic", lambda: 10.0)
+    service = resource_monitor_service.ResourceMonitoringService(root_pid=101)
+
+    snapshot = service.collect_snapshot()
+
+    assert snapshot["status"] == "unavailable"
+    assert snapshot["processes"] == []
+
+
+def test_processes_sort_by_cpu_then_pid_after_warm_up(monkeypatch: pytest.MonkeyPatch) -> None:
+    child_high_pid = FakeProcess(103, 101, name="worker-high", cpu_samples=[1.0, 20.0])
+    child_low_pid = FakeProcess(102, 101, name="worker-low", cpu_samples=[1.0, 20.0])
+    root = FakeProcess(
+        101,
+        None,
+        name="api",
+        cpu_samples=[1.0, 5.0],
+        children=[child_high_pid, child_low_pid],
+    )
+    monkeypatch.setattr(resource_monitor_service.psutil, "Process", lambda pid: root)
+    monkeypatch.setattr(resource_monitor_service.time, "monotonic", iter([10.0, 12.0]).__next__)
+    service = resource_monitor_service.ResourceMonitoringService(root_pid=101)
+
+    warming_up = service.collect_snapshot()
+    ready = service.collect_snapshot()
+
+    assert [sample["pid"] for sample in warming_up["processes"]] == [101, 102, 103]
+    assert [sample["pid"] for sample in ready["processes"]] == [102, 103, 101]
 
 
 def test_history_keeps_fixed_150_point_limit_when_smaller_capacity_is_requested(
