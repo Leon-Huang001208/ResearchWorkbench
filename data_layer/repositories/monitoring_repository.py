@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
 from core.contracts.monitoring import (
     AlertPayload,
@@ -299,17 +300,38 @@ class MonitoringRepositoryImpl(BaseRepository):
                     self.db.flush()
                     saved = self._dict_to_alert(self._db_alert_to_dict(db_obj))
             except IntegrityError:
-                existing = (
-                    query.filter(AlertPayloadDB.status != AlertStatus.RESOLVED.value)
-                    .order_by(AlertPayloadDB.triggered_at.desc())
-                    .first()
+                self.db.expire_all()
+                existing = self._lookup_open_resource_alert_from_new_session(
+                    alert.alert_id, dedupe_key
                 )
                 if existing is not None:
-                    return self._dict_to_alert(self._db_alert_to_dict(existing)), False
+                    return existing, False
                 continue
             logger.info("resource alert created", alert_id=saved.alert_id, dedupe_key=dedupe_key)
             return saved, True
         raise RuntimeError("resource alert create conflict could not be resolved")
+
+    def _lookup_open_resource_alert_from_new_session(
+        self, alert_id: str, dedupe_key: str
+    ) -> Optional[AlertPayload]:
+        """在独立事务中读取主键冲突赢家，避开 SQLite 的旧读快照。"""
+        lookup_session = Session(bind=self.db.get_bind())
+        try:
+            db_obj = (
+                lookup_session.query(AlertPayloadDB)
+                .filter(
+                    AlertPayloadDB.alert_id == alert_id,
+                    AlertPayloadDB.subsystem == Subsystem.RESOURCE_MONITORING.value,
+                    AlertPayloadDB.status != AlertStatus.RESOLVED.value,
+                    AlertPayloadDB.alert_metadata["dedupe_key"].as_string() == dedupe_key,
+                )
+                .first()
+            )
+            if db_obj is None:
+                return None
+            return self._dict_to_alert(self._db_alert_to_dict(db_obj))
+        finally:
+            lookup_session.close()
 
     def list_alerts(
         self,

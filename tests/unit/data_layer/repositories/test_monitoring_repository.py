@@ -43,6 +43,16 @@ def _host_snapshot(cpu_percent: float) -> dict[str, object]:
     }
 
 
+def _task_failure_snapshot() -> dict[str, object]:
+    return {
+        "status": "ok",
+        "warnings": [],
+        "processes": [],
+        "host": {},
+        "task_failures": [{"task_id": "concurrent-task", "task_kind": "crawl"}],
+    }
+
+
 def test_update_alert_details_if_unresolved_preserves_acknowledgement(db_session) -> None:
     repo = MonitoringRepositoryImpl(db_session)
     original = repo.save_alert(_alert(status=AlertStatus.ACKNOWLEDGED, alert_id="alert-ack"))
@@ -121,6 +131,46 @@ def test_concurrent_host_services_create_one_open_event_per_cycle(tmp_path) -> N
             .filter(
                 AlertPayloadDB.status != AlertStatus.RESOLVED.value,
                 AlertPayloadDB.alert_metadata["dedupe_key"].as_string() == "host_cpu_pressure",
+            )
+            .all()
+        )
+        assert len(events) == 1
+        assert events[0].status == AlertStatus.OPEN.value
+    finally:
+        verification_session.close()
+        Base.metadata.drop_all(bind=engine)
+
+
+def test_concurrent_task_failure_services_create_one_open_event(tmp_path) -> None:
+    database_path = tmp_path / "monitoring-task-alerts.sqlite"
+    engine = create_engine(
+        f"sqlite:///{database_path}", connect_args={"check_same_thread": False, "timeout": 5}
+    )
+    Base.metadata.create_all(bind=engine)
+    session_factory = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    barrier = Barrier(2)
+
+    def evaluate_failure() -> None:
+        session = session_factory()
+        try:
+            service = ResourceMonitorAlertService(MonitoringRepositoryImpl(session))
+            barrier.wait()
+            service.evaluate(_task_failure_snapshot())
+            session.commit()
+        finally:
+            session.close()
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        list(executor.map(lambda _: evaluate_failure(), range(2)))
+
+    verification_session = session_factory()
+    try:
+        events = (
+            verification_session.query(AlertPayloadDB)
+            .filter(
+                AlertPayloadDB.status != AlertStatus.RESOLVED.value,
+                AlertPayloadDB.alert_metadata["dedupe_key"].as_string()
+                == "task_failed:concurrent-task",
             )
             .all()
         )

@@ -417,6 +417,7 @@ class ResourceMonitorAlertService:
             dedupe_key=dedupe_key,
             severity=severity,
             metadata=safe_metadata,
+            open_dedupe_key=dedupe_key,
         )
 
     def _create_event(

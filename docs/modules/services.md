@@ -65,7 +65,7 @@ Purpose:
 - `ResourceMonitorRuntime` 在数据库就绪的 API 生命周期内以单一可停止线程每分钟采集一次快照；同一数据库会话内写入主机容量历史并评估资源事件。采样、历史或告警失败只记录安全的结构化异常类型，下一周期继续运行。
 - `ResourceHostHistoryService.list_history(hours=24)` 以当前 UTC 时间减去请求窗口传入仓储 `since` 过滤；它将仓储读取失败封装为不含原始错误内容的 `ResourceHostHistoryUnavailable`。API 将它明确映射为主机历史不可用，空点位仍是正常的空历史响应。运行时只调用写入路径，不受该读取信号影响。
 - `ResourceAlertState` 在运行时的连续采样周期之间共享压力与恢复计数；每周期创建的 `ResourceMonitorAlertService` 显式消费该状态，因此持续压力仍在第三个样本触发现有事件规则。
-- `ResourceMonitorAlertService` 将任务失败、受控进程缺失、采样失败和持续资源压力以 `source_scope=alphafoundry` 保存为既有 Monitoring 告警/事件状态机中的 `resource_monitoring` 事件；另以 `source_scope=host_capacity` 评估整机 CPU（85%/95%）和可用内存（15%/8%）容量压力。两类容量均需连续三个有限且处于 0–100 的样本触发或恢复；无效字段会中断该指标的连续计数。主机事件通过仓储的确定性周期 ID 和 savepoint 冲突恢复，确保并发周期至多一个未解决事件；warning 升为 critical 时调用条件更新，仅更新详情且保留确认/解决状态。
+- `ResourceMonitorAlertService` 将任务失败、受控进程缺失、采样失败和持续资源压力以 `source_scope=alphafoundry` 保存为既有 Monitoring 告警/事件状态机中的 `resource_monitoring` 事件；另以 `source_scope=host_capacity` 评估整机 CPU（85%/95%）和可用内存（15%/8%）容量压力。所有资源事件通过仓储的确定性周期 ID 和 savepoint 冲突恢复，确保并发周期至多一个未解决事件；两类主机容量均需连续三个有限且处于 0–100 的样本触发或恢复，无效字段会中断该指标的连续计数。warning 升为 critical 时调用条件更新，仅更新详情且保留确认/解决状态。
 
 Safety boundary:
 

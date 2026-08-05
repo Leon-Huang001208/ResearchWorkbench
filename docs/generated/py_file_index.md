@@ -7236,13 +7236,14 @@ Imports:
 - `data_layer.repositories.models`
 - `datetime`
 - `sqlalchemy.exc`
+- `sqlalchemy.orm`
 - `typing`
 - `uuid`
 
 Classes:
 - `MonitoringRepositoryImpl`
   - Monitoring 仓储实现
-  - methods: save_health_metrics, save_health_metrics_if_absent, get_latest_metrics, list_metrics, delete_health_metrics, save_drift_report, list_drift_reports, save_alert_threshold, get_alert_threshold, list_alert_thresholds, delete_alert_threshold, save_alert, get_alert, update_alert_details_if_unresolved, get_or_create_open_resource_alert, list_alerts, count_open_alerts, count_open_critical, get_last_alert_for_threshold, _resource_alert_cycle_id, save_incident, get_incident, list_incidents, recent_incidents, _metrics_to_dict, _db_metrics_to_dict, _dict_to_metrics, _drift_to_dict, _db_drift_to_dict, _dict_to_drift, _threshold_to_dict, _db_threshold_to_dict, _dict_to_threshold, _alert_to_dict, _db_alert_to_dict, _dict_to_alert, _incident_to_dict, _db_incident_to_dict, _dict_to_incident
+  - methods: save_health_metrics, save_health_metrics_if_absent, get_latest_metrics, list_metrics, delete_health_metrics, save_drift_report, list_drift_reports, save_alert_threshold, get_alert_threshold, list_alert_thresholds, delete_alert_threshold, save_alert, get_alert, update_alert_details_if_unresolved, get_or_create_open_resource_alert, _lookup_open_resource_alert_from_new_session, list_alerts, count_open_alerts, count_open_critical, get_last_alert_for_threshold, _resource_alert_cycle_id, save_incident, get_incident, list_incidents, recent_incidents, _metrics_to_dict, _db_metrics_to_dict, _dict_to_metrics, _drift_to_dict, _db_drift_to_dict, _dict_to_drift, _threshold_to_dict, _db_threshold_to_dict, _dict_to_threshold, _alert_to_dict, _db_alert_to_dict, _dict_to_alert, _incident_to_dict, _db_incident_to_dict, _dict_to_incident
 
 
 ## `data_layer/repositories/outcome_journal_repository.py`

@@ -269,7 +269,7 @@ Resource monitoring usage:
 - 资源事件的任务/来源/PID/置信度归因存放在既有 JSON `metadata`；AlphaFoundry 受控任务事件使用 `source_scope=alphafoundry`，整机 CPU/可用内存容量事件使用 `source_scope=host_capacity`；不得存储秘密、命令参数或异常原文。
 - 未解决的资源告警在 API 查询中始终返回，即使其早于默认 90 天历史窗口。
 - `update_alert_details_if_unresolved()` 以 `alert_id` 和 `status != resolved` 为条件原子更新 severity、标题、描述、阈值及安全 metadata；它不会写入确认或解决字段，已解决记录仅返回当前值。
-- `get_or_create_open_resource_alert()` 按资源去重键查询未解决事件，并以周期序号确定性主键在 savepoint 中创建；并发主键冲突后返回当前未解决事件。已解决历史保留，后续周期生成新 ID。
+- `get_or_create_open_resource_alert()` 按任意资源事件去重键查询未解决事件，并以周期序号确定性主键在 savepoint 中创建；并发主键冲突后使用独立只读事务返回当前未解决事件，避免 SQLite 旧读快照且不回滚调用者事务。已解决历史保留，后续周期生成新 ID。
 - 整机容量分钟历史复用 `health_metrics.extra`，且仅持久化 `metric_type=host_capacity` 的白名单 CPU/内存字段；仓储在排序和 `limit` 前按该类型过滤，以稳定 UUIDv5 后缀的分钟主键在 savepoint 内避免重复写入，并按调用方提供的非空 ID 精确删除。24 小时清理查询使用严格早于保留边界的上界，边界点不参与批次限制。
 
 Update this section when:
