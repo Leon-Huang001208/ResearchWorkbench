@@ -16,11 +16,14 @@ let isMonitoring = false;
 let pollTimer = null;
 let snapshotController = null;
 let historyController = null;
+let eventController = null;
 let failureCount = 0;
 let historyVersion = 0;
 let snapshotVersion = 0;
 let lastFailureAt = null;
 let retryDelay = null;
+let resourceEvents = [];
+let eventFailure = false;
 let visibilityListenerAttached = false;
 let resizeListenerAttached = false;
 let keyboardListenerAttached = false;
@@ -47,6 +50,7 @@ export function startResourceMonitoring() {
         return;
     }
     loadInitialHistory();
+    pollResourceEvents();
     pollSnapshot();
 }
 
@@ -80,8 +84,10 @@ function clearPollTimer() {
 function abortRequests() {
     snapshotController?.abort();
     historyController?.abort();
+    eventController?.abort();
     snapshotController = null;
     historyController = null;
+    eventController = null;
 }
 
 function attachVisibilityListener() {
@@ -123,6 +129,7 @@ function handleVisibilityChange() {
     if (canPoll()) {
         resizeResourceCharts();
         loadInitialHistory();
+        pollResourceEvents();
         pollSnapshot();
     }
 }
@@ -182,6 +189,7 @@ async function pollSnapshot() {
         lastFailureAt = null;
         retryDelay = null;
         renderAll();
+        pollResourceEvents();
         schedulePoll(POLL_INTERVAL_MS);
     } catch (error) {
         if (isAbortError(error)) return;
@@ -194,6 +202,36 @@ async function pollSnapshot() {
         schedulePoll(delay);
     } finally {
         if (snapshotController === controller) snapshotController = null;
+    }
+}
+
+async function pollResourceEvents() {
+    if (!canPoll()) return;
+    eventController?.abort();
+    const controller = new AbortController();
+    eventController = controller;
+    const filters = resourceEventFilters();
+    const query = new URLSearchParams({ days: '90', status: filters.status });
+    if (filters.severity) query.set('severity', filters.severity);
+    try {
+        const response = await apiCall(
+            'GET',
+            `/api/system/resource-events?${query.toString()}`,
+            null,
+            { signal: controller.signal, retries: 0 },
+        );
+        if (controller.signal.aborted || !canPoll()) return;
+        resourceEvents = Array.isArray(response?.items) ? response.items : [];
+        eventFailure = false;
+        renderResourceEvents();
+    } catch (error) {
+        if (!isAbortError(error)) {
+            logRequestFailure('resource-events', error);
+            eventFailure = true;
+            renderResourceEvents();
+        }
+    } finally {
+        if (eventController === controller) eventController = null;
     }
 }
 
@@ -289,6 +327,107 @@ function renderAll() {
     renderCharts();
     renderProcessTable();
     renderDetail();
+    renderAttribution();
+    renderResourceEvents();
+}
+
+function renderAttribution() {
+    const container = document.getElementById('resource-monitor-attribution');
+    if (!container) return;
+    const latest = points.at(-1);
+    const processes = Array.isArray(latest?.processes) ? latest.processes : [];
+    const fragment = document.createDocumentFragment();
+    processes.forEach(process => {
+        const tasks = Array.isArray(process.active_tasks) ? process.active_tasks : [];
+        if (!tasks.length && process.attribution_kind !== 'worker' && process.attribution_kind !== 'scheduler') return;
+        const item = document.createElement('article');
+        item.className = 'resource-attribution-item';
+        const title = document.createElement('strong');
+        const confidence = process.confidence === 'shared_process_estimate'
+            ? '共享 API 进程估算' : '独立进程精确值';
+        title.textContent = `${safeText(process.role, 'AlphaFoundry 进程')} · ${confidence}`;
+        const detail = document.createElement('span');
+        const taskLabels = tasks.map(task => safeText(task.label, safeText(task.task_kind, '运行任务'))).join('、');
+        detail.textContent = taskLabels || `PID ${process.pid} · CPU ${process.cpu_percent == null ? '采样中' : `${formatNumber(process.cpu_percent, 1)}%`}`;
+        item.append(title, detail);
+        fragment.append(item);
+    });
+    if (!fragment.childNodes.length) {
+        const empty = document.createElement('p');
+        empty.className = 'resource-monitor-empty';
+        empty.textContent = '暂无活跃任务归因；独立 Worker 启动后会显示在这里。';
+        fragment.append(empty);
+    }
+    container.replaceChildren(fragment);
+}
+
+function renderResourceEvents() {
+    const pending = resourceEvents.filter(event => event.status !== 'resolved');
+    renderEventList('resource-monitor-pinned-events', pending, true);
+    renderEventList('resource-monitor-event-history', resourceEvents, false);
+    const status = document.getElementById('resource-event-status');
+    if (status) status.textContent = eventFailure
+        ? '异常历史暂不可用，保留上一份记录'
+        : `${pending.length} 个待处理异常`;
+}
+
+function renderEventList(elementId, events, isPinned) {
+    const container = document.getElementById(elementId);
+    if (!container) return;
+    const ordered = [...events].sort((left, right) => {
+        const severity = (right.severity === 'critical') - (left.severity === 'critical');
+        return severity || String(right.triggered_at).localeCompare(String(left.triggered_at));
+    });
+    const fragment = document.createDocumentFragment();
+    ordered.forEach(event => fragment.append(createResourceEvent(event, isPinned)));
+    if (!ordered.length) {
+        const empty = document.createElement('p');
+        empty.className = 'resource-monitor-empty';
+        empty.textContent = isPinned ? '当前没有待处理异常。' : '所选条件下没有异常历史。';
+        fragment.append(empty);
+    }
+    container.replaceChildren(fragment);
+}
+
+function createResourceEvent(event, isPinned) {
+    const item = document.createElement('article');
+    item.className = `resource-event resource-event-${safeText(event.severity, 'warning')}`;
+    const title = document.createElement('strong');
+    title.textContent = safeText(event.title, '资源监控异常');
+    const detail = document.createElement('p');
+    const metadata = event.metadata && typeof event.metadata === 'object' ? event.metadata : {};
+    detail.textContent = `${safeText(metadata.task_kind, '系统')} · ${safeText(metadata.source_key, 'AlphaFoundry')} · ${formatTime(event.triggered_at)}`;
+    const description = document.createElement('span');
+    description.textContent = safeText(event.description, '请查看 AlphaFoundry 日志。');
+    item.append(title, detail, description);
+    if (isPinned) {
+        const actions = document.createElement('div');
+        actions.className = 'resource-event-actions';
+        if (event.status === 'open') actions.append(createEventAction('确认', event.alert_id, 'acknowledge'));
+        if (event.status !== 'resolved') actions.append(createEventAction('解决', event.alert_id, 'resolve'));
+        item.append(actions);
+    }
+    return item;
+}
+
+function createEventAction(label, alertId, action) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = label;
+    button.addEventListener('click', () => updateResourceEvent(alertId, action));
+    return button;
+}
+
+async function updateResourceEvent(alertId, action) {
+    try {
+        await apiCall('POST', `/api/system/resource-events/${encodeURIComponent(alertId)}/${action}`,
+            action === 'resolve' ? { notes: '已在系统监控页解决。' } : null, { retries: 0 });
+        await pollResourceEvents();
+    } catch (error) {
+        logRequestFailure(`resource-event-${action}`, error);
+        eventFailure = true;
+        renderResourceEvents();
+    }
 }
 
 function publicStatus(value) {
@@ -566,6 +705,19 @@ function bindControls() {
             renderProcessTable();
         });
     });
+    section.querySelectorAll('[data-resource-event-filter]').forEach(select => {
+        select.addEventListener('change', pollResourceEvents);
+    });
+}
+
+function resourceEventFilters() {
+    const section = document.getElementById('section-resource-monitor');
+    const status = section?.querySelector('[data-resource-event-filter="status"]')?.value;
+    const severity = section?.querySelector('[data-resource-event-filter="severity"]')?.value;
+    return {
+        status: ['all', 'open', 'acknowledged', 'resolved'].includes(status) ? status : 'all',
+        severity: ['critical', 'warning', 'info'].includes(severity) ? severity : '',
+    };
 }
 
 function normalizeTimestamp(value) {

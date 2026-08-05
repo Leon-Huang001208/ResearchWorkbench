@@ -20,6 +20,9 @@ def test_resource_monitor_navigation_and_semantic_dom_contract() -> None:
         "resource-monitor-memory-chart",
         "resource-monitor-processes",
         "resource-monitor-detail",
+        "resource-monitor-pinned-events",
+        "resource-monitor-attribution",
+        "resource-monitor-event-history",
     ):
         assert f'id="{element_id}"' in template
     assert 'aria-live="polite"' in template
@@ -31,7 +34,7 @@ def test_resource_monitor_navigation_and_semantic_dom_contract() -> None:
 def test_resource_monitor_module_cache_and_navigation_lifecycle_contract() -> None:
     app_js = (ROOT / "app/web/static/js/app.js").read_text(encoding="utf-8")
 
-    assert "./resource-monitor.js?v=20260805b" in app_js
+    assert "./resource-monitor.js?v=20260805c" in app_js
     assert "startResourceMonitoring" in app_js
     assert "stopResourceMonitoring" in app_js
     assert "if (section === 'resource-monitor') startResourceMonitoring();" in app_js
@@ -87,6 +90,12 @@ def test_resource_monitor_module_handles_lifecycle_bounds_and_safe_process_dom()
     assert "已退出" in source
     assert "window.echarts" in source
     assert "innerHTML" not in source
+    assert "/api/system/resource-events" in source
+    assert "function renderResourceEvents" in source
+    assert "function renderAttribution" in source
+    assert "shared_process_estimate" in source
+    assert "function updateResourceEvent" in source
+    assert "异常历史暂不可用，保留上一份记录" in source
 
 
 def test_resource_monitor_styles_keep_dense_responsive_tables_and_charts() -> None:
@@ -106,3 +115,5 @@ def test_resource_monitor_styles_keep_dense_responsive_tables_and_charts() -> No
     assert "nth-child(n + 2)" not in style
     assert ".resource-process-table tbody tr:focus-visible" in style
     assert ".resource-detail-close" in style
+    assert ".resource-event-critical" in style
+    assert ".resource-event-filters" in style

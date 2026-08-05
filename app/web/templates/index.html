@@ -879,6 +879,27 @@
                     <article class="resource-summary-card"><span>最近采样</span><strong data-resource-summary="sampled-at">--</strong></article>
                 </div>
 
+                <section class="resource-monitor-panel resource-event-panel" aria-labelledby="resource-pinned-events-title">
+                    <div class="resource-panel-heading">
+                        <div>
+                            <h3 id="resource-pinned-events-title">待处理异常</h3>
+                            <p>未恢复事件会持续置顶，不受 90 天历史窗口影响。</p>
+                        </div>
+                        <span id="resource-event-status" class="resource-event-status" aria-live="polite">正在读取异常记录</span>
+                    </div>
+                    <div id="resource-monitor-pinned-events" class="resource-event-list"></div>
+                </section>
+
+                <section class="resource-monitor-panel" aria-labelledby="resource-attribution-title">
+                    <div class="resource-panel-heading">
+                        <div>
+                            <h3 id="resource-attribution-title">活跃归因</h3>
+                            <p>独立 Worker 显示精确进程资源；API 内任务仅显示共享进程估算。</p>
+                        </div>
+                    </div>
+                    <div id="resource-monitor-attribution" class="resource-attribution-list"></div>
+                </section>
+
                 <div class="resource-monitor-chart-grid">
                     <section class="resource-monitor-panel" aria-labelledby="resource-monitor-cpu-title">
                         <h3 id="resource-monitor-cpu-title">CPU（最近 5 分钟）</h3>
@@ -915,6 +936,29 @@
                 <section id="resource-monitor-detail" class="resource-monitor-panel resource-monitor-detail hidden" aria-live="polite" aria-hidden="true">
                     <h3>进程详情</h3>
                     <p class="resource-monitor-empty">选择一个进程以查看详情。</p>
+                </section>
+
+                <section class="resource-monitor-panel resource-event-panel" aria-labelledby="resource-event-history-title">
+                    <div class="resource-panel-heading">
+                        <div>
+                            <h3 id="resource-event-history-title">异常历史</h3>
+                            <p>默认查询最近 90 天；原始资源曲线仅保留最近 5 分钟。</p>
+                        </div>
+                        <div class="resource-event-filters" aria-label="异常历史筛选">
+                            <select data-resource-event-filter="status" aria-label="事件状态">
+                                <option value="all">全部状态</option>
+                                <option value="open">未确认</option>
+                                <option value="acknowledged">已确认</option>
+                                <option value="resolved">已解决</option>
+                            </select>
+                            <select data-resource-event-filter="severity" aria-label="严重度">
+                                <option value="">全部严重度</option>
+                                <option value="critical">严重</option>
+                                <option value="warning">警告</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="resource-monitor-event-history" class="resource-event-list"></div>
                 </section>
             </section>
 

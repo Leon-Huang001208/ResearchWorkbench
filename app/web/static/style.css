@@ -13769,6 +13769,77 @@ tbody tr:hover {
     height: 46px;
 }
 
+#section-resource-monitor .resource-panel-heading {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+#section-resource-monitor .resource-panel-heading p {
+    margin: 4px 0 0;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+#section-resource-monitor .resource-event-status {
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+#section-resource-monitor .resource-event-list,
+#section-resource-monitor .resource-attribution-list {
+    display: grid;
+    gap: 8px;
+}
+
+#section-resource-monitor .resource-event,
+#section-resource-monitor .resource-attribution-item {
+    display: grid;
+    gap: 4px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
+}
+
+#section-resource-monitor .resource-event-critical { border-left: 3px solid #ff453a; }
+#section-resource-monitor .resource-event-warning { border-left: 3px solid #f59e0b; }
+
+#section-resource-monitor .resource-event p,
+#section-resource-monitor .resource-event span,
+#section-resource-monitor .resource-attribution-item span {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+#section-resource-monitor .resource-event-actions,
+#section-resource-monitor .resource-event-filters {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+#section-resource-monitor .resource-event-actions button,
+#section-resource-monitor .resource-event-filters select {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-size: 12px;
+    padding: 4px 8px;
+}
+
+@media (max-width: 900px) {
+    #section-resource-monitor .resource-panel-heading {
+        flex-direction: column;
+    }
+}
+
 @media (max-width: 1100px) {
     #section-resource-monitor .resource-monitor-summary {
         grid-template-columns: repeat(3, minmax(0, 1fr));
