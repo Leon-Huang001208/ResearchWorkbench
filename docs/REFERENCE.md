@@ -1245,7 +1245,7 @@ Wind Excel 适配器通过 xlwings → AppleScript → macOS Excel Wind 插件�
 
 #### GET /api/system/resource-usage/host-history
 
-返回持久化的分钟级整机容量历史。查询参数 `hours` 可选，默认 `24`，可接受范围为 `1` 至 `24`（含边界）；超出范围返回 `422`。存储不可用时返回 `503` 和稳定详情 `Host resource history unavailable`。点位按 `sampled_at` 升序排列，且不包含主机进程、采集告警、原始 `extra` 或内部字段。
+返回持久化的分钟级整机容量历史。查询参数 `hours` 可选，默认 `24`，可接受范围为 `1` 至 `24`（含边界）；超出范围返回 `422`。仓储读取不可用时返回 `503` 和稳定详情 `Host resource history unavailable`；仓储成功但没有点位时仍返回 `200` 与空 `points`。点位按 `sampled_at` 升序排列，且不包含主机进程、采集告警、原始 `extra` 或内部字段。
 
 **响应示例**:
 

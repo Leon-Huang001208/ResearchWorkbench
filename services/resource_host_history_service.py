@@ -32,6 +32,14 @@ _MAX_HISTORY_POINTS = 1500
 _RETENTION = timedelta(hours=24)
 
 
+class ResourceHostHistoryUnavailable(RuntimeError):
+    """历史仓储读取不可用时提供给 API 的受控失败信号。"""
+
+    def __init__(self, cause: Exception) -> None:
+        self.error_type = type(cause).__name__
+        super().__init__("host resource history repository unavailable")
+
+
 class ResourceHostHistoryService:
     """使用既有健康指标表持久化整机容量分钟汇总。"""
 
@@ -81,29 +89,30 @@ class ResourceHostHistoryService:
             return False
 
     def list_history(self) -> list[dict[str, object]]:
-        """返回最多 1500 条按时间升序排列的安全公开容量点位。"""
+        """返回安全容量点位；仓储不可用时抛出受控失败信号。"""
         try:
             metrics = self._repository.list_metrics(
                 subsystem=Subsystem.RESOURCE_MONITORING,
                 limit=_MAX_HISTORY_POINTS,
                 metric_type="host_capacity",
             )
-            points: list[dict[str, object]] = []
-            for metric in metrics:
-                extra = metric.extra if isinstance(metric.extra, Mapping) else {}
-                if extra.get("metric_type") != "host_capacity":
-                    continue
-                points.append(
-                    {
-                        "timestamp": metric.timestamp,
-                        "host": self._safe_fields(extra.get("host"), _HOST_FIELDS),
-                        "alpha": self._safe_fields(extra.get("alpha"), _ALPHA_FIELDS),
-                    }
-                )
-            return sorted(points, key=lambda point: self._as_utc(point["timestamp"]))
         except Exception as exc:
             logger.warning("resource host history query failed", error_type=type(exc).__name__)
-            return []
+            raise ResourceHostHistoryUnavailable(exc) from exc
+
+        points: list[dict[str, object]] = []
+        for metric in metrics:
+            extra = metric.extra if isinstance(metric.extra, Mapping) else {}
+            if extra.get("metric_type") != "host_capacity":
+                continue
+            points.append(
+                {
+                    "timestamp": metric.timestamp,
+                    "host": self._safe_fields(extra.get("host"), _HOST_FIELDS),
+                    "alpha": self._safe_fields(extra.get("alpha"), _ALPHA_FIELDS),
+                }
+            )
+        return sorted(points, key=lambda point: self._as_utc(point["timestamp"]))
 
     def purge_expired(self, now: Optional[datetime] = None) -> int:
         """精确删除超过 24 小时的容量历史，不影响其他资源监控指标。"""

@@ -63,6 +63,7 @@ Purpose:
 - `ResourceTaskRegistry` 为 AlphaFoundry 的抓取、PDF、知识处理、Wind 和报告任务记录受控运行上下文，并以每 PID 原子 JSON 快照供 API 进程读取。
 - `ResourceMonitoringService` 只合并 API 进程树、既有调度器/知识 Worker PID 和这些任务快照；同时读取整机 CPU 容量与内存汇总。API 内任务标记为共享资源估算，独立 Worker 标记为精确进程资源。
 - `ResourceMonitorRuntime` 在数据库就绪的 API 生命周期内以单一可停止线程每分钟采集一次快照；同一数据库会话内写入主机容量历史并评估资源事件。采样、历史或告警失败只记录安全的结构化异常类型，下一周期继续运行。
+- `ResourceHostHistoryService.list_history()` 将仓储读取失败封装为不含原始错误内容的 `ResourceHostHistoryUnavailable`；API 将它明确映射为主机历史不可用，空点位仍是正常的空历史响应。运行时只调用写入路径，不受该读取信号影响。
 - `ResourceAlertState` 在运行时的连续采样周期之间共享压力与恢复计数；每周期创建的 `ResourceMonitorAlertService` 显式消费该状态，因此持续压力仍在第三个样本触发现有事件规则。
 - `ResourceMonitorAlertService` 将任务失败、受控进程缺失、采样失败和持续资源压力以 `source_scope=alphafoundry` 保存为既有 Monitoring 告警/事件状态机中的 `resource_monitoring` 事件；另以 `source_scope=host_capacity` 评估整机 CPU（85%/95%）和可用内存（15%/8%）容量压力。两类容量均需连续三个有限且处于 0–100 的样本触发或恢复；无效字段会中断该指标的连续计数。主机 warning 升为 critical 时调用仓储条件更新，仅更新详情且保留确认/解决状态。
 

@@ -259,11 +259,14 @@ def get_resource_usage_history(
 def get_resource_host_history(
     hours: int = Query(24, ge=1, le=24),
 ) -> Dict[str, Any]:
-    """返回最多 24 小时的分钟级整机容量历史。"""
+    """返回最多 24 小时的分钟级整机容量历史；仓储不可用时稳定返回 503。"""
     try:
         points = _resource_host_history_call(lambda history_service: history_service.list_history())
     except Exception as exc:
-        logger.error("resource host history query failed", error_type=type(exc).__name__)
+        logger.error(
+            "resource host history query failed",
+            error_type=getattr(exc, "error_type", type(exc).__name__),
+        )
         raise HTTPException(status_code=503, detail="Host resource history unavailable") from exc
     public_points = sorted(
         (_sanitize_host_history_point(point) for point in points), key=_host_history_sort_key

@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 
 from app.api.routes import system
 from core.contracts.monitoring import AlertPayload, AlertSeverity, AlertStatus, Subsystem
+from services.resource_host_history_service import ResourceHostHistoryService
 
 
 def _event(*, alert_id: str, status: AlertStatus = AlertStatus.OPEN) -> AlertPayload:
@@ -215,6 +216,46 @@ def test_resource_host_history_returns_stable_503_when_storage_is_unavailable(mo
 
     assert response.status_code == 503
     assert response.json() == {"detail": "Host resource history unavailable"}
+
+
+def test_resource_host_history_returns_503_for_real_service_repository_failure(monkeypatch) -> None:
+    """历史服务必须把仓储读取失败传给路由，而非伪装成空历史。"""
+
+    class FailingRepository:
+        def list_metrics(self, **_):
+            raise RuntimeError("database password leaked")
+
+    monkeypatch.setattr(
+        system,
+        "_resource_host_history_call",
+        lambda callback: callback(ResourceHostHistoryService(FailingRepository())),
+    )
+
+    response = _client().get("/api/system/resource-usage/host-history?hours=24")
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": "Host resource history unavailable"}
+
+
+def test_resource_host_history_returns_200_empty_for_real_service_without_points(
+    monkeypatch,
+) -> None:
+    """无历史点位是有效空结果，不能与仓储不可用混淆。"""
+
+    class EmptyRepository:
+        def list_metrics(self, **_):
+            return []
+
+    monkeypatch.setattr(
+        system,
+        "_resource_host_history_call",
+        lambda callback: callback(ResourceHostHistoryService(EmptyRepository())),
+    )
+
+    response = _client().get("/api/system/resource-usage/host-history?hours=24")
+
+    assert response.status_code == 200
+    assert response.json() == {"hours": 24, "points": []}
 
 
 def test_resource_event_metadata_exposes_safe_host_threshold_fields_only() -> None:

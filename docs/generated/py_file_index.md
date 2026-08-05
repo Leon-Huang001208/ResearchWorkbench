@@ -1862,7 +1862,7 @@ Functions:
 - `get_resource_usage_history`
   - 返回指定时间窗口内已采集的资源快照。
 - `get_resource_host_history`
-  - 返回最多 24 小时的分钟级整机容量历史。
+  - 返回最多 24 小时的分钟级整机容量历史；仓储不可用时稳定返回 503。
 - `list_resource_events`
   - 查询资源异常历史；未恢复事件不受指定时间窗口隐藏。
 - `acknowledge_resource_event`
