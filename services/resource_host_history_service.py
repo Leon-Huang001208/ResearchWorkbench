@@ -70,7 +70,7 @@ class ResourceHostHistoryService:
             self.purge_expired(current_time)
             return True
         except Exception as exc:
-            logger.error("resource host history record failed", error_type=type(exc).__name__)
+            logger.warning("resource host history record failed", error_type=type(exc).__name__)
             return False
 
     def list_history(self) -> list[dict[str, object]]:
@@ -79,6 +79,7 @@ class ResourceHostHistoryService:
             metrics = self._repository.list_metrics(
                 subsystem=Subsystem.RESOURCE_MONITORING,
                 limit=_MAX_HISTORY_POINTS,
+                metric_type="host_capacity",
             )
             points: list[dict[str, object]] = []
             for metric in metrics:
@@ -94,7 +95,7 @@ class ResourceHostHistoryService:
                 )
             return sorted(points, key=lambda point: self._as_utc(point["timestamp"]))
         except Exception as exc:
-            logger.error("resource host history query failed", error_type=type(exc).__name__)
+            logger.warning("resource host history query failed", error_type=type(exc).__name__)
             return []
 
     def purge_expired(self, now: Optional[datetime] = None) -> int:
@@ -106,6 +107,7 @@ class ResourceHostHistoryService:
                 subsystem=Subsystem.RESOURCE_MONITORING,
                 until=cutoff,
                 limit=_MAX_HISTORY_POINTS,
+                metric_type="host_capacity",
             )
             expired_ids = [
                 metric.metric_id
@@ -119,7 +121,7 @@ class ResourceHostHistoryService:
                 return 0
             return self._repository.delete_health_metrics(expired_ids)
         except Exception as exc:
-            logger.error("resource host history purge failed", error_type=type(exc).__name__)
+            logger.warning("resource host history purge failed", error_type=type(exc).__name__)
             return 0
 
     def _has_recorded_minute(self, minute: datetime) -> bool:
@@ -128,6 +130,7 @@ class ResourceHostHistoryService:
             since=minute,
             until=minute + timedelta(minutes=1) - timedelta(microseconds=1),
             limit=_MAX_HISTORY_POINTS,
+            metric_type="host_capacity",
         )
         return any(
             self._is_host_capacity(metric)

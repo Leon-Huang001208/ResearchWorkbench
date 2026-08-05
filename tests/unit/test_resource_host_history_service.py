@@ -24,6 +24,7 @@ class InMemoryMonitoringRepository:
         subsystem: Subsystem | None = None,
         since: datetime | None = None,
         until: datetime | None = None,
+        metric_type: str | None = None,
         limit: int = 100,
     ) -> list[HealthMetrics]:
         results = self.metrics
@@ -33,6 +34,10 @@ class InMemoryMonitoringRepository:
             results = [metric for metric in results if metric.timestamp >= since]
         if until is not None:
             results = [metric for metric in results if metric.timestamp <= until]
+        if metric_type is not None:
+            results = [
+                metric for metric in results if metric.extra.get("metric_type") == metric_type
+            ]
         return list(reversed(results))[:limit]
 
     def delete_health_metrics(self, metric_ids: list[str]) -> int:
@@ -79,6 +84,15 @@ def _host_capacity_metric(metric_id: str, timestamp: datetime, **extra: object) 
     )
 
 
+def _resource_event_metric(metric_id: str, timestamp: datetime) -> HealthMetrics:
+    return HealthMetrics(
+        metric_id=metric_id,
+        subsystem=Subsystem.RESOURCE_MONITORING,
+        timestamp=timestamp,
+        extra={"metric_type": "resource_event"},
+    )
+
+
 def test_record_if_due_saves_only_once_per_utc_minute() -> None:
     now = datetime(2026, 8, 5, 8, 30, 5, tzinfo=timezone.utc)
     repo = InMemoryMonitoringRepository()
@@ -113,6 +127,47 @@ def test_record_if_due_deletes_expired_host_capacity_only() -> None:
         "old-other",
         repo.metrics[-1].metric_id,
     ]
+
+
+def test_purge_expired_does_not_hide_capacity_behind_newer_resource_events() -> None:
+    now = datetime(2026, 8, 5, 8, 30, tzinfo=timezone.utc)
+    expired = now - timedelta(hours=24, minutes=1)
+    repo = InMemoryMonitoringRepository(
+        [
+            _host_capacity_metric("old-host", expired),
+            *[
+                _resource_event_metric(f"event-{index}", expired + timedelta(seconds=1))
+                for index in range(1500)
+            ],
+        ]
+    )
+    service = ResourceHostHistoryService(repo, now=lambda: now)
+
+    assert service.purge_expired() == 1
+
+    assert repo.deleted_metric_ids == ["old-host"]
+    assert len(repo.metrics) == 1500
+    assert all(metric.extra["metric_type"] == "resource_event" for metric in repo.metrics)
+
+
+def test_record_if_due_finds_current_capacity_behind_newer_resource_events() -> None:
+    now = datetime(2026, 8, 5, 8, 30, 5, tzinfo=timezone.utc)
+    minute = now.replace(second=0, microsecond=0)
+    repo = InMemoryMonitoringRepository(
+        [
+            _host_capacity_metric("existing-host", minute),
+            *[_resource_event_metric(f"event-{index}", minute) for index in range(1500)],
+        ]
+    )
+    service = ResourceHostHistoryService(repo, now=lambda: now)
+
+    assert service.record_if_due(_snapshot()) is False
+
+    assert [
+        metric.metric_id
+        for metric in repo.metrics
+        if metric.extra["metric_type"] == "host_capacity"
+    ] == ["existing-host"]
 
 
 def test_list_history_returns_only_safe_host_capacity_points_in_time_order() -> None:

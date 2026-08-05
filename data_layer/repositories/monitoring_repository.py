@@ -61,6 +61,7 @@ class MonitoringRepositoryImpl(BaseRepository):
         since: Optional[datetime] = None,
         until: Optional[datetime] = None,
         limit: int = 100,
+        metric_type: Optional[str] = None,
     ) -> List[HealthMetrics]:
         """查询健康指标"""
         query = self.db.query(HealthMetricsDB)
@@ -70,6 +71,8 @@ class MonitoringRepositoryImpl(BaseRepository):
             query = query.filter(HealthMetricsDB.timestamp >= since)
         if until:
             query = query.filter(HealthMetricsDB.timestamp <= until)
+        if metric_type is not None:
+            query = query.filter(HealthMetricsDB.extra["metric_type"].as_string() == metric_type)
         db_objs = query.order_by(HealthMetricsDB.timestamp.desc()).limit(limit).all()
         return [self._dict_to_metrics(self._db_metrics_to_dict(o)) for o in db_objs]
 
