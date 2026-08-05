@@ -12,12 +12,24 @@ def test_resource_monitor_navigation_and_semantic_dom_contract() -> None:
     assert ">系统监控</span>" in template
     assert '<section id="section-resource-monitor" class="content-section"' in template
     assert "仅监控 AlphaFoundry API 及其子进程" in template
-    assert 'data-resource-summary="sampled-at"' in template
+    for summary_key in (
+        "alpha-cpu",
+        "host-cpu",
+        "alpha-memory",
+        "host-memory",
+    ):
+        assert f'data-resource-summary="{summary_key}"' in template
+    for auxiliary_key in ("disk", "connections", "sampled-at"):
+        assert f'data-resource-summary="{auxiliary_key}"' in template
+    assert "整机其他进程" not in template
+    assert "resource-monitor-host-processes" not in template
     for element_id in (
         "resource-monitor-status",
         "resource-monitor-summary",
         "resource-monitor-cpu-chart",
         "resource-monitor-memory-chart",
+        "resource-monitor-host-cpu-chart",
+        "resource-monitor-host-memory-chart",
         "resource-monitor-processes",
         "resource-monitor-detail",
         "resource-monitor-pinned-events",
@@ -34,7 +46,7 @@ def test_resource_monitor_navigation_and_semantic_dom_contract() -> None:
 def test_resource_monitor_module_cache_and_navigation_lifecycle_contract() -> None:
     app_js = (ROOT / "app/web/static/js/app.js").read_text(encoding="utf-8")
 
-    assert "./resource-monitor.js?v=20260805c" in app_js
+    assert "./resource-monitor.js?v=20260805d" in app_js
     assert "startResourceMonitoring" in app_js
     assert "stopResourceMonitoring" in app_js
     assert "if (section === 'resource-monitor') startResourceMonitoring();" in app_js
@@ -48,8 +60,11 @@ def test_resource_monitor_module_handles_lifecycle_bounds_and_safe_process_dom()
     assert "export function stopResourceMonitoring" in source
     assert "const MAX_POINTS = 150;" in source
     assert "/api/system/resource-usage/history?window_seconds=300" in source
+    assert "/api/system/resource-usage/host-history?hours=24" in source
     assert "/api/system/resource-usage" in source
     assert "AbortController" in source
+    assert "hostHistoryController?.abort()" in source
+    assert "hostCpuChart?.dispose?.()" in source
     assert "visibilitychange" in source
     assert "document.hidden" in source
     assert "setTimeout" in source
@@ -94,6 +109,10 @@ def test_resource_monitor_module_handles_lifecycle_bounds_and_safe_process_dom()
     assert "function renderResourceEvents" in source
     assert "function renderAttribution" in source
     assert "shared_process_estimate" in source
+    assert "source_scope" in source
+    assert "sourceScopeLabel(metadata.source_scope)" in source
+    assert "整机容量" in source
+    assert "AlphaFoundry" in source
     assert "function updateResourceEvent" in source
     assert "异常历史暂不可用，保留上一份记录" in source
 
@@ -103,6 +122,8 @@ def test_resource_monitor_styles_keep_dense_responsive_tables_and_charts() -> No
 
     assert "#section-resource-monitor" in style
     assert "grid-template-columns: repeat(2, minmax(0, 1fr))" in style
+    assert "resource-summary-card[data-resource-scope=\"alpha\"]" in style
+    assert "resource-summary-card[data-resource-scope=\"host\"]" in style
     assert "@media (max-width: 900px)" in style
     assert "min-width: 900px" in style
     assert "overflow-x: auto" in style

@@ -7,6 +7,7 @@ import { apiCall, getChartColors } from './core.js';
 
 const MAX_POINTS = 150;
 const POLL_INTERVAL_MS = 2000;
+const HOST_HISTORY_REFRESH_MS = 60 * 1000;
 const BACKOFF_DELAYS = [4000, 6000, 8000, 10000];
 const DEPARTED_PROCESS_TTL_MS = 5 * 60 * 1000;
 const MAX_DEPARTED_PROCESSES = 50;
@@ -16,7 +17,9 @@ let isMonitoring = false;
 let pollTimer = null;
 let snapshotController = null;
 let historyController = null;
+let hostHistoryController = null;
 let eventController = null;
+let hostHistoryTimer = null;
 let failureCount = 0;
 let historyVersion = 0;
 let snapshotVersion = 0;
@@ -29,7 +32,12 @@ let resizeListenerAttached = false;
 let keyboardListenerAttached = false;
 let cpuChart = null;
 let memoryChart = null;
+let hostCpuChart = null;
+let hostMemoryChart = null;
 let points = [];
+let hostHistoryPoints = [];
+let hostHistoryFailure = false;
+let hostHistoryVersion = 0;
 let selectedProcessPid = null;
 let processTreeUnavailable = false;
 let sortKey = 'cpu';
@@ -50,6 +58,7 @@ export function startResourceMonitoring() {
         return;
     }
     loadInitialHistory();
+    loadHostHistory();
     pollResourceEvents();
     pollSnapshot();
 }
@@ -57,7 +66,9 @@ export function startResourceMonitoring() {
 export function stopResourceMonitoring() {
     isMonitoring = false;
     clearPollTimer();
+    clearHostHistoryTimer();
     abortRequests();
+    disposeResourceCharts();
     if (visibilityListenerAttached) {
         document.removeEventListener('visibilitychange', handleVisibilityChange);
         visibilityListenerAttached = false;
@@ -81,12 +92,21 @@ function clearPollTimer() {
     }
 }
 
+function clearHostHistoryTimer() {
+    if (hostHistoryTimer !== null) {
+        clearTimeout(hostHistoryTimer);
+        hostHistoryTimer = null;
+    }
+}
+
 function abortRequests() {
     snapshotController?.abort();
     historyController?.abort();
+    hostHistoryController?.abort();
     eventController?.abort();
     snapshotController = null;
     historyController = null;
+    hostHistoryController = null;
     eventController = null;
 }
 
@@ -118,20 +138,41 @@ function handleDrawerKeydown(event) {
 function resizeResourceCharts() {
     cpuChart?.resize();
     memoryChart?.resize();
+    hostCpuChart?.resize();
+    hostMemoryChart?.resize();
+}
+
+function disposeResourceCharts() {
+    cpuChart?.dispose?.();
+    memoryChart?.dispose?.();
+    hostCpuChart?.dispose?.();
+    hostMemoryChart?.dispose?.();
+    cpuChart = null;
+    memoryChart = null;
+    hostCpuChart = null;
+    hostMemoryChart = null;
 }
 
 function handleVisibilityChange() {
     if (document.hidden) {
         clearPollTimer();
+        clearHostHistoryTimer();
         abortRequests();
         return;
     }
     if (canPoll()) {
         resizeResourceCharts();
         loadInitialHistory();
+        loadHostHistory();
         pollResourceEvents();
         pollSnapshot();
     }
+}
+
+function scheduleHostHistoryRefresh() {
+    clearHostHistoryTimer();
+    if (!canPoll()) return;
+    hostHistoryTimer = setTimeout(loadHostHistory, HOST_HISTORY_REFRESH_MS);
 }
 
 function schedulePoll(delay) {
@@ -167,6 +208,48 @@ async function loadInitialHistory() {
         if (!isAbortError(error)) logRequestFailure('history', error);
     } finally {
         if (historyController === controller) historyController = null;
+    }
+}
+
+async function loadHostHistory() {
+    if (!canPoll()) return;
+    hostHistoryController?.abort();
+    const controller = new AbortController();
+    const requestedHistoryVersion = ++hostHistoryVersion;
+    hostHistoryController = controller;
+    try {
+        const history = await apiCall(
+            'GET',
+            '/api/system/resource-usage/host-history?hours=24',
+            null,
+            { signal: controller.signal, retries: 0 },
+        );
+        if (
+            controller.signal.aborted
+            || !canPoll()
+            || requestedHistoryVersion !== hostHistoryVersion
+        ) return;
+        hostHistoryPoints = (Array.isArray(history?.points) ? history.points : [])
+            .filter(point => point && typeof point === 'object')
+            .map(point => ({
+                sampled_at: normalizeTimestamp(point.sampled_at),
+                host: point.host && typeof point.host === 'object' ? point.host : {},
+                alpha: point.alpha && typeof point.alpha === 'object' ? point.alpha : {},
+            }))
+            .sort((left, right) => left.sampled_at.localeCompare(right.sampled_at));
+        hostHistoryFailure = false;
+        renderCharts();
+        renderHostHistoryStatus();
+    } catch (error) {
+        if (!isAbortError(error)) {
+            logRequestFailure('host-history', error);
+            hostHistoryFailure = true;
+            renderCharts();
+            renderHostHistoryStatus();
+        }
+    } finally {
+        if (hostHistoryController === controller) hostHistoryController = null;
+        if (!controller.signal.aborted) scheduleHostHistoryRefresh();
     }
 }
 
@@ -325,6 +408,7 @@ function renderAll() {
     renderStatus(publicStatus(latest?.status));
     renderSummary(latest?.summary);
     renderCharts();
+    renderHostHistoryStatus();
     renderProcessTable();
     renderDetail();
     renderAttribution();
@@ -396,7 +480,7 @@ function createResourceEvent(event, isPinned) {
     title.textContent = safeText(event.title, '资源监控异常');
     const detail = document.createElement('p');
     const metadata = event.metadata && typeof event.metadata === 'object' ? event.metadata : {};
-    detail.textContent = `${safeText(metadata.task_kind, '系统')} · ${safeText(metadata.source_key, 'AlphaFoundry')} · ${formatTime(event.triggered_at)}`;
+    detail.textContent = `${sourceScopeLabel(metadata.source_scope)} · ${safeText(metadata.task_kind, '系统')} · ${formatTime(event.triggered_at)}`;
     const description = document.createElement('span');
     description.textContent = safeText(event.description, '请查看 AlphaFoundry 日志。');
     item.append(title, detail, description);
@@ -408,6 +492,10 @@ function createResourceEvent(event, isPinned) {
         item.append(actions);
     }
     return item;
+}
+
+function sourceScopeLabel(scope) {
+    return scope === 'host' || scope === 'host_capacity' ? '整机容量' : 'AlphaFoundry';
 }
 
 function createEventAction(label, alertId, action) {
@@ -447,9 +535,29 @@ function renderStatus(code) {
 
 function renderSummary(summary) {
     const values = summary && typeof summary === 'object' ? summary : {};
-    setSummary('cpu', values.cpu_percent == null ? '采样中' : `${formatNumber(values.cpu_percent, 1)}%`);
-    setSummary('memory', formatBytes(values.memory_bytes));
-    setSummary('processes', formatCount(values.process_count));
+    const host = points.at(-1)?.host && typeof points.at(-1).host === 'object' ? points.at(-1).host : {};
+    const alphaCpuPercent = safeNumber(values.cpu_percent);
+    const alphaCpuHostPercent = safeNumber(values.cpu_host_percent);
+    const alphaMemoryBytes = safeNumber(values.memory_bytes);
+    const alphaMemoryHostPercent = safeNumber(values.memory_host_percent);
+    const hostCpuPercent = safeNumber(host.cpu_percent);
+    const hostCpuIdlePercent = safeNumber(host.cpu_idle_percent);
+    const logicalCpuCount = safeNumber(host.logical_cpu_count);
+    const hostMemoryUsed = safeNumber(host.memory_used_bytes);
+    const hostMemoryTotal = safeNumber(host.memory_total_bytes);
+    const hostMemoryAvailable = safeNumber(host.memory_available_bytes);
+    setSummary('alpha-cpu', alphaCpuPercent === null || alphaCpuHostPercent === null
+        ? '暂不可用'
+        : `${formatNumber(alphaCpuPercent / 100, 2)} 核等价 · 整机 ${formatNumber(alphaCpuHostPercent, 1)}%`);
+    setSummary('host-cpu', hostCpuPercent === null || hostCpuIdlePercent === null || logicalCpuCount === null
+        ? '暂不可用'
+        : `用量 ${formatNumber(hostCpuPercent, 1)}% · 空闲约 ${formatNumber(hostCpuIdlePercent, 1)}% · ${formatNumber(logicalCpuCount)} 逻辑核`);
+    setSummary('alpha-memory', alphaMemoryBytes === null || alphaMemoryHostPercent === null
+        ? '暂不可用'
+        : `${formatBytes(alphaMemoryBytes)} RSS · 整机 ${formatNumber(alphaMemoryHostPercent, 1)}%`);
+    setSummary('host-memory', hostMemoryUsed === null || hostMemoryTotal === null || hostMemoryAvailable === null
+        ? '暂不可用'
+        : `已用 ${formatBytes(hostMemoryUsed)} / ${formatBytes(hostMemoryTotal)} · 可用 ${formatBytes(hostMemoryAvailable)}`);
     setSummary(
         'disk',
         `${formatRate(values.disk_read_bytes_per_second)} / ${formatRate(values.disk_write_bytes_per_second)}`,
@@ -466,19 +574,36 @@ function setSummary(key, value) {
 function renderCharts() {
     const cpuElement = document.getElementById('resource-monitor-cpu-chart');
     const memoryElement = document.getElementById('resource-monitor-memory-chart');
-    if (!cpuElement || !memoryElement) return;
+    const hostCpuElement = document.getElementById('resource-monitor-host-cpu-chart');
+    const hostMemoryElement = document.getElementById('resource-monitor-host-memory-chart');
+    if (!cpuElement || !memoryElement || !hostCpuElement || !hostMemoryElement) return;
     if (!window.echarts) {
         renderChartNotice(cpuElement);
         renderChartNotice(memoryElement);
+        renderChartNotice(hostCpuElement);
+        renderChartNotice(hostMemoryElement);
         return;
     }
     cpuChart = getOrCreateChart(cpuElement, cpuChart);
     memoryChart = getOrCreateChart(memoryElement, memoryChart);
+    hostCpuChart = getOrCreateChart(hostCpuElement, hostCpuChart);
+    hostMemoryChart = getOrCreateChart(hostMemoryElement, hostMemoryChart);
     const labels = points.map(point => formatTime(point.sampled_at));
     const colors = getChartColors();
     cpuChart?.setOption(chartOption(labels, points.map(point => safeNumber(point.summary?.cpu_percent)), '%', colors.orange));
     memoryChart?.setOption(chartOption(labels, points.map(point => bytesToMiB(point.summary?.memory_bytes)), ' MiB', colors.blue));
+    const hostLabels = hostHistoryPoints.map(point => formatHourMinute(point.sampled_at));
+    hostCpuChart?.setOption(chartOption(hostLabels, hostHistoryPoints.map(point => safeNumber(point.host?.cpu_percent)), '%', colors.orange));
+    hostMemoryChart?.setOption(chartOption(hostLabels, hostHistoryPoints.map(point => bytesToMiB(point.host?.memory_available_bytes)), ' MiB', colors.green));
     resizeResourceCharts();
+}
+
+function renderHostHistoryStatus() {
+    const status = document.getElementById('resource-monitor-host-history-status');
+    if (!status) return;
+    status.textContent = hostHistoryFailure
+        ? '整机容量历史暂不可用，保留上一份成功曲线。'
+        : hostHistoryPoints.length ? `整机容量历史：最近 24 小时，共 ${hostHistoryPoints.length} 个采样点。` : '整机容量历史暂不可用。';
 }
 
 function renderChartNotice(element) {
@@ -775,6 +900,13 @@ function bytesToMiB(value) {
 function formatTime(value) {
     const date = new Date(value);
     return Number.isFinite(date.getTime()) ? date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--';
+}
+
+function formatHourMinute(value) {
+    const date = new Date(value);
+    return Number.isFinite(date.getTime())
+        ? date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+        : '--';
 }
 
 function formatDateTime(value) {
