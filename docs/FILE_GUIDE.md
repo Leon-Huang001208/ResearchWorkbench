@@ -267,6 +267,7 @@
 | **监控与治理** | |
 | `monitoring_service.py` | 监控服务：健康检查、指标采集、告警管理 |
 | `resource_monitor_service.py` | 资源监控服务：采集 API 进程树与项目既有调度器/知识 Worker PID，并只通过主机级 psutil API 汇总整机 CPU/内存容量；读取受控任务快照并标识精确进程或共享估算，维护 150 点内存历史并将字段权限/平台问题降级记录 |
+| `resource_monitor_runtime.py` | 资源监控运行时：以单一可停止后台线程每分钟采集资源快照，并在一个数据库会话内写入主机容量历史和评估既有资源告警；异常只记录安全错误类型并继续下一周期 |
 | `resource_host_history_service.py` | 整机容量历史服务：把安全白名单后的 CPU/内存整机汇总写入既有健康指标 JSON，每 UTC 分钟至多一条，公开查询最多 1500 点并仅保留 24 小时 |
 | `resource_task_registry.py` | 资源任务登记器：为抓取、PDF、知识处理、Wind 与报告任务写入每 PID 原子安全快照，失败记录不含异常原文 |
 | `resource_monitor_alert_service.py` | 资源异常协调器：复用 Monitoring 告警/事件状态机，去重并处理任务失败、受控 PID 缺失、采样失败与持续资源压力；未恢复事件始终可查询 |
@@ -642,6 +643,7 @@
 | `tests/unit/test_factor_computation_service.py` | 因子计算服务单元测试：11 个测试覆盖空定义/空值/完整循环/资源关闭 |
 | `tests/unit/test_resource_monitor_service.py` | 资源监控服务测试：受控 PID 边界、预热、I/O 差分、历史上限、字段/子进程降级、Worker 精确归因和 API 共享估算 |
 | `tests/unit/test_resource_host_history_service.py` | 整机容量历史测试：分钟去重、24 小时精确清理、类型隔离、安全字段白名单和受控坏快照处理 |
+| `tests/unit/test_resource_monitor_runtime.py` | 资源监控运行时测试：采样、历史/告警协调、共享状态、失败续跑与线程生命周期 |
 | `tests/unit/test_resource_task_registry.py` | 资源任务登记器测试：原子快照、并发、失败脱敏、任务类别与损坏文件降级 |
 | `tests/unit/test_resource_monitor_alert_service.py` | 资源事件协调器测试：失败任务 critical、持续压力去重、自动恢复和未恢复事件历史 |
 | `tests/unit/app/api/routes/test_resource_monitoring.py` | 资源事件 API 测试：历史查询、确认和人工解决响应契约 |

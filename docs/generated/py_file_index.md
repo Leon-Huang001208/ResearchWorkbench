@@ -136,10 +136,14 @@ Functions:
   - Preflight persistence before initializing database-dependent services.
 - `_start_wind_workbook_background`
   - Start the optional Wind workbook task only after persistence is ready.
+- `_start_resource_monitor_runtime`
+  - 在数据库已就绪后启动单一资源监控运行时。
 - `_start_data_acquisition_schedulers`
   - 自动启动数据获取调度器
 - `shutdown`
   - Shutdown hook
+- `_stop_resource_monitor_runtime`
+  - 停止已缓存的资源监控线程，不阻断 API 关闭。
 - `_stop_data_acquisition_schedulers`
   - 停止数据获取调度器
 - `index`

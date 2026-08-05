@@ -299,6 +299,7 @@ Purpose:
 Resource usage dependency:
 
 - `get_resource_monitoring_service()` lazy-imports and retains one `ResourceMonitoringService` instance on first request, avoiding an eager `psutil` import at API startup.
+- 数据库就绪且不是 `ALPHAFOUNDRY_PREVIEW=1` 时，启动钩子会以函数内延迟导入创建并缓存一个 `ResourceMonitorRuntime`。它每分钟在单独数据库会话内采样、写入主机历史并评估既有资源告警；关闭钩子先安全停止该线程，运行时启动或停止失败只记录 `error_type`，不阻断 API。
 - Responses redact command arguments and map collection failures to public warning codes only: `field_unavailable`, `root_process_unavailable`, or `partial_data`. Internal exception classes and details are not exposed; per-process `unavailable_reason` is the stable `field_unavailable` value when data is unavailable.
 
 Related service:
@@ -306,6 +307,7 @@ Related service:
 - `services/system_event_bus.py`
 - `services/ingestion_queue_service.py`
 - `services/resource_monitor_service.py`
+- `services/resource_monitor_runtime.py`
 
 Update this section when:
 

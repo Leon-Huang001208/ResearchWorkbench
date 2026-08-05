@@ -1,0 +1,33 @@
+# 资源监控常驻运行时交付报告
+
+**日期：** 2026-08-05
+**状态：** 已实现，待集成
+
+## 范围
+
+- 新增 `ResourceMonitorRuntime`，使用单一 `threading.Thread`、`Event` 和 `time.monotonic()` 周期性采集资源快照。
+- 每次周期创建一个数据库会话和 `MonitoringRepositoryImpl`，在该会话内调用 `ResourceHostHistoryService.record_if_due()` 与 `ResourceMonitorAlertService.evaluate()`。
+- 运行时共享一个可注入状态容器，供后续资源告警状态实现复用；当前告警服务尚未接收该参数时会保持兼容。
+- API 在数据库就绪且 `ensure_schema()` 完成后启动运行时；`ALPHAFOUNDRY_PREVIEW=1` 和桌面 `setup_required` 均不启动。关闭时先停止运行时，再停止现有数据调度器。
+
+## 失败处理
+
+- 采样、历史写入、告警评估和线程生命周期异常均只记录结构化 `error_type`，不将内部异常细节写入日志事件字段。
+- 历史或告警阶段失败不会阻止同周期另一个阶段执行，且后续周期继续执行。
+- `start()` 幂等；`stop()` 发出停止信号并等待活动线程退出，避免 API 退出后遗留后台采样。
+
+## 验证
+
+| 命令 | 实际结果 |
+| --- | --- |
+| `python -m pytest tests/unit/test_resource_monitor_runtime.py tests/unit/app/api/routes/test_setup_readiness.py tests/unit/test_resource_host_history_service.py tests/unit/test_resource_monitor_alert_service.py -q` | 29 passed；FastAPI 既有 `on_event` 弃用警告 4 条 |
+| `ruff check services/resource_monitor_runtime.py app/api/main.py tests/unit/test_resource_monitor_runtime.py tests/unit/app/api/routes/test_setup_readiness.py` | passed |
+| `black --check services/resource_monitor_runtime.py app/api/main.py tests/unit/test_resource_monitor_runtime.py tests/unit/app/api/routes/test_setup_readiness.py` | passed |
+| `isort --check-only services/resource_monitor_runtime.py app/api/main.py tests/unit/test_resource_monitor_runtime.py tests/unit/app/api/routes/test_setup_readiness.py` | passed |
+| `python scripts/generate_py_file_index.py && python scripts/check_doc_sync.py` | generated index; documentation sync passed |
+| `git diff --check` | passed |
+
+## 风险
+
+- 本地验证使用伪监控器、伪会话和伪仓储，未连接真实 PostgreSQL。
+- 告警共享状态的具体消费逻辑由后续任务实现；本变更仅提供稳定的共享状态注入边界。

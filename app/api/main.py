@@ -53,6 +53,7 @@ _DATABASE_READINESS_STARTUP_ERROR = "无法连接 PostgreSQL；请检查数据�
 
 # 后端启动时间戳，供前端轮询检测后端重启后自动刷新页面
 _STARTUP_TIMESTAMP: str = str(time.time())
+_resource_monitor_runtime: Any | None = None
 
 
 app = FastAPI(
@@ -85,6 +86,7 @@ async def startup() -> None:
         return
 
     ensure_schema()
+    _start_resource_monitor_runtime()
     _start_wind_workbook_background()
     # 自动启动数据获取调度器（在 async 上下文中，AsyncIOScheduler 可正常拿到事件循环）
     _start_data_acquisition_schedulers()
@@ -100,6 +102,22 @@ def _start_wind_workbook_background() -> None:
         logger.warning(
             "Wind realtime workbook background startup skipped",
             extra={"error_type": type(exc).__name__},
+        )
+
+
+def _start_resource_monitor_runtime() -> None:
+    """在数据库已就绪后启动单一资源监控运行时。"""
+    global _resource_monitor_runtime
+    try:
+        if _resource_monitor_runtime is None:
+            from services.resource_monitor_runtime import ResourceMonitorRuntime
+
+            _resource_monitor_runtime = ResourceMonitorRuntime()
+        _resource_monitor_runtime.start()
+    except Exception as exc:
+        logger.warning(
+            "Resource monitor runtime startup skipped",
+            error_type=type(exc).__name__,
         )
 
 
@@ -150,8 +168,22 @@ def _start_data_acquisition_schedulers() -> None:
 def shutdown() -> None:
     """Shutdown hook"""
     logger.info("AlphaFoundry API shutting down...")
+    _stop_resource_monitor_runtime()
     # 停止数据获取调度器
     _stop_data_acquisition_schedulers()
+
+
+def _stop_resource_monitor_runtime() -> None:
+    """停止已缓存的资源监控线程，不阻断 API 关闭。"""
+    if _resource_monitor_runtime is None:
+        return
+    try:
+        _resource_monitor_runtime.stop()
+    except Exception as exc:
+        logger.warning(
+            "Resource monitor runtime shutdown failed",
+            error_type=type(exc).__name__,
+        )
 
 
 def _stop_data_acquisition_schedulers() -> None:

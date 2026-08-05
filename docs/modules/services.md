@@ -56,12 +56,13 @@ app/api or app/cli
 
 ---
 
-### `services/resource_task_registry.py` 与 `services/resource_monitor_alert_service.py`
+### `services/resource_monitor_runtime.py`、`resource_task_registry.py` 与 `resource_monitor_alert_service.py`
 
 Purpose:
 
 - `ResourceTaskRegistry` 为 AlphaFoundry 的抓取、PDF、知识处理、Wind 和报告任务记录受控运行上下文，并以每 PID 原子 JSON 快照供 API 进程读取。
 - `ResourceMonitoringService` 只合并 API 进程树、既有调度器/知识 Worker PID 和这些任务快照；同时读取整机 CPU 容量与内存汇总。API 内任务标记为共享资源估算，独立 Worker 标记为精确进程资源。
+- `ResourceMonitorRuntime` 在数据库就绪的 API 生命周期内以单一可停止线程每分钟采集一次快照；同一数据库会话内写入主机容量历史并评估资源事件。采样、历史或告警失败只记录安全的结构化异常类型，下一周期继续运行。
 - `ResourceMonitorAlertService` 将任务失败、受控进程缺失、采样失败和持续资源压力保存为既有 Monitoring 告警/事件状态机中的 `resource_monitoring` 事件，并负责确认、恢复和历史查询。
 
 Safety boundary:
@@ -69,6 +70,7 @@ Safety boundary:
 - 不枚举全系统进程；主机汇总仅调用 `psutil.cpu_percent(interval=None)`、`psutil.cpu_count(logical=True)` 和 `psutil.virtual_memory()`，不保存命令参数、请求内容或异常原文。
 - 首个非阻塞主机 CPU 样本仅用于预热；采集异常或无效主机字段使用 `host_field_unavailable` 降级为 `None`。
 - 未恢复事件不受历史查询窗口限制；原始实时资源样本仍仅保留在内存短窗口中。
+- 运行时只在持久化就绪且非 `ALPHAFOUNDRY_PREVIEW=1` 时启动；关闭 API 时先停止并等待资源采样线程，再停止其他调度器。
 
 Update this section when:
 
