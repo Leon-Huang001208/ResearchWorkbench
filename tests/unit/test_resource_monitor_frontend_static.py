@@ -57,7 +57,10 @@ def test_resource_monitor_module_handles_lifecycle_bounds_and_safe_process_dom()
     assert "data-resource-sort" in source
     assert "selectedProcessPid" in source
     assert "let sortDirection = -1;" in source
-    assert "const value = processSortValue(left, sortKey) - processSortValue(right, sortKey);" in source
+    assert (
+        "const value = processSortValue(left, sortKey) - processSortValue(right, sortKey);"
+        in source
+    )
     assert "if (sortKey !== nextKey)" in source
     assert "sortDirection = -1;" in source
     assert "采样暂时不可用，保留上一帧数据" in source
