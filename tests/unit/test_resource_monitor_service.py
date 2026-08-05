@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import inspect
+from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 
 import psutil
@@ -391,16 +393,123 @@ def test_processes_sort_by_cpu_then_pid_after_warm_up(monkeypatch: pytest.Monkey
     assert [sample["pid"] for sample in ready["processes"]] == [102, 103, 101]
 
 
-def test_history_keeps_fixed_150_point_limit_when_smaller_capacity_is_requested(
+def test_history_keeps_fixed_150_point_limit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     root = FakeProcess(101, None, name="api")
     monkeypatch.setattr(resource_monitor_service.psutil, "Process", lambda pid: root)
     monotonic_values = iter(float(index) for index in range(200))
     monkeypatch.setattr(resource_monitor_service.time, "monotonic", monotonic_values.__next__)
-    service = resource_monitor_service.ResourceMonitoringService(root_pid=101, history_size=1)
+    service = resource_monitor_service.ResourceMonitoringService(root_pid=101)
 
     for _ in range(151):
         service.collect_snapshot()
 
+    assert (
+        "history_size"
+        not in inspect.signature(resource_monitor_service.ResourceMonitoringService).parameters
+    )
     assert len(service.history(window_seconds=3600)) == 150
+
+
+def test_cpu_is_continuous_when_process_factory_returns_new_objects(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    first_root = FakeProcess(101, None, name="api", cpu_samples=[1.0, 42.0])
+    second_root = FakeProcess(101, None, name="api", cpu_samples=[99.0])
+    roots = iter([first_root, second_root])
+    monkeypatch.setattr(resource_monitor_service.psutil, "Process", lambda pid: next(roots))
+    monkeypatch.setattr(resource_monitor_service.time, "monotonic", iter([10.0, 12.0]).__next__)
+    service = resource_monitor_service.ResourceMonitoringService(root_pid=101)
+
+    service.collect_snapshot()
+    snapshot = service.collect_snapshot()
+
+    assert snapshot["status"] == "ok"
+    assert snapshot["processes"][0]["cpu_percent"] == 42.0
+    assert first_root.cpu_intervals == [None, None]
+    assert second_root.cpu_intervals == []
+
+
+def test_missing_optional_process_methods_are_degraded_without_raising(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class MissingOptionalMethodsProcess(FakeProcess):
+        def __getattribute__(self, name: str) -> object:
+            if name in {"io_counters", "net_connections", "num_threads"}:
+                raise AttributeError(name)
+            return super().__getattribute__(name)
+
+    root = MissingOptionalMethodsProcess(101, None, name="api")
+    monkeypatch.setattr(resource_monitor_service.psutil, "Process", lambda pid: root)
+    monkeypatch.setattr(resource_monitor_service.time, "monotonic", lambda: 10.0)
+    service = resource_monitor_service.ResourceMonitoringService(root_pid=101)
+
+    snapshot = service.collect_snapshot()
+
+    process = snapshot["processes"][0]
+    assert snapshot["status"] == "degraded"
+    assert process["thread_count"] is None
+    assert process["disk_read_bytes_per_second"] is None
+    assert process["network_connection_count"] is None
+    assert "io_counters:AttributeError" in process["unavailable_reason"]
+    assert "thread_count:AttributeError" in process["unavailable_reason"]
+    assert "network_connection_count:AttributeError" in process["unavailable_reason"]
+
+
+def test_process_cache_and_io_baselines_drop_exited_descendants(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    child = FakeProcess(102, 101, name="worker")
+    root = FakeProcess(101, None, name="api", children=[child])
+    monkeypatch.setattr(resource_monitor_service.psutil, "Process", lambda pid: root)
+    monkeypatch.setattr(resource_monitor_service.time, "monotonic", iter([10.0, 12.0]).__next__)
+    service = resource_monitor_service.ResourceMonitoringService(root_pid=101)
+
+    service.collect_snapshot()
+    root._children = []
+    service.collect_snapshot()
+
+    assert {key[0] for key in service._process_cache} == {101}
+    assert {key[0] for key in service._io_baselines} == {101}
+
+
+def test_root_unavailability_clears_process_cache_and_io_baselines(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = FakeProcess(101, None, name="api")
+    process_calls = iter([root, psutil.NoSuchProcess(101)])
+
+    def process_factory(pid: int) -> FakeProcess:
+        result = next(process_calls)
+        if isinstance(result, Exception):
+            raise result
+        return result
+
+    monkeypatch.setattr(resource_monitor_service.psutil, "Process", process_factory)
+    monkeypatch.setattr(resource_monitor_service.time, "monotonic", iter([10.0, 12.0]).__next__)
+    service = resource_monitor_service.ResourceMonitoringService(root_pid=101)
+
+    service.collect_snapshot()
+    unavailable_snapshot = service.collect_snapshot()
+
+    assert unavailable_snapshot["status"] == "unavailable"
+    assert service._process_cache == {}
+    assert service._io_baselines == {}
+
+
+def test_collect_snapshot_and_history_are_safe_when_called_concurrently(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = FakeProcess(101, None, name="api")
+    monkeypatch.setattr(resource_monitor_service.psutil, "Process", lambda pid: root)
+    monkeypatch.setattr(resource_monitor_service.time, "monotonic", lambda: 10.0)
+    service = resource_monitor_service.ResourceMonitoringService(root_pid=101)
+
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        futures = [executor.submit(service.collect_snapshot) for _ in range(20)]
+        futures.extend(executor.submit(service.history, 3600) for _ in range(20))
+        results = [future.result() for future in futures]
+
+    assert all(isinstance(result, (dict, list)) for result in results)
+    assert len(service.history(window_seconds=3600)) <= 150

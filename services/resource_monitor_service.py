@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import threading
 import time
 from collections import deque
 from datetime import datetime, timezone
@@ -15,18 +16,20 @@ from core.observability import get_logger
 logger = get_logger(__name__)
 
 _ROOT_UNAVAILABLE_EXCEPTIONS = (psutil.NoSuchProcess, psutil.AccessDenied, psutil.Error, OSError)
-_OPTIONAL_FIELD_EXCEPTIONS = (*_ROOT_UNAVAILABLE_EXCEPTIONS, NotImplementedError)
+_OPTIONAL_FIELD_EXCEPTIONS = (*_ROOT_UNAVAILABLE_EXCEPTIONS, NotImplementedError, AttributeError)
 _HISTORY_SIZE = 150
 
 
 class ResourceMonitoringService:
     """仅监控指定根进程及其递归后代的本机资源使用情况。"""
 
-    def __init__(self, root_pid: Optional[int] = None, history_size: Optional[int] = None) -> None:
-        """初始化服务；保留 ``history_size`` 参数仅为调用方兼容性。"""
+    def __init__(self, root_pid: Optional[int] = None) -> None:
+        """初始化具有固定 150 点历史容量的服务。"""
         self._root_pid = root_pid if root_pid is not None else os.getpid()
+        self._lock = threading.RLock()
         self._history: Deque[Dict[str, Any]] = deque(maxlen=_HISTORY_SIZE)
         self._io_baselines: Dict[Tuple[int, float], Tuple[float, int, int]] = {}
+        self._process_cache: Dict[Tuple[int, float], psutil.Process] = {}
         self._has_warmed_up = False
 
     @property
@@ -36,22 +39,30 @@ class ResourceMonitoringService:
 
     def collect_snapshot(self) -> Dict[str, Any]:
         """采集一次资源快照，不访问根进程树之外的任何进程。"""
+        with self._lock:
+            return self._collect_snapshot_locked()
+
+    def _collect_snapshot_locked(self) -> Dict[str, Any]:
+        """在锁保护下采集一次资源快照。"""
         sampled_at = datetime.now(timezone.utc).isoformat()
         sample_monotonic = time.monotonic()
 
         try:
             root = psutil.Process(self._root_pid)
-            processes = [root, *root.children(recursive=True)]
+            discovered_processes = [root, *root.children(recursive=True)]
         except _ROOT_UNAVAILABLE_EXCEPTIONS as exc:
             logger.error(
                 "resource monitor root process unavailable",
                 root_pid=self._root_pid,
                 error_type=type(exc).__name__,
             )
+            self._cleanup_process_state(set())
             snapshot = self._unavailable_snapshot(sampled_at)
             self._history.append(snapshot)
             return snapshot
 
+        processes, active_keys = self._current_processes(discovered_processes)
+        self._cleanup_process_state(active_keys)
         warming_up = not self._has_warmed_up
         warnings = []
         process_samples = []
@@ -72,6 +83,7 @@ class ResourceMonitoringService:
                         root_pid=self._root_pid,
                         error_type=type(exc).__name__,
                     )
+                    self._cleanup_process_state(set())
                     snapshot = self._unavailable_snapshot(sampled_at)
                     self._history.append(snapshot)
                     return snapshot
@@ -104,11 +116,50 @@ class ResourceMonitoringService:
             raise ValueError("window_seconds must not be negative")
 
         cutoff = datetime.now(timezone.utc).timestamp() - window_seconds
+        with self._lock:
+            snapshots = list(self._history)
         return [
             snapshot
-            for snapshot in self._history
+            for snapshot in snapshots
             if datetime.fromisoformat(snapshot["sampled_at"]).timestamp() >= cutoff
         ]
+
+    def _current_processes(
+        self,
+        discovered_processes: Iterable[psutil.Process],
+    ) -> Tuple[list[psutil.Process], set[Tuple[int, float]]]:
+        """将当前进程树映射到同一身份的缓存对象，维持 CPU 采样基线。"""
+        processes = []
+        active_keys = set()
+        for process in self._deduplicated_processes(discovered_processes):
+            process_key = self._process_key(process)
+            if process_key is None:
+                processes.append(process)
+                continue
+
+            active_keys.add(process_key)
+            processes.append(self._process_cache.setdefault(process_key, process))
+        return processes, active_keys
+
+    @staticmethod
+    def _process_key(process: psutil.Process) -> Optional[Tuple[int, float]]:
+        try:
+            return process.pid, process.create_time()
+        except _OPTIONAL_FIELD_EXCEPTIONS:
+            return None
+
+    def _cleanup_process_state(self, active_keys: set[Tuple[int, float]]) -> None:
+        """移除当前进程树中不再存在的 CPU 与 I/O 基线。"""
+        self._process_cache = {
+            process_key: process
+            for process_key, process in self._process_cache.items()
+            if process_key in active_keys
+        }
+        self._io_baselines = {
+            process_key: baseline
+            for process_key, baseline in self._io_baselines.items()
+            if process_key in active_keys
+        }
 
     def _collect_process_sample(
         self,
@@ -123,7 +174,7 @@ class ResourceMonitoringService:
         create_time = self._read_core_field(
             process,
             "create_time",
-            process.create_time,
+            lambda: process.create_time(),
             unavailable_reasons,
         )
         sample = {
@@ -131,20 +182,20 @@ class ResourceMonitoringService:
             "parent_pid": self._read_core_field(
                 process,
                 "parent_pid",
-                process.ppid,
+                lambda: process.ppid(),
                 unavailable_reasons,
             ),
             "name": self._read_core_field(
                 process,
                 "name",
-                process.name,
+                lambda: process.name(),
                 unavailable_reasons,
             ),
             "create_time": create_time,
             "status": self._read_core_field(
                 process,
                 "status",
-                process.status,
+                lambda: process.status(),
                 unavailable_reasons,
             ),
             "role": "API" if is_root else "AlphaFoundry child process",
@@ -153,13 +204,13 @@ class ResourceMonitoringService:
         command = self._read_optional_field(
             process,
             "command",
-            process.cmdline,
+            lambda: process.cmdline(),
             unavailable_reasons,
         )
         io_counters = self._read_optional_field(
             process,
             "io_counters",
-            process.io_counters,
+            lambda: process.io_counters(),
             unavailable_reasons,
         )
         read_bytes: Optional[int]
@@ -212,7 +263,7 @@ class ResourceMonitoringService:
                 "thread_count": self._read_optional_field(
                     process,
                     "thread_count",
-                    process.num_threads,
+                    lambda: process.num_threads(),
                     unavailable_reasons,
                 ),
                 "disk_read_bytes_per_second": read_rate,
