@@ -260,7 +260,7 @@ def test_invalid_or_missing_host_capacity_does_not_open_or_resolve_host_event() 
 
 
 def test_nonfinite_or_out_of_range_host_capacity_does_not_open_or_resolve_event() -> None:
-    invalid_values = (float("nan"), float("inf"), float("-inf"), -1.0, 101.0)
+    invalid_values = (float("nan"), float("inf"), float("-inf"), -1.0, 101.0, True, False)
     repo = FakeRepository()
     service = ResourceMonitorAlertService(repo)
 
