@@ -557,8 +557,12 @@ function bindControls() {
         button.addEventListener('click', () => {
             const nextKey = button.dataset.resourceSort;
             if (!['cpu', 'memory', 'disk'].includes(nextKey)) return;
-            sortDirection = sortKey === nextKey ? sortDirection * -1 : -1;
-            sortKey = nextKey;
+            if (sortKey !== nextKey) {
+                sortKey = nextKey;
+                sortDirection = -1;
+            } else {
+                sortDirection *= -1;
+            }
             renderProcessTable();
         });
     });

@@ -32,7 +32,7 @@ def test_resource_monitor_navigation_and_semantic_dom_contract() -> None:
 def test_resource_monitor_module_cache_and_navigation_lifecycle_contract() -> None:
     app_js = (ROOT / "app/web/static/js/app.js").read_text(encoding="utf-8")
 
-    assert "./resource-monitor.js?v=20260805a" in app_js
+    assert "./resource-monitor.js?v=20260805b" in app_js
     assert "startResourceMonitoring" in app_js
     assert "stopResourceMonitoring" in app_js
     assert "if (section === 'resource-monitor') startResourceMonitoring();" in app_js
@@ -58,6 +58,8 @@ def test_resource_monitor_module_handles_lifecycle_bounds_and_safe_process_dom()
     assert "selectedProcessPid" in source
     assert "let sortDirection = -1;" in source
     assert "const value = processSortValue(left, sortKey) - processSortValue(right, sortKey);" in source
+    assert "if (sortKey !== nextKey)" in source
+    assert "sortDirection = -1;" in source
     assert "采样暂时不可用，保留上一帧数据" in source
     assert "已退出；保留最后一次采样信息" in source
     assert "historyVersion" in source
