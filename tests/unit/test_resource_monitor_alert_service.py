@@ -259,6 +259,31 @@ def test_invalid_or_missing_host_capacity_does_not_open_or_resolve_host_event() 
     assert alert.status == AlertStatus.OPEN
 
 
+def test_nonfinite_or_out_of_range_host_capacity_does_not_open_or_resolve_event() -> None:
+    invalid_values = (float("nan"), float("inf"), float("-inf"), -1.0, 101.0)
+    repo = FakeRepository()
+    service = ResourceMonitorAlertService(repo)
+
+    for _ in range(3):
+        service.evaluate(_snapshot_with_host(cpu=85.0))
+    alert = repo.alerts[0]
+
+    for value in invalid_values:
+        for _ in range(3):
+            service.evaluate(_snapshot_with_host(cpu=value))
+
+    assert len(repo.alerts) == 1
+    assert alert.status == AlertStatus.OPEN
+
+    no_event_repo = FakeRepository()
+    no_event_service = ResourceMonitorAlertService(no_event_repo)
+    for value in invalid_values:
+        for _ in range(3):
+            no_event_service.evaluate(_snapshot_with_host(cpu=value))
+
+    assert no_event_repo.alerts == []
+
+
 def test_host_event_metadata_drops_raw_collection_errors() -> None:
     repo = FakeRepository()
     service = ResourceMonitorAlertService(repo)

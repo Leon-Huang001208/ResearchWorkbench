@@ -64,7 +64,7 @@ Purpose:
 - `ResourceMonitoringService` 只合并 API 进程树、既有调度器/知识 Worker PID 和这些任务快照；同时读取整机 CPU 容量与内存汇总。API 内任务标记为共享资源估算，独立 Worker 标记为精确进程资源。
 - `ResourceMonitorRuntime` 在数据库就绪的 API 生命周期内以单一可停止线程每分钟采集一次快照；同一数据库会话内写入主机容量历史并评估资源事件。采样、历史或告警失败只记录安全的结构化异常类型，下一周期继续运行。
 - `ResourceAlertState` 在运行时的连续采样周期之间共享压力与恢复计数；每周期创建的 `ResourceMonitorAlertService` 显式消费该状态，因此持续压力仍在第三个样本触发现有事件规则。
-- `ResourceMonitorAlertService` 将任务失败、受控进程缺失、采样失败和持续资源压力以 `source_scope=alphafoundry` 保存为既有 Monitoring 告警/事件状态机中的 `resource_monitoring` 事件；另以 `source_scope=host_capacity` 评估整机 CPU（85%/95%）和可用内存（15%/8%）容量压力。两类容量均需连续三个样本触发或恢复；同一主机 warning 升为 critical 时原地更新且保留确认状态。
+- `ResourceMonitorAlertService` 将任务失败、受控进程缺失、采样失败和持续资源压力以 `source_scope=alphafoundry` 保存为既有 Monitoring 告警/事件状态机中的 `resource_monitoring` 事件；另以 `source_scope=host_capacity` 评估整机 CPU（85%/95%）和可用内存（15%/8%）容量压力。两类容量均需连续三个有限且处于 0–100 的样本触发或恢复；同一主机 warning 升为 critical 时原地更新且保留确认状态。
 
 Safety boundary:
 

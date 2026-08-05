@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
@@ -543,7 +544,10 @@ class ResourceMonitorAlertService:
 
     @staticmethod
     def _is_valid_percent(value: Any) -> bool:
-        return isinstance(value, (int, float)) and not isinstance(value, bool)
+        if not isinstance(value, (int, float)) or isinstance(value, bool):
+            return False
+        numeric_value = float(value)
+        return math.isfinite(numeric_value) and 0.0 <= numeric_value <= 100.0
 
     @staticmethod
     def _title_for(event_kind: str, metadata: Dict[str, Any]) -> str:
