@@ -433,14 +433,21 @@ class CrawlScheduler:
             logger.info(f"Running scheduled crawl for {source_type}")
 
             def _sync():
+                from services.resource_task_registry import resource_task
+
                 orchestrator = CrawlOrchestrator()
-                return orchestrator.crawl_source(
-                    source_type=config.source_type,
-                    source_name=config.source_name,
-                    days=config.days_per_crawl,
-                    max_docs=config.max_docs,
-                    enable_backfill=config.backfill_enabled,
-                )
+                with resource_task(
+                    task_kind="crawl",
+                    source_key=config.source_type.value,
+                    label=f"{config.source_name} 定时抓取",
+                ):
+                    return orchestrator.crawl_source(
+                        source_type=config.source_type,
+                        source_name=config.source_name,
+                        days=config.days_per_crawl,
+                        max_docs=config.max_docs,
+                        enable_backfill=config.backfill_enabled,
+                    )
 
             loop = _asyncio.get_running_loop()
             await loop.run_in_executor(None, _sync)
@@ -463,11 +470,18 @@ class CrawlScheduler:
             logger.info(f"Running scheduled backfill for {source_type}")
 
             def _sync():
+                from services.resource_task_registry import resource_task
+
                 orchestrator = CrawlOrchestrator()
-                return orchestrator.backfill_source(
-                    source_type=config.source_type,
-                    lookback_days=7,
-                )
+                with resource_task(
+                    task_kind="crawl",
+                    source_key=config.source_type.value,
+                    label=f"{config.source_name} 补数",
+                ):
+                    return orchestrator.backfill_source(
+                        source_type=config.source_type,
+                        lookback_days=7,
+                    )
 
             loop = _asyncio.get_running_loop()
             await loop.run_in_executor(None, _sync)
@@ -709,7 +723,10 @@ class CrawlScheduler:
             db = SessionLocal()
             try:
                 service = PDFConversionService(db, create_document=True)
-                results = service.convert_pending(limit=5)
+                from services.resource_task_registry import resource_task
+
+                with resource_task(task_kind="pdf_conversion", label="PDF 转换批次"):
+                    results = service.convert_pending(limit=5)
                 success = sum(1 for r in results if r.success)
                 failed = len(results) - success
                 if results:

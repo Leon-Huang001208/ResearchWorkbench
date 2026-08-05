@@ -754,24 +754,26 @@ def _run_report_render_job(
         )
 
         from reporting.projects.run import ReportProjectRunRequest, ReportProjectRunService
+        from services.resource_task_registry import resource_task
 
-        run_result = ReportProjectRunService(
-            generation_service=_get_report_generation_service(),
-            chart_service=_get_report_chart_service(),
-        ).execute(
-            project=project,
-            report_config=report_config,
-            prompt_templates_source=prompt_templates_source,
-            request=ReportProjectRunRequest(
-                placeholders=request.placeholders,
-                generate_from_config=request.generate_from_config,
-                lookback_days=request.lookback_days,
-                report_date=request.report_date,
-                data_scope=request.data_scope,
-                start_date=request.start_date,
-                end_date=request.end_date,
-            ),
-        )
+        with resource_task(task_kind="report_render", label="报告渲染"):
+            run_result = ReportProjectRunService(
+                generation_service=_get_report_generation_service(),
+                chart_service=_get_report_chart_service(),
+            ).execute(
+                project=project,
+                report_config=report_config,
+                prompt_templates_source=prompt_templates_source,
+                request=ReportProjectRunRequest(
+                    placeholders=request.placeholders,
+                    generate_from_config=request.generate_from_config,
+                    lookback_days=request.lookback_days,
+                    report_date=request.report_date,
+                    data_scope=request.data_scope,
+                    start_date=request.start_date,
+                    end_date=request.end_date,
+                ),
+            )
 
         # Phase: render
         _update_job(job_id, phase="render", message="正在渲染报告文档...")

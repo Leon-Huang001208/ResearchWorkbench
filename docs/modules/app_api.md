@@ -375,6 +375,19 @@ When files in this module change, check:
 - `docs/REFERENCE.md`
 - `docs/FILE_GUIDE.md`
 - `docs/CHANGELOG.md`
+
+---
+
+## Resource monitoring endpoints
+
+`app/api/routes/system.py` provides the AlphaFoundry-only resource monitoring API:
+
+- `GET /api/system/resource-usage` returns the API process tree plus explicitly registered scheduler and knowledge Worker PIDs. API in-process tasks are marked as shared estimates; independent Worker processes are marked as exact process measurements.
+- `GET /api/system/resource-usage/history` remains the in-memory, five-minute diagnostic series.
+- `GET /api/system/resource-events` returns persisted resource events for the requested history window and always includes unresolved events.
+- `POST /api/system/resource-events/{alert_id}/acknowledge` and `POST /api/system/resource-events/{alert_id}/resolve` apply the existing alert lifecycle.
+
+Resource-event persistence errors must not make `/resource-usage` unavailable. API responses expose only whitelisted task attribution metadata and never exception text, commands, request bodies, or secrets.
 - `docs/generated/py_file_index.md`
 
 ---

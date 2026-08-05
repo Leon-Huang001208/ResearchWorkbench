@@ -390,9 +390,18 @@ async def _process_and_mark(
     from data_layer.repositories.documents_v1 import DocumentV1Repository
     from data_layer.repositories.event_repository import EventRepositoryImpl
     from data_layer.repositories.ingestion_repository import IngestionQueueRepository
+    from services.resource_task_registry import resource_task
 
     async with semaphore:
         db = SessionLocal()
+        source_type = getattr(getattr(item, "source_type", None), "value", None) or "unknown"
+        task_scope = resource_task(
+            task_kind="knowledge_processing",
+            source_key=str(source_type),
+            label="知识队列处理",
+        )
+        task_scope.__enter__()
+        task_scope_open = True
         try:
             if item.source_type in DISABLED_EXTRACTION_SOURCES:
                 from datetime import datetime, timezone
@@ -450,6 +459,9 @@ async def _process_and_mark(
             )
             return result
         except Exception as e:
+            if task_scope_open:
+                task_scope.__exit__(type(e), e, e.__traceback__)
+                task_scope_open = False
             repo = IngestionQueueRepository(db)
             repo.mark_failed(item.item_id, str(e))
             db.commit()
@@ -468,6 +480,8 @@ async def _process_and_mark(
             )
             return None
         finally:
+            if task_scope_open:
+                task_scope.__exit__(None, None, None)
             db.close()
 
 
