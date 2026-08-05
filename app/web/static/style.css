@@ -13483,6 +13483,232 @@ tbody tr:hover {
     }
 }
 
+/* ─── Resource Monitor ────────────────────────────────────── */
+#section-resource-monitor {
+    color: var(--apple-text, var(--text-primary));
+}
+
+#section-resource-monitor .resource-monitor-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+}
+
+#section-resource-monitor .section-title {
+    margin-bottom: 4px;
+}
+
+#section-resource-monitor .resource-monitor-header p {
+    margin: 0;
+    color: var(--apple-secondary, var(--text-secondary));
+    font-size: 13px;
+}
+
+#section-resource-monitor .resource-monitor-status {
+    padding: 5px 9px;
+    border: 1px solid var(--apple-separator, var(--border));
+    border-radius: 999px;
+    background: rgba(148, 163, 184, .1);
+    color: var(--apple-secondary, var(--text-secondary));
+    font: 700 11px var(--font-mono);
+    letter-spacing: .04em;
+}
+
+#section-resource-monitor .resource-monitor-summary {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+#section-resource-monitor .resource-summary-card,
+#section-resource-monitor .resource-monitor-panel {
+    border: 1px solid var(--apple-separator, var(--border));
+    border-radius: 12px;
+    background: var(--apple-panel-bg, var(--bg-card));
+}
+
+#section-resource-monitor .resource-summary-card {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+    padding: 10px 12px;
+}
+
+#section-resource-monitor .resource-summary-card span,
+#section-resource-monitor .resource-monitor-panel h3 {
+    color: var(--apple-secondary, var(--text-secondary));
+    font-size: 11px;
+    font-weight: 760;
+    letter-spacing: .03em;
+}
+
+#section-resource-monitor .resource-summary-card strong {
+    overflow: hidden;
+    color: var(--apple-text, var(--text-primary));
+    font: 800 16px var(--font-mono);
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#section-resource-monitor .resource-monitor-chart-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+#section-resource-monitor .resource-monitor-panel {
+    min-width: 0;
+    overflow: hidden;
+}
+
+#section-resource-monitor .resource-monitor-panel h3 {
+    margin: 0;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--apple-separator, var(--border));
+}
+
+#section-resource-monitor .resource-monitor-chart {
+    position: relative;
+    min-height: 210px;
+}
+
+#section-resource-monitor .resource-chart-notice,
+#section-resource-monitor .resource-monitor-empty {
+    display: grid;
+    min-height: 120px;
+    margin: 0;
+    place-items: center;
+    padding: 12px;
+    color: var(--apple-secondary, var(--text-secondary));
+    font-size: 13px;
+    text-align: center;
+}
+
+#section-resource-monitor .resource-process-panel,
+#section-resource-monitor .resource-monitor-detail {
+    margin-bottom: 12px;
+}
+
+#section-resource-monitor .resource-process-table-wrap {
+    overflow-x: auto;
+}
+
+#section-resource-monitor .resource-process-table {
+    width: 100%;
+    min-width: 760px;
+    border-collapse: collapse;
+}
+
+#section-resource-monitor .resource-process-table th,
+#section-resource-monitor .resource-process-table td {
+    height: var(--table-row-height-compact);
+    padding: 0 12px;
+    border-bottom: 1px solid var(--apple-separator, var(--border));
+    font-size: 12px;
+}
+
+#section-resource-monitor .resource-process-table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--apple-panel-bg, var(--bg-card));
+    color: var(--apple-secondary, var(--text-secondary));
+    text-align: left;
+}
+
+#section-resource-monitor .resource-process-table th:nth-child(n + 2),
+#section-resource-monitor .resource-process-table td:nth-child(n + 2) {
+    font-family: var(--font-mono);
+    text-align: right;
+}
+
+#section-resource-monitor .resource-process-table th:last-child,
+#section-resource-monitor .resource-process-table td:last-child {
+    text-align: left;
+}
+
+#section-resource-monitor .resource-process-table th button {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+}
+
+#section-resource-monitor .resource-process-table tbody tr {
+    cursor: pointer;
+}
+
+#section-resource-monitor .resource-process-table tbody tr:hover,
+#section-resource-monitor .resource-process-table tbody tr.selected {
+    background: var(--apple-accent-light, rgba(245, 158, 11, .1));
+}
+
+#section-resource-monitor .resource-process-table tbody tr.departed td {
+    color: var(--apple-secondary, var(--text-secondary));
+}
+
+#section-resource-monitor .resource-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1px;
+    background: var(--apple-separator, var(--border));
+}
+
+#section-resource-monitor .resource-detail-item {
+    min-width: 0;
+    padding: 9px 12px;
+    background: var(--apple-panel-bg, var(--bg-card));
+}
+
+#section-resource-monitor .resource-detail-item span,
+#section-resource-monitor .resource-detail-item strong {
+    display: block;
+}
+
+#section-resource-monitor .resource-detail-item span {
+    margin-bottom: 4px;
+    color: var(--apple-secondary, var(--text-secondary));
+    font-size: 11px;
+}
+
+#section-resource-monitor .resource-detail-item strong {
+    overflow: hidden;
+    color: var(--apple-text, var(--text-primary));
+    font: 700 12px var(--font-mono);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#section-resource-monitor .resource-detail-trend {
+    padding: 10px 12px 12px;
+}
+
+#section-resource-monitor .resource-detail-trend svg {
+    display: block;
+    width: 100%;
+    height: 46px;
+}
+
+@media (max-width: 1100px) {
+    #section-resource-monitor .resource-monitor-summary {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 900px) {
+    #section-resource-monitor .resource-monitor-chart-grid,
+    #section-resource-monitor .resource-detail-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* ─── Report configuration summary: progressive disclosure ─── */
 .template-config-collapsible-section {
     margin: 0;
