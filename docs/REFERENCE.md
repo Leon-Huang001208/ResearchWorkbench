@@ -1217,7 +1217,7 @@ Wind Excel 适配器通过 xlwings → AppleScript → macOS Excel Wind 插件�
 }
 ```
 
-`status` 可能为 `warming_up`、`ok`、`degraded` 或 `unavailable`。首次采样时 CPU 与磁盘速率可能尚未建立基线。命令参数始终脱敏；采集降级时，`warnings` 仅会使用 `field_unavailable`、`root_process_unavailable` 或 `partial_data`，且 `unavailable_reason` 仅返回稳定的 `field_unavailable`，不会暴露底层异常类型或详情。
+`status` 可能为 `warming_up`、`ok`、`degraded` 或 `unavailable`。首次采样时 CPU 与磁盘速率可能尚未建立基线。`host.memory_available_bytes` 和 `host.memory_available_percent` 直接表示操作系统报告的可用内存（`available`），不是以总内存减已用内存计算。命令参数始终脱敏；采集降级时，`warnings` 仅会使用 `field_unavailable`、`root_process_unavailable` 或 `partial_data`，且 `unavailable_reason` 仅返回稳定的 `field_unavailable`，不会暴露底层异常类型或详情。
 
 #### GET /api/system/resource-usage/history
 
@@ -1246,6 +1246,8 @@ Wind Excel 适配器通过 xlwings → AppleScript → macOS Excel Wind 插件�
 #### GET /api/system/resource-usage/host-history
 
 返回持久化的分钟级整机容量历史。查询参数 `hours` 可选，默认 `24`，可接受范围为 `1` 至 `24`（含边界）；超出范围返回 `422`。服务以当前 UTC 时间减去 `hours` 作为仓储 `since` 过滤，因此 `?hours=1` 不会返回更早的点位。仓储读取不可用时返回 `503` 和稳定详情 `Host resource history unavailable`；仓储成功但没有点位时仍返回 `200` 与空 `points`。点位按 `sampled_at` 升序排列，且不包含主机进程、采集告警、原始 `extra` 或内部字段。
+
+这些点由正常（非 `ALPHAFOUNDRY_PREVIEW=1`）且数据库就绪的 API 运行时每分钟持久化；分支桌面预览刻意不启动该常驻任务，所以预览中空历史不表示 24 小时采集异常。
 
 **响应示例**:
 

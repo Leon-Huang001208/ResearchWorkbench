@@ -266,11 +266,11 @@
 | `decision_console_service.py` | 决策控制台服务：每日候选、决策记录、复盘视图 |
 | **监控与治理** | |
 | `monitoring_service.py` | 监控服务：健康检查、指标采集、告警管理 |
-| `resource_monitor_service.py` | 资源监控服务：采集 API 进程树与项目既有调度器/知识 Worker PID，并只通过主机级 psutil API 汇总整机 CPU/内存容量；读取受控任务快照并标识精确进程或共享估算，维护 150 点内存历史并将字段权限/平台问题降级记录 |
-| `resource_monitor_runtime.py` | 资源监控运行时：以单一可停止后台线程每分钟采集资源快照，并在一个数据库会话内写入主机容量历史和评估既有资源告警；异常只记录安全错误类型并继续下一周期 |
-| `resource_host_history_service.py` | 整机容量历史服务：把安全白名单后的 CPU/内存整机汇总写入既有健康指标 JSON，每 UTC 分钟至多一条，按请求的 1–24 小时 UTC 窗口查询最多 1500 点并仅保留 24 小时；仓储读取失败以受控不可用信号交由 API 返回稳定 503 |
+| `resource_monitor_service.py` | 资源监控服务：采集 API 进程树与项目既有调度器/知识 Worker PID，并只通过主机级 psutil API 汇总整机 CPU/内存容量；不枚举其他系统进程，读取受控任务快照并标识精确进程或共享估算，维护页面使用的 150 点（5 分钟）内存历史并将字段权限/平台问题降级记录 |
+| `resource_monitor_runtime.py` | 资源监控运行时：仅在数据库就绪且非 `ALPHAFOUNDRY_PREVIEW=1` 时以单一可停止后台线程每分钟采集资源快照，并在一个数据库会话内写入 24 小时主机容量历史和评估既有资源告警；异常只记录安全错误类型并继续下一周期 |
+| `resource_host_history_service.py` | 整机容量历史服务：把安全白名单后的 CPU/内存整机汇总写入既有健康指标 JSON，每 UTC 分钟至多一条，按请求的 1–24 小时 UTC 窗口查询最多 1500 点并仅保留 24 小时；“剩余内存”使用主机 `available` 值，仓储读取失败以受控不可用信号交由 API 返回稳定 503 |
 | `resource_task_registry.py` | 资源任务登记器：为抓取、PDF、知识处理、Wind 与报告任务写入每 PID 原子安全快照，失败记录不含异常原文 |
-| `resource_monitor_alert_service.py` | 资源异常协调器：复用 Monitoring 告警/事件状态机，去重并处理任务失败、受控 PID 缺失、采样失败、持续进程压力及整机 CPU/可用内存容量压力；通过共享 `ResourceAlertState` 保留跨周期压力/恢复计数，主机事件以稳定键原地升级，未恢复事件始终可查询 |
+| `resource_monitor_alert_service.py` | 资源异常协调器：复用 Monitoring 告警/事件状态机，去重并处理任务失败、受控 PID 缺失、采样失败、持续进程压力及整机 CPU/可用内存容量压力；AlphaFoundry 事件标记 `source_scope=alphafoundry`，主机容量事件标记 `source_scope=host_capacity`。通过共享 `ResourceAlertState` 保留跨周期压力/恢复计数，主机事件以稳定键原地升级，未恢复事件始终可查询；异常只在 Web/API 呈现，不触发原生通知 |
 | `configuration_service.py` | 本地配置服务：跨平台文件锁与原子 `.env` 写入、配置分区验证、秘密掩码和受控热刷新；生产 Web 模式禁用控制面，数据库修改要求重启 |
 | `governance_service.py` | 治理服务：版本控制、配置管理、审计 |
 | `audit_service.py` | 审计服务：审计日志查询和管理 |
