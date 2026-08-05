@@ -30,6 +30,7 @@ class ResourceMonitoringService:
         self._history: Deque[Dict[str, Any]] = deque(maxlen=_HISTORY_SIZE)
         self._io_baselines: Dict[Tuple[int, float], Tuple[float, int, int]] = {}
         self._process_cache: Dict[Tuple[int, float], psutil.Process] = {}
+        self._cpu_warmed_processes: set[Tuple[int, float]] = set()
         self._has_warmed_up = False
 
     @property
@@ -160,6 +161,7 @@ class ResourceMonitoringService:
             for process_key, baseline in self._io_baselines.items()
             if process_key in active_keys
         }
+        self._cpu_warmed_processes.intersection_update(active_keys)
 
     def _collect_process_sample(
         self,
@@ -177,6 +179,8 @@ class ResourceMonitoringService:
             lambda: process.create_time(),
             unavailable_reasons,
         )
+        process_key = (process.pid, create_time) if create_time is not None else None
+        cpu_is_warmed = process_key in self._cpu_warmed_processes
         sample = {
             "pid": process.pid,
             "parent_pid": self._read_core_field(
@@ -256,7 +260,9 @@ class ResourceMonitoringService:
             lambda: process.cpu_percent(interval=None),
             unavailable_reasons,
         )
-        if warming_up:
+        if process_key is not None and cpu_percent is not None:
+            self._cpu_warmed_processes.add(process_key)
+        if warming_up or not cpu_is_warmed:
             cpu_percent = None
 
         sample.update(

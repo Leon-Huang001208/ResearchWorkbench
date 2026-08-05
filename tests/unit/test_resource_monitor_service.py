@@ -5,6 +5,7 @@ from __future__ import annotations
 import inspect
 from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
+from typing import Any
 
 import psutil
 import pytest
@@ -431,6 +432,27 @@ def test_cpu_is_continuous_when_process_factory_returns_new_objects(
     assert second_root.cpu_intervals == []
 
 
+def test_new_child_process_is_cpu_warmed_independently_of_service(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = FakeProcess(101, None, name="api", cpu_samples=[1.0, 10.0])
+    new_child = FakeProcess(102, 101, name="worker", cpu_samples=[0.0, 42.0])
+    monkeypatch.setattr(resource_monitor_service.psutil, "Process", lambda pid: root)
+    monkeypatch.setattr(resource_monitor_service.time, "monotonic", iter([10.0, 12.0]).__next__)
+    service = resource_monitor_service.ResourceMonitoringService(root_pid=101)
+
+    service.collect_snapshot()
+    root._children = [new_child]
+    snapshot = service.collect_snapshot()
+
+    samples = {sample["pid"]: sample for sample in snapshot["processes"]}
+    assert snapshot["status"] == "ok"
+    assert samples[101]["cpu_percent"] == 10.0
+    assert samples[102]["cpu_percent"] is None
+    assert snapshot["summary"]["cpu_percent"] == 10.0
+    assert new_child.cpu_intervals == [None]
+
+
 def test_missing_optional_process_methods_are_degraded_without_raising(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -528,9 +550,10 @@ def test_collect_snapshot_and_history_are_safe_when_called_concurrently(
     service = resource_monitor_service.ResourceMonitoringService(root_pid=101)
 
     with ThreadPoolExecutor(max_workers=4) as executor:
-        futures = [executor.submit(service.collect_snapshot) for _ in range(20)]
-        futures.extend(executor.submit(service.history, 3600) for _ in range(20))
-        results = [future.result() for future in futures]
+        collect_futures = [executor.submit(service.collect_snapshot) for _ in range(20)]
+        history_futures = [executor.submit(service.history, 3600) for _ in range(20)]
+        results: list[Any] = [future.result() for future in collect_futures]
+        results.extend(future.result() for future in history_futures)
 
     assert all(isinstance(result, (dict, list)) for result in results)
     assert len(service.history(window_seconds=3600)) <= 150
