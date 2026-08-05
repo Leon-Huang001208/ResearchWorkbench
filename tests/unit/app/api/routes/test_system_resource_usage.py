@@ -2,6 +2,9 @@
 
 import asyncio
 import inspect
+import subprocess
+import sys
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 from fastapi import FastAPI
@@ -57,6 +60,16 @@ class StubResourceMonitoringService:
 
 
 @pytest.fixture
+def reset_resource_monitoring_singleton(monkeypatch: pytest.MonkeyPatch):
+    """Clear the route-local singleton before and after direct factory tests."""
+    monkeypatch.delattr(system.get_resource_monitoring_service, "_instance", raising=False)
+    try:
+        yield
+    finally:
+        monkeypatch.delattr(system.get_resource_monitoring_service, "_instance", raising=False)
+
+
+@pytest.fixture
 def resource_usage_client(monkeypatch: pytest.MonkeyPatch):
     """Provide a clean route app and remove any lazy-service singleton state."""
     monkeypatch.delattr(system.get_resource_monitoring_service, "_instance", raising=False)
@@ -70,6 +83,67 @@ def resource_usage_client(monkeypatch: pytest.MonkeyPatch):
     finally:
         app.dependency_overrides.pop(system.get_resource_monitoring_service, None)
         monkeypatch.delattr(system.get_resource_monitoring_service, "_instance", raising=False)
+
+
+def test_system_route_import_does_not_eagerly_import_resource_monitoring_service() -> None:
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import sys\n"
+            "import app.api.routes.system\n"
+            "assert 'services.resource_monitor_service' not in sys.modules\n",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_resource_monitoring_factory_creates_one_lazy_singleton(
+    monkeypatch: pytest.MonkeyPatch,
+    reset_resource_monitoring_singleton,
+) -> None:
+    from services import resource_monitor_service
+
+    created_instances = []
+
+    class StubFactoryService:
+        def __init__(self) -> None:
+            created_instances.append(self)
+
+    monkeypatch.setattr(resource_monitor_service, "ResourceMonitoringService", StubFactoryService)
+
+    first = system.get_resource_monitoring_service()
+    second = system.get_resource_monitoring_service()
+
+    assert first is second
+    assert created_instances == [first]
+
+
+def test_resource_monitoring_factory_is_thread_safe(
+    monkeypatch: pytest.MonkeyPatch,
+    reset_resource_monitoring_singleton,
+) -> None:
+    from services import resource_monitor_service
+
+    created_instances = []
+
+    class StubFactoryService:
+        def __init__(self) -> None:
+            created_instances.append(self)
+
+    monkeypatch.setattr(resource_monitor_service, "ResourceMonitoringService", StubFactoryService)
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        instances = list(
+            executor.map(lambda _: system.get_resource_monitoring_service(), range(32))
+        )
+
+    assert len({id(instance) for instance in instances}) == 1
+    assert len(created_instances) == 1
 
 
 def test_resource_usage_returns_snapshot_schema_via_service_stub(resource_usage_client) -> None:
