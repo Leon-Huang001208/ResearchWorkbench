@@ -38,23 +38,70 @@ def get_resource_monitoring_service() -> Any:
     return service
 
 
+def _sanitize_resource_warning(warning: Any) -> Dict[str, Any]:
+    """将服务内部采集错误映射为稳定的公开警告码。"""
+    if not isinstance(warning, dict):
+        return {"code": "partial_data"}
+
+    if warning.get("code") == "root_process_unavailable":
+        return {"code": "root_process_unavailable"}
+
+    if warning.get("code") == "process_field_unavailable":
+        public_warning: Dict[str, Any] = {"code": "field_unavailable"}
+        if warning.get("pid") is not None:
+            public_warning["pid"] = warning["pid"]
+        if warning.get("field") is not None:
+            public_warning["field"] = warning["field"]
+        return public_warning
+
+    return {"code": "partial_data"}
+
+
+def _sanitize_resource_snapshot(snapshot: Dict[str, Any]) -> Dict[str, Any]:
+    """移除资源采集实现细节，避免将内部异常类型暴露给 API 调用方。"""
+    public_snapshot = dict(snapshot)
+    warnings = snapshot.get("warnings", [])
+    public_snapshot["warnings"] = (
+        [_sanitize_resource_warning(warning) for warning in warnings]
+        if isinstance(warnings, list)
+        else [{"code": "partial_data"}]
+    )
+
+    processes = snapshot.get("processes", [])
+    if isinstance(processes, list):
+        public_processes = []
+        for process in processes:
+            if not isinstance(process, dict):
+                continue
+            public_process = dict(process)
+            if public_process.get("unavailable_reason") is not None:
+                public_process["unavailable_reason"] = "field_unavailable"
+            public_processes.append(public_process)
+        public_snapshot["processes"] = public_processes
+    else:
+        public_snapshot["processes"] = []
+    return public_snapshot
+
+
 @router.get("/resource-usage")
-async def get_resource_usage(
+def get_resource_usage(
     service: Any = Depends(get_resource_monitoring_service),
 ) -> Dict[str, Any]:
     """返回 AlphaFoundry 根进程及其后代的当前资源快照。"""
-    return service.collect_snapshot()
+    return _sanitize_resource_snapshot(service.collect_snapshot())
 
 
 @router.get("/resource-usage/history")
-async def get_resource_usage_history(
-    window_seconds: int = Query(..., ge=2, le=300),
+def get_resource_usage_history(
+    window_seconds: int = Query(300, ge=2, le=300),
     service: Any = Depends(get_resource_monitoring_service),
 ) -> Dict[str, Any]:
     """返回指定时间窗口内已采集的资源快照。"""
     return {
         "window_seconds": window_seconds,
-        "points": service.history(window_seconds),
+        "points": [
+            _sanitize_resource_snapshot(snapshot) for snapshot in service.history(window_seconds)
+        ],
     }
 
 

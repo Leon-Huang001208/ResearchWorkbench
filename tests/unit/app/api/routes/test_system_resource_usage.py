@@ -1,6 +1,7 @@
 """System resource usage API route tests."""
 
 import asyncio
+import inspect
 
 import pytest
 from fastapi import FastAPI
@@ -90,6 +91,16 @@ def test_resource_usage_history_returns_requested_window_and_points(resource_usa
     assert service.history_calls == [60]
 
 
+def test_resource_usage_history_uses_300_second_default(resource_usage_client) -> None:
+    client, service = resource_usage_client
+
+    response = client.get("/api/system/resource-usage/history")
+
+    assert response.status_code == 200
+    assert response.json() == {"window_seconds": 300, "points": [service.snapshot]}
+    assert service.history_calls == [300]
+
+
 @pytest.mark.parametrize("window_seconds", [1, 301])
 def test_resource_usage_history_rejects_out_of_range_window(
     resource_usage_client, window_seconds
@@ -100,6 +111,48 @@ def test_resource_usage_history_rejects_out_of_range_window(
 
     assert response.status_code == 422
     assert service.history_calls == []
+
+
+def test_resource_usage_sanitizes_internal_collection_errors(resource_usage_client) -> None:
+    client, service = resource_usage_client
+    service.snapshot["warnings"] = [
+        {
+            "code": "process_field_unavailable",
+            "pid": 123,
+            "field": "name",
+            "error_type": "AccessDenied",
+            "details": "permission denied for secret process data",
+        },
+        {
+            "code": "root_process_unavailable",
+            "error_type": "NoSuchProcess",
+        },
+        {
+            "code": "child_process_unavailable",
+            "pid": 456,
+            "error_type": "NotImplementedError",
+        },
+    ]
+    service.snapshot["processes"][0][
+        "unavailable_reason"
+    ] = "name:AccessDenied; io_counters:NotImplementedError"
+
+    response = client.get("/api/system/resource-usage")
+
+    assert response.status_code == 200
+    assert response.json()["warnings"] == [
+        {"code": "field_unavailable", "pid": 123, "field": "name"},
+        {"code": "root_process_unavailable"},
+        {"code": "partial_data"},
+    ]
+    assert response.json()["processes"][0]["unavailable_reason"] == "field_unavailable"
+    assert "AccessDenied" not in response.text
+    assert "NotImplementedError" not in response.text
+
+
+def test_resource_usage_routes_are_synchronous_for_threadpool_execution() -> None:
+    assert not inspect.iscoroutinefunction(system.get_resource_usage)
+    assert not inspect.iscoroutinefunction(system.get_resource_usage_history)
 
 
 def test_system_minimal_health_route_remains_available() -> None:
