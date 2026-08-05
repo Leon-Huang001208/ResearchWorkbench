@@ -73,6 +73,30 @@ class MonitoringRepositoryImpl(BaseRepository):
         db_objs = query.order_by(HealthMetricsDB.timestamp.desc()).limit(limit).all()
         return [self._dict_to_metrics(self._db_metrics_to_dict(o)) for o in db_objs]
 
+    def delete_health_metrics(self, metric_ids: List[str]) -> int:
+        """按精确 ID 批量删除健康指标。"""
+        valid_ids = [
+            metric_id for metric_id in metric_ids if isinstance(metric_id, str) and metric_id
+        ]
+        if not valid_ids:
+            return 0
+        try:
+            deleted = (
+                self.db.query(HealthMetricsDB)
+                .filter(HealthMetricsDB.metric_id.in_(valid_ids))
+                .delete(synchronize_session=False)
+            )
+            self.db.flush()
+            logger.info(
+                "health metrics deleted",
+                metric_count=len(valid_ids),
+                deleted_count=deleted,
+            )
+            return deleted
+        except Exception as exc:
+            logger.error("health metrics deletion failed", error_type=type(exc).__name__)
+            raise
+
     # ── DriftReport ──────────────────────────────────────
 
     def save_drift_report(self, report: DriftReport) -> DriftReport:

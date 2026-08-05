@@ -8,6 +8,8 @@
 
 ### Added
 
+- **整机容量分钟历史**：复用既有 `health_metrics.extra` 保存白名单后的主机 CPU/内存容量摘要；每 UTC 分钟至多一条，查询最多 1500 点，超过 24 小时仅按精确 ID 清理 `host_capacity` 记录，不影响资源事件或其他监控指标。
+
 - **分支桌面端预览通道**：新增 `npm run desktop:preview`。功能 worktree 可使用独立 loopback 端口（默认 `8766`）、临时 Tauri 配置和可选的稳定桌面配置启动开发壳，不需要复制项目或为每个 worktree 重装 Node 依赖。预览进程会跳过数据库初始化、Wind/市场/抓取调度器与后台 worker，并将 Tauri 壳的健康等待和 `backend_url` 一并指向预览端口。
 
 - **进程资源监控工作台**：新增“系统监控”页面和 `GET /api/system/resource-usage`、`GET /api/system/resource-usage/history`。接口及页面只采集 API 根进程及递归子进程；历史窗口默认 300 秒、范围为 2–300 秒，前端至多保留 150 点，并在页面不可见或离开时取消轮询。页面展示 CPU/内存趋势、进程资源表及详情；ECharts、I/O 或连接数不可用时仍保留摘要/表格并以稳定公开降级码提示。响应对命令参数、内部异常类型和采集细节脱敏。
