@@ -8,7 +8,7 @@
 
 ### Added
 
-- **进程资源监控 API**：新增 `GET /api/system/resource-usage` 与 `GET /api/system/resource-usage/history`。接口仅采集 API 根进程及递归子进程；历史窗口默认 300 秒、范围为 2–300 秒。响应对命令参数、内部异常类型和采集细节脱敏，并以稳定降级码返回不可用字段或部分数据。
+- **进程资源监控工作台**：新增“系统监控”页面和 `GET /api/system/resource-usage`、`GET /api/system/resource-usage/history`。接口及页面只采集 API 根进程及递归子进程；历史窗口默认 300 秒、范围为 2–300 秒，前端至多保留 150 点，并在页面不可见或离开时取消轮询。页面展示 CPU/内存趋势、进程资源表及详情；ECharts、I/O 或连接数不可用时仍保留摘要/表格并以稳定公开降级码提示。响应对命令参数、内部异常类型和采集细节脱敏。
 
 - **报告项目排序**：模板工作台可保存完整项目卡片排序；排序写入各项目 `project.yaml` 的 `display_order`，重新打开仍保持一致。
 

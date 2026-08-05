@@ -118,6 +118,7 @@
 | `app/web/static/js/templates.js` | 模板工作台模块：报告项目选择、Word 占位符映射、YAML/Markdown Prompt 源码切换与保存、后端 `compiled_plan` 生成预检、配置驱动生成、下载和 Word HTML 预览 |
 | `app/web/static/js/pipeline-monitor.js` | 管线监控模块：5 阶段流程可视化、实时活动日志（SSE + 15s 轮询）、累计统计、手动触发闭环 |
 | `app/web/static/js/monitor.js` | 系统监控模块：Worker 心跳、队列深度、服务状态 |
+| `app/web/static/js/resource-monitor.js` | API 受限进程树资源监控：仅在页面可见且激活时轮询快照/300 秒历史，最多保留 150 点；支持图表降级、失败退避、进程排序和安全详情抽屉 |
 | `app/web/static/js/asset.js` | 资产分析模块：Wind 风格 5 面板 K 线图（K 线+成交量/MACD/KDJ/RSI，首次加载默认请求近一年数据，支持日/周/月聚合与 MA120/MA250）、筹码分布图（筹码峰及上/下界标注）、资产搜索、分析卡渲染 |
 
 ---
@@ -265,6 +266,7 @@
 | `decision_console_service.py` | 决策控制台服务：每日候选、决策记录、复盘视图 |
 | **监控与治理** | |
 | `monitoring_service.py` | 监控服务：健康检查、指标采集、告警管理 |
+| `resource_monitor_service.py` | 资源监控服务：仅从 API 根 PID 枚举递归子进程，采集 CPU、RSS、I/O 速率、线程和连接计数；维护 150 点内存历史并将单字段权限/平台问题降级记录 |
 | `configuration_service.py` | 本地配置服务：跨平台文件锁与原子 `.env` 写入、配置分区验证、秘密掩码和受控热刷新；生产 Web 模式禁用控制面，数据库修改要求重启 |
 | `governance_service.py` | 治理服务：版本控制、配置管理、审计 |
 | `audit_service.py` | 审计服务：审计日志查询和管理 |
@@ -635,6 +637,9 @@
 | `tests/unit/test_factor_store_service.py` | 因子存储服务单元测试：27 个测试覆盖 Pydantic 契约 ↔ ORM 双向转换、CRUD 路径、端到端流程 |
 | `tests/unit/test_factor_api.py` | 因子 API 单元测试：13 个测试覆盖所有端点、请求验证、空数据处理 |
 | `tests/unit/test_factor_computation_service.py` | 因子计算服务单元测试：11 个测试覆盖空定义/空值/完整循环/资源关闭 |
+| `tests/unit/test_resource_monitor_service.py` | 资源监控服务测试：限定根进程树、预热、I/O 差分、历史上限、字段/子进程降级和并发采集 |
+| `tests/unit/app/api/routes/test_system_resource_usage.py` | 系统资源 API 测试：只读快照/历史契约、窗口边界、脱敏降级和懒加载依赖 |
+| `tests/unit/test_resource_monitor_frontend_static.py` | 资源监控前端静态契约：导航生命周期、轮询取消、150 点限制、安全 DOM 渲染、详情抽屉和响应式样式 |
 | `tests/unit/test_dynamic_factors.py` | 动态多因子核心测试：覆盖矩阵构建、因子评估、动态权重、事件-因子融合 |
 | `tests/integration/` | 集成测试目录 |
 
