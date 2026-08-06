@@ -112,7 +112,7 @@ def test_setup_mode_does_not_start_business_data_requests():
 
     assert "initSetupWizard" in source
     assert "if (setupMode)" in source
-    assert "navigateTo('config')" in source
+    assert "navigateTo('system', { systemTab: 'config' })" in source
     setup_return = source.index("if (setupMode) {")
     assert setup_return < source.index("initAssetSearch();")
     assert setup_return < source.index("connectSSE();")
@@ -122,10 +122,14 @@ def test_setup_required_navigation_gate_blocks_data_loads_before_they_start():
     source = APP_JS.read_text(encoding="utf-8")
 
     assert "setupRequiredNavigationGate" in source
-    navigation = source[source.index("function navigateTo(section)"):source.index("window.navigateTo = navigateTo;")]
-    assert "section !== 'config'" in navigation
+    navigation = source[
+        source.index("function navigateTo(section, options = {})"):
+        source.index("window.navigateTo = navigateTo;")
+    ]
+    assert "const targetSection = systemTarget(section, options.systemTab);" in navigation
+    assert "targetSection !== 'config'" in navigation
     assert "数据库尚未就绪" in source
-    assert navigation.index("section !== 'config'") < navigation.index("loadDashboard();")
+    assert navigation.index("targetSection !== 'config'") < navigation.index("loadDashboard();")
     assert "activateSetupRequiredNavigationGate();" in source
 
 
