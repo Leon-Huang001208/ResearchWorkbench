@@ -73,6 +73,41 @@ npm install
 npm run desktop:dev
 ```
 
+### Branch preview without changing the stable desktop instance
+
+When a feature is implemented in a Git worktree, launch it for acceptance with:
+
+```bash
+npm run desktop:preview
+```
+
+The command opens the Tauri development shell for the current worktree and starts
+its backend on `127.0.0.1:8766` by default. It uses an isolated temporary runtime
+data directory, so it does not share the stable desktop instance's configuration
+or listener on `8765`. Use a different available port when another preview is
+already running:
+
+```bash
+npm run desktop:preview -- --port 8767
+```
+
+An isolated data directory starts in database setup mode. To review a full
+feature workbench against the stable desktop configuration, opt in explicitly:
+
+```bash
+npm run desktop:preview -- --use-stable-data
+```
+
+This reads the existing local desktop configuration but does not start duplicate
+database initialization, knowledge workers, crawler workers, or schedulers in
+the preview process.
+
+The preview launcher reuses an already-installed Tauri CLI from an AlphaFoundry
+worktree when available; it does not require copying the project or installing
+Node dependencies for every worktree. Close the preview window to stop its
+backend and remove its temporary Tauri configuration. The user should review this
+preview before the feature branch is integrated into `master`.
+
 To build a local debug `.app`:
 
 ```bash

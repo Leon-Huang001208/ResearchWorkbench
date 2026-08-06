@@ -49,6 +49,9 @@ Purpose:
 - 由当前启动配置管理的字段仍会保持只读，并在受影响字段、行或集合附近给出说明；秘密值不会回填到界面。Provider、任务路由和账号/Key 池按原子集合锁定：任一受管项会使该集合只读且不随保存提交，未受管的同分区独立设置仍可保存。
 - 当前环境与能力诊断为只读信息：不读取或导出秘密，也不生成动态表单。`psql` 可用仅表示命令可被发现，不代表 PostgreSQL 或 pgvector 已就绪；iFinD SDK 仅是本机依赖提示，Wind 在非 Windows 平台不适用，Windows 仍须以真实 Excel 验证。
 - 市场面板仅在可见、处于市场标签页且交易时段内自动刷新。Wind 市场数据的前端轮询与后端工作簿缓存统一为 30 秒；手动刷新仍立即执行。
+- 资源监控页面由 `app/web/static/js/resource-monitor.js` 驱动：仅在进入“系统监控”且文档可见时采样，离开页面或切到后台会取消定时器、在途请求并释放图表。它先读 300 秒 AlphaFoundry 历史，再按成功 2 秒、连续失败 4/6/8/10 秒退避读取当前快照，页面内至多保留 150 个点；另在首次激活、恢复可见和每 60 秒读取一次 `host-history` 的 24 小时整机容量历史，失败时保留上一份成功曲线。后一条路径只读取历史；持续的分钟采集由非预览 API 运行时负责。
+- 资源监控顶部明确区分 AlphaFoundry 与整机容量：Alpha CPU 显示核心等价及整机占比，Alpha 内存显示 RSS 及整机占比；整机卡显示 CPU 用量、近似空闲和逻辑核，以及已用/总/可用内存。进程树仍只呈现 API 根进程及 AlphaFoundry 自己登记的调度器/知识 Worker PID 的聚合 CPU、内存、磁盘读/写速率、线程数和连接数；“连接数”是进程连接计数，不是每进程网络字节数。独立 Worker 标识为精确进程资源，API 内 Wind、PDF、报告或抓取任务只标识共享进程估算。图表依赖可选的 ECharts，图表组件未就绪时数字摘要和进程表仍会更新；API 的降级状态会保留上一帧并显示不可用提示。
+- 页面顶部固定显示未恢复的持久化资源异常，可确认或人工解决；异常历史默认查询 90 天并支持状态/严重度筛选。`source_scope=alphafoundry` 表示受控应用侧事件，`source_scope=host_capacity` 表示整机容量事件；两者均只在页面/API 显示，不触发原生通知。异常历史请求失败会保留上一份成功记录，而不是清空异常证据。进程表支持按 CPU、内存或磁盘 I/O 请求排序，行可打开详情抽屉；命令摘要、状态和数值均用 DOM `textContent` 填充，避免把进程元数据作为 HTML 插入。不同操作系统或进程权限下，psutil 可能不能提供 I/O 或连接数字，界面显示 `--` 和 API 的公开降级状态，而不展示底层异常。
 
 Update this section when:
 - New JS modules are added
@@ -87,6 +90,7 @@ Update this section when:
 - Page load verification
 - Main interaction flow testing
 - Frontend static regression tests for template workbench markup, source switching, placeholder mapping, upload button placement, and preview styles
+- Resource-monitor static contracts for navigation lifecycle, safe process rendering, sampling bounds, responsive layout, and chart fallback
 
 ---
 
@@ -103,6 +107,7 @@ When files in this module change, check:
 
 ## Recent Changes
 
+- 2026-08-05: 系统监控第二期新增 AlphaFoundry 受控 Worker/任务归因、待处理异常置顶、确认/解决操作与默认 90 天异常历史；API 内任务明确标注为共享资源估算，不伪造任务级 CPU，异常接口短暂失败时保留上一份记录。
 - 2026-07-26: 完善系统配置界面：首页提供紧凑进度、连接状态概览和状态筛选，卡片在窄屏下自适应排列；“刷新状态”只重新读取状态，不测试连接或保存配置。编辑弹窗显示空账号/Key 状态、采用紧凑字段布局，并明确说明连接测试不会保存更改；“保存更改”为主要保存操作。环境管理的配置仍保持锁定，秘密值不回填。
 - 2026-07-26: 系统配置页新增健康总览和卡片操作说明；首次配置引导已在后续迭代中简化为紧凑进度。连接测试结果仅在当前会话中显示，重新检测配置后会清除，避免把短暂检测结果误作持久运行状态。
 - 2026-07-26: 增加只读环境能力诊断，展示安全的运行环境、路径与能力信息；其状态不替代真实数据库连接或 Windows Excel/Wind 验证。

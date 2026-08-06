@@ -27,6 +27,7 @@ Purpose:
 - Creates and configures the FastAPI application lifecycle.
 - Performs startup health initialization and registers API routes.
 - Returns only the stable `ready` or `unavailable` persistence state from `/health`; underlying database exceptions remain in server-side structured logs rather than HTTP responses.
+- In an explicit `ALPHAFOUNDRY_PREVIEW=1` desktop process, preserves the readiness contract but skips schema initialization and automatic Wind/market/crawl background services, so branch acceptance does not mutate the shared runtime.
 
 Update this section when:
 
@@ -286,17 +287,28 @@ Update this section when:
 
 Purpose:
 
-- System health check, worker status, status bar, and event publishing endpoints.
+- System health check, worker status, status bar, event publishing, and scoped process-resource endpoints.
 - `GET /api/system/health` — full health check with queue depth, pending/processing/completed/failed counts, and worker heartbeats.
 - `GET /api/system/health/minimal` — lightweight health check without database query.
 - `GET /api/system/workers/status` — aggregated worker/scheduler status + queue stats + processing stats (today, last_7_days, last_30_days, total, yesterday_same_time, daily_avg_7d).
 - `GET /api/system/status-bar` — dashboard status bar data (git branch, DB type, LLM provider, document count, error/warning counts).
 - `POST /api/system/event` — publish a system event to the event bus (for external integration/testing).
+- `GET /api/system/resource-usage` — current AlphaFoundry process snapshot plus a seven-field machine-capacity aggregate; it never enumerates or returns machine-wide process details, and its remaining-memory fields use the host `available` value.
+- `GET /api/system/resource-usage/history?window_seconds=` — bounded in-memory snapshot history; `window_seconds` defaults to `300` and must be in the inclusive range `2`–`300`.
+- `GET /api/system/resource-usage/host-history?hours=` — persisted minute-level host-capacity history; `hours` defaults to `24` and must be in the inclusive range `1`–`24`.
+
+Resource usage dependency:
+
+- `get_resource_monitoring_service()` lazy-imports and retains one `ResourceMonitoringService` instance on first request, avoiding an eager `psutil` import at API startup.
+- 数据库就绪且不是 `ALPHAFOUNDRY_PREVIEW=1` 时，启动钩子会以函数内延迟导入创建并缓存一个 `ResourceMonitorRuntime`。它每分钟在单独数据库会话内采样、写入主机历史并评估既有资源告警；预览明确不启动该常驻线程。关闭钩子先安全停止该线程，运行时启动或停止失败只记录 `error_type`，不阻断 API。
+- Responses redact command arguments and map collection failures to public warning codes only: `field_unavailable`, `root_process_unavailable`, or `partial_data`. Internal exception classes and details are not exposed; per-process `unavailable_reason` is the stable `field_unavailable` value when data is unavailable. The `host` object always contains only CPU/available-memory capacity fields, and long-term history exposes only those fields plus AlphaFoundry CPU/memory proportions.
 
 Related service:
 
 - `services/system_event_bus.py`
 - `services/ingestion_queue_service.py`
+- `services/resource_monitor_service.py`
+- `services/resource_monitor_runtime.py`
 
 Update this section when:
 
@@ -366,6 +378,22 @@ When files in this module change, check:
 - `docs/REFERENCE.md`
 - `docs/FILE_GUIDE.md`
 - `docs/CHANGELOG.md`
+
+---
+
+## Resource monitoring endpoints
+
+`app/api/routes/system.py` provides the AlphaFoundry-only resource monitoring API:
+
+- `GET /api/system/resource-usage` returns the API process tree plus explicitly registered scheduler and knowledge Worker PIDs, together with a seven-field host-capacity aggregate. API in-process tasks are marked as shared estimates; independent Worker processes are marked as exact process measurements.
+- `GET /api/system/resource-usage/history` remains the in-memory, five-minute diagnostic series.
+- `GET /api/system/resource-usage/host-history` returns the persisted, sorted minute-level host-capacity series for the requested 1–24 hour window. The route forwards `hours` as the repository `since` filter; each point is limited to `sampled_at`, safe `host` capacity fields, and safe AlphaFoundry CPU/memory proportion fields. A repository read failure is distinct from valid no-data: it returns the stable 503 contract rather than an empty 200 series.
+- `GET /api/system/resource-events` returns persisted resource events for the requested history window and always includes unresolved events.
+- `POST /api/system/resource-events/{alert_id}/acknowledge` and `POST /api/system/resource-events/{alert_id}/resolve` apply the existing alert lifecycle.
+
+`/resource-usage` only collects and returns its snapshot; the runtime continuously evaluates resource events. API responses expose only whitelisted task attribution metadata and never exception text, commands, request bodies, secrets, or internal deduplication keys. AlphaFoundry events have `source_scope=alphafoundry`; host CPU/available-memory events have `source_scope=host_capacity`. These endpoints do not emit native desktop notifications.
+
+The route opens a database session only for the individual resource-event or host-history operation; no monitoring repository session is retained between HTTP requests.
 - `docs/generated/py_file_index.md`
 
 ---

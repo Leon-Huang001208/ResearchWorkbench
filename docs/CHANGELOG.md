@@ -8,6 +8,22 @@
 
 ### Added
 
+- **双范围资源监控界面**：系统监控页将 AlphaFoundry 与整机容量分为四个文字范围明确的摘要卡；保留 AlphaFoundry 最近 5 分钟 CPU/RSS 曲线，并新增整机 CPU 与可用内存最近 24 小时曲线。整机历史仅在页面可见且激活时于首次、恢复和每 60 秒读取；请求失败会保留上一份成功曲线并提示不可用，离开页面会取消请求并释放图表。异常只在页面中置顶和查询，不会发送原生桌面通知。
+
+- **主机容量 API**：`GET /api/system/resource-usage` 现公开严格七字段的安全主机容量摘要，新增 `GET /api/system/resource-usage/host-history?hours=24` 返回最多 24 小时、按时间排序的分钟级容量与 AlphaFoundry 汇总比例；“剩余内存”直接采用主机 `available` 值。历史读取失败返回稳定 503，绝不枚举或返回其他系统进程、原始健康指标或内部字段；资源事件元数据新增安全的整机来源和阈值字段。
+
+- **资源告警并发安全**：整机 CPU/可用内存容量告警在连续三次有效压力或恢复样本后变更；无效读数中断连续计数。所有资源告警周期通过确定性主键和 savepoint 冲突恢复至多创建一条未解决事件，已解决事件保留为历史；warning 升级 critical 使用仅匹配未解决状态的原子详情更新，绝不覆盖用户的确认或解决状态。
+
+- **资源监控常驻运行时**：API 在数据库就绪且非分支预览时启动单一后台线程，每分钟采集资源快照，并在同一数据库会话内写入整机容量历史和评估既有资源告警；`ALPHAFOUNDRY_PREVIEW=1` 明确不启动该线程。`ResourceAlertState` 保留跨周期压力/恢复计数，确保现有连续压力规则正常工作。采样、持久化、告警或线程生命周期异常仅记录结构化异常类型，后续周期和 API 启停不会被阻断；关闭 API 时以可配置有限超时等待线程，超时安全降级为 warning。
+
+- **整机容量分钟历史**：复用既有 `health_metrics.extra` 保存白名单后的主机 CPU/内存容量摘要；每 UTC 分钟至多一条，查询最多 1500 点，超过 24 小时仅按精确 ID 清理 `host_capacity` 记录，不影响资源事件或其他监控指标。
+
+- **分支桌面端预览通道**：新增 `npm run desktop:preview`。功能 worktree 可使用独立 loopback 端口（默认 `8766`）、临时 Tauri 配置和可选的稳定桌面配置启动开发壳，不需要复制项目或为每个 worktree 重装 Node 依赖。预览进程会跳过数据库初始化、Wind/市场/抓取调度器与后台 worker，并将 Tauri 壳的健康等待和 `backend_url` 一并指向预览端口。
+
+- **进程资源监控工作台**：新增“系统监控”页面和 `GET /api/system/resource-usage`、`GET /api/system/resource-usage/history`。接口及页面只采集 API 根进程及递归子进程；历史窗口默认 300 秒、范围为 2–300 秒，前端至多保留 150 点，并在页面不可见或离开时取消轮询。页面展示 CPU/内存趋势、进程资源表及详情；ECharts、I/O 或连接数不可用时仍保留摘要/表格并以稳定公开降级码提示。响应对命令参数、内部异常类型和采集细节脱敏。
+
+- **资源监控第二期**：资源采样扩展为 API 进程树加 AlphaFoundry 自身登记的调度器/知识 Worker PID，不扫描系统其他应用。抓取、PDF、知识处理、Wind 与报告任务会写入安全归因快照；独立 Worker 显示精确进程资源，API 内任务明确标记为共享估算。新增 `GET /api/system/resource-events` 及确认/解决端点，复用已有告警/事件持久化状态机，将任务失败、受控 Worker 缺失、采样失败和持续资源压力置顶并保留历史；实时曲线仍只保留 5 分钟，异常历史默认查询 90 天且不自动删除。
+
 - **报告项目排序**：模板工作台可保存完整项目卡片排序；排序写入各项目 `project.yaml` 的 `display_order`，重新打开仍保持一致。
 
 - **内置产业链图谱交付**：恢复 `data/industry_graphs/` 的 AI 算力、半导体国产化和新能源上游图谱，并将其纳入桌面 Python sidecar，离线桌面环境无需用户自行创建图谱文件。
@@ -21,6 +37,10 @@
 - **跨平台运行时配置内核**：新增 `core/settings/runtime.py`，在业务模块和 SQLAlchemy engine 初始化前统一解析桌面、Web 开发、Web 生产三种运行模式；统一 `ALPHAFOUNDRY_CONFIG_FILE`、`ALPHAFOUNDRY_DESKTOP_DATA_DIR` 和 `ALPHAFOUNDRY_BACKEND_URL` 的优先级。Windows 桌面用户数据统一进入 `%LOCALAPPDATA%\AlphaFoundry`，macOS 进入 `~/Library/Application Support/AlphaFoundry`。
 
 ### Changed
+
+- **主机容量历史窗口**：`hours` 查询参数现实际传入主机历史服务，并以当前 UTC 时间减去该值作为仓储 `since` 过滤；`?hours=1` 不再返回一小时前的容量点位。
+
+- **主机容量历史失败语义**：仓储 `list_metrics()` 读取失败不再被误降级为空历史；服务传递不含原始异常内容的受控不可用信号，API 记录安全错误类型并返回既有稳定 503。有效的无数据查询仍返回 200 空点位。
 
 - **Wind Excel 负载控制**：市场面板前端刷新与 Wind 工作簿后端缓存统一为 30 秒；Excel 读取超时、读取错误或空快照不会自动重写 Wind 公式。仅首次建表、目录重建或显式手动修复会激活公式，避免恢复流程在 Excel 繁忙时加重负载。
 

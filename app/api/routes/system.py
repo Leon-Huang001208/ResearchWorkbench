@@ -1,13 +1,16 @@
 """System health endpoint — scheduler / queue / worker 状态"""
 
 import json
+import math
 import os
 import subprocess
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 
 from core.observability import get_logger
 from services.system_event_bus import event_bus
@@ -22,6 +25,316 @@ PROJECT_DIR = (
 )
 
 router = APIRouter(prefix="/api/system", tags=["system"])
+_resource_monitoring_service_lock = threading.Lock()
+_HOST_CAPACITY_FIELDS = (
+    "cpu_percent",
+    "cpu_idle_percent",
+    "logical_cpu_count",
+    "memory_total_bytes",
+    "memory_used_bytes",
+    "memory_available_bytes",
+    "memory_available_percent",
+)
+_ALPHA_CAPACITY_FIELDS = (
+    "cpu_percent",
+    "memory_bytes",
+    "cpu_host_percent",
+    "memory_host_percent",
+)
+
+
+def get_resource_monitoring_service() -> Any:
+    """延迟创建并复用进程资源监控服务。"""
+    with _resource_monitoring_service_lock:
+        service = getattr(get_resource_monitoring_service, "_instance", None)
+        if service is None:
+            from services.resource_monitor_service import ResourceMonitoringService
+
+            service = ResourceMonitoringService()
+            get_resource_monitoring_service._instance = service
+    return service
+
+
+class ResourceEventResolveRequest(BaseModel):
+    """人工解决资源异常时可选的处理说明。"""
+
+    notes: str = Field(default="", max_length=500)
+
+
+def _resource_event_service_call(callback: Any) -> Any:
+    """在独立数据库会话中执行资源事件操作，避免跨请求复用 Session。"""
+    from data_layer.repositories.base import db_session
+    from data_layer.repositories.monitoring_repository import MonitoringRepositoryImpl
+    from services.resource_monitor_alert_service import ResourceMonitorAlertService
+
+    with db_session() as session:
+        return callback(ResourceMonitorAlertService(MonitoringRepositoryImpl(session)))
+
+
+def _resource_host_history_call(callback: Any) -> Any:
+    """在独立数据库会话中执行主机容量历史查询。"""
+    from data_layer.repositories.base import db_session
+    from data_layer.repositories.monitoring_repository import MonitoringRepositoryImpl
+    from services.resource_host_history_service import ResourceHostHistoryService
+
+    with db_session() as session:
+        return callback(ResourceHostHistoryService(MonitoringRepositoryImpl(session)))
+
+
+def _number_or_none(value: Any) -> int | float | None:
+    """仅保留 JSON 安全的有限数值，布尔值不视为数值。"""
+    if type(value) is int:
+        return value
+    if type(value) is float and math.isfinite(value):
+        return value
+    return None
+
+
+def _sanitize_host_capacity(host: Any) -> Dict[str, int | float | None]:
+    """将主机容量汇总收敛为稳定、无进程信息的公开字段。"""
+    values = host if isinstance(host, dict) else {}
+    return {field: _number_or_none(values.get(field)) for field in _HOST_CAPACITY_FIELDS}
+
+
+def _sanitize_alpha_capacity(alpha: Any) -> Dict[str, int | float | None]:
+    """将 AlphaFoundry 对整机的占用汇总限制为公开数值字段。"""
+    values = alpha if isinstance(alpha, dict) else {}
+    return {field: _number_or_none(values.get(field)) for field in _ALPHA_CAPACITY_FIELDS}
+
+
+def _sanitize_host_history_point(point: Any) -> Dict[str, Any]:
+    """将持久化指标转换为最小的长期主机容量 API 点位。"""
+    values = point if isinstance(point, dict) else {}
+    sampled_at = values.get("timestamp", values.get("sampled_at"))
+    if isinstance(sampled_at, datetime):
+        sampled_at = sampled_at.isoformat()
+    elif not isinstance(sampled_at, str):
+        sampled_at = None
+    return {
+        "sampled_at": sampled_at,
+        "host": _sanitize_host_capacity(values.get("host")),
+        "alpha": _sanitize_alpha_capacity(values.get("alpha")),
+    }
+
+
+def _host_history_sort_key(point: Dict[str, Any]) -> tuple[bool, str]:
+    """将未知采样时间稳定排到末尾，避免坏记录影响有效历史。"""
+    sampled_at = point["sampled_at"]
+    return (sampled_at is None, sampled_at or "")
+
+
+def _is_safe_public_scalar(value: Any) -> bool:
+    """拒绝布尔值、容器与非有限浮点，避免内部结构泄露。"""
+    return value is None or isinstance(value, str) or _number_or_none(value) is not None
+
+
+def _sanitize_resource_warning(warning: Any) -> Dict[str, Any]:
+    """将服务内部采集错误映射为稳定的公开警告码。"""
+    if not isinstance(warning, dict):
+        return {"code": "partial_data"}
+
+    if warning.get("code") == "root_process_unavailable":
+        return {"code": "root_process_unavailable"}
+
+    if warning.get("code") == "process_field_unavailable":
+        public_warning: Dict[str, Any] = {"code": "field_unavailable"}
+        if warning.get("pid") is not None:
+            public_warning["pid"] = warning["pid"]
+        if warning.get("field") is not None:
+            public_warning["field"] = warning["field"]
+        return public_warning
+
+    if warning.get("code") == "managed_process_unavailable":
+        public_warning = {"code": "managed_process_unavailable"}
+        if isinstance(warning.get("pid"), int):
+            public_warning["pid"] = warning["pid"]
+        return public_warning
+
+    return {"code": "partial_data"}
+
+
+def _sanitize_resource_snapshot(snapshot: Dict[str, Any]) -> Dict[str, Any]:
+    """移除资源采集实现细节，避免将内部异常类型暴露给 API 调用方。"""
+    public_snapshot = dict(snapshot)
+    public_snapshot["host"] = _sanitize_host_capacity(snapshot.get("host"))
+    warnings = snapshot.get("warnings", [])
+    public_snapshot["warnings"] = (
+        [_sanitize_resource_warning(warning) for warning in warnings]
+        if isinstance(warnings, list)
+        else [{"code": "partial_data"}]
+    )
+
+    processes = snapshot.get("processes", [])
+    if isinstance(processes, list):
+        public_processes = []
+        for process in processes:
+            if not isinstance(process, dict):
+                continue
+            public_process = dict(process)
+            if public_process.get("unavailable_reason") is not None:
+                public_process["unavailable_reason"] = "field_unavailable"
+            public_processes.append(public_process)
+        public_snapshot["processes"] = public_processes
+    else:
+        public_snapshot["processes"] = []
+    task_failures = snapshot.get("task_failures", [])
+    public_snapshot["task_failures"] = [
+        _sanitize_resource_task(task) for task in task_failures if isinstance(task, dict)
+    ]
+    return public_snapshot
+
+
+def _sanitize_resource_task(task: Dict[str, Any]) -> Dict[str, Any]:
+    """仅公开任务归因字段，避免错误文本或其他运行时内容离开 API。"""
+    allowed = {"task_id", "task_kind", "source_key", "label", "pid", "error_type", "failed_at"}
+    return {
+        key: value
+        for key, value in task.items()
+        if key in allowed and _is_safe_public_scalar(value)
+    }
+
+
+def _serialize_resource_event(event: Any) -> Dict[str, Any]:
+    """将 Pydantic 资源告警映射为仅含安全字段的 JSON 响应。"""
+    metadata = event.metadata if isinstance(getattr(event, "metadata", None), dict) else {}
+    allowed_metadata = {
+        "event_kind",
+        "task_id",
+        "task_kind",
+        "source_key",
+        "label",
+        "pid",
+        "role",
+        "attribution_kind",
+        "confidence",
+        "error_type",
+        "cpu_percent",
+        "memory_bytes",
+        "source_scope",
+        "host_cpu_percent",
+        "host_memory_available_percent",
+        "threshold_percent",
+    }
+    return {
+        "alert_id": event.alert_id,
+        "severity": event.severity.value,
+        "status": event.status.value,
+        "title": event.title,
+        "description": event.description,
+        "triggered_at": event.triggered_at.isoformat(),
+        "acknowledged_at": event.acknowledged_at.isoformat() if event.acknowledged_at else None,
+        "resolved_at": event.resolved_at.isoformat() if event.resolved_at else None,
+        "metadata": {
+            key: value
+            for key, value in metadata.items()
+            if key in allowed_metadata and _is_safe_public_scalar(value)
+        },
+    }
+
+
+@router.get("/resource-usage")
+def get_resource_usage(
+    service: Any = Depends(get_resource_monitoring_service),
+) -> Dict[str, Any]:
+    """返回 AlphaFoundry 受控进程与主机容量的当前资源快照。"""
+    snapshot = service.collect_snapshot()
+    return _sanitize_resource_snapshot(snapshot)
+
+
+@router.get("/resource-usage/history")
+def get_resource_usage_history(
+    window_seconds: int = Query(300, ge=2, le=300),
+    service: Any = Depends(get_resource_monitoring_service),
+) -> Dict[str, Any]:
+    """返回指定时间窗口内已采集的资源快照。"""
+    return {
+        "window_seconds": window_seconds,
+        "points": [
+            _sanitize_resource_snapshot(snapshot) for snapshot in service.history(window_seconds)
+        ],
+    }
+
+
+@router.get("/resource-usage/host-history")
+def get_resource_host_history(
+    hours: int = Query(24, ge=1, le=24),
+) -> Dict[str, Any]:
+    """返回请求窗口的整机容量历史；hours 会传给仓储 since 过滤，异常稳定返回 503。"""
+    try:
+        points = _resource_host_history_call(
+            lambda history_service: history_service.list_history(hours=hours)
+        )
+    except Exception as exc:
+        logger.error(
+            "resource host history query failed",
+            error_type=getattr(exc, "error_type", type(exc).__name__),
+        )
+        raise HTTPException(status_code=503, detail="Host resource history unavailable") from exc
+    public_points = sorted(
+        (_sanitize_host_history_point(point) for point in points), key=_host_history_sort_key
+    )
+    return {"hours": hours, "points": public_points}
+
+
+@router.get("/resource-events")
+def list_resource_events(
+    days: int = Query(90, ge=1, le=3650),
+    status: str = Query("all", pattern="^(all|open|acknowledged|resolved)$"),
+    severity: str | None = Query(None, pattern="^(info|warning|critical)$"),
+    task_kind: str | None = Query(None, max_length=80),
+    source_key: str | None = Query(None, max_length=80),
+) -> Dict[str, Any]:
+    """查询资源异常历史；未恢复事件不受指定时间窗口隐藏。"""
+    try:
+        events = _resource_event_service_call(
+            lambda event_service: event_service.list_events(
+                days=days,
+                status=status,
+                severity=severity,
+                task_kind=task_kind,
+                source_key=source_key,
+            )
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="Invalid resource event filter") from exc
+    except Exception as exc:
+        logger.error("resource monitor event query failed", error_type=type(exc).__name__)
+        raise HTTPException(status_code=503, detail="Resource event history unavailable") from exc
+    return {"days": days, "items": [_serialize_resource_event(event) for event in events]}
+
+
+@router.post("/resource-events/{alert_id}/acknowledge")
+def acknowledge_resource_event(alert_id: str) -> Dict[str, Any]:
+    """确认一个未恢复资源异常。"""
+    try:
+        event = _resource_event_service_call(
+            lambda event_service: event_service.acknowledge(alert_id)
+        )
+    except Exception as exc:
+        logger.error("resource monitor event acknowledgement failed", error_type=type(exc).__name__)
+        raise HTTPException(
+            status_code=503, detail="Resource event acknowledgement unavailable"
+        ) from exc
+    if event is None:
+        raise HTTPException(status_code=404, detail="Resource event not found or already resolved")
+    return _serialize_resource_event(event)
+
+
+@router.post("/resource-events/{alert_id}/resolve")
+def resolve_resource_event(alert_id: str, request: ResourceEventResolveRequest) -> Dict[str, Any]:
+    """人工解决资源异常并保存简短说明。"""
+    try:
+        event = _resource_event_service_call(
+            lambda event_service: event_service.resolve(alert_id, notes=request.notes)
+        )
+    except Exception as exc:
+        logger.error("resource monitor event resolution failed", error_type=type(exc).__name__)
+        raise HTTPException(
+            status_code=503, detail="Resource event resolution unavailable"
+        ) from exc
+    if event is None:
+        raise HTTPException(status_code=404, detail="Resource event not found")
+    return _serialize_resource_event(event)
 
 
 def _get_git_branch() -> str:

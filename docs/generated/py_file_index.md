@@ -116,6 +116,7 @@ Imports:
 - `fastapi.middleware.cors`
 - `fastapi.responses`
 - `fastapi.staticfiles`
+- `os`
 - `pathlib`
 - `services.database_readiness`
 - `starlette.middleware.trustedhost`
@@ -135,10 +136,14 @@ Functions:
   - Preflight persistence before initializing database-dependent services.
 - `_start_wind_workbook_background`
   - Start the optional Wind workbook task only after persistence is ready.
+- `_start_resource_monitor_runtime`
+  - 在数据库已就绪后启动单一资源监控运行时。
 - `_start_data_acquisition_schedulers`
   - 自动启动数据获取调度器
 - `shutdown`
   - Shutdown hook
+- `_stop_resource_monitor_runtime`
+  - 停止已缓存的资源监控线程，不阻断 API 关闭。
 - `_stop_data_acquisition_schedulers`
   - 停止数据获取调度器
 - `index`
@@ -1812,13 +1817,58 @@ Imports:
 - `datetime`
 - `fastapi`
 - `json`
+- `math`
 - `os`
 - `pathlib`
+- `pydantic`
 - `services.system_event_bus`
 - `subprocess`
+- `threading`
 - `typing`
 
+Classes:
+- `ResourceEventResolveRequest`
+  - 人工解决资源异常时可选的处理说明。
+
 Functions:
+- `get_resource_monitoring_service`
+  - 延迟创建并复用进程资源监控服务。
+- `_resource_event_service_call`
+  - 在独立数据库会话中执行资源事件操作，避免跨请求复用 Session。
+- `_resource_host_history_call`
+  - 在独立数据库会话中执行主机容量历史查询。
+- `_number_or_none`
+  - 仅保留 JSON 安全的有限数值，布尔值不视为数值。
+- `_sanitize_host_capacity`
+  - 将主机容量汇总收敛为稳定、无进程信息的公开字段。
+- `_sanitize_alpha_capacity`
+  - 将 AlphaFoundry 对整机的占用汇总限制为公开数值字段。
+- `_sanitize_host_history_point`
+  - 将持久化指标转换为最小的长期主机容量 API 点位。
+- `_host_history_sort_key`
+  - 将未知采样时间稳定排到末尾，避免坏记录影响有效历史。
+- `_is_safe_public_scalar`
+  - 拒绝布尔值、容器与非有限浮点，避免内部结构泄露。
+- `_sanitize_resource_warning`
+  - 将服务内部采集错误映射为稳定的公开警告码。
+- `_sanitize_resource_snapshot`
+  - 移除资源采集实现细节，避免将内部异常类型暴露给 API 调用方。
+- `_sanitize_resource_task`
+  - 仅公开任务归因字段，避免错误文本或其他运行时内容离开 API。
+- `_serialize_resource_event`
+  - 将 Pydantic 资源告警映射为仅含安全字段的 JSON 响应。
+- `get_resource_usage`
+  - 返回 AlphaFoundry 受控进程与主机容量的当前资源快照。
+- `get_resource_usage_history`
+  - 返回指定时间窗口内已采集的资源快照。
+- `get_resource_host_history`
+  - 返回请求窗口的整机容量历史；hours 会传给仓储 since 过滤，异常稳定返回 503。
+- `list_resource_events`
+  - 查询资源异常历史；未恢复事件不受指定时间窗口隐藏。
+- `acknowledge_resource_event`
+  - 确认一个未恢复资源异常。
+- `resolve_resource_event`
+  - 人工解决资源异常并保存简短说明。
 - `_get_git_branch`
   - 获取当前 git 分支名
 - `_get_db_type`
@@ -7185,12 +7235,15 @@ Imports:
 - `data_layer.repositories.base`
 - `data_layer.repositories.models`
 - `datetime`
+- `sqlalchemy.exc`
+- `sqlalchemy.orm`
 - `typing`
+- `uuid`
 
 Classes:
 - `MonitoringRepositoryImpl`
   - Monitoring 仓储实现
-  - methods: save_health_metrics, get_latest_metrics, list_metrics, save_drift_report, list_drift_reports, save_alert_threshold, get_alert_threshold, list_alert_thresholds, delete_alert_threshold, save_alert, get_alert, list_alerts, count_open_alerts, count_open_critical, get_last_alert_for_threshold, save_incident, get_incident, list_incidents, recent_incidents, _metrics_to_dict, _db_metrics_to_dict, _dict_to_metrics, _drift_to_dict, _db_drift_to_dict, _dict_to_drift, _threshold_to_dict, _db_threshold_to_dict, _dict_to_threshold, _alert_to_dict, _db_alert_to_dict, _dict_to_alert, _incident_to_dict, _db_incident_to_dict, _dict_to_incident
+  - methods: save_health_metrics, save_health_metrics_if_absent, get_latest_metrics, list_metrics, delete_health_metrics, save_drift_report, list_drift_reports, save_alert_threshold, get_alert_threshold, list_alert_thresholds, delete_alert_threshold, save_alert, get_alert, update_alert_details_if_unresolved, get_or_create_open_resource_alert, _lookup_open_resource_alert_from_new_session, list_alerts, count_open_alerts, count_open_critical, get_last_alert_for_threshold, _resource_alert_cycle_id, save_incident, get_incident, list_incidents, recent_incidents, _metrics_to_dict, _db_metrics_to_dict, _dict_to_metrics, _drift_to_dict, _db_drift_to_dict, _dict_to_drift, _threshold_to_dict, _db_threshold_to_dict, _dict_to_threshold, _alert_to_dict, _db_alert_to_dict, _dict_to_alert, _incident_to_dict, _db_incident_to_dict, _dict_to_incident
 
 
 ## `data_layer/repositories/outcome_journal_repository.py`

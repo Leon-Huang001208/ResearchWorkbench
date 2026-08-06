@@ -46,6 +46,7 @@
                 <button class="activity-btn" data-section="commentary" title="点评生产"><i class="codicon codicon-comment-discussion"></i><span>点评生产</span></button>
                 <button class="activity-btn active" data-section="templates" title="模板管理"><i class="codicon codicon-file-code"></i><span>报告生产</span></button>
                 <button class="activity-btn" data-section="pipeline-monitor" title="管线监控"><i class="codicon codicon-pulse"></i><span>运行监控</span></button>
+                <button class="activity-btn" data-section="resource-monitor" title="系统监控"><i class="codicon codicon-dashboard"></i><span>系统监控</span></button>
                 <button class="activity-btn" data-section="event-signal" title="事件信号"><i class="codicon codicon-zap"></i><span>事件信号</span></button>
                 <button class="activity-btn" data-section="signals" title="信号管理"><i class="codicon codicon-pulse"></i><span>信号管理</span></button>
                 <button class="activity-btn" data-section="memory" title="记忆与学习"><i class="codicon codicon-lightbulb"></i><span>记忆学习</span></button>
@@ -857,6 +858,120 @@
             <section id="section-pipeline-monitor" class="content-section">
                 <h2 class="section-title">管线监控</h2>
                 <div id="pipeline-monitor-content"></div>
+            </section>
+
+            <!-- Resource Monitor Section -->
+            <section id="section-resource-monitor" class="content-section" aria-labelledby="resource-monitor-title">
+                <div class="resource-monitor-header">
+                    <div>
+                        <h2 id="resource-monitor-title" class="section-title">系统监控</h2>
+                        <p>仅监控 AlphaFoundry API 及其子进程</p>
+                    </div>
+                    <span id="resource-monitor-status" class="resource-monitor-status" aria-live="polite">warming_up</span>
+                </div>
+
+                <div id="resource-monitor-summary" class="resource-monitor-summary" aria-label="AlphaFoundry 与整机容量摘要">
+                    <article class="resource-summary-card" data-resource-scope="alpha"><span class="resource-summary-scope">范围：AlphaFoundry</span><span>CPU</span><strong data-resource-summary="alpha-cpu">采样中</strong></article>
+                    <article class="resource-summary-card" data-resource-scope="host"><span class="resource-summary-scope">范围：整机容量</span><span>CPU</span><strong data-resource-summary="host-cpu">暂不可用</strong></article>
+                    <article class="resource-summary-card" data-resource-scope="alpha"><span class="resource-summary-scope">范围：AlphaFoundry</span><span>内存</span><strong data-resource-summary="alpha-memory">采样中</strong></article>
+                    <article class="resource-summary-card" data-resource-scope="host"><span class="resource-summary-scope">范围：整机容量</span><span>内存</span><strong data-resource-summary="host-memory">暂不可用</strong></article>
+                </div>
+                <div class="resource-monitor-auxiliary" aria-label="AlphaFoundry 辅助采样信息">
+                    <span>磁盘读/写 <strong data-resource-summary="disk">--</strong></span>
+                    <span>网络连接 <strong data-resource-summary="connections">--</strong></span>
+                    <span>最近采样 <strong data-resource-summary="sampled-at">--</strong></span>
+                </div>
+
+                <section class="resource-monitor-panel resource-event-panel" aria-labelledby="resource-pinned-events-title">
+                    <div class="resource-panel-heading">
+                        <div>
+                            <h3 id="resource-pinned-events-title">待处理异常</h3>
+                            <p>未恢复事件会持续置顶，不受 90 天历史窗口影响。</p>
+                        </div>
+                        <span id="resource-event-status" class="resource-event-status" aria-live="polite">正在读取异常记录</span>
+                    </div>
+                    <div id="resource-monitor-pinned-events" class="resource-event-list"></div>
+                </section>
+
+                <section class="resource-monitor-panel" aria-labelledby="resource-attribution-title">
+                    <div class="resource-panel-heading">
+                        <div>
+                            <h3 id="resource-attribution-title">活跃归因</h3>
+                            <p>独立 Worker 显示精确进程资源；API 内任务仅显示共享进程估算。</p>
+                        </div>
+                    </div>
+                    <div id="resource-monitor-attribution" class="resource-attribution-list"></div>
+                </section>
+
+                <div class="resource-monitor-chart-grid">
+                    <section class="resource-monitor-panel" aria-labelledby="resource-monitor-cpu-title">
+                        <h3 id="resource-monitor-cpu-title">AlphaFoundry CPU（最近 5 分钟）</h3>
+                        <div id="resource-monitor-cpu-chart" class="resource-monitor-chart" aria-label="AlphaFoundry CPU 使用率趋势"></div>
+                    </section>
+                    <section class="resource-monitor-panel" aria-labelledby="resource-monitor-memory-title">
+                        <h3 id="resource-monitor-memory-title">AlphaFoundry 内存（最近 5 分钟）</h3>
+                        <div id="resource-monitor-memory-chart" class="resource-monitor-chart" aria-label="AlphaFoundry 内存使用趋势"></div>
+                    </section>
+                    <section class="resource-monitor-panel" aria-labelledby="resource-monitor-host-cpu-title">
+                        <h3 id="resource-monitor-host-cpu-title">整机 CPU（最近 24 小时）</h3>
+                        <div id="resource-monitor-host-cpu-chart" class="resource-monitor-chart" aria-label="整机 CPU 使用率趋势"></div>
+                    </section>
+                    <section class="resource-monitor-panel" aria-labelledby="resource-monitor-host-memory-title">
+                        <h3 id="resource-monitor-host-memory-title">整机可用内存（最近 24 小时）</h3>
+                        <div id="resource-monitor-host-memory-chart" class="resource-monitor-chart" aria-label="整机可用内存趋势"></div>
+                    </section>
+                </div>
+                <p id="resource-monitor-host-history-status" class="resource-host-history-status" aria-live="polite"></p>
+
+                <section class="resource-monitor-panel resource-process-panel" aria-labelledby="resource-processes-title">
+                    <h3 id="resource-processes-title">受限进程树</h3>
+                    <div class="resource-process-table-wrap">
+                        <table class="resource-process-table">
+                            <thead>
+                                <tr>
+                                    <th>进程</th>
+                                    <th>PID</th>
+                                    <th>角色</th>
+                                    <th><button type="button" data-resource-sort="cpu">CPU</button></th>
+                                    <th><button type="button" data-resource-sort="memory">内存</button></th>
+                                    <th><button type="button" data-resource-sort="disk">磁盘 I/O</button></th>
+                                    <th>线程</th>
+                                    <th>网络连接</th>
+                                    <th>状态</th>
+                                </tr>
+                            </thead>
+                            <tbody id="resource-monitor-processes"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section id="resource-monitor-detail" class="resource-monitor-panel resource-monitor-detail hidden" aria-live="polite" aria-hidden="true">
+                    <h3>进程详情</h3>
+                    <p class="resource-monitor-empty">选择一个进程以查看详情。</p>
+                </section>
+
+                <section class="resource-monitor-panel resource-event-panel" aria-labelledby="resource-event-history-title">
+                    <div class="resource-panel-heading">
+                        <div>
+                            <h3 id="resource-event-history-title">异常历史</h3>
+                            <p>默认查询最近 90 天；原始资源曲线仅保留最近 5 分钟。</p>
+                        </div>
+                        <div class="resource-event-filters" aria-label="异常历史筛选">
+                            <select data-resource-event-filter="status" aria-label="事件状态">
+                                <option value="all">全部状态</option>
+                                <option value="open">未确认</option>
+                                <option value="acknowledged">已确认</option>
+                                <option value="resolved">已解决</option>
+                            </select>
+                            <select data-resource-event-filter="severity" aria-label="严重度">
+                                <option value="">全部严重度</option>
+                                <option value="critical">严重</option>
+                                <option value="warning">警告</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="resource-monitor-event-history" class="resource-event-list"></div>
+                </section>
             </section>
 
             <!-- Ingest Section -->
@@ -2286,7 +2401,7 @@
 
     <!-- Scripts: i18n must load before app.js -->
     <script src="/static/i18n.js?v=20250527"></script>
-    <script type="module" src="/static/js/app.js?v=20260727modalhierarchy1"></script>
+    <script type="module" src="/static/js/app.js?v=20260805resourcecapacity1"></script>
     <script type="module" src="/static/js/wind.js?v=20250601a"></script>
 
     <!-- Dev 模式：后端重启时自动刷新页面（轮询 /_version） -->

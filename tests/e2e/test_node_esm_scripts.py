@@ -10,6 +10,7 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 ESM_NODE_SCRIPTS = (
     PROJECT_ROOT / "scripts/desktop/run_backend.js",
+    PROJECT_ROOT / "scripts/desktop/run_preview.js",
     PROJECT_ROOT / "tests/e2e/asset_search_playwright_core.js",
     PROJECT_ROOT / "tests/e2e/verify-placeholder-test.js",
 )

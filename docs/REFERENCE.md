@@ -12,6 +12,25 @@
 
 ---
 
+## 系统资源监控 API
+
+所有端点仅面向 AlphaFoundry 受控进程和任务，不枚举其他桌面应用。
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| `GET` | `/api/system/resource-usage` | 当前资源快照、独立 Worker 精确归因、API 内任务共享估算及安全的整机容量汇总；该请求不评估资源告警。 |
+| `GET` | `/api/system/resource-usage/history?window_seconds=300` | 内存中的实时资源序列，范围 2–300 秒，不作为长期错误历史。 |
+| `GET` | `/api/system/resource-usage/host-history?hours=24` | 持久化的分钟级整机容量历史，范围 1–24 小时；仅返回容量与 AlphaFoundry 汇总比例。 |
+| `GET` | `/api/system/resource-events?days=90&status=all` | 持久化异常历史；支持 `severity`、`task_kind`、`source_key`，未恢复事件不受时间窗口隐藏。 |
+| `POST` | `/api/system/resource-events/{alert_id}/acknowledge` | 将未恢复事件标记为已确认。 |
+| `POST` | `/api/system/resource-events/{alert_id}/resolve` | 人工解决事件，JSON 可含 `{"notes":"..."}`（最多 500 字）。 |
+
+资源事件元数据只包含任务类型、数据源键、PID、角色、置信度和安全资源值。整机事件还可包含来源范围、主机 CPU/可用内存百分比及阈值百分比；不返回命令参数、请求内容、秘密、异常原文或内部去重键。
+
+数据库就绪且非 `ALPHAFOUNDRY_PREVIEW=1` 的 API 实例会在启动后以单一后台线程每分钟采样、持久化主机容量历史并评估资源事件；桌面数据库配置模式和分支预览均不会启动该常驻任务。采样或后台生命周期错误只记录安全的错误类型，后续周期继续执行，API 关闭时会先等待该任务停止。
+
+---
+
 ## CLI 命令
 
 ### 0. data - 统一数据命令组（推荐）
@@ -1155,6 +1174,108 @@ Wind Excel 适配器通过 xlwings → AppleScript → macOS Excel Wind 插件�
 ---
 
 ### 系统 API
+
+#### GET /api/system/resource-usage
+
+返回当前 API 根进程及其递归子进程的资源快照。该接口仅采集 AlphaFoundry 当前进程树，不会枚举或返回整台机器上的其他进程。
+
+**响应示例**:
+
+```json
+{
+  "sampled_at": "2026-08-05T00:00:00+00:00",
+  "root_pid": 12345,
+  "status": "ok",
+  "warnings": [],
+  "summary": {
+    "cpu_percent": 12.5,
+    "memory_bytes": 104857600,
+    "process_count": 2,
+    "disk_read_bytes_per_second": 2048.0,
+    "disk_write_bytes_per_second": 1024.0,
+    "network_connection_count": 3
+  },
+  "host": {
+    "cpu_percent": 24.0,
+    "cpu_idle_percent": 76.0,
+    "logical_cpu_count": 8,
+    "memory_total_bytes": 17179869184,
+    "memory_used_bytes": 4294967296,
+    "memory_available_bytes": 12884901888,
+    "memory_available_percent": 75.0
+  },
+  "processes": [
+    {
+      "pid": 12345,
+      "role": "API",
+      "command": "python [redacted] [redacted]",
+      "cpu_percent": 12.5,
+      "memory_bytes": 104857600,
+      "unavailable_reason": null
+    }
+  ]
+}
+```
+
+`status` 可能为 `warming_up`、`ok`、`degraded` 或 `unavailable`。首次采样时 CPU 与磁盘速率可能尚未建立基线。`host.memory_available_bytes` 和 `host.memory_available_percent` 直接表示操作系统报告的可用内存（`available`），不是以总内存减已用内存计算。命令参数始终脱敏；采集降级时，`warnings` 仅会使用 `field_unavailable`、`root_process_unavailable` 或 `partial_data`，且 `unavailable_reason` 仅返回稳定的 `field_unavailable`，不会暴露底层异常类型或详情。
+
+#### GET /api/system/resource-usage/history
+
+返回当前后端进程内保存的资源快照点。查询参数 `window_seconds` 为可选，默认 `300`，可接受范围为 `2` 至 `300`（含边界）；超出范围返回 `422`。历史容量最多保留 150 个点，进程重启后会清空。
+
+**响应示例**:
+
+```json
+{
+  "window_seconds": 300,
+  "points": [
+    {
+      "sampled_at": "2026-08-05T00:00:00+00:00",
+      "root_pid": 12345,
+      "status": "ok",
+      "warnings": [],
+      "summary": {"process_count": 2},
+      "processes": []
+    }
+  ]
+}
+```
+
+每个 `points` 元素遵循 `GET /api/system/resource-usage` 的相同范围限制与脱敏降级契约。
+
+#### GET /api/system/resource-usage/host-history
+
+返回持久化的分钟级整机容量历史。查询参数 `hours` 可选，默认 `24`，可接受范围为 `1` 至 `24`（含边界）；超出范围返回 `422`。服务以当前 UTC 时间减去 `hours` 作为仓储 `since` 过滤，因此 `?hours=1` 不会返回更早的点位。仓储读取不可用时返回 `503` 和稳定详情 `Host resource history unavailable`；仓储成功但没有点位时仍返回 `200` 与空 `points`。点位按 `sampled_at` 升序排列，且不包含主机进程、采集告警、原始 `extra` 或内部字段。
+
+这些点由正常（非 `ALPHAFOUNDRY_PREVIEW=1`）且数据库就绪的 API 运行时每分钟持久化；分支桌面预览刻意不启动该常驻任务，所以预览中空历史不表示 24 小时采集异常。
+
+**响应示例**:
+
+```json
+{
+  "hours": 24,
+  "points": [
+    {
+      "sampled_at": "2026-08-05T00:00:00+00:00",
+      "host": {
+        "cpu_percent": 24.0,
+        "cpu_idle_percent": 76.0,
+        "logical_cpu_count": 8,
+        "memory_total_bytes": 17179869184,
+        "memory_used_bytes": 4294967296,
+        "memory_available_bytes": 12884901888,
+        "memory_available_percent": 75.0
+      },
+      "alpha": {
+        "cpu_percent": 12.5,
+        "memory_bytes": 104857600,
+        "cpu_host_percent": 52.1,
+        "memory_host_percent": 0.6
+      }
+    }
+  ]
+}
+```
 
 #### GET /api/system/health
 
@@ -2586,7 +2707,7 @@ pytest --cov=core --cov=data_layer --cov-report=html
 
 - **默认模式**：需要 PostgreSQL + pgvector；桌面端由用户自行安装并在用户数据目录的 `.env` 中配置 `DATABASE_URL`。
 - **桌面配置位置**：Windows 为 `%LOCALAPPDATA%\\AlphaFoundry\\.env`，macOS 为 `~/Library/Application Support/AlphaFoundry/.env`；可通过 `ALPHAFOUNDRY_DESKTOP_DATA_DIR` 或 `ALPHAFOUNDRY_CONFIG_FILE` 覆盖。
-- **配置优先级**：启动参数 > 进程环境变量 > 显式配置文件 > 模式默认 `.env` > 代码默认值。桌面端配置页以运行时 `.env` 为权威持久化来源，进程环境变量不会锁定字段；重启后仍按上述优先级解析。桌面端默认服务地址为 `http://127.0.0.1:8765`，Web 开发默认 `http://127.0.0.1:8000`。
+- **配置优先级**：启动参数 > 进程环境变量 > 显式配置文件 > 模式默认 `.env` > 代码默认值。桌面端配置页以运行时 `.env` 为权威持久化来源，进程环境变量不会锁定字段；重启后仍按上述优先级解析。桌面端默认服务地址为 `http://127.0.0.1:8765`，Web 开发默认 `http://127.0.0.1:8000`。在功能分支 worktree 中可执行 `npm run desktop:preview` 启动独立桌面验收实例（默认 `8766`）；需要沿用本地桌面配置时使用 `npm run desktop:preview -- --use-stable-data`，该预览实例不初始化数据库或启动自动任务。
 - **演示模式**：如果需要快速测试，可以使用模拟数据
 
 ### Q: 支持哪些输出格式？

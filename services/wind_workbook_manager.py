@@ -219,8 +219,11 @@ class WindWorkbookManager:
             )
 
     def _ensure_ready_logged(self, *, reason: str) -> None:
+        from services.resource_task_registry import resource_task
+
         logger.info("Wind workbook background ensure started: %s", reason)
-        status = self.ensure_ready(reason=reason)
+        with resource_task(task_kind="wind", label="Wind 工作簿准备"):
+            status = self.ensure_ready(reason=reason)
         logger.info("Wind workbook background ensure finished: %s", status.to_dict())
 
     def _find_or_open_workbook(self, xw: Any) -> Any:

@@ -71,7 +71,7 @@
 
 | 文件/目录 | 说明 |
 |---|---|
-| `app/api/main.py` | API 入口点，初始化 FastAPI 应用，注册所有路由 |
+| `app/api/main.py` | API 入口点，初始化 FastAPI 应用，注册所有路由；显式分支预览模式只保留就绪检查，不执行数据库初始化或自动后台服务 |
 | `app/api/models.py` | API 请求/响应模型（Pydantic） |
 | `app/api/routes/audit.py` | 审计 API：查询审计日志 |
 | `app/api/routes/dashboard.py` | 仪表盘 API：获取仪表盘汇总数据 |
@@ -89,7 +89,7 @@
 | `app/api/routes/scenarios.py` | 情景 API：生成多情景分析 |
 | `app/api/routes/search.py` | 搜索 API：全局跨对象搜索 |
 | `app/api/routes/signal_lab.py` | 信号实验室 API：特征、标签、评分、回测 |
-| `app/api/routes/system.py` | 系统 API：健康检查、队列深度、Worker 心跳 |
+| `app/api/routes/system.py` | 系统 API：健康检查、队列深度、Worker 心跳、进程资源快照及 24 小时主机容量历史；主机和事件元数据均经严格白名单脱敏，告警评估由常驻运行时负责 |
 | `app/api/routes/realtime.py` | 实时 API：SSE 事件推送、实时数据流 |
 
 ### app/cli/ - 命令行工具
@@ -118,6 +118,7 @@
 | `app/web/static/js/templates.js` | 模板工作台模块：报告项目选择、Word 占位符映射、YAML/Markdown Prompt 源码切换与保存、后端 `compiled_plan` 生成预检、配置驱动生成、下载和 Word HTML 预览 |
 | `app/web/static/js/pipeline-monitor.js` | 管线监控模块：5 阶段流程可视化、实时活动日志（SSE + 15s 轮询）、累计统计、手动触发闭环 |
 | `app/web/static/js/monitor.js` | 系统监控模块：Worker 心跳、队列深度、服务状态 |
+| `app/web/static/js/resource-monitor.js` | AlphaFoundry 受控资源监控：页面可见且激活时轮询快照/300 秒历史（最多 150 点）、每 60 秒读取 24 小时整机容量历史与持久化异常（默认 90 天）；明确比较 AlphaFoundry/整机 CPU、内存范围，展示独立 Worker 精确资源、API 内任务共享估算、置顶异常、确认/解决和安全历史筛选 |
 | `app/web/static/js/asset.js` | 资产分析模块：Wind 风格 5 面板 K 线图（K 线+成交量/MACD/KDJ/RSI，首次加载默认请求近一年数据，支持日/周/月聚合与 MA120/MA250）、筹码分布图（筹码峰及上/下界标注）、资产搜索、分析卡渲染 |
 
 ---
@@ -265,6 +266,11 @@
 | `decision_console_service.py` | 决策控制台服务：每日候选、决策记录、复盘视图 |
 | **监控与治理** | |
 | `monitoring_service.py` | 监控服务：健康检查、指标采集、告警管理 |
+| `resource_monitor_service.py` | 资源监控服务：采集 API 进程树与项目既有调度器/知识 Worker PID，并只通过主机级 psutil API 汇总整机 CPU/内存容量；不枚举其他系统进程，读取受控任务快照并标识精确进程或共享估算，维护页面使用的 150 点（5 分钟）内存历史并将字段权限/平台问题降级记录 |
+| `resource_monitor_runtime.py` | 资源监控运行时：仅在数据库就绪且非 `ALPHAFOUNDRY_PREVIEW=1` 时以单一可停止后台线程每分钟采集资源快照，并在一个数据库会话内写入 24 小时主机容量历史和评估既有资源告警；异常只记录安全错误类型并继续下一周期 |
+| `resource_host_history_service.py` | 整机容量历史服务：把安全白名单后的 CPU/内存整机汇总写入既有健康指标 JSON，每 UTC 分钟至多一条，按请求的 1–24 小时 UTC 窗口查询最多 1500 点并仅保留 24 小时；“剩余内存”使用主机 `available` 值，仓储读取失败以受控不可用信号交由 API 返回稳定 503 |
+| `resource_task_registry.py` | 资源任务登记器：为抓取、PDF、知识处理、Wind 与报告任务写入每 PID 原子安全快照，失败记录不含异常原文 |
+| `resource_monitor_alert_service.py` | 资源异常协调器：复用 Monitoring 告警/事件状态机，去重并处理任务失败、受控 PID 缺失、采样失败、持续进程压力及整机 CPU/可用内存容量压力；AlphaFoundry 事件标记 `source_scope=alphafoundry`，主机容量事件标记 `source_scope=host_capacity`。通过共享 `ResourceAlertState` 保留跨周期压力/恢复计数，主机事件以稳定键原地升级，未恢复事件始终可查询；异常只在 Web/API 呈现，不触发原生通知 |
 | `configuration_service.py` | 本地配置服务：跨平台文件锁与原子 `.env` 写入、配置分区验证、秘密掩码和受控热刷新；生产 Web 模式禁用控制面，数据库修改要求重启 |
 | `governance_service.py` | 治理服务：版本控制、配置管理、审计 |
 | `audit_service.py` | 审计服务：审计日志查询和管理 |
@@ -408,6 +414,7 @@
 | `data_layer/repositories/base.py` | 仓储基类：BaseRepository，提供通用数据库操作方法 |
 | `data_layer/repositories/models.py` | SQLAlchemy ORM 模型：定义所有数据库表模型 |
 | `data_layer/repositories/market_data_repository.py` | 市场数据仓储：PostgreSQL upsert / SQLite fallback，管理股票主表、日行情、估值、财务、股东、指数发布方、指数主表、成分权重快照、指数 ETF 关系和 ETF 日度规模/资金流表 |
+| `data_layer/repositories/monitoring_repository.py` | 监控仓储：持久化健康指标、告警与事件；支持仅更新未解决告警详情，并以确定性周期 ID / savepoint 冲突恢复和独立读取事务创建单一未解决资源事件 |
 | `data_layer/repositories/fund_repository.py` | 基金智能仓储：管理基金主数据、日净值、股票持仓和基金经理任职 MVP 表 |
 | `data_layer/repositories/etl_run_repository.py` | ETL 运行记录仓储：记录 ETL 运行开始、成功、失败，查询运行历史 |
 
@@ -635,6 +642,15 @@
 | `tests/unit/test_factor_store_service.py` | 因子存储服务单元测试：27 个测试覆盖 Pydantic 契约 ↔ ORM 双向转换、CRUD 路径、端到端流程 |
 | `tests/unit/test_factor_api.py` | 因子 API 单元测试：13 个测试覆盖所有端点、请求验证、空数据处理 |
 | `tests/unit/test_factor_computation_service.py` | 因子计算服务单元测试：11 个测试覆盖空定义/空值/完整循环/资源关闭 |
+| `tests/unit/test_resource_monitor_service.py` | 资源监控服务测试：受控 PID 边界、预热、I/O 差分、历史上限、字段/子进程降级、Worker 精确归因和 API 共享估算 |
+| `tests/unit/test_resource_host_history_service.py` | 整机容量历史测试：分钟去重、24 小时精确清理、类型隔离、安全字段白名单和受控坏快照处理 |
+| `tests/unit/test_resource_monitor_runtime.py` | 资源监控运行时测试：采样、历史/告警协调、共享状态、失败续跑与线程生命周期 |
+| `tests/unit/test_resource_task_registry.py` | 资源任务登记器测试：原子快照、并发、失败脱敏、任务类别与损坏文件降级 |
+| `tests/unit/test_resource_monitor_alert_service.py` | 资源事件协调器测试：AlphaFoundry 事件来源标记、持续进程压力去重/恢复、整机 CPU/可用内存三级阈值、原地升级、缺失字段安全降级及未恢复事件历史 |
+| `tests/unit/data_layer/repositories/test_monitoring_repository.py` | 监控仓储单元测试：未解决告警详情的条件更新、SQLite 双服务并发的主机/任务单一事件、以及已解决周期历史保留 |
+| `tests/unit/app/api/routes/test_resource_monitoring.py` | 资源事件 API 测试：历史查询、确认和人工解决响应契约 |
+| `tests/unit/app/api/routes/test_system_resource_usage.py` | 系统资源 API 测试：只读快照/历史契约、窗口边界、脱敏降级和懒加载依赖 |
+| `tests/unit/test_resource_monitor_frontend_static.py` | 资源监控前端静态契约：导航生命周期、轮询取消、150 点限制、AlphaFoundry/整机双范围卡与 24 小时历史、安全 DOM 渲染、详情抽屉和响应式样式 |
 | `tests/unit/test_dynamic_factors.py` | 动态多因子核心测试：覆盖矩阵构建、因子评估、动态权重、事件-因子融合 |
 | `tests/integration/` | 集成测试目录 |
 

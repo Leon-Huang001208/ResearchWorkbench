@@ -754,24 +754,26 @@ def _run_report_render_job(
         )
 
         from reporting.projects.run import ReportProjectRunRequest, ReportProjectRunService
+        from services.resource_task_registry import resource_task
 
-        run_result = ReportProjectRunService(
-            generation_service=_get_report_generation_service(),
-            chart_service=_get_report_chart_service(),
-        ).execute(
-            project=project,
-            report_config=report_config,
-            prompt_templates_source=prompt_templates_source,
-            request=ReportProjectRunRequest(
-                placeholders=request.placeholders,
-                generate_from_config=request.generate_from_config,
-                lookback_days=request.lookback_days,
-                report_date=request.report_date,
-                data_scope=request.data_scope,
-                start_date=request.start_date,
-                end_date=request.end_date,
-            ),
-        )
+        with resource_task(task_kind="report_render", label="报告渲染"):
+            run_result = ReportProjectRunService(
+                generation_service=_get_report_generation_service(),
+                chart_service=_get_report_chart_service(),
+            ).execute(
+                project=project,
+                report_config=report_config,
+                prompt_templates_source=prompt_templates_source,
+                request=ReportProjectRunRequest(
+                    placeholders=request.placeholders,
+                    generate_from_config=request.generate_from_config,
+                    lookback_days=request.lookback_days,
+                    report_date=request.report_date,
+                    data_scope=request.data_scope,
+                    start_date=request.start_date,
+                    end_date=request.end_date,
+                ),
+            )
 
         # Phase: render
         _update_job(job_id, phase="render", message="正在渲染报告文档...")
@@ -1333,9 +1335,7 @@ def _validate_report_project_sources(
 
     retired_roots = sorted(_RETIRED_REPORT_CONFIG_ROOT_KEYS & set(report_config))
     if retired_roots:
-        raise ValueError(
-            "report_config 不允许旧字段: " + ", ".join(retired_roots)
-        )
+        raise ValueError("report_config 不允许旧字段: " + ", ".join(retired_roots))
     placeholders = report_config.get("placeholders")
     if not isinstance(placeholders, dict):
         raise ValueError("report_config.placeholders 必须是 mapping")
@@ -1349,8 +1349,7 @@ def _validate_report_project_sources(
         retired_keys = sorted(_RETIRED_PLACEHOLDER_KEYS & set(config))
         if retired_keys:
             raise ValueError(
-                f"report_config.placeholders.{placeholder} 不允许旧字段: "
-                + ", ".join(retired_keys)
+                f"report_config.placeholders.{placeholder} 不允许旧字段: " + ", ".join(retired_keys)
             )
         placeholder_type = str(config.get("type") or "").strip().lower()
         if placeholder_type in _RETIRED_PARAGRAPH_TYPES:
@@ -1391,7 +1390,6 @@ def _read_prompt_templates(path: Path) -> str:
     except Exception as exc:
         logger.warning("Failed to read prompt templates", path=str(path), error=str(exc))
         return ""
-
 
 
 def _extract_docx_placeholders(path: Path | io.BytesIO) -> List[str]:

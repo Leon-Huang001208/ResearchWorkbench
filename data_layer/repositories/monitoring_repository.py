@@ -1,7 +1,11 @@
 """Monitoring 持久化仓储实现"""
 
+import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
+
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
 from core.contracts.monitoring import (
     AlertPayload,
@@ -43,6 +47,32 @@ class MonitoringRepositoryImpl(BaseRepository):
         )
         return self._dict_to_metrics(self._db_metrics_to_dict(db_obj))
 
+    def save_health_metrics_if_absent(self, metrics: HealthMetrics) -> Optional[HealthMetrics]:
+        """通过 savepoint 保存指标；主键冲突时不污染外层事务。"""
+        data = self._metrics_to_dict(metrics)
+        try:
+            with self.db.begin_nested():
+                db_obj = HealthMetricsDB(**data)
+                self.db.add(db_obj)
+                self.db.flush()
+                saved = self._dict_to_metrics(self._db_metrics_to_dict(db_obj))
+        except IntegrityError:
+            logger.info(
+                "health metrics already exists",
+                metric_id=metrics.metric_id,
+                subsystem=metrics.subsystem.value,
+            )
+            return None
+        except Exception as exc:
+            logger.warning("health metrics conditional save failed", error_type=type(exc).__name__)
+            raise
+        logger.info(
+            "health metrics saved",
+            metric_id=metrics.metric_id,
+            subsystem=metrics.subsystem.value,
+        )
+        return saved
+
     def get_latest_metrics(self, subsystem: Subsystem) -> Optional[HealthMetrics]:
         """获取子系统最新指标"""
         db_obj = (
@@ -61,6 +91,7 @@ class MonitoringRepositoryImpl(BaseRepository):
         since: Optional[datetime] = None,
         until: Optional[datetime] = None,
         limit: int = 100,
+        metric_type: Optional[str] = None,
     ) -> List[HealthMetrics]:
         """查询健康指标"""
         query = self.db.query(HealthMetricsDB)
@@ -70,8 +101,35 @@ class MonitoringRepositoryImpl(BaseRepository):
             query = query.filter(HealthMetricsDB.timestamp >= since)
         if until:
             query = query.filter(HealthMetricsDB.timestamp <= until)
+        if metric_type is not None:
+            query = query.filter(HealthMetricsDB.extra["metric_type"].as_string() == metric_type)
         db_objs = query.order_by(HealthMetricsDB.timestamp.desc()).limit(limit).all()
         return [self._dict_to_metrics(self._db_metrics_to_dict(o)) for o in db_objs]
+
+    def delete_health_metrics(self, metric_ids: List[str]) -> int:
+        """按精确 ID 批量删除健康指标。"""
+        valid_ids = [
+            metric_id for metric_id in metric_ids if isinstance(metric_id, str) and metric_id
+        ]
+        if not valid_ids:
+            return 0
+        try:
+            with self.db.begin_nested():
+                deleted = (
+                    self.db.query(HealthMetricsDB)
+                    .filter(HealthMetricsDB.metric_id.in_(valid_ids))
+                    .delete(synchronize_session=False)
+                )
+                self.db.flush()
+            logger.info(
+                "health metrics deleted",
+                metric_count=len(valid_ids),
+                deleted_count=deleted,
+            )
+            return deleted
+        except Exception as exc:
+            logger.warning("health metrics deletion failed", error_type=type(exc).__name__)
+            raise
 
     # ── DriftReport ──────────────────────────────────────
 
@@ -182,6 +240,99 @@ class MonitoringRepositoryImpl(BaseRepository):
             return None
         return self._dict_to_alert(self._db_alert_to_dict(db_obj))
 
+    def update_alert_details_if_unresolved(
+        self,
+        alert_id: str,
+        severity: AlertSeverity,
+        title: str,
+        description: str,
+        threshold_value: float,
+        metadata: Dict[str, Any],
+    ) -> Optional[AlertPayload]:
+        """原子更新未解决告警的详情，绝不覆盖确认或解决状态。"""
+        query = self.db.query(AlertPayloadDB).filter(AlertPayloadDB.alert_id == alert_id)
+        updated_count = query.filter(AlertPayloadDB.status != AlertStatus.RESOLVED.value).update(
+            {
+                AlertPayloadDB.severity: severity.value,
+                AlertPayloadDB.title: title,
+                AlertPayloadDB.description: description,
+                AlertPayloadDB.threshold_value: threshold_value,
+                AlertPayloadDB.alert_metadata: metadata,
+            },
+            synchronize_session=False,
+        )
+        self.db.flush()
+        self.db.expire_all()
+        db_obj = query.first()
+        if db_obj is None:
+            return None
+        saved = self._dict_to_alert(self._db_alert_to_dict(db_obj))
+        if updated_count:
+            logger.info("unresolved alert details updated", alert_id=alert_id)
+        return saved
+
+    def get_or_create_open_resource_alert(
+        self, alert: AlertPayload, dedupe_key: str
+    ) -> Tuple[AlertPayload, bool]:
+        """原子获取或创建未解决资源告警，并保留已解决事件历史。"""
+        if not isinstance(dedupe_key, str) or not dedupe_key:
+            raise ValueError("dedupe_key is required")
+        query = self.db.query(AlertPayloadDB).filter(
+            AlertPayloadDB.subsystem == Subsystem.RESOURCE_MONITORING.value,
+            AlertPayloadDB.alert_metadata["dedupe_key"].as_string() == dedupe_key,
+        )
+        for _ in range(3):
+            existing = (
+                query.filter(AlertPayloadDB.status != AlertStatus.RESOLVED.value)
+                .order_by(AlertPayloadDB.triggered_at.desc())
+                .first()
+            )
+            if existing is not None:
+                return self._dict_to_alert(self._db_alert_to_dict(existing)), False
+
+            cycle_index = query.count()
+            alert.alert_id = self._resource_alert_cycle_id(dedupe_key, cycle_index)
+            data = self._alert_to_dict(alert)
+            try:
+                with self.db.begin_nested():
+                    db_obj = AlertPayloadDB(**data)
+                    self.db.add(db_obj)
+                    self.db.flush()
+                    saved = self._dict_to_alert(self._db_alert_to_dict(db_obj))
+            except IntegrityError:
+                self.db.expire_all()
+                existing = self._lookup_open_resource_alert_from_new_session(
+                    alert.alert_id, dedupe_key
+                )
+                if existing is not None:
+                    return existing, False
+                continue
+            logger.info("resource alert created", alert_id=saved.alert_id, dedupe_key=dedupe_key)
+            return saved, True
+        raise RuntimeError("resource alert create conflict could not be resolved")
+
+    def _lookup_open_resource_alert_from_new_session(
+        self, alert_id: str, dedupe_key: str
+    ) -> Optional[AlertPayload]:
+        """在独立事务中读取主键冲突赢家，避开 SQLite 的旧读快照。"""
+        lookup_session = Session(bind=self.db.get_bind())
+        try:
+            db_obj = (
+                lookup_session.query(AlertPayloadDB)
+                .filter(
+                    AlertPayloadDB.alert_id == alert_id,
+                    AlertPayloadDB.subsystem == Subsystem.RESOURCE_MONITORING.value,
+                    AlertPayloadDB.status != AlertStatus.RESOLVED.value,
+                    AlertPayloadDB.alert_metadata["dedupe_key"].as_string() == dedupe_key,
+                )
+                .first()
+            )
+            if db_obj is None:
+                return None
+            return self._dict_to_alert(self._db_alert_to_dict(db_obj))
+        finally:
+            lookup_session.close()
+
     def list_alerts(
         self,
         status: Optional[AlertStatus] = None,
@@ -239,6 +390,11 @@ class MonitoringRepositoryImpl(BaseRepository):
         if not db_obj:
             return None
         return self._dict_to_alert(self._db_alert_to_dict(db_obj))
+
+    @staticmethod
+    def _resource_alert_cycle_id(dedupe_key: str, cycle_index: int) -> str:
+        """为同一去重键的每个已解决周期生成稳定的新告警 ID。"""
+        return f"resource-{uuid.uuid5(uuid.NAMESPACE_URL, f'resource-alert:{dedupe_key}:{cycle_index}')}"
 
     # ── IncidentRecord ───────────────────────────────────
 

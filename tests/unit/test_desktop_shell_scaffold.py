@@ -19,6 +19,7 @@ BOOTSTRAP_JS = ROOT / "desktop" / "dist" / "bootstrap.js"
 BOOTSTRAP_HTML = ROOT / "desktop" / "dist" / "index.html"
 LAUNCHER = ROOT / "scripts" / "desktop" / "backend_launcher.py"
 RUN_BACKEND_SH = ROOT / "scripts" / "desktop" / "run_backend.sh"
+RUN_PREVIEW_JS = ROOT / "scripts" / "desktop" / "run_preview.js"
 RESTART_APP_SH = ROOT / "scripts" / "desktop" / "restart_app.sh"
 PATCH_MACOS_AUTOMATION_SH = ROOT / "scripts" / "desktop" / "patch_macos_automation_permissions.sh"
 BUILD_SIDECAR_SH = ROOT / "scripts" / "desktop" / "build_sidecar.sh"
@@ -120,6 +121,8 @@ def test_tauri_rust_shell_starts_backend_sidecar():
     assert "beforeDevCommand starts the backend" in source
     assert "start_backend_sidecar" in source
     assert "stop_backend_sidecar" in source
+    assert "ALPHAFOUNDRY_DESKTOP_PORT" in source
+    assert "backend_port()" in source
     assert "tauri_plugin_shell::init()" in source
 
 
@@ -244,6 +247,7 @@ def test_package_json_exposes_desktop_commands():
 
     assert package["scripts"]["tauri"] == "tauri"
     assert package["scripts"]["desktop:dev"] == "tauri dev"
+    assert package["scripts"]["desktop:preview"] == "node scripts/desktop/run_preview.js"
     assert package["scripts"]["desktop:build"] == "tauri build"
     assert package["scripts"]["desktop:sidecar"] == "python scripts/desktop/build_sidecar.py"
     assert (
@@ -255,6 +259,22 @@ def test_package_json_exposes_desktop_commands():
     )
     assert package["scripts"]["desktop:restart"] == "bash scripts/desktop/restart_app.sh"
     assert "@tauri-apps/cli" in package["devDependencies"]
+
+
+def test_desktop_preview_launcher_uses_isolated_port_and_runtime_data():
+    source = RUN_PREVIEW_JS.read_text(encoding="utf-8")
+
+    assert "const DEFAULT_PORT = 8766;" in source
+    assert "ALPHAFOUNDRY_DESKTOP_DATA_DIR" in source
+    assert "--use-stable-data" in source
+    assert "ALPHAFOUNDRY_PREVIEW" in source
+    assert "ALPHAFOUNDRY_DESKTOP_PORT" in source
+    assert "mkdtemp" in source
+    assert "--config" in source
+    assert '"worktree", "list", "--porcelain"' in source
+    assert "beforeDevCommand" in source
+    assert "devUrl" in source
+    assert "csp" in source
 
 
 def test_desktop_release_workflow_builds_platform_matrix_and_draft_release():
@@ -855,6 +875,7 @@ def isolate_desktop_launcher_environment(monkeypatch, launcher):
         "PDF_MARKDOWN_DIR",
         "PDF_RAW_TEXT_DIR",
         "ALPHAFOUNDRY_DEV",
+        "ALPHAFOUNDRY_PREVIEW",
     }
     for line in launcher.desktop_env_template().splitlines():
         key, separator, _value = line.partition("=")
@@ -965,6 +986,40 @@ def test_desktop_launcher_starts_watchdogs_when_database_is_ready(monkeypatch, t
         "crawl_scheduler",
         ("run_backend", "127.0.0.1", 8765, False),
     ]
+
+
+def test_desktop_preview_launcher_skips_background_workers(monkeypatch, tmp_path):
+    from services import database_readiness
+
+    launcher = load_launcher_module()
+    calls = []
+    isolate_desktop_launcher_environment(monkeypatch, launcher)
+    monkeypatch.setenv("ALPHAFOUNDRY_PREVIEW", "1")
+    monkeypatch.setattr(launcher, "apply_frozen_desktop_defaults", lambda: tmp_path)
+    monkeypatch.setattr(
+        database_readiness,
+        "probe_postgresql",
+        lambda _database_url: SimpleNamespace(ready=True, code=SimpleNamespace(value="ready")),
+    )
+    monkeypatch.setattr(
+        launcher,
+        "_start_knowledge_worker",
+        lambda *_args: calls.append("knowledge_worker"),
+    )
+    monkeypatch.setattr(
+        launcher,
+        "_start_crawl_scheduler",
+        lambda *_args: calls.append("crawl_scheduler"),
+    )
+    monkeypatch.setattr(
+        launcher,
+        "run_backend",
+        lambda host, port, reload: calls.append(("run_backend", host, port, reload)),
+    )
+
+    assert launcher.main(["--log-dir", str(tmp_path / "logs")]) == 0
+
+    assert calls == [("run_backend", "127.0.0.1", 8765, False)]
 
 
 def test_desktop_launcher_skips_watchdogs_when_probe_fails(monkeypatch, tmp_path):

@@ -17,6 +17,7 @@ import { generateScenarios, renderScenarioResult } from './scenario.js';
 import { generateEventSignal, loadEventSignals, renderEventSignalResult, renderTimingDecision } from './event-signal.js';
 import { loadIndustryChain, loadPropagationPath, renderIndustryGraph, renderPropagationGraph } from './industry.js';
 import { renderPipelineMonitor, stopPipelinePolling, handlePipelineSSEEvent } from './pipeline-monitor.js';
+import { startResourceMonitoring, stopResourceMonitoring } from './resource-monitor.js?v=20260805d';
 import { ingestText, renderIngestResult } from './ingest.js';
 import { globalSearch, renderSearchResults, navigateToSignalDetail } from './search.js';
 import { initNavigationCuration } from './navigation-curation.js';
@@ -238,8 +239,10 @@ function navigateTo(section) {
     if (section === 'wind') initWindPanel();
     if (section === 'funds') initFundsPanel();
     if (section === 'pipeline-monitor') renderPipelineMonitor();
+    if (section === 'resource-monitor') startResourceMonitoring();
     if (section === 'config') initConfigurationPage();
     else stopPipelinePolling();
+    if (section !== 'resource-monitor') stopResourceMonitoring();
     return true;
 }
 window.navigateTo = navigateTo;
