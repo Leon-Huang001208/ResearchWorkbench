@@ -12,6 +12,10 @@ const BACKOFF_DELAYS = [4000, 6000, 8000, 10000];
 const DEPARTED_PROCESS_TTL_MS = 5 * 60 * 1000;
 const MAX_DEPARTED_PROCESSES = 50;
 const PUBLIC_STATUSES = new Set(['warming_up', 'ok', 'degraded', 'unavailable']);
+const RESOURCE_EVENT_FILTERS = {
+    status: [['all', '全部'], ['open', '未确认'], ['acknowledged', '已确认'], ['resolved', '已解决']],
+    severity: [['', '全部'], ['critical', '严重'], ['warning', '警告'], ['info', '信息']],
+};
 
 let isMonitoring = false;
 let pollTimer = null;
@@ -30,6 +34,8 @@ let eventFailure = false;
 let visibilityListenerAttached = false;
 let resizeListenerAttached = false;
 let keyboardListenerAttached = false;
+let filterOutsideListenerAttached = false;
+let resourceFilterOutsideListener = null;
 let cpuChart = null;
 let memoryChart = null;
 let hostCpuChart = null;
@@ -42,6 +48,8 @@ let selectedProcessPid = null;
 let processTreeUnavailable = false;
 let sortKey = 'cpu';
 let sortDirection = -1;
+let resourceEventFilterState = { status: 'all', severity: '' };
+let openResourceEventFilter = null;
 const processCache = new Map();
 const processTrends = new Map();
 
@@ -52,6 +60,7 @@ export function startResourceMonitoring() {
     attachVisibilityListener();
     attachResizeListener();
     attachKeyboardListener();
+    renderResourceEventFilters();
     resizeResourceCharts();
     if (!canPoll()) {
         renderStatus('warming_up');
@@ -76,6 +85,12 @@ export function stopResourceMonitoring() {
     if (keyboardListenerAttached) {
         document.removeEventListener('keydown', handleDrawerKeydown);
         keyboardListenerAttached = false;
+    }
+    closeResourceEventFilters();
+    if (filterOutsideListenerAttached) {
+        document.removeEventListener('click', resourceFilterOutsideListener);
+        filterOutsideListenerAttached = false;
+        resourceFilterOutsideListener = null;
     }
 }
 
@@ -132,7 +147,13 @@ function attachKeyboardListener() {
 }
 
 function handleDrawerKeydown(event) {
-    if (event.key === 'Escape' && selectedProcessPid !== null) closeProcessDetail();
+    if (event.key === 'Escape') {
+        if (openResourceEventFilter !== null) {
+            closeResourceEventFilters();
+            return;
+        }
+        if (selectedProcessPid !== null) closeProcessDetail();
+    }
 }
 
 function resizeResourceCharts() {
@@ -453,6 +474,7 @@ function renderResourceEvents() {
     if (status) status.textContent = eventFailure
         ? '异常历史暂不可用，保留上一份记录'
         : `${pending.length} 个待处理异常`;
+    renderStatus(publicStatus(points.at(-1)?.status));
 }
 
 function renderEventList(elementId, events, isPinned) {
@@ -475,7 +497,12 @@ function renderEventList(elementId, events, isPinned) {
 
 function createResourceEvent(event, isPinned) {
     const item = document.createElement('article');
-    item.className = `resource-event resource-event-${safeText(event.severity, 'warning')}`;
+    const severity = ['critical', 'warning', 'info'].includes(event.severity) ? event.severity : 'warning';
+    item.className = 'resource-event resource-event-row';
+    item.classList.add(`resource-event-${severity}`);
+    item.tabIndex = 0;
+    const info = document.createElement('div');
+    info.className = 'resource-event-info';
     const title = document.createElement('strong');
     title.textContent = safeText(event.title, '资源监控异常');
     const detail = document.createElement('p');
@@ -483,13 +510,14 @@ function createResourceEvent(event, isPinned) {
     detail.textContent = `${sourceScopeLabel(metadata.source_scope)} · ${safeText(metadata.task_kind, '系统')} · ${formatTime(event.triggered_at)}`;
     const description = document.createElement('span');
     description.textContent = safeText(event.description, '请查看 AlphaFoundry 日志。');
-    item.append(title, detail, description);
+    info.append(title, detail, description);
+    item.append(info);
     if (isPinned) {
         const actions = document.createElement('div');
         actions.className = 'resource-event-actions';
         if (event.status === 'open') actions.append(createEventAction('确认', event.alert_id, 'acknowledge'));
         if (event.status !== 'resolved') actions.append(createEventAction('解决', event.alert_id, 'resolve'));
-        item.append(actions);
+        if (actions.childElementCount) item.append(actions);
     }
     return item;
 }
@@ -525,12 +553,16 @@ function publicStatus(value) {
 function renderStatus(code) {
     const status = document.getElementById('resource-monitor-status');
     if (!status) return;
+    const pending = resourceEvents.filter(event => event.status !== 'resolved');
+    const unavailable = publicStatus(code) === 'unavailable';
     status.dataset.status = publicStatus(code);
-    if (publicStatus(code) === 'unavailable' && lastFailureAt && retryDelay) {
-        status.textContent = `unavailable · 采样暂时不可用，保留上一帧数据 · 失败时间 ${formatTime(lastFailureAt)} · ${Math.ceil(retryDelay / 1000)} 秒后重试`;
+    if (!unavailable && pending.length === 0) {
+        status.hidden = true;
+        status.textContent = '';
         return;
     }
-    status.textContent = publicStatus(code);
+    status.hidden = false;
+    status.textContent = unavailable ? '采样暂不可用，保留上一帧数据' : `${pending.length} 个待处理异常`;
 }
 
 function renderSummary(summary) {
@@ -828,7 +860,21 @@ function appendTrendLine(svg, values, color) {
 
 function bindControls() {
     const section = document.getElementById('section-resource-monitor');
-    if (!section || section.dataset.resourceControlsBound === 'true') return;
+    if (!section) return;
+    if (!filterOutsideListenerAttached) {
+        document.addEventListener('click', resourceFilterOutsideListener = event => {
+            if (openResourceEventFilter === null) return;
+            const trigger = section.querySelector(`[data-resource-filter-trigger="${openResourceEventFilter}"]`);
+            const menu = section.querySelector(`[data-resource-filter-menu="${openResourceEventFilter}"]`);
+            if (!trigger || !menu) {
+                closeResourceEventFilters();
+                return;
+            }
+            if (!trigger.contains(event.target) && !menu.contains(event.target)) closeResourceEventFilters();
+        });
+        filterOutsideListenerAttached = true;
+    }
+    if (section.dataset.resourceControlsBound === 'true') return;
     section.dataset.resourceControlsBound = 'true';
     section.querySelectorAll('[data-resource-sort]').forEach(button => {
         button.addEventListener('click', () => {
@@ -843,19 +889,73 @@ function bindControls() {
             renderProcessTable();
         });
     });
-    section.querySelectorAll('[data-resource-event-filter]').forEach(select => {
-        select.addEventListener('change', pollResourceEvents);
+    section.querySelectorAll('[data-resource-filter-trigger]').forEach(trigger => {
+        trigger.addEventListener('click', () => toggleResourceEventFilter(trigger.dataset.resourceFilterTrigger));
     });
 }
 
 function resourceEventFilters() {
-    const section = document.getElementById('section-resource-monitor');
-    const status = section?.querySelector('[data-resource-event-filter="status"]')?.value;
-    const severity = section?.querySelector('[data-resource-event-filter="severity"]')?.value;
     return {
-        status: ['all', 'open', 'acknowledged', 'resolved'].includes(status) ? status : 'all',
-        severity: ['critical', 'warning', 'info'].includes(severity) ? severity : '',
+        status: ['all', 'open', 'acknowledged', 'resolved'].includes(resourceEventFilterState.status)
+            ? resourceEventFilterState.status : 'all',
+        severity: ['critical', 'warning', 'info'].includes(resourceEventFilterState.severity)
+            ? resourceEventFilterState.severity : '',
     };
+}
+
+function toggleResourceEventFilter(kind) {
+    if (!Object.hasOwn(RESOURCE_EVENT_FILTERS, kind)) return;
+    openResourceEventFilter = openResourceEventFilter === kind ? null : kind;
+    renderResourceEventFilters();
+}
+
+function closeResourceEventFilters() {
+    if (openResourceEventFilter === null) return;
+    openResourceEventFilter = null;
+    renderResourceEventFilters();
+}
+
+function renderResourceEventFilters() {
+    const section = document.getElementById('section-resource-monitor');
+    if (!section) return;
+    Object.entries(RESOURCE_EVENT_FILTERS).forEach(([kind, options]) => {
+        const trigger = section.querySelector(`[data-resource-filter-trigger="${kind}"]`);
+        const menu = section.querySelector(`[data-resource-filter-menu="${kind}"]`);
+        const label = section.querySelector(`[data-resource-filter-label="${kind}"]`);
+        if (!trigger || !menu || !label) return;
+        const value = resourceEventFilterState[kind];
+        const selected = options.find(([optionValue]) => optionValue === value) || options[0];
+        const isOpen = openResourceEventFilter === kind;
+        label.textContent = selected[1];
+        trigger.setAttribute('aria-expanded', String(isOpen));
+        trigger.classList.toggle('is-open', isOpen);
+        menu.hidden = !isOpen;
+
+        const fragment = document.createDocumentFragment();
+        options.forEach(([optionValue, optionLabel]) => {
+            const option = document.createElement('button');
+            const isSelected = optionValue === value;
+            option.type = 'button';
+            option.className = 'resource-filter-option';
+            option.setAttribute('role', 'option');
+            option.setAttribute('aria-selected', String(isSelected));
+            option.textContent = optionLabel;
+            if (isSelected) {
+                const check = document.createElement('i');
+                check.className = 'codicon codicon-check';
+                check.setAttribute('aria-hidden', 'true');
+                option.append(check);
+            }
+            option.addEventListener('click', () => {
+                resourceEventFilterState[kind] = optionValue;
+                renderResourceEventFilters();
+                pollResourceEvents();
+                closeResourceEventFilters();
+            });
+            fragment.append(option);
+        });
+        menu.replaceChildren(fragment);
+    });
 }
 
 function normalizeTimestamp(value) {

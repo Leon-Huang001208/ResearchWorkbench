@@ -960,17 +960,18 @@
                             <p>默认查询最近 90 天；原始资源曲线仅保留最近 5 分钟。</p>
                         </div>
                         <div class="resource-event-filters" aria-label="异常历史筛选">
-                            <select data-resource-event-filter="status" aria-label="事件状态">
-                                <option value="all">全部状态</option>
-                                <option value="open">未确认</option>
-                                <option value="acknowledged">已确认</option>
-                                <option value="resolved">已解决</option>
-                            </select>
-                            <select data-resource-event-filter="severity" aria-label="严重度">
-                                <option value="">全部严重度</option>
-                                <option value="critical">严重</option>
-                                <option value="warning">警告</option>
-                            </select>
+                            <div class="resource-filter">
+                                <button type="button" class="resource-filter-trigger" data-resource-filter-trigger="status" aria-label="事件状态" aria-haspopup="listbox" aria-expanded="false" aria-controls="resource-filter-menu-status">
+                                    <span>状态</span><strong data-resource-filter-label="status">全部</strong><i class="codicon codicon-chevron-down" aria-hidden="true"></i>
+                                </button>
+                                <div id="resource-filter-menu-status" class="resource-filter-menu" data-resource-filter-menu="status" role="listbox" aria-label="事件状态" hidden></div>
+                            </div>
+                            <div class="resource-filter">
+                                <button type="button" class="resource-filter-trigger" data-resource-filter-trigger="severity" aria-label="严重度" aria-haspopup="listbox" aria-expanded="false" aria-controls="resource-filter-menu-severity">
+                                    <span>严重度</span><strong data-resource-filter-label="severity">全部</strong><i class="codicon codicon-chevron-down" aria-hidden="true"></i>
+                                </button>
+                                <div id="resource-filter-menu-severity" class="resource-filter-menu" data-resource-filter-menu="severity" role="listbox" aria-label="严重度" hidden></div>
+                            </div>
                         </div>
                     </div>
                     <div id="resource-monitor-event-history" class="resource-event-list"></div>
