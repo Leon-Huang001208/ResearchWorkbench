@@ -1,16 +1,36 @@
-"""Static contracts for the AlphaFoundry resource monitoring workbench page."""
+"""Static contracts for the AlphaFoundry system center resource monitor."""
 
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_resource_monitor_navigation_and_semantic_dom_contract() -> None:
+def test_system_center_navigation_and_semantic_dom_contract() -> None:
     template = (ROOT / "app/web/templates/index.html").read_text(encoding="utf-8")
 
-    assert 'data-section="resource-monitor"' in template
-    assert ">系统监控</span>" in template
+    assert template.count('data-section="system"') == 1
+    assert ">系统</span>" in template
+    assert 'data-section="resource-monitor"' not in template
+    assert 'data-section="config"' not in template
     assert '<section id="section-resource-monitor" class="content-section"' in template
+    assert '<section id="section-config" class="content-section configuration-page"' in template
+    assert template.count('data-system-tab="resource-monitor"') == 2
+    assert template.count('data-system-tab="config"') == 2
+    assert re.search(
+        r'<button[^>]*data-system-tab="resource-monitor"[^>]*aria-controls="section-resource-monitor"',
+        template,
+    )
+    assert re.search(
+        r'<button[^>]*data-system-tab="config"[^>]*aria-controls="section-config"',
+        template,
+    )
+    assert ">资源与异常</button>" in template
+    assert ">系统配置</button>" in template
+    assert re.search(
+        r'<button[^>]*data-system-tab="resource-monitor"[^>]*aria-selected="true"',
+        template,
+    )
     assert "仅监控 AlphaFoundry API 及其子进程" in template
     for summary_key in (
         "alpha-cpu",
@@ -43,7 +63,7 @@ def test_resource_monitor_navigation_and_semantic_dom_contract() -> None:
         assert f">{label}<" in template
 
 
-def test_resource_monitor_module_cache_and_navigation_lifecycle_contract() -> None:
+def test_system_center_navigation_preserves_monitor_lifecycle_contract() -> None:
     app_js = (ROOT / "app/web/static/js/app.js").read_text(encoding="utf-8")
     template = (ROOT / "app/web/templates/index.html").read_text(encoding="utf-8")
 
@@ -52,8 +72,37 @@ def test_resource_monitor_module_cache_and_navigation_lifecycle_contract() -> No
     assert "./resource-monitor.js?v=20260806a" in app_js
     assert "startResourceMonitoring" in app_js
     assert "stopResourceMonitoring" in app_js
-    assert "if (section === 'resource-monitor') startResourceMonitoring();" in app_js
-    assert "if (section !== 'resource-monitor') stopResourceMonitoring();" in app_js
+    assert "function systemTarget" in app_js
+    assert "function setSystemTab" in app_js
+    assert "af-system-tab" in app_js
+    assert "data-system-tab" in app_js
+    assert "navigateTo('system', { systemTab: 'config' })" in app_js
+
+
+def test_system_center_status_and_event_filter_contract() -> None:
+    template = (ROOT / "app/web/templates/index.html").read_text(encoding="utf-8")
+    source = (ROOT / "app/web/static/js/resource-monitor.js").read_text(encoding="utf-8")
+
+    assert 'id="resource-monitor-status"' in template
+    assert re.search(r'id="resource-monitor-status"[^>]*\bhidden\b', template)
+    assert ">ok<" not in template
+    assert "warming_up" not in template
+    assert '<select data-resource-event-filter=' not in template
+    for kind in ("status", "severity"):
+        assert f'data-resource-filter-trigger="{kind}"' in template
+        assert f'data-resource-filter-menu="{kind}"' in template
+        assert f'data-resource-filter-label="{kind}"' in template
+    assert 'aria-haspopup="listbox"' in template
+    assert 'role="listbox"' in template
+    assert "function toggleResourceEventFilter" in source
+    assert "function closeResourceEventFilters" in source
+    assert "function renderResourceEventFilters" in source
+    assert "RESOURCE_EVENT_FILTERS" in source
+    assert "aria-selected" in source
+    assert "采样暂不可用，保留上一帧数据" in source
+    assert "个待处理异常" in source
+    assert "status.hidden = true;" in source
+    assert "openResourceEventFilter" in source
 
 
 def test_resource_monitor_module_handles_lifecycle_bounds_and_safe_process_dom() -> None:
@@ -120,6 +169,7 @@ def test_resource_monitor_module_handles_lifecycle_bounds_and_safe_process_dom()
     assert "异常历史暂不可用，保留上一份记录" in source
     assert "function isFieldUnavailable" in source
     assert "当前平台不支持" in source
+    assert "resource-event-row" in source
 
 
 def test_resource_monitor_styles_keep_dense_responsive_tables_and_charts() -> None:
@@ -143,5 +193,10 @@ def test_resource_monitor_styles_keep_dense_responsive_tables_and_charts() -> No
     assert ".resource-detail-close" in style
     assert ".resource-event-critical" in style
     assert ".resource-event-filters" in style
+    assert ".resource-filter-trigger" in style
+    assert ".resource-filter-menu" in style
+    assert ".resource-filter-option" in style
+    assert ".resource-event-row" in style
+    assert ".resource-monitor-status[hidden]" in style
     assert 'strong[data-resource-summary="host-memory"]' in style
     assert "white-space: normal" in style
