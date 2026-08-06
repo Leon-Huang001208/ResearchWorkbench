@@ -136,6 +136,12 @@ def scoped_process_tree(monkeypatch: pytest.MonkeyPatch) -> tuple[FakeProcess, F
     return root, unrelated
 
 
+@pytest.fixture(autouse=True)
+def isolate_managed_processes(monkeypatch: pytest.MonkeyPatch) -> None:
+    """避免本机正在运行的 Worker 干扰受控进程树单元测试。"""
+    monkeypatch.setattr(resource_monitor_service, "_default_managed_processes", lambda: [])
+
+
 def test_snapshot_limits_collection_to_root_and_descendants_and_warms_up(
     scoped_process_tree: tuple[FakeProcess, FakeProcess],
 ) -> None:
