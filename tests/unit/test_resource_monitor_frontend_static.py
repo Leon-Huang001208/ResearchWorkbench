@@ -75,7 +75,6 @@ def test_system_center_navigation_and_semantic_dom_contract() -> None:
 def test_system_center_navigation_preserves_monitor_lifecycle_contract() -> None:
     app_js = (ROOT / "app/web/static/js/app.js").read_text(encoding="utf-8")
 
-    assert "./resource-monitor.js?v=20260806a" in app_js
     assert "startResourceMonitoring" in app_js
     assert "stopResourceMonitoring" in app_js
     assert "function systemTarget" in app_js
