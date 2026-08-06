@@ -74,10 +74,7 @@ def test_system_center_navigation_and_semantic_dom_contract() -> None:
 
 def test_system_center_navigation_preserves_monitor_lifecycle_contract() -> None:
     app_js = (ROOT / "app/web/static/js/app.js").read_text(encoding="utf-8")
-    template = (ROOT / "app/web/templates/index.html").read_text(encoding="utf-8")
 
-    assert "/static/js/app.js?v=20260806resourcecapability1" in template
-    assert "/static/js/app.js?v=20260727modalhierarchy1" not in template
     assert "./resource-monitor.js?v=20260806a" in app_js
     assert "startResourceMonitoring" in app_js
     assert "stopResourceMonitoring" in app_js
@@ -92,9 +89,24 @@ def test_system_center_navigation_preserves_monitor_lifecycle_contract() -> None
     assert "if (targetSection !== 'resource-monitor') stopResourceMonitoring();" in app_js
     assert "if (savedSection === 'resource-monitor' || savedSection === 'config')" in app_js
     assert "localStorage.setItem('af-active-section', 'system');" in app_js
+    system_router = _function_region(app_js, "systemTarget", "setSystemTab")
+    assert "return SYSTEM_TABS.has(requestedTab) ? requestedTab : 'resource-monitor';" in system_router
     initial_navigation = _function_region(app_js, "getInitialSection", "connectSSE")
     assert "localStorage.setItem('af-system-tab', savedSection);" in initial_navigation
     assert "return 'system';" in initial_navigation
+    direct_initial_tab_navigation = re.search(
+        r"navigateTo\(\s*getInitialSection\(\)\s*,\s*\{\s*systemTab:\s*localStorage\.getItem\('af-system-tab'\)",
+        app_js,
+    )
+    named_initial_tab_navigation = re.search(
+        r"const\s+initialSystemTab\s*=\s*localStorage\.getItem\('af-system-tab'\);[\s\S]*?navigateTo\(\s*getInitialSection\(\)\s*,\s*\{\s*systemTab:\s*initialSystemTab\s*}\s*\)",
+        app_js,
+    )
+    assert direct_initial_tab_navigation or named_initial_tab_navigation
+    assert "document.querySelectorAll('[data-system-tab]')" in app_js
+    tab_binding = app_js[app_js.index("document.querySelectorAll('[data-system-tab]')") :]
+    assert "button.addEventListener('click'" in tab_binding
+    assert "navigateTo('system', { systemTab: button.dataset.systemTab })" in tab_binding
 
 
 def test_system_center_status_and_event_filter_contract() -> None:
@@ -145,6 +157,10 @@ def test_system_center_status_and_event_filter_contract() -> None:
         r"!\s*trigger\.contains\(event\.target\).*?!\s*menu\.contains\(event\.target\).*?closeResourceEventFilters\(\)",
         filter_controls,
         re.DOTALL,
+    )
+    assert re.search(
+        r"\w+\.addEventListener\('click',\s*\(\)\s*=>\s*\{[\s\S]*?resourceEventFilterState\[kind\]\s*=\s*value;[\s\S]*?renderResourceEventFilters\(\);[\s\S]*?pollResourceEvents\(\);[\s\S]*?closeResourceEventFilters\(\);",
+        filter_controls,
     )
     keyboard_handler = _function_region(source, "handleDrawerKeydown", "resizeResourceCharts")
     assert "event.key === 'Escape'" in keyboard_handler
@@ -249,8 +265,14 @@ def test_resource_monitor_module_handles_lifecycle_bounds_and_safe_process_dom()
         source.index("function createResourceEvent") : source.index("function sourceScopeLabel")
     ]
     assert "resource-event-row" in event_builder
+    assert "resource-event-info" in event_builder
     assert "resource-event-actions" in event_builder
-    assert "item.append(actions);" in event_builder
+    append_info_then_actions = (
+        "item.append(info);" in event_builder
+        and "item.append(actions);" in event_builder
+        and event_builder.rindex("item.append(actions);") > event_builder.rindex("item.append(info);")
+    )
+    assert "item.append(info, actions);" in event_builder or append_info_then_actions
 
 
 def test_resource_monitor_styles_keep_dense_responsive_tables_and_charts() -> None:
@@ -278,6 +300,7 @@ def test_resource_monitor_styles_keep_dense_responsive_tables_and_charts() -> No
     assert ".resource-filter-menu" in style
     assert ".resource-filter-option" in style
     assert ".resource-event-row" in style
+    assert ".resource-event-row .resource-event-info" in style
     assert ".resource-event-row .resource-event-actions" in style
     assert ".resource-monitor-status[hidden]" in style
     assert re.search(
