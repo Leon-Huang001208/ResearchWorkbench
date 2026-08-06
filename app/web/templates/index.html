@@ -861,10 +861,10 @@
 
             <!-- Resource Monitor Section -->
             <section id="section-resource-monitor" class="content-section" aria-labelledby="resource-monitor-title">
-                <div class="system-center-tabs" role="tablist" aria-label="系统中心">
-                    <button class="system-center-tab active" type="button" role="tab" data-system-tab="resource-monitor" aria-controls="section-resource-monitor" aria-selected="true" tabindex="0">资源与异常</button>
-                    <button class="system-center-tab" type="button" role="tab" data-system-tab="config" aria-controls="section-config" aria-selected="false" tabindex="-1">系统配置</button>
-                </div>
+                <nav class="system-center-tabs" aria-label="系统中心">
+                    <button class="system-center-tab active" type="button" data-system-tab="resource-monitor" aria-controls="section-resource-monitor" aria-current="page">资源与异常</button>
+                    <button class="system-center-tab" type="button" data-system-tab="config" aria-controls="section-config">系统配置</button>
+                </nav>
                 <div class="resource-monitor-header">
                     <div>
                         <h2 id="resource-monitor-title" class="section-title">系统中心</h2>
@@ -1349,10 +1349,10 @@
             <section id="section-config" class="content-section configuration-page" aria-labelledby="config-page-title">
                 <div class="configuration-header">
                     <div>
-                        <div class="system-center-tabs" role="tablist" aria-label="系统中心">
-                            <button class="system-center-tab" type="button" role="tab" data-system-tab="resource-monitor" aria-controls="section-resource-monitor" aria-selected="false" tabindex="-1">资源与异常</button>
-                            <button class="system-center-tab active" type="button" role="tab" data-system-tab="config" aria-controls="section-config" aria-selected="true" tabindex="0">系统配置</button>
-                        </div>
+                        <nav class="system-center-tabs" aria-label="系统中心">
+                            <button class="system-center-tab" type="button" data-system-tab="resource-monitor" aria-controls="section-resource-monitor">资源与异常</button>
+                            <button class="system-center-tab active" type="button" data-system-tab="config" aria-controls="section-config" aria-current="page">系统配置</button>
+                        </nav>
                         <span class="config-header-kicker">控制台</span>
                         <h2 class="section-title" id="config-page-title">系统配置</h2>
                         <p>集中管理模型、数据连接与运行参数。</p>

@@ -215,14 +215,37 @@ function systemTarget(section, requestedTab = null) {
     return SYSTEM_TABS.has(requestedTab) ? requestedTab : 'resource-monitor';
 }
 
+function getSystemNavigationStorage(key) {
+    try {
+        return localStorage.getItem(key);
+    } catch (error) {
+        console.warn('[app] system navigation storage read failed', {
+            key,
+            errorType: error?.name || 'UnknownError',
+        });
+        return null;
+    }
+}
+
+function setSystemNavigationStorage(key, value) {
+    try {
+        localStorage.setItem(key, value);
+    } catch (error) {
+        console.warn('[app] system navigation storage write failed', {
+            key,
+            errorType: error?.name || 'UnknownError',
+        });
+    }
+}
+
 function setSystemTab(section) {
     document.querySelectorAll('[data-system-tab]').forEach(button => {
         const selected = button.dataset.systemTab === section;
         button.classList.toggle('active', selected);
-        button.setAttribute('aria-selected', String(selected));
-        button.tabIndex = selected ? 0 : -1;
+        if (selected) button.setAttribute('aria-current', 'page');
+        else button.removeAttribute('aria-current');
     });
-    localStorage.setItem('af-system-tab', section);
+    setSystemNavigationStorage('af-system-tab', section);
 }
 
 function navigateTo(section, options = {}) {
@@ -237,7 +260,7 @@ function navigateTo(section, options = {}) {
     const sectionEl = document.getElementById(`section-${targetSection}`);
     if (sectionEl) sectionEl.classList.add('active');
     if (section === 'system') {
-        localStorage.setItem('af-active-section', 'system');
+        setSystemNavigationStorage('af-active-section', 'system');
         setSystemTab(targetSection);
     } else {
         localStorage.setItem('af-active-section', section);
@@ -265,21 +288,25 @@ function navigateTo(section, options = {}) {
     if (targetSection === 'resource-monitor') startResourceMonitoring();
     if (targetSection === 'config') initConfigurationPage();
     if (targetSection !== 'resource-monitor') stopResourceMonitoring();
+    if (options.focusSystemTab === true && section === 'system') {
+        const focusTarget = sectionEl?.querySelector(`[data-system-tab="${targetSection}"]`);
+        focusTarget?.focus();
+    }
     return true;
 }
 window.navigateTo = navigateTo;
 
 function getInitialSection() {
-    const savedSection = localStorage.getItem('af-active-section');
+    const savedSection = getSystemNavigationStorage('af-active-section');
     if (savedSection === 'resource-monitor' || savedSection === 'config') {
-        localStorage.setItem('af-system-tab', savedSection);
-        localStorage.setItem('af-active-section', 'system');
+        setSystemNavigationStorage('af-system-tab', savedSection);
+        setSystemNavigationStorage('af-active-section', 'system');
         return 'system';
     }
     if (savedSection === 'system') {
-        const savedSystemTab = localStorage.getItem('af-system-tab');
+        const savedSystemTab = getSystemNavigationStorage('af-system-tab');
         const initialSystemTab = SYSTEM_TABS.has(savedSystemTab) ? savedSystemTab : 'resource-monitor';
-        localStorage.setItem('af-system-tab', initialSystemTab);
+        setSystemNavigationStorage('af-system-tab', initialSystemTab);
         return 'system';
     }
     if (savedSection && document.getElementById(`section-${savedSection}`)) {
@@ -383,7 +410,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     document.querySelectorAll('[data-system-tab]').forEach(button => {
         button.addEventListener('click', () => {
-            navigateTo('system', { systemTab: button.dataset.systemTab });
+            navigateTo('system', { systemTab: button.dataset.systemTab, focusSystemTab: true });
         });
     });
 
@@ -455,7 +482,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     connectSSE();
     const initialSection = getInitialSection();
-    const initialSystemTab = localStorage.getItem('af-system-tab');
+    const initialSystemTab = getSystemNavigationStorage('af-system-tab');
     navigateTo(initialSection, { systemTab: initialSystemTab });
     updateStatusBar();
     setInterval(updateStatusBar, 30000);

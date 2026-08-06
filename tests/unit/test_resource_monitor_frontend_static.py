@@ -58,6 +58,14 @@ def test_system_center_navigation_and_semantic_dom_contract() -> None:
     assert 'data-section="config"' not in template
     assert '<section id="section-resource-monitor" class="content-section"' in template
     assert '<section id="section-config" class="content-section configuration-page"' in template
+    system_navigation_blocks = re.findall(
+        r'<nav class="system-center-tabs" aria-label="系统中心">(?P<body>[\s\S]*?)</nav>',
+        template,
+    )
+    assert len(system_navigation_blocks) == 2
+    assert all('role="tablist"' not in block for block in system_navigation_blocks)
+    assert all('role="tab"' not in block for block in system_navigation_blocks)
+    assert all('aria-selected=' not in block for block in system_navigation_blocks)
     assert template.count('data-system-tab="resource-monitor"') == 2
     assert template.count('data-system-tab="config"') == 2
     assert re.search(
@@ -70,10 +78,9 @@ def test_system_center_navigation_and_semantic_dom_contract() -> None:
     )
     assert ">资源与异常</button>" in template
     assert ">系统配置</button>" in template
-    assert re.search(
-        r'<button[^>]*data-system-tab="resource-monitor"[^>]*aria-selected="true"',
-        template,
-    )
+    assert template.count('aria-current="page"') == 2
+    assert re.search(r'<button[^>]*data-system-tab="resource-monitor"[^>]*aria-current="page"', template)
+    assert re.search(r'<button[^>]*data-system-tab="config"[^>]*aria-current="page"', template)
     assert "本机资源、异常与运行配置" in template
     for summary_key in (
         "alpha-cpu",
@@ -113,6 +120,8 @@ def test_system_center_navigation_preserves_monitor_lifecycle_contract() -> None
     assert "stopResourceMonitoring" in app_js
     assert "function systemTarget" in app_js
     assert "function setSystemTab" in app_js
+    assert "function getSystemNavigationStorage" in app_js
+    assert "function setSystemNavigationStorage" in app_js
     assert "af-system-tab" in app_js
     assert "data-system-tab" in app_js
     assert re.search(
@@ -123,7 +132,7 @@ def test_system_center_navigation_preserves_monitor_lifecycle_contract() -> None
         r"if\s*\(\s*(?P<saved>\w+)\s*===\s*['\"]resource-monitor['\"]\s*\|\|\s*(?P=saved)\s*===\s*['\"]config['\"]\s*\)",
         app_js,
     )
-    assert re.search(r"localStorage\.setItem\(['\"]af-active-section['\"]\s*,\s*['\"]system['\"]\s*\)", app_js)
+    assert "setSystemNavigationStorage('af-active-section', 'system');" in app_js
     system_router = _function_body(app_js, "systemTarget")
     assert re.search(
         r"return\s+SYSTEM_TABS\.has\(\s*\w+\s*\)\s*\?\s*\w+\s*:\s*['\"]resource-monitor['\"]",
@@ -143,19 +152,32 @@ def test_system_center_navigation_preserves_monitor_lifecycle_contract() -> None
         app_js,
     )
     initial_navigation = _function_body(app_js, "getInitialSection")
-    assert re.search(r"localStorage\.setItem\(['\"]af-system-tab['\"]\s*,\s*\w+\s*\)", initial_navigation)
+    assert re.search(r"setSystemNavigationStorage\(['\"]af-system-tab['\"]\s*,\s*\w+\s*\)", initial_navigation)
     assert "return 'system';" in initial_navigation
     initial_navigation = re.search(
         r"const\s+(?P<section>\w+)\s*=\s*getInitialSection\(\);\s*"
-        r"const\s+initialSystemTab\s*=\s*localStorage\.getItem\('af-system-tab'\);[\s\S]*?"
+        r"const\s+initialSystemTab\s*=\s*getSystemNavigationStorage\('af-system-tab'\);[\s\S]*?"
         r"navigateTo\(\s*(?P=section)\s*,\s*\{\s*systemTab:\s*initialSystemTab\s*}\s*\)",
         app_js,
     )
     assert initial_navigation
     assert re.search(
-        r"\[data-system-tab\][\s\S]*?addEventListener\(['\"]click['\"][\s\S]*?navigateTo\(\s*['\"]system['\"]\s*,\s*\{\s*systemTab:\s*\w+\.dataset\.systemTab",
+        r"\[data-system-tab\][\s\S]*?addEventListener\(['\"]click['\"][\s\S]*?navigateTo\(\s*['\"]system['\"]\s*,\s*\{\s*systemTab:\s*\w+\.dataset\.systemTab\s*,\s*focusSystemTab:\s*true",
         app_js,
     )
+    system_tab_updater = _function_body(app_js, "setSystemTab")
+    assert "button.setAttribute('aria-current', 'page');" in system_tab_updater
+    assert "button.removeAttribute('aria-current');" in system_tab_updater
+    navigation = _function_body(app_js, "navigateTo")
+    assert "if (options.focusSystemTab === true && section === 'system')" in navigation
+    assert "sectionEl?.querySelector" in navigation
+    assert "focusTarget?.focus();" in navigation
+    storage_reader = _function_body(app_js, "getSystemNavigationStorage")
+    storage_writer = _function_body(app_js, "setSystemNavigationStorage")
+    for helper in (storage_reader, storage_writer):
+        assert "try" in helper
+        assert "catch (error)" in helper
+        assert "console.warn" in helper
 
 
 def test_system_center_status_and_event_filter_contract() -> None:
