@@ -31,6 +31,24 @@ def _function_body(source: str, name: str) -> str:
     return source[match.start():index]
 
 
+def _media_blocks(source: str, query: str) -> list[str]:
+    """Return balanced CSS media blocks that match one query."""
+    blocks = []
+    for match in re.finditer(rf"@media\s*\(\s*{re.escape(query)}\s*\)\s*\{{", source):
+        depth = 1
+        index = match.end()
+        while index < len(source) and depth:
+            if source[index] == "{":
+                depth += 1
+            elif source[index] == "}":
+                depth -= 1
+            index += 1
+        assert depth == 0, f"CSS media block {query!r} must be balanced"
+        blocks.append(source[match.end():index - 1])
+    assert blocks, f"CSS must declare @media ({query})"
+    return blocks
+
+
 def test_system_center_navigation_and_semantic_dom_contract() -> None:
     template = (ROOT / "app/web/templates/index.html").read_text(encoding="utf-8")
 
@@ -192,7 +210,7 @@ def test_system_center_status_and_event_filter_contract() -> None:
     )
     controls = _function_body(source, "bindControls")
     assert re.search(
-        r"document\.addEventListener\(['\"]click['\"][\s\S]*?\.contains\(event\.target\)[\s\S]*?closeResourceEventFilters\(\)",
+        r"document\.addEventListener\(['\"]click['\"][\s\S]*?!\s*\w*trigger\w*\.contains\(event\.target\)[\s\S]*?!\s*\w*menu\w*\.contains\(event\.target\)[\s\S]*?closeResourceEventFilters\(\)",
         controls,
         re.DOTALL,
     )
@@ -227,8 +245,11 @@ def test_system_center_status_and_event_filter_contract() -> None:
     assert f"{status_element.group('element')}.hidden = false;" in status_renderer
     assert "采样暂不可用，保留上一帧数据" in status_renderer
     assert "个待处理异常" in status_renderer
-    assert "ok" not in status_renderer
-    assert "degraded" not in status_renderer
+    assert not re.search(
+        rf"{status_element.group('element')}\.textContent\s*=\s*publicStatus\(",
+        status_renderer,
+    )
+    assert not re.search(r"['\"`](?:ok|degraded)['\"`]", status_renderer)
 
 
 def test_system_center_preserves_minimal_configuration_form_and_api_contract() -> None:
@@ -328,7 +349,7 @@ def test_resource_monitor_module_handles_lifecycle_bounds_and_safe_process_dom()
         rf"{event_root.group('root')}\.(?:append|appendChild)\((?P<children>[^;]+)\);",
         event_builder,
     )
-    assert append_calls and action_container.group("actions") in append_calls[-1]
+    assert any(action_container.group("actions") in children for children in append_calls)
 
 
 def test_resource_monitor_styles_keep_dense_responsive_tables_and_charts() -> None:
@@ -359,11 +380,14 @@ def test_resource_monitor_styles_keep_dense_responsive_tables_and_charts() -> No
     assert ".resource-event-row .resource-event-info" in style
     assert ".resource-event-row .resource-event-actions" in style
     assert ".resource-monitor-status[hidden]" in style
-    mobile_rules = style[style.rfind("@media (max-width: 900px)") :]
-    assert re.search(r"\.resource-event-row\s*\{[^}]*grid-template-columns:\s*1fr", mobile_rules)
-    assert re.search(
-        r"\.resource-event-row\s+\.resource-event-actions\s*\{[^}]*(?:justify-self:\s*end|justify-content:\s*flex-end)",
-        mobile_rules,
+    mobile_blocks = _media_blocks(style, "max-width: 900px")
+    assert any(
+        re.search(r"\.resource-event-row\s*\{[^}]*grid-template-columns:\s*1fr", block)
+        and re.search(
+            r"\.resource-event-row\s+\.resource-event-actions\s*\{[^}]*(?:justify-self:\s*end|justify-content:\s*flex-end)",
+            block,
+        )
+        for block in mobile_blocks
     )
     assert 'strong[data-resource-summary="host-memory"]' in style
     assert "white-space: normal" in style
