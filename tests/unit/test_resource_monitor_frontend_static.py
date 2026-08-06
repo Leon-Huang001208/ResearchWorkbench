@@ -6,13 +6,29 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def _function_region(source: str, name: str, next_name: str) -> str:
-    """Return a named JavaScript function through the next known declaration."""
-    start = source.find(f"function {name}")
-    end = source.find(f"function {next_name}", start + 1)
-    assert start >= 0, f"resource-monitor.js must declare {name}()"
-    assert end >= 0, f"resource-monitor.js must declare {next_name}() after {name}()"
-    return source[start:end]
+def _function_body(source: str, name: str) -> str:
+    """Return a balanced JavaScript function body without relying on declaration order."""
+    match = re.search(rf"\bfunction\s+{re.escape(name)}\s*\([^)]*\)\s*\{{", source)
+    assert match, f"resource-monitor.js must declare {name}()"
+    depth = 1
+    index = match.end()
+    quote = None
+    while index < len(source) and depth:
+        character = source[index]
+        if quote:
+            if character == "\\":
+                index += 1
+            elif character == quote:
+                quote = None
+        elif character in {"'", '"', "`"}:
+            quote = character
+        elif character == "{":
+            depth += 1
+        elif character == "}":
+            depth -= 1
+        index += 1
+    assert depth == 0, f"resource-monitor.js has an unclosed {name}() function"
+    return source[match.start():index]
 
 
 def test_system_center_navigation_and_semantic_dom_contract() -> None:
@@ -81,17 +97,35 @@ def test_system_center_navigation_preserves_monitor_lifecycle_contract() -> None
     assert "function setSystemTab" in app_js
     assert "af-system-tab" in app_js
     assert "data-system-tab" in app_js
-    assert "navigateTo('system', { systemTab: 'config' })" in app_js
-    assert "return SYSTEM_TABS.has(requestedTab) ? requestedTab : 'resource-monitor';" in app_js
-    assert "const targetSection = systemTarget(section, options.systemTab);" in app_js
-    assert "if (targetSection === 'resource-monitor') startResourceMonitoring();" in app_js
-    assert "if (targetSection !== 'resource-monitor') stopResourceMonitoring();" in app_js
-    assert "if (savedSection === 'resource-monitor' || savedSection === 'config')" in app_js
-    assert "localStorage.setItem('af-active-section', 'system');" in app_js
-    system_router = _function_region(app_js, "systemTarget", "setSystemTab")
-    assert "return SYSTEM_TABS.has(requestedTab) ? requestedTab : 'resource-monitor';" in system_router
-    initial_navigation = _function_region(app_js, "getInitialSection", "connectSSE")
-    assert "localStorage.setItem('af-system-tab', savedSection);" in initial_navigation
+    assert re.search(
+        r"navigateTo\(\s*['\"]system['\"]\s*,\s*\{\s*systemTab:\s*['\"]config['\"]\s*}\s*\)",
+        app_js,
+    )
+    assert re.search(
+        r"if\s*\(\s*(?P<saved>\w+)\s*===\s*['\"]resource-monitor['\"]\s*\|\|\s*(?P=saved)\s*===\s*['\"]config['\"]\s*\)",
+        app_js,
+    )
+    assert re.search(r"localStorage\.setItem\(['\"]af-active-section['\"]\s*,\s*['\"]system['\"]\s*\)", app_js)
+    system_router = _function_body(app_js, "systemTarget")
+    assert re.search(
+        r"return\s+SYSTEM_TABS\.has\(\s*\w+\s*\)\s*\?\s*\w+\s*:\s*['\"]resource-monitor['\"]",
+        system_router,
+    )
+    target_section = re.search(
+        r"(?:const|let)\s+(?P<target>\w+)\s*=\s*systemTarget\(\s*section\s*,\s*options\.systemTab\s*\)",
+        app_js,
+    )
+    assert target_section
+    assert re.search(
+        rf"if\s*\(\s*{target_section.group('target')}\s*===\s*['\"]resource-monitor['\"]\s*\)\s*startResourceMonitoring\(\)",
+        app_js,
+    )
+    assert re.search(
+        rf"if\s*\(\s*{target_section.group('target')}\s*!==\s*['\"]resource-monitor['\"]\s*\)\s*stopResourceMonitoring\(\)",
+        app_js,
+    )
+    initial_navigation = _function_body(app_js, "getInitialSection")
+    assert re.search(r"localStorage\.setItem\(['\"]af-system-tab['\"]\s*,\s*\w+\s*\)", initial_navigation)
     assert "return 'system';" in initial_navigation
     direct_initial_tab_navigation = re.search(
         r"navigateTo\(\s*getInitialSection\(\)\s*,\s*\{\s*systemTab:\s*localStorage\.getItem\('af-system-tab'\)",
@@ -102,10 +136,10 @@ def test_system_center_navigation_preserves_monitor_lifecycle_contract() -> None
         app_js,
     )
     assert direct_initial_tab_navigation or named_initial_tab_navigation
-    assert "document.querySelectorAll('[data-system-tab]')" in app_js
-    tab_binding = app_js[app_js.index("document.querySelectorAll('[data-system-tab]')") :]
-    assert "button.addEventListener('click'" in tab_binding
-    assert "navigateTo('system', { systemTab: button.dataset.systemTab })" in tab_binding
+    assert re.search(
+        r"\[data-system-tab\][\s\S]*?addEventListener\(['\"]click['\"][\s\S]*?navigateTo\(\s*['\"]system['\"]\s*,\s*\{\s*systemTab:\s*\w+\.dataset\.systemTab",
+        app_js,
+    )
 
 
 def test_system_center_status_and_event_filter_contract() -> None:
@@ -139,45 +173,62 @@ def test_system_center_status_and_event_filter_contract() -> None:
         "['info', '信息']",
     ):
         assert option in source
-    assert "option.setAttribute('role', 'option');" in source
-    assert "option.setAttribute('aria-selected', String(selected));" in source
+    assert re.search(r"\w+\.setAttribute\(['\"]role['\"]\s*,\s*['\"]option['\"]\)", source)
+    assert re.search(r"\w+\.setAttribute\(['\"]aria-selected['\"]\s*,\s*String\([^)]*\)\)", source)
     assert "codicon-check" in source
-    assert source.count("closeResourceEventFilters();") >= 3
-    assert "openResourceEventFilter" in source
-    filter_controls = source[
-        source.index("const RESOURCE_EVENT_FILTERS") : source.index("function normalizeTimestamp")
-    ]
-    assert "addEventListener('click'" in filter_controls
-    assert "pollResourceEvents();" in filter_controls
-    assert "document.addEventListener('click'" in filter_controls
-    assert "trigger.contains(event.target)" in filter_controls
-    assert "menu.contains(event.target)" in filter_controls
+    filter_renderer = _function_body(source, "renderResourceEventFilters")
+    assert "addEventListener('click'" in filter_renderer
+    assert "pollResourceEvents();" in filter_renderer
+    assert "closeResourceEventFilters();" in filter_renderer
+    filter_state = re.search(
+        r"(?:const|let)\s+(?P<state>\w+)\s*=\s*\{\s*status\s*:\s*['\"]all['\"]",
+        source,
+    )
+    assert filter_state
     assert re.search(
-        r"!\s*trigger\.contains\(event\.target\).*?!\s*menu\.contains\(event\.target\).*?closeResourceEventFilters\(\)",
-        filter_controls,
+        rf"{filter_state.group('state')}\[[^]]+\]\s*=\s*[^;]+;[\s\S]*?renderResourceEventFilters\(\);[\s\S]*?pollResourceEvents\(\);[\s\S]*?closeResourceEventFilters\(\);",
+        filter_renderer,
         re.DOTALL,
     )
+    controls = _function_body(source, "bindControls")
     assert re.search(
-        r"\w+\.addEventListener\('click',\s*\(\)\s*=>\s*\{[\s\S]*?resourceEventFilterState\[kind\]\s*=\s*value;[\s\S]*?renderResourceEventFilters\(\);[\s\S]*?pollResourceEvents\(\);[\s\S]*?closeResourceEventFilters\(\);",
-        filter_controls,
+        r"document\.addEventListener\(['\"]click['\"][\s\S]*?\.contains\(event\.target\)[\s\S]*?closeResourceEventFilters\(\)",
+        controls,
+        re.DOTALL,
     )
-    keyboard_handler = _function_region(source, "handleDrawerKeydown", "resizeResourceCharts")
+    keyboard_handler = _function_body(source, "handleDrawerKeydown")
     assert "event.key === 'Escape'" in keyboard_handler
     assert "closeResourceEventFilters()" in keyboard_handler
-    event_renderer = source[
-        source.index("function renderResourceEvents") : source.index("function renderEventList")
-    ]
+    event_renderer = _function_body(source, "renderResourceEvents")
     assert "renderStatus(publicStatus(points.at(-1)?.status));" in event_renderer
-    status_renderer = _function_region(source, "renderStatus", "renderSummary")
-    assert "const pending = resourceEvents.filter(event => event.status !== 'resolved');" in status_renderer
-    assert "const unavailable = publicStatus(code) === 'unavailable';" in status_renderer
-    assert "if (!unavailable && pending.length === 0)" in status_renderer
-    assert "status.hidden = true;" in status_renderer
-    assert "status.textContent = '';" in status_renderer
-    assert "status.hidden = false;" in status_renderer
+    status_renderer = _function_body(source, "renderStatus")
+    status_element = re.search(
+        r"(?:const|let)\s+(?P<element>\w+)\s*=\s*document\.getElementById\(['\"]resource-monitor-status['\"]\)",
+        status_renderer,
+    )
+    assert status_element
+    pending_match = re.search(
+        r"(?:const|let)\s+(?P<pending>\w+)\s*=\s*resourceEvents\.filter\([^)]*status\s*!==\s*['\"]resolved['\"]",
+        status_renderer,
+    )
+    unavailable_match = re.search(
+        r"(?:const|let)\s+(?P<unavailable>\w+)\s*=\s*publicStatus\(code\)\s*===\s*['\"]unavailable['\"]",
+        status_renderer,
+    )
+    assert pending_match and unavailable_match
+    hidden_branch = re.search(
+        rf"if\s*\(\s*!\s*{unavailable_match.group('unavailable')}\s*&&\s*{pending_match.group('pending')}\.length\s*===\s*0\s*\)\s*\{{(?P<body>[\s\S]*?)\}}",
+        status_renderer,
+    )
+    assert hidden_branch
+    assert f"{status_element.group('element')}.hidden = true;" in hidden_branch.group("body")
+    assert f"{status_element.group('element')}.textContent = '';" in hidden_branch.group("body")
+    assert "return;" in hidden_branch.group("body")
+    assert f"{status_element.group('element')}.hidden = false;" in status_renderer
     assert "采样暂不可用，保留上一帧数据" in status_renderer
     assert "个待处理异常" in status_renderer
     assert "ok" not in status_renderer
+    assert "degraded" not in status_renderer
 
 
 def test_system_center_preserves_minimal_configuration_form_and_api_contract() -> None:
@@ -260,18 +311,24 @@ def test_resource_monitor_module_handles_lifecycle_bounds_and_safe_process_dom()
     assert "异常历史暂不可用，保留上一份记录" in source
     assert "function isFieldUnavailable" in source
     assert "当前平台不支持" in source
-    event_builder = source[
-        source.index("function createResourceEvent") : source.index("function sourceScopeLabel")
-    ]
+    event_builder = _function_body(source, "createResourceEvent")
     assert "resource-event-row" in event_builder
     assert "resource-event-info" in event_builder
     assert "resource-event-actions" in event_builder
-    append_info_then_actions = (
-        "item.append(info);" in event_builder
-        and "item.append(actions);" in event_builder
-        and event_builder.rindex("item.append(actions);") > event_builder.rindex("item.append(info);")
+    event_root = re.search(
+        r"(?:const|let)\s+(?P<root>\w+)\s*=\s*document\.createElement\([^)]*\)",
+        event_builder,
     )
-    assert "item.append(info, actions);" in event_builder or append_info_then_actions
+    action_container = re.search(
+        r"(?P<actions>\w+)\.(?:className\s*=\s*['\"][^'\"]*resource-event-actions|classList\.add\([^)]*['\"]resource-event-actions)",
+        event_builder,
+    )
+    assert event_root and action_container
+    append_calls = re.findall(
+        rf"{event_root.group('root')}\.(?:append|appendChild)\((?P<children>[^;]+)\);",
+        event_builder,
+    )
+    assert append_calls and action_container.group("actions") in append_calls[-1]
 
 
 def test_resource_monitor_styles_keep_dense_responsive_tables_and_charts() -> None:
@@ -302,9 +359,11 @@ def test_resource_monitor_styles_keep_dense_responsive_tables_and_charts() -> No
     assert ".resource-event-row .resource-event-info" in style
     assert ".resource-event-row .resource-event-actions" in style
     assert ".resource-monitor-status[hidden]" in style
+    mobile_rules = style[style.rfind("@media (max-width: 900px)") :]
+    assert re.search(r"\.resource-event-row\s*\{[^}]*grid-template-columns:\s*1fr", mobile_rules)
     assert re.search(
-        r"@media \(max-width: 900px\)[\s\S]*?\.resource-event-row\s*\{[\s\S]*?grid-template-columns:\s*1fr",
-        style,
+        r"\.resource-event-row\s+\.resource-event-actions\s*\{[^}]*(?:justify-self:\s*end|justify-content:\s*flex-end)",
+        mobile_rules,
     )
     assert 'strong[data-resource-summary="host-memory"]' in style
     assert "white-space: normal" in style
