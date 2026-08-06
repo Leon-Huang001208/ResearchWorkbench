@@ -46,7 +46,6 @@
                 <button class="activity-btn" data-section="commentary" title="点评生产"><i class="codicon codicon-comment-discussion"></i><span>点评生产</span></button>
                 <button class="activity-btn active" data-section="templates" title="模板管理"><i class="codicon codicon-file-code"></i><span>报告生产</span></button>
                 <button class="activity-btn" data-section="pipeline-monitor" title="管线监控"><i class="codicon codicon-pulse"></i><span>运行监控</span></button>
-                <button class="activity-btn" data-section="resource-monitor" title="系统监控"><i class="codicon codicon-dashboard"></i><span>系统监控</span></button>
                 <button class="activity-btn" data-section="event-signal" title="事件信号"><i class="codicon codicon-zap"></i><span>事件信号</span></button>
                 <button class="activity-btn" data-section="signals" title="信号管理"><i class="codicon codicon-pulse"></i><span>信号管理</span></button>
                 <button class="activity-btn" data-section="memory" title="记忆与学习"><i class="codicon codicon-lightbulb"></i><span>记忆学习</span></button>
@@ -59,7 +58,7 @@
                 <button class="activity-btn" data-section="ingest" title="文档摄入"><i class="codicon codicon-cloud-download"></i><span>文档摄入</span></button>
             </div>
             <div class="activity-bar-bottom">
-                <button class="activity-btn" data-section="config" title="系统配置"><i class="codicon codicon-settings"></i><span>系统配置</span></button>
+                <button class="activity-btn" data-section="system" title="系统"><i class="codicon codicon-settings"></i><span>系统</span></button>
                 <button class="activity-btn" id="btn-settings" title="设置"><i class="codicon codicon-settings-gear"></i><span>设置</span></button>
             </div>
         </aside>
@@ -862,12 +861,16 @@
 
             <!-- Resource Monitor Section -->
             <section id="section-resource-monitor" class="content-section" aria-labelledby="resource-monitor-title">
+                <div class="system-center-tabs" role="tablist" aria-label="系统中心">
+                    <button class="system-center-tab active" type="button" role="tab" data-system-tab="resource-monitor" aria-controls="section-resource-monitor" aria-selected="true" tabindex="0">资源与异常</button>
+                    <button class="system-center-tab" type="button" role="tab" data-system-tab="config" aria-controls="section-config" aria-selected="false" tabindex="-1">系统配置</button>
+                </div>
                 <div class="resource-monitor-header">
                     <div>
-                        <h2 id="resource-monitor-title" class="section-title">系统监控</h2>
-                        <p>仅监控 AlphaFoundry API 及其子进程</p>
+                        <h2 id="resource-monitor-title" class="section-title">系统中心</h2>
+                        <p>本机资源、异常与运行配置</p>
                     </div>
-                    <span id="resource-monitor-status" class="resource-monitor-status" aria-live="polite">warming_up</span>
+                    <span id="resource-monitor-status" class="resource-monitor-status" aria-live="polite" hidden></span>
                 </div>
 
                 <div id="resource-monitor-summary" class="resource-monitor-summary" aria-label="AlphaFoundry 与整机容量摘要">
@@ -1346,6 +1349,10 @@
             <section id="section-config" class="content-section configuration-page" aria-labelledby="config-page-title">
                 <div class="configuration-header">
                     <div>
+                        <div class="system-center-tabs" role="tablist" aria-label="系统中心">
+                            <button class="system-center-tab" type="button" role="tab" data-system-tab="resource-monitor" aria-controls="section-resource-monitor" aria-selected="false" tabindex="-1">资源与异常</button>
+                            <button class="system-center-tab active" type="button" role="tab" data-system-tab="config" aria-controls="section-config" aria-selected="true" tabindex="0">系统配置</button>
+                        </div>
                         <span class="config-header-kicker">控制台</span>
                         <h2 class="section-title" id="config-page-title">系统配置</h2>
                         <p>集中管理模型、数据连接与运行参数。</p>

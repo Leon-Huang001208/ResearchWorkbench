@@ -196,6 +196,7 @@ window.chartScenarioProb = null;
 // ─── Navigation ──────────────────────────────────────────────
 let setupRequiredNavigationGate = false;
 let setupReadinessResolved = false;
+const SYSTEM_TABS = new Set(['resource-monitor', 'config']);
 
 function activateSetupRequiredNavigationGate() {
     setupRequiredNavigationGate = true;
@@ -209,19 +210,40 @@ function showSetupNavigationBlockedMessage() {
     console.warn('[app] blocked navigation while database setup is required');
 }
 
-function navigateTo(section) {
-    if ((!setupReadinessResolved || setupRequiredNavigationGate) && section !== 'config') {
+function systemTarget(section, requestedTab = null) {
+    if (section !== 'system') return section;
+    return SYSTEM_TABS.has(requestedTab) ? requestedTab : 'resource-monitor';
+}
+
+function setSystemTab(section) {
+    document.querySelectorAll('[data-system-tab]').forEach(button => {
+        const selected = button.dataset.systemTab === section;
+        button.classList.toggle('active', selected);
+        button.setAttribute('aria-selected', String(selected));
+        button.tabIndex = selected ? 0 : -1;
+    });
+    localStorage.setItem('af-system-tab', section);
+}
+
+function navigateTo(section, options = {}) {
+    const targetSection = systemTarget(section, options.systemTab);
+    if ((!setupReadinessResolved || setupRequiredNavigationGate) && targetSection !== 'config') {
         showSetupNavigationBlockedMessage();
         return false;
     }
     document.querySelectorAll('.activity-btn[data-section]').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.content-section').forEach(p => p.classList.remove('active'));
     document.querySelectorAll(`.activity-btn[data-section="${section}"]`).forEach(b => b.classList.add('active'));
-    const sectionEl = document.getElementById(`section-${section}`);
+    const sectionEl = document.getElementById(`section-${targetSection}`);
     if (sectionEl) sectionEl.classList.add('active');
-    localStorage.setItem('af-active-section', section);
+    if (section === 'system') {
+        localStorage.setItem('af-active-section', 'system');
+        setSystemTab(targetSection);
+    } else {
+        localStorage.setItem('af-active-section', section);
+    }
 
-    if (section === 'dashboard') {
+    if (targetSection === 'dashboard') {
         loadDashboard();
         startCrawlFeedPolling();
         startWorkersPolling();
@@ -229,26 +251,37 @@ function navigateTo(section) {
         stopCrawlFeedPolling();
         stopWorkersPolling();
     }
-    if (section === 'signals') loadSignals();
-    if (section === 'review') { loadReviewStats(); loadReviewPending(); }
-    if (section === 'memory') loadMemoryPage();
-    if (section === 'outcomes') loadOutcomes();
-    if (section === 'signal-lab') loadSignalLab();
-    if (section === 'templates') loadTemplatesPage();
-    if (section === 'commentary') initCommentaryCenter();
-    if (section === 'wind') initWindPanel();
-    if (section === 'funds') initFundsPanel();
-    if (section === 'pipeline-monitor') renderPipelineMonitor();
-    if (section === 'resource-monitor') startResourceMonitoring();
-    if (section === 'config') initConfigurationPage();
+    if (targetSection === 'signals') loadSignals();
+    if (targetSection === 'review') { loadReviewStats(); loadReviewPending(); }
+    if (targetSection === 'memory') loadMemoryPage();
+    if (targetSection === 'outcomes') loadOutcomes();
+    if (targetSection === 'signal-lab') loadSignalLab();
+    if (targetSection === 'templates') loadTemplatesPage();
+    if (targetSection === 'commentary') initCommentaryCenter();
+    if (targetSection === 'wind') initWindPanel();
+    if (targetSection === 'funds') initFundsPanel();
+    if (targetSection === 'pipeline-monitor') renderPipelineMonitor();
     else stopPipelinePolling();
-    if (section !== 'resource-monitor') stopResourceMonitoring();
+    if (targetSection === 'resource-monitor') startResourceMonitoring();
+    if (targetSection === 'config') initConfigurationPage();
+    if (targetSection !== 'resource-monitor') stopResourceMonitoring();
     return true;
 }
 window.navigateTo = navigateTo;
 
 function getInitialSection() {
     const savedSection = localStorage.getItem('af-active-section');
+    if (savedSection === 'resource-monitor' || savedSection === 'config') {
+        localStorage.setItem('af-system-tab', savedSection);
+        localStorage.setItem('af-active-section', 'system');
+        return 'system';
+    }
+    if (savedSection === 'system') {
+        const savedSystemTab = localStorage.getItem('af-system-tab');
+        const initialSystemTab = SYSTEM_TABS.has(savedSystemTab) ? savedSystemTab : 'resource-monitor';
+        localStorage.setItem('af-system-tab', initialSystemTab);
+        return 'system';
+    }
     if (savedSection && document.getElementById(`section-${savedSection}`)) {
         return savedSection;
     }
@@ -348,9 +381,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.querySelectorAll('.activity-btn[data-section]').forEach(btn => {
         btn.addEventListener('click', () => navigateTo(btn.dataset.section));
     });
+    document.querySelectorAll('[data-system-tab]').forEach(button => {
+        button.addEventListener('click', () => {
+            navigateTo('system', { systemTab: button.dataset.systemTab });
+        });
+    });
 
     document.addEventListener('alphafoundry:open-database-configuration', () => {
-        navigateTo('config');
+        navigateTo('system', { systemTab: 'config' });
     });
 
     let setupMode = false;
@@ -364,7 +402,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupReadinessResolved = true;
     if (setupMode) {
         activateSetupRequiredNavigationGate();
-        navigateTo('config');
+        navigateTo('system', { systemTab: 'config' });
         return;
     }
 
@@ -416,7 +454,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     initSignalLab();
 
     connectSSE();
-    navigateTo(getInitialSection());
+    const initialSection = getInitialSection();
+    const initialSystemTab = localStorage.getItem('af-system-tab');
+    navigateTo(initialSection, { systemTab: initialSystemTab });
     updateStatusBar();
     setInterval(updateStatusBar, 30000);
 });

@@ -74,7 +74,7 @@ def test_system_center_navigation_and_semantic_dom_contract() -> None:
         r'<button[^>]*data-system-tab="resource-monitor"[^>]*aria-selected="true"',
         template,
     )
-    assert "仅监控 AlphaFoundry API 及其子进程" in template
+    assert "本机资源、异常与运行配置" in template
     for summary_key in (
         "alpha-cpu",
         "host-cpu",
@@ -145,15 +145,13 @@ def test_system_center_navigation_preserves_monitor_lifecycle_contract() -> None
     initial_navigation = _function_body(app_js, "getInitialSection")
     assert re.search(r"localStorage\.setItem\(['\"]af-system-tab['\"]\s*,\s*\w+\s*\)", initial_navigation)
     assert "return 'system';" in initial_navigation
-    direct_initial_tab_navigation = re.search(
-        r"navigateTo\(\s*getInitialSection\(\)\s*,\s*\{\s*systemTab:\s*localStorage\.getItem\('af-system-tab'\)",
+    initial_navigation = re.search(
+        r"const\s+(?P<section>\w+)\s*=\s*getInitialSection\(\);\s*"
+        r"const\s+initialSystemTab\s*=\s*localStorage\.getItem\('af-system-tab'\);[\s\S]*?"
+        r"navigateTo\(\s*(?P=section)\s*,\s*\{\s*systemTab:\s*initialSystemTab\s*}\s*\)",
         app_js,
     )
-    named_initial_tab_navigation = re.search(
-        r"const\s+initialSystemTab\s*=\s*localStorage\.getItem\('af-system-tab'\);[\s\S]*?navigateTo\(\s*getInitialSection\(\)\s*,\s*\{\s*systemTab:\s*initialSystemTab\s*}\s*\)",
-        app_js,
-    )
-    assert direct_initial_tab_navigation or named_initial_tab_navigation
+    assert initial_navigation
     assert re.search(
         r"\[data-system-tab\][\s\S]*?addEventListener\(['\"]click['\"][\s\S]*?navigateTo\(\s*['\"]system['\"]\s*,\s*\{\s*systemTab:\s*\w+\.dataset\.systemTab",
         app_js,
