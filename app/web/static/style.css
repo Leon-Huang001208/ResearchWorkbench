@@ -13899,9 +13899,9 @@ tbody tr:hover {
     background: var(--apple-accent-light, rgba(245, 158, 11, .1));
 }
 
-#section-resource-monitor .resource-event-row:focus-visible {
+#section-resource-monitor .resource-event-row .resource-event-content strong[data-resource-event-title-anchor="true"]:focus-visible {
     outline: 2px solid var(--apple-accent, var(--accent));
-    outline-offset: -2px;
+    outline-offset: 2px;
 }
 
 #section-resource-monitor .resource-event-row .resource-event-content {

@@ -50,6 +50,7 @@ let sortKey = 'cpu';
 let sortDirection = -1;
 let resourceEventFilterState = { status: 'all', severity: '' };
 let openResourceEventFilter = null;
+let resourceFilterFocusFrame = null;
 const processCache = new Map();
 const processTrends = new Map();
 
@@ -86,6 +87,7 @@ export function stopResourceMonitoring() {
         document.removeEventListener('keydown', handleDrawerKeydown);
         keyboardListenerAttached = false;
     }
+    clearResourceEventFilterFocusFrame();
     closeResourceEventFilters({ restoreFocus: false });
     if (filterOutsideListenerAttached) {
         document.removeEventListener('click', resourceFilterOutsideListener);
@@ -500,7 +502,6 @@ function createResourceEvent(event, isPinned) {
     const severity = ['critical', 'warning', 'info'].includes(event.severity) ? event.severity : 'warning';
     item.className = 'resource-event resource-event-row';
     item.classList.add(`resource-event-${severity}`);
-    item.tabIndex = 0;
     const content = document.createElement('div');
     content.className = 'resource-event-content';
     const title = document.createElement('strong');
@@ -518,6 +519,12 @@ function createResourceEvent(event, isPinned) {
         if (event.status === 'open') actions.append(createEventAction('确认', event.alert_id, 'acknowledge'));
         if (event.status !== 'resolved') actions.append(createEventAction('解决', event.alert_id, 'resolve'));
         if (actions.childElementCount) item.append(actions);
+        else {
+            title.tabIndex = 0;
+            title.dataset.resourceEventTitleAnchor = 'true';
+            title.setAttribute('role', 'heading');
+            title.setAttribute('aria-level', '4');
+        }
     }
     return item;
 }
@@ -578,7 +585,9 @@ function renderStatus(code) {
 function focusPinnedResourceEvents() {
     const container = document.getElementById('resource-monitor-pinned-events');
     if (!container) return;
-    const target = container.querySelector('.resource-event-row') || container;
+    const target = container.querySelector('.resource-event-actions button')
+        || container.querySelector('[data-resource-event-title-anchor="true"]');
+    if (!target) return;
     container.scrollIntoView({ behavior: 'smooth', block: 'center' });
     target.focus({ preventScroll: true });
 }
@@ -938,6 +947,7 @@ function toggleResourceEventFilter(kind) {
 function closeResourceEventFilters({ restoreFocus = true } = {}) {
     if (openResourceEventFilter === null) return;
     const previousKind = openResourceEventFilter;
+    clearResourceEventFilterFocusFrame();
     openResourceEventFilter = null;
     renderResourceEventFilters();
     if (restoreFocus) focusResourceEventFilterTrigger(previousKind);
@@ -958,6 +968,10 @@ function renderResourceEventFilters() {
         trigger.setAttribute('aria-expanded', String(isOpen));
         trigger.classList.toggle('is-open', isOpen);
         menu.hidden = !isOpen;
+        if (menu.dataset.resourceFilterKeysBound !== 'true') {
+            menu.addEventListener('keydown', event => handleResourceEventFilterKeydown(event));
+            menu.dataset.resourceFilterKeysBound = 'true';
+        }
 
         const fragment = document.createDocumentFragment();
         options.forEach(([optionValue, optionLabel]) => {
@@ -988,19 +1002,68 @@ function renderResourceEventFilters() {
 }
 
 function focusOpenResourceEventFilterOption(kind) {
+    clearResourceEventFilterFocusFrame();
     const menu = document.querySelector(`[data-resource-filter-menu="${kind}"]`);
     const option = menu?.querySelector('[aria-selected="true"]') || menu?.querySelector('[role="option"]');
-    requestAnimationFrame(() => option?.focus());
+    const trigger = document.querySelector(`[data-resource-filter-trigger="${kind}"]`);
+    if (!menu || !option || !trigger) return;
+    resourceFilterFocusFrame = requestAnimationFrame(() => {
+        resourceFilterFocusFrame = null;
+        if (
+            openResourceEventFilter !== kind
+            || !isVisibleResourceElement(menu)
+            || !isVisibleResourceElement(option)
+            || !isVisibleResourceElement(trigger)
+        ) return;
+        option.focus();
+    });
 }
 
 function focusResourceEventFilterTrigger(kind) {
+    clearResourceEventFilterFocusFrame();
     const trigger = document.querySelector(`[data-resource-filter-trigger="${kind}"]`);
-    requestAnimationFrame(() => trigger?.focus());
+    if (!trigger) return;
+    resourceFilterFocusFrame = requestAnimationFrame(() => {
+        resourceFilterFocusFrame = null;
+        if (!isVisibleResourceElement(trigger)) return;
+        trigger.focus();
+    });
 }
 
 function shouldPreserveOutsideClickFocus(target) {
     return target instanceof Element
         && target.closest('a, button, input, select, textarea, [tabindex]:not([tabindex="-1"])') !== null;
+}
+
+function handleResourceEventFilterKeydown(event) {
+    const menu = event.currentTarget;
+    const options = [...menu.querySelectorAll('[role="option"]')];
+    if (!options.length) return;
+    const focusedIndex = Math.max(0, options.indexOf(document.activeElement));
+    let nextIndex = null;
+    if (event.key === 'ArrowDown') nextIndex = (focusedIndex + 1) % options.length;
+    if (event.key === 'ArrowUp') nextIndex = (focusedIndex - 1 + options.length) % options.length;
+    if (event.key === 'Home') nextIndex = 0;
+    if (event.key === 'End') nextIndex = options.length - 1;
+    if (nextIndex !== null) {
+        event.preventDefault();
+        options[nextIndex].focus();
+        return;
+    }
+    if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        options[focusedIndex].click();
+    }
+}
+
+function clearResourceEventFilterFocusFrame() {
+    if (resourceFilterFocusFrame === null) return;
+    cancelAnimationFrame(resourceFilterFocusFrame);
+    resourceFilterFocusFrame = null;
+}
+
+function isVisibleResourceElement(element) {
+    return element.isConnected && !element.hidden && element.getClientRects().length > 0;
 }
 
 function normalizeTimestamp(value) {

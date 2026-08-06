@@ -271,6 +271,9 @@ def test_system_center_status_and_event_filter_contract() -> None:
     assert "function focusPinnedResourceEvents" in source
     assert "scrollIntoView" in source
     assert "focus({ preventScroll: true })" in source
+    pinned_focus = _function_body(source, "focusPinnedResourceEvents")
+    assert re.search(r"resource-event-actions\s+button", pinned_focus)
+    assert "resource-event-title-anchor" in pinned_focus
     assert not re.search(
         rf"{status_element.group('element')}\.textContent\s*=\s*publicStatus\(",
         status_renderer,
@@ -281,7 +284,23 @@ def test_system_center_status_and_event_filter_contract() -> None:
     assert "focusResourceEventFilterTrigger" in close_filters
     assert "function focusOpenResourceEventFilterOption" in source
     assert "requestAnimationFrame" in source
-    assert "option?.focus()" in source
+    assert re.search(r"\boption\.focus\(\)", source)
+    filter_keyboard = _function_body(source, "handleResourceEventFilterKeydown")
+    for key in ("ArrowDown", "ArrowUp", "Home", "End", "Enter"):
+        assert re.search(rf"event\.key\s*===\s*['\"]{key}['\"]", filter_keyboard)
+    assert re.search(r"event\.key\s*===\s*['\"] ['\"]", filter_keyboard)
+    assert filter_keyboard.count("event.preventDefault()") >= 2
+    assert re.search(r"options\[nextIndex\]\.focus\(\)", filter_keyboard)
+    assert re.search(r"options\[focusedIndex\]\.click\(\)", filter_keyboard)
+    open_filter_focus = _function_body(source, "focusOpenResourceEventFilterOption")
+    assert "resourceFilterFocusFrame" in open_filter_focus
+    assert "openResourceEventFilter !== kind" in open_filter_focus
+    assert "isVisibleResourceElement" in open_filter_focus
+    clear_filter_focus = _function_body(source, "clearResourceEventFilterFocusFrame")
+    assert "cancelAnimationFrame" in clear_filter_focus
+    stop_monitoring = _function_body(source, "stopResourceMonitoring")
+    assert "clearResourceEventFilterFocusFrame" in stop_monitoring
+    assert "clearResourceEventFilterFocusFrame" in close_filters
 
 
 def test_system_center_preserves_minimal_configuration_form_and_api_contract() -> None:
@@ -369,6 +388,8 @@ def test_resource_monitor_module_handles_lifecycle_bounds_and_safe_process_dom()
     assert "resource-event-${severity}" in event_builder
     assert "resource-event-content" in event_builder
     assert "resource-event-actions" in event_builder
+    assert not re.search(r"\bitem\.tabIndex\s*=\s*0", event_builder)
+    assert "resourceEventTitleAnchor" in event_builder
     event_root = re.search(
         r"(?:const|let)\s+(?P<root>\w+)\s*=\s*document\.createElement\([^)]*\)",
         event_builder,
