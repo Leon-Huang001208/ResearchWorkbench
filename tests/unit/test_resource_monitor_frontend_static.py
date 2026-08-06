@@ -77,6 +77,12 @@ def test_system_center_navigation_preserves_monitor_lifecycle_contract() -> None
     assert "af-system-tab" in app_js
     assert "data-system-tab" in app_js
     assert "navigateTo('system', { systemTab: 'config' })" in app_js
+    assert "return SYSTEM_TABS.has(requestedTab) ? requestedTab : 'resource-monitor';" in app_js
+    assert "const targetSection = systemTarget(section, options.systemTab);" in app_js
+    assert "if (targetSection === 'resource-monitor') startResourceMonitoring();" in app_js
+    assert "if (targetSection !== 'resource-monitor') stopResourceMonitoring();" in app_js
+    assert "if (savedSection === 'resource-monitor' || savedSection === 'config')" in app_js
+    assert "localStorage.setItem('af-active-section', 'system');" in app_js
 
 
 def test_system_center_status_and_event_filter_contract() -> None:
@@ -94,15 +100,43 @@ def test_system_center_status_and_event_filter_contract() -> None:
         assert f'data-resource-filter-label="{kind}"' in template
     assert 'aria-haspopup="listbox"' in template
     assert 'role="listbox"' in template
+    assert 'aria-expanded="false"' in template
     assert "function toggleResourceEventFilter" in source
     assert "function closeResourceEventFilters" in source
     assert "function renderResourceEventFilters" in source
     assert "RESOURCE_EVENT_FILTERS" in source
-    assert "aria-selected" in source
+    for option in (
+        "['all', '全部']",
+        "['open', '未确认']",
+        "['acknowledged', '已确认']",
+        "['resolved', '已解决']",
+        "['', '全部']",
+        "['critical', '严重']",
+        "['warning', '警告']",
+        "['info', '信息']",
+    ):
+        assert option in source
+    assert "option.setAttribute('role', 'option');" in source
+    assert "option.setAttribute('aria-selected', String(selected));" in source
+    assert "codicon-check" in source
+    assert "document.addEventListener('click'" in source
+    assert source.count("closeResourceEventFilters();") >= 3
     assert "采样暂不可用，保留上一帧数据" in source
     assert "个待处理异常" in source
     assert "status.hidden = true;" in source
+    assert "status.textContent = '';" in source
     assert "openResourceEventFilter" in source
+    filter_controls = source[
+        source.index("function toggleResourceEventFilter") : source.index("function normalizeTimestamp")
+    ]
+    assert "addEventListener('click'" in filter_controls
+    assert "pollResourceEvents();" in filter_controls
+    event_renderer = source[
+        source.index("function renderResourceEvents") : source.index("function renderEventList")
+    ]
+    assert "renderStatus(publicStatus(points.at(-1)?.status));" in event_renderer
+    assert "if (!unavailable && pending.length === 0)" in source
+    assert "status.hidden = false;" in source
 
 
 def test_resource_monitor_module_handles_lifecycle_bounds_and_safe_process_dom() -> None:
@@ -132,7 +166,6 @@ def test_resource_monitor_module_handles_lifecycle_bounds_and_safe_process_dom()
     )
     assert "if (sortKey !== nextKey)" in source
     assert "sortDirection = -1;" in source
-    assert "采样暂时不可用，保留上一帧数据" in source
     assert "已退出；保留最后一次采样信息" in source
     assert "historyVersion" in source
     assert "snapshotVersion" in source
@@ -169,7 +202,12 @@ def test_resource_monitor_module_handles_lifecycle_bounds_and_safe_process_dom()
     assert "异常历史暂不可用，保留上一份记录" in source
     assert "function isFieldUnavailable" in source
     assert "当前平台不支持" in source
-    assert "resource-event-row" in source
+    event_builder = source[
+        source.index("function createResourceEvent") : source.index("function sourceScopeLabel")
+    ]
+    assert "resource-event-row" in event_builder
+    assert "resource-event-actions" in event_builder
+    assert "item.append(actions);" in event_builder
 
 
 def test_resource_monitor_styles_keep_dense_responsive_tables_and_charts() -> None:
@@ -197,6 +235,11 @@ def test_resource_monitor_styles_keep_dense_responsive_tables_and_charts() -> No
     assert ".resource-filter-menu" in style
     assert ".resource-filter-option" in style
     assert ".resource-event-row" in style
+    assert ".resource-event-row .resource-event-actions" in style
     assert ".resource-monitor-status[hidden]" in style
+    assert re.search(
+        r"@media \(max-width: 900px\)[\s\S]*?\.resource-event-row\s*\{[\s\S]*?grid-template-columns:\s*1fr",
+        style,
+    )
     assert 'strong[data-resource-summary="host-memory"]' in style
     assert "white-space: normal" in style
