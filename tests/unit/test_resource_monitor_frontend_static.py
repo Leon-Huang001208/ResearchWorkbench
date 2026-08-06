@@ -210,7 +210,7 @@ def test_system_center_status_and_event_filter_contract() -> None:
     )
     controls = _function_body(source, "bindControls")
     assert re.search(
-        r"document\.addEventListener\(['\"]click['\"][\s\S]*?!\s*\w*trigger\w*\.contains\(event\.target\)[\s\S]*?!\s*\w*menu\w*\.contains\(event\.target\)[\s\S]*?closeResourceEventFilters\(\)",
+        r"document\.addEventListener\(['\"]click['\"][\s\S]*?!\s*\w*trigger\w*\.contains\(event\.target\)\s*&&\s*!\s*\w*menu\w*\.contains\(event\.target\)[\s\S]*?closeResourceEventFilters\(\)",
         controls,
         re.DOTALL,
     )
@@ -340,15 +340,24 @@ def test_resource_monitor_module_handles_lifecycle_bounds_and_safe_process_dom()
         r"(?:const|let)\s+(?P<root>\w+)\s*=\s*document\.createElement\([^)]*\)",
         event_builder,
     )
+    info_container = re.search(
+        r"(?P<info>\w+)\.(?:className\s*=\s*['\"][^'\"]*resource-event-info|classList\.add\([^)]*['\"]resource-event-info)",
+        event_builder,
+    )
     action_container = re.search(
         r"(?P<actions>\w+)\.(?:className\s*=\s*['\"][^'\"]*resource-event-actions|classList\.add\([^)]*['\"]resource-event-actions)",
         event_builder,
     )
-    assert event_root and action_container
+    assert event_root and info_container and action_container
+    assert re.search(
+        rf"{event_root.group('root')}\.(?:className\s*=\s*['\"][^'\"]*resource-event-row|classList\.add\([^)]*['\"]resource-event-row)",
+        event_builder,
+    )
     append_calls = re.findall(
         rf"{event_root.group('root')}\.(?:append|appendChild)\((?P<children>[^;]+)\);",
         event_builder,
     )
+    assert any(info_container.group("info") in children for children in append_calls)
     assert any(action_container.group("actions") in children for children in append_calls)
 
 
