@@ -6,6 +6,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 
 
+def _function_region(source: str, name: str, next_name: str) -> str:
+    """Return a named JavaScript function through the next known declaration."""
+    start = source.find(f"function {name}")
+    end = source.find(f"function {next_name}", start + 1)
+    assert start >= 0, f"resource-monitor.js must declare {name}()"
+    assert end >= 0, f"resource-monitor.js must declare {next_name}() after {name}()"
+    return source[start:end]
+
+
 def test_system_center_navigation_and_semantic_dom_contract() -> None:
     template = (ROOT / "app/web/templates/index.html").read_text(encoding="utf-8")
 
@@ -83,6 +92,9 @@ def test_system_center_navigation_preserves_monitor_lifecycle_contract() -> None
     assert "if (targetSection !== 'resource-monitor') stopResourceMonitoring();" in app_js
     assert "if (savedSection === 'resource-monitor' || savedSection === 'config')" in app_js
     assert "localStorage.setItem('af-active-section', 'system');" in app_js
+    initial_navigation = _function_region(app_js, "getInitialSection", "connectSSE")
+    assert "localStorage.setItem('af-system-tab', savedSection);" in initial_navigation
+    assert "return 'system';" in initial_navigation
 
 
 def test_system_center_status_and_event_filter_contract() -> None:
@@ -119,24 +131,55 @@ def test_system_center_status_and_event_filter_contract() -> None:
     assert "option.setAttribute('role', 'option');" in source
     assert "option.setAttribute('aria-selected', String(selected));" in source
     assert "codicon-check" in source
-    assert "document.addEventListener('click'" in source
     assert source.count("closeResourceEventFilters();") >= 3
-    assert "采样暂不可用，保留上一帧数据" in source
-    assert "个待处理异常" in source
-    assert "status.hidden = true;" in source
-    assert "status.textContent = '';" in source
     assert "openResourceEventFilter" in source
     filter_controls = source[
-        source.index("function toggleResourceEventFilter") : source.index("function normalizeTimestamp")
+        source.index("const RESOURCE_EVENT_FILTERS") : source.index("function normalizeTimestamp")
     ]
     assert "addEventListener('click'" in filter_controls
     assert "pollResourceEvents();" in filter_controls
+    assert "document.addEventListener('click'" in filter_controls
+    assert "trigger.contains(event.target)" in filter_controls
+    assert "menu.contains(event.target)" in filter_controls
+    assert re.search(
+        r"!\s*trigger\.contains\(event\.target\).*?!\s*menu\.contains\(event\.target\).*?closeResourceEventFilters\(\)",
+        filter_controls,
+        re.DOTALL,
+    )
+    keyboard_handler = _function_region(source, "handleDrawerKeydown", "resizeResourceCharts")
+    assert "event.key === 'Escape'" in keyboard_handler
+    assert "closeResourceEventFilters()" in keyboard_handler
     event_renderer = source[
         source.index("function renderResourceEvents") : source.index("function renderEventList")
     ]
     assert "renderStatus(publicStatus(points.at(-1)?.status));" in event_renderer
-    assert "if (!unavailable && pending.length === 0)" in source
-    assert "status.hidden = false;" in source
+    status_renderer = _function_region(source, "renderStatus", "renderSummary")
+    assert "const pending = resourceEvents.filter(event => event.status !== 'resolved');" in status_renderer
+    assert "const unavailable = publicStatus(code) === 'unavailable';" in status_renderer
+    assert "if (!unavailable && pending.length === 0)" in status_renderer
+    assert "status.hidden = true;" in status_renderer
+    assert "status.textContent = '';" in status_renderer
+    assert "status.hidden = false;" in status_renderer
+    assert "采样暂不可用，保留上一帧数据" in status_renderer
+    assert "个待处理异常" in status_renderer
+    assert "ok" not in status_renderer
+
+
+def test_system_center_preserves_minimal_configuration_form_and_api_contract() -> None:
+    template = (ROOT / "app/web/templates/index.html").read_text(encoding="utf-8")
+    source = (ROOT / "app/web/static/js/configuration.js").read_text(encoding="utf-8")
+
+    assert '<section id="section-config" class="content-section configuration-page"' in template
+    for marker in (
+        "data-config-health-summary",
+        'data-config-card="database"',
+        'id="config-edit-modal"',
+    ):
+        assert marker in template
+    assert "data-config-form" in source
+    assert "export async function initConfigurationPage" in source
+    assert "configurationApiCall('GET', '/api/config'" in source
+    assert "configurationApiCall('PUT', `/api/config/${section}`, payload)" in source
 
 
 def test_resource_monitor_module_handles_lifecycle_bounds_and_safe_process_dom() -> None:
