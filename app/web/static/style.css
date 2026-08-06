@@ -13568,6 +13568,15 @@ tbody tr:hover {
     white-space: nowrap;
 }
 
+#section-resource-monitor .resource-summary-card strong[data-resource-summary="host-memory"] {
+    overflow: visible;
+    font-size: 14px;
+    line-height: 1.35;
+    text-align: left;
+    text-overflow: clip;
+    white-space: normal;
+}
+
 #section-resource-monitor .resource-monitor-auxiliary {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));

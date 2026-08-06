@@ -535,7 +535,8 @@ function renderStatus(code) {
 
 function renderSummary(summary) {
     const values = summary && typeof summary === 'object' ? summary : {};
-    const host = points.at(-1)?.host && typeof points.at(-1).host === 'object' ? points.at(-1).host : {};
+    const latest = points.at(-1);
+    const host = latest?.host && typeof latest.host === 'object' ? latest.host : {};
     const alphaCpuPercent = safeNumber(values.cpu_percent);
     const alphaCpuHostPercent = safeNumber(values.cpu_host_percent);
     const alphaMemoryBytes = safeNumber(values.memory_bytes);
@@ -560,10 +561,22 @@ function renderSummary(summary) {
         : `已用 ${formatBytes(hostMemoryUsed)} / ${formatBytes(hostMemoryTotal)} · 可用 ${formatBytes(hostMemoryAvailable)}`);
     setSummary(
         'disk',
-        `${formatRate(values.disk_read_bytes_per_second)} / ${formatRate(values.disk_write_bytes_per_second)}`,
+        isFieldUnavailable(latest, 'io_counters')
+            ? '当前平台不支持'
+            : `${formatRate(values.disk_read_bytes_per_second)} / ${formatRate(values.disk_write_bytes_per_second)}`,
     );
-    setSummary('connections', formatCount(values.network_connection_count));
+    setSummary(
+        'connections',
+        isFieldUnavailable(latest, 'network_connection_count')
+            ? '当前平台不支持'
+            : formatCount(values.network_connection_count),
+    );
     setSummary('sampled-at', points.at(-1) ? formatTime(points.at(-1).sampled_at) : '--');
+}
+
+function isFieldUnavailable(snapshot, field) {
+    return Array.isArray(snapshot?.warnings)
+        && snapshot.warnings.some(warning => warning?.code === 'field_unavailable' && warning.field === field);
 }
 
 function setSummary(key, value) {

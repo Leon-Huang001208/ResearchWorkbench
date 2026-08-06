@@ -47,9 +47,9 @@ def test_resource_monitor_module_cache_and_navigation_lifecycle_contract() -> No
     app_js = (ROOT / "app/web/static/js/app.js").read_text(encoding="utf-8")
     template = (ROOT / "app/web/templates/index.html").read_text(encoding="utf-8")
 
-    assert "/static/js/app.js?v=20260805resourcecapacity1" in template
+    assert "/static/js/app.js?v=20260806resourcecapability1" in template
     assert "/static/js/app.js?v=20260727modalhierarchy1" not in template
-    assert "./resource-monitor.js?v=20260805d" in app_js
+    assert "./resource-monitor.js?v=20260806a" in app_js
     assert "startResourceMonitoring" in app_js
     assert "stopResourceMonitoring" in app_js
     assert "if (section === 'resource-monitor') startResourceMonitoring();" in app_js
@@ -118,6 +118,8 @@ def test_resource_monitor_module_handles_lifecycle_bounds_and_safe_process_dom()
     assert "AlphaFoundry" in source
     assert "function updateResourceEvent" in source
     assert "异常历史暂不可用，保留上一份记录" in source
+    assert "function isFieldUnavailable" in source
+    assert "当前平台不支持" in source
 
 
 def test_resource_monitor_styles_keep_dense_responsive_tables_and_charts() -> None:
@@ -141,3 +143,5 @@ def test_resource_monitor_styles_keep_dense_responsive_tables_and_charts() -> No
     assert ".resource-detail-close" in style
     assert ".resource-event-critical" in style
     assert ".resource-event-filters" in style
+    assert 'strong[data-resource-summary="host-memory"]' in style
+    assert "white-space: normal" in style

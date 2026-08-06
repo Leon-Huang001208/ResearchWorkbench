@@ -715,7 +715,32 @@ def test_missing_optional_process_methods_are_degraded_without_raising(
     assert "network_connection_count:AttributeError" in process["unavailable_reason"]
 
 
-def test_incomplete_io_counters_are_degraded_without_raising(
+def test_legacy_psutil_connections_fallback_is_collected_without_degradation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class LegacyConnectionsProcess(FakeProcess):
+        def __getattribute__(self, name: str) -> object:
+            if name == "net_connections":
+                raise AttributeError(name)
+            return super().__getattribute__(name)
+
+        def connections(self) -> list[object]:
+            self._raise_if_failed("network_connection_count")
+            return [object() for _ in range(self._connections)]
+
+    root = LegacyConnectionsProcess(101, None, name="api", connections=3)
+    monkeypatch.setattr(resource_monitor_service.psutil, "Process", lambda pid: root)
+    monkeypatch.setattr(resource_monitor_service.time, "monotonic", lambda: 10.0)
+    service = resource_monitor_service.ResourceMonitoringService(root_pid=101)
+
+    snapshot = service.collect_snapshot()
+
+    assert snapshot["status"] == "warming_up"
+    assert snapshot["processes"][0]["network_connection_count"] == 3
+    assert snapshot["warnings"] == []
+
+
+def test_incomplete_io_counters_do_not_degrade_monitoring(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     class IncompleteIoCountersProcess(FakeProcess):
@@ -724,16 +749,25 @@ def test_incomplete_io_counters_are_degraded_without_raising(
 
     root = IncompleteIoCountersProcess(101, None, name="api")
     monkeypatch.setattr(resource_monitor_service.psutil, "Process", lambda pid: root)
-    monkeypatch.setattr(resource_monitor_service.time, "monotonic", lambda: 10.0)
+    monkeypatch.setattr(resource_monitor_service.time, "monotonic", iter([10.0, 12.0]).__next__)
     service = resource_monitor_service.ResourceMonitoringService(root_pid=101)
 
+    service.collect_snapshot()
     snapshot = service.collect_snapshot()
 
     process = snapshot["processes"][0]
-    assert snapshot["status"] == "degraded"
+    assert snapshot["status"] == "ok"
     assert process["disk_read_bytes_per_second"] is None
     assert process["disk_write_bytes_per_second"] is None
     assert "io_counters:AttributeError" in process["unavailable_reason"]
+    assert snapshot["warnings"] == [
+        {
+            "code": "process_field_unavailable",
+            "pid": 101,
+            "field": "io_counters",
+            "error_type": "AttributeError",
+        }
+    ]
 
 
 def test_process_cache_and_io_baselines_drop_exited_descendants(

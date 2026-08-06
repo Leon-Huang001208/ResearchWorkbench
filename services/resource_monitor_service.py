@@ -20,6 +20,7 @@ logger = get_logger(__name__)
 _ROOT_UNAVAILABLE_EXCEPTIONS = (psutil.NoSuchProcess, psutil.AccessDenied, psutil.Error, OSError)
 _OPTIONAL_FIELD_EXCEPTIONS = (*_ROOT_UNAVAILABLE_EXCEPTIONS, NotImplementedError, AttributeError)
 _HISTORY_SIZE = 150
+_NON_DEGRADING_PROCESS_FIELDS = frozenset({"io_counters", "network_connection_count"})
 
 
 @dataclass(frozen=True)
@@ -197,7 +198,11 @@ class ResourceMonitoringService:
                 warnings.append({"code": "child_process_unavailable", "pid": process.pid})
 
         process_samples.sort(key=self._process_sort_key)
-        status = "degraded" if warnings else ("warming_up" if warming_up else "ok")
+        status = (
+            "degraded"
+            if any(self._is_degrading_warning(warning) for warning in warnings)
+            else ("warming_up" if warming_up else "ok")
+        )
         snapshot = {
             "sampled_at": sampled_at,
             "root_pid": self._root_pid,
@@ -390,7 +395,7 @@ class ResourceMonitoringService:
                 "network_connection_count": self._read_optional_field(
                     process,
                     "network_connection_count",
-                    lambda: len(process.net_connections()),
+                    lambda: self._network_connection_count(process),
                     unavailable_reasons,
                 ),
                 "unavailable_reason": "; ".join(unavailable_reasons) or None,
@@ -491,6 +496,19 @@ class ResourceMonitoringService:
             error_type=type(exc).__name__,
         )
         unavailable_reasons.append(f"{field}:{type(exc).__name__}")
+
+    @staticmethod
+    def _network_connection_count(process: psutil.Process) -> int:
+        """兼容不同 psutil 版本的进程网络连接接口。"""
+        net_connections = getattr(process, "net_connections", None)
+        if callable(net_connections):
+            return len(net_connections())
+
+        connections = getattr(process, "connections", None)
+        if callable(connections):
+            return len(connections())
+
+        raise AttributeError("process network connection counters are unavailable")
 
     def _collect_host_snapshot(self) -> Tuple[Dict[str, Any], list[Dict[str, Any]]]:
         """采集整机容量，不枚举或访问受控范围外的任何进程。"""
@@ -733,6 +751,14 @@ class ResourceMonitoringService:
                 }
             )
         return warnings
+
+    @staticmethod
+    def _is_degrading_warning(warning: Dict[str, Any]) -> bool:
+        """仅把影响监控正确性的缺失字段视为服务降级。"""
+        return not (
+            warning.get("code") == "process_field_unavailable"
+            and warning.get("field") in _NON_DEGRADING_PROCESS_FIELDS
+        )
 
     @staticmethod
     def _build_summary(
