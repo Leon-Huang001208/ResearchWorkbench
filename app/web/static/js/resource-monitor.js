@@ -86,7 +86,7 @@ export function stopResourceMonitoring() {
         document.removeEventListener('keydown', handleDrawerKeydown);
         keyboardListenerAttached = false;
     }
-    closeResourceEventFilters();
+    closeResourceEventFilters({ restoreFocus: false });
     if (filterOutsideListenerAttached) {
         document.removeEventListener('click', resourceFilterOutsideListener);
         filterOutsideListenerAttached = false;
@@ -562,7 +562,25 @@ function renderStatus(code) {
         return;
     }
     status.hidden = false;
-    status.textContent = unavailable ? '采样暂不可用，保留上一帧数据' : `${pending.length} 个待处理异常`;
+    if (unavailable) {
+        status.textContent = '采样暂不可用，保留上一帧数据';
+        return;
+    }
+    const action = document.createElement('button');
+    action.type = 'button';
+    action.className = 'resource-monitor-status-action';
+    action.setAttribute('aria-controls', 'resource-monitor-pinned-events');
+    action.textContent = `${pending.length} 个待处理异常`;
+    action.addEventListener('click', focusPinnedResourceEvents);
+    status.replaceChildren(action);
+}
+
+function focusPinnedResourceEvents() {
+    const container = document.getElementById('resource-monitor-pinned-events');
+    if (!container) return;
+    const target = container.querySelector('.resource-event-row') || container;
+    container.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    target.focus({ preventScroll: true });
 }
 
 function renderSummary(summary) {
@@ -867,10 +885,14 @@ function bindControls() {
             const trigger = section.querySelector(`[data-resource-filter-trigger="${openResourceEventFilter}"]`);
             const menu = section.querySelector(`[data-resource-filter-menu="${openResourceEventFilter}"]`);
             if (!trigger || !menu) {
-                closeResourceEventFilters();
+                closeResourceEventFilters({ restoreFocus: false });
                 return;
             }
-            if (!trigger.contains(event.target) && !menu.contains(event.target)) closeResourceEventFilters();
+            if (!trigger.contains(event.target) && !menu.contains(event.target)) {
+                closeResourceEventFilters({
+                    restoreFocus: !shouldPreserveOutsideClickFocus(event.target),
+                });
+            }
         });
         filterOutsideListenerAttached = true;
     }
@@ -905,14 +927,20 @@ function resourceEventFilters() {
 
 function toggleResourceEventFilter(kind) {
     if (!Object.hasOwn(RESOURCE_EVENT_FILTERS, kind)) return;
-    openResourceEventFilter = openResourceEventFilter === kind ? null : kind;
+    if (openResourceEventFilter === kind) {
+        closeResourceEventFilters({ restoreFocus: false });
+        return;
+    }
+    openResourceEventFilter = kind;
     renderResourceEventFilters();
 }
 
-function closeResourceEventFilters() {
+function closeResourceEventFilters({ restoreFocus = true } = {}) {
     if (openResourceEventFilter === null) return;
+    const previousKind = openResourceEventFilter;
     openResourceEventFilter = null;
     renderResourceEventFilters();
+    if (restoreFocus) focusResourceEventFilterTrigger(previousKind);
 }
 
 function renderResourceEventFilters() {
@@ -956,6 +984,23 @@ function renderResourceEventFilters() {
         });
         menu.replaceChildren(fragment);
     });
+    if (openResourceEventFilter !== null) focusOpenResourceEventFilterOption(openResourceEventFilter);
+}
+
+function focusOpenResourceEventFilterOption(kind) {
+    const menu = document.querySelector(`[data-resource-filter-menu="${kind}"]`);
+    const option = menu?.querySelector('[aria-selected="true"]') || menu?.querySelector('[role="option"]');
+    requestAnimationFrame(() => option?.focus());
+}
+
+function focusResourceEventFilterTrigger(kind) {
+    const trigger = document.querySelector(`[data-resource-filter-trigger="${kind}"]`);
+    requestAnimationFrame(() => trigger?.focus());
+}
+
+function shouldPreserveOutsideClickFocus(target) {
+    return target instanceof Element
+        && target.closest('a, button, input, select, textarea, [tabindex]:not([tabindex="-1"])') !== null;
 }
 
 function normalizeTimestamp(value) {

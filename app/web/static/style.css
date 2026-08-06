@@ -13520,6 +13520,25 @@ tbody tr:hover {
     display: none;
 }
 
+#section-resource-monitor .resource-monitor-status-action {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    letter-spacing: inherit;
+}
+
+#section-resource-monitor .resource-monitor-status-action:hover {
+    color: var(--apple-text, var(--text-primary));
+}
+
+#section-resource-monitor .resource-monitor-status-action:focus-visible {
+    outline: 2px solid var(--apple-accent, var(--accent));
+    outline-offset: 3px;
+}
+
 #section-resource-monitor .resource-monitor-summary {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));

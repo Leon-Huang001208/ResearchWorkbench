@@ -230,7 +230,7 @@ def test_system_center_status_and_event_filter_contract() -> None:
     )
     controls = _function_body(source, "bindControls")
     assert re.search(
-        r"document\.addEventListener\(['\"]click['\"][\s\S]*?!\s*\w*trigger\w*\.contains\(event\.target\)\s*&&\s*!\s*\w*menu\w*\.contains\(event\.target\)[\s\S]*?closeResourceEventFilters\(\)",
+        r"document\.addEventListener\(['\"]click['\"][\s\S]*?!\s*\w*trigger\w*\.contains\(event\.target\)\s*&&\s*!\s*\w*menu\w*\.contains\(event\.target\)[\s\S]*?closeResourceEventFilters\(",
         controls,
         re.DOTALL,
     )
@@ -265,11 +265,23 @@ def test_system_center_status_and_event_filter_contract() -> None:
     assert f"{status_element.group('element')}.hidden = false;" in status_renderer
     assert "采样暂不可用，保留上一帧数据" in status_renderer
     assert "个待处理异常" in status_renderer
+    assert "resource-monitor-status-action" in status_renderer
+    assert "resource-monitor-pinned-events" in status_renderer
+    assert "focusPinnedResourceEvents" in status_renderer
+    assert "function focusPinnedResourceEvents" in source
+    assert "scrollIntoView" in source
+    assert "focus({ preventScroll: true })" in source
     assert not re.search(
         rf"{status_element.group('element')}\.textContent\s*=\s*publicStatus\(",
         status_renderer,
     )
     assert not re.search(r"['\"`](?:ok|degraded)['\"`]", status_renderer)
+    close_filters = _function_body(source, "closeResourceEventFilters")
+    assert "restoreFocus = true" in close_filters
+    assert "focusResourceEventFilterTrigger" in close_filters
+    assert "function focusOpenResourceEventFilterOption" in source
+    assert "requestAnimationFrame" in source
+    assert "option?.focus()" in source
 
 
 def test_system_center_preserves_minimal_configuration_form_and_api_contract() -> None:
@@ -411,6 +423,7 @@ def test_resource_monitor_styles_keep_dense_responsive_tables_and_charts() -> No
     assert ".resource-event-row .resource-event-content" in style
     assert ".resource-event-row .resource-event-actions" in style
     assert ".resource-monitor-status[hidden]" in style
+    assert ".resource-monitor-status-action:focus-visible" in style
     mobile_blocks = _media_blocks(style, "max-width: 900px")
     assert any(
         re.search(r"\.resource-event-row\s*\{[^}]*grid-template-columns:\s*1fr", block)
