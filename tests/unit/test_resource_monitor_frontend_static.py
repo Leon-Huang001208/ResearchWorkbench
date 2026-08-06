@@ -354,21 +354,22 @@ def test_resource_monitor_module_handles_lifecycle_bounds_and_safe_process_dom()
     assert "当前平台不支持" in source
     event_builder = _function_body(source, "createResourceEvent")
     assert "resource-event-row" in event_builder
-    assert "resource-event-info" in event_builder
+    assert "resource-event-${severity}" in event_builder
+    assert "resource-event-content" in event_builder
     assert "resource-event-actions" in event_builder
     event_root = re.search(
         r"(?:const|let)\s+(?P<root>\w+)\s*=\s*document\.createElement\([^)]*\)",
         event_builder,
     )
-    info_container = re.search(
-        r"(?P<info>\w+)\.(?:className\s*=\s*['\"][^'\"]*resource-event-info|classList\.add\([^)]*['\"]resource-event-info)",
+    content_container = re.search(
+        r"(?P<content>\w+)\.(?:className\s*=\s*['\"][^'\"]*resource-event-content|classList\.add\([^)]*['\"]resource-event-content)",
         event_builder,
     )
     action_container = re.search(
         r"(?P<actions>\w+)\.(?:className\s*=\s*['\"][^'\"]*resource-event-actions|classList\.add\([^)]*['\"]resource-event-actions)",
         event_builder,
     )
-    assert event_root and info_container and action_container
+    assert event_root and content_container and action_container
     assert re.search(
         rf"{event_root.group('root')}\.(?:className\s*=\s*['\"][^'\"]*resource-event-row|classList\.add\([^)]*['\"]resource-event-row)",
         event_builder,
@@ -377,7 +378,7 @@ def test_resource_monitor_module_handles_lifecycle_bounds_and_safe_process_dom()
         rf"{event_root.group('root')}\.(?:append|appendChild)\((?P<children>[^;]+)\);",
         event_builder,
     )
-    assert any(info_container.group("info") in children for children in append_calls)
+    assert any(content_container.group("content") in children for children in append_calls)
     assert any(action_container.group("actions") in children for children in append_calls)
 
 
@@ -406,7 +407,8 @@ def test_resource_monitor_styles_keep_dense_responsive_tables_and_charts() -> No
     assert ".resource-filter-menu" in style
     assert ".resource-filter-option" in style
     assert ".resource-event-row" in style
-    assert ".resource-event-row .resource-event-info" in style
+    assert ".resource-event-info" in style
+    assert ".resource-event-row .resource-event-content" in style
     assert ".resource-event-row .resource-event-actions" in style
     assert ".resource-monitor-status[hidden]" in style
     mobile_blocks = _media_blocks(style, "max-width: 900px")

@@ -501,8 +501,8 @@ function createResourceEvent(event, isPinned) {
     item.className = 'resource-event resource-event-row';
     item.classList.add(`resource-event-${severity}`);
     item.tabIndex = 0;
-    const info = document.createElement('div');
-    info.className = 'resource-event-info';
+    const content = document.createElement('div');
+    content.className = 'resource-event-content';
     const title = document.createElement('strong');
     title.textContent = safeText(event.title, '资源监控异常');
     const detail = document.createElement('p');
@@ -510,8 +510,8 @@ function createResourceEvent(event, isPinned) {
     detail.textContent = `${sourceScopeLabel(metadata.source_scope)} · ${safeText(metadata.task_kind, '系统')} · ${formatTime(event.triggered_at)}`;
     const description = document.createElement('span');
     description.textContent = safeText(event.description, '请查看 AlphaFoundry 日志。');
-    info.append(title, detail, description);
-    item.append(info);
+    content.append(title, detail, description);
+    item.append(content);
     if (isPinned) {
         const actions = document.createElement('div');
         actions.className = 'resource-event-actions';

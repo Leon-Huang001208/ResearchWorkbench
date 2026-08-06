@@ -13885,13 +13885,13 @@ tbody tr:hover {
     outline-offset: -2px;
 }
 
-#section-resource-monitor .resource-event-row .resource-event-info {
+#section-resource-monitor .resource-event-row .resource-event-content {
     display: grid;
     min-width: 0;
     gap: 3px;
 }
 
-#section-resource-monitor .resource-event-row .resource-event-info strong {
+#section-resource-monitor .resource-event-row .resource-event-content strong {
     overflow: hidden;
     color: var(--apple-text, var(--text-primary));
     font-size: 14px;
