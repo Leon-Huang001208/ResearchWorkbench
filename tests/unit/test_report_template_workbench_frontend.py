@@ -1616,6 +1616,21 @@ def test_initial_load_uses_navigation_to_activate_content_section():
     assert "function getInitialSection()" in source
     assert "getSystemNavigationStorage('af-active-section')" in source
     assert "localStorage.setItem('af-active-section', section)" in source
+    storage_helpers = source[
+        source.index("function getSystemNavigationStorage") : source.index("function setSystemTab")
+    ]
+    assert "function getSystemNavigationStorage" in storage_helpers
+    assert "function setSystemNavigationStorage" in storage_helpers
+    assert storage_helpers.count("try {") == 2
+    assert storage_helpers.count("catch (error)") == 2
+    initial_section_source = source[
+        source.index("function getInitialSection()") : source.index("// ─── SSE Real-time Stream")
+    ]
+    assert "if (savedSection === 'system')" in initial_section_source
+    assert "getSystemNavigationStorage('af-system-tab')" in initial_section_source
+    assert "SYSTEM_TABS.has(savedSystemTab) ? savedSystemTab : 'resource-monitor'" in initial_section_source
+    assert "setSystemNavigationStorage('af-system-tab', initialSystemTab);" in initial_section_source
+    assert "localStorage." not in initial_section_source
     assert "const initialSection = getInitialSection();" in source
     assert "const initialSystemTab = getSystemNavigationStorage('af-system-tab');" in source
     assert "navigateTo(initialSection, { systemTab: initialSystemTab });" in source
