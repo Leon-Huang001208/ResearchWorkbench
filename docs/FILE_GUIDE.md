@@ -108,9 +108,9 @@
 
 | 文件/目录 | 说明 |
 |---|---|
-| `app/web/templates/index.html` | Web 工作台主页面，包含侧边栏导航和所有 section 面板 |
-| `app/web/static/style.css` | 全局样式表，包含管线监控、仪表盘等所有页面样式 |
-| `app/web/static/js/app.js` | 主入口模块：导航路由、SSE 连接、全局状态管理 |
+| `app/web/templates/index.html` | Web 工作台主页面，包含侧边栏导航和所有 section 面板；系统功能以唯一“系统”入口及“资源与异常 / 系统配置”页内标签组织 |
+| `app/web/static/style.css` | 全局样式表，包含管线监控、仪表盘等所有页面样式，以及系统中心标签、紧凑异常行和深色资源事件筛选浮层 |
+| `app/web/static/js/app.js` | 主入口模块：导航路由、SSE 连接、全局状态管理；负责旧资源/配置导航迁移为系统入口与受限页内标签 |
 | `app/web/static/js/configuration.js` | 系统配置模块：加载并保存工作台配置、保护秘密字段、处理环境变量锁定和配置模态框事件绑定；该模块由主入口静态导入，必须保持可解析和可执行 |
 | `app/web/static/js/core.js` | 核心工具模块：apiCall、toast、esc 等公共函数 |
 | `app/web/static/js/dashboard.js` | 仪表盘模块：Market Overview + Live Monitor 标签页 |
@@ -118,7 +118,7 @@
 | `app/web/static/js/templates.js` | 模板工作台模块：报告项目选择、Word 占位符映射、YAML/Markdown Prompt 源码切换与保存、后端 `compiled_plan` 生成预检、配置驱动生成、下载和 Word HTML 预览 |
 | `app/web/static/js/pipeline-monitor.js` | 管线监控模块：5 阶段流程可视化、实时活动日志（SSE + 15s 轮询）、累计统计、手动触发闭环 |
 | `app/web/static/js/monitor.js` | 系统监控模块：Worker 心跳、队列深度、服务状态 |
-| `app/web/static/js/resource-monitor.js` | AlphaFoundry 受控资源监控：页面可见且激活时轮询快照/300 秒历史（最多 150 点）、每 60 秒读取 24 小时整机容量历史与持久化异常（默认 90 天）；明确比较 AlphaFoundry/整机 CPU、内存范围，展示独立 Worker 精确资源、API 内任务共享估算、置顶异常、确认/解决和安全历史筛选 |
+| `app/web/static/js/resource-monitor.js` | AlphaFoundry 受控资源监控：仅在系统中心“资源与异常”标签可见时轮询快照/300 秒历史（最多 150 点）、每 60 秒读取 24 小时整机容量历史与持久化异常（默认 90 天）；明确比较 AlphaFoundry/整机 CPU、内存范围，展示独立 Worker 精确资源、API 内任务共享估算、紧凑置顶异常、确认/解决和可键盘操作的安全历史筛选；正常状态不显示 `ok` 徽标，采样不可用时保留上一帧 |
 | `app/web/static/js/asset.js` | 资产分析模块：Wind 风格 5 面板 K 线图（K 线+成交量/MACD/KDJ/RSI，首次加载默认请求近一年数据，支持日/周/月聚合与 MA120/MA250）、筹码分布图（筹码峰及上/下界标注）、资产搜索、分析卡渲染 |
 
 ---
@@ -650,7 +650,7 @@
 | `tests/unit/data_layer/repositories/test_monitoring_repository.py` | 监控仓储单元测试：未解决告警详情的条件更新、SQLite 双服务并发的主机/任务单一事件、以及已解决周期历史保留 |
 | `tests/unit/app/api/routes/test_resource_monitoring.py` | 资源事件 API 测试：历史查询、确认和人工解决响应契约 |
 | `tests/unit/app/api/routes/test_system_resource_usage.py` | 系统资源 API 测试：只读快照/历史契约、窗口边界、脱敏降级和懒加载依赖 |
-| `tests/unit/test_resource_monitor_frontend_static.py` | 资源监控前端静态契约：导航生命周期、轮询取消、150 点限制、AlphaFoundry/整机双范围卡与 24 小时历史、安全 DOM 渲染、详情抽屉和响应式样式 |
+| `tests/unit/test_resource_monitor_frontend_static.py` | 资源监控前端静态契约：系统中心导航迁移与生命周期、轮询取消、150 点限制、AlphaFoundry/整机双范围卡与 24 小时历史、安全 DOM 渲染、详情抽屉、无常态成功徽标、筛选浮层和响应式样式 |
 | `tests/unit/test_dynamic_factors.py` | 动态多因子核心测试：覆盖矩阵构建、因子评估、动态权重、事件-因子融合 |
 | `tests/integration/` | 集成测试目录 |
 
