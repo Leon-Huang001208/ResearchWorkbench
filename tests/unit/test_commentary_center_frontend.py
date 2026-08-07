@@ -20,7 +20,12 @@ def test_commentary_center_is_independent_workspace_not_report_subtab():
     assert html.index('data-section="commentary"') < html.index('data-section="templates"')
     assert "from './commentary.js" in app_js
     assert "initCommentaryCenter" in app_js
-    assert "if (section === 'commentary') initCommentaryCenter();" in app_js
+    navigation = app_js[
+        app_js.index("function navigateTo(section, options = {})") : app_js.index(
+            "window.navigateTo = navigateTo;"
+        )
+    ]
+    assert "if (targetSection === 'commentary') initCommentaryCenter();" in navigation
 
 
 def test_commentary_center_page_exposes_data_evidence_judgement_and_draft_regions():

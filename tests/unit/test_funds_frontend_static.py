@@ -22,7 +22,12 @@ def test_fund_panel_is_wired_into_app_entrypoint():
 
     assert "from './funds.js" in app_js
     assert "window.initFundsPanel = initFundsPanel" in app_js
-    assert "if (section === 'funds') initFundsPanel();" in app_js
+    navigation = app_js[
+        app_js.index("function navigateTo(section, options = {})") : app_js.index(
+            "window.navigateTo = navigateTo;"
+        )
+    ]
+    assert "if (targetSection === 'funds') initFundsPanel();" in navigation
 
 
 def test_funds_module_calls_backend_contracts():
