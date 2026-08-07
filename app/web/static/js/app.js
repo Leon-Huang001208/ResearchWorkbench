@@ -17,7 +17,7 @@ import { generateScenarios, renderScenarioResult } from './scenario.js';
 import { generateEventSignal, loadEventSignals, renderEventSignalResult, renderTimingDecision } from './event-signal.js';
 import { loadIndustryChain, loadPropagationPath, renderIndustryGraph, renderPropagationGraph } from './industry.js';
 import { renderPipelineMonitor, stopPipelinePolling, handlePipelineSSEEvent } from './pipeline-monitor.js';
-import { startResourceMonitoring, stopResourceMonitoring } from './resource-monitor.js?v=20260806a';
+import { startResourceMonitoring, stopResourceMonitoring } from './resource-monitor.js?v=20260807systemcenter1';
 import { ingestText, renderIngestResult } from './ingest.js';
 import { globalSearch, renderSearchResults, navigateToSignalDetail } from './search.js';
 import { initNavigationCuration } from './navigation-curation.js';

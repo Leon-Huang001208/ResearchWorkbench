@@ -38,4 +38,4 @@
 - 未在 Windows 原生 CI 或真实 Windows 安装环境验证；本地 macOS 预览不能证明 Windows 兼容性。
 - 未构建或发布安装包；预览不是正式桌面端、sidecar 或升级验证。
 - 仅进行 HTTP/HTML 与桌面壳启动验证，尚待人工在预览窗口验收标签切换、正常/异常/采样不可用状态、筛选器选择和窄屏布局。
-- 当前 `index.html` 的 `style.css`、`app.js`、`resource-monitor.js` 查询版本尚未随这次 UI 改动更新；若宿主缓存已命中旧版本，可能需要在合并前更新静态资源版本并复验。
+- 已将 `style.css`、`app.js` 与 `resource-monitor.js` 的查询版本更新为系统中心版本，并在隔离预览中确认 HTML 返回新引用；仍需在正式桌面端合并后完成一次人工刷新验收。

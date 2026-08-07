@@ -202,7 +202,7 @@ def test_system_center_status_and_event_filter_contract() -> None:
     assert "RESOURCE_EVENT_FILTERS" in source
     for option in (
         "['all', '全部']",
-        "['open', '未确认']",
+        "['open', '待处理']",
         "['acknowledged', '已确认']",
         "['resolved', '已解决']",
         "['', '全部']",

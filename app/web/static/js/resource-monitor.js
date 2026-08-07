@@ -13,7 +13,7 @@ const DEPARTED_PROCESS_TTL_MS = 5 * 60 * 1000;
 const MAX_DEPARTED_PROCESSES = 50;
 const PUBLIC_STATUSES = new Set(['warming_up', 'ok', 'degraded', 'unavailable']);
 const RESOURCE_EVENT_FILTERS = {
-    status: [['all', '全部'], ['open', '未确认'], ['acknowledged', '已确认'], ['resolved', '已解决']],
+    status: [['all', '全部'], ['open', '待处理'], ['acknowledged', '已确认'], ['resolved', '已解决']],
     severity: [['', '全部'], ['critical', '严重'], ['warning', '警告'], ['info', '信息']],
 };
 
