@@ -445,6 +445,10 @@ def test_resource_monitor_styles_keep_dense_responsive_tables_and_charts() -> No
     assert ".resource-event-row .resource-event-actions" in style
     assert ".resource-monitor-status[hidden]" in style
     assert ".resource-monitor-status-action:focus-visible" in style
+    assert ".system-center-tabs" in style
+    assert ".system-center-tab:hover" in style
+    assert ".system-center-tab:focus-visible" in style
+    assert '.system-center-tab[aria-current="page"]' in style
     mobile_blocks = _media_blocks(style, "max-width: 900px")
     assert any(
         re.search(r"\.resource-event-row\s*\{[^}]*grid-template-columns:\s*1fr", block)
@@ -453,6 +457,11 @@ def test_resource_monitor_styles_keep_dense_responsive_tables_and_charts() -> No
             block,
         )
         for block in mobile_blocks
+    )
+    narrow_navigation_blocks = _media_blocks(style, "max-width: 560px")
+    assert any(
+        ".system-center-tabs" in block and "overflow-x: auto" in block
+        for block in narrow_navigation_blocks
     )
     assert 'strong[data-resource-summary="host-memory"]' in style
     assert "white-space: normal" in style

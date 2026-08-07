@@ -13483,6 +13483,70 @@ tbody tr:hover {
     }
 }
 
+/* ─── System Center Navigation ────────────────────────────── */
+.system-center-tabs {
+    display: inline-flex;
+    max-width: 100%;
+    gap: 3px;
+    box-sizing: border-box;
+    margin: 0 0 14px;
+    padding: 3px;
+    overflow-x: auto;
+    border: 1px solid var(--apple-separator, var(--border));
+    border-radius: 10px;
+    background: var(--apple-panel-bg, var(--bg-card));
+    scrollbar-width: thin;
+}
+
+.system-center-tab {
+    flex: 0 0 auto;
+    min-height: 30px;
+    padding: 5px 10px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--apple-secondary, var(--text-secondary));
+    cursor: pointer;
+    font: 700 12px var(--font-ui);
+    transition: background var(--duration-fast) ease, border-color var(--duration-fast) ease, color var(--duration-fast) ease;
+}
+
+.system-center-tab:hover {
+    background: var(--apple-accent-light, rgba(245, 158, 11, .1));
+    color: var(--apple-text, var(--text-primary));
+}
+
+.system-center-tab:focus-visible {
+    outline: 2px solid var(--apple-accent, var(--accent));
+    outline-offset: 2px;
+}
+
+.system-center-tab[aria-current="page"] {
+    border-color: var(--apple-separator, var(--border));
+    background: var(--apple-bg, var(--bg-input));
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .18);
+    color: var(--apple-text, var(--text-primary));
+}
+
+.system-center-tab:disabled {
+    opacity: .55;
+    cursor: default;
+}
+
+@media (max-width: 560px) {
+    .system-center-tabs {
+        display: flex;
+        width: 100%;
+        margin-bottom: 12px;
+        overflow-x: auto;
+    }
+
+    .system-center-tab {
+        padding-right: 9px;
+        padding-left: 9px;
+    }
+}
+
 /* ─── Resource Monitor ────────────────────────────────────── */
 #section-resource-monitor {
     color: var(--apple-text, var(--text-primary));
