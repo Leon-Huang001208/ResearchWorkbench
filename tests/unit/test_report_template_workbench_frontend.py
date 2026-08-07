@@ -1614,9 +1614,11 @@ def test_initial_load_uses_navigation_to_activate_content_section():
     source = APP_JS.read_text(encoding="utf-8")
 
     assert "function getInitialSection()" in source
-    assert "localStorage.getItem('af-active-section')" in source
+    assert "getSystemNavigationStorage('af-active-section')" in source
     assert "localStorage.setItem('af-active-section', section)" in source
-    assert "navigateTo(getInitialSection());" in source
+    assert "const initialSection = getInitialSection();" in source
+    assert "const initialSystemTab = getSystemNavigationStorage('af-system-tab');" in source
+    assert "navigateTo(initialSection, { systemTab: initialSystemTab });" in source
     assert (
         "loadDashboard();\n    startCrawlFeedPolling();\n    startWorkersPolling();" not in source
     )
