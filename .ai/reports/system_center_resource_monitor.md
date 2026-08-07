@@ -18,7 +18,7 @@
 
 | 命令 / 检查 | 结果 |
 | --- | --- |
-| `python -m pytest tests/unit/test_resource_monitor_frontend_static.py tests/unit/test_setup_wizard_frontend_static.py tests/unit/test_configuration_frontend_static.py -q` | 通过：59 passed（0.42s）。 |
+| `python -m pytest tests/unit/test_resource_monitor_frontend_static.py tests/unit/test_setup_wizard_frontend_static.py tests/unit/test_configuration_frontend_static.py tests/unit/test_report_template_workbench_frontend.py -q` | 通过：135 passed。 |
 | `node --check app/web/static/js/app.js` | 通过。 |
 | `node --check app/web/static/js/resource-monitor.js` | 通过。 |
 | `ruff check tests/unit/test_resource_monitor_frontend_static.py tests/unit/test_setup_wizard_frontend_static.py tests/unit/test_configuration_frontend_static.py` | 通过：`All checks passed!`。 |
@@ -29,13 +29,12 @@
 
 ## 预览信息
 
-- URL：`http://127.0.0.1:8766/`
-- 后端 reloader PID：8410；后端 server PID：8421（以 `lsof -iTCP:8766 -sTCP:LISTEN` 实测）。
+- URL：`http://127.0.0.1:8766/`（用于一次性启动与 HTTP 检查）。
 - 预览使用 `--use-stable-data`，但 `ALPHAFOUNDRY_PREVIEW=1` 已由启动器设置；日志确认跳过数据库初始化及后台服务。它不会替换正式桌面端的 8765 实例。
 
 ## 未验证项与风险
 
 - 未在 Windows 原生 CI 或真实 Windows 安装环境验证；本地 macOS 预览不能证明 Windows 兼容性。
 - 未构建或发布安装包；预览不是正式桌面端、sidecar 或升级验证。
-- 仅进行 HTTP/HTML 与桌面壳启动验证，尚待人工在预览窗口验收标签切换、正常/异常/采样不可用状态、筛选器选择和窄屏布局。
+- 已完成一次 Tauri 启动、HTTP/HTML 与桌面壳检查；但该本机预览运行一段时间后曾出现端口仍监听而 HTTP 无响应的情况。因此预览长期可用性未验证，当前不能把它当作持续人工验收实例；重启后仅可用于即时复验。
 - 已将 `style.css`、`app.js` 与 `resource-monitor.js` 的查询版本更新为系统中心版本，并在隔离预览中确认 HTML 返回新引用；仍需在正式桌面端合并后完成一次人工刷新验收。
