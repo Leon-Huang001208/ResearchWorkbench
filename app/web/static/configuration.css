@@ -2178,3 +2178,100 @@
 .config-edit-modal .config-edit-modal-content .modal-footer #btn-config-edit-modal-save {
     order: 4;
 }
+
+/* ─── Integrated configuration collections and grouped advanced settings ─── */
+.config-edit-modal-body .config-collection {
+    margin: 0 0 16px;
+}
+
+.config-edit-modal-body .config-collection .config-subsection-header {
+    justify-content: space-between;
+}
+
+.config-edit-modal-body .config-collection .config-subsection-header h4,
+.config-edit-modal-body .config-settings-header {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 13px;
+}
+
+.config-edit-modal-body .config-advanced-settings {
+    display: grid;
+    grid-template-columns: 164px minmax(0, 1fr);
+    align-items: start;
+    overflow: hidden;
+    border: 1px solid var(--border-primary);
+    border-radius: 10px;
+    background: var(--bg-elevated);
+}
+
+.config-edit-modal-body .config-advanced-nav {
+    display: flex;
+    grid-row: 1 / span 3;
+    flex-direction: column;
+    gap: 2px;
+    align-self: stretch;
+    padding: 10px;
+    border-right: 1px solid var(--border-primary);
+}
+
+.config-edit-modal-body .config-advanced-nav a {
+    padding: 8px 10px;
+    border-radius: 6px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    text-decoration: none;
+}
+
+.config-edit-modal-body .config-advanced-nav a:hover,
+.config-edit-modal-body .config-advanced-nav a:focus-visible {
+    color: var(--text-primary);
+    background: var(--bg-panel);
+    outline: none;
+}
+
+.config-edit-modal-body .config-advanced-group {
+    grid-column: 2;
+    padding: 0 16px;
+}
+
+.config-edit-modal-body .config-advanced-group .config-field-grid > label {
+    padding: 10px 0;
+    border-top: 1px solid var(--border-primary);
+}
+
+.config-edit-modal-body .config-advanced-group:first-of-type .config-field-grid > label:first-child {
+    border-top: 0;
+}
+
+@media (max-width: 720px) {
+    .config-row-labels {
+        display: none;
+    }
+
+    .config-collection-table .config-dynamic-row {
+        grid-template-columns: 1fr;
+    }
+
+    .config-collection-table .config-dynamic-field > span:first-child,
+    .config-edit-modal .config-edit-modal-body .config-collection-table .config-dynamic-field > span:first-child {
+        display: flex;
+    }
+
+    .config-edit-modal-body .config-advanced-settings {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .config-edit-modal-body .config-advanced-nav {
+        grid-row: auto;
+        flex-direction: row;
+        flex-wrap: wrap;
+        border-right: 0;
+        border-bottom: 1px solid var(--border-primary);
+    }
+
+    .config-edit-modal-body .config-advanced-group {
+        grid-column: 1;
+        padding: 0 12px;
+    }
+}

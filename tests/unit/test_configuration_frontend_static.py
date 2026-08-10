@@ -457,6 +457,19 @@ def test_configuration_modal_hierarchy_uses_compact_collections_and_safe_databas
     )
 
 
+def test_configuration_modal_groups_account_collections_and_advanced_settings():
+    source = CONFIGURATION_JS.read_text(encoding="utf-8")
+    stylesheet = CONFIGURATION_CSS.read_text(encoding="utf-8")
+    modal_source = _configuration_function(source, "renderModalForm")
+
+    for section in ("zhiqiu", "ifind", "web_search"):
+        assert f'config-collection config-collection--{section}' in modal_source
+    for group in ("runtime", "llm", "chunking"):
+        assert f'data-advanced-group="{group}"' in modal_source
+    assert ".config-edit-modal-body .config-advanced-settings" in stylesheet
+    assert "grid-template-columns: 164px minmax(0, 1fr);" in stylesheet
+
+
 def test_configuration_editor_visual_contract_has_tabs_editing_state_and_mobile_rows():
     """Editable modal keeps navigation, changes, labels, and mobile rows explicit."""
     source = CONFIGURATION_JS.read_text(encoding="utf-8")
