@@ -1204,12 +1204,12 @@
     }
 }
 
-/* ─── Configuration overview: compact, scannable status surface ─────────── */
+/* ─── System center shared layout ─── */
 .configuration-page {
-    width: min(100%, 1240px);
-    max-width: 1240px;
-    margin-right: auto;
-    margin-left: auto;
+    /* Match the resource view's content track and preserve its shared nav origin. */
+    width: auto;
+    max-width: none;
+    margin: 0;
 }
 
 .configuration-header {

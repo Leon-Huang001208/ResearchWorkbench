@@ -76,12 +76,16 @@ def test_system_center_navigation_and_semantic_dom_contract() -> None:
         r'<button[^>]*data-system-tab="config"[^>]*aria-controls="section-config"',
         template,
     )
-    assert ">资源与异常</button>" in template
+    assert template.count(">系统中心</button>") == 2
+    assert ">资源与异常</button>" not in template
     assert ">系统配置</button>" in template
     assert template.count('aria-current="page"') == 2
     assert re.search(r'<button[^>]*data-system-tab="resource-monitor"[^>]*aria-current="page"', template)
     assert re.search(r'<button[^>]*data-system-tab="config"[^>]*aria-current="page"', template)
     assert "本机资源、异常与运行配置" in template
+    configuration_section = template[template.index('<section id="section-config"') :]
+    assert "config-header-kicker" not in configuration_section
+    assert ">控制台<" not in configuration_section
     for summary_key in (
         "alpha-cpu",
         "host-cpu",
@@ -306,6 +310,7 @@ def test_system_center_status_and_event_filter_contract() -> None:
 def test_system_center_preserves_minimal_configuration_form_and_api_contract() -> None:
     template = (ROOT / "app/web/templates/index.html").read_text(encoding="utf-8")
     source = (ROOT / "app/web/static/js/configuration.js").read_text(encoding="utf-8")
+    configuration_style = (ROOT / "app/web/static/configuration.css").read_text(encoding="utf-8")
 
     assert '<section id="section-config" class="content-section configuration-page"' in template
     for marker in (
@@ -318,6 +323,15 @@ def test_system_center_preserves_minimal_configuration_form_and_api_contract() -
     assert "export async function initConfigurationPage" in source
     assert "configurationApiCall('GET', '/api/config'" in source
     assert "configurationApiCall('PUT', `/api/config/${section}`, payload)" in source
+    assert re.search(
+        r"/\* ─── System center shared layout ─── \*/\s*"
+        r"\.configuration-page\s*\{\s*"
+        r"(?:/\*[\s\S]*?\*/\s*)?"
+        r"width:\s*auto;\s*"
+        r"max-width:\s*none;\s*"
+        r"margin:\s*0;",
+        configuration_style,
+    )
 
 
 def test_resource_monitor_module_handles_lifecycle_bounds_and_safe_process_dom() -> None:
