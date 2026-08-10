@@ -3,7 +3,6 @@
 import importlib.util
 import json
 import os
-import stat
 import subprocess
 import sys
 from pathlib import Path
@@ -135,7 +134,14 @@ def test_macos_arm_sidecar_shim_invokes_python_launcher():
     assert "resolve_project_root" in source
     assert "scripts/desktop/run_backend.sh" in source
     assert '"$@"' in source
-    assert MACOS_ARM_SIDECAR.stat().st_mode & stat.S_IXUSR
+    git_mode = subprocess.run(
+        ["git", "ls-files", "--stage", "--", str(MACOS_ARM_SIDECAR.relative_to(ROOT))],
+        cwd=ROOT,
+        capture_output=True,
+        encoding="utf-8",
+        check=True,
+    ).stdout.split(maxsplit=1)[0]
+    assert git_mode == "100755"
 
 
 def test_desktop_backend_shell_selects_python_runtime():
@@ -339,6 +345,9 @@ def test_windows_pgvector_smoke_builds_a_native_extension():
 
     assert "choco install postgresql16" in source
     assert "--execution-timeout 1200" in source
+    assert '$chocoParameters = "/Password:postgres /Port:${{ matrix.postgres_port }}"' in source
+    assert "--params $chocoParameters" in source
+    assert '--params "\'/Password:postgres' not in source
     assert "nmake /F Makefile.win install" in source
     assert "CREATE EXTENSION IF NOT EXISTS vector;" in source
     assert "PGPASSWORD = 'postgres'" in source
@@ -804,7 +813,8 @@ raise SystemExit(launcher.main(["--log-dir", {str(tmp_path / "logs")!r}]))
         cwd=ROOT,
         env=environment,
         capture_output=True,
-        text=True,
+        encoding="utf-8",
+        errors="replace",
         check=False,
     )
 

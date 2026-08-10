@@ -180,7 +180,7 @@ macOS 本地测试不等于 Windows 验证；Windows CI 未通过或尚未运行
 
 `.github/workflows/desktop-verify.yml` 会在桌面端及首次启动相关文件的 PR，以及直接推送到 `master` 时运行。它在原生 macOS Apple Silicon 和 Windows x64 runner 上执行桌面契约测试、构建平台对应的 Python sidecar，并验证两种 `/health` 契约：真实 PostgreSQL + pgvector 的 `ready`，以及独立数据目录和不可连接 PostgreSQL URL 下的 `setup_required`。两个 smoke 日志都会作为构建产物上传，最后才构建 Tauri 安装包。
 
-为确保该检查在两个原生 runner 上都使用真实的 PostgreSQL + pgvector，macOS runner 使用 Homebrew 安装 PostgreSQL 与 pgvector；Windows runner 安装 PostgreSQL 16，并用 Visual Studio x64 工具链从固定的 pgvector 源码版本构建扩展。不能在 Windows runner 上使用 Linux 版 pgvector Docker 镜像，因为该 runner 的 Docker 引擎仅支持 Windows 容器。
+为确保该检查在两个原生 runner 上都使用真实的 PostgreSQL + pgvector，macOS runner 使用 Homebrew 安装 PostgreSQL 与 pgvector；Windows runner 安装 PostgreSQL 16，并用 Visual Studio x64 工具链从固定的 pgvector 源码版本构建扩展。Windows 的 Chocolatey 密码和端口参数以单一 PowerShell 字符串变量传入，避免把引号作为参数内容而丢失指定端口。不能在 Windows runner 上使用 Linux 版 pgvector Docker 镜像，因为该 runner 的 Docker 引擎仅支持 Windows 容器。
 
 The release workflow at `.github/workflows/desktop-release.yml` can be triggered manually from GitHub Actions or by pushing a `v*` tag. It builds a draft prerelease for:
 

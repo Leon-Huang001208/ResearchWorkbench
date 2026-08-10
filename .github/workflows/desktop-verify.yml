@@ -148,8 +148,9 @@ jobs:
           $pgVectorSource = Join-Path $env:RUNNER_TEMP 'pgvector'
           $serviceName = 'postgresql-x64-16'
           $env:PGPASSWORD = 'postgres'
+          $chocoParameters = "/Password:postgres /Port:${{ matrix.postgres_port }}"
 
-          choco install postgresql16 --params "'/Password:postgres /Port:${{ matrix.postgres_port }}'" --yes --no-progress --execution-timeout 1200
+          choco install postgresql16 --params $chocoParameters --yes --no-progress --execution-timeout 1200
           if ($LASTEXITCODE -ne 0) {
             throw 'Unable to install the helper-owned PostgreSQL 16 service'
           }
