@@ -121,6 +121,7 @@ Responsibilities:
 - Candidate board.
 - Learning center.
 - Search and workflow surfaces.
+- System center and configuration workbench: the two views share one navigation track; configuration edits retain secret masking and environment-lock boundaries.
 
 Main files:
 
