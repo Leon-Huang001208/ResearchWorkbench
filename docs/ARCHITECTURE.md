@@ -279,7 +279,25 @@ AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System�
 
 ---
 
-### 5. 认知 Agent 层 (cognitive_agents)
+### 5. 研究运行时 (Research Run)
+
+**职责**：将一次跨领域研究任务的对象、模板、状态、证据、质量门禁和可下载产物绑定为可恢复的审计单元。统一研究中心负责入口与历史，资产观察只传递上下文；A 股、宏观、商品、指数和行业是 Research Template，不是独立页面。首个可执行模板仍是单证券、单一 `as_of` 的 A 股公司深研。
+
+```text
+POST /api/research-runs
+→ PostgreSQL ResearchRun（唯一权威状态）
+→ LangGraph 执行层（规划 → 归一化 → 综合 → Challenge → 质检）
+→ 不可变 Artifact + 当前 Claim/Gate 投影
+→ 决策卡 / Markdown / Word 下载
+```
+
+- `ResearchRun` 状态流转为 `draft → planning → collecting → analyzing → validating → publishing → completed`；门禁失败、数据不足或未解决冲突统一进入 `blocked`，补证后可恢复。
+- `ResearchTemplateRegistry` 公开框架无关的模板能力元数据，并根据 `template_key + ResearchSubject.subject_type` 选择执行器。规划中或对象类型不兼容的模板在持久化前被拒绝。
+- LangGraph 不保存业务事实，也不拥有第二份报告状态；它从运行快照恢复并把每一步结果写回 `research_run`、`research_artifact`、`research_claim` 和 `research_quality_gate`。
+- 首版质量门禁要求每项结论有来源锚点、金融/行业/估值/风险/一致预期覆盖齐全、数值含单位与期间且无未解决冲突。未完成任务不能下载报告。
+- 数据源规划的优先序是已授权结构化源、官方披露、公开结构化源、用户材料；选择和降级均作为 Artifact 保存。连接器实际取数保持在数据层，便于后续替换或接入授权源。
+
+### 6. 认知 Agent 层 (cognitive_agents)
 
 **职责**：提供多视角认知插件和共享黑板，让不同专家视角以统一 schema 参与投资判断。
 
@@ -300,7 +318,7 @@ AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System�
 
 ---
 
-### 6. 择时层 (timing_engine)
+### 7. 择时层 (timing_engine)
 
 **职责**：判断市场现在是否会认可某个事件型逻辑，输出交易节奏决策。
 
@@ -313,7 +331,7 @@ AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System�
 
 ---
 
-### 7. 量化验证层 / 信号实验室 (signal_lab)
+### 8. 量化验证层 / 信号实验室 (signal_lab)
 
 **职责**：将 AI 事件理解转化为可回测的 Alpha 信号，并进行验证评分、组合约束和风险提示。
 
@@ -339,7 +357,7 @@ AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System�
 
 ---
 
-### 8. 记忆与学习层 (memory_learning)
+### 9. 记忆与学习层 (memory_learning)
 
 **职责**：把市场结果沉淀为长期记忆，让系统从"即时推理"进入"可学习系统"。
 
@@ -352,7 +370,7 @@ AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System�
 
 ---
 
-### 9. 数据层 (data_layer)
+### 10. 数据层 (data_layer)
 
 **职责**：对接外部数据源，清洗归一化数据，实现仓储接口。
 
@@ -396,7 +414,7 @@ AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System�
 
 ---
 
-### 10. 报告层 (reporting)
+### 11. 报告层 (reporting)
 
 **职责**：将分析结果合成为人类可读的报告，并输出为不同格式。
 
@@ -428,7 +446,7 @@ Word 占位符
 
 ---
 
-### 11. 存储层 (storage)
+### 12. 存储层 (storage)
 
 **职责**：数据库 schema 定义和迁移管理。
 

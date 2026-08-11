@@ -41,6 +41,7 @@
                 <div class="activity-group-label">工作区</div>
                 <button class="activity-btn" data-section="dashboard" title="仪表盘"><i class="codicon codicon-home"></i><span>市场研究</span></button>
                 <button class="activity-btn" data-section="asset-analysis" title="资产分析"><i class="codicon codicon-graph"></i><span>资产观察</span></button>
+                <button class="activity-btn" data-section="research" title="研究中心"><i class="codicon codicon-microscope"></i><span>研究中心</span></button>
                 <button class="activity-btn" data-section="funds" title="基金情报"><i class="codicon codicon-library"></i><span>基金情报</span></button>
                 <button class="activity-btn" data-section="signal-lab" title="Signal Lab"><i class="codicon codicon-beaker"></i><span>Signal Lab</span></button>
                 <button class="activity-btn" data-section="commentary" title="点评生产"><i class="codicon codicon-comment-discussion"></i><span>点评生产</span></button>
@@ -351,7 +352,15 @@
 
             <!-- Asset Analysis Section -->
             <section id="section-asset-analysis" class="content-section">
-                <h2 class="section-title" data-i18n="asset.title">资产分析</h2>
+                <div class="asset-section-header">
+                    <div>
+                        <h2 class="section-title" data-i18n="asset.title">资产分析</h2>
+                        <p>快速观察行情、资金、基本面与 Agent 观点，再将当前上下文带入完整研究。</p>
+                    </div>
+                    <button id="asset-start-research" class="btn-secondary" type="button">
+                        <i class="codicon codicon-microscope"></i> 启动深度研究
+                    </button>
+                </div>
                 <div class="input-row asset-search-container">
                     <div class="asset-search-wrapper">
                         <input type="text" id="asset-code" data-i18n-placeholder="asset.code_placeholder" placeholder="代码/名称/简拼" autocomplete="off">
@@ -685,6 +694,87 @@
                             </div>
                         </div>
                     </div>
+                </div>
+            </section>
+
+            <!-- Cross-domain Research Center -->
+            <section id="section-research" class="content-section" aria-labelledby="research-workbench-title">
+                <div class="research-workbench-header">
+                    <div>
+                        <span class="research-kicker">RESEARCH CENTER</span>
+                        <h2 class="section-title" id="research-workbench-title">研究中心</h2>
+                        <p>用同一个入口发起跨资产研究；模板决定数据边界、执行图与质量门禁。</p>
+                    </div>
+                    <span id="research-run-status" class="badge-new" role="status" aria-live="polite">等待创建研究任务</span>
+                </div>
+                <div class="research-center-layout">
+                    <main class="research-center-main">
+                        <form id="research-run-form" class="research-run-form dashboard-card" novalidate>
+                            <div class="research-composer-heading">
+                                <div>
+                                    <strong>你想研究什么？</strong>
+                                    <span>先描述问题，再选择最合适的研究模板。</span>
+                                </div>
+                                <span id="research-template-selection" class="research-selection-label">尚未选择模板</span>
+                            </div>
+                            <div class="form-field research-question-field">
+                                <label for="research-question">研究问题</label>
+                                <textarea id="research-question" name="question" rows="3" required placeholder="例如：公司的增长叙事是否被最新财报、行业变化和估值所支持？"></textarea>
+                            </div>
+                            <div class="form-grid research-subject-grid">
+                                <div class="form-field">
+                                    <label for="research-subject-type">研究对象类型</label>
+                                    <select id="research-subject-type" name="subject_type">
+                                        <option value="security">股票</option>
+                                        <option value="etf">ETF</option>
+                                        <option value="index">指数</option>
+                                        <option value="commodity">商品</option>
+                                        <option value="macro">宏观主题</option>
+                                        <option value="industry">行业</option>
+                                    </select>
+                                </div>
+                                <div class="form-field">
+                                    <label for="research-subject-id">对象代码 / 标识</label>
+                                    <input id="research-subject-id" name="subject_id" type="text" required autocomplete="off" placeholder="600519.SH">
+                                </div>
+                                <div class="form-field">
+                                    <label for="research-subject-name">显示名称</label>
+                                    <input id="research-subject-name" name="display_name" type="text" autocomplete="off" placeholder="贵州茅台">
+                                </div>
+                                <div class="form-field">
+                                    <label for="research-as-of">研究时点</label>
+                                    <input id="research-as-of" name="as_of" type="date" required>
+                                </div>
+                                <div class="form-field research-form-wide">
+                                    <label for="research-attachments">资料引用（可选）</label>
+                                    <input id="research-attachments" name="attachments" type="text" placeholder="document_v1:...，多个引用用逗号分隔">
+                                    <small>资料将进入 Research Run；原始证据规范化仅在内部流程完成。</small>
+                                </div>
+                            </div>
+                            <div class="research-template-heading">
+                                <div><strong>Research Template</strong><span>模板不是新页面，而是研究运行时的能力配置。</span></div>
+                            </div>
+                            <div id="research-template-list" class="research-template-list" role="listbox" aria-label="研究模板"></div>
+                            <div id="research-template-notice" class="research-template-notice" role="status" aria-live="polite"></div>
+                            <div class="research-run-actions">
+                                <button id="research-run-submit" class="btn-primary" type="submit" disabled>
+                                    <i class="codicon codicon-play"></i> 创建并执行研究
+                                </button>
+                            </div>
+                        </form>
+                        <div id="research-run-outputs" class="research-run-outputs" aria-live="polite">
+                            <div class="empty-state">创建一项研究任务后，这里会显示证据链、质量门禁、决策卡和报告预览。</div>
+                        </div>
+                    </main>
+                    <aside class="research-history-panel dashboard-card" aria-labelledby="research-history-title">
+                        <div class="card-header">
+                            <div><h3 id="research-history-title">最近研究</h3><span>跨模板 Research Run</span></div>
+                            <button id="research-history-refresh" class="btn-ghost compact" type="button" aria-label="刷新最近研究"><i class="codicon codicon-refresh"></i></button>
+                        </div>
+                        <div id="research-run-history" class="research-run-history">
+                            <div class="empty-state">正在读取最近任务…</div>
+                        </div>
+                    </aside>
                 </div>
             </section>
 

@@ -37,7 +37,7 @@
 | `.env.example` | 环境变量模板，复制为 `.env` 后使用 |
 | `.gitignore` | Git 忽略文件配置 |
 | AGENTS.md | 已跟踪的跨工具 Agent 规则入口 |
-| .agents/skills/ | 已跟踪的项目工作流与金融数据 skills |
+| .agents/skills/ | 已跟踪的项目工作流与金融数据 skills；其中 `a-share-deep-research/` 约束单证券 A 股深研的证据、门禁与可发布产物 |
 | .claude/ | 本机 Claude 可选配置；被 Git 忽略，不作为共享规则来源 |
 | `app/` | 应用层，包含 API、CLI、Web 界面 |
 | `core/` | 核心层，包含契约、接口、服务等 |
@@ -86,6 +86,7 @@
 | `app/api/routes/pipeline.py` | 管道 API：运行数据处理管道 |
 | `app/api/routes/report.py` | 报告 API：生成各类报告 |
 | `app/api/routes/report_projects.py` | 报告项目 API：列出/重命名/排序项目，保存 `report_config.yaml` / `prompt_templates.md` 源码，返回 `compiled_plan` 生成预检计划，委托 `ReportProjectRunService` 配置驱动生成 DOCX/PPTX，返回下载和 HTML 预览入口 |
+| `app/api/routes/research_runs.py` | 通用研究模板与运行 API：列出模板/任务，创建、执行、补证恢复、读取决策卡/观点/质量门禁，并仅在完成后导出 Markdown/Word |
 | `app/api/routes/scenarios.py` | 情景 API：生成多情景分析 |
 | `app/api/routes/search.py` | 搜索 API：全局跨对象搜索 |
 | `app/api/routes/signal_lab.py` | 信号实验室 API：特征、标签、评分、回测 |
@@ -121,6 +122,7 @@
 | `app/web/static/js/monitor.js` | 系统监控模块：Worker 心跳、队列深度、服务状态 |
 | `app/web/static/js/resource-monitor.js` | AlphaFoundry 受控资源监控：仅在系统中心“系统中心”标签可见时轮询快照/300 秒历史（最多 150 点）、每 60 秒读取 24 小时整机容量历史与持久化异常（默认 90 天）；明确比较 AlphaFoundry/整机 CPU、内存范围，展示独立 Worker 精确资源、API 内任务共享估算、紧凑置顶异常、确认/解决和可键盘操作的安全历史筛选；正常状态不显示 `ok` 徽标，采样不可用时保留上一帧 |
 | `app/web/static/js/asset.js` | 资产分析模块：Wind 风格 5 面板 K 线图（K 线+成交量/MACD/KDJ/RSI，首次加载默认请求近一年数据，支持日/周/月聚合与 MA120/MA250）、筹码分布图（筹码峰及上/下界标注）、资产搜索、分析卡渲染 |
+| `app/web/static/js/research-workbench.js` | 研究工作台：提交单证券 A 股研究、呈现门禁/来源关联观点/决策卡/报告预览，以及完成后的 Markdown/Word 下载链接 |
 
 ---
 
@@ -152,6 +154,7 @@
 | `core/contracts/raw_storage.py` | 原始存储结构：RawFile、RawStorageMetadata |
 | `core/contracts/replay.py` | 回放结构：ReplaySession、ReplayStep、ReplayResult |
 | `core/contracts/reporting.py` | 报告结构：Report、ReportType、ReportSection、ReportTemplate |
+| `core/contracts/research.py` | 通用研究结构：ResearchSubject、ResearchTemplateDefinition、ResearchRun、任务、产物、观点、质量门禁、决策卡与证据输入 |
 | `core/contracts/retrieval.py` | 检索结构：SearchQuery、SearchResult、RAGContext |
 | `core/contracts/review_framework.py` | 审查框架结构：ReviewTask、ReviewComment、ReviewStatus |
 | `core/contracts/scenarios.py` | 情景结构：ScenarioSet、Scenario、ScenarioProbability |
@@ -259,6 +262,7 @@
 | `failure_memory_service.py` | 失败记忆服务：记录失败、分析原因、查询相似失败 |
 | **报告与摘要** | |
 | `report_generator.py` | 报告生成器：生成资产分析、估值、每周回顾等报告 |
+| `research_templates.py` / `research_graph.py` / `research_run_service.py` | 通用模板注册、首个 A 股深研图与运行时：按对象选择执行器，保持 PostgreSQL 权威状态、不可变产物、门禁、恢复和导出 |
 | `summary_generator.py` | 摘要生成器：生成文档、事件、信号的摘要 |
 | **仪表盘与控制台** | |
 | `dashboard.js` / `dashboard_service.py` | 仪表盘市场刷新：前端轮询与 Wind 工作簿后端缓存均为 30 秒；Excel 超时/读取错误不会自动触发公式重写 |
@@ -414,6 +418,7 @@
 |---|---|
 | `data_layer/repositories/base.py` | 仓储基类：BaseRepository，提供通用数据库操作方法 |
 | `data_layer/repositories/models.py` | SQLAlchemy ORM 模型：定义所有数据库表模型 |
+| `data_layer/repositories/research_run_repository.py` | 研究运行仓储：持久化运行、任务、证据输入、版本化产物、当前观点及质量门禁投影 |
 | `data_layer/repositories/market_data_repository.py` | 市场数据仓储：PostgreSQL upsert / SQLite fallback，管理股票主表、日行情、估值、财务、股东、指数发布方、指数主表、成分权重快照、指数 ETF 关系和 ETF 日度规模/资金流表 |
 | `data_layer/repositories/monitoring_repository.py` | 监控仓储：持久化健康指标、告警与事件；支持仅更新未解决告警详情，并以确定性周期 ID / savepoint 冲突恢复和独立读取事务创建单一未解决资源事件 |
 | `data_layer/repositories/fund_repository.py` | 基金智能仓储：管理基金主数据、日净值、股票持仓和基金经理任职 MVP 表 |

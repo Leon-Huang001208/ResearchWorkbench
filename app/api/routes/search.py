@@ -18,7 +18,7 @@ router = APIRouter(prefix="/api/search", tags=["search"])
     "",
     responses={500: {"model": ErrorResponse}},
 )
-async def global_search(
+def global_search(
     q: str = Query(..., min_length=1, description="搜索关键词"),
     types: Optional[str] = Query(
         None,

@@ -467,6 +467,66 @@ python scripts/seed_factor_data.py --skip-ingest
 
 ---
 
+### Research Run API
+
+Research Run 是单一 `ResearchSubject`、单一 `as_of` 时点的可恢复深度研究任务。`ResearchTemplateRegistry` 决定对象类型、证据分类、质量门禁与执行图；首个可执行模板 `a_share_deep_research` 要求财务、行业、估值、风险和一致预期五类可追溯证据。门禁失败时状态为 `blocked`，不能下载报告或形成交易指令。
+
+#### GET /api/research-templates
+
+返回 A 股、宏观、商品、指数与行业模板的名称、说明、支持对象、输入要求、证据分类、质量门禁和可用状态。规划中模板可展示但不能创建 Run。
+
+#### POST /api/research-runs
+
+创建草稿研究任务；资料来源优先级为 `licensed → official → public → user`，任何实际降级都会记录在运行的 `source_plan` 中。
+
+```json
+{
+  "template_key": "a_share_deep_research",
+  "subject": {
+    "subject_type": "security",
+    "subject_id": "600519.SH",
+    "display_name": "贵州茅台",
+    "market": "A-share"
+  },
+  "as_of": "2026-08-10T00:00:00Z",
+  "question": "增长叙事是否被最新财报支持？",
+  "attachment_refs": ["user-upload:annual-report"],
+  "evidence_inputs": [
+    {
+      "evidence_id": "financial-2026h1",
+      "source_ref": "cninfo:600519-2026h1",
+      "source_name": "公司定期报告",
+      "evidence_kind": "financial",
+      "summary": "经营现金流覆盖利润。",
+      "claim_text": "现金流支持利润质量。",
+      "source_tier": "official",
+      "numeric_value": 12.5,
+      "numeric_unit": "亿元",
+      "numeric_period": "2026H1"
+    }
+  ]
+}
+```
+
+数值证据必须同时携带数值、单位和期间。每个 `source_ref` 都是决策卡和报告事实的可反查锚点。旧客户端可暂时继续传 `target_id`；服务会映射为 `subject_type=security`，新请求优先使用 `subject`。
+
+#### 执行、恢复与读取
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| `GET` | `/api/research-runs` | 返回最近 Research Run，供统一研究中心恢复跨模板任务。 |
+| `POST` | `/api/research-runs/{run_id}/execute` | 运行或重试草稿/失败/阻塞任务；已完成任务幂等返回。 |
+| `GET` | `/api/research-runs/{run_id}` | 返回状态、重试数、来源规划、阻塞原因和最新门禁。 |
+| `POST` | `/api/research-runs/{run_id}/evidence` | 仅为 `draft` 或 `blocked` 任务追加去重后的规范化证据。 |
+| `POST` | `/api/research-runs/{run_id}/resume` | 仅从 `blocked` 状态恢复；保留早期不可变 Artifact。 |
+| `GET` | `/api/research-runs/{run_id}/outputs` | 返回决策卡、研究笔记、当前观点、质量门禁、Artifact 和 Markdown 报告。 |
+| `GET` | `/api/research-runs/{run_id}/downloads/markdown` | 仅 `completed` 时下载 Markdown。 |
+| `GET` | `/api/research-runs/{run_id}/downloads/word` | 仅 `completed` 时下载 Word。 |
+
+发布硬门禁为：每个观点存在引用、财务/行业/估值/风险/一致预期全覆盖、数值字段完整且不存在未解决冲突。门禁失败返回 `blocked`，导出接口返回 `409`。决策卡只含研究结论、置信度、驱动、催化剂、风险、失效条件、待验证事项和数据覆盖度；不含仓位或交易指令。
+
+---
+
 ### 仪表盘 API
 
 #### GET /api/dashboard

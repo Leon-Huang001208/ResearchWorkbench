@@ -480,7 +480,7 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "--news-rank-default: var(--apple-accent)" in css
     assert "20260618-desktop-phase1" in js
     assert "dashboard.js?v=20260703theme1" in js
-    assert "asset.js?v=20260703theme1" in js
+    assert "asset.js?v=20260811research1" in js
     assert "openThemeObservation" in js
     dashboard_js = (ROOT / "app" / "web" / "static" / "js" / "dashboard.js").read_text(
         encoding="utf-8"

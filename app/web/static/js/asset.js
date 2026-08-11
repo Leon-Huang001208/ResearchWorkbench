@@ -832,7 +832,6 @@ function renderAssetSearchDropdown(results, query, status = {}) {
             <div class="search-result-group">
                 <div class="group-title">标的</div>
                 ${statusHtml}
-                ${errorHtml}
                 <div class="asset-search-status">没有匹配：${esc(query)}</div>
             </div>
         `;
@@ -840,7 +839,7 @@ function renderAssetSearchDropdown(results, query, status = {}) {
         return;
     }
     selectedAssetIndex = 0;
-    let html = `<div class="search-result-group"><div class="group-title">标的</div>${statusHtml}${errorHtml}`;
+    let html = `<div class="search-result-group"><div class="group-title">标的</div>${statusHtml}`;
     results.forEach((item, index) => {
         const name = item.name || item.display_name || '';
         const industry = item.industry || item.asset_type || '';
@@ -896,6 +895,10 @@ function selectAssetCandidate(candidate, element) {
     if (input) {
         input.value = name ? `${displaySymbol} ${name}` : displaySymbol;
         input.dataset.selectedSymbol = canonicalId;
+    }
+    const candidateMode = String(candidate.asset_type || '').toLowerCase();
+    if (['equity', 'etf', 'index'].includes(candidateMode)) {
+        switchAssetObserveMode(candidateMode);
     }
     hideAssetSearchDropdown();
     analyzeAssetByCode(canonicalId);
@@ -954,7 +957,7 @@ async function analyzeAssetByCode(code, timeRange = null) {
     if (!code) return toast('请输入资产代码', 'error');
     hideAssetSearchDropdown();
     if (String(code).trim() === '--') return toast('该资产暂未映射代码', 'error');
-    switchAssetObserveMode('equity');
+    if (currentAssetObserveMode === 'theme') switchAssetObserveMode('equity');
     const range = timeRange || currentTimeRange || DEFAULT_TIME_RANGE;
     currentCanonicalId = code;
     currentTimeRange = range;
@@ -979,6 +982,60 @@ async function analyzeAsset() {
     const code = input?.dataset?.selectedSymbol || normalizeAssetInput(input?.value);
     if (!code) return toast('请输入资产代码', 'error');
     return analyzeAssetByCode(code);
+}
+
+function buildResearchPrefill() {
+    const basic = currentAssetAnalysisData?.basic_info || {};
+    const rawAssetType = String(basic.asset_type || currentAssetObserveMode || 'equity').toLowerCase();
+    const typeMap = {
+        stock: 'security',
+        equity: 'security',
+        etf: 'etf',
+        index: 'index',
+        theme: 'industry',
+    };
+    const subject_type = typeMap[rawAssetType] || typeMap[currentAssetObserveMode] || 'security';
+    const input = document.getElementById('asset-code');
+    const topic = currentAssetObserveMode === 'theme' ? currentTopicObservation : null;
+    const subjectId = topic?.sector_id
+        || topic?.index?.code
+        || currentAssetAnalysisData?.canonical_id
+        || input?.dataset?.selectedSymbol
+        || normalizeAssetInput(input?.value);
+    const displayName = topic?.name
+        || basic.name
+        || input?.value?.replace(subjectId || '', '').trim()
+        || subjectId;
+    const latestBar = currentAssetAnalysisData?.price_bars?.at?.(-1);
+    const asOf = String(latestBar?.date || new Date().toISOString()).slice(0, 10);
+    const templateMap = {
+        security: 'a_share_deep_research',
+        etf: 'index_research',
+        index: 'index_research',
+        industry: 'industry_research',
+    };
+    return {
+        subject_type,
+        subject_id: subjectId,
+        display_name: displayName,
+        as_of: asOf,
+        template_key: templateMap[subject_type],
+        question: displayName
+            ? `请对${displayName}进行完整研究，验证核心驱动、估值、风险与失效条件。`
+            : '',
+        source_section: 'asset-analysis',
+    };
+}
+
+function startResearchFromAsset() {
+    const prefill = buildResearchPrefill();
+    if (!prefill.subject_id) {
+        toast('请先选择一个资产或主题', 'warning');
+        return;
+    }
+    document.dispatchEvent(new CustomEvent('alphafoundry:open-research-center', {
+        detail: prefill,
+    }));
 }
 
 function renderAssetAnalysisCard(data) {
@@ -2361,6 +2418,7 @@ function initAssetSearch() {
         const input = document.getElementById('asset-code');
         if (dropdown && !dropdown.contains(e.target) && e.target !== input) dropdown.classList.add('hidden');
     });
+    document.getElementById('asset-start-research')?.addEventListener('click', startResearchFromAsset);
 }
 
 export {
@@ -2375,4 +2433,5 @@ export {
     initKLineToolbar,
     switchAssetObserveMode,
     openThemeObservation,
+    buildResearchPrefill,
 };

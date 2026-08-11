@@ -40,6 +40,20 @@ Update this section when:
 - New tables are added.
 - Table schema changes.
 
+### `data_layer/repositories/research_run_repository.py`
+
+Purpose:
+
+- Persist `ResearchRun`, normalized `ResearchSubject`, evidence input, task state, immutable versioned artifacts, current claim projection, and current quality-gate projection; keep `target_id` as a compatibility index.
+- List recent runs by update time for the unified research center.
+- Preserve prior attempt artifacts; re-running a blocked task only refreshes current views and appends a new artifact revision.
+
+Related service:
+- `services/research_run_service.py`
+
+Update this section when:
+- Research state, artifact idempotency, or projection replacement semantics change.
+
 ---
 
 ### `data_layer/repositories/market_data_repository.py`

@@ -68,3 +68,4 @@ When files in this module change, check:
 | `core/contracts/retrieval.py` | 检索配置和 Profile：`RetrievalProfile`、`RetrievalFilters`、`RetrievalQuery` |
 | `core/contracts/outcome_journal.py` | 结果日志：`SignalOutcomeDB` |
 | `core/contracts/monitoring.py` | 生产监控告警、事件和健康指标契约；`Subsystem.RESOURCE_MONITORING` 标识仅属于 AlphaFoundry 资源监控的持久化事件 |
+| `core/contracts/research.py` | 通用可恢复研究契约：`ResearchSubject` 统一股票、ETF、指数、商品、宏观和行业对象，`ResearchTemplateDefinition` 暴露模板能力；`ResearchRun` 配套任务、不可变产物、观点、质量门禁、证据输入和决策卡。旧 `target_id` 兼容映射为 security subject，证据分类由模板验证。 |

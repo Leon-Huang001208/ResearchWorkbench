@@ -1985,6 +1985,8 @@ class ExampleRepositoryImpl(BaseRepository):
 | 010 | 010_add_wind_data_tables.py | 添加 Wind 一致预期、两融、龙虎榜和日行情表 |
 | 011 | 011_add_factor_store_tables.py | 添加动态多因子存储表 |
 | 012 | 012_add_index_structure_tables.py | 添加指数发布方、指数主表、成分权重快照、指数 ETF 关系和 ETF 日度规模/资金流表 |
+| 013 | 013_add_research_run_tables.py | 添加 `research_run`、`research_task`、`research_artifact`、`research_claim`、`research_quality_gate`；不可变 Artifact 保存每次运行产物，Claim/Gate 保存当前可查询投影。 |
+| 014 | 014_add_research_subject.py | 向 `research_run` 添加通用研究对象类型与 JSON payload；旧 `target_id` 保留且默认解释为 security。 |
 
 ### 常用命令
 

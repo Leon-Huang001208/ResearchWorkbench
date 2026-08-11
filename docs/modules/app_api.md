@@ -283,6 +283,33 @@ Update this section when:
 
 ---
 
+### `app/api/routes/research_runs.py`
+
+Purpose:
+
+- Cross-domain, evidence-first research-center API. `ResearchRun` in PostgreSQL is the sole run-state authority; the route delegates template validation and domain behavior to `ResearchRunService`.
+- `GET /api/research-templates` — list framework-free metadata for available and planned templates. `GET /api/research-runs` lists recent runs.
+- `POST /api/research-runs` — create a draft from one normalized `ResearchSubject`, `template_key`, `as_of`, question, attachment references, and optional internal normalized evidence. Legacy `target_id` maps to a security subject.
+- `POST /api/research-runs/{run_id}/execute` — execute the resumable graph; quality-gate failures end in `blocked`, otherwise the run becomes `completed`.
+- `GET /api/research-runs/{run_id}` / `GET /api/research-runs/{run_id}/outputs` — return state, source plan, blockers, gates, immutable artifacts, current claims, decision card, notes, and Markdown projection.
+- `POST /api/research-runs/{run_id}/evidence` and `POST /api/research-runs/{run_id}/resume` — append corrective evidence then resume only a blocked run.
+- `GET /api/research-runs/{run_id}/downloads/markdown` and `/downloads/word` — export only a completed run; no trade instruction, position, or order is produced.
+
+Related services and contracts:
+
+- `services/research_run_service.py`
+- `services/research_graph.py`
+- `services/research_templates.py`
+- `data_layer/repositories/research_run_repository.py`
+- `core/contracts/research.py`
+
+Update this section when:
+
+- Research-run status, quality gates, export eligibility, or data-source fallback semantics change.
+- Request/response contracts or output projections change.
+
+---
+
 ### `app/api/routes/system.py`
 
 Purpose:

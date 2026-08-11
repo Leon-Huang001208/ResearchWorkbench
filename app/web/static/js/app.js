@@ -6,7 +6,7 @@
 import { apiCall, toast, esc, getChartColors, applyChartDefaults } from './core.js';
 import { loadDashboard, switchDashTab, switchMarketHeatmapScope, switchMarketSectorView, toggleMarketSectorMenu } from './dashboard.js?v=20260703theme1';
 import { startCrawlFeedPolling, stopCrawlFeedPolling, startWorkersPolling, stopWorkersPolling, loadWorkersStatus } from './monitor.js?v=20260714a';
-import { searchAssets, selectAsset, analyzeAssetByCode, analyzeAsset, handleAssetSearchKeydown, initAssetSearch, setKLineTimeRange, toggleMA, initKLineToolbar, switchAssetObserveMode, openThemeObservation } from './asset.js?v=20260703theme1';
+import { searchAssets, selectAsset, analyzeAssetByCode, analyzeAsset, handleAssetSearchKeydown, initAssetSearch, setKLineTimeRange, toggleMA, initKLineToolbar, switchAssetObserveMode, openThemeObservation } from './asset.js?v=20260811research1';
 import { switchSignalLabTab, loadSignalLab, initSignalLab } from './signal-lab.js';
 import { loadMemoryPage, loadEpisodes, loadStrategies, loadFailures, loadEventSummary, initMemory } from './memory.js';
 import { loadSignals, createSignal, validateSignal, promoteSignal, loadOutcomes, initSignals } from './signals.js';
@@ -26,9 +26,11 @@ import { initFundsPanel } from './funds.js?v=20260625a';
 import { initCommentaryCenter, selectCommentaryTemplate, loadCommentaryContext, generateCommentaryDraft, copyCommentaryDraft, exportCommentaryMarkdown, toggleAutoRefresh, switchCommentaryWorkspace } from './commentary.js?v=20260707logic1';
 import { initConfigurationPage } from './configuration.js?v=20260727modalhierarchy1';
 import { initSetupWizard } from './setup-wizard.js?v=20260726setup1';
+import { initResearchWorkbench, openResearchCenter } from './research-workbench.js?v=20260811researchcenter1';
 
 // ─── Window Exports (for HTML onclick handlers) ────────────────
 window.apiCall = apiCall;
+window.openResearchCenter = openResearchCenter;
 window.toast = toast;
 window.esc = esc;
 window.getChartColors = getChartColors;
@@ -281,6 +283,7 @@ function navigateTo(section, options = {}) {
     if (targetSection === 'signal-lab') loadSignalLab();
     if (targetSection === 'templates') loadTemplatesPage();
     if (targetSection === 'commentary') initCommentaryCenter();
+    if (targetSection === 'research') initResearchWorkbench();
     if (targetSection === 'wind') initWindPanel();
     if (targetSection === 'funds') initFundsPanel();
     if (targetSection === 'pipeline-monitor') renderPipelineMonitor();
@@ -416,6 +419,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     document.addEventListener('alphafoundry:open-database-configuration', () => {
         navigateTo('system', { systemTab: 'config' });
+    });
+    document.addEventListener('alphafoundry:open-research-center', event => {
+        if (!navigateTo('research')) return;
+        openResearchCenter(event.detail || {});
     });
 
     let setupMode = false;

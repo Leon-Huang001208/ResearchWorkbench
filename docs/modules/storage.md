@@ -54,6 +54,8 @@ Key migrations:
 | 010 | `010_add_wind_data_tables.py` | Wind 数据表：wind_consensus_estimate, wind_margin_trading, wind_block_trade, wind_daily_bar |
 | 011 | `011_add_factor_store_tables.py` | 动态多因子表：factor_definition, factor_value, factor_evaluation, dynamic_factor_weight（含索引和唯一约束） |
 | 012 | `012_add_index_structure_tables.py` | 指数发布方、指数主表、成分权重快照、指数 ETF 关系和 ETF 日度规模/资金流表 |
+| 013 | `013_add_research_run_tables.py` | 研究运行、任务、不可变产物、当前观点投影和质量门禁表；运行状态与可恢复节点由 `research_run` 权威持久化。 |
+| 014 | `014_add_research_subject.py` | 为现有研究任务增加 `subject_type` 与 `subject_payload`；保留 `target_id`，旧数据默认映射为 security subject。 |
 
 Update this section when:
 - New migrations are added

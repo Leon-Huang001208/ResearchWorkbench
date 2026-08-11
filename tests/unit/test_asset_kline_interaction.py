@@ -39,7 +39,7 @@ def test_kline_static_module_versions_are_bumped():
     app_source = APP_JS.read_text(encoding="utf-8")
     index_source = INDEX_HTML.read_text(encoding="utf-8")
 
-    assert "./asset.js?v=20260703theme1" in app_source
+    assert "./asset.js?v=20260811research1" in app_source
     assert APP_JS_CACHE_URL in index_source
 
 
@@ -49,6 +49,13 @@ def test_asset_analysis_defaults_to_recent_history_for_first_paint():
     assert "const DEFAULT_TIME_RANGE = '1Y';" in source
     assert "let currentTimeRange = DEFAULT_TIME_RANGE;" in source
     assert "timeRange || currentTimeRange || DEFAULT_TIME_RANGE" in source
+
+
+def test_asset_search_fallback_does_not_reference_removed_error_fragment():
+    source = ASSET_JS.read_text(encoding="utf-8")
+
+    assert "${errorHtml}" not in source
+    assert "status.search_error" in source
 
 
 def test_external_chart_scripts_do_not_block_workbench_startup():

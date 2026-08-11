@@ -264,6 +264,7 @@ from app.api.routes import (  # noqa: E402
     replay,
     report,
     report_projects,
+    research_runs,
     review,
     scenarios,
     scheduler,
@@ -300,6 +301,8 @@ app.include_router(ingestion_queue.router)
 app.include_router(audit.router)
 app.include_router(search.router)
 app.include_router(replay.router)
+app.include_router(research_runs.router)
+app.include_router(research_runs.template_router)
 app.include_router(portfolio.router)
 app.include_router(paper_trading.router)
 app.include_router(governance.router)

@@ -1,0 +1,4 @@
+interface:
+  display_name: "A股深度研究"
+  short_description: "A股公司深度研究：证据链、观点审查与可追溯报告工作流"
+  default_prompt: "Use $a-share-deep-research to create an evidence-first A-share company research run."

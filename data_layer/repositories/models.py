@@ -1341,6 +1341,95 @@ class ReportRunV1DB(Base):
         )
 
 
+class ResearchRunDB(Base):
+    """Persistent source of truth for an evidence-first research execution."""
+
+    __tablename__ = "research_run"
+
+    run_id = Column(Text, primary_key=True)
+    template_key = Column(Text, nullable=False, index=True)
+    target_id = Column(Text, nullable=False, index=True)
+    subject_type = Column(Text, nullable=False, default="security", index=True)
+    subject_payload = Column(JSON, nullable=False, default=dict)
+    as_of = Column(DateTime(timezone=True), nullable=False, index=True)
+    question = Column(Text, nullable=False)
+    attachment_refs = Column(JSON, nullable=False, default=list)
+    evidence_inputs = Column(JSON, nullable=False, default=list)
+    source_plan = Column(JSON, nullable=False, default=dict)
+    status = Column(Text, nullable=False, default="draft", index=True)
+    retry_count = Column(Integer, nullable=False, default=0)
+    resume_from = Column(Text, nullable=True)
+    blocked_reasons = Column(JSON, nullable=False, default=list)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class ResearchTaskDB(Base):
+    """Durable task snapshot for a ResearchRun graph execution."""
+
+    __tablename__ = "research_task"
+
+    task_id = Column(Text, primary_key=True)
+    run_id = Column(Text, ForeignKey("research_run.run_id"), nullable=False, index=True)
+    task_key = Column(Text, nullable=False)
+    status = Column(Text, nullable=False)
+    attempt = Column(Integer, nullable=False, default=0)
+    resume_from = Column(Text, nullable=True)
+    state_snapshot = Column(JSON, nullable=False, default=dict)
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class ResearchArtifactDB(Base):
+    """Immutable materialized output of a research stage."""
+
+    __tablename__ = "research_artifact"
+
+    artifact_id = Column(Text, primary_key=True)
+    run_id = Column(Text, ForeignKey("research_run.run_id"), nullable=False, index=True)
+    artifact_type = Column(Text, nullable=False)
+    payload = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    __table_args__ = (
+        UniqueConstraint("run_id", "artifact_type", name="uq_research_artifact_type"),
+    )
+
+
+class ResearchClaimDB(Base):
+    """Claim-to-evidence association created by a ResearchRun."""
+
+    __tablename__ = "research_claim"
+
+    claim_id = Column(Text, primary_key=True)
+    run_id = Column(Text, ForeignKey("research_run.run_id"), nullable=False, index=True)
+    category = Column(Text, nullable=False)
+    text = Column(Text, nullable=False)
+    evidence_refs = Column(JSON, nullable=False, default=list)
+    numeric_context = Column(JSON, nullable=False, default=dict)
+    conflict_status = Column(Text, nullable=False, default="clear")
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class ResearchQualityGateDB(Base):
+    """Latest quality-gate evaluation for a ResearchRun."""
+
+    __tablename__ = "research_quality_gate"
+
+    gate_id = Column(Text, primary_key=True)
+    run_id = Column(Text, ForeignKey("research_run.run_id"), nullable=False, index=True)
+    gate_key = Column(Text, nullable=False)
+    passed = Column(Boolean, nullable=False)
+    severity = Column(Text, nullable=False, default="error")
+    message = Column(Text, nullable=False)
+    details = Column(JSON, nullable=False, default=dict)
+    checked_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    __table_args__ = (UniqueConstraint("run_id", "gate_key", name="uq_research_quality_gate"),)
+
+
 # =============================================================================
 # AF-AUTO-002-07: PDF 元数据表与转换结果表
 # =============================================================================

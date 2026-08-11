@@ -1606,6 +1606,43 @@ Functions:
 - `_require_suffix`
 
 
+## `app/api/routes/research_runs.py`
+
+Module docstring:
+> Cross-domain, evidence-first Research Run API.
+
+Imports:
+- `__future__`
+- `core.contracts.research`
+- `core.observability`
+- `data_layer.repositories.base`
+- `data_layer.repositories.research_run_repository`
+- `fastapi`
+- `fastapi.responses`
+- `services.research_templates`
+- `sqlalchemy.orm`
+- `typing`
+
+Functions:
+- `get_research_run_service`
+  - Inject the aggregate service with the request-scoped database session.
+- `create_research_run`
+  - Create a durable research task; execution remains explicit and resumable.
+- `list_research_runs`
+  - List recent cross-domain Research Runs for the unified research center.
+- `list_research_templates`
+  - Expose template capability metadata without framework executor objects.
+- `get_research_run`
+- `execute_research_run`
+- `resume_research_run`
+- `add_research_evidence`
+- `get_research_outputs`
+- `download_research_markdown`
+  - Download the report projection only after all publishing gates passed.
+- `download_research_word`
+  - Download the Word report projection only after all publishing gates passed.
+
+
 ## `app/api/routes/review.py`
 
 Module docstring:
@@ -2569,13 +2606,13 @@ Imports:
 - `portfolio`
 - `replay`
 - `reporting`
+- `research`
 - `retrieval`
 - `review_framework`
 - `scenarios`
 - `signals`
 - `timing_engine`
-- `timing_types`
-- ... 1 more
+- ... 2 more
 
 
 ## `core/contracts/agent_types.py`
@@ -3538,6 +3575,38 @@ Classes:
 - `TextPlaceholder`
   - 文本占位符规范.
   - methods: normalized_placeholder
+
+
+## `core/contracts/research.py`
+
+Module docstring:
+> Contracts for resumable, evidence-first research runs.
+
+Imports:
+- `__future__`
+- `datetime`
+- `enum`
+- `pydantic`
+- `typing`
+
+Classes:
+- `ResearchRunStatus`
+- `ResearchSubject`
+  - One normalized research subject shared by every Research Template.
+- `ResearchTemplateDefinition`
+  - Public, framework-free metadata for one registered research template.
+- `ResearchEvidenceInput`
+  - A normalized, source-addressable input supplied to one research run.
+  - methods: validate_numeric_context
+- `ResearchRunCreateRequest`
+  - methods: normalize_legacy_target
+- `ResearchTask`
+- `ResearchArtifact`
+- `ResearchClaim`
+- `QualityGateResult`
+- `ResearchDecisionCard`
+- `ResearchRun`
+- `ResearchRunOutputs`
 
 
 ## `core/contracts/retrieval.py`
@@ -7169,6 +7238,16 @@ Classes:
 - `ReportRunV1DB`
   - 报告运行记录表.
   - methods: from_contract, to_contract
+- `ResearchRunDB`
+  - Persistent source of truth for an evidence-first research execution.
+- `ResearchTaskDB`
+  - Durable task snapshot for a ResearchRun graph execution.
+- `ResearchArtifactDB`
+  - Immutable materialized output of a research stage.
+- `ResearchClaimDB`
+  - Claim-to-evidence association created by a ResearchRun.
+- `ResearchQualityGateDB`
+  - Latest quality-gate evaluation for a ResearchRun.
 - `PDFArtifactV1DB`
   - PDF 制品表 - 存储下载的 PDF 文件元数据.
 - `PDFConversionV1DB`
@@ -7418,6 +7497,25 @@ Classes:
 - `ReplayRepositoryImpl`
   - 回放仓储实现
   - methods: create_job, get_job, update_job_status, save_result, get_results, _job_to_domain, _result_to_domain
+
+
+## `data_layer/repositories/research_run_repository.py`
+
+Module docstring:
+> Persistence adapter for the Research Run aggregate.
+
+Imports:
+- `__future__`
+- `core.contracts.research`
+- `data_layer.repositories.models`
+- `datetime`
+- `sqlalchemy.orm`
+- `typing`
+
+Classes:
+- `ResearchRunRepository`
+  - Keep relational storage behind the evidence-first research aggregate.
+  - methods: __init__, create_run, get_run_or_raise, get_evidence_inputs, list_runs, append_evidence_input, update_run, create_task, get_task_or_raise, update_task, append_artifact, replace_claims, replace_quality_gates, list_artifacts, list_claims, list_quality_gates, _to_run, _to_artifact, _to_task, _to_claim, _to_gate
 
 
 ## `data_layer/repositories/search_repository.py`
@@ -11689,6 +11787,36 @@ Functions:
 - `upgrade`
 - `downgrade`
 - `_copy_legacy_index_components`
+
+
+## `storage/migrations/versions/013_add_research_run_tables.py`
+
+Module docstring:
+> Add evidence-first Research Run persistence.
+
+Imports:
+- `alembic`
+- `sqlalchemy`
+- `typing`
+
+Functions:
+- `upgrade`
+- `downgrade`
+
+
+## `storage/migrations/versions/014_add_research_subject.py`
+
+Module docstring:
+> Add normalized ResearchSubject fields while preserving target_id.
+
+Imports:
+- `alembic`
+- `sqlalchemy`
+- `typing`
+
+Functions:
+- `upgrade`
+- `downgrade`
 
 
 ## `ingestion/__init__.py`
