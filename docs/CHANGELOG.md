@@ -8,6 +8,8 @@
 
 ### Added
 
+- **合并平台共享契约与 015–018 数据基线**：新增五个 Pydantic 契约模块，固定四类资产、`fresh/stale/unavailable/quarantined`、事实响应六字段、单位/缺失值语义、受限 Skill、Agent 预算/日程、主题 Pack、facts-only 首页与资产提醒状态。新增 20 张 SQLAlchemy 模型和四段可逆 Alembic 迁移；`domain_event` 为持久权威，`theme_observation` 为唯一主题事实表，Research Note/Watchlist 分别复用既有 Run/Claim 与 canonical asset identity。SQLite 已覆盖 015→018 实际升降级，未新增平行资产或 Research Run 表。
+
 - **AlphaFoundry × LSH 合并平台 V1 架构包**：新增 `docs/architecture/merged-platform/` 七份专题正文、索引、九份 Archify JSON 图源与 `outputs/merged-platform-architecture/` 九张交互 HTML，固定模块化单体 + 可选 DSH 侧车、唯一 FastAPI、唯一 PostgreSQL + pgvector、共享事实契约及 FinGPT/Claw、市场首页、Research Pack、资产观察四模块边界。
   - 架构明确事实/研究/个人观察三层隔离，20 张新增表与 015–018 四段迁移；主题六类读模型首版为查询投影，不增加物化表。
   - DSH 不直连数据库；FinGPT 可由 DSH 回退 LangGraph，Claw 缺团队能力返回 `blocked_runtime`；Skill 声明式且只允许白名单工具/MCP，团队由 Supervisor + Shared Blackboard 协调并受预算与 deadline 限制。

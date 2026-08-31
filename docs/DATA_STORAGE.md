@@ -1987,6 +1987,12 @@ class ExampleRepositoryImpl(BaseRepository):
 | 012 | 012_add_index_structure_tables.py | 添加指数发布方、指数主表、成分权重快照、指数 ETF 关系和 ETF 日度规模/资金流表 |
 | 013 | 013_add_research_run_tables.py | 添加 `research_run`、`research_task`、`research_artifact`、`research_claim`、`research_quality_gate`；不可变 Artifact 保存每次运行产物，Claim/Gate 保存当前可查询投影。 |
 | 014 | 014_add_research_subject.py | 向 `research_run` 添加通用研究对象类型与 JSON payload；旧 `target_id` 保留且默认解释为 security。 |
+| 015 | 015_add_platform_fact_core.py | 新增 `asset_registry`、`asset_identifier`、`theme_observation`、`scheduled_job`、`domain_event`。 |
+| 016 | 016_add_theme_and_market_home.py | 新增 `theme_pack` 与不可变 `market_home_snapshot`。 |
+| 017 | 017_add_research_workspace_runtime.py | 新增 8 张研究工作区/运行时表，并通过外键复用既有 Research Run 与 Claim。 |
+| 018 | 018_add_asset_observation.py | 新增 Watchlist、规则、Alert Event 与站内 Notification 五张个人观察表。 |
+
+合并平台迁移严格保持 20 张 additive 表：不创建 `source_ref`、第二套 `research_run`、股票/指数/ETF/基金事实表或六张主题投影表。生产以 PostgreSQL 为权威；SQLite 仅用于 ORM 与 015→018 升降级兼容测试。`domain_event` 是持久事件源，进程内事件总线只负责投递；`scheduled_job` 以 owner/idempotency 唯一键和租约字段支持 single-flight。
 
 ### 常用命令
 

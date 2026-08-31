@@ -56,6 +56,10 @@ Key migrations:
 | 012 | `012_add_index_structure_tables.py` | 指数发布方、指数主表、成分权重快照、指数 ETF 关系和 ETF 日度规模/资金流表 |
 | 013 | `013_add_research_run_tables.py` | 研究运行、任务、不可变产物、当前观点投影和质量门禁表；运行状态与可恢复节点由 `research_run` 权威持久化。 |
 | 014 | `014_add_research_subject.py` | 为现有研究任务增加 `subject_type` 与 `subject_payload`；保留 `target_id`，旧数据默认映射为 security subject。 |
+| 015 | `015_add_platform_fact_core.py` | 新增 canonical 资产身份、唯一主题 Observation、PostgreSQL 调度租约和持久 `domain_event` 权威记录。 |
+| 016 | `016_add_theme_and_market_home.py` | 新增版本化 `theme_pack` Manifest 与不可变 `market_home_snapshot`。 |
+| 017 | `017_add_research_workspace_runtime.py` | 新增 Workspace/Session/Message、Runtime、Skill、Agent Team/Schedule 和版本化 Note；复用既有 Research Run/Claim。 |
+| 018 | `018_add_asset_observation.py` | 新增 Watchlist、Alert Event 与站内 Notification 五张个人观察表。 |
 
 Update this section when:
 - New migrations are added

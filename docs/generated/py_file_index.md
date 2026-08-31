@@ -2667,6 +2667,49 @@ Classes:
   - 断言 - 从文档中提取的事实陈述.
 
 
+## `core/contracts/asset_observation.py`
+
+Module docstring:
+> Asset observation, peer set, watchlist, alert, and notification contracts.
+
+Imports:
+- `__future__`
+- `core.contracts.platform_shared`
+- `datetime`
+- `enum`
+- `pydantic`
+- `typing`
+
+Classes:
+- `AssetSnapshotEnvelope`
+  - Unified fact response for stock, index, ETF, and active fund details.
+- `PeerSet`
+  - Transparent peer-selection rule and resulting sample.
+- `Watchlist`
+  - Named, profile-scoped collection of canonical assets.
+- `WatchlistItem`
+  - Watchlist entry identified only by stable canonical asset ID.
+- `AlertOperator`
+  - Supported deterministic alert comparison operators.
+- `AlertRuleStatus`
+  - Lifecycle state of an alert rule.
+- `AlertRule`
+  - Unit-aware rule evaluated only against usable fact observations.
+  - methods: validate_threshold
+- `AlertEvaluationStatus`
+  - Outcome of one rule evaluation.
+- `AlertEvaluation`
+  - Auditable result of evaluating an alert rule.
+- `AlertEventStatus`
+  - Lifecycle of one false-to-true alert cycle.
+- `AlertEvent`
+  - Persisted false-to-true edge with deduplication identity.
+- `NotificationStatus`
+  - In-app authority and optional desktop delivery projection states.
+- `Notification`
+  - Safe persisted inbox message independent of desktop permission.
+
+
 ## `core/contracts/assets.py`
 
 Module docstring:
@@ -3325,6 +3368,40 @@ Classes:
   - 数据校验报告 — connector.validate_existing() 的返回类型.
 
 
+## `core/contracts/market_home.py`
+
+Module docstring:
+> Facts-only market home contracts and transparent mainline components.
+
+Imports:
+- `__future__`
+- `core.contracts.platform_shared`
+- `datetime`
+- `enum`
+- `pydantic`
+- `typing`
+
+Classes:
+- `TradingStatus`
+  - A-share trading-session state used by market home.
+- `MarketHomeSectionKey`
+  - The five fixed facts-only market home sections.
+- `SectionStatus`
+  - Independent readiness state of one home section.
+- `SectionDegradation`
+  - Stable partial-failure description for one market section.
+- `MainlineComponents`
+  - Versioned inputs to the transparent market-mainline score.
+- `MainlineRank`
+  - Ranked theme with every score component exposed.
+- `MarketHomeSection`
+  - Independently degradable, source-backed home section.
+- `MarketHomeEnvelope`
+  - Facts-only market home response with five explicit sections.
+- `MarketHomeSnapshot`
+  - Immutable close or point-in-time projection for historical reads.
+
+
 ## `core/contracts/monitoring.py`
 
 Module docstring:
@@ -3469,6 +3546,48 @@ Classes:
   - 转换状态响应
 
 
+## `core/contracts/platform_shared.py`
+
+Module docstring:
+> Shared identity, provenance, freshness, event, and scheduling contracts.
+
+Imports:
+- `__future__`
+- `datetime`
+- `enum`
+- `pydantic`
+- `typing`
+
+Classes:
+- `AssetType`
+  - Asset classes supported by the merged observation surface.
+- `FreshnessStatus`
+  - Point-in-time usability of a fact response.
+- `SourceTier`
+  - Trust tier of a traceable source.
+- `AssetRef`
+  - Stable internal asset identity without duplicating asset facts.
+- `AssetIdentifier`
+  - Time-bounded vendor or market identifier for an asset.
+  - methods: validate_validity_window
+- `SourceRef`
+  - Safe, credential-free pointer to the origin of a fact.
+  - methods: validate_traceability
+- `FactResponseBase`
+  - Mandatory temporal and provenance context for every fact response.
+  - methods: validate_time_order
+- `ObservationEnvelope`
+  - Typed fact observation with explicit missing-value and unit semantics.
+  - methods: validate_value_semantics
+- `DomainEvent`
+  - Durable domain-event record; transports carry only its reference.
+- `ScheduledJobStatus`
+  - Durable scheduler state owned by PostgreSQL.
+- `ScheduledJob`
+  - Single-flight scheduled work with lease and idempotency semantics.
+  - methods: validate_single_flight
+
+
 ## `core/contracts/portfolio.py`
 
 Module docstring:
@@ -3609,6 +3728,54 @@ Classes:
 - `ResearchRunOutputs`
 
 
+## `core/contracts/research_workspace.py`
+
+Module docstring:
+> Workspace, runtime, Skill, Agent Team, and schedule contracts.
+
+Imports:
+- `__future__`
+- `datetime`
+- `enum`
+- `pydantic`
+- `re`
+- `typing`
+
+Classes:
+- `WorkspaceStatus`
+  - Lifecycle state of a local research workspace.
+- `ResearchWorkspace`
+  - Project-isolated container for sessions, runs, and notes.
+- `SessionMode`
+  - Whether a session is ephemeral or bound to a workspace.
+- `SessionStatus`
+  - Lifecycle of a research conversation.
+- `ResearchSession`
+  - Temporary or workspace-scoped research conversation.
+  - methods: validate_scope
+- `ResearchMessage`
+  - Persisted message with content stored directly or by safe reference.
+  - methods: validate_content
+- `RuntimeProviderStatus`
+  - Health state advertised by a research runtime provider.
+- `RuntimeProvider`
+  - Capability declaration for LangGraph or the optional DSH sidecar.
+- `SkillManifest`
+  - Declarative research Skill with a closed tool permission surface.
+  - methods: validate_allowed_tools
+- `AgentBudget`
+  - Hard execution bounds checked before every Agent step.
+- `AgentTeamDefinition`
+  - Supervisor-led team whose workers communicate through a blackboard.
+  - methods: validate_supervisor
+- `AgentSchedule`
+  - No-reentry schedule that coalesces missed executions to the latest.
+  - methods: validate_execution_policy
+- `ResearchNote`
+  - Versioned user-selected Claim or paragraph reference.
+  - methods: validate_source_reference
+
+
 ## `core/contracts/retrieval.py`
 
 Module docstring:
@@ -3718,6 +3885,40 @@ Classes:
   - 事件型 Alpha 信号 - 将 AI 事件理解转化为可验证的交易假设.
 - `TradeCandidate`
   - 交易候选 - 从信号转化的具体交易建议.
+
+
+## `core/contracts/theme_research.py`
+
+Module docstring:
+> Declarative Research Pack and theme-observation contracts.
+
+Imports:
+- `__future__`
+- `core.contracts.platform_shared`
+- `enum`
+- `pydantic`
+- `typing`
+
+Classes:
+- `PackLifecycle`
+  - Validated lifecycle of a Research Pack.
+- `DatasetManifest`
+  - One source dataset declared by a theme pack.
+- `KPIDefinition`
+  - Unit-bearing KPI definition used by typed pack projections.
+- `ValueChainNode`
+  - Declared node in a pack's evidence-backed value chain.
+- `ThemeAssetExposure`
+  - Evidence-backed relationship between a theme and an existing asset.
+- `ThemePackManifest`
+  - Versioned and permission-bounded declaration of a Research Pack.
+  - methods: validate_kpi_datasets
+- `ThemeObservation`
+  - Only persisted fact shape shared by every theme pack.
+- `ThemeSnapshot`
+  - Typed, read-only projection of a theme at one point in time.
+- `PackHealth`
+  - Coverage and import outcomes for a theme pack.
 
 
 ## `core/contracts/timing_engine.py`
@@ -7298,6 +7499,46 @@ Classes:
   - 因子评估指标
 - `DynamicFactorWeightDB`
   - 动态因子权重快照
+- `AssetRegistryDB`
+  - Canonical identity that maps to existing asset fact tables.
+- `AssetIdentifierDB`
+  - Time-bounded vendor or market code for a canonical asset.
+- `ThemeObservationDB`
+  - Only persisted fact table shared by every Research Pack.
+- `ScheduledJobDB`
+  - PostgreSQL-coordinated single-flight scheduled work.
+- `DomainEventDB`
+  - Durable event authority; in-process buses are delivery adapters only.
+- `ThemePackDB`
+  - Versioned manifest and validation result for a Research Pack.
+- `MarketHomeSnapshotDB`
+  - Immutable market-home section snapshot for historical reads.
+- `ResearchWorkspaceDB`
+  - Project-isolated home for research sessions, runs, and notes.
+- `ResearchSessionDB`
+  - Temporary or workspace-scoped persisted conversation.
+- `ResearchMessageDB`
+  - Idempotent research-session message.
+- `RuntimeProviderDB`
+  - Research runtime capability and health declaration without secrets.
+- `SkillDefinitionDB`
+  - Versioned persisted SkillManifest.
+- `AgentTeamDB`
+  - Supervisor-led Agent Team with persisted hard bounds.
+- `AgentScheduleDB`
+  - Team schedule delegating lease ownership to scheduled_job.
+- `ResearchNoteDB`
+  - Immutable revision of a user-selected Claim or paragraph note.
+- `WatchlistDB`
+  - Named local-profile asset collection.
+- `WatchlistItemDB`
+  - Watchlist membership keyed by canonical asset identity.
+- `AlertRuleDB`
+  - Unit-aware deterministic alert rule for one canonical asset.
+- `AlertEventDB`
+  - Persisted false-to-true alert edge and lifecycle.
+- `NotificationDB`
+  - Authoritative in-app notification with optional desktop delivery state.
 
 Functions:
 - `utc_now`
@@ -11817,6 +12058,74 @@ Imports:
 Functions:
 - `upgrade`
 - `downgrade`
+
+
+## `storage/migrations/versions/015_add_platform_fact_core.py`
+
+Module docstring:
+> Add merged-platform fact core, durable events, and scheduler coordination.
+
+Imports:
+- `alembic`
+- `collections.abc`
+- `sqlalchemy`
+
+Functions:
+- `upgrade`
+  - Create the five shared fact-kernel tables.
+- `downgrade`
+  - Drop the fact-kernel tables in dependency-safe order.
+
+
+## `storage/migrations/versions/016_add_theme_and_market_home.py`
+
+Module docstring:
+> Add Research Pack manifests and immutable market-home snapshots.
+
+Imports:
+- `alembic`
+- `collections.abc`
+- `sqlalchemy`
+
+Functions:
+- `upgrade`
+  - Create the two theme and facts-only home tables.
+- `downgrade`
+  - Drop theme and market-home tables.
+
+
+## `storage/migrations/versions/017_add_research_workspace_runtime.py`
+
+Module docstring:
+> Add research workspaces, bounded runtimes, Skills, teams, and notes.
+
+Imports:
+- `alembic`
+- `collections.abc`
+- `sqlalchemy`
+
+Functions:
+- `upgrade`
+  - Create the eight additive research-runtime tables.
+- `downgrade`
+  - Drop research-runtime tables in reverse dependency order.
+
+
+## `storage/migrations/versions/018_add_asset_observation.py`
+
+Module docstring:
+> Add watchlists, deterministic alerts, and persistent notifications.
+
+Imports:
+- `alembic`
+- `collections.abc`
+- `sqlalchemy`
+
+Functions:
+- `upgrade`
+  - Create the five personal-observation tables.
+- `downgrade`
+  - Drop personal-observation tables in reverse dependency order.
 
 
 ## `ingestion/__init__.py`

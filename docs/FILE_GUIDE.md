@@ -156,6 +156,11 @@
 | `core/contracts/replay.py` | 回放结构：ReplaySession、ReplayStep、ReplayResult |
 | `core/contracts/reporting.py` | 报告结构：Report、ReportType、ReportSection、ReportTemplate |
 | `core/contracts/research.py` | 通用研究结构：ResearchSubject、ResearchTemplateDefinition、ResearchRun、任务、产物、观点、质量门禁、决策卡与证据输入 |
+| `core/contracts/platform_shared.py` | 合并平台共享契约：AssetRef/Identifier、SourceRef、六字段事实上下文、Observation、DomainEvent、ScheduledJob |
+| `core/contracts/theme_research.py` | Research Pack Manifest、主题 Observation/快照、KPI/产业链/资产暴露和数据健康 |
+| `core/contracts/research_workspace.py` | Workspace/Session/Message、RuntimeProvider、Skill、Agent Team/预算/日程、版本化 Note |
+| `core/contracts/market_home.py` | facts-only 首页五区块、交易状态、主线透明分项与不可变快照 |
+| `core/contracts/asset_observation.py` | 资产统一快照、PeerSet、Watchlist、Alert 与 Notification |
 | `core/contracts/retrieval.py` | 检索结构：SearchQuery、SearchResult、RAGContext |
 | `core/contracts/review_framework.py` | 审查框架结构：ReviewTask、ReviewComment、ReviewStatus |
 | `core/contracts/scenarios.py` | 情景结构：ScenarioSet、Scenario、ScenarioProbability |
@@ -418,7 +423,7 @@
 | 文件 | 说明 |
 |---|---|
 | `data_layer/repositories/base.py` | 仓储基类：BaseRepository，提供通用数据库操作方法 |
-| `data_layer/repositories/models.py` | SQLAlchemy ORM 模型：定义所有数据库表模型 |
+| `data_layer/repositories/models.py` | SQLAlchemy ORM 模型：定义所有数据库表模型；包含合并平台 20 张 additive 表，复用既有资产事实与 Research Run 表 |
 | `data_layer/repositories/research_run_repository.py` | 研究运行仓储：持久化运行、任务、证据输入、版本化产物、当前观点及质量门禁投影 |
 | `data_layer/repositories/market_data_repository.py` | 市场数据仓储：PostgreSQL upsert / SQLite fallback，管理股票主表、日行情、估值、财务、股东、指数发布方、指数主表、成分权重快照、指数 ETF 关系和 ETF 日度规模/资金流表 |
 | `data_layer/repositories/monitoring_repository.py` | 监控仓储：持久化健康指标、告警与事件；支持仅更新未解决告警详情，并以确定性周期 ID / savepoint 冲突恢复和独立读取事务创建单一未解决资源事件 |

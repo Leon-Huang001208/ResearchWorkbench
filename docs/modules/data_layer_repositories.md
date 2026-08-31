@@ -35,6 +35,9 @@ Update this section when:
 
 Purpose:
 - SQLAlchemy ORM model definitions for all database tables.
+- 定义合并平台 20 张新增表：共享事实核 5 张、主题/首页 2 张、研究运行时 8 张、个人观察 5 张；继续复用既有 Research Run 与股票/指数/ETF/基金事实表。
+- `domain_event` 是持久事件权威，`scheduled_job` 保存租约与幂等状态；`theme_observation` 是唯一主题事实表，主题六类读模型不物化。
+- `research_note` 外键复用 `research_run`/`research_claim`，`watchlist_item` 只引用 `asset_registry.asset_id`。
 
 Update this section when:
 - New tables are added.
