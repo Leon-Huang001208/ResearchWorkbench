@@ -40,7 +40,7 @@
 1. 服务解析 `AssetRef` 和当前有效 identifier，从现有事实表组合详情。
 2. 默认 peer：stock 按申万细分行业，index 按类别，ETF 按跟踪指数/主题，active_fund 按基金分类/基准；响应返回规则、样本和 as_of。
 3. 用户以 canonical asset ID 加入一个或多个 Watchlist。
-4. 调度器或事实事件触发 Alert Evaluation；仅 fresh 且单位一致的 false→true 生成 `alert_event` 和 `notification`。持续为 true 时 cooldown 窗口内去重，窗口结束后可生成新的同周期提醒；转为 false 时当前事件自动 resolved，并重置边沿。
+4. 调度器或事实事件触发 Alert Evaluation；仅 fresh 且单位一致的 false→true 可生成 `alert_event` 和 `notification`。持续为 true 始终去重，不因 cooldown 到期重复提醒；转为 false 时当前事件自动 resolved，并重置边沿。下一次 false→true 若仍处于上次触发的 cooldown 窗口则返回 deduplicated，窗口结束后才触发新事件。
 5. FastAPI/SSE 告知站内客户端重新拉取；acknowledge/resolved 持久化。
 6. Task 3 中前端消费 notification，并经已获授权的官方 `tauri-plugin-notification` 请求权限与发送最小摘要；拒绝时保留站内通道。
 
@@ -48,7 +48,7 @@
 
 - Alert Rule：`draft → active → paused → retired`。
 - Evaluation：`not_matched|triggered|deduplicated|skipped_data_stale|skipped_data_unavailable|failed_unit_mismatch`。
-- Alert Event：`open → acknowledged → resolved`；cooldown 窗口内持续真值去重，窗口结束后的持续真值可再次提醒，条件回到 false 时自动 resolved 并允许下一次 false→true 触发。
+- Alert Event：`open → acknowledged → resolved`；每个 true 周期最多触发一次，持续真值始终去重；条件回到 false 时自动 resolved，下一次 false→true 仍受 cooldown 约束。
 - Notification：`pending → in_app_delivered`，获得桌面能力时可进入 `desktop_delivered|desktop_permission_denied|desktop_failed`；后三者不回滚站内记录。
 - 写冲突返回 409，非法 operator/unit 返回 422，不存在的资产/列表返回 404。
 

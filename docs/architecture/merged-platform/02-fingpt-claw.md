@@ -50,7 +50,7 @@ Workspace 承载项目隔离的会话与记忆；Run 承载可恢复、证据优
 2. Skill Compiler 从声明式 manifest 生成有界计划，只选择内部 allowlist、附件读取、受控网页或注册 MCP。
 3. Runtime Router 根据模式与能力选择 provider：FinGPT 首选可用 DSH，否则回退 LangGraph；Claw 要求 `agent_team`。
 4. Claw 的 Supervisor 把任务写入 Shared Blackboard，Worker 读取分派、写类型化结果；步骤、并发、token/费用和 deadline 逐次检查。
-5. Research Run 将 task、artifact、claim 和 quality gate 持久化；SSE 仅投影阶段变化。
+5. DSH 的成功或失败结果必须经 FastAPI 回传 `run_id`、幂等键、provider result ID 和类型化终态；Run Service 校验映射后再持久化 task、artifact、claim 和 quality gate。重复回传返回既有终态，DSH 自身状态不成为权威；SSE 仅投影阶段变化。
 6. completed Run 自动关联并归档到 Workspace；用户选择 Claim 或段落生成新 revision Note，并可置顶。
 
 ## 状态与失败

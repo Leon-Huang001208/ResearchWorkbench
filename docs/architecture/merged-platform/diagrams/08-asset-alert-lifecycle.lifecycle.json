@@ -19,7 +19,7 @@
     {"id": "open", "type": "active", "label": "Alert Open", "sublabel": "event + notification", "lane": "main", "col": 3, "step": "04"},
     {"id": "resolved", "type": "success", "label": "Resolved", "sublabel": "条件恢复或人工解决", "lane": "main", "col": 4, "step": "05"},
     {"id": "stale", "type": "waiting", "label": "Skipped", "sublabel": "stale / unavailable", "lane": "skipped", "col": 0, "tag": "不触发"},
-    {"id": "dedup", "type": "waiting", "label": "Deduplicated", "sublabel": "持续 true", "lane": "skipped", "col": 1, "tag": "无新通知"},
+    {"id": "dedup", "type": "waiting", "label": "Deduplicated", "sublabel": "持续 true / 边沿冷却", "lane": "skipped", "col": 1, "tag": "无新通知"},
     {"id": "inApp", "type": "active", "label": "站内已投递", "sublabel": "权威通道", "lane": "delivery", "col": 2, "yOffset": -50},
     {"id": "desktopFailed", "type": "failure", "label": "桌面降级", "sublabel": "拒权或桥接失败", "lane": "delivery", "col": 2, "yOffset": 80, "tag": "保留站内"}
   ],

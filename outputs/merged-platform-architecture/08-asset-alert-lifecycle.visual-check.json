@@ -6,8 +6,8 @@
   "visualReview": "pending",
   "artifact": {
     "path": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/merged-platform-v1/outputs/merged-platform-architecture/08-asset-alert-lifecycle.html",
-    "sha256": "c1f9fe69e1f3b0666f05cd33f022f6fd5867f73e1bb081ff075fbee0e34edd95",
-    "bytes": 632855
+    "sha256": "93123e599567bd6c7d39a7e1444a48ed28c56da4b0b50df641d172d99ed895fb",
+    "bytes": 632915
   },
   "state": {
     "detail": "read",

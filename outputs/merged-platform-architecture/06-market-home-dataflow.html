@@ -4919,7 +4919,7 @@
         <text x="530" y="68" class="t-dim" font-size="9" font-weight="600" text-anchor="middle">03 / 透明计算</text>
 
         <rect data-graph-role="structural-frame" data-composition-frame-kind="stage" data-composition-frame-id="3" x="661" y="46" width="168" height="530" rx="10" class="c-lane" stroke-width="1"/>
-        <text x="745" y="68" class="t-dim" font-size="9" font-weight="600" text-anchor="middle">04 / 权威快照</text>
+        <text x="745" y="68" class="t-dim" font-size="9" font-weight="600" text-anchor="middle">04 / Live 与快照</text>
 
         <rect data-graph-role="structural-frame" data-composition-frame-kind="stage" data-composition-frame-id="4" x="876" y="46" width="168" height="530" rx="10" class="c-lane" stroke-width="1"/>
         <text x="960" y="68" class="t-dim" font-size="9" font-weight="600" text-anchor="middle">05 / 页面消费</text>
@@ -4929,12 +4929,14 @@
         <path data-edge-from="eventFacts" data-edge-to="repository" data-edge-label="事件密度" data-edge-key="1" data-edge-id="eventRead" data-composition-points="156,385;196.5,385;196.5,278;237,278" d="M 156 385 L 196.5 385 L 196.5 278 L 237 278" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
         <path data-edge-from="repository" data-edge-to="mainline" data-edge-label="一致性样本" data-edge-key="2" data-edge-id="rankInput" data-composition-points="393,264;433.5,264;433.5,157;474,157" d="M 393 264 L 433.5 264 L 433.5 157 L 474 157" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
         <path data-edge-from="repository" data-edge-to="sections" data-edge-label="分区事实" data-edge-key="3" data-edge-id="sectionInput" data-composition-points="393,278;433.5,278;433.5,385;474,385" d="M 393 278 L 433.5 278 L 433.5 385 L 474 385" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="mainline" data-edge-to="snapshot" data-edge-label="components + version" data-edge-key="4" data-edge-id="rankSnapshot" data-composition-points="586,157;624,157;624,264;662,264" d="M 586 157 L 624 157 L 624 264 L 662 264" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path data-edge-from="sections" data-edge-to="snapshot" data-edge-label="section payload" data-edge-key="5" data-edge-id="sectionSnapshot" data-composition-points="586,378;624,378;624,278;662,278" d="M 586 378 L 624 378 L 624 278 L 662 278" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="snapshot" data-edge-to="api" data-edge-label="live / 历史快照" data-edge-key="6" data-edge-id="snapshotApi" data-composition-points="828,271;866,271;866,157;904,157" d="M 828 271 L 866 271 L 866 157 L 904 157" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path data-edge-from="sections" data-edge-to="sse" data-edge-label="section invalidated" data-edge-key="7" data-edge-id="sectionEvent" data-composition-points="586,392;637.5,392;637.5,499;689,499" d="M 586 392 L 637.5 392 L 637.5 499 L 689 499" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
-        <path data-edge-from="sse" data-edge-to="ui" data-edge-label="event_id + as_of" data-edge-key="8" data-edge-id="eventUi" data-composition-points="801,499;852.5,499;852.5,385;904,385" d="M 801 499 L 852.5 499 L 852.5 385 L 904 385" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
-        <path data-edge-from="api" data-edge-to="ui" data-edge-label="事实、公式、来源" data-edge-key="9" data-edge-id="apiUi" data-composition-points="960,186;960,186;960,356;960,356" d="M 960 186 L 960 186 L 960 356 L 960 356" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="mainline" data-edge-to="live" data-edge-label="主线" data-edge-key="4" data-edge-id="rankLive" data-composition-points="586,157;662,157" d="M 586 157 L 662 157" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="sections" data-edge-to="live" data-edge-label="五区块事实" data-edge-key="5" data-edge-id="sectionLive" data-composition-points="586,378;624,378;624,157;662,157" d="M 586 378 L 624 378 L 624 157 L 662 157" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="live" data-edge-to="snapshot" data-edge-label="closed 后固化" data-edge-key="6" data-edge-id="closeSnapshot" data-composition-points="745,186;745,186;745,356;745,356" d="M 745 186 L 745 186 L 745 356 L 745 356" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
+        <path data-edge-from="live" data-edge-to="api" data-edge-label="盘中 live" data-edge-key="7" data-edge-id="liveApi" data-composition-points="828,157;866,157;866,271;904,271" d="M 828 157 L 866 157 L 866 271 L 904 271" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="snapshot" data-edge-to="api" data-edge-label="历史" data-edge-key="8" data-edge-id="snapshotApi" data-composition-points="745,414;745,414;880,414;880,271;904,271" d="M 745 414 L 745 414 L 880 414 L 880 271 L 904 271" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="sections" data-edge-to="sse" data-edge-label="section invalidated" data-edge-key="9" data-edge-id="sectionEvent" data-composition-points="586,392;637.5,392;637.5,499;689,499" d="M 586 392 L 637.5 392 L 637.5 499 L 689 499" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
+        <path data-edge-from="sse" data-edge-to="ui" data-edge-label="event_id + as_of" data-edge-key="10" data-edge-id="eventUi" data-composition-points="801,499;920,499;920,414;960,414;960,414" d="M 801 499 L 920 499 L 920 414 L 960 414 L 960 414" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
+        <path data-edge-from="api" data-edge-to="ui" data-edge-label="事实、公式、来源" data-edge-key="11" data-edge-id="apiUi" data-composition-points="960,300;960,300;960,356;960,356" d="M 960 300 L 960 300 L 960 356 L 960 356" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
 
         <!-- Nodes -->
         <g id="node-marketFacts" data-node-id="marketFacts" data-node-label="行情与指数事实" tabindex="0" role="button" aria-label="Focus 行情与指数事实, 现有结构化表, 01 / 事实来源" aria-pressed="false" data-node-kind="database" data-node-sublabel="现有结构化表" data-node-context="01 / 事实来源">
@@ -4995,31 +4997,42 @@
           <text data-detail="context" x="530" y="393" class="t-muted" font-size="7" text-anchor="middle">独立 freshness</text>
         </g>
 
-        <g id="node-snapshot" data-node-id="snapshot" data-node-label="market_home_snapshot" tabindex="0" role="button" aria-label="Focus market_home_snapshot, 历史不可重算, 04 / 权威快照" aria-pressed="false" data-node-kind="database" data-node-sublabel="历史不可重算" data-node-context="04 / 权威快照">
-          <title>market_home_snapshot · 历史不可重算 · 04 / 权威快照</title>
-          <rect x="662" y="242" width="166" height="58" rx="6" class="c-mask"/>
-          <rect x="662" y="242" width="166" height="58" rx="6" class="c-database" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(668 248) scale(0.6875)">
+        <g id="node-live" data-node-id="live" data-node-label="Live Projection" tabindex="0" role="button" aria-label="Focus Live Projection, 盘中权威读模型, 04 / Live 与快照" aria-pressed="false" data-node-kind="backend" data-node-sublabel="盘中权威读模型" data-node-context="04 / Live 与快照">
+          <title>Live Projection · 盘中权威读模型 · 04 / Live 与快照</title>
+          <rect x="662" y="128" width="166" height="58" rx="6" class="c-mask"/>
+          <rect x="662" y="128" width="166" height="58" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(668 134) scale(0.6875)">
+            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
+          </g>
+          <text data-detail-anchor x="745" y="149" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">Live Projection</text>
+          <text data-detail="context" x="745" y="165" class="t-muted" font-size="7" text-anchor="middle">盘中权威读模型</text>
+        </g>
+
+        <g id="node-snapshot" data-node-id="snapshot" data-node-label="Close Snapshot" tabindex="0" role="button" aria-label="Focus Close Snapshot, 盘后不可变 / 历史, 04 / Live 与快照" aria-pressed="false" data-node-kind="database" data-node-sublabel="盘后不可变 / 历史" data-node-context="04 / Live 与快照">
+          <title>Close Snapshot · 盘后不可变 / 历史 · 04 / Live 与快照</title>
+          <rect x="662" y="356" width="166" height="58" rx="6" class="c-mask"/>
+          <rect x="662" y="356" width="166" height="58" rx="6" class="c-database" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(668 362) scale(0.6875)">
             <ellipse cx="8" cy="4" rx="5" ry="2"/>
             <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
           </g>
-          <text data-detail-anchor x="745" y="263" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">market_home_snapshot</text>
-          <text data-detail="context" x="745" y="279" class="t-muted" font-size="7" text-anchor="middle">历史不可重算</text>
+          <text data-detail-anchor x="745" y="377" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">Close Snapshot</text>
+          <text data-detail="context" x="745" y="393" class="t-muted" font-size="7" text-anchor="middle">盘后不可变 / 历史</text>
         </g>
 
-        <g id="node-api" data-node-id="api" data-node-label="FastAPI" tabindex="0" role="button" aria-label="Focus FastAPI, live / history / drill-down, 05 / 页面消费" aria-pressed="false" data-node-kind="backend" data-node-sublabel="live / history / drill-down" data-node-context="05 / 页面消费">
-          <title>FastAPI · live / history / drill-down · 05 / 页面消费</title>
-          <rect x="904" y="128" width="112" height="58" rx="6" class="c-mask"/>
-          <rect x="904" y="128" width="112" height="58" rx="6" class="c-backend" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(910 134) scale(0.6875)">
+        <g id="node-api" data-node-id="api" data-node-label="FastAPI" tabindex="0" role="button" aria-label="Focus FastAPI, live / close history, 05 / 页面消费" aria-pressed="false" data-node-kind="backend" data-node-sublabel="live / close history" data-node-context="05 / 页面消费">
+          <title>FastAPI · live / close history · 05 / 页面消费</title>
+          <rect x="904" y="242" width="112" height="58" rx="6" class="c-mask"/>
+          <rect x="904" y="242" width="112" height="58" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(910 248) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
-          <text data-detail-anchor x="960" y="149" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">FastAPI</text>
-          <text data-detail="context" x="960" y="165" class="t-muted" font-size="6.4" text-anchor="middle">live / history / drill-down</text>
+          <text data-detail-anchor x="960" y="263" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">FastAPI</text>
+          <text data-detail="context" x="960" y="279" class="t-muted" font-size="7" text-anchor="middle">live / close history</text>
         </g>
 
-        <g id="node-sse" data-node-id="sse" data-node-label="SSE 失效事件" tabindex="0" role="button" aria-label="Focus SSE 失效事件, section 引用, 04 / 权威快照" aria-pressed="false" data-node-kind="messagebus" data-node-sublabel="section 引用" data-node-tag="15s refresh" data-node-context="04 / 权威快照">
-          <title>SSE 失效事件 · section 引用 · 04 / 权威快照 · 15s refresh</title>
+        <g id="node-sse" data-node-id="sse" data-node-label="SSE 失效事件" tabindex="0" role="button" aria-label="Focus SSE 失效事件, section 引用, 04 / Live 与快照" aria-pressed="false" data-node-kind="messagebus" data-node-sublabel="section 引用" data-node-tag="15s refresh" data-node-context="04 / Live 与快照">
+          <title>SSE 失效事件 · section 引用 · 04 / Live 与快照 · 15s refresh</title>
           <rect x="689" y="470" width="112" height="58" rx="6" class="c-mask"/>
           <rect x="689" y="470" width="112" height="58" rx="6" class="c-messagebus" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="messagebus" class="semantic-sigil s-messagebus" transform="translate(695 476) scale(0.6875)">
@@ -5068,35 +5081,45 @@
           <text x="433.5" y="321.5" class="t-muted" font-size="8" text-anchor="middle">分区事实</text>
         <text data-detail="fine" x="433.5" y="332.5" class="t-dim" font-size="7" text-anchor="middle">独立 freshness</text>
         </g>
-        <g data-detail="context" data-edge-from="mainline" data-edge-to="snapshot" data-edge-label="components + version" data-edge-key="4" data-edge-id="rankSnapshot">
-          <rect x="569" y="189.5" width="110" height="27" rx="4" class="c-mask"/>
-          <text x="624" y="200.5" class="t-backend" font-size="8" text-anchor="middle">components + version</text>
-        <text data-detail="fine" x="624" y="211.5" class="t-dim" font-size="7" text-anchor="middle">透明公式</text>
+        <g data-detail="context" data-edge-from="mainline" data-edge-to="live" data-edge-label="主线" data-edge-key="4" data-edge-id="rankLive">
+          <rect x="569" y="99" width="110" height="27" rx="4" class="c-mask"/>
+          <text x="624" y="110" class="t-backend" font-size="8" text-anchor="middle">主线</text>
+        <text data-detail="fine" x="624" y="121" class="t-dim" font-size="7" text-anchor="middle">components + version</text>
         </g>
-        <g data-detail="context" data-edge-from="sections" data-edge-to="snapshot" data-edge-label="section payload" data-edge-key="5" data-edge-id="sectionSnapshot">
-          <rect x="581.25" y="307" width="85.5" height="27" rx="4" class="c-mask"/>
-          <text x="624" y="318" class="t-muted" font-size="8" text-anchor="middle">section payload</text>
-        <text data-detail="fine" x="624" y="329" class="t-dim" font-size="7" text-anchor="middle">事实引用</text>
+        <g data-detail="context" data-edge-from="sections" data-edge-to="live" data-edge-label="五区块事实" data-edge-key="5" data-edge-id="sectionLive">
+          <rect x="593.5" y="246.5" width="61" height="27" rx="4" class="c-mask"/>
+          <text x="624" y="257.5" class="t-muted" font-size="8" text-anchor="middle">五区块事实</text>
+        <text data-detail="fine" x="624" y="268.5" class="t-dim" font-size="7" text-anchor="middle">盘中投影</text>
         </g>
-        <g data-detail="context" data-edge-from="snapshot" data-edge-to="api" data-edge-label="live / 历史快照" data-edge-key="6" data-edge-id="snapshotApi">
-          <rect x="823.25" y="193" width="85.5" height="27" rx="4" class="c-mask"/>
-          <text x="866" y="204" class="t-backend" font-size="8" text-anchor="middle">live / 历史快照</text>
-        <text data-detail="fine" x="866" y="215" class="t-dim" font-size="7" text-anchor="middle">权威读取</text>
+        <g data-detail="context" data-edge-from="live" data-edge-to="snapshot" data-edge-label="closed 后固化" data-edge-key="6" data-edge-id="closeSnapshot">
+          <rect x="707.15" y="250" width="75.7" height="27" rx="4" class="c-mask"/>
+          <text x="745" y="261" class="t-security" font-size="8" text-anchor="middle">closed 后固化</text>
+        <text data-detail="fine" x="745" y="272" class="t-dim" font-size="7" text-anchor="middle">不可变 close</text>
         </g>
-        <g data-detail="context" data-edge-from="sections" data-edge-to="sse" data-edge-label="section invalidated" data-edge-key="7" data-edge-id="sectionEvent">
+        <g data-detail="context" data-edge-from="live" data-edge-to="api" data-edge-label="盘中 live" data-edge-key="7" data-edge-id="liveApi">
+          <rect x="837.95" y="193" width="56.1" height="27" rx="4" class="c-mask"/>
+          <text x="866" y="204" class="t-backend" font-size="8" text-anchor="middle">盘中 live</text>
+        <text data-detail="fine" x="866" y="215" class="t-dim" font-size="7" text-anchor="middle">当前投影</text>
+        </g>
+        <g data-detail="context" data-edge-from="snapshot" data-edge-to="api" data-edge-label="历史" data-edge-key="8" data-edge-id="snapshotApi">
+          <rect x="807.25" y="434" width="85.5" height="27" rx="4" class="c-mask"/>
+          <text x="850" y="445" class="t-backend" font-size="8" text-anchor="middle">历史</text>
+        <text data-detail="fine" x="850" y="456" class="t-dim" font-size="7" text-anchor="middle">只读 close 快照</text>
+        </g>
+        <g data-detail="context" data-edge-from="sections" data-edge-to="sse" data-edge-label="section invalidated" data-edge-key="9" data-edge-id="sectionEvent">
           <rect x="584.95" y="424.5" width="105.1" height="27" rx="4" class="c-mask"/>
           <text x="637.5" y="435.5" class="t-messagebus" font-size="8" text-anchor="middle">section invalidated</text>
         <text data-detail="fine" x="637.5" y="446.5" class="t-dim" font-size="7" text-anchor="middle">小型事件</text>
         </g>
-        <g data-detail="context" data-edge-from="sse" data-edge-to="ui" data-edge-label="event_id + as_of" data-edge-key="8" data-edge-id="eventUi">
-          <rect x="807.3" y="421" width="90.4" height="27" rx="4" class="c-mask"/>
-          <text x="852.5" y="432" class="t-messagebus" font-size="8" text-anchor="middle">event_id + as_of</text>
-        <text data-detail="fine" x="852.5" y="443" class="t-dim" font-size="7" text-anchor="middle">15 秒内刷新</text>
+        <g data-detail="context" data-edge-from="sse" data-edge-to="ui" data-edge-label="event_id + as_of" data-edge-key="10" data-edge-id="eventUi">
+          <rect x="884.8" y="459" width="90.4" height="27" rx="4" class="c-mask"/>
+          <text x="930" y="470" class="t-messagebus" font-size="8" text-anchor="middle">event_id + as_of</text>
+        <text data-detail="fine" x="930" y="481" class="t-dim" font-size="7" text-anchor="middle">区块失效</text>
         </g>
-        <g data-detail="context" data-edge-from="api" data-edge-to="ui" data-edge-label="事实、公式、来源" data-edge-key="9" data-edge-id="apiUi">
-          <rect x="914.8" y="250" width="90.4" height="27" rx="4" class="c-mask"/>
-          <text x="960" y="261" class="t-backend" font-size="8" text-anchor="middle">事实、公式、来源</text>
-        <text data-detail="fine" x="960" y="272" class="t-dim" font-size="7" text-anchor="middle">无 AI 摘要</text>
+        <g data-detail="context" data-edge-from="api" data-edge-to="ui" data-edge-label="事实、公式、来源" data-edge-key="11" data-edge-id="apiUi">
+          <rect x="914.8" y="307" width="90.4" height="27" rx="4" class="c-mask"/>
+          <text x="960" y="318" class="t-backend" font-size="8" text-anchor="middle">事实、公式、来源</text>
+        <text data-detail="fine" x="960" y="329" class="t-dim" font-size="7" text-anchor="middle">无 AI 摘要</text>
         </g>
 
         <!-- Legend -->
@@ -5106,17 +5129,21 @@
             <path d="M 40 611 L 74 611" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
             <text x="83" y="614" class="t-muted" font-size="10" font-weight="500">primary data</text>
           </g>
-          <g data-legend-semantic-kind="dashed" data-legend-x="165" data-legend-baseline="614" data-legend-width="98">
-            <path d="M 165 611 L 199 611" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
-            <text x="208" y="614" class="t-muted" font-size="10" font-weight="500">async batch</text>
+          <g data-legend-semantic-kind="security" data-legend-x="165" data-legend-baseline="614" data-legend-width="103">
+            <path d="M 165 611 L 199 611" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
+            <text x="208" y="614" class="t-muted" font-size="10" font-weight="500">policy / PII</text>
           </g>
-          <g data-legend-semantic-kind="database" data-legend-kind="database" data-legend-label="data store" data-legend-x="285" data-legend-baseline="614" data-legend-width="93">
-            <rect x="285" y="606" width="14" height="9" rx="2" class="c-database" stroke-width="1"/>
-            <text x="307" y="614" class="t-muted" font-size="10" font-weight="500">data store</text>
+          <g data-legend-semantic-kind="dashed" data-legend-x="290" data-legend-baseline="614" data-legend-width="98">
+            <path d="M 290 611 L 324 611" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
+            <text x="333" y="614" class="t-muted" font-size="10" font-weight="500">async batch</text>
           </g>
-          <g data-legend-semantic-kind="default" data-legend-x="400" data-legend-baseline="614" data-legend-width="88">
-            <path d="M 400 611 L 434 611" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
-            <text x="443" y="614" class="t-muted" font-size="10" font-weight="500">data flow</text>
+          <g data-legend-semantic-kind="database" data-legend-kind="database" data-legend-label="data store" data-legend-x="410" data-legend-baseline="614" data-legend-width="93">
+            <rect x="410" y="606" width="14" height="9" rx="2" class="c-database" stroke-width="1"/>
+            <text x="432" y="614" class="t-muted" font-size="10" font-weight="500">data store</text>
+          </g>
+          <g data-legend-semantic-kind="default" data-legend-x="525" data-legend-baseline="614" data-legend-width="88">
+            <path d="M 525 611 L 559 611" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+            <text x="568" y="614" class="t-muted" font-size="10" font-weight="500">data flow</text>
           </g>
         </g>
       </svg>

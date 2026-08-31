@@ -11,7 +11,7 @@
     {"label": "事实来源"},
     {"label": "一致性读取"},
     {"label": "透明计算"},
-    {"label": "权威快照"},
+    {"label": "Live 与快照"},
     {"label": "页面消费"}
   ],
   "nodes": [
@@ -20,8 +20,9 @@
     {"id": "repository", "type": "backend", "label": "首页 Repository", "sublabel": "一致性读窗口", "stage": 1, "row": 1, "width": 156},
     {"id": "mainline", "type": "backend", "label": "mainline-v1", "sublabel": "四项公开权重", "stage": 2, "row": 0, "tag": "30s / 60s"},
     {"id": "sections", "type": "backend", "label": "Section 组合", "sublabel": "独立 freshness", "stage": 2, "row": 2},
-    {"id": "snapshot", "type": "database", "label": "market_home_snapshot", "sublabel": "历史不可重算", "stage": 3, "row": 1, "width": 166},
-    {"id": "api", "type": "backend", "label": "FastAPI", "sublabel": "live / history / drill-down", "stage": 4, "row": 0},
+    {"id": "live", "type": "backend", "label": "Live Projection", "sublabel": "盘中权威读模型", "stage": 3, "row": 0, "width": 166},
+    {"id": "snapshot", "type": "database", "label": "Close Snapshot", "sublabel": "盘后不可变 / 历史", "stage": 3, "row": 2, "width": 166},
+    {"id": "api", "type": "backend", "label": "FastAPI", "sublabel": "live / close history", "stage": 4, "row": 1},
     {"id": "sse", "type": "messagebus", "label": "SSE 失效事件", "sublabel": "section 引用", "stage": 3, "row": 3, "tag": "15s refresh"},
     {"id": "ui", "type": "frontend", "label": "市场首页", "sublabel": "facts-only", "stage": 4, "row": 2}
   ],
@@ -30,11 +31,13 @@
     {"id": "eventRead", "from": "eventFacts", "to": "repository", "label": "事件密度", "classification": "来源可追溯"},
     {"id": "rankInput", "from": "repository", "to": "mainline", "label": "一致性样本", "classification": "as_of + sample_size"},
     {"id": "sectionInput", "from": "repository", "to": "sections", "label": "分区事实", "classification": "独立 freshness"},
-    {"id": "rankSnapshot", "from": "mainline", "to": "snapshot", "label": "components + version", "classification": "透明公式", "variant": "emphasis"},
-    {"id": "sectionSnapshot", "from": "sections", "to": "snapshot", "label": "section payload", "classification": "事实引用"},
-    {"id": "snapshotApi", "from": "snapshot", "to": "api", "label": "live / 历史快照", "classification": "权威读取", "variant": "emphasis"},
+    {"id": "rankLive", "from": "mainline", "to": "live", "label": "主线", "classification": "components + version", "variant": "emphasis", "fromSide": "right", "toSide": "left", "route": "straight", "labelAt": [624, 110]},
+    {"id": "sectionLive", "from": "sections", "to": "live", "label": "五区块事实", "classification": "盘中投影"},
+    {"id": "closeSnapshot", "from": "live", "to": "snapshot", "label": "closed 后固化", "classification": "不可变 close", "variant": "security"},
+    {"id": "liveApi", "from": "live", "to": "api", "label": "盘中 live", "classification": "当前投影", "variant": "emphasis"},
+    {"id": "snapshotApi", "from": "snapshot", "to": "api", "label": "历史", "classification": "只读 close 快照", "variant": "emphasis", "fromSide": "bottom", "toSide": "left", "via": [[745, 414], [880, 414], [880, 271]], "labelAt": [850, 445]},
     {"id": "sectionEvent", "from": "sections", "to": "sse", "label": "section invalidated", "classification": "小型事件", "variant": "dashed"},
-    {"id": "eventUi", "from": "sse", "to": "ui", "label": "event_id + as_of", "classification": "15 秒内刷新", "variant": "dashed"},
+    {"id": "eventUi", "from": "sse", "to": "ui", "label": "event_id + as_of", "classification": "区块失效", "variant": "dashed", "fromSide": "right", "toSide": "bottom", "via": [[920, 499], [920, 414], [960, 414]], "labelAt": [930, 470]},
     {"id": "apiUi", "from": "api", "to": "ui", "label": "事实、公式、来源", "classification": "无 AI 摘要", "variant": "emphasis"}
   ]
 }

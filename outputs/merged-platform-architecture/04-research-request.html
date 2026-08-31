@@ -4909,11 +4909,11 @@
         <rect width="100%" height="100%" fill="url(#grid)" />
 
         <!-- Time Segments -->
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="segment" data-composition-frame-id="0" x="48" y="145" width="1164" height="130" rx="10" class="c-lane" stroke-width="1"/>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="segment" data-composition-frame-id="0" x="48" y="145" width="1164" height="120" rx="10" class="c-lane" stroke-width="1"/>
 
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="segment" data-composition-frame-id="1" x="48" y="290" width="1164" height="205" rx="10" class="c-lane" stroke-width="1"/>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="segment" data-composition-frame-id="1" x="48" y="280" width="1164" height="195" rx="10" class="c-lane" stroke-width="1"/>
 
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="segment" data-composition-frame-id="2" x="48" y="510" width="1164" height="135" rx="10" class="c-lane" stroke-width="1"/>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="segment" data-composition-frame-id="2" x="48" y="490" width="1164" height="150" rx="10" class="c-lane" stroke-width="1"/>
 
         <!-- Lifelines -->
         <path d="M 121 142 L 121 655" class="a-default" stroke-width="0.8" stroke-dasharray="3,7"/>
@@ -4938,106 +4938,122 @@
         </g>
 
         <g data-edge-from="ui" data-edge-to="api" data-edge-label="POST /api/research-runs" data-edge-key="1" data-edge-id="create">
-          <path data-composition-edge-from="ui" data-composition-edge-to="api" data-composition-edge-id="create" data-composition-points="276.57142857142856,194;411.14285714285717,194" d="M 276.57142857142856 194 L 411.14285714285717 194" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+          <path data-composition-edge-from="ui" data-composition-edge-to="api" data-composition-edge-id="create" data-composition-points="276.57142857142856,190;411.14285714285717,190" d="M 276.57142857142856 190 L 411.14285714285717 190" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <g data-detail="context">
-          <rect x="278.0571428571429" y="174" width="131.60000000000002" height="16" rx="3" class="c-mask"/>
-          <text x="343.8571428571429" y="184" class="t-backend" font-size="9" text-anchor="middle">POST /api/research-runs</text>
+          <rect x="278.0571428571429" y="170" width="131.60000000000002" height="16" rx="3" class="c-mask"/>
+          <text x="343.8571428571429" y="180" class="t-backend" font-size="9" text-anchor="middle">POST /api/research-runs</text>
         </g>
         </g>
 
         <g data-edge-from="api" data-edge-to="runService" data-edge-label="校验 Workspace 与证据" data-edge-key="2" data-edge-id="normalize">
-          <path data-composition-edge-from="api" data-composition-edge-to="runService" data-composition-edge-id="normalize" data-composition-points="425.14285714285717,228;559.7142857142858,228" d="M 425.14285714285717 228 L 559.7142857142858 228" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+          <path data-composition-edge-from="api" data-composition-edge-to="runService" data-composition-edge-id="normalize" data-composition-points="425.14285714285717,220;559.7142857142858,220" d="M 425.14285714285717 220 L 559.7142857142858 220" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
         <g data-detail="context">
-          <rect x="431.8285714285714" y="208" width="121.2" height="16" rx="3" class="c-mask"/>
-          <text x="492.42857142857144" y="218" class="t-backend" font-size="9" text-anchor="middle">校验 Workspace 与证据</text>
+          <rect x="431.8285714285714" y="200" width="121.2" height="16" rx="3" class="c-mask"/>
+          <text x="492.42857142857144" y="210" class="t-backend" font-size="9" text-anchor="middle">校验 Workspace 与证据</text>
         </g>
         </g>
 
         <g data-edge-from="runService" data-edge-to="store" data-edge-label="保存 draft / task" data-edge-key="3" data-edge-id="persist">
-          <path data-composition-edge-from="runService" data-composition-edge-to="store" data-composition-edge-id="persist" data-composition-points="573.7142857142858,262;1154,262" d="M 573.7142857142858 262 L 1154 262" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
+          <path data-composition-edge-from="runService" data-composition-edge-to="store" data-composition-edge-id="persist" data-composition-points="573.7142857142858,250;1154,250" d="M 573.7142857142858 250 L 1154 250" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
         <g data-detail="context">
-          <rect x="813.6571428571428" y="242" width="100.4" height="16" rx="3" class="c-mask"/>
-          <text x="863.8571428571429" y="252" class="t-security" font-size="9" text-anchor="middle">保存 draft / task</text>
+          <rect x="813.6571428571428" y="230" width="100.4" height="16" rx="3" class="c-mask"/>
+          <text x="863.8571428571429" y="240" class="t-security" font-size="9" text-anchor="middle">保存 draft / task</text>
         </g>
         </g>
 
         <g data-edge-from="runService" data-edge-to="router" data-edge-label="请求 mode + capabilities" data-edge-key="4" data-edge-id="route">
-          <path data-composition-edge-from="runService" data-composition-edge-to="router" data-composition-edge-id="route" data-composition-points="573.7142857142858,310;708.2857142857143,310" d="M 573.7142857142858 310 L 708.2857142857143 310" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+          <path data-composition-edge-from="runService" data-composition-edge-to="router" data-composition-edge-id="route" data-composition-points="573.7142857142858,290;708.2857142857143,290" d="M 573.7142857142858 290 L 708.2857142857143 290" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <g data-detail="context">
-          <rect x="572.6" y="290" width="136.8" height="16" rx="3" class="c-mask"/>
-          <text x="641" y="300" class="t-backend" font-size="9" text-anchor="middle">请求 mode + capabilities</text>
+          <rect x="572.6" y="270" width="136.8" height="16" rx="3" class="c-mask"/>
+          <text x="641" y="280" class="t-backend" font-size="9" text-anchor="middle">请求 mode + capabilities</text>
         </g>
         </g>
 
         <g data-edge-from="router" data-edge-to="dsh" data-edge-label="DSH 可用时执行" data-edge-key="5" data-edge-id="dshRequest">
-          <path data-composition-edge-from="router" data-composition-edge-to="dsh" data-composition-edge-id="dshRequest" data-composition-points="722.2857142857143,344;856.8571428571429,344" d="M 722.2857142857143 344 L 856.8571428571429 344" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
+          <path data-composition-edge-from="router" data-composition-edge-to="dsh" data-composition-edge-id="dshRequest" data-composition-points="722.2857142857143,320;856.8571428571429,320" d="M 722.2857142857143 320 L 856.8571428571429 320" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
         <g data-detail="context">
-          <rect x="747.1714285714287" y="324" width="84.8" height="16" rx="3" class="c-mask"/>
-          <text x="789.5714285714287" y="334" class="t-messagebus" font-size="9" text-anchor="middle">DSH 可用时执行</text>
+          <rect x="747.1714285714287" y="300" width="84.8" height="16" rx="3" class="c-mask"/>
+          <text x="789.5714285714287" y="310" class="t-messagebus" font-size="9" text-anchor="middle">DSH 可用时执行</text>
         </g>
         </g>
 
         <g data-edge-from="dsh" data-edge-to="api" data-edge-label="白名单工具回调" data-edge-key="6" data-edge-id="dshCallback">
-          <path data-composition-edge-from="dsh" data-composition-edge-to="api" data-composition-edge-id="dshCallback" data-composition-points="856.8571428571429,378;425.14285714285717,378" d="M 856.8571428571429 378 L 425.14285714285717 378" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
+          <path data-composition-edge-from="dsh" data-composition-edge-to="api" data-composition-edge-id="dshCallback" data-composition-points="856.8571428571429,350;425.14285714285717,350" d="M 856.8571428571429 350 L 425.14285714285717 350" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
         <g data-detail="context">
-          <rect x="598.6" y="358" width="84.8" height="16" rx="3" class="c-mask"/>
-          <text x="641" y="368" class="t-security" font-size="9" text-anchor="middle">白名单工具回调</text>
+          <rect x="598.6" y="330" width="84.8" height="16" rx="3" class="c-mask"/>
+          <text x="641" y="340" class="t-security" font-size="9" text-anchor="middle">白名单工具回调</text>
         </g>
         </g>
 
-        <g data-edge-from="router" data-edge-to="langgraph" data-edge-label="FinGPT 不可用时回退" data-edge-key="7" data-edge-id="fallback">
-          <path data-composition-edge-from="router" data-composition-edge-to="langgraph" data-composition-edge-id="fallback" data-composition-points="722.2857142857143,412;1005.4285714285716,412" d="M 722.2857142857143 412 L 1005.4285714285716 412" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
+        <g data-edge-from="dsh" data-edge-to="api" data-edge-label="result/error + run_id + 幂等键" data-edge-key="7" data-edge-id="dshOutcome">
+          <path data-composition-edge-from="dsh" data-composition-edge-to="api" data-composition-edge-id="dshOutcome" data-composition-points="856.8571428571429,380;425.14285714285717,380" d="M 856.8571428571429 380 L 425.14285714285717 380" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
         <g data-detail="context">
-          <rect x="808.4571428571429" y="392" width="110.8" height="16" rx="3" class="c-mask"/>
-          <text x="863.8571428571429" y="402" class="t-messagebus" font-size="9" text-anchor="middle">FinGPT 不可用时回退</text>
+          <rect x="557" y="360" width="168" height="16" rx="3" class="c-mask"/>
+          <text x="641" y="370" class="t-muted" font-size="9" text-anchor="middle">result/error + run_id + 幂等键</text>
         </g>
         </g>
 
-        <g data-edge-from="router" data-edge-to="runService" data-edge-label="Claw 缺能力：blocked_runtime" data-edge-key="8" data-edge-id="blocked">
-          <path data-composition-edge-from="router" data-composition-edge-to="runService" data-composition-edge-id="blocked" data-composition-points="708.2857142857143,446;573.7142857142858,446" d="M 708.2857142857143 446 L 573.7142857142858 446" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
+        <g data-edge-from="api" data-edge-to="runService" data-edge-label="校验并映射权威终态" data-edge-key="8" data-edge-id="dshTerminal">
+          <path data-composition-edge-from="api" data-composition-edge-to="runService" data-composition-edge-id="dshTerminal" data-composition-points="425.14285714285717,410;559.7142857142858,410" d="M 425.14285714285717 410 L 559.7142857142858 410" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
         <g data-detail="context">
-          <rect x="562.2" y="426" width="157.6" height="16" rx="3" class="c-mask"/>
-          <text x="641" y="436" class="t-muted" font-size="9" text-anchor="middle">Claw 缺能力：blocked_runtime</text>
+          <rect x="439.62857142857143" y="390" width="105.60000000000001" height="16" rx="3" class="c-mask"/>
+          <text x="492.42857142857144" y="400" class="t-security" font-size="9" text-anchor="middle">校验并映射权威终态</text>
         </g>
         </g>
 
-        <g data-edge-from="langgraph" data-edge-to="runService" data-edge-label="阶段结果 / quality gates" data-edge-key="9" data-edge-id="result">
-          <path data-composition-edge-from="langgraph" data-composition-edge-to="runService" data-composition-edge-id="result" data-composition-points="1005.4285714285716,480;573.7142857142858,480" d="M 1005.4285714285716 480 L 573.7142857142858 480" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
+        <g data-edge-from="router" data-edge-to="langgraph" data-edge-label="FinGPT 不可用时回退" data-edge-key="9" data-edge-id="fallback">
+          <path data-composition-edge-from="router" data-composition-edge-to="langgraph" data-composition-edge-id="fallback" data-composition-points="722.2857142857143,440;1005.4285714285716,440" d="M 722.2857142857143 440 L 1005.4285714285716 440" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
         <g data-detail="context">
-          <rect x="721.1714285714287" y="460" width="136.8" height="16" rx="3" class="c-mask"/>
-          <text x="789.5714285714287" y="470" class="t-muted" font-size="9" text-anchor="middle">阶段结果 / quality gates</text>
+          <rect x="808.4571428571429" y="420" width="110.8" height="16" rx="3" class="c-mask"/>
+          <text x="863.8571428571429" y="430" class="t-messagebus" font-size="9" text-anchor="middle">FinGPT 不可用时回退</text>
         </g>
         </g>
 
-        <g data-edge-from="runService" data-edge-to="store" data-edge-label="Run / Claim / Artifact" data-edge-key="10" data-edge-id="finalPersist">
-          <path data-composition-edge-from="runService" data-composition-edge-to="store" data-composition-edge-id="finalPersist" data-composition-points="573.7142857142858,520;1154,520" d="M 573.7142857142858 520 L 1154 520" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
+        <g data-edge-from="router" data-edge-to="runService" data-edge-label="Claw 缺能力：blocked_runtime" data-edge-key="10" data-edge-id="blocked">
+          <path data-composition-edge-from="router" data-composition-edge-to="runService" data-composition-edge-id="blocked" data-composition-points="708.2857142857143,470;573.7142857142858,470" d="M 708.2857142857143 470 L 573.7142857142858 470" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
         <g data-detail="context">
-          <rect x="800.6571428571428" y="500" width="126.4" height="16" rx="3" class="c-mask"/>
-          <text x="863.8571428571429" y="510" class="t-security" font-size="9" text-anchor="middle">Run / Claim / Artifact</text>
+          <rect x="562.2" y="450" width="157.6" height="16" rx="3" class="c-mask"/>
+          <text x="641" y="460" class="t-muted" font-size="9" text-anchor="middle">Claw 缺能力：blocked_runtime</text>
         </g>
         </g>
 
-        <g data-edge-from="runService" data-edge-to="store" data-edge-label="completed 自动归档 Workspace" data-edge-key="11" data-edge-id="archive">
-          <path data-composition-edge-from="runService" data-composition-edge-to="store" data-composition-edge-id="archive" data-composition-points="573.7142857142858,554;1154,554" d="M 573.7142857142858 554 L 1154 554" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <g data-edge-from="langgraph" data-edge-to="runService" data-edge-label="阶段结果 / quality gates" data-edge-key="11" data-edge-id="result">
+          <path data-composition-edge-from="langgraph" data-composition-edge-to="runService" data-composition-edge-id="result" data-composition-points="1005.4285714285716,500;573.7142857142858,500" d="M 1005.4285714285716 500 L 573.7142857142858 500" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
         <g data-detail="context">
-          <rect x="785.0571428571429" y="534" width="157.6" height="16" rx="3" class="c-mask"/>
-          <text x="863.8571428571429" y="544" class="t-backend" font-size="9" text-anchor="middle">completed 自动归档 Workspace</text>
+          <rect x="721.1714285714287" y="480" width="136.8" height="16" rx="3" class="c-mask"/>
+          <text x="789.5714285714287" y="490" class="t-muted" font-size="9" text-anchor="middle">阶段结果 / quality gates</text>
         </g>
         </g>
 
-        <g data-edge-from="api" data-edge-to="ui" data-edge-label="状态、阶段与资源 ID" data-edge-key="12" data-edge-id="respond">
-          <path data-composition-edge-from="api" data-composition-edge-to="ui" data-composition-edge-id="respond" data-composition-points="411.14285714285717,588;276.57142857142856,588" d="M 411.14285714285717 588 L 276.57142857142856 588" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
+        <g data-edge-from="runService" data-edge-to="store" data-edge-label="Run / Claim / Artifact" data-edge-key="12" data-edge-id="finalPersist">
+          <path data-composition-edge-from="runService" data-composition-edge-to="store" data-composition-edge-id="finalPersist" data-composition-points="573.7142857142858,530;1154,530" d="M 573.7142857142858 530 L 1154 530" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
         <g data-detail="context">
-          <rect x="288.4571428571429" y="568" width="110.8" height="16" rx="3" class="c-mask"/>
-          <text x="343.8571428571429" y="578" class="t-muted" font-size="9" text-anchor="middle">状态、阶段与资源 ID</text>
+          <rect x="800.6571428571428" y="510" width="126.4" height="16" rx="3" class="c-mask"/>
+          <text x="863.8571428571429" y="520" class="t-security" font-size="9" text-anchor="middle">Run / Claim / Artifact</text>
         </g>
         </g>
 
-        <g data-edge-from="ui" data-edge-to="user" data-edge-label="展示结果或明确阻断" data-edge-key="13" data-edge-id="show">
-          <path data-composition-edge-from="ui" data-composition-edge-to="user" data-composition-edge-id="show" data-composition-points="262.57142857142856,622;128,622" d="M 262.57142857142856 622 L 128 622" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
+        <g data-edge-from="runService" data-edge-to="store" data-edge-label="completed 自动归档 Workspace" data-edge-key="13" data-edge-id="archive">
+          <path data-composition-edge-from="runService" data-composition-edge-to="store" data-composition-edge-id="archive" data-composition-points="573.7142857142858,560;1154,560" d="M 573.7142857142858 560 L 1154 560" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <g data-detail="context">
-          <rect x="142.48571428571427" y="602" width="105.60000000000001" height="16" rx="3" class="c-mask"/>
-          <text x="195.28571428571428" y="612" class="t-muted" font-size="9" text-anchor="middle">展示结果或明确阻断</text>
+          <rect x="785.0571428571429" y="540" width="157.6" height="16" rx="3" class="c-mask"/>
+          <text x="863.8571428571429" y="550" class="t-backend" font-size="9" text-anchor="middle">completed 自动归档 Workspace</text>
+        </g>
+        </g>
+
+        <g data-edge-from="api" data-edge-to="ui" data-edge-label="状态、阶段与资源 ID" data-edge-key="14" data-edge-id="respond">
+          <path data-composition-edge-from="api" data-composition-edge-to="ui" data-composition-edge-id="respond" data-composition-points="411.14285714285717,590;276.57142857142856,590" d="M 411.14285714285717 590 L 276.57142857142856 590" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
+        <g data-detail="context">
+          <rect x="288.4571428571429" y="570" width="110.8" height="16" rx="3" class="c-mask"/>
+          <text x="343.8571428571429" y="580" class="t-muted" font-size="9" text-anchor="middle">状态、阶段与资源 ID</text>
+        </g>
+        </g>
+
+        <g data-edge-from="ui" data-edge-to="user" data-edge-label="展示结果或明确阻断" data-edge-key="15" data-edge-id="show">
+          <path data-composition-edge-from="ui" data-composition-edge-to="user" data-composition-edge-id="show" data-composition-points="262.57142857142856,620;128,620" d="M 262.57142857142856 620 L 128 620" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
+        <g data-detail="context">
+          <rect x="142.48571428571427" y="600" width="105.60000000000001" height="16" rx="3" class="c-mask"/>
+          <text x="195.28571428571428" y="610" class="t-muted" font-size="9" text-anchor="middle">展示结果或明确阻断</text>
         </g>
         </g>
 
@@ -5047,12 +5063,12 @@
           <text x="62" y="136" class="t-dim" font-size="9" font-weight="600">接收与持久化</text>
         </g>
         <g data-graph-role="segment-label" data-segment-id="1">
-          <rect x="56" y="268" width="55.6" height="18" rx="3" class="c-mask"/>
-          <text x="62" y="281" class="t-dim" font-size="9" font-weight="600">能力路由</text>
+          <rect x="56" y="258" width="55.6" height="18" rx="3" class="c-mask"/>
+          <text x="62" y="271" class="t-dim" font-size="9" font-weight="600">能力路由</text>
         </g>
         <g data-graph-role="segment-label" data-segment-id="2">
-          <rect x="56" y="488" width="66" height="18" rx="3" class="c-mask"/>
-          <text x="62" y="501" class="t-dim" font-size="9" font-weight="600">完成与归档</text>
+          <rect x="56" y="468" width="66" height="18" rx="3" class="c-mask"/>
+          <text x="62" y="481" class="t-dim" font-size="9" font-weight="600">完成与归档</text>
         </g>
 
         <!-- Participants -->
