@@ -1,5 +1,11 @@
 # AlphaFoundry 架构文档
 
+## AlphaFoundry × LSH 合并平台 V1 基线
+
+合并平台保持本文件定义的模块化单体、FastAPI 与 PostgreSQL + pgvector 主干，并增加四个边界明确的产品模块：FinGPT / Claw、facts-only 市场首页、Research Pack、资产观察。DSH 仅是可选 `RuntimeProvider` 侧车，不得直连数据库；事实、研究与个人观察三层严格隔离。该目标态、20 张新增表、四段迁移、API/状态/失败语义和九张架构图见 [`docs/architecture/merged-platform/`](architecture/merged-platform/README.md)。
+
+该架构只迁移 LSH 中可追溯、可校验的数据与受限运行时能力，不迁入策略评分、订单、模拟交易、`score_hint`、`driver-summary` 或旧策略/交易范围。等价迁移后，LSH 只读归档一个稳定版本。
+
 ## 系统总览
 
 AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System，采用**模块化单体**架构设计，使用 **PostgreSQL + pgvector** 作为核心事实存储。

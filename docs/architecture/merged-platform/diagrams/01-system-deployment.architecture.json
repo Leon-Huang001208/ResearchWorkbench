@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "合并平台系统部署",
+    "output": "outputs/merged-platform-architecture/01-system-deployment.html",
+    "viewBox": [1320, 760],
+    "quality_profile": "showcase"
+  },
+  "components": [
+    {"id": "users", "type": "external", "label": "用户", "sublabel": "浏览器与桌面", "pos": [38, 330], "size": [130, 64]},
+    {"id": "clients", "type": "frontend", "label": "Web / Tauri", "sublabel": "统一工作台", "pos": [235, 330], "size": [142, 64]},
+    {"id": "api", "type": "backend", "label": "FastAPI", "sublabel": "唯一业务 API", "pos": [455, 330], "size": [142, 64], "tag": "Python sidecar"},
+    {"id": "services", "type": "backend", "label": "模块化单体", "sublabel": "四个产品模块", "pos": [685, 330], "size": [152, 64]},
+    {"id": "postgres", "type": "database", "label": "PostgreSQL + pgvector", "sublabel": "唯一权威存储", "pos": [955, 330], "size": [180, 64]},
+    {"id": "dsh", "type": "external", "label": "DSH Runtime", "sublabel": "可选侧车 · 无 DB", "pos": [685, 100], "size": [152, 64]},
+    {"id": "sources", "type": "cloud", "label": "数据来源", "sublabel": "Connector / LSH 迁移", "pos": [955, 100], "size": [180, 64]},
+    {"id": "events", "type": "messagebus", "label": "domain_event / SSE", "sublabel": "持久权威 / 投递适配", "pos": [671, 560], "size": [180, 64]}
+  ],
+  "boundaries": [
+    {"kind": "region", "label": "AlphaFoundry 本地运行边界", "wraps": ["clients", "api", "services", "postgres", "events"], "pad": 22},
+    {"kind": "security-group", "label": "业务数据边界", "wraps": ["api", "services", "postgres"], "pad": 14}
+  ],
+  "connections": [
+    {"id": "user_ui", "from": "users", "to": "clients", "label": "交互"},
+    {"id": "ui_api", "from": "clients", "to": "api", "label": "HTTP / SSE", "variant": "emphasis"},
+    {"id": "api_services", "from": "api", "to": "services", "label": "共享契约", "variant": "emphasis", "labelDy": 26},
+    {"id": "services_db", "from": "services", "to": "postgres", "label": "SQL / vector", "variant": "security", "labelDy": 26},
+    {"id": "api_dsh", "from": "api", "to": "dsh", "label": "受限研究请求", "variant": "dashed", "labelDy": -26},
+    {"id": "sources_services", "from": "sources", "to": "services", "label": "规范化事实", "variant": "dashed", "labelDx": 56},
+    {"id": "services_events", "from": "services", "to": "events", "label": "发布引用", "variant": "dashed", "fromSide": "bottom", "toSide": "top", "route": "straight", "labelDy": 24}
+  ],
+  "cards": [
+    {"dot": "emerald", "title": "唯一权威路径", "items": ["FastAPI 是所有客户端与 DSH 的唯一业务入口", "PostgreSQL + pgvector 保存事实、研究与个人观察", "DSH 不持有数据库凭据，也不直接读写存储"]},
+    {"dot": "amber", "title": "降级边界", "items": ["DSH 不可用不影响 facts-only 页面", "SSE 只携带资源引用，客户端重新读取 API", "桌面通知是持久化 notification 的投影"]}
+  ]
+}

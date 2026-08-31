@@ -8,6 +8,13 @@
 
 ### Added
 
+- **AlphaFoundry × LSH 合并平台 V1 架构包**：新增 `docs/architecture/merged-platform/` 七份专题正文、索引、九份 Archify JSON 图源与 `outputs/merged-platform-architecture/` 九张交互 HTML，固定模块化单体 + 可选 DSH 侧车、唯一 FastAPI、唯一 PostgreSQL + pgvector、共享事实契约及 FinGPT/Claw、市场首页、Research Pack、资产观察四模块边界。
+  - 架构明确事实/研究/个人观察三层隔离，20 张新增表与 015–018 四段迁移；主题六类读模型首版为查询投影，不增加物化表。
+  - DSH 不直连数据库；FinGPT 可由 DSH 回退 LangGraph，Claw 缺团队能力返回 `blocked_runtime`；Skill 声明式且只允许白名单工具/MCP，团队由 Supervisor + Shared Blackboard 协调并受预算与 deadline 限制。
+  - 首页限定 facts-only，公开 `mainline-v1` 权重与 30s/60s/15s SLA；Research Pack 首批覆盖黄金、航天、光伏、AI 基础设施，统一写入 `theme_observation`，不迁 LSH 的策略/交易、`score_hint` 或 `driver-summary`。
+  - 资产观察限定 stock/index/etf/active_fund、Watchlist 与 false→true Alert；站内通知由后端持久化，Task 3 将添加已获授权的官方 `tauri-plugin-notification`，原生平台 CI 与真实 Windows 安装烟测仍是发布门禁。
+  - LSH 能力只有在数据迁移、parity、回归、零调用和归档路径齐全后才可删除；等价迁移后只读归档一个稳定版本。
+
 - **通用研究中心与机构级 Research Run（首个闭环）**：新增 PostgreSQL 权威 `ResearchRun` 运行时及 013/014 迁移，保存规范化 `ResearchSubject`、任务、证据输入、不可变版本化 Artifact、当前 Claim/Gate 投影和恢复信息。首版 LangGraph 只作为无事实持久化的执行层，完成来源规划、证据归一、Research Notes、叙事/财报综合、反方检验、质量门禁及发布投影；任何引用、数值、模板证据覆盖或冲突门禁失败均进入 `blocked`，补证后可恢复。
   - 新增 `/api/research-templates` 模板目录，以及 `/api/research-runs` 列表、创建、执行、读取、补证、恢复、产物和完成后 Markdown/Word 导出接口；未知、规划中或对象类型不兼容的模板在持久化前返回 `422`。旧 `target_id` 请求兼容映射为 `security` ResearchSubject。
   - 工作台新增统一“研究中心”，用问题、研究对象、时点、附件和模板卡片发起所有领域研究；A股公司深研可执行，宏观、商品、指数和行业模板显示为规划中。原始证据 JSON 已从普通入口移除，阻塞任务改用结构化补证恢复。

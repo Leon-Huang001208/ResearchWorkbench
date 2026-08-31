@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "资产提醒生命周期",
+    "output": "outputs/merged-platform-architecture/08-asset-alert-lifecycle.html",
+    "viewBox": [1100, 620],
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    {"id": "main", "label": "评估与通知"},
+    {"id": "skipped", "label": "数据门禁"},
+    {"id": "delivery", "label": "投递降级"}
+  ],
+  "states": [
+    {"id": "observed", "type": "start", "label": "Observed", "sublabel": "新资产事实", "lane": "main", "col": 0, "step": "01"},
+    {"id": "freshCheck", "type": "decision", "label": "Freshness Gate", "sublabel": "fresh 且单位一致", "lane": "main", "col": 1, "step": "02"},
+    {"id": "edgeCheck", "type": "decision", "label": "Edge Check", "sublabel": "false → true", "lane": "main", "col": 2, "step": "03"},
+    {"id": "open", "type": "active", "label": "Alert Open", "sublabel": "event + notification", "lane": "main", "col": 3, "step": "04"},
+    {"id": "resolved", "type": "success", "label": "Resolved", "sublabel": "条件恢复或人工解决", "lane": "main", "col": 4, "step": "05"},
+    {"id": "stale", "type": "waiting", "label": "Skipped", "sublabel": "stale / unavailable", "lane": "skipped", "col": 0, "tag": "不触发"},
+    {"id": "dedup", "type": "waiting", "label": "Deduplicated", "sublabel": "持续 true", "lane": "skipped", "col": 1, "tag": "无新通知"},
+    {"id": "inApp", "type": "active", "label": "站内已投递", "sublabel": "权威通道", "lane": "delivery", "col": 2, "yOffset": -50},
+    {"id": "desktopFailed", "type": "failure", "label": "桌面降级", "sublabel": "拒权或桥接失败", "lane": "delivery", "col": 2, "yOffset": 80, "tag": "保留站内"}
+  ],
+  "transitions": [
+    {"id": "skipStale", "from": "freshCheck", "to": "stale", "variant": "security", "route": "drop"},
+    {"id": "skipDuplicate", "from": "edgeCheck", "to": "dedup", "variant": "dashed", "route": "drop"},
+    {"id": "persistInApp", "from": "open", "to": "inApp", "variant": "emphasis", "route": "drop"},
+    {"id": "desktopDegrade", "from": "inApp", "to": "desktopFailed", "variant": "security", "route": "auto"}
+  ]
+}

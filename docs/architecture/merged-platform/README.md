@@ -1,0 +1,63 @@
+# AlphaFoundry × LSH 合并平台 V1 架构包
+
+本目录是合并平台的实现基线，不表示所有接口和表已经落地。目标态只有一个 FastAPI 业务内核、一个 PostgreSQL + pgvector 权威存储和四个产品模块；DSH 是可选 `RuntimeProvider` 侧车，不拥有业务数据，也不能直连数据库。
+
+## 固定边界
+
+- 架构形态：模块化单体 + 可选 DSH 侧车，保留现有 Tauri + Python sidecar 交付形态。
+- 四个模块：FinGPT / Claw、市场首页、Research Pack、资产观察。
+- 三层隔离：事实层只保存可追溯观察；研究层保存运行、Claim、产物、对话和 Note；个人观察层保存 Watchlist、规则、提醒和通知。
+- 单一入口：Web、Tauri 和 DSH 都只调用 FastAPI；跨模块访问必须经过共享契约与应用服务。
+- 单一事实源：PostgreSQL + pgvector；HTML、Markdown、SSE、缓存和桌面通知都只是投影。
+- 明确排除：不迁入 LSH 的策略评分、订单、模拟交易、`score_hint`、`driver-summary`，不恢复旧文档中的策略/交易范围。
+
+## 文档导航
+
+| 文档 | 实现问题 | 配套图 |
+|---|---|---|
+| [00-system-overview.md](00-system-overview.md) | 部署、模块边界与全局失败语义 | `01-system-deployment.html`、`02-module-dependencies.html` |
+| [01-shared-contracts.md](01-shared-contracts.md) | 共享类型、20 张新表与三层隔离 | `03-core-er.html` |
+| [02-fingpt-claw.md](02-fingpt-claw.md) | Workspace、Run、Runtime、Skill、Team | `04-research-request.html`、`05-research-run-lifecycle.html` |
+| [03-market-home.md](03-market-home.md) | facts-only 首页、透明主线与 SLA | `06-market-home-dataflow.html` |
+| [04-theme-research-packs.md](04-theme-research-packs.md) | 四个 Pack、统一 Observation 与迁移 | `07-pack-lifecycle.html` |
+| [05-asset-observation.md](05-asset-observation.md) | 四类资产、Watchlist、Alert、通知 | `08-asset-alert-lifecycle.html` |
+| [06-migration-rollout.md](06-migration-rollout.md) | 四段迁移、等价门禁与只读归档 | `09-migration-gate.html` |
+
+HTML 位于仓库根目录 `outputs/merged-platform-architecture/`；可编辑 Archify JSON 位于 `diagrams/`。
+
+## 模块依赖顺序
+
+1. 共享事实核：`AssetRef`、`AssetIdentifier`、`SourceRef`、`ObservationEnvelope`、`DomainEvent`、`ScheduledJob`。
+2. 存储迁移：`015` 事实核 → `016` 主题/首页 → `017` 研究运行时 → `018` 资产观察。
+3. 资产观察与市场首页：只读现有结构化资产事实并生成自己的投影。
+4. Research Pack：把 LSH 可迁移数据标准化为 `theme_observation`，不复制资产事实。
+5. FinGPT / Claw：消费前三者的只读 API 与 Research Run，不写事实接口。
+6. 兼容适配：旧 LSH 调用经过 capability gate；等价、迁移、回归和零调用证据齐全后才删除。
+
+允许的依赖方向是 `界面/Runtime → FastAPI route → application service → repository → PostgreSQL`。四个产品模块不得直接导入彼此的 repository；DSH、浏览器、Tauri 前端和 Skill 插件不得直连数据库。
+
+## 实现导航
+
+| 阶段 | 主要落点 | 验收重点 |
+|---|---|---|
+| 共享核 | `core/contracts/`、`data_layer/repositories/models.py`、`storage/migrations/versions/015..018` | 20 张表、唯一键/外键/时间索引、SQLite 测试兼容 |
+| 纵切 API | `services/`、`data_layer/repositories/`、`app/api/routes/` | 薄 route、结构化日志、400/404/409 失败映射 |
+| Pack | `theme_packs/`、`scripts/migrate_lsh_theme_data.py` | 默认 dry-run、哈希幂等、隔离坏数据 |
+| Runtime | Research Workspace/Runtime/Team/Scheduler 服务 | 运行时回退、权限白名单、预算和 deadline |
+| 桌面通知 | Tauri 官方通知插件桥接 | Task 3 添加已授权的官方插件，再跑原生 macOS/Windows CI 与真实 Windows 安装烟测 |
+| 删除门禁 | `legacy_capability_gate` 与 capability map | parity、数据迁移、零调用、归档路径、稳定版本观察期 |
+
+## 全局状态与失败契约
+
+- 事实不可用返回 `unavailable`，过期返回 `stale`；两者均不得被包装成 `fresh`。
+- 模块局部失败返回带 `error_code`、`retryable`、`observed_at`、`available_at` 的结构化降级，不把整页变成 500。
+- FinGPT 的 DSH 不可用时可回退 LangGraph；Claw 缺少 `agent_team` 能力必须返回 `blocked_runtime`，不得语义回退。
+- Research Run 完成后自动归档到 Workspace；用户只能把选中的 Claim 或段落置顶为版本化 Note，不能把整段模型文本提升为事实。
+- 告警只在 fresh 数据发生 false→true 边沿时触发；stale/unavailable 跳过，重复真值去重。
+- 旧能力删除必须通过全部门禁；失败时继续走旧适配器并记录调用量。
+
+## 可观测性与总体验收
+
+统一日志字段至少包含 `request_id`、`trace_id`、`workspace_id`/`run_id`、`module`、`status`、`latency_ms`，数据路径再包含 `source_ref`、`observed_at`、`freshness_status`。指标覆盖请求耗时、数据新鲜度、降级区块、Run 状态、Runtime 回退、工具拒绝、调度租约、Pack 隔离、Alert 去重和旧 API 调用量。
+
+总体验收要求：契约与迁移单测、四模块服务/API 单测、旧能力 parity/零调用测试、九张 Archify 图 showcase 验证和四视口视觉检查。桌面相关功能还需原生 macOS/Windows CI；发布前在真实 Windows 环境完成安装级烟测。本地 macOS 或文档验证不能替代这些平台证据。

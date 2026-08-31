@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "合并平台核心实体关系",
+    "output": "outputs/merged-platform-architecture/03-core-er.html",
+    "viewBox": [1450, 900],
+    "quality_profile": "showcase"
+  },
+  "components": [
+    {"id": "assetFacts", "type": "database", "label": "现有资产事实", "sublabel": "stock / index / ETF / fund", "pos": [35, 110], "size": [185, 66]},
+    {"id": "assetIdentity", "type": "database", "label": "asset_registry", "sublabel": "canonical asset ID", "pos": [300, 110], "size": [170, 66]},
+    {"id": "identifiers", "type": "database", "label": "asset_identifier", "sublabel": "代码与有效期", "pos": [300, 360], "size": [170, 66]},
+    {"id": "watchlist", "type": "database", "label": "watchlist / item", "sublabel": "个人列表", "pos": [570, 110], "size": [180, 66]},
+    {"id": "alert", "type": "database", "label": "alert_rule / event", "sublabel": "边沿与状态", "pos": [855, 110], "size": [190, 66]},
+    {"id": "notification", "type": "database", "label": "notification", "sublabel": "站内权威记录", "pos": [1140, 110], "size": [180, 66]},
+    {"id": "themeObservation", "type": "database", "label": "theme_observation", "sublabel": "统一主题事实", "pos": [570, 360], "size": [190, 66]},
+    {"id": "domainEvent", "type": "database", "label": "domain_event", "sublabel": "持久事件权威记录", "pos": [855, 360], "size": [180, 66]},
+    {"id": "marketSnapshot", "type": "database", "label": "market_home_snapshot", "sublabel": "历史页面快照", "pos": [1140, 360], "size": [200, 66]},
+    {"id": "researchRun", "type": "database", "label": "现有 research_run", "sublabel": "Claim / Artifact / Gate", "pos": [570, 640], "size": [190, 66]},
+    {"id": "workspace", "type": "database", "label": "research_workspace", "sublabel": "Session / Message", "pos": [855, 640], "size": [190, 66]},
+    {"id": "note", "type": "database", "label": "research_note", "sublabel": "Claim / 段落 revision", "pos": [1140, 640], "size": [190, 66]}
+  ],
+  "connections": [
+    {"id": "facts_identity", "from": "assetFacts", "to": "assetIdentity", "label": "映射"},
+    {"id": "identity_identifier", "from": "assetIdentity", "to": "identifiers", "label": "1:N", "fromSide": "bottom", "toSide": "top", "route": "straight", "labelAt": [385, 190]},
+    {"id": "identity_watchlist", "from": "assetIdentity", "to": "watchlist", "label": "canonical ID"},
+    {"id": "watchlist_alert", "from": "watchlist", "to": "alert", "label": "规则"},
+    {"id": "alert_notification", "from": "alert", "to": "notification", "label": "false→true"},
+    {"id": "observation_event", "from": "themeObservation", "to": "domainEvent", "label": "变更事件"},
+    {"id": "observation_snapshot", "from": "domainEvent", "to": "marketSnapshot", "label": "失效引用"},
+    {"id": "run_workspace", "from": "researchRun", "to": "workspace", "label": "自动归档"},
+    {"id": "workspace_note", "from": "workspace", "to": "note", "label": "版本化置顶"}
+  ],
+  "cards": [
+    {"dot": "emerald", "title": "20 张新增表", "items": ["共享事实核 5 张、主题/首页 2 张", "研究运行时 8 张、个人观察 5 张", "六类主题读模型不落表"]},
+    {"dot": "violet", "title": "隔离不变量", "items": ["研究只引用事实，不反向改写事实", "Watchlist Item 只引用 canonical asset ID", "通知只投影 Alert Event，不成为事实"]}
+  ]
+}

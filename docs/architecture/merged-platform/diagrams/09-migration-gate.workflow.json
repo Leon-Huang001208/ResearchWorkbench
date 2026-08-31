@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "LSH 迁移与删除门禁",
+    "output": "outputs/merged-platform-architecture/09-migration-gate.html",
+    "viewBox": [1260, 700],
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    {"id": "source", "label": "LSH → AlphaFoundry"},
+    {"id": "verification", "label": "等价与零调用"},
+    {"id": "archive", "label": "稳定版本归档"},
+    {"id": "exceptions", "label": "阻断与恢复", "variant": "exception"}
+  ],
+  "phases": [
+    {"id": "inventoryPhase", "label": "盘点", "fromCol": 0, "toCol": 1},
+    {"id": "movePhase", "label": "迁移", "fromCol": 2, "toCol": 3, "variant": "emphasis"},
+    {"id": "retirePhase", "label": "门禁与归档", "fromCol": 4, "toCol": 5, "variant": "security"}
+  ],
+  "mainPath": ["freeze", "dryrun", "apply", "parity", "archiveOne", "remove"],
+  "nodes": [
+    {"id": "freeze", "lane": "source", "col": 0, "type": "database", "label": "冻结与分类", "sublabel": "版本哈希 / 迁移或舍弃"},
+    {"id": "dryrun", "lane": "source", "col": 2, "type": "backend", "label": "Dry-run", "sublabel": "接收 / 隔离 / 拒绝", "width": 110},
+    {"id": "apply", "lane": "source", "col": 3, "type": "database", "label": "015 → 018", "sublabel": "显式 apply + 幂等"},
+    {"id": "parity", "lane": "verification", "col": 3, "type": "security", "label": "Parity 门禁", "sublabel": "回归 / 零调用窗口"},
+    {"id": "archiveOne", "lane": "archive", "col": 4, "type": "cloud", "label": "只读归档", "sublabel": "一个稳定版本"},
+    {"id": "remove", "lane": "archive", "col": 5, "type": "backend", "label": "删除旧能力", "sublabel": "全部门禁已绿"},
+    {"id": "blocked", "lane": "exceptions", "col": 1, "type": "security", "label": "Blocked", "sublabel": "保留兼容适配器"},
+    {"id": "rollback", "lane": "exceptions", "col": 5, "type": "messagebus", "label": "恢复适配器", "sublabel": "不双写旧库"}
+  ],
+  "edges": [
+    {"id": "freezeDryrun", "from": "freeze", "to": "dryrun", "label": "仅迁可校验能力"},
+    {"id": "dryrunApply", "from": "dryrun", "to": "apply", "label": "显式 apply", "variant": "emphasis", "labelDy": -26},
+    {"id": "applyParity", "from": "apply", "to": "parity", "label": "计数与抽样", "variant": "emphasis", "route": "drop", "fromSide": "bottom", "toSide": "top"},
+    {"id": "parityArchive", "from": "parity", "to": "archiveOne", "variant": "security", "route": "drop", "fromSide": "bottom", "toSide": "top"},
+    {"id": "archiveRemove", "from": "archiveOne", "to": "remove", "label": "稳定后删除", "variant": "emphasis", "labelDy": -26},
+    {"id": "parityBlocked", "from": "parity", "to": "blocked", "label": "任一证据缺失", "variant": "security", "role": "error", "route": "drop", "fromSide": "bottom", "toSide": "top", "labelDx": -90},
+    {"id": "removeRollback", "from": "remove", "to": "rollback", "label": "观察期回归", "variant": "security", "role": "error", "route": "drop", "fromSide": "bottom", "toSide": "top"},
+    {"id": "rollbackParity", "from": "rollback", "to": "parity", "label": "重验", "variant": "dashed", "role": "return", "route": "return-left", "fromSide": "left", "toSide": "left", "labelDy": 22}
+  ]
+}

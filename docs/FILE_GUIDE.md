@@ -57,6 +57,7 @@
 | `scripts/` | 脚本工具，包含数据初始化、备份、测试等脚本 |
 | `tests/` | 测试目录，包含单元测试、集成测试等 |
 | `docs/` | 文档目录，包含项目文档、架构设计、文件指南等 |
+| `outputs/merged-platform-architecture/` | 合并平台九张经 Archify showcase 验证的独立 HTML 架构图 |
 | `data/` | 运行时数据目录；其中受版本控制的 `data/industry_graphs/` 提供内置产业链图谱，其余缓存和原始数据通常不提交 |
 | `logs/` | 日志目录，存放应用日志、Web 服务日志等 |
 | `backups/` | 备份目录，存放数据库备份 |
@@ -673,6 +674,8 @@
 | `docs/ARCHITECTURE.md` | 架构文档：系统总览、分层架构、数据流、设计理念 |
 | `docs/CHANGELOG.md` | 更新日志：记录所有 notable 项目变更 |
 | `docs/FILE_GUIDE.md` | 本文件：文件指南，详细说明每个主要文件的作用 |
+| `docs/architecture/merged-platform/` | AlphaFoundry × LSH 合并平台 V1 架构包：系统边界、共享契约、FinGPT/Claw、市场首页、Research Pack、资产观察、迁移门禁及 Archify JSON 图源 |
+| `outputs/merged-platform-architecture/` | 九张可交互 HTML：系统部署、模块依赖、核心 ER、研究请求、Research Run、首页数据流、Pack、资产提醒、迁移门禁 |
 | `docs/DATA_STORAGE.md` | 数据存储文档：PostgreSQL 表结构、数据契约、仓储接口 |
 | `docs/DATA_SOURCES.md` | 数据源文档：各数据源说明、配置、使用方法 |
 | `docs/backup_restore.md` | 备份恢复文档：备份策略、恢复策略、季度恢复演练 |
