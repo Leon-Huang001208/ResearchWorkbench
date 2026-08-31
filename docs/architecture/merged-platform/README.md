@@ -9,7 +9,7 @@
 - 三层隔离：事实层只保存可追溯观察；研究层保存运行、Claim、产物、对话和 Note；个人观察层保存 Watchlist、规则、提醒和通知。
 - 单一入口：Web、Tauri 和 DSH 都只调用 FastAPI；跨模块访问必须经过共享契约与应用服务。
 - 单一事实源：PostgreSQL + pgvector；HTML、Markdown、SSE、缓存和桌面通知都只是投影。
-- 明确排除：不迁入 LSH 的策略评分、订单、模拟交易、`score_hint`、`driver-summary`，不恢复旧文档中的策略/交易范围。
+- 明确排除：不把 LSH 的策略评分、订单、模拟交易、`score_hint`、`driver-summary` 迁入新事实模型；策略、交易和基金审批能力仅冻结为只读归档，不作为重复能力删除。
 
 ## 文档导航
 
@@ -50,7 +50,7 @@ HTML 位于仓库根目录 `outputs/merged-platform-architecture/`；可编辑 A
 ## 全局状态与失败契约
 
 - 事实不可用返回 `unavailable`，过期返回 `stale`；两者均不得被包装成 `fresh`。
-- 模块局部失败返回带 `error_code`、`retryable`、`observed_at`、`available_at` 的结构化降级，不把整页变成 500。
+- 所有事实响应完整包含 `as_of`、`observed_at`、`available_at`、`source_refs`、`freshness_status`、`quality_flags`；模块局部失败额外返回 `error_code`、`retryable`，不把整页变成 500。
 - FinGPT 的 DSH 不可用时可回退 LangGraph；Claw 缺少 `agent_team` 能力必须返回 `blocked_runtime`，不得语义回退。
 - Research Run 完成后自动归档到 Workspace；用户只能把选中的 Claim 或段落置顶为版本化 Note，不能把整段模型文本提升为事实。
 - 告警只在 fresh 数据发生 false→true 边沿时触发；stale/unavailable 跳过，重复真值去重。
@@ -60,4 +60,4 @@ HTML 位于仓库根目录 `outputs/merged-platform-architecture/`；可编辑 A
 
 统一日志字段至少包含 `request_id`、`trace_id`、`workspace_id`/`run_id`、`module`、`status`、`latency_ms`，数据路径再包含 `source_ref`、`observed_at`、`freshness_status`。指标覆盖请求耗时、数据新鲜度、降级区块、Run 状态、Runtime 回退、工具拒绝、调度租约、Pack 隔离、Alert 去重和旧 API 调用量。
 
-总体验收要求：契约与迁移单测、四模块服务/API 单测、旧能力 parity/零调用测试、九张 Archify 图 showcase 验证和四视口视觉检查。桌面相关功能还需原生 macOS/Windows CI；发布前在真实 Windows 环境完成安装级烟测。本地 macOS 或文档验证不能替代这些平台证据。
+总体验收要求：契约与迁移单测；PostgreSQL 的迁移、幂等摄入、快照、任务租约、项目隔离、通知持久化；API/SSE 的分页、断线重连、取消、恢复、Provider 故障和部分降级；首页、资产观察、主题研究、FinGPT/Claw 四条浏览器旅程；DSH 无数据库权限、未授权 MCP 拒绝和项目记忆隔离；旧能力 parity/零调用；九张 Archify 图 showcase 与四视口视觉检查。性能门槛为缓存首页 P95≤500ms、资产/主题 P95≤1s、SSE 首状态≤1s、提醒评估≤60s。桌面相关功能还需原生 macOS/Windows CI；发布前在真实 Windows 环境完成安装级烟测。本地 macOS 或文档验证不能替代这些平台证据。

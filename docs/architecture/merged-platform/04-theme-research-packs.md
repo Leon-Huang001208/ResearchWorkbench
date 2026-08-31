@@ -2,7 +2,7 @@
 
 ## 职责
 
-Research Pack 是声明式主题数据包：声明边界、产业链、dataset schema、KPI 单位/频率/来源/新鲜度、资产暴露与研究模板。Pack 统一写入 `theme_observation`，再提供六类查询投影；不自建表、不携带网络或数据库权限。
+Research Pack 是声明式主题数据包：Manifest 固定声明主题边界、产业链、dataset schema、KPI 单位/频率/来源优先级/新鲜度、事件、资产暴露、研究模板和兼容版本。Pack 统一写入 `theme_observation`，再提供六类查询投影；不自建表、不携带网络或数据库权限。
 
 首批 Pack 为黄金、航天、光伏、AI 基础设施。它们迁移 LSH 的数据资产和严格口径，不迁移策略、评分、订单、`score_hint` 或 `driver-summary`。
 
@@ -34,11 +34,11 @@ Research Pack 是声明式主题数据包：声明边界、产业链、dataset s
 | `GET /api/themes/{key}/health` | dataset coverage、age、quarantine/rejected 统计 |
 | `POST /api/themes/{key}/research-workspaces` | 生成预填研究请求，不直接生成结论 |
 
-公共类型包括 `ThemePackManifest`、`DatasetManifest`、`KPIDefinition`、`ValueChainNode`、`ThemeAssetExposure`、`ThemeObservationProjection`、`PackHealth`。所有值经 `ObservationEnvelope` 保留来源与时间。
+公共类型包括 `ThemePackManifest`、`ThemeObservation`、`ThemeSnapshot`、`DatasetManifest`、`KPIDefinition`、`ValueChainNode`、`ThemeAssetExposure`、`PackHealth`。`KPI Series`、`Value Chain`、`Related Assets`、`Events`、`Data Health` 是类型化读模型而非新的事实类型；所有值经 `ObservationEnvelope` 保留来源与时间。
 
 ## 主流程
 
-1. Registry 读取 manifest，验证 key/version/kind、schema、KPI、freshness 和插件权限。
+1. Registry 读取 manifest，验证 key/version/kind、兼容版本、schema、KPI、来源优先级、freshness、事件声明和插件权限。
 2. 迁移器默认 dry-run，逐文件计算 source hash，逐行解析 identity、时间、值、单位、来源和状态。
 3. 通过行写入 `theme_observation`；缺失/冲突进 quarantine，非法或禁止字段进 rejected；重复 `source_hash + row_identity` 幂等跳过。
 4. Repository 以查询组合六类投影；health 暴露覆盖和 age。

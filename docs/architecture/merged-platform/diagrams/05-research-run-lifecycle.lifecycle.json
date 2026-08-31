@@ -4,11 +4,12 @@
   "meta": {
     "title": "Research Run 生命周期",
     "output": "outputs/merged-platform-architecture/05-research-run-lifecycle.html",
-    "viewBox": [1200, 610],
+    "viewBox": [1200, 650],
     "quality_profile": "showcase"
   },
   "lanes": [
     {"id": "main", "label": "主生命周期"},
+    {"id": "terminal", "label": "发布与完成"},
     {"id": "waiting", "label": "补证与阻断"},
     {"id": "recovery", "label": "恢复与终止"}
   ],
@@ -16,13 +17,17 @@
     {"id": "draft", "type": "start", "label": "Draft", "sublabel": "请求已持久化", "lane": "main", "col": 0, "step": "01"},
     {"id": "planning", "type": "active", "label": "Planning", "sublabel": "来源与任务计划", "lane": "main", "col": 1, "step": "02"},
     {"id": "collecting", "type": "active", "label": "Collecting", "sublabel": "证据归一", "lane": "main", "col": 2, "step": "03"},
-    {"id": "validating", "type": "decision", "label": "Validating", "sublabel": "Claim 与质量门禁", "lane": "main", "col": 3, "step": "04"},
-    {"id": "completed", "type": "success", "label": "Completed", "sublabel": "自动归档 Workspace", "lane": "main", "col": 4, "step": "05"},
+    {"id": "analyzing", "type": "active", "label": "Analyzing", "sublabel": "形成 Claim", "lane": "main", "col": 3, "step": "04"},
+    {"id": "validating", "type": "decision", "label": "Validating", "sublabel": "质量门禁", "lane": "main", "col": 4, "step": "05"},
+    {"id": "publishing", "type": "active", "label": "Publishing", "sublabel": "生成 Artifact", "lane": "terminal", "col": 0, "step": "06"},
+    {"id": "completed", "type": "success", "label": "Completed", "sublabel": "自动归档", "lane": "terminal", "col": 1, "step": "07"},
     {"id": "blocked", "type": "waiting", "label": "Blocked", "sublabel": "等待补证或能力", "lane": "waiting", "col": 1, "tag": "可恢复"},
     {"id": "failed", "type": "failure", "label": "Failed", "sublabel": "内部可重试错误", "lane": "recovery", "col": 0, "tag": "retry budget"},
     {"id": "cancelled", "type": "failure", "label": "Cancelled", "sublabel": "用户终止", "lane": "recovery", "col": 0, "yOffset": 72, "tag": "终态"}
   ],
   "transitions": [
+    {"id": "publishStart", "from": "validating", "to": "publishing", "label": "门禁通过", "variant": "emphasis", "fromSide": "right", "toSide": "bottom", "via": [[840, 157], [840, 560], [402, 560]], "labelAt": [840, 250]},
+    {"id": "publishComplete", "from": "publishing", "to": "completed", "variant": "emphasis", "fromSide": "right", "toSide": "left", "route": "straight"},
     {"id": "gateBlocked", "from": "validating", "to": "blocked", "label": "门禁未通过", "variant": "security", "route": "drop"},
     {"id": "resume", "from": "blocked", "to": "collecting", "label": "补证后 resume", "variant": "emphasis", "route": "auto"},
     {"id": "executionFailed", "from": "collecting", "to": "failed", "label": "运行时错误", "variant": "security", "route": "drop"},

@@ -36,9 +36,10 @@
 - `/api/market-home/*`：live、snapshot、events、drill-down。
 - `/api/themes/*`：catalog、snapshot、kpis、value-chain、events、assets、health。
 - `/api/asset-observation/*`：assets、watchlists、alert-rules、alert-events、notifications。
-- `/api/research-workspaces/*`、`/api/research-runtime/*`、现有 `/api/research-runs/*`。
+- `/api/research-workspaces/*`、`/api/research-sessions/*`、现有 `/api/research-runs/*`。
+- `/api/runtime-providers/*`、`/api/research-skills/*`、`/api/agent-teams/*`、`/api/agent-schedules/*`。
 
-共享类型为 `AssetRef`、`AssetIdentifier`、`SourceRef`、`ObservationEnvelope`、`FreshnessStatus`、`DomainEvent`、`ScheduledJob`。每个 API 响应携带 `as_of`/`observed_at`、新鲜度和来源；异步创建接口支持 `Idempotency-Key`，冲突键返回现有资源而不是重复创建。
+共享类型为 `AssetRef`、`AssetIdentifier`、`SourceRef`、`ObservationEnvelope`、`FreshnessStatus`、`DomainEvent`、`ScheduledJob`。所有事实响应必须完整携带 `as_of`、`observed_at`、`available_at`、`source_refs`、`freshness_status`、`quality_flags`；异步创建接口支持 `Idempotency-Key`，冲突键返回现有资源而不是重复创建。
 
 ## 主流程
 

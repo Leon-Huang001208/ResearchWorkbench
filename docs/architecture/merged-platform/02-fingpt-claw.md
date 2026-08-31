@@ -31,14 +31,18 @@ Workspace 承载项目隔离的会话与记忆；Run 承载可恢复、证据优
 | API | 请求/响应要点 |
 |---|---|
 | `POST /api/research-workspaces` | 创建项目 Workspace，支持幂等键 |
-| `POST /api/research-workspaces/{id}/sessions` | 创建 `temporary|workspace` Session |
-| `POST /api/research-workspaces/{id}/sessions/{sid}/promote` | 原子升级临时 Session，冲突返回既有资源 |
+| `POST /api/research-sessions` | 创建 `temporary|workspace` Session，可关联 Workspace |
+| `GET|POST /api/research-sessions/{id}/messages` | 分页读取或追加消息；写入支持幂等键 |
+| `POST /api/research-sessions/{id}/promote` | 原子升级临时 Session，冲突返回既有资源 |
 | `POST /api/research-runs`、`/{id}/execute|resume` | 复用现有 Research Run 契约 |
 | `GET /api/research-runs/{id}/events` | SSE 只发送状态、阶段、序号和事件 ID |
 | `POST /api/research-workspaces/{id}/notes` | 仅接受 Claim/段落引用与用户编辑摘要 |
-| `GET /api/research-runtime/providers|skills|teams|schedules` | 声明、健康与安全边界 |
+| `/api/runtime-providers` | Provider 声明、能力与健康状态 |
+| `/api/research-skills` | Skill 声明、版本、校验与启停 |
+| `/api/agent-teams` | Team 定义、预算和 Supervisor 配置 |
+| `/api/agent-schedules` | Agent 日程 CRUD、触发、暂停和最近执行状态 |
 
-公共类型包含 `ResearchWorkspace`、`ResearchSession`、`ResearchMessage`、`ResearchNote`、`RuntimeProvider`、`SkillManifest`、`AgentTeam`、`AgentBudget`、`BlackboardEntry` 与现有 `ResearchRun`/`ResearchClaim`。错误使用稳定代码：`blocked_runtime`、`tool_denied`、`budget_exhausted`、`deadline_exceeded`、`quality_gate_failed`。
+公共类型包含 `ResearchWorkspace`、`ResearchSession`、`ResearchMessage`、`ResearchNote`、`RuntimeProvider`、`SkillManifest`、`AgentTeamDefinition`、`AgentSchedule`、`AgentBudget`、`BlackboardEntry` 与现有 `ResearchRun`/`ResearchClaim`。错误使用稳定代码：`blocked_runtime`、`tool_denied`、`budget_exhausted`、`deadline_exceeded`、`quality_gate_failed`。
 
 ## 主流程
 
@@ -56,6 +60,7 @@ Workspace 承载项目隔离的会话与记忆；Run 承载可恢复、证据优
 - FinGPT：DSH unavailable/timeout 时记录 `runtime_fallback_total` 并从 LangGraph 重新开始确定性阶段；不复用未知的 DSH 中间副作用。
 - Claw：provider 缺 `agent_team`、预算不足或白名单不满足即 `blocked_runtime`；不得回退为 FinGPT。
 - Tool/MCP：未注册、参数超 schema、超 deadline 或返回敏感字段时拒绝并审计；其它 Worker 可继续时由 Supervisor 局部降级。
+- Agent Schedule：默认禁止并发重入；同一日程错过多次时只合并并执行最近一次，租约过期后才允许接管。
 - 完成后自动归档失败不回滚 completed Run，但产生可重试 `archive_pending` 运维事件。
 
 ## 可观测性
@@ -68,5 +73,6 @@ Workspace 承载项目隔离的会话与记忆；Run 承载可恢复、证据优
 - Runtime 测试确认 FinGPT DSH→LangGraph 回退；Claw 缺能力精确返回 `blocked_runtime`。
 - Skill/Tool 测试拒绝 Shell、任意网络、未注册 MCP 和越界参数。
 - Team 测试覆盖 Supervisor/Blackboard、最大步骤、并发、token/费用和 deadline。
+- Schedule 测试覆盖禁止并发重入、租约接管和 missed runs 只合并最近一次。
 - Run 回归覆盖现有 create/execute/resume/Claim/quality gate/export，并验证 completed 自动归档和 Note revision 不覆盖。
 - SSE 测试确认事件有序、可重连、不包含密钥、完整 prompt、附件或大 artifact。

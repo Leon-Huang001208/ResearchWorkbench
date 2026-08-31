@@ -9,7 +9,7 @@
 - AlphaFoundry PostgreSQL 最终拥有全部迁移后的 `theme_observation`、Workspace/Run 与个人观察数据。
 - LSH CSV/SQLite/Flask 仅是迁移来源；source file hash、row identity、行级结果和原始归档路径必须保留。
 - `lsh-capability-map.yaml` 记录 source、target、classification、data_migration、parity_test、call_count_zero、archive_path、status。
-- 不迁入 LSH 的策略评分、YAML 交易规则、纸面订单、账户、模拟交易、`score_hint`、`driver-summary` 或旧策略范围。
+- 策略、交易和基金审批能力冻结为只读归档，不作为重复能力删除；其策略评分、YAML 交易规则、纸面订单、账户、模拟交易、`score_hint`、`driver-summary` 不迁入新事实模型。
 
 ## 禁止依赖
 
@@ -39,7 +39,7 @@ scripts/migrate_lsh_theme_data.py --source <path> --apply --output <report.json>
 3. 对 LSH 主题文件运行 dry-run，审阅 accepted/quarantined/rejected、重复、单位和冲突。
 4. 获得明确 apply 决策后写入新表；按 source hash + row identity 幂等，复核计数和抽样事实。
 5. 新 API 与旧能力并行读，对相同 fixture/as_of 跑 parity；前端切到新 API，旧适配器持续计量调用。
-6. 只有 `data_migration + parity_test + regression + call_count_zero + archive_path` 全绿，gate 才允许删除。
+6. 只有 `data_migration + parity_test + regression + call_count_zero + archive_path` 全绿，gate 才允许删除重复 Flask、SQLite、静态 Dashboard 和平行运行模型；策略、交易和基金审批不进入删除集合。
 7. 删除后观察一个稳定版本；LSH 目录与数据导出只读归档，发现回归时恢复适配器而不是双写。
 
 ## 状态与失败
@@ -62,3 +62,8 @@ scripts/migrate_lsh_theme_data.py --source <path> --apply --output <report.json>
 - 前端静态契约断言首页、资产、行业、研究只调用新领域 API；研究输出不写事实 API。
 - 归档验收记录 commit/tag、schema/version、文件哈希、恢复说明和只读权限。
 - 桌面相关迁移仍需原生 macOS/Windows CI；发布前真实 Windows 安装级烟测不能由本地验证替代。
+- PostgreSQL 集成测试必须覆盖迁移、幂等摄入、快照、任务租约、项目隔离和通知持久化。
+- API/SSE 测试必须覆盖分页、断线重连、取消、恢复、Provider 故障和部分数据降级。
+- 浏览器验收必须覆盖首页、资产观察、主题研究、FinGPT/Claw 四条完整旅程。
+- 安全测试必须证明 DSH 无数据库权限，Skill/MCP 未授权调用被拒绝，项目记忆互相隔离。
+- 性能门槛固定为缓存首页 P95≤500ms、资产/主题详情 P95≤1s、SSE 首状态≤1s、提醒评估延迟≤60s。

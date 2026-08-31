@@ -56,7 +56,7 @@
 | `DomainEvent` | event_id、type、occurred_at、payload_ref | 先写 PostgreSQL `domain_event`，SSE 只传小型引用 |
 | `ScheduledJob` | job_id、owner、idempotency_key、lease | 默认 single-flight；missed runs 合并 latest |
 
-API 模型必须保持“缺失”“不适用”“来源失败”“0”四种语义可区分。金额、比例、点位、数量和价格不得省略单位；所有时间保存带时区值，交易日另有明确 date 字段。
+所有事实响应必须完整包含 `as_of`、`observed_at`、`available_at`、`source_refs`、`freshness_status`、`quality_flags`。API 模型必须保持“缺失”“不适用”“来源失败”“0”四种语义可区分。金额、比例、点位、数量和价格不得省略单位；所有时间保存带时区值，交易日另有明确 date 字段。
 
 ## 主流程
 

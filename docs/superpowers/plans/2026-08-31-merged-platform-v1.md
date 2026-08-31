@@ -330,7 +330,11 @@ git commit -m "feat: add theme research packs"
 - Create: `services/agent_team_service.py`
 - Create: `services/scheduler_coordinator.py`
 - Create: `app/api/routes/research_workspaces.py`
-- Create: `app/api/routes/research_runtime.py`
+- Create: `app/api/routes/research_sessions.py`
+- Create: `app/api/routes/runtime_providers.py`
+- Create: `app/api/routes/research_skills.py`
+- Create: `app/api/routes/agent_teams.py`
+- Create: `app/api/routes/agent_schedules.py`
 - Modify: `services/research_run_service.py`
 - Modify: `app/api/routes/research_runs.py`
 - Test: `tests/unit/test_research_workspace_service.py`
@@ -372,14 +376,14 @@ FinGPT 允许 DSH→LangGraph 回退；Claw 缺 agent_team 能力时阻断。Ski
 
 - [ ] **Step 5: 实现 API 与 SSE**
 
-注册 workspaces、sessions/messages、runtime-providers、skills、agent-teams、agent-schedules；Run SSE 发送状态和阶段，不发送秘密或完整大对象。冲突幂等键返回已有资源。
+注册批准的独立 API 组：`/api/research-workspaces`、`/api/research-sessions` 与 `/{id}/messages`、`/api/runtime-providers`、`/api/research-skills`、`/api/agent-teams`、`/api/agent-schedules`；Run SSE 发送状态和阶段，不发送秘密或完整大对象。冲突幂等键返回已有资源。
 
 - [ ] **Step 6: 验证与 Commit**
 
 ```bash
 python -m pytest tests/unit/test_research_workspace_service.py tests/unit/test_runtime_provider_service.py tests/unit/test_agent_team_service.py tests/unit/test_scheduler_coordinator.py tests/unit/test_research_workspace_api.py tests/unit/test_research_run_service.py tests/unit/test_research_runs_api.py -q
-python -m ruff check services/research_workspace_service.py services/runtime_provider_service.py services/agent_team_service.py services/scheduler_coordinator.py data_layer/repositories/research_workspace_repository.py app/api/routes/research_workspaces.py app/api/routes/research_runtime.py tests/unit/test_research_workspace_service.py tests/unit/test_runtime_provider_service.py tests/unit/test_agent_team_service.py tests/unit/test_scheduler_coordinator.py tests/unit/test_research_workspace_api.py
-git add core/contracts/research_workspace.py core/contracts/research.py data_layer/repositories/research_workspace_repository.py services/research_workspace_service.py services/runtime_provider_service.py services/agent_team_service.py services/scheduler_coordinator.py services/research_run_service.py app/api/routes/research_workspaces.py app/api/routes/research_runtime.py app/api/routes/research_runs.py app/api/main.py tests/unit/test_research_workspace_service.py tests/unit/test_runtime_provider_service.py tests/unit/test_agent_team_service.py tests/unit/test_scheduler_coordinator.py tests/unit/test_research_workspace_api.py
+python -m ruff check services/research_workspace_service.py services/runtime_provider_service.py services/agent_team_service.py services/scheduler_coordinator.py data_layer/repositories/research_workspace_repository.py app/api/routes/research_workspaces.py app/api/routes/research_sessions.py app/api/routes/runtime_providers.py app/api/routes/research_skills.py app/api/routes/agent_teams.py app/api/routes/agent_schedules.py tests/unit/test_research_workspace_service.py tests/unit/test_runtime_provider_service.py tests/unit/test_agent_team_service.py tests/unit/test_scheduler_coordinator.py tests/unit/test_research_workspace_api.py
+git add core/contracts/research_workspace.py core/contracts/research.py data_layer/repositories/research_workspace_repository.py services/research_workspace_service.py services/runtime_provider_service.py services/agent_team_service.py services/scheduler_coordinator.py services/research_run_service.py app/api/routes/research_workspaces.py app/api/routes/research_sessions.py app/api/routes/runtime_providers.py app/api/routes/research_skills.py app/api/routes/agent_teams.py app/api/routes/agent_schedules.py app/api/routes/research_runs.py app/api/main.py tests/unit/test_research_workspace_service.py tests/unit/test_runtime_provider_service.py tests/unit/test_agent_team_service.py tests/unit/test_scheduler_coordinator.py tests/unit/test_research_workspace_api.py
 git commit -m "feat: add FinGPT and Claw research runtime"
 ```
 

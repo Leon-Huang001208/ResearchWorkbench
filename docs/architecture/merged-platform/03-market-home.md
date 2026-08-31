@@ -6,8 +6,10 @@
 
 ## 数据归属
 
+- 页面固定五个 section：全球背景、A 股状态、市场主线、重要事件、资产异动；不得以其它区块替代或省略。
 - 输入归现有行情、指数结构、事件和 Connector 事实表所有。
-- `market_home_snapshot` 只拥有按 `trading_day + snapshot_kind + section_key + formula_version` 固化的页面快照与输入事实引用。
+- 交易状态固定为 `pre_open|open|lunch_break|closed|non_trading_day`。
+- `market_home_snapshot` 只拥有按 `trading_day + snapshot_kind + section_key + formula_version` 固化的页面快照与输入事实引用；盘中只读取 live 投影，盘后只生成不可变 close 快照。
 - Live 读模型可缓存，但缓存不是权威历史；历史查询必须读取 snapshot，禁止用当前 live 数据重算。
 - 主线组件保存 `return_percentile`、`turnover_change_percentile`、`breadth_percentile`、`event_density_percentile`、样本量和口径版本。
 
@@ -24,7 +26,7 @@
 | API | 契约 |
 |---|---|
 | `GET /api/market-home/live` | 分 section 返回 facts、freshness、as_of、source refs 和 degradation |
-| `GET /api/market-home/snapshots/{trading_day}` | 只读已固化 open/close/intraday 快照 |
+| `GET /api/market-home/snapshots/{trading_day}` | 只读对应交易日不可变 close 快照 |
 | `GET /api/market-home/drill-down/{section_key}` | 返回组成事实、样本、单位和来源 |
 | `GET /api/market-home/events` | SSE：`event_id`、`section_key`、`as_of`、`sequence` |
 
@@ -43,7 +45,7 @@
 
 Section 状态为 `ready|stale|unavailable|partial`。来源超时、空样本、单位/口径冲突分别使用稳定错误码；`partial` 必须列出缺失 component，且不生成不可解释总分。单区块异常被捕获并结构化记录，其余区块仍返回 200；只有请求本身非法返回 4xx，核心存储不可用才沿用全局 setup/health 语义。
 
-SLA 以数据可用时间为起点：行情类 live section 30 秒内可见；事件/主线等聚合 section 60 秒内可见；已接收失效事件后客户端 15 秒内完成受影响 section 刷新。响应必须报告实际 age，未达 SLA 时标记 degraded，不静默使用旧值。
+SLA 以数据可用时间为起点：行情到达 30 秒内可见；市场聚合 60 秒内可见；事件到达系统后 15 秒内可见。SSE 仍只发送区块失效事件，客户端收到后重新读取聚合 API。响应必须报告实际 age，未达 SLA 时标记 stale/unavailable，不静默使用旧值。
 
 ## 可观测性
 
@@ -54,6 +56,6 @@ SLA 以数据可用时间为起点：行情类 live section 30 秒内可见；�
 - 公式测试固定四项权重并断言 component/sample_size/version 全部返回。
 - 历史测试使用 spy 断言 snapshot 查询从不调用 live provider。
 - 单区块故障注入确认整页非 500、错误码与 freshness 准确。
-- SSE 测试确认小载荷、有序重连和 15 秒客户端刷新契约。
-- SLA 测试分别覆盖 30s 行情、60s 聚合、15s 失效刷新；过期值不可标 fresh。
+- SSE 测试确认小载荷、有序重连和客户端重新读取聚合 API。
+- SLA 测试分别覆盖 30s 行情到达、60s 市场聚合、15s 事件到达；过期值不可标 fresh。
 - 静态前端契约断言首页无 AI 自动摘要入口，钻取展示来源、时间、单位与公式。
