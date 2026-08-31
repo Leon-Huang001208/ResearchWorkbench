@@ -31,12 +31,14 @@ The specification-review follow-up also used explicit RED→GREEN cycles. After 
 
 The follow-up removes Manifest self-authorization and requires Task 6 services to call `SkillManifest.validate_tool_registry()` with platform-owned authorized tool IDs. It also enforces half-open asset-identifier validity windows with a PostgreSQL GiST exclusion constraint and SQLite insert/update triggers, enforces the two Research Note source shapes in Pydantic and SQL, derives Message scope through Session, and rejects naive datetimes throughout the new merged-platform public contracts.
 
+A final security review showed that a string blacklist still trusted a misconfigured registry. A new RED test demonstrated that `internal:bash`, `internal:sh`, `internal:cmd`, `internal:os_system`, and `internal:file_write` all passed when the caller registered them (`5 failed, 47 deselected`). The implementation now uses a closed immutable `SAFE_INTERNAL_TOOL_IDS` set: internal tools must be in that set and in the platform registry, while MCP references require registry authorization. The focused Skill tests then passed with `15 passed, 37 deselected`.
+
 ## Verification
 
 | Command | Actual result |
 | --- | --- |
-| `python -m pytest tests/unit/test_merged_platform_contracts.py tests/unit/test_merged_platform_migration.py tests/unit/test_alembic_migration_graph.py -q` | `54 passed in 0.34s`; includes actual SQLite overlap rejection and 014→018→014 migration |
-| `python -m pytest tests/unit/test_merged_platform_contracts.py tests/unit/test_merged_platform_migration.py tests/unit/test_alembic_migration_graph.py tests/unit/test_research_run_service.py tests/unit/test_research_runs_api.py tests/unit/test_dashboard.py tests/unit/test_asset_analysis_service.py -q` | `104 passed, 6 warnings in 3.67s`; existing Research Run service/API regression remains green |
+| `python -m pytest tests/unit/test_merged_platform_contracts.py tests/unit/test_merged_platform_migration.py tests/unit/test_alembic_migration_graph.py -q` | `59 passed in 0.34s`; includes registry-misconfiguration bypass cases, actual SQLite overlap rejection, and 014→018→014 migration |
+| `python -m pytest tests/unit/test_merged_platform_contracts.py tests/unit/test_merged_platform_migration.py tests/unit/test_alembic_migration_graph.py tests/unit/test_research_run_service.py tests/unit/test_research_runs_api.py tests/unit/test_dashboard.py tests/unit/test_asset_analysis_service.py -q` | `109 passed, 6 warnings in 3.71s`; existing Research Run service/API regression remains green |
 | `python -m ruff check` on the three follow-up contract modules, two changed migrations, and two target test files | passed |
 | `python -m ruff check --ignore RUF012,UP017 data_layer/repositories/models.py` | passed; the unignored run and `HEAD` baseline both report the same 24 `RUF012` + 1 `UP017` findings |
 | `python -m black --check` on the changed Python files | passed; 8 files unchanged |

@@ -255,6 +255,32 @@ def test_skill_cannot_self_authorize_forbidden_or_unregistered_tool(tool: str):
         manifest.validate_tool_registry({"internal:asset_snapshot", "mcp:approved"})
 
 
+@pytest.mark.parametrize(
+    "tool",
+    [
+        "internal:bash",
+        "internal:sh",
+        "internal:cmd",
+        "internal:os_system",
+        "internal:file_write",
+    ],
+)
+def test_skill_rejects_unsafe_internal_tool_even_if_registry_is_misconfigured(
+    tool: str,
+):
+    manifest = SkillManifest(
+        skill_key="closed-internal-tools",
+        name="closed-internal-tools",
+        version="1.0.0",
+        prompt_template="x",
+        input_schema={},
+        output_schema={},
+        allowed_tools=[tool],
+    )
+    with pytest.raises(ValueError, match="safe internal tool allowlist"):
+        manifest.validate_tool_registry({tool})
+
+
 def test_research_note_sources_are_mutually_exclusive():
     claim_note = ResearchNote(
         note_id="note-1",

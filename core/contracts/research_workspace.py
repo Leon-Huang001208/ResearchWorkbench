@@ -9,6 +9,9 @@ from typing import Any, Literal
 
 from pydantic import AwareDatetime, BaseModel, Field, model_validator
 
+# Closed platform-owned capability set; additions require contract and security review.
+SAFE_INTERNAL_TOOL_IDS: frozenset[str] = frozenset({"internal:asset_snapshot"})
+
 
 class WorkspaceStatus(str, Enum):
     """Lifecycle state of a local research workspace."""
@@ -111,7 +114,7 @@ class RuntimeProvider(BaseModel):
 
 
 class SkillManifest(BaseModel):
-    """Declarative Skill whose tool references require platform authorization.
+    """Declarative Skill requiring a closed internal allowlist and trusted registry.
 
     Task 6 execution services MUST call :meth:`validate_tool_registry` with the
     platform-owned authorized tool IDs before compiling or running a Skill. A
@@ -147,35 +150,27 @@ class SkillManifest(BaseModel):
 
         This is an explicit execution-boundary check: callers supply the trusted
         registry, and neither manifest fields nor manifest content can authorize
-        an internal or MCP tool. Code, Shell, and filesystem aliases remain
-        forbidden even if a registry is configured incorrectly.
+        an internal or MCP tool. Internal references must also belong to the
+        closed :data:`SAFE_INTERNAL_TOOL_IDS` set, so registry misconfiguration
+        cannot expose arbitrary internal capabilities.
         """
 
         authorized = set(authorized_tool_ids)
-        forbidden_internal_fragments = (
-            "browser",
-            "code",
-            "exec",
-            "filesystem",
-            "python",
-            "shell",
-            "subprocess",
-            "terminal",
-        )
-        rejected: list[str] = []
+        unsafe_internal: list[str] = []
+        unauthorized: list[str] = []
         for tool in self.allowed_tools:
-            if not tool.startswith(("internal:", "mcp:")):
-                continue
-            internal_name = tool.removeprefix("internal:")
-            unsafe_internal = tool.startswith("internal:") and any(
-                fragment in internal_name for fragment in forbidden_internal_fragments
-            )
-            if unsafe_internal or tool not in authorized:
-                rejected.append(tool)
-        if rejected:
+            if tool.startswith("internal:"):
+                if tool not in SAFE_INTERNAL_TOOL_IDS:
+                    unsafe_internal.append(tool)
+                elif tool not in authorized:
+                    unauthorized.append(tool)
+            elif tool.startswith("mcp:") and tool not in authorized:
+                unauthorized.append(tool)
+        if unsafe_internal or unauthorized:
             raise ValueError(
-                "allowed_tools contains references absent from the authorized tool registry: "
-                f"{sorted(rejected)}"
+                "allowed_tools violates the safe internal tool allowlist or authorized tool "
+                f"registry: unsafe_internal={sorted(unsafe_internal)}, "
+                f"unauthorized={sorted(unauthorized)}"
             )
         return self
 

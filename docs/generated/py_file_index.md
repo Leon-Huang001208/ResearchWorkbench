@@ -3759,7 +3759,7 @@ Classes:
 - `RuntimeProvider`
   - Capability declaration for LangGraph or the optional DSH sidecar.
 - `SkillManifest`
-  - Declarative Skill whose tool references require platform authorization.
+  - Declarative Skill requiring a closed internal allowlist and trusted registry.
   - methods: validate_allowed_tools, validate_tool_registry
 - `AgentBudget`
   - Hard execution bounds checked before every Agent step.

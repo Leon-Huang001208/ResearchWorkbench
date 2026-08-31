@@ -47,7 +47,7 @@ Workspace 承载项目隔离的会话与记忆；Run 承载可恢复、证据优
 ## 主流程
 
 1. 用户在 FinGPT 或 Claw 创建 Session；临时 Session 可在事务内升级为 Workspace Session。
-2. Skill Compiler 从声明式 manifest 生成有界计划；Task 6 服务在编译/执行前必须把平台持有的已授权 tool ID registry 传给 `validate_tool_registry`，拒绝任何未注册 internal/MCP 引用及 Python/Shell/filesystem 别名。附件读取和受控网页仍是固定能力，不由 Manifest 自授权。
+2. Skill Compiler 从声明式 manifest 生成有界计划；Task 6 服务在编译/执行前必须把平台持有的已授权 tool ID registry 传给 `validate_tool_registry`。internal 引用必须同时属于封闭的 `SAFE_INTERNAL_TOOL_IDS` 并存在于 registry，MCP 引用必须存在于 registry；因此即使 registry 误配，也不能暴露 Bash、Shell、CMD、OS 或文件写入能力。附件读取和受控网页仍是固定能力，不由 Manifest 自授权。
 3. Runtime Router 根据模式与能力选择 provider：FinGPT 首选可用 DSH，否则回退 LangGraph；Claw 要求 `agent_team`。
 4. Claw 的 Supervisor 把任务写入 Shared Blackboard，Worker 读取分派、写类型化结果；步骤、并发、token/费用和 deadline 逐次检查。
 5. DSH 的成功或失败结果必须经 FastAPI 回传 `run_id`、幂等键、provider result ID 和类型化终态；Run Service 校验映射后再持久化 task、artifact、claim 和 quality gate。重复回传返回既有终态，DSH 自身状态不成为权威；SSE 仅投影阶段变化。
@@ -71,7 +71,7 @@ Workspace 承载项目隔离的会话与记忆；Run 承载可恢复、证据优
 
 - Workspace 隔离测试确认 A 项目的 Note/消息不会进入 B 项目上下文。
 - Runtime 测试确认 FinGPT DSH→LangGraph 回退；Claw 缺能力精确返回 `blocked_runtime`。
-- Skill/Tool 测试确认 Manifest 无法自授权，拒绝 Python/Shell/filesystem 别名、任意网络、未注册 MCP 和越界参数，同时允许平台注册的安全 internal/MCP。
+- Skill/Tool 测试确认 Manifest 无法自授权，且 registry 误配置时仍拒绝 Bash/Shell/CMD/OS/file-write/Python/browser 等非封闭 internal 引用、任意网络、未注册 MCP 和越界参数，同时允许平台注册的封闭安全 internal 与授权 MCP。
 - Team 测试覆盖 Supervisor/Blackboard、最大步骤、并发、token/费用和 deadline。
 - Schedule 测试覆盖禁止并发重入、租约接管和 missed runs 只合并最近一次。
 - Run 回归覆盖现有 create/execute/resume/Claim/quality gate/export，并验证 completed 自动归档和 Note revision 不覆盖。
