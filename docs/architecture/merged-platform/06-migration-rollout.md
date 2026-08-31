@@ -39,8 +39,8 @@ scripts/migrate_lsh_theme_data.py --source <path> --apply --output <report.json>
 3. 对 LSH 主题文件运行 dry-run，审阅 accepted/quarantined/rejected、重复、单位和冲突。
 4. 获得明确 apply 决策后写入新表；按 source hash + row identity 幂等，复核计数和抽样事实。
 5. 新 API 与旧能力并行读，对相同 fixture/as_of 跑 parity；前端切到新 API，旧适配器持续计量调用。
-6. 只有 `data_migration + parity_test + regression + call_count_zero + archive_path` 全绿，gate 才允许删除重复 Flask、SQLite、静态 Dashboard 和平行运行模型；策略、交易和基金审批不进入删除集合。
-7. 删除后观察一个稳定版本；LSH 目录与数据导出只读归档，发现回归时恢复适配器而不是双写。
+6. `data_migration + parity_test + regression + call_count_zero + archive_path` 全绿后停止 LSH，把目录与数据导出设为只读归档，并观察一个稳定版本；观察期发现回归时恢复适配器而不是双写。
+7. 稳定观察期完成且所有证据持续有效后，gate 才允许删除重复 Flask、SQLite、静态 Dashboard 和平行运行模型；策略、交易和基金审批不进入删除集合。删除后继续回归监测。
 
 ## 状态与失败
 
