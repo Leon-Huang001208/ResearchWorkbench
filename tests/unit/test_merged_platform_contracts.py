@@ -1,23 +1,41 @@
 """Contract tests for the merged AlphaFoundry platform shared kernel."""
 
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import pytest
 from pydantic import ValidationError
 
-from core.contracts.asset_observation import AlertOperator, AlertRule
+from core.contracts.asset_observation import (
+    AlertEvaluation,
+    AlertEvent,
+    AlertOperator,
+    AlertRule,
+    Notification,
+    PeerSet,
+    Watchlist,
+    WatchlistItem,
+)
+from core.contracts.market_home import MarketHomeSnapshot
 from core.contracts.platform_shared import (
     AssetIdentifier,
     AssetRef,
+    DomainEvent,
     FreshnessStatus,
     ObservationEnvelope,
+    ScheduledJob,
     SourceRef,
 )
 from core.contracts.research_workspace import (
     AgentBudget,
     AgentSchedule,
     AgentTeamDefinition,
+    ResearchMessage,
+    ResearchNote,
     ResearchSession,
+    ResearchWorkspace,
+    RuntimeProvider,
     SkillManifest,
 )
 from core.contracts.theme_research import (
@@ -106,7 +124,10 @@ def test_asset_ref_accepts_exactly_four_asset_types(asset_type: str):
     assert AssetRef(asset_id="asset-1", asset_type=asset_type).asset_type.value == asset_type
 
 
-def test_asset_identifier_rejects_reversed_validity_window():
+@pytest.mark.parametrize("valid_to", [NOW, NOW - timedelta(days=1)])
+def test_asset_identifier_requires_strictly_positive_validity_window(
+    valid_to: datetime,
+):
     with pytest.raises(ValidationError, match="valid_to"):
         AssetIdentifier(
             asset_id="asset-1",
@@ -114,7 +135,7 @@ def test_asset_identifier_rejects_reversed_validity_window():
             value="600519.SH",
             market="CN",
             valid_from=NOW,
-            valid_to=NOW - timedelta(days=1),
+            valid_to=valid_to,
         )
 
 
@@ -171,13 +192,10 @@ def test_workspace_session_requires_workspace_scope():
         "shell",
         "python:exec",
         "filesystem:write",
-        "internal:shell",
-        "internal:filesystem_write",
         "https://example.com",
-        "mcp:unregistered",
     ],
 )
-def test_skill_rejects_unbounded_or_unregistered_tools(tool: str):
+def test_skill_rejects_unbounded_tool_schemes(tool: str):
     with pytest.raises(ValidationError, match="allowed_tools"):
         SkillManifest(
             skill_key="unsafe",
@@ -187,7 +205,6 @@ def test_skill_rejects_unbounded_or_unregistered_tools(tool: str):
             input_schema={},
             output_schema={},
             allowed_tools=[tool],
-            registered_mcp_tools=["mcp:approved"],
         )
 
 
@@ -205,9 +222,298 @@ def test_skill_accepts_internal_attachment_controlled_web_and_registered_mcp():
             "web:controlled",
             "mcp:approved",
         ],
-        registered_mcp_tools=["mcp:approved"],
     )
+    manifest.validate_tool_registry({"internal:asset_snapshot", "mcp:approved"})
     assert manifest.allowed_tools[-1] == "mcp:approved"
+
+
+@pytest.mark.parametrize(
+    "tool",
+    [
+        "internal:browser",
+        "internal:python",
+        "internal:shellrunner",
+        "internal:filesystem_write",
+        "mcp:evil",
+    ],
+)
+def test_skill_cannot_self_authorize_forbidden_or_unregistered_tool(tool: str):
+    manifest = SkillManifest.model_validate(
+        {
+            "skill_key": "registry-check",
+            "name": "registry-check",
+            "version": "1.0.0",
+            "prompt_template": "x",
+            "input_schema": {},
+            "output_schema": {},
+            "allowed_tools": [tool],
+            "registered_mcp_tools": [tool],
+        }
+    )
+    assert "registered_mcp_tools" not in SkillManifest.model_fields
+    with pytest.raises(ValueError, match="authorized tool registry"):
+        manifest.validate_tool_registry({"internal:asset_snapshot", "mcp:approved"})
+
+
+def test_research_note_sources_are_mutually_exclusive():
+    claim_note = ResearchNote(
+        note_id="note-1",
+        workspace_id="workspace-1",
+        revision=1,
+        source_kind="claim",
+        claim_id="claim-1",
+        summary="claim",
+        created_at=NOW,
+    )
+    assert claim_note.run_id is None
+
+    paragraph_note = ResearchNote(
+        note_id="note-2",
+        workspace_id="workspace-1",
+        revision=1,
+        source_kind="paragraph",
+        run_id="run-1",
+        paragraph_ref="artifact:1#p2",
+        summary="paragraph",
+        created_at=NOW,
+    )
+    assert paragraph_note.claim_id is None
+
+    with pytest.raises(ValidationError, match="claim note"):
+        ResearchNote(
+            note_id="note-3",
+            workspace_id="workspace-1",
+            revision=1,
+            source_kind="claim",
+            claim_id="claim-1",
+            run_id="run-1",
+            summary="invalid",
+            created_at=NOW,
+        )
+
+    with pytest.raises(ValidationError, match="paragraph note"):
+        ResearchNote(
+            note_id="note-4",
+            workspace_id="workspace-1",
+            revision=1,
+            source_kind="paragraph",
+            run_id="run-1",
+            paragraph_ref="artifact:1#p2",
+            claim_id="claim-1",
+            summary="invalid",
+            created_at=NOW,
+        )
+
+
+def test_research_message_scope_is_derived_from_session():
+    assert "workspace_id" not in ResearchMessage.model_fields
+
+
+NAIVE = datetime(2026, 8, 31, 9, 30)  # noqa: DTZ001 - invalid input under test
+
+
+def _fact_payload() -> dict[str, Any]:
+    return _observation().model_dump()
+
+
+@pytest.mark.parametrize(
+    ("factory", "field"),
+    [
+        (lambda: _fact_payload(), "as_of"),
+        (
+            lambda: {
+                "asset_id": "asset-1",
+                "scheme": "wind",
+                "value": "600000.SH",
+                "market": "CN",
+                "valid_from": NOW,
+            },
+            "valid_from",
+        ),
+        (
+            lambda: {
+                "event_id": "event-1",
+                "event_type": "changed",
+                "occurred_at": NOW,
+                "payload_ref": "payload:1",
+                "aggregate_type": "asset",
+                "aggregate_id": "asset-1",
+                "idempotency_key": "event-key",
+                "sequence": 1,
+            },
+            "occurred_at",
+        ),
+        (
+            lambda: {
+                "job_id": "job-1",
+                "owner": "scheduler",
+                "job_type": "refresh",
+                "idempotency_key": "job-key",
+                "scheduled_for": NOW,
+            },
+            "scheduled_for",
+        ),
+        (
+            lambda: {
+                "workspace_id": "workspace-1",
+                "project_id": "project-1",
+                "title": "workspace",
+                "created_at": NOW,
+                "updated_at": NOW,
+            },
+            "created_at",
+        ),
+        (
+            lambda: {
+                "session_id": "session-1",
+                "mode": "temporary",
+                "created_at": NOW,
+                "updated_at": NOW,
+            },
+            "created_at",
+        ),
+        (
+            lambda: {
+                "message_id": "message-1",
+                "session_id": "session-1",
+                "role": "user",
+                "content": "hello",
+                "idempotency_key": "message-key",
+                "created_at": NOW,
+            },
+            "created_at",
+        ),
+        (
+            lambda: {
+                "provider_id": "provider-1",
+                "provider_type": "langgraph",
+                "name": "LangGraph",
+                "capabilities": {"single_agent"},
+                "status": "healthy",
+                "checked_at": NOW,
+            },
+            "checked_at",
+        ),
+        (
+            lambda: {
+                "schedule_id": "schedule-1",
+                "team_id": "team-1",
+                "cron_expression": "0 9 * * 1-5",
+                "status": "active",
+                "last_run_at": NOW,
+            },
+            "last_run_at",
+        ),
+        (
+            lambda: {
+                "note_id": "note-1",
+                "workspace_id": "workspace-1",
+                "revision": 1,
+                "source_kind": "claim",
+                "claim_id": "claim-1",
+                "summary": "note",
+                "created_at": NOW,
+            },
+            "created_at",
+        ),
+        (
+            lambda: {
+                "peer_set_id": "peers-1",
+                "asset_id": "asset-1",
+                "rule": "industry",
+                "sample_size": 0,
+                "as_of": NOW,
+            },
+            "as_of",
+        ),
+        (
+            lambda: {
+                "watchlist_id": "watchlist-1",
+                "profile_id": "profile-1",
+                "name": "default",
+                "created_at": NOW,
+                "updated_at": NOW,
+            },
+            "created_at",
+        ),
+        (
+            lambda: {
+                "item_id": "item-1",
+                "watchlist_id": "watchlist-1",
+                "asset_id": "asset-1",
+                "position": 0,
+                "created_at": NOW,
+            },
+            "created_at",
+        ),
+        (
+            lambda: {
+                "rule_id": "rule-1",
+                "observation_id": "obs-1",
+                "status": "not_matched",
+                "evaluated_at": NOW,
+            },
+            "evaluated_at",
+        ),
+        (
+            lambda: {
+                "event_id": "alert-1",
+                "rule_id": "rule-1",
+                "observation_id": "obs-1",
+                "dedupe_key": "dedupe-1",
+                "triggered_at": NOW,
+            },
+            "triggered_at",
+        ),
+        (
+            lambda: {
+                "notification_id": "notification-1",
+                "alert_event_id": "alert-1",
+                "profile_id": "profile-1",
+                "title": "title",
+                "body": "body",
+                "created_at": NOW,
+            },
+            "created_at",
+        ),
+        (
+            lambda: {
+                **_fact_payload(),
+                "snapshot_id": "snapshot-1",
+                "trading_day": NOW.date(),
+                "snapshot_kind": "close",
+                "section_key": "a_share_status",
+                "formula_version": "mainline-v1",
+            },
+            "as_of",
+        ),
+    ],
+)
+def test_public_contracts_reject_naive_datetimes(factory: Callable[[], dict[str, Any]], field: str):
+    payload = factory()
+    payload[field] = NAIVE
+    model_by_keys = [
+        ("snapshot_id", MarketHomeSnapshot),
+        ("notification_id", Notification),
+        ("dedupe_key", AlertEvent),
+        ("evaluated_at", AlertEvaluation),
+        ("item_id", WatchlistItem),
+        ("peer_set_id", PeerSet),
+        ("note_id", ResearchNote),
+        ("cron_expression", AgentSchedule),
+        ("provider_type", RuntimeProvider),
+        ("message_id", ResearchMessage),
+        ("mode", ResearchSession),
+        ("project_id", ResearchWorkspace),
+        ("job_type", ScheduledJob),
+        ("event_type", DomainEvent),
+        ("scheme", AssetIdentifier),
+        ("metric_key", ObservationEnvelope),
+        ("watchlist_id", Watchlist),
+    ]
+    model = next(model for key, model in model_by_keys if key in payload)
+    with pytest.raises(ValidationError, match=field):
+        model(**payload)
 
 
 def test_agent_budget_and_team_enforce_hard_limits():

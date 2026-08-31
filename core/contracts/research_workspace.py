@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime
+from collections.abc import Collection
 from enum import Enum
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import AwareDatetime, BaseModel, Field, model_validator
 
 
 class WorkspaceStatus(str, Enum):
@@ -24,9 +24,9 @@ class ResearchWorkspace(BaseModel):
     project_id: str = Field(min_length=1)
     title: str = Field(min_length=1)
     status: WorkspaceStatus = WorkspaceStatus.ACTIVE
-    created_at: datetime
-    updated_at: datetime
-    archived_at: datetime | None = None
+    created_at: AwareDatetime
+    updated_at: AwareDatetime
+    archived_at: AwareDatetime | None = None
 
 
 class SessionMode(str, Enum):
@@ -52,8 +52,8 @@ class ResearchSession(BaseModel):
     status: SessionStatus = SessionStatus.ACTIVE
     workspace_id: str | None = None
     run_id: str | None = None
-    created_at: datetime
-    updated_at: datetime
+    created_at: AwareDatetime
+    updated_at: AwareDatetime
 
     @model_validator(mode="after")
     def validate_scope(self) -> ResearchSession:
@@ -67,16 +67,19 @@ class ResearchSession(BaseModel):
 
 
 class ResearchMessage(BaseModel):
-    """Persisted message with content stored directly or by safe reference."""
+    """Persisted message whose workspace scope is derived from its session.
+
+    Services must load the referenced session when enforcing workspace isolation;
+    messages deliberately carry no second, potentially contradictory scope field.
+    """
 
     message_id: str = Field(min_length=1)
     session_id: str = Field(min_length=1)
-    workspace_id: str | None = None
     role: Literal["user", "assistant", "system", "tool"]
     content: str | None = None
     content_ref: str | None = None
     idempotency_key: str = Field(min_length=1)
-    created_at: datetime
+    created_at: AwareDatetime
 
     @model_validator(mode="after")
     def validate_content(self) -> ResearchMessage:
@@ -104,11 +107,16 @@ class RuntimeProvider(BaseModel):
     capabilities: set[Literal["single_agent", "agent_team", "sse", "resume"]]
     status: RuntimeProviderStatus
     config_ref: str | None = None
-    checked_at: datetime
+    checked_at: AwareDatetime
 
 
 class SkillManifest(BaseModel):
-    """Declarative research Skill with a closed tool permission surface."""
+    """Declarative Skill whose tool references require platform authorization.
+
+    Task 6 execution services MUST call :meth:`validate_tool_registry` with the
+    platform-owned authorized tool IDs before compiling or running a Skill. A
+    manifest can declare references, but it cannot grant permissions to itself.
+    """
 
     skill_key: str = Field(min_length=1)
     name: str = Field(min_length=1)
@@ -117,38 +125,58 @@ class SkillManifest(BaseModel):
     input_schema: dict[str, Any]
     output_schema: dict[str, Any]
     allowed_tools: list[str] = Field(default_factory=list)
-    registered_mcp_tools: list[str] = Field(default_factory=list)
     attachment_refs: list[str] = Field(default_factory=list)
     status: Literal["draft", "validated", "enabled", "disabled"] = "draft"
 
     @model_validator(mode="after")
     def validate_allowed_tools(self) -> SkillManifest:
-        """Reject code, Shell, filesystem, arbitrary URL, and unknown MCP access."""
+        """Accept only declarative references and fixed platform capabilities."""
 
-        registered = set(self.registered_mcp_tools)
-        forbidden_internal_terms = {
+        for tool in self.allowed_tools:
+            permitted = (
+                bool(re.fullmatch(r"(?:internal|mcp):[a-z][a-z0-9_.-]*", tool))
+                or tool == "attachment:read"
+                or tool == "web:controlled"
+            )
+            if not permitted:
+                raise ValueError(f"allowed_tools contains forbidden tool: {tool}")
+        return self
+
+    def validate_tool_registry(self, authorized_tool_ids: Collection[str]) -> SkillManifest:
+        """Validate references against the platform-owned trusted tool registry.
+
+        This is an explicit execution-boundary check: callers supply the trusted
+        registry, and neither manifest fields nor manifest content can authorize
+        an internal or MCP tool. Code, Shell, and filesystem aliases remain
+        forbidden even if a registry is configured incorrectly.
+        """
+
+        authorized = set(authorized_tool_ids)
+        forbidden_internal_fragments = (
             "browser",
             "code",
             "exec",
             "filesystem",
+            "python",
             "shell",
             "subprocess",
             "terminal",
-        }
+        )
+        rejected: list[str] = []
         for tool in self.allowed_tools:
+            if not tool.startswith(("internal:", "mcp:")):
+                continue
             internal_name = tool.removeprefix("internal:")
-            internal_terms = set(re.split(r"[._-]", internal_name))
-            safe_internal = bool(re.fullmatch(r"internal:[a-z][a-z0-9_.-]*", tool)) and not (
-                forbidden_internal_terms & internal_terms
+            unsafe_internal = tool.startswith("internal:") and any(
+                fragment in internal_name for fragment in forbidden_internal_fragments
             )
-            permitted = (
-                safe_internal
-                or tool == "attachment:read"
-                or tool == "web:controlled"
-                or (tool.startswith("mcp:") and tool in registered)
+            if unsafe_internal or tool not in authorized:
+                rejected.append(tool)
+        if rejected:
+            raise ValueError(
+                "allowed_tools contains references absent from the authorized tool registry: "
+                f"{sorted(rejected)}"
             )
-            if not permitted:
-                raise ValueError(f"allowed_tools contains forbidden tool: {tool}")
         return self
 
 
@@ -194,8 +222,8 @@ class AgentSchedule(BaseModel):
     allow_concurrent: bool = False
     coalesce_policy: str = "latest"
     scheduled_job_id: str | None = None
-    last_run_at: datetime | None = None
-    next_run_at: datetime | None = None
+    last_run_at: AwareDatetime | None = None
+    next_run_at: AwareDatetime | None = None
 
     @model_validator(mode="after")
     def validate_execution_policy(self) -> AgentSchedule:
@@ -209,25 +237,36 @@ class AgentSchedule(BaseModel):
 
 
 class ResearchNote(BaseModel):
-    """Versioned user-selected Claim or paragraph reference."""
+    """Versioned user-selected Claim or paragraph reference.
+
+    Services must verify workspace ownership by loading the Claim for claim notes,
+    or the Research Run for paragraph notes. Claim notes derive their run from the
+    Claim and therefore must not persist a second run reference.
+    """
 
     note_id: str = Field(min_length=1)
     workspace_id: str = Field(min_length=1)
     revision: int = Field(ge=1)
     source_kind: Literal["claim", "paragraph"]
-    run_id: str = Field(min_length=1)
+    run_id: str | None = Field(default=None, min_length=1)
     claim_id: str | None = None
     paragraph_ref: str | None = None
     summary: str = Field(min_length=1)
     pinned: bool = True
-    created_at: datetime
+    created_at: AwareDatetime
 
     @model_validator(mode="after")
     def validate_source_reference(self) -> ResearchNote:
-        """Require the reference that matches the selected source kind."""
+        """Require exactly one of the two approved source shapes."""
 
-        if self.source_kind == "claim" and not self.claim_id:
-            raise ValueError("claim_id is required for claim note")
-        if self.source_kind == "paragraph" and not self.paragraph_ref:
-            raise ValueError("paragraph_ref is required for paragraph note")
+        if self.source_kind == "claim" and (
+            not self.claim_id or self.run_id is not None or self.paragraph_ref is not None
+        ):
+            raise ValueError("claim note requires claim_id and forbids run_id and paragraph_ref")
+        if self.source_kind == "paragraph" and (
+            not self.run_id or not self.paragraph_ref or self.claim_id is not None
+        ):
+            raise ValueError(
+                "paragraph note requires run_id and paragraph_ref and forbids claim_id"
+            )
         return self

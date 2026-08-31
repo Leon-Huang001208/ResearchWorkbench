@@ -9,9 +9,9 @@ Workspace 承载项目隔离的会话与记忆；Run 承载可恢复、证据优
 ## 数据归属
 
 - `research_workspace`：项目范围、标题、状态和归档策略。
-- `research_session` / `research_message`：临时或项目会话；每次查询必须带 workspace/session scope。
+- `research_session` / `research_message`：临时或项目会话；Message 不重复保存 `workspace_id`，查询必须先由 Session 推导并验证 Workspace scope。
 - 现有 `research_run` 及其 task/artifact/claim/quality_gate：Run 权威状态与不可变产物。
-- `research_note`：`workspace_id`、revision、source_kind、run/claim/paragraph ref、pinned_at。
+- `research_note`：`workspace_id`、revision、source_kind 与互斥来源；Claim Note 只保存 `claim_id` 并由 Claim 推导 Run，Paragraph Note 保存 `run_id + paragraph_ref`。
 - `runtime_provider`：`langgraph` 或 `dsh` 的能力声明、健康和配置引用。
 - `skill_definition`：持久化公共 `SkillManifest`，包含声明式 prompt/template、输入 schema、allowed tools 与版本。
 - `agent_team` / `agent_schedule`：Supervisor、角色、预算、deadline、并发与日程。
@@ -20,7 +20,7 @@ Workspace 承载项目隔离的会话与记忆；Run 承载可恢复、证据优
 ## 禁止依赖
 
 - DSH 不得直连数据库、持有数据库凭据、导入 ORM/repository，或向事实 API 写入。
-- Skill 不得声明 Shell、任意文件写、任意 HTTP、浏览器自动化、券商/交易工具或未注册 MCP。
+- Skill 不得声明 Shell、任意文件写、任意 HTTP、浏览器自动化、券商/交易工具或未注册 MCP；Manifest 只能引用工具，不能用自身字段授权。
 - Agent 不自由互聊；Worker 只向 Shared Blackboard 写类型化结果，Supervisor 负责分派与汇总。
 - Claw 不允许退化成单 Agent 后仍标记成功；缺少 `agent_team` 能力必须阻断。
 - Note 不保存未选择的完整 Run 文本，不跨 Workspace 注入记忆，不覆盖旧 revision。
@@ -47,11 +47,11 @@ Workspace 承载项目隔离的会话与记忆；Run 承载可恢复、证据优
 ## 主流程
 
 1. 用户在 FinGPT 或 Claw 创建 Session；临时 Session 可在事务内升级为 Workspace Session。
-2. Skill Compiler 从声明式 manifest 生成有界计划，只选择内部 allowlist、附件读取、受控网页或注册 MCP。
+2. Skill Compiler 从声明式 manifest 生成有界计划；Task 6 服务在编译/执行前必须把平台持有的已授权 tool ID registry 传给 `validate_tool_registry`，拒绝任何未注册 internal/MCP 引用及 Python/Shell/filesystem 别名。附件读取和受控网页仍是固定能力，不由 Manifest 自授权。
 3. Runtime Router 根据模式与能力选择 provider：FinGPT 首选可用 DSH，否则回退 LangGraph；Claw 要求 `agent_team`。
 4. Claw 的 Supervisor 把任务写入 Shared Blackboard，Worker 读取分派、写类型化结果；步骤、并发、token/费用和 deadline 逐次检查。
 5. DSH 的成功或失败结果必须经 FastAPI 回传 `run_id`、幂等键、provider result ID 和类型化终态；Run Service 校验映射后再持久化 task、artifact、claim 和 quality gate。重复回传返回既有终态，DSH 自身状态不成为权威；SSE 仅投影阶段变化。
-6. completed Run 自动关联并归档到 Workspace；用户选择 Claim 或段落生成新 revision Note，并可置顶。
+6. completed Run 自动关联并归档到 Workspace；用户选择 Claim 或段落生成新 revision Note，并可置顶。服务必须通过 Session/Claim/Run 查询验证 Workspace 归属，不能信任消息或 Note 请求中的重复归属字段。
 
 ## 状态与失败
 
@@ -71,7 +71,7 @@ Workspace 承载项目隔离的会话与记忆；Run 承载可恢复、证据优
 
 - Workspace 隔离测试确认 A 项目的 Note/消息不会进入 B 项目上下文。
 - Runtime 测试确认 FinGPT DSH→LangGraph 回退；Claw 缺能力精确返回 `blocked_runtime`。
-- Skill/Tool 测试拒绝 Shell、任意网络、未注册 MCP 和越界参数。
+- Skill/Tool 测试确认 Manifest 无法自授权，拒绝 Python/Shell/filesystem 别名、任意网络、未注册 MCP 和越界参数，同时允许平台注册的安全 internal/MCP。
 - Team 测试覆盖 Supervisor/Blackboard、最大步骤、并发、token/费用和 deadline。
 - Schedule 测试覆盖禁止并发重入、租约接管和 missed runs 只合并最近一次。
 - Run 回归覆盖现有 create/execute/resume/Claim/quality gate/export，并验证 completed 自动归档和 Note revision 不覆盖。

@@ -6,9 +6,11 @@ import importlib.util
 import re
 from pathlib import Path
 
+import pytest
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import Column, MetaData, Table, Text, create_engine, inspect
+from sqlalchemy import Column, MetaData, Table, Text, create_engine, inspect, text
+from sqlalchemy.exc import IntegrityError
 
 from data_layer.repositories.base import Base
 
@@ -114,6 +116,18 @@ def test_identity_note_and_watchlist_foreign_keys_are_explicit():
         "research_run.run_id",
         "research_workspace.workspace_id",
     }
+    assert "workspace_id" not in Base.metadata.tables["research_message"].c
+    assert any(
+        constraint.name == "ck_research_note_source_shape" for constraint in notes.constraints
+    )
+    assert any(
+        constraint.name == "ck_asset_identifier_valid_window"
+        for constraint in identifiers.constraints
+    )
+    assert any(
+        constraint.name == "ex_asset_identifier_no_overlap"
+        for constraint in identifiers.constraints
+    )
 
 
 def test_new_tables_define_identity_constraints_and_time_indexes():
@@ -155,6 +169,69 @@ def test_015_to_018_upgrade_and_downgrade_on_sqlite(tmp_path: Path):
 
     expected = set().union(*EXPECTED_BY_REVISION.values())
     assert expected.issubset(set(inspect(engine).get_table_names()))
+
+    with engine.begin() as connection:
+        connection.execute(text("""
+                INSERT INTO asset_registry (asset_id, asset_type, canonical_name)
+                VALUES ('asset-1', 'stock', 'Asset 1')
+                """))
+        connection.execute(text("""
+                INSERT INTO asset_identifier (
+                    identifier_id, asset_id, scheme, value, market, valid_from, valid_to
+                ) VALUES (
+                    'identifier-1', 'asset-1', 'wind', '600000.SH', 'CN',
+                    '2026-01-01T00:00:00+00:00', '2026-02-01T00:00:00+00:00'
+                )
+                """))
+        connection.execute(text("""
+                INSERT INTO asset_identifier (
+                    identifier_id, asset_id, scheme, value, market, valid_from, valid_to
+                ) VALUES (
+                    'identifier-adjacent', 'asset-1', 'wind', '600000.SH', 'CN',
+                    '2026-02-01T00:00:00+00:00', '2026-03-01T00:00:00+00:00'
+                )
+                """))
+
+    with (
+        pytest.raises(IntegrityError, match="asset_identifier validity overlap"),
+        engine.begin() as connection,
+    ):
+        connection.execute(text("""
+                INSERT INTO asset_identifier (
+                    identifier_id, asset_id, scheme, value, market, valid_from, valid_to
+                ) VALUES (
+                    'identifier-overlap', 'asset-1', 'wind', '600000.SH', 'CN',
+                    '2026-01-15T00:00:00+00:00', '2026-01-20T00:00:00+00:00'
+                )
+                """))
+
+    with pytest.raises(IntegrityError), engine.begin() as connection:
+        connection.execute(text("""
+                INSERT INTO asset_identifier (
+                    identifier_id, asset_id, scheme, value, market, valid_from, valid_to
+                ) VALUES (
+                    'identifier-reversed', 'asset-1', 'wind', '600001.SH', 'CN',
+                    '2026-02-01T00:00:00+00:00', '2026-01-01T00:00:00+00:00'
+                )
+                """))
+
+    with engine.begin() as connection:
+        connection.execute(text("""
+                INSERT INTO research_workspace (
+                    workspace_id, project_id, title, status
+                ) VALUES ('workspace-1', 'project-1', 'Workspace', 'active')
+                """))
+
+    with pytest.raises(IntegrityError), engine.begin() as connection:
+        connection.execute(text("""
+                INSERT INTO research_note (
+                    note_id, note_key, workspace_id, run_id, claim_id, revision,
+                    source_kind, summary
+                ) VALUES (
+                    'note-invalid', 'note-key', 'workspace-1', 'run-1', 'claim-1', 1,
+                    'claim', 'invalid dual source'
+                )
+                """))
 
     command.downgrade(config, "014")
     assert expected.isdisjoint(set(inspect(engine).get_table_names()))

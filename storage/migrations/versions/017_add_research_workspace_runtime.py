@@ -65,7 +65,6 @@ def upgrade() -> None:
         "research_message",
         sa.Column("message_id", sa.Text(), nullable=False),
         sa.Column("session_id", sa.Text(), nullable=False),
-        sa.Column("workspace_id", sa.Text(), nullable=True),
         sa.Column("role", sa.Text(), nullable=False),
         sa.Column("content", sa.Text(), nullable=True),
         sa.Column("content_ref", sa.Text(), nullable=True),
@@ -76,16 +75,12 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(
             ["session_id"], ["research_session.session_id"], ondelete="CASCADE"
         ),
-        sa.ForeignKeyConstraint(
-            ["workspace_id"], ["research_workspace.workspace_id"], ondelete="CASCADE"
-        ),
         sa.PrimaryKeyConstraint("message_id"),
         sa.UniqueConstraint(
             "session_id", "idempotency_key", name="uq_research_message_idempotency"
         ),
     )
     op.create_index("ix_research_message_session_id", "research_message", ["session_id"])
-    op.create_index("ix_research_message_workspace_id", "research_message", ["workspace_id"])
     op.create_index("ix_research_message_created_at", "research_message", ["created_at"])
 
     op.create_table(
@@ -186,7 +181,7 @@ def upgrade() -> None:
         sa.Column("note_id", sa.Text(), nullable=False),
         sa.Column("note_key", sa.Text(), nullable=False),
         sa.Column("workspace_id", sa.Text(), nullable=False),
-        sa.Column("run_id", sa.Text(), nullable=False),
+        sa.Column("run_id", sa.Text(), nullable=True),
         sa.Column("claim_id", sa.Text(), nullable=True),
         sa.Column("revision", sa.Integer(), nullable=False),
         sa.Column("source_kind", sa.Text(), nullable=False),
@@ -202,6 +197,13 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["run_id"], ["research_run.run_id"]),
         sa.ForeignKeyConstraint(["claim_id"], ["research_claim.claim_id"]),
         sa.PrimaryKeyConstraint("note_id"),
+        sa.CheckConstraint(
+            "(source_kind = 'claim' AND claim_id IS NOT NULL AND run_id IS NULL "
+            "AND paragraph_ref IS NULL) OR "
+            "(source_kind = 'paragraph' AND claim_id IS NULL AND run_id IS NOT NULL "
+            "AND paragraph_ref IS NOT NULL)",
+            name="ck_research_note_source_shape",
+        ),
         sa.UniqueConstraint(
             "workspace_id", "note_key", "revision", name="uq_research_note_revision"
         ),

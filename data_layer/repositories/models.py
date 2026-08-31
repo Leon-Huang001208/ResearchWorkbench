@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     Column,
     Date,
     DateTime,
@@ -12,7 +13,9 @@ from sqlalchemy import (
     Numeric,
     Text,
     UniqueConstraint,
+    func,
 )
+from sqlalchemy.dialects.postgresql import ExcludeConstraint
 from sqlalchemy.orm import relationship
 
 from data_layer.repositories.base import Base
@@ -2131,15 +2134,6 @@ class AssetIdentifierDB(Base):
     """Time-bounded vendor or market code for a canonical asset."""
 
     __tablename__ = "asset_identifier"
-    __table_args__ = (
-        UniqueConstraint(
-            "scheme",
-            "value",
-            "market",
-            "valid_from",
-            name="uq_asset_identifier_identity",
-        ),
-    )
 
     identifier_id = Column(Text, primary_key=True)
     asset_id = Column(
@@ -2151,6 +2145,27 @@ class AssetIdentifierDB(Base):
     valid_from = Column(DateTime(timezone=True), nullable=False, index=True)
     valid_to = Column(DateTime(timezone=True), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    __table_args__ = (
+        UniqueConstraint(
+            "scheme",
+            "value",
+            "market",
+            "valid_from",
+            name="uq_asset_identifier_identity",
+        ),
+        CheckConstraint(
+            "valid_to IS NULL OR valid_to > valid_from",
+            name="ck_asset_identifier_valid_window",
+        ),
+        ExcludeConstraint(
+            (scheme, "="),
+            (value, "="),
+            (market, "="),
+            (func.tstzrange(valid_from, valid_to, "[)"), "&&"),
+            name="ex_asset_identifier_no_overlap",
+            using="gist",
+        ).ddl_if(dialect="postgresql"),
+    )
 
 
 class ThemeObservationDB(Base):
@@ -2322,7 +2337,7 @@ class ResearchSessionDB(Base):
 
 
 class ResearchMessageDB(Base):
-    """Idempotent research-session message."""
+    """Idempotent message whose workspace scope is derived from its session."""
 
     __tablename__ = "research_message"
     __table_args__ = (
@@ -2334,12 +2349,6 @@ class ResearchMessageDB(Base):
         Text,
         ForeignKey("research_session.session_id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
-    )
-    workspace_id = Column(
-        Text,
-        ForeignKey("research_workspace.workspace_id", ondelete="CASCADE"),
-        nullable=True,
         index=True,
     )
     role = Column(Text, nullable=False)
@@ -2425,11 +2434,18 @@ class AgentScheduleDB(Base):
 
 
 class ResearchNoteDB(Base):
-    """Immutable revision of a user-selected Claim or paragraph note."""
+    """Immutable revision with exactly one Claim or paragraph source shape."""
 
     __tablename__ = "research_note"
     __table_args__ = (
         UniqueConstraint("workspace_id", "note_key", "revision", name="uq_research_note_revision"),
+        CheckConstraint(
+            "(source_kind = 'claim' AND claim_id IS NOT NULL AND run_id IS NULL "
+            "AND paragraph_ref IS NULL) OR "
+            "(source_kind = 'paragraph' AND claim_id IS NULL AND run_id IS NOT NULL "
+            "AND paragraph_ref IS NOT NULL)",
+            name="ck_research_note_source_shape",
+        ),
     )
 
     note_id = Column(Text, primary_key=True)
@@ -2440,7 +2456,7 @@ class ResearchNoteDB(Base):
         nullable=False,
         index=True,
     )
-    run_id = Column(Text, ForeignKey("research_run.run_id"), nullable=False, index=True)
+    run_id = Column(Text, ForeignKey("research_run.run_id"), nullable=True, index=True)
     claim_id = Column(Text, ForeignKey("research_claim.claim_id"), nullable=True, index=True)
     revision = Column(Integer, nullable=False)
     source_kind = Column(Text, nullable=False)

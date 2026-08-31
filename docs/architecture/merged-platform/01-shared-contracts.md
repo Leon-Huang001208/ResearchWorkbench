@@ -11,7 +11,7 @@
 | 迁移 | 分组 | 表 | 所有权与关键约束 |
 |---|---|---|---|
 | 015 | 共享事实核（5） | `asset_registry` | canonical asset ID；只映射现有 stock/index/etf/fund 事实，不复制行情或主数据 |
-| 015 | 共享事实核 | `asset_identifier` | `(scheme, value, market, valid_from)` 唯一；代码变化保留有效期 |
+| 015 | 共享事实核 | `asset_identifier` | `(scheme, value, market, valid_from)` 唯一；半开有效期 `[valid_from, valid_to)` 必须正向且不得重叠 |
 | 015 | 共享事实核 | `theme_observation` | 唯一主题事实表；Observation envelope + typed payload |
 | 015 | 共享事实核 | `scheduled_job` | owner、lease、idempotency、single-flight 与 coalesce 状态 |
 | 015 | 共享事实核 | `domain_event` | PostgreSQL 持久事件权威记录；SystemEventBus 只做 SSE/进程内投递适配 |
@@ -19,8 +19,8 @@
 | 016 | 主题/首页 | `market_home_snapshot` | 交易日/时点/section 快照；历史禁止由 live 重算 |
 | 017 | 研究运行时（8） | `research_workspace` | 项目隔离、标题、归档状态 |
 | 017 | 研究运行时 | `research_session` | 临时/项目会话，原子升级；可关联现有 Run |
-| 017 | 研究运行时 | `research_message` | workspace-scoped 消息与安全内容引用 |
-| 017 | 研究运行时 | `research_note` | Claim/段落引用、revision、pinned；旧 revision 不覆盖 |
+| 017 | 研究运行时 | `research_message` | Session 消息与安全内容引用；Workspace 归属只从 Session 推导 |
+| 017 | 研究运行时 | `research_note` | Claim 或段落两种互斥来源、revision、pinned；旧 revision 不覆盖 |
 | 017 | 研究运行时 | `runtime_provider` | LangGraph/DSH 能力、健康、配置引用，不保存密钥 |
 | 017 | 研究运行时 | `skill_definition` | `SkillManifest` 的持久化表；声明式模板、allowed_tools、版本和状态 |
 | 017 | 研究运行时 | `agent_team` | Supervisor、角色、预算、deadline 与并发上限 |
@@ -49,14 +49,14 @@
 | 类型 | 必填语义 | 验证规则 |
 |---|---|---|
 | `AssetRef` | `asset_id`、`asset_type` | `asset_type` 仅 `stock|index|etf|active_fund` |
-| `AssetIdentifier` | scheme/value/market/有效期 | 同一 scheme/value/market 的有效期不得重叠 |
+| `AssetIdentifier` | scheme/value/market/有效期 | 半开区间 `[valid_from, valid_to)`；`valid_to > valid_from`；同一 scheme/value/market 不得重叠 |
 | `SourceRef` | source_id、name、tier、content_hash/URL | 必须可追溯，敏感凭据不可进入模型 |
 | `ObservationEnvelope` | subject_ref、metric_key、source_ref、observed_at、available_at、freshness | `available_at >= observed_at`；numeric value 必须带 unit |
 | `FreshnessStatus` | fresh/stale/unavailable/quarantined | stale/unavailable/quarantined 不得伪装 fresh；冲突写入 quality_flags；缺失值与 0 分开 |
 | `DomainEvent` | event_id、type、occurred_at、payload_ref | 先写 PostgreSQL `domain_event`，SSE 只传小型引用 |
 | `ScheduledJob` | job_id、owner、idempotency_key、lease | 默认 single-flight；missed runs 合并 latest |
 
-所有事实响应必须完整包含 `as_of`、`observed_at`、`available_at`、`source_refs`、`freshness_status`、`quality_flags`。API 模型必须保持“缺失”“不适用”“来源失败”“0”四种语义可区分。金额、比例、点位、数量和价格不得省略单位；所有时间保存带时区值，交易日另有明确 date 字段。
+所有事实响应必须完整包含 `as_of`、`observed_at`、`available_at`、`source_refs`、`freshness_status`、`quality_flags`。API 模型必须保持“缺失”“不适用”“来源失败”“0”四种语义可区分。金额、比例、点位、数量和价格不得省略单位；新增平台公共契约以 `AwareDatetime` 拒绝 naive datetime，所有时间保存带时区值，交易日另有明确 date 字段。
 
 ## 主流程
 
@@ -80,8 +80,8 @@
 
 ## 测试与验收
 
-- Pydantic 测试覆盖时间顺序、numeric unit、四类资产、缺失值、Skill 工具白名单、Agent 上限和 Alert 操作符。
+- Pydantic 测试覆盖时区/时间顺序、numeric unit、四类资产、缺失值、Skill 工具白名单、Agent 上限和 Alert 操作符。
 - 迁移测试逐字断言 20 张表，revision 为 015→016→017→018，且不创建第二张 `research_run`、股票、指数、ETF 或基金事实表。
-- Repository 测试覆盖唯一键、外键、时间索引、幂等、事务回滚及 SQLite 测试兼容。
+- Repository 测试覆盖唯一键、外键、时间索引、幂等、事务回滚及 SQLite 测试兼容；生产 PostgreSQL 使用 exclusion constraint 拒绝身份有效期重叠，SQLite 迁移触发器验证同一半开区间语义。
 - 架构测试扫描 DSH、前端和 Pack 插件，确认不存在 ORM/数据库直连或跨模块 repository 导入。
 - 数据回放测试确认历史 snapshot/observation 不受 live 数据变化影响。

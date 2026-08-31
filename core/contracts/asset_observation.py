@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from enum import Enum
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import AwareDatetime, BaseModel, Field, model_validator
 
 from core.contracts.platform_shared import AssetRef, FactResponseBase, FreshnessStatus
 
@@ -31,7 +30,7 @@ class PeerSet(BaseModel):
     rule: str = Field(min_length=1)
     sample_size: int = Field(ge=0)
     asset_refs: list[AssetRef] = Field(default_factory=list)
-    as_of: datetime
+    as_of: AwareDatetime
 
 
 class Watchlist(BaseModel):
@@ -40,8 +39,8 @@ class Watchlist(BaseModel):
     watchlist_id: str = Field(min_length=1)
     profile_id: str = Field(min_length=1)
     name: str = Field(min_length=1)
-    created_at: datetime
-    updated_at: datetime
+    created_at: AwareDatetime
+    updated_at: AwareDatetime
 
 
 class WatchlistItem(BaseModel):
@@ -52,7 +51,7 @@ class WatchlistItem(BaseModel):
     asset_id: str = Field(min_length=1)
     position: int = Field(ge=0)
     note: str | None = None
-    created_at: datetime
+    created_at: AwareDatetime
 
 
 class AlertOperator(str, Enum):
@@ -123,7 +122,7 @@ class AlertEvaluation(BaseModel):
     rule_id: str = Field(min_length=1)
     observation_id: str = Field(min_length=1)
     status: AlertEvaluationStatus
-    evaluated_at: datetime
+    evaluated_at: AwareDatetime
     alert_event_id: str | None = None
     notification_id: str | None = None
 
@@ -144,9 +143,9 @@ class AlertEvent(BaseModel):
     observation_id: str = Field(min_length=1)
     dedupe_key: str = Field(min_length=1)
     status: AlertEventStatus = AlertEventStatus.OPEN
-    triggered_at: datetime
-    acknowledged_at: datetime | None = None
-    resolved_at: datetime | None = None
+    triggered_at: AwareDatetime
+    acknowledged_at: AwareDatetime | None = None
+    resolved_at: AwareDatetime | None = None
 
 
 class NotificationStatus(str, Enum):
@@ -168,5 +167,5 @@ class Notification(BaseModel):
     title: str = Field(min_length=1, max_length=160)
     body: str = Field(min_length=1, max_length=500)
     status: NotificationStatus = NotificationStatus.PENDING
-    created_at: datetime
-    delivered_at: datetime | None = None
+    created_at: AwareDatetime
+    delivered_at: AwareDatetime | None = None

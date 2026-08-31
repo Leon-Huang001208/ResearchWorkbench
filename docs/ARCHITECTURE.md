@@ -4,7 +4,7 @@
 
 合并平台保持本文件定义的模块化单体、FastAPI 与 PostgreSQL + pgvector 主干，并增加四个边界明确的产品模块：FinGPT / Claw、facts-only 市场首页、Research Pack、资产观察。DSH 仅是可选 `RuntimeProvider` 侧车，不得直连数据库；事实、研究与个人观察三层严格隔离。该目标态、20 张新增表、四段迁移、API/状态/失败语义和九张架构图见 [`docs/architecture/merged-platform/`](architecture/merged-platform/README.md)。
 
-共享契约、集中 ORM 模型与 `015`–`018` 四段迁移现已落地；业务 Service/API 仍按架构包的纵切顺序实施。四段迁移只增加架构包列出的 20 张表，继续复用既有 Research Run 与股票、指数、ETF、基金事实表。
+共享契约、集中 ORM 模型与 `015`–`018` 四段迁移现已落地；业务 Service/API 仍按架构包的纵切顺序实施。四段迁移只增加架构包列出的 20 张表，继续复用既有 Research Run 与股票、指数、ETF、基金事实表。新增平台契约拒绝 naive datetime；Skill 工具授权由平台可信 registry 在执行边界校验；资产代码有效期、Message/Session 归属和 Note 互斥来源同时由契约与数据库约束守住。
 
 该架构只迁移 LSH 中可追溯、可校验的数据与受限运行时能力，不迁入策略评分、订单、模拟交易、`score_hint`、`driver-summary` 或旧策略/交易范围。等价迁移后，LSH 只读归档一个稳定版本。
 

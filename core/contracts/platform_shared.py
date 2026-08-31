@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
 
 class AssetType(str, Enum):
@@ -55,15 +54,15 @@ class AssetIdentifier(BaseModel):
     scheme: str = Field(min_length=1)
     value: str = Field(min_length=1)
     market: str = Field(min_length=1)
-    valid_from: datetime
-    valid_to: datetime | None = None
+    valid_from: AwareDatetime
+    valid_to: AwareDatetime | None = None
 
     @model_validator(mode="after")
     def validate_validity_window(self) -> AssetIdentifier:
         """Reject an identifier whose validity interval runs backwards."""
 
-        if self.valid_to is not None and self.valid_to < self.valid_from:
-            raise ValueError("valid_to must be on or after valid_from")
+        if self.valid_to is not None and self.valid_to <= self.valid_from:
+            raise ValueError("valid_to must be after valid_from")
         return self
 
 
@@ -92,9 +91,9 @@ class SourceRef(BaseModel):
 class FactResponseBase(BaseModel):
     """Mandatory temporal and provenance context for every fact response."""
 
-    as_of: datetime
-    observed_at: datetime
-    available_at: datetime
+    as_of: AwareDatetime
+    observed_at: AwareDatetime
+    available_at: AwareDatetime
     source_refs: list[SourceRef] = Field(min_length=1)
     freshness_status: FreshnessStatus
     quality_flags: list[str]
@@ -139,7 +138,7 @@ class DomainEvent(BaseModel):
 
     event_id: str = Field(min_length=1)
     event_type: str = Field(min_length=1)
-    occurred_at: datetime
+    occurred_at: AwareDatetime
     payload_ref: str = Field(min_length=1)
     aggregate_type: str = Field(min_length=1)
     aggregate_id: str = Field(min_length=1)
@@ -166,11 +165,11 @@ class ScheduledJob(BaseModel):
     job_type: str = Field(min_length=1)
     idempotency_key: str = Field(min_length=1)
     status: ScheduledJobStatus = ScheduledJobStatus.IDLE
-    scheduled_for: datetime
+    scheduled_for: AwareDatetime
     allow_concurrent: bool = False
     coalesce_policy: str = "latest"
     lease_owner: str | None = None
-    lease_expires_at: datetime | None = None
+    lease_expires_at: AwareDatetime | None = None
     payload: dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="after")

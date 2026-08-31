@@ -2675,7 +2675,6 @@ Module docstring:
 Imports:
 - `__future__`
 - `core.contracts.platform_shared`
-- `datetime`
 - `enum`
 - `pydantic`
 - `typing`
@@ -3553,7 +3552,6 @@ Module docstring:
 
 Imports:
 - `__future__`
-- `datetime`
 - `enum`
 - `pydantic`
 - `typing`
@@ -3735,7 +3733,7 @@ Module docstring:
 
 Imports:
 - `__future__`
-- `datetime`
+- `collections.abc`
 - `enum`
 - `pydantic`
 - `re`
@@ -3754,15 +3752,15 @@ Classes:
   - Temporary or workspace-scoped research conversation.
   - methods: validate_scope
 - `ResearchMessage`
-  - Persisted message with content stored directly or by safe reference.
+  - Persisted message whose workspace scope is derived from its session.
   - methods: validate_content
 - `RuntimeProviderStatus`
   - Health state advertised by a research runtime provider.
 - `RuntimeProvider`
   - Capability declaration for LangGraph or the optional DSH sidecar.
 - `SkillManifest`
-  - Declarative research Skill with a closed tool permission surface.
-  - methods: validate_allowed_tools
+  - Declarative Skill whose tool references require platform authorization.
+  - methods: validate_allowed_tools, validate_tool_registry
 - `AgentBudget`
   - Hard execution bounds checked before every Agent step.
 - `AgentTeamDefinition`
@@ -7342,6 +7340,7 @@ Imports:
 - `data_layer.repositories.base`
 - `datetime`
 - `sqlalchemy`
+- `sqlalchemy.dialects.postgresql`
 - `sqlalchemy.orm`
 
 Classes:
@@ -7518,7 +7517,7 @@ Classes:
 - `ResearchSessionDB`
   - Temporary or workspace-scoped persisted conversation.
 - `ResearchMessageDB`
-  - Idempotent research-session message.
+  - Idempotent message whose workspace scope is derived from its session.
 - `RuntimeProviderDB`
   - Research runtime capability and health declaration without secrets.
 - `SkillDefinitionDB`
@@ -7528,7 +7527,7 @@ Classes:
 - `AgentScheduleDB`
   - Team schedule delegating lease ownership to scheduled_job.
 - `ResearchNoteDB`
-  - Immutable revision of a user-selected Claim or paragraph note.
+  - Immutable revision with exactly one Claim or paragraph source shape.
 - `WatchlistDB`
   - Named local-profile asset collection.
 - `WatchlistItemDB`

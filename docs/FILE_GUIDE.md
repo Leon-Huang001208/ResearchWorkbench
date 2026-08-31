@@ -156,9 +156,9 @@
 | `core/contracts/replay.py` | 回放结构：ReplaySession、ReplayStep、ReplayResult |
 | `core/contracts/reporting.py` | 报告结构：Report、ReportType、ReportSection、ReportTemplate |
 | `core/contracts/research.py` | 通用研究结构：ResearchSubject、ResearchTemplateDefinition、ResearchRun、任务、产物、观点、质量门禁、决策卡与证据输入 |
-| `core/contracts/platform_shared.py` | 合并平台共享契约：AssetRef/Identifier、SourceRef、六字段事实上下文、Observation、DomainEvent、ScheduledJob |
+| `core/contracts/platform_shared.py` | 合并平台共享契约：AssetRef/Identifier、SourceRef、六字段事实上下文、Observation、DomainEvent、ScheduledJob；公共时间字段拒绝 naive datetime |
 | `core/contracts/theme_research.py` | Research Pack Manifest、主题 Observation/快照、KPI/产业链/资产暴露和数据健康 |
-| `core/contracts/research_workspace.py` | Workspace/Session/Message、RuntimeProvider、Skill、Agent Team/预算/日程、版本化 Note |
+| `core/contracts/research_workspace.py` | Workspace/Session/Message、RuntimeProvider、受平台 registry 校验的 Skill、Agent Team/预算/日程、互斥来源 Note |
 | `core/contracts/market_home.py` | facts-only 首页五区块、交易状态、主线透明分项与不可变快照 |
 | `core/contracts/asset_observation.py` | 资产统一快照、PeerSet、Watchlist、Alert 与 Notification |
 | `core/contracts/retrieval.py` | 检索结构：SearchQuery、SearchResult、RAGContext |

@@ -51,12 +51,72 @@ def upgrade() -> None:
         ),
         sa.ForeignKeyConstraint(["asset_id"], ["asset_registry.asset_id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("identifier_id"),
+        sa.CheckConstraint(
+            "valid_to IS NULL OR valid_to > valid_from",
+            name="ck_asset_identifier_valid_window",
+        ),
         sa.UniqueConstraint(
             "scheme", "value", "market", "valid_from", name="uq_asset_identifier_identity"
         ),
     )
     for column in ("asset_id", "scheme", "value", "valid_from", "valid_to"):
         op.create_index(f"ix_asset_identifier_{column}", "asset_identifier", [column])
+
+    dialect_name = op.get_bind().dialect.name
+    if dialect_name == "postgresql":
+        op.execute("CREATE EXTENSION IF NOT EXISTS btree_gist")
+        op.execute("""
+            ALTER TABLE asset_identifier
+            ADD CONSTRAINT ex_asset_identifier_no_overlap
+            EXCLUDE USING gist (
+                scheme WITH =,
+                value WITH =,
+                market WITH =,
+                tstzrange(valid_from, valid_to, '[)') WITH &&
+            )
+            """)
+    elif dialect_name == "sqlite":
+        op.execute("""
+            CREATE TRIGGER trg_asset_identifier_no_overlap_insert
+            BEFORE INSERT ON asset_identifier
+            WHEN EXISTS (
+                SELECT 1
+                FROM asset_identifier AS existing
+                WHERE existing.scheme = NEW.scheme
+                  AND existing.value = NEW.value
+                  AND existing.market = NEW.market
+                  AND NEW.valid_from < COALESCE(
+                      existing.valid_to, '9999-12-31 23:59:59.999999+00:00'
+                  )
+                  AND existing.valid_from < COALESCE(
+                      NEW.valid_to, '9999-12-31 23:59:59.999999+00:00'
+                  )
+            )
+            BEGIN
+                SELECT RAISE(ABORT, 'asset_identifier validity overlap');
+            END
+            """)
+        op.execute("""
+            CREATE TRIGGER trg_asset_identifier_no_overlap_update
+            BEFORE UPDATE OF scheme, value, market, valid_from, valid_to ON asset_identifier
+            WHEN EXISTS (
+                SELECT 1
+                FROM asset_identifier AS existing
+                WHERE existing.identifier_id <> NEW.identifier_id
+                  AND existing.scheme = NEW.scheme
+                  AND existing.value = NEW.value
+                  AND existing.market = NEW.market
+                  AND NEW.valid_from < COALESCE(
+                      existing.valid_to, '9999-12-31 23:59:59.999999+00:00'
+                  )
+                  AND existing.valid_from < COALESCE(
+                      NEW.valid_to, '9999-12-31 23:59:59.999999+00:00'
+                  )
+            )
+            BEGIN
+                SELECT RAISE(ABORT, 'asset_identifier validity overlap');
+            END
+            """)
 
     op.create_table(
         "theme_observation",
@@ -176,5 +236,8 @@ def downgrade() -> None:
     op.drop_table("domain_event")
     op.drop_table("scheduled_job")
     op.drop_table("theme_observation")
+    if op.get_bind().dialect.name == "sqlite":
+        op.execute("DROP TRIGGER IF EXISTS trg_asset_identifier_no_overlap_update")
+        op.execute("DROP TRIGGER IF EXISTS trg_asset_identifier_no_overlap_insert")
     op.drop_table("asset_identifier")
     op.drop_table("asset_registry")
