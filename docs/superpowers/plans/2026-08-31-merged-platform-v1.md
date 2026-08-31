@@ -79,7 +79,10 @@ git commit -m "docs: define merged platform architecture"
 - Create: `core/contracts/market_home.py`
 - Modify: `core/contracts/research.py`
 - Modify: `data_layer/repositories/models.py`
-- Create: `storage/migrations/versions/015_add_merged_platform_core.py`
+- Create: `storage/migrations/versions/015_add_platform_fact_core.py`
+- Create: `storage/migrations/versions/016_add_theme_and_market_home.py`
+- Create: `storage/migrations/versions/017_add_research_workspace_runtime.py`
+- Create: `storage/migrations/versions/018_add_asset_observation.py`
 - Test: `tests/unit/test_merged_platform_contracts.py`
 - Test: `tests/unit/test_merged_platform_migration.py`
 
@@ -132,17 +135,17 @@ def test_merged_platform_migration_creates_expected_tables():
         assert f'"{table}"' in source
 ```
 
-`EXPECTED_TABLES` 必须覆盖计划中的 18 张新表；同时断言迁移不会创建第二张 `research_run`、股票、指数、ETF 或基金事实表。
+`EXPECTED_TABLES` 必须覆盖计划中的 20 张新表；主题读模型首版使用查询投影，不再增加物化表。同时断言迁移不会创建第二张 `research_run`、股票、指数、ETF 或基金事实表。
 
-- [ ] **Step 5: 实现 SQLAlchemy 模型与 Alembic 迁移**
+- [ ] **Step 5: 实现 SQLAlchemy 模型与四段 Alembic 迁移**
 
-表拥有明确的唯一键、外键、时间索引和 JSONB 负载。所有跨来源身份放 `asset_identifier`；主题事实只进入 `theme_observation`；Research Note 引用现有 run/claim；Watchlist Item 只引用 canonical asset ID。
+表拥有明确的唯一键、外键、时间索引和 JSON 负载（PostgreSQL 由方言处理，SQLite 测试保持可运行）。`015` 只建 fact core，`016` 建主题与首页，`017` 建研究工作区/运行时，`018` 建观察列表/提醒。所有跨来源身份放 `asset_identifier`；主题事实只进入 `theme_observation`；Research Note 引用现有 run/claim；Watchlist Item 只引用 canonical asset ID。
 
 - [ ] **Step 6: 验证**
 
 ```bash
 python -m pytest tests/unit/test_merged_platform_contracts.py tests/unit/test_merged_platform_migration.py tests/unit/test_alembic_migration_graph.py -q
-python -m ruff check core/contracts data_layer/repositories/models.py storage/migrations/versions/015_add_merged_platform_core.py tests/unit/test_merged_platform_contracts.py tests/unit/test_merged_platform_migration.py
+python -m ruff check core/contracts data_layer/repositories/models.py storage/migrations/versions/015_add_platform_fact_core.py storage/migrations/versions/016_add_theme_and_market_home.py storage/migrations/versions/017_add_research_workspace_runtime.py storage/migrations/versions/018_add_asset_observation.py tests/unit/test_merged_platform_contracts.py tests/unit/test_merged_platform_migration.py
 ```
 
 Expected: PASS.
@@ -150,7 +153,7 @@ Expected: PASS.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add core/contracts data_layer/repositories/models.py storage/migrations/versions/015_add_merged_platform_core.py tests/unit/test_merged_platform_contracts.py tests/unit/test_merged_platform_migration.py
+git add core/contracts data_layer/repositories/models.py storage/migrations/versions/015_add_platform_fact_core.py storage/migrations/versions/016_add_theme_and_market_home.py storage/migrations/versions/017_add_research_workspace_runtime.py storage/migrations/versions/018_add_asset_observation.py tests/unit/test_merged_platform_contracts.py tests/unit/test_merged_platform_migration.py tests/unit/test_alembic_migration_graph.py
 git commit -m "feat: add merged platform shared contracts"
 ```
 
@@ -162,8 +165,13 @@ git commit -m "feat: add merged platform shared contracts"
 - Create: `services/alert_evaluation_service.py`
 - Create: `app/api/routes/asset_observation.py`
 - Modify: `app/api/main.py`
+- Modify: `src-tauri/Cargo.toml`
+- Modify: `src-tauri/src/lib.rs`
+- Modify: `src-tauri/capabilities/default.json`
+- Modify: `package.json`
 - Test: `tests/unit/test_asset_observation_service.py`
 - Test: `tests/unit/test_asset_observation_api.py`
+- Test: `tests/unit/test_desktop_notification_bridge.py`
 
 - [ ] **Step 1: 写身份、Watchlist、同类比较和提醒失败测试**
 
@@ -197,12 +205,16 @@ Repository 只操作本模块表以及现有结构化资产表；Service 组合 
 
 提供 `/api/asset-observation/assets`、`/watchlists`、`/alert-rules`、`/alert-events`；所有 route 保持薄层并把异常映射为 400/404/409。写操作记录结构化日志。
 
-- [ ] **Step 5: 验证与 Commit**
+- [ ] **Step 5: 实现桌面通知桥接**
+
+仅在取得依赖授权后添加官方 `tauri-plugin-notification`。Rust 侧注册插件并声明最小 capability；前端只消费持久化 `notification` 记录并请求本机通知权限，拒绝权限时保留站内提醒。通知不得包含密钥、完整研究文本或未脱敏附件内容。
+
+- [ ] **Step 6: 验证与 Commit**
 
 ```bash
-python -m pytest tests/unit/test_asset_observation_service.py tests/unit/test_asset_observation_api.py tests/unit/test_asset_analysis_service.py tests/unit/test_funds_api.py -q
+python -m pytest tests/unit/test_asset_observation_service.py tests/unit/test_asset_observation_api.py tests/unit/test_desktop_notification_bridge.py tests/unit/test_asset_analysis_service.py tests/unit/test_funds_api.py -q
 python -m ruff check services/asset_observation_service.py services/alert_evaluation_service.py data_layer/repositories/asset_observation_repository.py app/api/routes/asset_observation.py tests/unit/test_asset_observation_service.py tests/unit/test_asset_observation_api.py
-git add core/contracts/asset_observation.py data_layer/repositories/asset_observation_repository.py services/asset_observation_service.py services/alert_evaluation_service.py app/api/routes/asset_observation.py app/api/main.py tests/unit/test_asset_observation_service.py tests/unit/test_asset_observation_api.py
+git add core/contracts/asset_observation.py data_layer/repositories/asset_observation_repository.py services/asset_observation_service.py services/alert_evaluation_service.py app/api/routes/asset_observation.py app/api/main.py src-tauri/Cargo.toml src-tauri/src/lib.rs src-tauri/capabilities/default.json package.json tests/unit/test_asset_observation_service.py tests/unit/test_asset_observation_api.py tests/unit/test_desktop_notification_bridge.py
 git commit -m "feat: add asset observation and alerts"
 ```
 
@@ -459,7 +471,7 @@ git commit -m "docs: record merged platform delivery evidence"
 ## 自检映射
 
 - 架构包与九图：Task 1。
-- 共享类型和 18 张新表：Task 2。
+- 共享类型和 20 张新表：Task 2。
 - 资产观察、提醒、系统通知契约：Task 3、Task 7。
 - 首页事实、透明主线与快照：Task 4。
 - 四个 Pack、黄金纵切和 LSH dry-run：Task 5。
