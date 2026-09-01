@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
+
+import {
+  loadAllCatalogs,
+  renderApiAtlas,
+  renderBlueprintIndex,
+  validateCatalogs,
+} from '../../scripts/architecture/build_merged_platform_atlas.mjs';
 
 const catalogRoot = new URL(
   '../../docs/architecture/merged-platform/detailed/catalog/',
@@ -80,4 +88,50 @@ test('all fact responses expose provenance and freshness', async () => {
   )) {
     assert.deepEqual(api.fact_envelope_fields, factEnvelopeFields);
   }
+});
+
+test('catalog contains every planned method/path exactly once', async () => {
+  const atlas = await load('api-atlas.json');
+  const endpointKeys = atlas.interfaces.map((item) => `${item.method} ${item.path}`);
+  assert.equal(atlas.interfaces.length, 65);
+  assert.equal(new Set(endpointKeys).size, endpointKeys.length);
+  assert.ok(endpointKeys.includes('GET /api/market-home'));
+  assert.ok(endpointKeys.includes('GET /api/research-runs/{run_id}/events'));
+  assert.ok(endpointKeys.includes('POST /api/theme-packs/{pack_key}/research-workspaces'));
+  assert.ok(endpointKeys.includes('DELETE /api/watchlists/{watchlist_id}/items/{item_id}'));
+  assert.ok(endpointKeys.includes('POST /api/notifications/{notification_id}/read'));
+});
+
+test('catalog references and SSE contracts validate', async () => {
+  const catalogs = await loadAllCatalogs(fileURLToPath(catalogRoot));
+  assert.deepEqual(validateCatalogs(catalogs), []);
+  const streams = catalogs.atlas.interfaces.filter(
+    (item) => item.response_kind === 'event-stream',
+  );
+  assert.equal(streams.length, 2);
+  assert.ok(streams.every((item) => item.sse.last_event_id === true));
+});
+
+test('API Atlas renders filters and embedded trace links', async () => {
+  const catalogs = await loadAllCatalogs(fileURLToPath(catalogRoot));
+  const html = renderApiAtlas(catalogs);
+  assert.match(html, /data-filter="domain"/);
+  assert.match(html, /data-filter="method"/);
+  assert.match(html, /API-RES-001/);
+  assert.match(html, /CAP-RES-001/);
+  assert.doesNotMatch(html, /TODO|TBD|FIXME/);
+});
+
+test('blueprint index links the Atlas and supplied diagram groups', () => {
+  const html = renderBlueprintIndex({
+    atlasPath: 'api-atlas.html',
+    diagramGroups: [
+      {
+        name: 'Shared',
+        items: [{ label: 'A01', href: 'diagrams/A01.html' }],
+      },
+    ],
+  });
+  assert.match(html, /api-atlas\.html/);
+  assert.match(html, /diagrams\/A01\.html/);
 });
