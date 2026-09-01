@@ -7,7 +7,7 @@
       route:'/market-home', routePattern:'/market-home', params:{}, query:{}, theme:'light', density:'compact',
       researchSpaceOpen:innerWidth >= 1440, moduleDrawerOpen:false, demoState:'default', dataMode:'live-first',
       activeWorkspaceId:'workspace-demo', activeAssetId:null, activePackKey:null, activeJourneyId:null,
-      journeyStep:0, researchTab:'sources', tweaksOpen:false, runState:'idle', toast:null,
+      journeyStep:0, researchTab:'sources', tweaksOpen:false, runState:'idle', researchQuestion:null, toast:null,
     },
     setState(patch) {
       this.state = { ...this.state, ...patch };
