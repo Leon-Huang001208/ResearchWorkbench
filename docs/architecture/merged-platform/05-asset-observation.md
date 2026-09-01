@@ -10,7 +10,7 @@
 - 既有 stock/index/etf/fund 表：资产事实、行情、净值、持仓与指数结构。
 - `watchlist` / `watchlist_item`：本地 profile 下的列表、条目、顺序和注释；Item 只引用 canonical asset ID。
 - `alert_rule`：metric、operator、threshold、unit、freshness、cooldown 与 enable 状态。
-- `alert_event`：触发边沿、观测引用、去重键、确认与解决。
+- `alert_event`：触发边沿、观测引用、去重键、确认与解决；数据库 partial unique index 保证每条 Rule 最多一个 `open|acknowledged` 事件，已 resolved 事件不占用唯一位。
 - `notification`：站内通知权威记录；桌面系统通知是其投递投影。
 
 ## 禁止依赖
@@ -37,12 +37,12 @@
 
 ## 主流程
 
-1. 服务解析 `AssetRef` 和当前有效 identifier，从现有事实表组合详情。
+1. 服务解析 `AssetRef` 和当前有效 identifier；内部保留 scheme/value/market，按显式 scheme 优先级逐个验证现有事实表，命中后组合详情，对外 identifiers 仍为字符串列表。
 2. 默认 peer：stock 按申万细分行业，index 按类别，ETF 按跟踪指数/主题，active_fund 按基金分类/基准；响应返回规则、样本和 as_of。
 3. 用户以 canonical asset ID 加入一个或多个 Watchlist。
-4. 调度器或事实事件触发 Alert Evaluation；仅 fresh 且单位一致的 false→true 可生成 `alert_event` 和 `notification`。持续为 true 始终去重，不因 cooldown 到期重复提醒；转为 false 时当前事件自动 resolved，并重置边沿。下一次 false→true 若仍处于上次触发的 cooldown 窗口则返回 deduplicated，窗口结束后才触发新事件。
+4. 调度器或事实事件触发 Alert Evaluation；同一数据库事务先以 `SELECT ... FOR UPDATE` 锁定 Rule 并重读 state。仅 fresh 且单位一致的 false→true 可生成 `alert_event` 和 `notification`；写冲突在 savepoint 中恢复为 deduplicated，不会遗留半写 notification。持续为 true 始终去重，不因 cooldown 到期重复提醒；转为 false 时当前事件自动 resolved，并重置边沿。下一次 false→true 若仍处于上次触发的 cooldown 窗口则返回 deduplicated，窗口结束后才触发新事件。
 5. FastAPI/SSE 告知站内客户端重新拉取；acknowledge/resolved 持久化。
-6. Task 3 中前端消费 notification，并经已获授权的官方 `tauri-plugin-notification` 请求权限与发送最小摘要；拒绝时保留站内通道。
+6. Task 3 中前端仅从 `GET /api/asset-observation/notifications?profile_id=local&status=pending` 消费已持久化 notification，并经 `window.__TAURI__.notification` 请求权限与发送 API 返回的 title/body；投递、拒绝和失败分别 PATCH 状态，Web 非 Tauri 环境 no-op，任何结果都保留站内记录。
 
 ## 状态与失败
 
@@ -62,5 +62,5 @@
 - 多列表、排序、重复添加幂等和 workspace/profile 隔离测试。
 - stale/unavailable 不触发、单位不兼容拒绝、false→true 单次触发、回落后再触发测试。
 - API 测试覆盖 400/404/409/422、acknowledge/resolved 与站内通知持久化。
-- 桌面通知在 Task 3 使用已获授权的官方插件实施；必须通过最小 capability、权限拒绝降级、原生 macOS/Windows CI，并在发布前完成真实 Windows 安装级烟测。
-- 当前验收结论为“站内通知、受限桌面桥和 macOS 本地编译已实现”；Windows installed-app 通知、权限拒绝与系统投递仍须原生 CI 和真实安装级烟测。
+- 桌面通知在 Task 3 使用已获授权的官方插件实施；Node 行为测试覆盖 granted/denied/failed、仅消费 API 持久化记录以及拒绝后站内记录仍可查询。仍必须通过原生 macOS/Windows CI，并在发布前完成真实 Windows 安装级烟测。
+- 当前验收结论为“站内通知、最小权限前端桥和 macOS 本地编译已实现”；Windows installed-app 通知与系统投递仍须原生 CI 和真实安装级烟测。

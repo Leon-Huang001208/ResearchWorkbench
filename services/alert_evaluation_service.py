@@ -43,7 +43,7 @@ class AlertEvaluationService:
             raise ValueError("evaluated_at must be timezone-aware")
         if rule.status is not AlertRuleStatus.ACTIVE:
             raise ValueError("only active rules can be evaluated")
-        state = self._repository.get_rule_state(rule.rule_id)
+        state = self._repository.lock_rule_state(rule.rule_id)
 
         unusable = self._unusable_status(observation)
         if unusable is not None:
@@ -109,7 +109,7 @@ class AlertEvaluationService:
 
         event_id = f"alert-event-{uuid4()}"
         notification_id = f"notification-{uuid4()}"
-        self._repository.create_alert_event(
+        event = self._repository.create_alert_event(
             event_id=event_id,
             rule_id=rule.rule_id,
             observation_id=observation.observation_id,
@@ -119,6 +119,22 @@ class AlertEvaluationService:
             acknowledged_at=None,
             resolved_at=None,
         )
+        if event is None:
+            active_event = self._repository.get_active_alert_event(rule.rule_id)
+            state.update(
+                {
+                    "condition_true": True,
+                    "open_event_id": (active_event.event_id if active_event is not None else None),
+                    "previous_value": observation.value,
+                }
+            )
+            return self._record_result(
+                rule,
+                observation,
+                state,
+                AlertEvaluationStatus.DEDUPLICATED,
+                now,
+            )
         self._repository.create_notification(
             notification_id=notification_id,
             alert_event_id=event_id,

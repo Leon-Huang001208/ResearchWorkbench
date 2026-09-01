@@ -9,11 +9,13 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     Numeric,
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import ExcludeConstraint
 from sqlalchemy.orm import relationship
@@ -2561,6 +2563,15 @@ class AlertEventDB(Base):
     """Persisted false-to-true alert edge and lifecycle."""
 
     __tablename__ = "alert_event"
+    __table_args__ = (
+        Index(
+            "uq_alert_event_rule_active",
+            "rule_id",
+            unique=True,
+            postgresql_where=text("status IN ('open', 'acknowledged')"),
+            sqlite_where=text("status IN ('open', 'acknowledged')"),
+        ),
+    )
 
     event_id = Column(Text, primary_key=True)
     rule_id = Column(

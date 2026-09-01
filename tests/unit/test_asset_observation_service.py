@@ -109,6 +109,11 @@ class FakeAlertRepository:
         self.state: dict[str, Any] = {}
         self.events: dict[str, Any] = {}
         self.notifications: dict[str, Any] = {}
+        self.lock_calls = 0
+
+    def lock_rule_state(self, rule_id: str) -> dict[str, Any]:
+        self.lock_calls += 1
+        return dict(self.state)
 
     def get_rule_state(self, rule_id: str) -> dict[str, Any]:
         return dict(self.state)
@@ -274,6 +279,7 @@ def test_alert_fires_only_on_false_to_true_transition_and_persists_notification(
     assert first.alert_event_id in repository.events
     assert first.notification_id in repository.notifications
     assert duplicate.status.value == "deduplicated"
+    assert repository.lock_calls == 2
     assert len(repository.events) == 1
     assert len(repository.notifications) == 1
 
@@ -379,6 +385,16 @@ def test_repository_reuses_existing_stock_facts_and_never_commits():
         )
         session.add(
             AssetIdentifierDB(
+                identifier_id="identifier-alias-wrong",
+                asset_id="asset-stock-1",
+                scheme="alias",
+                value="WRONG",
+                market="CN",
+                valid_from=NOW - timedelta(days=30),
+            )
+        )
+        session.add(
+            AssetIdentifierDB(
                 identifier_id="identifier-1",
                 asset_id="asset-stock-1",
                 scheme="wind",
@@ -414,7 +430,7 @@ def test_repository_reuses_existing_stock_facts_and_never_commits():
         projection = repository.get_asset_projection("asset-stock-1", as_of=NOW)
 
         assert projection is not None
-        assert projection["identifiers"] == ["600519.SH"]
+        assert projection["identifiers"] == ["WRONG", "600519.SH"]
         assert projection["market_data"]["last"] == 1500.0
         assert projection["type_payload"]["industry_level3"] == "白酒"
         assert session.in_transaction()
@@ -476,3 +492,114 @@ def test_repository_add_watchlist_item_is_idempotent_by_canonical_asset_id():
         assert second.item_id == first.item_id
         assert second.asset_id == "asset-stock-1"
         assert session.query(WatchlistItemDB).count() == 1
+
+
+def test_active_event_unique_conflict_uses_savepoint_and_keeps_session_usable(tmp_path):
+    from data_layer.repositories.asset_observation_repository import (
+        AssetObservationRepository,
+    )
+    from data_layer.repositories.base import Base
+    from data_layer.repositories.models import (
+        AlertEventDB,
+        AlertRuleDB,
+        AssetRegistryDB,
+        NotificationDB,
+    )
+
+    engine = create_engine(f"sqlite+pysqlite:///{tmp_path / 'alert-conflict.sqlite'}")
+    Base.metadata.create_all(
+        engine,
+        tables=[
+            AssetRegistryDB.__table__,
+            AlertRuleDB.__table__,
+            AlertEventDB.__table__,
+            NotificationDB.__table__,
+        ],
+    )
+    with Session(engine) as session:
+        session.add(
+            AssetRegistryDB(
+                asset_id="asset-1",
+                asset_type="stock",
+                canonical_name="资产一",
+            )
+        )
+        session.add(
+            AlertRuleDB(
+                rule_id="rule-1",
+                asset_id="asset-1",
+                metric_type="price",
+                metric_key="last",
+                operator="gt",
+                threshold=100,
+                status="active",
+                state={"condition_true": False},
+                created_at=NOW,
+                updated_at=NOW,
+            )
+        )
+        session.commit()
+
+    with Session(engine) as first_session:
+        first = AssetObservationRepository(first_session).create_alert_event(
+            event_id="event-open",
+            rule_id="rule-1",
+            observation_id="obs-1",
+            dedupe_key="rule-1:obs-1",
+            status="open",
+            triggered_at=NOW,
+            acknowledged_at=None,
+            resolved_at=None,
+        )
+        assert first is not None
+        first_session.commit()
+
+    with Session(engine) as second_session:
+        repository = AssetObservationRepository(second_session)
+        duplicate = repository.create_alert_event(
+            event_id="event-acknowledged",
+            rule_id="rule-1",
+            observation_id="obs-2",
+            dedupe_key="rule-1:obs-2",
+            status="acknowledged",
+            triggered_at=NOW + timedelta(seconds=1),
+            acknowledged_at=NOW + timedelta(seconds=1),
+            resolved_at=None,
+        )
+
+        assert duplicate is None
+        repository.update_rule_state("rule-1", {"condition_true": True})
+        second_session.commit()
+
+    with Session(engine) as verification_session:
+        assert verification_session.query(AlertEventDB).count() == 1
+        assert verification_session.query(NotificationDB).count() == 0
+        assert verification_session.get(AlertRuleDB, "rule-1").state == {"condition_true": True}
+
+
+def test_event_unique_conflict_returns_deduplicated_without_notification():
+    from services.alert_evaluation_service import AlertEvaluationService
+
+    class ConflictingRepository(FakeAlertRepository):
+        def create_alert_event(self, **values: Any) -> None:
+            self.events["event-existing"] = SimpleNamespace(
+                event_id="event-existing",
+                rule_id=values["rule_id"],
+                status="open",
+            )
+
+        def get_active_alert_event(self, rule_id: str) -> Any:
+            return self.events["event-existing"]
+
+    repository = ConflictingRepository()
+    result = AlertEvaluationService(repository).evaluate(
+        _rule(),
+        _observation(101),
+        profile_id="local",
+        evaluated_at=NOW,
+    )
+
+    assert result.status.value == "deduplicated"
+    assert result.notification_id is None
+    assert repository.notifications == {}
+    assert repository.state["open_event_id"] == "event-existing"

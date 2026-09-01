@@ -1,8 +1,9 @@
-"""Static contracts for the least-privilege Tauri notification bridge."""
+"""Executable and static contracts for the Tauri notification bridge."""
 
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -35,13 +36,30 @@ def test_notification_capability_grants_only_three_required_operations():
     }
 
 
-def test_rust_bridge_accepts_only_bounded_persisted_safe_payload():
+def test_frontend_uses_global_tauri_notification_api_without_rust_payload_command():
+    config = json.loads((ROOT / "src-tauri" / "tauri.conf.json").read_text(encoding="utf-8"))
     rust = (ROOT / "src-tauri" / "src" / "lib.rs").read_text(encoding="utf-8")
+    app = (ROOT / "app" / "web" / "static" / "js" / "app.js").read_text(encoding="utf-8")
+    bridge = (ROOT / "app" / "web" / "static" / "js" / "desktop-notifications.js").read_text(
+        encoding="utf-8"
+    )
 
-    assert "deliver_persisted_notification" in rust
-    assert "notification_id" in rust
-    assert "MAX_NOTIFICATION_TITLE_CHARS" in rust
-    assert "MAX_NOTIFICATION_BODY_CHARS" in rust
-    assert "NotificationExt" in rust
-    assert "notification title" not in rust.lower()
-    assert "notification body" not in rust.lower()
+    assert config["app"]["withGlobalTauri"] is True
+    assert "desktop-notifications.js" in app
+    assert "initDesktopNotifications" in app
+    assert "window.__TAURI__.notification" in bridge
+    assert "new Notification" not in bridge
+    assert "deliver_persisted_notification" not in rust
+    assert "NotificationExt" not in rust
+
+
+def test_node_notification_behavior_suite_passes():
+    result = subprocess.run(
+        ["node", "--test", "tests/js/desktop_notifications.test.mjs"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr

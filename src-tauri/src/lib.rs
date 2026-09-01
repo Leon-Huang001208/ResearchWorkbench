@@ -4,7 +4,6 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use tauri::Manager;
-use tauri_plugin_notification::NotificationExt;
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
 
@@ -13,8 +12,6 @@ const BACKEND_HOST: &str = "127.0.0.1";
 const BACKEND_PORT: &str = "8765";
 const BACKEND_HEALTH_TIMEOUT_SECS: u64 = 30;
 const BACKEND_HEALTH_POLL_MS: u64 = 500;
-const MAX_NOTIFICATION_TITLE_CHARS: usize = 160;
-const MAX_NOTIFICATION_BODY_CHARS: usize = 500;
 
 #[derive(Default)]
 struct BackendState {
@@ -24,38 +21,6 @@ struct BackendState {
 #[tauri::command]
 fn backend_url() -> String {
     format!("http://{BACKEND_HOST}:{}", backend_port())
-}
-
-#[tauri::command]
-fn deliver_persisted_notification(
-    app: tauri::AppHandle,
-    notification_id: String,
-    title: String,
-    body: String,
-) -> Result<(), String> {
-    let invalid_id = notification_id.is_empty()
-        || notification_id.len() > 160
-        || notification_id.chars().any(char::is_control);
-    let invalid_title = title.is_empty()
-        || title.chars().count() > MAX_NOTIFICATION_TITLE_CHARS
-        || title.chars().any(char::is_control);
-    let invalid_body = body.is_empty()
-        || body.chars().count() > MAX_NOTIFICATION_BODY_CHARS
-        || body.chars().any(char::is_control);
-    if invalid_id || invalid_title || invalid_body {
-        log::warn!("Rejected invalid persisted notification payload: {notification_id}");
-        return Err("Invalid persisted notification payload".to_string());
-    }
-
-    app.notification()
-        .builder()
-        .title(title)
-        .body(body)
-        .show()
-        .map_err(|error| {
-            log::warn!("Desktop delivery failed for {notification_id}: {error}");
-            "Desktop notification delivery failed".to_string()
-        })
 }
 
 fn backend_port() -> String {
@@ -149,10 +114,7 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![
-            backend_url,
-            deliver_persisted_notification
-        ])
+        .invoke_handler(tauri::generate_handler![backend_url])
         .setup(|app| {
             start_backend_sidecar(&app.handle());
             // 等待后端就绪再显示窗口，避免用户看到白屏/连接错误

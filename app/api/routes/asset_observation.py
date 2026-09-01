@@ -289,9 +289,14 @@ async def list_notifications(
     profile_id: ProfileIdQuery,
     service: AssetObservationServiceDependency,
     unread_only: bool = False,
+    status_filter: Annotated[NotificationStatus | None, Query(alias="status")] = None,
 ) -> list[Notification]:
     try:
-        return service.list_notifications(profile_id, unread_only)
+        return service.list_notifications(
+            profile_id,
+            unread_only,
+            status_filter.value if status_filter is not None else None,
+        )
     except Exception as exc:  # noqa: BLE001 - translate unexpected failures to a safe 500
         _raise_safe_http_error(exc)
 

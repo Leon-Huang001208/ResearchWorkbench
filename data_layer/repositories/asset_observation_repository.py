@@ -14,7 +14,7 @@ from typing import Any
 from uuid import uuid4
 
 from sqlalchemy import and_, inspect, or_, select
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from core.contracts.asset_observation import (
     AlertEvent,
@@ -51,6 +51,15 @@ from data_layer.repositories.models import (
 )
 
 logger = get_logger(__name__)
+
+_IDENTIFIER_SCHEME_PRIORITY = {
+    "wind": 0,
+    "official": 1,
+    "exchange": 2,
+    "symbol": 3,
+    "provider": 4,
+    "alias": 100,
+}
 
 
 def _utc_now() -> datetime:
@@ -99,16 +108,17 @@ class AssetObservationRepository(BaseRepository):
             registry = self.db.get(AssetRegistryDB, asset_id)
             if registry is None:
                 return None
-            identifiers = self._current_identifiers(asset_id, point_in_time)
+            identifier_records = self._current_identifiers(asset_id, point_in_time)
+            identifiers = [row.value for row in identifier_records]
             projection = self._empty_projection(registry, identifiers, point_in_time)
             if registry.asset_type == "stock":
-                self._load_stock_projection(projection, identifiers, point_in_time)
+                self._load_stock_projection(projection, identifier_records, point_in_time)
             elif registry.asset_type == "index":
                 self._load_index_projection(projection, asset_id, identifiers, point_in_time)
             elif registry.asset_type == "etf":
-                self._load_etf_projection(projection, identifiers, point_in_time)
+                self._load_etf_projection(projection, identifier_records, point_in_time)
             elif registry.asset_type == "active_fund":
-                self._load_fund_projection(projection, identifiers, point_in_time)
+                self._load_fund_projection(projection, identifier_records, point_in_time)
             else:
                 projection["quality_flags"].append("unsupported_asset_type")
             return projection
@@ -320,6 +330,25 @@ class AssetObservationRepository(BaseRepository):
         row = self.db.get(AlertRuleDB, rule_id)
         return dict(row.state or {}) if row is not None else {}
 
+    def lock_rule_state(self, rule_id: str) -> dict[str, Any]:
+        """Lock and re-read mutable rule state for the caller's transaction."""
+
+        try:
+            row = self.db.scalar(
+                select(AlertRuleDB).where(AlertRuleDB.rule_id == rule_id).with_for_update()
+            )
+            if row is None:
+                raise LookupError("alert rule not found")
+            self.db.refresh(row, attribute_names=["state"])
+            return dict(row.state or {})
+        except SQLAlchemyError as exc:
+            logger.error(
+                "alert rule state lock failed",
+                rule_id=rule_id,
+                error_type=type(exc).__name__,
+            )
+            raise
+
     def update_rule_state(self, rule_id: str, state: dict[str, Any]) -> None:
         row = self.db.get(AlertRuleDB, rule_id)
         if row is None:
@@ -328,11 +357,14 @@ class AssetObservationRepository(BaseRepository):
         row.updated_at = _utc_now()
         self.db.flush()
 
-    def create_alert_event(self, **values: Any) -> AlertEventDB:
+    def create_alert_event(self, **values: Any) -> AlertEventDB | None:
+        """Create an edge in a savepoint, returning ``None`` on active-edge conflict."""
+
         row = AlertEventDB(**values)
         try:
-            self.db.add(row)
-            self.db.flush()
+            with self.db.begin_nested():
+                self.db.add(row)
+                self.db.flush()
             logger.info(
                 "alert event persisted",
                 event_id=row.event_id,
@@ -340,6 +372,22 @@ class AssetObservationRepository(BaseRepository):
                 observation_id=row.observation_id,
             )
             return row
+        except IntegrityError as exc:
+            active_event = self.get_active_alert_event(str(values.get("rule_id", "")))
+            if active_event is None:
+                logger.warning(
+                    "alert event integrity failure was not an active-edge conflict",
+                    rule_id=values.get("rule_id"),
+                    observation_id=values.get("observation_id"),
+                    error_type=type(exc).__name__,
+                )
+                raise
+            logger.info(
+                "alert event deduplicated by active edge constraint",
+                rule_id=values.get("rule_id"),
+                observation_id=values.get("observation_id"),
+            )
+            return None
         except SQLAlchemyError as exc:
             logger.warning(
                 "alert event persistence failed",
@@ -348,6 +396,24 @@ class AssetObservationRepository(BaseRepository):
                 error_type=type(exc).__name__,
             )
             raise
+
+    def get_active_alert_event(self, rule_id: str) -> AlertEventDB | None:
+        return self.db.scalar(
+            select(AlertEventDB)
+            .where(
+                and_(
+                    AlertEventDB.rule_id == rule_id,
+                    AlertEventDB.status.in_(
+                        [
+                            AlertEventStatus.OPEN.value,
+                            AlertEventStatus.ACKNOWLEDGED.value,
+                        ]
+                    ),
+                )
+            )
+            .order_by(AlertEventDB.triggered_at.desc())
+            .limit(1)
+        )
 
     def create_notification(self, **values: Any) -> NotificationDB:
         row = NotificationDB(**values)
@@ -407,6 +473,7 @@ class AssetObservationRepository(BaseRepository):
         profile_id: str,
         *,
         unread_only: bool = False,
+        status: NotificationStatus | None = None,
     ) -> list[NotificationDB]:
         statement = (
             select(NotificationDB)
@@ -415,6 +482,8 @@ class AssetObservationRepository(BaseRepository):
         )
         if unread_only:
             statement = statement.where(NotificationDB.read_at.is_(None))
+        if status is not None:
+            statement = statement.where(NotificationDB.status == status.value)
         return list(self.db.scalars(statement).all())
 
     def mark_notification_delivery(
@@ -505,7 +574,11 @@ class AssetObservationRepository(BaseRepository):
             ),
         )
 
-    def _current_identifiers(self, asset_id: str, as_of: datetime) -> list[str]:
+    def _current_identifiers(
+        self,
+        asset_id: str,
+        as_of: datetime,
+    ) -> list[AssetIdentifierDB]:
         rows = self.db.scalars(
             select(AssetIdentifierDB)
             .where(
@@ -520,7 +593,22 @@ class AssetObservationRepository(BaseRepository):
             )
             .order_by(AssetIdentifierDB.scheme, AssetIdentifierDB.value)
         ).all()
-        return [row.value for row in rows]
+        return list(rows)
+
+    @staticmethod
+    def _fact_candidate_values(identifiers: list[AssetIdentifierDB]) -> list[str]:
+        """Prioritize explicit schemes while retaining all validated candidates."""
+
+        ordered = sorted(
+            identifiers,
+            key=lambda row: (
+                _IDENTIFIER_SCHEME_PRIORITY.get(row.scheme.lower(), 50),
+                row.scheme,
+                row.market or "",
+                row.value,
+            ),
+        )
+        return list(dict.fromkeys(row.value for row in ordered))
 
     @staticmethod
     def _empty_projection(
@@ -551,13 +639,29 @@ class AssetObservationRepository(BaseRepository):
     def _load_stock_projection(
         self,
         projection: dict[str, Any],
-        identifiers: list[str],
+        identifiers: list[AssetIdentifierDB],
         as_of: datetime,
     ) -> None:
         if not identifiers:
             projection["quality_flags"].append("identifier_unavailable")
             return
-        symbol = identifiers[0]
+        symbol = next(
+            (
+                candidate
+                for candidate in self._fact_candidate_values(identifiers)
+                if self.db.get(StockMasterDB, candidate) is not None
+                or self.db.scalar(
+                    select(StockQuoteSnapshotDB.symbol)
+                    .where(StockQuoteSnapshotDB.symbol == candidate)
+                    .limit(1)
+                )
+                is not None
+            ),
+            None,
+        )
+        if symbol is None:
+            projection["quality_flags"].append("identifier_fact_unmatched")
+            return
         master = self.db.get(StockMasterDB, symbol)
         quote = self.db.scalar(
             select(StockQuoteSnapshotDB)
@@ -655,12 +759,28 @@ class AssetObservationRepository(BaseRepository):
     def _load_etf_projection(
         self,
         projection: dict[str, Any],
-        identifiers: list[str],
+        identifiers: list[AssetIdentifierDB],
         as_of: datetime,
     ) -> None:
         if not identifiers:
             return
-        symbol = identifiers[0]
+        symbol = next(
+            (
+                candidate
+                for candidate in self._fact_candidate_values(identifiers)
+                if self.db.get(ETFMasterDB, candidate) is not None
+                or self.db.scalar(
+                    select(ETFDailyMetricDB.etf_symbol)
+                    .where(ETFDailyMetricDB.etf_symbol == candidate)
+                    .limit(1)
+                )
+                is not None
+            ),
+            None,
+        )
+        if symbol is None:
+            projection["quality_flags"].append("identifier_fact_unmatched")
+            return
         master = self.db.get(ETFMasterDB, symbol)
         metric = self.db.scalar(
             select(ETFDailyMetricDB)
@@ -704,18 +824,27 @@ class AssetObservationRepository(BaseRepository):
     def _load_fund_projection(
         self,
         projection: dict[str, Any],
-        identifiers: list[str],
+        identifiers: list[AssetIdentifierDB],
         as_of: datetime,
     ) -> None:
         if not identifiers or not inspect(self.db.get_bind()).has_table(fund_master_table.name):
             return
-        symbol = identifiers[0]
-        master = (
-            self.db.execute(select(fund_master_table).where(fund_master_table.c.symbol == symbol))
-            .mappings()
-            .first()
-        )
+        symbol = None
+        master = None
+        for candidate in self._fact_candidate_values(identifiers):
+            candidate_master = (
+                self.db.execute(
+                    select(fund_master_table).where(fund_master_table.c.symbol == candidate)
+                )
+                .mappings()
+                .first()
+            )
+            if candidate_master is not None:
+                symbol = candidate
+                master = candidate_master
+                break
         if master is None:
+            projection["quality_flags"].append("identifier_fact_unmatched")
             return
         projection["type_payload"] = {
             "fund_type": master["fund_type"],

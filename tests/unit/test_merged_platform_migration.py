@@ -10,7 +10,9 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import Column, MetaData, Table, Text, create_engine, inspect, text
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.schema import CreateIndex
 
 from data_layer.repositories.base import Base
 
@@ -145,6 +147,18 @@ def test_new_tables_define_identity_constraints_and_time_indexes():
     assert observation.c.observed_at.index is True
     assert domain_event.c.occurred_at.index is True
     assert notification.c.created_at.index is True
+
+
+def test_active_alert_event_partial_unique_index_is_declared_for_sqlite_and_postgresql():
+    alert_event = Base.metadata.tables["alert_event"]
+    index = next(item for item in alert_event.indexes if item.name == "uq_alert_event_rule_active")
+
+    assert index.unique is True
+    assert [column.name for column in index.columns] == ["rule_id"]
+    assert "status IN ('open', 'acknowledged')" in str(index.dialect_options["sqlite"]["where"])
+    postgresql_ddl = str(CreateIndex(index).compile(dialect=postgresql.dialect()))
+    assert "CREATE UNIQUE INDEX uq_alert_event_rule_active" in postgresql_ddl
+    assert "WHERE status IN ('open', 'acknowledged')" in postgresql_ddl
 
 
 def test_scheduler_and_research_invariants_have_named_database_constraints():
@@ -443,6 +457,50 @@ def test_015_to_018_upgrade_and_downgrade_on_sqlite(tmp_path: Path):
                 ) VALUES (
                     'note-invalid', 'note-key', 'workspace-1', 'run-1', 'claim-1', 1,
                     'claim', 'invalid dual source'
+                )
+                """))
+
+    with engine.begin() as connection:
+        connection.execute(text("""
+                INSERT INTO alert_rule (
+                    rule_id, asset_id, metric_type, metric_key, operator,
+                    threshold, status, state
+                ) VALUES (
+                    'rule-active-unique', 'asset-1', 'price', 'last', 'gt',
+                    '100', 'active', '{}'
+                )
+                """))
+        connection.execute(text("""
+                INSERT INTO alert_event (
+                    event_id, rule_id, observation_id, dedupe_key, status, triggered_at
+                ) VALUES (
+                    'event-open', 'rule-active-unique', 'obs-open', 'dedupe-open',
+                    'open', '2026-09-01T09:30:00+00:00'
+                )
+                """))
+
+    with pytest.raises(IntegrityError), engine.begin() as connection:
+        connection.execute(text("""
+                INSERT INTO alert_event (
+                    event_id, rule_id, observation_id, dedupe_key, status, triggered_at
+                ) VALUES (
+                    'event-ack', 'rule-active-unique', 'obs-ack', 'dedupe-ack',
+                    'acknowledged', '2026-09-01T09:31:00+00:00'
+                )
+                """))
+
+    with engine.begin() as connection:
+        connection.execute(text("""
+                UPDATE alert_event
+                SET status = 'resolved', resolved_at = '2026-09-01T09:32:00+00:00'
+                WHERE event_id = 'event-open'
+                """))
+        connection.execute(text("""
+                INSERT INTO alert_event (
+                    event_id, rule_id, observation_id, dedupe_key, status, triggered_at
+                ) VALUES (
+                    'event-ack', 'rule-active-unique', 'obs-ack', 'dedupe-ack',
+                    'acknowledged', '2026-09-01T09:33:00+00:00'
                 )
                 """))
 

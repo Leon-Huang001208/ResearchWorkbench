@@ -151,7 +151,13 @@ class FakeService:
             resolved_at=NOW if status is AlertEventStatus.RESOLVED else None,
         )
 
-    def list_notifications(self, profile_id: str, unread_only: bool = False) -> list[Notification]:
+    def list_notifications(
+        self,
+        profile_id: str,
+        unread_only: bool = False,
+        status: str | None = None,
+    ) -> list[Notification]:
+        self.notification_filter = status
         return [
             Notification(
                 notification_id="notification-1",
@@ -278,8 +284,8 @@ def test_alert_rule_status_and_event_lifecycle_routes(client_and_service):
 
 
 def test_notifications_expose_only_persisted_safe_payload_and_delivery_state(client_and_service):
-    client, _ = client_and_service
-    listed = client.get("/api/asset-observation/notifications?profile_id=local")
+    client, service = client_and_service
+    listed = client.get("/api/asset-observation/notifications?profile_id=local&status=pending")
     delivered = client.patch(
         "/api/asset-observation/notifications/notification-1/delivery",
         json={"status": "desktop_permission_denied"},
@@ -287,6 +293,7 @@ def test_notifications_expose_only_persisted_safe_payload_and_delivery_state(cli
 
     assert listed.status_code == 200
     assert listed.json()[0]["body"] == "stock-1 已满足提醒条件"
+    assert service.notification_filter == "pending"
     assert delivered.status_code == 200
     assert delivered.json()["status"] == "desktop_permission_denied"
 

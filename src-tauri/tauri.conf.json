@@ -9,6 +9,7 @@
     "beforeDevCommand": "node scripts/desktop/run_backend.js --host 127.0.0.1 --port 8765 --reload"
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
         "label": "main",

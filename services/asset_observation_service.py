@@ -195,12 +195,15 @@ class AssetObservationService:
         self,
         profile_id: str,
         unread_only: bool = False,
+        status: str | None = None,
     ) -> list[Notification]:
+        notification_status = NotificationStatus(status) if status is not None else None
         return [
             self._to_notification(row)
             for row in self._repository.list_notifications(
                 profile_id,
                 unread_only=unread_only,
+                status=notification_status,
             )
         ]
 

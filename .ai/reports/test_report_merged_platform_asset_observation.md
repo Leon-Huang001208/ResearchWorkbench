@@ -10,13 +10,17 @@
 - Kept Watchlist Items on stable canonical `asset_id`, with idempotent membership independent of vendor-code changes.
 - Added explicit peer rules for stock industry, index category, ETF tracking index/theme, and active-fund classification/benchmark.
 - Implemented fresh-only, unit-compatible false-to-true alert edges, continuous-true deduplication, false resolution, and cooldown-gated subsequent edges. Skipped/unusable evaluations are retained in Rule state; triggered Event and Notification records are persisted.
-- Registered the official Tauri notification plugin on Rust and JavaScript sides, added exactly three notification capabilities, and exposed a Rust command that accepts only bounded persisted summaries without logging message text.
+- Registered the official Tauri notification plugin, added exactly three notification capabilities, and enabled its no-bundler Tauri v2 global API. The frontend reads only persisted pending records, sends their API-provided title/body, persists delivery/denial/failure, and is a no-op outside Tauri; no Rust title/body command remains.
+- Serialized Alert evaluation through a Rule row lock and re-read, with an active-event partial unique index for PostgreSQL/SQLite and savepoint recovery that deduplicates conflicts without writing a Notification.
+- Preserved identifier scheme/value/market internally and validates prioritized candidates against the matching fact table instead of trusting the first alias.
 
 ## TDD evidence
 
 The three task test files were written before implementation. The first run produced the expected RED result: `20 failed, 10 errors`; service/repository/route modules were missing and the desktop plugin, capabilities, and bridge were absent. Repository tests were added before the repository and separately failed with the expected missing-module result. After implementation, the focused Python slice passed with `29 passed`, and the desktop bridge passed with `3 passed`.
 
 One GREEN run exposed a partial-schema history lookup failure (`no such table: stock_daily_bar`). The repository was hardened to keep the latest fact projection available when optional history storage is absent; the unchanged behavior test then passed.
+
+The independent follow-up review was also resolved through RED→GREEN. The added executable notification, active-event concurrency, API filter, and multi-identifier tests first reported `9 failed, 34 passed`; after the fixes the same target reported `43 passed`. The Node suite uses mocked `fetch` and `window.__TAURI__.notification` to execute granted, denied, failed, and Web no-op behavior rather than relying on static source checks.
 
 ## Verification
 
@@ -31,6 +35,11 @@ One GREEN run exposed a partial-schema history lookup failure (`no such table: s
 | `npm ci --ignore-scripts` | passed; lock file installed 4 packages, audit reported 0 vulnerabilities |
 | `python scripts/generate_py_file_index.py` | passed; generated index includes the new route, repository, and services |
 | `git diff --check` | passed |
+| `node --test tests/js/desktop_notifications.test.mjs` | `4 passed`; covered Web no-op, granted delivery, permission denial with inbox retention, and native delivery failure |
+| Follow-up related regression: Task 3 tests plus asset analysis, funds, merged contracts/migrations, and Alembic graph | `129 passed, 5 warnings in 3.79s`; warnings are existing FastAPI `on_event` and legacy `datetime.utcnow()` deprecations |
+| Follow-up `ruff check`, `black --check`, and `isort --check-only` on changed Python files | passed; the repository-wide legacy `models.py` rules `UP017,RUF012` remain explicitly ignored as pre-existing debt |
+| Follow-up `npm ci` | passed; 4 packages installed from lock, 0 vulnerabilities |
+| Follow-up `cargo fmt --check` and `cargo check --locked` | passed on local macOS; compile completed in 3.67s |
 
 ## Dependency record
 
@@ -40,6 +49,6 @@ One GREEN run exposed a partial-schema history lookup failure (`no such table: s
 
 ## Limits and risks
 
-- No live PostgreSQL integration test was run in this task. SQLite verifies repository reuse/idempotency and the existing migration suite verifies 015→018→014.
+- No live PostgreSQL server integration test was run in this task. SQLite verifies a real active-event uniqueness conflict and recoverable savepoint, the migration suite verifies 015→018→014 including the partial index, and PostgreSQL offline DDL compilation verifies the corresponding filtered unique-index statement.
 - Local macOS compilation is not Windows verification. Native Windows CI must build the sidecar and installed application, and release acceptance must test notification permission allow/deny and delivery on a real Windows installed app.
-- The Rust bridge is implemented without a new UI. A client must first read the persisted Notification, request or inspect native permission through the three allowed plugin operations, invoke the bounded bridge, and persist the resulting delivery state.
+- The existing no-bundler frontend initializes the global Tauri notification bridge after setup readiness. Native Windows delivery remains intentionally unclaimed until installed-app evidence exists.

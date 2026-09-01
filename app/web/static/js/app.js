@@ -27,6 +27,7 @@ import { initCommentaryCenter, selectCommentaryTemplate, loadCommentaryContext, 
 import { initConfigurationPage } from './configuration.js?v=20260727modalhierarchy1';
 import { initSetupWizard } from './setup-wizard.js?v=20260726setup1';
 import { initResearchWorkbench, openResearchCenter } from './research-workbench.js?v=20260811researchcenter1';
+import { initDesktopNotifications } from './desktop-notifications.js';
 
 // ─── Window Exports (for HTML onclick handlers) ────────────────
 window.apiCall = apiCall;
@@ -441,6 +442,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     initNavigationCuration();
+    void initDesktopNotifications();
 
     document.querySelectorAll('.dash-tab').forEach(tab => {
         tab.addEventListener('click', () => switchDashTab(tab.dataset.dashTab));

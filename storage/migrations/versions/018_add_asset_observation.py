@@ -98,6 +98,14 @@ def upgrade() -> None:
     op.create_index("ix_alert_event_observation_id", "alert_event", ["observation_id"])
     op.create_index("ix_alert_event_status", "alert_event", ["status"])
     op.create_index("ix_alert_event_triggered_at", "alert_event", ["triggered_at"])
+    op.create_index(
+        "uq_alert_event_rule_active",
+        "alert_event",
+        ["rule_id"],
+        unique=True,
+        postgresql_where=sa.text("status IN ('open', 'acknowledged')"),
+        sqlite_where=sa.text("status IN ('open', 'acknowledged')"),
+    )
 
     op.create_table(
         "notification",
