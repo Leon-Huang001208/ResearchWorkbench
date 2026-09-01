@@ -5,6 +5,7 @@ from datetime import UTC, date, datetime, timedelta
 import pytest
 
 from core.contracts.market_home import (
+    MainlineCandidateBatch,
     MainlineRank,
     MarketHomeSection,
     MarketHomeSectionKey,
@@ -58,18 +59,34 @@ class FakeMarketHomeRepository:
         self.live_calls = 0
 
     def read_live_section(
-        self, section_key: MarketHomeSectionKey, trading_day: date
+        self,
+        section_key: MarketHomeSectionKey,
+        trading_day: date,
+        *,
+        as_of: datetime,
     ) -> MarketHomeSection:
         self.live_calls += 1
         if section_key in self.failures:
             raise TimeoutError(section_key.value)
         return self.sections[section_key]
 
-    def read_mainline_candidates(self, trading_day: date) -> list[MainlineCandidate]:
+    def read_mainline_candidates(
+        self, trading_day: date, *, as_of: datetime
+    ) -> MainlineCandidateBatch:
         self.live_calls += 1
         if MarketHomeSectionKey.MARKET_MAINLINES in self.failures:
             raise TimeoutError("market_mainlines")
-        return self.candidates
+        section = self.sections[MarketHomeSectionKey.MARKET_MAINLINES]
+        return MainlineCandidateBatch(
+            candidates=self.candidates,
+            missing_components=[],
+            as_of=section.as_of,
+            observed_at=section.observed_at,
+            available_at=section.available_at,
+            source_refs=section.source_refs,
+            freshness_status=section.freshness_status,
+            quality_flags=section.quality_flags,
+        )
 
     def get_close_snapshots(self, trading_day: date) -> list[MarketHomeSnapshot]:
         return list(self.snapshots.get(trading_day, []))
@@ -174,6 +191,65 @@ def test_live_home_degrades_only_the_failed_section_and_keeps_five_sections() ->
     )
 
 
+def test_mainline_quality_failure_is_partial_and_names_missing_component() -> None:
+    now = datetime(2026, 9, 1, 10, 0, tzinfo=MarketHomeService.SHANGHAI_TZ)
+    repo = FakeMarketHomeRepository(now)
+    repo.candidates = [MainlineCandidate("gold", "黄金", 1, 1, 1, 1)]
+    original = repo.read_mainline_candidates
+
+    def partial_batch(trading_day: date, *, as_of: datetime) -> MainlineCandidateBatch:
+        batch = original(trading_day, as_of=as_of)
+        return batch.model_copy(
+            update={
+                "missing_components": [
+                    "solar:return:freshness:quarantined",
+                    "ai:verified_event_density:future_available_at",
+                ]
+            }
+        )
+
+    repo.read_mainline_candidates = partial_batch  # type: ignore[method-assign]
+
+    envelope = MarketHomeService(repo, now_provider=lambda: now).get_live()
+    mainline = next(
+        section
+        for section in envelope.sections
+        if section.section_key == MarketHomeSectionKey.MARKET_MAINLINES
+    )
+
+    assert mainline.status == SectionStatus.PARTIAL
+    assert mainline.degradation is not None
+    assert mainline.degradation.error_code == "mainline_components_incomplete"
+    assert mainline.degradation.missing_components == [
+        "solar:return:freshness:quarantined",
+        "ai:verified_event_density:future_available_at",
+    ]
+
+
+def test_mainline_missing_components_remain_partial_when_batch_is_also_stale() -> None:
+    now = datetime(2026, 9, 1, 10, 0, tzinfo=MarketHomeService.SHANGHAI_TZ)
+    repo = FakeMarketHomeRepository(now - timedelta(seconds=61))
+    repo.candidates = [MainlineCandidate("gold", "黄金", 1, 1, 1, 1)]
+    original = repo.read_mainline_candidates
+
+    def stale_partial_batch(trading_day: date, *, as_of: datetime) -> MainlineCandidateBatch:
+        return original(trading_day, as_of=as_of).model_copy(
+            update={"missing_components": ["solar:return:freshness:quarantined"]}
+        )
+
+    repo.read_mainline_candidates = stale_partial_batch  # type: ignore[method-assign]
+
+    mainline = MarketHomeService(repo, now_provider=lambda: now).get_live_section(
+        MarketHomeSectionKey.MARKET_MAINLINES
+    )
+
+    assert mainline.status == SectionStatus.PARTIAL
+    assert mainline.freshness_status == FreshnessStatus.STALE
+    assert mainline.degradation is not None
+    assert mainline.degradation.missing_components == ["solar:return:freshness:quarantined"]
+    assert any(flag.startswith("sla_breach:") for flag in mainline.quality_flags)
+
+
 @pytest.mark.parametrize(
     ("section_key", "age_seconds", "expected"),
     [
@@ -204,6 +280,7 @@ def test_section_sla_is_applied_independently(
     assert actual.status == (
         SectionStatus.STALE if expected == FreshnessStatus.STALE else SectionStatus.READY
     )
+    assert actual.age_seconds == float(age_seconds)
 
 
 def test_historical_read_never_calls_live_provider() -> None:
@@ -249,6 +326,22 @@ def test_close_snapshot_is_immutable_and_idempotent() -> None:
     assert repo.live_calls == live_calls_after_first
 
 
+def test_close_snapshot_preserves_unavailable_section_without_fake_provenance() -> None:
+    now = datetime(2026, 9, 1, 16, 0, tzinfo=MarketHomeService.SHANGHAI_TZ)
+    repo = FakeMarketHomeRepository(now)
+    repo.candidates = [MainlineCandidate("gold", "黄金", 1, 1, 1, 1)]
+    repo.failures.add(MarketHomeSectionKey.IMPORTANT_EVENTS)
+
+    snapshots = MarketHomeService(repo, now_provider=lambda: now).create_close_snapshot(now.date())
+    unavailable = next(
+        item for item in snapshots if item.section_key == MarketHomeSectionKey.IMPORTANT_EVENTS
+    )
+
+    assert unavailable.freshness_status == FreshnessStatus.UNAVAILABLE
+    assert unavailable.source_refs == []
+    assert unavailable.quality_flags == ["source_timeout"]
+
+
 def test_partial_close_snapshot_is_reported_as_conflict() -> None:
     now = datetime(2026, 9, 1, 16, 0, tzinfo=MarketHomeService.SHANGHAI_TZ)
     repo = FakeMarketHomeRepository(now)
@@ -272,3 +365,27 @@ def test_partial_close_snapshot_is_reported_as_conflict() -> None:
 
     with pytest.raises(SnapshotConflictError):
         MarketHomeService(repo, now_provider=lambda: now).create_close_snapshot(now.date())
+
+
+def test_unavailable_section_has_no_fabricated_source_but_ready_requires_one() -> None:
+    unavailable = MarketHomeSection(
+        section_key=MarketHomeSectionKey.GLOBAL_CONTEXT,
+        status=SectionStatus.UNAVAILABLE,
+        payload={},
+        as_of=datetime(2026, 9, 1, tzinfo=UTC),
+        observed_at=datetime(2026, 9, 1, tzinfo=UTC),
+        available_at=datetime(2026, 9, 1, tzinfo=UTC),
+        source_refs=[],
+        freshness_status=FreshnessStatus.UNAVAILABLE,
+        quality_flags=["source_timeout"],
+    )
+
+    assert unavailable.source_refs == []
+    with pytest.raises(ValueError, match="source_refs"):
+        MarketHomeSection(
+            **{
+                **unavailable.model_dump(),
+                "status": SectionStatus.READY,
+                "freshness_status": FreshnessStatus.FRESH,
+            }
+        )

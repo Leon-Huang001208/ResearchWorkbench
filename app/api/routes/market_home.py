@@ -126,6 +126,8 @@ async def _market_home_event_stream(
     request: Request,
     service: MarketHomeService,
     initial_events: list[MarketHomeInvalidationEvent],
+    *,
+    replay_only: bool = False,
 ) -> AsyncIterator[str]:
     last_event_id = request.headers.get("Last-Event-ID")
     pending = initial_events
@@ -134,6 +136,8 @@ async def _market_home_event_stream(
             for event in pending:
                 last_event_id = event.event_id
                 yield _format_market_home_sse_event(event)
+            if replay_only:
+                return
             if await request.is_disconnected():
                 break
             await asyncio.sleep(2.0)
@@ -152,6 +156,7 @@ async def _market_home_event_stream(
 @router.get("/events")
 async def stream_market_home_events(
     request: Request,
+    replay_only: bool = False,
     service: MarketHomeService = Depends(get_market_home_service),
 ) -> StreamingResponse:
     last_event_id = request.headers.get("Last-Event-ID")
@@ -166,7 +171,7 @@ async def stream_market_home_events(
         )
         raise HTTPException(status_code=500, detail="无法订阅市场首页事件。") from exc
     return StreamingResponse(
-        _market_home_event_stream(request, service, initial_events),
+        _market_home_event_stream(request, service, initial_events, replay_only=replay_only),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

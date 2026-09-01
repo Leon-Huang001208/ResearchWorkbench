@@ -9,7 +9,7 @@ from typing import Any
 
 from pydantic import AwareDatetime, BaseModel, Field, model_validator
 
-from core.contracts.platform_shared import FactResponseBase
+from core.contracts.platform_shared import FactResponseBase, FreshnessStatus, SourceRef
 
 
 class TradingStatus(str, Enum):
@@ -61,6 +61,13 @@ class MainlineCandidate:
     verified_event_density: float
 
 
+class MainlineCandidateBatch(FactResponseBase):
+    """Quality-gated same-watermark inputs plus explicit rejected components."""
+
+    candidates: list[MainlineCandidate] = Field(default_factory=list)
+    missing_components: list[str] = Field(default_factory=list)
+
+
 class MainlineComponents(BaseModel):
     """Versioned inputs to the transparent market-mainline score."""
 
@@ -87,8 +94,22 @@ class MarketHomeSection(FactResponseBase):
 
     section_key: MarketHomeSectionKey
     status: SectionStatus
+    age_seconds: float = Field(default=0.0, ge=0.0)
+    source_refs: list[SourceRef] = Field(default_factory=list)
     payload: dict[str, Any] = Field(default_factory=dict)
     degradation: SectionDegradation | None = None
+
+    @model_validator(mode="after")
+    def validate_failure_provenance(self) -> MarketHomeSection:
+        """Allow no source only for an explicitly unavailable section."""
+
+        is_unavailable = (
+            self.status == SectionStatus.UNAVAILABLE
+            and self.freshness_status == FreshnessStatus.UNAVAILABLE
+        )
+        if not self.source_refs and not is_unavailable:
+            raise ValueError("source_refs are required unless section is unavailable")
+        return self
 
 
 class MarketHomeEnvelope(BaseModel):
@@ -119,6 +140,15 @@ class MarketHomeSnapshot(FactResponseBase):
     formula_version: str = Field(min_length=1)
     payload: dict[str, Any] = Field(default_factory=dict)
     input_fact_refs: list[str] = Field(default_factory=list)
+    source_refs: list[SourceRef] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_snapshot_provenance(self) -> MarketHomeSnapshot:
+        """Permit an empty source list only for a captured unavailable failure."""
+
+        if not self.source_refs and self.freshness_status != FreshnessStatus.UNAVAILABLE:
+            raise ValueError("source_refs are required unless snapshot is unavailable")
+        return self
 
 
 class MarketHomeInvalidationEvent(BaseModel):

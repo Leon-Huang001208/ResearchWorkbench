@@ -4,6 +4,8 @@
 PostgreSQL 使用 on_conflict_do_update，SQLite fallback 用 check-then-update-or-insert。
 """
 
+import hashlib
+import json
 from datetime import date, datetime
 from typing import Any, Optional, cast
 
@@ -11,6 +13,7 @@ from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
+from core.contracts.market_home import MarketHomeSectionKey
 from core.observability import get_logger
 from data_layer.repositories.base import BaseRepository
 from data_layer.repositories.models import (
@@ -26,6 +29,10 @@ from data_layer.repositories.models import (
     StockQuoteSnapshotDB,
     StockShareholderDB,
     StockValuationDB,
+)
+from services.market_home_invalidation import (
+    aware_utc,
+    record_market_home_fact_update,
 )
 
 logger = get_logger(__name__)
@@ -165,6 +172,36 @@ class MarketDataRepository(BaseRepository):
         self.db.execute(text(""), {})  # no-op, placeholder for batch insert
         self.db.bulk_insert_mappings(cast(Any, StockQuoteSnapshotDB), quotes)
         self.db.flush()
+        quote_times = [
+            aware_utc(value if isinstance(value, datetime) else datetime.fromisoformat(str(value)))
+            for quote in quotes
+            if (value := quote.get("quote_time")) is not None
+        ]
+        if not quote_times:
+            raise ValueError("quote snapshots require quote_time")
+        identities = sorted(
+            (
+                {
+                    "symbol": str(quote.get("symbol") or ""),
+                    "source": str(quote.get("source") or ""),
+                    "quote_time": str(quote.get("quote_time") or ""),
+                }
+                for quote in quotes
+            ),
+            key=lambda item: (item["symbol"], item["source"], item["quote_time"]),
+        )
+        digest = hashlib.sha256(
+            json.dumps(identities, ensure_ascii=False, sort_keys=True).encode("utf-8")
+        ).hexdigest()
+        record_market_home_fact_update(
+            self.db,
+            [
+                MarketHomeSectionKey.A_SHARE_STATUS,
+                MarketHomeSectionKey.ASSET_MOVES,
+            ],
+            as_of=max(quote_times),
+            idempotency_key=f"quote-snapshots:{digest}",
+        )
         return len(quotes)
 
     # ── StockFinancialMetric ─────────────────────────────────────

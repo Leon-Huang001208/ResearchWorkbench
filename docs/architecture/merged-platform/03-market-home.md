@@ -25,27 +25,30 @@
 
 | API | 契约 |
 |---|---|
-| `GET /api/market-home/live` | 分 section 返回 facts、freshness、as_of、source refs 和 degradation |
+| `GET /api/market-home/live` | 分 section 返回 facts、freshness、as_of、`age_seconds`、source refs 和 degradation |
 | `GET /api/market-home/snapshots/{trading_day}` | 只读对应交易日不可变 close 快照 |
 | `GET /api/market-home/drill-down/{section_key}` | 返回组成事实、样本、单位和来源 |
-| `GET /api/market-home/events` | SSE：`event_id`、`section_key`、`as_of`、`sequence` |
+| `GET /api/market-home/events` | SSE：只含 `event_id`、`section_key`、`as_of`；`Last-Event-ID` 从持久 outbox 恢复 |
 
 公共类型为 `MarketHomeEnvelope`、`MarketHomeSection`、`MainlineRank`、`MainlineComponents`、`MarketHomeSnapshot` 和 `SectionDegradation`。`MarketHomeEnvelope` 校验 section key 集合严格等于五个枚举全集，每项恰好一次；所有 section 都有独立 `freshness_status`，整页不使用单一 fresh 标志。
 
 ## 主流程
 
-1. Repository 在一个一致性读窗口中查询行情、成交、市场宽度和事件密度。
-2. Service 对候选板块计算 percentile；`mainline-v1 = return×0.35 + turnover_change×0.30 + breadth×0.25 + event_density×0.10`。
-3. 返回每项 component、sample_size、formula_version 和输入事实时间，不只返回总分。
-4. 调度器按交易日时点固化 `market_home_snapshot`；同一幂等键重复运行返回既有快照。
-5. 事实更新只发布 section 失效事件，客户端重新获取受影响 section。
-6. 历史日期始终读取存档，不访问 live provider。
+1. Repository 按请求 `as_of` 查询事实。A 股状态和异动为每个活跃标的选取 `<= as_of` 的最新行情，返回覆盖率与最小/最大水位，不要求所有标的时间戳完全相同。
+2. 主线质量门只接收同一主题、同一 `as_of` 水位、单位匹配且 `available_at <= as_of` 的四项 fresh 事实；`stale|unavailable|quarantined`、非空 quality flags、未来可用时间和单位冲突均被排除并进入 `missing_components`。
+3. Service 对通过质量门的候选板块计算 percentile；`mainline-v1 = return×0.35 + turnover_change×0.30 + breadth×0.25 + event_density×0.10`。
+4. 返回每项 component、sample_size、formula_version 和输入事实时间，不只返回总分；任何候选缺项或冲突都将区块标为 `partial`，不得静默删除失败原因。
+5. API 生产启动时创建 `MarketHomeSchedulerRuntime`：它向通用 `SchedulerCoordinator` 注册 `market_home.close_snapshot` handler、确保当日持久 `scheduled_job` 存在，并由受控轮询线程消费到期任务；关闭时停止线程并释放协调器会话。同一交易日重复注册返回既有任务。快照依赖数据库唯一约束保持不可变，并发写入冲突后重读完整既有快照。
+6. 权威行情和 `DocumentEvent` 写入方在提交前、同一数据库事务中调用 `record_market_home_fact_update`，以来源批次幂等键写入 `market_home.section_invalidated` outbox；异常向上抛出并使整笔事实事务回滚。Theme Pack 写入方复用同一 helper：`market_home_global` 映射 `global_context`，`market_home_mainline` 及其四项组件映射 `market_mainlines`，未被首页消费的 observation 不发送首页失效事件。客户端收到 SSE 引用后重新获取受影响区块。
+7. 历史日期始终读取存档，不访问 live provider。
+
+重要事件区块不得返回 `DocumentEvent` 的模型 enrichment 字段（例如摘要、影响方向和置信度）。它只公开原始 `DocumentV1` 的标题、来源名、来源 URL、内容哈希、文档时间和文档锚点。明确 unavailable 的区块及其 close snapshot 允许 `source_refs=[]`，不得伪造 OFFICIAL 来源或假哈希；任何 ready/stale/partial 事实仍必须有真实来源。
 
 ## 状态与失败
 
 Section 状态为 `ready|stale|unavailable|partial`。来源超时、空样本、单位/口径冲突分别使用稳定错误码；`partial` 必须列出缺失 component，且不生成不可解释总分。单区块异常被捕获并结构化记录，其余区块仍返回 200；只有请求本身非法返回 4xx，核心存储不可用才沿用全局 setup/health 语义。
 
-SLA 以数据可用时间为起点：行情到达 30 秒内可见；市场聚合 60 秒内可见；事件到达系统后 15 秒内可见。SSE 仍只发送区块失效事件，客户端收到后重新读取聚合 API。响应必须报告实际 age，未达 SLA 时标记 stale/unavailable，不静默使用旧值。
+SLA 以数据可用时间为起点：行情到达 30 秒内可见；市场聚合 60 秒内可见；事件到达系统后 15 秒内可见。SSE 仍只发送区块失效事件，客户端收到后重新读取聚合 API。每个事实 section 通过 `age_seconds` 报告 `as_of` 到响应时刻的实际年龄；未达 SLA 时标记 stale/unavailable，不静默使用旧值。
 
 ## 可观测性
 
@@ -58,5 +61,7 @@ SLA 以数据可用时间为起点：行情到达 30 秒内可见；市场聚合
 - 历史测试使用 spy 断言 snapshot 查询从不调用 live provider。
 - 单区块故障注入确认整页非 500、错误码与 freshness 准确。
 - SSE 测试确认小载荷、有序重连和客户端重新读取聚合 API。
+- 权威行情与 `DocumentEvent` writer 测试确认事实和幂等 outbox 在一次提交中完成，并通过真实 HTTP `Last-Event-ID` 只恢复游标后的事件。
+- 调度集成测试确认启动注册 handler、持久化收盘任务、通用 Coordinator 消费任务并生成五区 close snapshot，关闭时停止消费线程。
 - SLA 测试分别覆盖 30s 行情到达、60s 市场聚合、15s 事件到达；过期值不可标 fresh。
 - 静态前端契约断言首页无 AI 自动摘要入口，钻取展示来源、时间、单位与公式。

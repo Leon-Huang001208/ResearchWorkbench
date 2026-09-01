@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 
 from core.contracts.market_home import (
     MainlineCandidate,
+    MainlineCandidateBatch,
     MainlineComponents,
     MainlineRank,
     MarketHomeEnvelope,
@@ -21,7 +22,7 @@ from core.contracts.market_home import (
     SectionStatus,
     TradingStatus,
 )
-from core.contracts.platform_shared import FreshnessStatus, SourceRef, SourceTier
+from core.contracts.platform_shared import FreshnessStatus, ScheduledJob
 from core.observability import get_logger
 
 logger = get_logger(__name__)
@@ -43,10 +44,16 @@ class MarketHomeRepositoryProtocol(Protocol):
     """Storage boundary used by the market-home service."""
 
     def read_live_section(
-        self, section_key: MarketHomeSectionKey, trading_day: date
+        self,
+        section_key: MarketHomeSectionKey,
+        trading_day: date,
+        *,
+        as_of: datetime,
     ) -> MarketHomeSection: ...
 
-    def read_mainline_candidates(self, trading_day: date) -> list[MainlineCandidate]: ...
+    def read_mainline_candidates(
+        self, trading_day: date, *, as_of: datetime
+    ) -> MainlineCandidateBatch: ...
 
     def get_close_snapshots(self, trading_day: date) -> list[MarketHomeSnapshot]: ...
 
@@ -57,6 +64,16 @@ class MarketHomeRepositoryProtocol(Protocol):
     def list_invalidation_events(
         self, last_event_id: str | None = None, *, limit: int = 100
     ) -> list[MarketHomeInvalidationEvent]: ...
+
+    def record_invalidation(
+        self,
+        section_key: MarketHomeSectionKey,
+        *,
+        as_of: datetime,
+        idempotency_key: str,
+    ) -> MarketHomeInvalidationEvent: ...
+
+    def ensure_close_snapshot_job(self, trading_day: date) -> ScheduledJob: ...
 
 
 class MarketHomeService:
@@ -172,6 +189,16 @@ class MarketHomeService:
             raise ValueError("now_provider must return a timezone-aware datetime")
         local_day = now.astimezone(self.SHANGHAI_TZ).date()
         sections = [self._read_live_section(key, local_day, now) for key in MarketHomeSectionKey]
+        logger.info(
+            "market home live projection completed",
+            trading_day=local_day.isoformat(),
+            trading_status=self.resolve_trading_status(
+                now, non_trading_days=self._non_trading_days
+            ).value,
+            unavailable_sections=sum(
+                section.status == SectionStatus.UNAVAILABLE for section in sections
+            ),
+        )
         return MarketHomeEnvelope(
             trading_day=local_day,
             trading_status=self.resolve_trading_status(
@@ -193,36 +220,55 @@ class MarketHomeService:
         self, section_key: MarketHomeSectionKey, trading_day: date, now: datetime
     ) -> MarketHomeSection:
         try:
-            section = self.repository.read_live_section(section_key, trading_day)
             if section_key == MarketHomeSectionKey.MARKET_MAINLINES:
-                ranks = self.rank_mainlines(self.repository.read_mainline_candidates(trading_day))
-                if not ranks:
+                batch = self.repository.read_mainline_candidates(trading_day, as_of=now)
+                ranks = self.rank_mainlines(batch.candidates)
+                if not ranks and not batch.missing_components:
                     return self._unavailable_section(
                         section_key, now, "empty_sample", retryable=True
                     )
-                section = section.model_copy(
-                    update={
-                        "payload": {
-                            "formula": (
-                                "return_percentile*0.35 + "
-                                "turnover_change_percentile*0.30 + "
-                                "breadth_percentile*0.25 + "
-                                "event_density_percentile*0.10"
-                            ),
-                            "formula_version": self.FORMULA_VERSION,
-                            "leading": [
-                                item.model_dump(mode="json")
-                                for item in ranks
-                                if item.direction == "leading"
-                            ],
-                            "weakening": [
-                                item.model_dump(mode="json")
-                                for item in ranks
-                                if item.direction == "weakening"
-                            ],
-                        }
-                    }
+                section = MarketHomeSection(
+                    section_key=section_key,
+                    status=(
+                        SectionStatus.PARTIAL if batch.missing_components else SectionStatus.READY
+                    ),
+                    payload={
+                        "formula": (
+                            "return_percentile*0.35 + "
+                            "turnover_change_percentile*0.30 + "
+                            "breadth_percentile*0.25 + "
+                            "event_density_percentile*0.10"
+                        ),
+                        "formula_version": self.FORMULA_VERSION,
+                        "leading": [
+                            item.model_dump(mode="json")
+                            for item in ranks
+                            if item.direction == "leading"
+                        ],
+                        "weakening": [
+                            item.model_dump(mode="json")
+                            for item in ranks
+                            if item.direction == "weakening"
+                        ],
+                    },
+                    degradation=(
+                        SectionDegradation(
+                            error_code="mainline_components_incomplete",
+                            retryable=True,
+                            missing_components=batch.missing_components,
+                        )
+                        if batch.missing_components
+                        else None
+                    ),
+                    as_of=batch.as_of,
+                    observed_at=batch.observed_at,
+                    available_at=batch.available_at,
+                    source_refs=batch.source_refs,
+                    freshness_status=batch.freshness_status,
+                    quality_flags=batch.quality_flags,
                 )
+            else:
+                section = self.repository.read_live_section(section_key, trading_day, as_of=now)
             return self._apply_sla(section, now)
         except TimeoutError:
             logger.warning(
@@ -241,20 +287,49 @@ class MarketHomeService:
             return self._unavailable_section(section_key, now, "source_error", retryable=True)
 
     def _apply_sla(self, section: MarketHomeSection, now: datetime) -> MarketHomeSection:
-        if section.freshness_status != FreshnessStatus.FRESH:
-            return section
         age_seconds = max(0.0, (now - section.available_at).total_seconds())
+        if section.freshness_status != FreshnessStatus.FRESH:
+            logger.info(
+                "market home section projected",
+                section_key=section.section_key.value,
+                status=section.status.value,
+                freshness_status=section.freshness_status.value,
+                actual_age_seconds=round(age_seconds, 3),
+                sla_seconds=self.SECTION_SLA_SECONDS[section.section_key],
+            )
+            return section.model_copy(update={"age_seconds": round(age_seconds, 3)})
         if age_seconds <= self.SECTION_SLA_SECONDS[section.section_key]:
-            return section
+            logger.info(
+                "market home section projected",
+                section_key=section.section_key.value,
+                status=section.status.value,
+                freshness_status=section.freshness_status.value,
+                actual_age_seconds=round(age_seconds, 3),
+                sla_seconds=self.SECTION_SLA_SECONDS[section.section_key],
+            )
+            return section.model_copy(update={"age_seconds": round(age_seconds, 3)})
         quality_flags = list(section.quality_flags)
         quality_flags.append(f"sla_breach:{round(age_seconds, 3)}s")
+        is_partial = section.status == SectionStatus.PARTIAL
+        logger.warning(
+            "market home section SLA breached",
+            section_key=section.section_key.value,
+            status=(SectionStatus.PARTIAL if is_partial else SectionStatus.STALE).value,
+            actual_age_seconds=round(age_seconds, 3),
+            sla_seconds=self.SECTION_SLA_SECONDS[section.section_key],
+        )
         return section.model_copy(
             update={
-                "status": SectionStatus.STALE,
+                "status": SectionStatus.PARTIAL if is_partial else SectionStatus.STALE,
+                "age_seconds": round(age_seconds, 3),
                 "freshness_status": FreshnessStatus.STALE,
                 "quality_flags": quality_flags,
-                "degradation": SectionDegradation(
-                    error_code="sla_breach", retryable=True, missing_components=[]
+                "degradation": (
+                    section.degradation
+                    if is_partial
+                    else SectionDegradation(
+                        error_code="sla_breach", retryable=True, missing_components=[]
+                    )
                 ),
             }
         )
@@ -275,14 +350,7 @@ class MarketHomeService:
             as_of=now,
             observed_at=now,
             available_at=now,
-            source_refs=[
-                SourceRef(
-                    source_id=f"market-home:{section_key.value}",
-                    name="Market Home Projection",
-                    tier=SourceTier.OFFICIAL,
-                    content_hash=f"unavailable:{error_code}",
-                )
-            ],
+            source_refs=[],
             freshness_status=FreshnessStatus.UNAVAILABLE,
             quality_flags=[error_code],
         )
@@ -303,6 +371,30 @@ class MarketHomeService:
         """Read durable invalidation references for SSE replay and polling."""
 
         return self.repository.list_invalidation_events(last_event_id)
+
+    def record_fact_update(
+        self,
+        section_key: MarketHomeSectionKey,
+        *,
+        as_of: datetime,
+        idempotency_key: str,
+    ) -> MarketHomeInvalidationEvent:
+        """Write the durable section-invalidated outbox row after a fact update."""
+
+        if as_of.tzinfo is None or as_of.utcoffset() is None:
+            raise ValueError("as_of must be timezone-aware")
+        if not idempotency_key.strip():
+            raise ValueError("idempotency_key is required")
+        return self.repository.record_invalidation(
+            section_key,
+            as_of=as_of,
+            idempotency_key=idempotency_key,
+        )
+
+    def schedule_close_snapshot(self, trading_day: date) -> ScheduledJob:
+        """Ensure one persistent close-snapshot job exists for the trading day."""
+
+        return self.repository.ensure_close_snapshot_job(trading_day)
 
     def create_close_snapshot(self, trading_day: date) -> list[MarketHomeSnapshot]:
         """Create the five close rows once; repeat calls return the immutable rows."""

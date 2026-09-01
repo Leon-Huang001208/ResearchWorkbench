@@ -13,6 +13,7 @@ AlphaFoundry v1 文档 Repository.
 - report_run_v1 表的 CRUD 操作
 """
 
+import hashlib
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -32,8 +33,10 @@ from core.contracts import (
     SourceCursorV1,
     SourceType,
 )
+from core.contracts.market_home import MarketHomeSectionKey
 from core.observability import get_logger
 from core.utils.id_gen import generate_id
+from services.market_home_invalidation import record_market_home_fact_update
 
 from .base import BaseRepository
 from .models import (
@@ -482,6 +485,13 @@ class DocumentEventV1Repository(BaseRepository):
         """创建事件"""
         db_event = DocumentEventV1DB.from_contract(event)
         self.db.add(db_event)
+        self.db.flush()
+        record_market_home_fact_update(
+            self.db,
+            [MarketHomeSectionKey.IMPORTANT_EVENTS],
+            as_of=event.created_at,
+            idempotency_key=f"document-events:{event.event_id}",
+        )
         self.db.commit()
         self.db.refresh(db_event)
         return db_event.to_contract()
@@ -489,7 +499,18 @@ class DocumentEventV1Repository(BaseRepository):
     def bulk_create(self, events: List[DocumentEventV1]) -> List[DocumentEventV1]:
         """批量创建事件"""
         db_events = [DocumentEventV1DB.from_contract(e) for e in events]
+        if not db_events:
+            return []
         self.db.add_all(db_events)
+        self.db.flush()
+        event_ids = sorted(event.event_id for event in events)
+        digest = hashlib.sha256("\n".join(event_ids).encode("utf-8")).hexdigest()
+        record_market_home_fact_update(
+            self.db,
+            [MarketHomeSectionKey.IMPORTANT_EVENTS],
+            as_of=max(event.created_at for event in events),
+            idempotency_key=f"document-events:{digest}",
+        )
         self.db.commit()
         for db_event in db_events:
             self.db.refresh(db_event)

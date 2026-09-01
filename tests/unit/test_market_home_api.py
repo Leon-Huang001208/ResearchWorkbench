@@ -4,6 +4,9 @@ import json
 from datetime import UTC, date, datetime
 
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from app.api.main import app
 from app.api.routes.market_home import (
@@ -20,6 +23,9 @@ from core.contracts.market_home import (
     TradingStatus,
 )
 from core.contracts.platform_shared import FreshnessStatus, SourceRef, SourceTier
+from data_layer.repositories.base import Base
+from data_layer.repositories.market_home_repository import MarketHomeRepository
+from services.market_home_service import MarketHomeService as RealMarketHomeService
 from services.market_home_service import SnapshotConflictError, SnapshotNotFoundError
 
 NOW = datetime(2026, 9, 1, 8, 0, tzinfo=UTC)
@@ -121,6 +127,7 @@ def test_market_home_routes_expose_live_and_close_snapshots() -> None:
 
         assert live.status_code == 200
         assert len(live.json()["sections"]) == 5
+        assert all("age_seconds" in section for section in live.json()["sections"])
         assert drill_down.status_code == 200
         assert drill_down.json()["section_key"] == "market_mainlines"
         assert historical.status_code == 200
@@ -165,3 +172,41 @@ def test_sse_payload_is_only_an_invalidation_reference_and_supports_resume() -> 
         "as_of": "2026-09-01T08:00:00Z",
     }
     assert "payload" not in data
+
+
+def test_fact_update_is_resumed_over_http_after_last_event_id() -> None:
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(bind=engine)
+    session = sessionmaker(bind=engine)()
+    service = RealMarketHomeService(MarketHomeRepository(session), now_provider=lambda: NOW)
+    first = service.record_fact_update(
+        MarketHomeSectionKey.A_SHARE_STATUS,
+        as_of=NOW,
+        idempotency_key="http-resume-1",
+    )
+    second = service.record_fact_update(
+        MarketHomeSectionKey.IMPORTANT_EVENTS,
+        as_of=NOW,
+        idempotency_key="http-resume-2",
+    )
+    app.dependency_overrides[get_market_home_service] = lambda: service
+    try:
+        client = TestClient(app)
+
+        response = client.get(
+            "/api/market-home/events?replay_only=true",
+            headers={"Last-Event-ID": first.event_id},
+        )
+
+        assert response.status_code == 200
+        assert f"id: {second.event_id}" in response.text
+        assert f"id: {first.event_id}" not in response.text
+        assert '"section_key":"important_events"' in response.text
+    finally:
+        app.dependency_overrides.pop(get_market_home_service, None)
+        session.close()
+        Base.metadata.drop_all(bind=engine)
