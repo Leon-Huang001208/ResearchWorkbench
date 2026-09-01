@@ -19,7 +19,7 @@
 - Alert 不读取 Research Claim/Note、模型文本或策略评分作为事实条件。
 - stale、unavailable、quarantined 数据不得触发；冲突 `quality_flags` 必须阻断评估；0 不得被当作缺失。
 - 通知不得包含密钥、完整研究文本、附件正文或未脱敏来源 payload。
-- Task 3 已添加官方 `tauri-plugin-notification` 与三项最小 capability；站内记录仍是权威。原生 Windows CI 与真实 Windows 安装级烟测完成前不得宣称 Windows 系统通知已验证。
+- Task 3 已添加官方 `tauri-plugin-notification` 与三项最小 capability；remote scope 只允许 packaged bootstrap 使用的 `http://127.0.0.1:8765/*`，不允许 localhost、其他 host 或通配端口。站内记录仍是权威。原生 Windows CI 与真实 Windows 安装级烟测完成前不得宣称 Windows 系统通知已验证。
 - 权限拒绝、桌面桥接失败不得丢失站内通知或改变 Alert 状态。
 
 ## 公共 API 与类型

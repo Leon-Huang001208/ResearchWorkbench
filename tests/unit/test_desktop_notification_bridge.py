@@ -34,6 +34,7 @@ def test_notification_capability_grants_only_three_required_operations():
         "notification:allow-request-permission",
         "notification:allow-notify",
     }
+    assert capability["remote"] == {"urls": ["http://127.0.0.1:8765/*"]}
 
 
 def test_frontend_uses_global_tauri_notification_api_without_rust_payload_command():

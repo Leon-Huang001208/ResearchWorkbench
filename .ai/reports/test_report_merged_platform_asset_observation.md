@@ -22,6 +22,8 @@ One GREEN run exposed a partial-schema history lookup failure (`no such table: s
 
 The independent follow-up review was also resolved through RED→GREEN. The added executable notification, active-event concurrency, API filter, and multi-identifier tests first reported `9 failed, 34 passed`; after the fixes the same target reported `43 passed`. The Node suite uses mocked `fetch` and `window.__TAURI__.notification` to execute granted, denied, failed, and Web no-op behavior rather than relying on static source checks.
 
+The release capability review found that the packaged bootstrap's `http://127.0.0.1:8765/` navigation is a Tauri remote origin. A new exact-origin test first failed because the capability had no `remote` entry, then passed after adding only `http://127.0.0.1:8765/*`; notification permission scope remains exactly three operations and no wildcard port or `localhost` alias is authorized.
+
 ## Verification
 
 | Command | Actual result |
@@ -40,6 +42,7 @@ The independent follow-up review was also resolved through RED→GREEN. The adde
 | Follow-up `ruff check`, `black --check`, and `isort --check-only` on changed Python files | passed; the repository-wide legacy `models.py` rules `UP017,RUF012` remain explicitly ignored as pre-existing debt |
 | Follow-up `npm ci` | passed; 4 packages installed from lock, 0 vulnerabilities |
 | Follow-up `cargo fmt --check` and `cargo check --locked` | passed on local macOS; compile completed in 3.67s |
+| Release capability gate: Node behavior + Python bridge + Cargo format/check | `4` Node tests and `4` Python tests passed; locked macOS Cargo check completed in 3.64s; generated schemas had no diff |
 
 ## Dependency record
 
